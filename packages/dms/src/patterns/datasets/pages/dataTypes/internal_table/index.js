@@ -1,10 +1,11 @@
 import Table from "../gis_dataset/pages/table"
-import Upload from "./pages/upload";
-import Validate from "./pages/validate";
+import Upload from "../internal/pages/upload";
+import Validate from "../internal/pages/validate";
 import Metadata from "../gis_dataset/pages/metadata";
-import Admin from "./pages/admin";
+import Admin from "../internal/pages/admin";
+import SourceCreate from "./pages/sourceCreate";
 
-const InternalDatasetConfig = {
+const InternalTableConfig = {
     admin: {
         name: "Admin",
         path: "/admin",
@@ -19,7 +20,7 @@ const InternalDatasetConfig = {
     metadata: {
         name: "Metadata",
         path: "/metadata",
-        cdn: () => false, // hide from nav
+        cdn: () => false,
         component: Metadata,
     },
     upload: {
@@ -32,6 +33,10 @@ const InternalDatasetConfig = {
         path: "/validate",
         component: Validate,
     },
+    sourceCreate: {
+        name: "Create",
+        component: SourceCreate,
+    },
 };
 
-export default InternalDatasetConfig;
+export default InternalTableConfig;

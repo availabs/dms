@@ -20,6 +20,7 @@ import TaskPage from "./pages/dataTypes/default/Tasks/TaskPage";
 import csv_dataset from "./pages/dataTypes/csv_dataset";
 import gis_dataset from "./pages/dataTypes/gis_dataset";
 import internal_dataset from "./pages/dataTypes/internal";
+import internal_table from "./pages/dataTypes/internal_table";
 
 const datasetsConfig = ({
     app,
@@ -58,7 +59,7 @@ const datasetsConfig = ({
                           theme, app, type, siteType,
                           parent: pattern, API_HOST, DAMA_HOST,
                           authPermissions,
-                          damaDataTypes: { csv_dataset, gis_dataset, internal_dataset, ...damaDataTypes },
+                          damaDataTypes: { csv_dataset, gis_dataset, internal_dataset, internal_table, ...damaDataTypes },
                           isUserAuthed: (reqPermissions, customAuthPermissions) => isUserAuthed({ user, authPermissions: customAuthPermissions || authPermissions, reqPermissions }),
                       }}>
                           <ThemeContext.Provider value={{ theme, UI }}>

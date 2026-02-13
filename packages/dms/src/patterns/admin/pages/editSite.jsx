@@ -76,6 +76,7 @@ function PatternList({
 	const [addingNew, setAddingNew] = React.useState(false);
 	const [editingItem, setEditingItem] = React.useState(undefined);
 	const [isDuplicating, setIsDuplicating] = React.useState(false);
+	const [deletingItem, setDeletingItem] = React.useState(undefined);
 	const attrToAddNew = ['pattern_type', 'name', 'subdomain', 'base_url', 'filters', 'authPermissions'];
 	//console.log('test 123', location)
 	const columns = [
@@ -94,18 +95,47 @@ function PatternList({
 		},
 		{name: 'subdomain', display_name: 'Subdomain', show: true, type: 'text'},
 		// {name: 'updated_at', display_name: 'Updated', show: true, type: 'text', formatFn: 'date'},
-		{name: 'edit', display_name: 'Edit', show: true, type: 'ui',
+		{name: 'edit', display_name: '', show: true, type: 'ui',
       Comp: (d) => {
         return (
-          <div className='flex items-center justify-center w-full h-full py-1'>
-            <Link to={d?.row?.edit_url || ''} div className='flex  items-center px-2 py-1 text-sm text-slate-700 bg-slate-200 rounded-full'>
-              <Icon icon='PencilEditSquare' className='size-5'/><span className='pl-1'>Edit</span>
+          <div className='flex items-center justify-center gap-1 w-full h-full py-1'>
+            <Link to={d?.row?.edit_url || ''} className='flex items-center px-2 py-1 text-sm text-slate-700 bg-slate-200 hover:bg-slate-300 rounded-full'>
+              <Icon icon='PencilEditSquare' className='size-4'/><span className='pl-1'>Edit</span>
             </Link>
+            <button
+              className='p-1.5 text-slate-400 hover:text-blue-600 rounded-full hover:bg-blue-50'
+              title='Duplicate'
+              disabled={isDuplicating}
+              onClick={async () => {
+                const newDocType = crypto.randomUUID();
+                const dataToCopy = {
+                  app: d.row.app,
+                  base_url: `${d.row.base_url}_copy`,
+                  subdomain: d.row.subdomain,
+                  config: d.row.config,
+                  doc_type: newDocType,
+                  name: `${d.row.name}_copy`,
+                  pattern_type: d.row.pattern_type,
+                  auth_level: d.row.auth_level,
+                  filters: d.row.filters,
+                  theme: d.row.theme,
+                };
+                await duplicate({oldType: d.row.doc_type, newType: newDocType}, dataToCopy);
+              }}
+            >
+              <Icon icon='Copy' className='size-4'/>
+            </button>
+            <button
+              className='p-1.5 text-slate-400 hover:text-red-600 rounded-full hover:bg-red-50'
+              title='Delete'
+              onClick={() => setDeletingItem(d.row)}
+            >
+              <Icon icon='TrashCan' className='size-4'/>
+            </button>
           </div>
         )
       }
 		}
-
 	]
 
 	const dmsServerPath = `${API_HOST}/dama-admin`;
@@ -193,6 +223,37 @@ function PatternList({
 								onClick={() => addNewValue({...newItem, doc_type: crypto.randomUUID()})}
 							>
 								add
+							</Button>
+						</div>
+					</div>
+				</Modal>
+
+				<Modal open={Boolean(deletingItem)} setOpen={setDeletingItem}>
+					<div className='flex flex-col gap-4 p-2'>
+						<div className='text-lg font-semibold text-slate-700'>Delete Pattern</div>
+						<div className='text-sm text-slate-500'>
+							Are you sure you want to delete <span className='font-medium text-slate-700'>{deletingItem?.name || deletingItem?.doc_type}</span>?
+							This will remove the pattern from the site. This action cannot be undone.
+						</div>
+						<div className='flex items-center justify-end gap-2'>
+							<Button
+								type='plain'
+								className='px-3 py-1.5 text-sm text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg'
+								onClick={() => setDeletingItem(undefined)}
+							>
+								Cancel
+							</Button>
+							<Button
+								type='plain'
+								className='px-3 py-1.5 text-sm text-white bg-red-500 hover:bg-red-600 rounded-lg'
+								onClick={() => {
+									const newData = value.filter(v => v.id !== deletingItem.id);
+									onChange(newData);
+									onSubmit(newData);
+									setDeletingItem(undefined);
+								}}
+							>
+								Delete
 							</Button>
 						</div>
 					</div>

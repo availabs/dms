@@ -372,7 +372,7 @@ function createRoutes(controller = createController('dms-sqlite')) {
       route: "dms.data.delete",
       call: function(callPath, args) {
         const [app, type, ...ids] = args;
-        return controller.deleteData(ids, this.user).then((rows) => [
+        return controller.deleteData(app, type, ids, this.user).then((rows) => [
           ...ids.map((id) => ({
             path: ["dms", "data", "byId", id],
             invalidated: true,

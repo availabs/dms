@@ -110,9 +110,12 @@ export default function ({attributes, item, dataItems, apiLoad, apiUpdate, updat
     const envs = useMemo(() => buildEnvsForListing(datasources, format), [datasources, format]);
     const pgEnv = getExternalEnv(datasources);
     const [filteredCategories, setFilteredCategories] = useState([]);
+    const [showUncategorized, setShowUncategorized] = useState(true);
     const [isListAll, setIsListAll] = useState(false);
 
     useEffect(() => {
+        // Invalidate UDA cache to get fresh data (e.g., after creating a source in CreatePage)
+        Object.keys(envs).forEach(e => falcor.invalidate(['uda', e, 'sources']));
         getSources({envs, falcor, apiLoad, user}).then(data => {
             setSources(data);
             sourcesCache.set(cacheKey, data);
@@ -125,6 +128,9 @@ export default function ({attributes, item, dataItems, apiLoad, apiUpdate, updat
             const settings = get(res, ["json", "dama-info", pgEnv, "settings"]);
             const parsed = typeof settings === 'string' ? JSON.parse(settings || '{}') : (settings || {});
             setFilteredCategories(parsed.filtered_categories || []);
+            if (parsed.show_uncategorized !== undefined) {
+                setShowUncategorized(parsed.show_uncategorized);
+            }
         });
     }, [pgEnv]);
 
@@ -134,11 +140,11 @@ export default function ({attributes, item, dataItems, apiLoad, apiUpdate, updat
         if (isListAll || isSearching) return sources || [];
         return (sources || []).filter(source => {
             const cats = (Array.isArray(source?.categories) ? source.categories : []).map(c => c[0]);
-            if (!cats.length) return false;
+            if (!cats.length) return showUncategorized;
             if (!filteredCategories.length) return true;
             return !cats.every(c => filteredCategories.includes(c));
         });
-    }, [sources, filteredCategories, isListAll, isSearching]);
+    }, [sources, filteredCategories, showUncategorized, isListAll, isSearching]);
 
     const categories = useMemo(() => [...new Set(
         (visibleSources || [])

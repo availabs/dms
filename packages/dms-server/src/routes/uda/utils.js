@@ -1,4 +1,5 @@
 const { getDb } = require('#db/index.js');
+const { resolveTable, ensureSequence, ensureTable, getSequenceName } = require('#db/table-resolver.js');
 
 // ================================================= SQL Sanitization ================================================
 
@@ -57,9 +58,8 @@ async function getEssentials({ env, view_id, options = {} }) {
   const db = getDb(isDms ? (process.env.DMS_DB_ENV || 'dms-sqlite') : env);
 
   if (isDms) {
+    const splitMode = process.env.DMS_SPLIT_MODE || 'legacy';
     const [app, rawType] = env.split('+');
-    const table_schema = db.type === 'postgres' ? 'dms' : 'main';
-    const table_name = 'data_items';
 
     // For DMS, the type may be suffixed with -view_id for versioned data
     let type = rawType;
@@ -71,6 +71,7 @@ async function getEssentials({ env, view_id, options = {} }) {
       const sanitisedType = sanitizeName(rawType.replace(`-${view_id}`, '').replace('-invalid-entry', ''));
 
       if (sanitisedApp && sanitisedType) {
+        // View/source records are always in data_items (not split)
         const tbl = db.type === 'postgres' ? 'dms.data_items' : 'data_items';
         const versionTypeRows = await db.query(
           `SELECT type AS version_type FROM ${tbl} WHERE app = $1 AND id = $2`,
@@ -95,6 +96,16 @@ async function getEssentials({ env, view_id, options = {} }) {
           dmsAttributes = JSON.parse(configRows?.rows?.[0]?.config || '{}')?.attributes || [];
         }
       }
+    }
+
+    // Resolve the correct table for this (app, type) pair
+    const { schema: table_schema, table: table_name } = resolveTable(app, type, db.type, splitMode);
+
+    // Ensure split tables exist (no-op for data_items)
+    if (table_name !== 'data_items') {
+      const seqName = getSequenceName(app, db.type, splitMode);
+      await ensureSequence(db, app, db.type, splitMode);
+      await ensureTable(db, table_schema, table_name, db.type, seqName);
     }
 
     return { isDms, db, app, type, table_schema, table_name, dmsAttributes };
@@ -126,7 +137,9 @@ async function getDataTableFromViewId({ db, view_id }) {
  */
 async function getSitePatterns({ db, app }) {
   const tbl = db.type === 'postgres' ? 'dms.data_items' : 'data_items';
-  const sql = `SELECT id FROM ${tbl} WHERE app = $1 AND type = 'pattern'`;
+  // Pattern records created via updateDMSAttrs have type like 'undefined|pattern' or 'siteType|pattern',
+  // while test/legacy records may have plain 'pattern'. Match both.
+  const sql = `SELECT id FROM ${tbl} WHERE app = $1 AND (type = 'pattern' OR type LIKE '%|pattern')`;
   const { rows } = await db.query(sql, [app]);
   return rows.map(r => r.id);
 }

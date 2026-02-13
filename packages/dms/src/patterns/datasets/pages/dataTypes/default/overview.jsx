@@ -21,6 +21,7 @@ const RenderPencil = ({theme = {}, editing, setEditing, attr, show}) => {
 export default function Overview ({
   apiUpdate,
   format,
+  item,
   source, setSource,
   params,
   isDms
@@ -36,6 +37,7 @@ export default function Overview ({
 
     const [editing, setEditing] = useState();
     const [showAllColumns, setShowAllColumns] = useState(false);
+    const views = isDms ? (item?.views || []) : (source?.views || []);
 
     let columns = useMemo(() =>
         isDms ? isJson(source.config) ? JSON.parse(source.config)?.attributes : [] :
@@ -170,7 +172,7 @@ export default function Overview ({
                 <div className={theme.sectionHeader || 'flex items-center p-2 mx-4 text-blue-600 hover:bg-blue-50 rounded-md'}>
                     Versions
                     <span className={theme.sectionBadge || 'bg-blue-200 text-blue-600 text-xs p-1 ml-2 shrink-0 grow-0 rounded-lg flex items-center justify-center border border-blue-300'}>
-                        {(source?.views || []).length}
+                        {views.length}
                     </span>
                 </div>
 
@@ -178,7 +180,7 @@ export default function Overview ({
                     <Table
                         gridRef={ref}
                         columns={
-                            ['name', 'created_at', 'updated_at', 'download'].map(col => ({
+                            (isDms ? ['name'] : ['name', 'created_at', 'updated_at', 'download']).map(col => ({
                                 name: col,
                                 display_name: col === 'created_at' ? 'created' : col === 'updated_at' ? 'updated' : col,
                                 type: 'ui',
@@ -186,7 +188,7 @@ export default function Overview ({
                                     if (col === 'name') {
                                         return (
                                             <div {...rest}>
-                                                <Link to={`${pageBaseUrl}/${params.id}/version/${row?.id || row?.view_id}`}>
+                                                <Link to={`${pageBaseUrl}/${params.id}/version/${row?.view_id || row?.id}`}>
                                                     {value || 'No Name'}
                                                 </Link>
                                             </div>
@@ -220,10 +222,10 @@ export default function Overview ({
                                 align: 'left'
                             }))
                         }
-                        data={(source?.views || [])}
+                        data={views}
                         pageSize={5}
                         striped={true}
-                        sortBy={'created_at'}
+                        sortBy={isDms ? 'name' : 'created_at'}
                         sortOrder={'desc'}
                     />
                 </div>

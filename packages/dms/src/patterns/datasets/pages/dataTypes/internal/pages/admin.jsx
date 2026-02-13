@@ -1,20 +1,17 @@
 import React, {useContext, useEffect, useState} from "react";
-import { DatasetsContext } from "../../../context";
-import { AuthContext } from "../../../../auth/context"
+import { DatasetsContext } from "../../../../context";
+import { AuthContext } from "../../../../../auth/context"
 import { cloneDeep } from "lodash-es";
-import {useNavigate, Link} from "react-router";
-import {updateSourceData, parseIfJson} from "./utils";
-import { getExternalEnv } from "../../../utils/datasources";
-import TaskList from "./Tasks/TaskList";
+import {Link} from "react-router";
+import {updateSourceData, parseIfJson} from "../../default/utils";
+
 const buttonRedClass = 'p-2 mx-1 bg-red-500 hover:bg-red-700 text-white rounded-md';
 const buttonGreenClass = 'p-2 mx-1 bg-green-500 hover:bg-green-700 text-white rounded-md';
 
 const DeleteSourceBtn = ({parent, source, apiUpdate, baseUrl}) => {
-    // update parent to exclude source. the source still stays in the DB.
     const {UI} = useContext(DatasetsContext);
     const {DeleteModal} = UI;
     const [showDeleteModal, setShowDeleteModal] = useState(false);
-    const navigate = useNavigate();
 
     const deleteSource = async () => {
         const parentType = parent.ref.split('+')[1];
@@ -30,7 +27,6 @@ const DeleteSourceBtn = ({parent, source, apiUpdate, baseUrl}) => {
         data.sources = data.sources.filter(s => s.id !== source.id);
 
         await apiUpdate({data, config});
-        // navigate(baseUrl)
         window.location.assign(baseUrl);
     }
     return (
@@ -55,34 +51,36 @@ const DeleteSourceBtn = ({parent, source, apiUpdate, baseUrl}) => {
     )
 }
 
-const AddViewBtn = ({source, format, apiLoad, apiUpdate}) => {
-    // update parent to exclude source. the source still stays in the DB.
+/**
+ * AddViewBtn — follows the forms pattern.
+ * Uses `item` (DMS data_items row with .id) rather than `source` (UDA object with .source_id).
+ * dmsDataEditor needs data.id to locate the item, and format.attributes must include
+ * the views dms-format attribute (ensured by the sourceFormat fix in SourcePage).
+ */
+const AddViewBtn = ({item, format, apiUpdate}) => {
     const {UI} = useContext(DatasetsContext);
     const {Modal} = UI;
-    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [showModal, setShowModal] = useState(false);
     const [name, setName] = useState('');
-    const navigate = useNavigate();
-    const defaultViewName = `version ${(source?.views?.length || 0) + 1}`;
+    const defaultViewName = `version ${(item?.views?.length || 0) + 1}`;
 
     const addView = async () => {
         const config = {format}
-        const data = cloneDeep(source);
+        const data = cloneDeep(item);
         data.views = [...(data.views || []), {name: name || defaultViewName}];
 
-        const res = await apiUpdate({data, config});
-        // navigate(baseUrl)
-        // window.location.assign(baseUrl);
+        await apiUpdate({data, config});
     }
+    console.log('add view btn', item)
     return (
         <>
-            <button disabled={!source.id} className={buttonGreenClass} onClick={() => setShowDeleteModal(true)}>Add Version</button>
-
-            <Modal open={showDeleteModal} setOpen={(v) => setShowDeleteModal(v)}>
+            <button disabled={!item.id} className={buttonGreenClass} onClick={() => setShowModal(true)}>Add Version</button>
+            <Modal open={showModal} setOpen={(v) => setShowModal(v)}>
                 <input key={'view-name'} placeholder={defaultViewName} value={name} onChange={e => setName(e.target.value)}/>
                 <button className={buttonGreenClass} onClick={() => {
                     async function add() {
                         await addView()
-                        setShowDeleteModal(false)
+                        setShowModal(false)
                     }
 
                     add()
@@ -92,36 +90,10 @@ const AddViewBtn = ({source, format, apiLoad, apiUpdate}) => {
     )
 }
 
-const AddExternalVersionBtn = ({source}) => {
-    const {UI, damaDataTypes} = useContext(DatasetsContext);
-    const {Modal, Button} = UI;
-    const [showModal, setShowModal] = useState(false);
-
-    const sourceType = source?.categories?.[0]?.[0]; // source identifier. this is how the source is named in the script. this used to be type.
-    const sourceDataType = source?.type; // csv / gis / analysis
-    const sourcePages = damaDataTypes[sourceType] || damaDataTypes[sourceDataType] || {};
-    const CreatePage = sourcePages?.sourceCreate?.component;
-
-    return (
-        <>
-            <Button onClick={() => setShowModal(true)}>Add Version</Button>
-
-            <Modal
-                title={`Add Version`} open={showModal}
-                setOpen={(v) => setShowModal(v)}
-            >
-                {
-                    !CreatePage ? `Can't add version.` : <CreatePage source={source} context={DatasetsContext}/>
-                }
-            </Modal>
-        </>
-    )
-}
-const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params, isDms }) => {
+const Admin = ({ apiUpdate, apiLoad, format, item, source, setSource, params }) => {
     const {id} = params;
-    const {app, API_HOST, baseUrl, pageBaseUrl, user, parent, UI, falcor, damaDataTypes, datasources} = React.useContext(DatasetsContext) || {};
-    const pgEnv = getExternalEnv(datasources);
-    const {AuthAPI, ...restAuth} = React.useContext(AuthContext) || {};
+    const {app, baseUrl, pageBaseUrl, user, parent, UI, falcor, datasources} = React.useContext(DatasetsContext) || {};
+    const {AuthAPI} = React.useContext(AuthContext) || {};
     const [users, setUsers] = React.useState([]);
     const [groups, setGroups] = React.useState([]);
     const {Select, Input, Button} = UI;
@@ -142,8 +114,6 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params, isDms })
 
     if(!user || !user.token) return <></>
 
-    // todo add setAuth feature for internal and external sources.
-    // use statistics column. make a route to update sources.
     return (
             <div className={'p-2'}>
                 <div className={'flex gap-12'}>
@@ -160,7 +130,7 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params, isDms })
                                                 [e.target.value]: "1",
                                             },
                                         };
-                                        updateSourceData({data: ({auth: newAuth}), attrKey: 'statistics', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id})
+                                        updateSourceData({data: ({auth: newAuth}), attrKey: 'statistics', isDms: true, apiUpdate, setSource, format, source, falcor, id})
                                     }}
                             />
 
@@ -171,7 +141,7 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params, isDms })
                                 </div>
                                 {
                                     Object.entries(parseIfJson(source?.statistics, {})?.auth?.users || {})
-                                        .map(([userId, authLevel]) => <div className={'grid grid-cols-3'}>
+                                        .map(([userId, authLevel]) => <div key={userId} className={'grid grid-cols-3'}>
                                             <div>{users.find(user => +user.id === +userId)?.email}</div>
                                             <Input type={'text'} value={authLevel} onChange={e => {
                                                 const newAuth = {
@@ -181,7 +151,7 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params, isDms })
                                                         [userId]: e.target.value,
                                                     },
                                                 };
-                                                updateSourceData({data: ({auth: newAuth}), attrKey: 'statistics', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id})
+                                                updateSourceData({data: ({auth: newAuth}), attrKey: 'statistics', isDms: true, apiUpdate, setSource, format, source, falcor, id})
                                             }} />
                                             <Button className={'w-fit'}
                                                     onClick={() => {
@@ -191,7 +161,7 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params, isDms })
 
                                                         delete newAuth.users[userId];
 
-                                                        updateSourceData({data: ({auth: newAuth}), attrKey: 'statistics', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id})
+                                                        updateSourceData({data: ({auth: newAuth}), attrKey: 'statistics', isDms: true, apiUpdate, setSource, format, source, falcor, id})
                                                     }}>remove</Button>
                                         </div>)
                                 }
@@ -210,7 +180,7 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params, isDms })
                                                 [e.target.value]: "1",
                                             },
                                         };
-                                        updateSourceData({data: ({auth: newAuth}), attrKey: 'statistics', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id})
+                                        updateSourceData({data: ({auth: newAuth}), attrKey: 'statistics', isDms: true, apiUpdate, setSource, format, source, falcor, id})
                                     }}
                             />
 
@@ -221,7 +191,7 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params, isDms })
                                 </div>
                                 {
                                     Object.entries(parseIfJson(source?.statistics, {})?.auth?.groups || {})
-                                        .map(([groupName, authLevel]) => <div className={'grid grid-cols-3'}>
+                                        .map(([groupName, authLevel]) => <div key={groupName} className={'grid grid-cols-3'}>
                                             <div>{groupName}</div>
                                             <Input type={'text'} value={authLevel} onChange={e => {
                                                 const newAuth = {
@@ -231,7 +201,7 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params, isDms })
                                                         [groupName]: e.target.value,
                                                     },
                                                 };
-                                                updateSourceData({data: ({auth: newAuth}), attrKey: 'statistics', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id})
+                                                updateSourceData({data: ({auth: newAuth}), attrKey: 'statistics', isDms: true, apiUpdate, setSource, format, source, falcor, id})
                                             }} />
                                             <Button className={'w-fit'}
                                                     onClick={() => {
@@ -241,7 +211,7 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params, isDms })
 
                                                         delete newAuth.groups[groupName];
 
-                                                        updateSourceData({data: ({auth: newAuth}), attrKey: 'statistics', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id})
+                                                        updateSourceData({data: ({auth: newAuth}), attrKey: 'statistics', isDms: true, apiUpdate, setSource, format, source, falcor, id})
                                                     }}>remove</Button>
                                         </div>)
                                 }
@@ -252,31 +222,11 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params, isDms })
                     <div className={'w-1/4'}>
                         <div className={'flex flex-col gap-4 shadow-lg rounded-md place-content-center p-4'}>
                             <Button><Link to={`${pageBaseUrl}/${id}/metadata`}>Advanced Metadata</Link></Button>
-                            {
-                                isDms ? (
-                                    <>
-                                        <AddViewBtn source={source} format={format} apiLoad={apiLoad} apiUpdate={apiUpdate}/>
-                                        {/*<ClearDataBtn app={app} type={source.doc_type} apiLoad={apiLoad} apiUpdate={apiUpdate}/>*/}
-                                        <DeleteSourceBtn parent={parent} source={source} apiUpdate={apiUpdate} baseUrl={baseUrl}/>
-                                    </>
-                                ) : (
-                                    <>
-                                        <AddExternalVersionBtn source={source} />
-                                        <Button>Delete</Button>
-                                    </>
-                                )
-                            }
-
+                            <AddViewBtn item={item} format={format} apiUpdate={apiUpdate}/>
+                            <DeleteSourceBtn parent={parent} source={source} apiUpdate={apiUpdate} baseUrl={baseUrl}/>
                         </div>
                     </div>
                 </div>
-                {
-                    isDms ? null : (
-                        <div className={'w-full pt-12'}>
-                            <TaskList sourceId={source.source_id} />
-                        </div>
-                    )
-                }
             </div>
     )
 }

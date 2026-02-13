@@ -19,7 +19,10 @@
 - [x] Implement `uda` routes in dms-server — UDA Falcor routes (sources, views, filtered data queries) for DMS and DAMA databases, based on avail-falcor reference, PostgreSQL only (no ClickHouse)
 - [x] Implement auth in dms-server — JWT middleware, auth/user/group/project/message/preferences endpoints, cross-DB queries, authority checks, compatible with avail-falcor auth API
 - [x] PostgreSQL test support — Docker-managed PostgreSQL, parameterize all test suites, `npm run test:pg` / `test:all`
-- [ ] Fix auth DB init race condition — `getDb()` returns before async init completes, causing "no such table: users"; add `awaitReady()`, support multi-role configs
+- [x] Fix auth DB init race condition — `getDb()` returns before async init completes, causing "no such table: users"; add `awaitReady()`, support multi-role configs
+- [ ] Table splitting — per-app table isolation (`data_items__{app}`) + per-type overflow tables (`data_items__{app}__{type}`) for dataset row data. **Tier 1: DONE** (table-resolver.js, controller integration, UDA integration, 52 tests). Tier 2: per-app isolation (adds `app` to `byId`/`edit` routes, backwards-compatible dual routes, migration script)
+- [x] Database copy CLI — `src/scripts/copy-db.js` copies all DMS data between databases (PG↔SQLite, same-type), preserving IDs, handling cross-DB types, batch processing, split table discovery
+- [x] Dead row cleanup CLI — `src/scripts/cleanup-db.js` analyzes DMS database for orphaned rows (sections without pages, patterns without sites, views without sources), grouped by app+type, with optional `--delete` mode
 
 ## ui
 
@@ -51,20 +54,26 @@
 
 ### patterns/datasets
 
+- [x] Fix dataset creation → listing bug — getSitePatterns LIKE query, dmsSiteFactory siteType, DatasetsList category filter, UDA cache invalidation
 - [x] Modernize datasets pattern — own defaultTheme, context-only siteConfig wrapper, per-page Layout, UI components throughout
 - [x] DatasetsList style cleanup — transparent container, card/sidebar backgrounds, spacing, full-height, design pass, performance
 - [x] Fix internal_source blank page — `getSourceData` doesn't include source's own ID in result, causes blank page when UDA `source_id` attribute is unset
 - [x] Source overview cleanup — theme-driven styling, width constraint, show both display_name + column name, remove table height cap, tighten metadata layout
 - [x] Datasets create page — extract create flow from DatasetsList modal into dedicated `/create` route with full-page layout
 - [x] Datasets settings page — category visibility settings, filtered/all toggle on list page, settings link for authed users
+- [ ] `internal_table` dataset type — new type combining creation + upload in one step, auto-creates first version, uses split tables for per-version data storage
+- [x] Custom admin page for internal dataset types — version creation follows forms pattern (uses DMS `item` with `.id`), SourcePage allows datatype admin overrides
 
 ### patterns/forms
 
 ### patterns/admin
 
 - [x] Update admin theme merges to use `mergeTheme` (siteConfig.jsx, editTheme.jsx, themeEditor.jsx)
+- [x] Add delete & duplicate buttons to admin pattern overview — port actions from old `PatternEdit` modal to pattern editor Overview tab + list table
 
 ### patterns/auth
+
+- [x] Fix `/groups/byproject` response shape — dms-server returns plain array, client expects `{ groups: [...] }` wrapper with synthetic "public" group
 
 ## project maintenance
 

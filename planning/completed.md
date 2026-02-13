@@ -16,6 +16,10 @@
 - [fix-sqlite-pages-missing-index.md](./tasks/completed/fix-sqlite-pages-missing-index.md) - Fixed searchOne returning null for root page: `||` dropping falsy `0` + SQLite `->>` type mismatch (2026-01-28)
 - [dms-server-auth.md](./tasks/completed/dms-server-auth.md) - Implemented full auth system: JWT middleware, 45 endpoints (auth/user/group/project/message/preferences), cross-DB queries, authority checks, created_by/updated_by pipeline, 103 integration tests (2026-02-09)
 - [dms-server-postgres-tests.md](./tasks/completed/dms-server-postgres-tests.md) - PostgreSQL test support: Docker lifecycle helper, parameterized test-graph/test-workflow/test-auth for dual DB, npm scripts (test:pg, test:all), fixed COUNT bigint + boolean cross-DB bugs (2026-02-09)
+- [uda-routes.md](./tasks/completed/uda-routes.md) - UDA Falcor routes: unified query interface for DMS (JSON data_items) and DAMA (sources/views/tables) databases, PostgreSQL only (2026-02-08)
+- [auth-db-init-race.md](./tasks/completed/auth-db-init-race.md) - Fixed auth DB init race condition: `getDb()` returns before async init completes causing "no such table: users"; added `awaitReady()`, multi-role config support (2026-02-08)
+- [dms-dead-row-cleanup.md](./tasks/completed/dms-dead-row-cleanup.md) - Dead row cleanup CLI: analyzes DMS database for 5 orphan types (patterns, pages, sections, sources, views), PostgreSQL-optimized SQL path, optional --delete mode, 40 integration tests (2026-02-13)
+- [dms-db-copy.md](./tasks/completed/dms-db-copy.md) - Database copy CLI: cross-DB copy (PG↔SQLite), ::TEXT cast optimization, unnest() bulk PG inserts, split table discovery, sequence sync, --batch-size flag, 61 integration tests (2026-02-13)
 
 ## ui
 
@@ -45,11 +49,16 @@
 - [source-overview-cleanup.md](./tasks/completed/source-overview-cleanup.md) - Source overview cleanup: theme-driven styling (sourceOverview + sourcePage themes), tab jitter/active state fix, loading flash fix, width constraint, column display_name + name, versions table with downloads, SourcePage rename + theme split (2026-02-09)
 - [datasets-create-page.md](./tasks/completed/datasets-create-page.md) - Datasets create page: extracted modal create flow into dedicated `/create` route with Layout/Breadcrumbs, type selector, external create component support, clone flow; replaced Add button with Link on DatasetsList (2026-02-09)
 - [datasets-settings-page.md](./tasks/completed/datasets-settings-page.md) - Datasets settings page: category visibility settings with two-column toggle, filtered/all toggle on list page, settings gear link for authed users, category breadcrumbs + sub-category nesting in sidebar, no-category sources filtered (2026-02-09)
+- [fix-dataset-listing-bug.md](./tasks/completed/fix-dataset-listing-bug.md) - Fixed dataset listing bug: getSitePatterns LIKE query, dmsSiteFactory siteType, DatasetsList category filter for uncategorized sources, UDA cache invalidation (2026-02-13)
+- [internal-dataset-admin-page.md](./tasks/completed/internal-dataset-admin-page.md) - Custom admin page for internal datasets: version creation via DMS item.id, SourcePage datatype admin overrides, auto-navigate to latest view, overview shows versions (2026-02-13)
 
 ### patterns/forms
 
 ### patterns/admin
 
 - [update-admin-theme-merges.md](./tasks/completed/update-admin-theme-merges.md) - Updated admin theme merges in siteConfig.jsx, editTheme.jsx, and themeEditor.jsx to use `mergeTheme` (2026-01-28)
+- [admin-pattern-delete-duplicate.md](./tasks/completed/admin-pattern-delete-duplicate.md) - Added delete and duplicate buttons to admin pattern overview: ported actions from old PatternEdit modal to pattern editor Overview tab and list table (2026-02-08)
 
 ### patterns/auth
+
+- [auth-groups-byproject-shape.md](./tasks/completed/auth-groups-byproject-shape.md) - Fixed /groups/byproject response shape: wrapped plain array in { groups: [...] } with synthetic "public" group, 104 auth tests pass (2026-02-13)

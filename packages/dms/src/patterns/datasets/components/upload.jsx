@@ -2,6 +2,7 @@ import React, { useState, useEffect, useContext} from 'react'
 import {InfoCircle} from "../../admin/ui/icons";
 import {get} from "lodash-es";
 import { getExternalEnv } from "../utils/datasources";
+import { update } from 'lodash-es';
 
 const preventDefaults = e => {
     e.preventDefault();
@@ -142,9 +143,11 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate,
     // 5. choose an id column to update data if there's id match.
 
     const {API_HOST, user, falcor, datasources} = useContext(context);
-    const pgEnv = getExternalEnv(datasources);
+    const pgEnv = getExternalEnv(datasources) || 'hazmit_dama';
     const damaServerPath = `${API_HOST}/dama-admin/${pgEnv}`;
     const dmsServerPath = `${API_HOST}/dama-admin`;
+    console.log('testing', damaServerPath, dmsServerPath)
+
 
     const [loading, setLoading] = useState(false);
     const [publishing, setPublishing] = useState(false);
@@ -161,6 +164,7 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate,
     // {Flooding: {pivotColumn: 'associated_hazards'}
     // pivotColumns: {finalCOlName: [srcCol1, srcCol2, srcCol3, ...]}
     const updateMetaData = (data, attrKey) => {
+        console.log('updateMetaData', updateMeta, data, attrKey)
         if(!updateMeta) return;
         apiUpdate({data: {...parent, ...{[attrKey]: data}}, config: {format, type: format?.type?.replace(`-${view_id}`, '')}})
     }

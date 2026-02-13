@@ -100,7 +100,7 @@ async function groupsForProject(db, { token, project }) {
     });
   }
 
-  return visible;
+  return { groups: [{ name: 'public' }, ...visible] };
 }
 
 /** POST /group/create — create group (auth ≥ 5 in avail_auth) */

@@ -42,3 +42,8 @@ CREATE TABLE IF NOT EXISTS formats (
 -- Index for formats
 CREATE INDEX IF NOT EXISTS idx_formats_app_type
     ON formats (app, type);
+
+-- Global ID sequence for table splitting (legacy mode).
+-- Split tables use IDs pre-allocated from this shared sequence
+-- to ensure global uniqueness across data_items and all split tables.
+CREATE TABLE IF NOT EXISTS dms_id_seq (id INTEGER PRIMARY KEY AUTOINCREMENT);

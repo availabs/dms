@@ -3,6 +3,7 @@ import {Link, useNavigate} from "react-router";
 import {DatasetsContext} from "../context";
 import {ThemeContext} from "../../../ui/useTheme";
 import {getSourceData} from "./dataTypes/default/utils";
+import {loadDmsItem} from "../utils/dmsItems";
 import { getExternalEnv } from "../utils/datasources";
 import Breadcrumbs from "../components/Breadcrumbs";
 import Overview from "./dataTypes/default/overview"
@@ -10,6 +11,7 @@ import Admin from "./dataTypes/default/admin"
 import Version from "./dataTypes/default/version"
 
 const fixedPages = ['overview', 'admin']
+const viewDependentPages = ['table', 'upload', 'validate', 'map']
 
 const overviewNav = {name: 'Overview', href: '', viewDependentPage: false}
 const adminNav = {name: 'Admin', href: 'admin', viewDependentPage: false}
@@ -54,10 +56,13 @@ export default function ({ apiLoad, apiUpdate, format, item, params, isDms }) {
     const pgEnv = getExternalEnv(datasources);
     const [source, setSource] = useState(isDms ? item : {});
     const [loading, setLoading] = useState(false);
+    const [dmsItem, setDmsItem] = useState(null);
     const {id, view_id, page} = params;
 
-    // Derive source-specific format (with |source type suffix) and pageBaseUrl
-    const sourceFormat = { ...format, type: `${format.type}|source` };
+    // Derive source-specific format from registerFormats (has views as dms-format attribute).
+    // Falling back to shallow spread preserves existing behavior for non-standard formats.
+    const sourceFormat = (format.registerFormats || []).find(f => f.type === `${format.type}|source`)
+        || { ...format, type: `${format.type}|source` };
     const pageBaseUrl = isDms ? `${baseUrl}/internal_source` : `${baseUrl}/source`;
 
     useEffect(() => {
@@ -77,6 +82,11 @@ export default function ({ apiLoad, apiUpdate, format, item, params, isDms }) {
         }
     }, [isDms, item.config])
 
+    useEffect(() => {
+        if (!isDms || !id) return;
+        loadDmsItem(apiLoad, sourceFormat, id).then(setDmsItem);
+    }, [isDms, id])
+
     const sourceLoaded = !!(source.id || source.source_id);
 
     const sourceType = isDms ? 'internal_dataset' : source?.categories?.[0]?.[0]; // source identifier. this is how the source is named in the script. this used to be type.
@@ -85,17 +95,32 @@ export default function ({ apiLoad, apiUpdate, format, item, params, isDms }) {
 
     const sourcePagesNavItems =
         (Object.values(sourcePages) || [])
-            .map(p => ({
-                name: p.name,
-                href: (p.path || p.href || '').replace('/', ''),
-                cdn: p.cdn // condition fn with arguments ({isDms, sourceType}) to control visibility in nav
-            }))
+            .map(p => {
+                const href = (p.path || p.href || '').replace('/', '');
+                return {
+                    name: p.name,
+                    href,
+                    cdn: p.cdn, // condition fn with arguments ({isDms, sourceType}) to control visibility in nav
+                    viewDependentPage: viewDependentPages.includes(href),
+                };
+            })
             .filter(p => p.href && !fixedPages.includes(p.href));
 
     const allNavItems = [overviewNav, ...sourcePagesNavItems, adminNav];
-    const showVersionSelector = ['table', 'upload', 'validate', 'map'].includes(page);
+    const views = isDms ? (dmsItem?.views || []) : (source.views || []);
+    const showVersionSelector = viewDependentPages.includes(page);
 
-    const Page = fixedPages.includes(page) ? defaultPages[page] : (sourcePages[page]?.component || defaultPages[page] || Overview);
+    // Auto-navigate to latest view when on a view-dependent page without a view_id
+    useEffect(() => {
+        if (!showVersionSelector || view_id || !views.length) return;
+        const latest = views[views.length - 1];
+        const latestId = latest.view_id || latest.id;
+        if (latestId) {
+            navigate(`${pageBaseUrl}/${id}/${page}/${latestId}`, {replace: true});
+        }
+    }, [showVersionSelector, view_id, views.length])
+
+    const Page = sourcePages[page]?.component || defaultPages[page] || Overview;
 
     const breadcrumbItems = [
         {icon: 'Database', href: baseUrl},
@@ -129,13 +154,14 @@ export default function ({ apiLoad, apiUpdate, format, item, params, isDms }) {
                                     value={view_id}
                             >
                                 <option key={'default'} value={undefined}>No version selected</option>
-                                {(source.views || []).map(view => <option key={view.id} value={view.view_id || view.id}>{view.name || view.id}</option>)}
+                                {views.map(view => <option key={view.id} value={view.view_id || view.id}>{view.name || view.id}</option>)}
                             </select>
                         )}
                     </div>
                     <LayoutGroup>
                         {sourceLoaded ? (
                             <Page format={sourceFormat}
+                                  item={isDms && dmsItem ? dmsItem : item}
                                   source={source} setSource={setSource}
                                   params={params}
                                   isDms={isDms}

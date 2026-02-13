@@ -13,12 +13,17 @@
     "test:graph": "node tests/test-graph.js",
     "test:workflow": "node tests/test-workflow.js",
     "test:uda": "node tests/test-uda.js",
+    "test:splitting": "node tests/test-table-splitting.js",
     "test:auth": "node tests/test-auth.js",
     "test:pg:start": "node tests/postgres-docker.js start",
     "test:pg:stop": "node tests/postgres-docker.js stop",
     "test:pg": "node tests/postgres-docker.js run",
     "test:pg:auth": "node tests/postgres-docker.js run tests/test-auth.js",
-    "test:all": "npm test && npm run test:auth && npm run test:pg"
+    "test:db-copy": "node tests/test-db-copy.js",
+    "test:db-cleanup": "node tests/test-db-cleanup.js",
+    "test:all": "npm test && npm run test:auth && npm run test:pg",
+    "db:copy": "node src/scripts/copy-db.js",
+    "db:cleanup": "node src/scripts/cleanup-db.js"
   },
   "imports": {
     "#db/*.js": "./src/db/*.js",
