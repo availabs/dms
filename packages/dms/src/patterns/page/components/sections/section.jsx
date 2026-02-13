@@ -207,7 +207,7 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
     const updateAttribute = (k, v) => {
         const newV = {...value, [k]: v}
         if (!isEqual(value, newV)) {
-            onChange?.(i, newV) // pageView doesn't pass onChange
+            // onChange?.(i, newV) // pageView doesn't pass onChange
         }
     }
     const updateElementType = (v) => {
@@ -269,7 +269,7 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
         : component?.controls;
 
     const canEditSection = isUserAuthed(['edit-section'], sectionAuthPermissions);
-
+    console.log('state', state)
     return (
         <ComponentContext.Provider value={{state, setState, apiLoad, apiUpdate, controls: resolvedControls, isActive, activeStyle: value?.activeStyle}}>
             <div className={editPageMode && hideSection ? theme.wrapperHidden : theme.wrapper} style={{pageBreakInside: "avoid"}}>

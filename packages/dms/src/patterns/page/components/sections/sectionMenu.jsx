@@ -28,6 +28,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
         ? currentComponent.controls(theme)
         : currentComponent?.controls;
     const currentComponentStyle = theme[currentComponent?.themeKey || currentComponent?.name];
+    console.log('cc', resolvedControls, currentComponent)
 
     // =================================================================================================================
     // ======================================== menu item groups begin =================================================
@@ -168,17 +169,15 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                             name: getColumnLabel(column), icon: column.show ? 'Eye' : '',
                             column, // to match back to state after reordering
                             items: [
-                                {icon: 'PencilSquare', // fucks up
+                                {icon: 'PencilSquare',
                                     name: 'Name',
                                     type: 'input',
                                     showLabel: true,
                                     value: getColumnLabel(column),
                                     onChange: e => updateColumns(column, 'customName', e.target.value, undefined, setState)
                                 },
-                                ...[
-                                    ...(resolvedControls?.columns || []),
-                                    ...(resolvedControls?.inHeader || [])
-                                ].map(control => {
+                                ...(resolvedControls?.columns || []).map(control => {
+                                    console.log('resolved control', control)
                                     const isDisabled = typeof control.disabled === 'function' ? control.disabled({attribute: column}) : control.disabled;
                                     return ({
                                         name: control.label,
@@ -236,7 +235,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
 
 
     const filter = [
-        {name: 'Filters', icon: 'Filter', cdn: () => currentComponent?.useDataSource && canEditSection,
+        {name: 'Filters', icon: 'Filter', cdn: () => isEdit && currentComponent?.useDataSource && canEditSection,
             items: [
                 {name: 'Filter Groups Component', type: () => <ComplexFilters state={state} setState={setState} />}
             ]}

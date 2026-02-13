@@ -20,6 +20,7 @@ export const convertOldState = (state, initialState, compName) => {
         .filter(c => Array.isArray(c.internalFilter) || Array.isArray(c.externalFilter) || Array.isArray(c.internalExclude))
         .map(c => c.name);
     if(oldFilters?.length) {
+        // should be safe to deprecate
         oldState.columns = oldState.columns.map(column => ({
             ...column,
             internalFilter: undefined,
@@ -37,24 +38,63 @@ export const convertOldState = (state, initialState, compName) => {
         return oldState;
     }
     if(oldState?.dataRequest) {
+        const existingFilterGroups = oldState.dataRequest?.filterGroups;
+        const hasExistingFilterGroups = existingFilterGroups?.groups?.length > 0;
+
+        // Convert all column-based filters (including duplicates) to filterGroups conditions.
+        const convertedConditions = [];
+
         oldState.columns = oldState.columns.map(column => {
-            if(column.filters?.length){
-                column.filters = column.filters.map(f => ({...f, usePageFilters: f.usePageFilters || f.allowSearchParams}))
+            // Only process filters with actual data (skip empty objects from previous bad conversions)
+            const realFilters = (column.filters || []).filter(f => f.operation);
+            if (!realFilters.length) {
+                // Clean up leftover empty filter objects
+                if (column.filters?.length) column.filters = undefined;
                 return column;
             }
-            return column
-        })
+
+            realFilters.forEach(f => {
+                const isScalar = ['gt', 'gte', 'lt', 'lte', 'like'].includes(f.operation);
+                const condition = {
+                    op: f.operation,
+                    col: column.name,
+                    value: isScalar
+                        ? (Array.isArray(f.values) ? f.values[0] : f.values)
+                        : (f.values || []),
+                };
+                if (f.type === 'external') condition.isExternal = true;
+                if (f.usePageFilters || f.allowSearchParams) condition.usePageFilters = true;
+                if (f.searchParamKey) condition.searchParamKey = f.searchParamKey;
+                if (f.isMulti) condition.isMulti = true;
+                if (f.fn) condition.fn = f.fn;
+
+                convertedConditions.push(condition);
+            });
+
+            // Clear filters from column after migration
+            column.filters = undefined;
+            return column;
+        });
+
+        // Assign converted filters to filterGroups (only if no existing filterGroups)
+        if (convertedConditions.length && !hasExistingFilterGroups) {
+            oldState.dataRequest.filterGroups = {
+                op: oldState.display?.filterRelation || 'AND',
+                groups: convertedConditions
+            };
+        }
+
         if(![true, false].includes(oldState?.display?.preventDuplicateFetch)) {
             oldState.display.preventDuplicateFetch = true;
         }
-        // if(oldState?.display?.allowEditInView || oldState.columns.find(c => Array.isArray(c.filters) && c.filters?.find(f => f.usePageFilters))) oldState.data = [];
-        // if(oldState.display.useCache === undefined) oldState.display.useCache = true;
-        return oldState; // return already valid state.}
+        return oldState;
     }
 
     if(!Array.isArray(oldState?.attributes)) {
         return initialState
-    };
+    }
+
+    // old component structure. should be deprecated by now.
 
     const columns = (oldState.attributes || []).map(column => ({
         ...column,
@@ -119,5 +159,6 @@ export const convertOldState = (state, initialState, compName) => {
             column.meta_lookup)
             .reduce((acc, column) => ({...acc, [column.name]: column.meta_lookup}), {})
     }
+    console.log('old component structure. should be deprecated by now.')
     return {columns, display, sourceInfo, dataRequest, data: oldState.data || []};
 }

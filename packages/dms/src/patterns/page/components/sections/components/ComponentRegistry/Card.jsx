@@ -223,7 +223,6 @@ export default {
         columns: [
             // settings from columns dropdown are stored in state.columns array, per column
             {type: 'toggle', label: 'show', key: 'show'},
-            {type: 'toggle', label: 'Filter', key: 'filters', trueValue: [{type: 'internal', operation: 'filter', values: []}]},
             {type: 'toggle', label: 'Group', key: 'group'},
             {type: 'select', label: 'Fn', key: 'fn',
                 options: [
