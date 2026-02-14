@@ -54,7 +54,7 @@ const Comps = {
   }
 }
 
-const MenuItem = ({menuItem, setActiveParent, activeStyle}) => {
+const MenuItem = ({menuItem, setActiveParent, goBack, goHome, changeParent, activeStyle}) => {
   const { theme: fullTheme = { navigableMenu: defaultTheme } } = React.useContext(ThemeContext) || {};
   const theme = getComponentTheme(fullTheme, 'navigableMenu', activeStyle);
 
@@ -82,18 +82,23 @@ const MenuItem = ({menuItem, setActiveParent, activeStyle}) => {
 
   if(typeof menuItem.type === 'function') {
     return (
-      <div key={menuItem.name} className={theme?.menuItem}>
-        {menuItem.type(menuItem)}
+      <div key={menuItem.name} className={`${theme?.menuItem} ${menuItem.noHover ? '' : theme?.menuItemHover}`}>
+        {menuItem.type(menuItem, { goBack, goHome, changeParent })}
       </div>
     )
   }
 
   const hasChildren = menuItem?.items?.length;
+  const handleClick = hasChildren
+    ? () => setActiveParent(menuItem.id)
+    : menuItem.onClickGoBack ? goBack
+    : menuItem.onClickGoHome ? goHome
+    : menuItem.onClick;
 
   return (
     <div key={menuItem.id}
          className={`${theme?.menuItem} ${theme?.menuItemHover}`}
-         onClick={hasChildren ? () => setActiveParent(menuItem.id) : menuItem.onClick}
+         onClick={handleClick}
     >
       <div className={theme?.menuItemIconLabelWrapper}>
         <Icon className={theme?.menuItemIconWrapper} icon={menuItem?.icon} />
@@ -114,7 +119,7 @@ const MenuItem = ({menuItem, setActiveParent, activeStyle}) => {
 }
 
 
-const Menu = ({config, title, showTitle=true, open, setOpen, activeStyle}) => {
+const Menu = ({config, title, showTitle=true, showBreadcrumbs, open, setOpen, activeStyle}) => {
   const menuRef = useRef();
   const { theme: fullTheme = { navigableMenu: defaultTheme } } = React.useContext(ThemeContext) || {};
   const theme = getComponentTheme(fullTheme, 'navigableMenu', activeStyle);
@@ -125,6 +130,17 @@ const Menu = ({config, title, showTitle=true, open, setOpen, activeStyle}) => {
     if(!activeParent) return undefined;
     return config[activeParent]?.parent;
   }, [activeParent]);
+
+  const breadcrumbTrail = useMemo(() => {
+    const trail = [];
+    let current = activeParent;
+    while (current) {
+      trail.unshift({ id: current, name: config[current]?.name });
+      current = config[current]?.parent;
+    }
+    return trail;
+  }, [activeParent, config]);
+
   const showSearch = config[activeParent]?.showSearch;
 
   if(!open) return null;
@@ -139,6 +155,9 @@ const Menu = ({config, title, showTitle=true, open, setOpen, activeStyle}) => {
     setActiveParent(parent);
     setSearch('')
   }, [])
+
+  const goBack = useCallback(() => changeParent(prevParent), [prevParent, changeParent]);
+  const goHome = useCallback(() => changeParent(undefined), [changeParent]);
 
   return (
     <div className={theme?.menuWrapper} ref={menuRef}>
@@ -169,6 +188,25 @@ const Menu = ({config, title, showTitle=true, open, setOpen, activeStyle}) => {
           </Button>
         </div>
       }
+      {showBreadcrumbs && activeParent && breadcrumbTrail.length > 0 && (
+        <div className={theme?.breadcrumbWrapper}>
+          <span className={theme?.breadcrumbItem} onClick={() => changeParent(undefined)}>
+            {title || 'Home'}
+          </span>
+          {breadcrumbTrail.map((crumb, i) => (
+            <React.Fragment key={crumb.id}>
+              <span className={theme?.breadcrumbSeparator}>/</span>
+              {i < breadcrumbTrail.length - 1 ? (
+                <span className={theme?.breadcrumbItem} onClick={() => changeParent(crumb.id)}>
+                  {crumb.name}
+                </span>
+              ) : (
+                <span className={theme?.breadcrumbItemActive}>{crumb.name}</span>
+              )}
+            </React.Fragment>
+          ))}
+        </div>
+      )}
       {
         showSearch && <Input placeHolder={'search...'} value={search} onChange={e => setSearch(e.target.value)} />
       }
@@ -178,9 +216,9 @@ const Menu = ({config, title, showTitle=true, open, setOpen, activeStyle}) => {
               <DraggableList
                   dataItems={menuItems}
                   onChange={value => config[activeParent].onReorder?.(value)}
-                  renderItem={({item: menuItem}) => <MenuItem key={menuItem.id} menuItem={menuItem} setActiveParent={changeParent} activeStyle={activeStyle} /> }
+                  renderItem={({item: menuItem}) => <MenuItem key={menuItem.id} menuItem={menuItem} setActiveParent={changeParent} goBack={goBack} goHome={goHome} changeParent={changeParent} activeStyle={activeStyle} /> }
               /> :
-          menuItems.map(menuItem => <MenuItem key={menuItem.id} menuItem={menuItem} setActiveParent={changeParent} activeStyle={activeStyle} />)
+          menuItems.map(menuItem => <MenuItem key={menuItem.id} menuItem={menuItem} setActiveParent={changeParent} goBack={goBack} goHome={goHome} changeParent={changeParent} activeStyle={activeStyle} />)
         }
       </div>
     </div>
@@ -227,7 +265,7 @@ const flattenConfig = (config, parent) => {
 }
 
 // @params btnVisibleOnGroupHover: hides button until group is hovered. parent needs to have group class.
-export default function NavigableMenu({config=defaultItems, title, showTitle, btnVisibleOnGroupHover, defaultOpen, preferredPosition, activeStyle, preventCloseOnClickOutside, children}) {
+export default function NavigableMenu({config=defaultItems, title, showTitle, showBreadcrumbs, btnVisibleOnGroupHover, defaultOpen, preferredPosition, activeStyle, preventCloseOnClickOutside, children}) {
   const { theme: fullTheme = { navigableMenu: defaultTheme } } = React.useContext(ThemeContext) || {};
   const theme = getComponentTheme(fullTheme, 'navigableMenu', activeStyle);
   const [configStateFlat, setConfigStateFlat] = useImmer(flattenConfig(config));
@@ -257,6 +295,7 @@ export default function NavigableMenu({config=defaultItems, title, showTitle, bt
             config={configStateFlat}
             title={title}
             showTitle={showTitle}
+            showBreadcrumbs={showBreadcrumbs}
             open={open}
             setOpen={setOpen}
             activeStyle={activeStyle}
