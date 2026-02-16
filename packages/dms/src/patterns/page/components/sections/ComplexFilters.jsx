@@ -3,7 +3,7 @@ import {useImmer} from "use-immer";
 import {isEqual} from "lodash-es";
 import {ThemeContext} from "../../../../ui/useTheme";
 import {PageContext} from "../../context";
-import {getColumnLabel} from "./controls_utils";
+import {getColumnLabel, isEqualColumns} from "./controls_utils";
 import {ConditionValueInput} from "./ConditionValueInput";
 
 const complexFilterStructure = {
@@ -136,7 +136,7 @@ export const ComplexFilters = ({ state, setState }) => {
     const renderNode = (node, path = []) => {
         if (isGroup(node)) {
             return (
-                <div key={path.join('.')} className="border rounded-lg p-2 ml-2">
+                <div key={path.join('.')} className={`border rounded-lg p-2 ${path.length ? `ml-2` : ''}`}>
                     {/* AND / OR */}
                     <div className={'flex gap-1'}>
                         <Pill color={'orange'} text={<Icon icon={'TrashCan'} className={'size-4'} />} onClick={() => removeAtPath(path)} />
@@ -192,53 +192,58 @@ export const ComplexFilters = ({ state, setState }) => {
         return (
             <div key={path.join('.')} className={`w-full flex flex-col gap-1 items-center ml-2 p-2 border border-dashed rounded-md ${isStale ? 'border-red-300 bg-red-50' : 'hover:bg-blue-50'}`}>
                 {/* column selector */}
-                <div className={'w-full flex gap-1'}>
+                <div className={'w-full flex flex-wrap items-center gap-1'}>
                     {isStale && <span className={'text-red-500 text-xs'}>stale</span>}
-                    <select
-                        className={'max-w-1/4'}
-                        value={node.col}
-                        onChange={e =>
-                            updateNodeAtPath(path, n => {
-                                n.col = e.target.value;
-                            })
-                        }
-                    >
-                        <option key={'please select a column'} value={''}>Please select a column...</option>
-                        {columns.map(c => (
-                            <option key={c.name} value={c.name}>
-                                {getColumnLabel(c)}
-                            </option>
-                        ))}
-                    </select>
-                    <select
-                        value={node.op}
-                        onChange={e => {
-                            const newOp = e.target.value;
-                            const wasMulti = ['filter', 'exclude'].includes(node.op);
-                            const isMulti = ['filter', 'exclude'].includes(newOp);
-                            updateNodeAtPath(path, n => {
-                                n.op = newOp;
-                                if (wasMulti !== isMulti) {
-                                    n.value = isMulti ? [] : '';
-                                }
-                            });
-                        }}
-                    >
-                        <option key="filter" value="filter">contains</option>
-                        <option key="exclude" value="exclude">does not contain</option>
-                        <option key="like" value="like">partially contains</option>
-                        <option key="gt" value="gt"> {">"} </option>
-                        <option key="gte" value="gte"> {">="} </option>
-                        <option key="lt" value="lt"> {"<"} </option>
-                        <option key="lte" value="lte"> {"<="} </option>
-                    </select>
-                    <ConditionValueInput
-                        node={node}
-                        path={path}
-                        columns={columns}
-                        updateNodeAtPath={updateNodeAtPath}
-                    />
-                    <Popup button={<Icon icon={'EllipsisVertical'} className={'size-10'}/>} preventCloseOnClickOutside={false}>
+                    <div className={'w-full flex flex-wrap gap-0.5'}>
+                        <select
+                            className={'flex-1'}
+                            value={node.col}
+                            onChange={e =>
+                                updateNodeAtPath(path, n => {
+                                    n.col = e.target.value;
+                                })
+                            }
+                        >
+                            <option key={'please select a column'} value={''}>Please select a column...</option>
+                            {columns.map(c => (
+                                <option key={c.name} value={c.name}>
+                                    {getColumnLabel(c)}
+                                </option>
+                            ))}
+                        </select>
+                        <select
+                            className={'flex-0'}
+                            value={node.op}
+                            onChange={e => {
+                                const newOp = e.target.value;
+                                const wasMulti = ['filter', 'exclude'].includes(node.op);
+                                const isMulti = ['filter', 'exclude'].includes(newOp);
+                                updateNodeAtPath(path, n => {
+                                    n.op = newOp;
+                                    if (wasMulti !== isMulti) {
+                                        n.value = isMulti ? [] : '';
+                                    }
+                                });
+                            }}
+                        >
+                            <option key="filter" value="filter">contains</option>
+                            <option key="exclude" value="exclude">does not contain</option>
+                            <option key="like" value="like">partially contains</option>
+                            <option key="gt" value="gt"> {">"} </option>
+                            <option key="gte" value="gte"> {">="} </option>
+                            <option key="lt" value="lt"> {"<"} </option>
+                            <option key="lte" value="lte"> {"<="} </option>
+                        </select>
+                    </div>
+                    <div className={'w-3/4'}>
+                        <ConditionValueInput
+                            node={node}
+                            path={path}
+                            columns={columns}
+                            updateNodeAtPath={updateNodeAtPath}
+                        />
+                    </div>
+                    <Popup button={<Icon icon={'EllipsisVertical'} className={'size-6'}/>} preventCloseOnClickOutside={false}>
                         {
                             () => (
                                 <div className={'flex flex-col gap-2 p-2 bg-white shadow-md border rounded-md text-sm'}>
@@ -361,7 +366,7 @@ export const ComplexFilters = ({ state, setState }) => {
     };
 
     return (
-        <div className={'w-full'}>
+        <div className={'w-full hover:bg-white rounded-md'}>
             {renderNode(filterGroups)}
             <Pill color={'blue'} text={'save'} onClick={save} />
         </div>

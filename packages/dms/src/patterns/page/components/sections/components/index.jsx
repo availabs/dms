@@ -29,7 +29,7 @@ function EditComp({value, onChange, compKey, component, siteType, pageFormat}) {
                 {/* controls with datasource selector */}
                 <Controls />
                 <RenderFilters isEdit={true} defaultOpen={true} />
-            <ComplexFilters state={state} setState={setState} />
+            {/*{component.useDataWrapper ? <ComplexFilters state={state} setState={setState}/> : null}*/}
                 <DataComp
                     key={compKey || ''}
                     value={value?.['element-data'] || ''}
