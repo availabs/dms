@@ -10,7 +10,7 @@ import {
 import AddFormulaColumn from "./AddFormulaColumn";
 import AddCalculatedColumn from "./AddCalculatedColumn";
 
-const ColumnPicker = ({ state, setState, stagedColumns, setStagedColumns, Pill, Icon }) => {
+const ColumnPicker = ({ state, setState, allColumns, stagedColumns, setStagedColumns, Pill, Icon }) => {
     const [pickerSearch, setPickerSearch] = useState('');
     const [isFocused, setIsFocused] = useState(false);
 
@@ -18,7 +18,7 @@ const ColumnPicker = ({ state, setState, stagedColumns, setStagedColumns, Pill, 
         const stateColNames = new Set((state?.columns || []).map(c => c.name));
         const stagedNames = new Set(stagedColumns.map(c => c.name));
         return (state?.sourceInfo?.columns || [])
-            .filter(c => !stateColNames.has(c.name) && !stagedNames.has(c.name))
+            // .filter(c => !stateColNames.has(c.name) && !stagedNames.has(c.name))
             .filter(c => !pickerSearch || getColumnLabel(c).toLowerCase().includes(pickerSearch.toLowerCase()));
     }, [state?.sourceInfo?.columns, state?.columns, stagedColumns, pickerSearch]);
 
@@ -34,7 +34,21 @@ const ColumnPicker = ({ state, setState, stagedColumns, setStagedColumns, Pill, 
         setState(draft => {
             stagedColumns.forEach(col => {
                 const exists = draft.columns.some(c => isEqualColumns(c, col));
-                if (!exists) {
+                if (exists) {
+                    // duplicate: same logic as controls_utils.duplicate
+                    const idx = draft.columns.findIndex(c => isEqualColumns(c, col));
+                    const base = draft.columns[idx];
+                    const numDuplicates = draft.columns.filter(c => c.isDuplicate && c.name === base.name).length;
+                    const dup = {
+                        ...JSON.parse(JSON.stringify(base)),
+                        show: true,
+                        isDuplicate: true,
+                        copyNum: numDuplicates + 1,
+                        normalName: `${base.name}_copy_${numDuplicates + 1}`,
+                        display_name: `${getColumnLabel(base)} Copy ${numDuplicates + 1}`
+                    };
+                    draft.columns.splice(idx, 0, dup);
+                } else {
                     draft.columns.push({ ...col, show: true });
                 }
             });
@@ -46,7 +60,11 @@ const ColumnPicker = ({ state, setState, stagedColumns, setStagedColumns, Pill, 
     const showDropdown = isFocused && availableColumns.length > 0;
 
     return (
-        <div className="flex flex-col gap-1 w-full relative">
+        <div className="flex flex-col p-1 gap-1 w-full relative bg-blue-50 rounded-md">
+            <div className={'flex gap-1'}>
+                <AddFormulaColumn columns={allColumns} addFormulaColumn={col => addFormulaColumn(col, setState)} />
+                <AddCalculatedColumn columns={allColumns} addCalculatedColumn={col => addCalculatedColumn(col, setState)} />
+            </div>
             <Input
                 placeholder="Search columns to add..."
                 value={pickerSearch}
@@ -250,6 +268,7 @@ export default function ColumnManager({ state, setState, resolvedControls, Pill,
                 state={state}
                 setState={setState}
                 stagedColumns={stagedColumns}
+                allColumns={allColumns}
                 setStagedColumns={setStagedColumns}
                 Pill={Pill}
                 Icon={Icon}
@@ -262,8 +281,6 @@ export default function ColumnManager({ state, setState, resolvedControls, Pill,
                 <Pill text="Reset All" color="orange" onClick={() => resetAllColumns(setState)} />
                 <Pill text={isSystemIDColOn ? 'Hide ID' : 'Use ID'} color="blue"
                       onClick={() => toggleIdFilter(setState)} />
-                <AddFormulaColumn columns={allColumns} addFormulaColumn={col => addFormulaColumn(col, setState)} />
-                <AddCalculatedColumn columns={allColumns} addCalculatedColumn={col => addCalculatedColumn(col, setState)} />
                 <Pill text={expandAll ? 'Collapse All' : 'Expand All'} color="gray"
                       onClick={() => setExpandAll(prev => !prev)} />
             </div>
