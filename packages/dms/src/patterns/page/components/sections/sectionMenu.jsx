@@ -26,7 +26,6 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
         ? currentComponent.controls(theme)
         : currentComponent?.controls;
     const currentComponentStyle = theme[currentComponent?.themeKey || currentComponent?.name];
-    console.log('cc', resolvedControls, currentComponent)
 
     // =================================================================================================================
     // ======================================== menu item groups begin =================================================
@@ -85,6 +84,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                 .map(k => (
                     {
                         icon: RegisteredComponents[k].name === currentComponent?.name ? 'CircleCheck' : 'Blank',
+                        onClickGoBack: true,
                         name: RegisteredComponents[k].name || k,
                         onClick: () => updateElementType(k)
                     }

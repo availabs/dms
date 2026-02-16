@@ -91,8 +91,18 @@ const MenuItem = ({menuItem, setActiveParent, goBack, goHome, changeParent, acti
   const hasChildren = menuItem?.items?.length;
   const handleClick = hasChildren
     ? () => setActiveParent(menuItem.id)
-    : menuItem.onClickGoBack ? goBack
-    : menuItem.onClickGoHome ? goHome
+    : menuItem.onClickGoBack ? (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            menuItem.onClick();
+            goBack();
+          }
+    : menuItem.onClickGoHome ? (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                menuItem.onClick();
+                goHome();
+              }
     : menuItem.onClick;
 
   return (

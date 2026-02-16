@@ -359,7 +359,7 @@ export const ComplexFilters = ({ state, setState }) => {
             </div>
         );
     };
-    console.log('fg?', filterGroups)
+
     return (
         <div className={'w-full'}>
             {renderNode(filterGroups)}
