@@ -314,6 +314,40 @@ export const ComplexFilters = ({ state, setState }) => {
                                             </select>
                                         </div>
                                     )}
+                                    <div className={'flex items-center gap-1'}>
+                                        <Icon icon={'Filter'} className={'size-4'} />
+                                        <label>Normal Filter:</label>
+                                        <Switch label={'Normal Filter'}
+                                                enabled={node.isNormalFilter}
+                                                setEnabled={value => updateNodeAtPath(path, n => {
+                                                    n.isNormalFilter = value;
+                                                    if (value && !n.valueCol) {
+                                                        const valCol = columns.find(c => c.valueColumn)?.name || columns[0]?.name;
+                                                        n.valueCol = valCol;
+                                                    }
+                                                    // fn can be set via the Aggregate fn dropdown;
+                                                    // when unset, fnToTextMap.default uses max()
+                                                })}
+                                                size={'xs'}
+                                        />
+                                    </div>
+                                    {node.isNormalFilter && (
+                                        <div className={'flex items-center gap-1'}>
+                                            <Icon icon={'Filter'} className={'size-4'} />
+                                            <label>Value Column:</label>
+                                            <select
+                                                className={'text-xs rounded-md border px-1'}
+                                                value={node.valueCol || ''}
+                                                onChange={e => updateNodeAtPath(path, n => { n.valueCol = e.target.value; })}
+                                            >
+                                                {columns.map(c => (
+                                                    <option key={c.name} value={c.name}>
+                                                        {getColumnLabel(c)}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    )}
                                     <div className={'flex gap-1 text-red-500 hover:text-red-700 cursor-pointer'} onClick={() => removeAtPath(path)}>
                                         <Icon icon={'TrashCan'} className={'size-4'} /> Remove
                                     </div>
