@@ -207,7 +207,12 @@ const ColumnRow = ({ column, index, state, setState, resolvedControls, Pill, Ico
                             onChange={e => updateColumns(column, 'customName', e.target.value, undefined, setState)}
                         />
                     </div>
-                    {(resolvedControls?.columns || []).map(c => renderControl(c, column, onUpdate, { Switch, setState }))}
+                    {[
+                        ...(resolvedControls?.columns || []),
+                        // ...(resolvedControls?.inHeader || [])
+                    ]
+                        .filter(c => !c.hideFromSectionMenu)
+                        .map(c => renderControl(c, column, onUpdate, { Switch, setState }))}
                     <div className="flex gap-1 pt-1">
                         <Pill text="Duplicate" color="blue" onClick={() => duplicate(column, setState)} />
                         <Pill text="Reset" color="orange" onClick={() => resetColumn(column, setState)} />
@@ -261,7 +266,12 @@ const AllColumnsRow = ({ state, setState, resolvedControls, isEveryColVisible, P
             </div>
             {isExpanded && (
                 <div className="px-3 py-2 border-t bg-gray-50 flex flex-col gap-1.5" draggable={false}>
-                    {(resolvedControls?.columns || []).map(c => renderControl(c, aggregateColumn, onUpdate, { Switch, setState }))}
+                    {[
+                        ...(resolvedControls?.columns || []),
+                        ...(resolvedControls?.inHeader || [])
+                    ]
+                        .filter(c => !c.hideFromSectionMenu)
+                        .map(c => renderControl(c, aggregateColumn, onUpdate, { Switch, setState }))}
                     <div className="flex gap-1 pt-1">
                         <Pill text="Reset All" color="orange" onClick={() => resetAllColumns(setState)} />
                     </div>

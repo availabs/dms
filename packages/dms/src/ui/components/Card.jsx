@@ -148,7 +148,7 @@ const CompWrapper = ({
 
 const RenderItem = memo(function RenderItem ({
                                                  theme,
-                                                 compactView, reverse, removeBorder, padding, allowAdddNew, headerValueLayout, liveEdit, // state.display
+                                                 compactView, reverse, removeBorder, addBorder, padding, allowAdddNew, headerValueLayout, liveEdit, // state.display
                                                  isDms, // state.sourceInfo
                                                  item, newItem, setNewItem, addItem, updateItem, allowEdit,
                                                  subWrapperStyle,
@@ -167,7 +167,7 @@ const RenderItem = memo(function RenderItem ({
     return (
         //  in normal view, grid applied here
         <div
-            className={`${theme.subWrapper} ${compactView ? `${theme.subWrapperCompactView} ${removeBorder ? `` : 'border shadow'}` : theme.subWrapperSimpleView} `}
+            className={`${theme.subWrapper} ${compactView ? `${theme.subWrapperCompactView} ${removeBorder ? `` : 'border shadow'}` : `${theme.subWrapperSimpleView} ${addBorder ? `border shadow rounded-md` : ``}`} `}
             style={subWrapperStyle}>
             {
                 visibleColumns
@@ -219,7 +219,7 @@ const RenderItem = memo(function RenderItem ({
                                     headerValueLayout === 'row' && reverse ? theme.itemFlexRowReverse : ''
 
                         const wrapperViewClass = compactView ?
-                            `${theme.headerValueWrapperCompactView} ${attr.borderBelow ? theme.headerValueWrapperBorderBelow : ``}` :
+                            `${theme.headerValueWrapperCompactView} ${attr.borderBelow ? theme.headerValueWrapperBorderBelow : ``} ${addBorder ? `border shadow rounded-md` : ``}` :
                             `${theme.headerValueWrapperSimpleView} ${removeBorder ? `` : theme.itemBorder}`
 
                         const style = {
