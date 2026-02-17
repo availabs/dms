@@ -243,7 +243,7 @@ const RenderItem = memo(function RenderItem ({
                                         }>
                                             {attr.customName || attr.display_name || attr.normalName || attr.name}
                                             {
-                                                attr?.description ? <div className={theme.description}>{attr.description}</div> : null
+                                                attr?.description ? <DefaultComp className={theme.description} value={attr.description} /> : null
                                             }
                                         </div>
                                     )

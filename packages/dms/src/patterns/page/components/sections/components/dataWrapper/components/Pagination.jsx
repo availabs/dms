@@ -6,7 +6,7 @@ export const Pagination = ({currentPage, setCurrentPage, showPagination, setRead
     const { state, activeStyle } = useContext(ComponentContext);
     const {UI} = useContext(ThemeContext)
     const {Pagination} = UI;
-    if(!state.columns.filter(column => column.show).length || !showPagination) return;
+    if(!state.columns?.filter(column => column.show).length || !showPagination) return;
 
     useEffect(() => {
         if(!state.display.usePagination && !state.display.readyToLoad && setReadyToLoad){

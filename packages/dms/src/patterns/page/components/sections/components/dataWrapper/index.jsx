@@ -549,7 +549,7 @@ const View = ({cms_context, value, onChange, component}) => {
     }, [value]);
 
     const localFilters = useMemo(() =>
-            state.columns.filter(c => c.localFilter?.length)
+            (state.columns || []).filter(c => c.localFilter?.length)
                 .reduce((acc, c) => ({...acc, [c.normalName || c.name]: c.localFilter}), {}),
         [state.columns]);
     const localFilterColumns = useMemo(() => Object.keys(localFilters).filter(k => localFilters[k]?.length), [localFilters]);
@@ -559,7 +559,7 @@ const View = ({cms_context, value, onChange, component}) => {
 
         const textSearchCols =
             Object.keys(localFilters)
-                .filter(col => !['select', 'multiselect', 'radio'].includes(state.columns.find(c => (c.normalName || c.name) === col)?.type))
+                .filter(col => !['select', 'multiselect', 'radio'].includes(state.columns?.find(c => (c.normalName || c.name) === col)?.type))
 
         const filteredData = (state.fullData || state.data).filter((row, rowI) => {
             return Object.keys(localFilters).every(col => {
@@ -635,7 +635,7 @@ const View = ({cms_context, value, onChange, component}) => {
             update(draft.dataRequest?.filterGroups);
         });
     }, [pageState?.filters]);
-    const filterOptions = useMemo(() => state.columns.reduce((acc, column) => {
+    const filterOptions = useMemo(() => state.columns?.reduce((acc, column) => {
         const isNormalisedColumn = state.columns.filter(col => col.name === column.name && col.filters?.length).length > 1;
 
         (column.filters || [])
@@ -667,7 +667,7 @@ const View = ({cms_context, value, onChange, component}) => {
     // if search params are being used, ideally for template pages you should only fetch on filter change
     // for other pages, all data should be fetched
 
-    const orderBy = useMemo(() => state.columns.filter(column => column.sort).reduce((acc, column) => ({...acc, [column.name]: column.sort}), {}), [state.columns]);
+    const orderBy = useMemo(() => state.columns?.filter(column => column.sort).reduce((acc, column) => ({...acc, [column.name]: column.sort}), {}), [state.columns]);
     // ======================================= data fetch triggers end =================================================
 
     // ========================================== get data begin =======================================================
@@ -688,7 +688,7 @@ const View = ({cms_context, value, onChange, component}) => {
             filterGroups: state.dataRequest?.filterGroups || {},
             ...filterOptions,
             orderBy,
-            meta: state.columns.filter(column => column.show &&
+            meta: state.columns?.filter(column => column.show &&
                 ['meta-variable', 'geoid-variable', 'meta'].includes(column.display) &&
                 column.meta_lookup)
                 .reduce((acc, column) => ({...acc, [column.name]: column.meta_lookup}), {})
@@ -766,12 +766,12 @@ const View = ({cms_context, value, onChange, component}) => {
 
     // =========================================== get input data ======================================================
     useEffect(() => {
-        if (!allowEdit && !state.display.allowAdddNew && !state.columns.some(c => c.allowEditInView && c.mapped_options)) return;
+        if (!allowEdit && !state.display.allowAdddNew && !state.columns?.some(c => c.allowEditInView && c.mapped_options)) return;
         let isStale = false;
 
         async function loadOptionsData() {
             try {
-                const columnsToFetch = state.columns.filter(c => c.mapped_options);
+                const columnsToFetch = state.columns?.filter(c => c.mapped_options);
 
                 const fetchPromises = columnsToFetch.map(async column => {
                     let mapped_options;
@@ -844,14 +844,14 @@ const View = ({cms_context, value, onChange, component}) => {
         return () => {
             isStale = true;
         };
-    }, [allowEdit, isEdit, state.columns.map(c => c.mapped_options).join(',')]);
+    }, [allowEdit, isEdit, state.columns?.map(c => c.mapped_options).join(',')]);
 
 
     // ========================================= get input data end ======================================================
     // =========================================== get data end ========================================================
 
     // =========================================== util fns begin ======================================================
-    const editableColumns = useMemo(() => state.columns.filter(c => !(c.serverFn && c.joinKey) && c.editable !== false), [state.columns])
+    const editableColumns = useMemo(() => state.columns?.filter(c => !(c.serverFn && c.joinKey) && c.editable !== false), [state.columns])
     const updateItem = useCallback((value, attribute, d) => {
         if(!state.sourceInfo?.isDms || !apiUpdate || groupByColumnsLength) return;
         if(attribute?.name){
@@ -921,7 +921,7 @@ const View = ({cms_context, value, onChange, component}) => {
         return apiUpdate({data: item, config: { format: state.sourceInfo }, requestType: "delete"});
     }, [state.sourceInfo, apiUpdate, groupByColumnsLength, setState]);
     // =========================================== util fns end ========================================================
-    if(showChangeFormatModal || !isValidState) return <div className={'p-1 text-center'}>Form data not available.</div>;
+    // if(showChangeFormatModal || !isValidState) return <div className={'p-1 text-center'}>Form data not available.</div>;
 
     useEffect(() => {
         // set hideSection flag

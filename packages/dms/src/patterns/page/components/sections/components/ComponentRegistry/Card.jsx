@@ -267,7 +267,7 @@ export default {
             {type: 'select', label: 'Value Placement', key: 'headerValueLayout', options: [{label: `Inline`, value: 'row'}, {label: `Stacked`, value: 'col'}]},
             {type: 'toggle', label: 'Reverse', key: 'reverse'},
             {type: 'toggle', label: 'Hide if No Data', key: 'hideIfNull'},
-            {type: 'toggle', label: 'Remove Column Border', key: 'removeBorder', displayCdn: ({display}) => !display.compactView},
+            {type: 'toggle', label: 'Remove Column Border', key: 'removeBorder', displayCdn: ({display}) => !display.compactView}, // use negation
             {type: 'toggle', label: 'Remove Row Border', key: 'removeBorder', displayCdn: ({display}) => display.compactView},
 
             {type: 'toggle', label: 'Add Row Border', key: 'addBorder', displayCdn: ({display}) => !display.compactView},
