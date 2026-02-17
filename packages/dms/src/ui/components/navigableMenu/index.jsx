@@ -82,7 +82,7 @@ const MenuItem = ({menuItem, setActiveParent, goBack, goHome, changeParent, acti
 
   if(typeof menuItem.type === 'function') {
     return (
-      <div key={menuItem.name} className={`${theme?.menuItem} ${menuItem.noHover ? '' : theme?.menuItemHover}`}>
+      <div key={menuItem.name} className={`${theme?.menuItem}`}>
         {menuItem.type(menuItem, { goBack, goHome, changeParent })}
       </div>
     )
