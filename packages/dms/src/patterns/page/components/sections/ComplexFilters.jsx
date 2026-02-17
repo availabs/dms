@@ -44,7 +44,10 @@ export const ComplexFilters = ({ state, setState }) => {
     const { UI } = useContext(ThemeContext);
     const { Pill, Icon, Popup, Switch, ColumnTypes: {select} } = UI;
 
-    const columns = state.sourceInfo?.columns || [];
+    const columns = [
+        ...(state.columns || []).filter(c => c.systemCol),
+        ...(state.sourceInfo?.columns || [])
+    ];
     const isGrouping = (state.columns || []).some(c => c.group);
 
     const [filterGroups, updateFilterGroups] = useImmer(

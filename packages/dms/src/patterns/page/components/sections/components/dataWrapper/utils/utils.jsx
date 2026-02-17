@@ -385,9 +385,10 @@ export const getData = async ({
   // get columns with all settings and info about them.
     debugTime && console.time('columnsWithSettings')
     const isDms = state.sourceInfo.isDms;
-    const sourceColumnsByName = new Map(
-        state.sourceInfo.columns.map(col => [col.name, col]),
-    );
+    const sourceColumnsByName = new Map([
+        ...(state.columns || []).filter(c => c.systemCol).map(col => [col.name, col]),
+        ...state.sourceInfo.columns.map(col => [col.name, col]),
+    ]);
     const getSourceColumnsByName = name => sourceColumnsByName.get(name);
 
     const duplicatedColumnNames = new Set(
