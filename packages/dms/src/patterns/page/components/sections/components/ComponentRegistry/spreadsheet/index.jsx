@@ -131,6 +131,7 @@ export default {
     useInfiniteScroll: true,
     showPagination: true,
     keepOriginalValues: true,
+    showAllColumnsControl: true,
     themeKey: 'table',
     defaultState: {
         dataRequest: {},

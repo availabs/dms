@@ -3,7 +3,7 @@ import DraggableList from "../../../../ui/components/DraggableList";
 import Input from "../../../../ui/components/Input";
 import columnTypes from "../../../../ui/columnTypes";
 import {
-    getColumnLabel, updateColumns, resetColumn,
+    getColumnLabel, updateColumns, updateAllColumns, resetColumn,
     resetAllColumns, duplicate, toggleIdFilter,
     toggleGlobalVisibility, addFormulaColumn, isEqualColumns, addCalculatedColumn
 } from "./controls_utils";
@@ -108,69 +108,71 @@ const ColumnPicker = ({ state, setState, allColumns, stagedColumns, setStagedCol
     );
 };
 
+const renderControl = (control, columnData, onUpdate, { Switch, setState }) => {
+    const isDisabled = typeof control.disabled === 'function' ? control.disabled({ attribute: columnData }) : control.disabled;
+
+    if (control.type === 'toggle') {
+        return (
+            <div key={control.key} className="flex items-center gap-1">
+                <label className="text-xs text-gray-600">{control.label}</label>
+                <Switch
+                    size="small"
+                    enabled={!!columnData[control.key]}
+                    setEnabled={(value) => isDisabled ? null :
+                        onUpdate(control.key, value && control.trueValue ? control.trueValue : value, control.onChange)}
+                />
+            </div>
+        );
+    }
+
+    if (control.type === 'select') {
+        const SelectComp = columnTypes?.select?.EditComp;
+        return SelectComp ? (
+            <div key={control.key} className="flex items-center gap-1">
+                <label className="text-xs text-gray-600">{control.label}</label>
+                <SelectComp
+                    value={columnData[control.key]}
+                    options={control.options}
+                    disabled={isDisabled}
+                    onChange={e => onUpdate(control.key, e, control.onChange)}
+                />
+            </div>
+        ) : null;
+    }
+
+    if (typeof control.type === 'function') {
+        return (
+            <div key={control.key}>
+                {control.type({
+                    attribute: columnData,
+                    setAttribute: newValue => onUpdate(undefined, newValue, control.onChange),
+                    value: columnData[control.key],
+                    setValue: newValue => onUpdate(control.key, newValue, control.onChange),
+                    setState
+                })}
+            </div>
+        );
+    }
+
+    if (control.type === 'input') {
+        return (
+            <div key={control.key} className="flex items-center gap-1">
+                <label className="text-xs text-gray-600">{control.label}</label>
+                <Input
+                    value={columnData[control.key] || ''}
+                    onChange={e => onUpdate(control.key, e.target.value, control.onChange)}
+                />
+            </div>
+        );
+    }
+
+    return null;
+};
+
 const ColumnRow = ({ column, index, state, setState, resolvedControls, Pill, Icon, Switch, isExpanded, onToggleExpand }) => {
     const label = getColumnLabel(column);
-
-    const renderControl = (control) => {
-        const isDisabled = typeof control.disabled === 'function' ? control.disabled({ attribute: column }) : control.disabled;
-
-        if (control.type === 'toggle') {
-            return (
-                <div key={control.key} className="flex items-center gap-1">
-                    <label className="text-xs text-gray-600">{control.label}</label>
-                    <Switch
-                        size="small"
-                        enabled={!!column[control.key]}
-                        setEnabled={(value) => isDisabled ? null :
-                            updateColumns(column, control.key, value && control.trueValue ? control.trueValue : value, control.onChange, setState)}
-                    />
-                </div>
-            );
-        }
-
-        if (control.type === 'select') {
-            const SelectComp = columnTypes?.select?.EditComp;
-            return SelectComp ? (
-                <div key={control.key} className="flex items-center gap-1">
-                    <label className="text-xs text-gray-600">{control.label}</label>
-                    <SelectComp
-                        value={column[control.key]}
-                        options={control.options}
-                        disabled={isDisabled}
-                        onChange={e => updateColumns(column, control.key, e, control.onChange, setState)}
-                    />
-                </div>
-            ) : null;
-        }
-
-        if (typeof control.type === 'function') {
-            return (
-                <div key={control.key}>
-                    {control.type({
-                        attribute: column,
-                        setAttribute: newValue => updateColumns(column, undefined, newValue, control.onChange, setState),
-                        value: column[control.key],
-                        setValue: newValue => updateColumns(column, control.key, newValue, control.onChange, setState),
-                        setState
-                    })}
-                </div>
-            );
-        }
-
-        if (control.type === 'input') {
-            return (
-                <div key={control.key} className="flex items-center gap-1">
-                    <label className="text-xs text-gray-600">{control.label}</label>
-                    <Input
-                        value={column[control.key] || ''}
-                        onChange={e => updateColumns(column, control.key, e.target.value, control.onChange, setState)}
-                    />
-                </div>
-            );
-        }
-
-        return null;
-    };
+    const onUpdate = useCallback((key, value, onChange) =>
+        updateColumns(column, key, value, onChange, setState), [column, setState]);
 
     return (
         <div className="border rounded bg-white mb-0.5">
@@ -205,7 +207,7 @@ const ColumnRow = ({ column, index, state, setState, resolvedControls, Pill, Ico
                             onChange={e => updateColumns(column, 'customName', e.target.value, undefined, setState)}
                         />
                     </div>
-                    {(resolvedControls?.columns || []).map(renderControl)}
+                    {(resolvedControls?.columns || []).map(c => renderControl(c, column, onUpdate, { Switch, setState }))}
                     <div className="flex gap-1 pt-1">
                         <Pill text="Duplicate" color="blue" onClick={() => duplicate(column, setState)} />
                         <Pill text="Reset" color="orange" onClick={() => resetColumn(column, setState)} />
@@ -216,10 +218,64 @@ const ColumnRow = ({ column, index, state, setState, resolvedControls, Pill, Ico
     );
 };
 
-export default function ColumnManager({ state, setState, resolvedControls, Pill, Icon, Switch }) {
+const AllColumnsRow = ({ state, setState, resolvedControls, isEveryColVisible, Pill, Icon, Switch, isExpanded, onToggleExpand }) => {
+    const columns = state?.columns || [];
+
+    const aggregateColumn = useMemo(() => {
+        if (!columns.length) return {};
+        const keys = new Set(columns.flatMap(Object.keys));
+        const result = {};
+        for (const key of keys) {
+            const values = columns.map(c => c[key]);
+            result[key] = values.every(v => v === values[0]) ? values[0] : undefined;
+        }
+        return result;
+    }, [columns]);
+
+    const onUpdate = useCallback((key, value, onChange) =>
+        updateAllColumns(key, value, onChange, setState), [setState]);
+
+    return (
+        <div className="border rounded bg-white mb-0.5">
+            <div className="flex items-center justify-between px-2 py-1 gap-1">
+                <div className="flex items-center gap-1 flex-1 min-w-0">
+                    <Icon icon="Settings" className="size-4 text-gray-400 shrink-0" />
+                    <span className="text-sm font-medium truncate">All Columns</span>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                    <button
+                        className={`p-0.5 rounded hover:bg-gray-100 ${isEveryColVisible ? 'text-blue-500' : 'text-gray-300'}`}
+                        onClick={() => toggleGlobalVisibility(!isEveryColVisible, setState)}
+                        title={isEveryColVisible ? 'Hide All' : 'Show All'}
+                    >
+                        <Icon icon={isEveryColVisible ? 'Eye' : 'EyeClosed'} className="size-4" />
+                    </button>
+                    <button
+                        className="p-0.5 rounded hover:bg-gray-100 text-gray-500"
+                        onClick={onToggleExpand}
+                        title="Settings"
+                    >
+                        <Icon icon="CaretDown" className="size-4" />
+                    </button>
+                </div>
+            </div>
+            {isExpanded && (
+                <div className="px-3 py-2 border-t bg-gray-50 flex flex-col gap-1.5" draggable={false}>
+                    {(resolvedControls?.columns || []).map(c => renderControl(c, aggregateColumn, onUpdate, { Switch, setState }))}
+                    <div className="flex gap-1 pt-1">
+                        <Pill text="Reset All" color="orange" onClick={() => resetAllColumns(setState)} />
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+export default function ColumnManager({ state, setState, resolvedControls, Pill, Icon, Switch, showAllColumnsControl }) {
     const [stagedColumns, setStagedColumns] = useState([]);
     const [expandedColumns, setExpandedColumns] = useState(new Set());
     const [expandAll, setExpandAll] = useState(false);
+    const [allColumnsExpanded, setAllColumnsExpanded] = useState(false);
 
     const allColumns = useMemo(() => [
         ...(state?.columns || []),
@@ -276,14 +332,26 @@ export default function ColumnManager({ state, setState, resolvedControls, Pill,
 
             {/* Bulk Actions */}
             <div className="flex flex-wrap gap-1">
-                <Pill text={isEveryColVisible ? 'Hide All' : 'Show All'} color="blue"
-                      onClick={() => toggleGlobalVisibility(!isEveryColVisible, setState)} />
-                <Pill text="Reset All" color="orange" onClick={() => resetAllColumns(setState)} />
                 <Pill text={isSystemIDColOn ? 'Hide ID' : 'Use ID'} color="blue"
                       onClick={() => toggleIdFilter(setState)} />
                 <Pill text={expandAll ? 'Collapse All' : 'Expand All'} color="gray"
                       onClick={() => setExpandAll(prev => !prev)} />
             </div>
+
+            {/* All Columns Row */}
+            {showAllColumnsControl && activeColumns.length > 1 && (
+                <AllColumnsRow
+                    state={state}
+                    setState={setState}
+                    resolvedControls={resolvedControls}
+                    isEveryColVisible={isEveryColVisible}
+                    Pill={Pill}
+                    Icon={Icon}
+                    Switch={Switch}
+                    isExpanded={expandAll || allColumnsExpanded}
+                    onToggleExpand={() => setAllColumnsExpanded(prev => !prev)}
+                />
+            )}
 
             {/* Active Columns List */}
             {activeColumns.length > 0 && (

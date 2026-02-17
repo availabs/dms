@@ -211,6 +211,7 @@ export default {
     useInfiniteScroll: false,
     showPagination: true,
     keepOriginalValues: true,
+    showAllColumnsControl: true,
     themeKey: 'dataCard',
     defaultState: {
         dataRequest: {},

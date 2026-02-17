@@ -140,6 +140,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                         state={state}
                         setState={setState}
                         resolvedControls={resolvedControls}
+                        showAllColumnsControl={currentComponent.showAllColumnsControl}
                         Pill={Pill}
                         Icon={Icon}
                         Switch={Switch}
