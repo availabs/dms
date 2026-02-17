@@ -232,8 +232,8 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
         }),
         toggle: (item, value) => ({
             icon: item.icon, name: item.label, showLabel: true, type: 'toggle',
-            enabled: !!value,
-            setEnabled: (v) => updateDisplayValue(item.key, v, item.onChange, setState)
+            enabled: item.negate ? !value : !!value,
+            setEnabled: (v) => updateDisplayValue(item.key, item.negate ? !v : v, item.onChange, setState)
         }),
         input: (item, value) => ({
             icon: item.icon,
