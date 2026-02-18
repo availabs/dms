@@ -265,6 +265,8 @@ export default {
 
             {type: 'input', inputType: 'number', label: 'Page Size', key: 'pageSize', displayCdn: ({display}) => display.usePagination === true},
             {type: 'select', label: 'Value Placement', key: 'headerValueLayout', options: [{label: `Inline`, value: 'row'}, {label: `Stacked`, value: 'col'}]},
+            {type: 'input', inputType: 'number', label: 'Header Width', key: 'headerWidth', displayCdn: ({display}) => display.headerValueLayout === 'row'},
+            {type: 'input', inputType: 'number', label: 'Value Width', key: 'valueWidth', displayCdn: ({display}) => display.headerValueLayout === 'row'},
             {type: 'toggle', label: 'Reverse', key: 'reverse'},
             {type: 'toggle', label: 'Hide if No Data', key: 'hideIfNull'},
             {type: 'toggle', label: 'Column Border', key: 'removeBorder', negate: true, displayCdn: ({display}) => !display.compactView},

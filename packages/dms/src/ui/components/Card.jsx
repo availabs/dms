@@ -148,7 +148,8 @@ const CompWrapper = ({
 
 const RenderItem = memo(function RenderItem ({
                                                  theme,
-                                                 compactView, reverse, removeBorder, addBorder, padding, allowAdddNew, headerValueLayout, liveEdit, // state.display
+                                                 compactView, reverse, removeBorder, addBorder, padding, allowAdddNew,
+                                                 headerValueLayout, headerWidth, valueWidth, liveEdit, // state.display
                                                  isDms, // state.sourceInfo
                                                  item, newItem, setNewItem, addItem, updateItem, allowEdit,
                                                  subWrapperStyle,
@@ -240,7 +241,7 @@ const RenderItem = memo(function RenderItem ({
                                         <div className={
                                             `${theme.header} ${compactView ? theme.headerCompactView : theme.headerSimpleView}
                                             ${theme[headerTextJustifyClass]} ${theme[attr.headerFontStyle || 'textXS']}`
-                                        }>
+                                        } style={{maxWidth: headerValueLayout === 'col' || attr.hideValue ? undefined : `${headerWidth || 50}%`}}>
                                             {attr.customName || attr.display_name || attr.normalName || attr.name}
                                             {
                                                 attr?.description ? <DefaultComp className={theme.description} value={attr.description} /> : null
@@ -253,7 +254,7 @@ const RenderItem = memo(function RenderItem ({
                                         <div className={
                                             `${theme.value} ${compactView ? theme.valueCompactView : theme.valueSimpleView}
                                             ${theme[valueTextJustifyClass]} ${theme[attr.valueFontStyle || 'textXS']} ${formatClass}
-                                            `}>
+                                            `} style={{maxWidth: headerValueLayout === 'col' || attr.hideHeader ? undefined : `${valueWidth || 50}%`}}>
                                             {
                                                 isLink && !(allowEdit || attr.allowEditInView) ?
                                                     <a className={theme.linkColValue}
@@ -336,7 +337,7 @@ export default function ({
     columns=[], data=[], display={}, controls={}, sourceInfo={}, setState,
     newItem, setNewItem, formatFunctions, activeStyle
 }) {
-    const { theme: themeFromContext = {dataCard: dataCardTheme}} = React.useContext(ThemeContext) || {};
+    const { theme: themeFromContext = {dataCard: {}}} = React.useContext(ThemeContext) || {};
     const theme = getComponentTheme(themeFromContext,'dataCard', activeStyle)
 
     const [draggedCol, setDraggedCol] = useState(null);
