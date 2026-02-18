@@ -16,7 +16,7 @@ const frozenColClass = '' // testing
 
 export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addItem, newItem, setNewItem, loading, allowEdit,
                                 currentPage, infiniteScrollFetchData}) => {
-    const { UI, theme = { table } } = React.useContext(ThemeContext) || {}
+    const { UI, theme} = React.useContext(ThemeContext) || {}
     const {Table} = UI;
     const {state:{columns, sourceInfo, display, data, localFilteredData, fullData}, setState, controls={}, isActive, activeStyle} = useContext(ComponentContext);
     const gridRef = useRef(null);
