@@ -27,7 +27,7 @@ import {createPortal} from 'react-dom';
 import {isHTMLElement} from '../../utils/guard';
 import {Point} from '../../utils/point';
 import {Rect} from '../../utils/rect';
-//import theme from '../../themes/PlaygroundEditorTheme';
+import { useLexicalTheme } from '../../../useLexicalTheme';
 
 const SPACE = 4;
 const TARGET_LINE_HALF_HEIGHT = 2;
@@ -264,7 +264,7 @@ function useDraggableBlockMenu(
   const menuRef = useRef<HTMLDivElement>(null);
   const targetLineRef = useRef<HTMLDivElement>(null);
   const isDraggingBlockRef = useRef<boolean>(false);
-  const theme = editor?._config?.theme || {}
+  const theme = useLexicalTheme();
   const [draggableBlockElem, setDraggableBlockElem] =
     useState<HTMLElement | null>(null);
 
@@ -410,14 +410,14 @@ function useDraggableBlockMenu(
   return createPortal(
     <>
       <div
-        className={`icon ${theme.draggableBlockMenu.base}`}
+        className={`icon ${theme.draggableBlockMenu_base}`}
         ref={menuRef}
         draggable={true}
         onDragStart={onDragStart}
         onDragEnd={onDragEnd}>
-        <div className={isEditable ? (`${theme.draggableBlockMenu.icon}  icon`) : ''} />
+        <div className={isEditable ? (`${theme.draggableBlockMenu_icon}  icon`) : ''} />
       </div>
-      <div className={`draggable-block-target-line ${theme.draggableBlockTargetLine.base}`} ref={targetLineRef} />
+      <div className={`draggable-block-target-line ${theme.draggableBlockTargetLine_base}`} ref={targetLineRef} />
     </>,
     anchorElem,
   );

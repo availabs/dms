@@ -6,7 +6,7 @@ import { cloneDeep } from "lodash-es"
 import { dmsDataLoader, dmsPageFactory } from '../../'
 
 import patternTypes from '../../patterns'
-import { updateAttributes, updateRegisteredFormats } from "../../patterns/admin/siteConfig";
+import { updateAttributes, updateRegisteredFormats } from "../../dms-manager/_utils";
 
 import { withAuth, authProvider } from '../../patterns/auth/context';
 import { parseIfJSON } from '../../patterns/page/pages/_utils';
@@ -75,7 +75,7 @@ function pattern2routes (siteData, props) {
     //console.log('patterns2routes',dbThemes)
 
     themes = themes?.default ? { ...themes, ...dbThemes } : { ...themes, ...dbThemes, default: {} }
-    console.log('dmsSiteFactory themes', themes)
+    // console.log('dmsSiteFactory themes', themes)
 
     let dmsConfigUpdated = cloneDeep(dmsConfig);
     dmsConfigUpdated.registerFormats = updateRegisteredFormats(dmsConfigUpdated.registerFormats, dmsConfig.app)
@@ -131,7 +131,7 @@ function pattern2routes (siteData, props) {
       }))
     ];
 
-    console.log('dmssite factory, datasources', datasources)
+    // console.log('dmssite factory, datasources', datasources)
 
     return [
         ...patterns
@@ -177,7 +177,7 @@ function pattern2routes (siteData, props) {
                     PROJECT_NAME,
                     damaDataTypes,
                 });
-                console.log('dmssitefactory Config obj', configObj)
+                // console.log('dmssitefactory Config obj', configObj)
                 return ({
                   ...dmsPageFactory({
                     dmsConfig: configObj,
@@ -292,34 +292,36 @@ export function DmsSite (config) {
     }, []);
 
 
-    const PageNotFoundRoute = {
+    const PageNotFoundRoute = React.useMemo(() => ({
         path: "/*",
-        Component: () => loading ?
-            <div className={'w-screen h-screen mx-auto flex items-center justify-center'}>loading...</div>
-        : <div className={'w-screen h-screen mx-auto flex items-center justify-center'}>404</div>
-    }
+        Component: () =>
+            <div className={'w-screen h-screen mx-auto flex items-center justify-center'}>404</div>
+    }), []);
 
-    const routesWithErrorBoundary = routes.map(c => {
+    const routesWithErrorBoundary = React.useMemo(() => routes.map(c => {
         if (!c.errorElement) {
             c.errorElement = <RootErrorBoundary />
         }
         return c
-    });
+    }), [routes]);
 
-    const AuthedRouteProvider = authProvider(
-      RouterProvider,
-      { AUTH_HOST, PROJECT_NAME:CurrentProjectName }
+    const AuthedRouteProvider = React.useMemo(
+      () => authProvider(RouterProvider, { AUTH_HOST, PROJECT_NAME:CurrentProjectName }),
+      [AUTH_HOST, CurrentProjectName]
+    );
+
+    const router = React.useMemo(
+      () => createBrowserRouter([
+          ...dynamicRoutes,
+          ...routesWithErrorBoundary,
+          PageNotFoundRoute
+      ]),
+      [dynamicRoutes, routesWithErrorBoundary, PageNotFoundRoute]
     );
 
     return (
       <AuthedRouteProvider
-        router={createBrowserRouter(
-          [
-            ...dynamicRoutes,
-            ...routesWithErrorBoundary,
-            PageNotFoundRoute
-          ]
-        )}
+        router={router}
       />
     )
 }

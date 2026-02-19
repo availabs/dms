@@ -1,7 +1,7 @@
 import {docs as Select} from "./components/Select";
-import {docs as Table} from "./components/table";
-import {docs as Card} from "./components/Card";
-import {docs as Graph} from "./components/graph";
+import {docs as Table} from "./components/table/table.theme";
+import {docs as Card} from "./components/card.theme";
+import {docs as Graph} from "./components/graph/theme";
 import {docs as Input} from "./components/Input";
 import {docs as Modal} from "./components/Modal";
 import SideNav from "./components/SideNav.docs";
@@ -21,7 +21,7 @@ import {docs as Dropdown} from "./components/Dropdown";
 import {docs as DeleteModal} from "./components/DeleteModal";
 import {docs as Pagination} from "./components/Pagination";
 import {docs as DraggableNav} from "./components/draggableNav";
-import {docs as NavigableMenu} from "./components/navigableMenu";
+import {docs as NavigableMenu} from "./components/navigableMenu/theme";
 import pageViewDoc from "../patterns/page/pages/view.doc";
 
 const output = {

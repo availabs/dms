@@ -1,54 +1,19 @@
-import React, {useMemo, useState, useEffect, useRef, useContext} from 'react'
-import SourcesLayout from "../../layout"
+import React, {useMemo, useState, useRef, useContext} from 'react'
 import {DatasetsContext} from "../../../context";
+import {ThemeContext} from "../../../../../ui/useTheme";
 import SourceCategories from "../../DatasetsList/categories";
 import {Link} from "react-router";
-import {getSourceData, isJson, updateSourceData, parseIfJson} from "./utils";
+import {isJson, updateSourceData, parseIfJson} from "./utils";
 import { getExternalEnv } from "../../../utils/datasources";
+import { OUTPUT_FILE_TYPES } from "../../../components/ExternalVersionControls";
 
-export const tableTheme = (opts = {color:'white', size: 'compact'}) => {
-    const {color = 'white', size = 'compact'} = opts
-    let colors = {
-        white: 'bg-white hover:bg-blue-50',
-        gray: 'bg-gray-100 hover:bg-gray-200',
-        transparent: 'gray-100',
-        total: 'bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold'
-    }
-
-    let sizes = {
-        small: 'px-4 py-1 text-xs',
-        compact: 'px-4 py-1 text-sm',
-        full: 'px-10 py-5'
-    }
-    return {
-        tableHeader:
-            `${sizes[size]} pb-1 h-8 border border-b-4 border-gray-200 bg-slate-50 text-left font-semibold text-gray-700 uppercase first:rounded-tl-md last:rounded-tr-md`,
-        tableInfoBar: "bg-white",
-        tableRow: `${colors[color]} transition ease-in-out duration-150 hover:bg-blue-100`,
-        totalRow: `${colors.total} transition ease-in-out duration-150`,
-        tableOpenOutRow: 'flex flex-col',
-        tableRowStriped: `bg-white odd:bg-blue-50 hover:bg-blue-100 bg-opacity-25 transition ease-in-out duration-150`,
-        tableCell: `${sizes[size]} break-words border border-gray-200 pl-1 align-top font-light text-sm`,
-        inputSmall: 'w-24',
-        sortIconDown: 'fas fa-sort-amount-down text-tigGray-300 opacity-75',
-        sortIconUp: 'fas fa-sort-amount-up text-tigGray-300 opacity-75',
-        sortIconIdeal: 'fa fa-sort-alt text-tigGray-300 opacity-25',
-        infoIcon: 'fas fa-info text-sm text-blue-300 hover:text-blue-500',
-        vars: {
-            color: colors,
-            size: sizes
-        }
-    }
-
-}
-
-const RenderPencil = ({user, editing, setEditing, attr, show}) => {
+const RenderPencil = ({theme = {}, editing, setEditing, attr, show}) => {
     if (!show) return null;
 
     return (
-        <div className='hidden group-hover:block text-blue-500 cursor-pointer'
+        <div className={theme.pencilWrapper || 'hidden group-hover:block text-blue-500 cursor-pointer'}
              onClick={e => editing === attr ? setEditing(null) : setEditing(attr)}>
-            <i className="fad fa-pencil absolute -ml-4 p-2.5 rounded hover:bg-blue-500 hover:text-white "/>
+            <i className={theme.pencilIcon || 'fad fa-pencil absolute -ml-4 p-2.5 rounded hover:bg-blue-500 hover:text-white'}/>
         </div>
     )
 }
@@ -61,14 +26,16 @@ export default function Overview ({
   isDms
 }) {
     const ref = useRef(null);
-    const {baseUrl, pageBaseUrl, user, isUserAuthed, UI, falcor, datasources} = useContext(DatasetsContext);
+    const {baseUrl, pageBaseUrl, user, isUserAuthed, UI, falcor, datasources, DAMA_HOST} = useContext(DatasetsContext);
+    const { theme: fullTheme } = useContext(ThemeContext) || {};
+    const theme = fullTheme?.datasets?.sourceOverview || {};
     const pgEnv = getExternalEnv(datasources);
     const {ColumnTypes, Table} = UI;
 
     const {id} = params;
 
     const [editing, setEditing] = useState();
-    const [pageSize, setPageSize] = useState(15);
+    const [showAllColumns, setShowAllColumns] = useState(false);
 
     let columns = useMemo(() =>
         isDms ? isJson(source.config) ? JSON.parse(source.config)?.attributes : [] :
@@ -78,153 +45,174 @@ export default function Overview ({
     const createdTimeStamp = new Date(source?.created_at || '').toLocaleDateString(undefined, dateOptions);
     const updatedTimeStamp = new Date(source?.updated_at || '').toLocaleDateString(undefined, dateOptions);
     const DescComp = useMemo(() => editing === 'description' ? ColumnTypes.lexical.EditComp : ColumnTypes.lexical.ViewComp, [editing]);
-    const CategoriesComp = SourceCategories // useMemo(() => editing === 'categories' ? attributes['categories'].EditComp : attributes['categories'].ViewComp, [editing]);
+    const CategoriesComp = SourceCategories;
 
-    // if(!Object.entries(source).length) return 'loading...';
     const LexicalView = ColumnTypes.lexical.ViewComp;
 
     return (
-
-            <div className={'p-4 bg-white flex flex-col'}>
-                <div className={'mt-1 text-2xl text-blue-600 font-medium overflow-hidden sm:mt-0 sm:col-span-3'}>
+            <div className={'flex flex-col'}>
+                <div className={theme.title || 'mt-1 text-2xl text-blue-600 font-medium overflow-hidden sm:mt-0 sm:col-span-3'}>
                     {source?.name || source?.doc_type}
                 </div>
 
-                <div className={'flex flex-col md:flex-row'}>
-                    <div
-                        className="w-full md:w-[70%] pl-4 py-2 sm:pl-6 flex justify-between group text-sm text-gray-500 pr-14">
+                <div className={theme.body || 'flex flex-col md:flex-row'}>
+                    <div className={theme.descriptionCol || 'w-full md:w-[70%] pl-4 py-2 sm:pl-6 flex justify-between group text-sm text-gray-500 pr-14'}>
                         <DescComp
                             value={source?.description || 'No description'}
                             onChange={(data) => {
-                                // setItem({...item, ...{description: v}})
-                                console.log('data', data)
                                 updateSourceData({data, attrKey: 'description', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id})
                             }}
                         />
-                        <RenderPencil attr={'description'} user={user} editing={editing} setEditing={setEditing} show={isUserAuthed(['update-source'])}/>
+                        <RenderPencil theme={theme} attr={'description'} editing={editing} setEditing={setEditing} show={isUserAuthed(['update-source'])}/>
                     </div>
 
-                    <div className={'w-full md:w-[30%]'}>
-                        <div className={'mt-2 flex flex-col px-6 text-sm text-gray-600'}>
-                            Created
-                            <span className={'text-l font-medium text-blue-600 '}>{createdTimeStamp}</span>
+                    <div className={theme.metadataCol || 'w-full md:w-[30%] flex flex-col gap-1'}>
+                        <div className={theme.metaItem || 'flex flex-col px-4 text-sm text-gray-600'}>
+                            <span className={theme.metaLabel || 'text-sm text-gray-500'}>Created</span>
+                            <span className={theme.metaValue || 'text-base font-medium text-blue-600'}>{createdTimeStamp}</span>
                         </div>
 
-                        <div className={'mt-2 flex flex-col px-6 text-sm text-gray-600'}>
-                            Updated
-                            <span className={'text-l font-medium text-blue-600 '}>{updatedTimeStamp}</span>
-                        </div>
-                        <div className={'mt-2 flex flex-col px-6 text-sm text-gray-600'}>
-                            Type
-                            <span className={'text-l font-medium text-blue-600 '}>{source?.doc_type || source?.type}</span>
+                        <div className={theme.metaItem || 'flex flex-col px-4 text-sm text-gray-600'}>
+                            <span className={theme.metaLabel || 'text-sm text-gray-500'}>Updated</span>
+                            <span className={theme.metaValue || 'text-base font-medium text-blue-600'}>{updatedTimeStamp}</span>
                         </div>
 
-                        <div key={'update_interval'} className='flex justify-between group'>
-                            <div className="flex-1 sm:grid sm:grid-cols-2 sm:gap-1 sm:px-6">
-                                <dt className="text-sm font-medium text-gray-500 mt-1.5">{'Update Interval'}</dt>
-                                <dd className="text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                                    <div className="pb-2 relative">
-                                        {
-                                            editing === 'update_interval' ?
-                                                <input className={'w-full'}
-                                                       autoFocus={true}
-                                                       value={source?.update_interval}
-                                                       onChange={e => {
-                                                           updateSourceData({data: e.target.value, attrKey: 'update_interval', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id})
-                                                       }}
-                                                /> :
-                                                <span className={'text-l font-medium text-blue-600 '}>{source?.update_interval}</span>
-                                        }
-                                    </div>
-                                </dd>
+                        <div className={theme.metaItem || 'flex flex-col px-4 text-sm text-gray-600'}>
+                            <span className={theme.metaLabel || 'text-sm text-gray-500'}>Type</span>
+                            <span className={theme.metaValue || 'text-base font-medium text-blue-600'}>{source?.doc_type || source?.type}</span>
+                        </div>
+
+                        <div className={theme.metaEditRow || 'flex justify-between group'}>
+                            <div className={theme.metaEditInner || 'flex-1 flex flex-col px-4'}>
+                                <span className={theme.metaLabel || 'text-sm text-gray-500'}>Update Interval</span>
+                                {
+                                    editing === 'update_interval' ?
+                                        <input className={'w-full'}
+                                               autoFocus={true}
+                                               value={source?.update_interval}
+                                               onChange={e => {
+                                                   updateSourceData({data: e.target.value, attrKey: 'update_interval', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id})
+                                               }}
+                                        /> :
+                                        <span className={theme.metaValue || 'text-base font-medium text-blue-600'}>{source?.update_interval}</span>
+                                }
                             </div>
-                            <RenderPencil attr={'update_interval'} user={user} editing={editing} setEditing={setEditing} show={isUserAuthed(['update-source'])}/>
+                            <RenderPencil theme={theme} attr={'update_interval'} editing={editing} setEditing={setEditing} show={isUserAuthed(['update-source'])}/>
                         </div>
 
-                    <div key={'categories'} className='flex justify-between group'>
-                            <div className="flex-1 sm:grid sm:grid-cols-2 sm:gap-1 sm:px-6">
-                                <dt className="text-sm font-medium text-gray-500 mt-1.5">{'Categories'}</dt>
-                                <dd className="text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                                    <div className="pb-2 px-2 relative">
-                                        <CategoriesComp
-                                            value={Array.isArray(parseIfJson(source?.categories)) ? parseIfJson(source?.categories) : []}
-                                            onChange={(data) => {
-                                                updateSourceData({data, attrKey: 'categories', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id})
-                                            }}
-                                            editingCategories={editing === 'categories'}
-                                            stopEditingCategories={() => setEditing(null)}
-                                        />
-                                    </div>
-                                </dd>
+                        <div className={theme.metaEditRow || 'flex justify-between group'}>
+                            <div className={theme.metaEditInner || 'flex-1 flex flex-col px-4'}>
+                                <span className={theme.metaLabel || 'text-sm text-gray-500'}>Categories</span>
+                                <CategoriesComp
+                                    value={Array.isArray(parseIfJson(source?.categories)) ? parseIfJson(source?.categories) : []}
+                                    onChange={(data) => {
+                                        updateSourceData({data, attrKey: 'categories', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id})
+                                    }}
+                                    editingCategories={editing === 'categories'}
+                                    stopEditingCategories={() => setEditing(null)}
+                                />
                             </div>
-                            <RenderPencil attr={'categories'} user={user} editing={editing} setEditing={setEditing} show={isUserAuthed(['update-source'])}/>
+                            <RenderPencil theme={theme} attr={'categories'} editing={editing} setEditing={setEditing} show={isUserAuthed(['update-source'])}/>
                         </div>
                     </div>
                 </div>
 
-                <div className={'flex items-center p-2 mx-4 text-blue-600 hover:bg-blue-50 rounded-md'}
-                >
+                <div className={theme.sectionHeader || 'flex items-center p-2 mx-4 text-blue-600 hover:bg-blue-50 rounded-md'}>
                     Columns
-                    <span
-                        className={'bg-blue-200 text-blue-600 text-xs p-1 ml-2 shrink-0 grow-0 rounded-lg flex items-center justify-center border border-blue-300'}>
+                    <span className={theme.sectionBadge || 'bg-blue-200 text-blue-600 text-xs p-1 ml-2 shrink-0 grow-0 rounded-lg flex items-center justify-center border border-blue-300'}>
                     {columns.length}
                 </span>
                 </div>
 
-                <div className={'w-full p-4'}>
-                    <Table
-                        gridRef={ref}
-                        columns={
-                            ['display_name', 'description'].map(col => ({
-                                name: col,
-                                display_name: col,
-                                type: 'ui',
-                                Comp: ({value, row, ...rest}) => {
-                                    return (
-                                        <div {...rest}>
-                                            {
-                                                col === 'display_name' ?
-                                                    <div className={'font-semibold'}>{row?.display_name || row?.name} <span className={'font-light italic'}>{row?.type}</span></div> :
-                                                    <LexicalView value={row?.desc || row?.description} />
-                                            }
-                                        </div>
-                                    )
-                                },
-                                show: true,
-                                align: 'left',
-                            }))
-                        }
-                        data={columns.slice(0, pageSize > 15 ? columns.length : 15)}
-                        display={{
-                            striped: true
-                        }}
-                        theme={tableTheme()}
-                    />
-                    {
-                        columns.length > 15 ?
-                            <div className={'float-right text-blue-600 underline text-sm cursor-pointer'}
-                                 onClick={() => setPageSize(pageSize === 15 ? columns.length : 15)}
-                            >{pageSize > 15 ? 'see less' : 'see more'}</div> : null
-                    }
+                <div className={theme.tableWrapper || 'w-full p-4'}>
+                    <div className={'[&>div]:max-h-none [&>div]:overflow-y-visible'}>
+                        <Table
+                            gridRef={ref}
+                            columns={
+                                ['display_name', 'description'].map(col => ({
+                                    name: col,
+                                    display_name: col,
+                                    type: 'ui',
+                                    Comp: ({value, row, ...rest}) => {
+                                        return (
+                                            <div {...rest}>
+                                                {
+                                                    col === 'display_name' ?
+                                                        <div>
+                                                            <span className={theme.columnName || 'font-semibold'}>{row?.display_name || row?.name}</span>
+                                                            {' '}<span className={theme.columnType || 'font-light italic'}>{row?.type}</span>
+                                                            {row?.display_name && row?.name && row.display_name !== row.name &&
+                                                                <div className={theme.columnActualName || 'text-xs font-normal text-gray-400'}>{row.name}</div>
+                                                            }
+                                                        </div> :
+                                                        <LexicalView value={row?.desc || row?.description} />
+                                                }
+                                            </div>
+                                        )
+                                    },
+                                    show: true,
+                                    align: 'left',
+                                }))
+                            }
+                            data={showAllColumns ? columns : columns.slice(0, 15)}
+                            display={{
+                                striped: true
+                            }}
+                        />
+                    </div>
+                    {columns.length > 15 && (
+                        <div className={theme.seeMoreLink || 'w-fit ml-auto mt-1 px-2 py-0.5 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded cursor-pointer transition-colors'}
+                             onClick={() => setShowAllColumns(!showAllColumns)}
+                        >{showAllColumns ? 'Show less' : `Show all ${columns.length} columns`}</div>
+                    )}
                 </div>
 
-                <div className={'w-full p-4'}>
+                <div className={theme.sectionHeader || 'flex items-center p-2 mx-4 text-blue-600 hover:bg-blue-50 rounded-md'}>
+                    Versions
+                    <span className={theme.sectionBadge || 'bg-blue-200 text-blue-600 text-xs p-1 ml-2 shrink-0 grow-0 rounded-lg flex items-center justify-center border border-blue-300'}>
+                        {(source?.views || []).length}
+                    </span>
+                </div>
+
+                <div className={theme.versionsWrapper || 'w-full p-4'}>
                     <Table
                         gridRef={ref}
                         columns={
-                            ['name', 'created_at', 'updated_at'].map(col => ({
+                            ['name', 'created_at', 'updated_at', 'download'].map(col => ({
                                 name: col,
-                                display_name: col,
+                                display_name: col === 'created_at' ? 'created' : col === 'updated_at' ? 'updated' : col,
                                 type: 'ui',
                                 Comp: ({value, row, ...rest}) => {
+                                    if (col === 'name') {
+                                        return (
+                                            <div {...rest}>
+                                                <Link to={`${pageBaseUrl}/${params.id}/version/${row?.id || row?.view_id}`}>
+                                                    {value || 'No Name'}
+                                                </Link>
+                                            </div>
+                                        )
+                                    }
+                                    if (col === 'download') {
+                                        const meta = typeof row?.metadata === 'string' ? parseIfJson(row.metadata, {}) : (row?.metadata || {});
+                                        const downloads = meta?.download || {};
+                                        const available = Object.keys(downloads).filter(k => OUTPUT_FILE_TYPES.includes(k));
+                                        if (!available.length) {
+                                            return <div {...rest} className={theme.downloadUnavailable || 'text-sm text-gray-400 italic'}>—</div>
+                                        }
+                                        return (
+                                            <div {...rest} className={'flex gap-2'}>
+                                                {available.map(fmt => (
+                                                    <a key={fmt}
+                                                       href={downloads[fmt].replace('$HOST', DAMA_HOST)}
+                                                       className={theme.downloadLink || 'text-sm text-blue-600 hover:text-blue-800 hover:underline'}
+                                                    >{fmt}</a>
+                                                ))}
+                                            </div>
+                                        )
+                                    }
                                     return (
                                         <div {...rest}>
-                                            {
-                                                col === 'name' ?
-                                                    <Link
-                                                        to={`${pageBaseUrl}/${params.id}/version/${row?.id || row?.view_id}`}>{value || 'No Name'}</Link> :
-                                                    <div>{new Date(value?.replace(/"/g, ''))?.toLocaleString()}</div>
-                                            }
+                                            {new Date(value?.replace(/"/g, ''))?.toLocaleString()}
                                         </div>
                                     )
                                 },
@@ -237,7 +225,6 @@ export default function Overview ({
                         striped={true}
                         sortBy={'created_at'}
                         sortOrder={'desc'}
-                        theme={tableTheme()}
                     />
                 </div>
 

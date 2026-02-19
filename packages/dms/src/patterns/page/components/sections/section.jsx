@@ -6,17 +6,20 @@ import {AuthContext} from "../../../auth/context";
 import {CMSContext, PageContext, ComponentContext} from '../../context'
 import {getPageAuthPermissions} from "../../pages/_utils";
 import {getSectionMenuItems} from './sectionMenu'
-import {DeleteModal, getHelpTextArray, handlePaste, HelpTextEditPopups, ViewSectionHeader, initialState} from './section_utils'
+import {
+    DeleteModal,
+    getHelpTextArray,
+    HelpTextEditPopups,
+    ViewSectionHeader,
+    initialState,
+    isJson
+} from './section_utils'
 import {useDataSource} from "./useDataSource";
 import Component from "./components";
-import ComponentRegistry from "./components/ComponentRegistry";
 import {useImmer} from "use-immer";
 import {convertOldState} from "./components/dataWrapper/utils/convertOldState";
-export let RegisteredComponents = ComponentRegistry;
-
-export const registerComponents = (comps = {}) => {
-    RegisteredComponents = {...RegisteredComponents, ...comps}
-}
+import { getRegisteredComponents } from './componentRegistry'
+export { registerComponents, getRegisteredComponents } from './componentRegistry'
 
 export function SectionEdit({ i, value, attributes, siteType, format, onChange, onRemove, moveItem, onCancel, onSave }) {
     const isEdit = true;
@@ -25,8 +28,9 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
     const { pageState, apiLoad, apiUpdate } = useContext(PageContext);
     const {theme: fullTheme, UI} = React.useContext(ThemeContext);
 
+    const RegisteredComponents = getRegisteredComponents();
     const component = (RegisteredComponents[get(value, ["element", "element-type"], "lexical")] || RegisteredComponents['lexical']);
-    const [state, setState] = useImmer(convertOldState(value?.['element']?.['element-data'] || '', initialState(component.defaultState)));
+    const [state, setState] = useImmer(convertOldState(value?.['element']?.['element-data'] || '', initialState(component.defaultState), component.name));
     const [sectionState, setSectionState] = useImmer({
         showDeleteModal: false,
         key: undefined,
@@ -49,71 +53,90 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
           onChange({...value, [k]: v})
       }
   }
-    const updateElementType = (v, k='element-type') => {
-        const newV = {...value.element, [k]: v}
-        if(!isEqual(value.element, newV)){
-            updateAttribute('element', newV)
+    const updateElementType = (v) => {
+        if(!isEqual(value.element['element-type'], v)){
+            const newComp = RegisteredComponents[v];
+            if(newComp.useDataSource && !state.columns && newComp.defaultState){
+                const elementData = isJson(value.element['element-data']) ? JSON.parse(value.element['element-data']) : {};
+                setState(draft => {
+                    Object.keys(newComp.defaultState)
+                        .forEach(newKey => {
+                            draft[newKey] = newComp.defaultState[newKey];
+                            elementData[newKey] = newComp.defaultState[newKey];
+                        })
+                })
+                updateAttribute('element', {...value.element, 'element-type': v, 'element-data': JSON.stringify(elementData)})
+            }else{
+                updateAttribute('element', {...value.element, 'element-type': v})
+            }
         }
     }
 
   const TitleEditComp = attributes?.title?.EditComp
+  const TitleViewComp = attributes?.title?.ViewComp
   const LevelComp = attributes?.level?.EditComp
   const HelpComp = attributes?.helpText?.EditComp
   const helpTextArray = getHelpTextArray(value, true)
-
+    const onAddHelpText = () => updateAttribute('helpText', [...helpTextArray, {text: ''}]);
 
   const sectionMenuItems = getSectionMenuItems({
       sectionState: { isEdit, value, attributes, i, showDeleteModal, listAllColumns, state },
-      actions: { moveItem, updateAttribute, updateElementType, onChange, setKey, setState, setShowDeleteModal, setListAllColumns },
+      actions: { moveItem, updateAttribute, updateElementType, onChange, onCancel, onSave, onAddHelpText, setKey, setState, setShowDeleteModal, setListAllColumns },
       auth: { user, isUserAuthed, pageAuthPermissions, sectionAuthPermissions, Permissions, AuthAPI },
-      ui:  { Switch, Pill, TitleEditComp, LevelComp, theme: fullTheme, RegisteredComponents },
+      ui:  { Switch, Pill, Icon, TitleEditComp, LevelComp, theme: fullTheme, RegisteredComponents },
       dataSource: {  activeSource, activeView, sources, views, onSourceChange, onViewChange }
   })
-
-    const editIcons = [
-      {
-        name: 'HelpText',
-        onClick: () => updateAttribute('helpText', [...helpTextArray, {text: ''}]),
-        icon: 'SquarePlus'
-      },
-      {
-        name: 'Cancel',
-        onClick: onCancel,
-        icon: 'CancelCircle'
-      },
-      {
-        name: 'Save',
-        onClick: onSave,
-        icon: 'FloppyDisk'
-      }
-    ]
-
+    const canEditSection = isUserAuthed(['edit-section'], sectionAuthPermissions);
     {/* apiLoad and apiUpdate are passed in ComponentContext as components won't always be in pages pattern. */}
+    // Resolve controls - may be a function that receives theme, or a static object
+    const resolvedControls = typeof component?.controls === 'function'
+        ? component.controls(fullTheme)
+        : component?.controls;
+
     return (
-        <ComponentContext.Provider value={{state, setState, apiLoad, apiUpdate, controls: component?.controls,
+        <ComponentContext.Provider value={{state, setState, apiLoad, apiUpdate, controls: resolvedControls,
             isActive: value?.element?.['element-type'] === 'Spreadsheet', activeStyle: value?.activeStyle}}>
             <div className={theme.wrapper}>
                 {/* -------------------top line buttons ----------------------*/}
-                <div className={theme.topBar}>
-                    <div className={theme.topBarSpacer}/>
-                    <div className={theme.topBarButtonsEdit}>
-                        <HelpTextEditPopups
-                            helpTextArray={helpTextArray}
-                            updateAttribute={updateAttribute}
-                            HelpComp={HelpComp}
+                <div id={`#${value?.title?.replace(/ /g, '_')}`}
+                     className={`flex flex-row font-display font-medium uppercase scroll-mt-36 items-center`}>
+                    <div className='flex-1'>
+                        <TitleViewComp
+                            className={`w-full ${fullTheme.heading?.[value?.['level']] || fullTheme.heading?.['default']}`}
+                            value={value?.['title']}
                         />
-                        {editIcons.map(icon =>  (
-                            <Button activeStyle={1} onClick={icon.onClick} altText={icon.name}>
-                                <Icon icon={icon.icon} className={theme.editIcon}/>
-                            </Button>
-                        ))}
-                        <NavigableMenu
-                            config={sectionMenuItems}
-                            title={'Section Settings'}
-                            btnVisibleOnGroupHover={false}
-                            defaultOpen={true}
-                            preferredPosition={"right"}
-                        />
+                    </div>
+                    <div className={theme.topBar}>
+                        <div className={theme.topBarSpacer}/>
+                        <div className={theme.topBarButtonsEdit}>
+                            <HelpTextEditPopups
+                                helpTextArray={helpTextArray}
+                                updateAttribute={updateAttribute}
+                                HelpComp={HelpComp}
+                            />
+                            <div className={theme.menuPosition}>
+                                {canEditSection ?
+                                    <div color={'blue'} className={'text-blue-500 hover:text-blue-700 cursor-pointer px-1 py-0.5'}
+                                          title={'Save'} onClick={onSave}>
+                                        <Icon icon={'FloppyDisk'} className={'size-6'}/>
+                                    </div> : null}
+                                {canEditSection ?
+                                    <div className={'text-orange-500 hover:text-orange-700 cursor-pointer px-1 py-0.5'}
+                                          title={'Cancel'} onClick={onCancel}>
+                                        <Icon icon={'CancelCircle'} className={'size-6'} />
+                                    </div>: null
+                                }
+                                <NavigableMenu
+                                    config={sectionMenuItems}
+                                    title={'Section Settings'}
+                                    btnVisibleOnGroupHover={false}
+                                    defaultOpen={true}
+                                    preferredPosition={"right"}
+                                    preventCloseOnClickOutside={true}
+                                    showBreadcrumbs={true}
+                                />
+                            </div>
+                        </div>
                     </div>
                 </div>
                 {/* ------------------- Main Content ----------------------*/}
@@ -153,11 +176,12 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
     const {theme: fullTheme, UI} = React.useContext(ThemeContext);
     const { pageState, apiLoad, apiUpdate } = useContext(PageContext);
 
-    const {NavigableMenu, Switch, Pill, Permissions} = UI;
+    const {NavigableMenu, Switch, Pill, Icon, Permissions} = UI;
     const theme = getComponentTheme(fullTheme, 'pages.section');
 
+    const RegisteredComponents = getRegisteredComponents();
     const component = RegisteredComponents[get(value, ["element", "element-type"], "lexical")];
-    const [state, setState] = useImmer(convertOldState(value?.element?.['element-data'] || '', initialState(component?.defaultState)));
+    const [state, setState] = useImmer(convertOldState(value?.element?.['element-data'] || '', initialState(component?.defaultState), component?.name));
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [isRefreshingData, setIsRefreshingData] = useState(false);
     const [hideSection, setHideSection] = useState(false);
@@ -184,13 +208,26 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
     const updateAttribute = (k, v) => {
         const newV = {...value, [k]: v}
         if (!isEqual(value, newV)) {
-            onChange(i, newV)
+            onChange?.(i, newV) // pageView doesn't pass onChange
         }
     }
-    const updateElementType = (v, k='element-type') => {
-        const newV = {...value.element, [k]: v}
-        if(!isEqual(value.element, newV)){
-            updateAttribute('element', newV)
+    const updateElementType = (v) => {
+        if(!isEqual(value.element['element-type'], v)){
+            const newComp = RegisteredComponents[v];
+            if(newComp.useDataSource && !state.columns && newComp.defaultState){
+                const elementData = isJson(value.element['element-data']) ? JSON.parse(value.element['element-data']) : {};
+                setState(draft => {
+                    Object.keys(newComp.defaultState)
+                        .filter(newKey => !draft[newKey])
+                        .forEach(newKey => {
+                            draft[newKey] = newComp.defaultState[newKey];
+                            elementData[newKey] = newComp.defaultState[newKey];
+                        })
+                })
+                updateAttribute('element', {...value.element, 'element-type': v, 'element-data': JSON.stringify(elementData)})
+            }else{
+                updateAttribute('element', {...value.element, 'element-type': v})
+            }
         }
     }
 
@@ -223,12 +260,19 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
         sectionState: { isEdit, value, attributes, i, showDeleteModal, state },
         actions: { onEdit, moveItem, updateAttribute, updateElementType, onChange, setState, setShowDeleteModal },
         auth: { user, isUserAuthed, pageAuthPermissions, sectionAuthPermissions, Permissions, AuthAPI },
-        ui:  { Switch, Pill, TitleEditComp, LevelComp, refreshDataBtnRef, isRefreshingData, setIsRefreshingData, theme: fullTheme, RegisteredComponents },
+        ui:  { Switch, Pill, Icon, TitleEditComp, LevelComp, refreshDataBtnRef, isRefreshingData, setIsRefreshingData, theme: fullTheme, RegisteredComponents },
         dataSource: {  activeSource, activeView, sources, views, onSourceChange, onViewChange }
     })
 
+    // Resolve controls - may be a function that receives theme, or a static object
+    const resolvedControls = typeof component?.controls === 'function'
+        ? component.controls(fullTheme)
+        : component?.controls;
+
+    const canEditSection = isUserAuthed(['edit-section'], sectionAuthPermissions);
+
     return (
-        <ComponentContext.Provider value={{state, setState, apiLoad, apiUpdate, controls: component?.controls, isActive, activeStyle: value?.activeStyle}}>
+        <ComponentContext.Provider value={{state, setState, apiLoad, apiUpdate, controls: resolvedControls, isActive, activeStyle: value?.activeStyle}}>
             <div className={editPageMode && hideSection ? theme.wrapperHidden : theme.wrapper} style={{pageBreakInside: "avoid"}}>
 
                 {/* -------------------top line buttons ----------------------*/}
@@ -237,12 +281,22 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
                     <div className={theme.topBarButtonsView}>
                         <div className={theme.menuPosition}>
                             {(showEditIcons) && (
-                                <NavigableMenu
-                                    config={sectionMenuItems}
-                                    title={'Section Settings'}
-                                    btnVisibleOnGroupHover={true}
-                                    preferredPosition={"right"}
-                                />
+                                <>
+                                    {canEditSection ?
+                                        <div className={'hidden group-hover:flex text-blue-500 hover:text-blue-700 cursor-pointer px-1 py-0.5'}
+                                             title={'Edit'} onClick={onEdit} >
+                                            <Icon icon={'PencilSquare'} className={'size-6'} />
+                                        </div> :
+                                        null}
+
+                                    <NavigableMenu
+                                        config={sectionMenuItems}
+                                        title={'Section Settings'}
+                                        btnVisibleOnGroupHover={true}
+                                        preferredPosition={"right"}
+                                        showBreadcrumbs={true}
+                                    />
+                                </>
                             )}
                         </div>
                     </div>

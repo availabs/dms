@@ -1,13 +1,17 @@
 import React, {useContext, useState} from "react";
 import {DatasetsContext} from "../../../context";
+import {ThemeContext} from "../../../../../ui/useTheme";
+import {metadataCompTheme} from "../metadataComp.theme";
 
-export const RenderAddField = ({theme, placeHolder, attributes=[], className, addAttribute}) => {
+export const RenderAddField = ({placeHolder, attributes=[], className, addAttribute}) => {
     const {UI} = useContext(DatasetsContext);
+    const {theme} = useContext(ThemeContext) || {};
+    const t = theme?.datasets?.metadataComp || metadataCompTheme;
     const [newValue, setNewValue] = useState('');
     const [error, setError] = useState('empty name');
-    
+
     const {Input, Button, Icon} = UI;
-    
+
     function fn() {
         addAttribute({name: newValue});
         setNewValue('');
@@ -17,7 +21,7 @@ export const RenderAddField = ({theme, placeHolder, attributes=[], className, ad
 
     const triggerAddEvent = () => setTimeout(fn, 500)
     return (
-        <div className={'w-full flex flex-col sm:flex-row'}>
+        <div className={t.addFieldRow}>
             <Input
                 value={newValue}
                 placeHolder={placeHolder}
@@ -39,11 +43,11 @@ export const RenderAddField = ({theme, placeHolder, attributes=[], className, ad
                 }}
                 onKeyDown={e =>  !error && e.key === 'Enter' && triggerAddEvent()}
             />
-            <Button className={`p-2 ${error ? 'bg-red-500' : 'bg-blue-300 hover:bg-blue-500'} text-white rounded-md`} onClick={e => fn()}>
+            <Button className={error ? t.addButtonError : t.addButton} onClick={e => fn()}>
                 {
                     error ?
-                        <div className={'flex items-center '}><Icon icon={'Alert'} className={'text-white px-1 size-6'}/> {error} </div> :
-                        <div className={'flex items-center '}><Icon icon={'Add'} className={'text-white px-1 size-6'}/> {'add'}</div>
+                        <div className={t.addButtonContent}><Icon icon={'Alert'} className={t.addButtonIcon}/> {error} </div> :
+                        <div className={t.addButtonContent}><Icon icon={'Add'} className={t.addButtonIcon}/> {'add'}</div>
                 }
             </Button>
         </div>)

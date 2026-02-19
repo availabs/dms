@@ -9,14 +9,14 @@ import ActionControls from "./controls/ActionControls";
 import {ComponentContext} from '../../../../../context'
 import {ThemeContext} from "../../../../../../../ui/useTheme"
 import {isEqualColumns} from "../../dataWrapper/utils/utils";
-import {tableTheme} from "../../../../../../../ui/components/table";
+//import {tableTheme} from "../../../../../../../ui/components/table/theme";
 
 const frozenCols = [0,1] // testing
 const frozenColClass = '' // testing
 
 export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addItem, newItem, setNewItem, loading, allowEdit,
                                 currentPage, infiniteScrollFetchData}) => {
-    const { UI, theme = { table: tableTheme } } = React.useContext(ThemeContext) || {}
+    const { UI, theme} = React.useContext(ThemeContext) || {}
     const {Table} = UI;
     const {state:{columns, sourceInfo, display, data, localFilteredData, fullData}, setState, controls={}, isActive, activeStyle} = useContext(ComponentContext);
     const gridRef = useRef(null);
@@ -38,7 +38,7 @@ export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addIte
         if(!gridRef.current || !display.autoResize) return;
 
         const columnsWithSizeLength = visibleAttrsWithoutOpenOut.filter(({size}) => size).length;
-        const gridWidth = gridRef.current.offsetWidth - numColSize - gutterColSize - (allowEdit ? actionColumns.length * actionsColSize : 0);
+        const gridWidth = gridRef.current.offsetWidth - numColSize - gutterColSize - (allowEdit && actionColumns.length ? actionsColSize : 0);
         const currUsedWidth = visibleAttrsWithoutOpenOut.reduce((acc, {size}) => acc + +(size || 0), 0);
         if (
             !columnsWithSizeLength ||
@@ -126,17 +126,24 @@ export default {
     "name": 'Spreadsheet',
     "type": 'table',
     useDataSource: true,
+    useDataWrapper: true,
     useGetDataOnPageChange: true,
     useInfiniteScroll: true,
     showPagination: true,
     keepOriginalValues: true,
+    showAllColumnsControl: true,
     themeKey: 'table',
+    defaultState: {
+        dataRequest: {},
+        display: { usePagination: true, pageSize: 5 },
+        columns: [],
+        data: [],
+        sourceInfo: { columns: []}
+    },
     controls: {
         columns: [
             // settings from columns dropdown are stored in state.columns array, per column
             {type: 'toggle', label: 'show', key: 'show'},
-            {type: 'toggle', label: 'Filter', key: 'filters',
-                trueValue: [{type: 'internal', operation: 'filter', values: []}]},
             {type: 'toggle', label: 'Group', key: 'group'},
             {type: 'select', label: 'Fn', key: 'fn',
                 options: [
@@ -180,6 +187,7 @@ export default {
             {type: 'select', label: 'Filter Relation', key: 'filterRelation',
                 options: [{label: 'and', value: 'and'}, {label: 'or', value: 'or'}]
             },
+            {type: 'input', label: 'Max Height', key: 'maxHeight', displayCdn: ({display}) => !display.usePagination},
             {type: 'input', inputType: 'number', label: 'Page Size', key: 'pageSize'},
         ],
         inHeader: [

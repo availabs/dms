@@ -1,7 +1,7 @@
 import React, {useContext, useEffect, useState} from "react";
 import { DatasetsContext } from '../../../../context';
 import { getExternalEnv } from '../../../../utils/datasources';
-import SourcesLayout from "../../../layout";
+
 import Upload from "../../../../components/upload";
 import {ThemeContext} from "../../../../../../ui/useTheme";
 import {getSourceData} from "../../default/utils";
@@ -20,7 +20,7 @@ const UploadPage = ({
     const {theme} = useContext(ThemeContext) || {};
     if(!isDms) return <></>
     return (
-            <div className={`${theme?.page?.wrapper1}`}>
+            <div>
                 {
                     !view_id || view_id === 'undefined' ? 'Please select a version' :
                         <Upload.EditComp

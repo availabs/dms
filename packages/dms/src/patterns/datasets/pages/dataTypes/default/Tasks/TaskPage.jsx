@@ -1,16 +1,22 @@
 import React from "react"
 
-import { useParams } from "react-router"
-
 import get from "lodash/get";
-import { range as d3range } from "d3-array"
 import { DatasetsContext } from "../../../../context";
 import { getExternalEnv } from "../../../../utils/datasources";
 
-import { TasksLayout } from "./components/TasksLayout";
+import Breadcrumbs from "../../../../components/Breadcrumbs";
 import { UserCell } from './TaskList';
-function onlyUnique(value, index, array) {
-  return array.indexOf(value) === index;
+import { ETL_CONTEXT_ATTRS } from './TaskList';
+
+const getAttributes = (data) => {
+    return Object.entries(data || {})
+        .reduce((out, attr) => {
+            const [k, v] = attr
+            typeof v.value !== 'undefined' ?
+                out[k] = v.value :
+                out[k] = v
+            return out
+        }, {})
 }
 
 const DateCell = ({ value, ...rest }) => {
@@ -68,11 +74,12 @@ const COLUMNS = [
 const TaskPageComponent = ({params, pageSize = 10}) => {
   const { etl_context_id } = params;
   const ref = React.useRef();
-  const { datasources, falcor, UI } = React.useContext(DatasetsContext);
+  const { datasources, falcor, UI, baseUrl } = React.useContext(DatasetsContext);
   const pgEnv = getExternalEnv(datasources);
-  const {Table, Pagination} = UI;
+  const {Table, Pagination, Layout, LayoutGroup} = UI;
   const [currentPage, setCurrentPage] = React.useState(0);
   const [data, setData] = React.useState({data: [], length: 0});
+  const [sourceName, setSourceName] = React.useState('');
 
   const EVENT_LENGTH_PATH = [
     "dama",
@@ -82,6 +89,25 @@ const TaskPageComponent = ({params, pageSize = 10}) => {
     "allEvents",
     "length",
   ];
+
+  // Fetch source name for breadcrumb
+  React.useEffect(() => {
+    async function fetchName() {
+      const data = await falcor.get([
+        "dama", pgEnv, "etlContexts", "byEtlContextId",
+        etl_context_id, "attributes", ETL_CONTEXT_ATTRS,
+      ])
+      const etlAttr = getAttributes(
+        get(data, ["json", "dama", pgEnv, "etlContexts", "byEtlContextId", etl_context_id], {attributes: {}})
+      );
+      if (Object.keys(etlAttr).length && etlAttr?.meta?.source_id) {
+        const namePath = ["dama", pgEnv, "sources", "byId", [etlAttr.meta.source_id], "attributes", "name"];
+        const nameRes = await falcor.get(namePath);
+        setSourceName(get(nameRes, ['json', ...namePath]) || '');
+      }
+    }
+    if (etl_context_id) fetchName();
+  }, [falcor, etl_context_id, pgEnv]);
 
   //get length of data
   React.useEffect(() => {
@@ -116,13 +142,20 @@ const TaskPageComponent = ({params, pageSize = 10}) => {
     if (!data.length) return;
 
     return (
-        <TasksLayout params={params}>
-            <div className={'w-full'}>
-                <Table data={data.data} columns={COLUMNS} gridRef={ref} display={{striped: true}}/>
-                <Pagination currentPage={currentPage} setCurrentPage={setCurrentPage} pageSize={pageSize} usePagination={true}
-                            totalLength={data.length}/>
-            </div>
-        </TasksLayout>
+        <Layout navItems={[]}>
+            <Breadcrumbs items={[
+                {icon: 'Database', href: baseUrl},
+                {name: 'Tasks', href: `${baseUrl}/tasks`},
+                {name: sourceName || etl_context_id},
+            ]} />
+            <LayoutGroup>
+                <div className={'w-full'}>
+                    <Table data={data.data} columns={COLUMNS} gridRef={ref} display={{striped: true}}/>
+                    <Pagination currentPage={currentPage} setCurrentPage={setCurrentPage} pageSize={pageSize} usePagination={true}
+                                totalLength={data.length}/>
+                </div>
+            </LayoutGroup>
+        </Layout>
     )
 
 }

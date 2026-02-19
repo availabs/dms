@@ -14,56 +14,78 @@ export const isCalculatedCol = ({ display, type, origin }) => {
         origin === "calculated-column"
     );
 };
+// applies a single column update directly on an immer draft
+const applyColumnUpdate = (draft, originalAttribute, key, newValue, onChange) => {
+    // ======================= default behaviour begin =================================
+
+    let idx = draft.columns.findIndex(column => {
+        return isEqualColumns(column, originalAttribute)
+    });
+
+    const value = key === 'fn' && Array.isArray(newValue) && !newValue.length ? undefined : newValue;
+
+    if (idx === -1) {
+        draft.columns.push({ ...originalAttribute, [key]: value });
+        idx = draft.columns.length - 1; // new index
+    } else if(key){
+        draft.columns[idx][key] = value;
+    }else{
+        draft.columns[idx] = {...(draft.columns[idx] || {}), ...(value || {})}
+    }
+    // ======================= default behaviour end ==================================
+
+    // special cases: show, group and fn are close enough to the data wrapper to be handled here
+    if (key === 'show' && value === false) {
+        // stop sorting and applying fn when column is hidden
+        draft.columns[idx].sort = undefined;
+        draft.columns[idx].fn = undefined;
+    } else if (key === 'show' && value === true &&
+        !draft.columns[idx].group && // grouped column shouldn't have fn
+        draft.columns.some(c => !isEqualColumns(c, originalAttribute) && c.group)
+    ) {
+        // apply fn if at least one column is grouped
+        draft.columns[idx].fn = draft.columns[idx].defaultFn?.toLowerCase() || 'list';
+    }
+
+    if (key === 'group' && value === true) {
+        // all other visible columns must have a function
+        draft.columns[idx].fn = undefined;
+        draft.columns
+            .filter(c => !isEqualColumns(c, originalAttribute) && c.show && !c.group && !c.fn)
+            .forEach(col => {
+                col.fn = col.defaultFn?.toLowerCase() || 'list';
+            });
+    }
+
+    if (key === 'group' && value === false && draft.columns.some(c => !isEqualColumns(c, originalAttribute) && c.group)) {
+        // if grouping by other columns, apply fn when removing group for current column
+        draft.columns[idx].fn = draft.columns[idx].defaultFn?.toLowerCase() || 'list';
+    }
+
+    if (key === 'group' && value === false && draft.columns.every(c => !c.group) && draft.columns.some(c => c.fn)) {
+        // remove fn from every non-grouped column
+        draft.columns.filter(c => !isEqualColumns(c, originalAttribute) && !c.group && c.fn)
+            .forEach(c => {
+                c.fn = undefined;
+            })
+    }
+
+    if(onChange) {
+        onChange({key, value, attribute: originalAttribute, state: draft, columnIdx: idx})
+    }
+};
+
 // updates column if present, else adds it with the change the user made.
-export const updateColumns = (originalAttribute, key, value, onChange, setState) => {
+export const updateColumns = (originalAttribute, key, newValue, onChange, setState) => {
+    setState(draft => applyColumnUpdate(draft, originalAttribute, key, newValue, onChange));
+};
+
+// applies the same update to every column in a single batch
+export const updateAllColumns = (key, newValue, onChange, setState) => {
     setState(draft => {
-        // ======================= default behaviour begin =================================
-
-        let idx = draft.columns.findIndex(column => {
-            return isEqualColumns(column, originalAttribute)
+        [...draft.columns].forEach(col => {
+            applyColumnUpdate(draft, col, key, newValue, onChange);
         });
-
-        if (idx === -1) {
-            draft.columns.push({ ...originalAttribute, [key]: value });
-            idx = draft.columns.length - 1; // new index
-        } else if(key){
-            draft.columns[idx][key] = value;
-        }else{
-            draft.columns[idx] = {...(draft.columns[idx] || {}), ...(value || {})}
-        }
-        // ======================= default behaviour end ==================================
-
-        // special cases: show, group and fn are close enough to the data wrapper to be handled here
-        if (key === 'show' && value === false) {
-            // stop sorting and applying fn when column is hidden
-            draft.columns[idx].sort = undefined;
-            draft.columns[idx].fn = undefined;
-        } else if (key === 'show' && value === true &&
-            !draft.columns[idx].group && // grouped column shouldn't have fn
-            draft.columns.some(c => !isEqualColumns(c, originalAttribute) && c.group)
-        ) {
-            // apply fn if at least one column is grouped
-            draft.columns[idx].fn = draft.columns[idx].defaultFn?.toLowerCase() || 'list';
-        }
-
-        if (key === 'group' && value === true) {
-            // all other visible columns must have a function
-            draft.columns[idx].fn = undefined;
-            draft.columns
-                .filter(c => !isEqualColumns(c, originalAttribute) && c.show && !c.group && !c.fn)
-                .forEach(col => {
-                    col.fn = col.defaultFn?.toLowerCase() || 'list';
-                });
-        }
-
-        if (key === 'group' && value === false && draft.columns.some(c => !isEqualColumns(c, originalAttribute) && c.group)) {
-            // if grouping by other columns, apply fn when removing group for current column
-            draft.columns[idx].fn = draft.columns[idx].defaultFn?.toLowerCase() || 'list';
-        }
-
-        if(onChange) {
-            onChange({key, value, attribute: originalAttribute, state: draft, columnIdx: idx})
-        }
     });
 };
 export const duplicate = (column, setState) => {

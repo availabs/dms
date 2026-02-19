@@ -1,0 +1,14 @@
+[
+  {
+    "title": "Hero",
+    "element-type": "lexical",
+    "level": "1",
+    "body": "Welcome to the CLI Test Site"
+  },
+  {
+    "title": "Features",
+    "element-type": "Card",
+    "level": "2",
+    "body": "Feature list goes here"
+  }
+]

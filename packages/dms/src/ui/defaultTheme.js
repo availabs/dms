@@ -1,4 +1,6 @@
-import docs from './docs';
+// Note: component docs (ui/docs.js) are NOT imported here to avoid circular import:
+// defaultTheme -> docs -> view.doc -> view -> useTheme -> defaultTheme
+// Consumers that need docs should import ui/docs.js directly (see themeEditor.jsx).
 import settings from './themeSettings'
 import sideNavTheme from "./components/SideNav.theme";
 import topNavTheme from "./components/TopNav.theme";
@@ -16,17 +18,20 @@ import {popoverTheme} from "./components/Popover";
 import {labelTheme} from "./components/Label";
 import {selectTheme} from "./components/Select";
 import {listboxTheme} from "./components/Listbox";
-import {tableTheme} from "./components/table";
+import {tableTheme} from "./components/table/table.theme";
 import {nestableTheme} from "./components/draggableNav"
-import {dataCardTheme} from "./components/Card";
-import {graphTheme} from "./components/graph";
+import {dataCardTheme} from "./components/card.theme";
+import {graphTheme} from "./components/graph/theme";
 import {logoTheme} from "./components/Logo";
 import navigableMenuTheme from "./components/navigableMenu/theme";
 import icons from './icons'
+import { textSettingsTheme } from "./themes/textSettings";
+import { lexicalTheme } from './components/lexical/theme'
 // =========================================
 // Pattern Themes, maybe move registration of these to DMS Site ??
 // =========================================
 import pagesTheme from "../patterns/page/defaultTheme"
+import datasetsTheme from "../patterns/datasets/defaultTheme"
 
 
 // =====================================================================================================
@@ -43,6 +48,7 @@ import {
 
 const components = {
     pages: pagesTheme,
+    datasets: datasetsTheme,
     "compatibility": "border-[#191919] pt-[41px]",
 
     "heading": {
@@ -51,74 +57,6 @@ const components = {
         "3": "text-md tracking-wide",
         "base": "p-2 w-full font-sans font-medium text-md bg-transparent",
         "default": ""
-    },
-    "sectionArray": {
-        "container": "w-full grid grid-cols-6 ",
-        "gridSize": 6,
-        "layouts": {
-            "centered": "max-w-[1020px] mx-auto",
-            "fullwidth": ""
-        },
-        "sectionEditWrapper": "relative group",
-        "sectionEditHover": "absolute inset-0 group-hover:border border-blue-300 border-dashed pointer-events-none z-10",
-        "sectionViewWrapper": "relative group",
-        "sectionPadding": "p-4",
-        "gridviewGrid": "z-0 bg-slate-50 h-full",
-        "gridviewItem": "border-x bg-white border-slate-100/75 border-dashed h-full p-[6px]",
-        "defaultOffset": 16,
-        "sizes": {
-            "1": {
-                "className": "col-span-6 md:col-span-6",
-                "iconSize": 100
-            },
-            "1/3": {
-                "className": "col-span-6 md:col-span-2",
-                "iconSize": 33
-            },
-            "1/2": {
-                "className": "col-span-6 md:col-span-3",
-                "iconSize": 50
-            },
-            "2/3": {
-                "className": "col-span-6 md:col-span-4",
-                "iconSize": 66
-            }
-        },
-        "rowspans": {
-            "1": {
-                "className": ""
-            },
-            "2": {
-                "className": "md:row-span-2"
-            },
-            "3": {
-                "className": "md:row-span-3"
-            },
-            "4": {
-                "className": "md:row-span-4"
-            },
-            "5": {
-                "className": "md:row-span-5"
-            },
-            "6": {
-                "className": "md:row-span-6"
-            },
-            "7": {
-                "className": "md:row-span-7"
-            },
-            "8": {
-                "className": "md:row-span-8"
-            }
-        },
-        "border": {
-            "none": "",
-            "full": "border border-[#E0EBF0] rounded-lg",
-            "openLeft": "border border-[#E0EBF0] border-l-transparent rounded-r-lg",
-            "openRight": "border border-[#E0EBF0] border-r-transparent rounded-l-lg",
-            "openTop": "border border-[#E0EBF0] border-t-transparent rounded-b-lg",
-            "openBottom": "border border-[#E0EBF0] border-b-transparent rounded-t-lg",
-            "borderX": "border border-[#E0EBF0] border-y-transparent"
-        }
     },
     layout: layoutTheme,
     layoutGroup: layoutGroupTheme,
@@ -138,9 +76,8 @@ const components = {
     select: selectTheme,
     listbox: listboxTheme,
     table: tableTheme,
-
-    // --- component themes
-    lexical : {},
+    lexical:lexicalTheme,
+    textSettings: textSettingsTheme,
     dataCard: dataCardTheme,
     attribution: attributionTheme,
     filters: filterTheme,
@@ -148,7 +85,7 @@ const components = {
     navigableMenu: navigableMenuTheme,
 }
 const theme = {
-    widgets: defaultWidgets,
+
     admin: {
         navOptions: {
             "logo": "",
@@ -174,9 +111,10 @@ const theme = {
     },
     //navOptions,
     ...components,
+
     "Icons":icons,
-    docs,
-    settings
+    settings,
+    widgets: defaultWidgets
 }
 
 export default theme

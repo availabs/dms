@@ -1,11 +1,13 @@
 import React, {useEffect} from "react";
 import {DatasetsContext} from "../../../context";
+import {ThemeContext} from "../../../../../ui/useTheme";
+import {metadataCompTheme} from "../metadataComp.theme";
 import {isEqual} from "lodash-es";
-const customTheme = {
-    field: 'pb-2 flex flex-col'
-}
+
 const DataSourceForm = ({editing, updateAttribute, col, attr, type}) => {
     const {UI, app} = React.useContext(DatasetsContext);
+    const {theme} = React.useContext(ThemeContext) || {};
+    const t = theme?.datasets?.metadataComp || metadataCompTheme;
     const [metaObj, setMetaObj] = React.useState(editing);
 
     useEffect(() => {
@@ -13,9 +15,12 @@ const DataSourceForm = ({editing, updateAttribute, col, attr, type}) => {
     }, [editing]);
 
     const {FieldSet} = UI;
+    const customTheme = {
+        field: t.metadataFieldTheme
+    }
     return type === 'datasource' ? (
         <FieldSet
-            className={'grid grid-cols-4 gap-1'}
+            className={t.customGrid4}
             components={[
                 {
                     label: 'view ID', type: 'Input', placeholder: 'view id', value: metaObj.view_id,
@@ -76,9 +81,14 @@ const DataSourceForm = ({editing, updateAttribute, col, attr, type}) => {
 
 const CustomEntryForm = ({editing, updateAttribute, col, attr, type}) => {
     const {UI} = React.useContext(DatasetsContext);
+    const {theme} = React.useContext(ThemeContext) || {};
+    const t = theme?.datasets?.metadataComp || metadataCompTheme;
     const {FieldSet, Button} = UI;
     const [metaObj, setMetaObj] = React.useState(Object.keys(editing).map(k => ({key: k, value: editing[k]})));
     const [newPair, setNewPair] = React.useState({});
+    const customTheme = {
+        field: t.metadataFieldTheme
+    }
 
     useEffect(() => {
         const transformedValue = Object.keys(editing).map(k => ({key: k, value: editing[k]}));
@@ -89,7 +99,7 @@ const CustomEntryForm = ({editing, updateAttribute, col, attr, type}) => {
         <>
             {metaObj.map((pair, i) => (
                 <FieldSet
-                    className={'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-1'}
+                    className={t.customGrid6}
                     components={[
                         {
                             type: 'Input', placeHolder: 'key', value: pair.key,
@@ -125,7 +135,7 @@ const CustomEntryForm = ({editing, updateAttribute, col, attr, type}) => {
                 />
             ))}
             <FieldSet
-                className={'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-1'}
+                className={t.customGrid6}
                 components={[
                     {
                         type: 'Input', placeHolder: 'key', value: newPair.key,
@@ -163,6 +173,8 @@ export const Metadata = ({value={}, col, drivingAttribute, attr, updateAttribute
     const [editing, setEditing] = React.useState(parseIfJSON(value));
     const [type, setType] = React.useState(editing?.view_id ? 'datasource' : 'custom');
     const {UI} = React.useContext(DatasetsContext);
+    const {theme} = React.useContext(ThemeContext) || {};
+    const t = theme?.datasets?.metadataComp || metadataCompTheme;
     const {Tabs, Button} = UI;
 
     useEffect(() => {
@@ -171,7 +183,7 @@ export const Metadata = ({value={}, col, drivingAttribute, attr, updateAttribute
     if(drivingAttribute !== 'meta') return null;
     return (
         <div>
-            <div className={'flex justify-between'}>
+            <div className={t.metadataHeader}>
                 <label>metadata</label>
                 <Button onClick={() => updateAttribute(col, {[attr]: undefined})}>clear metadata</Button>
             </div>

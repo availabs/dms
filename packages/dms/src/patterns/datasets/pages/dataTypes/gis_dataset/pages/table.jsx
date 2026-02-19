@@ -76,7 +76,7 @@ export default function Table ({apiUpdate, apiLoad, format, source, params, isDm
                 draft.columns = activeColumns;
             }
         })
-    }, [source])
+    }, [source, id, view_id, isDms, pgEnv])
 
     const saveSettings = useCallback(() => {
         const columns =
@@ -129,6 +129,7 @@ export default function Table ({apiUpdate, apiLoad, format, source, params, isDm
                         <DataWrapper.EditComp
                             cms_context={DatasetsContext}
                             component={SpreadSheetCompWithControls}
+                            onChange={() => {}}
                             key={'table-page-spreadsheet'}
                             size={1}
                             hideSourceSelector={true}

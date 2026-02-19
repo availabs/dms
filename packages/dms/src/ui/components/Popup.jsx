@@ -1,7 +1,7 @@
 import React, {useRef, useEffect, useLayoutEffect, useState, useCallback} from "react";
 import ReactDOM from "react-dom";
 
-export const useHandleClickOutside = (menuRef, buttonRef, onClose) => {
+export const useHandleClickOutside = (menuRef, buttonRef, preventCloseOnClickOutside, onClose) => {
     const handleClickOutside = useCallback(
         (e) => {
             if (
@@ -16,6 +16,7 @@ export const useHandleClickOutside = (menuRef, buttonRef, onClose) => {
     );
 
     useEffect(() => {
+        if(preventCloseOnClickOutside) return;
         document.addEventListener('mousedown', handleClickOutside);
         return () => {
             document.removeEventListener('mousedown', handleClickOutside);
@@ -30,13 +31,14 @@ export default function Popup({
     padding = 8,
     portalContainer = document.body,
     btnVisibleOnGroupHover, // adds a hide class if not open. assumes the button to have group-hover
+    preventCloseOnClickOutside=false,
     defaultOpen = false, preferredPosition="bottom"
 }) {
     const [open, setOpen] = useState(defaultOpen);
     const buttonRef = useRef(null);
     const popupRef = useRef(null);
     const [pos, setPos] = useState({ top: 0, left: 0 });
-    useHandleClickOutside(popupRef, buttonRef, () => setOpen(false))
+    useHandleClickOutside(popupRef, buttonRef, preventCloseOnClickOutside, () => setOpen(false))
     // toggle internal open state
     const toggle = () => setOpen(o => !o);
 

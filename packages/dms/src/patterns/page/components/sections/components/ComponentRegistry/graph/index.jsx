@@ -73,6 +73,7 @@ export default {
     "type": 'Graph',
     "variables": [],
     useDataSource: true,
+    useDataWrapper: true,
     fullDataLoad: true,
     useGetDataOnPageChange: false,
     showPagination: false,
@@ -121,8 +122,6 @@ export default {
                         column.show = column.name === attribute.name ? value : column.yAxis || column.xAxis;
                     })
                 }},
-
-            {type: 'toggle', label: 'Filter', key: 'filters', trueValue: [{type: 'internal', operation: 'filter', values: []}]},
         ],
         appearance: {name: 'Appearance', type: AppearanceControls},
         inHeader: [
