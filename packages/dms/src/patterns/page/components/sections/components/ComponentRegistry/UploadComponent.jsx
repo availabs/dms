@@ -75,6 +75,7 @@ export default {
     "type": 'upload',
     defaultState,
     useDataSource: true,
+    useDataWrapper: true,
     "variables": [],
     "EditComp": Edit,
     "ViewComp": View

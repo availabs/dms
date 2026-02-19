@@ -94,6 +94,9 @@ function PatternList({
 		},
 		{name: 'subdomain', display_name: 'Subdomain', show: true, type: 'text'},
 		// {name: 'updated_at', display_name: 'Updated', show: true, type: 'text', formatFn: 'date'},
+		{name: 'edit', display_name: 'Edit', show: true, type: 'ui', Comp: (d) => {
+				return <Button onClick={() => setEditingItem(d.row)}>Edit</Button>
+			}},
 		{name: 'edit', display_name: 'Edit', show: true, type: 'ui',
       Comp: (d) => {
         return (
@@ -129,7 +132,7 @@ function PatternList({
 				},
 			});
 
-		// const publishFinalEvent = await res.json();
+		const publishFinalEvent = await res.json();
 		await addNewValue(item);
 		setIsDuplicating(false);
 	}
@@ -158,6 +161,98 @@ function PatternList({
 					isEdit={false}
 					gridRef={gridRef}
 				/>
+
+				<Modal open={Boolean(editingItem)} setOpen={setEditingItem}>
+					<div className={`flex flex-col`}>
+						{
+							attrToAddNew
+								.map((attrKey, i) => {
+									let {EditComp, ViewComp, ...props} = attributes[attrKey]
+									if(attrKey === 'filters'){
+										EditComp = RenderFilters
+									}
+									const options =
+										attrKey === 'pattern_type' && authExists && props.options?.length ?
+											props.options.filter(o => o.value !== 'auth') :
+											props.options;
+									return (
+
+										<EditComp
+											value={editingItem?.[attrKey]}
+											onChange={(v) => setEditingItem({...editingItem, [attrKey]: v})}
+											placeHolder={attrKey}
+											{...props}
+											options={options}
+											key={`${attrKey}-${i}`}
+										/>
+
+									)
+								})
+						}
+						<div className={'w-full flex items-center justify-start gap-0.5'}>
+							<Button
+								className={'bg-blue-100 hover:bg-blue-300 text-sm text-blue-800 px-2 py-0.5 m-1 rounded-lg w-fit h-fit'}
+								type={'plain'}
+								title={'save item'}
+								onClick={() => {
+									const newValue = value.map(v => v.id === editingItem.id ? editingItem : v);
+									onChange(newValue)
+									onSubmit(newValue)
+									setEditingItem(undefined)
+								}}
+							>
+								save
+							</Button>
+
+							<Button
+								className={'bg-red-100 hover:bg-red-300 text-sm text-red-800 px-2 py-0.5 m-1 rounded-lg w-fit h-fit'}
+								type={'plain'}
+								title={'cancel item'}
+								onClick={() => {
+									setEditingItem(undefined)
+								}}
+							>
+								cancel
+							</Button>
+
+							<Button
+								className={'bg-green-100 hover:bg-green-300 text-green-800 px-2 py-0.5 m-1 rounded-lg w-fit h-fit'}
+								type={'plain'}
+								title={'duplicate item'}
+								onClick={async () => {
+									const newDocType = uuidv4();
+									const dataToCopy = {
+										app: editingItem.app,
+										base_url: `${editingItem.base_url}_copy`,
+										subdomain: editingItem.subdomain,
+										config: editingItem.config,
+										doc_type: newDocType,
+										name: `${editingItem.name}_copy`,
+										pattern_type: editingItem.pattern_type,
+										auth_level: editingItem.auth_level,
+										filters: editingItem.filters,
+										theme: editingItem.theme,
+									};
+									await duplicate({oldType: editingItem.doc_type, newType: newDocType}, dataToCopy)
+									setEditingItem(undefined)
+								}}
+							> {isDuplicating ? 'duplicating...' : 'duplicate'}
+							</Button>
+							<Button
+								className={'bg-red-100 hover:bg-red-300 text-red-800 px-2 py-0.5 m-1 rounded-lg w-fit h-fit'}
+								type={'plain'}
+								title={'remove item'}
+								onClick={() => {
+									const newData = value.filter((v, i) => v.id !== editingItem.id);
+									onChange(newData)
+									onSubmit(newData)
+									setEditingItem(undefined)
+								}}
+							> remove
+							</Button>
+						</div>
+					</div>
+				</Modal>
 
 				<Modal open={addingNew} setOpen={setAddingNew}>
 					<div className={`flex flex-col`}>
