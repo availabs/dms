@@ -85,9 +85,11 @@ export function LayerInfo({ layer, button, source, baseUrl, location = "left-0" 
           <div className="px-2 py-2 flex gap-2 flex-col">
             <div><b>Source Name:</b> {source?.attributes?.name}</div>
             <div><b>Source Id:</b> {source?.attributes?.source_id}</div>
+            {/*
             <Link className="text-blue-600 hover:text-pink-400" to={sourceUrl} target="_blank" rel="noopener noreferrer">
               Link to Data Manager Source
             </Link>
+            */}
           </div>
         </Menu.Items>
       </Transition>

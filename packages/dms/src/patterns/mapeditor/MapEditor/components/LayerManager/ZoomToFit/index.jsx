@@ -5,7 +5,9 @@ import get from 'lodash/get'
 import set from 'lodash/set'
 import isEqual from 'lodash/isEqual'
 import mapboxgl from "maplibre-gl";
+
 export const ZoomToFit = ({ layer }) => {
+
   const { state, setState  } = useContext(SymbologyContext);
   const { falcor, falcorCache, pgEnv } = useContext(MapEditorContext);
   const { view_id } = layer;
@@ -51,7 +53,7 @@ export const ZoomToFit = ({ layer }) => {
       ).then(res => console.log("resp from saving view extent:", res))
     }
     if(Object.keys(viewMetadata).length > 0 && !extent) {
-      getExtent()
+      getExtent();
     }
   }, [viewMetadata, extent]);
 
@@ -66,7 +68,7 @@ export const ZoomToFit = ({ layer }) => {
     } else {
       return null;
     }
-  }, [extent])
+  }, [extent]);
 
   const isZoomActive = isEqual(JSON.stringify(zoomToFit), JSON.stringify(extentBox));
   return (

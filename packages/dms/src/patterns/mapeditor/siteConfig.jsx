@@ -4,18 +4,18 @@ import { cloneDeep } from "lodash-es";
 
 import { useFalcor } from "@availabs/avl-falcor"
 
-import { MapEditorContext, useMapEditorContext } from "./context"
+import { MapEditorContext } from "./context"
+import { PageContext } from "../page/context.js";
 
 import MapEditorFormat from "./mapeditor.format"
 
 import UI from "../../ui"
 import { ThemeContext, getPatternTheme } from "../../ui/useTheme.js";
 
-import { SymbologyManager } from "./components"
-
 import MapEditor from "./MapEditor"
+import MapViewer from "./MapEditor/MapViewer"
 
-const useTheme = () => React.useContext(ThemeContext);
+const usePage = () => React.useContext(PageContext);
 
 const mapeditorConfig = ({
 	app, type,
@@ -37,8 +37,6 @@ const mapeditorConfig = ({
 
   const theme = getPatternTheme(themes, pattern);
 
-console.log("MapEditor::siteConfig::baseUrl", baseUrl)
-
 	return {
 		siteType,
 		format,
@@ -48,9 +46,10 @@ console.log("MapEditor::siteConfig::baseUrl", baseUrl)
 			{ action: "list",
 				path: "/*",
 				authPermissions,
-				type: ({ user, params, children, ...props }) => {
+				type: ({ user, params, children }) => {
 
 					const { falcor, falcorCache } = useFalcor();
+					const { pageState, setPageState } = React.useContext(PageContext) || {};
 
 					const mapeditorContextValue = React.useMemo(() => {
 						return {
@@ -61,10 +60,13 @@ console.log("MapEditor::siteConfig::baseUrl", baseUrl)
 							pgEnv,
 							falcor,
 							falcorCache,
-							useTheme,
+							pageState,
+							setPageState,
 							params
 						}
-					}, [app, type, siteType, baseUrl, user, params, falcor, falcorCache]);
+					}, [app, type, siteType, baseUrl, user, pgEnv,
+							params, falcor, falcorCache, pageState
+					]);
 
 					return (
 						<MapEditorContext.Provider value={ mapeditorContextValue }>
@@ -88,7 +90,7 @@ console.log("MapEditor::siteConfig::baseUrl", baseUrl)
 						},
 						{ action: "view",
 							path: "view/:id",
-							type: () => <div>SYMBOLOGY VIEWER</div>
+							type: MapViewer
 						}
 				]
 			}

@@ -1,14 +1,138 @@
-import React, { useMemo, useContext, Fragment } from 'react'
-import { SymbologyContext } from '../../'
-import { MapEditorContext } from "../../../context"
-import { Fill, Line, Eye, EyeClosed, MenuDots , CaretDown, CaretDownSolid, CaretUpSolid, CircleInfoI } from '../icons'
+import React from "react"
+
 import get from 'lodash/get'
-import set from 'lodash/get'
-import { LayerMenu, LayerInfo } from './LayerPanel'
-import { SourceAttributes, ViewAttributes, getAttributes } from "../../../attributes"
+import set from 'lodash/set'
+import isEqual from 'lodash/isEqual'
+import mapboxgl from "maplibre-gl";
+import { useNavigate, Link } from 'react-router'
+
+import {
+  Fill, Line, Eye, EyeClosed, MenuDots, CircleInfoI,
+  CaretDown, CaretDownSolid, CaretUpSolid, SquarePlusSolid
+} from './icons'
+import { SourceAttributes, ViewAttributes, getAttributes } from "../../attributes"
 import { Menu, Transition, Tab, Dialog } from '@headlessui/react'
-import { fnumIndex } from '../LayerEditor/datamaps'
-import { extractState } from '../../stateUtils'
+import { fnumIndex } from './LayerEditor/datamaps'
+import { extractState } from '../stateUtils'
+
+import { SymbologyContext } from '../MapViewer'
+import { MapEditorContext } from "../../context"
+
+function LayerInfo({ layer, button, source, baseUrl, location = "left-0" }) {
+  // const sourceUrl = `${baseUrl}/source/${layer.source_id}`;
+  return (
+    <Menu as="div" className="relative inline-block text-left">
+      <Menu.Button>{button}</Menu.Button>
+      <Transition
+        as={React.Fragment}
+        enter="transition ease-out duration-100"
+        enterFrom="transform opacity-0 scale-95"
+        enterTo="transform opacity-100 scale-100"
+        leave="transition ease-in duration-75"
+        leaveFrom="transform opacity-100 scale-100"
+        leaveTo="transform opacity-0 scale-95"
+      >
+        <Menu.Items
+          className={`absolute ${location} mt-1 w-64 origin-top-left divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black/5 focus:outline-none`}
+        >
+          <div className="px-2 py-2 flex gap-2 flex-col">
+            <div><b>Source Name:</b> {source?.attributes?.name}</div>
+            <div><b>Source Id:</b> {source?.attributes?.source_id}</div>
+            {/*
+            <Link className="text-blue-600 hover:text-pink-400" to={sourceUrl} target="_blank" rel="noopener noreferrer">
+              Link to Data Manager Source
+            </Link>
+            */}
+          </div>
+        </Menu.Items>
+      </Transition>
+    </Menu>
+  );
+}
+
+export const ZoomToFit = ({ layer }) => {
+
+  const { state, setState  } = React.useContext(SymbologyContext);
+  const { activeLayer } = state.symbology;
+  const { falcor, falcorCache, pgEnv } = React.useContext(MapEditorContext);
+  const { view_id } = layer;
+
+  const { zoomToFit } = React.useMemo(() => ({
+    zoomToFit: get(state,`symbology.zoomToFit`),
+  }),[state]);
+
+  React.useEffect(() => {
+    if(view_id) {
+      falcor.get([
+          "dama", pgEnv, "views", "byId", view_id, "attributes", "metadata"
+      ]);
+    }
+  },[view_id]);
+
+  const viewMetadata = React.useMemo(() => {
+    let out = get(falcorCache, [
+        "dama", pgEnv, "views", "byId", view_id, "attributes", "metadata", "value", "columns"
+    ], []);
+    if(out.length === 0) {
+      out = get(falcorCache, [
+        "dama", pgEnv, "views", "byId", view_id, "attributes", "metadata", "value"
+      ], []);
+    }
+    return out;
+  }, [view_id, falcorCache]);
+
+  const extent = React.useMemo(() => {
+    return viewMetadata['extent'];
+  }, [viewMetadata]);
+
+  React.useEffect(() => {
+    const getExtent = async () => {
+      const newOptions = JSON.stringify({
+      })
+      const resp = await falcor.get([
+        'dama',pgEnv,'viewsbyId', view_id, 'options', newOptions, 'databyIndex',{ },['ST_AsGeojson(ST_Extent(wkb_geometry)) as bextent']
+      ]);
+      const newExtent = get(resp, ['json','dama',pgEnv,'viewsbyId', view_id, 'options', newOptions, 'databyIndex',0,['ST_AsGeojson(ST_Extent(wkb_geometry)) as bextent'] ])
+      falcor.call(
+        ["dama", "views", "metadata", "update"],
+        [pgEnv, view_id, { extent: newExtent }]
+      )//.then(res => console.log("resp from saving view extent:", res))
+    }
+    if(Object.keys(viewMetadata).length > 0 && !extent) {
+      getExtent()
+    }
+  }, [viewMetadata, extent]);
+
+  const extentBox = React.useMemo(() => {
+    if (extent) {
+      const parsedExtent = JSON.parse(extent);      
+      const coordinates = parsedExtent.coordinates[0];
+      const mapGeom = coordinates.reduce((bounds, coord) => {
+        return bounds.extend(coord);
+      }, new mapboxgl.LngLatBounds(coordinates[0], coordinates[0]));
+      return [mapGeom['_sw'], mapGeom['_ne']]
+    } else {
+      return null;
+    }
+  }, [extent]);
+
+  const isZoomActive = isEqual(JSON.stringify(zoomToFit), JSON.stringify(extentBox));
+
+  return (
+  <SquarePlusSolid size={20}
+    onClick={() => {
+      setState(draft => {
+        if(isZoomActive){
+          set(draft,`symbology.zoomToFit`,[]);
+        }
+        else {
+          set(draft,`symbology.zoomToFit`,extentBox);
+        }
+      })
+    }}
+    className={` ${activeLayer == layer.id ? 'fill-pink-100' : 'fill-white'} collapse group-hover:visible cursor-pointer group-hover:fill-gray-400 group-hover:hover:fill-pink-700`}
+    />
+)}
 
 function VisibilityButton ({layer}) {
   const { state, setState  } = React.useContext(SymbologyContext);
@@ -27,45 +151,18 @@ function VisibilityButton ({layer}) {
   return (
     <>
       {visible ?
-        <Eye
+        <Eye size={20}
           onClick={onClick}
-          className={` ${activeLayer == layer.id ? 'fill-pink-100' : 'fill-white'} pt-[2px] cursor-pointer group-hover:fill-gray-400 group-hover:hover:fill-pink-700`}
+          className={`${activeLayer == layer.id ? 'fill-pink-100' : 'fill-white'} cursor-pointer group-hover:fill-gray-400 group-hover:hover:fill-pink-700`}
         /> :
-        <EyeClosed
+        <EyeClosed size={20}
           onClick={onClick}
-          className={` ${activeLayer == layer.id ? 'fill-pink-100' : 'fill-white'} pt-[2px] cursor-pointer group-hover:fill-gray-400 group-hover:hover:fill-pink-700`}
+          className={`${activeLayer == layer.id ? 'fill-pink-100' : 'fill-white'} cursor-pointer group-hover:fill-gray-400 group-hover:hover:fill-pink-700`}
         />
       }
     </>
   )
 }
-
-// const typeSymbols = {
-//   'fill': ({layer,color}) => {
-//       //let color = get(layer, `layers[1].paint['fill-color']`, '#ccc')
-//       return (
-//         <div className='pr-2'>
-//           <div className={'w-4 h-4 rounded '} style={{backgroundColor:color}} />
-//         </div>
-//       )
-//   },
-//   'circle': ({layer,color}) => {
-//       //let color = get(layer, `layers[0].paint['circle-color']`, '#ccc')
-//       let borderColor = get(layer, `layers[0].paint['circle-stroke-color']`, '#ccc')
-//       return (
-//         <div className='pl-0.5 pr-2'>
-//           <div className={'w-3 h-3 rounded-full '} style={{backgroundColor:color, borderColor}} />
-//         </div>
-//       )
-//   },
-//   'line': ({layer, color}) => {
-//       return (
-//         <div className='pr-2'>
-//           <div className={'w-4 h-1'} style={{backgroundColor:color}} />
-//         </div>
-//       )
-//   }
-// }
 
 const LegendSymbol = ({ layer, color }) => {
   return layer?.type === "circle" ? (
@@ -144,7 +241,7 @@ const GET_PAINT_VALUE = {
 function InteractiveLegend({ layer, toggleSymbology }) {
   const { state, setState } = React.useContext(SymbologyContext);
 
-  let { interactiveFilters } = useMemo(() => {
+  let { interactiveFilters } = React.useMemo(() => {
     return {
       interactiveFilters: get(layer, `['interactive-filters']`, []),
     };
@@ -165,7 +262,7 @@ function InteractiveLegend({ layer, toggleSymbology }) {
 
 function CircleLegend({ layer, toggleSymbology }) {
  // console.log("CircleLegend", layer);
-  let { minRadius, maxRadius, lowerBound, upperBound, isLoadingColorbreaks, dataColumn } = useMemo(() => {
+  let { minRadius, maxRadius, lowerBound, upperBound, isLoadingColorbreaks, dataColumn } = React.useMemo(() => {
     return {
       isLoadingColorbreaks: get(layer, `['is-loading-colorbreaks']`, false),
       minRadius: get(layer,`['min-radius']`, 8),
@@ -215,9 +312,9 @@ function CircleLegend({ layer, toggleSymbology }) {
 }
 
 function StepLegend({ layer, toggleSymbology }) {
-  //console.log('StepLegend', layer)
+  // console.log('StepLegend', layer)
   const { state, setState  } = React.useContext(SymbologyContext);
-  let { legenddata, isLoadingColorbreaks } = useMemo(() => {
+  let { legenddata, isLoadingColorbreaks } = React.useMemo(() => {
     return {
       legenddata : get(layer, `['legend-data']`, []),
       isLoadingColorbreaks: get(layer, `['is-loading-colorbreaks']`, false)
@@ -255,7 +352,7 @@ function StepLegend({ layer, toggleSymbology }) {
 
 function HorizontalLegend({ layer, toggleSymbology }) {
   const { state, setState  } = React.useContext(SymbologyContext);
-  let { legenddata, isLoadingColorbreaks, showOther } = useMemo(() => {
+  let { legenddata, isLoadingColorbreaks, showOther } = React.useMemo(() => {
     return {
       legenddata : get(layer, `['legend-data']`, []),
       isLoadingColorbreaks: get(layer, `['is-loading-colorbreaks']`, false),
@@ -303,10 +400,12 @@ function HorizontalLegend({ layer, toggleSymbology }) {
 
 function LegendRow ({ layer, i, numLayers, onRowMove }) {
   const { state, setState  } = React.useContext(SymbologyContext);
-  const { falcor, falcorCache, pgEnv, baseUrl } = useContext(MapEditorContext);
+  const { falcor, falcorCache, pgEnv, baseUrl } = React.useContext(MapEditorContext);
   const { activeLayer } = state.symbology;
 
-  let { layerType: type, legendOrientation,  selectedInteractiveFilterIndex, interactiveFilters, dataColumn, filterGroup, filterGroupLegendColumn,filterGroupName, viewGroup, viewGroupName, sourceId, dynamicFilters, isLayerControlledByPlugin } = useMemo(() => {
+// console.log("LegendRow::layer", layer);
+
+  let { layerType: type, legendOrientation,  selectedInteractiveFilterIndex, interactiveFilters, dataColumn, filterGroup, filterGroupLegendColumn,filterGroupName, viewGroup, viewGroupName, sourceId, dynamicFilters, isLayerControlledByPlugin } = React.useMemo(() => {
     const pluginData = get(state, `symbology.pluginData`, {});
     const isLayerControlledByPlugin = (Object.keys(pluginData) || []).some(pluginName => Object.values(pluginData[pluginName]['active-layers'] || {}).includes(layer.id))
 
@@ -328,6 +427,8 @@ function LegendRow ({ layer, i, numLayers, onRowMove }) {
     }
   },[state, layer]);
 
+// console.log("LegendRow::sourceId", sourceId);
+
   const toggleSymbology = () => {
     setState(draft => {
         draft.symbology.activeLayer = activeLayer === layer.id ? '' : layer.id
@@ -342,10 +443,17 @@ function LegendRow ({ layer, i, numLayers, onRowMove }) {
   // const Symbol = typeSymbols[layer.type] || typeSymbols['fill']
   let paintValue = GET_PAINT_VALUE?.[layer?.type] ? GET_PAINT_VALUE?.[layer?.type](layer) : '#fff'
   const layerTitle = layer.name ?? filterGroupName;
-  const layerSource = useMemo(
+
+  const layerSource = React.useMemo(
     () => get(falcorCache, ["dama", pgEnv, "sources", "byId", sourceId], {}),
     [sourceId, falcorCache]
   );
+
+// console.log("LegendRow::layerSource", layerSource);
+
+  const stopTheProp = React.useCallback(e => {
+    e.stopPropagation();
+  }, []);
 
   const legendTitle = (
     <div className='flex justify-between items-center justify w-full' onClick={toggleSymbology} >
@@ -355,37 +463,27 @@ function LegendRow ({ layer, i, numLayers, onRowMove }) {
             { layerTitle }
           </div>
         )
-    }
+      }
       {!shouldDisplayColorSquare && layerTitle}
-      <div className='flex'>
-        <div className='text-sm pt-1  flex items-center'>
-          <LayerInfo
-            source={layerSource}
-            layer={layer}
-            baseUrl={baseUrl}
-            button={<CircleInfoI size={16} className={` ${activeLayer == layer.id ? 'fill-pink-100' : 'fill-white'} collapse group-hover:visible pb-[2px] cursor-pointer group-hover:fill-gray-400 group-hover:hover:fill-pink-700`}/>}
-          />
-        </div>
-        <div className='text-sm pt-1  flex items-center'>
-          <LayerMenu
-            layer={layer}
-            button={<MenuDots className={` ${activeLayer == layer.id ? 'fill-pink-100' : 'fill-white'} pb-[2px] cursor-pointer group-hover:fill-gray-400 group-hover:hover:fill-pink-700`}/>}
-          />
-        </div>
-        <CaretUpSolid
-          onClick={() => {
-            onRowMove(i, i-1)
-          }}
-          size={24}
-          className={`${i === 0 ? 'pointer-events-none' : ''} mr-[-6px] ${activeLayer == layer.id ? 'fill-pink-100' : 'fill-white'}  pt-[2px] cursor-pointer group-hover:fill-gray-400 group-hover:hover:fill-pink-700`}
+      <div className='flex items-center' onClick={ stopTheProp }>
+
+        <LayerInfo
+          source={ layerSource }
+          layer={ layer }
+          baseUrl={ baseUrl }
+          button={
+            <CircleInfoI size={ 20 }
+              className={ `
+                ${ activeLayer == layer.id ? 'fill-pink-100' : 'fill-white' }
+                group-hover:visible cursor-pointer group-hover:fill-gray-400
+                group-hover:hover:fill-pink-700
+              ` }
+            />
+          }
         />
-        <CaretDownSolid
-          onClick={ () => {
-            onRowMove(i, i+1)
-          }}
-          size={24}
-          className={`${i === numLayers-1 ? 'pointer-events-none' : ''} mr-[-3px] ${activeLayer == layer.id ? 'fill-pink-100' : 'fill-white'} pb-[2px] cursor-pointer group-hover:fill-gray-400 group-hover:hover:fill-pink-700`}
-        />
+
+        <ZoomToFit layer={layer}/>
+
         <VisibilityButton layer={layer}/>
       </div>
     </div>
@@ -594,9 +692,9 @@ function LegendRow ({ layer, i, numLayers, onRowMove }) {
 }
 
 function LegendPanel (props) {
-  const { state, setState  } = React.useContext(SymbologyContext);
+  const { state, setState } = React.useContext(SymbologyContext);
   //console.log('layers', layers)
-  const { allPluginActiveLayerIds, layers } = useMemo(() => {
+  const { allPluginActiveLayerIds, layers } = React.useMemo(() => {
     return extractState(state)
   }, [state])
   const droppedSection = React.useCallback((start, end) => {
@@ -616,13 +714,13 @@ function LegendPanel (props) {
     });
   }, []);
 
-  const numLayers = useMemo(() => {
+  const numLayers = React.useMemo(() => {
     return Object.values(layers).length;
   }, [layers]);
   return (
     <>
       {/* ------ Legend Pane ----------- */}
-      <div className='min-h-20 relative max-h-[calc(100vh_-_220px)] scrollbar-sm '>
+      <div className='min-h-20 relative max-h-[calc(100vh_-_220px)] scrollbar-sm bg-white'>
         {Object.values(layers)
           .sort((a,b) => b.order - a.order)
           .filter((layer, i) => {
@@ -650,8 +748,8 @@ export default LegendPanel;
 
 const DynamicFilter = ({layer}) => {
   const { state, setState  } = React.useContext(SymbologyContext);
-  const { falcor, falcorCache, pgEnv } = useContext(DamaContext);
-  let { layerType, dynamicFilters, viewId } = useMemo(() => {
+  const { falcor, falcorCache, pgEnv } = React.useContext(MapEditorContext);
+  let { layerType, dynamicFilters, viewId } = React.useMemo(() => {
     return {
       viewId:get(layer,`view_id`),
       layerType : get(layer, `['layer-type']`),
@@ -714,7 +812,7 @@ const DynamicFilter = ({layer}) => {
 function DynamicFilterControl({button, layer, sampleData, filterIndex}) {
   const { state, setState  } = React.useContext(SymbologyContext);
 
-  const {filterValues} = useMemo(() => {
+  const {filterValues} = React.useMemo(() => {
     return {
       filterValues:get(layer, `['dynamic-filters'][${filterIndex}].values`, []),
     }
@@ -766,13 +864,13 @@ function DynamicFilterControl({button, layer, sampleData, filterIndex}) {
                             newValues.push(datum);
 
                             setState((draft) => {
-                              console.log(
-                                JSON.parse(
-                                  JSON.stringify(
-                                    draft.symbology.layers[layer.id]
-                                  )
-                                )
-                              );
+                              // console.log(
+                              //   JSON.parse(
+                              //     JSON.stringify(
+                              //       draft.symbology.layers[layer.id]
+                              //     )
+                              //   )
+                              // );
                               draft.symbology.layers[layer.id][
                                 "dynamic-filters"
                               ][filterIndex].values = newValues;

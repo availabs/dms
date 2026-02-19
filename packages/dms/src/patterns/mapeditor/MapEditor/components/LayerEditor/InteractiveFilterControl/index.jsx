@@ -29,13 +29,15 @@ function InteractiveFilterControl({ path, params = {enableBuilder: true} }) {
       activeLayer: get(state,`symbology.layers[${state?.symbology?.activeLayer}]`, {})
     };
   }, [state]);
+
   useEffect(() => {
     if(selectedInteractiveFilterIndex !== undefined && !interactiveFilters[selectedInteractiveFilterIndex]){
       setState(draft => {
         set(draft, `symbology.layers[${state.symbology.activeLayer}]['selectedInteractiveFilterIndex']`, undefined)
       })
     }
-  }, [interactiveFilters])
+  }, [interactiveFilters]);
+
   const shouldDisplayInteractiveBuilder = enableBuilder && selectedInteractiveFilterIndex !== undefined && selectedInteractiveFilterIndex !== null;
   return (
     <div className=" w-full items-center mt-2">
@@ -49,7 +51,8 @@ function InteractiveFilterControl({ path, params = {enableBuilder: true} }) {
               setState(draft => {
                 const oldInteractiveFilters = get(
                   draft,
-                  `symbology.layers[${state.symbology.activeLayer}].${path}`
+                  `symbology.layers[${state.symbology.activeLayer}].${path}`,
+                  []
                 )
                 oldInteractiveFilters.splice(selectedInteractiveFilterIndex,1);
                 set(draft,`symbology.layers[${state.symbology.activeLayer}].${path}`, oldInteractiveFilters )

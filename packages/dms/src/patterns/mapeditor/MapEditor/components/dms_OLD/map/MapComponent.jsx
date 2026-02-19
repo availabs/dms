@@ -81,16 +81,20 @@ const Edit = ({value, onChange, size}) => {
 
     const activeSym = useMemo(() => {
         return Object.keys(state.symbologies || {}).find(sym => state.symbologies[sym].isVisible);
-    }, [state.symbologies])
+    }, [state.symbologies]);
+
     const activeSymSymbology = useMemo(()=> {
         return state.symbologies[activeSym]?.symbology || {};
-    }, [state.symbologies[activeSym]])
+    }, [state.symbologies[activeSym]]);
+
     const activeLayer = useMemo(() => {
         return activeSymSymbology?.layers?.[activeSymSymbology?.activeLayer];
-    },[activeSymSymbology])
+    },[activeSymSymbology]);
+    
     const pageFilters = useMemo(() => {
         return pageState.filters
-    },[pageState])
+    },[pageState]);
+
     useEffect(() => {
         const usePageFilters = Object.values(activeSymSymbology.layers || {}).some(layer => layer['dynamic-filters']?.length);
         if(!usePageFilters) return;
@@ -130,7 +134,7 @@ const Edit = ({value, onChange, size}) => {
                         })
                 })
         })
-    }, [pageFilters])
+    }, [pageFilters]);
 
     const dynamicFilterOptions = useMemo(() => {
         return (activeLayer?.['dynamic-filters'] || []);

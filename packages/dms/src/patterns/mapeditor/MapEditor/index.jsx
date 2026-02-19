@@ -27,7 +27,7 @@ import ExternalPluginPanel from './components/ExternalPluginPanel'
 import SymbologyViewLayer from './components/SymbologyViewLayer'
 import PluginLayer from './components/PluginLayer'
 
-import { ViewAttributes } from "../attributes"
+import { SourceAttributes, ViewAttributes } from "../attributes"
 import { getAttributes } from "../attributes";
 
 import { DMS_DATA_ITEM_ATTRIBUTES } from "../attributes"
@@ -113,6 +113,30 @@ const DEFAULT_BLANK_SYMBOLOGY = {
   },
 };
 const NUM_DEFAULT_SYMBOLOGY_KEYS = Object.keys(DEFAULT_BLANK_SYMBOLOGY).length;
+
+export const MAP_STYLES = [
+  { name: "Dark",
+    style: "https://api.maptiler.com/maps/dataviz-dark/style.json?key=mU28JQ6HchrQdneiq6k9"
+  },
+  {
+    name: "Default",
+    style: "https://api.maptiler.com/maps/dataviz/style.json?key=mU28JQ6HchrQdneiq6k9"
+  },
+  { name: "Satellite",
+    style: "https://api.maptiler.com/maps/hybrid/style.json?key=mU28JQ6HchrQdneiq6k9",
+  },
+  { name: "Streets",
+    style: "https://api.maptiler.com/maps/streets-v2/style.json?key=mU28JQ6HchrQdneiq6k9",
+  },
+
+  { name: "Light",
+    style: "https://api.maptiler.com/maps/dataviz-light/style.json?key=mU28JQ6HchrQdneiq6k9"
+  },
+  // {
+  //   name: 'Sattelite 3d ',
+  //   style: terrain_3d_source
+  // }
+]
 
 const MapEditor = props => {
   const mounted = React.useRef(false);
@@ -212,7 +236,7 @@ const MapEditor = props => {
     return cloneDeep(DEFAULT_BLANK_SYMBOLOGY);
   }, [symbologies, symbologyId, symbologyLocalStorageKey]);
 
-// console.log("MapEditor::initialSymbology", JSON.parse(JSON.stringify(initialSymbology)))
+console.log("MapEditor::initialSymbology", JSON.parse(JSON.stringify(initialSymbology)))
 
   // Sets an initial `activeLayer`
   // if (
@@ -285,7 +309,7 @@ const MapEditor = props => {
   // -- Map Layers are the instantation
   // -- of state.symbology.layers as SymbologyViewLayers
   // -------------------------
-  const [mapLayers, setMapLayers] = useImmer([])
+  const [mapLayers, setMapLayers] = useImmer([]);
 
   // console.log("state?.symbology?.layers",state?.symbology?.layers)
 
@@ -383,8 +407,9 @@ const MapEditor = props => {
         return out;
       })
     }
-  }, [mounted.current, state?.symbology?.layers,
-      state?.symbology?.plugins, state?.symbology?.zoomToFit
+  }, [mounted.current,
+      state?.symbology?.layers,
+      state?.symbology?.plugins
   ]);
 
   let {
@@ -432,7 +457,7 @@ const MapEditor = props => {
     return extractState(state);
   }, [state]);
 
-console.log("MapEditor::layerType", layerType);
+// console.log("MapEditor::layerType", layerType);
 
   const layerProps = React.useMemo(() =>
     ({ ...state?.symbology?.layers, ...state?.symbology?.plugins,
@@ -511,16 +536,16 @@ console.log("MapEditor::layerType", layerType);
           }
         })
     });
-  }, [isEqual(interactiveFilterIndicies, prevInteractiveIndicies)])
+  }, [isEqual(interactiveFilterIndicies, prevInteractiveIndicies)]);
 
   React.useEffect(() => {
     //console.log('getmetadat', sourceId)
     if (sourceId) {
       falcor.get([
-          "dama", pgEnv, "sources", "byId", sourceId, "attributes", "metadata"
+          "dama", pgEnv, "sources", "byId", sourceId, "attributes", Object.values(SourceAttributes)
       ])//.then(d => console.log('source metadata sourceId', sourceId, d));
     }
-  },[falcor, sourceId])
+  },[falcor, sourceId]);
 
   const metadata = React.useMemo(() => {
     //console.log('getmetadata', falcorCache)
@@ -971,29 +996,7 @@ console.log("MapEditor::layerType", layerType);
             maxPitch: 60,
             // protocols: [PMTilesProtocol],
 
-            styles: [
-              { name: "Dark",
-                style: "https://api.maptiler.com/maps/dataviz-dark/style.json?key=mU28JQ6HchrQdneiq6k9"
-              },
-              {
-                name: "Default",
-                style: "https://api.maptiler.com/maps/dataviz/style.json?key=mU28JQ6HchrQdneiq6k9"
-              },
-              { name: "Satellite",
-                style: "https://api.maptiler.com/maps/hybrid/style.json?key=mU28JQ6HchrQdneiq6k9",
-              },
-              { name: "Streets",
-                style: "https://api.maptiler.com/maps/streets-v2/style.json?key=mU28JQ6HchrQdneiq6k9",
-              },
-
-              { name: "Light",
-                style: "https://api.maptiler.com/maps/dataviz-light/style.json?key=mU28JQ6HchrQdneiq6k9"
-              },
-              // {
-              //   name: 'Sattelite 3d ',
-              //   style: terrain_3d_source
-              // }
-            ]
+            styles: MAP_STYLES
           } }
           leftSidebar={ false }
           rightSidebar={ false }

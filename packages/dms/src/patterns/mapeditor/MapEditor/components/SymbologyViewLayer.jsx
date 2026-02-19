@@ -447,7 +447,6 @@ class ViewLayer extends AvlLayer {
       .map((d) => d.id),
     callback: (layerId, features, lngLat) => {
 
-      //console.log('hover callback')
       let feature = features[0];
       // console.log('testing feature', feature)
 
@@ -476,6 +475,7 @@ export default ViewLayer;
 
 
 const HoverComp = ({ data, layer }) => {
+
   if(!layer.props.hover) return
   const { source_id, view_id } = layer;
   // const dctx = React.useContext(DamaContext);
@@ -675,7 +675,7 @@ const HoverComp = ({ data, layer }) => {
   //     {}
   //   )
   // }, [id, falcorCache, view_id, pgEnv]);
-//console.log({attrInfo, view_id, id})
+
   return (
     <div className="bg-white p-4 max-h-64 max-w-lg min-w-[300px] scrollbar-xs overflow-y-scroll">
       <div className="font-medium pb-1 w-full border-b ">
