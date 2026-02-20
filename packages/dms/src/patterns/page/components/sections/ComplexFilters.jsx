@@ -1,4 +1,4 @@
-import React, {useContext, useEffect} from "react";
+import React, {useContext, useEffect, Fragment} from "react";
 import {useImmer} from "use-immer";
 import {isEqual} from "lodash-es";
 import {ThemeContext} from "../../../../ui/useTheme";
@@ -165,10 +165,10 @@ export const ComplexFilters = ({ state, setState }) => {
 
                     <div className="ml-4 space-y-2">
                         {node.groups.map((child, i) =>
-                            <>
+                            <React.Fragment key={`node_child_${i}`}>
                                 {renderNode(child, [...path, i])}
                                 {node.groups.length - 1 > i && <div className={'text-xs text-gray-500 font-medium'}>{node.op}</div>}
-                            </>
+                            </React.Fragment>
                         )}
                     </div>
 
