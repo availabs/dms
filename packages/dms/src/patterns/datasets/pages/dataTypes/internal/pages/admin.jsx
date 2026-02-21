@@ -52,29 +52,31 @@ const DeleteSourceBtn = ({parent, source, apiUpdate, baseUrl}) => {
 }
 
 /**
- * AddViewBtn — follows the forms pattern.
- * Uses `item` (DMS data_items row with .id) rather than `source` (UDA object with .source_id).
- * dmsDataEditor needs data.id to locate the item, and format.attributes must include
- * the views dms-format attribute (ensured by the sourceFormat fix in SourcePage).
+ * AddViewBtn — uses source (UDA object) for view count/display.
+ * For the apiUpdate call, passes source.source_id as the DMS row id and
+ * references existing views by view_id so dmsDataEditor preserves them.
  */
-const AddViewBtn = ({item, format, apiUpdate}) => {
+const AddViewBtn = ({source, format, apiUpdate}) => {
     const {UI} = useContext(DatasetsContext);
     const {Modal} = UI;
     const [showModal, setShowModal] = useState(false);
     const [name, setName] = useState('');
-    const defaultViewName = `version ${(item?.views?.length || 0) + 1}`;
+    const views = source?.views || [];
+    const defaultViewName = `version ${views.length + 1}`;
 
     const addView = async () => {
-        const config = {format}
-        const data = cloneDeep(item);
-        data.views = [...(data.views || []), {name: name || defaultViewName}];
-
-        await apiUpdate({data, config});
+        const data = {
+            id: source.source_id,
+            views: [
+                ...views.map(v => ({id: v.view_id})),
+                {name: name || defaultViewName}
+            ]
+        };
+        await apiUpdate({data, config: {format}});
     }
-    console.log('add view btn', item)
     return (
         <>
-            <button disabled={!item.id} className={buttonGreenClass} onClick={() => setShowModal(true)}>Add Version</button>
+            <button disabled={!source?.source_id} className={buttonGreenClass} onClick={() => setShowModal(true)}>Add Version</button>
             <Modal open={showModal} setOpen={(v) => setShowModal(v)}>
                 <input key={'view-name'} placeholder={defaultViewName} value={name} onChange={e => setName(e.target.value)}/>
                 <button className={buttonGreenClass} onClick={() => {
@@ -90,7 +92,7 @@ const AddViewBtn = ({item, format, apiUpdate}) => {
     )
 }
 
-const Admin = ({ apiUpdate, apiLoad, format, item, source, setSource, params }) => {
+const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params }) => {
     const {id} = params;
     const {app, baseUrl, pageBaseUrl, user, parent, UI, falcor, datasources} = React.useContext(DatasetsContext) || {};
     const {AuthAPI} = React.useContext(AuthContext) || {};
@@ -222,7 +224,7 @@ const Admin = ({ apiUpdate, apiLoad, format, item, source, setSource, params }) 
                     <div className={'w-1/4'}>
                         <div className={'flex flex-col gap-4 shadow-lg rounded-md place-content-center p-4'}>
                             <Button><Link to={`${pageBaseUrl}/${id}/metadata`}>Advanced Metadata</Link></Button>
-                            <AddViewBtn item={item} format={format} apiUpdate={apiUpdate}/>
+                            <AddViewBtn source={source} format={format} apiUpdate={apiUpdate}/>
                             <DeleteSourceBtn parent={parent} source={source} apiUpdate={apiUpdate} baseUrl={baseUrl}/>
                         </div>
                     </div>

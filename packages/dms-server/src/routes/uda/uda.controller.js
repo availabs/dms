@@ -195,7 +195,10 @@ async function getViewById(env, ids, attributes) {
   if (isDms) {
     const dbCols = ['id', 'app', 'type', 'data', 'created_at', 'created_by', 'updated_at', 'updated_by'];
     const formattedAttrs = ['id', ...sanitizedAttrs].map(a =>
-      dbCols.includes(a) ? a : `data->>'${a}' AS ${a}`
+      dbCols.includes(a) ? a
+        // DMS view rows don't store view_id in data — fall back to the row id
+        : a === 'view_id' ? `COALESCE(data->>'view_id', CAST(id AS TEXT)) AS view_id`
+        : `data->>'${a}' AS ${a}`
     );
 
     const tbl = db.type === 'postgres' ? 'dms.data_items' : 'data_items';

@@ -3,7 +3,6 @@ import {Link, useNavigate} from "react-router";
 import {DatasetsContext} from "../context";
 import {ThemeContext} from "../../../ui/useTheme";
 import {getSourceData} from "./dataTypes/default/utils";
-import {loadDmsItem} from "../utils/dmsItems";
 import { getExternalEnv } from "../utils/datasources";
 import Breadcrumbs from "../components/Breadcrumbs";
 import Overview from "./dataTypes/default/overview"
@@ -56,7 +55,6 @@ export default function ({ apiLoad, apiUpdate, format, item, params, isDms }) {
     const pgEnv = getExternalEnv(datasources);
     const [source, setSource] = useState(isDms ? item : {});
     const [loading, setLoading] = useState(false);
-    const [dmsItem, setDmsItem] = useState(null);
     const {id, view_id, page} = params;
 
     // Derive source-specific format from registerFormats (has views as dms-format attribute).
@@ -77,21 +75,18 @@ export default function ({ apiLoad, apiUpdate, format, item, params, isDms }) {
             setLoading(false)
         }
 
-        if(((!isDms && pgEnv) || (isDms && !Object.entries(item).length)) && id){
+        if(((!isDms && pgEnv) || isDms) && id){
             load()
         }
-    }, [isDms, item.config])
-
-    useEffect(() => {
-        if (!isDms || !id) return;
-        loadDmsItem(apiLoad, sourceFormat, id).then(setDmsItem);
     }, [isDms, id])
 
     const sourceLoaded = !!(source.id || source.source_id);
 
     const sourceType = isDms ? 'internal_dataset' : source?.categories?.[0]?.[0]; // source identifier. this is how the source is named in the script. this used to be type.
     const sourceDataType = isDms ? 'internal_dataset' : source?.type; // csv / gis / internal
-    const sourcePages = sourceLoaded ? {...(damaDataTypes[sourceType] || {}), ...(damaDataTypes[sourceDataType] || {})} : {};
+    const sourcePages = sourceLoaded ? { ...(damaDataTypes[sourceType] || {}), ...(damaDataTypes[sourceDataType] || {}) } : {};
+
+    console.log('sourcePage', source)
 
     const sourcePagesNavItems =
         (Object.values(sourcePages) || [])
@@ -107,14 +102,14 @@ export default function ({ apiLoad, apiUpdate, format, item, params, isDms }) {
             .filter(p => p.href && !fixedPages.includes(p.href));
 
     const allNavItems = [overviewNav, ...sourcePagesNavItems, adminNav];
-    const views = isDms ? (dmsItem?.views || []) : (source.views || []);
+    const views = source.views || [];
     const showVersionSelector = viewDependentPages.includes(page);
 
     // Auto-navigate to latest view when on a view-dependent page without a view_id
     useEffect(() => {
         if (!showVersionSelector || view_id || !views.length) return;
         const latest = views[views.length - 1];
-        const latestId = latest.view_id || latest.id;
+        const latestId = latest.view_id;
         if (latestId) {
             navigate(`${pageBaseUrl}/${id}/${page}/${latestId}`, {replace: true});
         }
@@ -154,14 +149,13 @@ export default function ({ apiLoad, apiUpdate, format, item, params, isDms }) {
                                     value={view_id}
                             >
                                 <option key={'default'} value={undefined}>No version selected</option>
-                                {views.map(view => <option key={view.id} value={view.view_id || view.id}>{view.name || view.id}</option>)}
+                                {views.map(view => <option key={view.view_id} value={view.view_id}>{view.name || view.view_id}</option>)}
                             </select>
                         )}
                     </div>
                     <LayoutGroup>
                         {sourceLoaded ? (
                             <Page format={sourceFormat}
-                                  item={isDms && dmsItem ? dmsItem : item}
                                   source={source} setSource={setSource}
                                   params={params}
                                   isDms={isDms}

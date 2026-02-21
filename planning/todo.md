@@ -63,6 +63,7 @@
 - [x] Datasets settings page — category visibility settings, filtered/all toggle on list page, settings link for authed users
 - [ ] `internal_table` dataset type — new type combining creation + upload in one step, auto-creates first version, uses split tables for per-version data storage
 - [x] Custom admin page for internal dataset types — version creation follows forms pattern (uses DMS `item` with `.id`), SourcePage allows datatype admin overrides
+- [ ] Fix `updateMetaData` in upload component — calls `apiUpdate` with wrong format (dataset row type instead of source type), should use UDA update path like `updateSourceData`
 
 ### patterns/forms
 

@@ -132,6 +132,7 @@ const publish = async ({userId, email, gisUploadId, layerName, app, type, dmsSer
 }
 const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate,
                   parent, // form/source item. used to update meta about the source
+                  parentFormat, // format for the parent record (e.g. sourceFormat with type 'doc_type|source')
                   updateMeta=true, // if called from CMS, meta update should not happen
                   context,
                   ...rest}) => {
@@ -144,8 +145,8 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate,
 
     const {API_HOST, user, falcor, datasources} = useContext(context);
     const pgEnv = getExternalEnv(datasources) || 'hazmit_dama';
-    const damaServerPath = `${API_HOST}/dama-admin/${pgEnv}`;
-    const dmsServerPath = `${API_HOST}/dama-admin`;
+    const damaServerPath = `https://graph.availabs.org/dama-admin/${pgEnv}`;
+    const dmsServerPath = `https://graph.availabs.org/dama-admin`;
     console.log('testing', damaServerPath, dmsServerPath)
 
 
@@ -164,9 +165,10 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate,
     // {Flooding: {pivotColumn: 'associated_hazards'}
     // pivotColumns: {finalCOlName: [srcCol1, srcCol2, srcCol3, ...]}
     const updateMetaData = (data, attrKey) => {
-        console.log('updateMetaData', updateMeta, data, attrKey)
-        if(!updateMeta) return;
-        apiUpdate({data: {...parent, ...{[attrKey]: data}}, config: {format, type: format?.type?.replace(`-${view_id}`, '')}})
+      if (!updateMeta) return;
+        const editFormat = parentFormat || format;
+        console.log('updateMetadata', {data: {id: parent.source_id, [attrKey]: data}, config: {format: editFormat}})
+        apiUpdate({data: {id: parent.source_id, [attrKey]: data}, config: {format: editFormat}})
     }
     // ================================================= get etl context begin =========================================
     useEffect(() => {

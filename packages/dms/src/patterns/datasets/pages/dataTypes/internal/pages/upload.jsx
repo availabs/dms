@@ -4,7 +4,6 @@ import { getExternalEnv } from '../../../../utils/datasources';
 
 import Upload from "../../../../components/upload";
 import {ThemeContext} from "../../../../../../ui/useTheme";
-import {getSourceData} from "../../default/utils";
 
 const UploadPage = ({
     apiUpdate,
@@ -18,6 +17,7 @@ const UploadPage = ({
     const { API_HOST, baseUrl, pageBaseUrl, user, falcor, datasources } = React.useContext(DatasetsContext) || {};
     const pgEnv = getExternalEnv(datasources);
     const {theme} = useContext(ThemeContext) || {};
+
     if(!isDms) return <></>
     return (
             <div>
@@ -29,6 +29,7 @@ const UploadPage = ({
                             format={{app: source.app, type: `${source.doc_type}-${view_id}`, config: source.config}}
                             view_id={view_id}
                             parent={source}
+                            parentFormat={format}
                             apiLoad={apiLoad}
                             apiUpdate={apiUpdate}
                             context={DatasetsContext}

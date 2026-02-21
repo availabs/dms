@@ -21,7 +21,6 @@ const RenderPencil = ({theme = {}, editing, setEditing, attr, show}) => {
 export default function Overview ({
   apiUpdate,
   format,
-  item,
   source, setSource,
   params,
   isDms
@@ -37,7 +36,7 @@ export default function Overview ({
 
     const [editing, setEditing] = useState();
     const [showAllColumns, setShowAllColumns] = useState(false);
-    const views = isDms ? (item?.views || []) : (source?.views || []);
+    const views = source?.views || [];
 
     let columns = useMemo(() =>
         isDms ? isJson(source.config) ? JSON.parse(source.config)?.attributes : [] :
@@ -188,7 +187,7 @@ export default function Overview ({
                                     if (col === 'name') {
                                         return (
                                             <div {...rest}>
-                                                <Link to={`${pageBaseUrl}/${params.id}/version/${row?.view_id || row?.id}`}>
+                                                <Link to={`${pageBaseUrl}/${params.id}/version/${row?.view_id}`}>
                                                     {value || 'No Name'}
                                                 </Link>
                                             </div>
