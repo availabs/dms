@@ -16,7 +16,7 @@ const frozenColClass = '' // testing
 
 export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addItem, newItem, setNewItem, loading, allowEdit,
                                 currentPage, infiniteScrollFetchData}) => {
-    const { UI, theme = { table } } = React.useContext(ThemeContext) || {}
+    const { UI, theme} = React.useContext(ThemeContext) || {}
     const {Table} = UI;
     const {state:{columns, sourceInfo, display, data, localFilteredData, fullData}, setState, controls={}, isActive, activeStyle} = useContext(ComponentContext);
     const gridRef = useRef(null);
@@ -131,6 +131,7 @@ export default {
     useInfiniteScroll: true,
     showPagination: true,
     keepOriginalValues: true,
+    showAllColumnsControl: true,
     themeKey: 'table',
     defaultState: {
         dataRequest: {},
@@ -143,8 +144,6 @@ export default {
         columns: [
             // settings from columns dropdown are stored in state.columns array, per column
             {type: 'toggle', label: 'show', key: 'show'},
-            {type: 'toggle', label: 'Filter', key: 'filters',
-                trueValue: [{type: 'internal', operation: 'filter', values: []}]},
             {type: 'toggle', label: 'Group', key: 'group'},
             {type: 'select', label: 'Fn', key: 'fn',
                 options: [
@@ -188,6 +187,7 @@ export default {
             {type: 'select', label: 'Filter Relation', key: 'filterRelation',
                 options: [{label: 'and', value: 'and'}, {label: 'or', value: 'or'}]
             },
+            {type: 'input', label: 'Max Height', key: 'maxHeight', displayCdn: ({display}) => !display.usePagination},
             {type: 'input', inputType: 'number', label: 'Page Size', key: 'pageSize'},
         ],
         inHeader: [

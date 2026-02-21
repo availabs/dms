@@ -133,6 +133,7 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
                                     defaultOpen={true}
                                     preferredPosition={"right"}
                                     preventCloseOnClickOutside={true}
+                                    showBreadcrumbs={true}
                                 />
                             </div>
                         </div>
@@ -293,6 +294,7 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
                                         title={'Section Settings'}
                                         btnVisibleOnGroupHover={true}
                                         preferredPosition={"right"}
+                                        showBreadcrumbs={true}
                                     />
                                 </>
                             )}

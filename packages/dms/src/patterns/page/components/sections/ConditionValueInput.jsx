@@ -111,6 +111,9 @@ export const ConditionValueInput = ({node, path, columns, updateNodeAtPath}) => 
             placeholder={node.op === 'like' ? 'search...' : isMultiselect ? 'select...' : 'enter a number...'}
             options={isMultiselect ? options : undefined}
             singleSelectOnly={isMultiselect ? !node.isMulti : undefined}
+            displayDetailedValues={!node.display}
+            keepMenuOpen={node.display === 'expanded'}
+            tabular={node.display === 'tabular'}
             type={isMultiselect ? undefined : node.op === 'like' ? 'text' : 'number'}
             displayInvalidMsg={false}
             onWheel={e => e.target.blur()}

@@ -86,6 +86,11 @@ const getSearchParams = ({newItem, columns}) => {
 const DeleteMenuItem = ({removeItem, newItem}) => {
     const [showDeleteModal, setShowDeleteModal] = useState(false);
 
+    function deleteItem() {
+        removeItem(newItem);
+        setShowDeleteModal(false)
+    }
+
     return (
         <>
             <button
@@ -100,7 +105,7 @@ const DeleteMenuItem = ({removeItem, newItem}) => {
                 open={showDeleteModal}
                 prompt={'Are you sure you want to delete this row? It will be permanently removed from our servers forever. This action cannot be undone.'}
                 setOpen={setShowDeleteModal}
-                onDelete={() => { removeItem(newItem); setShowDeleteModal(false); }}
+                onDelete={deleteItem}
             />
         </>
     );
@@ -116,6 +121,7 @@ export const RenderActionsPopup = ({ actionColumns=[], newItem={}, removeItem=()
                     <Icon icon={'EllipsisVertical'} className={'text-slate-400 hover:text-blue-500 size-4'} />
                 </button>
             }
+            preventCloseOnClickOutside={true}
         >
             <div className={'flex flex-col bg-white shadow-lg rounded-md p-1 min-w-[100px]'}>
                 {actionColumns.map(action =>

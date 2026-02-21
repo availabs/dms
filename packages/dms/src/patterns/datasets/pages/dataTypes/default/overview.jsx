@@ -40,7 +40,7 @@ export default function Overview ({
 
     let columns = useMemo(() =>
         isDms ? isJson(source.config) ? JSON.parse(source.config)?.attributes : [] :
-            (source?.metadata?.columns || []), [source.config, isDms, source?.metadata?.columns])
+            (source?.metadata?.columns || Array.isArray(source?.metadata) && source?.metadata || []), [source.config, isDms, source?.metadata?.columns])
 
     const dateOptions = {year: "numeric", month: "long", day: "numeric", hour: "numeric", minute: "numeric"}
     const createdTimeStamp = new Date(source?.created_at || '').toLocaleDateString(undefined, dateOptions);

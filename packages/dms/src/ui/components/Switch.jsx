@@ -46,7 +46,7 @@ export default function RenderSwitch({ enabled=false, setEnabled, label, disable
             aria-checked={enabled}
             aria-label={label}
             tabIndex={0}
-            onClick={() =>setEnabled && setEnabled(!enabled)}
+            onClick={() => !disabled && setEnabled && setEnabled(!enabled)}
             onKeyDown={(e) => {
                 if(disabled) return;
                 if (e.key === 'Enter' || e.key === ' ') {

@@ -59,6 +59,10 @@
 - [update-admin-theme-merges.md](./tasks/completed/update-admin-theme-merges.md) - Updated admin theme merges in siteConfig.jsx, editTheme.jsx, and themeEditor.jsx to use `mergeTheme` (2026-01-28)
 - [admin-pattern-delete-duplicate.md](./tasks/completed/admin-pattern-delete-duplicate.md) - Added delete and duplicate buttons to admin pattern overview: ported actions from old PatternEdit modal to pattern editor Overview tab and list table (2026-02-08)
 
+<<<<<<< HEAD
 ### patterns/auth
 
 - [auth-groups-byproject-shape.md](./tasks/completed/auth-groups-byproject-shape.md) - Fixed /groups/byproject response shape: wrapped plain array in { groups: [...] } with synthetic "public" group, 104 auth tests pass (2026-02-13)
+=======
+### patterns/auth
+>>>>>>> b21e39b443a00cdd4f03ea9c52b1e26f1b466724
