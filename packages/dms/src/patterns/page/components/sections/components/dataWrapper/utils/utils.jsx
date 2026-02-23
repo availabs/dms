@@ -161,15 +161,15 @@ export const applyFn = (col = {}, isDms = false) => {
   const functions = {
     [undefined]: !isDms && !isCalculatedCol ? colNameWithAccessor : `${colNameWithAccessor} as ${colNameAfterAS}`,
     "": !isDms && !isCalculatedCol ? colNameWithAccessor : `${colNameWithAccessor} as ${colNameAfterAS}`,
-    list: `array_to_string(array_agg(distinct ${colNameWithAccessor}), ', ') as ${colNameAfterAS}`,
+    list: `array_to_string(array_agg(distinct ${colNameWithAccessor}), ', ') as ${colNameAfterAS}_list`,
     sum: isDms
-      ? `sum((${colNameWithAccessor})::integer) as ${colNameAfterAS}`
-      : `sum(${colNameWithAccessor}) as ${colNameAfterAS}`,
+      ? `sum((${colNameWithAccessor})::integer) as ${colNameAfterAS}_sum`
+      : `sum(${colNameWithAccessor}) as ${colNameAfterAS}_sum`,
     avg: isDms
-      ? `avg((${colNameWithAccessor})::integer) as ${colNameAfterAS}`
-      : `avg(${colNameWithAccessor}) as ${colNameAfterAS}`,
-    count: `count(${colNameWithAccessor}) as ${colNameAfterAS}`,
-    max: `max(${colNameWithAccessor}) as ${colNameAfterAS}`,
+      ? `avg((${colNameWithAccessor})::integer) as ${colNameAfterAS}_avg`
+      : `avg(${colNameWithAccessor}) as ${colNameAfterAS}_avg`,
+    count: `count(${colNameWithAccessor}) as ${colNameAfterAS}_count`,
+    max: `max(${colNameWithAccessor}) as ${colNameAfterAS}_max`,
   };
 
   return functions[col.fn];
@@ -431,7 +431,7 @@ export const getData = async ({
 
     debugTime && console.timeEnd('columnsWithSettings')
     const columnsToFetch = columnsWithSettings.filter(
-    (column) => column.show && !column.isDuplicate && column.type !== "formula",
+    (column) => column.show /*&& !column.isDuplicate*/ && column.type !== "formula",
   );
   // collect variables used in formula columns, and add them to fetch list
   const formulaVariableColumns = columnsWithSettings
@@ -916,7 +916,7 @@ export const getData = async ({
 
         for (const column of columnsToFetch) {
             const key = isTotalRow ? column.totalName : column.reqName;
-            rowWithData[column.name] = cleanValue(row[key]);
+            rowWithData[column.normalName || column.name] = cleanValue(row[key]);
         }
 
         // Apply formulas
