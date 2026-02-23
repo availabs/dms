@@ -1,5 +1,7 @@
 import React from "react"
 
+import get from "lodash/get"
+
 import { AvlMap as AvlMap2 } from "~/modules/avl-map-2/src"
 
 import SymbologyViewLayer from './components/SymbologyViewLayer'
@@ -16,9 +18,25 @@ import { useImmer } from 'use-immer';
 
 import { extractState, fetchBoundsForFilter } from './stateUtils';
 
-import { SourceAttributes } from "../attributes"
+import {
+  SourceAttributes,
+  ViewAttributes,
+  getAttributes,
+  DamaSymbologyAttributes
+} from "../attributes";
 
 export const SymbologyContext = React.createContext(undefined);
+
+const DEFAULT_BLANK_SYMBOLOGY = {
+  name: '',
+  description: '',
+  symbology: {
+    dmsSymbology: true,
+    layers: {},
+    plugins: {},
+    pluginData: {}
+  },
+};
 
 const MapViewer = props => {
 
@@ -28,11 +46,59 @@ const MapViewer = props => {
 
   const { falcor, falcorCache, pgEnv, pageState, setPageState } = React.useContext(MapEditorContext);
   const { id: symbologyId } = props.params;
-  const initialSymbology = props.item;
 
-console.log("MapViewer::pageState", pageState);
+  React.useEffect(() => {
+    if (symbologyId) {
+      falcor.get([
+        "dama", pgEnv, "symbologies", "byId", symbologyId,
+        "attributes", Object.values(DamaSymbologyAttributes)
+      ]);
+    }
+  }, [falcor, symbologyId, pgEnv]);
 
-  const [state, setState] = useImmer(initialSymbology || null);
+  React.useEffect(() => {
+    const symbologyLengthPath = ["dama", pgEnv, "symbologies", "length"];
+
+    falcor.get(symbologyLengthPath)
+      .then(res => {
+        const length = get(res.json, symbologyLengthPath, 0);
+        if (length) {
+          falcor.get([
+            "dama", pgEnv, "symbologies",
+            "byIndex", { from: 0, to: length - 1 },
+            "attributes", DamaSymbologyAttributes
+          ]);
+        }
+      });
+  }, [falcor, pgEnv]);
+
+  const damaSymbologies = React.useMemo(() => {
+    return Object.values(get(falcorCache, ["dama", pgEnv, "symbologies", "byIndex"], {}))
+      .map(v => getAttributes(get(falcorCache, v.value, { "attributes": {} })["attributes"]))
+      .filter(v => Object.keys(v).length > 0)
+      .map(sym => ({
+        ...sym,
+        id: sym.symbology_id,
+        symbology: {
+          ...sym.symbology,
+          isDamaSymbology: true
+        }
+      }));
+  }, [falcorCache, pgEnv]);
+
+  const dmsSymbologies = React.useMemo(() => {
+    return [...props.dataItems];
+  }, [props.dataIems]);
+
+  const symbologies = React.useMemo(() => {
+    return [...dmsSymbologies, ...damaSymbologies];
+  }, [damaSymbologies, dmsSymbologies]);
+
+  const initialSymbology = React.useMemo(() => {
+    return symbologies.find(s => s.id == symbologyId);
+  }, [symbologyId, symbologies]);
+
+  const [state, setState] = useImmer(initialSymbology || DEFAULT_BLANK_SYMBOLOGY);
 
   React.useEffect(() => {
   	if (initialSymbology && (initialSymbology.id !== state.id)) {

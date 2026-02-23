@@ -9,9 +9,6 @@ import { PageContext } from "../page/context.js";
 
 import MapEditorFormat from "./mapeditor.format"
 
-import UI from "../../ui"
-import { ThemeContext, getPatternTheme } from "../../ui/useTheme.js";
-
 import MapEditor from "./MapEditor"
 import MapViewer from "./MapEditor/MapViewer"
 
@@ -25,17 +22,14 @@ const mapeditorConfig = ({
 	authPermissions,
   API_HOST,
   pgEnv,
-	themes={ default: {} },
 	...rest
 }) => {
 
-  baseUrl = baseUrl === '/' ? '' : baseUrl
+  baseUrl = baseUrl === '/' ? '' : baseUrl;
 
 	const format = cloneDeep(MapEditorFormat);
   format.app = app;
   format.type = type;
-
-  const theme = getPatternTheme(themes, pattern);
 
 	return {
 		siteType,
@@ -70,9 +64,7 @@ const mapeditorConfig = ({
 
 					return (
 						<MapEditorContext.Provider value={ mapeditorContextValue }>
-							<ThemeContext.Provider value={ { theme, UI } }>
-								{ children }
-							</ThemeContext.Provider>
+							{ children }
 						</MapEditorContext.Provider>
 					)
 				},

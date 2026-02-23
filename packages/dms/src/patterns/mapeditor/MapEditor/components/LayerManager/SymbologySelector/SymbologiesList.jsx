@@ -18,7 +18,7 @@ const SourceThumb = ({ symbology, selectedSymbologyId, setSelectedSymbologyId, c
           if (isActiveSymbology) {
             setSelectedSymbologyId(null);
           } else {
-            setSelectedSymbologyId(symbology.id);
+            setSelectedSymbologyId((symbology.id || symbology.symbology_id));
           }
         }}
       >
@@ -85,7 +85,7 @@ export const SymbologiesList = ({selectedSymbologyId, setSelectedSymbologyId}) =
   const [sort, setSort] = useState('asc');
   const sourceDataCat = 'Unknown';
 
-console.log("SymbologiesList::symbologies", symbologies);
+// console.log("SymbologiesList::symbologies", symbologies);
 
   const categories = [...new Set(
     symbologies

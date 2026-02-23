@@ -27,8 +27,12 @@ import ExternalPluginPanel from './components/ExternalPluginPanel'
 import SymbologyViewLayer from './components/SymbologyViewLayer'
 import PluginLayer from './components/PluginLayer'
 
-import { SourceAttributes, ViewAttributes } from "../attributes"
-import { getAttributes } from "../attributes";
+import {
+  SourceAttributes,
+  ViewAttributes,
+  getAttributes,
+  DamaSymbologyAttributes
+} from "../attributes";
 
 import { DMS_DATA_ITEM_ATTRIBUTES } from "../attributes"
 
@@ -99,14 +103,13 @@ export const INITIAL_PLUGIN_DATA_STATE = {
   'active-layers' : {}
 }
 
-export const LOCAL_STORAGE_KEY_BASE = 'mapeditor_symbology_'
-
-const SymbologyAttributes = {};
+export const LOCAL_STORAGE_KEY_BASE = 'mapeditor_symbology_';
 
 const DEFAULT_BLANK_SYMBOLOGY = {
   name: '',
   description: '',
   symbology: {
+    dmsSymbology: true,
     layers: {},
     plugins: {},
     pluginData: {}
@@ -145,43 +148,56 @@ const MapEditor = props => {
   const { id: symbologyId } = props.params;
 
 // console.log("MapEditor::props", props);
-// console.log("MapEditor::symbologyId", symbologyId);
+console.log("MapEditor::symbologyId", symbologyId);
 
-  // React.useEffect(() => {
-  //   if (symbologyId) {
-  //     falcor.get([
-  //       "dama", pgEnv, "symbologies", "byId", symbologyId,
-  //       "attributes", Object.values(SymbologyAttributes)
-  //     ]);
-  //   }
-  // }, [falcor, symbologyId, pgEnv]);
+  React.useEffect(() => {
+    if (symbologyId) {
+      falcor.get([
+        "dama", pgEnv, "symbologies", "byId", symbologyId,
+        "attributes", Object.values(DamaSymbologyAttributes)
+      ]);
+    }
+  }, [falcor, symbologyId, pgEnv]);
 
-  // React.useEffect(() => {
-  //   const symbologyLengthPath = ["dama", pgEnv, "symbologies", "length"];
+  React.useEffect(() => {
+    const symbologyLengthPath = ["dama", pgEnv, "symbologies", "length"];
 
-  //   falcor.get(symbologyLengthPath)
-  //     .then(res => {
-  //       const length = get(res.json, symbologyLengthPath, 0);
-  //       if (length) {
-  //         falcor.get([
-  //           "dama", pgEnv, "symbologies",
-  //           "byIndex", { from: 0, to: length - 1 },
-  //           "attributes", Object.values(SymbologyAttributes)
-  //         ]);
-  //       }
-  //     });
-  // }, [falcor, pgEnv]);
+    falcor.get(symbologyLengthPath)
+      .then(res => {
+        const length = get(res.json, symbologyLengthPath, 0);
+        if (length) {
+          falcor.get([
+            "dama", pgEnv, "symbologies",
+            "byIndex", { from: 0, to: length - 1 },
+            "attributes", DamaSymbologyAttributes
+          ]);
+        }
+      });
+  }, [falcor, pgEnv]);
 
-  // const symbologies = React.useMemo(() => {
-  //   return Object.values(get(falcorCache, ["dama", pgEnv, "symbologies", "byIndex"], {}))
-  //     .map(v => getAttributes(get(falcorCache, v.value, { "attributes": {} })["attributes"]))
-  //     .filter(v => Object.keys(v).length > 0);
-  // }, [falcorCache, pgEnv]);
+  const damaSymbologies = React.useMemo(() => {
+    return Object.values(get(falcorCache, ["dama", pgEnv, "symbologies", "byIndex"], {}))
+      .map(v => getAttributes(get(falcorCache, v.value, { "attributes": {} })["attributes"]))
+      .filter(v => Object.keys(v).length > 0)
+      .map(sym => ({
+        ...sym,
+        id: sym.symbology_id,
+        symbology: {
+          ...sym.symbology,
+          isDamaSymbology: true
+        }
+      }));
+  }, [falcorCache, pgEnv]);
 
-  const symbologies = React.useMemo(() => {
+  const dmsSymbologies = React.useMemo(() => {
     return [...props.dataItems];
   }, [props.dataIems]);
-// console.log("MapEditor::symbologies", cloneDeep(symbologies));
+
+  const symbologies = React.useMemo(() => {
+    return [...dmsSymbologies, ...damaSymbologies];
+  }, [damaSymbologies, dmsSymbologies]);
+
+console.log("MapEditor::symbologies", symbologies);
 
   /**
    * Uses the url param to query the DB
@@ -207,7 +223,7 @@ const MapEditor = props => {
     return LOCAL_STORAGE_KEY_BASE + `${ symbologyId }`;
   }, [symbologyId]);
 
-// console.log("MapEditor::symbologyLocalStorageKey", symbologyLocalStorageKey)
+console.log("MapEditor::symbologyLocalStorageKey", symbologyLocalStorageKey);
 
   // const initialSymbology = React.useMemo(() => {
   //   const dbSymbology = symbologies?.find(s => +s.symbology_id === +symbologyId);
@@ -222,11 +238,16 @@ const MapEditor = props => {
   //   return cloneDeep(DEFAULT_BLANK_SYMBOLOGY);
   // }, [symbologyId, symbologies, symbologyLocalStorageKey]);
 
-  const initialSymbology = React.useMemo(() => {
-    const dbSymbology = symbologies?.find(s => +s.id === +symbologyId);
+  const dbSymbology = React.useMemo(() => {
+    return symbologies?.find(s => +s.id === +symbologyId);
+  }, [symbologyId, symbologies]);
+
+  const localStorageSymbology = React.useMemo(() => {
     const rawLocalStorageSymbology = window?.localStorage?.getItem(symbologyLocalStorageKey);
-// console.log("MapEditor::rawLocalStorageSymbology", rawLocalStorageSymbology);
-    const localStorageSymbology = JSON.parse(rawLocalStorageSymbology || "null");
+    return JSON.parse(rawLocalStorageSymbology || "null");
+  }, [symbologyLocalStorageKey]);
+
+  const initialSymbology = React.useMemo(() => {
     if (localStorageSymbology && Object.keys(localStorageSymbology).length >= NUM_DEFAULT_SYMBOLOGY_KEYS){
       return localStorageSymbology;
     }
@@ -234,9 +255,9 @@ const MapEditor = props => {
       return dbSymbology;
     }
     return cloneDeep(DEFAULT_BLANK_SYMBOLOGY);
-  }, [symbologies, symbologyId, symbologyLocalStorageKey]);
+  }, [dbSymbology, localStorageSymbology]);
 
-console.log("MapEditor::initialSymbology", JSON.parse(JSON.stringify(initialSymbology)))
+// console.log("MapEditor::initialSymbology", JSON.parse(JSON.stringify(initialSymbology)))
 
   // Sets an initial `activeLayer`
   // if (
@@ -271,13 +292,17 @@ console.log("MapEditor::initialSymbology", JSON.parse(JSON.stringify(initialSymb
   // ---------------------------------------------------
   const [state, setState] = useImmer(initialSymbology);
 
+console.log("MapEditor::state", state);
+
   // Resets state if URL param does not match symbology currently in state
   React.useEffect(() => {
     // console.log('load', +symbologyId, symbologyId, symbologies)
-    if (!!state.symbology_id && (+symbologyId !== +state.symbology_id)) {
+    if (!!state.id && (+symbologyId !== +state.id)) {
       setState(initialSymbology);
     }
   },[initialSymbology]);
+
+console.log("MapEditor::isEqual(state, initialSymbology)", isEqual(state, initialSymbology))
 
   // Updates localStorage whenever state changes
   React.useEffect(() => {
@@ -291,19 +316,19 @@ console.log("MapEditor::initialSymbology", JSON.parse(JSON.stringify(initialSymb
         console.error(e);
       }
     }
-  },[state?.symbology,  initialSymbology, symbologyLocalStorageKey]);
+  },[state,  initialSymbology, symbologyLocalStorageKey]);
 
 
   // If we don't have local storage data for this symbology, use data from API
-  // React.useEffect(() => {
-  //   // -------------------
-  //   // on navigate or load set state to symbology with data
-  //   // TODO: load state.symbology here and dont autoload them in Collection/index
-  //   // -------------------
-  //   if ((!localStorageSymbology || Object.keys(localStorageSymbology).length <= numDefaultObjectKeys) && dbSymbology) {
-  //     setState(dbSymbology)
-  //   }
-  // }, [symbologies.length, dbSymbology]);
+  React.useEffect(() => {
+    // -------------------
+    // on navigate or load set state to symbology with data
+    // TODO: load state.symbology here and dont autoload them in Collection/index
+    // -------------------
+    if ((!localStorageSymbology || Object.keys(localStorageSymbology).length <= NUM_DEFAULT_SYMBOLOGY_KEYS) && dbSymbology) {
+      setState(dbSymbology)
+    }
+  }, [localStorageSymbology, dbSymbology]);
 
   //--------------------------
   // -- Map Layers are the instantation
