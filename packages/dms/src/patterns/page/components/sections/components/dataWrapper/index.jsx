@@ -34,7 +34,8 @@ const triggerDownload = async ({state, apiLoad, loadAllColumns, setLoading}) => 
                 ...state.columns,
                 ...state.sourceInfo.columns.filter(originalColumn => !state.columns.find(c => c.name === originalColumn.name))
             ]
-                .map(c => ({...c, show: !isCalculatedCol(c)}))
+                .map(c => ({...c, show: true}))
+                // .map(c => ({...c, show: true || !isCalculatedCol(c)}))
         } : state;
 
     const {data} = await getData({
