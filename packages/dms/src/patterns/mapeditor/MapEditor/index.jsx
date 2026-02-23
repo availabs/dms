@@ -27,8 +27,12 @@ import ExternalPluginPanel from './components/ExternalPluginPanel'
 import SymbologyViewLayer from './components/SymbologyViewLayer'
 import PluginLayer from './components/PluginLayer'
 
-import { SourceAttributes, ViewAttributes, DamaSymbologyAttributes } from "../attributes"
-import { getAttributes } from "../attributes";
+import {
+  SourceAttributes,
+  ViewAttributes,
+  getAttributes,
+  DamaSymbologyAttributes
+} from "../attributes";
 
 import { DMS_DATA_ITEM_ATTRIBUTES } from "../attributes"
 
@@ -99,9 +103,7 @@ export const INITIAL_PLUGIN_DATA_STATE = {
   'active-layers' : {}
 }
 
-export const LOCAL_STORAGE_KEY_BASE = 'mapeditor_symbology_'
-
-const SymbologyAttributes = {};
+export const LOCAL_STORAGE_KEY_BASE = 'mapeditor_symbology_';
 
 const DEFAULT_BLANK_SYMBOLOGY = {
   name: '',
@@ -192,7 +194,7 @@ console.log("MapEditor::symbologyId", symbologyId);
   }, [props.dataIems]);
 
   const symbologies = React.useMemo(() => {
-    return [...damaSymbologies, ...dmsSymbologies];
+    return [...dmsSymbologies, ...damaSymbologies];
   }, [damaSymbologies, dmsSymbologies]);
 
 console.log("MapEditor::symbologies", symbologies);
