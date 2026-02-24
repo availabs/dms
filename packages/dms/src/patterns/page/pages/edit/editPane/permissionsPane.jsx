@@ -7,7 +7,7 @@ import {getPageAuthPermissions} from "../../_utils";
 
 function PermissionsPane() {
     const { UI } = React.useContext(ThemeContext);
-    const { user, isUserAuthed} = React.useContext(CMSContext) || {}
+    const { user, isUserAuthed, authPermissions: patternAuthPermissions} = React.useContext(CMSContext) || {}
     const {item, apiUpdate, format, pageState} = React.useContext(PageContext) || {}
     const {AuthAPI} = React.useContext(AuthContext) || {};
     const [authPermissions, setAuthPermissions] = React.useState(item.authPermissions);
@@ -42,6 +42,7 @@ function PermissionsPane() {
 
             <div className="relative mt-6 flex-1 px-4 sm:px-6 w-full   max-h-[calc(100vh_-_135px)] overflow-y-auto">
                 <Permissions
+                    inheritedValue={patternAuthPermissions}
                     value={authPermissions}
                     onChange={setAuthPermissions}
                     user={user}
