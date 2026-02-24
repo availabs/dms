@@ -125,7 +125,7 @@ export function InsertButtonDialog({
         <Select id={'keep-search-params-select'}
                 label={'Keep Search Params'}
                 value={keepSearchParams.toString()}
-                onChange={e => setKeepSearchParams(e === 'false' ? false : true)}>
+                onChange={e => setKeepSearchParams(e.target.value === 'false' ? false : true)}>
             <option key={'false'} value={'false'}>Discard Search Params</option>
             <option key={'true'} value={'true'}>Keep Search Params</option>
         </Select>
