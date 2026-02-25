@@ -282,7 +282,7 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
                         <div className={theme.menuPosition}>
                             {(showEditIcons) && (
                                 <>
-                                    {value.hideInView ? <Icon icon={'EyeClosed'} className={'size-6 text-gray-500'} /> : null}
+                                    {value.hideInView ? <Pill color={'orange'} text={'Hidden from View'} /> : null}
                                     {canEditSection ?
                                         <div className={'hidden group-hover:flex text-blue-500 hover:text-blue-700 cursor-pointer px-1 py-0.5'}
                                              title={'Edit'} onClick={onEdit} >
