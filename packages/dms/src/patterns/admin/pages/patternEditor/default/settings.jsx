@@ -48,7 +48,7 @@ export const PatternSettingsEditor = ({ value = {}, onChange, ...rest}) => {
 
       await falcor.call(
           ['dms', 'data', 'edit'],
-          [site.id, { patterns: updatedPatterns }]
+          [app, site.id, { patterns: updatedPatterns }]
       );
 
       navigate(parentBaseUrl || '/');
@@ -95,7 +95,7 @@ export const PatternSettingsEditor = ({ value = {}, onChange, ...rest}) => {
                   const rawPatterns = site.data?.patterns || [];
                   await falcor.call(
                       ['dms', 'data', 'edit'],
-                      [site.id, { patterns: [...rawPatterns, { ref: `${app}+pattern`, id: +newId }] }]
+                      [app, site.id, { patterns: [...rawPatterns, { ref: `${app}+pattern`, id: +newId }] }]
                   );
               }
           }

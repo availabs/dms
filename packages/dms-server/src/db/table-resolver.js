@@ -4,7 +4,7 @@
  * Split modes:
  *   'legacy'  — single data_items table; only dataset row types get split tables
  *   'per-app' — each app gets its own data_items__{app} table;
- *               dataset row types further split into data_items__{app}__{type}
+ *               dataset row types further split into data_items__{app}__s{id}_v{vid}_{docType}
  *
  * Split type detection:
  *   Dataset row data has type pattern: {doc_type}-{view_id} or {doc_type}-{view_id}-invalid-entry
@@ -30,9 +30,30 @@ const _seqCache = new Set();
 
 /**
  * Detect whether a type string represents dataset row data eligible for splitting.
+ * Only name-based types (internal_table) are split into their own tables.
+ * UUID-based types (internal_dataset) stay in data_items to match production behavior.
  */
 function isSplitType(type) {
-  return typeof type === 'string' && (UUID_SPLIT_REGEX.test(type) || NAME_SPLIT_REGEX.test(type));
+  return typeof type === 'string' && NAME_SPLIT_REGEX.test(type);
+}
+
+/**
+ * Parse a split type string into its components.
+ *
+ * @param {string} type - e.g., 'actions_6-291' or 'actions_6-291-invalid-entry'
+ * @returns {{ docType: string, viewId: string, isInvalid: boolean } | null}
+ *   null if the type is not a valid split type
+ */
+function parseType(type) {
+  if (!isSplitType(type)) return null;
+  const isInvalid = type.endsWith('-invalid-entry');
+  const core = isInvalid ? type.slice(0, -'-invalid-entry'.length) : type;
+  const lastDash = core.lastIndexOf('-');
+  return {
+    docType: core.slice(0, lastDash),
+    viewId: core.slice(lastDash + 1),
+    isInvalid
+  };
 }
 
 /**
@@ -61,13 +82,19 @@ function pgIdent(name) {
 /**
  * Resolve which table an (app, type) pair should use.
  *
+ * When sourceId is provided and the type is a split type, uses the new naming:
+ *   data_items__s{sourceId}_v{viewId}_{docType}  (+ _invalid suffix if applicable)
+ * When sourceId is null/undefined, falls back to the original naming:
+ *   data_items__{sanitized_type}
+ *
  * @param {string} app
  * @param {string} type
  * @param {string} dbType - 'postgres' or 'sqlite'
  * @param {string} splitMode - 'legacy' or 'per-app'
+ * @param {number|string|null} sourceId - optional source record ID for new naming
  * @returns {{ schema: string, table: string, fullName: string }}
  */
-function resolveTable(app, type, dbType, splitMode = 'legacy') {
+function resolveTable(app, type, dbType, splitMode = 'legacy', sourceId = null) {
   const schema = dbType === 'postgres' ? 'dms' : 'main';
   const isPg = dbType === 'postgres';
 
@@ -78,13 +105,27 @@ function resolveTable(app, type, dbType, splitMode = 'legacy') {
   };
 
   if (splitMode === 'legacy') {
-    if (isSplitType(type)) return result(`data_items__${sanitize(type)}`);
+    if (isSplitType(type)) {
+      if (sourceId != null) {
+        const parsed = parseType(type);
+        const suffix = parsed.isInvalid ? '_invalid' : '';
+        return result(`data_items__s${sourceId}_v${parsed.viewId}_${parsed.docType}${suffix}`);
+      }
+      return result(`data_items__${sanitize(type)}`);
+    }
     return result('data_items');
   }
 
-  // per-app mode
+  // per-app mode: all tables include app prefix for full isolation
   const appKey = sanitize(app);
-  if (isSplitType(type)) return result(`data_items__${appKey}__${sanitize(type)}`);
+  if (isSplitType(type)) {
+    if (sourceId != null) {
+      const parsed = parseType(type);
+      const suffix = parsed.isInvalid ? '_invalid' : '';
+      return result(`data_items__${appKey}__s${sourceId}_v${parsed.viewId}_${parsed.docType}${suffix}`);
+    }
+    return result(`data_items__${appKey}__${sanitize(type)}`);
+  }
   return result(`data_items__${appKey}`);
 }
 
@@ -250,6 +291,7 @@ function clearCaches() {
 
 module.exports = {
   isSplitType,
+  parseType,
   sanitize,
   resolveTable,
   getSequenceName,

@@ -46,6 +46,7 @@
   "dependencies": {
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^11.6.0",
+    "busboy": "^1.6.0",
     "compression": "^1.8.1",
     "express": "^4.21.0",
     "falcor-json-graph": "^3.0.1",
@@ -53,8 +54,10 @@
     "falcor-path-utils": "~0.5.0",
     "jsonwebtoken": "^9.0.3",
     "lodash": "^4.17.21",
+    "read-excel-file": "^6.0.3",
     "rxjs": "~5.1.1",
-    "symbol-observable": "^1.0.4"
+    "symbol-observable": "^1.0.4",
+    "unzipper": "^0.12.3"
   },
   "optionalDependencies": {
     "pg": "^8.17.2"

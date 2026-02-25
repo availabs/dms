@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useContext} from 'react'
 import {InfoCircle} from "../../admin/ui/icons";
-import {get} from "lodash-es";
 import { getExternalEnv } from "../utils/datasources";
-import { update } from 'lodash-es';
 
 const preventDefaults = e => {
     e.preventDefault();
@@ -11,38 +9,10 @@ const preventDefaults = e => {
 function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
-const uploadGisDataset = async ({file, user, etlContextId, pgEnv, falcor, damaServerPath, setGisUploadId, setLoading, setLayers, setLayerName}) => {
-    const awaitFinalEvent = async () => {
-        const lenPath = ["dama", pgEnv, "etlContexts", etlContextId, 'allEvents', 'length'];
-        const dataPath = ["dama", pgEnv, "etlContexts", etlContextId, 'allEvents'];
-        const eventAttrs = ['event_id', 'etl_context_id', 'type', 'payload', 'user'];
-
-        falcor.invalidate(lenPath);
-        falcor.invalidate(dataPath);
-
-        const lenRes = await falcor.get(lenPath);
-        const len = get(lenRes, ['json', ...lenPath]);
-
-        if(!len) return;
-
-        const dataRes = await falcor.get([...dataPath, {from: 0, to: len - 1}, eventAttrs])
-        const data = get(dataRes, ['json', ...dataPath], {})
-        const events = Object.values(data);
-
-        const isDone = events.some(e => e.type && e.type.toLowerCase().includes(':final'));
-        if(!isDone) {
-            await delay(2000);
-            return awaitFinalEvent();
-        }
-    }
-
+const uploadGisDataset = async ({file, user, damaServerPath, setGisUploadId, setLoading, setLayers, setLayerName}) => {
     try {
         setLoading(true)
-        // Prepare upload request
         const formData = new FormData();
-        // https://moleculer.services/docs/0.14/moleculer-web.html#File-upload-aliases
-        // text form-data fields must be sent before files fields.
-        formData.append("etlContextId", etlContextId);
         formData.append("user_id", user.userId);
         formData.append("email", user.email);
         formData.append("fileSizeBytes", file.size);
@@ -53,21 +23,27 @@ const uploadGisDataset = async ({file, user, etlContextId, pgEnv, falcor, damaSe
             { method: "POST", body: formData }
         );
 
-        // update state from request
         const resValue = await res.json();
         if (Array.isArray(resValue)) {
             const [{ id }] = resValue;
 
             if(id){
-                await awaitFinalEvent();
-
                 try {
                     const fetchData = async (gisUploadId) => {
                         setLoading(true)
                         const url = `${damaServerPath}/gis-dataset/${gisUploadId}/layers`;
 
-                        const layerNamesRes = await fetch(url);
-                        const layers = await layerNamesRes.json();
+                        const pollForLayers = async () => {
+                            const res = await fetch(url);
+                            const layers = await res.json();
+                            if (!Array.isArray(layers) || layers.length === 0) {
+                                await delay(2000);
+                                return pollForLayers();
+                            }
+                            return layers;
+                        };
+
+                        const layers = await pollForLayers();
                         setLayers(layers)
                         setLayerName(layers?.[0]?.layerName)
                         setGisUploadId(id)
@@ -86,19 +62,19 @@ const uploadGisDataset = async ({file, user, etlContextId, pgEnv, falcor, damaSe
         }
     } catch (err) {
         setLoading(false)
-        // catch error & reset file so new attempt can be made
         console.error(err?.message)
     }
 }
 
 const publish = async ({userId, email, gisUploadId, layerName, app, type, dmsServerPath, setPublishing, setPublishStatus,
-                           updateMetaData, existingAttributes = [], columns = []}) => {
+                           updateMetaData, existingAttributes = [], columns = [], sourceId}) => {
     const publishData = {
         user_id: userId,
         email: email,
         gisUploadId,
         layerName,
-        columns
+        columns,
+        sourceId
     };
 
     setPublishing(true);
@@ -143,19 +119,16 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate,
     // 4. map multiple columns to a single column. this converts column headers to values of a new column
     // 5. choose an id column to update data if there's id match.
 
-    const {API_HOST, user, falcor, datasources} = useContext(context);
+    const {API_HOST, user, datasources} = useContext(context);
     const pgEnv = getExternalEnv(datasources) || 'hazmit_dama';
-    const damaServerPath = `https://graph.availabs.org/dama-admin/${pgEnv}`;
-    const dmsServerPath = `https://graph.availabs.org/dama-admin`;
-    console.log('testing', damaServerPath, dmsServerPath)
-
+    const damaServerPath = `${API_HOST}/dama-admin/${pgEnv}`;
+    const dmsServerPath = `${API_HOST}/dama-admin`;
 
     const [loading, setLoading] = useState(false);
     const [publishing, setPublishing] = useState(false);
     const [publishStatus, setPublishStatus] = useState(false)
     const [search, setSearch] = useState('');
-    const [etlContextId, setEtlContextId] = useState();
-    const [gisUploadId, setGisUploadId] = useState(); // 'shaun-XPS-13-9340_bd0942ec-3506-4197-aa8f-b2b3da37ab44'
+    const [gisUploadId, setGisUploadId] = useState();
     const [layers, setLayers] =useState([]);
     const [layerName, setLayerName] = useState('');
     const inputClass = `p-1.5 hover:bg-blue-100 rounded-sm`;
@@ -170,19 +143,6 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate,
         console.log('updateMetadata', {data: {id: parent.source_id, [attrKey]: data}, config: {format: editFormat}})
         apiUpdate({data: {id: parent.source_id, [attrKey]: data}, config: {format: editFormat}})
     }
-    // ================================================= get etl context begin =========================================
-    useEffect(() => {
-        async function getContextId () {
-            const newEtlCtxRes = await fetch(
-                `${damaServerPath}/etl/new-context-id`
-            );
-            const newEtlCtxId = +(await newEtlCtxRes.text());
-            setEtlContextId(newEtlCtxId);
-        }
-        getContextId()
-    }, [pgEnv]);
-    // ================================================= get etl context end ===========================================
-
     // ================================================= get layers begin ==============================================
 
     useEffect(() => {
@@ -225,13 +185,11 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate,
                      return uploadGisDataset({
                          file: e.dataTransfer.files[0],
                          user,
-                         etlContextId,
                          damaServerPath,
                          setGisUploadId,
                          setLoading,
                          setLayers,
-                         setLayerName,
-                         pgEnv, falcor
+                         setLayerName
                      })
                  }}
             >
@@ -255,7 +213,7 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate,
                     </div>
                     <input disabled={loading} id="dropzone-file" type="file" className="hidden"
                            onChange={(e) =>
-                        uploadGisDataset({file: e.target.files[0], user, pgEnv, falcor, etlContextId, damaServerPath, setGisUploadId, setLoading, setLayers, setLayerName})}/>
+                        uploadGisDataset({file: e.target.files[0], user, damaServerPath, setGisUploadId, setLoading, setLayers, setLayerName})}/>
                 </label>
             </div>
 
@@ -406,7 +364,8 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate,
                                             setPublishStatus,
                                             setPublishing,
                                             existingAttributes,
-                                            updateMetaData
+                                            updateMetaData,
+                                            sourceId: parent?.source_id
                                         })}>
                                     {publishing ? 'publishing...' : 'publish'}
                                 </button>

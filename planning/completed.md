@@ -20,6 +20,9 @@
 - [auth-db-init-race.md](./tasks/completed/auth-db-init-race.md) - Fixed auth DB init race condition: `getDb()` returns before async init completes causing "no such table: users"; added `awaitReady()`, multi-role config support (2026-02-08)
 - [dms-dead-row-cleanup.md](./tasks/completed/dms-dead-row-cleanup.md) - Dead row cleanup CLI: analyzes DMS database for 5 orphan types (patterns, pages, sections, sources, views), PostgreSQL-optimized SQL path, optional --delete mode, 40 integration tests (2026-02-13)
 - [dms-db-copy.md](./tasks/completed/dms-db-copy.md) - Database copy CLI: cross-DB copy (PG↔SQLite), ::TEXT cast optimization, unnest() bulk PG inserts, split table discovery, sequence sync, --batch-size flag, 61 integration tests (2026-02-13)
+- [dms-server-file-upload.md](./tasks/completed/dms-server-file-upload.md) - File upload routes: CSV/Excel upload, publish, and validate as standalone synchronous endpoints in dms-server (2026-02-23)
+- [split-table-naming.md](./tasks/completed/split-table-naming.md) - Split table naming: `data_items__s{sourceId}_v{viewId}_{docType}` format, `parseType()` helper, async source_id lookup with cache, graceful fallback, migration script (2026-02-23)
+- [dms-table-splitting.md](./tasks/current/dms-table-splitting.md) - Table splitting Tier 2: app-namespaced byId/edit routes (dual-route compat), client API changes (api/, CLI, patterns — ~25 call sites), 34 Tier 2 tests, migrate-to-per-app.js script, API docs (2026-02-23)
 
 ## ui
 
@@ -51,6 +54,8 @@
 - [datasets-settings-page.md](./tasks/completed/datasets-settings-page.md) - Datasets settings page: category visibility settings with two-column toggle, filtered/all toggle on list page, settings gear link for authed users, category breadcrumbs + sub-category nesting in sidebar, no-category sources filtered (2026-02-09)
 - [fix-dataset-listing-bug.md](./tasks/completed/fix-dataset-listing-bug.md) - Fixed dataset listing bug: getSitePatterns LIKE query, dmsSiteFactory siteType, DatasetsList category filter for uncategorized sources, UDA cache invalidation (2026-02-13)
 - [internal-dataset-admin-page.md](./tasks/completed/internal-dataset-admin-page.md) - Custom admin page for internal datasets: version creation via DMS item.id, SourcePage datatype admin overrides, auto-navigate to latest view, overview shows versions (2026-02-13)
+- [internal-table-datatype.md](./tasks/completed/internal-table-datatype.md) - `internal_table` dataset type: combined creation + upload, auto-creates first version, split tables for per-version data (2026-02-23)
+- [fix-upload-updatemetadata.md](./tasks/completed/fix-upload-updatemetadata.md) - Fixed `updateMetaData` in upload component: corrected apiUpdate to use source type format and UDA update path (2026-02-23)
 
 ### patterns/forms
 
@@ -59,10 +64,6 @@
 - [update-admin-theme-merges.md](./tasks/completed/update-admin-theme-merges.md) - Updated admin theme merges in siteConfig.jsx, editTheme.jsx, and themeEditor.jsx to use `mergeTheme` (2026-01-28)
 - [admin-pattern-delete-duplicate.md](./tasks/completed/admin-pattern-delete-duplicate.md) - Added delete and duplicate buttons to admin pattern overview: ported actions from old PatternEdit modal to pattern editor Overview tab and list table (2026-02-08)
 
-<<<<<<< HEAD
 ### patterns/auth
 
 - [auth-groups-byproject-shape.md](./tasks/completed/auth-groups-byproject-shape.md) - Fixed /groups/byproject response shape: wrapped plain array in { groups: [...] } with synthetic "public" group, 104 auth tests pass (2026-02-13)
-=======
-### patterns/auth
->>>>>>> b21e39b443a00cdd4f03ea9c52b1e26f1b466724

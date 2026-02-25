@@ -38,9 +38,12 @@ export default function Overview ({
     const [showAllColumns, setShowAllColumns] = useState(false);
     const views = source?.views || [];
 
-    let columns = useMemo(() =>
-        isDms ? isJson(source.config) ? JSON.parse(source.config)?.attributes : [] :
-            (source?.metadata?.columns || Array.isArray(source?.metadata) && source?.metadata || []), [source.config, isDms, source?.metadata?.columns])
+    let columns = useMemo(() => {
+        if (isDms) {
+            return (isJson(source.config) ? JSON.parse(source.config)?.attributes : null) || [];
+        }
+        return source?.metadata?.columns || (Array.isArray(source?.metadata) ? source.metadata : []);
+    }, [source.config, isDms, source?.metadata?.columns])
 
     const dateOptions = {year: "numeric", month: "long", day: "numeric", hour: "numeric", minute: "numeric"}
     const createdTimeStamp = new Date(source?.created_at || '').toLocaleDateString(undefined, dateOptions);
@@ -121,7 +124,7 @@ export default function Overview ({
                 <div className={theme.sectionHeader || 'flex items-center p-2 mx-4 text-blue-600 hover:bg-blue-50 rounded-md'}>
                     Columns
                     <span className={theme.sectionBadge || 'bg-blue-200 text-blue-600 text-xs p-1 ml-2 shrink-0 grow-0 rounded-lg flex items-center justify-center border border-blue-300'}>
-                    {columns.length}
+                    {columns?.length || "0"}
                 </span>
                 </div>
 
@@ -155,7 +158,7 @@ export default function Overview ({
                                     align: 'left',
                                 }))
                             }
-                            data={showAllColumns ? columns : columns.slice(0, 15)}
+                            data={showAllColumns ? columns : (columns ||[]).slice(0, 15)}
                             display={{
                                 striped: true
                             }}

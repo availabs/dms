@@ -3,6 +3,7 @@ import Upload from "./pages/upload";
 import Validate from "./pages/validate";
 import Metadata from "../gis_dataset/pages/metadata";
 import Admin from "./pages/admin";
+import Debug from "./pages/debug";
 
 const InternalDatasetConfig = {
     admin: {
@@ -31,6 +32,11 @@ const InternalDatasetConfig = {
         name: "Validate",
         path: "/validate",
         component: Validate,
+    },
+    debug: {
+        name: "Debug",
+        path: "/debug",
+        component: Debug,
     },
 };
 

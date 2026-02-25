@@ -61,11 +61,20 @@ class PostgresAdapter {
    * @param {Array} values - Query parameters (optional if sql is an object)
    * @returns {Promise<{rows: Array, rowCount: number}>}
    */
-  query(sql, values) {
-    if (typeof sql === "object" && sql.text) {
-      return this.pool.query(sql);
+  async query(sql, values) {
+    try {
+      if (typeof sql === "object" && sql.text) {
+        return await this.pool.query(sql);
+      }
+      return await this.pool.query(sql, values);
+    } catch (error) {
+      const queryText = typeof sql === "object" ? sql.text : sql;
+      const queryValues = typeof sql === "object" ? sql.values : values;
+      console.error(`<PostgresAdapter> Query error:`, error.message);
+      console.error(`  SQL:`, queryText);
+      console.error(`  Values (${queryValues?.length || 0}):`, queryValues);
+      throw error;
     }
-    return this.pool.query(sql, values);
   }
 
   /**

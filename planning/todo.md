@@ -5,6 +5,11 @@
 - [x] DMS CLI tool (`packages/dms/cli/`) — terminal access to DMS data via shared API code and Falcor protocol (sites, patterns, pages, sections, datasets)
 - [ ] DMS MCP Server — Claude tool for reading, creating, and editing DMS pages/sections via structured MCP tools (Lexical builder, .dmsrc-aware config)
 
+## local-first
+
+- [ ] Toy sync engine — standalone notes app proving SQLite WASM (wa-sqlite + OPFS), Yjs conflict resolution, revision-based sync protocol, passthrough pattern, and multi-tab reactivity
+- [ ] DMS sync integration — bring proven sync mechanics into DMS (change_log, client SQLite, progressive hydration, Lexical+Yjs collaborative editing)
+
 ## api
 
 ## dms-manager
@@ -20,7 +25,9 @@
 - [x] Implement auth in dms-server — JWT middleware, auth/user/group/project/message/preferences endpoints, cross-DB queries, authority checks, compatible with avail-falcor auth API
 - [x] PostgreSQL test support — Docker-managed PostgreSQL, parameterize all test suites, `npm run test:pg` / `test:all`
 - [x] Fix auth DB init race condition — `getDb()` returns before async init completes, causing "no such table: users"; add `awaitReady()`, support multi-role configs
-- [ ] Table splitting — per-app table isolation (`data_items__{app}`) + per-type overflow tables (`data_items__{app}__{type}`) for dataset row data. **Tier 1: DONE** (table-resolver.js, controller integration, UDA integration, 52 tests). Tier 2: per-app isolation (adds `app` to `byId`/`edit` routes, backwards-compatible dual routes, migration script)
+- [x] File upload routes — CSV/Excel upload, publish, and validate in dms-server as standalone synchronous endpoints (no pg-boss, no ETL events, no GDAL)
+- [x] Table splitting — per-type split tables + per-app isolation. Tier 1: table-resolver.js, controller/UDA integration, 104 tests. Tier 2: app-namespaced routes, client API changes (~25 call sites), migration script, API docs. Total: 138 tests.
+- [ ] Split table virtual columns — auto-generate SQLite virtual columns + indexes (and PG expression indexes) from source config attributes for B-tree query speed on dataset tables
 - [x] Database copy CLI — `src/scripts/copy-db.js` copies all DMS data between databases (PG↔SQLite, same-type), preserving IDs, handling cross-DB types, batch processing, split table discovery
 - [x] Dead row cleanup CLI — `src/scripts/cleanup-db.js` analyzes DMS database for orphaned rows (sections without pages, patterns without sites, views without sources), grouped by app+type, with optional `--delete` mode
 
@@ -61,9 +68,9 @@
 - [x] Source overview cleanup — theme-driven styling, width constraint, show both display_name + column name, remove table height cap, tighten metadata layout
 - [x] Datasets create page — extract create flow from DatasetsList modal into dedicated `/create` route with full-page layout
 - [x] Datasets settings page — category visibility settings, filtered/all toggle on list page, settings link for authed users
-- [ ] `internal_table` dataset type — new type combining creation + upload in one step, auto-creates first version, uses split tables for per-version data storage
+- [x] `internal_table` dataset type — new type combining creation + upload in one step, auto-creates first version, uses split tables for per-version data storage
 - [x] Custom admin page for internal dataset types — version creation follows forms pattern (uses DMS `item` with `.id`), SourcePage allows datatype admin overrides
-- [ ] Fix `updateMetaData` in upload component — calls `apiUpdate` with wrong format (dataset row type instead of source type), should use UDA update path like `updateSourceData`
+- [x] Fix `updateMetaData` in upload component — fixed apiUpdate call to use correct source type format and UDA update path
 
 ### patterns/forms
 

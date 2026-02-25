@@ -1,7 +1,6 @@
 import React from "react"
 
-import { AvlMap as AvlMap2 } from "~/modules/avl-map-2/src"
-
+import { AvlMap as AvlMap2 } from "../../datasets/pages/dataTypes/gis_dataset/pages/Map/avl-map-2/src"
 import SymbologyViewLayer from './components/SymbologyViewLayer'
 import PluginLayer from './components/PluginLayer'
 
@@ -104,7 +103,7 @@ console.log("MapViewer::pageState", pageState);
       state?.symbology?.plugins
   	]
   );
-    
+
   const pageFilters = React.useMemo(() => {
       return pageState?.filters;
   },[pageState]);
@@ -181,7 +180,7 @@ console.log("MapViewer::pageState", pageState);
             dynamicFilterOptions.some((dynFilter) => dynFilter?.values?.length > 0)
         ) {
             getFilterBounds();
-        } 
+        }
         // else if (state?.symbologies[activeSym]?.symbology?.length > 0) {
         //     setState((draft) => {
         //          draft.symbologies[activeSym].symbology.zoomToFilterBounds = [];

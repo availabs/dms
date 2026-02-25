@@ -104,7 +104,7 @@ export function getIdPath (wrapperConfig,format) {
 
 	return id ?
 	[
-		'dms', 'data', 'byId', id,
+		'dms', 'data', app, 'byId', id,
 		[ "id", "updated_at", "created_at","app", "type",...dataAttrs]
 	] : wildKey ? [
 		'dms', 'data', `${ app }+${ type }`,

@@ -14,6 +14,9 @@ const { createTestGraph } = require('./graph');
 const DMS_DB = process.env.DMS_TEST_DB || 'dms-sqlite';
 const DAMA_DB = process.env.DAMA_TEST_DB || 'dama-sqlite-test';
 
+// UDA routes read DMS_DB_ENV to resolve the database — sync it with the test DB
+process.env.DMS_DB_ENV = DMS_DB;
+
 const TEST_APP = 'uda-test-' + Date.now();
 const TEST_TYPE = 'dataset';
 let graph = null;
@@ -265,7 +268,7 @@ async function testDmsModeDataQueries() {
     ['uda', env, 'viewsById', viewId, 'dataById', firstId, ['id', "data->>'name' as name"]]
   ]);
   const row = byIdResult.jsonGraph.uda[env].viewsById[viewId].dataById[firstId];
-  assert(row && row.id === firstId, `Expected id ${firstId}, got ${row?.id}`);
+  assert(row && +row.id === firstId, `Expected id ${firstId}, got ${row?.id}`);
   pass('dataById returns correct row');
 
   // Cleanup

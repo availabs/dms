@@ -5,6 +5,7 @@ const falcorRoutes = require('./routes');
 const { createRequestLogger } = require('./middleware/request-logger');
 const { createJwtMiddleware } = require('./auth/jwt');
 const { registerAuthRoutes } = require('./auth');
+const { registerUploadRoutes } = require('./upload');
 
 const app = express();
 app.use(compression())
@@ -16,7 +17,6 @@ app.use(express.text({ limit: "500mb", type: "text/*" }));
 app.use(express.json({ limit: "500mb" })); // to support JSON-encoded bodies
 app.use(express.urlencoded({
   limit: "100mb", extended: true,
-  types: ["application/x-www-form-urlencoded", "multipart/form-data"]
 })); // to support URL-encoded bodies
 app.use(function (req, res, next) {
   res.header('Access-Control-Allow-Origin', req.get('origin'));
@@ -53,6 +53,9 @@ registerAuthRoutes(app, getDb(authDbEnv));
 
 // JWT auth middleware — validates Authorization header, attaches req.availAuthContext
 app.use(createJwtMiddleware(authDbEnv));
+
+// Upload routes — DAMA-compatible file upload endpoints (after JWT so uploads are authenticated)
+registerUploadRoutes(app);
 
 app.use(
   '/graph',

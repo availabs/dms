@@ -152,7 +152,8 @@ export async function dmsDataLoader (falcor, config, path='/') {
 		.map(path => {
 			let v = get(newReqFalcor, path.slice(0, -1), false)
 			if(v?.$type === 'ref') {
-				return +v.value[3]
+				// $ref value is ["dms", "data", app, "byId", id] — id is last element
+				return +v.value[v.value.length - 1]
 			}
 			return +(v?.id)
 		})
@@ -177,7 +178,10 @@ export async function dmsDataLoader (falcor, config, path='/') {
 	const filteredIds = !id && fromIndex !== undefined && toIndex !== undefined ?
 		Object.keys(get(newReqFalcor, [...itemReqByIndex], {}))
 			.filter(index => +index >= +fromIndex && +index <= +toIndex - 1)
-			.map(index => get(newReqFalcor, [...itemReqByIndex, index, 'value', 3])) // ['dms', 'data', 'byId', id]
+			.map(index => {
+				const ref = get(newReqFalcor, [...itemReqByIndex, index]);
+				return ref?.value ? +ref.value[ref.value.length - 1] : null;
+			})
 			.filter(d => d) : [];
 
 	activeIds.push(...(filteredIds || []))
@@ -259,8 +263,8 @@ export async function dmsDataEditor (falcor, config, data={}, requestType, /*pat
 			// console.log('falcor update type', requestType, id, data)
 			if(!row.type) 	return {message: "No type found."}
 
-			await falcor.call(["dms", "type", "edit"], [id, row.type]);
-			await falcor.invalidate(['dms', 'data', 'byId', id])
+			await falcor.call(["dms", "type", "edit"], [app, id, row.type]);
+			await falcor.invalidate(['dms', 'data', app, 'byId', id])
 			return {message: "Update successful."}
 		}
 		//--------------------------------------------------
@@ -274,8 +278,8 @@ export async function dmsDataEditor (falcor, config, data={}, requestType, /*pat
 			// todo - data verification
 			// console.time(`falcor update data ${id}`)
 			// console.log('update', id, data)
-			await falcor.call(["dms", "data", "edit"], [id, row]);
-			await falcor.invalidate(['dms', 'data', 'byId', id])
+			await falcor.call(["dms", "data", "edit"], [app, id, row]);
+			await falcor.invalidate(['dms', 'data', app, 'byId', id])
 			// console.timeEnd(`falcor update data ${id}`)
 			return {message: `Update successful: id ${id}.`,  }
 		}

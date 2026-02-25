@@ -95,14 +95,10 @@ function PatternList({
 		},
 		{name: 'subdomain', display_name: 'Subdomain', show: true, type: 'text'},
 		// {name: 'updated_at', display_name: 'Updated', show: true, type: 'text', formatFn: 'date'},
-<<<<<<< HEAD
-		{name: 'edit', display_name: '', show: true, type: 'ui',
-=======
-		{name: 'edit', display_name: 'Edit', show: true, type: 'ui', Comp: (d) => {
-				return <Button onClick={() => setEditingItem(d.row)}>Edit</Button>
-			}},
+		// {name: 'edit', display_name: 'Edit', show: true, type: 'ui', Comp: (d) => {
+		// 		return <Button onClick={() => setEditingItem(d.row)}>Edit</Button>
+		// 	}},
 		{name: 'edit', display_name: 'Edit', show: true, type: 'ui',
->>>>>>> b21e39b443a00cdd4f03ea9c52b1e26f1b466724
       Comp: (d) => {
         return (
           <div className='flex items-center justify-center gap-1 w-full h-full py-1'>
@@ -254,20 +250,20 @@ function PatternList({
 								type={'plain'}
 								title={'duplicate item'}
 								onClick={async () => {
-									const newDocType = uuidv4();
+									const newDocType = crypto.randomUUID()
 									const dataToCopy = {
-										app: editingItem.app,
-										base_url: `${editingItem.base_url}_copy`,
-										subdomain: editingItem.subdomain,
-										config: editingItem.config,
+										app: editingItem?.app,
+										base_url: `${editingItem?.base_url}_copy`,
+										subdomain: editingItem?.subdomain,
+										config: editingItem?.config,
 										doc_type: newDocType,
-										name: `${editingItem.name}_copy`,
-										pattern_type: editingItem.pattern_type,
-										auth_level: editingItem.auth_level,
-										filters: editingItem.filters,
-										theme: editingItem.theme,
+										name: `${editingItem?.name}_copy`,
+										pattern_type: editingItem?.pattern_type,
+										auth_level: editingItem?.auth_level,
+										filters: editingItem?.filters,
+										theme: editingItem?.theme,
 									};
-									await duplicate({oldType: editingItem.doc_type, newType: newDocType}, dataToCopy)
+									await duplicate({oldType: editingItem?.doc_type, newType: newDocType}, dataToCopy)
 									setEditingItem(undefined)
 								}}
 							> {isDuplicating ? 'duplicating...' : 'duplicate'}

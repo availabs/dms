@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useContext } from "react";
 import { useNavigate } from "react-router";
 import { DatasetsContext } from "../../../../context";
+import { ThemeContext } from "../../../../../../ui/themeContext";
 import Upload from "../../../../components/upload";
 
 function nameToDocType(name) {
@@ -18,7 +19,8 @@ function getNewId(falcorRes) {
 
 export default function SourceCreate({ context, source }) {
     const ctx = useContext(DatasetsContext);
-    const { falcor, parent, type, app, baseUrl, UI } = ctx;
+    const { UI } = useContext(ThemeContext);
+    const { falcor, parent, user, type, app, baseUrl } = ctx;
     const navigate = useNavigate();
     const { Button } = UI;
 
@@ -59,7 +61,7 @@ export default function SourceCreate({ context, source }) {
             if (!vId) throw new Error('Failed to create view');
 
             // 3. Update source with view ref
-            await falcor.call(["dms", "data", "edit"], [+sourceId, {
+            await falcor.call(["dms", "data", "edit"], [app, +sourceId, {
                 views: [{ ref: `${app}+${type}|source|view`, id: +vId }]
             }]);
 
@@ -68,17 +70,18 @@ export default function SourceCreate({ context, source }) {
                 .filter(s => s.id)
                 .map(s => ({ ref: s.ref || `${app}+${type}|source`, id: s.id }));
 
-            await falcor.call(["dms", "data", "edit"], [parent.id, {
+            await falcor.call(["dms", "data", "edit"], [app, parent.id, {
                 sources: [...existingRefs, { ref: `${app}+${type}|source`, id: +sourceId }]
             }]);
 
             // 5. Invalidate caches
-            await falcor.invalidate(['dms', 'data', 'byId', parent.id]);
+            await falcor.invalidate(['dms', 'data', app, 'byId', parent.id]);
             await falcor.invalidate(['uda', `${app}+${type}`, 'sources']);
 
             // 6. Transition to upload stage
             setCreatedSource({
                 id: +sourceId,
+                source_id: +sourceId,
                 app,
                 name: source.name.trim(),
                 type: 'internal_table',
@@ -103,8 +106,8 @@ export default function SourceCreate({ context, source }) {
                 row[key] = value;
             }
         }
-        await falcor.call(["dms", "data", "edit"], [data.id, row]);
-        await falcor.invalidate(['dms', 'data', 'byId', data.id]);
+        await falcor.call(["dms", "data", "edit"], [app, data.id, row]);
+        await falcor.invalidate(['dms', 'data', app, 'byId', data.id]);
     }, [falcor]);
 
     if (stage === 'uploading' && createdSource && viewId) {

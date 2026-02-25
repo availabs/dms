@@ -8,7 +8,7 @@ export async function processNewData (dataCache, activeIdsIntOrStr, stopFullData
     // -----------------------------------------------------------------------------------------------------
     let newDataVals = Object.values(get(
         dataCache,
-        ['dms', 'data', 'byId'],
+        ['dms', 'data', app, 'byId'],
         {}
     ))
     .filter(d => (
@@ -103,6 +103,7 @@ async function loadDmsFormats (item,dmsAttrsConfigs, format, falcor) {
 
     for (const key of dmsKeys) {
         const dmsFormatRequests = []
+        const subApp = dmsAttrsConfigs[key].format.split('+')[0]
 
         const dmsSubAttrsConfigs = (Object.values(dmsSubFormats?.[key]?.attributes|| {}))
             //.filter(d => !Array.isArray(filter?.attributes) || filter.attributes.includes(d.key))
@@ -122,13 +123,13 @@ async function loadDmsFormats (item,dmsAttrsConfigs, format, falcor) {
         if(typeof item?.[key]?.[Symbol.iterator] === 'function') {
             for (let ref of item[key]) {
                 if(ref.id) {
-                    dmsFormatRequests.push(['dms','data', 'byId', ref.id, attrsToFetch])
+                    dmsFormatRequests.push(['dms','data', subApp, 'byId', ref.id, attrsToFetch])
                 }
             }
         } else if(item[key]?.id) {
             // if dmstype is single
 
-            dmsFormatRequests.push(['dms','data', 'byId', item[key]?.id, attrsToFetch])
+            dmsFormatRequests.push(['dms','data', subApp, 'byId', item[key]?.id, attrsToFetch])
         }
 
         if(dmsFormatRequests.length > 0) {
@@ -139,9 +140,9 @@ async function loadDmsFormats (item,dmsAttrsConfigs, format, falcor) {
                 let index = 0
                 for (let ref of item[key]) {
                     if(ref.id) {
-                        let value = get(newData, ['json','dms','data', 'byId', ref.id, 'data'])
+                        let value = get(newData, ['json','dms','data', subApp, 'byId', ref.id, 'data'])
                         const meta = attrsToFetch.filter(a => a !== 'data')
-                                                     .reduce((acc, metaKey) => ({...acc, [metaKey]: get(newData, ['json','dms','data', 'byId', ref.id, metaKey])}) , {})
+                                                     .reduce((acc, metaKey) => ({...acc, [metaKey]: get(newData, ['json','dms','data', subApp, 'byId', ref.id, metaKey])}) , {})
 
                         // if new item has dms-format data, recursively fetch
                         if(Object.keys(dmsSubAttrsConfigs).length > 0){
@@ -153,9 +154,9 @@ async function loadDmsFormats (item,dmsAttrsConfigs, format, falcor) {
                 }
             // dmstype not array
             } else {
-                let value = get(newData, ['json','dms','data', 'byId', item[key].id, 'data'])
+                let value = get(newData, ['json','dms','data', subApp, 'byId', item[key].id, 'data'])
                 const meta = attrsToFetch.filter(a => a !== 'data')
-                                             .reduce((acc, metaKey) => ({...acc, [metaKey]: get(newData, ['json','dms','data', 'byId', item[key].id, metaKey])}) , {})
+                                             .reduce((acc, metaKey) => ({...acc, [metaKey]: get(newData, ['json','dms','data', subApp, 'byId', item[key].id, metaKey])}) , {})
 
                 item[key] = {...item[key], ...value, ...meta}
             }
