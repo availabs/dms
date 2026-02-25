@@ -109,7 +109,6 @@ const DEFAULT_BLANK_SYMBOLOGY = {
   name: '',
   description: '',
   symbology: {
-    dmsSymbology: true,
     layers: {},
     plugins: {},
     pluginData: {}
