@@ -119,6 +119,7 @@ export function InsertButtonDialog({
         <option value="primarySmall">Primary Small</option>
         <option value="secondarySmall">Secondary Small</option>
         <option value="whiteSmall">White Small</option>
+        <option value="greenSmall">Green Small</option>
 
       </Select>
 

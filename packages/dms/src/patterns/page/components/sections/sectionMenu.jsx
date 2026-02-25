@@ -182,7 +182,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
     ]
 
     const data = [
-        {name: 'data', icon: 'Database', cdn: () => currentComponent?.useDataSource && canEditSection,
+        {name: 'data', id: crypto.randomUUID(), icon: 'Database', cdn: () => currentComponent?.useDataSource && canEditSection,
             items: [
                 {
                     icon: 'Refresh', name: isRefreshingData ? 'Refreshing Data' : 'Refresh Data', cdn: () => !isEdit && canEditSection,

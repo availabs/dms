@@ -202,7 +202,7 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
         (text?.root?.children?.length === 0)
     ))
 
-    const showHeader = value?.['title'] || value?.['tags'] || helpTextCondition
+    const showHeader = (value?.['title'] || value?.['tags'] || helpTextCondition) && (hideSection ? editPageMode : !hideSection);
     const showEditIcons = editPageMode && typeof onEdit === 'function'
 
     const updateAttribute = (k, v) => {
@@ -240,6 +240,7 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
                 pageFormat={format}
                 refreshDataBtnRef={refreshDataBtnRef}
                 component={component}
+                editPageMode={editPageMode}
             />
         )
     }, [value, hideSection, refreshDataBtnRef, component, value?.element?.['element-type']]);
@@ -273,7 +274,7 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
 
     return (
         <ComponentContext.Provider value={{state, setState, apiLoad, apiUpdate, controls: resolvedControls, isActive, activeStyle: value?.activeStyle}}>
-            <div className={editPageMode && hideSection ? theme.wrapperHidden : theme.wrapper} style={{pageBreakInside: "avoid"}}>
+            <div className={editPageMode && hideSection && !editPageMode ? theme.wrapperHidden : theme.wrapper} style={{pageBreakInside: "avoid"}}>
 
                 {/* -------------------top line buttons ----------------------*/}
                 <div className={theme.topBar}>
