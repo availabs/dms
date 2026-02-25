@@ -185,15 +185,15 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
         {name: 'data', icon: 'Database', cdn: () => currentComponent?.useDataSource && canEditSection,
             items: [
                 {
-                    icon: 'Refresh', name: isRefreshingData ? 'Refreshing Data' : 'Refresh Data', cdn: () => canEditSection,
+                    icon: 'Refresh', name: isRefreshingData ? 'Refreshing Data' : 'Refresh Data', cdn: () => !isEdit && canEditSection,
                     onClick: () => refreshDataBtnRef.current?.refresh({isRefreshingData, setIsRefreshingData})
                 },
                 {
-                    icon: 'Refresh', name: isRefreshingData ? 'Caching Data' : 'Cache Data', cdn: () => canEditSection,
+                    icon: 'Refresh', name: isRefreshingData ? 'Caching Data' : 'Cache Data', cdn: () => !isEdit && canEditSection,
                     onClick: () => refreshDataBtnRef.current?.refresh({isRefreshingData, setIsRefreshingData, fullDataLoad: true})
                 },
                 {
-                    icon: 'Refresh', name: isRefreshingData ? 'Clearing Cache' : 'Clear Cache', cdn: () => canEditSection,
+                    icon: 'Refresh', name: isRefreshingData ? 'Clearing Cache' : 'Clear Cache', cdn: () => !isEdit && canEditSection,
                     onClick: () => refreshDataBtnRef.current?.refresh({clearCache: true})
                 },
                 dataset,

@@ -1,4 +1,4 @@
-import React, {useContext, useEffect, useMemo, useState} from "react";
+import React, {useCallback, useContext, useEffect, useMemo, useRef, useState} from "react";
 import {uniqBy} from "lodash-es";
 import {ThemeContext} from "../../../../ui/useTheme";
 import {ComponentContext} from "../../context";
@@ -12,11 +12,37 @@ import {
     parseIfJson
 } from "./components/dataWrapper/components/filters/utils";
 
+const OPTIONS_LIMIT = 100;
+
+const parseDataOptions = (data, reqName) =>
+    data.reduce((acc, d) => {
+        const responseValue = d[reqName]?.value || d[reqName];
+        const metaValue = parseIfJson(responseValue?.value || responseValue);
+        const originalValue = parseIfJson(responseValue?.originalValue || responseValue);
+
+        const values = Array.isArray(originalValue)
+            ? originalValue.map((pv, i) => ({label: metaValue?.[i] || pv, value: pv}))
+            : [{label: metaValue || originalValue, value: originalValue}];
+
+        values.forEach(({label, value}) => {
+            if (label && typeof label !== 'object') acc.push({label, value});
+        });
+        return acc;
+    }, []);
+
+const sortOptions = (options) =>
+    options.sort((a, b) =>
+        typeof a?.label === 'string' && typeof b?.label === 'string'
+            ? a.label.localeCompare(b.label)
+            : b?.label - a?.label
+    );
+
 // Fetches unique values for a column (for filter/exclude multiselect)
-const useColumnOptions = (columnName, columns, operation) => {
+const useColumnOptions = (columnName, columns, operation, search, selectedValues) => {
     const {apiLoad, state} = useContext(ComponentContext) || {};
     const [options, setOptions] = useState([]);
     const [loading, setLoading] = useState(false);
+    const prevSearchRef = useRef('');
 
     const sourceInfo = state?.sourceInfo;
     const isDms = sourceInfo?.isDms;
@@ -38,6 +64,10 @@ const useColumnOptions = (columnName, columns, operation) => {
                 const reqName = formattedAttributeStr(columnName, isDms, isCalc);
                 const refName = attributeAccessorStr(columnName, isDms, isCalc, isSys);
 
+                const filterBy = search
+                    ? { like: { [refName]: `%${search}%` } }
+                    : {};
+
                 const data = await getData({
                     format: sourceInfo,
                     apiLoad,
@@ -45,33 +75,24 @@ const useColumnOptions = (columnName, columns, operation) => {
                     refName,
                     rawName: columnName,
                     allAttributes: columns,
+                    filterBy,
+                    limit: OPTIONS_LIMIT,
                 });
 
                 if (cancelled) return;
 
-                const dataOptions = data.reduce((acc, d) => {
-                    const responseValue = d[reqName]?.value || d[reqName];
-                    const metaValue = parseIfJson(responseValue?.value || responseValue);
-                    const originalValue = parseIfJson(responseValue?.originalValue || responseValue);
+                const fetched = uniqBy(parseDataOptions(data, reqName), d => d.value);
 
-                    const values = Array.isArray(originalValue)
-                        ? originalValue.map((pv, i) => ({label: metaValue?.[i] || pv, value: pv}))
-                        : [{label: metaValue || originalValue, value: originalValue}];
-
-                    values.forEach(({label, value}) => {
-                        if (label && typeof label !== 'object') acc.push({label, value});
+                // merge selected values so they stay visible in the list
+                const selectedSet = new Set((selectedValues || []).map(v => v?.value ?? v));
+                if (search && selectedSet.size) {
+                    setOptions(prev => {
+                        const selectedFromPrev = prev.filter(o => selectedSet.has(o.value));
+                        return sortOptions(uniqBy([...selectedFromPrev, ...fetched], d => d.value));
                     });
-                    return acc;
-                }, []);
-
-                setOptions(
-                    uniqBy(dataOptions, d => d.value)
-                        .sort((a, b) =>
-                            typeof a?.label === 'string' && typeof b?.label === 'string'
-                                ? a.label.localeCompare(b.label)
-                                : b?.label - a?.label
-                        )
-                );
+                } else {
+                    setOptions(sortOptions(fetched));
+                }
             } catch (e) {
                 console.error('ConditionValueInput: failed to load options', e);
             } finally {
@@ -80,8 +101,9 @@ const useColumnOptions = (columnName, columns, operation) => {
         }
 
         load();
+        prevSearchRef.current = search;
         return () => { cancelled = true; };
-    }, [columnName, operation, apiLoad, sourceInfo, isDms, columns]);
+    }, [columnName, operation, search, apiLoad, sourceInfo, isDms, columns]);
 
     return {options, loading};
 };
@@ -90,14 +112,20 @@ export const ConditionValueInput = ({node, path, columns, updateNodeAtPath}) => 
     const {UI} = useContext(ThemeContext);
     const {ColumnTypes} = UI;
     const {pageState, updatePageStateFilters} = useContext(PageContext) || {};
-    const {options, loading} = useColumnOptions(node.col, columns, node.op);
 
+    const [search, setSearch] = useState('');
     const isMultiselect = ['filter', 'exclude'].includes(node.op);
+    const selectedValues = isMultiselect ? (Array.isArray(node.value) ? node.value : []) : [];
+
+    const {options, loading} = useColumnOptions(node.col, columns, node.op, search, selectedValues);
+
+    const onSearch = useCallback((term) => setSearch(term), []);
+
     const selector = isMultiselect ? 'multiselect' : 'text';
     const Comp = ColumnTypes[selector].EditComp;
 
     const value = isMultiselect
-        ? (Array.isArray(node.value) ? node.value : [])
+        ? selectedValues
         : (Array.isArray(node.value) ? node.value[0] ?? '' : node.value ?? '');
 
     const column = columns.find(c => c.name === node.col);
@@ -117,6 +145,7 @@ export const ConditionValueInput = ({node, path, columns, updateNodeAtPath}) => 
             type={isMultiselect ? undefined : node.op === 'like' ? 'text' : 'number'}
             displayInvalidMsg={false}
             onWheel={e => e.target.blur()}
+            onSearch={isMultiselect ? onSearch : undefined}
             onChange={e => {
                 let newValues;
                 if (isMultiselect) {
