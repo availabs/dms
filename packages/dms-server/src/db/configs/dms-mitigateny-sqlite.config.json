@@ -1,5 +1,0 @@
-{
-  "type": "sqlite",
-  "role": "dms",
-  "filename": "../data/dms-mitigate-ny.sqlite"
-}

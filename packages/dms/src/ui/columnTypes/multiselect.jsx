@@ -83,7 +83,7 @@ const RenderMenu = ({
                         autoFocus
                         key={'input'}
                         placeholder={placeholder || 'search...'}
-                        className={theme?.multiselect?.input}
+                        className={`${theme?.multiselect?.input} ${loading ? 'cursor-wait' : ''}`}
                         onChange={e => setSearchKeyword(e.target.value)}
                         onFocus={() => setIsSearching(true)}
                     />
@@ -144,6 +144,12 @@ const RenderMenu = ({
                         )
                     })
             }
+            {loading && (
+                <div className="flex items-center justify-center gap-1 py-1 text-xs text-gray-400">
+                    <div className="size-3 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" />
+                    loading...
+                </div>
+            )}
         </div>
     )
 }
@@ -183,10 +189,20 @@ const Edit = ({value = [], loading, onChange, className,placeholder, options = [
                   singleSelectOnly=false,
                   displayDetailedValues=true,
                   keepMenuOpen=false,
-                  tabular=false
+                  tabular=false,
+                  onSearch
 }) => {
     // options: ['1', 's', 't'] || [{label: '1', value: '1'}, {label: 's', value: '2'}, {label: 't', value: '3'}]
     const [searchKeyword, setSearchKeyword] = useState('');
+    const searchTimerRef = useRef(null);
+
+    useEffect(() => {
+        if (!onSearch) return;
+        clearTimeout(searchTimerRef.current);
+        searchTimerRef.current = setTimeout(() => onSearch(searchKeyword), 300);
+        return () => clearTimeout(searchTimerRef.current);
+    }, [searchKeyword, onSearch]);
+
     const typeSafeValue = (Array.isArray(value) ? value : [value]).map(v => (options || []).find(o => looselyEqual((o?.value || o), (v?.value || v))) || v);
 
     const {

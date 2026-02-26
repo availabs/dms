@@ -5,12 +5,8 @@ export async function processNewData (dataCache, activeIdsIntOrStr, stopFullData
     // console.log('activeIds', activeIds)
     let newData = []
 
-    // -----------------------------------------------------------------------------------------------------
-    let newDataVals = Object.values(get(
-        dataCache,
-        ['dms', 'data', app, 'byId'],
-        {}
-    ))
+    let byIdCache = get(dataCache, ['dms', 'data', app, 'byId'], {});
+    let newDataVals = Object.values(byIdCache)
     .filter(d => (
         (stopFullDataLoad ? activeIds?.length && activeIds.includes(+d.id) : true) &&
         d.id &&
@@ -134,7 +130,7 @@ async function loadDmsFormats (item,dmsAttrsConfigs, format, falcor) {
 
         if(dmsFormatRequests.length > 0) {
             let newData = await falcor.get(...dmsFormatRequests)
-            // console.log('testing dmsFormatRequests', newData)
+
             // if dmstype isArray
             if(typeof item?.[key]?.[Symbol.iterator] === 'function') {
                 let index = 0
