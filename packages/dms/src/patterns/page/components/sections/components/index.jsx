@@ -42,7 +42,7 @@ function EditComp({value, onChange, compKey, component, siteType, pageFormat}) {
     )
 }
 
-function ViewComp({value, onChange, siteType, pageFormat, refreshDataBtnRef, component}) {
+function ViewComp({value, onChange, siteType, pageFormat, refreshDataBtnRef, component, editPageMode}) {
     const { apiLoad } =  React.useContext(PageContext) || {}
     const { state, setState } = React.useContext(ComponentContext);
     const defaultComp = () => <div> Component {value["element-type"]} Not Registered </div>;
@@ -98,6 +98,7 @@ function ViewComp({value, onChange, siteType, pageFormat, refreshDataBtnRef, com
                       component={component?.useDataWrapper ? component : undefined}
                       siteType={siteType}
                       pageFormat={pageFormat}
+                      editPageMode={editPageMode}
             />
         </>
     )
