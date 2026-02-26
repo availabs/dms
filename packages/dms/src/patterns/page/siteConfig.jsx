@@ -1,5 +1,5 @@
 import React from "react";
-import { merge } from "lodash-es";
+import { useRouteError } from "react-router";
 import { parseIfJSON } from "./pages/_utils";
 import { initializePatternFormat } from "../../dms-manager/_utils";
 
@@ -134,7 +134,9 @@ const pagesConfig = ({
         ],
       },
     ],
-    errorElement: () => {
+    errorElement: (props) => {
+      let error = useRouteError();
+      console.log('page pattern - siteconfig -error element', error)
       return (
         <ThemeContext.Provider value={{ theme, UI }}>
           <ErrorPage />

@@ -32,8 +32,12 @@ export async function processNewData (dataCache, activeIdsIntOrStr, stopFullData
                     let attr = col.split('->>')[1].trim().replace(/[']/g, '')
                     let val = d[col]
                     // handles JSON TYPE
-                    if(attrHash[attr]?.type === 'json' && typeof val !== 'object'){
+                  if (attrHash[attr]?.type === 'json' && typeof val !== 'object') {
+                      try {
                         val = JSON.parse(val) || {}
+                      } catch (e) {
+                        console.log('cannot parse val', val, '|',  attr,'|', col)
+                      }
                     }
                     out[attr] = val
                 } else {
