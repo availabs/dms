@@ -1,5 +1,7 @@
 import React, {useContext, useMemo, useState} from "react";
 import {DatasetsContext} from "../../../context";
+import {ThemeContext} from "../../../../../ui/useTheme";
+import {metadataCompTheme} from "../metadataComp.theme";
 import {Metadata} from "./Metadata";
 
 const fieldTypes = [
@@ -43,18 +45,18 @@ const defaultFnTypes = [
     { value: 'count', label: 'count' }
 ];
 
-const labelClass = 'text-sm font-light capitalize font-gray-700';
-
 const RenderInputText = ({label, value, col, attr, disabled, hidden, updateAttribute}) => {
     const {UI} = React.useContext(DatasetsContext);
+    const {theme} = React.useContext(ThemeContext) || {};
+    const t = theme?.datasets?.metadataComp || metadataCompTheme;
     const {Input} = UI;
     const [newValue, setNewValue] = useState(value);
 
     const delayedUpdate = (val) => setTimeout(updateAttribute(col, {[attr]: val}), 500);
     if(hidden) return null;
     return (
-        <div className={'flex flex-col items-start'}>
-            <label className={labelClass}>{label}</label>
+        <div className={t.inputWrapper}>
+            <label className={t.label}>{label}</label>
             <Input
                 type={'text'}
                 disabled={disabled}
@@ -71,11 +73,13 @@ const RenderInputText = ({label, value, col, attr, disabled, hidden, updateAttri
 
 const RenderInputSelect = ({disabled, label, value='', col, attr, updateAttribute, placeHolder='please select...', options}) => {
     const {UI} = React.useContext(DatasetsContext);
+    const {theme} = React.useContext(ThemeContext) || {};
+    const t = theme?.datasets?.metadataComp || metadataCompTheme;
     const {Select} = UI;
 
     return (
-        <div className={'flex flex-col items-start'}>
-            <label className={labelClass}>{label}</label>
+        <div className={t.inputWrapper}>
+            <label className={t.label}>{label}</label>
             <Select
                 disabled={disabled}
                 value={value}
@@ -96,11 +100,13 @@ const RenderInputSelect = ({disabled, label, value='', col, attr, updateAttribut
 
 const RenderInputSwitch = ({label, value='', col, attr, updateAttribute, trueValue=true}) => {
     const {UI} = React.useContext(DatasetsContext);
+    const {theme} = React.useContext(ThemeContext) || {};
+    const t = theme?.datasets?.metadataComp || metadataCompTheme;
     const {Switch} = UI;
 
     return (
-        <div className={'flex flex-col items-start'}>
-            <label className={labelClass}>{label}</label>
+        <div className={t.inputWrapper}>
+            <label className={t.label}>{label}</label>
             <Switch
                 enabled={value === trueValue}
                 setEnabled={e => updateAttribute(col, {[attr]: e ? trueValue : false})}
@@ -112,11 +118,13 @@ const RenderInputSwitch = ({label, value='', col, attr, updateAttribute, trueVal
 
 const RenderInputButtonSelect = ({label, value='', col, attr, updateAttribute, options}) => {
     const {UI} = React.useContext(DatasetsContext);
+    const {theme} = React.useContext(ThemeContext) || {};
+    const t = theme?.datasets?.metadataComp || metadataCompTheme;
     const {ButtonSelect} = UI;
 
     return (
-        <div className={'flex flex-col items-start'}>
-            <label className={labelClass}>{label}</label>
+        <div className={t.inputWrapper}>
+            <label className={t.label}>{label}</label>
             <ButtonSelect
                 value={value}
                 options={options}
@@ -128,10 +136,12 @@ const RenderInputButtonSelect = ({label, value='', col, attr, updateAttribute, o
 
 const RenderInputLexical = ({label, value, col, attr, updateAttribute}) => {
     const {UI} = useContext(DatasetsContext);
+    const {theme} = useContext(ThemeContext) || {};
+    const t = theme?.datasets?.metadataComp || metadataCompTheme;
     const {ColumnTypes: {lexical: {EditComp}}} = UI;
     return (
-        <div className={'flex flex-col items-start'}>
-            <label className={labelClass}>{label}</label>
+        <div className={t.inputWrapper}>
+            <label className={t.label}>{label}</label>
             <EditComp
                 value={value}
                 bgColor={'#ffffff'}
@@ -146,11 +156,13 @@ const RenderInputLexical = ({label, value, col, attr, updateAttribute}) => {
 
 const RenderAddForm = ({editing, newOption, setNewOption, addNewValue, value}) => {
     const {UI} = React.useContext(DatasetsContext);
+    const {theme} = React.useContext(ThemeContext) || {};
+    const t = theme?.datasets?.metadataComp || metadataCompTheme;
     const {Input, Button} = UI;
 
     if(editing !== undefined) return null;
     return (
-        <div className={'w-full flex'}>
+        <div className={t.optionFormRow}>
             <Input
                 value={newOption}
                 onChange={e => {
@@ -177,11 +189,13 @@ const RenderEditingForm = ({editingIndex, item, setEditing, value, replaceValue}
     if(editingIndex === undefined) return null;
 
     const {UI} = React.useContext(DatasetsContext);
+    const {theme} = React.useContext(ThemeContext) || {};
+    const t = theme?.datasets?.metadataComp || metadataCompTheme;
     const {Input, Textarea, Button} = UI;
     const [editingCopy, setEditingCopy] = useState(item); // using prop as state is fine since uniq key is used to render this component.
 
     return (
-        <div className={'w-full flex'}>
+        <div className={t.optionFormRow}>
             <Input
                 value={editingCopy.label}
                 onChange={e => setEditingCopy({...editingCopy, label: e.target.value})}
@@ -211,6 +225,8 @@ const RenderEditingForm = ({editingIndex, item, setEditing, value, replaceValue}
 }
 const RenderOptions = ({attributeList, col, drivingAttribute, attr, value=[], dependsOn=[], updateAttribute}) => {
     const {UI} = React.useContext(DatasetsContext);
+    const {theme} = React.useContext(ThemeContext) || {};
+    const t = theme?.datasets?.metadataComp || metadataCompTheme;
     const {Input, Button} = UI;
     const [newOption, setNewOption] = useState('');
     const [editing, setEditing] = useState(undefined);
@@ -234,32 +250,19 @@ const RenderOptions = ({attributeList, col, drivingAttribute, attr, value=[], de
     }
 
     return (
-        <div className={'flex flex-col items-start w-full gap-1'}>
-            <label className={labelClass}>Options</label>
-            {/*<div className={'flex flex-row gap-1 items-center'}>
-                <label className={labelClass}>Depends on:</label>
-                <select
-                    value={dependsOn?.[0]}
-                    onChange={e => updateAttribute(col, {['depends_on']: [e.target.value]})}
-                    className={'bg-white p-2 flex-1 px-2 shadow focus:ring-blue-700 focus:border-blue-500  border-gray-300 rounded-md\''}
-                >
-                    <option>N/A</option>
-                    {
-                        attributeList.map(name => <option key={name} value={name}>{name}</option>)
-                    }
-                </select>
-            </div>*/}
-            <div className={'w-full flex flex-col'}>
+        <div className={t.optionsWrapper}>
+            <label className={t.label}>Options</label>
+            <div className={t.optionsInner}>
                 <RenderAddForm {...{editing, Input, newOption, setNewOption, addNewValue, Button, value}} />
                 <RenderEditingForm key={editing} {...{editingIndex: editing, item: options[editing], setEditing, value, replaceValue}} />
 
-                <div className={'flex flex-row flex-wrap'}>
+                <div className={t.optionsList}>
                     {
                         options?.map((option, optionI) => (
-                            <div key={optionI} className={'bg-red-500 hover:bg-red-700 text-white text-xs font-semibold px-1.5 py-1 m-1 flex no-wrap items-center rounded-md'}>
-                                <label className={'hover:cursor-pointer'} onClick={() => setEditing(optionI)}>{option?.label || option}</label>
+                            <div key={optionI} className={t.optionTag}>
+                                <label className={t.optionTagLabel} onClick={() => setEditing(optionI)}>{option?.label || option}</label>
                                 <div title={'remove'}
-                                     className={'p-0.5 px-1 cursor-pointer'}
+                                     className={t.optionRemove}
                                      onClick={e => removeValue(value, option)}
                                 >x</div>
                             </div>
@@ -282,10 +285,12 @@ const parseIfJSON = strValue => {
 const RenderMappedOptions = ({col, drivingAttribute, attr, value='', updateAttribute}) => {
     // {"viewId": "1346450", "sourceId": "1346449", "labelColumn": "municipality_name", "valueColumn": "geoid", "isDms": true, "type": "477b3e18-2b35-4e98-82f1-feb821ba4fc3"}
     const {UI} = React.useContext(DatasetsContext);
+    const {theme} = React.useContext(ThemeContext) || {};
+    const t = theme?.datasets?.metadataComp || metadataCompTheme;
     const [newOption, setNewOption] = useState(parseIfJSON(value));
     const {FieldSet} = UI;
     const customTheme = {
-        field: 'pb-2 flex flex-col'
+        field: t.metadataFieldTheme
     }
     const inputKeys = [
         {key: 'sourceId', placeHolder: 'source id'},
@@ -297,9 +302,9 @@ const RenderMappedOptions = ({col, drivingAttribute, attr, value='', updateAttri
     if(!['select', 'multiselect'].includes(drivingAttribute)) return null;
     return (
         <>
-            <label className={labelClass}>Options Map</label>
+            <label className={t.label}>Options Map</label>
             <FieldSet
-                className={'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-1'}
+                className={t.mappedGrid}
                 components={[
                     ...inputKeys.map(({key, placeHolder}) => (
                         {
@@ -334,45 +339,32 @@ const RenderMappedOptions = ({col, drivingAttribute, attr, value='', updateAttri
             />
         </>
     )
-    return (
-        <div className={'flex flex-col items-start w-full'}>
-
-            <div className={'w-full flex flex-col'}>
-                <div className={'w-full flex'}>
-                    <Input
-                        // className='bg-white p-2 flex-1 px-2 shadow focus:ring-blue-700 focus:border-blue-500  border-gray-300 rounded-md'
-                        value={newOption}
-                        onChange={e => setNewOption(e.target.value)}
-                        placeHolder={'Add a mapping...'}
-                    />
-                </div>
-            </div>
-        </div>
-    )
 }
 
 const RenderRemoveBtn = ({col, removeAttribute}) => {
     const {UI} = React.useContext(DatasetsContext);
+    const {theme} = React.useContext(ThemeContext) || {};
+    const t = theme?.datasets?.metadataComp || metadataCompTheme;
     const {Button, Modal} = UI;
     const [showDeleteModal, setShowDeleteModal] = React.useState(false);
 
     return (
-        <div className={'w-full text-end'}>
-            <Modal open={showDeleteModal} setOpen={setShowDeleteModal} className={'border border-red-500'}>
-                <div className={'text-lg font-medium text-gray-900'}>Confirm Delete</div>
-                <div className={'text-md font-medium text-gray-900 py-4 px-2'}>
+        <div className={t.deleteWrapper}>
+            <Modal open={showDeleteModal} setOpen={setShowDeleteModal} className={t.deleteModalBorder}>
+                <div className={t.deleteTitle}>Confirm Delete</div>
+                <div className={t.deleteMessage}>
                     Are you sure you want to delete column: <span className={'font-semibold'}>{col}</span>?
                 <div>This action can not be undone.</div>
                 </div>
                 <Button
-                    className={'bg-red-500 text-red-900'}
+                    className={t.deleteButton}
                     onClick={() => removeAttribute(col)}
                 >
                     delete
                 </Button>
             </Modal>
             <Button
-                className={'bg-red-500 text-red-900'}
+                className={t.deleteButton}
                 onClick={() => setShowDeleteModal(true)}
             >
                 delete
@@ -382,10 +374,12 @@ const RenderRemoveBtn = ({col, removeAttribute}) => {
 }
 
 export const RenderField = ({isDms, i, item, attribute, attributeList=[], updateAttribute, removeAttribute, apiLoad, format, dragStart, dragEnter, dragOver, drop}) => {
+    const {theme} = useContext(ThemeContext) || {};
+    const t = theme?.datasets?.metadataComp || metadataCompTheme;
     const [showAdvanced, setShowAdvanced] = useState(false);
     return (
             <div key={i}
-                 className={`${i % 2 ? 'bg-blue-50' : 'bg-white'} hover:bg-blue-100 border-l-4 border-blue-100 hover:border-blue-300 mb-1 px-2 pb-2 w-full flex flex-col`}
+                 className={`${i % 2 ? t.fieldRowOdd : t.fieldRowEven} ${t.fieldRow}`}
                  onDragStart={(e) => dragStart(e, i)}
                  onDragEnter={(e) => dragEnter(e, i)}
 
@@ -394,16 +388,16 @@ export const RenderField = ({isDms, i, item, attribute, attributeList=[], update
                  onDragEnd={drop}
                  draggable={true}
             >
-                <div className={'flex items-center w-full gap-2'}>
-                    <div className={'h-4 w-4 m-1 text-gray-800'}>
+                <div className={t.fieldHeader}>
+                    <div className={t.dragHandle}>
                         <svg data-v-4e778f45=""
-                             className="nc-icon cursor-move !h-3.75 text-gray-600 mr-1"
+                             className={t.dragHandleSvg}
                              viewBox="0 0 24 24" width="1.2em" height="1.2em">
                             <path fill="currentColor"
                                   d="M8.5 7a1.5 1.5 0 1 0 0-3a1.5 1.5 0 0 0 0 3m0 6.5a1.5 1.5 0 1 0 0-3a1.5 1.5 0 0 0 0 3m1.5 5a1.5 1.5 0 1 1-3 0a1.5 1.5 0 0 1 3 0M15.5 7a1.5 1.5 0 1 0 0-3a1.5 1.5 0 0 0 0 3m1.5 5a1.5 1.5 0 1 1-3 0a1.5 1.5 0 0 1 3 0m-1.5 8a1.5 1.5 0 1 0 0-3a1.5 1.5 0 0 0 0 3"></path>
                         </svg>
                     </div>
-                    <div className={'w-full flex flex-wrap justify-between flex-col sm:flex-row items-stretch sm:items-center'}>
+                    <div className={t.fieldControls}>
                         <RenderInputText
                             key={`${item.name}-name`}
                             disabled={true}
@@ -473,15 +467,15 @@ export const RenderField = ({isDms, i, item, attribute, attributeList=[], update
                             updateAttribute={updateAttribute}
                         />
                         <div title={'Advanced Settings'}
-                             className={'cursor-pointer p-2 text-gray-500 hover:text-gray-900 text-xl'}
+                             className={t.advancedToggle}
                              onClick={() => setShowAdvanced(!showAdvanced)}
                         >...
                         </div>
                     </div>
                 </div>
 
-                <div className={showAdvanced ? 'flex flex-col' : 'hidden'}>
-                    <div className={'flex flex-row justify-between items-center'}>
+                <div className={showAdvanced ? t.advancedPanel : 'hidden'}>
+                    <div className={t.advancedDescRow}>
                         <RenderInputLexical
                             key={`${item.name}-description`}
                             label={'description'}

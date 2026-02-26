@@ -14,14 +14,15 @@ export const PatternPermissionsEditor = ({
      defaultPermission=[]
 }) => {
   let inputValue = cloneDeep(parseIfJSON(value))
-  if (!inputValue.authPermissions?.groups?.public) {
-      set(inputValue,'authPermissions.groups.public', ['view-page']);
+    let authPermissions = parseIfJSON(inputValue?.authPermissions) || {};
+  if (!authPermissions?.groups?.public) {
+      set(authPermissions,'groups.public', ['view-page']);
   }
   const {AuthAPI} = React.useContext(AuthContext) || {};
   const { UI} = React.useContext(ThemeContext)
   const { user, apiUpdate } = React.useContext(AdminContext) || {};
   const {Permissions, FieldSet} = UI;
-  const [tmpValue, setTmpValue] = React.useState(parseIfJSON(inputValue));
+  const [tmpValue, setTmpValue] = React.useState(authPermissions);
   const permissionDomain = attributes?.authPermissions?.permissionDomain
   //
 
@@ -32,11 +33,11 @@ export const PatternPermissionsEditor = ({
   return (
     <div className="max-w-5xl">
     <Permissions
-        value={tmpValue?.authPermissions || {}}
+        value={tmpValue || {}}
         user={user}
         getUsers={AuthAPI.getUsers}
         getGroups={AuthAPI.getGroups}
-        onChange={(v) => setTmpValue({...tmpValue, 'authPermissions': v})}
+        onChange={(v) => setTmpValue({...inputValue, 'authPermissions': v})}
         permissionDomain={permissionDomain}
         defaultPermission={defaultPermission}
     />

@@ -7,7 +7,7 @@ import {CMSContext} from "../../../context";
 import {ThemeContext} from "../../../../../ui/useTheme";
 import RenderSwitch from "../../../../../ui/components/Switch";
 import FilterableSearch from "./FilterableSearch";
-import {RegisteredComponents} from "../section";
+import {getRegisteredComponents} from "../componentRegistry";
 
 const range = (start, end) => Array.from({length: (end + 1 - start)}, (v, k) => k + start);
 
@@ -248,7 +248,7 @@ const updateSections = async ({sections, newView, falcor, user, setUpdating}) =>
             const section_id = section.section_id;
             const page_id = section.page_id;
 
-            const comp = RegisteredComponents[section.element_type];
+            const comp = getRegisteredComponents()[section.element_type];
             const dataRes = await falcor.get(['dms', 'data', 'byId', [section_id], ['app', 'type', 'data']]);
 
             const sectionData = get(dataRes, ['json', 'dms', 'data', 'byId', section_id, 'data'], {});
@@ -460,12 +460,12 @@ const Edit = ({value, onChange}) => {
                         className={'flex-row-reverse'}
                         placeholder={'Search...'}
                         options={
-                            Object.keys(RegisteredComponents)
-                                .filter(k => !RegisteredComponents[k].hideInSelector)
+                            Object.keys(getRegisteredComponents())
+                                .filter(k => !getRegisteredComponents()[k].hideInSelector)
                                 .sort((a,b) => (sectionTypeCount[a] || 0) - (sectionTypeCount[b] || 0))
                                 .map(k => (
                                     {
-                                        key: k, label: `${RegisteredComponents[k].name} (${sectionTypeCount[k] || 0})` || RegisteredComponents[k].name || k
+                                        key: k, label: `${getRegisteredComponents()[k].name} (${sectionTypeCount[k] || 0})` || getRegisteredComponents()[k].name || k
                                     }
                                 ))
                         }

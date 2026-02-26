@@ -1,0 +1,5 @@
+{
+  "type": "sqlite",
+  "role": "dama",
+  "filename": "../data/dama-test.sqlite"
+}

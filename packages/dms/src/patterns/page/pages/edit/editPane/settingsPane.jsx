@@ -32,6 +32,7 @@ const FilterSettings = ({label, type, value, stateValue, onChange}) => {
         {
           tmpValue.map((filter, i) => (
               <FieldSet
+                  key={`settings_filter_${i}`}
                   className={'grid grid-cols-3 gap-1'}
                   components={[
                       {label: 'Search Key', type: 'Input', placeholder: 'search key', value: filter.searchKey,

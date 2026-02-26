@@ -24,19 +24,22 @@ const permissionsTheme = {
     selectLabel: 'text-xl text-gray-900 font-semibold',
     select: 'w-1/2',
     valueWrapper: 'flex flex-col gap-4 p-2 hover:bg-gray-100 rounded-md',
+    valueWrapperInherited: 'flex flex-col gap-4 p-2 bg-gray-100 rounded-md',
     valueSubWrapper: 'flex flex-wrap',
+    valueSubWrapperInherited: 'flex flex-col',
     title: 'font-semibold',
     removeBtn: 'w-fit'
 }
 
 export default function ({
-    value, user, getUsers, getGroups, onChange,
+    value, inheritedValue, user, getUsers, getGroups, onChange,
     permissionDomain = defaultPermissionsDomain,
     defaultPermission = []
 }) {
     const [users, setUsers] = React.useState([]);
     const [groups, setGroups] = React.useState([]);
     const [tmpValue, setTmpValue] = useState(parseIfJSON(value));
+    const inheritedParsedValue = parseIfJSON(inheritedValue);
 
     // useEffect(() => setTmpValue(parseIfJSON(value)),[value])
     // console.log('UI - Permissions value', tmpValue)
@@ -90,6 +93,17 @@ export default function ({
                         }}
                 />
 
+                <div className={permissionsTheme.valueWrapperInherited}>
+                    {
+                        Object.entries(inheritedParsedValue?.users || {})
+                            .map(([userId, permissions]) => (
+                                <div className={permissionsTheme.valueSubWrapperInherited}>
+                                    <div className={permissionsTheme.title}>{users.find(user => +user.id === +userId)?.email}</div>
+                                    {permissions}
+                                </div>)
+                            )
+                    }
+                </div>
                 <div className={permissionsTheme.valueWrapper}>
                     {
                         Object.entries(tmpValue?.users || {})
@@ -148,6 +162,18 @@ export default function ({
                         }}
                 />
 
+                <div className={permissionsTheme.valueWrapperInherited}>
+                    {
+                        Object.entries(inheritedParsedValue?.groups || {})
+                            .map(([groupName, permissions]) => (
+                                    <div className={permissionsTheme.valueSubWrapperInherited}>
+                                        <div className={permissionsTheme.title}>{groupName}</div>
+                                        {permissions}
+                                    </div>
+                                )
+                            )
+                    }
+                </div>
                 <div className={permissionsTheme.valueWrapper}>
                     {
                         Object.entries(tmpValue?.groups || {})

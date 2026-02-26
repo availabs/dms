@@ -16,14 +16,10 @@ import {
 } from './section_utils'
 import {useDataSource} from "./useDataSource";
 import Component from "./components";
-import ComponentRegistry from "./components/ComponentRegistry";
 import {useImmer} from "use-immer";
 import {convertOldState} from "./components/dataWrapper/utils/convertOldState";
-export let RegisteredComponents = ComponentRegistry;
-
-export const registerComponents = (comps = {}) => {
-    RegisteredComponents = {...RegisteredComponents, ...comps}
-}
+import { getRegisteredComponents } from './componentRegistry'
+export { registerComponents, getRegisteredComponents } from './componentRegistry'
 
 export function SectionEdit({ i, value, attributes, siteType, format, onChange, onRemove, moveItem, onCancel, onSave }) {
     const isEdit = true;
@@ -32,6 +28,7 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
     const { pageState, apiLoad, apiUpdate } = useContext(PageContext);
     const {theme: fullTheme, UI} = React.useContext(ThemeContext);
 
+    const RegisteredComponents = getRegisteredComponents();
     const component = (RegisteredComponents[get(value, ["element", "element-type"], "lexical")] || RegisteredComponents['lexical']);
     const [state, setState] = useImmer(convertOldState(value?.['element']?.['element-data'] || '', initialState(component.defaultState), component.name));
     const [sectionState, setSectionState] = useImmer({
@@ -136,6 +133,7 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
                                     defaultOpen={true}
                                     preferredPosition={"right"}
                                     preventCloseOnClickOutside={true}
+                                    showBreadcrumbs={true}
                                 />
                             </div>
                         </div>
@@ -181,6 +179,7 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
     const {NavigableMenu, Switch, Pill, Icon, Permissions} = UI;
     const theme = getComponentTheme(fullTheme, 'pages.section');
 
+    const RegisteredComponents = getRegisteredComponents();
     const component = RegisteredComponents[get(value, ["element", "element-type"], "lexical")];
     const [state, setState] = useImmer(convertOldState(value?.element?.['element-data'] || '', initialState(component?.defaultState), component?.name));
     const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -203,7 +202,7 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
         (text?.root?.children?.length === 0)
     ))
 
-    const showHeader = value?.['title'] || value?.['tags'] || helpTextCondition
+    const showHeader = (value?.['title'] || value?.['tags'] || helpTextCondition) && (hideSection ? editPageMode : !hideSection);
     const showEditIcons = editPageMode && typeof onEdit === 'function'
 
     const updateAttribute = (k, v) => {
@@ -241,6 +240,7 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
                 pageFormat={format}
                 refreshDataBtnRef={refreshDataBtnRef}
                 component={component}
+                editPageMode={editPageMode}
             />
         )
     }, [value, hideSection, refreshDataBtnRef, component, value?.element?.['element-type']]);
@@ -274,7 +274,7 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
 
     return (
         <ComponentContext.Provider value={{state, setState, apiLoad, apiUpdate, controls: resolvedControls, isActive, activeStyle: value?.activeStyle}}>
-            <div className={editPageMode && hideSection ? theme.wrapperHidden : theme.wrapper} style={{pageBreakInside: "avoid"}}>
+            <div className={editPageMode && hideSection && !editPageMode ? theme.wrapperHidden : theme.wrapper} style={{pageBreakInside: "avoid"}}>
 
                 {/* -------------------top line buttons ----------------------*/}
                 <div className={theme.topBar}>
@@ -283,6 +283,7 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
                         <div className={theme.menuPosition}>
                             {(showEditIcons) && (
                                 <>
+                                    {value.hideInView ? <Pill color={'orange'} text={'Hidden from View'} /> : null}
                                     {canEditSection ?
                                         <div className={'hidden group-hover:flex text-blue-500 hover:text-blue-700 cursor-pointer px-1 py-0.5'}
                                              title={'Edit'} onClick={onEdit} >
@@ -295,6 +296,7 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
                                         title={'Section Settings'}
                                         btnVisibleOnGroupHover={true}
                                         preferredPosition={"right"}
+                                        showBreadcrumbs={true}
                                     />
                                 </>
                             )}

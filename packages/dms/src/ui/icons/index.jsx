@@ -40,6 +40,7 @@ const iconList = [
   { icon: "CirclePlusDot" },
   { icon: "PencilSquare" },
   { icon: "Login" },
+  { icon: "Reorder" },
 
   // Navigation Icons
   { icon: "ArrowDownSquare" },

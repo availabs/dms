@@ -1,22 +1,34 @@
 # DMS Todo
 
+## cli
+
+- [x] DMS CLI tool (`packages/dms/cli/`) — terminal access to DMS data via shared API code and Falcor protocol (sites, patterns, pages, sections, datasets)
+- [ ] DMS MCP Server — Claude tool for reading, creating, and editing DMS pages/sections via structured MCP tools (Lexical builder, .dmsrc-aware config)
+
 ## api
 
 ## dms-manager
+
+- [x] Centralize format initialization (`updateAttributes`/`updateRegisteredFormats`) — remove duplicated definitions from patterns, add `initializePatternFormat` helper
 
 ## dms-server
 
 - [x] Add SQLite compatibility
 - [x] Fix createData dropping data argument (draft_sections bug)
 - [x] Fix SQLite searchOne returning null for root page (falsy `||` + `->>` type mismatch)
-- [ ] Implement `uda` routes in dms-server
-- [ ] Implement auth in dms-server
+- [x] Implement `uda` routes in dms-server — UDA Falcor routes (sources, views, filtered data queries) for DMS and DAMA databases, based on avail-falcor reference, PostgreSQL only (no ClickHouse)
+- [x] Implement auth in dms-server — JWT middleware, auth/user/group/project/message/preferences endpoints, cross-DB queries, authority checks, compatible with avail-falcor auth API
+- [x] PostgreSQL test support — Docker-managed PostgreSQL, parameterize all test suites, `npm run test:pg` / `test:all`
+- [ ] Fix auth DB init race condition — `getDb()` returns before async init completes, causing "no such table: users"; add `awaitReady()`, support multi-role configs
 
 ## ui
 
+- [x] Lexical plaintext normalization — move plaintext-to-Lexical-JSON conversion to shared `parseValue()` so HTML view path handles plaintext
+- [x] Lexical sync HTML render — eliminate View jitter by using synchronous `editorState.read()` + `useMemo` instead of async `useEffect`
 - [x] Fix theme merge for array fields (replace instead of deep merge)
 - [x] Move widgets to top-level theme (out of layout.options)
 - [x] Redesign widget system (key/value format, combine definitions + components, additive merge)
+- [x] Theme merging issues — styles arrays merge by index causing cross-contamination (e.g., Dark style bleeds into Inline Guidance in mnyv1 lexical) *(see also: standardize component theme default fill-in)*
 
 ### ui/lexical-textsettings
 
@@ -31,12 +43,20 @@
 
 - [x] Fix nav2Level baseUrl bug and move to page pattern
 - [x] Move lexical component inline controls (style, bgColor, showToolbar) to control config
+- [x] Theme-based component registration (allow themes to declare `pageComponents` that auto-register to page pattern)
 
 ### patterns/mapeditor
 
 - [ ] Convert MapEditor from datamanagerclient into standalone DMS pattern (symbology CRUD via DMS instead of DAMA)
 
 ### patterns/datasets
+
+- [x] Modernize datasets pattern — own defaultTheme, context-only siteConfig wrapper, per-page Layout, UI components throughout
+- [x] DatasetsList style cleanup — transparent container, card/sidebar backgrounds, spacing, full-height, design pass, performance
+- [x] Fix internal_source blank page — `getSourceData` doesn't include source's own ID in result, causes blank page when UDA `source_id` attribute is unset
+- [x] Source overview cleanup — theme-driven styling, width constraint, show both display_name + column name, remove table height cap, tighten metadata layout
+- [x] Datasets create page — extract create flow from DatasetsList modal into dedicated `/create` route with full-page layout
+- [x] Datasets settings page — category visibility settings, filtered/all toggle on list page, settings link for authed users
 
 ### patterns/forms
 
@@ -45,3 +65,7 @@
 - [x] Update admin theme merges to use `mergeTheme` (siteConfig.jsx, editTheme.jsx, themeEditor.jsx)
 
 ### patterns/auth
+
+## project maintenance
+
+- [ ] Vite HMR / Fast Refresh fixes — fix ~127 files with patterns that break hot module reload (mixed exports, anonymous components, object-wrapped exports, wrong file extensions)

@@ -40,7 +40,13 @@ const navigableMenuTheme = {
     "valueWrapper": "p-0.5 rounded-md bg-gray-100 text-gray-900 text-sm whitespace-nowrap overflow-hidden text-ellipsis max-w-[120px]",
 
     // Separator
-    "separator": "w-full border-b"
+    "separator": "w-full border-b",
+
+    // Breadcrumbs
+    "breadcrumbWrapper": "flex items-center gap-1 px-2 py-1 text-xs text-gray-500 overflow-x-auto",
+    "breadcrumbItem": "hover:text-blue-500 cursor-pointer whitespace-nowrap",
+    "breadcrumbItemActive": "text-gray-700 whitespace-nowrap",
+    "breadcrumbSeparator": "text-gray-300"
   }]
 }
 

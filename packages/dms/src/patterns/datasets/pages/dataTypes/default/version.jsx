@@ -2,7 +2,6 @@ import React, {useContext, useEffect, useState} from "react";
 import {useNavigate} from "react-router";
 import { DatasetsContext } from '../../../context'
 import { ThemeContext } from "../../../../../ui/useTheme";
-import SourcesLayout from "../../layout";
 import {getSourceData, updateVersionData} from "./utils";
 import { getExternalEnv } from "../../../utils/datasources";
 import {cloneDeep} from "lodash-es";
@@ -147,8 +146,8 @@ export default function ManageForm ({ status, apiLoad, apiUpdate, format, source
     console.log('source', source, currentView)
 
     return (
-            <div className={`${theme?.page?.wrapper1}`}>
-                    <div className={'overflow-auto flex flex-1 gap-2 w-full flex-col shadow bg-white relative text-md font-light leading-7 p-4'}>
+            <div>
+                    <div className={'overflow-auto flex flex-1 gap-2 w-full flex-col relative text-md font-light leading-7 p-4'}>
                         {status ? <div>{JSON.stringify(status)}</div> : ''}
                         <div className={'w-full text-lg text-gray-500 border-b'}>{source?.name} - {currentView?.version || currentView?.name || currentView?.view_id || currentView?.id}</div>
                         <div className={'flex gap-12'}>

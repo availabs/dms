@@ -233,6 +233,7 @@ export default {
     "name": 'Header: MNY',
     "type": 'Header',
     useDataSource: true,
+    useDataWrapper: true,
     defaultState: {
         // user controlled part
         columns: [],

@@ -1,11 +1,12 @@
 import React from 'react'
 // import {useLocation} from 'react-router'
-import {cloneDeep} from "lodash-es"
 
+import { cloneDeep } from "lodash-es"
 import {ThemeContext, mergeTheme} from '../../ui/useTheme'
 import {AdminContext} from "./context";
 import UI from "../../ui"
 import defaultTheme from '../../ui/defaultTheme'
+import { initializePatternFormat } from '../../dms-manager/_utils'
 
 import ErrorPage from './components/errorPage.jsx'
 import DefaultMenu from "./components/menu";
@@ -42,6 +43,14 @@ const adminConfig = ({
     const format = cloneDeep(adminFormat)
     format.app = app
     format.type = type
+    // Only update app on registerFormats — admin types stay as-is ('pattern', 'theme')
+    // to match how existing records are stored in the database.
+    // Unlike page/forms/datasets patterns which prefix child types, the admin format
+    // stores patterns and themes with their original type names.
+    format.registerFormats?.forEach(rf => { rf.app = app })
+    format.attributes?.forEach(attr => {
+        if (attr.format) attr.format = `${app}+${attr.format.split('+')[1]}`
+    })
     baseUrl = baseUrl === '/' ? '' : baseUrl
 
     //console.log('defaultTheme', theme)
@@ -62,11 +71,6 @@ const adminConfig = ({
     );
 
     // console.log('admin siteconfig API', API_HOST)
-    // ----------------------
-    // update app for all the children formats
-    format.registerFormats = updateRegisteredFormats(format.registerFormats, app)
-    format.attributes = updateAttributes(format.attributes, app)
-    // ----------------------
     return {
         app,
         type,
@@ -141,9 +145,7 @@ const patternConfig = ({
   themes = {},
   rightMenu = <DefaultMenu/>,
 }) => {
-    const format = cloneDeep(pattern)
-    format.app = app
-    format.type = 'pattern'
+    const format = initializePatternFormat(pattern, app, 'pattern')
     const parentBaseUrl = baseUrl === '/' ? '' : baseUrl;
 
     baseUrl = `${parentBaseUrl}/manage_pattern`
@@ -166,11 +168,6 @@ const patternConfig = ({
     );
     theme.navOptions = theme?.admin?.navOptions || theme?.navOptions
     theme.navOptions.sideNav.dropdown = 'top'
-    // ----------------------
-    // update app for all the children formats
-    format.registerFormats = updateRegisteredFormats(format.registerFormats, app)
-    format.attributes = updateAttributes(format.attributes, app)
-    // ----------------------
 
     return {
         app,
@@ -220,29 +217,6 @@ const patternConfig = ({
 
 export default [adminConfig, patternConfig]
 
-
-export const updateRegisteredFormats = (registerFormats, app) => {
-    if (Array.isArray(registerFormats)) {
-        registerFormats = registerFormats.map(rFormat => {
-            rFormat.app = app;
-            rFormat.registerFormats = updateRegisteredFormats(rFormat.registerFormats, app);
-            rFormat.attributes = updateAttributes(rFormat.attributes, app);
-            return rFormat;
-        })
-    }
-    return registerFormats;
-}
-
-export const updateAttributes = (attributes, app) => {
-    if (Array.isArray(attributes)) {
-        attributes = attributes.map(attr => {
-            attr.format = attr.format ? `${app}+${attr.format.split('+')[1]}` : undefined;
-            return updateRegisteredFormats(attr, app);
-        })
-        //console.log('attr', attributes)
-    }
-    return attributes;
-}
 
 const getMenuItems = (baseUrl, authPath, user) => {
   let menuItems = [

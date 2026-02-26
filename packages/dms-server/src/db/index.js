@@ -8,6 +8,7 @@ const { SqliteAdapter } = require("./adapters/sqlite");
 // Database instances cache
 const databases = {};
 const clients = {};
+const initPromises = [];
 
 /**
  * Initialize auth tables for the database
@@ -115,13 +116,13 @@ const initDama = async (dbConnection) => {
 
   if (dbType === "sqlite") {
     tablesExist = await dbConnection.tablesExist([
-      { schema: "main", table: "collections" },
-      { schema: "main", table: "settings" }
+      { schema: "main", table: "sources" },
+      { schema: "main", table: "views" }
     ]);
   } else {
     tablesExist = await dbConnection.tablesExist([
-      { schema: "data_manager", table: "collections" },
-      { schema: "data_manager", table: "settings" }
+      { schema: "data_manager", table: "sources" },
+      { schema: "data_manager", table: "views" }
     ]);
   }
 
@@ -130,42 +131,21 @@ const initDama = async (dbConnection) => {
     await dbConnection.beginTransaction();
 
     try {
-      // DAMA init scripts - these would need SQLite versions too
-      const damaDbInitScripts = dbType === "sqlite" ? [
-        // SQLite versions would be needed
-        "create_dama_core_tables.sqlite.sql"
-      ] : [
-        "create_required_extensions.sql",
-        "create_dama_core_tables.sql",
-        "create_dama_etl_context_and_events_tables.sql",
-        "create_dama_admin_helper_functions.sql",
-        "create_geojson_schema_table.sql",
-        "create_dama_table_schema_utils.sql",
-        "create_data_source_metadata_utils.sql"
-      ];
+      const sqlFile = dbType === "sqlite"
+        ? "create_dama_core_tables.sqlite.sql"
+        : "create_dama_core_tables.sql";
+      const sqlPath = join(__dirname, "sql/dama", sqlFile);
+      const sql = await readFileAsync(sqlPath, { encoding: "utf8" });
 
-      for (const scriptFile of damaDbInitScripts) {
-        const sqlPath = join(__dirname, "sql/dama", scriptFile);
-        try {
-          const sql = await readFileAsync(sqlPath, { encoding: "utf8" });
-
-          if (dbType === "sqlite") {
-            const statements = sql.split(";").filter(s => s.trim());
-            for (const stmt of statements) {
-              if (stmt.trim()) {
-                await dbConnection.query(stmt + ";");
-              }
-            }
-          } else {
-            await dbConnection.query(sql);
-          }
-        } catch (err) {
-          if (err.code === "ENOENT") {
-            console.warn(`DAMA init script not found: ${scriptFile}`);
-          } else {
-            throw err;
+      if (dbType === "sqlite") {
+        const statements = sql.split(";").filter(s => s.trim());
+        for (const stmt of statements) {
+          if (stmt.trim()) {
+            await dbConnection.query(stmt + ";");
           }
         }
+      } else {
+        await dbConnection.query(sql);
       }
 
       await dbConnection.commitTransaction();
@@ -205,32 +185,49 @@ function getDb(pgEnv) {
   const config = loadConfig(pgEnv);
   databases[pgEnv] = createAdapter(config);
 
-  // Initialize based on database role
-  if (config.role === "dama") {
-    initDama(databases[pgEnv]).then(() => {
-      console.log("dama init", pgEnv);
-    }).catch(err => {
-      console.error("dama init failed:", err.message);
-    });
+  // Support multi-role configs: "role": "dms" or "role": ["dms", "auth"]
+  const roles = Array.isArray(config.role) ? config.role : [config.role];
+
+  // Initialize based on database role(s), tracking promises for awaitReady()
+  if (roles.includes("dama")) {
+    initPromises.push(
+      initDama(databases[pgEnv]).then(() => {
+        console.log("dama init", pgEnv);
+      }).catch(err => {
+        console.error("dama init failed:", err.message);
+      })
+    );
   }
 
-  if (config.role === "auth") {
-    initAuth(databases[pgEnv]).then(() => {
-      console.log("auth init", pgEnv);
-    }).catch(err => {
-      console.error("auth init failed:", err.message);
-    });
+  if (roles.includes("auth")) {
+    initPromises.push(
+      initAuth(databases[pgEnv]).then(() => {
+        console.log("auth init", pgEnv);
+      }).catch(err => {
+        console.error("auth init failed:", err.message);
+      })
+    );
   }
 
-  if (config.role === "dms") {
-    initDms(databases[pgEnv]).then(() => {
-      console.log("dms init", pgEnv);
-    }).catch(err => {
-      console.error("dms init failed:", err.message);
-    });
+  if (roles.includes("dms")) {
+    initPromises.push(
+      initDms(databases[pgEnv]).then(() => {
+        console.log("dms init", pgEnv);
+      }).catch(err => {
+        console.error("dms init failed:", err.message);
+      })
+    );
   }
 
   return databases[pgEnv];
+}
+
+/**
+ * Wait for all pending database initializations to complete.
+ * Call this before accepting requests to avoid "no such table" errors.
+ */
+async function awaitReady() {
+  await Promise.all(initPromises);
 }
 
 /**
@@ -295,6 +292,7 @@ function getPostgresCredentials(pgEnv) {
 
 module.exports = {
   getDb,
+  awaitReady,
   getClient,
   query,
   getPostgresCredentials,

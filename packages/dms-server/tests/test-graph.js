@@ -6,13 +6,15 @@
 
 const { createTestGraph } = require('./graph');
 
+const DB_NAME = process.env.DMS_TEST_DB || 'dms-sqlite';
+
 let graph = null;
 const TEST_APP = 'graph-test-' + Date.now();
 
 async function setup() {
   console.log('Setting up test graph...');
-  graph = createTestGraph('dms-sqlite');
-  console.log(`Database type: ${graph.dbType}`);
+  graph = createTestGraph(DB_NAME);
+  console.log(`Database: ${DB_NAME} (${graph.dbType})`);
   console.log(`Test app: ${TEST_APP}\n`);
 }
 

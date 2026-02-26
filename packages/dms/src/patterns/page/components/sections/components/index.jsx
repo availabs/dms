@@ -4,8 +4,11 @@ import DataWrapper from "./dataWrapper";
 import {Controls} from "./dataWrapper/components/Controls";
 import {RenderFilters} from "./dataWrapper/components/filters/RenderFilters";
 import {PageContext, ComponentContext} from '../../../context'
+import {ComplexFilters} from "../ComplexFilters";
+import {ExternalFilters} from "../ExternalFilters";
 
 function EditComp({value, onChange, compKey, component, siteType, pageFormat}) {
+    const { state, setState } = React.useContext(ComponentContext);
 
     const updateAttribute = (k, v) => {
         if (!isEqual(value, {...value, [k]: v})) {
@@ -26,6 +29,7 @@ function EditComp({value, onChange, compKey, component, siteType, pageFormat}) {
                 {/* controls with datasource selector */}
                 <Controls />
                 <RenderFilters isEdit={true} defaultOpen={true} />
+            {/*{component.useDataWrapper ? <ComplexFilters state={state} setState={setState}/> : null}*/}
                 <DataComp
                     key={compKey || ''}
                     value={value?.['element-data'] || ''}
@@ -38,9 +42,9 @@ function EditComp({value, onChange, compKey, component, siteType, pageFormat}) {
     )
 }
 
-function ViewComp({value, onChange, siteType, pageFormat, refreshDataBtnRef, component}) {
+function ViewComp({value, onChange, siteType, pageFormat, refreshDataBtnRef, component, editPageMode}) {
     const { apiLoad } =  React.useContext(PageContext) || {}
-    const { state } = React.useContext(ComponentContext);
+    const { state, setState } = React.useContext(ComponentContext);
     const defaultComp = () => <div> Component {value["element-type"]} Not Registered </div>;
 
     const updateAttribute = (k, v) => {
@@ -88,11 +92,13 @@ function ViewComp({value, onChange, siteType, pageFormat, refreshDataBtnRef, com
     return (
         <>
             <RenderFilters isEdit={false} defaultOpen={true}/>
+            <ExternalFilters defaultOpen={true} />
             <DataComp value={value?.['element-data'] || ''}
                       onChange={v => updateAttribute('element-data', v)}
                       component={component?.useDataWrapper ? component : undefined}
                       siteType={siteType}
                       pageFormat={pageFormat}
+                      editPageMode={editPageMode}
             />
         </>
     )

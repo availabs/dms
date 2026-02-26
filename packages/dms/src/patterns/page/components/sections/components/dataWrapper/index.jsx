@@ -2,13 +2,14 @@ import React, {useState, useEffect, useMemo, useRef, useCallback, useContext} fr
 import {useNavigate} from "react-router";
 import writeXlsxFile from 'write-excel-file';
 import { isEqual } from "lodash-es";
-import { CMSContext, ComponentContext } from "../../../../context";
+import {CMSContext, ComponentContext, PageContext} from "../../../../context";
 import { ThemeContext } from '../../../../../../ui/useTheme';
 import { convertOldState } from "./utils/convertOldState";
 import {useHandleClickOutside, getData, isCalculatedCol} from "./utils/utils";
 import { Attribution } from "./components/Attribution";
 import { Pagination } from "./components/Pagination";
 import { getExternalEnv } from "../../../../pages/_utils/datasources";
+import {isGroup} from "../../ComplexFilters";
 
 const getCurrDate = () => {
     const options = {
@@ -33,7 +34,8 @@ const triggerDownload = async ({state, apiLoad, loadAllColumns, setLoading}) => 
                 ...state.columns,
                 ...state.sourceInfo.columns.filter(originalColumn => !state.columns.find(c => c.name === originalColumn.name))
             ]
-                .map(c => ({...c, show: !isCalculatedCol(c)}))
+                .map(c => ({...c, show: true}))
+                // .map(c => ({...c, show: true || !isCalculatedCol(c)}))
         } : state;
 
     const {data} = await getData({
@@ -107,6 +109,7 @@ const RenderDownload = ({state, apiLoad, cms_context}) => {
 const Edit = ({cms_context, value, onChange, component}) => {
     const isEdit = Boolean(onChange);
     const { UI } = useContext(ThemeContext)
+    const { pageState } = useContext(PageContext) || {}; // is this safe for datasets pages table and view?
     const {datasources} = useContext(cms_context || CMSContext);
     const pgEnv = getExternalEnv(datasources);
     const {Icon} = UI;
@@ -164,6 +167,44 @@ const Edit = ({cms_context, value, onChange, component}) => {
 
     }, [localFilters, hasLocalFilters, currentPage, setState])
 
+    useEffect(() => {
+        const pageFilters = (pageState?.filters || []).reduce(
+            (acc, curr) => ({...acc, [curr.searchKey]: curr.values}), {}
+        );
+
+        if (!Object.keys(pageFilters).length) return;
+
+        // walk tree, check if any page-synced condition needs updating
+        const needsUpdate = (node) => {
+            if (isGroup(node)) return node.groups.some(needsUpdate);
+            if (!node?.usePageFilters) return false;
+            const key = node.searchParamKey || node.col;
+            const pageValues = pageFilters[key];
+            if (!pageValues) return false;
+            const normalized = Array.isArray(pageValues) ? pageValues : [pageValues];
+            return !isEqual(node.value, normalized);
+        };
+
+        if (!needsUpdate(state.dataRequest?.filterGroups)) return;
+
+        setState(draft => {
+            const update = (node) => {
+                if (isGroup(node)) {
+                    node.groups.forEach(update);
+                    return;
+                }
+                if (!node?.usePageFilters) return;
+                const key = node.searchParamKey || node.col;
+                const pageValues = pageFilters[key];
+                if (!pageValues) return;
+                const normalized = Array.isArray(pageValues) ? pageValues : [pageValues];
+                if (!isEqual(node.value, normalized)) {
+                    node.value = normalized;
+                }
+            };
+            update(draft.dataRequest?.filterGroups);
+        });
+    }, [pageState?.filters]);
     // ========================================= init comp begin =======================================================
     // useSetDataRequest
     useEffect(() => {
@@ -202,6 +243,7 @@ const Edit = ({cms_context, value, onChange, component}) => {
         const newDataReq = {
             // visibleColumns: state.columns.filter(column => column.show),
             ...filterOptions,
+            filterGroups: state.dataRequest?.filterGroups,
             ...state.display?.filterRelation && {filterRelation: state.display.filterRelation},
             groupBy: state.columns.filter(column => column.group).map(column => column.name),
             orderBy: state.columns.filter(column => column.sort).reduce((acc, column) => ({...acc, [column.name]: column.sort}), {}),
@@ -226,7 +268,7 @@ const Edit = ({cms_context, value, onChange, component}) => {
         return () => {
             isStale = true;
         }
-    }, [state?.columns, state?.display?.filterRelation, isValidState])
+    }, [state?.columns, state.dataRequest?.filterGroups, state?.display?.filterRelation, isValidState])
 
     // // ========================================== get data begin =======================================================
     // uweGetDataOnSettingsChange
@@ -375,7 +417,6 @@ const Edit = ({cms_context, value, onChange, component}) => {
     // =========================================== saving settings begin ===============================================
     useEffect(() => {
         if (!isEdit || !isValidState  || isEqual(value, JSON.stringify(state))) return;
-
         onChange(JSON.stringify(state));
     }, [state])
     // =========================================== saving settings end =================================================
@@ -481,9 +522,10 @@ const Edit = ({cms_context, value, onChange, component}) => {
     )
 }
 
-const View = ({cms_context, value, onChange, component}) => {
+const View = ({cms_context, value, onChange, component, editPageMode}) => {
     const isEdit = false;
     const navigate = useNavigate();
+    const { pageState } = useContext(PageContext) || {}; // is this safe for datasets pages table and view?
     const {datasources, baseUrl} = useContext(cms_context || CMSContext) || {};
     const pgEnv = getExternalEnv(datasources);
     const { UI } = useContext(ThemeContext)
@@ -496,7 +538,7 @@ const View = ({cms_context, value, onChange, component}) => {
     const groupByColumnsLength = useMemo(() => state?.columns?.filter(({group}) => group).length, [state?.columns]);
     const showChangeFormatModal = !state?.sourceInfo?.columns;
     const isValidState = Boolean(state?.dataRequest); // new state structure
-    const Comp = useMemo(() => state.display.hideSection ? () => <></> : component.ViewComp, [component, state.display.hideSection]);
+    const Comp = useMemo(() => state.display.hideSection && !editPageMode ? () => <></> : component.ViewComp, [component, state.display.hideSection]);
     // const useCache = state.display.useCache //=== false ? false : true; // false: loads data on load. can be expensive. useCache can be undefined for older components.
     const setReadyToLoad = useCallback(() => setState(draft => {draft.display.readyToLoad = true}), [setState]);
     const allowEdit = groupByColumnsLength ? false : state.sourceInfo?.isDms && state.display.allowEditInView && Boolean(apiUpdate);
@@ -507,7 +549,7 @@ const View = ({cms_context, value, onChange, component}) => {
     }, [value]);
 
     const localFilters = useMemo(() =>
-            state.columns.filter(c => c.localFilter?.length)
+            (state.columns || []).filter(c => c.localFilter?.length)
                 .reduce((acc, c) => ({...acc, [c.normalName || c.name]: c.localFilter}), {}),
         [state.columns]);
     const localFilterColumns = useMemo(() => Object.keys(localFilters).filter(k => localFilters[k]?.length), [localFilters]);
@@ -517,7 +559,7 @@ const View = ({cms_context, value, onChange, component}) => {
 
         const textSearchCols =
             Object.keys(localFilters)
-                .filter(col => !['select', 'multiselect', 'radio'].includes(state.columns.find(c => (c.normalName || c.name) === col)?.type))
+                .filter(col => !['select', 'multiselect', 'radio'].includes(state.columns?.find(c => (c.normalName || c.name) === col)?.type))
 
         const filteredData = (state.fullData || state.data).filter((row, rowI) => {
             return Object.keys(localFilters).every(col => {
@@ -555,7 +597,45 @@ const View = ({cms_context, value, onChange, component}) => {
     // ====================================== data fetch triggers begin ================================================
     // filters, sort, page change, draft.readyToFetch
     // builds an object with filter, exclude, gt, gte, lt, lte, like as keys. columnName: [values] as values
-    const filterOptions = useMemo(() => state.columns.reduce((acc, column) => {
+    useEffect(() => {
+        const pageFilters = (pageState?.filters || []).reduce(
+            (acc, curr) => ({...acc, [curr.searchKey]: curr.values}), {}
+        );
+
+        if (!Object.keys(pageFilters).length) return;
+
+        // walk tree, check if any page-synced condition needs updating
+        const needsUpdate = (node) => {
+            if (isGroup(node)) return node.groups.some(needsUpdate);
+            if (!node?.usePageFilters) return false;
+            const key = node.searchParamKey || node.col;
+            const pageValues = pageFilters[key];
+            if (!pageValues) return false;
+            const normalized = Array.isArray(pageValues) ? pageValues : [pageValues];
+            return !isEqual(node.value, normalized);
+        };
+
+        if (!needsUpdate(state.dataRequest?.filterGroups)) return;
+
+        setState(draft => {
+            const update = (node) => {
+                if (isGroup(node)) {
+                    node.groups.forEach(update);
+                    return;
+                }
+                if (!node?.usePageFilters) return;
+                const key = node.searchParamKey || node.col;
+                const pageValues = pageFilters[key];
+                if (!pageValues) return;
+                const normalized = Array.isArray(pageValues) ? pageValues : [pageValues];
+                if (!isEqual(node.value, normalized)) {
+                    node.value = normalized;
+                }
+            };
+            update(draft.dataRequest?.filterGroups);
+        });
+    }, [pageState?.filters]);
+    const filterOptions = useMemo(() => state.columns?.reduce((acc, column) => {
         const isNormalisedColumn = state.columns.filter(col => col.name === column.name && col.filters?.length).length > 1;
 
         (column.filters || [])
@@ -587,7 +667,7 @@ const View = ({cms_context, value, onChange, component}) => {
     // if search params are being used, ideally for template pages you should only fetch on filter change
     // for other pages, all data should be fetched
 
-    const orderBy = useMemo(() => state.columns.filter(column => column.sort).reduce((acc, column) => ({...acc, [column.name]: column.sort}), {}), [state.columns]);
+    const orderBy = useMemo(() => state.columns?.filter(column => column.sort).reduce((acc, column) => ({...acc, [column.name]: column.sort}), {}), [state.columns]);
     // ======================================= data fetch triggers end =================================================
 
     // ========================================== get data begin =======================================================
@@ -605,10 +685,10 @@ const View = ({cms_context, value, onChange, component}) => {
             lt: filterOptions.lt || {},
             lte: filterOptions.lte || {},
             like: filterOptions.like || {},
-            filterGroups: filterOptions.filterGroups || {},
+            filterGroups: state.dataRequest?.filterGroups || {},
             ...filterOptions,
             orderBy,
-            meta: state.columns.filter(column => column.show &&
+            meta: state.columns?.filter(column => column.show &&
                 ['meta-variable', 'geoid-variable', 'meta'].includes(column.display) &&
                 column.meta_lookup)
                 .reduce((acc, column) => ({...acc, [column.name]: column.meta_lookup}), {})
@@ -623,7 +703,7 @@ const View = ({cms_context, value, onChange, component}) => {
         return () => {
             isStale = true;
         }
-    }, [filterOptions, orderBy, isValidState, state.display.readyToLoad, state.display.allowEditInView])
+    }, [filterOptions, state.dataRequest?.filterGroups, orderBy, isValidState, state.display.readyToLoad, state.display.allowEditInView])
 
     // uweGetDataOnSettingsChange
     useEffect(() => {
@@ -649,8 +729,9 @@ const View = ({cms_context, value, onChange, component}) => {
                 draft.localFilteredData = undefined;
                 draft.display.filteredLength = undefined;
                 draft.display.totalLength = length;
+                draft.lastDataRequest = state.dataRequest;
             })
-            onChange(JSON.stringify({...state, lastDataRequest: state.dataRequest, data, totalLength: length}));
+            state.display.preventDuplicateFetch && onChange(JSON.stringify({...state, lastDataRequest: state.dataRequest, data, totalLength: length}));
             setCurrentPage(newCurrentPage);
             setLoading(false)
         }
@@ -685,12 +766,12 @@ const View = ({cms_context, value, onChange, component}) => {
 
     // =========================================== get input data ======================================================
     useEffect(() => {
-        if (!allowEdit && !state.display.allowAdddNew && !state.columns.some(c => c.allowEditInView && c.mapped_options)) return;
+        if (!allowEdit && !state.display.allowAdddNew && !state.columns?.some(c => c.allowEditInView && c.mapped_options)) return;
         let isStale = false;
 
         async function loadOptionsData() {
             try {
-                const columnsToFetch = state.columns.filter(c => c.mapped_options);
+                const columnsToFetch = state.columns?.filter(c => c.mapped_options);
 
                 const fetchPromises = columnsToFetch.map(async column => {
                     let mapped_options;
@@ -763,14 +844,14 @@ const View = ({cms_context, value, onChange, component}) => {
         return () => {
             isStale = true;
         };
-    }, [allowEdit, isEdit, state.columns.map(c => c.mapped_options).join(',')]);
+    }, [allowEdit, isEdit, state.columns?.map(c => c.mapped_options).join(',')]);
 
 
     // ========================================= get input data end ======================================================
     // =========================================== get data end ========================================================
 
     // =========================================== util fns begin ======================================================
-    const editableColumns = useMemo(() => state.columns.filter(c => !(c.serverFn && c.joinKey) && c.editable !== false), [state.columns])
+    const editableColumns = useMemo(() => state.columns?.filter(c => !(c.serverFn && c.joinKey) && c.editable !== false), [state.columns])
     const updateItem = useCallback((value, attribute, d) => {
         if(!state.sourceInfo?.isDms || !apiUpdate || groupByColumnsLength) return;
         if(attribute?.name){
@@ -840,7 +921,7 @@ const View = ({cms_context, value, onChange, component}) => {
         return apiUpdate({data: item, config: { format: state.sourceInfo }, requestType: "delete"});
     }, [state.sourceInfo, apiUpdate, groupByColumnsLength, setState]);
     // =========================================== util fns end ========================================================
-    if(showChangeFormatModal || !isValidState) return <div className={'p-1 text-center'}>Form data not available.</div>;
+    // if(showChangeFormatModal || !isValidState) return <div className={'p-1 text-center'}>Form data not available.</div>;
 
     useEffect(() => {
         // set hideSection flag
