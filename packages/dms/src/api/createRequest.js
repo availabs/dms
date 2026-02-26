@@ -99,12 +99,12 @@ export function getIdPath (wrapperConfig,format) {
 
 	let id = wrapperConfig.params?.id;
 	// console.log('item data do i get id', id, wrapperConfig)
-	//console.log('hola', id , wildKey, defaultSearch, wrapperConfig, format)
+	// console.log('hola', id , wildKey, defaultSearch, wrapperConfig, format)
 	// if you have an id prefer that to a wildkey
 
 	return id ?
 	[
-		'dms', 'data', app, 'byId', id,
+		'dms', 'data', 'byId', id,
 		[ "id", "updated_at", "created_at","app", "type",...dataAttrs]
 	] : wildKey ? [
 		'dms', 'data', `${ app }+${ type }`,

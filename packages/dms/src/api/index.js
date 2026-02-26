@@ -264,7 +264,8 @@ export async function dmsDataEditor (falcor, config, data={}, requestType, /*pat
 			if(!row.type) 	return {message: "No type found."}
 
 			await falcor.call(["dms", "type", "edit"], [app, id, row.type]);
-			await falcor.invalidate(['dms', 'data', app, 'byId', id])
+      await falcor.invalidate(['dms', 'data', app, 'byId', id])
+			await falcor.invalidate(['dms', 'data', 'byId', id])
 			return {message: "Update successful."}
 		}
 		//--------------------------------------------------
@@ -279,7 +280,8 @@ export async function dmsDataEditor (falcor, config, data={}, requestType, /*pat
 			// console.time(`falcor update data ${id}`)
 			// console.log('update', id, data)
 			await falcor.call(["dms", "data", "edit"], [app, id, row]);
-			await falcor.invalidate(['dms', 'data', app, 'byId', id])
+      await falcor.invalidate(['dms', 'data', app, 'byId', id])
+			await falcor.invalidate(['dms', 'data','byId', id])
 			// console.timeEnd(`falcor update data ${id}`)
 			return {message: `Update successful: id ${id}.`,  }
 		}
