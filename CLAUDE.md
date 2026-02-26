@@ -142,7 +142,8 @@ When asked to create a task or plan work:
 1. Always create the task file in `planning/tasks/current/`
 2. Always add a todo entry to `planning/todo.md`
 3. Keep the todo list updated as work progresses
-4. Move completed tasks to `planning/tasks/completed/` and update `completed.md`
+4. Move completed tasks to `planning/tasks/completed/` and update `completed.md` and `todo.md`
+
 
 When implementing a task:
 1. Read the task file in `planning/tasks/current/` before starting
