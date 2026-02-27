@@ -1,14 +1,14 @@
 import React, {useRef, useState, useContext} from "react";
 import {ArrowDown} from "../tmp-cache-files/icons.jsx"
 import {ToggleControl} from "../tmp-cache-files/controls.jsx";
-import {MapContext} from "../MapComponent.jsx";
+import {MapContext} from "../";
 import {useHandleClickOutside} from "../tmp-cache-files/utils.jsx";
-import { HEIGHT_OPTIONS, PANEL_POSITION_OPTIONS } from '../MapComponent.jsx'
+import { HEIGHT_OPTIONS, PANEL_POSITION_OPTIONS } from '../'
 
 export default function MoreControls() {
     const {state, setState} = useContext(MapContext);
     const arePluginsLoaded = Object.values((state.symbologies || {})).some(symb => Object.keys((symb?.symbology?.plugins || {})).length > 0);
-    console.log("morecontrol state, are plugs loaded::", state, arePluginsLoaded)
+    // console.log("morecontrol state, are plugs loaded::", state, arePluginsLoaded)
     const menuRef = useRef(null);
     const [isOpen, setIsOpen] = useState(false);
     const menuBtnId = 'menu-btn-more-controls'

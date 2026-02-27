@@ -5,14 +5,11 @@ import { cloneDeep } from "lodash-es";
 import { useFalcor } from "@availabs/avl-falcor"
 
 import { MapEditorContext } from "./context"
-import { PageContext } from "../page/context.js";
 
 import MapEditorFormat from "./mapeditor.format"
 
 import MapEditor from "./MapEditor"
 import MapViewer from "./MapEditor/MapViewer"
-
-const usePage = () => React.useContext(PageContext);
 
 const mapeditorConfig = ({
 	app, type,
@@ -31,6 +28,8 @@ const mapeditorConfig = ({
   format.app = app;
   format.type = type;
 
+// console.log("MapEditor::siteConfig::app, type, baseUrl", app, type, baseUrl);
+
 	return {
 		siteType,
 		format,
@@ -43,7 +42,6 @@ const mapeditorConfig = ({
 				type: ({ user, params, children }) => {
 
 					const { falcor, falcorCache } = useFalcor();
-					const { pageState, setPageState } = React.useContext(PageContext) || {};
 
 					const mapeditorContextValue = React.useMemo(() => {
 						return {
@@ -54,12 +52,10 @@ const mapeditorConfig = ({
 							pgEnv,
 							falcor,
 							falcorCache,
-							pageState,
-							setPageState,
 							params
 						}
-					}, [app, type, siteType, baseUrl, user, pgEnv,
-							params, falcor, falcorCache, pageState
+					}, [app, type, siteType, baseUrl, user,
+							params, falcor, falcorCache, pgEnv
 					]);
 
 					return (

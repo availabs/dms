@@ -1,7 +1,7 @@
 import React, {useRef, useState, useContext} from "react";
 import {ArrowDown} from "../tmp-cache-files/icons.jsx"
 import {ToggleControl, InputControl} from "../tmp-cache-files/controls.jsx";
-import {MapContext} from "../MapComponent.jsx";
+import {MapContext} from "../";
 import {useHandleClickOutside} from "../tmp-cache-files/utils.jsx";
 
 export default function FilterControls() {

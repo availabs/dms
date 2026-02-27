@@ -1,6 +1,9 @@
 import { get, cloneDeep } from "lodash-es";
 
 export async function processNewData (dataCache, activeIdsIntOrStr, stopFullDataLoad, filteredIdsLength, app, type, dmsAttrsConfigs,format,falcor) {
+
+// console.log("processNewData::format", format);
+
     const activeIds = Array.isArray(activeIdsIntOrStr) ? activeIdsIntOrStr.map(id => +id) : activeIdsIntOrStr;
     // console.log('activeIds', activeIds)
     let newData = []

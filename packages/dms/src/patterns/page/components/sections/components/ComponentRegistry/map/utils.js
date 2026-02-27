@@ -1,5 +1,5 @@
 import {useEffect, useRef} from "react";
-import {fnumIndex} from "../../LayerEditor/datamaps/index.js";
+import {fnumIndex} from "../../../../../../mapeditor/MapEditor/components/LayerEditor/datamaps/index.js";
 
 export const usePrevious = (value) => {
     const ref = useRef();

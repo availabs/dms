@@ -5,8 +5,8 @@ import cloneDeep from "lodash/cloneDeep"
 import { AvlLayer } from "~/modules/avl-map-2/src"
 import { usePrevious } from './utils.js'
 import { API_HOST } from '~/config'
-import { MapContext } from "./MapComponent.jsx"
-import { CMSContext } from '~/modules/dms/src'
+import { MapContext } from "./"
+import { CMSContext } from '../../../../../context'
 import bbox from '@turf/bbox';
 import { featureCollection } from '@turf/helpers';
 function onlyUnique(value, index, array) {

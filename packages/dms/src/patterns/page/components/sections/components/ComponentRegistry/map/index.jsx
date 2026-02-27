@@ -1,22 +1,27 @@
 import React, {useEffect, useMemo, createContext} from "react";
 import get from "lodash/get"
+import cloneDeep from "lodash/cloneDeep"
 import mapboxgl from "maplibre-gl";
 import isEqual from "lodash/isEqual"
 import { AvlMap } from "~/modules/avl-map-2/src"
-import { PMTilesProtocol } from './pmtiles/index'
+// import { PMTilesProtocol } from './pmtiles/index'
 import { useImmer } from 'use-immer';
 import LegendPanel from './LegendPanel/LegendPanel.jsx'
 import SymbologyViewLayer from './SymbologyViewLayer.jsx'
-import { PageContext, CMSContext } from "~/modules/dms/src/patterns/page/context.js";
+import { PageContext, CMSContext } from "../../../../../context.js";
 import {SymbologySelector} from "./SymbologySelector.jsx";
 import {useSearchParams} from "react-router";
 import FilterControls from "./controls/FilterControls.jsx";
 import {defaultStyles, blankStyles} from "./styles.js";
 import MoreControls from "./controls/MoreControls.jsx";
-import PluginLayer from "../../PluginLayer"
-import { PluginLibrary, PLUGIN_TYPE } from "../../../";
-import ExternalPluginPanel from "../../ExternalPluginPanel";
-import {fetchBoundsForFilter} from '../../../stateUtils';
+import PluginLayer from "../../../../../../mapeditor/MapEditor/components/PluginLayer"
+import { PluginLibrary, PLUGIN_TYPE } from "../../../../../../mapeditor/MapEditor";
+import ExternalPluginPanel from "../../../../../../mapeditor/MapEditor/components/ExternalPluginPanel";
+import {fetchBoundsForFilter} from '../../../../../../mapeditor/MapEditor/stateUtils';
+
+import mapeditorFormat from "../../../../../../mapeditor/mapeditor.format"
+
+// const MAP_EDITOR_FORMAT = cloneDeep(mapeditorFormat);
 
 export const HEIGHT_OPTIONS = {
     "full": 'calc(95vh)',
@@ -51,16 +56,21 @@ const getData = async () => {
     return {}
 }
 
+const EMPTY_OBJECT = {};
+
 const Edit = ({value, onChange, size}) => {
     // const {falcor, falcorCache} = useFalcor();
     // controls: symbology, more, filters: lists all interactive and dynamic filters and allows for searchParams match.
     const isEdit = Boolean(onChange);
-    const { falcor, falcorCache, pgEnv } = React.useContext(CMSContext);
+
+// console.log("Map::isEdit", isEdit);
+
+    const { falcor, falcorCache, pgEnv, apiLoad, mapeditorKeys } = React.useContext(CMSContext);
     const { pageState, setPageState } =  React.useContext(PageContext) || {}
     const cachedData = typeof value === 'object' ? value : value && isJson(value) ? JSON.parse(value) : {};
-    const [state,setState] = useImmer({
+    const [state, setState] = useImmer({
         tabs: cachedData.tabs || [{"name": "Layers", rows: []}],
-        symbologies: cachedData.symbologies || {},
+        symbologies: cachedData.symbologies || EMPTY_OBJECT,
         isEdit,
         setInitialBounds: cachedData.setInitialBounds || false,
         initialBounds: cachedData.initialBounds || null,
@@ -68,12 +78,46 @@ const Edit = ({value, onChange, size}) => {
         //blankBaseMap: cachedData.blankBaseMap || false,
         height: cachedData.height || "full",
         zoomPan: typeof cachedData.zoomPan === 'boolean' ? cachedData.zoomPan : true,
-        zoomToFitBounds: cachedData.zoomToFitBounds,
+        zoomToFitBounds: cachedData.zoomToFitBounds || false,
         legendPosition: cachedData.legendPosition || Object.keys(PANEL_POSITION_OPTIONS)[2], //defaults to `top-right`
         pluginControlPosition: cachedData.pluginControlPosition || Object.keys(PANEL_POSITION_OPTIONS)[0], //defaults to `top-left`
         basemapStyle: cachedData.basemapStyle || "Default"
-    })
-    const [mapLayers, setMapLayers] = useImmer([])
+    });
+
+    const doApiLoad = React.useCallback(() => {
+        return mapeditorKeys.reduce((a, c) => {
+            const [app, type] = c.split("+");
+            const format = { ...cloneDeep(mapeditorFormat), app, type };
+            return a.then(aa => {
+                return apiLoad({
+                    ...format,
+                    format,
+                    children: [
+                        {   type: () => {},
+                            action: "list",
+                            path: "/"
+                        }
+                    ]
+                }).then(cc => [...aa, ...cc]);
+            })
+        }, Promise.resolve([]));
+        // return apiLoad({
+        //     format: MAP_EDITOR_FORMAT,
+        //     app: MAP_EDITOR_FORMAT.app,
+        //     type: MAP_EDITOR_FORMAT.type,
+        //     attributes: MAP_EDITOR_FORMAT.attributes,
+        //     children: [
+        //         {   type: () => {},
+        //             action: "list",
+        //             path: "/"
+        //         }
+        //     ]
+        // });
+    }, [apiLoad, mapeditorKeys]);
+
+// console.log("Map::state", state);
+
+    const [mapLayers, setMapLayers] = useImmer([]);
 
     const isReady = useMemo(() => {
         return Object.values(state.symbologies || {}).some(symb => Object.keys(symb?.symbology?.layers || {}).length > 0);
@@ -271,39 +315,39 @@ const Edit = ({value, onChange, size}) => {
         return state.symbologies[activeSym]?.symbology.layers[activeSymSymbology?.activeLayer]?.selectedInteractiveFilterIndex
     }, [state.symbologies]);
 
-      useEffect(() => {
-        setState((draft) => {
-          Object.keys(draft.symbologies)
-            .forEach(topSymbKey => {
-                const curTopSymb = draft.symbologies[topSymbKey];
-                Object.keys(curTopSymb.symbology.layers)
-                  .forEach((lKey) => {
-                    const layer = draft.symbologies[topSymbKey].symbology.layers[lKey];
-                    const draftFilters = layer['interactive-filters'] || {};
-                    const draftDynamicFilters = layer['dynamic-filters'];
-                    const draftFilterIndex = +layer.selectedInteractiveFilterIndex;
-                    const draftInteractiveFilter = draftFilters?.[draftFilterIndex]
+      // useEffect(() => {
+      //   setState((draft) => {
+      //     Object.keys(draft.symbologies)
+      //       .forEach(topSymbKey => {
+      //           const curTopSymb = draft.symbologies[topSymbKey];
+      //           Object.keys(curTopSymb.symbology.layers)
+      //             .forEach((lKey) => {
+      //               const layer = draft.symbologies[topSymbKey].symbology.layers[lKey];
+      //               const draftFilters = layer['interactive-filters'] || {};
+      //               const draftDynamicFilters = layer['dynamic-filters'];
+      //               const draftFilterIndex = +layer.selectedInteractiveFilterIndex;
+      //               const draftInteractiveFilter = draftFilters?.[draftFilterIndex]
 
-                    if(draftInteractiveFilter) {
-                      const newSymbology = {
-                        ...layer,
-                        ...draftInteractiveFilter,
-                        order: layer.order,
-                        "layer-type": "interactive",
-                        "interactive-filters": draftFilters,
-                        "dynamic-filters": draftDynamicFilters,
-                        selectedInteractiveFilterIndex: draftFilterIndex
-                      };
+      //               if(draftInteractiveFilter) {
+      //                 const newSymbology = {
+      //                   ...layer,
+      //                   ...draftInteractiveFilter,
+      //                   order: layer.order,
+      //                   "layer-type": "interactive",
+      //                   "interactive-filters": draftFilters,
+      //                   "dynamic-filters": draftDynamicFilters,
+      //                   selectedInteractiveFilterIndex: draftFilterIndex
+      //                 };
 
-                      newSymbology.layers.forEach((d, i) => {
-                        newSymbology.layers[i].layout.visibility = curTopSymb.isVisible ? 'visible' :  "none";
-                      });
-                      draft.symbologies[topSymbKey].symbology.layers[lKey] = newSymbology;
-                    }
-                  });
-            })
-        });
-      }, [interactiveFilterIndicies])
+      //                 newSymbology.layers.forEach((d, i) => {
+      //                   newSymbology.layers[i].layout.visibility = curTopSymb.isVisible ? 'visible' :  "none";
+      //                 });
+      //                 draft.symbologies[topSymbKey].symbology.layers[lKey] = newSymbology;
+      //               }
+      //             });
+      //       })
+      //   });
+      // }, [interactiveFilterIndicies])
 
     const heightStyle = HEIGHT_OPTIONS[state.height];
     const legendPositionStyle = PANEL_POSITION_OPTIONS[state.legendPosition];
@@ -315,8 +359,13 @@ const Edit = ({value, onChange, size}) => {
     }
 
     useEffect(() => {
-        onChange && onChange(state)
-    },[state])
+
+        if (onChange && !isEqual(value, state)) {
+// console.log("CALLING ON CHANGE")
+            onChange(state)
+        }
+        // onChange && onChange(state)
+    },[onChange, value, state])
 
     defaultStyles.sort((a,b) => {
         if(a.name === state.basemapStyle) {
@@ -329,7 +378,7 @@ const Edit = ({value, onChange, size}) => {
     })
 
     return (
-        <MapContext.Provider value={{state, setState, falcor, falcorCache, pgEnv}}>
+        <MapContext.Provider value={{state, setState, falcor, falcorCache, pgEnv, doApiLoad}}>
             {
                 isEdit ? (
                     <>
@@ -348,7 +397,7 @@ const Edit = ({value, onChange, size}) => {
                   mapOptions={{
                     center: center,
                     zoom: zoom,
-                    protocols: [PMTilesProtocol],
+                    //protocols: [PMTilesProtocol],
                     styles: state.blankBaseMap ? blankStyles : defaultStyles,
                       dragPan: state.zoomPan,
                       scrollZoom: state.zoomPan,
@@ -381,10 +430,8 @@ Edit.settings = {
 export default {
     "name": 'Map',
     "type": 'Map',
-    "variables":
-    [],
+    "variables": [],
     getData,
-
     "EditComp": Edit,
     "ViewComp": Edit
 }

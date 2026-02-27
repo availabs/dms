@@ -2,16 +2,20 @@ import React, {useContext, useEffect, useMemo, useState} from "react";
 import {get} from "lodash-es";
 import {getAttributes, SymbologyAttributes} from "./utils.js";
 import FilterableSearch from "./tmp-cache-files/FilterableSearch.jsx";
-import {MapContext} from "./MapComponent.jsx";
+import {MapContext} from "./";
 
 export const SymbologySelector = () => {
-    const { state, setState, falcor, pgEnv } = useContext(MapContext);
+    const { state, setState, falcor, pgEnv, doApiLoad } = useContext(MapContext);
     const [falcorCache, setFalcorCache] = useState(falcor.getCache());
+
     useEffect(() => {
         async function fetchData() {
             const lengthPath = ["dama", pgEnv, "symbologies", "length"];
-            const resp = await falcor.get(lengthPath);
-
+            const resp = await falcor.get(lengthPath)
+                // .then(res => {
+                //     console.log("RES:", res);
+                //     return res;
+                // });
             await falcor.get([
                 "dama", pgEnv, "symbologies", "byIndex",
                 { from: 0, to: get(resp.json, lengthPath, 0) - 1 },
@@ -22,24 +26,47 @@ export const SymbologySelector = () => {
         fetchData();
     }, [falcor, pgEnv]);
 
-    const symbologies = useMemo(() => {
+    const [dmsSymbologies, setDmsSymbologies] = React.useState([]);
+
+    React.useEffect(() => {
+        doApiLoad()
+            .then(res => {
+                setDmsSymbologies(res)
+            });
+    }, [doApiLoad]);
+
+    const damaSymbologies = useMemo(() => {
         return Object.values(get(falcorCache, ["dama", pgEnv, "symbologies", "byIndex"], {}))
-            .map(v => getAttributes(get(falcorCache, v.value, { "attributes": {} })["attributes"]));
+            .map(v => getAttributes(get(falcorCache, v.value, { "attributes": {} })["attributes"]))
+            .map(sym => ({
+                ...sym,
+                id: sym.symbology_id,
+                symbology: {
+                    ...sym.symbology,
+                    isDamaSymbology: true
+                }
+            }));
     }, [falcorCache?.dama, pgEnv]);
 
-    const activeSym = Object.values(state?.symbologies)[0]?.symbology_id;
+    const symbologies = React.useMemo(() => {
+        return [...dmsSymbologies, ...damaSymbologies];
+    }, [dmsSymbologies, damaSymbologies]);
+
+// console.log("SymbologySelector::symbologies", dmsSymbologies, damaSymbologies, symbologies);
+
+    const activeSym = Object.values(state?.symbologies)[0]?.id;
     // useEffect(() => {
     //     const activeSymbology = state.symbologies?.[activeSym];
-    //     const existingSym = symbologies.find(d => +d.symbology_id === +activeSym);
+    //     const existingSym = symbologies.find(d => +d.id === +activeSym);
     //     console.log('?????????????????/', activeSymbology, existingSym)
     //     if(existingSym && !isEqual(activeSymbology, existingSym)){
     //         setState(draft => {
-    //             draft.symbologies = {[activeSym.symbology_id]: {...existingSym, isVisible: true}}
+    //             draft.symbologies = {[activeSym.id]: {...existingSym, isVisible: true}}
     //         })
     //     }
     // }, [symbologies]);
 
-    const symOptions = symbologies.map(sym => ({label: sym.name, key: sym.symbology_id}));
+    const symOptions = symbologies.map(sym => ({label: sym.name, key: sym.id}));
     const layerOptions = Object.values(state.symbologies?.[activeSym]?.symbology?.layers || {}).map((layer, i) => ({label: layer.name?.length && layer.name !== ' ' ? layer.name : `layer - ${i+1}`, key: layer.id}));
 
     return (
@@ -52,9 +79,9 @@ export const SymbologySelector = () => {
                     options={symOptions}
                     value={activeSym}
                     onChange={e => {
-                        const sym = symbologies.find(f => +f.symbology_id === +e) || {};
-                        if(!sym?.symbology_id) return;
-                        console.log('[sym', sym, e, symOptions)
+                        const sym = symbologies.find(f => +f.id === +e) || {};
+                        if(!sym?.id) return;
+                        // console.log('[sym', sym, e, symOptions)
                         setState(draft => {
                             draft.symbologies = {[e]: {...sym, isVisible: true}}
                         })
@@ -70,7 +97,7 @@ export const SymbologySelector = () => {
                     value={state.symbologies?.[activeSym]?.symbology?.activeLayer}
                     onChange={e => {
                         const currLayer = state.symbologies?.[activeSym].symbology[e] || {};
-                        console.log('currView', state.symbologies, e)
+                        // console.log('currView', state.symbologies, e)
                         if(currLayer) {
                             setState(draft => {
                                 draft.symbologies[activeSym].symbology.activeLayer = e;

@@ -1,5 +1,5 @@
 import React from "react";
-import { merge } from "lodash-es";
+import { merge, get } from "lodash-es";
 import { parseIfJSON } from "./pages/_utils";
 import { initializePatternFormat } from "../../dms-manager/_utils";
 
@@ -33,7 +33,9 @@ const pagesConfig = ({
   pattern,
   datasources,
   site,
-  API_HOST
+  pgEnv,
+  API_HOST,
+  ...rest
 }) => {
   const theme = getPatternTheme(themes, pattern)
 
@@ -57,6 +59,16 @@ const pagesConfig = ({
         .attributes.push(...pattern.additionalSectionAttributes)
   }
 
+// console.log("Page::siteConfig", datasources, rest);
+
+  const mapeditorKeys = datasources.reduce((a, c) => {
+    const pattern_type = get(c, ["pattern", "pattern_type"]);
+    if (pattern_type === "mapeditor") {
+      a.push(c.env);
+    }
+    return a;
+  }, []);
+
   const patternFilters = parseIfJSON(pattern?.filters, []);
   // const rightMenuWithSearch = rightMenu; // for live site
   return {
@@ -67,18 +79,22 @@ const pagesConfig = ({
     API_HOST,
     children: [
       {
-        type: ({children, falcor, user, ...props}) => {
+        type: ({children, falcor, user, apiLoad, ...props}) => {
+
           return (
             <CMSContext.Provider value={{
               app, type,
               siteType,
               API_HOST,
               baseUrl,
+              pgEnv,
               datasources,
+              apiLoad,
               user,
               falcor,
               patternFilters,
               authPermissions,
+              mapeditorKeys,
               isUserAuthed: (reqPermissions, customAuthPermissions) => {
                 return isUserAuthed({ user, authPermissions: customAuthPermissions || authPermissions, reqPermissions })
               }

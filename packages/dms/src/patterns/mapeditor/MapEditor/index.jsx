@@ -147,7 +147,7 @@ const MapEditor = props => {
   const { id: symbologyId } = props.params;
 
 // console.log("MapEditor::props", props);
-console.log("MapEditor::symbologyId", symbologyId);
+// console.log("MapEditor::symbologyId", symbologyId);
 
   React.useEffect(() => {
     if (symbologyId) {
@@ -196,7 +196,7 @@ console.log("MapEditor::symbologyId", symbologyId);
     return [...dmsSymbologies, ...damaSymbologies];
   }, [damaSymbologies, dmsSymbologies]);
 
-console.log("MapEditor::symbologies", symbologies);
+// console.log("MapEditor::symbologies", symbologies);
 
   /**
    * Uses the url param to query the DB
@@ -222,7 +222,7 @@ console.log("MapEditor::symbologies", symbologies);
     return LOCAL_STORAGE_KEY_BASE + `${ symbologyId }`;
   }, [symbologyId]);
 
-console.log("MapEditor::symbologyLocalStorageKey", symbologyLocalStorageKey);
+// console.log("MapEditor::symbologyLocalStorageKey", symbologyLocalStorageKey);
 
   // const initialSymbology = React.useMemo(() => {
   //   const dbSymbology = symbologies?.find(s => +s.symbology_id === +symbologyId);
@@ -291,7 +291,7 @@ console.log("MapEditor::symbologyLocalStorageKey", symbologyLocalStorageKey);
   // ---------------------------------------------------
   const [state, setState] = useImmer(initialSymbology);
 
-console.log("MapEditor::state", state);
+// console.log("MapEditor::state", state);
 
   // Resets state if URL param does not match symbology currently in state
   React.useEffect(() => {
@@ -301,7 +301,7 @@ console.log("MapEditor::state", state);
     }
   },[initialSymbology]);
 
-console.log("MapEditor::isEqual(state, initialSymbology)", isEqual(state, initialSymbology))
+// console.log("MapEditor::isEqual(state, initialSymbology)", isEqual(state, initialSymbology))
 
   // Updates localStorage whenever state changes
   React.useEffect(() => {

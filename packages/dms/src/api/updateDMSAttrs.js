@@ -38,7 +38,7 @@ export 	async function updateDMSAttrs(data, configs, falcor) {
                     delete currentData[key]
                 }
                 // ---
-                //console.log(currentData,d)
+                // console.log(currentData,d)
 
                 if(!isEqual(currentData,d)){
                     //console.log('update', id )

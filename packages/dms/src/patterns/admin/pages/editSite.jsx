@@ -222,18 +222,18 @@ function PatternList({
 								onClick={async () => {
 									const newDocType = uuidv4();
 									const dataToCopy = {
-										app: editingItem.app,
-										base_url: `${editingItem.base_url}_copy`,
-										subdomain: editingItem.subdomain,
-										config: editingItem.config,
+										app: editingItem?.app,
+										base_url: `${editingItem?.base_url}_copy`,
+										subdomain: editingItem?.subdomain,
+										config: editingItem?.config,
 										doc_type: newDocType,
-										name: `${editingItem.name}_copy`,
-										pattern_type: editingItem.pattern_type,
-										auth_level: editingItem.auth_level,
-										filters: editingItem.filters,
-										theme: editingItem.theme,
+										name: `${editingItem?.name}_copy`,
+										pattern_type: editingItem?.pattern_type,
+										auth_level: editingItem?.auth_level,
+										filters: editingItem?.filters,
+										theme: editingItem?.theme,
 									};
-									await duplicate({oldType: editingItem.doc_type, newType: newDocType}, dataToCopy)
+									await duplicate({oldType: editingItem?.doc_type, newType: newDocType}, dataToCopy)
 									setEditingItem(undefined)
 								}}
 							> {isDuplicating ? 'duplicating...' : 'duplicate'}

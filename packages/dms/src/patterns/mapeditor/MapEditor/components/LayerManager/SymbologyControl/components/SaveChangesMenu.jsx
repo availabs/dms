@@ -68,9 +68,9 @@ function SaveChangesModal ({ open, setOpen })  {
     return symbologies.find(s => +s.id === +symbologyId);
   }, [symbologies, symbologyId]);
 
-console.log("SaveChangesModal::isDamaSymbology", isDamaSymbology);
-console.log("SaveChangesModal::state", state);
-console.log("SaveChangesModal::dbSymbology", dbSymbology);
+// console.log("SaveChangesModal::isDamaSymbology", isDamaSymbology);
+// console.log("SaveChangesModal::state", state);
+// console.log("SaveChangesModal::dbSymbology", dbSymbology);
 
   // const INITIAL_SAVE_CHANGES_MODAL_STATE = {
   //   action: null,

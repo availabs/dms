@@ -1,8 +1,8 @@
 import React, { useMemo, Fragment } from 'react'
-import { MapContext } from '../MapComponent.jsx'
+import { MapContext } from '../'
 import { useNavigate } from 'react-router'
 import get from 'lodash/get'
-import { CMSContext } from '~/modules/dms/src'
+import { CMSContext } from '../../../../../../context'
 export const fnumIndex = (d, fractions = 2, currency = false) => {
   if(isNaN(d)) return '0'
   if(typeof d === 'number' && d < 1) return `${currency ? '$' : ``} ${d?.toFixed(fractions)}`
@@ -63,7 +63,7 @@ const typePaint = {
 
 function CategoryLegend({layer}) {
   // console.log('categoryLegend', layer)
-  const Symbol = typeSymbols[layer.type] || typeSymbols['fill']
+  const TypeSymbol = typeSymbols[layer.type] || typeSymbols['fill']
   let  legenddata = layer?.['legend-data'] || []
   let paintValue = typeof typePaint[layer.type](layer) === 'object' ? typePaint[layer.type](layer) : []
   const categories = legenddata || (paintValue || []).filter((d,i) => i > 2 )
@@ -81,7 +81,7 @@ function CategoryLegend({layer}) {
           <div key={i} className='w-full flex items-center hover:bg-pink-50'>
             <div className='flex items-center h-6 w-10 justify-center  '>
               {/*<div className='w-4 h-4 rounded border-[0.5px] border-slate-600' style={{backgroundColor:d.color}}/>*/}
-              <Symbol color={d.color} />
+              <TypeSymbol color={d.color} />
             </div>
             <div className='flex items-center text-center flex-1 px-4 text-slate-500 h-6 text-sm truncate'>{d.label}</div>
           </div> 
@@ -100,7 +100,7 @@ function StepLegend({layer}) {
     }
   },[state])
 
-  const Symbol = typeSymbols[layer.type] || typeSymbols['fill']
+  const TypeSymbol = typeSymbols[layer.type] || typeSymbols['fill']
   let paintValue = typeof typePaint[layer.type](layer) === 'object' ? typePaint[layer.type](layer) : []
   const max = Math.max(...choroplethdata)
   // console.log('StepLegend', paintValue, choroplethdata, Math.min(...choroplethdata), )
@@ -123,7 +123,7 @@ function StepLegend({layer}) {
           <div key={i} className='w-full flex items-center hover:bg-pink-50'>
             <div className='flex items-center h-6 w-10 justify-center  '>
               {/*<div className='w-4 h-4 rounded border-[0.5px] border-slate-600' style={{backgroundColor:d.color}}/>*/}
-              <Symbol color={d.color} />
+              <TypeSymbol color={d.color} />
             </div>
             <div className='flex items-center text-center flex-1 px-4 text-slate-500 h-6 text-sm truncate'>{d.label}</div>
           </div> 
@@ -199,10 +199,10 @@ function CircleLegend({ layer }) {
   );
 }
 
-function LegendRow ({ index, layer, i, symbology_id, baseUrl }) {
+const LegendRow = ({ index, layer, i, id, baseUrl }) => {
   const navigate = useNavigate();
   const  activeLayer  = null
-  const Symbol = typeSymbols[layer.type] || typeSymbols['fill']
+  const TypeSymbol = typeSymbols[layer.type] || typeSymbols['fill']
   let paintValue = (typePaint[layer.type] || typePaint.fill)(layer)
 
 
@@ -224,7 +224,7 @@ function LegendRow ({ index, layer, i, symbology_id, baseUrl }) {
   return (
     <div className={`${activeLayer == layer.id ? 'bg-pink-100' : ''} hover:border-pink-500 border border-transparent`}>
       <div className={`group/title w-full  p-2 py-1 flex items-center`}>
-        {(type === 'simple' || !type) && <div className='px-1'><Symbol layer={layer} color={paintValue}/></div>}
+        {(type === 'simple' || !type) && <div className='px-1'><TypeSymbol layer={layer} color={paintValue}/></div>}
         <div className='w-full text-sm text-slate-600 font-medium truncate flex justify-between flex-wrap'>
           {layerName}
           <div 
@@ -258,16 +258,18 @@ function LegendRow ({ index, layer, i, symbology_id, baseUrl }) {
   )
 }
 
-function LegendPanel (props) {
+const LegendPanel = (props) => {
   const { state, setState  } = React.useContext(MapContext);
   const { dataSourcesBaseUrl = '/cenrep' } = React.useContext(CMSContext);
   const layersBySymbology = useMemo(() => {
     return Object.values(state?.symbologies || {})
       .filter(symb => symb.isVisible)
       .map((symb) => {
-        return { name: symb.name, symbology_id: symb.symbology_id, layers: { ...symb.symbology.layers } };
+        return { name: symb.name, id: symb.id, layers: { ...symb.symbology.layers } };
       });
   }, [state]);
+
+// console.log("LegendPanel::layersBySymbology", layersBySymbology);
 
   return (
     <>
@@ -276,14 +278,14 @@ function LegendPanel (props) {
         <div className='min-h-10 relative bg-white/75 max-h-[calc(100vh_-_111px)] overflow-auto pointer-events-auto scrollbar-sm'>
           {layersBySymbology.map((symb) => (
             <div
-              key={symb.symbology_id}
+              key={symb.id}
               className="m-1 p-1 rounded"
             >
               {/*<div className="font-normal">{symb.name}</div>*/}
               {Object.values(symb.layers)
                 .sort((a,b) => b.order - a.order)
                 .filter(layer => layer?.['legend-orientation'] !== 'none')
-                .map((layer,i) => <LegendRow key={layer.id} baseUrl={dataSourcesBaseUrl} layer={layer} i={i} symbology_id={symb.symbology_id}/>)}
+                .map((layer,i) => <LegendRow key={layer.id} baseUrl={dataSourcesBaseUrl} layer={layer} i={i} id={symb.id}/>)}
             </div>
           ))}
         </div>
