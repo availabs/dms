@@ -104,7 +104,7 @@ function pattern2routes (siteData, props) {
   ];
 
     // Build datasetPatterns once (for backwards compatibility with other patterns)
-    const datasetPatterns = patterns.filter(p => ['forms', 'datasets'].includes(p.pattern_type));
+    const datasetPatterns = patterns.filter(p => ['forms', 'datasets', 'mapeditor'].includes(p.pattern_type));
 
     // Build unified datasources array for page pattern
     const app = dmsConfigUpdated?.format?.app || dmsConfigUpdated.app;

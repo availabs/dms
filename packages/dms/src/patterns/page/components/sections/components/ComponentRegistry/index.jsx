@@ -14,6 +14,8 @@ import UploadComponent from "./UploadComponent";
 import ValidateComponent from "./ValidateComponent";
 import PDFGenerator from "./ExportPdf";
 
+import Map from "./map"
+
 // //import Item from "./item";
 const ComponentRegistry = {
     lexical,
@@ -34,6 +36,7 @@ const ComponentRegistry = {
         EditComp: () => <div>Item Component Deprecated.</div>,
         ViewComp: () => <div>Item Component Deprecated.</div>
     },
+    Map
 }
 
 

@@ -65,7 +65,7 @@ function SymbologyControl () {
   const { state, setState, params } = useContext(SymbologyContext);
   const { id: symbologyId } = params;
 
-console.log("SymbologyControl::symbologyId", symbologyId);
+// console.log("SymbologyControl::symbologyId", symbologyId);
 
   const [newMapModalState, setNewMapModalState] = useState(INITIAL_NEW_MAP_MODAL_STATE);
   const menuButtonContainerClassName = ' p-1 rounded hover:bg-slate-100 group';

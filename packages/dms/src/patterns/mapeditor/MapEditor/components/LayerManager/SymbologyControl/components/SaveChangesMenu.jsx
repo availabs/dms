@@ -67,9 +67,9 @@ function SaveChangesModal ({ open, setOpen })  {
     return symbologies.find(s => +s.id === +symbologyId);
   }, [symbologies, symbologyId]);
 
-console.log("SaveChangesModal::isDamaSymbology", isDamaSymbology);
-console.log("SaveChangesModal::state", state);
-console.log("SaveChangesModal::dbSymbology", dbSymbology);
+// console.log("SaveChangesModal::isDamaSymbology", isDamaSymbology);
+// console.log("SaveChangesModal::state", state);
+// console.log("SaveChangesModal::dbSymbology", dbSymbology);
 
   // const INITIAL_SAVE_CHANGES_MODAL_STATE = {
   //   action: null,
@@ -138,15 +138,9 @@ console.log("SaveChangesModal::dbSymbology", dbSymbology);
       ["dms", "data", "edit"],
       [app, symbologyId, { name: state.name }]
     ).then(() => {
-<<<<<<< HEAD
       falcor.invalidate(["dms", "data", app, "byId", symbologyId]);
     })
   }, [app, symbologyId, state.name]);
-=======
-      falcor.invalidate(["dms", "data", "byId", symbologyId]);
-    });
-  }, [symbologyId, state.name]);
->>>>>>> ee2930ca50a41fbdfc88d32e0a801041bf7a0836
 
 /*
   const createSymbologyMap = async () => {
@@ -261,16 +255,11 @@ console.log("SaveChangesModal::dbSymbology", dbSymbology);
 
     setOpen(false);
     setModalState(INITIAL_SAVE_CHANGES_MODAL_STATE);
-<<<<<<< HEAD
-  }, [modalState.action, state, dbSymbology]);
-
-=======
   }, [modalState.action, state, dbSymbology, isDamaSymbology,
       updateDamaSymbology, updateDmsSymbology,
       updateDamaName, updateDmsName
   ]);
 
->>>>>>> ee2930ca50a41fbdfc88d32e0a801041bf7a0836
   const isSymbologyModified = useMemo(() => {
     // console.log("diff::",detailedDiff(state, dbSymbology));
     // console.log({state, dbSymbology})

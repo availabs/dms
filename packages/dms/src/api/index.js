@@ -25,7 +25,7 @@ export async function dmsDataLoader (falcor, config, path='/') {
 	// runCount += 1
 	// const runId = runCount
 	//-------------------------------------------
-	// console.log('dmsDataLoader', config, path)
+// console.log('dmsDataLoader', config, path)
 	//-------------------------------------------
 	if(!config || !falcor?.get) {
 		return [{ message: "dmsDataLoader no config or falcor."}]
@@ -57,7 +57,7 @@ export async function dmsDataLoader (falcor, config, path='/') {
 			return out
 		},{})
 
-
+// console.log("dmsDataLoader::activeConfigs", activeConfigs);
 
 	// -- Always want to know how many data items of a type we have
 	let lengthReq = ['dms', 'data', `${ app }+${ type }`, 'length' ]
@@ -75,12 +75,17 @@ export async function dmsDataLoader (falcor, config, path='/') {
     }
     let length;
     try{
+
+// console.log("dmsDataLoader::lengthReq",lengthReq);
+
         length = get(await falcor.get(lengthReq), ['json',...lengthReq], 0)
     }catch (e){
         console.error('Error getting length')
         length = 0;
     }
-	// console.log('length',length)
+
+// console.log('dmsDataLoader::length',length);
+
 	if(activeConfigs.find(ac => ['length', 'filteredLength', 'udaLength', 'udaLength'].includes(ac.action))){
 		return length;
 	}
