@@ -1,9 +1,6 @@
 import React from "react"
-
-import get from "lodash/get"
-
-import { AvlMap as AvlMap2 } from "~/modules/avl-map-2/src"
-
+import { get } from 'lodash-es'
+import { AvlMap as AvlMap2 } from "../../datasets/pages/dataTypes/gis_dataset/pages/Map/avl-map-2/src"
 import SymbologyViewLayer from './components/SymbologyViewLayer'
 import PluginLayer from './components/PluginLayer'
 
@@ -44,7 +41,7 @@ const MapViewer = props => {
 
   const mounted = React.useRef(false);
 
-  const { falcor, falcorCache, pgEnv, pageState, setPageState } = React.useContext(MapEditorContext);
+  const { falcor, falcorCache, pgEnv } = React.useContext(MapEditorContext);
   const { id: symbologyId } = props.params;
 
   React.useEffect(() => {

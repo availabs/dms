@@ -14,6 +14,9 @@ const { createTestGraph } = require('./graph');
 const DMS_DB = process.env.DMS_TEST_DB || 'dms-sqlite';
 const DAMA_DB = process.env.DAMA_TEST_DB || 'dama-sqlite-test';
 
+// UDA routes read DMS_DB_ENV to resolve the database — sync it with the test DB
+process.env.DMS_DB_ENV = DMS_DB;
+
 const TEST_APP = 'uda-test-' + Date.now();
 const TEST_TYPE = 'dataset';
 let graph = null;
@@ -127,6 +130,55 @@ async function testDmsModeSourcesViaPatterns() {
   pass('DMS source/view routes cleanup complete');
 }
 
+async function testDmsModeRealWorldPatternType() {
+  console.log('\n--- DMS Mode: Real-world pattern type (undefined|pattern) ---');
+
+  // Real-world patterns created via updateDMSAttrs have type 'undefined|pattern' (or 'siteType|pattern'),
+  // not plain 'pattern'. Verify getSitePatterns finds them and sources listing works.
+
+  const patternResult = await graph.callAsync(
+    ['dms', 'data', 'create'],
+    [TEST_APP, 'undefined|pattern', { doc_type: 'realworld-test', pattern_type: 'datasets', sources: [] }]
+  );
+  const patternId = Object.keys(patternResult.jsonGraph.dms.data.byId)[0];
+
+  // Create a source
+  const srcResult = await graph.callAsync(
+    ['dms', 'data', 'create'],
+    [TEST_APP, 'realworld-test|source', { name: 'Real Source', doc_type: 'rs-uuid' }]
+  );
+  const srcId = Object.keys(srcResult.jsonGraph.dms.data.byId)[0];
+
+  // Link source to pattern
+  await graph.callAsync(
+    ['dms', 'data', 'edit'],
+    [patternId, { doc_type: 'realworld-test', pattern_type: 'datasets', sources: [{ id: +srcId }] }]
+  );
+
+  const env = `${TEST_APP}+realworld-test`;
+
+  // Test sources.length — this is the exact query path that was broken
+  const lengthResult = await graph.getAsync([
+    ['uda', env, 'sources', 'length']
+  ]);
+  const length = lengthResult.jsonGraph.uda[env].sources.length;
+  assert(length === 1, `Expected 1 source for 'undefined|pattern' type, got ${length}`);
+  pass('getSitePatterns finds patterns with type "undefined|pattern"');
+
+  // Test sources.byIndex
+  const byIndexResult = await graph.getAsync([
+    ['uda', env, 'sources', 'byIndex', { from: 0, to: 0 }, 'value']
+  ]);
+  const idx0 = byIndexResult.jsonGraph.uda[env].sources.byIndex[0];
+  assert(idx0 && idx0.value, 'byIndex[0] should return a $ref for real-world pattern type');
+  pass('sources.byIndex works for real-world pattern type');
+
+  // Cleanup
+  await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, 'realworld-test|source', srcId]);
+  await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, 'undefined|pattern', patternId]);
+  pass('Real-world pattern type cleanup complete');
+}
+
 async function testDmsModeViews() {
   console.log('\n--- DMS Mode: Views byId ---');
 
@@ -216,7 +268,7 @@ async function testDmsModeDataQueries() {
     ['uda', env, 'viewsById', viewId, 'dataById', firstId, ['id', "data->>'name' as name"]]
   ]);
   const row = byIdResult.jsonGraph.uda[env].viewsById[viewId].dataById[firstId];
-  assert(row && row.id === firstId, `Expected id ${firstId}, got ${row?.id}`);
+  assert(row && +row.id === firstId, `Expected id ${firstId}, got ${row?.id}`);
   pass('dataById returns correct row');
 
   // Cleanup
@@ -345,6 +397,7 @@ async function run() {
   try {
     // DMS mode tests
     await testDmsModeSourcesViaPatterns();
+    await testDmsModeRealWorldPatternType();
     await testDmsModeViews();
     await testDmsModeDataQueries();
 

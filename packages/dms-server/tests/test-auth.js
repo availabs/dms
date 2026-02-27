@@ -318,8 +318,9 @@ async function run() {
 
   // Groups by project
   const groupsByProj = await post('/groups/byproject', { token: adminToken, project: 'testproj' });
-  ok('groups by project returns array', Array.isArray(groupsByProj));
-  ok('groups by project filtered', groupsByProj.every(g => g.projects.some(p => p.project_name === 'testproj')));
+  ok('groups by project returns {groups} wrapper', Array.isArray(groupsByProj.groups));
+  ok('groups by project includes public group', groupsByProj.groups.some(g => g.name === 'public'));
+  ok('groups by project filtered', groupsByProj.groups.filter(g => g.projects).every(g => g.projects.some(p => p.project_name === 'testproj')));
 
   // Create group + assign to project (in one call)
   const createAssign = await post('/group/create/project/assign', {

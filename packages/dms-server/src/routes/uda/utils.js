@@ -1,4 +1,20 @@
 const { getDb } = require('#db/index.js');
+const { resolveTable, parseType, isSplitType, ensureSequence, ensureTable, getSequenceName } = require('#db/table-resolver.js');
+
+/**
+ * Resolve the fully-qualified main table name for DMS content (non-split items).
+ * In legacy mode → data_items; in per-app mode → data_items__{app}.
+ * Ensures the table and sequence exist in per-app mode.
+ */
+async function dmsMainTable(db, app) {
+  const splitMode = process.env.DMS_SPLIT_MODE || 'legacy';
+  const { fullName, schema, table } = resolveTable(app, 'pattern', db.type, splitMode);
+  if (table !== 'data_items') {
+    await ensureSequence(db, app, db.type, splitMode);
+    await ensureTable(db, schema, table, db.type, getSequenceName(app, db.type, splitMode));
+  }
+  return fullName;
+}
 
 // ================================================= SQL Sanitization ================================================
 
@@ -29,14 +45,31 @@ function sanitizeName(name) {
  * Extract the response column name from a SQL expression.
  * "geoid" → "geoid"
  * "data->>'title' as title" → "title"
+ * "data->>'2_col' as \"2_col\"" → "2_col"
  * "substring(geoid, 1, 2) as state_fips" → "state_fips"
  */
 function getResponseColumnName(nameWithAccessors, part = 1) {
   const columnRenameRegex = /\s+as\s+/i;
   if (columnRenameRegex.test(nameWithAccessors)) {
-    return nameWithAccessors.split(columnRenameRegex)[part];
+    const name = nameWithAccessors.split(columnRenameRegex)[part];
+    // Strip double quotes added by quoteAlias for digit-prefixed identifiers
+    return name ? name.replace(/^"|"$/g, '') : name;
   }
   return nameWithAccessors;
+}
+
+/**
+ * Quote a SQL alias if it starts with a digit (invalid as an unquoted identifier in SQLite).
+ * Handles both bare names ("2_col" → "\"2_col\"") and full expressions
+ * ("data->>'x' as 2_col" → "data->>'x' as \"2_col\"").
+ */
+function quoteAlias(nameOrExpr) {
+  const asMatch = nameOrExpr.match(/^(.+\s+as\s+)(\S+)$/i);
+  if (asMatch) {
+    const [, prefix, alias] = asMatch;
+    return /^\d/.test(alias) ? `${prefix}"${alias}"` : nameOrExpr;
+  }
+  return /^\d/.test(nameOrExpr) ? `"${nameOrExpr}"` : nameOrExpr;
 }
 
 // ============================================= Environment Detection ===============================================
@@ -57,13 +90,15 @@ async function getEssentials({ env, view_id, options = {} }) {
   const db = getDb(isDms ? (process.env.DMS_DB_ENV || 'dms-sqlite') : env);
 
   if (isDms) {
+    const splitMode = process.env.DMS_SPLIT_MODE || 'legacy';
     const [app, rawType] = env.split('+');
-    const table_schema = db.type === 'postgres' ? 'dms' : 'main';
-    const table_name = 'data_items';
 
     // For DMS, the type may be suffixed with -view_id for versioned data
     let type = rawType;
     let dmsAttributes;
+
+    // Resolve the main table for DMS content lookups (patterns, sources, views)
+    const mainTbl = await dmsMainTable(db, app);
 
     if (view_id) {
       // Look up the view_id item to check if it's versioned data
@@ -71,9 +106,8 @@ async function getEssentials({ env, view_id, options = {} }) {
       const sanitisedType = sanitizeName(rawType.replace(`-${view_id}`, '').replace('-invalid-entry', ''));
 
       if (sanitisedApp && sanitisedType) {
-        const tbl = db.type === 'postgres' ? 'dms.data_items' : 'data_items';
         const versionTypeRows = await db.query(
-          `SELECT type AS version_type FROM ${tbl} WHERE app = $1 AND id = $2`,
+          `SELECT type AS version_type FROM ${mainTbl} WHERE app = $1 AND id = $2`,
           [sanitisedApp, view_id]
         );
         const version_type = versionTypeRows?.rows?.[0]?.version_type;
@@ -89,12 +123,35 @@ async function getEssentials({ env, view_id, options = {} }) {
 
           const sourceVersionType = version_type.split('|').slice(0, 2).join('|');
           const configRows = await db.query(
-            `SELECT data->>'config' AS config FROM ${tbl} WHERE app = $1 AND type = $2 AND data->>'doc_type' = $3`,
+            `SELECT data->>'config' AS config FROM ${mainTbl} WHERE app = $1 AND type = $2 AND data->>'doc_type' = $3`,
             [sanitisedApp, sourceVersionType, sanitisedType]
           );
           dmsAttributes = JSON.parse(configRows?.rows?.[0]?.config || '{}')?.attributes || [];
         }
       }
+    }
+
+    // Look up source_id for split type naming
+    let sourceId = null;
+    if (isSplitType(type)) {
+      const parsed = parseType(type);
+      if (parsed) {
+        const srcRows = await db.query(
+          `SELECT id FROM ${mainTbl} WHERE app = $1 AND ${db.type === 'postgres' ? "data->>'doc_type'" : "json_extract(data, '$.doc_type')"} = $2 AND type LIKE '%|source' ORDER BY id DESC LIMIT 1`,
+          [app, parsed.docType]
+        );
+        sourceId = srcRows?.rows?.[0]?.id || null;
+      }
+    }
+
+    // Resolve the correct table for this (app, type) pair
+    const { schema: table_schema, table: table_name } = resolveTable(app, type, db.type, splitMode, sourceId);
+
+    // Ensure split tables exist (no-op for data_items)
+    if (table_name !== 'data_items') {
+      const seqName = getSequenceName(app, db.type, splitMode);
+      await ensureSequence(db, app, db.type, splitMode);
+      await ensureTable(db, table_schema, table_name, db.type, seqName);
     }
 
     return { isDms, db, app, type, table_schema, table_name, dmsAttributes };
@@ -125,8 +182,10 @@ async function getDataTableFromViewId({ db, view_id }) {
  * Get pattern IDs for a DMS site (items with type='pattern' for the given app)
  */
 async function getSitePatterns({ db, app }) {
-  const tbl = db.type === 'postgres' ? 'dms.data_items' : 'data_items';
-  const sql = `SELECT id FROM ${tbl} WHERE app = $1 AND type = 'pattern'`;
+  const tbl = await dmsMainTable(db, app);
+  // Pattern records created via updateDMSAttrs have type like 'undefined|pattern' or 'siteType|pattern',
+  // while test/legacy records may have plain 'pattern'. Match both.
+  const sql = `SELECT id FROM ${tbl} WHERE app = $1 AND (type = 'pattern' OR type LIKE '%|pattern')`;
   const { rows } = await db.query(sql, [app]);
   return rows.map(r => r.id);
 }
@@ -134,10 +193,10 @@ async function getSitePatterns({ db, app }) {
 /**
  * Get sources from site patterns. Looks at patterns matching doc_types and extracts their sources JSON array.
  */
-async function getSiteSources({ db, pattern_ids, pattern_doc_types }) {
+async function getSiteSources({ db, app, pattern_ids, pattern_doc_types }) {
   if (!pattern_ids.length) return [];
 
-  const tbl = db.type === 'postgres' ? 'dms.data_items' : 'data_items';
+  const tbl = await dmsMainTable(db, app);
   const sql = `
     SELECT data->'sources' AS sources
     FROM ${tbl}
@@ -332,6 +391,8 @@ function buildCombinedWhere({ filter, exclude, gt, gte, lt, lte, like, filterRel
 module.exports = {
   sanitizeName,
   getResponseColumnName,
+  quoteAlias,
+  dmsMainTable,
   getEssentials,
   getDataTableFromViewId,
   getSitePatterns,

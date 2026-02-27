@@ -54,7 +54,7 @@ const initialFramContent = `
 								<style>
 								@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400..700&family=Grape+Nuts&family=Oswald:wght@200..700&family=Rock+Salt&family=Shadows+Into+Light+Two&display=swap');
 								</style>
-			
+
 							</head>
 							<body>
 							  <div id="root" class=""></div>
@@ -148,7 +148,7 @@ export function PatternThemeEditor({
         // console.log('updateSettings',currentTheme?.settings(currentTheme), currentTheme)
         return currentTheme?.settings(currentTheme)
     }, [currentTheme])
-    const [currentThemeSetting, setCurrentThemeSetting] = React.useState('table' || Object.keys(themeSettings)[0])
+    const [currentThemeSetting, setCurrentThemeSetting] = React.useState('layout' || Object.keys(themeSettings)[0])
 
     //change display docs
     //const compFromProps = useMemo(() => compOptions.find(c => c.value.toLowerCase() === component?.toLowerCase())?.value, [component]);

@@ -417,7 +417,6 @@ const Edit = ({cms_context, value, onChange, component}) => {
     // =========================================== saving settings begin ===============================================
     useEffect(() => {
         if (!isEdit || !isValidState  || isEqual(value, JSON.stringify(state))) return;
-        console.log('save', state)
         onChange(JSON.stringify(state));
     }, [state])
     // =========================================== saving settings end =================================================
@@ -523,7 +522,7 @@ const Edit = ({cms_context, value, onChange, component}) => {
     )
 }
 
-const View = ({cms_context, value, onChange, component}) => {
+const View = ({cms_context, value, onChange, component, editPageMode}) => {
     const isEdit = false;
     const navigate = useNavigate();
     const { pageState } = useContext(PageContext) || {}; // is this safe for datasets pages table and view?
@@ -539,7 +538,7 @@ const View = ({cms_context, value, onChange, component}) => {
     const groupByColumnsLength = useMemo(() => state?.columns?.filter(({group}) => group).length, [state?.columns]);
     const showChangeFormatModal = !state?.sourceInfo?.columns;
     const isValidState = Boolean(state?.dataRequest); // new state structure
-    const Comp = useMemo(() => state.display.hideSection ? () => <></> : component.ViewComp, [component, state.display.hideSection]);
+    const Comp = useMemo(() => state.display.hideSection && !editPageMode ? () => <></> : component.ViewComp, [component, state.display.hideSection]);
     // const useCache = state.display.useCache //=== false ? false : true; // false: loads data on load. can be expensive. useCache can be undefined for older components.
     const setReadyToLoad = useCallback(() => setState(draft => {draft.display.readyToLoad = true}), [setState]);
     const allowEdit = groupByColumnsLength ? false : state.sourceInfo?.isDms && state.display.allowEditInView && Boolean(apiUpdate);

@@ -29,10 +29,13 @@ export async function getViews ({pgEnv, falcor, source_id}) {
 }
 
 export async function getSourceData ({pgEnv, falcor, source_id, setSource}) {
-    console.log('gettting data')
-    try {
-        const views = await getViews({pgEnv, falcor, source_id});
+    //console.log('gettting data')
+
+      const views = await getViews({ pgEnv, falcor, source_id });
+        console.log('get Source Data', views)
         const reqPath = ['uda', pgEnv, 'sources', 'byId', +source_id]
+        console.log('get Source Data',[...reqPath,ExternalSourceAttributes] )
+
         const resJson = await falcor.get([...reqPath, ExternalSourceAttributes]);
         const res = get(resJson, ['json', ...reqPath], {})
 
@@ -40,9 +43,7 @@ export async function getSourceData ({pgEnv, falcor, source_id, setSource}) {
         const lastView = views?.[views?.length - 1];
         console.log('source', res)
         setSource({...res, source_id: res.source_id ?? +source_id, views, created_at: firstView?.created_at, updated_at: lastView?.updated_at });
-    }catch (e) {
-        throw Error(`Error fetching source: ${e}`);
-    }
+
 }
 
 export const updateSourceData = ({data, attrKey, isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id}) => {

@@ -85,6 +85,10 @@ export function filterParams (data, params,format) {
 	Object.keys(params).forEach(k => {
 		if(data[k] == params[k] || (Boolean(data[wildKey]) && data[wildKey] === params['*'])) {
 			filter = true
+		} else if (k === '*' && !params[k] && wildKey) {
+			// Root URL (empty slug): no wildKey match possible.
+			// Fall back to the default page (index 0, no parent) — mirrors server defaultSearch.
+			filter = !data.parent && (data.index == 0)
 		} else {
 			filter = false
 		}

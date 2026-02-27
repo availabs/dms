@@ -1,0 +1,8 @@
+# Ignore all database configs (may contain real credentials)
+*.config.json
+
+# Keep example configs (templates — copy and rename to create your own)
+!*.example.config.json
+
+# Keep test configs (used by automated tests)
+!*-test*.config.json

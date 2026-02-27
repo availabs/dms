@@ -32,7 +32,9 @@ const udaRoutes = require('../src/routes/uda/uda.route');
  * @returns {Object} Test graph with get, set, call methods
  */
 function createTestGraph(dbName = 'dms-sqlite', options = {}) {
-  const controller = createController(dbName);
+  const { splitMode, ...routerOptions } = options;
+  const controllerOpts = splitMode ? { splitMode } : {};
+  const controller = createController(dbName, controllerOpts);
   const dmsRoutes = createRoutes(controller);
   const routes = [...dmsRoutes, ...udaRoutes];
 
@@ -45,7 +47,7 @@ function createTestGraph(dbName = 'dms-sqlite', options = {}) {
     }
   }
 
-  const router = new TestRouter(options);
+  const router = new TestRouter(routerOptions);
 
   /**
    * Helper to convert Observable to callback

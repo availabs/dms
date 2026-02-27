@@ -28,10 +28,11 @@ import useModal from "../hooks/useModal";
 
 const BUTTON_STYLES = {
   primary: 'w-fit h-fit cursor-pointer uppercase bg-[#EAAD43] hover:bg-[#F1CA87] text-[#37576B] font-[700] leading-[14.62px] rounded-full text-[12px] text-center py-[16px] px-[24px]',
-  secondary: 'w-fit h-fit cursor-pointer uppercase border boder-[#E0EBF0] bg-white hover:bg-[#E0EBF0] text-[#37576B] font-[700] leading-[14.62px] rounded-full text-[12px] text-center py-[16px] px-[24px]',
+  secondary: 'w-fit h-fit cursor-pointer uppercase border border-[#E0EBF0] bg-white hover:bg-[#E0EBF0] text-[#37576B] font-[700] leading-[14.62px] rounded-full text-[12px] text-center py-[16px] px-[24px]',
   primarySmall: `w-fit h-fit font-['Proxima_Nova'] cursor-pointer uppercase bg-[#EAAD43] hover:bg-[#F1CA87] text-[#37576B] font-[700] leading-[14.62px] rounded-full text-[12px] text-center pt-[9px] pb-[7px] px-[12px]`,
   secondarySmall: `w-fit h-fit font-['Proxima_Nova'] cursor-pointer uppercase border bg-[#E0EBF0] hover:bg-[#C5D7E0] text-[#37576B] font-[700] leading-[14.62px] rounded-full text-[12px] text-center pt-[9px] pb-[7px] px-[12px]`,
-  whiteSmall: `w-fit h-fit font-['Proxima_Nova'] cursor-pointer uppercase border boder-[#E0EBF0] bg-white hover:bg-[#E0EBF0] text-[#37576B] font-[700] leading-[14.62px] rounded-full text-[12px] text-center pt-[9px] pb-[7px] px-[12px]`,
+  whiteSmall: `w-fit h-fit font-['Proxima_Nova'] cursor-pointer uppercase border border-[#E0EBF0] bg-white hover:bg-[#E0EBF0] text-[#37576B] font-[700] leading-[14.62px] rounded-full text-[12px] text-center pt-[9px] pb-[7px] px-[12px]`,
+  greenSmall: `w-fit h-fit font-['Proxima_Nova'] cursor-pointer uppercase border border-[#327D49] bg-[#D1EBDA] hover:bg-[#BCD1C3] text-[#327D49] font-[700] leading-[14.62px] rounded-full text-[12px] text-center pt-[9px] pb-[7px] px-[12px]`,
 }
 
 function ButtonComponent({nodeKey, linkText, path, keepSearchParams, style}) {

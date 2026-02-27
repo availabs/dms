@@ -1,20 +1,13 @@
 import React from "react"
 import { useImmer } from 'use-immer';
 import mapboxgl from "maplibre-gl";
-import { useSearchParams, Link, useNavigate, useParams } from "react-router";
-import get from "lodash/get"
-import set from "lodash/set"
-import omit from "lodash/omit"
-import isEqual from "lodash/isEqual"
-//import throttle from "lodash/throttle"
-// import { SymbologyAttributes } from "~/pages/DataManager/Collection/attributes";
+import { useNavigate } from "react-router";
+import {get, set, omit, isEqual, cloneDeep } from "lodash-es"
 import { usePrevious } from './components/LayerManager/utils'
-// import {PMTilesProtocol} from '../utils/pmtiles/index.ts'
-import { AvlMap as AvlMap2 } from "~/modules/avl-map-2/src"
-// import { PMTilesProtocol } from '~/pages/DataManager/utils/pmtiles/index.ts'
-import { rgb2hex, toHex, categoricalColors, rangeColors } from './components/LayerManager/utils'
-import {categoryPaint, isValidCategoryPaint ,choroplethPaint} from './components/LayerEditor/datamaps'
-import cloneDeep from 'lodash/cloneDeep'
+import { AvlMap as AvlMap2 } from "../../datasets/pages/dataTypes/gis_dataset/pages/Map/avl-map-2/src"
+import { rgb2hex } from './components/LayerManager/utils'
+import { categoryPaint, isValidCategoryPaint ,choroplethPaint } from './components/LayerEditor/datamaps'
+
 
 // import { ViewAttributes } from "../Source/attributes"
 import { MapEditorContext } from "../context"
@@ -34,7 +27,7 @@ import {
   DamaSymbologyAttributes
 } from "../attributes";
 
-import { DMS_DATA_ITEM_ATTRIBUTES } from "../attributes"
+//import { DMS_DATA_ITEM_ATTRIBUTES } from "../attributes"
 
 import { extractState, fetchBoundsForFilter } from './stateUtils';
 

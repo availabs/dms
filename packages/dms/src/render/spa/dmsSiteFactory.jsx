@@ -78,8 +78,9 @@ function pattern2routes (siteData, props) {
     // console.log('dmsSiteFactory themes', themes)
 
     let dmsConfigUpdated = cloneDeep(dmsConfig);
-    dmsConfigUpdated.registerFormats = updateRegisteredFormats(dmsConfigUpdated.registerFormats, dmsConfig.app)
-    dmsConfigUpdated.attributes = updateAttributes(dmsConfigUpdated.attributes, dmsConfig.app)
+    const siteType = dmsConfig?.format?.type || dmsConfig.type;
+    dmsConfigUpdated.registerFormats = updateRegisteredFormats(dmsConfigUpdated.registerFormats, dmsConfig.app, siteType)
+    dmsConfigUpdated.attributes = updateAttributes(dmsConfigUpdated.attributes, dmsConfig.app, siteType)
 
     // console.log('dmsConfigUpdated', dmsConfigUpdated)
     let AdminPattern = {
@@ -197,8 +198,9 @@ export default async function dmsSiteFactory(config) {
     let { dmsConfig, falcor, API_HOST } = config
 
     let dmsConfigUpdated = cloneDeep(dmsConfig);
-    dmsConfigUpdated.registerFormats = updateRegisteredFormats(dmsConfigUpdated.registerFormats, dmsConfig.app)
-    dmsConfigUpdated.attributes = updateAttributes(dmsConfigUpdated.attributes, dmsConfig.app)
+    const siteType = dmsConfig?.format?.type || dmsConfig.type;
+    dmsConfigUpdated.registerFormats = updateRegisteredFormats(dmsConfigUpdated.registerFormats, dmsConfig.app, siteType)
+    dmsConfigUpdated.attributes = updateAttributes(dmsConfigUpdated.attributes, dmsConfig.app, siteType)
 
     falcor = falcor || falcorGraph(API_HOST)
     // console.time('load routes')

@@ -2,10 +2,9 @@ import React, { useMemo, useEffect, Fragment, useState } from "react";
 import { Switch } from '@headlessui/react'
 import { SymbologyContext } from "../../";
 // import {MapContext} from '../dms/map/MapComponent'
-import get from "lodash/get";
-import set from "lodash/set";
+import {get, set} from "lodash-es";
 
-import { MultiLevelSelect } from "~/modules/avl-map-2/src"
+import { MultiLevelSelect } from "../../../../datasets/pages/dataTypes/gis_dataset/pages/Map/avl-map-2/src"
 
 export function SelectControl({ path, params = {} }) {
   //console.log("select control path::", path)
@@ -95,7 +94,7 @@ export function InputControl({ path, params = {} }) {
     params.default !== null && params.default !== undefined
       ? params.default
       : params?.options?.[0]?.value;
-      
+
   return (
     <label className="flex w-full">
       <div className="flex w-full items-center">

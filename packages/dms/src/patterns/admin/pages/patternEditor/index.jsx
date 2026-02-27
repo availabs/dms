@@ -35,10 +35,12 @@ const navPages = [
   }
 ]
 
-const PatternEditor = ({params, item, format, attributes, apiUpdate, ...rest}) => {
+const PatternEditor = ({params, dataItems, item, format, attributes, apiUpdate, ...rest}) => {
   const { baseUrl, parentBaseUrl } = React.useContext(AdminContext);
   const [tmpItem, setTmpItem] = React.useState(item);
   const {id, page='overview'} = params;
+
+  console.log('patternEditor index -item', item, dataItems)
 
   const pages = [...navPages, ...(item.pages || []), ...(item.pattern_type === 'page' ? [{path: 'edit_pattern', name: 'Format Manager', component: FormatManager}] : [])];
   const PageComp = pages.find(d => d.path === page)?.component || pages[0].component

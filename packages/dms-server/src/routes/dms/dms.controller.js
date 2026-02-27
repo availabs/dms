@@ -1,13 +1,29 @@
 const { getDb } = require('#db/index.js')
 const get = require("lodash/get")
-const {handleFilters, handleGroupBy, handleOrderBy, getValuesExceptNulls, extent} = require("./utils");
+const {
+  handleFilters,
+  handleGroupBy,
+  handleOrderBy,
+  getValuesExceptNulls,
+  extent
+} = require("./utils");
 const {
   buildArrayComparison,
   jsonExtract,
   typeCast,
   jsonMerge,
-  currentTimestamp
+  currentTimestamp,
+  QueryBuilder
 } = require('#db/query-utils.js');
+const {
+  isSplitType,
+  parseType,
+  resolveTable,
+  getSequenceName,
+  ensureSequence,
+  ensureTable,
+  allocateId
+} = require('#db/table-resolver.js');
 
 const DATA_ATTRIBUTES = [
   "id", "app", "type", "data",
@@ -44,9 +60,12 @@ const sanitizeName = name => {
 /**
  * Create a DMS controller configured for a specific database
  * @param {string} dbName - Database config name (e.g., 'dms-sqlite', 'dms-postgres')
+ * @param {Object} [options]
+ * @param {string} [options.splitMode='legacy'] - Table split mode: 'legacy' or 'per-app'
  * @returns {Object} Controller with all DMS operations
  */
-function createController(dbName = 'dms-sqlite') {
+function createController(dbName = 'dms-sqlite', options = {}) {
+  const splitMode = options.splitMode || process.env.DMS_SPLIT_MODE || 'legacy';
   const dms_db = getDb(dbName);
   const dbType = dms_db.type;
 
@@ -63,10 +82,94 @@ function createController(dbName = 'dms-sqlite') {
     return currentTimestamp(dbType);
   }
 
+  // Cache for source_id lookups: `${app}:${docType}` → sourceId (number or null)
+  const _sourceIdCache = new Map();
+
+  /**
+   * Get the main (non-split) table for an app, ensuring it exists.
+   * Legacy mode: data_items
+   * Per-app mode: data_items__{app} (auto-created if needed)
+   */
+  async function mainTable(app) {
+    const resolved = resolveTable(app, '', dbType, splitMode);
+    if (resolved.table !== 'data_items') {
+      const seqName = getSequenceName(app, dbType, splitMode);
+      await ensureSequence(dms_db, app, dbType, splitMode);
+      await ensureTable(dms_db, resolved.schema, resolved.table, dbType, seqName);
+    }
+    return resolved.fullName;
+  }
+
+  /**
+   * Look up the source record ID for a split type's doc_type.
+   * Returns sourceId (number) or null if not found (graceful fallback).
+   */
+  async function lookupSourceId(app, type) {
+    if (!isSplitType(type)) return null;
+    const parsed = parseType(type);
+    if (!parsed) return null;
+
+    const cacheKey = `${app}:${parsed.docType}`;
+    if (_sourceIdCache.has(cacheKey)) return _sourceIdCache.get(cacheKey);
+
+    try {
+      const table = await mainTable(app);
+      const rows = await dms_db.promise(
+        `SELECT id FROM ${table} WHERE app = $1 AND ${jsonField('data', 'doc_type')} = $2 AND type LIKE '%|source' ORDER BY id DESC LIMIT 1`,
+        [app, parsed.docType]
+      );
+      const sourceId = rows[0]?.id || null;
+      _sourceIdCache.set(cacheKey, sourceId);
+      return sourceId;
+    } catch {
+      // Table might not exist yet (first write in per-app mode)
+      _sourceIdCache.set(cacheKey, null);
+      return null;
+    }
+  }
+
+  /**
+   * Resolve (app, type) → fully-qualified table name.
+   * Async — looks up source_id for split types to build new table names.
+   */
+  async function resolve(app, type) {
+    const sourceId = await lookupSourceId(app, type);
+    return resolveTable(app, type, dbType, splitMode, sourceId);
+  }
+
+  /**
+   * Ensure the target table (and its sequence) exist for a write operation.
+   * No-ops for the default data_items table.
+   */
+  async function ensureForWrite(app, type) {
+    const resolved = await resolve(app, type);
+    if (resolved.table === 'data_items') return resolved;
+
+    const seqName = getSequenceName(app, dbType, splitMode);
+    await ensureSequence(dms_db, app, dbType, splitMode);
+    await ensureTable(dms_db, resolved.schema, resolved.table, dbType, seqName);
+    return resolved;
+  }
+
+  /**
+   * Resolve the table for a read — ensure it exists so the query doesn't error.
+   * For the default data_items table, no-op. For split tables, ensure exists.
+   */
+  async function ensureForRead(app, type) {
+    const resolved = await resolve(app, type);
+    if (resolved.table === 'data_items') return resolved;
+
+    const seqName = getSequenceName(app, dbType, splitMode);
+    await ensureSequence(dms_db, app, dbType, splitMode);
+    await ensureTable(dms_db, resolved.schema, resolved.table, dbType, seqName);
+    return resolved;
+  }
+
   return {
     // Expose for testing/inspection
     dbType,
     dbName,
+    splitMode,
 
     DATA_ATTRIBUTES,
 
@@ -81,17 +184,19 @@ function createController(dbName = 'dms-sqlite') {
     },
 
     dataLength: appKeys => {
-      const sql = `
-        SELECT app || '+' || type AS key,
-          COUNT(1) AS length
-        FROM ${tableName('data_items')}
-        WHERE app = $1
-        AND type = $2
-        GROUP BY 1
-      `;
-      const promises = appKeys.map(k =>
-        dms_db.promise(sql, k.split("+"))
-      )
+      const promises = appKeys.map(async k => {
+        const [app, type] = k.split("+");
+        const { fullName } = await ensureForRead(app, type);
+        const sql = `
+          SELECT app || '+' || type AS key,
+            COUNT(1) AS length
+          FROM ${fullName}
+          WHERE app = $1
+          AND type = $2
+          GROUP BY 1
+        `;
+        return dms_db.promise(sql, [app, type]);
+      });
       return Promise.all(promises)
         .then(data => [].concat(...data))
         // PostgreSQL COUNT returns bigint (string); normalize to number
@@ -108,42 +213,44 @@ function createController(dbName = 'dms-sqlite') {
         return expr.replace(/(data\s*->>\s*'[^']*')/g, 'CAST($1 AS TEXT)');
       };
 
-      const promises = []
-      appKeys.forEach(key => {
-        searchkeys.forEach(searchkey => {
+      const promises = appKeys.flatMap(key =>
+        searchkeys.map(async searchkey => {
+          const [app, type] = key.split("+");
+          const { fullName } = await ensureForRead(app, type);
           const searchkeyJSON = JSON.parse(searchkey) || null
           const wildKey = castForSqlite(searchkeyJSON.wildKey);
           const defaultSearch = searchkeyJSON.defaultSearch
             ? castForSqlite(searchkeyJSON.defaultSearch)
             : null;
 
-          let sql = `
+          const sql = `
             SELECT id
-            FROM ${tableName('data_items')}
+            FROM ${fullName}
             WHERE app = $1
             AND type = $2
             AND ${wildKey} = $3
             ${defaultSearch ?
               `UNION ALL
               SELECT id
-              FROM ${tableName('data_items')}
+              FROM ${fullName}
               WHERE app = $4
               AND type = $5
               AND ${defaultSearch}`
             : ''}
             LIMIT 1
           `
-          promises.push(
-            dms_db
-              .promise(sql,[...key.split("+"),searchkeyJSON.params,...key.split("+")])
-              .then(rows => ({
-                  key: `${key}|${searchkey}`,
-                  rows: rows.map(({id}) => id)
-                })
-              )
-          )
+          const values = defaultSearch
+            ? [app, type, searchkeyJSON.params, app, type]
+            : [app, type, searchkeyJSON.params];
+          return dms_db
+            .promise(sql, values)
+            .then(rows => ({
+                key: `${key}|${searchkey}`,
+                rows: rows.map(({id}) => id)
+              })
+            )
         })
-      })
+      );
       return Promise.all(promises)
     },
 
@@ -151,21 +258,23 @@ function createController(dbName = 'dms-sqlite') {
       const [min, max] = extent(indices),
         length = (max - min) + 1;
 
-      const sql = `
-        SELECT id
-        FROM ${tableName('data_items')}
-        WHERE app = $1
-        AND type = $2
-        LIMIT ${ length }
-        OFFSET ${ min }
-      `
-      const promises = appKeys.map(key =>
-        dms_db.promise(sql, key.split("+"))
+      const promises = appKeys.map(async key => {
+        const [app, type] = key.split("+");
+        const { fullName } = await ensureForRead(app, type);
+        const sql = `
+          SELECT id
+          FROM ${fullName}
+          WHERE app = $1
+          AND type = $2
+          LIMIT ${ length }
+          OFFSET ${ min }
+        `;
+        return dms_db.promise(sql, [app, type])
           .then(rows => ({
             key,
             rows: rows.map(({ id }, i) => ({ i: i + min, id }))
-          }))
-      )
+          }));
+      });
       return Promise.all(promises)
     },
 
@@ -189,30 +298,33 @@ function createController(dbName = 'dms-sqlite') {
 
       const filterSql = handleFilters({filter, exclude, gt, gte, lt, lte, like, notLike}, dbType);
 
-      const sql =
-        aggregatedLen ? `
-          with t as (SELECT app || '+' || type AS key, COUNT(1) AS length
-          FROM ${tableName('data_items')}
-              ${ filterSql }
-              ${filterSql.length ? 'AND' : 'WHERE'} app = $${values.length + 1}
-              AND type = $${values.length + 2}
-          ${ handleGroupBy([1, ...groupBy]) })
+      const promises = appKeys.map(async k => {
+        const [app, type] = k.split("+");
+        const { fullName } = await ensureForRead(app, type);
 
-          select key, count(1) as length
-          from t
-          group by 1
-  ` : `
-          SELECT app || '+' || type AS key, COUNT(1) AS length
-          FROM ${tableName('data_items')}
-              ${ filterSql }
-              ${filterSql.length ? 'AND' : 'WHERE'} app = $${values.length + 1}
-              AND type = $${values.length + 2}
-          ${ handleGroupBy([1, ...groupBy]) }
-      `;
+        const sql =
+          aggregatedLen ? `
+            with t as (SELECT app || '+' || type AS key, COUNT(1) AS length
+            FROM ${fullName}
+                ${ filterSql }
+                ${filterSql.length ? 'AND' : 'WHERE'} app = $${values.length + 1}
+                AND type = $${values.length + 2}
+            ${ handleGroupBy([1, ...groupBy]) })
 
-      const promises = appKeys.map(k => {
-        return dms_db.promise(sql, [...values, ...k.split("+")])
-      })
+            select key, count(1) as length
+            from t
+            group by 1
+    ` : `
+            SELECT app || '+' || type AS key, COUNT(1) AS length
+            FROM ${fullName}
+                ${ filterSql }
+                ${filterSql.length ? 'AND' : 'WHERE'} app = $${values.length + 1}
+                AND type = $${values.length + 2}
+            ${ handleGroupBy([1, ...groupBy]) }
+        `;
+
+        return dms_db.promise(sql, [...values, app, type]);
+      });
       return Promise.all(promises)
         .then(data => [].concat(...data))
         // PostgreSQL COUNT returns bigint (string); normalize to number
@@ -256,35 +368,38 @@ function createController(dbName = 'dms-sqlite') {
         sortColExpr = `id as sortcol`;
       }
 
-      const sql = `
-        with t as (
-        SELECT ${attributes.join(', ')},
-               ${sortColExpr}
-        FROM ${tableName('data_items')}
-          ${ filterSql }
-          ${filterSql.length ? 'AND' : 'WHERE'} app = $${values.length + 1}
-          AND type = $${values.length + 2}
-        ${ handleGroupBy(groupBy) }
-        ${ orderCol ? handleOrderBy(orderBy) : ``}
-        LIMIT ${ length }
-        OFFSET ${ min })
+      const promises = appKeys.map(async key => {
+        const [app, type] = key.split("+");
+        const { fullName } = await ensureForRead(app, type);
 
-        SELECT * FROM t ORDER BY sortcol ${order};
-      `;
+        const sql = `
+          with t as (
+          SELECT ${attributes.join(', ')},
+                 ${sortColExpr}
+          FROM ${fullName}
+            ${ filterSql }
+            ${filterSql.length ? 'AND' : 'WHERE'} app = $${values.length + 1}
+            AND type = $${values.length + 2}
+          ${ handleGroupBy(groupBy) }
+          ${ orderCol ? handleOrderBy(orderBy) : ``}
+          LIMIT ${ length }
+          OFFSET ${ min })
 
-      const promises = appKeys.map(key =>
-        dms_db.promise(sql, [...values, ...key.split("+")])
+          SELECT * FROM t ORDER BY sortcol ${order};
+        `;
+
+        return dms_db.promise(sql, [...values, app, type])
           .then(rows => ({
             key,
             rows: rows.map((r, i) => ({ i: i + min, ...r }))
-          }))
-      )
+          }));
+      });
 
       return Promise.all(promises)
     },
 
     searchByTag: (appKeys, tag, searchType='byTag') => {
-      // Build JSON array elements expression based on database type
+      // searchByTag operates on page content (sections)
       const jsonArrayExpr = dbType === 'postgres'
         ? `jsonb_array_elements(data->'sections')->>'id'`
         : `json_extract(je.value, '$.id')`;
@@ -293,43 +408,46 @@ function createController(dbName = 'dms-sqlite') {
         ? ''
         : `, json_each(data, '$.sections') as je`;
 
-      const sql = searchType === 'byTag' ? `
-        with t as (
-          SELECT di.id page_id, di.type, ${jsonField('di.data', 'url_slug')} url_slug, ${jsonField('di.data', 'title')} page_title,
-            ${jsonArrayExpr} section_id
-          FROM ${tableName('data_items')} di${jsonArrayFrom}
-          WHERE app = $2
-          AND type = $3
-        )
+      const promises = appKeys.map(async key => {
+        const [app, type] = key.split("+");
+        const tbl = await mainTable(app);
 
-        select t.*, ${jsonField('data', 'title')} section_title, ${jsonField('data', 'tags')} tags
-        FROM t
-        JOIN ${tableName('data_items')} di
-        ON ${typeCast('id', 'TEXT', dbType)} = t.section_id
-        WHERE lower(${jsonField('data', 'tags')}) like '%' || lower($1) || '%'
-           OR lower(${jsonField('data', 'title')}) like '%' || lower($1) || '%'
-           OR lower(t.page_title) like '%' || lower($1) || '%'
-        order by page_id, t.section_id
-      ` :
-      `SELECT di.id page_id, di.type, ${jsonField('di.data', 'url_slug')} url_slug, ${jsonField('di.data', 'title')} page_title
-        FROM ${tableName('data_items')} di
-        WHERE app = $2
-        AND type = $3
-        AND lower(${jsonField('data', 'title')}) like '%' || lower($1) || '%'`;
+        const sql = searchType === 'byTag' ? `
+          with t as (
+            SELECT di.id page_id, di.type, ${jsonField('di.data', 'url_slug')} url_slug, ${jsonField('di.data', 'title')} page_title,
+              ${jsonArrayExpr} section_id
+            FROM ${tbl} di${jsonArrayFrom}
+            WHERE app = $1
+            AND type = $2
+          )
 
-      const promises = appKeys.map(key =>
-        dms_db.promise(sql, [tag, ...key.split("+")])
+          select t.*, ${jsonField('data', 'title')} section_title, ${jsonField('data', 'tags')} tags
+          FROM t
+          JOIN ${tbl} di
+          ON ${typeCast('id', 'TEXT', dbType)} = t.section_id
+          WHERE lower(${jsonField('data', 'tags')}) like '%' || lower($3) || '%'
+             OR lower(${jsonField('data', 'title')}) like '%' || lower($3) || '%'
+             OR lower(t.page_title) like '%' || lower($3) || '%'
+          order by page_id, t.section_id
+        ` :
+        `SELECT di.id page_id, di.type, ${jsonField('di.data', 'url_slug')} url_slug, ${jsonField('di.data', 'title')} page_title
+          FROM ${tbl} di
+          WHERE app = $1
+          AND type = $2
+          AND lower(${jsonField('data', 'title')}) like '%' || lower($3) || '%'`;
+
+        return dms_db.promise(sql, [app, type, tag])
           .then(rows => ({
             key,
             rows: rows.map((r, i) => ({ i, ...r }))
-          }))
-      )
+          }));
+      })
 
       return Promise.all(promises)
     },
 
-    getTags: (appKeys, type) => {
-      // Build JSON array elements expression based on database type
+    getTags: (appKeys, searchType) => {
+      // getTags operates on page content
       const jsonArrayExpr = dbType === 'postgres'
         ? `jsonb_array_elements(data->'sections')->>'id'`
         : `json_extract(je.value, '$.id')`;
@@ -338,39 +456,42 @@ function createController(dbName = 'dms-sqlite') {
         ? ''
         : `, json_each(data, '$.sections') as je`;
 
-      const sql = type === 'tags' ? `
-        with t as (
-          SELECT di.id page_id, di.type, ${jsonField('di.data', 'url_slug')} url_slug, ${jsonField('di.data', 'title')} page_title,
-            ${jsonArrayExpr} section_id
-          FROM ${tableName('data_items')} di${jsonArrayFrom}
+      const promises = appKeys.map(async key => {
+        const [app, type] = key.split("+");
+        const tbl = await mainTable(app);
+
+        const sql = searchType === 'tags' ? `
+          with t as (
+            SELECT di.id page_id, di.type, ${jsonField('di.data', 'url_slug')} url_slug, ${jsonField('di.data', 'title')} page_title,
+              ${jsonArrayExpr} section_id
+            FROM ${tbl} di${jsonArrayFrom}
+            WHERE app = $1
+            AND type = $2
+          )
+
+          select DISTINCT ${jsonField('data', 'tags')} tags
+          FROM ${tbl} di
+          JOIN t
+          ON ${typeCast('id', 'TEXT', dbType)} = t.section_id
+          WHERE ${jsonField('data', 'tags')} IS NOT NULL AND ${jsonField('data', 'tags')} != '';
+        ` :
+        `SELECT distinct ${jsonField('data', 'title')} page_title
+          FROM ${tbl}
           WHERE app = $1
-          AND type = $2
-        )
+          AND type = $2`;
 
-        select DISTINCT ${jsonField('data', 'tags')} tags
-        FROM ${tableName('data_items')} di
-        JOIN t
-        ON ${typeCast('id', 'TEXT', dbType)} = t.section_id
-        WHERE ${jsonField('data', 'tags')} IS NOT NULL AND ${jsonField('data', 'tags')} != '';
-      ` :
-      `SELECT distinct ${jsonField('data', 'title')} page_title
-        FROM ${tableName('data_items')}
-        WHERE app = $1
-        AND type = $2`;
-
-      const promises = appKeys.map(key =>
-        dms_db.promise(sql, key.split("+"))
+        return dms_db.promise(sql, [app, type])
           .then(rows => ({
             key,
             rows
-          }))
-      )
+          }));
+      })
 
       return Promise.all(promises)
     },
 
     getSections: (appKeys) => {
-      // Build JSON array elements expression based on database type
+      // getSections operates on page content
       const jsonArrayExpr = dbType === 'postgres'
         ? `(jsonb_array_elements(data->'draft_sections')->>'id')::INTEGER`
         : `CAST(json_extract(je.value, '$.id') AS INTEGER)`;
@@ -379,56 +500,60 @@ function createController(dbName = 'dms-sqlite') {
         ? ''
         : `, json_each(data, '$.draft_sections') as je`;
 
-      // Build element-type JSON expression
       const elementTypeExpr = dbType === 'postgres'
         ? `data->'element'->'element-type'`
         : `json_extract(data, '$.element.element-type')`;
 
-      // Build attribution CASE expression
       const attributionExpr = dbType === 'postgres'
         ? `CASE WHEN ${jsonField('data', 'element.element-type')} = 'lexical' THEN null ELSE ((${jsonField('data', 'element.element-data')})::JSON)->'attributionData' END`
         : `CASE WHEN json_extract(data, '$.element.element-type') = 'lexical' THEN null ELSE json_extract(json_extract(data, '$.element.element-data'), '$.attributionData') END`;
 
-      const sql = `WITH t AS (
-        SELECT app, type,
-          id page_id,
-          ${jsonField('data', 'url_slug')} url_slug,
-          ${jsonField('data', 'title')} page_title,
-          ${jsonField('data', 'index')} page_index,
-          ${jsonField('data', 'parent')} page_parent,
-          ${jsonArrayExpr} section_id
-        FROM ${tableName('data_items')}${jsonArrayFrom}
-        WHERE app = $1
-        AND type = $2
-        AND ${jsonField('data', 'url_slug')} IS NOT NULL
-        AND type NOT LIKE '%|template'
-        AND ${jsonField('data', 'index')} != '999'
-      )
+      const promises = appKeys.map(async key => {
+        const [app, type] = key.split("+");
+        const tbl = await mainTable(app);
 
-      SELECT t.*,
-        ${jsonField('data', 'trackingId')} tracking_id,
-        ${jsonField('data', 'title')} section_title,
-        ${jsonField('data', 'tags')} tags,
-        ${elementTypeExpr} element_type,
-        ${attributionExpr} attribution
-      FROM t
-      JOIN ${tableName('data_items')} di
-      ON id = t.section_id
-      ORDER BY page_id, t.section_id
-      `;
+        const sql = `WITH t AS (
+          SELECT app, type,
+            id page_id,
+            ${jsonField('data', 'url_slug')} url_slug,
+            ${jsonField('data', 'title')} page_title,
+            ${jsonField('data', 'index')} page_index,
+            ${jsonField('data', 'parent')} page_parent,
+            ${jsonArrayExpr} section_id
+          FROM ${tbl}${jsonArrayFrom}
+          WHERE app = $1
+          AND type = $2
+          AND ${jsonField('data', 'url_slug')} IS NOT NULL
+          AND type NOT LIKE '%|template'
+          AND ${jsonField('data', 'index')} != '999'
+        )
 
-      const promises = appKeys.map(key =>
-        dms_db.promise(sql, [...key.split("+")])
+        SELECT t.*,
+          ${jsonField('data', 'trackingId')} tracking_id,
+          ${jsonField('data', 'title')} section_title,
+          ${jsonField('data', 'tags')} tags,
+          ${elementTypeExpr} element_type,
+          ${attributionExpr} attribution
+        FROM t
+        JOIN ${tbl} di
+        ON id = t.section_id
+        ORDER BY page_id, t.section_id
+        `;
+
+        return dms_db.promise(sql, [app, type])
           .then(rows => ({
             key,
             rows: rows.map((r, i) => ({ i, ...r }))
-          }))
-      )
+          }));
+      })
 
       return Promise.all(promises)
     },
 
-    getDataById: (ids, attributes=["id", "data", "updated_at", "created_at"]) => {
+    getDataById: async (ids, attributes=["id", "data", "updated_at", "created_at"], app = null) => {
+      // When app is provided, resolve per-app table; otherwise data_items (legacy)
+      const table = app ? await mainTable(app) : tableName('data_items');
+
       let cols = attributes
         .filter(d => d != 'id')
         .map(col => {
@@ -447,15 +572,18 @@ function createController(dbName = 'dms-sqlite') {
       const selectCols = cols ? `id, ${cols}` : 'id';
       const sql = `
         SELECT ${selectCols}
-        FROM ${tableName('data_items')}
+        FROM ${table}
         WHERE ${arrayResult.sql}
       `
       return dms_db.promise(sql, arrayResult.values);
     },
 
-    setDataById: (id, data, user) => {
+    setDataById: async (id, data, user, app = null) => {
+      // When app is provided, resolve per-app table; otherwise data_items (legacy)
+      const table = app ? await mainTable(app) : tableName('data_items');
+
       const sql = `
-        UPDATE ${tableName('data_items')}
+        UPDATE ${table}
         SET data = ${jsonMerge('data', '$1', dbType)},
           updated_at = ${now()},
           updated_by = $2
@@ -467,9 +595,11 @@ function createController(dbName = 'dms-sqlite') {
       return dms_db.promise(sql, [data, get(user, "id", null), id]);
     },
 
-    setMassData: (app, type, column, maps, user) => {
+    setMassData: async (app, type, column, maps, user) => {
       const sanitizedName = sanitizeName(column);
       if(!sanitizedName) return;
+
+      const { fullName } = await ensureForWrite(app, type);
 
       const columnToUpdate = sanitizedName.includes('data->>') ? column :
         (dbType === 'postgres' ? `data->>'${column}'` : `json_extract(data, '$.${column}')`);
@@ -486,10 +616,10 @@ function createController(dbName = 'dms-sqlite') {
           if(!sanitizedApp || !sanitizedType || !sanitizedValue) return;
 
           const sql = `
-            UPDATE ${tableName('data_items')}
+            UPDATE ${fullName}
             SET data = ${jsonMerge('data', `'${stringValidValue}'`, dbType)},
                 updated_at = ${now()},
-                updated_by = '${user}'
+                updated_by = ${user != null ? `'${user}'` : 'NULL'}
             WHERE app = '${sanitizedApp}'
             AND type = '${sanitizedType}'
             AND ${columnToUpdate} ${isComparingNull ? `IS null` : `= '${stringInvalidValue}'`}
@@ -503,9 +633,12 @@ function createController(dbName = 'dms-sqlite') {
       )
     },
 
-    setTypeById: (id, type, user) => {
+    setTypeById: async (id, type, user, app = null) => {
+      // When app is provided, resolve per-app table; otherwise data_items (legacy)
+      const table = app ? await mainTable(app) : tableName('data_items');
+
       const sql = `
-        UPDATE ${tableName('data_items')}
+        UPDATE ${table}
         SET type = $1,
           updated_at = ${now()},
           updated_by = $2
@@ -551,29 +684,177 @@ function createController(dbName = 'dms-sqlite') {
           }, [])
       ).then(res => [].concat(...res)),
 
-    createData: (args, user) => {
+    createData: async (args, user) => {
       const [app, type, data = {}] = args;
+      const resolved = await ensureForWrite(app, type);
+      const userId = get(user, "id", null);
+
+      // SQLite split tables need explicit ID allocation (no AUTOINCREMENT)
+      if (dbType === 'sqlite' && resolved.table !== 'data_items') {
+        const id = await allocateId(dms_db, app, dbType, splitMode);
+        const sql = `
+          INSERT INTO ${resolved.fullName}(id, app, type, data, created_by, updated_by)
+          VALUES ($1, $2, $3, $4, $5, $5)
+          RETURNING id, app, type, data,
+            ${typeCast('created_at', 'TEXT', dbType)}, created_by,
+            ${typeCast('updated_at', 'TEXT', dbType)}, updated_by;
+        `;
+        return dms_db.promise(sql, [id, app, type, data, userId]);
+      }
+
+      // PostgreSQL split tables use DEFAULT nextval() from shared sequence.
+      // Default data_items uses its own AUTOINCREMENT/sequence.
       const sql = `
-        INSERT INTO ${tableName('data_items')}(app, type, data, created_by, updated_by)
+        INSERT INTO ${resolved.fullName}(app, type, data, created_by, updated_by)
         VALUES ($1, $2, $3, $4, $4)
         RETURNING id, app, type, data,
           ${typeCast('created_at', 'TEXT', dbType)}, created_by,
           ${typeCast('updated_at', 'TEXT', dbType)}, updated_by;
       `
-      const userId = get(user, "id", null);
-      const values = [app, type, data, userId];
-
-      return dms_db.promise(sql, values);
+      return dms_db.promise(sql, [app, type, data, userId]);
     },
 
-    deleteData: (ids, user) => {
+    deleteData: async (app, type, ids, user) => {
+      const resolved = await ensureForRead(app, type);
       const arrayResult = buildArrayComparison('id', ids, dbType);
       const sql = `
-        DELETE FROM ${tableName('data_items')}
+        DELETE FROM ${resolved.fullName}
         WHERE ${arrayResult.sql};
       `
       return dms_db.promise(sql, arrayResult.values);
-    }
+    },
+
+    /**
+     * Search for a row by a JSON data key value across one or more types.
+     * Used by publish upsert to find existing records by primary key.
+     * @param {string} app
+     * @param {string[]} types - types to search across (e.g. [validType, invalidType])
+     * @param {string} dataKey - JSON field name inside data column
+     * @param {*} dataValue - value to match
+     * @returns {Object|null} first matching row {id, type, data} or null
+     */
+    findByDataKey: async (app, types, dataKey, dataValue) => {
+      const resolved = await ensureForRead(app, types[0]);
+      const qb = new QueryBuilder(dbType);
+      const sql = `
+        SELECT id, type, data FROM ${resolved.fullName}
+        WHERE app = ${qb.param(app)}
+        AND ${qb.arrayIn('type', types)}
+        AND ${jsonField('data', dataKey)} = ${qb.param(String(dataValue))}
+        LIMIT 1;
+      `;
+      const rows = await dms_db.promise(sql, qb.getValues());
+      return rows[0] || null;
+    },
+
+    /**
+     * Update both type and data for a row by ID. Split-table aware.
+     * Used by publish upsert when a matching record is found.
+     * @param {string} app - application name (for source_id lookup)
+     * @param {number} id - row ID
+     * @param {string} newType - new type value (may change valid↔invalid)
+     * @param {Object} data - data to merge
+     * @param {string} userId
+     */
+    updateDataById: async (app, id, newType, data, userId) => {
+      // Determine which table the row is in based on the new type.
+      // For dataset rows the valid and invalid types resolve to the same split table.
+      const resolved = await ensureForWrite(app, newType);
+      const sql = `
+        UPDATE ${resolved.fullName}
+        SET type = $1,
+          data = ${jsonMerge('data', '$2', dbType)},
+          updated_at = ${now()},
+          updated_by = $3
+        WHERE id = $4
+        RETURNING id, app, type, data,
+          ${typeCast('created_at', 'TEXT', dbType)}, created_by,
+          ${typeCast('updated_at', 'TEXT', dbType)}, updated_by;
+      `;
+      return dms_db.promise(sql, [newType, data, userId, id]);
+    },
+
+    /**
+     * Get source config (attributes metadata) for validation.
+     * Looks up the source record by parentId or by doc_type.
+     * Source records live in the main data_items table (not split).
+     * @param {string} app
+     * @param {number|string} parentId - source record ID (optional)
+     * @param {string} parentDocType - doc_type to look up (fallback)
+     * @returns {Object|null} parsed config object or null
+     */
+    getSourceConfig: async (app, parentId, parentDocType) => {
+      const table = await mainTable(app);
+      let sql, values;
+      if (parentId) {
+        sql = `SELECT ${jsonField('data', 'config')} AS config FROM ${table} WHERE app = $1 AND id = $2`;
+        values = [app, parentId];
+      } else {
+        sql = `SELECT ${jsonField('data', 'config')} AS config FROM ${table} WHERE app = $1 AND ${jsonField('data', 'doc_type')} = $2 ORDER BY id DESC LIMIT 1`;
+        values = [app, parentDocType];
+      }
+      const rows = await dms_db.promise(sql, values);
+      if (!rows[0]?.config) return null;
+      try {
+        return typeof rows[0].config === 'object' ? rows[0].config : JSON.parse(rows[0].config);
+      } catch { return null; }
+    },
+
+    /**
+     * Find a source record's ID by app and doc_type.
+     * Used by the publish handler to derive sourceId when the client doesn't provide it.
+     * @param {string} app
+     * @param {string} docType - the doc_type stored in the source's data
+     * @returns {number|null} the source record ID, or null if not found
+     */
+    findSourceIdByDocType: async (app, docType) => {
+      const table = await mainTable(app);
+      const rows = await dms_db.promise(
+        `SELECT id FROM ${table} WHERE app = $1 AND ${jsonField('data', 'doc_type')} = $2 AND type LIKE '%|source' ORDER BY id DESC LIMIT 1`,
+        [app, docType]
+      );
+      return rows[0]?.id || null;
+    },
+
+    /**
+     * Get all rows for given app and types. Split-table aware.
+     * Used by validate to fetch both valid and invalid rows.
+     * @param {string} app
+     * @param {string[]} types - e.g. [validType, invalidType]
+     * @returns {Array} rows with {id, type, data}
+     */
+    getRowsByTypes: async (app, types) => {
+      const resolved = await ensureForRead(app, types[0]);
+      const qb = new QueryBuilder(dbType);
+      const sql = `
+        SELECT id, type, data FROM ${resolved.fullName}
+        WHERE app = ${qb.param(app)}
+        AND ${qb.arrayIn('type', types)};
+      `;
+      return dms_db.promise(sql, qb.getValues());
+    },
+
+    /**
+     * Batch update type for a set of row IDs. Split-table aware.
+     * Used by validate to move rows between valid and invalid types.
+     * @param {string} app
+     * @param {string} fromType - current type
+     * @param {string} toType - new type
+     * @param {number[]} ids - row IDs to update
+     */
+    batchUpdateType: async (app, fromType, toType, ids) => {
+      if (!ids?.length) return;
+      const resolved = await ensureForWrite(app, fromType);
+      const qb = new QueryBuilder(dbType);
+      const sql = `
+        UPDATE ${resolved.fullName}
+        SET type = ${qb.param(toType)}, updated_at = ${now()}
+        WHERE app = ${qb.param(app)}
+        AND type = ${qb.param(fromType)}
+        AND ${qb.arrayIn('id', ids)};
+      `;
+      return dms_db.promise(sql, qb.getValues());
+    },
   };
 }
 

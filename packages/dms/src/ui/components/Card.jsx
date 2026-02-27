@@ -1,4 +1,5 @@
 import React, {memo, useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {Link} from "react-router";
 import {getComponentTheme, ThemeContext} from '../useTheme';
 import ColumnTypes from "../columnTypes";
 import TableHeaderCell from "./table/components/TableHeaderCell";
@@ -257,8 +258,10 @@ const RenderItem = memo(function RenderItem ({
                                             `} style={{maxWidth: headerValueLayout === 'col' || attr.hideHeader ? undefined : `${valueWidth || 50}%`}}>
                                             {
                                                 isLink && !(allowEdit || attr.allowEditInView) ?
+                                                    (isLinkExternal ?
                                                     <a className={theme.linkColValue}
-                                                       target={isLinkExternal ? '_blank' : '_self'}
+                                                       target="_blank"
+                                                       rel="noopener noreferrer"
                                                        href={url}
                                                     >
                                                         <CompWrapper attribute={attr}
@@ -285,6 +288,33 @@ const RenderItem = memo(function RenderItem ({
                                                                      componentWrapperClassName={theme.componentWrapper}
                                                         />
                                                     </a> :
+                                                    <Link className={theme.linkColValue}
+                                                          to={url}
+                                                    >
+                                                        <CompWrapper attribute={attr}
+                                                                     value={linkText || valueFormattedForDisplay}
+                                                                     rawValue={valueFormattedForEdit}
+                                                                     isValueFormatted={isValueFormatted}
+                                                                     updateItem={isNewItem ? undefined : updateItem}
+
+                                                            // form edit controls
+                                                                     liveEdit={liveEdit}
+                                                                     tmpItem={tmpItem}
+                                                                     setTmpItem={setTmpItem}
+
+                                                            // add new item controls
+                                                                     isNewItem={isNewItem}
+                                                                     newItem={isNewItem ? newItem : undefined}
+                                                                     setNewItem={isNewItem ? setNewItem : undefined}
+
+                                                                     id={id}
+                                                                     allowEdit={allowEdit || attr.allowEditInView}
+                                                                     formatFunctions={formatFunctions}
+                                                                     className={`${theme[valueTextJustifyClass]} ${theme.valueWrapper}`}
+
+                                                                     componentWrapperClassName={theme.componentWrapper}
+                                                        />
+                                                    </Link>) :
                                                     <CompWrapper attribute={attr}
                                                                  value={valueFormattedForDisplay}
                                                                  rawValue={valueFormattedForEdit}

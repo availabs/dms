@@ -188,36 +188,38 @@ function getDb(pgEnv) {
   // Support multi-role configs: "role": "dms" or "role": ["dms", "auth"]
   const roles = Array.isArray(config.role) ? config.role : [config.role];
 
-  // Initialize based on database role(s), tracking promises for awaitReady()
-  if (roles.includes("dama")) {
-    initPromises.push(
-      initDama(databases[pgEnv]).then(() => {
+  // Initialize based on database role(s), tracking promises for awaitReady().
+  // Run sequentially — SQLite can't handle concurrent transactions on the same connection.
+  const initSequence = async () => {
+    if (roles.includes("dama")) {
+      try {
+        await initDama(databases[pgEnv]);
         console.log("dama init", pgEnv);
-      }).catch(err => {
+      } catch (err) {
         console.error("dama init failed:", err.message);
-      })
-    );
-  }
+      }
+    }
 
-  if (roles.includes("auth")) {
-    initPromises.push(
-      initAuth(databases[pgEnv]).then(() => {
+    if (roles.includes("auth")) {
+      try {
+        await initAuth(databases[pgEnv]);
         console.log("auth init", pgEnv);
-      }).catch(err => {
+      } catch (err) {
         console.error("auth init failed:", err.message);
-      })
-    );
-  }
+      }
+    }
 
-  if (roles.includes("dms")) {
-    initPromises.push(
-      initDms(databases[pgEnv]).then(() => {
+    if (roles.includes("dms")) {
+      try {
+        await initDms(databases[pgEnv]);
         console.log("dms init", pgEnv);
-      }).catch(err => {
+      } catch (err) {
         console.error("dms init failed:", err.message);
-      })
-    );
-  }
+      }
+    }
+  };
+
+  initPromises.push(initSequence());
 
   return databases[pgEnv];
 }

@@ -1,14 +1,18 @@
 export const ExternalSourceAttributes = [
     "source_id",
+    // "app",
+    // "doc_type",
+    "type",
+    // "config"
     "name",
     "display_name",
-    "type",
     "update_interval",
     "category",
     "categories",
     "description",
     "statistics",
-    "metadata"
+    "metadata",
+
 ];
 
 export const ExternalViewAttributes = [

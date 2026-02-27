@@ -1,10 +1,7 @@
 import React, { useEffect, useContext, useMemo } from "react"
-import { AvlLayer, hasValue } from "~/modules/avl-map-2/src"
-// import { MapContext } from "./dms/map/MapComponent"
+import { AvlLayer } from "../../../datasets/pages/dataTypes/gis_dataset/pages/Map/avl-map-2/src"
+import { get } from 'lodash-es'
 import { SymbologyContext } from "../"
-import get from "lodash/get"
-import set from "lodash/set"
-import omit from "lodash/omit"
 import {PluginLibrary} from "../"
 
 //CURRENTLY

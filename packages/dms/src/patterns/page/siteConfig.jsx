@@ -1,7 +1,9 @@
 import React from "react";
-import { merge, get } from "lodash-es";
+import { get } from "lodash-es";
+import { useRouteError } from "react-router";
 import { parseIfJSON } from "./pages/_utils";
 import { initializePatternFormat } from "../../dms-manager/_utils";
+import { preloadPageSections } from "../../api/preloadSectionData.js";
 
 // components
 import cmsFormat from "./page.format.js";
@@ -74,6 +76,8 @@ const pagesConfig = ({
   return {
     siteType,
     format: format,
+    preload: (falcor, data, request, params) =>
+        preloadPageSections(falcor, data, request.url, patternFilters, params?.['*'] || ''),
     pages: [{path: 'edit_pattern', name: 'Format Manager', component: FormatManager}],
     baseUrl,
     API_HOST,
@@ -150,7 +154,9 @@ const pagesConfig = ({
         ],
       },
     ],
-    errorElement: () => {
+    errorElement: (props) => {
+      let error = useRouteError();
+      console.log('page pattern - siteconfig -error element', error)
       return (
         <ThemeContext.Provider value={{ theme, UI }}>
           <ErrorPage />

@@ -1,14 +1,17 @@
 import React, { useEffect, useMemo, useState } from "react";
-import get from "lodash/get";
+import { get } from "lodash-es";
 import SourcesLayout from "../../../../SourceLayout";
 import { MapEditorContext } from "../../../../context"
 import { SourceAttributes, ViewAttributes, getAttributes } from "../../../../attributes";
-import {CheckCircleIcon} from "@heroicons/react/20/solid/index.js";
 import { DEFAULT_SOURCE } from "../SourceSelector";
 import { dmsColumnTypes } from "../../../../../../"
 import { makeLexicalFormat } from "../../../../utils";
+import { ThemeContext } from "../../../../../../ui/themeContext";
+
 const SourceThumb = ({ source, selectedSource, setSource, cat1, setCat1 }) => {
-  const {pgEnv, baseUrl, falcor, falcorCache} = React.useContext(MapEditorContext)
+  const { pgEnv, baseUrl, falcor, falcorCache } = React.useContext(MapEditorContext)
+  const { UI } = React.useContext(ThemeContext) || {}
+  const { Icon } = UI
   const activeViewId = selectedSource.viewId;
 
   const isActiveSource = selectedSource?.sourceId === source.source_id;
@@ -44,8 +47,8 @@ const SourceThumb = ({ source, selectedSource, setSource, cat1, setCat1 }) => {
 
   return (
     <div>
-      <div 
-        className={`w-full p-4 ${isActiveSource ? 'bg-blue-100 hover:bg-blue-200' : 'bg-white hover:bg-blue-50'} overflow-hidden block border shadow flex`} 
+      <div
+        className={`w-full p-4 ${isActiveSource ? 'bg-blue-100 hover:bg-blue-200' : 'bg-white hover:bg-blue-50'} overflow-hidden block border shadow flex`}
         onClick={() => {
           if (selectedSource.sourceId !== source.source_id) {
 
@@ -84,7 +87,7 @@ const SourceThumb = ({ source, selectedSource, setSource, cat1, setCat1 }) => {
                 }
 
                 return (
-                  <div 
+                  <div
                     key={i}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -94,7 +97,7 @@ const SourceThumb = ({ source, selectedSource, setSource, cat1, setCat1 }) => {
                       else {
                         setCat1(s)
                       }
-                    }} 
+                    }}
                     className={`inline hover:cursor-pointer text-xs p-1 px-2 ${colorClass}  mr-2`}
                   >
                     {s}
@@ -105,7 +108,7 @@ const SourceThumb = ({ source, selectedSource, setSource, cat1, setCat1 }) => {
           <div className='py-2 block'>
             <Lexical value={makeLexicalFormat(source.description)}/>
           </div>
-        </div>      
+        </div>
       </div>
       {
         isActiveSource && <>
@@ -149,7 +152,7 @@ const SourceThumb = ({ source, selectedSource, setSource, cat1, setCat1 }) => {
                   </div>
                   <div className="flex items-center col-span-2">
                     {new Date(view._modified_timestamp).toLocaleDateString()}
-                    {isActiveView && <CheckCircleIcon className='ml-2 text-green-700 h-5 w-5'/>}
+                    {isActiveView && <Icon icon="CircleCheck" className='ml-2 text-green-700 h-5 w-5'/>}
                   </div>
                 </div>
               )
@@ -249,7 +252,7 @@ const SourcesList = ({selectedSource, setSource}) => {
                     }
                   }}
               >
-                <i className={'fa fa-category'} /> 
+                <i className={'fa fa-category'} />
                 {cat}
                 <div className={'bg-blue-200 text-blue-600 text-xs w-5 h-5 ml-2 shrink-0 grow-0 rounded-lg flex items-center justify-center border border-blue-300'}>
                   {categoriesCount[cat]}

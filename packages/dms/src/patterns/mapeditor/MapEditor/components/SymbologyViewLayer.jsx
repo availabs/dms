@@ -1,14 +1,7 @@
-import React, { useEffect, useContext, useRef } from "react"
-import get from "lodash/get"
-import isEqual from "lodash/isEqual"
-import cloneDeep from "lodash/cloneDeep"
-import { AvlLayer, hasValue } from "~/modules/avl-map-2/src"
-import { usePrevious, getValidSources } from './LayerManager/utils'
-import { API_HOST } from '~/config'
-
-// import { DamaContext } from "../../store"
-// import { MapContext } from "./dms/MapComponent"
-// import { CMSContext } from '~/modules/dms/src'
+import React, { useEffect } from "react"
+import {get, isEqual, cloneDeep} from 'lodash-es'
+import { AvlLayer } from "../../../datasets/pages/dataTypes/gis_dataset/pages/Map/avl-map-2/src"
+import { usePrevious } from './LayerManager/utils'
 
 import { MapEditorContext } from "../../context"
 
@@ -29,8 +22,8 @@ const ViewLayerRender = (props) => {
   // avl-map doesn't always automatically remove layers on unmount
   // so do it here
   // ---------------
-  useEffect(() => {  
-    return () => { 
+  useEffect(() => {
+    return () => {
       //console.log('unmount', layer.id, layerProps.name, layer)
       layer.layers.forEach(l => {
         try {
@@ -44,23 +37,6 @@ const ViewLayerRender = (props) => {
     }
   }, [])
 
-  // const mapCenter = maplibreMap.getCenter();
-  // const mapZoom = maplibreMap.getZoom();
-
-  // useEffect(() => {
-  //   if(state.setInitialBounds) {
-  //     setState(draft => {
-  //       draft.setInitialBounds = false;
-  //       const newBounds = {
-  //         center: mapCenter,
-  //         zoom: mapZoom
-  //       };
-  //       if(!isEqual(state.initialBounds, newBounds)){
-  //         draft.initialBounds = newBounds;
-  //       }
-  //     })
-  //   }
-  // }, [maplibreMap, state.setInitialBounds]);
 
   // to detect changes in layerprops
   const prevLayerProps = usePrevious(layerProps);
@@ -136,7 +112,7 @@ const ViewLayerRender = (props) => {
 
         layerProps?.layers?.forEach(l => {
           if(maplibreMap.getLayer(l?.id) && maplibreMap.getLayer(l?.id)){
-            maplibreMap.removeLayer(l?.id) 
+            maplibreMap.removeLayer(l?.id)
           }
         })
 
@@ -150,9 +126,9 @@ const ViewLayerRender = (props) => {
         let beneathLayer = Object.values(allLayerProps).find(l => l?.order === (layerProps.order+1))
         layerProps?.layers?.forEach(l => {
           if(maplibreMap.getLayer(beneathLayer?.id)){
-            maplibreMap.addLayer(l, beneathLayer?.id) 
+            maplibreMap.addLayer(l, beneathLayer?.id)
           } else {
-            maplibreMap.addLayer(l) 
+            maplibreMap.addLayer(l)
           }
         })
       }
@@ -162,7 +138,7 @@ const ViewLayerRender = (props) => {
       let beneathLayer = Object.values(allLayerProps).find(l => l?.order === (layerProps?.order+1))
       layerProps?.layers?.forEach(l => {
         if(maplibreMap.getLayer(l?.id)){
-          maplibreMap.moveLayer(l?.id, beneathLayer?.id) 
+          maplibreMap.moveLayer(l?.id, beneathLayer?.id)
         }
       })
     }
@@ -194,7 +170,7 @@ const ViewLayerRender = (props) => {
         })
       }
     })
-    
+
 
     // -------------------------------
     // Apply filters
@@ -254,7 +230,7 @@ const ViewLayerRender = (props) => {
                       filterColumnClause,
                       ["literal", filterValue]
                     ];
-  
+
                     if(filterOperator === "!="){
                       mapFilter = ["!", mapFilter];
                     }
@@ -284,7 +260,7 @@ const ViewLayerRender = (props) => {
               let mapFilter = [];
 
               const filterValue = dFilter.values;
-              let parsedFilterValues; 
+              let parsedFilterValues;
 
               let parseMapDataFunction = '';
               //Determine if this is a numeric or string field
@@ -330,24 +306,24 @@ const getLayerTileUrl = (tileBase, layerProps) => {
   let newTileUrl = tileBase;
 
 
-  const layerHasFilter = (layerProps?.filter && Object.keys(layerProps?.filter)?.length > 0) 
+  const layerHasFilter = (layerProps?.filter && Object.keys(layerProps?.filter)?.length > 0)
 
   const dataFilterCols =
     layerProps?.filterGroupEnabled && layerProps?.["filter-group"]?.length > 0
       ? layerProps?.["filter-group"]
           ?.map((filterObj) => filterObj.column_name)
       : [layerProps?.["data-column"]];
-  
+
   const dynamicCols = layerProps?.["dynamic-filters"]
     ?.filter((dFilter) => dFilter?.values?.length > 0)
     .map((dFilter) => dFilter.column_name);
   const colsToAppend = dataFilterCols.concat(dynamicCols).filter(onlyUnique).filter(col => !!col).join(",")
-  
+
   /**
    * colsToAppend contains all the data columns used for:
    * filter groups and/or data-column (filter group allows user to change the data-column)
    * dynamic columns
-   * 
+   *
    * This conditional modifies `newTileUrl` to include those columns
    */
   if (newTileUrl && (colsToAppend || layerHasFilter)) {
@@ -376,7 +352,7 @@ const getLayerTileUrl = (tileBase, layerProps) => {
     // }
 
     /**
-     * this conditional modifies `newTileUrl` with any columns used 
+     * this conditional modifies `newTileUrl` with any columns used
      */
     if (layerHasFilter) {
       const splitUrl = newTileUrl.split("?cols=");
@@ -418,9 +394,9 @@ const getLayerTileUrl = (tileBase, layerProps) => {
   return newTileUrl;
 };
 
-class ViewLayer extends AvlLayer { 
+class ViewLayer extends AvlLayer {
   // constructor makes onHover not work??
-  // constructor(layer, view) { 
+  // constructor(layer, view) {
   //   super();
 
   //   this.id = layer.id;
@@ -438,7 +414,7 @@ class ViewLayer extends AvlLayer {
   //     newLayer.source = `${layer.id}_${l.source}`
   //     return newLayer
   //   })
-    
+
   // }
 
   onHover = {
@@ -455,7 +431,7 @@ class ViewLayer extends AvlLayer {
       return data;
     },
     Component: HoverComp,
-    // Component: ({ data, layer }) => { 
+    // Component: ({ data, layer }) => {
     //   if(!layer.props.hover) return
     //   return (
     //     <div className='p-2 bg-white'>
@@ -465,7 +441,7 @@ class ViewLayer extends AvlLayer {
     // },
     isPinnable: this.isPinnable || true
   };
-  
+
   RenderComponent = ViewLayerRender;
 }
 
@@ -501,7 +477,7 @@ const HoverComp = ({ data, layer }) => {
           "dama", pgEnv, "sources", "byId", source_id, "attributes", "metadata"
       ]);
     }
-    
+
   }, [source_id, hoverColumns]);
 
   const attributes = React.useMemo(() => {
@@ -601,12 +577,12 @@ const HoverComp = ({ data, layer }) => {
   //       );
 
   //       setMetadata(out);
-      
+
   //   };
 
   //   getMetadata();
 
-    
+
   // },[source_id, falcor])
 
   const metadata = React.useMemo(() => {
@@ -618,7 +594,7 @@ const HoverComp = ({ data, layer }) => {
         "dama", pgEnv, "sources", "byId", source_id, "attributes", "metadata", "value"
       ], [])
     }
-    
+
     return Array.isArray(out) ? out : []
   }, [source_id, falcorCache]);
   let getAttributes = (typeof attributes?.[0] === 'string' ?

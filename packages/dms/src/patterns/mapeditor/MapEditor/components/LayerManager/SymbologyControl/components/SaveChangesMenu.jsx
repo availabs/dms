@@ -1,11 +1,10 @@
 import React, { useContext, useState, useRef, useMemo, useEffect } from 'react'
 import { SymbologyContext } from '../../../..'
 import { MapEditorContext } from "../../../../../context"
-import { Button } from "~/modules/avl-components/src";
-import { Dialog } from '@headlessui/react'
+//import { Button } from "~/modules/avl-components/src";
+import { Dialog, Button } from '@headlessui/react'
 import { useParams, useNavigate } from 'react-router'
-import get from 'lodash/get'
-import isEqual from "lodash/isEqual"
+import {get, isEqual} from 'lodash-es'
 import { Modal } from '../'
 import { LOCAL_STORAGE_KEY_BASE } from '../../../../'
 //import { diff, addedDiff, deletedDiff, updatedDiff, detailedDiff } from 'deep-object-diff';
@@ -13,7 +12,7 @@ export function SaveChangesMenu({ button, className}) {
   const [showSaveChanges, setShowSaveChanges] = useState(false)
 
   return (
-      <div 
+      <div
         onClick={() => setShowSaveChanges(true)}
         className={className}
       >
@@ -89,7 +88,7 @@ function SaveChangesModal ({ open, setOpen })  {
   async function updateData() {
     await falcor.set({
       paths: [['dama', pgEnv, 'symbologies', 'byId', +symbologyId, 'attributes', 'symbology']],
-      jsonGraph: { dama: { [pgEnv]: { symbologies: { byId: { 
+      jsonGraph: { dama: { [pgEnv]: { symbologies: { byId: {
         [+symbologyId]: { attributes : { symbology: JSON.stringify(state.symbology) }}
       }}}}}
     })
@@ -98,7 +97,7 @@ function SaveChangesModal ({ open, setOpen })  {
   const updateDamaSymbology = React.useCallback(() => {
     falcor.set({
       paths: [['dama', pgEnv, 'symbologies', 'byId', symbologyId, 'attributes', 'symbology']],
-      jsonGraph: { dama: { [pgEnv]: { symbologies: { byId: { 
+      jsonGraph: { dama: { [pgEnv]: { symbologies: { byId: {
         [symbologyId]: { attributes : { symbology: JSON.stringify(state.symbology) } }
       } } } } }
     });
@@ -108,17 +107,17 @@ function SaveChangesModal ({ open, setOpen })  {
 // console.log("SaveChangesModal::updateDmsSymbology::state.symbology", state.symbology);
     falcor.call(
       ["dms", "data", "edit"],
-      [symbologyId, { symbology: state.symbology }]
+      [app, symbologyId, { symbology: state.symbology }]
     ).then(() => {
-      falcor.invalidate(["dms", "data", "byId", symbologyId]);
-    });
-  }, [symbologyId, state.symbology]);
+      falcor.invalidate(["dms", "data", app, "byId", symbologyId]);
+    })
+  }, [app, symbologyId, state.symbology]);
 
 /*
   async function updateName() {
     await falcor.set({
       paths: [['dama', pgEnv, 'symbologies', 'byId', +symbologyId, 'attributes', 'name']],
-      jsonGraph: { dama: { [pgEnv]: { symbologies: { byId: { 
+      jsonGraph: { dama: { [pgEnv]: { symbologies: { byId: {
         [+symbologyId]: { attributes : { name: state.name }}
       }}}}}
     })
@@ -127,7 +126,7 @@ function SaveChangesModal ({ open, setOpen })  {
   const updateDamaName = React.useCallback(() => {
     falcor.set({
       paths: [['dama', pgEnv, 'symbologies', 'byId', symbologyId, 'attributes', 'name']],
-      jsonGraph: { dama: { [pgEnv]: { symbologies: { byId: { 
+      jsonGraph: { dama: { [pgEnv]: { symbologies: { byId: {
         [symbologyId]: { attributes : { name: state.name } }
       } } } } }
     });
@@ -137,11 +136,11 @@ function SaveChangesModal ({ open, setOpen })  {
 // console.log("SaveChangesModal::updateDmsName::state.name", state.name);
     falcor.call(
       ["dms", "data", "edit"],
-      [symbologyId, { name: state.name }]
+      [app, symbologyId, { name: state.name }]
     ).then(() => {
-      falcor.invalidate(["dms", "data", "byId", symbologyId]);
-    });
-  }, [symbologyId, state.name]);
+      falcor.invalidate(["dms", "data", app, "byId", symbologyId]);
+    })
+  }, [app, symbologyId, state.name]);
 
 /*
   const createSymbologyMap = async () => {
@@ -154,7 +153,7 @@ function SaveChangesModal ({ open, setOpen })  {
       const newLayerId = Math.random().toString(36).replace(/[^a-z]+/g, '');
       newSymbology = newSymbology.replaceAll(oldLayerId, newLayerId)
     });
-    
+
     const resp = await falcor.call(
       ["dama", "symbology", "symbology", "create"],
       [pgEnv, JSON.parse(newSymbology)]
@@ -162,7 +161,7 @@ function SaveChangesModal ({ open, setOpen })  {
 
     const newSymbologyId = Object.keys(get(resp, ['json','dama', pgEnv , 'symbologies' , 'byId'], {}))?.[0] || false
     const newSymb = get(resp, ['json','dama', pgEnv , 'symbologies' , 'byId'],{})?.[newSymbologyId]?.attributes
-    
+
     if(newSymbologyId) {
       await falcor.invalidate(
         ["dama", pgEnv, "symbologies", "byIndex"],
@@ -260,13 +259,13 @@ function SaveChangesModal ({ open, setOpen })  {
       updateDamaSymbology, updateDmsSymbology,
       updateDamaName, updateDmsName
   ]);
- 
+
   const isSymbologyModified = useMemo(() => {
     // console.log("diff::",detailedDiff(state, dbSymbology));
     // console.log({state, dbSymbology})
     return (
-      state?.symbology?.layers && 
-      dbSymbology && 
+      state?.symbology?.layers &&
+      dbSymbology &&
       (
         !isEqual(state?.symbology?.layers, dbSymbology?.symbology?.layers) ||
         !isEqual(state?.symbology?.plugins, dbSymbology?.symbology?.plugins) ||
@@ -297,7 +296,7 @@ function SaveChangesModal ({ open, setOpen })  {
             Manage Changes
           </Dialog.Title>
           {
-            !isSymbologyModified ? 
+            !isSymbologyModified ?
               <div className="text-sm text-green-700 italic">No pending changes</div> :
               <div className="text-sm text-red-400 font-semibold">You have unsaved changes</div>
           }
@@ -362,12 +361,12 @@ function SaveChangesModal ({ open, setOpen })  {
           </div>
         </div>
         {
-          modalState.action === "saveas" && 
+          modalState.action === "saveas" &&
           <div className="flex mt-4 ml-4 w-full items-start justify-items-start">
             <input
               value={modalState.name}
-              onChange={e => setModalState({...modalState, name: e.target.value})} 
-              className='p-1 w-full bg-slate-100 ' 
+              onChange={e => setModalState({...modalState, name: e.target.value})}
+              className='p-1 w-full bg-slate-100 '
               placeholder={'New Map Name'}
             />
           </div>

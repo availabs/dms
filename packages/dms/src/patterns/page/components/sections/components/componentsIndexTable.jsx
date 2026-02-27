@@ -239,7 +239,7 @@ const processSections = (sections) => sections.map((s) => {
     .filter(s => s.parent && s.sortBy) // orphans
     .sort((a,b) => a.sortBy.localeCompare(b.sortBy));
 
-const updateSections = async ({sections, newView, falcor, user, setUpdating}) => {
+const updateSections = async ({sections, newView, falcor, user, setUpdating, app}) => {
     // for each section, update view. call dmsDataEditor. Update page flag too. group all page updates and do them togather. avoid duplicate page update calls.
     setUpdating(true);
 
@@ -249,11 +249,11 @@ const updateSections = async ({sections, newView, falcor, user, setUpdating}) =>
             const page_id = section.page_id;
 
             const comp = getRegisteredComponents()[section.element_type];
-            const dataRes = await falcor.get(['dms', 'data', 'byId', [section_id], ['app', 'type', 'data']]);
+            const dataRes = await falcor.get(['dms', 'data', app, 'byId', [section_id], ['app', 'type', 'data']]);
 
-            const sectionData = get(dataRes, ['json', 'dms', 'data', 'byId', section_id, 'data'], {});
-            const sectionApp = get(dataRes, ['json', 'dms', 'data', 'byId', section_id, 'app'], {});
-            const sectionType = get(dataRes, ['json', 'dms', 'data', 'byId', section_id, 'type'], {});
+            const sectionData = get(dataRes, ['json', 'dms', 'data', app, 'byId', section_id, 'data'], {});
+            const sectionApp = get(dataRes, ['json', 'dms', 'data', app, 'byId', section_id, 'app'], {});
+            const sectionType = get(dataRes, ['json', 'dms', 'data', app, 'byId', section_id, 'type'], {});
             const sectionConfig = {format: {app: sectionApp, type: sectionType}};
 
             const data = sectionData?.['element']?.['element-data'] ? JSON.parse(sectionData.element['element-data']) : {};
@@ -298,11 +298,11 @@ const updateSections = async ({sections, newView, falcor, user, setUpdating}) =>
         .map(async ({page_id, sections}) => {
             try {
                 // update page history, and has_changes to true;
-                const dataRes = await falcor.get(['dms', 'data', 'byId', [page_id], ['app', 'type', 'data']]);
+                const dataRes = await falcor.get(['dms', 'data', app, 'byId', [page_id], ['app', 'type', 'data']]);
 
-                const pageData = get(dataRes, ['json', 'dms', 'data', 'byId', page_id, 'data'], {});
-                const pageApp = get(dataRes, ['json', 'dms', 'data', 'byId', page_id, 'app'], {});
-                const pageType = get(dataRes, ['json', 'dms', 'data', 'byId', page_id, 'type'], {});
+                const pageData = get(dataRes, ['json', 'dms', 'data', app, 'byId', page_id, 'data'], {});
+                const pageApp = get(dataRes, ['json', 'dms', 'data', app, 'byId', page_id, 'app'], {});
+                const pageType = get(dataRes, ['json', 'dms', 'data', app, 'byId', page_id, 'type'], {});
                 const pageConfig = {format: {app: pageApp, type: pageType}};
 
                 let historyUpdate = sections.map(({section_id, sectionTitle}) => ({
@@ -528,7 +528,8 @@ const Edit = ({value, onChange}) => {
                                 newView,
                                 sections: sections.filter((s, sI) => (!filterNullTags || s.tags?.length) && filterSectionBySourceCondition(s)),
                                 falcor,
-                                setUpdating
+                                setUpdating,
+                                app
                             })}
                         >{updating ? 'updating...' : 'update'}</button>
                     ) : null

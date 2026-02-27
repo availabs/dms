@@ -1,11 +1,11 @@
 import React, { useContext , useMemo, Fragment}from 'react'
-import {SymbologyContext} from '../..'
-import { Plus, Close, MenuDots, CaretDown } from '../icons'
-import { Menu, Popover, Transition, Tab, Dialog } from '@headlessui/react'
+import { SymbologyContext } from '../..'
+// -- In the near future use UI from ThemeContext
+import { Close, MenuDots, CaretDown } from '../icons'
+import {  Popover, Transition } from '@headlessui/react'
+// --
 import { toHex } from '../LayerManager/utils'
-import { ChromePicker } from 'react-color';
-import get from 'lodash/get'
-import set from 'lodash/set'
+import { get } from 'lodash-es'
 
 
 import { pluginControlTypes } from './PluginControls'
@@ -21,7 +21,7 @@ export function StyledControl ({children}) {
 function PopoverControl ({values,title='',children}) {
   const filteredValues = values.filter(v => v.value !== null)
   return (
-    <StyledControl> 
+    <StyledControl>
       <Popover className="relative w-full">
           {({ open }) => (
             <>
@@ -57,10 +57,10 @@ function PopoverControl ({values,title='',children}) {
                         <div className=' w-full flex text-slate-700 py-1 px-2 text-sm font-semibold tracking-wider'>
                           {title}
                         </div>
-                        <div 
-                          onClick={() => close()} 
+                        <div
+                          onClick={() => close()}
                           className='p-0.5 rounded hover:bg-slate-100 m-1 cursor-pointer'>
-                            <Close className='fill-slate-700' /> 
+                            <Close className='fill-slate-700' />
                         </div>
                       </div>
                       <div className="relative">
@@ -73,7 +73,7 @@ function PopoverControl ({values,title='',children}) {
             </>
           )}
       </Popover>
-    </StyledControl> 
+    </StyledControl>
   )
 }
 
@@ -136,7 +136,7 @@ function PopoverControlWrapper (props) {
     })
   }, [state,controls])
   return (
-    <> 
+    <>
       <div className='w-16 text-slate-500 text-[14px] tracking-wide min-h-[32px] flex items-center'>{label}</div>
       <div className='flex-1 flex items-center'>
         <PopoverControl
