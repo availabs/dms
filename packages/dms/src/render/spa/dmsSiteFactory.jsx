@@ -13,19 +13,17 @@ import { parseIfJSON } from '../../patterns/page/pages/_utils';
 
 const getSubdomain = (host) => {
     // ---
-    // takes window.location.host and returns subdomain
+    // takes host string and returns subdomain
     // only works with single depth subdomains
     // ---
-    //console.log('host', host,  host.split('.'));
-    if (process.env.NODE_ENV === "development") {
-        return host.split('.').length >= 2 ?
-            window.location.host.split('.')[0].toLowerCase() :
-                false
-    } else {
-        return host.split('.').length > 2 ?
-            window.location.host.split('.')[0].toLowerCase() :
-                false
-    }
+    // Strip port (e.g., "songs.localhost:3001" → "songs.localhost")
+    const hostname = host.split(':')[0]
+    // localhost is a single-part TLD, so "sub.localhost" has 2 parts.
+    // Real domains like "example.com" have 2 parts, "sub.example.com" has 3.
+    const isLocalhost = hostname === 'localhost' || hostname.endsWith('.localhost')
+    const minParts = isLocalhost || process.env.NODE_ENV === "development" ? 2 : 3
+    const parts = hostname.split('.')
+    return parts.length >= minParts ? parts[0].toLowerCase() : false
 }
 
 function RootErrorBoundary() {
@@ -59,11 +57,12 @@ function pattern2routes (siteData, props) {
         DAMA_HOST = 'https://graph.availabs.org',
         damaBaseUrl,
         PROJECT_NAME,
-        damaDataTypes
+        damaDataTypes,
+        host = typeof window !== 'undefined' ? window.location.host : 'localhost'
     } = props
 
 
-    let SUBDOMAIN = getSubdomain(window.location.host)
+    let SUBDOMAIN = getSubdomain(host)
     // for weird double subdomain tld
     SUBDOMAIN = SUBDOMAIN === 'hazardmitigation' ? '' : SUBDOMAIN
 
@@ -215,6 +214,7 @@ export function DmsSite (config) {
     const {
         dmsConfig,
         defaultData,
+        hydrationData,
         adminPath = '/list',
         authPath,
         authWrapper = withAuth,
@@ -227,7 +227,8 @@ export function DmsSite (config) {
         damaBaseUrl,
         PROJECT_NAME,
         routes = [],
-        damaDataTypes = {}
+        damaDataTypes = {},
+        host = typeof window !== 'undefined' ? window.location.host : 'localhost'
     } = config
     //-----------
     // to do:
@@ -251,13 +252,18 @@ export function DmsSite (config) {
                 pgEnvs,
                 damaBaseUrl,
                 PROJECT_NAME: CurrentProjectName,
-                damaDataTypes
-                //theme
+                damaDataTypes,
+                host
             })
             : []
         );
 
     useEffect(() => {
+        // SSR already provided site data — routes were built synchronously
+        // from defaultData in useState above. Skip the async refetch to
+        // preserve the hydrated router state.
+        if (defaultData) return;
+
         let isStale = false;
         async function load () {
             // console.log('loading site data')
@@ -276,7 +282,7 @@ export function DmsSite (config) {
                 damaBaseUrl,
                 PROJECT_NAME: CurrentProjectName,
                 damaDataTypes,
-                //theme
+                host
             });
             // console.timeEnd('dmsSiteFactory')
             //console.log('dynamicRoutes ', dynamicRoutes)
@@ -313,12 +319,15 @@ export function DmsSite (config) {
     );
 
     const router = React.useMemo(
-      () => createBrowserRouter([
-          ...dynamicRoutes,
-          ...routesWithErrorBoundary,
-          PageNotFoundRoute
-      ]),
-      [dynamicRoutes, routesWithErrorBoundary, PageNotFoundRoute]
+      () => createBrowserRouter(
+          [
+              ...dynamicRoutes,
+              ...routesWithErrorBoundary,
+              PageNotFoundRoute
+          ],
+          hydrationData ? { hydrationData } : undefined
+      ),
+      [dynamicRoutes, routesWithErrorBoundary, PageNotFoundRoute, hydrationData]
     );
 
     return (

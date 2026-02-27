@@ -103,7 +103,9 @@ export function getIdPath (wrapperConfig,format) {
 	// if you have an id prefer that to a wildkey
 
 	return id ?
-	[
+  [
+     // IMPORTANT, this needs to be switched to ['dms', 'data', app, 'byId']
+     // When we are ready to move to split table fully
 		'dms', 'data', 'byId', id,
 		[ "id", "updated_at", "created_at","app", "type",...dataAttrs]
 	] : wildKey ? [

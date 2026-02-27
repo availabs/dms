@@ -29,7 +29,7 @@ export default function Popup({
     children,
     offset = 8,
     padding = 8,
-    portalContainer = document.body,
+    portalContainer = typeof document !== 'undefined' ? document.body : null,
     btnVisibleOnGroupHover, // adds a hide class if not open. assumes the button to have group-hover
     preventCloseOnClickOutside=false,
     defaultOpen = false, preferredPosition="bottom"

@@ -39,11 +39,11 @@ export function VirtualList({
     const isFetchingRef = useRef(false);
     const rowHeights = useRef([]);
 
-    const initialEndCol = Math.min(columnCount - 1, 10);
-    const initialEndRow = Math.min(rowCount - 1, 10);
-
-    const [rows, setRows] = useState({ start: 0, end: initialEndRow });
-    const [cols, setCols] = useState({ start: 0, end: initialEndCol });
+    // Show all rows/cols initially so SSR renders the full table.
+    // On the client, useLayoutEffect fires before first paint and
+    // narrows the range to the visible viewport.
+    const [rows, setRows] = useState({ start: 0, end: rowCount - 1 });
+    const [cols, setCols] = useState({ start: 0, end: columnCount - 1 });
 
 
     const getRowHeight = (i) =>

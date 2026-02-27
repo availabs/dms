@@ -1,5 +1,5 @@
 import {get} from "lodash-es";
-import {ExternalSourceAttributes, ExternalViewAttributes} from "./consts";
+import {ExternalSourceAttributes, InternalSourceAttributes, ExternalViewAttributes} from "./consts";
 
 export async function getViews ({pgEnv, falcor, source_id}) {
     try {
@@ -28,15 +28,16 @@ export async function getViews ({pgEnv, falcor, source_id}) {
     }
 }
 
-export async function getSourceData ({pgEnv, falcor, source_id, setSource}) {
+export async function getSourceData ({pgEnv, falcor, source_id, setSource, isDms}) {
     //console.log('gettting data')
 
       const views = await getViews({ pgEnv, falcor, source_id });
         console.log('get Source Data', views)
         const reqPath = ['uda', pgEnv, 'sources', 'byId', +source_id]
-        console.log('get Source Data',[...reqPath,ExternalSourceAttributes] )
+        const sourceAttributes = isDms ? InternalSourceAttributes : ExternalSourceAttributes;
+        console.log('get Source Data',[...reqPath, sourceAttributes] )
 
-        const resJson = await falcor.get([...reqPath, ExternalSourceAttributes]);
+        const resJson = await falcor.get([...reqPath, sourceAttributes]);
         const res = get(resJson, ['json', ...reqPath], {})
 
         const firstView = views?.[0];

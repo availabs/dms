@@ -70,7 +70,8 @@ export default function ({ apiLoad, apiUpdate, format, item, params, isDms }) {
                 pgEnv: isDms ? `${sourceFormat.app}+${sourceFormat.type}` : pgEnv,
                 falcor,
                 source_id: id,
-                setSource
+                setSource,
+                isDms
             });
             setLoading(false)
         }

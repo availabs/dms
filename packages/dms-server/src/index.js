@@ -39,9 +39,12 @@ app.use(function (req, res, next) {
   return next();
 });
 
-app.get('/', (req, res) => {
-  res.send('Hello World');
-});
+// When SSR is not enabled, show a simple status page at /
+if (!process.env.DMS_SSR) {
+  app.get('/', (req, res) => {
+    res.send('DMS Server running. SSR is disabled — set DMS_SSR=1 to enable.');
+  });
+}
 
 // Request logging middleware (enable with DMS_LOG_REQUESTS=1)
 app.use(createRequestLogger());
@@ -69,11 +72,38 @@ app.use(
   })
 );
 
-app.use((req, res, next) => {
-  res.status(404).send("Invalid Request.");
-});
+async function setupAndListen() {
+  await awaitReady();
 
-awaitReady().then(() => {
+  // SSR: opt-in via DMS_SSR env var
+  if (process.env.DMS_SSR) {
+    const path = require('path');
+    const { mountSSR } = await import('../../dms/src/render/ssr2/express/setup.mjs');
+    const pgEnvStr = process.env.DMS_PG_ENVS || process.env.VITE_DMS_PG_ENVS || '';
+    const pgEnvs = pgEnvStr.split(',').filter(Boolean);
+
+    await mountSSR(app, {
+      root: path.resolve(__dirname, '../../../../..'),
+      serverEntry: '/src/entry-ssr.jsx',
+      clientDir: path.resolve(__dirname, '../../../../../dist/client'),
+      handlerConfig: {
+        apiHost: `http://localhost:${PORT}`,
+        siteConfig: {
+          app: process.env.DMS_APP || process.env.VITE_DMS_APP,
+          type: process.env.DMS_TYPE || process.env.VITE_DMS_TYPE,
+          baseUrl: process.env.DMS_BASE_URL || process.env.VITE_DMS_BASE_URL || '/list',
+          authPath: process.env.DMS_AUTH_PATH || process.env.VITE_DMS_AUTH_PATH || '/auth',
+        },
+        pgEnvs,
+      },
+    });
+  }
+
+  // 404 catch-all — must be last middleware (after SSR if enabled)
+  app.use((req, res, next) => {
+    res.status(404).send("Invalid Request.");
+  });
+
   app.listen(PORT, () => {
     console.log(`DMS Server running on port ${PORT}`);
     const envEntries = Object.entries(process.env)
@@ -87,4 +117,6 @@ awaitReady().then(() => {
     }
     console.log('');
   });
-});
+}
+
+setupAndListen();

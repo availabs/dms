@@ -61,6 +61,10 @@ Site:    app=myapp  type=my-site-type
            └─ Data:    app=myapp  type={doc_type}-{view_id}  [split table]
 ```
 
+## Navigation Rules
+
+**Never use `window.location` for navigation.** Always use React Router's `useNavigate` hook. Using `window.location.assign()`, `window.location.href`, or `window.location.replace()` causes a full page reload, losing all React state and triggering unnecessary re-fetches. Use `navigate(path)` from `useNavigate()` for client-side navigation instead.
+
 ## Data Fetching Rules
 
 **Falcor should only be used directly inside the `api/` layer.** Pattern components and pages must never call `falcor.get()`, `falcor.call()`, or `falcor.invalidate()` directly. Instead, data should flow through:

@@ -1,9 +1,6 @@
 export const ExternalSourceAttributes = [
     "source_id",
-    // "app",
-    // "doc_type",
     "type",
-    // "config"
     "name",
     "display_name",
     "update_interval",
@@ -12,7 +9,23 @@ export const ExternalSourceAttributes = [
     "description",
     "statistics",
     "metadata",
+];
 
+// Internal (DMS) datasets have additional attributes stored in the data column
+export const InternalSourceAttributes = [
+    "source_id",
+    "app",
+    "doc_type",
+    "type",
+    "config",
+    "name",
+    "display_name",
+    "update_interval",
+    "category",
+    "categories",
+    "description",
+    "statistics",
+    "metadata",
 ];
 
 export const ExternalViewAttributes = [
