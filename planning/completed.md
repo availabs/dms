@@ -6,6 +6,8 @@
 
 ## api
 
+- [datawrapper-api-loading.md](./tasks/completed/datawrapper-api-loading.md) - DataWrapper API-layer loading: moved data fetching into React Router 7 loader via `preload` hook pattern; slug-based page matching, dataRequest enrichment to match component's runtime builder, page filter resolution + injection; eliminates post-mount data fetch waterfall for Spreadsheet/Card/Graph sections (2026-02-25)
+
 ## dms-manager
 
 - [centralize-format-initialization.md](./tasks/completed/centralize-format-initialization.md) - Centralized `updateRegisteredFormats`/`updateAttributes` in `_utils.jsx`, added `initializePatternFormat` helper; removed ~100 lines of duplicated code from admin/page/forms/datasets patterns (2026-02-05)
@@ -38,6 +40,7 @@
 
 ### patterns/page
 
+- [table-card-react-router-links.md](./tasks/completed/table-card-react-router-links.md) - Replaced `<a href>` with React Router `<Link to>` for internal navigation in TableCell and Card components; external links use `<a>` with `target="_blank"` and `rel="noopener noreferrer"` (2026-02-25)
 - [fix-nav2level-baseurl.md](./tasks/completed/fix-nav2level-baseurl.md) - Fixed nav2Level failing for non-root baseUrl patterns; moved to page pattern as resolveNav callback (2026-01-29)
 - [combine-datasources-task.md](./tasks/completed/combine-datasources-task.md) - Combined `pgEnv`, `damaBaseUrl`, and `datasetPatterns` into unified `datasources` array (2026-01-22)
 - [lexical-controls-to-config.md](./tasks/completed/lexical-controls-to-config.md) - Moved Rich Text inline controls (style, bgColor, showToolbar) to NavigableMenu config with nested submenu pattern; added ColorPickerFlat component (2026-02-03)

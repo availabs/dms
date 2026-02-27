@@ -2,6 +2,7 @@ import React from "react";
 import { useRouteError } from "react-router";
 import { parseIfJSON } from "./pages/_utils";
 import { initializePatternFormat } from "../../dms-manager/_utils";
+import { preloadPageSections } from "../../api/preloadSectionData.js";
 
 // components
 import cmsFormat from "./page.format.js";
@@ -62,6 +63,8 @@ const pagesConfig = ({
   return {
     siteType,
     format: format,
+    preload: (falcor, data, request, params) =>
+        preloadPageSections(falcor, data, request.url, patternFilters, params?.['*'] || ''),
     pages: [{path: 'edit_pattern', name: 'Format Manager', component: FormatManager}],
     baseUrl,
     API_HOST,

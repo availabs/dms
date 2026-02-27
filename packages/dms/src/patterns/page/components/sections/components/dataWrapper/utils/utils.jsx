@@ -196,9 +196,6 @@ export const getLength = async ({ options, state, apiLoad }) => {
   return length;
 };
 
-const getFullColumn = (columnName, columns) =>
-  columns.find((col) => col.name === columnName);
-
 // Recursively maps filterGroups col names to refNames for the API,
 // and resolves multiselect column values to matched DB options.
 const mapFilterGroupCols = async (node, getColumn, { isDms, apiLoad, sourceInfo }) => {
@@ -456,23 +453,27 @@ export const getData = async ({
     ),
   ];
   debugTime && console.time('filterAndExcludeColumns')
+
+  // Collect multiselect resolution tasks, then resolve in parallel
+  const multiselectTasks = [];
   for (const columnName of new Set(filterAndExcludeColumns)) {
     const { name, display, meta, refName, type } = getFullColumnFromColumnsWithSettings(columnName);
-    const fullColumn = { name, display, meta, refName, type };
-    const reqName = getColAccessor(
-      { ...fullColumn, fn: undefined },
-      isDms,
-    );
-
     const selectedValues = (filter[columnName] || exclude[columnName] || [])
       .map((o) => o?.value || o)
       .map((o) => (o === null ? "null" : o))
       .filter((o) => o);
 
-    if (!selectedValues.length) continue;
+    if (!selectedValues.length || type !== "multiselect") continue;
 
-    if (type === "multiselect" /* || type === 'calculated'*/) {
-        // todo await inside loop; change to promise.all?
+    const reqName = getColAccessor(
+      { name, display, meta, refName, type, fn: undefined },
+      isDms,
+    );
+    multiselectTasks.push({ columnName, name, display, meta, refName, reqName, selectedValues });
+  }
+
+  await Promise.all(multiselectTasks.map(async ({ columnName, name, display, meta, refName, reqName, selectedValues }) => {
+    try {
       const options = await getFilterData({
         reqName,
         refName,
@@ -481,31 +482,29 @@ export const getData = async ({
         format: state.sourceInfo,
       });
 
-      try {
-        const matchedOptions = options
-          .map((row) => {
-            const option = row[reqName]?.value || row[reqName];
-            const parsedOption =
-              isJson(option) && Array.isArray(JSON.parse(option))
-                ? JSON.parse(option)
-                : Array.isArray(option)
-                  ? option
-                  : typeof option === "string"
-                    ? [option]
-                    : [];
-            return parsedOption.find((o) => selectedValues.includes(o))
-              ? option
-              : null;
-          })
-          .filter((option) => option);
+      const matchedOptions = options
+        .map((row) => {
+          const option = row[reqName]?.value || row[reqName];
+          const parsedOption =
+            isJson(option) && Array.isArray(JSON.parse(option))
+              ? JSON.parse(option)
+              : Array.isArray(option)
+                ? option
+                : typeof option === "string"
+                  ? [option]
+                  : [];
+          return parsedOption.find((o) => selectedValues.includes(o))
+            ? option
+            : null;
+        })
+        .filter((option) => option);
 
-        if (selectedValues.includes("null")) matchedOptions.push("null");
-        multiselectValueSets[columnName] = matchedOptions;
-      } catch (e) {
-        console.error("Could not load options for", columnName, e);
-      }
+      if (selectedValues.includes("null")) matchedOptions.push("null");
+      multiselectValueSets[columnName] = matchedOptions;
+    } catch (e) {
+      console.error("Could not load options for", columnName, e);
     }
-  }
+  }));
     debugTime && console.timeEnd('filterAndExcludeColumns')
 
   // should this be saved in state directly?

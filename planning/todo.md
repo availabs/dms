@@ -12,6 +12,8 @@
 
 ## api
 
+- [x] DataWrapper API-layer loading — move dataWrapper data fetching into the DMS API/loader so section data loads at navigation time (React Router 7 loader) instead of after component mount; detect dataWrapper sections, extract URL-mapped filter params, pre-run getData(), leverage cache freshness to skip component-level re-fetch
+
 ## dms-manager
 
 - [x] Centralize format initialization (`updateAttributes`/`updateRegisteredFormats`) — remove duplicated definitions from patterns, add `initializePatternFormat` helper
@@ -33,6 +35,7 @@
 
 ## ui
 
+- [x] Table & Card React Router links — replace `<a href>` with React Router `<Link to>` for internal navigation in TableCell.jsx and Card.jsx (eliminates full page reloads)
 - [x] Lexical plaintext normalization — move plaintext-to-Lexical-JSON conversion to shared `parseValue()` so HTML view path handles plaintext
 - [x] Lexical sync HTML render — eliminate View jitter by using synchronous `editorState.read()` + `useMemo` instead of async `useEffect`
 - [x] Fix theme merge for array fields (replace instead of deep merge)
