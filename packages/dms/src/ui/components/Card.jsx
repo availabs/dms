@@ -372,7 +372,7 @@ export default function ({
 
     const [draggedCol, setDraggedCol] = useState(null);
 
-    const {compactView, gridSize, gridGap, padding, colGap, allowAdddNew, bgColor='#FFFFFF'} = display;
+    const {compactView, gridSize, gridGap, padding, colGap, allowAdddNew, bgColor} = display;
     const visibleColumns = useMemo(() => columns.filter(({show}) => show), [columns]);
     const cardsWithoutSpanLength = useMemo(() => visibleColumns.filter(({cardSpan}) => !cardSpan).length, [visibleColumns]);
     const imageTopMargin = useMemo(() =>

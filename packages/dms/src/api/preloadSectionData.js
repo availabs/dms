@@ -144,6 +144,15 @@ function enrichDataRequest(state) {
         .filter(c => c.show && ['meta-variable', 'geoid-variable', 'meta'].includes(c.display) && c.meta_lookup)
         .reduce((acc, c) => ({ ...acc, [c.name]: c.meta_lookup }), {})
 
+    // Mirror groupBy, fn, serverFn from Edit DataWrapper (~line 248-254)
+    const groupBy = columns.filter(c => c.group).map(c => c.name)
+    const fn = columns.filter(c => c.show && c.fn)
+        .reduce((acc, c) => ({ ...acc, [c.name]: c.fn }), {})
+    const serverFn = columns.filter(c => c.show && c.serverFn)
+        .reduce((acc, { keepOriginal, name, joinKey, valueKey, joinWithChar, serverFn }) => ({
+            ...acc, [name]: { keepOriginal, joinKey, valueKey, joinWithChar, serverFn }
+        }), {})
+
     return {
         ...state.dataRequest || {},
         filter: filterOptions.filter || {},
@@ -155,6 +164,10 @@ function enrichDataRequest(state) {
         like: filterOptions.like || {},
         filterGroups: state.dataRequest?.filterGroups || {},
         ...filterOptions,
+        ...state.display?.filterRelation && { filterRelation: state.display.filterRelation },
+        groupBy,
+        fn,
+        serverFn,
         orderBy,
         meta,
     }
@@ -261,35 +274,26 @@ export async function preloadSectionData(falcor, elementData, elementType, pageF
  * @param {string} slug - URL slug from route params (params['*'])
  * @returns {Array} Updated data array with pre-loaded section data embedded
  */
-export async function preloadPageSections(falcor, data, requestUrl, patternFilters = [], slug = '') {
-    // Find the page item that matches the current route's slug.
-    // This mirrors how EditWrapper + filterParams resolve the active page:
-    //   - If slug is set, match by url_slug
-    //   - If root URL (empty slug), use the default page (index 0, no parent)
-    const pageItem = slug
-        ? data.find(d => d.url_slug === slug && Array.isArray(d.sections) && d.sections.length)
-        : data.find(d => !d.parent && d.index == 0 && Array.isArray(d.sections) && d.sections.length)
-    if (!pageItem) return data
+/**
+ * Pre-load sections from a single sections array.
+ * Shared helper used by preloadPageSections for both `sections` and `draft_sections`.
+ */
+async function preloadSectionsArray(falcor, sections, filterMap, label) {
+    if (!Array.isArray(sections) || !sections.length) return null
 
-    // Check if any sections are preloadable before doing URL parsing work
-    const preloadable = pageItem.sections.filter(
+    const preloadable = sections.filter(
         s => isPreloadableType(s?.element?.['element-type'])
     )
-    if (!preloadable.length) return data
+    if (!preloadable.length) return null
 
     if (import.meta.env.DEV) {
         const types = preloadable.map(s => s.element['element-type'])
-        console.log(`[preload] ${pageItem.title || 'page'} — ${types.length} section(s): ${types.join(', ')}`)
+        console.log(`[preload] ${label} — ${types.length} section(s): ${types.join(', ')}`)
     }
 
-    // Resolve effective page filters: page defaults → pattern overrides → URL params
-    const url = new URL(requestUrl)
-    const filterMap = resolveFilterMap(pageItem.filters, patternFilters, url.searchParams)
-
-    // Pre-load all preloadable sections in parallel
     const t0 = import.meta.env.DEV ? performance.now() : 0
-    const updatedSections = await Promise.all(
-        pageItem.sections.map(async (section) => {
+    const updated = await Promise.all(
+        sections.map(async (section) => {
             const elementType = section?.element?.['element-type']
             const elementData = section?.element?.['element-data']
             if (!isPreloadableType(elementType) || !elementData) return section
@@ -304,9 +308,41 @@ export async function preloadPageSections(falcor, data, requestUrl, patternFilte
         })
     )
     if (import.meta.env.DEV) {
-        console.log(`[preload] all sections done in ${(performance.now() - t0).toFixed(0)}ms`)
+        console.log(`[preload] ${label} sections done in ${(performance.now() - t0).toFixed(0)}ms`)
     }
+    return updated
+}
+
+export async function preloadPageSections(falcor, data, requestUrl, patternFilters = [], slug = '') {
+    // Find the page item that matches the current route's slug.
+    // This mirrors how EditWrapper + filterParams resolve the active page:
+    //   - If slug is set, match by url_slug
+    //   - If root URL (empty slug), use the default page (index 0, no parent)
+    const hasSections = d => (Array.isArray(d.sections) && d.sections.length) ||
+                             (Array.isArray(d.draft_sections) && d.draft_sections.length)
+    const pageItem = slug
+        ? data.find(d => d.url_slug === slug && hasSections(d))
+        : data.find(d => !d.parent && d.index == 0 && hasSections(d))
+    if (!pageItem) return data
+
+    // Resolve effective page filters: page defaults → pattern overrides → URL params
+    const url = new URL(requestUrl)
+    const filterMap = resolveFilterMap(pageItem.filters, patternFilters, url.searchParams)
+
+    const label = pageItem.title || 'page'
+
+    // Pre-load both sections (view mode) and draft_sections (edit mode) in parallel
+    const [updatedSections, updatedDraftSections] = await Promise.all([
+        preloadSectionsArray(falcor, pageItem.sections, filterMap, label),
+        preloadSectionsArray(falcor, pageItem.draft_sections, filterMap, `${label} (draft)`),
+    ])
+
+    if (!updatedSections && !updatedDraftSections) return data
 
     // Return data array with the page item's sections updated
-    return data.map(d => d === pageItem ? { ...d, sections: updatedSections } : d)
+    return data.map(d => d === pageItem ? {
+        ...d,
+        ...(updatedSections && { sections: updatedSections }),
+        ...(updatedDraftSections && { draft_sections: updatedDraftSections }),
+    } : d)
 }

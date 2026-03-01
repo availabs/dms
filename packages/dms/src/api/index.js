@@ -287,6 +287,7 @@ export async function dmsDataEditor (falcor, config, data={}, requestType, /*pat
 			await falcor.call(["dms", "data", "edit"], [app, id, row]);
       await falcor.invalidate(['dms', 'data', app, 'byId', id])
 			await falcor.invalidate(['dms', 'data','byId', id])
+			// await falcor.invalidate(['dms', 'data', `${ app }+${ type }`])
 			// console.timeEnd(`falcor update data ${id}`)
 			return {message: `Update successful: id ${id}.`,  }
 		}
