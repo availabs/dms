@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react'
 import SourcesLayout from "../../../../SourceLayout";
 import { MapEditorContext } from "../../../../context"
-import get from 'lodash/get'
+import { get } from 'lodash-es'
 import { getAttributes } from "../../../../attributes";
 
 import SourceCategories from "../../../../SourceCategories";

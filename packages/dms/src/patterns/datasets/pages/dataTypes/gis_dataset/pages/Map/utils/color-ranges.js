@@ -1,6 +1,6 @@
 
 import colorbrewer from "colorbrewer"
-import get from "lodash/get"
+import { get } from "lodash-es"
 
 const ColorRanges = {}
 

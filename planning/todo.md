@@ -47,6 +47,7 @@
 - [x] Move widgets to top-level theme (out of layout.options)
 - [x] Redesign widget system (key/value format, combine definitions + components, additive merge)
 - [x] Theme merging issues — styles arrays merge by index causing cross-contamination (e.g., Dark style bleeds into Inline Guidance in mnyv1 lexical) *(see also: standardize component theme default fill-in)*
+- [x] Map component refactor — extract core map from avl-map-2 into `ui/components/map/`, remove dead UI (sidebars/modals/panels), remove npm deps (react-color/fuse.js/colorbrewer), dynamically import maplibre-gl for code splitting, preserve external API
 
 ### ui/lexical-textsettings
 

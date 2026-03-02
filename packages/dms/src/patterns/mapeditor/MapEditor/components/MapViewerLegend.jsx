@@ -1,8 +1,6 @@
 import React from "react"
 
-import get from 'lodash/get'
-import set from 'lodash/set'
-import isEqual from 'lodash/isEqual'
+import { get, set, isEqual } from 'lodash-es'
 import mapboxgl from "maplibre-gl";
 import { useNavigate, Link } from 'react-router'
 

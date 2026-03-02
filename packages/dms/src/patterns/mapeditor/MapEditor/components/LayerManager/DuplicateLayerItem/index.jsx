@@ -1,6 +1,6 @@
 import { useContext } from 'react'
 import { SymbologyContext } from '../../../'
-import set from 'lodash/set'
+import { set } from 'lodash-es'
 import { generateDefaultName } from '../SymbologyControl/components/SaveChangesMenu'
 export const DuplicateLayerItem = ({ layer }) => {
   const { state, setState  } = useContext(SymbologyContext);

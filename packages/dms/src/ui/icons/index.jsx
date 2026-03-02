@@ -108,6 +108,12 @@ const iconList = [
   { icon: "Circle" },
   { icon: "Line" },
 
+  // Map Icons
+  { icon: "NavigationArrow" },
+  { icon: "Home" },
+  { icon: "MapLayers" },
+  { icon: "Spinner" },
+
   // Hazard/Weather Icons
   { icon: "riverine" },
   { icon: "snowflake" },

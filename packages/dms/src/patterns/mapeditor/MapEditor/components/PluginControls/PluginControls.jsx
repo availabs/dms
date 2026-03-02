@@ -1,10 +1,8 @@
 import React, { useMemo, useEffect, Fragment, useState } from "react";
 import { Switch } from '@headlessui/react'
 import { SymbologyContext } from "../../";
-// import {MapContext} from '../dms/map/MapComponent'
 import {get, set} from "lodash-es";
-
-import { MultiLevelSelect } from "../../../../datasets/pages/dataTypes/gis_dataset/pages/Map/avl-map-2/src"
+import { ThemeContext } from "../../../../../ui/themeContext";
 
 export function SelectControl({ path, params = {} }) {
   //console.log("select control path::", path)
@@ -46,10 +44,8 @@ export function SelectControl({ path, params = {} }) {
 }
 
 export function MultiSelectControl({ path, params = {} }) {
-  // const mctx = React.useContext(MapContext);
-  // const sctx = React.useContext(SymbologyContext);
-  // const ctx = mctx?.falcor ? mctx : sctx;
   const { state, setState } = React.useContext(SymbologyContext);
+  const { UI } = React.useContext(ThemeContext) || {};
 
   const defaultValue =
     params.default !== null && params.default !== undefined
@@ -60,23 +56,49 @@ export function MultiSelectControl({ path, params = {} }) {
     return get(state, `${path}`, defaultValue);
   }, [state]);
 
+  const options = useMemo(() => {
+    return (params?.options || []).map(opt => ({
+      label: opt.name,
+      value: opt.value ?? opt
+    }));
+  }, [params?.options]);
+
+  const selectedValues = Array.isArray(curValue) ? curValue : curValue ? [curValue] : [];
+
+  const toggleValue = (val) => {
+    const next = selectedValues.includes(val)
+      ? selectedValues.filter(v => v !== val)
+      : [...selectedValues, val];
+    setState((draft) => { set(draft, `${path}`, next); });
+  };
+
   return (
     <label className="flex w-full">
-      <div className="flex w-full items-center capitalize">
-        <MultiLevelSelect
-          searchable={params.searchable ? true : false}
-          isMulti={true}
-          placeholder={params.placeholder || "Select a value..."}
-          options={params?.options}
-          displayAccessor={(s) => s.name}
-          // valueAccessor={(s) => s.value}
-          value={curValue}
-          onChange={(e) =>
-            setState((draft) => {
-              set(draft, `${path}`, e)
-            })
+      <div className="flex flex-col w-full capitalize">
+        <div className="flex flex-wrap gap-1 mb-1">
+          { selectedValues.map((v, i) => {
+            const opt = options.find(o => o.value === v);
+            return (
+              <span key={i} className="inline-flex items-center px-2 py-0.5 rounded bg-blue-100 text-blue-800 text-xs">
+                { opt?.label || v }
+                <span onClick={() => toggleValue(v)} className="ml-1 cursor-pointer hover:text-red-500">&times;</span>
+              </span>
+            )
+          })}
+        </div>
+        <select
+          className="w-full py-2 bg-transparent capitalize border rounded text-sm"
+          value=""
+          onChange={e => { if (e.target.value) toggleValue(e.target.value); }}
+        >
+          <option value="">{ params.placeholder || "Select a value..." }</option>
+          { options
+            .filter(opt => !selectedValues.includes(opt.value))
+            .map((opt, i) => (
+              <option key={i} value={opt.value}>{ opt.label }</option>
+            ))
           }
-        />
+        </select>
       </div>
     </label>
   );

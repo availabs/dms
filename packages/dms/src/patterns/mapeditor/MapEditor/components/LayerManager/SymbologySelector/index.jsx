@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router'
-import {Button} from '~/modules/avl-components/src'
 import { MapEditorContext } from "../../../../context"
+import { ThemeContext } from "../../../../../../ui/themeContext"
 
 import { Dialog } from '@headlessui/react'
 
@@ -10,6 +10,8 @@ import { Modal, INITIAL_NEW_MAP_MODAL_STATE } from '../SymbologyControl';
 
 export const SelectSymbology = ({ modalState, setModalState }) => {
   const { baseUrl } = React.useContext(MapEditorContext);
+  const { UI } = React.useContext(ThemeContext) || {};
+  const { Button } = UI;
   const navigate = useNavigate();
 
   return (

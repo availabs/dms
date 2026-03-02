@@ -3,8 +3,7 @@ import { useContext, useMemo, useEffect } from "react";
 import {ColumnSelectControl} from "./ColumnSelectControl";
 import {SymbologyContext} from '../../../'
 import { MapEditorContext } from "../../../../context"
-import get from 'lodash/get'
-import set from 'lodash/set'
+import { get, set } from 'lodash-es'
 const FilterGroupControl = ({path, datapath, params={}}) => {
   const { state, setState } = useContext(SymbologyContext);
   const { falcor, falcorCache, pgEnv } = useContext(MapEditorContext);

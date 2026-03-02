@@ -1,5 +1,5 @@
 //import prettyBytes from "pretty-bytes";
-import get from 'lodash/get'
+import { get } from 'lodash-es'
 
 export function ProgressBar({ progress }) {
   const Parentdiv = {

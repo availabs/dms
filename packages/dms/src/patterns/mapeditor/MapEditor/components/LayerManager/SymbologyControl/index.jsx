@@ -5,7 +5,7 @@ import { Transition, Dialog } from '@headlessui/react'
 import { Plus, FolderOpen, Trash, FloppyDisk } from '../../icons'
 
 import { SelectSymbology } from '../SymbologySelector';
-import set from 'lodash/set'
+import { set } from 'lodash-es'
 import { CreateSymbologyMenu, SymbologyControlMenu, SaveChangesMenu } from './components'
 
 

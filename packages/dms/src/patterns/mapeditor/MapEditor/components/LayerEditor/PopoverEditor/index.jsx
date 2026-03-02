@@ -4,7 +4,7 @@ import { SelectControl } from "../Controls";
 import {ColumnSelectControl} from "./PopoverControls";
 import { StyledControl } from "../ControlWrappers";
 import { InteractiveFilterControl } from "../InteractiveFilterControl";
-import get from 'lodash/get'
+import { get } from 'lodash-es'
 
 function PopoverEditor(props) {
   const { state, setState } = useContext(SymbologyContext);

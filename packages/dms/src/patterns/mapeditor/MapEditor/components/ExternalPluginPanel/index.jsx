@@ -4,7 +4,7 @@ import { SymbologyContext, PluginLibrary } from "../../";
 // import { DamaContext } from "../../../../../../store"
 import { Menu, Transition, Tab, Dialog } from "@headlessui/react";
 import { wrapperTypes } from '../PluginControls/PluginControlWrappers'
-import { zip } from "lodash";
+import { zip } from "lodash-es"
 
 //TODO -- this MAYBE needs some combination of these changes:
 //Use MapContext if available (otherwise, use SymbologyContext)

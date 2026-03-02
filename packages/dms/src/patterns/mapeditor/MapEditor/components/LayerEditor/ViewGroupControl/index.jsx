@@ -2,12 +2,11 @@
 import { useContext, useMemo, useEffect } from "react";
 import {SymbologyContext} from '../../../'
 import { MapEditorContext } from "../../../../context"
-import get from 'lodash/get'
-import set from 'lodash/set'
+import { get, set } from 'lodash-es'
 import {AddColumnSelectControl} from '../Controls'
 import { Close, StarSolid } from '../../icons'
 import { SourceAttributes, ViewAttributes, getAttributes } from "../../../../attributes"
-import { DndList } from '~/modules/avl-components/src'
+import { ThemeContext } from "../../../../../../ui/themeContext"
 import { v1 } from "uuid";
 const getDiffColumns = (baseArray, subArray) => {
   return baseArray.filter(baseItem => !subArray.includes(baseItem))
@@ -15,6 +14,8 @@ const getDiffColumns = (baseArray, subArray) => {
 const ViewGroupControl = ({path, datapath, params={}}) => {
   const { state, setState } = useContext(SymbologyContext);
   const { falcor, falcorCache, pgEnv } = useContext(MapEditorContext);
+  const { UI } = useContext(ThemeContext) || {};
+  const { DndList } = UI;
   const pathBase = params?.version === "interactive"
     ? `symbology.layers[${state.symbology.activeLayer}]${params.pathPrefix}`
     : `symbology.layers[${state.symbology.activeLayer}]`;

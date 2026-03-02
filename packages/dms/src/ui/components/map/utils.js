@@ -1,9 +1,5 @@
 import React from "react"
 
-import get from "lodash/get"
-
-export * from "./colors"
-
 export const hasValue = value => {
   if ((value === null) || (value === undefined)) return false;
   if ((typeof value === "string") && !value.length) return false;
@@ -14,7 +10,7 @@ export const hasValue = value => {
 }
 
 const getRect = ref => {
-  const node = get(ref, "current", ref);
+  const node = ref?.current ?? ref;
   if (!node) return { width: 0, height: 0, x: 0, y: 0 };
   return node.getBoundingClientRect();
 }
@@ -45,28 +41,3 @@ export const useSetSize = (ref, callback = null) => {
 
   return size;
 }
-
-export const capitalize = string => {
-  return string.split("s+")
-    .map(word =>
-      word.split("")
-        .map((letter, i) => i === 0 ? letter.toUpperCase() : letter)
-        .join("")
-    ).join(" ")
-}
-
-export const useSetRefs = (...refs) => {
-    return React.useCallback(node => {
-        [...refs].forEach(ref => {
-            if (!ref) return;
-            if (typeof ref === "function") {
-                ref(node);
-            }
-            else {
-                ref.current = node;
-            }
-        })
-    }, [refs])
-}
-
-export const strictNaN = v => (v === "") || (v === null) || isNaN(v);

@@ -1,7 +1,7 @@
 import React, { useMemo, Fragment } from 'react'
 import { MapContext } from '../'
 import { useNavigate } from 'react-router'
-import get from 'lodash/get'
+import { get } from 'lodash-es'
 import { CMSContext } from '../../../../../../context'
 export const fnumIndex = (d, fractions = 2, currency = false) => {
   if(isNaN(d)) return '0'

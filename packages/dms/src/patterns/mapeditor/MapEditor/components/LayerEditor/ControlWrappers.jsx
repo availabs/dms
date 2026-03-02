@@ -3,9 +3,7 @@ import {SymbologyContext} from '../../'
 import { Plus, Close, MenuDots, CaretDown } from '../icons'
 import { Menu, Popover, Transition, Tab, Dialog } from '@headlessui/react'
 import { toHex } from '../LayerManager/utils'
-import { ChromePicker } from 'react-color';
-import get from 'lodash/get'
-import set from 'lodash/set'
+import { get, set } from 'lodash-es'
 
 
 import {controlTypes } from './Controls'

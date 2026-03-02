@@ -1,11 +1,11 @@
 import React, { useContext , useMemo, useCallback, Fragment, useRef} from 'react'
 import { SymbologyContext } from '../../'
+import { ThemeContext } from "../../../../../ui/themeContext"
 import SourceSelector from './SourceSelector'
-import { DndList } from '~/modules/avl-components/src'
 import { Menu, Transition, Tab, Dialog } from '@headlessui/react'
 import { useParams, useNavigate, Link } from 'react-router'
 import { Fill, Line, Circle, Eye, EyeClosed, MenuDots , CaretDown} from '../icons'
-import get from 'lodash/get'
+import { get } from 'lodash-es'
 import { ZoomToFit } from './ZoomToFit'
 import { DuplicateLayerItem } from './DuplicateLayerItem'
 
@@ -141,6 +141,8 @@ function LayerRow ({index, layer, i}) {
 
 function LayerManager (props) {
   const { state, setState  } = React.useContext(SymbologyContext);
+  const { UI } = React.useContext(ThemeContext) || {};
+  const { DndList } = UI;
   const layers = useMemo(() => state.symbology?.layers ||  {}, [state])
   //console.log('layers', layers)
   const droppedSection = React.useCallback((start, end) => {

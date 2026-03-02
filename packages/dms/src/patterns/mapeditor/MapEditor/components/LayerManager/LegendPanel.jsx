@@ -2,8 +2,7 @@ import React, { useMemo, useContext, Fragment } from 'react'
 import { SymbologyContext } from '../../'
 import { MapEditorContext } from "../../../context"
 import { Fill, Line, Eye, EyeClosed, MenuDots , CaretDown, CaretDownSolid, CaretUpSolid, CircleInfoI } from '../icons'
-import get from 'lodash/get'
-import set from 'lodash/get'
+import { get, set } from 'lodash-es'
 import { LayerMenu, LayerInfo } from './LayerPanel'
 import { SourceAttributes, ViewAttributes, getAttributes } from "../../../attributes"
 import { Menu, Transition, Tab, Dialog } from '@headlessui/react'

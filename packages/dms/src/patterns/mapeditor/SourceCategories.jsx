@@ -1,11 +1,18 @@
 import React from "react"
 
-import get from "lodash/get"
+import { get } from "lodash-es"
 
 import { MapEditorContext } from "./context"
-import { Button } from "~/modules/avl-components/src"
+import { ThemeContext } from "../../ui/themeContext"
 
-import { useClickOutside } from "~/modules/avl-components/src/components/utils"
+const useClickOutside = (node, callback) => {
+  React.useEffect(() => {
+    if (!node || typeof callback !== "function") return
+    const handler = e => { if (!node.contains(e.target)) callback(e) }
+    document.addEventListener("mousedown", handler)
+    return () => document.removeEventListener("mousedown", handler)
+  }, [node, callback])
+}
 
 const useSourceCategories = ({ source, symbology = {}, entityType = 'sources' }) => {
   const [categories, _setCategories] = React.useState([]);
@@ -154,6 +161,8 @@ const CategoryList = props => {
 }
 
 const SourceCategories = props => {
+  const { UI } = React.useContext(ThemeContext) || {};
+  const { Button } = UI;
   const {
     editingCategories,
     stopEditingCategories: stopAll

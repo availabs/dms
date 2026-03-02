@@ -1,11 +1,9 @@
 import React from "react"
 
-import mapboxgl from "maplibre-gl"
-import get from "lodash/get"
-import isEqual from "lodash/isEqual"
+import { get, isEqual } from "lodash-es"
+
 
 import { hasValue } from "./utils"
-import { useTheme } from "./uicomponents"
 
 const DefaultRenderComponent = ({ maplibreMap, layer, ...props }) => {
   return null;
@@ -13,14 +11,8 @@ const DefaultRenderComponent = ({ maplibreMap, layer, ...props }) => {
 const DefaultCallback = () => null;
 
 const DefaultHoverComp = props => {
-  const theme = useTheme();
   return (
-    <div className={ `px-2 py-1 ${ theme.bg } rounded` }>
-      <div>Broke-ass default hover component...</div>
-      <div className="flex items-center flex-col">
-        <span className="fa fa-face-sad-tear text-6xl"/>
-        <span>...so sad...</span>
-      </div>
+    <div className="px-2 py-1 bg-white rounded">
       <div className="whitespace-pre-wrap">
         { JSON.stringify(props.data, null, 3) }
       </div>
@@ -102,8 +94,6 @@ export const LayerRenderComponent = props => {
         }
       });
     }
-
-    const layerVisibility = {};
 
     layers.forEach(layer => {
       if (!maplibreMap.getLayer(layer.id)) {
@@ -433,10 +423,10 @@ export const LayerRenderComponent = props => {
 
     const getPos = e => {
       const rect = div.getBoundingClientRect();
-      return new mapboxgl.Point(
-        e.clientX - rect.left - div.clientLeft,
-        e.clientY - rect.top - div.clientTop
-      )
+      return {
+        x: e.clientX - rect.left - div.clientLeft,
+        y: e.clientY - rect.top - div.clientTop
+      };
     }
 
     const finish = bbox => {
@@ -582,7 +572,6 @@ export const LayerRenderComponent = props => {
       a[c.id] = get(c, ["layout", "visibility"], "visible");
       return a;
     }, {});
-    // console.log('layer visibilities', layerVisibilities)
     _setLayerVisibilities(layerVisibilities);
   }, [layers]);
 
@@ -621,7 +610,6 @@ const DefaultOptions = {
   startVisible: true,
   startState: {},
   filters: {},
-  modals: {},
   mapActions: [],
   loadingIndicator: {},
   isDynamic: false

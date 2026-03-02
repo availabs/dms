@@ -4,7 +4,7 @@ import mapboxgl from "maplibre-gl";
 import { useNavigate } from "react-router";
 import {get, set, omit, isEqual, cloneDeep } from "lodash-es"
 import { usePrevious } from './components/LayerManager/utils'
-import { AvlMap as AvlMap2 } from "../../datasets/pages/dataTypes/gis_dataset/pages/Map/avl-map-2/src"
+import { AvlMap as AvlMap2 } from "../../../ui/components/map"
 import { rgb2hex } from './components/LayerManager/utils'
 import { categoryPaint, isValidCategoryPaint ,choroplethPaint } from './components/LayerEditor/datamaps'
 

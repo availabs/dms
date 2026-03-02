@@ -3,7 +3,7 @@ import { SymbologyContext } from '../../../..'
 import { MapEditorContext } from "../../../../../context"
 import { Dialog } from '@headlessui/react'
 import { useNavigate } from 'react-router'
-import get from 'lodash/get'
+import { get } from 'lodash-es'
 import { Modal } from '../'
 
 

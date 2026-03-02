@@ -1,5 +1,5 @@
 import React, { useEffect, useContext, useMemo } from "react"
-import { AvlLayer } from "../../../datasets/pages/dataTypes/gis_dataset/pages/Map/avl-map-2/src"
+import { AvlLayer } from "../../../../ui/components/map"
 import { get } from 'lodash-es'
 import { SymbologyContext } from "../"
 import {PluginLibrary} from "../"

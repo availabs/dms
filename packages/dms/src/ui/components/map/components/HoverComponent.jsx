@@ -1,10 +1,9 @@
 import React from "react"
-
-import { useTheme } from "../uicomponents"
-import { useComponentLibrary } from "./StyledComponents"
+import Icon from "../../Icon"
+import { ThemeContext } from "../../../themeContext"
+import { mapTheme as defaultMapTheme } from "../map.theme"
 
 const getTranslate = (pos, width, height) => {
-
   const gap = 30, padding = 10, { x, y } = pos;
 
   const yMax = height,
@@ -24,29 +23,6 @@ const getTranslate = (pos, width, height) => {
   )`
 }
 
-const getPinnedTranslate = ({ x, y }, orientation) => {
-
-  const gap = 30;
-
-  const yTrans = `calc(${ y }px - 50%)`;
-
-  if (orientation === "right") {
-    return `translate(
-      ${ x + gap }px,
-      ${ yTrans }
-    )`
-  }
-  return `translate(
-    calc(-100% + ${ x - gap }px),
-    ${ yTrans }
-  )`
-}
-const getTransformOld = ({ x }, orientation) => {
-  if (orientation === "right") {
-    return "translate(-50%, -50%) rotate(45deg) skew(-15deg, -15deg)"
-  }
-  return "translate(50%, -50%) rotate(45deg) skew(-15deg, -15deg)"
-}
 const getTransform = ({ x, y }, height, orientation) => {
   if (orientation === "left") {
     return `translate(calc(${ x }px - 175%), max(50%, min(calc(${ height }px - 150%), calc(${ y }px - 50%)))) rotate(45deg) skew(-15deg, -15deg)`
@@ -54,8 +30,9 @@ const getTransform = ({ x, y }, height, orientation) => {
   return `translate(calc(${ x }px + 75%), max(50%, min(calc(${ height }px - 150%), calc(${ y }px - 50%)))) rotate(45deg) skew(-15deg, -15deg)`
 }
 
-const RemoveButton = ({ orientation, onClick, children }) => {
-  const theme = useTheme();
+const RemoveButton = ({ orientation, onClick }) => {
+  const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
+  const mapIcons = { ...defaultMapTheme, ...themeFromContext?.map };
   return (
     <div onClick={ onClick }
       style={ {
@@ -65,12 +42,12 @@ const RemoveButton = ({ orientation, onClick, children }) => {
       } }
       className={ `
         rounded absolute inline-block top-0
-        ${ theme.bg } ${ theme.textHighlightHover } cursor-pointer
+        bg-white hover:text-blue-500 cursor-pointer
         ${ orientation === "left" ? "left-0" : "right-0" }
       ` }
     >
       <div className="w-6 h-6 flex items-center justify-center">
-        <span className="fa fa-close"/>
+        <Icon icon={ mapIcons.closeIcon } className="size-4"/>
       </div>
     </div>
   )
@@ -94,52 +71,36 @@ export const PinnedHoverComponent = ({ children, remove, id, lngLat, project, wi
     remove(id);
   }, [remove, id]);
 
-  const theme = useTheme();
-
-  const { HoverComponentContainer } = useComponentLibrary();
-
   return (
     <>
       <div
-        className={ `
-          absolute top-0 left-0 z-20
-          pointer-events-auto
-        ` }
+        className="absolute top-0 left-0 z-20 pointer-events-auto"
         style={ {
           transform: getTranslate(pos, width, height)
         } }
       >
-        <HoverComponentContainer>
+        <div className="grid grid-cols-1 gap-1">
           { children }
-        </HoverComponentContainer>
-
-        <RemoveButton orientation={ orientation }
-          onClick={ doRemove }/>
-
+        </div>
+        <RemoveButton orientation={ orientation } onClick={ doRemove }/>
       </div>
       <div style={ pointerStyle }
-        className={ `
-          absolute w-6 h-6 rounded-bl rounded-tr ${ theme.bg } top-0 left-0 z-10
-        ` }/>
+        className="absolute w-6 h-6 rounded-bl rounded-tr bg-white top-0 left-0 z-10"/>
     </>
   )
 }
 
 export const HoverComponent = ({ children, lngLat, project, width, height }) => {
-  const { HoverComponentContainer } = useComponentLibrary();
   return (
-    <div className={ `
-        absolute top-0 left-0 z-20
-        pointer-events-none
-      ` }
+    <div className="absolute top-0 left-0 z-20 pointer-events-none"
       style={ {
         transform: getTranslate(project(lngLat), width, height),
         transition: "transform 0.05s ease-out"
       } }
     >
-      <HoverComponentContainer>
+      <div className="grid grid-cols-1 gap-1">
         { children }
-      </HoverComponentContainer>
+      </div>
     </div>
   )
 }

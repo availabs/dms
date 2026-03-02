@@ -1,6 +1,6 @@
 import React from 'react'
 import { MapEditorContext } from "../../../../../context"
-import { Button } from "~/modules/avl-components/src";
+import { ThemeContext } from "../../../../../../../ui/themeContext"
 import { Dialog } from '@headlessui/react'
 import { useParams, useNavigate } from 'react-router'
 import { LOCAL_STORAGE_KEY_BASE } from '../../../../'
@@ -22,6 +22,8 @@ export function SymbologyControlMenu({ button, className }) {
 
 const DeleteSymbologyModal = ({open, setOpen}) => {
   const { app, type, falcor, baseUrl, params } = React.useContext(MapEditorContext);
+  const { UI } = React.useContext(ThemeContext) || {};
+  const { Button } = UI;
   const { id: symbologyId } = params;
   const navigate = useNavigate();
 

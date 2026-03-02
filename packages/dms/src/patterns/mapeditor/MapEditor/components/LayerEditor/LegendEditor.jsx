@@ -1,7 +1,6 @@
 import React, { useMemo}from 'react'
 import {SymbologyContext} from '../../'
-import get from 'lodash/get'
-import set from 'lodash/set'
+import { get, set } from 'lodash-es'
 
 import { InteractiveFilterControl } from './InteractiveFilterControl'
 import typeConfigs from './typeConfigs'
