@@ -59,8 +59,8 @@ const LinkComp = ({attribute, columns, newItem, removeItem, value}) => {
 
         const url = `${location || valueFormattedForDisplay}${searchParams}`;
         return isLinkExternal
-            ? (props) => <a {...props} href={url} target="_blank" rel="noopener noreferrer">{linkText || valueFormattedForDisplay}</a>
-            : (props) => <Link {...props} to={url}>{linkText || valueFormattedForDisplay}</Link>
+            ? ({show, isLink, searchParams: _sp, hideControls, ...props}) => <a {...props} href={url} target="_blank" rel="noopener noreferrer">{linkText || valueFormattedForDisplay}</a>
+            : ({show, isLink, searchParams: _sp, hideControls, ...props}) => <Link {...props} to={url}>{linkText || valueFormattedForDisplay}</Link>
     }
 
     if(actionType){

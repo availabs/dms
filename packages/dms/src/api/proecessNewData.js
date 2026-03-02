@@ -8,11 +8,16 @@ export async function processNewData (dataCache, activeIdsIntOrStr, stopFullData
     // console.log('activeIds', activeIds)
     let newData = []
 
-    let byIdCache =
-      get(dataCache, ['dms', 'data', app, 'byId'], false) ||
-      get(dataCache, ['dms', 'data', 'byId'], {});
+    // Merge both cache paths — the production server uses legacy $refs
+    // (dms.data.byId) while the new server uses app-namespaced $refs
+    // (dms.data[app].byId). After edit/create calls, items can be split
+    // across both paths. Merging ensures we see all items regardless of
+    // which server is in use. App-namespaced entries take precedence.
+    const appByIdCache = get(dataCache, ['dms', 'data', app, 'byId'], {});
+    const legacyByIdCache = get(dataCache, ['dms', 'data', 'byId'], {});
+    let byIdCache = { ...legacyByIdCache, ...appByIdCache };
 
-  const dataByApp = get(dataCache, ['dms', 'data', app, 'byId'], false) ? true : false
+  const dataByApp = Object.keys(appByIdCache).length > 0
   //console.log('processNewData - dataByApp', dataByApp)
 
   let newDataVals = Object.values(byIdCache)

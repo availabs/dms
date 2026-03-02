@@ -152,7 +152,7 @@ export class ButtonNode extends DecoratorNode {
     element.setAttribute('href', this.__path);
     element.setAttribute('data-lexical-button', 'true');
     element.className = BUTTON_STYLES[this.__style] || BUTTON_STYLES['primary'];
-    element.innerText = this.__linkText;
+    element.textContent = this.__linkText;
     return {element};
   }
 

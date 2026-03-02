@@ -5,8 +5,8 @@
   "main": "src/index.js",
   "private": false,
   "scripts": {
-    "start": "node --env-file-if-exists=.env src/index.js",
-    "dev": "nodemon --env-file-if-exists=.env src/index.js",
+    "start": "node --env-file-if-exists=../../../../.env --env-file-if-exists=.env src/index.js",
+    "dev": "nodemon --env-file-if-exists=../../../../.env --env-file-if-exists=.env src/index.js",
     "test": "node tests/test-sqlite.js && node tests/test-controller.js && node tests/test-graph.js && node tests/test-workflow.js",
     "test:sqlite": "node tests/test-sqlite.js",
     "test:controller": "node tests/test-controller.js",

@@ -1,15 +1,16 @@
 import React, { useMemo, useEffect }from 'react'
-import { Button } from "~/modules/avl-components/src";
+import { ThemeContext } from "../../../../../../ui/themeContext";
 import {SymbologyContext} from '../../../'
 import { Close, Plus } from '../../icons'
-import get from 'lodash/get'
-import set from 'lodash/set'
+import { get, set } from 'lodash-es'
 import StyleEditor from '../StyleEditor';
 import { generateDefaultName } from '../../LayerManager/SymbologyControl/components/SaveChangesMenu';
 
 function InteractiveFilterControl({ path, params = {enableBuilder: true} }) {
   const { enableBuilder } = params;
   const { state, setState } = React.useContext(SymbologyContext);
+  const { UI } = React.useContext(ThemeContext) || {};
+  const { Button } = UI;
   const { value: interactiveFilters, selectedInteractiveFilterIndex, layerName, activeLayer } = useMemo(() => {
     return {
       value: get(

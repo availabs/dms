@@ -2,10 +2,10 @@ import React, {useContext, useEffect, useMemo} from 'react';
 
 import { getAttributes } from './attributes'
 import { MapEditorContext } from './context'
+import { ThemeContext } from "../../ui/themeContext"
 
-import { Dropdown } from '~/modules/avl-components/src'
 import { Link, useParams } from 'react-router'
-import get from 'lodash/get'
+import { get } from 'lodash-es'
 
 
 const Item = (to, icon, span, condition) => (
@@ -38,6 +38,8 @@ const SourcesLayout = ({children, fullWidth, hideBreadcrumbs, isListAll }) => {
 }
 
 export const Header = ({baseUrl=''}) => {
+  const { UI } = React.useContext(ThemeContext) || {};
+  const { Dropdown } = UI;
 
   return (
     <div className='pt-[2px]'>
@@ -75,6 +77,8 @@ export const Header = ({baseUrl=''}) => {
 }
 
 export const DataManagerHeader = () => {
+  const { UI } = React.useContext(ThemeContext) || {};
+  const { Dropdown } = UI;
   // const { pgEnv } = React.useContext(MapEditorContext)
   // const baseUrl = '/'
   const { baseUrl='/', user={}} = {}

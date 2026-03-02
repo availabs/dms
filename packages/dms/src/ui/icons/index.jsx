@@ -108,25 +108,12 @@ const iconList = [
   { icon: "Circle" },
   { icon: "Line" },
 
-  // Hazard/Weather Icons
-  { icon: "riverine" },
-  { icon: "snowflake" },
-  { icon: "tsunami" },
-  { icon: "coastal" },
-  { icon: "drought" },
-  { icon: "hurricane" },
-  { icon: "earthquake" },
-  { icon: "coldwave" },
-  { icon: "heatwave" },
-  { icon: "hail" },
-  { icon: "snowstorm" },
-  { icon: "ice" },
-  { icon: "lightning" },
-  { icon: "tornado" },
-  { icon: "fire" },
-  { icon: "wind" },
-  { icon: "landslide" },
-  { icon: "volcano" },
+  // Map Icons
+  { icon: "NavigationArrow" },
+  { icon: "Home" },
+  { icon: "MapLayers" },
+  { icon: "Spinner" },
+
 ]
 
 // Build the iconSet by reducing over the iconList

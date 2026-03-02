@@ -316,14 +316,18 @@ function handleFilters({ filter, exclude, gt, gte, lt, lte, like, filterRelation
 function getValuesFromGroup(node) {
   if (!node) return [];
   if (node.groups) return node.groups.flatMap(getValuesFromGroup);
-  if (!node.value) return [];
+  if (node.isExternal || !node.value) return [];
   return [Array.isArray(node.value)
     ? node.value.filter(v => !['null', 'not null'].includes(v))
     : ['null', 'not null'].includes(node.value) ? [] : [node.value]];
 }
 
 function buildLeafSQL(node, ctx, isDms) {
-  const { col, op, value } = node;
+  const { col, op, value, isExternal } = node;
+  // External filters are already applied via old-style filter/like/etc. objects —
+  // they exist in filterGroups only for UI tracking, not SQL generation.
+  // Also skip nodes with no value (would generate a placeholder with no matching param).
+  if (isExternal || value == null) return '';
   const vals = Array.isArray(value) ? value : [value];
   const index = vals.some(v => !['null', 'not null'].includes(v))
     ? `$${++ctx.index}`

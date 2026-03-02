@@ -1,5 +1,5 @@
 //import prettyBytes from "pretty-bytes";
-import get from 'lodash/get'
+import { get } from 'lodash-es'
 
 export function ProgressBar({ progress }) {
   const Parentdiv = {
@@ -59,7 +59,7 @@ export function GisDatasetUploadStatusElem({ fileUploadStatus }) {
     const { type, payload } = fileUploadStatus;
 
     if (/GIS_FILE_UPLOAD_PROGRESS$/.test(type)) {
-      fileUploadStatusElem = <ProgressBar progress={payload?.data} />;
+      fileUploadStatusElem = <ProgressBar progress={payload?.data || payload} />;
     } else if (/GIS_FILE_RECEIVED$/.test(type)) {
       fileUploadStatusElem = (
         <td className="py-4 text-center">File Received</td>

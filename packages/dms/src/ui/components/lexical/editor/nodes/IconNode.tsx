@@ -1,6 +1,7 @@
 import React from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
 import type {
+    DOMConversionMap,
+    DOMConversionOutput,
     DOMExportOutput,
     EditorConfig,
     LexicalEditor,
@@ -25,6 +26,26 @@ export class IconNode extends DecoratorNode<JSX.Element> {
     constructor(iconName: string, key?: NodeKey) {
         super(key);
         this.__iconName = iconName;
+    }
+
+    static importDOM(): DOMConversionMap | null {
+        return {
+            span: (domNode: HTMLElement) => {
+                if (!domNode.hasAttribute('data-lexical-icon')) {
+                    return null;
+                }
+                return {
+                    conversion: (domNode: HTMLElement): DOMConversionOutput => {
+                        const iconName = domNode.getAttribute('data-lexical-icon');
+                        if (iconName) {
+                            return { node: new IconNode(iconName) };
+                        }
+                        return { node: null };
+                    },
+                    priority: 1,
+                };
+            },
+        };
     }
 
     static importJSON(serializedNode): IconNode {
@@ -54,16 +75,12 @@ export class IconNode extends DecoratorNode<JSX.Element> {
         const element = document.createElement('span');
         element.className = 'inline-block align-middle mr-1';
         element.setAttribute('data-lexical-icon', this.__iconName);
-        const Icon = editor._config?.theme?.Icons?.[this.__iconName];
-        if (Icon) {
-            try {
-                element.innerHTML = renderToStaticMarkup(
-                    React.createElement(Icon, { className: 'w-[1.5em] h-[1.5em] -mt-[5px]' })
-                );
-            } catch {
-                // Fallback if rendering fails
-            }
-        }
+        // Icon SVG is rendered client-side via decorate().
+        // We intentionally avoid renderToStaticMarkup here because exportDOM
+        // is called from $generateHtmlFromNodes inside getHtmlSync, which runs
+        // within React SSR's renderToString. React's server renderer is not
+        // reentrant — calling renderToStaticMarkup during renderToString
+        // corrupts the dispatcher state and crashes subsequent components.
         return {element};
     }
 

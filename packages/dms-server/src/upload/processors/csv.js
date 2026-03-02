@@ -14,6 +14,30 @@ function canHandle(ext) {
 }
 
 /**
+ * Detect the delimiter used in a CSV header line.
+ * Counts candidate delimiters outside quoted fields and picks the most frequent.
+ */
+function detectSeparator(headerLine, filePath) {
+  if (filePath && filePath.endsWith('.tsv')) return '\t';
+  const candidates = [',', '|', '\t', ';'];
+  const counts = {};
+  let inQuotes = false;
+  for (let i = 0; i < headerLine.length; i++) {
+    const ch = headerLine[i];
+    if (ch === '"') { inQuotes = !inQuotes; continue; }
+    if (!inQuotes && candidates.includes(ch)) {
+      counts[ch] = (counts[ch] || 0) + 1;
+    }
+  }
+  // Pick the delimiter with the most occurrences; fall back to comma
+  let best = ',', bestCount = 0;
+  for (const [ch, count] of Object.entries(counts)) {
+    if (count > bestCount) { best = ch; bestCount = count; }
+  }
+  return best;
+}
+
+/**
  * Analyze a CSV file: read header row, return layer metadata.
  * @param {string} filePath - path to the CSV file
  * @returns {Array} [{layerName, fieldsMetadata}]
@@ -23,7 +47,7 @@ function analyze(filePath) {
   const lines = content.split(/\r?\n/).filter(l => l.trim());
   if (!lines.length) return [];
 
-  const separator = filePath.endsWith('.tsv') ? '\t' : ',';
+  const separator = detectSeparator(lines[0], filePath);
   const headers = parseCSVRow(lines[0], separator);
 
   const fieldsMetadata = headers.map((header, i) => ({
@@ -85,7 +109,7 @@ function parseCSVRow(line, separator = ',') {
 function parseRows(filePath, layerName) {
   const content = fs.readFileSync(filePath, 'utf-8');
   const lines = content.split(/\r?\n/).filter(l => l.trim());
-  const separator = filePath.endsWith('.tsv') ? '\t' : ',';
+  const separator = lines.length ? detectSeparator(lines[0], filePath) : ',';
   return lines.map(line => parseCSVRow(line, separator));
 }
 

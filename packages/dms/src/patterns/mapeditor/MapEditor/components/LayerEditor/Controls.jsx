@@ -2,15 +2,12 @@ import React, { useMemo, useEffect, Fragment, useState }from 'react'
 import {SymbologyContext} from '../../'
 import { MapEditorContext } from "../../../context"
 import { Menu, Transition, Switch } from '@headlessui/react'
-import isEqual from 'lodash/isEqual'
+import { isEqual, get, set, cloneDeep } from 'lodash-es'
 import { CaretDown, Close } from '../icons'
 import { rgb2hex, toHex, categoricalColors, rangeColors } from '../LayerManager/utils'
 import {categoryPaint, isValidCategoryPaint ,choroplethPaint} from './datamaps'
 import colorbrewer from '../LayerManager/colors'//"colorbrewer"
 import { StyledControl } from './ControlWrappers'
-import get from 'lodash/get'
-import set from 'lodash/set'
-import cloneDeep from 'lodash/cloneDeep'
 import { CategoryControl } from './CategoryControl';
 import { InteractiveFilterControl } from './InteractiveFilterControl';
 import { FilterGroupControl } from './FilterGroupControl';

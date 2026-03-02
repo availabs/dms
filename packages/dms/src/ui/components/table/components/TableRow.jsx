@@ -12,7 +12,7 @@ export const TableRow = memo(function TableRow ({
 }) {
     // const rowData = rows[index];
     const {
-        visibleAttrsWithoutOpenOut, visibleAttrsWithoutOpenOutLength,
+        visibleAttrsWithoutOpenOut=[], visibleAttrsWithoutOpenOutLength,
         openOutAttributes, showGutters, striped, hideIfNullOpenouts,
     } = useContext(TableStructureContext);
     const [showOpenOut, setShowOpenOut] = useState(false);

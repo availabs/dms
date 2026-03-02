@@ -1,13 +1,12 @@
 import React, { useContext , useMemo, useEffect }from 'react'
 import { SymbologyContext } from "../../../";
 import { MapEditorContext } from "../../../../context"
+import { ThemeContext } from "../../../../../../ui/themeContext"
 
 import { Close } from '../../icons'
-import { DndList, Button } from '~/modules/avl-components/src'
 
 import {AddColumnSelectControl} from "../Controls"
-import get from 'lodash/get'
-import set from 'lodash/set'
+import { get, set } from 'lodash-es'
 function onlyUnique(value, index, array) {
   return array.indexOf(value) === index;
 }
@@ -17,6 +16,8 @@ const getDiffColumns = (baseArray, subArray) => {
 
 export function ColumnSelectControl({path, params={}}) {
   const { state, setState } = React.useContext(SymbologyContext);
+  const { UI } = useContext(ThemeContext) || {};
+  const { DndList, Button } = UI;
 
   const pathBase =
     params?.version === "interactive"

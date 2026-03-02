@@ -224,7 +224,7 @@ const Edit = ({cms_context, value, onChange, component}) => {
                     if(operation === 'like' && !(values.length && values.every(v => v.length))){
                         // like operator should not remove nulls if no value is set
                         acc[operation] = {}
-                    } if(isNormalisedColumn){
+                    } else if(isNormalisedColumn){
                         (acc.normalFilter ??= []).push({ column: column.name, values, operation, fn });
                     }else{
                         acc[operation] = {...acc[operation] || {}, [column.name]: values};
@@ -289,8 +289,9 @@ const Edit = ({cms_context, value, onChange, component}) => {
                 draft.display.filteredLength = undefined;
                 draft.display.totalLength = length;
                 draft.display.invalidState = invalidState;
+                draft.lastDataRequest = state.dataRequest;
             })
-            onChange(JSON.stringify({...state, lastDataRequest: state.dataRequest, data, totalLength: length}));
+            state.display.preventDuplicateFetch && onChange(JSON.stringify({...state, lastDataRequest: state.dataRequest, data, totalLength: length}));
             setCurrentPage(newCurrentPage);
             setLoading(false)
         }

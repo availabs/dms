@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo } from "react";
 import { useParams } from "react-router";
-import { get } from "lodash/get";
+import { get } from "lodash-es"
 
 import { DatasetsContext } from "../../../../../context";
 import { getExternalEnv } from "../../../../../utils/datasources";

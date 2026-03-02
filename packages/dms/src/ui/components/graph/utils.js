@@ -1,6 +1,6 @@
 import React from "react"
 
-import uniq from "lodash/uniq"
+import { uniq } from "lodash-es"
 import {formatFunctions} from "../../../patterns/page/components/sections/components/dataWrapper/utils/utils";
 
 

@@ -61,6 +61,36 @@ Site:    app=myapp  type=my-site-type
            └─ Data:    app=myapp  type={doc_type}-{view_id}  [split table]
 ```
 
+## UI Component Access Convention
+
+**Always access UI components through `ThemeContext`, never via direct imports.** Each pattern's `siteConfig.jsx` wraps its children with `ThemeContext.Provider` containing the shared `UI` object. Components then destructure what they need from context:
+
+```jsx
+// In siteConfig.jsx — provide UI through ThemeContext
+import UI from "../../ui"
+import { ThemeContext } from "../../ui/themeContext"
+
+// ...
+<ThemeContext.Provider value={{ theme, UI }}>
+  {children}
+</ThemeContext.Provider>
+
+// In any child component — consume UI from context
+import { ThemeContext } from "path/to/ui/themeContext"
+
+const MyComponent = () => {
+  const { UI } = React.useContext(ThemeContext) || {};
+  const { Button, DndList, Modal } = UI;
+  // ...
+}
+```
+
+**Do not** import UI components directly from the `ui/` directory or create local component files. The context pattern ensures components are themeable and consistent across the application. All shared UI components live in `packages/dms/src/ui/` and are exported via the `UI` object in `ui/index.js`.
+
+## Navigation Rules
+
+**Never use `window.location` for navigation.** Always use React Router's `useNavigate` hook. Using `window.location.assign()`, `window.location.href`, or `window.location.replace()` causes a full page reload, losing all React state and triggering unnecessary re-fetches. Use `navigate(path)` from `useNavigate()` for client-side navigation instead.
+
 ## Data Fetching Rules
 
 **Falcor should only be used directly inside the `api/` layer.** Pattern components and pages must never call `falcor.get()`, `falcor.call()`, or `falcor.invalidate()` directly. Instead, data should flow through:

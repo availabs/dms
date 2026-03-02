@@ -7,8 +7,7 @@ import React, {
 } from "react";
 import { PluginSelector } from "./PluginSelector";
 import { SymbologyContext, PluginLibrary } from "../../";
-import get from "lodash/get";
-import omit from "lodash/omit";
+import { get, omit } from "lodash-es"
 function PluginPanel(props) {
   const { state, setState } = React.useContext(SymbologyContext);
   const layers = useMemo(() => state.symbology?.layers || {}, [state]);

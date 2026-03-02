@@ -1,6 +1,6 @@
 import React, { useEffect } from "react"
 import {get, isEqual, cloneDeep} from 'lodash-es'
-import { AvlLayer } from "../../../datasets/pages/dataTypes/gis_dataset/pages/Map/avl-map-2/src"
+import { AvlLayer } from "../../../../ui/components/map"
 import { usePrevious } from './LayerManager/utils'
 
 import { MapEditorContext } from "../../context"

@@ -83,9 +83,20 @@ function PatternList({
 		{name: 'name', display_name: 'Name', show: true, type: 'text'},
 		{name: 'base_url', display_name: 'Base URL', show: true, type: 'ui',
       Comp: (d) => {
+        const host = window.location.host
+        const protocol = host.includes('localhost') ? 'http' : 'https'
+        const sub = d.row.subdomain
+        const needsSub = sub && sub !== '*'
+        // Strip existing subdomain (first segment) to get the base domain,
+        // but only if the current host actually has a subdomain.
+        const parts = host.split('.')
+        const isLocalhost = host.includes('localhost')
+        const hasSubdomain = isLocalhost ? parts.length >= 2 : parts.length > 2
+        const baseDomain = hasSubdomain ? parts.slice(1).join('.') : host
+        const targetHost = needsSub ? `${sub}.${baseDomain}` : host
         return (
           <Link
-            to={`http${window.location.host.includes('localhost') ? '' : 's'}://${(d.row.subdomain === '*' || !d.row.subdomain ) ? '' : `${d.row.subdomain}.`}${window.location.host.split('.')[1] || window.location.host.split('.')[0]}${d.row.base_url}`}
+            to={`${protocol}://${targetHost}${d.row.base_url}`}
             className='flex items-center p-2 w-full h-full py-1 font-[400] text-[14px]  leading-[18px] text-slate-600'
           >
             {d?.row?.base_url}

@@ -1,9 +1,7 @@
 import React, {useEffect, useMemo, createContext} from "react";
-import get from "lodash/get"
-import cloneDeep from "lodash/cloneDeep"
+import { get, cloneDeep, isEqual } from "lodash-es"
 import mapboxgl from "maplibre-gl";
-import isEqual from "lodash/isEqual"
-import { AvlMap } from "~/modules/avl-map-2/src"
+import { AvlMap } from "../../../../../../../ui/components/map"
 // import { PMTilesProtocol } from './pmtiles/index'
 import { useImmer } from 'use-immer';
 import LegendPanel from './LegendPanel/LegendPanel.jsx'

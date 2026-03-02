@@ -1,9 +1,7 @@
 import { useContext , useMemo, useEffect, Fragment, useRef} from 'react'
 import { SymbologyContext } from '../../../'
 import { MapEditorContext } from "../../../../context"
-import get from 'lodash/get'
-import set from 'lodash/set'
-import isEqual from 'lodash/isEqual'
+import { get, set, isEqual } from 'lodash-es'
 import mapboxgl from "maplibre-gl";
 
 export const ZoomToFit = ({ layer }) => {

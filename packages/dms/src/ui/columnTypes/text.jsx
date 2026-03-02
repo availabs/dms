@@ -6,7 +6,11 @@ const theme = {
   text: textTheme
 }
 
-const Edit = ({value = '', onChange, className, placeholder, ...rest}) => {
+const Edit = ({value = '', onChange, className, placeholder,
+    // Destructure non-DOM props so they don't get spread onto <input>
+    loading, singleSelectOnly, displayDetailedValues, keepMenuOpen,
+    tabular, displayInvalidMsg, onSearch, theme: _theme, format,
+    ...rest}) => {
     // const {theme: themeFromContext={}} = React.useContext(ThemeContext) || {};
     // const theme = {...themeFromContext, text: {...textTheme, ...(themeFromContext.text || {})}}
     const [tmpValue, setTmpValue] = useState(value && typeof value === 'object' ? JSON.stringify(value) : value)

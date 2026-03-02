@@ -14,6 +14,11 @@
 
 - [x] DataWrapper API-layer loading — move dataWrapper data fetching into the DMS API/loader so section data loads at navigation time (React Router 7 loader) instead of after component mount; detect dataWrapper sections, extract URL-mapped filter params, pre-run getData(), leverage cache freshness to skip component-level re-fetch
 
+## ssr
+
+- [x] SSR Phase 1: Basic SSR — platform-agnostic core in `render/ssr2/`, Express adapter in `render/ssr2/express/`, integration into dms-server via `mountSSR()` (`DMS_SSR` env var), fix `getSubdomain` window bug, client hydration via `DmsSite` `defaultData`/`hydrationData`, two-build system (Vite client + server)
+- [ ] SSR Phase 2: Streaming SSR — upgrade `renderToString` to `renderToPipeableStream`, template splitting for immediate shell delivery, optional `Suspense` boundaries for per-section streaming, bot/crawler detection for complete HTML
+
 ## dms-manager
 
 - [x] Centralize format initialization (`updateAttributes`/`updateRegisteredFormats`) — remove duplicated definitions from patterns, add `initializePatternFormat` helper
@@ -42,6 +47,7 @@
 - [x] Move widgets to top-level theme (out of layout.options)
 - [x] Redesign widget system (key/value format, combine definitions + components, additive merge)
 - [x] Theme merging issues — styles arrays merge by index causing cross-contamination (e.g., Dark style bleeds into Inline Guidance in mnyv1 lexical) *(see also: standardize component theme default fill-in)*
+- [x] Map component refactor — extract core map from avl-map-2 into `ui/components/map/`, remove dead UI (sidebars/modals/panels), remove npm deps (react-color/fuse.js/colorbrewer), dynamically import maplibre-gl for code splitting, preserve external API
 
 ### ui/lexical-textsettings
 
@@ -85,6 +91,10 @@
 ### patterns/auth
 
 - [x] Fix `/groups/byproject` response shape — dms-server returns plain array, client expects `{ groups: [...] }` wrapper with synthetic "public" group
+
+## config
+
+- [x] Unified project configuration — consolidate hardcoded `App.jsx` arrays, dms-server `.env`, and SSR CLI env vars into a single root `.env` file read by both Vite (`VITE_*`) and dms-server (`--env-file-if-exists`)
 
 ## project maintenance
 

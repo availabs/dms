@@ -70,6 +70,10 @@ export class AutocompleteNode extends TextNode {
     return false;
   }
 
+  static importDOM(): null {
+    return null;
+  }
+
   exportDOM(_: LexicalEditor): DOMExportOutput {
     return {element: null};
   }

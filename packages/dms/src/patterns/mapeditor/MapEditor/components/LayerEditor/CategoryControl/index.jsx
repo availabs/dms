@@ -1,13 +1,12 @@
 import React, { useMemo, useEffect }from 'react'
 import { SymbologyContext } from '../../../'
 import { MapEditorContext } from "../../../../context"
+import { ThemeContext } from "../../../../../../ui/themeContext"
 import { Switch } from '@headlessui/react'
 import { Close } from '../../icons'
-import { DndList } from '~/modules/avl-components/src'
 import { rgb2hex, toHex, categoricalColors } from '../../LayerManager/utils'
 import { StyledControl } from '../ControlWrappers'
-import get from 'lodash/get'
-import set from 'lodash/set'
+import { get, set } from 'lodash-es'
 
 const getDiffColumns = (baseArray, subArray) => {
   return baseArray.filter(baseItem => !subArray.includes(baseItem))
@@ -15,6 +14,8 @@ const getDiffColumns = (baseArray, subArray) => {
 function CategoryControl({path, params={}}) {
   const { state, setState } = React.useContext(SymbologyContext);
   const { falcor, falcorCache, pgEnv } = React.useContext(MapEditorContext);
+  const { UI } = React.useContext(ThemeContext) || {};
+  const { DndList } = UI;
 
   const pathBase =
     params?.version === "interactive"

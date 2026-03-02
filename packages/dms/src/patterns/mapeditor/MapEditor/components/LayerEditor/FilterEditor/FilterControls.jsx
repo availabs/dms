@@ -3,8 +3,7 @@ import {SymbologyContext} from '../../../'
 import { MapEditorContext } from "../../../../context"
 import { StyledControl } from '../ControlWrappers'
 import {AddColumnSelectControl, controlTypes } from '../Controls'
-import get from 'lodash/get'
-import set from 'lodash/set'
+import { get, set } from 'lodash-es'
 
 const {simple: SimpleControl, select: SelectControl} = controlTypes;
 function onlyUnique(value, index, array) {

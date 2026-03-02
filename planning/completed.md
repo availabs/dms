@@ -26,6 +26,14 @@
 - [split-table-naming.md](./tasks/completed/split-table-naming.md) - Split table naming: `data_items__s{sourceId}_v{viewId}_{docType}` format, `parseType()` helper, async source_id lookup with cache, graceful fallback, migration script (2026-02-23)
 - [dms-table-splitting.md](./tasks/current/dms-table-splitting.md) - Table splitting Tier 2: app-namespaced byId/edit routes (dual-route compat), client API changes (api/, CLI, patterns — ~25 call sites), 34 Tier 2 tests, migrate-to-per-app.js script, API docs (2026-02-23)
 
+## ssr
+
+- [ssr-basic.md](./tasks/completed/ssr-basic.md) - SSR Phase 1: platform-agnostic core (`render/ssr2/handler.jsx`), Express adapter (`render/ssr2/express/`), `mountSSR()` integration into dms-server (`DMS_SSR` env var), `getSubdomain` fix (window bug + localhost production fix), client hydration via `defaultData`/`hydrationData`, two-build system (Vite client + server), per-host route caching, Lexical SSR fixes, linkedom DOM stubs, 8x faster SSR build (2026-02-27)
+
+## config
+
+- [unified-config.md](./tasks/completed/unified-config.md) - Unified project configuration: consolidated App.jsx, dms-server .env, and SSR env vars into single root `.env` file read by both Vite (`VITE_*`) and dms-server (2026-02-27)
+
 ## ui
 
 - [fix-theme-array-merge.md](./tasks/completed/fix-theme-array-merge.md) - Implemented `mergeTheme` with `_replace` convention so array fields in themes get replaced instead of deep-merged (2026-01-28)
@@ -35,6 +43,7 @@
 - [lexical-plaintext-normalize.md](./tasks/completed/lexical-plaintext-normalize.md) - Moved plaintext-to-Lexical-JSON conversion into shared `parseValue()` so both editor and HTML view paths handle plaintext input (2026-02-08)
 - [lexical-sync-html-render.md](./tasks/completed/lexical-sync-html-render.md) - Eliminated Lexical View jitter: added sync `getHtmlSync()` using `editorState.read()`, switched View from `useEffect+useState` to `useMemo`, restored collapsible handlers (2026-02-08)
 - [theme-merging-issues.md](./tasks/completed/theme-merging-issues.md) - Fixed styles array cross-contamination, standardized component theme default fill-in via `getComponentTheme()` (2026-02-09)
+- [map-component-refactor.md](./tasks/completed/map-component-refactor.md) - Map component refactor: extracted core map from avl-map-2 into `ui/components/map/` (6 files from 25+), dynamic maplibre-gl import for code splitting, removed dead UI/theme system/npm deps, migrated all consumers to ThemeContext UI pattern, removed avl-map-2 and avl-components submodules, deleted avl-map-2_bak and dms_OLD, converted all lodash→lodash-es imports (2026-03-01)
 
 ## patterns
 

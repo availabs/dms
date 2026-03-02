@@ -2,8 +2,7 @@ import React, { useEffect, useContext , useMemo, useRef } from 'react'
 //import {Button} from '~/modules/avl-components/src'
 import {SymbologyContext} from '../../..'
 import { MapEditorContext } from "../../../../context"
-import get from 'lodash/get'
-import set from 'lodash/set'
+import { get, set } from 'lodash-es'
 import { getLayer } from '../utils'
 import { Plus, Close } from '../../icons'
 import { Modal } from "../SymbologyControl";

@@ -1,15 +1,16 @@
 import React, { useContext, useMemo, useState } from "react";
-import { Button } from "~/modules/avl-components/src";
+import { ThemeContext } from "../../../../../../ui/themeContext";
 import { SymbologyContext } from "../../../";
 import { ExistingFilterList, FilterBuilder } from "./FilterControls";
 import { DynamicFilterBuilder } from "./DynamicFilterBuilder"
 import { InteractiveFilterControl } from "../InteractiveFilterControl";
 import { StyledControl } from '../ControlWrappers'
-import get from "lodash/get";
-import set from "lodash/set";
+import { get, set } from "lodash-es"
 
 function FilterEditor(props) {
   const { state, setState } = useContext(SymbologyContext);
+  const { UI } = useContext(ThemeContext) || {};
+  const { Button } = UI;
   const [displayFilterBuilder, setDisplayFilterBuilder] = useState(false);
   const [displayDynamicBuilder, setDisplayDynamicBuilder] = useState(false);
   const [activeFilterColumn, setActiveFilterColumn] = useState();

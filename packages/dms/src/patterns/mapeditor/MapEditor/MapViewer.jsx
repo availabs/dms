@@ -1,6 +1,6 @@
 import React from "react"
 import { get } from 'lodash-es'
-import { AvlMap as AvlMap2 } from "../../datasets/pages/dataTypes/gis_dataset/pages/Map/avl-map-2/src"
+import { AvlMap as AvlMap2 } from "../../../ui/components/map"
 import SymbologyViewLayer from './components/SymbologyViewLayer'
 import PluginLayer from './components/PluginLayer'
 

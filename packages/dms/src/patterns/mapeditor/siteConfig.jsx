@@ -4,6 +4,8 @@ import { cloneDeep } from "lodash-es";
 
 import { useFalcor } from "@availabs/avl-falcor"
 
+import UI from "../../ui"
+import { ThemeContext } from "../../ui/themeContext"
 import { MapEditorContext } from "./context"
 
 import MapEditorFormat from "./mapeditor.format"
@@ -60,7 +62,9 @@ const mapeditorConfig = ({
 
 					return (
 						<MapEditorContext.Provider value={ mapeditorContextValue }>
-							{ children }
+							<ThemeContext.Provider value={{ UI }}>
+								{ children }
+							</ThemeContext.Provider>
 						</MapEditorContext.Provider>
 					)
 				},

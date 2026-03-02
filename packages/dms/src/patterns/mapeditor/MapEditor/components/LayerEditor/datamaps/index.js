@@ -1,6 +1,6 @@
 import { rgb2hex, toHex, categoricalColors } from '../../LayerManager/utils'
 import ckmeans, {equalIntervalBreaks, jenksBreaks, prettyBreaks} from '../../../../ckmeans'
-import get from 'lodash/get'
+import { get } from 'lodash-es'
 
 export function categoryPaint(column, categoryData, colors, num=10, metadata) {
 

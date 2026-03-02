@@ -5,7 +5,12 @@ import { cloneDeep } from "lodash-es"
 
 import { dmsDataLoader, dmsPageFactory } from '../../'
 
-import patternTypes from '../../patterns'
+import { resolvePatterns } from '../../patterns'
+
+// Start resolving lazy patterns immediately at module load.
+// By the time the component renders, this is typically already resolved.
+let resolvedPatterns = null
+const patternsReady = resolvePatterns().then(p => { resolvedPatterns = p; return p })
 import { updateAttributes, updateRegisteredFormats } from "../../dms-manager/_utils";
 
 import { withAuth, authProvider } from '../../patterns/auth/context';
@@ -13,19 +18,17 @@ import { parseIfJSON } from '../../patterns/page/pages/_utils';
 
 const getSubdomain = (host) => {
     // ---
-    // takes window.location.host and returns subdomain
+    // takes host string and returns subdomain
     // only works with single depth subdomains
     // ---
-    //console.log('host', host,  host.split('.'));
-    if (process.env.NODE_ENV === "development") {
-        return host.split('.').length >= 2 ?
-            window.location.host.split('.')[0].toLowerCase() :
-                false
-    } else {
-        return host.split('.').length > 2 ?
-            window.location.host.split('.')[0].toLowerCase() :
-                false
-    }
+    // Strip port (e.g., "songs.localhost:3001" → "songs.localhost")
+    const hostname = host.split(':')[0]
+    // localhost is a single-part TLD, so "sub.localhost" has 2 parts.
+    // Real domains like "example.com" have 2 parts, "sub.example.com" has 3.
+    const isLocalhost = hostname === 'localhost' || hostname.endsWith('.localhost')
+    const minParts = isLocalhost || process.env.NODE_ENV === "development" ? 2 : 3
+    const parts = hostname.split('.')
+    return parts.length >= minParts ? parts[0].toLowerCase() : false
 }
 
 function RootErrorBoundary() {
@@ -47,7 +50,7 @@ function RootErrorBoundary() {
 //console.log('hola', pageConfig)
 
 
-function pattern2routes (siteData, props) {
+function pattern2routes (siteData, props, patternTypes) {
     let {
         dmsConfig,
         adminPath = '/list',
@@ -59,11 +62,12 @@ function pattern2routes (siteData, props) {
         DAMA_HOST = 'https://graph.availabs.org',
         damaBaseUrl,
         PROJECT_NAME,
-        damaDataTypes
+        damaDataTypes,
+        host = typeof window !== 'undefined' ? window.location.host : 'localhost'
     } = props
 
 
-    let SUBDOMAIN = getSubdomain(window.location.host)
+    let SUBDOMAIN = getSubdomain(host)
     // for weird double subdomain tld
     SUBDOMAIN = SUBDOMAIN === 'hazardmitigation' ? '' : SUBDOMAIN
 
@@ -203,18 +207,20 @@ export default async function dmsSiteFactory(config) {
     dmsConfigUpdated.attributes = updateAttributes(dmsConfigUpdated.attributes, dmsConfig.app, siteType)
 
     falcor = falcor || falcorGraph(API_HOST)
-    // console.time('load routes')
-    let data = await dmsDataLoader(falcor, dmsConfigUpdated, `/`);
-    // console.timeEnd('load routes')
-    // console.log('data -- get site data here', JSON.stringify(data))
+    // Resolve lazy patterns in parallel with data loading
+    const [data, patternTypes] = await Promise.all([
+        dmsDataLoader(falcor, dmsConfigUpdated, `/`),
+        patternsReady,
+    ]);
 
-    return pattern2routes(data, config)
+    return pattern2routes(data, config, patternTypes)
 }
 
 export function DmsSite (config) {
     const {
         dmsConfig,
         defaultData,
+        hydrationData,
         adminPath = '/list',
         authPath,
         authWrapper = withAuth,
@@ -227,7 +233,8 @@ export function DmsSite (config) {
         damaBaseUrl,
         PROJECT_NAME,
         routes = [],
-        damaDataTypes = {}
+        damaDataTypes = {},
+        host = typeof window !== 'undefined' ? window.location.host : 'localhost'
     } = config
     //-----------
     // to do:
@@ -237,60 +244,37 @@ export function DmsSite (config) {
     // console.log('current Project name', CurrentProjectName)
     const [loading, setLoading] = useState(false);
 
-    const [dynamicRoutes, setDynamicRoutes] = useState(
-        defaultData ?
-            pattern2routes(defaultData, {
-                dmsConfig,
-                adminPath,
-                authPath,
-                themes,
-                falcor,
-                API_HOST,
-                DAMA_HOST,
-                authWrapper,
-                pgEnvs,
-                damaBaseUrl,
-                PROJECT_NAME: CurrentProjectName,
-                damaDataTypes
-                //theme
-            })
-            : []
-        );
+    const routeProps = {
+        dmsConfig, adminPath, authPath, themes, falcor, API_HOST, DAMA_HOST,
+        authWrapper, pgEnvs, damaBaseUrl, PROJECT_NAME: CurrentProjectName,
+        damaDataTypes, host
+    }
+
+    // If defaultData is provided AND lazy patterns already resolved (typical —
+    // they started loading at module eval), build routes synchronously to avoid
+    // any flash. Otherwise start with [] and resolve in the effect below.
+    const [dynamicRoutes, setDynamicRoutes] = useState(() => {
+        if (defaultData && resolvedPatterns) {
+            return pattern2routes(defaultData, routeProps, resolvedPatterns)
+        }
+        return []
+    });
 
     useEffect(() => {
         let isStale = false;
         async function load () {
-            // console.log('loading site data')
-            setLoading(true)
-            // console.time('dmsSiteFactory')
-            const dynamicRoutes = await dmsSiteFactory({
-                dmsConfig,//adminConfig
-                adminPath,
-                authPath,
-                themes,
-                falcor,
-                API_HOST,
-                DAMA_HOST,
-                authWrapper,
-                pgEnvs,
-                damaBaseUrl,
-                PROJECT_NAME: CurrentProjectName,
-                damaDataTypes,
-                //theme
-            });
-            // console.timeEnd('dmsSiteFactory')
-            //console.log('dynamicRoutes ', dynamicRoutes)
-            if(!isStale) {
-                setDynamicRoutes(dynamicRoutes);
+            if (!defaultData) setLoading(true)
+            // Always do the full API fetch — defaultData may only contain a
+            // subset of routes (e.g., SSR pre-rendered one pattern but the
+            // site has others). The fetch fills in any missing routes.
+            const routes = await dmsSiteFactory(routeProps);
+            if (!isStale) {
+                setDynamicRoutes(routes);
                 setLoading(false);
             }
         }
-
         load()
-
-        return () => {
-            isStale = true
-        }
+        return () => { isStale = true }
     }, []);
 
 
@@ -313,13 +297,20 @@ export function DmsSite (config) {
     );
 
     const router = React.useMemo(
-      () => createBrowserRouter([
-          ...dynamicRoutes,
-          ...routesWithErrorBoundary,
-          PageNotFoundRoute
-      ]),
-      [dynamicRoutes, routesWithErrorBoundary, PageNotFoundRoute]
+      () => createBrowserRouter(
+          [
+              ...dynamicRoutes,
+              ...routesWithErrorBoundary,
+              PageNotFoundRoute
+          ],
+          hydrationData ? { hydrationData } : undefined
+      ),
+      [dynamicRoutes, routesWithErrorBoundary, PageNotFoundRoute, hydrationData]
     );
+
+    if (loading && !dynamicRoutes.length) {
+        return <div className="w-screen h-screen flex items-center justify-center">Loading...</div>;
+    }
 
     return (
       <AuthedRouteProvider

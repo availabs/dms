@@ -1,12 +1,11 @@
 import React, { useContext , useMemo, useEffect, Fragment }from 'react'
 import {SymbologyContext} from '../../../'
 import { MapEditorContext } from "../../../../context"
+import { ThemeContext } from "../../../../../../ui/themeContext"
 import { StyledControl } from '../ControlWrappers'
 import {AddColumnSelectControl, controlTypes } from '../Controls'
-import get from 'lodash/get'
-import set from 'lodash/set'
+import { get, set } from 'lodash-es'
 import { Switch } from '@headlessui/react'
-import { DndList } from '~/modules/avl-components/src'
 import { Close } from '../../icons'
 const DEFAULT_STRING_FILTER = {
   operator: "==",
@@ -24,6 +23,8 @@ const getDiffColumns = (baseArray, subArray) => {
 
 export const DynamicFilterBuilder = ({path, params={}}) => {
   const { pgEnv, falcor, falcorCache } = useContext(MapEditorContext);
+  const { UI } = useContext(ThemeContext) || {};
+  const { DndList } = UI;
   const { state, setState } = React.useContext(SymbologyContext);
 
   const { existingFilter, existingDynamicFilter, sourceId } = useMemo(() => {
