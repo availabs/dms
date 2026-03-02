@@ -261,27 +261,16 @@ export function DmsSite (config) {
     });
 
     useEffect(() => {
-        // Routes were already built synchronously above.
-        if (defaultData && resolvedPatterns) return;
-
         let isStale = false;
         async function load () {
-            setLoading(true)
-            if (defaultData) {
-                // SSR path: we have site data but patterns weren't ready
-                // synchronously. Wait for them, then build routes.
-                const patternTypes = await patternsReady;
-                if (!isStale) {
-                    setDynamicRoutes(pattern2routes(defaultData, routeProps, patternTypes));
-                    setLoading(false);
-                }
-            } else {
-                // Normal SPA path: fetch site data + resolve patterns
-                const routes = await dmsSiteFactory(routeProps);
-                if (!isStale) {
-                    setDynamicRoutes(routes);
-                    setLoading(false);
-                }
+            if (!defaultData) setLoading(true)
+            // Always do the full API fetch — defaultData may only contain a
+            // subset of routes (e.g., SSR pre-rendered one pattern but the
+            // site has others). The fetch fills in any missing routes.
+            const routes = await dmsSiteFactory(routeProps);
+            if (!isStale) {
+                setDynamicRoutes(routes);
+                setLoading(false);
             }
         }
         load()
