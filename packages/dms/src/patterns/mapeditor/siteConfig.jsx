@@ -69,7 +69,7 @@ const mapeditorConfig = ({
 							path: "",
 							type: MapEditor,
 							filter: {
-								attributes: ["name", "description"]
+								attributes: ["name"]
 							}
 						},
 						{ action: "edit",
