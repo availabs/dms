@@ -319,6 +319,10 @@ export function DmsSite (config) {
       [dynamicRoutes, routesWithErrorBoundary, PageNotFoundRoute, hydrationData]
     );
 
+    if (loading && !dynamicRoutes.length) {
+        return <div className="w-screen h-screen flex items-center justify-center">Loading...</div>;
+    }
+
     return (
       <AuthedRouteProvider
         router={router}
