@@ -5,7 +5,12 @@ import { cloneDeep } from "lodash-es"
 
 import { dmsDataLoader, dmsPageFactory } from '../../'
 
-import patternTypes from '../../patterns'
+import { resolvePatterns } from '../../patterns'
+
+// Start resolving lazy patterns immediately at module load.
+// By the time the component renders, this is typically already resolved.
+let resolvedPatterns = null
+const patternsReady = resolvePatterns().then(p => { resolvedPatterns = p; return p })
 import { updateAttributes, updateRegisteredFormats } from "../../dms-manager/_utils";
 
 import { withAuth, authProvider } from '../../patterns/auth/context';
@@ -45,7 +50,7 @@ function RootErrorBoundary() {
 //console.log('hola', pageConfig)
 
 
-function pattern2routes (siteData, props) {
+function pattern2routes (siteData, props, patternTypes) {
     let {
         dmsConfig,
         adminPath = '/list',
@@ -202,12 +207,13 @@ export default async function dmsSiteFactory(config) {
     dmsConfigUpdated.attributes = updateAttributes(dmsConfigUpdated.attributes, dmsConfig.app, siteType)
 
     falcor = falcor || falcorGraph(API_HOST)
-    // console.time('load routes')
-    let data = await dmsDataLoader(falcor, dmsConfigUpdated, `/`);
-    // console.timeEnd('load routes')
-    // console.log('data -- get site data here', JSON.stringify(data))
+    // Resolve lazy patterns in parallel with data loading
+    const [data, patternTypes] = await Promise.all([
+        dmsDataLoader(falcor, dmsConfigUpdated, `/`),
+        patternsReady,
+    ]);
 
-    return pattern2routes(data, config)
+    return pattern2routes(data, config, patternTypes)
 }
 
 export function DmsSite (config) {
@@ -238,65 +244,48 @@ export function DmsSite (config) {
     // console.log('current Project name', CurrentProjectName)
     const [loading, setLoading] = useState(false);
 
-    const [dynamicRoutes, setDynamicRoutes] = useState(
-        defaultData ?
-            pattern2routes(defaultData, {
-                dmsConfig,
-                adminPath,
-                authPath,
-                themes,
-                falcor,
-                API_HOST,
-                DAMA_HOST,
-                authWrapper,
-                pgEnvs,
-                damaBaseUrl,
-                PROJECT_NAME: CurrentProjectName,
-                damaDataTypes,
-                host
-            })
-            : []
-        );
+    const routeProps = {
+        dmsConfig, adminPath, authPath, themes, falcor, API_HOST, DAMA_HOST,
+        authWrapper, pgEnvs, damaBaseUrl, PROJECT_NAME: CurrentProjectName,
+        damaDataTypes, host
+    }
+
+    // If defaultData is provided AND lazy patterns already resolved (typical —
+    // they started loading at module eval), build routes synchronously to avoid
+    // any flash. Otherwise start with [] and resolve in the effect below.
+    const [dynamicRoutes, setDynamicRoutes] = useState(() => {
+        if (defaultData && resolvedPatterns) {
+            return pattern2routes(defaultData, routeProps, resolvedPatterns)
+        }
+        return []
+    });
 
     useEffect(() => {
-        // SSR already provided site data — routes were built synchronously
-        // from defaultData in useState above. Skip the async refetch to
-        // preserve the hydrated router state.
-        if (defaultData) return;
+        // Routes were already built synchronously above.
+        if (defaultData && resolvedPatterns) return;
 
         let isStale = false;
         async function load () {
-            // console.log('loading site data')
             setLoading(true)
-            // console.time('dmsSiteFactory')
-            const dynamicRoutes = await dmsSiteFactory({
-                dmsConfig,//adminConfig
-                adminPath,
-                authPath,
-                themes,
-                falcor,
-                API_HOST,
-                DAMA_HOST,
-                authWrapper,
-                pgEnvs,
-                damaBaseUrl,
-                PROJECT_NAME: CurrentProjectName,
-                damaDataTypes,
-                host
-            });
-            // console.timeEnd('dmsSiteFactory')
-            //console.log('dynamicRoutes ', dynamicRoutes)
-            if(!isStale) {
-                setDynamicRoutes(dynamicRoutes);
-                setLoading(false);
+            if (defaultData) {
+                // SSR path: we have site data but patterns weren't ready
+                // synchronously. Wait for them, then build routes.
+                const patternTypes = await patternsReady;
+                if (!isStale) {
+                    setDynamicRoutes(pattern2routes(defaultData, routeProps, patternTypes));
+                    setLoading(false);
+                }
+            } else {
+                // Normal SPA path: fetch site data + resolve patterns
+                const routes = await dmsSiteFactory(routeProps);
+                if (!isStale) {
+                    setDynamicRoutes(routes);
+                    setLoading(false);
+                }
             }
         }
-
         load()
-
-        return () => {
-            isStale = true
-        }
+        return () => { isStale = true }
     }, []);
 
 

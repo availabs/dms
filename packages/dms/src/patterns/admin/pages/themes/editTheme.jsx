@@ -9,8 +9,6 @@ import { cloneDeep, get, set } from "lodash-es";
 import { ThemeContext, mergeTheme } from "../../../../ui/useTheme";
 import { AdminContext } from "../../context";
 import { parseIfJSON } from '../../../page/pages/_utils';
-import componentDocs from '../../../../ui/docs'
-
 const DefaultComp = () => <div>Component not registered.</div>
 const ComponentRenderer = ({Component=DefaultComp, props}) => <Component {...props} />;
 
@@ -80,6 +78,10 @@ function ComponentList ({
 	path,
 	...rest
 }) {
+
+  // Lazy-load component docs (only needed for theme editor preview)
+  const [componentDocs, setComponentDocs] = useState(null);
+  useEffect(() => { import('../../../../ui/docs').then(m => setComponentDocs(m.default)); }, []);
 
   // themes is an array of {name, theme, id}
 	const navigate = useNavigate();
