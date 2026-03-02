@@ -17,7 +17,7 @@ export default function EditWrapper({ Component, format, options, params, user, 
 	const submit = useSubmit();
 	const { pathname, search } = useLocation();
 	const navigate = useNavigate();
-	const { data=[] } = useLoaderData()
+	const { data=[] } = useLoaderData() || {};
 	const [ busy, setBusy ] = React.useState({updating: 0, loading: 0})
 	let status = useActionData()
 	const {defaultSort = (d) => d } = format
