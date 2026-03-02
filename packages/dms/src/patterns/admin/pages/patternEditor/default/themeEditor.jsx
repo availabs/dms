@@ -8,9 +8,6 @@ import {ThemeContext, mergeTheme} from "../../../../../ui/useTheme";
 import {AdminContext} from "../../../context";
 import {parseIfJSON} from '../../../../page/pages/_utils';
 import defaultTheme from '../../../../../ui/defaultTheme'
-import componentDocs from '../../../../../ui/docs'
-
-
 const DefaultComp = () => <div>Component not registered.</div>
 const ComponentRenderer = ({Component = DefaultComp, props}) => <Component {...props} />;
 
@@ -100,6 +97,10 @@ export function PatternThemeEditor({
                                        path,
                                        ...rest
                                    }) {
+
+    // Lazy-load component docs (only needed for theme editor preview)
+    const [componentDocs, setComponentDocs] = useState(null);
+    useEffect(() => { import('../../../../../ui/docs').then(m => setComponentDocs(m.default)); }, []);
 
     // themes is an array of {name, theme, id}
     const navigate = useNavigate();
