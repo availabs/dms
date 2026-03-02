@@ -13,8 +13,7 @@ import FilterComponent from "./FilterComponent";
 import UploadComponent from "./UploadComponent";
 import ValidateComponent from "./ValidateComponent";
 import PDFGenerator from "./ExportPdf";
-
-//import Map from "./map"
+import Map from "./map"
 
 // //import Item from "./item";
 const ComponentRegistry = {

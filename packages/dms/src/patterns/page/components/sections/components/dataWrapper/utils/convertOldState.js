@@ -85,7 +85,8 @@ export const convertOldState = (state, initialState, compName) => {
             };
         }
 
-        if(![true, false].includes(oldState?.display?.preventDuplicateFetch)) {
+        if(![true, false].includes(oldState?.display?.preventDuplicateFetch) && !oldState?.sourceInfo?.isDms) {
+            // only turn on for external sources
             oldState.display.preventDuplicateFetch = true;
         }
         return oldState;
