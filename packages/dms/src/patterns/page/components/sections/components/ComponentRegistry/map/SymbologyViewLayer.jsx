@@ -2,7 +2,6 @@ import React, { useEffect, useContext, useRef } from "react"
 import { get, isEqual, cloneDeep } from "lodash-es"
 import { AvlLayer } from "../../../../../../../ui/components/map"
 import { usePrevious } from './utils.js'
-import { API_HOST } from '~/config'
 import { MapContext } from "./"
 import { CMSContext } from '../../../../../context'
 import bbox from '@turf/bbox';

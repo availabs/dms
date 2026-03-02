@@ -1022,7 +1022,7 @@ const AvlMap = (props) => {
   const [maplibreModule, setMaplibreModule] = React.useState(null);
 
   React.useEffect(() => {
-    import("maplibre-gl").then(m => setMaplibreModule(m.default || m));
+    import("maplibre-gl").then(m => setMaplibreModule(() => m.default || m));
   }, []);
 
   if (!maplibreModule) {
