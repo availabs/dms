@@ -74,7 +74,7 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
 
 	useEffect(() => {
 		updatePageStateFiltersOnSearchParamChange({searchParams, item, patternFilters, setPageState})
-	}, [searchParams]);
+	}, [searchParams, item?.filters]);
 
 	useEffect(() => {
 		initNavigateUsingSearchParams({pageState, search, navigate, baseUrl, item})
