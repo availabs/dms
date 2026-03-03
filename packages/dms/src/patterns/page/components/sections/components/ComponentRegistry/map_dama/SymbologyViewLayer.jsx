@@ -4,7 +4,7 @@ import isEqual from "lodash/isEqual"
 import cloneDeep from "lodash/cloneDeep"
 import { AvlLayer } from "~/modules/avl-map-2/src"
 import { usePrevious } from '../map/utils.js'
-import { API_HOST } from '~/config'
+// import { API_HOST } from '~/config'
 import { MapContext } from "./"
 import { CMSContext } from '../../../../../context'
 import bbox from '@turf/bbox';

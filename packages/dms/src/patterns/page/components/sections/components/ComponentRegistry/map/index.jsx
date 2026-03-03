@@ -113,7 +113,7 @@ const Edit = ({value, onChange, size}) => {
         // });
     }, [apiLoad, mapeditorKeys]);
 
-// console.log("Map::state", state);
+console.log("Map::pageState", pageState);
 
     const [mapLayers, setMapLayers] = useImmer([]);
 
@@ -135,6 +135,9 @@ const Edit = ({value, onChange, size}) => {
     },[pageState])
     useEffect(() => {
         const usePageFilters = Object.values(activeSymSymbology.layers || {}).some(layer => layer['dynamic-filters']?.length);
+
+console.log("usePageFilters", usePageFilters)
+
         if(!usePageFilters) return;
 
         // get interactive filters for active layer
