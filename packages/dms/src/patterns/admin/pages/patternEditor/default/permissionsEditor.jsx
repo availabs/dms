@@ -28,8 +28,6 @@ export const PatternPermissionsEditor = ({
 
 
 
-
-
   return (
     <div className="max-w-5xl">
     <Permissions
@@ -37,7 +35,7 @@ export const PatternPermissionsEditor = ({
         user={user}
         getUsers={AuthAPI.getUsers}
         getGroups={AuthAPI.getGroups}
-        onChange={(v) => setTmpValue({...inputValue, 'authPermissions': v})}
+        onChange={(v) => setTmpValue(v)}
         permissionDomain={permissionDomain}
         defaultPermission={defaultPermission}
     />
@@ -61,7 +59,7 @@ export const PatternPermissionsEditor = ({
               type: 'Button',
               children: <span>Save</span>,
               disabled: isEqual(tmpValue,value),
-              onClick: () => apiUpdate({data:tmpValue}),
+              onClick: () => apiUpdate({data: {id: value.id, authPermissions: tmpValue}}),
               customTheme: { field: 'pb-2 col-span-1 flex justify-end' }
             }
         ]}

@@ -4,10 +4,11 @@ import { ThemeContext } from "../../../../../ui/useTheme";
 import { isEqual } from "lodash-es";
 import { parseIfJSON } from "../../../../page/pages/_utils";
 
-export const PatternFilterEditor = ({value=[], onChange, ...rest}) => {
+export const PatternFilterEditor = ({value={}, onChange, ...rest}) => {
     const {UI} = useContext(ThemeContext);
     const { apiUpdate} = useContext(AdminContext);
-    const [tmpValue, setTmpValue] = useState(parseIfJSON(value));
+    const patternFilters = value?.filters || [];
+    const [tmpValue, setTmpValue] = useState(parseIfJSON(patternFilters));
     const [newFilter, setNewFilter] = useState({});
     const {FieldSet, Button} = UI;
     const customTheme = {
@@ -18,15 +19,15 @@ export const PatternFilterEditor = ({value=[], onChange, ...rest}) => {
     }
 
     const updateFilters = (idx, key, valueToUpdate) => {
-        setTmpValue(value.map((v, i) => i === idx ? {...v, [key]: valueToUpdate} : v))
-        onChange(value.map((v, i) => i === idx ? {...v, [key]: valueToUpdate} : v));
+        const newFilters = patternFilters.map((v, i) => i === idx ? {...v, [key]: valueToUpdate} : v);
+        setTmpValue(newFilters)
     }
 
     return (
         <div className={'flex flex-col gap-1 p-1 border rounded-md max-w-5xl'}>
             <label className={'text-sm'}>Filters</label>
             {
-                (tmpValue?.filters || []).map((filter, i) => (
+                (tmpValue || []).map((filter, i) => (
                     <FieldSet
                         className={'grid grid-cols-3 gap-1'}
                         components={[
@@ -44,7 +45,6 @@ export const PatternFilterEditor = ({value=[], onChange, ...rest}) => {
                             },
                             {type: 'Button', children: 'remove', customTheme: customThemeButton,
                                 onClick: () => {
-                                    onChange(value.filter((_, idx) => i !== idx));
                                     setTmpValue(value.filter((_, idx) => i !== idx))
                                 }
                             }
@@ -65,16 +65,14 @@ export const PatternFilterEditor = ({value=[], onChange, ...rest}) => {
                     },
                     {type: 'Button', children: 'add', customTheme: customThemeButton,
                         onClick: () => {
-                            const id = uuidv4();
-                            onChange([...value, {id, ...newFilter}]);
-                            setTmpValue([...value, {id, ...newFilter}])
+                            const id = crypto.randomUUID();
+                            setTmpValue([...tmpValue, {id, ...newFilter}])
                             setNewFilter({});
                         }
                     }
                 ]}
             />
             <Button onClick={() => {
-                onChange([]);
                 setTmpValue([])
                 setNewFilter({});
             }} > clear all filters </Button>
@@ -89,16 +87,18 @@ export const PatternFilterEditor = ({value=[], onChange, ...rest}) => {
                       type: 'Button',
                       children: <span>Reset</span>,
                       buttonType: 'plain',
-                      disabled: isEqual(tmpValue,value),
+                      disabled: isEqual(tmpValue,value.filters),
                       value: tmpValue.base_url,
-                      onClick: () => setTmpValue(draft => value),
+                      onClick: () => setTmpValue(parseIfJSON(value.filters)),
                       customTheme: { field: 'pb-2 col-span-1 flex justify-end' }
                     },
                     {
                       type: 'Button',
                       children: <span>Save</span>,
-                      disabled: isEqual(tmpValue,value),
-                      onClick: () => apiUpdate({data:tmpValue}),
+                      disabled: isEqual(tmpValue,value.filters),
+                      onClick: () => {
+                          apiUpdate({data: {id: value.id, filters: tmpValue}})
+                      },
                       customTheme: { field: 'pb-2 col-span-1 flex justify-end' }
                     }
                 ]}
