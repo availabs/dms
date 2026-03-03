@@ -52,9 +52,11 @@ export const SymbologySelector = () => {
         return [...dmsSymbologies, ...damaSymbologies];
     }, [dmsSymbologies, damaSymbologies]);
 
-// console.log("SymbologySelector::symbologies", dmsSymbologies, damaSymbologies, symbologies);
+// console.log("SymbologySelector::state.symbologies", state.symbologies);
 
-    const activeSym = Object.values(state?.symbologies)[0]?.id;
+// console.log("SymbologySelector::symbologies", symbologies);
+
+    const activeSym = Object.values(state?.symbologies)[0]?.id || Object.values(state?.symbologies)[0]?.symbology_id;
     // useEffect(() => {
     //     const activeSymbology = state.symbologies?.[activeSym];
     //     const existingSym = symbologies.find(d => +d.id === +activeSym);
@@ -66,8 +68,12 @@ export const SymbologySelector = () => {
     //     }
     // }, [symbologies]);
 
+// console.log("SymbologySelector::activeSym", activeSym);
+
     const symOptions = symbologies.map(sym => ({label: sym.name, key: sym.id}));
     const layerOptions = Object.values(state.symbologies?.[activeSym]?.symbology?.layers || {}).map((layer, i) => ({label: layer.name?.length && layer.name !== ' ' ? layer.name : `layer - ${i+1}`, key: layer.id}));
+
+// console.log("SymbologySelector::layerOptions", layerOptions)
 
     return (
         <div className={'flex w-full bg-white items-center'}>
