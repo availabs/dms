@@ -139,7 +139,7 @@ const MapEditor = props => {
   const navigate = useNavigate();
   const { id: symbologyId } = props.params;
 
-// console.log("MapEditor::props", props);
+console.log("MapEditor::props", props);
 // console.log("MapEditor::symbologyId", symbologyId);
 
   React.useEffect(() => {
