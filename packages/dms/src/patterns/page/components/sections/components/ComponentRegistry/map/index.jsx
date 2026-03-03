@@ -56,10 +56,9 @@ const getData = async () => {
 
 const EMPTY_OBJECT = {};
 
-const Edit = ({value, onChange, size}) => {
+const Edit = ({value, onChange, isEdit}) => {
     // const {falcor, falcorCache} = useFalcor();
     // controls: symbology, more, filters: lists all interactive and dynamic filters and allows for searchParams match.
-    const isEdit = Boolean(onChange);
 
 // console.log("Map::isEdit", isEdit);
 
@@ -433,6 +432,6 @@ export default {
     "type": 'Map',
     "variables": [],
     getData,
-    "EditComp": Edit,
-    "ViewComp": Edit
+    "EditComp": props => <Edit {...props} isEdit={true} />,
+    "ViewComp": props => <Edit {...props} isEdit={false} />
 }
