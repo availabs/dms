@@ -1,6 +1,7 @@
 import React, {useEffect, useMemo, useRef, createContext} from "react";
 import get from "lodash/get";
 import isEqual from "lodash/isEqual"
+import cloneDeep from "lodash/cloneDeep"
 import { AvlMap } from "~/modules/avl-map-2/src"
 // import { PMTilesProtocol } from '~/pages/DataManager/utils/pmtiles/index.ts'
 import { useImmer } from 'use-immer';
@@ -13,6 +14,8 @@ import { CMSContext } from "../../../../../context";
 // import { CMSContext } from "~/modules/dms/src/patterns/page/siteConfig";
 
 import { HEIGHT_OPTIONS } from "./MapManager/MapManager";
+
+import mapeditorFormat from "../../../../../../mapeditor/mapeditor.format"
 
 const isJson = (str)  => {
     try {
@@ -138,13 +141,14 @@ const Edit = ({value, onChange, size}) => {
         },{}) 
     }, [state?.symbologies]);
 
-    const isHorizontalLegendActive = Object.values(state?.symbologies)
-      ?.filter((symb) => symb.isVisible)
-      .some((symb) => {
-        return Object.values(symb?.symbology?.layers).some(
-          (symbLayer) => symbLayer["legend-orientation"] === "horizontal"
-        );
-      });
+    const isHorizontalLegendActive = React.useMemo(() => {
+        return Object.values(state?.symbologies)?.filter((symb) => symb.isVisible)
+            .some((symb) => {
+                return Object.values(symb?.symbology?.layers).some(
+                  (symbLayer) => symbLayer["legend-orientation"] === "horizontal"
+                );
+            });
+    }, [state.symbologies]);
 
 
     const interactiveFilterIndicies = useMemo(
@@ -194,11 +198,15 @@ const Edit = ({value, onChange, size}) => {
       }, [isEqual(interactiveFilterIndicies, prevInteractiveIndicies)])
 
 
-    const { center, zoom } = state.initialBounds ? state.initialBounds : {
-        center: [-75.17, 42.85],
-        zoom: 6.6
-    }
+    const { center, zoom } = React.useMemo(() => {
+        return state.initialBounds ? state.initialBounds : {
+            center: [-75.17, 42.85],
+            zoom: 6.6
+        }
+    }, [state.initialBounds]);
+
     const heightStyle = HEIGHT_OPTIONS[state.height];
+
     return (
         <MapContext.Provider value={ { state, setState, falcor, falcorCache, pgEnv, doApiLoad } }>
             <div id='dama_map_edit' className="w-full relative" style={{height: heightStyle}} ref={mounted}>
