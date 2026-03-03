@@ -326,7 +326,7 @@ function LegendPanel (props) {
         <div className='min-h-10 relative bg-white/75 max-h-[calc(100vh_-_111px)] overflow-auto pointer-events-auto scrollbar-sm'>
           {layersBySymbology.map((symb) => (
             <div
-              key={symb.id}
+              key={symb.symbology_id}
               className="m-1 p-1 rounded"
             >
               <div className="font-normal">{symb.name}</div>
