@@ -5,12 +5,10 @@ import { cloneDeep } from "lodash-es"
 
 import { dmsDataLoader, dmsPageFactory } from '../../'
 
-import { resolvePatterns } from '../../patterns'
+import { default as patternTypes } from '../../patterns';
 
 // Start resolving lazy patterns immediately at module load.
 // By the time the component renders, this is typically already resolved.
-let resolvedPatterns = null
-const patternsReady = resolvePatterns().then(p => { resolvedPatterns = p; return p })
 import { updateAttributes, updateRegisteredFormats } from "../../dms-manager/_utils";
 
 import { withAuth, authProvider } from '../../patterns/auth/context';
@@ -50,7 +48,7 @@ function RootErrorBoundary() {
 //console.log('hola', pageConfig)
 
 
-function pattern2routes (siteData, props, patternTypes) {
+function pattern2routes (siteData, props) {
     let {
         dmsConfig,
         adminPath = '/list',
@@ -208,12 +206,9 @@ export default async function dmsSiteFactory(config) {
 
     falcor = falcor || falcorGraph(API_HOST)
     // Resolve lazy patterns in parallel with data loading
-    const [data, patternTypes] = await Promise.all([
-        dmsDataLoader(falcor, dmsConfigUpdated, `/`),
-        patternsReady,
-    ]);
+    const data = await dmsDataLoader(falcor, dmsConfigUpdated, `/`);
 
-    return pattern2routes(data, config, patternTypes)
+    return pattern2routes(data, config)
 }
 
 export function DmsSite (config) {
@@ -236,13 +231,7 @@ export function DmsSite (config) {
         damaDataTypes = {},
         host = typeof window !== 'undefined' ? window.location.host : 'localhost'
     } = config
-    //-----------
-    // to do:
-    // could save sites to localstorage cache clear on load.
-    //-----------
     let CurrentProjectName = PROJECT_NAME ? PROJECT_NAME : dmsConfig.app
-    // console.log('current Project name', CurrentProjectName)
-    const [loading, setLoading] = useState(false);
 
     const routeProps = {
         dmsConfig, adminPath, authPath, themes, falcor, API_HOST, DAMA_HOST,
@@ -250,39 +239,10 @@ export function DmsSite (config) {
         damaDataTypes, host
     }
 
-    // If defaultData is provided AND lazy patterns already resolved (typical —
-    // they started loading at module eval), build routes synchronously to avoid
-    // any flash. Otherwise start with [] and resolve in the effect below.
-    const [dynamicRoutes, setDynamicRoutes] = useState(() => {
-        if (defaultData && resolvedPatterns) {
-            return pattern2routes(defaultData, routeProps, resolvedPatterns)
-        }
-        return []
-    });
-
-    useEffect(() => {
-        let isStale = false;
-        async function load () {
-            if (!defaultData) setLoading(true)
-            // Always do the full API fetch — defaultData may only contain a
-            // subset of routes (e.g., SSR pre-rendered one pattern but the
-            // site has others). The fetch fills in any missing routes.
-            const routes = await dmsSiteFactory(routeProps);
-            if (!isStale) {
-                setDynamicRoutes(routes);
-                setLoading(false);
-            }
-        }
-        load()
-        return () => { isStale = true }
-    }, []);
-
-
-    const PageNotFoundRoute = React.useMemo(() => ({
-        path: "/*",
-        Component: () =>
-            <div className={'w-screen h-screen mx-auto flex items-center justify-center'}>404</div>
-    }), []);
+    const AuthedRouteProvider = React.useMemo(
+      () => authProvider(RouterProvider, { AUTH_HOST, PROJECT_NAME:CurrentProjectName }),
+      [AUTH_HOST, CurrentProjectName]
+    );
 
     const routesWithErrorBoundary = React.useMemo(() => routes.map(c => {
         if (!c.errorElement) {
@@ -291,24 +251,49 @@ export function DmsSite (config) {
         return c
     }), [routes]);
 
-    const AuthedRouteProvider = React.useMemo(
-      () => authProvider(RouterProvider, { AUTH_HOST, PROJECT_NAME:CurrentProjectName }),
-      [AUTH_HOST, CurrentProjectName]
-    );
+    const PageNotFoundRoute = React.useMemo(() => ({
+        path: "/*",
+        Component: () =>
+            <div className={'w-screen h-screen mx-auto flex items-center justify-center'}>404</div>
+    }), []);
 
-    const router = React.useMemo(
-      () => createBrowserRouter(
-          [
-              ...dynamicRoutes,
-              ...routesWithErrorBoundary,
-              PageNotFoundRoute
-          ],
-          hydrationData ? { hydrationData } : undefined
-      ),
-      [dynamicRoutes, routesWithErrorBoundary, PageNotFoundRoute, hydrationData]
-    );
+    // routerRef tracks the live router instance and the paths used to build it,
+    // so the effect can revalidate in-place when routes haven't structurally changed.
+    const routerRef = React.useRef(null);
 
-    if (loading && !dynamicRoutes.length) {
+    const buildRouter = React.useCallback((builtRoutes, opts) => {
+        const r = createBrowserRouter(
+            [...builtRoutes, ...routesWithErrorBoundary, PageNotFoundRoute],
+            opts
+        );
+        routerRef.current = { router: r, paths: builtRoutes.map(r => r.path).sort().join('|') };
+        return r;
+    }, [routesWithErrorBoundary, PageNotFoundRoute]);
+
+    const [router, setRouter] = useState(() => {
+        if (defaultData) {
+            const initialRoutes = pattern2routes(defaultData, routeProps);
+            return buildRouter(initialRoutes);
+        }
+        return null;
+    });
+
+    useEffect(() => {
+        let isStale = false;
+        dmsSiteFactory(routeProps).then(builtRoutes => {
+            if (isStale) return;
+            const newPaths = builtRoutes.map(r => r.path).sort().join('|');
+            if (routerRef.current && routerRef.current.paths === newPaths) {
+                // Same route structure — revalidate active loaders in place, no flash
+                routerRef.current.router.revalidate();
+            } else {
+                setRouter(buildRouter(builtRoutes, hydrationData ? { hydrationData } : undefined));
+            }
+        });
+        return () => { isStale = true }
+    }, []);
+
+    if (!router) {
         return <div className="w-screen h-screen flex items-center justify-center">Loading...</div>;
     }
 

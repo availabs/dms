@@ -25,6 +25,17 @@ const Edit = ({ value, onChange, attr, group, siteType }) => {
     const { Icon } = UI;
 
     React.useEffect(() => {
+        // if page changes while a section is being edited, reset.
+        if(edit?.index >= 0) {
+            setEdit({
+                index: -1,
+                value: '',
+                type: 'new'
+            })
+        }
+    }, [item?.id])
+
+    React.useEffect(() => {
         //------------------------------------------
         // update value edit clone on receiving data
         // -----------------------------------------
@@ -32,14 +43,6 @@ const Edit = ({ value, onChange, attr, group, siteType }) => {
             setValues([''])
         }else if(!isEqual(value, values)) {
             setValues(value)
-        }
-
-        if(edit?.index >= 0) {
-            setEdit({
-                index: -1,
-                value: '',
-                type: 'new'
-            })
         }
     }, [value]);
 
