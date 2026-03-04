@@ -54,19 +54,21 @@ const getData = async () => {
     return {}
 }
 
+const EMPTY_TABS = [{ "name": "Layers", rows: [] }];
 const EMPTY_OBJECT = {};
 
-const Edit = ({value, onChange, isEdit}) => {
+const Edit = ({ value, onChange, isEdit }) => {
     // const {falcor, falcorCache} = useFalcor();
     // controls: symbology, more, filters: lists all interactive and dynamic filters and allows for searchParams match.
 
+// console.log("Map::value", value);
 // console.log("Map::isEdit", isEdit);
 
     const { falcor, falcorCache, pgEnv, apiLoad, mapeditorKeys } = React.useContext(CMSContext);
     const { pageState, setPageState } =  React.useContext(PageContext) || {}
     const cachedData = typeof value === 'object' ? value : value && isJson(value) ? JSON.parse(value) : {};
     const [state, setState] = useImmer({
-        tabs: cachedData.tabs || [{"name": "Layers", rows: []}],
+        tabs: cachedData.tabs || EMPTY_TABS,
         symbologies: cachedData.symbologies || EMPTY_OBJECT,
         isEdit,
         setInitialBounds: cachedData.setInitialBounds || false,
@@ -80,8 +82,6 @@ const Edit = ({value, onChange, isEdit}) => {
         pluginControlPosition: cachedData.pluginControlPosition || Object.keys(PANEL_POSITION_OPTIONS)[0], //defaults to `top-left`
         basemapStyle: cachedData.basemapStyle || "Default"
     });
-
-console.log("Map::state", state);
 
     const doApiLoad = React.useCallback(() => {
         return mapeditorKeys.reduce((a, c) => {
@@ -100,21 +100,9 @@ console.log("Map::state", state);
                 }).then(cc => [...aa, ...cc]);
             })
         }, Promise.resolve([]));
-        // return apiLoad({
-        //     format: MAP_EDITOR_FORMAT,
-        //     app: MAP_EDITOR_FORMAT.app,
-        //     type: MAP_EDITOR_FORMAT.type,
-        //     attributes: MAP_EDITOR_FORMAT.attributes,
-        //     children: [
-        //         {   type: () => {},
-        //             action: "list",
-        //             path: "/"
-        //         }
-        //     ]
-        // });
     }, [apiLoad, mapeditorKeys]);
 
-console.log("Map::pageState", pageState);
+// console.log("Map::pageState", pageState);
 
     const [mapLayers, setMapLayers] = useImmer([]);
 
@@ -130,13 +118,13 @@ console.log("Map::pageState", pageState);
         return state.symbologies[activeSym]?.symbology || {};
     }, [state.symbologies[activeSym]])
 
-console.log("Map::activeSymSymbology", activeSymSymbology);
+// console.log("Map::activeSymSymbology", activeSymSymbology);
 
     const activeLayer = useMemo(() => {
         return activeSymSymbology?.layers?.[activeSymSymbology?.activeLayer];
     },[activeSymSymbology])
 
-console.log("Map::activeLayer", activeLayer);
+// console.log("Map::activeLayer", activeLayer);
 
     const pageFilters = useMemo(() => {
         return pageState.filters
@@ -149,16 +137,16 @@ console.log("Map::activeLayer", activeLayer);
         // get interactive filters for active layer
         const interactiveFilterOptions = (activeLayer?.['interactive-filters'] || []);
 
-console.log("interactiveFilterOptions", interactiveFilterOptions)
+// console.log("interactiveFilterOptions", interactiveFilterOptions)
 
         const searchParamKey = activeLayer?.searchParamKey;
         const searchParamFilterKey = (pageFilters || []).find(f => f.searchKey === searchParamKey)?.values;
 
-console.log("searchParamFilterKey", searchParamFilterKey)
+// console.log("searchParamFilterKey", searchParamFilterKey)
 
         const fI = interactiveFilterOptions.findIndex(f => f.searchParamValue === searchParamFilterKey || f.label === searchParamFilterKey)
 
-console.log("fI", fI)
+// console.log("fI", fI)
 
         // dynamic filters update for all layers
         const getSearchParamKey = f => f.searchParamKey || f.column_name;
@@ -180,7 +168,7 @@ console.log("fI", fI)
                         })
                         .forEach(filter => {
 
-console.log("filter:", filter)
+// console.log("filter:", filter)
 
                             const isNumeric = filter.dataType === 'numeric';
                             const newValues = searchParamValues(layer['dynamic-filters'])[getSearchParamKey(filter)];
@@ -198,7 +186,7 @@ console.log("filter:", filter)
         return (activeLayer?.['dynamic-filters'] || []);
     },[activeLayer]);
 
-console.log("Map::dynamicFilterOptions", dynamicFilterOptions);
+// console.log("Map::dynamicFilterOptions", dynamicFilterOptions);
 
     useEffect(() => {
         const getFilterBounds = async () => {
@@ -335,7 +323,7 @@ console.log("Map::dynamicFilterOptions", dynamicFilterOptions);
         return state.symbologies[activeSym]?.symbology.layers[activeSymSymbology?.activeLayer]?.selectedInteractiveFilterIndex
     }, [state.symbologies]);
 
-      useEffect(() => {
+    useEffect(() => {
         setState((draft) => {
           Object.keys(draft.symbologies)
             .forEach(topSymbKey => {
@@ -367,7 +355,7 @@ console.log("Map::dynamicFilterOptions", dynamicFilterOptions);
                   });
             })
         });
-      }, [interactiveFilterIndicies])
+    }, [interactiveFilterIndicies])
 
     const heightStyle = HEIGHT_OPTIONS[state.height];
     const legendPositionStyle = PANEL_POSITION_OPTIONS[state.legendPosition];
@@ -379,13 +367,17 @@ console.log("Map::dynamicFilterOptions", dynamicFilterOptions);
     }
 
     useEffect(() => {
-
         if (onChange && !isEqual(value, state)) {
-// console.log("CALLING ON CHANGE")
+// console.log("CALLING ON CHANGE", state);
             onChange(state)
         }
         // onChange && onChange(state)
-    },[onChange, value, state])
+    }, [onChange, value, state]);
+
+//     useEffect(() => {
+// console.log("CALLING ON CHANGE", state);
+//         onChange && onChange(state);
+//     },[onChange, state]);
 
     defaultStyles.sort((a,b) => {
         if(a.name === state.basemapStyle) {

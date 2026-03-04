@@ -265,7 +265,7 @@ const LegendPanel = (props) => {
     return Object.values(state?.symbologies || {})
       .filter(symb => symb.isVisible)
       .map((symb) => {
-        return { name: symb.name, id: symb.id, layers: { ...symb.symbology.layers } };
+        return { name: symb.name, id: symb.id || symb.symbology_id, layers: { ...symb.symbology.layers } };
       });
   }, [state]);
 

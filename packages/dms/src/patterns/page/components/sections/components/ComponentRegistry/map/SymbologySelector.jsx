@@ -31,7 +31,13 @@ export const SymbologySelector = () => {
     React.useEffect(() => {
         doApiLoad()
             .then(res => {
-                setDmsSymbologies(res)
+                setDmsSymbologies(res.map(sym => ({
+                    ...sym,
+                    symbology: {
+                        ...sym.symbology,
+                        id: sym.id
+                    }
+                })))
             });
     }, [doApiLoad]);
 
@@ -43,6 +49,7 @@ export const SymbologySelector = () => {
                 id: sym.symbology_id,
                 symbology: {
                     ...sym.symbology,
+                    id: sym.symbology_id,
                     isDamaSymbology: true
                 }
             }));
@@ -70,9 +77,11 @@ export const SymbologySelector = () => {
 
 // console.log("SymbologySelector::activeSym", activeSym);
 
-    const symOptions = symbologies.map(sym => ({label: sym.name, key: sym.id}));
+    const symOptions = symbologies.map(sym => ({label: sym.name, key: sym.id || sym.symbology_id }));
     const layerOptions = Object.values(state.symbologies?.[activeSym]?.symbology?.layers || {}).map((layer, i) => ({label: layer.name?.length && layer.name !== ' ' ? layer.name : `layer - ${i+1}`, key: layer.id}));
 
+// console.log("SymbologySelector::state.symbologies", Object.values(state.symbologies?.[activeSym]?.symbology?.layers || {}))
+// console.log("SymbologySelector::symOptions", symOptions)
 // console.log("SymbologySelector::layerOptions", layerOptions)
 
     return (
