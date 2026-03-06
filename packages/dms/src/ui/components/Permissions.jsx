@@ -166,7 +166,7 @@ export default function ({
                     {
                         Object.entries(inheritedParsedValue?.groups || {})
                             .map(([groupName, permissions]) => (
-                                    <div className={permissionsTheme.valueSubWrapperInherited}>
+                                    <div className={permissionsTheme.valueSubWrapperInherited} key={`permissions_group_${groupName}`}>
                                         <div className={permissionsTheme.title}>{groupName}</div>
                                         {permissions}
                                     </div>
