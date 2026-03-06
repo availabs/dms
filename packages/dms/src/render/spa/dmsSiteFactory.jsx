@@ -14,6 +14,19 @@ import { updateAttributes, updateRegisteredFormats } from "../../dms-manager/_ut
 import { withAuth, authProvider } from '../../patterns/auth/context';
 import { parseIfJSON } from '../../patterns/page/pages/_utils';
 
+function resolveSubdomainFilters(rawFilters, subdomain) {
+    const parsed = parseIfJSON(rawFilters, []);
+    if (Array.isArray(parsed)) return parsed;               // old format
+    return parsed[subdomain] || parsed['*'] || [];          // new format
+}
+
+function resolveSubdomainAuthPermissions(rawAuth, subdomain) {
+    const parsed = parseIfJSON(rawAuth || '{}', {});
+    if (parsed['*'] !== undefined)                          // new format
+        return parseIfJSON(parsed[subdomain] || parsed['*'] || {});
+    return parseIfJSON(parsed);                                          // old format
+}
+
 const getSubdomain = (host) => {
     // ---
     // takes host string and returns subdomain
@@ -149,13 +162,12 @@ function pattern2routes (siteData, props) {
             //console.log('register pattern', pattern.id, pattern.subdomain, `/${pattern.base_url?.replace(/^\/|\/$/g, '')}`)
             acc.push(
               ...c.map(config => {
-                  //console.log('dmsSiteFactory authPermissions', pattern?.authPermissions)
-                  const authPermissions = parseIfJSON(pattern?.authPermissions || "{}");
-                  if(!authPermissions?.groups?.public){
-                      // default public permissions. overridden by set permissions
+                  const authPermissions = resolveSubdomainAuthPermissions(pattern?.authPermissions, SUBDOMAIN || '');
+                  if (!authPermissions?.groups?.public) {
                       authPermissions.groups ??= {};
                       authPermissions.groups.public ??= ['view-page'];
                   }
+                  const resolvedFilters = resolveSubdomainFilters(pattern?.filters, SUBDOMAIN || '');
                 const configObj = config({
                     app: dmsConfigUpdated?.format?.app || dmsConfigUpdated.app,
                     // type: pattern.doc_type,
@@ -164,7 +176,7 @@ function pattern2routes (siteData, props) {
                     baseUrl: `/${pattern.base_url?.replace(/^\/|\/$/g, '')}`, // only leading slash allowed
                     adminPath,
                     format: pattern?.config,
-                    pattern: pattern,
+                    pattern: { ...pattern, filters: resolvedFilters },
                     pattern_type: pattern?.pattern_type,
                     authPermissions,
                     // NEW: Add datasources for page pattern
