@@ -184,6 +184,7 @@ export default {
             {type: 'toggle', label: 'Use Pagination', key: 'usePagination'},
             {type: 'toggle', label: 'Auto Resize Columns', key: 'autoResize'},
             {type: 'toggle', label: 'Hide Null Open out columns', key: 'hideIfNullOpenouts'},
+            {type: 'toggle', label: 'Virtualize Columns', key: 'virtualizeColumns'},
             {type: 'select', label: 'Filter Relation', key: 'filterRelation',
                 options: [{label: 'and', value: 'and'}, {label: 'or', value: 'or'}]
             },
