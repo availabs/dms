@@ -63,7 +63,7 @@ function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdat
 
     useEffect(() => {
         updatePageStateFiltersOnSearchParamChange({searchParams, item, patternFilters, setPageState})
-    }, [searchParams]);
+    }, [searchParams, item?.filters]);
 
     useEffect(() => {
         initNavigateUsingSearchParams({pageState, search, navigate, baseUrl, item, isView: true})

@@ -200,6 +200,7 @@ const ColumnRow = ({ column, index, state, setState, resolvedControls, Pill, Ico
             </div>
             {isExpanded && (
                 <div className="px-3 py-2 border-t bg-gray-50 flex flex-col gap-1.5" draggable={false}>
+                    <div className={'text-xs text-gray-900 py-0.5'}>{column.name}</div>
                     <div className="flex items-center gap-1">
                         <label className="text-xs text-gray-600">Name</label>
                         <Input

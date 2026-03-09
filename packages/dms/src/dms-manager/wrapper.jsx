@@ -113,7 +113,7 @@ export default function EditWrapper({ Component, format, options, params, user, 
 			user={user}
 			// -- I believe these are deprecated to apiLoad / apiUpdate / busy
 			// -- submit={submitForm}
-			updateAttribute={updateAttribute}
+			updateAttribute={updateAttribute} // sectionGroup uses this. Without setting item, going into edit mode of a section shows old value
 			falcor={falcor}
 			// setItem={setItem}
 		  // --status={status}

@@ -552,6 +552,7 @@ export default function ({
                                 if(display.usePagination) return;
                                 infiniteScrollFetchData && infiniteScrollFetchData( currentPage + 1 )
                             }}
+                            virtualizeColumns={display.virtualizeColumns}
                             renderItem={itemContent}
                             components={components}
                         />

@@ -19,6 +19,9 @@ export default function FilterControls() {
     const dynamicFilterOptions = (activeLayer?.['dynamic-filters'] || []);
     const activeFilter = activeLayer?.selectedInteractiveFilterIndex;
 
+// console.log("FilterControls::interactiveFilterOptions", interactiveFilterOptions);
+// console.log("FilterControls::dynamicFilterOptions", dynamicFilterOptions);
+
     return (
         <div className="relative inline-block text-left">
             <div>
@@ -51,7 +54,7 @@ export default function FilterControls() {
 
                         {
                             interactiveFilterOptions.map((filter, fI) => (
-                                <>
+                                <React.Fragment key={ fI }>
                                     <div className={'text-sm'}>{filter.label}</div>
                                     <input className={'text-sm'}
                                            placeholder={'search param key'}
@@ -65,7 +68,7 @@ export default function FilterControls() {
                                                    setValue={value => value ? setState((draft) => {
                                                        draft.symbologies[activeSym].symbology.layers[activeSymSymbology?.activeLayer].selectedInteractiveFilterIndex = fI;
                                                    }) : null}/>
-                                </>
+                                </React.Fragment>
                             ))
                         }
                     </div>
@@ -78,7 +81,7 @@ export default function FilterControls() {
 
                         {
                             dynamicFilterOptions.map((filter, fI) => (
-                                <>
+                                <React.Fragment key={ fI }>
                                     <div className={'text-sm'}>{filter.display_name || filter.column_name}</div>
                                     <input className={'text-sm'}
                                            placeholder={'search param key'}
@@ -111,7 +114,7 @@ export default function FilterControls() {
                                         <option key={'str'} value={undefined}>String</option>
                                         <option key={'num'} value={'numeric'}>Numeric</option>
                                     </select>
-                                </>
+                                </React.Fragment>
                             ))
                         }
                     </div>

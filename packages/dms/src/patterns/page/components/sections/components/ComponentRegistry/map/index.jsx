@@ -54,20 +54,21 @@ const getData = async () => {
     return {}
 }
 
+const EMPTY_TABS = [{ "name": "Layers", rows: [] }];
 const EMPTY_OBJECT = {};
 
-const Edit = ({value, onChange, size}) => {
+const Edit = ({ value, onChange, isEdit }) => {
     // const {falcor, falcorCache} = useFalcor();
     // controls: symbology, more, filters: lists all interactive and dynamic filters and allows for searchParams match.
-    const isEdit = Boolean(onChange);
 
+// console.log("Map::value", value);
 // console.log("Map::isEdit", isEdit);
 
     const { falcor, falcorCache, pgEnv, apiLoad, mapeditorKeys } = React.useContext(CMSContext);
     const { pageState, setPageState } =  React.useContext(PageContext) || {}
     const cachedData = typeof value === 'object' ? value : value && isJson(value) ? JSON.parse(value) : {};
     const [state, setState] = useImmer({
-        tabs: cachedData.tabs || [{"name": "Layers", rows: []}],
+        tabs: cachedData.tabs || EMPTY_TABS,
         symbologies: cachedData.symbologies || EMPTY_OBJECT,
         isEdit,
         setInitialBounds: cachedData.setInitialBounds || false,
@@ -99,21 +100,9 @@ const Edit = ({value, onChange, size}) => {
                 }).then(cc => [...aa, ...cc]);
             })
         }, Promise.resolve([]));
-        // return apiLoad({
-        //     format: MAP_EDITOR_FORMAT,
-        //     app: MAP_EDITOR_FORMAT.app,
-        //     type: MAP_EDITOR_FORMAT.type,
-        //     attributes: MAP_EDITOR_FORMAT.attributes,
-        //     children: [
-        //         {   type: () => {},
-        //             action: "list",
-        //             path: "/"
-        //         }
-        //     ]
-        // });
     }, [apiLoad, mapeditorKeys]);
 
-// console.log("Map::state", state);
+// console.log("Map::pageState", pageState);
 
     const [mapLayers, setMapLayers] = useImmer([]);
 
@@ -124,24 +113,40 @@ const Edit = ({value, onChange, size}) => {
     const activeSym = useMemo(() => {
         return Object.keys(state.symbologies || {}).find(sym => state.symbologies[sym].isVisible);
     }, [state.symbologies])
+
     const activeSymSymbology = useMemo(()=> {
         return state.symbologies[activeSym]?.symbology || {};
     }, [state.symbologies[activeSym]])
+
+// console.log("Map::activeSymSymbology", activeSymSymbology);
+
     const activeLayer = useMemo(() => {
         return activeSymSymbology?.layers?.[activeSymSymbology?.activeLayer];
     },[activeSymSymbology])
+
+// console.log("Map::activeLayer", activeLayer);
+
     const pageFilters = useMemo(() => {
         return pageState.filters
     },[pageState])
     useEffect(() => {
         const usePageFilters = Object.values(activeSymSymbology.layers || {}).some(layer => layer['dynamic-filters']?.length);
+
         if(!usePageFilters) return;
 
         // get interactive filters for active layer
         const interactiveFilterOptions = (activeLayer?.['interactive-filters'] || []);
+
+// console.log("interactiveFilterOptions", interactiveFilterOptions)
+
         const searchParamKey = activeLayer?.searchParamKey;
         const searchParamFilterKey = (pageFilters || []).find(f => f.searchKey === searchParamKey)?.values;
+
+// console.log("searchParamFilterKey", searchParamFilterKey)
+
         const fI = interactiveFilterOptions.findIndex(f => f.searchParamValue === searchParamFilterKey || f.label === searchParamFilterKey)
+
+// console.log("fI", fI)
 
         // dynamic filters update for all layers
         const getSearchParamKey = f => f.searchParamKey || f.column_name;
@@ -162,6 +167,9 @@ const Edit = ({value, onChange, size}) => {
                             return searchParamValues([dynamicFilterOptions])[getSearchParamKey(dynamicFilterOptions)]
                         })
                         .forEach(filter => {
+
+// console.log("filter:", filter)
+
                             const isNumeric = filter.dataType === 'numeric';
                             const newValues = searchParamValues(layer['dynamic-filters'])[getSearchParamKey(filter)];
 
@@ -177,6 +185,8 @@ const Edit = ({value, onChange, size}) => {
     const dynamicFilterOptions = useMemo(() => {
         return (activeLayer?.['dynamic-filters'] || []);
     },[activeLayer]);
+
+// console.log("Map::dynamicFilterOptions", dynamicFilterOptions);
 
     useEffect(() => {
         const getFilterBounds = async () => {
@@ -313,39 +323,39 @@ const Edit = ({value, onChange, size}) => {
         return state.symbologies[activeSym]?.symbology.layers[activeSymSymbology?.activeLayer]?.selectedInteractiveFilterIndex
     }, [state.symbologies]);
 
-      // useEffect(() => {
-      //   setState((draft) => {
-      //     Object.keys(draft.symbologies)
-      //       .forEach(topSymbKey => {
-      //           const curTopSymb = draft.symbologies[topSymbKey];
-      //           Object.keys(curTopSymb.symbology.layers)
-      //             .forEach((lKey) => {
-      //               const layer = draft.symbologies[topSymbKey].symbology.layers[lKey];
-      //               const draftFilters = layer['interactive-filters'] || {};
-      //               const draftDynamicFilters = layer['dynamic-filters'];
-      //               const draftFilterIndex = +layer.selectedInteractiveFilterIndex;
-      //               const draftInteractiveFilter = draftFilters?.[draftFilterIndex]
+    useEffect(() => {
+        setState((draft) => {
+          Object.keys(draft.symbologies)
+            .forEach(topSymbKey => {
+                const curTopSymb = draft.symbologies[topSymbKey];
+                Object.keys(curTopSymb.symbology.layers)
+                  .forEach((lKey) => {
+                    const layer = draft.symbologies[topSymbKey].symbology.layers[lKey];
+                    const draftFilters = layer['interactive-filters'] || {};
+                    const draftDynamicFilters = layer['dynamic-filters'];
+                    const draftFilterIndex = +layer.selectedInteractiveFilterIndex;
+                    const draftInteractiveFilter = draftFilters?.[draftFilterIndex]
 
-      //               if(draftInteractiveFilter) {
-      //                 const newSymbology = {
-      //                   ...layer,
-      //                   ...draftInteractiveFilter,
-      //                   order: layer.order,
-      //                   "layer-type": "interactive",
-      //                   "interactive-filters": draftFilters,
-      //                   "dynamic-filters": draftDynamicFilters,
-      //                   selectedInteractiveFilterIndex: draftFilterIndex
-      //                 };
+                    if(draftInteractiveFilter) {
+                      const newSymbology = {
+                        ...layer,
+                        ...draftInteractiveFilter,
+                        order: layer.order,
+                        "layer-type": "interactive",
+                        "interactive-filters": draftFilters,
+                        "dynamic-filters": draftDynamicFilters,
+                        selectedInteractiveFilterIndex: draftFilterIndex
+                      };
 
-      //                 newSymbology.layers.forEach((d, i) => {
-      //                   newSymbology.layers[i].layout.visibility = curTopSymb.isVisible ? 'visible' :  "none";
-      //                 });
-      //                 draft.symbologies[topSymbKey].symbology.layers[lKey] = newSymbology;
-      //               }
-      //             });
-      //       })
-      //   });
-      // }, [interactiveFilterIndicies])
+                      newSymbology.layers.forEach((d, i) => {
+                        newSymbology.layers[i].layout.visibility = curTopSymb.isVisible ? 'visible' :  "none";
+                      });
+                      draft.symbologies[topSymbKey].symbology.layers[lKey] = newSymbology;
+                    }
+                  });
+            })
+        });
+    }, [interactiveFilterIndicies])
 
     const heightStyle = HEIGHT_OPTIONS[state.height];
     const legendPositionStyle = PANEL_POSITION_OPTIONS[state.legendPosition];
@@ -357,13 +367,17 @@ const Edit = ({value, onChange, size}) => {
     }
 
     useEffect(() => {
-
         if (onChange && !isEqual(value, state)) {
-// console.log("CALLING ON CHANGE")
+// console.log("CALLING ON CHANGE", state);
             onChange(state)
         }
         // onChange && onChange(state)
-    },[onChange, value, state])
+    }, [onChange, value, state]);
+
+//     useEffect(() => {
+// console.log("CALLING ON CHANGE", state);
+//         onChange && onChange(state);
+//     },[onChange, state]);
 
     defaultStyles.sort((a,b) => {
         if(a.name === state.basemapStyle) {
@@ -430,6 +444,6 @@ export default {
     "type": 'Map',
     "variables": [],
     getData,
-    "EditComp": Edit,
-    "ViewComp": Edit
+    "EditComp": props => <Edit {...props} isEdit={true} />,
+    "ViewComp": props => <Edit {...props} isEdit={false} />
 }

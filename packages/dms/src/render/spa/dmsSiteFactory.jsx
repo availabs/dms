@@ -31,12 +31,7 @@ export function DmsSite (config) {
         damaDataTypes = {},
         host = typeof window !== 'undefined' ? window.location.host : 'localhost'
     } = config
-    //-----------
-    // to do:
-    // could save sites to localstorage cache clear on load.
-    //-----------
     let CurrentProjectName = PROJECT_NAME ? PROJECT_NAME : dmsConfig.app
-    // console.log('current Project name', CurrentProjectName)
     const [loading, setLoading] = useState(false);
 
     const routeProps = {
@@ -78,11 +73,6 @@ export function DmsSite (config) {
     const [syncActive, setSyncActive] = useState(false);
     const [syncAPI, setSyncAPIState] = useState(null);
 
-    const PageNotFoundRoute = React.useMemo(() => ({
-        path: "/*",
-        Component: () =>
-            <div className={'w-screen h-screen mx-auto flex items-center justify-center'}>404</div>
-    }), []);
 
     const routesWithErrorBoundary = React.useMemo(() => routes.map(c => {
         if (!c.errorElement) {
@@ -90,6 +80,12 @@ export function DmsSite (config) {
         }
         return c
     }), [routes]);
+
+    const PageNotFoundRoute = React.useMemo(() => ({
+        path: "/*",
+        Component: () =>
+            <div className={'w-screen h-screen mx-auto flex items-center justify-center'}>404</div>
+    }), []);
 
     const AuthedRouteProvider = React.useMemo(
       () => authProvider(RouterProvider, { AUTH_HOST, PROJECT_NAME:CurrentProjectName }),

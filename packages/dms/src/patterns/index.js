@@ -11,7 +11,11 @@ const patterns = {
   admin: adminConfig,
   auth: authConfig,
   datasets: datasetsConfig,
-  mapeditor: mapeditorConfig,
+  mapeditor: mapeditorConfig
+}
+
+export async function resolvePatterns() {
+  return patterns
 }
 
 export default patterns

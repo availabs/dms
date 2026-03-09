@@ -76,9 +76,11 @@ export const PatternSettingsEditor = ({ value = {}, onChange, ...rest}) => {
               doc_type: newDocType,
               name: `${value.name}_copy`,
               pattern_type: value.pattern_type,
+              authPermissions: value.authPermissions,
               auth_level: value.auth_level,
               filters: value.filters,
               theme: value.theme,
+              additionalSectionAttributes: value.additionalSectionAttributes
           };
 
           const createResult = await falcor.call(

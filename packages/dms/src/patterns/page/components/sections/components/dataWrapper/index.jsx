@@ -631,6 +631,9 @@ const View = ({cms_context, value, onChange, component, editPageMode}) => {
                 const normalized = Array.isArray(pageValues) ? pageValues : [pageValues];
                 if (!isEqual(node.value, normalized)) {
                     node.value = normalized;
+                    if(!draft.display.readyToLoad){
+                        draft.display.readyToLoad = true; // on filter change, set readyToLoad
+                    }
                 }
             };
             update(draft.dataRequest?.filterGroups);

@@ -1,25 +1,47 @@
-import React, { useMemo, Fragment } from 'react'
+import React, { useContext , useMemo, useCallback, Fragment, useRef} from 'react'
 import { MapContext } from '../'
-import { useNavigate } from 'react-router'
-import { get } from 'lodash-es'
-import { CMSContext } from '../../../../../../context'
-export const fnumIndex = (d, fractions = 2, currency = false) => {
-  if(isNaN(d)) return '0'
-  if(typeof d === 'number' && d < 1) return `${currency ? '$' : ``} ${d?.toFixed(fractions)}`
-  if (d >= 1_000_000_000_000_000) {
-    return `${currency ? '$' : ``} ${(d / 1_000_000_000_000_000).toFixed(fractions)} Q`;
-  }else if (d >= 1_000_000_000_000) {
-    return `${currency ? '$' : ``} ${(d / 1_000_000_000_000).toFixed(fractions)} T`;
-  } else if (d >= 1_000_000_000) {
-    return `${currency ? '$' : ``} ${(d / 1_000_000_000).toFixed(fractions)} B`;
-  } else if (d >= 1_000_000) {
-    return `${currency ? '$' : ``} ${(d / 1_000_000).toFixed(fractions)} M`;
-  } else if (d >= 1_000) {
-    return `${currency ? '$' : ``} ${(d / 1_000).toFixed(fractions)} K`;
-  } else {
-    return typeof d === "object" ? `` : `${currency ? '$' : ``} ${parseInt(d)}`;
-  }
+// import { DamaContext } from "../../../../../../store"
+// import SourceSelector from './SourceSelector'
+import { DndList } from '~/modules/avl-components/src'
+import { Menu, Transition, Tab, Dialog } from '@headlessui/react'
+import { useParams, useNavigate } from 'react-router'
+import { Eye, EyeClosed, SquareMinusSolid, SquarePlusSolid } from '../../../../../../../mapeditor/MapEditor/components/icons'
+import get from 'lodash/get'
+import set from 'lodash/get'
+import { fnumIndex } from '../../../../../../../mapeditor/MapEditor/components/LayerEditor/datamaps';
+//import {LayerMenu} from './LayerPanel'
+
+
+
+function VisibilityButton ({layer}) {
+  const { state, setState  } = React.useContext(MapContext);
+  const { activeLayer } = state.symbology;
+  const visible = layer?.layers?.[0]?.layout.visibility === 'visible'
+  return (
+    <div onClick={() => {
+        setState(draft => {
+          draft.symbology.layers[layer.id].isVisible = !draft.symbology.layers[layer.id].isVisible
+          draft.symbology.layers[layer.id].layers.forEach((d,i) => {
+              let val = get(state, `symbology.layers[${layer.id}].layers[${i}].layout.visibility`,'') 
+              let update = val === 'visible' ? 'none' : 'visible'
+              // console.log('update?', update, val)
+              // set(draft,`symbology.layers[${layer.id}].layers[${i}].layout` , { "visible": update}) 
+              draft.symbology.layers[layer.id].layers[i].layout =  { "visibility": update }
+          })
+        })}}
+      >
+      {visible ? 
+        <Eye 
+          className={` ${activeLayer == layer.id ? 'fill-pink-100' : 'fill-white'} cursor-pointer group-hover:fill-gray-400 group-hover:hover:fill-pink-700`}
+        /> : 
+        <EyeClosed 
+          className={` ${activeLayer == layer.id ? 'fill-pink-100' : 'fill-white'} cursor-pointer group-hover:fill-gray-400 group-hover:hover:fill-pink-700`}
+        />
+      }
+    </div>
+  )
 }
+
 const typeSymbols = {
   'fill': ({layer,color}) => {
       //let color = get(layer, `layers[1].paint['fill-color']`, '#ccc')
@@ -47,10 +69,10 @@ const typeSymbols = {
   }
 }
 
-const typePaint = {
+const GET_PAINT_VALUE = {
   'fill': (layer) => {
-
-    return  get(layer, `layers[1].paint['fill-color']`, '#ccc')
+    const opacity = get(layer, `layers[1].paint['fill-opacity']`, '#ccc');
+    return opacity === 0 ? get(layer, `layers[0].paint['line-color']`, '#ccc') : get(layer, `layers[1].paint['fill-color']`, '#ccc')
   },
   'circle': (layer) => {
     return  get(layer, `layers[0].paint['circle-color']`, '#ccc')
@@ -65,7 +87,7 @@ function CategoryLegend({layer}) {
   // console.log('categoryLegend', layer)
   const TypeSymbol = typeSymbols[layer.type] || typeSymbols['fill']
   let  legenddata = layer?.['legend-data'] || []
-  let paintValue = typeof typePaint[layer.type](layer) === 'object' ? typePaint[layer.type](layer) : []
+  let paintValue = typeof GET_PAINT_VALUE[layer.type](layer) === 'object' ? GET_PAINT_VALUE[layer.type](layer) : []
   const categories = legenddata || (paintValue || []).filter((d,i) => i > 2 )
     .map((d,i) => {
       if(i%2 === 0) {
@@ -101,7 +123,7 @@ function StepLegend({layer}) {
   },[state])
 
   const TypeSymbol = typeSymbols[layer.type] || typeSymbols['fill']
-  let paintValue = typeof typePaint[layer.type](layer) === 'object' ? typePaint[layer.type](layer) : []
+  let paintValue = typeof GET_PAINT_VALUE[layer.type](layer) === 'object' ? GET_PAINT_VALUE[layer.type](layer) : []
   const max = Math.max(...choroplethdata)
   // console.log('StepLegend', paintValue, choroplethdata, Math.min(...choroplethdata), )
   const categories = legenddata || [
@@ -166,44 +188,47 @@ function HorizontalLegend({ layer }) {
 }
 
 function CircleLegend({ layer }) {
-  const { minRadius, maxRadius, lowerBound, upperBound, dataColumn } = useMemo(() => {
+  const { minRadius, maxRadius, lowerBound, upperBound } = useMemo(() => {
     return {
       minRadius: get(layer,`['min-radius']`, 8),
       maxRadius: get(layer,`['max-radius']`, 128),
       lowerBound: get(layer,`['lower-bound']`, null),
       upperBound: get(layer,`['upper-bound']`, null),
-      dataColumn: get(layer, `['data-column']`, null)
     };
   }, [layer]);
 
   return (
-    <div className="w-[100%] max-h-[350px] overflow-x-auto scrollbar-sm text-sm">
-      <div className="w-[50%] max-h-[350px] overflow-x-auto scrollbar-sm text-sm">
-        <div className="flex w-full justify-between">
-          <div>{minRadius}px</div>
-          <div>{maxRadius}px</div>
+    <div
+      className="w-[50%] max-h-[350px] overflow-x-auto scrollbar-sm text-sm"
+    >
+      <div className='flex w-full justify-between'>
+        <div>
+          {minRadius}px
         </div>
-        <div className="ml-8">
-          <i
-            class="fa-solid fa-arrow-right-long"
-            style={{ transform: "scaleX(3)" }}
-          ></i>
-        </div>
-        <div className="flex w-full justify-between">
-          <div>{fnumIndex(lowerBound)}</div>
-          <div>{fnumIndex(upperBound)}</div>
+        <div>
+          {maxRadius}px
         </div>
       </div>
-      <div>{dataColumn}</div>
+      <div className='ml-8'>
+        <i class="fa-solid fa-arrow-right-long" style={{transform:"scaleX(3)"}}></i>
+      </div>
+      <div className='flex w-full justify-between'>
+        <div>
+          {fnumIndex(lowerBound)}
+        </div>
+        <div>
+          {fnumIndex(upperBound)}
+        </div>
+      </div>
     </div>
   );
 }
 
-const LegendRow = ({ index, layer, i, id, baseUrl }) => {
+function LegendRow ({ index, layer, i, symbology_id }) {
   const navigate = useNavigate();
   const  activeLayer  = null
   const TypeSymbol = typeSymbols[layer.type] || typeSymbols['fill']
-  let paintValue = (typePaint[layer.type] || typePaint.fill)(layer)
+  let paintValue = GET_PAINT_VALUE[layer.type](layer)
 
 
   let { layerType: type, selectedInteractiveFilterIndex, legendOrientation } = useMemo(() => {
@@ -215,7 +240,8 @@ const LegendRow = ({ index, layer, i, id, baseUrl }) => {
   },[layer]);
 
 
-  const sourceUrl = `${baseUrl}/source/${layer.source_id}`
+  //TODO -- how to get `baseUrl` when you don't have damaContext??
+  const sourceUrl = `/datasources/source/${layer.source_id}`
 
   const layerName = type === 'interactive' ? layer.label : layer.name;
 
@@ -258,18 +284,40 @@ const LegendRow = ({ index, layer, i, id, baseUrl }) => {
   )
 }
 
-const LegendPanel = (props) => {
+function LegendPanel (props) {
   const { state, setState  } = React.useContext(MapContext);
-  const { dataSourcesBaseUrl = '/cenrep' } = React.useContext(CMSContext);
   const layersBySymbology = useMemo(() => {
     return Object.values(state?.symbologies || {})
       .filter(symb => symb.isVisible)
       .map((symb) => {
-        return { name: symb.name, id: symb.id || symb.symbology_id, layers: { ...symb.symbology.layers } };
+        return { name: symb.name, symbology_id: symb.id, layers: { ...symb.symbology.layers } };
       });
   }, [state]);
+  
+  // console.log('legend layersBySymbology', layersBySymbology)
+  
+  // const droppedSection = React.useCallback((start, end) => {
+  //   setState(draft => {
+  //   const sections = Object.values(draft.symbology.layers)
+        
+  //   let listLen = Object.values(draft.symbology.layers).length - 1
+  //   let orderStart =  listLen - start
+  //   let orderEnd = listLen - end 
 
-// console.log("LegendPanel::layersBySymbology", layersBySymbology);
+  //   const [item] = sections.splice(orderStart, 1);
+  //   sections.splice(orderEnd, 0, item);
+
+  //   sections.forEach((item, i) => {
+  //       item.order = i
+  //   })
+    
+  //   draft.symbology.layers = sections
+  //       .reduce((out,sec) => {
+  //         out[sec.id] = sec;
+  //         return out 
+  //       },{})
+  //   })
+  // }, [])
 
   return (
     <>
@@ -278,14 +326,14 @@ const LegendPanel = (props) => {
         <div className='min-h-10 relative bg-white/75 max-h-[calc(100vh_-_111px)] overflow-auto pointer-events-auto scrollbar-sm'>
           {layersBySymbology.map((symb) => (
             <div
-              key={symb.id}
+              key={symb.symbology_id}
               className="m-1 p-1 rounded"
             >
-              {/*<div className="font-normal">{symb.name}</div>*/}
+              <div className="font-normal">{symb.name}</div>
               {Object.values(symb.layers)
                 .sort((a,b) => b.order - a.order)
                 .filter(layer => layer?.['legend-orientation'] !== 'none')
-                .map((layer,i) => <LegendRow key={layer.id} baseUrl={dataSourcesBaseUrl} layer={layer} i={i} id={symb.id}/>)}
+                .map((layer,i) => <LegendRow key={layer.id} layer={layer} i={i} symbology_id={symb.id}/>)}
             </div>
           ))}
         </div>

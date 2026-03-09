@@ -59,7 +59,7 @@ const PatternEditor = ({params, dataItems, item, format, attributes, apiUpdate, 
             <PageComp
                 app={item.app}
                 type={item.type}
-              value={tmpItem}
+              value={item}
               onChange={(d) => d}
               attributes={attributes}
                 apiUpdate={apiUpdate}
