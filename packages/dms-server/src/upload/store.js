@@ -8,6 +8,18 @@
 const uploads = new Map();
 let contextCounter = 1000;
 
+// Purge completed/errored uploads older than 1 hour (run every 10 minutes)
+const UPLOAD_TTL = 60 * 60 * 1000;
+const cleanupInterval = setInterval(() => {
+  const cutoff = Date.now() - UPLOAD_TTL;
+  for (const [id, entry] of uploads) {
+    if (entry.status !== 'processing' && entry.createdAt < cutoff) {
+      uploads.delete(id);
+    }
+  }
+}, 10 * 60 * 1000);
+cleanupInterval.unref();
+
 function nextContextId() {
   return contextCounter++;
 }

@@ -15,6 +15,7 @@ const Graph = ({isEdit}) => {
 
 const DefaultPalette = getColorRange(20, "div7");
 const graphOptions = {
+    readyToLoad: false,
     graphType: 'BarGraph',
     groupMode: 'stacked',
     orientation: 'vertical',

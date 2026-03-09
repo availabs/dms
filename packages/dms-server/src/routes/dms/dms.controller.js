@@ -24,6 +24,7 @@ const {
   ensureTable,
   allocateId
 } = require('#db/table-resolver.js');
+const { logEntry } = require('../../middleware/request-logger');
 
 const DATA_ATTRIBUTES = [
   "id", "app", "type", "data",
@@ -69,6 +70,9 @@ function createController(dbName = 'dms-sqlite', options = {}) {
   const dms_db = getDb(dbName);
   const dbType = dms_db.type;
 
+  // Sync change_log callback — set by WebSocket module via setNotifyChange()
+  let _notifyChange = null;
+
   // Helper functions scoped to this controller instance
   function tableName(name) {
     return dbType === 'postgres' ? `dms.${name}` : name;
@@ -84,6 +88,25 @@ function createController(dbName = 'dms-sqlite', options = {}) {
 
   // Cache for source_id lookups: `${app}:${docType}` → sourceId (number or null)
   const _sourceIdCache = new Map();
+
+  // Cache for getTags results: `${app}+${type}:${searchType}` → { data, ts }
+  const _tagsCache = new Map();
+  const TAGS_CACHE_TTL = 60_000; // 1 minute
+
+  // Track which tables have the tags expression index (created lazily)
+  const _tagsIndexedTables = new Set();
+
+  // Periodic cache cleanup — evict expired tags entries and cap source ID cache
+  const _cacheCleanup = setInterval(() => {
+    // Evict expired tags cache entries
+    const now = Date.now();
+    for (const [key, entry] of _tagsCache) {
+      if (now - entry.ts > TAGS_CACHE_TTL) _tagsCache.delete(key);
+    }
+    // Cap source ID cache at 500 entries (LRU-like: just clear when too large)
+    if (_sourceIdCache.size > 500) _sourceIdCache.clear();
+  }, 60_000);
+  _cacheCleanup.unref();
 
   /**
    * Get the main (non-split) table for an app, ensuring it exists.
@@ -165,6 +188,34 @@ function createController(dbName = 'dms-sqlite', options = {}) {
     return resolved;
   }
 
+  /**
+   * Append to change_log and notify sync subscribers.
+   * Called after each mutation (create/update/delete) to data_items.
+   */
+  async function appendChangeLog(itemId, app, type, action, data, userId) {
+    const tbl = dbType === 'postgres' ? 'dms.change_log' : 'change_log';
+    const rows = await dms_db.promise(
+      `INSERT INTO ${tbl} (item_id, app, type, action, data, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING revision;`,
+      [itemId, app, type, action, action === 'D' ? null : data, userId]
+    );
+    const revision = rows[0]?.revision;
+    if (_notifyChange) {
+      const msg = { type: 'change', revision, action, item: action === 'D' ? { id: itemId, app, type } : { id: itemId, app, type, data } };
+      const dataSize = data ? (typeof data === 'string' ? data.length : JSON.stringify(data).length) : 0;
+      logEntry({
+        _type: 'sync-notify-falcor',
+        timestamp: new Date().toISOString(),
+        action, itemId, app, type,
+        dataKB: +(dataSize / 1024).toFixed(1),
+        revision,
+      });
+      _notifyChange(app, msg);
+    }
+    return revision;
+  }
+
   return {
     // Expose for testing/inspection
     dbType,
@@ -172,6 +223,13 @@ function createController(dbName = 'dms-sqlite', options = {}) {
     splitMode,
 
     DATA_ATTRIBUTES,
+
+    /**
+     * Register a callback to be called after each change_log write.
+     * Used by the WebSocket module to broadcast changes.
+     * @param {Function} fn - (app, msg) => void
+     */
+    setNotifyChange(fn) { _notifyChange = fn; },
 
     getFormat: appKeys => {
       const arrayResult = buildArrayComparison("app || '+' || type", appKeys, dbType);
@@ -447,44 +505,49 @@ function createController(dbName = 'dms-sqlite', options = {}) {
     },
 
     getTags: (appKeys, searchType) => {
-      // getTags operates on page content
-      const jsonArrayExpr = dbType === 'postgres'
-        ? `jsonb_array_elements(data->'sections')->>'id'`
-        : `json_extract(je.value, '$.id')`;
-
-      const jsonArrayFrom = dbType === 'postgres'
-        ? ''
-        : `, json_each(data, '$.sections') as je`;
-
       const promises = appKeys.map(async key => {
+        // Check cache
+        const cacheKey = `${key}:${searchType}`;
+        const cached = _tagsCache.get(cacheKey);
+        if (cached && Date.now() - cached.ts < TAGS_CACHE_TTL) {
+          return { key, rows: cached.data };
+        }
+
         const [app, type] = key.split("+");
         const tbl = await mainTable(app);
 
-        const sql = searchType === 'tags' ? `
-          with t as (
-            SELECT di.id page_id, di.type, ${jsonField('di.data', 'url_slug')} url_slug, ${jsonField('di.data', 'title')} page_title,
-              ${jsonArrayExpr} section_id
-            FROM ${tbl} di${jsonArrayFrom}
-            WHERE app = $1
-            AND type = $2
-          )
+        // Ensure partial expression index exists for tags queries (one-time per table).
+        // Covers (app, type, tags_value) so the query is satisfied from the index alone
+        // without reading the large data blobs. SQLite only — PG already has idx_tags.
+        if (dbType === 'sqlite' && !_tagsIndexedTables.has(tbl)) {
+          const safeName = tbl.replace(/[^a-zA-Z0-9_]/g, '_');
+          await dms_db.promise(`
+            CREATE INDEX IF NOT EXISTS idx_${safeName}_tags
+            ON ${tbl} (app, type, json_extract(data, '$.tags'))
+            WHERE json_extract(data, '$.tags') IS NOT NULL
+            AND json_extract(data, '$.tags') != ''
+          `);
+          _tagsIndexedTables.add(tbl);
+        }
 
-          select DISTINCT ${jsonField('data', 'tags')} tags
-          FROM ${tbl} di
-          JOIN t
-          ON ${typeCast('id', 'TEXT', dbType)} = t.section_id
-          WHERE ${jsonField('data', 'tags')} IS NOT NULL AND ${jsonField('data', 'tags')} != '';
+        // For tags: query sections directly by type convention ({doc_type}|cms-section)
+        // instead of expanding pages via json_each and joining back.
+        const sql = searchType === 'tags' ? `
+          SELECT DISTINCT ${jsonField('data', 'tags')} tags
+          FROM ${tbl}
+          WHERE app = $1
+            AND type = $2 || '|cms-section'
+            AND ${jsonField('data', 'tags')} IS NOT NULL
+            AND ${jsonField('data', 'tags')} != ''
         ` :
-        `SELECT distinct ${jsonField('data', 'title')} page_title
+        `SELECT DISTINCT ${jsonField('data', 'title')} page_title
           FROM ${tbl}
           WHERE app = $1
           AND type = $2`;
 
-        return dms_db.promise(sql, [app, type])
-          .then(rows => ({
-            key,
-            rows
-          }));
+        const rows = await dms_db.promise(sql, [app, type]);
+        _tagsCache.set(cacheKey, { data: rows, ts: Date.now() });
+        return { key, rows };
       })
 
       return Promise.all(promises)
@@ -581,18 +644,32 @@ function createController(dbName = 'dms-sqlite', options = {}) {
     setDataById: async (id, data, user, app = null) => {
       // When app is provided, resolve per-app table; otherwise data_items (legacy)
       const table = app ? await mainTable(app) : tableName('data_items');
+      const userId = get(user, "id", null);
 
-      const sql = `
-        UPDATE ${table}
-        SET data = ${jsonMerge('data', '$1', dbType)},
-          updated_at = ${now()},
-          updated_by = $2
-        WHERE id = $3
-        RETURNING id, app, type, data,
-          ${typeCast('created_at', 'TEXT', dbType)}, created_by,
-          ${typeCast('updated_at', 'TEXT', dbType)}, updated_by;
-      `
-      return dms_db.promise(sql, [data, get(user, "id", null), id]);
+      await dms_db.beginTransaction();
+      try {
+        const sql = `
+          UPDATE ${table}
+          SET data = ${jsonMerge('data', '$1', dbType)},
+            updated_at = ${now()},
+            updated_by = $2
+          WHERE id = $3
+          RETURNING id, app, type, data,
+            ${typeCast('created_at', 'TEXT', dbType)}, created_by,
+            ${typeCast('updated_at', 'TEXT', dbType)}, updated_by;
+        `;
+        const rows = await dms_db.promise(sql, [data, userId, id]);
+        if (rows[0]) {
+          const item = rows[0];
+          await appendChangeLog(item.id, item.app, item.type, 'U', item.data, userId);
+        }
+        await dms_db.commitTransaction();
+        _tagsCache.clear();
+        return rows;
+      } catch (err) {
+        await dms_db.rollbackTransaction();
+        throw err;
+      }
     },
 
     setMassData: async (app, type, column, maps, user) => {
@@ -636,18 +713,31 @@ function createController(dbName = 'dms-sqlite', options = {}) {
     setTypeById: async (id, type, user, app = null) => {
       // When app is provided, resolve per-app table; otherwise data_items (legacy)
       const table = app ? await mainTable(app) : tableName('data_items');
+      const userId = get(user, "id", null);
 
-      const sql = `
-        UPDATE ${table}
-        SET type = $1,
-          updated_at = ${now()},
-          updated_by = $2
-        WHERE id = $3
-        RETURNING id, app, type, data,
-          ${typeCast('created_at', 'TEXT', dbType)}, created_by,
-          ${typeCast('updated_at', 'TEXT', dbType)}, updated_by;
-      `
-      return dms_db.promise(sql, [type, get(user, "id", null), id]);
+      await dms_db.beginTransaction();
+      try {
+        const sql = `
+          UPDATE ${table}
+          SET type = $1,
+            updated_at = ${now()},
+            updated_by = $2
+          WHERE id = $3
+          RETURNING id, app, type, data,
+            ${typeCast('created_at', 'TEXT', dbType)}, created_by,
+            ${typeCast('updated_at', 'TEXT', dbType)}, updated_by;
+        `;
+        const rows = await dms_db.promise(sql, [type, userId, id]);
+        if (rows[0]) {
+          const item = rows[0];
+          await appendChangeLog(item.id, item.app, item.type, 'U', item.data, userId);
+        }
+        await dms_db.commitTransaction();
+        return rows;
+      } catch (err) {
+        await dms_db.rollbackTransaction();
+        throw err;
+      }
     },
 
     setDataByIdOld: (items, user) =>
@@ -689,39 +779,70 @@ function createController(dbName = 'dms-sqlite', options = {}) {
       const resolved = await ensureForWrite(app, type);
       const userId = get(user, "id", null);
 
-      // SQLite split tables need explicit ID allocation (no AUTOINCREMENT)
-      if (dbType === 'sqlite' && resolved.table !== 'data_items') {
-        const id = await allocateId(dms_db, app, dbType, splitMode);
-        const sql = `
-          INSERT INTO ${resolved.fullName}(id, app, type, data, created_by, updated_by)
-          VALUES ($1, $2, $3, $4, $5, $5)
-          RETURNING id, app, type, data,
-            ${typeCast('created_at', 'TEXT', dbType)}, created_by,
-            ${typeCast('updated_at', 'TEXT', dbType)}, updated_by;
-        `;
-        return dms_db.promise(sql, [id, app, type, data, userId]);
-      }
+      await dms_db.beginTransaction();
+      try {
+        let rows;
 
-      // PostgreSQL split tables use DEFAULT nextval() from shared sequence.
-      // Default data_items uses its own AUTOINCREMENT/sequence.
-      const sql = `
-        INSERT INTO ${resolved.fullName}(app, type, data, created_by, updated_by)
-        VALUES ($1, $2, $3, $4, $4)
-        RETURNING id, app, type, data,
-          ${typeCast('created_at', 'TEXT', dbType)}, created_by,
-          ${typeCast('updated_at', 'TEXT', dbType)}, updated_by;
-      `
-      return dms_db.promise(sql, [app, type, data, userId]);
+        // SQLite split tables need explicit ID allocation (no AUTOINCREMENT)
+        if (dbType === 'sqlite' && resolved.table !== 'data_items') {
+          const id = await allocateId(dms_db, app, dbType, splitMode);
+          const sql = `
+            INSERT INTO ${resolved.fullName}(id, app, type, data, created_by, updated_by)
+            VALUES ($1, $2, $3, $4, $5, $5)
+            RETURNING id, app, type, data,
+              ${typeCast('created_at', 'TEXT', dbType)}, created_by,
+              ${typeCast('updated_at', 'TEXT', dbType)}, updated_by;
+          `;
+          rows = await dms_db.promise(sql, [id, app, type, data, userId]);
+        } else {
+          // PostgreSQL split tables use DEFAULT nextval() from shared sequence.
+          // Default data_items uses its own AUTOINCREMENT/sequence.
+          const sql = `
+            INSERT INTO ${resolved.fullName}(app, type, data, created_by, updated_by)
+            VALUES ($1, $2, $3, $4, $4)
+            RETURNING id, app, type, data,
+              ${typeCast('created_at', 'TEXT', dbType)}, created_by,
+              ${typeCast('updated_at', 'TEXT', dbType)}, updated_by;
+          `;
+          rows = await dms_db.promise(sql, [app, type, data, userId]);
+        }
+
+        const item = rows[0];
+        await appendChangeLog(item.id, item.app, item.type, 'I', item.data, userId);
+        await dms_db.commitTransaction();
+        _tagsCache.clear();
+        return rows;
+      } catch (err) {
+        await dms_db.rollbackTransaction();
+        throw err;
+      }
     },
 
     deleteData: async (app, type, ids, user) => {
       const resolved = await ensureForRead(app, type);
-      const arrayResult = buildArrayComparison('id', ids, dbType);
-      const sql = `
-        DELETE FROM ${resolved.fullName}
-        WHERE ${arrayResult.sql};
-      `
-      return dms_db.promise(sql, arrayResult.values);
+      const userId = get(user, "id", null);
+
+      await dms_db.beginTransaction();
+      try {
+        const arrayResult = buildArrayComparison('id', ids, dbType);
+        const sql = `
+          DELETE FROM ${resolved.fullName}
+          WHERE ${arrayResult.sql};
+        `;
+        const result = await dms_db.promise(sql, arrayResult.values);
+
+        // Log each deleted ID
+        for (const id of ids) {
+          await appendChangeLog(id, app, type, 'D', null, userId);
+        }
+
+        await dms_db.commitTransaction();
+        _tagsCache.clear();
+        return result;
+      } catch (err) {
+        await dms_db.rollbackTransaction();
+        throw err;
+      }
     },
 
     /**

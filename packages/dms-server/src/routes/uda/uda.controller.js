@@ -15,7 +15,50 @@ const {
   handleOrderBy,
   buildCombinedWhere
 } = require('./utils');
-const { jsonMerge } = require('#db/query-utils.js');
+const { jsonMerge, typeCast } = require('#db/query-utils.js');
+
+/**
+ * Translate PostgreSQL-specific SQL expressions to SQLite equivalents.
+ * Handles client-sent "calculated columns" and groupBy expressions.
+ *
+ * Translations:
+ *   array_to_string(array_agg(distinct X), 'sep')  →  group_concat(X, 'sep')
+ *   array_to_string(array_agg(X), 'sep')           →  group_concat(X, 'sep')
+ *   array_agg(X)                                   →  json_group_array(X)
+ *   to_jsonb(array_remove(array[...], null))::text  →  json_array(...)
+ *   to_jsonb(X)                                    →  json(X)
+ *   array_remove(array[...], null)                 →  json_array(...)  (nulls kept — close enough)
+ *
+ * Note: `distinct` is stripped from group_concat because SQLite does not support
+ * DISTINCT with a separator argument. Results may contain duplicates.
+ */
+function translatePgToSqlite(expr) {
+  // array_to_string(array_agg(distinct? X), 'sep') → group_concat(X, 'sep')
+  // Strip `distinct` since SQLite group_concat doesn't support DISTINCT with separator
+  expr = expr.replace(
+    /array_to_string\s*\(\s*array_agg\s*\(\s*(?:distinct\s+)?([^)]+)\)\s*,\s*('[^']*')\s*\)/gi,
+    'group_concat($1, $2)'
+  );
+  // standalone array_agg(...) → json_group_array(...)
+  expr = expr.replace(/array_agg\s*\(/gi, 'json_group_array(');
+
+  // to_jsonb(array_remove(array[...], null))::text → json_array(...)
+  // to_jsonb(array_remove(array[...], null))       → json_array(...)
+  // The array[...] contents are CASE expressions; nulls are kept since
+  // SQLite has no array_remove, but the grouping result is equivalent.
+  expr = expr.replace(
+    /to_jsonb\s*\(\s*array_remove\s*\(\s*array\s*\[([^\]]*)\]\s*,\s*null\s*\)\s*\)/gi,
+    'json_array($1)'
+  );
+
+  // Remaining standalone array[...] → json_array(...)
+  expr = expr.replace(/\barray\s*\[([^\]]*)\]/gi, 'json_array($1)');
+
+  // to_jsonb(X) → json(X)
+  expr = expr.replace(/to_jsonb\s*\(/gi, 'json(');
+
+  return expr;
+}
 
 // ================================================= Source Functions ================================================
 
@@ -256,7 +299,7 @@ async function updateView(env, viewId, updates) {
 async function simpleFilterLength(env, view_id, options) {
   const { isDms, db, app, type, table_schema, table_name } = await getEssentials({ env, view_id, options });
 
-  const {
+  let {
     filter = {}, exclude = {},
     gt = {}, gte = {}, lt = {}, lte = {}, like = {},
     filterRelation = 'and',
@@ -264,6 +307,11 @@ async function simpleFilterLength(env, view_id, options) {
     groupBy = [], having = [],
     normalFilter = []
   } = JSON.parse(options);
+
+  // Translate PG-specific SQL in groupBy expressions for SQLite
+  if (db.type === 'sqlite' && groupBy.length) {
+    groupBy = groupBy.map(translatePgToSqlite);
+  }
 
   if (normalFilter.length) {
     normalFilter.forEach(({ column, values }) => {
@@ -286,8 +334,12 @@ async function simpleFilterLength(env, view_id, options) {
     filterGroups, isDms, app, type, oldValues
   });
 
+  // Check for jsonb_array_elements_text (PG) or json_each (SQLite) in groupBy
+  const hasArrayElements = groupBy?.[0]?.includes('jsonb_array_elements_text')
+    || groupBy?.[0]?.includes('json_each');
+
   const sql =
-    groupBy?.[0]?.includes('jsonb_array_elements_text') && sanitizeName(groupBy?.[0])
+    hasArrayElements && sanitizeName(groupBy?.[0])
       ? `WITH t AS (
            SELECT DISTINCT ${groupBy[0]}
            FROM ${table_schema}.${table_name}
@@ -298,7 +350,7 @@ async function simpleFilterLength(env, view_id, options) {
          SELECT count(*) numrows FROM t`
       : `SELECT count(${groupBy.length
            ? `DISTINCT ${groupBy.map(g => sanitizeName(g)).filter(g => g)
-               .map(c => `CASE WHEN ${c} IS NULL THEN '__NULL__VAL__' ELSE ${c}::text END`)
+               .map(c => `CASE WHEN ${c} IS NULL THEN '__NULL__VAL__' ELSE ${typeCast(c, 'TEXT', db.type)} END`)
                .join(`|| '-' ||`)}`
            : 1}) numrows
          FROM ${table_schema}.${table_name}
@@ -313,8 +365,13 @@ async function simpleFilter(env, view_id, options, attributes, indices) {
   const num = indices.to - indices.from + 1;
   const { isDms, db, app, type, table_schema, table_name, dmsAttributes } = await getEssentials({ env, view_id, options });
 
-  const sanitizedAttrs = sanitizeName(attributes).filter(f => f);
+  let sanitizedAttrs = sanitizeName(attributes).filter(f => f);
   if (!sanitizedAttrs.length) return [];
+
+  // Translate PG-specific SQL to SQLite equivalents
+  if (db.type === 'sqlite') {
+    sanitizedAttrs = sanitizedAttrs.map(translatePgToSqlite);
+  }
 
   // Map long column names to short aliases
   const columnNameMap = sanitizedAttrs.reduce((acc, attr, i) => {
@@ -526,5 +583,8 @@ module.exports = {
   // Data queries
   simpleFilterLength,
   simpleFilter,
-  dataById
+  dataById,
+
+  // Exported for testing
+  translatePgToSqlite
 };

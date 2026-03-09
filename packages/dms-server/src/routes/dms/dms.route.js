@@ -27,16 +27,19 @@ function createRoutes(controller = createController('dms-sqlite')) {
     const response = [];
     ids.forEach((id) => {
       const row = rows.reduce((a, c) => (c.id == id ? c : a), {});
+      const idStr = String(id);
 
       atts.forEach((att) => {
         let getAtt = att;
         if(getAtt.includes('data ->> ')){
           getAtt = att.split('->>')[1].trim().replace(/[']/g, '')
         }
-        const value = row[getAtt] ?? null;
+        let value = row[getAtt] ?? null;
+        // Normalize id to string for consistent type across backends
+        if (att === 'id' && value != null) value = String(value);
         const path = app
-          ? ["dms", "data", app, "byId", id, att]
-          : ["dms", "data", "byId", id, att];
+          ? ["dms", "data", app, "byId", idStr, att]
+          : ["dms", "data", "byId", idStr, att];
         response.push({
           path,
           value: att === "data" ? $atom(value) : value,
@@ -96,7 +99,7 @@ function createRoutes(controller = createController('dms-sqlite')) {
                 const [{rows:[id = null]}] = rows.filter(d => d.key === `${key}|${searchkey}`)
                 response.push({
                   path: ["dms", "data", key, "searchOne", searchkey],
-                  value:  id ? $ref(["dms", "data", app, "byId", +id]) : null
+                  value:  id ? $ref(["dms", "data", app, "byId", String(id)]) : null
                 })
               })
             });
@@ -120,7 +123,7 @@ function createRoutes(controller = createController('dms-sqlite')) {
               const id = reduced.reduce((a, c) => (c.i == i ? c.id : a), null);
               response.push({
                 path: ["dms", "data", key, "byIndex", i],
-                value: id ? $ref(["dms", "data", app, "byId", id]) : null,
+                value: id ? $ref(["dms", "data", app, "byId", String(id)]) : null,
               });
             });
           });
@@ -208,7 +211,7 @@ function createRoutes(controller = createController('dms-sqlite')) {
                 const row = reduced.find(c => c.i == i) || {};
                 response.push({
                     path: ["dms", "data", key, 'opts', option, "byIndex", i],
-                    value: row?.id ? $ref(["dms", "data", app, "byId", +row?.id]) : null,
+                    value: row?.id ? $ref(["dms", "data", app, "byId", String(row.id)]) : null,
                 });
               });
             });
@@ -405,12 +408,12 @@ function createRoutes(controller = createController('dms-sqlite')) {
             // Return at both paths so old and new clients can find the data
             ...dataByIdResponse(
               rows,
-              rows.map(({ id }) => id),
+              rows.map(({ id }) => String(id)),
               DATA_ATTRIBUTES
             ),
             ...dataByIdResponse(
               rows,
-              rows.map(({ id }) => id),
+              rows.map(({ id }) => String(id)),
               DATA_ATTRIBUTES,
               app
             ),

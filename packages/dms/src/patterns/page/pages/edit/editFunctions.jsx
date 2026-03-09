@@ -20,11 +20,11 @@ export const insertSubPage = async (item, dataItems, user, apiUpdate) => {
       published: 'draft',
       history: [{
         type:' created Page.',
-        user: user.email, 
+        user: user.email,
         time: new Date().toString()
       }]
     }
-    newItem.url_slug = `${getUrlSlug(newItem,dataItems)}`    
+    newItem.url_slug = `${getUrlSlug(newItem,dataItems)}`
     apiUpdate({data:newItem})
   }
 
@@ -71,7 +71,7 @@ export const newPage = async (item, dataItems, user, apiUpdate) => {
       published: 'draft',
       history: [{
         type:' created Page.',
-        user: user?.email, 
+        user: user?.email,
         time: new Date().toString()
       }]
     }
@@ -86,11 +86,11 @@ export const updateTitle = async ( item, dataItems, value='', user, apiUpdate) =
       let history = item.history ? cloneDeep(item.history) : []
       let edit = {
         type: `changed page title to ${value}`,
-        user: user.email, 
+        user: user.email,
         time: new Date().toString()
       }
       history.push(edit)
-      
+
       const newItem = {
         id: item.id,
         title:value,
@@ -125,7 +125,7 @@ export const updateTitle = async ( item, dataItems, value='', user, apiUpdate) =
 export const toggleSidebar = async (item,type, value='', pageType, apiUpdate) => {
   const newItem = {id: item.id}
   newItem[type] = value
- 
+
   // console.log('item', newItem, value)
   let sectionType = pageType === 'template' ? 'sections' : 'draft_sections';
   if(type === 'header' && !item?.[sectionType]?.filter(d => d.is_header)?.[0]) {
@@ -139,17 +139,18 @@ export const toggleSidebar = async (item,type, value='', pageType, apiUpdate) =>
       }
     })
     //console.log('new item', newItem)
-   
-  } 
+
+  }
 
   apiUpdate({data:newItem})
 }
 
-export const publish = async (user,item, apiUpdate) => {
+export const publish = async (user, item, apiUpdate) => {
+  console.log('publish', item)
     if(!item.id) return;
   let edit = {
     type: 'published changes.',
-    user: user.email, 
+    user: user.email,
     time: new Date().toString()
   }
 
@@ -165,7 +166,7 @@ export const publish = async (user,item, apiUpdate) => {
 
   // no use: draft_id is never saved
   let sectionsByDraftId = cloneDeep(item.sections || [])
-    .reduce((o,s) => { 
+    .reduce((o,s) => {
       if(s.draft_id){
         o[s.draft_id] = s;
       }
@@ -186,7 +187,7 @@ export const publish = async (user,item, apiUpdate) => {
     },[])
 
   newItem.section_groups = cloneDeep(item.draft_section_groups)
-
+  console.log('publishing item', newItem)
   apiUpdate({data:newItem})
 
 }
@@ -267,7 +268,7 @@ export const discardChanges = async (user,item, apiUpdate) => {
 //               <ButtonSelector
 //                 label={'Header:'}
 //                 types={[
-//                   {label: 'None', value: 'none'}, 
+//                   {label: 'None', value: 'none'},
 //                   {label: 'Above', value: 'above'},
 //                   {label: 'Below', value: 'below'},
 //                   {label: 'In page', value: 'inpage'}

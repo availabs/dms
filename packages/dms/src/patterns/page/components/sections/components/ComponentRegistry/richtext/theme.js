@@ -542,8 +542,8 @@ const theme = {
       base: "relative inline-block w-5 h-5 bg-transparent bg-center bg-no-repeat", // .nestable-icon
       before: "hidden", // .nestable-icon:before
     },
-    iconPlusGray: 'w-5 h-5 bg-[url("./icon-plus-gray.svg")]', // .icon-plus-gray
-    iconMinusGray: 'w-5 h-5 bg-[url("./icon-minus-gray.svg")]', // .icon-minus-gray
+    iconPlusGray: "w-5 h-5 bg-[url('data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2714%27 height=%2713%27 viewBox=%270 0 14 13%27%3E%3Cpath fill=%27%23979797%27 d=%27M7 0a1 1 0 011 1v4.5h4.5a1 1 0 110 2H8V12a1 1 0 11-2 0V7.5H1.5a1 1 0 010-2H6V1a1 1 0 011-1z%27/%3E%3C/svg%3E')]", // .icon-plus-gray
+    iconMinusGray: "w-5 h-5 bg-[url('data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2713%27 height=%273%27 viewBox=%270 0 13 3%27%3E%3Crect fill=%27%23979797%27 width=%2713%27 height=%272%27 rx=%271%27/%3E%3C/svg%3E')]", // .icon-minus-gray
   },
   draggableBlockMenu: {
     base: "rounded-md p-0.5 cursor-grab opacity-0 absolute -left-5 top-0 will-change-transform hover:bg-gray-200", // .draggable-block-menu

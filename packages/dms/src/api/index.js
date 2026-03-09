@@ -10,11 +10,106 @@ import updateDMSAttrs from "./updateDMSAttrs.js";
 
 // const {createRequest, getIdPath} = cr
 
-// function rand(min, max) { // min and max included
-//   return Math.floor(Math.random() * (max - min + 1) + min)
-// }
+// --- Sync API (lazy reference, set by dmsSiteFactory after initSync) ---
+let _syncAPI = null;
+const _DEV = typeof import.meta !== 'undefined' && import.meta.env?.DEV;
+export function _setSyncAPI(api) { _syncAPI = api; }
+function _getSyncAPI() { return _syncAPI; }
 
+/**
+ * Load items from local SQLite for synced types.
+ * Mirrors the output shape of processNewData: flattened data + metadata fields.
+ * Also resolves dms-format child items from local SQLite.
+ */
+async function loadFromLocalDB(sync, app, type, format, dmsAttrsConfigs) {
+  const t0 = _DEV ? performance.now() : 0;
+  const result = await sync.exec(
+    'SELECT * FROM data_items WHERE app = ? AND type = ? ORDER BY id',
+    [app, type]
+  );
 
+  if (result.rows.length === 0) {
+    if (_DEV) console.log(`[sync:load] ${app}+${type} — no local data, falling through to Falcor`);
+    return null;
+  }
+
+  const items = result.rows.map(row => {
+    const parsed = typeof row.data === 'string' ? JSON.parse(row.data) : (row.data || {});
+    return {
+      ...parsed,
+      id: row.id,
+      app: row.app,
+      type: row.type,
+      created_at: row.created_at,
+      created_by: row.created_by,
+      updated_at: row.updated_at,
+      updated_by: row.updated_by,
+    };
+  });
+
+  // Resolve dms-format children from local SQLite
+  for (const item of items) {
+    for (const [key] of Object.entries(dmsAttrsConfigs)) {
+      // Parse JSON string refs if needed
+      if (typeof item[key] === 'string') {
+        try { item[key] = JSON.parse(item[key]); } catch { /* leave as-is */ }
+      }
+
+      if (item[key] && typeof item[key]?.[Symbol.iterator] === 'function') {
+        // Array of refs
+        const childIds = Array.from(item[key]).map(ref => ref.id || ref).filter(Boolean);
+        if (childIds.length > 0) {
+          const placeholders = childIds.map(() => '?').join(',');
+          const children = await sync.exec(
+            `SELECT * FROM data_items WHERE id IN (${placeholders})`,
+            childIds
+          );
+          const childMap = new Map(children.rows.map(r => [r.id, r]));
+          item[key] = Array.from(item[key]).map(ref => {
+            const refId = ref.id || ref;
+            const child = childMap.get(refId);
+            if (!child) return ref;
+            const parsed = typeof child.data === 'string'
+              ? JSON.parse(child.data) : (child.data || {});
+            return {
+              ...(typeof ref === 'object' ? ref : { id: ref }),
+              ...parsed,
+              id: child.id,
+              created_at: child.created_at,
+              updated_at: child.updated_at,
+              created_by: child.created_by,
+              updated_by: child.updated_by,
+            };
+          });
+        }
+      } else if (item[key]?.id) {
+        // Single ref
+        const children = await sync.exec(
+          'SELECT * FROM data_items WHERE id = ?',
+          [item[key].id]
+        );
+        if (children.rows.length > 0) {
+          const child = children.rows[0];
+          const parsed = typeof child.data === 'string'
+            ? JSON.parse(child.data) : (child.data || {});
+          item[key] = {
+            ...item[key],
+            ...parsed,
+            id: child.id,
+            created_at: child.created_at,
+            updated_at: child.updated_at,
+            created_by: child.created_by,
+            updated_by: child.updated_by,
+          };
+        }
+      }
+    }
+  }
+
+  const out = format?.defaultSort ? format.defaultSort(items) : items;
+  if (_DEV) console.log(`[sync:load] ${app}+${type} — ${out.length} items from local SQLite (${(performance.now() - t0).toFixed(1)}ms)`);
+  return out;
+}
 
 let fullDataLoad = {}
 // let runCount = 0
@@ -56,6 +151,21 @@ export async function dmsDataLoader (falcor, config, path='/') {
 			out[curr.key] = curr
 			return out
 		},{})
+
+	// --- Sync intercept: serve synced types from local SQLite ---
+	const sync = _getSyncAPI();
+	const mainAction = activeConfigs[0]?.action;
+	if (sync && ['list', 'view', 'edit'].includes(mainAction)) {
+		// Bootstrap pattern on-demand if not yet loaded
+		if (!sync.isLocal(app, type) && sync.bootstrapPattern && type) {
+			await sync.bootstrapPattern(type);
+		}
+		if (sync.isLocal(app, type)) {
+			const localResult = await loadFromLocalDB(sync, app, type, format, dmsAttrsConfigs);
+			if (localResult !== null) return localResult;
+		}
+	}
+	// --- End sync intercept ---
 
 // console.log("dmsDataLoader::activeConfigs", activeConfigs);
 
@@ -243,6 +353,45 @@ export async function dmsDataEditor (falcor, config, data={}, requestType, /*pat
 			delete row[curr]
 			return out
 		},{})
+
+		// --- Sync intercept: write locally first ---
+		const sync = _getSyncAPI();
+		if (sync && sync.isLocal(app, type) && requestType !== 'updateType') {
+			// Handle dms-format children through sync (replaces updateDMSAttrs)
+			for (const attr of Object.keys(dmsAttrsData)) {
+				const [childApp, childType] = dmsAttrsConfigs[attr].format.split('+');
+				const toUpdate = Array.isArray(dmsAttrsData[attr]) ? dmsAttrsData[attr] : [dmsAttrsData[attr]];
+				const refs = [];
+				for (const dU of toUpdate) {
+					const d = { ...dU };
+					const childId = d.id || false;
+					for (const key of ['id', 'ref', 'created_at', 'updated_at', 'created_by', 'updated_by']) {
+						delete d[key];
+					}
+					if (childId) {
+						await sync.localUpdate(childId, d);
+						refs.push({ ref: `${childApp}+${childType}`, id: childId });
+					} else {
+						const newId = await sync.localCreate(childApp, childType, d);
+						refs.push({ ref: `${childApp}+${childType}`, id: newId });
+					}
+				}
+				row[attr] = Array.isArray(dmsAttrsData[attr]) ? refs : refs?.[0] || '';
+			}
+
+			// Handle the parent item
+			if (requestType === 'delete' && id) {
+				await sync.localDelete(id);
+				return { response: `Deleted item ${id}` };
+			} else if (id && attributeKeys.length > 0) {
+				await sync.localUpdate(id, row);
+				return { message: `Update successful: id ${id}.` };
+			} else if (attributeKeys.length > 0) {
+				const newId = await sync.localCreate(app, type, row);
+				return { response: 'Item created.', id: newId };
+			}
+		}
+		// --- End sync intercept ---
 
 		// console.log('gonna updateDMSAttrs', dmsAttrsData, dmsAttrsConfigs, falcor)
 		let updates = await updateDMSAttrs(dmsAttrsData, dmsAttrsConfigs, falcor)

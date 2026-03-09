@@ -50,7 +50,7 @@ export async function processNewData (dataCache, activeIdsIntOrStr, stopFullData
                       try {
                         val = JSON.parse(val) || {}
                       } catch (e) {
-                        console.log('cannot parse val', val, '|',  attr,'|', col)
+                        //console.warn('cannot parse val', val, '|',  attr,'|', col)
                       }
                     }
                     out[attr] = val

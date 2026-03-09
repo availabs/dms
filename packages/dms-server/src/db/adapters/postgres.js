@@ -9,6 +9,8 @@ try {
   Client = null;
 }
 
+const { captureQueryError } = require('../../middleware/request-logger');
+
 /**
  * PostgreSQL Database Adapter
  * Implements the standard database interface for PostgreSQL
@@ -73,6 +75,7 @@ class PostgresAdapter {
       console.error(`<PostgresAdapter> Query error:`, error.message);
       console.error(`  SQL:`, queryText);
       console.error(`  Values (${queryValues?.length || 0}):`, queryValues);
+      captureQueryError({ sql, values, error });
       throw error;
     }
   }

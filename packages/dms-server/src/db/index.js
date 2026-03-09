@@ -104,6 +104,47 @@ const initDms = async (dbConnection) => {
 };
 
 /**
+ * Initialize sync tables (change_log + yjs_states) for the database
+ * @param {Object} dbConnection - Database adapter instance
+ */
+const initSync = async (dbConnection) => {
+  const db = dbConnection.getDb();
+  const dbType = dbConnection.type;
+
+  // Check if change_log table already exists
+  const schema = dbType === "sqlite" ? "main" : "dms";
+  const exists = await dbConnection.tableExists(schema, "change_log");
+
+  if (!exists) {
+    console.time(`sync db init ${db}`);
+    await dbConnection.beginTransaction();
+
+    try {
+      const sqlFile = dbType === "sqlite" ? "change_log.sqlite.sql" : "change_log.sql";
+      const sqlPath = join(__dirname, "sql/dms", sqlFile);
+      const sql = await readFileAsync(sqlPath, { encoding: "utf8" });
+
+      if (dbType === "sqlite") {
+        const statements = sql.split(";").filter(s => s.trim());
+        for (const stmt of statements) {
+          if (stmt.trim()) {
+            await dbConnection.query(stmt + ";");
+          }
+        }
+      } else {
+        await dbConnection.query(sql);
+      }
+
+      await dbConnection.commitTransaction();
+      console.timeEnd(`sync db init ${db}`);
+    } catch (error) {
+      await dbConnection.rollbackTransaction();
+      throw error;
+    }
+  }
+};
+
+/**
  * Initialize DAMA tables (data manager advanced tables)
  * @param {Object} dbConnection - Database adapter instance
  */
@@ -215,6 +256,13 @@ function getDb(pgEnv) {
         console.log("dms init", pgEnv);
       } catch (err) {
         console.error("dms init failed:", err.message);
+      }
+
+      try {
+        await initSync(databases[pgEnv]);
+        console.log("sync init", pgEnv);
+      } catch (err) {
+        console.error("sync init failed:", err.message);
       }
     }
   };

@@ -3,7 +3,7 @@ import formsConfig from './forms/siteConfig'
 import adminConfig from './admin/siteConfig'
 import authConfig from './auth/siteConfig'
 import datasetsConfig from './datasets/siteConfig'
-import mapeditorConfig from "./mapeditor/siteConfig"
+import mapeditorConfig from './mapeditor/siteConfig'
 
 const patterns = {
   page: pageConfig,

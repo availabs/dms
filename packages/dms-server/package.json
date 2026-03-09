@@ -20,8 +20,10 @@
     "test:pg": "node tests/postgres-docker.js run",
     "test:pg:auth": "node tests/postgres-docker.js run tests/test-auth.js",
     "test:db-copy": "node tests/test-db-copy.js",
+    "test:sqlite-compat": "node tests/test-sqlite-compat.js",
+    "test:sync": "node tests/test-sync.js",
     "test:db-cleanup": "node tests/test-db-cleanup.js",
-    "test:all": "npm test && npm run test:auth && npm run test:pg",
+    "test:all": "npm test && npm run test:sync && npm run test:auth && npm run test:pg",
     "db:copy": "node src/scripts/copy-db.js",
     "db:cleanup": "node src/scripts/cleanup-db.js"
   },
@@ -57,7 +59,8 @@
     "read-excel-file": "^6.0.3",
     "rxjs": "~5.1.1",
     "symbol-observable": "^1.0.4",
-    "unzipper": "^0.12.3"
+    "unzipper": "^0.12.3",
+    "ws": "^8.19.0"
   },
   "optionalDependencies": {
     "pg": "^8.17.2"

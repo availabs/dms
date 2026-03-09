@@ -28,9 +28,15 @@
 
 const { writeFileSync, appendFileSync, mkdirSync, existsSync } = require('fs');
 const { join } = require('path');
+const { AsyncLocalStorage } = require('async_hooks');
 
 let logFile = null;
 let requestCount = 0;
+
+// Per-request error capture via AsyncLocalStorage.
+// Any code (e.g., DB adapters) can call captureQueryError() during a request
+// and the error will be included in the JSONL log entry for that request.
+const requestStore = new AsyncLocalStorage();
 
 /**
  * Initialize the log file
@@ -117,6 +123,12 @@ function createRequestLogger() {
       entry.status = res.statusCode;
       entry.duration = Date.now() - startTime;
 
+      // Include any query errors captured during this request
+      const store = requestStore.getStore();
+      if (store?.errors.length) {
+        entry.errors = store.errors;
+      }
+
       // Log complete entry to file
       try {
         appendFileSync(logFile, JSON.stringify(entry) + '\n');
@@ -124,7 +136,8 @@ function createRequestLogger() {
         console.error('[RequestLogger] Failed to write:', err.message);
       }
 
-      console.log(`[RequestLogger] #${seq} completed (${entry.duration}ms, status ${entry.status})`);
+      const errSuffix = entry.errors ? `, ${entry.errors.length} query error(s)` : '';
+      console.log(`[RequestLogger] #${seq} completed (${entry.duration}ms, status ${entry.status}${errSuffix})`);
 
       // Call original json method
       return originalJson(body);
@@ -138,18 +151,52 @@ function createRequestLogger() {
         entry.duration = Date.now() - startTime;
         entry.response = { _noJsonBody: true };
 
+        const store = requestStore.getStore();
+        if (store?.errors.length) {
+          entry.errors = store.errors;
+        }
+
         try {
           appendFileSync(logFile, JSON.stringify(entry) + '\n');
         } catch (err) {
           console.error('[RequestLogger] Failed to write:', err.message);
         }
 
-        console.log(`[RequestLogger] #${seq} completed (${entry.duration}ms, status ${entry.status}, no JSON body)`);
+        const errSuffix = entry.errors ? `, ${entry.errors.length} query error(s)` : '';
+        console.log(`[RequestLogger] #${seq} completed (${entry.duration}ms, status ${entry.status}, no JSON body${errSuffix})`);
       }
     });
 
-    next();
+    // Run the rest of the middleware chain inside the AsyncLocalStorage context
+    // so captureQueryError() calls anywhere in the call stack are associated
+    // with this request.
+    requestStore.run({ errors: [] }, () => next());
   };
+}
+
+/**
+ * Append an arbitrary entry to the log file.
+ * Used by sync diagnostics (ws.js, sync.js) to write to the same file
+ * as request logs, giving a unified timeline for debugging.
+ *
+ * No-op if logging is not enabled (DMS_LOG_REQUESTS !== '1').
+ *
+ * @param {Object} entry - Object to serialize as a JSON line
+ */
+function logEntry(entry) {
+  if (!logFile) return;
+  try {
+    appendFileSync(logFile, JSON.stringify(entry) + '\n');
+  } catch (err) {
+    console.error('[RequestLogger] Failed to write:', err.message);
+  }
+}
+
+/**
+ * Whether request logging is enabled.
+ */
+function isEnabled() {
+  return process.env.DMS_LOG_REQUESTS === '1';
 }
 
 /**
@@ -166,8 +213,28 @@ function getRequestCount() {
   return requestCount;
 }
 
+/**
+ * Capture a query error for inclusion in the current request's log entry.
+ * Safe to call from anywhere in the call stack — if logging is disabled or
+ * no request is active, the call is a no-op.
+ */
+function captureQueryError({ sql, values, error }) {
+  const store = requestStore.getStore();
+  if (!store) return;
+  store.errors.push({
+    sql: typeof sql === 'object' ? sql.text : sql,
+    values: typeof sql === 'object' ? sql.values : values,
+    error: error?.message || String(error),
+    code: error?.code,
+  });
+}
+
 module.exports = {
   createRequestLogger,
+  captureQueryError,
+  initLogFile,
+  logEntry,
+  isEnabled,
   getLogFile,
   getRequestCount
 };
