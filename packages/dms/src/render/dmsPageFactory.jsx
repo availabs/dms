@@ -54,7 +54,7 @@ export default function dmsPageFactory (
     }
     if (import.meta.env.DEV) {
       const t2 = performance.now()
-
+      console.log('[dms loader]', data)
       console.log(
         `[dms loader] ${path} — data: ${(t1 - t0).toFixed(0)}ms, preload: ${(t2 - t1).toFixed(0)}ms, total: ${(t2 - t0).toFixed(0)}ms`
       )
