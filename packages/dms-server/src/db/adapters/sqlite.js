@@ -1,6 +1,7 @@
 const Database = require("better-sqlite3");
 const { dirname } = require("path");
 const { mkdirSync, existsSync } = require("fs");
+const { captureQueryError } = require('../../middleware/request-logger');
 
 /**
  * SQLite Database Adapter
@@ -242,6 +243,7 @@ class SqliteAdapter {
       console.error(`  Converted SQL:`, converted.sql);
       console.error(`  Original values (${queryValues?.length || 0}):`, queryValues);
       console.error(`  Converted values (${converted.values?.length || 0}):`, converted.values);
+      captureQueryError({ sql, values, error });
       throw error;
     }
   }
