@@ -18,7 +18,7 @@ export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addIte
                                 currentPage, infiniteScrollFetchData}) => {
     const { UI, theme} = React.useContext(ThemeContext) || {}
     const {Table} = UI;
-    const {state:{columns, sourceInfo, display, data, localFilteredData, fullData}, setState, controls={}, isActive, activeStyle} = useContext(ComponentContext);
+    const {state:{columns=[], sourceInfo={}, display={}, data=[], localFilteredData, fullData}, setState, controls={}, isActive, activeStyle} = useContext(ComponentContext);
     const gridRef = useRef(null);
 
     const visibleAttributes = useMemo(() => columns.filter(({show}) => show), [columns]);
