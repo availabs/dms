@@ -298,7 +298,6 @@ const AllColumnsRow = ({ state, setState, resolvedControls, isEveryColVisible, P
 export default function ColumnManager({ state, setState, resolvedControls, Pill, Icon, Switch, showAllColumnsControl }) {
     const [stagedColumns, setStagedColumns] = useState([]);
     const [expandedColumns, setExpandedColumns] = useState(new Set());
-    const [expandAll, setExpandAll] = useState(false);
     const [allColumnsExpanded, setAllColumnsExpanded] = useState(false);
     const ATTRS_TO_SYNC = ['type', 'required', 'display', 'defaultFn', 'dataType', 'trueValue', 'options', 'mapped_options', 'meta_lookup'];
 
@@ -363,7 +362,7 @@ export default function ColumnManager({ state, setState, resolvedControls, Pill,
                 .filter(Boolean);
         });
     }, [setState]);
-
+    const isAllExpanded = activeColumns.length > 0 && activeColumns.every(i => expandedColumns.has(i.id));
     return (
         <div className="flex flex-col gap-2 w-full p-1">
             {/* Column Picker */}
@@ -381,8 +380,13 @@ export default function ColumnManager({ state, setState, resolvedControls, Pill,
             <div className="flex flex-wrap gap-1">
                 <Pill text={isSystemIDColOn ? 'Hide ID' : 'Use ID'} color="blue"
                       onClick={() => toggleIdFilter(setState)} />
-                <Pill text={expandAll ? 'Collapse All' : 'Expand All'} color="gray"
-                      onClick={() => setExpandAll(prev => !prev)} />
+                <Pill
+                    text={isAllExpanded ? 'Collapse All' : 'Expand All'}
+                    color="gray"
+                    onClick={() => {
+                        setExpandedColumns(isAllExpanded ? new Set() : new Set(activeColumns.map(i => i.id)));
+                    }}
+                />
             </div>
 
             {/* All Columns Row */}
@@ -395,7 +399,7 @@ export default function ColumnManager({ state, setState, resolvedControls, Pill,
                     Pill={Pill}
                     Icon={Icon}
                     Switch={Switch}
-                    isExpanded={expandAll || allColumnsExpanded}
+                    isExpanded={allColumnsExpanded}
                     onToggleExpand={() => setAllColumnsExpanded(prev => !prev)}
                 />
             )}
@@ -416,7 +420,7 @@ export default function ColumnManager({ state, setState, resolvedControls, Pill,
                             Pill={Pill}
                             Icon={Icon}
                             Switch={Switch}
-                            isExpanded={expandAll || expandedColumns.has(item.id)}
+                            isExpanded={expandedColumns.has(item.id)}
                             onToggleExpand={() => toggleExpand(item.id)}
                             isOutOfDate={outOfDateColumnNames.has(item.column.name)}
                             onRefreshMeta={() => refreshMeta(item.column)}
