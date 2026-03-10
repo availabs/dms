@@ -99,7 +99,7 @@ export default function ({
         delete newAuth.groups[groupName];
         applyChanges(newAuth);
     }
-    console.log('new auth', tmpValue)
+
     return (
         <div className={permissionsTheme.componentWrapper}>
             <div className={permissionsTheme.selectWrapper}>
