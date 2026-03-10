@@ -100,7 +100,22 @@ const pagesConfig = ({
               authPermissions,
               mapeditorKeys,
               isUserAuthed: (reqPermissions, customAuthPermissions) => {
-                return isUserAuthed({ user, authPermissions: customAuthPermissions || authPermissions, reqPermissions })
+                if (!customAuthPermissions) {
+                  return isUserAuthed({ user, authPermissions, reqPermissions });
+                }
+                // Merge page-level overrides onto inherited (pattern-level) permissions.
+                // [] means "disabled" → strip from inherited; non-empty means "add/replace".
+                const mergedUsers = { ...(authPermissions?.users || {}) };
+                const mergedGroups = { ...(authPermissions?.groups || {}) };
+                Object.entries(customAuthPermissions.users || {}).forEach(([id, perms]) => {
+                  if (perms.length === 0) delete mergedUsers[id];
+                  else mergedUsers[id] = perms;
+                });
+                Object.entries(customAuthPermissions.groups || {}).forEach(([name, perms]) => {
+                  if (perms.length === 0) delete mergedGroups[name];
+                  else mergedGroups[name] = perms;
+                });
+                return isUserAuthed({ user, authPermissions: { users: mergedUsers, groups: mergedGroups }, reqPermissions });
               }
             }}>
               <ThemeContext.Provider value={{theme, UI}}>
