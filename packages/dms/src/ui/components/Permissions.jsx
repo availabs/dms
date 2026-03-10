@@ -77,7 +77,7 @@ export default function ({
     const inheritedGroups = inheritedParsedValue?.groups || {};
 
     const disableInheritedUser = userId => {
-        const newAuth = cloneDeep(tmpValue);
+        const newAuth = Object.assign({users: {}, groups: {}}, cloneDeep(tmpValue));
         newAuth.users = {...(newAuth.users || {}), [userId]: []};
         applyChanges(newAuth);
     }
@@ -89,7 +89,7 @@ export default function ({
     }
 
     const disableInheritedGroup = groupName => {
-        const newAuth = cloneDeep(tmpValue);
+        const newAuth = Object.assign({users: {}, groups: {}}, cloneDeep(tmpValue));
         newAuth.groups = {...(newAuth.groups || {}), [groupName]: []};
         applyChanges(newAuth);
     }
@@ -99,7 +99,7 @@ export default function ({
         delete newAuth.groups[groupName];
         applyChanges(newAuth);
     }
-
+    console.log('new auth', tmpValue)
     return (
         <div className={permissionsTheme.componentWrapper}>
             <div className={permissionsTheme.selectWrapper}>
