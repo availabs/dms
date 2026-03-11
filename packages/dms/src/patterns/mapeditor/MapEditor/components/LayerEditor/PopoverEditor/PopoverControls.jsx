@@ -252,6 +252,8 @@ export function ColumnSelectControl({path, params={}}) {
 }
 
 const ExistingColumnList = ({selectedColumns, sampleData, path, reorderAttrs, removeAttr, renameAttr}) => {
+  const { UI } = useContext(ThemeContext) || {};
+  const { DndList } = UI;
   return (
     <DndList
       onDrop={reorderAttrs}

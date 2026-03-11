@@ -9,12 +9,11 @@ import { get } from 'lodash-es'
 import { ZoomToFit } from './ZoomToFit'
 import { DuplicateLayerItem } from './DuplicateLayerItem'
 
-const typeIcons = {
-  'fill': Fill,
-  'circle': Circle,
-  'line': Line
-}
-
+import {
+  VisibilityButton,
+  useHeatmapRadialGradient,
+  GET_PAINT_VALUE
+} from "./LegendPanel"
 
 export function LayerMenu({layer, button, location='left-0'}) {
   const { state, setState  } = React.useContext(SymbologyContext);
@@ -97,6 +96,31 @@ export function LayerInfo({ layer, button, source, baseUrl, location = "left-0" 
   );
 }
 
+const NoIcon = () => <span />
+
+const HeatMapIcon = ({ layer }) => {
+  const colors = React.useMemo(() => {
+    return GET_PAINT_VALUE["heatmap"](layer);
+  }, [layer]);
+
+  const gradient = useHeatmapRadialGradient(colors);
+
+  return (
+    <div className="h-[20px] w-[20px] rounded-full"
+      style={ {
+        background: Array.isArray(colors) ? gradient : null,
+        backgroundColor: Array.isArray(colors) ? null : colors
+      } }/>
+    )
+}
+
+const typeIcons = {
+  'fill': Fill,
+  'circle': Circle,
+  'line': Line,
+  'heatmap': HeatMapIcon
+}
+
 function LayerRow ({index, layer, i}) {
   const { state, setState  } = React.useContext(SymbologyContext);
   const { activeLayer } = state.symbology;
@@ -105,12 +129,12 @@ function LayerRow ({index, layer, i}) {
         draft.symbology.activeLayer = activeLayer === layer.id ? '' : layer.id
     })
   }
-  const Icon = typeIcons[layer.type] || <span />
-  const visible = layer.visible
+  const Icon = typeIcons[layer.type] || NoIcon;
+  const visible = layer.isVisible;
 
   return (
     <div className={`w-full ${activeLayer == layer.id ? 'bg-pink-100' : ''} p-2 py-1 flex border-white/85 border hover:border-pink-500 group items-center`}>
-      <div className='px-1'><Icon className='fill-slate-400' /></div>
+      <div className='px-1'><Icon layer={ layer } className='fill-slate-400' /></div>
       <div onClick={toggleSymbology} className='text-sm text-slate-600 font-medium truncate flex-1'>{layer.name}</div>
       {/*<div className='flex items-center text-xs text-slate-400'>{layer.order}</div>*/}
       <div className='text-sm pt-1 px-0.5 flex items-center'>
@@ -119,21 +143,8 @@ function LayerRow ({index, layer, i}) {
           button={<MenuDots className={` ${activeLayer == layer.id ? 'fill-pink-100' : 'fill-white'} cursor-pointer group-hover:fill-gray-400 group-hover:hover:fill-pink-700`}/>}
         />
       </div>
-      <div onClick={() => {
-        setState(draft => {
-          draft.symbology.layers[layer.id].visible = !draft.symbology.layers[layer.id].visible
-        })}}
-      >
-        {visible ? 
-          <Eye 
-            className={` ${activeLayer == layer.id ? 'fill-pink-100' : 'fill-white'} cursor-pointer group-hover:fill-gray-400 group-hover:hover:fill-pink-700`}
-              
-          /> : 
-          <EyeClosed 
-          className={` ${activeLayer == layer.id ? 'fill-pink-100' : 'fill-white'} cursor-pointer group-hover:fill-gray-400 group-hover:hover:fill-pink-700`}
-            
-          />
-        }
+      <div>
+        <VisibilityButton layer={ layer }/>
       </div>
     </div>
   )

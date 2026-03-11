@@ -147,6 +147,8 @@ const ViewGroupControl = ({path, datapath, params={}}) => {
 }
 
 export const ExistingColumnList = ({selectedViews, reorderAttrs, removeAttr, viewGroupId, setViewGroupId}) => {
+  const { UI } = useContext(ThemeContext) || {};
+  const { DndList } = UI;
   return (
     <DndList
       onDrop={reorderAttrs}

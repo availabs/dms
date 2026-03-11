@@ -9,10 +9,20 @@ import { SymbologiesList } from './SymbologiesList';
 import { Modal, INITIAL_NEW_MAP_MODAL_STATE } from '../SymbologyControl';
 
 export const SelectSymbology = ({ modalState, setModalState }) => {
-  const { baseUrl } = React.useContext(MapEditorContext);
+  const { baseUrl, falcor, app, type } = React.useContext(MapEditorContext);
   const { UI } = React.useContext(ThemeContext) || {};
   const { Button } = UI;
   const navigate = useNavigate();
+
+  const deleteSymbology = React.useCallback(e => {
+    falcor.call(
+        ["dms", "data", "delete"],
+        [app, type, modalState.symbologyId]
+      )
+      .then(() => {
+        setModalState(INITIAL_NEW_MAP_MODAL_STATE)
+      });
+  }, [falcor, app, type, modalState.symbologyId, setModalState])
 
   return (
     <div>
@@ -48,6 +58,15 @@ export const SelectSymbology = ({ modalState, setModalState }) => {
             />
         </div>
         <div className="mt-5 sm:mt-4 sm:flex justify-end">
+          <div className="mr-1">
+            <Button
+              themeOptions={{ color: "danger" }}
+              disabled={!modalState.symbologyId}
+              onClick={ deleteSymbology }
+            >
+              Delete
+            </Button>
+          </div>
           <div className="mr-1">
             <Button
               type="button"

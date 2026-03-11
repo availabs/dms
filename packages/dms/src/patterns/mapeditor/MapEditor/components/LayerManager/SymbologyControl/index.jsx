@@ -143,4 +143,4 @@ function SymbologyControl () {
   )
 }
 
-export default SymbologyControl
+export default SymbologyControl;

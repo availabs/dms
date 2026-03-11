@@ -75,7 +75,7 @@ function PopoverControl ({values,title='',children}) {
   )
 }
 
-function SimpleControlWrapper ({label, controls}) {
+function SimpleControlWrapper ({ label, controls }) {
   const { state, setState } = React.useContext(SymbologyContext);
 
   return (
@@ -83,11 +83,12 @@ function SimpleControlWrapper ({label, controls}) {
       <div className='w-16 text-slate-500 text-[14px] tracking-wide min-h-[32px] flex items-center'>{label}</div>
       <div className='flex-1 flex items-center'>
         <StyledControl>
-          {controls
-            .map((c,i) => {
-              const Control = controlTypes[c.type] || controlTypes['simple'];
-              return <Control key={i} path={c.path} datapath={c.datapath} params={c.params} />
-          })}
+          { controls.map((c, i) => {
+              const { type, ...rest } = c;
+              const Control = controlTypes[type] || controlTypes['simple'];
+              return <Control key={ i } { ...rest }/>
+            })
+          }
         </StyledControl>
       </div>
     </>
@@ -98,18 +99,12 @@ function FullWidthWrapper({ label, controls }) {
   return (
     <>
       <div className="flex-1 flex items-center">
-          {controls.map((c, i) => {
-            const Control = controlTypes[c.type] || controlTypes["simple"];
-            return (
-              <Control
-                key={i}
-                path={c.path}
-                datapath={c.datapath}
-                params={c.params}
-              />
-            );
-          })}
-
+        { controls.map((c, i) => {
+            const { type, ...rest } = c;
+            const Control = controlTypes[type] || controlTypes['simple'];
+            return <Control key={ i } { ...rest }/>
+          })
+        }
       </div>
     </>
   );
@@ -143,10 +138,12 @@ function PopoverControlWrapper (props) {
           values={values}
           title={label}
         >
-          {controls.map((c,i) => {
-            const Control = controlTypes[c.type] || controlTypes['simple']
-            return <Control key={i} path={c.path} datapath={c.datapath}  params={c.params}/>
-          })}
+          { controls.map((c, i) => {
+              const { type, ...rest } = c;
+              const Control = controlTypes[type] || controlTypes['simple'];
+              return <Control key={ i } { ...rest }/>
+            })
+        }
         </PopoverControl>
       </div>
     </>

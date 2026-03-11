@@ -27,6 +27,7 @@ const extractState = (state) => {
     fill: "layers[1].paint['fill-color']",
     circle: "layers[0].paint['circle-color']",
     line: "layers[1].paint['line-color']",
+    heatmap: "layers[0].paint['heatmap-color']"
   };
   const layerType = get(state, `${pathBase}['layer-type']`, {});
   let layerPaintPath = paintPaths[polygonLayerType];
