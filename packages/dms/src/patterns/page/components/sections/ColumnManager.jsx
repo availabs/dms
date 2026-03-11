@@ -9,6 +9,7 @@ import {
 } from "./controls_utils";
 import AddFormulaColumn from "./AddFormulaColumn";
 import AddCalculatedColumn from "./AddCalculatedColumn";
+import {isEqual} from "lodash-es";
 
 const ColumnPicker = ({ state, setState, allColumns, stagedColumns, setStagedColumns, Pill, Icon }) => {
     const [pickerSearch, setPickerSearch] = useState('');
@@ -169,7 +170,7 @@ const renderControl = (control, columnData, onUpdate, { Switch, setState }) => {
     return null;
 };
 
-const ColumnRow = ({ column, index, state, setState, resolvedControls, Pill, Icon, Switch, isExpanded, onToggleExpand }) => {
+const ColumnRow = ({ column, index, state, setState, resolvedControls, Pill, Icon, Switch, isExpanded, onToggleExpand, isOutOfDate, onRefreshMeta }) => {
     const label = getColumnLabel(column);
     const onUpdate = useCallback((key, value, onChange) =>
         updateColumns(column, key, value, onChange, setState), [column, setState]);
@@ -182,6 +183,15 @@ const ColumnRow = ({ column, index, state, setState, resolvedControls, Pill, Ico
                     <span className="text-sm truncate">{label}</span>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
+                    {isOutOfDate && (
+                        <button
+                            className="p-0.5 rounded text-amber-500"
+                            title="Metadata out of date"
+                            onClick={onRefreshMeta}
+                        >
+                            <Icon icon="Alert" className="size-4" />
+                        </button>
+                    )}
                     <button
                         className={`p-0.5 rounded hover:bg-gray-100 ${column.show ? 'text-blue-500' : 'text-gray-300'}`}
                         onClick={() => updateColumns(column, 'show', !column.show, undefined, setState)}
@@ -217,6 +227,9 @@ const ColumnRow = ({ column, index, state, setState, resolvedControls, Pill, Ico
                     <div className="flex gap-1 pt-1">
                         <Pill text="Duplicate" color="blue" onClick={() => duplicate(column, setState)} />
                         <Pill text="Reset" color="orange" onClick={() => resetColumn(column, setState)} />
+                        {isOutOfDate && (
+                            <Pill text="Refresh Meta" color="orange" onClick={onRefreshMeta} />
+                        )}
                     </div>
                 </div>
             )}
@@ -285,9 +298,31 @@ const AllColumnsRow = ({ state, setState, resolvedControls, isEveryColVisible, P
 export default function ColumnManager({ state, setState, resolvedControls, Pill, Icon, Switch, showAllColumnsControl }) {
     const [stagedColumns, setStagedColumns] = useState([]);
     const [expandedColumns, setExpandedColumns] = useState(new Set());
-    const [expandAll, setExpandAll] = useState(false);
     const [allColumnsExpanded, setAllColumnsExpanded] = useState(false);
+    const ATTRS_TO_SYNC = ['type', 'required', 'display', 'defaultFn', 'dataType', 'trueValue', 'options', 'mapped_options', 'meta_lookup'];
 
+    const outOfDateColumnNames = useMemo(() => new Set(
+        (state?.sourceInfo?.columns || [])
+            .filter(origCol => {
+                const stateCol = (state?.columns || []).find(c => c.name === origCol.name);
+                if (!stateCol) return false;
+                return ATTRS_TO_SYNC.some(attr => !isEqual(stateCol[attr], origCol[attr]));
+            })
+            .map(c => c.name)
+    ), [state?.sourceInfo?.columns, state?.columns]);
+
+    const refreshMeta = useCallback((column) => {
+        const sourceCol = (state?.sourceInfo?.columns || []).find(c => c.name === column.name);
+        if (!sourceCol) return;
+        setState(draft => {
+            const idx = draft.columns.findIndex(c => c.name === column.name && c.isDuplicate === column.isDuplicate && c.copyNum === column.copyNum);
+            if (idx !== -1) {
+                ATTRS_TO_SYNC.forEach(attr => {
+                    draft.columns[idx][attr] = sourceCol[attr];
+                });
+            }
+        });
+    }, [state?.sourceInfo?.columns, setState]);
     const allColumns = useMemo(() => [
         ...(state?.columns || []),
         ...(state?.sourceInfo?.columns || [])
@@ -327,7 +362,7 @@ export default function ColumnManager({ state, setState, resolvedControls, Pill,
                 .filter(Boolean);
         });
     }, [setState]);
-
+    const isAllExpanded = activeColumns.length > 0 && activeColumns.every(i => expandedColumns.has(i.id));
     return (
         <div className="flex flex-col gap-2 w-full p-1">
             {/* Column Picker */}
@@ -345,8 +380,13 @@ export default function ColumnManager({ state, setState, resolvedControls, Pill,
             <div className="flex flex-wrap gap-1">
                 <Pill text={isSystemIDColOn ? 'Hide ID' : 'Use ID'} color="blue"
                       onClick={() => toggleIdFilter(setState)} />
-                <Pill text={expandAll ? 'Collapse All' : 'Expand All'} color="gray"
-                      onClick={() => setExpandAll(prev => !prev)} />
+                <Pill
+                    text={isAllExpanded ? 'Collapse All' : 'Expand All'}
+                    color="gray"
+                    onClick={() => {
+                        setExpandedColumns(isAllExpanded ? new Set() : new Set(activeColumns.map(i => i.id)));
+                    }}
+                />
             </div>
 
             {/* All Columns Row */}
@@ -359,7 +399,7 @@ export default function ColumnManager({ state, setState, resolvedControls, Pill,
                     Pill={Pill}
                     Icon={Icon}
                     Switch={Switch}
-                    isExpanded={expandAll || allColumnsExpanded}
+                    isExpanded={allColumnsExpanded}
                     onToggleExpand={() => setAllColumnsExpanded(prev => !prev)}
                 />
             )}
@@ -380,8 +420,10 @@ export default function ColumnManager({ state, setState, resolvedControls, Pill,
                             Pill={Pill}
                             Icon={Icon}
                             Switch={Switch}
-                            isExpanded={expandAll || expandedColumns.has(item.id)}
+                            isExpanded={expandedColumns.has(item.id)}
                             onToggleExpand={() => toggleExpand(item.id)}
+                            isOutOfDate={outOfDateColumnNames.has(item.column.name)}
+                            onRefreshMeta={() => refreshMeta(item.column)}
                         />
                     )}
                 />

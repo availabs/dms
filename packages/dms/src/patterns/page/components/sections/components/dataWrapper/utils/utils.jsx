@@ -868,6 +868,9 @@ export const getData = async ({
           options: JSON.stringify({
             filter: options.filter,
             exclude: options.exclude,
+            filterGroups: options.filterGroups,
+            filterRelation: options.filterRelation,
+            normalFilter: options.normalFilter,
           }),
           attributes: columnsToFetch
             .filter((c) => c.showTotal || state.display.showTotal)
