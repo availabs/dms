@@ -362,13 +362,19 @@ const HorizontalHeatmapLegend = ({ layer, colors, toggleSymbology }) => {
   return (
     <div className="w-[150px]">
       <div className="flex">
-        <div className="flex items-end pb-[0.25rem]"><CaretDownSolid /></div>Low Density
+        <div className="flex items-end pb-[0.25rem]">
+          <CaretDownSolid />
+        </div>
+        <span className="text-sm">Low Density</span>
       </div>
       <div className="w-[150px] h-[20px] rounded"
         style={ {
           background: gradient
         } }/>
-      <div className="flex justify-end">High Density<CaretUpSolid /></div>
+      <div className="flex justify-end">
+        <span className="text-sm">High Density</span>
+        <CaretUpSolid />
+      </div>
     </div>
   )
 }
@@ -383,7 +389,7 @@ const VerticalHeatmapLegend = ({ layer, colors, toggleSymbology }) => {
         style={ {
           background: gradient
         } }/>
-      <div className="flex flex-col flex-1 relative pl-1">
+      <div className="flex flex-col flex-1 relative pl-1 text-sm">
         <div className="whitespace-nowrap flex-1">
           Low Density
         </div>
