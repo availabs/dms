@@ -7,12 +7,16 @@
 
 ## local-first
 
-- [ ] Toy sync engine — standalone notes app proving SQLite WASM (wa-sqlite + OPFS), Yjs conflict resolution, revision-based sync protocol, passthrough pattern, and multi-tab reactivity
-- [ ] DMS sync integration — bring proven sync mechanics into DMS (change_log, client SQLite, progressive hydration, Lexical+Yjs collaborative editing)
+- [x] Toy sync engine — standalone notes app proving SQLite WASM (wa-sqlite + OPFS), Yjs conflict resolution, revision-based sync protocol, passthrough pattern, and multi-tab reactivity
+- [x] Toy sync Lexical integration — replace textarea with DMS Lexical editor, Lexical JSON flowing through existing Yjs sync pipeline (LWW per field, not character-level collab)
+- [x] Toy sync collaborative editing — character-level Yjs ↔ Lexical binding via `CollaborationPlugin`, custom Yjs provider over existing WebSocket, room-based routing, cursor awareness, server-side Yjs state persistence
+- [ ] DMS local-first sync integration — server change_log + sync endpoints + WebSocket, client SQLite WASM + sync manager + reactive queries, passthrough to Falcor, Lexical live sync, opt-in via `DMS_SYNC=1` *(Phases 1-2 DONE: server change_log/REST/WS/tests + client sync modules all implemented. Phase 3 integration remaining: sync-aware loader/editor, DmsSite wiring, status UI)*
+- [x] Pattern-scoped sync + SQLite fix — fix SQLite event loop blocking (chunked bootstrap queries), change sync boundary from app to pattern (doc_type), skeleton bootstrap for site structure, on-demand pattern bootstrap on navigation
 
 ## api
 
 - [x] DataWrapper API-layer loading — move dataWrapper data fetching into the DMS API/loader so section data loads at navigation time (React Router 7 loader) instead of after component mount; detect dataWrapper sections, extract URL-mapped filter params, pre-run getData(), leverage cache freshness to skip component-level re-fetch
+- [ ] DataWrapper skip fetch when cached — when "Always Fetch Data" is OFF, skip API call entirely and use cached `element-data`; currently Pagination.jsx auto-sets `readyToLoad=true` for non-paginated views, bypassing the user's toggle
 
 ## ssr
 
@@ -25,6 +29,7 @@
 
 ## dms-server
 
+- [x] Search tags query performance — `getTags()` takes 4+ minutes due to `json_each` cartesian product, `CAST(id AS TEXT)` join, no caching; fix with direct section query + server-side cache
 - [x] Add SQLite compatibility
 - [x] Fix createData dropping data argument (draft_sections bug)
 - [x] Fix SQLite searchOne returning null for root page (falsy `||` + `->>` type mismatch)
@@ -34,6 +39,7 @@
 - [x] Fix auth DB init race condition — `getDb()` returns before async init completes, causing "no such table: users"; add `awaitReady()`, support multi-role configs
 - [x] File upload routes — CSV/Excel upload, publish, and validate in dms-server as standalone synchronous endpoints (no pg-boss, no ETL events, no GDAL)
 - [x] Table splitting — per-type split tables + per-app isolation. Tier 1: table-resolver.js, controller/UDA integration, 104 tests. Tier 2: app-namespaced routes, client API changes (~25 call sites), migration script, API docs. Total: 138 tests.
+- [x] SQLite compatibility fixes — ID type normalization (string coercion for consistent `$ref` resolution) + UDA controller PG-only SQL translation (`array_agg`, `array_remove`, `to_jsonb`, `ARRAY[...]`)
 - [ ] Split table virtual columns — auto-generate SQLite virtual columns + indexes (and PG expression indexes) from source config attributes for B-tree query speed on dataset tables
 - [x] Database copy CLI — `src/scripts/copy-db.js` copies all DMS data between databases (PG↔SQLite, same-type), preserving IDs, handling cross-DB types, batch processing, split table discovery
 - [x] Dead row cleanup CLI — `src/scripts/cleanup-db.js` analyzes DMS database for orphaned rows (sections without pages, patterns without sites, views without sources), grouped by app+type, with optional `--delete` mode

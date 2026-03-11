@@ -41,6 +41,7 @@ const iconList = [
   { icon: "PencilSquare" },
   { icon: "Login" },
   { icon: "Reorder" },
+  { icon: "Alert" },
 
   // Navigation Icons
   { icon: "ArrowDownSquare" },

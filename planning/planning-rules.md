@@ -92,6 +92,14 @@ Changes to pattern implementations, organized by pattern:
    - Move the task entry from `todo.md` to `completed.md` with the completion date
    - Link to the task file in `completed.md`
 
+## Plans Must Be Written Into the Task File
+
+When plan mode is used to design an implementation approach, the resulting plan **must be written in detail into the task file** in `tasks/current/`. The task file is the single source of truth — plans that only exist in conversation context are lost between sessions. Specifically:
+
+- **Before implementing**: Write the full plan into the task file, including step-by-step implementation details, file paths, code patterns, and architectural decisions.
+- **Plan granularity**: Plans should be detailed enough that a future session can pick up and implement without re-researching. Include specific function signatures, data flow descriptions, and integration points.
+- **Plan updates**: If the plan changes during implementation (new discoveries, design pivots), update the plan in the task file to reflect the actual approach taken.
+
 ## Task Document as Source of Truth
 
 The task file in `tasks/current/` must always reflect the actual state of work. When implementing a task (especially multi-phase tasks), **update the task document at the end of each phase or work session** before finishing. This is critical because:

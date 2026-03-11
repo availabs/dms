@@ -1,6 +1,7 @@
 import React, {useEffect, useState} from "react";
 import Select from "./Select";
 import Button from "./Button";
+import Pill from "./Pill"
 import ColumnTypes from "../columnTypes"
 import {cloneDeep} from "lodash-es";
 
@@ -26,7 +27,7 @@ const permissionsTheme = {
     valueWrapper: 'flex flex-col gap-4 p-2 hover:bg-gray-100 rounded-md',
     valueWrapperInherited: 'flex flex-col gap-4 p-2 bg-gray-100 rounded-md',
     valueSubWrapper: 'flex flex-wrap',
-    valueSubWrapperInherited: 'flex flex-col',
+    valueSubWrapperInherited: 'flex flex-col hover:bg-gray-50 rounded-md',
     title: 'font-semibold',
     removeBtn: 'w-fit'
 }
@@ -63,23 +64,50 @@ export default function ({
         const newAuth = Object.assign({users: {}, groups: {}}, cloneDeep(value));
         const isEmptyAuth = !Object.keys(newAuth.users).length && !Object.keys(newAuth.groups).length
         const currentUserHasPermissions = Array.isArray(newAuth.users[user.id]) && newAuth.users[user.id].length;
-        const currentUserGroupHasPermissions = user.groups.some(g => g!== 'public' && Array.isArray(newAuth.groups[g]) && newAuth.groups[g].length);
+        const currentUserGroupHasPermissions = user.groups.some(g => g !== 'public' && Array.isArray(newAuth.groups[g]) && newAuth.groups[g].length);
 
-        if(!isEmptyAuth && !currentUserHasPermissions && !currentUserGroupHasPermissions){
+        if (!isEmptyAuth && !currentUserHasPermissions && !currentUserGroupHasPermissions) {
             newAuth.users[user.id] = ['*'];
         }
         setTmpValue(newAuth)
         onChange(JSON.stringify(newAuth))
     }
+
+    const inheritedUsers = inheritedParsedValue?.users || {};
+    const inheritedGroups = inheritedParsedValue?.groups || {};
+
+    const disableInheritedUser = userId => {
+        const newAuth = Object.assign({users: {}, groups: {}}, cloneDeep(tmpValue));
+        newAuth.users = {...(newAuth.users || {}), [userId]: []};
+        applyChanges(newAuth);
+    }
+
+    const undoDisableUser = userId => {
+        const newAuth = cloneDeep(tmpValue);
+        delete newAuth.users[userId];
+        applyChanges(newAuth);
+    }
+
+    const disableInheritedGroup = groupName => {
+        const newAuth = Object.assign({users: {}, groups: {}}, cloneDeep(tmpValue));
+        newAuth.groups = {...(newAuth.groups || {}), [groupName]: []};
+        applyChanges(newAuth);
+    }
+
+    const undoDisableGroup = groupName => {
+        const newAuth = cloneDeep(tmpValue);
+        delete newAuth.groups[groupName];
+        applyChanges(newAuth);
+    }
+
     return (
         <div className={permissionsTheme.componentWrapper}>
             <div className={permissionsTheme.selectWrapper}>
                 <label className={permissionsTheme.selectLabel}>User Access Controls</label>
                 <Select className={permissionsTheme.select}
-                        options={[{label: 'Add user access', value: undefined}, ...users.map(u => ({
-                            label: u.email,
-                            value: u.id
-                        }))]}
+                        options={[{label: 'Add user access', value: undefined}, ...users
+                            .filter(u => !(u.id in inheritedUsers))
+                            .map(u => ({label: u.email, value: u.id}))]}
                         onChange={e => {
                             const clonedValue = cloneDeep(tmpValue);
                             const newAuth = {
@@ -95,22 +123,33 @@ export default function ({
 
                 <div className={permissionsTheme.valueWrapperInherited}>
                     {
-                        Object.entries(inheritedParsedValue?.users || {})
-                            .map(([userId, permissions]) => (
-                                <div className={permissionsTheme.valueSubWrapperInherited}>
-                                    <div className={permissionsTheme.title}>{users.find(user => +user.id === +userId)?.email}</div>
-                                    {permissions}
-                                </div>)
-                            )
+                        Object.entries(inheritedUsers)
+                            .map(([userId, permissions]) => {
+                                const isDisabled = userId in (tmpValue?.users || {}) && (tmpValue.users[userId] || []).length === 0;
+                                return (
+                                    <div className={permissionsTheme.valueSubWrapperInherited} key={`permissions_user_${userId}`}>
+                                        <div className='flex items-center gap-2'>
+                                            <div className={permissionsTheme.title}>{users.find(u => +u.id === +userId)?.email}</div>
+                                            {isDisabled && <span className='text-xs text-red-600 font-semibold'>Disabled</span>}
+                                            {isDisabled
+                                                ? <Pill color={'orange'} text={'Undo'} onClick={() => undoDisableUser(userId)} />
+                                                : <Pill color={'orange'} text={'Disable'} onClick={() => disableInheritedUser(userId)} />
+                                            }
+                                        </div>
+                                        {!isDisabled && <div>{permissions.join(', ')}</div>}
+                                    </div>
+                                );
+                            })
                     }
                 </div>
                 <div className={permissionsTheme.valueWrapper}>
                     {
                         Object.entries(tmpValue?.users || {})
+                            .filter(([userId]) => !(userId in inheritedUsers))
                             .map(([userId, permissions]) => (
-                                <div className={permissionsTheme.valueSubWrapper}>
+                                <div className={permissionsTheme.valueSubWrapper} key={`permissions_user_local_${userId}`}>
                                     <div
-                                        className={permissionsTheme.title}>{users.find(user => +user.id === +userId)?.email}</div>
+                                        className={permissionsTheme.title}>{users.find(u => +u.id === +userId)?.email}</div>
                                     <ColumnTypes.multiselect.EditComp
                                         value={permissions}
                                         multiple={true}
@@ -144,10 +183,9 @@ export default function ({
             <div className={permissionsTheme.selectWrapper}>
                 <label className={permissionsTheme.selectLabel}>Group Access Controls</label>
                 <Select className={permissionsTheme.select}
-                        options={[{label: 'Add group access', value: undefined}, ...groups.map(u => ({
-                            label: u.name,
-                            value: u.name
-                        }))]}
+                        options={[{label: 'Add group access', value: undefined}, ...groups
+                            .filter(g => !(g.name in inheritedGroups))
+                            .map(g => ({label: g.name, value: g.name}))]}
                         onChange={e => {
                             const clonedValue = cloneDeep(tmpValue);
                             const newAuth = {
@@ -164,21 +202,31 @@ export default function ({
 
                 <div className={permissionsTheme.valueWrapperInherited}>
                     {
-                        Object.entries(inheritedParsedValue?.groups || {})
-                            .map(([groupName, permissions]) => (
-                                    <div className={permissionsTheme.valueSubWrapperInherited}>
-                                        <div className={permissionsTheme.title}>{groupName}</div>
-                                        {permissions}
+                        Object.entries(inheritedGroups)
+                            .map(([groupName, permissions]) => {
+                                const isDisabled = groupName in (tmpValue?.groups || {}) && (tmpValue.groups[groupName] || []).length === 0;
+                                return (
+                                    <div className={permissionsTheme.valueSubWrapperInherited} key={`permissions_group_${groupName}`}>
+                                        <div className='flex items-center gap-2'>
+                                            <div className={permissionsTheme.title}>{groupName}</div>
+                                            {isDisabled && <span className='text-xs text-red-600 font-semibold'>Disabled</span>}
+                                            {isDisabled
+                                                ? <Pill color={'orange'} text={'Undo'} onClick={() => undoDisableGroup(groupName)} />
+                                                : <Pill color={'orange'} text={'Disable'} onClick={() => disableInheritedGroup(groupName)} />
+                                            }
+                                        </div>
+                                        {!isDisabled && <div>{permissions.join(', ')}</div>}
                                     </div>
-                                )
-                            )
+                                );
+                            })
                     }
                 </div>
                 <div className={permissionsTheme.valueWrapper}>
                     {
                         Object.entries(tmpValue?.groups || {})
+                            .filter(([groupName]) => !(groupName in inheritedGroups))
                             .map(([groupName, permissions]) => (
-                                    <div className={permissionsTheme.valueSubWrapper}>
+                                    <div className={permissionsTheme.valueSubWrapper} key={`permissions_group_local_${groupName}`}>
                                         <div className={permissionsTheme.title}>{groupName}</div>
                                         <ColumnTypes.multiselect.EditComp
                                             value={permissions}

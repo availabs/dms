@@ -31,13 +31,24 @@ FalcorEndpoint.dataSourceRoute = function(getDataSource) {
             obs = dataSource[context.method]([].concat(context.paths));
         }
 
-        obs.subscribe(function(jsonGraphEnvelope) {
+        var subscription = obs.subscribe(function(jsonGraphEnvelope) {
             res.status(200).json(jsonGraphEnvelope);
         }, function(err) {
             if (err instanceof Error) {
               return next(err);
             }
-            res.status(500).send(err);
+            // Guard against headers-already-sent (e.g., client disconnected)
+            if (!res.headersSent) {
+              res.status(500).send(err);
+            }
+        });
+
+        // If the client disconnects, tear down the Observable chain so we
+        // don't keep running DB queries and accumulating results in memory.
+        req.on('close', function() {
+            if (subscription && !subscription.isDisposed) {
+                subscription.dispose();
+            }
         });
     };
 };

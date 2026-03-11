@@ -544,7 +544,7 @@ export const getData = async ({
       } else {
         // old isDuplicate-sourced: match by name + filter values
         fullColumn = state.columns.find(
-            (col) => col.name === column && isEqual(values, col.filters[0]?.values),
+            (col) => col?.name === column && isEqual(values, col?.filters?.[0]?.values),
         );
       }
       // resolve the filter column's refName for the CASE WHEN expression
@@ -868,6 +868,9 @@ export const getData = async ({
           options: JSON.stringify({
             filter: options.filter,
             exclude: options.exclude,
+            filterGroups: options.filterGroups,
+            filterRelation: options.filterRelation,
+            normalFilter: options.normalFilter,
           }),
           attributes: columnsToFetch
             .filter((c) => c.showTotal || state.display.showTotal)

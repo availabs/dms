@@ -631,6 +631,9 @@ const View = ({cms_context, value, onChange, component, editPageMode}) => {
                 const normalized = Array.isArray(pageValues) ? pageValues : [pageValues];
                 if (!isEqual(node.value, normalized)) {
                     node.value = normalized;
+                    if(!draft.display.readyToLoad){
+                        draft.display.readyToLoad = true; // on filter change, set readyToLoad
+                    }
                 }
             };
             update(draft.dataRequest?.filterGroups);
@@ -732,7 +735,7 @@ const View = ({cms_context, value, onChange, component, editPageMode}) => {
                 draft.display.totalLength = length;
                 draft.lastDataRequest = state.dataRequest;
             })
-            state.display.preventDuplicateFetch && onChange(JSON.stringify({...state, lastDataRequest: state.dataRequest, data, totalLength: length}));
+            // state.display.preventDuplicateFetch && onChange(JSON.stringify({...state, lastDataRequest: state.dataRequest, data, totalLength: length}));
             setCurrentPage(newCurrentPage);
             setLoading(false)
         }

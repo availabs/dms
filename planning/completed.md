@@ -25,10 +25,18 @@
 - [dms-server-file-upload.md](./tasks/completed/dms-server-file-upload.md) - File upload routes: CSV/Excel upload, publish, and validate as standalone synchronous endpoints in dms-server (2026-02-23)
 - [split-table-naming.md](./tasks/completed/split-table-naming.md) - Split table naming: `data_items__s{sourceId}_v{viewId}_{docType}` format, `parseType()` helper, async source_id lookup with cache, graceful fallback, migration script (2026-02-23)
 - [dms-table-splitting.md](./tasks/current/dms-table-splitting.md) - Table splitting Tier 2: app-namespaced byId/edit routes (dual-route compat), client API changes (api/, CLI, patterns — ~25 call sites), 34 Tier 2 tests, migrate-to-per-app.js script, API docs (2026-02-23)
+- [search-tags-performance.md](./tasks/completed/search-tags-performance.md) - Search tags query optimization: replaced CTE+json_each+CAST join with direct section query, added partial expression index `(app, type, json_extract(data, '$.tags'))`, server-side 60s TTL cache. Production result: 264s → 6ms (44,000x speedup) (2026-03-03)
+- [sqlite-compat-fixes.md](./tasks/completed/sqlite-compat-fixes.md) - SQLite compatibility: ID type normalization (String coercion in all $ref paths and byId responses), PG→SQLite SQL translation (`array_agg`→`group_concat`/`json_group_array`, `to_jsonb(array_remove(array[...]))`→`json_array(...)`, `::text`→`typeCast`), 38 tests (2026-03-04)
 
 ## ssr
 
 - [ssr-basic.md](./tasks/completed/ssr-basic.md) - SSR Phase 1: platform-agnostic core (`render/ssr2/handler.jsx`), Express adapter (`render/ssr2/express/`), `mountSSR()` integration into dms-server (`DMS_SSR` env var), `getSubdomain` fix (window bug + localhost production fix), client hydration via `defaultData`/`hydrationData`, two-build system (Vite client + server), per-host route caching, Lexical SSR fixes, linkedom DOM stubs, 8x faster SSR build (2026-02-27)
+
+## local-first
+
+- [toy-sync-lexical.md](./tasks/completed/toy-sync-lexical.md) - Toy sync Lexical integration: replaced textarea with DMS Lexical rich text editor, dark theme provider, Tailwind @source for DMS files, Lexical JSON through Yjs LWW sync pipeline, live two-tab sync via remoteVersion remount, echo suppression fix (pendingItemIds per-item lifecycle), pushUpdate 404→create fallback, idempotent server POST (2026-03-03)
+- [toy-sync-collaborative-editing.md](./tasks/completed/toy-sync-collaborative-editing.md) - Toy sync collaborative editing: character-level Yjs ↔ Lexical binding via `@lexical/yjs` CollaborationPlugin, custom ToyProvider over existing WebSocket, room-based WS routing, server-side Y.Doc management + yjs_states persistence, Yjs sync protocol (step1/step2), cursor/presence awareness, user identity (2026-03-03)
+- [sync-pattern-scope.md](./tasks/completed/sync-pattern-scope.md) - Pattern-scoped sync + SQLite fix: chunked SQLite queries (LIMIT/OFFSET + setImmediate yielding), pattern-scoped bootstrap/delta/WS endpoints (?pattern=DOC_TYPE&siteType=Y, ?skeleton=SITE_TYPE), client skeleton bootstrap + on-demand bootstrapPattern(), per-pattern revision tracking, on-demand bootstrap in dmsDataLoader (2026-03-05)
 
 ## config
 
