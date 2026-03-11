@@ -56,7 +56,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                                        setCopied(false)
                                    }, 2000);
                                }}/> : null}
-                        {canEditSection ? <Pill color={'blue'} text={<Icon icon={'Paste'} className={'size-6'}/>} title={'Paste Section'}
+                        {isEdit && canEditSection ? <Pill color={'blue'} text={<Icon icon={'Paste'} className={'size-6'}/>} title={'Paste Section'}
                                onClick={e => handlePaste(e, setKey, setState, value, onChange)}/> : null}
 
                         {!isEdit && canEditPageLayout ?

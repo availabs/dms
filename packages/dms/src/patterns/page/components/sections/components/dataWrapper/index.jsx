@@ -735,7 +735,7 @@ const View = ({cms_context, value, onChange, component, editPageMode}) => {
                 draft.display.totalLength = length;
                 draft.lastDataRequest = state.dataRequest;
             })
-            state.display.preventDuplicateFetch && onChange(JSON.stringify({...state, lastDataRequest: state.dataRequest, data, totalLength: length}));
+            // state.display.preventDuplicateFetch && onChange(JSON.stringify({...state, lastDataRequest: state.dataRequest, data, totalLength: length}));
             setCurrentPage(newCurrentPage);
             setLoading(false)
         }
