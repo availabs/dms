@@ -25,7 +25,9 @@
     "test:db-cleanup": "node tests/test-db-cleanup.js",
     "test:all": "npm test && npm run test:sync && npm run test:auth && npm run test:pg",
     "db:copy": "node src/scripts/copy-db.js",
-    "db:cleanup": "node src/scripts/cleanup-db.js"
+    "db:cleanup": "node src/scripts/cleanup-db.js",
+    "db:extract-images": "node src/scripts/extract-images.js",
+    "db:consolidate-history": "node src/scripts/consolidate-page-history.js"
   },
   "imports": {
     "#db/*.js": "./src/db/*.js",

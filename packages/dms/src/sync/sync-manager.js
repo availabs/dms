@@ -11,7 +11,7 @@
  */
 
 import { exec } from './db-client.js';
-import { applyLocal, applyRemote, initFromData } from './yjs-store.js';
+import { applyLocal, applyRemote, initFromData, getData } from './yjs-store.js';
 import { addToScope } from './sync-scope.js';
 
 // Event bus for invalidation
@@ -21,6 +21,7 @@ export function onInvalidate(fn) {
   return () => listeners.delete(fn);
 }
 function invalidate(scope) {
+  if (_batchMode) return; // suppress during batch saves
   for (const fn of listeners) fn(scope);
 }
 
@@ -43,6 +44,7 @@ export function configure(app, apiHost, siteType = '') {
   _app = app;
   _apiHost = apiHost || '';
   _siteType = siteType;
+  if (_DEV) console.log(`[sync] configure: app=${app} apiHost=${_apiHost} siteType=${siteType}`);
 }
 
 function apiUrl(path) {
@@ -123,7 +125,8 @@ const _DEV = typeof globalThis.__SYNC_DEV !== 'undefined' ? globalThis.__SYNC_DE
 export async function bootstrapSkeleton() {
   if (!_siteType) {
     console.warn('[sync] no siteType — falling back to full app bootstrap');
-    return bootstrapFull();
+    return null
+    //return bootstrapFull();
   }
 
   const scope = `skeleton:${_siteType}`;
@@ -404,23 +407,80 @@ async function catchUp() {
   }
 }
 
+// --- Batch mode: suppress invalidation during multi-step saves ---
+let _batchMode = false;
+export function beginBatch() { _batchMode = true; }
+export function endBatch() {
+  _batchMode = false;
+  invalidate('data_items');
+}
+
 // --- Local writes + pending mutations ---
 
 export async function localCreate(app, type, data) {
   const dataStr = typeof data === 'string' ? data : JSON.stringify(data);
 
-  // Optimistic local write (use negative temp ID — server will assign real ID)
-  const tempResult = await exec(
+  // Push to server first to get the real ID.
+  // This ensures parent refs use the server-assigned ID, not a temp SQLite rowid.
+  // Falls back to optimistic local-only create when offline.
+  try {
+    const pushUrl = apiUrl('/sync/push');
+    if (_DEV) console.log(`[sync] localCreate ${app}+${type} → pushing to server first`);
+    const res = await fetch(pushUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'I', item: { app, type, data: dataStr } }),
+    });
+
+    if (res.ok) {
+      const { item: serverItem, revision } = await res.json();
+      const serverId = serverItem.id;
+      if (_DEV) console.log(`[sync] localCreate → server assigned id=${serverId} rev=${revision}`);
+
+      // Store locally with the server-assigned ID
+      const serverDataStr = typeof serverItem.data === 'string'
+        ? serverItem.data : JSON.stringify(serverItem.data || {});
+      await exec(
+        `INSERT INTO data_items (id, app, type, data, created_at, updated_at)
+         VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))
+         ON CONFLICT(id) DO UPDATE SET
+           app = excluded.app, type = excluded.type,
+           data = excluded.data, updated_at = datetime('now')`,
+        [serverId, app, type, serverDataStr]
+      );
+
+      await setLastRevision(revision);
+      pendingItemIds.add(serverId);
+      // Clear echo suppression after a short delay (server WS broadcast will arrive)
+      setTimeout(() => pendingItemIds.delete(serverId), 2000);
+
+      // Initialize Yjs doc for this new item
+      try {
+        const parsed = typeof serverItem.data === 'string' ? JSON.parse(serverItem.data) : serverItem.data;
+        initFromData(serverId, parsed || {});
+      } catch { /* ignore parse errors */ }
+
+      invalidate('data_items');
+      invalidate(`data_items:${app}+${type}`);
+      addToScope(app, type);
+
+      return String(serverId);
+    }
+    // Non-ok response — fall through to offline path
+    if (_DEV) console.warn(`[sync] localCreate push failed: ${res.status}, using offline path`);
+  } catch (err) {
+    if (_DEV) console.warn(`[sync] localCreate push failed (offline?):`, err.message);
+  }
+
+  // Offline fallback: optimistic local write with temp ID
+  await exec(
     `INSERT INTO data_items (app, type, data, created_at, updated_at)
      VALUES (?, ?, ?, datetime('now'), datetime('now'))`,
     [app, type, dataStr]
   );
-
-  // Get the inserted rowid
   const lastRow = await exec('SELECT last_insert_rowid() AS id');
   const tempId = lastRow.rows[0].id;
 
-  // Queue pending
   await exec(
     "INSERT INTO pending_mutations (item_id, action, app, type, data) VALUES (?, 'I', ?, ?, ?)",
     [tempId, app, type, dataStr]
@@ -432,18 +492,29 @@ export async function localCreate(app, type, data) {
   updateStatus('syncing');
 
   pushMutation('I', { id: tempId, app, type, data: dataStr });
-  return tempId;
+  return String(tempId);
 }
 
 export async function localUpdate(id, data) {
+  // Get existing row (needed for app/type and to seed Yjs if not initialized)
+  const existing = await exec('SELECT app, type, data FROM data_items WHERE id = ?', [id]);
+  const app = existing.rows[0]?.app || _app;
+  const type = existing.rows[0]?.type || '';
+
+  // Seed Yjs doc from SQLite if not already initialized — prevents partial
+  // updates from wiping fields when the in-memory doc was lost (e.g. page refresh)
+  if (!getData(id) && existing.rows[0]?.data) {
+    try {
+      const existingData = typeof existing.rows[0].data === 'string'
+        ? JSON.parse(existing.rows[0].data) : existing.rows[0].data;
+      initFromData(id, existingData);
+    } catch { /* ignore parse errors */ }
+  }
+
   // Merge via Yjs
   const merged = applyLocal(id, data);
   const dataStr = JSON.stringify(merged);
-
-  // Get app and type from local row
-  const existing = await exec('SELECT app, type FROM data_items WHERE id = ?', [id]);
-  const app = existing.rows[0]?.app || _app;
-  const type = existing.rows[0]?.type || '';
+  if (_DEV) console.log(`[sync] localUpdate id=${id} app=${app} type=${type} keys=${Object.keys(data).join(',')}`);
 
   await exec(
     "UPDATE data_items SET data = ?, updated_at = datetime('now') WHERE id = ?",
@@ -486,15 +557,21 @@ export async function localDelete(id) {
 // --- Push to server via /sync/push ---
 
 async function pushMutation(action, item) {
+  const pushUrl = apiUrl('/sync/push');
+  if (_DEV) console.log(`[sync] pushMutation ${action} id=${item.id} → ${pushUrl}`);
   try {
-    const res = await fetch(apiUrl('/sync/push'), {
+    const res = await fetch(pushUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action, item }),
     });
 
-    if (!res.ok) throw new Error(`push failed: ${res.status}`);
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => '');
+      throw new Error(`push failed: ${res.status} ${errBody}`);
+    }
     const { item: serverItem, revision } = await res.json();
+    if (_DEV) console.log(`[sync] push ${action} id=${item.id} → server id=${serverItem?.id} rev=${revision}`);
 
     // If the server assigned a different ID (create), update local
     if (action === 'I' && serverItem.id !== item.id) {
@@ -514,7 +591,7 @@ async function pushMutation(action, item) {
     await setLastRevision(revision);
     await removePending(serverItem.id || item.id, action);
   } catch (err) {
-    console.warn(`[sync] push ${action} failed (will retry):`, err.message);
+    console.error(`[sync] push ${action} FAILED id=${item.id}:`, err.message, err);
     retryFlush();
   }
 }
@@ -554,6 +631,7 @@ function retryFlush() {
 
 async function flushPending() {
   const result = await exec('SELECT * FROM pending_mutations ORDER BY id ASC');
+  if (_DEV && result.rows.length > 0) console.log(`[sync] flushPending: ${result.rows.length} pending mutations`);
   for (const row of result.rows) {
     pendingItemIds.add(row.item_id);
     await pushMutation(row.action, {

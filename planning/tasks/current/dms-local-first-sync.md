@@ -8,6 +8,7 @@
 | Phase 2: Client — SQLite WASM + sync manager | ✅ COMPLETE | All modules ported to `packages/dms/src/sync/`. sync-scope.js also done (listed as 3a). |
 | Phase 3: DMS integration | ✅ COMPLETE | All steps implemented (3a-3h). api/index.js sync intercepts, dmsSiteFactory sync init + revalidation, SyncStatus.jsx |
 | Phase 3.5: Pattern-scoped sync | ✅ COMPLETE | See `tasks/completed/sync-pattern-scope.md`. SQLite chunked queries, pattern-scoped bootstrap/delta/WS, skeleton bootstrap, on-demand bootstrapPattern() in dmsDataLoader |
+| Phase 3.6: Reference resolution + delta propagation | ✅ COMPLETE | 3.6a: page-edit refs now included in sync (consolidation reduced to 1 row/page). 3.6b: delta→revalidate works. 3.6c (targeted invalidation) deferred. See research/dms-reference-resolution.md |
 | Phase 4: Lexical live sync | ❌ NOT STARTED | Server WS room infrastructure ready from Phase 1 |
 | Phase 5: Offline resilience + edge cases | ❌ NOT STARTED | |
 
@@ -38,13 +39,10 @@
 - `packages/dms/src/sync/use-query.js` — Reactive query hook with scoped invalidation
 - `packages/dms/src/sync/sync-scope.js` — Sync scope registry (`isLocal`, `addToScope`)
 
-### What remains (Phase 3+)
+### What remains
 
-- `packages/dms/src/sync/dms-sync-loader.js` — type-based routing (local SQLite vs Falcor passthrough)
-- Sync-aware data editor wrapper
-- `dmsSiteFactory.jsx` wiring (`initSync()` on `VITE_DMS_SYNC=1`)
-- `api/index.js` routing through sync loader when active
-- Status UI indicator (connected/syncing/offline)
+- Phase 4: Lexical live sync (CollaborationPlugin via Yjs WebSocket rooms)
+- Phase 5: Offline resilience + edge cases
 
 ## Objective
 
@@ -520,7 +518,7 @@ Key decisions:
 - Non-blocking — sync failure logs warning, app continues with Falcor-only
 - `app` comes from `dmsConfig`, same source all patterns use
 
-#### 3c. Sync-aware `dmsDataLoader` — route reads through local SQLite ✅
+#### 3c. Sync-aware `dmsDataLoader` — route reads through local SQLite ✅ (bug fix applied)
 
 **File:** `packages/dms/src/api/index.js`
 
@@ -536,6 +534,21 @@ if (sync && sync.isLocal(app, type) && ['list', 'view', 'edit'].includes(mainAct
 }
 // --- End sync intercept ---
 ```
+
+**Bug fix — `_setSyncAPI` module instance mismatch:**
+
+After Phase 3.5, sync bootstrapped correctly (logs showed `[sync] fully wired into DMS`) but `dmsDataLoader` always reported `FALCOR (sync not ready)` — `_syncAPI` was null even after `_setSyncAPI(api)` was called.
+
+**Root cause:** Vite's dev server creates separate module instances for `api/index.js` — even when importing through the barrel (`src/index.js`) and using static imports, the module-level `let _syncAPI` variable exists in different instances. `_setSyncAPI` sets the value on one instance while `_getSyncAPI` (called from `dmsDataLoader`) reads from another.
+
+**Fix:** Replace module-level `let _syncAPI` with `globalThis.__dmsSyncAPI`. `globalThis` is a single shared namespace across all module instances, so `_setSyncAPI` and `_getSyncAPI` are guaranteed to read/write the same value regardless of how Vite resolves the module graph.
+
+```js
+export function _setSyncAPI(api) { globalThis.__dmsSyncAPI = api; }
+function _getSyncAPI() { return globalThis.__dmsSyncAPI || null; }
+```
+
+Additionally, `_setSyncAPI` is now exported from the barrel (`src/index.js`) and imported statically in `dmsSiteFactory.jsx` to avoid the unnecessary dynamic import of `api/index.js`.
 
 The `loadFromLocalDB` helper:
 
@@ -770,6 +783,106 @@ Rendered conditionally in `DmsSite`:
    - Kill server — edits still work locally, pending indicator shows count
    - Restart server — pending mutations flush, status returns to "connected"
 3. **Non-synced types** (split-table dataset rows, UDA queries): Continue through Falcor unchanged.
+
+### Phase 3.6: Reference resolution + delta propagation
+
+The DMS data model uses `dms-format` attributes to store parent→child references as `{id, ref}` objects inside the parent's `data` JSON. The API resolves these at read time (replacing refs with full child data) and decomposes them at write time (saving children as separate rows, storing only refs on the parent).
+
+See `research/dms-reference-resolution.md` for full technical details on how the Falcor and sync paths handle this.
+
+#### Current state
+
+- [x] **Read path** — `loadFromLocalDB()` in `api/index.js` resolves `dms-format` refs from local SQLite. When loading a page, its `sections`/`draft_sections` refs are replaced with the full section data from local SQLite.
+- [x] **Write path** — `dmsDataEditor` sync intercept handles `dms-format` children: updates/creates each child item via `sync.localUpdate`/`sync.localCreate`, then stores only `{id, ref}` on the parent.
+- [ ] **Delta propagation to parents** — When a delta arrives for a child item (e.g., section ID 1437255 is updated), the parent page that references it doesn't know about the change. The parent's `data.sections[].id` hasn't changed — only the child row's `data` column changed. `router.revalidate()` fires on any delta, which re-runs `loadFromLocalDB` and re-resolves refs, but this is a brute-force approach.
+- [x] **`history` refs (page-edits)** — After history consolidation (1 page-edit row per page), `|page-edit` types are no longer excluded from sync. History refs resolve from local SQLite like any other dms-format attribute.
+
+#### Problem: delta propagation for child items
+
+DMS `dms-format` attributes create a parent→child reference graph:
+
+```
+Page (type: doc_type)
+  ├── sections: [{id: 100, ref: 'app+doc_type|cms-section'}]
+  └── draft_sections: [{id: 100, ref: 'app+doc_type|cms-section'}]
+
+Section (type: doc_type|cms-section, id: 100)
+  └── data: {element: {element-type: 'Lexical', element-data: '...'}}
+```
+
+When section 100 is updated (by another user, or from a sync delta), the page that holds `sections: [{id: 100}]` needs to re-render with the new section content. Currently:
+
+1. Delta arrives via WebSocket → sync manager writes updated section to local SQLite
+2. `router.revalidate()` fires → `dmsDataLoader` re-runs → `loadFromLocalDB` re-queries local SQLite
+3. `loadFromLocalDB` re-resolves all `dms-format` refs → picks up the updated section data
+4. React sees new data → component re-renders
+
+**This already works** because `router.revalidate()` is a full revalidation that re-runs all active loaders. The concern is efficiency — every delta revalidates everything. For now this is acceptable.
+
+#### Tasks
+
+- [x] **3.6a. Page-edit refs now included in sync** — After consolidating page history (1 row per page instead of N), `|page-edit` types are no longer excluded from sync. Removed `isSyncExcluded` special-casing for `|page-edit` in server (`sync.js`) and client (`api/index.js` `syncExcludedSuffixes`). History refs are now resolved from local SQLite like sections.
+
+- [x] **3.6b. Verify delta → parent re-render works end-to-end** — Test: open page with sections in browser, update a section from a second client (or directly in DB), confirm the first client sees the update appear. The path: delta → local SQLite write → `router.revalidate()` → `loadFromLocalDB` re-resolves refs → React re-renders.
+
+- [ ] **3.6c. (Future optimization) Targeted invalidation** — Instead of revalidating all loaders on every delta, maintain a reverse index (`childId → parentType`) built during bootstrap. When a delta arrives for a child item, only revalidate routes whose type matches a parent that references that child. Low priority — brute-force revalidation is fast enough for typical page counts.
+
+#### Reference resolution flow summary
+
+**Reading (local sync path):**
+```
+loadFromLocalDB(sync, app, type, format, dmsAttrsConfigs)
+  1. SELECT * FROM data_items WHERE app=? AND type=?  → raw rows
+  2. For each row, flatten: {...JSON.parse(data), id, app, type, created_at, ...}
+  3. For each dms-format attribute (sections, draft_sections):
+     a. Collect child IDs from refs: [{id: 100}, {id: 101}] → [100, 101]
+     b. SELECT * FROM data_items WHERE id IN (100, 101)
+     c. Replace each {id, ref} with {id, ref, ...childData, created_at, ...}
+  4. Return flattened, resolved items
+```
+
+**Writing (local sync path):**
+```
+dmsDataEditor sync intercept:
+  1. Separate dms-format attributes from parent row
+  2. For each child in dms-format data:
+     a. Strip metadata (id, ref, created_at, ...)
+     b. If has id: sync.localUpdate(childId, childData)
+     c. If no id: sync.localCreate(childApp, childType, childData) → newId
+     d. Build ref: {ref: 'app+type', id: childId}
+  3. Parent row now has refs only: {sections: [{ref: '...', id: 100}]}
+  4. sync.localUpdate(parentId, parentRow) or sync.localCreate(...)
+  5. Sync manager pushes to server → server saves → broadcasts delta
+```
+
+**Delta propagation:**
+```
+WebSocket delta arrives (child section updated):
+  1. sync-manager writes updated child to local SQLite
+  2. sync-manager fires onInvalidate callback
+  3. dmsSiteFactory's useEffect calls router.revalidate()
+  4. React Router re-runs all active loaders
+  5. dmsDataLoader → loadFromLocalDB re-queries and re-resolves refs
+  6. React sees new data in loader result → re-renders
+```
+
+### Bugs fixed during sync + history consolidation testing
+
+1. **Yjs doc not seeded on `localUpdate` — wiped page data (title, etc.)** — `localUpdate` called `applyLocal(id, data)` which creates a new empty Yjs doc if none exists. After page refresh (in-memory Yjs docs lost) or for rows added after bootstrap, partial updates like `{ draft_sections, has_changes }` would become the entire `data` column, destroying `title` and all other fields. **Fix:** `localUpdate` now reads existing SQLite row data and calls `initFromData()` before `applyLocal()` when the Yjs doc is uninitialized. (`sync-manager.js`)
+
+2. **`history.push is not a function` in sectionGroup.jsx** — Old code treated `item.history` as an array (pre-consolidation format). After consolidation, history is a single dms-format ref with `entries[]` inside. **Fix:** Imported `appendHistoryEntry` from `editFunctions.jsx` and replaced old pattern. (`sectionGroup.jsx`)
+
+3. **Same issue in componentsIndexTable.jsx** — Old `history.push()` pattern. **Fix:** Same — imported `appendHistoryEntry`, replaced array push with iterative `appendHistoryEntry` calls. (`componentsIndexTable.jsx`)
+
+4. **Same issue in template/edit.jsx** — Old pattern in `saveHeader`/`saveSection`. **Fix:** Updated to use `appendHistoryEntry`. (Note: these template manager pages are deprecated and don't render, but fixed for correctness.)
+
+5. **Page-edit sync exclusion preventing history from loading** — `|page-edit` types were excluded from sync bootstrap/delta (server SQL `NOT LIKE '%|page-edit'` + client `syncExcludedSuffixes`). After consolidation (1 row per page), these should be included. **Fix:** Removed all page-edit exclusions from `sync.js` (4 SQL queries) and `api/index.js` (client-side skip logic).
+
+6. **`appendHistoryEntry` crash: `existingHistory.entries is not iterable`** — Used truthy check instead of `Array.isArray`. **Fix:** Changed to `Array.isArray(existingHistory?.entries)`. Also refactored to return only `{ id?, entries }` without spreading resolved ref metadata, preventing Immer merge errors in wrapper.jsx.
+
+7. **New pages not showing until refresh** — `dmsDataEditor` create path only invalidated `['dms', 'data', 'app+type', 'length']`. **Fix:** Changed to invalidate full `['dms', 'data', 'app+type']` (matches update path). (`api/index.js`)
+
+8. **HTML nesting violation in historyPane.jsx** — `<div>` inside `<p>` for comment display. **Fix:** Changed to `<span className="block">`. (`historyPane.jsx`)
 
 ### Phase 4: Lexical live sync
 

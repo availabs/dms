@@ -2,6 +2,25 @@ import { cloneDeep } from "lodash-es"
 import { json2DmsForm, getUrlSlug, toSnakeCase, parseJSON } from '../_utils'
 // import { ButtonSelector,SidebarSwitch } from '../../ui'
 
+/**
+ * Build a history object by appending a new entry to existing entries.
+ * Returns only { id?, entries } — id tells updateDMSAttrs to edit the
+ * existing page-edit row; entries is the data to store.
+ * Resolved ref metadata (ref, created_at, etc.) is NOT included —
+ * updateDMSAttrs rebuilds the ref from the format config.
+ */
+export function appendHistoryEntry(existingHistory, action, user) {
+  const entry = { action, user: user?.email, time: new Date().toString() }
+  const entries = Array.isArray(existingHistory?.entries)
+    ? [...existingHistory.entries, entry]
+    : [entry]
+  // Include id if editing an existing page-edit row
+  if (existingHistory?.id) {
+    return { id: existingHistory.id, entries }
+  }
+  return { entries }
+}
+
 
 export const insertSubPage = async (item, dataItems, user, apiUpdate) => {
     if(!item?.id) return;
@@ -12,17 +31,12 @@ export const insertSubPage = async (item, dataItems, user, apiUpdate) => {
       return Math.max(isNaN(d.index) ? 0 : d.index  , out)
     },0)
 
-    //console.log(highestIndex, dataItems)
     const newItem = {
       title: 'New Page',
       parent: item.id,
       index: highestIndex + 1,
       published: 'draft',
-      history: [{
-        type:' created Page.',
-        user: user.email,
-        time: new Date().toString()
-      }]
+      history: appendHistoryEntry(null, ' created Page.', user)
     }
     newItem.url_slug = `${getUrlSlug(newItem,dataItems)}`
     apiUpdate({data:newItem})
@@ -49,11 +63,7 @@ export const duplicateItem = (item, dataItems, user, apiUpdate) => {
         delete s.ref
         delete s.id
     })
-    newItem.history = [{
-        type:'Created Duplicate Page.',
-        user: user.email,
-        time: new Date().toString()
-    }]
+    newItem.history = appendHistoryEntry(null, 'Created Duplicate Page.', user)
     apiUpdate({data:newItem})
 }
 
@@ -69,11 +79,7 @@ export const newPage = async (item, dataItems, user, apiUpdate) => {
       parent: item?.parent,
       index: highestIndex + 1,
       published: 'draft',
-      history: [{
-        type:' created Page.',
-        user: user?.email,
-        time: new Date().toString()
-      }]
+      history: appendHistoryEntry(null, ' created Page.', user)
     }
     newItem.url_slug = `${getUrlSlug(newItem,dataItems)}`
 
@@ -83,40 +89,23 @@ export const newPage = async (item, dataItems, user, apiUpdate) => {
 export const updateTitle = async ( item, dataItems, value='', user, apiUpdate) => {
     if(!item.id) return;
     if(value !== item.title) {
-      let history = item.history ? cloneDeep(item.history) : []
-      let edit = {
-        type: `changed page title to ${value}`,
-        user: user.email,
-        time: new Date().toString()
-      }
-      history.push(edit)
-
       const newItem = {
         id: item.id,
         title:value,
         parent: item?.parent || '',
-        history
+        history: appendHistoryEntry(item.history, `changed page title to ${value}`, user)
       }
 
       newItem.url_slug = getUrlSlug(newItem, dataItems)
-      // console.log('create new item', newItem, baseUrl)
       apiUpdate({data:newItem, newPath: `/edit/${newItem.url_slug}`})
     }
   }
 
   export const updateHistory = async ( item, value='', user, apiUpdate) => {
     if(!item.id) return;
-      let history = item.history ? cloneDeep(item.history) : []
-      let edit = {
-        type: value,
-        user: user.email,
-        time: new Date().toString()
-      }
-      history.push(edit)
-
       const newItem = {
         ...cloneDeep(item),
-        history
+        history: appendHistoryEntry(item.history, value, user)
       }
 
       apiUpdate({data:newItem})
@@ -148,20 +137,12 @@ export const toggleSidebar = async (item,type, value='', pageType, apiUpdate) =>
 export const publish = async (user, item, apiUpdate) => {
   console.log('publish', item)
     if(!item.id) return;
-  let edit = {
-    type: 'published changes.',
-    user: user.email,
-    time: new Date().toString()
-  }
-
-  let history = item?.history ? cloneDeep(item.history) : []
-  history.push(edit)
 
   const newItem = {
     id: item.id,
     has_changes: false,
     published: '',
-    history
+    history: appendHistoryEntry(item.history, 'published changes.', user)
   }
 
   // no use: draft_id is never saved
@@ -194,20 +175,12 @@ export const publish = async (user, item, apiUpdate) => {
 
 export const discardChanges = async (user,item, apiUpdate) => {
     if(!item.id) return;
-  let edit = {
-    type: 'discarded changes.',
-    user: user.email,
-    time: new Date().toString()
-  }
-
-  let history = item?.history ? cloneDeep(item.history) : []
-  history.push(edit)
 
   const newItem = {
     ...cloneDeep(item),
     has_changes: false,
     published: '',
-    history
+    history: appendHistoryEntry(item.history, 'discarded changes.', user)
   }
 
   newItem.draft_sections = item.sections.map(s => {

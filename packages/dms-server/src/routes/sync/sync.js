@@ -14,54 +14,17 @@ const { getDb } = require('#db/index.js');
 const {
   isSplitType,
 } = require('#db/table-resolver.js');
+
+/** Types excluded from sync bootstrap/delta (loaded on-demand instead) */
+function isSyncExcluded(type) {
+  return isSplitType(type);
+}
 const {
   jsonMerge,
   currentTimestamp,
   typeCast,
 } = require('#db/query-utils.js');
 const { logEntry } = require('../../middleware/request-logger');
-
-/**
- * Chunked query helper for SQLite event loop yielding.
- *
- * better-sqlite3 is synchronous — a single large SELECT blocks the event loop.
- * This helper paginates the query with LIMIT/OFFSET and yields between chunks
- * via setImmediate(), allowing other requests, timers, and WebSocket pings to
- * run between chunks.
- *
- * For PostgreSQL (async driver), the query runs normally in one shot.
- *
- * @param {Object} db - Database adapter
- * @param {string} sql - SQL query (must not already contain LIMIT/OFFSET)
- * @param {Array} params - Query parameters
- * @param {number} [chunkSize=500] - Rows per chunk (SQLite only)
- * @returns {Promise<Array>} All result rows
- */
-async function queryChunked(db, sql, params, chunkSize = 500) {
-  if (db.type !== 'sqlite') {
-    return db.promise(sql, params);
-  }
-
-  // SQLite: paginate with LIMIT/OFFSET, yield between chunks
-  const allRows = [];
-  let offset = 0;
-
-  while (true) {
-    const chunk = await db.promise(
-      `${sql} LIMIT ${chunkSize} OFFSET ${offset}`,
-      params
-    );
-    allRows.push(...chunk);
-
-    if (chunk.length < chunkSize) break; // Last chunk
-    offset += chunkSize;
-
-    // Yield to event loop between chunks
-    await new Promise(resolve => setImmediate(resolve));
-  }
-
-  return allRows;
-}
 
 /**
  * Create sync routes for a given database config.
@@ -97,6 +60,7 @@ function createSyncRoutes(dbName) {
   // ---- Bootstrap: full snapshot ----
 
   router.get('/sync/bootstrap', async (req, res) => {
+    const t0 = Date.now();
     try {
       const { app, type, pattern, skeleton } = req.query;
       if (!app) return res.status(400).json({ error: 'app is required' });
@@ -106,6 +70,7 @@ function createSyncRoutes(dbName) {
       if (skeleton) {
         // Skeleton bootstrap: site row + pattern rows only (always small, <20 items)
         // skeleton value = siteType
+        console.log('--------------- sync skelton -----------------')
         items = await dms_db.promise(
           `SELECT * FROM ${tbl('data_items')} WHERE app = $1 AND (type = $2 OR type = $2 || '|pattern') ORDER BY id`,
           [app, skeleton]
@@ -115,10 +80,13 @@ function createSyncRoutes(dbName) {
         // pattern value = doc_type
         // The siteType is needed for skeleton — passed as `siteType` query param
         const { siteType } = req.query;
-        const patternItems = await queryChunked(dms_db,
+        console.log('--------------- sync pattern -----------------')
+        console.log(`SELECT * FROM ${tbl('data_items')} WHERE app = $1 AND (type = $2 OR type LIKE $2 || '|%') ORDER BY id`, app, pattern)
+        const patternItems = await dms_db.promise(
           `SELECT * FROM ${tbl('data_items')} WHERE app = $1 AND (type = $2 OR type LIKE $2 || '|%') ORDER BY id`,
           [app, pattern]
         );
+        console.log('got sync pattern items', patternItems.length)
         if (siteType) {
           // Also include site skeleton (site + pattern rows)
           const skeletonItems = await dms_db.promise(
@@ -132,20 +100,22 @@ function createSyncRoutes(dbName) {
           items = patternItems;
         }
         // Filter out split-table types
-        items = items.filter(item => !isSplitType(item.type));
+        items = items.filter(item => !isSyncExcluded(item.type));
       } else if (type) {
         // Type-scoped bootstrap (exact type match)
-        items = await queryChunked(dms_db,
+        console.log('--------------- sync type -----------------')
+        items = await dms_db.promise(
           `SELECT * FROM ${tbl('data_items')} WHERE app = $1 AND type = $2 ORDER BY id`,
           [app, type]
         );
       } else {
         // Full app bootstrap — main table only, exclude split-table types
-        const allItems = await queryChunked(dms_db,
+         console.log('--------------- sync full we shouldnt be here -----------------')
+        const allItems = await dms_db.promise(
           `SELECT * FROM ${tbl('data_items')} WHERE app = $1 ORDER BY id`,
           [app]
         );
-        items = allItems.filter(item => !isSplitType(item.type));
+        items = allItems.filter(item => !isSyncExcluded(item.type));
       }
 
       let revision = 0;
@@ -157,11 +127,25 @@ function createSyncRoutes(dbName) {
         revision = maxRevRow[0]?.max_rev || 0;
       }
 
-      const response = { items, revision: Number(revision) };
-      const payload = JSON.stringify(response);
       const scope = skeleton ? `skeleton=${skeleton}` : pattern ? `pattern=${pattern}` : type ? `type=${type}` : 'full-app';
-      const payloadKB = +(payload.length / 1024).toFixed(1);
-      console.log(`[sync/bootstrap] app=${app} ${scope} → ${items.length} items, ${payloadKB}KB, rev=${revision}`);
+      const durationMs = Date.now() - t0;
+
+      // Stream JSON to avoid V8 string length limit on large payloads
+      res.setHeader('Content-Type', 'application/json');
+      res.write('{"items":[');
+      let byteLen = 0;
+      for (let i = 0; i < items.length; i++) {
+        if (i > 0) res.write(',');
+        const chunk = JSON.stringify(items[i]);
+        byteLen += chunk.length + (i > 0 ? 1 : 0);
+        res.write(chunk);
+      }
+      res.write(`],"revision":${Number(revision)}}`);
+      byteLen += 30; // envelope overhead
+      res.end();
+
+      const payloadKB = +(byteLen / 1024).toFixed(1);
+      console.log(`[sync/bootstrap] app=${app} ${scope} → ${items.length} items, ${payloadKB}KB, rev=${revision}, ${durationMs}ms`);
       logEntry({
         _type: 'sync-bootstrap',
         timestamp: new Date().toISOString(),
@@ -170,9 +154,8 @@ function createSyncRoutes(dbName) {
         itemCount: items.length,
         payloadKB,
         revision: Number(revision),
+        durationMs,
       });
-      res.setHeader('Content-Type', 'application/json');
-      res.send(payload);
     } catch (err) {
       console.error('[sync/bootstrap] error:', err.message);
       res.status(500).json({ error: 'Internal server error' });
@@ -182,6 +165,7 @@ function createSyncRoutes(dbName) {
   // ---- Delta: changes since revision N ----
 
   router.get('/sync/delta', async (req, res) => {
+    const t0 = Date.now();
     try {
       const { app, type, pattern, since } = req.query;
       if (!app) return res.status(400).json({ error: 'app is required' });
@@ -197,7 +181,7 @@ function createSyncRoutes(dbName) {
         // Pattern-scoped delta: changes for types matching the pattern's doc_type
         // Also include skeleton types if siteType is provided
         const { siteType } = req.query;
-        let patternChanges = await queryChunked(dms_db,
+        let patternChanges = await dms_db.promise(
           `SELECT * FROM ${tbl('change_log')} WHERE app = $1 AND (type = $2 OR type LIKE $2 || '|%') AND revision > $3 ORDER BY revision ASC`,
           [app, pattern, sinceRev]
         );
@@ -210,19 +194,19 @@ function createSyncRoutes(dbName) {
           patternChanges = [...patternChanges, ...skeletonChanges.filter(c => !seen.has(c.revision))];
           patternChanges.sort((a, b) => a.revision - b.revision);
         }
-        changes = patternChanges.filter(c => !isSplitType(c.type));
+        changes = patternChanges.filter(c => !isSyncExcluded(c.type));
       } else if (type) {
-        changes = await queryChunked(dms_db,
+        changes = await dms_db.promise(
           `SELECT * FROM ${tbl('change_log')} WHERE app = $1 AND type = $2 AND revision > $3 ORDER BY revision ASC`,
           [app, type, sinceRev]
         );
       } else {
         // Default: exclude split-table types
-        const allChanges = await queryChunked(dms_db,
+        const allChanges = await dms_db.promise(
           `SELECT * FROM ${tbl('change_log')} WHERE app = $1 AND revision > $2 ORDER BY revision ASC`,
           [app, sinceRev]
         );
-        changes = allChanges.filter(c => !isSplitType(c.type));
+        changes = allChanges.filter(c => !isSyncExcluded(c.type));
       }
 
       const maxRevRow = await dms_db.promise(
@@ -235,7 +219,8 @@ function createSyncRoutes(dbName) {
       const payload = JSON.stringify(response);
       const scope = pattern ? `pattern=${pattern}` : type ? `type=${type}` : 'full-app';
       const payloadKB = +(payload.length / 1024).toFixed(1);
-      console.log(`[sync/delta] app=${app} ${scope} since=${sinceRev} → ${changes.length} changes, ${payloadKB}KB, rev=${revision}`);
+      const durationMs = Date.now() - t0;
+      console.log(`[sync/delta] app=${app} ${scope} since=${sinceRev} → ${changes.length} changes, ${payloadKB}KB, rev=${revision}, ${durationMs}ms`);
       logEntry({
         _type: 'sync-delta',
         timestamp: new Date().toISOString(),
@@ -244,6 +229,7 @@ function createSyncRoutes(dbName) {
         changeCount: changes.length,
         payloadKB,
         revision: Number(revision),
+        durationMs,
       });
       res.setHeader('Content-Type', 'application/json');
       res.send(payload);

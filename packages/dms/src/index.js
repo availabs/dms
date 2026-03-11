@@ -1,4 +1,4 @@
-export { dmsDataLoader, dmsDataEditor } from './api'
+export { dmsDataLoader, dmsDataEditor, _setSyncAPI } from './api'
 export { updateRegisteredFormats, updateAttributes, json2DmsForm, initializePatternFormat } from './dms-manager/_utils'
 export { default as dmsColumnTypes } from './ui/columnTypes'
 export { default as dmsPageFactory } from './render/dmsPageFactory'

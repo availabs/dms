@@ -94,20 +94,9 @@ const pageEdit = {
   type: "page-edit",
   attributes: [
     {
-      key: "action",
-      type: "text"
-    },
-    {
-      key: "user",
-      type: "text"
-    },
-    {
-      key: "time",
-      type: "text"
-    },
-    {
-      key: 'parent_type',
-      type: 'text'
+      key: "entries",
+      type: "json",
+      default: []
     }
   ]
 }
@@ -266,7 +255,6 @@ const cmsPageFormat = {
     {
       key: 'history',
       type: 'dms-format',
-      isArray: true,
       format: 'dms-site+page-edit',
     }
   ]

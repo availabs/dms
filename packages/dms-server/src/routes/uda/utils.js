@@ -321,7 +321,13 @@ function getValuesFromGroup(node) {
     const filtered = node.value.filter(v => !['null', 'not null'].includes(v));
     return filtered.length ? [filtered] : [];
   }
-  return ['null', 'not null'].includes(node.value) ? [] : [[node.value]];
+  if (['null', 'not null'].includes(node.value)) return [];
+  // Comparison ops (gt, gte, lt, lte, like) expect scalar values;
+  // filter/exclude use = ANY($N) which expects an array.
+  if (['gt', 'gte', 'lt', 'lte', 'like'].includes(node.op)) {
+    return [node.value];
+  }
+  return [[node.value]];
 }
 
 function buildLeafSQL(node, ctx, isDms) {

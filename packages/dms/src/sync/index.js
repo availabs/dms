@@ -12,6 +12,7 @@
 import { initDB, exec } from './db-client.js';
 import { configure, bootstrapSkeleton, bootstrapPattern, isPatternLoaded,
          connectWS, localCreate, localUpdate, localDelete,
+         beginBatch, endBatch,
          onInvalidate, onStatusChange, getStatus, getWS, onWSChange, getPendingCount } from './sync-manager.js';
 import { isLocal, addToScope, getSyncedTypes, clearScope } from './sync-scope.js';
 import { useQuery } from './use-query.js';
@@ -62,10 +63,10 @@ export async function initSync(app, apiHost = '', siteType = '') {
     } else {
       console.log('[sync] initialized for app:', app);
     }
+    return getSyncAPI();
   })();
 
-  await _initPromise;
-  return getSyncAPI();
+  return _initPromise;
 }
 
 /**
@@ -84,6 +85,8 @@ export function getSyncAPI() {
     localCreate,
     localUpdate,
     localDelete,
+    beginBatch,
+    endBatch,
     isLocal,
     addToScope,
     getSyncedTypes,
@@ -105,6 +108,8 @@ export {
   localCreate,
   localUpdate,
   localDelete,
+  beginBatch,
+  endBatch,
   isLocal,
   addToScope,
   getSyncedTypes,

@@ -3,6 +3,7 @@ import {Link} from "react-router";
 import {cloneDeep, get} from "lodash-es";
 import writeXlsxFile from 'write-excel-file';
 import {dmsDataEditor} from "../../../../../api";
+import {appendHistoryEntry} from "../../../pages/edit/editFunctions";
 import {CMSContext} from "../../../context";
 import {ThemeContext} from "../../../../../ui/useTheme";
 import RenderSwitch from "../../../../../ui/components/Switch";
@@ -305,14 +306,11 @@ const updateSections = async ({sections, newView, falcor, user, setUpdating, app
                 const pageType = get(dataRes, ['json', 'dms', 'data', app, 'byId', page_id, 'type'], {});
                 const pageConfig = {format: {app: pageApp, type: pageType}};
 
-                let historyUpdate = sections.map(({section_id, sectionTitle}) => ({
-                    type: `Updated Section remotely ${sectionTitle || pageData.draft_sections.findIndex(s => +s.id === +section_id) + 1}`,
-                    user: user.email,
-                    time: new Date().toString()
-                }))
-
-                let history = pageData?.history ? cloneDeep(pageData.history) : []
-                history.push(...historyUpdate);
+                let history = pageData?.history || {};
+                for (const {section_id, sectionTitle} of sections) {
+                    const action = `Updated Section remotely ${sectionTitle || pageData.draft_sections.findIndex(s => +s.id === +section_id) + 1}`;
+                    history = appendHistoryEntry(history, action, user);
+                }
 
                 const updatedPage = {
                     ...pageData,

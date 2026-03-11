@@ -74,7 +74,10 @@ export default function EditWrapper({ Component, format, options, params, user, 
 
 		// -- testing on update set item
 		// -- this adds updateAttribute call to apiUpdate
-		if(data.id === item.id) { setItem(draft => { merge(draft,data) })}
+		if(data.id === item.id) {
+			try { setItem(draft => { merge(draft,data) }) }
+			catch(e) { /* Immer may reject deep merge of arrays — navigate will reload */ }
+		}
 
 		if(!data.id) return resData; // return id if apiUpdate was used to create an entry.
 		if(data.app !== app || data.type !== type) return; // if apiUpdate was used to manually update something, don't refresh.

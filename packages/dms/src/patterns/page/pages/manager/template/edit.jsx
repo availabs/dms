@@ -4,6 +4,7 @@ import { cloneDeep } from "lodash-es"
 
 
 import { json2DmsForm, getInPageNav  } from '../../_utils'
+import { appendHistoryEntry } from '../../edit/editFunctions'
 import EditControls from './templateEditControls'
 import { CMSContext } from '../../../context'
 import {ThemeContext} from "../../../../../ui/useTheme";
@@ -33,60 +34,41 @@ function TemplateEdit ({
   ]
 
   const saveHeader = (v) => {
-    
-    let history = item.history ? cloneDeep(item.history) : []
-  
-    history.push({
-      type: 'Header updated.',
-      user: user.email, 
-      time: new Date().toString()
-    })
-    
+    const history = appendHistoryEntry(item.history, 'Header updated.', user)
+
     updateAttribute('','',{
       'has_changes': true,
       'history': history,
       'sections': [...v, ...draftSections].filter(d => d)
     })
     const newItem = {
-      id: item.id, 
+      id: item.id,
       sections: [...v, ...draftSections].filter(d => d),
       has_changes: true,
-      history, 
+      history,
     }
     console.log('save header', newItem)
     submit(json2DmsForm(newItem), { method: "post", action: pathname })
   }
 
   const saveSection = (v,action) => {
-    //console.log('save section', v,action)
-    let edit = {
-      type: action,
-      user: user.email, 
-      time: new Date().toString()
-    }
+    const history = action
+      ? appendHistoryEntry(item.history, action, user)
+      : (item.history || {})
 
-    let history = item.history ? cloneDeep(item.history) : []
-    if(action){
-      history.push(edit)
-    }
     updateAttribute('','',{
       'has_changes': true,
       'history': history,
       'sections': [headerSection, ...v].filter(d => d)
     })
 
-    // ----------------
-    // only need to send id, and data to update, not whole 
-    // --------------------
-
     const newItem = {
-      id: item.id, 
+      id: item.id,
       sections: [headerSection, ...v].filter(d => d),
       has_changes: true,
-      history, 
+      history,
     }
     submit(json2DmsForm(newItem), { method: "post", action: pathname })
-    //.then(d => console.log('on submit',d))
   }
   //console.log('inPageNav', inPageNav)
   //console.log('page edit', attributes['sections'])

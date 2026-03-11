@@ -78,13 +78,13 @@ export const getLength = async ({format, apiLoad, groupBy= [], filterBy}) =>{
 }
 export const isCalculatedCol = (col, attributes) => {
     const attr = (attributes || []).find(attr => attr.name === col);
-    if(!attr) console.log(`${col} not found in filters.`, attributes)
+    if(!attr) return false;
     return attr.display === 'calculated' || attr.type === 'calculated' || attr.origin === 'calculated-column';
 }
 
 export const isSystemCol = (col, attributes) => {
     const attr = (attributes || []).find(attr => attr.name === col);
-    if(!attr) console.log(`${col} not found in filters.`, attributes)
+    if(!attr) return false;
     return attr.systemCol;
 }
 

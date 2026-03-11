@@ -11,17 +11,23 @@ import updateDMSAttrs from "./updateDMSAttrs.js";
 // const {createRequest, getIdPath} = cr
 
 // --- Sync API (lazy reference, set by dmsSiteFactory after initSync) ---
-let _syncAPI = null;
+// Use globalThis to avoid Vite module instance duplication issues —
+// dynamic imports and barrel re-exports can resolve to separate module
+// instances in dev mode, each with their own module-level `let` variables.
 const _DEV = typeof import.meta !== 'undefined' && import.meta.env?.DEV;
-export function _setSyncAPI(api) { _syncAPI = api; }
-function _getSyncAPI() { return _syncAPI; }
+export function _setSyncAPI(api) {
+  if (!api) return; // Guard: React Strict Mode double-invokes effects
+  globalThis.__dmsSyncAPI = api;
+  if (_DEV) console.log('[dms:api] sync API wired in');
+}
+function _getSyncAPI() { return globalThis.__dmsSyncAPI || null; }
 
 /**
  * Load items from local SQLite for synced types.
  * Mirrors the output shape of processNewData: flattened data + metadata fields.
  * Also resolves dms-format child items from local SQLite.
  */
-async function loadFromLocalDB(sync, app, type, format, dmsAttrsConfigs) {
+async function loadFromLocalDB(sync, app, type, format, dmsAttrsConfigs, activeConfigs, path) {
   const t0 = _DEV ? performance.now() : 0;
   const result = await sync.exec(
     'SELECT * FROM data_items WHERE app = ? AND type = ? ORDER BY id',
@@ -37,7 +43,7 @@ async function loadFromLocalDB(sync, app, type, format, dmsAttrsConfigs) {
     const parsed = typeof row.data === 'string' ? JSON.parse(row.data) : (row.data || {});
     return {
       ...parsed,
-      id: row.id,
+      id: String(row.id),
       app: row.app,
       type: row.type,
       created_at: row.created_at,
@@ -47,9 +53,37 @@ async function loadFromLocalDB(sync, app, type, format, dmsAttrsConfigs) {
     };
   });
 
-  // Resolve dms-format children from local SQLite
-  for (const item of items) {
-    for (const [key] of Object.entries(dmsAttrsConfigs)) {
+  // Determine which items need ref resolution (match Falcor behavior:
+  // only resolve for active/viewed items, not every item in a list)
+  const activeViewEdit = activeConfigs?.find(c => ['view', 'edit'].includes(c.action));
+  const activeId = activeViewEdit?.params?.id;
+  // Page pattern uses wildcard matching: path "/*" captures url_slug in params['*']
+  // Prefer the edit/view child config's params (has the clean slug) over the parent's
+  // (which includes the edit/view prefix, e.g., "edit/know_the_environment")
+  const wildcardParam = activeViewEdit?.params?.['*']
+    || activeConfigs?.reduce((slug, c) => slug || c.params?.['*'], null) || '';
+  const strippedWildcard = wildcardParam
+    .replace(/^(edit|view)(\/|$)/, '')  // strip leading edit/ or view/ prefix (or bare "edit"/"view")
+    .replace(/\/(edit|view)(\/.*)?$/, '') // strip trailing /edit or /view suffix
+  const strippedPath = (path || '').replace(/^\//, '')
+    .replace(/^(edit|view)(\/|$)/, '')
+    .replace(/\/(edit|view)(\/.*)?$/, '')
+  const activeSlug = strippedWildcard || strippedPath || '';
+  const needsRefResolution = (item, idx) => {
+    if (!Object.keys(dmsAttrsConfigs).length) return false;
+    if (activeId && String(item.id) === String(activeId)) return true;
+    if (activeSlug && item.url_slug === activeSlug) return true;
+    // Home page: no slug/id specified, resolve for the default page (!parent && index==0)
+    if (!activeSlug && !activeId && !item.parent && (item.index == 0 || item.index === '0')) return true;
+    if (idx === 0) return true; // match processNewData behavior: first item
+    return false;
+  };
+
+  // Resolve dms-format children from local SQLite (only for active items)
+  for (let idx = 0; idx < items.length; idx++) {
+    const item = items[idx];
+    if (!needsRefResolution(item, idx)) continue;
+    for (const [key, attrConfig] of Object.entries(dmsAttrsConfigs)) {
       // Parse JSON string refs if needed
       if (typeof item[key] === 'string') {
         try { item[key] = JSON.parse(item[key]); } catch { /* leave as-is */ }
@@ -64,9 +98,15 @@ async function loadFromLocalDB(sync, app, type, format, dmsAttrsConfigs) {
             `SELECT * FROM data_items WHERE id IN (${placeholders})`,
             childIds
           );
-          const childMap = new Map(children.rows.map(r => [r.id, r]));
+          const childMap = new Map(children.rows.map(r => [String(r.id), r]));
+          if (_DEV) {
+            const missing = childIds.filter(id => !childMap.has(String(id)));
+            if (missing.length > 0) {
+              console.warn(`[sync:ref] item ${item.id} attr=${key}: ${missing.length}/${childIds.length} children NOT found in local SQLite:`, missing);
+            }
+          }
           item[key] = Array.from(item[key]).map(ref => {
-            const refId = ref.id || ref;
+            const refId = String(ref.id || ref);
             const child = childMap.get(refId);
             if (!child) return ref;
             const parsed = typeof child.data === 'string'
@@ -74,7 +114,7 @@ async function loadFromLocalDB(sync, app, type, format, dmsAttrsConfigs) {
             return {
               ...(typeof ref === 'object' ? ref : { id: ref }),
               ...parsed,
-              id: child.id,
+              id: String(child.id),
               created_at: child.created_at,
               updated_at: child.updated_at,
               created_by: child.created_by,
@@ -95,7 +135,7 @@ async function loadFromLocalDB(sync, app, type, format, dmsAttrsConfigs) {
           item[key] = {
             ...item[key],
             ...parsed,
-            id: child.id,
+            id: String(child.id),
             created_at: child.created_at,
             updated_at: child.updated_at,
             created_by: child.created_by,
@@ -162,17 +202,21 @@ export async function dmsDataLoader (falcor, config, path='/') {
 			await sync.bootstrapPattern(type);
 		}
 		if (sync.isLocal(app, type)) {
-			const localResult = await loadFromLocalDB(sync, app, type, format, dmsAttrsConfigs);
+			const localResult = await loadFromLocalDB(sync, app, type, format, dmsAttrsConfigs, activeConfigs, path);
 			if (localResult !== null) {
 				if (_DEV) console.log(`[dms:api] ${app}+${type} action=${mainAction} → LOCAL (${localResult.length} items)`);
 				return localResult;
 			}
 			if (_DEV) console.log(`[dms:api] ${app}+${type} action=${mainAction} → LOCAL empty, falling through to Falcor`);
 		} else {
-			if (_DEV) console.log(`[dms:api] ${app}+${type} action=${mainAction} → FALCOR (not in sync scope)`);
+			if (_DEV) console.log(`[dms:api] ${app}+${type} action=${mainAction} → FALCOR (not in sync scope after bootstrap)`);
 		}
-	} else if (sync && mainAction) {
-		if (_DEV) console.log(`[dms:api] ${app}+${type} action=${mainAction} → FALCOR (action not intercepted by sync)`);
+	} else if (_DEV && mainAction) {
+		if (!sync) {
+			console.log(`[dms:api] ${app}+${type} action=${mainAction} → FALCOR (sync not ready)`);
+		} else {
+			console.log(`[dms:api] ${app}+${type} action=${mainAction} → FALCOR (action not intercepted)`);
+		}
 	}
 	// --- End sync intercept ---
 
@@ -365,43 +409,50 @@ export async function dmsDataEditor (falcor, config, data={}, requestType, /*pat
 
 		// --- Sync intercept: write locally first ---
 		const sync = _getSyncAPI();
-		if (_DEV && sync) {
-			const willSync = sync.isLocal(app, type) && requestType !== 'updateType';
-			console.log(`[dms:api] EDIT ${app}+${type} req=${requestType || 'save'} id=${id || 'new'} → ${willSync ? 'LOCAL SYNC' : 'FALCOR'}`);
+		if (_DEV) {
+			const willSync = sync && sync.isLocal(app, type) && requestType !== 'updateType';
+			console.log(`[dms:api] EDIT ${app}+${type} req=${requestType || 'save'} id=${id || 'new'} → ${willSync ? 'LOCAL SYNC' : sync ? 'FALCOR' : 'FALCOR (sync not ready)'}`);
 		}
 		if (sync && sync.isLocal(app, type) && requestType !== 'updateType') {
-			// Handle dms-format children through sync (replaces updateDMSAttrs)
-			for (const attr of Object.keys(dmsAttrsData)) {
-				const [childApp, childType] = dmsAttrsConfigs[attr].format.split('+');
-				const toUpdate = Array.isArray(dmsAttrsData[attr]) ? dmsAttrsData[attr] : [dmsAttrsData[attr]];
-				const refs = [];
-				for (const dU of toUpdate) {
-					const d = { ...dU };
-					const childId = d.id || false;
-					for (const key of ['id', 'ref', 'created_at', 'updated_at', 'created_by', 'updated_by']) {
-						delete d[key];
+			// Suppress invalidation during the batch — one invalidation at the end
+			sync.beginBatch();
+			try {
+				// Handle dms-format children through sync (replaces updateDMSAttrs)
+				for (const attr of Object.keys(dmsAttrsData)) {
+					const [childApp, childType] = dmsAttrsConfigs[attr].format.split('+');
+					const toUpdate = Array.isArray(dmsAttrsData[attr]) ? dmsAttrsData[attr] : [dmsAttrsData[attr]];
+					const refs = [];
+					for (const dU of toUpdate) {
+						const d = { ...dU };
+						const childId = d.id || false;
+						for (const key of ['id', 'ref', 'created_at', 'updated_at', 'created_by', 'updated_by']) {
+							delete d[key];
+						}
+						if (childId) {
+							await sync.localUpdate(childId, d);
+							refs.push({ ref: `${childApp}+${childType}`, id: childId });
+						} else {
+							const newId = await sync.localCreate(childApp, childType, d);
+							refs.push({ ref: `${childApp}+${childType}`, id: newId });
+						}
 					}
-					if (childId) {
-						await sync.localUpdate(childId, d);
-						refs.push({ ref: `${childApp}+${childType}`, id: childId });
-					} else {
-						const newId = await sync.localCreate(childApp, childType, d);
-						refs.push({ ref: `${childApp}+${childType}`, id: newId });
-					}
+					row[attr] = Array.isArray(dmsAttrsData[attr]) ? refs : refs?.[0] || '';
 				}
-				row[attr] = Array.isArray(dmsAttrsData[attr]) ? refs : refs?.[0] || '';
-			}
 
-			// Handle the parent item
-			if (requestType === 'delete' && id) {
-				await sync.localDelete(id);
-				return { response: `Deleted item ${id}` };
-			} else if (id && attributeKeys.length > 0) {
-				await sync.localUpdate(id, row);
-				return { message: `Update successful: id ${id}.` };
-			} else if (attributeKeys.length > 0) {
-				const newId = await sync.localCreate(app, type, row);
-				return { response: 'Item created.', id: newId };
+				// Handle the parent item
+				if (requestType === 'delete' && id) {
+					await sync.localDelete(id);
+					return { response: `Deleted item ${id}` };
+				} else if (id && attributeKeys.length > 0) {
+					await sync.localUpdate(id, row);
+					return { message: `Update successful: id ${id}.` };
+				} else if (attributeKeys.length > 0) {
+					const newId = await sync.localCreate(app, type, row);
+					return { response: 'Item created.', id: newId };
+				}
+			} finally {
+				// Single invalidation after all writes complete
+				sync.endBatch();
 			}
 		}
 		// --- End sync intercept ---
@@ -465,7 +516,7 @@ export async function dmsDataEditor (falcor, config, data={}, requestType, /*pat
 	      		["dms", "data", "create"],
 	      		[app, type, row]
 	      	);
-	      	await falcor.invalidate(['dms', 'data', `${ app }+${ type }`, 'length' ])
+	      	await falcor.invalidate(['dms', 'data', `${ app }+${ type }`])
 	      	return {response: 'Item created.', id: Object.keys(res?.json?.dms?.data?.byId || {})[0]} // activeConfig.redirect ? redirect(activeConfig.redirect) :
 		}
 
