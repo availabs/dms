@@ -279,6 +279,233 @@ const typeConfigs = {
       ],
     }
   ],
+
+
+  'heatmap': [
+    { label: 'Type',
+      type: 'inline',
+      controls: [
+        { type: 'selectType',
+          params: {
+            options: [
+              { name:'Heatmap', value: 'heatmap' },
+              { name:'Interactive', value: 'interactive' }
+            ]
+          },
+          path: `['layer-type']`,
+          datapath: `layers[1].paint['fill-color']`
+        }
+      ]
+    },
+    { label: 'Interactive Filters',
+      type: 'full-width',
+      conditional: {
+        path: `['layer-type']`,
+        conditions: ['interactive']
+      },
+      controls: [
+        { type: 'interactiveFilterControl',
+          path: `['interactive-filters']`,
+        }
+      ]
+    },
+    // { label: 'Radius By',
+    //   type: 'inline',
+    //   conditional: {
+    //     path: `['layer-type']`,
+    //     conditions: ['heatmap']
+    //   },
+    //   controls: [
+    //     { type: 'heatmapColumnControl',
+    //       valuePath: `['radius-data-column']`,
+    //       paintPath: `layers[0].paint['heatmap-radius']`,
+    //       defaultValue: 30,
+    //       columnValues: [
+    //         `['radius-data-column']`,
+    //         `['weight-data-column']`
+    //       ]
+    //     }
+    //   ]
+    // },
+    { label: 'Radius',
+      type: 'inline',
+      conditional: [
+        { path: `['layer-type']`,
+          conditions: ['heatmap']
+        },
+        // { path: `['radius-data-column']`,
+        //   conditions: ['default']
+        // }
+      ],
+      controls: [
+        {
+          type: 'range',
+          unit: 'px',
+          path: `layers[0].paint['heatmap-radius']`,
+          params: {
+            min: "0",
+            max: "100",
+            step: "5",
+            default: "30",
+            units: "px"
+          }
+        },
+      ]
+    },
+    { label: 'Intensity',
+      type: 'inline',
+      conditional: {
+        path: `['layer-type']`,
+        conditions: ['heatmap']
+      },
+      controls: [
+        {
+          type: 'range',
+          unit: '',
+          path: `layers[0].paint['heatmap-intensity']`,
+          params: {
+            min: "0",
+            max: "25",
+            step: "1",
+            default: "1",
+            units: ""
+          }
+        },
+      ]
+    },
+    { label: 'Opacity',
+      type: 'inline',
+      conditional: {
+        path: `['layer-type']`,
+        conditions: ['heatmap']
+      },
+      controls: [
+        {
+          type: 'range',
+          unit: '',
+          path: `layers[0].paint['heatmap-opacity']`,
+          params: {
+            min: "0.0",
+            max: "1.0",
+            step: ".05",
+            default: "0.75",
+            units: ""
+          }
+        },
+      ]
+    },
+    { label: 'Weight By',
+      type: 'inline',
+      conditional: {
+        path: `['layer-type']`,
+        conditions: ['heatmap']
+      },
+      controls: [
+        { type: 'heatmapColumnControl',
+          valuePath: `['weight-data-column']`,
+          paintPath: `layers[0].paint['heatmap-weight']`,
+          defaultValue: 1,
+          columnValues: [
+            // `['radius-data-column']`,
+            `['weight-data-column']`
+          ]
+        }
+      ]
+    },
+
+
+    // { label: 'Filter Group',
+    //   type: 'inline',
+    //   conditional: {
+    //     path: `['layer-type']`,
+    //     conditions: ['heatmap']
+    //   },
+    //   controls: [
+    //     { type: 'toggleControl',
+    //       path: `['filterGroupEnabled']`,
+    //       title: 'filter group'
+    //     }
+    //   ]
+    // },
+    // { label: '',
+    //   type: 'popover',
+    //   conditional: {
+    //     path: `['filterGroupEnabled']`,
+    //     conditions: [true]
+    //   },
+    //   controls: [
+    //     { type: 'filterGroupControl',
+    //       path: `['filter-group']`,
+    //       params: {
+    //         format: v => `${ v?.length } columns`
+    //       }
+    //     }
+    //   ]
+    // },
+
+
+    // { label: 'View Group',
+    //   type: 'inline',
+    //   conditional: {
+    //     path: `['layer-type']`,
+    //     conditions: ['heatmap']
+    //   },
+    //   controls: [
+    //     { type: 'toggleControl',
+    //       path: `['viewGroupEnabled']`,
+    //       title: 'View Group'
+    //     }
+    //   ]
+    // },
+    // {
+    //   label: '',
+    //   type: 'popover',
+    //   conditional: {
+    //     path: `['viewGroupEnabled']`,
+    //     conditions: [true]
+    //   },
+    //   controls: [
+    //     { type: 'viewGroupControl',
+    //       path: `['filter-source-views']`,
+    //       params: {
+    //         format: v => `${ v?.length } views`
+    //       }
+    //     }
+    //   ]
+    // },
+
+
+    { label: 'Color Bins',
+      type: 'inline',
+      conditional: {
+        path: `['layer-type']`,
+        conditions: ['heatmap']
+      },
+      controls: [
+        { type: 'heatmapBinsControl',
+          keyPath: `['color-set']`,
+          paintPath: `layers[0].paint['heatmap-color']`,
+          binsPath: `['num-bins']`
+        }
+      ]
+    },
+    { label: 'Color',
+      type: 'inline',
+      conditional: {
+        path: `['layer-type']`,
+        conditions: ['heatmap']
+      },
+      controls: [
+        { type: 'heatmapColorControl',
+          keyPath: `['color-set']`,
+          paintPath: `layers[0].paint['heatmap-color']`,
+          binsPath: `['num-bins']`
+        }
+      ]
+    }
+  ],
+
+
   'circle': [
     {
       label: 'Type',

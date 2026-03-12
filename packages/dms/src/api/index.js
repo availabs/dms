@@ -158,12 +158,21 @@ export async function dmsDataLoader (falcor, config, path='/') {
 	if (sync && ['list', 'view', 'edit'].includes(mainAction)) {
 		// Bootstrap pattern on-demand if not yet loaded
 		if (!sync.isLocal(app, type) && sync.bootstrapPattern && type) {
+			if (_DEV) console.log(`[dms:api] ${app}+${type} action=${mainAction} — not in sync scope, bootstrapping pattern...`);
 			await sync.bootstrapPattern(type);
 		}
 		if (sync.isLocal(app, type)) {
 			const localResult = await loadFromLocalDB(sync, app, type, format, dmsAttrsConfigs);
-			if (localResult !== null) return localResult;
+			if (localResult !== null) {
+				if (_DEV) console.log(`[dms:api] ${app}+${type} action=${mainAction} → LOCAL (${localResult.length} items)`);
+				return localResult;
+			}
+			if (_DEV) console.log(`[dms:api] ${app}+${type} action=${mainAction} → LOCAL empty, falling through to Falcor`);
+		} else {
+			if (_DEV) console.log(`[dms:api] ${app}+${type} action=${mainAction} → FALCOR (not in sync scope)`);
 		}
+	} else if (sync && mainAction) {
+		if (_DEV) console.log(`[dms:api] ${app}+${type} action=${mainAction} → FALCOR (action not intercepted by sync)`);
 	}
 	// --- End sync intercept ---
 
@@ -356,6 +365,10 @@ export async function dmsDataEditor (falcor, config, data={}, requestType, /*pat
 
 		// --- Sync intercept: write locally first ---
 		const sync = _getSyncAPI();
+		if (_DEV && sync) {
+			const willSync = sync.isLocal(app, type) && requestType !== 'updateType';
+			console.log(`[dms:api] EDIT ${app}+${type} req=${requestType || 'save'} id=${id || 'new'} → ${willSync ? 'LOCAL SYNC' : 'FALCOR'}`);
+		}
 		if (sync && sync.isLocal(app, type) && requestType !== 'updateType') {
 			// Handle dms-format children through sync (replaces updateDMSAttrs)
 			for (const attr of Object.keys(dmsAttrsData)) {

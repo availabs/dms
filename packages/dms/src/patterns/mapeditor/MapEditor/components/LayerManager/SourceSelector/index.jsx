@@ -67,17 +67,35 @@ function SourceSelector () {
   }, [source.sourceId, falcor, pgEnv]);
 
   const views = useMemo(() => {
-    return Object.values(get(falcorCache, ["dama", pgEnv, "sources", "byId", source.sourceId, "views", "byIndex"], {}))
-      .map(v => getAttributes(get(falcorCache, v.value, { "attributes": {} })["attributes"]));
+    return []
   }, [falcorCache, source.sourceId, pgEnv]);
 
-// console.log("SourceSelector::views", views);
+  const selectedView = useMemo(() => {
+    const views = Object.values(get(falcorCache, ["dama", pgEnv, "sources", "byId", source.sourceId, "views", "byIndex"], {}))
+      .map(v => getAttributes(get(falcorCache, v.value, { "attributes": {} })["attributes"]));
+    return views.find(v => v.view_id == source.viewId) || {};
+  }, [falcorCache, source.sourceId, pgEnv, source.viewId, views]);
+
+  const selectedViewLayerType = useMemo(() => {
+    return selectedView?.metadata?.tiles?.layers?.[0]?.type;
+  }, [selectedView])
+
+  const [layerType, setLayerType] = React.useState(undefined);
+
+  React.useEffect(() => {
+    setLayerType(selectedViewLayerType);
+  }, [selectedViewLayerType]);
+
+// console.log("SourceSelector::source", source);
+// console.log("SourceSelector::view", selectedView);
+// console.log("SourceSelector::selectedViewLayerType", selectedViewLayerType);
+// console.log("SourceSelector::layerType", layerType);
 
   const layers = useMemo(() => state.symbology?.layers || [], [state.symbology])
 
   const addLayer = () => {
     const newSource = sources.filter(d => d.source_id === +source.sourceId)?.[0] || {}
-    const view = views.filter(d => d.view_id === +source.viewId)?.[0] || {}
+    const view = selectedView;//views.filter(d => d.view_id === +source.viewId)?.[0] || {}
     const layerId = Math.random().toString(36).replace(/[^a-z]+/g, '')
     const viewLayer = view?.metadata?.tiles?.layers?.[0]
     // console.log('newSource', newSource)
@@ -92,15 +110,15 @@ function SourceSelector () {
       // isDynamic: true,
       source_id: newSource.source_id,
       view_id: source.viewId,
-      "layer-type": 'simple',
-      type: viewLayer.type,
+      "layer-type": layerType === "heatmap" ? "heatmap" : 'simple',
+      type: layerType,
       // mapbox sources and layers
       sources: (view?.metadata?.tiles?.sources || []).map(s => {
         const newS = {...s}
         newS.id = `${s.id}_${layerId}`
         return newS;
       }),
-      layers: getLayer(layerId, viewLayer),
+      layers: getLayer(layerId, viewLayer, layerType),
       // state data about the layer on the map
       isVisible: true,
       hover: "hover",
@@ -109,7 +127,13 @@ function SourceSelector () {
       viewGroupEnabled: false,
     }
 
-    //console.log('newLayer', newLayer)
+    if (layerType === "heatmap") {
+      newLayer['radius-data-column'] = "default";
+      newLayer['weight-data-column'] = "default";
+    }
+
+// console.log('SourceSelector::addLayer::newLayer', newLayer)
+
     setState(draft => {
       if(!draft?.symbology){
         draft.symbology = { }
@@ -163,8 +187,35 @@ function SourceSelector () {
         <div className="mt-2 w-full">
           <SourcesList selectedSource={source} setSource={setSource}/>
         </div>
-        <div className='mt-5 sm:mt-4 sm:flex justify-end'>
-          <div className='mr-1'>
+
+        <div className='mt-5 sm:mt-4 grid grid-cols-12'>
+          <div className="col-span-10 grid grid-cols-10">
+
+            { selectedViewLayerType !== "circle" ? null :
+              <>
+                <div className="col-span-6 text-right">
+                  <div>
+                    You selected a view with a layer of type "circle"
+                  </div>
+                  <div>
+                    Choose between type "circle" or type "heatmap"
+                  </div>
+                </div>
+
+                <div className="col-span-4">
+                  <select value={ layerType }
+                    onChange={ e => setLayerType(e.target.value) }
+                    className="ml-8 outline-2"
+                  >
+                    <option value="circle">Circle</option>
+                    <option value="heatmap">Heat Map</option>
+                  </select>
+                </div>
+              </>
+            }
+
+          </div>
+          <div className='col-span-2'>
           
             <button
               type='button'
@@ -174,14 +225,12 @@ function SourceSelector () {
             >
               Cancel
             </button>
-          </div>
-          <div>
             <button
               type='button'
               themeOptions={canAddLayer ? {color:"primary"} : {color:"transparent"}}
 
               disabled={!canAddLayer}
-              className='inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto'
+              className='inline-flex ml-1 w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto'
               onClick={ addLayer }
             >
               Add layer

@@ -159,12 +159,16 @@ function createSyncRoutes(dbName) {
 
       const response = { items, revision: Number(revision) };
       const payload = JSON.stringify(response);
+      const scope = skeleton ? `skeleton=${skeleton}` : pattern ? `pattern=${pattern}` : type ? `type=${type}` : 'full-app';
+      const payloadKB = +(payload.length / 1024).toFixed(1);
+      console.log(`[sync/bootstrap] app=${app} ${scope} → ${items.length} items, ${payloadKB}KB, rev=${revision}`);
       logEntry({
         _type: 'sync-bootstrap',
         timestamp: new Date().toISOString(),
-        app, type: type || null, pattern: pattern || null, skeleton: skeleton || null,
+        app, scope,
+        pattern: pattern || null, skeleton: skeleton || null,
         itemCount: items.length,
-        payloadKB: +(payload.length / 1024).toFixed(1),
+        payloadKB,
         revision: Number(revision),
       });
       res.setHeader('Content-Type', 'application/json');
@@ -229,13 +233,16 @@ function createSyncRoutes(dbName) {
 
       const response = { changes, revision: Number(revision) };
       const payload = JSON.stringify(response);
+      const scope = pattern ? `pattern=${pattern}` : type ? `type=${type}` : 'full-app';
+      const payloadKB = +(payload.length / 1024).toFixed(1);
+      console.log(`[sync/delta] app=${app} ${scope} since=${sinceRev} → ${changes.length} changes, ${payloadKB}KB, rev=${revision}`);
       logEntry({
         _type: 'sync-delta',
         timestamp: new Date().toISOString(),
         app, type: type || null, pattern: pattern || null,
         since: sinceRev,
         changeCount: changes.length,
-        payloadKB: +(payload.length / 1024).toFixed(1),
+        payloadKB,
         revision: Number(revision),
       });
       res.setHeader('Content-Type', 'application/json');
@@ -331,6 +338,8 @@ function createSyncRoutes(dbName) {
 
         // Broadcast via WebSocket (notify is set from ws.js)
         const broadcastMsg = { type: 'change', revision, action, item: resultItem };
+        const dataKB = resultItem.data ? +(JSON.stringify(resultItem.data).length / 1024).toFixed(1) : 0;
+        console.log(`[sync/push] ${action} app=${resultItem.app} type=${resultItem.type} id=${resultItem.id} ${dataKB}KB rev=${revision}`);
         logEntry({
           _type: 'sync-push',
           timestamp: new Date().toISOString(),
@@ -338,7 +347,7 @@ function createSyncRoutes(dbName) {
           itemId: resultItem.id,
           app: resultItem.app,
           itemType: resultItem.type,
-          dataKB: resultItem.data ? +(JSON.stringify(resultItem.data).length / 1024).toFixed(1) : 0,
+          dataKB,
         });
         if (createSyncRoutes._notifyChange) {
           createSyncRoutes._notifyChange(resultItem.app, broadcastMsg);

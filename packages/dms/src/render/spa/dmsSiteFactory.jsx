@@ -158,8 +158,6 @@ export function DmsSite (config) {
     )
 }
 
-
-
 export default async function dmsSiteFactory(config) {
     let { dmsConfig, falcor, API_HOST } = config
     let dmsConfigUpdated = cloneDeep(dmsConfig);

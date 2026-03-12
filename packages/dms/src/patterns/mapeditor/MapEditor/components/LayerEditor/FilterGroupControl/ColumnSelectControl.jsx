@@ -246,6 +246,8 @@ export function ColumnSelectControl({path, params={}, setFilterGroupLegendColumn
 }
 
 const ExistingColumnList = ({selectedColumns, sampleData, path, reorderAttrs, removeAttr, renameAttr, filterGroupLegendColumn, setFilterGroupLegendColumn}) => {
+  const { UI } = React.useContext(ThemeContext) || {};
+  const { DndList, Button } = UI;
   return (
     <DndList
       onDrop={reorderAttrs}

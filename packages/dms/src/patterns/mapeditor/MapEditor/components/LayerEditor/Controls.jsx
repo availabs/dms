@@ -12,6 +12,11 @@ import { CategoryControl } from './CategoryControl';
 import { InteractiveFilterControl } from './InteractiveFilterControl';
 import { FilterGroupControl } from './FilterGroupControl';
 import { ViewGroupControl } from './ViewGroupControl';
+import {
+  defaultHeatmapColorKey,
+  defaultHeatmapNumbins,
+  generateHeatmapPaintColor
+} from "../LayerManager/utils"
 
 function ControlMenu({ button, children}) {
   const { state, setState  } = React.useContext(SymbologyContext);
@@ -382,7 +387,7 @@ function SelectViewColumnControl({path, datapath, params={}}) {
   )
 }
 
-function ColorRangeControl({path, params={}}) {
+function ColorRangeControl({ path, params={}}) {
   const { state, setState } = React.useContext(SymbologyContext);
   
   const pathBase =
@@ -391,11 +396,21 @@ function ColorRangeControl({path, params={}}) {
       : `symbology.layers[${state.symbology.activeLayer}]`;
 
   let rangeColorKey = get(state, `${pathBase}['range-key']`,colorbrewer.schemeGroups.sequential[0])
-  let numbins = get(state, `${pathBase}['num-bins']`, 9)
+  let numbins = get(state, `${ pathBase }['num-bins']`, 9);
   // console.log('select control', colorbrewer,rangeColorKey, numbins)
-  let value = get(state, `${pathBase}.${path}`, colorbrewer[rangeColorKey][numbins])
+
+  const value = React.useMemo(() => {
+    return get(state, `${pathBase}.${path}`, colorbrewer[rangeColorKey][numbins])
+  }, [state, pathBase, path, rangeColorKey, numbins]);
   
   // console.log('value', value, path, colorbrewer)
+
+  const handleOnChange = React.useCallback(colorKey => {
+    setState(draft => {
+      set(draft, `${ pathBase }.${ path }`, colorbrewer[colorKey][numbins]);
+      set(draft, `${ pathBase }['range-key']`, colorKey);
+    })
+  }, [setState, pathBase, path, numbins]);
 
   return (
       <div className='flex w-full items-center'>
@@ -413,53 +428,23 @@ function ColorRangeControl({path, params={}}) {
           <Menu.Item className='z-20'>
             <div className='px-4 font-semibold text-sm text-slate-600'>SEQUENTIAL</div>
           </Menu.Item>
-          {[
-            ...colorbrewer.schemeGroups.sequential,
-            ...colorbrewer.schemeGroups.singlehue
-            ].map(colorKey => {
-            //console.log('color', colorKey)
-            return (
-              <Menu.Item className='z-20' key={colorKey}>
-                {({ active }) => (
-                  <div className={`${active ? 'bg-blue-50 ' : ''} flex`} >
-                    <div className='w-4 h-4' />
-                    <div
-                      className = {`flex-1 flex w-full p-2`}
-                      onClick={() => setState(draft => {
-                        set(draft, `${pathBase}.${path}`, colorbrewer[colorKey][numbins])
-                        set(draft, `${pathBase}['range-key']`, colorKey)
-                      })}
-                    >
-                      {colorbrewer[colorKey][numbins].map((d,i) => <div key={i} className='flex-1 h-4' style={{backgroundColor: d}} />)}
-                    </div>
-                  </div>
-                )}
-              </Menu.Item>
-            )
-          })}
+          { colorbrewer.schemeGroups.sequential.map(colorKey => (
+              <ColorMenuItem key={ colorKey }
+                colorKey={ colorKey }
+                numbins={ numbins }
+                onChange={ handleOnChange }/>
+            ))
+          }
           <Menu.Item className='z-20'>
             <div className='px-4 font-semibold text-sm text-slate-600'>Diverging</div>
           </Menu.Item>
-          {colorbrewer.schemeGroups.diverging.map(colorKey => {
-            return (
-              <Menu.Item className='z-20' key={colorKey}>
-                {({ active }) => (
-                  <div className={`${active ? 'bg-blue-50 ' : ''} flex`} >
-                    <div className='w-4 h-4' />
-                    <div
-                      className = {`flex-1 flex w-full p-2`}
-                      onClick={() => setState(draft => {
-                        set(draft, `${pathBase}.${path}`, colorbrewer[colorKey][numbins])
-                        set(draft, `${pathBase}['range-key']`, colorKey)
-                      })}
-                    >
-                      {colorbrewer[colorKey][numbins].map((d,i) => <div key={i} className='flex-1 h-4' style={{backgroundColor: d}} />)}
-                    </div>
-                  </div>
-                )}
-              </Menu.Item>
-            )
-          })}
+          { colorbrewer.schemeGroups.diverging.map(colorKey => (
+              <ColorMenuItem key={ colorKey }
+                colorKey={ colorKey }
+                numbins={ numbins }
+                onChange={ handleOnChange }/>
+            ))
+          }
         </ControlMenu>
       </div>
     )
@@ -989,6 +974,271 @@ export const AddColumnSelectControl = ({setState, availableColumnNames, selected
     </>
   )
 }
+const SOURCE_COLUMNS_REGEX = /.+[?](.+?)/;
+
+const appendSourceColumns = (draft, value, pathBase, sourcePath, selfValuePath, allValuePaths) => {
+  const path = `${ sourcePath }.sources[0].source.tiles[0]`;
+  const source = get(draft, path, "");
+  const [url, ...columns] = source.split("?");
+
+// console.log("appendSourceColumns::url", url);
+// console.log("appendSourceColumns::columns", columns);
+
+  const selfCurrentValue = get(draft, `${ pathBase }.${ selfValuePath }`, null);
+// console.log("appendSourceColumns::selfCurrentValue", selfCurrentValue);
+
+  const allCurrentValues = allValuePaths.map(valuePath => {
+    return get(draft, `${ pathBase }.${ valuePath }`, null);
+  });
+// console.log("appendSourceColumns::allCurrentValues", allCurrentValues);
+
+  const selfIndex = allCurrentValues.findIndex(v => v === selfCurrentValue);
+
+  allCurrentValues.splice(selfIndex, 1);
+// console.log("appendSourceColumns::otherCurrentValues", allCurrentValues);
+
+  const requiredColumns = [
+    ...allCurrentValues.filter(v => v !== value),
+    value
+  ].filter(Boolean).filter(v => v !== "default");
+// console.log("appendSourceColumns::requiredColumns", requiredColumns);
+
+  if (requiredColumns.length) {
+    set(draft, path, `${ url }?cols=${ requiredColumns }`);
+  }
+  else {
+    set(draft, path, url);
+  }
+}
+
+const NUMBER_COLUMNS_REGEX = /integer|number/;
+
+const HeatmapColumnControl = ({ valuePath, paintPath, defaultValue, columnValues, params = {} }) => {
+  const { falcor, falcorCache, pgEnv } = React.useContext(MapEditorContext);
+  const { state, setState } = React.useContext(SymbologyContext);
+
+// console.log("HeatmapColumnControl::valuePath, paintPath", valuePath, paintPath);
+
+  const { viewId, sourceId } = useMemo(() => {
+    return {
+      viewId: get(state,`symbology.layers[${ state.symbology.activeLayer }].view_id`),
+      sourceId: get(state,`symbology.layers[${ state.symbology.activeLayer }].source_id`)
+    }
+  }, [state]);
+
+  const pathBase = params?.version === "interactive"
+    ? `symbology.layers[${ state.symbology.activeLayer }]${ params.pathPrefix }`
+    : `symbology.layers[${ state.symbology.activeLayer }]`;
+
+  const sourcePath = `symbology.layers[${ state.symbology.activeLayer }]`;
+
+  const column = useMemo(() => {
+    return get(state, `${ pathBase }.${ valuePath }`, "default");
+  }, [state, pathBase, valuePath]);
+
+  useEffect(() => {
+    if (sourceId) {
+      falcor.get([
+        "dama", pgEnv, "sources", "byId", sourceId, "attributes", "metadata"
+      ]);
+    }
+  }, [pgEnv, sourceId]);
+
+  const columns = useMemo(() => {
+    let columns = get(falcorCache, [
+      "dama", pgEnv, "sources", "byId", sourceId, "attributes",
+      "metadata", "value", "columns"
+    ], []);
+    if (columns.length === 0) {
+      columns = get(falcorCache, [
+        "dama", pgEnv, "sources", "byId", sourceId, "attributes",
+        "metadata", "value"
+      ], []);
+    }
+    if (Array.isArray(columns)) {
+      return columns.filter(col => NUMBER_COLUMNS_REGEX.test(col.type));
+    }
+    return [];
+  }, [pgEnv, sourceId, falcorCache]);
+
+  const handleOnChange = React.useCallback(e => {
+    const value = e.target.value;
+
+// console.log("HeatmapColumnControl::handleOnChange::value", value);
+// console.log("HeatmapColumnControl::handleOnChange::paintPath", paintPath);
+
+    setState(draft => {
+      appendSourceColumns(draft, value, pathBase, sourcePath, valuePath, columnValues);
+
+      if (value === "default") {
+        set(draft, `${ pathBase }.${ paintPath }`, defaultValue);
+      }
+      else {
+        set(draft, `${ pathBase }.${ paintPath }`, ["get", value]);
+      }
+
+      set(draft, `${ pathBase }.${ valuePath }`, value);
+    });
+  }, [setState, pathBase, sourcePath, valuePath, paintPath, defaultValue, columnValues]);
+
+  return (
+    <select
+      className='w-full p-2 bg-transparent'
+      value={ column }
+      onChange={ handleOnChange }
+    >
+      <option value="default">Default</option>
+      { columns.map(col => (
+          <option key={ col.name }
+            value={ col.name }
+          >
+            { col.display_name || col.name }
+          </option>
+        ))
+      }
+    </select>
+  )
+}
+
+const HeatmapBins = [
+  { value: 2, label: "2 Bins" },
+  { value: 3, label: "3 Bins" },
+  { value: 4, label: "4 Bins" },
+  { value: 5, label: "5 Bins" },
+  { value: 6, label: "6 Bins" },
+  { value: 7, label: "7 Bins" },
+  { value: 8, label: "8 Bins" },
+  { value: 9, label: "9 Bins" },
+]
+
+const HeatmapBinsControl = ({ keyPath, paintPath, binsPath, params = {} }) => {
+
+  const { state, setState } = React.useContext(SymbologyContext);
+
+  const pathBase = params?.version === "interactive"
+    ? `symbology.layers[${ state.symbology.activeLayer }]${ params.pathPrefix }`
+    : `symbology.layers[${ state.symbology.activeLayer }]`;
+
+  const colorKey = get(state, `${ pathBase }${ keyPath }`, defaultHeatmapColorKey);
+  const numbins = get(state, `${ pathBase }${ binsPath }`, defaultHeatmapNumbins);
+
+  const handleOnChange = React.useCallback(e => {
+    const numbins = e.target.value;
+    setState(draft => {
+      set(draft, `${ pathBase }${ binsPath }`, numbins);
+      set(draft, `${ pathBase }${ paintPath }`, generateHeatmapPaintColor(colorbrewer[colorKey][numbins]))
+    });
+  }, [setState, pathBase, binsPath, paintPath, colorKey]);
+
+  return (
+    <select
+      className='w-full p-2 bg-transparent'
+      value={ numbins }
+      onChange={ handleOnChange }
+    >
+      { HeatmapBins.map(bin => (
+          <option key={ bin.value }
+            value={ bin.value }
+          >
+            { bin.label }
+          </option>
+        ))
+      }
+    </select>
+  )
+}
+
+const HeatmapColorControl = ({ keyPath, paintPath, binsPath, params = {} }) => {
+
+  const { state, setState } = React.useContext(SymbologyContext);
+
+  const pathBase = params?.version === "interactive"
+    ? `symbology.layers[${ state.symbology.activeLayer }]${ params.pathPrefix }`
+    : `symbology.layers[${ state.symbology.activeLayer }]`;
+
+  const colorKey = get(state, `${ pathBase }${ keyPath }`, defaultHeatmapColorKey);
+  const numbins = get(state, `${ pathBase }${ binsPath }`, defaultHeatmapNumbins);
+
+  const currentColors = colorbrewer[colorKey][numbins];
+
+  const handleOnChange = React.useCallback(colorKey => {
+    setState(draft => {
+      set(draft, `${ pathBase }${ keyPath }`, colorKey);
+      set(draft, `${ pathBase }${ paintPath }`, generateHeatmapPaintColor(colorbrewer[colorKey][numbins]))
+    })
+  }, [setState, pathBase, paintPath, keyPath, numbins]);
+
+  return (
+    <div className='flex w-full items-center'>
+      <ControlMenu 
+        button={
+          <div className='flex items-center w-full cursor-pointer flex-1'>
+            <div className='flex-1 flex justify-center '>
+              { currentColors.map((d, i) =>
+                  <div key={ d }
+                    className='flex-1 h-4'
+                    style={ { backgroundColor: d } }/>
+                )
+              }
+            </div>
+            <div className='flex items-center px-1 border-2 border-transparent h-8  hover fill-slate-400 hover:fill-slate-800 cursor-pointer'> 
+              <CaretDown  className=''/> 
+            </div>
+          </div>
+        }
+      >
+        <Menu.Item className='z-20'>
+          <div className='px-4 font-semibold text-sm text-slate-600'>SEQUENTIAL</div>
+        </Menu.Item>
+        { colorbrewer.schemeGroups.sequential.map(colorKey => (
+            <ColorMenuItem key={ colorKey }
+              colorKey={ colorKey }
+              numbins={ numbins }
+              onChange={ handleOnChange }/>
+          ))
+        }
+        <Menu.Item className='z-20'>
+          <div className='px-4 font-semibold text-sm text-slate-600'>Diverging</div>
+        </Menu.Item>
+        { colorbrewer.schemeGroups.diverging.map(colorKey => (
+            <ColorMenuItem key={ colorKey }
+              colorKey={ colorKey }
+              numbins={ numbins }
+              onChange={ handleOnChange }/>
+          ))
+        }
+      </ControlMenu>
+    </div>
+  )
+}
+
+const ColorMenuItem = ({ colorKey, numbins, onChange }) => {
+
+  const handleOnChange = React.useCallback(e => {
+    onChange(colorKey);
+  }, [onChange, colorKey]);
+
+  return (
+    <Menu.Item className='z-20'>
+      { ({ active }) => (
+          <div className={ `${ active ? 'bg-blue-50 ' : '' } flex` } >
+            <div className='w-4 h-4'/>
+            <div className = {`flex-1 flex w-full p-2`}
+              onClick={ handleOnChange }
+            >
+              { colorbrewer[colorKey][numbins].map((d, i) =>
+                  <div key={ i }
+                    className='flex-1 h-4'
+                    style={ { backgroundColor: d } }/>
+                )
+              }
+            </div>
+          </div>
+        )
+      }
+    </Menu.Item>
+  )
+}
 
 export const controlTypes = {
   'color': ColorControl,
@@ -1003,8 +1253,14 @@ export const controlTypes = {
   'simple': SimpleControl,
   'select': SelectControl,
   'selectType': SelectTypeControl,
+
   'selectViewColumn': SelectViewColumnControl,
+
   'filterGroupControl': FilterGroupControl,
   'viewGroupControl': ViewGroupControl,
   'toggleControl': ToggleControl,
+
+  'heatmapColorControl': HeatmapColorControl,
+  'heatmapBinsControl': HeatmapBinsControl,
+  'heatmapColumnControl': HeatmapColumnControl
 }

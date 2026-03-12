@@ -56,9 +56,11 @@ export default function EditWrapper({ Component, format, options, params, user, 
 
 	const apiUpdate = async ({data, config = {format}, requestType='', newPath=`${pathname}${search}`}) => {
 		setBusy((prevState) => { return {...prevState, updating: prevState.updating+1 }})
-		//console.log('apiUpdate - arguements', data, config,requestType, newPath)
-
-		// console.log('apiUpdate', data, item)
+		if (import.meta.env.DEV) {
+			const t = config?.format?.type || type;
+			const a = config?.format?.app || app;
+			console.log(`[dms:wrapper] apiUpdate ${a}+${t} req=${requestType || 'save'} id=${data?.id || 'new'} path=${newPath}`);
+		}
 
 		let resData = null
 		if(mode === 'ssr'){
@@ -67,9 +69,7 @@ export default function EditWrapper({ Component, format, options, params, user, 
   	} else {
 			resData = await dmsDataEditor(falcor, config, data, requestType);
 		}
-		//console.log('apiUpdate - response', resData)
 		navigate(newPath || `${pathname}${search}`) //submit with null target doesn't carry search
-		//submit(null, {action: newPath })
 		setBusy((prevState) => { return {...prevState, updating: prevState.updating-1 }})
 
 		// -- testing on update set item
@@ -82,6 +82,9 @@ export default function EditWrapper({ Component, format, options, params, user, 
 
 	const apiLoad = async (config, path) => {
 		setBusy((prevState) => { return {...prevState, loading: prevState.loading+1 }})
+		// if (import.meta.env.DEV) {
+		// 	console.time(`[dms:wrapper] apiLoad ${config?.format?.app || app}+${config?.format?.type || type} path=${path || ''}`);
+		// }
 		let data = null
 		if(mode === 'ssr'){
 			let res =  await fetch(`/dms_api`, { method:"POST", body: json2DmsForm(data,'data',config, path||'/') })
@@ -90,7 +93,11 @@ export default function EditWrapper({ Component, format, options, params, user, 
 		} else {
 			data = await dmsDataLoader(falcor, config, path || '/')
 		}
-		setBusy((prevState) => { return {...prevState, loading: prevState.loading-1 }})
+    setBusy((prevState) => { return { ...prevState, loading: prevState.loading - 1 } })
+    // if (import.meta.env.DEV) {
+    //  // console.log('got data', data)
+		// 	console.timeEnd(`[dms:wrapper] apiLoad ${config?.format?.app || app}+${config?.format?.type || type} path=${path || ''}`);
+		// }
 		return data
 	}
 
