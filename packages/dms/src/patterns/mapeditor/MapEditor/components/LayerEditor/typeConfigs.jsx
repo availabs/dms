@@ -280,7 +280,7 @@ const typeConfigs = {
     }
   ],
 
-  
+
   'heatmap': [
     { label: 'Type',
       type: 'inline',
@@ -288,7 +288,7 @@ const typeConfigs = {
         { type: 'selectType',
           params: {
             options: [
-              { name:'Simple', value: 'simple' },
+              { name:'Heatmap', value: 'heatmap' },
               { name:'Interactive', value: 'interactive' }
             ]
           },
@@ -313,7 +313,7 @@ const typeConfigs = {
     //   type: 'inline',
     //   conditional: {
     //     path: `['layer-type']`,
-    //     conditions: ['simple']
+    //     conditions: ['heatmap']
     //   },
     //   controls: [
     //     { type: 'heatmapColumnControl',
@@ -331,7 +331,7 @@ const typeConfigs = {
       type: 'inline',
       conditional: [
         { path: `['layer-type']`,
-          conditions: ['simple']
+          conditions: ['heatmap']
         },
         // { path: `['radius-data-column']`,
         //   conditions: ['default']
@@ -356,7 +356,7 @@ const typeConfigs = {
       type: 'inline',
       conditional: {
         path: `['layer-type']`,
-        conditions: ['simple']
+        conditions: ['heatmap']
       },
       controls: [
         {
@@ -377,7 +377,7 @@ const typeConfigs = {
       type: 'inline',
       conditional: {
         path: `['layer-type']`,
-        conditions: ['simple']
+        conditions: ['heatmap']
       },
       controls: [
         {
@@ -398,7 +398,7 @@ const typeConfigs = {
       type: 'inline',
       conditional: {
         path: `['layer-type']`,
-        conditions: ['simple']
+        conditions: ['heatmap']
       },
       controls: [
         { type: 'heatmapColumnControl',
@@ -418,7 +418,7 @@ const typeConfigs = {
     //   type: 'inline',
     //   conditional: {
     //     path: `['layer-type']`,
-    //     conditions: ['simple']
+    //     conditions: ['heatmap']
     //   },
     //   controls: [
     //     { type: 'toggleControl',
@@ -448,7 +448,7 @@ const typeConfigs = {
     //   type: 'inline',
     //   conditional: {
     //     path: `['layer-type']`,
-    //     conditions: ['simple']
+    //     conditions: ['heatmap']
     //   },
     //   controls: [
     //     { type: 'toggleControl',
@@ -479,7 +479,7 @@ const typeConfigs = {
       type: 'inline',
       conditional: {
         path: `['layer-type']`,
-        conditions: ['simple']
+        conditions: ['heatmap']
       },
       controls: [
         { type: 'heatmapBinsControl',
@@ -493,7 +493,7 @@ const typeConfigs = {
       type: 'inline',
       conditional: {
         path: `['layer-type']`,
-        conditions: ['simple']
+        conditions: ['heatmap']
       },
       controls: [
         { type: 'heatmapColorControl',

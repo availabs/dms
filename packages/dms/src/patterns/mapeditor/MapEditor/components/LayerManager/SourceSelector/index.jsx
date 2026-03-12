@@ -110,7 +110,7 @@ function SourceSelector () {
       // isDynamic: true,
       source_id: newSource.source_id,
       view_id: source.viewId,
-      "layer-type": 'simple',
+      "layer-type": layerType === "heatmap" ? "heatmap" : 'simple',
       type: layerType,
       // mapbox sources and layers
       sources: (view?.metadata?.tiles?.sources || []).map(s => {
