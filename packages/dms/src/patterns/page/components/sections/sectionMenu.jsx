@@ -111,8 +111,6 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                         <div className={'flex gap-1'}>
                             {/*{isEdit && canEditSection ? <Pill color={'blue'} text={<Icon icon={'InfoSquare'} className={'size-5'} />} title={'Add Help Text'} onClick={onAddHelpText} /> : null}*/}
 
-                            {!isEdit && canEditSection ? <Pill color={'blue'} text={<Icon icon={'Refresh'} className={'size-5'} />} title={'Refresh Data'} onClick={() => refreshDataBtnRef.current?.refresh({isRefreshingData, setIsRefreshingData})} /> : null}
-
                             {canEditSection ? <Pill color={copied ? 'green' : 'blue'} text={<Icon icon={'Copy'} className={'size-5'}/>}
                                                     title={'Copy Section'}
                                                     onClick={(e) => {
@@ -132,6 +130,8 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                             {!isEdit && canEditPageLayout ?
                                 <Pill color={'blue'} text={<Icon icon={'ChevronDownSquare'} className={'size-5'} />} title={'Move Down'}
                                       onClick={() => moveItem(i, 1)} /> : null}
+                            {!isEdit && canEditSection ? <Pill color={'blue'} text={<Icon icon={'Refresh'} className={'size-5'} />} title={'Refresh Data'} onClick={() => refreshDataBtnRef.current?.refresh({isRefreshingData, setIsRefreshingData})} /> : null}
+
                         </div>
 
                         <div className={'flex gap-1'}>
@@ -266,7 +266,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                 ...group,
                 ...filter,
                 {type: 'separator'},
-            ]
+            ].filter(item => isEdit && (!item.cdn || item.cdn()))
         }
     ]
 
@@ -552,12 +552,13 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
         [
             ...actionItems,
             {type: 'separator', renderCdn: () => true, renderPos: 'top'},
+            ...component,
+            ...componentSettings,
+            {type: 'separator'},
             dataset,
             ...data,
             // {name: 'data', value: `${state?.display?.totalLength} rows`, showValue: true, cdn: () => !isEdit && currentComponent?.useDataSource},
-            ...component,
-            ...componentSettings,
-            {type: 'separator', cdn: () => isEdit},
+            {type: 'separator'},
             ...display,
             ...layout,
             {type: 'separator'},
