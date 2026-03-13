@@ -116,13 +116,13 @@ export function dataItemsNav(dataItems, baseUrl = '', edit = false, level=1) {
 export function nav2Level(items, level = 1, path, baseUrl = '', navTitle = '') {
   let output = null
   if (level > 1) {
-    let relativePath = path.replace('/edit', '')
+    let relativePath = path.endsWith('/edit') ? path.replace('/edit', '') : path.replace('/edit/', '/')
     if (baseUrl && relativePath.startsWith(baseUrl)) {
       relativePath = relativePath.slice(baseUrl.length)
     }
     let levelPath = baseUrl + '/' + relativePath.split('/').filter(d => d).filter((d, i) => i < level - 1).join('/')
     let matchItems = items.map(d => ({
-      ...d, path: d?.path?.replace('/edit', '')
+      ...d, path: d?.path?.endsWith('/edit') ? d?.path?.replace('/edit', '') : d?.path?.replace('/edit/', '/')
     }))
     let matches = matchRoutes(matchItems, { pathname: levelPath })
     output = matches?.[0]?.route?.subMenus || []
