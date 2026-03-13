@@ -94,6 +94,34 @@ app.use(createJwtMiddleware(authDbEnv));
 // Upload routes — DAMA-compatible file upload endpoints (after JWT so uploads are authenticated)
 registerUploadRoutes(app);
 
+// Always log graph requests to console (summary line)
+app.use('/graph', (req, res, next) => {
+  const params = req.method === 'POST' ? req.body : req.query;
+  const method = (params?.method || 'unknown').toUpperCase();
+  let detail = '';
+  try {
+    if (params?.callPath) {
+      const cp = typeof params.callPath === 'string' ? JSON.parse(params.callPath) : params.callPath;
+      detail = Array.isArray(cp) ? cp.join('.') : String(cp);
+      if (params.arguments) {
+        const args = typeof params.arguments === 'string' ? JSON.parse(params.arguments) : params.arguments;
+        if (Array.isArray(args)) {
+          const preview = args.map(a => typeof a === 'string' ? a : typeof a === 'object' ? `{${Object.keys(a).slice(0,3).join(',')}}` : String(a));
+          detail += ` [${preview.join(', ')}]`;
+        }
+      }
+    } else if (params?.paths) {
+      const paths = typeof params.paths === 'string' ? JSON.parse(params.paths) : params.paths;
+      if (Array.isArray(paths)) {
+        detail = paths.slice(0, 3).map(p => Array.isArray(p) ? p.slice(0, 4).join('.') : String(p)).join(' | ');
+        if (paths.length > 3) detail += ` (+${paths.length - 3} more)`;
+      }
+    }
+  } catch {}
+  console.log(`[graph] ${method} ${detail || '(no path info)'}`);
+  next();
+});
+
 app.use(
   '/graph',
   falcorExpress.dataSourceRoute(function (req, res) {
@@ -101,7 +129,8 @@ app.use(
       const { user = null } = req.availAuthContext || {};
       return falcorRoutes({ user });
     } catch (e) {
-      console.log('graph error')
+      console.error('[graph] Error creating data source:', e);
+      throw e;
     }
   })
 );

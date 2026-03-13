@@ -27,6 +27,29 @@ const {
 const { logEntry } = require('../../middleware/request-logger');
 
 /**
+ * Extract ref IDs from a data_items row's data.
+ * Looks at top-level array values and collects items that look like refs
+ * (objects with `id`, plain numbers, or numeric strings).
+ */
+function extractRefIds(data) {
+  const ids = [];
+  if (!data || typeof data !== 'object') return ids;
+  for (const value of Object.values(data)) {
+    if (!Array.isArray(value)) continue;
+    for (const item of value) {
+      if (item && typeof item === 'object' && item.id != null) {
+        ids.push(Number(item.id));
+      } else if (typeof item === 'number') {
+        ids.push(item);
+      } else if (typeof item === 'string' && /^\d+$/.test(item)) {
+        ids.push(Number(item));
+      }
+    }
+  }
+  return ids;
+}
+
+/**
  * Create sync routes for a given database config.
  * @param {string} dbName - Database config name (e.g., 'dms-sqlite')
  * @returns {Router}
@@ -57,6 +80,32 @@ function createSyncRoutes(dbName) {
     return _changeLogReady;
   }
 
+  /**
+   * Fetch skeleton items: site row + its ref children (discovered from data).
+   * Returns an array of data_items rows.
+   */
+  async function fetchSkeleton(app, siteType) {
+    const siteRows = await dms_db.promise(
+      `SELECT * FROM ${tbl('data_items')} WHERE app = $1 AND type = $2 ORDER BY id`,
+      [app, siteType]
+    );
+    const refIds = [];
+    for (const row of siteRows) {
+      const data = typeof row.data === 'string' ? JSON.parse(row.data) : (row.data || {});
+      refIds.push(...extractRefIds(data));
+    }
+    if (refIds.length > 0) {
+      const placeholders = refIds.map((_, i) => `$${i + 1}`).join(',');
+      const children = await dms_db.promise(
+        `SELECT * FROM ${tbl('data_items')} WHERE id IN (${placeholders}) ORDER BY id`,
+        refIds
+      );
+      const seen = new Set(siteRows.map(r => r.id));
+      return [...siteRows, ...children.filter(c => !seen.has(c.id))];
+    }
+    return siteRows;
+  }
+
   // ---- Bootstrap: full snapshot ----
 
   router.get('/sync/bootstrap', async (req, res) => {
@@ -68,32 +117,20 @@ function createSyncRoutes(dbName) {
       let items;
 
       if (skeleton) {
-        // Skeleton bootstrap: site row + pattern rows only (always small, <20 items)
-        // skeleton value = siteType
-        console.log('--------------- sync skelton -----------------')
-        items = await dms_db.promise(
-          `SELECT * FROM ${tbl('data_items')} WHERE app = $1 AND (type = $2 OR type = $2 || '|pattern') ORDER BY id`,
-          [app, skeleton]
-        );
+        // Skeleton bootstrap: fetch site row, then follow its refs to get children.
+        // This discovers pattern items (and any other dms-format children) from the
+        // site data rather than hardcoding type conventions like '|pattern'.
+        items = await fetchSkeleton(app, skeleton);
       } else if (pattern) {
-        // Pattern-scoped bootstrap: site skeleton + pattern-specific items
-        // pattern value = doc_type
-        // The siteType is needed for skeleton — passed as `siteType` query param
+        // Pattern-scoped bootstrap: all items whose type matches or extends the doc_type.
+        // Optionally includes site skeleton if siteType is provided.
         const { siteType } = req.query;
-        console.log('--------------- sync pattern -----------------')
-        console.log(`SELECT * FROM ${tbl('data_items')} WHERE app = $1 AND (type = $2 OR type LIKE $2 || '|%') ORDER BY id`, app, pattern)
         const patternItems = await dms_db.promise(
           `SELECT * FROM ${tbl('data_items')} WHERE app = $1 AND (type = $2 OR type LIKE $2 || '|%') ORDER BY id`,
           [app, pattern]
         );
-        console.log('got sync pattern items', patternItems.length)
         if (siteType) {
-          // Also include site skeleton (site + pattern rows)
-          const skeletonItems = await dms_db.promise(
-            `SELECT * FROM ${tbl('data_items')} WHERE app = $1 AND (type = $2 OR type = $2 || '|pattern') ORDER BY id`,
-            [app, siteType]
-          );
-          // Merge, deduplicating by id
+          const skeletonItems = await fetchSkeleton(app, siteType);
           const seen = new Set(patternItems.map(i => i.id));
           items = [...patternItems, ...skeletonItems.filter(i => !seen.has(i.id))];
         } else {
@@ -186,13 +223,27 @@ function createSyncRoutes(dbName) {
           [app, pattern, sinceRev]
         );
         if (siteType) {
-          const skeletonChanges = await dms_db.promise(
-            `SELECT * FROM ${tbl('change_log')} WHERE app = $1 AND (type = $2 OR type = $2 || '|pattern') AND revision > $3 ORDER BY revision ASC`,
-            [app, siteType, sinceRev]
+          // Include skeleton changes (site row + its ref children) alongside pattern changes.
+          // Discover skeleton IDs from the current site row rather than hardcoding type conventions.
+          const siteRows = await dms_db.promise(
+            `SELECT * FROM ${tbl('data_items')} WHERE app = $1 AND type = $2`,
+            [app, siteType]
           );
-          const seen = new Set(patternChanges.map(c => c.revision));
-          patternChanges = [...patternChanges, ...skeletonChanges.filter(c => !seen.has(c.revision))];
-          patternChanges.sort((a, b) => a.revision - b.revision);
+          const skeletonIds = siteRows.map(r => r.id);
+          for (const row of siteRows) {
+            const data = typeof row.data === 'string' ? JSON.parse(row.data) : (row.data || {});
+            skeletonIds.push(...extractRefIds(data));
+          }
+          if (skeletonIds.length > 0) {
+            const placeholders = skeletonIds.map((_, i) => `$${i + 2}`).join(',');
+            const skeletonChanges = await dms_db.promise(
+              `SELECT * FROM ${tbl('change_log')} WHERE app = $1 AND item_id IN (${placeholders}) AND revision > $${skeletonIds.length + 2} ORDER BY revision ASC`,
+              [app, ...skeletonIds, sinceRev]
+            );
+            const seen = new Set(patternChanges.map(c => c.revision));
+            patternChanges = [...patternChanges, ...skeletonChanges.filter(c => !seen.has(c.revision))];
+            patternChanges.sort((a, b) => a.revision - b.revision);
+          }
         }
         changes = patternChanges.filter(c => !isSyncExcluded(c.type));
       } else if (type) {

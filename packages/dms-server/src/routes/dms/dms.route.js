@@ -403,24 +403,30 @@ function createRoutes(controller = createController('dms-sqlite')) {
       route: "dms.data.create",
       call: function(callPath, args) {
         const [app, type] = args;
+        const t0 = Date.now();
+        console.log('[dms.data.create] START app=%s type=%s user=%s t=%d', app, type, this.user?.id || 'anon', t0);
         return controller.createData(args, this.user)
-          .then((rows) => [
-            // Return at both paths so old and new clients can find the data
-            ...dataByIdResponse(
-              rows,
-              rows.map(({ id }) => String(id)),
-              DATA_ATTRIBUTES
-            ),
-            ...dataByIdResponse(
-              rows,
-              rows.map(({ id }) => String(id)),
-              DATA_ATTRIBUTES,
-              app
-            ),
-          { path: ["dms", "data", `${app}+${type}`], invalidated: true },
-          ])
+          .then((rows) => {
+            console.log('[dms.data.create] OK rows=%d id=%s elapsed=%dms', rows.length, rows[0]?.id, Date.now() - t0);
+            return [
+              // Return at both paths so old and new clients can find the data
+              ...dataByIdResponse(
+                rows,
+                rows.map(({ id }) => String(id)),
+                DATA_ATTRIBUTES
+              ),
+              ...dataByIdResponse(
+                rows,
+                rows.map(({ id }) => String(id)),
+                DATA_ATTRIBUTES,
+                app
+              ),
+              { path: ["dms", "data", `${app}+${type}`], invalidated: true },
+            ];
+          })
           .catch(e => {
-            console.log('error', e)
+            console.error('[dms.data.create] ERROR:', e);
+            throw e;
           });
       },
     },

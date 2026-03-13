@@ -54,22 +54,25 @@ export default function EditWrapper({ Component, format, options, params, user, 
 	// 	submit(json2DmsForm(item), { method: "post", action: `${pathname}${search}` })
 	// }
 
-	const apiUpdate = async ({data, config = {format}, requestType='', newPath=`${pathname}${search}`}) => {
+	const apiUpdate = async ({data, config = {format}, requestType='', newPath=`${pathname}${search}`, skipNavigate=false}) => {
 		setBusy((prevState) => { return {...prevState, updating: prevState.updating+1 }})
 		if (import.meta.env.DEV) {
 			const t = config?.format?.type || type;
 			const a = config?.format?.app || app;
-			console.log(`[dms:wrapper] apiUpdate ${a}+${t} req=${requestType || 'save'} id=${data?.id || 'new'} path=${newPath}`);
+			console.log(`[dms:wrapper] apiUpdate ${a}+${t} req=${requestType || 'save'} id=${data?.id || 'new'} path=${newPath} skipNav=${skipNavigate}`);
 		}
 
 		let resData = null
 		if(mode === 'ssr'){
 			let res =  await fetch(`/dms_api`, { method:"POST", body: json2DmsForm(data,requestType,config,newPath) })
   		resData = await res.json()
-  	} else {
+    } else {
 			resData = await dmsDataEditor(falcor, config, data, requestType);
+    }
+
+		if (!skipNavigate) {
+			navigate(newPath || `${pathname}${search}`) //submit with null target doesn't carry search
 		}
-		navigate(newPath || `${pathname}${search}`) //submit with null target doesn't carry search
 		setBusy((prevState) => { return {...prevState, updating: prevState.updating-1 }})
 
 		// -- testing on update set item

@@ -81,5 +81,5 @@ export const updateSections = async ({update, action, item, user, apiUpdate, upd
       history,
     }
     //console.log('editFunction saveSection newItem',newItem, update)
-    await apiUpdate({data: newItem})
+    await apiUpdate({data: newItem, skipNavigate: true})
 }

@@ -20,11 +20,12 @@
 - [dms-server-postgres-tests.md](./tasks/completed/dms-server-postgres-tests.md) - PostgreSQL test support: Docker lifecycle helper, parameterized test-graph/test-workflow/test-auth for dual DB, npm scripts (test:pg, test:all), fixed COUNT bigint + boolean cross-DB bugs (2026-02-09)
 - [uda-routes.md](./tasks/completed/uda-routes.md) - UDA Falcor routes: unified query interface for DMS (JSON data_items) and DAMA (sources/views/tables) databases, PostgreSQL only (2026-02-08)
 - [auth-db-init-race.md](./tasks/completed/auth-db-init-race.md) - Fixed auth DB init race condition: `getDb()` returns before async init completes causing "no such table: users"; added `awaitReady()`, multi-role config support (2026-02-08)
+- [fix-cleanup-orphaned-pages.md](./tasks/completed/fix-cleanup-orphaned-pages.md) - Fix orphaned pages detection: disabled false-positive-prone pages detector from --delete mode, added page_edits orphan detection, skipData memory optimization (2026-03-11)
 - [dms-dead-row-cleanup.md](./tasks/completed/dms-dead-row-cleanup.md) - Dead row cleanup CLI: analyzes DMS database for 5 orphan types (patterns, pages, sections, sources, views), PostgreSQL-optimized SQL path, optional --delete mode, 40 integration tests (2026-02-13)
 - [dms-db-copy.md](./tasks/completed/dms-db-copy.md) - Database copy CLI: cross-DB copy (PG↔SQLite), ::TEXT cast optimization, unnest() bulk PG inserts, split table discovery, sequence sync, --batch-size flag, 61 integration tests (2026-02-13)
 - [dms-server-file-upload.md](./tasks/completed/dms-server-file-upload.md) - File upload routes: CSV/Excel upload, publish, and validate as standalone synchronous endpoints in dms-server (2026-02-23)
 - [split-table-naming.md](./tasks/completed/split-table-naming.md) - Split table naming: `data_items__s{sourceId}_v{viewId}_{docType}` format, `parseType()` helper, async source_id lookup with cache, graceful fallback, migration script (2026-02-23)
-- [dms-table-splitting.md](./tasks/current/dms-table-splitting.md) - Table splitting Tier 2: app-namespaced byId/edit routes (dual-route compat), client API changes (api/, CLI, patterns — ~25 call sites), 34 Tier 2 tests, migrate-to-per-app.js script, API docs (2026-02-23)
+- [dms-table-splitting.md](./tasks/completed/dms-table-splitting.md) - Table splitting Tier 2: app-namespaced byId/edit routes (dual-route compat), client API changes (api/, CLI, patterns — ~25 call sites), 34 Tier 2 tests, migrate-to-per-app.js script, API docs (2026-02-23)
 - [search-tags-performance.md](./tasks/completed/search-tags-performance.md) - Search tags query optimization: replaced CTE+json_each+CAST join with direct section query, added partial expression index `(app, type, json_extract(data, '$.tags'))`, server-side 60s TTL cache. Production result: 264s → 6ms (44,000x speedup) (2026-03-03)
 - [sqlite-compat-fixes.md](./tasks/completed/sqlite-compat-fixes.md) - SQLite compatibility: ID type normalization (String coercion in all $ref paths and byId responses), PG→SQLite SQL translation (`array_agg`→`group_concat`/`json_group_array`, `to_jsonb(array_remove(array[...]))`→`json_array(...)`, `::text`→`typeCast`), 38 tests (2026-03-04)
 
@@ -34,6 +35,7 @@
 
 ## local-first
 
+- [local-first-toy-sync.md](./tasks/completed/local-first-toy-sync.md) - Toy sync engine: standalone notes app proving SQLite WASM (wa-sqlite + OPFS), Yjs conflict resolution, revision-based sync protocol, passthrough pattern, multi-tab reactivity (2026-03-03)
 - [toy-sync-lexical.md](./tasks/completed/toy-sync-lexical.md) - Toy sync Lexical integration: replaced textarea with DMS Lexical rich text editor, dark theme provider, Tailwind @source for DMS files, Lexical JSON through Yjs LWW sync pipeline, live two-tab sync via remoteVersion remount, echo suppression fix (pendingItemIds per-item lifecycle), pushUpdate 404→create fallback, idempotent server POST (2026-03-03)
 - [toy-sync-collaborative-editing.md](./tasks/completed/toy-sync-collaborative-editing.md) - Toy sync collaborative editing: character-level Yjs ↔ Lexical binding via `@lexical/yjs` CollaborationPlugin, custom ToyProvider over existing WebSocket, room-based WS routing, server-side Y.Doc management + yjs_states persistence, Yjs sync protocol (step1/step2), cursor/presence awareness, user identity (2026-03-03)
 - [sync-pattern-scope.md](./tasks/completed/sync-pattern-scope.md) - Pattern-scoped sync + SQLite fix: chunked SQLite queries (LIMIT/OFFSET + setImmediate yielding), pattern-scoped bootstrap/delta/WS endpoints (?pattern=DOC_TYPE&siteType=Y, ?skeleton=SITE_TYPE), client skeleton bootstrap + on-demand bootstrapPattern(), per-pattern revision tracking, on-demand bootstrap in dmsDataLoader (2026-03-05)
@@ -57,6 +59,7 @@
 
 ### patterns/page
 
+- [consolidate-page-history.md](./tasks/completed/consolidate-page-history.md) - Consolidate page-edit history: replaced per-edit `data_items` rows with single `page-edit` row per page holding `entries[]` array; updated format, editFunctions, historyPane; migration script for existing databases (2026-03-11)
 - [table-card-react-router-links.md](./tasks/completed/table-card-react-router-links.md) - Replaced `<a href>` with React Router `<Link to>` for internal navigation in TableCell and Card components; external links use `<a>` with `target="_blank"` and `rel="noopener noreferrer"` (2026-02-25)
 - [fix-nav2level-baseurl.md](./tasks/completed/fix-nav2level-baseurl.md) - Fixed nav2Level failing for non-root baseUrl patterns; moved to page pattern as resolveNav callback (2026-01-29)
 - [combine-datasources-task.md](./tasks/completed/combine-datasources-task.md) - Combined `pgEnv`, `damaBaseUrl`, and `datasetPatterns` into unified `datasources` array (2026-01-22)

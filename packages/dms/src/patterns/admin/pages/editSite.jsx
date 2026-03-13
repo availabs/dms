@@ -94,12 +94,15 @@ function PatternList({
         const hasSubdomain = isLocalhost ? parts.length >= 2 : parts.length > 2
         const baseDomain = hasSubdomain ? parts.slice(1).join('.') : host
         const targetHost = needsSub ? `${sub}.${baseDomain}` : host
+        const baseUrl = d.row.base_url
+        if (!baseUrl) return <span className='p-2 text-[14px] text-slate-400'>—</span>
+        const normalizedUrl = baseUrl.startsWith('/') ? baseUrl : `/${baseUrl}`
         return (
           <Link
-            to={`${protocol}://${targetHost}${d.row.base_url}`}
+            to={`${protocol}://${targetHost}${normalizedUrl}`}
             className='flex items-center p-2 w-full h-full py-1 font-[400] text-[14px]  leading-[18px] text-slate-600'
           >
-            {d?.row?.base_url}
+            {baseUrl}
           </Link>
         )
       }

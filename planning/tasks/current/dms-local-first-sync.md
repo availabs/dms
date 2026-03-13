@@ -7,7 +7,7 @@
 | Phase 1: Server — change_log + sync endpoints | ✅ COMPLETE | All sub-steps done: schema, controller, REST, WS, tests (16 passing) |
 | Phase 2: Client — SQLite WASM + sync manager | ✅ COMPLETE | All modules ported to `packages/dms/src/sync/`. sync-scope.js also done (listed as 3a). |
 | Phase 3: DMS integration | ✅ COMPLETE | All steps implemented (3a-3h). api/index.js sync intercepts, dmsSiteFactory sync init + revalidation, SyncStatus.jsx |
-| Phase 3.5: Pattern-scoped sync | ✅ COMPLETE | See `tasks/completed/sync-pattern-scope.md`. SQLite chunked queries, pattern-scoped bootstrap/delta/WS, skeleton bootstrap, on-demand bootstrapPattern() in dmsDataLoader |
+| Phase 3.5: Pattern-scoped sync | ✅ COMPLETE | See `tasks/completed/sync-pattern-scope.md`. SQLite chunked queries, pattern-scoped bootstrap/delta/WS, skeleton bootstrap, on-demand bootstrapPattern() in dmsDataLoader. Phase 4b: ref-driven skeleton (no hardcoded `\|pattern`), stale data cleanup, editSite URL safety |
 | Phase 3.6: Reference resolution + delta propagation | ✅ COMPLETE | 3.6a: page-edit refs now included in sync (consolidation reduced to 1 row/page). 3.6b: delta→revalidate works. 3.6c (targeted invalidation) deferred. See research/dms-reference-resolution.md |
 | Phase 4: Lexical live sync | ❌ NOT STARTED | Server WS room infrastructure ready from Phase 1 |
 | Phase 5: Offline resilience + edge cases | ❌ NOT STARTED | |
@@ -34,10 +34,19 @@
 
 ### Implemented files (Phase 3 integration)
 
-- `packages/dms/src/api/index.js` — `_setSyncAPI`/`_getSyncAPI` setter, `loadFromLocalDB` helper with dms-format child resolution, sync intercepts in `dmsDataLoader` and `dmsDataEditor`
+- `packages/dms/src/api/index.js` — `_setSyncAPI`/`_getSyncAPI` setter, `loadFromLocalDB` helper with dms-format child resolution, sync intercepts in `dmsDataLoader` and `dmsDataEditor` (with `_dirty` flag skip for unchanged sections)
+- `packages/dms/src/api/updateDMSAttrs.js` — `_dirty` flag support: skip Falcor edit calls for sections without `_dirty`, strip `_dirty` before sending to server
 - `packages/dms/src/render/spa/dmsSiteFactory.jsx` — `DMS_SYNC_ENABLED` flag, sync init + `_setSyncAPI` wiring, `router.revalidate()` on invalidation, lazy `SyncStatus` render
+- `packages/dms/src/dms-manager/wrapper.jsx` — `skipNavigate` option on `apiUpdate` to prevent loader re-runs on section saves
+- `packages/dms/src/patterns/page/components/sections/sectionGroup.jsx` — `updateSections` uses `skipNavigate: true`
+- `packages/dms/src/patterns/page/components/sections/sectionArray.jsx` — `_dirty: true` flag on sections modified via `save()` and `saveIndex()`
+- `packages/dms/src/patterns/page/components/sections/components/ComponentRegistry/map/index.jsx` — `isEdit` guard on onChange useEffect
 - `packages/dms/src/sync/use-query.js` — Reactive query hook with scoped invalidation
 - `packages/dms/src/sync/sync-scope.js` — Sync scope registry (`isLocal`, `addToScope`)
+
+### Bug fixes
+
+- **Create bypassing sync for new types** (2026-03-13): `dmsDataEditor` sync intercept checked `sync.isLocal(app, type)` which returns false for types not yet in scope (e.g., first page created for a pattern). Creates fell through to Falcor, where the XHR was aborted by the client before the server response arrived (Observable dispose race). Fix: broadened the sync eligibility check to include creates (`!id && attributeKeys.length > 0`) regardless of scope — `localCreate` uses `fetch('/sync/push')` (not Falcor) and adds the type to scope after success. File: `api/index.js`.
 
 ### What remains
 
@@ -884,6 +893,12 @@ WebSocket delta arrives (child section updated):
 
 8. **HTML nesting violation in historyPane.jsx** — `<div>` inside `<p>` for comment display. **Fix:** Changed to `<span className="block">`. (`historyPane.jsx`)
 
+9. **Map component calling onChange in view mode — infinite save loop** — Map's `ComponentRegistry/map/index.jsx` has a `useEffect` that calls `onChange(state)` when `!isEqual(value, state)`. In view mode, `state` is constructed by cherry-picking keys from `value`, so it always differs (missing `height`, `isEdit`, `zoomPan`). This triggered `saveIndex` → debounced auto-save → `updateSections` → save all 30 sections on every render. **Fix:** Added `isEdit` guard: `if (isEdit && onChange && !isEqual(value, state))`. (`map/index.jsx`)
+
+10. **`apiUpdate` navigate triggering loader re-runs after section save** — `updateSections` called `apiUpdate` which called `navigate(samePath)`, re-running the React Router loader after every section save. With sync, this amplified the loop (save → navigate → loader → re-render → save). **Fix:** Added `skipNavigate` option to `apiUpdate` (defaults to `false`), used by `updateSections` to skip the navigate call. (`wrapper.jsx`, `sectionGroup.jsx`)
+
+11. **All sections saved when only one changed** — `updateSections` sends the entire `draft_sections` array to `dmsDataEditor`, which iterates and saves each section individually (via `updateDMSAttrs` for Falcor, or the sync intercept for local-first). With 30 sections, this means 30 Falcor calls or 30 `localUpdate` + `pushMutation` pairs. **Fix:** Added `_dirty` flag pattern — `sectionArray.jsx` marks sections with `_dirty: true` when explicitly modified (via `save()` or `saveIndex()`). Both `updateDMSAttrs.js` (Falcor path) and the sync intercept in `api/index.js` skip sections without `_dirty`, just preserving their refs. Reduces a 30-section save to 1 section write + 1 page metadata write. (`sectionArray.jsx`, `updateDMSAttrs.js`, `api/index.js`)
+
 ### Phase 4: Lexical live sync
 
 Two approaches are available, proven in toy-sync:
@@ -920,6 +935,11 @@ Use `@lexical/yjs` CollaborationPlugin with a custom provider (same as toy-sync'
 - The DMS editor's existing `CollaborationPlugin` code (`editor.tsx` lines 14, 151-159) is commented out and missing the `LexicalCollaboration` wrapper — both must be addressed
 
 **Recommended**: Option B. It's proven working in toy-sync, eliminates the remount pattern's UX problems, and the server infrastructure (WS rooms, yjs_states) is being built into Phase 1 anyway.
+
+**Phase 3 prerequisites that benefit Phase 4:**
+- `skipNavigate` in `updateSections` prevents loader re-runs on every section save — without this, CollaborationPlugin's frequent onChange calls would trigger a navigate→reload loop
+- `_dirty` flag ensures that when one section's Lexical content changes via collab, only that section gets saved through sync (not all 30). Critical for collab performance where edits arrive frequently.
+- Map component `isEdit` guard prevents view-mode components from triggering spurious saves that would interact badly with collab's real-time updates
 
 **Files to modify**:
 - `packages/dms/src/ui/components/lexical/editor/editor.tsx` — uncomment CollaborationPlugin, add LexicalCollaboration wrapper, add `initialEditorState: null` path
@@ -968,14 +988,19 @@ Harden the sync system for production use:
 | `packages/dms-server/src/routes/dms/dms.controller.js` | Add `appendChangeLog()`, call from create/edit/delete |
 | `packages/dms-server/src/db/index.js` | Init change_log table on startup |
 | `packages/dms-server/src/index.js` | Mount sync routes + WebSocket |
-| `packages/dms/src/api/index.js` | Route through sync loader when active |
+| `packages/dms/src/api/index.js` | Sync intercepts in loader/editor, `_dirty` flag skip in sync intercept |
+| `packages/dms/src/api/updateDMSAttrs.js` | `_dirty` flag skip for Falcor path |
 | `packages/dms/src/render/spa/dmsSiteFactory.jsx` | Init sync on startup (opt-in) |
+| `packages/dms/src/dms-manager/wrapper.jsx` | `skipNavigate` option on `apiUpdate` |
+| `packages/dms/src/patterns/page/components/sections/sectionGroup.jsx` | `skipNavigate: true` in `updateSections` |
+| `packages/dms/src/patterns/page/components/sections/sectionArray.jsx` | `_dirty` flag on modified sections |
+| `packages/dms/src/patterns/page/components/sections/components/ComponentRegistry/map/index.jsx` | `isEdit` guard on onChange |
 
 ### Unchanged
 
 - All Falcor routes (`dms.route.js`)
-- All pattern code (admin, page, datasets, forms, auth)
-- All UI components
+- All pattern code (admin, page, datasets, forms, auth) — except section save pipeline above
+- All UI components — except Map component fix above
 - Table resolver / split tables
 - Auth system
 - UDA routes

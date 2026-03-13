@@ -305,12 +305,10 @@ async function main() {
 
       if (!args.dryRun) {
         const filePath = join(args.output, img.filename);
-        if (!filesSeen.has(img.hash)) {
-          if (!existsSync(filePath)) {
-            writeFileSync(filePath, img.buffer);
-          }
-          filesSeen.add(img.hash);
+        if (!existsSync(filePath)) {
+          writeFileSync(filePath, img.buffer);
         }
+        filesSeen.add(img.hash);
       }
     }
 

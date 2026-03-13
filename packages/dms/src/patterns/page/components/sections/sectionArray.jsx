@@ -48,7 +48,9 @@ const Edit = ({ value, onChange, attr, group, siteType }) => {
 
     React.useEffect(() => {
         const id = setTimeout(() => {
-            if(!isEqual(values, value)) onChange(values);
+            if(!isEqual(values, value)) {
+                onChange(values);
+            }
         }, 300);
         return () => clearTimeout(id);
     }, [values]);
@@ -64,10 +66,8 @@ const Edit = ({ value, onChange, attr, group, siteType }) => {
 
     const saveIndex = (i, v) => {
         setValues(draft => {
-            draft[i] = v;
-            // draft.push('')
+            draft[i] = typeof v === 'object' && v ? { ...v, _dirty: true } : v;
         })
-        // /* await */ onChange(cloneValue)
     }
 
     const save = /* async */ () => {
@@ -75,9 +75,8 @@ const Edit = ({ value, onChange, attr, group, siteType }) => {
         let cloneValue = cloneDeep(value || [])
         const trackingId = crypto.randomUUID();
         let action = ''
-        // edit.value.has_changes = true
         if(edit.type === 'update') {
-            cloneValue[edit.index] = edit.value
+            cloneValue[edit.index] = { ...edit.value, _dirty: true }
 
             action = `edited section ${edit?.value?.title ? `${edit?.value?.title} ${edit.index+1}` : edit.index+1}`
         } else {

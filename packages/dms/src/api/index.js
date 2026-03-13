@@ -409,11 +409,12 @@ export async function dmsDataEditor (falcor, config, data={}, requestType, /*pat
 
 		// --- Sync intercept: write locally first ---
 		const sync = _getSyncAPI();
+		// Use sync for: updates/deletes of known types, AND creates (type may not be in scope yet)
+		const isSyncEligible = sync && requestType !== 'updateType' && (sync.isLocal(app, type) || (!id && attributeKeys.length > 0));
 		if (_DEV) {
-			const willSync = sync && sync.isLocal(app, type) && requestType !== 'updateType';
-			console.log(`[dms:api] EDIT ${app}+${type} req=${requestType || 'save'} id=${id || 'new'} → ${willSync ? 'LOCAL SYNC' : sync ? 'FALCOR' : 'FALCOR (sync not ready)'}`);
+			console.log(`[dms:api] EDIT ${app}+${type} req=${requestType || 'save'} id=${id || 'new'} → ${isSyncEligible ? 'LOCAL SYNC' : sync ? 'FALCOR' : 'FALCOR (sync not ready)'}`);
 		}
-		if (sync && sync.isLocal(app, type) && requestType !== 'updateType') {
+		if (isSyncEligible) {
 			// Suppress invalidation during the batch — one invalidation at the end
 			sync.beginBatch();
 			try {
@@ -425,11 +426,14 @@ export async function dmsDataEditor (falcor, config, data={}, requestType, /*pat
 					for (const dU of toUpdate) {
 						const d = { ...dU };
 						const childId = d.id || false;
-						for (const key of ['id', 'ref', 'created_at', 'updated_at', 'created_by', 'updated_by']) {
+						const dirty = d._dirty || false;
+						for (const key of ['id', 'ref', 'created_at', 'updated_at', 'created_by', 'updated_by', '_dirty']) {
 							delete d[key];
 						}
 						if (childId) {
-							await sync.localUpdate(childId, d);
+							if (dirty) {
+								await sync.localUpdate(childId, d);
+							}
 							refs.push({ ref: `${childApp}+${childType}`, id: childId });
 						} else {
 							const newId = await sync.localCreate(childApp, childType, d);

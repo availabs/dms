@@ -83,7 +83,7 @@ export const newPage = async (item, dataItems, user, apiUpdate) => {
     }
     newItem.url_slug = `${getUrlSlug(newItem,dataItems)}`
 
-    apiUpdate({data:newItem})
+    await apiUpdate({data:newItem})
   }
 
 export const updateTitle = async ( item, dataItems, value='', user, apiUpdate) => {

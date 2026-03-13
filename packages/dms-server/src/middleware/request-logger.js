@@ -99,6 +99,7 @@ function createRequestLogger() {
 
     // Parse paths for summary
     let pathSummary = 'N/A';
+    let callDetail = '';
     try {
       if (params.paths) {
         const paths = typeof params.paths === 'string' ? JSON.parse(params.paths) : params.paths;
@@ -109,12 +110,39 @@ function createRequestLogger() {
       } else if (params.callPath) {
         const callPath = typeof params.callPath === 'string' ? JSON.parse(params.callPath) : params.callPath;
         pathSummary = Array.isArray(callPath) ? callPath.join('.') : String(callPath);
+
+        // For CALL requests, log the arguments to show what's being created/edited/deleted
+        if (params.arguments) {
+          const args = typeof params.arguments === 'string' ? JSON.parse(params.arguments) : params.arguments;
+          if (Array.isArray(args) && args.length > 0) {
+            const parts = args.map(a => {
+              if (typeof a === 'string') return a;
+              if (typeof a === 'number') return String(a);
+              if (a && typeof a === 'object') {
+                // Show key fields for data objects (app, type, id) + truncated preview
+                const keys = Object.keys(a);
+                const preview = ['app', 'type', 'id'].filter(k => a[k]).map(k => `${k}=${a[k]}`).join(' ');
+                return preview || `{${keys.slice(0, 4).join(',')}}`;
+              }
+              return String(a);
+            });
+            callDetail = ` args=[${parts.join(', ')}]`;
+          }
+        }
       }
     } catch (e) {
       pathSummary = '(parse error)';
     }
 
-    console.log(`[RequestLogger] #${seq} ${methodType.toUpperCase()} ${pathSummary}`);
+    // When we can't determine the path, show what keys are in the request body
+    if (pathSummary === 'N/A' && methodType !== 'unknown') {
+      const bodyKeys = Object.keys(params).filter(k => k !== 'method');
+      if (bodyKeys.length > 0) {
+        pathSummary = `N/A (body keys: ${bodyKeys.join(', ')})`;
+      }
+    }
+
+    console.log(`[RequestLogger] #${seq} ${methodType.toUpperCase()} ${pathSummary}${callDetail}`);
 
     // Intercept res.json() to capture the response
     const originalJson = res.json.bind(res);

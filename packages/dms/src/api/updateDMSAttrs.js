@@ -16,39 +16,24 @@ export 	async function updateDMSAttrs(data, configs, falcor) {
         for (const dU of toUpdate) {
             let d = cloneDeep(dU)
             let id = d?.id || false
+            let dirty = d?._dirty || false
 
-
-            for(const key of ['id', 'ref', 'created_at', 'updated_at', 'created_by', 'updated_by']) {
+            for(const key of ['id', 'ref', 'created_at', 'updated_at', 'created_by', 'updated_by', '_dirty']) {
                 delete d[key];
             }
 
             if(id) {
-                // if id edit
-                let currentData = get(
-                    falcor.getCache(['dms','data',app,'byId',id, 'data']),
-                    ['dms','data',app,'byId',id, 'data','value']
-                    ,{}
-                )
-                // ---
-                // delete d.ref
-                // delete d.id
-                // currentData?.ref && delete currentData.ref
-                // currentData?.id && delete currentData.id
-                for(const key of ['id', 'ref', 'created_at', 'updated_at', 'created_by', 'updated_by']) {
-                    delete currentData[key]
+                // skip saving unchanged sections (no _dirty flag)
+                if(!dirty) {
+                    updates[attr].push({ref:`${app}+${type}`, id})
+                    continue
                 }
-                // ---
-                // console.log(currentData,d)
 
-                if(!isEqual(currentData,d)){
-                    //console.log('update', id )
-                    await falcor.call(
-                        ["dms", "data", "edit"],
-                        [app, id, d]
-                    )
-                    console.log('invalidate', id, dU)
-                    await falcor.invalidate(['dms', 'data', app, 'byId', id])
-                }
+                await falcor.call(
+                    ["dms", "data", "edit"],
+                    [app, id, d]
+                )
+                await falcor.invalidate(['dms', 'data', app, 'byId', id])
                 updates[attr].push({ref:`${app}+${type}`, id})
             } else {
                 // else create

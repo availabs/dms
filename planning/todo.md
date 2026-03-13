@@ -43,7 +43,7 @@
 - [ ] Split table virtual columns — auto-generate SQLite virtual columns + indexes (and PG expression indexes) from source config attributes for B-tree query speed on dataset tables
 - [x] Database copy CLI — `src/scripts/copy-db.js` copies all DMS data between databases (PG↔SQLite, same-type), preserving IDs, handling cross-DB types, batch processing, split table discovery
 - [x] Dead row cleanup CLI — `src/scripts/cleanup-db.js` analyzes DMS database for orphaned rows (sections without pages, patterns without sites, views without sources), grouped by app+type, with optional `--delete` mode
-- [ ] Fix orphaned pages detection — `findOrphanedPages` produces false positives when pattern metadata is missing/misconfigured, causing mass page deletion; pages detector currently disabled from `--delete` mode; also added `page_edits` orphan detection and `skipData` memory optimization
+- [x] Fix orphaned pages detection — `findOrphanedPages` produces false positives when pattern metadata is missing/misconfigured, causing mass page deletion; pages detector currently disabled from `--delete` mode; also added `page_edits` orphan detection and `skipData` memory optimization
 - [ ] Extract embedded Lexical images — script to scan data_items for base64 data URIs in InlineImageNode `src` fields, extract to files, replace with URL paths; deduplication via content hash
 
 ## ui
@@ -71,7 +71,7 @@
 - [x] Fix nav2Level baseUrl bug and move to page pattern
 - [x] Move lexical component inline controls (style, bgColor, showToolbar) to control config
 - [x] Theme-based component registration (allow themes to declare `pageComponents` that auto-register to page pattern)
-- [ ] Consolidate page-edit history — replace per-edit `data_items` rows with single row per page holding `entries[]` array; update format, editFunctions, historyPane; migration script for existing databases
+- [x] Consolidate page-edit history — replace per-edit `data_items` rows with single row per page holding `entries[]` array; update format, editFunctions, historyPane; migration script for existing databases
 
 ### patterns/mapeditor
 

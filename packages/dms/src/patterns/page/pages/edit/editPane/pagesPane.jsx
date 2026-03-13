@@ -3,8 +3,33 @@ import { useLocation, useSubmit, NavLink} from "react-router";
 import { cloneDeep, get, isEqual } from "lodash-es"
 import { CMSContext,PageContext } from '../../../context'
 import {json2DmsForm, getUrlSlug, getPageAuthPermissions} from '../../_utils'
-import {publish, discardChanges, insertSubPage, duplicateItem} from '../editFunctions'
+import {publish, discardChanges, insertSubPage, duplicateItem, newPage} from '../editFunctions'
 import {ThemeContext} from "../../../../../ui/useTheme";
+
+
+function AddPageButton () {
+    const { item, dataItems, apiUpdate, baseUrl } = React.useContext(PageContext) || {};
+    const { user } = React.useContext(CMSContext) || {};
+    const { UI } = React.useContext(ThemeContext);
+    const { Button } = UI;
+    const [loading, setLoading] = useState(false);
+
+    const addPage = async () => {
+        setLoading(true);
+        console.log('adding page')
+        await newPage(item, dataItems, user, apiUpdate);
+        setLoading(false);
+        console.log('pageAdded')
+    }
+
+    return (
+        <div className='border px-4 py-2 rounded '>
+          <Button onClick={addPage} className={'w-full'} disabled={loading}>
+            {loading ? 'Adding Page' : '+ Add Page'}
+          </Button>
+        </div>
+    )
+}
 
 
 function PagesPane () {
@@ -18,6 +43,7 @@ function PagesPane () {
 
         return duplicateItem(dataItems.find(dI => dI.id === itemId), dataItems, user, apiUpdate)
     }
+    const canAdd = isUserAuthed(['create-page'], pageAuthPermissions);
   return (
     <div className="flex h-full flex-col flex-1">
       <div className="px-4 sm:px-6 py-2">
@@ -33,7 +59,7 @@ function PagesPane () {
           dataItems={dataItems}
           apiUpdate={apiUpdate}
           baseUrl={baseUrl}
-          renderAddItemButton={isUserAuthed(['create-page'], pageAuthPermissions)}
+          renderAddItemButton={canAdd && <AddPageButton />}
           NavComp={(props) => DraggableNavItem({...props, duplicatePage})}
         />
       </div>

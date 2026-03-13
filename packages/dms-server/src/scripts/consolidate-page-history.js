@@ -101,8 +101,12 @@ async function main() {
       continue;
     }
 
-    // Fetch all referenced page-edit rows
-    const refIds = historyRefs.map(r => r.id || r).filter(Boolean);
+    // Fetch all referenced page-edit rows.
+    // History arrays can contain a mix of {id, ref} refs and inline entries
+    // like {time, type, user}. Only extract numeric IDs — skip inline entries.
+    const refIds = historyRefs
+      .map(r => r.id)
+      .filter(id => id != null && /^\d+$/.test(String(id)));
     if (refIds.length === 0) {
       pagesSkipped++;
       continue;

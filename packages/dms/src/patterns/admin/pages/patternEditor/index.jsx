@@ -8,7 +8,7 @@ import { PatternThemeEditor } from "./default/themeEditor";
 import { PatternFilterEditor } from "./default/filterEditor";
 import { PatternPermissionsEditor } from "./default/permissionsEditor";
 // probably want to change this to register function for non default pages
-import FormatManager from '../../../page/pages/manager/formatManager';
+import FormatManager from '../../../page/pages/formatManager';
 
 const Alert = () => <div>A</div>
 
@@ -42,7 +42,11 @@ const PatternEditor = ({params, dataItems, item, format, attributes, apiUpdate, 
 
   console.log('patternEditor index -item', item, dataItems)
 
-  const pages = [...navPages, ...(item.pages || []), ...(item.pattern_type === 'page' ? [{path: 'edit_pattern', name: 'Format Manager', component: FormatManager}] : [])];
+  const pages = [
+    ...navPages,
+    ...(item.pages || []),
+    ...(item.pattern_type === 'page' ? [{ path: 'edit_pattern', name: 'Format Manager', component: FormatManager }] : [])
+  ];
   const PageComp = pages.find(d => d.path === page)?.component || pages[0].component
     return (
       <div className={`h-full flex flex-col w-full`}>

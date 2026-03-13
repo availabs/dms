@@ -134,31 +134,57 @@ export async function bootstrapSkeleton() {
   if (_DEV) console.log(`[sync]     skeleton lastRev=${lastRev} (${lastRev === null ? 'cold' : 'warm'})`);
 
   try {
-    if (lastRev === null) {
-      const t0 = performance.now();
-      const res = await fetch(apiUrl(`/sync/bootstrap?app=${encodeURIComponent(_app)}&skeleton=${encodeURIComponent(_siteType)}`));
-      if (!res.ok) throw new Error(`skeleton bootstrap failed: ${res.status}`);
-      const { items, revision } = await res.json();
-      if (_DEV) console.log(`[sync]     skeleton: ${items.length} items (${(performance.now() - t0).toFixed(0)}ms)`);
-      await applyItems(items);
-      await setLastRevision(revision, scope);
-      invalidate('data_items');
-      console.log(`[sync] skeleton bootstrapped: ${items.length} items, rev=${revision}`);
-    } else {
-      // Warm start: re-seed scope from local skeleton data
-      const local = await exec(
-        "SELECT DISTINCT app, type FROM data_items WHERE app = ? AND (type = ? OR type = ? || '|pattern')",
-        [_app, _siteType, _siteType]
-      );
-      for (const row of local.rows) addToScope(row.app, row.type);
-      if (_DEV) console.log(`[sync]     skeleton scope seeded: ${local.rows.length} types`);
+    // Skeleton is always small (<20 items), so we re-fetch the full snapshot
+    // on every load. The server follows refs from the site row to discover
+    // children (pattern items, etc.) rather than using hardcoded type conventions.
+    const t0 = performance.now();
+    const res = await fetch(apiUrl(`/sync/bootstrap?app=${encodeURIComponent(_app)}&skeleton=${encodeURIComponent(_siteType)}`));
+    if (!res.ok) throw new Error(`skeleton bootstrap failed: ${res.status}`);
+    const { items, revision } = await res.json();
+    if (_DEV) console.log(`[sync]     skeleton: ${items.length} items (${(performance.now() - t0).toFixed(0)}ms)`);
+
+    // The server response is authoritative for the skeleton. Clean up any
+    // stale local items that belong to the skeleton scope but aren't in the
+    // response (e.g., site row or pattern children from a previous database).
+    const serverIds = new Set(items.map(i => i.id));
+    const localSite = await exec(
+      "SELECT id, data FROM data_items WHERE app = ? AND type = ?",
+      [_app, _siteType]
+    );
+    for (const row of localSite.rows) {
+      // Collect stale IDs: the site row itself + any ref children it points to
+      const staleIds = [];
+      if (!serverIds.has(row.id)) staleIds.push(row.id);
+      try {
+        const data = typeof row.data === 'string' ? JSON.parse(row.data) : (row.data || {});
+        for (const value of Object.values(data)) {
+          if (!Array.isArray(value)) continue;
+          for (const item of value) {
+            const refId = item?.id != null ? Number(item.id) : (typeof item === 'number' ? item : null);
+            if (refId != null && !serverIds.has(refId)) staleIds.push(refId);
+          }
+        }
+      } catch { /* ignore parse errors */ }
+      if (staleIds.length > 0) {
+        const placeholders = staleIds.map(() => '?').join(',');
+        await exec(`DELETE FROM data_items WHERE id IN (${placeholders})`, staleIds);
+        if (_DEV) console.log(`[sync]     skeleton: deleted ${staleIds.length} stale local items`);
+      }
     }
+
+    await applyItems(items);
+    // Always add the site type to scope — even with 0 items, the site type is a valid sync target
+    addToScope(_app, _siteType);
+    await setLastRevision(revision, scope);
+    invalidate('data_items');
+    console.log(`[sync] skeleton bootstrapped: ${items.length} items, rev=${revision}`);
   } catch (err) {
     console.warn('[sync] skeleton bootstrap failed (offline?):', err.message);
+    // Offline: seed scope from whatever is in local SQLite
     try {
       const local = await exec(
-        "SELECT DISTINCT app, type FROM data_items WHERE app = ? AND (type = ? OR type = ? || '|pattern')",
-        [_app, _siteType, _siteType]
+        "SELECT DISTINCT app, type FROM data_items WHERE app = ?",
+        [_app]
       );
       for (const row of local.rows) addToScope(row.app, row.type);
     } catch { /* ignore */ }
@@ -196,6 +222,8 @@ export async function bootstrapPattern(docType) {
       const tFetch = performance.now();
       if (_DEV) console.log(`[sync]     pattern '${docType}': ${items.length} items (${(tFetch - t0).toFixed(0)}ms)`);
       await applyItems(items);
+      // Always add the pattern type to scope — even with 0 items, creates should go through sync
+      addToScope(_app, docType);
       await setLastRevision(revision, scope);
       invalidate('data_items');
       console.log(`[sync] pattern '${docType}' bootstrapped: ${items.length} items, rev=${revision}`);

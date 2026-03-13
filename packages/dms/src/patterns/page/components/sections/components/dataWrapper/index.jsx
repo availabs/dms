@@ -291,7 +291,10 @@ const Edit = ({cms_context, value, onChange, component}) => {
                 draft.display.invalidState = invalidState;
                 draft.lastDataRequest = state.dataRequest;
             })
-            state.display.preventDuplicateFetch && onChange(JSON.stringify({...state, lastDataRequest: state.dataRequest, data, totalLength: length}));
+            // preventDuplicateFetch: lastDataRequest is tracked in React state
+            // (draft.lastDataRequest above). No need to persist to server — doing
+            // so triggers section saves → apiUpdate → navigate → loader → re-render
+            // → data re-fetch → infinite loop.
             setCurrentPage(newCurrentPage);
             setLoading(false)
         }
