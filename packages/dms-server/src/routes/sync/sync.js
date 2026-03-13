@@ -13,6 +13,11 @@ const { Router } = require('express');
 const { getDb } = require('#db/index.js');
 const {
   isSplitType,
+  resolveTable,
+  getSequenceName,
+  ensureSequence,
+  ensureTable,
+  allocateId,
 } = require('#db/table-resolver.js');
 
 /** Types excluded from sync bootstrap/delta (loaded on-demand instead) */
@@ -58,6 +63,7 @@ function createSyncRoutes(dbName) {
   const router = Router();
   const dms_db = getDb(dbName);
   const dbType = dms_db.type;
+  const splitMode = process.env.DMS_SPLIT_MODE || 'legacy';
 
   function tbl(name) {
     return dbType === 'postgres' ? `dms.${name}` : name;
@@ -65,6 +71,20 @@ function createSyncRoutes(dbName) {
 
   function now() {
     return currentTimestamp(dbType);
+  }
+
+  /**
+   * Get the main (non-split) table for an app, ensuring it exists.
+   * Mirrors the controller's mainTable() — resolves per-app tables when splitMode='per-app'.
+   */
+  async function mainTable(app) {
+    const resolved = resolveTable(app, '', dbType, splitMode);
+    if (resolved.table !== 'data_items') {
+      const seqName = getSequenceName(app, dbType, splitMode);
+      await ensureSequence(dms_db, app, dbType, splitMode);
+      await ensureTable(dms_db, resolved.schema, resolved.table, dbType, seqName);
+    }
+    return resolved.fullName;
   }
 
   // Lazy check: is the change_log table available?
@@ -85,8 +105,9 @@ function createSyncRoutes(dbName) {
    * Returns an array of data_items rows.
    */
   async function fetchSkeleton(app, siteType) {
+    const table = await mainTable(app);
     const siteRows = await dms_db.promise(
-      `SELECT * FROM ${tbl('data_items')} WHERE app = $1 AND type = $2 ORDER BY id`,
+      `SELECT * FROM ${table} WHERE app = $1 AND type = $2 ORDER BY id`,
       [app, siteType]
     );
     const refIds = [];
@@ -97,7 +118,7 @@ function createSyncRoutes(dbName) {
     if (refIds.length > 0) {
       const placeholders = refIds.map((_, i) => `$${i + 1}`).join(',');
       const children = await dms_db.promise(
-        `SELECT * FROM ${tbl('data_items')} WHERE id IN (${placeholders}) ORDER BY id`,
+        `SELECT * FROM ${table} WHERE id IN (${placeholders}) ORDER BY id`,
         refIds
       );
       const seen = new Set(siteRows.map(r => r.id));
@@ -125,8 +146,9 @@ function createSyncRoutes(dbName) {
         // Pattern-scoped bootstrap: all items whose type matches or extends the doc_type.
         // Optionally includes site skeleton if siteType is provided.
         const { siteType } = req.query;
+        const table = await mainTable(app);
         const patternItems = await dms_db.promise(
-          `SELECT * FROM ${tbl('data_items')} WHERE app = $1 AND (type = $2 OR type LIKE $2 || '|%') ORDER BY id`,
+          `SELECT * FROM ${table} WHERE app = $1 AND (type = $2 OR type LIKE $2 || '|%') ORDER BY id`,
           [app, pattern]
         );
         if (siteType) {
@@ -140,16 +162,16 @@ function createSyncRoutes(dbName) {
         items = items.filter(item => !isSyncExcluded(item.type));
       } else if (type) {
         // Type-scoped bootstrap (exact type match)
-        console.log('--------------- sync type -----------------')
+        const table = await mainTable(app);
         items = await dms_db.promise(
-          `SELECT * FROM ${tbl('data_items')} WHERE app = $1 AND type = $2 ORDER BY id`,
+          `SELECT * FROM ${table} WHERE app = $1 AND type = $2 ORDER BY id`,
           [app, type]
         );
       } else {
         // Full app bootstrap — main table only, exclude split-table types
-         console.log('--------------- sync full we shouldnt be here -----------------')
+        const table = await mainTable(app);
         const allItems = await dms_db.promise(
-          `SELECT * FROM ${tbl('data_items')} WHERE app = $1 ORDER BY id`,
+          `SELECT * FROM ${table} WHERE app = $1 ORDER BY id`,
           [app]
         );
         items = allItems.filter(item => !isSyncExcluded(item.type));
@@ -225,8 +247,9 @@ function createSyncRoutes(dbName) {
         if (siteType) {
           // Include skeleton changes (site row + its ref children) alongside pattern changes.
           // Discover skeleton IDs from the current site row rather than hardcoding type conventions.
+          const deltaTable = await mainTable(app);
           const siteRows = await dms_db.promise(
-            `SELECT * FROM ${tbl('data_items')} WHERE app = $1 AND type = $2`,
+            `SELECT * FROM ${deltaTable} WHERE app = $1 AND type = $2`,
             [app, siteType]
           );
           const skeletonIds = siteRows.map(r => r.id);
@@ -304,6 +327,8 @@ function createSyncRoutes(dbName) {
       try {
         let resultItem;
 
+        const pushTable = await mainTable(item.app);
+
         if (action === 'I') {
           // Create — use ON CONFLICT for idempotent retries
           const dataStr = typeof item.data === 'string' ? item.data : JSON.stringify(item.data || {});
@@ -311,21 +336,25 @@ function createSyncRoutes(dbName) {
           if (item.id) {
             // Client-provided ID (e.g., from pending queue retry)
             await dms_db.promise(
-              `INSERT INTO ${tbl('data_items')} (id, app, type, data, created_by, updated_by)
+              `INSERT INTO ${pushTable} (id, app, type, data, created_by, updated_by)
                VALUES ($1, $2, $3, $4, $5, $5)
                ON CONFLICT(id) DO UPDATE SET data = excluded.data, updated_at = ${now()}, updated_by = excluded.updated_by`,
               [item.id, item.app, item.type, dataStr, userId]
             );
             const rows = await dms_db.promise(
-              `SELECT * FROM ${tbl('data_items')} WHERE id = $1`, [item.id]
+              `SELECT * FROM ${pushTable} WHERE id = $1`, [item.id]
             );
             resultItem = rows[0];
           } else {
+            // Allocate ID from the correct sequence (per-app or global)
+            const newId = await allocateId(dms_db, item.app, dbType, splitMode);
+            await dms_db.promise(
+              `INSERT INTO ${pushTable} (id, app, type, data, created_by, updated_by)
+               VALUES ($1, $2, $3, $4, $5, $5)`,
+              [newId, item.app, item.type, dataStr, userId]
+            );
             const rows = await dms_db.promise(
-              `INSERT INTO ${tbl('data_items')} (app, type, data, created_by, updated_by)
-               VALUES ($1, $2, $3, $4, $4)
-               RETURNING *;`,
-              [item.app, item.type, dataStr, userId]
+              `SELECT * FROM ${pushTable} WHERE id = $1`, [newId]
             );
             resultItem = rows[0];
           }
@@ -333,7 +362,7 @@ function createSyncRoutes(dbName) {
         } else if (action === 'U') {
           const dataStr = typeof item.data === 'string' ? item.data : JSON.stringify(item.data || {});
           const rows = await dms_db.promise(
-            `UPDATE ${tbl('data_items')}
+            `UPDATE ${pushTable}
              SET data = ${jsonMerge('data', '$1', dbType)},
                updated_at = ${now()},
                updated_by = $2
@@ -349,7 +378,7 @@ function createSyncRoutes(dbName) {
 
         } else if (action === 'D') {
           await dms_db.promise(
-            `DELETE FROM ${tbl('data_items')} WHERE id = $1`,
+            `DELETE FROM ${pushTable} WHERE id = $1`,
             [item.id]
           );
           resultItem = { id: item.id, app: item.app, type: item.type };

@@ -174,6 +174,7 @@ async function setupAndListen() {
 
   const server = app.listen(PORT, () => {
     console.log(`DMS Server running on port ${PORT}`);
+    console.log(`  Split mode: ${process.env.DMS_SPLIT_MODE || 'legacy (default)'}`);
     const envEntries = Object.entries(process.env)
       .filter(([key]) => key.startsWith('DMS'));
 

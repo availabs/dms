@@ -48,10 +48,20 @@
 
 - **Create bypassing sync for new types** (2026-03-13): `dmsDataEditor` sync intercept checked `sync.isLocal(app, type)` which returns false for types not yet in scope (e.g., first page created for a pattern). Creates fell through to Falcor, where the XHR was aborted by the client before the server response arrived (Observable dispose race). Fix: broadened the sync eligibility check to include creates (`!id && attributeKeys.length > 0`) regardless of scope — `localCreate` uses `fetch('/sync/push')` (not Falcor) and adds the type to scope after success. File: `api/index.js`.
 
+- **Sync routes ignored per-app table splitting** (2026-03-13): All sync endpoints (bootstrap, delta, push) hardcoded `data_items` table references. When `DMS_SPLIT_MODE=per-app` is active, data lives in `data_items__{app}` tables, so sync returned empty results / wrote to the wrong table. Fix: added `mainTable(app)` helper to `sync.js` (mirrors the controller's version) that uses `resolveTable()` from `table-resolver.js`. All `data_items` queries in bootstrap, delta, and push now resolve through `mainTable(app)`. Push creates use `allocateId()` for correct per-app sequence allocation. The `change_log` table is unaffected (single shared table regardless of split mode). Files: `routes/sync/sync.js`.
+
+- **Client byId requests used legacy path** (2026-03-13): `createRequest.js:getIdPath()` used `['dms', 'data', 'byId', id]` (legacy route without app namespace). In per-app mode, the legacy `dms.data.byId` route queries the `data_items` table which is empty — data lives in `data_items__{app}`. Fix: switched to `['dms', 'data', app, 'byId', id]` which hits the app-namespaced Falcor route and resolves the correct per-app table. A comment in the code already noted this switch was needed. File: `packages/dms/src/api/createRequest.js`.
+
+- **Stale localStorage routes causing 404** (2026-03-13): `dmsSiteFactory.jsx` caches site/pattern data in `localStorage` and uses it to build initial routes before the Falcor/sync fetch completes. After switching to per-app mode or running migrations, the cached data can become stale, causing routes to point at nonexistent data or fail to render. Clearing localStorage resolved the 404. Root cause: no cache invalidation mechanism — localStorage data persists indefinitely regardless of server-side changes.
+
 ### What remains
 
 - Phase 4: Lexical live sync (CollaborationPlugin via Yjs WebSocket rooms)
 - Phase 5: Offline resilience + edge cases
+
+### Follow-up tasks (create on completion)
+
+- **localStorage cache invalidation**: Add a version/hash to the `localStorage` site data cache (`dmsSiteFactory.jsx`) that gets invalidated when the site structure changes on the server. Currently the cache persists indefinitely, and stale data can cause 404s or render the wrong routes after migrations, split-mode changes, or pattern edits from other clients. Options: hash the skeleton bootstrap response, use the sync revision number, or store a server-generated site config version.
 
 ## Objective
 
