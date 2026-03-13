@@ -125,6 +125,10 @@ export default {
                 }},
         ],
         appearance: {name: 'Appearance', type: AppearanceControls},
+        data: [
+            {type: 'toggle', label: 'Prevent Duplicate Fetch', key: 'preventDuplicateFetch'},
+            {type: 'toggle', label: 'Always Fetch Data', key: 'readyToLoad'},
+        ],
         inHeader: [
             {type: 'select', label: 'Sort', key: 'sort',
                 options: [

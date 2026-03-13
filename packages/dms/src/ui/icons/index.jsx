@@ -75,6 +75,7 @@ const iconList = [
   { icon: "Search" },
 
   // Data/Table Icons
+  { icon: "Refresh" },
   { icon: "TallyMark" },
   { icon: "LeftToRightListBullet" },
   { icon: "Sum" },

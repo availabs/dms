@@ -163,6 +163,13 @@ export default {
         more: [
             // settings from more dropdown are stored in state.display
             {type: 'toggle', label: 'Attribution', key: 'showAttribution'},
+            {type: 'toggle', label: 'Striped', key: 'striped'},
+            {type: 'toggle', label: 'Auto Resize Columns', key: 'autoResize'},
+            {type: 'toggle', label: 'Hide Null Open out columns', key: 'hideIfNullOpenouts'},
+            {type: 'toggle', label: 'Virtualize Columns', key: 'virtualizeColumns'},
+            {type: 'input', label: 'Max Height', key: 'maxHeight', displayCdn: ({display}) => !display.usePagination},
+        ],
+        data: [
             {type: 'toggle', label: 'Allow Edit', key: 'allowEditInView'},
             {type: 'toggle', label: 'Allow Add New', key: 'allowAdddNew'},
             {type: 'select', label: 'Add New Behaviour', key: 'addNewBehaviour', displayCdn: ({display}) => display.allowAdddNew,
@@ -175,20 +182,11 @@ export default {
             },
             {type: 'input', inputType: 'text', label: 'Navigate to', key: 'navigateUrlOnAdd',
                 displayCdn: ({display}) => display.allowAdddNew && display.addNewBehaviour === 'navigate'},
-            {type: 'toggle', label: 'Use Page Filters', key: 'usePageFilters'},
             {type: 'toggle', label: 'Show Total', key: 'showTotal'},
-            {type: 'toggle', label: 'Striped', key: 'striped'},
             {type: 'toggle', label: 'Allow Download', key: 'allowDownload'},
             {type: 'toggle', label: 'Prevent Duplicate Fetch', key: 'preventDuplicateFetch'},
             {type: 'toggle', label: 'Always Fetch Data', key: 'readyToLoad'},
             {type: 'toggle', label: 'Use Pagination', key: 'usePagination'},
-            {type: 'toggle', label: 'Auto Resize Columns', key: 'autoResize'},
-            {type: 'toggle', label: 'Hide Null Open out columns', key: 'hideIfNullOpenouts'},
-            {type: 'toggle', label: 'Virtualize Columns', key: 'virtualizeColumns'},
-            {type: 'select', label: 'Filter Relation', key: 'filterRelation',
-                options: [{label: 'and', value: 'and'}, {label: 'or', value: 'or'}]
-            },
-            {type: 'input', label: 'Max Height', key: 'maxHeight', displayCdn: ({display}) => !display.usePagination},
             {type: 'input', inputType: 'number', label: 'Page Size', key: 'pageSize'},
         ],
         inHeader: [

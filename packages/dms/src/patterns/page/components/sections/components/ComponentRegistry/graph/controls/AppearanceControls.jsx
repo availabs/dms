@@ -142,10 +142,6 @@ export default function AppearanceControls({context}) {
                            setValue={value => updateDisplayValue(null, 'showScaleFilter', value)}/>
             <InputControl title={'Height'} type={'number'} value={display.height}
                           setValue={value => updateDisplayValue(null, 'height', +value)}/>
-            <ToggleControl title={'Prevent Duplicate Fetch'} value={display.preventDuplicateFetch}
-                           setValue={value => updateDisplayValue(null, 'preventDuplicateFetch', value)}/>
-            <ToggleControl title={'Always Fetch Data'} value={display.readyToLoad}
-                           setValue={value => updateDisplayValue(null, 'readyToLoad', value)}/>
             <ToggleControl title={'Dark Mode'} value={display.darkMode}
                            setValue={value => updateDisplayValue(null, 'darkMode', value)}/>
             <ToggleControl title={'Use Custom X ticks'} value={display.useCustomXDomain}
@@ -155,23 +151,6 @@ export default function AppearanceControls({context}) {
                           setValue={value => updateDisplayValue(null, 'xDomain', value)}
                           display={display}
             />
-            <div
-                className={`group inline-flex w-full justify-between items-center rounded-md px-1.5 py-1 text-sm font-regular text-gray-900 bg-white hover:bg-gray-50 cursor-pointer`}
-            >
-                <span className={'flex-0 select-none mr-1'}>Filter Relation</span>
-                <select
-                    className={'flex-1 p-1 text-end w-full rounded-md bg-white group-hover:bg-gray-50 cursor-pointer'}
-                    value={display.filterRelation}
-                    onChange={e => updateDisplayValue(null, 'filterRelation', e.target.value)}
-                >
-                    {
-                        [
-                            {label: 'and', value: 'and'},
-                            {label: 'or', value: 'or'}
-                        ].map(({label, value}) => <option key={value} value={value}>{label}</option>)
-                    }
-                </select>
-            </div>
             {/* Layout */}
             {
                 display.graphType === 'BarGraph' ?

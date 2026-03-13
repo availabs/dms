@@ -237,6 +237,24 @@ export default {
         more: [
             // settings from more dropdown are stored in state.display
             {type: 'toggle', label: 'Attribution', key: 'showAttribution'},
+            {type: 'toggle', label: 'Compact View', key: 'compactView'},
+            {type: 'input', inputType: 'number', label: 'Grid Size', key: 'gridSize'},
+            {type: 'input', inputType: 'number', label: 'Grid Gap', key: 'gridGap'},
+            {type: 'input', inputType: 'number', label: 'Padding', key: 'padding'},
+            {type: 'input', inputType: 'number', label: 'Column Gap', key: 'colGap', displayCdn: ({display}) => display.compactView},
+            {type: 'select', label: 'Value Placement', key: 'headerValueLayout', options: [{label: `Inline`, value: 'row'}, {label: `Stacked`, value: 'col'}]},
+            {type: 'input', inputType: 'number', label: 'Header Width', key: 'headerWidth', displayCdn: ({display}) => display.headerValueLayout === 'row'},
+            {type: 'input', inputType: 'number', label: 'Value Width', key: 'valueWidth', displayCdn: ({display}) => display.headerValueLayout === 'row'},
+            {type: 'toggle', label: 'Reverse', key: 'reverse'},
+            {type: 'toggle', label: 'Hide if No Data', key: 'hideIfNull'},
+            {type: 'toggle', label: 'Column Border', key: 'removeBorder', negate: true, displayCdn: ({display}) => !display.compactView},
+            {type: 'toggle', label: 'Row Border', key: 'removeBorder', negate: true, displayCdn: ({display}) => display.compactView},
+            {type: 'toggle', label: 'Row Border', key: 'addBorder', displayCdn: ({display}) => !display.compactView},
+            {type: 'toggle', label: 'Column Border', key: 'addBorder', displayCdn: ({display}) => display.compactView},
+            {type: ({value, setValue}) => <ColorControls value={value} setValue={setValue} title={'Background Color'}/>, key: 'bgColor', displayCdn: ({display}) => display.compactView},
+        ],
+        data: [
+            // settings from more dropdown are stored in state.display
             {type: 'toggle', label: 'Allow Edit', key: 'allowEditInView',
                 onChange: ({value, state}) => {
                 // if editing data is allowed, data should not be cached. unless live edit is used.
@@ -253,30 +271,10 @@ export default {
             },
             {type: 'input', inputType: 'text', label: 'Navigate to', key: 'navigateUrlOnAdd',
                 displayCdn: ({display}) => display.allowAdddNew && display.addNewBehaviour === 'navigate'},
-            {type: 'toggle', label: 'Use Page Filters', key: 'usePageFilters'},
-            {type: 'toggle', label: 'Compact View', key: 'compactView'},
-            {type: 'input', inputType: 'number', label: 'Grid Size', key: 'gridSize'},
-            {type: 'input', inputType: 'number', label: 'Grid Gap', key: 'gridGap'},
-            {type: 'input', inputType: 'number', label: 'Padding', key: 'padding'},
-            {type: 'input', inputType: 'number', label: 'Column Gap', key: 'colGap', displayCdn: ({display}) => display.compactView},
             {type: 'toggle', label: 'Prevent Duplicate Fetch', key: 'preventDuplicateFetch'},
             {type: 'toggle', label: 'Always Fetch Data', key: 'readyToLoad'},
             {type: 'toggle', label: 'Use Pagination', key: 'usePagination'},
-
             {type: 'input', inputType: 'number', label: 'Page Size', key: 'pageSize', displayCdn: ({display}) => display.usePagination === true},
-            {type: 'select', label: 'Value Placement', key: 'headerValueLayout', options: [{label: `Inline`, value: 'row'}, {label: `Stacked`, value: 'col'}]},
-            {type: 'input', inputType: 'number', label: 'Header Width', key: 'headerWidth', displayCdn: ({display}) => display.headerValueLayout === 'row'},
-            {type: 'input', inputType: 'number', label: 'Value Width', key: 'valueWidth', displayCdn: ({display}) => display.headerValueLayout === 'row'},
-            {type: 'toggle', label: 'Reverse', key: 'reverse'},
-            {type: 'toggle', label: 'Hide if No Data', key: 'hideIfNull'},
-            {type: 'toggle', label: 'Column Border', key: 'removeBorder', negate: true, displayCdn: ({display}) => !display.compactView},
-            {type: 'toggle', label: 'Row Border', key: 'removeBorder', negate: true, displayCdn: ({display}) => display.compactView},
-            {type: 'toggle', label: 'Row Border', key: 'addBorder', displayCdn: ({display}) => !display.compactView},
-            {type: 'toggle', label: 'Column Border', key: 'addBorder', displayCdn: ({display}) => display.compactView},
-            {type: 'select', label: 'Filter Relation', key: 'filterRelation',
-                options: [{label: 'and', value: 'and'}, {label: 'or', value: 'or'}]
-            },
-            {type: ({value, setValue}) => <ColorControls value={value} setValue={setValue} title={'Background Color'}/>, key: 'bgColor', displayCdn: ({display}) => display.compactView},
         ],
         inHeader,
         appearance: {Comp: ({context}) => {

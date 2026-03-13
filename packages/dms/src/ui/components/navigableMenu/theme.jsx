@@ -6,7 +6,7 @@ const navigableMenuTheme = {
     "name": "default",
     // Trigger button
     "button": "px-1 py-0.5 hover:cursor-pointer text-gray-500 hover:text-gray-700",
-    "buttonHidden": "hidden group-hover:flex",
+    "buttonHidden": "flex sm:hidden group-hover:flex",
     "icon": "Menu",
     "iconWrapper": "size-6",
 
@@ -43,8 +43,8 @@ const navigableMenuTheme = {
     "separator": "w-full border-b",
 
     // Breadcrumbs
-    "breadcrumbWrapper": "flex items-center gap-1 px-2 py-1 text-xs text-gray-500 overflow-x-auto",
-    "breadcrumbItem": "hover:text-blue-500 cursor-pointer whitespace-nowrap",
+    "breadcrumbWrapper": "flex items-center flex-wrap gap-1 px-2 py-1 text-sm text-gray-500 overflow-x-auto",
+    "breadcrumbItem": "font-semibold text-gray-900 hover:text-blue-500 cursor-pointer whitespace-nowrap",
     "breadcrumbItemActive": "text-gray-700 whitespace-nowrap",
     "breadcrumbSeparator": "text-gray-300"
   }]
