@@ -85,7 +85,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
         const value = state.display?.[item.key] ?? item.defaultValue;
         if (typeof item.type === 'function') {
             return {
-                icon: item.icon, name: item.label, id: crypto.randomUUID(),
+                icon: item.icon, name: item.label,
                 type: () => item.type({ value, setValue: v => updateDisplayValue(item.key, v, item.onChange, setState), state, setState })
             };
         }
@@ -254,7 +254,6 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
 
     const data = [
         {name: 'data',
-            id: crypto.randomUUID(),
             icon: 'Database',
             value: `${state?.display?.totalLength} rows`,
             showValue: true,
