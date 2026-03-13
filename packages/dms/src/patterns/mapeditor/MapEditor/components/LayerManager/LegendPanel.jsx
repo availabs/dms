@@ -463,8 +463,8 @@ function LegendRow ({ layer, i, numLayers, onRowMove }) {
     }
   }, [state, layer]);
 
-console.log("LegendRow::layer", layer);
-console.log("LegendRow::mapboxLayerType", mapboxLayerType);
+// console.log("LegendRow::layer", layer);
+// console.log("LegendRow::mapboxLayerType", mapboxLayerType);
 
   const toggleSymbology = () => {
     setState(draft => {
@@ -472,7 +472,7 @@ console.log("LegendRow::mapboxLayerType", mapboxLayerType);
     })
   }
   const shouldDisplayColorSquare =
-    type === "simple" ||
+    type === "simple" || type === "heatmap" ||
     (type === "interactive" &&
       interactiveFilters?.[selectedInteractiveFilterIndex]?.["layer-type"] ===
         "simple") ||
@@ -485,7 +485,7 @@ console.log("LegendRow::mapboxLayerType", mapboxLayerType);
     [sourceId, falcorCache]
   );
 
-console.log("LegendRow::layerSource", layerSource);
+// console.log("LegendRow::layerSource", layerSource);
 
   const legendTitle = (
     <div className='flex justify-between items-center justify w-full' onClick={toggleSymbology} >
@@ -707,7 +707,7 @@ console.log("LegendRow::layerSource", layerSource);
       {
         legendOrientation !== "none" && (
           legendOrientation === "horizontal" ? 
-          mapboxLayerType === "heatmap" ? (
+          type === "heatmap" ? (
             <div className="h-fit w-fit p-2">
               <HorizontalHeatmapLegend
                 layer={ layer }
@@ -733,7 +733,7 @@ console.log("LegendRow::layerSource", layerSource);
                   toggleSymbology={toggleSymbology}
                 />
               )}
-              { mapboxLayerType === "heatmap" && (
+              { type === "heatmap" && (
                   <div className="h-fit w-fit p-2">
                     <VerticalHeatmapLegend
                       layer={ layer }

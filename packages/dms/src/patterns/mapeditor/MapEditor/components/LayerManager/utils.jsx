@@ -152,7 +152,7 @@ export const hexToRGBA = (hex, alpha = "0") => {
 // ];
 
 export const defaultHeatmapColorKey = "seq2";
-export const defaultHeatmapNumbins = 6;
+export const defaultHeatmapNumbins = 9;
 export const defaultHeatmapColors = [...colorbrewer[defaultHeatmapColorKey][defaultHeatmapNumbins]];
 
 export const generateHeatmapPaintColor = colors => {
