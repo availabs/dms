@@ -264,8 +264,9 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                     .map(transformControlItem),
                 ...columns,
                 ...group,
-                ...filter
-            ]//.filter(item => isEdit && (!item.cdn || item.cdn()))
+                ...filter,
+                {type: 'separator'},
+            ]
         }
     ]
 
@@ -554,7 +555,6 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
             dataset,
             ...data,
             // {name: 'data', value: `${state?.display?.totalLength} rows`, showValue: true, cdn: () => !isEdit && currentComponent?.useDataSource},
-            {type: 'separator'},
             ...component,
             ...componentSettings,
             {type: 'separator', cdn: () => isEdit},
