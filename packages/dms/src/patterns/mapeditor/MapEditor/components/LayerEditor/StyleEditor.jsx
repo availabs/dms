@@ -24,7 +24,7 @@ function StyleEditor (props) {
   let config = useMemo(() => typeConfigs[activeLayer.type] || []
     ,[activeLayer.type]);
 
-console.log("StyleEditor::props", props);
+// console.log("StyleEditor::props", props);
 
   if(props.type === 'interactive') {
     config = config.filter(c => c.label !== 'Interactive Filters').map(c => {

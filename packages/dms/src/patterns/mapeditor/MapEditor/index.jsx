@@ -476,7 +476,7 @@ const MapEditor = props => {
 
 // console.log("MapEditor::layerType", layerType);
 
-console.log("MapEditor::activeLayer", activeLayer);
+// console.log("MapEditor::activeLayer", activeLayer);
 // console.log("MapEditor::layerPaintPath", layerPaintPath)
 
   const layerProps = React.useMemo(() =>
@@ -744,7 +744,7 @@ console.log("MapEditor::activeLayer", activeLayer);
             set(draft, `${pathBase}['choroplethdata']`, colorBreaks)
           })
         }
-      } else if((activeLayer.type !== "heatmap") && (layerType === 'simple') && (typeof paintValue !== 'string')) {
+      } else if((layerType === 'simple') && (typeof paintValue !== 'string')) {
 // console.log('switch to simple???????????????????????????????????????', rgb2hex(null))
         setState(draft => {
           set(draft, `${pathBase}.${layerPaintPath}`, rgb2hex(null))

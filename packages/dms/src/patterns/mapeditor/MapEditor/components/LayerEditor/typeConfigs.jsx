@@ -365,7 +365,7 @@ const typeConfigs = {
           path: `layers[0].paint['heatmap-intensity']`,
           params: {
             min: "0",
-            max: "25",
+            max: "10",
             step: "1",
             default: "1",
             units: ""

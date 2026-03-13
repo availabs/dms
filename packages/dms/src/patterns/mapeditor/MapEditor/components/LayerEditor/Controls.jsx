@@ -786,7 +786,7 @@ function ChoroplethControl({path, params={}}) {
                   <i 
                     className="fa-solid fa-chevron-left cursor-pointer hover:text-pink-700"
                     onClick={() => {
-                      console.log("move lower bound for range::", category.label);
+                      // console.log("move lower bound for range::", category.label);
                       setState((draft) => {
                         const minBreakValue = breaks[catIndex-1] + 1;
                         const newBreaks = [...breaks];
@@ -804,7 +804,7 @@ function ChoroplethControl({path, params={}}) {
                   <i 
                     className="fa-solid fa-chevron-right cursor-pointer hover:text-pink-700"
                     onClick={() => {
-                      console.log("move upper bound for range::", category.label);
+                      // console.log("move upper bound for range::", category.label);
                       setState((draft) => {
                         const newBreaks = [...breaks];
                         if(catIndex !== categories.length-1){
