@@ -14,7 +14,8 @@ import { controlTypes } from './Controls'
 const layerTypeNames = {
   'fill': 'Polygons',
   'line': 'Lines',
-  'circle': 'Points'
+  'circle': 'Points',
+  'heatmap': "Heat Map"
 }
 
 function StyleEditor (props) {
@@ -22,6 +23,8 @@ function StyleEditor (props) {
   const activeLayer = useMemo(() => state.symbology?.layers?.[state.symbology.activeLayer] || null, [state])
   let config = useMemo(() => typeConfigs[activeLayer.type] || []
     ,[activeLayer.type]);
+
+// console.log("StyleEditor::props", props);
 
   if(props.type === 'interactive') {
     config = config.filter(c => c.label !== 'Interactive Filters').map(c => {

@@ -139,7 +139,7 @@ const MapEditor = props => {
   const navigate = useNavigate();
   const { id: symbologyId } = props.params;
 
-console.log("MapEditor::props", props);
+// console.log("MapEditor::props", props);
 // console.log("MapEditor::symbologyId", symbologyId);
 
   React.useEffect(() => {
@@ -476,6 +476,9 @@ console.log("MapEditor::props", props);
 
 // console.log("MapEditor::layerType", layerType);
 
+// console.log("MapEditor::activeLayer", activeLayer);
+// console.log("MapEditor::layerPaintPath", layerPaintPath)
+
   const layerProps = React.useMemo(() =>
     ({ ...state?.symbology?.layers, ...state?.symbology?.plugins,
       zoomToFit: state?.symbology?.zoomToFit,
@@ -696,7 +699,7 @@ console.log("MapEditor::props", props);
           legend = cloneDeep(legendData)
         }
         if(layerType === 'circles') {
-          console.log("---RECALCULATING CIRCLE RADIUS---")
+// console.log("---RECALCULATING CIRCLE RADIUS---")
           // lowerBound: get(state, `${pathBase}.layers[0].paint['circle-radius'][3]`),
           // minRadius: get(state, `${pathBase}.layers[0].paint['circle-radius'][4]`),
           // upperBound: get(state, `${pathBase}.layers[0].paint['circle-radius'][5]`),
@@ -741,8 +744,8 @@ console.log("MapEditor::props", props);
             set(draft, `${pathBase}['choroplethdata']`, colorBreaks)
           })
         }
-      } else if( layerType === 'simple' && typeof paintValue !== 'string') {
-        // console.log('switch to simple')
+      } else if((layerType === 'simple') && (typeof paintValue !== 'string')) {
+// console.log('switch to simple???????????????????????????????????????', rgb2hex(null))
         setState(draft => {
           set(draft, `${pathBase}.${layerPaintPath}`, rgb2hex(null))
         })
@@ -752,7 +755,10 @@ console.log("MapEditor::props", props);
     if(!isActiveLayerPlugin) {
       setPaint();
     }
-  }, [categories, layerType, baseDataColumn, categorydata, colors, numCategories, showOther, numbins, method, choroplethdata, viewGroupId, filterGroupLegendColumn, isActiveLayerPlugin])
+  }, [categories, layerType, baseDataColumn, categorydata, activeLayer.type,
+      colors, numCategories, showOther, numbins, method,
+      choroplethdata, viewGroupId, filterGroupLegendColumn, isActiveLayerPlugin
+  ]);
 
   React.useEffect(() => {
     if(!pathBase.includes("undefined") && pathBase.length > 18 && polygonLayerType && polygonLayerType !== "circle"){
@@ -810,11 +816,11 @@ console.log("MapEditor::props", props);
 
   React.useEffect(() => {
     if(method === "custom" && !isActiveLayerPlugin) {
-      console.log("custom breaks changed")
+// console.log("custom breaks changed")
       const colorBreaks = choroplethdata;
       let {paint, legend} = choroplethPaint(baseDataColumn, colorBreaks['max'], colorrange, numbins, method, breaks, showOther, legendOrientation);
       if(layerType === 'circles') {
-        console.log("---RECALCULATING CIRCLE RADIUS---")
+// console.log("---RECALCULATING CIRCLE RADIUS---")
         // lowerBound: get(state, `${pathBase}.layers[0].paint['circle-radius'][3]`),
         // minRadius: get(state, `${pathBase}.layers[0].paint['circle-radius'][4]`),
         // upperBound: get(state, `${pathBase}.layers[0].paint['circle-radius'][5]`),
@@ -899,7 +905,7 @@ console.log("MapEditor::props", props);
 
   React.useEffect(() => {
     if(choroplethdata && !legendData && !isActiveLayerPlugin) {
-      console.log("---NEW LEGEND, switching legend orientation----");
+// console.log("---NEW LEGEND, switching legend orientation----");
       let { legend } = choroplethPaint(baseDataColumn, choroplethdata['max'], colorrange, numbins, method, choroplethdata['breaks'], showOther, legendOrientation);
       if(legend) {
         const isShowOtherEnabled = showOther === "#ccc";

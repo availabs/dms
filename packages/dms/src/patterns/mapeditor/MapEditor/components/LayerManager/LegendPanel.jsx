@@ -9,23 +9,23 @@ import { Menu, Transition, Tab, Dialog } from '@headlessui/react'
 import { fnumIndex } from '../LayerEditor/datamaps'
 import { extractState } from '../../stateUtils'
 
-function VisibilityButton ({layer}) {
+export function VisibilityButton ({layer}) {
   const { state, setState  } = React.useContext(SymbologyContext);
   const { activeLayer } = state.symbology;
-  const visible = layer.isVisible
-  const onClick = () => {
+  const visible = layer.isVisible;
+  const onClick = React.useCallback(e => {
     setState(draft => {
-      draft.symbology.layers[layer.id].isVisible = !draft.symbology.layers[layer.id].isVisible
-      draft.symbology.layers[layer.id].layers.forEach((d,i) => {
-        let val = get(state, `symbology.layers[${layer.id}].layers[${i}].layout.visibility`,'')
-        let update = val === 'visible' ? 'none' : 'visible'
-        draft.symbology.layers[layer.id].layers[i].layout =  { "visibility": update }
+      const isVisible = !visible;
+      const visibility = isVisible ? 'visible' : 'none';
+      draft.symbology.layers[layer.id].isVisible = isVisible;
+      draft.symbology.layers[layer.id].layers.forEach((d, i) => {
+        draft.symbology.layers[layer.id].layers[i].layout =  { visibility }
       })
     })
-  }
+  }, [setState, visible]);
   return (
     <>
-      {visible ?
+      { visible ?
         <Eye
           onClick={onClick}
           className={` ${activeLayer == layer.id ? 'fill-pink-100' : 'fill-white'} pt-[2px] cursor-pointer group-hover:fill-gray-400 group-hover:hover:fill-pink-700`}
@@ -66,7 +66,49 @@ function VisibilityButton ({layer}) {
 //   }
 // }
 
+// radial-gradient(circle,
+//                 rgba(42, 123, 155, 1) 0%,
+//                 rgba(87, 199, 133, 1) 50%,
+//                 rgba(237, 221, 83, 1) 100%)
+;
+
+export const useHeatmapRadialGradient = colors => {
+  const stops = React.useMemo(() => {
+    const step = 40.0 / colors.length;
+    return [
+      `${ colors[0] } 30%`,
+      ...colors.slice(1).reduce((a, c, i) => {
+        a.push([`${ c } ${ 30.0 + step * (i + 2)  }%`])
+        return a;
+      }, [])
+    ];
+  }, [colors]);
+
+  return React.useMemo(() => {
+    return `radial-gradient(${ stops })`;
+  }, [stops]);
+}
+
+const HeatmapLegendSymbol = ({ colors }) => {
+
+  const gradient = useHeatmapRadialGradient(colors);
+
+  return (
+    <div className='pr-2'>
+      <div className="w-4 h-4 rounded-full"
+        style={ {
+          background: Array.isArray(colors) ? gradient : null,
+          backgroundColor: Array.isArray(colors) ? null : colors
+        } }
+      />
+    </div>
+  )
+}
+
 const LegendSymbol = ({ layer, color }) => {
+
+// console.log("LegendSymbol::color", color)
+
   return layer?.type === "circle" ? (
     <div className='pl-0.5 pr-2'>
       <div className="w-3 h-3 rounded-full"
@@ -84,11 +126,13 @@ const LegendSymbol = ({ layer, color }) => {
         } }
       />
     </div>
+  ) : layer?.type === "heatmap" ? (
+    <HeatmapLegendSymbol colors={ color }/>
   ) : (
     <div className='pr-2'>
       <div className="w-4 h-4 rounded"
         style={ {
-          backgroundColor:color
+          backgroundColor: color
         } }
       />
     </div>
@@ -125,19 +169,6 @@ function CategoryLegend({ layer, toggleSymbology }) {
       }
     </div>
   )
-}
-
-const GET_PAINT_VALUE = {
-  'fill': (layer) => {
-    const opacity = get(layer, `layers[1].paint['fill-opacity']`, '#ccc');
-    return opacity === 0 ? get(layer, `layers[0].paint['line-color']`, '#ccc') : get(layer, `layers[1].paint['fill-color']`, '#ccc')
-  },
-  'circle': (layer) => {
-    return  get(layer, `layers[0].paint['circle-color']`, '#ccc')
-  },
-  'line': (layer) => {
-    return get(layer, `layers[1].paint['line-color']`, '#ccc')
-  }
 }
 
 function InteractiveLegend({ layer, toggleSymbology }) {
@@ -300,17 +331,122 @@ function HorizontalLegend({ layer, toggleSymbology }) {
   );
 }
 
+const RGBA_REGEX = /^rgba[(](\d{1,3})[, ]+(\d{1,3})[, ]+(\d{1,3})[, ]+\d{1,3}[)]$/;
+const rgbaToRgb = color => {
+  if (!RGBA_REGEX.test(color)) return color;
+  const [, r, g, b] = RGBA_REGEX.exec(color);
+  return `rgb(${ r }, ${ g }, ${ b })`;
+}
+
+const useHeatmapLinearGradient = (colors, direction = "to top") => {
+  const stops = React.useMemo(() => {
+    const step = 40.0 / colors.length;
+    return [
+      `${ colors[0] } 60%`,
+      ...colors.slice(1).reduce((a, c, i) => {
+        a.push([`${ c } ${ 60.0 + step * (i + 2)  }%`])
+        return a;
+      }, [])
+    ];
+  }, [colors]);
+
+  return React.useMemo(() => {
+    return `linear-gradient(${ direction }, ${ stops })`;
+  }, [stops]);
+}
+
+const HorizontalHeatmapLegend = ({ layer, colors, toggleSymbology }) => {
+
+  const gradient = useHeatmapLinearGradient(colors, "to left");
+
+  return (
+    <div className="w-[150px]">
+      <div className="flex">
+        <div className="flex items-end pb-[0.25rem]">
+          <CaretDownSolid />
+        </div>
+        <span className="text-sm">Low Density</span>
+      </div>
+      <div className="w-[150px] h-[20px] rounded"
+        style={ {
+          background: gradient
+        } }/>
+      <div className="flex justify-end">
+        <span className="text-sm">High Density</span>
+        <CaretUpSolid />
+      </div>
+    </div>
+  )
+}
+
+const VerticalHeatmapLegend = ({ layer, colors, toggleSymbology }) => {
+
+  const gradient = useHeatmapLinearGradient(colors);
+
+  return (
+    <div className="h-[100px] flex">
+      <div className="w-[20px] h-[100px] rounded"
+        style={ {
+          background: gradient
+        } }/>
+      <div className="flex flex-col flex-1 relative pl-1 text-sm">
+        <div className="whitespace-nowrap flex-1">
+          Low Density
+        </div>
+        <div className="whitespace-nowrap mb-[-0.25rem]">
+          High Density
+        </div>
+      </div>
+    </div>
+  )
+}
+
+const HEATMAP_COLOR_REGEX = /^[#]|rgba/;
+
+export const GET_PAINT_VALUE = {
+  'fill': (layer) => {
+    const opacity = get(layer, `layers[1].paint['fill-opacity']`, '#ccc');
+    return opacity === 0 ? get(layer, `layers[0].paint['line-color']`, '#ccc') : get(layer, `layers[1].paint['fill-color']`, '#ccc')
+  },
+  'circle': (layer) => {
+    return  get(layer, `layers[0].paint['circle-color']`, '#ccc');
+  },
+  'line': (layer) => {
+    return get(layer, `layers[1].paint['line-color']`, '#ccc');
+  },
+  'heatmap': layer => {
+    return get(layer, `layers[0].paint['heatmap-color']`, ['#fff', "#000"])
+            .filter(p => HEATMAP_COLOR_REGEX.test(p)).reverse();
+  }
+}
+
 function LegendRow ({ layer, i, numLayers, onRowMove }) {
   const { state, setState  } = React.useContext(SymbologyContext);
   const { falcor, falcorCache, pgEnv, baseUrl } = useContext(MapEditorContext);
   const { activeLayer } = state.symbology;
 
-  let { layerType: type, legendOrientation,  selectedInteractiveFilterIndex, interactiveFilters, dataColumn, filterGroup, filterGroupLegendColumn,filterGroupName, viewGroup, viewGroupName, sourceId, dynamicFilters, isLayerControlledByPlugin } = useMemo(() => {
+  let {
+    layerType: type,
+    mapboxLayerType,
+    legendOrientation, 
+    selectedInteractiveFilterIndex,
+    interactiveFilters,
+    dataColumn,
+    filterGroup,
+    filterGroupLegendColumn,
+    filterGroupName,
+    viewGroup,
+    viewGroupName,
+    sourceId,
+    dynamicFilters,
+    isLayerControlledByPlugin
+  } = useMemo(() => {
     const pluginData = get(state, `symbology.pluginData`, {});
     const isLayerControlledByPlugin = (Object.keys(pluginData) || []).some(pluginName => Object.values(pluginData[pluginName]['active-layers'] || {}).includes(layer.id))
 
     return {
       isLayerControlledByPlugin,
+      mapboxLayerType: get(layer, "type"),
       initialViewId: get(layer,`initial-view-id`),
       sourceId: get(layer,`source_id`),
       legendOrientation: get(layer, `['legend-orientation']`, 'vertical'),
@@ -325,7 +461,10 @@ function LegendRow ({ layer, i, numLayers, onRowMove }) {
       viewGroupName: get(layer, `['view-group-name']`, ''),
       dynamicFilters:get(layer, `['dynamic-filters']`, []),
     }
-  },[state, layer]);
+  }, [state, layer]);
+
+// console.log("LegendRow::layer", layer);
+// console.log("LegendRow::mapboxLayerType", mapboxLayerType);
 
   const toggleSymbology = () => {
     setState(draft => {
@@ -333,7 +472,7 @@ function LegendRow ({ layer, i, numLayers, onRowMove }) {
     })
   }
   const shouldDisplayColorSquare =
-    type === "simple" ||
+    type === "simple" || type === "heatmap" ||
     (type === "interactive" &&
       interactiveFilters?.[selectedInteractiveFilterIndex]?.["layer-type"] ===
         "simple") ||
@@ -346,6 +485,8 @@ function LegendRow ({ layer, i, numLayers, onRowMove }) {
     [sourceId, falcorCache]
   );
 
+// console.log("LegendRow::layerSource", layerSource);
+
   const legendTitle = (
     <div className='flex justify-between items-center justify w-full' onClick={toggleSymbology} >
       { shouldDisplayColorSquare && (
@@ -354,8 +495,8 @@ function LegendRow ({ layer, i, numLayers, onRowMove }) {
             { layerTitle }
           </div>
         )
-    }
-      {!shouldDisplayColorSquare && layerTitle}
+      }
+      { !shouldDisplayColorSquare && layerTitle }
       <div className='flex'>
         <div className='text-sm pt-1  flex items-center'>
           <LayerInfo
@@ -565,7 +706,15 @@ function LegendRow ({ layer, i, numLayers, onRowMove }) {
       </div>
       {
         legendOrientation !== "none" && (
-          legendOrientation === "horizontal" ? (
+          legendOrientation === "horizontal" ? 
+          type === "heatmap" ? (
+            <div className="h-fit w-fit p-2">
+              <HorizontalHeatmapLegend
+                layer={ layer }
+                colors={ paintValue }
+                toggleSymbology={ toggleSymbology }/>
+            </div>
+          ) : (
             <HorizontalLegend layer={layer} toggleSymbology={toggleSymbology} />
           ) : (
             <>
@@ -584,6 +733,15 @@ function LegendRow ({ layer, i, numLayers, onRowMove }) {
                   toggleSymbology={toggleSymbology}
                 />
               )}
+              { type === "heatmap" && (
+                  <div className="h-fit w-fit p-2">
+                    <VerticalHeatmapLegend
+                      layer={ layer }
+                      colors={ paintValue }
+                      toggleSymbology={ toggleSymbology }/>
+                  </div>
+                )
+              }
             </>
           )
         )
@@ -649,7 +807,7 @@ export default LegendPanel;
 
 const DynamicFilter = ({layer}) => {
   const { state, setState  } = React.useContext(SymbologyContext);
-  const { falcor, falcorCache, pgEnv } = useContext(DamaContext);
+  const { falcor, falcorCache, pgEnv } = useContext(MapEditorContext);
   let { layerType, dynamicFilters, viewId } = useMemo(() => {
     return {
       viewId:get(layer,`view_id`),

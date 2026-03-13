@@ -158,8 +158,8 @@ export default function Popup({
             {React.cloneElement(button, {
                 ref: buttonRef,
                 className: btnVisibleOnGroupHover ? [
-                    button.props.className.replace('hidden', ''),     // keep existing classes
-                    open ? "" : "hidden"        // hide only when NOT open
+                    button.props.className.replace('sm:hidden', ''),     // keep existing classes
+                    open ? "" : "sm:hidden"        // hide only when NOT open
                 ].join(" ").trim() : button.props.className,
                 onClick: (e) => {
                     button.props.onClick?.(e);

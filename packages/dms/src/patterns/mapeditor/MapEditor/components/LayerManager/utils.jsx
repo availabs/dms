@@ -1,5 +1,7 @@
 import React, { useEffect, useRef } from "react"
 
+import colorbrewer from "./colors"
+
 export const defaultColors = [
 	'rgb(80, 149, 127)',
 	'rgb(159, 161, 69)',
@@ -117,16 +119,89 @@ function getFillLayer( layer_id, viewLayer) {
 	]
 }
 
-export const getLayer = (layer_id, viewLayer) => {
+const hexRegex = /^[#]([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})$/;
+export const hexToRGBA = (hex, alpha = "0") => {
+	const [, h1, h2, h3] = hexRegex.exec(hex);
+	return `rgba(${ parseInt(h1, 16).toString(10) }, ${ parseInt(h2, 16).toString(10) }, ${ parseInt(h3, 16).toString(10) }, ${ alpha })`
+}
+
+// const hexes = [
+// 	"#F54927",
+// 	"#4E6AC7",
+// 	"#4EC770"
+// ];
+// const results = [
+// 	"rgba(245, 73, 39, 0)",
+// 	"rgba(78, 106, 199, 0)",
+// 	"rgba(78, 199, 112, 0)"
+// ];
+
+// (() => {
+// 	const converted = hexes.map(hex => hexToRGBA(hex));
+// 	console.log("CONVERTED:", converted);
+// })();
+
+// const heatmapColor = [
+// 	"interpolate", ["linear"], ["heatmap-density"],
+// 	0, "rgba(0, 0, 255, 0)",
+// 	0.1, "royalblue",
+// 	0.3, "cyan",
+// 	0.5, "lime",
+// 	0.7, "yellow",
+// 	1, "red"
+// ];
+
+export const defaultHeatmapColorKey = "seq2";
+export const defaultHeatmapNumbins = 9;
+export const defaultHeatmapColors = [...colorbrewer[defaultHeatmapColorKey][defaultHeatmapNumbins]];
+
+export const generateHeatmapPaintColor = colors => {
+
+	const step = 1.0 / (colors.length - 1);
+
+	return [
+		"interpolate", ["linear"], ["heatmap-density"],
+		0, hexToRGBA(colors[0]),
+		...colors.slice(1)
+			.reduce((a, c, i) => {
+				a.push(step * (i + 1), c);
+				return a;
+			}, [])
+	];
+}
+
+// console.log(defaultHeatmapColors, generateHeatmapPaintColor(defaultHeatmapColors));
+
+function getHeatmapLayer(layer_id, viewLayer) {
+	return [{
+    "id": layer_id,
+    "type": "heatmap",
+    "layout": { "visibility": "visible" },
+    "paint": {
+      "heatmap-color": generateHeatmapPaintColor(defaultHeatmapColors),
+    	"heatmap-radius": 30,
+      "heatmap-weight": 1,
+      "heatmap-intensity": 1,
+      "heatmap-opacity": 0.75
+    },
+    "source": `${ viewLayer.source }_${ layer_id }`,
+    "source-layer": viewLayer['source-layer']
+	}];
+}
+
+export const getLayer = (layer_id, viewLayer, layerType) => {
+
+	const viewLayerType = layerType || viewLayer.type;
 	
 	const layerByType = {
 		fill: getFillLayer,
 		line: getLineLayer,
-		circle: getCircleLayer
+		circle: getCircleLayer,
+		heatmap: getHeatmapLayer
 	}
 
-	let gotLayer = layerByType[viewLayer?.type] ? 
-		layerByType[viewLayer?.type](layer_id, viewLayer) :
+	let gotLayer = layerByType[viewLayerType] ? 
+		layerByType[viewLayerType](layer_id, viewLayer) :
 		[viewLayer]
 	// console.log('gotlayer', gotLayer)
 	return gotLayer

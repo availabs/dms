@@ -64,7 +64,7 @@ function LegendEditor() {
     }
   },[state])
 
-  const hideLegendEditor = !legenddata || (legenddata.length === 0);
+  const hideLegendEditor = (type !== "heatmap") && (!legenddata || (legenddata.length === 0));
 
   const isShowOtherEnabled = showOther === '#ccc';
   

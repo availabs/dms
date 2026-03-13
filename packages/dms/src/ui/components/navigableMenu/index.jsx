@@ -157,8 +157,9 @@ const Menu = ({config, title, showTitle=true, showBreadcrumbs, open, setOpen, ac
   const menuItems = useMemo(() =>
       Object.values(config)
           .filter(c =>
-              (!activeParent ? !c.parent : c.parent === activeParent) &&
-              String(c.name ?? "").toLowerCase().includes(search.toLowerCase())
+              ((!activeParent ? !c.parent : c.parent === activeParent) &&
+              String(c.name ?? "").toLowerCase().includes(search.toLowerCase())) ||
+              c.renderCdn // rendered regardless of activeParent
           ), [config, activeParent, search]);
 
   const changeParent = useCallback((parent) => {
@@ -198,7 +199,7 @@ const Menu = ({config, title, showTitle=true, showBreadcrumbs, open, setOpen, ac
           </Button>
         </div>
       }
-      {showBreadcrumbs && activeParent && breadcrumbTrail.length > 0 && (
+      {showBreadcrumbs && (
         <div className={theme?.breadcrumbWrapper}>
           <span className={theme?.breadcrumbItem} onClick={() => changeParent(undefined)}>
             {title || 'Home'}
@@ -217,6 +218,11 @@ const Menu = ({config, title, showTitle=true, showBreadcrumbs, open, setOpen, ac
           ))}
         </div>
       )}
+      {menuItems
+          .filter(({renderCdn, renderPos}) => (typeof renderCdn === 'function' ? renderCdn(activeParent) : typeof renderCdn === 'boolean' ? renderCdn : true) && renderPos === 'top')
+          .map(menuItem => <MenuItem key={menuItem.id} menuItem={menuItem} setActiveParent={changeParent}
+                                     goBack={goBack} goHome={goHome} changeParent={changeParent}
+                                     activeStyle={activeStyle}/>)}
       {
         showSearch && <Input placeHolder={'search...'} value={search} onChange={e => setSearch(e.target.value)} />
       }
@@ -228,7 +234,9 @@ const Menu = ({config, title, showTitle=true, showBreadcrumbs, open, setOpen, ac
                   onChange={value => config[activeParent].onReorder?.(value)}
                   renderItem={({item: menuItem}) => <MenuItem key={menuItem.id} menuItem={menuItem} setActiveParent={changeParent} goBack={goBack} goHome={goHome} changeParent={changeParent} activeStyle={activeStyle} /> }
               /> :
-          menuItems.map(menuItem => <MenuItem key={menuItem.id} menuItem={menuItem} setActiveParent={changeParent} goBack={goBack} goHome={goHome} changeParent={changeParent} activeStyle={activeStyle} />)
+          menuItems
+              .filter(({renderCdn, renderPos}) => (typeof renderCdn === 'function' ? renderCdn(activeParent) : typeof renderCdn === 'boolean' ? renderCdn : true) && renderPos !== 'top')
+              .map(menuItem => <MenuItem key={menuItem.id} menuItem={menuItem} setActiveParent={changeParent} goBack={goBack} goHome={goHome} changeParent={changeParent} activeStyle={activeStyle} />)
         }
       </div>
     </div>
