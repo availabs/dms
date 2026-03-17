@@ -3,8 +3,9 @@
  *
  * Split modes:
  *   'legacy'  — single data_items table; only dataset row types get split tables
- *   'per-app' — each app gets its own data_items__{app} table;
- *               dataset row types further split into data_items__{app}__s{id}_v{vid}_{docType}
+ *   'per-app' — each app gets its own isolated storage:
+ *               PostgreSQL: per-app schema (dms_{app}.data_items, dms_{app}.data_items__s{id}_v{vid})
+ *               SQLite:     per-app table prefix (data_items__{app}, data_items__{app}__s{id}_v{vid})
  *
  * Split type detection:
  *   Dataset row data has type pattern: {doc_type}-{view_id} or {doc_type}-{view_id}-invalid-entry
@@ -80,12 +81,23 @@ function pgIdent(name) {
 }
 
 /**
+ * Resolve the PostgreSQL schema for an app in per-app mode.
+ * Returns 'dms' for legacy mode or SQLite, 'dms_{appKey}' for per-app PG.
+ */
+function resolveSchema(app, dbType, splitMode) {
+  if (dbType !== 'postgres' || splitMode !== 'per-app') {
+    return dbType === 'postgres' ? 'dms' : 'main';
+  }
+  return pgIdent(`dms_${sanitize(app)}`);
+}
+
+/**
  * Resolve which table an (app, type) pair should use.
  *
- * When sourceId is provided and the type is a split type, uses the new naming:
- *   data_items__s{sourceId}_v{viewId}_{docType}  (+ _invalid suffix if applicable)
- * When sourceId is null/undefined, falls back to the original naming:
- *   data_items__{sanitized_type}
+ * In legacy mode, app isolation is via the shared data_items table (no prefix).
+ * In per-app mode:
+ *   PostgreSQL: per-app schema (dms_{app}.data_items, dms_{app}.data_items__split)
+ *   SQLite:     per-app table prefix (data_items__{app}, data_items__{app}__split)
  *
  * @param {string} app
  * @param {string} type
@@ -95,16 +107,15 @@ function pgIdent(name) {
  * @returns {{ schema: string, table: string, fullName: string }}
  */
 function resolveTable(app, type, dbType, splitMode = 'legacy', sourceId = null) {
-  const schema = dbType === 'postgres' ? 'dms' : 'main';
   const isPg = dbType === 'postgres';
 
-  const result = (table) => {
-    // PostgreSQL identifiers are capped at 63 chars
-    const t = isPg ? pgIdent(table) : table;
-    return { schema, table: t, fullName: isPg ? `${schema}.${t}` : t };
-  };
-
   if (splitMode === 'legacy') {
+    const schema = isPg ? 'dms' : 'main';
+    const result = (table) => {
+      const t = isPg ? pgIdent(table) : table;
+      return { schema, table: t, fullName: isPg ? `${schema}.${t}` : t };
+    };
+
     if (isSplitType(type)) {
       if (sourceId != null) {
         const parsed = parseType(type);
@@ -116,8 +127,31 @@ function resolveTable(app, type, dbType, splitMode = 'legacy', sourceId = null) 
     return result('data_items');
   }
 
-  // per-app mode: all tables include app prefix for full isolation
+  // per-app mode
   const appKey = sanitize(app);
+  const schema = resolveSchema(app, dbType, splitMode);
+
+  if (isPg) {
+    // PostgreSQL: app isolation via schema, table names are clean
+    const result = (table) => {
+      const t = pgIdent(table);
+      return { schema, table: t, fullName: `${schema}.${t}` };
+    };
+
+    if (isSplitType(type)) {
+      if (sourceId != null) {
+        const parsed = parseType(type);
+        const suffix = parsed.isInvalid ? '_invalid' : '';
+        return result(`data_items__s${sourceId}_v${parsed.viewId}_${parsed.docType}${suffix}`);
+      }
+      return result(`data_items__${sanitize(type)}`);
+    }
+    return result('data_items');
+  }
+
+  // SQLite: app isolation via table name prefix (no schema support)
+  const result = (table) => ({ schema: 'main', table, fullName: table });
+
   if (isSplitType(type)) {
     if (sourceId != null) {
       const parsed = parseType(type);
@@ -197,13 +231,28 @@ function getSequenceName(app, dbType, splitMode) {
   }
   // per-app mode
   const appKey = sanitize(app);
-  if (dbType === 'postgres') return `dms.seq__${appKey}`;
+  if (dbType === 'postgres') {
+    const schema = resolveSchema(app, dbType, splitMode);
+    return `${schema}.data_items_id_seq`;
+  }
   return `seq__${appKey}`;
 }
 
 /**
+ * Ensure the per-app PostgreSQL schema exists. No-op for SQLite or legacy mode.
+ */
+async function ensureSchema(db, app, dbType, splitMode) {
+  if (dbType !== 'postgres' || splitMode !== 'per-app') return;
+  const schema = resolveSchema(app, dbType, splitMode);
+  const cacheKey = `schema:${schema}`;
+  if (_seqCache.has(cacheKey)) return;
+  await db.query(`CREATE SCHEMA IF NOT EXISTS ${schema}`);
+  _seqCache.add(cacheKey);
+}
+
+/**
  * Ensure a per-app (or global legacy) sequence exists.
- * PostgreSQL: CREATE SEQUENCE IF NOT EXISTS
+ * PostgreSQL: CREATE SEQUENCE IF NOT EXISTS (in the app's schema for per-app mode)
  * SQLite: CREATE TABLE IF NOT EXISTS (simulated sequence)
  *
  * @param {Object} db - Database adapter
@@ -212,6 +261,8 @@ function getSequenceName(app, dbType, splitMode) {
  * @param {string} splitMode
  */
 async function ensureSequence(db, app, dbType, splitMode) {
+  await ensureSchema(db, app, dbType, splitMode);
+
   const seqName = getSequenceName(app, dbType, splitMode);
   const cacheKey = `seq:${seqName}`;
   if (_seqCache.has(cacheKey)) return seqName;
@@ -238,8 +289,9 @@ async function ensureSequence(db, app, dbType, splitMode) {
  * @param {string} seqName - Sequence name for PostgreSQL DEFAULT
  */
 async function ensureTable(db, schema, table, dbType, seqName) {
-  // Don't auto-create the base data_items — that's handled by schema init
-  if (table === 'data_items') return;
+  // Don't auto-create the base data_items in the shared 'dms' schema —
+  // that's handled by schema init. Per-app schemas need their own data_items.
+  if (table === 'data_items' && schema === 'dms') return;
 
   const cacheKey = `${schema}.${table}`;
   if (_tableCache.has(cacheKey)) return;
@@ -293,8 +345,10 @@ module.exports = {
   isSplitType,
   parseType,
   sanitize,
+  resolveSchema,
   resolveTable,
   getSequenceName,
+  ensureSchema,
   ensureSequence,
   ensureTable,
   allocateId,

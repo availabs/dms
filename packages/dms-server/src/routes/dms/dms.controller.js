@@ -1,4 +1,5 @@
 const { getDb } = require('#db/index.js')
+const { loadConfig } = require('#db/config.js')
 const get = require("lodash/get")
 const {
   handleFilters,
@@ -66,7 +67,8 @@ const sanitizeName = name => {
  * @returns {Object} Controller with all DMS operations
  */
 function createController(dbName = 'dms-sqlite', options = {}) {
-  const splitMode = options.splitMode || process.env.DMS_SPLIT_MODE || 'legacy';
+  const config = loadConfig(dbName);
+  const splitMode = options.splitMode || config.splitMode || process.env.DMS_SPLIT_MODE || 'legacy';
   const dms_db = getDb(dbName);
   const dbType = dms_db.type;
 
@@ -115,11 +117,11 @@ function createController(dbName = 'dms-sqlite', options = {}) {
    */
   async function mainTable(app) {
     const resolved = resolveTable(app, '', dbType, splitMode);
-    if (resolved.table !== 'data_items') {
-      const seqName = getSequenceName(app, dbType, splitMode);
-      await ensureSequence(dms_db, app, dbType, splitMode);
-      await ensureTable(dms_db, resolved.schema, resolved.table, dbType, seqName);
-    }
+    // In per-app mode, ensure the app's table + sequence exist.
+    // ensureTable() no-ops for the shared dms.data_items (legacy mode).
+    const seqName = getSequenceName(app, dbType, splitMode);
+    await ensureSequence(dms_db, app, dbType, splitMode);
+    await ensureTable(dms_db, resolved.schema, resolved.table, dbType, seqName);
     return resolved.fullName;
   }
 
@@ -166,8 +168,6 @@ function createController(dbName = 'dms-sqlite', options = {}) {
    */
   async function ensureForWrite(app, type) {
     const resolved = await resolve(app, type);
-    if (resolved.table === 'data_items') return resolved;
-
     const seqName = getSequenceName(app, dbType, splitMode);
     await ensureSequence(dms_db, app, dbType, splitMode);
     await ensureTable(dms_db, resolved.schema, resolved.table, dbType, seqName);
@@ -176,12 +176,10 @@ function createController(dbName = 'dms-sqlite', options = {}) {
 
   /**
    * Resolve the table for a read — ensure it exists so the query doesn't error.
-   * For the default data_items table, no-op. For split tables, ensure exists.
+   * ensureTable() no-ops for the shared dms.data_items (legacy mode).
    */
   async function ensureForRead(app, type) {
     const resolved = await resolve(app, type);
-    if (resolved.table === 'data_items') return resolved;
-
     const seqName = getSequenceName(app, dbType, splitMode);
     await ensureSequence(dms_db, app, dbType, splitMode);
     await ensureTable(dms_db, resolved.schema, resolved.table, dbType, seqName);

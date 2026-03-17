@@ -63,13 +63,13 @@ function translatePgToSqlite(expr) {
 // ================================================= Source Functions ================================================
 
 async function getSourcesLength(env) {
-  const { isDms, db, app, type } = await getEssentials({ env });
+  const { isDms, db, app, type, splitMode } = await getEssentials({ env });
 
   if (isDms) {
-    const pattern_ids = await getSitePatterns({ db, app });
+    const pattern_ids = await getSitePatterns({ db, app, splitMode });
     if (!pattern_ids.length) return 0;
 
-    const sources = await getSiteSources({ db, app, pattern_ids, pattern_doc_types: [type] });
+    const sources = await getSiteSources({ db, app, pattern_ids, pattern_doc_types: [type], splitMode });
     return sources.length;
   }
 
@@ -81,14 +81,14 @@ async function getSourcesLength(env) {
 }
 
 async function getSourceIdsByIndex(env, indices) {
-  const { isDms, db, app, type } = await getEssentials({ env });
+  const { isDms, db, app, type, splitMode } = await getEssentials({ env });
   const num = indices.to - indices.from + 1;
 
   if (isDms) {
-    const pattern_ids = await getSitePatterns({ db, app });
+    const pattern_ids = await getSitePatterns({ db, app, splitMode });
     if (!pattern_ids.length) return [];
 
-    const sources = await getSiteSources({ db, app, pattern_ids, pattern_doc_types: [type] });
+    const sources = await getSiteSources({ db, app, pattern_ids, pattern_doc_types: [type], splitMode });
     if (!sources.length) return [];
 
     return sources
@@ -105,7 +105,7 @@ async function getSourceIdsByIndex(env, indices) {
 }
 
 async function getSourceById(env, ids, attributes) {
-  const { isDms, db, app } = await getEssentials({ env });
+  const { isDms, db, app, splitMode } = await getEssentials({ env });
 
   // Filter out 'value' — it's a Falcor internal property from $ref resolution, not a real column
   const sanitizedAttrs = sanitizeName(attributes).filter(f => f && f !== 'value');
@@ -120,7 +120,7 @@ async function getSourceById(env, ids, attributes) {
         : `data->>'${a}' AS ${quoteAlias(a)}`
     );
 
-    const tbl = await dmsMainTable(db, app);
+    const tbl = await dmsMainTable(db, app, splitMode);
     const { rows } = await db.query(
       `SELECT ${formattedAttrs.join(', ')} FROM ${tbl} WHERE id = ANY($1::INT[])`,
       [ids.map(Number)]
@@ -139,7 +139,7 @@ async function getSourceById(env, ids, attributes) {
 }
 
 async function updateSource(env, sourceId, updates) {
-  const { isDms, db, app } = await getEssentials({ env });
+  const { isDms, db, app, splitMode } = await getEssentials({ env });
 
   if (isDms) {
     const patch = {};
@@ -148,7 +148,7 @@ async function updateSource(env, sourceId, updates) {
       if (clean) patch[clean] = val;
     }
 
-    const tbl = await dmsMainTable(db, app);
+    const tbl = await dmsMainTable(db, app, splitMode);
     const { rows } = await db.query(
       `UPDATE ${tbl} SET data = ${jsonMerge('data', '$1', db.type)} WHERE id = $2 RETURNING *`,
       [JSON.stringify(patch), sourceId]
@@ -169,10 +169,10 @@ async function updateSource(env, sourceId, updates) {
 // ================================================= View Functions ==================================================
 
 async function getViewLengthBySourceId(env, ids) {
-  const { isDms, db, app } = await getEssentials({ env });
+  const { isDms, db, app, splitMode } = await getEssentials({ env });
 
   if (isDms) {
-    const tbl = await dmsMainTable(db, app);
+    const tbl = await dmsMainTable(db, app, splitMode);
     const lenFn = db.type === 'postgres'
       ? "jsonb_array_length(data->'views')"
       : "json_array_length(data, '$.views')";
@@ -192,11 +192,11 @@ async function getViewLengthBySourceId(env, ids) {
 }
 
 async function getViewsByIndexBySourceId(env, sourceIds, indices) {
-  const { isDms, db, app } = await getEssentials({ env });
+  const { isDms, db, app, splitMode } = await getEssentials({ env });
   const num = indices.to - indices.from + 1;
 
   if (isDms) {
-    const tbl = await dmsMainTable(db, app);
+    const tbl = await dmsMainTable(db, app, splitMode);
     const { rows } = await db.query(
       `SELECT id, data->'views' AS views FROM ${tbl} WHERE id = ANY($1::INT[])`,
       [sourceIds.map(Number)]
@@ -234,7 +234,7 @@ async function getViewsByIndexBySourceId(env, sourceIds, indices) {
 }
 
 async function getViewById(env, ids, attributes) {
-  const { isDms, db, app } = await getEssentials({ env });
+  const { isDms, db, app, splitMode } = await getEssentials({ env });
 
   // Filter out 'value' — it's a Falcor internal property from $ref resolution, not a real column
   const sanitizedAttrs = sanitizeName(attributes).filter(f => f && f !== 'value');
@@ -249,7 +249,7 @@ async function getViewById(env, ids, attributes) {
         : `data->>'${a}' AS ${quoteAlias(a)}`
     );
 
-    const tbl = await dmsMainTable(db, app);
+    const tbl = await dmsMainTable(db, app, splitMode);
     const { rows } = await db.query(
       `SELECT ${formattedAttrs.join(', ')} FROM ${tbl} WHERE id = ANY($1::INT[])`,
       [ids.map(Number)]
@@ -267,7 +267,7 @@ async function getViewById(env, ids, attributes) {
 }
 
 async function updateView(env, viewId, updates) {
-  const { isDms, db, app } = await getEssentials({ env });
+  const { isDms, db, app, splitMode } = await getEssentials({ env });
 
   if (isDms) {
     const patch = {};
@@ -276,7 +276,7 @@ async function updateView(env, viewId, updates) {
       if (clean) patch[clean] = val;
     }
 
-    const tbl = await dmsMainTable(db, app);
+    const tbl = await dmsMainTable(db, app, splitMode);
     const { rows } = await db.query(
       `UPDATE ${tbl} SET data = ${jsonMerge('data', '$1', db.type)} WHERE id = $2 RETURNING *`,
       [JSON.stringify(patch), viewId]

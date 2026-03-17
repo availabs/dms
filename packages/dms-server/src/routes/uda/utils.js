@@ -1,4 +1,5 @@
 const { getDb } = require('#db/index.js');
+const { loadConfig } = require('#db/config.js');
 const { resolveTable, parseType, isSplitType, ensureSequence, ensureTable, getSequenceName } = require('#db/table-resolver.js');
 
 /**
@@ -6,13 +7,12 @@ const { resolveTable, parseType, isSplitType, ensureSequence, ensureTable, getSe
  * In legacy mode → data_items; in per-app mode → data_items__{app}.
  * Ensures the table and sequence exist in per-app mode.
  */
-async function dmsMainTable(db, app) {
-  const splitMode = process.env.DMS_SPLIT_MODE || 'legacy';
+async function dmsMainTable(db, app, splitMode) {
+  splitMode = splitMode || process.env.DMS_SPLIT_MODE || 'legacy';
   const { fullName, schema, table } = resolveTable(app, 'pattern', db.type, splitMode);
-  if (table !== 'data_items') {
-    await ensureSequence(db, app, db.type, splitMode);
-    await ensureTable(db, schema, table, db.type, getSequenceName(app, db.type, splitMode));
-  }
+  // ensureTable() no-ops for the shared dms.data_items (legacy mode)
+  await ensureSequence(db, app, db.type, splitMode);
+  await ensureTable(db, schema, table, db.type, getSequenceName(app, db.type, splitMode));
   return fullName;
 }
 
@@ -87,10 +87,12 @@ async function getEssentials({ env, view_id, options = {} }) {
   const isDms = env.includes('+') && !parsedOptions.isDama;
 
   // DMS uses the DMS database; DAMA uses the env as pgEnv config name
-  const db = getDb(isDms ? (process.env.DMS_DB_ENV || 'dms-sqlite') : env);
+  const dbEnv = isDms ? (process.env.DMS_DB_ENV || 'dms-sqlite') : env;
+  const db = getDb(dbEnv);
 
   if (isDms) {
-    const splitMode = process.env.DMS_SPLIT_MODE || 'legacy';
+    const config = loadConfig(dbEnv);
+    const splitMode = config.splitMode || process.env.DMS_SPLIT_MODE || 'legacy';
     const [app, rawType] = env.split('+');
 
     // For DMS, the type may be suffixed with -view_id for versioned data
@@ -98,7 +100,7 @@ async function getEssentials({ env, view_id, options = {} }) {
     let dmsAttributes;
 
     // Resolve the main table for DMS content lookups (patterns, sources, views)
-    const mainTbl = await dmsMainTable(db, app);
+    const mainTbl = await dmsMainTable(db, app, splitMode);
 
     if (view_id) {
       // Look up the view_id item to check if it's versioned data
@@ -154,7 +156,7 @@ async function getEssentials({ env, view_id, options = {} }) {
       await ensureTable(db, table_schema, table_name, db.type, seqName);
     }
 
-    return { isDms, db, app, type, table_schema, table_name, dmsAttributes };
+    return { isDms, db, app, type, table_schema, table_name, dmsAttributes, splitMode };
   }
 
   // DAMA mode
@@ -181,8 +183,8 @@ async function getDataTableFromViewId({ db, view_id }) {
 /**
  * Get pattern IDs for a DMS site (items with type='pattern' for the given app)
  */
-async function getSitePatterns({ db, app }) {
-  const tbl = await dmsMainTable(db, app);
+async function getSitePatterns({ db, app, splitMode }) {
+  const tbl = await dmsMainTable(db, app, splitMode);
   // Pattern records created via updateDMSAttrs have type like 'undefined|pattern' or 'siteType|pattern',
   // while test/legacy records may have plain 'pattern'. Match both.
   const sql = `SELECT id FROM ${tbl} WHERE app = $1 AND (type = 'pattern' OR type LIKE '%|pattern')`;
@@ -193,10 +195,10 @@ async function getSitePatterns({ db, app }) {
 /**
  * Get sources from site patterns. Looks at patterns matching doc_types and extracts their sources JSON array.
  */
-async function getSiteSources({ db, app, pattern_ids, pattern_doc_types }) {
+async function getSiteSources({ db, app, pattern_ids, pattern_doc_types, splitMode }) {
   if (!pattern_ids.length) return [];
 
-  const tbl = await dmsMainTable(db, app);
+  const tbl = await dmsMainTable(db, app, splitMode);
   const sql = `
     SELECT data->'sources' AS sources
     FROM ${tbl}

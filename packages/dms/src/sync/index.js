@@ -13,7 +13,10 @@ import { initDB, exec } from './db-client.js';
 import { configure, bootstrapSkeleton, bootstrapPattern, isPatternLoaded,
          connectWS, localCreate, localUpdate, localDelete,
          beginBatch, endBatch,
-         onInvalidate, onStatusChange, getStatus, getWS, onWSChange, getPendingCount } from './sync-manager.js';
+         onInvalidate, onStatusChange, getStatus, getWS, onWSChange, getPendingCount,
+         isCollabReady,
+         registerCollabRoom, unregisterCollabRoom, updateCollabPeers, getCollabInfo, onCollabChange,
+         resetAndRebootstrap } from './sync-manager.js';
 import { isLocal, addToScope, getSyncedTypes, clearScope } from './sync-scope.js';
 import { useQuery } from './use-query.js';
 
@@ -99,6 +102,8 @@ export function getSyncAPI() {
     useQuery,
     bootstrapPattern,
     isPatternLoaded,
+    isCollabReady,
+    resetAndRebootstrap,
   };
 }
 
@@ -122,4 +127,6 @@ export {
   useQuery,
   bootstrapPattern,
   isPatternLoaded,
+  isCollabReady,
+  resetAndRebootstrap,
 };

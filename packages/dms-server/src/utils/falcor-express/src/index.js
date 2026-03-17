@@ -79,10 +79,13 @@ FalcorEndpoint.dataSourceRoute = function(getDataSource) {
             }
         });
 
-        // If the client disconnects, tear down the Observable chain so we
-        // don't keep running DB queries and accumulating results in memory.
-        req.on('close', function() {
-            if (subscription && !subscription.isDisposed) {
+        // If the client disconnects before we send a response, tear down
+        // the Observable chain so we don't keep running DB queries.
+        // Use res 'close' (not req 'close') — in Node.js v15+ req emits
+        // 'close' after the request body is consumed, which is before async
+        // routes finish. res 'close' fires when the connection actually ends.
+        res.on('close', function() {
+            if (subscription && !subscription.isDisposed && !res.writableFinished) {
                 console.log('[falcor-express] Client disconnected, disposing subscription t=%d', Date.now());
                 subscription.dispose();
             }

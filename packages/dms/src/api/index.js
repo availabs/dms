@@ -230,54 +230,62 @@ export async function dmsDataLoader (falcor, config, path='/') {
 		const options = activeConfigs.find(ac => ['list','load','filteredLength'].includes(ac.action))?.filter?.options;
 		if(options) lengthReq = ['dms', 'data', `${ app }+${ type }`, 'options', options, 'length' ];
 	}
-	if(activeConfigs.find(ac => ['udaLength'].includes(ac.action))){
-		// special routes for 'load', 'uda' action
-		const options = activeConfigs.find(ac => ['udaLength'].includes(ac.action))?.filter?.options;
+
+	// UDA length requires invalidation first — must stay sequential
+	const hasUdaLength = activeConfigs.find(ac => ['udaLength'].includes(ac.action));
+	if(hasUdaLength){
+		const options = hasUdaLength?.filter?.options;
 		if(options) lengthReq = ['uda', env, 'viewsById', view_id, 'options', options, 'length' ];
         await falcor.invalidate(lengthReq)
     }
-    let length;
-    try{
 
-// console.log("dmsDataLoader::lengthReq",lengthReq);
-
-        length = get(await falcor.get(lengthReq), ['json',...lengthReq], 0)
-    }catch (e){
-        console.error('Error getting length')
-        length = 0;
-    }
-
-// console.log('dmsDataLoader::length',length);
-
+	// Length-only actions: fetch length alone and return immediately
 	if(activeConfigs.find(ac => ['length', 'filteredLength', 'udaLength', 'udaLength'].includes(ac.action))){
+		let length;
+		try {
+			length = get(await falcor.get(lengthReq), ['json',...lengthReq], 0)
+		} catch (e) {
+			console.error('Error getting length')
+			length = 0;
+		}
 		return length;
 	}
+
 	let options = activeConfigs[0]?.filter?.options || '{}';
 	const itemReqByIndex = ['dms', 'data', `${ app }+${ type }`, options !== '{}' ? 'opts' : false,
 									options !== '{}' ? options : false, 'byIndex'].filter(i => i)
 
 	// -- --------------------------------------------------------
 	// -- Create the requests based on all active configs
+	// -- Use null length so createRequest uses a ceiling value for
+	// -- toIndex, allowing length + data in a single falcor.get()
 	// -----------------------------------------------------------
 	const newRequests = activeConfigs
-		.map(config => createRequest(config, format, path, length))
+		.map(config => createRequest(config, format, path, null))
 		.filter(routes => routes?.length)
 
-	// console.log('api - newRequests', newRequests)
     //--------- Route Data Loading ------------------------
-	//let dataresp = null
-
+	// Combine length + data requests into a single falcor.get() to
+	// eliminate one HTTP round-trip. The length is fetched alongside
+	// the data instead of sequentially before it.
 	if (newRequests.length > 0 ) {
         try{
             const udaReqsToInvalidate = newRequests.filter(r => r.includes('uda'));
             if(udaReqsToInvalidate.length){
                 await falcor.invalidate(...udaReqsToInvalidate)
             }
-            await falcor.get(...newRequests)
+            await falcor.get(lengthReq, ...newRequests)
         }catch (e){
             console.error('Error fetching data', e)
         }
+	} else {
+		try {
+			await falcor.get(lengthReq)
+		} catch (e) {
+			console.error('Error getting length')
+		}
 	}
+	const length = get(falcor.getCache(), ['json',...lengthReq], 0);
 	// get api response
 	let newReqFalcor = falcor.getCache()
 

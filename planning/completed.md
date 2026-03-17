@@ -6,7 +6,8 @@
 
 ## api
 
-- [datawrapper-api-loading.md](./tasks/completed/datawrapper-api-loading.md) - DataWrapper API-layer loading: moved data fetching into React Router 7 loader via `preload` hook pattern; slug-based page matching, dataRequest enrichment to match component's runtime builder, page filter resolution + injection; eliminates post-mount data fetch waterfall for Spreadsheet/Card/Graph sections (2026-02-25)
+- [datawrapper-api-loading.md](./tasks/completed/datawrapper-api-loading.md)
+- [falcor-loader-parallel-requests.md](./tasks/completed/falcor-loader-parallel-requests.md) - Falcor loader parallel requests: combined length + data fetches into parallel requests for faster page loads (2026-03-16) - DataWrapper API-layer loading: moved data fetching into React Router 7 loader via `preload` hook pattern; slug-based page matching, dataRequest enrichment to match component's runtime builder, page filter resolution + injection; eliminates post-mount data fetch waterfall for Spreadsheet/Card/Graph sections (2026-02-25)
 
 ## dms-manager
 
@@ -25,9 +26,14 @@
 - [dms-db-copy.md](./tasks/completed/dms-db-copy.md) - Database copy CLI: cross-DB copy (PG↔SQLite), ::TEXT cast optimization, unnest() bulk PG inserts, split table discovery, sequence sync, --batch-size flag, 61 integration tests (2026-02-13)
 - [dms-server-file-upload.md](./tasks/completed/dms-server-file-upload.md) - File upload routes: CSV/Excel upload, publish, and validate as standalone synchronous endpoints in dms-server (2026-02-23)
 - [split-table-naming.md](./tasks/completed/split-table-naming.md) - Split table naming: `data_items__s{sourceId}_v{viewId}_{docType}` format, `parseType()` helper, async source_id lookup with cache, graceful fallback, migration script (2026-02-23)
-- [dms-table-splitting.md](./tasks/completed/dms-table-splitting.md) - Table splitting Tier 2: app-namespaced byId/edit routes (dual-route compat), client API changes (api/, CLI, patterns — ~25 call sites), 34 Tier 2 tests, migrate-to-per-app.js script, API docs (2026-02-23)
+- [dms-table-splitting.md](./tasks/completed/dms-table-splitting.md)
+- [per-app-pg-schemas.md](./tasks/completed/per-app-pg-schemas.md) - Per-app PostgreSQL schemas: `dms_{appname}` schemas instead of table name prefixes in per-app split mode; `resolveSchema()`, `ensureSchema()`, updated `resolveTable()`/`getSequenceName()`, removed stale guards in controller/UDA/sync (2026-03-16) - Table splitting Tier 2: app-namespaced byId/edit routes (dual-route compat), client API changes (api/, CLI, patterns — ~25 call sites), 34 Tier 2 tests, migrate-to-per-app.js script, API docs (2026-02-23)
+- [extract-lexical-images.md](./tasks/completed/extract-lexical-images.md) - Extract embedded images: scans data_items for base64 data URIs in Lexical nodes and map component `img` fields, extracts to files, replaces with URL paths; PG cursor with SQL-side filtering, per-app output dirs, SHA-256 deduplication (2026-03-16)
 - [search-tags-performance.md](./tasks/completed/search-tags-performance.md) - Search tags query optimization: replaced CTE+json_each+CAST join with direct section query, added partial expression index `(app, type, json_extract(data, '$.tags'))`, server-side 60s TTL cache. Production result: 264s → 6ms (44,000x speedup) (2026-03-03)
 - [sqlite-compat-fixes.md](./tasks/completed/sqlite-compat-fixes.md) - SQLite compatibility: ID type normalization (String coercion in all $ref paths and byId responses), PG→SQLite SQL translation (`array_agg`→`group_concat`/`json_group_array`, `to_jsonb(array_remove(array[...]))`→`json_array(...)`, `::text`→`typeCast`), 38 tests (2026-03-04)
+- [per-config-split-mode.md](./tasks/completed/per-config-split-mode.md) - Per-config split mode: moved `DMS_SPLIT_MODE` from server-wide env var to per-database-config `splitMode` field, with env var fallback for backward compatibility (2026-03-17)
+- [test-suite-per-app-mode.md](./tasks/completed/test-suite-per-app-mode.md) - Test suite per-app mode: migrated all test code from legacy `byId` route to app-namespaced route, set all test configs to `splitMode: "per-app"`, verified on SQLite + PostgreSQL (2026-03-17)
+- [fix-auth-test-pg-socket-hangup.md](./tasks/completed/fix-auth-test-pg-socket-hangup.md) - Fixed auth test #14 PG ECONNRESET: `req.on('close')` in falcor-express fired prematurely in Node.js v15+ (request body consumed ≠ client disconnect); changed to `res.on('close')` with `!res.writableFinished` guard (2026-03-17)
 
 ## ssr
 
@@ -38,7 +44,8 @@
 - [local-first-toy-sync.md](./tasks/completed/local-first-toy-sync.md) - Toy sync engine: standalone notes app proving SQLite WASM (wa-sqlite + OPFS), Yjs conflict resolution, revision-based sync protocol, passthrough pattern, multi-tab reactivity (2026-03-03)
 - [toy-sync-lexical.md](./tasks/completed/toy-sync-lexical.md) - Toy sync Lexical integration: replaced textarea with DMS Lexical rich text editor, dark theme provider, Tailwind @source for DMS files, Lexical JSON through Yjs LWW sync pipeline, live two-tab sync via remoteVersion remount, echo suppression fix (pendingItemIds per-item lifecycle), pushUpdate 404→create fallback, idempotent server POST (2026-03-03)
 - [toy-sync-collaborative-editing.md](./tasks/completed/toy-sync-collaborative-editing.md) - Toy sync collaborative editing: character-level Yjs ↔ Lexical binding via `@lexical/yjs` CollaborationPlugin, custom ToyProvider over existing WebSocket, room-based WS routing, server-side Y.Doc management + yjs_states persistence, Yjs sync protocol (step1/step2), cursor/presence awareness, user identity (2026-03-03)
-- [sync-pattern-scope.md](./tasks/completed/sync-pattern-scope.md) - Pattern-scoped sync + SQLite fix: chunked SQLite queries (LIMIT/OFFSET + setImmediate yielding), pattern-scoped bootstrap/delta/WS endpoints (?pattern=DOC_TYPE&siteType=Y, ?skeleton=SITE_TYPE), client skeleton bootstrap + on-demand bootstrapPattern(), per-pattern revision tracking, on-demand bootstrap in dmsDataLoader (2026-03-05)
+- [sync-pattern-scope.md](./tasks/completed/sync-pattern-scope.md)
+- [dms-local-first-sync.md](./tasks/completed/dms-local-first-sync.md) - DMS local-first sync integration: REST sync endpoints, WebSocket live notifications, Yjs collaborative editing, pattern-scoped bootstrap/delta, SQLite WASM client (2026-03-16) - Pattern-scoped sync + SQLite fix: chunked SQLite queries (LIMIT/OFFSET + setImmediate yielding), pattern-scoped bootstrap/delta/WS endpoints (?pattern=DOC_TYPE&siteType=Y, ?skeleton=SITE_TYPE), client skeleton bootstrap + on-demand bootstrapPattern(), per-pattern revision tracking, on-demand bootstrap in dmsDataLoader (2026-03-05)
 
 ## config
 

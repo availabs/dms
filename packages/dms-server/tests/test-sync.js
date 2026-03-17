@@ -13,7 +13,7 @@ const express = require('express');
 const { createTestGraph } = require('./graph');
 const { createSyncRoutes } = require('../src/routes/sync/sync');
 const { initWebSocket, notifyChange, getWSS } = require('../src/routes/sync/ws');
-const { getDb, awaitReady } = require('../src/db');
+const { getDb } = require('../src/db');
 
 const DB_NAME = process.env.DMS_TEST_DB || 'dms-sqlite';
 const TEST_APP = 'sync-test-' + Date.now();
@@ -39,11 +39,9 @@ async function setup() {
 
   // Create test graph for Falcor route access
   graph = createTestGraph(DB_NAME);
+  await graph.ready;
   console.log(`Database: ${DB_NAME} (${graph.dbType})`);
   console.log(`Test app: ${TEST_APP}\n`);
-
-  // Wait for DB init
-  await awaitReady();
 
   // Create a small Express app for sync endpoint testing
   const app = express();
@@ -502,6 +500,404 @@ async function testSequentialRevisions() {
 }
 
 // ============================================================================
+// COLLABORATIVE EDITING TESTS (Phase 4)
+// ============================================================================
+
+/**
+ * Helper: create a WebSocket client connected and subscribed to TEST_APP.
+ * Returns { ws, messages } where messages is an array that accumulates received messages.
+ */
+async function createWSClient() {
+  const WebSocket = require('ws');
+  const port = server.address().port;
+  const ws = new WebSocket(`ws://localhost:${port}/sync/subscribe`);
+
+  await new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error('WS connect timeout')), 5000);
+    ws.on('open', () => { clearTimeout(timeout); resolve(); });
+    ws.on('error', reject);
+  });
+
+  ws.send(JSON.stringify({ type: 'subscribe', app: TEST_APP }));
+  await new Promise(r => setTimeout(r, 50));
+
+  const messages = [];
+  ws.on('message', (data) => {
+    messages.push(JSON.parse(data.toString()));
+  });
+
+  return { ws, messages };
+}
+
+/**
+ * Helper: wait for a message of a given type to appear in a messages array.
+ */
+function waitForMessage(messages, type, timeoutMs = 3000) {
+  return new Promise((resolve, reject) => {
+    const deadline = setTimeout(() => reject(new Error(`Timeout waiting for ${type}`)), timeoutMs);
+    const interval = setInterval(() => {
+      const found = messages.find(m => m.type === type);
+      if (found) {
+        clearInterval(interval);
+        clearTimeout(deadline);
+        resolve(found);
+      }
+    }, 20);
+  });
+}
+
+async function testCollabJoinRoomSendsSync() {
+  console.log('--- Test: join-room sends yjs-sync-step1 ---');
+
+  const { ws, messages } = await createWSClient();
+  const roomId = 'collab-test-' + Date.now();
+
+  ws.send(JSON.stringify({ type: 'join-room', itemId: roomId }));
+
+  const syncStep1 = await waitForMessage(messages, 'yjs-sync-step1');
+  assert(syncStep1.itemId === roomId, `sync-step1 has correct itemId`);
+  assert(typeof syncStep1.stateVector === 'string', 'sync-step1 has stateVector (base64)');
+
+  // Should also get room-peers
+  const peers = await waitForMessage(messages, 'room-peers');
+  assert(peers.itemId === roomId, 'room-peers has correct itemId');
+  assert(peers.count === 1, `room-peers count is 1 (got ${peers.count})`);
+
+  ws.send(JSON.stringify({ type: 'leave-room', itemId: roomId }));
+  await new Promise(r => setTimeout(r, 100));
+  ws.close();
+
+  console.log('  \u2713 join-room sends yjs-sync-step1 + room-peers\n');
+}
+
+async function testCollabTwoClientSync() {
+  console.log('--- Test: two clients sync Yjs updates ---');
+
+  const Y = require('yjs');
+
+  const client1 = await createWSClient();
+  const client2 = await createWSClient();
+  const roomId = 'collab-sync-' + Date.now();
+
+  // Client 1 joins
+  client1.ws.send(JSON.stringify({ type: 'join-room', itemId: roomId }));
+  await waitForMessage(client1.messages, 'yjs-sync-step1');
+
+  // Client 2 joins
+  client2.ws.send(JSON.stringify({ type: 'join-room', itemId: roomId }));
+  await waitForMessage(client2.messages, 'yjs-sync-step1');
+
+  // Client 1 should see room-peers update to 2
+  const peers = await waitForMessage(client1.messages, 'room-peers');
+  // Find the one with count === 2 (there may be a count=1 first)
+  const peersMsg = client1.messages.filter(m => m.type === 'room-peers').pop();
+  assert(peersMsg.count === 2, `Client 1 sees 2 peers (got ${peersMsg.count})`);
+
+  // Client 1 creates a Yjs doc and sends an update
+  const doc1 = new Y.Doc();
+  const text1 = doc1.getText('root');
+  // Insert text into the doc
+  text1.insert(0, 'Hello from client 1');
+  const update = Y.encodeStateAsUpdate(doc1);
+  const base64Update = Buffer.from(update).toString('base64');
+
+  client1.ws.send(JSON.stringify({
+    type: 'yjs-update',
+    itemId: roomId,
+    update: base64Update,
+  }));
+
+  // Client 2 should receive the yjs-update
+  const received = await waitForMessage(client2.messages, 'yjs-update');
+  assert(received.itemId === roomId, 'yjs-update has correct itemId');
+  assert(typeof received.update === 'string', 'yjs-update has base64 update');
+
+  // Apply the received update to a fresh doc and verify content
+  const doc2 = new Y.Doc();
+  const binaryUpdate = new Uint8Array(Buffer.from(received.update, 'base64'));
+  Y.applyUpdate(doc2, binaryUpdate);
+  const text2 = doc2.getText('root');
+  assert(text2.toString() === 'Hello from client 1', `Client 2 received text: "${text2.toString()}"`);
+
+  // Cleanup
+  client1.ws.send(JSON.stringify({ type: 'leave-room', itemId: roomId }));
+  client2.ws.send(JSON.stringify({ type: 'leave-room', itemId: roomId }));
+  await new Promise(r => setTimeout(r, 100));
+  doc1.destroy();
+  doc2.destroy();
+  client1.ws.close();
+  client2.ws.close();
+
+  console.log('  \u2713 two clients sync Yjs updates\n');
+}
+
+async function testCollabPeerCountUpdates() {
+  console.log('--- Test: peer count updates on join/leave ---');
+
+  const client1 = await createWSClient();
+  const client2 = await createWSClient();
+  const client3 = await createWSClient();
+  const roomId = 'collab-peers-' + Date.now();
+
+  // Client 1 joins
+  client1.ws.send(JSON.stringify({ type: 'join-room', itemId: roomId }));
+  await waitForMessage(client1.messages, 'room-peers');
+  let lastPeers = client1.messages.filter(m => m.type === 'room-peers').pop();
+  assert(lastPeers.count === 1, `After client1 join: 1 peer (got ${lastPeers.count})`);
+
+  // Client 2 joins
+  client2.ws.send(JSON.stringify({ type: 'join-room', itemId: roomId }));
+  await waitForMessage(client2.messages, 'room-peers');
+
+  // Wait for client1 to get the updated count
+  await new Promise(r => setTimeout(r, 100));
+  lastPeers = client1.messages.filter(m => m.type === 'room-peers').pop();
+  assert(lastPeers.count === 2, `After client2 join: 2 peers (got ${lastPeers.count})`);
+
+  // Client 3 joins
+  client3.ws.send(JSON.stringify({ type: 'join-room', itemId: roomId }));
+  await waitForMessage(client3.messages, 'room-peers');
+  await new Promise(r => setTimeout(r, 100));
+  lastPeers = client1.messages.filter(m => m.type === 'room-peers').pop();
+  assert(lastPeers.count === 3, `After client3 join: 3 peers (got ${lastPeers.count})`);
+
+  // Client 2 leaves
+  client2.ws.send(JSON.stringify({ type: 'leave-room', itemId: roomId }));
+  await new Promise(r => setTimeout(r, 200));
+  lastPeers = client1.messages.filter(m => m.type === 'room-peers').pop();
+  assert(lastPeers.count === 2, `After client2 leave: 2 peers (got ${lastPeers.count})`);
+
+  // Cleanup
+  client1.ws.send(JSON.stringify({ type: 'leave-room', itemId: roomId }));
+  client3.ws.send(JSON.stringify({ type: 'leave-room', itemId: roomId }));
+  await new Promise(r => setTimeout(r, 100));
+  client1.ws.close();
+  client2.ws.close();
+  client3.ws.close();
+
+  console.log('  \u2713 peer count updates on join/leave\n');
+}
+
+async function testCollabYjsStatePersistence() {
+  console.log('--- Test: Yjs state persists to yjs_states table ---');
+
+  const Y = require('yjs');
+  const db = getDb(DB_NAME);
+  const yjsTbl = graph.dbType === 'postgres' ? 'dms.yjs_states' : 'yjs_states';
+
+  // We need a real item ID for persistence (yjs_states references data_items)
+  // Use a simple numeric room ID — the ws.js code doesn't enforce FK constraints
+  const roomId = '999999';
+
+  // Clean up any pre-existing state
+  try { await db.promise(`DELETE FROM ${yjsTbl} WHERE item_id = $1`, [roomId]); } catch {}
+
+  const { ws, messages } = await createWSClient();
+
+  // Join room
+  ws.send(JSON.stringify({ type: 'join-room', itemId: roomId }));
+  await waitForMessage(messages, 'yjs-sync-step1');
+
+  // Send a Yjs update
+  const doc = new Y.Doc();
+  doc.getText('root').insert(0, 'Persisted text');
+  const update = Y.encodeStateAsUpdate(doc);
+  ws.send(JSON.stringify({
+    type: 'yjs-update',
+    itemId: roomId,
+    update: Buffer.from(update).toString('base64'),
+  }));
+
+  // Wait for flush (FLUSH_DELAY is 2000ms in ws.js)
+  await new Promise(r => setTimeout(r, 2500));
+
+  // Check yjs_states table
+  const rows = await db.promise(`SELECT * FROM ${yjsTbl} WHERE item_id = $1`, [roomId]);
+  assert(rows.length === 1, `yjs_states has 1 row for item ${roomId} (got ${rows.length})`);
+  assert(rows[0].state, 'state column is not null');
+
+  // Verify the persisted state contains the text
+  const persistedDoc = new Y.Doc();
+  const buf = rows[0].state instanceof Buffer ? rows[0].state : Buffer.from(rows[0].state);
+  Y.applyUpdate(persistedDoc, new Uint8Array(buf));
+  const persistedText = persistedDoc.getText('root').toString();
+  assert(persistedText === 'Persisted text', `Persisted text matches: "${persistedText}"`);
+
+  // Leave room — triggers final flush + cleanup
+  ws.send(JSON.stringify({ type: 'leave-room', itemId: roomId }));
+  await new Promise(r => setTimeout(r, 500));
+  ws.close();
+
+  doc.destroy();
+  persistedDoc.destroy();
+
+  // Clean up
+  try { await db.promise(`DELETE FROM ${yjsTbl} WHERE item_id = $1`, [roomId]); } catch {}
+
+  console.log('  \u2713 Yjs state persists to yjs_states table\n');
+}
+
+async function testCollabStateRestoredOnRejoin() {
+  console.log('--- Test: Yjs state restored when new client joins ---');
+
+  const Y = require('yjs');
+  const db = getDb(DB_NAME);
+  const yjsTbl = graph.dbType === 'postgres' ? 'dms.yjs_states' : 'yjs_states';
+  const roomId = '999998';
+
+  // Clean up
+  try { await db.promise(`DELETE FROM ${yjsTbl} WHERE item_id = $1`, [roomId]); } catch {}
+
+  // Client 1: join, write, leave (wait for flush + cleanup)
+  const client1 = await createWSClient();
+  client1.ws.send(JSON.stringify({ type: 'join-room', itemId: roomId }));
+  await waitForMessage(client1.messages, 'yjs-sync-step1');
+
+  const doc1 = new Y.Doc();
+  doc1.getText('root').insert(0, 'Restored text');
+  const update = Y.encodeStateAsUpdate(doc1);
+  client1.ws.send(JSON.stringify({
+    type: 'yjs-update',
+    itemId: roomId,
+    update: Buffer.from(update).toString('base64'),
+  }));
+
+  // Wait for debounced flush
+  await new Promise(r => setTimeout(r, 2500));
+
+  // Leave — triggers cleanupRoom which flushes again and destroys the Y.Doc
+  client1.ws.send(JSON.stringify({ type: 'leave-room', itemId: roomId }));
+  await new Promise(r => setTimeout(r, 500));
+  client1.ws.close();
+  doc1.destroy();
+
+  // Client 2: join the same room — should get the persisted state via sync-step2
+  const client2 = await createWSClient();
+  client2.ws.send(JSON.stringify({ type: 'join-room', itemId: roomId }));
+
+  // Should receive sync-step1 + sync-step2 with the persisted content
+  await waitForMessage(client2.messages, 'yjs-sync-step1');
+
+  // Wait a bit for sync-step2
+  await new Promise(r => setTimeout(r, 200));
+  const syncStep2 = client2.messages.find(m => m.type === 'yjs-sync-step2');
+  assert(syncStep2, 'Client 2 received yjs-sync-step2 with persisted state');
+  assert(syncStep2.itemId === roomId, 'sync-step2 has correct itemId');
+
+  // Decode and verify
+  const doc2 = new Y.Doc();
+  Y.applyUpdate(doc2, new Uint8Array(Buffer.from(syncStep2.update, 'base64')));
+  const restoredText = doc2.getText('root').toString();
+  assert(restoredText === 'Restored text', `Restored text matches: "${restoredText}"`);
+
+  // Cleanup
+  client2.ws.send(JSON.stringify({ type: 'leave-room', itemId: roomId }));
+  await new Promise(r => setTimeout(r, 100));
+  client2.ws.close();
+  doc2.destroy();
+  try { await db.promise(`DELETE FROM ${yjsTbl} WHERE item_id = $1`, [roomId]); } catch {}
+
+  console.log('  \u2713 Yjs state restored when new client joins\n');
+}
+
+async function testCollabUpdateNotSentBackToSender() {
+  console.log('--- Test: yjs-update not echoed back to sender ---');
+
+  const Y = require('yjs');
+  const client1 = await createWSClient();
+  const client2 = await createWSClient();
+  const roomId = 'collab-echo-' + Date.now();
+
+  client1.ws.send(JSON.stringify({ type: 'join-room', itemId: roomId }));
+  client2.ws.send(JSON.stringify({ type: 'join-room', itemId: roomId }));
+  await waitForMessage(client1.messages, 'yjs-sync-step1');
+  await waitForMessage(client2.messages, 'yjs-sync-step1');
+
+  // Clear accumulated messages
+  client1.messages.length = 0;
+  client2.messages.length = 0;
+
+  // Client 1 sends an update
+  const doc = new Y.Doc();
+  doc.getText('root').insert(0, 'No echo');
+  const update = Y.encodeStateAsUpdate(doc);
+  client1.ws.send(JSON.stringify({
+    type: 'yjs-update',
+    itemId: roomId,
+    update: Buffer.from(update).toString('base64'),
+  }));
+
+  // Wait for relay
+  await waitForMessage(client2.messages, 'yjs-update');
+
+  // Client 1 should NOT have received the yjs-update back
+  await new Promise(r => setTimeout(r, 200));
+  const echoed = client1.messages.filter(m => m.type === 'yjs-update');
+  assert(echoed.length === 0, `Client 1 received 0 echoed yjs-updates (got ${echoed.length})`);
+
+  // Client 2 SHOULD have received it
+  const relayed = client2.messages.filter(m => m.type === 'yjs-update');
+  assert(relayed.length === 1, `Client 2 received 1 yjs-update (got ${relayed.length})`);
+
+  // Cleanup
+  client1.ws.send(JSON.stringify({ type: 'leave-room', itemId: roomId }));
+  client2.ws.send(JSON.stringify({ type: 'leave-room', itemId: roomId }));
+  await new Promise(r => setTimeout(r, 100));
+  doc.destroy();
+  client1.ws.close();
+  client2.ws.close();
+
+  console.log('  \u2713 yjs-update not echoed back to sender\n');
+}
+
+async function testCollabAwarenessRelay() {
+  console.log('--- Test: awareness updates relayed between clients ---');
+
+  const awarenessProtocol = require('y-protocols/awareness');
+  const Y = require('yjs');
+
+  const client1 = await createWSClient();
+  const client2 = await createWSClient();
+  const roomId = 'collab-awareness-' + Date.now();
+
+  client1.ws.send(JSON.stringify({ type: 'join-room', itemId: roomId }));
+  client2.ws.send(JSON.stringify({ type: 'join-room', itemId: roomId }));
+  await waitForMessage(client1.messages, 'yjs-sync-step1');
+  await waitForMessage(client2.messages, 'yjs-sync-step1');
+
+  // Clear
+  client2.messages.length = 0;
+
+  // Client 1 sends an awareness update
+  const doc1 = new Y.Doc();
+  const awareness1 = new awarenessProtocol.Awareness(doc1);
+  awareness1.setLocalState({ name: 'TestUser', color: '#ff0000' });
+  const awarenessUpdate = awarenessProtocol.encodeAwarenessUpdate(awareness1, [doc1.clientID]);
+
+  client1.ws.send(JSON.stringify({
+    type: 'yjs-awareness',
+    itemId: roomId,
+    update: Buffer.from(awarenessUpdate).toString('base64'),
+  }));
+
+  // Client 2 should receive the awareness update
+  const received = await waitForMessage(client2.messages, 'yjs-awareness');
+  assert(received.itemId === roomId, 'awareness update has correct itemId');
+  assert(typeof received.update === 'string', 'awareness update has base64 data');
+
+  // Cleanup
+  client1.ws.send(JSON.stringify({ type: 'leave-room', itemId: roomId }));
+  client2.ws.send(JSON.stringify({ type: 'leave-room', itemId: roomId }));
+  await new Promise(r => setTimeout(r, 100));
+  awareness1.destroy();
+  doc1.destroy();
+  client1.ws.close();
+  client2.ws.close();
+
+  console.log('  \u2713 awareness updates relayed between clients\n');
+}
+
+// ============================================================================
 // RUNNER
 // ============================================================================
 
@@ -522,6 +918,14 @@ const tests = [
   testWebSocketBroadcast,
   testWebSocketBroadcastFromFalcor,
   testSequentialRevisions,
+  // Phase 4: Collaborative editing
+  testCollabJoinRoomSendsSync,
+  testCollabTwoClientSync,
+  testCollabPeerCountUpdates,
+  testCollabYjsStatePersistence,
+  testCollabStateRestoredOnRejoin,
+  testCollabUpdateNotSentBackToSender,
+  testCollabAwarenessRelay,
 ];
 
 async function run() {

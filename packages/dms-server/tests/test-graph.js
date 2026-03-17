@@ -14,6 +14,7 @@ const TEST_APP = 'graph-test-' + Date.now();
 async function setup() {
   console.log('Setting up test graph...');
   graph = createTestGraph(DB_NAME);
+  await graph.ready;
   console.log(`Database: ${DB_NAME} (${graph.dbType})`);
   console.log(`Test app: ${TEST_APP}\n`);
 }
@@ -98,10 +99,10 @@ async function testCreateAndGet() {
 
   // GET the item back
   const getResult = await graph.getAsync([
-    ['dms', 'data', 'byId', createdId, ['id', 'app', 'type']]
+    ['dms', 'data', TEST_APP, 'byId', createdId, ['id', 'app', 'type']]
   ]);
 
-  const item = getResult.jsonGraph?.dms?.data?.byId?.[createdId];
+  const item = getResult.jsonGraph?.dms?.data?.[TEST_APP]?.byId?.[createdId];
   console.log(`  Retrieved: id=${item?.id}, app=${item?.app}, type=${item?.type}`);
 
   if (item?.app !== TEST_APP) {
@@ -123,19 +124,19 @@ async function testEditData(id) {
   // Edit the data
   const editResult = await graph.callAsync(
     ['dms', 'data', 'edit'],
-    [id, { title: 'Test Title', count: 42 }]
+    [TEST_APP, id, { title: 'Test Title', count: 42 }]
   );
 
   // Verify the edit response
-  const editedItem = editResult.jsonGraph?.dms?.data?.byId?.[id];
+  const editedItem = editResult.jsonGraph?.dms?.data?.[TEST_APP]?.byId?.[id];
   console.log(`  Edited item data:`, editedItem?.data?.value);
 
   // GET the item to verify
   const getResult = await graph.getAsync([
-    ['dms', 'data', 'byId', id, 'data']
+    ['dms', 'data', TEST_APP, 'byId', id, 'data']
   ]);
 
-  const data = getResult.jsonGraph?.dms?.data?.byId?.[id]?.data?.value;
+  const data = getResult.jsonGraph?.dms?.data?.[TEST_APP]?.byId?.[id]?.data?.value;
   console.log(`  Retrieved data: title=${data?.title}, count=${data?.count}`);
 
   if (data?.title !== 'Test Title') {
@@ -162,10 +163,10 @@ async function testDelete(id) {
 
   // Try to GET the deleted item - should return null or undefined
   const getResult = await graph.getAsync([
-    ['dms', 'data', 'byId', id, 'id']
+    ['dms', 'data', TEST_APP, 'byId', id, 'id']
   ]);
 
-  const item = getResult.jsonGraph?.dms?.data?.byId?.[id];
+  const item = getResult.jsonGraph?.dms?.data?.[TEST_APP]?.byId?.[id];
   console.log(`  After delete, item:`, item);
 
   // The item should be gone or null
@@ -206,10 +207,10 @@ async function testCreateWithData() {
 
   // GET the item to verify the data was actually saved
   const getResult = await graph.getAsync([
-    ['dms', 'data', 'byId', createdId, 'data']
+    ['dms', 'data', TEST_APP, 'byId', createdId, 'data']
   ]);
 
-  const data = getResult.jsonGraph?.dms?.data?.byId?.[createdId]?.data?.value;
+  const data = getResult.jsonGraph?.dms?.data?.[TEST_APP]?.byId?.[createdId]?.data?.value;
   console.log(`  Retrieved data:`, JSON.stringify(data).slice(0, 100) + '...');
 
   // Verify the data was saved correctly
@@ -261,10 +262,10 @@ async function testSearchOneWithIntegerIndex() {
 
   // Test Bug 1 fix: GET byId with data ->> 'index' should return 0, not null
   const getResult = await graph.getAsync([
-    ['dms', 'data', 'byId', pageId, ["data ->> 'index'", "data ->> 'title'"]]
+    ['dms', 'data', TEST_APP, 'byId', pageId, ["data ->> 'index'", "data ->> 'title'"]]
   ]);
 
-  const pageRow = getResult.jsonGraph?.dms?.data?.byId?.[pageId];
+  const pageRow = getResult.jsonGraph?.dms?.data?.[TEST_APP]?.byId?.[pageId];
   const indexValue = pageRow?.["data ->> 'index'"];
   console.log(`  data ->> 'index' = ${JSON.stringify(indexValue)} (type: ${typeof indexValue})`);
 

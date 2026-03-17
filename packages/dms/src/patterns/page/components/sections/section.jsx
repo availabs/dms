@@ -95,7 +95,8 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
 
     return (
         <ComponentContext.Provider value={{state, setState, apiLoad, apiUpdate, controls: resolvedControls,
-            isActive: value?.element?.['element-type'] === 'Spreadsheet', activeStyle: value?.activeStyle}}>
+            isActive: value?.element?.['element-type'] === 'Spreadsheet', activeStyle: value?.activeStyle,
+            sectionId: value?.id}}>
             <div className={theme.wrapper}>
                 {/* -------------------top line buttons ----------------------*/}
                 <div id={`#${value?.title?.replace(/ /g, '_')}`}

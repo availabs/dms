@@ -16,7 +16,7 @@ function parseArgs() {
   const args = process.argv.slice(2);
   const opts = {
     source: null, output: './extracted-images', urlPrefix: '/img/',
-    app: null, type: null, dryRun: false, minSize: 0,
+    app: null, type: null, dryRun: false, minSize: 0, perApp: false,
   };
 
   for (let i = 0; i < args.length; i++) {
@@ -28,6 +28,7 @@ function parseArgs() {
       case '--type': opts.type = args[++i]; break;
       case '--dry-run': opts.dryRun = true; break;
       case '--min-size': opts.minSize = parseInt(args[++i], 10); break;
+      case '--per-app': opts.perApp = true; break;
       default:
         console.error(`Unknown argument: ${args[i]}`);
         process.exit(1);
@@ -122,30 +123,50 @@ function processRow(id, dataStr, urlPrefix, minSize) {
     return { modified: null, images: [] };
   }
 
-  const root = inner?.text?.root || inner?.root;
-  if (!root) return { modified: null, images: [] };
-
   const images = [];
   let nodeIndex = 0;
 
-  walkImageNodes(root, (node) => {
-    const parsed = parseDataUri(node.src);
-    if (!parsed) return;
-    if (parsed.buffer.length < minSize) return;
+  // Extract from Lexical node tree (text sections)
+  const root = inner?.text?.root || inner?.root;
+  if (root) {
+    walkImageNodes(root, (node) => {
+      const parsed = parseDataUri(node.src);
+      if (!parsed) return;
+      if (parsed.buffer.length < minSize) return;
 
-    const hash = createHash('sha256').update(parsed.buffer).digest('hex').slice(0, 12);
-    const filename = `${id}_${nodeIndex}_${hash}.${parsed.ext}`;
-    const newSrc = `${urlPrefix}${filename}`;
+      const hash = createHash('sha256').update(parsed.buffer).digest('hex').slice(0, 12);
+      const filename = `${id}_${nodeIndex}_${hash}.${parsed.ext}`;
+      const newSrc = `${urlPrefix}${filename}`;
 
-    images.push({
-      filename, mime: parsed.mime, ext: parsed.ext,
-      buffer: parsed.buffer, decodedBytes: parsed.buffer.length,
-      b64Chars: parsed.b64Length, hash, newSrc,
+      images.push({
+        filename, mime: parsed.mime, ext: parsed.ext,
+        buffer: parsed.buffer, decodedBytes: parsed.buffer.length,
+        b64Chars: parsed.b64Length, hash, newSrc,
+      });
+
+      node.src = newSrc;
+      nodeIndex++;
     });
+  }
 
-    node.src = newSrc;
-    nodeIndex++;
-  });
+  // Extract from direct img property (map/component sections)
+  if (typeof inner.img === 'string' && inner.img.startsWith('data:image/')) {
+    const parsed = parseDataUri(inner.img);
+    if (parsed && parsed.buffer.length >= minSize) {
+      const hash = createHash('sha256').update(parsed.buffer).digest('hex').slice(0, 12);
+      const filename = `${id}_${nodeIndex}_${hash}.${parsed.ext}`;
+      const newSrc = `${urlPrefix}${filename}`;
+
+      images.push({
+        filename, mime: parsed.mime, ext: parsed.ext,
+        buffer: parsed.buffer, decodedBytes: parsed.buffer.length,
+        b64Chars: parsed.b64Length, hash, newSrc,
+      });
+
+      inner.img = newSrc;
+      nodeIndex++;
+    }
+  }
 
   if (images.length === 0) return { modified: null, images: [] };
 
@@ -214,6 +235,7 @@ async function* iteratePostgresRows(db, app, type) {
 
   if (app) { conditions.push(`app = $${idx++}`); params.push(app); }
   if (type) { conditions.push(`type LIKE $${idx++}`); params.push(type); }
+  conditions.push(`data::TEXT LIKE '%data:image%'`);
 
   const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
   const FETCH_SIZE = 200;
@@ -221,7 +243,7 @@ async function* iteratePostgresRows(db, app, type) {
   try {
     await client.query('BEGIN');
     await client.query(
-      `DECLARE img_cursor NO SCROLL CURSOR FOR SELECT id, data::TEXT AS data FROM dms.data_items ${where} ORDER BY id`,
+      `DECLARE img_cursor NO SCROLL CURSOR FOR SELECT id, app, data::TEXT AS data FROM dms.data_items ${where} ORDER BY id`,
       params
     );
 
@@ -230,9 +252,7 @@ async function* iteratePostgresRows(db, app, type) {
       if (rows.length === 0) break;
 
       for (const row of rows) {
-        if (row.data && row.data.includes('data:image')) {
-          yield { id: row.id, data: row.data };
-        }
+        yield { id: row.id, app: row.app, data: row.data };
       }
     }
 
@@ -260,6 +280,7 @@ async function main() {
   console.log(`  URL prefix: ${args.urlPrefix}`);
   if (args.app) console.log(`  App filter: ${args.app}`);
   if (args.type) console.log(`  Type filter: ${args.type}`);
+  if (args.perApp) console.log(`  Per-app subdirs: yes`);
   if (args.minSize) console.log(`  Min size: ${args.minSize} bytes`);
   if (args.dryRun) console.log(`  Dry run: yes`);
   console.log();
@@ -291,10 +312,17 @@ async function main() {
   /**
    * Process a single candidate row: extract images, write files, update DB.
    */
-  async function handleRow(id, dataStr) {
+  async function handleRow(id, dataStr, rowApp) {
     rowsScanned++;
 
-    const { modified, images } = processRow(id, dataStr, args.urlPrefix, args.minSize);
+    const urlPrefix = args.perApp && rowApp
+      ? `${args.urlPrefix}${rowApp}/`
+      : args.urlPrefix;
+    const outputDir = args.perApp && rowApp
+      ? join(args.output, rowApp)
+      : args.output;
+
+    const { modified, images } = processRow(id, dataStr, urlPrefix, args.minSize);
     if (!modified || images.length === 0) return;
 
     rowsWithImages++;
@@ -304,7 +332,8 @@ async function main() {
       totalDecodedBytes += img.decodedBytes;
 
       if (!args.dryRun) {
-        const filePath = join(args.output, img.filename);
+        mkdirSync(outputDir, { recursive: true });
+        const filePath = join(outputDir, img.filename);
         if (!existsSync(filePath)) {
           writeFileSync(filePath, img.buffer);
         }
@@ -342,13 +371,13 @@ async function main() {
     for (const id of candidateIds) {
       const dataStr = readSqliteRow(db, id);
       if (!dataStr) continue;
-      await handleRow(id, dataStr);
+      await handleRow(id, dataStr, args.app);
     }
   } else {
     // PostgreSQL: stream with server-side cursor
     const rows = iteratePostgresRows(db, args.app, args.type);
     for await (const row of rows) {
-      await handleRow(row.id, row.data);
+      await handleRow(row.id, row.data, row.app);
     }
   }
 

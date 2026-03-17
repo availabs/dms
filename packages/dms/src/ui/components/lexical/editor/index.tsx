@@ -7,6 +7,7 @@
  */
 import React from 'react';
 import { LexicalComposer } from '@lexical/react/LexicalComposer';
+import { LexicalCollaboration } from '@lexical/react/LexicalCollaborationContext';
 
 import {OnChangePlugin} from '@lexical/react/LexicalOnChangePlugin';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
@@ -51,7 +52,7 @@ export const createHeadlessEditor = ({ namespace, flatTheme, icons }) => {
 
 
 
-export default function Lexicals ({value, hideControls, showBorder, onChange, bgColor, editable=false, id, theme: themeProp, styleName}) {
+export default function Lexicals ({value, hideControls, showBorder, onChange, bgColor, editable=false, id, theme: themeProp, styleName, isCollab, collabId, collabUsername, collabCursorColor}) {
   // Get theme from ThemeContext if not passed as prop
   const { theme: contextTheme } = React.useContext(ThemeContext) || {};
   const theme = themeProp || contextTheme;
@@ -68,7 +69,11 @@ export default function Lexicals ({value, hideControls, showBorder, onChange, bg
   }
 
     const initialConfig = {
-        editorState: isLexicalJSON(value) ? value : null,
+        // In collab mode, Yjs is the source of truth — editor starts empty,
+        // content arrives via Yjs sync. The existing value is passed to
+        // CollaborationPlugin's initialEditorState prop for first-time
+        // bootstrap (seeds Yjs when the server doc is empty).
+        editorState: isCollab ? null : (isLexicalJSON(value) ? value : null),
         namespace: 'dms-lexical',
         nodes: [...PlaygroundNodes],
         editable: editable,
@@ -80,10 +85,28 @@ export default function Lexicals ({value, hideControls, showBorder, onChange, bg
         theme: nestedLexicalTheme,
     };
 
-  return (
-    <LexicalThemeContext.Provider value={theme}>
-      <LexicalComposer key={id} initialConfig={initialConfig}>
-        <div className={`${nestedLexicalTheme.editorShell} ${showBorder ? 'border rounded-md' : ''}`}>
+  // For collab first-time bootstrap: if Yjs doc is empty, seed it with existing content
+  const collabInitialState = isCollab && isLexicalJSON(value) ? value : undefined;
+
+  const inner = (
+    <LexicalComposer key={isCollab ? `collab-${collabId}` : id} initialConfig={initialConfig}>
+      <div className={`${nestedLexicalTheme.editorShell} ${showBorder ? 'border rounded-md' : ''}`}>
+        {isCollab ? (
+          <>
+            <Editor
+              theme={nestedLexicalTheme}
+              editable={editable}
+              hideControls={hideControls}
+              bgColor={bgColor}
+              isCollab={true}
+              collabId={collabId}
+              collabInitialState={collabInitialState}
+              collabUsername={collabUsername}
+              collabCursorColor={collabCursorColor}
+            />
+            {onChange && <OnChangePlugin onChange={onChange} />}
+          </>
+        ) : (
           <UpdateEditor
             value={value}
             hideControls={hideControls}
@@ -92,8 +115,18 @@ export default function Lexicals ({value, hideControls, showBorder, onChange, bg
             editable={editable}
             theme={nestedLexicalTheme}
           />
-        </div>
-      </LexicalComposer>
+        )}
+      </div>
+    </LexicalComposer>
+  );
+
+  return (
+    <LexicalThemeContext.Provider value={theme}>
+      {isCollab ? (
+        <LexicalCollaboration>{inner}</LexicalCollaboration>
+      ) : (
+        inner
+      )}
     </LexicalThemeContext.Provider>
   );
 }

@@ -10,13 +10,14 @@
 - [x] Toy sync engine — standalone notes app proving SQLite WASM (wa-sqlite + OPFS), Yjs conflict resolution, revision-based sync protocol, passthrough pattern, and multi-tab reactivity
 - [x] Toy sync Lexical integration — replace textarea with DMS Lexical editor, Lexical JSON flowing through existing Yjs sync pipeline (LWW per field, not character-level collab)
 - [x] Toy sync collaborative editing — character-level Yjs ↔ Lexical binding via `CollaborationPlugin`, custom Yjs provider over existing WebSocket, room-based routing, cursor awareness, server-side Yjs state persistence
-- [ ] DMS local-first sync integration — server change_log + sync endpoints + WebSocket, client SQLite WASM + sync manager + reactive queries, passthrough to Falcor, Lexical live sync, opt-in via `DMS_SYNC=1` *(Phases 1-2 DONE: server change_log/REST/WS/tests + client sync modules all implemented. Phase 3 integration remaining: sync-aware loader/editor, DmsSite wiring, status UI)*
+- [x] DMS local-first sync integration — server change_log + sync endpoints + WebSocket, client SQLite WASM + sync manager + reactive queries, passthrough to Falcor, Lexical live sync, opt-in via `VITE_DMS_SYNC=1`. All 5 phases complete (server, client, DMS integration, Lexical collab, production hardening + docs). Multi-tab coordination deferred to Phase 5b.
 - [x] Pattern-scoped sync + SQLite fix — fix SQLite event loop blocking (chunked bootstrap queries), change sync boundary from app to pattern (doc_type), skeleton bootstrap for site structure, on-demand pattern bootstrap on navigation
 
 ## api
 
 - [x] DataWrapper API-layer loading — move dataWrapper data fetching into the DMS API/loader so section data loads at navigation time (React Router 7 loader) instead of after component mount; detect dataWrapper sections, extract URL-mapped filter params, pre-run getData(), leverage cache freshness to skip component-level re-fetch
 - [ ] DataWrapper skip fetch when cached — when "Always Fetch Data" is OFF, skip API call entirely and use cached `element-data`; currently Pagination.jsx auto-sets `readyToLoad=true` for non-paginated views, bypassing the user's toggle
+- [x] Falcor loader parallel requests — combine sequential `length` + data `falcor.get()` calls into a single call using a ceiling value for `toIndex`, eliminating one HTTP round-trip (~50ms) from first page load
 
 ## ssr
 
@@ -40,11 +41,17 @@
 - [x] File upload routes — CSV/Excel upload, publish, and validate in dms-server as standalone synchronous endpoints (no pg-boss, no ETL events, no GDAL)
 - [x] Table splitting — per-type split tables + per-app isolation. Tier 1: table-resolver.js, controller/UDA integration, 104 tests. Tier 2: app-namespaced routes, client API changes (~25 call sites), migration script, API docs. Total: 138 tests.
 - [x] SQLite compatibility fixes — ID type normalization (string coercion for consistent `$ref` resolution) + UDA controller PG-only SQL translation (`array_agg`, `array_remove`, `to_jsonb`, `ARRAY[...]`)
+- [x] Test suite per-app mode — migrate test code from legacy `byId` route to app-namespaced route, set all test configs to `splitMode: "per-app"`, verify on SQLite + PostgreSQL
+- [x] Fix auth test PG socket hang up — `test-auth.js` test #14 (Falcor created_by/updated_by) fails on PostgreSQL with `ECONNRESET`; client disconnects before Falcor route response arrives
 - [ ] Split table virtual columns — auto-generate SQLite virtual columns + indexes (and PG expression indexes) from source config attributes for B-tree query speed on dataset tables
 - [x] Database copy CLI — `src/scripts/copy-db.js` copies all DMS data between databases (PG↔SQLite, same-type), preserving IDs, handling cross-DB types, batch processing, split table discovery
 - [x] Dead row cleanup CLI — `src/scripts/cleanup-db.js` analyzes DMS database for orphaned rows (sections without pages, patterns without sites, views without sources), grouped by app+type, with optional `--delete` mode
 - [x] Fix orphaned pages detection — `findOrphanedPages` produces false positives when pattern metadata is missing/misconfigured, causing mass page deletion; pages detector currently disabled from `--delete` mode; also added `page_edits` orphan detection and `skipData` memory optimization
-- [ ] Extract embedded Lexical images — script to scan data_items for base64 data URIs in InlineImageNode `src` fields, extract to files, replace with URL paths; deduplication via content hash
+- [x] Extract embedded Lexical images — script to scan data_items for base64 data URIs in InlineImageNode `src` fields, extract to files, replace with URL paths; deduplication via content hash
+- [ ] Clean dms-mercury2 database — delete obsolete apps, countytemplate patterns, templated pages, obsolete patterns, extract images, consolidate history, run orphan cleanup, VACUUM, prepare for split-app mode; target under 200 MB
+- [ ] Deprecate internal_dataset for internal_table — migration script to convert UUID doc_types to name-based, move data rows from data_items to split tables, update source records; remove internal_dataset from type selector
+- [x] Per-app PostgreSQL schemas — in per-app split mode, use `dms_{appname}` schemas instead of table name prefixes (`dms.data_items__appname` → `dms_appname.data_items`); SQLite unchanged
+- [x] Per-config split mode — move `DMS_SPLIT_MODE` from server-wide env var to per-database-config setting (`splitMode` field in config JSON), with env var fallback for backward compatibility
 
 ## ui
 

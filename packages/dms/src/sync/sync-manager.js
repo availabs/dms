@@ -10,9 +10,14 @@
  *   - WebSocket subscribes per-app
  */
 
-import { exec } from './db-client.js';
+import { exec, execBatch } from './db-client.js';
 import { applyLocal, applyRemote, initFromData, getData } from './yjs-store.js';
-import { addToScope } from './sync-scope.js';
+import { addToScope, clearScope } from './sync-scope.js';
+
+// If a delta response exceeds this many changes, discard it and do a full
+// re-bootstrap for that scope instead.  This avoids applying extremely large
+// change-sets that would be slower than a fresh snapshot.
+const STALE_DELTA_THRESHOLD = 1000;
 
 // Event bus for invalidation
 const listeners = new Set();
@@ -39,6 +44,8 @@ let _siteType = '';
 
 // Track which patterns have been bootstrapped
 const _loadedPatterns = new Set();
+// Inflight bootstrap promises — deduplicates concurrent calls for the same pattern
+const _inflightBootstraps = new Map();
 
 export function configure(app, apiHost, siteType = '') {
   _app = app;
@@ -71,43 +78,56 @@ async function setLastRevision(rev, scope = null) {
 }
 
 async function applyChanges(changes) {
+  const statements = [];
   for (const change of changes) {
-    if (change.action === 'I' || change.action === 'U') {
-      if (pendingItemIds.has(change.item_id)) continue;
+    if (pendingItemIds.has(change.item_id)) continue;
 
+    if (change.action === 'I' || change.action === 'U') {
       const dataStr = typeof change.data === 'string' ? change.data : JSON.stringify(change.data || {});
-      await exec(
-        `INSERT INTO data_items (id, app, type, data, created_at, updated_at)
+      statements.push({
+        sql: `INSERT INTO data_items (id, app, type, data, created_at, updated_at)
          VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))
          ON CONFLICT(id) DO UPDATE SET
            app = excluded.app, type = excluded.type,
            data = excluded.data, updated_at = datetime('now')`,
-        [change.item_id, change.app, change.type, dataStr]
-      );
+        params: [change.item_id, change.app, change.type, dataStr]
+      });
     } else if (change.action === 'D') {
-      if (pendingItemIds.has(change.item_id)) continue;
-      await exec('DELETE FROM data_items WHERE id = ?', [change.item_id]);
+      statements.push({
+        sql: 'DELETE FROM data_items WHERE id = ?',
+        params: [change.item_id]
+      });
     }
+  }
+  if (statements.length > 0) {
+    await execBatch(statements);
   }
 }
 
 async function applyItems(items) {
-  for (const item of items) {
-    const dataStr = typeof item.data === 'string' ? item.data : JSON.stringify(item.data || {});
-    await exec(
-      `INSERT INTO data_items (id, app, type, data, created_at, created_by, updated_at, updated_by)
+  // Batch all inserts into a single worker round-trip (transaction)
+  const UPSERT_SQL = `INSERT INTO data_items (id, app, type, data, created_at, created_by, updated_at, updated_by)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET
          app = excluded.app, type = excluded.type,
-         data = excluded.data, updated_at = excluded.updated_at`,
-      [item.id, item.app, item.type, dataStr,
-       item.created_at, item.created_by, item.updated_at, item.updated_by]
-    );
+         data = excluded.data, updated_at = excluded.updated_at`;
 
-    // Register type in sync scope
+  // Chunk into batches to avoid oversized postMessages
+  const CHUNK = 500;
+  for (let i = 0; i < items.length; i += CHUNK) {
+    const chunk = items.slice(i, i + CHUNK);
+    const statements = chunk.map(item => ({
+      sql: UPSERT_SQL,
+      params: [item.id, item.app, item.type,
+        typeof item.data === 'string' ? item.data : JSON.stringify(item.data || {}),
+        item.created_at, item.created_by, item.updated_at, item.updated_by]
+    }));
+    await execBatch(statements);
+  }
+
+  // Register types in sync scope + init Yjs docs (these are cheap in-memory ops)
+  for (const item of items) {
     addToScope(item.app, item.type);
-
-    // Initialize Yjs doc
     try {
       const parsed = typeof item.data === 'string' ? JSON.parse(item.data) : item.data;
       initFromData(item.id, parsed);
@@ -200,13 +220,24 @@ export async function bootstrapSkeleton() {
  * @param {string} docType - The pattern's doc_type
  * @returns {Promise<void>}
  */
-export async function bootstrapPattern(docType) {
-  if (!docType) return;
+export function bootstrapPattern(docType) {
+  if (!docType) return Promise.resolve();
   if (_loadedPatterns.has(docType)) {
     if (_DEV) console.log(`[sync]     pattern '${docType}' already loaded, skipping`);
-    return;
+    return Promise.resolve();
   }
+  // Deduplicate concurrent calls — return existing inflight promise if one exists
+  if (_inflightBootstraps.has(docType)) {
+    if (_DEV) console.log(`[sync]     pattern '${docType}' bootstrap already inflight, waiting...`);
+    return _inflightBootstraps.get(docType);
+  }
+  const promise = _bootstrapPatternImpl(docType);
+  _inflightBootstraps.set(docType, promise);
+  promise.finally(() => _inflightBootstraps.delete(docType));
+  return promise;
+}
 
+async function _bootstrapPatternImpl(docType) {
   const scope = `pattern:${docType}`;
   const lastRev = await getLastRevision(scope);
   if (_DEV) console.log(`[sync]     pattern '${docType}' lastRev=${lastRev} (${lastRev === null ? 'cold' : 'warm'})`);
@@ -236,6 +267,15 @@ export async function bootstrapPattern(docType) {
       if (!res.ok) throw new Error(`pattern delta failed: ${res.status}`);
       const { changes, revision } = await res.json();
       if (_DEV) console.log(`[sync]     pattern '${docType}' delta: ${changes.length} changes (${(performance.now() - t0).toFixed(0)}ms)`);
+
+      // Stale delta — too many changes, fall back to full re-bootstrap
+      if (changes.length > STALE_DELTA_THRESHOLD) {
+        console.warn(`[sync] pattern '${docType}' delta too large (${changes.length} > ${STALE_DELTA_THRESHOLD}), re-bootstrapping`);
+        await setLastRevision(null, scope);
+        _loadedPatterns.delete(docType);
+        return bootstrapPattern(docType);
+      }
+
       if (changes.length > 0) {
         await applyChanges(changes);
         invalidate('data_items');
@@ -303,6 +343,14 @@ async function bootstrapFull() {
       const { changes, revision } = await res.json();
       const tFetch = performance.now();
       if (_DEV) console.log(`[sync]     delta: ${changes.length} changes since rev ${lastRev} (${(tFetch - t0).toFixed(0)}ms)`);
+
+      // Stale delta — too many changes, fall back to full re-bootstrap
+      if (changes.length > STALE_DELTA_THRESHOLD) {
+        console.warn(`[sync] full delta too large (${changes.length} > ${STALE_DELTA_THRESHOLD}), re-bootstrapping`);
+        await setLastRevision(null);
+        return bootstrapFull();
+      }
+
       if (changes.length > 0) {
         await applyChanges(changes);
         invalidate('data_items');
@@ -423,6 +471,14 @@ async function catchUp() {
       const res = await fetch(apiUrl(`/sync/delta?app=${encodeURIComponent(_app)}&since=${lastRev}`));
       if (res.ok) {
         const { changes, revision } = await res.json();
+
+        // Stale delta — too many changes, re-bootstrap skeleton
+        if (changes.length > STALE_DELTA_THRESHOLD) {
+          console.warn(`[sync] catchUp delta too large (${changes.length} > ${STALE_DELTA_THRESHOLD}), re-bootstrapping`);
+          await bootstrapSkeleton();
+          return;
+        }
+
         if (changes.length > 0) {
           await applyChanges(changes);
           invalidate('data_items');
@@ -706,6 +762,82 @@ export function onWSChange(fn) {
 
 function notifyWSListeners() {
   for (const fn of wsListeners) fn(ws);
+}
+
+// --- Collab readiness + active room tracking ---
+
+export function isCollabReady() {
+  return ws && ws.readyState === 1;
+}
+
+// Track active collab rooms and their peer counts: itemId → peerCount
+const _activeCollabRooms = new Map();
+const _collabListeners = new Set();
+
+export function registerCollabRoom(itemId) {
+  _activeCollabRooms.set(itemId, _activeCollabRooms.get(itemId) || 1);
+  _notifyCollabListeners();
+}
+
+export function unregisterCollabRoom(itemId) {
+  _activeCollabRooms.delete(itemId);
+  _notifyCollabListeners();
+}
+
+export function updateCollabPeers(itemId, count) {
+  if (_activeCollabRooms.has(itemId)) {
+    _activeCollabRooms.set(itemId, count);
+    _notifyCollabListeners();
+  }
+}
+
+export function getCollabInfo() {
+  let totalPeers = 0;
+  for (const count of _activeCollabRooms.values()) {
+    totalPeers = Math.max(totalPeers, count);
+  }
+  return { rooms: _activeCollabRooms.size, peers: totalPeers };
+}
+
+export function onCollabChange(fn) {
+  _collabListeners.add(fn);
+  return () => _collabListeners.delete(fn);
+}
+
+function _notifyCollabListeners() {
+  const info = getCollabInfo();
+  for (const fn of _collabListeners) fn(info);
+}
+
+// --- Error recovery ---
+
+let _recovering = false;
+
+export async function resetAndRebootstrap() {
+  if (_recovering) return;
+  _recovering = true;
+  console.warn('[sync] resetting local database and re-bootstrapping...');
+  updateStatus('recovering');
+
+  try {
+    const { resetDB } = await import('./db-client.js');
+    await resetDB();
+
+    // Clear in-memory state
+    _loadedPatterns.clear();
+    pendingItemIds.clear();
+    clearScope();
+
+    // Re-bootstrap
+    await bootstrapSkeleton();
+
+    updateStatus('connected');
+  } catch (err) {
+    console.error('[sync] recovery failed:', err);
+    updateStatus('error');
+  } finally {
+    _recovering = false;
+  }
 }
 
 // --- Pending count ---

@@ -1,7 +1,7 @@
 import {useContext, useEffect, useState} from "react";
 import {isEqual} from 'lodash-es';
 import { ThemeContext } from "../../../../../../../ui/useTheme";
-import { ComponentContext } from "../../../../../context";
+import { CMSContext, ComponentContext } from "../../../../../context";
 
 const isJson = (str)  => {
     try {
@@ -12,10 +12,27 @@ const isJson = (str)  => {
     return true;
 }
 
+const collabColors = ['#e06c75', '#98c379', '#e5c07b', '#61afef', '#c678dd', '#56b6c2', '#d19a66'];
+function emailToColor(email) {
+    let hash = 0;
+    for (let i = 0; i < email.length; i++) {
+        hash = ((hash << 5) - hash) + email.charCodeAt(i);
+        hash |= 0;
+    }
+    return collabColors[Math.abs(hash) % collabColors.length];
+}
+
 const Edit = ({value, onChange}) => {
     const { theme, UI } = useContext(ThemeContext)
-    const { state, setState } = useContext(ComponentContext);
+    const { state, setState, sectionId } = useContext(ComponentContext);
+    const { user } = useContext(CMSContext) || {};
     const { ColumnTypes: {lexical: Lexical}} = UI;
+
+    // Enable collaborative editing when sync WebSocket is connected
+    const isCollab = sectionId && globalThis.__dmsSyncAPI?.isCollabReady?.();
+    const collabId = isCollab ? String(sectionId) : undefined;
+    const collabUsername = isCollab && user?.email ? user.email : undefined;
+    const collabCursorColor = isCollab && user?.email ? emailToColor(user.email) : undefined;
 
     // Text content is stored separately from display settings
     const cachedData = value && isJson(value) ? JSON.parse(value) : {};
@@ -70,6 +87,10 @@ const Edit = ({value, onChange}) => {
                             bgColor={bgColor}
                             hideControls={!showToolbar}
                             styleName={isCard || undefined}
+                            isCollab={isCollab}
+                            collabId={collabId}
+                            collabUsername={collabUsername}
+                            collabCursorColor={collabCursorColor}
                         />
                     </div>
                 </div>

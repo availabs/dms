@@ -70,13 +70,13 @@ async function testDmsModeSourcesViaPatterns() {
   // Link sources to pattern
   await graph.callAsync(
     ['dms', 'data', 'edit'],
-    [patternId, { doc_type: TEST_TYPE, pattern_type: 'forms', sources: [{ id: +src1Id }, { id: +src2Id }] }]
+    [TEST_APP, patternId, { doc_type: TEST_TYPE, pattern_type: 'forms', sources: [{ id: +src1Id }, { id: +src2Id }] }]
   );
 
   // Link pattern to site
   await graph.callAsync(
     ['dms', 'data', 'edit'],
-    [siteId, { patterns: [{ id: +patternId }] }]
+    [TEST_APP, siteId, { patterns: [{ id: +patternId }] }]
   );
 
   const env = `${TEST_APP}+${TEST_TYPE}`;
@@ -152,7 +152,7 @@ async function testDmsModeRealWorldPatternType() {
   // Link source to pattern
   await graph.callAsync(
     ['dms', 'data', 'edit'],
-    [patternId, { doc_type: 'realworld-test', pattern_type: 'datasets', sources: [{ id: +srcId }] }]
+    [TEST_APP, patternId, { doc_type: 'realworld-test', pattern_type: 'datasets', sources: [{ id: +srcId }] }]
   );
 
   const env = `${TEST_APP}+realworld-test`;
@@ -554,6 +554,7 @@ async function run() {
   console.log(`DAMA database: ${DAMA_DB}`);
 
   graph = createTestGraph(DMS_DB);
+  await graph.ready;
   console.log(`Database type: ${graph.dbType}`);
 
   try {

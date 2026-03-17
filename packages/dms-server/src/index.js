@@ -136,7 +136,7 @@ app.use(
 );
 
 // Sync routes — REST endpoints for bootstrap/delta/push
-const { createSyncRoutes } = require('./routes/sync/sync');
+const { createSyncRoutes, startCompaction } = require('./routes/sync/sync');
 const syncDbEnv = process.env.DMS_DB_ENV || 'dms-sqlite';
 app.use(createSyncRoutes(syncDbEnv));
 
@@ -174,7 +174,7 @@ async function setupAndListen() {
 
   const server = app.listen(PORT, () => {
     console.log(`DMS Server running on port ${PORT}`);
-    console.log(`  Split mode: ${process.env.DMS_SPLIT_MODE || 'legacy (default)'}`);
+    console.log(`  Split mode: ${process.env.DMS_SPLIT_MODE || 'legacy (default)'} (env fallback; may vary per database config)`);
     const envEntries = Object.entries(process.env)
       .filter(([key]) => key.startsWith('DMS'));
 
@@ -191,6 +191,7 @@ async function setupAndListen() {
   const { initWebSocket, notifyChange } = require('./routes/sync/ws');
   const syncDb = getDb(syncDbEnv);
   initWebSocket(server, syncDb);
+  startCompaction(syncDb, syncDb.type);
 
   // Wire change notifications: controller → WS broadcast, push endpoint → WS broadcast
   const { createController } = require('./routes/dms/dms.controller');
@@ -201,8 +202,7 @@ async function setupAndListen() {
   controller.setNotifyChange(notifyChange);
 
   // Also wire the push endpoint's broadcast callback
-  const { createSyncRoutes: _csr } = require('./routes/sync/sync');
-  _csr._notifyChange = notifyChange;
+  createSyncRoutes._notifyChange = notifyChange;
 }
 
 setupAndListen();

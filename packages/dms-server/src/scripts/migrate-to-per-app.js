@@ -2,18 +2,21 @@
 'use strict';
 
 /**
- * Migrate from legacy single-table mode to per-app table isolation.
+ * Migrate from legacy single-table mode to per-app schema isolation.
  *
- * Copies rows from the shared `data_items` table into per-app tables
- * (`data_items__{app}`), with split types further routed to per-type
- * tables (`data_items__s{sourceId}_v{viewId}_{docType}`).
+ * PostgreSQL: Creates per-app schemas (`dms_{appname}`) and copies rows from
+ * the shared `dms.data_items` table into `dms_{appname}.data_items`, with
+ * split types routed to per-type tables within the app schema.
+ *
+ * SQLite: Creates per-app tables (`data_items__{appname}`) with split types
+ * routed to per-type tables (no schema concept in SQLite).
  *
  * After migration, switch to per-app mode by setting DMS_SPLIT_MODE=per-app.
  *
  * Usage:
- *   node migrate-to-per-app.js --source dms-sqlite                # dry-run
- *   node migrate-to-per-app.js --source dms-sqlite --apply        # execute
- *   node migrate-to-per-app.js --source dms-postgres --app myapp  # single app
+ *   node migrate-to-per-app.js --source dms-mercury-2                # dry-run
+ *   node migrate-to-per-app.js --source dms-mercury-2 --apply        # execute
+ *   node migrate-to-per-app.js --source dms-mercury-2 --app myapp    # single app
  *
  * Options:
  *   --source <config>  Database config name (required)
@@ -26,14 +29,15 @@ const { loadConfig } = require('../db/config');
 const { SqliteAdapter } = require('../db/adapters/sqlite');
 const { PostgresAdapter } = require('../db/adapters/postgres');
 const {
+  resolveSchema,
   resolveTable,
   sanitize,
   isSplitType,
   parseType,
+  ensureSchema,
   ensureTable,
   ensureSequence,
   getSequenceName,
-  buildCreateTableSQL,
 } = require('../db/table-resolver');
 
 const BATCH_SIZE_DEFAULT = 500;
@@ -73,7 +77,8 @@ function createDb(configName) {
   throw new Error(`Unknown database type: ${config.type}`);
 }
 
-function fqn(db, table) {
+/** Shared tables live in 'dms' schema (PG) or 'main' (SQLite). */
+function sharedFqn(db, table) {
   return db.type === 'postgres' ? `dms.${table}` : table;
 }
 
@@ -93,7 +98,7 @@ async function lookupSourceId(db, app, docType) {
   const key = `${app}:${docType}`;
   if (sourceIdCache.has(key)) return sourceIdCache.get(key);
 
-  const tbl = fqn(db, 'data_items');
+  const tbl = sharedFqn(db, 'data_items');
   const { rows } = await db.query(
     `SELECT id FROM ${tbl} WHERE app = $1 AND ${jsonField(db, 'doc_type')} = $2 AND type LIKE '%|source' ORDER BY id DESC LIMIT 1`,
     [app, docType]
@@ -110,15 +115,17 @@ async function lookupSourceId(db, app, docType) {
 async function migrate(opts) {
   const db = createDb(opts.source);
   const dbType = db.type;
-  const schema = dbType === 'postgres' ? 'dms' : 'main';
-  const mainTable = fqn(db, 'data_items');
+  const isPg = dbType === 'postgres';
+  const mainTable = sharedFqn(db, 'data_items');
 
   console.log(`Database: ${opts.source} (${dbType})`);
   console.log(`Mode: ${opts.apply ? 'APPLY' : 'DRY-RUN'}`);
-  console.log(`Batch size: ${opts.batchSize}\n`);
+  console.log(`Batch size: ${opts.batchSize}`);
+  if (isPg) console.log(`Schema strategy: per-app schemas (dms_{appname})`);
+  console.log();
 
   // 1. Get distinct apps
-  const appFilter = opts.app ? ` WHERE app = '${opts.app}'` : '';
+  const appFilter = opts.app ? ` WHERE app = '${sanitize(opts.app)}'` : '';
   const { rows: appRows } = await db.query(
     `SELECT DISTINCT app, COUNT(*) as cnt FROM ${mainTable}${appFilter} GROUP BY app ORDER BY app`
   );
@@ -141,16 +148,19 @@ async function migrate(opts) {
   for (const { app, cnt } of appRows) {
     console.log(`--- Migrating app: ${app} (${cnt} rows) ---`);
 
-    // 2. Create per-app table and sequence
-    const appKey = sanitize(app);
-    const perAppTable = `data_items__${appKey}`;
+    // 2. Resolve per-app schema and main table
+    const schema = resolveSchema(app, dbType, 'per-app');
+    const resolved = resolveTable(app, 'non-split-placeholder', dbType, 'per-app');
+    const perAppFqn = resolved.fullName; // e.g. dms_myapp.data_items (PG) or data_items__myapp (SQLite)
     const seqName = getSequenceName(app, dbType, 'per-app');
 
     if (opts.apply) {
+      await ensureSchema(db, app, dbType, 'per-app');
       await ensureSequence(db, app, dbType, 'per-app');
-      await ensureTable(db, schema, perAppTable, dbType, seqName);
+      await ensureTable(db, schema, resolved.table, dbType, seqName);
     }
-    console.log(`  Table: ${perAppTable}`);
+    console.log(`  Schema: ${schema}`);
+    console.log(`  Main table: ${perAppFqn}`);
 
     // 3. Get all rows for this app, grouped by type
     const { rows: typeRows } = await db.query(
@@ -159,25 +169,25 @@ async function migrate(opts) {
     );
 
     for (const { type, cnt: typeCnt } of typeRows) {
-      // Determine target table
-      let targetTable;
+      // Determine target table via resolveTable
+      let targetFqn, targetSchema, targetTable;
 
       if (isSplitType(type)) {
-        // Split type — route to per-type table
         const parsed = parseType(type);
         const sourceId = parsed ? await lookupSourceId(db, app, parsed.docType) : null;
-        const resolved = resolveTable(app, type, dbType, 'per-app', sourceId);
-        targetTable = resolved.table;
+        const splitResolved = resolveTable(app, type, dbType, 'per-app', sourceId);
+        targetFqn = splitResolved.fullName;
+        targetSchema = splitResolved.schema;
+        targetTable = splitResolved.table;
 
         if (opts.apply) {
-          await ensureTable(db, schema, targetTable, dbType, seqName);
+          await ensureTable(db, targetSchema, targetTable, dbType, seqName);
         }
       } else {
-        // Non-split — goes into per-app table
-        targetTable = perAppTable;
+        targetFqn = perAppFqn;
+        targetSchema = schema;
+        targetTable = resolved.table;
       }
-
-      const targetFqn = fqn(db, targetTable);
 
       // Check if target already has these rows (idempotent)
       if (opts.apply) {
@@ -187,12 +197,12 @@ async function migrate(opts) {
         );
         const existingCount = +(existing[0]?.cnt || 0);
         if (existingCount >= +typeCnt) {
-          console.log(`  ${type}: ${typeCnt} rows → ${targetTable} (already migrated, skipping)`);
+          console.log(`  ${type}: ${typeCnt} rows → ${targetFqn} (already migrated, skipping)`);
           continue;
         }
       }
 
-      console.log(`  ${type}: ${typeCnt} rows → ${targetTable}`);
+      console.log(`  ${type}: ${typeCnt} rows → ${targetFqn}`);
 
       if (!opts.apply) {
         totalCopied += +typeCnt;
@@ -211,8 +221,7 @@ async function migrate(opts) {
 
         if (batch.length === 0) break;
 
-        if (dbType === 'postgres') {
-          // PostgreSQL: bulk insert with unnest
+        if (isPg) {
           const ids = batch.map(r => r.id);
           const apps = batch.map(r => r.app);
           const types = batch.map(r => r.type);
@@ -229,7 +238,6 @@ async function migrate(opts) {
             [ids, apps, types, datas, createdAts, createdBys, updatedAts, updatedBys]
           );
         } else {
-          // SQLite: INSERT OR IGNORE per row
           for (const row of batch) {
             await db.query(
               `INSERT OR IGNORE INTO ${targetFqn} (id, app, type, data, created_at, created_by, updated_at, updated_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
@@ -247,40 +255,38 @@ async function migrate(opts) {
 
     // 5. Initialize per-app sequence to max(id) for this app
     if (opts.apply) {
-      // Find max id across all tables for this app
-      const allTables = [perAppTable];
+      // Collect all tables for this app
+      const allFqns = [perAppFqn];
       for (const { type } of typeRows) {
         if (isSplitType(type)) {
           const parsed = parseType(type);
           const sourceId = parsed ? await lookupSourceId(db, app, parsed.docType) : null;
-          const resolved = resolveTable(app, type, dbType, 'per-app', sourceId);
-          if (!allTables.includes(resolved.table)) allTables.push(resolved.table);
+          const splitResolved = resolveTable(app, type, dbType, 'per-app', sourceId);
+          if (!allFqns.includes(splitResolved.fullName)) allFqns.push(splitResolved.fullName);
         }
       }
 
       let maxId = 0;
-      for (const table of allTables) {
-        const { rows } = await db.query(`SELECT MAX(id) as max_id FROM ${fqn(db, table)}`);
+      for (const fqn of allFqns) {
+        const { rows } = await db.query(`SELECT MAX(id) as max_id FROM ${fqn}`);
         const tableMax = +(rows[0]?.max_id || 0);
         if (tableMax > maxId) maxId = tableMax;
       }
 
       if (maxId > 0) {
-        if (dbType === 'postgres') {
-          await db.query(`SELECT setval('${fqn(db, seqName)}', $1, true)`, [maxId]);
+        if (isPg) {
+          await db.query(`SELECT setval('${seqName}', $1, true)`, [maxId]);
         } else {
-          // SQLite: insert a row with the max id to advance the sequence
-          const seqTable = seqName;
-          const { rows: seqRows } = await db.query(`SELECT MAX(id) as max_id FROM ${seqTable}`);
+          const { rows: seqRows } = await db.query(`SELECT MAX(id) as max_id FROM ${seqName}`);
           const seqMax = +(seqRows[0]?.max_id || 0);
           if (maxId > seqMax) {
-            await db.query(`INSERT INTO ${seqTable} (id) VALUES ($1)`, [maxId]);
+            await db.query(`INSERT INTO ${seqName} (id) VALUES ($1)`, [maxId]);
           }
         }
         console.log(`  Sequence ${seqName} set to ${maxId}`);
       }
 
-      totalTables += allTables.length;
+      totalTables += allFqns.length;
     }
 
     console.log();
@@ -290,32 +296,34 @@ async function migrate(opts) {
   if (opts.apply) {
     console.log('--- Verification ---');
     for (const { app, cnt } of appRows) {
-      const appKey = sanitize(app);
-      const perAppTable = fqn(db, `data_items__${appKey}`);
+      const resolved = resolveTable(app, 'non-split-placeholder', dbType, 'per-app');
+      const perAppFqn = resolved.fullName;
 
-      // Count rows in per-app table
+      // Count non-split rows in per-app table
       const { rows: perAppCount } = await db.query(
-        `SELECT COUNT(*) as cnt FROM ${perAppTable} WHERE app = $1`,
-        [app]
+        `SELECT COUNT(*) as cnt FROM ${perAppFqn}`,
+        []
       );
 
-      // Count rows in all split tables for this app
+      // Count split rows across split tables
       const { rows: typeRows } = await db.query(
-        `SELECT type, COUNT(*) as cnt FROM ${mainTable} WHERE app = $1 AND type NOT IN (SELECT DISTINCT type FROM ${perAppTable} WHERE app = $1) GROUP BY type`,
+        `SELECT DISTINCT type FROM ${mainTable} WHERE app = $1`,
         [app]
       );
 
       let splitCount = 0;
-      for (const { type, cnt: tc } of typeRows) {
+      for (const { type } of typeRows) {
         if (isSplitType(type)) {
           const parsed = parseType(type);
           const sourceId = parsed ? await lookupSourceId(db, app, parsed.docType) : null;
-          const resolved = resolveTable(app, type, dbType, 'per-app', sourceId);
-          const { rows } = await db.query(
-            `SELECT COUNT(*) as cnt FROM ${fqn(db, resolved.table)} WHERE app = $1 AND type = $2`,
-            [app, type]
-          );
-          splitCount += +(rows[0]?.cnt || 0);
+          const splitResolved = resolveTable(app, type, dbType, 'per-app', sourceId);
+          if (splitResolved.fullName !== perAppFqn) {
+            const { rows } = await db.query(
+              `SELECT COUNT(*) as cnt FROM ${splitResolved.fullName} WHERE app = $1 AND type = $2`,
+              [app, type]
+            );
+            splitCount += +(rows[0]?.cnt || 0);
+          }
         }
       }
 
@@ -326,10 +334,13 @@ async function migrate(opts) {
   }
 
   console.log(`\nSummary: ${totalCopied} rows ${opts.apply ? 'copied' : 'would copy'}, ${totalTables} tables ${opts.apply ? 'created' : ''}`);
-  console.log(`\nNext steps:`);
-  console.log(`  1. Verify data in per-app tables`);
-  console.log(`  2. Set DMS_SPLIT_MODE=per-app to activate`);
-  console.log(`  3. The original data_items table is preserved as read-only fallback`);
+
+  if (opts.apply) {
+    console.log(`\nNext steps:`);
+    console.log(`  1. Set DMS_SPLIT_MODE=per-app in .env`);
+    console.log(`  2. Verify the site works`);
+    console.log(`  3. Drop the original table: DROP TABLE dms.data_items;`);
+  }
 
   if (db.close) db.close();
 }

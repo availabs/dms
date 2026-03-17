@@ -60,10 +60,32 @@ export async function exec(sql, params = []) {
   });
 }
 
+export async function resetDB() {
+  await readyPromise;
+  const id = ++msgId;
+  return new Promise((resolve, reject) => {
+    pending.set(id, { resolve, reject });
+    worker.postMessage({ id, type: 'reset' });
+  });
+}
+
 export async function execMany(statements) {
   const results = [];
   for (const { sql, params } of statements) {
     results.push(await exec(sql, params || []));
   }
   return results;
+}
+
+/**
+ * Execute multiple statements in a single worker round-trip (wrapped in a transaction).
+ * Much faster than execMany for bulk inserts — one postMessage instead of N.
+ */
+export async function execBatch(statements) {
+  await readyPromise;
+  const id = ++msgId;
+  return new Promise((resolve, reject) => {
+    pending.set(id, { resolve, reject });
+    worker.postMessage({ id, type: 'batch', statements });
+  });
 }

@@ -666,9 +666,9 @@ async function run() {
   if (noAuthId) {
     const editRes = await falcor('call', {
       callPath: ['dms', 'data', 'edit'],
-      arguments: [parseInt(noAuthId), { title: 'Edited' }],
+      arguments: [TEST_APP, parseInt(noAuthId), { title: 'Edited' }],
     }, adminToken);
-    const edited = editRes?.jsonGraph?.dms?.data?.byId?.[noAuthId];
+    const edited = editRes?.jsonGraph?.dms?.data?.[TEST_APP]?.byId?.[noAuthId];
     ok('edit updated_by = user.id', edited?.updated_by === loginOk.user.id);
     ok('edit created_by preserved as null', edited?.created_by === null);
   }

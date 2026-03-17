@@ -1,3 +1,8 @@
+// Upper bound for byIndex range when length is not yet known.
+// Page patterns rarely exceed 500 pages. The server returns null
+// for indices beyond the actual count, so over-requesting is safe.
+const LIST_CEILING = 500;
+
 export const createRequest = (wrapperConfig,format, path, length) => {
 
 	const { app , type, view_id, env } = format
@@ -17,7 +22,7 @@ export const createRequest = (wrapperConfig,format, path, length) => {
 
 	let toIndex = typeof wrapperConfig?.filter?.toIndex === "function" ?
 		wrapperConfig?.filter?.toIndex(path) : (typeof wrapperConfig?.filter?.toIndex === 'undefined' || wrapperConfig?.filter?.toIndex === null ?
-    Math.max(0,length-1) : +wrapperConfig?.filter?.toIndex)
+    Math.max(0, (length ?? LIST_CEILING) - 1) : +wrapperConfig?.filter?.toIndex)
 
 
 	let options = wrapperConfig?.filter?.options || '{}';

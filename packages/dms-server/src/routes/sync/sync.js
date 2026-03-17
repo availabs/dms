@@ -11,6 +11,7 @@
 
 const { Router } = require('express');
 const { getDb } = require('#db/index.js');
+const { loadConfig } = require('#db/config.js');
 const {
   isSplitType,
   resolveTable,
@@ -63,7 +64,9 @@ function createSyncRoutes(dbName) {
   const router = Router();
   const dms_db = getDb(dbName);
   const dbType = dms_db.type;
-  const splitMode = process.env.DMS_SPLIT_MODE || 'legacy';
+  const config = loadConfig(dbName);
+  const splitMode = config.splitMode || process.env.DMS_SPLIT_MODE || 'legacy';
+  const requireAuth = process.env.DMS_SYNC_AUTH === '1';
 
   function tbl(name) {
     return dbType === 'postgres' ? `dms.${name}` : name;
@@ -79,11 +82,10 @@ function createSyncRoutes(dbName) {
    */
   async function mainTable(app) {
     const resolved = resolveTable(app, '', dbType, splitMode);
-    if (resolved.table !== 'data_items') {
-      const seqName = getSequenceName(app, dbType, splitMode);
-      await ensureSequence(dms_db, app, dbType, splitMode);
-      await ensureTable(dms_db, resolved.schema, resolved.table, dbType, seqName);
-    }
+    // ensureTable() no-ops for the shared dms.data_items (legacy mode)
+    const seqName = getSequenceName(app, dbType, splitMode);
+    await ensureSequence(dms_db, app, dbType, splitMode);
+    await ensureTable(dms_db, resolved.schema, resolved.table, dbType, seqName);
     return resolved.fullName;
   }
 
@@ -134,6 +136,9 @@ function createSyncRoutes(dbName) {
     try {
       const { app, type, pattern, skeleton } = req.query;
       if (!app) return res.status(400).json({ error: 'app is required' });
+      if (requireAuth && !req.availAuthContext?.user) {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
 
       let items;
 
@@ -228,6 +233,9 @@ function createSyncRoutes(dbName) {
     try {
       const { app, type, pattern, since } = req.query;
       if (!app) return res.status(400).json({ error: 'app is required' });
+      if (requireAuth && !req.availAuthContext?.user) {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
 
       const sinceRev = parseInt(since, 10) || 0;
 
@@ -317,6 +325,9 @@ function createSyncRoutes(dbName) {
 
   router.post('/sync/push', async (req, res) => {
     try {
+      if (requireAuth && !req.availAuthContext?.user) {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
       const { action, item } = req.body;
       if (!action || !item) return res.status(400).json({ error: 'action and item are required' });
 
@@ -436,4 +447,45 @@ function createSyncRoutes(dbName) {
 // Allow WebSocket module to set the broadcast callback
 createSyncRoutes._notifyChange = null;
 
-module.exports = { createSyncRoutes };
+/**
+ * Start periodic compaction of the change_log table.
+ * Deletes entries older than N days on a recurring interval.
+ * @param {object} db - Database instance (from getDb)
+ * @param {string} dbType - 'postgres' or 'sqlite'
+ * @returns {function} Cleanup function to stop compaction
+ */
+function startCompaction(db, dbType) {
+  const days = parseInt(process.env.DMS_SYNC_COMPACT_DAYS, 10) || 30;
+  const intervalHours = parseInt(process.env.DMS_SYNC_COMPACT_INTERVAL_HOURS, 10) || 24;
+
+  if (days <= 0 || intervalHours <= 0) {
+    console.log('[sync/compact] Compaction disabled (invalid config)');
+    return () => {};
+  }
+
+  const table = dbType === 'postgres' ? 'dms.change_log' : 'change_log';
+  const query = dbType === 'postgres'
+    ? `DELETE FROM ${table} WHERE created_at < NOW() - INTERVAL '${days} days'`
+    : `DELETE FROM ${table} WHERE created_at < datetime('now', '-${days} days')`;
+
+  async function compact() {
+    try {
+      const result = await db.promise(query, []);
+      const deleted = result?.changes ?? result?.rowCount ?? 0;
+      console.log(`[sync/compact] Removed ${deleted} change_log entries older than ${days} days`);
+    } catch (err) {
+      console.error('[sync/compact] error:', err.message);
+    }
+  }
+
+  // Run once on startup, then on interval
+  compact();
+  const timer = setInterval(compact, intervalHours * 60 * 60 * 1000);
+  timer.unref();
+
+  console.log(`[sync/compact] Compaction enabled: retain ${days} days, run every ${intervalHours}h`);
+
+  return () => clearInterval(timer);
+}
+
+module.exports = { createSyncRoutes, startCompaction };
