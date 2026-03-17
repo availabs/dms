@@ -101,12 +101,12 @@ export const lexicalTheme = {
     list_listitemChecked: "PlaygroundEditorTheme__listItemChecked",
     list_listitemUnchecked: "PlaygroundEditorTheme__listItemUnchecked",
     list_nested_listitem: "list-none before:hidden after:hidden",
-    list_olDepth_0: "list-inside list-decimal m-0 p-0",
-    list_olDepth_1: "m-0 p-0 list-inside list-alpha",
-    list_olDepth_2: "m-0 p-0 list-inside list-lower-alpha",
-    list_olDepth_3: "m-0 p-0 list-inside list-upper-roman",
-    list_olDepth_4: "m-0 p-0 list-inside list-lower-roman",
-    list_ul: "m-0 p-0 list-inside list-disc",
+    list_olDepth_0: "list-outside list-decimal m-0 p-0",
+    list_olDepth_1: "m-0 p-0 list-outside list-alpha",
+    list_olDepth_2: "m-0 p-0 list-outside list-lower-alpha",
+    list_olDepth_3: "m-0 p-0 list-outside list-upper-roman",
+    list_olDepth_4: "m-0 p-0 list-outside list-lower-roman",
+    list_ul: "m-0 p-0 list-outside list-disc",
 
     // Token (flat)
     token_comment: "text-slate-500",

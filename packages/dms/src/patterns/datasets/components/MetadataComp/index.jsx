@@ -20,12 +20,12 @@ export default ({isDms, value = '{}', accessKey, onChange, className, apiLoad, f
     const {Input, Icon} = UI;
     const {theme} = useContext(ThemeContext) || {};
     const t = theme?.datasets?.metadataComp || metadataCompTheme;
-    const [item, setItem] = useState(parseJson(value))
+    const [item, setItem] = useState(parseJson(value || {}) || {})
     const [search, setSearch] = useState('');
     const dragItem = useRef();
     const dragOverItem = useRef();
 
-    useEffect(() => setItem(parseJson(value)), [value]);
+    useEffect(() => setItem(parseJson(value || {})), [value]);
     console.log('value', value, item)
     // ================================================== drag utils start =============================================
     const dragStart = (e, position) => {
