@@ -174,8 +174,8 @@ function DraggableNav({
         // Check if the sets of IDs are different (item added or removed)
         const idsChanged = localIds.size !== propIds.size ||
             [...propIds].some(id => !localIds.has(id));
-
-        if (idsChanged) {
+        const nameChanged = localData.some(l => l.title !== dataItemsProp.find(d => d.id === l.id)?.title)
+        if (idsChanged || nameChanged) {
             setLocalData(dataItemsProp);
         }
     }, [dataItemsProp]);
