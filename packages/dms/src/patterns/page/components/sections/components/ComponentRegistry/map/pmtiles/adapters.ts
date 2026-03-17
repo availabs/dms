@@ -1,15 +1,15 @@
-declare const L: any;
-declare const window: any;
-declare const document: any;
+declare const L: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+declare const window: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+declare const document: any; // eslint-disable-line @typescript-eslint/no-explicit-any
 
 import { PMTiles, Source, TileType } from "./index";
 
-export const leafletRasterLayer = (source: PMTiles, options: any) => {
+export const leafletRasterLayer = (source: PMTiles, options: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
   let loaded = false;
   let mimeType: string = "";
   const cls = L.GridLayer.extend({
-    createTile: function (coord: any, done: any) {
-      const el: any = document.createElement("img");
+    createTile: function (coord: any, done: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+      const el: any = document.createElement("img"); // eslint-disable-line @typescript-eslint/no-explicit-any
       const controller = new AbortController();
       const signal = controller.signal;
       el.cancel = () => {
@@ -77,7 +77,7 @@ export const leafletRasterLayer = (source: PMTiles, options: any) => {
 // copied from MapLibre /util/ajax.ts
 type RequestParameters = {
   url: string;
-  headers?: any;
+  headers?: Record<string, string>;
   method?: "GET" | "POST" | "PUT";
   body?: string;
   type?: "string" | "json" | "arrayBuffer" | "image";
@@ -87,7 +87,7 @@ type RequestParameters = {
 
 type ResponseCallback = (
   error?: Error | null,
-  data?: any | null,
+  data?: unknown | null,
   cacheControl?: string | null,
   expires?: string | null
 ) => void;
@@ -163,7 +163,7 @@ export class Protocol {
 
       const controller = new AbortController();
       const signal = controller.signal;
-      let cancel = () => {
+      const cancel = () => {
         controller.abort();
       };
 
