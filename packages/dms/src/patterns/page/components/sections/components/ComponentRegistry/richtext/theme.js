@@ -97,13 +97,13 @@ const theme = {
       listitem: "list-none before:hidden after:hidden", //"PlaygroundEditorTheme__nestedListItem",
     },
     olDepth: [
-      "list-inside list-decimal m-0 p-0 ", //'PlaygroundEditorTheme__ol1 list-decimal',
-      "m-0 p-0 list-inside list-alpha", //'PlaygroundEditorTheme__ol2',
-      "m-0 p-0 list-inside list-lower-alpha", //'PlaygroundEditorTheme__ol3',
-      "m-0 p-0 list-inside list-upper-roman", //'PlaygroundEditorTheme__ol4',
-      "m-0 p-0 list-inside list-lower-roman", //'PlaygroundEditorTheme__ol5',
+      "list-outside list-decimal m-0 p-0 ", //'PlaygroundEditorTheme__ol1 list-decimal',
+      "m-0 p-0 list-outside list-alpha", //'PlaygroundEditorTheme__ol2',
+      "m-0 p-0 list-outside list-lower-alpha", //'PlaygroundEditorTheme__ol3',
+      "m-0 p-0 list-outside list-upper-roman", //'PlaygroundEditorTheme__ol4',
+      "m-0 p-0 list-outside list-lower-roman", //'PlaygroundEditorTheme__ol5',
     ],
-    ul: "m-0 p-0 list-inside list-disc", //'PlaygroundEditorTheme__ul',
+    ul: "m-0 p-0 list-outside list-disc", //'PlaygroundEditorTheme__ul',
   },
   token: {
     comment: "text-slate-500", // slategray

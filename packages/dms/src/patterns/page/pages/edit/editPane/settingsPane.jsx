@@ -152,29 +152,32 @@ function SettingsPane () {
               updateTitle ( item, dataItems, val, user, apiUpdate)
             }
           },
-          {
-            type:'Select',
+            {
+            type:'Switch',
             label: 'Hide in Nav',
-            value: item.hide_in_nav || '',
-            options: [
-              {label: 'Show', value: ''},
-              {label: 'Hide', value: 'hide'}
-            ],
-            onChange:(e) => {
-              togglePageSetting(item, 'hide_in_nav', e.target.value,  apiUpdate)
-            }
+            enabled: item.hide_in_nav === 'hide', size: 'small',
+            setEnabled: e => togglePageSetting(item, 'hide_in_nav', e ? 'hide' : false, apiUpdate),
+                customTheme:{
+                    field: 'pb-2 flex flex-row gap-2'
+                }
           },
-          {
-            type:'Select',
+            {
+            type:'Switch',
+            label: 'Show in Footer',
+            enabled: item.show_in_footer === 'show', size: 'small',
+            setEnabled: e => togglePageSetting(item, 'show_in_footer', e ? 'show' : false, apiUpdate),
+                customTheme:{
+                    field: 'pb-2 flex flex-row gap-2'
+                }
+          },
+            {
+            type:'Switch',
             label: 'Cover Page',
-            value: item.is_cover_page || '',
-            options: [
-              {label: 'No', value: ''},
-              {label: 'Yes', value: 'yes'}
-            ],
-            onChange:(e) => {
-              togglePageSetting(item, 'is_cover_page', e.target.value,  apiUpdate)
-            }
+            enabled: item.is_cover_page === 'yes', size: 'small',
+            setEnabled: e => togglePageSetting(item, 'is_cover_page', e ? 'yes' : false, apiUpdate),
+                customTheme:{
+                    field: 'pb-2 flex flex-row gap-2'
+                }
           },
           {
             type:'Select',

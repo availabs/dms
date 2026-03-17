@@ -327,6 +327,10 @@ export const isJson = (str) => {
     return true;
 }
 
+export const handleCopyToClipboard = (value) => {
+    navigator.clipboard.writeText(value)
+}
+
 export const handleCopy = (value) => {
     const elementType = value?.element?.['element-type'];
     //--------------------------------------
@@ -339,11 +343,11 @@ export const handleCopy = (value) => {
             element: {'element-type': 'Spreadsheet', 'element-data': JSON.stringify(spreadsheetData)}
         };
         console.log(ssElement);
-        navigator.clipboard.writeText(JSON.stringify(ssElement))
+       handleCopyToClipboard(JSON.stringify(ssElement))
         return;
     }
 
-    navigator.clipboard.writeText(JSON.stringify(value))
+    handleCopyToClipboard(JSON.stringify(value))
 }
 
 export const initialState = defaultState => {
