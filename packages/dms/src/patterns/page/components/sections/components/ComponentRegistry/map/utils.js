@@ -171,7 +171,7 @@ export function choroplethPaint( column, max, colors, num=10, method='ckmeans',c
                                 ? fnumIndex(paint[i + 4] || max)
                                 : paint[i + 4] || max
                         }`;
-                    } else if (legendOrientation = "horizontal") {
+                    } else if (legendOrientation === "horizontal") {
                         label = `${paint[i + 2] > 1000 ? fnumIndex(paint[i + 2]) : paint[i + 2]}`;
                     }
 

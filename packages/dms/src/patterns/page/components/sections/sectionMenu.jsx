@@ -1,5 +1,5 @@
 import React, {useState} from 'react'
-import { handleCopy, handlePaste, TagComponent } from "./section_utils"
+import {handleCopy, handleCopyToClipboard, handlePaste, TagComponent} from "./section_utils"
 import {
     getColumnLabel, updateColumns,
     updateDisplayValue
@@ -16,6 +16,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
     const { Switch, Pill, Icon, TitleEditComp, LevelComp, refreshDataBtnRef, isRefreshingData, setIsRefreshingData, theme, RegisteredComponents = {} } = ui
     const { activeSource, activeView, sources, views, onSourceChange, onViewChange } = dataSource;
 
+    const sectionLink = window ? `${window.location.origin}${window.location.pathname}#${value.id}` : '';
     const canEditSection = isUserAuthed(['edit-section'], sectionAuthPermissions);
     const canEditPageLayout = isUserAuthed(['edit-page-layout'], pageAuthPermissions);
     const canEditSectionPermissions = isUserAuthed(['edit-section-permissions'], sectionAuthPermissions);
@@ -104,20 +105,30 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
             renderCdn: activeParent => !activeParent,
             renderPos: 'top',
             type: () => {
-                const [copied, setCopied] = useState(false);
+                const [copied, setCopied] = useState('');
 
                 return (
                     <div className={'w-full flex justify-between'}>
                         <div className={'flex gap-1'}>
                             {/*{isEdit && canEditSection ? <Pill color={'blue'} text={<Icon icon={'InfoSquare'} className={'size-5'} />} title={'Add Help Text'} onClick={onAddHelpText} /> : null}*/}
 
-                            {canEditSection ? <Pill color={copied ? 'green' : 'blue'} text={<Icon icon={'Copy'} className={'size-5'}/>}
+                            <Pill color={copied === 'link' ? 'green' : 'blue'} text={<Icon icon={'Link'} className={'size-5'}/>}
+                                  title={'Copy Link'}
+                                  onClick={(e) => {
+                                      handleCopyToClipboard(sectionLink)
+                                      setCopied('link')
+                                      setTimeout(() => {
+                                          setCopied('')
+                                      }, 2000);
+                                  }}/>
+
+                            {canEditSection ? <Pill color={copied === 'section' ? 'green' : 'blue'} text={<Icon icon={'Copy'} className={'size-5'}/>}
                                                     title={'Copy Section'}
                                                     onClick={(e) => {
                                                         handleCopy(value)
-                                                        setCopied(true)
+                                                        setCopied('section')
                                                         setTimeout(() => {
-                                                            setCopied(false)
+                                                            setCopied('')
                                                         }, 2000);
                                                     }}/> : null}
                             {isEdit && canEditSection ? <Pill color={'blue'} text={<Icon icon={'Paste'} className={'size-5'}/>} title={'Paste Section'}
