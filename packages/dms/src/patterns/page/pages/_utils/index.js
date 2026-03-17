@@ -116,13 +116,13 @@ export function dataItemsNav(dataItems, baseUrl = '', edit = false, level=1) {
 export function nav2Level(items, level = 1, path, baseUrl = '', navTitle = '') {
   let output = null
   if (level > 1) {
-    let relativePath = path.replace('/edit', '')
+    let relativePath = path.endsWith('/edit') ? path.replace('/edit', '') : path.replace('/edit/', '/')
     if (baseUrl && relativePath.startsWith(baseUrl)) {
       relativePath = relativePath.slice(baseUrl.length)
     }
     let levelPath = baseUrl + '/' + relativePath.split('/').filter(d => d).filter((d, i) => i < level - 1).join('/')
     let matchItems = items.map(d => ({
-      ...d, path: d?.path?.replace('/edit', '')
+      ...d, path: d?.path?.endsWith('/edit') ? d?.path?.replace('/edit', '') : d?.path?.replace('/edit/', '/')
     }))
     let matches = matchRoutes(matchItems, { pathname: levelPath })
     output = matches?.[0]?.route?.subMenus || []
@@ -443,6 +443,9 @@ export const mergeFilters = (pageFilters=[], patternFilters=[]) => {
     // patternFilters should take over if present
 
     const pageFiltersFormatted = parseIfJSON(pageFilters, pageFilters || []);
+    // console.log('??', pageFiltersFormatted)
+    // make sure page filters work both in edit and view mode when url is used
+    // test what happens if two users are on the same page and one changes the filter
     const patternFiltersFormatted = (patternFilters || []);
     const pageOnlyFilters = pageFiltersFormatted.filter(f => !patternFiltersFormatted.some(patternF => patternF.searchKey === f.searchKey));
     return [...patternFiltersFormatted, ...pageOnlyFilters]

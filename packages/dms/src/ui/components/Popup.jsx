@@ -29,9 +29,10 @@ export default function Popup({
     children,
     offset = 8,
     padding = 8,
-    portalContainer = document.body,
+    portalContainer = typeof document !== 'undefined' ? document.body : null,
     btnVisibleOnGroupHover, // adds a hide class if not open. assumes the button to have group-hover
     preventCloseOnClickOutside=false,
+    hideIfOutOfView=false,
     defaultOpen = false, preferredPosition="bottom"
 }) {
     const [open, setOpen] = useState(defaultOpen);
@@ -51,7 +52,7 @@ export default function Popup({
         const rect = btn.getBoundingClientRect();
 
         // remove contents from screen if btn is out of viewport
-        if(!(
+        if(hideIfOutOfView && !(
             rect.top >= 0 &&
             rect.left >= 0 &&
             rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
@@ -157,8 +158,8 @@ export default function Popup({
             {React.cloneElement(button, {
                 ref: buttonRef,
                 className: btnVisibleOnGroupHover ? [
-                    button.props.className.replace('hidden', ''),     // keep existing classes
-                    open ? "" : "hidden"        // hide only when NOT open
+                    button.props.className.replace('sm:hidden', ''),     // keep existing classes
+                    open ? "" : "sm:hidden"        // hide only when NOT open
                 ].join(" ").trim() : button.props.className,
                 onClick: (e) => {
                     button.props.onClick?.(e);

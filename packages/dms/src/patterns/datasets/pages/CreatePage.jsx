@@ -49,19 +49,12 @@ export default function CreatePage({apiUpdate, format}) {
 
     const selectOptions = [
         {label: 'Create new', value: ''},
-        ...(sources || []).filter(s => s.doc_type).map(s => ({label: `${s.name} (${s.doc_type})`, value: s.id})),
         ...Object.keys(damaDataTypes).map(k => ({label: k, value: k})),
     ];
 
     const handleSelectChange = (e) => {
         const val = e.target.value;
-        const matchingSource = sources.find(s => s.id === val);
-        if (matchingSource) {
-            const numCopies = sources.filter(s => s.doc_type?.includes(`${matchingSource.doc_type}_copy_`)).length;
-            const clone = cloneDeep(matchingSource);
-            clone.name = `${clone.name} copy (${numCopies + 1})`;
-            setData(clone);
-        } else if (damaDataTypes[val]) {
+        if (damaDataTypes[val]) {
             setData({...data, type: val});
         } else {
             setData({name: ''});

@@ -100,8 +100,12 @@ export async function list(appType, config, options = {}) {
     for (let i = from; i <= to; i++) {
       const ref = byIndex[i];
       if (ref && ref.$type === 'ref') {
-        const itemId = ref.value[3]; // ['dms', 'data', 'byId', id]
-        const item = updatedCache?.dms?.data?.byId?.[itemId];
+        const itemId = ref.value[ref.value.length - 1];
+        // Derive app from ref: ["dms", "data", app, "byId", id] (5 elements) vs legacy (4 elements)
+        const refApp = ref.value.length === 5 ? ref.value[2] : null;
+        const item = refApp
+          ? updatedCache?.dms?.data?.[refApp]?.byId?.[itemId]
+          : updatedCache?.dms?.data?.byId?.[itemId];
 
         if (item) {
           const result = {};

@@ -15,9 +15,25 @@ const Edit = ({ value, onChange, attr, group, siteType }) => {
     const { theme:fullTheme = { sectionArray: sectionArrayTheme}, UI } = React.useContext(ThemeContext) || {}
     const theme = getComponentTheme(fullTheme, 'pages.sectionArray')
     const [ values, setValues ] = useImmer(value);
+    const [edit, setEdit] = React.useState({
+        index: -1,
+        value: '',
+        type: 'new'
+    })
     const [ active, setActive ] = useState(); // to handle multiple spreadsheet components on a page in conjunction with arrow/selection/copy controls
 
     const { Icon } = UI;
+
+    React.useEffect(() => {
+        // if page changes while a section is being edited, reset.
+        if(edit?.index >= 0) {
+            setEdit({
+                index: -1,
+                value: '',
+                type: 'new'
+            })
+        }
+    }, [item?.id])
 
     React.useEffect(() => {
         //------------------------------------------
@@ -37,11 +53,7 @@ const Edit = ({ value, onChange, attr, group, siteType }) => {
         return () => clearTimeout(id);
     }, [values]);
 
-    const [edit, setEdit] = React.useState({
-        index: -1,
-        value: '',
-        type: 'new'
-    })
+
 
     const setEditValue = (v) => setEdit({...edit, value: v})
     const setEditIndex = (i) => setEdit({...edit, index: i})

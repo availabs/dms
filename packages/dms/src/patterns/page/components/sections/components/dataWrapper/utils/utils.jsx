@@ -161,15 +161,15 @@ export const applyFn = (col = {}, isDms = false) => {
   const functions = {
     [undefined]: !isDms && !isCalculatedCol ? colNameWithAccessor : `${colNameWithAccessor} as ${colNameAfterAS}`,
     "": !isDms && !isCalculatedCol ? colNameWithAccessor : `${colNameWithAccessor} as ${colNameAfterAS}`,
-    list: `array_to_string(array_agg(distinct ${colNameWithAccessor}), ', ') as ${colNameAfterAS}`,
+    list: `array_to_string(array_agg(distinct ${colNameWithAccessor}), ', ') as ${colNameAfterAS}_list`,
     sum: isDms
-      ? `sum((${colNameWithAccessor})::integer) as ${colNameAfterAS}`
-      : `sum(${colNameWithAccessor}) as ${colNameAfterAS}`,
+      ? `sum((${colNameWithAccessor})::integer) as ${colNameAfterAS}_sum`
+      : `sum(${colNameWithAccessor}) as ${colNameAfterAS}_sum`,
     avg: isDms
-      ? `avg((${colNameWithAccessor})::integer) as ${colNameAfterAS}`
-      : `avg(${colNameWithAccessor}) as ${colNameAfterAS}`,
-    count: `count(${colNameWithAccessor}) as ${colNameAfterAS}`,
-    max: `max(${colNameWithAccessor}) as ${colNameAfterAS}`,
+      ? `avg((${colNameWithAccessor})::integer) as ${colNameAfterAS}_avg`
+      : `avg(${colNameWithAccessor}) as ${colNameAfterAS}_avg`,
+    count: `count(${colNameWithAccessor}) as ${colNameAfterAS}_count`,
+    max: `max(${colNameWithAccessor}) as ${colNameAfterAS}_max`,
   };
 
   return functions[col.fn];
@@ -195,9 +195,6 @@ export const getLength = async ({ options, state, apiLoad }) => {
   });
   return length;
 };
-
-const getFullColumn = (columnName, columns) =>
-  columns.find((col) => col.name === columnName);
 
 // Recursively maps filterGroups col names to refNames for the API,
 // and resolves multiselect column values to matched DB options.
@@ -225,6 +222,18 @@ const mapFilterGroupCols = async (node, getColumn, { isDms, apiLoad, sourceInfo 
     value: node.op === 'like' && node.value ? `%${node.value}%` :  node.value,
     col: refName || node.col,
   };
+
+  // If condition has an aggregate fn, compute the HAVING expression
+  if (node.fn) {
+    const fnExpr = splitColNameOnAS(
+        applyFn({ ...col, fn: node.fn }, isDms)
+    )[0];
+    const opExpr = operationToExpressionMap[node.op];
+    const val = Array.isArray(mapped.value) ? mapped.value[0] : mapped.value;
+    if (fnExpr && opExpr && val != null) {
+      mapped.havingExpr = `${fnExpr} ${opExpr} ${val}`;
+    }
+  }
 
   // for multiselect columns with filter/exclude, resolve values to matched DB options
   if (col?.type === 'multiselect' && ['filter', 'exclude'].includes(node.op)) {
@@ -273,6 +282,55 @@ const mapFilterGroupCols = async (node, getColumn, { isDms, apiLoad, sourceInfo 
 
 export const getColumnLabel = (column) =>
   column.customName || column.display_name || column.name;
+
+// Extracts conditions with havingExpr from a mapped filterGroups tree.
+// Returns { filterGroups: cleaned tree, having: string[] }
+const extractHavingFromFilterGroups = (node) => {
+  if (!node || !Object.keys(node).length) return { filterGroups: node, having: [] };
+  if (!node.groups) {
+    // leaf condition
+    if (node.havingExpr) return { filterGroups: null, having: [node.havingExpr] };
+    return { filterGroups: node, having: [] };
+  }
+  const having = [];
+  const keptGroups = [];
+  for (const child of node.groups) {
+    const result = extractHavingFromFilterGroups(child);
+    having.push(...result.having);
+    if (result.filterGroups) keptGroups.push(result.filterGroups);
+  }
+  return { filterGroups: { ...node, groups: keptGroups }, having };
+};
+
+// Extracts conditions with isNormalFilter from a filterGroups tree.
+// Returns { cleaned: tree without normal filters, normalFilters: array for normalFilter pipeline }
+const extractNormalFiltersFromGroups = (node) => {
+  if (!node || !Object.keys(node).length) return { cleaned: node, normalFilters: [] };
+  if (!node.groups) {
+    // leaf condition
+    if (node.isNormalFilter) {
+      return {
+        cleaned: null,
+        normalFilters: [{
+          column: node.col,
+          values: Array.isArray(node.value) ? node.value : [node.value],
+          operation: node.op,
+          fn: node.fn,
+          valueCol: node.valueCol
+        }]
+      };
+    }
+    return { cleaned: node, normalFilters: [] };
+  }
+  const normalFilters = [];
+  const keptGroups = [];
+  for (const child of node.groups) {
+    const result = extractNormalFiltersFromGroups(child);
+    normalFilters.push(...result.normalFilters);
+    if (result.cleaned) keptGroups.push(result.cleaned);
+  }
+  return { cleaned: { ...node, groups: keptGroups }, normalFilters };
+};
 
 const evaluateAST = (node, values) => {
   if (node.type === "variable") {
@@ -324,9 +382,10 @@ export const getData = async ({
   // get columns with all settings and info about them.
     debugTime && console.time('columnsWithSettings')
     const isDms = state.sourceInfo.isDms;
-    const sourceColumnsByName = new Map(
-        state.sourceInfo.columns.map(col => [col.name, col]),
-    );
+    const sourceColumnsByName = new Map([
+        ...(state.columns || []).filter(c => c.systemCol).map(col => [col.name, col]),
+        ...state.sourceInfo.columns.map(col => [col.name, col]),
+    ]);
     const getSourceColumnsByName = name => sourceColumnsByName.get(name);
 
     const duplicatedColumnNames = new Set(
@@ -369,7 +428,7 @@ export const getData = async ({
 
     debugTime && console.timeEnd('columnsWithSettings')
     const columnsToFetch = columnsWithSettings.filter(
-    (column) => column.show && !column.isDuplicate && column.type !== "formula",
+    (column) => column.show /*&& !column.isDuplicate*/ && column.type !== "formula",
   );
   // collect variables used in formula columns, and add them to fetch list
   const formulaVariableColumns = columnsWithSettings
@@ -386,43 +445,6 @@ export const getData = async ({
     columnsToFetch.push(...formulaVariableColumns);
   }
 
-  // add normal columns to the list of columns to fetch
-  if (normalFilter.length) {
-    const normalColumns = [];
-    const valueColumnName =
-      state.columns.find((col) => col.valueColumn)?.name || "value";
-    const fullColumn = getFullColumnFromColumnsWithSettings(valueColumnName);
-    const valueColumn = fullColumn?.refName || "value";
-    normalFilter.forEach(({ column, values, operation, fn }, i) => {
-      const fullColumn = state.columns.find(
-        (col) => col.name === column && isEqual(values, col.filters[0]?.values),
-      );
-      if (column && fullColumn?.normalName && values?.length) {
-        const name = fullColumn.normalName;
-        const filterValues =
-          ["gt", "gte", "lt", "lte"].includes(operation) &&
-          Array.isArray(values)
-            ? values[0]
-            : Array.isArray(values)
-              ? values.map((v) => `'${v}'`)
-              : values;
-        const nameBeforeAS = `CASE WHEN ${column} ${operationToExpressionMap[operation] || "IN"} (${filterValues}) THEN ${valueColumn} END`;
-        const reqName = fnToTextMap[fn]
-          ? fnToTextMap[fn](nameBeforeAS, name)
-          : fnToTextMap.default(nameBeforeAS, name, fn);
-        normalColumns.push({ name, reqName });
-      }
-    });
-
-    if (normalColumns.length) columnsToFetch.push(...normalColumns);
-    debug &&
-      console.log(
-        "debug getdata: columns with settings, columns to fetch:",
-        columnsWithSettings,
-        columnsToFetch,
-      );
-  }
-
   const multiselectValueSets = {};
   const filterAndExcludeColumns = [
     ...Object.keys(filter),
@@ -431,23 +453,27 @@ export const getData = async ({
     ),
   ];
   debugTime && console.time('filterAndExcludeColumns')
+
+  // Collect multiselect resolution tasks, then resolve in parallel
+  const multiselectTasks = [];
   for (const columnName of new Set(filterAndExcludeColumns)) {
     const { name, display, meta, refName, type } = getFullColumnFromColumnsWithSettings(columnName);
-    const fullColumn = { name, display, meta, refName, type };
-    const reqName = getColAccessor(
-      { ...fullColumn, fn: undefined },
-      isDms,
-    );
-
     const selectedValues = (filter[columnName] || exclude[columnName] || [])
       .map((o) => o?.value || o)
       .map((o) => (o === null ? "null" : o))
       .filter((o) => o);
 
-    if (!selectedValues.length) continue;
+    if (!selectedValues.length || type !== "multiselect") continue;
 
-    if (type === "multiselect" /* || type === 'calculated'*/) {
-        // todo await inside loop; change to promise.all?
+    const reqName = getColAccessor(
+      { name, display, meta, refName, type, fn: undefined },
+      isDms,
+    );
+    multiselectTasks.push({ columnName, name, display, meta, refName, reqName, selectedValues });
+  }
+
+  await Promise.all(multiselectTasks.map(async ({ columnName, name, display, meta, refName, reqName, selectedValues }) => {
+    try {
       const options = await getFilterData({
         reqName,
         refName,
@@ -456,40 +482,106 @@ export const getData = async ({
         format: state.sourceInfo,
       });
 
-      try {
-        const matchedOptions = options
-          .map((row) => {
-            const option = row[reqName]?.value || row[reqName];
-            const parsedOption =
-              isJson(option) && Array.isArray(JSON.parse(option))
-                ? JSON.parse(option)
-                : Array.isArray(option)
-                  ? option
-                  : typeof option === "string"
-                    ? [option]
-                    : [];
-            return parsedOption.find((o) => selectedValues.includes(o))
-              ? option
-              : null;
-          })
-          .filter((option) => option);
+      const matchedOptions = options
+        .map((row) => {
+          const option = row[reqName]?.value || row[reqName];
+          const parsedOption =
+            isJson(option) && Array.isArray(JSON.parse(option))
+              ? JSON.parse(option)
+              : Array.isArray(option)
+                ? option
+                : typeof option === "string"
+                  ? [option]
+                  : [];
+          return parsedOption.find((o) => selectedValues.includes(o))
+            ? option
+            : null;
+        })
+        .filter((option) => option);
 
-        if (selectedValues.includes("null")) matchedOptions.push("null");
-        multiselectValueSets[columnName] = matchedOptions;
-      } catch (e) {
-        console.error("Could not load options for", columnName, e);
-      }
+      if (selectedValues.includes("null")) matchedOptions.push("null");
+      multiselectValueSets[columnName] = matchedOptions;
+    } catch (e) {
+      console.error("Could not load options for", columnName, e);
     }
-  }
+  }));
     debugTime && console.timeEnd('filterAndExcludeColumns')
 
   // should this be saved in state directly?
     debugTime && console.time('build options')
+  // extract normal filters before mapping — they need raw column names (not refNames) for the server and CASE WHEN expressions
+  const { cleaned: nonNormalFilterGroups, normalFilters: filterGroupNormalFilters } = extractNormalFiltersFromGroups(filterGroups);
+  const mappedFilterGroups = await mapFilterGroupCols(nonNormalFilterGroups, getSourceColumnsByName, { isDms, apiLoad, sourceInfo: state.sourceInfo });
+  const { filterGroups: finalFilterGroups, having: filterGroupHaving } = extractHavingFromFilterGroups(mappedFilterGroups);
+  const allNormalFilters = [...normalFilter, ...filterGroupNormalFilters];
+
+  // add normal columns to the list of columns to fetch
+  // Build a map of isDuplicate columns by name, so filterGroup normal filters
+  // can reuse their normalNames (matching existing display columns)
+  const duplicateColumnsByName = {};
+  state.columns.forEach(col => {
+    if (col.normalName) {
+      (duplicateColumnsByName[col.name] ??= []).push(col);
+    }
+  });
+  const usedDuplicateIndices = {};
+
+  if (allNormalFilters.length) {
+    const normalColumns = [];
+    allNormalFilters.forEach(({ column, values, operation, fn, valueCol: explicitValueCol }, i) => {
+      // For filterGroup normal filters, use explicit valueCol; for old-style, use the global valueColumn
+      const valueColumnName = explicitValueCol || state.columns.find((col) => col.valueColumn)?.name || "value";
+      const fullValueColumn = getFullColumnFromColumnsWithSettings(valueColumnName);
+      const valueColumn = fullValueColumn?.refName || attributeAccessorStr(valueColumnName, isDms, false, false);
+
+      let fullColumn;
+      if (explicitValueCol) {
+        // filterGroup-sourced: try to match an existing isDuplicate column for display
+        const dupes = duplicateColumnsByName[column] || [];
+        const idx = usedDuplicateIndices[column] || 0;
+        fullColumn = dupes[idx] || { normalName: `${column}_nf_${i}` };
+        usedDuplicateIndices[column] = idx + 1;
+      } else {
+        // old isDuplicate-sourced: match by name + filter values
+        fullColumn = state.columns.find(
+            (col) => col?.name === column && isEqual(values, col?.filters?.[0]?.values),
+        );
+      }
+      // resolve the filter column's refName for the CASE WHEN expression
+      const filterColRef = explicitValueCol
+          ? (getFullColumnFromColumnsWithSettings(column)?.refName || attributeAccessorStr(column, isDms, false, false))
+          : column;
+      if (column && fullColumn?.normalName && values?.length) {
+        const name = fullColumn.normalName;
+        const filterValues =
+            ["gt", "gte", "lt", "lte"].includes(operation) &&
+            Array.isArray(values)
+                ? values[0]
+                : Array.isArray(values)
+                    ? values.map((v) => `'${v}'`)
+                    : values;
+        const nameBeforeAS = `CASE WHEN ${filterColRef} ${operationToExpressionMap[operation] || "IN"} (${filterValues}) THEN ${valueColumn} END`;
+        const reqName = fnToTextMap[fn]
+            ? fnToTextMap[fn](nameBeforeAS, name)
+            : fnToTextMap.default(nameBeforeAS, name, fn);
+        normalColumns.push({ name, reqName });
+      }
+    });
+
+    if (normalColumns.length) columnsToFetch.push(...normalColumns);
+    debug &&
+    console.log(
+        "debug getdata: columns with settings, columns to fetch:",
+        columnsWithSettings,
+        columnsToFetch,
+    );
+  }
+
   const options = {
     keepOriginalValues,
     filterRelation,
     serverFn,
-    filterGroups: await mapFilterGroupCols(filterGroups, getSourceColumnsByName, { isDms, apiLoad, sourceInfo: state.sourceInfo }),
+    filterGroups: finalFilterGroups,
     groupBy: groupBy.map(
       (columnName) => getFullColumnFromColumnsWithSettings(columnName)?.refName,
     ),
@@ -523,7 +615,7 @@ export const getData = async ({
                   currValues;
       return acc;
     }, {}),
-    normalFilter,
+    normalFilter: allNormalFilters,
     meta,
     ...(() => {
       const where = {};
@@ -574,9 +666,10 @@ export const getData = async ({
         });
       });
 
+      const allHaving = [...having, ...filterGroupHaving];
       return {
         ...(Object.keys(where).length > 0 && where),
-        ...(having.length > 0 && { having }),
+        ...(allHaving.length > 0 && { having: allHaving }),
       };
     })(),
   };
@@ -775,6 +868,9 @@ export const getData = async ({
           options: JSON.stringify({
             filter: options.filter,
             exclude: options.exclude,
+            filterGroups: options.filterGroups,
+            filterRelation: options.filterRelation,
+            normalFilter: options.normalFilter,
           }),
           attributes: columnsToFetch
             .filter((c) => c.showTotal || state.display.showTotal)
@@ -822,7 +918,7 @@ export const getData = async ({
 
         for (const column of columnsToFetch) {
             const key = isTotalRow ? column.totalName : column.reqName;
-            rowWithData[column.name] = cleanValue(row[key]);
+            rowWithData[column.normalName || column.name] = cleanValue(row[key]);
         }
 
         // Apply formulas

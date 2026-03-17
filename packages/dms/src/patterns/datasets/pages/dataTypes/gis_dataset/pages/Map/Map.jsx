@@ -1,10 +1,8 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
-import get from 'lodash/get'
-import cloneDeep from 'lodash/cloneDeep'
+import { get, cloneDeep } from 'lodash-es'
 import { useSearchParams } from 'react-router'
 import GISDatasetLayer from './Layer2'
-import { AvlMap, ThemeProvider} from "./avl-map-2/src"
-import mapTheme from './map-theme'
+import { AvlMap } from "../../../../../../../ui/components/map"
 import { DatasetsContext } from "../../../../../context"
 import { getExternalEnv } from "../../../../../utils/datasources"
 import {Protocol, PMTiles} from './utils/pmtiles/index.ts'
@@ -48,8 +46,8 @@ const MapPage = ({params, source,views, HoverComp, displayPinnedGeomBorder=false
     let out = get(activeView,`metadata.tiles`,{sources:[], layers:[]})
     out?.sources?.forEach(s => {
       if(s?.source?.url) {
-        s.source.url = s.source.url.replace('$HOST', TILEHOST)
-        s.source.url += '?cols=ogc_fid'
+        s.source.url = `${s.source.url.replace('$HOST', TILEHOST)}${'?cols=ogc_fid'}`
+        //s.source.url
         if(s.source.url.includes('.pmtiles')){
           s.source.url = s.source.url
             .replace('https://', 'pmtiles://')
@@ -265,8 +263,6 @@ const Map = ({ layers, layer, tempSymbology, setTempSymbology, source,  mapStyle
   return (
 
       <div className='w-full h-full'>
-        <ThemeProvider theme={mapTheme} >
-
           <AvlMap
             mapOptions={{
               protocols: [PMTilesProtocol],
@@ -280,7 +276,6 @@ const Map = ({ layers, layer, tempSymbology, setTempSymbology, source,  mapStyle
             leftSidebar={ false }
             rightSidebar={ false }
             mapActions={ ["navigation-controls"] }/>
-        </ThemeProvider>
       </div>
 
   )

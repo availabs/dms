@@ -1,4 +1,5 @@
 import React, {memo, useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {Link} from "react-router";
 import {getComponentTheme, ThemeContext} from '../useTheme';
 import ColumnTypes from "../columnTypes";
 import TableHeaderCell from "./table/components/TableHeaderCell";
@@ -148,7 +149,8 @@ const CompWrapper = ({
 
 const RenderItem = memo(function RenderItem ({
                                                  theme,
-                                                 compactView, reverse, removeBorder, padding, allowAdddNew, headerValueLayout, liveEdit, // state.display
+                                                 compactView, reverse, removeBorder, addBorder, padding, allowAdddNew,
+                                                 headerValueLayout, headerWidth, valueWidth, liveEdit, // state.display
                                                  isDms, // state.sourceInfo
                                                  item, newItem, setNewItem, addItem, updateItem, allowEdit,
                                                  subWrapperStyle,
@@ -167,7 +169,7 @@ const RenderItem = memo(function RenderItem ({
     return (
         //  in normal view, grid applied here
         <div
-            className={`${theme.subWrapper} ${compactView ? `${theme.subWrapperCompactView} ${removeBorder ? `` : 'border shadow'}` : theme.subWrapperSimpleView} `}
+            className={`${theme.subWrapper} ${compactView ? `${theme.subWrapperCompactView} ${removeBorder ? `` : 'border shadow'}` : `${theme.subWrapperSimpleView} ${addBorder ? `border shadow rounded-md` : ``}`} `}
             style={subWrapperStyle}>
             {
                 visibleColumns
@@ -219,7 +221,7 @@ const RenderItem = memo(function RenderItem ({
                                     headerValueLayout === 'row' && reverse ? theme.itemFlexRowReverse : ''
 
                         const wrapperViewClass = compactView ?
-                            `${theme.headerValueWrapperCompactView} ${attr.borderBelow ? theme.headerValueWrapperBorderBelow : ``}` :
+                            `${theme.headerValueWrapperCompactView} ${attr.borderBelow ? theme.headerValueWrapperBorderBelow : ``} ${addBorder ? `border shadow rounded-md` : ``}` :
                             `${theme.headerValueWrapperSimpleView} ${removeBorder ? `` : theme.itemBorder}`
 
                         const style = {
@@ -240,10 +242,10 @@ const RenderItem = memo(function RenderItem ({
                                         <div className={
                                             `${theme.header} ${compactView ? theme.headerCompactView : theme.headerSimpleView}
                                             ${theme[headerTextJustifyClass]} ${theme[attr.headerFontStyle || 'textXS']}`
-                                        }>
+                                        } style={{maxWidth: headerValueLayout === 'col' || attr.hideValue ? undefined : `${headerWidth || 50}%`}}>
                                             {attr.customName || attr.display_name || attr.normalName || attr.name}
                                             {
-                                                attr?.description ? <div className={theme.description}>{attr.description}</div> : null
+                                                attr?.description ? <DefaultComp className={theme.description} value={attr.description} /> : null
                                             }
                                         </div>
                                     )
@@ -253,11 +255,13 @@ const RenderItem = memo(function RenderItem ({
                                         <div className={
                                             `${theme.value} ${compactView ? theme.valueCompactView : theme.valueSimpleView}
                                             ${theme[valueTextJustifyClass]} ${theme[attr.valueFontStyle || 'textXS']} ${formatClass}
-                                            `}>
+                                            `} style={{maxWidth: headerValueLayout === 'col' || attr.hideHeader ? undefined : `${valueWidth || 50}%`}}>
                                             {
                                                 isLink && !(allowEdit || attr.allowEditInView) ?
+                                                    (isLinkExternal ?
                                                     <a className={theme.linkColValue}
-                                                       target={isLinkExternal ? '_blank' : '_self'}
+                                                       target="_blank"
+                                                       rel="noopener noreferrer"
                                                        href={url}
                                                     >
                                                         <CompWrapper attribute={attr}
@@ -284,6 +288,33 @@ const RenderItem = memo(function RenderItem ({
                                                                      componentWrapperClassName={theme.componentWrapper}
                                                         />
                                                     </a> :
+                                                    <Link className={theme.linkColValue}
+                                                          to={url}
+                                                    >
+                                                        <CompWrapper attribute={attr}
+                                                                     value={linkText || valueFormattedForDisplay}
+                                                                     rawValue={valueFormattedForEdit}
+                                                                     isValueFormatted={isValueFormatted}
+                                                                     updateItem={isNewItem ? undefined : updateItem}
+
+                                                            // form edit controls
+                                                                     liveEdit={liveEdit}
+                                                                     tmpItem={tmpItem}
+                                                                     setTmpItem={setTmpItem}
+
+                                                            // add new item controls
+                                                                     isNewItem={isNewItem}
+                                                                     newItem={isNewItem ? newItem : undefined}
+                                                                     setNewItem={isNewItem ? setNewItem : undefined}
+
+                                                                     id={id}
+                                                                     allowEdit={allowEdit || attr.allowEditInView}
+                                                                     formatFunctions={formatFunctions}
+                                                                     className={`${theme[valueTextJustifyClass]} ${theme.valueWrapper}`}
+
+                                                                     componentWrapperClassName={theme.componentWrapper}
+                                                        />
+                                                    </Link>) :
                                                     <CompWrapper attribute={attr}
                                                                  value={valueFormattedForDisplay}
                                                                  rawValue={valueFormattedForEdit}
@@ -336,12 +367,12 @@ export default function ({
     columns=[], data=[], display={}, controls={}, sourceInfo={}, setState,
     newItem, setNewItem, formatFunctions, activeStyle
 }) {
-    const { theme: themeFromContext = {dataCard: dataCardTheme}} = React.useContext(ThemeContext) || {};
+    const { theme: themeFromContext = {dataCard: {}}} = React.useContext(ThemeContext) || {};
     const theme = getComponentTheme(themeFromContext,'dataCard', activeStyle)
 
     const [draggedCol, setDraggedCol] = useState(null);
 
-    const {compactView, gridSize, gridGap, padding, colGap, allowAdddNew, bgColor='#FFFFFF'} = display;
+    const {compactView, gridSize, gridGap, padding, colGap, allowAdddNew, bgColor} = display;
     const visibleColumns = useMemo(() => columns.filter(({show}) => show), [columns]);
     const cardsWithoutSpanLength = useMemo(() => visibleColumns.filter(({cardSpan}) => !cardSpan).length, [visibleColumns]);
     const imageTopMargin = useMemo(() =>

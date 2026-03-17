@@ -1,4 +1,5 @@
 import React, {useContext, useEffect, useRef, useState, memo, useMemo, useCallback} from "react";
+import {Link} from "react-router";
 import {isEqual} from "lodash-es";
 import Icon from "../../Icon";
 import DataTypes from "../../../columnTypes";
@@ -57,8 +58,9 @@ const LinkComp = ({attribute, columns, newItem, removeItem, value}) => {
                 ['value', 'rawValue'].includes(attribute.searchParams) ? encodeURIComponent(valueFormattedForSearchParams) : ``;
 
         const url = `${location || valueFormattedForDisplay}${searchParams}`;
-        // todo make this conditional for isLinkExternal, and render Link if not.
-        return (props) => <a {...props} href={url} {...isLinkExternal && {target:"_blank"}} >{linkText || valueFormattedForDisplay}</a>
+        return isLinkExternal
+            ? ({show, isLink, searchParams: _sp, hideControls, ...props}) => <a {...props} href={url} target="_blank" rel="noopener noreferrer">{linkText || valueFormattedForDisplay}</a>
+            : ({show, isLink, searchParams: _sp, hideControls, ...props}) => <Link {...props} to={url}>{linkText || valueFormattedForDisplay}</Link>
     }
 
     if(actionType){

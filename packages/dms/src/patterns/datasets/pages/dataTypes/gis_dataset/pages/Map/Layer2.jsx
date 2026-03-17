@@ -1,22 +1,11 @@
 import React from "react";
-import get from "lodash/get";
-import set from "lodash/set";
-import isEqual from "lodash/isEqual";
+import { get, set, isEqual } from "lodash-es"
 
-import {
-    Legend,
-  AvlLayer,
-  MultiLevelSelect,
-  ColorRanges,
-  ColorBar,
-  Input,
-  Button,
-  useTheme,
-  getScale,
-  useClickOutside
-} from "./avl-map-2/src";
+import { AvlLayer } from "../../../../../../../ui/components/map";
+import { ThemeContext } from "../../../../../../../ui/themeContext";
+import { Legend, ColorBar, getScale } from "./legend-components";
+import { ColorRanges, getColorRange } from "./utils/color-ranges";
 import ckmeans from "./utils/ckmeans";
-import { getColorRange } from "./utils/color-ranges";
 import * as d3scale from "d3-scale";
 import {
   extent as d3extent,
@@ -126,26 +115,11 @@ const LegendCmp = ({ domain, range, title }) => {
 }
 
 export const LegendContainer = ({ name, title, toggle, isOpen, children }) => {
-  const theme = useTheme();
   return (
-    <div className={ `p-1 rounded ${ theme.bg }` }>
-      <div className={ `
-          p-1 relative rounded border pointer-events-auto
-          
-        ` }
-      >
+    <div className="p-1 rounded bg-white">
+      <div className="p-1 relative rounded border pointer-events-auto">
         <div className="flex mb-1">
           <div className="flex-1 font-medium">{ name || title }</div>
-          {/*<div onClick={ toggle }
-            className={ `
-              px-2 rounded cursor-pointer
-              ${ theme.bgAccent3Hover }
-            ` }
-          >
-            <span className={ `
-                fa-solid ${ isOpen ? "fa-chevron-up" : "fa-chevron-down" }
-              ` }/>
-          </div>*/}
         </div>
         <div>{ children }</div>
       </div>
@@ -180,11 +154,6 @@ const calcRange = (type, length, color, reverse) => {
     default:
       return getColorRange(7, color, reverse);
   }
-}
-
-const ThemeUpdate = {
-  bgAccent2: "bg-white",
-  border: "shadow"
 }
 
 const GISDatasetRenderComponent = props => {
@@ -570,7 +539,12 @@ const GISDatasetRenderComponent = props => {
   }, []);
 
   const [ref, setRef] = React.useState();
-  useClickOutside(ref, close);
+  React.useEffect(() => {
+    if (!ref) return;
+    const handler = e => { if (!ref.contains(e.target)) close(e); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [ref, close]);
 
   return !legend ? null : (
     <div ref={ setRef } className="absolute top-0 left-0 w-96 grid grid-cols-1 gap-4">
@@ -603,13 +577,12 @@ const RemoveDomainItem = ({ value, remove }) => {
     e.stopPropagation();
     remove(value);
   }, [value, remove]);
-  const theme = useTheme();
   return (
     <span onClick={ doRemove }
-      className={ `
-        fa-solid fa-remove px-2 flex items-center
-        ${ theme.bgAccent3Hover } rounded cursor-pointer
-      ` }/>
+      className="px-2 flex items-center hover:bg-gray-200 rounded cursor-pointer text-red-500"
+    >
+      &times;
+    </span>
   )
 }
 const DomainItem = ({ domain, index, disabled, remove, edit }) => {
@@ -645,16 +618,16 @@ const DomainItem = ({ domain, index, disabled, remove, edit }) => {
   }, [ref, editing]);
 
   const [outter, setOutter] = React.useState();
-  useClickOutside(outter, stopEditing);
-
-  const theme = useTheme();
+  React.useEffect(() => {
+    if (!outter) return;
+    const handler = e => { if (!outter.contains(e.target)) stopEditing(e); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [outter, stopEditing]);
 
   return (
     <div ref={ setOutter }
-      className={ `
-        flex px-2 py-1 rounded cursor-pointer
-        ${ theme.bgAccent2Hover }
-      ` }
+      className="flex px-2 py-1 rounded cursor-pointer hover:bg-gray-100"
       onClick={ startEditing }
     >
       <div className="w-8 mr-1 py-1">({ index + 1 })</div>
@@ -662,22 +635,25 @@ const DomainItem = ({ domain, index, disabled, remove, edit }) => {
         { editing ?
           <div className="flex">
             <div className="flex-1 mr-1">
-              <Input ref={ setRef }
+              <input ref={ setRef }
+                className="w-full px-2 py-1 border rounded text-sm"
                 value={ value }
-                onChange={ setValue }/>
+                onChange={ e => setValue(e.target.value) }/>
             </div>
-            <Button onClick={ doEdit } className="buttonPrimary">
+            <button onClick={ doEdit }
+              className="px-3 py-1 text-sm rounded bg-blue-500 hover:bg-blue-600 text-white">
               Edit
-            </Button>
+            </button>
           </div> :
           <div className="px-2 py-1">{ domain }</div>
         }
       </div>
       { disabled ? null :
         editing ?
-        <Button onClick={ stopEditing } className="buttonDanger">
+        <button onClick={ stopEditing }
+          className="px-3 py-1 text-sm rounded bg-red-500 hover:bg-red-600 text-white">
           Stop
-        </Button> :
+        </button> :
         <RemoveDomainItem remove={ remove } value={ domain }/>
       }
     </div>
@@ -712,21 +688,13 @@ const ThresholdEditor = ({ domain, range, updateLegend }) => {
     return domain.length <= 2;
   }, [domain.length]);
 
-  const theme = useTheme();
-
   return (
     <div className="absolute left-full top-0"
       style={ { left: "CALC(100% + 1rem)" } }
     >
-      <div className={ `
-          ${ theme.bg } p-1 pointer-events-auto rounded w-96
-        ` }>
+      <div className="bg-white p-1 pointer-events-auto rounded w-96">
         <div className="border rounded border-current relative">
-          <div className={ `
-              p-1 border-b border-current rounded-t flex font-bold
-              ${ theme.bgAccent2 }
-            ` }
-          >
+          <div className="p-1 border-b border-current rounded-t flex font-bold bg-gray-100">
             Threshold Editor
           </div>
           <div className="p-1">
@@ -740,25 +708,26 @@ const ThresholdEditor = ({ domain, range, updateLegend }) => {
                     edit={ editDomain }/>
                 ))
               }
-              <div className={ `flex border-t pt-1 ${ theme.border }` }>
+              <div className="flex border-t pt-1">
                 <div className="mr-1 flex-1">
-                  <Input type="number" placeholder="enter a threshold value..."
-                    onChange={ setValue }
+                  <input type="number" placeholder="enter a threshold value..."
+                    className="w-full px-2 py-1 border rounded text-sm"
+                    onChange={ e => setValue(e.target.value) }
                     value={ value }/>
                 </div>
-                <Button onClick={ addDomain } disabled={ !value }
-                  className="buttonPrimary"
+                <button onClick={ addDomain } disabled={ !value }
+                  className="px-3 py-1 text-sm rounded bg-blue-500 hover:bg-blue-600 text-white disabled:opacity-50"
                 >
                   Add
-                </Button>
+                </button>
               </div>
               <div>
-                <Button
+                <button
                   onClick={ useCKMeans }
-                  className="buttonPrimaryBlock"
+                  className="w-full px-3 py-1 text-sm rounded bg-blue-500 hover:bg-blue-600 text-white"
                 >
                   Reset with 6 bins
-                </Button>
+                </button>
               </div>
             </div>
           </div>
@@ -772,19 +741,12 @@ const BooleanSlider = ({ value, onChange }) => {
   const toggle = React.useCallback(e => {
     onChange(!value);
   }, [onChange, value]);
-  const theme = useTheme();
   return (
     <div onClick={ toggle }
       className="px-4 py-1 h-8 rounded flex items-center w-full cursor-pointer"
     >
-      <div className={ `
-          rounded flex-1 h-2 relative flex items-center bg-blue-100
-        ` }
-      >
-        <div className={ `
-            w-4 h-4 rounded absolute
-            ${ Boolean(value) ? "bg-blue-500" : "bg-gray-500" }
-          ` }
+      <div className="rounded flex-1 h-2 relative flex items-center bg-blue-100">
+        <div className={ `w-4 h-4 rounded absolute ${ Boolean(value) ? "bg-blue-500" : "bg-gray-500" }` }
           style={ {
             left: Boolean(value) ? "100%" : "0%",
             transform: "translateX(-50%)",
@@ -847,29 +809,18 @@ const LegendControls = ({ legend, updateLegend, isOpen, close }) => {
       }))
   }, [rangeSize, reverseColors]);
 
-  const theme = useTheme();
-
   return !isOpen ? null : (
-    <div className={ `
-        ${ theme.bg } p-1 pointer-events-auto rounded w-96 relative
-      ` }>
+    <div className="bg-white p-1 pointer-events-auto rounded w-96 relative">
       <div className="border rounded border-current relative">
-        <div className={ `
-            p-1 border-b border-current rounded-t flex font-bold
-            ${ theme.bgAccent2 }
-          ` }
-        >
+        <div className="p-1 border-b border-current rounded-t flex font-bold bg-gray-100">
           <div className="flex-1">
             Legend Controls
           </div>
           <div className="flex-0">
             <span onClick={ close }
-              className={ `
-                px-2 py-1 rounded cursor-pointer
-                ${ theme.bgAccent3Hover }
-              ` }
+              className="px-2 py-1 rounded cursor-pointer hover:bg-gray-200"
             >
-              <span className="fa fa-remove"/>
+              &times;
             </span>
           </div>
         </div>
@@ -905,10 +856,7 @@ const LegendControls = ({ legend, updateLegend, isOpen, close }) => {
             Available Legend Colors:
           </div>
 
-          <div className={ `
-              overflow-auto px-2 rounded ${ theme.bgAccent2 }
-              scrollbar-sm scrollbar-blue
-            ` }
+          <div className="overflow-auto px-2 rounded bg-gray-100 scrollbar-sm scrollbar-blue"
             style={ { height: "30rem" } }
           >
             { Colors.map(color => (
@@ -935,36 +883,35 @@ const RangeSizes = d3range(3, 13);
 const Identity = i => i;
 
 const RangeSizeSelector = ({ size, onChange }) => {
-  return (
-    <MultiLevelSelect
-      removable={ false }
-      options={ RangeSizes }
-      displayAccessor={ Identity }
-      valueAccessor={ Identity }
-      onChange={ onChange }
-      value={ size }/>
+  const { UI } = React.useContext(ThemeContext) || {};
+  const Listbox = UI?.Listbox;
+  const options = RangeSizes.map(s => ({ label: String(s), value: s }));
+  return Listbox ? (
+    <Listbox options={ options } value={ size } onChange={ onChange }/>
+  ) : (
+    <select value={ size } onChange={ e => onChange(+e.target.value) }
+      className="w-full px-2 py-1 border rounded text-sm">
+      { RangeSizes.map(s => <option key={s} value={s}>{s}</option>) }
+    </select>
   )
 }
 
 const LegendTypes = [
-  // { value: "quantize", name: "Quantize" },
-  { value: "quantile", name: "Quantile" },
-  { value: "threshold", name: "Threshold" },
-  { value: "ordinal", name: "Ordinal" }
+  { value: "quantile", label: "Quantile" },
+  { value: "threshold", label: "Threshold" },
+  { value: "ordinal", label: "Ordinal" }
 ]
 
 const TypeSelector = ({ type, updateLegend }) => {
-  const onChange = React.useCallback(t => {
-    updateLegend(t);
-  }, [updateLegend]);
-  return (
-    <MultiLevelSelect
-      removable={ false }
-      options={ LegendTypes }
-      displayAccessor={ t => t.name }
-      valueAccessor={ t => t.value }
-      onChange={ onChange }
-      value={ type }/>
+  const { UI } = React.useContext(ThemeContext) || {};
+  const Listbox = UI?.Listbox;
+  return Listbox ? (
+    <Listbox options={ LegendTypes } value={ type } onChange={ updateLegend }/>
+  ) : (
+    <select value={ type } onChange={ e => updateLegend(e.target.value) }
+      className="w-full px-2 py-1 border rounded text-sm">
+      { LegendTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>) }
+    </select>
   )
 }
 

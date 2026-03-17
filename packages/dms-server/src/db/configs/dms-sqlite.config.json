@@ -1,5 +1,0 @@
-{
-  "type": "sqlite",
-  "role": ["dms","auth"],
-  "filename": "../data/dms-test.sqlite"
-}

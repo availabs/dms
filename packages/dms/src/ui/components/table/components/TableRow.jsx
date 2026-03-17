@@ -12,7 +12,7 @@ export const TableRow = memo(function TableRow ({
 }) {
     // const rowData = rows[index];
     const {
-        visibleAttrsWithoutOpenOut, visibleAttrsWithoutOpenOutLength,
+        visibleAttrsWithoutOpenOut=[], visibleAttrsWithoutOpenOutLength,
         openOutAttributes, showGutters, striped, hideIfNullOpenouts,
     } = useContext(TableStructureContext);
     const [showOpenOut, setShowOpenOut] = useState(false);
@@ -35,7 +35,7 @@ export const TableRow = memo(function TableRow ({
     ]);
     const isDragging = false;
     const rowClass = `${isTotalRow ? theme.totalRow : ``} ${isDragging ? `select-none` : ``} ${striped ? theme.stripedRow : ``}`;
-
+    const actionsColExists = attrsToRender.find(a => a._isActionsColumn);
     return (
         <>
             <div
@@ -82,7 +82,7 @@ export const TableRow = memo(function TableRow ({
                             item={rowData}
 
                             isTotalCell={isTotalRow}
-                            showOpenOutCaret={openOutAttributes.length && attrI === 0}
+                            showOpenOutCaret={actionsColExists ? openOutAttributes.length && attrI === 1 : openOutAttributes.length && attrI === 0}
                             showOpenOut={showOpenOut} setShowOpenOut={setShowOpenOut}
                             attribute={attribute}
                         />
@@ -105,7 +105,7 @@ export const TableRow = memo(function TableRow ({
                         {/* First column as title of the open out drawer*/}
                         <TableCell
                             key={`open-out-title`}
-                            attribute={visibleAttrsWithoutOpenOut[0]}
+                            attribute={actionsColExists ? visibleAttrsWithoutOpenOut[1] : visibleAttrsWithoutOpenOut[0]}
                             openOut={true}
                             index={index}
                             item={rowData}

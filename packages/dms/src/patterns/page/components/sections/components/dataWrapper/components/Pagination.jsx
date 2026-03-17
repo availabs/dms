@@ -6,10 +6,14 @@ export const Pagination = ({currentPage, setCurrentPage, showPagination, setRead
     const { state, activeStyle } = useContext(ComponentContext);
     const {UI} = useContext(ThemeContext)
     const {Pagination} = UI;
-    if(!state.columns.filter(column => column.show).length || !showPagination) return;
+    if(!state.columns?.filter(column => column.show).length || !showPagination) return;
 
     useEffect(() => {
-        if(!state.display.usePagination && !state.display.readyToLoad && setReadyToLoad){
+        // Only auto-set readyToLoad for fresh components with no cached data.
+        // Components with saved data already have readyToLoad set intentionally
+        // via the "Always Fetch Data" toggle — don't override user intent.
+        if(!state.display.usePagination && !state.display.readyToLoad
+            && setReadyToLoad && !state.data?.length){
             setReadyToLoad(true);
         }
     }, [state.display.usePagination, state.display.readyToLoad, setReadyToLoad]);

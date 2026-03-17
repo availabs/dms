@@ -5,20 +5,27 @@
   "main": "src/index.js",
   "private": false,
   "scripts": {
-    "start": "node --env-file-if-exists=.env src/index.js",
-    "dev": "nodemon --env-file-if-exists=.env src/index.js",
+    "start": "node --env-file-if-exists=../../../../.env --env-file-if-exists=.env src/index.js",
+    "dev": "nodemon --env-file-if-exists=../../../../.env --env-file-if-exists=.env src/index.js",
     "test": "node tests/test-sqlite.js && node tests/test-controller.js && node tests/test-graph.js && node tests/test-workflow.js",
     "test:sqlite": "node tests/test-sqlite.js",
     "test:controller": "node tests/test-controller.js",
     "test:graph": "node tests/test-graph.js",
     "test:workflow": "node tests/test-workflow.js",
     "test:uda": "node tests/test-uda.js",
+    "test:splitting": "node tests/test-table-splitting.js",
     "test:auth": "node tests/test-auth.js",
     "test:pg:start": "node tests/postgres-docker.js start",
     "test:pg:stop": "node tests/postgres-docker.js stop",
     "test:pg": "node tests/postgres-docker.js run",
     "test:pg:auth": "node tests/postgres-docker.js run tests/test-auth.js",
-    "test:all": "npm test && npm run test:auth && npm run test:pg"
+    "test:db-copy": "node tests/test-db-copy.js",
+    "test:sqlite-compat": "node tests/test-sqlite-compat.js",
+    "test:sync": "node tests/test-sync.js",
+    "test:db-cleanup": "node tests/test-db-cleanup.js",
+    "test:all": "npm test && npm run test:sync && npm run test:auth && npm run test:pg",
+    "db:copy": "node src/scripts/copy-db.js",
+    "db:cleanup": "node src/scripts/cleanup-db.js"
   },
   "imports": {
     "#db/*.js": "./src/db/*.js",
@@ -41,6 +48,7 @@
   "dependencies": {
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^11.6.0",
+    "busboy": "^1.6.0",
     "compression": "^1.8.1",
     "express": "^4.21.0",
     "falcor-json-graph": "^3.0.1",
@@ -48,8 +56,11 @@
     "falcor-path-utils": "~0.5.0",
     "jsonwebtoken": "^9.0.3",
     "lodash": "^4.17.21",
+    "read-excel-file": "^6.0.3",
     "rxjs": "~5.1.1",
-    "symbol-observable": "^1.0.4"
+    "symbol-observable": "^1.0.4",
+    "unzipper": "^0.12.3",
+    "ws": "^8.19.0"
   },
   "optionalDependencies": {
     "pg": "^8.17.2"

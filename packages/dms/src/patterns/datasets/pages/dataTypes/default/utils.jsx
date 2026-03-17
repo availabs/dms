@@ -1,5 +1,5 @@
 import {get} from "lodash-es";
-import {ExternalSourceAttributes, ExternalViewAttributes} from "./consts";
+import {ExternalSourceAttributes, InternalSourceAttributes, ExternalViewAttributes} from "./consts";
 
 export async function getViews ({pgEnv, falcor, source_id}) {
     try {
@@ -28,21 +28,23 @@ export async function getViews ({pgEnv, falcor, source_id}) {
     }
 }
 
-export async function getSourceData ({pgEnv, falcor, source_id, setSource}) {
-    console.log('gettting data')
-    try {
-        const views = await getViews({pgEnv, falcor, source_id});
+export async function getSourceData ({pgEnv, falcor, source_id, setSource, isDms}) {
+    //console.log('gettting data')
+
+      const views = await getViews({ pgEnv, falcor, source_id });
+        console.log('get Source Data', views)
         const reqPath = ['uda', pgEnv, 'sources', 'byId', +source_id]
-        const resJson = await falcor.get([...reqPath, ExternalSourceAttributes]);
+        const sourceAttributes = isDms ? InternalSourceAttributes : ExternalSourceAttributes;
+        console.log('get Source Data',[...reqPath, sourceAttributes] )
+
+        const resJson = await falcor.get([...reqPath, sourceAttributes]);
         const res = get(resJson, ['json', ...reqPath], {})
 
         const firstView = views?.[0];
         const lastView = views?.[views?.length - 1];
         console.log('source', res)
         setSource({...res, source_id: res.source_id ?? +source_id, views, created_at: firstView?.created_at, updated_at: lastView?.updated_at });
-    }catch (e) {
-        throw Error(`Error fetching source: ${e}`);
-    }
+
 }
 
 export const updateSourceData = ({data, attrKey, isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id}) => {

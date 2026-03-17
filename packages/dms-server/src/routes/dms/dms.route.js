@@ -8,7 +8,7 @@ const falcorJsonGraph = require("falcor-json-graph"),
  Controller Settings
 */
 // Default routes using default controller (backward compatible)
-const dbOptions = ['dms-sqlite', 'dms-postgres']
+const dbOptions = ['dms-sqlite']//, 'dms-postgres']
 const controller = createController(process.env.DMS_DB_ENV || dbOptions[1])
 
 
@@ -18,19 +18,30 @@ const controller = createController(process.env.DMS_DB_ENV || dbOptions[1])
  * @returns {Array} Falcor route definitions
  */
 function createRoutes(controller = createController('dms-sqlite')) {
-  const dataByIdResponse = (rows, ids, atts) => {
+  /**
+   * Build Falcor response entries for byId data.
+   * When app is provided, uses the app-namespaced path: dms.data[app].byId[id][att]
+   * Otherwise uses legacy path: dms.data.byId[id][att]
+   */
+  const dataByIdResponse = (rows, ids, atts, app = null) => {
     const response = [];
     ids.forEach((id) => {
       const row = rows.reduce((a, c) => (c.id == id ? c : a), {});
+      const idStr = String(id);
 
       atts.forEach((att) => {
         let getAtt = att;
         if(getAtt.includes('data ->> ')){
           getAtt = att.split('->>')[1].trim().replace(/[']/g, '')
         }
-        const value = row[getAtt] ?? null;
+        let value = row[getAtt] ?? null;
+        // Normalize id to string for consistent type across backends
+        if (att === 'id' && value != null) value = String(value);
+        const path = app
+          ? ["dms", "data", app, "byId", idStr, att]
+          : ["dms", "data", "byId", idStr, att];
         response.push({
-          path: ["dms", "data", "byId", id, att],
+          path,
           value: att === "data" ? $atom(value) : value,
         });
       });
@@ -83,11 +94,12 @@ function createRoutes(controller = createController('dms-sqlite')) {
           .then((rows) => {
             const response = []
             keys.map((key) => {
+              const [app] = key.split('+');
               searchkeys.map((searchkey) => {
                 const [{rows:[id = null]}] = rows.filter(d => d.key === `${key}|${searchkey}`)
                 response.push({
                   path: ["dms", "data", key, "searchOne", searchkey],
-                  value:  id ? $ref(["dms", "data", "byId", +id]) : null
+                  value:  id ? $ref(["dms", "data", app, "byId", String(id)]) : null
                 })
               })
             });
@@ -102,6 +114,7 @@ function createRoutes(controller = createController('dms-sqlite')) {
         return controller.dataByIndex(keys, indices).then((rows) => {
           const response = [];
           keys.forEach((key) => {
+            const [app] = key.split('+');
             const reduced = rows.reduce(
               (a, c) => (c.key == key ? c.rows : a),
               []
@@ -110,7 +123,7 @@ function createRoutes(controller = createController('dms-sqlite')) {
               const id = reduced.reduce((a, c) => (c.i == i ? c.id : a), null);
               response.push({
                 path: ["dms", "data", key, "byIndex", i],
-                value: id ? $ref(["dms", "data", "byId", id]) : null,
+                value: id ? $ref(["dms", "data", app, "byId", String(id)]) : null,
               });
             });
           });
@@ -189,6 +202,7 @@ function createRoutes(controller = createController('dms-sqlite')) {
             const rows = await controller.filteredDataByIndex(keys, indices, option, ['id'])
 
             keys.forEach((key) => {
+              const [app] = key.split('+');
               const reduced = rows.reduce(
                   (a, c) => (c.key == key ? c.rows : a),
                   []
@@ -197,7 +211,7 @@ function createRoutes(controller = createController('dms-sqlite')) {
                 const row = reduced.find(c => c.i == i) || {};
                 response.push({
                     path: ["dms", "data", key, 'opts', option, "byIndex", i],
-                    value: row?.id ? $ref(["dms", "data", "byId", +row?.id]) : null,
+                    value: row?.id ? $ref(["dms", "data", app, "byId", String(row.id)]) : null,
                 });
               });
             });
@@ -304,6 +318,7 @@ function createRoutes(controller = createController('dms-sqlite')) {
       },
     },
     {
+      // Legacy byId route — queries data_items (no app context)
       route: `dms.data.byId[{keys:ids}][{keys:attributes}]`,
       get: function(pathSet) {
         const [, , , ids, atts] = pathSet;
@@ -316,8 +331,32 @@ function createRoutes(controller = createController('dms-sqlite')) {
       },
     },
     {
+      // App-namespaced byId route — resolves per-app table when in per-app mode
+      route: `dms.data[{keys:apps}].byId[{keys:ids}][{keys:attributes}]`,
+      get: function(pathSet) {
+        const [, , apps, , ids, atts] = pathSet;
+
+        return Promise.all(
+          apps.map(app =>
+            controller.getDataById(ids, atts, app)
+              .then(rows => dataByIdResponse(rows, ids, atts, app))
+          )
+        ).then(results => [].concat(...results));
+      },
+    },
+    {
       route: "dms.data.edit",
       call: function(callPath, args) {
+        if (args.length >= 3) {
+          // New format: [app, id, data]
+          const [app, id, data] = args;
+          return controller.setDataById(id, data, this.user, app).then((rows) => {
+            return [
+              ...dataByIdResponse(rows, [id], DATA_ATTRIBUTES, app),
+            ];
+          });
+        }
+        // Legacy format: [id, data]
         const [id, data] = args;
         return controller.setDataById(id, data, this.user).then((rows) => {
           return [
@@ -342,6 +381,16 @@ function createRoutes(controller = createController('dms-sqlite')) {
     {
       route: "dms.type.edit",
       call: function(callPath, args) {
+        if (args.length >= 3) {
+          // New format: [app, id, type]
+          const [app, id, type] = args;
+          return controller.setTypeById(id, type, this.user, app).then((rows) => {
+            return [
+              ...dataByIdResponse(rows, [id], DATA_ATTRIBUTES, app),
+            ];
+          });
+        }
+        // Legacy format: [id, type]
         const [id, type] = args;
         return controller.setTypeById(id, type, this.user).then((rows) => {
           return [
@@ -356,10 +405,17 @@ function createRoutes(controller = createController('dms-sqlite')) {
         const [app, type] = args;
         return controller.createData(args, this.user)
           .then((rows) => [
+            // Return at both paths so old and new clients can find the data
             ...dataByIdResponse(
               rows,
-              rows.map(({ id }) => id),
+              rows.map(({ id }) => String(id)),
               DATA_ATTRIBUTES
+            ),
+            ...dataByIdResponse(
+              rows,
+              rows.map(({ id }) => String(id)),
+              DATA_ATTRIBUTES,
+              app
             ),
           { path: ["dms", "data", `${app}+${type}`], invalidated: true },
           ])
@@ -372,11 +428,12 @@ function createRoutes(controller = createController('dms-sqlite')) {
       route: "dms.data.delete",
       call: function(callPath, args) {
         const [app, type, ...ids] = args;
-        return controller.deleteData(ids, this.user).then((rows) => [
-          ...ids.map((id) => ({
-            path: ["dms", "data", "byId", id],
-            invalidated: true,
-          })),
+        return controller.deleteData(app, type, ids, this.user).then((rows) => [
+          // Invalidate both old and new paths
+          ...ids.flatMap((id) => ([
+            { path: ["dms", "data", "byId", id], invalidated: true },
+            { path: ["dms", "data", app, "byId", id], invalidated: true },
+          ])),
           { path: ["dms", "data", `${app}+${type}`], invalidated: true },
         ]);
       },

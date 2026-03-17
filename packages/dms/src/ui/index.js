@@ -36,6 +36,7 @@ import Permissions from "./components/Permissions";
 import NavigableMenu from "./components/navigableMenu";
 import DraggableList from "./components/DraggableList";
 import Popup from "./components/Popup";
+import DndList from "./components/DndList";
 import ColumnTypes from "./columnTypes/index.jsx";
 
 const UI = {
@@ -63,6 +64,7 @@ const UI = {
 	Pill,
   Permissions,
   Popup,
+  DndList,
 
 	// --- Forms
 	FieldSet,

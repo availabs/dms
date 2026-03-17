@@ -1,7 +1,9 @@
 import React from "react";
-import { merge } from "lodash-es";
+import { get } from "lodash-es";
+import { useRouteError } from "react-router";
 import { parseIfJSON } from "./pages/_utils";
 import { initializePatternFormat } from "../../dms-manager/_utils";
+import { preloadPageSections } from "../../api/preloadSectionData.js";
 
 // components
 import cmsFormat from "./page.format.js";
@@ -33,7 +35,9 @@ const pagesConfig = ({
   pattern,
   datasources,
   site,
-  API_HOST
+  pgEnv,
+  API_HOST,
+  ...rest
 }) => {
   const theme = getPatternTheme(themes, pattern)
 
@@ -57,30 +61,61 @@ const pagesConfig = ({
         .attributes.push(...pattern.additionalSectionAttributes)
   }
 
+// console.log("Page::siteConfig", datasources, rest);
+
+  const mapeditorKeys = datasources.reduce((a, c) => {
+    const pattern_type = get(c, ["pattern", "pattern_type"]);
+    if (pattern_type === "mapeditor") {
+      a.push(c.env);
+    }
+    return a;
+  }, []);
+
   const patternFilters = parseIfJSON(pattern?.filters, []);
   // const rightMenuWithSearch = rightMenu; // for live site
   return {
     siteType,
     format: format,
+    preload: (falcor, data, request, params) =>
+        preloadPageSections(falcor, data, request.url, patternFilters, params?.['*'] || ''),
     pages: [{path: 'edit_pattern', name: 'Format Manager', component: FormatManager}],
     baseUrl,
     API_HOST,
     children: [
       {
-        type: ({children, falcor, user, ...props}) => {
+        type: ({children, falcor, user, apiLoad, ...props}) => {
+
           return (
             <CMSContext.Provider value={{
               app, type,
               siteType,
               API_HOST,
               baseUrl,
+              pgEnv,
               datasources,
+              apiLoad,
               user,
               falcor,
               patternFilters,
               authPermissions,
+              mapeditorKeys,
               isUserAuthed: (reqPermissions, customAuthPermissions) => {
-                return isUserAuthed({ user, authPermissions: customAuthPermissions || authPermissions, reqPermissions })
+                if (!customAuthPermissions) {
+                  return isUserAuthed({ user, authPermissions, reqPermissions });
+                }
+                // Merge page-level overrides onto inherited (pattern-level) permissions.
+                // [] means "disabled" → strip from inherited; non-empty means "add/replace".
+                const mergedUsers = { ...(authPermissions?.users || {}) };
+                const mergedGroups = { ...(authPermissions?.groups || {}) };
+                Object.entries(customAuthPermissions.users || {}).forEach(([id, perms]) => {
+                  if (perms.length === 0) delete mergedUsers[id];
+                  else mergedUsers[id] = perms;
+                });
+                Object.entries(customAuthPermissions.groups || {}).forEach(([name, perms]) => {
+                  if (perms.length === 0) delete mergedGroups[name];
+                  else mergedGroups[name] = perms;
+                });
+                return isUserAuthed({ user, authPermissions: { users: mergedUsers, groups: mergedGroups }, reqPermissions });
               }
             }}>
               <ThemeContext.Provider value={{theme, UI}}>
@@ -134,7 +169,9 @@ const pagesConfig = ({
         ],
       },
     ],
-    errorElement: () => {
+    errorElement: (props) => {
+      let error = useRouteError();
+      console.log('page pattern - siteconfig -error element', error)
       return (
         <ThemeContext.Provider value={{ theme, UI }}>
           <ErrorPage />

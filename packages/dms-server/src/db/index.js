@@ -104,6 +104,47 @@ const initDms = async (dbConnection) => {
 };
 
 /**
+ * Initialize sync tables (change_log + yjs_states) for the database
+ * @param {Object} dbConnection - Database adapter instance
+ */
+const initSync = async (dbConnection) => {
+  const db = dbConnection.getDb();
+  const dbType = dbConnection.type;
+
+  // Check if change_log table already exists
+  const schema = dbType === "sqlite" ? "main" : "dms";
+  const exists = await dbConnection.tableExists(schema, "change_log");
+
+  if (!exists) {
+    console.time(`sync db init ${db}`);
+    await dbConnection.beginTransaction();
+
+    try {
+      const sqlFile = dbType === "sqlite" ? "change_log.sqlite.sql" : "change_log.sql";
+      const sqlPath = join(__dirname, "sql/dms", sqlFile);
+      const sql = await readFileAsync(sqlPath, { encoding: "utf8" });
+
+      if (dbType === "sqlite") {
+        const statements = sql.split(";").filter(s => s.trim());
+        for (const stmt of statements) {
+          if (stmt.trim()) {
+            await dbConnection.query(stmt + ";");
+          }
+        }
+      } else {
+        await dbConnection.query(sql);
+      }
+
+      await dbConnection.commitTransaction();
+      console.timeEnd(`sync db init ${db}`);
+    } catch (error) {
+      await dbConnection.rollbackTransaction();
+      throw error;
+    }
+  }
+};
+
+/**
  * Initialize DAMA tables (data manager advanced tables)
  * @param {Object} dbConnection - Database adapter instance
  */
@@ -188,36 +229,45 @@ function getDb(pgEnv) {
   // Support multi-role configs: "role": "dms" or "role": ["dms", "auth"]
   const roles = Array.isArray(config.role) ? config.role : [config.role];
 
-  // Initialize based on database role(s), tracking promises for awaitReady()
-  if (roles.includes("dama")) {
-    initPromises.push(
-      initDama(databases[pgEnv]).then(() => {
+  // Initialize based on database role(s), tracking promises for awaitReady().
+  // Run sequentially — SQLite can't handle concurrent transactions on the same connection.
+  const initSequence = async () => {
+    if (roles.includes("dama")) {
+      try {
+        await initDama(databases[pgEnv]);
         console.log("dama init", pgEnv);
-      }).catch(err => {
+      } catch (err) {
         console.error("dama init failed:", err.message);
-      })
-    );
-  }
+      }
+    }
 
-  if (roles.includes("auth")) {
-    initPromises.push(
-      initAuth(databases[pgEnv]).then(() => {
+    if (roles.includes("auth")) {
+      try {
+        await initAuth(databases[pgEnv]);
         console.log("auth init", pgEnv);
-      }).catch(err => {
+      } catch (err) {
         console.error("auth init failed:", err.message);
-      })
-    );
-  }
+      }
+    }
 
-  if (roles.includes("dms")) {
-    initPromises.push(
-      initDms(databases[pgEnv]).then(() => {
+    if (roles.includes("dms")) {
+      try {
+        await initDms(databases[pgEnv]);
         console.log("dms init", pgEnv);
-      }).catch(err => {
+      } catch (err) {
         console.error("dms init failed:", err.message);
-      })
-    );
-  }
+      }
+
+      try {
+        await initSync(databases[pgEnv]);
+        console.log("sync init", pgEnv);
+      } catch (err) {
+        console.error("sync init failed:", err.message);
+      }
+    }
+  };
+
+  initPromises.push(initSequence());
 
   return databases[pgEnv];
 }

@@ -31,6 +31,7 @@ export function VirtualList({
     estimatedRowHeight = 40,
     estimatedColumnWidth = 120,
     increaseViewportBy = { top: 0, bottom: 0, left: 0, right: 0 },
+    virtualizeColumns,
     renderItem,
     components,
     endReached
@@ -39,11 +40,12 @@ export function VirtualList({
     const isFetchingRef = useRef(false);
     const rowHeights = useRef([]);
 
-    const initialEndCol = Math.min(columnCount - 1, 10);
-    const initialEndRow = Math.min(rowCount - 1, 10);
-
-    const [rows, setRows] = useState({ start: 0, end: initialEndRow });
-    const [cols, setCols] = useState({ start: 0, end: initialEndCol });
+    // Show all rows/cols initially so SSR renders the full table.
+    // On the client, useLayoutEffect fires before first paint and
+    // narrows the range to the visible viewport.
+    const [rows, setRows] = useState({ start: 0, end: rowCount - 1 });
+    const [cols, setCols] = useState({ start: 0, end: columnCount - 1 });
+    const effectiveCols = virtualizeColumns ? cols : { start: 0, end: columnCount - 1 };
 
 
     const getRowHeight = (i) =>
@@ -80,34 +82,36 @@ export function VirtualList({
             y2 += getRowHeight(endRow++);
         }
 
-        // COLS
-        let x = 0;
-        let startCol = 0;
-        while (
-            startCol < columnCount &&
-            x + getColWidth(startCol) < scrollLeft - increaseViewportBy.left
-            ) {
-            x += getColWidth(startCol);
-            startCol++;
-        }
-
-        let endCol = startCol;
-        let x2 = x;
-
-        while (
-            endCol < columnCount &&
-            x2 < scrollLeft + clientW + increaseViewportBy.right
-            ) {
-            x2 += getColWidth(endCol);
-            endCol++;
-        }
-
-        // ensure at least one column
-        if (endCol <= startCol) endCol = Math.min(startCol + 1, columnCount);
-
-
         setRows({ start: startRow, end: Math.min(Math.max(endRow - 1, startRow), rowCount - 1) });
-        setCols({ start: startCol, end: Math.min(Math.max(endCol - 1, startCol), columnCount - 1) });
+
+        if (virtualizeColumns) {
+            // COLS
+            let x = 0;
+            let startCol = 0;
+            while (
+                startCol < columnCount &&
+                x + getColWidth(startCol) < scrollLeft - increaseViewportBy.left
+                ) {
+                x += getColWidth(startCol);
+                startCol++;
+            }
+
+            let endCol = startCol;
+            let x2 = x;
+
+            while (
+                endCol < columnCount &&
+                x2 < scrollLeft + clientW + increaseViewportBy.right
+                ) {
+                x2 += getColWidth(endCol);
+                endCol++;
+            }
+
+            // ensure at least one column
+            if (endCol <= startCol) endCol = Math.min(startCol + 1, columnCount);
+
+            setCols({ start: startCol, end: Math.min(Math.max(endCol - 1, startCol), columnCount - 1) });
+        }
 
         // endReached callback
         if (
@@ -122,6 +126,7 @@ export function VirtualList({
         rowCount,
         columnCount,
         increaseViewportBy,
+        virtualizeColumns
     ]);
 
     useEffect(() => {
@@ -181,15 +186,18 @@ export function VirtualList({
             (_, i) => getRowHeight(rows.start + i)
         ).reduce((a, b) => a + b, 0);
 
-    const paddingLeft = Array.from({ length: cols.start }).reduce((s, _, i) => s + getColWidth(i), 0);
+    const paddingLeft = virtualizeColumns
+        ? Array.from({ length: effectiveCols.start }).reduce((s, _, i) => s + getColWidth(i), 0)
+        : 0;
 
-    const paddingRight =
-        getTotalWidth() -
-        paddingLeft -
-        Array.from(
-            { length: cols.end - cols.start + 1 },
-            (_, i) => getColWidth(cols.start + i)
-        ).reduce((a, b) => a + b, 0);
+    const paddingRight = virtualizeColumns
+        ? getTotalWidth() -
+          paddingLeft -
+          Array.from(
+              { length: effectiveCols.end - effectiveCols.start + 1 },
+              (_, i) => getColWidth(effectiveCols.start + i)
+          ).reduce((a, b) => a + b, 0)
+        : 0;
 
     return (
         <div
@@ -198,7 +206,7 @@ export function VirtualList({
             style={{ overflow: "auto", height: "100%", width: "100%" }}
         >
             <div className={theme.header} style={{ paddingLeft, paddingRight }}>
-                {components?.Header?.({start: cols.start, end: cols.end})}
+                {components?.Header?.({start: effectiveCols.start, end: effectiveCols.end})}
             </div>
 
             <div
@@ -214,7 +222,7 @@ export function VirtualList({
                                     onMeasure(rowIndex, null, height)
                                 }
                                 renderItem={renderItem}
-                                cols={cols}
+                                cols={effectiveCols}
                             />
                         );
                     }
@@ -224,7 +232,7 @@ export function VirtualList({
             </div>
 
             <div className={theme.bottom} style={{ paddingLeft, paddingRight }}>
-                {components?.bottomFrozen?.({start: cols.start, end: cols.end})}
+                {components?.bottomFrozen?.({start: effectiveCols.start, end: effectiveCols.end})}
             </div>
         </div>
     );

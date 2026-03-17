@@ -10,28 +10,22 @@ const buttonRedClass = 'p-2 mx-1 bg-red-500 hover:bg-red-700 text-white rounded-
 const buttonGreenClass = 'p-2 mx-1 bg-green-500 hover:bg-green-700 text-white rounded-md';
 
 const DeleteSourceBtn = ({parent, source, apiUpdate, baseUrl}) => {
-    // update parent to exclude source. the source still stays in the DB.
-    const {UI} = useContext(DatasetsContext);
+    const {UI, app, type, falcor} = useContext(DatasetsContext);
     const {DeleteModal} = UI;
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const navigate = useNavigate();
 
     const deleteSource = async () => {
-        const parentType = parent.ref.split('+')[1];
-        if(!parentType) return;
+        const sourceId = source.source_id || source.id;
+        const sourceType = `${type}|source`;
 
-        const config = {
-            format: {
-                app: parent.app,
-                type: parentType
-            }
-        }
-        const data = cloneDeep(parent);
-        data.sources = data.sources.filter(s => s.id !== source.id);
+        // Delete the source row from the database
+        await falcor.call(["dms", "data", "delete"], [app, sourceType, sourceId]);
 
-        await apiUpdate({data, config});
-        // navigate(baseUrl)
-        window.location.assign(baseUrl);
+        // Invalidate the UDA sources list so it refetches without the deleted source
+        await falcor.invalidate(['uda', `${app}+${type}`, 'sources']);
+
+        navigate(baseUrl);
     }
     return (
         <>

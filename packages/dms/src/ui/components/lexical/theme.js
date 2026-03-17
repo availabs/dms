@@ -48,7 +48,8 @@ export const lexicalTheme = {
     blockCursor: `block pointer-events-none absolute content-[''] after:absolute after:-top-[2px] after:w-[20px] after:border-t-[1px_solid_black]`,
     characterLimit: "inline !bg-[#ffbbbb]",
     layoutContainer: 'grid gap-[10px]',
-    layoutItem: 'border border-dashed border-slate-300 rounded-lg px-2 py-4 min-w-0 max-w-full',
+    layoutItem: "px-2 py-4 min-w-0 max-w-full",
+    layoutItemEditable: "border border-dashed border-slate-300 rounded-lg",
 
     // Code block
     code: `bg-[rgb(240,_242,_245)] font-[Menlo,_Consolas,_Monaco,_monospace] block pl-[52px] pr-[8px] py-[8px] leading-[1.53] text-[13px] m-0 mt-[8px] mb-[8px] [tab-size:2] relative after:content-[attr(data-gutter)] after:absolute after:bg-[#eee] after:left-[0] after:top-[0] after:border-r-[1px_solid_#ccc] after:p-[8px] after:text-[#777] after:whitespace-pre-wrap after:text-right after:min-w-[25px]`,
@@ -450,8 +451,8 @@ export const lexicalTheme = {
     nestable_dragLayerList: "absolute top-0 left-0 p-0",
     nestable_icon_base: "relative inline-block w-5 h-5 bg-transparent bg-center bg-no-repeat",
     nestable_icon_before: "hidden",
-    nestable_iconPlusGray: 'w-5 h-5 bg-[url("./icon-plus-gray.svg")]',
-    nestable_iconMinusGray: 'w-5 h-5 bg-[url("./icon-minus-gray.svg")]',
+    nestable_iconPlusGray: "w-5 h-5 bg-[url('data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2714%27 height=%2713%27 viewBox=%270 0 14 13%27%3E%3Cpath fill=%27%23979797%27 d=%27M7 0a1 1 0 011 1v4.5h4.5a1 1 0 110 2H8V12a1 1 0 11-2 0V7.5H1.5a1 1 0 010-2H6V1a1 1 0 011-1z%27/%3E%3C/svg%3E')]",
+    nestable_iconMinusGray: "w-5 h-5 bg-[url('data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2713%27 height=%273%27 viewBox=%270 0 13 3%27%3E%3Crect fill=%27%23979797%27 width=%2713%27 height=%272%27 rx=%271%27/%3E%3C/svg%3E')]",
 
     // Draggable block menu (flat)
     draggableBlockMenu_base: "rounded-md p-0.5 cursor-grab opacity-0 absolute -left-8 top-0 will-change-transform hover:bg-gray-200",
@@ -556,7 +557,7 @@ export function buildLexicalInternalTheme(flatTheme) {
   const simpleKeys = [
     'editorScroller', 'viewScroller', 'editorContainer', 'editorShell', 'card',
     'paragraph', 'contentEditable', 'quote', 'blockCursor', 'characterLimit',
-    'layoutContainer', 'layoutItem', 'code', 'hashtag', 'image', 'indent',
+    'layoutContainer', 'layoutItem', 'layoutItemEditable', 'code', 'hashtag', 'image', 'indent',
     'inlineImage', 'link', 'ltr', 'rtl', 'tableScrollableWrapper', 'table',
     'tableAddColumns', 'tableAddRows', 'tableCell', 'tableCellActionButton',
     'tableCellActionButtonContainer', 'tableCellEditing', 'tableCellHeader',

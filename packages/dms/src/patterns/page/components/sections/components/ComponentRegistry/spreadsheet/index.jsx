@@ -16,9 +16,9 @@ const frozenColClass = '' // testing
 
 export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addItem, newItem, setNewItem, loading, allowEdit,
                                 currentPage, infiniteScrollFetchData}) => {
-    const { UI, theme = { table } } = React.useContext(ThemeContext) || {}
+    const { UI, theme} = React.useContext(ThemeContext) || {}
     const {Table} = UI;
-    const {state:{columns, sourceInfo, display, data, localFilteredData, fullData}, setState, controls={}, isActive, activeStyle} = useContext(ComponentContext);
+    const {state:{columns=[], sourceInfo={}, display={}, data=[], localFilteredData, fullData}, setState, controls={}, isActive, activeStyle} = useContext(ComponentContext);
     const gridRef = useRef(null);
 
     const visibleAttributes = useMemo(() => columns.filter(({show}) => show), [columns]);
@@ -131,6 +131,7 @@ export default {
     useInfiniteScroll: true,
     showPagination: true,
     keepOriginalValues: true,
+    showAllColumnsControl: true,
     themeKey: 'table',
     defaultState: {
         dataRequest: {},
@@ -143,8 +144,6 @@ export default {
         columns: [
             // settings from columns dropdown are stored in state.columns array, per column
             {type: 'toggle', label: 'show', key: 'show'},
-            {type: 'toggle', label: 'Filter', key: 'filters',
-                trueValue: [{type: 'internal', operation: 'filter', values: []}]},
             {type: 'toggle', label: 'Group', key: 'group'},
             {type: 'select', label: 'Fn', key: 'fn',
                 options: [
@@ -164,6 +163,13 @@ export default {
         more: [
             // settings from more dropdown are stored in state.display
             {type: 'toggle', label: 'Attribution', key: 'showAttribution'},
+            {type: 'toggle', label: 'Striped', key: 'striped'},
+            {type: 'toggle', label: 'Auto Resize Columns', key: 'autoResize'},
+            {type: 'toggle', label: 'Hide Null Open out columns', key: 'hideIfNullOpenouts'},
+            {type: 'toggle', label: 'Virtualize Columns', key: 'virtualizeColumns'},
+            {type: 'input', label: 'Max Height', key: 'maxHeight', displayCdn: ({display}) => !display.usePagination},
+        ],
+        data: [
             {type: 'toggle', label: 'Allow Edit', key: 'allowEditInView'},
             {type: 'toggle', label: 'Allow Add New', key: 'allowAdddNew'},
             {type: 'select', label: 'Add New Behaviour', key: 'addNewBehaviour', displayCdn: ({display}) => display.allowAdddNew,
@@ -176,18 +182,11 @@ export default {
             },
             {type: 'input', inputType: 'text', label: 'Navigate to', key: 'navigateUrlOnAdd',
                 displayCdn: ({display}) => display.allowAdddNew && display.addNewBehaviour === 'navigate'},
-            {type: 'toggle', label: 'Use Page Filters', key: 'usePageFilters'},
             {type: 'toggle', label: 'Show Total', key: 'showTotal'},
-            {type: 'toggle', label: 'Striped', key: 'striped'},
             {type: 'toggle', label: 'Allow Download', key: 'allowDownload'},
             {type: 'toggle', label: 'Prevent Duplicate Fetch', key: 'preventDuplicateFetch'},
             {type: 'toggle', label: 'Always Fetch Data', key: 'readyToLoad'},
             {type: 'toggle', label: 'Use Pagination', key: 'usePagination'},
-            {type: 'toggle', label: 'Auto Resize Columns', key: 'autoResize'},
-            {type: 'toggle', label: 'Hide Null Open out columns', key: 'hideIfNullOpenouts'},
-            {type: 'select', label: 'Filter Relation', key: 'filterRelation',
-                options: [{label: 'and', value: 'and'}, {label: 'or', value: 'or'}]
-            },
             {type: 'input', inputType: 'number', label: 'Page Size', key: 'pageSize'},
         ],
         inHeader: [

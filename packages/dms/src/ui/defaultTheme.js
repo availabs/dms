@@ -24,6 +24,7 @@ import {dataCardTheme} from "./components/card.theme";
 import {graphTheme} from "./components/graph/theme";
 import {logoTheme} from "./components/Logo";
 import navigableMenuTheme from "./components/navigableMenu/theme";
+import {mapTheme} from "./components/map/map.theme";
 import icons from './icons'
 import { textSettingsTheme } from "./themes/textSettings";
 import { lexicalTheme } from './components/lexical/theme'
@@ -83,6 +84,7 @@ const components = {
     filters: filterTheme,
     graph: graphTheme,
     navigableMenu: navigableMenuTheme,
+    map: mapTheme,
 }
 const theme = {
 

@@ -535,6 +535,7 @@ export default function ({
         <div className={`${theme?.tableContainer} ${!paginationActive && theme?.tableContainerNoPagination}`}
              ref={gridRef}
              onMouseLeave={e => handleMouseUp({setIsDragging})}
+             style={{maxHeight: !paginationActive && display.maxHeight ? `${display.maxHeight}px` : undefined}}
         >
                 <TableStructureContext.Provider value={structureValues}>
                     <TableCellContext.Provider value={{
@@ -551,6 +552,7 @@ export default function ({
                                 if(display.usePagination) return;
                                 infiniteScrollFetchData && infiniteScrollFetchData( currentPage + 1 )
                             }}
+                            virtualizeColumns={display.virtualizeColumns}
                             renderItem={itemContent}
                             components={components}
                         />

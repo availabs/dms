@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 
-import mapValues from "lodash/mapValues";
+import { mapValues } from "lodash-es"
 // import Dropdown from "react-dropdown";
 // import "react-dropdown/style.css";
 

@@ -304,6 +304,73 @@ async function testSearchOneWithIntegerIndex() {
   console.log('  Cleaned up test page\n');
 }
 
+async function testGetTags() {
+  console.log('--- Test: search tags query (optimized) ---');
+  console.log('  Verifies getTags queries sections directly by type convention');
+
+  const DOC_TYPE = 'tags-test-page';
+  const SECTION_TYPE = DOC_TYPE + '|cms-section';
+
+  // Create sections with tags (sections have type {doc_type}|cms-section)
+  const sec1 = await graph.callAsync(
+    ['dms', 'data', 'create'],
+    [TEST_APP, SECTION_TYPE, { tags: 'react,javascript', title: 'Section 1' }]
+  );
+  const sec1Id = Object.keys(sec1.jsonGraph.dms.data.byId)[0];
+
+  const sec2 = await graph.callAsync(
+    ['dms', 'data', 'create'],
+    [TEST_APP, SECTION_TYPE, { tags: 'python,testing', title: 'Section 2' }]
+  );
+  const sec2Id = Object.keys(sec2.jsonGraph.dms.data.byId)[0];
+
+  // Create a section without tags (should not appear in results)
+  const sec3 = await graph.callAsync(
+    ['dms', 'data', 'create'],
+    [TEST_APP, SECTION_TYPE, { title: 'No Tags Section' }]
+  );
+  const sec3Id = Object.keys(sec3.jsonGraph.dms.data.byId)[0];
+
+  // Query tags via the search route
+  const tagsResult = await graph.getAsync([
+    ['dms', 'search', `${TEST_APP}+${DOC_TYPE}`, 'tags']
+  ]);
+
+  const tagsAtom = tagsResult.jsonGraph?.dms?.search?.[`${TEST_APP}+${DOC_TYPE}`]?.tags;
+  if (!tagsAtom || tagsAtom.$type !== 'atom') {
+    throw new Error(`Expected $atom response, got ${JSON.stringify(tagsAtom)}`);
+  }
+
+  const tags = tagsAtom.value;
+  console.log(`  Tags returned: ${tags.map(r => r.tags).join(', ')}`);
+
+  if (!Array.isArray(tags) || tags.length !== 2) {
+    throw new Error(`Expected 2 tag rows, got ${tags.length}: ${JSON.stringify(tags)}`);
+  }
+
+  const allTags = tags.map(r => r.tags).sort();
+  if (!allTags.includes('python,testing') || !allTags.includes('react,javascript')) {
+    throw new Error(`Unexpected tags: ${JSON.stringify(allTags)}`);
+  }
+
+  console.log('  ✓ getTags returns correct tags from sections\n');
+
+  // Test cache: second call should be cached (no way to verify timing here,
+  // but at least verify it returns the same result)
+  const tagsResult2 = await graph.getAsync([
+    ['dms', 'search', `${TEST_APP}+${DOC_TYPE}`, 'tags']
+  ]);
+  const tags2 = tagsResult2.jsonGraph?.dms?.search?.[`${TEST_APP}+${DOC_TYPE}`]?.tags?.value;
+  if (!Array.isArray(tags2) || tags2.length !== 2) {
+    throw new Error(`Cached result mismatch: expected 2 rows, got ${tags2?.length}`);
+  }
+  console.log('  ✓ Cached result matches\n');
+
+  // Cleanup
+  await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, SECTION_TYPE, sec1Id, sec2Id, sec3Id]);
+  console.log('  Cleaned up test sections\n');
+}
+
 async function testRespondInterface() {
   console.log('--- Test: respond() interface ---');
 
@@ -353,6 +420,7 @@ async function runTests() {
     await testDelete(createdId);
     await testCreateWithData();  // Regression test for createData with data argument
     await testSearchOneWithIntegerIndex();  // Regression test for searchOne with index: 0
+    await testGetTags();  // Tags query optimization test
     await testRespondInterface();
 
     console.log('=== All Graph Harness Tests Passed! ===');

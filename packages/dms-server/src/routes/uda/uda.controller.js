@@ -1,6 +1,8 @@
 const {
   sanitizeName,
   getResponseColumnName,
+  quoteAlias,
+  dmsMainTable,
   getEssentials,
   getSitePatterns,
   getSiteSources,
@@ -13,7 +15,50 @@ const {
   handleOrderBy,
   buildCombinedWhere
 } = require('./utils');
-const { jsonMerge } = require('#db/query-utils.js');
+const { jsonMerge, typeCast } = require('#db/query-utils.js');
+
+/**
+ * Translate PostgreSQL-specific SQL expressions to SQLite equivalents.
+ * Handles client-sent "calculated columns" and groupBy expressions.
+ *
+ * Translations:
+ *   array_to_string(array_agg(distinct X), 'sep')  →  group_concat(X, 'sep')
+ *   array_to_string(array_agg(X), 'sep')           →  group_concat(X, 'sep')
+ *   array_agg(X)                                   →  json_group_array(X)
+ *   to_jsonb(array_remove(array[...], null))::text  →  json_array(...)
+ *   to_jsonb(X)                                    →  json(X)
+ *   array_remove(array[...], null)                 →  json_array(...)  (nulls kept — close enough)
+ *
+ * Note: `distinct` is stripped from group_concat because SQLite does not support
+ * DISTINCT with a separator argument. Results may contain duplicates.
+ */
+function translatePgToSqlite(expr) {
+  // array_to_string(array_agg(distinct? X), 'sep') → group_concat(X, 'sep')
+  // Strip `distinct` since SQLite group_concat doesn't support DISTINCT with separator
+  expr = expr.replace(
+    /array_to_string\s*\(\s*array_agg\s*\(\s*(?:distinct\s+)?([^)]+)\)\s*,\s*('[^']*')\s*\)/gi,
+    'group_concat($1, $2)'
+  );
+  // standalone array_agg(...) → json_group_array(...)
+  expr = expr.replace(/array_agg\s*\(/gi, 'json_group_array(');
+
+  // to_jsonb(array_remove(array[...], null))::text → json_array(...)
+  // to_jsonb(array_remove(array[...], null))       → json_array(...)
+  // The array[...] contents are CASE expressions; nulls are kept since
+  // SQLite has no array_remove, but the grouping result is equivalent.
+  expr = expr.replace(
+    /to_jsonb\s*\(\s*array_remove\s*\(\s*array\s*\[([^\]]*)\]\s*,\s*null\s*\)\s*\)/gi,
+    'json_array($1)'
+  );
+
+  // Remaining standalone array[...] → json_array(...)
+  expr = expr.replace(/\barray\s*\[([^\]]*)\]/gi, 'json_array($1)');
+
+  // to_jsonb(X) → json(X)
+  expr = expr.replace(/to_jsonb\s*\(/gi, 'json(');
+
+  return expr;
+}
 
 // ================================================= Source Functions ================================================
 
@@ -24,7 +69,7 @@ async function getSourcesLength(env) {
     const pattern_ids = await getSitePatterns({ db, app });
     if (!pattern_ids.length) return 0;
 
-    const sources = await getSiteSources({ db, pattern_ids, pattern_doc_types: [type] });
+    const sources = await getSiteSources({ db, app, pattern_ids, pattern_doc_types: [type] });
     return sources.length;
   }
 
@@ -43,7 +88,7 @@ async function getSourceIdsByIndex(env, indices) {
     const pattern_ids = await getSitePatterns({ db, app });
     if (!pattern_ids.length) return [];
 
-    const sources = await getSiteSources({ db, pattern_ids, pattern_doc_types: [type] });
+    const sources = await getSiteSources({ db, app, pattern_ids, pattern_doc_types: [type] });
     if (!sources.length) return [];
 
     return sources
@@ -60,7 +105,7 @@ async function getSourceIdsByIndex(env, indices) {
 }
 
 async function getSourceById(env, ids, attributes) {
-  const { isDms, db } = await getEssentials({ env });
+  const { isDms, db, app } = await getEssentials({ env });
 
   // Filter out 'value' — it's a Falcor internal property from $ref resolution, not a real column
   const sanitizedAttrs = sanitizeName(attributes).filter(f => f && f !== 'value');
@@ -69,10 +114,13 @@ async function getSourceById(env, ids, attributes) {
   if (isDms) {
     const dbCols = ['id', 'app', 'type', 'data', 'created_at', 'created_by', 'updated_at', 'updated_by'];
     const formattedAttrs = ['id', ...sanitizedAttrs].map(a =>
-      dbCols.includes(a) ? a : `data->>'${a}' AS ${a}`
+      dbCols.includes(a) ? a
+        // DMS source rows don't store source_id in data — fall back to the row id
+        : a === 'source_id' ? `COALESCE(data->>'source_id', CAST(id AS TEXT)) AS source_id`
+        : `data->>'${a}' AS ${quoteAlias(a)}`
     );
 
-    const tbl = db.type === 'postgres' ? 'dms.data_items' : 'data_items';
+    const tbl = await dmsMainTable(db, app);
     const { rows } = await db.query(
       `SELECT ${formattedAttrs.join(', ')} FROM ${tbl} WHERE id = ANY($1::INT[])`,
       [ids.map(Number)]
@@ -91,7 +139,7 @@ async function getSourceById(env, ids, attributes) {
 }
 
 async function updateSource(env, sourceId, updates) {
-  const { isDms, db } = await getEssentials({ env });
+  const { isDms, db, app } = await getEssentials({ env });
 
   if (isDms) {
     const patch = {};
@@ -100,7 +148,7 @@ async function updateSource(env, sourceId, updates) {
       if (clean) patch[clean] = val;
     }
 
-    const tbl = db.type === 'postgres' ? 'dms.data_items' : 'data_items';
+    const tbl = await dmsMainTable(db, app);
     const { rows } = await db.query(
       `UPDATE ${tbl} SET data = ${jsonMerge('data', '$1', db.type)} WHERE id = $2 RETURNING *`,
       [JSON.stringify(patch), sourceId]
@@ -121,10 +169,10 @@ async function updateSource(env, sourceId, updates) {
 // ================================================= View Functions ==================================================
 
 async function getViewLengthBySourceId(env, ids) {
-  const { isDms, db } = await getEssentials({ env });
+  const { isDms, db, app } = await getEssentials({ env });
 
   if (isDms) {
-    const tbl = db.type === 'postgres' ? 'dms.data_items' : 'data_items';
+    const tbl = await dmsMainTable(db, app);
     const lenFn = db.type === 'postgres'
       ? "jsonb_array_length(data->'views')"
       : "json_array_length(data, '$.views')";
@@ -144,11 +192,11 @@ async function getViewLengthBySourceId(env, ids) {
 }
 
 async function getViewsByIndexBySourceId(env, sourceIds, indices) {
-  const { isDms, db } = await getEssentials({ env });
+  const { isDms, db, app } = await getEssentials({ env });
   const num = indices.to - indices.from + 1;
 
   if (isDms) {
-    const tbl = db.type === 'postgres' ? 'dms.data_items' : 'data_items';
+    const tbl = await dmsMainTable(db, app);
     const { rows } = await db.query(
       `SELECT id, data->'views' AS views FROM ${tbl} WHERE id = ANY($1::INT[])`,
       [sourceIds.map(Number)]
@@ -186,7 +234,7 @@ async function getViewsByIndexBySourceId(env, sourceIds, indices) {
 }
 
 async function getViewById(env, ids, attributes) {
-  const { isDms, db } = await getEssentials({ env });
+  const { isDms, db, app } = await getEssentials({ env });
 
   // Filter out 'value' — it's a Falcor internal property from $ref resolution, not a real column
   const sanitizedAttrs = sanitizeName(attributes).filter(f => f && f !== 'value');
@@ -195,10 +243,13 @@ async function getViewById(env, ids, attributes) {
   if (isDms) {
     const dbCols = ['id', 'app', 'type', 'data', 'created_at', 'created_by', 'updated_at', 'updated_by'];
     const formattedAttrs = ['id', ...sanitizedAttrs].map(a =>
-      dbCols.includes(a) ? a : `data->>'${a}' AS ${a}`
+      dbCols.includes(a) ? a
+        // DMS view rows don't store view_id in data — fall back to the row id
+        : a === 'view_id' ? `COALESCE(data->>'view_id', CAST(id AS TEXT)) AS view_id`
+        : `data->>'${a}' AS ${quoteAlias(a)}`
     );
 
-    const tbl = db.type === 'postgres' ? 'dms.data_items' : 'data_items';
+    const tbl = await dmsMainTable(db, app);
     const { rows } = await db.query(
       `SELECT ${formattedAttrs.join(', ')} FROM ${tbl} WHERE id = ANY($1::INT[])`,
       [ids.map(Number)]
@@ -216,7 +267,7 @@ async function getViewById(env, ids, attributes) {
 }
 
 async function updateView(env, viewId, updates) {
-  const { isDms, db } = await getEssentials({ env });
+  const { isDms, db, app } = await getEssentials({ env });
 
   if (isDms) {
     const patch = {};
@@ -225,7 +276,7 @@ async function updateView(env, viewId, updates) {
       if (clean) patch[clean] = val;
     }
 
-    const tbl = db.type === 'postgres' ? 'dms.data_items' : 'data_items';
+    const tbl = await dmsMainTable(db, app);
     const { rows } = await db.query(
       `UPDATE ${tbl} SET data = ${jsonMerge('data', '$1', db.type)} WHERE id = $2 RETURNING *`,
       [JSON.stringify(patch), viewId]
@@ -248,7 +299,7 @@ async function updateView(env, viewId, updates) {
 async function simpleFilterLength(env, view_id, options) {
   const { isDms, db, app, type, table_schema, table_name } = await getEssentials({ env, view_id, options });
 
-  const {
+  let {
     filter = {}, exclude = {},
     gt = {}, gte = {}, lt = {}, lte = {}, like = {},
     filterRelation = 'and',
@@ -256,6 +307,11 @@ async function simpleFilterLength(env, view_id, options) {
     groupBy = [], having = [],
     normalFilter = []
   } = JSON.parse(options);
+
+  // Translate PG-specific SQL in groupBy expressions for SQLite
+  if (db.type === 'sqlite' && groupBy.length) {
+    groupBy = groupBy.map(translatePgToSqlite);
+  }
 
   if (normalFilter.length) {
     normalFilter.forEach(({ column, values }) => {
@@ -278,8 +334,12 @@ async function simpleFilterLength(env, view_id, options) {
     filterGroups, isDms, app, type, oldValues
   });
 
+  // Check for jsonb_array_elements_text (PG) or json_each (SQLite) in groupBy
+  const hasArrayElements = groupBy?.[0]?.includes('jsonb_array_elements_text')
+    || groupBy?.[0]?.includes('json_each');
+
   const sql =
-    groupBy?.[0]?.includes('jsonb_array_elements_text') && sanitizeName(groupBy?.[0])
+    hasArrayElements && sanitizeName(groupBy?.[0])
       ? `WITH t AS (
            SELECT DISTINCT ${groupBy[0]}
            FROM ${table_schema}.${table_name}
@@ -290,7 +350,7 @@ async function simpleFilterLength(env, view_id, options) {
          SELECT count(*) numrows FROM t`
       : `SELECT count(${groupBy.length
            ? `DISTINCT ${groupBy.map(g => sanitizeName(g)).filter(g => g)
-               .map(c => `CASE WHEN ${c} IS NULL THEN '__NULL__VAL__' ELSE ${c}::text END`)
+               .map(c => `CASE WHEN ${c} IS NULL THEN '__NULL__VAL__' ELSE ${typeCast(c, 'TEXT', db.type)} END`)
                .join(`|| '-' ||`)}`
            : 1}) numrows
          FROM ${table_schema}.${table_name}
@@ -305,8 +365,13 @@ async function simpleFilter(env, view_id, options, attributes, indices) {
   const num = indices.to - indices.from + 1;
   const { isDms, db, app, type, table_schema, table_name, dmsAttributes } = await getEssentials({ env, view_id, options });
 
-  const sanitizedAttrs = sanitizeName(attributes).filter(f => f);
+  let sanitizedAttrs = sanitizeName(attributes).filter(f => f);
   if (!sanitizedAttrs.length) return [];
+
+  // Translate PG-specific SQL to SQLite equivalents
+  if (db.type === 'sqlite') {
+    sanitizedAttrs = sanitizedAttrs.map(translatePgToSqlite);
+  }
 
   // Map long column names to short aliases
   const columnNameMap = sanitizedAttrs.reduce((acc, attr, i) => {
@@ -348,7 +413,7 @@ async function simpleFilter(env, view_id, options, attributes, indices) {
   });
 
   const sql = `
-    SELECT ${sanitizedAttrs.map(c => columnNameMap[c] || c).join(', ')}
+    SELECT ${sanitizedAttrs.map(c => quoteAlias(columnNameMap[c] || c)).join(', ')}
     FROM ${table_schema}.${table_name}
     ${combinedWhere}
     ${handleGroupBy(groupBy)}
@@ -384,7 +449,7 @@ async function dataById(env, view_id, ids, attributes) {
   const sanitizedAttrs = sanitizeName(attributes).filter(f => f);
   if (!sanitizedAttrs.length) return [];
 
-  const sql = `SELECT id, ${sanitizedAttrs.join(', ')} FROM ${table_schema}.${table_name} WHERE id = ANY($1)`;
+  const sql = `SELECT id, ${sanitizedAttrs.map(c => quoteAlias(c)).join(', ')} FROM ${table_schema}.${table_name} WHERE id = ANY($1)`;
   const { rows } = await db.query(sql, [ids.map(id => +id)]);
   return rows;
 }
@@ -424,7 +489,7 @@ async function applyMeta(rows, meta, env, isDms, options) {
     }
 
     const currAttributes = isMetaDms
-      ? [keyAttribute, valueAttribute].map(c => c.includes('->>') ? c : `data->>'${c}' as ${c}`)
+      ? [keyAttribute, valueAttribute].map(c => c.includes('->>') ? quoteAlias(c) : `data->>'${c}' as ${quoteAlias(c)}`)
       : [keyAttribute, valueAttribute];
     const groupBy = isMetaDms
       ? [keyAttribute, valueAttribute].map(c => c.includes('->>') ? getResponseColumnName(c, 0) : `data->>'${c}'`)
@@ -518,5 +583,8 @@ module.exports = {
   // Data queries
   simpleFilterLength,
   simpleFilter,
-  dataById
+  dataById,
+
+  // Exported for testing
+  translatePgToSqlite
 };

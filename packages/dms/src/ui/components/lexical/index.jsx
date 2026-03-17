@@ -91,7 +91,7 @@ const View = React.memo(({value, onChange,  ...rest}) => {
 //       <div className={LexicalTheme.editorViewContainer || ''} style={bgColor ? { backgroundColor: bgColor } : undefined}>
 //         <div className={LexicalTheme.viewScroller || ''}>
 //           <div className={`${LexicalTheme.contentEditable || ''} w-full`}>
-//             <div dangerouslySetInnerHTML={{ __html: html }}></div>
+//             <div suppressHydrationWarning dangerouslySetInnerHTML={{ __html: html }}></div>
 //           </div>
 //         </div>
 //       </div>

@@ -12,14 +12,13 @@ import SectionGroup from '../../components/sections/sectionGroup'
 import SearchButton from '../../components/search'
 import PageControls from './editPane'
 
-function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attributes, apiLoad, apiUpdate, reqPermissions, busy}) {
+function PageEdit ({format, item, dataItems, updateAttribute, attributes, apiLoad, apiUpdate, reqPermissions, busy}) {
 	const navigate = useNavigate();
 	const [searchParams] = useSearchParams();
 	const { pathname = '/edit', search } = useLocation();
 
 	const { theme: fullTheme, UI } = React.useContext(ThemeContext);
 	const {  Menu, baseUrl, user, patternFilters=[], isUserAuthed } = React.useContext(CMSContext) || {};
-    const dataItems = allDataItems.filter(d => !d.authPermissions || isUserAuthed(reqPermissions, d.authPermissions));
 
 	const [ pageState, setPageState ] = useImmer({ ...item, filters: mergeFilters(item.filters, patternFilters) });
 	const [ editPane, setEditPane ] = React.useState({ open: false, index: 1, showGrid: false });
@@ -74,7 +73,7 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
 
 	useEffect(() => {
 		updatePageStateFiltersOnSearchParamChange({searchParams, item, patternFilters, setPageState})
-	}, [searchParams]);
+	}, [searchParams, item?.filters]);
 
 	useEffect(() => {
 		initNavigateUsingSearchParams({pageState, search, navigate, baseUrl, item})

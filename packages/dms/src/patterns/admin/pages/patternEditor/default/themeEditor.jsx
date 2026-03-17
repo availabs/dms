@@ -8,9 +8,6 @@ import {ThemeContext, mergeTheme} from "../../../../../ui/useTheme";
 import {AdminContext} from "../../../context";
 import {parseIfJSON} from '../../../../page/pages/_utils';
 import defaultTheme from '../../../../../ui/defaultTheme'
-import componentDocs from '../../../../../ui/docs'
-
-
 const DefaultComp = () => <div>Component not registered.</div>
 const ComponentRenderer = ({Component = DefaultComp, props}) => <Component {...props} />;
 
@@ -54,7 +51,7 @@ const initialFramContent = `
 								<style>
 								@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400..700&family=Grape+Nuts&family=Oswald:wght@200..700&family=Rock+Salt&family=Shadows+Into+Light+Two&display=swap');
 								</style>
-			
+
 							</head>
 							<body>
 							  <div id="root" class=""></div>
@@ -100,6 +97,10 @@ export function PatternThemeEditor({
                                        path,
                                        ...rest
                                    }) {
+
+    // Lazy-load component docs (only needed for theme editor preview)
+    const [componentDocs, setComponentDocs] = useState(null);
+    useEffect(() => { import('../../../../../ui/docs').then(m => setComponentDocs(m.default)); }, []);
 
     // themes is an array of {name, theme, id}
     const navigate = useNavigate();
@@ -148,7 +149,7 @@ export function PatternThemeEditor({
         // console.log('updateSettings',currentTheme?.settings(currentTheme), currentTheme)
         return currentTheme?.settings(currentTheme)
     }, [currentTheme])
-    const [currentThemeSetting, setCurrentThemeSetting] = React.useState('table' || Object.keys(themeSettings)[0])
+    const [currentThemeSetting, setCurrentThemeSetting] = React.useState('layout' || Object.keys(themeSettings)[0])
 
     //change display docs
     //const compFromProps = useMemo(() => compOptions.find(c => c.value.toLowerCase() === component?.toLowerCase())?.value, [component]);

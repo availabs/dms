@@ -115,7 +115,7 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
                                 HelpComp={HelpComp}
                             />
                             <div className={theme.menuPosition}>
-                                {canEditSection ?
+                                {/*{canEditSection ?
                                     <div color={'blue'} className={'text-blue-500 hover:text-blue-700 cursor-pointer px-1 py-0.5'}
                                           title={'Save'} onClick={onSave}>
                                         <Icon icon={'FloppyDisk'} className={'size-6'}/>
@@ -125,14 +125,16 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
                                           title={'Cancel'} onClick={onCancel}>
                                         <Icon icon={'CancelCircle'} className={'size-6'} />
                                     </div>: null
-                                }
+                                }*/}
                                 <NavigableMenu
                                     config={sectionMenuItems}
-                                    title={'Section Settings'}
+                                    title={'Settings'}
                                     btnVisibleOnGroupHover={false}
                                     defaultOpen={true}
                                     preferredPosition={"right"}
                                     preventCloseOnClickOutside={true}
+                                    showBreadcrumbs={true}
+                                    showTitle={false}
                                 />
                             </div>
                         </div>
@@ -201,7 +203,7 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
         (text?.root?.children?.length === 0)
     ))
 
-    const showHeader = value?.['title'] || value?.['tags'] || helpTextCondition
+    const showHeader = (value?.['title'] || value?.['tags'] || helpTextCondition) && (hideSection ? editPageMode : !hideSection);
     const showEditIcons = editPageMode && typeof onEdit === 'function'
 
     const updateAttribute = (k, v) => {
@@ -239,6 +241,7 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
                 pageFormat={format}
                 refreshDataBtnRef={refreshDataBtnRef}
                 component={component}
+                editPageMode={editPageMode}
             />
         )
     }, [value, hideSection, refreshDataBtnRef, component, value?.element?.['element-type']]);
@@ -272,7 +275,7 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
 
     return (
         <ComponentContext.Provider value={{state, setState, apiLoad, apiUpdate, controls: resolvedControls, isActive, activeStyle: value?.activeStyle}}>
-            <div className={editPageMode && hideSection ? theme.wrapperHidden : theme.wrapper} style={{pageBreakInside: "avoid"}}>
+            <div className={editPageMode && hideSection && !editPageMode ? theme.wrapperHidden : theme.wrapper} style={{pageBreakInside: "avoid"}}>
 
                 {/* -------------------top line buttons ----------------------*/}
                 <div className={theme.topBar}>
@@ -281,18 +284,21 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
                         <div className={theme.menuPosition}>
                             {(showEditIcons) && (
                                 <>
-                                    {canEditSection ?
-                                        <div className={'hidden group-hover:flex text-blue-500 hover:text-blue-700 cursor-pointer px-1 py-0.5'}
-                                             title={'Edit'} onClick={onEdit} >
-                                            <Icon icon={'PencilSquare'} className={'size-6'} />
-                                        </div> :
-                                        null}
+                                    {value.hideInView ? <Pill color={'orange'} text={'Hidden from View'} /> : null}
+                                    {/*{canEditSection ?*/}
+                                    {/*    <div className={'hidden group-hover:flex text-blue-500 hover:text-blue-700 cursor-pointer px-1 py-0.5'}*/}
+                                    {/*         title={'Edit'} onClick={onEdit} >*/}
+                                    {/*        <Icon icon={'PencilSquare'} className={'size-6'} />*/}
+                                    {/*    </div> :*/}
+                                    {/*    null}*/}
 
                                     <NavigableMenu
                                         config={sectionMenuItems}
-                                        title={'Section Settings'}
+                                        title={'Settings'}
                                         btnVisibleOnGroupHover={true}
                                         preferredPosition={"right"}
+                                        showBreadcrumbs={true}
+                                        showTitle={false}
                                     />
                                 </>
                             )}

@@ -202,7 +202,7 @@ const getChain = (dataItems, currentItem) => {
 const HeaderWrapper = ({isEdit}) => {
     const {dataItems, item} = useContext(PageContext);
     const {app, type} = useContext(CMSContext);
-    const {state: {display, data, columns}} = useContext(ComponentContext);
+    const {state: {display={}, data=[], columns=[]}} = useContext(ComponentContext);
 
     const titleColumn = useMemo(() => columns.find(({title}) => title), [columns]);
     const noteColumn = useMemo(() => columns.find(({note}) => note), [columns]);
@@ -233,6 +233,7 @@ export default {
     "name": 'Header: MNY',
     "type": 'Header',
     useDataSource: true,
+    useDataWrapper: true,
     defaultState: {
         // user controlled part
         columns: [],

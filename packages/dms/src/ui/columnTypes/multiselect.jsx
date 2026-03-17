@@ -14,10 +14,10 @@ const theme = {
     multiselect: {
         view: 'w-full h-full',
         mainWrapper: 'w-full h-full relative',
-        inputWrapper: 'flex px-2 py-1 w-full text-sm font-light border focus:border-blue-300 rounded-md bg-white hover:bg-blue-100 transition ease-in',
+        inputWrapper: 'flex px-2 py-1 w-full text-sm font-light border focus:border-blue-300 rounded-md bg-white hover:bg-blue-100 transition ease-in overflow-x-auto scrollbar-sm',
         input: 'w-full px-2 py-1 border rounded-lg focus:outline-none',
         statusWrapper: 'flex items-center p-0.5',
-        tokenWrapper: 'w-fit flex m-0.5 px-2 py-1 mx-1 bg-[#C5D7E0] text-[#37576B] hover:bg-[#E0EBF0] rounded-md transition ease-in',
+        tokenWrapper: 'w-fit flex m-0.5 px-2 py-1 mx-1 bg-[#C5D7E0] text-[#37576B] hover:bg-[#E0EBF0] rounded-md transition ease-in whitespace-nowrap',
         removeIcon: 'fa fa-xmark px-1 text-xs text-red-500 hover:text-red-600 self-center cursor-pointer transition ease-in',
         menuWrapper: 'absolute p-2 bg-white min-w-[100px] w-full max-h-[150px] overflow-auto scrollbar-sm shadow-lg z-10 rounded-lg',
         alwaysOpenMenuWrapper: 'p-2 bg-white min-w-[100px] w-full max-h-[300px] overflow-auto scrollbar-sm z-20 rounded-lg',
@@ -83,7 +83,7 @@ const RenderMenu = ({
                         autoFocus
                         key={'input'}
                         placeholder={placeholder || 'search...'}
-                        className={theme?.multiselect?.input}
+                        className={`${theme?.multiselect?.input} ${loading ? 'cursor-wait' : ''}`}
                         onChange={e => setSearchKeyword(e.target.value)}
                         onFocus={() => setIsSearching(true)}
                     />
@@ -144,6 +144,12 @@ const RenderMenu = ({
                         )
                     })
             }
+            {loading && (
+                <div className="flex items-center justify-center gap-1 py-1 text-xs text-gray-400">
+                    <div className="size-3 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" />
+                    loading...
+                </div>
+            )}
         </div>
     )
 }
@@ -183,10 +189,20 @@ const Edit = ({value = [], loading, onChange, className,placeholder, options = [
                   singleSelectOnly=false,
                   displayDetailedValues=true,
                   keepMenuOpen=false,
-                  tabular=false
+                  tabular=false,
+                  onSearch
 }) => {
     // options: ['1', 's', 't'] || [{label: '1', value: '1'}, {label: 's', value: '2'}, {label: 't', value: '3'}]
     const [searchKeyword, setSearchKeyword] = useState('');
+    const searchTimerRef = useRef(null);
+
+    useEffect(() => {
+        if (!onSearch) return;
+        clearTimeout(searchTimerRef.current);
+        searchTimerRef.current = setTimeout(() => onSearch(searchKeyword), 300);
+        return () => clearTimeout(searchTimerRef.current);
+    }, [searchKeyword, onSearch]);
+
     const typeSafeValue = (Array.isArray(value) ? value : [value]).map(v => (options || []).find(o => looselyEqual((o?.value || o), (v?.value || v))) || v);
 
     const {

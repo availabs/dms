@@ -25,8 +25,8 @@ export 	async function updateDMSAttrs(data, configs, falcor) {
             if(id) {
                 // if id edit
                 let currentData = get(
-                    falcor.getCache(['dms','data','byId',id, 'data']),
-                    ['dms','data','byId',id, 'data','value']
+                    falcor.getCache(['dms','data',app,'byId',id, 'data']),
+                    ['dms','data',app,'byId',id, 'data','value']
                     ,{}
                 )
                 // ---
@@ -38,16 +38,16 @@ export 	async function updateDMSAttrs(data, configs, falcor) {
                     delete currentData[key]
                 }
                 // ---
-                //console.log(currentData,d)
+                // console.log(currentData,d)
 
                 if(!isEqual(currentData,d)){
                     //console.log('update', id )
                     await falcor.call(
                         ["dms", "data", "edit"],
-                        [id, d]
+                        [app, id, d]
                     )
                     console.log('invalidate', id, dU)
-                    await falcor.invalidate(['dms', 'data', 'byId', id])
+                    await falcor.invalidate(['dms', 'data', app, 'byId', id])
                 }
                 updates[attr].push({ref:`${app}+${type}`, id})
             } else {

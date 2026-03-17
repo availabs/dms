@@ -14,8 +14,7 @@ import SectionGroup from '../components/sections/sectionGroup'
 import { PageContext, CMSContext } from '../context';
 import { ThemeContext, mergeTheme } from "../../../ui/useTheme";
 
-function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdate, reqPermissions, format,busy}) {
-
+function PageView ({item, dataItems, attributes, apiLoad, apiUpdate, reqPermissions, format,busy}) {
     //console.log('create doc', { item, dataItems: allDataItems })
     const navigate = useNavigate()
     const [searchParams] = useSearchParams();
@@ -23,7 +22,6 @@ function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdat
     const pdfRef = useRef(); // To capture the section of the page to be converted to PDF
     const {theme: fullTheme, UI} = useContext(ThemeContext);
     const { Menu, baseUrl, patternFilters = [], isUserAuthed = () => true, authPermissions } = React.useContext(CMSContext) || {};
-    const dataItems = allDataItems.filter(d => !d.authPermissions || isUserAuthed(reqPermissions, d.authPermissions));
 
     const [pageState, setPageState] = useImmer({
       ...item,
@@ -63,7 +61,7 @@ function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdat
 
     useEffect(() => {
         updatePageStateFiltersOnSearchParamChange({searchParams, item, patternFilters, setPageState})
-    }, [searchParams]);
+    }, [searchParams, item?.filters]);
 
     useEffect(() => {
         initNavigateUsingSearchParams({pageState, search, navigate, baseUrl, item, isView: true})

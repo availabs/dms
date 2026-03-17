@@ -34,9 +34,15 @@ export function parseData(data) {
 
 /**
  * Extract one item from cache by ID
+ * @param {Object} cache - Falcor cache
+ * @param {number|string} id - Item ID
+ * @param {string[]} attrs - Attributes to extract
+ * @param {string} [app] - App namespace (for app-namespaced paths)
  */
-export function extractItem(cache, id, attrs) {
-  const item = cache?.dms?.data?.byId?.[id];
+export function extractItem(cache, id, attrs, app = null) {
+  const item = app
+    ? cache?.dms?.data?.[app]?.byId?.[id]
+    : cache?.dms?.data?.byId?.[id];
   if (!item || (item.$type === 'atom' && item.value === null)) return null;
 
   const result = {};
@@ -56,8 +62,10 @@ export function extractList(cache, appType, from, to, attrs) {
   for (let i = from; i <= to; i++) {
     const ref = byIndex[i];
     if (ref && ref.$type === 'ref') {
-      const itemId = ref.value[3]; // ['dms', 'data', 'byId', id]
-      const item = extractItem(cache, itemId, attrs);
+      const itemId = ref.value[ref.value.length - 1];
+      // Derive app from ref: ["dms", "data", app, "byId", id] (5 elements) vs legacy ["dms", "data", "byId", id] (4 elements)
+      const refApp = ref.value.length === 5 ? ref.value[2] : null;
+      const item = extractItem(cache, itemId, attrs, refApp);
       if (item) items.push(item);
     }
   }
@@ -164,7 +172,7 @@ export async function resolveIdOrSlug(falcor, appType, idOrSlug) {
 
   // searchOne returns a $ref to the item
   if (searchResult.$type === 'ref') {
-    return searchResult.value[3]; // ['dms', 'data', 'byId', id]
+    return searchResult.value[searchResult.value.length - 1];
   }
 
   // Or it may have an id attribute

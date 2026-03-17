@@ -248,13 +248,13 @@ function DraggableNav({
                     )}
                 />
             </div>
-            {edit && renderAddItemButton && <AddItemButton dataItems={localData || dataItemsProp} apiUpdate={apiUpdate}/>}
+            {edit && renderAddItemButton && <AddItemButton dataItems={localData || dataItemsProp} apiUpdate={apiUpdate} baseUrl={baseUrl}/>}
         </div>
     );
 }
 
 
-function AddItemButton({dataItems, apiUpdate, user = {}}) {
+function AddItemButton({dataItems, apiUpdate, baseUrl, user = {}}) {
     //const submit = useSubmit();
     const {pathname = '/edit'} = useLocation();
     const [loading, setLoading] = useState(false);
@@ -279,7 +279,7 @@ function AddItemButton({dataItems, apiUpdate, user = {}}) {
 
     const addItem = async () => {
         setLoading(true);
-        await apiUpdate({data: item})
+        await apiUpdate({data: item, newPath: `${baseUrl}/edit/${item.url_slug}`})
         setLoading(false);
     }
     return (

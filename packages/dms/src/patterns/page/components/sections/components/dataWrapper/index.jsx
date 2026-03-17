@@ -34,7 +34,8 @@ const triggerDownload = async ({state, apiLoad, loadAllColumns, setLoading}) => 
                 ...state.columns,
                 ...state.sourceInfo.columns.filter(originalColumn => !state.columns.find(c => c.name === originalColumn.name))
             ]
-                .map(c => ({...c, show: !isCalculatedCol(c)}))
+                .map(c => ({...c, show: true}))
+                // .map(c => ({...c, show: true || !isCalculatedCol(c)}))
         } : state;
 
     const {data} = await getData({
@@ -223,7 +224,7 @@ const Edit = ({cms_context, value, onChange, component}) => {
                     if(operation === 'like' && !(values.length && values.every(v => v.length))){
                         // like operator should not remove nulls if no value is set
                         acc[operation] = {}
-                    } if(isNormalisedColumn){
+                    } else if(isNormalisedColumn){
                         (acc.normalFilter ??= []).push({ column: column.name, values, operation, fn });
                     }else{
                         acc[operation] = {...acc[operation] || {}, [column.name]: values};
@@ -288,8 +289,9 @@ const Edit = ({cms_context, value, onChange, component}) => {
                 draft.display.filteredLength = undefined;
                 draft.display.totalLength = length;
                 draft.display.invalidState = invalidState;
+                draft.lastDataRequest = state.dataRequest;
             })
-            onChange(JSON.stringify({...state, lastDataRequest: state.dataRequest, data, totalLength: length}));
+            state.display.preventDuplicateFetch && onChange(JSON.stringify({...state, lastDataRequest: state.dataRequest, data, totalLength: length}));
             setCurrentPage(newCurrentPage);
             setLoading(false)
         }
@@ -416,7 +418,6 @@ const Edit = ({cms_context, value, onChange, component}) => {
     // =========================================== saving settings begin ===============================================
     useEffect(() => {
         if (!isEdit || !isValidState  || isEqual(value, JSON.stringify(state))) return;
-        console.log('save', state)
         onChange(JSON.stringify(state));
     }, [state])
     // =========================================== saving settings end =================================================
@@ -522,7 +523,7 @@ const Edit = ({cms_context, value, onChange, component}) => {
     )
 }
 
-const View = ({cms_context, value, onChange, component}) => {
+const View = ({cms_context, value, onChange, component, editPageMode}) => {
     const isEdit = false;
     const navigate = useNavigate();
     const { pageState } = useContext(PageContext) || {}; // is this safe for datasets pages table and view?
@@ -538,7 +539,7 @@ const View = ({cms_context, value, onChange, component}) => {
     const groupByColumnsLength = useMemo(() => state?.columns?.filter(({group}) => group).length, [state?.columns]);
     const showChangeFormatModal = !state?.sourceInfo?.columns;
     const isValidState = Boolean(state?.dataRequest); // new state structure
-    const Comp = useMemo(() => state.display.hideSection ? () => <></> : component.ViewComp, [component, state.display.hideSection]);
+    const Comp = useMemo(() => state.display.hideSection && !editPageMode ? () => <></> : component.ViewComp, [component, state.display.hideSection]);
     // const useCache = state.display.useCache //=== false ? false : true; // false: loads data on load. can be expensive. useCache can be undefined for older components.
     const setReadyToLoad = useCallback(() => setState(draft => {draft.display.readyToLoad = true}), [setState]);
     const allowEdit = groupByColumnsLength ? false : state.sourceInfo?.isDms && state.display.allowEditInView && Boolean(apiUpdate);
@@ -549,7 +550,7 @@ const View = ({cms_context, value, onChange, component}) => {
     }, [value]);
 
     const localFilters = useMemo(() =>
-            state.columns.filter(c => c.localFilter?.length)
+            (state.columns || []).filter(c => c.localFilter?.length)
                 .reduce((acc, c) => ({...acc, [c.normalName || c.name]: c.localFilter}), {}),
         [state.columns]);
     const localFilterColumns = useMemo(() => Object.keys(localFilters).filter(k => localFilters[k]?.length), [localFilters]);
@@ -559,7 +560,7 @@ const View = ({cms_context, value, onChange, component}) => {
 
         const textSearchCols =
             Object.keys(localFilters)
-                .filter(col => !['select', 'multiselect', 'radio'].includes(state.columns.find(c => (c.normalName || c.name) === col)?.type))
+                .filter(col => !['select', 'multiselect', 'radio'].includes(state.columns?.find(c => (c.normalName || c.name) === col)?.type))
 
         const filteredData = (state.fullData || state.data).filter((row, rowI) => {
             return Object.keys(localFilters).every(col => {
@@ -630,12 +631,15 @@ const View = ({cms_context, value, onChange, component}) => {
                 const normalized = Array.isArray(pageValues) ? pageValues : [pageValues];
                 if (!isEqual(node.value, normalized)) {
                     node.value = normalized;
+                    if(!draft.display.readyToLoad){
+                        draft.display.readyToLoad = true; // on filter change, set readyToLoad
+                    }
                 }
             };
             update(draft.dataRequest?.filterGroups);
         });
     }, [pageState?.filters]);
-    const filterOptions = useMemo(() => state.columns.reduce((acc, column) => {
+    const filterOptions = useMemo(() => state.columns?.reduce((acc, column) => {
         const isNormalisedColumn = state.columns.filter(col => col.name === column.name && col.filters?.length).length > 1;
 
         (column.filters || [])
@@ -667,7 +671,7 @@ const View = ({cms_context, value, onChange, component}) => {
     // if search params are being used, ideally for template pages you should only fetch on filter change
     // for other pages, all data should be fetched
 
-    const orderBy = useMemo(() => state.columns.filter(column => column.sort).reduce((acc, column) => ({...acc, [column.name]: column.sort}), {}), [state.columns]);
+    const orderBy = useMemo(() => state.columns?.filter(column => column.sort).reduce((acc, column) => ({...acc, [column.name]: column.sort}), {}), [state.columns]);
     // ======================================= data fetch triggers end =================================================
 
     // ========================================== get data begin =======================================================
@@ -688,7 +692,7 @@ const View = ({cms_context, value, onChange, component}) => {
             filterGroups: state.dataRequest?.filterGroups || {},
             ...filterOptions,
             orderBy,
-            meta: state.columns.filter(column => column.show &&
+            meta: state.columns?.filter(column => column.show &&
                 ['meta-variable', 'geoid-variable', 'meta'].includes(column.display) &&
                 column.meta_lookup)
                 .reduce((acc, column) => ({...acc, [column.name]: column.meta_lookup}), {})
@@ -731,7 +735,7 @@ const View = ({cms_context, value, onChange, component}) => {
                 draft.display.totalLength = length;
                 draft.lastDataRequest = state.dataRequest;
             })
-            state.display.preventDuplicateFetch && onChange(JSON.stringify({...state, lastDataRequest: state.dataRequest, data, totalLength: length}));
+            // state.display.preventDuplicateFetch && onChange(JSON.stringify({...state, lastDataRequest: state.dataRequest, data, totalLength: length}));
             setCurrentPage(newCurrentPage);
             setLoading(false)
         }
@@ -766,12 +770,12 @@ const View = ({cms_context, value, onChange, component}) => {
 
     // =========================================== get input data ======================================================
     useEffect(() => {
-        if (!allowEdit && !state.display.allowAdddNew && !state.columns.some(c => c.allowEditInView && c.mapped_options)) return;
+        if (!allowEdit && !state.display.allowAdddNew && !state.columns?.some(c => c.allowEditInView && c.mapped_options)) return;
         let isStale = false;
 
         async function loadOptionsData() {
             try {
-                const columnsToFetch = state.columns.filter(c => c.mapped_options);
+                const columnsToFetch = state.columns?.filter(c => c.mapped_options);
 
                 const fetchPromises = columnsToFetch.map(async column => {
                     let mapped_options;
@@ -844,14 +848,14 @@ const View = ({cms_context, value, onChange, component}) => {
         return () => {
             isStale = true;
         };
-    }, [allowEdit, isEdit, state.columns.map(c => c.mapped_options).join(',')]);
+    }, [allowEdit, isEdit, state.columns?.map(c => c.mapped_options).join(',')]);
 
 
     // ========================================= get input data end ======================================================
     // =========================================== get data end ========================================================
 
     // =========================================== util fns begin ======================================================
-    const editableColumns = useMemo(() => state.columns.filter(c => !(c.serverFn && c.joinKey) && c.editable !== false), [state.columns])
+    const editableColumns = useMemo(() => state.columns?.filter(c => !(c.serverFn && c.joinKey) && c.editable !== false), [state.columns])
     const updateItem = useCallback((value, attribute, d) => {
         if(!state.sourceInfo?.isDms || !apiUpdate || groupByColumnsLength) return;
         if(attribute?.name){
@@ -921,7 +925,7 @@ const View = ({cms_context, value, onChange, component}) => {
         return apiUpdate({data: item, config: { format: state.sourceInfo }, requestType: "delete"});
     }, [state.sourceInfo, apiUpdate, groupByColumnsLength, setState]);
     // =========================================== util fns end ========================================================
-    if(showChangeFormatModal || !isValidState) return <div className={'p-1 text-center'}>Form data not available.</div>;
+    // if(showChangeFormatModal || !isValidState) return <div className={'p-1 text-center'}>Form data not available.</div>;
 
     useEffect(() => {
         // set hideSection flag

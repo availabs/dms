@@ -14,6 +14,9 @@ const { createTestGraph } = require('./graph');
 const DMS_DB = process.env.DMS_TEST_DB || 'dms-sqlite';
 const DAMA_DB = process.env.DAMA_TEST_DB || 'dama-sqlite-test';
 
+// UDA routes read DMS_DB_ENV to resolve the database — sync it with the test DB
+process.env.DMS_DB_ENV = DMS_DB;
+
 const TEST_APP = 'uda-test-' + Date.now();
 const TEST_TYPE = 'dataset';
 let graph = null;
@@ -127,6 +130,55 @@ async function testDmsModeSourcesViaPatterns() {
   pass('DMS source/view routes cleanup complete');
 }
 
+async function testDmsModeRealWorldPatternType() {
+  console.log('\n--- DMS Mode: Real-world pattern type (undefined|pattern) ---');
+
+  // Real-world patterns created via updateDMSAttrs have type 'undefined|pattern' (or 'siteType|pattern'),
+  // not plain 'pattern'. Verify getSitePatterns finds them and sources listing works.
+
+  const patternResult = await graph.callAsync(
+    ['dms', 'data', 'create'],
+    [TEST_APP, 'undefined|pattern', { doc_type: 'realworld-test', pattern_type: 'datasets', sources: [] }]
+  );
+  const patternId = Object.keys(patternResult.jsonGraph.dms.data.byId)[0];
+
+  // Create a source
+  const srcResult = await graph.callAsync(
+    ['dms', 'data', 'create'],
+    [TEST_APP, 'realworld-test|source', { name: 'Real Source', doc_type: 'rs-uuid' }]
+  );
+  const srcId = Object.keys(srcResult.jsonGraph.dms.data.byId)[0];
+
+  // Link source to pattern
+  await graph.callAsync(
+    ['dms', 'data', 'edit'],
+    [patternId, { doc_type: 'realworld-test', pattern_type: 'datasets', sources: [{ id: +srcId }] }]
+  );
+
+  const env = `${TEST_APP}+realworld-test`;
+
+  // Test sources.length — this is the exact query path that was broken
+  const lengthResult = await graph.getAsync([
+    ['uda', env, 'sources', 'length']
+  ]);
+  const length = lengthResult.jsonGraph.uda[env].sources.length;
+  assert(length === 1, `Expected 1 source for 'undefined|pattern' type, got ${length}`);
+  pass('getSitePatterns finds patterns with type "undefined|pattern"');
+
+  // Test sources.byIndex
+  const byIndexResult = await graph.getAsync([
+    ['uda', env, 'sources', 'byIndex', { from: 0, to: 0 }, 'value']
+  ]);
+  const idx0 = byIndexResult.jsonGraph.uda[env].sources.byIndex[0];
+  assert(idx0 && idx0.value, 'byIndex[0] should return a $ref for real-world pattern type');
+  pass('sources.byIndex works for real-world pattern type');
+
+  // Cleanup
+  await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, 'realworld-test|source', srcId]);
+  await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, 'undefined|pattern', patternId]);
+  pass('Real-world pattern type cleanup complete');
+}
+
 async function testDmsModeViews() {
   console.log('\n--- DMS Mode: Views byId ---');
 
@@ -216,12 +268,174 @@ async function testDmsModeDataQueries() {
     ['uda', env, 'viewsById', viewId, 'dataById', firstId, ['id', "data->>'name' as name"]]
   ]);
   const row = byIdResult.jsonGraph.uda[env].viewsById[viewId].dataById[firstId];
-  assert(row && row.id === firstId, `Expected id ${firstId}, got ${row?.id}`);
+  assert(row && +row.id === firstId, `Expected id ${firstId}, got ${row?.id}`);
   pass('dataById returns correct row');
 
   // Cleanup
   await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, 'querytest', ...items]);
   pass('Data query cleanup complete');
+}
+
+// ============================================= filterGroups Tests ==============================================
+
+/**
+ * Unit test: getValuesFromGroup must not return empty arrays for IS NULL leaves.
+ *
+ * Regression test for: "bind message supplies 8 parameters, but prepared statement requires 2"
+ * Root cause: getValuesFromGroup returned [[]] for leaves with value: ['null'], creating
+ * query parameters with no matching $N placeholder.
+ */
+async function testGetValuesFromGroupNullLeaves() {
+  console.log('\n--- Unit: getValuesFromGroup with IS NULL leaves ---');
+
+  const { getValuesFromGroup, handleFilterGroups } = require('../src/routes/uda/utils');
+
+  // Leaf with value: ['null'] — should produce IS NULL SQL but zero values
+  const nullLeaf = { col: "data->>'planning'", op: 'filter', value: ['null'] };
+  const vals = getValuesFromGroup(nullLeaf);
+  assert(vals.length === 0,
+    `getValuesFromGroup should return [] for value:['null'], got ${JSON.stringify(vals)}`);
+  pass('getValuesFromGroup returns no values for value: ["null"]');
+
+  // Leaf with value: ['not null'] — should produce IS NOT NULL SQL but zero values
+  const notNullLeaf = { col: "data->>'col'", op: 'exclude', value: ['not null'] };
+  const vals2 = getValuesFromGroup(notNullLeaf);
+  assert(vals2.length === 0,
+    `getValuesFromGroup should return [] for value:['not null'], got ${JSON.stringify(vals2)}`);
+  pass('getValuesFromGroup returns no values for value: ["not null"]');
+
+  // Mixed leaf: ['alpha', 'null'] — keeps 'alpha', drops 'null' sentinel
+  const mixedLeaf = { col: "data->>'cat'", op: 'filter', value: ['alpha', 'null'] };
+  const vals3 = getValuesFromGroup(mixedLeaf);
+  assert(vals3.length === 1 && vals3[0].length === 1 && vals3[0][0] === 'alpha',
+    `Expected [['alpha']], got ${JSON.stringify(vals3)}`);
+  pass('getValuesFromGroup keeps non-null values in mixed leaf');
+
+  // Scalar 'null' sentinel — no values
+  const scalarNull = { col: "data->>'x'", op: 'filter', value: 'null' };
+  const vals4 = getValuesFromGroup(scalarNull);
+  assert(vals4.length === 0,
+    `Expected [] for scalar 'null', got ${JSON.stringify(vals4)}`);
+  pass('getValuesFromGroup returns no values for scalar "null"');
+
+  // Scalar real value — one value
+  const scalarReal = { col: "data->>'x'", op: 'filter', value: 'hello' };
+  const vals5 = getValuesFromGroup(scalarReal);
+  assert(vals5.length === 1 && vals5[0][0] === 'hello',
+    `Expected [['hello']], got ${JSON.stringify(vals5)}`);
+  pass('getValuesFromGroup returns value for scalar real value');
+
+  // Group of 6 IS NULL leaves — values count must match handleFilterGroups placeholder count
+  const filterGroups = {
+    op: 'and',
+    groups: [
+      { col: "data->>'col1'", op: 'filter', value: ['null'] },
+      { col: "data->>'col2'", op: 'filter', value: ['null'] },
+      { col: "data->>'col3'", op: 'filter', value: ['null'] },
+      { col: "data->>'col4'", op: 'filter', value: ['null'] },
+      { col: "data->>'col5'", op: 'filter', value: ['null'] },
+      { col: "data->>'col6'", op: 'filter', value: ['null'] },
+    ]
+  };
+  const groupVals = getValuesFromGroup(filterGroups);
+  assert(groupVals.length === 0,
+    `Expected 0 values for all-null filterGroups, got ${groupVals.length}: ${JSON.stringify(groupVals)}`);
+  pass('getValuesFromGroup returns no values for group of IS NULL leaves');
+
+  // Verify handleFilterGroups generates SQL (IS NULL conditions) but no placeholder params
+  const { sql } = handleFilterGroups({ filterGroups, isDms: true, startIndex: 2 });
+  assert(sql.length > 0, 'handleFilterGroups should generate IS NULL SQL');
+  assert(!sql.includes('$3'), `SQL should not have new placeholders, got: ${sql}`);
+  pass('handleFilterGroups generates IS NULL SQL without new placeholders');
+}
+
+/**
+ * Integration test: UDA query with filterGroups containing IS NULL leaves.
+ *
+ * Reproduces the production error: SUM aggregation query with filterGroups whose leaves
+ * are all IS NULL checks. Before the fix, this would crash with:
+ *   "bind message supplies N parameters, but prepared statement requires 2"
+ */
+async function testFilterGroupsNullIntegration() {
+  console.log('\n--- DMS Mode: filterGroups with IS NULL leaves ---');
+
+  // Create test data — some items with 'status' set, some without
+  const items = [];
+  for (const data of [
+    { name: 'A', status: 'active', priority: 'high' },
+    { name: 'B', status: 'done' },                       // no priority
+    { name: 'C' },                                        // no status, no priority
+  ]) {
+    const result = await graph.callAsync(
+      ['dms', 'data', 'create'],
+      [TEST_APP, 'fgtest', data]
+    );
+    items.push(Object.keys(result.jsonGraph.dms.data.byId)[0]);
+  }
+
+  const env = `${TEST_APP}+fgtest`;
+  const viewId = items[0];
+
+  // Query with filterGroups containing IS NULL leaves — this is the exact pattern
+  // that caused the bind parameter mismatch in production
+  const options = JSON.stringify({
+    filterGroups: {
+      op: 'and',
+      groups: [
+        { col: "data->>'status'", op: 'filter', value: ['null'] },
+        { col: "data->>'priority'", op: 'filter', value: ['null'] },
+      ]
+    }
+  });
+
+  // options.length should work without bind error
+  const lenResult = await graph.getAsync([
+    ['uda', env, 'viewsById', viewId, 'options', options, 'length']
+  ]);
+  const len = lenResult.jsonGraph.uda[env].viewsById[viewId].options[options].length;
+  assert(len === 1, `Expected 1 item with both null, got ${len}`);
+  pass('options.length with IS NULL filterGroups succeeds');
+
+  // options.dataByIndex with aggregation attributes — mirrors the production SUM query
+  const sumOptions = JSON.stringify({
+    filterGroups: {
+      op: 'and',
+      groups: [
+        { col: "data->>'status'", op: 'filter', value: ['null'] },
+      ]
+    }
+  });
+  const sumResult = await graph.getAsync([
+    ['uda', env, 'viewsById', viewId, 'options', sumOptions, 'dataByIndex',
+      { from: 0, to: 0 },
+      ["count(1) as count_count"]]
+  ]);
+  const count = sumResult.jsonGraph.uda[env].viewsById[viewId].options[sumOptions].dataByIndex[0];
+  assert(count && +count["count(1) as count_count"] === 1,
+    `Expected count 1 for null status, got ${JSON.stringify(count)}`);
+  pass('options.dataByIndex with IS NULL filterGroups and aggregation succeeds');
+
+  // Mixed: one IS NULL leaf + one real value leaf
+  const mixedOptions = JSON.stringify({
+    filterGroups: {
+      op: 'and',
+      groups: [
+        { col: "data->>'status'", op: 'filter', value: ['active'] },
+        { col: "data->>'priority'", op: 'filter', value: ['null'] },
+      ]
+    }
+  });
+  const mixedLen = await graph.getAsync([
+    ['uda', env, 'viewsById', viewId, 'options', mixedOptions, 'length']
+  ]);
+  const mLen = mixedLen.jsonGraph.uda[env].viewsById[viewId].options[mixedOptions].length;
+  // Item A has status=active AND priority=high (not null), so 0 matches
+  assert(mLen === 0, `Expected 0 items (active + null priority), got ${mLen}`);
+  pass('options.length with mixed real + IS NULL filterGroups succeeds');
+
+  // Cleanup
+  await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, 'fgtest', ...items]);
+  pass('filterGroups IS NULL test cleanup complete');
 }
 
 // ================================================= DAMA Mode Tests ===============================================
@@ -345,8 +559,13 @@ async function run() {
   try {
     // DMS mode tests
     await testDmsModeSourcesViaPatterns();
+    await testDmsModeRealWorldPatternType();
     await testDmsModeViews();
     await testDmsModeDataQueries();
+
+    // filterGroups regression tests
+    await testGetValuesFromGroupNullLeaves();
+    await testFilterGroupsNullIntegration();
 
     // DAMA mode tests
     await testDamaModeSourcesCrud();

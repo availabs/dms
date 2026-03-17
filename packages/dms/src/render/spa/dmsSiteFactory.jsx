@@ -1,218 +1,21 @@
 import React, {useState, useEffect} from 'react'
 import { createBrowserRouter, RouterProvider, useRouteError } from "react-router";
-import { falcorGraph, useFalcor } from "@availabs/avl-falcor"
+import { falcorGraph } from "@availabs/avl-falcor"
 import { cloneDeep } from "lodash-es"
-
-import { dmsDataLoader, dmsPageFactory } from '../../'
-
-import patternTypes from '../../patterns'
-import { updateAttributes, updateRegisteredFormats } from "../../dms-manager/_utils";
-
-import { withAuth, authProvider } from '../../patterns/auth/context';
+import { dmsDataLoader, withAuth, authProvider, dmsPageFactory } from '../../'
 import { parseIfJSON } from '../../patterns/page/pages/_utils';
+import { updateAttributes, updateRegisteredFormats } from "../../dms-manager/_utils";
+import { pattern2routes } from './utils'
+import RootErrorBoundary from './utils/RootErrorBoundary.jsx';
 
-const getSubdomain = (host) => {
-    // ---
-    // takes window.location.host and returns subdomain
-    // only works with single depth subdomains
-    // ---
-    //console.log('host', host,  host.split('.'));
-    if (process.env.NODE_ENV === "development") {
-        return host.split('.').length >= 2 ?
-            window.location.host.split('.')[0].toLowerCase() :
-                false
-    } else {
-        return host.split('.').length > 2 ?
-            window.location.host.split('.')[0].toLowerCase() :
-                false
-    }
-}
-
-function RootErrorBoundary() {
-    const error = useRouteError();
-    console.error(error);
-
-    return (
-        <div>
-            <h1>Oops! Something went wrong.</h1>
-            <p>{error.statusText || error.message}</p>
-        </div>
-    );
-}
-
-// --
-// to do:
-// Allow users to pass Pattern Configs
-// --
-//console.log('hola', pageConfig)
-
-
-function pattern2routes (siteData, props) {
-    let {
-        dmsConfig,
-        adminPath = '/list',
-        authPath,
-        authWrapper = withAuth,
-        themes = { default: {} },
-        pgEnvs = [],
-        API_HOST = 'https://graph.availabs.org',
-        DAMA_HOST = 'https://graph.availabs.org',
-        damaBaseUrl,
-        PROJECT_NAME,
-        damaDataTypes
-    } = props
-
-
-    let SUBDOMAIN = getSubdomain(window.location.host)
-    // for weird double subdomain tld
-    SUBDOMAIN = SUBDOMAIN === 'hazardmitigation' ? '' : SUBDOMAIN
-
-    const dbThemes = (siteData?.[0]?.theme_refs || [])
-      .reduce((out,theme) => {
-          out[theme.name] = parseIfJSON(theme.theme)
-          return out
-      }, {})
-    //console.log('patterns2routes',dbThemes)
-
-    themes = themes?.default ? { ...themes, ...dbThemes } : { ...themes, ...dbThemes, default: {} }
-    // console.log('dmsSiteFactory themes', themes)
-
-    let dmsConfigUpdated = cloneDeep(dmsConfig);
-    dmsConfigUpdated.registerFormats = updateRegisteredFormats(dmsConfigUpdated.registerFormats, dmsConfig.app)
-    dmsConfigUpdated.attributes = updateAttributes(dmsConfigUpdated.attributes, dmsConfig.app)
-
-    // console.log('dmsConfigUpdated', dmsConfigUpdated)
-    let AdminPattern = {
-      app: dmsConfigUpdated?.format?.app || dmsConfigUpdated.app,
-      type: dmsConfigUpdated.type,
-      doc_type: dmsConfigUpdated.type,
-      siteType: dmsConfigUpdated.type,
-      base_url: adminPath,
-      //format: pattern?.config,
-      pattern: {},
-      pattern_type: 'admin',
-      subdomain: "*",
-      authPermissions: "{}",
-      theme: themes['default'],
-      themes
-    }
-  const patterns = [
-    AdminPattern,
-    ...(siteData
-      .reduce((acc, curr) => [...acc, ...(curr?.patterns || [])], [])
-      || [])
-  ];
-
-    // Build datasetPatterns once (for backwards compatibility with other patterns)
-    const datasetPatterns = patterns.filter(p => ['forms', 'datasets'].includes(p.pattern_type));
-
-    // Build unified datasources array for page pattern
-    const app = dmsConfigUpdated?.format?.app || dmsConfigUpdated.app;
-    const datasources = [
-      // External sources from pgEnvs (with damaBaseUrl)
-      ...(pgEnvs || []).map(env => ({
-        type: 'external',
-        env,
-        baseUrl: damaBaseUrl || '',
-        label: 'external',
-        srcAttributes: ['name', 'metadata'],
-        viewAttributes: ['version', '_modified_timestamp'],
-      })),
-      // Internal sources from datasetPatterns
-      ...datasetPatterns.map(dsPattern => ({
-        type: 'internal',
-        env: `${app}+${dsPattern.doc_type}`,
-        baseUrl: '/forms',
-        label: 'managed',
-        isDms: true,
-        srcAttributes: ['app', 'name', 'doc_type', 'config', 'default_columns'],
-        viewAttributes: ['name', 'updated_at'],
-        pattern: dsPattern,
-      }))
-    ];
-
-    // console.log('dmssite factory, datasources', datasources)
-
-    return [
-        ...patterns
-          .filter(pattern => (
-              pattern?.pattern_type &&
-              ((!SUBDOMAIN && !pattern.subdomain) || pattern.subdomain === SUBDOMAIN || pattern.subdomain === '*')
-          ))
-          .reduce((acc, pattern) => {
-
-            const c = patternTypes[pattern.pattern_type];
-            if(!c) return acc;
-            //console.log('register pattern', pattern.id, pattern.subdomain, `/${pattern.base_url?.replace(/^\/|\/$/g, '')}`)
-            acc.push(
-              ...c.map(config => {
-                  //console.log('dmsSiteFactory authPermissions', pattern?.authPermissions)
-                  const authPermissions = parseIfJSON(pattern?.authPermissions || "{}");
-                  if(!authPermissions?.groups?.public){
-                      // default public permissions. overridden by set permissions
-                      authPermissions.groups ??= {};
-                      authPermissions.groups.public ??= ['view-page'];
-                  }
-                const configObj = config({
-                    app: dmsConfigUpdated?.format?.app || dmsConfigUpdated.app,
-                    // type: pattern.doc_type,
-                    type: pattern.doc_type || pattern?.base_url?.replace(/\//g, ''),
-                    siteType: dmsConfigUpdated?.format?.type || dmsConfigUpdated.type,
-                    baseUrl: `/${pattern.base_url?.replace(/^\/|\/$/g, '')}`, // only leading slash allowed
-                    adminPath,
-                    format: pattern?.config,
-                    pattern: pattern,
-                    pattern_type: pattern?.pattern_type,
-                    authPermissions,
-                    // NEW: Add datasources for page pattern
-                    datasources,
-                    // KEEP: Old variables for other patterns (admin, auth, forms, datasets)
-                    pgEnv: pgEnvs?.[0] || '',
-                    damaBaseUrl,
-                    datasetPatterns,
-                    themes,
-                    useFalcor,
-                    API_HOST,
-                    DAMA_HOST,
-                    PROJECT_NAME,
-                    damaDataTypes,
-                });
-                // console.log('dmssitefactory Config obj', configObj)
-                return ({
-                  ...dmsPageFactory({
-                    dmsConfig: configObj,
-                    API_HOST,
-                    authWrapper,
-                    isAuth: pattern.pattern_type === 'auth',
-                    ErrorBoundary: RootErrorBoundary
-                })})
-            }));
-
-            return acc;
-        }, []),
-    ]
-}
-
-export default async function dmsSiteFactory(config) {
-    let { dmsConfig, falcor, API_HOST } = config
-
-    let dmsConfigUpdated = cloneDeep(dmsConfig);
-    dmsConfigUpdated.registerFormats = updateRegisteredFormats(dmsConfigUpdated.registerFormats, dmsConfig.app)
-    dmsConfigUpdated.attributes = updateAttributes(dmsConfigUpdated.attributes, dmsConfig.app)
-
-    falcor = falcor || falcorGraph(API_HOST)
-    // console.time('load routes')
-    let data = await dmsDataLoader(falcor, dmsConfigUpdated, `/`);
-    // console.timeEnd('load routes')
-    // console.log('data -- get site data here', JSON.stringify(data))
-
-    return pattern2routes(data, config)
-}
+const DMS_SYNC_ENABLED = typeof import.meta !== 'undefined'
+  && import.meta.env?.VITE_DMS_SYNC === '1';
 
 export function DmsSite (config) {
     const {
         dmsConfig,
         defaultData,
+        hydrationData,
         adminPath = '/list',
         authPath,
         authWrapper = withAuth,
@@ -225,78 +28,51 @@ export function DmsSite (config) {
         damaBaseUrl,
         PROJECT_NAME,
         routes = [],
-        damaDataTypes = {}
+        damaDataTypes = {},
+        host = typeof window !== 'undefined' ? window.location.host : 'localhost'
     } = config
-    //-----------
-    // to do:
-    // could save sites to localstorage cache clear on load.
-    //-----------
     let CurrentProjectName = PROJECT_NAME ? PROJECT_NAME : dmsConfig.app
-    // console.log('current Project name', CurrentProjectName)
     const [loading, setLoading] = useState(false);
 
-    const [dynamicRoutes, setDynamicRoutes] = useState(
-        defaultData ?
-            pattern2routes(defaultData, {
-                dmsConfig,
-                adminPath,
-                authPath,
-                themes,
-                falcor,
-                API_HOST,
-                DAMA_HOST,
-                authWrapper,
-                pgEnvs,
-                damaBaseUrl,
-                PROJECT_NAME: CurrentProjectName,
-                damaDataTypes
-                //theme
-            })
-            : []
-        );
+    const routeProps = {
+        dmsConfig, adminPath, authPath, themes, falcor, API_HOST, DAMA_HOST,
+        authWrapper, pgEnvs, damaBaseUrl, PROJECT_NAME: CurrentProjectName,
+        damaDataTypes, host
+    }
+    const localStorePatterns = parseIfJSON(localStorage.getItem(dmsConfig.app+'-'+dmsConfig.type), null)
+
+    const [dynamicRoutes, setDynamicRoutes] = useState(() => {
+        if (localStorePatterns || defaultData) {
+            // console.log('has localstore patterns')
+            return pattern2routes(localStorePatterns || defaultData, routeProps)
+        }
+        return []
+    });
 
     useEffect(() => {
         let isStale = false;
         async function load () {
-            // console.log('loading site data')
-            setLoading(true)
-            // console.time('dmsSiteFactory')
-            const dynamicRoutes = await dmsSiteFactory({
-                dmsConfig,//adminConfig
-                adminPath,
-                authPath,
-                themes,
-                falcor,
-                API_HOST,
-                DAMA_HOST,
-                authWrapper,
-                pgEnvs,
-                damaBaseUrl,
-                PROJECT_NAME: CurrentProjectName,
-                damaDataTypes,
-                //theme
-            });
-            // console.timeEnd('dmsSiteFactory')
-            //console.log('dynamicRoutes ', dynamicRoutes)
-            if(!isStale) {
-                setDynamicRoutes(dynamicRoutes);
+
+            if (localStorePatterns ||defaultData) setLoading(true)
+            // Always do the full API fetch — defaultData may only contain a
+            // subset of routes (e.g., SSR pre-rendered one pattern but the
+            // site has others). The fetch fills in any missing routes.
+            console.time('dmsSite - loading Dynamic Routes', )
+            const routes = await dmsSiteFactory(routeProps);
+            if (!isStale) {
+                setDynamicRoutes(routes);
                 setLoading(false);
+                console.timeEnd('dmsSite - loading Dynamic Routes')
             }
         }
-
         load()
-
-        return () => {
-            isStale = true
-        }
+        return () => { isStale = true }
     }, []);
 
+    // --- Sync state (effects run after router is defined below) ---
+    const [syncActive, setSyncActive] = useState(false);
+    const [syncAPI, setSyncAPIState] = useState(null);
 
-    const PageNotFoundRoute = React.useMemo(() => ({
-        path: "/*",
-        Component: () =>
-            <div className={'w-screen h-screen mx-auto flex items-center justify-center'}>404</div>
-    }), []);
 
     const routesWithErrorBoundary = React.useMemo(() => routes.map(c => {
         if (!c.errorElement) {
@@ -305,23 +81,98 @@ export function DmsSite (config) {
         return c
     }), [routes]);
 
+    const PageNotFoundRoute = React.useMemo(() => ({
+        path: "/*",
+        Component: () =>
+            <div className={'w-screen h-screen mx-auto flex items-center justify-center'}>404</div>
+    }), []);
+
     const AuthedRouteProvider = React.useMemo(
       () => authProvider(RouterProvider, { AUTH_HOST, PROJECT_NAME:CurrentProjectName }),
       [AUTH_HOST, CurrentProjectName]
     );
 
     const router = React.useMemo(
-      () => createBrowserRouter([
-          ...dynamicRoutes,
-          ...routesWithErrorBoundary,
-          PageNotFoundRoute
-      ]),
-      [dynamicRoutes, routesWithErrorBoundary, PageNotFoundRoute]
+      () => createBrowserRouter(
+          [
+              ...dynamicRoutes,
+              ...routesWithErrorBoundary,
+              PageNotFoundRoute
+          ],
+          hydrationData ? { hydrationData } : undefined
+      ),
+      [dynamicRoutes, routesWithErrorBoundary, PageNotFoundRoute, hydrationData]
     );
 
+    // --- Sync initialization (after router is defined) ---
+    useEffect(() => {
+        if (!DMS_SYNC_ENABLED) return;
+        const app = dmsConfig?.format?.app || dmsConfig?.app;
+        if (!app) return;
+
+        const siteType = dmsConfig?.format?.type || dmsConfig?.type;
+        const t0 = performance.now();
+        import('../../sync/index.js').then(async ({ initSync }) => {
+            const tImport = performance.now();
+            console.log(`[sync] module imported (${(tImport - t0).toFixed(0)}ms)`);
+            const api = await initSync(app, API_HOST, siteType);
+            const { _setSyncAPI } = await import('../../api/index.js');
+            _setSyncAPI(api);
+            setSyncAPIState(api);
+            setSyncActive(true);
+            console.log(`[sync] fully wired into DMS (${(performance.now() - t0).toFixed(0)}ms total)`);
+        }).catch(err =>
+            console.warn('[dms] sync init failed:', err.message)
+        );
+    }, []);
+
+    // Revalidate routes when sync receives remote changes
+    useEffect(() => {
+        if (!syncAPI) return;
+        return syncAPI.onInvalidate(() => {
+            if (router) router.revalidate();
+        });
+    }, [syncAPI, router]);
+    // --- End sync ---
+
+    const SyncStatusLazy = React.useMemo(
+      () => syncActive ? React.lazy(() => import('../../sync/SyncStatus.jsx')) : null,
+      [syncActive]
+    );
+
+    if (loading && !dynamicRoutes.length) {
+        return <div className="w-screen h-screen flex items-center justify-center">Loading...</div>;
+    }
+
     return (
-      <AuthedRouteProvider
-        router={router}
-      />
+      <>
+        <AuthedRouteProvider
+          router={router}
+        />
+        {SyncStatusLazy && (
+          <React.Suspense fallback={null}>
+            <SyncStatusLazy />
+          </React.Suspense>
+        )}
+      </>
     )
+}
+
+export default async function dmsSiteFactory(config) {
+    let { dmsConfig, falcor, API_HOST } = config
+    let dmsConfigUpdated = cloneDeep(dmsConfig);
+    const siteType = dmsConfig?.format?.type || dmsConfig.type;
+    dmsConfigUpdated.registerFormats = updateRegisteredFormats(dmsConfigUpdated.registerFormats, dmsConfig.app, siteType)
+    dmsConfigUpdated.attributes = updateAttributes(dmsConfigUpdated.attributes, dmsConfig.app, siteType)
+
+    falcor = falcor || falcorGraph(API_HOST)
+    let data = await dmsDataLoader(falcor, dmsConfigUpdated, `/`);
+    if (localStorage) {
+      //console.log(' setting data',data)
+      localStorage.setItem(dmsConfigUpdated.app + '-' + dmsConfigUpdated.type, JSON.stringify(data))
+    }
+    //console.log('dmsSiteFactory - got data', data, localStorage)
+
+
+    return pattern2routes(data, config)
 }

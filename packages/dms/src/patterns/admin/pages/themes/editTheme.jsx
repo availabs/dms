@@ -9,7 +9,6 @@ import { cloneDeep, get, set } from "lodash-es";
 import { ThemeContext, mergeTheme } from "../../../../ui/useTheme";
 import { AdminContext } from "../../context";
 import { parseIfJSON } from '../../../page/pages/_utils';
-
 const DefaultComp = () => <div>Component not registered.</div>
 const ComponentRenderer = ({Component=DefaultComp, props}) => <Component {...props} />;
 
@@ -80,6 +79,10 @@ function ComponentList ({
 	...rest
 }) {
 
+  // Lazy-load component docs (only needed for theme editor preview)
+  const [componentDocs, setComponentDocs] = useState(null);
+  useEffect(() => { import('../../../../ui/docs').then(m => setComponentDocs(m.default)); }, []);
+
   // themes is an array of {name, theme, id}
 	const navigate = useNavigate();
 	const { UI } = useContext(ThemeContext);
@@ -141,7 +144,7 @@ function ComponentList ({
 			      <Select value={currentComponentPropsIdx}
      					onChange={e => setCurrentComponentPropsIdx(e.target.value)}
      					options={
-      						(Array.isArray(theme?.docs?.[currentComponent]) ? theme?.docs?.[currentComponent] : [theme?.docs?.[currentComponent]])
+      						(Array.isArray(componentDocs?.[currentComponent]) ? componentDocs?.[currentComponent] : [componentDocs?.[currentComponent]])
      							.map((o, i) => ({label: o?.doc_name || `Example ${i + 1}`, value: i}))
      					}
    					/>
@@ -206,15 +209,15 @@ function ComponentList ({
   					<ThemeContext.Provider value={{theme: currentTheme, UI}}>
   						<ComponentRenderer
   						  Component={
-                  theme?.docs?.[currentComponent]?.[currentComponentPropsIdx]?.component ||
-                  theme?.docs?.[currentComponent]?.component ||
+                  componentDocs?.[currentComponent]?.component ||
+                  componentDocs?.[currentComponent]?.[currentComponentPropsIdx]?.component ||
                   UI[currentComponent]
                 }
    							props={
-                  defaultTheme?.docs?.[currentComponent][currentComponentPropsIdx]?.props ||
-                  defaultTheme?.docs?.[currentComponent][currentComponentPropsIdx] ||
-                  defaultTheme?.docs?.[currentComponent]?.props ||
-                  defaultTheme?.docs?.[currentComponent]
+                  componentDocs?.[currentComponent]?.[currentComponentPropsIdx]?.props ||
+                  componentDocs?.[currentComponent]?.[currentComponentPropsIdx] ||
+                  componentDocs?.[currentComponent]?.props ||
+                  componentDocs?.[currentComponent]
                 }
   						/>
   					</ThemeContext.Provider>

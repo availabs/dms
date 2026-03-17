@@ -33,10 +33,11 @@ export default function SettingsPage({format}) {
     const {baseUrl, falcor, datasources, UI} = useContext(DatasetsContext);
     const {theme: fullTheme} = useContext(ThemeContext) || {};
     const theme = fullTheme?.datasets?.settingsPage || {};
-    const {Layout, LayoutGroup, Input} = UI;
+    const {Layout, LayoutGroup, Input, Button} = UI;
 
     const [sources, setSources] = useState([]);
     const [filteredCategories, setFilteredCategories] = useState([]);
+    const [showUncategorized, setShowUncategorized] = useState(true);
     const [search, setSearch] = useState('');
     const [saving, setSaving] = useState(false);
 
@@ -53,24 +54,30 @@ export default function SettingsPage({format}) {
             const settings = get(res, ["json", "dama-info", pgEnv, "settings"]);
             const parsed = typeof settings === 'string' ? JSON.parse(settings || '{}') : (settings || {});
             setFilteredCategories(parsed.filtered_categories || []);
+            if (parsed.show_uncategorized !== undefined) {
+                setShowUncategorized(parsed.show_uncategorized);
+            }
         });
     }, [pgEnv]);
 
-    const saveSettings = useCallback((newFiltered) => {
+    const saveSettings = useCallback((updates) => {
         if (!pgEnv) return;
         setSaving(true);
+        const newFiltered = updates.filtered_categories ?? filteredCategories;
+        const newShowUncat = updates.show_uncategorized ?? showUncategorized;
         setFilteredCategories(newFiltered);
+        setShowUncategorized(newShowUncat);
         falcor.set({
             paths: [['dama-info', pgEnv, 'settings']],
             jsonGraph: {
                 "dama-info": {
                     [pgEnv]: {
-                        settings: JSON.stringify({filtered_categories: newFiltered})
+                        settings: JSON.stringify({filtered_categories: newFiltered, show_uncategorized: newShowUncat})
                     }
                 }
             }
         }).then(() => setSaving(false));
-    }, [pgEnv, falcor]);
+    }, [pgEnv, falcor, filteredCategories, showUncategorized]);
 
     const allCategories = useMemo(() => [...new Set(
         sources.reduce((acc, s) => [
@@ -107,7 +114,16 @@ export default function SettingsPage({format}) {
                 ]}/>
                 <LayoutGroup>
                     <div className={theme.heading || 'text-2xl font-medium text-blue-600'}>
-                        Category Settings
+                        Dataset Settings
+                    </div>
+                    <div className={theme.toggleRow || 'flex items-center gap-3 my-3'}>
+                        <Button
+                            type={showUncategorized ? 'active' : 'plain'}
+                            onClick={() => saveSettings({show_uncategorized: !showUncategorized})}
+                            disabled={saving}
+                        >
+                            {showUncategorized ? 'Showing' : 'Hiding'} uncategorized sources
+                        </Button>
                     </div>
                     <div className={theme.searchWrapper || 'my-4'}>
                         <Input
@@ -127,7 +143,7 @@ export default function SettingsPage({format}) {
                                     <button
                                         key={cat}
                                         className={theme.categoryButton || 'bg-white hover:bg-blue-50 px-3 py-1.5 rounded-md flex items-center gap-2 text-sm border border-gray-200'}
-                                        onClick={() => saveSettings(filteredCategories.filter(c => c !== cat))}
+                                        onClick={() => saveSettings({filtered_categories: filteredCategories.filter(c => c !== cat)})}
                                         disabled={saving}
                                     >
                                         {cat}
@@ -152,7 +168,7 @@ export default function SettingsPage({format}) {
                                     <button
                                         key={cat}
                                         className={theme.categoryButton || 'bg-white hover:bg-blue-50 px-3 py-1.5 rounded-md flex items-center gap-2 text-sm border border-gray-200'}
-                                        onClick={() => saveSettings([...filteredCategories, cat])}
+                                        onClick={() => saveSettings({filtered_categories: [...filteredCategories, cat]})}
                                         disabled={saving}
                                     >
                                         {cat}
