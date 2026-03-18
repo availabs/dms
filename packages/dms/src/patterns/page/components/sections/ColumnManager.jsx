@@ -185,22 +185,39 @@ const ColumnRow = ({ column, index, state, setState, resolvedControls, Pill, Ico
                 <div className="flex items-center gap-1 shrink-0">
                     {isOutOfDate && (
                         <button
-                            className="p-0.5 rounded text-amber-500"
+                            className="p-0.5 rounded hover:bg-gray-100 text-amber-500 cursor-pointer"
                             title="Metadata out of date"
                             onClick={onRefreshMeta}
                         >
                             <Icon icon="Alert" className="size-4" />
                         </button>
                     )}
+                    {column.fn && (
+                        <span className="p-0.5 text-gray-400" title={column.fn}>
+                            <Icon icon={
+                                column.fn === 'count' ? 'TallyMark' :
+                                    column.fn === 'list' ? 'LeftToRightListBullet' :
+                                        column.fn === 'sum' ? 'Sum' :
+                                            column.fn === 'avg' ? 'Avg' :
+                                                'TallyMark'
+                            } className="size-4 text-blue-500" />
+                        </span>
+                    )}
+                    <button className={`p-0.5 rounded hover:bg-gray-100 ${column.group ? `text-blue-500` : `text-gray-300`} cursor-pointer`}
+                            title={column.group ? 'Grouping By' : 'Group By'}
+                            onClick={() => updateColumns(column, 'group', !column.group, undefined, setState)}
+                    >
+                            <Icon icon="Group" className="size-4" />
+                    </button>
                     <button
-                        className={`p-0.5 rounded hover:bg-gray-100 ${column.show ? 'text-blue-500' : 'text-gray-300'}`}
+                        className={`p-0.5 rounded hover:bg-gray-100 ${column.show ? 'text-blue-500' : 'text-gray-300'} cursor-pointer`}
                         onClick={() => updateColumns(column, 'show', !column.show, undefined, setState)}
                         title={column.show ? 'Hide' : 'Show'}
                     >
                         <Icon icon={column.show ? 'Eye' : 'EyeClosed'} className="size-4" />
                     </button>
                     <button
-                        className="p-0.5 rounded hover:bg-gray-100 text-gray-500"
+                        className="p-0.5 rounded hover:bg-gray-100 text-gray-500 cursor-pointer"
                         onClick={onToggleExpand}
                         title="Settings"
                     >

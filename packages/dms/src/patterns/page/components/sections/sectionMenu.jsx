@@ -216,7 +216,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
 
     const columns = [
         {
-            name: 'Columns',
+            name: 'Columns', icon: 'Columns',
             cdn: () => isEdit && currentComponent?.useDataSource && canEditSection,
             value: (state.columns || []).length,
             showValue: true,
