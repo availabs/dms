@@ -206,8 +206,12 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                         name: label,
                         onClickGoBack: true,
                         onClick: () => onViewChange(key)
-                    }))}
-            ].filter(item => item.cdn())
+                    }))},
+                {type: 'separator', cdn: () => isEdit},
+                ...(resolvedControls?.data || [])
+                    .filter(({ displayCdn }) => isEdit && (typeof displayCdn === 'function' ? displayCdn({ display: state.display }) : displayCdn !== false))
+                    .map(transformControlItem),
+            ].filter(item => !item.cdn || item.cdn())
         }
 
     const columns = [
@@ -234,51 +238,15 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
         },
     ]
 
-    const group = [
-        {
-            name: 'Group', cdn: () => isEdit && currentComponent?.useDataSource && canEditSection && hasGroupControl,
-            showSearch: true, value: (state.columns || []).filter(c => c.group).length, showValue: true,
-            items:
-                allColumns
-                    .map(column => (
-                        {
-                            name: getColumnLabel(column), icon: column.show ? 'Eye' : '',
-                            showLabel: true,
-                            type: groupControl.type,
-                            value: groupControl[groupControl.key],
-                            enabled: groupControl.type === 'toggle' ? !!column[groupControl.key] : undefined,
-                            setEnabled: groupControl.type === 'toggle' ? (value) =>
-                                updateColumns(column, groupControl.key, value && groupControl.trueValue ? groupControl.trueValue : value, groupControl.onChange, setState) : undefined,
-                        }
-                    ))
-
-        },
-    ]
-
 
     const filter = [
-        {name: 'Filters', icon: 'Filter', cdn: () => isEdit && currentComponent?.useDataSource && canEditSection,
+        {name: 'Filters', icon: 'Filter',
+            value: `${state?.display?.totalLength} rows`,
+            showValue: true,
+            cdn: () => isEdit && currentComponent?.useDataSource && canEditSection,
             items: [
                 {name: 'Filter Groups Component', type: () => <ComplexFilters state={state} setState={setState} />}
             ]}
-    ]
-
-    const data = [
-        {name: 'data',
-            icon: 'Database',
-            value: `${state?.display?.totalLength} rows`,
-            showValue: true,
-            cdn: () => currentComponent?.useDataSource && canEditSection,
-            items: [
-                ...(resolvedControls?.data || [])
-                    .filter(({ displayCdn }) => typeof displayCdn === 'function' ? displayCdn({ display: state.display }) : displayCdn !== false)
-                    .map(transformControlItem),
-                ...columns,
-                ...group,
-                ...filter,
-            ].filter(item => isEdit && (!item.cdn || item.cdn()))
-        },
-        {type: 'separator', cdn: () => currentComponent?.useDataSource && canEditSection},
     ]
 
 
@@ -567,7 +535,9 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
             ...componentSettings,
             {type: 'separator'},
             dataset,
-            ...data,
+            ...columns,
+            ...filter,
+            {type: 'separator', cdn: () => currentComponent?.useDataSource && canEditSection},
             ...display,
             ...layout,
             {type: 'separator'},

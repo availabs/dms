@@ -131,7 +131,7 @@ export default {
     useInfiniteScroll: true,
     showPagination: true,
     keepOriginalValues: true,
-    showAllColumnsControl: true,
+    showAllColumnsControl: false,
     themeKey: 'table',
     defaultState: {
         dataRequest: {},
@@ -168,6 +168,9 @@ export default {
             {type: 'toggle', label: 'Hide Null Open out columns', key: 'hideIfNullOpenouts'},
             {type: 'toggle', label: 'Virtualize Columns', key: 'virtualizeColumns'},
             {type: 'input', label: 'Max Height', key: 'maxHeight', displayCdn: ({display}) => !display.usePagination},
+            {type: 'toggle', label: 'Allow Download', key: 'allowDownload'},
+            {type: 'toggle', label: 'Use Pagination', key: 'usePagination'},
+            {type: 'input', inputType: 'number', label: 'Page Size', key: 'pageSize'},
         ],
         data: [
             {type: 'toggle', label: 'Allow Edit', key: 'allowEditInView'},
@@ -182,12 +185,9 @@ export default {
             },
             {type: 'input', inputType: 'text', label: 'Navigate to', key: 'navigateUrlOnAdd',
                 displayCdn: ({display}) => display.allowAdddNew && display.addNewBehaviour === 'navigate'},
-            {type: 'toggle', label: 'Show Total', key: 'showTotal'},
-            {type: 'toggle', label: 'Allow Download', key: 'allowDownload'},
+            // {type: 'toggle', label: 'Show Total', key: 'showTotal'},
             {type: 'toggle', label: 'Prevent Duplicate Fetch', key: 'preventDuplicateFetch'},
             {type: 'toggle', label: 'Always Fetch Data', key: 'readyToLoad'},
-            {type: 'toggle', label: 'Use Pagination', key: 'usePagination'},
-            {type: 'input', inputType: 'number', label: 'Page Size', key: 'pageSize'},
         ],
         inHeader: [
             // settings from in header dropdown are stored in the columns array per column.

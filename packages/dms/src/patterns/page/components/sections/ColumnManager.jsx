@@ -226,7 +226,7 @@ const ColumnRow = ({ column, index, state, setState, resolvedControls, Pill, Ico
                         .map(c => renderControl(c, column, onUpdate, { Switch, setState }))}
                     <div className="flex gap-1 pt-1">
                         <Pill text="Duplicate" color="blue" onClick={() => duplicate(column, setState)} />
-                        <Pill text="Reset" color="orange" onClick={() => resetColumn(column, setState)} />
+                        <Pill text="Remove" color="orange" onClick={() => resetColumn(column, setState)} />
                         {isOutOfDate && (
                             <Pill text="Refresh Meta" color="orange" onClick={onRefreshMeta} />
                         )}
@@ -287,7 +287,7 @@ const AllColumnsRow = ({ state, setState, resolvedControls, isEveryColVisible, P
                         .filter(c => !c.hideFromSectionMenu)
                         .map(c => renderControl(c, aggregateColumn, onUpdate, { Switch, setState }))}
                     <div className="flex gap-1 pt-1">
-                        <Pill text="Reset All" color="orange" onClick={() => resetAllColumns(setState)} />
+                        <Pill text="Remove All" color="orange" onClick={() => resetAllColumns(setState)} />
                     </div>
                 </div>
             )}
@@ -387,6 +387,12 @@ export default function ColumnManager({ state, setState, resolvedControls, Pill,
                         setExpandedColumns(isAllExpanded ? new Set() : new Set(activeColumns.map(i => i.id)));
                     }}
                 />
+                <Pill
+                    color={isEveryColVisible ? 'orange' : 'blue'}
+                    onClick={() => toggleGlobalVisibility(!isEveryColVisible, setState)}
+                    text={isEveryColVisible ? 'Hide All' : 'Show All'}
+                />
+                <Pill text="Remove All" color="orange" onClick={() => resetAllColumns(setState)} />
             </div>
 
             {/* All Columns Row */}
