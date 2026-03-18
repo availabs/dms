@@ -185,7 +185,7 @@ export default {
             },
             {type: 'input', inputType: 'text', label: 'Navigate to', key: 'navigateUrlOnAdd',
                 displayCdn: ({display}) => display.allowAdddNew && display.addNewBehaviour === 'navigate'},
-            // {type: 'toggle', label: 'Show Total', key: 'showTotal'},
+            {type: 'toggle', label: 'Show Total', key: 'showTotal'},
             {type: 'toggle', label: 'Prevent Duplicate Fetch', key: 'preventDuplicateFetch'},
             {type: 'toggle', label: 'Always Fetch Data', key: 'readyToLoad'},
         ],
