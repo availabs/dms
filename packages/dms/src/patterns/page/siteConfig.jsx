@@ -96,7 +96,7 @@ const pagesConfig = ({
               apiLoad,
               user,
               falcor,
-              patternFilters,
+              patternFilters: [...patternFilters, {id: 'user_id_default_filter', searchKey: 'user_id', values: user?.id}],
               authPermissions,
               mapeditorKeys,
               isUserAuthed: (reqPermissions, customAuthPermissions) => {
