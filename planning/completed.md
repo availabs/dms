@@ -53,6 +53,10 @@
 
 - [vite-8-upgrade.md](./tasks/completed/vite-8-upgrade.md) - Upgrade to Vite 8: Rolldown replaces esbuild+Rollup, `rollupOptions`→`rolldownOptions`, React Compiler via `@rolldown/plugin-babel` + `reactCompilerPreset`, removed `vite-plugin-top-level-await` (native Rolldown), Yjs dedup alias, dev server 457ms, production build 54s (2026-03-17)
 
+## type system
+
+- [pg-dump-mercury-types.md](./tasks/completed/pg-dump-mercury-types.md) - Clone dms-mercury-2 to dms-mercury-types: pg_dump/restore dms2 → dms_types on mercury, db config for type system refactor work (2026-03-18)
+
 ## config
 
 - [unified-config.md](./tasks/completed/unified-config.md) - Unified project configuration: consolidated App.jsx, dms-server .env, and SSR env vars into single root `.env` file read by both Vite (`VITE_*`) and dms-server (2026-02-27)
