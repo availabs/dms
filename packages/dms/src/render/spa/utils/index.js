@@ -1,3 +1,4 @@
+/* global process */
 import { cloneDeep } from "lodash-es"
 import { useFalcor } from "@availabs/avl-falcor"
 import { withAuth,  dmsPageFactory } from '../../../'

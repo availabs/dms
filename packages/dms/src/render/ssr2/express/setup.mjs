@@ -1,3 +1,4 @@
+/* global process */
 /**
  * mountSSR(app, config) — mounts SSR middleware on an Express app.
  *

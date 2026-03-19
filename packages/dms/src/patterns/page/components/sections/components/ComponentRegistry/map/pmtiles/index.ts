@@ -126,7 +126,7 @@ export function zxyToTileId(z: number, x: number, y: number): number {
 
 export function tileIdToZxy(i: number): [number, number, number] {
   let acc = 0;
-  let z = 0;
+  const z = 0;
 
   for (let z = 0; z < 27; z++) {
     const num_tiles = (0x1 << z) * (0x1 << z);
@@ -166,12 +166,12 @@ async function defaultDecompress(
   if (compression === Compression.None || compression === Compression.Unknown) {
     return buf;
   } else if (compression === Compression.Gzip) {
-    if (typeof (globalThis as any).DecompressionStream == "undefined") {
+    if (typeof (globalThis as any).DecompressionStream == "undefined") { // eslint-disable-line @typescript-eslint/no-explicit-any
       return decompressSync(new Uint8Array(buf));
     } else {
-      let stream = new Response(buf).body!;
-      let result: ReadableStream<Uint8Array> = stream.pipeThrough(
-        new (globalThis as any).DecompressionStream("gzip")
+      const stream = new Response(buf).body!;
+      const result: ReadableStream<Uint8Array> = stream.pipeThrough(
+        new (globalThis as any).DecompressionStream("gzip") // eslint-disable-line @typescript-eslint/no-explicit-any
       );
       return new Response(result).arrayBuffer();
     }
@@ -784,6 +784,7 @@ export class SharedPromiseCache {
           }
           resolve(resp.data);
           if (this.cache.has(cacheKey)) {
+            // cache entry already exists, no action needed
           }
           this.prune();
         })

@@ -1,5 +1,5 @@
 import React, {useState} from 'react'
-import { handleCopy, handlePaste, TagComponent } from "./section_utils"
+import {handleCopy, handleCopyToClipboard, handlePaste, TagComponent} from "./section_utils"
 import {
     getColumnLabel, updateColumns,
     updateDisplayValue
@@ -16,6 +16,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
     const { Switch, Pill, Icon, TitleEditComp, LevelComp, refreshDataBtnRef, isRefreshingData, setIsRefreshingData, theme, RegisteredComponents = {} } = ui
     const { activeSource, activeView, sources, views, onSourceChange, onViewChange } = dataSource;
 
+    const sectionLink = window ? `${window.location.origin}${window.location.pathname}#${value.id}` : '';
     const canEditSection = isUserAuthed(['edit-section'], sectionAuthPermissions);
     const canEditPageLayout = isUserAuthed(['edit-page-layout'], pageAuthPermissions);
     const canEditSectionPermissions = isUserAuthed(['edit-section-permissions'], sectionAuthPermissions);
@@ -104,20 +105,30 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
             renderCdn: activeParent => !activeParent,
             renderPos: 'top',
             type: () => {
-                const [copied, setCopied] = useState(false);
+                const [copied, setCopied] = useState('');
 
                 return (
                     <div className={'w-full flex justify-between'}>
                         <div className={'flex gap-1'}>
                             {/*{isEdit && canEditSection ? <Pill color={'blue'} text={<Icon icon={'InfoSquare'} className={'size-5'} />} title={'Add Help Text'} onClick={onAddHelpText} /> : null}*/}
 
-                            {canEditSection ? <Pill color={copied ? 'green' : 'blue'} text={<Icon icon={'Copy'} className={'size-5'}/>}
+                            <Pill color={copied === 'link' ? 'green' : 'blue'} text={<Icon icon={'Link'} className={'size-5'}/>}
+                                  title={'Copy Link'}
+                                  onClick={(e) => {
+                                      handleCopyToClipboard(sectionLink)
+                                      setCopied('link')
+                                      setTimeout(() => {
+                                          setCopied('')
+                                      }, 2000);
+                                  }}/>
+
+                            {canEditSection ? <Pill color={copied === 'section' ? 'green' : 'blue'} text={<Icon icon={'Copy'} className={'size-5'}/>}
                                                     title={'Copy Section'}
                                                     onClick={(e) => {
                                                         handleCopy(value)
-                                                        setCopied(true)
+                                                        setCopied('section')
                                                         setTimeout(() => {
-                                                            setCopied(false)
+                                                            setCopied('')
                                                         }, 2000);
                                                     }}/> : null}
                             {isEdit && canEditSection ? <Pill color={'blue'} text={<Icon icon={'Paste'} className={'size-5'}/>} title={'Paste Section'}
@@ -195,13 +206,17 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                         name: label,
                         onClickGoBack: true,
                         onClick: () => onViewChange(key)
-                    }))}
-            ].filter(item => item.cdn())
+                    }))},
+                {type: 'separator', cdn: () => isEdit},
+                ...(resolvedControls?.data || [])
+                    .filter(({ displayCdn }) => isEdit && (typeof displayCdn === 'function' ? displayCdn({ display: state.display }) : displayCdn !== false))
+                    .map(transformControlItem),
+            ].filter(item => !item.cdn || item.cdn())
         }
 
     const columns = [
         {
-            name: 'Columns',
+            name: 'Columns', icon: 'Columns',
             cdn: () => isEdit && currentComponent?.useDataSource && canEditSection,
             value: (state.columns || []).length,
             showValue: true,
@@ -223,51 +238,15 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
         },
     ]
 
-    const group = [
-        {
-            name: 'Group', cdn: () => isEdit && currentComponent?.useDataSource && canEditSection && hasGroupControl,
-            showSearch: true, value: (state.columns || []).filter(c => c.group).length, showValue: true,
-            items:
-                allColumns
-                    .map(column => (
-                        {
-                            name: getColumnLabel(column), icon: column.show ? 'Eye' : '',
-                            showLabel: true,
-                            type: groupControl.type,
-                            value: groupControl[groupControl.key],
-                            enabled: groupControl.type === 'toggle' ? !!column[groupControl.key] : undefined,
-                            setEnabled: groupControl.type === 'toggle' ? (value) =>
-                                updateColumns(column, groupControl.key, value && groupControl.trueValue ? groupControl.trueValue : value, groupControl.onChange, setState) : undefined,
-                        }
-                    ))
-
-        },
-    ]
-
 
     const filter = [
-        {name: 'Filters', icon: 'Filter', cdn: () => isEdit && currentComponent?.useDataSource && canEditSection,
+        {name: 'Filters', icon: 'Filter',
+            value: `${state?.display?.totalLength} rows`,
+            showValue: true,
+            cdn: () => isEdit && currentComponent?.useDataSource && canEditSection,
             items: [
                 {name: 'Filter Groups Component', type: () => <ComplexFilters state={state} setState={setState} />}
             ]}
-    ]
-
-    const data = [
-        {name: 'data',
-            icon: 'Database',
-            value: `${state?.display?.totalLength} rows`,
-            showValue: true,
-            cdn: () => currentComponent?.useDataSource && canEditSection,
-            items: [
-                ...(resolvedControls?.data || [])
-                    .filter(({ displayCdn }) => typeof displayCdn === 'function' ? displayCdn({ display: state.display }) : displayCdn !== false)
-                    .map(transformControlItem),
-                ...columns,
-                ...group,
-                ...filter,
-            ].filter(item => isEdit && (!item.cdn || item.cdn()))
-        },
-        {type: 'separator', cdn: () => currentComponent?.useDataSource && canEditSection},
     ]
 
 
@@ -556,7 +535,9 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
             ...componentSettings,
             {type: 'separator'},
             dataset,
-            ...data,
+            ...columns,
+            ...filter,
+            {type: 'separator', cdn: () => currentComponent?.useDataSource && canEditSection},
             ...display,
             ...layout,
             {type: 'separator'},

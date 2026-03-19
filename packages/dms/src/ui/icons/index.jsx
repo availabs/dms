@@ -67,6 +67,7 @@ const iconList = [
   { icon: "XMark" },
   { icon: "AdjustmentsHorizontal" },
   { icon: "LinkSquare" },
+  { icon: "Link" },
   { icon: "DraftPage" },
   { icon: "EllipsisVertical" },
   { icon: "Filter" },
@@ -97,6 +98,7 @@ const iconList = [
   // Special Icons
   { icon: "GlobalEditing" },
   { icon: "Database" },
+  { icon: "Columns" },
   { icon: "AccessControl" },
   { icon: "MenuDots" },
   { icon: "CaretDownSolid" },
