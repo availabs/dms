@@ -34,6 +34,8 @@ const pagesConfig = ({
   themes = { default: {} },
   pattern,
   datasources,
+  dmsEnvs = [],
+  dmsEnvById = {},
   site,
   pgEnv,
   API_HOST,

@@ -39,6 +39,8 @@ const adminConfig = ({
   baseUrl = '/',
   authPath = '/auth',
   themes = {},
+  dmsEnvs = [],
+  dmsEnvById = {},
 }) => {
     const format = cloneDeep(adminFormat)
     format.app = app
@@ -83,7 +85,7 @@ const adminConfig = ({
                     const {Layout} = UI;
                     const menuItems = getMenuItems(baseUrl, authPath, props.user)
                     return (
-                        <AdminContext.Provider value={{ baseUrl, authPath, user, apiUpdate, app, type,  API_HOST, UI}}>
+                        <AdminContext.Provider value={{ baseUrl, authPath, user, apiUpdate, app, type, API_HOST, UI, dmsEnvs, dmsEnvById}}>
                             <ThemeContext.Provider value={{theme, themes, UI}}>
                               <Layout navItems={menuItems} Menu={() => <>{rightMenu}</>}>
                                   {props.children}
@@ -144,6 +146,8 @@ const patternConfig = ({
   authPath = '/auth',
   themes = {},
   rightMenu = <DefaultMenu/>,
+  dmsEnvs = [],
+  dmsEnvById = {},
 }) => {
     const format = initializePatternFormat(pattern, app, 'pattern')
     const parentBaseUrl = baseUrl === '/' ? '' : baseUrl;
@@ -182,7 +186,7 @@ const patternConfig = ({
                     const menuItems = getMenuItems(parentBaseUrl, props.user)
 
                     return (
-                        <AdminContext.Provider value={{baseUrl, parentBaseUrl,themes, authPath, user, apiUpdate, app, type, API_HOST, UI}}>
+                        <AdminContext.Provider value={{baseUrl, parentBaseUrl,themes, authPath, user, apiUpdate, app, type, API_HOST, UI, dmsEnvs, dmsEnvById}}>
                             <ThemeContext.Provider value={{theme,themes, UI}}>
                                 <Layout navItems={menuItems} Menu={() => <>{rightMenu}</>}>
                                   <SectionGroup maxWidth={ ''}>

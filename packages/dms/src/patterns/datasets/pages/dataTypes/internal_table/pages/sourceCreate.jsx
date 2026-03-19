@@ -3,14 +3,7 @@ import { useNavigate } from "react-router";
 import { DatasetsContext } from "../../../../context";
 import { ThemeContext } from "../../../../../../ui/themeContext";
 import Upload from "../../../../components/upload";
-
-function nameToDocType(name) {
-    return name
-        .toLowerCase()
-        .trim()
-        .replace(/[\s-]+/g, '_')
-        .replace(/[^a-z0-9_]/g, '');
-}
+import { nameToDocType } from "../../../../utils/nameToDocType";
 
 function getNewId(falcorRes) {
     return Object.keys(falcorRes?.json?.dms?.data?.byId || {})
@@ -20,7 +13,7 @@ function getNewId(falcorRes) {
 export default function SourceCreate({ context, source }) {
     const ctx = useContext(DatasetsContext);
     const { UI } = useContext(ThemeContext);
-    const { falcor, parent, user, type, app, baseUrl } = ctx;
+    const { falcor, parent, user, type, app, baseUrl, dmsEnv } = ctx;
     const navigate = useNavigate();
     const { Button } = UI;
 
@@ -65,17 +58,18 @@ export default function SourceCreate({ context, source }) {
                 views: [{ ref: `${app}+${type}|source|view`, id: +vId }]
             }]);
 
-            // 4. Update parent to include new source ref
-            const existingRefs = (parent.sources || [])
+            // 4. Add source ref to dmsEnv (if available) or pattern (legacy)
+            const sourceOwner = dmsEnv || parent;
+            const existingRefs = (sourceOwner.sources || [])
                 .filter(s => s.id)
                 .map(s => ({ ref: s.ref || `${app}+${type}|source`, id: s.id }));
 
-            await falcor.call(["dms", "data", "edit"], [app, parent.id, {
+            await falcor.call(["dms", "data", "edit"], [app, sourceOwner.id, {
                 sources: [...existingRefs, { ref: `${app}+${type}|source`, id: +sourceId }]
             }]);
 
             // 5. Invalidate caches
-            await falcor.invalidate(['dms', 'data', app, 'byId', parent.id]);
+            await falcor.invalidate(['dms', 'data', app, 'byId', sourceOwner.id]);
             await falcor.invalidate(['uda', `${app}+${type}`, 'sources']);
 
             // 6. Transition to upload stage

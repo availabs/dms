@@ -20,8 +20,9 @@ const UUID_SPLIT_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a
 
 // Name-viewId pattern for named dataset types (e.g., traffic_counts-1)
 // Starts with a letter to avoid overlap with UUID patterns (which start with hex digits).
+// Case-insensitive: old datasets may have mixed-case doc_types (e.g., Actions_Revised-1074456).
 // Safe because DMS structural types always contain | or + characters.
-const NAME_SPLIT_REGEX = /^[a-z][a-z0-9_]*-\d+(-invalid-entry)?$/;
+const NAME_SPLIT_REGEX = /^[a-z][a-z0-9_]*-\d+(-invalid-entry)?$/i;
 
 // In-memory cache of tables known to exist (set of "schema.table" strings)
 const _tableCache = new Set();
@@ -119,10 +120,12 @@ function resolveTable(app, type, dbType, splitMode = 'legacy', sourceId = null) 
     if (isSplitType(type)) {
       if (sourceId != null) {
         const parsed = parseType(type);
-        const suffix = parsed.isInvalid ? '_invalid' : '';
-        return result(`data_items__s${sourceId}_v${parsed.viewId}_${parsed.docType}${suffix}`);
+        return result(`data_items__s${sourceId}_v${parsed.viewId}_${sanitize(parsed.docType)}`);
       }
-      return result(`data_items__${sanitize(type)}`);
+      // Without sourceId, strip -invalid-entry before sanitizing so both
+      // valid and invalid rows resolve to the same fallback table.
+      const core = type.endsWith('-invalid-entry') ? type.slice(0, -'-invalid-entry'.length) : type;
+      return result(`data_items__${sanitize(core)}`);
     }
     return result('data_items');
   }
@@ -141,10 +144,10 @@ function resolveTable(app, type, dbType, splitMode = 'legacy', sourceId = null) 
     if (isSplitType(type)) {
       if (sourceId != null) {
         const parsed = parseType(type);
-        const suffix = parsed.isInvalid ? '_invalid' : '';
-        return result(`data_items__s${sourceId}_v${parsed.viewId}_${parsed.docType}${suffix}`);
+        return result(`data_items__s${sourceId}_v${parsed.viewId}_${sanitize(parsed.docType)}`);
       }
-      return result(`data_items__${sanitize(type)}`);
+      const core = type.endsWith('-invalid-entry') ? type.slice(0, -'-invalid-entry'.length) : type;
+      return result(`data_items__${sanitize(core)}`);
     }
     return result('data_items');
   }
@@ -155,10 +158,10 @@ function resolveTable(app, type, dbType, splitMode = 'legacy', sourceId = null) 
   if (isSplitType(type)) {
     if (sourceId != null) {
       const parsed = parseType(type);
-      const suffix = parsed.isInvalid ? '_invalid' : '';
-      return result(`data_items__${appKey}__s${sourceId}_v${parsed.viewId}_${parsed.docType}${suffix}`);
+      return result(`data_items__${appKey}__s${sourceId}_v${parsed.viewId}_${sanitize(parsed.docType)}`);
     }
-    return result(`data_items__${appKey}__${sanitize(type)}`);
+    const core = type.endsWith('-invalid-entry') ? type.slice(0, -'-invalid-entry'.length) : type;
+    return result(`data_items__${appKey}__${sanitize(core)}`);
   }
   return result(`data_items__${appKey}`);
 }

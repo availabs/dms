@@ -140,7 +140,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
     try {
       const table = await mainTable(app);
       const rows = await dms_db.promise(
-        `SELECT id FROM ${table} WHERE app = $1 AND ${jsonField('data', 'doc_type')} = $2 AND type LIKE '%|source' ORDER BY id DESC LIMIT 1`,
+        `SELECT id FROM ${table} WHERE app = $1 AND lower(${jsonField('data', 'doc_type')}) = lower($2) AND type LIKE '%|source' ORDER BY id DESC LIMIT 1`,
         [app, parsed.docType]
       );
       const sourceId = rows[0]?.id || null;

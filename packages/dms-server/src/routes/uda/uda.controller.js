@@ -114,7 +114,9 @@ async function getSourceById(env, ids, attributes) {
   if (isDms) {
     const dbCols = ['id', 'app', 'type', 'data', 'created_at', 'created_by', 'updated_at', 'updated_by'];
     const formattedAttrs = ['id', ...sanitizedAttrs].map(a =>
-      dbCols.includes(a) ? a
+      // 'type' must read from data JSON (e.g. 'internal_table'), not the row column (e.g. 'doc_type|source')
+      a === 'type' ? `data->>'type' AS type`
+        : dbCols.includes(a) ? a
         // DMS source rows don't store source_id in data — fall back to the row id
         : a === 'source_id' ? `COALESCE(data->>'source_id', CAST(id AS TEXT)) AS source_id`
         : `data->>'${a}' AS ${quoteAlias(a)}`

@@ -1,6 +1,6 @@
 # Deprecate internal_dataset for internal_table
 
-## Status: IN PROGRESS — Phase 1 complete, Phase 3 complete, Phase 2 not started
+## Status: COMPLETE — Phase 1 (migration script), Phase 2 (client changes), Phase 3 (tests) all done
 
 ## Objective
 
@@ -87,7 +87,7 @@ node src/scripts/deprecate-internal-dataset.js --source dms-mercury-2 --app miti
 - For PostgreSQL per-app mode, split tables go in the app schema (e.g., `dms_mitigat_ny_prod.data_items__actions_revised_1030277`)
 - Use `resolveTable()` to compute correct table names — don't hardcode naming
 
-### Phase 2: Client-Side Changes (after migration verified)
+### Phase 2: Client-Side Changes — COMPLETE
 
 #### 2a. Remove `internal_dataset` from type selector
 
@@ -136,7 +136,7 @@ Move from `sourceCreate.jsx` to a shared location (e.g., `datasets/utils.js` or 
 ## Testing Checklist
 
 - [x] Migration script dry-run shows correct plan for mitigat-ny-prod (34 datasets, 117,474 rows)
-- [ ] Migration script `--apply` moves all UUID dataset rows to split tables
+- [x] Migration script `--apply` moves all UUID dataset rows to split tables (34 datasets, 117,474 rows, 3 phantom refs cleaned)
 - [x] Migration script handles uppercase DAMA-era names (Actions_Revised → actions_revised)
 - [x] Migration script handles phantom source refs gracefully
 - [x] Migration script handles doc_type collisions

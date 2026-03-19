@@ -83,8 +83,8 @@ export default function ({ apiLoad, apiUpdate, format, item, params, isDms }) {
 
     const sourceLoaded = !!(source.id || source.source_id);
 
-    const sourceType = isDms ? 'internal_dataset' : source?.categories?.[0]?.[0]; // source identifier. this is how the source is named in the script. this used to be type.
-    const sourceDataType = isDms ? 'internal_dataset' : source?.type; // csv / gis / internal
+    const sourceType = isDms ? (source?.type || 'internal_table') : source?.categories?.[0]?.[0]; // source identifier. this is how the source is named in the script. this used to be type.
+    const sourceDataType = isDms ? (source?.type || 'internal_table') : source?.type; // csv / gis / internal
     const sourcePages = sourceLoaded ? { ...(damaDataTypes[sourceType] || {}), ...(damaDataTypes[sourceDataType] || {}) } : {};
 
     console.log('sourcePage', source)

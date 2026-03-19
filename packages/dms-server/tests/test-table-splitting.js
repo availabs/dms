@@ -141,9 +141,9 @@ async function testResolveTableNameBased() {
   const r1 = resolveTable('myapp', 'traffic_counts-1', 'sqlite', 'legacy');
   assert(r1.table === 'data_items__traffic_counts_1', `Name-based type produces readable table (got ${r1.table})`);
 
-  // Name-based invalid entry
+  // Name-based invalid entry — resolves to SAME table as valid entries
   const r2 = resolveTable('myapp', 'traffic_counts-1-invalid-entry', 'sqlite', 'legacy');
-  assert(r2.table === 'data_items__traffic_counts_1_invalid_entry', `Invalid entry table name correct (got ${r2.table})`);
+  assert(r2.table === 'data_items__traffic_counts_1', `Invalid entry resolves to same table as valid (got ${r2.table})`);
 
   // PostgreSQL produces same readable name with schema prefix
   const r3 = resolveTable('myapp', 'traffic_counts-1', 'postgres', 'legacy');
@@ -209,9 +209,9 @@ async function testResolveTableWithSourceId() {
   const r1 = resolveTable('myapp', 'traffic_counts-1', 'sqlite', 'legacy', 42);
   assert(r1.table === 'data_items__s42_v1_traffic_counts', `New naming (got ${r1.table})`);
 
-  // Legacy mode with sourceId — invalid entry
+  // Legacy mode with sourceId — invalid entry resolves to SAME table as valid
   const r2 = resolveTable('myapp', 'traffic_counts-1-invalid-entry', 'sqlite', 'legacy', 42);
-  assert(r2.table === 'data_items__s42_v1_traffic_counts_invalid', `Invalid suffix (got ${r2.table})`);
+  assert(r2.table === 'data_items__s42_v1_traffic_counts', `Invalid entry same table as valid (got ${r2.table})`);
 
   // Legacy mode without sourceId — old naming (fallback)
   const r3 = resolveTable('myapp', 'traffic_counts-1', 'sqlite', 'legacy', null);
@@ -343,7 +343,7 @@ async function testSplitTypeDelete(splitId) {
 }
 
 async function testInvalidEntrySplitType() {
-  console.log('\n--- Integration: Invalid entry type gets split table ---');
+  console.log('\n--- Integration: Invalid entry shares table with valid entries ---');
 
   const result = await graph.callAsync(
     ['dms', 'data', 'create'],
@@ -353,8 +353,11 @@ async function testInvalidEntrySplitType() {
   const ids = Object.keys(result.jsonGraph.dms.data.byId);
   assert(ids.length === 1, 'Created invalid entry row');
 
-  const { table: expectedTable } = resolveTable(TEST_APP, SPLIT_TYPE_INVALID, db.type, SPLIT_MODE);
-  assert(await tableExists(expectedTable), `Invalid entry split table '${expectedTable}' exists`);
+  // Invalid entry resolves to the SAME table as valid entries
+  const { table: invalidTable } = resolveTable(TEST_APP, SPLIT_TYPE_INVALID, db.type, SPLIT_MODE);
+  const { table: validTable } = resolveTable(TEST_APP, SPLIT_TYPE, db.type, SPLIT_MODE);
+  assert(invalidTable === validTable, `Invalid and valid resolve to same table (${invalidTable})`);
+  assert(await tableExists(invalidTable), `Shared split table '${invalidTable}' exists`);
 
   // Cleanup
   await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, SPLIT_TYPE_INVALID, +ids[0]]);
@@ -481,7 +484,7 @@ async function testNameBasedSplitCreate() {
 }
 
 async function testNameBasedInvalidEntry() {
-  console.log('\n--- Integration: Name-based invalid entry split ---');
+  console.log('\n--- Integration: Name-based invalid entry shares table ---');
 
   const result = await graph.callAsync(
     ['dms', 'data', 'create'],
@@ -491,8 +494,10 @@ async function testNameBasedInvalidEntry() {
   const ids = Object.keys(result.jsonGraph.dms.data.byId);
   assert(ids.length === 1, 'Created name-based invalid entry row');
 
-  const { table: expectedTable } = resolveTable(TEST_APP, NAME_SPLIT_TYPE_INVALID, db.type, SPLIT_MODE);
-  assert(expectedTable.includes('traffic_counts_1_invalid_entry'), `Invalid entry table readable (got ${expectedTable})`);
+  // Invalid entry resolves to same table as valid entries
+  const { table: invalidTable } = resolveTable(TEST_APP, NAME_SPLIT_TYPE_INVALID, db.type, SPLIT_MODE);
+  const { table: validTable } = resolveTable(TEST_APP, NAME_SPLIT_TYPE, db.type, SPLIT_MODE);
+  assert(invalidTable === validTable, `Invalid and valid share same table (${invalidTable})`);
 
   // Cleanup
   await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, NAME_SPLIT_TYPE_INVALID, +ids[0]]);
@@ -546,7 +551,7 @@ async function testNewNamingWithSourceRecord() {
   const lenResult = await graph.getAsync([['dms', 'data', key, 'length']]);
   assert(lenResult.jsonGraph.dms.data[key].length === 1, 'Falcor length query works with new naming');
 
-  // Test invalid entry variant
+  // Test invalid entry variant — shares same table as valid entries
   const invalidType = `${docType}-500-invalid-entry`;
   const invResult = await graph.callAsync(
     ['dms', 'data', 'create'],
@@ -555,8 +560,7 @@ async function testNewNamingWithSourceRecord() {
   const invId = +Object.keys(invResult.jsonGraph.dms.data.byId)[0];
 
   const { table: expectedInvalidTable } = resolveTable(TEST_APP, invalidType, db.type, SPLIT_MODE, sourceId);
-  assert(expectedInvalidTable.includes(`s${sourceId}_v500_${docType}_invalid`), `Invalid table naming correct (got ${expectedInvalidTable})`);
-  assert(await tableExists(expectedInvalidTable), `Invalid table '${expectedInvalidTable}' exists`);
+  assert(expectedInvalidTable === expectedTable, `Invalid entry resolves to same table as valid (got ${expectedInvalidTable})`);
 
   // Cleanup
   await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, splitType, dataId]);

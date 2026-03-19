@@ -83,7 +83,7 @@ export default function Overview ({
 
                         <div className={theme.metaItem || 'flex flex-col px-4 text-sm text-gray-600'}>
                             <span className={theme.metaLabel || 'text-sm text-gray-500'}>Type</span>
-                            <span className={theme.metaValue || 'text-base font-medium text-blue-600'}>{source?.doc_type || source?.type}</span>
+                            <span className={theme.metaValue || 'text-base font-medium text-blue-600'}>{source?.type || source?.doc_type}</span>
                         </div>
 
                         <div className={theme.metaEditRow || 'flex justify-between group'}>

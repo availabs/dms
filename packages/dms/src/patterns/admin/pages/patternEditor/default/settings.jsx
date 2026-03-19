@@ -30,7 +30,7 @@ async function loadSiteData(falcor, app, type) {
 }
 
 export const PatternSettingsEditor = ({ value = {}, onChange, ...rest}) => {
-  const { apiUpdate, app, type, API_HOST, parentBaseUrl } = useContext(AdminContext);
+  const { apiUpdate, app, type, API_HOST, parentBaseUrl, dmsEnvs = [], dmsEnvById = {} } = useContext(AdminContext);
   const { UI } = useContext(ThemeContext)
   const { FieldSet, Button, Icon } = UI;
   const { falcor } = useFalcor();
@@ -38,6 +38,8 @@ export const PatternSettingsEditor = ({ value = {}, onChange, ...rest}) => {
   const [tmpValue, setTmpValue] = useImmer(value);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [isDuplicating, setIsDuplicating] = useState(false);
+
+  const showDmsEnvConfig = ['datasets', 'forms', 'page', 'mapeditor'].includes(value.pattern_type);
 
   const handleDelete = async () => {
       const site = await loadSiteData(falcor, app, type);
@@ -173,6 +175,18 @@ export const PatternSettingsEditor = ({ value = {}, onChange, ...rest}) => {
             />
         </div>
 
+        {showDmsEnvConfig && (
+          <DmsEnvConfig
+            value={tmpValue}
+            onChange={setTmpValue}
+            dmsEnvs={dmsEnvs}
+            falcor={falcor}
+            app={app}
+            type={type}
+            apiUpdate={apiUpdate}
+          />
+        )}
+
         <div className='flex flex-col gap-2 p-4 border border-red-200 rounded-md'>
           <span className='font-semibold text-sm text-red-600'>Danger Zone</span>
           <div className='flex items-center gap-2'>
@@ -214,4 +228,85 @@ export const PatternSettingsEditor = ({ value = {}, onChange, ...rest}) => {
         </div>
       </div>
     )
+}
+
+function DmsEnvConfig({ value, onChange, dmsEnvs, falcor, app, type, apiUpdate }) {
+  const [newEnvName, setNewEnvName] = useState('');
+  const [creating, setCreating] = useState(false);
+  const { UI } = useContext(ThemeContext);
+  const { Select, Input, Button } = UI;
+
+  const envOptions = [
+    { label: 'None (legacy)', value: '' },
+    ...dmsEnvs.map(env => ({ label: env.name || `Env #${env.id}`, value: String(env.id) })),
+  ];
+
+  const handleEnvChange = (e) => {
+    const envId = e.target.value ? +e.target.value : undefined;
+    onChange(draft => { draft.dmsEnvId = envId; });
+  };
+
+  const handleCreateEnv = async () => {
+    if (!newEnvName.trim() || creating) return;
+    setCreating(true);
+    try {
+      // Create dmsEnv row
+      const res = await falcor.call(
+        ["dms", "data", "create"],
+        [app, 'dmsEnv', { name: newEnvName.trim(), sources: [] }]
+      );
+      const newId = Object.keys(res?.json?.dms?.data?.byId || {})
+        .find(k => k !== '$__path');
+
+      if (newId) {
+        // Add ref to site's dms_envs array
+        const site = await loadSiteData(falcor, app, type);
+        if (site) {
+          const existing = site.data?.dms_envs || [];
+          await falcor.call(
+            ['dms', 'data', 'edit'],
+            [app, site.id, { dms_envs: [...existing, { ref: `${app}+dmsEnv`, id: +newId }] }]
+          );
+        }
+        // Set this pattern to use the new env
+        onChange(draft => { draft.dmsEnvId = +newId; });
+      }
+      setNewEnvName('');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  return (
+    <div className='flex flex-col gap-1 p-4 border rounded-md'>
+      <span className='font-semibold text-lg'>Data Environment</span>
+      <p className='text-sm text-gray-500 mb-2'>
+        Select which data environment this pattern uses for internal sources.
+      </p>
+      <div className='grid grid-cols-12 gap-2'>
+        <div className='col-span-6'>
+          <label className='text-sm font-medium text-gray-700'>DMS Environment</label>
+          <Select
+            options={envOptions}
+            value={String(value.dmsEnvId || '')}
+            onChange={handleEnvChange}
+          />
+        </div>
+        <div className='col-span-4'>
+          <label className='text-sm font-medium text-gray-700'>Create New Environment</label>
+          <div className='flex gap-2'>
+            <Input
+              value={newEnvName}
+              placeholder='Environment name'
+              onChange={e => setNewEnvName(e.target.value)}
+            />
+            <Button
+              disabled={!newEnvName.trim() || creating}
+              onClick={handleCreateEnv}
+            >{creating ? 'Creating...' : 'Create'}</Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }

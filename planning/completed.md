@@ -34,6 +34,8 @@
 - [per-config-split-mode.md](./tasks/completed/per-config-split-mode.md) - Per-config split mode: moved `DMS_SPLIT_MODE` from server-wide env var to per-database-config `splitMode` field, with env var fallback for backward compatibility (2026-03-17)
 - [test-suite-per-app-mode.md](./tasks/completed/test-suite-per-app-mode.md) - Test suite per-app mode: migrated all test code from legacy `byId` route to app-namespaced route, set all test configs to `splitMode: "per-app"`, verified on SQLite + PostgreSQL (2026-03-17)
 - [fix-auth-test-pg-socket-hangup.md](./tasks/completed/fix-auth-test-pg-socket-hangup.md) - Fixed auth test #14 PG ECONNRESET: `req.on('close')` in falcor-express fired prematurely in Node.js v15+ (request body consumed ≠ client disconnect); changed to `res.on('close')` with `!res.writableFinished` guard (2026-03-17)
+- [clean-dms-mercury2.md](./tasks/completed/clean-dms-mercury2.md) - Clean dms-mercury2 database: deleted obsolete apps, countytemplate patterns, templated pages, obsolete patterns, extracted images, consolidated history, ran orphan cleanup, VACUUM, prepared for split-app mode (2026-03-17)
+- [deprecate-internal-dataset.md](./tasks/completed/deprecate-internal-dataset.md) - Deprecate internal_dataset for internal_table: migration script converting UUID/uppercase doc_types to name-based, moved 117,474 rows from data_items to split tables across 34 datasets, updated source records, phantom ref cleanup, removed internal_dataset from type selector, 25 tests (2026-03-17)
 
 ## ssr
 
@@ -46,6 +48,10 @@
 - [toy-sync-collaborative-editing.md](./tasks/completed/toy-sync-collaborative-editing.md) - Toy sync collaborative editing: character-level Yjs ↔ Lexical binding via `@lexical/yjs` CollaborationPlugin, custom ToyProvider over existing WebSocket, room-based WS routing, server-side Y.Doc management + yjs_states persistence, Yjs sync protocol (step1/step2), cursor/presence awareness, user identity (2026-03-03)
 - [sync-pattern-scope.md](./tasks/completed/sync-pattern-scope.md)
 - [dms-local-first-sync.md](./tasks/completed/dms-local-first-sync.md) - DMS local-first sync integration: REST sync endpoints, WebSocket live notifications, Yjs collaborative editing, pattern-scoped bootstrap/delta, SQLite WASM client (2026-03-16) - Pattern-scoped sync + SQLite fix: chunked SQLite queries (LIMIT/OFFSET + setImmediate yielding), pattern-scoped bootstrap/delta/WS endpoints (?pattern=DOC_TYPE&siteType=Y, ?skeleton=SITE_TYPE), client skeleton bootstrap + on-demand bootstrapPattern(), per-pattern revision tracking, on-demand bootstrap in dmsDataLoader (2026-03-05)
+
+## project maintenance
+
+- [vite-8-upgrade.md](./tasks/completed/vite-8-upgrade.md) - Upgrade to Vite 8: Rolldown replaces esbuild+Rollup, `rollupOptions`→`rolldownOptions`, React Compiler via `@rolldown/plugin-babel` + `reactCompilerPreset`, removed `vite-plugin-top-level-await` (native Rolldown), Yjs dedup alias, dev server 457ms, production build 54s (2026-03-17)
 
 ## config
 
@@ -86,6 +92,10 @@
 - [internal-dataset-admin-page.md](./tasks/completed/internal-dataset-admin-page.md) - Custom admin page for internal datasets: version creation via DMS item.id, SourcePage datatype admin overrides, auto-navigate to latest view, overview shows versions (2026-02-13)
 - [internal-table-datatype.md](./tasks/completed/internal-table-datatype.md) - `internal_table` dataset type: combined creation + upload, auto-creates first version, split tables for per-version data (2026-02-23)
 - [fix-upload-updatemetadata.md](./tasks/completed/fix-upload-updatemetadata.md) - Fixed `updateMetaData` in upload component: corrected apiUpdate to use source type format and UDA update path (2026-02-23)
+
+### patterns/mapeditor
+
+- [mapeditor-pattern.md](./tasks/completed/mapeditor-pattern.md) - Converted MapEditor from datamanagerclient into standalone DMS pattern (symbology CRUD via DMS instead of DAMA) (2026-03-17)
 
 ### patterns/forms
 

@@ -133,13 +133,19 @@ async function getEssentials({ env, view_id, options = {} }) {
       }
     }
 
+    // Normalize split type to lowercase — stored data uses lowercase type strings
+    // but the client may send mixed case from doc_type (e.g., 'Actions_Revised-1074456')
+    if (isSplitType(type)) {
+      type = type.toLowerCase();
+    }
+
     // Look up source_id for split type naming
     let sourceId = null;
     if (isSplitType(type)) {
       const parsed = parseType(type);
       if (parsed) {
         const srcRows = await db.query(
-          `SELECT id FROM ${mainTbl} WHERE app = $1 AND ${db.type === 'postgres' ? "data->>'doc_type'" : "json_extract(data, '$.doc_type')"} = $2 AND type LIKE '%|source' ORDER BY id DESC LIMIT 1`,
+          `SELECT id FROM ${mainTbl} WHERE app = $1 AND lower(${db.type === 'postgres' ? "data->>'doc_type'" : "json_extract(data, '$.doc_type')"}) = lower($2) AND type LIKE '%|source' ORDER BY id DESC LIMIT 1`,
           [app, parsed.docType]
         );
         sourceId = srcRows?.rows?.[0]?.id || null;
@@ -193,25 +199,47 @@ async function getSitePatterns({ db, app, splitMode }) {
 }
 
 /**
- * Get sources from site patterns. Looks at patterns matching doc_types and extracts their sources JSON array.
+ * Get sources from site patterns. Looks at patterns matching doc_types and extracts
+ * their sources JSON array. If a pattern has dmsEnvId set, reads sources from the
+ * referenced dmsEnv row instead.
  */
 async function getSiteSources({ db, app, pattern_ids, pattern_doc_types, splitMode }) {
   if (!pattern_ids.length) return [];
 
   const tbl = await dmsMainTable(db, app, splitMode);
   const sql = `
-    SELECT data->'sources' AS sources
+    SELECT data->'sources' AS sources, data->>'dmsEnvId' AS dms_env_id
     FROM ${tbl}
     WHERE id = ANY($1) AND data->>'doc_type' = ANY($2)
   `;
   const { rows } = await db.query(sql, [pattern_ids.map(Number), pattern_doc_types]);
 
   if (!rows.length) return [];
-  return rows.reduce((acc, curr) => {
-    // SQLite data->'sources' returns a JSON string; PostgreSQL returns a parsed array
-    const sources = typeof curr.sources === 'string' ? JSON.parse(curr.sources) : (curr.sources || []);
-    return [...acc, ...sources];
-  }, []);
+
+  // Collect sources from patterns, and dmsEnvIds to look up
+  const allSources = [];
+  const dmsEnvIds = [];
+
+  for (const row of rows) {
+    if (row.dms_env_id) {
+      dmsEnvIds.push(+row.dms_env_id);
+    } else {
+      const sources = typeof row.sources === 'string' ? JSON.parse(row.sources) : (row.sources || []);
+      allSources.push(...sources);
+    }
+  }
+
+  // Fetch sources from dmsEnv rows
+  if (dmsEnvIds.length) {
+    const envSql = `SELECT data->'sources' AS sources FROM ${tbl} WHERE id = ANY($1)`;
+    const { rows: envRows } = await db.query(envSql, [dmsEnvIds]);
+    for (const envRow of envRows) {
+      const sources = typeof envRow.sources === 'string' ? JSON.parse(envRow.sources) : (envRow.sources || []);
+      allSources.push(...sources);
+    }
+  }
+
+  return allSources;
 }
 
 // ================================================= Filter Builders ================================================

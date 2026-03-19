@@ -21,7 +21,9 @@ const sourcesCache = new Map();
 
 const getSources = async ({envs, falcor, parent, user}) => {
     if(!envs || !Object.keys(envs)) return [];
+    console.log('[getSources] querying UDA for envs:', Object.keys(envs));
     const lenRes = await falcor.get(['uda', Object.keys(envs), 'sources', 'length']);
+    console.log('[getSources] UDA lengths:', Object.keys(envs).map(e => `${e}: ${get(lenRes, ['json', 'uda', e, 'sources', 'length'])}`));
 
     const sources = await Promise.all(
         Object.keys(envs).map(async e => {
@@ -116,7 +118,9 @@ export default function ({attributes, item, dataItems, apiLoad, apiUpdate, updat
     useEffect(() => {
         // Invalidate UDA cache to get fresh data (e.g., after creating a source in CreatePage)
         Object.keys(envs).forEach(e => falcor.invalidate(['uda', e, 'sources']));
+        console.log('[DatasetsList] fetching sources, envs:', Object.keys(envs), 'format:', format?.app, format?.type);
         getSources({envs, falcor, apiLoad, user}).then(data => {
+            console.log('[DatasetsList] sources received:', data?.length, 'sources', data?.slice(0, 2));
             setSources(data);
             sourcesCache.set(cacheKey, data);
         });

@@ -1,5 +1,9 @@
 # DMS Todo
 
+## type system
+
+- [ ] Type system refactor — uniform `{parent}:{instance}|{rowKind}` scheme replacing inconsistent type encoding; remove UUIDs in favor of human-readable slugs; eliminate `data.doc_type`; sources scoped to dmsEnv; `:data` suffix replaces split type regex; migration script for existing data
+
 ## cli
 
 - [x] DMS CLI tool (`packages/dms/cli/`) — terminal access to DMS data via shared API code and Falcor protocol (sites, patterns, pages, sections, datasets)
@@ -46,12 +50,15 @@
 - [ ] Split table virtual columns — auto-generate SQLite virtual columns + indexes (and PG expression indexes) from source config attributes for B-tree query speed on dataset tables
 - [x] Database copy CLI — `src/scripts/copy-db.js` copies all DMS data between databases (PG↔SQLite, same-type), preserving IDs, handling cross-DB types, batch processing, split table discovery
 - [x] Dead row cleanup CLI — `src/scripts/cleanup-db.js` analyzes DMS database for orphaned rows (sections without pages, patterns without sites, views without sources), grouped by app+type, with optional `--delete` mode
+- [ ] Cleanup: protect dmsEnv-linked sources — `findOrphanedSources` only validates against pattern `doc_type`, not dmsEnv refs; sources owned by a dmsEnv can be incorrectly flagged as orphans
 - [x] Fix orphaned pages detection — `findOrphanedPages` produces false positives when pattern metadata is missing/misconfigured, causing mass page deletion; pages detector currently disabled from `--delete` mode; also added `page_edits` orphan detection and `skipData` memory optimization
 - [x] Extract embedded Lexical images — script to scan data_items for base64 data URIs in InlineImageNode `src` fields, extract to files, replace with URL paths; deduplication via content hash
-- [ ] Clean dms-mercury2 database — delete obsolete apps, countytemplate patterns, templated pages, obsolete patterns, extract images, consolidate history, run orphan cleanup, VACUUM, prepare for split-app mode; target under 200 MB
-- [ ] Deprecate internal_dataset for internal_table — migration script to convert UUID doc_types to name-based, move data rows from data_items to split tables, update source records; remove internal_dataset from type selector
+- [x] Clean dms-mercury2 database — delete obsolete apps, countytemplate patterns, templated pages, obsolete patterns, extract images, consolidate history, run orphan cleanup, VACUUM, prepare for split-app mode; target under 200 MB
+- [x] Deprecate internal_dataset for internal_table — migration script to convert UUID doc_types to name-based, move data rows from data_items to split tables, update source records; remove internal_dataset from type selector
 - [x] Per-app PostgreSQL schemas — in per-app split mode, use `dms_{appname}` schemas instead of table name prefixes (`dms.data_items__appname` → `dms_appname.data_items`); SQLite unchanged
 - [x] Per-config split mode — move `DMS_SPLIT_MODE` from server-wide env var to per-database-config setting (`splitMode` field in config JSON), with env var fallback for backward compatibility
+- [x] Migrated dataset fixes — case-insensitive split type regex, sanitize() in new table naming, case-insensitive source lookup, lowercase type for split queries, maxPaths 50K→500K, `--max-http-header-size=1MB`, rename-split-tables script (39 tables renamed)
+- [x] Invalid-entry table consolidation — valid and invalid dataset rows share the same split table (removed `_invalid` suffix from table naming); fixes bugs where re-validation couldn't find invalid rows and `batchUpdateType` left rows in wrong table
 
 ## ui
 
@@ -82,7 +89,7 @@
 
 ### patterns/mapeditor
 
-- [ ] Convert MapEditor from datamanagerclient into standalone DMS pattern (symbology CRUD via DMS instead of DAMA)
+- [x] Convert MapEditor from datamanagerclient into standalone DMS pattern (symbology CRUD via DMS instead of DAMA)
 
 ### patterns/datasets
 
@@ -96,6 +103,7 @@
 - [x] `internal_table` dataset type — new type combining creation + upload in one step, auto-creates first version, uses split tables for per-version data storage
 - [x] Custom admin page for internal dataset types — version creation follows forms pattern (uses DMS `item` with `.id`), SourcePage allows datatype admin overrides
 - [x] Fix `updateMetaData` in upload component — fixed apiUpdate call to use correct source type format and UDA update path
+- [ ] Internal pgEnv (dmsEnv) — decouple source ownership from datasets patterns into shared `dmsEnv` rows; per-pattern pgEnv/dmsEnv config in pattern editor; auto-create on fresh projects
 
 ### patterns/forms
 
@@ -114,4 +122,5 @@
 
 ## project maintenance
 
+- [x] Upgrade to Vite 8 — Rolldown replaces esbuild+Rollup, rename rollupOptions→rolldownOptions, update React Compiler to use @rolldown/plugin-babel + reactCompilerPreset, verify CJS interop and WASM plugins
 - [ ] Vite HMR / Fast Refresh fixes — fix ~127 files with patterns that break hot module reload (mixed exports, anonymous components, object-wrapped exports, wrong file extensions)

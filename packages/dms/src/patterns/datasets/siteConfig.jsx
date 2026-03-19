@@ -19,7 +19,6 @@ import TaskPage from "./pages/dataTypes/default/Tasks/TaskPage";
 // datasets -- move to library/registry import
 import csv_dataset from "./pages/dataTypes/csv_dataset";
 import gis_dataset from "./pages/dataTypes/gis_dataset";
-import internal_dataset from "./pages/dataTypes/internal";
 import internal_table from "./pages/dataTypes/internal_table";
 
 const datasetsConfig = ({
@@ -28,6 +27,8 @@ const datasetsConfig = ({
     siteType,
     baseUrl,
     datasources,
+    dmsEnvs = [],
+    dmsEnvById = {},
     Menu,
     API_HOST='https://graph.availabs.org',
     DAMA_HOST='https://graph.availabs.org',
@@ -53,13 +54,15 @@ const datasetsConfig = ({
                       <DatasetsContext.Provider value={{
                           UI,
                           datasources,
+                          dmsEnvs, dmsEnvById,
+                          dmsEnv: pattern.dmsEnvId ? dmsEnvById[pattern.dmsEnvId] : null,
                           baseUrl: `${baseUrl}`,
                           falcor,
                           user,
                           theme, app, type, siteType,
                           parent: pattern, API_HOST, DAMA_HOST,
                           authPermissions,
-                          damaDataTypes: { csv_dataset, gis_dataset, internal_dataset, internal_table, ...damaDataTypes },
+                          damaDataTypes: { csv_dataset, gis_dataset, internal_table, ...damaDataTypes },
                           isUserAuthed: (reqPermissions, customAuthPermissions) => isUserAuthed({ user, authPermissions: customAuthPermissions || authPermissions, reqPermissions }),
                       }}>
                           <ThemeContext.Provider value={{ theme, UI }}>
