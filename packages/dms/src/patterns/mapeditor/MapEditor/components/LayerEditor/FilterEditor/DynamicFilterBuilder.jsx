@@ -80,7 +80,7 @@ export const DynamicFilterBuilder = ({path, params={}}) => {
         "dama", pgEnv, "sources", "byId", sourceId, "attributes", "metadata", "value"
       ], []);
     }
-    return columns;
+    return Array.isArray(columns) ? columns : [];
   }, [sourceId, falcorCache]);
 
   const attributeNames = useMemo(

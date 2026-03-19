@@ -22,6 +22,8 @@ import gis_dataset from "./pages/dataTypes/gis_dataset";
 import internal_dataset from "./pages/dataTypes/internal";
 import internal_table from "./pages/dataTypes/internal_table";
 
+import file_upload from "./pages/dataTypes/file_upload"
+
 const datasetsConfig = ({
     app,
     type,
@@ -51,16 +53,23 @@ const datasetsConfig = ({
                   const { user, falcor } = props
                   return (
                       <DatasetsContext.Provider value={{
-                          UI,
-                          datasources,
-                          baseUrl: `${baseUrl}`,
-                          falcor,
-                          user,
-                          theme, app, type, siteType,
-                          parent: pattern, API_HOST, DAMA_HOST,
-                          authPermissions,
-                          damaDataTypes: { csv_dataset, gis_dataset, internal_dataset, internal_table, ...damaDataTypes },
-                          isUserAuthed: (reqPermissions, customAuthPermissions) => isUserAuthed({ user, authPermissions: customAuthPermissions || authPermissions, reqPermissions }),
+                            UI,
+                            datasources,
+                            baseUrl: `${baseUrl}`,
+                            falcor,
+                            user,
+                            theme, app, type, siteType,
+                            parent: pattern, API_HOST, DAMA_HOST,
+                            authPermissions,
+                            damaDataTypes: {
+                                csv_dataset,
+                                gis_dataset,
+                                internal_dataset,
+                                internal_table,
+                                file_upload,
+                                ...damaDataTypes
+                            },
+                            isUserAuthed: (reqPermissions, customAuthPermissions) => isUserAuthed({ user, authPermissions: customAuthPermissions || authPermissions, reqPermissions }),
                       }}>
                           <ThemeContext.Provider value={{ theme, UI }}>
                               {props.children}
