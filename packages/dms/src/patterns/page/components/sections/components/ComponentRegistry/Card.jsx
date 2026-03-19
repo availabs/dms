@@ -211,7 +211,7 @@ export default {
     useInfiniteScroll: false,
     showPagination: true,
     keepOriginalValues: true,
-    showAllColumnsControl: true,
+    showAllColumnsControl: false,
     themeKey: 'dataCard',
     defaultState: {
         dataRequest: {},
@@ -237,6 +237,26 @@ export default {
         more: [
             // settings from more dropdown are stored in state.display
             {type: 'toggle', label: 'Attribution', key: 'showAttribution'},
+            {type: 'toggle', label: 'Compact View', key: 'compactView'},
+            {type: 'input', inputType: 'number', label: 'Grid Size', key: 'gridSize'},
+            {type: 'input', inputType: 'number', label: 'Grid Gap', key: 'gridGap'},
+            {type: 'input', inputType: 'number', label: 'Padding', key: 'padding'},
+            {type: 'input', inputType: 'number', label: 'Column Gap', key: 'colGap', displayCdn: ({display}) => display.compactView},
+            {type: 'select', label: 'Value Placement', key: 'headerValueLayout', options: [{label: `Inline`, value: 'row'}, {label: `Stacked`, value: 'col'}]},
+            {type: 'input', inputType: 'number', label: 'Header Width', key: 'headerWidth', displayCdn: ({display}) => display.headerValueLayout === 'row'},
+            {type: 'input', inputType: 'number', label: 'Value Width', key: 'valueWidth', displayCdn: ({display}) => display.headerValueLayout === 'row'},
+            {type: 'toggle', label: 'Reverse', key: 'reverse'},
+            {type: 'toggle', label: 'Hide if No Data', key: 'hideIfNull'},
+            {type: 'toggle', label: 'Column Border', key: 'removeBorder', negate: true, displayCdn: ({display}) => !display.compactView},
+            {type: 'toggle', label: 'Row Border', key: 'removeBorder', negate: true, displayCdn: ({display}) => display.compactView},
+            {type: 'toggle', label: 'Row Border', key: 'addBorder', displayCdn: ({display}) => !display.compactView},
+            {type: 'toggle', label: 'Column Border', key: 'addBorder', displayCdn: ({display}) => display.compactView},
+            {type: 'toggle', label: 'Use Pagination', key: 'usePagination'},
+            {type: 'input', inputType: 'number', label: 'Page Size', key: 'pageSize', displayCdn: ({display}) => display.usePagination === true},
+            {type: ({value, setValue}) => <ColorControls value={value} setValue={setValue} title={'Background Color'}/>, key: 'bgColor', displayCdn: ({display}) => display.compactView},
+        ],
+        data: [
+            // settings from more dropdown are stored in state.display
             {type: 'toggle', label: 'Allow Edit', key: 'allowEditInView',
                 onChange: ({value, state}) => {
                 // if editing data is allowed, data should not be cached. unless live edit is used.
@@ -253,114 +273,10 @@ export default {
             },
             {type: 'input', inputType: 'text', label: 'Navigate to', key: 'navigateUrlOnAdd',
                 displayCdn: ({display}) => display.allowAdddNew && display.addNewBehaviour === 'navigate'},
-            {type: 'toggle', label: 'Use Page Filters', key: 'usePageFilters'},
-            {type: 'toggle', label: 'Compact View', key: 'compactView'},
-            {type: 'input', inputType: 'number', label: 'Grid Size', key: 'gridSize'},
-            {type: 'input', inputType: 'number', label: 'Grid Gap', key: 'gridGap'},
-            {type: 'input', inputType: 'number', label: 'Padding', key: 'padding'},
-            {type: 'input', inputType: 'number', label: 'Column Gap', key: 'colGap', displayCdn: ({display}) => display.compactView},
             {type: 'toggle', label: 'Prevent Duplicate Fetch', key: 'preventDuplicateFetch'},
             {type: 'toggle', label: 'Always Fetch Data', key: 'readyToLoad'},
-            {type: 'toggle', label: 'Use Pagination', key: 'usePagination'},
-
-            {type: 'input', inputType: 'number', label: 'Page Size', key: 'pageSize', displayCdn: ({display}) => display.usePagination === true},
-            {type: 'select', label: 'Value Placement', key: 'headerValueLayout', options: [{label: `Inline`, value: 'row'}, {label: `Stacked`, value: 'col'}]},
-            {type: 'input', inputType: 'number', label: 'Header Width', key: 'headerWidth', displayCdn: ({display}) => display.headerValueLayout === 'row'},
-            {type: 'input', inputType: 'number', label: 'Value Width', key: 'valueWidth', displayCdn: ({display}) => display.headerValueLayout === 'row'},
-            {type: 'toggle', label: 'Reverse', key: 'reverse'},
-            {type: 'toggle', label: 'Hide if No Data', key: 'hideIfNull'},
-            {type: 'toggle', label: 'Column Border', key: 'removeBorder', negate: true, displayCdn: ({display}) => !display.compactView},
-            {type: 'toggle', label: 'Row Border', key: 'removeBorder', negate: true, displayCdn: ({display}) => display.compactView},
-            {type: 'toggle', label: 'Row Border', key: 'addBorder', displayCdn: ({display}) => !display.compactView},
-            {type: 'toggle', label: 'Column Border', key: 'addBorder', displayCdn: ({display}) => display.compactView},
-            {type: 'select', label: 'Filter Relation', key: 'filterRelation',
-                options: [{label: 'and', value: 'and'}, {label: 'or', value: 'or'}]
-            },
-            {type: ({value, setValue}) => <ColorControls value={value} setValue={setValue} title={'Background Color'}/>, key: 'bgColor', displayCdn: ({display}) => display.compactView},
         ],
-        inHeader,
-        appearance: {Comp: ({context}) => {
-                const {state: {display, columns}, setState} = useContext(context || ComponentContext);
-                const {UI} = useContext(ThemeContext);
-                const {Icon} = UI;
-                const selectWrapperClass = 'group px-2 w-full flex items-center cursor-pointer hover:bg-gray-100'
-                const selectLabelClass = 'w-fit font-regular text-gray-500 cursor-default'
-                const selectClasses = 'w-full min-w-[10px] rounded-md bg-white group-hover:bg-gray-100 cursor-pointer'
-
-                if(!display.columnSelection) return <></>
-
-                const columnSelectionData = columns.filter(column => display.columnSelection.includes(column.normalName || column.name));
-                const selectionValues = inHeader
-                    .filter(({isBatchUpdatable}) => isBatchUpdatable)
-                    .reduce((acc, {key}) => {
-                        acc[key] = columnSelectionData.reduce((acc, data, i) => {
-                            // if all selected columns have same value for the key, save the value
-                            return i === 0 ?
-                                    data?.[key] :
-                                        acc === data?.[key] ?
-                                        acc : ''
-                        }, '');
-
-                        return acc;
-                    } ,{});
-
-                const updateColumns = (key, value) => {
-                    setState(draft => {
-                        draft.columns.filter(column => (draft.display.columnSelection || []).includes(column.normalName || column.name))
-                            .forEach(column => {
-                                column[key] = value;
-                            })
-                    })
-                }
-                return (
-                    <div className={'px-2'}>
-                        <div className="flex flex-row gap-0.5 items-center px-1 text-xs text-gray-600 font-regular border rounded-lg">
-                            {
-                                inHeader
-                                    .filter(({isBatchUpdatable}) => isBatchUpdatable)
-                                    .map(({type, inputType, label, key, options}) =>
-                                        type === 'select' ?
-                                            <div key={`${key}`} className={selectWrapperClass}>
-                                                <label className={selectLabelClass} htmlFor={key}>{label}</label>
-                                                <select
-                                                    id={key}
-                                                    className={selectClasses}
-                                                    value={selectionValues[key]}
-                                                    onChange={e => updateColumns(key, e.target.value)}
-                                                >
-                                                    {
-                                                        options.map(({label, value}) => <option key={value} value={value}>{label}</option>)
-                                                    }
-                                                </select>
-                                            </div> :
-                                            type === 'toggle' ?
-                                                <div className={'px-2 py-1 w-full rounded-md bg-white hover:bg-gray-100 cursor-pointer'}>
-                                                    <ToggleControl
-                                                        className={`inline-flex w-full justify-center items-center rounded-md cursor-pointer ${selectLabelClass}`}
-                                                        title={label}
-                                                        value={selectionValues[key]}
-                                                        setValue={e => updateColumns(key, e)}
-                                                    />
-                                                </div> :
-                                                type === 'input' ?
-                                                    <div className={selectWrapperClass}>
-                                                        <label className={selectLabelClass} htmlFor={key}>{label}</label>
-                                                        <input
-                                                            id={key}
-                                                            className={selectClasses}
-                                                            type={inputType}
-                                                            value={selectionValues[key]}
-                                                            onChange={e => updateColumns(key, e.target.value)}
-                                                        />
-                                                    </div> :
-                                                    typeof type === 'function' ? type({value: selectionValues[key], setValue: newValue => updateColumns(key, newValue)}) :
-                                                        `${type} not available`
-                                    )
-                            }
-                        </div>
-                    </div>
-                )
-            }},
+        inHeader
     },
     "EditComp": Card,
     "ViewComp": Card,

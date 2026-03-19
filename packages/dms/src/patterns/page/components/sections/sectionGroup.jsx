@@ -79,12 +79,17 @@ export const updateSections = async ({update, action, item, user, apiUpdate, upd
     // ----------------
     // only need to send id, and data to update, not whole
     // --------------------
-    const newItem = {
+    const newItemMainUpdate = {
       id: item?.id,
       draft_sections: update.filter(d => d),
+      has_changes: true,
+    }
+    const newItemHistoryUpdate = {
+      id: item?.id,
       has_changes: true,
       history,
     }
     //console.log('editFunction saveSection newItem',newItem, update)
-    await apiUpdate({data: newItem})
+    await apiUpdate({data: newItemMainUpdate})
+    await apiUpdate({data: newItemHistoryUpdate})
 }

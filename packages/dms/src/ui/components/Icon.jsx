@@ -10,10 +10,20 @@ const DefaultIcon = ({...props}) => (
   </svg>
 );
 
+// Check if icon string is a FontAwesome class (starts with fa-, fa , fas, far, fal, fad, fab)
+const isFontAwesomeIcon = (icon) => {
+    if (typeof icon !== 'string') return false;
+    return /^(fa-|fa |fas |far |fal |fad |fab |fa-duotone |fa-solid |fa-regular |fa-light |fa-brands )/.test(icon);
+};
 
 export default function ({icon = 'Default', className, ...props}) {
     const { theme: themeFromContext = {} } = React.useContext(ThemeContext);
     const theme = {...themeFromContext, icon: {...iconTheme, ...(themeFromContext.icon || {})}};
+
+    // Handle FontAwesome icons - render as <i> element with class
+    if (isFontAwesomeIcon(icon)) {
+        return <i className={`${icon} ${className || ''}`} {...props} />;
+    }
 
     let Icon = theme?.Icons?.[icon] || icons[icon] || DefaultIcon
     return  <Icon className={className || theme?.icon?.icon} {...props}/>

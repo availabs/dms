@@ -185,22 +185,39 @@ const ColumnRow = ({ column, index, state, setState, resolvedControls, Pill, Ico
                 <div className="flex items-center gap-1 shrink-0">
                     {isOutOfDate && (
                         <button
-                            className="p-0.5 rounded text-amber-500"
+                            className="p-0.5 rounded hover:bg-gray-100 text-amber-500 cursor-pointer"
                             title="Metadata out of date"
                             onClick={onRefreshMeta}
                         >
                             <Icon icon="Alert" className="size-4" />
                         </button>
                     )}
+                    {column.fn && (
+                        <span className="p-0.5 text-gray-400" title={column.fn}>
+                            <Icon icon={
+                                column.fn === 'count' ? 'TallyMark' :
+                                    column.fn === 'list' ? 'LeftToRightListBullet' :
+                                        column.fn === 'sum' ? 'Sum' :
+                                            column.fn === 'avg' ? 'Avg' :
+                                                'TallyMark'
+                            } className="size-4 text-blue-500" />
+                        </span>
+                    )}
+                    <button className={`p-0.5 rounded hover:bg-gray-100 ${column.group ? `text-blue-500` : `text-gray-300`} cursor-pointer`}
+                            title={column.group ? 'Grouping By' : 'Group By'}
+                            onClick={() => updateColumns(column, 'group', !column.group, undefined, setState)}
+                    >
+                            <Icon icon="Group" className="size-4" />
+                    </button>
                     <button
-                        className={`p-0.5 rounded hover:bg-gray-100 ${column.show ? 'text-blue-500' : 'text-gray-300'}`}
+                        className={`p-0.5 rounded hover:bg-gray-100 ${column.show ? 'text-blue-500' : 'text-gray-300'} cursor-pointer`}
                         onClick={() => updateColumns(column, 'show', !column.show, undefined, setState)}
                         title={column.show ? 'Hide' : 'Show'}
                     >
                         <Icon icon={column.show ? 'Eye' : 'EyeClosed'} className="size-4" />
                     </button>
                     <button
-                        className="p-0.5 rounded hover:bg-gray-100 text-gray-500"
+                        className="p-0.5 rounded hover:bg-gray-100 text-gray-500 cursor-pointer"
                         onClick={onToggleExpand}
                         title="Settings"
                     >
@@ -226,7 +243,7 @@ const ColumnRow = ({ column, index, state, setState, resolvedControls, Pill, Ico
                         .map(c => renderControl(c, column, onUpdate, { Switch, setState }))}
                     <div className="flex gap-1 pt-1">
                         <Pill text="Duplicate" color="blue" onClick={() => duplicate(column, setState)} />
-                        <Pill text="Reset" color="orange" onClick={() => resetColumn(column, setState)} />
+                        <Pill text="Remove" color="orange" onClick={() => resetColumn(column, setState)} />
                         {isOutOfDate && (
                             <Pill text="Refresh Meta" color="orange" onClick={onRefreshMeta} />
                         )}
@@ -287,7 +304,7 @@ const AllColumnsRow = ({ state, setState, resolvedControls, isEveryColVisible, P
                         .filter(c => !c.hideFromSectionMenu)
                         .map(c => renderControl(c, aggregateColumn, onUpdate, { Switch, setState }))}
                     <div className="flex gap-1 pt-1">
-                        <Pill text="Reset All" color="orange" onClick={() => resetAllColumns(setState)} />
+                        <Pill text="Remove All" color="orange" onClick={() => resetAllColumns(setState)} />
                     </div>
                 </div>
             )}
@@ -387,6 +404,12 @@ export default function ColumnManager({ state, setState, resolvedControls, Pill,
                         setExpandedColumns(isAllExpanded ? new Set() : new Set(activeColumns.map(i => i.id)));
                     }}
                 />
+                <Pill
+                    color={isEveryColVisible ? 'orange' : 'blue'}
+                    onClick={() => toggleGlobalVisibility(!isEveryColVisible, setState)}
+                    text={isEveryColVisible ? 'Hide All' : 'Show All'}
+                />
+                <Pill text="Remove All" color="orange" onClick={() => resetAllColumns(setState)} />
             </div>
 
             {/* All Columns Row */}
