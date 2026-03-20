@@ -18,8 +18,70 @@ import {
 
 
 function ScrollToTop() {
-  const { pathname } = useLocation();
-  useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
+  const { pathname, hash } = useLocation();
+  useEffect(() => {
+    if (!hash) window.scrollTo(0, 0);
+  }, [pathname]);
+  return null;
+}
+
+const getAbsoluteTop = (el) => {
+  let top = 0;
+  while (el) {
+    top += el.offsetTop;
+    el = el.offsetParent;
+  }
+  return top;
+};
+
+function ScrollToHash() {
+  const { hash } = useLocation();
+  useEffect(() => {
+    if (!hash) return;
+    const id = hash.slice(1);
+    let rafId;
+
+    const scrollWhenStable = (el) => {
+      let prev = getAbsoluteTop(el);
+      let stable = 0;
+      let attempts = 0;
+
+      const tick = () => {
+        const top = getAbsoluteTop(el);
+        stable = top === prev ? stable + 1 : 0;
+        prev = top;
+        attempts++;
+
+        if (stable >= 2 || attempts >= 30) {
+          window.scrollTo({ top: prev - 170, behavior: 'smooth' });
+          return;
+        }
+        // fast rAF checks first (~16ms each), then slower polling
+        rafId = attempts < 10 ? requestAnimationFrame(tick) : setTimeout(tick, 100);
+      };
+
+      rafId = requestAnimationFrame(tick);
+    };
+
+    const el = document.getElementById(id);
+    if (el) {
+      scrollWhenStable(el);
+      return () => { clearTimeout(rafId); cancelAnimationFrame(rafId); };
+    }
+
+    const observer = new MutationObserver(() => {
+      const el = document.getElementById(id);
+      if (el) {
+        observer.disconnect();
+        clearTimeout(giveUp);
+        scrollWhenStable(el);
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    const giveUp = setTimeout(() => observer.disconnect(), 5000);
+
+    return () => { observer.disconnect(); clearTimeout(giveUp); clearTimeout(rafId); cancelAnimationFrame(rafId); };
+  }, [hash]);
   return null;
 }
 
@@ -99,6 +161,7 @@ export default function dmsPageFactory (
     Component: (props) =>  (
       <>
         <ScrollToTop />
+        <ScrollToHash />
         <DMS {...props} />
       </>
     ),

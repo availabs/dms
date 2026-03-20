@@ -255,7 +255,6 @@ const Edit = ({ value, onChange, attr, group, siteType }) => {
                 edit?.index === -1 ? <AddSectionButton onClick={() => setEditIndex(Math.max(values.length, 0))}/> : ''
             }
 
-            <ScrollToHashElement />
             </div>
         </div>
     )
@@ -327,7 +326,6 @@ const View = ({value, attr, group, siteType}) => {
                         )
                     })
             }
-            <ScrollToHashElement/>
         </div>
     )
 }
@@ -339,28 +337,6 @@ export default {
     "ViewComp": View
 }
 
-
-const ScrollToHashElement = () => {
-    const { hash } = useLocation();
-
-    useEffect(() => {
-        if (!hash) return;
-        const id = hash.slice(1);
-        const scroll = () => {
-            const element = document.getElementById(id);
-            if (!element) return false;
-            const top = element.getBoundingClientRect().top + window.scrollY - 170;
-            window.scrollTo({ top, behavior: 'smooth' });
-            return true;
-        };
-        if (!scroll()) {
-            const timer = setTimeout(scroll, 150);
-            return () => clearTimeout(timer);
-        }
-    }, [hash]);
-
-    return null;
-};
 
 const AddSectionButton = ({onClick}) => {
     const { theme:fullTheme = {}, UI} = React.useContext(ThemeContext);

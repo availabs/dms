@@ -15,7 +15,7 @@ export default function EditWrapper({ Component, format, options, params, user, 
 	const {app, type} = format;
 	const attributes = getAttributes(format, options, 'edit')
 	const submit = useSubmit();
-	const { pathname, search } = useLocation();
+	const { pathname, search, hash } = useLocation();
 	const navigate = useNavigate();
 	const { data=[] } = useLoaderData() || {};
 	const [ busy, setBusy ] = React.useState({updating: 0, loading: 0})
@@ -54,7 +54,8 @@ export default function EditWrapper({ Component, format, options, params, user, 
 	// 	submit(json2DmsForm(item), { method: "post", action: `${pathname}${search}` })
 	// }
 
-	const apiUpdate = async ({data, config = {format}, requestType='', newPath=`${pathname}${search}`}) => {
+	const apiUpdate = async ({data, config = {format}, requestType='', newPath}) => {
+		newPath = newPath ?? `${pathname}${search}${hash}`;
 		setBusy((prevState) => { return {...prevState, updating: prevState.updating+1 }})
 		if (import.meta.env.DEV) {
 			const t = config?.format?.type || type;
