@@ -1,4 +1,4 @@
-import React, {Fragment, useState, useLayoutEffect, useRef, useEffect} from "react";
+import React, {useState, useEffect} from "react";
 import { useLocation } from 'react-router';
 import { isEqual, cloneDeep, set } from "lodash-es";
 
@@ -11,6 +11,7 @@ import { sectionArrayTheme } from './sectionArray.theme'
 import {useImmer} from "use-immer";
 
 const Edit = ({ value, onChange, attr, group, siteType }) => {
+    const {hash} = useLocation();
     const { editPane, format, item  } =  React.useContext(PageContext) || {}
     const { theme:fullTheme = { sectionArray: sectionArrayTheme}, UI } = React.useContext(ThemeContext) || {}
     const theme = getComponentTheme(fullTheme, 'pages.sectionArray')
@@ -194,7 +195,7 @@ const Edit = ({ value, onChange, attr, group, siteType }) => {
                                 }
                             }}
                         >
-                            <div className={edit.index === i ? theme?.sectionEditing : theme?.sectionEditHover} />
+                            <div className={edit.index === i || hash === `#${v.id}` ? theme?.sectionEditing : theme?.sectionEditHover} />
                             {/* add to top */}
                             {
                                 edit?.index === -1 && <div

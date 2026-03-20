@@ -371,6 +371,14 @@ export default function NestableInHouse({ dataItems: dataItemsInit, matches, can
         }
     }, [dataItemsInit]);
 
+    useEffect(() => {
+        setExpanded(draft => {
+            matches.forEach(id => {
+                if (!draft.includes(id)) draft.push(id);
+            });
+        });
+    }, [matches]);
+
     const itemsTree = useMemo(() => buildTree(dataItems, matches, []), [dataItems]);
 
     return <RenderNestable
