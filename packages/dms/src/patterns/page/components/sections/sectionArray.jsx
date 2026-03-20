@@ -195,7 +195,7 @@ const Edit = ({ value, onChange, attr, group, siteType }) => {
                                 }
                             }}
                         >
-                            <div className={edit.index === i || hash === `#${v.id}` ? theme?.sectionEditing : theme?.sectionEditHover} />
+                            <div className={edit.index === i ? theme?.sectionEditing : hash === `#${v.id}` ? theme?.sectionHighlight : theme?.sectionEditHover} />
                             {/* add to top */}
                             {
                                 edit?.index === -1 && <div
@@ -263,6 +263,7 @@ const Edit = ({ value, onChange, attr, group, siteType }) => {
 
 const View = ({value, attr, group, siteType}) => {
     if (!value || !value.map) { return '' }
+    const {hash} = useLocation();
     const { format  } =  React.useContext(PageContext) || {}
     const [active, setActive] = useState();
     const { theme:fullTheme = {sectionArray: sectionArrayTheme} } = React.useContext(ThemeContext);
@@ -298,6 +299,7 @@ const View = ({value, attr, group, siteType}) => {
                                 className={`
                                     ${v?.is_header ? '' : v?.padding ?  v.padding : theme?.sectionPadding}
                                     ${theme?.sectionViewWrapper}
+                                    ${hash === `#${v.id}` ? theme?.sectionHighlight : ``}
                                     ${colspanClass} ${rowspanClass}
                                     ${theme?.border?.[v?.border || 'none']}
                                 `}
@@ -339,25 +341,23 @@ export default {
 
 
 const ScrollToHashElement = () => {
-    const location = useLocation();
+    const { hash } = useLocation();
 
     useEffect(() => {
-        const { hash } = location;
-        const removeHashCharacter = (str) => {
-            const result = str.slice(1);
-            return +result;
+        if (!hash) return;
+        const id = hash.slice(1);
+        const scroll = () => {
+            const element = document.getElementById(id);
+            if (!element) return false;
+            const top = element.getBoundingClientRect().top + window.scrollY - 170;
+            window.scrollTo({ top, behavior: 'smooth' });
+            return true;
         };
-
-        if (hash) {
-            const element = document.getElementById(removeHashCharacter(hash));
-            if (element) {
-                let position = element.getBoundingClientRect();
-                setTimeout(function () {
-                    window.scrollTo(position.x, position.y - 170);
-                }, 100);
-            }
+        if (!scroll()) {
+            const timer = setTimeout(scroll, 150);
+            return () => clearTimeout(timer);
         }
-    }, [location]);
+    }, [hash]);
 
     return null;
 };
