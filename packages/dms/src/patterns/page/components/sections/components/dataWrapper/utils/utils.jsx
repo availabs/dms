@@ -411,7 +411,7 @@ export const getData = async ({
         const [colNameBeforeAS, colNameAfterAS] = splitColNameOnAS(column.name);
 
         const totalAlias = colNameAfterAS || colNameBeforeAS;
-      const totalName = `SUM(CASE WHEN (${refName})::text ~ '^-?\\d+(\\.\\d+)?$' THEN (${refName})::numeric ELSE ${isDms ? 'NULL' : refName} END ) as ${totalAlias}_total`;
+      const totalName = `SUM(CASE WHEN (${refName})::text ~ '^-?\\d+(\\.\\d+)?$' THEN (${refName})::numeric ELSE ${isDms ? 'NULL' : 'NULL'} END ) as ${totalAlias}_total`;
       return {
         ...fullColumn,
         isCalculatedColumn, // currently this cached value is used to determine key of order by column. for calculated columns idx is used to avoid sql errors.

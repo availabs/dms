@@ -15,7 +15,7 @@ export default function EditWrapper({ Component, format, options, params, user, 
 	const {app, type} = format;
 	const attributes = getAttributes(format, options, 'edit')
 	const submit = useSubmit();
-	const { pathname, search } = useLocation();
+	const { pathname, search, hash } = useLocation();
 	const navigate = useNavigate();
 	const { revalidate } = useRevalidator();
 	const { data=[] } = useLoaderData() || {};
@@ -55,7 +55,12 @@ export default function EditWrapper({ Component, format, options, params, user, 
 	// 	submit(json2DmsForm(item), { method: "post", action: `${pathname}${search}` })
 	// }
 
-	const apiUpdate = async ({data, config = {format}, requestType='', newPath=`${pathname}${search}`, skipNavigate=false}) => {
+  const apiUpdate = async ({
+    data,
+    config = { format },
+    requestType = '',
+    newPath = `${pathname}${search}${hash}`
+  }) => {
 		setBusy((prevState) => { return {...prevState, updating: prevState.updating+1 }})
 		if (import.meta.env.DEV) {
 			const t = config?.format?.type || type;
@@ -76,14 +81,15 @@ export default function EditWrapper({ Component, format, options, params, user, 
 			resData = await dmsDataEditor(falcor, config, data, requestType);
     }
 
-		const currentPath = `${pathname}${search}`
-		if (!skipNavigate) {
-			if (newPath && newPath !== currentPath) {
-				navigate(newPath)
-			} else {
-				revalidate()
-			}
+		const currentPath = `${pathname}${search}${hash}`
+		if (newPath && newPath !== currentPath) {
+			navigate(newPath)
+    } else {
+      // forces data load even if path is the same
+      // which navigate does not
+			revalidate()
 		}
+
 		setBusy((prevState) => { return {...prevState, updating: prevState.updating-1 }})
 
 		// -- testing on update set item

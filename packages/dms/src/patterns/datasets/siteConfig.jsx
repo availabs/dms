@@ -21,6 +21,8 @@ import csv_dataset from "./pages/dataTypes/csv_dataset";
 import gis_dataset from "./pages/dataTypes/gis_dataset";
 import internal_table from "./pages/dataTypes/internal_table";
 
+import file_upload from "./pages/dataTypes/file_upload"
+
 const datasetsConfig = ({
     app,
     type,
@@ -62,7 +64,13 @@ const datasetsConfig = ({
                           theme, app, type, siteType,
                           parent: pattern, API_HOST, DAMA_HOST,
                           authPermissions,
-                          damaDataTypes: { csv_dataset, gis_dataset, internal_table, ...damaDataTypes },
+                          damaDataTypes: {
+                            csv_dataset,
+                            gis_dataset,
+                            internal_table,
+                            file_upload,
+                            ...damaDataTypes
+                          },
                           isUserAuthed: (reqPermissions, customAuthPermissions) => isUserAuthed({ user, authPermissions: customAuthPermissions || authPermissions, reqPermissions }),
                       }}>
                           <ThemeContext.Provider value={{ theme, UI }}>

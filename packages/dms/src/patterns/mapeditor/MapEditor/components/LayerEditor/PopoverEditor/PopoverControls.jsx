@@ -62,8 +62,10 @@ export function ColumnSelectControl({path, params={}}) {
       })
     }
 
-    return columns;
+    return Array.isArray(columns) ? columns : [];
   }, [sourceId, falcorCache]);
+
+console.log("ColumnSelectControl::attributes", attributes)
 
   const attributeNames = useMemo(
     () => {
@@ -252,6 +254,9 @@ export function ColumnSelectControl({path, params={}}) {
 }
 
 const ExistingColumnList = ({selectedColumns, sampleData, path, reorderAttrs, removeAttr, renameAttr}) => {
+
+console.log("ExistingColumnList::selectedColumns", selectedColumns)
+
   const { UI } = useContext(ThemeContext) || {};
   const { DndList } = UI;
   return (

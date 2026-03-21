@@ -66,7 +66,7 @@ export const ExistingFilterList = ({removeFilter, activeColumn, setActiveColumn}
         "dama", pgEnv, "sources", "byId", sourceId, "attributes", "metadata", "value"
       ], []);
     }
-    return columns;
+    return Array.isArray(columns) ? columns : [];
   }, [sourceId, falcorCache]);
   return (
     <div className="flex w-full flex-wrap">

@@ -1,4 +1,4 @@
-import React, {Fragment, useState, useLayoutEffect, useRef, useEffect} from "react";
+import React, {useState, useEffect} from "react";
 import { useLocation } from 'react-router';
 import { isEqual, cloneDeep, set } from "lodash-es";
 
@@ -11,6 +11,7 @@ import { sectionArrayTheme } from './sectionArray.theme'
 import {useImmer} from "use-immer";
 
 const Edit = ({ value, onChange, attr, group, siteType }) => {
+    const {hash} = useLocation();
     const { editPane, format, item  } =  React.useContext(PageContext) || {}
     const { theme:fullTheme = { sectionArray: sectionArrayTheme}, UI } = React.useContext(ThemeContext) || {}
     const theme = getComponentTheme(fullTheme, 'pages.sectionArray')
@@ -193,7 +194,7 @@ const Edit = ({ value, onChange, attr, group, siteType }) => {
                                 }
                             }}
                         >
-                            <div className={edit.index === i ? theme?.sectionEditing : theme?.sectionEditHover} />
+                            <div className={edit.index === i ? theme?.sectionEditing : hash === `#${v.id}` ? theme?.sectionHighlight : theme?.sectionEditHover} />
                             {/* add to top */}
                             {
                                 edit?.index === -1 && <div
@@ -253,7 +254,6 @@ const Edit = ({ value, onChange, attr, group, siteType }) => {
                 edit?.index === -1 ? <AddSectionButton onClick={() => setEditIndex(Math.max(values.length, 0))}/> : ''
             }
 
-            <ScrollToHashElement />
             </div>
         </div>
     )
@@ -261,6 +261,7 @@ const Edit = ({ value, onChange, attr, group, siteType }) => {
 
 const View = ({value, attr, group, siteType}) => {
     if (!value || !value.map) { return '' }
+    const {hash} = useLocation();
     const { format  } =  React.useContext(PageContext) || {}
     const [active, setActive] = useState();
     const { theme:fullTheme = {sectionArray: sectionArrayTheme} } = React.useContext(ThemeContext);
@@ -296,6 +297,7 @@ const View = ({value, attr, group, siteType}) => {
                                 className={`
                                     ${v?.is_header ? '' : v?.padding ?  v.padding : theme?.sectionPadding}
                                     ${theme?.sectionViewWrapper}
+                                    ${hash === `#${v.id}` ? theme?.sectionHighlight : ``}
                                     ${colspanClass} ${rowspanClass}
                                     ${theme?.border?.[v?.border || 'none']}
                                 `}
@@ -323,7 +325,6 @@ const View = ({value, attr, group, siteType}) => {
                         )
                     })
             }
-            <ScrollToHashElement/>
         </div>
     )
 }
@@ -335,30 +336,6 @@ export default {
     "ViewComp": View
 }
 
-
-const ScrollToHashElement = () => {
-    const location = useLocation();
-
-    useEffect(() => {
-        const { hash } = location;
-        const removeHashCharacter = (str) => {
-            const result = str.slice(1);
-            return +result;
-        };
-
-        if (hash) {
-            const element = document.getElementById(removeHashCharacter(hash));
-            if (element) {
-                let position = element.getBoundingClientRect();
-                setTimeout(function () {
-                    window.scrollTo(position.x, position.y - 170);
-                }, 100);
-            }
-        }
-    }, [location]);
-
-    return null;
-};
 
 const AddSectionButton = ({onClick}) => {
     const { theme:fullTheme = {}, UI} = React.useContext(ThemeContext);

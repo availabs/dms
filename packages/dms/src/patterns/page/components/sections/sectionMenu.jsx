@@ -241,7 +241,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
 
     const filter = [
         {name: 'Filters', icon: 'Filter',
-            value: `${state?.display?.totalLength} rows`,
+            value: `${parseInt(state?.display?.totalLength).toLocaleString()} rows`,
             showValue: true,
             cdn: () => isEdit && currentComponent?.useDataSource && canEditSection,
             items: [

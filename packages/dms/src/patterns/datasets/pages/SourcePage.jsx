@@ -87,7 +87,7 @@ export default function ({ apiLoad, apiUpdate, format, item, params, isDms }) {
     const sourceDataType = isDms ? (source?.type || 'internal_table') : source?.type; // csv / gis / internal
     const sourcePages = sourceLoaded ? { ...(damaDataTypes[sourceType] || {}), ...(damaDataTypes[sourceDataType] || {}) } : {};
 
-    console.log('sourcePage', source)
+console.log('SourcePage::source', source);
 
     const sourcePagesNavItems =
         (Object.values(sourcePages) || [])
@@ -117,6 +117,8 @@ export default function ({ apiLoad, apiUpdate, format, item, params, isDms }) {
     }, [showVersionSelector, view_id, views.length])
 
     const Page = sourcePages[page]?.component || defaultPages[page] || Overview;
+
+console.log("SourcePage::page", page);
 
     const breadcrumbItems = [
         {icon: 'Database', href: baseUrl},
