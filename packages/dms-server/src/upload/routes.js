@@ -11,6 +11,7 @@ const os = require('os');
 const Busboy = require('busboy');
 const store = require('./store');
 const { getProcessor } = require('./processors');
+const { isSplitType, parseSplitDataType } = require('#db/type-utils.js');
 
 const UPLOAD_DIR = path.join(os.tmpdir(), 'dms-uploads');
 
@@ -230,9 +231,12 @@ function createPublishHandler(controller) {
         return res.json({ err: 'File contains no data rows' });
       }
 
+      // New format: type ends with ':data' — all rows share same type, isValid flag in data
+      // Legacy format: valid='{doctype}-{viewId}', invalid='{doctype}-{viewId}-invalid-entry'
+      const isNewFormat = isSplitType(type);
       const invalidSuffix = '-invalid-entry';
-      const validType = type.replace(invalidSuffix, '');
-      const invalidType = validType + invalidSuffix;
+      const validType = isNewFormat ? type : type.replace(invalidSuffix, '');
+      const invalidType = isNewFormat ? type : validType + invalidSuffix;
 
       const primaryCol = columns.find(c => c.isPrimary)?.name;
       console.log(`[publish] ${app}+${type} processing ${rows.length - 1} data rows${primaryCol ? ` (primary: ${primaryCol})` : ''}`);
@@ -253,7 +257,8 @@ function createPublishHandler(controller) {
         const row = rows[rowIdx];
         try {
           const data = buildRowData(row, columns, colRefCount, pivotCols);
-          const rowType = data.isValid ? validType : invalidType;
+          // New format: all rows use same type; legacy: separate valid/invalid types
+          const rowType = isNewFormat ? type : (data.isValid ? validType : invalidType);
 
           // Primary key upsert: check if matching record exists
           if (primaryCol && data[primaryCol]) {
@@ -280,19 +285,20 @@ function createPublishHandler(controller) {
       console.log(`[publish] ${app}+${type} complete — ${created} created, ${updated} updated, ${errors} errors`);
 
       // Save column metadata as config on the source record.
-      // Derive sourceId from the type if the client didn't provide it —
-      // the type is "{doc_type}-{view_id}", so strip the view_id suffix
-      // and look up the source by doc_type.
+      // Derive sourceId from the type if the client didn't provide it.
+      // New format: type is '{source}|{view}:data' → extract source instance name
+      // Legacy: type is '{doc_type}-{view_id}' → strip view_id suffix, look up by doc_type
       if (columns.length) {
         try {
           let resolvedSourceId = sourceId;
           if (!resolvedSourceId) {
-            const docType = validType.replace(/-\d+$/, '');
+            const newParsed = parseSplitDataType(validType);
+            const docType = newParsed ? newParsed.source : validType.replace(/-\d+$/, '');
             resolvedSourceId = await controller.findSourceIdByDocType(app, docType);
             if (resolvedSourceId) {
-              console.log(`[publish] ${app}+${type} resolved sourceId=${resolvedSourceId} from doc_type="${docType}"`);
+              console.log(`[publish] ${app}+${type} resolved sourceId=${resolvedSourceId} from ${newParsed ? 'source instance' : 'doc_type'}="${docType}"`);
             } else {
-              console.log(`[publish] ${app}+${type} could not resolve source for doc_type="${docType}"`);
+              console.log(`[publish] ${app}+${type} could not resolve source for ${newParsed ? 'source instance' : 'doc_type'}="${docType}"`);
             }
           }
           if (resolvedSourceId) {
@@ -402,6 +408,9 @@ function createValidateHandler(controller) {
       return res.json({ err: 'Insufficient info to validate.' });
     }
 
+    // New format: type ends with ':data' — all rows share one type, only data.isValid changes
+    const isNewFormat = isSplitType(type);
+
     console.log(`[validate] ${app}+${type} parentDocType=${parentDocType}${parentId ? ` parentId=${parentId}` : ''}`);
 
     try {
@@ -411,11 +420,13 @@ function createValidateHandler(controller) {
         return res.json({ err: 'No config found, try providing metadata.' });
       }
 
-      // type from client is the invalid-entry type
-      const invalidType = type.includes(invalidSuffix) ? type : type + invalidSuffix;
-      const validType = invalidType.replace(invalidSuffix, '');
+      // New format: single type for all rows
+      // Legacy: separate valid/invalid types
+      const invalidType = isNewFormat ? type : (type.includes(invalidSuffix) ? type : type + invalidSuffix);
+      const validType = isNewFormat ? type : invalidType.replace(invalidSuffix, '');
+      const queryTypes = isNewFormat ? [type] : [validType, invalidType];
 
-      const rows = await controller.getRowsByTypes(app, [validType, invalidType]);
+      const rows = await controller.getRowsByTypes(app, queryTypes);
       if (!rows.length) {
         console.log(`[validate] ${app}+${type} — no records found`);
         return res.json({ data: 'No records found.' });
@@ -429,8 +440,10 @@ function createValidateHandler(controller) {
       console.log(`[validate] ${app}+${type} checking ${rows.length} rows against ${validationCols.length} validation rules`);
 
       // Re-validate each row
+      const rowsToUpdate = [];
       for (const row of rows) {
         const data = typeof row.data === 'string' ? JSON.parse(row.data) : row.data;
+        const wasValid = data.isValid;
         data.isValid = validationCols.reduce((acc, col) => {
           let value = data[col.name];
           // Multiselect stored as comma string → split to array
@@ -440,22 +453,36 @@ function createValidateHandler(controller) {
           return acc && validateValue(value, col);
         }, true);
         row._isValid = data.isValid;
+
+        // For new format, track rows where isValid changed (need data update)
+        if (isNewFormat && data.isValid !== wasValid) {
+          rowsToUpdate.push({ id: row.id, data });
+        }
       }
 
-      // Find rows that need type changes
-      const validRowsInInvalidType = rows.filter(r => r._isValid && r.type === invalidType).map(r => r.id);
-      const invalidRowsInValidType = rows.filter(r => !r._isValid && r.type === validType).map(r => r.id);
+      if (isNewFormat) {
+        // New format: update data.isValid flag only (no type changes)
+        for (const { id, data } of rowsToUpdate) {
+          await controller.setDataById(id, { isValid: data.isValid });
+        }
+        console.log(`[validate] ${app}+${type} complete — ${rowsToUpdate.length} rows updated (isValid flag)`);
+        res.json({ data: `${rowsToUpdate.length} rows updated.` });
+      } else {
+        // Legacy format: move rows between valid/invalid types
+        const validRowsInInvalidType = rows.filter(r => r._isValid && r.type === invalidType).map(r => r.id);
+        const invalidRowsInValidType = rows.filter(r => !r._isValid && r.type === validType).map(r => r.id);
 
-      if (validRowsInInvalidType.length) {
-        await controller.batchUpdateType(app, invalidType, validType, validRowsInInvalidType);
-      }
-      if (invalidRowsInValidType.length) {
-        await controller.batchUpdateType(app, validType, invalidType, invalidRowsInValidType);
-      }
+        if (validRowsInInvalidType.length) {
+          await controller.batchUpdateType(app, invalidType, validType, validRowsInInvalidType);
+        }
+        if (invalidRowsInValidType.length) {
+          await controller.batchUpdateType(app, validType, invalidType, invalidRowsInValidType);
+        }
 
-      const total = validRowsInInvalidType.length + invalidRowsInValidType.length;
-      console.log(`[validate] ${app}+${type} complete — ${total} rows moved (${validRowsInInvalidType.length} invalid→valid, ${invalidRowsInValidType.length} valid→invalid)`);
-      res.json({ data: `${total} rows updated.` });
+        const total = validRowsInInvalidType.length + invalidRowsInValidType.length;
+        console.log(`[validate] ${app}+${type} complete — ${total} rows moved (${validRowsInInvalidType.length} invalid→valid, ${invalidRowsInValidType.length} valid→invalid)`);
+        res.json({ data: `${total} rows updated.` });
+      }
     } catch (e) {
       console.error(`[validate] ${app}+${type} FAILED:`, e.message);
       res.json({ err: e.message });

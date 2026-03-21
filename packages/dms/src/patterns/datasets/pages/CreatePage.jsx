@@ -4,7 +4,7 @@ import {useNavigate} from "react-router";
 import {DatasetsContext} from "../context";
 import {ThemeContext} from "../../../ui/useTheme";
 import {buildEnvsForListing} from "../utils/datasources";
-import {nameToDocType} from "../utils/nameToDocType";
+import { nameToSlug, getInstance } from "../../../utils/type-utils";
 import Breadcrumbs from "../components/Breadcrumbs";
 
 const range = (start, end) => Array.from({length: (end + 1 - start)}, (v, k) => k + start);
@@ -69,14 +69,17 @@ export default function CreatePage({apiUpdate, format}) {
             const newData = cloneDeep(data);
             delete newData.id;
             delete newData.views;
-            newData.doc_type = nameToDocType(data.name);
+            const sourceSlug = nameToSlug(data.name);
+            if (!sourceSlug) throw new Error('Name must contain at least one letter or number.');
             if (!newData.type) newData.type = 'internal_table';
 
             if (dmsEnv) {
                 // New path: create source then add ref to dmsEnv
+                const dmsEnvInstance = getInstance(dmsEnv.type);
+                const sourceType = `${dmsEnvInstance}|${sourceSlug}:source`;
                 const res = await falcor.call(
                     ["dms", "data", "create"],
-                    [app, `${type}|source`, newData]
+                    [app, sourceType, newData]
                 );
                 const newId = Object.keys(res?.json?.dms?.data?.byId || {})
                     .find(k => k !== '$__path');
@@ -87,7 +90,7 @@ export default function CreatePage({apiUpdate, format}) {
                     .map(s => ({ ref: s.ref, id: s.id }));
 
                 await falcor.call(["dms", "data", "edit"], [app, dmsEnv.id, {
-                    sources: [...existingRefs, { ref: `${app}+${type}|source`, id: +newId }]
+                    sources: [...existingRefs, { ref: `${app}+${dmsEnvInstance}|source`, id: +newId }]
                 }]);
                 await falcor.invalidate(['dms', 'data', app, 'byId', dmsEnv.id]);
                 await falcor.invalidate(['uda', `${app}+${type}`, 'sources']);

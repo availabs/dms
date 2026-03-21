@@ -4,6 +4,7 @@ import { getExternalEnv } from '../../../../utils/datasources';
 
 import Upload from "../../../../components/upload";
 import {ThemeContext} from "../../../../../../ui/useTheme";
+import { nameToSlug } from "../../../../../../utils/type-utils";
 
 const UploadPage = ({
     apiUpdate,
@@ -26,7 +27,7 @@ const UploadPage = ({
                         <Upload.EditComp
                             onChange={() => {}}
                             size={1}
-                            format={{app: source.app, type: `${source.doc_type}-${view_id}`, config: source.config}}
+                            format={{app: source.app, type: `${nameToSlug(source.name)}|${view_id}:data`, config: source.config}}
                             view_id={view_id}
                             parent={source}
                             parentFormat={format}

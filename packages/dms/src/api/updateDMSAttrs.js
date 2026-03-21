@@ -46,6 +46,8 @@ export 	async function updateDMSAttrs(data, configs, falcor) {
                     .filter(d => d !== "$__path")?.[0] || -1
 
                 if(newId !== -1) {
+                    await falcor.invalidate(['dms', 'data', app, 'byId', newId])
+                    await falcor.invalidate(['dms', 'data', 'byId', newId])
                     updates[attr].push({ref:`${app}+${type}`, id:newId})
                 }
             }

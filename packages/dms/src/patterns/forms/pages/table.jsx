@@ -13,22 +13,24 @@ import {
 } from "../../page/components/sections/components/dataWrapper/components/filters/RenderFilters";
 import { Controls } from "../../page/components/sections/components/dataWrapper/components/Controls";
 import {ThemeContext} from "../../../ui/useTheme";
+import { nameToSlug } from "../../../utils/type-utils";
 const TableView = ({apiUpdate, apiLoad, format, item, params}) => {
     const { baseUrl, pageBaseUrl, user, isUserAuthed } = useContext(FormsContext) || {};
     const {theme} = useContext(ThemeContext) || {};
     const navigate = useNavigate();
     const columns = JSON.parse(item?.config || '{}')?.attributes || [];
     const default_columns = (item.default_columns || item.defaultColumns);
+    const itemSlug = nameToSlug(item.name);
     const [value, setValue] = useImmer({
         dataRequest: {},
         data: [],
         sourceInfo: {
             app: item.app,
-            type: `${item.doc_type}-${params.view_id}`,
-            env: `${item.app}+${item.doc_type}`,
-            doc_type: `${item.doc_type}-${params.view_id}`,
+            type: `${itemSlug}|${params.view_id}:data`,
+            env: `${item.app}+${itemSlug}`,
+            doc_type: `${itemSlug}|${params.view_id}:data`,
             isDms: true,
-            originalDocType: item.doc_type,
+            originalDocType: itemSlug,
             view_id: params.view_id,
             columns
         },
@@ -72,7 +74,7 @@ const TableView = ({apiUpdate, apiLoad, format, item, params}) => {
 
     return (
         <SourcesLayout fullWidth={false} baseUrl={baseUrl} pageBaseUrl={pageBaseUrl} isListAll={false} hideBreadcrumbs={false}
-                       form={{name: item.name || item.doc_type, href: format.url_slug}}
+                       form={{name: item.name, href: format.url_slug}}
                        page={{name: 'Table', href: `${pageBaseUrl}/${params.id}/table`}}
                        id={params.id} //page id to use for navigation
                        view_id={params.view_id}

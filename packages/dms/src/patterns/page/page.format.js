@@ -3,7 +3,7 @@ import SectionArray from './components/sections/sectionArray'
 
 export const cmsSection = {
   app: "dms-site",
-  type: "cms-section",
+  type: "component",
   attributes: [
       {
           "key": "parent",
@@ -104,7 +104,7 @@ const pageEdit = {
 
 const cmsPageFormat = {
   app: "dms-site",
-  type: "docs-page",
+  type: "page",
   registerFormats: [cmsSection, pageEdit],
   defaultSearch: `data ->> 'index' = '0' and (data ->> 'parent' = '' or data ->> 'parent' is null) and (data ->> 'template_id' is null)`,
   defaultSort: (d) =>  {
@@ -231,14 +231,14 @@ const cmsPageFormat = {
       key: 'sections',
       type: 'dms-format',
       isArray: true,
-      format: 'dms-site+cms-section',
+      format: 'dms-site+component',
       DisplayComp: SectionArray
     },
     {
       key: 'draft_sections',
       type: 'dms-format',
       isArray: true,
-      format: 'dms-site+cms-section',
+      format: 'dms-site+component',
       DisplayComp: SectionArray
     },
     // status

@@ -1,6 +1,7 @@
 const { getDb } = require('#db/index.js');
 const { loadConfig } = require('#db/config.js');
 const { resolveTable, parseType, isSplitType, ensureSequence, ensureTable, getSequenceName } = require('#db/table-resolver.js');
+const { parseSplitDataType, getKind } = require('#db/type-utils.js');
 
 /**
  * Resolve the fully-qualified main table name for DMS content (non-split items).
@@ -105,9 +106,8 @@ async function getEssentials({ env, view_id, options = {} }) {
     if (view_id) {
       // Look up the view_id item to check if it's versioned data
       const sanitisedApp = sanitizeName(app);
-      const sanitisedType = sanitizeName(rawType.replace(`-${view_id}`, '').replace('-invalid-entry', ''));
 
-      if (sanitisedApp && sanitisedType) {
+      if (sanitisedApp) {
         const versionTypeRows = await db.query(
           `SELECT type AS version_type FROM ${mainTbl} WHERE app = $1 AND id = $2`,
           [sanitisedApp, view_id]
@@ -115,20 +115,40 @@ async function getEssentials({ env, view_id, options = {} }) {
         const version_type = versionTypeRows?.rows?.[0]?.version_type;
 
         if (version_type && version_type.includes('|')) {
-          // Versioned data: type contains pipes like "dataset|sourceId|viewId"
-          // Suffix the query type with view_id to match versioned items
-          if (!type.endsWith(`-${view_id}`) && !type.endsWith(`${view_id}-invalid-entry`)) {
-            type = type.endsWith('-invalid-entry') && !type.includes(view_id)
-              ? type.replace('-invalid-entry', `${view_id}-invalid-entry`)
-              : `${type}-${view_id}`;
-          }
+          if (getKind(version_type) === 'view') {
+            // New format: view type is '{sourceSlug}|v1:view'
+            // The client sends env as 'app+sourceSlug', so rawType IS the source slug.
+            // Construct data type as '{sourceSlug}|{view_id}:data'
+            const isInvalid = type.endsWith('-invalid-entry');
+            const baseType = isInvalid ? type.replace('-invalid-entry', '') : type;
+            type = isInvalid
+              ? `${baseType}|${view_id}:data-invalid-entry`
+              : `${baseType}|${view_id}:data`;
 
-          const sourceVersionType = version_type.split('|').slice(0, 2).join('|');
-          const configRows = await db.query(
-            `SELECT data->>'config' AS config FROM ${mainTbl} WHERE app = $1 AND type = $2 AND data->>'doc_type' = $3`,
-            [sanitisedApp, sourceVersionType, sanitisedType]
-          );
-          dmsAttributes = JSON.parse(configRows?.rows?.[0]?.config || '{}')?.attributes || [];
+            // Look up source config by source slug in type column
+            const configRows = await db.query(
+              `SELECT data->>'config' AS config FROM ${mainTbl} WHERE app = $1 AND type LIKE '%|' || $2 || ':source' ORDER BY id DESC LIMIT 1`,
+              [sanitisedApp, rawType]
+            );
+            dmsAttributes = JSON.parse(configRows?.rows?.[0]?.config || '{}')?.attributes || [];
+          } else {
+            // Legacy format: view type has pipes but no :view kind
+            const sanitisedType = sanitizeName(rawType.replace(`-${view_id}`, '').replace('-invalid-entry', ''));
+            if (sanitisedType) {
+              if (!type.endsWith(`-${view_id}`) && !type.endsWith(`${view_id}-invalid-entry`)) {
+                type = type.endsWith('-invalid-entry') && !type.includes(view_id)
+                  ? type.replace('-invalid-entry', `${view_id}-invalid-entry`)
+                  : `${type}-${view_id}`;
+              }
+
+              const sourceVersionType = version_type.split('|').slice(0, 2).join('|');
+              const configRows = await db.query(
+                `SELECT data->>'config' AS config FROM ${mainTbl} WHERE app = $1 AND type = $2 AND data->>'doc_type' = $3`,
+                [sanitisedApp, sourceVersionType, sanitisedType]
+              );
+              dmsAttributes = JSON.parse(configRows?.rows?.[0]?.config || '{}')?.attributes || [];
+            }
+          }
         }
       }
     }
@@ -142,13 +162,24 @@ async function getEssentials({ env, view_id, options = {} }) {
     // Look up source_id for split type naming
     let sourceId = null;
     if (isSplitType(type)) {
-      const parsed = parseType(type);
-      if (parsed) {
+      // New format: {source}|{view}:data — look up source by instance name in type column
+      const newParsed = parseSplitDataType(type);
+      if (newParsed) {
         const srcRows = await db.query(
-          `SELECT id FROM ${mainTbl} WHERE app = $1 AND lower(${db.type === 'postgres' ? "data->>'doc_type'" : "json_extract(data, '$.doc_type')"}) = lower($2) AND type LIKE '%|source' ORDER BY id DESC LIMIT 1`,
-          [app, parsed.docType]
+          `SELECT id FROM ${mainTbl} WHERE app = $1 AND type LIKE '%|' || $2 || ':source' ORDER BY id DESC LIMIT 1`,
+          [app, newParsed.source]
         );
         sourceId = srcRows?.rows?.[0]?.id || null;
+      } else {
+        // Legacy format: {docType}-{viewId} — look up source by data.doc_type
+        const parsed = parseType(type);
+        if (parsed && parsed.docType) {
+          const srcRows = await db.query(
+            `SELECT id FROM ${mainTbl} WHERE app = $1 AND lower(${db.type === 'postgres' ? "data->>'doc_type'" : "json_extract(data, '$.doc_type')"}) = lower($2) AND (type LIKE '%|source' OR type LIKE '%:source') ORDER BY id DESC LIMIT 1`,
+            [app, parsed.docType]
+          );
+          sourceId = srcRows?.rows?.[0]?.id || null;
+        }
       }
     }
 
@@ -191,9 +222,10 @@ async function getDataTableFromViewId({ db, view_id }) {
  */
 async function getSitePatterns({ db, app, splitMode }) {
   const tbl = await dmsMainTable(db, app, splitMode);
-  // Pattern records created via updateDMSAttrs have type like 'undefined|pattern' or 'siteType|pattern',
-  // while test/legacy records may have plain 'pattern'. Match both.
-  const sql = `SELECT id FROM ${tbl} WHERE app = $1 AND (type = 'pattern' OR type LIKE '%|pattern')`;
+  // Match patterns in all formats:
+  //   legacy: 'pattern' or 'siteType|pattern'
+  //   new:    '{site}|{name}:pattern'
+  const sql = `SELECT id FROM ${tbl} WHERE app = $1 AND (type = 'pattern' OR type LIKE '%|pattern' OR type LIKE '%:pattern')`;
   const { rows } = await db.query(sql, [app]);
   return rows.map(r => r.id);
 }
@@ -207,10 +239,11 @@ async function getSiteSources({ db, app, pattern_ids, pattern_doc_types, splitMo
   if (!pattern_ids.length) return [];
 
   const tbl = await dmsMainTable(db, app, splitMode);
+  // Match patterns by doc_type in data (legacy) or by id (covers new format where doc_type is removed)
   const sql = `
     SELECT data->'sources' AS sources, data->>'dmsEnvId' AS dms_env_id
     FROM ${tbl}
-    WHERE id = ANY($1) AND data->>'doc_type' = ANY($2)
+    WHERE id = ANY($1) AND (data->>'doc_type' = ANY($2) OR data->>'doc_type' IS NULL)
   `;
   const { rows } = await db.query(sql, [pattern_ids.map(Number), pattern_doc_types]);
 

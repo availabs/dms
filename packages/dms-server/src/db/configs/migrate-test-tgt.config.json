@@ -1,0 +1,6 @@
+{
+  "type": "sqlite",
+  "role": "dms",
+  "filename": "../data/migrate-test-tgt.sqlite",
+  "splitMode": "per-app"
+}

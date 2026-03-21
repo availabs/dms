@@ -12,3 +12,6 @@ dist
 # Environment files (use .env.example as template)
 .env
 **/.env
+
+# Extracted images (large, served by nginx)
+**/img

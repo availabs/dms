@@ -3,6 +3,7 @@ import { cloneDeep } from "lodash-es"
 import { useFalcor } from "@availabs/avl-falcor"
 import { withAuth,  dmsPageFactory } from '../../../'
 import { parseIfJSON } from '../../../patterns/page/pages/_utils';
+import { getInstance } from '../../../utils/type-utils';
 import patternTypes from '../../../patterns'
 import { updateAttributes, updateRegisteredFormats } from "../../../dms-manager/_utils";
 import RootErrorBoundary from './RootErrorBoundary'
@@ -79,15 +80,16 @@ export function pattern2routes (siteData, props) {
 
     let dmsConfigUpdated = cloneDeep(dmsConfig);
     const siteType = dmsConfig?.format?.type || dmsConfig.type;
-    dmsConfigUpdated.registerFormats = updateRegisteredFormats(dmsConfigUpdated.registerFormats, dmsConfig.app, siteType)
-    dmsConfigUpdated.attributes = updateAttributes(dmsConfigUpdated.attributes, dmsConfig.app, siteType)
+    const siteInstance = getInstance(siteType) || siteType;
+    dmsConfigUpdated.registerFormats = updateRegisteredFormats(dmsConfigUpdated.registerFormats, dmsConfig.app, siteInstance)
+    dmsConfigUpdated.attributes = updateAttributes(dmsConfigUpdated.attributes, dmsConfig.app, siteInstance)
 
     // console.log('dmsConfigUpdated', dmsConfigUpdated)
     let AdminPattern = {
       app: dmsConfigUpdated?.format?.app || dmsConfigUpdated.app,
-      type: dmsConfigUpdated.type,
-      doc_type: dmsConfigUpdated.type,
-      siteType: dmsConfigUpdated.type,
+      type: siteType,
+      doc_type: siteInstance,
+      siteType: siteInstance,
       base_url: adminPath,
       //format: pattern?.config,
       pattern: {},
@@ -137,11 +139,11 @@ export function pattern2routes (siteData, props) {
 
       const internal = datasetPatterns.map(dsPattern => ({
         type: 'internal',
-        env: `${app}+${dsPattern.doc_type}`,
+        env: `${app}+${getInstance(dsPattern.type) || dsPattern.doc_type}`,
         baseUrl: '/forms',
         label: 'managed',
         isDms: true,
-        srcAttributes: ['app', 'name', 'doc_type', 'config', 'default_columns'],
+        srcAttributes: ['app', 'name', 'config', 'default_columns'],
         viewAttributes: ['name', 'updated_at'],
         pattern: dsPattern,
       }));
@@ -178,9 +180,8 @@ export function pattern2routes (siteData, props) {
 
                 const configObj = config({
                     app: dmsConfigUpdated?.format?.app || dmsConfigUpdated.app,
-                    // type: pattern.doc_type,
-                    type: pattern.doc_type || pattern?.base_url?.replace(/\//g, ''),
-                    siteType: dmsConfigUpdated?.format?.type || dmsConfigUpdated.type,
+                    type: getInstance(pattern.type) || pattern.doc_type || pattern?.base_url?.replace(/\//g, ''),
+                    siteType: siteInstance,
                     baseUrl: `/${pattern.base_url?.replace(/^\/|\/$/g, '')}`, // only leading slash allowed
                     adminPath,
                     format: pattern?.config,

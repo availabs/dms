@@ -125,13 +125,13 @@ const OverViewEdit = ({
 
     return (
         <SourcesLayout fullWidth={false} baseUrl={baseUrl} pageBaseUrl={pageBaseUrl} isListAll={false} hideBreadcrumbs={false}
-                       form={{name: item.name || item.doc_type, href: format.url_slug}}
+                       form={{name: item.name, href: format.url_slug}}
                        page={{name: 'Overview', href: `${pageBaseUrl}/${params.id}`}}
                        id={params.id} //page id to use for navigation
         >
             <div className={'p-4 bg-white flex flex-col'}>
                 <div className={'mt-1 text-2xl text-blue-600 font-medium overflow-hidden sm:mt-0 sm:col-span-3'}>
-                    {item.name || item.doc_type}
+                    {item.name}
                 </div>
 
                 <div className={'flex flex-col md:flex-row'}>
@@ -160,7 +160,7 @@ const OverViewEdit = ({
                         </div>
                         <div className={'mt-2 flex flex-col px-6 text-sm text-gray-600'}>
                             Type
-                            <span className={'text-l font-medium text-blue-600 '}>{item?.doc_type}</span>
+                            <span className={'text-l font-medium text-blue-600 '}>{item?.type}</span>
                         </div>
 
                         <div key={'categories'} className='flex justify-between group'>

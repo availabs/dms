@@ -14,6 +14,7 @@ import Spreadsheet from "../../page/components/sections/components/ComponentRegi
 import {Controls} from "../../page/components/sections/components/dataWrapper/components/Controls";
 import {ThemeContext} from "../../../ui/useTheme";
 import {validateCompTheme} from "./validateComp.theme";
+import { nameToSlug } from "../../../utils/type-utils";
 
 const FilterRemoveIcon = (props) => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={24} height={24} color={"#000000"} fill={"none"} {...props}>
@@ -137,12 +138,12 @@ const getInitState = ({columns, default_columns=[], state={}, app, doc_type, vie
             })),
         sourceInfo: {
             app,
-            type: `${doc_type}-${view_id}-invalid-entry`,
-            doc_type: `${doc_type}-${view_id}-invalid-entry`,
+            type: `${doc_type}|${view_id}:data-invalid-entry`,
+            doc_type: `${doc_type}|${view_id}:data-invalid-entry`,
 
-            env: `${app}+${doc_type}-${view_id}-invalid-entry`,
+            env: `${app}+${doc_type}|${view_id}:data-invalid-entry`,
             isDms: true,
-            originalDocType: `${doc_type}-invalid-entry`,
+            originalDocType: `${doc_type}`,
             view_id: view_id,
             columns
         },
@@ -286,17 +287,18 @@ export default function Validate ({
     const [searchParams] = useSearchParams();
     const dmsServerPath = `${API_HOST}/dama-admin`;
 
-    const {app, doc_type, config, default_columns, view_id, source_id, views} = item;
+    const {app, config, default_columns, view_id, source_id, views, name: sourceName} = item;
+    const sourceSlug = nameToSlug(sourceName);
     const columns = (JSON.parse(config || '{}')?.attributes || []).filter(col => col.type !== 'calculated').map((col, i) => ({...col, shortName: `col_${i}`}));
-    console.log('columns in validate', {app, doc_type, config, default_columns, view_id, source_id});
-    const [value, setValue] = useImmer(getInitState({columns, default_columns, app, doc_type, data, searchParams, view_id}));
+    console.log('columns in validate', {app, sourceSlug, config, default_columns, view_id, source_id});
+    const [value, setValue] = useImmer(getInitState({columns, default_columns, app, doc_type: sourceSlug, data, searchParams, view_id}));
     const validEntriesFormat = {
         app,
-        type: `${doc_type}-${view_id}`,
-        doc_type: `${doc_type}-${view_id}`,
-        env: `${app}+${doc_type}-${view_id}`,
+        type: `${sourceSlug}|${view_id}:data`,
+        doc_type: `${sourceSlug}|${view_id}:data`,
+        env: `${app}+${sourceSlug}|${view_id}:data`,
         isDms: true,
-        originalDocType: `${doc_type}`,
+        originalDocType: `${sourceSlug}`,
         view_id: view_id,
     }
 
@@ -447,7 +449,7 @@ export default function Validate ({
                 }, {});
 
             setData(mappedData);
-            setValue(getInitState({columns, default_columns, state: value, app, doc_type, view_id, data: mappedData, searchParams}))
+            setValue(getInitState({columns, default_columns, state: value, app, doc_type: sourceSlug, view_id, data: mappedData, searchParams}))
             setSSKey(`${Date.now()}`);
             setLoading(false);
             setMassUpdateColumn(undefined);
@@ -459,7 +461,7 @@ export default function Validate ({
         return () => {
             isStale = true;
         }
-    }, [app, doc_type, config, default_columns?.length, view_id, source_id, searchParams, updating, validating])
+    }, [app, sourceSlug, config, default_columns?.length, view_id, source_id, searchParams, updating, validating])
 
     const SpreadSheetCompWithControls = cloneDeep(Spreadsheet);
     SpreadSheetCompWithControls.controls.columns = SpreadSheetCompWithControls.controls.columns.filter(({label}) => label !== 'duplicate')
@@ -539,7 +541,7 @@ export default function Validate ({
                             onClick={() =>
                                 reValidate({
                                     app, type: value.sourceInfo.type,
-                                    parentDocType: doc_type, dmsServerPath, setValidating, setError, falcor
+                                    parentDocType: sourceSlug, dmsServerPath, setValidating, setError, falcor
                                 })}
                         >
                             {error ? JSON.stringify(error) : validating ? 'Validating' : 'Re - Validate'}

@@ -111,6 +111,7 @@
 
 - [x] Update admin theme merges to use `mergeTheme` (siteConfig.jsx, editTheme.jsx, themeEditor.jsx)
 - [x] Add delete & duplicate buttons to admin pattern overview — port actions from old `PatternEdit` modal to pattern editor Overview tab + list table
+- [ ] Pattern creation refresh bug — new pattern row appears with blank data, requires page refresh; `dmsDataEditor` mutates input data (replaces dms-format attrs with refs), revalidation doesn't restore correct data
 
 ### patterns/auth
 

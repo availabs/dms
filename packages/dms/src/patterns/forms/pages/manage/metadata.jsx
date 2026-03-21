@@ -28,7 +28,7 @@ const ManageForm = ({
     console.log('manage forms /manage_pattern/:id/templates?', manageTemplates, attributes)
     return (
         <SourcesLayout fullWidth={false} baseUrl={baseUrl} pageBaseUrl={pageBaseUrl} isListAll={false} hideBreadcrumbs={false}
-                       form={{name: item.name || item.doc_type, href: format.url_slug}}
+                       form={{name: item.name, href: format.url_slug}}
                        page={{name: 'Metadata', href: `${pageBaseUrl}/${params.id}`}}
                        id={params.id} //page id to use for navigation
         >

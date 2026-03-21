@@ -44,7 +44,9 @@ const adminConfig = ({
 }) => {
     const format = cloneDeep(adminFormat)
     format.app = app
-    format.type = type
+    // Build full site type: instance name + :site kind suffix.
+    // After migration, site rows have type '{instance}:site' in the database.
+    format.type = type.includes(':') ? type : `${type}:site`
     // Only update app on registerFormats — admin types stay as-is ('pattern', 'theme')
     // to match how existing records are stored in the database.
     // Unlike page/forms/datasets patterns which prefix child types, the admin format
@@ -85,7 +87,7 @@ const adminConfig = ({
                     const {Layout} = UI;
                     const menuItems = getMenuItems(baseUrl, authPath, props.user)
                     return (
-                        <AdminContext.Provider value={{ baseUrl, authPath, user, apiUpdate, app, type, API_HOST, UI, dmsEnvs, dmsEnvById}}>
+                        <AdminContext.Provider value={{ baseUrl, authPath, user, apiUpdate, app, type, siteType: format.type, API_HOST, UI, dmsEnvs, dmsEnvById}}>
                             <ThemeContext.Provider value={{theme, themes, UI}}>
                               <Layout navItems={menuItems} Menu={() => <>{rightMenu}</>}>
                                   {props.children}
@@ -149,7 +151,8 @@ const patternConfig = ({
   dmsEnvs = [],
   dmsEnvById = {},
 }) => {
-    const format = initializePatternFormat(pattern, app, 'pattern')
+    const format = cloneDeep(pattern)
+    format.app = app
     const parentBaseUrl = baseUrl === '/' ? '' : baseUrl;
 
     baseUrl = `${parentBaseUrl}/manage_pattern`
@@ -186,7 +189,7 @@ const patternConfig = ({
                     const menuItems = getMenuItems(parentBaseUrl, props.user)
 
                     return (
-                        <AdminContext.Provider value={{baseUrl, parentBaseUrl,themes, authPath, user, apiUpdate, app, type, API_HOST, UI, dmsEnvs, dmsEnvById}}>
+                        <AdminContext.Provider value={{baseUrl, parentBaseUrl,themes, authPath, user, apiUpdate, app, type, siteType: type.includes(':') ? type : `${type}:site`, API_HOST, UI, dmsEnvs, dmsEnvById}}>
                             <ThemeContext.Provider value={{theme,themes, UI}}>
                                 <Layout navItems={menuItems} Menu={() => <>{rightMenu}</>}>
                                   <SectionGroup maxWidth={ ''}>

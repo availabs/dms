@@ -34,9 +34,8 @@ const getSources = async ({envs, falcor, parent, user}) => {
 
             const valueGetter = (i, attr) => get(r, ['json', 'uda', e, 'sources', 'byIndex', i, attr])
             return range(0, len-1).map(i => {
-                const doc_type = valueGetter(i, 'doc_type');
                 const app = valueGetter(i, 'app');
-                const env = doc_type ? `${app}+${doc_type}` : e;
+                const env = e;
                 return {
                     ...envs[e].srcAttributes.reduce((acc, attr) => {
                         let value = valueGetter(i, attr);
@@ -80,7 +79,7 @@ const SourceThumb = React.memo(({ source={}, format }) => {
         <div className={t.sourceCard}>
             <div>
                 <Link to={`${isDms ? 'internal_source' : 'source'}/${source_id}`} className={t.sourceTitle}>
-                    <span>{source?.name || source?.doc_type}</span> <span className={t.sourceTypeLabel}>{icon}</span>
+                    <span>{source?.name}</span> <span className={t.sourceTypeLabel}>{icon}</span>
                 </Link>
                 <div>
                     {(Array.isArray(source?.categories) ? source?.categories : [])
@@ -277,7 +276,7 @@ export default function ({attributes, item, dataItems, apiLoad, apiUpdate, updat
                                     .some(cat => catParts.every((p, i) => cat[i] === p));
                             })
                             .filter(source => {
-                                let searchTerm = ((source?.name || source?.doc_type) + " " + (
+                                let searchTerm = ((source?.name || '') + " " + (
                                     (Array.isArray(source?.categories) ? source?.categories : [source?.categories]) || [])
                                     .reduce((out,cat) => {
                                         out += Array.isArray(cat) ? cat.join(' ') : typeof cat === 'string' ? cat : '';
@@ -287,7 +286,7 @@ export default function ({attributes, item, dataItems, apiLoad, apiUpdate, updat
                             })
                             .sort((a,b) => {
                                 const m = sort === 'asc' ? 1 : -1;
-                                return m * a?.doc_type?.localeCompare(b?.doc_type)
+                                return m * (a?.name || '').localeCompare(b?.name || '')
                             })
                             .map((s, i) => <SourceThumb key={s.source_id || s.id || i} source={s} baseUrl={baseUrl} format={format} />)
                     }

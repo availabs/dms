@@ -1,5 +1,5 @@
 import React, {useEffect} from 'react'
-import { useLoaderData, useActionData,useSubmit, useLocation, useNavigate } from "react-router";
+import { useLoaderData, useActionData,useSubmit, useLocation, useNavigate, useRevalidator } from "react-router";
 import { getAttributes,filterParams, json2DmsForm } from './_utils'
 import { dmsDataEditor, dmsDataLoader } from '../index'
 import { useImmer } from 'use-immer';
@@ -17,6 +17,7 @@ export default function EditWrapper({ Component, format, options, params, user, 
 	const submit = useSubmit();
 	const { pathname, search } = useLocation();
 	const navigate = useNavigate();
+	const { revalidate } = useRevalidator();
 	const { data=[] } = useLoaderData() || {};
 	const [ busy, setBusy ] = React.useState({updating: 0, loading: 0})
 	let status = useActionData()
@@ -62,6 +63,11 @@ export default function EditWrapper({ Component, format, options, params, user, 
 			console.log(`[dms:wrapper] apiUpdate ${a}+${t} req=${requestType || 'save'} id=${data?.id || 'new'} path=${newPath} skipNav=${skipNavigate}`);
 		}
 
+		// Snapshot before dmsDataEditor mutates data (it strips dms-format
+		// attrs and replaces them with {ref,id} stubs). Without this, the
+		// optimistic merge below would overwrite rich data with bare refs.
+		const dataSnapshot = data.id === item.id ? structuredClone(data) : null
+
 		let resData = null
 		if(mode === 'ssr'){
 			let res =  await fetch(`/dms_api`, { method:"POST", body: json2DmsForm(data,requestType,config,newPath) })
@@ -70,16 +76,21 @@ export default function EditWrapper({ Component, format, options, params, user, 
 			resData = await dmsDataEditor(falcor, config, data, requestType);
     }
 
+		const currentPath = `${pathname}${search}`
 		if (!skipNavigate) {
-			navigate(newPath || `${pathname}${search}`) //submit with null target doesn't carry search
+			if (newPath && newPath !== currentPath) {
+				navigate(newPath)
+			} else {
+				revalidate()
+			}
 		}
 		setBusy((prevState) => { return {...prevState, updating: prevState.updating-1 }})
 
 		// -- testing on update set item
 		// -- this adds updateAttribute call to apiUpdate
-		if(data.id === item.id) {
-			try { setItem(draft => { merge(draft,data) }) }
-			catch(e) { /* Immer may reject deep merge of arrays — navigate will reload */ }
+		if(dataSnapshot) {
+			try { setItem(draft => { merge(draft, dataSnapshot) }) }
+			catch(e) { /* Immer may reject deep merge of arrays — revalidate will reload */ }
 		}
 
 		if(!data.id) return resData; // return id if apiUpdate was used to create an entry.

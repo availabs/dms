@@ -22,7 +22,7 @@ const getSources = async ({envs, falcor}) => {
                 const categories = valueGetter(i, 'categories');
                 return {
                     categories: typeof categories === 'string' ? JSON.parse(categories || '[]') : (categories || []),
-                    name: valueGetter(i, 'name') || valueGetter(i, 'doc_type'),
+                    name: valueGetter(i, 'name'),
                 };
             });
         }));

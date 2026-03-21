@@ -6,6 +6,7 @@ import {getSourceData, updateVersionData} from "./utils";
 import { getExternalEnv } from "../../../utils/datasources";
 import {cloneDeep} from "lodash-es";
 import ExternalVersionControl from "../../../components/ExternalVersionControls";
+import { nameToSlug } from "../../../../../utils/type-utils";
 
 const buttonRedClass = 'w-full p-2 mx-1 bg-red-300 hover:bg-red-500 text-gray-800 rounded-md';
 
@@ -48,7 +49,7 @@ const DeleteViewBtn = ({source, view_id, format, url, apiUpdate, baseUrl}) => {
     )
 }
 
-const ClearDataBtn = ({app, type, view_id, apiLoad, apiUpdate}) => {
+const ClearDataBtn = ({app, sourceSlug, view_id, apiLoad, apiUpdate}) => {
     const {UI} = useContext(ThemeContext);
     const {DeleteModal} = UI;
     const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -59,7 +60,7 @@ const ClearDataBtn = ({app, type, view_id, apiLoad, apiUpdate}) => {
         const validDataconfig = {
             format: {
                 app: app,
-                type: `${type}-${view_id}`,
+                type: `${sourceSlug}|${view_id}:data`,
                 attributes
             },
             children: [
@@ -77,7 +78,7 @@ const ClearDataBtn = ({app, type, view_id, apiLoad, apiUpdate}) => {
         const invalidDataconfig = {
             format: {
                 app: app,
-                type: `${type}-${view_id}-invalid-entry`,
+                type: `${sourceSlug}|${view_id}:data-invalid-entry`,
                 attributes
             },
             children: [
@@ -174,7 +175,7 @@ export default function ManageForm ({ status, apiLoad, apiUpdate, format, source
                                 {
                                     isDms ? (
                                             <>
-                                                <ClearDataBtn app={app} type={source.doc_type} view_id={params.view_id} apiLoad={apiLoad} apiUpdate={apiUpdate}/>
+                                                <ClearDataBtn app={app} sourceSlug={nameToSlug(source.name)} view_id={params.view_id} apiLoad={apiLoad} apiUpdate={apiUpdate}/>
                                                 <DeleteViewBtn source={source} format={format} view_id={params.view_id} url={`${pageBaseUrl}/${params.id}`} apiUpdate={apiUpdate} baseUrl={baseUrl}/>
                                             </>
                                     ) : <ExternalVersionControl source={source} view={currentView} sourceId={params.id} viewId={params.view_id} />

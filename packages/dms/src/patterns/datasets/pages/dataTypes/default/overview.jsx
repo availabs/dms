@@ -56,7 +56,7 @@ export default function Overview ({
     return (
             <div className={'flex flex-col'}>
                 <div className={theme.title || 'mt-1 text-2xl text-blue-600 font-medium overflow-hidden sm:mt-0 sm:col-span-3'}>
-                    {source?.name || source?.doc_type}
+                    {source?.name}
                 </div>
 
                 <div className={theme.body || 'flex flex-col md:flex-row'}>
@@ -83,7 +83,7 @@ export default function Overview ({
 
                         <div className={theme.metaItem || 'flex flex-col px-4 text-sm text-gray-600'}>
                             <span className={theme.metaLabel || 'text-sm text-gray-500'}>Type</span>
-                            <span className={theme.metaValue || 'text-base font-medium text-blue-600'}>{source?.type || source?.doc_type}</span>
+                            <span className={theme.metaValue || 'text-base font-medium text-blue-600'}>{source?.type}</span>
                         </div>
 
                         <div className={theme.metaEditRow || 'flex justify-between group'}>

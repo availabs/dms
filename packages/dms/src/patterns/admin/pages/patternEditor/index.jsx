@@ -35,7 +35,7 @@ const navPages = [
   }
 ]
 
-const PatternEditor = ({params, dataItems, item, format, attributes, apiUpdate, ...rest}) => {
+const PatternEditor = ({params, dataItems, item, format, attributes, apiUpdate, apiLoad, ...rest}) => {
   const { baseUrl, parentBaseUrl } = React.useContext(AdminContext);
   const [tmpItem, setTmpItem] = React.useState(item);
   const {id, page='overview'} = params;
@@ -67,6 +67,7 @@ const PatternEditor = ({params, dataItems, item, format, attributes, apiUpdate, 
               onChange={(d) => d}
               attributes={attributes}
                 apiUpdate={apiUpdate}
+                apiLoad={apiLoad}
             />
           </div>
       </div>

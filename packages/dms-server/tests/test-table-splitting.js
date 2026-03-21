@@ -238,6 +238,71 @@ async function testResolveTableWithSourceId() {
   assert(r8.table === 'data_items__s42_v1_traffic_counts', `String sourceId works (got ${r8.table})`);
 }
 
+async function testNewFormatSplitType() {
+  console.log('\n--- Unit: new format :data split types ---');
+
+  // New format types should be detected as split
+  assert(isSplitType('adamtest1|v1:data'), 'adamtest1|v1:data is split');
+  assert(isSplitType('traffic_counts|v2:data'), 'traffic_counts|v2:data is split');
+  assert(isSplitType('foo|bar:data'), 'any :data is split');
+
+  // Non-data new format types should NOT split
+  assert(!isSplitType('prod:site'), 'site is not split');
+  assert(!isSplitType('prod|my-pattern:pattern'), 'pattern is not split');
+  assert(!isSplitType('my-env|adamtest1:source'), 'source is not split');
+  assert(!isSplitType('adamtest1|v1:view'), 'view is not split');
+}
+
+async function testNewFormatParseType() {
+  console.log('\n--- Unit: parseType with new format ---');
+
+  const p1 = parseType('adamtest1|v1:data');
+  assert(p1 !== null, 'adamtest1|v1:data parses');
+  assert(p1.source === 'adamtest1', `source is adamtest1 (got ${p1.source})`);
+  assert(p1.view === 'v1', `view is v1 (got ${p1.view})`);
+
+  const p2 = parseType('traffic_counts|v2:data');
+  assert(p2 !== null, 'traffic_counts|v2:data parses');
+  assert(p2.source === 'traffic_counts', `source is traffic_counts (got ${p2.source})`);
+  assert(p2.view === 'v2', `view is v2 (got ${p2.view})`);
+
+  // Non-data new format returns null
+  assert(parseType('prod:site') === null, 'site returns null');
+  assert(parseType('prod|my-pattern:pattern') === null, 'pattern returns null');
+}
+
+async function testNewFormatResolveTable() {
+  console.log('\n--- Unit: resolveTable with new format types ---');
+
+  // Legacy mode — new format data type
+  const r1 = resolveTable('myapp', 'adamtest1|v1:data', 'sqlite', 'legacy');
+  assert(r1.table === 'data_items__adamtest1_v1', `New format table name (got ${r1.table})`);
+
+  // Legacy mode with sourceId
+  const r2 = resolveTable('myapp', 'adamtest1|v1:data', 'sqlite', 'legacy', 42);
+  assert(r2.table === 'data_items__s42_v1_adamtest1', `New format with sourceId (got ${r2.table})`);
+
+  // Per-app SQLite
+  const r3 = resolveTable('myapp', 'adamtest1|v1:data', 'sqlite', 'per-app');
+  assert(r3.table === 'data_items__myapp__adamtest1_v1', `Per-app new format (got ${r3.table})`);
+
+  // Per-app SQLite with sourceId
+  const r4 = resolveTable('myapp', 'adamtest1|v1:data', 'sqlite', 'per-app', 42);
+  assert(r4.table === 'data_items__myapp__s42_v1_adamtest1', `Per-app new format with sourceId (got ${r4.table})`);
+
+  // PostgreSQL
+  const r5 = resolveTable('myapp', 'adamtest1|v1:data', 'postgres', 'legacy');
+  assert(r5.fullName === 'dms.data_items__adamtest1_v1', `PG new format (got ${r5.fullName})`);
+
+  // PostgreSQL per-app
+  const r6 = resolveTable('myapp', 'adamtest1|v1:data', 'postgres', 'per-app');
+  assert(r6.fullName === 'dms_myapp.data_items__adamtest1_v1', `PG per-app new format (got ${r6.fullName})`);
+
+  // Non-split new format type → main table
+  const r7 = resolveTable('myapp', 'prod:site', 'sqlite', 'per-app');
+  assert(r7.table === 'data_items__myapp', `Non-split new format goes to main table (got ${r7.table})`);
+}
+
 // =========================================== Integration Tests =======================================
 
 async function testSplitTypeCreate() {
@@ -861,6 +926,9 @@ async function run() {
   await testResolveTableNameBased();
   await testResolveTablePerApp();
   await testResolveTableWithSourceId();
+  await testNewFormatSplitType();
+  await testNewFormatParseType();
+  await testNewFormatResolveTable();
 
   // Integration tests
   graph = createTestGraph(DB_NAME);

@@ -22,7 +22,7 @@ export const themeFormat = {
 
 export const dmsEnvFormat = {
   app: 'admin',
-  type: 'dmsEnv',
+  type: 'dmsenv',
   registerFormats: [],
   attributes: [
     {
@@ -120,7 +120,7 @@ export const pattern = {
 
 const patternAdminFormat = {
   app: "admin",
-  type: "pattern-admin",
+  type: "site",
   registerFormats: [pattern, themeFormat, dmsEnvFormat],
   attributes: [
 
@@ -153,7 +153,7 @@ const patternAdminFormat = {
       key: 'dms_envs',
       type: 'dms-format',
       isArray: true,
-      format: 'admin+dmsEnv'
+      format: 'admin+dmsenv'
     }
   ]
 }

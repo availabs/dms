@@ -58,9 +58,11 @@ const pagesConfig = ({
   baseUrl = baseUrl === "/" ? "" : baseUrl;
   const format = initializePatternFormat(cmsFormat, app, type);
   if(pattern?.additionalSectionAttributes?.length){
-      (format.registerFormats || [])
-        .find(f => f.type.includes('cms-section'))
-        .attributes.push(...pattern.additionalSectionAttributes)
+      const componentFormat = (format.registerFormats || [])
+        .find(f => f.type.includes('component') || f.type.includes('cms-section'));
+      if (componentFormat) {
+        componentFormat.attributes.push(...pattern.additionalSectionAttributes);
+      }
   }
 
 // console.log("Page::siteConfig", datasources, rest);

@@ -1,10 +1,10 @@
 import React, {useContext, useState} from "react";
 import { useImmer } from "use-immer";
 import { isEqual } from "lodash-es";
-import { useFalcor } from "@availabs/avl-falcor";
 import { useNavigate } from "react-router";
 import { AdminContext } from "../../../context";
 import { ThemeContext } from "../../../../../ui/useTheme";
+import { nameToSlug, getInstance } from "../../../../../utils/type-utils";
 
 
 const customTheme = {
@@ -12,28 +12,22 @@ const customTheme = {
 }
 
 /**
- * Load the site record (the parent that owns the patterns array).
- * Returns { id, data } or null.
+ * Load the site record via apiLoad.
+ * Returns the first site item (with flattened data) or null.
  */
-async function loadSiteData(falcor, app, type) {
-    const siteEnv = `${app}+${type}`;
-    const lengthResult = await falcor.get(['dms', 'data', siteEnv, 'length']);
-    const length = lengthResult?.json?.dms?.data?.[siteEnv]?.length || 0;
-    if (!length) return null;
-
-    const result = await falcor.get(
-        ['dms', 'data', siteEnv, 'byIndex', 0, ['id', 'data']]
-    );
-    const entry = result?.json?.dms?.data?.[siteEnv]?.byIndex?.[0];
-    if (!entry?.id) return null;
-    return { id: entry.id, data: entry.data };
+async function loadSiteData(apiLoad, app, siteType) {
+    const siteConfig = {
+        format: { app, type: siteType, attributes: [] },
+        children: [{ action: 'list', path: '/*' }]
+    };
+    const items = await apiLoad(siteConfig, '/');
+    return items?.[0] || null;
 }
 
-export const PatternSettingsEditor = ({ value = {}, onChange, ...rest}) => {
-  const { apiUpdate, app, type, API_HOST, parentBaseUrl, dmsEnvs = [], dmsEnvById = {} } = useContext(AdminContext);
+export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest}) => {
+  const { apiUpdate, app, type, siteType, API_HOST, parentBaseUrl, dmsEnvs = [], dmsEnvById = {} } = useContext(AdminContext);
   const { UI } = useContext(ThemeContext)
   const { FieldSet, Button, Icon } = UI;
-  const { falcor } = useFalcor();
   const navigate = useNavigate();
   const [tmpValue, setTmpValue] = useImmer(value);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -41,17 +35,20 @@ export const PatternSettingsEditor = ({ value = {}, onChange, ...rest}) => {
 
   const showDmsEnvConfig = ['datasets', 'forms', 'page', 'mapeditor'].includes(value.pattern_type);
 
+  const siteFormat = { app, type: siteType, attributes: [] };
+
   const handleDelete = async () => {
-      const site = await loadSiteData(falcor, app, type);
+      const site = await loadSiteData(apiLoad, app, siteType);
       if (!site) return;
 
-      const rawPatterns = site.data?.patterns || [];
+      const rawPatterns = site.patterns || [];
       const updatedPatterns = rawPatterns.filter(p => +p.id !== +value.id);
 
-      await falcor.call(
-          ['dms', 'data', 'edit'],
-          [app, site.id, { patterns: updatedPatterns }]
-      );
+      await apiUpdate({
+          data: { id: site.id, patterns: updatedPatterns },
+          config: { format: siteFormat },
+          skipNavigate: true
+      });
 
       navigate(parentBaseUrl || '/');
   };
@@ -59,13 +56,16 @@ export const PatternSettingsEditor = ({ value = {}, onChange, ...rest}) => {
   const handleDuplicate = async () => {
       setIsDuplicating(true);
       try {
-          const newDocType = crypto.randomUUID();
+          const siteInstance = getInstance(siteType) || type;
+          const oldInstance = getInstance(value.type) || value?.base_url?.replace(/\//g, '');
+          const newName = `${value.name}_copy`;
+          const newSlug = nameToSlug(newName);
 
           // 1. Copy pages/sections on the server
           const dmsServerPath = `${API_HOST}/dama-admin`;
-          await fetch(`${dmsServerPath}/dms/${app}+${value.doc_type}/duplicate`, {
+          await fetch(`${dmsServerPath}/dms/${app}+${oldInstance}/duplicate`, {
               method: "POST",
-              body: JSON.stringify({ newApp: app, newType: newDocType }),
+              body: JSON.stringify({ newApp: app, newType: newSlug }),
               headers: { "Content-Type": "application/json" },
           });
 
@@ -75,8 +75,7 @@ export const PatternSettingsEditor = ({ value = {}, onChange, ...rest}) => {
               base_url: `${value.base_url}_copy`,
               subdomain: value.subdomain,
               config: value.config,
-              doc_type: newDocType,
-              name: `${value.name}_copy`,
+              name: newName,
               pattern_type: value.pattern_type,
               authPermissions: value.authPermissions,
               auth_level: value.auth_level,
@@ -85,22 +84,24 @@ export const PatternSettingsEditor = ({ value = {}, onChange, ...rest}) => {
               additionalSectionAttributes: value.additionalSectionAttributes
           };
 
-          const createResult = await falcor.call(
-              ['dms', 'data', 'create'],
-              [app, 'pattern', dataToCopy]
-          );
-          const newId = Object.keys(createResult?.json?.dms?.data?.byId || {})
-              .filter(d => d !== '$__path')?.[0];
+          const patternType = `${siteInstance}|${newSlug}:pattern`;
+          const createResult = await apiUpdate({
+              data: dataToCopy,
+              config: { format: { app, type: patternType, attributes: [] } },
+              skipNavigate: true
+          });
+          const newId = createResult?.id;
 
           if (newId) {
               // 3. Add new pattern ref to site
-              const site = await loadSiteData(falcor, app, type);
+              const site = await loadSiteData(apiLoad, app, siteType);
               if (site) {
-                  const rawPatterns = site.data?.patterns || [];
-                  await falcor.call(
-                      ['dms', 'data', 'edit'],
-                      [app, site.id, { patterns: [...rawPatterns, { ref: `${app}+pattern`, id: +newId }] }]
-                  );
+                  const rawPatterns = site.patterns || [];
+                  await apiUpdate({
+                      data: { id: site.id, patterns: [...rawPatterns, { ref: `${app}+${siteInstance}|pattern`, id: +newId }] },
+                      config: { format: siteFormat },
+                      skipNavigate: true
+                  });
               }
           }
 
@@ -117,6 +118,24 @@ export const PatternSettingsEditor = ({ value = {}, onChange, ...rest}) => {
             <FieldSet
                 className={'grid grid-cols-12 gap-1 border rounded p-4'}
                 components={[
+                    {
+                      label: 'Type',
+                      type: 'Input',
+                      value: value.type || '',
+                      disabled: true,
+                      customTheme: { field: 'pb-2 flex flex-col col-span-6' }
+                    },
+                    {
+                      label: 'Pattern Type',
+                      type: 'Input',
+                      value: Array.isArray(value.pattern_type) ? value.pattern_type[0] : (value.pattern_type || ''),
+                      disabled: true,
+                      customTheme: { field: 'pb-2 flex flex-col col-span-3' }
+                    },
+                    {
+                      type: 'Spacer',
+                      customTheme: { field: 'col-span-3' }
+                    },
                     {
                       label: 'Name',
                       type: 'Input',
@@ -180,9 +199,10 @@ export const PatternSettingsEditor = ({ value = {}, onChange, ...rest}) => {
             value={tmpValue}
             onChange={setTmpValue}
             dmsEnvs={dmsEnvs}
-            falcor={falcor}
+            apiLoad={apiLoad}
             app={app}
             type={type}
+            siteType={siteType}
             apiUpdate={apiUpdate}
           />
         )}
@@ -230,15 +250,16 @@ export const PatternSettingsEditor = ({ value = {}, onChange, ...rest}) => {
     )
 }
 
-function DmsEnvConfig({ value, onChange, dmsEnvs, falcor, app, type, apiUpdate }) {
+function DmsEnvConfig({ value, onChange, dmsEnvs: initialDmsEnvs, apiLoad, app, type, siteType, apiUpdate }) {
   const [newEnvName, setNewEnvName] = useState('');
   const [creating, setCreating] = useState(false);
+  const [localEnvs, setLocalEnvs] = useState(initialDmsEnvs);
   const { UI } = useContext(ThemeContext);
   const { Select, Input, Button } = UI;
 
   const envOptions = [
     { label: 'None (legacy)', value: '' },
-    ...dmsEnvs.map(env => ({ label: env.name || `Env #${env.id}`, value: String(env.id) })),
+    ...localEnvs.map(env => ({ label: env.name || `Env #${env.id}`, value: String(env.id) })),
   ];
 
   const handleEnvChange = (e) => {
@@ -250,24 +271,31 @@ function DmsEnvConfig({ value, onChange, dmsEnvs, falcor, app, type, apiUpdate }
     if (!newEnvName.trim() || creating) return;
     setCreating(true);
     try {
+      const siteInstance = getInstance(siteType) || type;
+      const envSlug = nameToSlug(newEnvName.trim());
+      const envType = `${siteInstance}|${envSlug}:dmsenv`;
+
       // Create dmsEnv row
-      const res = await falcor.call(
-        ["dms", "data", "create"],
-        [app, 'dmsEnv', { name: newEnvName.trim(), sources: [] }]
-      );
-      const newId = Object.keys(res?.json?.dms?.data?.byId || {})
-        .find(k => k !== '$__path');
+      const createResult = await apiUpdate({
+        data: { name: newEnvName.trim(), sources: [] },
+        config: { format: { app, type: envType, attributes: [] } },
+        skipNavigate: true
+      });
+      const newId = createResult?.id;
 
       if (newId) {
         // Add ref to site's dms_envs array
-        const site = await loadSiteData(falcor, app, type);
+        const site = await loadSiteData(apiLoad, app, siteType);
         if (site) {
-          const existing = site.data?.dms_envs || [];
-          await falcor.call(
-            ['dms', 'data', 'edit'],
-            [app, site.id, { dms_envs: [...existing, { ref: `${app}+dmsEnv`, id: +newId }] }]
-          );
+          const existing = site.dms_envs || [];
+          await apiUpdate({
+            data: { id: site.id, dms_envs: [...existing, { ref: `${app}+${siteInstance}|dmsenv`, id: +newId }] },
+            config: { format: { app, type: siteType, attributes: [] } },
+            skipNavigate: true
+          });
         }
+        // Optimistically add to local dropdown
+        setLocalEnvs(prev => [...prev, { id: +newId, name: newEnvName.trim(), sources: [] }]);
         // Set this pattern to use the new env
         onChange(draft => { draft.dmsEnvId = +newId; });
       }

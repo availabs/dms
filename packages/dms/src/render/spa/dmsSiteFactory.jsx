@@ -4,6 +4,7 @@ import { falcorGraph } from "@availabs/avl-falcor"
 import { cloneDeep } from "lodash-es"
 import { dmsDataLoader, withAuth, authProvider, dmsPageFactory, _setSyncAPI } from '../../'
 import { parseIfJSON } from '../../patterns/page/pages/_utils';
+import { getInstance } from '../../utils/type-utils';
 import { updateAttributes, updateRegisteredFormats } from "../../dms-manager/_utils";
 import { pattern2routes } from './utils'
 import RootErrorBoundary from './utils/RootErrorBoundary.jsx';
@@ -167,8 +168,9 @@ export default async function dmsSiteFactory(config) {
     let { dmsConfig, falcor, API_HOST } = config
     let dmsConfigUpdated = cloneDeep(dmsConfig);
     const siteType = dmsConfig?.format?.type || dmsConfig.type;
-    dmsConfigUpdated.registerFormats = updateRegisteredFormats(dmsConfigUpdated.registerFormats, dmsConfig.app, siteType)
-    dmsConfigUpdated.attributes = updateAttributes(dmsConfigUpdated.attributes, dmsConfig.app, siteType)
+    const siteInstance = getInstance(siteType) || siteType;
+    dmsConfigUpdated.registerFormats = updateRegisteredFormats(dmsConfigUpdated.registerFormats, dmsConfig.app, siteInstance)
+    dmsConfigUpdated.attributes = updateAttributes(dmsConfigUpdated.attributes, dmsConfig.app, siteInstance)
 
     falcor = falcor || falcorGraph(API_HOST)
     let data = await dmsDataLoader(falcor, dmsConfigUpdated, `/`);

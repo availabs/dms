@@ -1,6 +1,6 @@
 const mapeditorFormat = {
   app: "dms-site",
-  type: "map-symbology",
+  type: "symbology",
   attributes: [
     { key: "name", type: "text", required: true, default: "New Map" },
     { key: "description", type: "text" },

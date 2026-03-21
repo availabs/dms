@@ -120,7 +120,7 @@ export default function ({ apiLoad, apiUpdate, format, item, params, isDms }) {
 
     const breadcrumbItems = [
         {icon: 'Database', href: baseUrl},
-        {name: source?.name || source?.doc_type || '...', href: `${pageBaseUrl}/${id}`},
+        {name: source?.name || '...', href: `${pageBaseUrl}/${id}`},
         ...(page ? [{name: page}] : []),
     ];
 

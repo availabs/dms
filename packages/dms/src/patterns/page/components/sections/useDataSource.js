@@ -1,5 +1,6 @@
 import { useContext, useEffect, useMemo, useState, useCallback } from "react";
 import { get, isEqual } from "lodash-es";
+import { nameToSlug } from "../../../../utils/type-utils";
 import { CMSContext, PageContext } from "../../context";
 
 const range = (start, end) => Array.from({ length: end + 1 - start }, (_, k) => k + start);
@@ -20,9 +21,11 @@ const getSources = async ({ envs, falcor }) => {
                 get(r, ["json", "uda", e, "sources", "byIndex", i, attr]);
 
             return range(0, len - 1).map((i) => {
-                const doc_type = valueGetter(i, "doc_type");
                 const app = valueGetter(i, "app");
-                const env = doc_type ? `${app}+${doc_type}` : e;
+                const name = valueGetter(i, "name");
+                // For DMS sources, build env from source name slug (matches how data types are stored)
+                const sourceSlug = name ? nameToSlug(name) : null;
+                const env = sourceSlug && app ? `${app}+${sourceSlug}` : e;
 
                 return {
                     ...envs[e].srcAttributes.reduce((acc, attr) => {
@@ -90,7 +93,7 @@ export function useDataSource({ state, setState, sourceTypes = ["external", "int
         () =>
             (
                 (format?.registerFormats || []).find((f) =>
-                    f.type.includes("cms-section")
+                    f.type.includes("component") || f.type.includes("cms-section")
                 )?.attributes || []
             ).map((a) => ({ ...a, name: a.name || a.key })),
         [format]
@@ -173,7 +176,7 @@ export function useDataSource({ state, setState, sourceTypes = ["external", "int
             setState((draft) => {
                 if (!match && typeof sourceId === "string" && sourceId.includes("+")) {
                     draft.columns = [];
-                    const sourceType = sourceId.includes("+sections")
+                    const sourceType = sourceId.endsWith("|component")
                         ? "sections"
                         : "pages";
 
@@ -183,32 +186,24 @@ export function useDataSource({ state, setState, sourceTypes = ["external", "int
                     draft.sourceInfo = {
                         isDms: true,
                         app,
-                        type:
-                            sourceType === "pages"
-                                ? type
-                                : `${type.replace("+sections", "")}|cms-section`,
+                        type: sourceType === "pages"
+                            ? `${type}|page`
+                            : `${type}|component`,
                         name: sourceType,
                         columns:
                             sourceType === "pages" ? pageColumns : sectionColumns,
-                        env:
-                            sourceType === "pages"
-                                ? sourceId
-                                : `${app}+${type.replace(
-                                    "+sections",
-                                    ""
-                                )}|cms-section`,
+                        env: sourceId,
                         view_id: "",
                         source_id: sourceId,
                         baseUrl: internalBaseUrl,
                     };
                 } else if (match) {
-                    const { doc_type, ...rest } = match;
                     // Get baseUrl from the matched source's environment
-                    const newColumns = rest.columns;
+                    const newColumns = match.columns;
                     const newColumnsNames = newColumns.map(c => c.name);
                     draft.columns = draft.columns.filter(c => newColumnsNames.includes(c.name)).map(c => ({...c, ...newColumns.find(newC => newC.name === c.name)}));
                     const baseUrl = envs[match.srcEnv]?.baseUrl || '';
-                    draft.sourceInfo = { ...rest, type: doc_type, baseUrl };
+                    draft.sourceInfo = { ...match, baseUrl };
                 }
             });
         },
@@ -238,8 +233,8 @@ export function useDataSource({ state, setState, sourceTypes = ["external", "int
         activeSource: sourceId,
         activeView: viewId,
         sources: [
-            {key: `${app}+${type}`, label: `${type} (pages)`},
-            {key: `${app}+${type}+sections`, label: `${type} (sections)`},
+            {key: `${app}+${type}|page`, label: `${type} (pages)`},
+            {key: `${app}+${type}|component`, label: `${type} (sections)`},
             ...sources.map(({source_id, name, srcEnv}) => ({key: source_id, label: `${name} (${envs[srcEnv]?.label || ''})`}))
         ],
         views: views.map(({view_id, name, version}) => ({key: view_id, label: name || version || view_id})),

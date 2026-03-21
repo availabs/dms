@@ -149,12 +149,18 @@ function createSyncRoutes(dbName) {
         items = await fetchSkeleton(app, skeleton);
       } else if (pattern) {
         // Pattern-scoped bootstrap: all items whose type matches or extends the doc_type.
+        // Also includes sibling types under the same instance prefix (e.g., for
+        // 'songs_2|page', also fetch 'songs_2|component', 'songs_2|page-edit', etc.)
         // Optionally includes site skeleton if siteType is provided.
         const { siteType } = req.query;
         const table = await mainTable(app);
+        const pipeIdx = pattern.indexOf('|');
+        const instancePrefix = pipeIdx !== -1 ? pattern.substring(0, pipeIdx) : null;
         const patternItems = await dms_db.promise(
-          `SELECT * FROM ${table} WHERE app = $1 AND (type = $2 OR type LIKE $2 || '|%') ORDER BY id`,
-          [app, pattern]
+          instancePrefix
+            ? `SELECT * FROM ${table} WHERE app = $1 AND (type = $2 OR type LIKE $2 || '|%' OR type LIKE $3 || '|%') ORDER BY id`
+            : `SELECT * FROM ${table} WHERE app = $1 AND (type = $2 OR type LIKE $2 || '|%') ORDER BY id`,
+          instancePrefix ? [app, pattern, instancePrefix] : [app, pattern]
         );
         if (siteType) {
           const skeletonItems = await fetchSkeleton(app, siteType);
@@ -246,11 +252,16 @@ function createSyncRoutes(dbName) {
       let changes;
       if (pattern) {
         // Pattern-scoped delta: changes for types matching the pattern's doc_type
+        // Also include sibling types under the same instance prefix
         // Also include skeleton types if siteType is provided
         const { siteType } = req.query;
+        const pipeIdx = pattern.indexOf('|');
+        const instancePrefix = pipeIdx !== -1 ? pattern.substring(0, pipeIdx) : null;
         let patternChanges = await dms_db.promise(
-          `SELECT * FROM ${tbl('change_log')} WHERE app = $1 AND (type = $2 OR type LIKE $2 || '|%') AND revision > $3 ORDER BY revision ASC`,
-          [app, pattern, sinceRev]
+          instancePrefix
+            ? `SELECT * FROM ${tbl('change_log')} WHERE app = $1 AND (type = $2 OR type LIKE $2 || '|%' OR type LIKE $3 || '|%') AND revision > $4 ORDER BY revision ASC`
+            : `SELECT * FROM ${tbl('change_log')} WHERE app = $1 AND (type = $2 OR type LIKE $2 || '|%') AND revision > $3 ORDER BY revision ASC`,
+          instancePrefix ? [app, pattern, instancePrefix, sinceRev] : [app, pattern, sinceRev]
         );
         if (siteType) {
           // Include skeleton changes (site row + its ref children) alongside pattern changes.

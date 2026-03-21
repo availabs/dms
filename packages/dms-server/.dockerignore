@@ -1,0 +1,10 @@
+node_modules
+src/db/data
+tests
+docs
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+.env
+.env.*
+logs

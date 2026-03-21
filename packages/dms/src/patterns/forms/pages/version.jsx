@@ -4,6 +4,7 @@ import { ThemeContext } from "../../../ui/useTheme";
 import SourcesLayout from "../components/patternListComponent/layout";
 import { cloneDeep } from "lodash-es";
 import {useNavigate} from "react-router";
+import { nameToSlug } from "../../../utils/type-utils";
 const buttonRedClass = 'w-full p-2 mx-1 bg-red-300 hover:bg-red-500 text-gray-800 rounded-md';
 const buttonGreenClass = 'p-2 mx-1 bg-green-500 hover:bg-green-700 text-white rounded-md';
 
@@ -46,18 +47,17 @@ const DeleteViewBtn = ({item, view_id, format, url, apiUpdate, baseUrl}) => {
     )
 }
 
-const ClearDataBtn = ({app, type, view_id, apiLoad, apiUpdate}) => {
+const ClearDataBtn = ({app, sourceSlug, view_id, apiLoad, apiUpdate}) => {
     const {UI} = useContext(FormsContext);
     const {DeleteModal} = UI;
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const clearData = async () => {
-        // fetch all ids based on app and type (doc_type of source), and then call dmsDataEditor with config={app, type}, data={id}, requestType='delete
         const attributes = ['id']
         const action = 'load'
         const validDataconfig = {
             format: {
                 app: app,
-                type: `${type}-${view_id}`,
+                type: `${sourceSlug}|${view_id}:data`,
                 attributes
             },
             children: [
@@ -75,7 +75,7 @@ const ClearDataBtn = ({app, type, view_id, apiLoad, apiUpdate}) => {
         const invalidDataconfig = {
             format: {
                 app: app,
-                type: `${type}-${view_id}-invalid-entry`,
+                type: `${sourceSlug}|${view_id}:data-invalid-entry`,
                 attributes
             },
             children: [
@@ -143,7 +143,7 @@ const Version = ({
     return (
         <SourcesLayout fullWidth={false} baseUrl={baseUrl} pageBaseUrl={pageBaseUrl} isListAll={false}
                        hideBreadcrumbs={false}
-                       form={{name: item.name || item.doc_type, href: format.url_slug}}
+                       form={{name: item.name, href: format.url_slug}}
                        page={{name: 'Version', href: `${pageBaseUrl}/${params.id}/view/${params.view_id}`}}
                        id={params.id} //page id to use for navigation
                        view_id={params.view_id}
@@ -164,7 +164,7 @@ const Version = ({
                                     </div>
                                 ))
                             }
-                            <ClearDataBtn app={app} type={item.doc_type} view_id={params.view_id} apiLoad={apiLoad} apiUpdate={apiUpdate}/>
+                            <ClearDataBtn app={app} sourceSlug={nameToSlug(item.name)} view_id={params.view_id} apiLoad={apiLoad} apiUpdate={apiUpdate}/>
                             <DeleteViewBtn item={item} format={format} view_id={params.view_id} url={`${pageBaseUrl}/${params.id}`} apiUpdate={apiUpdate} baseUrl={baseUrl}/>
                         </div>
                     </div>

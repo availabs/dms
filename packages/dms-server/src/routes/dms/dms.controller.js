@@ -25,6 +25,7 @@ const {
   ensureTable,
   allocateId
 } = require('#db/table-resolver.js');
+const { parseSplitDataType } = require('#db/type-utils.js');
 const { logEntry } = require('../../middleware/request-logger');
 
 const DATA_ATTRIBUTES = [
@@ -126,13 +127,38 @@ function createController(dbName = 'dms-sqlite', options = {}) {
   }
 
   /**
-   * Look up the source record ID for a split type's doc_type.
+   * Look up the source record ID for a split type's source.
+   * Handles both new format ({source}|{view}:data → look up by type LIKE '%|{source}:source')
+   * and legacy format ({docType}-{viewId} → look up by data.doc_type).
    * Returns sourceId (number) or null if not found (graceful fallback).
    */
   async function lookupSourceId(app, type) {
     if (!isSplitType(type)) return null;
+
+    // New format: {source}|{view}:data
+    const newParsed = parseSplitDataType(type);
+    if (newParsed) {
+      const cacheKey = `${app}:${newParsed.source}`;
+      if (_sourceIdCache.has(cacheKey)) return _sourceIdCache.get(cacheKey);
+
+      try {
+        const table = await mainTable(app);
+        const rows = await dms_db.promise(
+          `SELECT id FROM ${table} WHERE app = $1 AND type LIKE '%|' || $2 || ':source' ORDER BY id DESC LIMIT 1`,
+          [app, newParsed.source]
+        );
+        const sourceId = rows[0]?.id || null;
+        _sourceIdCache.set(cacheKey, sourceId);
+        return sourceId;
+      } catch {
+        _sourceIdCache.set(cacheKey, null);
+        return null;
+      }
+    }
+
+    // Legacy format: {docType}-{viewId}
     const parsed = parseType(type);
-    if (!parsed) return null;
+    if (!parsed || !parsed.docType) return null;
 
     const cacheKey = `${app}:${parsed.docType}`;
     if (_sourceIdCache.has(cacheKey)) return _sourceIdCache.get(cacheKey);
@@ -140,14 +166,13 @@ function createController(dbName = 'dms-sqlite', options = {}) {
     try {
       const table = await mainTable(app);
       const rows = await dms_db.promise(
-        `SELECT id FROM ${table} WHERE app = $1 AND lower(${jsonField('data', 'doc_type')}) = lower($2) AND type LIKE '%|source' ORDER BY id DESC LIMIT 1`,
+        `SELECT id FROM ${table} WHERE app = $1 AND lower(${jsonField('data', 'doc_type')}) = lower($2) AND (type LIKE '%|source' OR type LIKE '%:source') ORDER BY id DESC LIMIT 1`,
         [app, parsed.docType]
       );
       const sourceId = rows[0]?.id || null;
       _sourceIdCache.set(cacheKey, sourceId);
       return sourceId;
     } catch {
-      // Table might not exist yet (first write in per-app mode)
       _sourceIdCache.set(cacheKey, null);
       return null;
     }
@@ -528,13 +553,13 @@ function createController(dbName = 'dms-sqlite', options = {}) {
           _tagsIndexedTables.add(tbl);
         }
 
-        // For tags: query sections directly by type convention ({doc_type}|cms-section)
+        // For tags: query components directly by type convention ({parent}|component or legacy {doc_type}|cms-section)
         // instead of expanding pages via json_each and joining back.
         const sql = searchType === 'tags' ? `
           SELECT DISTINCT ${jsonField('data', 'tags')} tags
           FROM ${tbl}
           WHERE app = $1
-            AND type = $2 || '|cms-section'
+            AND (type = $2 || '|component' OR type = $2 || '|cms-section')
             AND ${jsonField('data', 'tags')} IS NOT NULL
             AND ${jsonField('data', 'tags')} != ''
         ` :
@@ -920,16 +945,21 @@ function createController(dbName = 'dms-sqlite', options = {}) {
     },
 
     /**
-     * Find a source record's ID by app and doc_type.
+     * Find a source record's ID by app and doc_type (or instance name in new format).
      * Used by the publish handler to derive sourceId when the client doesn't provide it.
+     * Handles both new format (type LIKE '%|{name}:source') and legacy (data.doc_type match).
      * @param {string} app
-     * @param {string} docType - the doc_type stored in the source's data
+     * @param {string} docType - the doc_type stored in the source's data, or instance name
      * @returns {number|null} the source record ID, or null if not found
      */
     findSourceIdByDocType: async (app, docType) => {
       const table = await mainTable(app);
+      // Try both new format (instance in type column) and legacy (doc_type in data)
       const rows = await dms_db.promise(
-        `SELECT id FROM ${table} WHERE app = $1 AND ${jsonField('data', 'doc_type')} = $2 AND type LIKE '%|source' ORDER BY id DESC LIMIT 1`,
+        `SELECT id FROM ${table} WHERE app = $1 AND (
+          (type LIKE '%|' || $2 || ':source') OR
+          (${jsonField('data', 'doc_type')} = $2 AND (type LIKE '%|source' OR type LIKE '%:source'))
+        ) ORDER BY id DESC LIMIT 1`,
         [app, docType]
       );
       return rows[0]?.id || null;
