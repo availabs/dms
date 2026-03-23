@@ -1007,8 +1007,8 @@ function createController(dbName = 'dms-sqlite', options = {}) {
   };
 }
 
-// Create default instance for backward compatibility
-const defaultController = createController('dms-sqlite');
+// Create default instance using env var, falling back to dms-sqlite for local dev
+const defaultController = createController(process.env.DMS_DB_ENV || 'dms-sqlite');
 
 // Export default controller with createController attached
 module.exports = defaultController;

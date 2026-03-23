@@ -7,9 +7,8 @@ const falcorJsonGraph = require("falcor-json-graph"),
 /*
  Controller Settings
 */
-// Default routes using default controller (backward compatible)
-const dbOptions = ['dms-sqlite']//, 'dms-postgres']
-const controller = createController(process.env.DMS_DB_ENV || dbOptions[1])
+// Default routes using default controller
+const controller = createController(process.env.DMS_DB_ENV || 'dms-sqlite')
 
 
 /**
@@ -17,7 +16,7 @@ const controller = createController(process.env.DMS_DB_ENV || dbOptions[1])
  * @param {Object} controller - DMS controller instance (from createController)
  * @returns {Array} Falcor route definitions
  */
-function createRoutes(controller = createController('dms-sqlite')) {
+function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'dms-sqlite')) {
   /**
    * Build Falcor response entries for byId data.
    * When app is provided, uses the app-namespaced path: dms.data[app].byId[id][att]
