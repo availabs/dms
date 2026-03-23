@@ -33,12 +33,40 @@ const { processRow: extractImages } = require('./extract-images');
 const BATCH_SIZE = 500;
 
 // ---------------------------------------------------------------------------
+// Checkpoint (resume support)
+// ---------------------------------------------------------------------------
+
+function checkpointPath(app) {
+  return join(__dirname, `migrate-progress-${app}.json`);
+}
+
+function loadCheckpoint(app) {
+  const p = checkpointPath(app);
+  if (!existsSync(p)) return null;
+  try {
+    return JSON.parse(readFileSync(p, 'utf8'));
+  } catch { return null; }
+}
+
+function saveCheckpoint(app, data) {
+  writeFileSync(checkpointPath(app), JSON.stringify(data, null, 2));
+}
+
+function clearCheckpoint(app) {
+  const p = checkpointPath(app);
+  if (existsSync(p)) {
+    const { unlinkSync } = require('fs');
+    unlinkSync(p);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // CLI
 // ---------------------------------------------------------------------------
 
 function parseArgs() {
   const args = process.argv.slice(2);
-  const opts = { source: null, target: null, app: null, type: null, apply: false, reset: false, ignore: [], imgOutput: null };
+  const opts = { source: null, target: null, app: null, type: null, apply: false, reset: false, resume: false, ignore: [], imgOutput: null };
 
   for (let i = 0; i < args.length; i++) {
     switch (args[i]) {
@@ -48,6 +76,7 @@ function parseArgs() {
       case '--type': opts.type = args[++i]; break;
       case '--apply': opts.apply = true; break;
       case '--reset': opts.reset = true; break;
+      case '--resume': opts.resume = true; opts.apply = true; break;
       case '--ignore': opts.ignore = args[++i].split(',').map(s => s.trim()).filter(Boolean); break;
       case '--img-output': opts.imgOutput = args[++i]; break;
       case '--no-img': opts.imgOutput = false; break;
@@ -211,6 +240,7 @@ async function writeRows(db, fullTableName, rows) {
         SELECT u.id, u.app, u.type, u.data::jsonb, u.created_at::timestamptz, u.created_by::int, u.updated_at::timestamptz, u.updated_by::int
         FROM unnest($1::int[], $2::text[], $3::text[], $4::text[], $5::text[], $6::text[], $7::text[], $8::text[])
         AS u(id, app, type, data, created_at, created_by, updated_at, updated_by)
+        ON CONFLICT (id) DO NOTHING
       `, [
         batch.map(r => r.id),
         batch.map(r => r.app),
@@ -507,7 +537,21 @@ async function runMigration(sourceDb, targetDb, sourceConfig, targetConfig, opts
     stats.totalRows += rows.length;
   }
 
-  console.log(`\n${isDry ? '=== DRY RUN ===' : '=== APPLYING ==='}`);
+  // Resume: load checkpoint from prior run
+  let checkpoint = null;
+  const completedPatternIds = new Set();
+  if (opts.resume) {
+    checkpoint = loadCheckpoint(app);
+    if (checkpoint) {
+      for (const id of (checkpoint.completedPatternIds || [])) completedPatternIds.add(id);
+      for (const s of (checkpoint.usedSlugs || [])) usedSlugs.add(s);
+      console.log(`\n=== RESUMING (${completedPatternIds.size} patterns already completed) ===`);
+    } else {
+      console.log('\n=== RESUME requested but no checkpoint found — starting fresh ===');
+    }
+  }
+
+  console.log(`\n${isDry ? '=== DRY RUN ===' : opts.resume && checkpoint ? '=== RESUMING ===' : '=== APPLYING ==='}`);
   console.log(`Source: ${sourceConfig.database || sourceConfig.filename}`);
   console.log(`Target: ${targetConfig.database || targetConfig.filename}`);
   console.log(`App: ${app}, Site type: ${opts.type}`);
@@ -618,8 +662,8 @@ async function runMigration(sourceDb, targetDb, sourceConfig, targetConfig, opts
       const resolved = resolveTable(app, '', tgtDbType, tgtSplitMode);
       await ensureTable(targetDb, resolved.schema, resolved.table, tgtDbType, seqName);
     }
-    // Reset: delete existing rows for this app in the target
-    if (opts.reset) {
+    // Reset: delete existing rows for this app in the target (skip on resume)
+    if (opts.reset && !opts.resume) {
       const deleted = await targetDb.promise(
         `DELETE FROM ${tgtMainTable} WHERE app = $1`, [app]
       );
@@ -647,6 +691,38 @@ async function runMigration(sourceDb, targetDb, sourceConfig, targetConfig, opts
   const patternRefIds = extractRefIds(siteData.patterns);
   const newPatternRefs = [];
   const migratedIds = new Set(); // Track IDs across patterns to skip duplicates (shared doc_type)
+
+  // Resume: rebuild migratedIds from rows already in target DB
+  if (opts.resume && completedPatternIds.size > 0) {
+    console.log('  Rebuilding migratedIds from target DB...');
+    let rebuilt = 0;
+    const existingIds = await targetDb.promise(
+      `SELECT id FROM ${tgtMainTable} WHERE app = $1`, [app]
+    );
+    for (const r of existingIds) { migratedIds.add(+r.id); rebuilt++; }
+    // Also scan split tables for data row IDs
+    if (tgtSplitMode === 'per-app' && tgtDbType === 'postgres') {
+      const resolved = resolveTable(app, '', tgtDbType, tgtSplitMode);
+      const splitTables = await targetDb.promise(
+        `SELECT table_name FROM information_schema.tables WHERE table_schema = $1 AND table_name != 'data_items'`,
+        [resolved.schema]
+      );
+      for (const t of splitTables) {
+        const rows = await targetDb.promise(
+          `SELECT id FROM "${resolved.schema}"."${t.table_name}"`, []
+        );
+        for (const r of rows) migratedIds.add(+r.id);
+        rebuilt += rows.length;
+      }
+    }
+    console.log(`  Rebuilt ${rebuilt} migratedIds from target`);
+    // Restore dmsEnvMap from checkpoint
+    if (checkpoint?.dmsEnvState) {
+      for (const [key, val] of checkpoint.dmsEnvState) {
+        if (!dmsEnvMap.has(+key)) dmsEnvMap.set(+key, val);
+      }
+    }
+  }
 
   if (patternRefIds.length) {
     const patternRows = await loadRowsByIds(sourceDb, srcTable, patternRefIds);
@@ -691,6 +767,19 @@ async function runMigration(sourceDb, targetDb, sourceConfig, targetConfig, opts
       }
       delete patternData.doc_type;
 
+      // Resume: skip patterns already completed in a prior run
+      if (completedPatternIds.has(+pattern.id)) {
+        console.log(`  Pattern: ${patternName || docType} (${patternType}) → ${newType} (id=${pattern.id}) — RESUMED (skipped)`);
+        newPatternRefs.push({ ref: `${app}+${siteInstance}|pattern`, id: pattern.id });
+        stats.patterns.copied++;
+        stats.patternDetails.push({
+          name: patternData.name || patternName || docType || patternSlug, type: patternType,
+          pages: 0, components: 0, history: 0, sources: 0, views: 0, dataRows: 0, splitTables: 0,
+          resumed: true,
+        });
+        continue;
+      }
+
       console.log(`  Pattern: ${patternName || docType} (${patternType}) → ${newType} (id=${pattern.id})`);
       addRows(tgtMainTable, [buildRow(pattern, newType, patternData)]);
       newPatternRefs.push({ ref: `${app}+${siteInstance}|pattern`, id: pattern.id });
@@ -718,6 +807,16 @@ async function runMigration(sourceDb, targetDb, sourceConfig, targetConfig, opts
       }
 
       stats.patternDetails.push(detail);
+
+      // Save checkpoint after each pattern so we can resume on failure
+      if (opts.apply) {
+        completedPatternIds.add(+pattern.id);
+        saveCheckpoint(app, {
+          completedPatternIds: [...completedPatternIds],
+          usedSlugs: [...usedSlugs],
+          dmsEnvState: [...dmsEnvMap.entries()].map(([k, v]) => [k, { slug: v.slug, data: v.data }]),
+        });
+      }
     }
   }
   siteData.patterns = newPatternRefs;
@@ -750,8 +849,8 @@ async function runMigration(sourceDb, targetDb, sourceConfig, targetConfig, opts
   if (opts.apply) {
     // Schema and reset already handled before pattern loop
 
-    // Check for ID conflicts
-    if (allPositiveIds.length) {
+    // Check for ID conflicts (skip on resume — existing rows are expected)
+    if (allPositiveIds.length && !opts.resume) {
       const conflicts = await checkIdConflicts(targetDb, tgtMainTable, allPositiveIds);
       if (conflicts > 0) {
         console.error(`\nERROR: ${conflicts} ID conflicts in target. Use --reset to clear existing data first.`);
@@ -825,6 +924,7 @@ async function runMigration(sourceDb, targetDb, sourceConfig, targetConfig, opts
       await resetSequence(targetDb, app, tgtDbType, tgtSplitMode, maxId);
     }
 
+    clearCheckpoint(app);
     console.log('\n=== MIGRATION COMPLETE ===');
   } else {
     // Dry run: still report image counts

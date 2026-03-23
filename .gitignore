@@ -15,3 +15,6 @@ dist
 
 # Extracted images (large, served by nginx)
 **/img
+
+# Migration checkpoint files
+migrate-progress-*.json
