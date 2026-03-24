@@ -236,7 +236,8 @@ export default {
         ],
         more: [
             // settings from more dropdown are stored in state.display
-            {type: 'select', label: 'Each Card Represents', key: 'compactView', onClickGoBack: true, defaultValue: false, options: [{label: 'Row', value: true}, {label: 'Cell', value: false}]},
+            {type: 'select', label: 'Each Card Represents', key: 'compactView', onClickGoBack: true, defaultValue: false,
+                options: [{label: 'a row', value: true}, {label: 'a cell', value: false}]},
             {label: 'Grid Settings', items: [
                     {type: 'input', inputType: 'number', label: 'Grid Size', key: 'gridSize'},
                     {type: 'input', inputType: 'number', label: 'Grid Gap', key: 'gridGap'},
