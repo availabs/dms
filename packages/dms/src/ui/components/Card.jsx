@@ -529,7 +529,7 @@ const RenderItem = memo(function RenderItem ({
                         <CardColumnPicker
                             insertAt={insertAtAfter}
                             {...pickerProps}
-                            triggerClassName="absolute left-0 right-0 bottom-0 translate-y-1/2 h-4 z-20 flex items-center justify-center"
+                            triggerClassName="absolute left-0 right-0 bottom-0 h-4 z-20 flex items-center justify-center"
                         />
                     ) : null;
                     return (
