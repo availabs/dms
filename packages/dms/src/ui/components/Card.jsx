@@ -3,6 +3,7 @@ import {Link} from "react-router";
 import {getComponentTheme, ThemeContext} from '../useTheme';
 import ColumnTypes from "../columnTypes";
 import NavigableMenu from "./navigableMenu";
+import CardColumnPicker from './CardColumnPicker';
 import Icon from "./Icon";
 import TableHeaderCell from "./table/components/TableHeaderCell";
 
@@ -31,7 +32,36 @@ function buildCardColumnMenuItems({ attribute, controls, display, isEdit, setSta
         if (dataFetch && !draft.display.readyToLoad) draft.display.readyToLoad = true;
     });
 
-    return (controls?.inHeader || [])
+    const staticItems = attribute.origin === 'static' ? [
+        {
+            name: 'Display Name',
+            value: attribute.display_name,
+            showValue: true,
+            items: [{
+                name: 'Display Name input',
+                type: 'input',
+                inputType: 'text',
+                value: attribute.display_name,
+                onChange: e => updateColumns('display_name', e?.target?.value ?? e)
+            }]
+        },
+        {
+            name: 'Static Value',
+            value: attribute.staticValue,
+            showValue: true,
+            items: [{
+                name: 'Static Value input',
+                type: 'input',
+                inputType: 'text',
+                value: attribute.staticValue,
+                onChange: e => updateColumns('staticValue', e?.target?.value ?? e)
+            }]
+        },
+    ] : [];
+
+    return [
+        ...staticItems,
+        ...(controls?.inHeader || [])
         .filter(({ displayCdn }) =>
             typeof displayCdn === 'function' ? displayCdn({ attribute, display, isEdit }) :
             typeof displayCdn === 'boolean' ? displayCdn : true
@@ -104,7 +134,8 @@ function buildCardColumnMenuItems({ attribute, controls, display, isEdit, setSta
                 };
             }
             return { name: label || key || String(type) };
-        });
+        }),
+    ];
 }
 
 
@@ -248,11 +279,14 @@ const CardColumnField = ({
     allowAdddNew, liveEdit, isDms, allowEdit,
     tmpItem, setTmpItem, isNewItem, newItem, setNewItem, updateItem, addItem,
     formatFunctions, controls, setState, isEdit, display,
+    pickerLeft, pickerRight,
 }) => {
     const [hovered, setHovered] = useState(false);
     const {isLink, isLinkExternal, location, linkText, isImg, imageSrc, imageLocation, imageExtension, imageSize, imageMargin} = attr || {};
     const span = compactView ? 'span 1' : `span ${attr.cardSpan || 1}`;
-    const rawValue = tmpItem[attr.normalName] || tmpItem[attr.name];
+    const rawValue = attr.origin === 'static'
+        ? attr.staticValue
+        : tmpItem[attr.normalName] || tmpItem[attr.name];
     const id = tmpItem?.id;
     const value =
         isImg ?
@@ -315,17 +349,20 @@ const CardColumnField = ({
                 title={attr.customName || attr.display_name || attr.normalName || attr.name}
                 preferredPosition={'right'}
                 showTitle={false}
+                showBreadcrumbs={true}
             />
         </span>
     );
 
     return (
         <div
-            className={`${theme.headerValueWrapper} ${wrapperFlexClass} ${wrapperViewClass}`}
+            className={`relative ${theme.headerValueWrapper} ${wrapperFlexClass} ${wrapperViewClass}`}
             style={style}
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => setHovered(false)}
         >
+            {pickerLeft}
+            {pickerRight}
             {/* Header area — always rendered when there's a label or a menu in col layout */}
             {(!attr.hideHeader || (hasMenu && !isRowLayout)) && (
                 <div
@@ -426,11 +463,12 @@ const RenderItem = memo(function RenderItem ({
                                                  isDms, // state.sourceInfo
                                                  item, newItem, setNewItem, addItem, updateItem, allowEdit,
                                                  subWrapperStyle,
-                                                 visibleColumns,
+                                                 columns, visibleColumns,
                                                  formatFunctions= {},
                                                  controls, setState, isEdit, display,
                                              }) {
     const [tmpItem, setTmpItem] = useState(item || {}); // for form edit controls
+    const [cardHovered, setCardHovered] = useState(false);
 
     useEffect(() => {
         setTmpItem(item)
@@ -440,43 +478,75 @@ const RenderItem = memo(function RenderItem ({
     const isAddingNewItem = allowAdddNew && !item.id && isDms && addItem;
     const isNewItem = allowAdddNew && !tmpItem.id && isDms && addItem;
 
+    const pickerProps = isEdit && setState ? {
+        columns, sourceColumns: controls?.sourceColumns,
+        setState,
+        FormulaColumnModal: controls?.FormulaColumnModal,
+        CalculatedColumnModal: controls?.CalculatedColumnModal,
+        parentHovered: cardHovered,
+        triggerClassName: 'w-fit',
+    } : null;
+
     return (
         //  in normal view, grid applied here
         <div
             className={`${theme.subWrapper} ${compactView ? `${theme.subWrapperCompactView} ${removeBorder ? `` : 'border shadow'}` : `${theme.subWrapperSimpleView} ${addBorder ? `border shadow rounded-md` : ``}`} `}
-            style={subWrapperStyle}>
+            style={subWrapperStyle}
+            onMouseEnter={() => setCardHovered(true)}
+            onMouseLeave={() => setCardHovered(false)}
+        >
             {
-                visibleColumns.map(attr => (
-                    <CardColumnField
-                        key={attr.normalName || attr.name}
-                        attr={attr}
-                        theme={theme}
-                        compactView={compactView}
-                        reverse={reverse}
-                        addBorder={addBorder}
-                        removeBorder={removeBorder}
-                        padding={padding}
-                        headerValueLayout={headerValueLayout}
-                        headerWidth={headerWidth}
-                        valueWidth={valueWidth}
-                        allowAdddNew={allowAdddNew}
-                        liveEdit={liveEdit}
-                        isDms={isDms}
-                        allowEdit={allowEdit}
-                        tmpItem={tmpItem}
-                        setTmpItem={setTmpItem}
-                        isNewItem={isNewItem}
-                        newItem={newItem}
-                        setNewItem={setNewItem}
-                        updateItem={updateItem}
-                        addItem={addItem}
-                        formatFunctions={formatFunctions}
-                        controls={controls}
-                        setState={setState}
-                        isEdit={isEdit}
-                        display={display}
-                    />
-                ))
+                visibleColumns.map((attr, i) => {
+                    const fullIdx = pickerProps ? columns.findIndex(c => isEqualColumns(c, attr)) : -1;
+                    const isLast = i === visibleColumns.length - 1;
+                    const pickerLeft = pickerProps ? (
+                        <CardColumnPicker
+                            insertAt={fullIdx !== -1 ? fullIdx : 0}
+                            {...pickerProps}
+                            triggerClassName="absolute top-0 bottom-0 left-0 -translate-x-1/2 flex items-center z-20 w-4"
+                        />
+                    ) : null;
+                    const pickerRight = (pickerProps && isLast) ? (
+                        <CardColumnPicker
+                            insertAt={fullIdx !== -1 ? fullIdx + 1 : columns.length}
+                            {...pickerProps}
+                            triggerClassName="absolute top-0 bottom-0 right-0 translate-x-1/2 flex items-center z-20 w-4"
+                        />
+                    ) : null;
+                    return (
+                        <CardColumnField
+                            key={attr.normalName || attr.name}
+                            attr={attr}
+                            theme={theme}
+                            compactView={compactView}
+                            reverse={reverse}
+                            addBorder={addBorder}
+                            removeBorder={removeBorder}
+                            padding={padding}
+                            headerValueLayout={headerValueLayout}
+                            headerWidth={headerWidth}
+                            valueWidth={valueWidth}
+                            allowAdddNew={allowAdddNew}
+                            liveEdit={liveEdit}
+                            isDms={isDms}
+                            allowEdit={allowEdit}
+                            tmpItem={tmpItem}
+                            setTmpItem={setTmpItem}
+                            isNewItem={isNewItem}
+                            newItem={newItem}
+                            setNewItem={setNewItem}
+                            updateItem={updateItem}
+                            addItem={addItem}
+                            formatFunctions={formatFunctions}
+                            controls={controls}
+                            setState={setState}
+                            isEdit={isEdit}
+                            display={display}
+                            pickerLeft={pickerLeft}
+                            pickerRight={pickerRight}
+                        />
+                    );
+                })
             }
 
             {
@@ -552,15 +622,15 @@ export default function ({
         <>
             {
                 isEdit ? (
-                    <div className={theme.columnControlWrapper}>
+                    <div className="flex flex-wrap items-start gap-y-1 overflow-x-auto">
                         {
                             visibleColumns.map((attribute, i) => (
                                 <div
-                                    key={`controls-${i}`}
+                                    key={`col-header-${i}`}
                                     className={theme.columnControlHeaderWrapper}
                                     draggable
                                     onDragStart={() => setDraggedCol(attribute)}
-                                    onDragOver={e => e.preventDefault()} // Allow drop
+                                    onDragOver={e => e.preventDefault()}
                                     onDrop={() => handleDrop(attribute)}
                                 >
                                     <TableHeaderCell
@@ -573,7 +643,7 @@ export default function ({
                                 </div>
                             ))
                         }
-                </div>
+                    </div>
                 ) : null
             }
 
@@ -590,9 +660,10 @@ export default function ({
                             item={item} newItem={newItem} setNewItem={setNewItem}
                             addItem={addItem} updateItem={updateItem} allowEdit={allowEdit}
                             subWrapperStyle={subWrapperStyle}
+                            columns={columns}
                             visibleColumns={visibleColumns}
                             formatFunctions={formatFunctions}
-                            controls={controls}
+                            controls={{...controls, sourceColumns: sourceInfo.columns}}
                             setState={setState}
                             isEdit={isEdit}
                         />
