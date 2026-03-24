@@ -1,4 +1,4 @@
-import { get, cloneDeep } from "lodash-es";
+import { get, cloneDeep, merge } from "lodash-es";
 
 export async function processNewData (dataCache, activeIdsIntOrStr, stopFullDataLoad, filteredIdsLength, app, type, dmsAttrsConfigs,format,falcor) {
 
@@ -151,10 +151,15 @@ async function loadDmsFormats (item,dmsAttrsConfigs, format, falcor, isDataByApp
         if(dmsFormatRequests.length > 0) {
             let newData;
 
-            try{
-                newData = await falcor.get(...dmsFormatRequests)
-            }catch (e){
-                console.error('Error getting data')
+            const CHUNK_SIZE = 50;
+            for (let start = 0; start < dmsFormatRequests.length; start += CHUNK_SIZE) {
+                const chunk = dmsFormatRequests.slice(start, start + CHUNK_SIZE);
+                try {
+                    const chunkResult = await falcor.get(...chunk);
+                    newData = newData ? merge(newData, chunkResult) : chunkResult;
+                } catch (e) {
+                    console.error('Error getting data', e);
+                }
             }
 
             // if dmstype isArray
