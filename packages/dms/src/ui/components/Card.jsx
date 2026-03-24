@@ -279,7 +279,7 @@ const CardColumnField = ({
     allowAdddNew, liveEdit, isDms, allowEdit,
     tmpItem, setTmpItem, isNewItem, newItem, setNewItem, updateItem, addItem,
     formatFunctions, controls, setState, isEdit, display,
-    pickerLeft, pickerRight,
+    pickerLeft, pickerRight, pickerTop, pickerBottom,
 }) => {
     const [hovered, setHovered] = useState(false);
     const {isLink, isLinkExternal, location, linkText, isImg, imageSrc, imageLocation, imageExtension, imageSize, imageMargin} = attr || {};
@@ -363,6 +363,8 @@ const CardColumnField = ({
         >
             {pickerLeft}
             {pickerRight}
+            {pickerTop}
+            {pickerBottom}
             {/* Header area — always rendered when there's a label or a menu in col layout */}
             {(!attr.hideHeader || (hasMenu && !isRowLayout)) && (
                 <div
@@ -499,18 +501,35 @@ const RenderItem = memo(function RenderItem ({
                 visibleColumns.map((attr, i) => {
                     const fullIdx = pickerProps ? columns.findIndex(c => isEqualColumns(c, attr)) : -1;
                     const isLast = i === visibleColumns.length - 1;
-                    const pickerLeft = pickerProps ? (
+                    const insertAtCurrent = fullIdx !== -1 ? fullIdx : 0;
+                    const insertAtAfter = fullIdx !== -1 ? fullIdx + 1 : columns.length;
+
+                    const pickerLeft = (pickerProps && !compactView) ? (
                         <CardColumnPicker
-                            insertAt={fullIdx !== -1 ? fullIdx : 0}
+                            insertAt={insertAtCurrent}
                             {...pickerProps}
                             triggerClassName="absolute top-0 bottom-0 left-0 -translate-x-1/2 flex items-center z-20 w-4"
                         />
                     ) : null;
-                    const pickerRight = (pickerProps && isLast) ? (
+                    const pickerRight = (pickerProps && !compactView && isLast) ? (
                         <CardColumnPicker
-                            insertAt={fullIdx !== -1 ? fullIdx + 1 : columns.length}
+                            insertAt={insertAtAfter}
                             {...pickerProps}
                             triggerClassName="absolute top-0 bottom-0 right-0 translate-x-1/2 flex items-center z-20 w-4"
+                        />
+                    ) : null;
+                    const pickerTop = (pickerProps && compactView) ? (
+                        <CardColumnPicker
+                            insertAt={insertAtCurrent}
+                            {...pickerProps}
+                            triggerClassName="absolute left-0 right-0 top-0 -translate-y-1/2 h-4 z-20 flex items-center justify-center"
+                        />
+                    ) : null;
+                    const pickerBottom = (pickerProps && compactView && isLast) ? (
+                        <CardColumnPicker
+                            insertAt={insertAtAfter}
+                            {...pickerProps}
+                            triggerClassName="absolute left-0 right-0 bottom-0 translate-y-1/2 h-4 z-20 flex items-center justify-center"
                         />
                     ) : null;
                     return (
@@ -544,6 +563,8 @@ const RenderItem = memo(function RenderItem ({
                             display={display}
                             pickerLeft={pickerLeft}
                             pickerRight={pickerRight}
+                            pickerTop={pickerTop}
+                            pickerBottom={pickerBottom}
                         />
                     );
                 })
