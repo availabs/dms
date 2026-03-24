@@ -46,6 +46,8 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
             items: item.options?.map(opt => ({
                 icon: opt.value === value ? 'CircleCheck' : 'Blank',
                 name: opt.label,
+                onClickGoBack: item.onClickGoBack,
+                onClickGoHome: item.onClickGoHome,
                 onClick: () => updateDisplayValue(item.key, opt.value, item.onChange, setState)
             }))
         }),
@@ -90,7 +92,21 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                 type: () => item.type({ value, setValue: v => updateDisplayValue(item.key, v, item.onChange, setState), state, setState })
             };
         }
-        return controlItemTransformers[item.type]?.(item, value) || { name: item.label };
+
+        if(controlItemTransformers[item.type]){
+            return controlItemTransformers[item.type]?.(item, value)
+        }
+
+        if(item.items){
+            return ({
+                name: item.label,
+                items: item.items
+                    .filter(({ displayCdn }) => typeof displayCdn === 'function' ? displayCdn({ display: state.display }) : displayCdn !== false)
+                    .map(i => controlItemTransformers[i.type]?.(i, state.display?.[i.key] ?? i.defaultValue))
+            })
+        }
+
+        return { name: item.label }
     };
     // ============================================= helpers end =======================================================
 
@@ -257,7 +273,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
             items: Object.keys(RegisteredComponents)
                 .filter(k => !RegisteredComponents[k].hideInSelector &&
                     // don't allow conversion of incompatible components in view mode
-                    (isEdit || (['Spreadsheet', 'Card'].includes(currentComponent?.name) && ['Spreadsheet', 'Card'].includes(k)))
+                    (isEdit || (['Spreadsheet', 'Card', 'Graph'].includes(currentComponent?.name) && ['Spreadsheet', 'Card', 'Graph'].includes(k)))
                 )
                 .map(k => (
                     {
