@@ -1,6 +1,6 @@
 {
   "name": "@availabs/dms",
-  "version": "0.1.10",
+  "version": "0.1.12",
   "description": "AVAIL Data Management System - Client",
   "main": "dist/index.js",
   "scripts": {
@@ -45,6 +45,7 @@
   "dependencies": {
     "@availabs/avl-falcor": "^0.0.7",
     "@headlessui/react": "^2.2.0",
+    "@journeyapps/wa-sqlite": "^1.5.0",
     "@lexical/clipboard": "0.39.0",
     "@lexical/code": "0.39.0",
     "@lexical/file": "0.39.0",
@@ -61,7 +62,6 @@
     "@lexical/table": "0.39.0",
     "@lexical/utils": "0.39.0",
     "@observablehq/plot": "^0.6.17",
-    "@popperjs/core": "^2.11.8",
     "@turf/bbox": "^7.2.0",
     "@turf/helpers": "^7.2.0",
     "colorbrewer": "^1.5.9",
@@ -77,12 +77,13 @@
     "react": "^19.1.0",
     "react-bootstrap-typeahead": "^6.3.2",
     "react-csv": "^2.2.2",
-    "react-frame-component": "^5.2.7",
+    "react-frame-component": "5.2.7",
     "react-popper": "^2.3.0",
     "react-router": "^7.5.3",
     "react-table": "^7.8.0",
     "use-immer": "^0.11.0",
     "uuid": "^11.0.3",
-    "write-excel-file": "^2.0.10"
+    "write-excel-file": "^2.0.10",
+    "yjs": "^13.6.30"
   }
 }
