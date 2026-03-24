@@ -2,7 +2,7 @@ import React, { useEffect, Fragment, useRef, useState } from 'react'
 import {PencilIcon} from './icons'
 import { FormsContext } from '../siteConfig'
 import { Dialog, Transition, Switch, Popover } from '@headlessui/react'
-import { usePopper } from 'react-popper'
+// import { usePopper } from 'react-popper'
 import defaultTheme from '../theme/theme'
 
 
@@ -51,7 +51,7 @@ export function Dropdown ({ control, children,className, width='w-full max-w-[20
                 <div className={ `shadow fixed ${width} rounded-b-lg ${open ? `block` : `hidden`} z-20` }>
                     { children }
                 </div> : ''
-                
+
             }
         </div>
     )
@@ -61,7 +61,7 @@ export function Dropdown ({ control, children,className, width='w-full max-w-[20
 export function PopoverMenuItem ({children,onClick}) {
     const {theme = defaultTheme} = React.useContext(FormsContext)
     return (
-        <div 
+        <div
             onClick={onClick}
             className={theme.pageControls.controlItem}
         >
@@ -73,7 +73,7 @@ export function PopoverMenuItem ({children,onClick}) {
 export function IconPopover({icon, onClick, children}) {
   let [referenceElement, setReferenceElement] = useState()
   let [popperElement, setPopperElement] = useState()
-  let { styles, attributes:popperAttributes } = usePopper(referenceElement, popperElement)
+  // let { styles, attributes:popperAttributes } = usePopper(referenceElement, popperElement)
 
    return (
         <Popover className="relative">
@@ -92,12 +92,11 @@ export function IconPopover({icon, onClick, children}) {
                 leaveFrom="opacity-100 translate-y-0"
                 leaveTo="opacity-0 translate-y-1"
             >
-                <Popover.Panel 
+                <Popover.Panel
                     ref={setPopperElement}
-                    style={styles.popper}
-                    {...popperAttributes.popper}
+
                     className="shadow-lg bg-white rounded z-10 transform  border border-blue-200 w-[180px] ">
-                    
+
                     {children}
               </Popover.Panel>
             </Transition>
@@ -119,7 +118,7 @@ export function TitleEditComp({value, onChange, label }) {
                 <div className='flex group focus:outline-none border-slate-300 border-b-2 group-focus:border-blue-500'>
                   <input
                     className='w-full px-2 py-1 bg-transparent font-medium text-slate-500 focus:outline-none focus:border-blue-500'
-                    value={newTitle} 
+                    value={newTitle}
                     onChange={v => setNewTitle(v.target.value)}
                   />
                   <div className='flex cursor-pointer' >
@@ -131,7 +130,7 @@ export function TitleEditComp({value, onChange, label }) {
                         <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                       </svg>
                     </span>
-                      
+
                     <span className="pt-0.5 text-slate-300  rounded  hover:text-red-300 " onClick={e =>  setEditing(false)}>
                       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-6 h-6">
                         <path strokeLinecap="round" strokeLinejoin="round" d="m9.75 9.75 4.5 4.5m0-4.5-4.5 4.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
@@ -148,7 +147,7 @@ export function TitleEditComp({value, onChange, label }) {
                 </div>
               }
             </dd>
-          </div> 
+          </div>
         </div>
     </div>
   )
@@ -181,10 +180,10 @@ export const ButtonSelector = ({
                 label && <div className={'p-2 pl-0 w-1/4'}>{label}</div>
             }
             <span className={`
-              
+
                 space-x-1 rounded-lg bg-slate-100 py-0.5
                 flex flex-row flex-wrap
-                shadow-sm 
+                shadow-sm
                 ${size === 'large' ? `w-full` : 'w-fit'}`}>
                 {
                     types.map((t, i) => {
@@ -202,12 +201,12 @@ export const ButtonSelector = ({
                                 type="button"
                                 key={i}
                                 className={`
-                                    ${i !== 0 && `-ml-px`} 
+                                    ${i !== 0 && `-ml-px`}
                                     ${disabled && `pointer-events-none`}
                                     rounded-lg py-[0.4375rem] break-none
                                     ${isActive ? `text-gray-900 bg-white shadow` : `text-gray-700`} hover:text-blue-500
                                     min-w-[60px] min-h-[30px] uppercase
-                                    relative items-center px-2 text-xs items-center justify-center text-center 
+                                    relative items-center px-2 text-xs items-center justify-center text-center
                                     focus:z-10
                                 `}
                                 onClick={() => {
@@ -232,7 +231,7 @@ export const ButtonSelector = ({
 export function SideNavContainer({children, width='w-64'}) {
   return (
     <div className={`w-64 hidden xl:block`}>
-      <div className={`w-64 sticky top-2 hidden xl:block max-h-[100vh_-_450px]`}> 
+      <div className={`w-64 sticky top-2 hidden xl:block max-h-[100vh_-_450px]`}>
         {children}
       </div>
     </div>
@@ -242,9 +241,9 @@ export function SideNavContainer({children, width='w-64'}) {
 export function PublishButton({children, active, onClick}) {
     // console.log('test', active)
     return (
-        <div 
+        <div
           onClick={onClick}
-          className={`${ active ? 
+          className={`${ active ?
             'inline-flex w-36 justify-center rounded-lg cursor-pointer text-sm font-semibold py-2 px-2 bg-blue-600 text-white hover:bg-blue-500 shadow-lg border border-b-4 border-blue-800 hover:border-blue-700 active:border-b-2 active:mb-[2px] active:shadow-none':
             'inline-flex w-36 justify-center rounded-lg cursor-not-allowed text-sm font-semibold py-2 px-2 bg-slate-300 text-white shadow border border-slate-400 border-b-4'
           }`}
@@ -349,8 +348,8 @@ export function Modal({open, setOpen, initialFocus, children}) {
         </Transition.Child>
 
         <div className="fixed inset-0 z-10 overflow-y-auto" >
-          <div 
-            onClick={() =>  {setOpen(false);}} 
+          <div
+            onClick={() =>  {setOpen(false);}}
             className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0"
           >
             <Transition.Child
@@ -372,4 +371,3 @@ export function Modal({open, setOpen, initialFocus, children}) {
     </Transition.Root>
   )
 }
-

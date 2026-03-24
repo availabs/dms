@@ -1,7 +1,7 @@
 import React, {useEffect, Fragment, useRef, useState, useContext} from 'react'
 import { useSubmit, useLocation } from "react-router";
 import { Dialog, Transition, Switch, Popover } from '@headlessui/react'
-import { usePopper } from 'react-popper'
+//import { usePopper } from 'react-popper'
 import { cloneDeep } from "lodash-es"
 import { get } from "lodash-es"
 import { isEqual } from "lodash-es"
@@ -170,11 +170,11 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
       let history = item.history ? cloneDeep(item.history) : []
       let edit = {
         type: `changed page title to ${value}`,
-        user: user.email, 
+        user: user.email,
         time: new Date().toString()
       }
       history.push(edit)
-      
+
       const newItem = {
         id: item.id,
         title:value,
@@ -219,7 +219,7 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
       />
         {edit &&
           <div className='p-4'>
-            
+
             <div className='pl-4 pb-2'>
               <span className='text-xs uppercase font-bold text-slate-400'> page name </span>
               <TitleEditComp
@@ -227,9 +227,9 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
                 onChange={updateTitle}
               />
             </div>
-            
+
             <div className='flex w-full h-12 px-4'>
-              
+
               <IconPopover icon='fad fa-sliders-h p-2 text-blue-300 hover:text-blue-500 cursor-pointer text-lg'>
                 <div className='py-2'>
                   <div className='px-6 font-medium text-sm'> Page Settings </div>
@@ -240,7 +240,7 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
                       toggleSidebar={toggleSidebar}
                     />
                     Show Sidebar
-                    
+
                   </div>
                   <div className={theme.pageControls.controlItem } >
                     <SidebarSwitch
@@ -259,10 +259,10 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
                     Hide In Nav
                   </div>
                   <div className={theme.pageControls.controlItem + ' pr-4' } >
-                    
+
                     <ButtonSelector
                       label={'Header:'}
-                      types={[{label: 'None', value: 'none'}, 
+                      types={[{label: 'None', value: 'none'},
                           {label: 'Above', value: 'above'},
                           {label: 'Below', value: 'below'},
                           {label: 'In page', value: 'inpage'}
@@ -270,8 +270,8 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
                       type={item.header}
                       setType={(e) => toggleSidebar('header',e)}
                     />
-                    
-                    
+
+
                   </div>
                   <div className={theme.pageControls.controlItem } >
                     <SidebarSwitch
@@ -281,16 +281,16 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
                     />
                     Show Footer
                   </div>
-                  
+
                 </div>
               </IconPopover>
-             
-               <div 
-                className='fad fa-sliders-h-square p-2 text-blue-300 hover:text-blue-500 cursor-pointer text-lg' 
+
+               <div
+                className='fad fa-sliders-h-square p-2 text-blue-300 hover:text-blue-500 cursor-pointer text-lg'
                 onClick={() => setShowDataControls(true)}
               />
-              <div 
-                className='fad fa-history p-2 text-blue-300 hover:text-blue-500 cursor-pointer text-lg' 
+              <div
+                className='fad fa-history p-2 text-blue-300 hover:text-blue-500 cursor-pointer text-lg'
                 onClick={() => setHistoryOpen(true)}
               />
 
@@ -303,7 +303,7 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
                 onChange={(value) => setDataControls({...item.data_controls, url:value})}
               />
             </div>
-            
+
             {(item?.data_controls?.id_column) && <div>
                         <ViewInfo
                             item={item}
@@ -325,7 +325,7 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
 
                                 setDataControls(tmpDataControls);
                                 loadUpdates(tmpDataControls);
-                                
+
                             }}
                             loadingStatus={loadingStatus}
                             setLoadingStatus={setLoadingStatus}
@@ -338,7 +338,7 @@ function EditControls({ item, dataItems, updateAttribute,attributes, edit, statu
                 open={showDelete}
                 setOpen={setShowDelete}
               />
-            
+
           </div>
         }
         {/*<ToastContainer />*/}
@@ -361,12 +361,12 @@ function TitleEditComp({value, onChange}) {
             <div className='flex group focus:outline-none border-slate-300 border-b-2 group-focus:border-blue-500'>
               <input
                 className='w-full px-2 py-1 text font-medium text-slate-500 focus:outline-none focus:border-blue-500'
-                value={newTitle} 
+                value={newTitle}
                 onChange={v => setNewTitle(v.target.value)}
               />
               <div className='flex cursor-pointer' >
-                <span className=" pt-0.5 text-green-500 rounded hover:bg-green-500 hover:text-white " onClick={e => { 
-                    
+                <span className=" pt-0.5 text-green-500 rounded hover:bg-green-500 hover:text-white " onClick={e => {
+
                     onChange(newTitle);
                     setEditing(false);
                   }} >
@@ -374,7 +374,7 @@ function TitleEditComp({value, onChange}) {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                   </svg>
                 </span>
-                  
+
                 <span className="pt-0.5 text-slate-300  rounded  hover:text-red-300 " onClick={e =>  setEditing(false)}>
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-6 h-6">
                     <path strokeLinecap="round" strokeLinejoin="round" d="m9.75 9.75 4.5 4.5m0-4.5-4.5 4.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
@@ -395,8 +395,8 @@ function TitleEditComp({value, onChange}) {
             </div>
           }
         </dd>
-      </div> 
-     
+      </div>
+
     </div>
   )
 }
@@ -404,7 +404,7 @@ function TitleEditComp({value, onChange}) {
 function IconPopover({icon,children}) {
   let [referenceElement, setReferenceElement] = useState()
   let [popperElement, setPopperElement] = useState()
-  let { styles, attributes:popperAttributes } = usePopper(referenceElement, popperElement)
+  //let { styles, attributes:popperAttributes } = usePopper(referenceElement, popperElement)
 
    return (
     <Popover className="relative">
@@ -422,12 +422,11 @@ function IconPopover({icon,children}) {
             leaveFrom="opacity-100 translate-y-0"
             leaveTo="opacity-0 translate-y-1"
         >
-            <Popover.Panel 
+            <Popover.Panel
                 ref={setPopperElement}
-                style={styles.popper}
-                {...popperAttributes.popper}
+
                 className="shadow-lg bg-white rounded z-10 transform  border border-blue-200 w-[180px] ">
-                
+
                 {children}
           </Popover.Panel>
         </Transition>
@@ -461,4 +460,3 @@ export function SidebarSwitch({type,item,toggleSidebar}) {
     </Switch>
   )
 }
-
