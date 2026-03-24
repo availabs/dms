@@ -211,7 +211,7 @@ export default {
     useInfiniteScroll: false,
     showPagination: true,
     keepOriginalValues: true,
-    showAllColumnsControl: true,
+    showAllColumnsControl: false,
     themeKey: 'dataCard',
     defaultState: {
         dataRequest: {},
@@ -251,6 +251,8 @@ export default {
             {type: 'toggle', label: 'Row Border', key: 'removeBorder', negate: true, displayCdn: ({display}) => display.compactView},
             {type: 'toggle', label: 'Row Border', key: 'addBorder', displayCdn: ({display}) => !display.compactView},
             {type: 'toggle', label: 'Column Border', key: 'addBorder', displayCdn: ({display}) => display.compactView},
+            {type: 'toggle', label: 'Use Pagination', key: 'usePagination'},
+            {type: 'input', inputType: 'number', label: 'Page Size', key: 'pageSize', displayCdn: ({display}) => display.usePagination === true},
             {type: ({value, setValue}) => <ColorControls value={value} setValue={setValue} title={'Background Color'}/>, key: 'bgColor', displayCdn: ({display}) => display.compactView},
         ],
         data: [
@@ -273,8 +275,6 @@ export default {
                 displayCdn: ({display}) => display.allowAdddNew && display.addNewBehaviour === 'navigate'},
             {type: 'toggle', label: 'Prevent Duplicate Fetch', key: 'preventDuplicateFetch'},
             {type: 'toggle', label: 'Always Fetch Data', key: 'readyToLoad'},
-            {type: 'toggle', label: 'Use Pagination', key: 'usePagination'},
-            {type: 'input', inputType: 'number', label: 'Page Size', key: 'pageSize', displayCdn: ({display}) => display.usePagination === true},
         ],
         inHeader
     },

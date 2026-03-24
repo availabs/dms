@@ -547,6 +547,15 @@ export const Database = (props) => (
   </svg>
 )
 
+export const Columns = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={24} height={24} color={"currentColor"} fill={"none"} {...props}>
+        <path d="M20 17.5C20 18.8807 18.8807 20 17.5 20M20 17.5C20 16.1193 18.8807 15 17.5 15M20 17.5H21.5M17.5 20C16.1193 20 15 18.8807 15 17.5M17.5 20V21.5M15 17.5C15 16.1193 16.1193 15 17.5 15M15 17.5H13.5M17.5 15V13.5M19.2678 15.7322L20.3284 14.6716M15.7322 19.2678L14.6716 20.3284M19.2678 19.2678L20.3284 20.3284M15.7322 15.7322L14.6716 14.6716" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"></path>
+        <path d="M20.4993 10.5C20.4912 6.91543 20.3921 5.02814 19.182 3.81802C17.864 2.5 15.7426 2.5 11.5 2.5C7.25736 2.5 5.13604 2.5 3.81802 3.81802C2.5 5.13604 2.5 7.25736 2.5 11.5C2.5 15.7426 2.5 17.864 3.81802 19.182C5.02814 20.3921 6.91543 20.4912 10.5 20.4993" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"></path>
+        <path d="M8.5 3V20" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"></path>
+        <path d="M14.5 3V10.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"></path>
+    </svg>
+);
+
 export const AccessControl = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={16} height={16} fill="none" {...props}>
     <path d="M17 10V9C17 5.70017 17 4.05025 15.9749 3.02513C14.9497 2 13.2998 2 10 2C6.70017 2 5.05025 2 4.02513 3.02513C3 4.05025 3 5.70017 3 9V15C3 18.2998 3 19.9497 4.02513 20.9749C5.05025 22 6.70017 22 10 22C10.3517 22 10.6846 22 11 21.9988" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
