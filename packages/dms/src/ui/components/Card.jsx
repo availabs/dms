@@ -381,7 +381,7 @@ const CardColumnField = ({
 
     return (
         <div
-            className={`relative ${theme.headerValueWrapper} ${wrapperFlexClass} ${wrapperViewClass} ${isEdit && visible ? `border border-blue-300` : ``}`}
+            className={`relative ${theme.headerValueWrapper} ${wrapperFlexClass} ${wrapperViewClass} border ${isEdit && visible ? ` border-blue-300` : `border-transparent`}`}
             style={style}
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => { if (!isMenuOpen) setHovered(false); }}
