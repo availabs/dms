@@ -387,7 +387,7 @@ const CardColumnField = ({
 
     return (
         <div
-            className={`relative ${theme.headerValueWrapper} ${wrapperFlexClass} ${wrapperViewClass} border ${isEdit && visible ? ` border-blue-300` : `border-transparent`}`}
+            className={`relative ${theme.headerValueWrapper} ${wrapperFlexClass} ${wrapperViewClass} border ${isEdit && visible ? ` border-blue-300` : compactView ? `border-transparent` : ``}`}
             style={style}
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => { if (!isMenuOpen) setHovered(false); }}
@@ -654,9 +654,9 @@ export default function ({
         compactView ? {backgroundColor: bgColor, padding, gap: colGap} :
             {
                 gridTemplateColumns: `repeat(${getGridSize(gridSize) || cardsWithoutSpanLength}, minmax(0, 1fr))`,
-                gap: gridGap || 2
+                gap: gridGap
             },
-        [compactView, bgColor, padding, colGap, gridSize, cardsWithoutSpanLength]);
+        [compactView, bgColor, padding, gridGap, colGap, gridSize, cardsWithoutSpanLength]);
 
     // Reordering function
     function handleDrop(targetCol) {
