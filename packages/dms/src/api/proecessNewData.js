@@ -151,15 +151,10 @@ async function loadDmsFormats (item,dmsAttrsConfigs, format, falcor, isDataByApp
         if(dmsFormatRequests.length > 0) {
             let newData;
 
-            const CHUNK_SIZE = 50;
-            for (let start = 0; start < dmsFormatRequests.length; start += CHUNK_SIZE) {
-                const chunk = dmsFormatRequests.slice(start, start + CHUNK_SIZE);
-                try {
-                    const chunkResult = await falcor.get(...chunk);
-                    newData = newData ? merge(newData, chunkResult) : chunkResult;
-                } catch (e) {
-                    console.error('Error getting data', e);
-                }
+            try{
+                newData = await falcor.get(...dmsFormatRequests)
+            }catch (e){
+                console.error('Error getting data')
             }
 
             // if dmstype isArray

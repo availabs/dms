@@ -54,7 +54,7 @@ const Comps = {
   }
 }
 
-const MenuItem = ({menuItem, setActiveParent, goBack, goHome, changeParent, activeStyle}) => {
+const MenuItem = ({menuItem, setActiveParent, goBack, goHome, changeParent, close, activeStyle}) => {
   const { theme: fullTheme = { navigableMenu: defaultTheme } } = React.useContext(ThemeContext) || {};
   const theme = getComponentTheme(fullTheme, 'navigableMenu', activeStyle);
 
@@ -83,7 +83,7 @@ const MenuItem = ({menuItem, setActiveParent, goBack, goHome, changeParent, acti
   if(typeof menuItem.type === 'function') {
     return (
       <div key={menuItem.name} className={`${theme?.menuItem}`}>
-        {menuItem.type(menuItem, { goBack, goHome, changeParent })}
+        {menuItem.type(menuItem, { goBack, goHome, changeParent, close })}
       </div>
     )
   }
@@ -130,6 +130,7 @@ const MenuItem = ({menuItem, setActiveParent, goBack, goHome, changeParent, acti
 
 
 const Menu = ({config, title, showTitle=true, showBreadcrumbs, open, setOpen, activeStyle}) => {
+  const close = useCallback(() => setOpen(false), [setOpen]);
   const menuRef = useRef();
   const { theme: fullTheme = { navigableMenu: defaultTheme } } = React.useContext(ThemeContext) || {};
   const theme = getComponentTheme(fullTheme, 'navigableMenu', activeStyle);
@@ -222,7 +223,7 @@ const Menu = ({config, title, showTitle=true, showBreadcrumbs, open, setOpen, ac
           .filter(({renderCdn, renderPos}) => (typeof renderCdn === 'function' ? renderCdn(activeParent) : typeof renderCdn === 'boolean' ? renderCdn : true) && renderPos === 'top')
           .map(menuItem => <MenuItem key={menuItem.id} menuItem={menuItem} setActiveParent={changeParent}
                                      goBack={goBack} goHome={goHome} changeParent={changeParent}
-                                     activeStyle={activeStyle}/>)}
+                                     close={close} activeStyle={activeStyle}/>)}
       {
         showSearch && <Input placeHolder={'search...'} value={search} onChange={e => setSearch(e.target.value)} />
       }
@@ -232,11 +233,11 @@ const Menu = ({config, title, showTitle=true, showBreadcrumbs, open, setOpen, ac
               <DraggableList
                   dataItems={menuItems}
                   onChange={value => config[activeParent].onReorder?.(value)}
-                  renderItem={({item: menuItem}) => <MenuItem key={menuItem.id} menuItem={menuItem} setActiveParent={changeParent} goBack={goBack} goHome={goHome} changeParent={changeParent} activeStyle={activeStyle} /> }
+                  renderItem={({item: menuItem}) => <MenuItem key={menuItem.id} menuItem={menuItem} setActiveParent={changeParent} goBack={goBack} goHome={goHome} changeParent={changeParent} close={close} activeStyle={activeStyle} /> }
               /> :
           menuItems
               .filter(({renderCdn, renderPos}) => (typeof renderCdn === 'function' ? renderCdn(activeParent) : typeof renderCdn === 'boolean' ? renderCdn : true) && renderPos !== 'top')
-              .map(menuItem => <MenuItem key={menuItem.id} menuItem={menuItem} setActiveParent={changeParent} goBack={goBack} goHome={goHome} changeParent={changeParent} activeStyle={activeStyle} />)
+              .map(menuItem => <MenuItem key={menuItem.id} menuItem={menuItem} setActiveParent={changeParent} goBack={goBack} goHome={goHome} changeParent={changeParent} close={close} activeStyle={activeStyle} />)
         }
       </div>
     </div>
@@ -285,7 +286,7 @@ const flattenConfig = (config, parent) => {
 // @params btnVisibleOnGroupHover: hides button until group is hovered. parent needs to have group class.
 export default function NavigableMenu({
 config=defaultItems, title, showTitle, showBreadcrumbs,
-btnVisibleOnGroupHover, defaultOpen, preferredPosition, activeStyle, preventCloseOnClickOutside, hideIfOutOfView, children
+btnVisibleOnGroupHover, defaultOpen, preferredPosition, activeStyle, preventCloseOnClickOutside, hideIfOutOfView, onOpenChange, children
 }) {
   const { theme: fullTheme = { navigableMenu: defaultTheme } } = React.useContext(ThemeContext) || {};
   const theme = getComponentTheme(fullTheme, 'navigableMenu', activeStyle);
@@ -310,6 +311,7 @@ btnVisibleOnGroupHover, defaultOpen, preferredPosition, activeStyle, preventClos
       preferredPosition={preferredPosition}
       preventCloseOnClickOutside={preventCloseOnClickOutside}
       hideIfOutOfView={hideIfOutOfView}
+      onOpenChange={onOpenChange}
     >
       {
         ({open, setOpen}) => (

@@ -19,6 +19,14 @@ const getColIdName = col => col.normalName || col.name;
 function buildCardColumnMenuItems({ attribute, controls, display, isEdit, setState }) {
     const colIdName = getColIdName(attribute);
 
+    const moveColumn = (direction) => setState(draft => {
+        const idx = draft.columns.findIndex(col => getColIdName(col) === colIdName);
+        const newIdx = idx + direction;
+        if (newIdx < 0 || newIdx >= draft.columns.length) return;
+        const [removed] = draft.columns.splice(idx, 1);
+        draft.columns.splice(newIdx, 0, removed);
+    });
+
     const updateColumns = (key, value, onChange, dataFetch) => setState(draft => {
         const idx = draft.columns.findIndex(col => getColIdName(col) === colIdName);
         if (idx !== -1) {
@@ -66,16 +74,30 @@ function buildCardColumnMenuItems({ attribute, controls, display, isEdit, setSta
             typeof displayCdn === 'function' ? displayCdn({ attribute, display, isEdit }) :
             typeof displayCdn === 'boolean' ? displayCdn : true
         )
-        .map(({ type, inputType, label, key, dataFetch, options, onChange }) => {
+        .map(({ type, inputType, label, key, dataFetch, options, onChange, renderPos, renderCdn }) => {
+            if (type === 'separator') {
+                return {
+                    name: label || `sep_${key || Math.random()}`,
+                    type: 'separator',
+                    ...(renderPos !== undefined && { renderPos }),
+                    ...(renderCdn !== undefined && { renderCdn }),
+                };
+            }
             if (typeof type === 'function') {
                 return {
                     name: label || key || 'control',
                     noHover: true,
-                    type: () => type({
+                    ...(renderPos !== undefined && { renderPos }),
+                    ...(renderCdn !== undefined && { renderCdn }),
+                    type: (menuItem, { close, goBack, goHome } = {}) => type({
                         value: attribute[key],
                         setValue: v => updateColumns(key, v, onChange, dataFetch),
                         attribute,
-                        setAttribute: v => updateColumns(undefined, v, onChange, dataFetch)
+                        setAttribute: v => updateColumns(undefined, v, onChange, dataFetch),
+                        moveColumn,
+                        close,
+                        goBack,
+                        goHome
                     })
                 };
             }
@@ -282,6 +304,8 @@ const CardColumnField = ({
     pickerLeft, pickerRight, pickerTop, pickerBottom,
 }) => {
     const [hovered, setHovered] = useState(false);
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const visible = hovered || isMenuOpen;
     const {isLink, isLinkExternal, location, linkText, isImg, imageSrc, imageLocation, imageExtension, imageSize, imageMargin} = attr || {};
     const span = compactView ? 'span 1' : `span ${attr.cardSpan || 1}`;
     const rawValue = attr.origin === 'static'
@@ -343,23 +367,24 @@ const CardColumnField = ({
     const isRowLayout = !headerValueLayout || headerValueLayout === 'row';
 
     const menuButton = hasMenu && (
-        <span className={`shrink-0 ${hovered ? 'opacity-100' : 'opacity-0'}`}>
+        <span className={`shrink-0 ${visible ? 'opacity-100' : 'opacity-0'}`}>
             <NavigableMenu
                 config={buildCardColumnMenuItems({ attribute: attr, controls, display, isEdit, setState })}
                 title={attr.customName || attr.display_name || attr.normalName || attr.name}
                 preferredPosition={'right'}
                 showTitle={false}
                 showBreadcrumbs={true}
+                onOpenChange={setIsMenuOpen}
             />
         </span>
     );
 
     return (
         <div
-            className={`relative ${theme.headerValueWrapper} ${wrapperFlexClass} ${wrapperViewClass}`}
+            className={`relative ${theme.headerValueWrapper} ${wrapperFlexClass} ${wrapperViewClass} ${isEdit && visible ? `border border-blue-300` : ``}`}
             style={style}
             onMouseEnter={() => setHovered(true)}
-            onMouseLeave={() => setHovered(false)}
+            onMouseLeave={() => { if (!isMenuOpen) setHovered(false); }}
         >
             {pickerLeft}
             {pickerRight}
@@ -471,6 +496,7 @@ const RenderItem = memo(function RenderItem ({
                                              }) {
     const [tmpItem, setTmpItem] = useState(item || {}); // for form edit controls
     const [cardHovered, setCardHovered] = useState(false);
+    const [isPickerOpen, setIsPickerOpen] = useState(false);
 
     useEffect(() => {
         setTmpItem(item)
@@ -486,6 +512,7 @@ const RenderItem = memo(function RenderItem ({
         FormulaColumnModal: controls?.FormulaColumnModal,
         CalculatedColumnModal: controls?.CalculatedColumnModal,
         parentHovered: cardHovered,
+        setIsPickerOpen,
         triggerClassName: 'w-fit',
     } : null;
 
@@ -495,7 +522,7 @@ const RenderItem = memo(function RenderItem ({
             className={`${theme.subWrapper} ${compactView ? `${theme.subWrapperCompactView} ${removeBorder ? `` : 'border shadow'}` : `${theme.subWrapperSimpleView} ${addBorder ? `border shadow rounded-md` : ``}`} `}
             style={subWrapperStyle}
             onMouseEnter={() => setCardHovered(true)}
-            onMouseLeave={() => setCardHovered(false)}
+            onMouseLeave={() => !isPickerOpen && setCardHovered(false)}
         >
             {
                 visibleColumns.map((attr, i) => {
@@ -525,11 +552,11 @@ const RenderItem = memo(function RenderItem ({
                             triggerClassName="absolute left-0 right-0 top-0 -translate-y-1/2 h-4 z-20 flex items-center justify-center"
                         />
                     ) : null;
-                    const pickerBottom = (pickerProps && compactView && isLast) ? (
+                    const pickerBottom = (pickerProps && compactView) ? (
                         <CardColumnPicker
                             insertAt={insertAtAfter}
                             {...pickerProps}
-                            triggerClassName="absolute left-0 right-0 bottom-0 h-4 z-20 flex items-center justify-center"
+                            triggerClassName="absolute left-0 right-0 bottom-0 translate-y-1/2 h-4 z-20 flex items-center justify-center"
                         />
                     ) : null;
                     return (

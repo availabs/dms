@@ -1,4 +1,4 @@
-import React, {useContext} from "react";
+import React, {useContext, useState} from "react";
 import { ComponentContext } from "../../../../context";
 import { ThemeContext } from "../../../../../../ui/useTheme";
 import {formatFunctions} from "../dataWrapper/utils/utils";
@@ -114,23 +114,57 @@ const handlePaste = async (attribute, setAttribute) => {
 
 const inHeader = [
     // settings from in header dropdown are stored in the columns array per column.
-    {type: ({attribute, setAttribute}) => {
+    {type: ({attribute, setAttribute, moveColumn, close}) => {
         const {UI} = useContext(ThemeContext);
-        const {Button} = UI;
+        const {Pill, Icon} = UI;
+        const [copied, setCopied] = useState(false);
         const {
             justify, formatFn, headerFontStyle, valueFontStyle, hideHeader, hideValue, bgColor, cardSpan, wrapText
         } = attribute;
-        const objToCopy = {justify, formatFn, headerFontStyle, valueFontStyle, hideHeader, hideValue, bgColor, cardSpan, wrapText}
+        const objToCopy = {justify, formatFn, headerFontStyle, valueFontStyle, hideHeader, hideValue, bgColor, cardSpan, wrapText};
 
-
-            return (
-                <div className={'flex'}>
-                    <Button onClick={() => handleCopy(objToCopy)}>copy format</Button>
-                    <Button onClick={() => handlePaste(attribute, setAttribute)}>paste format</Button>
+        return (
+            <div className={'w-full flex justify-between gap-1'}>
+                <div className={'flex gap-1'}>
+                    <Pill color={'blue'} text={<Icon icon={'ChevronUpSquare'} className={'size-5'} />} title={'Move Up'}
+                          onClick={() => moveColumn(-1)} />
+                    <Pill color={'blue'} text={<Icon icon={'ChevronDownSquare'} className={'size-5'} />} title={'Move Down'}
+                          onClick={() => moveColumn(1)} />
+                    <Pill color={copied ? 'green' : 'blue'} text={<Icon icon={'Copy'} className={'size-5'} />}
+                          title={'Copy Format'}
+                          onClick={() => {
+                              handleCopy(objToCopy);
+                              setCopied(true);
+                              setTimeout(() => setCopied(false), 2000);
+                          }} />
+                    <Pill color={'blue'} text={<Icon icon={'Paste'} className={'size-5'} />} title={'Paste Format'}
+                          onClick={() => handlePaste(attribute, setAttribute)} />
                 </div>
-            )
-        },
-        label: 'format controls', key: '', hideFromSectionMenu: true, displayCdn: ({isEdit}) => isEdit},
+                <Pill color={'orange'} text={<Icon icon={'CancelCircle'} className={'size-5'} />} title={'Close'}
+                      onClick={close} />
+            </div>
+        );
+    },
+    label: 'column actions', key: '', hideFromSectionMenu: true, displayCdn: ({isEdit}) => isEdit,
+    renderPos: 'top', renderCdn: activeParent => !activeParent},
+    {type: ({close, goBack, goHome}) => {
+        const {UI} = useContext(ThemeContext);
+        const {Pill, Icon} = UI;
+        return (
+            <div className={'w-full flex justify-between gap-1'}>
+                <div className={'flex gap-1'}>
+                    <Pill color={'blue'} text={<Icon icon={'ArrowLeft'} className={'size-5'} />} title={'Back'} onClick={goBack} />
+                    <Pill color={'blue'} text={<Icon icon={'Home'} className={'size-5'} />} title={'Home'} onClick={goHome} />
+                </div>
+                <Pill color={'orange'} text={<Icon icon={'CancelCircle'} className={'size-5'} />} title={'Close'}
+                      onClick={close} />
+            </div>
+        );
+    },
+    label: 'column sub actions', key: '', hideFromSectionMenu: true,
+    renderPos: 'top', renderCdn: activeParent => !!activeParent},
+    {type: 'separator', key: 'toolbar-sep', label: 'toolbar-sep', hideFromSectionMenu: true,
+     renderPos: 'top', renderCdn: () => true},
 
     {type: 'textarea', label: 'Description', key: 'description', displayCdn: ({isEdit}) => isEdit},
     {type: 'toggle', label: 'Allow Edit', key: 'allowEditInView', displayCdn: ({isEdit}) => isEdit},

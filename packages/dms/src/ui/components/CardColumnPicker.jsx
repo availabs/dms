@@ -33,12 +33,12 @@ const StaticColumnForm = ({ insertAt, setState, setOpen }) => {
     return (
         <div className="flex flex-col gap-1">
             <Input
-                placeholder="Display name"
+                placeHolder="Display name"
                 value={displayName}
                 onChange={e => setDisplayName(e.target.value)}
             />
             <Input
-                placeholder="Static value (optional)"
+                placeHolder="Static value (optional)"
                 value={value}
                 onChange={e => setValue(e.target.value)}
             />
@@ -105,7 +105,7 @@ const ColumnSearch = ({ allColumns, sourceColumns, insertAt, setState, setOpen }
     return (
         <div className="flex flex-col gap-1">
             <Input
-                placeholder="Search columns to add..."
+                placeHolder="Search columns to add..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 onFocus={() => setFocused(true)}
@@ -169,6 +169,7 @@ export default function CardColumnPicker({
     CalculatedColumnModal,
     triggerClassName = '',
     parentHovered = false,
+    setIsPickerOpen=() => {},
     orientation = 'icon', // 'horizontal' | 'vertical' | 'icon'
 }) {
     const allColumns = useMemo(() => {
@@ -239,13 +240,14 @@ export default function CardColumnPicker({
             className={`${visible ? 'opacity-100' : 'opacity-0'} hover:opacity-100 ${triggerClassName}`}
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => setHovered(false)}
+            onClick={() => showStaticForm && setShowStaticForm(false)}
         >
             {triggerContent}
         </div>
     );
 
     return (
-        <Popup button={trigger} preferredPosition="bottom">
+        <Popup button={trigger} preferredPosition="bottom" onOpenChange={setIsPickerOpen}>
             {({ open, setOpen }) => open ? (
                 <div className="flex flex-col gap-2 p-2 w-64 bg-white border rounded shadow-lg">
                     {(FormulaColumnModal || CalculatedColumnModal) && (
@@ -285,13 +287,17 @@ export default function CardColumnPicker({
                             setOpen={(v) => { setOpen(v); if (!v) setShowStaticForm(false); }}
                         />
                     )}
-                    <ColumnSearch
-                        allColumns={allColumns}
-                        sourceColumns={sourceColumns}
-                        insertAt={insertAt}
-                        setState={setState}
-                        setOpen={setOpen}
-                    />
+                    {
+                        !showStaticForm && (
+                            <ColumnSearch
+                                allColumns={allColumns}
+                                sourceColumns={sourceColumns}
+                                insertAt={insertAt}
+                                setState={setState}
+                                setOpen={setOpen}
+                            />
+                        )
+                    }
                 </div>
             ) : null}
         </Popup>
