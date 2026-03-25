@@ -235,19 +235,14 @@ export default function CardColumnPicker({
         </div>
     );
 
-    const trigger = (
+    return (
         <div
             className={`${visible ? 'opacity-100' : 'opacity-0'} hover:opacity-100 ${triggerClassName}`}
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => setHovered(false)}
             onClick={() => showStaticForm && setShowStaticForm(false)}
         >
-            {triggerContent}
-        </div>
-    );
-
-    return (
-        <Popup button={trigger} preferredPosition="bottom" onOpenChange={setIsPickerOpen}>
+        <Popup button={<div>{triggerContent}</div>} preferredPosition="bottom" onOpenChange={setIsPickerOpen}>
             {({ open, setOpen }) => open ? (
                 <div className="flex flex-col gap-2 p-2 w-64 bg-white border rounded shadow-lg">
                     {(FormulaColumnModal || CalculatedColumnModal) && (
@@ -301,5 +296,6 @@ export default function CardColumnPicker({
                 </div>
             ) : null}
         </Popup>
+        </div>
     );
 }
