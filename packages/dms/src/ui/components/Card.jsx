@@ -668,32 +668,32 @@ export default function ({
 
     return (
         <>
-            {
-                isEdit ? (
-                    <div className="flex flex-wrap items-start gap-y-1 overflow-x-auto">
-                        {
-                            visibleColumns.map((attribute, i) => (
-                                <div
-                                    key={`col-header-${i}`}
-                                    className={theme.columnControlHeaderWrapper}
-                                    draggable
-                                    onDragStart={() => setDraggedCol(attribute)}
-                                    onDragOver={e => e.preventDefault()}
-                                    onDrop={() => handleDrop(attribute)}
-                                >
-                                    <TableHeaderCell
-                                        isEdit={isEdit}
-                                        attribute={attribute}
-                                        columns={columns}
-                                        display={display} controls={controls} setState={setState}
-                                        activeStyle={activeStyle}
-                                    />
-                                </div>
-                            ))
-                        }
-                    </div>
-                ) : null
-            }
+            {/*{*/}
+            {/*    isEdit ? (*/}
+            {/*        <div className="flex flex-wrap items-start gap-y-1 overflow-x-auto">*/}
+            {/*            {*/}
+            {/*                visibleColumns.map((attribute, i) => (*/}
+            {/*                    <div*/}
+            {/*                        key={`col-header-${i}`}*/}
+            {/*                        className={theme.columnControlHeaderWrapper}*/}
+            {/*                        draggable*/}
+            {/*                        onDragStart={() => setDraggedCol(attribute)}*/}
+            {/*                        onDragOver={e => e.preventDefault()}*/}
+            {/*                        onDrop={() => handleDrop(attribute)}*/}
+            {/*                    >*/}
+            {/*                        <TableHeaderCell*/}
+            {/*                            isEdit={isEdit}*/}
+            {/*                            attribute={attribute}*/}
+            {/*                            columns={columns}*/}
+            {/*                            display={display} controls={controls} setState={setState}*/}
+            {/*                            activeStyle={activeStyle}*/}
+            {/*                        />*/}
+            {/*                    </div>*/}
+            {/*                ))*/}
+            {/*            }*/}
+            {/*        </div>*/}
+            {/*    ) : null*/}
+            {/*}*/}
 
             {/* outer wrapper: in compact view, grid applies here */}
             <div className={gridSize && compactView ? theme.mainWrapperCompactView : theme.mainWrapperSimpleView} style={mainWrapperStyle}>
