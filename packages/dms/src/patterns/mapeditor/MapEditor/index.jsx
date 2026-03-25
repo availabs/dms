@@ -1007,7 +1007,7 @@ const MapEditor = props => {
   //console.log("---mapeditor index state::", state)
   return (
     <SymbologyContext.Provider value={ SymbologyContextValue }>
-      <div className="w-full h-full relative" ref={ mounted }>
+      <div className="w-screen h-screen relative" ref={ mounted }>
         <AvlMap2
           layers={ mapLayers }
           layerProps={ layerProps }
