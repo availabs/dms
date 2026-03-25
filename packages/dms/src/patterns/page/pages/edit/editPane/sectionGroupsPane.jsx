@@ -152,11 +152,7 @@ export default function SectionGroupsPane () {
           id: g.name,
           index: g.index || 0,
           parent: target,
-<<<<<<< HEAD
           children: (item?.draft_sections || []).filter(s => s.group === g.name || (!s.group && g.name === 'default')).map(s => ({id: s.id, type: s?.element?.['element-type']}))
-=======
-          children: (item.draft_sections || []).filter(s => s.group === g.name || (!s.group && g.name === 'default')).map(s => ({id: s.id, type: s?.element?.['element-type']}))
->>>>>>> 4e2f92ed59cfd309a1841b42ca3ff9fe0654d84d
         }))
       }
     })
@@ -174,11 +170,7 @@ export default function SectionGroupsPane () {
         theme: group.theme,
         position: group.position,
         name: group.name,
-<<<<<<< HEAD
         children: (item?.draft_sections || []).filter(s => s.group === group.name || (!s.group && group.name === 'default')).map((s, idx) => ({id: s.id, index: idx, type: s?.element?.['element-type'], title: s?.title}))
-=======
-        children: (item.draft_sections || []).filter(s => s.group === group.name || (!s.group && group.name === 'default')).map((s, idx) => ({id: s.id, index: idx, type: s?.element?.['element-type'], title: s?.title}))
->>>>>>> 4e2f92ed59cfd309a1841b42ca3ff9fe0654d84d
       }
 
       // Add children sections as items
