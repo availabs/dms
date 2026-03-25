@@ -27,6 +27,11 @@ function buildCardColumnMenuItems({ attribute, controls, display, isEdit, setSta
         draft.columns.splice(newIdx, 0, removed);
     });
 
+    const removeColumn = () => setState(draft => {
+        const idx = draft.columns.findIndex(col => getColIdName(col) === colIdName);
+        if (idx !== -1) draft.columns.splice(idx, 1);
+    });
+
     const updateColumns = (key, value, onChange, dataFetch) => setState(draft => {
         const idx = draft.columns.findIndex(col => getColIdName(col) === colIdName);
         if (idx !== -1) {
@@ -95,6 +100,7 @@ function buildCardColumnMenuItems({ attribute, controls, display, isEdit, setSta
                         attribute,
                         setAttribute: v => updateColumns(undefined, v, onChange, dataFetch),
                         moveColumn,
+                        removeColumn,
                         close,
                         goBack,
                         goHome

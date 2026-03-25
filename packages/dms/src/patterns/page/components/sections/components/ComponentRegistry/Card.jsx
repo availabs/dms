@@ -114,7 +114,7 @@ const handlePaste = async (attribute, setAttribute) => {
 
 const inHeader = [
     // settings from in header dropdown are stored in the columns array per column.
-    {type: ({attribute, setAttribute, moveColumn, close}) => {
+    {type: ({attribute, setAttribute, moveColumn, removeColumn, close}) => {
         const {UI} = useContext(ThemeContext);
         const {Pill, Icon} = UI;
         const [copied, setCopied] = useState(false);
@@ -140,8 +140,13 @@ const inHeader = [
                     <Pill color={'blue'} text={<Icon icon={'Paste'} className={'size-5'} />} title={'Paste Format'}
                           onClick={() => handlePaste(attribute, setAttribute)} />
                 </div>
-                <Pill color={'orange'} text={<Icon icon={'CancelCircle'} className={'size-5'} />} title={'Close'}
-                      onClick={close} />
+
+                <div className={'flex gap-1'}>
+                    <Pill color={'orange'} text={<Icon icon={'TrashCan'} className={'size-5'} />} title={'Remove'}
+                          onClick={removeColumn} />
+                    <Pill color={'orange'} text={<Icon icon={'CancelCircle'} className={'size-5'} />} title={'Close'}
+                          onClick={close} />
+                </div>
             </div>
         );
     },
