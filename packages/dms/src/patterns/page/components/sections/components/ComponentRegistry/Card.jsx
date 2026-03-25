@@ -4,6 +4,8 @@ import { ThemeContext } from "../../../../../../ui/useTheme";
 import {formatFunctions} from "../dataWrapper/utils/utils";
 import ColorControls from "./sharedControls/ColorControls";
 import {ToggleControl} from "../dataWrapper/components/ToggleControl";
+import AddFormulaColumn from "../../AddFormulaColumn";
+import AddCalculatedColumn from "../../AddCalculatedColumn";
 
 const fontStyleOptions = [
     { label: '', value: '' },
@@ -53,7 +55,12 @@ const Card = ({
     const {Card} = UI;
     const {state, setState, controls={}} = useContext(ComponentContext);
 
-    return <Card columns={state.columns} data={state.data} display={state.display} sourceInfo={state.sourceInfo} setState={setState} controls={controls}
+    return <Card columns={state.columns} data={state.data} display={state.display} sourceInfo={state.sourceInfo} setState={setState}
+                 controls={{
+                     ...controls,
+                     FormulaColumnModal: AddFormulaColumn,
+                     CalculatedColumnModal: AddCalculatedColumn,
+                 }}
                  isEdit={isEdit} updateItem={updateItem} addItem={addItem} newItem={newItem} setNewItem={setNewItem} allowEdit={allowEdit}
                  formatFunctions={formatFunctions}
     />

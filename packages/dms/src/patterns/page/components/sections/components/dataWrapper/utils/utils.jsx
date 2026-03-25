@@ -428,7 +428,7 @@ export const getData = async ({
 
     debugTime && console.timeEnd('columnsWithSettings')
     const columnsToFetch = columnsWithSettings.filter(
-    (column) => column.show /*&& !column.isDuplicate*/ && column.type !== "formula",
+    (column) => column.show /*&& !column.isDuplicate*/ && column.type !== "formula" && column.origin !== "static",
   );
   // collect variables used in formula columns, and add them to fetch list
   const formulaVariableColumns = columnsWithSettings
@@ -767,10 +767,10 @@ export const getData = async ({
     let nonGroupedColumnsLength = 0;
 
     for (const col of columnsWithSettings) {
-        if (col.show) visibleColumnsLength++;
+        if (col.show && col.origin !== 'static') visibleColumnsLength++;
         if (col.group) groupedColumnsLength++;
         if (col.fn) fnColumnsLength++;
-        if (col.show && !col.group) nonGroupedColumnsLength++;
+        if (col.show && !col.group && col.origin !== 'static') nonGroupedColumnsLength++;
     }
 
   // no column is grouped by, and fns don't equal visible columns (using length but maybe more nuanced matching can be used)
