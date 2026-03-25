@@ -171,13 +171,7 @@ const inHeader = [
     {type: 'separator', key: 'toolbar-sep', label: 'toolbar-sep', hideFromSectionMenu: true,
      renderPos: 'top', renderCdn: () => true},
 
-    {type: 'textarea', label: 'Description', key: 'description', displayCdn: ({isEdit}) => isEdit},
-    {type: 'toggle', label: 'Allow Edit', key: 'allowEditInView', displayCdn: ({isEdit}) => isEdit},
-
-    {type: 'select', label: 'Sort', key: 'sort',
-        options: [
-            {label: 'Not Sorted', value: ''}, {label: 'A->Z', value: 'asc nulls last'}, {label: 'Z->A', value: 'desc nulls last'}
-        ]},
+    // display
     {type: 'select', label: 'Justify', key: 'justify', isBatchUpdatable: true,
         options: [
             {label: 'Not Justified', value: ''},
@@ -198,15 +192,19 @@ const inHeader = [
             {label: 'Icon', value: 'icon'},
             {label: 'Color', value: 'color'},
         ]},
+    {type: 'select', label: 'Header', key: 'headerFontStyle', options: fontStyleOptions, isBatchUpdatable: true, displayCdn: ({attribute}) => !attribute.hideHeader},
+    {type: 'select', label: 'Value', key: 'valueFontStyle', options: fontStyleOptions, isBatchUpdatable: true, displayCdn: ({attribute}) => !attribute.hideValue},
 
+    {type: 'separator', key: 'toolbar-sep', label: 'toolbar-sep', hideFromSectionMenu: true},
+    // layout
     {type: 'toggle', label: 'Border Below', key: 'borderBelow', displayCdn: ({display}) => display.compactView},
     {type: 'input', inputType: 'number', label: 'Padding Below', key: 'pb', isBatchUpdatable: true, displayCdn: ({display}) => display.compactView},
     {type: 'toggle', label: 'Hide Header', key: 'hideHeader', isBatchUpdatable: true},
     {type: 'toggle', label: 'Hide Value', key: 'hideValue', isBatchUpdatable: true},
-    {type: 'select', label: 'Header', key: 'headerFontStyle', options: fontStyleOptions, isBatchUpdatable: true, displayCdn: ({attribute}) => !attribute.hideHeader},
-    {type: 'select', label: 'Value', key: 'valueFontStyle', options: fontStyleOptions, isBatchUpdatable: true, displayCdn: ({attribute}) => !attribute.hideValue},
-
     {type: 'input', inputType: 'number', label: 'Span', key: 'cardSpan', displayCdn: ({display}) => !display.compactView},
+    {type: 'separator', key: 'toolbar-sep', label: 'toolbar-sep', hideFromSectionMenu: true},
+    // other
+    {type: 'toggle', label: 'Allow Edit', key: 'allowEditInView', displayCdn: ({isEdit}) => isEdit},
 
     // link controls
     {type: 'toggle', label: 'Is Link', key: 'isLink', displayCdn: ({isEdit}) => isEdit},
@@ -243,8 +241,11 @@ const inHeader = [
         ],
         displayCdn: ({attribute, isEdit}) => isEdit && attribute.isImg},
     {type: 'input', inputType: 'number', label: 'Image Top Margin', key: 'imageMargin', displayCdn: ({attribute, isEdit}) => isEdit && attribute.isImg},
-
-
+    {type: 'select', label: 'Sort', key: 'sort',
+        options: [
+            {label: 'Not Sorted', value: ''}, {label: 'A->Z', value: 'asc nulls last'}, {label: 'Z->A', value: 'desc nulls last'}
+        ]},
+    {type: 'textarea', label: 'Description', key: 'description', displayCdn: ({isEdit}) => isEdit},
     {type: ({value, setValue}) => (<ColorControls value={value} setValue={setValue} title={'Background Color'}/>), key: 'bgColor', displayCdn: ({display}) => !display.compactView}
 ];
 
