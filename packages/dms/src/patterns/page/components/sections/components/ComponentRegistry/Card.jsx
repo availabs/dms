@@ -4,6 +4,8 @@ import { ThemeContext } from "../../../../../../ui/useTheme";
 import {formatFunctions} from "../dataWrapper/utils/utils";
 import ColorControls from "./sharedControls/ColorControls";
 import {ToggleControl} from "../dataWrapper/components/ToggleControl";
+import AddFormulaColumn from "../../AddFormulaColumn";
+import AddCalculatedColumn from "../../AddCalculatedColumn";
 
 const fontStyleOptions = [
     { label: '', value: '' },
@@ -53,7 +55,12 @@ const Card = ({
     const {Card} = UI;
     const {state, setState, controls={}} = useContext(ComponentContext);
 
-    return <Card columns={state.columns} data={state.data} display={state.display} sourceInfo={state.sourceInfo} setState={setState} controls={controls}
+    return <Card columns={state.columns} data={state.data} display={state.display} sourceInfo={state.sourceInfo} setState={setState}
+                 controls={{
+                     ...controls,
+                     FormulaColumnModal: AddFormulaColumn,
+                     CalculatedColumnModal: AddCalculatedColumn,
+                 }}
                  isEdit={isEdit} updateItem={updateItem} addItem={addItem} newItem={newItem} setNewItem={setNewItem} allowEdit={allowEdit}
                  formatFunctions={formatFunctions}
     />
@@ -236,21 +243,26 @@ export default {
         ],
         more: [
             // settings from more dropdown are stored in state.display
+            {type: 'select', label: 'Each Card Represents', key: 'compactView', onClickGoBack: true, defaultValue: false,
+                options: [{label: 'a row', value: true}, {label: 'a cell', value: false}]},
+            {label: 'Grid Settings', items: [
+                    {type: 'input', inputType: 'number', label: 'Grid Size', key: 'gridSize'},
+                    {type: 'input', inputType: 'number', label: 'Grid Gap', key: 'gridGap'},
+                    {type: 'input', inputType: 'number', label: 'Padding', key: 'padding'},
+                    {type: 'input', inputType: 'number', label: 'Column Gap', key: 'colGap', displayCdn: ({display}) => display.compactView},
+                ]},
+            {label: 'Default Column Settings', items: [
+                    {type: 'select', label: 'Value Placement', key: 'headerValueLayout', onClickGoBack: true, defaultValue: 'row', options: [{label: `Inline`, value: 'row'}, {label: `Stacked`, value: 'col'}]},
+                    {type: 'toggle', label: 'Reverse Placement', key: 'reverse', displayCdn: ({display}) => display.headerValueLayout === 'col'},
+                    {type: 'input', inputType: 'number', label: 'Header Width', key: 'headerWidth', displayCdn: ({display}) => !display.headerValueLayout || display.headerValueLayout === 'row'},
+                    {type: 'input', inputType: 'number', label: 'Value Width', key: 'valueWidth', displayCdn: ({display}) => !display.headerValueLayout || display.headerValueLayout === 'row'},
+                ]},
             {type: 'toggle', label: 'Attribution', key: 'showAttribution'},
-            {type: 'toggle', label: 'Compact View', key: 'compactView'},
-            {type: 'input', inputType: 'number', label: 'Grid Size', key: 'gridSize'},
-            {type: 'input', inputType: 'number', label: 'Grid Gap', key: 'gridGap'},
-            {type: 'input', inputType: 'number', label: 'Padding', key: 'padding'},
-            {type: 'input', inputType: 'number', label: 'Column Gap', key: 'colGap', displayCdn: ({display}) => display.compactView},
-            {type: 'select', label: 'Value Placement', key: 'headerValueLayout', options: [{label: `Inline`, value: 'row'}, {label: `Stacked`, value: 'col'}]},
-            {type: 'input', inputType: 'number', label: 'Header Width', key: 'headerWidth', displayCdn: ({display}) => display.headerValueLayout === 'row'},
-            {type: 'input', inputType: 'number', label: 'Value Width', key: 'valueWidth', displayCdn: ({display}) => display.headerValueLayout === 'row'},
-            {type: 'toggle', label: 'Reverse', key: 'reverse'},
             {type: 'toggle', label: 'Hide if No Data', key: 'hideIfNull'},
-            {type: 'toggle', label: 'Column Border', key: 'removeBorder', negate: true, displayCdn: ({display}) => !display.compactView},
-            {type: 'toggle', label: 'Row Border', key: 'removeBorder', negate: true, displayCdn: ({display}) => display.compactView},
             {type: 'toggle', label: 'Row Border', key: 'addBorder', displayCdn: ({display}) => !display.compactView},
-            {type: 'toggle', label: 'Column Border', key: 'addBorder', displayCdn: ({display}) => display.compactView},
+            {type: 'toggle', label: 'Cell Border', key: 'removeBorder', negate: true, displayCdn: ({display}) => !display.compactView},
+            {type: 'toggle', label: 'Row Border', key: 'removeBorder', negate: true, displayCdn: ({display}) => display.compactView},
+            {type: 'toggle', label: 'Cell Border', key: 'addBorder', displayCdn: ({display}) => display.compactView},
             {type: 'toggle', label: 'Use Pagination', key: 'usePagination'},
             {type: 'input', inputType: 'number', label: 'Page Size', key: 'pageSize', displayCdn: ({display}) => display.usePagination === true},
             {type: ({value, setValue}) => <ColorControls value={value} setValue={setValue} title={'Background Color'}/>, key: 'bgColor', displayCdn: ({display}) => display.compactView},

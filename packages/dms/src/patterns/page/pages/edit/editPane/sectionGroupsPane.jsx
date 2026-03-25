@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react'
+import {useNavigate, useLocation} from 'react-router';
 import { cloneDeep, set } from 'lodash-es'
 
 import { CMSContext, PageContext } from '../../../context'
@@ -9,6 +10,8 @@ const SECTION_TARGETS = ['top', 'content', 'bottom']
 function SectionGroupControl ({group, fullGroupData, onDelete, onUpdateAttribute, onAdd, theme, isSection}) {
   const { UI } = React.useContext(ThemeContext) || {};
   const { NavigableMenu, Icon } = UI;
+  const navigate = useNavigate();
+  const {hash} = useLocation();
 
   // Section headers are not draggable or editable
   if (isSection) {
@@ -52,21 +55,28 @@ function SectionGroupControl ({group, fullGroupData, onDelete, onUpdateAttribute
       { type: 'separator' },
       { icon: 'TrashCan', name: 'Delete', onClick: onDelete }
   ]
-
+  const isPageSection = !!fullGroupData.url_slug
+  const isSectionActive = hash === `#${group.id}`;
   return (
-    <div className='group border border-slate-200 rounded-lg px-4 py-3 flex justify-between items-center bg-white hover:border-slate-300 hover:shadow-sm transition-all cursor-grab'>
-      <div className='flex items-center gap-3'>
-        <Icon icon='GripVertical' className='size-4 text-slate-300 group-hover:text-slate-400' />
-        <span className='text-sm font-medium text-slate-700'>{group?.title || group?.id}</span>
-      </div>
-      <div className='opacity-0 group-hover:opacity-100 transition-opacity'>
-        <NavigableMenu
-          config={menuConfig}
-          title={'Group Settings'}
-          preferredPosition={'left'}
-        />
-      </div>
-    </div>
+      <>
+        <div className={`group ${isSectionActive ? `border border-dashed border-orange-200 hover:border-orange-300` : `border border-slate-200 hover:border-slate-300`} rounded-lg px-4 py-3 flex justify-between items-center bg-white hover:shadow-sm transition-all ${isPageSection ? `cursor-pointer` : `cursor-grab`}`}
+             onClick={() => isPageSection && navigate(fullGroupData.url_slug)}>
+          <div className='flex items-center gap-3'>
+            <Icon icon='GripVertical' className='size-4 text-slate-300 group-hover:text-slate-400' />
+            <span className='text-sm font-medium text-slate-700'>{group?.title || group?.id}</span>
+          </div>
+          {
+            fullGroupData.isGroup ?
+                <div className='opacity-0 group-hover:opacity-100 transition-opacity'>
+                  <NavigableMenu
+                      config={menuConfig}
+                      title={'Group Settings'}
+                      preferredPosition={'left'}
+                  />
+                </div> : null
+          }
+        </div>
+      </>
   )
 }
 
@@ -141,7 +151,8 @@ export default function SectionGroupsPane () {
         children: childGroups.map(g => ({
           id: g.name,
           index: g.index || 0,
-          parent: target
+          parent: target,
+          children: (item?.draft_sections || []).filter(s => s.group === g.name || (!s.group && g.name === 'default')).map(s => ({id: s.id, type: s?.element?.['element-type']}))
         }))
       }
     })
@@ -150,6 +161,7 @@ export default function SectionGroupsPane () {
     groups.forEach(group => {
       result[group.name] = {
         id: group.name,
+        isGroup: true,
         index: group.index || 0,
         title: group.displayName || group.name,
         displayName: group.displayName || group.name,
@@ -158,12 +170,17 @@ export default function SectionGroupsPane () {
         theme: group.theme,
         position: group.position,
         name: group.name,
-        children: []
+        children: (item?.draft_sections || []).filter(s => s.group === group.name || (!s.group && group.name === 'default')).map((s, idx) => ({id: s.id, index: idx, type: s?.element?.['element-type'], title: s?.title}))
       }
+
+      // Add children sections as items
+      result[group.name].children.forEach(s => {
+        result[s.id] = {id: s.id, index: s.index, parent: group.name, title: s.title || s.type, isPageSection: true, url_slug: `#${s.id}`}
+      })
     })
 
     return result
-  }, [item?.draft_section_groups])
+  }, [item?.draft_section_groups, item?.draft_sections])
 
   const handleDragChange = (tree, updatedDataItemsFlat) => {
     // Extract the updated groups from the flat hash
@@ -196,8 +213,11 @@ export default function SectionGroupsPane () {
     })
   }
 
-  // Expanded state - all section headers should be expanded
-  const matches = SECTION_TARGETS
+  // Expand section headers and all groups so sections are visible
+  const matches = useMemo(() => {
+    const groupIds = (item?.draft_section_groups || []).map(g => g.name)
+    return [...SECTION_TARGETS, ...groupIds]
+  }, [item?.draft_section_groups])
 
   return (
     <div className="flex h-full flex-col">
@@ -208,7 +228,7 @@ export default function SectionGroupsPane () {
           </h1>
         </div>
       </div>
-      <div className="relative mt-2 flex-1 px-4 sm:px-6 w-full h-screen overflow-y-auto">
+      <div className="relative mt-2 flex-1 px-4 sm:px-6 w-full max-h-screen overflow-y-auto">
         <DraggableMenu
           dataItems={dataItems}
           matches={matches}
@@ -216,10 +236,9 @@ export default function SectionGroupsPane () {
           canDrag={(item) => !SECTION_TARGETS.includes(item?.id)}
           canAcceptChildren={(item) => SECTION_TARGETS.includes(item?.id)}
           renderItem={({item: group, isExpanded, handleCollapseIconClick}) => {
-            // Check if this is a section header (top/content/bottom)
             const isSection = SECTION_TARGETS.includes(group.id)
-            // Look up full data from our dataItems hash
             const fullGroupData = dataItems[group.id]
+            console.log('group', group, fullGroupData)
             return (
               <SectionGroupControl
                 group={group}

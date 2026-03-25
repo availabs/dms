@@ -16,6 +16,7 @@ export const sectionArrayTheme = {
       sectionEditWrapper: 'relative group',
       sectionEditHover: 'absolute inset-0 border border-transparent group-hover:border-blue-300 border-dashed pointer-events-none z-10 rounded-md',
       sectionEditing: 'absolute inset-0 border border-orange-300 border-dashed pointer-events-none z-10 rounded-md',
+      sectionHighlight: 'absolute inset-0 border border-orange-300 border-dashed pointer-events-none z-10 rounded-md', // on scroll url hash
       sectionViewWrapper: 'relative group',
       sectionPadding: 'p-4',
       gridviewGrid: 'z-0 bg-slate-50 h-full',

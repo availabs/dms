@@ -1,5 +1,6 @@
 import TableHeaderCell from "./TableHeaderCell";
-import React, {memo, useMemo} from "react";
+import React, {memo, useMemo, useState} from "react";
+import CardColumnPicker from '../../CardColumnPicker';
 
 export const Header = memo(function Header ({
     tableTheme, visibleAttrsWithoutOpenOut,
@@ -9,11 +10,14 @@ export const Header = memo(function Header ({
 }) {
 
     const attrsToRender = visibleAttrsWithoutOpenOut.slice(start, end + 1);
+    const [headerHovered, setHeaderHovered] = useState(false);
 
     const slicedGridTemplateColumns = useMemo(() => {
         const cols = attrsToRender.map(c => `${c.size}px`).join(" ");
         return `${numColSize}px ${cols}`;
     }, [ start, end, attrsToRender, numColSize ]);
+
+    const showPicker = isEdit && setState && controls?.inHeader;
 
     return (
         <>
@@ -25,6 +29,8 @@ export const Header = memo(function Header ({
                     gridTemplateColumns: slicedGridTemplateColumns,
                     gridColumn: `span ${attrsToRender.length + 2} / ${attrsToRender.length + 2}`
                 }}
+                onMouseEnter={() => setHeaderHovered(true)}
+                onMouseLeave={() => setHeaderHovered(false)}
             >
                 {/*********************** header left gutter *******************/}
                 <div className={tableTheme.headerLeftGutter} style={{width: numColSize}}>
@@ -33,13 +39,16 @@ export const Header = memo(function Header ({
                 {/******************************************&*******************/}
 
                 {attrsToRender
-                    .map((attribute, i) => (
+                    .map((attribute, i) => {
+                        const isLast = i === attrsToRender.length - 1;
+                        const fullIdx = columns.findIndex(c => c.name === attribute.name && c.isDuplicate === attribute.isDuplicate && c.copyNum === attribute.copyNum);
+
+                        return (
                             <div
                                 key={i}
-                                className={`${tableTheme.headerWrapper} ${frozenCols?.includes(i) ? tableTheme.headerWrapperFrozen : ''}`}
+                                className={`relative ${tableTheme.headerWrapper} ${frozenCols?.includes(i) ? tableTheme.headerWrapperFrozen : ''}`}
                                 style={{width: attribute.size}}
                             >
-
                                 <div key={`controls-${i}`}
                                      className={`
                                         ${tableTheme.headerCellContainer}
@@ -65,9 +74,22 @@ export const Header = memo(function Header ({
                                     style={{ height: '100%', cursor: 'col-resize', position: 'relative', right: 0, top: 0 }}
                                     onMouseDown={colResizer ? colResizer(attribute) : () => {}}
                                 />
+
+                                {showPicker && isLast && (
+                                    <CardColumnPicker
+                                        insertAt={fullIdx !== -1 ? fullIdx + 1 : columns.length}
+                                        columns={columns}
+                                        sourceColumns={controls.sourceColumns}
+                                        setState={setState}
+                                        FormulaColumnModal={controls.FormulaColumnModal}
+                                        CalculatedColumnModal={controls.CalculatedColumnModal}
+                                        parentHovered={headerHovered}
+                                        triggerClassName="absolute top-0 bottom-0 right-0 translate-x-full flex items-center z-10 w-5"
+                                    />
+                                )}
                             </div>
-                        )
-                    )}
+                        );
+                    })}
             </div>
             {/****************************************** Header end **********************************************/}
         </>
