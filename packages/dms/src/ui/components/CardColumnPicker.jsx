@@ -240,7 +240,6 @@ export default function CardColumnPicker({
             className={`${visible ? 'opacity-100' : 'opacity-0'} hover:opacity-100 ${triggerClassName}`}
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => setHovered(false)}
-            onClick={() => showStaticForm && setShowStaticForm(false)}
         >
         <Popup button={<div>{triggerContent}</div>} preferredPosition="bottom" onOpenChange={setIsPickerOpen}>
             {({ open, setOpen }) => open ? (
@@ -260,7 +259,7 @@ export default function CardColumnPicker({
                                 />
                             )}
                             <button
-                                className="px-2 py-1 text-xs border rounded hover:bg-purple-50 text-purple-600 border-purple-300"
+                                className={`px-2 py-1 text-xs border rounded hover:bg-purple-50 text-purple-600 border-purple-300 ${showStaticForm ? `bg-purple-100` : ``}`}
                                 onClick={() => setShowStaticForm(v => !v)}
                             >
                                 + Static
