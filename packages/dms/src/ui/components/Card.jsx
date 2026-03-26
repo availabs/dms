@@ -358,8 +358,14 @@ const CardColumnField = ({
                 headerValueLayout === 'row' && reverse ? theme.itemFlexRowReverse : ''
 
     const wrapperViewClass = compactView ?
-        `${theme.headerValueWrapperCompactView} ${attr.borderBelow ? theme.headerValueWrapperBorderBelow : ``} ${addBorder ? `border shadow rounded-md` : ``}` :
-        `${theme.headerValueWrapperSimpleView} ${removeBorder ? `` : theme.itemBorder}`
+        `${theme.headerValueWrapperCompactView} ${attr.borderBelow ? theme.headerValueWrapperBorderBelow : ``} 
+            ${isEdit && visible ? `border border-blue-300` : addBorder ? `border shadow rounded-md` : `border border-transparent`}` :
+        `${theme.headerValueWrapperSimpleView} 
+        ${removeBorder && !(isEdit && visible) ? `border border-transparent` :
+            removeBorder && isEdit && visible ? `border border-blue-300` :
+                isEdit && visible ? `border border-blue-300` :
+                theme.itemBorder}`
+
 
     const style = {
         gridColumn: span,
@@ -387,7 +393,7 @@ const CardColumnField = ({
 
     return (
         <div
-            className={`relative ${theme.headerValueWrapper} ${wrapperFlexClass} ${wrapperViewClass} border ${isEdit && visible ? ` border-blue-300` : compactView ? `border-transparent` : ``}`}
+            className={`relative ${theme.headerValueWrapper} ${wrapperFlexClass} ${wrapperViewClass}`}
             style={style}
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => { if (!isMenuOpen) setHovered(false); }}
