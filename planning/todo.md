@@ -69,6 +69,7 @@
 - [x] Fix nav2Level baseUrl bug and move to page pattern
 - [x] Move lexical component inline controls (style, bgColor, showToolbar) to control config
 - [x] Theme-based component registration (allow themes to declare `pageComponents` that auto-register to page pattern)
+- [ ] DataWrapper & data sources re-architecture — separate datawrapper from section (clean interface), separate UDA config building from data loading/caching, self-describing output sourceInfo for chainability, join support (multi-source UDA configs with WITH/JOIN), page-level data source management with dedicated edit pane
 
 ### patterns/mapeditor
 

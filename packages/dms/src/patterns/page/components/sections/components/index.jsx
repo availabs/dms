@@ -93,12 +93,13 @@ function ViewComp({value, onChange, siteType, pageFormat, refreshDataBtnRef, com
         <>
             <RenderFilters isEdit={false} defaultOpen={true}/>
             <ExternalFilters defaultOpen={true} />
-            <DataComp value={value?.['element-data'] || ''}
-                      onChange={v => updateAttribute('element-data', v)}
-                      component={component?.useDataWrapper ? component : undefined}
-                      siteType={siteType}
-                      pageFormat={pageFormat}
-                      editPageMode={editPageMode}
+            <DataComp
+              value={value?.['element-data'] || ''}
+              onChange={v => updateAttribute('element-data', v)}
+              component={component?.useDataWrapper ? component : undefined}
+              siteType={siteType}
+              pageFormat={pageFormat}
+              editPageMode={editPageMode}
             />
         </>
     )
