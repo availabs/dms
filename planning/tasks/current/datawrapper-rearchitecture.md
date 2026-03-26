@@ -62,40 +62,16 @@ Redesign how datawrappers and data sources work in the page pattern to achieve:
 
 ### Proposed State Shape (after re-architecture)
 
+A "data source" in the new architecture is a **complete dataWrapper source config** — not just an external source reference. It contains everything needed to define and query data: the external source identity, column configuration, filters, and join specs.
+
 #### Section element-data (new shape)
 
 ```javascript
 {
-  // ── Data source binding (replaces inline sourceInfo) ──
-  dataSourceId: "ds-1",               // ref to page-level source (single-source mode)
-  // OR
-  dataSources: {                       // join mode — named refs to page-level sources
-    events:   "ds-1",
-    counties: "ds-2",
-  },
+  // ── Data source binding ──
+  dataSourceId: "ds-1",               // ref to page-level data source (single-source mode)
 
-  // ── Join config (new, only present in join mode) ──
-  join: [
-    { type: "left", tables: ["events", "counties"], on: "events.geoid = counties.geoid" }
-  ],
-
-  // ── Column config (same structure, minor cleanup) ──
-  columns: [
-    {
-      name: "county_name",            // same as today
-      show: true,
-      customName: "County",
-      type: "text",
-      justify: "left",
-      formatFn: "title",
-      sort: "asc nulls last",
-      // ... all existing per-column fields preserved
-
-      table: "counties",              // NEW: only present in join mode, disambiguates columns
-    }
-  ],
-
-  // ── Display config (same as today) ──
+  // ── Display config (same as today, section-specific) ──
   display: {
     usePagination: true,
     pageSize: 25,
@@ -106,13 +82,20 @@ Redesign how datawrappers and data sources work in the page pattern to achieve:
   },
 
   // ── REMOVED fields ──
-  // sourceInfo     → lives at page level, referenced by dataSourceId
-  // dataRequest    → derived at runtime by buildUdaConfig(columns)
+  // sourceInfo     → moved into page-level data source as externalSource
+  // columns        → moved into page-level data source
+  // filters        → moved into page-level data source
+  // join           → moved into page-level data source
+  // dataRequest    → derived at runtime by buildUdaConfig()
   // data           → runtime cache only, never persisted
 }
 ```
 
+The section becomes thin — it holds a reference to a data source and display-only config (how to render, not what to query). Multiple sections can share the same data source with different display settings.
+
 #### Page element-data (gains `dataSources` map)
+
+A page-level data source is a **full dataWrapper source config** — everything needed to build a UDA query:
 
 ```javascript
 {
@@ -122,47 +105,196 @@ Redesign how datawrappers and data sources work in the page pattern to achieve:
     "ds-1": {
       id: "ds-1",
       name: "Fusion Events",
-      sourceInfo: { source_id: 870, view_id: 1648, isDms: false,
-                    srcEnv: "external-data", columns: [...] }
+
+      // ── External source identity (renamed from sourceInfo) ──
+      externalSource: {
+        source_id: 870,
+        view_id: 1648,
+        isDms: false,
+        srcEnv: "external-data",
+        env: "dama",
+        app: null,                     // only set when isDms=true
+        type: null,                    // only set when isDms=true
+        columns: [                     // source column metadata — needed by buildUdaConfig
+          { name: "event_id", type: "integer", display: "number" },
+          { name: "county_fips", type: "character varying", display: "text",
+            meta_lookup: "county_name" },
+          { name: "property_damage", type: "numeric", display: "number" },
+        ]
+      },
+
+      // ── Column config (user settings per column) ──
+      columns: [
+        {
+          name: "county_fips",
+          show: true,
+          customName: "County",
+          type: "text",
+          justify: "left",
+          formatFn: "title",
+          group: true,
+          fn: "",
+          sort: "asc nulls last",
+          meta_lookup: "county_name",
+          // ... all existing per-column fields preserved
+          // filters: [...]            // DEPRECATED — use top-level filters instead
+          table: "events",             // only present in join mode
+        }
+      ],
+
+      // ── Filters (promoted from dataRequest.filterGroups) ──
+      filters: {
+        op: "AND",
+        groups: [
+          {
+            col: "property_damage",
+            op: "gt",
+            value: 0,
+            usePageFilters: false,
+            searchParamKey: null,
+            isExternal: false,
+            isMulti: false,
+            fn: null,                  // if set, filter applies in HAVING clause
+            isNormalFilter: false,     // if true, uses CASE WHEN expression
+          },
+          {
+            op: "OR",
+            groups: [
+              { col: "event_type", op: "filter", value: ["Flood", "Hurricane"] },
+              { col: "event_type", op: "filter", value: ["Tornado"] }
+            ]
+          }
+        ]
+      },
+
+      // ── Join config (only present in multi-source mode) ──
+      // When present, externalSource above is the "primary" source,
+      // and additional sources are referenced by ID from other page dataSources
+      join: {
+        sources: {
+          events: null,                // null = use this data source's externalSource
+          counties: "ds-2",           // ref to another page-level data source
+        },
+        on: [
+          { type: "left", tables: ["events", "counties"],
+            on: "events.county_fips = counties.geoid" }
+        ]
+      }
     },
+
     "ds-2": {
       id: "ds-2",
       name: "NRI Counties",
-      sourceInfo: { source_id: 422, view_id: 1370, isDms: false,
-                    srcEnv: "external-data", columns: [...] }
+      externalSource: {
+        source_id: 422,
+        view_id: 1370,
+        isDms: false,
+        srcEnv: "external-data",
+        env: "dama",
+        columns: [
+          { name: "geoid", type: "character varying", display: "text" },
+          { name: "county_name", type: "character varying", display: "text" },
+          { name: "population", type: "integer", display: "number" },
+        ]
+      },
+      columns: [...],
+      filters: { op: "AND", groups: [] }
     }
   }
 }
 ```
 
+#### `buildUdaConfig()` input — what it needs and where it comes from
+
+```javascript
+// Pure function — all inputs come from persisted state, no API calls
+function buildUdaConfig({
+  // From data source (page-level)
+  externalSource,                     // needed for:
+  //   .isDms        → column reference syntax (data->>'col' vs col)
+  //   .view_id      → resolves server-side table
+  //   .source_id    → resolves server-side table
+  //   .columns      → column metadata (types, meta_lookup keys)
+  //   .env          → which database/API to query
+
+  columns,                            // user column config — derives:
+  //   groupBy       → columns where group=true
+  //   orderBy       → columns where sort is set
+  //   fn            → columns where fn is set (sum, count, avg, list)
+  //   serverFn      → columns with serverFn config
+  //   meta          → columns with meta_lookup
+  //   attributes    → columns where show=true (the SELECT list)
+
+  filters,                            // top-level filter tree — derives:
+  //   filterGroups  → mapped to server column refs
+  //   having        → conditions with fn set (aggregate filters)
+  //   normalFilter  → conditions with isNormalFilter (CASE WHEN)
+
+  join,                               // optional join config — derives:
+  //   WITH clauses  → for subquery sources
+  //   JOIN clauses  → table relationships
+  //   table-prefixed column refs
+
+  // From runtime context (not persisted)
+  pageFilters,                        // current URL search params for usePageFilters conditions
+}) => {
+  return {
+    options: { /* complete UDA options object */ },
+    attributes: [ /* SELECT column list */ ],
+    outputSourceInfo: { /* describes output schema for chainability */ }
+  }
+}
+```
+
+#### `columns[].filters` — DEPRECATED
+
+The per-column `filters` array in `columns` is **deprecated**. It is the legacy filter system:
+
+```javascript
+// DEPRECATED — do not use in new code
+columns: [{
+  filters: [{ type, operation, values, usePageFilters, searchParamKey }]  // OLD
+}]
+```
+
+`convertOldState()` already migrates these to the `filterGroups` tree structure. In the new architecture, all filter state lives in the top-level `filters` field on the data source. The `columns[].filters` field should be ignored if `filters` exists, and migrated on load if it doesn't.
+
 #### What changes and why
 
 | Field | Current | Proposed | Rationale |
 |-------|---------|----------|-----------|
-| `sourceInfo` | Inline object with source_id, view_id, columns, isDms, env | **Removed from section**. Lives at page level in `page.dataSources["ds-1"].sourceInfo`. Section holds only `dataSourceId` ref. | Enables sharing sources across sections, page-level management pane, and keeps section config focused on "how to display" not "where data lives" |
-| `dataSourceId` | Not present | **New**. String ID referencing a page-level data source | Clean indirection — section says "use this source" without owning source metadata |
-| `dataSources` | Not present | **New**. `Record<string, sourceId>` mapping alias→page source ID | Enables join mode — each alias becomes a table name in the join config |
-| `join` | Not present | **New**. Array of `{type, tables, on}` join specs | Describes how named sources relate to each other. Compiled to SQL JOINs server-side |
-| `columns[].table` | Not present | **New** (join mode only). Which source alias this column belongs to | Disambiguates columns when multiple sources share column names |
-| `dataRequest` | Persisted object with filter/groupBy/orderBy/fn | **Removed from persistence**. Derived at runtime by `buildUdaConfig(columns)`. Columns already contain all filter, group, sort, and fn settings — `dataRequest` is a redundant intermediate rebuilt on every change. | Eliminates state duplication. Today the same info exists in both `columns` and `dataRequest`, requiring sync effects. With the builder, `columns` is the single source of truth. |
-| `data` | Persisted cached rows | **Removed from persistence**. Runtime only — held in the data loader hook. | Reduces element-data size dramatically (some sections store thousands of rows). Data is fetched fresh via API-layer pre-fetch or on-demand. |
+| `sourceInfo` | Inline in section | **Renamed to `externalSource`**, moved to page-level data source | Clarifies this is the external source identity (not output schema). Lives at page level for sharing. |
+| `columns` | In section | **Moved to page-level data source** | Part of the query definition, not display config. Shared when sections share a data source. |
+| `columns[].filters` | Per-column filter array | **DEPRECATED**. Migrated to top-level `filters` on load. | Legacy system — `convertOldState` already does this migration. |
+| `filters` | Not present (buried in `dataRequest.filterGroups`) | **New top-level field** on data source. Tree structure: `{op, groups}` | `filterGroups` is user-authored state that was incorrectly stored inside the derived `dataRequest`. Promoting it makes the data source self-contained. |
+| `dataSourceId` | Not present | **New** on section. String ref to page-level data source. | Section references a complete data source config, not just an external source. |
+| `join` | Not present | **New** on data source. `{sources, on}` with refs to other page-level data sources. | Defines multi-source relationships within the data source config. |
+| `columns[].table` | Not present | **New** (join mode only). Source alias this column belongs to. | Disambiguates columns across joined sources. |
+| `dataRequest` | Persisted with mixed user/derived state | **Removed**. `filters` promoted to top-level. `groupBy`/`orderBy`/`fn`/`meta`/`serverFn` derived from `columns` by `buildUdaConfig()`. | Eliminates the sync problem — today the same info exists in both `columns` and `dataRequest`, requiring effects to keep them in sync. |
+| `data` | Persisted cached rows | **Removed**. Runtime only, held in data loader hook. | Reduces element-data size. Data fetched fresh via API-layer pre-fetch or on-demand. |
+| `display` | In section | **Stays in section** | Display is section-specific — two sections can share a data source but render differently. |
 
 #### Migration path
 
 Old element-data still works via `convertOldState()` (which already exists). The migration logic:
 
-1. If `sourceInfo` is present inline → auto-create a page-level data source, replace with `dataSourceId` ref
-2. If `dataRequest` is present → ignore it (rebuilt from `columns` by the builder)
-3. If `data` is present → strip it (fetched fresh)
-4. If no `dataSourceId` or `dataSources` → legacy mode, fall back to current behavior
+1. If `sourceInfo` is inline in section → create page-level data source with `externalSource: sourceInfo`, set `dataSourceId` on section
+2. If `columns` is in section → move to the page-level data source
+3. If `dataRequest.filterGroups` exists → promote to `filters` on the data source
+4. If `columns[].filters` exists (legacy) → migrate to `filters` via existing `convertOldState` logic
+5. If `dataRequest` has `groupBy`/`orderBy`/`fn` → ignore (derived from `columns` at runtime)
+6. If `data` is present → strip it (fetched fresh)
+7. If no `dataSourceId` → legacy mode, fall back to current behavior
 
-Non-breaking migration — sections without `dataSourceId` continue working as-is through the existing code path. New sections use the clean shape.
+Non-breaking migration — sections without `dataSourceId` continue working through the existing code path.
 
 #### Net effect
 
-- **Section element-data gets smaller**: no `sourceInfo` blob, no `dataRequest`, no cached `data`. Just `dataSourceId` + `columns` + `display` (+ `join`/`dataSources` for multi-source).
-- **Page element-data gets a `dataSources` map**: source-of-truth for what data sources exist on a page.
-- **`columns` becomes the single source of truth** for query config — filters, grouping, sorting, aggregation all live there (as they already do), and `buildUdaConfig()` derives UDA options deterministically.
+- **Section element-data becomes minimal**: just `dataSourceId` + `display`. Query config (columns, filters, joins, source identity) lives in the page-level data source.
+- **Page element-data gets a `dataSources` map**: each entry is a complete, self-contained data source config (externalSource + columns + filters + join).
+- **`filters` is promoted to first-class state**: no longer buried inside the derived `dataRequest` object. User-authored filter tree is persisted directly.
+- **`columns` is the single source of truth** for groupBy/orderBy/fn/meta/serverFn — `buildUdaConfig()` derives these deterministically, eliminating the sync effects.
+- **`buildUdaConfig()` has a clear, explicit contract**: it receives `externalSource` (for isDms, view_id, column metadata), `columns`, `filters`, and optional `join` — all from the persisted data source config — plus runtime `pageFilters`.
 
 ### Current Problems
 
