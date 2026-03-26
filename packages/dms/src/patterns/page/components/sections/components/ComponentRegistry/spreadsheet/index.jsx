@@ -9,6 +9,8 @@ import ActionControls from "./controls/ActionControls";
 import {ComponentContext} from '../../../../../context'
 import {ThemeContext} from "../../../../../../../ui/useTheme"
 import {isEqualColumns} from "../../dataWrapper/utils/utils";
+import AddFormulaColumn from "../../../AddFormulaColumn";
+import AddCalculatedColumn from "../../../AddCalculatedColumn";
 //import {tableTheme} from "../../../../../../../ui/components/table/theme";
 
 const frozenCols = [0,1] // testing
@@ -62,7 +64,12 @@ export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addIte
     //console.log('render table')
     if(!visibleAttributes.length) return <div className={'p-2'}>No columns selected.</div>;
     return <Table columns={columns} data={data} localFilteredData={localFilteredData} fullData={fullData}
-                  display={display} controls={controls} setState={setState}
+                  display={display} controls={{
+                      ...controls,
+                      FormulaColumnModal: AddFormulaColumn,
+                      CalculatedColumnModal: AddCalculatedColumn,
+                      sourceColumns: sourceInfo.columns || [],
+                  }} setState={setState}
                   allowEdit={allowEdit} isEdit={isEdit} loading={loading}
                   gridRef={gridRef}
                   theme={theme} paginationActive={paginationActive}
@@ -191,6 +198,8 @@ export default {
         ],
         inHeader: [
             // settings from in header dropdown are stored in the columns array per column.
+            {type: 'input', inputType: 'text', label: 'Display Name', key: 'display_name', displayCdn: ({attribute}) => attribute.origin === 'static'},
+            {type: 'input', inputType: 'text', label: 'Static Value', key: 'staticValue', displayCdn: ({attribute}) => attribute.origin === 'static'},
             {type: ({attribute, setAttribute}) => {
                     const {UI} = useContext(ThemeContext);
                     const {Button} = UI;

@@ -1,5 +1,6 @@
 node_modules
 dist
+packages/dms-server/img
 
 # SQLite database files
 **/data/*.sqlite

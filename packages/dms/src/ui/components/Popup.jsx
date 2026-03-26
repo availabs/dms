@@ -33,9 +33,12 @@ export default function Popup({
     btnVisibleOnGroupHover, // adds a hide class if not open. assumes the button to have group-hover
     preventCloseOnClickOutside=false,
     hideIfOutOfView=false,
-    defaultOpen = false, preferredPosition="bottom"
+    defaultOpen = false, preferredPosition="bottom",
+    onOpenChange,
 }) {
     const [open, setOpen] = useState(defaultOpen);
+
+    useEffect(() => { onOpenChange?.(open); }, [open]);
     const buttonRef = useRef(null);
     const popupRef = useRef(null);
     const [pos, setPos] = useState({ top: 0, left: 0 });

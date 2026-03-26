@@ -1,4 +1,4 @@
-import { get, cloneDeep } from "lodash-es";
+import { get, cloneDeep, merge } from "lodash-es";
 
 export async function processNewData (dataCache, activeIdsIntOrStr, stopFullDataLoad, filteredIdsLength, app, type, dmsAttrsConfigs,format,falcor) {
 
@@ -149,7 +149,13 @@ async function loadDmsFormats (item,dmsAttrsConfigs, format, falcor, isDataByApp
         }
 
         if(dmsFormatRequests.length > 0) {
-            let newData = await falcor.get(...dmsFormatRequests)
+            let newData;
+
+            try{
+                newData = await falcor.get(...dmsFormatRequests)
+            }catch (e){
+                console.error('Error getting data')
+            }
 
             // if dmstype isArray
             if(typeof item?.[key]?.[Symbol.iterator] === 'function') {
