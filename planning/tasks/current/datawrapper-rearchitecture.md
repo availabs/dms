@@ -60,6 +60,110 @@ Redesign how datawrappers and data sources work in the page pattern to achieve:
 }
 ```
 
+### Proposed State Shape (after re-architecture)
+
+#### Section element-data (new shape)
+
+```javascript
+{
+  // ── Data source binding (replaces inline sourceInfo) ──
+  dataSourceId: "ds-1",               // ref to page-level source (single-source mode)
+  // OR
+  dataSources: {                       // join mode — named refs to page-level sources
+    events:   "ds-1",
+    counties: "ds-2",
+  },
+
+  // ── Join config (new, only present in join mode) ──
+  join: [
+    { type: "left", tables: ["events", "counties"], on: "events.geoid = counties.geoid" }
+  ],
+
+  // ── Column config (same structure, minor cleanup) ──
+  columns: [
+    {
+      name: "county_name",            // same as today
+      show: true,
+      customName: "County",
+      type: "text",
+      justify: "left",
+      formatFn: "title",
+      sort: "asc nulls last",
+      // ... all existing per-column fields preserved
+
+      table: "counties",              // NEW: only present in join mode, disambiguates columns
+    }
+  ],
+
+  // ── Display config (same as today) ──
+  display: {
+    usePagination: true,
+    pageSize: 25,
+    striped: false,
+    showTotal: true,
+    allowDownload: true,
+    // ... all existing display fields preserved
+  },
+
+  // ── REMOVED fields ──
+  // sourceInfo     → lives at page level, referenced by dataSourceId
+  // dataRequest    → derived at runtime by buildUdaConfig(columns)
+  // data           → runtime cache only, never persisted
+}
+```
+
+#### Page element-data (gains `dataSources` map)
+
+```javascript
+{
+  // ... existing page fields (title, url_slug, etc.) ...
+
+  dataSources: {
+    "ds-1": {
+      id: "ds-1",
+      name: "Fusion Events",
+      sourceInfo: { source_id: 870, view_id: 1648, isDms: false,
+                    srcEnv: "external-data", columns: [...] }
+    },
+    "ds-2": {
+      id: "ds-2",
+      name: "NRI Counties",
+      sourceInfo: { source_id: 422, view_id: 1370, isDms: false,
+                    srcEnv: "external-data", columns: [...] }
+    }
+  }
+}
+```
+
+#### What changes and why
+
+| Field | Current | Proposed | Rationale |
+|-------|---------|----------|-----------|
+| `sourceInfo` | Inline object with source_id, view_id, columns, isDms, env | **Removed from section**. Lives at page level in `page.dataSources["ds-1"].sourceInfo`. Section holds only `dataSourceId` ref. | Enables sharing sources across sections, page-level management pane, and keeps section config focused on "how to display" not "where data lives" |
+| `dataSourceId` | Not present | **New**. String ID referencing a page-level data source | Clean indirection — section says "use this source" without owning source metadata |
+| `dataSources` | Not present | **New**. `Record<string, sourceId>` mapping alias→page source ID | Enables join mode — each alias becomes a table name in the join config |
+| `join` | Not present | **New**. Array of `{type, tables, on}` join specs | Describes how named sources relate to each other. Compiled to SQL JOINs server-side |
+| `columns[].table` | Not present | **New** (join mode only). Which source alias this column belongs to | Disambiguates columns when multiple sources share column names |
+| `dataRequest` | Persisted object with filter/groupBy/orderBy/fn | **Removed from persistence**. Derived at runtime by `buildUdaConfig(columns)`. Columns already contain all filter, group, sort, and fn settings — `dataRequest` is a redundant intermediate rebuilt on every change. | Eliminates state duplication. Today the same info exists in both `columns` and `dataRequest`, requiring sync effects. With the builder, `columns` is the single source of truth. |
+| `data` | Persisted cached rows | **Removed from persistence**. Runtime only — held in the data loader hook. | Reduces element-data size dramatically (some sections store thousands of rows). Data is fetched fresh via API-layer pre-fetch or on-demand. |
+
+#### Migration path
+
+Old element-data still works via `convertOldState()` (which already exists). The migration logic:
+
+1. If `sourceInfo` is present inline → auto-create a page-level data source, replace with `dataSourceId` ref
+2. If `dataRequest` is present → ignore it (rebuilt from `columns` by the builder)
+3. If `data` is present → strip it (fetched fresh)
+4. If no `dataSourceId` or `dataSources` → legacy mode, fall back to current behavior
+
+Non-breaking migration — sections without `dataSourceId` continue working as-is through the existing code path. New sections use the clean shape.
+
+#### Net effect
+
+- **Section element-data gets smaller**: no `sourceInfo` blob, no `dataRequest`, no cached `data`. Just `dataSourceId` + `columns` + `display` (+ `join`/`dataSources` for multi-source).
+- **Page element-data gets a `dataSources` map**: source-of-truth for what data sources exist on a page.
+- **`columns` becomes the single source of truth** for query config — filters, grouping, sorting, aggregation all live there (as they already do), and `buildUdaConfig()` derives UDA options deterministically.
+
 ### Current Problems
 
 1. **Entangled state**: Section and dataWrapper share mutable state through ComponentContext. `section.jsx` provides `{state, setState}` where `state` is the full dataWrapper state blob. The section reads/writes sourceInfo, the dataWrapper reads/writes everything — there's no boundary.
