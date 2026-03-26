@@ -920,25 +920,285 @@ outputSourceInfo: {
 3. **Forms and datasets pattern impact**: Both `forms/pages/table.jsx` and `datasets/pages/table.jsx` provide their own ComponentContext.Provider wrapping Spreadsheet/DataWrapper. These would need to adopt whatever new interface replaces ComponentContext for data-driven components.
 
 ### Phase 1: Extract UDA Config Builder — NOT STARTED
-- [ ] Create `dataWrapper/udaConfigBuilder.js` — pure module
-- [ ] Extract column name transforms (`refName`, `reqName`, `totalName`) from utils.jsx
-- [ ] Extract `applyFn()`, `attributeAccessorStr()`, `mapFilterGroupCols()`, `extractHavingFromFilterGroups()`
-- [ ] Extract dataRequest → UDA options transformation from `getData()`
-- [ ] Extract filter compilation logic
-- [ ] Builder produces `{ options, attributes, outputSourceInfo }`
-- [ ] Add unit tests for the builder (pure function, easy to test)
-- [ ] Refactor `getData()` to use the builder instead of inline logic
-- [ ] Verify all existing behavior preserved (no UI changes)
+
+**Goal**: Create a pure function `buildUdaConfig()` that takes the new persisted state shape (`externalSource`, `columns`, `filters`) and produces a complete UDA options object + attributes list. This function replaces the scattered logic currently split across the `useSetDataRequest` effect, `getData()` steps 3a-3b, and various helpers in `utils.jsx`.
+
+**Key design decision**: The builder operates on the **new state shape** from the start, even though the rest of the system still uses the old shape. A thin adapter (`legacyStateToBuildInput()`) bridges old state → builder input during the transition. This means the builder is forward-looking and doesn't accumulate legacy debt.
+
+#### 1.1 Define builder input/output types
+
+- [ ] Define `BuildUdaConfigInput` — the builder's contract:
+  ```javascript
+  {
+    externalSource: {              // from page-level data source (renamed sourceInfo)
+      source_id,                   // → request routing
+      view_id,                     // → table resolution
+      isDms,                       // → column accessor format (data->>'col' vs col)
+      env,                         // → database/API target
+      columns: [{                  // → column metadata for type/meta_lookup resolution
+        name, type, display,
+        meta_lookup,               // → drives meta post-processing
+        metadata,                  // → additional column config
+      }],
+    },
+    columns: [{                    // user column config — drives SELECT, GROUP BY, ORDER BY, aggregation
+      name,
+      show,                        // → included in attributes (SELECT list)
+      group,                       // → GROUP BY clause
+      sort,                        // → ORDER BY clause ('asc nulls last', 'desc nulls last', '')
+      fn,                          // → aggregate function (sum, count, avg, list, '')
+      serverFn,                    // → server-side computed column
+      meta_lookup,                 // → meta post-processing key
+      excludeNA,                   // → exclude nulls filter
+      table,                       // → table alias prefix (join mode only)
+      // display fields (show, formatFn, justify, etc.) are NOT consumed by builder
+    }],
+    filters: {                     // top-level filter tree (promoted from dataRequest.filterGroups)
+      op: 'AND' | 'OR',
+      groups: [
+        { col, op, value, usePageFilters, searchParamKey, isExternal, isMulti,
+          fn, display, isNormalFilter, valueCol },
+        { op: 'AND' | 'OR', groups: [...] },  // nested groups
+      ]
+    },
+    join: {                        // optional — multi-source mode
+      sources: { alias: dataSourceId | null },
+      on: [{ type, tables, on }],
+    },
+    pageFilters: {},               // runtime: URL search params for usePageFilters conditions
+  }
+  ```
+- [ ] Define `BuildUdaConfigOutput`:
+  ```javascript
+  {
+    options: {                     // complete UDA options object for server
+      filter, exclude, gt, gte, lt, lte, like,  // legacy flat filters (from filterGroups leaves)
+      filterGroups,                // mapped tree with server column refs
+      normalFilter,                // CASE WHEN conditions (extracted from filterGroups)
+      having,                      // aggregate filter conditions (extracted from filterGroups)
+      groupBy,                     // derived from columns where group=true
+      orderBy,                     // derived from columns where sort is set
+      fn,                          // derived from columns where fn is set
+      serverFn,                    // derived from columns with serverFn config
+      meta,                        // derived from columns with meta_lookup
+      // join: { sources, on },    // pass-through for server (Phase 6)
+    },
+    attributes: [],                // SELECT column list (refNames for shown columns)
+    outputSourceInfo: {},          // describes output schema (Phase 4 — stub initially)
+  }
+  ```
+
+#### 1.2 Extract pure helper functions from utils.jsx
+
+These functions are already mostly pure — they just need to be moved out and given clean signatures:
+
+- [ ] `attributeAccessorStr(columnName, isDms)` → column reference format (`data->>'col'` vs `col`)
+- [ ] `refName(column, isDms)` → server-side column reference (applies accessor + fn wrapper)
+- [ ] `reqName(column)` → request-side column name (what the server returns as)
+- [ ] `totalName(column)` → name for total/aggregate row
+- [ ] `applyFn(fn, accessor)` → wraps accessor in aggregate function SQL
+- [ ] `mapFilterGroupCols(filterGroups, sourceColumns, isDms)` → maps user column names to server refs
+- [ ] `extractHavingFromFilterGroups(filterGroups)` → separates conditions with `fn` (aggregate filters)
+- [ ] `extractNormalFiltersFromGroups(filterGroups)` → separates `isNormalFilter` conditions
+
+#### 1.3 Implement buildUdaConfig()
+
+- [ ] Create `dataWrapper/buildUdaConfig.js` — single exported pure function
+- [ ] Derive `groupBy` from `columns` where `group === true` (replaces effect in index.jsx lines 230-240)
+- [ ] Derive `orderBy` from `columns` where `sort` is set (replaces effect in index.jsx lines 241-250)
+- [ ] Derive `fn` from `columns` where `fn` is set (replaces effect in index.jsx lines 251-260)
+- [ ] Derive `serverFn` from `columns` with `serverFn` config
+- [ ] Derive `meta` from `columns` with `meta_lookup`
+- [ ] Derive `attributes` from `columns` where `show === true`, using `refName()` for server refs
+- [ ] Process `filters` tree: `mapFilterGroupCols()` → `extractHavingFromFilterGroups()` → `extractNormalFiltersFromGroups()`
+- [ ] Apply `pageFilters` to conditions with `usePageFilters === true`
+- [ ] Handle `excludeNA` columns (add null exclusion to filter)
+- [ ] Return `{ options, attributes, outputSourceInfo: null }` (outputSourceInfo stubbed for Phase 4)
+
+#### 1.4 Create legacy adapter
+
+- [ ] Create `legacyStateToBuildInput(state)` — maps old state shape → builder input:
+  ```javascript
+  function legacyStateToBuildInput(state) {
+    return {
+      externalSource: state.sourceInfo,           // same shape, different name
+      columns: state.columns,                      // same
+      filters: state.dataRequest?.filterGroups     // promote from dataRequest
+                || migrateColumnFilters(state.columns),  // or migrate legacy
+      join: null,                                  // no join support in old state
+      pageFilters: {},                             // injected at call site from PageContext
+    }
+  }
+  ```
+- [ ] This adapter is temporary — removed once state migration (Phase 5) is complete
+
+#### 1.5 Wire builder into existing getData()
+
+- [ ] Replace the `useSetDataRequest` effect in `index.jsx` with a call to `buildUdaConfig()` via the adapter
+- [ ] Replace the inline UDA options construction in `getData()` (utils.jsx lines ~580-675) with the builder's output
+- [ ] `getData()` now receives `{ options, attributes }` from the builder instead of constructing them
+- [ ] The `dataRequest` field in state becomes a **runtime-only derived value** — still computed (for dedup comparison via `lastDataRequest`) but no longer persisted or user-mutated
+
+#### 1.6 Tests
+
+- [ ] Unit tests for each extracted helper (refName, applyFn, mapFilterGroupCols, etc.)
+- [ ] Unit tests for `buildUdaConfig()` covering:
+  - Single source, DMS mode (data->>'col' accessors)
+  - Single source, DAMA mode (direct column accessors)
+  - Grouped + aggregated columns (GROUP BY + fn)
+  - Sorted columns (ORDER BY)
+  - Filter tree with nested AND/OR groups
+  - Filters with `usePageFilters` + pageFilters input
+  - Filters with `fn` (HAVING extraction)
+  - Filters with `isNormalFilter` (CASE WHEN extraction)
+  - `excludeNA` columns
+  - `meta_lookup` columns
+  - `serverFn` columns
+- [ ] Unit test for `legacyStateToBuildInput()` — converts old state correctly
+- [ ] Integration: run existing pages (mitigat-ny-prod) and verify identical UDA requests before/after
+
+#### 1.7 Verify no behavior change
+
+- [ ] All existing data-driven sections produce the same API requests
+- [ ] All filter, sort, group, pagination behaviors work identically
+- [ ] Auto-save still persists state (though `dataRequest` is now derived, it's still included for backward compat during transition)
+- [ ] No UI changes — this phase is purely internal refactoring
 
 ### Phase 2: Extract Data Loader — NOT STARTED
-- [ ] Create `dataWrapper/useDataLoader.js` hook
-- [ ] Move API call logic from `getData()` into the hook
-- [ ] Move cache/invalidation logic (preventDuplicateFetch, readyToLoad)
-- [ ] Move pagination state management
-- [ ] Move post-processing (cleanValue, formula evaluation)
-- [ ] Hook returns `{ data, length, loading, error, refetch }`
-- [ ] Refactor dataWrapper/index.jsx to use the hook
-- [ ] Verify all existing behavior preserved
+
+**Goal**: Create a `useDataLoader` hook that owns the entire data-fetching lifecycle — API calls, length queries, pagination, dedup, total row, post-processing, and local filtering. After Phase 1 gives us a clean UDA config, this hook takes that config and manages everything about getting and holding data. The dataWrapper `index.jsx` effects for data loading (~200 lines across edit/view modes) collapse into a single hook call.
+
+**Prerequisite**: Phase 1 complete — `buildUdaConfig()` produces `{ options, attributes }`.
+
+#### 2.1 Define hook interface
+
+- [ ] Define `useDataLoader` input:
+  ```javascript
+  useDataLoader({
+    // From buildUdaConfig() output
+    options,                          // UDA options object
+    attributes,                       // SELECT column list (reqNames)
+
+    // From data source config
+    externalSource,                   // passed to apiLoad as `format` (needs source_id, view_id, isDms, env, etc.)
+
+    // Column metadata needed for post-processing
+    columnsToFetch,                   // array of { name, reqName, totalName, normalName } — for mapping server response → output row keys
+    formulaColumns,                   // array of { name, formula } — for client-side formula evaluation
+
+    // Display config (from section)
+    pageSize,                         // rows per page
+    usePagination,                    // true = replace data on page change, false = append (infinite scroll)
+    showTotal,                        // fetch total row (separate UDA call with no groupBy)
+    fullDataLoad,                     // fetch all rows (for download/export)
+    keepOriginalValues,               // preserve raw values before formatting
+
+    // Loading gates
+    enabled,                          // false = don't fetch (replaces readyToLoad logic)
+
+    // Side-effect hooks
+    apiLoad,                          // Falcor data loading function
+  })
+  ```
+- [ ] Define `useDataLoader` output:
+  ```javascript
+  {
+    data,                             // current page of processed rows (column.name keys, cleanValue applied, formulas evaluated)
+    totalLength,                      // total row count from server
+    filteredLength,                   // local filter count (if local filters active)
+    loading,                          // true during fetch
+    error,                            // error message string or null
+    currentPage,                      // current page index
+    onPageChange,                     // (pageNum) => void — handles pagination fetch or local filter slice
+    refetch,                          // () => void — force re-fetch with same config
+    invalidState,                     // validation error string (e.g., "columns without fn while grouping")
+  }
+  ```
+
+#### 2.2 Extract API call logic from getData()
+
+The current `getData()` in `utils.jsx` (lines 580-940) mixes UDA config building with data fetching. After Phase 1 extracts config building, what remains is the data loading pipeline:
+
+- [ ] Create `dataWrapper/useDataLoader.js`
+- [ ] Extract the **length query** — `getLength()` call with `isRequestingSingleRow` short-circuit (lines 688-705)
+- [ ] Extract the **index calculation** — `fromIndex`/`toIndex` from currentPage × pageSize (lines 707-723)
+- [ ] Extract the **DMS id column injection** — auto-add `id` column + orderBy when isDms + no groupBy + no fns (lines 738-756)
+- [ ] Extract the **invalid state validation** — grouped/ungrouped fn mismatch detection (lines 762-805)
+- [ ] Extract the **main data fetch** — `apiLoad({ format: externalSource, children: [{ action: 'uda', filter: { fromIndex, toIndex, options, attributes } }] })` (lines 809-852)
+- [ ] Extract the **total row fetch** — separate UDA call with filters-only options (no groupBy/orderBy) + totalName attributes (lines 859-901)
+- [ ] Extract the **post-processing** — `reqName` → `column.name` key mapping, `cleanValue()`, formula evaluation via `evaluateAST()` (lines 911-939)
+
+#### 2.3 Consolidate loading effects from index.jsx
+
+Currently `index.jsx` has **4 separate data-loading effects** (edit mode: lines 275-306, view mode: lines 712-745) plus **2 pagination handlers** (edit: lines 308-330, view: lines 747-769). These collapse into the hook:
+
+- [ ] Replace `useEffect` for edit-mode data loading (triggers on dataRequest/sourceInfo/pageSize/columns.length change) — hook internally reacts to `options` change via deep compare
+- [ ] Replace `useEffect` for view-mode data loading (triggers on dataRequest/readyToLoad/allowEditInView) — hook uses `enabled` prop (caller computes readyToLoad externally)
+- [ ] Replace `onPageChange` handler in both edit/view modes — hook exposes `onPageChange(pageNum)` that handles both pagination (replace) and infinite scroll (append) based on `usePagination`
+- [ ] Replace `preventDuplicateFetch` + `lastDataRequest` dedup — hook internally tracks last-fetched config via deep compare, skips if unchanged
+- [ ] Replace `loading` state (`setLoading(true/false)` calls scattered across effects) — hook owns loading state internally
+- [ ] Remove the 300ms `setTimeout` debounce from load effects — hook manages its own debounce internally
+
+#### 2.4 Handle local filters
+
+The current dataWrapper has a local filtering path (`hasLocalFilters`, `getFilteredData`, `localFilteredData`) that slices data client-side instead of re-fetching:
+
+- [ ] Move `getFilteredData()` logic into the hook — when local filters are active, slice `data` in-memory instead of making API calls
+- [ ] Hook tracks `localFilteredData` and `filteredLength` internally
+- [ ] `onPageChange` routes to local slice when local filters active, API fetch otherwise
+- [ ] Local filter state (`localFilters` from column config) passed as input to hook
+
+#### 2.5 Handle mapped_options loading
+
+The current dataWrapper has a separate effect that loads dropdown options for editable columns with `mapped_options` config (lines 334-400 edit, 771-840 view). This is a secondary data fetch that uses `getData()` with a different sourceInfo:
+
+- [ ] Keep this as a **separate concern** — do NOT fold into `useDataLoader`. It's a different data source with different config.
+- [ ] Extract into a `useColumnOptions(columns, apiLoad, externalSource)` hook that loads mapped_options data
+- [ ] This hook calls `buildUdaConfig()` + `apiLoad()` independently for each mapped_options column
+- [ ] Returns `Record<columnName, Option[]>` that the dataWrapper merges into column state
+
+#### 2.6 Stop persisting `data` in element-data
+
+Currently the entire `data` array is persisted to element-data via `JSON.stringify(state)` on every state change. With the hook owning data:
+
+- [ ] `data` is hook-internal state — not part of the persisted state blob
+- [ ] `onChange()` callback no longer includes `data`, `localFilteredData`, `fullData`, `totalLength`, `filteredLength`, `lastDataRequest`, `invalidState`
+- [ ] Section auto-save only persists config (columns, filters, display) — not runtime data
+- [ ] Backward compat: `convertOldState()` strips `data` from loaded element-data if present
+
+#### 2.7 Wire hook into dataWrapper index.jsx
+
+- [ ] Edit-mode dataWrapper: replace ~100 lines of effects + handlers with:
+  ```javascript
+  const udaConfig = buildUdaConfig(legacyStateToBuildInput(state));
+  const { data, totalLength, loading, error, currentPage, onPageChange, invalidState } =
+    useDataLoader({
+      ...udaConfig,
+      externalSource: state.sourceInfo,
+      columnsToFetch,
+      formulaColumns,
+      pageSize: state.display.pageSize,
+      usePagination: state.display.usePagination,
+      showTotal: state.display.showTotal,
+      fullDataLoad: component.fullDataLoad,
+      enabled: isValidState,
+      apiLoad,
+    });
+  ```
+- [ ] View-mode dataWrapper: same pattern, with `enabled: isValidState && readyToLoad`
+- [ ] Data flows down to Spreadsheet/Card/Graph via ComponentContext (unchanged for now — cleaned up in Phase 3)
+
+#### 2.8 Tests
+
+- [ ] Unit test: `useDataLoader` with mocked `apiLoad` — verify correct `format`/`children` structure in API call
+- [ ] Unit test: pagination — replace vs append behavior based on `usePagination`
+- [ ] Unit test: dedup — same config doesn't trigger re-fetch
+- [ ] Unit test: `enabled=false` skips fetch
+- [ ] Unit test: total row fetch — verify separate API call with filters-only options
+- [ ] Unit test: post-processing — `reqName` → `name` mapping, `cleanValue`, formula evaluation
+- [ ] Unit test: invalid state detection — grouped/ungrouped fn mismatch
+- [ ] Unit test: local filter path — client-side slice instead of API call
+- [ ] Integration: run existing pages and verify identical data loading behavior
 
 ### Phase 3: Clean Section ↔ DataWrapper Interface — NOT STARTED
 - [ ] Define the props interface (sourceInfo, savedConfig, onChange, apiLoad, apiUpdate, pageFilters)
