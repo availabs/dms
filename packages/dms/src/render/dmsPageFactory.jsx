@@ -173,7 +173,6 @@ function ScrollToHash() {
   }, [hash]);
   return null;
 }
-<<<<<<< HEAD
 
 export default function dmsPageFactory (
   {
@@ -260,5 +259,3 @@ export default function dmsPageFactory (
     errorElement: <ErrorBoundaryComp />
   }
 }
-=======
->>>>>>> master
