@@ -379,7 +379,7 @@ const CardColumnField = ({
     const isRowLayout = !headerValueLayout || headerValueLayout === 'row';
 
     const menuButton = hasMenu && (
-        <span className={`shrink-0 ${visible ? 'opacity-100' : 'opacity-0'}`}>
+        <span className={`absolute right-0 shrink-0 ${visible ? 'opacity-100' : 'opacity-0'}`}>
             <NavigableMenu
                 config={buildCardColumnMenuItems({ attribute: attr, controls, display, isEdit, setState })}
                 title={attr.customName || attr.display_name || attr.normalName || attr.name}
@@ -405,7 +405,7 @@ const CardColumnField = ({
             {/* Header area — always rendered when there's a label or a menu in col layout */}
             {(!attr.hideHeader || (hasMenu && !isRowLayout)) && (
                 <div
-                    className={`${attr.hideHeader ? '' : `${theme.header} ${compactView ? theme.headerCompactView : theme.headerSimpleView}`} flex items-center justify-between`}
+                    className={`${attr.hideHeader ? '' : `${theme.header} ${compactView ? theme.headerCompactView : theme.headerSimpleView}`}`}
                     style={{maxWidth: isRowLayout && !attr.hideValue ? `${headerWidth || 50}%` : undefined}}
                 >
                     {!attr.hideHeader && (
@@ -414,8 +414,6 @@ const CardColumnField = ({
                             {attr?.description ? <DefaultComp className={theme.description} value={attr.description} /> : null}
                         </span>
                     )}
-                    {/* col layout: menu lives here, next to the label */}
-                    {!isRowLayout && menuButton}
                 </div>
             )}
             {
@@ -489,8 +487,7 @@ const CardColumnField = ({
                         }
                     </div>
             }
-            {/* row layout: menu lives here, after the value, outside the 50/50 split */}
-            {isRowLayout && menuButton}
+            {menuButton}
         </div>
     );
 };
