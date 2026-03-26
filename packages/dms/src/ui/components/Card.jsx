@@ -3,6 +3,7 @@ import {Link} from "react-router";
 import {getComponentTheme, ThemeContext} from '../useTheme';
 import ColumnTypes from "../columnTypes";
 import NavigableMenu from "./navigableMenu";
+import CardColumnPicker from './CardColumnPicker';
 import Icon from "./Icon";
 import TableHeaderCell from "./table/components/TableHeaderCell";
 
@@ -18,6 +19,19 @@ const getColIdName = col => col.normalName || col.name;
 function buildCardColumnMenuItems({ attribute, controls, display, isEdit, setState }) {
     const colIdName = getColIdName(attribute);
 
+    const moveColumn = (direction) => setState(draft => {
+        const idx = draft.columns.findIndex(col => getColIdName(col) === colIdName);
+        const newIdx = idx + direction;
+        if (newIdx < 0 || newIdx >= draft.columns.length) return;
+        const [removed] = draft.columns.splice(idx, 1);
+        draft.columns.splice(newIdx, 0, removed);
+    });
+
+    const removeColumn = () => setState(draft => {
+        const idx = draft.columns.findIndex(col => getColIdName(col) === colIdName);
+        if (idx !== -1) draft.columns.splice(idx, 1);
+    });
+
     const updateColumns = (key, value, onChange, dataFetch) => setState(draft => {
         const idx = draft.columns.findIndex(col => getColIdName(col) === colIdName);
         if (idx !== -1) {
@@ -31,21 +45,65 @@ function buildCardColumnMenuItems({ attribute, controls, display, isEdit, setSta
         if (dataFetch && !draft.display.readyToLoad) draft.display.readyToLoad = true;
     });
 
-    return (controls?.inHeader || [])
+    const staticItems = attribute.origin === 'static' ? [
+        {
+            name: 'Display Name',
+            value: attribute.display_name,
+            showValue: true,
+            items: [{
+                name: 'Display Name input',
+                type: 'input',
+                inputType: 'text',
+                value: attribute.display_name,
+                onChange: e => updateColumns('display_name', e?.target?.value ?? e)
+            }]
+        },
+        {
+            name: 'Static Value',
+            value: attribute.staticValue,
+            showValue: true,
+            items: [{
+                name: 'Static Value input',
+                type: 'input',
+                inputType: 'text',
+                value: attribute.staticValue,
+                onChange: e => updateColumns('staticValue', e?.target?.value ?? e)
+            }]
+        },
+    ] : [];
+
+    return [
+        ...staticItems,
+        ...(controls?.inHeader || [])
         .filter(({ displayCdn }) =>
             typeof displayCdn === 'function' ? displayCdn({ attribute, display, isEdit }) :
             typeof displayCdn === 'boolean' ? displayCdn : true
         )
-        .map(({ type, inputType, label, key, dataFetch, options, onChange }) => {
+        .map(({ type, inputType, label, key, dataFetch, options, onChange, renderPos, renderCdn }) => {
+            if (type === 'separator') {
+                return {
+                    name: label || `sep_${key || Math.random()}`,
+                    type: 'separator',
+                    ...(renderPos !== undefined && { renderPos }),
+                    ...(renderCdn !== undefined && { renderCdn }),
+                };
+            }
             if (typeof type === 'function') {
                 return {
                     name: label || key || 'control',
                     noHover: true,
-                    type: () => type({
+                    ...(renderPos !== undefined && { renderPos }),
+                    ...(renderCdn !== undefined && { renderCdn }),
+                    type: (menuItem, { close, goBack, goHome } = {}) => type({
                         value: attribute[key],
                         setValue: v => updateColumns(key, v, onChange, dataFetch),
                         attribute,
-                        setAttribute: v => updateColumns(undefined, v, onChange, dataFetch)
+                        setAttribute: v => updateColumns(undefined, v, onChange, dataFetch),
+                        moveColumn,
+                        removeColumn,
+                        close,
+                        goBack,
+                        goHome
                     })
                 };
             }
@@ -104,7 +162,8 @@ function buildCardColumnMenuItems({ attribute, controls, display, isEdit, setSta
                 };
             }
             return { name: label || key || String(type) };
-        });
+        }),
+    ];
 }
 
 
@@ -248,11 +307,16 @@ const CardColumnField = ({
     allowAdddNew, liveEdit, isDms, allowEdit,
     tmpItem, setTmpItem, isNewItem, newItem, setNewItem, updateItem, addItem,
     formatFunctions, controls, setState, isEdit, display,
+    pickerLeft, pickerRight, pickerTop, pickerBottom,
 }) => {
     const [hovered, setHovered] = useState(false);
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const visible = hovered || isMenuOpen;
     const {isLink, isLinkExternal, location, linkText, isImg, imageSrc, imageLocation, imageExtension, imageSize, imageMargin} = attr || {};
     const span = compactView ? 'span 1' : `span ${attr.cardSpan || 1}`;
-    const rawValue = tmpItem[attr.normalName] || tmpItem[attr.name];
+    const rawValue = attr.origin === 'static'
+        ? attr.staticValue
+        : tmpItem[attr.normalName] || tmpItem[attr.name];
     const id = tmpItem?.id;
     const value =
         isImg ?
@@ -294,8 +358,14 @@ const CardColumnField = ({
                 headerValueLayout === 'row' && reverse ? theme.itemFlexRowReverse : ''
 
     const wrapperViewClass = compactView ?
-        `${theme.headerValueWrapperCompactView} ${attr.borderBelow ? theme.headerValueWrapperBorderBelow : ``} ${addBorder ? `border shadow rounded-md` : ``}` :
-        `${theme.headerValueWrapperSimpleView} ${removeBorder ? `` : theme.itemBorder}`
+        `${theme.headerValueWrapperCompactView} ${attr.borderBelow ? theme.headerValueWrapperBorderBelow : ``} 
+            ${isEdit && visible ? `border border-blue-300` : addBorder ? `border shadow rounded-md` : `border border-transparent`}` :
+        `${theme.headerValueWrapperSimpleView} 
+        ${removeBorder && !(isEdit && visible) ? `border border-transparent` :
+            removeBorder && isEdit && visible ? `border border-blue-300` :
+                isEdit && visible ? `border border-blue-300` :
+                theme.itemBorder}`
+
 
     const style = {
         gridColumn: span,
@@ -309,27 +379,33 @@ const CardColumnField = ({
     const isRowLayout = !headerValueLayout || headerValueLayout === 'row';
 
     const menuButton = hasMenu && (
-        <span className={`shrink-0 ${hovered ? 'opacity-100' : 'opacity-0'}`}>
+        <span className={`absolute right-0 shrink-0 ${visible ? 'opacity-100' : 'opacity-0'}`}>
             <NavigableMenu
                 config={buildCardColumnMenuItems({ attribute: attr, controls, display, isEdit, setState })}
                 title={attr.customName || attr.display_name || attr.normalName || attr.name}
                 preferredPosition={'right'}
                 showTitle={false}
+                showBreadcrumbs={true}
+                onOpenChange={setIsMenuOpen}
             />
         </span>
     );
 
     return (
         <div
-            className={`${theme.headerValueWrapper} ${wrapperFlexClass} ${wrapperViewClass}`}
+            className={`relative ${theme.headerValueWrapper} ${wrapperFlexClass} ${wrapperViewClass}`}
             style={style}
             onMouseEnter={() => setHovered(true)}
-            onMouseLeave={() => setHovered(false)}
+            onMouseLeave={() => { if (!isMenuOpen) setHovered(false); }}
         >
+            {pickerLeft}
+            {pickerRight}
+            {pickerTop}
+            {pickerBottom}
             {/* Header area — always rendered when there's a label or a menu in col layout */}
             {(!attr.hideHeader || (hasMenu && !isRowLayout)) && (
                 <div
-                    className={`${attr.hideHeader ? '' : `${theme.header} ${compactView ? theme.headerCompactView : theme.headerSimpleView}`} flex items-center justify-between`}
+                    className={`${attr.hideHeader ? '' : `${theme.header} ${compactView ? theme.headerCompactView : theme.headerSimpleView}`}`}
                     style={{maxWidth: isRowLayout && !attr.hideValue ? `${headerWidth || 50}%` : undefined}}
                 >
                     {!attr.hideHeader && (
@@ -338,8 +414,6 @@ const CardColumnField = ({
                             {attr?.description ? <DefaultComp className={theme.description} value={attr.description} /> : null}
                         </span>
                     )}
-                    {/* col layout: menu lives here, next to the label */}
-                    {!isRowLayout && menuButton}
                 </div>
             )}
             {
@@ -413,8 +487,7 @@ const CardColumnField = ({
                         }
                     </div>
             }
-            {/* row layout: menu lives here, after the value, outside the 50/50 split */}
-            {isRowLayout && menuButton}
+            {menuButton}
         </div>
     );
 };
@@ -426,11 +499,13 @@ const RenderItem = memo(function RenderItem ({
                                                  isDms, // state.sourceInfo
                                                  item, newItem, setNewItem, addItem, updateItem, allowEdit,
                                                  subWrapperStyle,
-                                                 visibleColumns,
+                                                 columns, visibleColumns,
                                                  formatFunctions= {},
                                                  controls, setState, isEdit, display,
                                              }) {
     const [tmpItem, setTmpItem] = useState(item || {}); // for form edit controls
+    const [cardHovered, setCardHovered] = useState(false);
+    const [isPickerOpen, setIsPickerOpen] = useState(false);
 
     useEffect(() => {
         setTmpItem(item)
@@ -440,43 +515,95 @@ const RenderItem = memo(function RenderItem ({
     const isAddingNewItem = allowAdddNew && !item.id && isDms && addItem;
     const isNewItem = allowAdddNew && !tmpItem.id && isDms && addItem;
 
+    const pickerProps = isEdit && setState ? {
+        columns, sourceColumns: controls?.sourceColumns,
+        setState,
+        FormulaColumnModal: controls?.FormulaColumnModal,
+        CalculatedColumnModal: controls?.CalculatedColumnModal,
+        parentHovered: cardHovered,
+        setIsPickerOpen,
+        triggerClassName: 'w-fit',
+    } : null;
+
     return (
         //  in normal view, grid applied here
         <div
             className={`${theme.subWrapper} ${compactView ? `${theme.subWrapperCompactView} ${removeBorder ? `` : 'border shadow'}` : `${theme.subWrapperSimpleView} ${addBorder ? `border shadow rounded-md` : ``}`} `}
-            style={subWrapperStyle}>
+            style={subWrapperStyle}
+            onMouseEnter={() => setCardHovered(true)}
+            onMouseLeave={() => !isPickerOpen && setCardHovered(false)}
+        >
             {
-                visibleColumns.map(attr => (
-                    <CardColumnField
-                        key={attr.normalName || attr.name}
-                        attr={attr}
-                        theme={theme}
-                        compactView={compactView}
-                        reverse={reverse}
-                        addBorder={addBorder}
-                        removeBorder={removeBorder}
-                        padding={padding}
-                        headerValueLayout={headerValueLayout}
-                        headerWidth={headerWidth}
-                        valueWidth={valueWidth}
-                        allowAdddNew={allowAdddNew}
-                        liveEdit={liveEdit}
-                        isDms={isDms}
-                        allowEdit={allowEdit}
-                        tmpItem={tmpItem}
-                        setTmpItem={setTmpItem}
-                        isNewItem={isNewItem}
-                        newItem={newItem}
-                        setNewItem={setNewItem}
-                        updateItem={updateItem}
-                        addItem={addItem}
-                        formatFunctions={formatFunctions}
-                        controls={controls}
-                        setState={setState}
-                        isEdit={isEdit}
-                        display={display}
-                    />
-                ))
+                visibleColumns.map((attr, i) => {
+                    const fullIdx = pickerProps ? columns.findIndex(c => isEqualColumns(c, attr)) : -1;
+                    const isLast = i === visibleColumns.length - 1;
+                    const insertAtCurrent = fullIdx !== -1 ? fullIdx : 0;
+                    const insertAtAfter = fullIdx !== -1 ? fullIdx + 1 : columns.length;
+
+                    const pickerLeft = (pickerProps && !compactView) ? (
+                        <CardColumnPicker
+                            insertAt={insertAtCurrent}
+                            {...pickerProps}
+                            triggerClassName="absolute top-0 bottom-0 left-0 -translate-x-1/2 flex items-center z-20 w-4"
+                        />
+                    ) : null;
+                    const pickerRight = (pickerProps && !compactView && isLast) ? (
+                        <CardColumnPicker
+                            insertAt={insertAtAfter}
+                            {...pickerProps}
+                            triggerClassName="absolute top-0 bottom-0 right-0 translate-x-1/2 flex items-center z-20 w-4"
+                        />
+                    ) : null;
+                    const pickerTop = (pickerProps && compactView) ? (
+                        <CardColumnPicker
+                            insertAt={insertAtCurrent}
+                            {...pickerProps}
+                            triggerClassName="absolute left-0 right-0 top-0 -translate-y-1/2 h-4 z-20 flex items-center justify-center"
+                        />
+                    ) : null;
+                    const pickerBottom = (pickerProps && compactView) ? (
+                        <CardColumnPicker
+                            insertAt={insertAtAfter}
+                            {...pickerProps}
+                            triggerClassName="absolute left-0 right-0 bottom-0 translate-y-1/2 h-4 z-20 flex items-center justify-center"
+                        />
+                    ) : null;
+                    return (
+                        <CardColumnField
+                            key={attr.normalName || attr.name}
+                            attr={attr}
+                            theme={theme}
+                            compactView={compactView}
+                            reverse={reverse}
+                            addBorder={addBorder}
+                            removeBorder={removeBorder}
+                            padding={padding}
+                            headerValueLayout={headerValueLayout}
+                            headerWidth={headerWidth}
+                            valueWidth={valueWidth}
+                            allowAdddNew={allowAdddNew}
+                            liveEdit={liveEdit}
+                            isDms={isDms}
+                            allowEdit={allowEdit}
+                            tmpItem={tmpItem}
+                            setTmpItem={setTmpItem}
+                            isNewItem={isNewItem}
+                            newItem={newItem}
+                            setNewItem={setNewItem}
+                            updateItem={updateItem}
+                            addItem={addItem}
+                            formatFunctions={formatFunctions}
+                            controls={controls}
+                            setState={setState}
+                            isEdit={isEdit}
+                            display={display}
+                            pickerLeft={pickerLeft}
+                            pickerRight={pickerRight}
+                            pickerTop={pickerTop}
+                            pickerBottom={pickerBottom}
+                        />
+                    );
+                })
             }
 
             {
@@ -530,9 +657,9 @@ export default function ({
         compactView ? {backgroundColor: bgColor, padding, gap: colGap} :
             {
                 gridTemplateColumns: `repeat(${getGridSize(gridSize) || cardsWithoutSpanLength}, minmax(0, 1fr))`,
-                gap: gridGap || 2
+                gap: gridGap
             },
-        [compactView, bgColor, padding, colGap, gridSize, cardsWithoutSpanLength]);
+        [compactView, bgColor, padding, gridGap, colGap, gridSize, cardsWithoutSpanLength]);
 
     // Reordering function
     function handleDrop(targetCol) {
@@ -550,32 +677,32 @@ export default function ({
 
     return (
         <>
-            {
-                isEdit ? (
-                    <div className={theme.columnControlWrapper}>
-                        {
-                            visibleColumns.map((attribute, i) => (
-                                <div
-                                    key={`controls-${i}`}
-                                    className={theme.columnControlHeaderWrapper}
-                                    draggable
-                                    onDragStart={() => setDraggedCol(attribute)}
-                                    onDragOver={e => e.preventDefault()} // Allow drop
-                                    onDrop={() => handleDrop(attribute)}
-                                >
-                                    <TableHeaderCell
-                                        isEdit={isEdit}
-                                        attribute={attribute}
-                                        columns={columns}
-                                        display={display} controls={controls} setState={setState}
-                                        activeStyle={activeStyle}
-                                    />
-                                </div>
-                            ))
-                        }
-                </div>
-                ) : null
-            }
+            {/*{*/}
+            {/*    isEdit ? (*/}
+            {/*        <div className="flex flex-wrap items-start gap-y-1 overflow-x-auto">*/}
+            {/*            {*/}
+            {/*                visibleColumns.map((attribute, i) => (*/}
+            {/*                    <div*/}
+            {/*                        key={`col-header-${i}`}*/}
+            {/*                        className={theme.columnControlHeaderWrapper}*/}
+            {/*                        draggable*/}
+            {/*                        onDragStart={() => setDraggedCol(attribute)}*/}
+            {/*                        onDragOver={e => e.preventDefault()}*/}
+            {/*                        onDrop={() => handleDrop(attribute)}*/}
+            {/*                    >*/}
+            {/*                        <TableHeaderCell*/}
+            {/*                            isEdit={isEdit}*/}
+            {/*                            attribute={attribute}*/}
+            {/*                            columns={columns}*/}
+            {/*                            display={display} controls={controls} setState={setState}*/}
+            {/*                            activeStyle={activeStyle}*/}
+            {/*                        />*/}
+            {/*                    </div>*/}
+            {/*                ))*/}
+            {/*            }*/}
+            {/*        </div>*/}
+            {/*    ) : null*/}
+            {/*}*/}
 
             {/* outer wrapper: in compact view, grid applies here */}
             <div className={gridSize && compactView ? theme.mainWrapperCompactView : theme.mainWrapperSimpleView} style={mainWrapperStyle}>
@@ -590,9 +717,10 @@ export default function ({
                             item={item} newItem={newItem} setNewItem={setNewItem}
                             addItem={addItem} updateItem={updateItem} allowEdit={allowEdit}
                             subWrapperStyle={subWrapperStyle}
+                            columns={columns}
                             visibleColumns={visibleColumns}
                             formatFunctions={formatFunctions}
-                            controls={controls}
+                            controls={{...controls, sourceColumns: sourceInfo.columns}}
                             setState={setState}
                             isEdit={isEdit}
                         />

@@ -27,7 +27,7 @@ function EditComp({value, onChange, compKey, component, siteType, pageFormat}) {
     return (
         <>
                 {/* controls with datasource selector */}
-                <Controls />
+                {/*<Controls />*/}
                 <RenderFilters isEdit={true} defaultOpen={true} />
             {/*{component.useDataWrapper ? <ComplexFilters state={state} setState={setState}/> : null}*/}
                 <DataComp

@@ -1,9 +1,11 @@
-import React, {useContext} from "react";
+import React, {useContext, useState} from "react";
 import { ComponentContext } from "../../../../context";
 import { ThemeContext } from "../../../../../../ui/useTheme";
 import {formatFunctions} from "../dataWrapper/utils/utils";
 import ColorControls from "./sharedControls/ColorControls";
 import {ToggleControl} from "../dataWrapper/components/ToggleControl";
+import AddFormulaColumn from "../../AddFormulaColumn";
+import AddCalculatedColumn from "../../AddCalculatedColumn";
 
 const fontStyleOptions = [
     { label: '', value: '' },
@@ -53,7 +55,12 @@ const Card = ({
     const {Card} = UI;
     const {state, setState, controls={}} = useContext(ComponentContext);
 
-    return <Card columns={state.columns} data={state.data} display={state.display} sourceInfo={state.sourceInfo} setState={setState} controls={controls}
+    return <Card columns={state.columns} data={state.data} display={state.display} sourceInfo={state.sourceInfo} setState={setState}
+                 controls={{
+                     ...controls,
+                     FormulaColumnModal: AddFormulaColumn,
+                     CalculatedColumnModal: AddCalculatedColumn,
+                 }}
                  isEdit={isEdit} updateItem={updateItem} addItem={addItem} newItem={newItem} setNewItem={setNewItem} allowEdit={allowEdit}
                  formatFunctions={formatFunctions}
     />
@@ -107,31 +114,64 @@ const handlePaste = async (attribute, setAttribute) => {
 
 const inHeader = [
     // settings from in header dropdown are stored in the columns array per column.
-    {type: ({attribute, setAttribute}) => {
+    {type: ({attribute, setAttribute, moveColumn, removeColumn, close}) => {
         const {UI} = useContext(ThemeContext);
-        const {Button} = UI;
+        const {Pill, Icon} = UI;
+        const [copied, setCopied] = useState(false);
         const {
             justify, formatFn, headerFontStyle, valueFontStyle, hideHeader, hideValue, bgColor, cardSpan, wrapText
         } = attribute;
-        const objToCopy = {justify, formatFn, headerFontStyle, valueFontStyle, hideHeader, hideValue, bgColor, cardSpan, wrapText}
+        const objToCopy = {justify, formatFn, headerFontStyle, valueFontStyle, hideHeader, hideValue, bgColor, cardSpan, wrapText};
 
-
-            return (
-                <div className={'flex'}>
-                    <Button onClick={() => handleCopy(objToCopy)}>copy format</Button>
-                    <Button onClick={() => handlePaste(attribute, setAttribute)}>paste format</Button>
+        return (
+            <div className={'w-full flex justify-between gap-1'}>
+                <div className={'flex gap-1'}>
+                    <Pill color={'blue'} text={<Icon icon={'ChevronUpSquare'} className={'size-5'} />} title={'Move Up'}
+                          onClick={() => moveColumn(-1)} />
+                    <Pill color={'blue'} text={<Icon icon={'ChevronDownSquare'} className={'size-5'} />} title={'Move Down'}
+                          onClick={() => moveColumn(1)} />
+                    <Pill color={copied ? 'green' : 'blue'} text={<Icon icon={'Copy'} className={'size-5'} />}
+                          title={'Copy Format'}
+                          onClick={() => {
+                              handleCopy(objToCopy);
+                              setCopied(true);
+                              setTimeout(() => setCopied(false), 2000);
+                          }} />
+                    <Pill color={'blue'} text={<Icon icon={'Paste'} className={'size-5'} />} title={'Paste Format'}
+                          onClick={() => handlePaste(attribute, setAttribute)} />
                 </div>
-            )
-        },
-        label: 'format controls', key: '', hideFromSectionMenu: true, displayCdn: ({isEdit}) => isEdit},
 
-    {type: 'textarea', label: 'Description', key: 'description', displayCdn: ({isEdit}) => isEdit},
-    {type: 'toggle', label: 'Allow Edit', key: 'allowEditInView', displayCdn: ({isEdit}) => isEdit},
+                <div className={'flex gap-1'}>
+                    <Pill color={'orange'} text={<Icon icon={'TrashCan'} className={'size-5'} />} title={'Remove'}
+                          onClick={removeColumn} />
+                    <Pill color={'orange'} text={<Icon icon={'CancelCircle'} className={'size-5'} />} title={'Close'}
+                          onClick={close} />
+                </div>
+            </div>
+        );
+    },
+    label: 'column actions', key: '', hideFromSectionMenu: true, displayCdn: ({isEdit}) => isEdit,
+    renderPos: 'top', renderCdn: activeParent => !activeParent},
+    {type: ({close, goBack, goHome}) => {
+        const {UI} = useContext(ThemeContext);
+        const {Pill, Icon} = UI;
+        return (
+            <div className={'w-full flex justify-between gap-1'}>
+                <div className={'flex gap-1'}>
+                    <Pill color={'blue'} text={<Icon icon={'ArrowLeft'} className={'size-5'} />} title={'Back'} onClick={goBack} />
+                    <Pill color={'blue'} text={<Icon icon={'Home'} className={'size-5'} />} title={'Home'} onClick={goHome} />
+                </div>
+                <Pill color={'orange'} text={<Icon icon={'CancelCircle'} className={'size-5'} />} title={'Close'}
+                      onClick={close} />
+            </div>
+        );
+    },
+    label: 'column sub actions', key: '', hideFromSectionMenu: true,
+    renderPos: 'top', renderCdn: activeParent => !!activeParent},
+    {type: 'separator', key: 'toolbar-sep', label: 'toolbar-sep', hideFromSectionMenu: true,
+     renderPos: 'top', renderCdn: () => true},
 
-    {type: 'select', label: 'Sort', key: 'sort',
-        options: [
-            {label: 'Not Sorted', value: ''}, {label: 'A->Z', value: 'asc nulls last'}, {label: 'Z->A', value: 'desc nulls last'}
-        ]},
+    // display
     {type: 'select', label: 'Justify', key: 'justify', isBatchUpdatable: true,
         options: [
             {label: 'Not Justified', value: ''},
@@ -152,15 +192,19 @@ const inHeader = [
             {label: 'Icon', value: 'icon'},
             {label: 'Color', value: 'color'},
         ]},
+    {type: 'select', label: 'Header', key: 'headerFontStyle', options: fontStyleOptions, isBatchUpdatable: true, displayCdn: ({attribute}) => !attribute.hideHeader},
+    {type: 'select', label: 'Value', key: 'valueFontStyle', options: fontStyleOptions, isBatchUpdatable: true, displayCdn: ({attribute}) => !attribute.hideValue},
 
+    {type: 'separator', key: 'toolbar-sep', label: 'toolbar-sep', hideFromSectionMenu: true},
+    // layout
     {type: 'toggle', label: 'Border Below', key: 'borderBelow', displayCdn: ({display}) => display.compactView},
     {type: 'input', inputType: 'number', label: 'Padding Below', key: 'pb', isBatchUpdatable: true, displayCdn: ({display}) => display.compactView},
     {type: 'toggle', label: 'Hide Header', key: 'hideHeader', isBatchUpdatable: true},
     {type: 'toggle', label: 'Hide Value', key: 'hideValue', isBatchUpdatable: true},
-    {type: 'select', label: 'Header', key: 'headerFontStyle', options: fontStyleOptions, isBatchUpdatable: true, displayCdn: ({attribute}) => !attribute.hideHeader},
-    {type: 'select', label: 'Value', key: 'valueFontStyle', options: fontStyleOptions, isBatchUpdatable: true, displayCdn: ({attribute}) => !attribute.hideValue},
-
     {type: 'input', inputType: 'number', label: 'Span', key: 'cardSpan', displayCdn: ({display}) => !display.compactView},
+    {type: 'separator', key: 'toolbar-sep', label: 'toolbar-sep', hideFromSectionMenu: true},
+    // other
+    {type: 'toggle', label: 'Allow Edit', key: 'allowEditInView', displayCdn: ({isEdit}) => isEdit},
 
     // link controls
     {type: 'toggle', label: 'Is Link', key: 'isLink', displayCdn: ({isEdit}) => isEdit},
@@ -197,8 +241,11 @@ const inHeader = [
         ],
         displayCdn: ({attribute, isEdit}) => isEdit && attribute.isImg},
     {type: 'input', inputType: 'number', label: 'Image Top Margin', key: 'imageMargin', displayCdn: ({attribute, isEdit}) => isEdit && attribute.isImg},
-
-
+    {type: 'select', label: 'Sort', key: 'sort',
+        options: [
+            {label: 'Not Sorted', value: ''}, {label: 'A->Z', value: 'asc nulls last'}, {label: 'Z->A', value: 'desc nulls last'}
+        ]},
+    {type: 'textarea', label: 'Description', key: 'description', displayCdn: ({isEdit}) => isEdit},
     {type: ({value, setValue}) => (<ColorControls value={value} setValue={setValue} title={'Background Color'}/>), key: 'bgColor', displayCdn: ({display}) => !display.compactView}
 ];
 

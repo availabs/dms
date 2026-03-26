@@ -33,6 +33,7 @@ const ColumnPicker = ({ state, setState, allColumns, stagedColumns, setStagedCol
 
     const confirmAdd = () => {
         setState(draft => {
+            const isGrouping = draft.columns.some(c => c.group);
             stagedColumns.forEach(col => {
                 const exists = draft.columns.some(c => isEqualColumns(c, col));
                 if (exists) {
@@ -48,9 +49,16 @@ const ColumnPicker = ({ state, setState, allColumns, stagedColumns, setStagedCol
                         normalName: `${base.name}_copy_${numDuplicates + 1}`,
                         display_name: `${getColumnLabel(base)} Copy ${numDuplicates + 1}`
                     };
+                    if (isGrouping && !dup.group && !dup.fn) {
+                        dup.fn = dup.defaultFn?.toLowerCase() || 'list';
+                    }
                     draft.columns.splice(idx, 0, dup);
                 } else {
-                    draft.columns.push({ ...col, show: true });
+                    const newCol = { ...col, show: true };
+                    if (isGrouping && !newCol.group && !newCol.fn) {
+                        newCol.fn = newCol.defaultFn?.toLowerCase() || 'list';
+                    }
+                    draft.columns.push(newCol);
                 }
             });
         });
