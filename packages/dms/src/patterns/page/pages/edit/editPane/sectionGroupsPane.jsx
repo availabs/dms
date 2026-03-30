@@ -220,7 +220,7 @@ export default function SectionGroupsPane () {
   }, [item?.draft_section_groups])
 
   return (
-      <div className="relative mt-2 flex w-full h-full">
+      <div className="relative mt-2 flex-0 w-full h-full">
         <DraggableMenu
             dataItems={dataItems}
             matches={matches}

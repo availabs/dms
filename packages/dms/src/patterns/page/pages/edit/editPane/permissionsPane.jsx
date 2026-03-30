@@ -31,7 +31,7 @@ function PermissionsPane() {
     if(!userHasEditPermissionsAccess) return null;
 
     return (
-        <div className="flex w-full h-full overflow-y-auto">
+        <div className="flex-0 w-full h-full overflow-y-auto">
             <Permissions
                 inheritedValue={patternAuthPermissions}
                 value={authPermissions}
