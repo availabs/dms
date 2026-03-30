@@ -29,14 +29,14 @@ export const tabsTheme = {
       tabpanel: 'rounded-xl bg-white/5'
     },
     {
-      tabGroup: 'flex flex-row divide-x',
+      tabGroup: 'flex flex-row divide-x divide-slate-300',
       tablist: 'flex flex-col gap-1 pt-12',
       tab: `
     p-3 font-semibold text-slate-600 focus:outline-none border-b-2 border-white text-xs hover:text-slate-900
     data-[selected]:bg-blue-600 data-[selected]:text-white data-[hover]:bg-white/5 data-[focus]:outline-1 data-[focus]:outline-white cursor-pointer
   `,
       tabpanels: 'w-full h-screen max-h-screen overflow-y-auto scrollbar-sm',
-      tabpanel: 'rounded-xl bg-white/5 divide-y',
+      tabpanel: 'rounded-xl bg-white/5 divide-y divide-slate-300',
       tabTitle: 'p-2 text-lg'
     },
   ]

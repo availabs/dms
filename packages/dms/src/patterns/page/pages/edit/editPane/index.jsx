@@ -18,6 +18,7 @@ const panes = [
       },
       {
         icon: 'Database',
+          title: 'Data Sources',
         Component: DataSourcesPane,
           reqPermissions: ['edit-page']
       },
