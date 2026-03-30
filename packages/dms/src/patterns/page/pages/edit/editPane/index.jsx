@@ -124,7 +124,7 @@ export function EditDrawer() {
     >
       {/*<div className='h-8 w-[500px]' />*/}
       <Tabs
-          activeStyle={1}
+          activeStyle={2}
         selectedIndex = {editPane.index}
         setSelectedIndex = {v => setEditPane({...editPane, index: v})}
         tabs={
