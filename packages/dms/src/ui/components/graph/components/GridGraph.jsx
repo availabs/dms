@@ -3,7 +3,7 @@ import * as Plot from "@observablehq/plot";
 import { useGenericPlotOptions } from "../utils";
 
 const GridGraph = (props) => {
-    const { data, bgColor, tooltip } = props;
+    const { data, bgColor, tooltip, xAxis = {}, yAxis = {} } = props;
 
     const [ref, setRef] = React.useState(null);
     const plotOptions = useGenericPlotOptions(props);
@@ -50,11 +50,13 @@ const GridGraph = (props) => {
             // inset: 0.5,
             x: {
                 domain: xDomain,
-                tickFormat: d => d.toString()
+                tickFormat: d => d.toString(),
+                tickRotate: xAxis.rotateLabels ? 45 : undefined
             },
             y: {
                 domain: yDomain,
-                reverse: true
+                reverse: true,
+                tickRotate: yAxis.rotateLabels ? 45 : undefined
             },
             color: {
                 scheme: "YlOrBr",
@@ -66,6 +68,20 @@ const GridGraph = (props) => {
 
         ref.innerHTML = "";
         ref.append(plot);
+
+        if (xAxis.rotateLabels) {
+            plot.querySelectorAll(".x .tick text").forEach((el) => {
+                el.setAttribute("transform", "rotate(45)");
+                el.style.textAnchor = "start";
+            });
+        }
+
+        if (yAxis.rotateLabels) {
+            plot.querySelectorAll(".y .tick text").forEach((el) => {
+                el.setAttribute("transform", "rotate(45)");
+                el.style.textAnchor = "start";
+            });
+        }
 
         return () => plot.remove();
     }, [ref, data, plotOptions, bgColor, tooltip]);
