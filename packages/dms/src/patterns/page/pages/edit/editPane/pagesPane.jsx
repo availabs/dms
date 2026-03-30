@@ -19,25 +19,16 @@ function PagesPane () {
         return duplicateItem(dataItems.find(dI => dI.id === itemId), dataItems, user, apiUpdate)
     }
   return (
-    <div className="flex h-full flex-col flex-1">
-      <div className="px-4 sm:px-6 py-2">
-        <div className="flex items-start justify-between">
-          <h1 className="text-base font-semibold leading-6 text-slate-900">
-            Pages
-          </h1>
-        </div>
+      <div className="relative flex w-full h-full">
+          <DraggableNav
+              item={item}
+              dataItems={dataItems}
+              apiUpdate={apiUpdate}
+              baseUrl={baseUrl}
+              renderAddItemButton={isUserAuthed(['create-page'], pageAuthPermissions)}
+              NavComp={(props) => DraggableNavItem({...props, duplicatePage})}
+          />
       </div>
-      <div className="relative flex-1 w-full ">
-        <DraggableNav
-          item={item}
-          dataItems={dataItems}
-          apiUpdate={apiUpdate}
-          baseUrl={baseUrl}
-          renderAddItemButton={isUserAuthed(['create-page'], pageAuthPermissions)}
-          NavComp={(props) => DraggableNavItem({...props, duplicatePage})}
-        />
-      </div>
-    </div>
   )
 }
 

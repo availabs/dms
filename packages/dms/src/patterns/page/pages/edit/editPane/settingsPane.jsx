@@ -130,150 +130,139 @@ function SettingsPane () {
 
   //console.log(themeSettings)
   return (
-    <div className="flex h-full flex-col">
-      <div className="px-4 sm:px-6 py-2">
-        <div className="flex items-start justify-between">
-          <h1 className="text-base font-semibold leading-6 text-gray-900">
-            Settings
-          </h1>
-        </div>
-      </div>
-      {/*<div className='w-full flex justify-center py-4'>
-        <PublishButton />
-      </div>*/}
-      <div className="relative mt-6 flex-1 px-4 sm:px-6 w-full   max-h-[calc(100vh_-_135px)] overflow-y-auto">
-        <FieldSet components={[
-          {
-            type:'ConfirmInput',
-            label: 'Page Name',
-            value: item.title,
-            onChange: (val) => {
-              console.log('Change page Name', val)
-              updateTitle ( item, dataItems, val, user, apiUpdate)
-            }
-          },
-            {
-            type:'Switch',
-            label: 'Hide in Nav',
-            enabled: item.hide_in_nav === 'hide', size: 'small',
-            setEnabled: e => togglePageSetting(item, 'hide_in_nav', e ? 'hide' : false, apiUpdate),
-                customTheme:{
-                    field: 'pb-2 flex flex-row gap-2'
-                }
-          },
-            {
-            type:'Switch',
-            label: 'Show in Footer',
-            enabled: item.show_in_footer === 'show', size: 'small',
-            setEnabled: e => togglePageSetting(item, 'show_in_footer', e ? 'show' : false, apiUpdate),
-                customTheme:{
-                    field: 'pb-2 flex flex-row gap-2'
-                }
-          },
-            {
-            type:'Switch',
-            label: 'Cover Page',
-            enabled: item.is_cover_page === 'yes', size: 'small',
-            setEnabled: e => togglePageSetting(item, 'is_cover_page', e ? 'yes' : false, apiUpdate),
-                customTheme:{
-                    field: 'pb-2 flex flex-row gap-2'
-                }
-          },
-          {
-            type:'Select',
-            label: 'Show Content Sidebar',
-            value: item.sidebar || '',
-            options: [
-                  {label: 'None', value: ''},
-                  {label: 'Left', value: 'left'},
-                  {label: 'Right', value: 'right'},
-
-            ],
-            onChange:(e) => {
-              togglePageSetting(item, 'sidebar', e.target.value,  apiUpdate)
-            }
-          },
-          {
-            type:'Select',
-            label: 'Show SideNav',
-            value: theme?.layout?.options?.sideNav?.size || '',
-            options: [
-                  {label: 'Show', value: 'compact'},
-                  {label: 'Hide', value: 'none'}
-
-            ],
-            onChange:(e) => {
-              console.log('toggle sidenave', e.target.value)
-              togglePageSetting(item, 'theme.layout.options.sideNav.size', e.target.value,  apiUpdate)
-            }
-          },
-          {
-            type:'Select',
-            label: 'Sidenav Style',
-            value: item?.theme?.layout?.options?.sideNav?.activeStyle || '',
-            options: [
-              { label: 'default', value: "" },
-              ...(theme?.sidenav?.styles || [{}])
-                .map((k, i) => ({ label: k?.name || i, value: i })),
-            ],
-            onChange:(e) => {
-              console.log('toggle active style')
-              togglePageSetting(item, 'theme.layout.options.sideNav.activeStyle', e.target.value,  apiUpdate)
-            }
-          },
-          {
-            type:'Listbox',
-            label: 'Icon',
-            value:  item?.icon,
-            options: [
-              ...Object.keys(theme.Icons)
-                .map((iconName) => {
-                  return {
-                    label: (
-                      <div className='flex'>
-                        <div className='px-2'>
-                          <Icon icon={iconName} className='size-6' />
-                        </div>
-                        <div>
-                          {iconName}
-                        </div>
-                      </div>
-                    ),
-                    value: iconName
+      <div className="flex p-2 w-full h-full overflow-y-auto scrollbar-sm">
+          <FieldSet components={[
+              {
+                  type:'ConfirmInput',
+                  label: 'Page Name',
+                  value: item.title,
+                  onChange: (val) => {
+                      console.log('Change page Name', val)
+                      updateTitle ( item, dataItems, val, user, apiUpdate)
                   }
-                }),
-                {label: 'No Icon', value: 'none'}
-            ],
-            onChange:(e) => {
-              //console.log('update icon thing', e)
-              togglePageSetting(item, 'icon', e,  apiUpdate)
+              },
+              {
+                  type: DebouncedInput,
+                  Input,
+                  label: 'Page Description',
+                  value: item?.description || '',
+                  onChange:(e) => {
+                      apiUpdate({data: {...item, description: e}})
+                  }
+              },
+              {
+                  type:'Listbox',
+                  label: 'Icon',
+                  value:  item?.icon,
+                  options: [
+                      ...Object.keys(theme.Icons)
+                          .map((iconName) => {
+                              return {
+                                  label: (
+                                      <div className='flex'>
+                                          <div className='px-2'>
+                                              <Icon icon={iconName} className='size-6' />
+                                          </div>
+                                          <div>
+                                              {iconName}
+                                          </div>
+                                      </div>
+                                  ),
+                                  value: iconName
+                              }
+                          }),
+                      {label: 'No Icon', value: 'none'}
+                  ],
+                  onChange:(e) => {
+                      //console.log('update icon thing', e)
+                      togglePageSetting(item, 'icon', e,  apiUpdate)
 
-            }
-          },
-          {
-            type: DebouncedInput,
-              Input,
-            label: 'Page Description',
-            value: item?.description || '',
-            onChange:(e) => {
-              apiUpdate({data: {...item, description: e}})
-            }
-          },
-          {
-            type: FilterSettings,
-            label: 'Filters',
-              reqPermissions: ['edit-page-params'],
-            value: item?.filters || [],
-            stateValue: pageState?.filters || [],
-            onChange:(e) => {
-              togglePageSetting(item, 'filters', e,  apiUpdate)
-            }
-          },
-          ...themeSettings
-        ].filter(f => !f.reqPermissions || isUserAuthed(f.reqPermissions, pageAuthPermissions))
-        } />
+                  }
+              },
+              {
+                  type:'Switch',
+                  label: 'Hide in Nav',
+                  enabled: item.hide_in_nav === 'hide', size: 'small',
+                  setEnabled: e => togglePageSetting(item, 'hide_in_nav', e ? 'hide' : false, apiUpdate),
+                  customTheme:{
+                      field: 'pb-2 flex flex-row gap-2'
+                  }
+              },
+              {
+                  type:'Switch',
+                  label: 'Show in Footer',
+                  enabled: item.show_in_footer === 'show', size: 'small',
+                  setEnabled: e => togglePageSetting(item, 'show_in_footer', e ? 'show' : false, apiUpdate),
+                  customTheme:{
+                      field: 'pb-2 flex flex-row gap-2'
+                  }
+              },
+              {
+                  type:'Switch',
+                  label: 'Cover Page',
+                  enabled: item.is_cover_page === 'yes', size: 'small',
+                  setEnabled: e => togglePageSetting(item, 'is_cover_page', e ? 'yes' : false, apiUpdate),
+                  customTheme:{
+                      field: 'pb-2 flex flex-row gap-2'
+                  }
+              },
+              {
+                  type:'Select',
+                  label: 'Show Content Sidebar',
+                  value: item.sidebar || '',
+                  options: [
+                      {label: 'None', value: ''},
+                      {label: 'Left', value: 'left'},
+                      {label: 'Right', value: 'right'},
+
+                  ],
+                  onChange:(e) => {
+                      togglePageSetting(item, 'sidebar', e.target.value,  apiUpdate)
+                  }
+              },
+              {
+                  type:'Select',
+                  label: 'Show SideNav',
+                  value: theme?.layout?.options?.sideNav?.size || '',
+                  options: [
+                      {label: 'Show', value: 'compact'},
+                      {label: 'Hide', value: 'none'}
+
+                  ],
+                  onChange:(e) => {
+                      console.log('toggle sidenave', e.target.value)
+                      togglePageSetting(item, 'theme.layout.options.sideNav.size', e.target.value,  apiUpdate)
+                  }
+              },
+              {
+                  type:'Select',
+                  label: 'Sidenav Style',
+                  value: item?.theme?.layout?.options?.sideNav?.activeStyle || '',
+                  options: [
+                      { label: 'default', value: "" },
+                      ...(theme?.sidenav?.styles || [{}])
+                          .map((k, i) => ({ label: k?.name || i, value: i })),
+                  ],
+                  onChange:(e) => {
+                      console.log('toggle active style')
+                      togglePageSetting(item, 'theme.layout.options.sideNav.activeStyle', e.target.value,  apiUpdate)
+                  }
+              },
+              ...themeSettings,
+
+              {
+                  type: FilterSettings,
+                  label: 'Filters',
+                  reqPermissions: ['edit-page-params'],
+                  value: item?.filters || [],
+                  stateValue: pageState?.filters || [],
+                  onChange:(e) => {
+                      togglePageSetting(item, 'filters', e,  apiUpdate)
+                  }
+              },
+          ].filter(f => !f.reqPermissions || isUserAuthed(f.reqPermissions, pageAuthPermissions))
+          } />
       </div>
-    </div>
   )
 }
 

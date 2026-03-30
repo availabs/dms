@@ -220,43 +220,31 @@ export default function SectionGroupsPane () {
   }, [item?.draft_section_groups])
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="px-4 sm:px-6 py-2">
-        <div className="flex items-start justify-between">
-          <h1 className="text-base font-semibold leading-6 text-gray-900">
-            Section Groups
-          </h1>
-        </div>
-      </div>
-      <div className="relative mt-2 flex-1 px-4 sm:px-6 w-full max-h-screen overflow-y-auto">
+      <div className="relative mt-2 flex w-full h-full">
         <DraggableMenu
-          dataItems={dataItems}
-          matches={matches}
-          onChange={handleDragChange}
-          canDrag={(item) => !SECTION_TARGETS.includes(item?.id)}
-          canAcceptChildren={(item) => SECTION_TARGETS.includes(item?.id)}
-          renderItem={({item: group, isExpanded, handleCollapseIconClick}) => {
-            const isSection = SECTION_TARGETS.includes(group.id)
-            const fullGroupData = dataItems[group.id]
-            console.log('group', group, fullGroupData)
-            return (
-              <SectionGroupControl
-                group={group}
-                fullGroupData={fullGroupData}
-                theme={theme}
-                isSection={isSection}
-                onAdd={isSection ? () => addSectionGroup(group.id) : undefined}
-                onDelete={() => deleteGroup(group.id)}
-                onUpdateAttribute={(attr, value) => updateGroupAttribute(group.id, attr, value)}
-              />
-            )
-          }}
+            dataItems={dataItems}
+            matches={matches}
+            onChange={handleDragChange}
+            canDrag={(item) => !SECTION_TARGETS.includes(item?.id)}
+            canAcceptChildren={(item) => SECTION_TARGETS.includes(item?.id)}
+            renderItem={({item: group, isExpanded, handleCollapseIconClick}) => {
+              const isSection = SECTION_TARGETS.includes(group.id)
+              const fullGroupData = dataItems[group.id]
+              console.log('group', group, fullGroupData)
+              return (
+                  <SectionGroupControl
+                      group={group}
+                      fullGroupData={fullGroupData}
+                      theme={theme}
+                      isSection={isSection}
+                      onAdd={isSection ? () => addSectionGroup(group.id) : undefined}
+                      onDelete={() => deleteGroup(group.id)}
+                      onUpdateAttribute={(attr, value) => updateGroupAttribute(group.id, attr, value)}
+                  />
+              )
+            }}
         />
       </div>
-      {/* <pre className='w-full overflow-y-scroll'>
-        {JSON.stringify(item?.draft_section_groups,null,3)}
-      </pre>*/}
-    </div>
   )
 }
 

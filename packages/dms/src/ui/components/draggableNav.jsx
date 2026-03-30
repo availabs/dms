@@ -282,7 +282,7 @@ function AddItemButton({dataItems, apiUpdate, baseUrl, user = {}}) {
         setLoading(false);
     }
     return (
-        <div className='border px-4 py-2 rounded '>
+        <div className=''>
             <Button
                 onClick={addItem}
                 className={'w-full'}

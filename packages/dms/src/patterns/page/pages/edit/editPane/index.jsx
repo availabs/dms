@@ -11,24 +11,29 @@ import {getPageAuthPermissions} from "../../../pages/_utils";
 const panes = [
       {
         icon: 'Settings',
+          title: 'Settings',
         Component: SettingsPane,
           reqPermissions: ['edit-page']
       },
       {
         icon: 'Sections',
+          title: 'Section Groups',
         Component: SectionGroupsPane,
           reqPermissions: ['edit-page']
       },
       {
         icon: 'Pages',
+          title: 'Pages',
         Component: PagesPane
       },
       {
         icon: 'History',
+          title: 'History',
         Component: HistoryPane
       },
       {
         icon: 'AccessControl',
+          title: 'Permissions',
         Component: PermissionsPane,
           reqPermissions: ['edit-page-permissions']
       }
@@ -112,6 +117,7 @@ export function EditDrawer() {
     >
       {/*<div className='h-8 w-[500px]' />*/}
       <Tabs
+          activeStyle={1}
         selectedIndex = {editPane.index}
         setSelectedIndex = {v => setEditPane({...editPane, index: v})}
         tabs={
@@ -121,8 +127,9 @@ export function EditDrawer() {
             return {
               name: <Icon
                 icon={pane.icon}
-                className='size-6 hover:text-blue-500 text-slate-400'
+                className='size-6'
               />,
+                title: pane.title,
               Component: pane.Component,
             }
           })
