@@ -105,13 +105,13 @@ async function testByIdReturnsStringIds(id) {
   console.log('\n--- Test: byId response uses string ID ---');
 
   const result = await graph.getAsync([
-    ['dms', 'data', 'byId', id, ['id', 'app', 'type', 'data']]
+    ['dms', 'data', TEST_APP, 'byId', id, ['id', 'app', 'type', 'data']]
   ]);
 
-  const idValue = getValue(result.jsonGraph, 'dms', 'data', 'byId', id, 'id');
+  const idValue = getValue(result.jsonGraph, 'dms', 'data', TEST_APP, 'byId', id, 'id');
   assert(typeof idValue === 'string', `byId id value is string (got ${typeof idValue}: ${idValue})`);
 
-  const app = getValue(result.jsonGraph, 'dms', 'data', 'byId', id, 'app');
+  const app = getValue(result.jsonGraph, 'dms', 'data', TEST_APP, 'byId', id, 'app');
   assert(app === TEST_APP, `app matches (got ${app})`);
 }
 
@@ -393,6 +393,7 @@ async function run() {
   console.log(`Database: ${DB_NAME}\n`);
 
   graph = createTestGraph(DB_NAME);
+  await graph.ready;
   console.log(`Backend: ${graph.dbType}`);
 
   let createdIds = [];

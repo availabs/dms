@@ -375,12 +375,10 @@ export const initialState = defaultState => {
             showAttribution: true,
         },
         // wrapper controlled part
-        dataRequest: {
-        //     filter, exclude, gt, gte, lt, lte, filterGroups
-        },
+        filters: { op: 'AND', groups: [] },
         // lastDataRequest: {},
         data: [],
-        sourceInfo: {
+        externalSource: {
             columns: [],
             // pgEnv,
             // source_id

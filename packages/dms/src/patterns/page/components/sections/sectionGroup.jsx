@@ -1,10 +1,9 @@
 import React from 'react'
 import { Link, useLocation } from 'react-router'
-import { cloneDeep } from 'lodash-es'
-
 import { ThemeContext } from "../../../../ui/useTheme";
 import { PageContext, CMSContext } from '../../context'
 import { getInPageNav } from '../../pages/_utils'
+import { appendHistoryEntry } from '../../pages/edit/editFunctions'
 
 import SectionArray from './sectionArray'
 
@@ -59,14 +58,10 @@ export default function SectionGroup ({group, attributes, edit}) {
 
 export const updateSections = async ({update, action, item, user, apiUpdate, updateAttribute}) => {
     // const headerSection = item['draft_sections']?.filter(d => d.is_header)?.[0]
-    let edit = {
-      type: action,
-      user: user?.email || 'user',
-      time: new Date().toString()
-    }
+    const history = action
+      ? appendHistoryEntry(item.history, action, user)
+      : (item.history || {})
 
-    let history = item.history ? cloneDeep(item.history) : []
-    if(action){ history.push(edit) }
     //Testing here
     if(updateAttribute) {
       updateAttribute('','',{
@@ -79,17 +74,12 @@ export const updateSections = async ({update, action, item, user, apiUpdate, upd
     // ----------------
     // only need to send id, and data to update, not whole
     // --------------------
-    const newItemMainUpdate = {
+    const newItem = {
       id: item?.id,
       draft_sections: update.filter(d => d),
-      has_changes: true,
-    }
-    const newItemHistoryUpdate = {
-      id: item?.id,
       has_changes: true,
       history,
     }
     //console.log('editFunction saveSection newItem',newItem, update)
-    await apiUpdate({data: newItemMainUpdate})
-    await apiUpdate({data: newItemHistoryUpdate})
+    await apiUpdate({data: newItem, skipNavigate: true})
 }

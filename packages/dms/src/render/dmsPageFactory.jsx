@@ -16,9 +16,6 @@ import {
 } from "@availabs/avl-falcor"
 //const noAuth = Component => Component
 
-
-
-
 export default function dmsPageFactory (
   {
       dmsConfig,

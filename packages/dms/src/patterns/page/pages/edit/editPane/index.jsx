@@ -6,6 +6,7 @@ import PagesPane, { PublishButton } from './pagesPane'
 import HistoryPane from './historyPane'
 import SectionGroupsPane from './sectionGroupsPane'
 import PermissionsPane from "./permissionsPane";
+import DataSourcesPane from "./dataSourcesPane";
 import {getPageAuthPermissions} from "../../../pages/_utils";
 
 const panes = [
@@ -13,6 +14,11 @@ const panes = [
         icon: 'Settings',
           title: 'Settings',
         Component: SettingsPane,
+          reqPermissions: ['edit-page']
+      },
+      {
+        icon: 'Database',
+        Component: DataSourcesPane,
           reqPermissions: ['edit-page']
       },
       {

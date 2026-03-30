@@ -4,6 +4,7 @@ import { ThemeContext } from "../../../ui/useTheme";
 import SourcesLayout from "../components/patternListComponent/layout";
 import { cloneDeep } from "lodash-es";
 import {useNavigate} from "react-router";
+import { nameToSlug } from "../../../utils/type-utils";
 const buttonRedClass = 'p-2 mx-1 bg-red-500 hover:bg-red-700 text-white rounded-md';
 const buttonGreenClass = 'p-2 mx-1 bg-green-500 hover:bg-green-700 text-white rounded-md';
 
@@ -167,14 +168,14 @@ const Admin = ({
     return (
         <SourcesLayout fullWidth={false} baseUrl={baseUrl} pageBaseUrl={pageBaseUrl} isListAll={false}
                        hideBreadcrumbs={false}
-                       form={{name: item.name || item.doc_type, href: format.url_slug}}
+                       form={{name: item.name, href: format.url_slug}}
                        page={{name: 'Admin', href: `${pageBaseUrl}/${params.id}/admin`}}
                        id={params.id} //page id to use for navigation
         >
             <div className={`${theme?.page?.wrapper1}`}>
                 <div className={'w-full p-2 bg-white flex'}>
                     <AddViewBtn item={item} format={format} apiLoad={apiLoad} apiUpdate={apiUpdate}/>
-                    <ClearDataBtn app={app} type={item.doc_type} apiLoad={apiLoad} apiUpdate={apiUpdate}/>
+                    <ClearDataBtn app={app} type={nameToSlug(item.name)} apiLoad={apiLoad} apiUpdate={apiUpdate}/>
                     <DeleteSourceBtn parent={parent} item={item} apiUpdate={apiUpdate} baseUrl={baseUrl}/>
                 </div>
             </div>

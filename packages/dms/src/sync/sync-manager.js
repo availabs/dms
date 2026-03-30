@@ -10,9 +10,14 @@
  *   - WebSocket subscribes per-app
  */
 
-import { exec } from './db-client.js';
-import { applyLocal, applyRemote, initFromData } from './yjs-store.js';
-import { addToScope } from './sync-scope.js';
+import { exec, execBatch } from './db-client.js';
+import { applyLocal, applyRemote, initFromData, getData } from './yjs-store.js';
+import { addToScope, clearScope } from './sync-scope.js';
+
+// If a delta response exceeds this many changes, discard it and do a full
+// re-bootstrap for that scope instead.  This avoids applying extremely large
+// change-sets that would be slower than a fresh snapshot.
+const STALE_DELTA_THRESHOLD = 1000;
 
 // Event bus for invalidation
 const listeners = new Set();
@@ -21,6 +26,7 @@ export function onInvalidate(fn) {
   return () => listeners.delete(fn);
 }
 function invalidate(scope) {
+  if (_batchMode) return; // suppress during batch saves
   for (const fn of listeners) fn(scope);
 }
 
@@ -38,11 +44,14 @@ let _siteType = '';
 
 // Track which patterns have been bootstrapped
 const _loadedPatterns = new Set();
+// Inflight bootstrap promises — deduplicates concurrent calls for the same pattern
+const _inflightBootstraps = new Map();
 
 export function configure(app, apiHost, siteType = '') {
   _app = app;
   _apiHost = apiHost || '';
   _siteType = siteType;
+  if (_DEV) console.log(`[sync] configure: app=${app} apiHost=${_apiHost} siteType=${siteType}`);
 }
 
 function apiUrl(path) {
@@ -69,43 +78,56 @@ async function setLastRevision(rev, scope = null) {
 }
 
 async function applyChanges(changes) {
+  const statements = [];
   for (const change of changes) {
-    if (change.action === 'I' || change.action === 'U') {
-      if (pendingItemIds.has(change.item_id)) continue;
+    if (pendingItemIds.has(change.item_id)) continue;
 
+    if (change.action === 'I' || change.action === 'U') {
       const dataStr = typeof change.data === 'string' ? change.data : JSON.stringify(change.data || {});
-      await exec(
-        `INSERT INTO data_items (id, app, type, data, created_at, updated_at)
+      statements.push({
+        sql: `INSERT INTO data_items (id, app, type, data, created_at, updated_at)
          VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))
          ON CONFLICT(id) DO UPDATE SET
            app = excluded.app, type = excluded.type,
            data = excluded.data, updated_at = datetime('now')`,
-        [change.item_id, change.app, change.type, dataStr]
-      );
+        params: [change.item_id, change.app, change.type, dataStr]
+      });
     } else if (change.action === 'D') {
-      if (pendingItemIds.has(change.item_id)) continue;
-      await exec('DELETE FROM data_items WHERE id = ?', [change.item_id]);
+      statements.push({
+        sql: 'DELETE FROM data_items WHERE id = ?',
+        params: [change.item_id]
+      });
     }
+  }
+  if (statements.length > 0) {
+    await execBatch(statements);
   }
 }
 
 async function applyItems(items) {
-  for (const item of items) {
-    const dataStr = typeof item.data === 'string' ? item.data : JSON.stringify(item.data || {});
-    await exec(
-      `INSERT INTO data_items (id, app, type, data, created_at, created_by, updated_at, updated_by)
+  // Batch all inserts into a single worker round-trip (transaction)
+  const UPSERT_SQL = `INSERT INTO data_items (id, app, type, data, created_at, created_by, updated_at, updated_by)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET
          app = excluded.app, type = excluded.type,
-         data = excluded.data, updated_at = excluded.updated_at`,
-      [item.id, item.app, item.type, dataStr,
-       item.created_at, item.created_by, item.updated_at, item.updated_by]
-    );
+         data = excluded.data, updated_at = excluded.updated_at`;
 
-    // Register type in sync scope
+  // Chunk into batches to avoid oversized postMessages
+  const CHUNK = 500;
+  for (let i = 0; i < items.length; i += CHUNK) {
+    const chunk = items.slice(i, i + CHUNK);
+    const statements = chunk.map(item => ({
+      sql: UPSERT_SQL,
+      params: [item.id, item.app, item.type,
+        typeof item.data === 'string' ? item.data : JSON.stringify(item.data || {}),
+        item.created_at, item.created_by, item.updated_at, item.updated_by]
+    }));
+    await execBatch(statements);
+  }
+
+  // Register types in sync scope + init Yjs docs (these are cheap in-memory ops)
+  for (const item of items) {
     addToScope(item.app, item.type);
-
-    // Initialize Yjs doc
     try {
       const parsed = typeof item.data === 'string' ? JSON.parse(item.data) : item.data;
       initFromData(item.id, parsed);
@@ -123,7 +145,8 @@ const _DEV = typeof globalThis.__SYNC_DEV !== 'undefined' ? globalThis.__SYNC_DE
 export async function bootstrapSkeleton() {
   if (!_siteType) {
     console.warn('[sync] no siteType — falling back to full app bootstrap');
-    return bootstrapFull();
+    return null
+    //return bootstrapFull();
   }
 
   const scope = `skeleton:${_siteType}`;
@@ -131,31 +154,57 @@ export async function bootstrapSkeleton() {
   if (_DEV) console.log(`[sync]     skeleton lastRev=${lastRev} (${lastRev === null ? 'cold' : 'warm'})`);
 
   try {
-    if (lastRev === null) {
-      const t0 = performance.now();
-      const res = await fetch(apiUrl(`/sync/bootstrap?app=${encodeURIComponent(_app)}&skeleton=${encodeURIComponent(_siteType)}`));
-      if (!res.ok) throw new Error(`skeleton bootstrap failed: ${res.status}`);
-      const { items, revision } = await res.json();
-      if (_DEV) console.log(`[sync]     skeleton: ${items.length} items (${(performance.now() - t0).toFixed(0)}ms)`);
-      await applyItems(items);
-      await setLastRevision(revision, scope);
-      invalidate('data_items');
-      console.log(`[sync] skeleton bootstrapped: ${items.length} items, rev=${revision}`);
-    } else {
-      // Warm start: re-seed scope from local skeleton data
-      const local = await exec(
-        "SELECT DISTINCT app, type FROM data_items WHERE app = ? AND (type = ? OR type = ? || '|pattern')",
-        [_app, _siteType, _siteType]
-      );
-      for (const row of local.rows) addToScope(row.app, row.type);
-      if (_DEV) console.log(`[sync]     skeleton scope seeded: ${local.rows.length} types`);
+    // Skeleton is always small (<20 items), so we re-fetch the full snapshot
+    // on every load. The server follows refs from the site row to discover
+    // children (pattern items, etc.) rather than using hardcoded type conventions.
+    const t0 = performance.now();
+    const res = await fetch(apiUrl(`/sync/bootstrap?app=${encodeURIComponent(_app)}&skeleton=${encodeURIComponent(_siteType)}`));
+    if (!res.ok) throw new Error(`skeleton bootstrap failed: ${res.status}`);
+    const { items, revision } = await res.json();
+    if (_DEV) console.log(`[sync]     skeleton: ${items.length} items (${(performance.now() - t0).toFixed(0)}ms)`);
+
+    // The server response is authoritative for the skeleton. Clean up any
+    // stale local items that belong to the skeleton scope but aren't in the
+    // response (e.g., site row or pattern children from a previous database).
+    const serverIds = new Set(items.map(i => i.id));
+    const localSite = await exec(
+      "SELECT id, data FROM data_items WHERE app = ? AND type = ?",
+      [_app, _siteType]
+    );
+    for (const row of localSite.rows) {
+      // Collect stale IDs: the site row itself + any ref children it points to
+      const staleIds = [];
+      if (!serverIds.has(row.id)) staleIds.push(row.id);
+      try {
+        const data = typeof row.data === 'string' ? JSON.parse(row.data) : (row.data || {});
+        for (const value of Object.values(data)) {
+          if (!Array.isArray(value)) continue;
+          for (const item of value) {
+            const refId = item?.id != null ? Number(item.id) : (typeof item === 'number' ? item : null);
+            if (refId != null && !serverIds.has(refId)) staleIds.push(refId);
+          }
+        }
+      } catch { /* ignore parse errors */ }
+      if (staleIds.length > 0) {
+        const placeholders = staleIds.map(() => '?').join(',');
+        await exec(`DELETE FROM data_items WHERE id IN (${placeholders})`, staleIds);
+        if (_DEV) console.log(`[sync]     skeleton: deleted ${staleIds.length} stale local items`);
+      }
     }
+
+    await applyItems(items);
+    // Always add the site type to scope — even with 0 items, the site type is a valid sync target
+    addToScope(_app, _siteType);
+    await setLastRevision(revision, scope);
+    invalidate('data_items');
+    console.log(`[sync] skeleton bootstrapped: ${items.length} items, rev=${revision}`);
   } catch (err) {
     console.warn('[sync] skeleton bootstrap failed (offline?):', err.message);
+    // Offline: seed scope from whatever is in local SQLite
     try {
       const local = await exec(
-        "SELECT DISTINCT app, type FROM data_items WHERE app = ? AND (type = ? OR type = ? || '|pattern')",
-        [_app, _siteType, _siteType]
+        "SELECT DISTINCT app, type FROM data_items WHERE app = ?",
+        [_app]
       );
       for (const row of local.rows) addToScope(row.app, row.type);
     } catch { /* ignore */ }
@@ -171,13 +220,24 @@ export async function bootstrapSkeleton() {
  * @param {string} docType - The pattern's doc_type
  * @returns {Promise<void>}
  */
-export async function bootstrapPattern(docType) {
-  if (!docType) return;
+export function bootstrapPattern(docType) {
+  if (!docType) return Promise.resolve();
   if (_loadedPatterns.has(docType)) {
     if (_DEV) console.log(`[sync]     pattern '${docType}' already loaded, skipping`);
-    return;
+    return Promise.resolve();
   }
+  // Deduplicate concurrent calls — return existing inflight promise if one exists
+  if (_inflightBootstraps.has(docType)) {
+    if (_DEV) console.log(`[sync]     pattern '${docType}' bootstrap already inflight, waiting...`);
+    return _inflightBootstraps.get(docType);
+  }
+  const promise = _bootstrapPatternImpl(docType);
+  _inflightBootstraps.set(docType, promise);
+  promise.finally(() => _inflightBootstraps.delete(docType));
+  return promise;
+}
 
+async function _bootstrapPatternImpl(docType) {
   const scope = `pattern:${docType}`;
   const lastRev = await getLastRevision(scope);
   if (_DEV) console.log(`[sync]     pattern '${docType}' lastRev=${lastRev} (${lastRev === null ? 'cold' : 'warm'})`);
@@ -193,6 +253,8 @@ export async function bootstrapPattern(docType) {
       const tFetch = performance.now();
       if (_DEV) console.log(`[sync]     pattern '${docType}': ${items.length} items (${(tFetch - t0).toFixed(0)}ms)`);
       await applyItems(items);
+      // Always add the pattern type to scope — even with 0 items, creates should go through sync
+      addToScope(_app, docType);
       await setLastRevision(revision, scope);
       invalidate('data_items');
       console.log(`[sync] pattern '${docType}' bootstrapped: ${items.length} items, rev=${revision}`);
@@ -205,6 +267,15 @@ export async function bootstrapPattern(docType) {
       if (!res.ok) throw new Error(`pattern delta failed: ${res.status}`);
       const { changes, revision } = await res.json();
       if (_DEV) console.log(`[sync]     pattern '${docType}' delta: ${changes.length} changes (${(performance.now() - t0).toFixed(0)}ms)`);
+
+      // Stale delta — too many changes, fall back to full re-bootstrap
+      if (changes.length > STALE_DELTA_THRESHOLD) {
+        console.warn(`[sync] pattern '${docType}' delta too large (${changes.length} > ${STALE_DELTA_THRESHOLD}), re-bootstrapping`);
+        await setLastRevision(null, scope);
+        _loadedPatterns.delete(docType);
+        return bootstrapPattern(docType);
+      }
+
       if (changes.length > 0) {
         await applyChanges(changes);
         invalidate('data_items');
@@ -272,6 +343,14 @@ async function bootstrapFull() {
       const { changes, revision } = await res.json();
       const tFetch = performance.now();
       if (_DEV) console.log(`[sync]     delta: ${changes.length} changes since rev ${lastRev} (${(tFetch - t0).toFixed(0)}ms)`);
+
+      // Stale delta — too many changes, fall back to full re-bootstrap
+      if (changes.length > STALE_DELTA_THRESHOLD) {
+        console.warn(`[sync] full delta too large (${changes.length} > ${STALE_DELTA_THRESHOLD}), re-bootstrapping`);
+        await setLastRevision(null);
+        return bootstrapFull();
+      }
+
       if (changes.length > 0) {
         await applyChanges(changes);
         invalidate('data_items');
@@ -392,6 +471,14 @@ async function catchUp() {
       const res = await fetch(apiUrl(`/sync/delta?app=${encodeURIComponent(_app)}&since=${lastRev}`));
       if (res.ok) {
         const { changes, revision } = await res.json();
+
+        // Stale delta — too many changes, re-bootstrap skeleton
+        if (changes.length > STALE_DELTA_THRESHOLD) {
+          console.warn(`[sync] catchUp delta too large (${changes.length} > ${STALE_DELTA_THRESHOLD}), re-bootstrapping`);
+          await bootstrapSkeleton();
+          return;
+        }
+
         if (changes.length > 0) {
           await applyChanges(changes);
           invalidate('data_items');
@@ -404,23 +491,80 @@ async function catchUp() {
   }
 }
 
+// --- Batch mode: suppress invalidation during multi-step saves ---
+let _batchMode = false;
+export function beginBatch() { _batchMode = true; }
+export function endBatch() {
+  _batchMode = false;
+  invalidate('data_items');
+}
+
 // --- Local writes + pending mutations ---
 
 export async function localCreate(app, type, data) {
   const dataStr = typeof data === 'string' ? data : JSON.stringify(data);
 
-  // Optimistic local write (use negative temp ID — server will assign real ID)
-  const tempResult = await exec(
+  // Push to server first to get the real ID.
+  // This ensures parent refs use the server-assigned ID, not a temp SQLite rowid.
+  // Falls back to optimistic local-only create when offline.
+  try {
+    const pushUrl = apiUrl('/sync/push');
+    if (_DEV) console.log(`[sync] localCreate ${app}+${type} → pushing to server first`);
+    const res = await fetch(pushUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'I', item: { app, type, data: dataStr } }),
+    });
+
+    if (res.ok) {
+      const { item: serverItem, revision } = await res.json();
+      const serverId = serverItem.id;
+      if (_DEV) console.log(`[sync] localCreate → server assigned id=${serverId} rev=${revision}`);
+
+      // Store locally with the server-assigned ID
+      const serverDataStr = typeof serverItem.data === 'string'
+        ? serverItem.data : JSON.stringify(serverItem.data || {});
+      await exec(
+        `INSERT INTO data_items (id, app, type, data, created_at, updated_at)
+         VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))
+         ON CONFLICT(id) DO UPDATE SET
+           app = excluded.app, type = excluded.type,
+           data = excluded.data, updated_at = datetime('now')`,
+        [serverId, app, type, serverDataStr]
+      );
+
+      await setLastRevision(revision);
+      pendingItemIds.add(serverId);
+      // Clear echo suppression after a short delay (server WS broadcast will arrive)
+      setTimeout(() => pendingItemIds.delete(serverId), 2000);
+
+      // Initialize Yjs doc for this new item
+      try {
+        const parsed = typeof serverItem.data === 'string' ? JSON.parse(serverItem.data) : serverItem.data;
+        initFromData(serverId, parsed || {});
+      } catch { /* ignore parse errors */ }
+
+      invalidate('data_items');
+      invalidate(`data_items:${app}+${type}`);
+      addToScope(app, type);
+
+      return String(serverId);
+    }
+    // Non-ok response — fall through to offline path
+    if (_DEV) console.warn(`[sync] localCreate push failed: ${res.status}, using offline path`);
+  } catch (err) {
+    if (_DEV) console.warn(`[sync] localCreate push failed (offline?):`, err.message);
+  }
+
+  // Offline fallback: optimistic local write with temp ID
+  await exec(
     `INSERT INTO data_items (app, type, data, created_at, updated_at)
      VALUES (?, ?, ?, datetime('now'), datetime('now'))`,
     [app, type, dataStr]
   );
-
-  // Get the inserted rowid
   const lastRow = await exec('SELECT last_insert_rowid() AS id');
   const tempId = lastRow.rows[0].id;
 
-  // Queue pending
   await exec(
     "INSERT INTO pending_mutations (item_id, action, app, type, data) VALUES (?, 'I', ?, ?, ?)",
     [tempId, app, type, dataStr]
@@ -432,18 +576,29 @@ export async function localCreate(app, type, data) {
   updateStatus('syncing');
 
   pushMutation('I', { id: tempId, app, type, data: dataStr });
-  return tempId;
+  return String(tempId);
 }
 
 export async function localUpdate(id, data) {
+  // Get existing row (needed for app/type and to seed Yjs if not initialized)
+  const existing = await exec('SELECT app, type, data FROM data_items WHERE id = ?', [id]);
+  const app = existing.rows[0]?.app || _app;
+  const type = existing.rows[0]?.type || '';
+
+  // Seed Yjs doc from SQLite if not already initialized — prevents partial
+  // updates from wiping fields when the in-memory doc was lost (e.g. page refresh)
+  if (!getData(id) && existing.rows[0]?.data) {
+    try {
+      const existingData = typeof existing.rows[0].data === 'string'
+        ? JSON.parse(existing.rows[0].data) : existing.rows[0].data;
+      initFromData(id, existingData);
+    } catch { /* ignore parse errors */ }
+  }
+
   // Merge via Yjs
   const merged = applyLocal(id, data);
   const dataStr = JSON.stringify(merged);
-
-  // Get app and type from local row
-  const existing = await exec('SELECT app, type FROM data_items WHERE id = ?', [id]);
-  const app = existing.rows[0]?.app || _app;
-  const type = existing.rows[0]?.type || '';
+  if (_DEV) console.log(`[sync] localUpdate id=${id} app=${app} type=${type} keys=${Object.keys(data).join(',')}`);
 
   await exec(
     "UPDATE data_items SET data = ?, updated_at = datetime('now') WHERE id = ?",
@@ -486,15 +641,21 @@ export async function localDelete(id) {
 // --- Push to server via /sync/push ---
 
 async function pushMutation(action, item) {
+  const pushUrl = apiUrl('/sync/push');
+  if (_DEV) console.log(`[sync] pushMutation ${action} id=${item.id} → ${pushUrl}`);
   try {
-    const res = await fetch(apiUrl('/sync/push'), {
+    const res = await fetch(pushUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action, item }),
     });
 
-    if (!res.ok) throw new Error(`push failed: ${res.status}`);
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => '');
+      throw new Error(`push failed: ${res.status} ${errBody}`);
+    }
     const { item: serverItem, revision } = await res.json();
+    if (_DEV) console.log(`[sync] push ${action} id=${item.id} → server id=${serverItem?.id} rev=${revision}`);
 
     // If the server assigned a different ID (create), update local
     if (action === 'I' && serverItem.id !== item.id) {
@@ -514,7 +675,7 @@ async function pushMutation(action, item) {
     await setLastRevision(revision);
     await removePending(serverItem.id || item.id, action);
   } catch (err) {
-    console.warn(`[sync] push ${action} failed (will retry):`, err.message);
+    console.error(`[sync] push ${action} FAILED id=${item.id}:`, err.message, err);
     retryFlush();
   }
 }
@@ -554,6 +715,7 @@ function retryFlush() {
 
 async function flushPending() {
   const result = await exec('SELECT * FROM pending_mutations ORDER BY id ASC');
+  if (_DEV && result.rows.length > 0) console.log(`[sync] flushPending: ${result.rows.length} pending mutations`);
   for (const row of result.rows) {
     pendingItemIds.add(row.item_id);
     await pushMutation(row.action, {
@@ -600,6 +762,82 @@ export function onWSChange(fn) {
 
 function notifyWSListeners() {
   for (const fn of wsListeners) fn(ws);
+}
+
+// --- Collab readiness + active room tracking ---
+
+export function isCollabReady() {
+  return ws && ws.readyState === 1;
+}
+
+// Track active collab rooms and their peer counts: itemId → peerCount
+const _activeCollabRooms = new Map();
+const _collabListeners = new Set();
+
+export function registerCollabRoom(itemId) {
+  _activeCollabRooms.set(itemId, _activeCollabRooms.get(itemId) || 1);
+  _notifyCollabListeners();
+}
+
+export function unregisterCollabRoom(itemId) {
+  _activeCollabRooms.delete(itemId);
+  _notifyCollabListeners();
+}
+
+export function updateCollabPeers(itemId, count) {
+  if (_activeCollabRooms.has(itemId)) {
+    _activeCollabRooms.set(itemId, count);
+    _notifyCollabListeners();
+  }
+}
+
+export function getCollabInfo() {
+  let totalPeers = 0;
+  for (const count of _activeCollabRooms.values()) {
+    totalPeers = Math.max(totalPeers, count);
+  }
+  return { rooms: _activeCollabRooms.size, peers: totalPeers };
+}
+
+export function onCollabChange(fn) {
+  _collabListeners.add(fn);
+  return () => _collabListeners.delete(fn);
+}
+
+function _notifyCollabListeners() {
+  const info = getCollabInfo();
+  for (const fn of _collabListeners) fn(info);
+}
+
+// --- Error recovery ---
+
+let _recovering = false;
+
+export async function resetAndRebootstrap() {
+  if (_recovering) return;
+  _recovering = true;
+  console.warn('[sync] resetting local database and re-bootstrapping...');
+  updateStatus('recovering');
+
+  try {
+    const { resetDB } = await import('./db-client.js');
+    await resetDB();
+
+    // Clear in-memory state
+    _loadedPatterns.clear();
+    pendingItemIds.clear();
+    clearScope();
+
+    // Re-bootstrap
+    await bootstrapSkeleton();
+
+    updateStatus('connected');
+  } catch (err) {
+    console.error('[sync] recovery failed:', err);
+    updateStatus('error');
+  } finally {
+    _recovering = false;
+  }
 }
 
 // --- Pending count ---

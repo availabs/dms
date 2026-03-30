@@ -23,6 +23,7 @@ const Router = require('../src/utils/falcor-router/src/Router');
 const { createRoutes } = require('../src/routes/dms/dms.route');
 const { createController } = require('../src/routes/dms/dms.controller');
 const udaRoutes = require('../src/routes/uda/uda.route');
+const { awaitReady } = require('../src/db/index');
 
 /**
  * Create a test graph with configurable database
@@ -73,6 +74,13 @@ function createTestGraph(dbName = 'dms-sqlite', options = {}) {
      * The database type ('postgres' or 'sqlite')
      */
     dbType: controller.dbType,
+
+    /**
+     * Wait for database initialization to complete.
+     * Must be awaited before calling write operations (create/edit/delete)
+     * to avoid SQLite nested transaction errors in per-app split mode.
+     */
+    ready: awaitReady(),
 
     /**
      * Execute a GET request

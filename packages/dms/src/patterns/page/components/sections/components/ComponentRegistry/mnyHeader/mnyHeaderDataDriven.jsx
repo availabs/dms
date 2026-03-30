@@ -247,9 +247,9 @@ export default {
             titleSize: 'sm:text-[72px] tracking-[0px]'
         },
         // wrapper controlled part
-        dataRequest: {},
+        filters: { op: 'AND', groups: [] },
         data: [],
-        sourceInfo: {
+        externalSource: {
             columns: []
         }
     },

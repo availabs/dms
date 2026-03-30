@@ -11,7 +11,7 @@ const defaultState = {
     display: {
         usePageFilters: false,
     },
-    sourceInfo: {
+    externalSource: {
         columns: [],
     }
 }
@@ -49,11 +49,11 @@ const View = ({value}) => {
                             onChange={() => {}}
                             size={1}
                             format={{
-                                app: state.sourceInfo.app,
-                                type: `${state.sourceInfo.type}-${state.sourceInfo.view_id}`,
-                                config: JSON.stringify({attributes: state.sourceInfo.columns})
+                                app: state.externalSource.app,
+                                type: `${state.externalSource.type}-${state.externalSource.view_id}`,
+                                config: JSON.stringify({attributes: state.externalSource.columns})
                             }}
-                            view_id={state.sourceInfo.view_id}
+                            view_id={state.externalSource.view_id}
                             apiLoad={apiLoad}
                             apiUpdate={apiUpdate}
                             updateMeta={false}

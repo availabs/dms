@@ -29,7 +29,7 @@ function parseArgs() {
 
   if (!opts.source) { console.error('Missing --source <config>'); process.exit(1); }
 
-  const validTypes = ['patterns', 'pages', 'sections', 'views', 'sources'];
+  const validTypes = ['patterns', 'pages', 'sections', 'page_edits', 'views', 'sources'];
   if (opts.type && !validTypes.includes(opts.type)) {
     console.error(`Invalid --type. Must be one of: ${validTypes.join(', ')}`);
     process.exit(1);
@@ -59,10 +59,15 @@ function fqn(db, table) {
 
 /**
  * Load all rows matching a type pattern, optionally filtered by app.
- * Returns rows with id, app, type, data.
+ * @param {Object} db
+ * @param {string} pattern - SQL LIKE pattern
+ * @param {string} [appFilter]
+ * @param {Object} [opts]
+ * @param {boolean} [opts.skipData=false] - Omit the data column to save memory
  */
-async function loadByTypeLike(db, pattern, appFilter) {
+async function loadByTypeLike(db, pattern, appFilter, { skipData = false } = {}) {
   const table = fqn(db, 'data_items');
+  const cols = skipData ? 'id, app, type' : 'id, app, type, data';
   let where = `type LIKE $1`;
   const values = [pattern];
   if (appFilter) {
@@ -70,7 +75,7 @@ async function loadByTypeLike(db, pattern, appFilter) {
     values.push(appFilter);
   }
   const { rows } = await db.query(
-    `SELECT id, app, type, data FROM ${table} WHERE ${where}`,
+    `SELECT ${cols} FROM ${table} WHERE ${where}`,
     values
   );
   return rows;
@@ -284,6 +289,25 @@ async function pgFindOrphanedViews(db, appFilter) {
   return rows;
 }
 
+async function pgFindOrphanedPageEdits(db, appFilter) {
+  const { rows } = await db.query(`
+    WITH referenced AS (
+      SELECT DISTINCT ${pgRefId('elem')} AS ref_id
+      FROM dms.data_items page,
+           LATERAL jsonb_array_elements(page.data->'history') AS elem
+      WHERE page.data IS NOT NULL
+        AND jsonb_typeof(page.data->'history') = 'array'
+        AND ($1::text IS NULL OR page.app = $1)
+    )
+    SELECT pe.id, pe.app, pe.type
+    FROM dms.data_items pe
+    WHERE pe.type LIKE '%|page-edit'
+      AND ($1::text IS NULL OR pe.app = $1)
+      AND NOT EXISTS (SELECT 1 FROM referenced r WHERE r.ref_id = pe.id)
+  `, [appFilter || null]);
+  return rows;
+}
+
 // ---------------------------------------------------------------------------
 // Orphan detectors (SQLite fallback — loads rows into JS for ref extraction)
 // ---------------------------------------------------------------------------
@@ -295,8 +319,8 @@ async function pgFindOrphanedViews(db, appFilter) {
 async function findOrphanedPatterns(db, appFilter) {
   if (db.type === 'postgres') return pgFindOrphanedPatterns(db, appFilter);
 
-  // Load all patterns
-  const patterns = await loadByTypeLike(db, '%|pattern', appFilter);
+  // Load all patterns — skip data, only need id/app/type
+  const patterns = await loadByTypeLike(db, '%|pattern', appFilter, { skipData: true });
   if (patterns.length === 0) return [];
 
   // Load all sites — rows where data.patterns exists (sites have no | in type suffix)
@@ -385,8 +409,8 @@ async function findOrphanedPages(db, appFilter) {
 async function findOrphanedSections(db, appFilter) {
   if (db.type === 'postgres') return pgFindOrphanedSections(db, appFilter);
 
-  // Load all sections
-  const sections = await loadByTypeLike(db, '%|cms-section', appFilter);
+  // Load all sections (skip data — only need id/app/type for orphan check)
+  const sections = await loadByTypeLike(db, '%|cms-section', appFilter, { skipData: true });
   if (sections.length === 0) return [];
 
   // For each section type like "app+doctype|cms-section",
@@ -417,14 +441,48 @@ async function findOrphanedSections(db, appFilter) {
 }
 
 /**
+ * Find orphaned page-edits — type ends in |page-edit, but no page
+ * references this edit's ID in data.history[].
+ */
+async function findOrphanedPageEdits(db, appFilter) {
+  if (db.type === 'postgres') return pgFindOrphanedPageEdits(db, appFilter);
+
+  // Load all page-edit rows — skip data, only need id/app/type
+  const pageEdits = await loadByTypeLike(db, '%|page-edit', appFilter, { skipData: true });
+  if (pageEdits.length === 0) return [];
+
+  // For each page-edit type like "doctype|page-edit",
+  // pages have type "doctype" — load all pages for these base types
+  const baseTypes = new Set();
+  for (const pe of pageEdits) {
+    const base = pe.type.replace(/\|page-edit$/, '');
+    baseTypes.add(`${pe.app}|${base}`);
+  }
+
+  // Load all pages for each base type and collect referenced history IDs
+  const referencedIds = new Set();
+  for (const key of baseTypes) {
+    const [app, baseType] = key.split('|');
+    const pages = await loadByType(db, baseType, app);
+    for (const page of pages) {
+      for (const id of extractRefIds(page.data, 'history')) {
+        referencedIds.add(id);
+      }
+    }
+  }
+
+  return pageEdits.filter(pe => !referencedIds.has(pe.id));
+}
+
+/**
  * Find orphaned sources — type ends in |source (but not |source|view),
  * but no datasets/forms pattern exists with matching doc_type.
  */
 async function findOrphanedSources(db, appFilter) {
   if (db.type === 'postgres') return pgFindOrphanedSources(db, appFilter);
 
-  // Load all sources (not views)
-  const allSourceLike = await loadByTypeLike(db, '%|source', appFilter);
+  // Load all sources (not views) — skip data, only need id/app/type
+  const allSourceLike = await loadByTypeLike(db, '%|source', appFilter, { skipData: true });
   const sources = allSourceLike.filter(r => !r.type.endsWith('|source|view'));
   if (sources.length === 0) return [];
 
@@ -452,8 +510,8 @@ async function findOrphanedSources(db, appFilter) {
 async function findOrphanedViews(db, appFilter) {
   if (db.type === 'postgres') return pgFindOrphanedViews(db, appFilter);
 
-  // Load all views
-  const views = await loadByTypeLike(db, '%|source|view', appFilter);
+  // Load all views — skip data, only need id/app/type
+  const views = await loadByTypeLike(db, '%|source|view', appFilter, { skipData: true });
   if (views.length === 0) return [];
 
   // For each view type like "doctype|source|view",
@@ -556,14 +614,19 @@ async function main() {
   }
 
   // Run detection per app
-  const allOrphans = { patterns: [], pages: [], sections: [], views: [], sources: [] };
+  const allOrphans = { patterns: [], pages: [], sections: [], page_edits: [], views: [], sources: [] };
   const detectors = {
     patterns: findOrphanedPatterns,
     sections: findOrphanedSections,
+    page_edits: findOrphanedPageEdits,
     pages: findOrphanedPages,
     sources: findOrphanedSources,
     views: findOrphanedViews,
   };
+
+  // Pages detector is analysis-only — too prone to false positives
+  // (missing/misconfigured pattern metadata causes mass deletion)
+  const ANALYSIS_ONLY = new Set(['pages']);
 
   // If --type is set, only run that detector
   const typesToCheck = args.type ? [args.type] : Object.keys(detectors);
@@ -627,14 +690,20 @@ async function main() {
   // Delete mode
   if (args.delete) {
     console.log();
+    let deletedTotal = 0;
     for (const [type, orphans] of Object.entries(allOrphans)) {
       if (orphans.length === 0) continue;
+      if (ANALYSIS_ONLY.has(type)) {
+        console.log(`  Skipping ${orphans.length} orphaned ${type} (analysis-only — too prone to false positives)`);
+        continue;
+      }
       const ids = orphans.map(r => r.id);
       process.stdout.write(`  Deleting ${ids.length} orphaned ${type}...`);
       await deleteOrphans(db, ids);
       console.log(' done');
+      deletedTotal += ids.length;
     }
-    console.log(`\nDeleted ${totalOrphans} rows total.`);
+    console.log(`\nDeleted ${deletedTotal} rows total.`);
   }
 
   await db.end();
@@ -654,6 +723,7 @@ module.exports = {
   findOrphanedPatterns,
   findOrphanedPages,
   findOrphanedSections,
+  findOrphanedPageEdits,
   findOrphanedSources,
   findOrphanedViews,
   deleteOrphans,

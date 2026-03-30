@@ -1,41 +1,71 @@
 import React from 'react'
 import {AdminContext} from "../context";
 // import { Link, useLocation } from 'react-router'
+import { useFalcor } from "@availabs/avl-falcor";
+import { useNavigate, useLocation } from "react-router";
 import { AuthContext } from '../../auth/context';
 import { ThemeContext } from '../../../ui/useTheme';
+import { getInstance } from '../../../utils/type-utils';
 
 
 export default function NewSite ({app, apiUpdate}) {
 	const { UI } = React.useContext(ThemeContext);
 	const { AuthAPI, PROJECT_NAME } = React.useContext(AuthContext)
+	const { type: siteType } = React.useContext(AdminContext) || {};
+	const { falcor } = useFalcor();
+	const navigate = useNavigate();
+	const { pathname, search } = useLocation();
 	const {Input, Button} = UI;
 	const [newUser, setNewUser] = React.useState({email: '', password: '', verify: ''});
 	const [status, setStatus] = React.useState('');
 	const [newSite, setNewSite] = React.useState({
 		site_name: '',
-		patterns: [{pattern_type: 'auth', name: 'Auth', base_url: 'auth', authPermissions: JSON.stringify({[`${PROJECT_NAME} Admin`]: ['*']})}]
 	})
 
 	async function createSite () {
 		if(newSite?.site_name?.length > 3 && newUser.email ) {
-			await AuthAPI.callAuthServer(`/init/setup`,
-				{
+			try {
+				const res = await AuthAPI.callAuthServer(`/init/setup`, {
 					email: newUser.email,
 					password: newUser.password,
 					project: app,
-				})
-				.then(res => {
-					console.log('res', res)
-          if (res.error && res.error !== 'duplicate key value violates unique constraint "groups_pkey"') {
-            setStatus(`Auth Init Data ${res.error}`)
-          } else {
-            //console.log('newsite data', newSite)
-						apiUpdate({data: newSite})
-					}
-				})
-				.catch(error => {
-					console.error('Cannot contact authentication server.');
 				});
+				if (res.error && res.error !== 'duplicate key value violates unique constraint "groups_pkey"') {
+					setStatus(`Auth Init Data ${res.error}`);
+					return;
+				}
+
+				// 1. Create the site (without patterns — skipNavigate so we can add auth pattern first)
+				const siteResult = await apiUpdate({data: newSite, skipNavigate: true});
+
+				// 2. Create the auth pattern with proper type
+				const siteInstance = getInstance(siteType) || siteType;
+				const authPatternType = `${siteInstance}|auth:pattern`;
+				const authData = {
+					pattern_type: 'auth',
+					name: 'Auth',
+					base_url: 'auth',
+					authPermissions: JSON.stringify({[`${PROJECT_NAME} Admin`]: ['*']}),
+				};
+				const patternRes = await falcor.call(
+					["dms", "data", "create"],
+					[app, authPatternType, authData]
+				);
+				const newPatternId = Object.keys(patternRes?.json?.dms?.data?.byId || {})
+					.find(k => k !== '$__path');
+
+				// 3. Add pattern ref to the site
+				if (newPatternId && siteResult?.id) {
+					await falcor.call(["dms", "data", "edit"], [app, +siteResult.id, {
+						patterns: [{ ref: `${app}+${siteInstance}|pattern`, id: +newPatternId }]
+					}]);
+				}
+
+				navigate(`${pathname}${search}`);
+			} catch (error) {
+				console.error('Error creating site:', error);
+				setStatus('Error creating site');
+			}
 		}
 	}
 

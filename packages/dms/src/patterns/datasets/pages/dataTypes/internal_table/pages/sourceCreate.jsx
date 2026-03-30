@@ -3,14 +3,7 @@ import { useNavigate } from "react-router";
 import { DatasetsContext } from "../../../../context";
 import { ThemeContext } from "../../../../../../ui/themeContext";
 import Upload from "../../../../components/upload";
-
-function nameToDocType(name) {
-    return name
-        .toLowerCase()
-        .trim()
-        .replace(/[\s-]+/g, '_')
-        .replace(/[^a-z0-9_]/g, '');
-}
+import { nameToSlug, getInstance } from "../../../../../../utils/type-utils";
 
 function getNewId(falcorRes) {
     return Object.keys(falcorRes?.json?.dms?.data?.byId || {})
@@ -20,7 +13,7 @@ function getNewId(falcorRes) {
 export default function SourceCreate({ context, source }) {
     const ctx = useContext(DatasetsContext);
     const { UI } = useContext(ThemeContext);
-    const { falcor, parent, user, type, app, baseUrl } = ctx;
+    const { falcor, parent, user, type, app, baseUrl, dmsEnv } = ctx;
     const navigate = useNavigate();
     const { Button } = UI;
 
@@ -35,47 +28,52 @@ export default function SourceCreate({ context, source }) {
         setError(null);
 
         try {
-            const doc_type = nameToDocType(source.name);
-            if (!doc_type) {
+            const sourceSlug = nameToSlug(source.name);
+            if (!sourceSlug) {
                 throw new Error('Name must contain at least one letter or number.');
             }
+
+            // Determine parent for source type
+            const dmsEnvInstance = dmsEnv ? getInstance(dmsEnv.type) : type;
+            const sourceType = `${dmsEnvInstance}|${sourceSlug}:source`;
 
             // 1. Create source data_items row
             const sourceRes = await falcor.call(
                 ["dms", "data", "create"],
-                [app, `${type}|source`, {
+                [app, sourceType, {
                     name: source.name.trim(),
                     type: 'internal_table',
-                    doc_type,
                 }]
             );
             const sourceId = getNewId(sourceRes);
             if (!sourceId) throw new Error('Failed to create source');
 
             // 2. Create view data_items row
+            const viewType = `${sourceSlug}|v1:view`;
             const viewRes = await falcor.call(
                 ["dms", "data", "create"],
-                [app, `${type}|source|view`, { name: 'version 1' }]
+                [app, viewType, { name: 'version 1' }]
             );
             const vId = getNewId(viewRes);
             if (!vId) throw new Error('Failed to create view');
 
             // 3. Update source with view ref
             await falcor.call(["dms", "data", "edit"], [app, +sourceId, {
-                views: [{ ref: `${app}+${type}|source|view`, id: +vId }]
+                views: [{ ref: `${app}+${sourceSlug}|view`, id: +vId }]
             }]);
 
-            // 4. Update parent to include new source ref
-            const existingRefs = (parent.sources || [])
+            // 4. Add source ref to dmsEnv (if available) or pattern (legacy)
+            const sourceOwner = dmsEnv || parent;
+            const existingRefs = (sourceOwner.sources || [])
                 .filter(s => s.id)
-                .map(s => ({ ref: s.ref || `${app}+${type}|source`, id: s.id }));
+                .map(s => ({ ref: s.ref || `${app}+${dmsEnvInstance}|source`, id: s.id }));
 
-            await falcor.call(["dms", "data", "edit"], [app, parent.id, {
-                sources: [...existingRefs, { ref: `${app}+${type}|source`, id: +sourceId }]
+            await falcor.call(["dms", "data", "edit"], [app, sourceOwner.id, {
+                sources: [...existingRefs, { ref: `${app}+${dmsEnvInstance}|source`, id: +sourceId }]
             }]);
 
             // 5. Invalidate caches
-            await falcor.invalidate(['dms', 'data', app, 'byId', parent.id]);
+            await falcor.invalidate(['dms', 'data', app, 'byId', sourceOwner.id]);
             await falcor.invalidate(['uda', `${app}+${type}`, 'sources']);
 
             // 6. Transition to upload stage
@@ -85,7 +83,7 @@ export default function SourceCreate({ context, source }) {
                 app,
                 name: source.name.trim(),
                 type: 'internal_table',
-                doc_type,
+                sourceSlug,
                 config: '{}',
             });
             setViewId(+vId);
@@ -118,7 +116,7 @@ export default function SourceCreate({ context, source }) {
                     size={1}
                     format={{
                         app,
-                        type: `${createdSource.doc_type}-${viewId}`,
+                        type: `${createdSource.sourceSlug}|${viewId}:data`,
                         config: createdSource.config || '{}',
                     }}
                     view_id={viewId}

@@ -272,6 +272,9 @@ async function handleMessage(ws, rawData) {
           }
         }
       }
+
+      // Notify all room members of updated peer count
+      broadcastToRoom(itemId, { type: 'room-peers', itemId, count: getRoom(itemId).size });
       return;
     }
 
@@ -281,7 +284,14 @@ async function handleMessage(ws, rawData) {
       if (!itemId) return;
       if (ws._rooms) ws._rooms.delete(itemId);
       const room = rooms.get(itemId);
-      if (room) { room.delete(ws); cleanupRoom(itemId); }
+      if (room) {
+        room.delete(ws);
+        // Notify remaining members of updated peer count
+        if (room.size > 0) {
+          broadcastToRoom(itemId, { type: 'room-peers', itemId, count: room.size });
+        }
+        cleanupRoom(itemId);
+      }
       return;
     }
 

@@ -15,7 +15,6 @@ export const ExternalSourceAttributes = [
 export const InternalSourceAttributes = [
     "source_id",
     "app",
-    "doc_type",
     "type",
     "config",
     "name",

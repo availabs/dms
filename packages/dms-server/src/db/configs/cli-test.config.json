@@ -1,5 +1,6 @@
 {
   "type": "sqlite",
   "role": "dms",
-  "filename": "../data/cli-test.sqlite"
+  "filename": "../data/cli-test.sqlite",
+  "splitMode": "per-app"
 }

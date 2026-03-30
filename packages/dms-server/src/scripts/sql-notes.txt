@@ -1,0 +1,10 @@
+SELECT id, data->>'title', data->>'parent',length(data) AS total_bytes, ROUND(length(data) / 1024.0 / 1024.0, 2) as mb FROM data_items WHERE app = 'mitigat-ny-prod' AND (type = 'redesign' or type like 'redesign|%') order by total_bytes desc
+
+SELECT id, data->>'title' FROM data_items WHERE app = 'mitigat-ny-prod' AND (type = 'redesign' or type like 'redesign|%')
+
+SELECT app, type, count(1), sum(length(data)) AS total_bytes, ROUND(sum(length(data)) / 1024.0 / 1024.0, 2) as mb FROM data_items group by 1,2 order by total_bytes desc
+
+SELECT count(1), sum(length(data)) AS total_bytes, ROUND(sum(length(data)) / 1024.0 / 1024.0, 2) as mb FROM data_items
+
+--DELETE FROM data_items WHERE type LIKE 'county_template%' OR type LIKE 'countytemplate%' OR type LIKE 'schohariecounty%';
+DELETE FROM data_items WHERE type LIKE 'shmpcopy%' OR type LIKE 'design%';

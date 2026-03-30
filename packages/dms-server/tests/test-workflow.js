@@ -27,6 +27,7 @@ let graph = null;
 async function setup() {
   console.log('Setting up test graph...');
   graph = createTestGraph(DB_NAME);
+  await graph.ready;
   console.log(`Database: ${DB_NAME} (${graph.dbType})`);
   console.log(`Test app: ${TEST_APP}\n`);
   return graph;
@@ -92,10 +93,10 @@ async function testCreateSite() {
   // Edit to add site_name and patterns array
   const editResult = await graph.callAsync(
     ['dms', 'data', 'edit'],
-    [siteId, { site_name: 'Test Site', patterns: [] }]
+    [TEST_APP, siteId, { site_name: 'Test Site', patterns: [] }]
   );
 
-  const siteData = getValue(editResult.jsonGraph, 'dms', 'data', 'byId', siteId, 'data');
+  const siteData = getValue(editResult.jsonGraph, 'dms', 'data', TEST_APP, 'byId', siteId, 'data');
   console.log('  site_name:', siteData?.site_name);
   console.log('  patterns:', siteData?.patterns);
 
@@ -119,10 +120,10 @@ async function testAddPatterns(site) {
   // Update site with patterns
   const result = await graph.callAsync(
     ['dms', 'data', 'edit'],
-    [site.id, { patterns }]
+    [TEST_APP, site.id, { patterns }]
   );
 
-  const updatedData = getValue(result.jsonGraph, 'dms', 'data', 'byId', site.id, 'data');
+  const updatedData = getValue(result.jsonGraph, 'dms', 'data', TEST_APP, 'byId', site.id, 'data');
   console.log('Added patterns:', updatedData?.patterns?.map(p => p.type).join(', '));
 
   if (updatedData?.patterns?.length !== 3) {
@@ -147,7 +148,7 @@ async function testCreatePages(site) {
 
   await graph.callAsync(
     ['dms', 'data', 'edit'],
-    [homeId, {
+    [TEST_APP, homeId, {
       title: 'Home',
       url_slug: 'home',
       index: '0',
@@ -169,7 +170,7 @@ async function testCreatePages(site) {
 
   await graph.callAsync(
     ['dms', 'data', 'edit'],
-    [aboutId, {
+    [TEST_APP, aboutId, {
       title: 'About',
       url_slug: 'about',
       index: '1',
@@ -191,7 +192,7 @@ async function testCreatePages(site) {
 
   await graph.callAsync(
     ['dms', 'data', 'edit'],
-    [teamId, {
+    [TEST_APP, teamId, {
       title: 'Team',
       url_slug: 'about/team',
       index: '0',
@@ -220,10 +221,10 @@ async function testAddSectionGroups(pages) {
 
   const result = await graph.callAsync(
     ['dms', 'data', 'edit'],
-    [homePage.id, { section_groups: sectionGroups }]
+    [TEST_APP, homePage.id, { section_groups: sectionGroups }]
   );
 
-  const updatedData = getValue(result.jsonGraph, 'dms', 'data', 'byId', homePage.id, 'data');
+  const updatedData = getValue(result.jsonGraph, 'dms', 'data', TEST_APP, 'byId', homePage.id, 'data');
   console.log('Added section_groups to home page:', updatedData?.section_groups?.length, 'groups');
 
   if (updatedData?.section_groups?.length !== 2) {
@@ -250,7 +251,7 @@ async function testCreateSections(pages) {
 
   await graph.callAsync(
     ['dms', 'data', 'edit'],
-    [headerId, {
+    [TEST_APP, headerId, {
       title: 'Header Section',
       element: {
         'element-type': 'lexical',
@@ -271,7 +272,7 @@ async function testCreateSections(pages) {
 
   await graph.callAsync(
     ['dms', 'data', 'edit'],
-    [contentId, {
+    [TEST_APP, contentId, {
       title: 'Main Content',
       element: {
         'element-type': 'lexical',
@@ -291,7 +292,7 @@ async function testCreateSections(pages) {
 
   await graph.callAsync(
     ['dms', 'data', 'edit'],
-    [homePage.id, { sections, draft_sections: sections }]
+    [TEST_APP, homePage.id, { sections, draft_sections: sections }]
   );
 
   console.log('Linked sections to home page');
@@ -307,10 +308,10 @@ async function testQueryData(pages, sections) {
 
   // Query the page data via Falcor GET
   const pageResult = await graph.getAsync([
-    ['dms', 'data', 'byId', homePage.id, ['data', 'id', 'app', 'type']]
+    ['dms', 'data', TEST_APP, 'byId', homePage.id, ['data', 'id', 'app', 'type']]
   ]);
 
-  const pageData = getValue(pageResult.jsonGraph, 'dms', 'data', 'byId', homePage.id, 'data');
+  const pageData = getValue(pageResult.jsonGraph, 'dms', 'data', TEST_APP, 'byId', homePage.id, 'data');
 
   console.log('Retrieved home page:');
   console.log('  title:', pageData?.title);
@@ -344,9 +345,9 @@ async function testQueryData(pages, sections) {
     if (ref) {
       const refId = ref[ref.length - 1]; // Get the ID from the ref path
       const detailResult = await graph.getAsync([
-        ['dms', 'data', 'byId', refId, 'data']
+        ['dms', 'data', TEST_APP, 'byId', refId, 'data']
       ]);
-      const data = getValue(detailResult.jsonGraph, 'dms', 'data', 'byId', refId, 'data');
+      const data = getValue(detailResult.jsonGraph, 'dms', 'data', TEST_APP, 'byId', refId, 'data');
       console.log('  -', data?.title, '(' + data?.url_slug + ')');
     }
   }

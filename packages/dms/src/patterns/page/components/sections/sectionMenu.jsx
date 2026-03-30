@@ -1,20 +1,17 @@
 import React, {useState} from 'react'
 import {handleCopy, handleCopyToClipboard, handlePaste, TagComponent} from "./section_utils"
-import {
-    getColumnLabel, updateColumns,
-    updateDisplayValue
-} from "./controls_utils";
 import { getComponentTheme } from "../../../../ui/useTheme";
 import {ComplexFilters} from "./ComplexFilters";
 import ColumnManager from "./ColumnManager";
 
 
-export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSource={}, ...rest }) => {
-    const { isEdit, value, attributes, i, showDeleteModal, listAllColumns, state } = sectionState
+export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSource={}, dwAPI, pageDataSources={}, ...rest }) => {
+    const { isEdit, value, attributes, i, showDeleteModal, listAllColumns, state: rawState } = sectionState
+    const state = rawState || { columns: [], display: {}, externalSource: { columns: [] }, filters: { op: 'AND', groups: [] } }
     const { onEdit, moveItem, updateAttribute, updateElementType, onChange, onCancel, onSave, onAddHelpText, setKey, setState, setShowDeleteModal, setListAllColumns } = actions
     const { user, isUserAuthed, pageAuthPermissions, sectionAuthPermissions, Permissions, AuthAPI } = auth
     const { Switch, Pill, Icon, TitleEditComp, LevelComp, refreshDataBtnRef, isRefreshingData, setIsRefreshingData, theme, RegisteredComponents = {} } = ui
-    const { activeSource, activeView, sources, views, onSourceChange, onViewChange } = dataSource;
+    const { activeSource, activeView, sources=[], views=[], onSourceChange, onViewChange } = dataSource;
 
     const sectionLink = window ? `${window.location.origin}${window.location.pathname}#${value.id}` : '';
     const canEditSection = isUserAuthed(['edit-section'], sectionAuthPermissions);
@@ -33,7 +30,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
     const hasGroupControl = Boolean(groupControl);
     const allColumns = [
         ...(state?.columns || []),
-        ...(state?.sourceInfo?.columns || []).filter(c => !(state?.columns || []).map(c => c.name).includes(c.name))
+        ...(state?.externalSource?.columns || []).filter(c => !(state?.columns || []).map(c => c.name).includes(c.name))
     ];
 
     // Registry of control type transformers - all use nested submenu pattern
@@ -48,7 +45,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                 name: opt.label,
                 onClickGoBack: item.onClickGoBack,
                 onClickGoHome: item.onClickGoHome,
-                onClick: () => updateDisplayValue(item.key, opt.value, item.onChange, setState)
+                onClick: () => dwAPI.setDisplay(item.key, opt.value, item.onChange)
             }))
         }),
         colorpicker: (item, value) => ({
@@ -60,13 +57,13 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                 name: `${item.label} color`,
                 type: 'colorpicker', noHover: true,
                 value, colors: item.colors, showColorPicker: item.showColorPicker,
-                onChange: (newColor) => updateDisplayValue(item.key, newColor, item.onChange, setState)
+                onChange: (newColor) => dwAPI.setDisplay(item.key, newColor, item.onChange)
             }]
         }),
         toggle: (item, value) => ({
             icon: item.icon, name: item.label, showLabel: true, type: 'toggle',
             enabled: item.negate ? !value : !!value,
-            setEnabled: (v) => updateDisplayValue(item.key, item.negate ? !v : v, item.onChange, setState)
+            setEnabled: (v) => dwAPI.setDisplay(item.key, item.negate ? !v : v, item.onChange)
         }),
         input: (item, value) => ({
             icon: item.icon,
@@ -77,9 +74,9 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                 id: `${item.key}_input`,
                 name: `${item.label} input`,
                 type: 'input', inputType: item.inputType, value,
-                onChange: (e) => updateDisplayValue(item.key,
+                onChange: (e) => dwAPI.setDisplay(item.key,
                     item.inputType === 'number' ? +(e?.target?.value ?? e) : (e?.target?.value ?? e),
-                    item.onChange, setState)
+                    item.onChange)
             }]
         }),
     };
@@ -89,7 +86,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
         if (typeof item.type === 'function') {
             return {
                 icon: item.icon, name: item.label,
-                type: () => item.type({ value, setValue: v => updateDisplayValue(item.key, v, item.onChange, setState), state, setState })
+                type: () => item.type({ value, setValue: v => dwAPI.setDisplay(item.key, v, item.onChange), state: dwAPI.state, setState: dwAPI.setState })
             };
         }
 
@@ -148,7 +145,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                                                         }, 2000);
                                                     }}/> : null}
                             {isEdit && canEditSection ? <Pill color={'blue'} text={<Icon icon={'Paste'} className={'size-5'}/>} title={'Paste Section'}
-                                                              onClick={e => handlePaste(e, setKey, setState, value, onChange)}/> : null}
+                                                              onClick={e => handlePaste(e, setKey, dwAPI.setState, value, onChange)}/> : null}
 
                             {!isEdit && canEditPageLayout ?
                                 <Pill color={'blue'} text={<Icon icon={'ChevronUpSquare'} className={'size-5'} />} title={'Move Up'}
@@ -199,12 +196,30 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
         }
     ]
 
+    const { dataSources: pageLevelSources = {}, dataSourceId: currentDataSourceId, switchDataSource } = pageDataSources;
+    const pageLevelSourceList = Object.values(pageLevelSources);
+    const currentPageSource = currentDataSourceId ? pageLevelSources[currentDataSourceId] : null;
+
     const dataset =
         {
             name: 'Dataset', icon: 'Database',
             cdn: () => currentComponent?.useDataSource && canEditSection,
-            value: sources?.find(s => s.key === activeSource)?.label, showValue: true,
+            value: currentPageSource?.name || sources?.find(s => s.key === activeSource)?.label, showValue: true,
             items: [
+                // Page-level data sources (shared across sections)
+                ...(pageLevelSourceList.length > 0 ? [
+                    {name: 'Page Data Sources', icon: 'Database', showSearch: pageLevelSourceList.length > 5, cdn: () => isEdit,
+                        value: currentPageSource?.name, showValue: !!currentPageSource,
+                        items: pageLevelSourceList.map(ds => ({
+                            icon: ds.id === currentDataSourceId ? 'CircleCheck' : 'Blank',
+                            id: ds.id,
+                            name: ds.name || 'Unnamed Source',
+                            onClickGoBack: true,
+                            onClick: () => switchDataSource?.(ds.id)
+                        }))},
+                    {type: 'separator', cdn: () => isEdit},
+                ] : []),
+                // Direct source/version picker (creates inline, auto-promotes to page level)
                 {name: 'Source', icon: 'Database', showSearch: true, cdn: () => isEdit,
                     value: sources?.find(s => s.key === activeSource)?.label, showValue: true,
                     items: sources.map(({key, label}) => ({
@@ -241,8 +256,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                 noHover: true,
                 type: () => (
                     <ColumnManager
-                        state={state}
-                        setState={setState}
+                        dwAPI={dwAPI}
                         resolvedControls={resolvedControls}
                         showAllColumnsControl={currentComponent.showAllColumnsControl}
                         Pill={Pill}
@@ -261,7 +275,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
             showValue: true,
             cdn: () => isEdit && currentComponent?.useDataSource && canEditSection,
             items: [
-                {name: 'Filter Groups Component', type: () => <ComplexFilters state={state} setState={setState} />}
+                {name: 'Filter Groups Component', type: () => <ComplexFilters state={dwAPI.state} setState={dwAPI.setState} />}
             ]}
     ]
 

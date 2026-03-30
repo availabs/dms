@@ -13,3 +13,9 @@ packages/dms-server/img
 # Environment files (use .env.example as template)
 .env
 **/.env
+
+# Extracted images (large, served by nginx)
+**/img
+
+# Migration checkpoint files
+migrate-progress-*.json

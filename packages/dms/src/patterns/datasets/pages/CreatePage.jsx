@@ -4,6 +4,7 @@ import {useNavigate} from "react-router";
 import {DatasetsContext} from "../context";
 import {ThemeContext} from "../../../ui/useTheme";
 import {buildEnvsForListing} from "../utils/datasources";
+import { nameToSlug, getInstance } from "../../../utils/type-utils";
 import Breadcrumbs from "../components/Breadcrumbs";
 
 const range = (start, end) => Array.from({length: (end + 1 - start)}, (v, k) => k + start);
@@ -29,7 +30,7 @@ const getSources = async ({envs, falcor}) => {
 
 export default function CreatePage({apiUpdate, format}) {
     const ctx = useContext(DatasetsContext);
-    const {baseUrl, user, falcor, type, parent, damaDataTypes, datasources, UI} = ctx;
+    const {baseUrl, user, falcor, type, app, parent, damaDataTypes, datasources, dmsEnv, UI} = ctx;
     const {theme: fullTheme} = useContext(ThemeContext) || {};
     const theme = fullTheme?.datasets?.createPage || {};
     const {Layout, LayoutGroup, Select, Input, Button} = UI;
@@ -68,11 +69,38 @@ export default function CreatePage({apiUpdate, format}) {
             const newData = cloneDeep(data);
             delete newData.id;
             delete newData.views;
-            newData.doc_type = crypto.randomUUID();
-            await apiUpdate({
-                data: {...parent, sources: [...(sources || []).filter(s => s.type === `${type}|source`), newData]},
-                config: {format}
-            });
+            const sourceSlug = nameToSlug(data.name);
+            if (!sourceSlug) throw new Error('Name must contain at least one letter or number.');
+            if (!newData.type) newData.type = 'internal_table';
+
+            if (dmsEnv) {
+                // New path: create source then add ref to dmsEnv
+                const dmsEnvInstance = getInstance(dmsEnv.type);
+                const sourceType = `${dmsEnvInstance}|${sourceSlug}:source`;
+                const res = await falcor.call(
+                    ["dms", "data", "create"],
+                    [app, sourceType, newData]
+                );
+                const newId = Object.keys(res?.json?.dms?.data?.byId || {})
+                    .find(k => k !== '$__path');
+                if (!newId) throw new Error('Failed to create source');
+
+                const existingRefs = (dmsEnv.sources || [])
+                    .filter(s => s.id)
+                    .map(s => ({ ref: s.ref, id: s.id }));
+
+                await falcor.call(["dms", "data", "edit"], [app, dmsEnv.id, {
+                    sources: [...existingRefs, { ref: `${app}+${dmsEnvInstance}|source`, id: +newId }]
+                }]);
+                await falcor.invalidate(['dms', 'data', app, 'byId', dmsEnv.id]);
+                await falcor.invalidate(['uda', `${app}+${type}`, 'sources']);
+            } else {
+                // Legacy path: add source to pattern's sources array
+                await apiUpdate({
+                    data: {...parent, sources: [...(sources || []).filter(s => s.type === `${type}|source`), newData]},
+                    config: {format}
+                });
+            }
             navigate(baseUrl || '/');
         } catch (e) {
             console.error('Error creating dataset:', e);

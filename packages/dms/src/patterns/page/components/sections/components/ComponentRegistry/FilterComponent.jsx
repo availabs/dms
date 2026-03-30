@@ -51,10 +51,10 @@ export default {
     "variables": [],
     useDataSource: true,
     defaultState: {
-        dataRequest: {},
+        filters: { op: 'AND', groups: [] },
         columns:[],
         display: {},
-        sourceInfo: {}
+        externalSource: {}
     },
     controls: {
         columns: [{type: 'toggle', label: 'Filter', key: 'filters', trueValue: [{type: 'internal', operation: 'filter', values: []}],

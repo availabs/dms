@@ -10,6 +10,7 @@ import { cloneDeep } from 'lodash-es'
 
 import dmsSiteFactory from '../spa/dmsSiteFactory.jsx'
 import { dmsDataLoader, updateRegisteredFormats, updateAttributes } from '../../'
+import { getInstance } from '../../utils/type-utils.js'
 
 // Stub `window` and `document` for SSR — many components access window.location,
 // window.localStorage, document.createElement, etc. during render.
@@ -75,8 +76,9 @@ export function createSSRHandler({
     // dmsDataLoader needs the same updated config that dmsSiteFactory builds internally.
     const dmsConfigUpdated = cloneDeep(dmsConfig)
     const siteType = dmsConfig?.format?.type || dmsConfig.type
-    dmsConfigUpdated.registerFormats = updateRegisteredFormats(dmsConfigUpdated.registerFormats, dmsConfig.app, siteType)
-    dmsConfigUpdated.attributes = updateAttributes(dmsConfigUpdated.attributes, dmsConfig.app, siteType)
+    const siteInstance = getInstance(siteType) || siteType
+    dmsConfigUpdated.registerFormats = updateRegisteredFormats(dmsConfigUpdated.registerFormats, dmsConfig.app, siteInstance)
+    dmsConfigUpdated.attributes = updateAttributes(dmsConfigUpdated.attributes, dmsConfig.app, siteInstance)
     const siteData = await dmsDataLoader(falcor, dmsConfigUpdated, `/`)
 
     // Build routes. Falcor cache makes dmsSiteFactory's internal dmsDataLoader call instant.

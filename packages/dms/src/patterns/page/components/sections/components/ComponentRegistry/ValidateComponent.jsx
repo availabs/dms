@@ -8,7 +8,7 @@ const defaultState = {
     display: {
         usePageFilters: false,
     },
-    sourceInfo: {
+    externalSource: {
         columns: [],
     }
 }
@@ -37,7 +37,7 @@ const View = ({value, onChange, renderCard, ...rest}) => {
         setState(isJson(value) ? JSON.parse(value) : defaultState)
     }, [value]);
     console.log('state', state)
-    if(!state?.sourceInfo?.app) return <></>
+    if(!state?.externalSource?.app) return <></>
     return (
         <div className={'w-full h-full min-h-[50px]'}>
             <div className={'w-full pt-2 flex justify-end gap-2'}>
@@ -46,14 +46,14 @@ const View = ({value, onChange, renderCard, ...rest}) => {
                     onChange={() => {}}
                     size={1}
                     item={{
-                        ...state.sourceInfo,
-                        // app: state.sourceInfo.app,
-                        doc_type: state.sourceInfo.type,
-                        source_id: `${state.sourceInfo.source_id}`,
-                        view_id: `${state.sourceInfo.view_id}`,
-                        default_columns: JSON.parse(state.sourceInfo.default_columns || '[]'),
-                        // defaultColumns: [state.sourceInfo.columns[0], state.sourceInfo.columns[1]],
-                        config: JSON.stringify({attributes: state.sourceInfo.columns})
+                        ...state.externalSource,
+                        // app: state.externalSource.app,
+                        doc_type: state.externalSource.type,
+                        source_id: `${state.externalSource.source_id}`,
+                        view_id: `${state.externalSource.view_id}`,
+                        default_columns: JSON.parse(state.externalSource.default_columns || '[]'),
+                        // defaultColumns: [state.externalSource.columns[0], state.externalSource.columns[1]],
+                        config: JSON.stringify({attributes: state.externalSource.columns})
                     }}
                     apiLoad={apiLoad}
                     apiUpdate={apiUpdate}

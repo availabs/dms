@@ -6,7 +6,7 @@ import SourcesLayout from "./layout";
 import {FormsContext} from "../../siteConfig";
 import {Modal} from "../../ui";
 import { cloneDeep } from "lodash-es";
-import { v4 as uuidv4 } from 'uuid';
+import { nameToSlug } from "../../../../utils/type-utils";
 export const makeLexicalFormat = value => (isJson(value) ? JSON.parse(value) : value)?.root?.children ? value : {
         root: {
             "children": [
@@ -101,7 +101,7 @@ const SourceThumb = ({ source }) => {
         <div className="w-full p-4 bg-white hover:bg-blue-50 block border shadow flex">
             <div>
                 <Link to={`source/${source.id}`} className="text-xl font-medium w-full block">
-                    <span>{source?.name || source?.doc_type}</span>
+                    <span>{source?.name}</span>
                 </Link>
                 <div>
                     {(get(source, ['data', 'value', "categories"], []) || [])
@@ -132,7 +132,7 @@ const RenderAddPattern = ({isAdding, setIsAdding, updateData, sources=[], setSou
                     onChange={e => {
                         const matchingSource = sources.find(s => s.id === e.target.value);
                         if(matchingSource) {
-                            const numMatchingDocTypes = sources.filter(s => s.doc_type.includes(`${matchingSource.doc_type}_copy_`)).length;
+                            const numMatchingDocTypes = sources.filter(s => s.name?.includes(`${matchingSource.name} copy`)).length;
                             const clone = cloneDeep(matchingSource);
                             // delete clone.id; remove on btn click since it's used to ID in select.
                             clone.name = `${clone.name} copy (${numMatchingDocTypes+1})`
@@ -143,7 +143,7 @@ const RenderAddPattern = ({isAdding, setIsAdding, updateData, sources=[], setSou
                     }}>
                 <option key={'create-new'} value={undefined}>Create new</option>
                 {
-                    (sources || []).map(source => <option key={source.id} value={source.id}>{source.name} ({source.doc_type})</option> )
+                    (sources || []).map(source => <option key={source.id} value={source.id}>{source.name}</option> )
                 }
             </select>
 
@@ -160,7 +160,6 @@ const RenderAddPattern = ({isAdding, setIsAdding, updateData, sources=[], setSou
                         const clonedData = cloneDeep(data);
                         delete clonedData.id;
                         delete clonedData.views;
-                        clonedData.doc_type = uuidv4();
                         await updateData({sources: [...(sources || []), clonedData]})
                         window.location.reload()
                     }}
@@ -291,7 +290,7 @@ const Edit = ({attributes, item, dataItems, apiLoad, apiUpdate, updateAttribute,
                                 return output;
                             })
                             .filter(source => {
-                                let searchTerm = ((source?.name || source?.doc_type) + " " + (
+                                let searchTerm = ((source?.name || '') + " " + (
                                     (Array.isArray(source?.categories) ? source?.categories : [source?.categories]) || [])
                                     .reduce((out,cat) => {
                                         out += Array.isArray(cat) ? cat.join(' ') : typeof cat === 'string' ? cat : '';
@@ -301,7 +300,7 @@ const Edit = ({attributes, item, dataItems, apiLoad, apiUpdate, updateAttribute,
                             })
                             .sort((a,b) => {
                                 const m = sort === 'asc' ? 1 : -1;
-                                return m * a?.doc_type?.localeCompare(b?.doc_type)
+                                return m * (a?.name || '').localeCompare(b?.name || '')
                             })
                             .map((s, i) => <SourceThumb key={i} source={s} baseUrl={baseUrl} />)
                     }

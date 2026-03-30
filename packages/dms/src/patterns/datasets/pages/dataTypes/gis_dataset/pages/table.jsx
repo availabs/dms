@@ -13,6 +13,7 @@ import {
 import { Controls } from "../../../../../page/components/sections/components/dataWrapper/components/Controls";
 import {ThemeContext} from "../../../../../../ui/useTheme";
 import {isJson} from "../../default/utils";
+import { nameToSlug } from "../../../../../../utils/type-utils";
 
 export default function Table ({apiUpdate, apiLoad, format, source, params, isDms}) {
     const {id, view_id} = params;
@@ -47,13 +48,14 @@ export default function Table ({apiUpdate, apiLoad, format, source, params, isDm
     })
 
     useEffect(() => {
+        const sourceSlug = nameToSlug(source.name);
         const sourceInfo = isDms ? {
             app: source.app,
-            type: `${source.doc_type}-${params.view_id}`,
-            env: `${source.app}+${source.doc_type}`,
-            doc_type: `${source.doc_type}-${params.view_id}`,
+            type: `${sourceSlug}|${params.view_id}:data`,
+            env: `${source.app}+${sourceSlug}`,
+            doc_type: `${sourceSlug}|${params.view_id}:data`,
             isDms,
-            originalDocType: source.doc_type,
+            originalDocType: sourceSlug,
             view_id: params.view_id,
             columns
         } : {

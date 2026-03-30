@@ -1,18 +1,19 @@
 const { getDb } = require('#db/index.js');
+const { loadConfig } = require('#db/config.js');
 const { resolveTable, parseType, isSplitType, ensureSequence, ensureTable, getSequenceName } = require('#db/table-resolver.js');
+const { parseSplitDataType, getKind } = require('#db/type-utils.js');
 
 /**
  * Resolve the fully-qualified main table name for DMS content (non-split items).
  * In legacy mode → data_items; in per-app mode → data_items__{app}.
  * Ensures the table and sequence exist in per-app mode.
  */
-async function dmsMainTable(db, app) {
-  const splitMode = process.env.DMS_SPLIT_MODE || 'legacy';
+async function dmsMainTable(db, app, splitMode) {
+  splitMode = splitMode || process.env.DMS_SPLIT_MODE || 'legacy';
   const { fullName, schema, table } = resolveTable(app, 'pattern', db.type, splitMode);
-  if (table !== 'data_items') {
-    await ensureSequence(db, app, db.type, splitMode);
-    await ensureTable(db, schema, table, db.type, getSequenceName(app, db.type, splitMode));
-  }
+  // ensureTable() no-ops for the shared dms.data_items (legacy mode)
+  await ensureSequence(db, app, db.type, splitMode);
+  await ensureTable(db, schema, table, db.type, getSequenceName(app, db.type, splitMode));
   return fullName;
 }
 
@@ -87,10 +88,12 @@ async function getEssentials({ env, view_id, options = {} }) {
   const isDms = env.includes('+') && !parsedOptions.isDama;
 
   // DMS uses the DMS database; DAMA uses the env as pgEnv config name
-  const db = getDb(isDms ? (process.env.DMS_DB_ENV || 'dms-sqlite') : env);
+  const dbEnv = isDms ? (process.env.DMS_DB_ENV || 'dms-sqlite') : env;
+  const db = getDb(dbEnv);
 
   if (isDms) {
-    const splitMode = process.env.DMS_SPLIT_MODE || 'legacy';
+    const config = loadConfig(dbEnv);
+    const splitMode = config.splitMode || process.env.DMS_SPLIT_MODE || 'legacy';
     const [app, rawType] = env.split('+');
 
     // For DMS, the type may be suffixed with -view_id for versioned data
@@ -98,14 +101,13 @@ async function getEssentials({ env, view_id, options = {} }) {
     let dmsAttributes;
 
     // Resolve the main table for DMS content lookups (patterns, sources, views)
-    const mainTbl = await dmsMainTable(db, app);
+    const mainTbl = await dmsMainTable(db, app, splitMode);
 
     if (view_id) {
       // Look up the view_id item to check if it's versioned data
       const sanitisedApp = sanitizeName(app);
-      const sanitisedType = sanitizeName(rawType.replace(`-${view_id}`, '').replace('-invalid-entry', ''));
 
-      if (sanitisedApp && sanitisedType) {
+      if (sanitisedApp) {
         const versionTypeRows = await db.query(
           `SELECT type AS version_type FROM ${mainTbl} WHERE app = $1 AND id = $2`,
           [sanitisedApp, view_id]
@@ -113,34 +115,71 @@ async function getEssentials({ env, view_id, options = {} }) {
         const version_type = versionTypeRows?.rows?.[0]?.version_type;
 
         if (version_type && version_type.includes('|')) {
-          // Versioned data: type contains pipes like "dataset|sourceId|viewId"
-          // Suffix the query type with view_id to match versioned items
-          if (!type.endsWith(`-${view_id}`) && !type.endsWith(`${view_id}-invalid-entry`)) {
-            type = type.endsWith('-invalid-entry') && !type.includes(view_id)
-              ? type.replace('-invalid-entry', `${view_id}-invalid-entry`)
-              : `${type}-${view_id}`;
-          }
+          if (getKind(version_type) === 'view') {
+            // New format: view type is '{sourceSlug}|v1:view'
+            // The client sends env as 'app+sourceSlug', so rawType IS the source slug.
+            // Construct data type as '{sourceSlug}|{view_id}:data'
+            const isInvalid = type.endsWith('-invalid-entry');
+            const baseType = isInvalid ? type.replace('-invalid-entry', '') : type;
+            type = isInvalid
+              ? `${baseType}|${view_id}:data-invalid-entry`
+              : `${baseType}|${view_id}:data`;
 
-          const sourceVersionType = version_type.split('|').slice(0, 2).join('|');
-          const configRows = await db.query(
-            `SELECT data->>'config' AS config FROM ${mainTbl} WHERE app = $1 AND type = $2 AND data->>'doc_type' = $3`,
-            [sanitisedApp, sourceVersionType, sanitisedType]
-          );
-          dmsAttributes = JSON.parse(configRows?.rows?.[0]?.config || '{}')?.attributes || [];
+            // Look up source config by source slug in type column
+            const configRows = await db.query(
+              `SELECT data->>'config' AS config FROM ${mainTbl} WHERE app = $1 AND type LIKE '%|' || $2 || ':source' ORDER BY id DESC LIMIT 1`,
+              [sanitisedApp, rawType]
+            );
+            dmsAttributes = JSON.parse(configRows?.rows?.[0]?.config || '{}')?.attributes || [];
+          } else {
+            // Legacy format: view type has pipes but no :view kind
+            const sanitisedType = sanitizeName(rawType.replace(`-${view_id}`, '').replace('-invalid-entry', ''));
+            if (sanitisedType) {
+              if (!type.endsWith(`-${view_id}`) && !type.endsWith(`${view_id}-invalid-entry`)) {
+                type = type.endsWith('-invalid-entry') && !type.includes(view_id)
+                  ? type.replace('-invalid-entry', `${view_id}-invalid-entry`)
+                  : `${type}-${view_id}`;
+              }
+
+              const sourceVersionType = version_type.split('|').slice(0, 2).join('|');
+              const configRows = await db.query(
+                `SELECT data->>'config' AS config FROM ${mainTbl} WHERE app = $1 AND type = $2 AND data->>'doc_type' = $3`,
+                [sanitisedApp, sourceVersionType, sanitisedType]
+              );
+              dmsAttributes = JSON.parse(configRows?.rows?.[0]?.config || '{}')?.attributes || [];
+            }
+          }
         }
       }
+    }
+
+    // Normalize split type to lowercase — stored data uses lowercase type strings
+    // but the client may send mixed case from doc_type (e.g., 'Actions_Revised-1074456')
+    if (isSplitType(type)) {
+      type = type.toLowerCase();
     }
 
     // Look up source_id for split type naming
     let sourceId = null;
     if (isSplitType(type)) {
-      const parsed = parseType(type);
-      if (parsed) {
+      // New format: {source}|{view}:data — look up source by instance name in type column
+      const newParsed = parseSplitDataType(type);
+      if (newParsed) {
         const srcRows = await db.query(
-          `SELECT id FROM ${mainTbl} WHERE app = $1 AND ${db.type === 'postgres' ? "data->>'doc_type'" : "json_extract(data, '$.doc_type')"} = $2 AND type LIKE '%|source' ORDER BY id DESC LIMIT 1`,
-          [app, parsed.docType]
+          `SELECT id FROM ${mainTbl} WHERE app = $1 AND type LIKE '%|' || $2 || ':source' ORDER BY id DESC LIMIT 1`,
+          [app, newParsed.source]
         );
         sourceId = srcRows?.rows?.[0]?.id || null;
+      } else {
+        // Legacy format: {docType}-{viewId} — look up source by data.doc_type
+        const parsed = parseType(type);
+        if (parsed && parsed.docType) {
+          const srcRows = await db.query(
+            `SELECT id FROM ${mainTbl} WHERE app = $1 AND lower(${db.type === 'postgres' ? "data->>'doc_type'" : "json_extract(data, '$.doc_type')"}) = lower($2) AND (type LIKE '%|source' OR type LIKE '%:source') ORDER BY id DESC LIMIT 1`,
+            [app, parsed.docType]
+          );
+          sourceId = srcRows?.rows?.[0]?.id || null;
+        }
       }
     }
 
@@ -154,7 +193,7 @@ async function getEssentials({ env, view_id, options = {} }) {
       await ensureTable(db, table_schema, table_name, db.type, seqName);
     }
 
-    return { isDms, db, app, type, table_schema, table_name, dmsAttributes };
+    return { isDms, db, app, type, table_schema, table_name, dmsAttributes, splitMode };
   }
 
   // DAMA mode
@@ -181,35 +220,59 @@ async function getDataTableFromViewId({ db, view_id }) {
 /**
  * Get pattern IDs for a DMS site (items with type='pattern' for the given app)
  */
-async function getSitePatterns({ db, app }) {
-  const tbl = await dmsMainTable(db, app);
-  // Pattern records created via updateDMSAttrs have type like 'undefined|pattern' or 'siteType|pattern',
-  // while test/legacy records may have plain 'pattern'. Match both.
-  const sql = `SELECT id FROM ${tbl} WHERE app = $1 AND (type = 'pattern' OR type LIKE '%|pattern')`;
+async function getSitePatterns({ db, app, splitMode }) {
+  const tbl = await dmsMainTable(db, app, splitMode);
+  // Match patterns in all formats:
+  //   legacy: 'pattern' or 'siteType|pattern'
+  //   new:    '{site}|{name}:pattern'
+  const sql = `SELECT id FROM ${tbl} WHERE app = $1 AND (type = 'pattern' OR type LIKE '%|pattern' OR type LIKE '%:pattern')`;
   const { rows } = await db.query(sql, [app]);
   return rows.map(r => r.id);
 }
 
 /**
- * Get sources from site patterns. Looks at patterns matching doc_types and extracts their sources JSON array.
+ * Get sources from site patterns. Looks at patterns matching doc_types and extracts
+ * their sources JSON array. If a pattern has dmsEnvId set, reads sources from the
+ * referenced dmsEnv row instead.
  */
-async function getSiteSources({ db, app, pattern_ids, pattern_doc_types }) {
+async function getSiteSources({ db, app, pattern_ids, pattern_doc_types, splitMode }) {
   if (!pattern_ids.length) return [];
 
-  const tbl = await dmsMainTable(db, app);
+  const tbl = await dmsMainTable(db, app, splitMode);
+  // Match patterns by doc_type in data (legacy) or by id (covers new format where doc_type is removed)
   const sql = `
-    SELECT data->'sources' AS sources
+    SELECT data->'sources' AS sources, data->>'dmsEnvId' AS dms_env_id
     FROM ${tbl}
-    WHERE id = ANY($1) AND data->>'doc_type' = ANY($2)
+    WHERE id = ANY($1) AND (data->>'doc_type' = ANY($2) OR data->>'doc_type' IS NULL)
   `;
   const { rows } = await db.query(sql, [pattern_ids.map(Number), pattern_doc_types]);
 
   if (!rows.length) return [];
-  return rows.reduce((acc, curr) => {
-    // SQLite data->'sources' returns a JSON string; PostgreSQL returns a parsed array
-    const sources = typeof curr.sources === 'string' ? JSON.parse(curr.sources) : (curr.sources || []);
-    return [...acc, ...sources];
-  }, []);
+
+  // Collect sources from patterns, and dmsEnvIds to look up
+  const allSources = [];
+  const dmsEnvIds = [];
+
+  for (const row of rows) {
+    if (row.dms_env_id) {
+      dmsEnvIds.push(+row.dms_env_id);
+    } else {
+      const sources = typeof row.sources === 'string' ? JSON.parse(row.sources) : (row.sources || []);
+      allSources.push(...sources);
+    }
+  }
+
+  // Fetch sources from dmsEnv rows
+  if (dmsEnvIds.length) {
+    const envSql = `SELECT data->'sources' AS sources FROM ${tbl} WHERE id = ANY($1)`;
+    const { rows: envRows } = await db.query(envSql, [dmsEnvIds]);
+    for (const envRow of envRows) {
+      const sources = typeof envRow.sources === 'string' ? JSON.parse(envRow.sources) : (envRow.sources || []);
+      allSources.push(...sources);
+    }
+  }
+
+  return allSources;
 }
 
 // ================================================= Filter Builders ================================================
@@ -321,15 +384,37 @@ function getValuesFromGroup(node) {
     const filtered = node.value.filter(v => !['null', 'not null'].includes(v));
     return filtered.length ? [filtered] : [];
   }
-  return ['null', 'not null'].includes(node.value) ? [] : [[node.value]];
+  if (['null', 'not null'].includes(node.value)) return [];
+  // Comparison ops (gt, gte, lt, lte, like) expect scalar values;
+  // filter/exclude use = ANY($N) which expects an array.
+  if (['gt', 'gte', 'lt', 'lte', 'like'].includes(node.op)) {
+    return [node.value];
+  }
+  return [[node.value]];
 }
 
-function buildLeafSQL(node, ctx, isDms) {
+function buildLeafSQL(node, ctx, isDms, dbType) {
   const { col, op, value, isExternal } = node;
   // External filters are already applied via old-style filter/like/etc. objects —
   // they exist in filterGroups only for UI tracking, not SQL generation.
   // Also skip nodes with no value (would generate a placeholder with no matching param).
   if (isExternal || value == null) return '';
+
+  // array_contains / array_not_contains: check if a JSON array column contains (or doesn't contain) any of the given values
+  if (op === 'array_contains' || op === 'array_not_contains') {
+    const vals = Array.isArray(value) ? value : [value];
+    if (!vals.length) return '';
+    const index = `$${++ctx.index}`;
+    const not = op === 'array_not_contains' ? 'NOT ' : '';
+    if (dbType === 'sqlite') {
+      // json_each returns rows with a .value column
+      return `${not}EXISTS (SELECT 1 FROM json_each(${col}) _ac WHERE _ac.value = ANY(${index}))`;
+    }
+    // PostgreSQL: jsonb_array_elements_text returns scalar text rows
+    // ::jsonb cast handles both text columns (data->>'col') and native jsonb columns
+    return `${not}EXISTS (SELECT 1 FROM jsonb_array_elements_text((${col})::jsonb) _ac WHERE _ac = ANY(${index}))`;
+  }
+
   const vals = Array.isArray(value) ? value : [value];
   const index = vals.some(v => !['null', 'not null'].includes(v))
     ? `$${++ctx.index}`
@@ -337,18 +422,18 @@ function buildLeafSQL(node, ctx, isDms) {
   return handleFiltersType(col, vals, index, op, isDms);
 }
 
-function buildGroupSQL(node, ctx, isDms) {
+function buildGroupSQL(node, ctx, isDms, dbType) {
   const clauses = node.groups
-    .map(child => child.groups ? buildGroupSQL(child, ctx, isDms) : buildLeafSQL(child, ctx, isDms))
+    .map(child => child.groups ? buildGroupSQL(child, ctx, isDms, dbType) : buildLeafSQL(child, ctx, isDms, dbType))
     .filter(Boolean);
   if (!clauses.length) return '';
   return `(${clauses.join(` ${node.op.toLowerCase()} `)})`;
 }
 
-function handleFilterGroups({ filterGroups, isDms, startIndex = 0 }) {
+function handleFilterGroups({ filterGroups, isDms, startIndex = 0, dbType }) {
   if (!filterGroups || !filterGroups.groups?.length) return { sql: '', values: [] };
   const ctx = { index: startIndex, values: [] };
-  const sql = buildGroupSQL(filterGroups, ctx, isDms);
+  const sql = buildGroupSQL(filterGroups, ctx, isDms, dbType);
   return { sql, values: ctx.values };
 }
 
@@ -384,9 +469,9 @@ function handleOrderBy(orders, dmsAttributes) {
 /**
  * Build a combined WHERE clause from both old-style simple filters and new-style filterGroups.
  */
-function buildCombinedWhere({ filter, exclude, gt, gte, lt, lte, like, filterRelation, filterGroups, isDms, app, type, oldValues }) {
+function buildCombinedWhere({ filter, exclude, gt, gte, lt, lte, like, filterRelation, filterGroups, isDms, app, type, oldValues, dbType }) {
   const oldWhere = handleFilters({ filter, exclude, gt, gte, lt, lte, like, filterRelation, isDms, app, type });
-  const { sql: newWhere } = handleFilterGroups({ filterGroups, isDms, startIndex: oldValues.length });
+  const { sql: newWhere } = handleFilterGroups({ filterGroups, isDms, startIndex: oldValues.length, dbType });
 
   if (oldWhere && newWhere) {
     return `WHERE (${oldWhere.replace(/^WHERE\s*/, '')}) ${filterRelation} ${newWhere}`;

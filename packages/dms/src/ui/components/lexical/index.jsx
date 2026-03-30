@@ -44,13 +44,14 @@ function parseValue(value) {
     return null;
 }
 
-const Edit = ({value, onChange,  ...rest}) => {
-    // console.log('lexical type edit')
+const Edit = ({value, onChange, isCollab, collabId, ...rest}) => {
     return (
         <Editor
             value={parseValue(value)}
             onChange={(d) => onChange(d)}
             editable={true}
+            isCollab={isCollab}
+            collabId={collabId}
             {...rest}
         />
     )

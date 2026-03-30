@@ -11,7 +11,7 @@ export const CreateDataset = ({ }) => {
         onChange={e => {
             const matchingSource = sources.find(s => s.id === e.target.value);
             if(matchingSource) {
-                const numMatchingDocTypes = sources.filter(s => s.doc_type.includes(`${matchingSource.doc_type}_copy_`)).length;
+                const numMatchingDocTypes = sources.filter(s => s.name?.includes(`${matchingSource.name} copy`)).length;
                 const clone = cloneDeep(matchingSource);
                 // delete clone.id; remove on btn click since it's used to ID in select.
                 clone.name = `${clone.name} copy (${numMatchingDocTypes+1})`
@@ -44,7 +44,6 @@ export const CreateDataset = ({ }) => {
                       const clonedData = cloneDeep(data);
                       delete clonedData.id;
                       delete clonedData.views;
-                      clonedData.doc_type = crypto.randomUUID();
                       await updateData({sources: [...(sources || []).filter(s => s.type === `${type}|source`), clonedData]})
                       window.location.reload()
                   }}

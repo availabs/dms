@@ -1,11 +1,13 @@
 import React from 'react'
 import {v4 as uuidv4} from "uuid";
+import { useFalcor } from "@availabs/avl-falcor";
 import {AdminContext} from "../context";
 // import { AuthContext } from '../../auth/context';
 import { ThemeContext } from '../../../ui/useTheme';
 import { Link, useLocation } from 'react-router'
 import NewSite from './createSite'
 import { parseIfJSON } from '../../page/pages/_utils';
+import { nameToSlug, getInstance } from '../../../utils/type-utils';
 
 
 function SiteEdit ({
@@ -66,10 +68,12 @@ function PatternList({
 	 format,
 	 ...rest
 }) {
-	const {app, API_HOST, baseUrl} = React.useContext(AdminContext);
+	const {app, type: siteType, API_HOST, baseUrl} = React.useContext(AdminContext);
 	const {UI} = React.useContext(ThemeContext)
+	const { falcor } = useFalcor();
 	const location = useLocation()
 	const {Table, Input, Button, Modal, Icon} = UI;
+	const siteInstance = getInstance(siteType) || siteType;
 	const gridRef = React.useRef(null);
 	const [search, setSearch] = React.useState('');
 	const [newItem, setNewItem] = React.useState({app: format?.app});
@@ -94,12 +98,15 @@ function PatternList({
         const hasSubdomain = isLocalhost ? parts.length >= 2 : parts.length > 2
         const baseDomain = hasSubdomain ? parts.slice(1).join('.') : host
         const targetHost = needsSub ? `${sub}.${baseDomain}` : host
+        const baseUrl = d.row.base_url
+        if (!baseUrl) return <span className='p-2 text-[14px] text-slate-400'>—</span>
+        const normalizedUrl = baseUrl.startsWith('/') ? baseUrl : `/${baseUrl}`
         return (
           <Link
-            to={`${protocol}://${targetHost}${d.row.base_url}`}
+            to={`${protocol}://${targetHost}${normalizedUrl}`}
             className='flex items-center p-2 w-full h-full py-1 font-[400] text-[14px]  leading-[18px] text-slate-600'
           >
-            {d?.row?.base_url}
+            {baseUrl}
           </Link>
         )
       }
@@ -121,20 +128,20 @@ function PatternList({
               title='Duplicate'
               disabled={isDuplicating}
               onClick={async () => {
-                const newDocType = crypto.randomUUID();
+                const newName = `${d.row.name}_copy`;
+                const oldInstance = getInstance(d.row.type) || d.row?.base_url?.replace(/\//g, '');
                 const dataToCopy = {
                   app: d.row.app,
                   base_url: `${d.row.base_url}_copy`,
                   subdomain: d.row.subdomain,
                   config: d.row.config,
-                  doc_type: newDocType,
-                  name: `${d.row.name}_copy`,
+                  name: newName,
                   pattern_type: d.row.pattern_type,
                   auth_level: d.row.auth_level,
                   filters: d.row.filters,
                   theme: d.row.theme,
                 };
-                await duplicate({oldType: d.row.doc_type, newType: newDocType}, dataToCopy);
+                await duplicate({oldInstance, newInstance: nameToSlug(newName)}, dataToCopy);
               }}
             >
               <Icon icon='Copy' className='size-4'/>
@@ -154,20 +161,43 @@ function PatternList({
 
 	const dmsServerPath = `${API_HOST}/dama-admin`;
 
-	const addNewValue = (pattern) => {
-		const newData = [...value, pattern || newItem];
-		onChange(newData)
-		onSubmit(newData)
-		setNewItem({app: format?.app})
+	const addNewValue = async (patternData) => {
+		const data = patternData || newItem;
+		const slug = nameToSlug(data.name);
+		if (!slug) return;
+
+		// Collision check
+		const existingSlugs = value.map(v =>
+			getInstance(v.type) || v?.base_url?.replace(/\//g, '')
+		).filter(Boolean);
+		if (existingSlugs.includes(slug)) {
+			alert(`A pattern with identifier "${slug}" already exists`);
+			return;
+		}
+
+		const patternType = `${siteInstance}|${slug}:pattern`;
+		const res = await falcor.call(
+			['dms', 'data', 'create'],
+			[app, patternType, data]
+		);
+		const newId = Object.keys(res?.json?.dms?.data?.byId || {})
+			.filter(d => d !== '$__path')?.[0];
+
+		if (newId) {
+			const newData = [...value, { ref: `${app}+${siteInstance}|pattern`, id: +newId }];
+			onChange(newData);
+			onSubmit(newData);
+		}
+		setNewItem({app: format?.app});
 	}
 
-	const duplicate = async({oldType, newType}, item) => {
+	const duplicate = async({oldInstance, newInstance}, item) => {
 		setIsDuplicating(true);
 		// call server to copy over pages and sections
-		const res = await fetch(`${dmsServerPath}/dms/${app}+${oldType}/duplicate`,
+		const res = await fetch(`${dmsServerPath}/dms/${app}+${oldInstance}/duplicate`,
 			{
 				method: "POST",
-				body: JSON.stringify({newApp: app, newType}), // doc_type becomes type for pages.
+				body: JSON.stringify({newApp: app, newType: newInstance}),
 				headers: {
 					"Content-Type": "application/json",
 				},
@@ -181,7 +211,7 @@ function PatternList({
 	const data = value
 		.map(v => ({
             ...v,
-            name: v.name || v.doc_type,
+            name: v.name,
             edit_url: `${baseUrl}/manage_pattern/${v.id}`,
         }))
 		.filter(v => !search || v.name.toLowerCase().includes(search.toLowerCase()));
@@ -261,20 +291,20 @@ function PatternList({
 								type={'plain'}
 								title={'duplicate item'}
 								onClick={async () => {
-									const newDocType = crypto.randomUUID()
+									const newName = `${editingItem?.name}_copy`;
+									const oldInstance = getInstance(editingItem?.type) || editingItem?.base_url?.replace(/\//g, '');
 									const dataToCopy = {
 										app: editingItem?.app,
 										base_url: `${editingItem?.base_url}_copy`,
 										subdomain: editingItem?.subdomain,
 										config: editingItem?.config,
-										doc_type: newDocType,
-										name: `${editingItem?.name}_copy`,
+										name: newName,
 										pattern_type: editingItem?.pattern_type,
 										auth_level: editingItem?.auth_level,
 										filters: editingItem?.filters,
 										theme: editingItem?.theme,
 									};
-									await duplicate({oldType: editingItem?.doc_type, newType: newDocType}, dataToCopy)
+									await duplicate({oldInstance, newInstance: nameToSlug(newName)}, dataToCopy)
 									setEditingItem(undefined)
 								}}
 							> {isDuplicating ? 'duplicating...' : 'duplicate'}
@@ -326,7 +356,7 @@ function PatternList({
                                 type={'plain'}
                                 title={'Add Site'}
 								className={'bg-blue-100 hover:bg-blue-300 text-sm text-blue-800 px-2 py-0.5 m-1 rounded-lg w-fit h-fit'}
-								onClick={() => addNewValue({...newItem, doc_type: crypto.randomUUID()})}
+								onClick={() => addNewValue({...newItem})}
 							>
 								add
 							</Button>
@@ -338,7 +368,7 @@ function PatternList({
 					<div className='flex flex-col gap-4 p-2'>
 						<div className='text-lg font-semibold text-slate-700'>Delete Pattern</div>
 						<div className='text-sm text-slate-500'>
-							Are you sure you want to delete <span className='font-medium text-slate-700'>{deletingItem?.name || deletingItem?.doc_type}</span>?
+							Are you sure you want to delete <span className='font-medium text-slate-700'>{deletingItem?.name}</span>?
 							This will remove the pattern from the site. This action cannot be undone.
 						</div>
 						<div className='flex items-center justify-end gap-2'>

@@ -28,7 +28,6 @@ const CreateInternalDataset = ({
                               const clonedData = cloneDeep(source);
                               delete clonedData.id;
                               delete clonedData.views;
-                              clonedData.doc_type = crypto.randomUUID();
                               await updateData({sources: [...(sources || []).filter(s => s.type === `${type}|source`), clonedData]})
                               window.location.reload()
                           }}

@@ -5,5 +5,6 @@
   "port": 5499,
   "database": "dms_test",
   "user": "dms_test",
-  "password": "dms_test"
+  "password": "dms_test",
+  "splitMode": "per-app"
 }

@@ -11,7 +11,7 @@ import {CharacterLimitPlugin} from '@lexical/react/LexicalCharacterLimitPlugin';
 import {CheckListPlugin} from '@lexical/react/LexicalCheckListPlugin';
 import {ClearEditorPlugin} from '@lexical/react/LexicalClearEditorPlugin';
 
-// import {CollaborationPlugin} from '@lexical/react/LexicalCollaborationPlugin';
+import {CollaborationPlugin} from '@lexical/react/LexicalCollaborationPlugin';
 import {LexicalErrorBoundary} from '@lexical/react/LexicalErrorBoundary';
 import {HistoryPlugin} from '@lexical/react/LexicalHistoryPlugin';
 import {HorizontalRulePlugin} from '@lexical/react/LexicalHorizontalRulePlugin';
@@ -23,7 +23,7 @@ import * as React from 'react';
 import {useEffect, useState} from 'react';
 import {CAN_USE_DOM} from './shared/canUseDOM';
 
-//import {createWebsocketProvider} from './collaboration';
+import {createCollabProvider} from './collaboration';
 import {useSharedHistoryContext} from './context/SharedHistoryContext';
 import TableCellNodes from './nodes/TableCellNodes';
 import ActionsPlugin from './plugins/ActionsPlugin';
@@ -71,7 +71,11 @@ import PageBreakPlugin from './plugins/PageBreakPlugin';
 export default function Editor(props): JSX.Element {
     const {historyState} = useSharedHistoryContext();
     const {
-        /*isCollab,*/
+        isCollab,
+        collabId,
+        collabInitialState,
+        collabUsername,
+        collabCursorColor,
         isAutocomplete,
         isMaxLength,
         isCharLimit,
@@ -148,16 +152,18 @@ export default function Editor(props): JSX.Element {
                 /> : ''}*/}
                 {isRichText ? (
                     <>
-                        {/*isCollab ? (
-              <CollaborationPlugin
-                id="main"
-                providerFactory={createWebsocketProvider}
-                shouldBootstrap={!skipCollaborationInit}
-              />
-            ) : (
-              <HistoryPlugin externalHistoryState={historyState} />
-            )*/}
-                        <HistoryPlugin externalHistoryState={historyState}/>
+                        {isCollab ? (
+                            <CollaborationPlugin
+                                id={collabId || 'main'}
+                                providerFactory={createCollabProvider}
+                                shouldBootstrap={true}
+                                initialEditorState={collabInitialState}
+                                username={collabUsername}
+                                cursorColor={collabCursorColor}
+                            />
+                        ) : (
+                            <HistoryPlugin externalHistoryState={historyState}/>
+                        )}
                         <RichTextPlugin
                             contentEditable={
                                 <div className={editable ? `${theme.editorScroller}` || "editor-scroller" : `${theme.viewScroller}` || "view-scroller"}>

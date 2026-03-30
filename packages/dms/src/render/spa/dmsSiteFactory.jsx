@@ -2,8 +2,9 @@ import React, {useState, useEffect} from 'react'
 import { createBrowserRouter, RouterProvider, useRouteError } from "react-router";
 import { falcorGraph } from "@availabs/avl-falcor"
 import { cloneDeep } from "lodash-es"
-import { dmsDataLoader, withAuth, authProvider, dmsPageFactory } from '../../'
+import { dmsDataLoader, withAuth, authProvider, dmsPageFactory, _setSyncAPI } from '../../'
 import { parseIfJSON } from '../../patterns/page/pages/_utils';
+import { getInstance } from '../../utils/type-utils';
 import { updateAttributes, updateRegisteredFormats } from "../../dms-manager/_utils";
 import { pattern2routes } from './utils'
 import RootErrorBoundary from './utils/RootErrorBoundary.jsx';
@@ -116,7 +117,6 @@ export function DmsSite (config) {
             const tImport = performance.now();
             console.log(`[sync] module imported (${(tImport - t0).toFixed(0)}ms)`);
             const api = await initSync(app, API_HOST, siteType);
-            const { _setSyncAPI } = await import('../../api/index.js');
             _setSyncAPI(api);
             setSyncAPIState(api);
             setSyncActive(true);
@@ -126,12 +126,18 @@ export function DmsSite (config) {
         );
     }, []);
 
-    // Revalidate routes when sync receives remote changes
+    // Revalidate routes when sync receives remote changes (debounced to avoid storm)
     useEffect(() => {
         if (!syncAPI) return;
-        return syncAPI.onInvalidate(() => {
-            if (router) router.revalidate();
+        let timer = null;
+        const unsub = syncAPI.onInvalidate(() => {
+            if (timer) clearTimeout(timer);
+            timer = setTimeout(() => {
+                timer = null;
+                if (router) router.revalidate();
+            }, 150);
         });
+        return () => { unsub(); if (timer) clearTimeout(timer); };
     }, [syncAPI, router]);
     // --- End sync ---
 
@@ -162,8 +168,9 @@ export default async function dmsSiteFactory(config) {
     let { dmsConfig, falcor, API_HOST } = config
     let dmsConfigUpdated = cloneDeep(dmsConfig);
     const siteType = dmsConfig?.format?.type || dmsConfig.type;
-    dmsConfigUpdated.registerFormats = updateRegisteredFormats(dmsConfigUpdated.registerFormats, dmsConfig.app, siteType)
-    dmsConfigUpdated.attributes = updateAttributes(dmsConfigUpdated.attributes, dmsConfig.app, siteType)
+    const siteInstance = getInstance(siteType) || siteType;
+    dmsConfigUpdated.registerFormats = updateRegisteredFormats(dmsConfigUpdated.registerFormats, dmsConfig.app, siteInstance)
+    dmsConfigUpdated.attributes = updateAttributes(dmsConfigUpdated.attributes, dmsConfig.app, siteInstance)
 
     falcor = falcor || falcorGraph(API_HOST)
     let data = await dmsDataLoader(falcor, dmsConfigUpdated, `/`);

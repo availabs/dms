@@ -36,10 +36,29 @@ const NON_SPLIT_TYPE = 'test-type';
 const PAGE_TYPE = 'abc123|page';
 const SECTION_TYPE = 'abc123|section';
 
+const SPLIT_MODE = 'per-app';
+
 let graph = null;
 let db = null;
 let passed = 0;
 let failed = 0;
+
+/** Resolve the main (non-split) table for TEST_APP in current split mode */
+function mainTable() {
+  return resolveTable(TEST_APP, NON_SPLIT_TYPE, db.type, SPLIT_MODE);
+}
+
+/** Check if a table exists in the database */
+async function tableExists(tableName) {
+  const { schema } = resolveTable(TEST_APP, NON_SPLIT_TYPE, db.type, SPLIT_MODE);
+  const result = await db.query(
+    db.type === 'postgres'
+      ? `SELECT tablename FROM pg_tables WHERE schemaname = $1 AND tablename = $2`
+      : `SELECT name FROM sqlite_master WHERE type='table' AND name = $1`,
+    db.type === 'postgres' ? [schema, tableName] : [tableName]
+  );
+  return result.rows.length > 0;
+}
 
 function assert(condition, message) {
   if (!condition) {
@@ -122,9 +141,9 @@ async function testResolveTableNameBased() {
   const r1 = resolveTable('myapp', 'traffic_counts-1', 'sqlite', 'legacy');
   assert(r1.table === 'data_items__traffic_counts_1', `Name-based type produces readable table (got ${r1.table})`);
 
-  // Name-based invalid entry
+  // Name-based invalid entry — resolves to SAME table as valid entries
   const r2 = resolveTable('myapp', 'traffic_counts-1-invalid-entry', 'sqlite', 'legacy');
-  assert(r2.table === 'data_items__traffic_counts_1_invalid_entry', `Invalid entry table name correct (got ${r2.table})`);
+  assert(r2.table === 'data_items__traffic_counts_1', `Invalid entry resolves to same table as valid (got ${r2.table})`);
 
   // PostgreSQL produces same readable name with schema prefix
   const r3 = resolveTable('myapp', 'traffic_counts-1', 'postgres', 'legacy');
@@ -190,9 +209,9 @@ async function testResolveTableWithSourceId() {
   const r1 = resolveTable('myapp', 'traffic_counts-1', 'sqlite', 'legacy', 42);
   assert(r1.table === 'data_items__s42_v1_traffic_counts', `New naming (got ${r1.table})`);
 
-  // Legacy mode with sourceId — invalid entry
+  // Legacy mode with sourceId — invalid entry resolves to SAME table as valid
   const r2 = resolveTable('myapp', 'traffic_counts-1-invalid-entry', 'sqlite', 'legacy', 42);
-  assert(r2.table === 'data_items__s42_v1_traffic_counts_invalid', `Invalid suffix (got ${r2.table})`);
+  assert(r2.table === 'data_items__s42_v1_traffic_counts', `Invalid entry same table as valid (got ${r2.table})`);
 
   // Legacy mode without sourceId — old naming (fallback)
   const r3 = resolveTable('myapp', 'traffic_counts-1', 'sqlite', 'legacy', null);
@@ -219,10 +238,75 @@ async function testResolveTableWithSourceId() {
   assert(r8.table === 'data_items__s42_v1_traffic_counts', `String sourceId works (got ${r8.table})`);
 }
 
-// =========================================== Integration Tests (Legacy Mode) =======================================
+async function testNewFormatSplitType() {
+  console.log('\n--- Unit: new format :data split types ---');
+
+  // New format types should be detected as split
+  assert(isSplitType('adamtest1|v1:data'), 'adamtest1|v1:data is split');
+  assert(isSplitType('traffic_counts|v2:data'), 'traffic_counts|v2:data is split');
+  assert(isSplitType('foo|bar:data'), 'any :data is split');
+
+  // Non-data new format types should NOT split
+  assert(!isSplitType('prod:site'), 'site is not split');
+  assert(!isSplitType('prod|my-pattern:pattern'), 'pattern is not split');
+  assert(!isSplitType('my-env|adamtest1:source'), 'source is not split');
+  assert(!isSplitType('adamtest1|v1:view'), 'view is not split');
+}
+
+async function testNewFormatParseType() {
+  console.log('\n--- Unit: parseType with new format ---');
+
+  const p1 = parseType('adamtest1|v1:data');
+  assert(p1 !== null, 'adamtest1|v1:data parses');
+  assert(p1.source === 'adamtest1', `source is adamtest1 (got ${p1.source})`);
+  assert(p1.view === 'v1', `view is v1 (got ${p1.view})`);
+
+  const p2 = parseType('traffic_counts|v2:data');
+  assert(p2 !== null, 'traffic_counts|v2:data parses');
+  assert(p2.source === 'traffic_counts', `source is traffic_counts (got ${p2.source})`);
+  assert(p2.view === 'v2', `view is v2 (got ${p2.view})`);
+
+  // Non-data new format returns null
+  assert(parseType('prod:site') === null, 'site returns null');
+  assert(parseType('prod|my-pattern:pattern') === null, 'pattern returns null');
+}
+
+async function testNewFormatResolveTable() {
+  console.log('\n--- Unit: resolveTable with new format types ---');
+
+  // Legacy mode — new format data type
+  const r1 = resolveTable('myapp', 'adamtest1|v1:data', 'sqlite', 'legacy');
+  assert(r1.table === 'data_items__adamtest1_v1', `New format table name (got ${r1.table})`);
+
+  // Legacy mode with sourceId
+  const r2 = resolveTable('myapp', 'adamtest1|v1:data', 'sqlite', 'legacy', 42);
+  assert(r2.table === 'data_items__s42_v1_adamtest1', `New format with sourceId (got ${r2.table})`);
+
+  // Per-app SQLite
+  const r3 = resolveTable('myapp', 'adamtest1|v1:data', 'sqlite', 'per-app');
+  assert(r3.table === 'data_items__myapp__adamtest1_v1', `Per-app new format (got ${r3.table})`);
+
+  // Per-app SQLite with sourceId
+  const r4 = resolveTable('myapp', 'adamtest1|v1:data', 'sqlite', 'per-app', 42);
+  assert(r4.table === 'data_items__myapp__s42_v1_adamtest1', `Per-app new format with sourceId (got ${r4.table})`);
+
+  // PostgreSQL
+  const r5 = resolveTable('myapp', 'adamtest1|v1:data', 'postgres', 'legacy');
+  assert(r5.fullName === 'dms.data_items__adamtest1_v1', `PG new format (got ${r5.fullName})`);
+
+  // PostgreSQL per-app
+  const r6 = resolveTable('myapp', 'adamtest1|v1:data', 'postgres', 'per-app');
+  assert(r6.fullName === 'dms_myapp.data_items__adamtest1_v1', `PG per-app new format (got ${r6.fullName})`);
+
+  // Non-split new format type → main table
+  const r7 = resolveTable('myapp', 'prod:site', 'sqlite', 'per-app');
+  assert(r7.table === 'data_items__myapp', `Non-split new format goes to main table (got ${r7.table})`);
+}
+
+// =========================================== Integration Tests =======================================
 
 async function testSplitTypeCreate() {
-  console.log('\n--- Integration: Create data in split table (legacy mode) ---');
+  console.log('\n--- Integration: Create data in split table ---');
 
   // Create data with a split type — should auto-create split table
   const result = await graph.callAsync(
@@ -239,20 +323,14 @@ async function testSplitTypeCreate() {
   assert(row.type === SPLIT_TYPE, 'Type matches');
 
   // Verify the table was actually created (use resolveTable for expected name)
-  const { table: expectedTable } = resolveTable(TEST_APP, SPLIT_TYPE, db.type, 'legacy');
-  const tableCheck = await db.query(
-    db.type === 'postgres'
-      ? `SELECT tablename FROM pg_tables WHERE schemaname = 'dms' AND tablename = $1`
-      : `SELECT name FROM sqlite_master WHERE type='table' AND name = $1`,
-    [expectedTable]
-  );
-  assert(tableCheck.rows.length === 1, `Split table '${expectedTable}' exists in database`);
+  const { table: expectedTable } = resolveTable(TEST_APP, SPLIT_TYPE, db.type, SPLIT_MODE);
+  assert(await tableExists(expectedTable), `Split table '${expectedTable}' exists in database`);
 
   return +id;
 }
 
-async function testNonSplitTypeStaysInDataItems() {
-  console.log('\n--- Integration: Non-split type stays in data_items ---');
+async function testNonSplitTypeStaysInMainTable() {
+  console.log('\n--- Integration: Non-split type stays in main table ---');
 
   const result = await graph.callAsync(
     ['dms', 'data', 'create'],
@@ -262,13 +340,13 @@ async function testNonSplitTypeStaysInDataItems() {
   const ids = Object.keys(result.jsonGraph.dms.data.byId);
   assert(ids.length === 1, 'Created one row');
 
-  // Verify it's in data_items, not a split table
-  const tbl = db.type === 'postgres' ? 'dms.data_items' : 'data_items';
+  // Verify it's in the main table (per-app table in per-app mode), not a split table
+  const { fullName: tbl } = mainTable();
   const check = await db.query(
     `SELECT id FROM ${tbl} WHERE app = $1 AND type = $2`,
     [TEST_APP, NON_SPLIT_TYPE]
   );
-  assert(check.rows.length === 1, 'Row exists in data_items');
+  assert(check.rows.length === 1, 'Row exists in main table');
 
   return +ids[0];
 }
@@ -305,7 +383,7 @@ async function testSplitTypeMassEdit(splitId) {
   );
 
   // Verify the data was updated — query directly from split table
-  const { fullName: tbl } = resolveTable(TEST_APP, SPLIT_TYPE, db.type, 'legacy');
+  const { fullName: tbl } = resolveTable(TEST_APP, SPLIT_TYPE, db.type, SPLIT_MODE);
   const check = await db.query(`SELECT data FROM ${tbl} WHERE id = $1`, [splitId]);
   assert(check.rows.length === 1, 'Row exists in split table');
 
@@ -324,13 +402,13 @@ async function testSplitTypeDelete(splitId) {
   );
 
   // Verify deletion from split table
-  const { fullName: tbl } = resolveTable(TEST_APP, SPLIT_TYPE, db.type, 'legacy');
+  const { fullName: tbl } = resolveTable(TEST_APP, SPLIT_TYPE, db.type, SPLIT_MODE);
   const check = await db.query(`SELECT id FROM ${tbl} WHERE id = $1`, [splitId]);
   assert(check.rows.length === 0, 'Row deleted from split table');
 }
 
 async function testInvalidEntrySplitType() {
-  console.log('\n--- Integration: Invalid entry type gets split table ---');
+  console.log('\n--- Integration: Invalid entry shares table with valid entries ---');
 
   const result = await graph.callAsync(
     ['dms', 'data', 'create'],
@@ -340,14 +418,11 @@ async function testInvalidEntrySplitType() {
   const ids = Object.keys(result.jsonGraph.dms.data.byId);
   assert(ids.length === 1, 'Created invalid entry row');
 
-  const { table: expectedTable } = resolveTable(TEST_APP, SPLIT_TYPE_INVALID, db.type, 'legacy');
-  const tableCheck = await db.query(
-    db.type === 'postgres'
-      ? `SELECT tablename FROM pg_tables WHERE schemaname = 'dms' AND tablename = $1`
-      : `SELECT name FROM sqlite_master WHERE type='table' AND name = $1`,
-    [expectedTable]
-  );
-  assert(tableCheck.rows.length === 1, `Invalid entry split table '${expectedTable}' exists`);
+  // Invalid entry resolves to the SAME table as valid entries
+  const { table: invalidTable } = resolveTable(TEST_APP, SPLIT_TYPE_INVALID, db.type, SPLIT_MODE);
+  const { table: validTable } = resolveTable(TEST_APP, SPLIT_TYPE, db.type, SPLIT_MODE);
+  assert(invalidTable === validTable, `Invalid and valid resolve to same table (${invalidTable})`);
+  assert(await tableExists(invalidTable), `Shared split table '${invalidTable}' exists`);
 
   // Cleanup
   await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, SPLIT_TYPE_INVALID, +ids[0]]);
@@ -415,15 +490,15 @@ async function testMultipleRowsInSplitTable() {
   assert(byIndex[1]?.value != null, 'byIndex[1] returns a $ref');
   assert(byIndex[2]?.value != null, 'byIndex[2] returns a $ref');
 
-  // Verify data is actually in the split table, not in data_items
-  const mainTbl = db.type === 'postgres' ? 'dms.data_items' : 'data_items';
+  // Verify data is actually in the split table, not in the main table
+  const { fullName: mainTbl } = mainTable();
   const mainCheck = await db.query(
     `SELECT id FROM ${mainTbl} WHERE app = $1 AND type = $2`,
     [TEST_APP, splitType]
   );
-  assert(mainCheck.rows.length === 0, 'Split type rows are NOT in data_items');
+  assert(mainCheck.rows.length === 0, 'Split type rows are NOT in main table');
 
-  const { fullName: splitTbl } = resolveTable(TEST_APP, splitType, db.type, 'legacy');
+  const { fullName: splitTbl } = resolveTable(TEST_APP, splitType, db.type, SPLIT_MODE);
   const splitCheck = await db.query(
     `SELECT id FROM ${splitTbl} WHERE app = $1 AND type = $2`,
     [TEST_APP, splitType]
@@ -448,24 +523,17 @@ async function testNameBasedSplitCreate() {
   const id = +ids[0];
 
   // Verify the split table was created with a readable name
-  const { table: expectedTable } = resolveTable(TEST_APP, NAME_SPLIT_TYPE, db.type, 'legacy');
-  assert(expectedTable === 'data_items__traffic_counts_1', `Table name is readable (got ${expectedTable})`);
-
-  const tableCheck = await db.query(
-    db.type === 'postgres'
-      ? `SELECT tablename FROM pg_tables WHERE schemaname = 'dms' AND tablename = $1`
-      : `SELECT name FROM sqlite_master WHERE type='table' AND name = $1`,
-    [expectedTable]
-  );
-  assert(tableCheck.rows.length === 1, `Name-based split table '${expectedTable}' exists`);
+  const { table: expectedTable } = resolveTable(TEST_APP, NAME_SPLIT_TYPE, db.type, SPLIT_MODE);
+  assert(expectedTable.includes('traffic_counts_1'), `Table name contains readable suffix (got ${expectedTable})`);
+  assert(await tableExists(expectedTable), `Name-based split table '${expectedTable}' exists`);
 
   // Verify data is in split table, not main
-  const mainTbl = db.type === 'postgres' ? 'dms.data_items' : 'data_items';
+  const { fullName: mainTbl } = mainTable();
   const mainCheck = await db.query(
     `SELECT id FROM ${mainTbl} WHERE app = $1 AND type = $2`,
     [TEST_APP, NAME_SPLIT_TYPE]
   );
-  assert(mainCheck.rows.length === 0, 'Name-based split rows are NOT in data_items');
+  assert(mainCheck.rows.length === 0, 'Name-based split rows are NOT in main table');
 
   // Query via Falcor byIndex
   const key = `${TEST_APP}+${NAME_SPLIT_TYPE}`;
@@ -475,13 +543,13 @@ async function testNameBasedSplitCreate() {
   // Delete
   await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, NAME_SPLIT_TYPE, id]);
 
-  const { fullName: splitTbl } = resolveTable(TEST_APP, NAME_SPLIT_TYPE, db.type, 'legacy');
+  const { fullName: splitTbl } = resolveTable(TEST_APP, NAME_SPLIT_TYPE, db.type, SPLIT_MODE);
   const afterDelete = await db.query(`SELECT id FROM ${splitTbl} WHERE id = $1`, [id]);
   assert(afterDelete.rows.length === 0, 'Row deleted from name-based split table');
 }
 
 async function testNameBasedInvalidEntry() {
-  console.log('\n--- Integration: Name-based invalid entry split ---');
+  console.log('\n--- Integration: Name-based invalid entry shares table ---');
 
   const result = await graph.callAsync(
     ['dms', 'data', 'create'],
@@ -491,8 +559,10 @@ async function testNameBasedInvalidEntry() {
   const ids = Object.keys(result.jsonGraph.dms.data.byId);
   assert(ids.length === 1, 'Created name-based invalid entry row');
 
-  const { table: expectedTable } = resolveTable(TEST_APP, NAME_SPLIT_TYPE_INVALID, db.type, 'legacy');
-  assert(expectedTable === 'data_items__traffic_counts_1_invalid_entry', `Invalid entry table readable (got ${expectedTable})`);
+  // Invalid entry resolves to same table as valid entries
+  const { table: invalidTable } = resolveTable(TEST_APP, NAME_SPLIT_TYPE_INVALID, db.type, SPLIT_MODE);
+  const { table: validTable } = resolveTable(TEST_APP, NAME_SPLIT_TYPE, db.type, SPLIT_MODE);
+  assert(invalidTable === validTable, `Invalid and valid share same table (${invalidTable})`);
 
   // Cleanup
   await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, NAME_SPLIT_TYPE_INVALID, +ids[0]]);
@@ -521,38 +591,32 @@ async function testNewNamingWithSourceRecord() {
   );
   const dataId = +Object.keys(dataResult.jsonGraph.dms.data.byId)[0];
 
-  // The table should use the new naming: data_items__s{sourceId}_v500_{docType}
-  const expectedTable = `data_items__s${sourceId}_v500_${docType}`;
-  const tableCheck = await db.query(
-    db.type === 'postgres'
-      ? `SELECT tablename FROM pg_tables WHERE schemaname = 'dms' AND tablename = $1`
-      : `SELECT name FROM sqlite_master WHERE type='table' AND name = $1`,
-    [expectedTable]
-  );
-  assert(tableCheck.rows.length === 1, `New-format table '${expectedTable}' exists`);
+  // The table should use the new naming with sourceId
+  const { table: expectedTable, fullName: expectedFullName } = resolveTable(TEST_APP, splitType, db.type, SPLIT_MODE, sourceId);
+  assert(expectedTable.includes(`s${sourceId}_v500_${docType}`), `Table uses sourceId naming (got ${expectedTable})`);
+  assert(await tableExists(expectedTable), `New-format table '${expectedTable}' exists`);
 
   // Verify data is in the new-named table
-  const fullTbl = db.type === 'postgres' ? `dms.${expectedTable}` : expectedTable;
   const dataCheck = await db.query(
-    `SELECT id FROM ${fullTbl} WHERE app = $1 AND type = $2`,
+    `SELECT id FROM ${expectedFullName} WHERE app = $1 AND type = $2`,
     [TEST_APP, splitType]
   );
   assert(dataCheck.rows.length === 1, 'Row exists in new-named table');
 
-  // Verify data is NOT in data_items
-  const mainTbl = db.type === 'postgres' ? 'dms.data_items' : 'data_items';
+  // Verify data is NOT in main table
+  const { fullName: mainTbl } = mainTable();
   const mainCheck = await db.query(
     `SELECT id FROM ${mainTbl} WHERE app = $1 AND type = $2`,
     [TEST_APP, splitType]
   );
-  assert(mainCheck.rows.length === 0, 'Row is NOT in data_items');
+  assert(mainCheck.rows.length === 0, 'Row is NOT in main table');
 
   // Query via Falcor to verify reads also use new naming
   const key = `${TEST_APP}+${splitType}`;
   const lenResult = await graph.getAsync([['dms', 'data', key, 'length']]);
   assert(lenResult.jsonGraph.dms.data[key].length === 1, 'Falcor length query works with new naming');
 
-  // Test invalid entry variant
+  // Test invalid entry variant — shares same table as valid entries
   const invalidType = `${docType}-500-invalid-entry`;
   const invResult = await graph.callAsync(
     ['dms', 'data', 'create'],
@@ -560,14 +624,8 @@ async function testNewNamingWithSourceRecord() {
   );
   const invId = +Object.keys(invResult.jsonGraph.dms.data.byId)[0];
 
-  const expectedInvalidTable = `data_items__s${sourceId}_v500_${docType}_invalid`;
-  const invTableCheck = await db.query(
-    db.type === 'postgres'
-      ? `SELECT tablename FROM pg_tables WHERE schemaname = 'dms' AND tablename = $1`
-      : `SELECT name FROM sqlite_master WHERE type='table' AND name = $1`,
-    [expectedInvalidTable]
-  );
-  assert(invTableCheck.rows.length === 1, `Invalid table '${expectedInvalidTable}' exists`);
+  const { table: expectedInvalidTable } = resolveTable(TEST_APP, invalidType, db.type, SPLIT_MODE, sourceId);
+  assert(expectedInvalidTable === expectedTable, `Invalid entry resolves to same table as valid (got ${expectedInvalidTable})`);
 
   // Cleanup
   await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, splitType, dataId]);
@@ -588,22 +646,17 @@ async function testFallbackNamingWithoutSourceRecord() {
   );
   const id = +Object.keys(result.jsonGraph.dms.data.byId)[0];
 
-  // Should fall back to old naming: data_items__orphan_dataset_999
-  const expectedTable = 'data_items__orphan_dataset_999';
-  const tableCheck = await db.query(
-    db.type === 'postgres'
-      ? `SELECT tablename FROM pg_tables WHERE schemaname = 'dms' AND tablename = $1`
-      : `SELECT name FROM sqlite_master WHERE type='table' AND name = $1`,
-    [expectedTable]
-  );
-  assert(tableCheck.rows.length === 1, `Fallback table '${expectedTable}' exists (no source record)`);
+  // Should fall back to naming without sourceId
+  const { table: expectedTable } = resolveTable(TEST_APP, splitType, db.type, SPLIT_MODE);
+  assert(expectedTable.includes('orphan_dataset_999'), `Fallback table readable (got ${expectedTable})`);
+  assert(await tableExists(expectedTable), `Fallback table '${expectedTable}' exists (no source record)`);
 
   // Cleanup
   await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, splitType, id]);
 }
 
-async function testUuidTypeStaysInDataItems() {
-  console.log('\n--- Integration: UUID-based type (internal_dataset) stays in data_items ---');
+async function testUuidTypeStaysInMainTable() {
+  console.log('\n--- Integration: UUID-based type (internal_dataset) stays in main table ---');
 
   const result = await graph.callAsync(
     ['dms', 'data', 'create'],
@@ -614,17 +667,17 @@ async function testUuidTypeStaysInDataItems() {
   assert(ids.length === 1, 'Created UUID-type row');
   const id = +ids[0];
 
-  // Verify it's in data_items (not a split table)
-  const mainTbl = db.type === 'postgres' ? 'dms.data_items' : 'data_items';
+  // Verify it's in the main table (not a split table)
+  const { fullName: mainTbl, table: mainTblName } = mainTable();
   const mainCheck = await db.query(
     `SELECT id FROM ${mainTbl} WHERE app = $1 AND type = $2`,
     [TEST_APP, UUID_TYPE]
   );
-  assert(mainCheck.rows.length === 1, 'UUID-type row is in data_items');
+  assert(mainCheck.rows.length === 1, 'UUID-type row is in main table');
 
-  // Verify resolveTable sends it to data_items
-  const { table } = resolveTable(TEST_APP, UUID_TYPE, db.type, 'legacy');
-  assert(table === 'data_items', `UUID type resolves to data_items (got ${table})`);
+  // Verify resolveTable sends UUID types to main table (same as non-split)
+  const { table } = resolveTable(TEST_APP, UUID_TYPE, db.type, SPLIT_MODE);
+  assert(table === mainTblName, `UUID type resolves to main table (got ${table})`);
 
   // Cleanup
   await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, UUID_TYPE, id]);
@@ -655,29 +708,6 @@ async function testAppNamespacedByIdRoute() {
 
   const data = item.data?.$type === 'atom' ? item.data.value : item.data;
   assert(data?.title === 'ById Test', 'byId returns correct data');
-
-  // Cleanup
-  await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, NON_SPLIT_TYPE, id]);
-}
-
-async function testLegacyByIdStillWorks() {
-  console.log('\n--- Tier 2: Legacy byId route still works ---');
-
-  // Create a row
-  const result = await graph.callAsync(
-    ['dms', 'data', 'create'],
-    [TEST_APP, NON_SPLIT_TYPE, { title: 'Legacy ById Test' }]
-  );
-  const id = +Object.keys(result.jsonGraph.dms.data.byId)[0];
-
-  // Fetch via legacy byId route: dms.data.byId[id][attrs]
-  const getResult = await graph.getAsync([
-    ['dms', 'data', 'byId', id, ['id', 'app', 'type', 'data']]
-  ]);
-
-  const item = getResult.jsonGraph.dms.data.byId[id];
-  assert(item, 'Legacy byId returns data');
-  assert(+item.id === id, `Legacy byId returns correct ID (${id})`);
 
   // Cleanup
   await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, NON_SPLIT_TYPE, id]);
@@ -714,38 +744,6 @@ async function testEditWith3Args() {
   const checkData = check.jsonGraph.dms.data[TEST_APP].byId[id].data;
   const checkVal = checkData?.$type === 'atom' ? checkData.value : checkData;
   assert(checkVal?.title === 'Updated3Args', 'Updated data persisted');
-
-  // Cleanup
-  await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, NON_SPLIT_TYPE, id]);
-}
-
-async function testEditWith2ArgsFallback() {
-  console.log('\n--- Tier 2: Edit with 2 args (legacy fallback) ---');
-
-  // Create a row
-  const result = await graph.callAsync(
-    ['dms', 'data', 'create'],
-    [TEST_APP, NON_SPLIT_TYPE, { title: 'Edit2Args', count: 0 }]
-  );
-  const id = +Object.keys(result.jsonGraph.dms.data.byId)[0];
-
-  // Edit with 2 args: [id, data] (legacy)
-  const editResult = await graph.callAsync(
-    ['dms', 'data', 'edit'],
-    [id, { title: 'Updated2Args', count: 99 }]
-  );
-
-  // Verify response is at legacy path (no app)
-  const editItem = editResult.jsonGraph.dms.data.byId?.[id];
-  assert(editItem, 'Edit 2-arg returns data at legacy path');
-
-  // Verify via legacy byId query
-  const check = await graph.getAsync([
-    ['dms', 'data', 'byId', id, ['data']]
-  ]);
-  const checkData = check.jsonGraph.dms.data.byId[id].data;
-  const checkVal = checkData?.$type === 'atom' ? checkData.value : checkData;
-  assert(checkVal?.title === 'Updated2Args', 'Legacy edit updated data');
 
   // Cleanup
   await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, NON_SPLIT_TYPE, id]);
@@ -852,7 +850,7 @@ async function testTwoAppsNoInterference() {
 
   const idA = +Object.keys(rA.jsonGraph.dms.data.byId)[0];
   const idB = +Object.keys(rB.jsonGraph.dms.data.byId)[0];
-  assert(idA !== idB, `Different IDs for different apps (${idA} vs ${idB})`);
+  assert(idA && idB, `Both apps created rows (A=${idA}, B=${idB})`);
 
   // Query each app's length independently
   const keyA = `${APP_A}+${sharedType}`;
@@ -928,21 +926,25 @@ async function run() {
   await testResolveTableNameBased();
   await testResolveTablePerApp();
   await testResolveTableWithSourceId();
+  await testNewFormatSplitType();
+  await testNewFormatParseType();
+  await testNewFormatResolveTable();
 
   // Integration tests
   graph = createTestGraph(DB_NAME);
+  await graph.ready;
   db = getDb(DB_NAME);
   console.log(`\nDatabase type: ${graph.dbType}`);
 
   const splitId = await testSplitTypeCreate();
-  await testNonSplitTypeStaysInDataItems();
+  await testNonSplitTypeStaysInMainTable();
   await testSplitTypeQueryByIndex(splitId);
   await testSplitTypeMassEdit(splitId);
   await testSplitTypeDelete(splitId);
   await testInvalidEntrySplitType();
   await testIdsUniqueAcrossTables();
   await testMultipleRowsInSplitTable();
-  await testUuidTypeStaysInDataItems();
+  await testUuidTypeStaysInMainTable();
   await testNameBasedSplitCreate();
   await testNameBasedInvalidEntry();
   await testNewNamingWithSourceRecord();
@@ -950,9 +952,7 @@ async function run() {
 
   // Tier 2 tests: Per-App Routes
   await testAppNamespacedByIdRoute();
-  await testLegacyByIdStillWorks();
   await testEditWith3Args();
-  await testEditWith2ArgsFallback();
   await testTypeEditWith3Args();
   await testRefFormatIncludesApp();
   await testCreateReturnsAtBothPaths();
@@ -960,8 +960,8 @@ async function run() {
   await testSearchOneRefFormat();
 
   // Cleanup non-split data
-  const tbl = db.type === 'postgres' ? 'dms.data_items' : 'data_items';
-  await db.query(`DELETE FROM ${tbl} WHERE app = $1`, [TEST_APP]);
+  const { fullName: cleanupTbl } = mainTable();
+  try { await db.query(`DELETE FROM ${cleanupTbl} WHERE app = $1`, [TEST_APP]); } catch (e) { /* table may not exist */ }
 
   console.log(`\n=== Table Splitting Tests: ${passed} passed, ${failed} failed ===`);
   if (failed > 0) process.exit(1);

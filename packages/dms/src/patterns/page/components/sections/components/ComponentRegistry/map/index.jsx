@@ -367,12 +367,10 @@ const Edit = ({ value, onChange, isEdit }) => {
     }
 
     useEffect(() => {
-        if (onChange && !isEqual(value, state)) {
-// console.log("CALLING ON CHANGE", state);
+        if (isEdit && onChange && !isEqual(value, state)) {
             onChange(state)
         }
-        // onChange && onChange(state)
-    }, [onChange, value, state]);
+    }, [onChange, value, state, isEdit]);
 
 //     useEffect(() => {
 // console.log("CALLING ON CHANGE", state);

@@ -70,13 +70,13 @@ async function testDmsModeSourcesViaPatterns() {
   // Link sources to pattern
   await graph.callAsync(
     ['dms', 'data', 'edit'],
-    [patternId, { doc_type: TEST_TYPE, pattern_type: 'forms', sources: [{ id: +src1Id }, { id: +src2Id }] }]
+    [TEST_APP, patternId, { doc_type: TEST_TYPE, pattern_type: 'forms', sources: [{ id: +src1Id }, { id: +src2Id }] }]
   );
 
   // Link pattern to site
   await graph.callAsync(
     ['dms', 'data', 'edit'],
-    [siteId, { patterns: [{ id: +patternId }] }]
+    [TEST_APP, siteId, { patterns: [{ id: +patternId }] }]
   );
 
   const env = `${TEST_APP}+${TEST_TYPE}`;
@@ -152,7 +152,7 @@ async function testDmsModeRealWorldPatternType() {
   // Link source to pattern
   await graph.callAsync(
     ['dms', 'data', 'edit'],
-    [patternId, { doc_type: 'realworld-test', pattern_type: 'datasets', sources: [{ id: +srcId }] }]
+    [TEST_APP, patternId, { doc_type: 'realworld-test', pattern_type: 'datasets', sources: [{ id: +srcId }] }]
   );
 
   const env = `${TEST_APP}+realworld-test`;
@@ -438,6 +438,221 @@ async function testFilterGroupsNullIntegration() {
   pass('filterGroups IS NULL test cleanup complete');
 }
 
+// ============================================= array_contains Tests ==============================================
+
+/**
+ * Unit test: getValuesFromGroup handles array_contains leaves correctly.
+ * Values should be returned as a wrapped array (same as filter op).
+ */
+async function testGetValuesFromGroupArrayContains() {
+  console.log('\n--- Unit: getValuesFromGroup with array_contains leaves ---');
+
+  const { getValuesFromGroup } = require('../src/routes/uda/utils');
+
+  // array_contains with multiple values
+  const multiLeaf = { col: "data->>'hazards'", op: 'array_contains', value: ['Flood', 'Hurricane'] };
+  const vals = getValuesFromGroup(multiLeaf);
+  assert(vals.length === 1, `Expected 1 param group, got ${vals.length}`);
+  assert(vals[0].length === 2, `Expected 2 values in param, got ${vals[0].length}`);
+  assert(vals[0][0] === 'Flood' && vals[0][1] === 'Hurricane', `Unexpected values: ${JSON.stringify(vals)}`);
+  pass('getValuesFromGroup returns wrapped array for array_contains multi-value');
+
+  // array_contains with single value (as array)
+  const singleLeaf = { col: "data->>'county'", op: 'array_contains', value: ['Albany'] };
+  const vals2 = getValuesFromGroup(singleLeaf);
+  assert(vals2.length === 1 && vals2[0].length === 1 && vals2[0][0] === 'Albany',
+    `Expected [['Albany']], got ${JSON.stringify(vals2)}`);
+  pass('getValuesFromGroup returns wrapped array for array_contains single value');
+
+  // array_contains with single string value (not wrapped in array)
+  const scalarLeaf = { col: "data->>'level'", op: 'array_contains', value: 'Federal' };
+  const vals3 = getValuesFromGroup(scalarLeaf);
+  assert(vals3.length === 1 && vals3[0][0] === 'Federal',
+    `Expected [['Federal']], got ${JSON.stringify(vals3)}`);
+  pass('getValuesFromGroup returns wrapped array for array_contains scalar value');
+
+  // array_contains with empty array
+  const emptyLeaf = { col: "data->>'x'", op: 'array_contains', value: [] };
+  const vals4 = getValuesFromGroup(emptyLeaf);
+  assert(vals4.length === 0, `Expected [], got ${JSON.stringify(vals4)}`);
+  pass('getValuesFromGroup returns empty for array_contains with empty value');
+}
+
+/**
+ * Unit test: buildLeafSQL generates correct SQL for array_contains.
+ */
+async function testBuildLeafSQLArrayContains() {
+  console.log('\n--- Unit: buildLeafSQL with array_contains ---');
+
+  const { handleFilterGroups } = require('../src/routes/uda/utils');
+
+  // PostgreSQL: should use jsonb_array_elements_text
+  const pgFilterGroups = {
+    op: 'and',
+    groups: [
+      { col: "data->>'hazards'", op: 'array_contains', value: ['Flood', 'Hurricane'] }
+    ]
+  };
+  const pgResult = handleFilterGroups({ filterGroups: pgFilterGroups, isDms: true, startIndex: 2, dbType: 'postgres' });
+  assert(pgResult.sql.includes('jsonb_array_elements_text'), `PG SQL should use jsonb_array_elements_text, got: ${pgResult.sql}`);
+  assert(pgResult.sql.includes('$3'), `PG SQL should use $3 placeholder, got: ${pgResult.sql}`);
+  assert(pgResult.sql.includes('::jsonb'), `PG SQL should cast to jsonb, got: ${pgResult.sql}`);
+  pass('handleFilterGroups generates PG jsonb_array_elements_text SQL for array_contains');
+
+  // SQLite: should use json_each
+  const sqliteResult = handleFilterGroups({ filterGroups: pgFilterGroups, isDms: true, startIndex: 2, dbType: 'sqlite' });
+  assert(sqliteResult.sql.includes('json_each'), `SQLite SQL should use json_each, got: ${sqliteResult.sql}`);
+  assert(!sqliteResult.sql.includes('jsonb_array_elements_text'), `SQLite SQL should NOT use jsonb_array_elements_text`);
+  assert(sqliteResult.sql.includes('_ac.value'), `SQLite SQL should reference _ac.value, got: ${sqliteResult.sql}`);
+  pass('handleFilterGroups generates SQLite json_each SQL for array_contains');
+
+  // Default (no dbType): should use PG syntax
+  const defaultResult = handleFilterGroups({ filterGroups: pgFilterGroups, isDms: true, startIndex: 2 });
+  assert(defaultResult.sql.includes('jsonb_array_elements_text'), `Default should use PG syntax`);
+  pass('handleFilterGroups defaults to PG syntax when dbType not specified');
+
+  // array_not_contains: should generate NOT EXISTS
+  const notContainsGroups = {
+    op: 'and',
+    groups: [
+      { col: "data->>'hazards'", op: 'array_not_contains', value: ['Flood'] }
+    ]
+  };
+  const pgNot = handleFilterGroups({ filterGroups: notContainsGroups, isDms: true, startIndex: 0, dbType: 'postgres' });
+  assert(pgNot.sql.includes('NOT EXISTS'), `PG array_not_contains should use NOT EXISTS, got: ${pgNot.sql}`);
+  pass('handleFilterGroups generates NOT EXISTS for array_not_contains (PG)');
+
+  const sqliteNot = handleFilterGroups({ filterGroups: notContainsGroups, isDms: true, startIndex: 0, dbType: 'sqlite' });
+  assert(sqliteNot.sql.includes('NOT EXISTS') && sqliteNot.sql.includes('json_each'),
+    `SQLite array_not_contains should use NOT EXISTS + json_each, got: ${sqliteNot.sql}`);
+  pass('handleFilterGroups generates NOT EXISTS for array_not_contains (SQLite)');
+}
+
+/**
+ * Integration test: UDA query with array_contains filter on JSON array data.
+ */
+async function testArrayContainsIntegration() {
+  console.log('\n--- DMS Mode: array_contains filter ---');
+
+  // Create test data with JSON array columns
+  const items = [];
+  for (const data of [
+    { name: 'Item A', hazards: '["Flood", "Hurricane"]', county: '["Albany"]' },
+    { name: 'Item B', hazards: '["Earthquake"]', county: '["Greene", "Albany"]' },
+    { name: 'Item C', hazards: '["Flood", "Tornado"]', county: '["Rensselaer"]' },
+    { name: 'Item D', hazards: '["Hurricane"]', county: '["Albany", "Greene"]' },
+    { name: 'Item E', county: '["Albany"]' },  // no hazards
+  ]) {
+    const result = await graph.callAsync(
+      ['dms', 'data', 'create'],
+      [TEST_APP, 'actest', data]
+    );
+    items.push(Object.keys(result.jsonGraph.dms.data.byId)[0]);
+  }
+
+  const env = `${TEST_APP}+actest`;
+  const viewId = items[0];
+
+  // Test 1: array_contains with single value — should match items with "Flood"
+  const options1 = JSON.stringify({
+    filterGroups: {
+      op: 'and',
+      groups: [
+        { col: "data->>'hazards'", op: 'array_contains', value: ['Flood'] }
+      ]
+    }
+  });
+  const len1 = await graph.getAsync([
+    ['uda', env, 'viewsById', viewId, 'options', options1, 'length']
+  ]);
+  const count1 = len1.jsonGraph.uda[env].viewsById[viewId].options[options1].length;
+  assert(count1 === 2, `Expected 2 items with Flood, got ${count1}`);
+  pass('array_contains single value returns correct count');
+
+  // Test 2: array_contains with multiple values (OR semantics) — Flood or Earthquake
+  const options2 = JSON.stringify({
+    filterGroups: {
+      op: 'and',
+      groups: [
+        { col: "data->>'hazards'", op: 'array_contains', value: ['Flood', 'Earthquake'] }
+      ]
+    }
+  });
+  const len2 = await graph.getAsync([
+    ['uda', env, 'viewsById', viewId, 'options', options2, 'length']
+  ]);
+  const count2 = len2.jsonGraph.uda[env].viewsById[viewId].options[options2].length;
+  assert(count2 === 3, `Expected 3 items with Flood or Earthquake, got ${count2}`);
+  pass('array_contains multiple values (OR semantics) returns correct count');
+
+  // Test 3: array_contains combined with another filter (AND)
+  const options3 = JSON.stringify({
+    filterGroups: {
+      op: 'and',
+      groups: [
+        { col: "data->>'hazards'", op: 'array_contains', value: ['Flood'] },
+        { col: "data->>'county'", op: 'array_contains', value: ['Albany'] }
+      ]
+    }
+  });
+  const len3 = await graph.getAsync([
+    ['uda', env, 'viewsById', viewId, 'options', options3, 'length']
+  ]);
+  const count3 = len3.jsonGraph.uda[env].viewsById[viewId].options[options3].length;
+  // Item A: hazards has Flood AND county has Albany → match
+  // Item C: hazards has Flood but county has Rensselaer → no match
+  assert(count3 === 1, `Expected 1 item with Flood AND Albany, got ${count3}`);
+  pass('array_contains combined with AND returns correct count');
+
+  // Test 4: array_contains returns actual data rows
+  const dataResult = await graph.getAsync([
+    ['uda', env, 'viewsById', viewId, 'options', options1, 'dataByIndex',
+      { from: 0, to: 1 },
+      ["data->>'name' as name", "data->>'hazards' as hazards"]]
+  ]);
+  const d0 = dataResult.jsonGraph.uda[env].viewsById[viewId].options[options1].dataByIndex[0];
+  assert(d0 && d0["data->>'name' as name"] !== undefined, 'dataByIndex with array_contains should return data');
+  pass('array_contains returns data rows via dataByIndex');
+
+  // Test 5: array_not_contains — exclude items whose hazards contain "Flood"
+  const options5 = JSON.stringify({
+    filterGroups: {
+      op: 'and',
+      groups: [
+        { col: "data->>'hazards'", op: 'array_not_contains', value: ['Flood'] }
+      ]
+    }
+  });
+  const len5 = await graph.getAsync([
+    ['uda', env, 'viewsById', viewId, 'options', options5, 'length']
+  ]);
+  const count5 = len5.jsonGraph.uda[env].viewsById[viewId].options[options5].length;
+  // Items B (Earthquake), D (Hurricane), E (no hazards) = 3
+  assert(count5 === 3, `Expected 3 items without Flood, got ${count5}`);
+  pass('array_not_contains excludes matching items');
+
+  // Test 6: array_not_contains with multiple values — exclude Flood OR Earthquake
+  const options6 = JSON.stringify({
+    filterGroups: {
+      op: 'and',
+      groups: [
+        { col: "data->>'hazards'", op: 'array_not_contains', value: ['Flood', 'Earthquake'] }
+      ]
+    }
+  });
+  const len6 = await graph.getAsync([
+    ['uda', env, 'viewsById', viewId, 'options', options6, 'length']
+  ]);
+  const count6 = len6.jsonGraph.uda[env].viewsById[viewId].options[options6].length;
+  // Items D (Hurricane only), E (no hazards) = 2
+  assert(count6 === 2, `Expected 2 items without Flood or Earthquake, got ${count6}`);
+  pass('array_not_contains with multiple values excludes correctly');
+
+  // Cleanup
+  await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, 'actest', ...items]);
+  pass('array_contains test cleanup complete');
+}
+
 // ================================================= DAMA Mode Tests ===============================================
 
 async function testDamaModeSourcesCrud() {
@@ -554,6 +769,7 @@ async function run() {
   console.log(`DAMA database: ${DAMA_DB}`);
 
   graph = createTestGraph(DMS_DB);
+  await graph.ready;
   console.log(`Database type: ${graph.dbType}`);
 
   try {
@@ -566,6 +782,11 @@ async function run() {
     // filterGroups regression tests
     await testGetValuesFromGroupNullLeaves();
     await testFilterGroupsNullIntegration();
+
+    // array_contains tests
+    await testGetValuesFromGroupArrayContains();
+    await testBuildLeafSQLArrayContains();
+    await testArrayContainsIntegration();
 
     // DAMA mode tests
     await testDamaModeSourcesCrud();

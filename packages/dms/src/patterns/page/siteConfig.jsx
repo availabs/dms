@@ -20,7 +20,7 @@ import DefaultMenu from "./components/userMenu";
 import PageView from "./pages/view";
 import PageEdit from "./pages/edit";
 import ErrorPage from "./pages/error";
-import FormatManager from "./pages/manager/formatManager"
+import FormatManager from "./pages/formatManager"
 
 // Register page pattern widgets
 registerWidget('UserMenu', { label: 'User Menu', component: DefaultMenu })
@@ -34,6 +34,8 @@ const pagesConfig = ({
   themes = { default: {} },
   pattern,
   datasources,
+  dmsEnvs = [],
+  dmsEnvById = {},
   site,
   pgEnv,
   API_HOST,
@@ -56,9 +58,11 @@ const pagesConfig = ({
   baseUrl = baseUrl === "/" ? "" : baseUrl;
   const format = initializePatternFormat(cmsFormat, app, type);
   if(pattern?.additionalSectionAttributes?.length){
-      (format.registerFormats || [])
-        .find(f => f.type.includes('cms-section'))
-        .attributes.push(...pattern.additionalSectionAttributes)
+      const componentFormat = (format.registerFormats || [])
+        .find(f => f.type.includes('component') || f.type.includes('cms-section'));
+      if (componentFormat) {
+        componentFormat.attributes.push(...pattern.additionalSectionAttributes);
+      }
   }
 
 // console.log("Page::siteConfig", datasources, rest);

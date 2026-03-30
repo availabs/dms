@@ -40,7 +40,7 @@ export const buildEnvsForListing = (datasources, format) => {
     envs[`${format.app}+${format.type}`] = {
       label: 'managed',
       isDms: true,
-      srcAttributes: ['app', 'name', 'type', 'doc_type', 'config', 'default_columns', 'categories', 'description'],
+      srcAttributes: ['app', 'name', 'type', 'config', 'default_columns', 'categories', 'description'],
       viewAttributes: ['name', 'updated_at'],
     };
   }

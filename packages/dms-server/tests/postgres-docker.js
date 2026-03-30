@@ -169,7 +169,15 @@ function resetDb() {
     input: authSQL, stdio: ['pipe', 'pipe', 'pipe'],
   });
 
-  console.log('Database reset (DMS + auth schemas initialized)');
+  // Run sync schema (change_log + yjs_states)
+  const syncSQL = fs.readFileSync(
+    path.join(__dirname, '..', 'src', 'db', 'sql', 'dms', 'change_log.sql'), 'utf8'
+  );
+  execSync(`docker exec -i ${CONTAINER} psql -U ${USER} -d ${DB}`, {
+    input: syncSQL, stdio: ['pipe', 'pipe', 'pipe'],
+  });
+
+  console.log('Database reset (DMS + auth + sync schemas initialized)');
 }
 
 // ---------------------------------------------------------------------------

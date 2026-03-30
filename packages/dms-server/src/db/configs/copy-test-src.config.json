@@ -1,5 +1,6 @@
 {
   "type": "sqlite",
   "role": "dms",
-  "filename": "../data/copy-test-src.sqlite"
+  "filename": "../data/copy-test-src.sqlite",
+  "splitMode": "per-app"
 }

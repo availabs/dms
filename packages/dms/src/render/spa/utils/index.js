@@ -3,6 +3,7 @@ import { cloneDeep } from "lodash-es"
 import { useFalcor } from "@availabs/avl-falcor"
 import { withAuth,  dmsPageFactory } from '../../../'
 import { parseIfJSON } from '../../../patterns/page/pages/_utils';
+import { getInstance } from '../../../utils/type-utils';
 import patternTypes from '../../../patterns'
 import { updateAttributes, updateRegisteredFormats } from "../../../dms-manager/_utils";
 import RootErrorBoundary from './RootErrorBoundary'
@@ -79,15 +80,16 @@ export function pattern2routes (siteData, props) {
 
     let dmsConfigUpdated = cloneDeep(dmsConfig);
     const siteType = dmsConfig?.format?.type || dmsConfig.type;
-    dmsConfigUpdated.registerFormats = updateRegisteredFormats(dmsConfigUpdated.registerFormats, dmsConfig.app, siteType)
-    dmsConfigUpdated.attributes = updateAttributes(dmsConfigUpdated.attributes, dmsConfig.app, siteType)
+    const siteInstance = getInstance(siteType) || siteType;
+    dmsConfigUpdated.registerFormats = updateRegisteredFormats(dmsConfigUpdated.registerFormats, dmsConfig.app, siteInstance)
+    dmsConfigUpdated.attributes = updateAttributes(dmsConfigUpdated.attributes, dmsConfig.app, siteInstance)
 
     // console.log('dmsConfigUpdated', dmsConfigUpdated)
     let AdminPattern = {
       app: dmsConfigUpdated?.format?.app || dmsConfigUpdated.app,
-      type: dmsConfigUpdated.type,
-      doc_type: dmsConfigUpdated.type,
-      siteType: dmsConfigUpdated.type,
+      type: siteType,
+      doc_type: siteInstance,
+      siteType: siteInstance,
       base_url: adminPath,
       //format: pattern?.config,
       pattern: {},
@@ -107,30 +109,50 @@ export function pattern2routes (siteData, props) {
     // Build datasetPatterns once (for backwards compatibility with other patterns)
     const datasetPatterns = patterns.filter(p => ['forms', 'datasets', 'mapeditor'].includes(p.pattern_type));
 
-    // Build unified datasources array for page pattern
     const app = dmsConfigUpdated?.format?.app || dmsConfigUpdated.app;
-    const datasources = [
-      // External sources from pgEnvs (with damaBaseUrl)
-      ...(pgEnvs || []).map(env => ({
+
+    // Extract dmsEnv rows from site data (loaded via dms-format attribute)
+    const dmsEnvs = siteData
+      .reduce((acc, curr) => [...acc, ...(curr?.dms_envs || [])], []);
+
+    // Index dmsEnvs by ID for fast lookup
+    const dmsEnvById = {};
+    for (const env of dmsEnvs) {
+      if (env.id) dmsEnvById[env.id] = env;
+    }
+
+    // Build per-pattern datasources based on dmsEnvId (or fall back to legacy)
+    function buildDatasources(pattern) {
+      const external = (pgEnvs || []).map(env => ({
         type: 'external',
         env,
         baseUrl: damaBaseUrl || '',
         label: 'external',
         srcAttributes: ['name', 'metadata'],
         viewAttributes: ['version', '_modified_timestamp'],
-      })),
-      // Internal sources from datasetPatterns
-      ...datasetPatterns.map(dsPattern => ({
+      }));
+
+      // If pattern has dmsEnvId, use that dmsEnv's sources to find which
+      // dataset patterns own those sources. Otherwise fall back to all datasetPatterns.
+      const dmsEnvId = pattern?.dmsEnvId;
+      const dmsEnv = dmsEnvId ? dmsEnvById[dmsEnvId] : null;
+
+      const internal = datasetPatterns.map(dsPattern => ({
         type: 'internal',
-        env: `${app}+${dsPattern.doc_type}`,
+        env: `${app}+${getInstance(dsPattern.type) || dsPattern.doc_type}`,
         baseUrl: '/forms',
         label: 'managed',
         isDms: true,
-        srcAttributes: ['app', 'name', 'doc_type', 'config', 'default_columns'],
+        srcAttributes: ['app', 'name', 'config', 'default_columns'],
         viewAttributes: ['name', 'updated_at'],
         pattern: dsPattern,
-      }))
-    ];
+      }));
+
+      return [...external, ...internal];
+    }
+
+    // Build global datasources (used when no per-pattern override)
+    const datasources = buildDatasources(null);
 
     // console.log('dmssite factory, datasources', datasources)
 
@@ -153,19 +175,22 @@ export function pattern2routes (siteData, props) {
                       authPermissions.groups.public ??= ['view-page'];
                   }
                   const resolvedFilters = resolveSubdomainFilters(pattern?.filters, SUBDOMAIN || '');
+                // Build per-pattern datasources if pattern has dmsEnvId
+                const patternDatasources = buildDatasources(pattern);
+
                 const configObj = config({
                     app: dmsConfigUpdated?.format?.app || dmsConfigUpdated.app,
-                    // type: pattern.doc_type,
-                    type: pattern.doc_type || pattern?.base_url?.replace(/\//g, ''),
-                    siteType: dmsConfigUpdated?.format?.type || dmsConfigUpdated.type,
+                    type: getInstance(pattern.type) || pattern.doc_type || pattern?.base_url?.replace(/\//g, ''),
+                    siteType: siteInstance,
                     baseUrl: `/${pattern.base_url?.replace(/^\/|\/$/g, '')}`, // only leading slash allowed
                     adminPath,
                     format: pattern?.config,
                     pattern: { ...pattern, filters: resolvedFilters },
                     pattern_type: pattern?.pattern_type,
                     authPermissions,
-                    // NEW: Add datasources for page pattern
-                    datasources,
+                    datasources: patternDatasources,
+                    dmsEnvs,
+                    dmsEnvById,
                     // KEEP: Old variables for other patterns (admin, auth, forms, datasets)
                     pgEnv: pgEnvs?.[0] || '',
                     damaBaseUrl,

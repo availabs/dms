@@ -1,8 +1,10 @@
 import React, {useContext, useRef, useState} from 'react'
 import {Link} from 'react-router'
 import {v4 as uuidv4} from "uuid";
+import { useFalcor } from "@availabs/avl-falcor";
 import {AdminContext} from "../context";
 import { ThemeContext } from '../../../ui/useTheme';
+import { nameToSlug, getInstance } from '../../../utils/type-utils';
 
 const parseIfJSON = strValue => {
     if (typeof strValue !== 'string' && Array.isArray(strValue)) return strValue;
@@ -114,7 +116,7 @@ function PatternList (props) {
 					(data?.patterns || []).map(pattern => (
 						<div key={pattern.id} className={'grid grid-cols-4 '}>
 							<div>{pattern.pattern_type}</div>
-							<div>{pattern.name || pattern.doc_type}</div>
+							<div>{pattern.name}</div>
 							<Link to={pattern.base_url}>{pattern.base_url} ok?</Link>
 							<Link to={`/manage_pattern/${pattern.id}`}>Manage</Link>
 						</div>
@@ -137,8 +139,9 @@ function PatternEdit({
 	 format,
 	 ...rest
 }) {
-	const {app, API_HOST, baseUrl} = useContext(AdminContext);
+	const {app, type: siteType, API_HOST, baseUrl} = useContext(AdminContext);
 	const {UI} = useContext(ThemeContext)
+	const { falcor } = useFalcor();
 	const {Table, Input, Button, Modal} = UI;
 	const gridRef = useRef(null);
 	const [search, setSearch] = useState('');
@@ -146,6 +149,7 @@ function PatternEdit({
 	const [addingNew, setAddingNew] = useState(false);
 	const [editingItem, setEditingItem] = useState(undefined);
 	const [isDuplicating, setIsDuplicating] = useState(false);
+	const siteInstance = getInstance(siteType) || siteType;
 	const attrToAddNew = ['pattern_type', 'name', 'subdomain', 'base_url', 'filters', 'authPermissions'];
 	const columns = [
 		{name: 'name', display_name: 'Name', show: true, type: 'text'},
@@ -161,26 +165,48 @@ function PatternEdit({
 
 	const dmsServerPath = `${API_HOST}/dama-admin`;
 
-	const addNewValue = (item) => {
-		const newData = [...value, item || newItem];
-		onChange(newData)
-		onSubmit(newData)
-		setNewItem({app: format?.app})
+	const addNewValue = async (patternData) => {
+		const data = patternData || newItem;
+		const slug = nameToSlug(data.name);
+		if (!slug) return;
+
+		// Collision check
+		const existingSlugs = value.map(v =>
+			getInstance(v.type) || v?.base_url?.replace(/\//g, '')
+		).filter(Boolean);
+		if (existingSlugs.includes(slug)) {
+			alert(`A pattern with identifier "${slug}" already exists`);
+			return;
+		}
+
+		const patternType = `${siteInstance}|${slug}:pattern`;
+		const res = await falcor.call(
+			['dms', 'data', 'create'],
+			[app, patternType, data]
+		);
+		const newId = Object.keys(res?.json?.dms?.data?.byId || {})
+			.filter(d => d !== '$__path')?.[0];
+
+		if (newId) {
+			const newData = [...value, { ref: `${app}+${siteInstance}|pattern`, id: +newId }];
+			onChange(newData);
+			onSubmit(newData);
+		}
+		setNewItem({app: format?.app});
 	}
 
-	const duplicate = async({oldType, newType}, item) => {
+	const duplicate = async({oldInstance, newInstance}, item) => {
 		setIsDuplicating(true);
 		// call server to copy over pages and sections
-		const res = await fetch(`${dmsServerPath}/dms/${app}+${oldType}/duplicate`,
+		const res = await fetch(`${dmsServerPath}/dms/${app}+${oldInstance}/duplicate`,
 			{
 				method: "POST",
-				body: JSON.stringify({newApp: app, newType}), // doc_type becomes type for pages.
+				body: JSON.stringify({newApp: app, newType: newInstance}),
 				headers: {
 					"Content-Type": "application/json",
 				},
 			});
 
-		// const publishFinalEvent = await res.json();
 		await addNewValue(item);
 		setIsDuplicating(false);
 	}
@@ -188,7 +214,7 @@ function PatternEdit({
 	const data = value
 		.map(v => ({
             ...v,
-            name: v.name || v.doc_type,
+            name: v.name,
             manage_url: `${v.base_url === '/' ? '' : v.base_url}/manage`,
             edit_url: `${baseUrl}/manage_pattern/${v.id}`,
         }))
@@ -241,7 +267,7 @@ function PatternEdit({
                                 type={'plain'}
                                 title={'Add Site'}
 								className={'bg-blue-100 hover:bg-blue-300 text-sm text-blue-800 px-2 py-0.5 m-1 rounded-lg w-fit h-fit'}
-								onClick={() => addNewValue({...newItem, doc_type: uuidv4()})}
+								onClick={() => addNewValue({...newItem})}
 							>
 								add
 							</Button>
@@ -307,20 +333,20 @@ function PatternEdit({
 								type={'plain'}
 								title={'duplicate item'}
 								onClick={async () => {
-									const newDocType = uuidv4();
+									const newName = `${editingItem.name}_copy`;
+									const oldInstance = getInstance(editingItem.type) || editingItem.base_url?.replace(/\//g, '');
 									const dataToCopy = {
 										app: editingItem.app,
 										base_url: `${editingItem.base_url}_copy`,
 										subdomain: editingItem.subdomain,
 										config: editingItem.config,
-										doc_type: newDocType,
-										name: `${editingItem.name}_copy`,
+										name: newName,
 										pattern_type: editingItem.pattern_type,
 										auth_level: editingItem.auth_level,
 										filters: editingItem.filters,
 										theme: editingItem.theme,
 									};
-									await duplicate({oldType: editingItem.doc_type, newType: newDocType}, dataToCopy)
+									await duplicate({oldInstance, newInstance: nameToSlug(newName)}, dataToCopy)
 									setEditingItem(undefined)
 								}}
 							> {isDuplicating ? 'duplicating...' : 'duplicate'}

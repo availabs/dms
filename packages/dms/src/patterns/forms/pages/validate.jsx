@@ -13,7 +13,7 @@ const Validate = ({item, params,  apiUpdate, apiLoad}) => {
     const page = useMemo(() => ({name: 'Validate', href: `${pageBaseUrl}/${params.id}/validate`, /*warn: is_dirty*/}), [is_dirty, pageBaseUrl, params.id])
     return (
         <SourcesLayout fullWidth={false} baseUrl={baseUrl} pageBaseUrl={pageBaseUrl} isListAll={false} hideBreadcrumbs={false}
-                       form={{name: item.name || item.doc_type, href: item.url_slug}}
+                       form={{name: item.name, href: item.url_slug}}
                        page={page}
                        id={params.id} //page id to use for navigation
                        view_id={params.view_id}

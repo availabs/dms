@@ -25,7 +25,7 @@ export async function processNewData (dataCache, activeIdsIntOrStr, stopFullData
         (stopFullDataLoad ? activeIds?.length && activeIds.includes(+d.id) : true) &&
         d.id &&
         d.app === app &&
-        d.type === type
+        (d.type === type || activeIds.includes(+d.id))
     ))
     const attrHash = format.attributes.reduce((out,curr) => {
         out[curr.key] = curr;
@@ -134,7 +134,7 @@ async function loadDmsFormats (item,dmsAttrsConfigs, format, falcor, isDataByApp
             item[key] = JSON.parse(item[key])
         }
         // if dmstype isArray
-        const attrsToFetch = ['data', 'created_at', 'updated_at', 'created_by', 'updated_by']
+        const attrsToFetch = ['data', 'type', 'created_at', 'updated_at', 'created_by', 'updated_by']
         if(typeof item?.[key]?.[Symbol.iterator] === 'function') {
             for (let ref of item[key]) {
                 if(ref.id) {

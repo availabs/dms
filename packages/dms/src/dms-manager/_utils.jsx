@@ -8,21 +8,22 @@ export { configMatcher, getActiveConfig } from './_utils-core'
 
 
 /**
- * Initialize a pattern format with app/type namespacing.
- * Clones the base format, sets app/type, and recursively updates
- * all nested registerFormats and attributes.
+ * Initialize a pattern format with app/instanceName namespacing.
+ * Clones the base format, sets app, builds the full type as
+ * `${instanceName}|${format.type}` (instance + kind), and recursively
+ * updates all nested registerFormats and attributes.
  *
  * @param {Object} baseFormat - The pattern's base format definition
  * @param {string} app - The app namespace (e.g., 'my-site')
- * @param {string} type - The type identifier (e.g., 'docs-page')
+ * @param {string} instanceName - The pattern instance name (e.g., 'docs_page')
  * @returns {Object} - Cloned and namespaced format
  */
-export function initializePatternFormat(baseFormat, app, type) {
+export function initializePatternFormat(baseFormat, app, instanceName) {
   const format = cloneDeep(baseFormat)
   format.app = app
-  format.type = type
-  format.registerFormats = updateRegisteredFormats(format.registerFormats, app, type)
-  format.attributes = updateAttributes(format.attributes, app, type)
+  format.type = `${instanceName}|${format.type}`
+  format.registerFormats = updateRegisteredFormats(format.registerFormats, app, instanceName)
+  format.attributes = updateAttributes(format.attributes, app, instanceName)
   return format
 }
 
@@ -103,31 +104,30 @@ export function filterParams (data, params,format) {
 
 
 
-export const updateRegisteredFormats = (registerFormats, app, type) => {
+export const updateRegisteredFormats = (registerFormats, app, instanceName) => {
 	if (Array.isArray(registerFormats)) {
 	  registerFormats = registerFormats.map((rFormat) => {
-		const newType = `${type}|${rFormat.type}`;
 		rFormat.app = app;
-		rFormat.type = newType;
+		rFormat.type = `${instanceName}|${rFormat.type}`;
 		rFormat.registerFormats = updateRegisteredFormats(
 		  rFormat.registerFormats,
 		  app,
-		  newType
+		  instanceName
 		);
-		rFormat.attributes = updateAttributes(rFormat.attributes, app, newType);
+		rFormat.attributes = updateAttributes(rFormat.attributes, app, instanceName);
 		return rFormat;
 	  });
 	}
 	return registerFormats;
   };
 
-export const updateAttributes = (attributes, app, type) => {
+export const updateAttributes = (attributes, app, instanceName) => {
 	if (Array.isArray(attributes)) {
 	  attributes = attributes.map((attr) => {
 		attr.format = attr.format
-		  ? `${app}+${type}|${attr.format.split("+")[1]}`
+		  ? `${app}+${instanceName}|${attr.format.split("+")[1]}`
 		  : undefined;
-		return updateRegisteredFormats(attr, app, type);
+		return updateRegisteredFormats(attr, app, instanceName);
 	  });
 	}
 	return attributes;

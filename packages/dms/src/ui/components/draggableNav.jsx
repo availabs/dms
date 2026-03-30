@@ -247,7 +247,11 @@ function DraggableNav({
                     )}
                 />
             </div>
-            {edit && renderAddItemButton && <AddItemButton dataItems={localData || dataItemsProp} apiUpdate={apiUpdate} baseUrl={baseUrl}/>}
+            {edit && renderAddItemButton && (
+                typeof renderAddItemButton === 'boolean'
+                    ? <AddItemButton dataItems={localData || dataItemsProp} apiUpdate={apiUpdate} baseUrl={baseUrl}/>
+                    : renderAddItemButton
+            )}
         </div>
     );
 }

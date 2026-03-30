@@ -55,7 +55,7 @@ const Card = ({
     const {Card} = UI;
     const {state, setState, controls={}} = useContext(ComponentContext);
 
-    return <Card columns={state.columns} data={state.data} display={state.display} sourceInfo={state.sourceInfo} setState={setState}
+    return <Card columns={state.columns} data={state.data} display={state.display} sourceInfo={state.externalSource} setState={setState}
                  controls={{
                      ...controls,
                      FormulaColumnModal: AddFormulaColumn,
@@ -261,11 +261,11 @@ export default {
     showAllColumnsControl: false,
     themeKey: 'dataCard',
     defaultState: {
-        dataRequest: {},
+        filters: { op: 'AND', groups: [] },
         display: { usePagination: true, pageSize: 5 },
         columns: [],
         data: [],
-        sourceInfo: { columns: []}
+        externalSource: { columns: []}
     },
     controls: {
         columns: [

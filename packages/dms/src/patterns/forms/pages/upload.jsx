@@ -3,6 +3,7 @@ import { FormsContext } from '../siteConfig'
 import SourcesLayout from "../components/patternListComponent/layout";
 import Upload from "../components/upload";
 import {ThemeContext} from "../../../ui/useTheme";
+import { nameToSlug } from "../../../utils/type-utils";
 
 const UploadPage = ({
     status,
@@ -24,7 +25,7 @@ const UploadPage = ({
 
     return (
         <SourcesLayout fullWidth={false} baseUrl={baseUrl} pageBaseUrl={pageBaseUrl} isListAll={false} hideBreadcrumbs={false}
-                       form={{name: item.name || item.doc_type, href: format.url_slug}}
+                       form={{name: item.name, href: format.url_slug}}
                        page={{name: 'Upload', href: `${pageBaseUrl}/${params.id}/upload`}}
                        id={params.id} //page id to use for navigation
                        view_id={params.view_id}
@@ -38,7 +39,7 @@ const UploadPage = ({
                         <Upload.EditComp
                             onChange={() => {}}
                             size={1}
-                            format={{app: item.app, type: `${item.doc_type}-${params.view_id}`, config: item.config}}
+                            format={{app: item.app, type: `${nameToSlug(item.name)}|${params.view_id}:data`, config: item.config}}
                             view_id={params.view_id}
                             parent={item}
                             apiLoad={apiLoad}

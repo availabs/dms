@@ -2,26 +2,20 @@ import React, { useState, useMemo, useCallback } from 'react';
 import DraggableList from "../../../../ui/components/DraggableList";
 import Input from "../../../../ui/components/Input";
 import columnTypes from "../../../../ui/columnTypes";
-import {
-    getColumnLabel, updateColumns, updateAllColumns, resetColumn,
-    resetAllColumns, duplicate, toggleIdFilter,
-    toggleGlobalVisibility, addFormulaColumn, isEqualColumns, addCalculatedColumn
-} from "./controls_utils";
+import { getColumnLabel, isEqualColumns } from "./controls_utils";
 import AddFormulaColumn from "./AddFormulaColumn";
 import AddCalculatedColumn from "./AddCalculatedColumn";
 import {isEqual} from "lodash-es";
 
-const ColumnPicker = ({ state, setState, allColumns, stagedColumns, setStagedColumns, Pill, Icon }) => {
+const ColumnPicker = ({ dwAPI, allColumns, stagedColumns, setStagedColumns, Pill, Icon }) => {
+    const { config: { columns: stateColumns, externalSource }, setState } = dwAPI;
     const [pickerSearch, setPickerSearch] = useState('');
     const [isFocused, setIsFocused] = useState(false);
 
     const availableColumns = useMemo(() => {
-        const stateColNames = new Set((state?.columns || []).map(c => c.name));
-        const stagedNames = new Set(stagedColumns.map(c => c.name));
-        return (state?.sourceInfo?.columns || [])
-            // .filter(c => !stateColNames.has(c.name) && !stagedNames.has(c.name))
+        return (externalSource?.columns || [])
             .filter(c => !pickerSearch || getColumnLabel(c).toLowerCase().includes(pickerSearch.toLowerCase()));
-    }, [state?.sourceInfo?.columns, state?.columns, stagedColumns, pickerSearch]);
+    }, [externalSource?.columns, stateColumns, stagedColumns, pickerSearch]);
 
     const stageColumn = (col) => {
         setStagedColumns(prev => [...prev, col]);
@@ -37,7 +31,6 @@ const ColumnPicker = ({ state, setState, allColumns, stagedColumns, setStagedCol
             stagedColumns.forEach(col => {
                 const exists = draft.columns.some(c => isEqualColumns(c, col));
                 if (exists) {
-                    // duplicate: same logic as controls_utils.duplicate
                     const idx = draft.columns.findIndex(c => isEqualColumns(c, col));
                     const base = draft.columns[idx];
                     const numDuplicates = draft.columns.filter(c => c.isDuplicate && c.name === base.name).length;
@@ -71,8 +64,8 @@ const ColumnPicker = ({ state, setState, allColumns, stagedColumns, setStagedCol
     return (
         <div className="flex flex-col p-1 gap-1 w-full relative bg-blue-50 rounded-md">
             <div className={'flex gap-1'}>
-                <AddFormulaColumn columns={allColumns} addFormulaColumn={col => addFormulaColumn(col, setState)} />
-                <AddCalculatedColumn columns={allColumns} addCalculatedColumn={col => addCalculatedColumn(col, setState)} />
+                <AddFormulaColumn columns={allColumns} addFormulaColumn={col => dwAPI.addFormulaColumn(col)} />
+                <AddCalculatedColumn columns={allColumns} addCalculatedColumn={col => dwAPI.addCalculatedColumn(col)} />
             </div>
             <Input
                 placeholder="Search columns to add..."
@@ -117,7 +110,7 @@ const ColumnPicker = ({ state, setState, allColumns, stagedColumns, setStagedCol
     );
 };
 
-const renderControl = (control, columnData, onUpdate, { Switch, setState }) => {
+const renderControl = (control, columnData, onUpdate, { Switch, dwAPI }) => {
     const isDisabled = typeof control.disabled === 'function' ? control.disabled({ attribute: columnData }) : control.disabled;
 
     if (control.type === 'toggle') {
@@ -157,7 +150,8 @@ const renderControl = (control, columnData, onUpdate, { Switch, setState }) => {
                     setAttribute: newValue => onUpdate(undefined, newValue, control.onChange),
                     value: columnData[control.key],
                     setValue: newValue => onUpdate(control.key, newValue, control.onChange),
-                    setState
+                    state: dwAPI.state,
+                    setState: dwAPI.setState
                 })}
             </div>
         );
@@ -178,10 +172,10 @@ const renderControl = (control, columnData, onUpdate, { Switch, setState }) => {
     return null;
 };
 
-const ColumnRow = ({ column, index, state, setState, resolvedControls, Pill, Icon, Switch, isExpanded, onToggleExpand, isOutOfDate, onRefreshMeta }) => {
+const ColumnRow = ({ column, index, dwAPI, resolvedControls, Pill, Icon, Switch, isExpanded, onToggleExpand, isOutOfDate, onRefreshMeta }) => {
     const label = getColumnLabel(column);
     const onUpdate = useCallback((key, value, onChange) =>
-        updateColumns(column, key, value, onChange, setState), [column, setState]);
+        dwAPI.updateColumn(column, key, value, onChange), [column, dwAPI.updateColumn]);
 
     return (
         <div className="border rounded bg-white mb-0.5">
@@ -213,13 +207,13 @@ const ColumnRow = ({ column, index, state, setState, resolvedControls, Pill, Ico
                     )}
                     <button className={`p-0.5 rounded hover:bg-gray-100 ${column.group ? `text-blue-500` : `text-gray-300`} cursor-pointer`}
                             title={column.group ? 'Grouping By' : 'Group By'}
-                            onClick={() => updateColumns(column, 'group', !column.group, undefined, setState)}
+                            onClick={() => dwAPI.updateColumn(column, 'group', !column.group)}
                     >
                             <Icon icon="Group" className="size-4" />
                     </button>
                     <button
                         className={`p-0.5 rounded hover:bg-gray-100 ${column.show ? 'text-blue-500' : 'text-gray-300'} cursor-pointer`}
-                        onClick={() => updateColumns(column, 'show', !column.show, undefined, setState)}
+                        onClick={() => dwAPI.updateColumn(column, 'show', !column.show)}
                         title={column.show ? 'Hide' : 'Show'}
                     >
                         <Icon icon={column.show ? 'Eye' : 'EyeClosed'} className="size-4" />
@@ -240,7 +234,7 @@ const ColumnRow = ({ column, index, state, setState, resolvedControls, Pill, Ico
                         <label className="text-xs text-gray-600">Name</label>
                         <Input
                             value={getColumnLabel(column)}
-                            onChange={e => updateColumns(column, 'customName', e.target.value, undefined, setState)}
+                            onChange={e => dwAPI.updateColumn(column, 'customName', e.target.value)}
                         />
                     </div>
                     {[
@@ -248,10 +242,10 @@ const ColumnRow = ({ column, index, state, setState, resolvedControls, Pill, Ico
                         // ...(resolvedControls?.inHeader || [])
                     ]
                         .filter(c => !c.hideFromSectionMenu)
-                        .map(c => renderControl(c, column, onUpdate, { Switch, setState }))}
+                        .map(c => renderControl(c, column, onUpdate, { Switch, dwAPI }))}
                     <div className="flex gap-1 pt-1">
-                        <Pill text="Duplicate" color="blue" onClick={() => duplicate(column, setState)} />
-                        <Pill text="Remove" color="orange" onClick={() => resetColumn(column, setState)} />
+                        <Pill text="Duplicate" color="blue" onClick={() => dwAPI.duplicateColumn(column)} />
+                        <Pill text="Remove" color="orange" onClick={() => dwAPI.resetColumn(column)} />
                         {isOutOfDate && (
                             <Pill text="Refresh Meta" color="orange" onClick={onRefreshMeta} />
                         )}
@@ -262,8 +256,8 @@ const ColumnRow = ({ column, index, state, setState, resolvedControls, Pill, Ico
     );
 };
 
-const AllColumnsRow = ({ state, setState, resolvedControls, isEveryColVisible, Pill, Icon, Switch, isExpanded, onToggleExpand }) => {
-    const columns = state?.columns || [];
+const AllColumnsRow = ({ dwAPI, resolvedControls, isEveryColVisible, Pill, Icon, Switch, isExpanded, onToggleExpand }) => {
+    const columns = dwAPI.config.columns || [];
 
     const aggregateColumn = useMemo(() => {
         if (!columns.length) return {};
@@ -277,7 +271,7 @@ const AllColumnsRow = ({ state, setState, resolvedControls, isEveryColVisible, P
     }, [columns]);
 
     const onUpdate = useCallback((key, value, onChange) =>
-        updateAllColumns(key, value, onChange, setState), [setState]);
+        dwAPI.updateAllColumns(key, value, onChange), [dwAPI.updateAllColumns]);
 
     return (
         <div className="border rounded bg-white mb-0.5">
@@ -289,7 +283,7 @@ const AllColumnsRow = ({ state, setState, resolvedControls, isEveryColVisible, P
                 <div className="flex items-center gap-1 shrink-0">
                     <button
                         className={`p-0.5 rounded hover:bg-gray-100 ${isEveryColVisible ? 'text-blue-500' : 'text-gray-300'}`}
-                        onClick={() => toggleGlobalVisibility(!isEveryColVisible, setState)}
+                        onClick={() => dwAPI.toggleGlobalVisibility(!isEveryColVisible)}
                         title={isEveryColVisible ? 'Hide All' : 'Show All'}
                     >
                         <Icon icon={isEveryColVisible ? 'Eye' : 'EyeClosed'} className="size-4" />
@@ -310,9 +304,9 @@ const AllColumnsRow = ({ state, setState, resolvedControls, isEveryColVisible, P
                         ...(resolvedControls?.inHeader || [])
                     ]
                         .filter(c => !c.hideFromSectionMenu)
-                        .map(c => renderControl(c, aggregateColumn, onUpdate, { Switch, setState }))}
+                        .map(c => renderControl(c, aggregateColumn, onUpdate, { Switch, dwAPI }))}
                     <div className="flex gap-1 pt-1">
-                        <Pill text="Remove All" color="orange" onClick={() => resetAllColumns(setState)} />
+                        <Pill text="Remove All" color="orange" onClick={() => dwAPI.resetAllColumns()} />
                     </div>
                 </div>
             )}
@@ -320,24 +314,25 @@ const AllColumnsRow = ({ state, setState, resolvedControls, isEveryColVisible, P
     );
 };
 
-export default function ColumnManager({ state, setState, resolvedControls, Pill, Icon, Switch, showAllColumnsControl }) {
+export default function ColumnManager({ dwAPI, resolvedControls, Pill, Icon, Switch, showAllColumnsControl }) {
+    const { config: { columns: stateColumns, externalSource }, setState } = dwAPI;
     const [stagedColumns, setStagedColumns] = useState([]);
     const [expandedColumns, setExpandedColumns] = useState(new Set());
     const [allColumnsExpanded, setAllColumnsExpanded] = useState(false);
     const ATTRS_TO_SYNC = ['type', 'required', 'display', 'defaultFn', 'dataType', 'trueValue', 'options', 'mapped_options', 'meta_lookup'];
 
     const outOfDateColumnNames = useMemo(() => new Set(
-        (state?.sourceInfo?.columns || [])
+        (externalSource?.columns || [])
             .filter(origCol => {
-                const stateCol = (state?.columns || []).find(c => c.name === origCol.name);
+                const stateCol = (stateColumns || []).find(c => c.name === origCol.name);
                 if (!stateCol) return false;
                 return ATTRS_TO_SYNC.some(attr => !isEqual(stateCol[attr], origCol[attr]));
             })
             .map(c => c.name)
-    ), [state?.sourceInfo?.columns, state?.columns]);
+    ), [externalSource?.columns, stateColumns]);
 
     const refreshMeta = useCallback((column) => {
-        const sourceCol = (state?.sourceInfo?.columns || []).find(c => c.name === column.name);
+        const sourceCol = (externalSource?.columns || []).find(c => c.name === column.name);
         if (!sourceCol) return;
         setState(draft => {
             const idx = draft.columns.findIndex(c => c.name === column.name && c.isDuplicate === column.isDuplicate && c.copyNum === column.copyNum);
@@ -347,28 +342,28 @@ export default function ColumnManager({ state, setState, resolvedControls, Pill,
                 });
             }
         });
-    }, [state?.sourceInfo?.columns, setState]);
+    }, [externalSource?.columns, setState]);
     const allColumns = useMemo(() => [
-        ...(state?.columns || []),
-        ...(state?.sourceInfo?.columns || [])
-            .filter(c => !(state?.columns || []).map(c => c.name).includes(c.name))
-    ], [state?.columns, state?.sourceInfo?.columns]);
+        ...(stateColumns || []),
+        ...(externalSource?.columns || [])
+            .filter(c => !(stateColumns || []).map(c => c.name).includes(c.name))
+    ], [stateColumns, externalSource?.columns]);
 
     const isEveryColVisible = useMemo(() =>
-        (state?.sourceInfo?.columns || [])
-            .map(({ name }) => (state?.columns || []).find(column => column?.name === name))
+        (externalSource?.columns || [])
+            .map(({ name }) => (stateColumns || []).find(column => column?.name === name))
             .every(column => column?.show),
-        [state?.sourceInfo?.columns, state?.columns]
+        [externalSource?.columns, stateColumns]
     );
 
-    const isSystemIDColOn = (state?.columns || []).find(c => c.systemCol && c.name === 'id');
+    const isSystemIDColOn = (stateColumns || []).find(c => c.systemCol && c.name === 'id');
 
     const activeColumns = useMemo(() =>
-        (state?.columns || []).map((column, i) => ({
+        (stateColumns || []).map((column, i) => ({
             id: `${column.name}_${column.isDuplicate ? column.copyNum : ''}_${i}`,
             column
         })),
-        [state?.columns]
+        [stateColumns]
     );
 
     const toggleExpand = useCallback((columnId) => {
@@ -381,19 +376,18 @@ export default function ColumnManager({ state, setState, resolvedControls, Pill,
     }, []);
 
     const onReorder = useCallback((updatedItems) => {
-        setState(draft => {
-            draft.columns = updatedItems
-                .map(item => draft.columns.find(draftCol => isEqualColumns(draftCol, item.column)))
-                .filter(Boolean);
-        });
-    }, [setState]);
+        dwAPI.reorderColumns(
+            updatedItems
+                .map(item => (stateColumns || []).find(draftCol => isEqualColumns(draftCol, item.column)))
+                .filter(Boolean)
+        );
+    }, [dwAPI.reorderColumns, stateColumns]);
     const isAllExpanded = activeColumns.length > 0 && activeColumns.every(i => expandedColumns.has(i.id));
     return (
         <div className="flex flex-col gap-2 w-full p-1">
             {/* Column Picker */}
             <ColumnPicker
-                state={state}
-                setState={setState}
+                dwAPI={dwAPI}
                 stagedColumns={stagedColumns}
                 allColumns={allColumns}
                 setStagedColumns={setStagedColumns}
@@ -404,7 +398,7 @@ export default function ColumnManager({ state, setState, resolvedControls, Pill,
             {/* Bulk Actions */}
             <div className="flex flex-wrap gap-1">
                 <Pill text={isSystemIDColOn ? 'Hide ID' : 'Use ID'} color="blue"
-                      onClick={() => toggleIdFilter(setState)} />
+                      onClick={() => dwAPI.toggleIdFilter()} />
                 <Pill
                     text={isAllExpanded ? 'Collapse All' : 'Expand All'}
                     color="gray"
@@ -414,17 +408,16 @@ export default function ColumnManager({ state, setState, resolvedControls, Pill,
                 />
                 <Pill
                     color={isEveryColVisible ? 'orange' : 'blue'}
-                    onClick={() => toggleGlobalVisibility(!isEveryColVisible, setState)}
+                    onClick={() => dwAPI.toggleGlobalVisibility(!isEveryColVisible)}
                     text={isEveryColVisible ? 'Hide All' : 'Show All'}
                 />
-                <Pill text="Remove All" color="orange" onClick={() => resetAllColumns(setState)} />
+                <Pill text="Remove All" color="orange" onClick={() => dwAPI.resetAllColumns()} />
             </div>
 
             {/* All Columns Row */}
             {showAllColumnsControl && activeColumns.length > 1 && (
                 <AllColumnsRow
-                    state={state}
-                    setState={setState}
+                    dwAPI={dwAPI}
                     resolvedControls={resolvedControls}
                     isEveryColVisible={isEveryColVisible}
                     Pill={Pill}
@@ -445,8 +438,7 @@ export default function ColumnManager({ state, setState, resolvedControls, Pill,
                             key={item.id}
                             column={item.column}
                             index={item.id}
-                            state={state}
-                            setState={setState}
+                            dwAPI={dwAPI}
                             resolvedControls={resolvedControls}
                             Pill={Pill}
                             Icon={Icon}

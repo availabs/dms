@@ -102,7 +102,7 @@ npm run db:cleanup -- --source <config> [options]
 |------|----------|-------------|
 | `--source <config>` | Yes | Database config name (from `src/db/configs/`) |
 | `--app <name>` | No | Analyze only a specific app |
-| `--type <type>` | No | Only check one orphan type: `patterns`, `pages`, `sections`, `views`, `sources` |
+| `--type <type>` | No | Only check one orphan type: `patterns`, `pages`, `sections`, `page_edits`, `views`, `sources` |
 | `--delete` | No | Actually delete orphaned rows (default: analyze only) |
 | `--dry-run` | No | Synonym for default analyze-only mode (explicit) |
 
@@ -132,6 +132,7 @@ node src/scripts/cleanup-db.js --source dms-sqlite --app my-site --type sections
 | **Patterns** | Type ends in `\|pattern`, but no site references this pattern's ID in `data.patterns[]` |
 | **Pages** | Type matches a `doc_type` from a page pattern, but no such pattern exists |
 | **Sections** | Type ends in `\|cms-section`, but no page references this section's ID in `data.sections[]` or `data.draft_sections[]` |
+| **Page edits** | Type ends in `\|page-edit`, but no page references this edit's ID in `data.history[]` |
 | **Sources** | Type ends in `\|source` (not `\|source\|view`), but no datasets/forms pattern exists with matching `doc_type` |
 | **Views** | Type ends in `\|source\|view`, but no source references this view's ID in `data.views[]` |
 
@@ -142,3 +143,65 @@ Dataset data rows (UUID-viewId types) are never flagged.
 ```bash
 npm run test:db-cleanup    # 40 integration tests
 ```
+
+## extract-images.js
+
+Extract base64-encoded images embedded in Lexical editor content from `data_items` rows and save them as files on disk. Replaces inline `data:image/...;base64,...` data URIs in `InlineImageNode` `src` fields with URL paths pointing to the extracted files.
+
+### Usage
+
+```bash
+node src/scripts/extract-images.js --source <config> [options]
+
+# or via npm
+npm run db:extract-images -- --source <config> [options]
+```
+
+### Arguments
+
+| Flag | Required | Description |
+|------|----------|-------------|
+| `--source <config>` | Yes | Database config name (from `src/db/configs/`) |
+| `--output <dir>` | No | Directory to write image files (default: `./extracted-images`) |
+| `--url-prefix <path>` | No | URL path prefix for replacement src values (default: `/img/`) |
+| `--app <name>` | No | Only process rows for a specific app |
+| `--type <type>` | No | Only process rows matching this type (supports SQL LIKE patterns) |
+| `--dry-run` | No | Report what would be extracted without writing files or updating DB |
+| `--min-size <bytes>` | No | Only extract images larger than this threshold in bytes (default: 0) |
+
+### Examples
+
+```bash
+# Preview what would be extracted
+node src/scripts/extract-images.js --source dms-sqlite --app my-app --dry-run
+
+# Extract all images for an app
+node src/scripts/extract-images.js --source dms-sqlite --app my-app --output ./images
+
+# Extract with custom URL prefix
+node src/scripts/extract-images.js --source dms-sqlite --app my-app --url-prefix /static/img/
+
+# Only extract images larger than 100KB
+node src/scripts/extract-images.js --source dms-sqlite --app my-app --min-size 102400
+```
+
+### How it works
+
+1. Scans all `data_items` rows (filtered by `--app`/`--type`) using streaming iteration (no `LIKE '%data:image%'` full-text scan)
+2. For each row, checks if the raw data string contains `data:image` (fast string check)
+3. Parses the double-encoded Lexical JSON (`data.element.element-data`) and walks the node tree
+4. For each `InlineImageNode` with a data URI `src`, decodes the base64 payload and writes it to disk
+5. Replaces the `src` with `{url-prefix}{id}_{index}_{hash}.{ext}` (e.g., `/img/12345_0_a1b2c3d4e5f6.jpg`)
+6. Updates the database row with the modified data
+
+### File naming
+
+Files are named `{row_id}_{image_index}_{content_hash}.{ext}` where the content hash is the first 12 characters of the SHA-256 digest. Identical images produce the same hash and are only written once (deduplication).
+
+### After extraction
+
+The extracted images must be served by your web server at the configured `--url-prefix` path:
+
+- **dms-server**: Add `express.static()` middleware for the output directory
+- **Netlify/static deploys**: Copy extracted files into the build output
+- **Development**: Symlink or copy into Vite's `public/` directory

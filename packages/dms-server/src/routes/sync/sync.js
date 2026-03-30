@@ -11,9 +11,20 @@
 
 const { Router } = require('express');
 const { getDb } = require('#db/index.js');
+const { loadConfig } = require('#db/config.js');
 const {
   isSplitType,
+  resolveTable,
+  getSequenceName,
+  ensureSequence,
+  ensureTable,
+  allocateId,
 } = require('#db/table-resolver.js');
+
+/** Types excluded from sync bootstrap/delta (loaded on-demand instead) */
+function isSyncExcluded(type) {
+  return isSplitType(type);
+}
 const {
   jsonMerge,
   currentTimestamp,
@@ -22,45 +33,26 @@ const {
 const { logEntry } = require('../../middleware/request-logger');
 
 /**
- * Chunked query helper for SQLite event loop yielding.
- *
- * better-sqlite3 is synchronous — a single large SELECT blocks the event loop.
- * This helper paginates the query with LIMIT/OFFSET and yields between chunks
- * via setImmediate(), allowing other requests, timers, and WebSocket pings to
- * run between chunks.
- *
- * For PostgreSQL (async driver), the query runs normally in one shot.
- *
- * @param {Object} db - Database adapter
- * @param {string} sql - SQL query (must not already contain LIMIT/OFFSET)
- * @param {Array} params - Query parameters
- * @param {number} [chunkSize=500] - Rows per chunk (SQLite only)
- * @returns {Promise<Array>} All result rows
+ * Extract ref IDs from a data_items row's data.
+ * Looks at top-level array values and collects items that look like refs
+ * (objects with `id`, plain numbers, or numeric strings).
  */
-async function queryChunked(db, sql, params, chunkSize = 500) {
-  if (db.type !== 'sqlite') {
-    return db.promise(sql, params);
+function extractRefIds(data) {
+  const ids = [];
+  if (!data || typeof data !== 'object') return ids;
+  for (const value of Object.values(data)) {
+    if (!Array.isArray(value)) continue;
+    for (const item of value) {
+      if (item && typeof item === 'object' && item.id != null) {
+        ids.push(Number(item.id));
+      } else if (typeof item === 'number') {
+        ids.push(item);
+      } else if (typeof item === 'string' && /^\d+$/.test(item)) {
+        ids.push(Number(item));
+      }
+    }
   }
-
-  // SQLite: paginate with LIMIT/OFFSET, yield between chunks
-  const allRows = [];
-  let offset = 0;
-
-  while (true) {
-    const chunk = await db.promise(
-      `${sql} LIMIT ${chunkSize} OFFSET ${offset}`,
-      params
-    );
-    allRows.push(...chunk);
-
-    if (chunk.length < chunkSize) break; // Last chunk
-    offset += chunkSize;
-
-    // Yield to event loop between chunks
-    await new Promise(resolve => setImmediate(resolve));
-  }
-
-  return allRows;
+  return ids;
 }
 
 /**
@@ -72,6 +64,9 @@ function createSyncRoutes(dbName) {
   const router = Router();
   const dms_db = getDb(dbName);
   const dbType = dms_db.type;
+  const config = loadConfig(dbName);
+  const splitMode = config.splitMode || process.env.DMS_SPLIT_MODE || 'legacy';
+  const requireAuth = process.env.DMS_SYNC_AUTH === '1';
 
   function tbl(name) {
     return dbType === 'postgres' ? `dms.${name}` : name;
@@ -79,6 +74,19 @@ function createSyncRoutes(dbName) {
 
   function now() {
     return currentTimestamp(dbType);
+  }
+
+  /**
+   * Get the main (non-split) table for an app, ensuring it exists.
+   * Mirrors the controller's mainTable() — resolves per-app tables when splitMode='per-app'.
+   */
+  async function mainTable(app) {
+    const resolved = resolveTable(app, '', dbType, splitMode);
+    // ensureTable() no-ops for the shared dms.data_items (legacy mode)
+    const seqName = getSequenceName(app, dbType, splitMode);
+    await ensureSequence(dms_db, app, dbType, splitMode);
+    await ensureTable(dms_db, resolved.schema, resolved.table, dbType, seqName);
+    return resolved.fullName;
   }
 
   // Lazy check: is the change_log table available?
@@ -94,58 +102,90 @@ function createSyncRoutes(dbName) {
     return _changeLogReady;
   }
 
+  /**
+   * Fetch skeleton items: site row + its ref children (discovered from data).
+   * Returns an array of data_items rows.
+   */
+  async function fetchSkeleton(app, siteType) {
+    const table = await mainTable(app);
+    const siteRows = await dms_db.promise(
+      `SELECT * FROM ${table} WHERE app = $1 AND type = $2 ORDER BY id`,
+      [app, siteType]
+    );
+    const refIds = [];
+    for (const row of siteRows) {
+      const data = typeof row.data === 'string' ? JSON.parse(row.data) : (row.data || {});
+      refIds.push(...extractRefIds(data));
+    }
+    if (refIds.length > 0) {
+      const placeholders = refIds.map((_, i) => `$${i + 1}`).join(',');
+      const children = await dms_db.promise(
+        `SELECT * FROM ${table} WHERE id IN (${placeholders}) ORDER BY id`,
+        refIds
+      );
+      const seen = new Set(siteRows.map(r => r.id));
+      return [...siteRows, ...children.filter(c => !seen.has(c.id))];
+    }
+    return siteRows;
+  }
+
   // ---- Bootstrap: full snapshot ----
 
   router.get('/sync/bootstrap', async (req, res) => {
+    const t0 = Date.now();
     try {
       const { app, type, pattern, skeleton } = req.query;
       if (!app) return res.status(400).json({ error: 'app is required' });
+      if (requireAuth && !req.availAuthContext?.user) {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
 
       let items;
 
       if (skeleton) {
-        // Skeleton bootstrap: site row + pattern rows only (always small, <20 items)
-        // skeleton value = siteType
-        items = await dms_db.promise(
-          `SELECT * FROM ${tbl('data_items')} WHERE app = $1 AND (type = $2 OR type = $2 || '|pattern') ORDER BY id`,
-          [app, skeleton]
-        );
+        // Skeleton bootstrap: fetch site row, then follow its refs to get children.
+        // This discovers pattern items (and any other dms-format children) from the
+        // site data rather than hardcoding type conventions like '|pattern'.
+        items = await fetchSkeleton(app, skeleton);
       } else if (pattern) {
-        // Pattern-scoped bootstrap: site skeleton + pattern-specific items
-        // pattern value = doc_type
-        // The siteType is needed for skeleton — passed as `siteType` query param
+        // Pattern-scoped bootstrap: all items whose type matches or extends the doc_type.
+        // Also includes sibling types under the same instance prefix (e.g., for
+        // 'songs_2|page', also fetch 'songs_2|component', 'songs_2|page-edit', etc.)
+        // Optionally includes site skeleton if siteType is provided.
         const { siteType } = req.query;
-        const patternItems = await queryChunked(dms_db,
-          `SELECT * FROM ${tbl('data_items')} WHERE app = $1 AND (type = $2 OR type LIKE $2 || '|%') ORDER BY id`,
-          [app, pattern]
+        const table = await mainTable(app);
+        const pipeIdx = pattern.indexOf('|');
+        const instancePrefix = pipeIdx !== -1 ? pattern.substring(0, pipeIdx) : null;
+        const patternItems = await dms_db.promise(
+          instancePrefix
+            ? `SELECT * FROM ${table} WHERE app = $1 AND (type = $2 OR type LIKE $2 || '|%' OR type LIKE $3 || '|%') ORDER BY id`
+            : `SELECT * FROM ${table} WHERE app = $1 AND (type = $2 OR type LIKE $2 || '|%') ORDER BY id`,
+          instancePrefix ? [app, pattern, instancePrefix] : [app, pattern]
         );
         if (siteType) {
-          // Also include site skeleton (site + pattern rows)
-          const skeletonItems = await dms_db.promise(
-            `SELECT * FROM ${tbl('data_items')} WHERE app = $1 AND (type = $2 OR type = $2 || '|pattern') ORDER BY id`,
-            [app, siteType]
-          );
-          // Merge, deduplicating by id
+          const skeletonItems = await fetchSkeleton(app, siteType);
           const seen = new Set(patternItems.map(i => i.id));
           items = [...patternItems, ...skeletonItems.filter(i => !seen.has(i.id))];
         } else {
           items = patternItems;
         }
         // Filter out split-table types
-        items = items.filter(item => !isSplitType(item.type));
+        items = items.filter(item => !isSyncExcluded(item.type));
       } else if (type) {
         // Type-scoped bootstrap (exact type match)
-        items = await queryChunked(dms_db,
-          `SELECT * FROM ${tbl('data_items')} WHERE app = $1 AND type = $2 ORDER BY id`,
+        const table = await mainTable(app);
+        items = await dms_db.promise(
+          `SELECT * FROM ${table} WHERE app = $1 AND type = $2 ORDER BY id`,
           [app, type]
         );
       } else {
         // Full app bootstrap — main table only, exclude split-table types
-        const allItems = await queryChunked(dms_db,
-          `SELECT * FROM ${tbl('data_items')} WHERE app = $1 ORDER BY id`,
+        const table = await mainTable(app);
+        const allItems = await dms_db.promise(
+          `SELECT * FROM ${table} WHERE app = $1 ORDER BY id`,
           [app]
         );
-        items = allItems.filter(item => !isSplitType(item.type));
+        items = allItems.filter(item => !isSyncExcluded(item.type));
       }
 
       let revision = 0;
@@ -157,11 +197,25 @@ function createSyncRoutes(dbName) {
         revision = maxRevRow[0]?.max_rev || 0;
       }
 
-      const response = { items, revision: Number(revision) };
-      const payload = JSON.stringify(response);
       const scope = skeleton ? `skeleton=${skeleton}` : pattern ? `pattern=${pattern}` : type ? `type=${type}` : 'full-app';
-      const payloadKB = +(payload.length / 1024).toFixed(1);
-      console.log(`[sync/bootstrap] app=${app} ${scope} → ${items.length} items, ${payloadKB}KB, rev=${revision}`);
+      const durationMs = Date.now() - t0;
+
+      // Stream JSON to avoid V8 string length limit on large payloads
+      res.setHeader('Content-Type', 'application/json');
+      res.write('{"items":[');
+      let byteLen = 0;
+      for (let i = 0; i < items.length; i++) {
+        if (i > 0) res.write(',');
+        const chunk = JSON.stringify(items[i]);
+        byteLen += chunk.length + (i > 0 ? 1 : 0);
+        res.write(chunk);
+      }
+      res.write(`],"revision":${Number(revision)}}`);
+      byteLen += 30; // envelope overhead
+      res.end();
+
+      const payloadKB = +(byteLen / 1024).toFixed(1);
+      console.log(`[sync/bootstrap] app=${app} ${scope} → ${items.length} items, ${payloadKB}KB, rev=${revision}, ${durationMs}ms`);
       logEntry({
         _type: 'sync-bootstrap',
         timestamp: new Date().toISOString(),
@@ -170,9 +224,8 @@ function createSyncRoutes(dbName) {
         itemCount: items.length,
         payloadKB,
         revision: Number(revision),
+        durationMs,
       });
-      res.setHeader('Content-Type', 'application/json');
-      res.send(payload);
     } catch (err) {
       console.error('[sync/bootstrap] error:', err.message);
       res.status(500).json({ error: 'Internal server error' });
@@ -182,9 +235,13 @@ function createSyncRoutes(dbName) {
   // ---- Delta: changes since revision N ----
 
   router.get('/sync/delta', async (req, res) => {
+    const t0 = Date.now();
     try {
       const { app, type, pattern, since } = req.query;
       if (!app) return res.status(400).json({ error: 'app is required' });
+      if (requireAuth && !req.availAuthContext?.user) {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
 
       const sinceRev = parseInt(since, 10) || 0;
 
@@ -195,34 +252,54 @@ function createSyncRoutes(dbName) {
       let changes;
       if (pattern) {
         // Pattern-scoped delta: changes for types matching the pattern's doc_type
+        // Also include sibling types under the same instance prefix
         // Also include skeleton types if siteType is provided
         const { siteType } = req.query;
-        let patternChanges = await queryChunked(dms_db,
-          `SELECT * FROM ${tbl('change_log')} WHERE app = $1 AND (type = $2 OR type LIKE $2 || '|%') AND revision > $3 ORDER BY revision ASC`,
-          [app, pattern, sinceRev]
+        const pipeIdx = pattern.indexOf('|');
+        const instancePrefix = pipeIdx !== -1 ? pattern.substring(0, pipeIdx) : null;
+        let patternChanges = await dms_db.promise(
+          instancePrefix
+            ? `SELECT * FROM ${tbl('change_log')} WHERE app = $1 AND (type = $2 OR type LIKE $2 || '|%' OR type LIKE $3 || '|%') AND revision > $4 ORDER BY revision ASC`
+            : `SELECT * FROM ${tbl('change_log')} WHERE app = $1 AND (type = $2 OR type LIKE $2 || '|%') AND revision > $3 ORDER BY revision ASC`,
+          instancePrefix ? [app, pattern, instancePrefix, sinceRev] : [app, pattern, sinceRev]
         );
         if (siteType) {
-          const skeletonChanges = await dms_db.promise(
-            `SELECT * FROM ${tbl('change_log')} WHERE app = $1 AND (type = $2 OR type = $2 || '|pattern') AND revision > $3 ORDER BY revision ASC`,
-            [app, siteType, sinceRev]
+          // Include skeleton changes (site row + its ref children) alongside pattern changes.
+          // Discover skeleton IDs from the current site row rather than hardcoding type conventions.
+          const deltaTable = await mainTable(app);
+          const siteRows = await dms_db.promise(
+            `SELECT * FROM ${deltaTable} WHERE app = $1 AND type = $2`,
+            [app, siteType]
           );
-          const seen = new Set(patternChanges.map(c => c.revision));
-          patternChanges = [...patternChanges, ...skeletonChanges.filter(c => !seen.has(c.revision))];
-          patternChanges.sort((a, b) => a.revision - b.revision);
+          const skeletonIds = siteRows.map(r => r.id);
+          for (const row of siteRows) {
+            const data = typeof row.data === 'string' ? JSON.parse(row.data) : (row.data || {});
+            skeletonIds.push(...extractRefIds(data));
+          }
+          if (skeletonIds.length > 0) {
+            const placeholders = skeletonIds.map((_, i) => `$${i + 2}`).join(',');
+            const skeletonChanges = await dms_db.promise(
+              `SELECT * FROM ${tbl('change_log')} WHERE app = $1 AND item_id IN (${placeholders}) AND revision > $${skeletonIds.length + 2} ORDER BY revision ASC`,
+              [app, ...skeletonIds, sinceRev]
+            );
+            const seen = new Set(patternChanges.map(c => c.revision));
+            patternChanges = [...patternChanges, ...skeletonChanges.filter(c => !seen.has(c.revision))];
+            patternChanges.sort((a, b) => a.revision - b.revision);
+          }
         }
-        changes = patternChanges.filter(c => !isSplitType(c.type));
+        changes = patternChanges.filter(c => !isSyncExcluded(c.type));
       } else if (type) {
-        changes = await queryChunked(dms_db,
+        changes = await dms_db.promise(
           `SELECT * FROM ${tbl('change_log')} WHERE app = $1 AND type = $2 AND revision > $3 ORDER BY revision ASC`,
           [app, type, sinceRev]
         );
       } else {
         // Default: exclude split-table types
-        const allChanges = await queryChunked(dms_db,
+        const allChanges = await dms_db.promise(
           `SELECT * FROM ${tbl('change_log')} WHERE app = $1 AND revision > $2 ORDER BY revision ASC`,
           [app, sinceRev]
         );
-        changes = allChanges.filter(c => !isSplitType(c.type));
+        changes = allChanges.filter(c => !isSyncExcluded(c.type));
       }
 
       const maxRevRow = await dms_db.promise(
@@ -235,7 +312,8 @@ function createSyncRoutes(dbName) {
       const payload = JSON.stringify(response);
       const scope = pattern ? `pattern=${pattern}` : type ? `type=${type}` : 'full-app';
       const payloadKB = +(payload.length / 1024).toFixed(1);
-      console.log(`[sync/delta] app=${app} ${scope} since=${sinceRev} → ${changes.length} changes, ${payloadKB}KB, rev=${revision}`);
+      const durationMs = Date.now() - t0;
+      console.log(`[sync/delta] app=${app} ${scope} since=${sinceRev} → ${changes.length} changes, ${payloadKB}KB, rev=${revision}, ${durationMs}ms`);
       logEntry({
         _type: 'sync-delta',
         timestamp: new Date().toISOString(),
@@ -244,6 +322,7 @@ function createSyncRoutes(dbName) {
         changeCount: changes.length,
         payloadKB,
         revision: Number(revision),
+        durationMs,
       });
       res.setHeader('Content-Type', 'application/json');
       res.send(payload);
@@ -257,6 +336,9 @@ function createSyncRoutes(dbName) {
 
   router.post('/sync/push', async (req, res) => {
     try {
+      if (requireAuth && !req.availAuthContext?.user) {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
       const { action, item } = req.body;
       if (!action || !item) return res.status(400).json({ error: 'action and item are required' });
 
@@ -267,6 +349,8 @@ function createSyncRoutes(dbName) {
       try {
         let resultItem;
 
+        const pushTable = await mainTable(item.app);
+
         if (action === 'I') {
           // Create — use ON CONFLICT for idempotent retries
           const dataStr = typeof item.data === 'string' ? item.data : JSON.stringify(item.data || {});
@@ -274,21 +358,25 @@ function createSyncRoutes(dbName) {
           if (item.id) {
             // Client-provided ID (e.g., from pending queue retry)
             await dms_db.promise(
-              `INSERT INTO ${tbl('data_items')} (id, app, type, data, created_by, updated_by)
+              `INSERT INTO ${pushTable} (id, app, type, data, created_by, updated_by)
                VALUES ($1, $2, $3, $4, $5, $5)
                ON CONFLICT(id) DO UPDATE SET data = excluded.data, updated_at = ${now()}, updated_by = excluded.updated_by`,
               [item.id, item.app, item.type, dataStr, userId]
             );
             const rows = await dms_db.promise(
-              `SELECT * FROM ${tbl('data_items')} WHERE id = $1`, [item.id]
+              `SELECT * FROM ${pushTable} WHERE id = $1`, [item.id]
             );
             resultItem = rows[0];
           } else {
+            // Allocate ID from the correct sequence (per-app or global)
+            const newId = await allocateId(dms_db, item.app, dbType, splitMode);
+            await dms_db.promise(
+              `INSERT INTO ${pushTable} (id, app, type, data, created_by, updated_by)
+               VALUES ($1, $2, $3, $4, $5, $5)`,
+              [newId, item.app, item.type, dataStr, userId]
+            );
             const rows = await dms_db.promise(
-              `INSERT INTO ${tbl('data_items')} (app, type, data, created_by, updated_by)
-               VALUES ($1, $2, $3, $4, $4)
-               RETURNING *;`,
-              [item.app, item.type, dataStr, userId]
+              `SELECT * FROM ${pushTable} WHERE id = $1`, [newId]
             );
             resultItem = rows[0];
           }
@@ -296,7 +384,7 @@ function createSyncRoutes(dbName) {
         } else if (action === 'U') {
           const dataStr = typeof item.data === 'string' ? item.data : JSON.stringify(item.data || {});
           const rows = await dms_db.promise(
-            `UPDATE ${tbl('data_items')}
+            `UPDATE ${pushTable}
              SET data = ${jsonMerge('data', '$1', dbType)},
                updated_at = ${now()},
                updated_by = $2
@@ -312,7 +400,7 @@ function createSyncRoutes(dbName) {
 
         } else if (action === 'D') {
           await dms_db.promise(
-            `DELETE FROM ${tbl('data_items')} WHERE id = $1`,
+            `DELETE FROM ${pushTable} WHERE id = $1`,
             [item.id]
           );
           resultItem = { id: item.id, app: item.app, type: item.type };
@@ -370,4 +458,45 @@ function createSyncRoutes(dbName) {
 // Allow WebSocket module to set the broadcast callback
 createSyncRoutes._notifyChange = null;
 
-module.exports = { createSyncRoutes };
+/**
+ * Start periodic compaction of the change_log table.
+ * Deletes entries older than N days on a recurring interval.
+ * @param {object} db - Database instance (from getDb)
+ * @param {string} dbType - 'postgres' or 'sqlite'
+ * @returns {function} Cleanup function to stop compaction
+ */
+function startCompaction(db, dbType) {
+  const days = parseInt(process.env.DMS_SYNC_COMPACT_DAYS, 10) || 30;
+  const intervalHours = parseInt(process.env.DMS_SYNC_COMPACT_INTERVAL_HOURS, 10) || 24;
+
+  if (days <= 0 || intervalHours <= 0) {
+    console.log('[sync/compact] Compaction disabled (invalid config)');
+    return () => {};
+  }
+
+  const table = dbType === 'postgres' ? 'dms.change_log' : 'change_log';
+  const query = dbType === 'postgres'
+    ? `DELETE FROM ${table} WHERE created_at < NOW() - INTERVAL '${days} days'`
+    : `DELETE FROM ${table} WHERE created_at < datetime('now', '-${days} days')`;
+
+  async function compact() {
+    try {
+      const result = await db.promise(query, []);
+      const deleted = result?.changes ?? result?.rowCount ?? 0;
+      console.log(`[sync/compact] Removed ${deleted} change_log entries older than ${days} days`);
+    } catch (err) {
+      console.error('[sync/compact] error:', err.message);
+    }
+  }
+
+  // Run once on startup, then on interval
+  compact();
+  const timer = setInterval(compact, intervalHours * 60 * 60 * 1000);
+  timer.unref();
+
+  console.log(`[sync/compact] Compaction enabled: retain ${days} days, run every ${intervalHours}h`);
+
+  return () => clearInterval(timer);
+}
+
+module.exports = { createSyncRoutes, startCompaction };

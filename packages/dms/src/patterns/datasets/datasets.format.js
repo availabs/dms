@@ -20,11 +20,6 @@ export const source = {
       type: "text",
       required: false
     },
-      { key: "doc_type",
-      placeholder: 'Doc Type',
-      type: "text",
-      required: true
-    },
     { key: 'config',
       placeholder: 'please select a type',
       type: 'config'

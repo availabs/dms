@@ -3,7 +3,7 @@ import SectionArray from './components/sections/sectionArray'
 
 export const cmsSection = {
   app: "dms-site",
-  type: "cms-section",
+  type: "component",
   attributes: [
       {
           "key": "parent",
@@ -94,20 +94,9 @@ const pageEdit = {
   type: "page-edit",
   attributes: [
     {
-      key: "action",
-      type: "text"
-    },
-    {
-      key: "user",
-      type: "text"
-    },
-    {
-      key: "time",
-      type: "text"
-    },
-    {
-      key: 'parent_type',
-      type: 'text'
+      key: "entries",
+      type: "json",
+      default: []
     }
   ]
 }
@@ -115,7 +104,7 @@ const pageEdit = {
 
 const cmsPageFormat = {
   app: "dms-site",
-  type: "docs-page",
+  type: "page",
   registerFormats: [cmsSection, pageEdit],
   defaultSearch: `data ->> 'index' = '0' and (data ->> 'parent' = '' or data ->> 'parent' is null) and (data ->> 'template_id' is null)`,
   defaultSort: (d) =>  {
@@ -242,15 +231,26 @@ const cmsPageFormat = {
       key: 'sections',
       type: 'dms-format',
       isArray: true,
-      format: 'dms-site+cms-section',
+      format: 'dms-site+component',
       DisplayComp: SectionArray
     },
     {
       key: 'draft_sections',
       type: 'dms-format',
       isArray: true,
-      format: 'dms-site+cms-section',
+      format: 'dms-site+component',
       DisplayComp: SectionArray
+    },
+    // page-level data source configs (Phase 5)
+    {
+      key: 'dataSources',
+      type: "json",
+      hidden: true
+    },
+    {
+      key: 'draft_dataSources',
+      type: "json",
+      hidden: true
     },
     // status
     {
@@ -266,7 +266,6 @@ const cmsPageFormat = {
     {
       key: 'history',
       type: 'dms-format',
-      isArray: true,
       format: 'dms-site+page-edit',
     }
   ]

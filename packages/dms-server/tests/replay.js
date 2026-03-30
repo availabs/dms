@@ -77,6 +77,7 @@ async function replayFile(filePath, options = {}) {
   console.log(`Found ${entries.length} requests\n`);
 
   const graph = createTestGraph(dbName);
+  await graph.ready;
 
   const results = {
     total: entries.length,

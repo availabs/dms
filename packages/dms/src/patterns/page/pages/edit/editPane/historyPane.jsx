@@ -1,4 +1,4 @@
-import React, {Fragment, useContext, useState} from 'react'
+import React, {Fragment, useContext, useMemo, useState} from 'react'
 
 import { ThemeContext } from '../../../../../ui/useTheme'
 import { CMSContext,PageContext } from '../../../context'
@@ -10,12 +10,35 @@ function EditHistory () {
   const { baseUrl, user  } = React.useContext(CMSContext) || {}
   const { item, dataItems, apiUpdate } =  React.useContext(PageContext) || {}
 
-  console.log('edit History', item)
+  // Backward-compat: handle both old (array of refs) and new (single ref with entries) formats
+  const historyEntries = useMemo(() => {
+    if (import.meta.env.DEV) {
+      console.log('[historyPane] item.history:', JSON.stringify(item?.history, null, 2)?.slice(0, 500))
+    }
+    if (Array.isArray(item?.history)) {
+      // Old format: array of resolved refs, each with .type, .user, .time
+      return item.history.map(h => ({ action: h.type, user: h.user, time: h.time }))
+    }
+    // New format: single ref with .entries array
+    if (Array.isArray(item?.history?.entries)) {
+      return item.history.entries
+    }
+    return []
+  }, [item?.history])
 
   return (
-      <div className="w-full overflow-y-auto">
-          <HistoryList history={item?.history || []} onChange={value => updateHistory(item, value, user, apiUpdate)}/>
+    <div className="flex h-full flex-col">
+      <div className="px-4 sm:px-6 py-2">
+        <div className="flex items-start justify-between">
+          <h1 className="text-base font-semibold leading-6 text-gray-900">
+            History
+          </h1>
+        </div>
       </div>
+      <div className="relative flex-1 px-4 sm:px-6 w-full max-h-[calc(100vh_-_135px)] overflow-y-auto">
+        <HistoryList history={historyEntries} onChange={value => updateHistory(item, value, user, apiUpdate)}/>
+      </div>
+    </div>
   )
 }
 
@@ -64,10 +87,10 @@ function HistoryList({history, onChange}) {
         {[...history]
             .sort((a, b) => new Date(b.time) - new Date(a.time))
             .map((historyItem, historyItemIdx) => {
-              const isComment = historyItem.type.startsWith('commented:');
-              const comment = isComment ? historyItem.type.split('commented:')[1] : null;
+              const isComment = historyItem.action?.startsWith('commented:');
+              const commentText = isComment ? historyItem.action.split('commented:')[1] : null;
               return (
-                  <li key={historyItem.id} className="relative flex gap-x-4">
+                  <li key={historyItemIdx} className="relative flex gap-x-4">
                     <div
                         className={classNames(
                             historyItemIdx === history.length - 1 ? 'h-6' : '-bottom-6',
@@ -82,12 +105,12 @@ function HistoryList({history, onChange}) {
                     <div className={`${isComment ? 'border p-2 rounded-md' : ''} w-full`}>
                       <p className={`flex-auto py-0.5 text-xs leading-5 text-gray-500`}>
                         <span className="font-medium text-gray-900">{historyItem.user}</span>
-                        <span className={'ml-0.5'}>{isComment ? 'commented' : historyItem.type}</span>
+                        <span className={'ml-0.5'}>{isComment ? 'commented' : historyItem.action}</span>
                         <time dateTime={historyItem.time}
                               className={`float-right flex-none py-0.5 text-xs leading-5 text-gray-500`}>
                           {timeAgo(historyItem.time)}
                         </time>
-                        {isComment ? <div className={'text-sm/6 text-gray-500'}>{comment}</div> : null}
+                        {isComment ? <span className={'block text-sm/6 text-gray-500'}>{commentText}</span> : null}
                       </p>
                     </div>
 

@@ -94,6 +94,34 @@ app.use(createJwtMiddleware(authDbEnv));
 // Upload routes — DAMA-compatible file upload endpoints (after JWT so uploads are authenticated)
 registerUploadRoutes(app);
 
+// Always log graph requests to console (summary line)
+app.use('/graph', (req, res, next) => {
+  const params = req.method === 'POST' ? req.body : req.query;
+  const method = (params?.method || 'unknown').toUpperCase();
+  let detail = '';
+  try {
+    if (params?.callPath) {
+      const cp = typeof params.callPath === 'string' ? JSON.parse(params.callPath) : params.callPath;
+      detail = Array.isArray(cp) ? cp.join('.') : String(cp);
+      if (params.arguments) {
+        const args = typeof params.arguments === 'string' ? JSON.parse(params.arguments) : params.arguments;
+        if (Array.isArray(args)) {
+          const preview = args.map(a => typeof a === 'string' ? a : typeof a === 'object' ? `{${Object.keys(a).slice(0,3).join(',')}}` : String(a));
+          detail += ` [${preview.join(', ')}]`;
+        }
+      }
+    } else if (params?.paths) {
+      const paths = typeof params.paths === 'string' ? JSON.parse(params.paths) : params.paths;
+      if (Array.isArray(paths)) {
+        detail = paths.slice(0, 3).map(p => Array.isArray(p) ? p.slice(0, 4).join('.') : String(p)).join(' | ');
+        if (paths.length > 3) detail += ` (+${paths.length - 3} more)`;
+      }
+    }
+  } catch {}
+  console.log(`[graph] ${method} ${detail || '(no path info)'}`);
+  next();
+});
+
 app.use(
   '/graph',
   falcorExpress.dataSourceRoute(function (req, res) {
@@ -101,13 +129,14 @@ app.use(
       const { user = null } = req.availAuthContext || {};
       return falcorRoutes({ user });
     } catch (e) {
-      console.log('graph error')
+      console.error('[graph] Error creating data source:', e);
+      throw e;
     }
   })
 );
 
 // Sync routes — REST endpoints for bootstrap/delta/push
-const { createSyncRoutes } = require('./routes/sync/sync');
+const { createSyncRoutes, startCompaction } = require('./routes/sync/sync');
 const syncDbEnv = process.env.DMS_DB_ENV || 'dms-sqlite';
 app.use(createSyncRoutes(syncDbEnv));
 
@@ -145,6 +174,7 @@ async function setupAndListen() {
 
   const server = app.listen(PORT, () => {
     console.log(`DMS Server running on port ${PORT}`);
+    console.log(`  Split mode: ${process.env.DMS_SPLIT_MODE || 'legacy (default)'} (env fallback; may vary per database config)`);
     const envEntries = Object.entries(process.env)
       .filter(([key]) => key.startsWith('DMS'));
 
@@ -161,6 +191,7 @@ async function setupAndListen() {
   const { initWebSocket, notifyChange } = require('./routes/sync/ws');
   const syncDb = getDb(syncDbEnv);
   initWebSocket(server, syncDb);
+  startCompaction(syncDb, syncDb.type);
 
   // Wire change notifications: controller → WS broadcast, push endpoint → WS broadcast
   const { createController } = require('./routes/dms/dms.controller');
@@ -171,8 +202,7 @@ async function setupAndListen() {
   controller.setNotifyChange(notifyChange);
 
   // Also wire the push endpoint's broadcast callback
-  const { createSyncRoutes: _csr } = require('./routes/sync/sync');
-  _csr._notifyChange = notifyChange;
+  createSyncRoutes._notifyChange = notifyChange;
 }
 
 setupAndListen();

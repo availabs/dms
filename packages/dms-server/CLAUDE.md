@@ -59,6 +59,21 @@ const defaultController = require('./dms.controller');
 
 Config files live in `src/db/configs/`. The SQLite adapter automatically converts `$N` parameters to `?` placeholders and handles JSON serialization/deserialization.
 
+### Split Mode
+
+The `splitMode` setting controls how DMS tables are organized:
+
+- **`legacy`** — All apps share a single `data_items` table (default if unset)
+- **`per-app`** — Each app gets its own table/schema (`data_items__${app}` for SQLite, `dms_${app}.data_items` for PostgreSQL)
+
+Split mode is resolved per-database via the priority chain:
+
+```
+options.splitMode (test override) > config.splitMode > process.env.DMS_SPLIT_MODE > 'legacy'
+```
+
+Add `"splitMode": "per-app"` to database config JSON files. New databases should use per-app mode; legacy mode is for backward compatibility with existing databases that haven't been migrated. All test configs use `"splitMode": "per-app"` — tests use the app-namespaced route (`dms.data[app].byId[ids][attrs]`) and 3-arg edit format (`[app, id, data]`).
+
 ### Data Model
 All content is stored in `data_items` with a flexible `data` JSON column. The `app` + `type` pair acts as a composite namespace key (concatenated as `app+type` in queries).
 

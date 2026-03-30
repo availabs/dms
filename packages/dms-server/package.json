@@ -5,8 +5,8 @@
   "main": "src/index.js",
   "private": false,
   "scripts": {
-    "start": "node --env-file-if-exists=../../../../.env --env-file-if-exists=.env src/index.js",
-    "dev": "nodemon --env-file-if-exists=../../../../.env --env-file-if-exists=.env src/index.js",
+    "start": "node --max-http-header-size=1048576 --env-file-if-exists=../../../../.env --env-file-if-exists=.env src/index.js",
+    "dev": "nodemon --max-http-header-size=1048576 --env-file-if-exists=../../../../.env --env-file-if-exists=.env src/index.js",
     "test": "node tests/test-sqlite.js && node tests/test-controller.js && node tests/test-graph.js && node tests/test-workflow.js",
     "test:sqlite": "node tests/test-sqlite.js",
     "test:controller": "node tests/test-controller.js",
@@ -25,7 +25,9 @@
     "test:db-cleanup": "node tests/test-db-cleanup.js",
     "test:all": "npm test && npm run test:sync && npm run test:auth && npm run test:pg",
     "db:copy": "node src/scripts/copy-db.js",
-    "db:cleanup": "node src/scripts/cleanup-db.js"
+    "db:cleanup": "node src/scripts/cleanup-db.js",
+    "db:extract-images": "node src/scripts/extract-images.js",
+    "db:consolidate-history": "node src/scripts/consolidate-page-history.js"
   },
   "imports": {
     "#db/*.js": "./src/db/*.js",
@@ -60,7 +62,9 @@
     "rxjs": "~5.1.1",
     "symbol-observable": "^1.0.4",
     "unzipper": "^0.12.3",
-    "ws": "^8.19.0"
+    "ws": "^8.19.0",
+    "y-protocols": "^1.0.7",
+    "yjs": "^13.6.30"
   },
   "optionalDependencies": {
     "pg": "^8.17.2"

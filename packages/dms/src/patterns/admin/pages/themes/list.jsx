@@ -3,6 +3,7 @@ import {AdminContext} from "../../context";
 import { ThemeContext } from '../../../../ui/useTheme';
 import { Link, useLocation } from 'react-router'
 import { cloneDeep } from 'lodash-es';
+import { nameToSlug } from '../../../../utils/type-utils';
 
 function ThemeList ({
    item={},
@@ -103,7 +104,7 @@ function ThemeList ({
 					<div className={'w-full flex items-center justify-start'}>
 						<button
 							className={'bg-blue-100 hover:bg-blue-300 text-sm text-blue-800 px-2 py-0.5 m-1 rounded-lg w-fit h-fit'}
-							onClick={() => addNewValue({...newItem, theme_id: crypto.randomUUID()})}
+							onClick={() => addNewValue({...newItem, theme_id: nameToSlug(newItem.name || '')})}
 						>
 							Add
 						</button>
@@ -156,10 +157,10 @@ function ThemeList ({
 							type={'plain'}
 							title={'duplicate item'}
 							onClick={async () => {
-								const theme_id = crypto.randomUUID();
 								const duplicate_theme = cloneDeep(editingItem)
 								delete duplicate_theme.id
 								duplicate_theme.name = duplicate_theme.name + ' dup'
+								const theme_id = nameToSlug(duplicate_theme.name);
 								const newValue = [...item.theme_refs, {...duplicate_theme, theme_id}]
 								onSubmit(newValue);
 								setEditingItem(undefined)

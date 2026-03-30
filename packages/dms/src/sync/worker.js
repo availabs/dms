@@ -118,6 +118,27 @@ self.onmessage = (e) => {
     return;
   }
 
+  if (type === 'reset') {
+    enqueue(async () => {
+      try {
+        if (!initPromise) initPromise = init();
+        await initPromise;
+        await sqlite3.exec(db, 'DROP TABLE IF EXISTS data_items');
+        await sqlite3.exec(db, 'DROP TABLE IF EXISTS sync_state');
+        await sqlite3.exec(db, 'DROP TABLE IF EXISTS pending_mutations');
+        // Re-create schema
+        const statements = SCHEMA.split(';').map(s => s.trim()).filter(Boolean);
+        for (const stmt of statements) {
+          await sqlite3.exec(db, stmt);
+        }
+        self.postMessage({ id, type: 'result', rows: [], columns: [] });
+      } catch (err) {
+        self.postMessage({ id, type: 'error', error: err.message });
+      }
+    });
+    return;
+  }
+
   if (type === 'exec') {
     enqueue(async () => {
       try {
@@ -125,6 +146,30 @@ self.onmessage = (e) => {
         await initPromise;
         const result = await exec(sql, params || []);
         self.postMessage({ id, type: 'result', ...result });
+      } catch (err) {
+        self.postMessage({ id, type: 'error', error: err.message });
+      }
+    });
+    return;
+  }
+
+  if (type === 'batch') {
+    enqueue(async () => {
+      try {
+        if (!initPromise) initPromise = init();
+        await initPromise;
+        const { statements } = e.data;
+        await sqlite3.exec(db, 'BEGIN');
+        try {
+          for (const { sql: s, params: p } of statements) {
+            await exec(s, p || []);
+          }
+          await sqlite3.exec(db, 'COMMIT');
+        } catch (err) {
+          await sqlite3.exec(db, 'ROLLBACK');
+          throw err;
+        }
+        self.postMessage({ id, type: 'result', rows: [], columns: [] });
       } catch (err) {
         self.postMessage({ id, type: 'error', error: err.message });
       }

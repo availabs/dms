@@ -26,7 +26,7 @@ export default function Input ({ type='text', label, description, value, onChang
   //const { theme = { input: inputTheme, field: fieldTheme } } = React.useContext(CMSContext) || {}
   return (
     <span className={`${theme?.input?.inputContainer}`}>
-      <Headless.Input type={type} className={`${theme?.input?.input}`} value={value} onChange={onChange} {...props}/>
+      <Headless.Input type={type} className={`${theme?.input?.input}`} value={value} onChange={onChange} disabled={disabled} {...props}/>
     </span>
   )
 }

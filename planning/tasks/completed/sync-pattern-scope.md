@@ -130,17 +130,46 @@ Changes to WebSocket (`packages/dms-server/src/routes/sync/ws.js`):
 - [x] Client: `bootstrapSkeleton()` uses skeleton endpoint initially
 - [x] Pattern content loads on demand via `bootstrapPattern()` when user navigates
 
+### Phase 4b: Ref-driven skeleton bootstrap + stale data cleanup (2026-03-12)
+
+**Problem**: The skeleton bootstrap hardcoded `type = siteType || '|pattern'` to discover pattern children. This is fragile — it couples the sync layer to a type-naming convention instead of following the actual data relationships. Additionally, the warm skeleton path only re-seeded scope from local SQLite without re-fetching from the server, so pattern items added after the initial cold bootstrap were never synced. When switching to a different server database (e.g., empty DB), stale data in client SQLite persisted indefinitely, causing the admin /list page to show unresolved pattern refs (rows with undefined name/subdomain/base_url).
+
+**Root causes**:
+1. Hardcoded `|pattern` type convention in skeleton queries (server + client)
+2. Warm skeleton path never re-fetched from server — only seeded scope from local data
+3. No stale data cleanup — bootstrap upserts new items but never deletes items removed from server
+
+**Changes (server)** — `packages/dms-server/src/routes/sync/sync.js`:
+- [x] Added `extractRefIds(data)` — generic helper that extracts IDs from top-level arrays in a row's data (handles `{id}` objects, plain numbers, numeric strings). No hardcoded attribute names.
+- [x] Added `fetchSkeleton(app, siteType)` — fetches site row by exact type match, then follows its refs by ID to get children. Replaces `WHERE type = $2 OR type = $2 || '|pattern'`.
+- [x] Skeleton bootstrap uses `fetchSkeleton()` instead of hardcoded type query
+- [x] Pattern bootstrap with `siteType` uses `fetchSkeleton()` for skeleton inclusion
+- [x] Pattern delta's skeleton-inclusion now queries `change_log` by `item_id IN (...)` using ref IDs discovered from the current site row, instead of hardcoded `type = siteType || '|pattern'`
+
+**Changes (client)** — `packages/dms/src/sync/sync-manager.js`:
+- [x] Removed cold/warm distinction for skeleton — always re-fetches the full snapshot (skeleton is always small, <20 items, so re-fetching is cheap)
+- [x] Added stale data cleanup before applying: queries local SQLite for existing site rows, extracts their ref IDs, deletes any local items not present in the server response. This handles switching databases, deleted patterns, etc.
+- [x] Always calls `invalidate('data_items')` after skeleton bootstrap (stale cleanup may change local state even on warm starts)
+- [x] Offline fallback queries by `app` only — no `|pattern` hardcoding
+
+**Changes (UI)** — `packages/dms/src/patterns/admin/pages/editSite.jsx`:
+- [x] Base URL column handles `undefined` base_url (shows `—` placeholder instead of broken link)
+- [x] Normalizes missing leading `/` on base_url to prevent broken URLs like `http://localhost:5173datasets`
+
+**Result**: Zero hardcoded `|pattern` references in sync code (server or client). Skeleton discovery is fully data-driven via refs. Stale local data is cleaned up on every skeleton bootstrap, preventing ghost rows in the admin UI.
+
 ## Files Changed
 
 ### Server
-- `packages/dms-server/src/routes/sync/sync.js` — `queryChunked` helper, `pattern`/`skeleton`/`siteType` query params on bootstrap and delta endpoints
+- `packages/dms-server/src/routes/sync/sync.js` — `queryChunked` helper, `pattern`/`skeleton`/`siteType` query params on bootstrap and delta endpoints; `extractRefIds()` + `fetchSkeleton()` for ref-driven skeleton discovery (Phase 4b)
 - `packages/dms-server/src/routes/sync/ws.js` — pattern-scoped subscriptions, filtered `notifyChange` broadcasting
 
 ### Client
-- `packages/dms/src/sync/sync-manager.js` — `bootstrapSkeleton()`, `bootstrapPattern()`, `isPatternLoaded()`, per-pattern revision tracking, pattern WS subscriptions
+- `packages/dms/src/sync/sync-manager.js` — `bootstrapSkeleton()`, `bootstrapPattern()`, `isPatternLoaded()`, per-pattern revision tracking, pattern WS subscriptions; always re-fetches skeleton + stale data cleanup (Phase 4b)
 - `packages/dms/src/sync/index.js` — `initSync` accepts `siteType`, exports `bootstrapPattern`/`isPatternLoaded`
 - `packages/dms/src/render/spa/dmsSiteFactory.jsx` — passes `siteType` to `initSync`
 - `packages/dms/src/api/index.js` — on-demand `bootstrapPattern` in sync intercept
+- `packages/dms/src/patterns/admin/pages/editSite.jsx` — base_url safety (undefined + missing leading slash) (Phase 4b)
 
 ## Testing Checklist
 

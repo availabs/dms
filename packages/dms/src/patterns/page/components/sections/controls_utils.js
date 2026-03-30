@@ -113,7 +113,7 @@ export const resetColumn = (originalAttribute, setState) => setState(draft => {
 });
 export const resetAllColumns = (setState) => setState(draft => {
     draft.columns = []
-    draft.dataRequest = {}
+    draft.filters = { op: 'AND', groups: [] }
 });
 
 export const toggleIdFilter = (setState) =>
@@ -128,7 +128,7 @@ export const toggleIdFilter = (setState) =>
 export const toggleGlobalVisibility = (show = true, setState) => {
     setState(draft => {
         const isGrouping = draft.columns.some(({group}) => group);
-        (draft.sourceInfo.columns || []).forEach(column => {
+        (draft.externalSource.columns || []).forEach(column => {
             let idx = draft.columns.findIndex(draftColumn => isEqualColumns(draftColumn, column));
 
             if (idx === -1) {

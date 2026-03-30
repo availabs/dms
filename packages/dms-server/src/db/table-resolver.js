@@ -3,24 +3,22 @@
  *
  * Split modes:
  *   'legacy'  — single data_items table; only dataset row types get split tables
- *   'per-app' — each app gets its own data_items__{app} table;
- *               dataset row types further split into data_items__{app}__s{id}_v{vid}_{docType}
+ *   'per-app' — each app gets its own isolated storage:
+ *               PostgreSQL: per-app schema (dms_{app}.data_items, dms_{app}.data_items__split)
+ *               SQLite:     per-app table prefix (data_items__{app}, data_items__{app}__split)
  *
  * Split type detection:
- *   Dataset row data has type pattern: {doc_type}-{view_id} or {doc_type}-{view_id}-invalid-entry
- *   where doc_type is either a UUID (8-4-4-4-12 hex) or a sanitized name ([a-z][a-z0-9_]*),
- *   and view_id is numeric.
+ *   Dataset row data has type ending in ':data' (e.g., 'adamtest1|v1:data').
+ *   The source instance and view instance are extracted from the type string.
  */
 
 const { typeCast, currentTimestamp } = require('./query-utils.js');
+const { isSplitType: _isSplitType, parseSplitDataType } = require('./type-utils.js');
 
-// UUID-viewId pattern for dataset row data (e.g., 550e8400-e29b-41d4-a716-446655440000-42)
+// Legacy regex patterns — kept for backward compatibility during migration.
+// New code should use isSplitType() which checks for ':data' suffix.
 const UUID_SPLIT_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}-\d+(-invalid-entry)?$/;
-
-// Name-viewId pattern for named dataset types (e.g., traffic_counts-1)
-// Starts with a letter to avoid overlap with UUID patterns (which start with hex digits).
-// Safe because DMS structural types always contain | or + characters.
-const NAME_SPLIT_REGEX = /^[a-z][a-z0-9_]*-\d+(-invalid-entry)?$/;
+const NAME_SPLIT_REGEX = /^[a-z][a-z0-9_]*-\d+(-invalid-entry)?$/i;
 
 // In-memory cache of tables known to exist (set of "schema.table" strings)
 const _tableCache = new Set();
@@ -30,22 +28,31 @@ const _seqCache = new Set();
 
 /**
  * Detect whether a type string represents dataset row data eligible for splitting.
- * Only name-based types (internal_table) are split into their own tables.
- * UUID-based types (internal_dataset) stay in data_items to match production behavior.
+ * New format: type ends with ':data' (e.g., 'adamtest1|v1:data').
+ * Also supports legacy format: name-viewId pattern (e.g., 'traffic_counts-1').
  */
 function isSplitType(type) {
+  if (_isSplitType(type)) return true;
+  // Legacy fallback — detect old-format types during migration
   return typeof type === 'string' && NAME_SPLIT_REGEX.test(type);
 }
 
 /**
  * Parse a split type string into its components.
  *
- * @param {string} type - e.g., 'actions_6-291' or 'actions_6-291-invalid-entry'
- * @returns {{ docType: string, viewId: string, isInvalid: boolean } | null}
- *   null if the type is not a valid split type
+ * New format: 'source|view:data' → { source, view }
+ * Legacy format: 'docType-viewId' → { docType, viewId, isInvalid }
+ *
+ * @param {string} type
+ * @returns {{ source: string, view: string } | { docType: string, viewId: string, isInvalid: boolean } | null}
  */
 function parseType(type) {
-  if (!isSplitType(type)) return null;
+  // Try new format first
+  const newParsed = parseSplitDataType(type);
+  if (newParsed) return newParsed;
+
+  // Legacy fallback
+  if (!NAME_SPLIT_REGEX.test(type)) return null;
   const isInvalid = type.endsWith('-invalid-entry');
   const core = isInvalid ? type.slice(0, -'-invalid-entry'.length) : type;
   const lastDash = core.lastIndexOf('-');
@@ -68,6 +75,35 @@ function sanitize(name) {
     .replace(/[^a-z0-9_]/g, '');
 }
 
+/**
+ * Derive the split table suffix from a type string.
+ * Handles both new format ({source}|{view}:data) and legacy ({docType}-{viewId}).
+ *
+ * @param {string} type
+ * @param {number|string|null} sourceId - optional source record ID for preferred naming
+ * @returns {string} table name like 'data_items__s42_v1_traffic_counts'
+ */
+function splitTableName(type, sourceId) {
+  const parsed = parseType(type);
+  if (!parsed) return `data_items__${sanitize(type)}`;
+
+  // New format: { source, view }
+  if ('source' in parsed) {
+    if (sourceId != null) {
+      return `data_items__s${sourceId}_v${sanitize(parsed.view)}_${sanitize(parsed.source)}`;
+    }
+    // Fallback without sourceId — should not happen in normal flow
+    return `data_items__${sanitize(parsed.source)}_v${sanitize(parsed.view)}`;
+  }
+
+  // Legacy format: { docType, viewId, isInvalid }
+  if (sourceId != null) {
+    return `data_items__s${sourceId}_v${parsed.viewId}_${sanitize(parsed.docType)}`;
+  }
+  const core = type.endsWith('-invalid-entry') ? type.slice(0, -'-invalid-entry'.length) : type;
+  return `data_items__${sanitize(core)}`;
+}
+
 // PostgreSQL max identifier length
 const PG_MAX_IDENT = 63;
 
@@ -80,12 +116,23 @@ function pgIdent(name) {
 }
 
 /**
+ * Resolve the PostgreSQL schema for an app in per-app mode.
+ * Returns 'dms' for legacy mode or SQLite, 'dms_{appKey}' for per-app PG.
+ */
+function resolveSchema(app, dbType, splitMode) {
+  if (dbType !== 'postgres' || splitMode !== 'per-app') {
+    return dbType === 'postgres' ? 'dms' : 'main';
+  }
+  return pgIdent(`dms_${sanitize(app)}`);
+}
+
+/**
  * Resolve which table an (app, type) pair should use.
  *
- * When sourceId is provided and the type is a split type, uses the new naming:
- *   data_items__s{sourceId}_v{viewId}_{docType}  (+ _invalid suffix if applicable)
- * When sourceId is null/undefined, falls back to the original naming:
- *   data_items__{sanitized_type}
+ * In legacy mode, app isolation is via the shared data_items table (no prefix).
+ * In per-app mode:
+ *   PostgreSQL: per-app schema (dms_{app}.data_items, dms_{app}.data_items__split)
+ *   SQLite:     per-app table prefix (data_items__{app}, data_items__{app}__split)
  *
  * @param {string} app
  * @param {string} type
@@ -95,36 +142,43 @@ function pgIdent(name) {
  * @returns {{ schema: string, table: string, fullName: string }}
  */
 function resolveTable(app, type, dbType, splitMode = 'legacy', sourceId = null) {
-  const schema = dbType === 'postgres' ? 'dms' : 'main';
   const isPg = dbType === 'postgres';
 
-  const result = (table) => {
-    // PostgreSQL identifiers are capped at 63 chars
-    const t = isPg ? pgIdent(table) : table;
-    return { schema, table: t, fullName: isPg ? `${schema}.${t}` : t };
-  };
-
   if (splitMode === 'legacy') {
+    const schema = isPg ? 'dms' : 'main';
+    const result = (table) => {
+      const t = isPg ? pgIdent(table) : table;
+      return { schema, table: t, fullName: isPg ? `${schema}.${t}` : t };
+    };
+
     if (isSplitType(type)) {
-      if (sourceId != null) {
-        const parsed = parseType(type);
-        const suffix = parsed.isInvalid ? '_invalid' : '';
-        return result(`data_items__s${sourceId}_v${parsed.viewId}_${parsed.docType}${suffix}`);
-      }
-      return result(`data_items__${sanitize(type)}`);
+      return result(splitTableName(type, sourceId));
     }
     return result('data_items');
   }
 
-  // per-app mode: all tables include app prefix for full isolation
+  // per-app mode
   const appKey = sanitize(app);
-  if (isSplitType(type)) {
-    if (sourceId != null) {
-      const parsed = parseType(type);
-      const suffix = parsed.isInvalid ? '_invalid' : '';
-      return result(`data_items__${appKey}__s${sourceId}_v${parsed.viewId}_${parsed.docType}${suffix}`);
+  const schema = resolveSchema(app, dbType, splitMode);
+
+  if (isPg) {
+    // PostgreSQL: app isolation via schema, table names are clean
+    const result = (table) => {
+      const t = pgIdent(table);
+      return { schema, table: t, fullName: `${schema}.${t}` };
+    };
+
+    if (isSplitType(type)) {
+      return result(splitTableName(type, sourceId));
     }
-    return result(`data_items__${appKey}__${sanitize(type)}`);
+    return result('data_items');
+  }
+
+  // SQLite: app isolation via table name prefix (no schema support)
+  const result = (table) => ({ schema: 'main', table, fullName: table });
+
+  if (isSplitType(type)) {
+    return result(`data_items__${appKey}__${splitTableName(type, sourceId).slice('data_items__'.length)}`);
   }
   return result(`data_items__${appKey}`);
 }
@@ -197,13 +251,28 @@ function getSequenceName(app, dbType, splitMode) {
   }
   // per-app mode
   const appKey = sanitize(app);
-  if (dbType === 'postgres') return `dms.seq__${appKey}`;
+  if (dbType === 'postgres') {
+    const schema = resolveSchema(app, dbType, splitMode);
+    return `${schema}.data_items_id_seq`;
+  }
   return `seq__${appKey}`;
 }
 
 /**
+ * Ensure the per-app PostgreSQL schema exists. No-op for SQLite or legacy mode.
+ */
+async function ensureSchema(db, app, dbType, splitMode) {
+  if (dbType !== 'postgres' || splitMode !== 'per-app') return;
+  const schema = resolveSchema(app, dbType, splitMode);
+  const cacheKey = `schema:${schema}`;
+  if (_seqCache.has(cacheKey)) return;
+  await db.query(`CREATE SCHEMA IF NOT EXISTS ${schema}`);
+  _seqCache.add(cacheKey);
+}
+
+/**
  * Ensure a per-app (or global legacy) sequence exists.
- * PostgreSQL: CREATE SEQUENCE IF NOT EXISTS
+ * PostgreSQL: CREATE SEQUENCE IF NOT EXISTS (in the app's schema for per-app mode)
  * SQLite: CREATE TABLE IF NOT EXISTS (simulated sequence)
  *
  * @param {Object} db - Database adapter
@@ -212,6 +281,8 @@ function getSequenceName(app, dbType, splitMode) {
  * @param {string} splitMode
  */
 async function ensureSequence(db, app, dbType, splitMode) {
+  await ensureSchema(db, app, dbType, splitMode);
+
   const seqName = getSequenceName(app, dbType, splitMode);
   const cacheKey = `seq:${seqName}`;
   if (_seqCache.has(cacheKey)) return seqName;
@@ -238,8 +309,9 @@ async function ensureSequence(db, app, dbType, splitMode) {
  * @param {string} seqName - Sequence name for PostgreSQL DEFAULT
  */
 async function ensureTable(db, schema, table, dbType, seqName) {
-  // Don't auto-create the base data_items — that's handled by schema init
-  if (table === 'data_items') return;
+  // Don't auto-create the base data_items in the shared 'dms' schema —
+  // that's handled by schema init. Per-app schemas need their own data_items.
+  if (table === 'data_items' && schema === 'dms') return;
 
   const cacheKey = `${schema}.${table}`;
   if (_tableCache.has(cacheKey)) return;
@@ -293,8 +365,10 @@ module.exports = {
   isSplitType,
   parseType,
   sanitize,
+  resolveSchema,
   resolveTable,
   getSequenceName,
+  ensureSchema,
   ensureSequence,
   ensureTable,
   allocateId,

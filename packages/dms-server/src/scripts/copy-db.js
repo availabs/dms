@@ -261,7 +261,7 @@ function createWriter(targetDb, tgtTable, isFormats) {
       await targetDb.query(`
         INSERT INTO ${name} (id, app, type, attributes, created_at, updated_at)
         OVERRIDING SYSTEM VALUE
-        SELECT u.id, u.app, u.type, u.attrs::jsonb, u.created_at, u.updated_at
+        SELECT u.id, u.app, u.type, u.attrs::jsonb, u.created_at::timestamptz, u.updated_at::timestamptz
         FROM unnest($1::int[], $2::text[], $3::text[], $4::text[], $5::text[], $6::text[])
         AS u(id, app, type, attrs, created_at, updated_at)
       `, [
@@ -279,7 +279,7 @@ function createWriter(targetDb, tgtTable, isFormats) {
     if (rows.length === 0) return;
     await targetDb.query(`
       INSERT INTO ${name} (id, app, type, data, created_at, created_by, updated_at, updated_by)
-      SELECT u.id, u.app, u.type, u.data::jsonb, u.created_at, u.created_by, u.updated_at, u.updated_by
+      SELECT u.id, u.app, u.type, u.data::jsonb, u.created_at::timestamptz, u.created_by::int, u.updated_at::timestamptz, u.updated_by::int
       FROM unnest($1::int[], $2::text[], $3::text[], $4::text[], $5::text[], $6::text[], $7::text[], $8::text[])
       AS u(id, app, type, data, created_at, created_by, updated_at, updated_by)
     `, [
