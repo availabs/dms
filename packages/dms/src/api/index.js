@@ -196,10 +196,12 @@ export async function dmsDataLoader (falcor, config, path='/') {
 	const sync = _getSyncAPI();
 	const mainAction = activeConfigs[0]?.action;
 	if (sync && ['list', 'view', 'edit'].includes(mainAction)) {
-		// Bootstrap pattern on-demand if not yet loaded
+		// If pattern isn't loaded yet, kick off bootstrap in the background
+		// and fall through to Falcor for this request. Next navigation will
+		// hit local SQLite once the bootstrap completes.
 		if (!sync.isLocal(app, type) && sync.bootstrapPattern && type) {
-			if (_DEV) console.log(`[dms:api] ${app}+${type} action=${mainAction} — not in sync scope, bootstrapping pattern...`);
-			await sync.bootstrapPattern(type);
+			if (_DEV) console.log(`[dms:api] ${app}+${type} action=${mainAction} — not in sync scope, bootstrapping in background`);
+			sync.bootstrapPattern(type); // fire and forget
 		}
 		if (sync.isLocal(app, type)) {
 			const localResult = await loadFromLocalDB(sync, app, type, format, dmsAttrsConfigs, activeConfigs, path);

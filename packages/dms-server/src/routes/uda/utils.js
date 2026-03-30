@@ -393,12 +393,28 @@ function getValuesFromGroup(node) {
   return [[node.value]];
 }
 
-function buildLeafSQL(node, ctx, isDms) {
+function buildLeafSQL(node, ctx, isDms, dbType) {
   const { col, op, value, isExternal } = node;
   // External filters are already applied via old-style filter/like/etc. objects —
   // they exist in filterGroups only for UI tracking, not SQL generation.
   // Also skip nodes with no value (would generate a placeholder with no matching param).
   if (isExternal || value == null) return '';
+
+  // array_contains / array_not_contains: check if a JSON array column contains (or doesn't contain) any of the given values
+  if (op === 'array_contains' || op === 'array_not_contains') {
+    const vals = Array.isArray(value) ? value : [value];
+    if (!vals.length) return '';
+    const index = `$${++ctx.index}`;
+    const not = op === 'array_not_contains' ? 'NOT ' : '';
+    if (dbType === 'sqlite') {
+      // json_each returns rows with a .value column
+      return `${not}EXISTS (SELECT 1 FROM json_each(${col}) _ac WHERE _ac.value = ANY(${index}))`;
+    }
+    // PostgreSQL: jsonb_array_elements_text returns scalar text rows
+    // ::jsonb cast handles both text columns (data->>'col') and native jsonb columns
+    return `${not}EXISTS (SELECT 1 FROM jsonb_array_elements_text((${col})::jsonb) _ac WHERE _ac = ANY(${index}))`;
+  }
+
   const vals = Array.isArray(value) ? value : [value];
   const index = vals.some(v => !['null', 'not null'].includes(v))
     ? `$${++ctx.index}`
@@ -406,18 +422,18 @@ function buildLeafSQL(node, ctx, isDms) {
   return handleFiltersType(col, vals, index, op, isDms);
 }
 
-function buildGroupSQL(node, ctx, isDms) {
+function buildGroupSQL(node, ctx, isDms, dbType) {
   const clauses = node.groups
-    .map(child => child.groups ? buildGroupSQL(child, ctx, isDms) : buildLeafSQL(child, ctx, isDms))
+    .map(child => child.groups ? buildGroupSQL(child, ctx, isDms, dbType) : buildLeafSQL(child, ctx, isDms, dbType))
     .filter(Boolean);
   if (!clauses.length) return '';
   return `(${clauses.join(` ${node.op.toLowerCase()} `)})`;
 }
 
-function handleFilterGroups({ filterGroups, isDms, startIndex = 0 }) {
+function handleFilterGroups({ filterGroups, isDms, startIndex = 0, dbType }) {
   if (!filterGroups || !filterGroups.groups?.length) return { sql: '', values: [] };
   const ctx = { index: startIndex, values: [] };
-  const sql = buildGroupSQL(filterGroups, ctx, isDms);
+  const sql = buildGroupSQL(filterGroups, ctx, isDms, dbType);
   return { sql, values: ctx.values };
 }
 
@@ -453,9 +469,9 @@ function handleOrderBy(orders, dmsAttributes) {
 /**
  * Build a combined WHERE clause from both old-style simple filters and new-style filterGroups.
  */
-function buildCombinedWhere({ filter, exclude, gt, gte, lt, lte, like, filterRelation, filterGroups, isDms, app, type, oldValues }) {
+function buildCombinedWhere({ filter, exclude, gt, gte, lt, lte, like, filterRelation, filterGroups, isDms, app, type, oldValues, dbType }) {
   const oldWhere = handleFilters({ filter, exclude, gt, gte, lt, lte, like, filterRelation, isDms, app, type });
-  const { sql: newWhere } = handleFilterGroups({ filterGroups, isDms, startIndex: oldValues.length });
+  const { sql: newWhere } = handleFilterGroups({ filterGroups, isDms, startIndex: oldValues.length, dbType });
 
   if (oldWhere && newWhere) {
     return `WHERE (${oldWhere.replace(/^WHERE\s*/, '')}) ${filterRelation} ${newWhere}`;

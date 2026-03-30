@@ -20,7 +20,7 @@ export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addIte
                                 currentPage, infiniteScrollFetchData}) => {
     const { UI, theme} = React.useContext(ThemeContext) || {}
     const {Table} = UI;
-    const {state:{columns=[], sourceInfo={}, display={}, data=[], localFilteredData, fullData}, setState, controls={}, isActive, activeStyle} = useContext(ComponentContext);
+    const {state:{columns=[], externalSource: sourceInfo={}, display={}, data=[], localFilteredData, fullData}, setState, controls={}, isActive, activeStyle} = useContext(ComponentContext);
     const gridRef = useRef(null);
 
     const visibleAttributes = useMemo(() => columns.filter(({show}) => show), [columns]);
@@ -141,11 +141,11 @@ export default {
     showAllColumnsControl: false,
     themeKey: 'table',
     defaultState: {
-        dataRequest: {},
+        filters: { op: 'AND', groups: [] },
         display: { usePagination: true, pageSize: 5 },
         columns: [],
         data: [],
-        sourceInfo: { columns: []}
+        externalSource: { columns: []}
     },
     controls: {
         columns: [

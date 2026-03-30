@@ -31,8 +31,8 @@ export const ExternalFilters = ({ defaultOpen = true }) => {
     const { Icon } = UI;
     const [open, setOpen] = useState(defaultOpen);
 
-    const columns = state?.sourceInfo?.columns || [];
-    const filterGroups = state?.dataRequest?.filterGroups;
+    const columns = state?.externalSource?.columns || [];
+    const filterGroups = state?.filters;
 
     const externalConditions = useMemo(
         () => getExternalConditions(filterGroups),
@@ -41,7 +41,7 @@ export const ExternalFilters = ({ defaultOpen = true }) => {
 
     const updateNodeAtPath = (path, updater) => {
         setState(draft => {
-            let cursor = draft.dataRequest.filterGroups;
+            let cursor = draft.filters;
             for (let i = 0; i < path.length - 1; i++) {
                 cursor = cursor.groups[path[i]];
             }

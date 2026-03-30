@@ -62,11 +62,11 @@ const graphOptions = {
     }
 }
 const defaultState = {
-    dataRequest: {},
+    filters: { op: 'AND', groups: [] },
     columns: [],
     data: [],
     display: graphOptions,
-    sourceInfo: { columns: [] }
+    externalSource: { columns: [] }
 }
 
 export default {

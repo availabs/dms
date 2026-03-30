@@ -1,7 +1,7 @@
 import { useContext, useEffect, useMemo, useState, useCallback } from "react";
 import { get, isEqual } from "lodash-es";
-import { nameToSlug } from "../../../../utils/type-utils";
-import { CMSContext, PageContext } from "../../context";
+import { nameToSlug } from "../../../../../../utils/type-utils";
+import { CMSContext, PageContext } from "../../../../context";
 
 const range = (start, end) => Array.from({ length: end + 1 - start }, (_, k) => k + start);
 
@@ -86,8 +86,8 @@ export function useDataSource({ state, setState, sourceTypes = ["external", "int
 
     const [sources, setSources] = useState([]);
     const [views, setViews] = useState([]);
-    const sourceId = (state.sourceInfo?.source_id);
-    const viewId = (state.sourceInfo?.view_id);
+    const sourceId = (state?.externalSource?.source_id);
+    const viewId = (state?.externalSource?.view_id);
 
     const sectionColumns = useMemo(
         () =>
@@ -128,25 +128,28 @@ export function useDataSource({ state, setState, sourceTypes = ["external", "int
     // ================================================ load sources ===================================================
     // =================================================================================================================
 
+    const envsKeyCount = Object.keys(envs).length;
     useEffect(() => {
+        if (!envsKeyCount) return;
         const timeoutId = setTimeout(() => {
             getSources({ envs, falcor }).then((data) => {
                 setSources(data);
 
                 const existing = data.find((d) => +d.source_id === +sourceId);
 
-                if (existing && !isEqual(existing.columns, state.sourceInfo?.columns)) {
-                    // Include baseUrl from envs when updating sourceInfo
+                if (existing && !isEqual(existing.columns, state?.externalSource?.columns)) {
+                    // Include baseUrl from envs when updating externalSource
                     const baseUrl = envs[existing.srcEnv]?.baseUrl || '';
                     setState((draft) => {
-                        draft.sourceInfo = { ...draft.sourceInfo, ...existing, baseUrl };
+                        if (!draft) return;
+                        draft.externalSource = { ...draft.externalSource, ...existing, baseUrl };
                     });
                 }
             })
         }, 300);
 
         return () => clearTimeout(timeoutId);
-    }, []);
+    }, [envsKeyCount]);
 
     // =================================================================================================================
     // ================================================ load views =====================================================
@@ -183,7 +186,7 @@ export function useDataSource({ state, setState, sourceTypes = ["external", "int
                     // Get baseUrl for internal sources
                     const internalBaseUrl = datasources?.find(ds => ds.type === 'internal')?.baseUrl || '/forms';
 
-                    draft.sourceInfo = {
+                    draft.externalSource = {
                         isDms: true,
                         app,
                         type: sourceType === "pages"
@@ -203,7 +206,7 @@ export function useDataSource({ state, setState, sourceTypes = ["external", "int
                     const newColumnsNames = newColumns.map(c => c.name);
                     draft.columns = draft.columns.filter(c => newColumnsNames.includes(c.name)).map(c => ({...c, ...newColumns.find(newC => newC.name === c.name)}));
                     const baseUrl = envs[match.srcEnv]?.baseUrl || '';
-                    draft.sourceInfo = { ...match, baseUrl };
+                    draft.externalSource = { ...match, baseUrl };
                 }
             });
         },
@@ -218,8 +221,8 @@ export function useDataSource({ state, setState, sourceTypes = ["external", "int
             const { view_id, name, version, updated_at, _modified_timestamp } = view;
 
             setState((draft) => {
-                draft.sourceInfo = {
-                    ...draft.sourceInfo,
+                draft.externalSource = {
+                    ...draft.externalSource,
                     view_id,
                     view_name: version || name,
                     updated_at: _modified_timestamp || updated_at,

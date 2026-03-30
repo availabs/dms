@@ -65,7 +65,7 @@ export default function EditWrapper({ Component, format, options, params, user, 
 		if (import.meta.env.DEV) {
 			const t = config?.format?.type || type;
 			const a = config?.format?.app || app;
-			console.log(`[dms:wrapper] apiUpdate ${a}+${t} req=${requestType || 'save'} id=${data?.id || 'new'} path=${newPath} skipNav=${skipNavigate}`);
+			console.log(`[dms:wrapper] apiUpdate ${a}+${t} req=${requestType || 'save'} id=${data?.id || 'new'} path=${newPath} `);
 		}
 
 		// Snapshot before dmsDataEditor mutates data (it strips dms-format

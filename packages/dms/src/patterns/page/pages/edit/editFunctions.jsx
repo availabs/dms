@@ -168,6 +168,7 @@ export const publish = async (user, item, apiUpdate) => {
     },[])
 
   newItem.section_groups = cloneDeep(item.draft_section_groups)
+  newItem.dataSources = cloneDeep(item.draft_dataSources)
   console.log('publishing item', newItem)
   apiUpdate({data:newItem})
 

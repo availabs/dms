@@ -64,7 +64,7 @@ const gridClasses = {
 
 
 export default function ColumnControls({context, cms_context}) {
-    const {state: {columns=[], sourceInfo={}, display}, setState, controls= {}} = useContext(context || ComponentContext);
+    const {state: {columns=[], externalSource={}, display}, setState, controls= {}} = useContext(context || ComponentContext);
     const { UI } = React.useContext(ThemeContext) || {UI: {Icon: () => <></>, Pill: () => <></>, Switch: () => <></>}}
     if(!controls.columns?.length) return;
     const { Icon, Switch, Pill, Button, Popup } = UI;
@@ -73,7 +73,7 @@ export default function ColumnControls({context, cms_context}) {
     const [search, setSearch] = useState();
 
     const columnsToRender =
-        [...columns, ...(sourceInfo?.columns || []).filter(c => !columns.map(c => c.name).includes(c.name))]
+        [...columns, ...(externalSource?.columns || []).filter(c => !columns.map(c => c.name).includes(c.name))]
             .filter(attribute => (
                 !search ||
                 getColumnLabel(attribute).toLowerCase().includes(search.toLowerCase()))
@@ -106,7 +106,7 @@ export default function ColumnControls({context, cms_context}) {
             // map original columns to columns with settings, and then filter out extra columns.
             const names = copyListItems.map(c => c.name);
             draft.columns = copyListItems //.map(originalColumn => columns.find(colWithSettings => colWithSettings.name === originalColumn.name)).filter(c => c);
-            draft.sourceInfo.columns = [...copyListItems, ...draft.sourceInfo.columns.filter(c => !names.includes(c.name))];
+            draft.externalSource = { ...draft.externalSource, columns: [...copyListItems, ...draft.externalSource.columns.filter(c => !names.includes(c.name))] };
         })
     };
     // ================================================== drag utils end ===============================================
@@ -165,7 +165,7 @@ export default function ColumnControls({context, cms_context}) {
     const toggleGlobalVisibility = useCallback((show = true) => {
         setState(draft => {
             const isGrouping = draft.columns.some(({group}) => group);
-            (draft.sourceInfo.columns || []).forEach(column => {
+            (draft.externalSource.columns || []).forEach(column => {
                 let idx = draft.columns.findIndex(draftColumn => isEqualColumns(draftColumn, column));
 
                 if (idx === -1) {
@@ -215,7 +215,7 @@ export default function ColumnControls({context, cms_context}) {
 
     const resetAllColumns = useCallback(() => setState(draft => {
         draft.columns = []
-        draft.dataRequest = {}
+        draft.filters = { op: 'AND', groups: [] }
     }), [columns]);
 
     const toggleIdFilter = useCallback(() =>
@@ -231,7 +231,7 @@ export default function ColumnControls({context, cms_context}) {
     const totalControlColsLen = 2 + controls.columns.length;
     const {gridClass, gridTemplateColumns, width} = gridClasses[totalControlColsLen];
 
-    const isEveryColVisible = (sourceInfo.columns || []).map(({name}) => columns.find(column => column.name === name)).every(column => column?.show);
+    const isEveryColVisible = (externalSource.columns || []).map(({name}) => columns.find(column => column.name === name)).every(column => column?.show);
     const isSystemIDColOn = columns.find(c => c.systemCol && c.name === 'id');
     return (
         <div className="inline-block text-left">

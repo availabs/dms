@@ -11,8 +11,8 @@ export const attributionTheme = {
 
 export const Attribution = () => {
     const { theme = { attribution: attributionTheme } } = React.useContext(ThemeContext) || {}
-    // baseUrl is now included in sourceInfo by useDataSource.js
-    const {state:{sourceInfo: {source_id, name, view_name, updated_at, baseUrl}}} = useContext(ComponentContext);
+    // baseUrl is now included in externalSource by useDataSource.js
+    const {state:{externalSource: {source_id, name, view_name, updated_at, baseUrl}}} = useContext(ComponentContext);
     const dateOptions = {year: "numeric", month: "long", day: "numeric", hour: "numeric", minute: "numeric"};
     const updatedTimeString = updated_at ? new Date(updated_at).toLocaleString(undefined, dateOptions) : null;
 

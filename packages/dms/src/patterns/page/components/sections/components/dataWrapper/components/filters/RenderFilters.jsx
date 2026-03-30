@@ -45,7 +45,7 @@ export const RenderFilters = ({ isEdit, defaultOpen = true }) => {
     const [open, setOpen] = useState(defaultOpen);
     const [filterOptions, setFilterOptions] = useState([]); // [{column, uniqValues}]
     const [loading, setLoading] = useState(false);
-    const isDms = state.sourceInfo?.isDms;
+    const isDms = state.externalSource?.isDms;
     const filterColumnsToTrack = useMemo(() => (state.columns || []).filter(({ filters, isDuplicate }) => filters?.length && !isDuplicate), [state.columns]);
     const filterValuesToTrack = useMemo(() =>
         (state.columns || []).filter(({ filters, isDuplicate }) => filters?.length && filters?.[0]?.values?.length && !isDuplicate).reduce((acc, f) => {acc.push(f.filters[0].values); return acc;}, []), [state.columns]);
@@ -145,7 +145,7 @@ export const RenderFilters = ({ isEdit, defaultOpen = true }) => {
                                         refName: getAttributeAccessorStr(columnName),
                                         allAttributes: [filterColumn],
                                         apiLoad,
-                                        format: state.sourceInfo,
+                                        format: state.externalSource,
                                     });
 
                                     const selectedValues = filter.values
@@ -183,7 +183,7 @@ export const RenderFilters = ({ isEdit, defaultOpen = true }) => {
                         // build a filterOptions object including each filter type (filter, exclude, gt, gte...),
                         // for filter and exclude types, and multiselect column combination, pull value sets for
                         let data = await getData({
-                            format: state.sourceInfo,
+                            format: state.externalSource,
                             apiLoad,
                             // length,
                             reqName: getFormattedAttributeStr(columnName), // column name with as

@@ -333,7 +333,7 @@ async function simpleFilterLength(env, view_id, options) {
 
   const combinedWhere = buildCombinedWhere({
     filter, exclude, gt, gte, lt, lte, like, filterRelation,
-    filterGroups, isDms, app, type, oldValues
+    filterGroups, isDms, app, type, oldValues, dbType: db.type
   });
 
   // Check for jsonb_array_elements_text (PG) or json_each (SQLite) in groupBy
@@ -411,7 +411,7 @@ async function simpleFilter(env, view_id, options, attributes, indices) {
 
   const combinedWhere = buildCombinedWhere({
     filter, exclude, gt, gte, lt, lte, like, filterRelation,
-    filterGroups, isDms, app, type, oldValues
+    filterGroups, isDms, app, type, oldValues, dbType: db.type
   });
 
   const sql = `

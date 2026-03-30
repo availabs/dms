@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation, useSearchParams} from "react-router";
 import {cloneDeep} from "lodash-es";
 import {useImmer} from "use-immer";
 import { ThemeContext, mergeTheme } from "../../../../ui/useTheme";
-import { CMSContext, PageContext } from '../../context'
+import { CMSContext, PageContext, DataSourceContext } from '../../context'
 import {
     sectionsEditBackill, dataItemsNav, nav2Level, mergeFilters, detectNavLevel, getInPageNav,
     convertToUrlParams, updatePageStateFiltersOnSearchParamChange, initNavigateUsingSearchParams, getPageAuthPermissions
@@ -23,6 +23,36 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
 
 	const [ pageState, setPageState ] = useImmer({ ...item, filters: mergeFilters(item.filters, patternFilters) });
 	const [ editPane, setEditPane ] = React.useState({ open: false, index: 1, showGrid: false });
+	const [ draftDataSources, setDraftDataSources ] = useImmer(item.draft_dataSources || {});
+
+	const dataSourceActions = React.useMemo(() => ({
+		dataSources: draftDataSources,
+
+		setDataSource: (id, updater) => {
+			setDraftDataSources(draft => {
+				if (typeof updater === 'function') {
+					updater(draft[id]);
+				} else {
+					draft[id] = { ...(draft[id] || {}), ...updater };
+				}
+			});
+		},
+
+		removeDataSource: (id) => {
+			setDraftDataSources(draft => { delete draft[id]; });
+		},
+
+		createDataSource: (config = {}) => {
+			const id = `ds-${crypto.randomUUID().slice(0, 8)}`;
+			const newSource = { id, name: config.name || 'New Source', ...config };
+			setDraftDataSources(draft => { draft[id] = newSource; });
+			return id;
+		},
+
+		saveDataSources: () => {
+			apiUpdate({ data: { id: item.id, draft_dataSources: draftDataSources } });
+		},
+	}), [draftDataSources, apiUpdate, item.id]);
 
 	const { Layout } = UI;
 	const theme = mergeTheme(fullTheme, item?.theme || {});
@@ -71,6 +101,18 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
 
 	},[])
 
+
+	// Debounced save for data source changes
+	const draftDataSourcesRef = React.useRef(item.draft_dataSources || {});
+	useEffect(() => {
+		// Skip initial render and no-change cases
+		if (draftDataSources === draftDataSourcesRef.current) return;
+		draftDataSourcesRef.current = draftDataSources;
+		const timeout = setTimeout(() => {
+			apiUpdate({ data: { id: item.id, draft_dataSources: draftDataSources } });
+		}, 500);
+		return () => clearTimeout(timeout);
+	}, [draftDataSources]);
 
 	useEffect(() => {
 		updatePageStateFiltersOnSearchParamChange({searchParams, item, patternFilters, setPageState})
@@ -141,6 +183,7 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
 	}
 
 	return (
+		<DataSourceContext.Provider value={dataSourceActions}>
 		<PageContext.Provider value={{
 			item,
 			pageState,
@@ -167,6 +210,7 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
         </Layout>
 			</ThemeContext.Provider>
 		</PageContext.Provider>
+		</DataSourceContext.Provider>
 	)
 }
 

@@ -241,6 +241,17 @@ const cmsPageFormat = {
       format: 'dms-site+component',
       DisplayComp: SectionArray
     },
+    // page-level data source configs (Phase 5)
+    {
+      key: 'dataSources',
+      type: "json",
+      hidden: true
+    },
+    {
+      key: 'draft_dataSources',
+      type: "json",
+      hidden: true
+    },
     // status
     {
       key: 'published',

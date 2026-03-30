@@ -11,7 +11,7 @@ import {
     updatePageStateFiltersOnSearchParamChange
 } from './_utils'
 import SectionGroup from '../components/sections/sectionGroup'
-import { PageContext, CMSContext } from '../context';
+import { PageContext, CMSContext, DataSourceContext } from '../context';
 import { ThemeContext, mergeTheme } from "../../../ui/useTheme";
 
 function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdate, reqPermissions, format,busy}) {
@@ -119,7 +119,15 @@ function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdat
       ))
   }
 
+  const dataSourceActions = React.useMemo(() => ({
+      dataSources: item.dataSources || {},
+      setDataSource: () => {},
+      removeDataSource: () => {},
+      createDataSource: () => {},
+  }), [item.dataSources]);
+
   return (
+      <DataSourceContext.Provider value={dataSourceActions}>
       <PageContext.Provider
         value={{ item, pageState, setPageState, updatePageStateFilters, dataItems, apiLoad, apiUpdate, format, busy, baseUrl }}
       >
@@ -135,6 +143,7 @@ function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdat
           </Layout>
         </ThemeContext.Provider>
       </PageContext.Provider>
+      </DataSourceContext.Provider>
 
   )
 }

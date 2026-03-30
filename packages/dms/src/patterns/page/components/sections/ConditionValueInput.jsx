@@ -44,7 +44,7 @@ const useColumnOptions = (columnName, columns, operation, search, selectedValues
     const [loading, setLoading] = useState(false);
     const prevSearchRef = useRef('');
 
-    const sourceInfo = state?.sourceInfo;
+    const sourceInfo = state?.externalSource;
     const isDms = sourceInfo?.isDms;
 
     useEffect(() => {

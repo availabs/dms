@@ -46,13 +46,13 @@ export const ComplexFilters = ({ state, setState }) => {
 
     const columns = [
         ...(state.columns || []).filter(c => c.systemCol),
-        ...(state.sourceInfo?.columns || [])
+        ...(state.externalSource?.columns || [])
     ];
     const isGrouping = (state.columns || []).some(c => c.group);
 
     const [filterGroups, updateFilterGroups] = useImmer(
-        Object.entries(state?.dataRequest?.filterGroups || {}).length ?
-            state?.dataRequest?.filterGroups || {} : { op: 'AND', groups: [] }
+        Object.entries(state?.filters || {}).length ?
+            state?.filters || {} : { op: 'AND', groups: [] }
     );
 
     // sync inbound: page filters → condition values
@@ -100,7 +100,7 @@ export const ComplexFilters = ({ state, setState }) => {
     // sync upward if needed
     const save = () => {
         setState(draft => {
-            draft.dataRequest.filterGroups = filterGroups;
+            draft.filters = filterGroups;
         });
     };
 

@@ -48,6 +48,7 @@
 - [x] Test suite per-app mode — migrate test code from legacy `byId` route to app-namespaced route, set all test configs to `splitMode: "per-app"`, verify on SQLite + PostgreSQL
 - [x] Fix auth test PG socket hang up — `test-auth.js` test #14 (Falcor created_by/updated_by) fails on PostgreSQL with `ECONNRESET`; client disconnects before Falcor route response arrives
 - [ ] Split table virtual columns — auto-generate SQLite virtual columns + indexes (and PG expression indexes) from source config attributes for B-tree query speed on dataset tables
+- [x] UDA array contains filter — server-side `array_contains` + `array_not_contains` operations for multiselect columns; removed ~235 lines of async multiselect resolution from client utils.jsx; unblocks synchronous `buildUdaConfig`
 - [x] Database copy CLI — `src/scripts/copy-db.js` copies all DMS data between databases (PG↔SQLite, same-type), preserving IDs, handling cross-DB types, batch processing, split table discovery
 - [x] Dead row cleanup CLI — `src/scripts/cleanup-db.js` analyzes DMS database for orphaned rows (sections without pages, patterns without sites, views without sources), grouped by app+type, with optional `--delete` mode
 - [ ] Cleanup: protect dmsEnv-linked sources — `findOrphanedSources` only validates against pattern `doc_type`, not dmsEnv refs; sources owned by a dmsEnv can be incorrectly flagged as orphans
@@ -86,7 +87,8 @@
 - [x] Move lexical component inline controls (style, bgColor, showToolbar) to control config
 - [x] Theme-based component registration (allow themes to declare `pageComponents` that auto-register to page pattern)
 - [x] Consolidate page-edit history — replace per-edit `data_items` rows with single row per page holding `entries[]` array; update format, editFunctions, historyPane; migration script for existing databases
-- [ ] DataWrapper & data sources re-architecture — separate datawrapper from section (clean interface), separate UDA config building from data loading/caching, self-describing output sourceInfo for chainability, join support (multi-source UDA configs with WITH/JOIN), page-level data source management with dedicated edit pane
+- [ ] DataWrapper & data sources re-architecture — Phases 1-5B done (buildUdaConfig, useDataLoader, useDataWrapperAPI, outputSourceInfo, page-level dataSources, section↔dataWrapper separation, v2 schema). Remaining: Phase 6 (developer docs), page filter runtime resolution (5.18)
+- [ ] DataWrapper join support — multi-source UDA configs with WITH/JOIN, join DSL, server-side SQL generation, join UI in data sources pane
 
 ### patterns/mapeditor
 

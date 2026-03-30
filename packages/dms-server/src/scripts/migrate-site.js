@@ -17,6 +17,7 @@
  *   node migrate-site.js --source legacy-db --target modern-db --app myapp --type prod
  *   node migrate-site.js --source legacy-db --target modern-db --app myapp --type prod --apply
  *   node migrate-site.js --source legacy-db --target modern-db --app myapp --type prod --ignore docs,blog
+ *   node migrate-site.js --source legacy-db --target modern-db --app myapp --type prod --include songs,redesign
  */
 
 const { loadConfig } = require('../db/config');
@@ -66,7 +67,7 @@ function clearCheckpoint(app) {
 
 function parseArgs() {
   const args = process.argv.slice(2);
-  const opts = { source: null, target: null, app: null, type: null, apply: false, reset: false, resume: false, ignore: [], imgOutput: null };
+  const opts = { source: null, target: null, app: null, type: null, apply: false, reset: false, resume: false, ignore: [], include: [], imgOutput: null };
 
   for (let i = 0; i < args.length; i++) {
     switch (args[i]) {
@@ -78,6 +79,7 @@ function parseArgs() {
       case '--reset': opts.reset = true; break;
       case '--resume': opts.resume = true; opts.apply = true; break;
       case '--ignore': opts.ignore = args[++i].split(',').map(s => s.trim()).filter(Boolean); break;
+      case '--include': opts.include = args[++i].split(',').map(s => s.trim()).filter(Boolean); break;
       case '--img-output': opts.imgOutput = args[++i]; break;
       case '--no-img': opts.imgOutput = false; break;
       default:
@@ -507,7 +509,7 @@ function printReport(stats, siteType, opts) {
 
 async function runMigration(sourceDb, targetDb, sourceConfig, targetConfig, opts) {
   const isDry = !opts.apply;
-  const { app, ignore } = opts;
+  const { app, ignore, include } = opts;
   const srcTable = getTable(sourceConfig);
   const tgtMainTable = getTable(targetConfig, app);
   const tgtDbType = targetDb.type;
@@ -734,13 +736,19 @@ async function runMigration(sourceDb, targetDb, sourceConfig, targetConfig, opts
       const rawPType = pattern._data?.pattern_type;
       const patternType = Array.isArray(rawPType) ? rawPType[0] : rawPType;
 
-      const matchesIgnore = ignore.some(ign =>
-        patternName === ign || docType === ign ||
-        nameToSlug(patternName || '') === nameToSlug(ign)
+      const matchesName = (list) => list.some(item =>
+        patternName === item || docType === item ||
+        nameToSlug(patternName || '') === nameToSlug(item)
       );
 
-      if (matchesIgnore) {
-        console.log(`  Pattern: ${patternName} (id=${pattern.id}) — IGNORED`);
+      if (matchesName(ignore)) {
+        console.log(`  Pattern: ${patternName} (id=${pattern.id}) — IGNORED (--ignore)`);
+        stats.patterns.ignored++;
+        continue;
+      }
+
+      if (include.length && !matchesName(include)) {
+        console.log(`  Pattern: ${patternName} (id=${pattern.id}) — SKIPPED (not in --include)`);
         stats.patterns.ignored++;
         continue;
       }
