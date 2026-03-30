@@ -184,7 +184,7 @@ export const discardChanges = async (user,item, apiUpdate) => {
     history: appendHistoryEntry(item.history, 'discarded changes.', user)
   }
 
-  newItem.draft_sections = item.sections.map(s => {
+  newItem.draft_sections = (item.sections || []).map(s => {
       const sectionCopy = cloneDeep(s);
       delete sectionCopy.id;
       return sectionCopy;
