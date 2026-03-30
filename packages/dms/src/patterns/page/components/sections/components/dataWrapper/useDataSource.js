@@ -238,7 +238,14 @@ export function useDataSource({ state, setState, sourceTypes = ["external", "int
         sources: [
             {key: `${app}+${type}|page`, label: `${type} (pages)`},
             {key: `${app}+${type}|component`, label: `${type} (sections)`},
-            ...sources.map(({source_id, name, srcEnv}) => ({key: source_id, label: `${name} (${envs[srcEnv]?.label || ''})`}))
+            ...sources.map(({source_id, name, srcEnv}) => {
+                // For DMS sources (env like "app+docType"), show the docType as the env label
+                // For external sources, show the configured label
+                const envLabel = srcEnv?.includes('+')
+                    ? srcEnv.split('+')[1]
+                    : envs[srcEnv]?.label;
+                return {key: source_id, label: `${name}${envLabel ? ` [${envLabel}]` : ''}`};
+            })
         ],
         views: views.map(({view_id, name, version}) => ({key: view_id, label: name || version || view_id})),
         onSourceChange,
