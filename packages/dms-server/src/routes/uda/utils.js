@@ -220,14 +220,14 @@ async function getDataTableFromViewId({ db, view_id }) {
 /**
  * Get pattern IDs for a DMS site (items with type='pattern' for the given app)
  */
-async function getSitePatterns({ db, app, splitMode }) {
+async function getSitePatterns({ db, app, env, splitMode }) {
   const tbl = await dmsMainTable(db, app, splitMode);
   // Match patterns in all formats:
   //   legacy: 'pattern' or 'siteType|pattern'
   //   new:    '{site}|{name}:pattern'
-  const sql = `SELECT id FROM ${tbl} WHERE app = $1 AND (type = 'pattern' OR type LIKE '%|pattern' OR type LIKE '%:pattern')`;
+  const sql = `SELECT id, type FROM ${tbl} WHERE app = $1 AND (type = 'pattern' OR type LIKE '%|pattern' OR type LIKE '%:pattern')`;
   const { rows } = await db.query(sql, [app]);
-  return rows.map(r => r.id);
+  return rows.filter(row => row.type.includes(env.split('+')[1])).map(r => r.id);
 }
 
 /**

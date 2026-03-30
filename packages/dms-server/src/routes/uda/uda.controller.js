@@ -66,7 +66,7 @@ async function getSourcesLength(env) {
   const { isDms, db, app, type, splitMode } = await getEssentials({ env });
 
   if (isDms) {
-    const pattern_ids = await getSitePatterns({ db, app, splitMode });
+    const pattern_ids = await getSitePatterns({ db, app, env, splitMode });
     if (!pattern_ids.length) return 0;
 
     const sources = await getSiteSources({ db, app, pattern_ids, pattern_doc_types: [type], splitMode });
@@ -85,7 +85,7 @@ async function getSourceIdsByIndex(env, indices) {
   const num = indices.to - indices.from + 1;
 
   if (isDms) {
-    const pattern_ids = await getSitePatterns({ db, app, splitMode });
+    const pattern_ids = await getSitePatterns({ db, app, env, splitMode });
     if (!pattern_ids.length) return [];
 
     const sources = await getSiteSources({ db, app, pattern_ids, pattern_doc_types: [type], splitMode });
