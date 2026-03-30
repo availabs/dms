@@ -222,12 +222,16 @@ async function getDataTableFromViewId({ db, view_id }) {
  */
 async function getSitePatterns({ db, app, env, splitMode }) {
   const tbl = await dmsMainTable(db, app, splitMode);
-  // Match patterns in all formats:
-  //   legacy: 'pattern' or 'siteType|pattern'
-  //   new:    '{site}|{name}:pattern'
-  const sql = `SELECT id, type FROM ${tbl} WHERE app = $1 AND (type = 'pattern' OR type LIKE '%|pattern' OR type LIKE '%:pattern')`;
-  const { rows } = await db.query(sql, [app]);
-  return rows.filter(row => row.type.includes(env.split('+')[1])).map(r => r.id);
+  const docType = env.includes('+') ? env.split('+')[1] : null;
+  // Match patterns containing the doc_type in their type column.
+  // Pattern types look like: 'siteType|pattern', '{site}|{name}:pattern', etc.
+  // The doc_type appears as part of the type string.
+  const sql = docType
+    ? `SELECT id FROM ${tbl} WHERE app = $1 AND (type = 'pattern' OR type LIKE '%|pattern' OR type LIKE '%:pattern') AND type LIKE '%' || $2 || '%'`
+    : `SELECT id FROM ${tbl} WHERE app = $1 AND (type = 'pattern' OR type LIKE '%|pattern' OR type LIKE '%:pattern')`;
+  const params = docType ? [app, docType] : [app];
+  const { rows } = await db.query(sql, params);
+  return rows.map(r => r.id);
 }
 
 /**
@@ -268,6 +272,7 @@ async function getSiteSources({ db, app, pattern_ids, pattern_doc_types, splitMo
     const { rows: envRows } = await db.query(envSql, [dmsEnvIds]);
     for (const envRow of envRows) {
       const sources = typeof envRow.sources === 'string' ? JSON.parse(envRow.sources) : (envRow.sources || []);
+      sources.forEach(d => console.log('s', d))
       allSources.push(...sources);
     }
   }

@@ -1197,7 +1197,14 @@ async function migrateDatasetChildren(
   const sourceMap = new Map(); // oldDocType → { slug, rowId }, also sourceId → { slug, rowId }
   const dmsEnvInfo = [...dmsEnvMap.values()].find(e => e.slug === dmsEnvSlug);
 
+  let skippedSources = 0;
   for (const src of sources) {
+    // Valid sources must have a config object (defines columns/attributes).
+    // Rows without config are stale/broken data that shouldn't be migrated as sources.
+    if (!src._data?.config) {
+      skippedSources++;
+      continue;
+    }
     const srcName = src._data?.name;
     const srcDocType = src._data?.doc_type;
     const sourceSlug = nameToSlug(srcName) || (srcDocType ? nameToSlug(srcDocType) : `source_${src.id}`);
@@ -1220,6 +1227,9 @@ async function migrateDatasetChildren(
       dmsEnvInfo.data.sources.push({ ref: `${app}+${dmsEnvSlug}|source`, id: src.id });
     }
     detail.sources++;
+  }
+  if (skippedSources) {
+    console.log(`    Skipped ${skippedSources} source rows without config (stale data)`);
   }
 
   // 6c: Load views
