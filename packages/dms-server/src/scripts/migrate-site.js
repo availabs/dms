@@ -146,6 +146,7 @@ function toJsonStr(v) {
 
 function sqliteVal(v) {
   if (v === null || v === undefined) return null;
+  if (v instanceof Date) return v.toISOString();
   if (typeof v === 'object') return JSON.stringify(v);
   return v;
 }
@@ -222,14 +223,14 @@ async function writeRows(db, fullTableName, rows) {
   if (db.type === 'sqlite') {
     const rawDb = db.getPool();
     const stmt = rawDb.prepare(
-      `INSERT INTO ${fullTableName} (id, app, type, data, created_at, created_by, updated_at, updated_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT OR IGNORE INTO ${fullTableName} (id, app, type, data, created_at, created_by, updated_at, updated_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
     );
     const insertAll = rawDb.transaction((batch) => {
       for (const row of batch) {
         stmt.run(
           row.id, row.app, row.type, sqliteVal(row.data),
-          row.created_at, row.created_by ?? null,
-          row.updated_at, row.updated_by ?? null
+          sqliteVal(row.created_at), row.created_by ?? null,
+          sqliteVal(row.updated_at), row.updated_by ?? null
         );
       }
     });
@@ -681,6 +682,17 @@ async function runMigration(sourceDb, targetDb, sourceConfig, targetConfig, opts
         for (const t of splitTables) {
           await targetDb.promise(`DROP TABLE IF EXISTS "${resolved.schema}"."${t.table_name}"`, []);
           console.log(`  Reset: dropped split table ${resolved.schema}.${t.table_name}`);
+        }
+      } else if (tgtSplitMode === 'per-app' && tgtDbType === 'sqlite') {
+        const appKey = sanitize(app);
+        const prefix = `data_items__${appKey}__`;
+        const splitTables = await targetDb.promise(
+          `SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE $1`,
+          [`${prefix}%`]
+        );
+        for (const t of splitTables) {
+          await targetDb.query(`DROP TABLE IF EXISTS "${t.name}"`);
+          console.log(`  Reset: dropped split table ${t.name}`);
         }
       }
     }
