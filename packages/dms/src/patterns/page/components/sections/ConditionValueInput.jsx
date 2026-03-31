@@ -38,7 +38,7 @@ const sortOptions = (options) =>
     );
 
 // Fetches unique values for a column (for filter/exclude multiselect)
-const useColumnOptions = (columnName, columns, operation, search, selectedValues) => {
+const useColumnOptions = (columnName, columns, operation, search, selectedValues, siblingConditions = []) => {
     const {apiLoad, state} = useContext(ComponentContext) || {};
     const [options, setOptions] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -46,6 +46,13 @@ const useColumnOptions = (columnName, columns, operation, search, selectedValues
 
     const sourceInfo = state?.externalSource;
     const isDms = sourceInfo?.isDms;
+
+    // Stable dep key — only recompute when sibling values actually change
+    const siblingFilterByKey = useMemo(() => JSON.stringify(
+        siblingConditions
+            .filter(s => s.col && s.value != null && (Array.isArray(s.value) ? s.value.length > 0 : s.value !== ''))
+            .map(s => ({ col: s.col, op: s.op, value: s.value }))
+    ), [siblingConditions]);
 
     useEffect(() => {
         if (!['filter', 'exclude'].includes(operation)) {
@@ -64,9 +71,21 @@ const useColumnOptions = (columnName, columns, operation, search, selectedValues
                 const reqName = formattedAttributeStr(columnName, isDms, isCalc);
                 const refName = attributeAccessorStr(columnName, isDms, isCalc, isSys);
 
+                // Build filterBy from sibling conditions with values
+                const siblingFilterBy = siblingConditions.reduce((acc, sibling) => {
+                    const val = sibling.value;
+                    if (!sibling.col || val == null || (Array.isArray(val) ? !val.length : val === '')) return acc;
+                    const sibIsCalc = isCalculatedCol(sibling.col, columns);
+                    const sibIsSys = isSystemCol(sibling.col, columns);
+                    const sibRef = attributeAccessorStr(sibling.col, isDms, sibIsCalc, sibIsSys);
+                    const values = Array.isArray(val) ? val : [val];
+                    acc[sibling.op] = { ...(acc[sibling.op] || {}), [sibRef]: values };
+                    return acc;
+                }, {});
+
                 const filterBy = search
-                    ? { like: { [refName]: `%${search}%` } }
-                    : {};
+                    ? { ...siblingFilterBy, like: { ...(siblingFilterBy.like || {}), [refName]: `%${search}%` } }
+                    : siblingFilterBy;
 
                 const data = await getData({
                     format: sourceInfo,
@@ -103,12 +122,12 @@ const useColumnOptions = (columnName, columns, operation, search, selectedValues
         load();
         prevSearchRef.current = search;
         return () => { cancelled = true; };
-    }, [columnName, operation, search, apiLoad, sourceInfo, isDms, columns]);
+    }, [columnName, operation, search, apiLoad, sourceInfo, isDms, columns, siblingFilterByKey]);
 
     return {options, loading};
 };
 
-export const ConditionValueInput = ({node, path, columns, updateNodeAtPath}) => {
+export const ConditionValueInput = ({node, path, columns, updateNodeAtPath, siblingConditions = []}) => {
     const {UI} = useContext(ThemeContext);
     const {ColumnTypes} = UI;
     const {pageState, updatePageStateFilters} = useContext(PageContext) || {};
@@ -117,7 +136,7 @@ export const ConditionValueInput = ({node, path, columns, updateNodeAtPath}) => 
     const isMultiselect = ['filter', 'exclude'].includes(node.op);
     const selectedValues = isMultiselect ? (Array.isArray(node.value) ? node.value : []) : [];
 
-    const {options, loading} = useColumnOptions(node.col, columns, node.op, search, selectedValues);
+    const {options, loading} = useColumnOptions(node.col, columns, node.op, search, selectedValues, siblingConditions);
 
     const onSearch = useCallback((term) => setSearch(term), []);
 

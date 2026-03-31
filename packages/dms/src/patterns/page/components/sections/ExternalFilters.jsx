@@ -13,13 +13,17 @@ const gridClasses = {
     5: 'grid-cols-5',
 }
 
-// Walks the filterGroups tree and collects leaf conditions with isExternal, along with their paths.
-const getExternalConditions = (node, path = []) => {
+// Walks the filterGroups tree and collects leaf conditions with isExternal.
+// For each, also captures sibling leaf conditions from the same AND group (for cascading options).
+const getExternalConditions = (node, path = [], parentOp = 'AND', parentLeafSiblings = []) => {
     if (!node?.groups) {
-        return node?.isExternal ? [{ node, path }] : [];
+        if (!node?.isExternal) return [];
+        const siblingConditions = parentOp === 'AND' ? parentLeafSiblings.filter(s => s !== node) : [];
+        return [{ node, path, siblingConditions }];
     }
+    const leafSiblings = node.groups.filter(child => !child.groups);
     return node.groups.flatMap((child, i) =>
-        getExternalConditions(child, [...path, i])
+        getExternalConditions(child, [...path, i], node.op, leafSiblings)
     );
 };
 
@@ -84,7 +88,7 @@ export const ExternalFilters = ({ defaultOpen = true }) => {
                       onClick={() => setOpen(false)} />
             </div>
             <div className={`grid ${gridClasses[gridSize]}`}>
-                {externalConditions.map(({ node, path }) => {
+                {externalConditions.map(({ node, path, siblingConditions }) => {
                     const column = columns.find(c => c.name === node.col);
                     const label = column ? getColumnLabel(column) : node.col;
 
@@ -99,6 +103,7 @@ export const ExternalFilters = ({ defaultOpen = true }) => {
                                     path={path}
                                     columns={columns}
                                     updateNodeAtPath={updateNodeAtPath}
+                                    siblingConditions={siblingConditions}
                                 />
                             </div>
                         </div>
