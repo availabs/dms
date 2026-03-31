@@ -137,6 +137,11 @@ const Edit = ({ value, onChange, attr, group, siteType }) => {
     const hideDebug = true
     //console.log('test 123', values, group)
 
+    let valuesToRender =  [...values,{}];
+    if(edit.type === 'new') {
+        valuesToRender.splice(edit.index, 0, {});
+    }
+
     return (
         <div className={theme?.wrapper}>
         { editPane?.showGrid && (
@@ -156,7 +161,7 @@ const Edit = ({ value, onChange, attr, group, siteType }) => {
                 ${theme?.layouts?.[group?.full_width === 'show' ? 'fullwidth' : 'centered']}
             `}>
 
-                {[...values,{}]
+                {valuesToRender
                     //.filter(v => v.group === group.name || !v.group && group?.name === 'default')
                     .map((v,i) => {
                     // only render sections in this group
@@ -202,7 +207,8 @@ const Edit = ({ value, onChange, attr, group, siteType }) => {
                                     className={theme?.addSectionButton}>
                                     <div className={theme?.spacer} />
                                     <div className={theme?.addSectionIconWrapper}>
-                                        <div><Icon icon='InsertSection' className={theme?.addSectionIcon}/></div>
+                                        <div><Icon icon='Plus' className={theme?.addSectionIcon}/></div>
+                                        <div className={theme?.addSectionTextWrapper}><div className={theme?.addSectionText}>Add</div></div>
                                     </div>
                                     <div className={theme?.spacer} />
                                 </div>
@@ -356,7 +362,8 @@ const AddSectionButton = ({onClick}) => {
                     className={theme?.addSectionButton}>
                     <div className={theme?.spacer} />
                     <div className={theme?.addSectionIconWrapper}>
-                        <div><Icon icon='InsertSection' className={theme?.addSectionIcon}/></div>
+                        <div><Icon icon='Plus' className={theme?.addSectionIcon}/></div>
+                        <div className={theme?.addSectionTextWrapper}><div className={theme?.addSectionText}>Add</div></div>
                     </div>
                     <div className={theme?.spacer} />
                 </div>
