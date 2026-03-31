@@ -322,7 +322,7 @@ function handleFiltersType(id_col, id_vals, index, type, isDms) {
       nullVals && conditions.push(null_cdn);
     }
   } else if (type === 'like') {
-    id_vals && conditions.push(`lower(${id_col}) ${typeMap[type].symbol} lower(${index})`);
+    id_vals && conditions.push(`lower((${id_col})::text) ${typeMap[type].symbol} lower(${index})`);
   } else {
     // gt, gte, lt, lte: for DMS, numbers stored as text need cast
     const col = isDms ? `(${id_col})::numeric` : id_col;

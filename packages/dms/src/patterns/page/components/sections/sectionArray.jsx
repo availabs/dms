@@ -203,10 +203,9 @@ const Edit = ({ value, onChange, attr, group, siteType }) => {
                             {/* add to top */}
                             {
                                 edit?.index === -1 && <div
-                                    onClick={() => setEditIndex(Math.max(i, 0))}
                                     className={theme?.addSectionButton}>
                                     <div className={theme?.spacer} />
-                                    <div className={theme?.addSectionIconWrapper}>
+                                    <div className={theme?.addSectionIconWrapper} onClick={() => setEditIndex(Math.max(i, 0))}>
                                         <div><Icon icon='Plus' className={theme?.addSectionIcon}/></div>
                                         <div className={theme?.addSectionTextWrapper}><div className={theme?.addSectionText}>Add</div></div>
                                     </div>

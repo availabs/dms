@@ -136,8 +136,9 @@ export const ComplexFilters = ({ state, setState }) => {
         });
     };
 
-    const renderNode = (node, path = []) => {
+    const renderNode = (node, path = [], parentOp = 'AND', parentLeafSiblings = []) => {
         if (isGroup(node)) {
+            const leafSiblings = node.groups.filter(child => !isGroup(child));
             return (
                 <div key={path.join('.')} className={`border rounded-lg p-2 ${path.length ? `ml-2` : ''}`}>
                     {/* AND / OR */}
@@ -166,7 +167,7 @@ export const ComplexFilters = ({ state, setState }) => {
                     <div className="ml-4 space-y-2">
                         {node.groups.map((child, i) =>
                             <React.Fragment key={`node_child_${i}`}>
-                                {renderNode(child, [...path, i])}
+                                {renderNode(child, [...path, i], node.op, leafSiblings)}
                                 {node.groups.length - 1 > i && <div className={'text-xs text-gray-500 font-medium'}>{node.op}</div>}
                             </React.Fragment>
                         )}
@@ -192,6 +193,7 @@ export const ComplexFilters = ({ state, setState }) => {
 
         // condition
         const isStale = node.col && !columns.find(c => c.name === node.col);
+        const siblingConditions = parentOp === 'AND' ? parentLeafSiblings.filter(s => s !== node) : [];
         return (
             <div key={path.join('.')} className={`w-full flex flex-col gap-1 items-center ml-2 p-2 border border-dashed rounded-md ${isStale ? 'border-red-300 bg-red-50' : 'hover:bg-blue-50'}`}>
                 {/* column selector */}
@@ -244,6 +246,7 @@ export const ComplexFilters = ({ state, setState }) => {
                             path={path}
                             columns={columns}
                             updateNodeAtPath={updateNodeAtPath}
+                            siblingConditions={siblingConditions}
                         />
                     </div>
                     <Popup button={<Icon icon={'EllipsisVertical'} className={'size-6'}/>} preventCloseOnClickOutside={false}>
