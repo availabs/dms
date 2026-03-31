@@ -207,18 +207,16 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
             value: currentPageSource?.name || sources?.find(s => s.key === activeSource)?.label, showValue: true,
             items: [
                 // Page-level data sources (shared across sections)
-                ...(pageLevelSourceList.length > 0 ? [
-                    {name: 'Page Data Sources', icon: 'Database', showSearch: pageLevelSourceList.length > 5, cdn: () => isEdit,
-                        value: currentPageSource?.name, showValue: !!currentPageSource,
-                        items: pageLevelSourceList.map(ds => ({
-                            icon: ds.id === currentDataSourceId ? 'CircleCheck' : 'Blank',
-                            id: ds.id,
-                            name: ds.name || 'Unnamed Source',
-                            onClickGoBack: true,
-                            onClick: () => switchDataSource?.(ds.id)
-                        }))},
-                    {type: 'separator', cdn: () => isEdit},
-                ] : []),
+                {name: 'Page Data Sources', icon: 'Database', showSearch: pageLevelSourceList.length > 5, cdn: () => isEdit && pageLevelSourceList.length > 0,
+                    value: currentPageSource?.name, showValue: !!currentPageSource,
+                    items: pageLevelSourceList.map(ds => ({
+                        icon: ds.id === currentDataSourceId ? 'CircleCheck' : 'Blank',
+                        id: ds.id,
+                        name: ds.name || 'Unnamed Source',
+                        onClickGoBack: true,
+                        onClick: () => switchDataSource?.(ds.id)
+                    }))},
+                {type: 'separator', cdn: () => isEdit && pageLevelSourceList.length > 0},
                 // Direct source/version picker (creates inline, auto-promotes to page level)
                 {name: 'Source', icon: 'Database', showSearch: true, cdn: () => isEdit,
                     value: sources?.find(s => s.key === activeSource)?.label, showValue: true,
