@@ -225,7 +225,7 @@ const Menu = ({config, title, showTitle=true, showBreadcrumbs, open, setOpen, ac
                                      goBack={goBack} goHome={goHome} changeParent={changeParent}
                                      close={close} activeStyle={activeStyle}/>)}
       {
-        showSearch && <Input placeHolder={'search...'} value={search} onChange={e => setSearch(e.target.value)} />
+        showSearch && <Input placeholder={'search...'} value={search} onChange={e => setSearch(e.target.value)} />
       }
       <div className={theme?.menuItemsWrapper}>
         {
