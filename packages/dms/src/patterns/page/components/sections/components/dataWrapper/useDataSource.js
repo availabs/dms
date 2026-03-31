@@ -1,4 +1,4 @@
-import { useContext, useEffect, useMemo, useState, useCallback } from "react";
+import { useContext, useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { get, isEqual } from "lodash-es";
 import { nameToSlug } from "../../../../../../utils/type-utils";
 import { CMSContext, PageContext } from "../../../../context";
@@ -232,23 +232,28 @@ export function useDataSource({ state, setState, sourceTypes = ["external", "int
         [views, setState]
     );
 
-    return {
+    const sourceOptions = useMemo(() => [
+        {key: `${app}+${type}|page`, label: `${type} (pages)`},
+        {key: `${app}+${type}|component`, label: `${type} (sections)`},
+        ...sources.map(({source_id, name, srcEnv}) => {
+            const envLabel = srcEnv?.includes('+')
+                ? srcEnv.split('+')[1]
+                : envs[srcEnv]?.label;
+            return {key: source_id, label: `${name}${envLabel ? ` [${envLabel}]` : ''}`};
+        })
+    ], [sources, app, type, envs]);
+
+    const viewOptions = useMemo(
+        () => views.map(({view_id, name, version}) => ({key: view_id, label: name || version || view_id})),
+        [views]
+    );
+
+    return useMemo(() => ({
         activeSource: sourceId,
         activeView: viewId,
-        sources: [
-            {key: `${app}+${type}|page`, label: `${type} (pages)`},
-            {key: `${app}+${type}|component`, label: `${type} (sections)`},
-            ...sources.map(({source_id, name, srcEnv}) => {
-                // For DMS sources (env like "app+docType"), show the docType as the env label
-                // For external sources, show the configured label
-                const envLabel = srcEnv?.includes('+')
-                    ? srcEnv.split('+')[1]
-                    : envs[srcEnv]?.label;
-                return {key: source_id, label: `${name}${envLabel ? ` [${envLabel}]` : ''}`};
-            })
-        ],
-        views: views.map(({view_id, name, version}) => ({key: view_id, label: name || version || view_id})),
+        sources: sourceOptions,
+        views: viewOptions,
         onSourceChange,
         onViewChange,
-    };
+    }), [sourceId, viewId, sourceOptions, viewOptions, onSourceChange, onViewChange]);
 }
