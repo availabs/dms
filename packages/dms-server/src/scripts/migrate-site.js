@@ -517,6 +517,7 @@ async function runMigration(sourceDb, targetDb, sourceConfig, targetConfig, opts
   const tgtSplitMode = targetConfig.splitMode || 'legacy';
 
   const pendingWrites = []; // { table, rows, splitInfo? }
+  const maxIdTracker = { value: 0 }; // tracks max ID across ALL writes (including streamed)
   const stats = {
     site: 0, themes: 0,
     dmsEnvs: { existing: 0, created: 0 },
@@ -538,6 +539,9 @@ async function runMigration(sourceDb, targetDb, sourceConfig, targetConfig, opts
     if (!rows.length) return;
     pendingWrites.push({ table: tableName, rows, splitInfo });
     stats.totalRows += rows.length;
+    for (const r of rows) {
+      if (r.id > maxIdTracker.value) maxIdTracker.value = r.id;
+    }
   }
 
   // Resume: load checkpoint from prior run
@@ -815,14 +819,14 @@ async function runMigration(sourceDb, targetDb, sourceConfig, targetConfig, opts
         await migratePageChildren(
           sourceDb, srcTable, app, docType, patternSlug,
           detail, stats, addRows, tgtMainTable, migratedIds, sourceDocTypeMap,
-          opts.apply ? targetDb : null, imgOutput, imgUrlPrefix
+          opts.apply ? targetDb : null, imgOutput, imgUrlPrefix, maxIdTracker
         );
       } else if (patternType === 'datasets' || patternType === 'forms') {
         await migrateDatasetChildren(
           sourceDb, srcTable, app, docType, patternSlug, siteInstance,
           pattern, patternData, dmsEnvMap, newDmsEnvRefs, usedSlugs,
           detail, stats, addRows, tgtMainTable, tgtDbType, tgtSplitMode,
-          opts.apply ? targetDb : null
+          opts.apply ? targetDb : null, maxIdTracker
         );
       }
 
@@ -886,18 +890,17 @@ async function runMigration(sourceDb, targetDb, sourceConfig, targetConfig, opts
       }
     }
     if (negativeIdRows.length) {
-      // Set sequence past all existing positive IDs to avoid collisions
-      const maxExisting = Math.max(...allPositiveIds, 0);
+      // Set sequence past max ID across all writes to avoid collisions
       const seqName = await ensureSequence(targetDb, app, tgtDbType, tgtSplitMode);
-      if (maxExisting > 0) {
-        await resetSequence(targetDb, app, tgtDbType, tgtSplitMode, maxExisting);
+      if (maxIdTracker.value > 0) {
+        await resetSequence(targetDb, app, tgtDbType, tgtSplitMode, maxIdTracker.value);
       }
       for (const row of negativeIdRows) {
         const oldId = row.id;
         const newId = await allocateId(targetDb, tgtDbType, seqName);
         row.id = newId;
         updateNegativeIdRefs(pendingWrites, oldId, newId);
-        allPositiveIds.push(newId); // track for final sequence reset
+        if (newId > maxIdTracker.value) maxIdTracker.value = newId;
       }
     }
 
@@ -938,10 +941,9 @@ async function runMigration(sourceDb, targetDb, sourceConfig, targetConfig, opts
       await writeRows(targetDb, pw.table, pw.rows);
     }
 
-    // Reset sequence
-    const maxId = Math.max(...allPositiveIds, 0);
-    if (maxId > 0) {
-      await resetSequence(targetDb, app, tgtDbType, tgtSplitMode, maxId);
+    // Reset sequence to max ID across all writes (including streamed rows)
+    if (maxIdTracker.value > 0) {
+      await resetSequence(targetDb, app, tgtDbType, tgtSplitMode, maxIdTracker.value);
     }
 
     clearCheckpoint(app);
@@ -972,7 +974,7 @@ async function runMigration(sourceDb, targetDb, sourceConfig, targetConfig, opts
 async function migratePageChildren(
   sourceDb, srcTable, app, docType, patternSlug,
   detail, stats, addRows, tgtMainTable, migratedIds = new Set(), sourceDocTypeMap = new Map(),
-  targetDb = null, imgOutput = null, imgUrlPrefix = null
+  targetDb = null, imgOutput = null, imgUrlPrefix = null, maxIdTracker = { value: 0 }
 ) {
   if (!docType) {
     console.log(`    WARNING: Page pattern has no doc_type, cannot find children`);
@@ -1082,6 +1084,9 @@ async function migratePageChildren(
         }
       }
       await writeRows(targetDb, tgtMainTable, transformed);
+      for (const r of transformed) {
+        if (r.id > maxIdTracker.value) maxIdTracker.value = r.id;
+      }
     } else if (imgOutput !== null) {
       // Dry run with image counting — count images per batch, don't buffer rows
       for (const row of transformed) {
@@ -1146,10 +1151,14 @@ async function migratePageChildren(
   const uniqueHistory = deduplicateById(historyRows);
   detail.history = uniqueHistory.length;
 
+  const allPageAndHistory = [...pageRows, ...uniqueHistory];
   if (targetDb) {
-    await writeRows(targetDb, tgtMainTable, [...pageRows, ...uniqueHistory]);
+    await writeRows(targetDb, tgtMainTable, allPageAndHistory);
   } else {
-    addRows(tgtMainTable, [...pageRows, ...uniqueHistory]);
+    addRows(tgtMainTable, allPageAndHistory);
+  }
+  for (const r of allPageAndHistory) {
+    if (r.id > maxIdTracker.value) maxIdTracker.value = r.id;
   }
   console.log(`    Components: ${detail.components}, History: ${uniqueHistory.length}`);
 
@@ -1165,7 +1174,7 @@ async function migrateDatasetChildren(
   sourceDb, srcTable, app, docType, patternSlug, siteInstance,
   pattern, patternData, dmsEnvMap, newDmsEnvRefs, usedSlugs,
   detail, stats, addRows, tgtMainTable, tgtDbType, tgtSplitMode,
-  targetDb = null
+  targetDb = null, maxIdTracker = { value: 0 }
 ) {
   if (!docType) {
     console.log(`    WARNING: Dataset pattern has no doc_type, cannot find children`);
@@ -1315,6 +1324,9 @@ async function migrateDatasetChildren(
           await writeRows(targetDb, resolved.fullName, transformed);
         } else {
           // Dry run: just count (don't buffer)
+        }
+        for (const r of transformed) {
+          if (r.id > maxIdTracker.value) maxIdTracker.value = r.id;
         }
         stats.totalRows += transformed.length;
       });

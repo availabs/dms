@@ -272,7 +272,6 @@ async function getSiteSources({ db, app, pattern_ids, pattern_doc_types, splitMo
     const { rows: envRows } = await db.query(envSql, [dmsEnvIds]);
     for (const envRow of envRows) {
       const sources = typeof envRow.sources === 'string' ? JSON.parse(envRow.sources) : (envRow.sources || []);
-      sources.forEach(d => console.log('s', d))
       allSources.push(...sources);
     }
   }
