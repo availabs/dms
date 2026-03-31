@@ -222,7 +222,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                     value: sources?.find(s => s.key === activeSource)?.label, showValue: true,
                     items: sources.map(({key, label}) => ({
                         icon: key === activeSource ? 'CircleCheck' : 'Blank',
-                        id: crypto.randomUUID(),
+                        id: `source_${key}`,
                         name: label,
                         onClickGoBack: true,
                         onClick: () => onSourceChange(key)
@@ -231,7 +231,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                     value: views?.find(s => s.key === activeView)?.label || activeView, showValue: true,
                     items: views.map(({key, label}) => ({
                         icon: key === activeView ? 'CircleCheck' : 'Blank',
-                        id: crypto.randomUUID(),
+                        id: `version_${key}`,
                         name: label,
                         onClickGoBack: true,
                         onClick: () => onViewChange(key)
@@ -448,7 +448,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                     }).map((name, i) => {
                         return {
                             icon: name === (value?.['size'] || '1') ? 'CircleCheck' : 'Blank',
-                            id: crypto.randomUUID(), // to prevent duplicate entries
+                            id: `size_${name}`,
                             'name': name,
                             'onClick': () => updateAttribute('size', name)
                         }
@@ -462,7 +462,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                     }).map((name, i) => {
                         return {
                             icon: name === (value?.['rowspan'] || '1') ? 'CircleCheck' : 'Blank',
-                            id: crypto.randomUUID(),
+                            id: `rowspan_${name}`,
                             'name': name,
                             'onClick': () => {
                                 updateAttribute('rowspan', name);
@@ -491,7 +491,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                         return {
                             icon: v === (value?.['padding'] || theme?.sectionArray?.sectionPadding) ? 'CircleCheck' : 'Blank',
                             'name': `${v}`,
-                            id: crypto.randomUUID(),
+                            id: `padding_${v}`,
                             'onClick': () => updateAttribute('padding', v)
                         }
                     }),
