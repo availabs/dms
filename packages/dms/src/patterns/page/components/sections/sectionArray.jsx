@@ -357,7 +357,8 @@ const AddSectionButton = ({onClick}) => {
                     className={theme?.addSectionButton}>
                     <div className={theme?.spacer} />
                     <div className={theme?.addSectionIconWrapper}>
-                        <div><Icon icon='InsertSection' className={theme?.addSectionIcon}/></div>
+                        <div><Icon icon='Plus' className={theme?.addSectionIcon}/></div>
+                        <div className={theme?.addSectionTextWrapper}><div className={theme?.addSectionText}>Add</div></div>
                     </div>
                     <div className={theme?.spacer} />
                 </div>
