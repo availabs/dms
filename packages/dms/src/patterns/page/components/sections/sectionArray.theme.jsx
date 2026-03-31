@@ -14,7 +14,7 @@ export const sectionArrayTheme = {
           fullwidth: ''
       },
       sectionEditWrapper: 'relative group',
-      sectionEditHover: 'absolute inset-0 border border-transparent group-hover:border-blue-300 border-dashed pointer-events-none z-10 rounded-md',
+      sectionEditHover: 'absolute inset-0 border border-transparent group-hover:border-blue-900 border border-2 pointer-events-none z-10 rounded-md',
       sectionEditing: 'absolute inset-0 border border-orange-300 border-dashed pointer-events-none z-10 rounded-md',
       sectionHighlight: 'absolute inset-0 border border-orange-300 border-dashed pointer-events-none z-10 rounded-md', // on scroll url hash
       sectionViewWrapper: 'relative group',
@@ -22,10 +22,12 @@ export const sectionArrayTheme = {
       gridviewGrid: 'z-0 bg-slate-50 h-full',
       gridviewItem: 'border-x bg-white border-slate-100/75 border-dashed h-full p-[6px]',
       defaultOffset: 16,
-      addSectionButton: 'cursor-pointer py-0.5 text-sm text-blue-200 hover:text-blue-400 truncate w-full hover:bg-blue-50/75 -ml-4 hidden group-hover:flex absolute -top-5',
+      addSectionButton: 'cursor-pointer py-0.5 text-sm text-blue-200 hover:text-blue-400 truncate w-full -ml-4 my-2 hidden group-hover:flex absolute -top-5 z-11',
       spacer: 'flex-1',
-      addSectionIconWrapper: 'flex items-center',
-      addSectionIcon: 'size-6',
+      addSectionIconWrapper: 'flex items-center group/icon',
+      addSectionIcon: 'size-6 p-1.5 text-white bg-blue-900 rounded-full group-hover/icon:hidden',
+      addSectionTextWrapper: 'hidden group-hover/icon:flex items-center',
+      addSectionText: 'px-1.5 py-1 text-white text-sm font-semibold bg-blue-900 rounded-full',
       sizes: {
           "1/3": { className: 'col-span-12 md:col-span-2', iconSize: 33 },
           "1/2": { className: 'col-span-12 md:col-span-3', iconSize: 50 },
