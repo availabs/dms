@@ -29,7 +29,7 @@ const Modal = ({ open, setOpen, columns, addCalculatedColumn }) => {
 
                 <div className="text-lg font-semibold">Add Calculated Column</div>
                     <div className="w-full h-full px-2 flex flex-col gap-1">
-                        <input className={'p-1 text-gray-400'} placeholder={'Please enter sql...'} value={state.name} onChange={e => setState(draft => {draft.name = e.target.value})}/>
+                        <textarea className={'p-1 text-gray-400'} placeholder={'Please enter sql...'} value={state.name} onChange={e => setState(draft => {draft.name = e.target.value})}/>
                         <div className={'flex gap-1 place-self-end'}>
                             {/* Clear Button */}
                             <button className="px-3 py-1 bg-orange-500/15 text-orange-700 hover:bg-orange-500/25 rounded" onClick={() => {
