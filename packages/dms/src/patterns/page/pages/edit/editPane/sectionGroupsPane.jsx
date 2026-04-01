@@ -59,7 +59,7 @@ function SectionGroupControl ({group, fullGroupData, onDelete, onUpdateAttribute
   const isSectionActive = hash === `#${group.id}`;
   return (
       <>
-        <div className={`group ${isSectionActive ? `border border-dashed border-orange-200 hover:border-orange-300` : `border border-slate-200 hover:border-slate-300`} rounded-lg px-4 py-3 flex justify-between items-center bg-white hover:shadow-sm transition-all ${isPageSection ? `cursor-pointer` : `cursor-grab`}`}
+        <div className={`group ${isSectionActive ? `border border-dashed border-orange-200 hover:border-orange-300` : `border border-slate-200 hover:border-slate-300`} rounded-lg px-2 py-1 flex justify-between items-center bg-white hover:shadow-sm transition-all ${isPageSection ? `cursor-pointer` : `cursor-grab`}`}
              onClick={() => isPageSection && navigate(fullGroupData.url_slug)}>
           <div className='flex items-center gap-3'>
             <Icon icon='GripVertical' className='size-4 text-slate-300 group-hover:text-slate-400' />

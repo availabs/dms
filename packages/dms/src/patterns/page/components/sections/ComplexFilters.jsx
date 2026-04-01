@@ -227,7 +227,7 @@ export const ComplexFilters = ({ state, setState }) => {
                                 const isMulti = ['filter', 'exclude'].includes(newOp);
                                 updateNodeAtPath(path, n => {
                                     n.op = newOp;
-                                    if (wasMulti !== isMulti) {
+                                    if (wasMulti !== isMulti || ['is_null', 'is_not_null'].includes(newOp)) {
                                         n.value = isMulti ? [] : '';
                                     }
                                 });
@@ -240,17 +240,21 @@ export const ComplexFilters = ({ state, setState }) => {
                             <option key="gte" value="gte"> {">="} </option>
                             <option key="lt" value="lt"> {"<"} </option>
                             <option key="lte" value="lte"> {"<="} </option>
+                            <option key="is_not_null" value="is_not_null">exclude N/A</option>
+                            <option key="is_null" value="is_null">show only N/As</option>
                         </select>
                     </div>
-                    <div className={'w-3/4'}>
-                        <ConditionValueInput
-                            node={node}
-                            path={path}
-                            columns={columns}
-                            updateNodeAtPath={updateNodeAtPath}
-                            siblingConditions={siblingConditions}
-                        />
-                    </div>
+                    {!['is_null', 'is_not_null'].includes(node.op) && (
+                        <div className={'w-3/4'}>
+                            <ConditionValueInput
+                                node={node}
+                                path={path}
+                                columns={columns}
+                                updateNodeAtPath={updateNodeAtPath}
+                                siblingConditions={siblingConditions}
+                            />
+                        </div>
+                    )}
                     <Popup button={<Icon icon={'EllipsisVertical'} className={'size-6'}/>} preventCloseOnClickOutside={false}>
                         {
                             () => (

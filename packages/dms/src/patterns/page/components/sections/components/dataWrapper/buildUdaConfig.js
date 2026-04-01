@@ -123,6 +123,16 @@ const fnToTextMap = {
     `${fn}(${colNameBeforeAs}) as ${colNameAfterAS}`,
 };
 
+const TEXT_TYPES = new Set([
+  "text",
+  "string",
+  "varchar",
+  "char",
+  "character varying",
+]);
+const isTextColumn = (col) =>
+  TEXT_TYPES.has((col?.dataType || col?.type || "").toLowerCase());
+
 /**
  * Map filter tree column names to server-side ref names.
  * This is the SYNCHRONOUS version — it does NOT resolve multiselect values.
@@ -172,6 +182,13 @@ export const mapFilterGroupCols = (node, getColumn, isDms) => {
       mapped.op = node.op === "exclude" ? "array_not_contains" : "array_contains";
       mapped.value = realValues;
     }
+  }
+
+  // Map is_null / is_not_null ops to null sentinels (and blank strings for text columns)
+  if (node.op === "is_not_null" || node.op === "is_null") {
+    const sentinels = isTextColumn(col) ? ["null", ""] : ["null"];
+    mapped.op = node.op === "is_not_null" ? "exclude" : "filter";
+    mapped.value = sentinels;
   }
 
   // If condition has an aggregate fn, compute the HAVING expression
