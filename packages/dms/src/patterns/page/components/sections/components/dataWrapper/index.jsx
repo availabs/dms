@@ -109,7 +109,8 @@ const RenderDownload = ({state, apiLoad, cms_context}) => {
 }
 
 
-const Edit = forwardRef(({cms_context, value, onChange, component, siteType, pageFormat, onHandle}, ref) => {
+const Edit = forwardRef((props, ref) => {
+    let {cms_context, value, onChange, component, siteType, pageFormat, onHandle} = props
     const isEdit = Boolean(onChange);
     const { UI, theme: fullTheme } = useContext(ThemeContext)
     const { apiLoad, apiUpdate } = useContext(PageContext) || {};
@@ -127,6 +128,18 @@ const Edit = forwardRef(({cms_context, value, onChange, component, siteType, pag
     const { loading, currentPage, onPageChange, outputSourceInfo } = useDataLoader({
         state, setState, apiLoad, component,
         readyToLoad: isValidState,
+    });
+
+    const renderCount = useRef(0);
+    const prevProps = useRef(props);
+
+    useEffect(() => {
+      renderCount.current++;
+      const changed = Object.keys(props).filter(
+        key => props[key] !== prevProps.current[key]
+      );
+      console.log(`Render #${renderCount.current}, changed props:`, changed);
+      prevProps.current = props;
     });
 
     useEffect(() => {
@@ -166,7 +179,9 @@ const Edit = forwardRef(({cms_context, value, onChange, component, siteType, pag
 
     const handle = useMemo(() => ({
         dwAPI, dataSource: dataSourceInfo, state, setState,
-    }), [dwAPI, dataSourceInfo, state, setState]);
+    }), [dataSourceInfo?.sources?.length, dataSourceInfo?.views?.length, dataSourceInfo.activeView, dataSourceInfo.activeSource]);
+
+    console.log('handle', dataSourceInfo)
 
     useImperativeHandle(ref, () => handle, [handle]);
     useEffect(() => { onHandle?.(handle); }, [handle]);
