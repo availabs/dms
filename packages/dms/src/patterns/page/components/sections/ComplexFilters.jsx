@@ -2,7 +2,7 @@ import React, {useContext, useEffect, Fragment} from "react";
 import {useImmer} from "use-immer";
 import {isEqual} from "lodash-es";
 import {ThemeContext} from "../../../../ui/useTheme";
-import {PageContext} from "../../context";
+import {PageContext, ComponentContext} from "../../context";
 import {getColumnLabel, isEqualColumns} from "./controls_utils";
 import {ConditionValueInput} from "./ConditionValueInput";
 
@@ -43,6 +43,8 @@ const emptyCondition = (columns) => ({
 export const ComplexFilters = ({ state, setState }) => {
     const { UI } = useContext(ThemeContext);
     const { Pill, Icon, Popup, Switch, ColumnTypes: {select} } = UI;
+    const { apiLoad } = useContext(PageContext) || {};
+    const existingCtx = useContext(ComponentContext);
 
     const columns = [
         ...(state.columns || []).filter(c => c.systemCol),
@@ -371,10 +373,16 @@ export const ComplexFilters = ({ state, setState }) => {
         );
     };
 
+    // When rendered outside the dataWrapper tree (e.g. inside sectionMenu),
+    // ComponentContext has its empty default {} — provide the minimum needed for ConditionValueInput.
+    const ctxValue = existingCtx?.apiLoad ? existingCtx : { apiLoad, state, setState };
+
     return (
-        <div className={'w-full hover:bg-white rounded-md'}>
-            {renderNode(filterGroups)}
-            <Pill color={'blue'} text={'save'} onClick={save} />
-        </div>
+        <ComponentContext.Provider value={ctxValue}>
+            <div className={'w-full hover:bg-white rounded-md'}>
+                {renderNode(filterGroups)}
+                <Pill color={'blue'} text={'save'} onClick={save} />
+            </div>
+        </ComponentContext.Provider>
     );
 };
