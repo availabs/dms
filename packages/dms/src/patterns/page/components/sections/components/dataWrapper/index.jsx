@@ -130,18 +130,6 @@ const Edit = forwardRef((props, ref) => {
         readyToLoad: isValidState,
     });
 
-    const renderCount = useRef(0);
-    const prevProps = useRef(props);
-
-    useEffect(() => {
-      renderCount.current++;
-      const changed = Object.keys(props).filter(
-        key => props[key] !== prevProps.current[key]
-      );
-      console.log(`Render #${renderCount.current}, changed props:`, changed);
-      prevProps.current = props;
-    });
-
     useEffect(() => {
         if (outputSourceInfo && outputSourceInfo !== state?.outputSourceInfo) {
             setState(draft => { if (draft) draft.outputSourceInfo = outputSourceInfo; });
@@ -181,7 +169,6 @@ const Edit = forwardRef((props, ref) => {
         dwAPI, dataSource: dataSourceInfo, state, setState,
     }), [dataSourceInfo?.sources?.length, dataSourceInfo?.views?.length, dataSourceInfo.activeView, dataSourceInfo.activeSource]);
 
-    console.log('handle', dataSourceInfo)
 
     useImperativeHandle(ref, () => handle, [handle]);
     useEffect(() => { onHandle?.(handle); }, [handle]);
