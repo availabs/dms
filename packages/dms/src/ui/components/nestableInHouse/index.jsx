@@ -1,6 +1,21 @@
 import React, {useRef, useEffect, useState, useMemo} from "react";
 import { useImmer } from "use-immer";
 import {cloneDeep, isEqual} from "lodash-es";
+import {getComponentTheme, ThemeContext} from "../../useTheme";
+
+export const nestableInHouseTheme = {
+    options: {
+        activeStyle: 0,
+    },
+    styles: [
+        {
+            childrenWrapper: "ml-4 border-l"
+        },
+        {
+            childrenWrapper: ""
+        }
+    ]
+}
 
 const buildTree = (dataItems, matches=[], items=[]) => {
     try{
@@ -22,7 +37,7 @@ const buildTree = (dataItems, matches=[], items=[]) => {
         return []
     }
 }
-const RenderNestable = ({ parent, items, onChange, dataItems, setDataItems, renderItem, dragState, setDragState, expanded, setExpanded, canDrag, canAcceptChildren }) => {
+const RenderNestable = ({ parent, items, onChange, dataItems, setDataItems, renderItem, dragState, setDragState, expanded, setExpanded, canDrag, canAcceptChildren, theme }) => {
     // =================================================================================================================
     // ========================================= drag - drop utils begin ===============================================
     // =================================================================================================================
@@ -296,7 +311,7 @@ const RenderNestable = ({ parent, items, onChange, dataItems, setDataItems, rend
                     {/* children recursion */}
                     {(expanded.includes(item.id) || expanded.includes(item.id)) &&
                         dataItems[item.id].children?.length > 0 && (
-                            <div className="ml-4 border-l">
+                            <div className={theme.childrenWrapper}>
                                 <RenderNestable
                                     parent={item.id}
                                     items={buildTree(dataItems, expanded,
@@ -314,6 +329,7 @@ const RenderNestable = ({ parent, items, onChange, dataItems, setDataItems, rend
                                     setExpanded={setExpanded}
                                     canDrag={canDrag}
                                     canAcceptChildren={canAcceptChildren}
+                                    theme={theme}
                                 />
                             </div>
                         )}
@@ -354,7 +370,7 @@ const RenderNestable = ({ parent, items, onChange, dataItems, setDataItems, rend
     );
 };
 
-export default function NestableInHouse({ dataItems: dataItemsInit, matches, canDrag, canAcceptChildren, ...props }) {
+export default function NestableInHouse({ dataItems: dataItemsInit, matches, canDrag, canAcceptChildren, activeStyle, ...props }) {
     const [dataItems, setDataItems] = useImmer(dataItemsInit);
     const [expanded, setExpanded] = useImmer(matches);
     const [dragState, setDragState] = useImmer({
@@ -364,7 +380,8 @@ export default function NestableInHouse({ dataItems: dataItemsInit, matches, can
         dragOverItem: null, // used to highlight INSERT_AS_CHILD
         dragItem: null
     })
-
+    const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
+    const theme = getComponentTheme(themeFromContext,'nestableInHouse', activeStyle)
     useEffect(() => {
         if(!isEqual(dataItemsInit, dataItems)) {
             setDataItems(dataItemsInit)
@@ -391,5 +408,6 @@ export default function NestableInHouse({ dataItems: dataItemsInit, matches, can
         setExpanded={setExpanded}
         canDrag={canDrag}
         canAcceptChildren={canAcceptChildren}
+        theme={theme}
         {...props} />;
 }

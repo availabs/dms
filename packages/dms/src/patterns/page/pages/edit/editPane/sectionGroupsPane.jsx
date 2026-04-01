@@ -7,20 +7,46 @@ import { ThemeContext } from "../../../../../ui/useTheme";
 
 const SECTION_TARGETS = ['top', 'content', 'bottom']
 
-function SectionGroupControl ({group, fullGroupData, onDelete, onUpdateAttribute, onAdd, theme, isSection}) {
+function SectionGroupControl ({group, fullGroupData, onDelete, onUpdateAttribute, onAdd, theme, isSection, isExpanded, toggleExpanded}) {
   const { UI } = React.useContext(ThemeContext) || {};
   const { NavigableMenu, Icon } = UI;
   const navigate = useNavigate();
   const {hash} = useLocation();
-
+  const sectionGroupControlTheme = {
+    options: {
+      activeStyle: 0
+    },
+    styles: [
+      {
+        sectionTargetWrapper: 'py-2 px-3 text-xs font-semibold uppercase tracking-wide text-slate-500 bg-slate-50 border-b border-slate-200 cursor-default flex justify-between items-center',
+        addGroupBtn: 'text-blue-500 hover:text-blue-600 hover:bg-blue-50 rounded px-2 py-1 transition-colors font-medium normal-case',
+        sectionGroupWrapper: 'group rounded-sm px-4 py-1 flex justify-between items-center hover:shadow-sm transition-all',
+        activePageSectionBorder: `border border-dashed border-orange-200 hover:border-orange-300`,
+        sectionGroupBorder: `border border-slate-200 hover:border-slate-300`,
+        pageSectionBG: `bg-slate-50 hover:bg-slate-100`,
+        expandedGroupBG: `bg-slate-200`,
+        unexpandedGroupBG: `bg-white`,
+        pageSectionCursor: `cursor-pointer`,
+        sectionGroupCursor: `cursor-grab`,
+        titleWrapper: 'flex items-center gap-3',
+        sectionGroupIcon: 'size-4 text-slate-300 group-hover:text-slate-400',
+        pageSectionIcon: 'hidden',
+        sectionGroupTitle: 'text-sm font-medium text-slate-700',
+        pageSectionTitle: 'text-sm font-medium text-slate-700',
+        controlsWrapper: 'flex gap-1 items-center',
+        expandGroupIcon: 'size-6 place-content-center cursor-pointer text-slate-500 hover:text-slate-700',
+      }
+    ]
+  }
+  const currentStyle = sectionGroupControlTheme.styles[sectionGroupControlTheme.options.activeStyle];
   // Section headers are not draggable or editable
   if (isSection) {
     return (
-      <div className='py-2 px-3 text-xs font-semibold uppercase tracking-wide text-slate-500 bg-slate-50 border-b border-slate-200 cursor-default flex justify-between items-center'>
+      <div className={currentStyle.sectionTargetWrapper}>
         <span>{group?.title || group?.id}</span>
         <button
           onClick={onAdd}
-          className="text-blue-500 hover:text-blue-600 hover:bg-blue-50 rounded px-2 py-1 transition-colors font-medium normal-case"
+          className={currentStyle.addGroupBtn}
         >
           + Add Group
         </button>
@@ -57,26 +83,31 @@ function SectionGroupControl ({group, fullGroupData, onDelete, onUpdateAttribute
   ]
   const isPageSection = !!fullGroupData.url_slug
   const isSectionActive = hash === `#${group.id}`;
+
   return (
-      <>
-        <div className={`group ${isSectionActive ? `border border-dashed border-orange-200 hover:border-orange-300` : `border border-slate-200 hover:border-slate-300`} rounded-lg px-2 py-1 flex justify-between items-center bg-white hover:shadow-sm transition-all ${isPageSection ? `cursor-pointer` : `cursor-grab`}`}
+        <div className={`${currentStyle.sectionGroupWrapper} 
+        ${isSectionActive ? currentStyle.activePageSectionBorder : group.isGroup ? currentStyle.sectionGroupBorder : ``}
+        ${isPageSection ? currentStyle.pageSectionBG : isExpanded ? currentStyle.expandedGroupBG : currentStyle.unexpandedGroupBG}
+          ${isPageSection ? currentStyle.pageSectionCursor : currentStyle.sectionGroupCursor}`}
              onClick={() => isPageSection && navigate(fullGroupData.url_slug)}>
-          <div className='flex items-center gap-3'>
-            <Icon icon='GripVertical' className='size-4 text-slate-300 group-hover:text-slate-400' />
-            <span className='text-sm font-medium text-slate-700'>{group?.title || group?.id}</span>
+          <div className={currentStyle.titleWrapper}>
+            <Icon icon='Reorder' className={group.isGroup ? currentStyle.sectionGroupIcon : currentStyle.pageSectionIcon} />
+            <span className={group.isGroup ? currentStyle.sectionGroupTitle : currentStyle.pageSectionTitle}>{group?.title || group?.id}</span>
           </div>
-          {
-            fullGroupData.isGroup ?
-                <div className='opacity-0 group-hover:opacity-100 transition-opacity'>
-                  <NavigableMenu
-                      config={menuConfig}
-                      title={'Group Settings'}
-                      preferredPosition={'left'}
-                  />
-                </div> : null
-          }
+          <div className={currentStyle.controlsWrapper}>
+            {
+              fullGroupData.isGroup ?
+                    <NavigableMenu
+                        config={menuConfig}
+                        title={'Group Settings'}
+                        preferredPosition={'left'}
+                    /> : null
+            }
+            {
+              fullGroupData.isGroup ? <Icon icon={'CaretDown'} className={currentStyle.expandGroupIcon} onClick={toggleExpanded}/> : null
+            }
+          </div>
         </div>
-      </>
   )
 }
 
@@ -213,17 +244,13 @@ export default function SectionGroupsPane () {
     })
   }
 
-  // Expand section headers and all groups so sections are visible
-  const matches = useMemo(() => {
-    const groupIds = (item?.draft_section_groups || []).map(g => g.name)
-    return [...SECTION_TARGETS, ...groupIds]
-  }, [item?.draft_section_groups])
 
   return (
       <div className="relative mt-2 flex-0 w-full h-full">
         <DraggableMenu
+            activeStyle={1}
             dataItems={dataItems}
-            matches={matches}
+            matches={SECTION_TARGETS}
             onChange={handleDragChange}
             canDrag={(item) => !SECTION_TARGETS.includes(item?.id)}
             canAcceptChildren={(item) => SECTION_TARGETS.includes(item?.id)}
@@ -235,6 +262,8 @@ export default function SectionGroupsPane () {
                   <SectionGroupControl
                       group={group}
                       fullGroupData={fullGroupData}
+                      isExpanded={isExpanded}
+                      toggleExpanded={handleCollapseIconClick}
                       theme={theme}
                       isSection={isSection}
                       onAdd={isSection ? () => addSectionGroup(group.id) : undefined}
