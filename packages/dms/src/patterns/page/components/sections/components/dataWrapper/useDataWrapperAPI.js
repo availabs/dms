@@ -14,7 +14,7 @@
  * @returns {Object} API object with config, runtime, and mutation methods
  */
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import {
     updateColumns as updateColumnsFn,
     updateAllColumns as updateAllColumnsFn,
@@ -33,6 +33,12 @@ import { RUNTIME_FIELDS, RUNTIME_DISPLAY_FIELDS } from "./schema";
 export { RUNTIME_FIELDS, RUNTIME_DISPLAY_FIELDS };
 
 export function useDataWrapperAPI({ state, setState }) {
+    // Keep a mutable ref to current state so the stable API object's getters
+    // always return live data. This lets us exclude state from the useMemo deps,
+    // preventing the handle → onHandle → parent re-render → new dwAPI → new handle
+    // infinite loop that occurs without React Compiler.
+    const stateRef = useRef(state);
+    stateRef.current = state;
     // ── Display operations ──
     const setDisplay = useCallback(
         (key, value, onChange) => updateDisplayValueFn(key, value, onChange, setState),
@@ -82,22 +88,28 @@ export function useDataWrapperAPI({ state, setState }) {
     );
 
     return useMemo(() => ({
-        // ── Read access ──
-        config: {
-            columns: state?.columns,
-            display: state?.display,
-            externalSource: state?.externalSource,
-            filters: state?.filters,
+        // ── Read access (getters — always read live state via ref) ──
+        get config() {
+            const s = stateRef.current;
+            return {
+                columns: s?.columns,
+                display: s?.display,
+                externalSource: s?.externalSource,
+                filters: s?.filters,
+            };
         },
-        runtime: {
-            data: state?.data,
-            fullData: state?.fullData,
-            localFilteredData: state?.localFilteredData,
-            totalLength: state?.display?.totalLength,
-            filteredLength: state?.display?.filteredLength,
-            invalidState: state?.display?.invalidState,
-            hideSection: state?.display?.hideSection,
-            outputSourceInfo: state?.outputSourceInfo,
+        get runtime() {
+            const s = stateRef.current;
+            return {
+                data: s?.data,
+                fullData: s?.fullData,
+                localFilteredData: s?.localFilteredData,
+                totalLength: s?.display?.totalLength,
+                filteredLength: s?.display?.filteredLength,
+                invalidState: s?.display?.invalidState,
+                hideSection: s?.display?.hideSection,
+                outputSourceInfo: s?.outputSourceInfo,
+            };
         },
 
         // ── Display operations ──
@@ -118,10 +130,10 @@ export function useDataWrapperAPI({ state, setState }) {
         // ── Raw access (escape hatch) ──
         // Needed for: ComplexFilters, custom control types, handlePaste.
         // Phase 5 must close these — see handoff notes in task file.
-        state,
+        get state() { return stateRef.current; },
         setState,
     }), [
-        state, setState,
+        setState,
         setDisplay,
         updateColumn, updateAllColumns,
         duplicateColumn, resetColumn, resetAllColumns,
