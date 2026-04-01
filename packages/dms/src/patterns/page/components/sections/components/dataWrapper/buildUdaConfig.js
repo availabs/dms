@@ -75,6 +75,10 @@ export const applyFn = (col = {}, isDms = false) => {
       !isDms && !isCalculated
         ? colNameWithAccessor
         : `${colNameWithAccessor} as ${colNameAfterAS}`,
+    "exempt":
+      !isDms && !isCalculated
+        ? colNameWithAccessor
+        : `${colNameWithAccessor} as ${colNameAfterAS}`,
     list: `array_to_string(array_agg(distinct ${colNameWithAccessor}), ', ') as ${colNameAfterAS}_list`,
     sum: isDms
       ? `sum((${colNameWithAccessor})::integer) as ${colNameAfterAS}_sum`

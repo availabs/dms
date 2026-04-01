@@ -84,7 +84,7 @@ export default {
             // settings from columns dropdown are stored in state.columns array, per column
             {type: 'select', label: 'Fn', key: 'fn', disabled: ({attribute}) => !attribute.yAxis || !attribute.show,
                 options: [
-                    {label: 'fn', value: ' '}, {label: 'list', value: 'list'}, {label: 'sum', value: 'sum'}, {label: 'count', value: 'count'}, {label: 'avg', value: 'avg'}
+                    {label: 'list', value: 'list'}, {label: 'sum', value: 'sum'}, {label: 'count', value: 'count'}, {label: 'avg', value: 'avg'}, {label: 'fn exempt', value: 'exempt'}
                 ]},
             {type: 'select', label: 'Exclude N/A', key: 'excludeNA',
                 options: [
