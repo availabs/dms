@@ -6,6 +6,7 @@ import {useImmer} from "use-immer";
 import {CMSContext, ComponentContext, PageContext} from "../../../../context";
 import { ThemeContext } from '../../../../../../ui/useTheme';
 import { migrateToV2 } from "./migrateToV2";
+import { nameToSlug } from "../../../../../../utils/type-utils";
 import {useHandleClickOutside, isCalculatedCol} from "./utils/utils";
 import { getData } from "./getData";
 import { useDataLoader } from "./useDataLoader";
@@ -143,6 +144,16 @@ const Edit = forwardRef(({cms_context, value, onChange, component, siteType, pag
     const dataSourceInfo = useDataSource({ state, setState });
     const dwAPI = useDataWrapperAPI({ state, setState });
 
+    // ── Backfill externalSource.type if missing (older sections lack it) ──
+    useEffect(() => {
+        if (state?.externalSource?.name && !state?.externalSource?.type) {
+            const derived = nameToSlug(state.externalSource.name);
+            if (derived) {
+                setState(draft => { draft.externalSource.type = derived; });
+            }
+        }
+    }, [state?.externalSource?.name, state?.externalSource?.type]);
+
     // ── Save effect ──
     useEffect(() => {
         if (!isEdit || !isValidState) return;
@@ -164,9 +175,14 @@ const Edit = forwardRef(({cms_context, value, onChange, component, siteType, pag
     const resolvedControls = typeof component?.controls === 'function'
         ? component.controls(fullTheme) : component?.controls;
 
+    const editStateRef = useRef(state);
+    editStateRef.current = state;
+
     const handle = useMemo(() => ({
-        dwAPI, dataSource: dataSourceInfo, state, setState,
-    }), [dwAPI, dataSourceInfo, state, setState]);
+        dwAPI, dataSource: dataSourceInfo,
+        get state() { return editStateRef.current; },
+        setState,
+    }), [dwAPI, dataSourceInfo, setState]);
 
     useImperativeHandle(ref, () => handle, [handle]);
     useEffect(() => { onHandle?.(handle); }, [handle]);
@@ -176,6 +192,10 @@ const Edit = forwardRef(({cms_context, value, onChange, component, siteType, pag
 
     const updateItem = (value, attribute, d) => {
         if(!state?.externalSource?.isDms || !apiUpdate || groupByColumnsLength) return;
+        const sourceType = state?.externalSource?.type || (state?.externalSource?.name ? nameToSlug(state.externalSource.name) : undefined);
+        const dataFormat = state?.externalSource?.view_id && sourceType
+            ? {...state?.externalSource, type: `${sourceType}|${state?.externalSource.view_id}:data`}
+            : state?.externalSource;
         if(attribute?.name){
             setState(draft => {
                 const idx = draft.data.findIndex(draftD => draftD.id === d.id);
@@ -188,7 +208,7 @@ const Edit = forwardRef(({cms_context, value, onChange, component, siteType, pag
                     acc[col.name] = d[col.name]?.originalValue || d[col.name];
                     return acc;
                 }, {id: d.id})
-            return apiUpdate({data: {...dataToUpdateDB, [attribute.name]: value},  config: {format: state?.externalSource}})
+            return apiUpdate({data: {...dataToUpdateDB, [attribute.name]: value},  config: {format: dataFormat}})
         }else{
             const dataToUpdateState = Array.isArray(d) ? d : [d];
             const dataToUpdateDB = dataToUpdateState?.map(row => {
@@ -210,13 +230,14 @@ const Edit = forwardRef(({cms_context, value, onChange, component, siteType, pag
                 });
             });
 
-            return Promise.all(dataToUpdateDB.map(dtu => apiUpdate({data: dtu, config: {format: state?.externalSource}})));
+            return Promise.all(dataToUpdateDB.map(dtu => apiUpdate({data: dtu, config: {format: dataFormat}})));
         }
     }
 
     const addItem = async () => {
         if(!state?.externalSource?.isDms || !apiUpdate || groupByColumnsLength) return;
-        const res = await apiUpdate({data: newItem, config: {format: {...state?.externalSource, type: `${state?.externalSource.type}-${state?.externalSource.view_id}`}}});
+        const sourceType = state?.externalSource?.type || (state?.externalSource?.name ? nameToSlug(state.externalSource.name) : undefined);
+        const res = await apiUpdate({data: newItem, config: {format: {...state?.externalSource, type: `${sourceType}|${state?.externalSource.view_id}:data`}}});
 
         if(res?.id){
             setState(draft => {
@@ -230,10 +251,14 @@ const Edit = forwardRef(({cms_context, value, onChange, component, siteType, pag
 
     const removeItem = item => {
         if(!state?.externalSource?.isDms || groupByColumnsLength) return;
+        const sourceType = state?.externalSource?.type || (state?.externalSource?.name ? nameToSlug(state.externalSource.name) : undefined);
+        const dataFormat = state?.externalSource?.view_id && sourceType
+            ? {...state?.externalSource, type: `${sourceType}|${state?.externalSource.view_id}:data`}
+            : state?.externalSource;
         setState(draft => {
             draft.data = draft.data.filter(d => d.id !== item.id);
         })
-        return apiUpdate({data: item, config: {format: state?.externalSource}, requestType: 'delete'})
+        return apiUpdate({data: item, config: {format: dataFormat}, requestType: 'delete'})
     }
 
     const componentProps = useMemo(() => {
@@ -286,16 +311,22 @@ const View = forwardRef(({cms_context, value, onChange, component, editPageMode,
     const [state, setState] = useImmer(migrateToV2(value || '', initialState(component?.defaultState), component?.name));
 
     const [newItem, setNewItem] = useState({})
+    const liveEditTimerRef = useRef(null);
     const groupByColumnsLength = useMemo(() => state?.columns?.filter(({group}) => group).length, [state?.columns]);
     const isValidState = Boolean(state?.externalSource?.source_id || state?.externalSource?.isDms);
     const Comp = useMemo(() => state?.display?.hideSection && !editPageMode ? () => <></> : component.ViewComp, [component, state?.display?.hideSection]);
     const setReadyToLoad = useCallback(() => setState(draft => {if (!draft) return; if (!draft.display) draft.display = {}; draft.display.readyToLoad = true}), [setState]);
     const allowEdit = groupByColumnsLength ? false : state?.externalSource?.isDms && state?.display?.allowEditInView && Boolean(apiUpdate);
 
+    // Flush pending live edit on unmount
+    useEffect(() => () => clearTimeout(liveEditTimerRef.current), []);
+
     // Sync when value changes (route change, external edit)
     useEffect(() => {
         const newState = migrateToV2(value, initialState(component?.defaultState), component?.name)
-        if (newState) setState(newState)
+        if (newState) {
+            setState(newState)
+        }
     }, [value]);
 
     // ── Hooks ──
@@ -325,9 +356,14 @@ const View = forwardRef(({cms_context, value, onChange, component, editPageMode,
         ? component.controls(fullTheme) : component?.controls;
 
     // ── Expose internals to section ──
+    const viewStateRef = useRef(state);
+    viewStateRef.current = state;
+
     const handle = useMemo(() => ({
-        dwAPI, dataSource: dataSourceInfo, state, setState,
-    }), [dwAPI, dataSourceInfo, state, setState]);
+        dwAPI, dataSource: dataSourceInfo,
+        get state() { return viewStateRef.current; },
+        setState,
+    }), [dwAPI, dataSourceInfo, setState]);
 
     useImperativeHandle(ref, () => handle, [handle]);
     useEffect(() => { onHandle?.(handle); }, [handle]);
@@ -336,7 +372,12 @@ const View = forwardRef(({cms_context, value, onChange, component, editPageMode,
     const editableColumns = useMemo(() => state?.columns?.filter(c => !(c.serverFn && c.joinKey) && c.editable !== false), [state?.columns])
     const updateItem = useCallback((value, attribute, d) => {
         if(!state?.externalSource?.isDms || !apiUpdate || groupByColumnsLength) return;
+        const sourceType = state?.externalSource?.type || (state?.externalSource?.name ? nameToSlug(state.externalSource.name) : undefined);
+        const dataFormat = state?.externalSource?.view_id && sourceType
+            ? {...state?.externalSource, type: `${sourceType}|${state?.externalSource.view_id}:data`}
+            : state?.externalSource;
         if(attribute?.name){
+            // Live edit: update local state immediately, debounce server call
             setState(draft => {
                 const idx = draft.data.findIndex(draftD => draftD.id === d.id);
                 if(idx !== -1){
@@ -347,8 +388,12 @@ const View = forwardRef(({cms_context, value, onChange, component, editPageMode,
                     acc[col.name] = d[col.name]?.originalValue || d[col.name];
                     return acc;
                 }, {id: d.id})
-            return apiUpdate({data: {...dataToUpdateDB, [attribute.name]: value},  config: {format: state?.externalSource}})
+            clearTimeout(liveEditTimerRef.current);
+            liveEditTimerRef.current = setTimeout(() => {
+                apiUpdate({data: {...dataToUpdateDB, [attribute.name]: value}, config: {format: dataFormat}})
+            }, 500);
         }else{
+            // Bulk/form save: send immediately
             const dataToUpdateState = Array.isArray(d) ? d : [d];
             const dataToUpdateDB = dataToUpdateState?.map(row => {
                 return editableColumns.reduce((acc, col) => {
@@ -368,14 +413,15 @@ const View = forwardRef(({cms_context, value, onChange, component, editPageMode,
                 });
             });
 
-            return Promise.all(dataToUpdateDB.map(dtu => apiUpdate({data: dtu, config: {format: state?.externalSource}})));
+            return Promise.all(dataToUpdateDB.map(dtu => apiUpdate({data: dtu, config: {format: dataFormat}})));
         }
     }, [state?.externalSource?.isDms, editableColumns, groupByColumnsLength, setState, apiUpdate])
 
     const addItem = useCallback(async () => {
         if(!state?.externalSource?.isDms || !apiUpdate || groupByColumnsLength) return;
         const {allowAdddNew, addNewBehaviour, navigateUrlOnAdd} = state?.display || {};
-        const config = {format: {...state?.externalSource, type: `${state?.externalSource?.type}-${state?.externalSource?.view_id}`}}
+        const sourceType = state?.externalSource?.type || (state?.externalSource?.name ? nameToSlug(state.externalSource.name) : undefined);
+        const config = {format: {...state?.externalSource, type: `${sourceType}|${state?.externalSource?.view_id}:data`}}
 
         if(allowAdddNew){
             const res = await apiUpdate({data: newItem, config});
@@ -395,12 +441,16 @@ const View = forwardRef(({cms_context, value, onChange, component, editPageMode,
 
     const removeItem = useCallback(item => {
         if (!state?.externalSource?.isDms || !apiUpdate || groupByColumnsLength) return;
+        const sourceType = state?.externalSource?.type || (state?.externalSource?.name ? nameToSlug(state.externalSource.name) : undefined);
+        const dataFormat = state?.externalSource?.view_id && sourceType
+            ? {...state?.externalSource, type: `${sourceType}|${state?.externalSource.view_id}:data`}
+            : state?.externalSource;
         setState(draft => {
             const idx = draft.data.findIndex(d => d.id === item.id);
             if (idx !== -1) draft.data.splice(idx, 1);
         });
 
-        return apiUpdate({data: item, config: { format: state?.externalSource }, requestType: "delete"});
+        return apiUpdate({data: item, config: { format: dataFormat }, requestType: "delete"});
     }, [state?.externalSource, apiUpdate, groupByColumnsLength, setState]);
 
     // ── Hide section logic ──

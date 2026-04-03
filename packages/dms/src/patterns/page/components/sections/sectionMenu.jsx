@@ -86,7 +86,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
         if (typeof item.type === 'function') {
             return {
                 icon: item.icon, name: item.label,
-                type: () => item.type({ value, setValue: v => dwAPI.setDisplay(item.key, v, item.onChange), state: dwAPI.state, setState: dwAPI.setState })
+                type: () => item.type({ value, setValue: v => dwAPI?.setDisplay?.(item.key, v, item.onChange), state: dwAPI?.state, setState: dwAPI?.setState, dwAPI })
             };
         }
 
@@ -316,7 +316,11 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
               .map(controlGroup => {
                   const config = resolvedControls?.[controlGroup];
                   if (!config?.items?.length) {
-                      return { name: config?.name || controlGroup, items: [{name: 'component', type: config?.type}] };
+                      const rawType = config?.type;
+                      const wrappedType = typeof rawType === 'function'
+                          ? () => rawType({ state: dwAPI?.state, setState: dwAPI?.setState, dwAPI })
+                          : rawType;
+                      return { name: config?.name || controlGroup, items: [{name: 'component', type: wrappedType}] };
                   }
                   return {
                       name: config.name || controlGroup,

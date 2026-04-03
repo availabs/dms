@@ -511,7 +511,7 @@ export async function dmsDataEditor (falcor, config, data={}, requestType, /*pat
 			// todo - data verification
 			// console.time(`falcor update data ${id}`)
 			console.log('update', id, data, row)
-			await falcor.call(["dms", "data", "edit"], [app, id, row]);
+			await falcor.call(["dms", "data", "edit"], [app, id, row, type]);
       await falcor.invalidate(['dms', 'data', app, 'byId', id])
 			await falcor.invalidate(['dms', 'data','byId', id])
 			await falcor.invalidate(['dms', 'data', `${ app }+${ type }`])

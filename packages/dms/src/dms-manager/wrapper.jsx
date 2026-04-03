@@ -81,6 +81,16 @@ export default function EditWrapper({ Component, format, options, params, user, 
 			resData = await dmsDataEditor(falcor, config, data, requestType);
     }
 
+		setBusy((prevState) => { return {...prevState, updating: prevState.updating-1 }})
+
+		// Dataset row edits (externalSource with view_id) are managed by the
+		// dataWrapper's local state — skip revalidate to avoid re-running the
+		// loader/preload on every keystroke during live editing.
+		const isDatasetRowEdit = config?.format?.isDms && config?.format?.view_id && data.id;
+		if (isDatasetRowEdit) {
+			return resData;
+		}
+
 		const currentPath = `${pathname}${search}${hash}`
 		if (newPath && newPath !== currentPath) {
 			navigate(newPath)
@@ -89,8 +99,6 @@ export default function EditWrapper({ Component, format, options, params, user, 
       // which navigate does not
 			revalidate()
 		}
-
-		setBusy((prevState) => { return {...prevState, updating: prevState.updating-1 }})
 
 		// -- testing on update set item
 		// -- this adds updateAttribute call to apiUpdate

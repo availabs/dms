@@ -13,6 +13,7 @@ import {cloneDeep} from "lodash-es";
 import {tableTheme} from "./table.theme";
 
 const defaultNumColSize = 0;
+const VIRTUAL_VIEWPORT_INCREASE = { top: 300, bottom: 300, left: 100, right: 100 };
 const defColSize = 250;
 const minColSize = 50;
 
@@ -531,6 +532,11 @@ export default function ({
         display.allowAdddNew, isDragging, theme, localFilterData, paginationActive
     ]);
 
+    const endReached = useCallback(() => {
+        if (display.usePagination) return;
+        infiniteScrollFetchData && infiniteScrollFetchData(currentPage + 1);
+    }, [display.usePagination, infiniteScrollFetchData, currentPage]);
+
     return (
         <div className={`${theme?.tableContainer} ${!paginationActive && theme?.tableContainerNoPagination}`}
              ref={gridRef}
@@ -547,11 +553,8 @@ export default function ({
                             rowCount={rows.length}
                             columnCount={visibleAttrsWithoutOpenOutLength}
                             columnSizes={columnSizes}
-                            increaseViewportBy={{ top: 300, bottom: 300, left: 100, right: 100 }}
-                            endReached={() => {
-                                if(display.usePagination) return;
-                                infiniteScrollFetchData && infiniteScrollFetchData( currentPage + 1 )
-                            }}
+                            increaseViewportBy={VIRTUAL_VIEWPORT_INCREASE}
+                            endReached={endReached}
                             virtualizeColumns={display.virtualizeColumns}
                             renderItem={itemContent}
                             components={components}

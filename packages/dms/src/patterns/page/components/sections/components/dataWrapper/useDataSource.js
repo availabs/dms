@@ -80,7 +80,9 @@ const getViews = async ({ envs, sourceId, srcEnv, falcor }) => {
     }));
 };
 
-export function useDataSource({ state, setState, sourceTypes = ["external", "internal"] }) {
+const DEFAULT_SOURCE_TYPES = ["external", "internal"];
+
+export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TYPES }) {
   const { app, type, falcor, datasources } = useContext(CMSContext) || {};
   const { format } = useContext(PageContext) || {};
 
@@ -206,7 +208,8 @@ export function useDataSource({ state, setState, sourceTypes = ["external", "int
                     const newColumnsNames = newColumns.map(c => c.name);
                     draft.columns = draft.columns.filter(c => newColumnsNames.includes(c.name)).map(c => ({...c, ...newColumns.find(newC => newC.name === c.name)}));
                     const baseUrl = envs[match.srcEnv]?.baseUrl || '';
-                    draft.externalSource = { ...match, baseUrl };
+                    const sourceType = match.name ? nameToSlug(match.name) : draft.externalSource?.type;
+                    draft.externalSource = { ...match, baseUrl, type: sourceType };
                 }
             });
         },
