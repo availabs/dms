@@ -154,7 +154,7 @@ export default {
             {type: 'toggle', label: 'Group', key: 'group'},
             {type: 'select', label: 'Fn', key: 'fn',
                 options: [
-                    {label: 'fn', value: ' '}, {label: 'list', value: 'list'}, {label: 'sum', value: 'sum'}, {label: 'count', value: 'count'}, {label: 'avg', value: 'avg'}
+                    {label: 'list', value: 'list'}, {label: 'sum', value: 'sum'}, {label: 'count', value: 'count'}, {label: 'avg', value: 'avg'}, {label: 'fn exempt', value: 'exempt'}
                 ]},
             {type: 'toggle', label: 'Exclude N/A', key: 'excludeNA'},
             {type: 'toggle', label: 'Open Out', key: 'openOut'},

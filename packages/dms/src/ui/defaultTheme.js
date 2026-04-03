@@ -27,7 +27,8 @@ import navigableMenuTheme from "./components/navigableMenu/theme";
 import {mapTheme} from "./components/map/map.theme";
 import icons from './icons'
 import { textSettingsTheme } from "./themes/textSettings";
-import { lexicalTheme } from './components/lexical/theme'
+import { lexicalTheme } from './components/lexical/theme';
+import { nestableInHouseTheme } from "./components/nestableInHouse";
 // =========================================
 // Pattern Themes, maybe move registration of these to DMS Site ??
 // =========================================
@@ -85,6 +86,7 @@ const components = {
     graph: graphTheme,
     navigableMenu: navigableMenuTheme,
     map: mapTheme,
+    nestableInHouse: nestableInHouseTheme
 }
 const theme = {
 

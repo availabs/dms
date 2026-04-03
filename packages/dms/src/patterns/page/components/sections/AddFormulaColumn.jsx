@@ -1,179 +1,305 @@
-import React, {useContext, useState} from "react";
+import React, { useContext, useState } from "react";
 import { useImmer } from "use-immer";
 import { getColumnLabel } from "./controls_utils";
 import { ThemeContext } from "../../../../ui/useTheme";
 
-const validateAST = (node) => {
-    if (node.type === 'operation') {
-        if (!node.left || !node.right) {
-            return false
-            // throw new Error(`Invalid operation node: ${JSON.stringify(node)}`);
-        }
-        return validateAST(node.left) && validateAST(node.right);
-    } else if (node.type === 'variable') {
-        if (!node.key) {
-            return false;
-            // throw new Error(`Invalid variable node: ${JSON.stringify(node)}`);
-        }
-    } else {
-        return false;
-        // throw new Error(`Unknown node type: ${node.type}`);
-    }
-    return true;
+// ─── AST Validation ──────────────────────────────────────────────────────────
+
+export const validateAST = (node) => {
+    if (!node || !node.type) return false;
+    if (node.type === 'constant') return typeof node.value === 'number' && !isNaN(node.value);
+    if (node.type === 'variable') return !!node.key;
+    if (node.type === 'function') return !!node.fn && Array.isArray(node.args) && node.args.length > 0 && node.args.every(validateAST);
+    if (node.type === 'operation') return !!node.operation && validateAST(node.left) && validateAST(node.right);
+    return false;
 };
 
-const operations = [
-    {operation: '+', Icon: 'Add'},
-    {operation: '-', Icon: 'Minus'},
-    {operation: '*', Icon: 'Multiplication'},
-    {operation: '/', Icon: 'Divide'}
+// ─── Config ──────────────────────────────────────────────────────────────────
+
+const BINARY_OPS = [
+    { operation: '+', label: '+' },
+    { operation: '-', label: '−' },
+    { operation: '*', label: '×' },
+    { operation: '/', label: '÷' },
 ];
-const grouping = [
-    {operation: '(', Icon: () => <>(</>},
-    {operation: ')', Icon: () => <>)</>}
+
+const FUNCTIONS = [
+    { fn: 'round',   label: 'round(',   note: 'Round to N decimal places (set below)' },
+    { fn: 'abs',     label: 'abs(',     note: 'Absolute value' },
+    { fn: 'ceil',    label: 'ceil(',    note: 'Round up to nearest integer' },
+    { fn: 'floor',   label: 'floor(',   note: 'Round down to nearest integer' },
+    { fn: 'sqrt',    label: 'sqrt(',    note: 'Square root' },
+    { fn: 'log',     label: 'log(',     note: 'Natural logarithm' },
+    { fn: 'pow',     label: 'pow(',     note: 'Power: pow(x, n) → x^n. Close inner expr, then add exponent as second arg.' },
+    { fn: 'clamp',   label: 'clamp(',   note: 'Clamp: clamp(x, min, max). Build x, close, add min as constant, add max as constant.' },
+    { fn: 'percent', label: 'percent(', note: 'Percent: percent(a, b) → (a / b) × 100. Build a, close, then b.' },
 ];
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+const attachToContext = (draft, node) => {
+    if (!draft.formulaAST || !Object.keys(draft.formulaAST).length) {
+        draft.formulaAST = node;
+    } else if (draft.formulaAST.type === 'operation' && !draft.formulaAST.right) {
+        draft.formulaAST.right = node;
+    }
+};
+
+// ─── Modal ───────────────────────────────────────────────────────────────────
 
 const Modal = ({ open, setOpen, columns, addFormulaColumn }) => {
-  const { UI } = useContext(ThemeContext);
-    const {Icon} = UI;
+    const { UI } = useContext(ThemeContext);
+    const { Icon } = UI;
     if (!open) return null;
+
     const [state, setState] = useImmer({
-        formulaAST: {}, // formula tree
-        formulaDisplay: [], // display str
-        astStack: [], // running stack for ()
-        variables: [], // a list of variables used. this is used to apply fn and pull data.
-        isValidFormula: false
+        formulaAST: {},
+        formulaDisplay: [],
+        // each stack entry: { savedAST, fnContext?: string }
+        astStack: [],
+        variables: [],
+        display_name: '',
+        constantInput: '',
+        roundDecimals: 0,
     });
 
-    const addToFormula = (item) => {
-        setState((draft) => {
-            // update the display str
-            draft.formulaDisplay.push(item.type === 'variable' ? getColumnLabel(item) : item.operation || item.group);
+    // ── actions ──────────────────────────────────────────────────────────────
 
-            let { formulaAST, astStack } = draft; // Destructure draft state
+    const addLeaf = (leafNode, displayStr) => {
+        setState(draft => {
+            draft.formulaDisplay.push(displayStr);
+            attachToContext(draft, leafNode);
+            if (leafNode.type === 'variable') draft.variables.push(leafNode);
+        });
+    };
 
-            // Handle Parentheses
-            if (item.type === "grouping") {
-                if (item.group === "(") {
-                    // Push current AST onto the stack and start a fresh expression
-                    astStack.push(JSON.parse(JSON.stringify(formulaAST))); // Deep clone
-                    draft.formulaAST = { type: "operation", left: null, operation: null, right: null };
-                    return;
+    const addOperation = (operation) => {
+        setState(draft => {
+            const { formulaAST } = draft;
+            if (!formulaAST || !Object.keys(formulaAST).length) return;
+            if (formulaAST.type === 'operation' && !formulaAST.right) return;
+            draft.formulaDisplay.push(operation);
+            draft.formulaAST = { type: 'operation', operation, left: JSON.parse(JSON.stringify(formulaAST)), right: null };
+        });
+    };
+
+    const openParen = () => {
+        setState(draft => {
+            draft.formulaDisplay.push('(');
+            draft.astStack.push({ savedAST: JSON.parse(JSON.stringify(draft.formulaAST)) });
+            draft.formulaAST = {};
+        });
+    };
+
+    const openFunction = (fn) => {
+        setState(draft => {
+            draft.formulaDisplay.push(`${fn}(`);
+            draft.astStack.push({
+                savedAST: JSON.parse(JSON.stringify(draft.formulaAST)),
+                fnContext: fn,
+            });
+            draft.formulaAST = {};
+        });
+    };
+
+    const closeParen = () => {
+        setState(draft => {
+            if (!draft.astStack.length) return;
+            const innerAST = draft.formulaAST;
+            if (!innerAST || !Object.keys(innerAST).length) return;
+
+            const { savedAST, fnContext } = draft.astStack.pop();
+
+            let resultNode;
+            if (fnContext) {
+                const args = [JSON.parse(JSON.stringify(innerAST))];
+                if (fnContext === 'round' && draft.roundDecimals > 0) {
+                    args.push({ type: 'constant', value: draft.roundDecimals });
+                    draft.formulaDisplay.push(`, ${draft.roundDecimals})`);
+                } else {
+                    draft.formulaDisplay.push(')');
                 }
-
-                if (item.group === ")") {
-                    if (astStack.length === 0 || !formulaAST.left) return; // Ignore if no matching '('
-
-                    // Pop last AST from the stack
-                    const lastAST = astStack.pop();
-
-                    if (!lastAST) return;
-
-                    // Attach the grouped expression correctly
-                    if (lastAST.type === "operation" && !lastAST.right) {
-                        lastAST.right = formulaAST;
-                        draft.formulaAST = lastAST;
-                    }
-                    return;
-                }
+                resultNode = { type: 'function', fn: fnContext, args };
+            } else {
+                draft.formulaDisplay.push(')');
+                resultNode = JSON.parse(JSON.stringify(innerAST));
             }
 
-            // Handle Variables
-            if (item.type === "variable") {
-                if (!formulaAST.left) {
-                    draft.formulaAST = item; // Start a new expression with this variable
-                    draft.variables.push(item);
-                    return;
-                }
-                if (formulaAST.type === "operation" && !formulaAST.right) {
-                    formulaAST.right = item;
-                    draft.variables.push(item);
-                    return;
-                }
-            }
-
-            // Handle Operations
-            if (item.type === "operation") {
-                if (!formulaAST || Object.keys(formulaAST).length === 0) return; // Prevent invalid operation at start
-                if (formulaAST.type === "operation" && !formulaAST.right) return; // Prevent adding operation before operand
-
-                draft.formulaAST = { type: "operation", operation: item.operation, left: formulaAST } // Move current AST to left operandright: null
-                return;
+            if (!savedAST || !Object.keys(savedAST).length) {
+                draft.formulaAST = resultNode;
+            } else if (savedAST.type === 'operation' && !savedAST.right) {
+                savedAST.right = resultNode;
+                draft.formulaAST = savedAST;
+            } else {
+                draft.formulaAST = savedAST;
             }
         });
     };
 
-    // Save and close modal
+    const addConstant = () => {
+        const val = parseFloat(state.constantInput);
+        if (isNaN(val)) return;
+        addLeaf({ type: 'constant', value: val }, String(val));
+        setState(draft => { draft.constantInput = ''; });
+    };
+
+    const handleClear = () => {
+        setState(draft => {
+            draft.formulaAST = {};
+            draft.formulaDisplay = [];
+            draft.astStack = [];
+            draft.variables = [];
+        });
+    };
+
     const handleSave = () => {
-        addFormulaColumn({name: `${crypto.randomUUID()}`, display_name: state.display_name, type: 'formula', formula: state.formulaAST, variables: state.variables});
+        addFormulaColumn({
+            name: crypto.randomUUID(),
+            display_name: state.display_name,
+            type: 'formula',
+            formula: state.formulaAST,
+            variables: state.variables,
+        });
         setOpen(false);
     };
-    const isValidFormula = validateAST(state.formulaAST);
-    console.log("Formula AST:", validateAST(state.formulaAST), state.formulaAST);
+
+    const unclosed = state.astStack.length;
+    const isValid = validateAST(state.formulaAST) && !unclosed;
+
+    // ── render ───────────────────────────────────────────────────────────────
 
     return (
         <div className="fixed inset-0 h-full w-full z-[100] content-center bg-black/40" onClick={() => setOpen(false)}>
-            <div className="w-3/4 h-1/2 overflow-auto flex flex-col gap-3 p-4 bg-white place-self-center rounded-md" onClick={(e) => e.stopPropagation()}>
-                <div className="w-full flex justify-end">
+            <div className="w-3/4 max-h-[80vh] overflow-auto flex flex-col gap-3 p-4 bg-white place-self-center rounded-md"
+                 onClick={e => e.stopPropagation()}>
+
+                {/* Header */}
+                <div className="flex justify-between items-center">
+                    <div className="text-lg font-semibold">Add Formula Column</div>
                     <div className="p-2 text-[#37576B] border border-[#E0EBF0] rounded-full cursor-pointer" onClick={() => setOpen(false)}>
-                        <Icon icon={'XMark'} height={12} width={12} />
+                        <Icon icon="XMark" height={12} width={12} />
                     </div>
                 </div>
 
-                <div className="text-lg font-semibold">Add Formula Column</div>
+                <div className="flex w-full gap-3">
+                    {/* ── Left panel ─────────────────────────────────────── */}
+                    <div className="w-1/3 flex flex-col gap-3">
 
-                <div className="flex w-full h-full px-2">
-                    <div className={'w-1/4 h-full flex flex-col gap-1'}>
-                        {/* Operation Buttons */}
-                        <div className="flex gap-2 h-fit">
-                            {operations.map(({operation, icon}) => (
-                                <div key={operation} className="cursor-pointer px-1 py-0.5 bg-gray-200 hover:bg-gray-300 rounded place-content-center"
-                                     onClick={() => addToFormula({ type: "operation", operation })}>
-                                    <Icon icon={icon} height={12} width={12}/>
-                                </div>
-                            ))}
-                            {grouping.map(({operation, Icon}) => (
-                                <div key={operation} className="cursor-pointer p-1 bg-gray-300 hover:bg-gray-400 rounded"
-                                     onClick={() => addToFormula({ type: "grouping", group: operation })}>
-                                    <Icon />
-                                </div>
-                            ))}
+                        {/* Binary operators */}
+                        <div>
+                            <div className="text-xs text-gray-500 mb-1">Operators</div>
+                            <div className="flex gap-1 flex-wrap">
+                                {BINARY_OPS.map(({ operation, label }) => (
+                                    <button key={operation}
+                                            className="cursor-pointer px-2 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm font-mono"
+                                            onClick={() => addOperation(operation)}>
+                                        {label}
+                                    </button>
+                                ))}
+                                <button className="cursor-pointer px-2 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm font-mono"
+                                        onClick={openParen}>(</button>
+                                <button className="cursor-pointer px-2 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm font-mono"
+                                        onClick={closeParen}>)</button>
+                            </div>
                         </div>
 
-                        {/* Column List */}
-                        <div className="h-1/2 overflow-auto border-r pr-2">
-                            {columns.map((c) => (
-                                <div key={`${c.name}-${c.copyNum}`} className="cursor-pointer p-1 hover:bg-blue-100 rounded-md"
-                                     onClick={() => addToFormula({ ...c, type: "variable", key: c.normalName || c.name, display_name: getColumnLabel(c)})}>
-                                    {getColumnLabel(c)}
-                                </div>
-                            ))}
+                        {/* Functions */}
+                        <div>
+                            <div className="text-xs text-gray-500 mb-1">Functions</div>
+                            <div className="flex flex-wrap gap-1">
+                                {FUNCTIONS.map(({ fn, label, note }) => (
+                                    <button key={fn}
+                                            title={note}
+                                            className="cursor-pointer px-2 py-1 bg-blue-100 hover:bg-blue-200 rounded text-xs font-mono"
+                                            onClick={() => openFunction(fn)}>
+                                        {label}
+                                    </button>
+                                ))}
+                            </div>
+                            <div className="flex items-center gap-1 mt-1.5">
+                                <span className="text-xs text-gray-500">round decimals:</span>
+                                <input
+                                    type="number" min={0} max={10}
+                                    className="w-14 border rounded px-1 text-xs"
+                                    value={state.roundDecimals}
+                                    onChange={e => setState(draft => {
+                                        draft.roundDecimals = Math.max(0, parseInt(e.target.value) || 0);
+                                    })}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Constant */}
+                        <div>
+                            <div className="text-xs text-gray-500 mb-1">Constant</div>
+                            <div className="flex gap-1">
+                                <input
+                                    type="number"
+                                    className="border rounded px-1 text-sm flex-1 min-w-0"
+                                    placeholder="e.g. 100"
+                                    value={state.constantInput}
+                                    onChange={e => setState(draft => { draft.constantInput = e.target.value; })}
+                                    onKeyDown={e => e.key === 'Enter' && addConstant()}
+                                />
+                                <button className="px-2 py-1 bg-gray-200 hover:bg-gray-300 rounded text-xs shrink-0"
+                                        onClick={addConstant}>
+                                    Add
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Columns */}
+                        <div className="flex-1 flex flex-col min-h-0">
+                            <div className="text-xs text-gray-500 mb-1">Columns</div>
+                            <div className="overflow-y-auto border rounded max-h-48">
+                                {columns.map(c => (
+                                    <div key={`${c.name}-${c.copyNum}`}
+                                         className="cursor-pointer px-2 py-1 text-sm hover:bg-blue-50"
+                                         onClick={() => addLeaf(
+                                             { ...c, type: 'variable', key: c.normalName || c.name, display_name: getColumnLabel(c) },
+                                             getColumnLabel(c)
+                                         )}>
+                                        {getColumnLabel(c)}
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     </div>
 
-                    {/* Formula Builder Space */}
-                    <div className="w-3/4 h-full px-2 flex flex-col gap-1">
-                        <input className={'p-1 text-gray-400'} placeholder={'Please enter Formula Name...'} value={state.display_name} onChange={e => setState(draft => {draft.display_name = e.target.value})}/>
-                        <div className="w-full min-h-[50px] p-2 border border-gray-400 flex gap-2 flex-wrap bg-gray-50 rounded-md">
-                            {state.formulaDisplay.length > 0 ? state.formulaDisplay.join(" ") : <span className="text-gray-400">Click on columns and operations to build formula...</span>}
+                    {/* ── Right panel ────────────────────────────────────── */}
+                    <div className="flex-1 flex flex-col gap-2">
+                        <input
+                            className="border rounded p-1 text-sm"
+                            placeholder="Formula name..."
+                            value={state.display_name}
+                            onChange={e => setState(draft => { draft.display_name = e.target.value; })}
+                        />
+
+                        {/* Formula display */}
+                        <div className="flex-1 min-h-[80px] p-2 border border-gray-300 rounded bg-gray-50 font-mono text-sm break-all">
+                            {state.formulaDisplay.length
+                                ? state.formulaDisplay.join(' ')
+                                : <span className="text-gray-400">Click columns, operators, and functions to build formula...</span>
+                            }
                         </div>
 
-                        {/*<div className="w-full min-h-[50px] p-2 border border-gray-400 flex gap-2 flex-wrap bg-gray-50 rounded-md">*/}
-                        {/*    {<span className="text-gray-400">{JSON.stringify(state.formulaAST, null, 4)}</span>}*/}
-                        {/*</div>*/}
-                        <div className={'flex gap-1 place-self-end'}>
-                            {/* Clear Button */}
-                            <button className="px-3 py-1 bg-orange-500/15 text-orange-700 hover:bg-orange-500/25 rounded" onClick={() => {
-                                setState(draft => {
-                                    draft.formulaAST = [];
-                                    draft.formulaDisplay = [];
-                                })
-                            }}>
+                        {unclosed > 0 && (
+                            <div className="text-xs text-amber-600">{unclosed} unclosed bracket{unclosed > 1 ? 's' : ''}</div>
+                        )}
+
+                        <div className="flex gap-1 justify-end">
+                            <button
+                                className="px-3 py-1 bg-orange-100 text-orange-700 hover:bg-orange-200 rounded text-sm"
+                                onClick={handleClear}>
                                 Clear
                             </button>
-                            {/* Save Button */}
-                            <button disabled={!isValidFormula} className={`px-3 py-1 ${isValidFormula ? `bg-blue-500/15 hover:bg-blue-500/25` : `bg-gray-200`} text-blue-700 rounded`} onClick={handleSave}>
-                                Add
+                            <button
+                                disabled={!isValid || !state.display_name}
+                                className={`px-3 py-1 rounded text-sm ${isValid && state.display_name
+                                    ? 'bg-blue-100 text-blue-700 hover:bg-blue-200 cursor-pointer'
+                                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
+                                onClick={handleSave}>
+                                Add Column
                             </button>
                         </div>
                     </div>
@@ -183,16 +309,18 @@ const Modal = ({ open, setOpen, columns, addFormulaColumn }) => {
     );
 };
 
-const AddFormulaColumn = ({columns=[], addFormulaColumn}) => {
+// ─── Export ──────────────────────────────────────────────────────────────────
+
+const AddFormulaColumn = ({ columns = [], addFormulaColumn }) => {
     const [open, setOpen] = useState(false);
-    const {UI} = useContext(ThemeContext);
-    const {Pill} = UI;
+    const { UI } = useContext(ThemeContext);
+    const { Pill } = UI;
     return (
         <>
-            <Pill text={'+ Formula'} color={'blue'} onClick={() => setOpen(true)}/>
-            <Modal open={open} setOpen={setOpen} columns={columns} addFormulaColumn={addFormulaColumn}/>
+            <Pill text="+ Formula" color="blue" onClick={() => setOpen(true)} />
+            <Modal open={open} setOpen={setOpen} columns={columns} addFormulaColumn={addFormulaColumn} />
         </>
-    )
-}
+    );
+};
 
-export default AddFormulaColumn
+export default AddFormulaColumn;

@@ -110,7 +110,8 @@ const RenderDownload = ({state, apiLoad, cms_context}) => {
 }
 
 
-const Edit = forwardRef(({cms_context, value, onChange, component, siteType, pageFormat, onHandle}, ref) => {
+const Edit = forwardRef((props, ref) => {
+    let {cms_context, value, onChange, component, siteType, pageFormat, onHandle} = props
     const isEdit = Boolean(onChange);
     const { UI, theme: fullTheme } = useContext(ThemeContext)
     const { apiLoad, apiUpdate } = useContext(PageContext) || {};

@@ -50,6 +50,8 @@ export const ExternalFilters = ({ defaultOpen = true }) => {
                 cursor = cursor.groups[path[i]];
             }
             updater(path.length ? cursor.groups[path[path.length - 1]] : cursor);
+            // Signal the data loader to re-fetch (View mode guards on readyToLoad)
+            if (draft.display) draft.display.readyToLoad = true;
         });
     };
 

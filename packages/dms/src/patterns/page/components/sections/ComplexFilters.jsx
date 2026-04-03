@@ -2,7 +2,7 @@ import React, {useContext, useEffect, Fragment} from "react";
 import {useImmer} from "use-immer";
 import {isEqual} from "lodash-es";
 import {ThemeContext} from "../../../../ui/useTheme";
-import {PageContext} from "../../context";
+import {PageContext, ComponentContext} from "../../context";
 import {getColumnLabel, isEqualColumns} from "./controls_utils";
 import {ConditionValueInput} from "./ConditionValueInput";
 
@@ -43,6 +43,8 @@ const emptyCondition = (columns) => ({
 export const ComplexFilters = ({ state, setState }) => {
     const { UI } = useContext(ThemeContext);
     const { Pill, Icon, Popup, Switch, ColumnTypes: {select} } = UI;
+    const { apiLoad } = useContext(PageContext) || {};
+    const existingCtx = useContext(ComponentContext);
 
     const columns = [
         ...(state.columns || []).filter(c => c.systemCol),
@@ -225,7 +227,7 @@ export const ComplexFilters = ({ state, setState }) => {
                                 const isMulti = ['filter', 'exclude'].includes(newOp);
                                 updateNodeAtPath(path, n => {
                                     n.op = newOp;
-                                    if (wasMulti !== isMulti) {
+                                    if (wasMulti !== isMulti || ['is_null', 'is_not_null'].includes(newOp)) {
                                         n.value = isMulti ? [] : '';
                                     }
                                 });
@@ -238,17 +240,21 @@ export const ComplexFilters = ({ state, setState }) => {
                             <option key="gte" value="gte"> {">="} </option>
                             <option key="lt" value="lt"> {"<"} </option>
                             <option key="lte" value="lte"> {"<="} </option>
+                            <option key="is_not_null" value="is_not_null">exclude N/A</option>
+                            <option key="is_null" value="is_null">show only N/As</option>
                         </select>
                     </div>
-                    <div className={'w-3/4'}>
-                        <ConditionValueInput
-                            node={node}
-                            path={path}
-                            columns={columns}
-                            updateNodeAtPath={updateNodeAtPath}
-                            siblingConditions={siblingConditions}
-                        />
-                    </div>
+                    {!['is_null', 'is_not_null'].includes(node.op) && (
+                        <div className={'w-3/4'}>
+                            <ConditionValueInput
+                                node={node}
+                                path={path}
+                                columns={columns}
+                                updateNodeAtPath={updateNodeAtPath}
+                                siblingConditions={siblingConditions}
+                            />
+                        </div>
+                    )}
                     <Popup button={<Icon icon={'EllipsisVertical'} className={'size-6'}/>} preventCloseOnClickOutside={false}>
                         {
                             () => (
@@ -371,10 +377,16 @@ export const ComplexFilters = ({ state, setState }) => {
         );
     };
 
+    // When rendered outside the dataWrapper tree (e.g. inside sectionMenu),
+    // ComponentContext has its empty default {} — provide the minimum needed for ConditionValueInput.
+    const ctxValue = existingCtx?.apiLoad ? existingCtx : { apiLoad, state, setState };
+
     return (
-        <div className={'w-full hover:bg-white rounded-md'}>
-            {renderNode(filterGroups)}
-            <Pill color={'blue'} text={'save'} onClick={save} />
-        </div>
+        <ComponentContext.Provider value={ctxValue}>
+            <div className={'w-full hover:bg-white rounded-md'}>
+                {renderNode(filterGroups)}
+                <Pill color={'blue'} text={'save'} onClick={save} />
+            </div>
+        </ComponentContext.Provider>
     );
 };
