@@ -6,7 +6,7 @@ import ColumnManager from "./ColumnManager";
 
 
 export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSource={}, dwAPI, pageDataSources={}, ...rest }) => {
-    const { isEdit, value, attributes, i, showDeleteModal, listAllColumns, state: rawState } = sectionState
+    const { isEdit, value, attributes, i, showDeleteModal, listAllColumns, state: rawState, setSectionState } = sectionState
     const state = rawState || { columns: [], display: {}, externalSource: { columns: [] }, filters: { op: 'AND', groups: [] } }
     const { onEdit, moveItem, updateAttribute, updateElementType, onChange, onCancel, onSave, onAddHelpText, setKey, setState, setShowDeleteModal, setListAllColumns } = actions
     const { user, isUserAuthed, pageAuthPermissions, sectionAuthPermissions, Permissions, AuthAPI } = auth
@@ -145,7 +145,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                                                         }, 2000);
                                                     }}/> : null}
                             {isEdit && canEditSection ? <Pill color={'blue'} text={<Icon icon={'Paste'} className={'size-5'}/>} title={'Paste Section'}
-                                                              onClick={e => handlePaste(e, setKey, dwAPI.setState, value, onChange)}/> : null}
+                                                              onClick={e => handlePaste(e, setKey, setSectionState, value, onChange)}/> : null}
 
                             {!isEdit && canEditPageLayout ?
                                 <Pill color={'blue'} text={<Icon icon={'ChevronUpSquare'} className={'size-5'} />} title={'Move Up'}
