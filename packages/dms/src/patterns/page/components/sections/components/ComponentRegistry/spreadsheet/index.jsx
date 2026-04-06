@@ -166,7 +166,7 @@ export default {
                     })
                 }},
         ],
-        actions: {name: 'Actions', Comp: ActionControls, type: () => ActionControls({isInMenu: true})},
+        actions: {name: 'Actions', Comp: ActionControls, type: ({dwAPI}) => <ActionControls isInMenu={true} dwAPI={dwAPI} />},
         more: [
             // settings from more dropdown are stored in state.display
             {type: 'toggle', label: 'Attribution', key: 'showAttribution'},

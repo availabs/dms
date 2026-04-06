@@ -347,9 +347,10 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
       route: "dms.data.edit",
       call: function(callPath, args) {
         if (args.length >= 3) {
-          // New format: [app, id, data]
-          const [app, id, data] = args;
-          return controller.setDataById(id, data, this.user, app).then((rows) => {
+          // New format: [app, id, data] or [app, id, data, type]
+          // When type is provided, the controller resolves the split table for dataset rows.
+          const [app, id, data, type] = args;
+          return controller.setDataById(id, data, this.user, app, type || null).then((rows) => {
             return [
               ...dataByIdResponse(rows, [id], DATA_ATTRIBUTES, app),
             ];

@@ -228,7 +228,7 @@ const RenderAddAction = ({addAction}) => {
 
 // linkCol: {isLink, linkText, linkAddress}
 // action: {name, actionType: delete/url, icon, display: edit/view/both}
-export default function ActionControls({context, isInMenu=false}) {
+export default function ActionControls({context, isInMenu=false, dwAPI}) {
     // each action has:
     // name: used as title, fallback if no icon is selected. only needed if it's not data column.
     // name: if action is related to a column, use its name. oterwise empty
@@ -237,7 +237,12 @@ export default function ActionControls({context, isInMenu=false}) {
     // url: if type is url, provide text box
     // display: edit only, view only, both
     // attach search params
-    const {state:{columns}, setState} = useContext(context || ComponentContext);
+    const ctx = useContext(context || ComponentContext) || {};
+    // dwAPI.state/setState are getters that always return live values,
+    // so reading them here gets the current state even if dwAPI was captured earlier.
+    const state = dwAPI?.state || ctx.state;
+    const setState = dwAPI?.setState || ctx.setState;
+    const columns = state?.columns || [];
     const {UI} = useContext(ThemeContext) || {UI: {}};
     const {Icon, Button, Popup, Input} = UI;
     const [search, setSearch] = useState();
@@ -245,33 +250,30 @@ export default function ActionControls({context, isInMenu=false}) {
 
     // takes in one action, adds or updates it.
     const updateAction = useCallback((action={}) => {
-        setState(draft => {
-            // find index of the action passed. make sure to only refer action, and not a column with the same name.
-            // columns array can have multiple objects with same name in the future as there can be
+        setState?.(draft => {
             const idx = draft.columns.findIndex(column => column.name === action.name && (column.actionType));
             if(idx !== -1) {
                 draft.columns[idx] = action;
             }else{
                 draft.columns.push(action);
             }
-
         })
-    }, [columns])
+    }, [setState, columns])
 
     const deleteAction = useCallback((action={})=> {
-        setState(draft => {
+        setState?.(draft => {
             const idx = draft.columns.findIndex(column => column.actionType && column.name === action.name);
             if(idx !== -1){
                 draft.columns.splice(idx, 1);
             }
         })
-    }, [columns])
+    }, [setState, columns])
 
     const addAction = useCallback((action={})=> {
-        setState(draft => {
+        setState?.(draft => {
             draft.columns.push(action)
         })
-    }, [columns])
+    }, [setState, columns])
 
     if(isInMenu){
         return (
