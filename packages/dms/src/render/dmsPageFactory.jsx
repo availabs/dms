@@ -20,6 +20,7 @@ export default function dmsPageFactory (
   {
       dmsConfig,
       API_HOST = 'https://graph.availabs.org',
+      DAMA_HOST = 'https://graph.availabs.org',
       authWrapper = withAuth,
       ErrorBoundary,
       isAuth
@@ -32,7 +33,9 @@ export default function dmsPageFactory (
   const ErrorBoundaryComp = errorElement || ErrorBoundary
   const dmsPath = `${baseUrl}${baseUrl === '/' ? '' : '/'}`
   // console.log('dmspageFactory', API_HOST)
-  const falcor = falcorGraph(API_HOST)
+  const falcor = falcorGraph(API_HOST);
+  const dama_falcor = API_HOST === DAMA_HOST ? falcor : DAMA_HOST ? falcorGraph(DAMA_HOST) : undefined;
+
 
   async function loader ({ request, params }) {
     if (isAuth) return { data: [] }
@@ -82,6 +85,7 @@ export default function dmsPageFactory (
           config={dmsConfig}
           navigate={navigate}
           falcor={falcor}
+          dama_falcor={dama_falcor}
         />
       </FalcorProvider>
     ),[params['*']])

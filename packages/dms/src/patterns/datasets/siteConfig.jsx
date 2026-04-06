@@ -51,7 +51,7 @@ const datasetsConfig = ({
         children: [
             {
               type: (props) => {
-                  const { user, falcor } = props
+                  const { user, falcor, dama_falcor } = props
                   return (
                       <DatasetsContext.Provider value={{
                           UI,
@@ -60,6 +60,7 @@ const datasetsConfig = ({
                           dmsEnv: pattern.dmsEnvId ? dmsEnvById[pattern.dmsEnvId] : null,
                           baseUrl: `${baseUrl}`,
                           falcor,
+                          dama_falcor,
                           user,
                           theme, app, type, siteType,
                           parent: pattern, API_HOST, DAMA_HOST,
