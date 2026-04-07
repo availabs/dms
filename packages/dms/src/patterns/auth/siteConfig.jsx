@@ -3,6 +3,7 @@ import {Link} from "react-router";
 import UI from "../../ui";
 import {getPatternTheme, ThemeContext} from "../../ui/useTheme";
 import defaultTheme from "../../ui/defaultTheme";
+import authTheme from "./defaultTheme";
 import DefaultMenu from "./components/menu"
 import AuthLogin from "./pages/authLogin";
 import AuthLogout from "./pages/authLogout";
@@ -47,7 +48,7 @@ const AuthLayout = ({children, theme, imgI}) => {
                     <div className={theme?.pages?.sectionGroup?.default?.wrapper4}>
                         <div
                             className={theme?.pages?.sectionGroup?.default?.wrapper4Img}
-                            style={{ backgroundImage: `url(${theme?.pages?.sectionGroup?.default?.wrapper4ImgList[imgI]})` }}
+                            style={{ backgroundImage: `url(${theme?.pages?.sectionGroup?.default?.wrapper4ImgList?.[imgI]})` }}
                         />
                     </div>
                 </div>
@@ -64,8 +65,7 @@ const authConfig = ({
 
   baseUrl = baseUrl === '/' ? '' : baseUrl;
     // hard coding mny_admin for dev, needs to come from pattern
-    let theme = getPatternTheme(themes, pattern);
-
+    const theme = getPatternTheme({...themes, default: authTheme}, pattern); //getPatternTheme(themes, {...pattern, theme: {selectedTheme: ''}});
     if (authImgI === null) {
         const totalImages = theme?.pages?.sectionGroup?.default?.wrapper4ImgList?.length || 0;
         authImgI = Math.floor(Math.random() * totalImages);
