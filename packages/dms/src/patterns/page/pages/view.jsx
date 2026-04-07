@@ -20,7 +20,7 @@ function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdat
     const [searchParams] = useSearchParams();
     const { search, pathname } = useLocation()
     const pdfRef = useRef(); // To capture the section of the page to be converted to PDF
-    const {theme: fullTheme, UI} = useContext(ThemeContext);
+    const {theme: fullTheme, UI, getComponentTheme} = useContext(ThemeContext);
     const { Menu, baseUrl, patternFilters = [], isUserAuthed = () => true, authPermissions } = React.useContext(CMSContext) || {};
     const dataItems = allDataItems.filter(d => !d.authPermissions || isUserAuthed(reqPermissions, d.authPermissions));
 
@@ -131,7 +131,7 @@ function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdat
       <PageContext.Provider
         value={{ item, pageState, setPageState, updatePageStateFilters, dataItems, apiLoad, apiUpdate, format, busy, baseUrl }}
       >
-        <ThemeContext.Provider value={{theme, UI}}>
+        <ThemeContext.Provider value={{theme, UI, getComponentTheme}}>
           <Layout
               navItems={menuItems}
               resolveNav={resolveNav}

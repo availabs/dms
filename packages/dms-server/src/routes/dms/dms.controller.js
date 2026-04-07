@@ -664,9 +664,18 @@ function createController(dbName = 'dms-sqlite', options = {}) {
       return dms_db.promise(sql, arrayResult.values);
     },
 
-    setDataById: async (id, data, user, app = null) => {
-      // When app is provided, resolve per-app table; otherwise data_items (legacy)
-      const table = app ? await mainTable(app) : tableName('data_items');
+    setDataById: async (id, data, user, app = null, type = null) => {
+      // When type is provided, resolve the split table (for dataset row updates).
+      // Otherwise fall back to the main table.
+      let table;
+      if (type && app) {
+        const resolved = await resolve(app, type);
+        const seqName = getSequenceName(app, dbType, splitMode);
+        await ensureTable(dms_db, resolved.schema, resolved.table, dbType, seqName);
+        table = resolved.fullName;
+      } else {
+        table = app ? await mainTable(app) : tableName('data_items');
+      }
       const userId = get(user, "id", null);
 
       await dms_db.beginTransaction();

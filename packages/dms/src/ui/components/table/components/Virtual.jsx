@@ -5,21 +5,25 @@ const theme = {
     bottom: 'bottom-0 sticky z-[5]'
 }
 
+const DEFAULT_INCREASE_VIEWPORT = { top: 0, bottom: 0, left: 0, right: 0 };
+
 function MeasuredRow({
                          row,
                          onMeasureRow,
                          renderItem, cols
                      }) {
     const ref = useRef(null);
+    const onMeasureRef = useRef(onMeasureRow);
+    onMeasureRef.current = onMeasureRow;
 
     useLayoutEffect(() => {
         if (!ref.current) return;
         const ro = new ResizeObserver(([entry]) => {
-            onMeasureRow(entry.contentRect.height);
+            onMeasureRef.current(entry.contentRect.height);
         });
         ro.observe(ref.current);
         return () => ro.disconnect();
-    }, [row, onMeasureRow]);
+    }, [row]);
 
     return renderItem(row, cols.start, cols.end, ref)
 }
@@ -30,7 +34,7 @@ export function VirtualList({
     columnSizes,
     estimatedRowHeight = 40,
     estimatedColumnWidth = 120,
-    increaseViewportBy = { top: 0, bottom: 0, left: 0, right: 0 },
+    increaseViewportBy = DEFAULT_INCREASE_VIEWPORT,
     virtualizeColumns,
     renderItem,
     components,

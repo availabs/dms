@@ -35,7 +35,31 @@ const cleanValue = (value) => {
 };
 
 const evaluateAST = (node, values) => {
+    if (!node) return 0;
     if (node.type === "variable") return values[node.key] ?? 0;
+    if (node.type === "constant") return node.value;
+
+    if (node.type === "function") {
+        const args = (node.args || []).map(a => evaluateAST(a, values));
+        switch (node.fn) {
+            case "round": {
+                if (args.length > 1) {
+                    const factor = 10 ** args[1];
+                    return Math.round(args[0] * factor) / factor;
+                }
+                return Math.round(args[0]);
+            }
+            case "abs":     return Math.abs(args[0]);
+            case "ceil":    return Math.ceil(args[0]);
+            case "floor":   return Math.floor(args[0]);
+            case "sqrt":    return Math.sqrt(args[0]);
+            case "log":     return Math.log(args[0]);
+            case "pow":     return Math.pow(args[0], args[1] ?? 2);
+            case "clamp":   return Math.min(Math.max(args[0], args[1] ?? -Infinity), args[2] ?? Infinity);
+            case "percent": return args[1] !== 0 ? (args[0] / args[1]) * 100 : NaN;
+            default: return args[0] ?? 0;
+        }
+    }
 
     const left = evaluateAST(node.left, values);
     const right = evaluateAST(node.right, values);

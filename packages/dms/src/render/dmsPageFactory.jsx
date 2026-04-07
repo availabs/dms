@@ -20,6 +20,7 @@ export default function dmsPageFactory (
   {
       dmsConfig,
       API_HOST = 'https://graph.availabs.org',
+      DAMA_HOST = 'https://graph.availabs.org',
       authWrapper = withAuth,
       ErrorBoundary,
       isAuth
@@ -32,7 +33,9 @@ export default function dmsPageFactory (
   const ErrorBoundaryComp = errorElement || ErrorBoundary
   const dmsPath = `${baseUrl}${baseUrl === '/' ? '' : '/'}`
   // console.log('dmspageFactory', API_HOST)
-  const falcor = falcorGraph(API_HOST)
+  const falcor = falcorGraph(API_HOST);
+  const dama_falcor = API_HOST === DAMA_HOST ? falcor : DAMA_HOST ? falcorGraph(DAMA_HOST) : undefined;
+
 
   async function loader ({ request, params }) {
     if (isAuth) return { data: [] }
@@ -42,9 +45,9 @@ export default function dmsPageFactory (
     let data = await dmsDataLoader(falcor, dmsConfig, `/${params['*'] || ''}`)
     const t1 = import.meta.env.DEV ? performance.now() : 0
     // Pre-load dataWrapper section data if the pattern supports it
-    // if (dmsConfig.preload) {
-    //   data = await dmsConfig.preload(falcor, data, request, params)
-    // }
+    if (dmsConfig.preload) {
+      data = await dmsConfig.preload(falcor, data, request, params)
+    }
     if (import.meta.env.DEV) {
       const t2 = performance.now()
       //console.log('[dms loader]', data)
@@ -82,6 +85,7 @@ export default function dmsPageFactory (
           config={dmsConfig}
           navigate={navigate}
           falcor={falcor}
+          dama_falcor={dama_falcor}
         />
       </FalcorProvider>
     ),[params['*']])

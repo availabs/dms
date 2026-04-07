@@ -3,6 +3,7 @@ import { sectionArrayTheme, sectionArraySettings } from './components/sections/s
 import { sectionTheme, sectionSettings } from './components/sections/section.theme'
 import { userMenuTheme, userMenuSettings } from './components/userMenu.theme'
 import { searchButtonTheme, searchPalletTheme, searchButtonSettings, searchPalletSettings } from './components/search/theme'
+import { sectionGroupControlTheme } from "./pages/edit/editPane/sectionGroupsPane";
 
 export default {
     sectionGroup: sectionGroupTheme,
@@ -10,7 +11,8 @@ export default {
     section: sectionTheme,
     userMenu: userMenuTheme,
     searchButton: searchButtonTheme,
-    searchPallet: searchPalletTheme
+    searchPallet: searchPalletTheme,
+    sectionGroupsPane: sectionGroupControlTheme,
 }
 
 export const pagesThemeSettings = (theme) => {

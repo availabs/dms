@@ -207,6 +207,7 @@ export function pattern2routes (siteData, props) {
                   ...dmsPageFactory({
                     dmsConfig: configObj,
                     API_HOST,
+                      DAMA_HOST,
                     authWrapper,
                     isAuth: pattern.pattern_type === 'auth',
                     ErrorBoundary: RootErrorBoundary

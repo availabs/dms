@@ -182,7 +182,7 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
     const onAddHelpText = () => updateAttribute('helpText', [...helpTextArray, {text: ''}]);
 
     const sectionMenuItems = getSectionMenuItems({
-        sectionState: { isEdit, value, attributes, i, showDeleteModal, listAllColumns, state: stateFromRef },
+        sectionState: { isEdit, value, attributes, i, showDeleteModal, listAllColumns, state: stateFromRef, setSectionState },
         actions: { moveItem, updateAttribute, updateElementType, onChange, onCancel, onSave, onAddHelpText, setKey, setState: dwHandle?.setState, setShowDeleteModal, setListAllColumns },
         auth: { user, isUserAuthed, pageAuthPermissions, sectionAuthPermissions, Permissions, AuthAPI },
         ui:  { Switch, Pill, Icon, TitleEditComp, LevelComp, theme: fullTheme, RegisteredComponents },

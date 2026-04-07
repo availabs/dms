@@ -10,7 +10,7 @@ import cmsFormat from "./page.format.js";
 import { CMSContext } from "./context";
 import { isUserAuthed } from "./auth.js";
 import UI from "../../ui";
-import { ThemeContext, getPatternTheme } from "../../ui/useTheme.js";
+import { ThemeContext, getPatternTheme, getComponentTheme } from "../../ui/useTheme.js";
 import { registerWidget } from "../../ui/widgets";
 import { registerComponents } from './components/sections/componentRegistry';
 import SearchButton from "./components/search/index";
@@ -122,7 +122,7 @@ const pagesConfig = ({
                 return isUserAuthed({ user, authPermissions: { users: mergedUsers, groups: mergedGroups }, reqPermissions });
               }
             }}>
-              <ThemeContext.Provider value={{theme, UI}}>
+              <ThemeContext.Provider value={{theme, UI, getComponentTheme}}>
                 {children}
               </ThemeContext.Provider>
             </CMSContext.Provider>

@@ -17,7 +17,7 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
 	const [searchParams] = useSearchParams();
 	const { pathname = '/edit', search } = useLocation();
 
-	const { theme: fullTheme, UI } = React.useContext(ThemeContext);
+	const { theme: fullTheme, UI, getComponentTheme } = React.useContext(ThemeContext);
 	const {  Menu, baseUrl, user, patternFilters=[], isUserAuthed } = React.useContext(CMSContext) || {};
 	const dataItems = allDataItems.filter(d => !d.authPermissions || isUserAuthed(reqPermissions, d.authPermissions));
 
@@ -197,7 +197,7 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
 			busy,
       baseUrl
 		}}>
-			<ThemeContext.Provider value={{theme, UI}}>
+			<ThemeContext.Provider value={{theme, UI, getComponentTheme}}>
 				<PageControls />
 				<Layout
               navItems={menuItems}
