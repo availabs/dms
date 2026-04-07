@@ -10,7 +10,7 @@ import { getExternalEnv } from "../../../utils/datasources";
 // import { DAMA_HOST } from "~/config";
 // import { DamaContext } from "~/pages/DataManager/store";
 
-const MIN_SOURCE_NAME_LENGTH = 5;
+const MIN_SOURCE_NAME_LENGTH = 4;
 const intFormat = d3format(",d");
 
 const CreatePage = ({ source }) => {
@@ -58,7 +58,7 @@ const CreatePage = ({ source }) => {
 				</button>
 				{ sourceName.length >= MIN_SOURCE_NAME_LENGTH ? null :
 					<div className="flex-1 flex justify-end items-center">
-						Enter a source name of length 5 or longer.
+						Enter a source name of length { MIN_SOURCE_NAME_LENGTH } or longer.
 					</div>
 				}
 			</div>
@@ -80,14 +80,15 @@ const File = ({ file, sourceId, sourceName, okToUpload }) => {
 		baseUrl,
 		falcor,
 		user,
-		DAMA_HOST,
-		API_HOST,
+		API_HOST
 	} = React.useContext(DatasetsContext);
 	const pgEnv = getExternalEnv(datasources);
 
 	const HOST = React.useMemo(() => {
-		return API_HOST.includes("localhost") ? API_HOST : DAMA_HOST;
-	}, [DAMA_HOST, API_HOST]);
+		return "http://localhost:4444"
+	}, [API_HOST]);
+
+console.log("File::HOST", HOST);
 
   const [description, setDescription] = React.useState("");
   const doSetDescription = React.useCallback(e => {
@@ -110,8 +111,9 @@ const File = ({ file, sourceId, sourceName, okToUpload }) => {
     formData.append("file_name", file.name);
     formData.append("file_type", file.type || "application/octet-stream");
     formData.append("description", description);
-    
+
     formData.append("categories", JSON.stringify([["Uploaded File"]]));
+
     if (sourceId) {
     	formData.append("source_id", sourceId);
     }
@@ -171,7 +173,7 @@ const File = ({ file, sourceId, sourceName, okToUpload }) => {
 				</div>
 			</div>
 
-			<div className="border-b-2"/>
+			<div className="border-b-3"/>
 
 			<div className="grid grid-cols-5 mt-1">
 				<div className="text-xl font-extrabold col-span-2 whitespace-nowrap">
