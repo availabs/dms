@@ -64,7 +64,7 @@ const authConfig = ({
 
   baseUrl = baseUrl === '/' ? '' : baseUrl;
     // hard coding mny_admin for dev, needs to come from pattern
-    let theme = getPatternTheme(themes, {...pattern, theme: {selectedTheme: 'mny_auth'}});
+    let theme = getPatternTheme(themes, pattern);
 
     if (authImgI === null) {
         const totalImages = theme?.pages?.sectionGroup?.default?.wrapper4ImgList?.length || 0;
