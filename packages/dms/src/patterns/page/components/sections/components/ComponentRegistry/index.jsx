@@ -10,8 +10,8 @@ import Card from "./Card";
 import Graph from "./graph"
 import ComponentsIndexTable from "../componentsIndexTable";
 import FilterComponent from "./FilterComponent";
-import UploadComponent from "./UploadComponent";
-import ValidateComponent from "./ValidateComponent";
+// import UploadComponent from "./UploadComponent";
+// import ValidateComponent from "./ValidateComponent";
 import PDFGenerator from "./ExportPdf";
 import Map from "./map"
 // import MapDama from "./map_dama"
@@ -27,8 +27,8 @@ const ComponentRegistry = {
     "Header: MNY Data": MnyHeaderDataDriven,
     "Footer: MNY Footer": MNYFooter,
     PDFGenerator,
-    Upload: UploadComponent,
-    Validate: ValidateComponent,
+    // Upload: UploadComponent,
+    // Validate: ValidateComponent,
     "Table: Components Index": ComponentsIndexTable,
     Item: {
         name: 'Item',
