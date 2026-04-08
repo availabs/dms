@@ -1,8 +1,9 @@
 import React from "react";
 import {Link} from "react-router";
 import UI from "../../ui";
-import {ThemeContext} from "../../ui/useTheme";
+import {getPatternTheme, ThemeContext} from "../../ui/useTheme";
 import defaultTheme from "../../ui/defaultTheme";
+import authTheme from "./defaultTheme";
 import DefaultMenu from "./components/menu"
 import AuthLogin from "./pages/authLogin";
 import AuthLogout from "./pages/authLogout";
@@ -15,14 +16,16 @@ import Profile from "./pages/profile";
 import {cloneDeep, merge} from "lodash-es";
 
 
+let authImgI = null;
+
 const AdminLayout = ({menuItems, children, theme, Menu}) => {
     const {Layout} = UI;
     return (
-        <div className={theme?.page?.container}>
+        <div className={theme?.pages?.container}>
             <Layout navItems={menuItems} Menu={Menu}>
-                <div className={`${theme?.sectionGroup?.content?.wrapper1}`}>
-                    <div className={theme?.sectionGroup?.content?.wrapper2}>
-                        <div className={`${theme?.sectionGroup?.content?.wrapper3}`}>
+                <div className={`${theme?.pages?.sectionGroup?.default?.wrapper1}`}>
+                    <div className={theme?.pages?.sectionGroup?.default?.wrapper2}>
+                        <div className={`${theme?.pages?.sectionGroup?.default?.wrapper3}`}>
                             {children}
                         </div>
                     </div>
@@ -32,36 +35,41 @@ const AdminLayout = ({menuItems, children, theme, Menu}) => {
     )
 }
 
-const AuthLayout = ({children, theme}) => {
+const AuthLayout = ({children, theme, imgI}) => {
     const {Layout} = UI;
 
     return (
-        <div className={theme?.page?.container}>
-            <Layout>
-                <div className={`${theme?.sectionGroup?.content?.wrapper1}`}>
-                    <div className={theme?.sectionGroup?.content?.wrapper2}>
-                        <div className={`${theme?.sectionGroup?.content?.wrapper3} pt-[150px]`}>
-                            {children}
-                        </div>
+        <Layout>
+            <div className={theme?.pages?.sectionGroup?.default?.wrapper1}>
+                <div className={theme?.pages?.sectionGroup?.default?.wrapper2}>
+                    <div className={theme?.pages?.sectionGroup?.default?.wrapper3}>
+                        {children}
+                    </div>
+                    <div className={theme?.pages?.sectionGroup?.default?.wrapper4}>
+                        <div
+                            className={theme?.pages?.sectionGroup?.default?.wrapper4Img}
+                            style={{ backgroundImage: `url(${theme?.pages?.sectionGroup?.default?.wrapper4ImgList?.[imgI]})` }}
+                        />
                     </div>
                 </div>
-            </Layout>
-        </div>
+            </div>
+        </Layout>
     )
 }
 const authConfig = ({
   app = "default-app",
   baseUrl = '/dms_auth',
+    pattern,
   themes = {}
 }) => {
 
   baseUrl = baseUrl === '/' ? '' : baseUrl;
-
-    let theme = merge(
-        cloneDeep(defaultTheme),
-        cloneDeep(themes.mny_auth)
-    );
-
+    // hard coding mny_admin for dev, needs to come from pattern
+    const theme = getPatternTheme({...themes, default: authTheme}, pattern); //getPatternTheme(themes, {...pattern, theme: {selectedTheme: ''}});
+    if (authImgI === null) {
+        const totalImages = theme?.pages?.sectionGroup?.default?.wrapper4ImgList?.length || 0;
+        authImgI = Math.floor(Math.random() * totalImages);
+    }
   // ----------------------
   return {
     app,
@@ -73,11 +81,9 @@ const authConfig = ({
           return (
 
               <ThemeContext.Provider value={{theme, UI}}>
-                      <div className={theme?.page?.container}>
-                          <AuthLayout theme={theme}>
-                              {props.children}
-                          </AuthLayout>
-                      </div>
+                  <AuthLayout theme={theme} imgI={authImgI}>
+                      {props.children}
+                  </AuthLayout>
               </ThemeContext.Provider>
 
           )

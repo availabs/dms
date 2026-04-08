@@ -1,7 +1,7 @@
 import React from "react";
 import { merge, cloneDeep } from "lodash-es"
 
-import { ThemeContext } from '../useTheme.js';
+import {getComponentTheme, ThemeContext} from '../useTheme.js';
 import layoutTheme from './Layout.theme';
 /*
   // Example
@@ -42,9 +42,10 @@ const Layout = ({
 	resolveNav,
 }) => {
 
-	const { theme: defaultTheme = {layout: layoutTheme} } = React.useContext(ThemeContext);
+	const { theme: defaultTheme} = React.useContext(ThemeContext);
 	const { sideNav={}, topNav={}, activeStyle } = cloneDeep(defaultTheme?.layout.options) || {}
-	const theme = merge(cloneDeep(defaultTheme?.layout?.styles?.[activeStyle || 0] || defaultTheme))
+	const theme = getComponentTheme(defaultTheme, 'layout', activeStyle)
+	//merge(cloneDeep(defaultTheme?.layout?.styles?.[activeStyle || 0] || defaultTheme))
 	const widgets = defaultTheme?.widgets || {}
 	// console.log('Theme', theme, sideNav, activeStyle)
   const navs = (nav) => {

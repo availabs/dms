@@ -16,12 +16,10 @@ export default (props) => {
 
     if(status) return <div>{status}</div>
 
+    const sectionGroupTheme = theme?.pages?.sectionGroup?.default || {};
     return (
-        <div className={'max-w-sm mx-auto my-auto flex flex-col gap-3'}>
-            <div className={'border-b w-full'}>
-                <div className={theme?.loginPage?.titleWrapper}>{theme?.loginPage?.titleText}</div>
-                <div className={theme?.dataCard?.header}>Signup</div>
-            </div>
+        <div className={sectionGroupTheme.pageWrapper}>
+            <div className={sectionGroupTheme.pageTitle}>Sign Up</div>
 
             <FieldSet
                 components={[
@@ -55,7 +53,7 @@ export default (props) => {
 
             <Button
                 type={'plain'}
-                className={`${theme?.signupButton}`}
+                className={sectionGroupTheme.actionButton}
                 disabled={credentials.password !== credentials.verifyPassword}
                 onClick={async () => {
                 await callAuthServer(`${AUTH_HOST}/signup/assign/group`,
@@ -74,10 +72,11 @@ export default (props) => {
                         console.error('Cannot contact authentication server.');
                     });
             }}>
-                <span className={`text-sm ${theme?.dataCard?.value}`}> signup </span>
+                <span className={sectionGroupTheme.actionText}>Sign in</span>
             </Button>
 
-            <div className={`text-sm ${theme?.dataCard?.value}`}>Already have an account? <Link to={`${baseUrl}/login`} className={'underline'}>login</Link></div>
+            <div className={sectionGroupTheme.prompt}>
+                Already have an account? <span><Link to={`${baseUrl}/login`} className={sectionGroupTheme.forgotPasswordText}>Sign in</Link></span></div>
         </div>
     )
 }
