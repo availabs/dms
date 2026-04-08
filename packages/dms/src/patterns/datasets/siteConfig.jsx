@@ -38,6 +38,7 @@ const datasetsConfig = ({
     pattern,
     damaDataTypes,
     themes={ default: {} },
+    ...props
 }) => {
     const theme = getPatternTheme(themes, pattern)
     const patternFormat = initializePatternFormat(datasetsFormat, app, type);
