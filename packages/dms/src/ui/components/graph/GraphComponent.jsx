@@ -41,7 +41,8 @@ const GraphTitle = ({ title, position, fontSize, fontWeight }) => {
 const AggFuncs = {
   sum: d3sum,
   avg: d3mean,
-  count: d3sum
+  count: d3sum,
+  exempt: (arr, acc) => acc(arr[0])
 }
 const getAggFunc = aggMethod => {
   return AggFuncs[aggMethod] //|| d3sum;
@@ -84,6 +85,8 @@ export const GraphComponent = props => {
           const [aggMethod, group3] = ccc;
 
           const aggFunc = getAggFunc(aggMethod);
+          console.log("aggMethod", aggMethod);
+          
           aaa.push({
             index,
             type,
