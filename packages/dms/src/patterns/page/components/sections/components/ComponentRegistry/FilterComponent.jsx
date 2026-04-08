@@ -50,6 +50,7 @@ export default {
     "type": 'filter',
     "variables": [],
     useDataSource: true,
+    useDataWrapper: true,
     defaultState: {
         filters: { op: 'AND', groups: [] },
         columns:[],
