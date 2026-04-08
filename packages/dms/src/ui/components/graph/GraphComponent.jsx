@@ -85,8 +85,6 @@ export const GraphComponent = props => {
           const [aggMethod, group3] = ccc;
 
           const aggFunc = getAggFunc(aggMethod);
-          console.log("aggMethod", aggMethod);
-          
           aaa.push({
             index,
             type,
