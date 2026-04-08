@@ -38,8 +38,11 @@ const DomainEditor = ({value, setValue, display}) => {
         </>
     )  : null
 }
-export default function AppearanceControls({context}) {
-    const {state: {display}, setState} = useContext(context || ComponentContext);
+export default function AppearanceControls({context, state: stateProp, setState: setStateProp}) {
+    const contextValue = useContext(context || ComponentContext);
+    const state = stateProp ?? contextValue?.state;
+    const setState = setStateProp ?? contextValue?.setState;
+    const display = state?.display || {};
     const {UI} = useContext(ThemeContext);
     const {Icon, Popup} = UI;
 
