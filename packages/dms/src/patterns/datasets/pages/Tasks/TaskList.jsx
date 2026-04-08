@@ -2,9 +2,9 @@ import React from "react";
 import {Link} from "react-router";
 import { get } from "lodash-es"
 
-import {DatasetsContext} from "../../../../context";
-import {ThemeContext} from "../../../../../../ui/useTheme";
-import { getExternalEnv } from "../../../../utils/datasources";
+import {DatasetsContext} from "../../context";
+// import {ThemeContext} from "../../../../ui/useTheme";
+import { getExternalEnv } from "../../utils/datasources";
 
 export const ETL_CONTEXT_ATTRS = [
     "etl_status",
@@ -89,7 +89,7 @@ export const UserCell = ({value, ...rest}) => {
 
 const TaskList = ({sourceId, pageSize = 5}) => {
     const ref = React.useRef();
-    const {datasources, falcor, baseUrl, UI} = React.useContext(DatasetsContext);
+    const {datasources, dama_falcor, baseUrl, UI} = React.useContext(DatasetsContext);
     const pgEnv = getExternalEnv(datasources);
     const {Table, Pagination} = UI;
     const [currentPage, setCurrentPage] = React.useState(0);
@@ -142,7 +142,8 @@ const TaskList = ({sourceId, pageSize = 5}) => {
     //get length of data
     React.useEffect(() => {
         const load = async () => {
-            const lenRes = await falcor.get(dataLengthPath);
+          const lenRes = await dama_falcor.get(dataLengthPath);
+          console.log('lenRens', lenRes)
             const length = get(lenRes, ['json', ...dataLengthPath]);
             if (!length) return;
             const from = currentPage * pageSize;
@@ -166,13 +167,13 @@ const TaskList = ({sourceId, pageSize = 5}) => {
 
             const dataPath = dataFetchPath.slice(0, dataFetchPath.length - 2);
 
-            const sourceDataRes = await falcor.get(dataFetchPath);
+            const sourceDataRes = await dama_falcor.get(dataFetchPath);
 
             const sourceIds = Object.values(get(sourceDataRes, ["json", ...dataPath]))
                 .map((etlContext) => etlContext.source_id)
                 .filter((sourceId) => !!sourceId);
 
-            const res = await falcor.get(["dama", pgEnv, "sources", "byId", sourceIds, "attributes", "name"]);
+            const res = await dama_falcor.get(["dama", pgEnv, "sources", "byId", sourceIds, "attributes", "name"]);
             const parsedRes = get(res, ['json', "dama", pgEnv, "sources", "byId"]);
 
             const data = Object.values(get(sourceDataRes, ["json", ...dataPath]))
@@ -187,15 +188,17 @@ const TaskList = ({sourceId, pageSize = 5}) => {
             setData({data, length});
         }
         load();
-    }, [falcor, pgEnv, currentPage]);
+    }, [dama_falcor, pgEnv, currentPage]);
 
     if (!data.length) return;
 
     return (
         <div className={'w-full'}>
             <Table data={data.data} columns={COLUMNS} gridRef={ref}/>
-            <Pagination currentPage={currentPage} setCurrentPage={setCurrentPage} pageSize={pageSize} usePagination={true}
-                        totalLength={data.length}/>
+            <Pagination
+          currentPage={currentPage}
+          setCurrentPage={setCurrentPage} pageSize={pageSize} usePagination={true}
+                            totalLength={data.length}/>
         </div>)
 }
 export default TaskList;

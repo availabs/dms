@@ -1,10 +1,10 @@
 import React from "react"
 
 import { get } from "lodash-es"
-import { DatasetsContext } from "../../../../context";
-import { getExternalEnv } from "../../../../utils/datasources";
+import { DatasetsContext } from "../../context";
+import { getExternalEnv } from "../../utils/datasources";
 
-import Breadcrumbs from "../../../../components/Breadcrumbs";
+import Breadcrumbs from "../../components/Breadcrumbs";
 import { UserCell } from './TaskList';
 import { ETL_CONTEXT_ATTRS } from './TaskList';
 

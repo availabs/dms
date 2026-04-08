@@ -19,12 +19,10 @@ export default (props) => {
 
     if(status) return <div>{status}</div>
 
+    const sectionGroupTheme = theme?.pages?.sectionGroup?.default || {};
     return (
-        <div className={'max-w-xs mx-auto my-auto flex flex-col gap-3'}>
-            <div className={'border-b w-full'}>
-                <div className={theme?.loginPage?.titleWrapper}>{theme?.loginPage?.titleText}</div>
-                <div className={theme?.dataCard?.header}>Reset Password</div>
-            </div>
+        <div className={sectionGroupTheme.pageWrapper}>
+            <div className={sectionGroupTheme.pageTitle}>Reset Password</div>
 
             <FieldSet
                 components={[
@@ -68,7 +66,7 @@ export default (props) => {
 
             <Button
                 type={'plain'}
-                className={`${theme?.resetPasswordButton}`}
+                className={sectionGroupTheme.actionButton}
                 disabled={credentials.password !== credentials.verifyPassword}
                 onClick={async () => {
                 await callAuthServer(`${AUTH_HOST}/password/update`,
@@ -86,7 +84,7 @@ export default (props) => {
                         setStatus('Cannot contact authentication server.')
                         console.error('Cannot contact authentication server.');
                     });
-            }}> <span className={`text-sm ${theme?.dataCard?.value}`}> reset </span> </Button>
+            }}> <span className={sectionGroupTheme.actionText}>Reset</span> </Button>
         </div>
     )
 }
