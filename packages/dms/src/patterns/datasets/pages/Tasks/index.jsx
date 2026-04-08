@@ -1,7 +1,7 @@
 import React, {useContext} from "react";
 import TaskList from "./TaskList";
-import Breadcrumbs from "../../../../components/Breadcrumbs";
-import {DatasetsContext} from "../../../../context";
+import Breadcrumbs from "../../components/Breadcrumbs";
+import {DatasetsContext} from "../../context";
 
 const TasksComponent = (props) => {
   const {UI, baseUrl} = useContext(DatasetsContext);
