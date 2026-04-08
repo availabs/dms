@@ -13,8 +13,8 @@ import DatasetsList from "./pages/DatasetsList"
 import CreatePage from "./pages/CreatePage";
 import SettingsPage from "./pages/SettingsPage";
 import SourcePage from "./pages/SourcePage";
-import Tasks from "./pages/dataTypes/default/Tasks/";
-import TaskPage from "./pages/dataTypes/default/Tasks/TaskPage";
+import Tasks from "./pages/Tasks/";
+import TaskPage from "./pages/Tasks/TaskPage";
 
 // datasets -- move to library/registry import
 import csv_dataset from "./pages/dataTypes/csv_dataset";

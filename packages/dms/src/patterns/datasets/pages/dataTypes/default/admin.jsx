@@ -5,7 +5,7 @@ import { cloneDeep } from "lodash-es";
 import {useNavigate, Link} from "react-router";
 import {updateSourceData, parseIfJson} from "./utils";
 import { getExternalEnv } from "../../../utils/datasources";
-import TaskList from "./Tasks/TaskList";
+import TaskList from "../../Tasks/TaskList";
 const buttonRedClass = 'p-2 mx-1 bg-red-500 hover:bg-red-700 text-white rounded-md';
 const buttonGreenClass = 'p-2 mx-1 bg-green-500 hover:bg-green-700 text-white rounded-md';
 
