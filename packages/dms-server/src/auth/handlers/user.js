@@ -132,7 +132,7 @@ async function getUsersByProject(db, { token, project }) {
     }
     userMap[row.email].groups.push(row.group_name);
   }
-  return Object.values(userMap);
+  return {users: Object.values(userMap)};
 }
 
 /** POST /user/group/assign — add user to group (authority check) */
