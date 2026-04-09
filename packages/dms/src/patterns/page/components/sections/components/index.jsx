@@ -10,7 +10,7 @@ import { initialState } from "../section_utils";
  * Non-data component wrapper — creates state + ComponentContext for components
  * that don't use the dataWrapper (lexical, Filter, Upload, Validate, etc.)
  */
-function NonDataEditComp({ value, onChange, component, siteType, pageFormat }) {
+function NonDataEditComp({ value, onChange, component, siteType, pageFormat, onHandle }) {
     const updateAttribute = (k, v) => {
         if (!isEqual(value, {...value, [k]: v})) {
             onChange({...value, [k]: v})
@@ -19,6 +19,19 @@ function NonDataEditComp({ value, onChange, component, siteType, pageFormat }) {
 
     const [state, setState] = useImmer(convertOldState(value?.['element-data'] || '', initialState(component?.defaultState), component?.name));
     const { apiLoad, apiUpdate } = React.useContext(PageContext) || {};
+
+    // Expose state to section menu so controls (e.g., AudioPlayer's title/audioUrl inputs) work
+    useEffect(() => {
+        if (!onHandle) return;
+        const setDisplay = (key, value, onChangeCb) => {
+            setState(draft => {
+                if (!draft.display) draft.display = {};
+                draft.display[key] = value;
+            });
+            onChangeCb?.({ key, value, state });
+        };
+        onHandle({ state, setState, dwAPI: { state, setState, setDisplay } });
+    }, [state]);
 
     useEffect(() => {
         if (!value?.['element-type']) {
@@ -97,6 +110,7 @@ const EditComp = forwardRef(({value, onChange, compKey, component, siteType, pag
             component={component}
             siteType={siteType}
             pageFormat={pageFormat}
+            onHandle={onHandle}
         />
     )
 })
