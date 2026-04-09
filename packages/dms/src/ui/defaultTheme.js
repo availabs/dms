@@ -34,7 +34,7 @@ import { nestableInHouseTheme } from "./components/nestableInHouse";
 // =========================================
 import pagesTheme from "../patterns/page/defaultTheme"
 import datasetsTheme from "../patterns/datasets/defaultTheme"
-
+import authTheme from "../patterns/auth/defaultTheme"
 
 // =====================================================================================================
 // ======================================== todo: move these to UI
@@ -51,6 +51,7 @@ import {
 const components = {
     pages: pagesTheme,
     datasets: datasetsTheme,
+    auth: authTheme,
     "compatibility": "border-[#191919] pt-[41px]",
 
     "heading": {

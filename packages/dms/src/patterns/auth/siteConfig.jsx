@@ -65,7 +65,7 @@ const authConfig = ({
 
   baseUrl = baseUrl === '/' ? '' : baseUrl;
     // hard coding mny_admin for dev, needs to come from pattern
-    const theme = getPatternTheme({...themes, default: authTheme}, pattern); //getPatternTheme(themes, {...pattern, theme: {selectedTheme: ''}});
+    const theme = getPatternTheme(themes, pattern)?.auth; //getPatternTheme(themes, {...pattern, theme: {selectedTheme: ''}});
     if (authImgI === null) {
         const totalImages = theme?.pages?.sectionGroup?.default?.wrapper4ImgList?.length || 0;
         authImgI = Math.floor(Math.random() * totalImages);
@@ -135,6 +135,7 @@ const manageAuthConfig = ({
   baseUrl = '/dms_auth',
   adminPath='/',
   themes = {},
+    pattern,
   rightMenu = <DefaultMenu />,
 }) => {
 
