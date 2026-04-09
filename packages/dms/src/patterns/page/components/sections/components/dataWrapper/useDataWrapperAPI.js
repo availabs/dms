@@ -86,7 +86,6 @@ export function useDataWrapperAPI({ state, setState }) {
         (newOrder) => setState(draft => { draft.columns = newOrder; }),
         [setState]
     );
-
     return useMemo(() => ({
         // ── Read access (getters — always read live state via ref) ──
         get config() {
@@ -96,6 +95,8 @@ export function useDataWrapperAPI({ state, setState }) {
                 display: s?.display,
                 externalSource: s?.externalSource,
                 filters: s?.filters,
+                join: s?.join,
+                joinSource: s?.joinSource
             };
         },
         get runtime() {

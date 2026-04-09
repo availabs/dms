@@ -114,8 +114,9 @@ export const getData = async ({
     // ─── Build UDA config via the pure builder ────────────────────────────────
     debugTime && console.time('buildUdaConfig')
     const builderInput = state.externalSource ? state : legacyStateToBuildInput(state);
+    console.log({builderInput})
     const { options, attributes, columnsToFetch, columnsWithSettings, outputSourceInfo } = buildUdaConfig(builderInput);
-
+    console.log("build uda config result::", {options, outputSourceInfo})
     if (keepOriginalValues) options.keepOriginalValues = keepOriginalValues;
     const filterRelation = state.display?.filterRelation;
     if (filterRelation) options.filterRelation = filterRelation;

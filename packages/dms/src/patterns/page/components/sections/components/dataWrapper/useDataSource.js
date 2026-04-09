@@ -63,7 +63,6 @@ const getViews = async ({ envs, sourceId, srcEnv, falcor }) => {
     const lenRes = await falcor.get(["uda", srcEnv, "sources", "byId", sourceId, "views", "length",]);
 
     const len = get(lenRes, ["json", "uda", srcEnv, "sources", "byId", sourceId, "views", "length"]);
-
     if (!len) return [];
 
     const byIndexRes = await falcor.get(["uda", srcEnv, "sources", "byId", sourceId, "views", "byIndex", { from: 0, to: len - 1 }, envs[srcEnv].viewAttributes]);
@@ -88,8 +87,13 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
 
     const [sources, setSources] = useState([]);
     const [views, setViews] = useState([]);
+    const [joinViews, setJoinViews] = useState([])
+
     const sourceId = (state?.externalSource?.source_id);
     const viewId = (state?.externalSource?.view_id);
+
+    const joinSourceId = (state?.join?.sources?.table2?.source);
+    const joinViewId = (state?.join?.sources?.table2?.view);
 
     const sectionColumns = useMemo(
         () =>
@@ -170,6 +174,20 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
         return () => clearTimeout(timeoutId);
     }, [sourceId, sources]);
 
+    useEffect(() => {
+        const timeoutId = setTimeout(() => {
+            // some old component have deprecated srcEnv (app+siteType), so always send updated value.
+            const srcEnv = sources.find((d) => +d.source_id === +joinSourceId)?.srcEnv;
+            getViews({envs, sourceId: joinSourceId, srcEnv, falcor})
+                .then((data) => {
+                    setJoinViews(data);
+                })
+        }, 300);
+
+        return () => clearTimeout(timeoutId);
+    }, [joinSourceId, sources]);
+
+
     // =================================================================================================================
     // ================================================ handlers =======================================================
     // =================================================================================================================
@@ -235,6 +253,89 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
         [views, setState]
     );
 
+    const onJoinChange = useCallback(
+        (joinObj) => {
+            console.log("join change callback, updated fields::", joinObj);
+
+            //TODO -- this is hacking in externalSource into the join obj
+            console.log("hacking in sourceinfo for main DS join config")
+            setState((draft) => {
+                draft.join.sources.ds.sourceInfo = draft.externalSource;
+                draft.join.sources.ds.source = draft.externalSource.source_id;
+                draft.join.sources.ds.view = draft.externalSource.view_id;//not always set by the externalSource 
+                draft.join.sources.ds.columns = draft.columns;
+            })
+
+            if(joinObj.source && state?.join?.sources?.table2.source !== joinObj.source){
+                console.log("join source changed. Calling helper function")
+                onJoinSourceChange(joinObj.source)
+            } else {
+                setState((draft) => {
+                    draft.join = {
+                        sources: {
+                            ...draft?.join.sources,
+                            table2:{
+                                ...draft?.join?.sources?.table2,
+                                ...joinObj
+                            }
+                        }
+                    };
+                });
+            }
+        },
+        [sources, app, type, pageColumns, sectionColumns, setState, datasources, envs, state.join]
+    );
+
+    const onJoinSourceChange =  useCallback(
+        (sourceId) => {
+            const match = sources.find((s) => +s.source_id === +sourceId);
+
+            setState((draft) => {
+                if (!match && typeof sourceId === "string" && sourceId.includes("+")) {
+                    console.log("join source internal")
+                    const sourceType = sourceId.endsWith("|component")
+                        ? "sections"
+                        : "pages";
+
+                    // Get baseUrl for internal sources
+                    const internalBaseUrl = datasources?.find(ds => ds.type === 'internal')?.baseUrl || '/forms';
+
+                    draft.join.sources.table2.sourceInfo = {
+                        isDms: true,
+                        app,
+                        type: sourceType === "pages"
+                            ? `${type}|page`
+                            : `${type}|component`,
+                        name: sourceType,
+                        columns:
+                            sourceType === "pages" ? pageColumns : sectionColumns,
+                        env: sourceId,
+                        view_id: "",
+                        source_id: sourceId,
+                        baseUrl: internalBaseUrl,
+                    };
+                    draft.join.sources.table2.columns = [];
+                    draft.join.sources.table2.source = sourceId;
+                    draft.join.sources.table2.view = null;
+
+                } else if (match) {
+                    console.log("join source external")
+                    // Get baseUrl from the matched source's environment
+                    const newColumns = match.columns;
+                    const newColumnsNames = newColumns.map(c => c.name);
+                    const baseUrl = envs[match.srcEnv]?.baseUrl || '';
+                    const sourceType = match.name ? nameToSlug(match.name) : draft.join.sources.table2.sourceInfo?.type;
+                    draft.join.sources.table2.sourceInfo = { ...match, baseUrl, type: sourceType };
+                    draft.join.sources.table2.columns = draft?.join?.sources?.table2?.columns?.filter(c => newColumnsNames.includes(c.name)).map(c => ({...c, ...newColumns.find(newC => newC.name === c.name)}));
+                    draft.join.sources.table2.source = sourceId;
+                    draft.join.sources.table2.view = null;
+                }
+            });
+        },
+        [sources, app, type, pageColumns, sectionColumns, setState, datasources, envs]
+    );
+
+
     const sourceOptions = useMemo(() => [
         {key: `${app}+${type}|page`, label: `${type} (pages)`},
         {key: `${app}+${type}|component`, label: `${type} (sections)`},
@@ -251,12 +352,21 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
         [views]
     );
 
+    const joinViewOptions = useMemo(
+        () => joinViews.map(({view_id, name, version}) => ({key: view_id, label: name || version || view_id})),
+        [joinViews]
+    );
+
     return useMemo(() => ({
         activeSource: sourceId,
         activeView: viewId,
+        activeJoinSource: joinSourceId,
+        activeJoinView: joinViewId,
         sources: sourceOptions,
         views: viewOptions,
+        activeJoinViews: joinViewOptions,
         onSourceChange,
         onViewChange,
-    }), [sourceId, viewId, sourceOptions, viewOptions, onSourceChange, onViewChange]);
+        onJoinChange,
+    }), [sourceId, viewId, sourceOptions, viewOptions, joinSourceId, joinViewId, joinViewOptions, onSourceChange, onViewChange, onJoinChange]);
 }

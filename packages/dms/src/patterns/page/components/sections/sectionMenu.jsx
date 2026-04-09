@@ -4,6 +4,8 @@ import {TagComponent} from "./section_components"
 import { getComponentTheme } from "../../../../ui/useTheme";
 import {ComplexFilters} from "./ComplexFilters";
 import ColumnManager from "./ColumnManager";
+import JoinColumnManager from "./JoinColumnManager"
+import JoinedColumnPicker from "./JoinedColumnPicker"
 
 
 export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSource={}, dwAPI, pageDataSources={}, ...rest }) => {
@@ -12,7 +14,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
     const { onEdit, moveItem, updateAttribute, updateElementType, onChange, onCancel, onSave, onAddHelpText, setKey, setState, setShowDeleteModal, setListAllColumns } = actions
     const { user, isUserAuthed, pageAuthPermissions, sectionAuthPermissions, Permissions, AuthAPI } = auth
     const { Switch, Pill, Icon, TitleEditComp, LevelComp, refreshDataBtnRef, isRefreshingData, setIsRefreshingData, theme, RegisteredComponents = {} } = ui
-    const { activeSource, activeView, sources=[], views=[], onSourceChange, onViewChange } = dataSource;
+    const { activeSource, activeView, sources=[], views=[], onSourceChange, onViewChange, onJoinChange, activeJoinSource, activeJoinView, activeJoinViews } = dataSource;
 
     const sectionLink = window ? `${window.location.origin}${window.location.pathname}#${value.id}` : '';
     const canEditSection = isUserAuthed(['edit-section'], sectionAuthPermissions);
@@ -255,6 +257,102 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                     .map(transformControlItem),
             ].filter(item => !item.cdn || item.cdn())
         }
+
+        //RYAN TODO -- change the `onClick` for both these items
+        //RYAN TODO -- add UI stuff, start with "join condition"
+
+    const join = {
+        name: 'Join', icon: 'Group',
+        cdn: () => isEdit && !!activeSource && canEditSection,
+        value: sources?.find(s => s.key === activeJoinSource)?.label, 
+        showValue: true,
+        items: [{
+            name: 'Dataset', icon: 'Database',
+            cdn: () =>  isEdit && !!activeSource && canEditSection,
+            value: sources?.find(s => s.key === activeJoinSource)?.label, showValue: true,
+            items: [
+                {name: 'Source', icon: 'Database', showSearch: true, cdn: () => isEdit,
+                    value: sources?.find(s => s.key === activeJoinSource)?.label, showValue: true,
+                    items: sources.map(({key, label}) => ({
+                        icon: key === activeJoinSource ? 'CircleCheck' : 'Blank',
+                        id: `source_${key}`,
+                        name: label,
+                        onClickGoBack: true,
+                        //TODO -- instead of `table2`, this should be an alias, or a way to set an alias
+                        onClick: () => onJoinChange({source: key})
+                    }))},
+                {name: 'Version', icon: 'Database', showSearch: true, cdn: () => isEdit,
+                    value: activeJoinViews?.find(s => s.key === activeJoinView)?.label || activeJoinView, showValue: true,
+                    items: activeJoinViews?.map(({key, label}) => ({
+                        icon: key === activeJoinView ? 'CircleCheck' : 'Blank',
+                        id: `version_${key}`,
+                        name: label,
+                        onClickGoBack: true,
+                        onClick: () => onJoinChange({view: key})
+                }))},
+            ]
+        },
+
+            {type: 'separator', cdn: () => isEdit},
+            //column picker for 2nd table
+            {
+                name: 'Columns', icon: 'Columns',
+                cdn: () => isEdit && currentComponent?.useDataSource && canEditSection,
+                value: (state?.join?.sources?.table2?.columns || []).length,
+                showValue: true,
+                items: [{
+                    name: 'Column Manager',
+                    noHover: true,
+                    type: () => (
+                        <JoinedColumnPicker
+                            dwAPI={dwAPI}
+                            resolvedControls={resolvedControls}
+                            showAllColumnsControl={currentComponent.showAllColumnsControl}
+                            Pill={Pill}
+                            Icon={Icon}
+                            Switch={Switch}
+                        />
+                    )
+                }]
+            },
+            // {
+            //     name: 'Title',
+            //     cdn: () => canEditSection,
+            //     items: [
+            //         {
+            //             name: '',
+            //             type: () => <TitleEditComp
+            //                 className={`${theme?.heading?.base} ${theme?.heading[value?.['level']] || theme?.heading['default']}`}
+            //                 placeholder={'Section Title'}
+            //                 value={value?.['title'] || ''}
+            //                 onChange={(v) => updateAttribute('title', v)}
+            //             />
+            //         }
+            //     ]
+            // },
+            //column picker for join columns. maps over all sources involved in the join
+            ...Object.keys(state?.join?.sources || {}).map(sourceAlias => {
+                return {
+                    name: 'Table 1 Join Column',
+                    noHover: true,
+                    cdn: () => isEdit && !!activeJoinSource,
+                    type: () => (
+                        <JoinColumnManager
+                            sourceAlias={sourceAlias}
+                            label={`${sourceAlias} Join Column`}
+                            dwAPI={dwAPI}
+                            resolvedControls={resolvedControls}
+                            showAllColumnsControl={currentComponent.showAllColumnsControl}
+                            Pill={Pill}
+                            Icon={Icon}
+                            Switch={Switch}
+                        />
+                    )
+                }
+            }),
+        ]
+    }
+    
 
     const columns = [
         {
@@ -588,6 +686,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
             ...componentSettings,
             {type: 'separator'},
             dataset,
+            join,
             ...columns,
             ...filter,
             {type: 'separator', cdn: () => currentComponent?.useDataSource && canEditSection},

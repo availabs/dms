@@ -368,6 +368,7 @@ const extractLegacyColumnFilters = (columns) => {
  * This is the core column metadata computation previously inline in getData().
  */
 export const buildColumnsWithSettings = (columns, sourceColumns, isDms) => {
+  console.log("build with settings::", columns)
   const sourceColumnsByName = new Map([
     ...(columns || [])
       .filter((c) => c.systemCol)
@@ -518,6 +519,58 @@ const buildNormalFilterColumns = (
   return normalColumns;
 };
 
+// ─── Joins ────────────────────────────────────────
+
+export const buildJoin = ({join}) => {
+  console.log("IN BUILD JOIN NEW FUNC::", join)
+  return {
+    sources: buildJoinSources({join}),
+    on: [
+      buildJoinOnClause({join})
+    ]
+  };
+}
+
+/**
+ * TODO does not work with udaConfig as join source
+ * key of sources is the "alias" given to each source. Eventually this should come from user
+ * value is either { view_id: 1648, env: "dama" }, or an udaConfig
+ */
+export const buildJoinSources = ({join}) => {
+  const { sources } = join; 
+  return Object.keys(sources).reduce((acc, curKey) => {
+    const curSource = sources[curKey];
+
+    acc[curKey] = {
+      view_id: curSource.view,
+      env: curSource?.sourceInfo?.env
+    }
+
+    return acc;
+  }, {});
+};
+
+export const buildJoinOnClause = ({ join }) => {
+  //TODO get type of join from user;
+  //TODO get operator from user
+  const { type = "left", sources, operator = "=" } = join; 
+  const tableAliases = Object.keys(sources);
+  const aliasedColumnNames = tableAliases.map((sourceAlias) =>
+    buildJoinColumn({
+      sourceAlias,
+      column: sources[sourceAlias]?.joinColumn?.name,
+    }),
+  );
+
+  return {
+    type,
+    tables: tableAliases,
+    on: aliasedColumnNames.join(` ${operator} `)
+  };
+};
+
+export const buildJoinColumn = ({sourceAlias, column}) => `${sourceAlias}.${column}`
+
 // ─── Output source info (Phase 4: chainability) ────────────────────────────
 
 /**
@@ -628,13 +681,27 @@ export const computeOutputSourceInfo = ({
  */
 export const buildUdaConfig = ({
   externalSource,
-  columns,
+  columns: rawColumns,
   filters,
   join,
   pageFilters,
 }) => {
   const isDms = externalSource?.isDms;
-  const sourceColumns = externalSource?.columns || [];
+  const columns = !!join
+    ? [
+        ...Object.keys(join?.sources)
+          .map((jSourceKey) => join?.sources[jSourceKey]?.columns?.map((col) => ({...col, name: `${jSourceKey}.${col.name}` })))
+          .filter((item) => !!item)
+          .flat(),
+      ]
+    : rawColumns;
+  const sourceColumns = !!join
+    ? [
+        ...Object.keys(join?.sources)
+          .map((jSourceKey) => join?.sources[jSourceKey].sourceInfo?.columns?.map((col) => ({...col, name: `${jSourceKey}.${col.name}` })))
+          .flat(),
+      ]
+    : externalSource?.columns;
 
   // 1. Build enriched columns with server-side names
   const columnsWithSettings = buildColumnsWithSettings(
@@ -642,6 +709,7 @@ export const buildUdaConfig = ({
     sourceColumns,
     isDms,
   );
+  console.log({columnsWithSettings})
   const columnsWithSettingsByName = new Map(
     columnsWithSettings.map((col) => [col.name, col]),
   );
@@ -813,6 +881,7 @@ export const buildUdaConfig = ({
 
   // 8. Assemble final options
   const options = {
+    join: buildJoin({join}),
     filterGroups: finalFilterGroups,
     groupBy: mappedGroupBy,
     orderBy: mappedOrderBy,
@@ -829,6 +898,7 @@ export const buildUdaConfig = ({
   const attributes = columnsToFetch.map((a) => a.reqName).filter((a) => a);
 
   // 10. Compute output source info (Phase 4: chainability)
+  //When a join is present, the output columns come from multiple sources. The outputSourceInfo.columns should indicate which source table each column came from.
   const outputSourceInfo = computeOutputSourceInfo({
     columnsToFetch,
     columnsWithSettings,

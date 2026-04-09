@@ -47,7 +47,6 @@ const triggerDownload = async ({state, apiLoad, loadAllColumns, setLoading}) => 
             ]
                 .map(c => ({...c, show: true}))
         } : state;
-
     const {data} = await getData({
         state: tmpState,
         apiLoad, fullDataLoad: true});
@@ -184,6 +183,7 @@ const Edit = forwardRef((props, ref) => {
 
     // ── Save effect ──
     useEffect(() => {
+        console.log("I am in a save use effect??")
         if (!isEdit || !isValidState) return;
         const toSave = {
             externalSource: state.externalSource,
@@ -191,6 +191,7 @@ const Edit = forwardRef((props, ref) => {
             filters: state.filters || { op: 'AND', groups: [] },
             display: { ...(state.display || {}) },
             data: state.data || [],
+            join: state.join || {sources: {ds: {}, table2:{columns: []}}},
         };
         if (state.dataSourceId) toSave.dataSourceId = state.dataSourceId;
         RUNTIME_DISPLAY_FIELDS.forEach(f => delete toSave.display[f]);
@@ -297,7 +298,7 @@ const Edit = forwardRef((props, ref) => {
             allowEdit: state?.externalSource?.isDms && !groupByColumnsLength
         } : {}
     }, [component.name, newItem, setNewItem, updateItem, removeItem, addItem, currentPage, onPageChange])
-
+    console.log("dw state::", state)
     return (
         <ComponentContext.Provider value={{state, setState, apiLoad, apiUpdate, controls: resolvedControls,
             isActive: true, activeStyle: undefined, sectionId: undefined}}>
