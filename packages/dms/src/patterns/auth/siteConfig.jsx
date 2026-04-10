@@ -1,9 +1,6 @@
 import React from "react";
-import {Link} from "react-router";
 import UI from "../../ui";
 import {getPatternTheme, ThemeContext} from "../../ui/useTheme";
-import defaultTheme from "../../ui/defaultTheme";
-import authTheme from "./defaultTheme";
 import DefaultMenu from "./components/menu"
 import AuthLogin from "./pages/authLogin";
 import AuthLogout from "./pages/authLogout";
@@ -21,11 +18,11 @@ let authImgI = null;
 const AdminLayout = ({menuItems, children, theme, Menu}) => {
     const {Layout} = UI;
     return (
-        <div className={theme?.pages?.container}>
+        <div className={theme?.auth?.authPages?.container}>
             <Layout navItems={menuItems} Menu={Menu}>
-                <div className={`${theme?.pages?.sectionGroup?.default?.wrapper1}`}>
-                    <div className={theme?.pages?.sectionGroup?.default?.wrapper2}>
-                        <div className={`${theme?.pages?.sectionGroup?.default?.wrapper3}`}>
+                <div className={`${theme?.auth?.authPages?.sectionGroup?.default?.wrapper1}`}>
+                    <div className={theme?.auth?.authPages?.sectionGroup?.default?.wrapper2}>
+                        <div className={`${theme?.auth?.authPages?.sectionGroup?.default?.wrapper3}`}>
                             {children}
                         </div>
                     </div>
@@ -36,23 +33,21 @@ const AdminLayout = ({menuItems, children, theme, Menu}) => {
 }
 
 const AuthLayout = ({children, theme, imgI}) => {
-    const {Layout} = UI;
-
+    const {Layout, LayoutGroup} = UI;
+    console.log('theme', theme)
     return (
-        <Layout>
-            <div className={theme?.pages?.sectionGroup?.default?.wrapper1}>
-                <div className={theme?.pages?.sectionGroup?.default?.wrapper2}>
-                    <div className={theme?.pages?.sectionGroup?.default?.wrapper3}>
-                        {children}
-                    </div>
-                    <div className={theme?.pages?.sectionGroup?.default?.wrapper4}>
-                        <div
-                            className={theme?.pages?.sectionGroup?.default?.wrapper4Img}
-                            style={{ backgroundImage: `url(${theme?.pages?.sectionGroup?.default?.wrapper4ImgList?.[imgI]})` }}
-                        />
-                    </div>
+        <Layout activeStyle={'auth'} topNavActiveStyle={'auth'}>
+            <LayoutGroup activeStyle={'auth'}>
+                <div className={theme?.auth?.authPages?.sectionGroup?.default?.wrapper3}>
+                    {children}
                 </div>
-            </div>
+                <div className={theme?.auth?.authPages?.sectionGroup?.default?.wrapper4}>
+                    <div
+                        className={theme?.auth?.authPages?.sectionGroup?.default?.wrapper4Img}
+                        style={{ backgroundImage: `url(${theme?.auth?.authPages?.sectionGroup?.default?.wrapper4ImgList?.[imgI]})` }}
+                    />
+                </div>
+            </LayoutGroup>
         </Layout>
     )
 }
@@ -65,9 +60,9 @@ const authConfig = ({
 
   baseUrl = baseUrl === '/' ? '' : baseUrl;
     // hard coding mny_admin for dev, needs to come from pattern
-    const theme = getPatternTheme(themes, pattern)?.auth; //getPatternTheme(themes, {...pattern, theme: {selectedTheme: ''}});
+    const theme = getPatternTheme(themes, {...pattern, theme: {selectedTheme: ''}}); //getPatternTheme(themes, {...pattern, theme: {selectedTheme: ''}});
     if (authImgI === null) {
-        const totalImages = theme?.pages?.sectionGroup?.default?.wrapper4ImgList?.length || 0;
+        const totalImages = theme?.auth?.authPages?.sectionGroup?.default?.wrapper4ImgList?.length || 0;
         authImgI = Math.floor(Math.random() * totalImages);
     }
   // ----------------------
@@ -175,10 +170,8 @@ const manageAuthConfig = ({
 
     baseUrl = baseUrl === '/' ? '' : baseUrl;
 
-    let theme = merge(
-        cloneDeep(defaultTheme),
-        cloneDeep(themes.mny_admin)
-    );
+    const theme = getPatternTheme(themes, {...pattern, theme: {selectedTheme: ''}}); //getPatternTheme(themes, {...pattern, theme: {selectedTheme: ''}});
+
     theme.navOptions = theme?.admin?.navOptions || theme?.navOptions
     theme.navOptions.sideNav.dropdown = 'top'
 

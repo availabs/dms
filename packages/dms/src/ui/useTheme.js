@@ -110,11 +110,11 @@ export const getPatternTheme = (themes, pattern) => {
 
 export const getComponentTheme = (theme, compType, activeStyle) => {
   const componentTheme = get(theme, compType, {})
-  const finalActiveStyle = activeStyle || activeStyle === 0 ?  activeStyle : componentTheme.options?.activeStyle || 0
+  const finalActiveStyle = activeStyle || activeStyle === 0 ?  activeStyle : (componentTheme.options?.activeStyle || 0)
 
   if (!componentTheme?.styles) return componentTheme || {}
 
-  const style = componentTheme.styles[finalActiveStyle]
+  const style = componentTheme.styles[finalActiveStyle] || componentTheme.styles.find(s => s.name === finalActiveStyle)
   if (!style) return componentTheme.styles[0] || {}
 
   // Non-default styles inherit missing keys from default (styles[0])

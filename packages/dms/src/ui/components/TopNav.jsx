@@ -15,8 +15,8 @@ const TopNav = ({ activeStyle, ...props }) => {
   <div className={`${theme?.layoutContainer1}`}>
 		<div className={`${theme?.layoutContainer2}`}>
       <nav>
-        <DesktopMenu open={open} toggle={setOpen} {...props} />
-        <MobileMenu open={open} {...props} />
+        <DesktopMenu open={open} toggle={setOpen} {...props} activeStyle={activeStyle}/>
+        <MobileMenu open={open} {...props} activeStyle={activeStyle}/>
       </nav>
 		</div>
   </div>

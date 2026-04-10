@@ -16,7 +16,7 @@ export default (props) => {
 
     if(status) return <div>{status}</div>
 
-    const sectionGroupTheme = theme?.pages?.sectionGroup?.default || {};
+    const sectionGroupTheme = theme?.auth?.authPages?.sectionGroup?.default || {};
     return (
         <div className={sectionGroupTheme.pageWrapper}>
             <div className={sectionGroupTheme.pageTitle}>Sign Up</div>
