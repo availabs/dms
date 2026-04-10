@@ -34,7 +34,7 @@ const AdminLayout = ({menuItems, children, theme, Menu}) => {
 
 const AuthLayout = ({children, theme, imgI}) => {
     const {Layout, LayoutGroup} = UI;
-    console.log('theme', theme)
+
     return (
         <Layout activeStyle={'auth'} topNavActiveStyle={'auth'}>
             <LayoutGroup activeStyle={'auth'}>
@@ -60,7 +60,7 @@ const authConfig = ({
 
   baseUrl = baseUrl === '/' ? '' : baseUrl;
     // hard coding mny_admin for dev, needs to come from pattern
-    const theme = getPatternTheme(themes, {...pattern, theme: {selectedTheme: ''}}); //getPatternTheme(themes, {...pattern, theme: {selectedTheme: ''}});
+    const theme = getPatternTheme(themes, pattern); //getPatternTheme(themes, {...pattern, theme: {selectedTheme: ''}});
     if (authImgI === null) {
         const totalImages = theme?.auth?.authPages?.sectionGroup?.default?.wrapper4ImgList?.length || 0;
         authImgI = Math.floor(Math.random() * totalImages);
