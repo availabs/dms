@@ -34,7 +34,13 @@ export const layoutGroupTheme = {
       wrapper1: 'w-full flex-1 flex flex-row', // inside page header, wraps sidebar
       wrapper2: 'flex flex-1 w-full  flex-col  relative min-h-[200px]', // content wrapper
       wrapper3: ''
-    }
+    },
+    {
+      name: "auth",
+      wrapper1: 'w-full flex-1 flex flex-row p-2 ', // inside page header, wraps sidebar
+      wrapper2: 'flex flex-1 w-full  flex-col  shadow-md bg-white rounded-lg relative text-md font-light leading-7 p-4 place-content-center', // content wrapper
+      wrapper3: ''
+    },
   ]
 }
 

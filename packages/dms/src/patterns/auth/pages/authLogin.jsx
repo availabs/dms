@@ -15,7 +15,7 @@ export default (props) => {
     const navigate = useNavigate();
     // console.log('auth context aapi', AuthAPI)
 
-    const sectionGroupTheme = theme?.pages?.sectionGroup?.default || {};
+    const sectionGroupTheme = theme?.auth?.authPages?.sectionGroup?.default || {};
     return (
         <div className={sectionGroupTheme.pageWrapper}>
             <div className={sectionGroupTheme.pageTitle}>Sign In</div>
