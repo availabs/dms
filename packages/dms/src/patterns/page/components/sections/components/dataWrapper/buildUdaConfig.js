@@ -710,7 +710,7 @@ export const buildUdaConfig = ({
   const isJoinPresent = !!join && join?.sources?.table2?.view;
 
   const isDms = externalSource?.isDms;
-  const columns = rawColumns;
+
 
   // const sourceColumns = isJoinPresent
   //   ? [
@@ -720,7 +720,31 @@ export const buildUdaConfig = ({
   //     ]
   //   : externalSource?.columns;
 
-  const sourceColumns = externalSource?.columns;
+  //ryan todo move this into a function
+  //I need source_id to table_alias
+  const sourceIdToTableAlias = Object.keys(join.sources).reduce((acc, curr) => {
+    const curJoinSource = join.sources[curr];
+    const source_id = curJoinSource.source || externalSource.source_id
+    const alias = curJoinSource.source ? curr : 'ds'
+
+    acc[source_id] = alias
+    return acc;
+  },{});
+  console.log({sourceIdToTableAlias})
+  const joinColumns = Object.values(join.sources).filter(jSource => !!jSource.sourceInfo).map(jSource => jSource.sourceInfo.columns).flat();
+  const allCols = [...externalSource?.columns, ...joinColumns]
+  const sourceColumns = allCols.map((col) => {
+    const colSourceId = col.source_id || externalSource.source_id;
+    return ({ ...col, name: `${sourceIdToTableAlias[colSourceId]}.${col.name}` })
+  });
+  const columns = rawColumns.map((col) => {
+    const colSourceId = col.source_id || externalSource.source_id;
+    return ({ ...col, name: `${sourceIdToTableAlias[colSourceId]}.${col.name}` })
+  });;
+
+  console.log({columns, sourceColumns})
+
+
 
   // 1. Build enriched columns with server-side names
   const columnsWithSettings = buildColumnsWithSettings(

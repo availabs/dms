@@ -291,7 +291,19 @@ export const getData = async ({
     debugTime && console.timeEnd('post-processing')
     debugTime && console.timeEnd('getData fn')
     console.log({dataToReturn, outputSourceInfo})
-    return { length, data: dataToReturn, outputSourceInfo };
+
+    const formattedData = dataToReturn.map(d => {
+        const newD = {};
+
+        Object.keys(d).forEach(dKey => {
+            const formattedKey = dKey.split(".")[1]
+            newD[formattedKey] = d[dKey]
+        })
+
+        return newD;
+    })
+    console.log({formattedData})
+    return { length, data: formattedData, outputSourceInfo };
 };
 
 export default getData;
