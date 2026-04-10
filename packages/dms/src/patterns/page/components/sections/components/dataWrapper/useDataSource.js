@@ -1,5 +1,5 @@
 import { useContext, useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { get, isEqual } from "lodash-es";
+import { get, isEqual, join } from "lodash-es";
 import { nameToSlug } from "../../../../../../utils/type-utils";
 import { CMSContext, PageContext } from "../../../../context";
 
@@ -195,7 +195,7 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
     const onSourceChange = useCallback(
         (sourceId) => {
             const match = sources.find((s) => +s.source_id === +sourceId);
-
+            console.log("on source change, does this fire on each pag load???")
             setState((draft) => {
                 if (!match && typeof sourceId === "string" && sourceId.includes("+")) {
                     draft.columns = [];
@@ -256,15 +256,35 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
     const onJoinChange = useCallback(
         (joinObj) => {
             console.log("join change callback, updated fields::", joinObj);
+            const updatedField = Object.keys(joinObj)[0];
+            if(updatedField === 'source') {
+                setState((draft) => {
+                    // draft.join.sources.ds.sourceInfo = draft.externalSource;
+                    // draft.join.sources.ds.source = draft.externalSource.source_id;
+                    // draft.join.sources.ds.view = draft.externalSource.view_id;//not always set by the externalSource 
+                    // draft.join.sources.ds.columns = draft.columns;
 
-            //TODO -- this is hacking in externalSource into the join obj
-            console.log("hacking in sourceinfo for main DS join config")
-            setState((draft) => {
-                draft.join.sources.ds.sourceInfo = draft.externalSource;
-                draft.join.sources.ds.source = draft.externalSource.source_id;
-                draft.join.sources.ds.view = draft.externalSource.view_id;//not always set by the externalSource 
-                draft.join.sources.ds.columns = draft.columns;
-            })
+                    //First try just adding a table alias key to existing columns
+                    //then, can try to modify column names if we want
+
+                    //filter out any columns from previous table2 source
+                    draft.externalSource.columns = draft.externalSource.columns
+                      .filter((col) => !col.source_id || col.source === draft.externalSource.source_id)
+                      .map((col) => ({ ...col, source_id: draft.externalSource.source_id }));
+                    console.log({sources})
+                    console.log({joinSourceId})
+                    const joinSource = sources.find((d) => +d.source_id === joinObj[updatedField])
+                    console.log("join source::", joinSource)
+                    draft.externalSource.columns = [
+                      ...draft.externalSource.columns,
+                      ...joinSource.columns.map((col) => ({ ...col, source_id: joinSourceId })),
+                    ];
+
+                    //set join_source_id on externalSource
+                    draft.externalSource.join_source_id = joinSourceId;
+                })
+            }
+
 
             if(joinObj.source && state?.join?.sources?.table2.source !== joinObj.source){
                 console.log("join source changed. Calling helper function")
@@ -283,7 +303,7 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
                 });
             }
         },
-        [sources, app, type, pageColumns, sectionColumns, setState, datasources, envs, state.join]
+        [sources, app, type, pageColumns, sectionColumns, setState, datasources, envs, state.join, joinSourceId]
     );
 
     const onJoinSourceChange =  useCallback(

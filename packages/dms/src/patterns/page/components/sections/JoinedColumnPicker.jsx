@@ -47,13 +47,17 @@ const ColumnPicker = ({ dwAPI, allColumns, stagedColumns, setStagedColumns, Pill
                     if (isGrouping && !dup.group && !dup.fn) {
                         dup.fn = dup.defaultFn?.toLowerCase() || 'list';
                     }
+                    dup.name = `table2.${dup.name}`
                     draft.join.sources.table2.columns.splice(idx, 0, dup);
+                    draft.columns.push(dup)
                 } else {
                     const newCol = { ...col, show: true };
                     if (isGrouping && !newCol.group && !newCol.fn) {
                         newCol.fn = newCol.defaultFn?.toLowerCase() || 'list';
                     }
                     draft.join.sources.table2.columns.push(newCol);
+                    newCol.name = `table2.${newCol.name}`
+                    draft.columns.push(newCol)
                 }
             });
         });
@@ -174,10 +178,18 @@ const renderControl = (control, columnData, onUpdate, { Switch, dwAPI }) => {
     return null;
 };
 
-const ColumnRow = ({ column, index, dwAPI, resolvedControls, Pill, Icon, Switch, isExpanded, onToggleExpand, isOutOfDate, onRefreshMeta }) => {
+const ColumnRow = ({ column, index, dwAPI, resolvedControls, Pill, Icon, Switch, isExpanded, onToggleExpand, isOutOfDate, onRefreshMeta, setState }) => {
     const label = getColumnLabel(column);
     const onUpdate = useCallback((key, value, onChange) =>
         dwAPI.updateColumn(column, key, value, onChange), [column, dwAPI.updateColumn]);
+
+    const onRemove = useCallback(column => {
+        console.log("on remove joined column::", column)
+        setState(draft => {
+            draft.join.sources.table2.columns = draft.join.sources.table2.columns.filter(col => col.name !== column.name)
+        })
+    })
+
 
     return (
         <div className="border rounded bg-white mb-0.5">
@@ -247,7 +259,7 @@ const ColumnRow = ({ column, index, dwAPI, resolvedControls, Pill, Icon, Switch,
                         .map(c => renderControl(c, column, onUpdate, { Switch, dwAPI }))}
                     <div className="flex gap-1 pt-1">
                         <Pill text="Duplicate" color="blue" onClick={() => dwAPI.duplicateColumn(column)} />
-                        <Pill text="Remove" color="orange" onClick={() => dwAPI.resetColumn(column)} />
+                        <Pill text="Remove" color="orange" onClick={() => onRemove(column)} />
                         {isOutOfDate && (
                             <Pill text="Refresh Meta" color="orange" onClick={onRefreshMeta} />
                         )}
@@ -258,7 +270,7 @@ const ColumnRow = ({ column, index, dwAPI, resolvedControls, Pill, Icon, Switch,
     );
 };
 
-const AllColumnsRow = ({ dwAPI, resolvedControls, isEveryColVisible, Pill, Icon, Switch, isExpanded, onToggleExpand }) => {
+const AllColumnsRow = ({ dwAPI, resolvedControls, isEveryColVisible, Pill, Icon, Switch, isExpanded, onToggleExpand, setState }) => {
     const columns = dwAPI.config.columns || [];
 
     const aggregateColumn = useMemo(() => {
@@ -308,7 +320,7 @@ const AllColumnsRow = ({ dwAPI, resolvedControls, isEveryColVisible, Pill, Icon,
                         .filter(c => !c.hideFromSectionMenu)
                         .map(c => renderControl(c, aggregateColumn, onUpdate, { Switch, dwAPI }))}
                     <div className="flex gap-1 pt-1">
-                        <Pill text="Remove All" color="orange" onClick={() => dwAPI.resetAllColumns()} />
+                        <Pill text="Remove All" color="orange" onClick={() => onRemoveAll()} />
                     </div>
                 </div>
             )}
@@ -316,7 +328,10 @@ const AllColumnsRow = ({ dwAPI, resolvedControls, isEveryColVisible, Pill, Icon,
     );
 };
 
-export default function JoinedColumnPicker({ dwAPI, resolvedControls, Pill, Icon, Switch, showAllColumnsControl }) {
+/**
+ * UI for letting user pick columns for the 2nd table 
+ */
+export default function JoinedColumnPicker({ dwAPI, resolvedControls, Pill, Icon, Switch, showAllColumnsControl, onJoinChange }) {
     const { setState, state: { join } } = dwAPI;
     const externalSource = join.sources.table2.sourceInfo;
     const stateColumns = join.sources.table2.columns;
@@ -387,6 +402,11 @@ export default function JoinedColumnPicker({ dwAPI, resolvedControls, Pill, Icon
         );
     }, [dwAPI.reorderColumns, stateColumns]);
     const isAllExpanded = activeColumns.length > 0 && activeColumns.every(i => expandedColumns.has(i.id));
+    console.log("I am inside joined column picker")
+    const onRemoveAll = useCallback(() =>  setState(draft =>{
+        draft.join.sources.table2.columns = [];
+    }))
+
     return (
         <div className="flex flex-col gap-2 w-full p-1">
             {/* Column Picker */}
@@ -415,7 +435,7 @@ export default function JoinedColumnPicker({ dwAPI, resolvedControls, Pill, Icon
                     onClick={() => dwAPI.toggleGlobalVisibility(!isEveryColVisible)}
                     text={isEveryColVisible ? 'Hide All' : 'Show All'}
                 />
-                <Pill text="Remove All" color="orange" onClick={() => dwAPI.resetAllColumns()} />
+                <Pill text="Remove All" color="orange" onClick={() => onRemoveAll()} />
             </div>
 
             {/* All Columns Row */}
@@ -427,6 +447,7 @@ export default function JoinedColumnPicker({ dwAPI, resolvedControls, Pill, Icon
                     Pill={Pill}
                     Icon={Icon}
                     Switch={Switch}
+                    setState={setState}
                     isExpanded={allColumnsExpanded}
                     onToggleExpand={() => setAllColumnsExpanded(prev => !prev)}
                 />
@@ -439,6 +460,7 @@ export default function JoinedColumnPicker({ dwAPI, resolvedControls, Pill, Icon
                     onChange={onReorder}
                     renderItem={({ item }) => (
                         <ColumnRow
+                            setState={setState}
                             key={item.id}
                             column={item.column}
                             index={item.id}

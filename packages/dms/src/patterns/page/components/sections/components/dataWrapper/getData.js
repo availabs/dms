@@ -290,6 +290,7 @@ export const getData = async ({
 
     debugTime && console.timeEnd('post-processing')
     debugTime && console.timeEnd('getData fn')
+    console.log({dataToReturn, outputSourceInfo})
     return { length, data: dataToReturn, outputSourceInfo };
 };
 

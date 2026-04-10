@@ -48,6 +48,7 @@ function sanitizeName(name) {
  * "data->>'title' as title" → "title"
  * "data->>'2_col' as \"2_col\"" → "2_col"
  * "substring(geoid, 1, 2) as state_fips" → "state_fips"
+ * "ds.geoid" → "geoid" 
  */
 function getResponseColumnName(nameWithAccessors, part = 1) {
   const columnRenameRegex = /\s+as\s+/i;
@@ -56,9 +57,8 @@ function getResponseColumnName(nameWithAccessors, part = 1) {
     // Strip double quotes added by quoteAlias for digit-prefixed identifiers
     return name ? name.replace(/^"|"$/g, '') : name;
   }
-  return nameWithAccessors;
+  return nameWithAccessors.split(".").pop();
 }
-
 /**
  * Quote a SQL alias if it starts with a digit (invalid as an unquoted identifier in SQLite).
  * Handles both bare names ("2_col" → "\"2_col\"") and full expressions
@@ -86,6 +86,7 @@ function quoteAlias(nameOrExpr) {
 async function getEssentials({ env, view_id, options = {} }) {
   const parsedOptions = typeof options === 'string' ? JSON.parse(options) : options;
   const isDms = env.includes('+') && !parsedOptions.isDama;
+  const {join} = parsedOptions;
 
   // DMS uses the DMS database; DAMA uses the env as pgEnv config name
   const dbEnv = isDms ? (process.env.DMS_DB_ENV || 'dms-sqlite') : env;
@@ -192,7 +193,6 @@ async function getEssentials({ env, view_id, options = {} }) {
       await ensureSequence(db, app, db.type, splitMode);
       await ensureTable(db, table_schema, table_name, db.type, seqName);
     }
-
     // DMS content never lives on ClickHouse — dbType is always pg for DMS mode.
     return { isDms, db, app, type, table_schema, table_name, dmsAttributes, splitMode, dbType: 'pg' };
   }
@@ -207,7 +207,12 @@ async function getEssentials({ env, view_id, options = {} }) {
     table_schema = table_schema.replace(/^clickhouse\./, '');
     db = getChDb(env);
   }
-  return { isDms, db, app: null, type: null, table_schema, table_name, dmsAttributes: undefined, dbType };
+  let joinTable = table_name;
+  if(join && join.sources.ds) {
+    console.log("join sources::", join.sources)
+    joinTable += " ds"
+  }
+  return { isDms, db, app: null, type: null, table_schema, table_name: joinTable, dmsAttributes: undefined,dbType };
 }
 
 /**
@@ -500,6 +505,22 @@ function buildCombinedWhere({ filter, exclude, gt, gte, lt, lte, like, filterRel
   return oldWhere || (newWhere ? `WHERE ${newWhere}` : '');
 }
 
+
+
+const buildJoin = async ({join, env}) => {
+  //RYAN TODO -- better join conditional. If initial state gets changed to `null`, this is much cleaner
+  const isJoinPresent = !!join && join?.sources?.ds.view_id;
+
+  if(!isJoinPresent) return '';
+
+  const joinType = join.on[0].type === 'left' ? 'LEFT JOIN' : 'INNER JOIN';
+
+  const {table_schema, table_name} = await getEssentials({view_id: join.sources.table2.view_id, env})
+  console.log({table_schema, table_name})
+  return `${joinType} ${table_schema}.${table_name} as table2 ON ${join.on[0].on}`
+}
+
+
 module.exports = {
   sanitizeName,
   getResponseColumnName,
@@ -516,5 +537,6 @@ module.exports = {
   handleGroupBy,
   handleHaving,
   handleOrderBy,
-  buildCombinedWhere
+  buildCombinedWhere,
+  buildJoin
 };

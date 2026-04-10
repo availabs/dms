@@ -64,8 +64,8 @@ export const applyFn = (col = {}, isDms = false) => {
   );
   const colNameAfterAS = (
     (isCalculated ? splitColNameOnAS(col.name)[1] : col.name) || ""
-  ).toLowerCase();
-
+  ).toLowerCase().replace(".", "_");
+  console.log({colNameAfterAS})
   const functions = {
     [undefined]:
       !isDms && !isCalculated
@@ -273,6 +273,25 @@ export const extractNormalFiltersFromGroups = (node) => {
 
 const isGroup = (node) => node?.groups && Array.isArray(node.groups);
 
+export const applyTableAliasToJoin = filterTree => {
+    if (!filterTree) return filterTree;
+
+  const applyToNode = (node) => {
+    if (isGroup(node)) {
+      return { ...node, groups: node.groups.map(applyToNode) };
+    }
+
+
+    const idKey = node.searchParamKey ? "searchParamKey" : "col"
+    const rawKey = node[idKey];
+
+    return { ...node, [idKey]: `ds.${rawKey}`};
+  };
+
+  return applyToNode(filterTree);
+}
+
+
 /**
  * Apply page-level filter values to conditions with usePageFilters=true.
  * Returns a new filter tree with values updated from pageFilters.
@@ -368,7 +387,7 @@ const extractLegacyColumnFilters = (columns) => {
  * This is the core column metadata computation previously inline in getData().
  */
 export const buildColumnsWithSettings = (columns, sourceColumns, isDms) => {
-  console.log("build with settings::", columns)
+  console.log("build with settings::", columns, sourceColumns)
   const sourceColumnsByName = new Map([
     ...(columns || [])
       .filter((c) => c.systemCol)
@@ -397,9 +416,10 @@ export const buildColumnsWithSettings = (columns, sourceColumns, isDms) => {
         column.systemCol,
       );
       const [colNameBeforeAS, colNameAfterAS] = splitColNameOnAS(column.name);
-      const totalAlias = colNameAfterAS || colNameBeforeAS;
+      const totalAlias = (colNameAfterAS || colNameBeforeAS).replace(".", "_");
       const colTotalName = `SUM(CASE WHEN (${colRefName})::text ~ '^-?\\d+(\\.\\d+)?$' THEN (${colRefName})::numeric ELSE NULL END ) as ${totalAlias}_total`;
 
+      console.log({colNameBeforeAS, colNameAfterAS, totalAlias, colTotalName })
       return {
         ...fullColumn,
         isCalculatedColumn: isCalculated,
@@ -521,12 +541,12 @@ const buildNormalFilterColumns = (
 
 // ─── Joins ────────────────────────────────────────
 
-export const buildJoin = ({join}) => {
-  console.log("IN BUILD JOIN NEW FUNC::", join)
+export const buildJoin = ({join, externalSource}) => {
+  console.log("IN BUILD JOIN NEW FUNC::", join, externalSource)
   return {
-    sources: buildJoinSources({join}),
+    sources: buildJoinSources({join, externalSource}),
     on: [
-      buildJoinOnClause({join})
+      buildJoinOnClause({join, externalSource})
     ]
   };
 }
@@ -536,21 +556,21 @@ export const buildJoin = ({join}) => {
  * key of sources is the "alias" given to each source. Eventually this should come from user
  * value is either { view_id: 1648, env: "dama" }, or an udaConfig
  */
-export const buildJoinSources = ({join}) => {
+export const buildJoinSources = ({join, externalSource}) => {
   const { sources } = join; 
   return Object.keys(sources).reduce((acc, curKey) => {
-    const curSource = sources[curKey];
-
+    const curSource = sources[curKey].source ? sources[curKey] : externalSource;
+    console.log({curSource})
     acc[curKey] = {
-      view_id: curSource.view,
-      env: curSource?.sourceInfo?.env
+      view_id: curSource.view || curSource.view_id,
+      env: curSource?.env || curSource?.sourceInfo?.env 
     }
 
     return acc;
   }, {});
 };
 
-export const buildJoinOnClause = ({ join }) => {
+export const buildJoinOnClause = ({ join, externalSource }) => {
   //TODO get type of join from user;
   //TODO get operator from user
   const { type = "left", sources, operator = "=" } = join; 
@@ -686,22 +706,21 @@ export const buildUdaConfig = ({
   join,
   pageFilters,
 }) => {
+  //RYAN TODO -- better join conditional. If initial state gets changed to `null`, this is much cleaner
+  const isJoinPresent = !!join && join?.sources?.table2?.view;
+
   const isDms = externalSource?.isDms;
-  const columns = !!join
-    ? [
-        ...Object.keys(join?.sources)
-          .map((jSourceKey) => join?.sources[jSourceKey]?.columns?.map((col) => ({...col, name: `${jSourceKey}.${col.name}` })))
-          .filter((item) => !!item)
-          .flat(),
-      ]
-    : rawColumns;
-  const sourceColumns = !!join
-    ? [
-        ...Object.keys(join?.sources)
-          .map((jSourceKey) => join?.sources[jSourceKey].sourceInfo?.columns?.map((col) => ({...col, name: `${jSourceKey}.${col.name}` })))
-          .flat(),
-      ]
-    : externalSource?.columns;
+  const columns = rawColumns;
+
+  // const sourceColumns = isJoinPresent
+  //   ? [
+  //       ...Object.keys(join?.sources)
+  //         .map((jSourceKey) => join?.sources[jSourceKey].sourceInfo?.columns?.map((col) => ({...col, name: `${jSourceKey}.${col.name}` })))
+  //         .flat(),
+  //     ]
+  //   : externalSource?.columns;
+
+  const sourceColumns = externalSource?.columns;
 
   // 1. Build enriched columns with server-side names
   const columnsWithSettings = buildColumnsWithSettings(
@@ -758,8 +777,15 @@ export const buildUdaConfig = ({
   const legacyNormalFilter = legacyFilters.normalFilter || [];
   delete legacyFilters.normalFilter;
 
+  console.log({filters})
   // 5. Process top-level filter tree
   let filterTree = filters || {};
+
+  // If join is present, append table alias to filter columns
+  if(isJoinPresent) {
+    filterTree = applyTableAliasToJoin(filterTree)
+  }
+  console.log("filter tree after apply join alias::", filterTree)
   if (pageFilters && Object.keys(pageFilters).length) {
     filterTree = applyPageFilters(filterTree, pageFilters);
   }
@@ -767,7 +793,7 @@ export const buildUdaConfig = ({
   // Extract normal filters before mapping (they need raw column names)
   const { cleaned: nonNormalFilterGroups, normalFilters: filterGroupNormalFilters } =
     extractNormalFiltersFromGroups(filterTree);
-
+  console.log({filterTree})
   // Map column names to server refs (synchronous — no multiselect resolution)
   // Use columnsWithSettingsByName first (has merged user+source info including type: 'multiselect'),
   // then fall back to sourceColumnsByName (covers columns not in user config)
@@ -777,6 +803,7 @@ export const buildUdaConfig = ({
       .map((col) => [col.name, col]),
     ...sourceColumns.map((col) => [col.name, col]),
   ]);
+
   const mappedFilterGroups = mapFilterGroupCols(
     nonNormalFilterGroups,
     (name) => columnsWithSettingsByName.get(name) || sourceColumnsByName.get(name),
@@ -786,7 +813,7 @@ export const buildUdaConfig = ({
   // Extract HAVING conditions from mapped tree
   const { filterGroups: finalFilterGroups, having: filterGroupHaving } =
     extractHavingFromFilterGroups(mappedFilterGroups);
-
+  console.log({finalFilterGroups, mappedFilterGroups})
   // Combine normal filters from both legacy columns and filterGroups
   const allNormalFilters = [...legacyNormalFilter, ...filterGroupNormalFilters];
 
@@ -881,7 +908,7 @@ export const buildUdaConfig = ({
 
   // 8. Assemble final options
   const options = {
-    join: buildJoin({join}),
+    join: isJoinPresent ? buildJoin({join, externalSource}) : null,
     filterGroups: finalFilterGroups,
     groupBy: mappedGroupBy,
     orderBy: mappedOrderBy,

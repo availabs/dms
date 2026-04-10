@@ -7,12 +7,14 @@ import AddFormulaColumn from "./AddFormulaColumn";
 import AddCalculatedColumn from "./AddCalculatedColumn";
 import {isEqual} from "lodash-es";
 
-const ColumnPicker = ({ dwAPI, allColumns, stagedColumns, setStagedColumns, Pill, Icon, sourceAlias, stateColumns }) => {
-    const { setState, state: { join } } = dwAPI;
+const ColumnPicker = ({ dwAPI, allColumns, stagedColumns, setStagedColumns, Pill, Icon, stateColumns, source_id }) => {
+    const { config: { externalSource }, setState, state: { join } } = dwAPI;
     //joinConfig is join.sources
     const {sources: joinConfig} = join || {};
 
-    const externalSource = joinConfig?.[sourceAlias]?.sourceInfo;
+    const sourceAlias = externalSource.source_id === source_id ? 'ds' : Object.keys(joinConfig).find(sAlias => joinConfig[sAlias].source === source_id);
+   
+    const sourceColumns = externalSource.columns.filter(col => col.source_id === source_id);
     //draft.join is the actual config
     //draft.joinSource is the metadata for the joinSource
 
@@ -20,9 +22,9 @@ const ColumnPicker = ({ dwAPI, allColumns, stagedColumns, setStagedColumns, Pill
     const [isFocused, setIsFocused] = useState(false);
 
     const availableColumns = useMemo(() => {
-        return (externalSource?.columns || [])
+        return (sourceColumns || [])
             .filter(c => !pickerSearch || getColumnLabel(c).toLowerCase().includes(pickerSearch.toLowerCase()));
-    }, [externalSource?.columns, stateColumns, stagedColumns, pickerSearch]);
+    }, [sourceColumns, stateColumns, stagedColumns, pickerSearch]);
 
     const stageColumn = (col) => {
         setStagedColumns(prev => [...prev, col]);
@@ -241,12 +243,14 @@ const ColumnRow = ({ column, index, dwAPI, resolvedControls, Pill, Icon, Switch,
 };
 
 
-export default function JoinColumnManager({ dwAPI, resolvedControls, Pill, Icon, Switch, showAllColumnsControl, label="", sourceAlias }) {
-    console.log("join col manager, dwApi::", dwAPI)
+export default function JoinColumnManager({ dwAPI, resolvedControls, Pill, Icon, Switch, showAllColumnsControl, label="", source_id }) {
+    //console.log("join col manager, dwApi::", dwAPI)
 
+
+    //config: { columns: stateColumns, externalSource }
     //normally, the old col manager just got state.columns
     //here, we want state.join.sources['ds'] or state.join.sources['table2'];
-    const { setState, state: { join } } = dwAPI;
+    const { config: { externalSource }, setState, state: { join } } = dwAPI;
     const [stagedColumns, setStagedColumns] = useState([]);
     const [expandedColumns, setExpandedColumns] = useState(new Set());
     const [allColumnsExpanded, setAllColumnsExpanded] = useState(false);
@@ -255,25 +259,28 @@ export default function JoinColumnManager({ dwAPI, resolvedControls, Pill, Icon,
     //joinConfig is join.sources
     const {sources: joinConfig} = join || {};
     
+    const sourceAlias = externalSource.source_id === source_id ? 'ds' : Object.keys(joinConfig).find(sAlias => joinConfig[sAlias].source === source_id);
     const stateColumns = joinConfig?.[sourceAlias]?.joinColumn ? [joinConfig?.[sourceAlias]?.joinColumn] : [];
-    const externalSource = joinConfig?.[sourceAlias]?.sourceInfo;
+   
+    const sourceColumns = externalSource.columns.filter(col => col.source_id === source_id);
+    console.log({source_id, sourceAlias, stateColumns, sourceColumns});
+
     
-    
-    console.log("col manager",{joinConfig})
-    console.log({stateColumns})
-    console.log({externalSource})
+    // console.log("col manager",{joinConfig})
+    // console.log({stateColumns})
+    // console.log({externalSource})
     const outOfDateColumnNames = useMemo(() => new Set(
-        (externalSource?.columns || [])
+        (sourceColumns || [])
             .filter(origCol => {
                 const stateCol = (stateColumns || []).find(c => c.name === origCol.name);
                 if (!stateCol) return false;
                 return ATTRS_TO_SYNC.some(attr => !isEqual(stateCol[attr], origCol[attr]));
             })
             .map(c => c.name)
-    ), [externalSource?.columns, stateColumns]);
-    //console.log("column manager::", externalSource?.columns, stateColumns)
+    ), [sourceColumns, stateColumns]);
+    //console.log("column manager::", sourceColumns, stateColumns)
     const refreshMeta = useCallback((column) => {
-        const sourceCol = (externalSource?.columns || []).find(c => c.name === column.name);
+        const sourceCol = (sourceColumns || []).find(c => c.name === column.name);
         if (!sourceCol) return;
         setState(draft => {
             const idx = draft.columns.findIndex(c => c.name === column.name && c.isDuplicate === column.isDuplicate && c.copyNum === column.copyNum);
@@ -283,18 +290,18 @@ export default function JoinColumnManager({ dwAPI, resolvedControls, Pill, Icon,
                 });
             }
         });
-    }, [externalSource?.columns, setState]);
+    }, [sourceColumns, setState]);
     const allColumns = useMemo(() => [
         ...(stateColumns || []),
-        ...(externalSource?.columns || [])
+        ...(sourceColumns || [])
             .filter(c => !(stateColumns || []).map(c => c.name).includes(c.name))
-    ], [stateColumns, externalSource?.columns]);
+    ], [stateColumns, sourceColumns]);
 
     const isEveryColVisible = useMemo(() =>
-        (externalSource?.columns || [])
+        (sourceColumns || [])
             .map(({ name }) => (stateColumns || []).find(column => column?.name === name))
             .every(column => column?.show),
-        [externalSource?.columns, stateColumns]
+        [sourceColumns, stateColumns]
     );
 
     const isSystemIDColOn = (stateColumns || []).find(c => c.systemCol && c.name === 'id');
@@ -329,6 +336,7 @@ export default function JoinColumnManager({ dwAPI, resolvedControls, Pill, Icon,
             {label}
             {/* Column Picker */}
             <ColumnPicker
+                source_id={source_id}
                 sourceAlias={sourceAlias}
                 stateColumns={stateColumns}
                 dwAPI={dwAPI}

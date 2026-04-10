@@ -330,8 +330,12 @@ module.exports = [
 
               indices.forEach((i, ii) => {
                 attributes.forEach(attribute => {
+                  console.log({attribute})
                   const modifiedName = getResponseColumnName(attribute);
+                  console.log({modifiedName})
                   const value = rows?.[ii]?.[modifiedName];
+                  console.log("rows[ii]",rows[ii])
+                  console.log({value})
 
                   result.push({
                     path: ["uda", env, "viewsById", viewId, "options", option, "dataByIndex", i, attribute],

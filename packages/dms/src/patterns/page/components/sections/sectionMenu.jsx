@@ -295,26 +295,27 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
 
             {type: 'separator', cdn: () => isEdit},
             //column picker for 2nd table
-            {
-                name: 'Columns', icon: 'Columns',
-                cdn: () => isEdit && currentComponent?.useDataSource && canEditSection,
-                value: (state?.join?.sources?.table2?.columns || []).length,
-                showValue: true,
-                items: [{
-                    name: 'Column Manager',
-                    noHover: true,
-                    type: () => (
-                        <JoinedColumnPicker
-                            dwAPI={dwAPI}
-                            resolvedControls={resolvedControls}
-                            showAllColumnsControl={currentComponent.showAllColumnsControl}
-                            Pill={Pill}
-                            Icon={Icon}
-                            Switch={Switch}
-                        />
-                    )
-                }]
-            },
+            // {
+            //     name: 'Columns', icon: 'Columns',
+            //     cdn: () => isEdit && currentComponent?.useDataSource && canEditSection,
+            //     value: (state?.join?.sources?.table2?.columns || []).length,
+            //     showValue: true,
+            //     items: [{
+            //         name: 'Column Manager',
+            //         noHover: true,
+            //         type: () => (
+            //             <JoinedColumnPicker
+            //                 onJoinChange={onJoinChange}
+            //                 dwAPI={dwAPI}
+            //                 resolvedControls={resolvedControls}
+            //                 showAllColumnsControl={currentComponent.showAllColumnsControl}
+            //                 Pill={Pill}
+            //                 Icon={Icon}
+            //                 Switch={Switch}
+            //             />
+            //         )
+            //     }]
+            // },
             // {
             //     name: 'Title',
             //     cdn: () => canEditSection,
@@ -330,15 +331,34 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
             //         }
             //     ]
             // },
-            //column picker for join columns. maps over all sources involved in the join
-            ...Object.keys(state?.join?.sources || {}).map(sourceAlias => {
+            {
+                name: 'Table 1 Join Column',
+                noHover: true,
+                cdn: () => isEdit && !!activeJoinSource,
+                type: () => (
+                    <JoinColumnManager
+                        onJoinChange={onJoinChange}
+                        source_id={state?.externalSource.source_id}
+                        label={`ds Join Column`}
+                        dwAPI={dwAPI}
+                        resolvedControls={resolvedControls}
+                        showAllColumnsControl={currentComponent.showAllColumnsControl}
+                        Pill={Pill}
+                        Icon={Icon}
+                        Switch={Switch}
+                    />
+                )
+            },
+            //column picker for join columns. maps over all additional sources involved in the join
+            ...Object.keys(state?.join?.sources || {}).filter(sAlias => sAlias !== 'ds').map(sourceAlias => {
                 return {
                     name: 'Table 1 Join Column',
                     noHover: true,
                     cdn: () => isEdit && !!activeJoinSource,
                     type: () => (
                         <JoinColumnManager
-                            sourceAlias={sourceAlias}
+                            onJoinChange={onJoinChange}
+                            source_id={state?.join?.sources[sourceAlias].source}
                             label={`${sourceAlias} Join Column`}
                             dwAPI={dwAPI}
                             resolvedControls={resolvedControls}
