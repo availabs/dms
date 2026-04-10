@@ -273,7 +273,7 @@ export const extractNormalFiltersFromGroups = (node) => {
 
 const isGroup = (node) => node?.groups && Array.isArray(node.groups);
 
-export const applyTableAliasToJoin = filterTree => {
+export const applyTableAliasToJoin = (filterTree, join) => {
     if (!filterTree) return filterTree;
 
   const applyToNode = (node) => {
@@ -281,14 +281,20 @@ export const applyTableAliasToJoin = filterTree => {
       return { ...node, groups: node.groups.map(applyToNode) };
     }
 
-
     const idKey = node.searchParamKey ? "searchParamKey" : "col"
     const rawKey = node[idKey];
 
-    return { ...node, [idKey]: `ds.${rawKey}`};
+    let prefix;
+    if(join.sources.table2.source === node.source_id){
+      prefix = "table2"
+    } else {
+      prefix = "ds"
+    }
+
+    return { ...node, [idKey]: `${prefix}.${rawKey}`};
   };
 
-  return applyToNode(filterTree);
+  return applyToNode(filterTree, join);
 }
 
 
@@ -807,7 +813,7 @@ export const buildUdaConfig = ({
 
   // If join is present, append table alias to filter columns
   if(isJoinPresent) {
-    filterTree = applyTableAliasToJoin(filterTree)
+    filterTree = applyTableAliasToJoin(filterTree, join)
   }
   console.log("filter tree after apply join alias::", filterTree)
   if (pageFilters && Object.keys(pageFilters).length) {

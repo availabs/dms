@@ -343,7 +343,7 @@ const View = forwardRef(({cms_context, value, onChange, component, editPageMode,
 
     // ── DataWrapper owns its own state ──
     const [state, setState] = useImmer(migrateToV2(value || '', initialState(component?.defaultState), component?.name));
-    console.log("DW VIEW::", state)
+    
     const [newItem, setNewItem] = useState({})
     const liveEditTimerRef = useRef(null);
     const groupByColumnsLength = useMemo(() => state?.columns?.filter(({group}) => group).length, [state?.columns]);

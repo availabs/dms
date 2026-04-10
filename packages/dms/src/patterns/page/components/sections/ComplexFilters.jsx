@@ -36,7 +36,8 @@ const emptyGroup = () => ({
 const emptyCondition = (columns) => ({
     col: columns?.[0]?.name ?? '',
     op: 'filter',
-    value: []
+    value: [],
+    source_id: columns?.[0]?.source_id ?? null
 });
 
 // only in edit mode
@@ -196,6 +197,7 @@ export const ComplexFilters = ({ state, setState }) => {
         // condition
         const isStale = node.col && !columns.find(c => c.name === node.col);
         const siblingConditions = parentOp === 'AND' ? parentLeafSiblings.filter(s => s !== node) : [];
+
         return (
             <div key={path.join('.')} className={`w-full flex flex-col gap-1 items-center ml-2 p-2 border border-dashed rounded-md ${isStale ? 'border-red-300 bg-red-50' : 'hover:bg-blue-50'}`}>
                 {/* column selector */}
@@ -204,16 +206,19 @@ export const ComplexFilters = ({ state, setState }) => {
                     <div className={'w-full flex flex-wrap gap-0.5'}>
                         <select
                             className={'flex-1'}
-                            value={node.col}
+                            value={JSON.stringify(columns.find(c => c.name === node.col && c.source_id === node.source_id))}
                             onChange={e =>
                                 updateNodeAtPath(path, n => {
-                                    n.col = e.target.value;
+                                    const val = JSON.parse(e.target.value);
+                                    
+                                    n.col = val.name
+                                    n.source_id = val.source_id
                                 })
                             }
                         >
                             <option key={'please select a column'} value={''}>Please select a column...</option>
                             {columns.map(c => (
-                                <option key={c.name} value={c.name}>
+                                <option key={c.name} value={JSON.stringify(c)}>
                                     {getColumnLabel(c)}
                                 </option>
                             ))}
@@ -376,7 +381,6 @@ export const ComplexFilters = ({ state, setState }) => {
             </div>
         );
     };
-
     // When rendered outside the dataWrapper tree (e.g. inside sectionMenu),
     // ComponentContext has its empty default {} — provide the minimum needed for ConditionValueInput.
     const ctxValue = existingCtx?.apiLoad ? existingCtx : { apiLoad, state, setState };

@@ -148,13 +148,11 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
                     const baseUrl = envs[existing.srcEnv]?.baseUrl || '';
                     setState((draft) => {
                         if (!draft) return;
-                        console.log("is this where we are setting initial state???")
 
                         if(draft.join && draft.join.sources.table2.joinColumn && draft.join.sources.ds.joinColumn){
                             const joinColumns = Object.values(draft.join.sources).filter(jSource => !!jSource.sourceInfo).map(jSource => jSource.sourceInfo.columns).flat().map(jSourceCol => ({...jSourceCol, source_id:draft.join.sources.table2.source}));
                             const sourceCols = draft.externalSource?.columns.filter(sCol => sCol.source_id === draft.externalSource.source_id)
                             const allCols = [...sourceCols, ...joinColumns];
-                            console.log("allCols::",JSON.parse(JSON.stringify(allCols)))
                             draft.externalSource = { ...draft.externalSource, ...existing, baseUrl, columns:allCols };
                         } else {
                             draft.externalSource = { ...draft.externalSource, ...existing, baseUrl };
