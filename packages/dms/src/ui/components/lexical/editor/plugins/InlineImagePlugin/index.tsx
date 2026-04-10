@@ -60,7 +60,7 @@ export function InsertInlineImageDialog({
   activeEditor: LexicalEditor;
   onClose: () => void;
 }): JSX.Element {
-  const hasModifier = useRef(false);
+  // const hasModifier = useRef(false);
 
   const [src, setSrc] = useState('');
   const [altText, setAltText] = useState('');
@@ -90,18 +90,18 @@ export function InsertInlineImageDialog({
     }
   };
 
-  useEffect(() => {
-    if(typeof document === 'undefined') return;
+  // useEffect(() => {
+  //   if(typeof document === 'undefined') return;
 
-    hasModifier.current = false;
-    const handler = (e: KeyboardEvent) => {
-      hasModifier.current = e.altKey;
-    };
-    // document?.addEventListener('keydown', handler);
-    // return () => {
-    //   document?.removeEventListener('keydown', handler);
-    // };
-  }, [activeEditor]);
+  //   hasModifier.current = false;
+  //   const handler = (e: KeyboardEvent) => {
+  //     hasModifier.current = e.altKey;
+  //   };
+  //   // document?.addEventListener('keydown', handler);
+  //   // return () => {
+  //   //   document?.removeEventListener('keydown', handler);
+  //   // };
+  // }, [activeEditor]);
 
   const handleOnClick = () => {
     const payload = {altText, position, showCaption, src};
