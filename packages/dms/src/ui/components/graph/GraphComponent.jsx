@@ -102,7 +102,7 @@ export const GraphComponent = props => {
       style={ {
         backgroundColor: graphFormat.darkMode ? undefined : get(graphFormat, "bgColor", "#ffffff"),
         color: graphFormat.darkMode ? undefined : get(graphFormat, "textColor", "#000000"),
-        paddingTop: `${ get(graphFormat, "padding", 0.5) }rem`
+        padding: `${ get(graphFormat, "padding", 0.5) }rem`
       } }
     >
       <GraphTitle { ...graphFormat.title }/>

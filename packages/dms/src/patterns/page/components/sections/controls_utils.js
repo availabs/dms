@@ -175,7 +175,13 @@ export const addCalculatedColumn = (column, setState) => setState(draft => {
 })
 export const updateDisplayValue = (key, value, onChange, setState) => {
     setState(draft => {
-        draft.display[key] = value;
+        if (key?.includes('.')) {
+            const [parent, child] = key.split('.');
+            if (!draft.display[parent]) draft.display[parent] = {};
+            draft.display[parent][child] = value;
+        } else {
+            draft.display[key] = value;
+        }
 
         if(key === 'allowEditInView' && value){
             draft.columns.forEach(column => {
