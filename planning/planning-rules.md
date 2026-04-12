@@ -10,10 +10,20 @@ planning/
 ├── todo.md              # Active tasks organized by topic
 ├── completed.md         # Completed tasks organized by topic
 ├── planning-rules.md    # This file - structure documentation
+├── research/            # Research documents — tech analysis, design exploration, options evaluation
+│   └── *.md             # One file per topic (e.g., dama-refactor.md, sync-architecture.md)
 └── tasks/
     ├── current/         # Detailed task documents for work in progress
     └── completed/       # Archived task documents for completed work
+
+documentation/               # Lives at src/dms/documentation/ (sibling of planning/)
+└── *.md                     # System documentation — how things work, schemas, reference material
 ```
+
+### Where to put research vs. documentation
+
+- **`planning/research/`** — Exploratory analysis, tech stack evaluations, refactor proposals, design options, recommendations. These inform decisions and task creation. They may become outdated as decisions are made.
+- **`documentation/`** (`src/dms/documentation/`) — Factual reference material describing how systems work (or worked). Schema docs, architecture overviews, API references, operational guides. These should be kept accurate as the system evolves.
 
 ## File Conventions
 
