@@ -110,7 +110,7 @@ export const RenderFilterValueSelector = ({
             const value = ['filter', 'exclude'].includes(filter.operation) ? (filter.values || []) :
                 (Array.isArray(filter.values) ? filter.values[0] : typeof filter.values === 'object' ? '' : filter.values);
 
-            const isStaleFilter = state.externalSource.columns.findIndex(({name}) => name === filterColumn.name) === -1;
+            const isStaleFilter = (state.externalSource || {})?.columns?.findIndex(({name}) => name === filterColumn.name) === -1;
             return (
                 <div key={`${filterColumn.name}-${filter.operation}`} className={'p-1 relative text-xs'}>
                     {
