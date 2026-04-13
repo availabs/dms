@@ -260,14 +260,13 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
 
         //RYAN TODO -- change the `onClick` for both these items
         //RYAN TODO -- add UI stuff, start with "join condition"
-
     const join = {
         name: 'Join', icon: 'Group',
         cdn: () => isEdit && !!activeSource && canEditSection,
         value: sources?.find(s => s.key === activeJoinSource)?.label, 
         showValue: true,
         items: [{
-            name: 'Dataset', icon: 'Database',
+            name: 'Join Dataset', icon: 'Database',
             cdn: () =>  isEdit && !!activeSource && canEditSection,
             value: sources?.find(s => s.key === activeJoinSource)?.label, showValue: true,
             items: [
