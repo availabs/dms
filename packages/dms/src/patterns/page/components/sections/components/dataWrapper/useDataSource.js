@@ -267,6 +267,10 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
         (joinObj) => {
             console.log("join change callback, updated fields::", joinObj);
             const updatedField = Object.keys(joinObj)[0];
+
+            //THIS IS kind of a hack when we update the join source.
+            //We append its columns to the main externalSource columns
+            //It is a side effect
             if(updatedField === 'source') {
                 setState((draft) => {
                     // draft.join.sources.ds.sourceInfo = draft.externalSource;
@@ -298,28 +302,36 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
 
             if(joinObj.source && state?.join?.sources?.table2.source !== joinObj.source){
                 console.log("join source changed. Calling helper function")
+                //handles effects on the actual join field
                 onJoinSourceChange(joinObj.source)
-            } else {
+            } else if (updatedField === 'view'){
+                const selectedView = joinViews.find(jView => jView.view_id === joinObj.view);
                 setState((draft) => {
                     draft.join = {
                         sources: {
                             ...draft?.join.sources,
                             table2:{
                                 ...draft?.join?.sources?.table2,
-                                ...joinObj
+                                ...joinObj,
+                                sourceInfo: {
+                                    ...draft?.join?.sources?.table2?.sourceInfo,
+                                    updated_at: selectedView?._modified_timestamp
+                                }
                             }
                         }
                     };
                 });
+            } else {
+                console.warn("----Unexpected change to join state. No changes occuring----")
             }
         },
-        [sources, app, type, pageColumns, sectionColumns, setState, datasources, envs, state.join, joinSourceId]
+        [sources, app, type, pageColumns, sectionColumns, setState, datasources, envs, state.join, joinSourceId, joinViews]
     );
 
     const onJoinSourceChange =  useCallback(
         (sourceId) => {
             const match = sources.find((s) => +s.source_id === +sourceId);
-
+            console.log("source match::", match)
             setState((draft) => {
                 if (!match && typeof sourceId === "string" && sourceId.includes("+")) {
                     console.log("join source internal")
