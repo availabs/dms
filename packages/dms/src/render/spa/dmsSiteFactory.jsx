@@ -43,9 +43,9 @@ export function DmsSite (config) {
     const localStorePatterns = parseIfJSON(localStorage.getItem(dmsConfig.app+'-'+dmsConfig.type), null)
 
     const [dynamicRoutes, setDynamicRoutes] = useState(() => {
-        if (localStorePatterns || defaultData) {
+        if (localStorePatterns?.length || defaultData?.length) {
             // console.log('has localstore patterns')
-            return pattern2routes(localStorePatterns || defaultData, routeProps)
+            return pattern2routes(localStorePatterns?.length ? localStorePatterns : defaultData, routeProps)
         }
         return []
     });
