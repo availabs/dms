@@ -261,13 +261,13 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
         //RYAN TODO -- change the `onClick` for both these items
         //RYAN TODO -- add UI stuff, start with "join condition"
     const join = {
-        name: 'Join', icon: 'Group',
-        cdn: () => isEdit && !!activeSource && canEditSection,
+        name: 'Join Dataset', id:"join_settings",icon: 'Group',
+        cdn: () => canEditSection && (isEdit || activeJoinSource),
         value: sources?.find(s => s.key === activeJoinSource)?.label, 
         showValue: true,
         items: [{
-            name: 'Join Dataset', icon: 'Database',
-            cdn: () =>  isEdit && !!activeSource && canEditSection,
+            name: 'Dataset', id:"join_dataset", icon: 'Database',
+            cdn: () => canEditSection && isEdit,
             value: sources?.find(s => s.key === activeJoinSource)?.label, showValue: true,
             items: [
                 {name: 'Source', icon: 'Database', showSearch: true, cdn: () => isEdit,
@@ -278,7 +278,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                         name: label,
                         onClickGoBack: true,
                         //TODO -- instead of `table2`, this should be an alias, or a way to set an alias
-                        onClick: () => onJoinChange({source: key})
+                        onClick: () => onJoinChange(`sources.table2.source`, key)
                     }))},
                 {name: 'Version', icon: 'Database', showSearch: true, cdn: () => isEdit,
                     value: activeJoinViews?.find(s => s.key === activeJoinView)?.label || activeJoinView, showValue: true,
@@ -287,7 +287,8 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                         id: `version_${key}`,
                         name: label,
                         onClickGoBack: true,
-                        onClick: () => onJoinChange({view: key})
+                        //TODO -- instead of `table2`, this should be an alias, or a way to set an alias
+                        onClick: () => onJoinChange(`sources.table2.view`, key)
                 }))},
             ]
         },
@@ -369,7 +370,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                     )
                 }
             }),
-        ]
+        ].filter(item => !item.cdn || item.cdn())
     }
     
 

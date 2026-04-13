@@ -21,7 +21,7 @@ export const Attribution = () => {
             const dateOptions = { year: "numeric", month: "long", day: "numeric", hour: "numeric", minute: "numeric" };
             const updatedTimeString = updated_at ? new Date(updated_at).toLocaleString(undefined, dateOptions) : null;
             return (
-                <Link className={`${theme.attribution.link} border-r-1 last:border-r-0 px-1`} to={`${baseUrl || ""}/source/${source_id}`}>
+                <Link key={`${sourceAlias}_attribution`} className={`${theme.attribution.link} border-r-1 last:border-r-0 px-1`} to={`${baseUrl || ""}/source/${source_id}`}>
                     {/*to={`/${isDms ? `forms` : damaBaseUrl}/source/${source_id}/${isDms ? `view` : `versions`}/${view_id}`}>*/}
                     {name} ({view_name}) {updatedTimeString ? `(${updatedTimeString})` : null}
                 </Link>

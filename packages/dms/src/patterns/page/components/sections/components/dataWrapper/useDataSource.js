@@ -1,8 +1,7 @@
 import { useContext, useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { get, isEqual, join } from "lodash-es";
+import { get, isEqual, set } from "lodash-es";
 import { nameToSlug } from "../../../../../../utils/type-utils";
 import { CMSContext, PageContext } from "../../../../context";
-
 const range = (start, end) => Array.from({ length: end + 1 - start }, (_, k) => k + start);
 
 const getSources = async ({ envs, falcor }) => {
@@ -263,64 +262,32 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
         [views, setState]
     );
 
+    /**
+     * TODO
+     * SOME/LOTS OF THIS still assumes exactly 2 tables
+     * 1 being the main "data source" for the section
+     * The other being a user selected one, with the hardcoded `table2` alias 
+     */
     const onJoinChange = useCallback(
-        (joinObj) => {
-            console.log("join change callback, updated fields::", joinObj);
-            const updatedField = Object.keys(joinObj)[0];
-
-            //THIS IS kind of a hack when we update the join source.
-            //We append its columns to the main externalSource columns
-            //It is a side effect
-            if(updatedField === 'source') {
-                setState((draft) => {
-                    // draft.join.sources.ds.sourceInfo = draft.externalSource;
-                    // draft.join.sources.ds.source = draft.externalSource.source_id;
-                    // draft.join.sources.ds.view = draft.externalSource.view_id;//not always set by the externalSource 
-                    // draft.join.sources.ds.columns = draft.columns;
-
-                    //First try just adding a table alias key to existing columns
-                    //then, can try to modify column names if we want
-
-                    //filter out any columns from previous table2 source
-                    draft.externalSource.columns = draft.externalSource.columns
-                      .filter((col) => !col.source_id || col.source === draft.externalSource.source_id)
-                      .map((col) => ({ ...col, source_id: draft.externalSource.source_id }));
-                    console.log({sources})
-                    console.log({joinSourceId})
-                    const joinSource = sources.find((d) => +d.source_id === joinObj[updatedField])
-                    console.log("join source::", joinSource)
-                    draft.externalSource.columns = [
-                      ...draft.externalSource.columns,
-                      ...joinSource.columns.map((col) => ({ ...col, source_id: joinSourceId })),
-                    ];
-
-                    //set join_source_id on externalSource
-                    draft.externalSource.join_source_id = joinSourceId;
-                })
-            }
+        (path, joinVal) => {
+            console.log("join change callback, path::", path)
+            console.log("join change callback, updated fields::", joinVal);
 
 
-            if(joinObj.source && state?.join?.sources?.table2.source !== joinObj.source){
-                console.log("join source changed. Calling helper function")
+
+            if(path.includes("table2.source")){
+                //The actual source_id changed
                 //handles effects on the actual join field
-                onJoinSourceChange(joinObj.source)
-            } else if (updatedField === 'view'){
-                const selectedView = joinViews.find(jView => jView.view_id === joinObj.view);
-                setState((draft) => {
-                    draft.join = {
-                        sources: {
-                            ...draft?.join.sources,
-                            table2:{
-                                ...draft?.join?.sources?.table2,
-                                ...joinObj,
-                                sourceInfo: {
-                                    ...draft?.join?.sources?.table2?.sourceInfo,
-                                    updated_at: selectedView?._modified_timestamp
-                                }
-                            }
-                        }
-                    };
-                });
+                onJoinSourceChange(joinVal)
+            } else if (path.includes("table2.view")){
+                onJoinViewChange(joinVal)
+            } else if (path.includes("joinColumn")) {
+                //One of the columns that joins the tables together has changed
+                console.log({path, joinVal})
+                setState(draft => {
+                    set(draft.join, path, joinVal)
+                })
+
             } else {
                 console.warn("----Unexpected change to join state. No changes occuring----")
             }
@@ -328,11 +295,53 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
         [sources, app, type, pageColumns, sectionColumns, setState, datasources, envs, state.join, joinSourceId, joinViews]
     );
 
-    const onJoinSourceChange =  useCallback(
-        (sourceId) => {
-            const match = sources.find((s) => +s.source_id === +sourceId);
-            console.log("source match::", match)
+    const onJoinViewChange = useCallback(
+        (viewId) => {
+            console.log("CHANGING JOIN VIEW")
+            //The actual view_id changed for the 2nd table
+            const selectedView = joinViews.find(jView => jView.view_id === viewId);
             setState((draft) => {
+                draft.join.sources.table2.view = viewId;
+                draft.join.sources.table2.sourceInfo.updated_at = selectedView?._modified_timestamp
+            });
+        },
+        [sources, app, type, pageColumns, sectionColumns, setState, datasources, envs, state.join, joinSourceId, joinViews]
+    )
+
+    const onJoinSourceChange =  useCallback(
+        (newJoinSourceId) => {
+            console.log("changing JOIN SOURCE")
+            const match = sources.find((s) => +s.source_id === +newJoinSourceId);
+            console.log("match of joining source::", match)
+            setState((draft) => {
+                /**
+                 * 
+                 * THIS IS kind of a hack when we update the join source.
+                 * We append its columns to the main externalSource columns
+                 * It is a side effect
+                 * Appending columns from the "join source" to the columns for the main "data source"
+                 * This lets them appear and be added from the main "columns" menu item
+                 */
+
+                //filter out any columns from previous table2 source
+                draft.externalSource.columns = draft.externalSource.columns
+                    .filter((col) => !col.source_id || col.source === draft.externalSource.source_id)
+                    .map((col) => ({ ...col, source_id: draft.externalSource.source_id }));
+                console.log({sources})
+                console.log({newJoinSourceId})
+                const joinSource = sources.find((d) => +d.source_id === newJoinSourceId)
+                console.log("join source::", joinSource)
+                draft.externalSource.columns = [
+                    ...draft.externalSource.columns,
+                    ...joinSource.columns.map((col) => ({ ...col, source_id: newJoinSourceId })),
+                ];
+
+                //set join_source_id on externalSource
+                draft.externalSource.join_source_id = newJoinSourceId;
+
+                /**
+                 * Setting up and persisting source and view information
+                 */
                 if (!match && typeof sourceId === "string" && sourceId.includes("+")) {
                     console.log("join source internal")
                     const sourceType = sourceId.endsWith("|component")
@@ -351,13 +360,13 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
                         name: sourceType,
                         columns:
                             sourceType === "pages" ? pageColumns : sectionColumns,
-                        env: sourceId,
+                        env: newJoinSourceId,
                         view_id: "",
-                        source_id: sourceId,
+                        source_id: newJoinSourceId,
                         baseUrl: internalBaseUrl,
                     };
                     draft.join.sources.table2.columns = [];
-                    draft.join.sources.table2.source = sourceId;
+                    draft.join.sources.table2.source = newJoinSourceId;
                     draft.join.sources.table2.view = null;
 
                 } else if (match) {
@@ -369,12 +378,12 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
                     const sourceType = match.name ? nameToSlug(match.name) : draft.join.sources.table2.sourceInfo?.type;
                     draft.join.sources.table2.sourceInfo = { ...match, baseUrl, type: sourceType };
                     draft.join.sources.table2.columns = draft?.join?.sources?.table2?.columns?.filter(c => newColumnsNames.includes(c.name)).map(c => ({...c, ...newColumns.find(newC => newC.name === c.name)}));
-                    draft.join.sources.table2.source = sourceId;
+                    draft.join.sources.table2.source = newJoinSourceId;
                     draft.join.sources.table2.view = null;
                 }
             });
         },
-        [sources, app, type, pageColumns, sectionColumns, setState, datasources, envs]
+        [sources, app, type, pageColumns, sectionColumns, setState, datasources, envs, state.join, joinSourceId, joinViews]
     );
 
 
