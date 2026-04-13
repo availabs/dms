@@ -108,6 +108,10 @@ export const getData = async ({
     const debug = debugCall || false;
     debug && console.log("=======getData called===========");
 
+    const { join = {} } = state;
+    //RYAN TODO -- better join conditional. If initial state gets changed to `null`, this is much cleaner
+    const isJoinPresent = !!join && join?.sources?.table2?.view;
+
     // Resolve source info — v2 uses externalSource, v1 legacy uses sourceInfo
     const sourceInfo = state.externalSource || state.sourceInfo;
 
@@ -291,8 +295,9 @@ export const getData = async ({
     debugTime && console.timeEnd('post-processing')
     debugTime && console.timeEnd('getData fn')
     console.log({dataToReturn, outputSourceInfo})
-
-    const formattedData = dataToReturn.map(d => {
+    console.log("state before formatting::", state)
+    console.log({isJoinPresent})
+    const formattedData = isJoinPresent ? dataToReturn.map(d => {
         const newD = {};
 
         Object.keys(d).forEach(dKey => {
@@ -301,7 +306,7 @@ export const getData = async ({
         })
 
         return newD;
-    })
+    }) : dataToReturn;
     console.log({formattedData})
     return { length, data: formattedData, outputSourceInfo };
 };
