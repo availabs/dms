@@ -50,8 +50,8 @@ export default function SettingsPage({format}) {
 
     useEffect(() => {
         if (!pgEnv) return;
-        falcor.get(["dama-info", pgEnv, "settings"]).then(res => {
-            const settings = get(res, ["json", "dama-info", pgEnv, "settings"]);
+        falcor.get(["uda", pgEnv, "settings"]).then(res => {
+            const settings = get(res, ["json", "uda", pgEnv, "settings"]);
             const parsed = typeof settings === 'string' ? JSON.parse(settings || '{}') : (settings || {});
             setFilteredCategories(parsed.filtered_categories || []);
             if (parsed.show_uncategorized !== undefined) {
@@ -68,9 +68,9 @@ export default function SettingsPage({format}) {
         setFilteredCategories(newFiltered);
         setShowUncategorized(newShowUncat);
         falcor.set({
-            paths: [['dama-info', pgEnv, 'settings']],
+            paths: [['uda', pgEnv, 'settings']],
             jsonGraph: {
-                "dama-info": {
+                uda: {
                     [pgEnv]: {
                         settings: JSON.stringify({filtered_categories: newFiltered, show_uncategorized: newShowUncat})
                     }

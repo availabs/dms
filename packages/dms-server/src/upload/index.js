@@ -4,6 +4,9 @@
  */
 
 const { newContextId, upload, getLayers, createPublishHandler, createValidateHandler } = require('./routes');
+const { gisGuard, layerNames, startLayerAnalysis, getLayerAnalysis, getTableDescriptor, gisPublish, csvPublish, eventsQuery } = require('./gis-routes');
+const { downloadGuard, createDownload, deleteDownload } = require('./download-routes');
+const { fileUpload } = require('./file-upload-route');
 const { createController } = require('../routes/dms/dms.controller');
 
 /**
@@ -29,7 +32,25 @@ function registerUploadRoutes(app) {
   // Phase 3: Validate
   app.post('/dama-admin/dms/:appType/validate', createValidateHandler(controller));
 
-  console.log('Upload: registered 5 routes at /dama-admin/');
+  // GIS analysis + publish routes (some require GDAL)
+  app.get('/dama-admin/:pgEnv/gis-dataset/:fileId/layerNames', layerNames);
+  app.post('/dama-admin/:pgEnv/gis-dataset/:fileId/:layerName/layerAnalysis', gisGuard, startLayerAnalysis);
+  app.get('/dama-admin/:pgEnv/gis-dataset/:fileId/:layerName/layerAnalysis', getLayerAnalysis);
+  app.get('/dama-admin/:pgEnv/staged-geospatial-dataset/:fileId/:layerName/tableDescriptor', getTableDescriptor);
+  app.post('/dama-admin/:pgEnv/gis-dataset/publish', gisGuard, gisPublish);
+  app.post('/dama-admin/:pgEnv/csv-dataset/publish', csvPublish);
+
+  // Download creation/deletion (requires GDAL for create)
+  app.post('/dama-admin/:pgEnv/gis-dataset/create-download', downloadGuard, createDownload);
+  app.delete('/dama-admin/:pgEnv/gis-dataset/delete-download', deleteDownload);
+
+  // Generic file upload (images, documents)
+  app.post('/dama-admin/:pgEnv/file_upload', fileUpload);
+
+  // Event polling compat shim (legacy clients poll this for task progress)
+  app.get('/dama-admin/:pgEnv/events/query', eventsQuery);
+
+  console.log('Upload: registered 15 routes at /dama-admin/');
 }
 
 module.exports = { registerUploadRoutes };

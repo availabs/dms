@@ -77,6 +77,12 @@ function upload(req, res) {
 
     // Create store entry and return immediately
     store.create(uploadId);
+
+    // Link etlContextId to uploadId so /events/query can find this upload's status
+    if (fields.etlContextId) {
+      store.linkContext(fields.etlContextId, uploadId);
+    }
+
     res.json([{ id: uploadId }]);
 
     // Kick off analysis in background
@@ -119,8 +125,16 @@ async function processUpload(uploadId, workDir, filePath, fileName) {
   const processor = getProcessor(dataExt);
 
   if (!processor) {
-    console.log(`[upload] ${uploadId} FAILED — unsupported file type: ${dataExt}`);
-    store.setError(uploadId, `Unsupported file type: ${dataExt}`);
+    // Check if it's a GIS type that needs GDAL
+    const { gdalAvailable } = require('./gdal');
+    const GIS_EXTS = ['.shp', '.gpkg', '.geojson', '.gdb'];
+    if (GIS_EXTS.includes(dataExt) && !gdalAvailable) {
+      console.log(`[upload] ${uploadId} FAILED — ${dataExt} requires GDAL (gdal-async not installed)`);
+      store.setError(uploadId, `File type ${dataExt} requires GDAL. Install gdal-async to enable GIS processing.`);
+    } else {
+      console.log(`[upload] ${uploadId} FAILED — unsupported file type: ${dataExt}`);
+      store.setError(uploadId, `Unsupported file type: ${dataExt}`);
+    }
     return;
   }
 
@@ -147,7 +161,7 @@ async function extractZip(zipPath, targetDir) {
  * Recursively find the first supported data file in a directory.
  */
 function findDataFile(dir) {
-  const supportedExts = ['.csv', '.tsv', '.xlsx', '.xls'];
+  const supportedExts = ['.csv', '.tsv', '.xlsx', '.xls', '.shp', '.gpkg', '.geojson', '.json'];
   const entries = fs.readdirSync(dir, { withFileTypes: true });
 
   for (const entry of entries) {

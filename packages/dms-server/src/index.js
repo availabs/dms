@@ -83,6 +83,12 @@ app.use((req, res, next) => {
 // Request logging middleware (enable with DMS_LOG_REQUESTS=1)
 app.use(createRequestLogger());
 
+// Static file serving — before auth so download links are publicly accessible
+const storage = require('./storage');
+if (storage.type === 'local' && storage.dataDir) {
+  app.use('/files', require('express').static(storage.dataDir));
+}
+
 // Auth routes — registered BEFORE JWT middleware (login/signup don't need auth)
 const authDbEnv = process.env.DMS_AUTH_DB_ENV || 'auth-sqlite';
 const { getDb, awaitReady } = require('./db');
@@ -142,6 +148,37 @@ app.use(createSyncRoutes(syncDbEnv));
 
 async function setupAndListen() {
   await awaitReady();
+
+  // Task system — opt-in via DAMA_DB_ENV
+  const damaDbEnv = process.env.DAMA_DB_ENV;
+  if (damaDbEnv) {
+    const { registerUploadWorkers } = require('./upload/workers');
+    registerUploadWorkers();
+
+    // Register built-in datatype plugins
+    const { registerDatatype, mountDatatypeRoutes } = require('./datatypes');
+    registerDatatype('pmtiles', require('./datatypes/pmtiles'));
+
+    // Mount plugin routes with shared helpers
+    const tasks = require('./tasks');
+    const metadata = require('./upload/metadata');
+    const { getDb, loadConfig } = require('./db');
+    mountDatatypeRoutes(app, {
+      queueTask: tasks.queueTask,
+      getTaskStatus: tasks.getTaskStatus,
+      getTaskEvents: tasks.getTaskEvents,
+      dispatchEvent: tasks.dispatchEvent,
+      createDamaSource: metadata.createDamaSource,
+      createDamaView: metadata.createDamaView,
+      ensureSchema: metadata.ensureSchema,
+      getDb,
+      loadConfig,
+      storage: require('./storage'),
+    });
+
+    await tasks.recoverStalledTasks(damaDbEnv);
+    tasks.startPolling(damaDbEnv);
+  }
 
   // SSR: opt-in via DMS_SSR env var
   if (process.env.DMS_SSR) {

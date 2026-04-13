@@ -22,6 +22,12 @@
     "test:db-copy": "node tests/test-db-copy.js",
     "test:sqlite-compat": "node tests/test-sqlite-compat.js",
     "test:sync": "node tests/test-sync.js",
+    "test:tasks": "node tests/test-tasks.js",
+    "test:upload": "node tests/test-upload-pipeline.js",
+    "test:storage": "node tests/test-storage.js",
+    "test:datatypes": "node tests/test-datatypes.js",
+    "test:migrate-dama": "node tests/test-migrate-dama.js",
+    "db:migrate-dama": "node src/scripts/migrate-dama-tasks.js",
     "test:db-cleanup": "node tests/test-db-cleanup.js",
     "test:all": "npm test && npm run test:sync && npm run test:auth && npm run test:pg",
     "db:copy": "node src/scripts/copy-db.js",
@@ -67,6 +73,11 @@
     "yjs": "^13.6.30"
   },
   "optionalDependencies": {
-    "pg": "^8.17.2"
+    "pg": "^8.17.2",
+    "pg-copy-streams": "^6.0.0",
+    "gdal-async": "^3.9.0",
+    "split2": "^4.2.0",
+    "@aws-sdk/client-s3": "^3.600.0",
+    "sharp": "^0.33.0"
   }
 }

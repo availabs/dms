@@ -8,7 +8,7 @@ The `@availabs/dms` library providing a pattern-based routing system for React a
 
 ## Data Model: `app` and `type`
 
-All DMS content lives in `data_items` rows identified by two columns: `app` (text) and `type` (text). Together they form a composite namespace — queries use the concatenated key `app || '+' || type` (e.g., `avail-dms+pattern-admin`).
+All DMS content lives in `data_items` rows identified by two columns: `app` (text) and `type` (text). Together they form a composite namespace — queries use the concatenated key `app || '+' || type` (e.g., `avail-dms+prod:site`).
 
 ### `app`
 
@@ -16,50 +16,86 @@ The application name. All content for a DMS site shares the same `app` value (e.
 
 ### `type`
 
-Encodes the content kind and its position in the hierarchy using `|` as a separator:
+Encodes the row kind, instance name, and parent relationship in a uniform format:
 
 ```
-{siteType}                    → Site        (e.g., pattern-admin)
-{siteType}|pattern            → Pattern     (e.g., pattern-admin|pattern)
-{doc_type}                    → Page        (e.g., docs-page)
-{doc_type}|cms-section        → Section     (e.g., docs-page|cms-section)
-{doc_type}|source             → Dataset     (e.g., my-datasets|source)
-{doc_type}|source|view        → View        (e.g., my-datasets|source|view)
-{doc_type}-{view_id}          → Dataset row (e.g., traffic_counts-1)
-{doc_type}-{view_id}-invalid-entry → Invalid row (validation rejects)
+{parent}:{instance}|{rowKind}
 ```
 
-The `siteType` is the site's base type string (set in admin). The `doc_type` is set per-pattern — each page or datasets pattern has a `doc_type` that namespaces its child items.
+- `|` = hierarchy separator ("belongs to")
+- `:` = instance name separator ("is named")
+- Row kind is always the last segment after the final `|` (or after `:` if no `|`)
+- Any segment can be omitted when not needed
 
-### `doc_type`
+### Type map
 
-A string identifier that links a pattern to its child content. Each pattern stores a `doc_type` in its data:
+| Row kind | Type format | Example |
+|----------|------------|---------|
+| Site | `{name}:site` | `prod:site` |
+| Theme | `{name}:theme` | `catalyst:theme` |
+| Pattern | `{site}\|{name}:pattern` | `prod\|my_docs:pattern` |
+| Page | `{pattern}\|page` | `my_docs\|page` |
+| Component | `{pattern}\|component` | `my_docs\|component` |
+| dmsEnv | `{site}\|{name}:dmsenv` | `prod\|my_env:dmsenv` |
+| Source | `{dmsenv}\|{name}:source` | `my_env\|traffic_counts:source` |
+| View | `{source}\|{name}:view` | `traffic_counts\|v1:view` |
+| Data row | `{source}\|{view_id}:data` | `traffic_counts\|10:data` |
 
-- **Page patterns**: `doc_type` is typically a descriptive slug like `docs-page`. Pages of that pattern have type `{doc_type}`, sections have type `{doc_type}|cms-section`.
-- **Dataset patterns**: `doc_type` is a UUID (for `internal_dataset`) or a sanitized name (for `internal_table`). Dataset row data has type `{doc_type}-{view_id}`, where `view_id` is the numeric version identifier.
+Instance names are human-readable slugs derived from user-provided names via `nameToSlug()` (lowercase, underscores, no special chars). UUIDs are no longer used in type strings.
 
-The `doc_type` appears in the type string of every child item, so it determines the table name for split tables (dataset rows). For readability, `internal_table` datasets derive `doc_type` from the source name (e.g., `"Traffic Counts"` → `traffic_counts`) rather than generating a UUID.
+### Parsing
+
+Use shared utilities from `utils/type-utils.js` (client ESM) or `db/type-utils.js` (server CJS):
+
+```js
+parseRowType(type) → { parent, instance, kind, raw }
+getKind(type)      → 'site' | 'pattern' | 'page' | 'component' | 'source' | 'view' | 'data' | ...
+getParent(type)    → parent prefix string
+getInstance(type)  → instance name string
+isSplitType(type)  → type.endsWith(':data')
+buildType({ parent, instance, kind }) → type string
+nameToSlug(name)   → sanitized slug
+```
+
+### Common queries
+
+| Query | SQL |
+|-------|-----|
+| All sites | `type LIKE '%:site'` |
+| All patterns for site | `type LIKE 'prod\|%:pattern'` |
+| All pages for pattern | `type = 'my_docs\|page'` |
+| All components for pattern | `type = 'my_docs\|component'` |
+| All sources in dmsEnv | `type LIKE 'my_env\|%:source'` |
+| All views for source | `type LIKE 'traffic_counts\|%:view'` |
+| All data rows | `type LIKE '%:data'` |
 
 ### Split tables (dataset row data)
 
-Dataset rows can be large (millions of rows) so they are routed to per-type split tables instead of the main `data_items` table. The server's `table-resolver.js` detects split-eligible types:
+Dataset rows can be large (millions of rows) so they are routed to per-type split tables instead of the main `data_items` table. Split detection is simple: `type.endsWith(':data')`.
 
-- **UUID pattern**: `{uuid}-{view_id}` — e.g., `550e8400-e29b-41d4-a716-446655440000-42`
-- **Name pattern**: `{name}-{view_id}` — e.g., `traffic_counts-1` (name starts with a letter, contains only `[a-z0-9_]`)
+Split types are routed to `data_items__{sanitized_type}` (e.g., `data_items__traffic_counts_10_data`). The table is auto-created on first write. All other DMS content (sites, patterns, pages, components, sources, views) stays in the main `data_items` table.
 
-Split types are routed to `data_items__{sanitized_type}` (e.g., `data_items__traffic_counts_1`). The table is auto-created on first write. All other DMS content (sites, patterns, pages, sections, sources, views) stays in the main `data_items` table.
+### Invalid data rows
+
+Invalid rows share the same type and split table as valid rows. They are distinguished by `data.isValid = false` (not by a separate type suffix).
 
 ### Type hierarchy summary
 
 ```
-Site:    app=myapp  type=my-site-type
-  └─ Pattern:  app=myapp  type=my-site-type|pattern
-       ├─ Page:     app=myapp  type={doc_type}
-       │   └─ Section: app=myapp  type={doc_type}|cms-section
-       └─ Source:   app=myapp  type={doc_type}|source
-           ├─ View:    app=myapp  type={doc_type}|source|view
-           └─ Data:    app=myapp  type={doc_type}-{view_id}  [split table]
+Site:      app=myapp  type=prod:site
+  ├─ Theme:    app=myapp  type=catalyst:theme
+  ├─ dmsEnv:   app=myapp  type=prod|my_env:dmsenv
+  │   └─ Source:   app=myapp  type=my_env|traffic_counts:source
+  │       ├─ View:     app=myapp  type=traffic_counts|v1:view
+  │       └─ Data:     app=myapp  type=traffic_counts|10:data  [split table]
+  └─ Pattern:  app=myapp  type=prod|my_docs:pattern
+       ├─ Page:      app=myapp  type=my_docs|page
+       └─ Component: app=myapp  type=my_docs|component
 ```
+
+### Legacy format (backward compat)
+
+The server still accepts old-format types during migration. Old format used `doc_type` in data, `cms-section` instead of `component`, UUID-based type prefixes, and `{docType}-{viewId}` for data rows. These are detected by the absence of `:` in the type string. Legacy support will be removed after all databases are migrated.
 
 ## UI Component Access Convention
 
@@ -117,6 +153,8 @@ planning/
 └── tasks/
     ├── current/         # Detailed task documents for work in progress
     └── completed/       # Archived task documents
+research/                # Exploratory analysis, tech evaluations, refactor proposals
+documentation/           # System reference docs, schema docs, architecture overviews
 ```
 
 ### Workflow
