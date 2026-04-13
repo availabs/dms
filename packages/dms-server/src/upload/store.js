@@ -6,6 +6,7 @@
  */
 
 const uploads = new Map();
+const contextToUpload = new Map(); // etlContextId → uploadId
 let contextCounter = 1000;
 
 // Purge completed/errored uploads older than 1 hour (run every 10 minutes)
@@ -55,4 +56,17 @@ function setError(id, message) {
   entry.error = message;
 }
 
-module.exports = { nextContextId, generateUploadId, create, get, setReady, setError };
+function getAll() {
+  return [...uploads.values()];
+}
+
+function linkContext(etlContextId, uploadId) {
+  contextToUpload.set(String(etlContextId), uploadId);
+}
+
+function getByContext(etlContextId) {
+  const uploadId = contextToUpload.get(String(etlContextId));
+  return uploadId ? uploads.get(uploadId) : null;
+}
+
+module.exports = { nextContextId, generateUploadId, create, get, getAll, setReady, setError, linkContext, getByContext };

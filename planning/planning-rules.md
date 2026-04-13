@@ -5,24 +5,24 @@ This document describes the structure and conventions for the DMS planning direc
 ## Directory Structure
 
 ```
-planning/
-├── roadmap.md           # High-level roadmap and vision
-├── todo.md              # Active tasks organized by topic
-├── completed.md         # Completed tasks organized by topic
-├── planning-rules.md    # This file - structure documentation
-├── research/            # Research documents — tech analysis, design exploration, options evaluation
-│   └── *.md             # One file per topic (e.g., dama-refactor.md, sync-architecture.md)
-└── tasks/
-    ├── current/         # Detailed task documents for work in progress
-    └── completed/       # Archived task documents for completed work
-
-documentation/               # Lives at src/dms/documentation/ (sibling of planning/)
-└── *.md                     # System documentation — how things work, schemas, reference material
+src/dms/
+├── planning/
+│   ├── roadmap.md           # High-level roadmap and vision
+│   ├── todo.md              # Active tasks organized by topic
+│   ├── completed.md         # Completed tasks organized by topic
+│   ├── planning-rules.md    # This file - structure documentation
+│   └── tasks/
+│       ├── current/         # Detailed task documents for work in progress
+│       └── completed/       # Archived task documents for completed work
+├── research/                # Research documents — tech analysis, design exploration, options evaluation
+│   └── *.md                 # One file per topic (e.g., dama-refactor.md, sync-architecture.md)
+└── documentation/           # System documentation — how things work, schemas, reference material
+    └── *.md                 # One file per topic (e.g., dama-current-system.md, sync.md)
 ```
 
 ### Where to put research vs. documentation
 
-- **`planning/research/`** — Exploratory analysis, tech stack evaluations, refactor proposals, design options, recommendations. These inform decisions and task creation. They may become outdated as decisions are made.
+- **`research/`** (`src/dms/research/`) — Exploratory analysis, tech stack evaluations, refactor proposals, design options, recommendations. These inform decisions and task creation. They may become outdated as decisions are made.
 - **`documentation/`** (`src/dms/documentation/`) — Factual reference material describing how systems work (or worked). Schema docs, architecture overviews, API references, operational guides. These should be kept accurate as the system evolves.
 
 ## File Conventions

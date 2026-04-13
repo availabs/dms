@@ -127,8 +127,8 @@ export default function ({attributes, item, dataItems, apiLoad, apiUpdate, updat
 
     useEffect(() => {
         if (!pgEnv) return;
-        falcor.get(["dama-info", pgEnv, "settings"]).then(res => {
-            const settings = get(res, ["json", "dama-info", pgEnv, "settings"]);
+        falcor.get(["uda", pgEnv, "settings"]).then(res => {
+            const settings = get(res, ["json", "uda", pgEnv, "settings"]);
             const parsed = typeof settings === 'string' ? JSON.parse(settings || '{}') : (settings || {});
             setFilteredCategories(parsed.filtered_categories || []);
             if (parsed.show_uncategorized !== undefined) {

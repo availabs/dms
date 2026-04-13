@@ -30,21 +30,20 @@ const HoverComp = ({ data, layer }) => {
   
   React.useEffect(() => {
     falcor.get([
-      "dama",
+      "uda",
       pgEnv,
-      "viewsbyId",
+      "viewsById",
       activeViewId,
-      "databyId",
+      "dataById",
       id,
       getAttributes
     ])
-    //.then(d => console.log('got attributes', d));
   }, [falcor, pgEnv, activeViewId, id, attributes]);
 
   const attrInfo = React.useMemo(() => {
     return get(
       falcorCache,
-      ["dama", pgEnv, "viewsbyId", activeViewId, "databyId", id],
+      ["uda", pgEnv, "viewsById", activeViewId, "dataById", id],
       {}
     );
   }, [id, falcorCache, activeViewId, pgEnv]);
@@ -251,7 +250,7 @@ const GISDatasetRenderComponent = props => {
       });
 
       falcor.call(
-        ["dama", "sources", "metadata", "update"],
+        ["uda", "sources", "update"],
         [pgEnv, sourceId, { symbology: toSave }]
       ).then(res => console.log("SAVE RESPONSE:", res))
     }
