@@ -714,7 +714,7 @@ export const buildUdaConfig = ({
 }) => {
   //RYAN TODO -- better join conditional. If initial state gets changed to `null`, this is much cleaner
   const isJoinPresent = !!join && join?.sources?.table2?.view;
-
+  console.log("build uda config, isJoinPresent::", isJoinPresent)
   const isDms = externalSource?.isDms;
 
 
@@ -741,11 +741,11 @@ export const buildUdaConfig = ({
   const allCols = [...externalSource?.columns, ...joinColumns]
   const sourceColumns = allCols.map((col) => {
     const colSourceId = col.source_id || externalSource.source_id;
-    return ({ ...col, name: `${sourceIdToTableAlias[colSourceId]}.${col.name}` })
+    return ({ ...col, name: isJoinPresent ? `${sourceIdToTableAlias[colSourceId]}.${col.name}` : col.name })
   });
   const columns = rawColumns.map((col) => {
     const colSourceId = col.source_id || externalSource.source_id;
-    return ({ ...col, name: `${sourceIdToTableAlias[colSourceId]}.${col.name}` })
+    return ({ ...col, name: isJoinPresent ? `${sourceIdToTableAlias[colSourceId]}.${col.name}` : col.name })
   });;
 
   console.log({columns, sourceColumns})
