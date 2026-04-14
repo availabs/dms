@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useContext } from 'react'
 import SourcesLayout from "../../../../../../../../mapeditor/SourceLayout";
-import get from 'lodash/get'
+import { get } from 'lodash-es'
 import { CMSContext } from '../../../../../../../context'
 const SourceThumb = ({ symbology, selectedSymbologyId, setSelectedSymbologyId, cat1, setCat1 }) => {
   const isActiveSymbology = selectedSymbologyId === symbology.id;

@@ -1,8 +1,6 @@
 import React, { useEffect, useContext, useRef } from "react"
-import get from "lodash/get"
-import isEqual from "lodash/isEqual"
-import cloneDeep from "lodash/cloneDeep"
-import { AvlLayer } from "~/modules/avl-map-2/src"
+import { get, isEqual, cloneDeep } from "lodash-es"
+import { AvlLayer } from "../../../../../../../ui/components/map"
 import { usePrevious } from '../map/utils.js'
 // import { API_HOST } from '~/config'
 import { MapContext } from "./"
