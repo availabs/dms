@@ -43,6 +43,7 @@ export interface InlineImagePayload {
     src: string;
     width?: number;
     position?: Position;
+    fileUploadInfo?: object | null
 }
 
 export interface UpdateInlineImagePayload {
@@ -69,6 +70,7 @@ export type SerializedInlineImageNode = Spread<
         src: string;
         width?: number;
         position?: Position;
+        fileUploadInfo?: object | null;
     },
     SerializedLexicalNode
 >;
@@ -81,6 +83,7 @@ export class InlineImageNode extends DecoratorNode<JSX.Element> {
     __showCaption: boolean;
     __caption: LexicalEditor;
     __position: Position;
+    __fileUploadInfo: object | null;
 
     static getType(): string {
         return 'image';
@@ -96,13 +99,14 @@ export class InlineImageNode extends DecoratorNode<JSX.Element> {
             node.__showCaption,
             node.__caption,
             node.__key,
+            node.__fileUploadInfo
         );
     }
 
     static importJSON(
         serializedNode: SerializedInlineImageNode,
     ): InlineImageNode {
-        const {altText, height, width, caption, src, showCaption, position = 'full'} =
+        const {altText, height, width, caption, src, showCaption, position = 'full', fileUploadInfo} =
             serializedNode;
         const node = $createInlineImageNode({
             altText,
@@ -111,6 +115,7 @@ export class InlineImageNode extends DecoratorNode<JSX.Element> {
             showCaption,
             src,
             width,
+            fileUploadInfo
         });
         const nestedEditor = node.__caption;
         const editorState = nestedEditor.parseEditorState(caption.editorState);
@@ -138,8 +143,12 @@ export class InlineImageNode extends DecoratorNode<JSX.Element> {
         showCaption?: boolean,
         caption?: LexicalEditor,
         key?: NodeKey,
+        fileUploadInfo?: object | null
     ) {
         super(key);
+
+console.log("InlineImageNode::constructor::fileUploadInfo", fileUploadInfo)
+
         this.__src = src;
         this.__altText = altText;
         this.__width = width || 'inherit';
@@ -147,6 +156,7 @@ export class InlineImageNode extends DecoratorNode<JSX.Element> {
         this.__showCaption = showCaption || false;
         this.__caption = caption || createEditor();
         this.__position = position;
+        this.__fileUploadInfo = fileUploadInfo ? { ...fileUploadInfo } : null;
     }
 
     exportDOM(editor?: LexicalEditor): DOMExportOutput {
@@ -176,6 +186,7 @@ export class InlineImageNode extends DecoratorNode<JSX.Element> {
             type: 'image',
             version: 1,
             width: this.__width === 'inherit' ? 0 : this.__width,
+            fileUploadInfo: this.__fileUploadInfo
         };
     }
 
@@ -275,6 +286,7 @@ export class InlineImageNode extends DecoratorNode<JSX.Element> {
                     showCaption={this.__showCaption}
                     caption={this.__caption}
                     position={this.__position}
+                    fileUploadInfo={ this.__fileUploadInfo }
                 />
             </Suspense>
         );
@@ -290,7 +302,11 @@ export function $createInlineImageNode({
                                            showCaption,
                                            caption,
                                            key,
+                                           fileUploadInfo
                                        }: InlineImagePayload): InlineImageNode {
+
+console.log("$createInlineImageNode::fileUploadInfo", fileUploadInfo);
+
     return $applyNodeReplacement(
         new InlineImageNode(
             src,
@@ -301,6 +317,7 @@ export function $createInlineImageNode({
             showCaption,
             caption,
             key,
+            fileUploadInfo
         ),
     );
 }

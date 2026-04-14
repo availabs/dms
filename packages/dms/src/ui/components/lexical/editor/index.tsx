@@ -52,7 +52,7 @@ export const createHeadlessEditor = ({ namespace, flatTheme, icons }) => {
 
 
 
-export default function Lexicals ({value, hideControls, showBorder, onChange, bgColor, editable=false, id, theme: themeProp, styleName, isCollab, collabId, collabUsername, collabCursorColor}) {
+export default function Lexicals ({value, hideControls, showBorder, onChange, bgColor, editable=false, id, theme: themeProp, styleName, isCollab, collabId, collabUsername, collabCursorColor, fileUploadInfo }) {
   // Get theme from ThemeContext if not passed as prop
   const { theme: contextTheme } = React.useContext(ThemeContext) || {};
   const theme = themeProp || contextTheme;
@@ -103,6 +103,7 @@ export default function Lexicals ({value, hideControls, showBorder, onChange, bg
               collabInitialState={collabInitialState}
               collabUsername={collabUsername}
               collabCursorColor={collabCursorColor}
+              fileUploadInfo={ fileUploadInfo }
             />
             {onChange && <OnChangePlugin onChange={onChange} />}
           </>
@@ -114,6 +115,7 @@ export default function Lexicals ({value, hideControls, showBorder, onChange, bg
             bgColor={bgColor}
             editable={editable}
             theme={nestedLexicalTheme}
+            fileUploadInfo={ fileUploadInfo }
           />
         )}
       </div>
@@ -131,7 +133,7 @@ export default function Lexicals ({value, hideControls, showBorder, onChange, bg
   );
 }
 
-function UpdateEditor({ value, hideControls, onChange, bgColor, theme, editable }) {
+function UpdateEditor({ value, hideControls, onChange, bgColor, theme, editable, fileUploadInfo }) {
     const isFirstRender = React.useRef(true);
     const lastValue = React.useRef();
     const [editor] = useLexicalComposerContext();
@@ -179,7 +181,7 @@ function UpdateEditor({ value, hideControls, onChange, bgColor, theme, editable 
 
     return (
         <>
-            <Editor theme={theme} editable={editable} hideControls={hideControls} bgColor={bgColor} />
+            <Editor theme={theme} editable={editable} hideControls={hideControls} bgColor={bgColor} fileUploadInfo={ fileUploadInfo }/>
             <OnChangePlugin onChange={onChange} />
         </>
     );

@@ -39,6 +39,7 @@ const pagesConfig = ({
   site,
   pgEnv,
   API_HOST,
+  DAMA_HOST,
   ...rest
 }) => {
   const theme = getPatternTheme(themes, pattern)
@@ -94,6 +95,12 @@ const pagesConfig = ({
               app, type,
               siteType,
               API_HOST,
+              fileUploadInfo: {
+                DAMA_HOST,
+                pgEnv,
+                directory: `img/${ app }+${ type }`,
+                id: `${ app }+${ type }|${ pgEnv }`
+              },
               baseUrl,
               pgEnv,
               datasources,

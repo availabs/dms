@@ -1,4 +1,4 @@
-import {useContext, useEffect, useState} from "react";
+import {useContext, useEffect, useState, useMemo} from "react";
 import {isEqual} from 'lodash-es';
 import { ThemeContext } from "../../../../../../../ui/useTheme";
 import { CMSContext, ComponentContext } from "../../../../../context";
@@ -25,7 +25,7 @@ function emailToColor(email) {
 const Edit = ({value, onChange}) => {
     const { theme, UI } = useContext(ThemeContext)
     const { state, setState, sectionId } = useContext(ComponentContext);
-    const { user } = useContext(CMSContext) || {};
+    const { user, fileUploadInfo } = useContext(CMSContext) || {};
     const { ColumnTypes: {lexical: Lexical}} = UI;
 
     // Enable collaborative editing when sync WebSocket is connected
@@ -91,6 +91,7 @@ const Edit = ({value, onChange}) => {
                             collabId={collabId}
                             collabUsername={collabUsername}
                             collabCursorColor={collabCursorColor}
+                            fileUploadInfo={ fileUploadInfo }
                         />
                     </div>
                 </div>
