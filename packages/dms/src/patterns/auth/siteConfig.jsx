@@ -16,17 +16,13 @@ import {cloneDeep, merge} from "lodash-es";
 let authImgI = null;
 
 const AdminLayout = ({menuItems, children, theme, Menu}) => {
-    const {Layout} = UI;
+    const {Layout, LayoutGroup} = UI;
     return (
         <div className={theme?.auth?.authPages?.container}>
             <Layout navItems={menuItems} Menu={Menu}>
-                <div className={`${theme?.auth?.authPages?.sectionGroup?.default?.wrapper1}`}>
-                    <div className={theme?.auth?.authPages?.sectionGroup?.default?.wrapper2}>
-                        <div className={`${theme?.auth?.authPages?.sectionGroup?.default?.wrapper3}`}>
-                            {children}
-                        </div>
-                    </div>
-                </div>
+                <LayoutGroup>
+                    {children}
+                </LayoutGroup>
             </Layout>
         </div>
     )
@@ -155,6 +151,10 @@ const manageAuthConfig = ({
             name: 'Auth',
             subMenus: [
                 {
+                    name: 'Profile',
+                    path: `${baseUrl}/manage/profile`
+                },
+                {
                     name: 'Users',
                     path: `${baseUrl}/manage/users`
                 },
@@ -206,7 +206,7 @@ const manageAuthConfig = ({
           },
             {
                 type: props => <Profile {...props} />,
-                path: "profile/:user_id?",
+                path: "profile",
             },
         ]
       }

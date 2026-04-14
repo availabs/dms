@@ -75,13 +75,13 @@ export default ({title, children, activeStyle, navigableMenuActiveStyle}) => {
   let authMenuItems = theme?.navOptions?.authMenu?.navItems || [
     {
         name: 'Datasets',
-        icon: 'fad fa-sign-out-alt pb-2 pr-1',
+        icon: 'Database',
         path: '/datasets',
         type: 'link'
     },
     {
         name: 'Manager',
-        icon: 'fad fa-sign-out-alt pb-2 pr-1',
+        icon: 'Settings',
         path: `${baseUrl}/list`,
         type: 'link'
     }
@@ -109,10 +109,11 @@ export default ({title, children, activeStyle, navigableMenuActiveStyle}) => {
               <NavigableMenu
                 config={[
 
-                  ...authMenuItems,
-                  { type: 'separator'},
-                  { name: 'Logout', path: '/auth/logout', type: 'link' },
-                  { type: () =>  <UserMenu activeStyle={activeStyle} /> },
+                  ...authMenuItems.map(menuItem => ({...menuItem, icon: menuItem.icon || 'PageRound'})),
+                    { name: 'Profile', path: '/auth/manage/profile', type: 'link', icon: 'User' },
+                    { type: 'separator'},
+                  { name: 'Logout', path: '/auth/logout', type: 'link', icon: 'Logout' },
+                  // { type: () =>  <UserMenu activeStyle={activeStyle} /> },
                 ]}
                 showTitle={false}
                 activeStyle={navigableMenuActiveStyle}

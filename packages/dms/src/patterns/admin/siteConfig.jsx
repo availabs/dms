@@ -246,6 +246,10 @@ const getMenuItems = (baseUrl, authPath, user) => {
           name: 'Auth',
           subMenus: [
               {
+                  name: 'Profile',
+                  path: `${authPath}/manage/profile`
+              },
+              {
                   name: 'Users',
                   path: `${authPath}/manage/users`
               },
