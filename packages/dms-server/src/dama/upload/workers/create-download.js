@@ -10,7 +10,7 @@ const path = require('path');
 const os = require('os');
 const { randomUUID } = require('crypto');
 const storage = require('../../storage');
-const { loadConfig } = require('../../db');
+const { loadConfig } = require('../../../db');
 
 const OUTPUT_TYPES = {
   CSV: { ogr: 'CSV', ext: 'csv' },

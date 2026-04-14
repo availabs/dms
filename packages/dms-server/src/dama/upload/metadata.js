@@ -3,7 +3,7 @@
  * Creates records in data_manager.sources and data_manager.views.
  */
 
-const { getDb } = require('../db');
+const { getDb } = require('../../db');
 
 const DEFAULT_SCHEMA = 'gis_datasets';
 
@@ -25,14 +25,31 @@ async function createDamaSource(values, pgEnv) {
     statistics = { auth: { users: { [user_id]: '10' }, groups: {} } };
   }
 
-  const { rows } = await db.query(`
-    INSERT INTO ${table} (name, display_name, type, description, user_id, statistics, metadata, categories)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-    RETURNING *
-  `, [name, display_name || null, type || null, description || null, user_id || null,
-      statistics, metadata || null, categories || null]);
+  // Try insert, on duplicate name append _N suffix
+  let sourceName = name;
+  for (let attempt = 0; attempt < 10; attempt++) {
+    try {
+      const { rows } = await db.query(`
+        INSERT INTO ${table} (name, display_name, type, description, user_id, statistics, metadata, categories)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        RETURNING *
+      `, [sourceName, display_name || null, type || null, description || null, user_id || null,
+          statistics, metadata || null, categories || null]);
 
-  return rows[0];
+      return rows[0];
+    } catch (err) {
+      if (err.code === '23505' || (err.message && err.message.includes('UNIQUE constraint'))) {
+        // Duplicate name — append suffix and retry
+        attempt++;
+        sourceName = `${name}_${attempt + 1}`;
+        console.log(`[metadata] Source name "${name}" taken, trying "${sourceName}"`);
+      } else {
+        throw err;
+      }
+    }
+  }
+
+  throw new Error(`Could not create source — name "${name}" and variants are all taken`);
 }
 
 /**

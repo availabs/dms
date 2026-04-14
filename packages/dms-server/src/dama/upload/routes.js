@@ -7,13 +7,12 @@
 
 const fs = require('fs');
 const path = require('path');
-const os = require('os');
 const Busboy = require('busboy');
 const store = require('./store');
 const { getProcessor } = require('./processors');
 const { isSplitType, parseSplitDataType } = require('#db/type-utils.js');
 
-const UPLOAD_DIR = path.join(os.tmpdir(), 'dms-uploads');
+const UPLOAD_DIR = process.env.DAMA_ETL_DIR || path.join(__dirname, '../../../var/tmp-etl');
 
 // Ensure upload directory exists
 if (!fs.existsSync(UPLOAD_DIR)) {

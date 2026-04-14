@@ -385,11 +385,30 @@ Update the datasets pattern to use UDA task routes instead of DAMA Falcor routes
 - [x] `SettingsPage.jsx` — `dama-info` → `uda` for settings GET/SET
 - [x] `DatasetsList/index.jsx` — `dama-info` → `uda` for settings GET
 - [x] `Layer2.jsx` — `dama[pgEnv].viewsbyId` → `uda[pgEnv].viewsById` for hover tooltip + cache read; `dama.sources.metadata.update` → `uda.sources.update` for symbology save
+- [x] `UdaTaskList.jsx` — NEW file, uses `uda[pgEnv].tasks.*` routes via standard `falcor`
+- [x] `UdaTaskPage.jsx` — NEW file, uses `uda[pgEnv].tasks.byId[id].*` routes
+- [x] `UdaTasks.jsx` — NEW wrapper for task list page
+- [x] `siteConfig.jsx` — Added routes at `/tasks-new` and `/task-new/:task_id` alongside legacy routes
+- [x] `admin.jsx` — Shows both UdaTaskList (new) and TaskList (legacy) for external sources
+
+**Server fixes during testing:**
+- [x] Settings controller handles both old (`settings` column) and new (`key/value`) schemas gracefully
+- [x] Upload store links `etlContextId` → `uploadId` so `/events/query` returns upload status
+- [x] Analysis runs in-process with task row for status tracking (no polling loop needed)
+- [x] Publish uses `runWorkerInBackground` with `claimTaskById` (claims specific task, not next-in-queue)
+- [x] Workers don't set `etl_context_id` on views (FK to legacy `etl_contexts`); store `task_id` in metadata instead
+- [x] Source name deduplication: appends `_2`, `_3` etc. on unique constraint violation
+- [x] Per-pgEnv task polling: `startPolling` creates separate poller per database
+- [x] Worker/plugin registration unconditional (not gated on `DAMA_DB_ENV`)
+- [x] Auto-discover all dama-role database configs on startup, recover stalled tasks + start polling for each
+- [x] Task lifecycle logging: queue, claim, start, complete, fail all logged with task_id and pgEnv
 
 **Remaining:**
-- [ ] `TaskList.jsx` — Replace `dama_falcor` → `falcor`, remap `dama[pgEnv].latest.events.*` → `uda[pgEnv].tasks.*`, update attribute list
-- [ ] `TaskPage.jsx` — Remap `dama[pgEnv].etlContexts.*` → `uda[pgEnv].tasks.*`, update event attributes
-- [ ] `ExternalVersionControls.jsx` — Update REST URLs (`DAMA_HOST` → `API_HOST`), rewrite ETL polling to UDA task polling, update pmtiles route path
+- [ ] `TaskList.jsx` — Old legacy page still uses `dama_falcor` (kept for backward compat, can be deprecated)
+- [ ] `TaskPage.jsx` — Old legacy page still uses `dama[pgEnv].etlContexts.*` (kept for backward compat)
+- [ ] `ExternalVersionControls.jsx` — REST URLs still use `DAMA_HOST`, ETL polling still uses `dama` prefix
+- [ ] `Create/` (GIS wizard) — Still uses `new-context-id` + `/events/query` polling pattern
+- [ ] `siteConfig.jsx` + `dmsPageFactory.jsx` — `dama_falcor` and `DAMA_HOST` still in context (needed by legacy pages)
 - [ ] `Create/` (GIS wizard) — Simplify state machine: drop etlContextId/analysisContextId, poll tasks via Falcor instead of REST events
 - [ ] `siteConfig.jsx` + `dmsPageFactory.jsx` — Remove `dama_falcor` and `DAMA_HOST`
 - [ ] Server cleanup: remove `/events/query` compat shim, deprecate `newContextId`

@@ -7,7 +7,7 @@
  * - Event tracking: progress events persisted for client polling
  */
 
-const { getDb } = require('../db');
+const { getDb } = require('../../db');
 const { hostId } = require('./host-id');
 
 // Registry: workerPath -> async handler function
@@ -57,12 +57,38 @@ async function queueTask(descriptor, pgEnv) {
   `, [hostId, sourceId, workerPath, descriptor]);
 
   const taskId = rows[0].task_id;
+  console.log(`[tasks] Queued task ${taskId}: ${workerPath} (pgEnv: ${pgEnv}, source: ${sourceId || 'none'})`);
   await dispatchEvent(taskId, 'queued', `Task ${taskId} queued`, descriptor, pgEnv);
 
   // Ensure polling is running for this pgEnv so the task gets picked up
   startPolling(pgEnv);
 
   return taskId;
+}
+
+/**
+ * Claim a specific task by ID. Sets status to running.
+ * Returns the task row or null if already claimed/not found.
+ */
+async function claimTaskById(taskId, pgEnv) {
+  const db = getDb(pgEnv);
+  const table = taskTable(db.type);
+  const now = db.type === 'postgres' ? 'NOW()' : "datetime('now')";
+
+  const { rows } = await db.query(`
+    UPDATE ${table}
+    SET status = 'running', started_at = ${now}, worker_pid = $1
+    WHERE task_id = $2 AND status = 'queued' AND host_id = $3
+    RETURNING *
+  `, [process.pid, taskId, hostId]);
+
+  const task = rows[0] || null;
+  if (task) {
+    console.log(`[tasks] Claimed task ${taskId} (${task.worker_path}) on ${pgEnv}`);
+  } else {
+    console.warn(`[tasks] Could not claim task ${taskId} on ${pgEnv} — already claimed or not found`);
+  }
+  return task;
 }
 
 /**
@@ -127,6 +153,7 @@ async function claimNextTask(pgEnv) {
  */
 async function startTaskWorker(task, pgEnv) {
   const { task_id, worker_path } = task;
+  console.log(`[tasks] Starting worker for task ${task_id}: ${worker_path} (pgEnv: ${pgEnv})`);
   const handler = handlers[worker_path];
 
   if (!handler) {
@@ -189,6 +216,7 @@ async function completeTask(taskId, result, pgEnv) {
     WHERE task_id = $2
   `, [result, taskId]);
 
+  console.log(`[tasks] Task ${taskId} completed (pgEnv: ${pgEnv})`);
   await dispatchEvent(taskId, 'done', 'Task completed', result, pgEnv);
 }
 
@@ -205,6 +233,7 @@ async function failTask(taskId, error, pgEnv) {
     WHERE task_id = $2
   `, [error, taskId]);
 
+  console.error(`[tasks] Task ${taskId} failed (pgEnv: ${pgEnv}): ${error}`);
   await dispatchEvent(taskId, 'error', error, null, pgEnv);
 }
 
@@ -308,6 +337,7 @@ module.exports = {
   hostId,
   registerHandler,
   queueTask,
+  claimTaskById,
   claimNextTask,
   startTaskWorker,
   dispatchEvent,
