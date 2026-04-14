@@ -40,7 +40,7 @@ export default function CreatePage({apiUpdate, format}) {
     const [sources, setSources] = useState([]);
     const [submitting, setSubmitting] = useState(false);
 
-    const envs = useMemo(() => buildEnvsForListing(datasources, format), [datasources, format]);
+    const envs = useMemo(() => buildEnvsForListing(datasources, format, dmsEnv), [datasources, format, dmsEnv]);
 
     useEffect(() => {
         getSources({envs, falcor}).then(setSources);

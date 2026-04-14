@@ -30,7 +30,7 @@ const getSources = async ({envs, falcor}) => {
 }
 
 export default function SettingsPage({format}) {
-    const {baseUrl, falcor, datasources, UI} = useContext(DatasetsContext);
+    const {baseUrl, falcor, datasources, dmsEnv, UI} = useContext(DatasetsContext);
     const {theme: fullTheme} = useContext(ThemeContext) || {};
     const theme = fullTheme?.datasets?.settingsPage || {};
     const {Layout, LayoutGroup, Input, Button} = UI;
@@ -42,7 +42,7 @@ export default function SettingsPage({format}) {
     const [saving, setSaving] = useState(false);
 
     const pgEnv = getExternalEnv(datasources);
-    const envs = useMemo(() => buildEnvsForListing(datasources, format), [datasources, format]);
+    const envs = useMemo(() => buildEnvsForListing(datasources, format, dmsEnv), [datasources, format, dmsEnv]);
 
     useEffect(() => {
         getSources({envs, falcor}).then(setSources);

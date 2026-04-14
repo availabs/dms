@@ -98,7 +98,7 @@ const SourceThumb = React.memo(({ source={}, format }) => {
 });
 
 export default function ({attributes, item, dataItems, apiLoad, apiUpdate, updateAttribute, format, submit, ...r}) {
-    const {baseUrl, user, falcor, siteType, type, datasources, UI} = useContext(DatasetsContext);
+    const {baseUrl, user, falcor, siteType, type, datasources, dmsEnv, UI} = useContext(DatasetsContext);
     const {theme} = useContext(ThemeContext) || {};
     const t = theme?.datasets?.datasetsList || {};
     const {Layout, Icon, Button, Input} = UI;
@@ -108,7 +108,7 @@ export default function ({attributes, item, dataItems, apiLoad, apiUpdate, updat
     const [searchParams] = useSearchParams();
     const [sort, setSort] = useState('asc');
     const cat1 = searchParams.get('cat');
-    const envs = useMemo(() => buildEnvsForListing(datasources, format), [datasources, format]);
+    const envs = useMemo(() => buildEnvsForListing(datasources, format, dmsEnv), [datasources, format, dmsEnv]);
     const pgEnv = getExternalEnv(datasources);
     const [filteredCategories, setFilteredCategories] = useState([]);
     const [showUncategorized, setShowUncategorized] = useState(true);
