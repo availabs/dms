@@ -114,7 +114,34 @@ function normalizeConfig(rawConfig) {
 }
 
 
+/**
+ * Find all config names that include a given role.
+ * Scans all *.config.json files in the configs directory.
+ * @param {string} role - Role to match (e.g., 'dama', 'dms', 'auth')
+ * @returns {string[]} Array of config names (without .config.json suffix)
+ */
+function findConfigsByRole(role) {
+  const { readdirSync } = require('fs');
+  const files = readdirSync(configDir).filter(f => f.endsWith('.config.json'));
+  const matches = [];
+
+  for (const file of files) {
+    try {
+      const config = loadConfig(file.replace('.config.json', ''));
+      const roles = Array.isArray(config.role) ? config.role : [config.role];
+      if (roles.includes(role)) {
+        matches.push(file.replace('.config.json', ''));
+      }
+    } catch (e) {
+      // Skip configs that fail to load
+    }
+  }
+
+  return matches;
+}
+
 module.exports = {
   loadConfig,
-  configDir
+  configDir,
+  findConfigsByRole
 };

@@ -2,7 +2,7 @@ import React from 'react'
 // import {useLocation} from 'react-router'
 
 import { cloneDeep } from "lodash-es"
-import {ThemeContext, mergeTheme} from '../../ui/useTheme'
+import {ThemeContext, mergeTheme, getPatternTheme} from '../../ui/useTheme'
 import {AdminContext} from "./context";
 import UI from "../../ui"
 import defaultTheme from '../../ui/defaultTheme'
@@ -41,6 +41,7 @@ const adminConfig = ({
   themes = {},
   dmsEnvs = [],
   dmsEnvById = {},
+    pattern: patternData
 }) => {
     const format = cloneDeep(adminFormat)
     format.app = app
@@ -58,21 +59,7 @@ const adminConfig = ({
     baseUrl = baseUrl === '/' ? '' : baseUrl
 
     //console.log('defaultTheme', theme)
-    let theme = mergeTheme(
-        defaultTheme,
-        {
-          "layout": {
-            "options": {
-              "sideNav": {
-                "size": "compact",
-                "nav": "main",
-                "topMenu": [{"type": "Logo"}],
-                "bottomMenu": [{"type": "UserMenu" }]
-              }
-            }
-          }
-        }
-    );
+    let theme = getPatternTheme(themes, {...patternData, theme: {selectedTheme: 'mny_admin'}})
 
     // console.log('admin siteconfig API', API_HOST)
     return {
@@ -84,13 +71,15 @@ const adminConfig = ({
             {
                 type: (props) => {
                     const {user, apiUpdate} = props
-                    const {Layout} = UI;
+                    const {Layout, LayoutGroup} = UI;
                     const menuItems = getMenuItems(baseUrl, authPath, props.user)
                     return (
                         <AdminContext.Provider value={{ baseUrl, authPath, user, apiUpdate, app, type, siteType: format.type, API_HOST, UI, dmsEnvs, dmsEnvById}}>
                             <ThemeContext.Provider value={{theme, themes, UI}}>
                               <Layout navItems={menuItems} Menu={() => <>{rightMenu}</>}>
-                                  {props.children}
+                                  <LayoutGroup>
+                                      {props.children}
+                                  </LayoutGroup>
                               </Layout>
                             </ThemeContext.Provider>
                         </AdminContext.Provider>
@@ -245,6 +234,10 @@ const getMenuItems = (baseUrl, authPath, user) => {
       menuItems.push({
           name: 'Auth',
           subMenus: [
+              {
+                  name: 'Profile',
+                  path: `${authPath}/manage/profile`
+              },
               {
                   name: 'Users',
                   path: `${authPath}/manage/users`

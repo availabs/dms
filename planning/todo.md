@@ -2,7 +2,11 @@
 
 ## type system
 
-- [ ] Type system refactor — uniform `{parent}:{instance}|{rowKind}` scheme replacing inconsistent type encoding; remove UUIDs in favor of human-readable slugs; eliminate `data.doc_type`; sources scoped to dmsEnv; `:data` suffix replaces split type regex; migration script for existing data
+- [x] Type system refactor — uniform `{parent}:{instance}|{rowKind}` scheme replacing inconsistent type encoding; remove UUIDs in favor of human-readable slugs; eliminate `data.doc_type`; sources scoped to dmsEnv; `:data` suffix replaces split type regex; migration script for existing data
+
+## dama
+
+- [ ] DAMA server port — task queue with host isolation + idempotent locking, GIS/CSV upload pipeline (GDAL), multi-pgEnv routing, UDA task/event Falcor routes, datatype plugin system, legacy migration script
 
 ## cli
 

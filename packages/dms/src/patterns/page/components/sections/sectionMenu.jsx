@@ -36,11 +36,13 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
     // Registry of control type transformers - all use nested submenu pattern
     const controlItemTransformers = {
         select: (item, value) => ({
+            id: item.key,
             icon: item.icon,
             name: item.label,
             value: item.options?.find(opt => opt.value === value)?.label || value || '',
             showValue: true,
             items: item.options?.map(opt => ({
+                id: `${item.key}_${opt.value}`,
                 icon: opt.value === value ? 'CircleCheck' : 'Blank',
                 name: opt.label,
                 onClickGoBack: item.onClickGoBack,
@@ -49,6 +51,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
             }))
         }),
         colorpicker: (item, value) => ({
+            id: item.key,
             icon: item.icon,
             name: item.label,
             showValue: false,
@@ -61,11 +64,13 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
             }]
         }),
         toggle: (item, value) => ({
+            id: item.key,
             icon: item.icon, name: item.label, showLabel: true, type: 'toggle',
             enabled: item.negate ? !value : !!value,
             setEnabled: (v) => dwAPI.setDisplay(item.key, item.negate ? !v : v, item.onChange)
         }),
         input: (item, value) => ({
+            id: item.key,
             icon: item.icon,
             name: item.label,
             value,
@@ -81,11 +86,17 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
         }),
     };
 
+    const getDisplayValue = (key) => {
+        if (!key?.includes('.')) return state.display?.[key];
+        const [parent, child] = key.split('.');
+        return state.display?.[parent]?.[child];
+    };
+
     const transformControlItem = (item) => {
-        const value = state.display?.[item.key] ?? item.defaultValue;
+        const value = getDisplayValue(item.key) ?? item.defaultValue;
         if (typeof item.type === 'function') {
             return {
-                icon: item.icon, name: item.label,
+                id: item.key, icon: item.icon, name: item.label,
                 type: () => item.type({ value, setValue: v => dwAPI?.setDisplay?.(item.key, v, item.onChange), state: dwAPI?.state, setState: dwAPI?.setState, dwAPI })
             };
         }
@@ -96,6 +107,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
 
         if(item.items){
             return ({
+                id: item.key,
                 name: item.label,
                 items: item.items
                     .filter(({ displayCdn }) => typeof displayCdn === 'function' ? displayCdn({ display: state.display }) : displayCdn !== false)
@@ -312,17 +324,25 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
               .map(transformControlItem),
             // other item / component specific controls
           ...Object.keys(resolvedControls || {})
-              .filter(controlGroup => !['columns', 'more', 'data', 'inHeader', 'default'].includes(controlGroup) && isEdit && canEditSection)
+              .filter(controlGroup => {
+                  if (!isEdit || !canEditSection) return false;
+                  if (['columns', 'more', 'data', 'inHeader', 'default'].includes(controlGroup)) return false;
+                  const config = resolvedControls?.[controlGroup];
+                  if (typeof config?.displayCdn === 'function' && !config.displayCdn({ display: state.display })) return false;
+                  return true;
+              })
               .map(controlGroup => {
                   const config = resolvedControls?.[controlGroup];
+                  const groupId = `ctrl_${controlGroup}`;
                   if (!config?.items?.length) {
                       const rawType = config?.type;
                       const wrappedType = typeof rawType === 'function'
                           ? () => rawType({ state: dwAPI?.state, setState: dwAPI?.setState, dwAPI })
                           : rawType;
-                      return { name: config?.name || controlGroup, items: [{name: 'component', type: wrappedType}] };
+                      return { id: groupId, name: config?.name || controlGroup, items: [{name: 'component', type: wrappedType}] };
                   }
                   return {
+                      id: groupId,
                       name: config.name || controlGroup,
                       showSearch: config.showSearch,
                       items: config.items

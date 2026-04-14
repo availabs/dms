@@ -199,6 +199,52 @@ const initDama = async (dbConnection) => {
 };
 
 /**
+ * Initialize DAMA task tables (task queue and event tracking)
+ * @param {Object} dbConnection - Database adapter instance
+ */
+const initDamaTasks = async (dbConnection) => {
+  const db = dbConnection.getDb();
+  const dbType = dbConnection.type;
+
+  let tablesExist;
+  if (dbType === "sqlite") {
+    tablesExist = await dbConnection.tableExists("main", "tasks");
+  } else {
+    tablesExist = await dbConnection.tableExists("data_manager", "tasks");
+  }
+
+  if (!tablesExist) {
+    console.time(`dama tasks init ${db}`);
+    await dbConnection.beginTransaction();
+
+    try {
+      const sqlFile = dbType === "sqlite"
+        ? "create_dama_task_tables.sqlite.sql"
+        : "create_dama_task_tables.sql";
+      const sqlPath = join(__dirname, "sql/dama", sqlFile);
+      const sql = await readFileAsync(sqlPath, { encoding: "utf8" });
+
+      if (dbType === "sqlite") {
+        const statements = sql.split(";").filter(s => s.trim());
+        for (const stmt of statements) {
+          if (stmt.trim()) {
+            await dbConnection.query(stmt + ";");
+          }
+        }
+      } else {
+        await dbConnection.query(sql);
+      }
+
+      await dbConnection.commitTransaction();
+      console.timeEnd(`dama tasks init ${db}`);
+    } catch (error) {
+      await dbConnection.rollbackTransaction();
+      throw error;
+    }
+  }
+};
+
+/**
  * Create a database adapter based on configuration
  * @param {Object} config - Database configuration
  * @returns {Object} Database adapter instance
@@ -238,6 +284,12 @@ function getDb(pgEnv) {
         console.log("dama init", pgEnv);
       } catch (err) {
         console.error("dama init failed:", err.message);
+      }
+      try {
+        await initDamaTasks(databases[pgEnv]);
+        console.log("dama tasks init", pgEnv);
+      } catch (err) {
+        console.error("dama tasks init failed:", err.message);
       }
     }
 

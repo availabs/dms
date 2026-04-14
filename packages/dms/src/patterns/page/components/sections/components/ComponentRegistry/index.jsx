@@ -14,7 +14,7 @@ import FilterComponent from "./FilterComponent";
 // import ValidateComponent from "./ValidateComponent";
 import PDFGenerator from "./ExportPdf";
 import Map from "./map"
-// import MapDama from "./map_dama"
+import MapDama from "./map_dama"
 
 // //import Item from "./item";
 const ComponentRegistry = {
@@ -37,7 +37,7 @@ const ComponentRegistry = {
         ViewComp: () => <div>Item Component Deprecated.</div>
     },
     Map,
-    // MapDama
+    MapDama
 }
 
 

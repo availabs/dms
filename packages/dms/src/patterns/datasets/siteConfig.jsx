@@ -15,6 +15,8 @@ import SettingsPage from "./pages/SettingsPage";
 import SourcePage from "./pages/SourcePage";
 import Tasks from "./pages/Tasks/";
 import TaskPage from "./pages/Tasks/TaskPage";
+import UdaTasks from "./pages/Tasks/UdaTasks";
+import UdaTaskPage from "./pages/Tasks/UdaTaskPage";
 
 // datasets -- move to library/registry import
 import csv_dataset from "./pages/dataTypes/csv_dataset";
@@ -114,6 +116,16 @@ const datasetsConfig = ({
                     {
                         type: props => <TaskPage {...props} />,
                         path: "task/:etl_context_id",
+                        action: "view"
+                    },
+                    {
+                        type: props => <UdaTasks {...props} />,
+                        path: "tasks-new",
+                        action: "view"
+                    },
+                    {
+                        type: props => <UdaTaskPage {...props} />,
+                        path: "task-new/:task_id",
                         action: "view"
                     },
                     {

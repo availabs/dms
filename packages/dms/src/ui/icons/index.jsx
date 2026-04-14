@@ -10,6 +10,7 @@ const iconList = [
   { icon: "Settings" },
   { icon: "Pages" },
   { icon: "Page" },
+  { icon: "PageRound" },
   { icon: "History" },
   { icon: "SquarePlus", label: "InsertSection" },
   { icon: "MenuIcon", label: "Menu" },

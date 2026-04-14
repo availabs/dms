@@ -66,7 +66,7 @@ export function pattern2routes (siteData, props) {
 
     let SUBDOMAIN = getSubdomain(host)
     // for weird double subdomain tld
-    SUBDOMAIN = SUBDOMAIN === 'hazardmitigation' ? '' : SUBDOMAIN
+    SUBDOMAIN = ['www', 'hazardmitigation'].includes(SUBDOMAIN) ? '' : SUBDOMAIN;
 
     const dbThemes = (siteData?.[0]?.theme_refs || [])
       .reduce((out,theme) => {

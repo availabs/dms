@@ -1,17 +1,12 @@
 import React, { useContext, useMemo, Fragment, useRef, useEffect} from 'react'
 import { MapContext } from '../'
 import mapboxgl from "maplibre-gl";
-import isEqual from "lodash/isEqual"
-// import { DamaContext } from "../../../../../../store"
+import { isEqual, get, set, cloneDeep } from "lodash-es"
 import { Menu, Transition, Tab, Dialog } from '@headlessui/react'
 import { Fill, Line, Circle, MenuDots , CaretUpSolid, CaretDownSolid, CaretDown,  Plus, Eye, EyeSlashed,EyeClosed} from '../../../../../../../mapeditor/MapEditor/components/icons'
-import get from 'lodash/get'
 import { SelectSymbology } from './SymbologySelector'
-import set from 'lodash/set'
 import {categoryPaint, isValidCategoryPaint ,choroplethPaint} from '../../../../../../../mapeditor/MapEditor/components/LayerEditor/datamaps';
 import colorbrewer from '../../../../../../../mapeditor/MapEditor/components/LayerManager/colors'
-// import LegendPanel from './LegendPanel'
-import cloneDeep from 'lodash/cloneDeep'
 import { DamaSymbologyAttributes, ViewAttributes } from "../../../../../../../mapeditor/attributes";
 
 import { fetchBoundsForFilter } from '../../../../../../../mapeditor/MapEditor/stateUtils';

@@ -56,6 +56,7 @@
 
 ## type system
 
+- [type-system-refactor.md](./tasks/completed/type-system-refactor.md) - Type system refactor: uniform `{parent}:{instance}|{rowKind}` scheme, slug-based instance names replacing UUIDs, `doc_type` eliminated, sources scoped to dmsEnv, `:data` suffix replaces split type regex, `cms-section` → `component`, shared type-utils (74 tests), migration scripts (in-place + site-to-site), all 18 phases complete (2026-04-12)
 - [pg-dump-mercury-types.md](./tasks/completed/pg-dump-mercury-types.md) - Clone dms-mercury-2 to dms-mercury-types: pg_dump/restore dms2 → dms_types on mercury, db config for type system refactor work (2026-03-18)
 
 ## config

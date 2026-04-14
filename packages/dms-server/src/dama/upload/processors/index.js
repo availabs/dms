@@ -6,8 +6,9 @@
 
 const csv = require('./csv');
 const excel = require('./excel');
+const gis = require('./gis');
 
-const processors = [csv, excel];
+const processors = [csv, excel, gis];
 
 /**
  * Find the processor that can handle a given file extension.
