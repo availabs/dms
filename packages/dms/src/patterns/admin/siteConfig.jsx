@@ -71,13 +71,15 @@ const adminConfig = ({
             {
                 type: (props) => {
                     const {user, apiUpdate} = props
-                    const {Layout} = UI;
+                    const {Layout, LayoutGroup} = UI;
                     const menuItems = getMenuItems(baseUrl, authPath, props.user)
                     return (
                         <AdminContext.Provider value={{ baseUrl, authPath, user, apiUpdate, app, type, siteType: format.type, API_HOST, UI, dmsEnvs, dmsEnvById}}>
                             <ThemeContext.Provider value={{theme, themes, UI}}>
                               <Layout navItems={menuItems} Menu={() => <>{rightMenu}</>}>
-                                  {props.children}
+                                  <LayoutGroup>
+                                      {props.children}
+                                  </LayoutGroup>
                               </Layout>
                             </ThemeContext.Provider>
                         </AdminContext.Provider>
