@@ -5,7 +5,7 @@
 
 const { gdalAvailable } = require('./gdal');
 const { queueTask } = require('../tasks');
-const { getDb } = require('../db');
+const { getDb } = require('../../db');
 const storage = require('../storage');
 
 function downloadGuard(req, res, next) {

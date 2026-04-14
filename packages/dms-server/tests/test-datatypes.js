@@ -44,8 +44,8 @@ async function runTests() {
 
   // Fresh registry for each test run — need to reimport to get clean state
   // But since require() is cached, we test with the shared instance
-  const { registerDatatype, mountDatatypeRoutes, getDatatypes } = require('../src/datatypes');
-  const tasks = require('../src/tasks');
+  const { registerDatatype, mountDatatypeRoutes, getDatatypes } = require('../src/dama/datatypes');
+  const tasks = require('../src/dama/tasks');
 
   // --- Registration ---
 
@@ -105,7 +105,7 @@ async function runTests() {
     const helpers = {
       queueTask: tasks.queueTask,
       getDb: require('../src/db').getDb,
-      storage: require('../src/storage'),
+      storage: require('../src/dama/storage'),
     };
 
     mountDatatypeRoutes(app, helpers);
@@ -131,12 +131,12 @@ async function runTests() {
       getTaskStatus: tasks.getTaskStatus,
       getTaskEvents: tasks.getTaskEvents,
       dispatchEvent: tasks.dispatchEvent,
-      createDamaSource: require('../src/upload/metadata').createDamaSource,
-      createDamaView: require('../src/upload/metadata').createDamaView,
-      ensureSchema: require('../src/upload/metadata').ensureSchema,
+      createDamaSource: require('../src/dama/upload/metadata').createDamaSource,
+      createDamaView: require('../src/dama/upload/metadata').createDamaView,
+      ensureSchema: require('../src/dama/upload/metadata').ensureSchema,
       getDb: require('../src/db').getDb,
       loadConfig: require('../src/db').loadConfig,
-      storage: require('../src/storage'),
+      storage: require('../src/dama/storage'),
     };
 
     mountDatatypeRoutes(app, helpers);
@@ -152,7 +152,7 @@ async function runTests() {
   // --- PMTiles plugin ---
 
   await test('PMTiles plugin loads without error', async () => {
-    const pmtiles = require('../src/datatypes/pmtiles');
+    const pmtiles = require('../src/dama/datatypes/pmtiles');
     assert(pmtiles.workers, 'should have workers');
     assert(pmtiles.workers['pmtiles/generate'], 'should have pmtiles/generate worker');
     assert(typeof pmtiles.routes === 'function', 'should have routes function');
@@ -160,7 +160,7 @@ async function runTests() {
 
   await test('PMTiles plugin registers via registerDatatype', async () => {
     // This may already be registered from module load, but re-registering should be safe
-    const pmtiles = require('../src/datatypes/pmtiles');
+    const pmtiles = require('../src/dama/datatypes/pmtiles');
     registerDatatype('pmtiles', pmtiles);
     const dts = getDatatypes();
     assert(dts.pmtiles, 'pmtiles should be registered');

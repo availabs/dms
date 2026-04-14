@@ -116,7 +116,7 @@ function fileUpload(req, res) {
       const dl_url = storage.getUrl(relativePath);
 
       // Store file metadata in view metadata
-      const { getDb } = require('../db');
+      const { getDb } = require('../../db');
       const db = getDb(pgEnv);
       const viewTable = db.type === 'postgres' ? 'data_manager.views' : 'views';
       const fileMeta = { file_name: finalFileName, file_type: file_type || ext, dl_url, description: description || null };

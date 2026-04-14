@@ -35,7 +35,7 @@ async function runTests() {
 
   console.log('  --- Local backend ---');
 
-  const { createLocalStorage } = require('../src/storage/local');
+  const { createLocalStorage } = require('../src/dama/storage/local');
   const local = createLocalStorage(testDir);
 
   await test('write + exists (Buffer)', async () => {
@@ -112,7 +112,7 @@ async function runTests() {
 
   console.log('\n  --- Storage facade ---');
 
-  const storage = require('../src/storage');
+  const storage = require('../src/dama/storage');
 
   await test('facade exports correct API', async () => {
     assert(typeof storage.write === 'function', 'write should be a function');
@@ -138,7 +138,7 @@ async function runTests() {
 
   console.log('\n  --- Sharp detection ---');
 
-  const { sharpAvailable, getSharp } = require('../src/upload/sharp');
+  const { sharpAvailable, getSharp } = require('../src/dama/upload/sharp');
 
   await test('sharpAvailable is boolean', async () => {
     assert(typeof sharpAvailable === 'boolean', `should be boolean, got ${typeof sharpAvailable}`);

@@ -26,7 +26,18 @@ export const authProvider = (Component, config) => {
   const { AUTH_HOST, PROJECT_NAME, baseUrl = '/auth', defaultRedirectUrl = '/' } = config
   const AuthProvider = ({ ...props }) => {
 
-    const [user, setUser] = React.useState(defaultUserState());
+    // Initialize with token from localStorage if available.
+    // This prevents the auth check from redirecting to /login on page refresh
+    // while the async auth validation is still in progress.
+    const [user, setUser] = React.useState(() => {
+      try {
+        const token = window.localStorage.getItem('userToken');
+        if (token) {
+          return { ...defaultUserState(), token, authed: true };
+        }
+      } catch (e) {}
+      return defaultUserState();
+    });
     const AuthAPI = getAPI({ AUTH_HOST, PROJECT_NAME })
 
     // React.useEffect(() => {

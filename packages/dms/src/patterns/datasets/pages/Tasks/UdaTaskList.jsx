@@ -58,7 +58,7 @@ const StatusBadge = ({value, className = '', ...rest}) => {
 
 const UdaTaskList = ({sourceId, pageSize = 10}) => {
     const ref = React.useRef();
-    const {datasources, falcor, baseUrl, UI} = React.useContext(DatasetsContext);
+    const {datasources, falcor, falcorCache, baseUrl, UI} = React.useContext(DatasetsContext);
     const pgEnv = getExternalEnv(datasources);
     const {Table, Pagination} = UI;
     const [currentPage, setCurrentPage] = React.useState(0);
@@ -114,7 +114,6 @@ const UdaTaskList = ({sourceId, pageSize = 10}) => {
         if (!pgEnv || !falcor) return;
 
         const load = async () => {
-            // Get length
             const lengthPath = sourceId
                 ? ["uda", pgEnv, "tasks", "forSource", sourceId, "length"]
                 : ["uda", pgEnv, "tasks", "length"];
@@ -127,39 +126,35 @@ const UdaTaskList = ({sourceId, pageSize = 10}) => {
             const to = Math.min(length, from + pageSize) - 1;
             if (from > to) return;
 
-            // Get task IDs via byIndex (returns $ref to byId)
-            const indexPath = sourceId
-                ? ["uda", pgEnv, "tasks", "forSource", sourceId, "byIndex", {from, to}]
-                : ["uda", pgEnv, "tasks", "byIndex", {from, to}];
-
-            await falcor.get(indexPath);
-
-            // Now fetch task attributes via byId — the refs from byIndex point here
-            // We need to follow the refs, so fetch the full path with attrs
-            const taskAttrPath = sourceId
-                ? ["uda", pgEnv, "tasks", "forSource", sourceId, "byIndex", {from, to}, TASK_ATTRS]
+            // Fetch byIndex with attributes in one call.
+            // Falcor should follow the $ref from byIndex → byId and return resolved data.
+            const dataPath = sourceId
+                ? ["uda", pgEnv, "tasks", "forSource", +sourceId, "byIndex", {from, to}, TASK_ATTRS]
                 : ["uda", pgEnv, "tasks", "byIndex", {from, to}, TASK_ATTRS];
 
-            const dataRes = await falcor.get(taskAttrPath);
+            const dataRes = await falcor.get(dataPath);
 
-            // Extract tasks from the byIndex response
+            // Read the resolved data from the response JSON
+            // After ref resolution, the data appears at the byIndex path with resolved values
             const basePath = sourceId
-                ? ["json", "uda", pgEnv, "tasks", "forSource", sourceId, "byIndex"]
+                ? ["json", "uda", pgEnv, "tasks", "forSource", +sourceId, "byIndex"]
                 : ["json", "uda", pgEnv, "tasks", "byIndex"];
-
             const indexed = get(dataRes, basePath, {});
+
             const tasks = [];
             const sourceIds = [];
 
             for (let i = from; i <= to; i++) {
                 const task = indexed[i];
-                if (task && task.task_id) {
-                    tasks.push({
-                        ...task,
-                        duration: formatDuration(task.started_at, task.completed_at),
-                    });
-                    if (task.source_id) sourceIds.push(task.source_id);
-                }
+                if (!task || task.$type === 'ref') continue;
+                const taskId = task.task_id;
+                if (!taskId && taskId !== 0) continue;
+
+                tasks.push({
+                    ...task,
+                    duration: formatDuration(task.started_at, task.completed_at),
+                });
+                if (task.source_id) sourceIds.push(task.source_id);
             }
 
             // Fetch source names

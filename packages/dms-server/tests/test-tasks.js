@@ -30,7 +30,7 @@ async function setup() {
   await awaitReady();
   db = getDb(DAMA_TEST_DB);
 
-  tasks = require('../src/tasks');
+  tasks = require('../src/dama/tasks');
 }
 
 async function test(name, fn) {

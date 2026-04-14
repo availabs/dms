@@ -11,7 +11,7 @@
 const path = require('path');
 const { createLocalStorage } = require('./local');
 
-const DEFAULT_DATA_DIR = path.join(__dirname, '../../var/dama-files');
+const DEFAULT_DATA_DIR = path.join(__dirname, '../../../var/dama-files');
 
 let storage;
 

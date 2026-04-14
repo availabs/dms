@@ -5,32 +5,31 @@
 
 const fs = require('fs');
 const { createDamaView, ensureSchema, DEFAULT_SCHEMA } = require('../metadata');
-const store = require('../store');
 
 module.exports = async function csvPublishWorker(ctx) {
   const { task, pgEnv, db, dispatchEvent, updateProgress } = ctx;
   const {
     source_id, gisUploadId, layerName, tableDescriptor,
-    user_id,
+    user_id, dataFilePath,
   } = task.descriptor;
 
   if (db.type !== 'postgres') {
     throw new Error('CSV-to-PG publish requires a PostgreSQL database');
   }
 
-  const upload = store.get(gisUploadId);
-  const filePath = upload?.dataFilePath;
+  const filePath = dataFilePath;
   if (!filePath || !fs.existsSync(filePath)) {
-    throw new Error(`Data file not found for upload ${gisUploadId}`);
+    throw new Error(`Data file not found: ${filePath || 'no path in descriptor'} (upload: ${gisUploadId})`);
   }
 
   await dispatchEvent('csv-dataset:INITIAL', 'CSV publish started', null);
 
   // Create view record
+  // Note: etl_context_id not set — FK points to legacy etl_contexts table.
   const view = await createDamaView({
     source_id,
     user_id,
-    etl_context_id: task.task_id,
+    metadata: { task_id: task.task_id },
   }, pgEnv);
 
   const { table_schema, table_name, view_id } = view;
@@ -62,7 +61,7 @@ module.exports = async function csvPublishWorker(ctx) {
     throw new Error('CSV publish requires pg + pg-copy-streams + split2. Install them to enable this feature.');
   }
 
-  const { loadConfig } = require('../../db');
+  const { loadConfig } = require('../../../db');
   const config = loadConfig(pgEnv);
   const client = new pg.Client({
     host: config.host,
@@ -130,7 +129,31 @@ module.exports = async function csvPublishWorker(ctx) {
     await client.end();
   }
 
-  await updateProgress(0.95);
+  await updateProgress(0.9);
+
+  // Initialize source metadata (columns) from the tableDescriptor types.
+  // These are the types we created the table with, so they're accurate.
+  console.log(`[csv-publish] Initializing source metadata...`);
+  try {
+    const columns = (columnTypes || []).map(c => ({
+      name: c.col,
+      display_name: c.key || c.col,
+      type: c.db_type,
+      desc: null,
+    }));
+
+    await db.query(`
+      UPDATE data_manager.sources
+      SET metadata = COALESCE(metadata, '{}'::jsonb) || $1::jsonb
+      WHERE source_id = $2 AND (metadata IS NULL OR NOT (metadata ? 'columns'))
+    `, [JSON.stringify({ columns }), source_id]);
+
+    console.log(`[csv-publish] Source metadata: ${columns.length} columns`);
+  } catch (e) {
+    console.error(`[csv-publish] Source metadata init error (non-fatal): ${e.message}`);
+  }
+
+  await updateProgress(1);
 
   const result = {
     damaSourceId: source_id,
@@ -142,5 +165,6 @@ module.exports = async function csvPublishWorker(ctx) {
   };
 
   await dispatchEvent('csv-dataset:FINAL', 'CSV publish complete', result);
+  console.log(`[csv-publish] Done: source=${source_id}, view=${view_id}, table=${table_schema}.${table_name}`);
   return result;
 };

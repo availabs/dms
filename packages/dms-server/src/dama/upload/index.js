@@ -7,7 +7,8 @@ const { newContextId, upload, getLayers, createPublishHandler, createValidateHan
 const { gisGuard, layerNames, startLayerAnalysis, getLayerAnalysis, getTableDescriptor, gisPublish, csvPublish, eventsQuery } = require('./gis-routes');
 const { downloadGuard, createDownload, deleteDownload } = require('./download-routes');
 const { fileUpload } = require('./file-upload-route');
-const { createController } = require('../routes/dms/dms.controller');
+const { serveTile } = require('../tiles/tiles.rest');
+const { createController } = require('../../routes/dms/dms.controller');
 
 /**
  * Register all upload routes with the Express app.
@@ -47,10 +48,13 @@ function registerUploadRoutes(app) {
   // Generic file upload (images, documents)
   app.post('/dama-admin/:pgEnv/file_upload', fileUpload);
 
+  // Dynamic MVT tile serving (PostGIS only)
+  app.get('/dama-admin/:pgEnv/tiles/:view_id/:z/:x/:y/t.pbf', serveTile);
+
   // Event polling compat shim (legacy clients poll this for task progress)
   app.get('/dama-admin/:pgEnv/events/query', eventsQuery);
 
-  console.log('Upload: registered 15 routes at /dama-admin/');
+  console.log('Upload: registered 16 routes at /dama-admin/');
 }
 
 module.exports = { registerUploadRoutes };

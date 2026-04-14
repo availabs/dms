@@ -9,7 +9,7 @@ const { join } = require('path');
 const { readFileSync, writeFileSync, mkdirSync, existsSync } = require('fs');
 const { randomUUID } = require('crypto');
 
-const HOST_ID_DIR = join(__dirname, '../../var');
+const HOST_ID_DIR = join(__dirname, '../../../var');
 const HOST_ID_PATH = join(HOST_ID_DIR, 'dama_host_id');
 
 let hostId;

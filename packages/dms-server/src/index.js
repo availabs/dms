@@ -5,7 +5,7 @@ const falcorRoutes = require('./routes');
 const { createRequestLogger } = require('./middleware/request-logger');
 const { createJwtMiddleware } = require('./auth/jwt');
 const { registerAuthRoutes } = require('./auth');
-const { registerUploadRoutes } = require('./upload');
+const { registerUploadRoutes } = require('./dama/upload');
 
 // Heap snapshot for OOM diagnosis — writes a .heapsnapshot file when heap exceeds threshold.
 // Run with: node --max-old-space-size=8192 src/index.js
@@ -84,7 +84,7 @@ app.use((req, res, next) => {
 app.use(createRequestLogger());
 
 // Static file serving — before auth so download links are publicly accessible
-const storage = require('./storage');
+const storage = require('./dama/storage');
 if (storage.type === 'local' && storage.dataDir) {
   app.use('/files', require('express').static(storage.dataDir));
 }
@@ -149,35 +149,55 @@ app.use(createSyncRoutes(syncDbEnv));
 async function setupAndListen() {
   await awaitReady();
 
-  // Task system — opt-in via DAMA_DB_ENV
-  const damaDbEnv = process.env.DAMA_DB_ENV;
-  if (damaDbEnv) {
-    const { registerUploadWorkers } = require('./upload/workers');
-    registerUploadWorkers();
+  // Register workers and plugins — always, so handlers are available
+  // even when tasks are queued against arbitrary pgEnvs via upload routes
+  const { registerUploadWorkers } = require('./dama/upload/workers');
+  registerUploadWorkers();
 
-    // Register built-in datatype plugins
-    const { registerDatatype, mountDatatypeRoutes } = require('./datatypes');
-    registerDatatype('pmtiles', require('./datatypes/pmtiles'));
+  const { registerDatatype, mountDatatypeRoutes } = require('./dama/datatypes');
+  registerDatatype('pmtiles', require('./dama/datatypes/pmtiles'));
 
-    // Mount plugin routes with shared helpers
-    const tasks = require('./tasks');
-    const metadata = require('./upload/metadata');
-    const { getDb, loadConfig } = require('./db');
-    mountDatatypeRoutes(app, {
-      queueTask: tasks.queueTask,
-      getTaskStatus: tasks.getTaskStatus,
-      getTaskEvents: tasks.getTaskEvents,
-      dispatchEvent: tasks.dispatchEvent,
-      createDamaSource: metadata.createDamaSource,
-      createDamaView: metadata.createDamaView,
-      ensureSchema: metadata.ensureSchema,
-      getDb,
-      loadConfig,
-      storage: require('./storage'),
-    });
+  // Mount plugin routes with shared helpers
+  const tasks = require('./dama/tasks');
+  const metadata = require('./dama/upload/metadata');
+  const { getDb, loadConfig } = require('./db');
+  mountDatatypeRoutes(app, {
+    queueTask: tasks.queueTask,
+    getTaskStatus: tasks.getTaskStatus,
+    getTaskEvents: tasks.getTaskEvents,
+    dispatchEvent: tasks.dispatchEvent,
+    createDamaSource: metadata.createDamaSource,
+    createDamaView: metadata.createDamaView,
+    ensureSchema: metadata.ensureSchema,
+    getDb,
+    loadConfig,
+    storage: require('./dama/storage'),
+  });
 
-    await tasks.recoverStalledTasks(damaDbEnv);
-    tasks.startPolling(damaDbEnv);
+  // Task system — recover stalled tasks and start polling for all dama-role databases.
+  const { findConfigsByRole } = require('./db/config');
+  const damaEnvs = new Set(findConfigsByRole('dama'));
+  if (process.env.DAMA_DB_ENV) damaEnvs.add(process.env.DAMA_DB_ENV);
+
+  if (damaEnvs.size > 0) {
+    console.log(`[tasks] Initializing for dama envs: ${[...damaEnvs].join(', ')}`);
+    for (const env of damaEnvs) {
+      try {
+        getDb(env); // ensure connection + table init is queued
+      } catch (err) {
+        console.warn(`[tasks] Could not load db for ${env}: ${err.message}`);
+      }
+    }
+    await awaitReady(); // wait for all inits to complete
+
+    for (const env of damaEnvs) {
+      try {
+        await tasks.recoverStalledTasks(env);
+        tasks.startPolling(env);
+      } catch (err) {
+        console.warn(`[tasks] Could not start polling for ${env}: ${err.message}`);
+      }
+    }
   }
 
   // SSR: opt-in via DMS_SSR env var

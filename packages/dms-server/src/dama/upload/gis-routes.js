@@ -173,18 +173,25 @@ function getTableDescriptor(req, res) {
 
 /**
  * POST /dama-admin/:pgEnv/gis-dataset/publish
- * Queue a GIS dataset publish task (ogr2ogr loading).
+ * Creates a task, returns immediately, runs the worker in the background.
  */
 async function gisPublish(req, res) {
   const { pgEnv } = req.params;
 
   try {
-    let { source_id, source_values, user_id, email } = req.body;
+    let { source_id, source_values, user_id, email, gisUploadId } = req.body;
 
-    // Create source if needed
     if (!source_id && source_values) {
       const source = await createDamaSource({ ...source_values, user_id }, pgEnv);
       source_id = source.source_id;
+    }
+
+    // Resolve file path from upload store and include in descriptor
+    // (the forked worker process can't access the in-memory store)
+    const upload = store.get(gisUploadId);
+    const dataFilePath = upload?.dataFilePath;
+    if (!dataFilePath) {
+      return res.status(400).json({ error: `Upload ${gisUploadId} not found or not ready` });
     }
 
     const taskId = await queueTask({
@@ -192,29 +199,41 @@ async function gisPublish(req, res) {
       sourceId: source_id,
       ...req.body,
       source_id,
+      dataFilePath,
     }, pgEnv);
 
     res.json({ etl_context_id: taskId, source_id });
+
+    // Run worker in background — update task directly when done
+    runWorkerInBackground('gis/publish', taskId, pgEnv).catch(err => {
+      console.error(`[gis] publish background runner error:`, err);
+    });
   } catch (err) {
-    console.error('[gis] publish queue failed:', err.message);
+    console.error('[gis] publish failed:', err.message);
     res.status(500).json({ error: err.message });
   }
 }
 
 /**
  * POST /dama-admin/:pgEnv/csv-dataset/publish
- * Queue a CSV dataset publish task (pg-copy-streams loading).
+ * Creates a task, returns immediately, runs the worker in the background.
  */
 async function csvPublish(req, res) {
   const { pgEnv } = req.params;
 
   try {
-    let { source_id, source_values, user_id, email } = req.body;
+    let { source_id, source_values, user_id, email, gisUploadId } = req.body;
 
-    // Create source if needed
     if (!source_id && source_values) {
       const source = await createDamaSource({ ...source_values, user_id }, pgEnv);
       source_id = source.source_id;
+    }
+
+    // Resolve file path from upload store
+    const upload = store.get(gisUploadId);
+    const dataFilePath = upload?.dataFilePath;
+    if (!dataFilePath) {
+      return res.status(400).json({ error: `Upload ${gisUploadId} not found or not ready` });
     }
 
     const taskId = await queueTask({
@@ -222,13 +241,74 @@ async function csvPublish(req, res) {
       sourceId: source_id,
       ...req.body,
       source_id,
+      dataFilePath,
     }, pgEnv);
 
     res.json({ etl_context_id: taskId, source_id });
+
+    // Run worker in background — update task directly when done
+    runWorkerInBackground('csv/publish', taskId, pgEnv).catch(err => {
+      console.error(`[csv] publish background runner error:`, err);
+    });
   } catch (err) {
-    console.error('[csv] publish queue failed:', err.message);
+    console.error('[csv] publish failed:', err.message);
     res.status(500).json({ error: err.message });
   }
+}
+
+/**
+ * Run a registered worker handler in the background for a given task.
+ * Claims the specific task by ID, then executes the handler.
+ * No polling needed — writes directly to the task row.
+ */
+/**
+ * Run a task worker in a forked child process.
+ * The child process claims the task, runs the handler, and updates the task directly.
+ * Logs are written to task_events so they're visible from the task detail page.
+ */
+function runWorkerInBackground(workerPath, taskId, pgEnv) {
+  const { fork } = require('child_process');
+  const { join } = require('path');
+  const { claimTaskById } = require('../tasks');
+
+  // Claim the task first (main process sets status to running)
+  return claimTaskById(taskId, pgEnv).then(task => {
+    if (!task) {
+      console.warn(`[worker] Could not claim task ${taskId} for ${workerPath}`);
+      return;
+    }
+
+    const runnerPath = join(__dirname, '../tasks/worker-runner.js');
+
+    console.log(`[worker] Forking ${workerPath} for task ${taskId} (pgEnv: ${pgEnv})`);
+
+    const child = fork(runnerPath, [], {
+      env: {
+        ...process.env,
+        DAMA_TASK_ID: String(taskId),
+        DAMA_PG_ENV: pgEnv,
+        DAMA_WORKER_PATH: workerPath,
+      },
+      stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
+    });
+
+    // Pipe child stdout/stderr to parent console for visibility
+    child.stdout.on('data', d => process.stdout.write(`[task:${taskId}] ${d}`));
+    child.stderr.on('data', d => process.stderr.write(`[task:${taskId}] ${d}`));
+
+    child.on('exit', (code) => {
+      if (code === 0) {
+        console.log(`[worker] Task ${taskId} child process exited successfully`);
+      } else {
+        console.error(`[worker] Task ${taskId} child process exited with code ${code}`);
+      }
+    });
+
+    child.on('error', (err) => {
+      console.error(`[worker] Task ${taskId} fork error:`, err.message);
+      failTask(taskId, `Fork failed: ${err.message}`, pgEnv).catch(() => {});
+    });
+  });
 }
 
 /**

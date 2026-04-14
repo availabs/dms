@@ -29,7 +29,7 @@ async function setup() {
   getDb(DAMA_TEST_DB);
   await awaitReady();
   db = getDb(DAMA_TEST_DB);
-  tasks = require('../src/tasks');
+  tasks = require('../src/dama/tasks');
 }
 
 async function test(name, fn) {
@@ -50,12 +50,12 @@ async function runTests() {
   // --- GDAL detection ---
 
   await test('GDAL detection: gdalAvailable is boolean', async () => {
-    const { gdalAvailable } = require('../src/upload/gdal');
+    const { gdalAvailable } = require('../src/dama/upload/gdal');
     assert(typeof gdalAvailable === 'boolean', `should be boolean, got ${typeof gdalAvailable}`);
   });
 
   await test('GDAL detection: getGdal() throws when unavailable', async () => {
-    const { gdalAvailable, getGdal } = require('../src/upload/gdal');
+    const { gdalAvailable, getGdal } = require('../src/dama/upload/gdal');
     if (gdalAvailable) {
       console.log('    (GDAL is available, skipping throw test)');
       return;
@@ -68,8 +68,8 @@ async function runTests() {
   // --- GIS processor registration ---
 
   await test('GIS processor registered conditionally', async () => {
-    const { processors } = require('../src/upload/processors');
-    const { gdalAvailable } = require('../src/upload/gdal');
+    const { processors } = require('../src/dama/upload/processors');
+    const { gdalAvailable } = require('../src/dama/upload/gdal');
     const gisProc = processors.find(p => p.canHandle('.shp'));
     if (gdalAvailable) {
       assert(gisProc, '.shp should be handled when GDAL available');
@@ -81,7 +81,7 @@ async function runTests() {
   // --- Analysis utilities ---
 
   await test('toSnakeCase converts names correctly', async () => {
-    const { toSnakeCase } = require('../src/upload/analysis');
+    const { toSnakeCase } = require('../src/dama/upload/analysis');
     assert(toSnakeCase('FieldName') === 'field_name', 'CamelCase');
     assert(toSnakeCase('field-name') === 'field_name', 'kebab-case');
     assert(toSnakeCase('FIELD NAME') === 'field_name', 'UPPER SPACE');
@@ -89,7 +89,7 @@ async function runTests() {
   });
 
   await test('generateTableDescriptor builds descriptor from metadata', async () => {
-    const { generateTableDescriptor } = require('../src/upload/analysis');
+    const { generateTableDescriptor } = require('../src/dama/upload/analysis');
     const layerMeta = {
       layerName: 'TestLayer',
       fieldsMetadata: [
@@ -120,7 +120,7 @@ async function runTests() {
   });
 
   await test('generateTableDescriptor deduplicates column names', async () => {
-    const { generateTableDescriptor } = require('../src/upload/analysis');
+    const { generateTableDescriptor } = require('../src/dama/upload/analysis');
     const layerMeta = {
       layerName: 'Dupes',
       fieldsMetadata: [
@@ -139,7 +139,7 @@ async function runTests() {
   // --- Source/view metadata ---
 
   await test('createDamaSource creates a source record', async () => {
-    const { createDamaSource } = require('../src/upload/metadata');
+    const { createDamaSource } = require('../src/dama/upload/metadata');
     const source = await createDamaSource({
       name: 'Test Upload Source',
       type: 'gis_dataset',
@@ -155,7 +155,7 @@ async function runTests() {
   });
 
   await test('createDamaView creates view with gis_datasets schema', async () => {
-    const { createDamaSource, createDamaView } = require('../src/upload/metadata');
+    const { createDamaSource, createDamaView } = require('../src/dama/upload/metadata');
     const source = await createDamaSource({ name: 'View Test Source', user_id: 1 }, DAMA_TEST_DB);
 
     const view = await createDamaView({
@@ -183,7 +183,7 @@ async function runTests() {
     await tasks.startTaskWorker(claimed, DAMA_TEST_DB);
 
     // Simulate the compat shim query
-    const { getTaskEvents } = require('../src/tasks');
+    const { getTaskEvents } = require('../src/dama/tasks');
     const events = await getTaskEvents(taskId, DAMA_TEST_DB, 0);
 
     // Map to legacy format (same logic as eventsQuery route handler)
@@ -215,7 +215,7 @@ async function runTests() {
     const claimed = await tasks.claimNextTask(DAMA_TEST_DB);
     await tasks.startTaskWorker(claimed, DAMA_TEST_DB);
 
-    const { getTaskEvents } = require('../src/tasks');
+    const { getTaskEvents } = require('../src/dama/tasks');
     const allEvents = await getTaskEvents(taskId, DAMA_TEST_DB, 0);
     assert(allEvents.length >= 4, 'should have >= 4 events');
 
@@ -229,7 +229,7 @@ async function runTests() {
   // --- Worker registration ---
 
   await test('registerUploadWorkers runs without error', async () => {
-    const { registerUploadWorkers } = require('../src/upload/workers');
+    const { registerUploadWorkers } = require('../src/dama/upload/workers');
     registerUploadWorkers();
     // Should not throw even without GDAL/pg
   });
@@ -241,7 +241,7 @@ async function runTests() {
     // We can't easily test the function directly since it's not exported,
     // but we verify the extension list was updated
     const routesSrc = require('fs').readFileSync(
-      require('path').join(__dirname, '..', 'src', 'upload', 'routes.js'), 'utf8'
+      require('path').join(__dirname, '..', 'src', 'dama', 'upload', 'routes.js'), 'utf8'
     );
     assert(routesSrc.includes('.shp'), 'routes.js should include .shp extension');
     assert(routesSrc.includes('.gpkg'), 'routes.js should include .gpkg extension');
