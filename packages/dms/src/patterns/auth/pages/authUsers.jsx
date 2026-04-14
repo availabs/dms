@@ -171,7 +171,9 @@ export default function UsersAdmin() {
     // ];
 
     const userColumns = [
-        {name: 'email', display_name: 'User', show: true, type: 'text'},
+        {name: 'email', display_name: 'User', show: true, type: 'text',
+            // isLink: true, searchParams: 'id', location: '/auth/manage/profile/'
+        },
         {name: 'groups', display_name: 'Groups', show: true, type: 'multiselect', options: groups.map(g => g.name)},
         {
             name: '', display_name: '', show: true, type: 'ui',
