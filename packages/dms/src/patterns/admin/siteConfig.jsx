@@ -2,7 +2,7 @@ import React from 'react'
 // import {useLocation} from 'react-router'
 
 import { cloneDeep } from "lodash-es"
-import {ThemeContext, mergeTheme} from '../../ui/useTheme'
+import {ThemeContext, mergeTheme, getPatternTheme} from '../../ui/useTheme'
 import {AdminContext} from "./context";
 import UI from "../../ui"
 import defaultTheme from '../../ui/defaultTheme'
@@ -41,6 +41,7 @@ const adminConfig = ({
   themes = {},
   dmsEnvs = [],
   dmsEnvById = {},
+    pattern: patternData
 }) => {
     const format = cloneDeep(adminFormat)
     format.app = app
@@ -58,21 +59,7 @@ const adminConfig = ({
     baseUrl = baseUrl === '/' ? '' : baseUrl
 
     //console.log('defaultTheme', theme)
-    let theme = mergeTheme(
-        defaultTheme,
-        {
-          "layout": {
-            "options": {
-              "sideNav": {
-                "size": "compact",
-                "nav": "main",
-                "topMenu": [{"type": "Logo"}],
-                "bottomMenu": [{"type": "UserMenu" }]
-              }
-            }
-          }
-        }
-    );
+    let theme = getPatternTheme(themes, {...patternData, theme: {selectedTheme: 'mny_admin'}})
 
     // console.log('admin siteconfig API', API_HOST)
     return {
