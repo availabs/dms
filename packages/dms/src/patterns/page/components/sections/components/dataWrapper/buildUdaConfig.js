@@ -281,8 +281,7 @@ export const applyTableAliasToJoin = (filterTree, join) => {
       return { ...node, groups: node.groups.map(applyToNode) };
     }
 
-    const idKey = node.searchParamKey ? "searchParamKey" : "col"
-    const rawKey = node[idKey];
+    let newNode = { ...node };
 
     let prefix;
     if(join.sources.table2.source === node.source_id){
@@ -291,7 +290,17 @@ export const applyTableAliasToJoin = (filterTree, join) => {
       prefix = "ds"
     }
 
-    return { ...node, [idKey]: `${prefix}.${rawKey}`};
+    // Always alias 'col' if it exists
+    if (newNode.col) {
+      newNode.col = `${prefix}.${newNode.col}`;
+    }
+
+    // Alias 'searchParamKey' if it exists to allow PageFilter application to find it
+    if (newNode.searchParamKey) {
+      newNode.searchParamKey = `${prefix}.${newNode.searchParamKey}`;
+    }
+
+    return newNode;
   };
 
   return applyToNode(filterTree, join);
@@ -309,7 +318,6 @@ export const applyPageFilters = (filterTree, pageFilters) => {
     !Object.keys(pageFilters).length
   )
     return filterTree;
-
   const applyToNode = (node) => {
     if (isGroup(node)) {
       return { ...node, groups: node.groups.map(applyToNode) };
@@ -714,7 +722,7 @@ export const buildUdaConfig = ({
 }) => {
   //RYAN TODO -- better join conditional. If initial state gets changed to `null`, this is much cleaner
   const isJoinPresent = !!join && join?.sources?.table2?.view;
-  console.log("build uda config, isJoinPresent::", isJoinPresent)
+  
   const isDms = externalSource?.isDms;
 
 
