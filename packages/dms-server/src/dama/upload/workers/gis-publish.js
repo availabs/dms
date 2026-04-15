@@ -199,12 +199,22 @@ module.exports = async function gisPublishWorker(ctx) {
   };
 
   // Temp table has lowercased column names. Cast and rename to final names.
+  // Handle boolean text values ('true'/'false') that need to become integers.
   const castCols = (columnTypes || []).map(c => {
     const tempName = findTempCol(c.key);
     const src = `"${tempName}"`;
     const dst = `"${c.col}"`;
     if (c.db_type === 'TEXT' && tempName === c.col) return src;
     if (c.db_type === 'TEXT') return `${src} AS ${dst}`;
+    // For integer types: handle boolean text values (true/false → 1/0)
+    if (['INTEGER', 'BIGINT', 'SMALLINT', 'INT'].includes(c.db_type.toUpperCase())) {
+      return `CASE
+        WHEN LOWER(TRIM(${src}::TEXT)) IN ('true','t','yes','y') THEN 1
+        WHEN LOWER(TRIM(${src}::TEXT)) IN ('false','f','no','n') THEN 0
+        WHEN NULLIF(TRIM(${src}::TEXT), '') IS NULL THEN NULL
+        ELSE CAST(TRIM(${src}::TEXT) AS ${c.db_type})
+      END AS ${dst}`;
+    }
     return `CAST(NULLIF(TRIM(${src}::TEXT), '') AS ${c.db_type}) AS ${dst}`;
   });
   // Map temp fid → ogc_fid, temp geometry → wkb_geometry
