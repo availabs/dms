@@ -93,7 +93,8 @@ export default function Editor(props): JSX.Element {
         tableCellBackgroundColor= true,
         tableCellMerge= true,
         tableHorizontalScroll= true,
-        theme
+        theme,
+        fileUploadInfo
     } = props;
     const placeholder = <Placeholder>{placeholderText}</Placeholder>;
     const [floatingAnchorElem, setFloatingAnchorElem] =
@@ -126,9 +127,11 @@ export default function Editor(props): JSX.Element {
         };
     }, [isSmallWidthViewport]);
 
+// console.log("DEEP INSIDE EDITOR:", fileUploadInfo)
+
     return (
         <>
-            {isRichText && editable && !hideControls && <ToolbarPlugin/>}
+            {isRichText && editable && !hideControls && <ToolbarPlugin fileUploadInfo={ fileUploadInfo }/>}
             <div
                 className={`
                     ${editable ? `${theme.editorContainer}` || `editor-container` : `${theme.editorViewContainer}` || `view-container`}
@@ -138,10 +141,10 @@ export default function Editor(props): JSX.Element {
                 style={{backgroundColor: bgColor}}
             >
                 {isMaxLength && <MaxLengthPlugin maxLength={30}/>}
-                <DragDropPaste/>
+                <DragDropPaste fileUploadInfo={ fileUploadInfo }/>
                 {/*<AutoFocusPlugin />*/}
                 <ClearEditorPlugin/>
-                <ComponentPickerPlugin/>
+                <ComponentPickerPlugin fileUploadInfo={ fileUploadInfo }/>
                 <EmojiPickerPlugin />
                 {/*<AutoEmbedPlugin/>*/}
                 <KeywordsPlugin/>
@@ -186,7 +189,7 @@ export default function Editor(props): JSX.Element {
                           hasHorizontalScroll={tableHorizontalScroll}
                         />
                         <TableCellResizer />
-                        <InlineImagePlugin/>
+                        <InlineImagePlugin fileUploadInfo={ fileUploadInfo }/>
                         <ButtonPlugin />
                         <LinkPlugin/>
 

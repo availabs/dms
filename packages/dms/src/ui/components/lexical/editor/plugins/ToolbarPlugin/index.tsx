@@ -516,8 +516,10 @@ function ElementFormatDropdown({
 
 export default function ToolbarPlugin({
   setIsLinkEditMode,
+  fileUploadInfo
 }: {
   setIsLinkEditMode: Dispatch<boolean>;
+  fileUploadInfo: object | null
 }): JSX.Element {
   const theme = useLexicalTheme();
   const [editor] = useLexicalComposerContext();
@@ -1087,6 +1089,7 @@ export default function ToolbarPlugin({
                   <InsertInlineImageDialog
                     activeEditor={activeEditor}
                     onClose={onClose}
+                    fileUploadInfo={ fileUploadInfo }
                   />
                 ));
               }}
