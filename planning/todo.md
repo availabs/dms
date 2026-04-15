@@ -97,6 +97,7 @@
 ### patterns/mapeditor
 
 - [x] Convert MapEditor from datamanagerclient into standalone DMS pattern (symbology CRUD via DMS instead of DAMA)
+- [ ] Migrate MapEditor from DAMA to UDA routes — 22 files use `dama[pgEnv]` Falcor paths for sources, views, symbologies, view data. Replace with `uda[pgEnv]` equivalents. Fix `.attributes` nesting and `viewsbyId` → `viewsById` case changes.
 
 ### patterns/datasets
 
