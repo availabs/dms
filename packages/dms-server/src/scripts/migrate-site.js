@@ -412,11 +412,13 @@ async function checkIdConflicts(db, mainTable, ids) {
 async function resetSequence(db, app, dbType, splitMode, maxId) {
   if (!maxId || maxId < 0) return;
   if (dbType === 'postgres') {
-    const seqName = splitMode === 'per-app'
-      ? `dms_${sanitize(app)}.data_items_id_seq`
-      : 'dms.data_items_id_seq';
+    const schema = splitMode === 'per-app' ? `dms_${sanitize(app)}` : 'dms';
+    const seqName = `${schema}.data_items_id_seq`;
+    // Check max ID across both the shared table and the per-app table
     await db.promise(
-      `SELECT setval('${seqName}', GREATEST($1, (SELECT COALESCE(MAX(id), 0) FROM dms.data_items)))`,
+      `SELECT setval('${seqName}', GREATEST($1,
+        (SELECT COALESCE(MAX(id), 0) FROM dms.data_items),
+        (SELECT COALESCE(MAX(id), 0) FROM ${schema}.data_items)))`,
       [maxId]
     );
   } else {

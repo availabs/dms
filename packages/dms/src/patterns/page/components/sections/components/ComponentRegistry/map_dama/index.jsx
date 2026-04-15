@@ -1,8 +1,6 @@
 import React, {useEffect, useMemo, useRef, createContext} from "react";
-import get from "lodash/get";
-import isEqual from "lodash/isEqual"
-import cloneDeep from "lodash/cloneDeep"
-import { AvlMap } from "~/modules/avl-map-2/src"
+import { get, isEqual, cloneDeep } from "lodash-es";
+import { AvlMap } from "../../../../../../../ui/components/map"
 // import { PMTilesProtocol } from '~/pages/DataManager/utils/pmtiles/index.ts'
 import { useImmer } from 'use-immer';
 import MapManager from './MapManager/MapManager'
@@ -33,7 +31,6 @@ const getData = async () => {
 }
 
 const Edit = ({value, onChange, size}) => {
-    // const {falcor, falcorCache} = useFalcor();
     const { falcor, falcorCache, pgEnv, apiLoad, mapeditorKeys } = React.useContext(CMSContext)
     const mounted = useRef(false);
     const cachedData = typeof value === 'object' ? value : value && isJson(value) ? JSON.parse(value) : {};
@@ -240,8 +237,6 @@ Edit.settings = {
 }
 
 const View = ({value, size}) => {
-    // console.log('Dama Map: View')
-    // const {falcor, falcorCache} = useFalcor();
     const { falcor, falcorCache, pgEnv } = React.useContext(CMSContext)
     const mounted = useRef(false);
     const cachedData = typeof value === 'object' ? value : value && isJson(value) ? JSON.parse(value) : {};

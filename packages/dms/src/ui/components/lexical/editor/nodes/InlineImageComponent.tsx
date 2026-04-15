@@ -53,20 +53,67 @@ import {$isInlineImageNode, InlineImageNode} from './InlineImageNode';
 import ImageResizer from "../ui/ImageResizer";
 
 
-const imageCache = new Set();
+// const imageCache = new Set();
 
-function useSuspenseImage(src: string) {
-  if (!imageCache.has(src)) {
-    throw new Promise((resolve) => {
-      const img = new Image();
-      img.src = src;
-      img.onload = () => {
-        imageCache.add(src);
-        resolve(null);
-      };
-    });
-  }
+// function useSuspenseImage(src: string) {
+//   if (!imageCache.has(src)) {
+//     throw new Promise((resolve) => {
+//       const img = new Image();
+//       img.src = src;
+//       img.onload = () => {
+//         imageCache.add(src);
+//         resolve(null);
+//       };
+//     });
+//   }
+// }
+
+const DATA_URL_REGEX = /^data:.+[/].+;base64,.+$/;
+const isDataURL = src => DATA_URL_REGEX.test(src);
+
+const getUniqueFileName = ext => {
+  return `${ Math.random().toString(36).substring(2) }.${ ext }`;
 }
+
+const makeFile = async dataURL => {
+  const blob = await fetch(dataURL).then(res => res.blob());
+  const [, ext] = blob.type.split("/");
+  return new File([blob], getUniqueFileName(ext), { type: blob.type });
+}
+
+const uploadFile = (file, altText, DAMA_HOST, pgEnv, id, directory) => {
+
+  const formData = new FormData();
+
+  formData.append("source_name", id);
+  formData.append("type", "file_upload");
+  formData.append("file_name", file.name);
+  formData.append("file_type", file.type || "application/octet-stream");
+  formData.append("description", altText);
+  formData.append("directory", directory);
+  formData.append("categories", JSON.stringify([["Uploaded File"]]));
+  formData.append("file", file);
+
+  return fetch(
+    `${ DAMA_HOST }/dama-admin/${ pgEnv }/file_upload`,
+    { method: "POST", body: formData }
+  ).then(res => res.json())
+    .then(json => {
+      console.log("FILE UPLOAD RESPONSE:", json);
+      if (json.ok) {
+        return json.dl_url;
+      }
+      return null;
+    })
+
+}
+
+const NO_FILE_UPLOAD_INFO = {
+  DAMA_HOST: null,
+  pgEnv: null,
+  id: null,
+  directory: null
+};
 
 function LazyImage({
   altText,
@@ -76,6 +123,7 @@ function LazyImage({
   width,
   height,
   position,
+  fileUploadInfo
 }: {
   altText: string;
   className: string | null;
@@ -84,12 +132,48 @@ function LazyImage({
   src: string;
   width: 'inherit' | number;
   position: Position;
+  fileUploadInfo: object | null;
 }): JSX.Element {
-  useSuspenseImage(src);
+
+// console.log("LazyImage::src", src);
+// console.log("LazyImage::fileUploadInfo", fileUploadInfo);
+
+  const [imgSrc, setImgSrc] = React.useState(null);
+
+// console.log("LazyImage::imgSrc", imgSrc);
+
+  React.useEffect(() => {
+    if (src && (imgSrc === null)) {
+      setImgSrc(src);
+    }
+  }, [src, imgSrc]);
+
+  const { DAMA_HOST, pgEnv, id, directory } = React.useMemo(() => {
+    return fileUploadInfo || NO_FILE_UPLOAD_INFO;
+  }, [fileUploadInfo]);
+
+  React.useEffect(() => {
+    if (!(DAMA_HOST && pgEnv && id)) return;
+
+    if (isDataURL(imgSrc)) {
+      makeFile(imgSrc)
+        .then(file => {
+          return uploadFile(file, altText, DAMA_HOST, pgEnv, id, directory)
+        })
+        .then(dl_url => {
+          if (dl_url) {
+            setImgSrc(dl_url);
+          }
+        });
+    }
+  }, [DAMA_HOST, pgEnv, id, directory, imgSrc, altText]);
+
+  // useSuspenseImage(src);
+
   return (
     <img
       className={`${className} cursor-default`}
-      src={src}
+      src={imgSrc}
       alt={altText}
       ref={imageRef}
       data-position={position}
@@ -192,6 +276,7 @@ export default function InlineImageComponent({
   showCaption,
   caption,
   position,
+  fileUploadInfo
 }: {
   altText: string;
   caption: LexicalEditor;
@@ -201,6 +286,7 @@ export default function InlineImageComponent({
   src: string;
   width: 'inherit' | number;
   position: Position;
+  fileUploadInfo: object | null;
 }): JSX.Element {
   const [modal, showModal] = useModal();
   const imageRef = useRef<null | HTMLImageElement>(null);
@@ -420,6 +506,7 @@ export default function InlineImageComponent({
             width={width}
             height={height}
             position={position}
+            fileUploadInfo={ fileUploadInfo }
           />
         </div>
         {showCaption && (

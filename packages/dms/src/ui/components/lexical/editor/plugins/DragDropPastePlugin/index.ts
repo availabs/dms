@@ -16,36 +16,47 @@ import {INSERT_INLINE_IMAGE_COMMAND} from '../InlineImagePlugin';
 
 const ACCEPTABLE_IMAGE_TYPES = [
   'image/',
+  'image/avif',
   'image/heic',
   'image/heif',
   'image/gif',
-  'image/webp',
+  'image/webp'
 ];
 
-export default function DragDropPaste(): null {
+export default function DragDropPaste({ fileUploadInfo }): null {
+
+// console.log("DragDropPaste::fileUploadInfo", fileUploadInfo);
+
   const [editor] = useLexicalComposerContext();
+
   useEffect(() => {
     return editor.registerCommand(
       DRAG_DROP_PASTE,
       (files) => {
+
         (async () => {
           const filesResult = await mediaFileReader(
             files,
-            [ACCEPTABLE_IMAGE_TYPES].flatMap((x) => x),
+            [...ACCEPTABLE_IMAGE_TYPES],
           );
-          for (const {file, result} of filesResult) {
-            if (isMimeType(file, ACCEPTABLE_IMAGE_TYPES)) {
-              editor.dispatchCommand(INSERT_INLINE_IMAGE_COMMAND, {
-                altText: file.name,
-                src: result,
-              });
-            }
+          for (const { file, result } of filesResult) {
+
+// console.log("DragDropPaste::DISPATCHING??????????????????")
+
+            editor.dispatchCommand(INSERT_INLINE_IMAGE_COMMAND, {
+              altText: file.name,
+              src: result,
+              position: "left",
+              fileUploadInfo
+            });
           }
         })();
+
         return true;
       },
       COMMAND_PRIORITY_LOW,
     );
-  }, [editor]);
+  }, [editor, fileUploadInfo]);
+
   return null;
 }

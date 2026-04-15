@@ -141,7 +141,10 @@ function getDynamicOptions(editor: LexicalEditor, queryString: string) {
 
 type ShowModal = ReturnType<typeof useModal>[1];
 
-function getBaseOptions(editor: LexicalEditor, showModal: ShowModal) {
+function getBaseOptions(editor: LexicalEditor, showModal: ShowModal, fileUploadInfo: object | null) {
+
+// console.log("getBaseOptions::fileUploadInfo", fileUploadInfo);
+
     const theme = editor?._config?.theme || {}
     return [
         new ComponentPickerOption('Paragraph', {
@@ -251,7 +254,7 @@ function getBaseOptions(editor: LexicalEditor, showModal: ShowModal) {
             keywords: ['image', 'photo', 'picture', 'file'],
             onSelect: () =>
                 showModal('Insert Image', (onClose) => (
-                    <InsertInlineImageDialog activeEditor={editor} onClose={onClose}/>
+                    <InsertInlineImageDialog activeEditor={editor} onClose={onClose} fileUploadInfo={ fileUploadInfo }/>
                 )),
         }),
         new ComponentPickerOption('Collapsible', {
@@ -294,18 +297,20 @@ function getBaseOptions(editor: LexicalEditor, showModal: ShowModal) {
     ];
 }
 
-export default function ComponentPickerMenuPlugin(): JSX.Element {
+export default function ComponentPickerMenuPlugin({ fileUploadInfo }): JSX.Element {
     const [editor] = useLexicalComposerContext();
     const [modal, showModal] = useModal();
     const [queryString, setQueryString] = useState<string | null>(null);
     const theme = editor?._config?.theme || {}
+
+// console.log("ComponentPickerMenuPlugin::fileUploadInfo", fileUploadInfo);
 
     const checkForTriggerMatch = useBasicTypeaheadTriggerMatch('/', {
         minLength: 0,
     });
 
     const options = useMemo(() => {
-        const baseOptions = getBaseOptions(editor, showModal);
+        const baseOptions = getBaseOptions(editor, showModal, fileUploadInfo);
 
         if (!queryString) {
             return baseOptions;

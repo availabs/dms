@@ -56,11 +56,15 @@ export const INSERT_INLINE_IMAGE_COMMAND: LexicalCommand<InlineImagePayload> =
 export function InsertInlineImageDialog({
   activeEditor,
   onClose,
+  fileUploadInfo
 }: {
   activeEditor: LexicalEditor;
   onClose: () => void;
+  fileUploadInfo: object | null
 }): JSX.Element {
-  const hasModifier = useRef(false);
+  // const hasModifier = useRef(false);
+
+// console.log("InsertInlineImageDialog::fileUploadInfo", fileUploadInfo);
 
   const [src, setSrc] = useState('');
   const [altText, setAltText] = useState('');
@@ -78,8 +82,12 @@ export function InsertInlineImageDialog({
   };
 
   const loadImage = (files: FileList | null) => {
+
     const reader = new FileReader();
     reader.onload = function () {
+
+// console.log("InsertInlineImageDialog::loadImage::reader.result", reader.result)
+
       if (typeof reader.result === 'string') {
         setSrc(reader.result);
       }
@@ -90,21 +98,21 @@ export function InsertInlineImageDialog({
     }
   };
 
-  useEffect(() => {
-    if(typeof document === 'undefined') return;
+  // useEffect(() => {
+  //   if(typeof document === 'undefined') return;
 
-    hasModifier.current = false;
-    const handler = (e: KeyboardEvent) => {
-      hasModifier.current = e.altKey;
-    };
-    // document?.addEventListener('keydown', handler);
-    // return () => {
-    //   document?.removeEventListener('keydown', handler);
-    // };
-  }, [activeEditor]);
+  //   hasModifier.current = false;
+  //   const handler = (e: KeyboardEvent) => {
+  //     hasModifier.current = e.altKey;
+  //   };
+  //   // document?.addEventListener('keydown', handler);
+  //   // return () => {
+  //   //   document?.removeEventListener('keydown', handler);
+  //   // };
+  // }, [activeEditor]);
 
   const handleOnClick = () => {
-    const payload = {altText, position, showCaption, src};
+    const payload = {altText, position, showCaption, src, fileUploadInfo};
     activeEditor.dispatchCommand(INSERT_INLINE_IMAGE_COMMAND, payload);
     onClose();
   };
@@ -162,7 +170,7 @@ export function InsertInlineImageDialog({
   );
 }
 
-export default function InlineImagePlugin(): JSX.Element | null {
+export default function InlineImagePlugin({ fileUploadInfo }): JSX.Element | null {
   const [editor] = useLexicalComposerContext();
 
   useEffect(() => {
@@ -174,7 +182,10 @@ export default function InlineImagePlugin(): JSX.Element | null {
       editor.registerCommand<InsertInlineImagePayload>(
         INSERT_INLINE_IMAGE_COMMAND,
         (payload) => {
-          const imageNode = $createInlineImageNode(payload);
+
+console.log("INSERT_INLINE_IMAGE_COMMAND::payload", payload)
+
+          const imageNode = $createInlineImageNode({ ...payload, fileUploadInfo });
           $insertNodes([imageNode]);
           if ($isRootOrShadowRoot(imageNode.getParentOrThrow())) {
             $wrapNodeInElement(imageNode, $createParagraphNode).selectEnd();
@@ -238,6 +249,7 @@ function onDragStart(event: DragEvent): boolean {
         showCaption: node.__showCaption,
         src: node.__src,
         width: node.__width,
+        fileUploadInfo: node.__fileUploadInfo
       },
       type: 'image',
     }),

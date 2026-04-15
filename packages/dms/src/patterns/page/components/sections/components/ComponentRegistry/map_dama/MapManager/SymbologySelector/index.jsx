@@ -1,15 +1,16 @@
 import React, {useEffect, useMemo, useContext, useState} from 'react'
 import { useNavigate } from 'react-router'
-import {Button} from '~/modules/avl-components/src'
-import get from 'lodash/get'
+import { ThemeContext } from '../../../../../../../../../ui/useTheme'
+import { get, cloneDeep } from 'lodash-es'
 import { Dialog } from '@headlessui/react'
-import cloneDeep from 'lodash/cloneDeep'
 import { SymbologiesList } from './SymbologiesList';
 import { Modal, INITIAL_NEW_MAP_MODAL_STATE } from '../../../../../../../../mapeditor/MapEditor/components/LayerManager/SymbologyControl';
 import { MapContext } from '../../'
 import { DamaSymbologyAttributes, getAttributes } from "../../../../../../../../mapeditor/attributes"
 
 export const SelectSymbology = ({ modalState, setModalState, tabIndex }) => {
+  const { UI } = useContext(ThemeContext) || {};
+  const { Button } = UI;
   const { state, setState, falcor, pgEnv, doApiLoad } = useContext(MapContext);
   // ---------------------------------
   // -- get Symbologies to list
