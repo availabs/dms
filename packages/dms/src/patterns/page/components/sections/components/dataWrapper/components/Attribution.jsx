@@ -2,6 +2,7 @@ import React, {useContext} from "react";
 import {Link} from "react-router";
 import {ComponentContext} from "../../../../../context";
 import {ThemeContext} from "../../../../../../../ui/useTheme";
+import {legacyStateToBuildInput} from "../buildUdaConfig";
 
 export const attributionTheme = {
     wrapper: 'w-full p-1 pt-[16px] flex gap-1 text-xs text-gray-900',
@@ -12,7 +13,9 @@ export const attributionTheme = {
 export const Attribution = () => {
     const { theme = { attribution: attributionTheme } } = React.useContext(ThemeContext) || {}
     // baseUrl is now included in externalSource by useDataSource.js
-    const {state:{externalSource: {source_id, name, view_name, updated_at, baseUrl}}} = useContext(ComponentContext);
+    const ctx = useContext(ComponentContext);
+    const {state} = useContext(ComponentContext);
+    const {source_id, name, view_name, updated_at, baseUrl} = legacyStateToBuildInput(state);
     const dateOptions = {year: "numeric", month: "long", day: "numeric", hour: "numeric", minute: "numeric"};
     const updatedTimeString = updated_at ? new Date(updated_at).toLocaleString(undefined, dateOptions) : null;
 
