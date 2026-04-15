@@ -147,7 +147,7 @@ export class InlineImageNode extends DecoratorNode<JSX.Element> {
     ) {
         super(key);
 
-console.log("InlineImageNode::constructor::fileUploadInfo", fileUploadInfo)
+// console.log("InlineImageNode::constructor::fileUploadInfo", fileUploadInfo)
 
         this.__src = src;
         this.__altText = altText;
@@ -305,7 +305,7 @@ export function $createInlineImageNode({
                                            fileUploadInfo
                                        }: InlineImagePayload): InlineImageNode {
 
-console.log("$createInlineImageNode::fileUploadInfo", fileUploadInfo);
+// console.log("$createInlineImageNode::fileUploadInfo", fileUploadInfo);
 
     return $applyNodeReplacement(
         new InlineImageNode(

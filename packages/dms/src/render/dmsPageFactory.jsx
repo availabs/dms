@@ -40,7 +40,7 @@ export default function dmsPageFactory (
   async function loader ({ request, params }) {
     if (isAuth) return { data: [] }
     const path = `/${params['*'] || ''}`
-    if (import.meta.env.DEV) console.log(`[dms loader] ${path} — start`)
+    // if (import.meta.env.DEV) console.log(`[dms loader] ${path} — start`)
     const t0 = import.meta.env.DEV ? performance.now() : 0
     let data = await dmsDataLoader(falcor, dmsConfig, `/${params['*'] || ''}`)
     const t1 = import.meta.env.DEV ? performance.now() : 0
@@ -51,9 +51,9 @@ export default function dmsPageFactory (
     if (import.meta.env.DEV) {
       const t2 = performance.now()
       //console.log('[dms loader]', data)
-      console.log(
-        `[dms loader] ${path} — data: ${(t1 - t0).toFixed(0)}ms, preload: ${(t2 - t1).toFixed(0)}ms, total: ${(t2 - t0).toFixed(0)}ms`
-      )
+      // console.log(
+      //   `[dms loader] ${path} — data: ${(t1 - t0).toFixed(0)}ms, preload: ${(t2 - t1).toFixed(0)}ms, total: ${(t2 - t0).toFixed(0)}ms`
+      // )
     }
     return {
       data
