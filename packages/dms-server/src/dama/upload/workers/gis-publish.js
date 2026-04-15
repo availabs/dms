@@ -54,8 +54,10 @@ module.exports = async function gisPublishWorker(ctx) {
   await dispatchEvent('gis-dataset:VIEW_CREATE', `View ${view_id} created`, { view_id, table_schema, table_name });
 
   const { columnTypes, promoteToMulti, postGisGeometryType } = tableDescriptor || {};
-  const hasGeom = !!postGisGeometryType;
-  const geomType = promoteToMulti ? `Multi${postGisGeometryType}` : postGisGeometryType;
+  // hasGeom may be updated after ogr2ogr loads — if the file has geometry
+  // but the tableDescriptor didn't declare it, we detect it from the temp table.
+  let hasGeom = !!postGisGeometryType;
+  let geomType = promoteToMulti ? `Multi${postGisGeometryType}` : postGisGeometryType;
 
   // Build PG connection string
   const { loadConfig } = require('../../../db');
@@ -135,26 +137,9 @@ module.exports = async function gisPublishWorker(ctx) {
   await dispatchEvent('gis-dataset:ogr2ogr_end', 'Data loaded, creating final table', null);
 
   // -----------------------------------------------------------------------
-  // Step 3: Create final table with exact types from tableDescriptor
+  // Step 3a: Discover temp table columns — must happen before final table creation
+  // so we can detect geometry even when tableDescriptor didn't declare it.
   // -----------------------------------------------------------------------
-  const finalColDefs = (columnTypes || []).map(c => `"${c.col}" ${c.db_type}`).join(', ');
-  const finalGeomDef = hasGeom ? `, wkb_geometry public.geometry(${geomType}, 4326)` : '';
-
-  await db.query(`DROP TABLE IF EXISTS "${table_schema}"."${table_name}"`);
-  await db.query(`CREATE TABLE "${table_schema}"."${table_name}" (ogc_fid INTEGER PRIMARY KEY${finalColDefs ? ', ' + finalColDefs : ''}${finalGeomDef})`);
-
-  console.log(`[gis-publish] Final table created: ${table_schema}.${table_name}`);
-
-  // -----------------------------------------------------------------------
-  // Step 4: Copy from temp to final with type casts.
-  // Find the geometry column name in the temp table (ogr2ogr may call it
-  // 'geom', 'wkb_geometry', 'the_geom', etc.) and map it to 'wkb_geometry'.
-  // -----------------------------------------------------------------------
-  // Discover temp table's geometry column and FID column — ogr2ogr names
-  // these differently depending on the source format:
-  //   Shapefile → ogc_fid + wkb_geometry
-  //   GeoPackage → fid + geom
-  //   GeoJSON → ogc_fid + wkb_geometry (usually)
   let tempGeomCol = null;
   let tempFidCol = null;
 
@@ -169,6 +154,37 @@ module.exports = async function gisPublishWorker(ctx) {
     if (['ogc_fid', 'fid'].includes(c.column_name) && !tempFidCol) tempFidCol = c.column_name;
   }
   console.log(`[gis-publish] Temp table: fid="${tempFidCol}", geom="${tempGeomCol}"`);
+
+  // If the temp table has geometry but tableDescriptor didn't declare it,
+  // detect the geometry type and update hasGeom so the final table includes it.
+  if (tempGeomCol && !hasGeom) {
+    hasGeom = true;
+    try {
+      const { rows: gtRows } = await db.query(`
+        SELECT DISTINCT GeometryType("${tempGeomCol}") AS gt
+        FROM "${table_schema}"."${tempTable}" WHERE "${tempGeomCol}" IS NOT NULL LIMIT 1
+      `);
+      geomType = gtRows[0]?.gt || 'Geometry';
+    } catch (e) {
+      geomType = 'Geometry';
+    }
+    console.log(`[gis-publish] Geometry found in temp table but not in tableDescriptor — detected type: ${geomType}`);
+  }
+
+  // -----------------------------------------------------------------------
+  // Step 3b: Create final table with exact types from tableDescriptor
+  // -----------------------------------------------------------------------
+  const finalColDefs = (columnTypes || []).map(c => `"${c.col}" ${c.db_type}`).join(', ');
+  const finalGeomDef = hasGeom ? `, wkb_geometry public.geometry(${geomType}, 4326)` : '';
+
+  await db.query(`DROP TABLE IF EXISTS "${table_schema}"."${table_name}"`);
+  await db.query(`CREATE TABLE "${table_schema}"."${table_name}" (ogc_fid INTEGER PRIMARY KEY${finalColDefs ? ', ' + finalColDefs : ''}${finalGeomDef})`);
+
+  console.log(`[gis-publish] Final table created: ${table_schema}.${table_name} (hasGeom: ${hasGeom}, geomType: ${geomType || 'none'})`);
+
+  // -----------------------------------------------------------------------
+  // Step 4: Copy from temp to final with type casts.
+  // -----------------------------------------------------------------------
 
   // Build a map of lowercased temp column names for matching.
   // ogr2ogr lowercases all column names when creating the PG table,
