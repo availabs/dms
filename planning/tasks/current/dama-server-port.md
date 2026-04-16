@@ -98,6 +98,7 @@ src/dama/
 - [ ] **`TaskList.jsx` / `TaskPage.jsx`** — Old legacy pages still use `dama_falcor`. Keep for now, deprecate once new pages verified
 - [ ] **`siteConfig.jsx` + `dmsPageFactory.jsx`** — `dama_falcor` and `DAMA_HOST` still in context (needed by legacy pages above)
 - [ ] **Server cleanup** — Remove `/events/query` compat shim and `newContextId` once client fully migrated
+- [x] **CSV analyzer hybrid pass** — See `tasks/current/dama-csv-analyzer.md`. Implementation complete 2026-04-16: ported legacy `analyzeSchema.js`, wired it as default CSV analyzer (ogrinfo available via `DAMA_CSV_ANALYZER=ogrinfo`), fixed index-based mapping in `generateTableDescriptor` (the root cause of view 3384's TEXT columns). 22 new tests + 12 existing upload tests passing. Awaiting end-to-end production verification.
 
 ### Approach for remaining work
 
@@ -112,7 +113,7 @@ Once the new task pages are verified in production, the old `TaskList`/`TaskPage
 ## What Needs Testing Before Ship
 
 1. **Production GIS upload** on dmsserver.availabs.org — verify ogr2ogr speed, tiles, metadata
-2. **CSV-to-PG upload** — the `csv-publish` worker exists but is untested end-to-end
+2. **CSV-to-PG upload** — `csv-publish` worker tested on 2026-04-16: upload + publish work correctly, but type detection diverges from the legacy analyzer (see §6). Blocked on the "CSV analyzer hybrid pass" task under Remaining before production use on CSVs with zero-padded codes.
 3. **Downloads** — `create-download` worker untested with real data
 4. **PMTiles** — requires Tippecanoe installed on production server
 5. **Multiple pgEnvs** — verify hazmit_dama + npmrds2 both work from one server
@@ -209,6 +210,36 @@ Upload store links `etlContextId` → `uploadId` when the upload POST includes `
 3. Any file + ogrinfo: fallback
 
 Type map: `Integer→INTEGER`, `Integer64→BIGINT`, `Real→DOUBLE PRECISION`, `String→TEXT`, `Date→DATE`
+
+#### Comparison with the legacy analyzer (2026-04-16)
+
+The legacy DAMA analyzer lives at `references/avail-falcor/dama/routes/data_types/file-upload/analyzeSchema.js`. It's a custom JS state machine over the first **10,000 parsed rows** that walks value-by-value and narrows each column's type. Key behaviors the new ogrinfo path **does not** reproduce:
+
+| Behavior | Legacy (`analyzeSchema.js`) | New (ogrinfo) |
+|---|---|---|
+| Sample size | First 10K rows | Entire file (`AUTODETECT_SIZE_LIMIT=0`) |
+| Zero-padded IDs (`"036001"`) | Forced to `TEXT` (GEOID heuristic) | Parsed as `INTEGER` — leading zero lost |
+| Column-name heuristic | `^(block\|block_group\|tract\|county\|uza\|state)(_geo)?(id\|code)$` and `^geo_?(id\|code)$` → `TEXT` before any value | None |
+| Integer ladder | `INT` → `BIGINT` at ±2.1B; `TEXT` beyond BigInt range | OGR: `Integer` or `Integer64`; overflow → load-time cast failure |
+| Decimal ladder | `REAL` (≤6) → `DOUBLE PRECISION` (≤15) → `NUMERIC` (sink) | Always `DOUBLE PRECISION` — no arbitrary-precision fallback |
+| Scientific notation | Forced to `NUMERIC` | Whatever OGR picks (usually `Real`) |
+| Date detection | Commented out ("Punting on Date Types") | OGR autodetects `Date`/`DateTime` — net improvement |
+| Sample collection | 10 per type per column, biased toward most-commas and largest numerics | None |
+| `nonnull` / `null` counts | Accurate | Always `0 / 0` |
+| Mixed-type sticky TEXT | Yes | OGR also falls back to String, but for different reasons |
+
+Output envelope is preserved (`schemaAnalysis: [{key, summary:{db_type, nonnull, null}}]`) so the publish worker is unaffected.
+
+**Known regressions this introduces**:
+- **Zero-padded codes silently cast to integer** — FIPS (`statecode`, `countycode`), urban codes (`urbancode`), zip codes, GEOIDs. Critical for HPMS/NPMRDS CSVs where `"36"` must stay `"36"` not `36`.
+- **UI loses samples + null counts** — the analysis override screen has less to show the user.
+
+**Path forward when this is prioritized**: keep ogrinfo as the fast first pass (handles dates + large files well), then layer the two highest-value legacy heuristics on top:
+1. After ogrinfo, for any column typed `INTEGER`/`BIGINT`, sample a few thousand rows for `^0[1-9]` → override to `TEXT`.
+2. Apply the GEOID column-name regex → force `TEXT` regardless of ogrinfo verdict.
+3. Optionally walk N rows for `null/nonnull` counts + sample collection to restore UI affordances.
+
+See "Remaining" below for the open task item.
 
 ### 7. Database schema
 

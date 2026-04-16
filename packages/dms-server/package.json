@@ -24,6 +24,7 @@
     "test:sync": "node tests/test-sync.js",
     "test:tasks": "node tests/test-tasks.js",
     "test:upload": "node tests/test-upload-pipeline.js",
+    "test:csv-analyzer": "node tests/test-csv-analyzer.js",
     "test:storage": "node tests/test-storage.js",
     "test:datatypes": "node tests/test-datatypes.js",
     "test:migrate-dama": "node tests/test-migrate-dama.js",

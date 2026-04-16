@@ -64,6 +64,7 @@
 - [x] Per-config split mode — move `DMS_SPLIT_MODE` from server-wide env var to per-database-config setting (`splitMode` field in config JSON), with env var fallback for backward compatibility
 - [x] Migrated dataset fixes — case-insensitive split type regex, sanitize() in new table naming, case-insensitive source lookup, lowercase type for split queries, maxPaths 50K→500K, `--max-http-header-size=1MB`, rename-split-tables script (39 tables renamed)
 - [x] Invalid-entry table consolidation — valid and invalid dataset rows share the same split table (removed `_invalid` suffix from table naming); fixes bugs where re-validation couldn't find invalid rows and `batchUpdateType` left rows in wrong table
+- [ ] DAMA CSV analyzer — port legacy `analyzeSchema.js` as primary CSV type detector (zero-padding + GEOID heuristics, 10K-row state machine, sample collection), keep ogrinfo as fallback, and fix `generateTableDescriptor` rename bug (pair analysis↔metadata by index so UI renames preserve types). Blocker for CSV uploads — view 3384 has 19 integer columns stored as TEXT due to this bug.
 
 ## ui
 
