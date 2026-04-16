@@ -1,4 +1,4 @@
-import React from "react"
+import React, {useState} from "react"
 import { useImmer } from 'use-immer';
 import mapboxgl from "maplibre-gl";
 import { useNavigate } from "react-router";
@@ -135,9 +135,10 @@ export const MAP_STYLES = [
 
 const MapEditor = props => {
   const mounted = React.useRef(false);
-  const { falcor, falcorCache, pgEnv, baseUrl } = React.useContext(MapEditorContext);
+  const { falcor, pgEnv, baseUrl } = React.useContext(MapEditorContext);
   const navigate = useNavigate();
   const { id: symbologyId } = props.params;
+  const [falcorCache, setFalcorCache] = useState(falcor.getCache());
 
 // console.log("MapEditor::props", props);
 // console.log("MapEditor::symbologyId", symbologyId);
@@ -147,24 +148,31 @@ const MapEditor = props => {
       falcor.get([
         "dama", pgEnv, "symbologies", "byId", symbologyId,
         "attributes", Object.values(DamaSymbologyAttributes)
-      ]);
+      ]).then(() => setFalcorCache(falcor.getCache()))
     }
   }, [falcor, symbologyId, pgEnv]);
 
   React.useEffect(() => {
-    const symbologyLengthPath = ["dama", pgEnv, "symbologies", "length"];
+    async function load() {
+      const symbologyLengthPath = ["dama", pgEnv, "symbologies", "length"];
 
-    falcor.get(symbologyLengthPath)
-      .then(res => {
-        const length = get(res.json, symbologyLengthPath, 0);
-        if (length) {
-          falcor.get([
-            "dama", pgEnv, "symbologies",
-            "byIndex", { from: 0, to: length - 1 },
-            "attributes", DamaSymbologyAttributes
-          ]);
-        }
-      });
+      await falcor.get(symbologyLengthPath)
+          .then(res => {
+            const length = get(res.json, symbologyLengthPath, 0);
+
+            if (length) {
+              falcor.get([
+                "dama", pgEnv, "symbologies",
+                "byIndex", { from: 0, to: length - 1 },
+                "attributes", DamaSymbologyAttributes
+              ]).then((d) => {
+                setFalcorCache(falcor.getCache())
+              })
+            }
+          });
+    }
+
+    return () => load();
   }, [falcor, pgEnv]);
 
   const damaSymbologies = React.useMemo(() => {
@@ -563,7 +571,7 @@ const MapEditor = props => {
     if (sourceId) {
       falcor.get([
           "dama", pgEnv, "sources", "byId", sourceId, "attributes", Object.values(SourceAttributes)
-      ])//.then(d => console.log('source metadata sourceId', sourceId, d));
+      ]).then(d => setFalcorCache(falcor.getCache()));
     }
   },[falcor, sourceId]);
 
@@ -606,7 +614,7 @@ const MapEditor = props => {
             "dama", pgEnv, "sources", "byId", sourceId, "views", "byIndex",
             { from: 0, to: get(res?.json, lengthPath, 0) - 1 },
             "attributes", Object.values(ViewAttributes)
-          ]);
+          ]).then(() => setFalcorCache(falcor.getCache()))
         });
     }
   }, [sourceId, falcor, pgEnv]);
@@ -978,7 +986,7 @@ const MapEditor = props => {
       })
       falcor.get([
         'dama',pgEnv,'viewsbyId', viewId, 'options', options, 'databyIndex',{ from: 0, to: 100},[baseDataColumn, 'count(1)::int as count']
-      ])
+      ]).then(() => setFalcorCache(falcor.getCache()))
     }
   },[baseDataColumn, layerType, viewId, isActiveLayerPlugin])
 

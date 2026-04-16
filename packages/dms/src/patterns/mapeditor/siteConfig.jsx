@@ -41,9 +41,9 @@ const mapeditorConfig = ({
 			{ action: "list",
 				path: "/*",
 				authPermissions,
-				type: ({ user, params, children }) => {
+				type: ({ user, params, children, falcor, dama_falcor }) => {
 
-					const { falcor, falcorCache } = useFalcor();
+					// const { falcor, falcorCache } = useFalcor();
 
 					const mapeditorContextValue = React.useMemo(() => {
 						return {
@@ -52,12 +52,11 @@ const mapeditorConfig = ({
 							baseUrl,
 							user,
 							pgEnv,
-							falcor,
-							falcorCache,
+							falcor: dama_falcor,
 							params
 						}
 					}, [app, type, siteType, baseUrl, user,
-							params, falcor, falcorCache, pgEnv
+							params, falcor, pgEnv
 					]);
 
 					return (

@@ -8,6 +8,7 @@ import Breadcrumbs from "../components/Breadcrumbs";
 import Overview from "./dataTypes/default/overview"
 import Admin from "./dataTypes/default/admin"
 import Version from "./dataTypes/default/version"
+import Metadata from "./dataTypes/gis_dataset/pages/metadata"
 
 const fixedPages = ['overview', 'admin']
 const viewDependentPages = ['table', 'upload', 'validate', 'map']
@@ -18,7 +19,8 @@ const adminNav = {name: 'Admin', href: 'admin', viewDependentPage: false}
 const defaultPages = {
     overview: Overview,
     admin: Admin,
-    version: Version
+    version: Version,
+    metadata: Metadata
 }
 
 const SourceNav = ({theme = {}, navItems, page, pageBaseUrl, id, view_id, isDms, sourceType}) => (
@@ -87,7 +89,7 @@ export default function ({ apiLoad, apiUpdate, format, item, params, isDms }) {
     const sourceDataType = isDms ? 'internal_table' : source?.type; // csv / gis / internal
     const sourcePages = sourceLoaded ? { ...(damaDataTypes[sourceType] || {}), ...(damaDataTypes[sourceDataType] || {}) } : {};
 
-console.log('SourcePage::source', source);
+// console.log('SourcePage::source', sourceType, damaDataTypes);
 
     const sourcePagesNavItems =
         (Object.values(sourcePages) || [])
@@ -118,7 +120,7 @@ console.log('SourcePage::source', source);
 
     const Page = sourcePages[page]?.component || defaultPages[page] || Overview;
 
-console.log("SourcePage::page", page);
+// console.log("SourcePage::page", defaultPages);
 
     const breadcrumbItems = [
         {icon: 'Database', href: baseUrl},
