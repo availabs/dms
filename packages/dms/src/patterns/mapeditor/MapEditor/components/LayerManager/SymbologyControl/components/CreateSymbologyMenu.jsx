@@ -28,7 +28,8 @@ const DEFAULT_CREATE_SYMBOLOGY_MODAL_STATE = {
 
 function CreateSymbologyModal ({ open, setOpen })  {
   const cancelButtonRef = React.useRef(null)
-  const { app, type, falcor, baseUrl } = React.useContext(MapEditorContext)
+  const { app, type, useFalcor, baseUrl } = React.useContext(MapEditorContext);
+  const { falcor } = useFalcor();
   const { state, setState } = React.useContext(SymbologyContext)
   const navigate = useNavigate();
   const [modalState, setModalState] = React.useState(DEFAULT_CREATE_SYMBOLOGY_MODAL_STATE)

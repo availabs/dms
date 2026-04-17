@@ -21,7 +21,8 @@ export const DEFAULT_SOURCE = {
 
 function SourceSelector () {
   const { state, setState } = React.useContext(SymbologyContext);
-  const { pgEnv, baseUrl, falcor, falcorCache } = React.useContext(MapEditorContext);
+  const { pgEnv, baseUrl, useFalcor } = React.useContext(MapEditorContext);
+  const {falcor, falcorCache } = useFalcor();
 
   const [source, setSource] = React.useState(DEFAULT_SOURCE);
 
@@ -30,51 +31,51 @@ function SourceSelector () {
   // ---------------------------------
   useEffect(() => {
     async function fetchData() {
-      const lengthPath = ["dama", pgEnv, "sources", "length"];
+      const lengthPath = ["uda", pgEnv, "sources", "length"];
       const resp = await falcor.get(lengthPath);
       await falcor.get([
-        "dama", pgEnv, "sources", "byIndex",
+        "uda", pgEnv, "sources", "byIndex",
         { from: 0, to: get(resp.json, lengthPath, 0) - 1 },
-        "attributes", Object.values(SourceAttributes)
+        Object.values(SourceAttributes)
       ]);
     }
     fetchData();
   }, [falcor, pgEnv]);
 
   const sources = useMemo(() => {
-    return Object.values(get(falcorCache, ["dama", pgEnv, "sources", "byIndex"], {}))
-      .map(v => getAttributes(get(falcorCache, v.value, { "attributes": {} })["attributes"]));
+    return Object.values(get(falcorCache, ["uda", pgEnv, "sources", "byIndex"], {}))
+      .map(v => getAttributes(get(falcorCache, v.value, {})));
   }, [falcorCache, pgEnv]);
 
   //----------------------------------
   // -- get selected source views
   // ---------------------------------
   useEffect(() => {
-    async function fetchData() {
-      //console.time("fetch data");
-      const {sourceId} = source
-      const lengthPath = ["dama", pgEnv, "sources", "byId", sourceId, "views", "length"];
-      const resp = await falcor.get(lengthPath);
-      return await falcor.get([
-        "dama", pgEnv, "sources", "byId", sourceId, "views", "byIndex",
-        { from: 0, to: get(resp.json, lengthPath, 0) - 1 },
-        "attributes", Object.values(ViewAttributes)
-      ]);
-    }
-    if(source.sourceId) {
-      fetchData();
+    if (source.sourceId) {
+      (async () => {
+        //console.time("fetch data");
+        const {sourceId} = source
+        const lengthPath = ["uda", pgEnv, "sources", "byId", sourceId, "views", "length"];
+        const resp = await falcor.get(lengthPath);
+        await falcor.get([
+          "uda", pgEnv, "sources", "byId", sourceId, "views", "byIndex",
+          { from: 0, to: get(resp.json, lengthPath, 0) - 1 },
+          Object.values(ViewAttributes)
+        ]);
+      })();
     }
   }, [source.sourceId, falcor, pgEnv]);
 
   const views = useMemo(() => {
-    return []
+    return Object.values(get(falcorCache, ["uda", pgEnv, "sources", "byId", source.sourceId, "views", "byIndex"], {}))
+      .map(v => getAttributes(get(falcorCache, v.value, {})))
   }, [falcorCache, source.sourceId, pgEnv]);
 
   const selectedView = useMemo(() => {
-    const views = Object.values(get(falcorCache, ["dama", pgEnv, "sources", "byId", source.sourceId, "views", "byIndex"], {}))
-      .map(v => getAttributes(get(falcorCache, v.value, { "attributes": {} })["attributes"]));
     return views.find(v => v.view_id == source.viewId) || {};
-  }, [falcorCache, source.sourceId, pgEnv, source.viewId, views]);
+  }, [pgEnv, source.viewId, views]);
+
+// console.log("selectedView", selectedView);
 
   const selectedViewLayerType = useMemo(() => {
     return selectedView?.metadata?.tiles?.layers?.[0]?.type;

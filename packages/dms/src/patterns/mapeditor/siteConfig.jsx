@@ -2,7 +2,7 @@ import React from "react"
 
 import { cloneDeep } from "lodash-es";
 
-import { useFalcor } from "@availabs/avl-falcor"
+import { falcorGraph, FalcorProvider } from "@availabs/avl-falcor"
 
 import UI from "../../ui"
 import { ThemeContext } from "../../ui/themeContext"
@@ -20,7 +20,9 @@ const mapeditorConfig = ({
 	pattern,
 	authPermissions,
   API_HOST,
+  DAMA_HOST,
   pgEnv,
+  useFalcor,
 	...rest
 }) => {
 
@@ -54,6 +56,7 @@ const mapeditorConfig = ({
 							pgEnv,
 							falcor,
 							falcorCache,
+							useFalcor,
 							params
 						}
 					}, [app, type, siteType, baseUrl, user,

@@ -16,6 +16,8 @@ import { extractState } from '../stateUtils'
 import { SymbologyContext } from '../MapViewer'
 import { MapEditorContext } from "../../context"
 
+import useZoomToFit from "./LayerManager/ZoomToFit/useZoomToFit"
+
 function LayerInfo({ layer, button, source, baseUrl, location = "left-0" }) {
   // const sourceUrl = `${baseUrl}/source/${layer.source_id}`;
   return (
@@ -49,88 +51,113 @@ function LayerInfo({ layer, button, source, baseUrl, location = "left-0" }) {
 }
 
 export const ZoomToFit = ({ layer }) => {
-
-  const { state, setState  } = React.useContext(SymbologyContext);
-  const { activeLayer } = state.symbology;
-  const { falcor, falcorCache, pgEnv } = React.useContext(MapEditorContext);
-  const { view_id } = layer;
-
-  const { zoomToFit } = React.useMemo(() => ({
-    zoomToFit: get(state,`symbology.zoomToFit`),
-  }),[state]);
-
-  React.useEffect(() => {
-    if(view_id) {
-      falcor.get([
-          "dama", pgEnv, "views", "byId", view_id, "attributes", "metadata"
-      ]);
-    }
-  },[view_id]);
-
-  const viewMetadata = React.useMemo(() => {
-    let out = get(falcorCache, [
-        "dama", pgEnv, "views", "byId", view_id, "attributes", "metadata", "value", "columns"
-    ], []);
-    if(out.length === 0) {
-      out = get(falcorCache, [
-        "dama", pgEnv, "views", "byId", view_id, "attributes", "metadata", "value"
-      ], []);
-    }
-    return out;
-  }, [view_id, falcorCache]);
-
-  const extent = React.useMemo(() => {
-    return viewMetadata['extent'];
-  }, [viewMetadata]);
-
-  React.useEffect(() => {
-    const getExtent = async () => {
-      const newOptions = JSON.stringify({
-      })
-      const resp = await falcor.get([
-        'dama',pgEnv,'viewsbyId', view_id, 'options', newOptions, 'databyIndex',{ },['ST_AsGeojson(ST_Extent(wkb_geometry)) as bextent']
-      ]);
-      const newExtent = get(resp, ['json','dama',pgEnv,'viewsbyId', view_id, 'options', newOptions, 'databyIndex',0,['ST_AsGeojson(ST_Extent(wkb_geometry)) as bextent'] ])
-      falcor.call(
-        ["dama", "views", "metadata", "update"],
-        [pgEnv, view_id, { extent: newExtent }]
-      )//.then(res => console.log("resp from saving view extent:", res))
-    }
-    if(Object.keys(viewMetadata).length > 0 && !extent) {
-      getExtent()
-    }
-  }, [viewMetadata, extent]);
-
-  const extentBox = React.useMemo(() => {
-    if (extent) {
-      const parsedExtent = JSON.parse(extent);      
-      const coordinates = parsedExtent.coordinates[0];
-      const mapGeom = coordinates.reduce((bounds, coord) => {
-        return bounds.extend(coord);
-      }, new mapboxgl.LngLatBounds(coordinates[0], coordinates[0]));
-      return [mapGeom['_sw'], mapGeom['_ne']]
-    } else {
-      return null;
-    }
-  }, [extent]);
-
-  const isZoomActive = isEqual(JSON.stringify(zoomToFit), JSON.stringify(extentBox));
-
+  const { isZoomActive, extentBox } = useZoomToFit(layer, false);
+  const { setState } = React.useContext(SymbologyContext);
   return (
-  <SquarePlusSolid size={20}
-    onClick={() => {
-      setState(draft => {
-        if(isZoomActive){
-          set(draft,`symbology.zoomToFit`,[]);
-        }
-        else {
-          set(draft,`symbology.zoomToFit`,extentBox);
-        }
-      })
-    }}
-    className={` ${activeLayer == layer.id ? 'fill-pink-100' : 'fill-white'} collapse group-hover:visible cursor-pointer group-hover:fill-gray-400 group-hover:hover:fill-pink-700`}
+    <SquarePlusSolid size={ 20 }
+      onClick={ () => {
+        setState(draft => {
+          if (isZoomActive) {
+            set(draft, `symbology.zoomToFit`, []);
+          }
+          else {
+            set(draft, `symbology.zoomToFit`, extentBox);
+          }
+        })
+      }}
+      className={ `
+        ${ activeLayer == layer.id ? 'fill-pink-100' : 'fill-white' }
+        collapse group-hover:visible cursor-pointer
+        group-hover:fill-gray-400 group-hover:hover:fill-pink-700
+      ` }
     />
-)}
+  )
+}
+
+// export const ZoomToFit = ({ layer }) => {
+
+//   const { state, setState  } = React.useContext(SymbologyContext);
+//   const { activeLayer } = state.symbology;
+//   const { useFalcor, pgEnv } = React.useContext(MapEditorContext);
+//   const { falcor, falcorCache } = useFalcor();
+//   const { view_id } = layer;
+
+//   const { zoomToFit } = React.useMemo(() => ({
+//     zoomToFit: get(state,`symbology.zoomToFit`),
+//   }),[state]);
+
+//   React.useEffect(() => {
+//     if(view_id) {
+//       falcor.get([
+//           "dama", pgEnv, "views", "byId", view_id, "attributes", "metadata"
+//       ]);
+//     }
+//   },[view_id]);
+
+//   const viewMetadata = React.useMemo(() => {
+//     let out = get(falcorCache, [
+//         "dama", pgEnv, "views", "byId", view_id, "attributes", "metadata", "value", "columns"
+//     ], []);
+//     if(out.length === 0) {
+//       out = get(falcorCache, [
+//         "dama", pgEnv, "views", "byId", view_id, "attributes", "metadata", "value"
+//       ], []);
+//     }
+//     return out;
+//   }, [view_id, falcorCache]);
+
+//   const extent = React.useMemo(() => {
+//     return viewMetadata['extent'];
+//   }, [viewMetadata]);
+
+//   React.useEffect(() => {
+//     const getExtent = async () => {
+//       const newOptions = JSON.stringify({
+//       })
+//       const resp = await falcor.get([
+//         'dama',pgEnv,'viewsbyId', view_id, 'options', newOptions, 'databyIndex',{ },['ST_AsGeojson(ST_Extent(wkb_geometry)) as bextent']
+//       ]);
+//       const newExtent = get(resp, ['json','dama',pgEnv,'viewsbyId', view_id, 'options', newOptions, 'databyIndex',0,['ST_AsGeojson(ST_Extent(wkb_geometry)) as bextent'] ])
+//       falcor.call(
+//         ["dama", "views", "metadata", "update"],
+//         [pgEnv, view_id, { extent: newExtent }]
+//       )//.then(res => console.log("resp from saving view extent:", res))
+//     }
+//     if(Object.keys(viewMetadata).length > 0 && !extent) {
+//       getExtent()
+//     }
+//   }, [viewMetadata, extent]);
+
+//   const extentBox = React.useMemo(() => {
+//     if (extent) {
+//       const parsedExtent = JSON.parse(extent);      
+//       const coordinates = parsedExtent.coordinates[0];
+//       const mapGeom = coordinates.reduce((bounds, coord) => {
+//         return bounds.extend(coord);
+//       }, new mapboxgl.LngLatBounds(coordinates[0], coordinates[0]));
+//       return [mapGeom['_sw'], mapGeom['_ne']]
+//     } else {
+//       return null;
+//     }
+//   }, [extent]);
+
+//   const isZoomActive = isEqual(JSON.stringify(zoomToFit), JSON.stringify(extentBox));
+
+//   return (
+//   <SquarePlusSolid size={20}
+//     onClick={() => {
+//       setState(draft => {
+//         if(isZoomActive){
+//           set(draft,`symbology.zoomToFit`,[]);
+//         }
+//         else {
+//           set(draft,`symbology.zoomToFit`,extentBox);
+//         }
+//       })
+//     }}
+//     className={` ${activeLayer == layer.id ? 'fill-pink-100' : 'fill-white'} collapse group-hover:visible cursor-pointer group-hover:fill-gray-400 group-hover:hover:fill-pink-700`}
+//     />
+// )}
 
 function VisibilityButton ({layer}) {
   const { state, setState  } = React.useContext(SymbologyContext);

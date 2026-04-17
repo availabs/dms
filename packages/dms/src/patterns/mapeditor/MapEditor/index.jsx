@@ -135,61 +135,66 @@ export const MAP_STYLES = [
 
 const MapEditor = props => {
   const mounted = React.useRef(false);
-  const { falcor, falcorCache, pgEnv, baseUrl } = React.useContext(MapEditorContext);
+  const { useFalcor, pgEnv, baseUrl } = React.useContext(MapEditorContext);
+  const { falcor, falcorCache } = useFalcor();
   const navigate = useNavigate();
   const { id: symbologyId } = props.params;
 
 // console.log("MapEditor::props", props);
 // console.log("MapEditor::symbologyId", symbologyId);
 
-  React.useEffect(() => {
-    if (symbologyId) {
-      falcor.get([
-        "dama", pgEnv, "symbologies", "byId", symbologyId,
-        "attributes", Object.values(DamaSymbologyAttributes)
-      ]);
-    }
-  }, [falcor, symbologyId, pgEnv]);
+  // React.useEffect(() => {
+  //   if (symbologyId) {
+  //     falcor.get([
+  //       "dama", pgEnv, "symbologies", "byId", symbologyId,
+  //       "attributes", Object.values(DamaSymbologyAttributes)
+  //     ]);
+  //   }
+  // }, [falcor, symbologyId, pgEnv]);
 
-  React.useEffect(() => {
-    const symbologyLengthPath = ["dama", pgEnv, "symbologies", "length"];
+  // React.useEffect(() => {
+  //   const symbologyLengthPath = ["dama", pgEnv, "symbologies", "length"];
 
-    falcor.get(symbologyLengthPath)
-      .then(res => {
-        const length = get(res.json, symbologyLengthPath, 0);
-        if (length) {
-          falcor.get([
-            "dama", pgEnv, "symbologies",
-            "byIndex", { from: 0, to: length - 1 },
-            "attributes", DamaSymbologyAttributes
-          ]);
-        }
-      });
-  }, [falcor, pgEnv]);
+  //   falcor.get(symbologyLengthPath)
+  //     .then(res => {
+  //       const length = get(res.json, symbologyLengthPath, 0);
+  //       if (length) {
+  //         falcor.get([
+  //           "dama", pgEnv, "symbologies",
+  //           "byIndex", { from: 0, to: length - 1 },
+  //           "attributes", DamaSymbologyAttributes
+  //         ]);
+  //       }
+  //     });
+  // }, [falcor, pgEnv]);
 
-  const damaSymbologies = React.useMemo(() => {
-    return Object.values(get(falcorCache, ["dama", pgEnv, "symbologies", "byIndex"], {}))
-      .map(v => getAttributes(get(falcorCache, v.value, { "attributes": {} })["attributes"]))
-      .filter(v => Object.keys(v).length > 0)
-      .map(sym => ({
-        ...sym,
-        id: sym.symbology_id,
-        symbology: {
-          ...sym.symbology,
-          isDamaSymbology: true
-        }
-      }));
-  }, [falcorCache, pgEnv]);
+  // const damaSymbologies = React.useMemo(() => {
+  //   return Object.values(get(falcorCache, ["dama", pgEnv, "symbologies", "byIndex"], {}))
+  //     .map(v => getAttributes(get(falcorCache, v.value, { "attributes": {} })["attributes"]))
+  //     .filter(v => Object.keys(v).length > 0)
+  //     .map(sym => ({
+  //       ...sym,
+  //       id: sym.symbology_id,
+  //       symbology: {
+  //         ...sym.symbology,
+  //         isDamaSymbology: true
+  //       }
+  //     }));
+  // }, [falcorCache, pgEnv]);
 
-  const dmsSymbologies = React.useMemo(() => {
-    return [...props.dataItems];
-  }, [props.dataIems]);
+  // const dmsSymbologies = React.useMemo(() => {
+  //   return [...props.dataItems];
+  // }, [props.dataItems]);
 
-  const symbologies = React.useMemo(() => {
-    return [...dmsSymbologies, ...damaSymbologies];
-  }, [damaSymbologies, dmsSymbologies]);
+  // const symbologies = React.useMemo(() => {
+  //   return [...dmsSymbologies, ...damaSymbologies];
+  // }, [damaSymbologies, dmsSymbologies]);
 
 // console.log("MapEditor::symbologies", symbologies);
+
+  const symbologies = React.useMemo(() => {
+    return [...props.dataItems];
+  }, [props.dataItems]);
 
   /**
    * Uses the url param to query the DB
@@ -562,7 +567,7 @@ const MapEditor = props => {
     //console.log('getmetadat', sourceId)
     if (sourceId) {
       falcor.get([
-          "dama", pgEnv, "sources", "byId", sourceId, "attributes", Object.values(SourceAttributes)
+          "uda", pgEnv, "sources", "byId", sourceId, Object.values(SourceAttributes)
       ])//.then(d => console.log('source metadata sourceId', sourceId, d));
     }
   },[falcor, sourceId]);
@@ -570,51 +575,41 @@ const MapEditor = props => {
   const metadata = React.useMemo(() => {
     //console.log('getmetadata', falcorCache)
       let out = get(falcorCache, [
-          "dama", pgEnv, "sources", "byId", sourceId, "attributes", "metadata", "value", "columns"
+          "uda", pgEnv, "sources", "byId", sourceId, "metadata", "value", "columns"
       ], [])
-      if(out.length === 0) {
+      if (out.length === 0) {
         out = get(falcorCache, [
-          "dama", pgEnv, "sources", "byId", sourceId, "attributes", "metadata", "value"
+          "uda", pgEnv, "sources", "byId", sourceId, "metadata", "value"
         ], [])
       }
-      return out
+      return out;
+  }, [pgEnv, sourceId, falcorCache]);
 
-  }, [pgEnv, sourceId, falcorCache])
-
+// console.log("MapEditor::index::metadata", metadata);
 
   //----------------------------------
   // -- get selected source views
   // ---------------------------------
   React.useEffect(() => {
-    // async function fetchData() {
-    //   const lengthPath = ["dama", pgEnv, "sources", "byId", sourceId, "views", "length"];
-    //   const resp = await falcor.get(lengthPath);
-    //   return await falcor.get([
-    //     "dama", pgEnv, "sources", "byId", sourceId, "views", "byIndex",
-    //     { from: 0, to: get(resp.json, lengthPath, 0) - 1 },
-    //     "attributes", Object.values(ViewAttributes)
-    //   ]);
-    // }
-    // if(sourceId) {
-    //   fetchData();
-    // }
     if (sourceId) {
-      const lengthPath = ["dama", pgEnv, "sources", "byId", sourceId, "views", "length"];
+      const lengthPath = ["uda", pgEnv, "sources", "byId", sourceId, "views", "length"];
       falcor.get(lengthPath)
         .then(res => {
           falcor.get([
-            "dama", pgEnv, "sources", "byId", sourceId, "views", "byIndex",
+            "uda", pgEnv, "sources", "byId", sourceId, "views", "byIndex",
             { from: 0, to: get(res?.json, lengthPath, 0) - 1 },
-            "attributes", Object.values(ViewAttributes)
+            Object.values(ViewAttributes)
           ]);
         });
     }
   }, [sourceId, falcor, pgEnv]);
 
   const views = React.useMemo(() => {
-    return Object.values(get(falcorCache, ["dama", pgEnv, "sources", "byId", sourceId, "views", "byIndex"], {}))
-      .map(v => getAttributes(get(falcorCache, v.value, { "attributes": {} })["attributes"]));
+    return Object.values(get(falcorCache, ["uda", pgEnv, "sources", "byId", sourceId, "views", "byIndex"], {}))
+      .map(v => getAttributes(get(falcorCache, v.value, {})));
   }, [falcorCache, sourceId, pgEnv]);
+
+// console.log("MapEditor::index::views", views);
 
   const prevViewGroupId = usePrevious(viewGroupId);
   React.useEffect(() => {
@@ -678,18 +673,25 @@ const MapEditor = props => {
             domainOptions['viewId'] = viewGroupId;
           }
 
-          setState(draft => {
-            set(draft, `${pathBase}['is-loading-colorbreaks']`, true)
-          })
-          const res = await falcor.get([
-            "dama", pgEnv, "symbologies", "byId", symbology_id, "colorDomain", "options", JSON.stringify(domainOptions)
-          ]);
-          colorBreaks = get(res, [
-            "json","dama", pgEnv, "symbologies", "byId", symbology_id, "colorDomain", "options", JSON.stringify(domainOptions)
-          ])
-          setState(draft => {
-            set(draft, `${pathBase}['is-loading-colorbreaks']`, false)
-          })
+// NEEDS NEW DMS ROUTES...MAYBE???
+// NEEDS NEW DMS ROUTES...MAYBE???
+// NEEDS NEW DMS ROUTES...MAYBE???
+          // setState(draft => {
+          //   set(draft, `${pathBase}['is-loading-colorbreaks']`, true)
+          // })
+          // const res = await falcor.get([
+          //   "dama", pgEnv, "symbologies", "byId", symbology_id, "colorDomain", "options", JSON.stringify(domainOptions)
+          // ]);
+          // colorBreaks = get(res, [
+          //   "json","dama", pgEnv, "symbologies", "byId", symbology_id, "colorDomain", "options", JSON.stringify(domainOptions)
+          // ])
+          // setState(draft => {
+          //   set(draft, `${pathBase}['is-loading-colorbreaks']`, false)
+          // })
+// NEEDS NEW DMS ROUTES...MAYBE???
+// NEEDS NEW DMS ROUTES...MAYBE???
+// NEEDS NEW DMS ROUTES...MAYBE???
+
         }
         //console.log("colorBreaks['breaks']",colorBreaks['breaks'])
         let {paint, legend} = choroplethPaint(baseDataColumn, colorBreaks['max'], colorrange, numbins, method, colorBreaks['breaks'], showOther, legendOrientation);

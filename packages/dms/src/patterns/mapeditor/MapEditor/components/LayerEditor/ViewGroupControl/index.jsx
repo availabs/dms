@@ -13,7 +13,8 @@ const getDiffColumns = (baseArray, subArray) => {
 }
 const ViewGroupControl = ({path, datapath, params={}}) => {
   const { state, setState } = useContext(SymbologyContext);
-  const { falcor, falcorCache, pgEnv } = useContext(MapEditorContext);
+  const { useFalcor, pgEnv } = useContext(MapEditorContext);
+  const { falcor, falcorCache } = useFalcor();
   const { UI } = useContext(ThemeContext) || {};
   const { DndList } = UI;
   const pathBase = params?.version === "interactive"
@@ -49,12 +50,12 @@ const ViewGroupControl = ({path, datapath, params={}}) => {
   useEffect(() => {
     async function fetchData() {
       //console.time("fetch data");
-      const lengthPath = ["dama", pgEnv, "sources", "byId", sourceId, "views", "length"];
+      const lengthPath = ["uda", pgEnv, "sources", "byId", sourceId, "views", "length"];
       const resp = await falcor.get(lengthPath);
       return await falcor.get([
-        "dama", pgEnv, "sources", "byId", sourceId, "views", "byIndex",
+        "uda", pgEnv, "sources", "byId", sourceId, "views", "byIndex",
         { from: 0, to: get(resp.json, lengthPath, 0) - 1 },
-        "attributes", Object.values(ViewAttributes)
+        Object.values(ViewAttributes)
       ]);
     }
     if(sourceId) {
@@ -63,8 +64,8 @@ const ViewGroupControl = ({path, datapath, params={}}) => {
   }, [sourceId, falcor, pgEnv]);
 
   const views = useMemo(() => {
-    return Object.values(get(falcorCache, ["dama", pgEnv, "sources", "byId", sourceId, "views", "byIndex"], {}))
-      .map(v => getAttributes(get(falcorCache, v.value, { "attributes": {} })["attributes"]));
+    return Object.values(get(falcorCache, ["uda", pgEnv, "sources", "byId", sourceId, "views", "byIndex"], {}))
+      .map(v => getAttributes(get(falcorCache, v.value, {})));
   }, [falcorCache, sourceId, pgEnv]);
 
   const viewIds = views.map(v => v.view_id);

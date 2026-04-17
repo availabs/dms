@@ -13,7 +13,8 @@ const getDiffColumns = (baseArray, subArray) => {
 }
 function CategoryControl({path, params={}}) {
   const { state, setState } = React.useContext(SymbologyContext);
-  const { falcor, falcorCache, pgEnv } = React.useContext(MapEditorContext);
+  const { useFalcor, pgEnv } = React.useContext(MapEditorContext);
+  const { falcor, falcorCache } = useFalcor();
   const { UI } = React.useContext(ThemeContext) || {};
   const { DndList } = UI;
 
@@ -39,18 +40,18 @@ function CategoryControl({path, params={}}) {
   useEffect(() => {
     if(sourceId) {
       falcor.get([
-          "dama", pgEnv, "sources", "byId", sourceId, "attributes", "metadata"
+          "uda", pgEnv, "sources", "byId", sourceId, "metadata"
       ])
     }
   },[sourceId])
 
   const metadataLookup = useMemo(() => {
       let out = get(falcorCache, [
-          "dama", pgEnv, "sources", "byId", sourceId, "attributes", "metadata", "value", "columns"
+          "uda", pgEnv, "sources", "byId", sourceId, "metadata", "value", "columns"
       ], [])
       if(out.length === 0) {
         out = get(falcorCache, [
-          "dama", pgEnv, "sources", "byId", sourceId, "attributes", "metadata", "value"
+          "uda", pgEnv, "sources", "byId", sourceId, "metadata", "value"
         ], [])
       }
       return JSON.parse((out.filter(d => d.name === column)?.[0] || {})?.meta_lookup || "{}")

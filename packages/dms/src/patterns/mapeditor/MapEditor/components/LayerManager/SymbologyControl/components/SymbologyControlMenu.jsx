@@ -21,7 +21,8 @@ export function SymbologyControlMenu({ button, className }) {
 }
 
 const DeleteSymbologyModal = ({open, setOpen}) => {
-  const { app, type, falcor, baseUrl, params } = React.useContext(MapEditorContext);
+  const { app, type, useFalcor, baseUrl, params } = React.useContext(MapEditorContext);
+  const { falcor } = useFalcor();
   const { UI } = React.useContext(ThemeContext) || {};
   const { Button } = UI;
   const { id: symbologyId } = params;
