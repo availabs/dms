@@ -273,7 +273,7 @@ export const extractNormalFiltersFromGroups = (node) => {
 
 const isGroup = (node) => node?.groups && Array.isArray(node.groups);
 
-export const applyTableAliasToJoin = (filterTree, join) => {
+export const applyTableAliasToJoin = (filterTree, sourceIdToAlias) => {
     if (!filterTree) return filterTree;
 
   const applyToNode = (node) => {
@@ -283,27 +283,22 @@ export const applyTableAliasToJoin = (filterTree, join) => {
 
     let newNode = { ...node };
 
-    let prefix;
-    if(join.sources.table2.source === node.source_id){
-      prefix = "table2"
-    } else {
-      prefix = "ds"
-    }
+    const prefix = sourceIdToAlias[node.source_id] || "ds";
 
     // Always alias 'col' if it exists
     if (newNode.col) {
-      newNode.col = `${prefix}.${newNode.col}`;
+      newNode.col = `${prefix}.${newNode.col.split('.').pop()}`;
     }
 
     // Alias 'searchParamKey' if it exists to allow PageFilter application to find it
     if (newNode.searchParamKey) {
-      newNode.searchParamKey = `${prefix}.${newNode.searchParamKey}`;
+      newNode.searchParamKey = `${prefix}.${newNode.searchParamKey.split('.').pop()}`;
     }
 
     return newNode;
   };
 
-  return applyToNode(filterTree, join);
+  return applyToNode(filterTree, sourceIdToAlias);
 }
 
 
@@ -820,8 +815,13 @@ export const buildUdaConfig = ({
   let filterTree = filters || {};
 
   // If join is present, append table alias to filter columns
-  if(isJoinPresent) {
-    filterTree = applyTableAliasToJoin(filterTree, join)
+  if (isJoinPresent) {
+    const sourceIdToAlias = Object.keys(join.sources).reduce((acc, alias) => {
+        const source_id = join.sources[alias].source || externalSource.source_id;
+        acc[source_id] = alias;
+        return acc;
+    }, {});
+    filterTree = applyTableAliasToJoin(filterTree, sourceIdToAlias);
   }
   console.log("filter tree after apply join alias::", filterTree)
   if (pageFilters && Object.keys(pageFilters).length) {

@@ -1117,11 +1117,9 @@ describe("buildJoin", () => {
 // ─── applyTableAliasToJoin ───────────────────────────────────────────────────
 
 describe("applyTableAliasToJoin", () => {
-  const joinConfig = {
-    sources: {
-      ds: { joinColumn: { name: "id", source_id: 1 } },
-      table2: { source: 2, view: 202, joinColumn: { name: "region_id", source_id: 2 } },
-    },
+  const sourceIdToAlias = {
+    1: "ds",
+    2: "table2",
   };
 
   it("applies 'ds' alias to columns from externalSource", () => {
@@ -1131,7 +1129,7 @@ describe("applyTableAliasToJoin", () => {
       op: "filter",
       value: ["val1"],
     };
-    const result = applyTableAliasToJoin(filterTree, joinConfig);
+    const result = applyTableAliasToJoin(filterTree, sourceIdToAlias);
     expect(result.col).toBe("ds.columnA");
   });
 
@@ -1142,7 +1140,7 @@ describe("applyTableAliasToJoin", () => {
       op: "filter",
       value: ["val2"],
     };
-    const result = applyTableAliasToJoin(filterTree, joinConfig);
+    const result = applyTableAliasToJoin(filterTree, sourceIdToAlias);
     expect(result.col).toBe("table2.columnB");
   });
 
@@ -1160,7 +1158,7 @@ describe("applyTableAliasToJoin", () => {
         },
       ],
     };
-    const result = applyTableAliasToJoin(filterTree, joinConfig);
+    const result = applyTableAliasToJoin(filterTree, sourceIdToAlias);
     expect(result.groups[0].col).toBe("ds.columnA");
     expect(result.groups[1].groups[0].col).toBe("table2.columnB");
     expect(result.groups[1].groups[1].col).toBe("ds.columnC");
@@ -1174,13 +1172,13 @@ describe("applyTableAliasToJoin", () => {
       value: ["val1"],
       searchParamKey: "searchA",
     };
-    const result = applyTableAliasToJoin(filterTree, joinConfig);
+    const result = applyTableAliasToJoin(filterTree, sourceIdToAlias);
     expect(result.searchParamKey).toBe("ds.searchA");
     expect(result.col).toBe("ds.columnA"); // col should also be aliased
   });
 
   it("returns null filterTree unchanged", () => {
-    const result = applyTableAliasToJoin(null, joinConfig);
+    const result = applyTableAliasToJoin(null, sourceIdToAlias);
     expect(result).toBeNull();
   });
 });
