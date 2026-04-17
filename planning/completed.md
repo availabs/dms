@@ -53,6 +53,7 @@
 ## project maintenance
 
 - [vite-8-upgrade.md](./tasks/completed/vite-8-upgrade.md) - Upgrade to Vite 8: Rolldown replaces esbuild+Rollup, `rollupOptions`→`rolldownOptions`, React Compiler via `@rolldown/plugin-babel` + `reactCompilerPreset`, removed `vite-plugin-top-level-await` (native Rolldown), Yjs dedup alias, dev server 457ms, production build 54s (2026-03-17)
+- [package-json-cleanup.md](./tasks/completed/package-json-cleanup.md) - package.json cleanup: removed unused root deps (`@heroicons`, `@hello-pangea/dnd`, `react-redux`, `vite-plugin-top-level-await`, duplicated `compression`/`express`); added missing deps to `@availabs/dms` (`react-dom`, `y-protocols`); bumped `@types/react` 18→19; npm workspaces migration (outer root claims `src/dms/packages/*`, submodule root drops workspaces); deleted `forms_bak/` + dropped `react-table`/`react-popper` (removes all ERESOLVE peer noise, no `.npmrc` hack needed); deleted `componentsIndexTable` + 2 dead `FilterableSearch` files; pinned `@carbon/icons-react@11.76.0` after 11.78 broke Rolldown tree-shaking (~1.4 MB saved minified); added `engines: node>=20.17` to both dms packages; docker verified unaffected (2026-04-17)
 
 ## type system
 

@@ -134,3 +134,4 @@
 
 - [x] Upgrade to Vite 8 — Rolldown replaces esbuild+Rollup, rename rollupOptions→rolldownOptions, update React Compiler to use @rolldown/plugin-babel + reactCompilerPreset, verify CJS interop and WASM plugins
 - [ ] Vite HMR / Fast Refresh fixes — fix ~127 files with patterns that break hot module reload (mixed exports, anonymous components, object-wrapped exports, wrong file extensions)
+- [x] package.json cleanup — consolidate deps across `dms-template` root, `@availabs/dms`, `@availabs/dms-server`; npm workspaces migration; React 19 / `@types/react` 19 alignment; delete `forms_bak/` + drop `react-table`/`react-popper`; pin `@carbon/icons-react@11.76.0` (11.78 broke Rolldown tree-shaking); vendor chunk ~1.4 MB smaller minified; prep for 2.0 publish

@@ -3,17 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "description": "AVAIL Data Management System Monorepo",
-  "workspaces": [
-    "packages/*"
-  ],
   "scripts": {
-    "build": "npm run build --workspaces --if-present",
-    "build:dms": "npm run build -w @availabs/dms",
-    "build:server": "npm run build -w @availabs/dms-server --if-present",
-    "start:server": "npm run start -w @availabs/dms-server",
-    "dev:server": "npm run dev -w @availabs/dms-server",
-    "publish:dms": "npm run publish-it -w @availabs/dms",
-    "publish:server": "npm publish -w @availabs/dms-server --access public"
+    "build:dms": "cd packages/dms && npm run build",
+    "build:server": "cd packages/dms-server && npm run build --if-present",
+    "start:server": "cd packages/dms-server && npm start",
+    "dev:server": "cd packages/dms-server && npm run dev",
+    "publish:dms": "cd packages/dms && npm run publish-it",
+    "publish:server": "cd packages/dms-server && npm publish --access public"
   },
   "repository": {
     "type": "git",
