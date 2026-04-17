@@ -191,7 +191,7 @@ const Edit = forwardRef((props, ref) => {
             filters: state.filters || { op: 'AND', groups: [] },
             display: { ...(state.display || {}) },
             data: state.data || [],
-            join: state.join || {sources: {ds: {}, table2:{columns: []}}},
+            join: state.join || {sources: {}},
         };
         if (state.dataSourceId) toSave.dataSourceId = state.dataSourceId;
         RUNTIME_DISPLAY_FIELDS.forEach(f => delete toSave.display[f]);

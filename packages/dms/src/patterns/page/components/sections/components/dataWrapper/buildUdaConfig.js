@@ -550,56 +550,59 @@ const buildNormalFilterColumns = (
 
 // ─── Joins ────────────────────────────────────────
 
-export const buildJoin = ({join, externalSource}) => {
-  console.log("IN BUILD JOIN NEW FUNC::", join, externalSource)
+export const buildJoin = ({ join, externalSource }) => {
   return {
-    sources: buildJoinSources({join, externalSource}),
-    on: [
-      buildJoinOnClause({join, externalSource})
-    ]
+    sources: buildJoinSources({ join, externalSource }),
+    on: buildJoinOnClause({ join, externalSource }),
   };
-}
+};
 
 /**
- * TODO does not work with udaConfig as join source
- * key of sources is the "alias" given to each source. Eventually this should come from user
+ * key of sources is the "alias" given to each source.
  * value is either { view_id: 1648, env: "dama" }, or an udaConfig
  */
-export const buildJoinSources = ({join, externalSource}) => {
-  const { sources } = join; 
+export const buildJoinSources = ({ join, externalSource }) => {
+  const { sources } = join;
   return Object.keys(sources).reduce((acc, curKey) => {
+    // If curKey is 'ds', this is our primary/base source.
+    if (curKey === 'ds') return acc;
+
     const curSource = sources[curKey].source ? sources[curKey] : externalSource;
-    console.log({curSource})
     acc[curKey] = {
       view_id: curSource.view || curSource.view_id,
-      env: curSource?.env || curSource?.sourceInfo?.env 
-    }
+      env: curSource?.env || curSource?.sourceInfo?.env,
+    };
 
     return acc;
   }, {});
 };
 
+/**
+ * Builds the join 'on' clauses.
+ * Returns an array of join conditions, one for each extra source.
+ */
 export const buildJoinOnClause = ({ join, externalSource }) => {
-  //TODO get type of join from user;
-  //TODO get operator from user
-  const { type = "left", sources, operator = "=" } = join; 
-  const tableAliases = Object.keys(sources);
-  const aliasedColumnNames = tableAliases.map((sourceAlias) =>
-    buildJoinColumn({
-      sourceAlias,
-      column: sources[sourceAlias]?.joinColumn?.name,
-    }),
-  );
+  const { type = "left", sources, operator = "=" } = join;
 
-  return {
-    type,
-    tables: tableAliases,
-    on: aliasedColumnNames.join(` ${operator} `)
-  };
+  // The 'ds' is our base table. We join every other source onto it.
+  return Object.keys(sources)
+    .filter((alias) => alias !== "ds")
+    .map((sourceAlias) => {
+      // Find the joinColumns for this specific source
+      const sourceJoinColumns = sources[sourceAlias].joinColumns || [];
+
+      // Each sourceAlias should have a corresponding join condition string
+      const conditions = sourceJoinColumns.map(
+        (col) => `ds.${col.dsColumn} ${operator} ${sourceAlias}.${col.joinSourceColumn}`
+      );
+
+      return {
+        type,
+        table: sourceAlias,
+        on: conditions.join(" AND "),
+      };
+    });
 };
-
-export const buildJoinColumn = ({sourceAlias, column}) => `${sourceAlias}.${column}`
-
 // ─── Output source info (Phase 4: chainability) ────────────────────────────
 
 /**
@@ -715,33 +718,24 @@ export const buildUdaConfig = ({
   join,
   pageFilters,
 }) => {
-  //RYAN TODO -- better join conditional. If initial state gets changed to `null`, this is much cleaner
-  const isJoinPresent = !!join && join?.sources?.table2?.view;
+  // A join is present if we have sources other than the base 'ds'
+  const isJoinPresent = !!join && Object.keys(join.sources || {}).length > 1;
   
   const isDms = externalSource?.isDms;
 
 
-  // const sourceColumns = isJoinPresent
-  //   ? [
-  //       ...Object.keys(join?.sources)
-  //         .map((jSourceKey) => join?.sources[jSourceKey].sourceInfo?.columns?.map((col) => ({...col, name: `${jSourceKey}.${col.name}` })))
-  //         .flat(),
-  //     ]
-  //   : externalSource?.columns;
-
   //ryan todo move this into a function
   //I need source_id to table_alias
-  const sourceIdToTableAlias = isJoinPresent ? Object.keys(join.sources).reduce((acc, curr) => {
-    const curJoinSource = join.sources[curr];
-    const source_id = curJoinSource.source || externalSource.source_id
-    const alias = curJoinSource.source ? curr : 'ds'
-
-    acc[source_id] = alias
+  const sourceIdToTableAlias = isJoinPresent ? Object.keys(join.sources).reduce((acc, alias) => {
+    const curJoinSource = join.sources[alias];
+    const source_id = curJoinSource.source || externalSource.source_id;
+    acc[source_id] = alias;
     return acc;
   },{}) : {};
-  console.log({sourceIdToTableAlias})
-  const joinColumns = isJoinPresent? Object.values(join.sources).filter(jSource => !!jSource.sourceInfo).map(jSource => jSource.sourceInfo.columns).flat() : [];
-  const allCols = [...externalSource?.columns, ...joinColumns]
+  
+  const joinColumns = isJoinPresent ? Object.values(join.sources).filter(jSource => Object.keys(jSource.sourceInfo || {}).length).map(jSource => jSource.sourceInfo.columns).flat() : [];
+  
+  const allCols = [...(externalSource?.columns || []), ...joinColumns];
   const sourceColumns = allCols.map((col) => {
     const colSourceId = col.source_id || externalSource.source_id;
     return ({ ...col, name: isJoinPresent ? `${sourceIdToTableAlias[colSourceId]}.${col.name}` : col.name })
@@ -750,8 +744,6 @@ export const buildUdaConfig = ({
     const colSourceId = col.source_id || externalSource.source_id;
     return ({ ...col, name: isJoinPresent ? `${sourceIdToTableAlias[colSourceId]}.${col.name}` : col.name })
   });;
-
-  console.log({columns, sourceColumns})
 
 
 
@@ -816,10 +808,11 @@ export const buildUdaConfig = ({
 
   // If join is present, append table alias to filter columns
   if (isJoinPresent) {
+    // Dynamically build alias map from all join sources
     const sourceIdToAlias = Object.keys(join.sources).reduce((acc, alias) => {
-        const source_id = join.sources[alias].source || externalSource.source_id;
-        acc[source_id] = alias;
-        return acc;
+      const source_id = join.sources[alias].source || externalSource.source_id;
+      acc[source_id] = alias;
+      return acc;
     }, {});
     filterTree = applyTableAliasToJoin(filterTree, sourceIdToAlias);
   }

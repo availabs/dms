@@ -508,16 +508,34 @@ function buildCombinedWhere({ filter, exclude, gt, gte, lt, lte, like, filterRel
 
 
 const buildJoin = async ({join, env}) => {
+  console.log("build join, join::", join)
   //RYAN TODO -- better join conditional. If initial state gets changed to `null`, this is much cleaner
-  const isJoinPresent = !!join && join?.sources?.ds.view_id;
+  const isJoinPresent =
+    (!!join && Object.keys(join.sources || {}).length > 1) ||
+    (Object.keys(join.sources || {}).length === 1 && Object.keys(join.sources || {})[0] !== "ds");
 
   if(!isJoinPresent) return '';
 
-  const joinType = join.on[0].type === 'left' ? 'LEFT JOIN' : 'INNER JOIN';
+  const allOnClause = []
+  for(let i=0; i< join.on.length; i++) {
+    const singleJoinOnConfig = join.on[i];
 
-  const {table_schema, table_name} = await getEssentials({view_id: join.sources.table2.view_id, env})
-  console.log({table_schema, table_name})
-  return `${joinType} ${table_schema}.${table_name} as table2 ON ${join.on[0].on}`
+    const joinType = singleJoinOnConfig.type === 'left' ? 'LEFT JOIN' : 'INNER JOIN';
+
+    const {view_id, env} = join.sources[singleJoinOnConfig.table];
+
+    const {table_schema, table_name} = await getEssentials({view_id, env})
+    console.log({table_schema, table_name})
+    allOnClause.push(`${joinType} ${table_schema}.${table_name} as ${singleJoinOnConfig.table} ON ${singleJoinOnConfig.on}`);
+  }
+
+
+  join.on.map(singleJoinConfig => {
+
+  })
+
+
+  return allOnClause.join('\n')
 }
 
 

@@ -9,7 +9,7 @@ export const Attribution = () => {
     const { theme = { attribution: attributionTheme } } = React.useContext(ThemeContext) || {}
     // baseUrl is now included in externalSource by useDataSource.js
     const {state:{ externalSource, join}} = useContext(ComponentContext);
-    const isJoinPresent = !!join && join?.sources?.table2?.view;
+    const isJoinPresent = !!join && Object.keys(join.sources || {}).length > 1;
     if (isJoinPresent) {
         //need a row for each source in join
         const attribRows = Object.keys(join.sources).map((sourceAlias) => {

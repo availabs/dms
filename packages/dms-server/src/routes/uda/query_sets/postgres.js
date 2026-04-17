@@ -54,8 +54,6 @@ function translatePgToSqlite(expr) {
 async function simpleFilterLength(ctx, options) {
   const { isDms, db, app, type, table_schema, table_name } = ctx;
 
-
-
   let {
     filter = {}, exclude = {},
     gt = {}, gte = {}, lt = {}, lte = {}, like = {},
@@ -102,7 +100,7 @@ async function simpleFilterLength(ctx, options) {
     hasArrayElements && sanitizeName(groupBy?.[0])
       ? `WITH t AS (
            SELECT DISTINCT ${groupBy[0]}
-           FROM ${table_schema}.${table_name}
+           FROM ${table_schema}.${table_name} ${joinClause.length > 0 ? ' as ds ' : ''}
            ${joinClause}
            ${combinedWhere}
            GROUP BY 1
@@ -114,7 +112,7 @@ async function simpleFilterLength(ctx, options) {
                .map(c => `CASE WHEN ${c} IS NULL THEN '__NULL__VAL__' ELSE ${typeCast(c, 'TEXT', db.type)} END`)
                .join(`|| '-' ||`)}`
            : 1}) numrows
-         FROM ${table_schema}.${table_name}
+         FROM ${table_schema}.${table_name} ${joinClause.length > 0 ? ' as ds ' : ''}
          ${joinClause}
          ${combinedWhere}
          ${handleHaving(having)}`;
@@ -129,7 +127,7 @@ async function simpleFilter(ctx, options, attributes, indices) {
   const num = indices.to - indices.from + 1;
   const { isDms, db, app, type, table_schema, table_name, dmsAttributes } = ctx;
 
-  let sanitizedAttrs = sanitizeName(attributes).filter(f => f);
+   let sanitizedAttrs = sanitizeName(attributes).filter(f => f);
   if (!sanitizedAttrs.length) return [];
 
   // Translate PG-specific SQL to SQLite equivalents
@@ -181,7 +179,7 @@ async function simpleFilter(ctx, options, attributes, indices) {
 
   const sql = `
     SELECT ${sanitizedAttrs.map(c => quoteAlias(columnNameMap[c] || c)).join(', ')}
-    FROM ${table_schema}.${table_name}
+    FROM ${table_schema}.${table_name} ${joinClause.length > 0 ? ' as ds ' : ''}
     ${joinClause}
     ${combinedWhere}
     ${handleGroupBy(groupBy)}

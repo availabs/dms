@@ -53,7 +53,7 @@ function resolveElementData(elementData, dataSources) {
         filters: ds.filters || ds.dataRequest || {},
         display: parsed.display || {},
         data: parsed.data || [],
-        join: parsed.join || {sources: {ds: {}, table2:{columns: []}}},
+        join: parsed.join || {sources: {}},
     });
 }
 
@@ -111,7 +111,7 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
                             externalSource: parsed.externalSource || parsed.sourceInfo,
                             columns: parsed.columns || [],
                             filters: parsed.filters || parsed.dataRequest || {},
-                            join: parsed?.join || {sources: {ds: {}, table2:{columns: []}}},
+                            join: parsed?.join || {sources: {}},
                         }), 0);
                         // Slim section element-data to reference + display + data
                         v = { ...v, 'element-data': JSON.stringify({
