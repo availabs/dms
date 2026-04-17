@@ -520,13 +520,11 @@ const buildJoin = async ({join, env}) => {
   for(let i=0; i< join.on.length; i++) {
     const singleJoinOnConfig = join.on[i];
 
-    const joinType = singleJoinOnConfig.type === 'left' ? 'LEFT JOIN' : 'INNER JOIN';
-
     const {view_id, env} = join.sources[singleJoinOnConfig.table];
 
     const {table_schema, table_name} = await getEssentials({view_id, env})
     console.log({table_schema, table_name})
-    allOnClause.push(`${joinType} ${table_schema}.${table_name} as ${singleJoinOnConfig.table} ON ${singleJoinOnConfig.on}`);
+    allOnClause.push(`${ singleJoinOnConfig.type } JOIN ${table_schema}.${table_name} as ${singleJoinOnConfig.table} ON ${singleJoinOnConfig.on}`);
   }
 
 

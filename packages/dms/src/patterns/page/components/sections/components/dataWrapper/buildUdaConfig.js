@@ -582,7 +582,7 @@ export const buildJoinSources = ({ join, externalSource }) => {
  * Returns an array of join conditions, one for each extra source.
  */
 export const buildJoinOnClause = ({ join, externalSource }) => {
-  const { type = "left", sources, operator = "=" } = join;
+  const { sources, operator = "=" } = join;
 
   // The 'ds' is our base table. We join every other source onto it.
   return Object.keys(sources)
@@ -590,6 +590,8 @@ export const buildJoinOnClause = ({ join, externalSource }) => {
     .map((sourceAlias) => {
       // Find the joinColumns for this specific source
       const sourceJoinColumns = sources[sourceAlias].joinColumns || [];
+      // Use the user-selected join type, defaulting to 'left'
+      const type = sources[sourceAlias].type || "left";
 
       // Each sourceAlias should have a corresponding join condition string
       const conditions = sourceJoinColumns.map(

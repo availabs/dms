@@ -401,11 +401,12 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
                 onJoinSourceChange(alias, joinVal)
             } else if (path === "view"){
                 onJoinViewChange(alias, joinVal)
-            } else if (path === "joinColumn") {
-                console.log("WARNING, WHY THE FUCK IS THIS BEING SET? WHO IS CALLING WITH THE WRONG KEY")
+            } else if (path === "type") {
                 setState(draft => {
                     set(draft.join.sources[alias], path, joinVal)
                 })
+            } else if (path === "joinColumn") {
+                console.log("WARNING, WHY THE FUCK IS THIS BEING SET? WHO IS CALLING WITH THE WRONG KEY")
             } else if (path === "joinColumns") {
                 setState(draft => {
                     if (!draft.join) draft.join = { sources: {} };
