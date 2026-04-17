@@ -58,12 +58,12 @@ export function DmsSite (config) {
             // Always do the full API fetch — defaultData may only contain a
             // subset of routes (e.g., SSR pre-rendered one pattern but the
             // site has others). The fetch fills in any missing routes.
-            console.time('dmsSite - loading Dynamic Routes', )
+            // console.time('dmsSite - loading Dynamic Routes', )
             const routes = await dmsSiteFactory(routeProps);
             if (!isStale) {
                 setDynamicRoutes(routes);
                 setLoading(false);
-                console.timeEnd('dmsSite - loading Dynamic Routes')
+                // console.timeEnd('dmsSite - loading Dynamic Routes')
             }
         }
         load()
@@ -115,12 +115,12 @@ export function DmsSite (config) {
         const t0 = performance.now();
         import('../../sync/index.js').then(async ({ initSync }) => {
             const tImport = performance.now();
-            console.log(`[sync] module imported (${(tImport - t0).toFixed(0)}ms)`);
+            // console.log(`[sync] module imported (${(tImport - t0).toFixed(0)}ms)`);
             const api = await initSync(app, API_HOST, siteType);
             _setSyncAPI(api);
             setSyncAPIState(api);
             setSyncActive(true);
-            console.log(`[sync] fully wired into DMS (${(performance.now() - t0).toFixed(0)}ms total)`);
+            // console.log(`[sync] fully wired into DMS (${(performance.now() - t0).toFixed(0)}ms total)`);
         }).catch(err =>
             console.warn('[dms] sync init failed:', err.message)
         );

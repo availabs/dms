@@ -113,4 +113,50 @@ function parseRows(filePath, layerName) {
   return lines.map(line => parseCSVRow(line, separator));
 }
 
-module.exports = { canHandle, analyze, parseRows };
+/**
+ * Streaming async generator of row objects keyed by CSV header.
+ * Uses Node's readline so memory stays bounded for large files.
+ *
+ * Note: does not handle literal newlines inside quoted CSV fields — fine
+ * for tabular CSVs like HPMS/NPMRDS but a caveat for free-text exports.
+ *
+ * @param {string} filePath
+ * @param {object} [options]
+ * @param {number} [options.maxRows] - stop after N data rows
+ * @yields {Object} row object keyed by CSV header names
+ */
+async function* parseRowObjectsStream(filePath, options = {}) {
+  const { maxRows = Infinity } = options;
+  const readline = require('readline');
+
+  const readStream = fs.createReadStream(filePath, { encoding: 'utf-8' });
+  const rl = readline.createInterface({ input: readStream, crlfDelay: Infinity });
+
+  let headers = null;
+  let separator = ',';
+  let count = 0;
+
+  try {
+    for await (const line of rl) {
+      if (!line.trim()) continue;
+      if (!headers) {
+        separator = detectSeparator(line, filePath);
+        headers = parseCSVRow(line, separator);
+        continue;
+      }
+      if (count >= maxRows) break;
+      const values = parseCSVRow(line, separator);
+      const obj = {};
+      for (let j = 0; j < headers.length; j++) {
+        obj[headers[j]] = values[j] === undefined ? null : values[j];
+      }
+      yield obj;
+      count++;
+    }
+  } finally {
+    rl.close();
+    readStream.destroy();
+  }
+}
+
+module.exports = { canHandle, analyze, parseRows, parseRowObjectsStream };

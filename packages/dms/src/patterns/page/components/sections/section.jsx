@@ -127,11 +127,13 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
     const updateElementType = (v) => {
         if(!isEqual(value.element['element-type'], v)){
             const newComp = RegisteredComponents[v];
-            if(newComp.useDataSource && newComp.defaultState){
+            if(newComp.useDataSource && !dwHandle?.state?.columns && newComp.defaultState){
                 const elementData = isJson(value.element['element-data']) ? JSON.parse(value.element['element-data']) : {};
-                Object.keys(newComp.defaultState).forEach(newKey => {
-                    elementData[newKey] = newComp.defaultState[newKey];
-                })
+                Object.keys(newComp.defaultState)
+                    .filter(newKey => !elementData[newKey])
+                    .forEach(newKey => {
+                        elementData[newKey] = newComp.defaultState[newKey];
+                    })
                 updateAttribute('element', {...value.element, 'element-type': v, 'element-data': JSON.stringify(elementData)})
             }else{
                 updateAttribute('element', {...value.element, 'element-type': v})

@@ -14,7 +14,7 @@ import updateDMSAttrs from "./updateDMSAttrs.js";
 // Use globalThis to avoid Vite module instance duplication issues —
 // dynamic imports and barrel re-exports can resolve to separate module
 // instances in dev mode, each with their own module-level `let` variables.
-const _DEV = typeof import.meta !== 'undefined' && import.meta.env?.DEV;
+const _DEV = false && typeof import.meta !== 'undefined' && import.meta.env?.DEV;
 export function _setSyncAPI(api) {
   if (!api) return; // Guard: React Strict Mode double-invokes effects
   globalThis.__dmsSyncAPI = api;

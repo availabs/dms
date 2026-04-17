@@ -2,13 +2,20 @@
  * Layer analysis and table descriptor generation.
  * Analyzes a GIS/CSV layer to infer PostgreSQL column types.
  *
- * For GIS files: uses gdal-async to read field types directly.
- * For CSV files: uses ogrinfo with AUTODETECT_TYPE for type inference.
- * Falls back to TEXT for all columns if GDAL is not available.
+ * CSV files: uses the ported legacy `analyzeSchema.js` — per-value state
+ * machine over the first 10K rows. Preserves FIPS/GEOID heuristics,
+ * zero-padding detection, null/nonnull counts, and sample collection for
+ * the UI override pane. Falls back to ogrinfo if `DAMA_CSV_ANALYZER=ogrinfo`.
+ *
+ * GIS files: uses gdal-async to read field types directly.
+ *
+ * Other tabular formats: falls back to ogrinfo AUTODETECT_TYPE.
  */
 
 const { execFileSync } = require('child_process');
+const path = require('path');
 const { gdalAvailable, getGdal } = require('./gdal');
+const analyzeSchema = require('./analyzeSchema');
 
 // OGR field type → PostgreSQL type
 const TYPE_MAP = {
@@ -20,6 +27,18 @@ const TYPE_MAP = {
   'time': 'TIME',
   'datetime': 'TIMESTAMP',
   'binary': 'BYTEA',
+};
+
+// analyzeSchema (legacy) types → PostgreSQL types.
+// INT → INTEGER (int4), BIGINT stays, REAL/DOUBLE/NUMERIC pass through, TEXT stays.
+const LEGACY_TYPE_MAP = {
+  'INT': 'INTEGER',
+  'BIGINT': 'BIGINT',
+  'REAL': 'REAL',
+  'DOUBLE PRECISION': 'DOUBLE PRECISION',
+  'NUMERIC': 'NUMERIC',
+  'TEXT': 'TEXT',
+  'BOOLEAN': 'BOOLEAN',
 };
 
 /**
@@ -39,31 +58,69 @@ function ogrInfoAvailable() {
 
 /**
  * Analyze a specific layer's field types and geometry.
- * Uses gdal-async for GIS files, ogrinfo for CSV/tabular files.
+ *
+ * Routing:
+ *   1. CSV/TSV → legacy analyzeSchema (unless DAMA_CSV_ANALYZER=ogrinfo)
+ *   2. GIS files → gdal-async (if available)
+ *   3. Any file → ogrinfo fallback
+ *
  * @param {string} filePath - Path to the data file
  * @param {string} layerName - Name of the layer to analyze
  * @returns {Object} Analysis result with schemaAnalysis array
  */
 async function analyzeLayer(filePath, layerName) {
-  const ext = require('path').extname(filePath).toLowerCase();
+  const ext = path.extname(filePath).toLowerCase();
   const isTabular = ['.csv', '.tsv'].includes(ext);
+  const forceOgrinfo = process.env.DAMA_CSV_ANALYZER === 'ogrinfo';
 
-  // For CSV: prefer ogrinfo with autodetect (works without gdal-async module)
+  // CSV: use the per-value legacy analyzer by default.
+  if (isTabular && !forceOgrinfo) {
+    return analyzeWithLegacySchema(filePath, layerName);
+  }
+
+  // CSV with explicit ogrinfo override
   if (isTabular && ogrInfoAvailable()) {
     return analyzeWithOgrinfo(filePath, layerName);
   }
 
-  // For GIS files: use gdal-async
+  // GIS files: use gdal-async
   if (gdalAvailable) {
     return analyzeWithGdal(filePath, layerName);
   }
 
-  // If ogrinfo is available for any file type, use it
+  // Fallback: ogrinfo handles any OGR-supported format
   if (ogrInfoAvailable()) {
     return analyzeWithOgrinfo(filePath, layerName);
   }
 
   throw new Error('Layer analysis requires GDAL (gdal-async or ogrinfo on PATH)');
+}
+
+/**
+ * Analyze a CSV via the legacy per-value state machine.
+ * Returns schemaAnalysis entries with null/nonnull counts + sample values.
+ */
+async function analyzeWithLegacySchema(filePath, layerName) {
+  const csvProcessor = require('./processors/csv');
+  const rowIter = csvProcessor.parseRowObjectsStream(filePath, { maxRows: 10000 });
+
+  const { objectsCount, schemaAnalysis } = await analyzeSchema(rowIter);
+
+  // Map legacy types to PG types so the rest of the pipeline sees the same
+  // vocabulary it gets from ogrinfo/gdal.
+  const pgSchemaAnalysis = schemaAnalysis.map(({ key, summary }) => ({
+    key,
+    summary: {
+      ...summary,
+      db_type: LEGACY_TYPE_MAP[summary.db_type] || summary.db_type || 'TEXT',
+    },
+  }));
+
+  return {
+    GEODATASET_ANALYSIS_VERSION: '0.0.2',
+    layerFieldsAnalysis: { objectsCount, schemaAnalysis: pgSchemaAnalysis },
+    layerGeometriesAnalysis: {},
+  };
 }
 
 /**
@@ -197,6 +254,13 @@ function analyzeWithOgrinfo(filePath, layerName) {
 /**
  * Generate a table descriptor from layer metadata and analysis.
  * Maps field names to snake_case PG column names.
+ *
+ * Analysis ↔ metadata pairing: both arrays come from the same CSV header
+ * in the same order, so position is the authoritative link. The UI may
+ * rename `fieldsMetadata[i].name` (e.g. `ttamp80pct` → `ttamp_80_pct`)
+ * without invalidating the type analysis. We still try a name-match
+ * fallback in case lengths differ (columns dropped/reordered in UI).
+ *
  * @param {Object} layerMetadata - From processor.analyze()
  * @param {Object} layerAnalysis - From analyzeLayer()
  * @returns {Object} Table descriptor with columnTypes array
@@ -204,21 +268,36 @@ function analyzeWithOgrinfo(filePath, layerName) {
 function generateTableDescriptor(layerMetadata, layerAnalysis) {
   const { layerName, fieldsMetadata } = layerMetadata;
   const { layerFieldsAnalysis, layerGeometriesAnalysis } = layerAnalysis;
-  const schemaMap = {};
+  const analysisFields = layerFieldsAnalysis?.schemaAnalysis || [];
 
-  if (layerFieldsAnalysis?.schemaAnalysis) {
-    for (const field of layerFieldsAnalysis.schemaAnalysis) {
-      schemaMap[field.key] = field.summary.db_type;
-    }
+  // Name-keyed index for the fallback lookup.
+  const analysisByName = {};
+  for (const af of analysisFields) {
+    analysisByName[af.key] = af;
   }
 
-  // Build column types with deduplication
   const seen = {};
   const columnTypes = [];
 
-  for (const field of (fieldsMetadata || [])) {
+  const metaList = fieldsMetadata || [];
+  for (let i = 0; i < metaList.length; i++) {
+    const field = metaList[i];
+
+    // Primary: pair by index. Fallback: name match (original or current name).
+    let analysisField = analysisFields[i];
+    if (
+      !analysisField ||
+      (analysisField.key !== field.name &&
+        analysisField.key !== field.original_name &&
+        analysisByName[field.name])
+    ) {
+      analysisField = analysisByName[field.name] || analysisField;
+    }
+
+    const summary = analysisField?.summary || {};
+    const dbType = summary.db_type || 'TEXT';
+
     let col = toSnakeCase(field.name);
-    // Deduplicate column names
     if (seen[col]) {
       let suffix = 1;
       while (seen[`${col}_${suffix}`]) suffix++;
@@ -229,7 +308,15 @@ function generateTableDescriptor(layerMetadata, layerAnalysis) {
     columnTypes.push({
       key: field.name,
       col,
-      db_type: schemaMap[field.name] || 'TEXT',
+      db_type: dbType,
+      // Preserve UI-facing fields from the analyzer (null/nonnull counts,
+      // per-type sample values). The legacy DAMA UI reads this shape.
+      summary: {
+        null: summary.null || 0,
+        nonnull: summary.nonnull || 0,
+        types: summary.types || {},
+        db_type: dbType,
+      },
     });
   }
 
