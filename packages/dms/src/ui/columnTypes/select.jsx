@@ -16,7 +16,7 @@ const Alert = (props) => (
 );
 
 
-const Edit = ({value = '', onChange, className, placeholder, displayInvalidMsg=true, options = [], ...rest}) => {
+export const SelectEdit = ({value = '', onChange, className, placeholder, displayInvalidMsg=true, options = [], ...rest}) => {
     // options: ['1', 's', 't'] || [{label: '1', value: '1'}, {label: 's', value: '2'}, {label: 't', value: '3'}]
     const isInvalidValue = value && !options?.find(o => (o.value || o) === value);
     return (
@@ -38,7 +38,7 @@ const Edit = ({value = '', onChange, className, placeholder, displayInvalidMsg=t
     )
 }
 
-const View = ({className, value, options = [], ...rest}) => {
+export const SelectView = ({className, value, options = [], ...rest}) => {
 
     if (!value) return <div className={ `${className || theme?.select?.input}`} />
 
@@ -52,7 +52,3 @@ const View = ({className, value, options = [], ...rest}) => {
     )
 }
 
-export default {
-    "EditComp": Edit,
-    "ViewComp": View
-}

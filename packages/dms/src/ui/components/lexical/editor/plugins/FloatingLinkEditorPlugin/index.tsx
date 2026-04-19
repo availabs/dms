@@ -32,7 +32,7 @@ import {getSelectedNode} from '../../utils/getSelectedNode';
 import {setFloatingElemPositionForLinkEditor} from '../../utils/setFloatingElemPositionForLinkEditor';
 import {sanitizeUrl} from '../../utils/url';
 import { useLexicalTheme } from '../../../useLexicalTheme';
-import {TOGGLE_LINK_COMMAND} from "../LinkPlugin";
+import {TOGGLE_LINK_COMMAND} from "../LinkPlugin/commands";
 
 function FloatingLinkEditor({
   editor,

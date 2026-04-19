@@ -13,7 +13,7 @@ const defaultState = {
     }
 }
 
-const Edit = ({onChange}) => {
+export const ValidateEdit = ({onChange}) => {
     const isEdit = Boolean(onChange);
     const {state, setState} = useContext(ComponentContext);
 
@@ -29,7 +29,7 @@ const Edit = ({onChange}) => {
     )
 }
 
-const View = ({value, onChange, renderCard, ...rest}) => {
+export const ValidateView = ({value, onChange, renderCard, ...rest}) => {
     const {state, setState, apiLoad, apiUpdate} = useContext(ComponentContext);
     const {API_HOST, user, falcor} = useContext(CMSContext);
 
@@ -63,18 +63,7 @@ const View = ({value, onChange, renderCard, ...rest}) => {
         </div>
 )}
 
-Edit.settings = {
+ValidateEdit.settings = {
     hasControls: true,
     name: 'ElementEdit'
-}
-
-export default {
-    "name": 'Validate',
-    "type": 'Validate',
-    defaultState,
-    useDataSource: true,
-    useDataWrapper: true,
-    "variables": [],
-    "EditComp": Edit,
-    "ViewComp": View
 }

@@ -2,7 +2,7 @@ import React, {memo, useCallback, useEffect, useMemo, useRef, useState} from "re
 import Icon from "../../Icon";
 import Switch from "../../Switch";
 import Popup from "../../Popup";
-import Multiselect from "../../../columnTypes/multiselect"
+import { MultiselectEdit } from "../../../columnTypes/multiselect"
 import {getComponentTheme, ThemeContext} from "../../../../ui/useTheme";
 
 const getColIdName = col => col.normalName || col.name;
@@ -78,7 +78,7 @@ const FilterControl = ({updateColumns, type, value, attributeKey, onChange, data
         }, [type, localFilterData]);
 
     return ['select', 'multiselect', 'radio'].includes(type) ?
-        <Multiselect.EditComp className={className}
+        <MultiselectEdit className={className}
                               value={value}
                               options={options}
                               onChange={setTmpValue}

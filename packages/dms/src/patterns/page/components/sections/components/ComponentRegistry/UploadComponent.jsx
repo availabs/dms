@@ -16,7 +16,7 @@ const defaultState = {
     }
 }
 
-const Edit = ({onChange}) => {
+export const UploadEdit = ({onChange}) => {
     const isEdit = Boolean(onChange);
     const {state, setState} = useContext(ComponentContext);
 
@@ -32,7 +32,7 @@ const Edit = ({onChange}) => {
     )
 }
 
-const View = ({value}) => {
+export const UploadView = ({value}) => {
     const {state, setState, apiLoad, apiUpdate} = useContext(ComponentContext);
     const {API_HOST, user, falcor, datasources} = useContext(CMSContext);
     const pgEnv = getExternalEnv(datasources);
@@ -65,18 +65,7 @@ const View = ({value}) => {
 )
 }
 
-Edit.settings = {
+UploadEdit.settings = {
     hasControls: true,
     name: 'ElementEdit'
-}
-
-export default {
-    "name": 'Upload',
-    "type": 'upload',
-    defaultState,
-    useDataSource: true,
-    useDataWrapper: true,
-    "variables": [],
-    "EditComp": Edit,
-    "ViewComp": View
 }

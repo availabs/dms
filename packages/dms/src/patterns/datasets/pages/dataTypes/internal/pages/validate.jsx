@@ -1,7 +1,7 @@
 import React, {useContext, useEffect} from "react";
 import { DatasetsContext } from '../../../../context'
 import { getExternalEnv } from '../../../../utils/datasources'
-import Spreadsheet from "../../../../../page/components/sections/components/ComponentRegistry/spreadsheet";
+import Spreadsheet from "../../../../../page/components/sections/components/ComponentRegistry/spreadsheet/config";
 import {useNavigate} from "react-router";
 import {cloneDeep} from "lodash-es";
 import {ThemeContext} from "../../../../../../ui/useTheme";

@@ -6,7 +6,7 @@ const theme = {
   text: textTheme
 }
 
-const Edit = ({value = '', onChange, className, placeholder,
+export const TextEdit = ({value = '', onChange, className, placeholder,
     // Destructure non-DOM props so they don't get spread onto <input>
     loading, singleSelectOnly, displayDetailedValues, keepMenuOpen,
     tabular, displayInvalidMsg, onSearch, theme: _theme, format,
@@ -31,7 +31,7 @@ const Edit = ({value = '', onChange, className, placeholder,
     )
 }
 
-const View = ({value, className, ...rest}) => {
+export const TextView = ({value, className, ...rest}) => {
     // const {theme: themeFromContext={}} = React.useContext(ThemeContext) || {};
     // const theme = {...themeFromContext, text: {...textTheme, ...(themeFromContext.text || {})}}
     if (!value) return (
@@ -49,7 +49,3 @@ const View = ({value, className, ...rest}) => {
     )
 }
 
-export default {
-    "EditComp": Edit,
-    "ViewComp": View
-}

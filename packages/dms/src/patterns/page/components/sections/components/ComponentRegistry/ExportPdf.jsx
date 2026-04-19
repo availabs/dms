@@ -3,7 +3,7 @@ import { PageContext, CMSContext } from '../../../../context';
 import { selectablePDF2 } from '../../../saveAsPDF/PrintWell/selectablePDF';
 import { ThemeContext } from "../../../../../../ui/useTheme";
 
-function pdfExport({ }) {
+export function PdfExport({ }) {
   const [pdfPages, setPdfPages] = useState([]);
   const [coverPages, setCoverPages] = useState([]);
   const [patterns, setPatterns] = useState([]);
@@ -405,11 +405,3 @@ function pdfExport({ }) {
   );
 }
 
-export default {
-  "name": 'PDF Generator',
-  "type": 'PDF Generator',
-  defaultState: {
-  },
-  "EditComp": pdfExport,
-  "ViewComp": pdfExport
-};

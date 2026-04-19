@@ -1,8 +1,8 @@
 # Vite HMR / Fast Refresh Fixes
 
-## Status: PHASES 1-3 DONE — 2026-04-19
+## Status: ALL PHASES DONE — 2026-04-19
 
-Phase 1 (anonymous exports + non-JSX renames), Phase 2 (UI-component theme splits), and Phase 3 (pattern component splits) are complete on branch `vite-hmr-fixes`. Build passes clean after each phase.
+Phases 1-5 complete on branch `vite-hmr-fixes`. Build passes clean after each phase.
 
 - **Cat 1 (anonymous exports):** 0 remaining in `.jsx`/`.tsx` files. Named 24 components (including DatasetsList + SourcePage which weren't in the original list), deleted dead `patternEditor/index_bak.jsx`.
 - **Cat 2 (non-JSX `.jsx`):** 0 remaining. Renamed 9 files to `.js`/`.ts` via `git mv`; deleted fully-commented `printWellPdf.jsx`.
@@ -14,8 +14,16 @@ Phase 1 (anonymous exports + non-JSX renames), Phase 2 (UI-component theme split
   - `section.jsx` dead re-export of `registerComponents`/`getRegisteredComponents` removed (only `src/index.js` consumes them, directly from `componentRegistry`)
   - `togglePageSetting` made private in `settingsPane.jsx`, `sectionGroupsPane.jsx`, `permissionsPane.jsx` (was duplicated, never cross-imported)
   - `auth/context.jsx` split into `context.js` (AuthContext + useAuth + defaultUserState) + `providers.jsx` (withAuth + authProvider); `src/index.js` and `dmsPageFactory.jsx` updated
-
-Phases 4 (lexical editor splits) and 5 (object-wrapped registry exports) are still open.
+- **Phase 4 (lexical editor):** all 6 listed files clean.
+  - `createHeadlessEditor` moved from `editor/index.tsx` to `editor/createHeadlessEditor.js`; `ssr.ts` importer updated.
+  - `uuid` constant moved from `AutocompletePlugin/index.tsx` to `AutocompletePlugin/uuid.ts`; `AutocompleteNode.ts` importer updated.
+  - `toHex` made private in `ColorPicker.tsx` (not externally referenced — `patterns/mapeditor` uses a local copy).
+  - `TOGGLE_LINK_COMMAND` moved from `LinkPlugin/index.tsx` to `LinkPlugin/commands.ts`; `FloatingTextFormatToolbarPlugin` + `FloatingLinkEditorPlugin` importers updated.
+  - `SharedHistoryContext.tsx` split: the hook (`useSharedHistoryContext`) + private `Context` moved to `useSharedHistoryContext.ts`; `.tsx` keeps only the Provider component. `editor.tsx` importer updated.
+  - `SharedAutocompleteContext.tsx` split the same way; `AutocompletePlugin/index.tsx` importer updated.
+- **Phase 5 (object-wrapped registry exports):** all source files clean. Two sub-phases:
+  - **5a — columnTypes + lexical/index (10 + 1 = 11 files):** converted `Edit`/`View` to named `<Type>Edit` / `<Type>View` exports; removed `export default { EditComp, ViewComp }`. `columnTypes/index.jsx` rewrites the `{ EditComp, ViewComp }` dictionary inline from named imports. `ui/components/lexical/index.jsx` same pattern. `TableHeaderCell.jsx` updated from `<Multiselect.EditComp>` → `<MultiselectEdit>`.
+  - **5b — ComponentRegistry (13 files):** 12 entries split via the `.jsx` + `.config.{js,jsx}` pattern from the research doc (`FilterComponent`, `footer`, `UploadComponent`, `ValidateComponent`, `header`, `ExportPdf`, `richtext`, `spreadsheet`, `graph`, `Card`, `mnyHeader/mnyHeaderDataDriven`, `map`, `map_dama`). The `.config` file holds metadata + inline JSX control definitions + helper functions; the `.jsx` file holds only named component exports. Registry `index.jsx` imports from the `.config` siblings. Three external consumers of `ComponentRegistry/spreadsheet` (`table.jsx`, `ValidateComp.jsx`, `validate.jsx`) re-pointed to `./spreadsheet/config`.
 
 ### Reassessment summary (2026-04-18)
 
@@ -230,18 +238,21 @@ Files with `.jsx`/`.tsx` extension that contain no JSX — just utilities, hooks
 - [x] Split mixed exports in auth pattern (`context.jsx` → `context.js` + `providers.jsx`)
 - [x] Build + verify
 
-### Phase 4: Lexical editor mixed exports
+### Phase 4: Lexical editor mixed exports — DONE 2026-04-19
 
-- [ ] Move `createHeadlessEditor` out of `editor/index.tsx`
-- [ ] Split other mixed exports in lexical plugins/context (~5 files)
-- [ ] Build + verify
+- [x] Move `createHeadlessEditor` out of `editor/index.tsx` → `createHeadlessEditor.js`
+- [x] Split other mixed exports in lexical plugins/context (`uuid.ts`, `LinkPlugin/commands.ts`, `useSharedHistoryContext.ts`, `useSharedAutocompleteContext.ts`; `toHex` made private)
+- [x] Build + verify
 
-### Phase 5 (Optional): Object-wrapped exports
+### Phase 5: Object-wrapped exports — DONE 2026-04-19
 
-Decide whether to refactor the `{ EditComp, ViewComp }` pattern or accept it.
+Refactored per `planning/research/component-registry-architecture.md`. Two sub-phases:
 
-- [ ] Evaluate registry refactoring feasibility
-- [ ] If proceeding, refactor columnTypes + ComponentRegistry to use named exports
+- [x] **5a — columnTypes + lexical/index (11 files):** converted each `.jsx` to export named `<Type>Edit` / `<Type>View` components; removed object default exports. `columnTypes/index.jsx` assembles the `{ EditComp, ViewComp }` dictionary from named imports (public shape preserved for all 62 consumer call sites).
+- [x] **5b — ComponentRegistry (13 files):** each `.jsx` keeps only named components; siblings `.config.{js,jsx}` hold metadata + control defs + default export. `ComponentRegistry/index.jsx` imports from `.config` siblings. External importers of the spreadsheet config updated.
+- [x] Build + verify after each sub-phase.
+
+Not done (out of scope): migrating external consumers in `src/themes/avail/*`, `src/themes/transportny/*`. The public contract via `registerComponents()` and `theme.pageComponents` is preserved, so downstream can migrate incrementally using `defineComponent` helper if/when needed.
 
 ## Summary (current counts as of 2026-04-19)
 
@@ -249,7 +260,7 @@ Decide whether to refactor the `{ EditComp, ViewComp }` pattern or accept it.
 |-----------|---------:|----------------:|----------|-------|
 | Mixed exports (UI cat 3 + patterns) | ~45 | 0 | HIGH | 2-3 DONE |
 | Anonymous exports | 30 | 0 | MEDIUM | 1 DONE |
-| Object-wrapped components | 34 | 34 (unaudited, assumed unchanged) | ARCHITECTURAL | 5 |
+| Object-wrapped components | 34 | 0 | ARCHITECTURAL | 5 DONE |
 | Non-component .jsx | 13 | 0 | LOW | 1 DONE |
-| Lexical editor mixed exports | 6 | 6 | MEDIUM | 4 |
-| **Total remaining** | | **~40** | | |
+| Lexical editor mixed exports | 6 | 0 | MEDIUM | 4 DONE |
+| **Total remaining** | | **0** | | |

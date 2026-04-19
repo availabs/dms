@@ -50,14 +50,10 @@ const isJson = (str)  => {
 
 export const MapContext = createContext(undefined);
 
-const getData = async () => {
-    return {}
-}
-
 const EMPTY_TABS = [{ "name": "Layers", rows: [] }];
 const EMPTY_OBJECT = {};
 
-const Edit = ({ value, onChange, isEdit }) => {
+export const MapSection = ({ value, onChange, isEdit }) => {
     // const {falcor, falcorCache} = useFalcor();
     // controls: symbology, more, filters: lists all interactive and dynamic filters and allows for searchParams match.
 
@@ -440,16 +436,7 @@ const Edit = ({ value, onChange, isEdit }) => {
     )
 }
 
-Edit.settings = {
+MapSection.settings = {
     hasControls: false,
     name: 'ElementEdit'
-}
-
-export default {
-    "name": 'Map',
-    "type": 'Map',
-    "variables": [],
-    getData,
-    "EditComp": props => <Edit {...props} isEdit={true} />,
-    "ViewComp": props => <Edit {...props} isEdit={false} />
 }

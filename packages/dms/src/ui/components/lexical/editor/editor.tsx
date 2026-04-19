@@ -24,7 +24,7 @@ import {useEffect, useState} from 'react';
 import {CAN_USE_DOM} from './shared/canUseDOM';
 
 import {createCollabProvider} from './collaboration';
-import {useSharedHistoryContext} from './context/SharedHistoryContext';
+import {useSharedHistoryContext} from './context/useSharedHistoryContext';
 import TableCellNodes from './nodes/TableCellNodes';
 import ActionsPlugin from './plugins/ActionsPlugin';
 import AutocompletePlugin from './plugins/AutocompletePlugin';

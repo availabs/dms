@@ -8,7 +8,7 @@ const theme = {
     }
 }
 
-const Edit = ({value = '', onChange, className, placeholder, trueValue=true, ...rest}) => {
+export const CheckboxEdit = ({value = '', onChange, className, placeholder, trueValue=true, ...rest}) => {
     const [tmpValue, setTmpValue] = useState(value)
 
 
@@ -28,7 +28,7 @@ const Edit = ({value = '', onChange, className, placeholder, trueValue=true, ...
     )
 }
 
-const View = ({value, className, trueValue=true, onChange, ...rest}) => {
+export const CheckboxView = ({value, className, trueValue=true, onChange, ...rest}) => {
     // if (!value) return false
 
     return (
@@ -47,7 +47,3 @@ const View = ({value, className, trueValue=true, onChange, ...rest}) => {
     )
 }
 
-export default {
-    "EditComp": Edit,
-    "ViewComp": View
-}
