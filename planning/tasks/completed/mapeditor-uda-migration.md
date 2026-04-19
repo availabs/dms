@@ -1,6 +1,6 @@
 # MapEditor: Migrate from DAMA to UDA + Port Symbologies into DMS
 
-## Status: IN PROGRESS — Eric's MapEditor UDA commit landed; DATA MIGRATION and page-pattern cleanup still outstanding
+## Status: DONE (2026-04-18) — all phases complete, Phase 5 manually verified in mitigat-ny-prod. Follow-up tasks filed separately (see bottom).
 
 ## Objective
 

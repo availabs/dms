@@ -98,7 +98,7 @@
 ### patterns/mapeditor
 
 - [x] Convert MapEditor from datamanagerclient into standalone DMS pattern (symbology CRUD via DMS instead of DAMA)
-- [ ] [Migrate MapEditor from DAMA to UDA routes](./tasks/current/mapeditor-uda-migration.md) — MapEditor + page pattern map components ported to UDA/DMS; server-side colorDomain route added; symbology data migration applied to mitigat-ny-prod (247 DAMA rows → DMS, 2,217 components rewritten, 2 dangling stripped). Awaiting Phase 5 manual browser verification.
+- [x] Migrate MapEditor from DAMA to UDA routes — MapEditor + page-pattern `map/` and `map_dama/` components ported off DAMA; server-side `colorDomain` UDA route added; DAMA symbology data migrated to DMS in mitigat-ny-prod (247 rows + 2,217 component rewrites); filter translator wired; numerous follow-on bugs fixed during Phase 5 (substring metadata, category paint, layer panel overflow, FilterableSearch→ComboBox, dataById PK lookup, list fetch payload size)
 - [ ] [Unify `map/` and `map_dama/` components](./tasks/current/map-component-unification.md) — two parallel implementations with distinct features: map_dama has multi-symbology + in-map filter controls; map has DataWrapper page-state filter binding + basemap selector + PMTiles infrastructure. Merge after UDA migration settles.
 
 ### patterns/datasets

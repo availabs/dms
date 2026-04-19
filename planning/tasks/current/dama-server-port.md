@@ -93,20 +93,16 @@ src/dama/
 
 ### Remaining
 
-- [ ] **`ExternalVersionControls.jsx`** — REST URLs still use `DAMA_HOST`, ETL polling uses `dama` prefix, pmtiles route path needs update
-- [ ] **`Create/` (GIS wizard)** — Still uses `new-context-id` + `/events/query` polling. Works but could be simplified to poll tasks via Falcor instead of REST
-- [ ] **`TaskList.jsx` / `TaskPage.jsx`** — Old legacy pages still use `dama_falcor`. Keep for now, deprecate once new pages verified
-- [ ] **`siteConfig.jsx` + `dmsPageFactory.jsx`** — `dama_falcor` and `DAMA_HOST` still in context (needed by legacy pages above)
-- [ ] **Server cleanup** — Remove `/events/query` compat shim and `newContextId` once client fully migrated
+- [x] **`ExternalVersionControls.jsx`** — 2026-04-17: `DAMA_HOST` → `API_HOST`, ETL polling switched to `uda[pgEnv].tasks.byId`, invalidate uses `uda[pgEnv].viewsById[viewId]`, pmtiles route path updated to `/dama-admin/:pgEnv/pmtiles/cache-pmtiles`
+- [x] **`Create/` (GIS wizard)** — 2026-04-17: switched context to `API_HOST`; still uses `/etl/new-context-id` + `/events/query` REST compat shim. Full Falcor-based polling deferred — works as-is via shim
+- [x] **`TaskList.jsx` / `TaskPage.jsx` / `Tasks/index.jsx`** — 2026-04-17: deleted; `admin.jsx` renders only `UdaTaskList`, routes consolidated to `/tasks` and `/task/:task_id`
+- [x] **`siteConfig.jsx` + `dmsPageFactory.jsx` + `dms-manager`** — 2026-04-17: `dama_falcor` stripped from `dmsPageFactory.jsx`, `dms-manager/index.jsx`, `dms-manager/wrapper.jsx`, and `datasets/siteConfig.jsx` context. `DAMA_HOST` retained in context (still referenced by page pattern, Map.jsx, InlineImageComponent, file_upload CreatePage, overview.jsx) — now defaults to `API_HOST` so no real plumbing cost
+- [ ] **Server cleanup** — Remove `/events/query` compat shim and `newContextId` once Create wizard is migrated (deferred — still in use)
 - [x] **CSV analyzer hybrid pass** — See `tasks/current/dama-csv-analyzer.md`. Implementation complete 2026-04-16: ported legacy `analyzeSchema.js`, wired it as default CSV analyzer (ogrinfo available via `DAMA_CSV_ANALYZER=ogrinfo`), fixed index-based mapping in `generateTableDescriptor` (the root cause of view 3384's TEXT columns). 22 new tests + 12 existing upload tests passing. Awaiting end-to-end production verification.
 
 ### Approach for remaining work
 
-The GIS create wizard currently works against dms-server via the `/events/query` compat shim — no immediate breakage. The simplification (dropping `etlContextId`, polling tasks via Falcor) can happen when there's time to test the full flow end-to-end.
-
-ExternalVersionControls needs `DAMA_HOST` → `API_HOST` for download/pmtiles REST calls. The pmtiles route moved from `/dama-admin/:pgEnv/cache-pmtiles` to `/dama-admin/:pgEnv/pmtiles/cache-pmtiles` (plugin mount path).
-
-Once the new task pages are verified in production, the old `TaskList`/`TaskPage` + `dama_falcor` can be removed entirely.
+Only one remaining item: the server-side `/events/query` + `newContextId` REST compat shim can be removed once the GIS Create wizard is simplified to poll UDA tasks via Falcor. Deferred to its own task — existing flow is stable via the shim.
 
 ---
 

@@ -13,8 +13,6 @@ import DatasetsList from "./pages/DatasetsList"
 import CreatePage from "./pages/CreatePage";
 import SettingsPage from "./pages/SettingsPage";
 import SourcePage from "./pages/SourcePage";
-import Tasks from "./pages/Tasks/";
-import TaskPage from "./pages/Tasks/TaskPage";
 import UdaTasks from "./pages/Tasks/UdaTasks";
 import UdaTaskPage from "./pages/Tasks/UdaTaskPage";
 
@@ -54,7 +52,7 @@ const datasetsConfig = ({
         children: [
             {
               type: (props) => {
-                  const { user, falcor, dama_falcor } = props
+                  const { user, falcor } = props
                   return (
                       <DatasetsContext.Provider value={{
                           UI,
@@ -63,7 +61,6 @@ const datasetsConfig = ({
                           dmsEnv: pattern.dmsEnvId ? dmsEnvById[pattern.dmsEnvId] : null,
                           baseUrl: `${baseUrl}`,
                           falcor,
-                          dama_falcor,
                           user,
                           theme, app, type, siteType,
                           parent: pattern, API_HOST, DAMA_HOST,
@@ -109,23 +106,16 @@ const datasetsConfig = ({
                         action: "view"
                     },
                     {
-                        type: props => <Tasks {...props} />,
+                        type: props => <UdaTasks {...props} />,
                         path: "tasks",
                         action: "view"
                     },
                     {
-                        type: props => <TaskPage {...props} />,
-                        path: "task/:etl_context_id",
-                        action: "view"
-                    },
-                    {
-                        type: props => <UdaTasks {...props} />,
-                        path: "tasks-new",
-                        action: "view"
-                    },
-                    {
+                        // UdaTaskPage reads both `params.task_id` and the
+                        // legacy `params.etl_context_id` (they're the same
+                        // id after the task-port migration preserved ids).
                         type: props => <UdaTaskPage {...props} />,
-                        path: "task-new/:task_id",
+                        path: "task/:task_id",
                         action: "view"
                     },
                     {
