@@ -8,6 +8,7 @@ import Button from './Button'
 import Input, { ConfirmInput, Textarea } from './Input'
 
 import {ThemeContext, getComponentTheme} from '../useTheme';
+import {fieldTheme} from './FieldSet.theme';
 
 const Spacer = ({ children, ...props }) => <div >{children}</div>;
 
@@ -22,13 +23,6 @@ const componentRegistry = {
     Button,
     Spacer
 }
-
-export const fieldTheme = {
-  field: 'pb-2',
-  label: 'select-none text-base/6 text-zinc-950 data-[disabled]:opacity-50 sm:text-sm/6 dark:text-white',
-  description: 'text-base/6 text-zinc-500 data-[disabled]:opacity-50 sm:text-sm/6 dark:text-zinc-400'
-}
-
 
 export default function FieldSetComp ({ components, className, activeStyle }) {
     const { theme: themeFromContext = {} } = React.useContext(ThemeContext);
@@ -52,13 +46,6 @@ export default function FieldSetComp ({ components, className, activeStyle }) {
   )
 }
 
-export const docs = {
-  themeKey: 'field',
-  components: [
-    {label: 'field 1', description: 'this is field 1.'},
-    {label: 'field 2', description: 'this is field 2.'},
-  ]
-}
 export function FieldComp  ({ label, description, children, customTheme, activeStyle}) {
   const { theme: themeFromContext = {} } = React.useContext(ThemeContext);
   const theme = {

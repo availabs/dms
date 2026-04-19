@@ -621,7 +621,7 @@ const RenderItem = memo(function RenderItem ({
     )
 })
 
-export default function ({
+export default function Card ({
     allowEdit,
     updateItem, addItem, isEdit,
     columns=[], data=[], display={}, controls={}, sourceInfo={}, setState,

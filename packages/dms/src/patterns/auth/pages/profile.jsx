@@ -8,7 +8,7 @@ import {callAuthServer} from "../api";
 // list user requests: two buttons to accept and reject
 // admin should be able to set user permissions.
 // permit users for pattern, and actions in the pattern (CRUD pages, sections)
-export default (props) => {
+export default function Profile (props) {
     const [groups, setGroups] = React.useState([]);
     const [users, setUsers] = React.useState([]);
     const [requests, setRequests] = React.useState([]);

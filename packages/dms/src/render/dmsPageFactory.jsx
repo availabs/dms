@@ -7,7 +7,7 @@ import {
 } from '../api'
 
 import DmsManager from '../dms-manager/index.jsx'
-import { withAuth } from '../patterns/auth/context';
+import { withAuth } from '../patterns/auth/providers';
 // import defaultTheme from './theme/default-theme'
 
 import {

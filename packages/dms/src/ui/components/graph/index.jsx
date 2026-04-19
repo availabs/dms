@@ -1,16 +1,14 @@
 import React, {useEffect, useMemo} from "react";
 import { ThemeContext } from '../../useTheme';
 import {isEqual} from "lodash-es";
-import {
-    getColorRange,
-    GraphComponent
-} from "./GraphComponent";
+import {GraphComponent} from "./GraphComponent";
+import {getColorRange} from "./colorRange";
 import { graphTheme } from "./theme";
 //import TableHeaderCell from "../table/components/TableHeaderCell";
 import {strictNaN, fnumIndex} from "./utils";
 
 
-export default function ({
+export default function Graph ({
     isEdit, columns=[], data=[], display={}, controls={}, setState=() => {}, isActive, activeStyle
 }) {
     const { theme: themeFromContext = {graph: graphTheme}} = React.useContext(ThemeContext) || {};

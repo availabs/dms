@@ -5,7 +5,7 @@ const defaultColorOptions = [
     "#F3F8F9",
     "#FCF6EC"
 ];
-export default function ({value='#FFFFFF', setValue, title, className, colors}) {
+export default function ColorControls ({value='#FFFFFF', setValue, title, className, colors}) {
     const {UI} = useContext(ThemeContext);
     const {ColorPicker} = UI;
     if(!setValue) return;

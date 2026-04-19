@@ -11,7 +11,7 @@ export const docs = {
     setCurrentPage: () => {}
 }
 
-export default function ({totalLength, filteredLength, pageSize, usePagination,
+export default function Pagination ({totalLength, filteredLength, pageSize, usePagination,
                              currentPage, setCurrentPage, activeStyle
                          }) {
     const { theme: themeFromContext  = {} } = React.useContext(ThemeContext) || {};

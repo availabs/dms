@@ -1,7 +1,7 @@
 import React, {useState, useContext} from "react";
 import {ComponentContext} from "../../../../../context";
 import { ThemeContext } from "../../../../../../../ui/useTheme";
-import {getColorRange} from "../../../../../../../ui/components/graph/GraphComponent";
+import {getColorRange} from "../../../../../../../ui/components/graph/colorRange";
 import {InputControl} from "../../dataWrapper/components/InputControl";
 
 const DomainEditor = ({value, setValue, display}) => {

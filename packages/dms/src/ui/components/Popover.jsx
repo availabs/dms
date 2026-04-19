@@ -2,15 +2,11 @@ import React, {Fragment} from 'react'
 import { Popover, Transition, Button } from '@headlessui/react'
 import {ThemeContext} from '../useTheme'
 import Icon from './Icon'
+import {popoverTheme} from './Popover.theme'
 
 //-----------------------------------
 // todo: Convert to UI Icon
 // ----------------------------------
-
-export const popoverTheme = {
-    button: 'flex items-center cursor-pointer pt-1 pr-1',
-    container: "absolute shadow-lg z-30 transform overflow-visible z-50 rounded-md"
-}
 
 const TriangleIcon = (props) => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={18} height={18} color={"#000000"} fill={"none"} {...props}>
@@ -25,9 +21,6 @@ const DefaultButton = (
 )
 
 
-export const docs = {
-    anchor: 'bottom'
-}
 export default function PopoverComp ({ children, button=DefaultButton, onClick=()=>{}, anchor='bottom', width='max-w-sm lg:max-w-lg', ...props}) {
     const { themeFromContext = {}} = React.useContext(ThemeContext);
     const theme = {...themeFromContext, popover: {...popoverTheme, ...(themeFromContext.popover || {}) }}

@@ -6,23 +6,23 @@ import sideNavTheme from "./components/SideNav.theme";
 import topNavTheme from "./components/TopNav.theme";
 import layoutTheme  from './components/Layout.theme'
 import defaultWidgets from './widgets'
-import { layoutGroupTheme } from './components/LayoutGroup';
-import {tabsTheme} from "./components/Tabs";
-import {buttonTheme} from "./components/Button";
-import {menuTheme} from "./components/Menu";
-import {inputTheme} from "./components/Input";
+import { layoutGroupTheme } from './components/LayoutGroup.theme';
+import {tabsTheme} from "./components/Tabs.theme";
+import {buttonTheme} from "./components/Button.theme";
+import {menuTheme} from "./components/Menu.theme";
+import {inputTheme} from "./components/Input.theme";
 import iconTheme from "./components/Icon.theme";
-import {fieldTheme} from "./components/FieldSet";
-import {dialogTheme} from "./components/Dialog";
-import {popoverTheme} from "./components/Popover";
+import {fieldTheme} from "./components/FieldSet.theme";
+import {dialogTheme} from "./components/Dialog.theme";
+import {popoverTheme} from "./components/Popover.theme";
 import {labelTheme} from "./components/Label";
 import {selectTheme} from "./components/Select";
-import {listboxTheme} from "./components/Listbox";
+import {listboxTheme} from "./components/Listbox.theme";
 import {tableTheme} from "./components/table/table.theme";
 import {nestableTheme} from "./components/draggableNav"
 import {dataCardTheme} from "./components/card.theme";
 import {graphTheme} from "./components/graph/theme";
-import {logoTheme} from "./components/Logo";
+import {logoTheme} from "./components/Logo.theme";
 import navigableMenuTheme from "./components/navigableMenu/theme";
 import {mapTheme} from "./components/map/map.theme";
 import icons from './icons'
@@ -41,10 +41,10 @@ import authTheme from "../patterns/auth/defaultTheme"
 // =====================================================================================================
 import {
     attributionTheme
-} from "../patterns/page/components/sections/components/dataWrapper/components/Attribution";
+} from "../patterns/page/components/sections/components/dataWrapper/components/Attribution.theme";
 import {
     filterTheme
-} from "../patterns/page/components/sections/components/dataWrapper/components/filters/RenderFilters";
+} from "../patterns/page/components/sections/components/dataWrapper/components/filters/RenderFilters.theme";
 // ======================================================================================================
 
 

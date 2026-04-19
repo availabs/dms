@@ -1,5 +1,49 @@
 # Vite HMR / Fast Refresh Fixes
 
+## Status: PHASES 1-3 DONE — 2026-04-19
+
+Phase 1 (anonymous exports + non-JSX renames), Phase 2 (UI-component theme splits), and Phase 3 (pattern component splits) are complete on branch `vite-hmr-fixes`. Build passes clean after each phase.
+
+- **Cat 1 (anonymous exports):** 0 remaining in `.jsx`/`.tsx` files. Named 24 components (including DatasetsList + SourcePage which weren't in the original list), deleted dead `patternEditor/index_bak.jsx`.
+- **Cat 2 (non-JSX `.jsx`):** 0 remaining. Renamed 9 files to `.js`/`.ts` via `git mv`; deleted fully-commented `printWellPdf.jsx`.
+- **Cat 3 (mixed theme/component exports in UI):** 0 remaining in the 19 listed files. Theme/settings/docs extracted to `*.theme.{js,jsx}` siblings (Button, Input, Tabs, Menu, Dialog, Popover, Listbox, Logo, LayoutGroup, FieldSet, Drawer, Switch, Pill, DeleteModal) or made module-private when not externally referenced (Textarea, List, Popup, ButtonSelect). `GraphComponent`'s `getColorRange` moved to `graph/colorRange.js`.
+- **Phase 3 (pattern components):** 12 violations addressed; 2 files (`ViewsSelect.jsx`, `patterns/forms/ui/index.jsx`) already deleted in unrelated refactors. `overview.jsx` already clean. Splits created:
+  - Theme siblings: `Attribution.theme.js`, `RenderFilters.theme.js`, `Breadcrumbs.theme.js`, `sectionGroup.theme.js`, `sectionGroupsPane.theme.js`
+  - Util extractions: `searchUtils.jsx` (`searchTypeMapping`, `getScore`, `boldMatchingText`), `searchConfig.js` (`getConfig`)
+  - `section_utils.jsx` split into `section_utils.js` (6 utils) + `section_components.jsx` (4 components); importers updated in `section.jsx`, `sectionMenu.jsx`
+  - `section.jsx` dead re-export of `registerComponents`/`getRegisteredComponents` removed (only `src/index.js` consumes them, directly from `componentRegistry`)
+  - `togglePageSetting` made private in `settingsPane.jsx`, `sectionGroupsPane.jsx`, `permissionsPane.jsx` (was duplicated, never cross-imported)
+  - `auth/context.jsx` split into `context.js` (AuthContext + useAuth + defaultUserState) + `providers.jsx` (withAuth + authProvider); `src/index.js` and `dmsPageFactory.jsx` updated
+
+Phases 4 (lexical editor splits) and 5 (object-wrapped registry exports) are still open.
+
+### Reassessment summary (2026-04-18)
+
+| Category | Originally listed | Fixed | Deleted (unrelated) | Still violating |
+|----------|------------------:|------:|--------------------:|---------------:|
+| 1. Anonymous default exports | 30 | 1 | 6 | 23 |
+| 2. Non-JSX `.jsx`/`.tsx` files | 13 | 0 | 2 | 10 (+ `AutocompleteNode.tsx`) |
+| 3. Mixed theme/component exports | 19 | 0 | 0 | 19 |
+
+Category 4 (object-wrapped exports, ~34 files) and Category 5 (re-exports) were not audited — treated as unchanged.
+
+**Deleted (no action needed):**
+- `patterns/forms/components/menu.jsx`
+- `patterns/forms/components/Table/index.jsx`
+- `patterns/forms/pages/manage/formConfigComp/index.jsx`
+- `patterns/page/components/sections/components/FilterableSearch.jsx`
+- `patterns/page/components/sections/components/dataWrapper/components/FilterableSearch.jsx`
+- `patterns/datasets/pages/sourcePageSelector.jsx`
+- `patterns/forms/theme/topnav.jsx`
+- `patterns/forms/theme/sidenav.jsx`
+
+**Fixed incidentally:**
+- `patterns/datasets/pages/DatasetsList/index.jsx` — now `export default function (...)` (named function, Fast-Refresh-trackable)
+
+**Existing `.theme.js` siblings (from other work):** `Icon.theme.js`, `Layout.theme.jsx`, `SideNav.theme.jsx`, `TopNav.theme.jsx`, `card.theme.jsx`. None of the Button/Input/Tabs/Menu/Dialog/etc. violations have been split yet.
+
+---
+
 ## Objective
 
 Fix patterns across the DMS codebase that break Vite's React Fast Refresh, causing slow full-page reloads instead of instant component-level HMR during development.
@@ -93,42 +137,38 @@ Files that export React components alongside constants, utilities, hooks, or the
 
 ---
 
-### Violation 2: Anonymous default exports (30 files) — MEDIUM
+### Violation 2: Anonymous default exports (23 remaining) — MEDIUM
 
 Anonymous functions can't be tracked by Fast Refresh. Fix: add a name.
 
-| File | Fix |
-|------|-----|
-| `ui/components/Icon.jsx` | `export default function Icon({...})` |
-| `ui/components/Label.jsx` | `export default function Label({...})` |
-| `ui/components/table/index.jsx` | `export default function Table({...})` |
-| `ui/components/Card.jsx` | `export default function Card({...})` |
-| `ui/components/Pagination.jsx` | `export default function Pagination({...})` |
-| `ui/components/Modal.jsx` | `export default function Modal({...})` |
-| `ui/components/SideNavContainer.jsx` | `export default function SideNavContainer({...})` |
-| `ui/components/Dropdown.jsx` | `export default function Dropdown({...})` |
-| `ui/components/Permissions.jsx` | `export default function Permissions({...})` |
-| `ui/components/graph/index.jsx` | `export default function Graph({...})` |
-| `patterns/admin/pages/patternEditor/index_bak.jsx` | `export default function PatternEditor({...})` |
-| `patterns/admin/components/menu.jsx` | `export default function AdminMenu({...})` |
-| `patterns/auth/pages/authForgotPassword.jsx` | `export default function AuthForgotPassword(props)` |
-| `patterns/auth/pages/authResetPassword.jsx` | `export default function AuthResetPassword(props)` |
-| `patterns/auth/pages/authGroups.jsx` | `export default function AuthGroups(props)` |
-| `patterns/auth/pages/profile.jsx` | `export default function Profile(props)` |
-| `patterns/auth/pages/authLogout.jsx` | `export default function AuthLogout()` |
-| `patterns/auth/pages/authLogin.jsx` | `export default function AuthLogin(props)` |
-| `patterns/auth/pages/authSignup.jsx` | `export default function AuthSignup(props)` |
-| `patterns/auth/components/menu.jsx` | `export default function AuthMenu({...})` |
-| `patterns/forms/components/menu.jsx` | `export default function FormsMenu({...})` |
-| `patterns/forms/components/Table/index.jsx` | `export default function FormsTable({...})` |
-| `patterns/forms/pages/manage/formConfigComp/index.jsx` | `export default function FormConfigComp({...})` |
-| `patterns/page/components/userMenu.jsx` | `export default function UserMenu({...})` |
-| `patterns/page/components/sections/components/FilterableSearch.jsx` | `export default function FilterableSearch({...})` |
-| `patterns/page/components/sections/components/dataWrapper/components/FilterableSearch.jsx` | `export default function FilterableSearch({...})` |
-| `patterns/datasets/pages/sourcePageSelector.jsx` | `export default function SourcePageSelector({...})` |
-| `patterns/datasets/pages/DatasetsList/index.jsx` | `export default function DatasetsList({...})` |
-| `patterns/datasets/components/MetadataComp/index.jsx` | `export default function MetadataComp({...})` |
-| `patterns/page/components/sections/components/ComponentRegistry/sharedControls/ColorControls.jsx` | `export default function ColorControls({...})` |
+| File | Fix | Status |
+|------|-----|--------|
+| `ui/components/Icon.jsx` | `export default function Icon({...})` | [ ] |
+| `ui/components/Label.jsx` | `export default function Label({...})` | [ ] |
+| `ui/components/table/index.jsx` | `export default function Table({...})` | [ ] |
+| `ui/components/Card.jsx` | `export default function Card({...})` | [ ] |
+| `ui/components/Pagination.jsx` | `export default function Pagination({...})` | [ ] |
+| `ui/components/Modal.jsx` | `export default function Modal({...})` | [ ] |
+| `ui/components/SideNavContainer.jsx` | `export default function SideNavContainer({...})` | [ ] |
+| `ui/components/Dropdown.jsx` | `export default function Dropdown({...})` | [ ] |
+| `ui/components/Permissions.jsx` | `export default function Permissions({...})` | [ ] |
+| `ui/components/graph/index.jsx` | `export default function Graph({...})` | [ ] |
+| `patterns/admin/pages/patternEditor/index_bak.jsx` | `export default function PatternEditor({...})` | [ ] (consider deleting `_bak`) |
+| `patterns/admin/components/menu.jsx` | `export default function AdminMenu({...})` | [ ] |
+| `patterns/auth/pages/authForgotPassword.jsx` | `export default function AuthForgotPassword(props)` | [ ] |
+| `patterns/auth/pages/authResetPassword.jsx` | `export default function AuthResetPassword(props)` | [ ] |
+| `patterns/auth/pages/authGroups.jsx` | `export default function AuthGroups(props)` | [ ] |
+| `patterns/auth/pages/profile.jsx` | `export default function Profile(props)` | [ ] |
+| `patterns/auth/pages/authLogout.jsx` | `export default function AuthLogout()` | [ ] |
+| `patterns/auth/pages/authLogin.jsx` | `export default function AuthLogin(props)` | [ ] |
+| `patterns/auth/pages/authSignup.jsx` | `export default function AuthSignup(props)` | [ ] |
+| `patterns/auth/components/menu.jsx` | `export default function AuthMenu({...})` | [ ] |
+| `patterns/page/components/userMenu.jsx` | `export default function UserMenu({...})` | [ ] |
+| `patterns/datasets/components/MetadataComp/index.jsx` | `export default function MetadataComp({...})` | [ ] |
+| `patterns/page/components/sections/components/ComponentRegistry/sharedControls/ColorControls.jsx` | `export default function ColorControls({...})` | [ ] |
+| `patterns/datasets/pages/DatasetsList/index.jsx` | — | [x] already named (2026-04) |
+
+~~Deleted in unrelated refactors (no action):~~ `forms/components/menu.jsx`, `forms/components/Table/index.jsx`, `forms/pages/manage/formConfigComp/index.jsx`, `page/.../FilterableSearch.jsx` (both), `datasets/pages/sourcePageSelector.jsx`.
 
 ---
 
@@ -147,53 +187,48 @@ Files using `export default { EditComp: Edit, ViewComp: View }`. This is a DMS c
 
 ---
 
-### Violation 4: Non-component `.jsx` files (13 files) — LOW / EASY FIX
+### Violation 4: Non-component `.jsx` files (10 remaining) — LOW / EASY FIX
 
 Files with `.jsx`/`.tsx` extension that contain no JSX — just utilities, hooks, constants, or configs. Rename to `.js`/`.ts`.
 
-| File | Content | Rename to |
-|------|---------|-----------|
-| `patterns/datasets/pages/dataTypes/default/utils.jsx` | Pure utility functions | `utils.js` |
-| `patterns/datasets/.../avl-map-2/src/uicomponents/useClickOutside.jsx` | Custom hook, no JSX | `useClickOutside.js` |
-| `patterns/forms/theme/topnav.jsx` | CSS class objects | `topnav.js` |
-| `patterns/forms/theme/sidenav.jsx` | CSS class objects | `sidenav.js` |
-| `patterns/page/components/saveAsPDF/PrintWell/printWellPdf.jsx` | Entirely commented out | Delete or rename to `.js` |
-| `patterns/page/components/sections/convertToSpreadSheet.jsx` | Pure utility | `convertToSpreadSheet.js` |
-| `patterns/page/components/sections/components/ComponentRegistry/mnyHeader/consts.jsx` | Pure constants | `consts.js` |
-| `patterns/page/pages/view.doc.jsx` | Documentation data object | `view.doc.js` |
-| `ui/components/table/utils/keyboard.jsx` | Event handler function | `keyboard.js` |
-| `ui/components/table/utils/index.jsx` | Pure utilities | `index.js` |
-| `ui/components/table/utils/hooks.jsx` | Custom hooks, no JSX | `hooks.js` |
-| `ui/components/table/utils/mouse.jsx` | Event handler functions | `mouse.js` |
-| `ui/components/lexical/editor/nodes/AutocompleteNode.tsx` | Lexical TextNode subclass | `AutocompleteNode.ts` |
+| File | Content | Rename to | Status |
+|------|---------|-----------|--------|
+| `patterns/datasets/pages/dataTypes/default/utils.jsx` | Pure utility functions | `utils.js` | [ ] |
+| `patterns/datasets/.../avl-map-2/src/uicomponents/useClickOutside.jsx` | Custom hook, no JSX | `useClickOutside.js` | [ ] |
+| `patterns/page/components/saveAsPDF/PrintWell/printWellPdf.jsx` | Entirely commented out | Delete or rename to `.js` | [ ] |
+| `patterns/page/components/sections/convertToSpreadSheet.jsx` | Pure utility | `convertToSpreadSheet.js` | [ ] |
+| `patterns/page/components/sections/components/ComponentRegistry/mnyHeader/consts.jsx` | Pure constants | `consts.js` | [ ] |
+| `patterns/page/pages/view.doc.jsx` | Documentation data object | `view.doc.js` | [ ] |
+| `ui/components/table/utils/keyboard.jsx` | Event handler function | `keyboard.js` | [ ] |
+| `ui/components/table/utils/index.jsx` | Pure utilities | `index.js` | [ ] |
+| `ui/components/table/utils/hooks.jsx` | Custom hooks, no JSX | `hooks.js` | [ ] |
+| `ui/components/table/utils/mouse.jsx` | Event handler functions | `mouse.js` | [ ] |
+| `ui/components/lexical/editor/nodes/AutocompleteNode.tsx` | Lexical TextNode subclass | `AutocompleteNode.ts` | [ ] |
+
+~~Deleted (no action):~~ `patterns/forms/theme/topnav.jsx`, `patterns/forms/theme/sidenav.jsx`.
 
 ---
 
 ## Implementation Plan
 
-### Phase 1: Quick wins — name anonymous exports + rename non-JSX files
+### Phase 1: Quick wins — name anonymous exports + rename non-JSX files — DONE 2026-04-18
 
-Zero behavioral risk. ~43 files.
+- [x] Name all anonymous default exports (24 named + dead `index_bak.jsx` deleted)
+- [x] Rename non-component `.jsx`/`.tsx` files to `.js`/`.ts` (9 renamed via `git mv` + `printWellPdf.jsx` deleted)
+- [x] Build + verify
 
-- [ ] Name all 30 anonymous default exports (Violation 2)
-- [ ] Rename 13 non-component `.jsx`/`.tsx` files to `.js`/`.ts` (Violation 4), update imports
-- [ ] Build + verify
+### Phase 2: Split UI component themes — DONE 2026-04-18
 
-### Phase 2: Split UI component themes — highest HMR impact
+- [x] Split theme/settings/docs exports from 19 UI component files into `*.theme.{js,jsx}` siblings (or made private when not externally used)
+- [x] Update imports in `defaultTheme.js`, `themeSettings.js`, `docs.js`
+- [x] Build + verify
 
-The `ui/components/` files are the most widely imported. Splitting themes follows the established `*.theme.js` pattern from datasets.
+### Phase 3: Split pattern component mixed exports — DONE 2026-04-19
 
-- [ ] Split theme/settings/docs exports from ~19 UI component files into `*.theme.js` siblings
-- [ ] Update imports in `defaultTheme.js` and any other consumers
-- [ ] Build + verify
-
-### Phase 3: Split pattern component mixed exports
-
-- [ ] Split mixed exports in page pattern files (~12 files)
-- [ ] Split mixed exports in datasets pattern files (~3 files)
-- [ ] Split mixed exports in forms pattern files (~2 files)
-- [ ] Split mixed exports in auth pattern (~1 file)
-- [ ] Build + verify
+- [x] Split mixed exports in page pattern files (~12 files; 2 were already deleted)
+- [x] Split mixed exports in datasets pattern files (1 — Breadcrumbs; `overview.jsx` already clean; no separate forms pattern files remained)
+- [x] Split mixed exports in auth pattern (`context.jsx` → `context.js` + `providers.jsx`)
+- [x] Build + verify
 
 ### Phase 4: Lexical editor mixed exports
 
@@ -208,13 +243,13 @@ Decide whether to refactor the `{ EditComp, ViewComp }` pattern or accept it.
 - [ ] Evaluate registry refactoring feasibility
 - [ ] If proceeding, refactor columnTypes + ComponentRegistry to use named exports
 
-## Summary
+## Summary (current counts as of 2026-04-19)
 
-| Violation | Files | Severity | Phase |
-|-----------|-------|----------|-------|
-| Mixed exports | ~45 | HIGH | 2-4 |
-| Anonymous exports | 30 | MEDIUM | 1 |
-| Object-wrapped components | 34 | ARCHITECTURAL | 5 |
-| Non-component .jsx | 13 | LOW | 1 |
-| Re-exported non-components | 5 | LOW | 3 |
-| **Total** | **~127** | | |
+| Violation | Original | Still violating | Severity | Phase |
+|-----------|---------:|----------------:|----------|-------|
+| Mixed exports (UI cat 3 + patterns) | ~45 | 0 | HIGH | 2-3 DONE |
+| Anonymous exports | 30 | 0 | MEDIUM | 1 DONE |
+| Object-wrapped components | 34 | 34 (unaudited, assumed unchanged) | ARCHITECTURAL | 5 |
+| Non-component .jsx | 13 | 0 | LOW | 1 DONE |
+| Lexical editor mixed exports | 6 | 6 | MEDIUM | 4 |
+| **Total remaining** | | **~40** | | |

@@ -1,4 +1,4 @@
-import { breadcrumbsTheme } from './components/Breadcrumbs'
+import { breadcrumbsTheme } from './components/Breadcrumbs.theme'
 import { sourceTableTheme } from './components/sourceTable.theme'
 import { datasetsListTheme } from './pages/DatasetsList/datasetsList.theme'
 import { metadataCompTheme } from './components/MetadataComp/metadataComp.theme'

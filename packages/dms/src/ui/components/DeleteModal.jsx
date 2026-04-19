@@ -2,13 +2,6 @@ import React, {useRef, useState} from "react";
 import {DialogTitle, } from "@headlessui/react";
 import Modal from "./Modal";
 
-export const docs = {
-    title: 'title',
-    prompt: 'Prompt',
-    open: true,
-    setOpen: () => {},
-    onDelete: () => {}
-}
 export function DeleteModal ({title, prompt, item={}, open, setOpen, onDelete})  {
     const cancelButtonRef = useRef(null)
     const [loading, setLoading] = useState(false)

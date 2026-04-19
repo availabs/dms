@@ -1,9 +1,9 @@
-import { sectionGroupTheme } from './components/sections/sectionGroup'
+import { sectionGroupTheme } from './components/sections/sectionGroup.theme'
 import { sectionArrayTheme, sectionArraySettings } from './components/sections/sectionArray.theme'
 import { sectionTheme, sectionSettings } from './components/sections/section.theme'
 import { userMenuTheme, userMenuSettings } from './components/userMenu.theme'
 import { searchButtonTheme, searchPalletTheme, searchButtonSettings, searchPalletSettings } from './components/search/theme'
-import { sectionGroupControlTheme } from "./pages/edit/editPane/sectionGroupsPane";
+import { sectionGroupControlTheme } from "./pages/edit/editPane/sectionGroupsPane.theme";
 
 export default {
     sectionGroup: sectionGroupTheme,

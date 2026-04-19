@@ -97,7 +97,7 @@ const SourceThumb = React.memo(({ source={}, format }) => {
     );
 });
 
-export default function ({attributes, item, dataItems, apiLoad, apiUpdate, updateAttribute, format, submit, ...r}) {
+export default function DatasetsList ({attributes, item, dataItems, apiLoad, apiUpdate, updateAttribute, format, submit, ...r}) {
     const {baseUrl, user, falcor, siteType, type, datasources, dmsEnv, UI} = useContext(DatasetsContext);
     const {theme} = useContext(ThemeContext) || {};
     const t = theme?.datasets?.datasetsList || {};

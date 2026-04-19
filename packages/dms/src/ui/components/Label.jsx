@@ -9,7 +9,7 @@ export const labelTheme = {
 export const docs = {
     text: 'Label Text'
 }
-export default function ({text, children}) {
+export default function Label ({text, children}) {
     const { theme: themeFromContext = {}} = React.useContext(ThemeContext);
     const theme = {...themeFromContext, label: {...labelTheme, ...(themeFromContext.label || {})}};
     return (

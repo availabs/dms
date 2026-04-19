@@ -16,7 +16,7 @@ const isFontAwesomeIcon = (icon) => {
     return /^(fa-|fa |fas |far |fal |fad |fab |fa-duotone |fa-solid |fa-regular |fa-light |fa-brands )/.test(icon);
 };
 
-export default function ({icon = 'Default', className, ...props}) {
+export default function IconComp ({icon = 'Default', className, ...props}) {
     const { theme: themeFromContext = {} } = React.useContext(ThemeContext);
     const theme = {...themeFromContext, icon: {...iconTheme, ...(themeFromContext.icon || {})}};
 

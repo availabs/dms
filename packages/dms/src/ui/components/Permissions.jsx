@@ -32,7 +32,7 @@ const permissionsTheme = {
     removeBtn: 'w-fit'
 }
 
-export default function ({
+export default function Permissions ({
     value, inheritedValue, user, getUsers, getGroups, onChange,
     permissionDomain = defaultPermissionsDomain,
     defaultPermission = []

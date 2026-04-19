@@ -21,7 +21,7 @@ import * as Headless from '@headlessui/react'
 
  --------------------------------------------------------- */
 
-export const listboxTheme = {
+const listboxTheme = {
 
   listboxOptions:'w-[var(--button-width)] z-20 bg-white rounded-xl border p-1 [--anchor-gap:var(--spacing-1)] focus:outline-none transition duration-100 ease-in data-[leave]:data-[closed]:opacity-0',
   listboxOption: 'group flex gap-2 bg-white data-[focus]:bg-blue-100 z-30',
