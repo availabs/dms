@@ -32,6 +32,7 @@ import Table from "./components/table";
 import Card from "./components/Card";
 import Graph from "./components/graph";
 import Listbox from "./components/Listbox";
+import ComboBox from "./components/ComboBox";
 import Permissions from "./components/Permissions";
 import NavigableMenu from "./components/navigableMenu";
 import DraggableList from "./components/DraggableList";
@@ -72,6 +73,7 @@ const UI = {
 	Input,
   Textarea,
 	Select,
+	ComboBox,
 	ColorPicker,
 	ColorPickerFlat,
 	Tabs,

@@ -1,63 +1,21 @@
-import React, {useEffect, useMemo, useContext, useState} from 'react'
-import { useNavigate } from 'react-router'
+import React, {useContext} from 'react'
 import { ThemeContext } from '../../../../../../../../../ui/useTheme'
-import { get, cloneDeep } from 'lodash-es'
+import { cloneDeep } from 'lodash-es'
 import { Dialog } from '@headlessui/react'
 import { SymbologiesList } from './SymbologiesList';
 import { Modal, INITIAL_NEW_MAP_MODAL_STATE } from '../../../../../../../../mapeditor/MapEditor/components/LayerManager/SymbologyControl';
 import { MapContext } from '../../'
-import { DamaSymbologyAttributes, getAttributes } from "../../../../../../../../mapeditor/attributes"
 
 export const SelectSymbology = ({ modalState, setModalState, tabIndex }) => {
   const { UI } = useContext(ThemeContext) || {};
   const { Button } = UI;
-  const { state, setState, falcor, pgEnv, doApiLoad } = useContext(MapContext);
-  // ---------------------------------
-  // -- get Symbologies to list
-  // ---------------------------------
-  const [falcorCache, setFalcorCache] = useState(falcor.getCache());
-  useEffect(() => {
-    async function fetchData() {
-      const lengthPath = ["dama", pgEnv, "symbologies", "length"];
-      const resp = await falcor.get(lengthPath);
+  const { setState, doApiLoad } = useContext(MapContext);
 
-      await falcor.get([
-        "dama", pgEnv, "symbologies", "byIndex",
-        { from: 0, to: get(resp.json, lengthPath, 0) - 1 },
-        "attributes", DamaSymbologyAttributes
-      ]);
-      setFalcorCache(falcor.getCache());
-    }
-    fetchData();
-  }, [falcor, pgEnv]);
-
-  const [dmsSymbologies, setDmsSymbologies] = React.useState([]);
+  const [symbologies, setSymbologies] = React.useState([]);
 
   React.useEffect(() => {
-      doApiLoad()
-          .then(res => {
-              setDmsSymbologies(res)
-          });
+    doApiLoad().then(res => setSymbologies(res));
   }, [doApiLoad]);
-
-console.log("SelectSymbology::dmsSymbologies", dmsSymbologies);
-
-  const damaSymbologies = useMemo(() => {
-    return Object.values(get(falcorCache, ["dama", pgEnv, "symbologies", "byIndex"], {}))
-        .map(v => getAttributes(get(falcorCache, v.value, { "attributes": {} })["attributes"]))
-        .map(sym => ({
-            ...sym,
-            id: sym.symbology_id,
-            symbology: {
-                ...sym.symbology,
-                isDamaSymbology: true
-            }
-        }));
-  }, [falcorCache?.dama, pgEnv]);
-
-    const symbologies = React.useMemo(() => {
-        return [...dmsSymbologies, ...damaSymbologies];
-    }, [dmsSymbologies, damaSymbologies]);
 
   const addLayer = () => {
     const { symbologyId } = modalState; 

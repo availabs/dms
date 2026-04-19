@@ -7,7 +7,7 @@ import { Fill, Line, Circle, MenuDots , CaretUpSolid, CaretDownSolid, CaretDown,
 import { SelectSymbology } from './SymbologySelector'
 import {categoryPaint, isValidCategoryPaint ,choroplethPaint} from '../../../../../../../mapeditor/MapEditor/components/LayerEditor/datamaps';
 import colorbrewer from '../../../../../../../mapeditor/MapEditor/components/LayerManager/colors'
-import { DamaSymbologyAttributes, ViewAttributes } from "../../../../../../../mapeditor/attributes";
+import { ViewAttributes } from "../../../../../../../mapeditor/attributes";
 
 import { fetchBoundsForFilter } from '../../../../../../../mapeditor/MapEditor/stateUtils';
 // import { ViewAttributes } from "~/pages/DataManager/Source/attributes"
@@ -91,7 +91,7 @@ function SymbologyMenu({button, location='left-0', width='w-36', children}) {
 
 
 function SymbologyRow ({tabIndex, row, rowIndex}) {
-  const { state, setState, falcor, pgEnv  } = React.useContext(MapContext);
+  const { state, setState, falcor, pgEnv, doApiLoad } = React.useContext(MapContext);
   // const { activeLayer } = state.symbology;
   const [views, setViews] = React.useState([])
   const [falcorCache, setFalcorCache] = React.useState(falcor.getCache());
@@ -136,31 +136,13 @@ function SymbologyRow ({tabIndex, row, rowIndex}) {
     })
   }, [state, setState]);
 
+  const [symbologies, setSymbologies] = React.useState([]);
+
   useEffect(() => {
-    async function fetchAllSymbologies() {
-      const symbologyLengthPath = ["dama", pgEnv, "symbologies", "length"];
-      const resp = await falcor.get(symbologyLengthPath);
-
-      const symbologyIdsPath = [
-        "dama",
-        pgEnv,
-        "symbologies",
-        "byIndex",
-        { from: 0, to: get(resp.json, symbologyLengthPath, 0) - 1 },
-        "attributes", DamaSymbologyAttributes
-      ];
-      await falcor.get(symbologyIdsPath);
-      setFalcorCache(falcor.getCache());
+    if (doApiLoad) {
+      doApiLoad().then(res => setSymbologies(res || []));
     }
-
-    fetchAllSymbologies();
-  }, [pgEnv]);
-
-  const symbologies = useMemo(() => {
-    return Object.values(get(falcorCache, ["dama", pgEnv, "symbologies", "byIndex"], {}))
-      .map(v => getAttributes(get(falcorCache, v.value, { "attributes": {} })["attributes"]))
-      .filter(v => Object.keys(v).length > 0);
-  }, [falcorCache, pgEnv]);
+  }, [doApiLoad]);
 
   const numRows = useMemo(() => {
     return state.tabs[tabIndex].rows.length;
@@ -168,23 +150,20 @@ function SymbologyRow ({tabIndex, row, rowIndex}) {
 
   React.useEffect(() => {
     async function fetchData() {
-      //console.time("fetch data");
-      const lengthPath = ["dama", pgEnv, "sources", "byId", sourceId, "views", "length"];
+      const lengthPath = ["uda", pgEnv, "sources", "byId", sourceId, "views", "length"];
       const resp = await falcor.get(lengthPath);
       falcor.get([
-        "dama", pgEnv, "sources", "byId", sourceId, "views", "byIndex",
+        "uda", pgEnv, "sources", "byId", sourceId, "views", "byIndex",
         { from: 0, to: get(resp.json, lengthPath, 0) - 1 },
-        "attributes", Object.values(ViewAttributes)
+        Object.values(ViewAttributes)
       ]).then((d) => {
-      let out = get(
+        let out = get(
           d,
-          [
-            "json",
-            "dama", pgEnv, "sources", "byId", sourceId, "views", "byIndex"
-          ],
+          ["json", "uda", pgEnv, "sources", "byId", sourceId, "views", "byIndex"],
           []
         );
-        out = Object.values(out).map(view => view.attributes)
+        // UDA returns view objects at the top level (no nested .attributes)
+        out = Object.values(out);
         setViews(out);
       });
         setFalcorCache(falcor.getCache());

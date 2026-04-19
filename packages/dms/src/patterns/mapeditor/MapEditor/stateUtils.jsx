@@ -181,4 +181,71 @@ const fetchBoundsForFilter = async (state, falcor, pgEnv, dynamicFilter) => {
   const newExtent = get(resp, ['json','dama',pgEnv,'viewsbyId', viewId, 'options', filterOptions, 'databyIndex',0,['ST_AsGeojson(ST_Extent(wkb_geometry)) as bextent'] ])
   return newExtent;
 }
-export { extractState, fetchBoundsForFilter, createFalcorFilterOptions };
+/**
+ * Translate the MapEditor's per-layer filter state into the UDA filter
+ * options shape expected by server routes like `colorDomain` / `simpleFilter`.
+ *
+ * Input shape (how the layer stores it):
+ *   { [columnName]: { operator, value } }
+ *   where operator ∈ { "==", "!=", ">", ">=", "<", "<=", "between" }
+ *     and value is a scalar OR an array of scalars OR, for "between", [lo, hi]
+ *
+ * Output shape (flat UDA filter envelope):
+ *   {
+ *     filter?:  { [col]: [values] },   // "==" — equality / IN
+ *     exclude?: { [col]: [values] },   // "!=" — NOT IN
+ *     gt?:      { [col]: scalar },
+ *     gte?:     { [col]: scalar },
+ *     lt?:      { [col]: scalar },
+ *     lte?:     { [col]: scalar },
+ *   }
+ *
+ * Empty buckets are omitted so the server sees only the slots actually in use.
+ * Returns `null` if the input is falsy or has no recognizable entries.
+ */
+function filterToUda(layerFilter) {
+  if (!layerFilter || typeof layerFilter !== 'object') return null;
+  const out = {};
+  const ensure = (k) => (out[k] = out[k] || {});
+  const asArray = (v) => (Array.isArray(v) ? v : [v]);
+
+  for (const [col, f] of Object.entries(layerFilter)) {
+    if (!f || f.value === undefined || f.value === null || f.value === '') continue;
+    switch (f.operator) {
+      case '==':
+      case undefined: // legacy entries without explicit operator default to equality
+        ensure('filter')[col] = asArray(f.value);
+        break;
+      case '!=':
+        ensure('exclude')[col] = asArray(f.value);
+        break;
+      case '>':
+        ensure('gt')[col] = Array.isArray(f.value) ? f.value[0] : f.value;
+        break;
+      case '>=':
+        ensure('gte')[col] = Array.isArray(f.value) ? f.value[0] : f.value;
+        break;
+      case '<':
+        ensure('lt')[col] = Array.isArray(f.value) ? f.value[0] : f.value;
+        break;
+      case '<=':
+        ensure('lte')[col] = Array.isArray(f.value) ? f.value[0] : f.value;
+        break;
+      case 'between':
+        // between is two-ended; split into a gte + lte on the same column.
+        if (Array.isArray(f.value) && f.value.length === 2) {
+          const [lo, hi] = f.value;
+          if (lo !== undefined && lo !== null && lo !== '') ensure('gte')[col] = lo;
+          if (hi !== undefined && hi !== null && hi !== '') ensure('lte')[col] = hi;
+        }
+        break;
+      default:
+        // Unknown operator — skip silently rather than send garbage to the server.
+        break;
+    }
+  }
+
+  return Object.keys(out).length ? out : null;
+}
+
+export { extractState, fetchBoundsForFilter, createFalcorFilterOptions, filterToUda };

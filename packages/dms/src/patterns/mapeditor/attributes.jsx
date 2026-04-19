@@ -37,19 +37,6 @@ export const ViewAttributes = {
   "_modified_timestamp" : "_modified_timestamp"
 }
 
-export const DamaSymbologyAttributes = [
-  "symbology_id",
-  "name",
-  "collection_id",
-  "description",
-  "metadata",
-  "symbology",
-  "categories",
-  "source_dependencies",
-  "_created_timestamp",
-  "_modified_timestamp",
-];
-
 export const getAttributes = (data) => {
   return Object.entries(data || {})
     .reduce((out,attr) => {

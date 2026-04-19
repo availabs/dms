@@ -85,8 +85,16 @@ const Edit = ({ value, onChange, isEdit }) => {
 
     const doApiLoad = React.useCallback(() => {
         return mapeditorKeys.reduce((a, c) => {
-            const [app, type] = c.split("+");
-            const format = { ...cloneDeep(mapeditorFormat), app, type };
+            // `mapeditorKeys` entries are `{app}+{patternInstance}` (e.g.
+            // 'mitigat-ny-prod+map_editor_test'). Symbology rows live at type
+            // `{patternInstance}|symbology` — build the full type from the
+            // format's leaf kind.
+            const [app, patternInstance] = c.split("+");
+            const format = {
+                ...cloneDeep(mapeditorFormat),
+                app,
+                type: `${patternInstance}|${mapeditorFormat.type}`,
+            };
             return a.then(aa => {
                 return apiLoad({
                     ...format,

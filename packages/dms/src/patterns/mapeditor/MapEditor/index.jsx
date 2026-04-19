@@ -23,13 +23,12 @@ import PluginLayer from './components/PluginLayer'
 import {
   SourceAttributes,
   ViewAttributes,
-  getAttributes,
-  DamaSymbologyAttributes
+  getAttributes
 } from "../attributes";
 
 //import { DMS_DATA_ITEM_ATTRIBUTES } from "../attributes"
 
-import { extractState, fetchBoundsForFilter } from './stateUtils';
+import { extractState, fetchBoundsForFilter, filterToUda } from './stateUtils';
 
 export const SymbologyContext = React.createContext(undefined);
 
@@ -140,57 +139,6 @@ const MapEditor = props => {
   const navigate = useNavigate();
   const { id: symbologyId } = props.params;
 
-// console.log("MapEditor::props", props);
-// console.log("MapEditor::symbologyId", symbologyId);
-
-  // React.useEffect(() => {
-  //   if (symbologyId) {
-  //     falcor.get([
-  //       "dama", pgEnv, "symbologies", "byId", symbologyId,
-  //       "attributes", Object.values(DamaSymbologyAttributes)
-  //     ]);
-  //   }
-  // }, [falcor, symbologyId, pgEnv]);
-
-  // React.useEffect(() => {
-  //   const symbologyLengthPath = ["dama", pgEnv, "symbologies", "length"];
-
-  //   falcor.get(symbologyLengthPath)
-  //     .then(res => {
-  //       const length = get(res.json, symbologyLengthPath, 0);
-  //       if (length) {
-  //         falcor.get([
-  //           "dama", pgEnv, "symbologies",
-  //           "byIndex", { from: 0, to: length - 1 },
-  //           "attributes", DamaSymbologyAttributes
-  //         ]);
-  //       }
-  //     });
-  // }, [falcor, pgEnv]);
-
-  // const damaSymbologies = React.useMemo(() => {
-  //   return Object.values(get(falcorCache, ["dama", pgEnv, "symbologies", "byIndex"], {}))
-  //     .map(v => getAttributes(get(falcorCache, v.value, { "attributes": {} })["attributes"]))
-  //     .filter(v => Object.keys(v).length > 0)
-  //     .map(sym => ({
-  //       ...sym,
-  //       id: sym.symbology_id,
-  //       symbology: {
-  //         ...sym.symbology,
-  //         isDamaSymbology: true
-  //       }
-  //     }));
-  // }, [falcorCache, pgEnv]);
-
-  // const dmsSymbologies = React.useMemo(() => {
-  //   return [...props.dataItems];
-  // }, [props.dataItems]);
-
-  // const symbologies = React.useMemo(() => {
-  //   return [...dmsSymbologies, ...damaSymbologies];
-  // }, [damaSymbologies, dmsSymbologies]);
-
-// console.log("MapEditor::symbologies", symbologies);
 
   const symbologies = React.useMemo(() => {
     return [...props.dataItems];
@@ -653,12 +601,12 @@ const MapEditor = props => {
       } else if(layerType === 'choropleth' || layerType === 'circles') {
         const domainOptions = {
           column: baseDataColumn,
-          viewId,
           numbins,
           method
         }
 
         let colorBreaks;
+        let targetViewId = viewId;
 
         let regenerateLegend = false;
         if(choroplethdata && Object.keys(choroplethdata).length === 2 && viewGroupId === prevViewGroupId) {
@@ -670,28 +618,31 @@ const MapEditor = props => {
             domainOptions['column'] = filterGroupLegendColumn;
           }
           if(viewGroupEnabled) {
-            domainOptions['viewId'] = viewGroupId;
+            targetViewId = viewGroupId;
           }
+          // Translate the layer's filter state `{col: {operator, value}}` into
+          // the flat UDA envelope `{filter, exclude, gt, gte, lt, lte}` the
+          // server expects. Merge its slots into domainOptions (spread so each
+          // slot sits at the top level, which is what buildFilterContext reads).
+          const udaFilter = filterToUda(filter);
+          if (udaFilter) Object.assign(domainOptions, udaFilter);
 
-// NEEDS NEW DMS ROUTES...MAYBE???
-// NEEDS NEW DMS ROUTES...MAYBE???
-// NEEDS NEW DMS ROUTES...MAYBE???
-          // setState(draft => {
-          //   set(draft, `${pathBase}['is-loading-colorbreaks']`, true)
-          // })
-          // const res = await falcor.get([
-          //   "dama", pgEnv, "symbologies", "byId", symbology_id, "colorDomain", "options", JSON.stringify(domainOptions)
-          // ]);
-          // colorBreaks = get(res, [
-          //   "json","dama", pgEnv, "symbologies", "byId", symbology_id, "colorDomain", "options", JSON.stringify(domainOptions)
-          // ])
-          // setState(draft => {
-          //   set(draft, `${pathBase}['is-loading-colorbreaks']`, false)
-          // })
-// NEEDS NEW DMS ROUTES...MAYBE???
-// NEEDS NEW DMS ROUTES...MAYBE???
-// NEEDS NEW DMS ROUTES...MAYBE???
-
+          setState(draft => {
+            set(draft, `${pathBase}['is-loading-colorbreaks']`, true);
+          });
+          const optsKey = JSON.stringify(domainOptions);
+          const res = await falcor.get([
+            "uda", pgEnv, "viewsById", +targetViewId, "colorDomain", optsKey
+          ]);
+          const cdResult = get(res, [
+            "json", "uda", pgEnv, "viewsById", +targetViewId, "colorDomain", optsKey
+          ]);
+          colorBreaks = (cdResult && Array.isArray(cdResult.breaks) && cdResult.breaks.length)
+            ? { breaks: cdResult.breaks, max: cdResult.max }
+            : { breaks: [], max: 0 };
+          setState(draft => {
+            set(draft, `${pathBase}['is-loading-colorbreaks']`, false);
+          });
         }
         //console.log("colorBreaks['breaks']",colorBreaks['breaks'])
         let {paint, legend} = choroplethPaint(baseDataColumn, colorBreaks['max'], colorrange, numbins, method, colorBreaks['breaks'], showOther, legendOrientation);
@@ -979,7 +930,7 @@ const MapEditor = props => {
         orderBy: {"2": 'desc'}
       })
       falcor.get([
-        'dama',pgEnv,'viewsbyId', viewId, 'options', options, 'databyIndex',{ from: 0, to: 100},[baseDataColumn, 'count(1)::int as count']
+        'uda', pgEnv, 'viewsById', viewId, 'options', options, 'dataByIndex', { from: 0, to: 100 }, [baseDataColumn, 'count(1)::int as count']
       ])
     }
   },[baseDataColumn, layerType, viewId, isActiveLayerPlugin])
@@ -992,7 +943,7 @@ const MapEditor = props => {
         orderBy: {"2": 'desc'}
       })
       let data = get(falcorCache, [
-           'dama',pgEnv,'viewsbyId', viewId, 'options', options, 'databyIndex'
+        'uda', pgEnv, 'viewsById', viewId, 'options', options, 'dataByIndex'
       ], {})
       setState(draft => {
         set(draft, `${pathBase}['category-data']`, data)

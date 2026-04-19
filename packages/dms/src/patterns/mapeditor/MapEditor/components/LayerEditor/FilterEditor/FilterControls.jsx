@@ -141,19 +141,19 @@ export function FilterBuilder({ path, params = {} }) {
   useEffect(() => {
     if (sourceId) {
       falcor.get([
-        "dama", pgEnv, "sources", "byId", sourceId, "attributes", "metadata"
+        "uda", pgEnv, "sources", "byId", sourceId, "metadata"
     ]);
     }
   }, [sourceId]);
 
   const attributes = useMemo(() => {
     let columns = get(falcorCache, [
-      "dama", pgEnv, "sources", "byId", sourceId, "attributes", "metadata", "value", "columns"
+      "uda", pgEnv, "sources", "byId", sourceId, "metadata", "value", "columns"
     ], []);
 
     if (columns.length === 0) {
       columns = get(falcorCache, [
-        "dama", pgEnv, "sources", "byId", sourceId, "attributes", "metadata", "value"
+        "uda", pgEnv, "sources", "byId", sourceId, "metadata", "value"
       ], []);
     }
     return columns;
@@ -275,19 +275,19 @@ function AddFilterColumn({ path, params = {}, setActiveColumn }) {
   useEffect(() => {
     if (sourceId) {
       falcor.get([
-        "dama", pgEnv, "sources", "byId", sourceId, "attributes", "metadata"
+        "uda", pgEnv, "sources", "byId", sourceId, "metadata"
     ]);
     }
   }, [sourceId]);
 
   const attributes = useMemo(() => {
     let columns = get(falcorCache, [
-      "dama", pgEnv, "sources", "byId", sourceId, "attributes", "metadata", "value", "columns"
+      "uda", pgEnv, "sources", "byId", sourceId, "metadata", "value", "columns"
     ], []);
 
     if (columns.length === 0) {
       columns = get(falcorCache, [
-        "dama", pgEnv, "sources", "byId", sourceId, "attributes", "metadata", "value"
+        "uda", pgEnv, "sources", "byId", sourceId, "metadata", "value"
       ], []);
     }
     return columns;

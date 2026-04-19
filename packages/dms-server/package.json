@@ -25,6 +25,8 @@
     "test:tasks": "node tests/test-tasks.js",
     "test:upload": "node tests/test-upload-pipeline.js",
     "test:csv-analyzer": "node tests/test-csv-analyzer.js",
+    "test:colorDomain": "node tests/test-colorDomain.js",
+    "test:migrate-dama-symbologies": "node tests/test-migrate-dama-symbologies.js",
     "test:storage": "node tests/test-storage.js",
     "test:datatypes": "node tests/test-datatypes.js",
     "test:migrate-dama": "node tests/test-migrate-dama.js",

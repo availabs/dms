@@ -470,7 +470,7 @@ function LegendRow ({ layer, i, numLayers, onRowMove }) {
   const layerTitle = layer.name ?? filterGroupName;
 
   const layerSource = React.useMemo(
-    () => get(falcorCache, ["dama", pgEnv, "sources", "byId", sourceId], {}),
+    () => get(falcorCache, ["uda", pgEnv, "sources", "byId", sourceId], {}),
     [sourceId, falcorCache]
   );
 
@@ -519,13 +519,12 @@ function LegendRow ({ layer, i, numLayers, onRowMove }) {
   // ---------------------------------
   React.useEffect(() => {
     async function fetchData() {
-      //console.time("fetch data");
-      const lengthPath = ["dama", pgEnv, "sources", "byId", sourceId, "views", "length"];
+      const lengthPath = ["uda", pgEnv, "sources", "byId", sourceId, "views", "length"];
       const resp = await falcor.get(lengthPath);
       return await falcor.get([
-        "dama", pgEnv, "sources", "byId", sourceId, "views", "byIndex",
+        "uda", pgEnv, "sources", "byId", sourceId, "views", "byIndex",
         { from: 0, to: get(resp.json, lengthPath, 0) - 1 },
-        "attributes", Object.values(SourceAttributes)
+        Object.values(SourceAttributes)
       ]);
     }
     if(sourceId) {
@@ -534,8 +533,8 @@ function LegendRow ({ layer, i, numLayers, onRowMove }) {
   }, [sourceId, falcor, pgEnv]);
 
   const views = React.useMemo(() => {
-    return Object.values(get(falcorCache, ["dama", pgEnv, "sources", "byId", sourceId, "views", "byIndex"], {}))
-      .map(v => getAttributes(get(falcorCache, v.value, { "attributes": {} })["attributes"]));
+    return Object.values(get(falcorCache, ["uda", pgEnv, "sources", "byId", sourceId, "views", "byIndex"], {}))
+      .map(v => getAttributes(get(falcorCache, v.value, {})));
   }, [falcorCache, sourceId, pgEnv]);
 
   const groupSelectorElements = [];

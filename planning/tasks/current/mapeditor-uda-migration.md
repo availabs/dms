@@ -110,92 +110,161 @@ Each map component's state lives in `data_items.data.element["element-data"]` as
 
 ## Plan
 
-### Phase 0: Shape decisions — NOT STARTED
+### Phase 0: Shape decisions — DONE (2026-04-17)
 
-These are the design choices that constrain the rest of the work. Resolve these before writing code/scripts.
+| # | Decision |
+|---|---|
+| 0.1 | **Keep the `map_editor_test` pattern name in mitigat-ny-prod.** Pattern names are user-assigned and sites can legitimately have multiple mapeditor patterns (auth/style reasons). Migration scripts take `--pattern-instance <slug>` as a required argument; for mitigat-ny-prod we pass `--pattern-instance map_editor_test` since it's the only mapeditor pattern and the intended target. |
+| 0.2 | **Migrate all 247** DAMA symbologies. Unreferenced ones are cheap and might be used by other apps later. |
+| 0.3 | **Strip dangling refs (183, 200)** from map-component `element-data.symbologies` during rewrite. Gated by `--prune-dangling`, default ON. Better UX than leaving broken entries. |
+| 0.4 | **No instance in symbology type.** Type = `{patternInstance}\|symbology` (e.g., `map_editor_test\|symbology`). Identity is the numeric DMS id. DAMA `symbology_id` stashed as `data.legacy_dama_symbology_id` for traceability + rollback. |
+| 0.5 | **Preserve** `collection_id`, `categories`, `source_dependencies` as `data.legacy_*` fields. No new semantics — just auditability. |
 
-#### 0.1 Where will migrated symbologies live?
+### Phase 1: Hotfix — type construction + `Map: Dama Map` registration — PARTIAL (1b done, 1a pending)
 
-**Decision point**: In `dms_mitigat_ny_prod`, create a mapeditor pattern to hold all migrated + future-created symbologies. Options:
+Two independent small fixes. Landing both stops new broken rows from being created and restores rendering for the 171 `Map: Dama Map` components.
 
-- **Option A** *(recommended)*: Replace/rename the existing `prod|map_editor_test:pattern` to `prod|symbologies:pattern` (or `prod|maps:pattern`). Pattern instance `symbologies`. Migrated rows get type `symbologies|symbology`.
-- **Option B**: Leave `map_editor_test` alone (as a test/demo), create a new parallel pattern `prod|symbologies:pattern`. Same outcome for the migrated rows but leaves clutter.
-- **Option C**: Keep the existing test pattern name. Migrated rows get type `map_editor_test|symbology`. Functionally fine but the name is misleading.
+#### 1a. Fix `mapeditor/siteConfig.jsx` type construction — DONE (2026-04-17)
 
-Open question: does the MapEditor pattern need to be *per-site* (one pattern per DMS site in dms-mercury-3) or is one *per-app* (`mitigat-ny-prod`) enough? The site row has 39 patterns; the MapEditor pattern only needs to exist inside this one app. Recommended: one pattern per app.
+**Implementation note**: two changes were needed, not one. The bare `format.type = type;` swap wasn't enough because the `MapEditorContext` also passed `type` (the pattern type) to downstream consumers (`CreateSymbologyMenu`, `SaveChangesMenu`, `SymbologyControlMenu`, `SymbologySelector`) that use it for `dms.data.*` CRUD — they need the CHILD type. Fixed both in one edit: rename outer-arg `type` → `patternType`, compute `patternInstance = getInstance(patternType) || patternType`, build `format = initializePatternFormat(MapEditorFormat, app, patternInstance)`, then in the context expose `type: childType` (the `|symbology` form) and also `patternType` for anything that wants the parent. Verified `npm run build` passes.
 
-#### 0.2 Migrate all 247 or only the 89 referenced?
+**Problem**: `format.type = type;` in the mapeditor's siteConfig overwrites the format's child kind (`symbology`) with the *pattern's* own type (e.g., `prod|map_editor_test:pattern`). Newly-created symbology rows inherit the pattern type instead of `{patternInstance}|symbology`. Phase 14 of `type-system-refactor` marked this as reviewed-OK but the closer look during this task showed it's broken.
 
-**Decision**: migrate all 247. Reasons:
-- The unreferenced ones are cheap to copy (~247 rows, small JSON).
-- Users may later discover they want one; easier than re-running migration.
-- The script needs to scan all 247 anyway to build the ID-map.
+**File**: `src/dms/packages/dms/src/patterns/mapeditor/siteConfig.jsx`
 
-#### 0.3 How to handle the 2 dangling refs (183, 200)?
+- [ ] Replace the ad-hoc `format.type = type;` with `initializePatternFormat(format, app, instanceName)`, same flow used by page/admin/etc. Compute `instanceName = getInstance(type) || type` via `utils/type-utils.js`. Result: `format.type === `${instanceName}|symbology``.
+- [ ] Imports to add: `initializePatternFormat` from `../../dms-manager/_utils`, `getInstance` from `../../utils/type-utils`.
+- [ ] No change to `mapeditor.format.js` itself — `type: "symbology"` is the leaf kind the initializer prepends the instance to.
+- [ ] No change needed to `CreateSymbologyMenu.jsx`, `SaveChangesMenu.jsx`, or `MapEditor/index.jsx`'s list route — they all consume `type` from `MapEditorContext`, which will now carry the correct child type.
 
-**Decision**: leave the dangling symbology entry in place in the map component's `element-data.symbologies` (it'll stay broken), but log it in the migration report so someone can follow up. Alternatively, strip those entries entirely so the map just renders with no symbology picked (probably better UX — pickable from SymbologySelector again). Pick the strip approach — simpler downstream.
+**Verification**:
+- [ ] Create a symbology in the MapEditor (dev build). Query: `SELECT type FROM dms_mitigat_ny_prod.data_items WHERE id = <new_id>`. Expect `map_editor_test|symbology`, not `prod|map_editor_test:pattern` or `symbology`.
+- [ ] Route `action: "list"` in MapEditor `index.jsx` still delivers symbologies via `props.dataItems`.
+- [ ] No regressions in the mapeditor pattern UI.
 
-#### 0.4 What collision-resistant slug do we give each migrated symbology?
+#### 1b. Fix `Map: Dama Map` registration — DONE (2026-04-17)
 
-Options:
-- `nameToSlug(sym.name)` — readable, but 247 rows with duplicate names will collide; need suffixing
-- `s{symbology_id}` — unique, unreadable, but stable across re-runs
-- `{nameToSlug(name)}_{symbology_id}` — readable AND unique
+**Problem**: saved components store `element-type: "Map: Dama Map"` (display name with colon), but the page-pattern `ComponentRegistry/index.jsx` had the key as the bare `MapDama`. Lookup missed → "Component Map: Dama Map Not Registered" error for all 171 affected components.
 
-**Decision**: symbology rows don't use an instance name in the type column — the type is just `{patternInstance}|symbology` (like pages and components). The row's identity is its numeric DMS id. The `symbology_id` from DAMA goes into a `data.legacy_dama_symbology_id` field for traceability.
+**Fix applied**: renamed the key in `src/dms/packages/dms/src/patterns/page/components/sections/components/ComponentRegistry/index.jsx` from `MapDama` to `"Map: Dama Map": MapDama //MapDama`. Matches the existing convention used by `"Header: Default Header"`, `"Header: MNY Data"`, `"Footer: MNY Footer"`. Verified: nothing in the codebase (outside planning docs + server request logs) references the bare `MapDama` key, so rename was safe vs adding an alias.
 
-#### 0.5 Do we need to preserve `collection_id`?
+**Follow-up (out of scope)**: same kind of bug almost certainly affects the other `Map: X` display names with no registry entries. Counts across mitigat-ny-prod:
+- `Map: NRI` — 1,751 components
+- `Map: Fusion Events Map` — 493
+- `Map: FEMA Disaster Loss` — 312
+- `Map: Buildings` — 286
 
-Only 17 rows have one. Drop it into `data.legacy_collection_id` for reference but don't give it meaning in the new scheme.
+Total **~2,842 components likely silently rendering as "Not Registered"**. Either those registrations lived in a build-time `registerComponents(...)` call that got lost, or they were never wired up. Triage as a separate task (track under `patterns/page` in `todo.md`).
 
-### Phase 1: Fix `mapeditor.format.js` + `siteConfig.jsx` type construction — NOT STARTED
+### Phase 2: Finish page-pattern cleanup — PARTIAL (map/ dir done; map_dama/ deferred)
 
-**File**: `patterns/mapeditor/siteConfig.jsx`
+**File**: `patterns/page/components/sections/components/ComponentRegistry/map/SymbologySelector.jsx` — DONE
 
-- [ ] Replace the ad-hoc `format.type = type;` with the same `initializePatternFormat(format, app, instanceName)` flow used by other patterns. Compute `instanceName = getInstance(type) || type` using `utils/type-utils.js`. After initialization, `format.type` should be `{instance}|symbology`.
-- [ ] Make sure `falcor.call(["dms","data","create"], [app, format.type, newSymbology])` downstream picks up the new `format.type`.
-- [ ] Verify with a unit-style check: create a symbology via the MapEditor in dev, confirm the resulting `data_items` row has type `{pattern_instance}|symbology` (e.g., `symbologies|symbology`), not `prod|symbologies:pattern`.
+- [x] Dropped the `dama[pgEnv].symbologies.length/byIndex` fetch, `damaSymbologies` useMemo, unused `useEffect`/`useMemo`/`useState` imports, and the `falcorCache` state. `symbologies` is now just `dmsSymbologies`.
+- [x] Also removed unused `getAttributes`/`SymbologyAttributes`/`get` imports.
 
-**File**: `patterns/mapeditor/mapeditor.format.js`
+**File**: `patterns/page/components/sections/components/ComponentRegistry/map/SymbologyViewLayer.jsx` — DONE
 
-- [ ] No change to the definition — `type: "symbology"` is the leaf `rowKind` the format initializer prepends the instance to.
+- [x] Source metadata calls: `dama[pgEnv].sources.byId[id].attributes.metadata[...]` → `uda[pgEnv].sources.byId[id].metadata[...]` (UDA doesn't nest under `.attributes`).
+- [x] View data calls: `dama[pgEnv].viewsbyId[id].databyId[id]` → `uda[pgEnv].viewsById[id].dataById[id]` (case changes).
+- [x] Deleted the commented DAMA useEffect blocks in the same file.
 
-**File**: `patterns/mapeditor/MapEditor/components/LayerManager/SymbologyControl/components/CreateSymbologyMenu.jsx` and `SaveChangesMenu.jsx`
+**File**: `patterns/mapeditor/attributes.jsx` — DEFERRED
 
-- [ ] Confirm that `type` consumed from `MapEditorContext` is now the correct child type (`{patternInstance}|symbology`), not the parent pattern type. Eric's refactor relied on this being correct; our fix in `siteConfig.jsx` closes the loop.
+- [ ] `DamaSymbologyAttributes` export is still actively used by **`patterns/page/components/sections/components/ComponentRegistry/map_dama/`** (a parallel unmigrated map implementation consumed by the 171 `Map: Dama Map` components). Removing it now would break map_dama's MapManager + SymbologySelector. Defer until Phase 2c below.
 
-### Phase 2: Finish page-pattern cleanup — NOT STARTED
+### Phase 2c: Migrate `map_dama/` component tree off DAMA — DONE (2026-04-17, Option C path)
 
-**File**: `patterns/page/components/sections/components/ComponentRegistry/map/SymbologySelector.jsx`
+**Approach taken**: Option C — port the 16 DAMA calls now to restore editor behavior for the 171 `Map: Dama Map` components, then schedule map/map_dama unification as a separate task (because they have distinct features worth merging carefully — map_dama supports multi-symbology + filter-control UI, map supports datawrapper page-state filter binding).
 
-- [ ] Drop the `dama[pgEnv].symbologies.length/byIndex` fetch (the `useEffect` at line 11 + the `damaSymbologies` `useMemo`).
-- [ ] Keep the `doApiLoad()` DMS path and consume only that.
-- [ ] The merged `symbologies` variable collapses to just `dmsSymbologies`.
-- [ ] `SymbologySelector` uses `FilterableSearch` from `./tmp-cache-files/FilterableSearch.jsx` — acknowledged in the prior cleanup; leave as-is.
+**Completed edits**:
+- [x] `map_dama/MapManager/SymbologySelector/index.jsx` — replaced DAMA symbology loader with `doApiLoad()`-based DMS loader; removed `DamaSymbologyAttributes`/`getAttributes` imports; trimmed unused state (`falcorCache`, `useEffect` for legacy loader).
+- [x] `map_dama/MapManager/MapManager.jsx` — same DMS swap in the symbology-fetch block within `SymbologyRow`; source views path moved to `uda[pgEnv].sources.byId[id].views.*` (flattened out `.attributes` nesting to match UDA shape); removed `DamaSymbologyAttributes` import.
+- [x] `map_dama/SymbologyViewLayer.jsx` — HoverComp: source metadata `dama[pgEnv].sources.byId[id].attributes.metadata.*` → `uda[pgEnv].sources.byId[id].metadata.*`; view data `dama[pgEnv].viewsbyId.databyId` → `uda[pgEnv].viewsById.dataById` (case change); deleted adjacent commented DAMA blocks.
+- [x] `patterns/mapeditor/attributes.jsx` — deleted `DamaSymbologyAttributes` export (no remaining consumers).
+- [x] `npm run build` clean.
 
-**File**: `patterns/page/components/sections/components/ComponentRegistry/map/SymbologyViewLayer.jsx`
+**Follow-up queued**: `map-component-unification.md` (new task file in `planning/tasks/current/`) — plan to merge `map/` and `map_dama/` into a single component covering the union of their features. Required because the duplication will rot otherwise.
 
-- [ ] Replace active `dama[pgEnv].sources.byId.attributes.metadata` calls with `uda[pgEnv].sources.byId.metadata` (UDA doesn't nest under `.attributes`).
-- [ ] Replace active `dama[pgEnv].viewsbyId.databyId` calls with `uda[pgEnv].viewsById.dataById` (case change: `viewsbyId`→`viewsById`, `databyId`→`dataById`).
-- [ ] Delete commented DAMA blocks while you're in there.
+### Phase 2b: Port `colorDomain` to `uda[pgEnv]` — DONE (2026-04-17)
 
-**File**: `patterns/mapeditor/attributes.jsx`
+**Implementation summary:**
 
-- [ ] Delete `DamaSymbologyAttributes` export. Nothing imports it after Eric's commit.
+- New route `uda[pgEnv].viewsById[viewId].colorDomain[JSON(options)]`
+- Four methods: `equalInterval`, `quantile`, `standardDeviation`, `ckmeans`
+- All four use SQL-native aggregation (no row-level data transfer to Node).
+- ckmeans branches on row count: full scan for counts ≤ `ckmeansFullScanThreshold` (default 50K), otherwise `width_bucket` histogram → ~10K weighted representatives → in-JS ckmeans.
+- Per-method timings measured against `hazmit_dama` source 1480 / view 1960 / 5.3M non-null rows (column `yr_blt`, numbins=6): equalInterval 4.4s, quantile 14.7s, standardDeviation 8.1s, ckmeans 8.4s (histogram path).
 
-### Phase 3: Cleanup of commented DAMA code in MapEditor — NOT STARTED
+**Break-array convention chosen:** first element = min, length = numbins. Matches the client's `choroplethPaint()` expectation (Mapbox `step` expression input) and matches the legacy DAMA response shape, so no downstream changes needed.
 
-Delete the commented-out DAMA blocks Eric left in place. Affected files from his commit:
+**Filter passthrough:** options.filter is forwarded to `buildCombinedWhere` alongside the default null-exclusion on the target column (opt-in `excludeZero` available). MapEditor passes the active layer filter into `domainOptions.filter`, so the color range follows user filters.
 
-- `MapEditor/MapViewer.jsx` (lines ~41-83)
-- `MapEditor/index.jsx` (lines ~145-180, 683-686)
-- `MapEditor/components/SymbologyViewLayer.jsx` (lines ~505-663)
-- `MapEditor/components/LayerManager/SymbologyControl/components/CreateSymbologyMenu.jsx` (lines 37-68, 46-62)
-- `MapEditor/components/LayerManager/SymbologyControl/components/SaveChangesMenu.jsx` (lines 67-76, etc.)
+**PostgreSQL only** — `percentile_cont`, `stddev_samp`, `width_bucket`. SQLite support explicitly out of scope (spatial data doesn't run on SQLite).
 
-This is low-risk mechanical cleanup; do it after Phase 2 so the codebase is clean for review.
+**Files created:**
+- `packages/dms-server/src/routes/uda/colorDomain/ckmeans.js` — CJS port of simple-statistics' ckmeans (ISC license, from `references/avail-falcor/.../ckmeans.js`)
+- `packages/dms-server/src/routes/uda/uda.colorDomain.controller.js` — method dispatcher + SQL
+- `packages/dms-server/src/routes/uda/uda.colorDomain.route.js` — Falcor route (auto-discovered by `routes/index.js`)
+- `packages/dms-server/tests/test-colorDomain.js` — 21 tests (12 unit + 9 integration, integration gated on env vars)
+- `packages/dms-server/package.json` — added `test:colorDomain` npm script
 
-### Phase 4: Build the migration script — NOT STARTED
+**Files changed (client):**
+- `patterns/mapeditor/MapEditor/index.jsx` — removed the Phase-2b TODO block, added the UDA call with filter passthrough and `is-loading-colorbreaks` state toggling
+- `patterns/mapeditor/MapEditor/components/LayerEditor/Controls.jsx` — added `Quantile` and `Standard Deviation` options to the binning-method dropdown (previously `ck-means`, `equalInterval`, `custom` only)
+
+**Test coverage:**
+- ckmeans math: empty input, single value, all-identical, nClusters guard, standard docs example, ascending output, truncation to unique count, non-mutation, mixed-sign values
+- Dispatcher: rejects missing column, rejects column-name injection
+- Integration (7M-row view): all 4 methods return sensible shape, filters reduce count, numbins=2 returns 2 breaks, first break equals min, ckmeans threshold dispatches correctly to full/histogram paths
+
+**Known limitations:**
+- quantile on 5M+ rows is PG-sort bound (~15s). Users typically do this only on filter change, not on every render. Can be indexed per-column if a specific view needs faster.
+- equalInterval on dirty columns (zeros as padding) produces skewed breaks. Document that `excludeZero: true` is the user-accessible fix.
+
+**Manual verification still pending**:
+- [ ] Open a choropleth map in the MapEditor against mitigat-ny-prod, switch binning method, confirm legend + paint update
+- [ ] Switch between filtered/unfiltered modes (`filterGroupEnabled`) and verify breaks update
+- [ ] Confirm `is-loading-colorbreaks` state shows a spinner in the UI (assumes the legend component reads that flag — worth a look)
+- [ ] Regression: saved symbologies with cached `choroplethdata` still short-circuit the fetch (Node devtools: no `/graph` call with `colorDomain` when `viewGroupId === prevViewGroupId`)
+
+### Phase 3: Cleanup of commented DAMA code in MapEditor — DONE (2026-04-17)
+
+All touched:
+- [x] `MapEditor/MapViewer.jsx` — removed commented DAMA blocks + unused `DamaSymbologyAttributes` / `get` imports. Also fixed typo `dataIems` → `dataItems` in dep array.
+- [x] `MapEditor/index.jsx` — removed commented DAMA blocks at lines ~145-193, removed `DamaSymbologyAttributes` import, replaced the colorDomain `NEEDS NEW DMS ROUTES...MAYBE???` block with a concise `// TODO: Phase 2b` note pointing at the task.
+- [x] `MapEditor/components/SymbologyViewLayer.jsx` — removed two commented DAMA useEffect blocks (~45 lines each).
+- [x] `MapEditor/components/LayerManager/SymbologyControl/components/CreateSymbologyMenu.jsx` — removed the commented legacy `createSymbologyMap` (DAMA version).
+- [x] `MapEditor/components/LayerManager/SymbologyControl/components/SaveChangesMenu.jsx` — removed commented `updateData`/`updateName`/`createSymbologyMap` (legacy DAMA versions), `updateDamaSymbology`/`updateDamaName`/`isDamaSymbology` remnants, the stale `onSubmit` copy, and the console.log trail.
+- [x] `npm run build` — clean.
+
+### Phase 4: Build the migration script — DONE (2026-04-18)
+
+**Implementation**: `packages/dms-server/src/scripts/migrate-dama-symbologies.js` (CJS, ~330 lines).
+
+**Final apply against mitigat-ny-prod / dms-mercury-3** (2026-04-18 12:13 UTC):
+- 247 DAMA symbologies inserted as `map_editor_test|symbology` rows in `dms_mitigat_ny_prod.data_items`
+- 2,217 map components rewritten — every `element-data.symbologies[<dama_id>]` entry rekeyed under the new DMS id, with `id` set, `symbology_id` cleared, `isDamaSymbology` set false
+- 2 dangling DAMA refs (ids `183`, `200`) stripped (`--prune-dangling` default ON)
+- ID map persisted to `scratchpad/mitigat-ny-prod/symbology-id-map.json`
+- Total wall-clock: ~5 min (warm cache; cold-cache dry-run was ~8 min)
+
+**Verification queries (post-apply)**:
+- `SELECT COUNT(*) FROM dms_mitigat_ny_prod.data_items WHERE type='map_editor_test|symbology'` → 247 ✓
+- Component 1022249 (was `symbology_id=172`) now references `id=2141990`, no symbology_id ✓
+- `SELECT id FROM dms_mitigat_ny_prod.data_items WHERE type='map_editor_test|symbology' AND data->>'legacy_dama_symbology_id'='172'` → `id=2141990, name='County LHMP Status'` ✓
+- `SELECT COUNT(*) FROM ... WHERE type LIKE '%|component' AND data->'element'->>'element-data' LIKE '%"symbology_id"%'` → 0 (was 2217) ✓
+
+**Tests**:
+- 12/12 unit tests pass for `planRewrite` (`tests/test-migrate-dama-symbologies.js`, npm script `test:migrate-dama-symbologies`)
+
+**Implementation notes worth remembering**:
+- Used keyset pagination (`WHERE id > $lastId ORDER BY id LIMIT N`) instead of `WHERE id = ANY($1::bigint[])` — the latter doesn't use the primary-key index efficiently and added ~70-100s/batch on cold cache.
+- Project just `data->'element'->>'element-data'` as text, not the full `data` JSONB. Maps' full envelopes are 100KB+ each.
+- Filter in SQL with `(data->'element'->>'element-data') LIKE '%symbology_id%'` to skip empty-symbology maps and DMS-native ones — drops scan size from 5,059 to 2,217.
+- Batched output via `process.stderr.write()` not `console.log` — stdout is block-buffered when redirected, masking progress for long runs.
+- In dry-run, populate a synthetic `newIdMap` (damaId → -damaId) so dangling detection only flags TRUE dangling refs, not "would-be-migrated" refs.
+- `jsonb_set(data, '{element,element-data}', to_jsonb($::text), false)` to write the rewritten JSON-string-in-JSONB cleanly.
 
 **Location**: `src/dms/packages/dms-server/src/scripts/migrate-dama-symbologies.js`
 
@@ -310,12 +379,42 @@ This is low-risk mechanical cleanup; do it after Phase 2 so the codebase is clea
 - [ ] Create a NEW symbology in the MapEditor. Confirm its DB row has type `symbologies|symbology` (or whatever pattern instance we chose), not the pattern type.
 - [ ] Run the script a second time. It should migrate 0 rows (idempotent check).
 
-### Phase 6: Rollback plan
+### Phase 6: Rollback plan — DOCUMENTED (2026-04-18)
 
-Keep the DAMA `data_manager.symbologies` table intact during and after migration — DO NOT drop or alter it. The ID map in `scratchpad/` plus the `legacy_dama_symbology_id` field lets us invert the mapping if we need to reverse changes in mapcomponents. To roll back:
+**Two-step rollback** if the migration needs to be reversed in mitigat-ny-prod:
 
-1. Delete the migrated DMS rows: `DELETE FROM dms_mitigat_ny_prod.data_items WHERE type LIKE '%|symbology' AND (data->>'_migrated_at') IS NOT NULL`.
-2. Re-run a reverse ref-rewriter that maps new DMS ids back to old DAMA symbology_ids using the saved ID map.
+**Step 1 — Delete migrated symbology rows** (safe; the source DAMA table is untouched):
+
+```sql
+DELETE FROM dms_mitigat_ny_prod.data_items
+WHERE app = 'mitigat-ny-prod'
+  AND type = 'map_editor_test|symbology'
+  AND data ? 'legacy_dama_symbology_id';
+```
+
+This wipes only the rows the migration created (the `legacy_dama_symbology_id` predicate is the canary — non-migrated symbologies someone added later won't have it).
+
+**Step 2 — Reverse-rewrite map components** using the persisted ID map at `packages/dms-server/scratchpad/mitigat-ny-prod/symbology-id-map.json`:
+
+```bash
+node src/scripts/migrate-dama-symbologies.js \
+  --dama-config hazmit_dama \
+  --dms-config dms-mercury-3 \
+  --app mitigat-ny-prod \
+  --pattern-instance map_editor_test \
+  --reverse \
+  --apply
+```
+
+The `--reverse` flag is **not yet implemented** — would need to be added if we ever need to roll back. The shape would be: load the ID map (it's `dama_id → dms_id`), invert it, run the same scan-and-rewrite logic but rewriting `id → symbology_id` and reverting the rekey. ~30 min of work to add.
+
+**Manual fallback** (no `--reverse` flag needed):
+- Pull each affected component's current `element-data`, parse, and for every `symbologies[<dms_id>]` entry, look up the original `dama_id` via `JSON.parse(fs.readFileSync('symbology-id-map.json'))` (inverted), rebuild the entry with `symbology_id: <dama_id>`, `id: undefined`, write back via the same `jsonb_set` path.
+- For 2,217 components this is identical work to the forward script, just inverted.
+
+**The source DAMA table** (`hazmit_dms.data_manager.symbologies`) was not modified by the migration, so its data is the canonical fallback for any symbology lookups during a rollback.
+
+**Retention recommendation**: keep the ID map and the DAMA table intact for at least 90 days post-cutover before considering either deletable.
 
 ### Phase 7: Remove the DAMA symbology-serving infrastructure
 
@@ -327,18 +426,21 @@ Out of scope for the implementation task, but noted for follow-up:
 ## Files to change
 
 ### Client
+- `patterns/page/components/sections/components/ComponentRegistry/index.jsx` — **DONE (Phase 1b)**: renamed `MapDama` key to `"Map: Dama Map"`
 - `patterns/page/components/sections/components/ComponentRegistry/map/SymbologySelector.jsx` — drop DAMA loader
 - `patterns/page/components/sections/components/ComponentRegistry/map/SymbologyViewLayer.jsx` — DAMA → UDA source/view/data paths
 - `patterns/mapeditor/siteConfig.jsx` — use `initializePatternFormat` so `format.type = {instance}|symbology`
+- `patterns/mapeditor/MapEditor/index.jsx` — re-wire `colorDomain` to `uda[pgEnv].viewsById[viewId].colorDomain[...]`; delete commented DAMA blocks
 - `patterns/mapeditor/attributes.jsx` — delete `DamaSymbologyAttributes`
 - `patterns/mapeditor/MapEditor/MapViewer.jsx` — delete commented DAMA blocks
-- `patterns/mapeditor/MapEditor/index.jsx` — delete commented DAMA blocks
 - `patterns/mapeditor/MapEditor/components/SymbologyViewLayer.jsx` — delete commented DAMA blocks
 - `patterns/mapeditor/MapEditor/components/LayerManager/SymbologyControl/components/CreateSymbologyMenu.jsx` — delete commented DAMA block
 - `patterns/mapeditor/MapEditor/components/LayerManager/SymbologyControl/components/SaveChangesMenu.jsx` — delete commented DAMA blocks
 
 ### Server / scripts
-- `packages/dms-server/src/scripts/migrate-dama-symbologies.js` — NEW migration script
+- `packages/dms-server/src/routes/uda/uda.colorDomain.route.js` (+ controller) — NEW UDA route for server-side choropleth break calculation (Phase 2b)
+- `packages/dms-server/src/scripts/migrate-dama-symbologies.js` — NEW migration script (Phase 4)
+- `packages/dms-server/tests/test-colorDomain.js` — NEW tests for the colorDomain route
 
 ### Data artifacts (gitignored scratchpad)
 - `scratchpad/mitigat-ny-prod/symbology-id-map.json` — generated during apply, needed for rollback
@@ -346,21 +448,31 @@ Out of scope for the implementation task, but noted for follow-up:
 
 ## Testing Checklist
 
-- [ ] Dry-run migration on dms-mercury-3 prints a sensible plan (247 symbologies → new pattern, 2193 components to rewrite, 2 dangling refs flagged)
-- [ ] After `--apply`: `dms_mitigat_ny_prod.data_items WHERE type LIKE '%|symbology'` has 247 rows; each has `data.legacy_dama_symbology_id`
-- [ ] After apply: `dms_mitigat_ny_prod.data_items WHERE type LIKE '%|component'` still has 5036 map components (no count change), but `data::text LIKE '%symbology_id%' AND NOT LIKE '%"id"%'` drops to near-zero (only dangling/stripped)
-- [ ] Map components in 5 patterns load correctly in the browser, symbology renders, filters/popovers work
-- [ ] MapEditor creates new symbologies with type `{patternInstance}|symbology`, visible in the source table
+- [x] `Map: Dama Map` components render instead of showing "Component Map: Dama Map Not Registered" (Phase 1b done)
+- [x] After `--apply`: `dms_mitigat_ny_prod.data_items WHERE type = 'map_editor_test|symbology'` has 247 rows; each has `data.legacy_dama_symbology_id` (verified)
+- [x] After apply: components with `"symbology_id"` field drops from 2,217 to 0 (verified)
+- [x] Component 1022249 (was symbology_id=172) now references the new DMS row id 2141990 (verified)
+
+**Bug fixed during Phase 5 testing (2026-04-18):**
+- UDA `dataById` controller hardcoded the PK column to `id`, but DAMA `gis_datasets` tables (and other older DAMA tables) use `ogc_fid` as PK. Hover popups in migrated maps returned `column "id" does not exist`. Fixed in `packages/dms-server/src/routes/uda/uda.controller.js`: added `resolvePrimaryKey(db, schema, table)` helper that queries `pg_index`/`pg_attribute` and caches per-table; the SQL aliases the result column as `id` so the response shape stays unchanged for downstream consumers. Verified end-to-end: `dataById('hazmit_dama', 1239, [702], ['bldg_scheme'])` now returns `[{id: 702, bldg_scheme: 'NY1'}]`.
+
+**Manual browser smoke tests still needed (Phase 5):**
+- [ ] New symbologies created in the MapEditor have type `map_editor_test|symbology` (Phase 1a)
+- [ ] `colorDomain` fetch succeeds from a dev MapEditor for choropleth and circles layers; legend updates on method/numbins changes (Phase 2b)
+- [ ] Page-pattern SymbologySelector no longer makes `dama[pgEnv].symbologies.*` calls; loads symbologies exclusively from DMS (Phase 2)
+- [ ] Map components in 5 patterns load correctly in the browser, symbology renders, filters/popovers work, choropleth binning recalculates without stale-cache hacks. Suggested patterns to spot-check: `mitigateny_sullivan` (198 affected), `putnamcsc` (233), `mitigateny_westchester` (99), `redesign2` (163), `sullivan_entry_test_domain` (144).
+- [ ] Open a `Map: Dama Map` component (any of the 171) — confirm map_dama renders with a populated symbology picker.
 - [ ] No network calls to `dama[pgEnv].symbologies.*` from the running app (verified in browser devtools)
-- [ ] Re-running the migration script is a no-op (idempotent)
-- [ ] Rollback plan works: re-apply creates no new rows; deleting migrated rows + re-running reverse-rewriter restores old refs
+- [x] Re-running the migration script is a no-op (idempotent) — verified 2026-04-18: re-run reports "Already migrated (skipped): 247 / Would migrate: 0 / Components needing rewrite: 0" in ~15 seconds (SQL filter finds 0 components still containing `symbology_id`)
 
 ## Open Questions
 
-1. **Which pattern owns the migrated symbologies?** (Phase 0.1) — Recommended: rename `map_editor_test` to `symbologies`, or create a new `symbologies` pattern and drop the test one later. Needs user input.
-2. **Sibling MapDama element-type** — There are 171 `Map: Dama Map` components. Are they structurally identical to regular `Map` components (just a different name), or do they use a different data shape? Migration script should handle both; quick code-level check needed to confirm.
-3. **Are there maps in OTHER sites (`dms_asm`, `dms_wcdb`, etc.) that also reference DAMA symbologies?** — Not in scope for this task, but if yes, the script needs to be run per-app or extended. Cheap to check at Phase 4 kickoff.
-4. **What happens to new symbologies someone creates in the MapEditor today, before this task ships?** — They'll be created under `type = 'prod|map_editor_test:pattern'` (wrong child type, because of the bug in `siteConfig.jsx`). Phase 1 is the first thing to ship to stop creating more broken rows. Consider landing Phase 1 as a hotfix before the rest of the work.
+1. ~~Which pattern owns the migrated symbologies?~~ **Resolved**: keep `map_editor_test`, script takes `--pattern-instance` arg.
+2. **Sibling MapDama element-type** — There are 171 `Map: Dama Map` components. Are they structurally identical to regular `Map` components (just a different name + element-type), or do they have a different data shape? The registry fix in Phase 1b made them render; confirm during Phase 5 smoke tests that their symbology data is shaped the same as `Map` components so the migration script's ref-rewriter handles them uniformly.
+3. **Are there maps in OTHER sites (`dms_asm`, `dms_wcdb`, etc.) that also reference DAMA symbologies?** — Not in scope for this task, but cheap to check at Phase 4 kickoff with a cross-schema query. If yes, run the script per-app with the appropriate `--pattern-instance`.
+4. **What happens to new symbologies someone creates in the MapEditor today, before Phase 1a ships?** — They get created under `type = 'prod|map_editor_test:pattern'` (wrong child type). **Phase 1a is the hotfix to stop creating more broken rows.** Consider landing 1a ahead of 2-7.
+5. **colorDomain binning methods**: confirm the exact set the legacy DAMA endpoint supported (probably equalInterval, quantile, jenks, standardDeviation, maybe logarithmic/geometric). Inspect `references/avail-falcor/dama/routes/symbology/colorDomain.js` or equivalent before Phase 2b coding.
+6. **Where does the `ckmeans.js` helper live and is it server-usable?** — `packages/dms/src/patterns/mapeditor/ckmeans.js` exists on the client side. Check if it can be required from Node (server) as-is or needs porting to CJS/workspace-friendly form for the new UDA colorDomain route.
 
 ## Related tasks
 
