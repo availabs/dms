@@ -163,7 +163,7 @@ function LazyImage({
       makeFile(imgSrc)
         .then(file => {
 
-console.log("FILE:", file)
+// console.log("FILE:", file)
 
           return uploadFile(file, altText, DAMA_HOST, pgEnv, id, directory)
         })
