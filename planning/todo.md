@@ -7,6 +7,7 @@
 ## dama
 
 - [ ] DAMA server port — task queue with host isolation + idempotent locking, GIS/CSV upload pipeline (GDAL), multi-pgEnv routing, UDA task/event Falcor routes, datatype plugin system, legacy migration script
+- [ ] [DAMA datatypes migration to plugin system](./tasks/current/dama-datatypes-migration.md) — port legacy hazmit datatypes (references/avail-falcor/…) into the new `registerDatatype` plugin shape. Files live in `dms-template/data-types/`, bootstrap via `DMS_EXTRA_DATATYPES` env var pointing at `dms-template/server/register-datatypes.js`. Guide + worked example for `enhance_nfip_claims_v2`; subsequent datatypes follow the same pattern
 
 ## cli
 
