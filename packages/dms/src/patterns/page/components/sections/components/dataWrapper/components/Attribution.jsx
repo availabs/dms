@@ -3,12 +3,7 @@ import {Link} from "react-router";
 import {ComponentContext} from "../../../../../context";
 import {ThemeContext} from "../../../../../../../ui/useTheme";
 import {legacyStateToBuildInput} from "../buildUdaConfig";
-
-export const attributionTheme = {
-    wrapper: 'w-full p-1 pt-[16px] flex gap-1 text-xs text-gray-900',
-    label: '',
-    link: ''
-}
+import {attributionTheme} from "./Attribution.theme";
 
 export const Attribution = () => {
     const { theme = { attribution: attributionTheme } } = React.useContext(ThemeContext) || {}

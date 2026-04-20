@@ -7,17 +7,18 @@ import {CMSContext, PageContext, ComponentContext, DataSourceContext} from '../.
 import {getPageAuthPermissions} from "../../pages/_utils";
 import {getSectionMenuItems} from './sectionMenu'
 import {
-    DeleteModal,
     getHelpTextArray,
-    HelpTextEditPopups,
-    ViewSectionHeader,
     initialState,
     isJson
 } from './section_utils'
+import {
+    DeleteModal,
+    HelpTextEditPopups,
+    ViewSectionHeader
+} from './section_components'
 import Component from "./components";
 import {useImmer} from "use-immer";
 import { getRegisteredComponents } from './componentRegistry'
-export { registerComponents, getRegisteredComponents } from './componentRegistry'
 
 /**
  * Parse element-data JSON string.

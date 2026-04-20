@@ -1,19 +1,19 @@
 //
 // //import MNYHeader from './mnyHeader';
 //
-import lexical from './richtext';
-import Header from './header'
-import MnyHeaderDataDriven from "./mnyHeader/mnyHeaderDataDriven";
-import MNYFooter from './footer'
-import Spreadsheet from "./spreadsheet";
-import Card from "./Card";
-import Graph from "./graph"
-import FilterComponent from "./FilterComponent";
+import lexical from './richtext/config';
+import Header from './header.config'
+import MnyHeaderDataDriven from "./mnyHeader/config";
+import MNYFooter from './footer.config'
+import Spreadsheet from "./spreadsheet/config";
+import Card from "./Card.config";
+import Graph from "./graph/config"
+import FilterComponent from "./FilterComponent.config";
 // import UploadComponent from "./UploadComponent";
 // import ValidateComponent from "./ValidateComponent";
-import PDFGenerator from "./ExportPdf";
-import Map from "./map"
-import MapDama from "./map_dama"
+import PDFGenerator from "./ExportPdf.config";
+import Map from "./map/config"
+import MapDama from "./map_dama/config"
 
 // //import Item from "./item";
 const ComponentRegistry = {

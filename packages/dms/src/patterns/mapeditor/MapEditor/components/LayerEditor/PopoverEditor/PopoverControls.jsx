@@ -136,7 +136,7 @@ export function ColumnSelectControl({path, params={}}) {
 
   const sampleData = useMemo(() => {
     return Object.values(
-      get(falcorCache, ["dama", pgEnv, "viewsbyId", viewId, "databyIndex"], [])
+      get(falcorCache, ["uda", pgEnv, "viewsById", viewId, "dataByIndex"], [])
     ).map((v) =>  {
       // console.log('what', v)
 

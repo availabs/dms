@@ -1,20 +1,7 @@
 import React from 'react'
 import { getAPI } from "./api";
+import { AuthContext, useAuth, defaultUserState } from "./context";
 
-const defaultUserState = () => ({
-  token: null,
-  groups: ['public'],
-  authLevel: -1,
-  authed: false,
-  attempts: 0,
-  meta: [],
-  id: null,
-  isAuthenticating: false,
-  email: null
-});
-
-export const AuthContext = React.createContext({ user: defaultUserState() });
-export const useAuth = () => React.useContext(AuthContext);
 export const withAuth = Component => {
   return ({ ...props }) => {
     const authContext = useAuth()
@@ -40,21 +27,10 @@ export const authProvider = (Component, config) => {
     });
     const AuthAPI = getAPI({ AUTH_HOST, PROJECT_NAME })
 
-    // React.useEffect(() => {
-    //   console.log('user updated', user)
-    // },[user])
-    //
     React.useEffect(() => {
       async function load() {
         const user = await AuthAPI.getUser();
         setUser(user || defaultUserState());
-          // const userWithPublicGroup = user || defaultUserState();
-          //
-          // if(!userWithPublicGroup.groups?.includes('public')){
-          //     userWithPublicGroup.groups.push('public')
-          // }
-          //
-          // setUser(userWithPublicGroup);
       }
       load();
     }, []);

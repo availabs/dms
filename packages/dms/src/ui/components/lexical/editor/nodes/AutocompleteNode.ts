@@ -17,7 +17,7 @@ import type {
 
 import {TextNode} from 'lexical';
 
-import {uuid as UUID} from '../plugins/AutocompletePlugin';
+import {uuid as UUID} from '../plugins/AutocompletePlugin/uuid';
 
 export type SerializedAutocompleteNode = Spread<
   {

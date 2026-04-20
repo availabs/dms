@@ -1,6 +1,6 @@
 import React, {useCallback, useMemo, useRef} from "react";
 import {useHandleClickOutside, isEqualColumns} from "../../../utils/utils";
-import {filterTheme} from "../RenderFilters";
+import {filterTheme} from "../RenderFilters.theme";
 import {PageContext} from "../../../../../../../context";
 import {ThemeContext} from "../../../../../../../../../ui/useTheme";
 

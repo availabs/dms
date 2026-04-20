@@ -1,30 +1,11 @@
-import React, {useContext, useEffect, useMemo, useState} from "react";
-import {get} from "lodash-es";
-import {getAttributes, SymbologyAttributes} from "./utils.js";
-import FilterableSearch from "./tmp-cache-files/FilterableSearch.jsx";
+import React, {useContext} from "react";
+import { ThemeContext } from "../../../../../../../ui/useTheme";
 import {MapContext} from "./";
 
 export const SymbologySelector = () => {
-    const { state, setState, falcor, pgEnv, doApiLoad } = useContext(MapContext);
-    const [falcorCache, setFalcorCache] = useState(falcor.getCache());
-
-    useEffect(() => {
-        async function fetchData() {
-            const lengthPath = ["dama", pgEnv, "symbologies", "length"];
-            const resp = await falcor.get(lengthPath)
-                // .then(res => {
-                //     console.log("RES:", res);
-                //     return res;
-                // });
-            await falcor.get([
-                "dama", pgEnv, "symbologies", "byIndex",
-                { from: 0, to: get(resp.json, lengthPath, 0) - 1 },
-                "attributes", Object.values(SymbologyAttributes)
-            ]);
-            setFalcorCache(falcor.getCache());
-        }
-        fetchData();
-    }, [falcor, pgEnv]);
+    const { state, setState, doApiLoad } = useContext(MapContext);
+    const { UI } = useContext(ThemeContext) || {};
+    const { ComboBox } = UI || {};
 
     const [dmsSymbologies, setDmsSymbologies] = React.useState([]);
 
@@ -41,23 +22,7 @@ export const SymbologySelector = () => {
             });
     }, [doApiLoad]);
 
-    const damaSymbologies = useMemo(() => {
-        return Object.values(get(falcorCache, ["dama", pgEnv, "symbologies", "byIndex"], {}))
-            .map(v => getAttributes(get(falcorCache, v.value, { "attributes": {} })["attributes"]))
-            .map(sym => ({
-                ...sym,
-                id: sym.symbology_id,
-                symbology: {
-                    ...sym.symbology,
-                    id: sym.symbology_id,
-                    isDamaSymbology: true
-                }
-            }));
-    }, [falcorCache?.dama, pgEnv]);
-
-    const symbologies = React.useMemo(() => {
-        return [...dmsSymbologies, ...damaSymbologies];
-    }, [dmsSymbologies, damaSymbologies]);
+    const symbologies = dmsSymbologies;
 
 // console.log("SymbologySelector::state.symbologies", state.symbologies);
 
@@ -88,7 +53,7 @@ export const SymbologySelector = () => {
         <div className={'flex w-full bg-white items-center'}>
             <label className={'p-1'}>Symbology: </label>
             <div className={'w-1/2'}>
-                <FilterableSearch
+                <ComboBox
                     className={'flex-row-reverse'}
                     placeholder={'Search...'}
                     options={symOptions}
@@ -105,7 +70,7 @@ export const SymbologySelector = () => {
             </div>
             <label className={'p-1'}>Layer: </label>
             <div className={'w-1/2'}>
-                <FilterableSearch
+                <ComboBox
                     className={'flex-row-reverse'}
                     placeholder={'Search...'}
                     options={layerOptions}

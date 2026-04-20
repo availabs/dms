@@ -27,7 +27,7 @@ export const docs = [{
     children: <div>content</div>,
     openType: 'click'
 }]
-export default function ({ control, children,className, width='w-full min-w-[200px] max-w-[200px]', openType='hover' }) {
+export default function Dropdown ({ control, children,className, width='w-full min-w-[200px] max-w-[200px]', openType='hover' }) {
     const [open, setOpen] = React.useState(false),
         clickedOutside = React.useCallback(() => setOpen(false), []),
         [setRef] = useClickOutside(clickedOutside);

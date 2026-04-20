@@ -1,9 +1,9 @@
 import {layoutSettings} from './components/Layout.theme'
-import { layoutGroupSettings } from './components/LayoutGroup'
+import { layoutGroupSettings } from './components/LayoutGroup.theme'
 import {sideNavsettings} from './components/SideNav.theme'
 import {topNavsettings} from './components/TopNav.theme'
-import { logoSettings } from './components/Logo'
-import { buttonSettings } from './components/Button'
+import { logoSettings } from './components/Logo.theme'
+import { buttonSettings } from './components/Button.theme'
 import { cardSettings } from "./components/card.theme";
 import { tableSettings } from "./components/table/table.theme";
 import { navigableMenuSettings } from "./components/navigableMenu/theme";

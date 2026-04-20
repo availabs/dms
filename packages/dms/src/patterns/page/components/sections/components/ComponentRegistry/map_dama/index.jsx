@@ -26,11 +26,55 @@ const isJson = (str)  => {
 
 export const MapContext = createContext(undefined);
 
-const getData = async () => {
-    return {}
-}
+const defaultStyles = [
+    {
+        name: "Default",
+        style: "https://api.maptiler.com/maps/dataviz/style.json?key=mU28JQ6HchrQdneiq6k9"
+    },
+    { name: "Satellite",
+        style: "https://api.maptiler.com/maps/hybrid/style.json?key=mU28JQ6HchrQdneiq6k9",
+    },
+    { name: "Streets",
+        style: "https://api.maptiler.com/maps/streets-v2/style.json?key=mU28JQ6HchrQdneiq6k9",
+    },
+    { name: "Light",
+        style: "https://api.maptiler.com/maps/dataviz-light/style.json?key=mU28JQ6HchrQdneiq6k9"
+    },
+    { name: "Dark",
+        style: "https://api.maptiler.com/maps/dataviz-dark/style.json?key=mU28JQ6HchrQdneiq6k9"
+    },
+    {
+        name: "Blank",
+        style: {
+            sources: {},
+            version: 8,
+            layers: [{
+                "id": "background",
+                "type": "background",
+                "layout": { "visibility": "visible" },
+                "paint": { "background-color": 'rgba(208, 208, 206, 0)' }
+            }]
+        }
+    }
+]
 
-const Edit = ({value, onChange, size}) => {
+const blankStyles = [
+    {
+        name: "Blank",
+        style: {
+            sources: {},
+            version: 8,
+            layers: [{
+                "id": "background",
+                "type": "background",
+                "layout": { "visibility": "visible" },
+                "paint": { "background-color": 'rgba(208, 208, 206, 0)' }
+            }]
+        }
+    }
+]
+
+export const MapDamaEdit = ({value, onChange, size}) => {
     const { falcor, falcorCache, pgEnv, apiLoad, mapeditorKeys } = React.useContext(CMSContext)
     const mounted = useRef(false);
     const cachedData = typeof value === 'object' ? value : value && isJson(value) ? JSON.parse(value) : {};
@@ -48,8 +92,16 @@ const Edit = ({value, onChange, size}) => {
 
     const doApiLoad = React.useCallback(() => {
         return mapeditorKeys.reduce((a, c) => {
-            const [app, type] = c.split("+");
-            const format = { ...cloneDeep(mapeditorFormat), app, type };
+            // `mapeditorKeys` entries are `{app}+{patternInstance}` (e.g.
+            // 'mitigat-ny-prod+map_editor_test'). Symbology rows live at type
+            // `{patternInstance}|symbology` — build the full type from the
+            // format's leaf kind.
+            const [app, patternInstance] = c.split("+");
+            const format = {
+                ...cloneDeep(mapeditorFormat),
+                app,
+                type: `${patternInstance}|${mapeditorFormat.type}`,
+            };
             return a.then(aa => {
                 return apiLoad({
                     ...format,
@@ -231,12 +283,12 @@ const Edit = ({value, onChange, size}) => {
     )
 }
 
-Edit.settings = {
+MapDamaEdit.settings = {
     hasControls: false,
     name: 'ElementEdit'
 }
 
-const View = ({value, size}) => {
+export const MapDamaView = ({value, size}) => {
     const { falcor, falcorCache, pgEnv } = React.useContext(CMSContext)
     const mounted = useRef(false);
     const cachedData = typeof value === 'object' ? value : value && isJson(value) ? JSON.parse(value) : {};
@@ -416,66 +468,3 @@ const View = ({value, size}) => {
     )
 }
 
-export default {
-    "name": 'Map: Dama',
-    "type": 'Map',
-    "variables": 
-    [       
-        {
-            name: 'geoid',
-            default: '36'
-        }
-    ],
-    getData,
-
-    "EditComp": Edit,
-    "ViewComp": View
-}
-
-const defaultStyles =  [
-  {
-    name: "Default",
-    style: "https://api.maptiler.com/maps/dataviz/style.json?key=mU28JQ6HchrQdneiq6k9"
-  },
-  { name: "Satellite",
-    style: "https://api.maptiler.com/maps/hybrid/style.json?key=mU28JQ6HchrQdneiq6k9",
-  },
-  { name: "Streets",
-    style: "https://api.maptiler.com/maps/streets-v2/style.json?key=mU28JQ6HchrQdneiq6k9",
-  },
-  { name: "Light",
-    style: "https://api.maptiler.com/maps/dataviz-light/style.json?key=mU28JQ6HchrQdneiq6k9"
-  },
-  { name: "Dark",
-    style: "https://api.maptiler.com/maps/dataviz-dark/style.json?key=mU28JQ6HchrQdneiq6k9"
-  },
-  {
-    name: "Blank",
-    style: {
-      sources:{},
-      version: 8,
-      layers: [{
-          "id": "background",
-          "type": "background",
-          "layout": {"visibility": "visible"},
-          "paint": {"background-color": 'rgba(208, 208, 206, 0)'}
-      }]
-    }
-  }
-]
-
-const blankStyles = [
-  {
-    name: "Blank",
-    style: {
-      sources:{},
-      version: 8,
-      layers: [{
-          "id": "background",
-          "type": "background",
-          "layout": {"visibility": "visible"},
-          "paint": {"background-color": 'rgba(208, 208, 206, 0)'}
-      }]
-    }
-  }
-]

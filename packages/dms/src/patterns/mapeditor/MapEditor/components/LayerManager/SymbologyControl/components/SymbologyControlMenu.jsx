@@ -28,38 +28,11 @@ const DeleteSymbologyModal = ({open, setOpen}) => {
   const { id: symbologyId } = params;
   const navigate = useNavigate();
 
-/*
-  const deleteSymbology = async () => {
-    const resp = await falcor.call(
-      ["dama", "symbology", "symbology", "delete"],
-      [pgEnv, symbologyId]
-    );
-    await falcor.invalidate(
-      ["dama", pgEnv, "symbologies", "byIndex"],
-      ["dama", pgEnv, "symbologies", "byId", symbologyId],
-      ["dama", pgEnv, "symbologies", "length"]
-    )
-
-    const symbologyLocalStorageKey = LOCAL_STORAGE_KEY_BASE + `${ symbologyId }`;
-    window.localStorage.setItem(symbologyLocalStorageKey, null);
-
-    navigate(baseUrl);
-  }
-*/
-
   const deleteSymbology = React.useCallback(e => {
     falcor.call(
         ["dms", "data", "delete"],
         [app, type, symbologyId]
       )
-      // .then(() => {
-      //   const appKey = `${ app }+${ type }`;
-      //   return falcor.invalidate(
-      //     ["dms", "data", appKey, "length"],
-      //     ["dms", "data", appKey, "byIndex"],
-      //     ["dms", "data", "byId"]
-      //   )
-      // })
       .then(() => {
         const symbologyLocalStorageKey = LOCAL_STORAGE_KEY_BASE + `${ symbologyId }`;
         window.localStorage.removeItem(symbologyLocalStorageKey);

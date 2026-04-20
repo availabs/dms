@@ -3,8 +3,9 @@ import {Dialog, DialogPanel, Input, Transition} from '@headlessui/react'
 import {dmsDataLoader} from "../../../../api";
 import { ThemeContext, getComponentTheme } from "../../../../ui/useTheme";
 import {CMSContext} from "../../context";
-import {boldMatchingText, getScore, searchTypeMapping} from "./SearchPage";
+import {boldMatchingText, getScore, searchTypeMapping} from "./searchUtils";
 import { searchButtonTheme, searchPalletTheme } from "./theme";
+import { getConfig } from "./searchConfig";
 
 export default function SearchButton ({app, type, activeStyle}) {
     const [open, setOpen] = useState(false)
@@ -315,37 +316,3 @@ export const SearchPallet = ({open, setOpen, app: appFromProps, type: typeFromPr
 }
 
 
-export const getConfig = ({
-      app,
-      type,
-      filter,
-      action = 'load',
-      tags, searchType,
-      attributes = [
-          {key: 'id', label: 'id'},
-          {key: 'app', label: 'app'},
-          {key: 'type', label: 'type'},
-          {key: 'data', label: 'data'},
-          {key: 'updated_at', label: 'updated_at'},
-      ]}) => ({
-    format: {
-        app: app,
-        type: type,
-        attributes
-    },
-    children: [
-        {
-            type: () => {},
-            action,
-            filter: {
-                options: JSON.stringify({
-                    filter,
-                }),
-                tags,
-                searchType,
-                attributes: attributes.map(a => a.key)
-            },
-            path: '/'
-        }
-    ]
-})

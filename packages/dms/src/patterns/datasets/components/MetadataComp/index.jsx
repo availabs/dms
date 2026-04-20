@@ -15,7 +15,7 @@ const parseJson = value => {
     }
 }
 
-export default ({isDms, value = '{}', accessKey, onChange, className, apiLoad, format}) => {
+export default function MetadataComp ({isDms, value = '{}', accessKey, onChange, className, apiLoad, format}) {
     const {UI} = useContext(DatasetsContext)
     const {Input, Icon} = UI;
     const {theme} = useContext(ThemeContext) || {};

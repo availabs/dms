@@ -4,6 +4,7 @@ export { default as dmsColumnTypes } from './ui/columnTypes'
 export { default as dmsPageFactory } from './render/dmsPageFactory'
 export { default as dmsSiteFactory, DmsSite } from "./render/spa/dmsSiteFactory";
 export { CMSContext } from './patterns/page/context'
-export { withAuth, useAuth, authProvider } from './patterns/auth/context';
+export { useAuth } from './patterns/auth/context';
+export { withAuth, authProvider } from './patterns/auth/providers';
 export { default as adminConfig }  from './patterns/admin/siteConfig'
 export { registerComponents } from "./patterns/page/components/sections/componentRegistry"

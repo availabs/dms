@@ -485,7 +485,7 @@ function LegendRow ({ layer, i, numLayers, onRowMove }) {
   let paintValue = GET_PAINT_VALUE?.[layer?.type] ? GET_PAINT_VALUE?.[layer?.type](layer) : '#fff'
   const layerTitle = layer.name ?? filterGroupName;
   const layerSource = useMemo(
-    () => get(falcorCache, ["dama", pgEnv, "sources", "byId", sourceId], {}),
+    () => get(falcorCache, ["uda", pgEnv, "sources", "byId", sourceId], {}),
     [sourceId, falcorCache]
   );
 
@@ -701,7 +701,7 @@ function LegendRow ({ layer, i, numLayers, onRowMove }) {
     <div
       className={`${
         activeLayer == layer.id ? "bg-pink-100" : ""
-      } hover:border-pink-500 group border`}
+      } hover:border-pink-500 group border border-transparent`}
     >
       <div
         className={`w-full pl-2 pt-1 pb-0 flex border-blue-50/50 border justify-between items-center ${

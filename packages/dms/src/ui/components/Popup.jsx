@@ -1,7 +1,7 @@
 import React, {useRef, useEffect, useLayoutEffect, useState, useCallback} from "react";
 import ReactDOM from "react-dom";
 
-export const useHandleClickOutside = (menuRef, buttonRef, preventCloseOnClickOutside, onClose) => {
+const useHandleClickOutside = (menuRef, buttonRef, preventCloseOnClickOutside, onClose) => {
     const handleClickOutside = useCallback(
         (e) => {
             if (

@@ -1,42 +1,12 @@
 import React, {Fragment, useContext, useEffect, useState} from "react";
 import {useNavigate, useSearchParams} from "react-router";
 import {dmsDataLoader} from "../../../../api";
-import {getConfig} from "./index";
+import {getConfig} from "./searchConfig";
 import {CMSContext} from "../../context";
 import {dataItemsNav} from "../../pages/_utils";
-
-export const searchTypeMapping = {
-    tags: 'byTag',
-    page_title: 'byPageTitle'
-}
+import {searchTypeMapping, getScore, boldMatchingText} from "./searchUtils";
 
 const getSearchURL = ({value, baseUrl, type='tags'}) => !baseUrl || baseUrl === '' ? `/search/?q=${value}&type=${type}` : `${baseUrl}/search/?q=${value}&type=${type}`;
-
-export const getScore = (valuesToMatch, query) => {
-    const regex = new RegExp(`(${query})`, 'gi');
-
-    return valuesToMatch.filter(v => v).reduce((acc, value) => value.toLowerCase() === query.toLowerCase() ? acc + 1 : regex.test(value) ? acc + 0.5 : acc, 0);
-}
-export const boldMatchingText = (text, query) => {
-    if (!query) return text; // If there's no query, just return the original text.
-
-    const parts = text.split(new RegExp(`(${query})`, 'gi')); // 'gi' for case-insensitive search
-    return (
-        <>
-            {parts.map((part, index) =>
-                part.toLowerCase() === query.toLowerCase() ?
-                    <React.Fragment key={index}>
-                        <div className="inline-block font-bold">
-                            {index > 0 && parts[index - 1]?.endsWith(' ') ? ' ' : ''}
-                            {part}
-                            {index < parts.length - 1 && part[index + 1]?.startsWith(' ') ? ' ' : ''}
-                        </div>
-                    </React.Fragment> :
-                    part
-            )}
-        </>
-    );
-};
 
 export const RenderTagSuggestions = ({individualTags, query, setQuery, navigate, baseUrl}) =>
     individualTags

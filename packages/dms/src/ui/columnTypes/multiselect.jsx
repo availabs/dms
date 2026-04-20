@@ -183,7 +183,7 @@ function useComponentVisible(initial) {
 }
 
 
-const Edit = ({value = [], loading, onChange, className,placeholder, options = [], meta,
+export const MultiselectEdit = ({value = [], loading, onChange, className,placeholder, options = [], meta,
                   displayInvalidMsg=false,
                   menuPosition='bottom',
                   singleSelectOnly=false,
@@ -269,7 +269,7 @@ const Edit = ({value = [], loading, onChange, className,placeholder, options = [
     )
 }
 
-const View = memo(function View ({className, value, options = [], meta}){
+export const MultiselectView = memo(function MultiselectView ({className, value, options = [], meta}){
 
     if (!value) return <div className={theme?.multiselect?.mainWrapper} />
 
@@ -284,7 +284,3 @@ const View = memo(function View ({className, value, options = [], meta}){
     )
 })
 
-export default {
-    "EditComp": Edit,
-    "ViewComp": View
-}

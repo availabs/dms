@@ -7,30 +7,11 @@
  */
 
 import * as React from 'react';
-import {
-  createContext,
-  type ReactNode,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
+import {type ReactNode, useMemo} from 'react';
+import {SharedAutocompleteContextInternal, type ContextShape} from './useSharedAutocompleteContext';
 
 type Suggestion = null | string;
 type CallbackFn = (newSuggestion: Suggestion) => void;
-type SubscribeFn = (callbackFn: CallbackFn) => () => void;
-type PublishFn = (newSuggestion: Suggestion) => void;
-type ContextShape = [SubscribeFn, PublishFn];
-type HookShape = [suggestion: Suggestion, setSuggestion: PublishFn];
-
-const Context: React.Context<ContextShape> = createContext([
-  (_cb) => () => {
-    return _cb;
-  },
-  (_newSuggestion: Suggestion) => {
-    return _newSuggestion;
-  },
-]);
 
 export const SharedAutocompleteContext = ({
   children,
@@ -56,16 +37,5 @@ export const SharedAutocompleteContext = ({
       },
     ];
   }, []);
-  return <Context.Provider value={context}>{children}</Context.Provider>;
-};
-
-export const useSharedAutocompleteContext = (): HookShape => {
-  const [subscribe, publish]: ContextShape = useContext(Context);
-  const [suggestion, setSuggestion] = useState<Suggestion>(null);
-  useEffect(() => {
-    return subscribe((newSuggestion: Suggestion) => {
-      setSuggestion(newSuggestion);
-    });
-  }, [subscribe]);
-  return [suggestion, publish];
+  return <SharedAutocompleteContextInternal.Provider value={context}>{children}</SharedAutocompleteContextInternal.Provider>;
 };

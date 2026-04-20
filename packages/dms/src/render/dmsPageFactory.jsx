@@ -7,7 +7,7 @@ import {
 } from '../api'
 
 import DmsManager from '../dms-manager/index.jsx'
-import { withAuth } from '../patterns/auth/context';
+import { withAuth } from '../patterns/auth/providers';
 // import defaultTheme from './theme/default-theme'
 
 import {
@@ -34,7 +34,6 @@ export default function dmsPageFactory (
   const dmsPath = `${baseUrl}${baseUrl === '/' ? '' : '/'}`
   // console.log('dmspageFactory', API_HOST)
   const falcor = falcorGraph(API_HOST);
-  const dama_falcor = API_HOST === DAMA_HOST ? falcor : DAMA_HOST ? falcorGraph(DAMA_HOST) : undefined;
 
 
   async function loader ({ request, params }) {
@@ -85,7 +84,6 @@ export default function dmsPageFactory (
           config={dmsConfig}
           navigate={navigate}
           falcor={falcor}
-          dama_falcor={dama_falcor}
         />
       </FalcorProvider>
     ),[params['*']])

@@ -7,7 +7,7 @@ const theme = {
         },
 }
 
-const Edit = ({value, item, onChange, className, attributes={}, ...rest}) => {
+export const TemplateEdit = ({value, item, onChange, className, attributes={}, ...rest}) => {
     // how do i pass pattern attributes here?
    // console.log('can i pass item here?', item, value, rest)
    
@@ -26,7 +26,7 @@ const Edit = ({value, item, onChange, className, attributes={}, ...rest}) => {
     // )
 }
 
-const View = ({value, className, ...rest}) => {
+export const TemplateView = ({value, className, ...rest}) => {
     if (!value) return false
     return (
         <div
@@ -37,7 +37,3 @@ const View = ({value, className, ...rest}) => {
     )
 }
 
-export default {
-    "EditComp": Edit,
-    "ViewComp": View
-}

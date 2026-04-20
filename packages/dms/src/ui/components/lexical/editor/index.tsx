@@ -14,9 +14,6 @@ import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext
 import { $getRoot, $createParagraphNode, $createTextNode } from 'lexical';
 // import { merge, cloneDeep } from 'lodash-es'
 
-import { createHeadlessEditor as _createHeadlessEditor } from '@lexical/headless';
-import { htmlConfig } from './htmlConfig';
-
 import Editor from './editor';
 import PlaygroundNodes from './nodes/PlaygroundNodes';
 import { getLexicalTheme, LexicalThemeContext } from '../useLexicalTheme';
@@ -32,23 +29,6 @@ function isLexicalJSON(str) {
         return false;
     }
 }
-
-export const createHeadlessEditor = ({ namespace, flatTheme, icons }) => {
-  const resolvedFlatTheme = flatTheme || defaultLexicalTheme.styles[0];
-  const nestedLexicalTheme = buildLexicalInternalTheme(resolvedFlatTheme);
-  if (icons) {
-    nestedLexicalTheme.Icons = icons;
-  }
-  return _createHeadlessEditor({
-    namespace,
-    nodes: [...PlaygroundNodes],
-    theme: nestedLexicalTheme,
-    onError: e => {
-      console.error(e);
-    },
-    html: htmlConfig,
-  });
-};
 
 
 

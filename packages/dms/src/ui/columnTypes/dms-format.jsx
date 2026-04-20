@@ -3,7 +3,7 @@ import { isEqual } from "lodash-es"
 
 
 
-function Edit({value, onChange, attributes={}}) {
+export function DmsFormatEdit({value, onChange, attributes={}}) {
     //const item
     console.log('dms-format', value, attributes)
     const updateAttribute = (k, v) => {
@@ -38,7 +38,7 @@ function Edit({value, onChange, attributes={}}) {
     )   
 }
 
-const View = ({value={}, attributes={}}) => {
+export const DmsFormatView = ({value={}, attributes={}}) => {
     console.log('dms-format value', value, attributes)
     // if(!Object.keys(attributes).length) return <></>
 
@@ -62,8 +62,4 @@ const View = ({value={}, attributes={}}) => {
     )
 }
 
-export default {
-    "EditComp": Edit,
-    "ViewComp": View
-}
 

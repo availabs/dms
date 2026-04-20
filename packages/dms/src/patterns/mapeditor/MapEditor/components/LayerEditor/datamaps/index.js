@@ -22,6 +22,18 @@ export function categoryPaint(column, categoryData, colors, num=10, metadata) {
       }
   })
 
+  // A Mapbox `match` expression requires at least input + 1 (value, output) pair
+  // + fallback — i.e. 4 elements. If `categoryData` is empty (user just switched
+  // to category mode and hasn't loaded data yet), the paint array is still only
+  // 2 elements and Mapbox rejects the layer. Append a sentinel pair that will
+  // never match so the expression is well-formed and every feature falls through
+  // to the fallback. Downstream code expects an array (pushes / indexes it) so
+  // we can't return a plain string here.
+  if (paint.length < 4) {
+    const fallback = toHex(colors?.[0]) || '#ccc';
+    paint.push('__no_category_data__', fallback, fallback);
+  }
+
   const legend  = (paint || []).filter((d,i) => i > 2 )
       .map((d,i) => {
         if(i%2 === 0) {

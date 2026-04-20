@@ -3,7 +3,7 @@ import {useNavigate, useLocation} from "react-router";
 import {ThemeContext} from "../../../ui/useTheme";
 import {AuthContext} from "../context";
 
-export default (props) => {
+export default function AuthGroups (props) {
     const location = useLocation();
     const [groups, setGroups] = React.useState([]);
     const [searchGroup, setSearchGroup] = React.useState('');

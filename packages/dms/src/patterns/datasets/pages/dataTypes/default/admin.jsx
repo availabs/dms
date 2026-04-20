@@ -5,7 +5,6 @@ import { cloneDeep } from "lodash-es";
 import {useNavigate, Link} from "react-router";
 import {updateSourceData, parseIfJson} from "./utils";
 import { getExternalEnv } from "../../../utils/datasources";
-import TaskList from "../../Tasks/TaskList";
 import UdaTaskList from "../../Tasks/UdaTaskList";
 const buttonRedClass = 'p-2 mx-1 bg-red-500 hover:bg-red-700 text-white rounded-md';
 const buttonGreenClass = 'p-2 mx-1 bg-green-500 hover:bg-green-700 text-white rounded-md';
@@ -267,16 +266,10 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params, isDms })
                 </div>
                 {
                     isDms ? null : (
-                        <>
-                            <div className={'w-full pt-12'}>
-                                <div className={'text-sm font-medium text-gray-500 pb-2'}>Tasks (New System)</div>
-                                <UdaTaskList sourceId={source.source_id} />
-                            </div>
-                            <div className={'w-full pt-8'}>
-                                <div className={'text-sm font-medium text-gray-500 pb-2'}>Tasks (Legacy)</div>
-                                <TaskList sourceId={source.source_id} />
-                            </div>
-                        </>
+                        <div className={'w-full pt-12'}>
+                            <div className={'text-sm font-medium text-gray-500 pb-2'}>Tasks</div>
+                            <UdaTaskList sourceId={source.source_id} />
+                        </div>
                     )
                 }
             </div>

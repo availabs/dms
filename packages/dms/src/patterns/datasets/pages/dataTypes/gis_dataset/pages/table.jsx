@@ -1,7 +1,7 @@
 import React, {useCallback, useContext, useEffect, useMemo} from "react";
 import { DatasetsContext } from '../../../../context'
 import { getExternalEnv } from '../../../../utils/datasources'
-import Spreadsheet from "../../../../../page/components/sections/components/ComponentRegistry/spreadsheet";
+import Spreadsheet from "../../../../../page/components/sections/components/ComponentRegistry/spreadsheet/config";
 import {useNavigate} from "react-router";
 import DataWrapper from "../../../../../page/components/sections/components/dataWrapper";
 import {cloneDeep, isEqual, uniqBy} from "lodash-es";

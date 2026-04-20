@@ -3,7 +3,8 @@ import { DatasetsContext } from "../../../../context";
 import { AuthContext } from "../../../../../auth/context"
 import { cloneDeep } from "lodash-es";
 import {Link, useNavigate} from "react-router";
-import {updateSourceData, parseIfJson} from "../../default/utils";
+import {updateSourceData, parseIfJson, getSourceData} from "../../default/utils";
+import { getInstance } from "../../../../../../utils/type-utils";
 
 const buttonRedClass = 'p-2 mx-1 bg-red-500 hover:bg-red-700 text-white rounded-md';
 const buttonGreenClass = 'p-2 mx-1 bg-green-500 hover:bg-green-700 text-white rounded-md';
@@ -48,38 +49,108 @@ const DeleteSourceBtn = ({parent, source, apiUpdate, baseUrl}) => {
     )
 }
 
+function getNewId(falcorRes) {
+    return Object.keys(falcorRes?.json?.dms?.data?.byId || {})
+        .find(k => k !== '$__path');
+}
+
 /**
- * AddViewBtn — uses source (UDA object) for view count/display.
- * For the apiUpdate call, passes source.source_id as the DMS row id and
- * references existing views by view_id so dmsDataEditor preserves them.
+ * AddViewBtn — creates a new view row for an internal_table source.
+ *
+ * The legacy dms-format / apiUpdate path derived the view type from
+ * format.attributes.views.format (e.g. `cenrep+cenrep|view`). After the
+ * type-system refactor, views are typed per-source as
+ * `${sourceSlug}|v${N}:view` and referenced as `${app}+${sourceSlug}|view`
+ * — same as sourceCreate.jsx does on initial create. Going through the
+ * legacy path creates the view in the wrong namespace, so it never shows
+ * up in the source's views list.
+ *
+ * This direct-Falcor implementation mirrors sourceCreate.jsx's pattern.
  */
-const AddViewBtn = ({source, format, apiUpdate}) => {
-    const {UI} = useContext(DatasetsContext);
+const AddViewBtn = ({source, setSource}) => {
+    const {UI, app, type, falcor} = useContext(DatasetsContext);
     const {Modal} = UI;
     const [showModal, setShowModal] = useState(false);
     const [name, setName] = useState('');
+    const [error, setError] = useState(null);
     const views = source?.views || [];
     const defaultViewName = `version ${views.length + 1}`;
 
     const addView = async () => {
-        const data = {
-            id: source.source_id,
-            views: [
-                ...views.map(v => ({id: v.view_id})),
-                {name: name || defaultViewName}
-            ]
-        };
-        await apiUpdate({data, config: {format}});
+        try {
+            setError(null);
+            const sourceId = source.source_id;
+
+            // source.type from UDA is `data->>'type'` (e.g. 'internal_table'),
+            // not the row type column. Fetch the row type to derive the slug.
+            const typeRes = await falcor.get(['dms', 'data', app, 'byId', +sourceId, 'type']);
+            const rowType = typeRes?.json?.dms?.data?.[app]?.byId?.[+sourceId]?.type;
+            const sourceSlug = getInstance(rowType);
+            if (!sourceSlug) {
+                throw new Error(`Cannot derive source slug from row type='${rowType}' (id=${sourceId})`);
+            }
+
+            // Next version number based on existing view count
+            const viewType = `${sourceSlug}|v${views.length + 1}:view`;
+
+            // UDA env must match what SourcePage used to load the source
+            // (sources are stored under `${app}+${instance}|source`).
+            const udaEnv = `${app}+${type}|source`;
+
+            // 1. Create the view data_items row
+            const viewRes = await falcor.call(
+                ["dms", "data", "create"],
+                [app, viewType, { name: name || defaultViewName }]
+            );
+            const newViewId = getNewId(viewRes);
+            if (!newViewId) throw new Error('Failed to create view row');
+
+            // 2. Update the source's views array — preserve existing refs, append new
+            const viewRef = `${app}+${sourceSlug}|view`;
+            const existingRefs = views
+                .filter(v => v.view_id)
+                .map(v => ({ ref: viewRef, id: +v.view_id }));
+
+            await falcor.call(
+                ["dms", "data", "edit"],
+                [app, +sourceId, {
+                    views: [...existingRefs, { ref: viewRef, id: +newViewId }]
+                }]
+            );
+
+            // 3. Invalidate so the source view list refreshes from the server
+            await falcor.invalidate(['dms', 'data', app, 'byId', +sourceId]);
+            await falcor.invalidate(['uda', udaEnv, 'sources', 'byId', +sourceId]);
+
+            // 4. Re-load source data to refresh the views list in local state
+            await getSourceData({
+                pgEnv: udaEnv,
+                falcor,
+                source_id: sourceId,
+                setSource,
+                isDms: true,
+            });
+            return true;
+        } catch (e) {
+            console.error('Error adding view:', e);
+            setError(e.message || 'Failed to add version');
+            return false;
+        }
     }
     return (
         <>
-            <button disabled={!source?.source_id} className={buttonGreenClass} onClick={() => setShowModal(true)}>Add Version</button>
-            <Modal open={showModal} setOpen={(v) => setShowModal(v)}>
+            <button disabled={!source?.source_id} className={buttonGreenClass}
+                    onClick={() => { setError(null); setShowModal(true); }}>Add Version</button>
+            <Modal open={showModal} setOpen={(v) => { setShowModal(v); if (!v) setError(null); }}>
+                {error && <div className={'text-red-500 text-sm p-2'}>{error}</div>}
                 <input key={'view-name'} placeholder={defaultViewName} value={name} onChange={e => setName(e.target.value)}/>
                 <button className={buttonGreenClass} onClick={() => {
                     async function add() {
-                        await addView()
-                        setShowModal(false)
+                        const ok = await addView()
+                        if (ok) {
+                            setShowModal(false)
+                            setName('')
+                        }
                     }
 
                     add()
@@ -221,7 +292,7 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params }) => {
                     <div className={'w-1/4'}>
                         <div className={'flex flex-col gap-4 shadow-lg rounded-md place-content-center p-4'}>
                             <Button><Link to={`${pageBaseUrl}/${id}/metadata`}>Advanced Metadata</Link></Button>
-                            <AddViewBtn source={source} format={format} apiUpdate={apiUpdate}/>
+                            <AddViewBtn source={source} setSource={setSource}/>
                             <DeleteSourceBtn parent={parent} source={source} apiUpdate={apiUpdate} baseUrl={baseUrl}/>
                         </div>
                     </div>

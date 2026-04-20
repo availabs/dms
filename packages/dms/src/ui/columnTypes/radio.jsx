@@ -9,7 +9,7 @@ const theme = {
     }
 }
 
-const Edit = ({value = '', onChange, options = [], inline=true}) => {
+export const RadioEdit = ({value = '', onChange, options = [], inline=true}) => {
     // options: ['1', 's', 't'] || [{label: '1', value: '1'}, {label: 's', value: '2'}, {label: 't', value: '3'}]
     
     const isInvalidValue = value && !options.find(o => (o.value || o) === value);
@@ -40,7 +40,7 @@ const Edit = ({value = '', onChange, options = [], inline=true}) => {
 
 }
 
-const View = ({value = '', options = [], inline=true, className}) => {
+export const RadioView = ({value = '', options = [], inline=true, className}) => {
     return (
         <div className={ className || (theme?.text?.view)}>
             {value}
@@ -70,7 +70,3 @@ const View = ({value = '', options = [], inline=true, className}) => {
     // )
 }
 
-export default {
-    "EditComp": Edit,
-    "ViewComp": View
-}

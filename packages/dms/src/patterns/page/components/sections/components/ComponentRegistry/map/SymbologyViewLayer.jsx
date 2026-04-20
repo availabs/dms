@@ -510,30 +510,20 @@ const HoverComp = ({ data, layer }) => {
   useEffect(() => {
     if(source_id) {
       falcor.get([
-          "dama", pgEnv, "sources", "byId", source_id, "attributes", "metadata"
+          "uda", pgEnv, "sources", "byId", source_id, "metadata"
       ]);
     }
-    
+
   }, [source_id, hoverColumns]);
-
-
-
-  // useEffect(() => {
-  //   if(view_id) {
-  //     falcor.get([
-  //        "dama", pgEnv, "viewsbyId", view_id, "databyId", ''+id
-  //     ]).then(d => console.log('getting', [ "dama", pgEnv, "viewsbyId", view_id, "databyId", id], d))
-  //   }
-  // },[pgEnv,view_id,id])
 
   const attributes = React.useMemo(() => {
     if (!hoverColumns) {
       let out = get(falcorCache, [
-        "dama", pgEnv, "sources", "byId", source_id, "attributes", "metadata", "value", "columns"
+        "uda", pgEnv, "sources", "byId", source_id, "metadata", "value", "columns"
       ], [])
       if(out.length === 0) {
           out = get(falcorCache, [
-            "dama", pgEnv, "sources", "byId", source_id, "attributes", "metadata", "value"
+            "uda", pgEnv, "sources", "byId", source_id, "metadata", "value"
           ], [])
         }
       return out
@@ -546,11 +536,11 @@ const HoverComp = ({ data, layer }) => {
 
   const metadata = React.useMemo(() => {
     let out = get(falcorCache, [
-      "dama", pgEnv, "sources", "byId", source_id, "attributes", "metadata", "value", "columns"
+      "uda", pgEnv, "sources", "byId", source_id, "metadata", "value", "columns"
     ], [])
     if(out.length === 0) {
         out = get(falcorCache, [
-          "dama", pgEnv, "sources", "byId", source_id, "attributes", "metadata", "value"
+          "uda", pgEnv, "sources", "byId", source_id, "metadata", "value"
         ], [])
       }
     return Array.isArray(out) ? out : []
@@ -561,11 +551,11 @@ const HoverComp = ({ data, layer }) => {
 
   React.useEffect(() => {
     falcor.get([
-      "dama",
+      "uda",
       pgEnv,
-      "viewsbyId",
+      "viewsById",
       view_id,
-      "databyId",
+      "dataById",
       id,
       getAttributes
     ]).then(d => {
@@ -573,21 +563,13 @@ const HoverComp = ({ data, layer }) => {
           d,
           [
             "json",
-            "dama", pgEnv, "viewsbyId", view_id, "databyId", ''+id
+            "uda", pgEnv, "viewsById", view_id, "dataById", ''+id
           ],
           []
         );
       setAttrInfo(out)
     });
   }, [falcor, pgEnv, view_id, id, attributes]);
-
-  // const attrInfo = React.useMemo(() => {
-  //   return get(
-  //     falcorCache,
-  //     ["dama", pgEnv, "viewsbyId", view_id, "databyId", ''+id],
-  //     {}
-  //   )
-  // }, [id, falcorCache, view_id, pgEnv]);
 
   return (
     <div className="bg-white p-4 max-h-64 max-w-lg min-w-[300px] scrollbar-xs overflow-y-scroll">

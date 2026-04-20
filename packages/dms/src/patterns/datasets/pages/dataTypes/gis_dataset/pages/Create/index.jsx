@@ -11,7 +11,6 @@ import SchemaEditorComp from "./schemaEditor";
 import PublishComp from "./publish";
 
 const BlankComponent = () => <></>;
-const DAMA_HOST = 'https://graph.availabs.org'
 
 export default function UploadGisDataset({
   source = {},
@@ -23,9 +22,10 @@ export default function UploadGisDataset({
   databaseColumnNames = null,
   useMbTiles = false
 }) {
-  // console.log('tippecanoeOptions', tippecanoeOptions)
   const { name: damaSourceName, source_id: sourceId, type, uploadedFile, gisUploadId, analysisContextId } = source;
-  const { datasources, baseUrl, falcor, user:ctxUser, DAMA_HOST } = React.useContext(DatasetsContext);
+  // dms-server hosts the DAMA upload endpoints under /dama-admin/ on the main
+  // API host now. No separate DAMA_HOST.
+  const { datasources, baseUrl, falcor, user:ctxUser, API_HOST } = React.useContext(DatasetsContext);
   const pgEnv = getExternalEnv(datasources);
   const navigate = useNavigate()
   const [state, dispatch] = useReducer(reducer, {
@@ -41,7 +41,7 @@ export default function UploadGisDataset({
     customViewAttributes: { years: [] },
     dataType: dataType,
     // maxSeenEventId: null,
-    damaServerPath: `${DAMA_HOST}/dama-admin/${pgEnv}`,
+    damaServerPath: `${API_HOST}/dama-admin/${pgEnv}`,
 
     // uploadFile state
     gisUploadId: gisUploadId || null,

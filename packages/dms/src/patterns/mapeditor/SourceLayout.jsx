@@ -1,6 +1,5 @@
 import React, {useContext, useEffect, useMemo} from 'react';
 
-import { getAttributes } from './attributes'
 import { MapEditorContext } from './context'
 import { ThemeContext } from "../../ui/themeContext"
 
@@ -126,8 +125,8 @@ const Breadcrumbs =  ({fullWidth, isListAll}) => {
     async function fetchData () {
       return sourceId ? await falcor.get(
         [
-          "dama", pgEnv,"sources","byId",sourceId,
-          "attributes",["categories","name", "data_type"]
+          "uda", pgEnv, "sources", "byId", sourceId,
+          ["categories", "name", "data_type"]
         ]
       ) : Promise.resolve({})
     }
@@ -135,7 +134,7 @@ const Breadcrumbs =  ({fullWidth, isListAll}) => {
   }, [falcor, sourceId, pgEnv])
 
   const pages = useMemo(() => {
-    let attr = getAttributes(get(falcorCache,["dama", pgEnv,'sources','byId', sourceId],{'attributes': {}})['attributes'])
+    let attr = get(falcorCache, ["uda", pgEnv, "sources", "byId", sourceId], {})
     /*if(!get(attr, 'categories[0]', false)) {
       return [{name:'',to:''}]
     }*/

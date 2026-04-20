@@ -34,41 +34,6 @@ function CreateSymbologyModal ({ open, setOpen })  {
   const navigate = useNavigate();
   const [modalState, setModalState] = React.useState(DEFAULT_CREATE_SYMBOLOGY_MODAL_STATE)
 
-/*
-  const createSymbologyMap = async () => {
-    const newSymbology = {
-      name: modalState.name,
-      description: 'map',
-      symbology: {
-        layers: {}
-      }
-    }
-
-    let resp = await falcor.call(
-        ["dama", "symbology", "symbology", "create"],
-        [pgEnv, newSymbology]
-    )
-    const newSymb = Object.values(
-      get(resp, ["json", "dama", pgEnv, "symbologies", "byId"], {})
-    ).filter((item) => Object.keys(item).includes("attributes"))?.[0]
-      ?.attributes;
-
-    let { symbology_id } = newSymb || false;
-    
-    if(symbology_id) {
-      await falcor.invalidate(
-        ["dama", pgEnv, "symbologies", "byIndex"],
-        ["dama", pgEnv, "symbologies", "byId"],
-        ["dama", pgEnv, "symbologies", "length"]
-      )
-      setOpen(false);
-      setState(newSymb);
-      setModalState(DEFAULT_CREATE_SYMBOLOGY_MODAL_STATE);
-      navigate(`${baseUrl}/edit/${symbology_id}`)
-    }
-  }
-*/
-
   const createSymbologyMap = React.useCallback(() => {
 
     const newSymbology = {
