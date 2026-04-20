@@ -568,7 +568,7 @@ async function applyMeta(rows, meta, env, isDms, options) {
       { from: 0, to: uniqData?.length }
     ).then(tmpData => {
       return tmpData.reduce((tmpDataAcc, row) => {
-        const valueAttrFormatted = isDms && valueAttribute.includes('data->>')
+        const valueAttrFormatted = (isDms || isMetaDms) && valueAttribute.includes('data->>')
           ? getResponseColumnName(valueAttribute)
           : valueAttribute;
         tmpDataAcc[row[keyAttribute]] = assign(row[keyAttribute], row[valueAttrFormatted] || row[keyAttribute], keepId);
