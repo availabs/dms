@@ -254,7 +254,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
 
         //RYAN TODO -- change the `onClick` for both these items
         //RYAN TODO -- add UI stuff, start with "join condition"
-
+        
     const join = {
         name: 'Join Dataset', id: "join_settings", icon: 'Group',
         cdn: () => canEditSection && currentComponent?.useDataSource && (isEdit || isJoinPresent) && activeSource,
@@ -288,7 +288,17 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                         }))
                     },
                     { type: 'separator', cdn: () => isEdit },
-                    { name: 'Join Type', icon: 'Group', showSearch: false, cdn: () => isEdit,
+                    { name: 'Merge Strategy', icon: 'Group', showSearch: false, cdn: () => isEdit,
+                        value: state.join.sources[sourceAlias].mergeStrategy || 'join', showValue: true,
+                        items: ['join', 'union', 'except'].map(t => ({
+                            icon: (state.join.sources[sourceAlias].mergeStrategy || 'join') === t ? 'CircleCheck' : 'Blank',
+                            id: `strategy_${sourceAlias}_${t}`,
+                            name: t.toUpperCase(),
+                            onClickGoBack: true,
+                            onClick: () => onJoinChange(sourceAlias, 'mergeStrategy', t)
+                        }))
+                    },
+                    { name: 'Join Type', icon: 'Group', showSearch: false, cdn: () => isEdit && (state.join.sources[sourceAlias].mergeStrategy || 'join') === 'join',
                         value: state.join.sources[sourceAlias].type || 'left', showValue: true,
                         items: ['left', 'inner', 'full outer'].map(t => ({
                             icon: (state.join.sources[sourceAlias].type || 'left') === t ? 'CircleCheck' : 'Blank',
@@ -301,7 +311,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                     {
                         name: 'Join On...', // Group for join columns
                         icon: 'Link', // Placeholder icon
-                        cdn: () => canEditSection && isEdit && state.join.sources[sourceAlias].source && state.join.sources[sourceAlias].sourceInfo?.columns,
+                        cdn: () => canEditSection && isEdit && state.join.sources[sourceAlias].source && state.join.sources[sourceAlias].sourceInfo?.columns && (state.join.sources[sourceAlias].mergeStrategy || 'join') === 'join',
                         items: [
                             // Picker for ds columns
                             {

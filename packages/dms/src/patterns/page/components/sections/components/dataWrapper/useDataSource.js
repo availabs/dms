@@ -405,6 +405,14 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
                 setState(draft => {
                     set(draft.join.sources[alias], path, joinVal)
                 })
+            } else if (path === "mergeStrategy") {
+                setState(draft => {
+                    set(draft.join.sources[alias], path, joinVal);
+                    if (joinVal !== 'join') {
+                        draft.join.sources[alias].joinColumns = [];
+                        draft.join.sources[alias].type = null;
+                    }
+                });
             } else if (path === "joinColumn") {
                 console.log("WARNING, WHY THE FUCK IS THIS BEING SET? WHO IS CALLING WITH THE WRONG KEY")
             } else if (path === "joinColumns") {

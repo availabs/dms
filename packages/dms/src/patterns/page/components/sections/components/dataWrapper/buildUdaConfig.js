@@ -592,6 +592,8 @@ export const buildJoinOnClause = ({ join, externalSource }) => {
       const sourceJoinColumns = sources[sourceAlias].joinColumns || [];
       // Use the user-selected join type, defaulting to 'left'
       const type = sources[sourceAlias].type || "left";
+      // Use the user-selected merge strategy, defaulting to 'join'
+      const mergeStrategy = sources[sourceAlias].mergeStrategy || "join";
 
       // Each sourceAlias should have a corresponding join condition string
       const conditions = sourceJoinColumns.map(
@@ -600,12 +602,12 @@ export const buildJoinOnClause = ({ join, externalSource }) => {
 
       return {
         type,
+        mergeStrategy,
         table: sourceAlias,
         on: conditions.join(" AND "),
       };
-    });
-};
-// ─── Output source info (Phase 4: chainability) ────────────────────────────
+      });
+      };// ─── Output source info (Phase 4: chainability) ────────────────────────────
 
 /**
  * Compute outputSourceInfo — describes what this dataWrapper produces after
