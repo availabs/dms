@@ -10,7 +10,7 @@
 
 import {$isCodeHighlightNode} from '@lexical/code';
 import {$isLinkNode} from '@lexical/link';
-import {TOGGLE_LINK_COMMAND} from "../LinkPlugin";
+import {TOGGLE_LINK_COMMAND} from "../LinkPlugin/commands";
 import {useLexicalComposerContext} from '@lexical/react/LexicalComposerContext';
 import {mergeRegister} from '@lexical/utils';
 import {

@@ -9,39 +9,38 @@ import { makeLexicalFormat } from "../../../../utils";
 import { ThemeContext } from "../../../../../../ui/themeContext";
 
 const SourceThumb = ({ source, selectedSource, setSource, cat1, setCat1 }) => {
-  const { pgEnv, baseUrl, falcor, falcorCache } = React.useContext(MapEditorContext)
+  const { pgEnv, baseUrl, useFalcor } = React.useContext(MapEditorContext);
+  const { falcor, falcorCache } = useFalcor();
   const { UI } = React.useContext(ThemeContext) || {}
   const { Icon } = UI
   const activeViewId = selectedSource.viewId;
 
   const isActiveSource = selectedSource?.sourceId === source.source_id;
-  const lengthPath = ["dama", pgEnv, "sources", "byId", source.source_id, "views", "length"];
-
-  const viewLength = useMemo(() => {
-    return parseInt(get(falcorCache, lengthPath, 0))
-  }, [falcorCache])
+  const lengthPath = ["uda", pgEnv, "sources", "byId", source.source_id, "views", "length"];
 
   useEffect(() => {
     async function fetchData() {
-
       const resp = await falcor.get(lengthPath);
       await falcor.get([
-        "dama", pgEnv, "sources", "byId",
+        "uda", pgEnv, "sources", "byId",
         source.source_id, "views", "byIndex",
         { from: 0, to: get(resp.json, lengthPath, 0) - 1 },
-        "attributes", Object.values(ViewAttributes)
+        Object.values(ViewAttributes)
       ]);
     }
-
     fetchData();
   }, [falcor, falcorCache, source, pgEnv]);
 
+  const viewLength = useMemo(() => {
+    return parseInt(get(falcorCache, lengthPath, 0))
+  }, [falcorCache]);
+
   const sourceViews = useMemo(() => {
     return Object.values(
-      get(falcorCache,["dama", pgEnv, "sources", "byId", source.source_id, "views", "byIndex"], {}
-    )).map(d => getAttributes(get(falcorCache, d.value, {})?.attributes))
+      get(falcorCache,["uda", pgEnv, "sources", "byId", source.source_id, "views", "byIndex"], {}
+    )).map(d => getAttributes(get(falcorCache, d.value, {})))
     .sort((a,b) => new Date(b?._created_timestamp) - new Date(a?._created_timestamp));
-  }, [falcorCache, source.source_id])
+  }, [falcorCache, source.source_id]);
 
   const Lexical = dmsColumnTypes.lexical.ViewComp;
 
@@ -170,20 +169,20 @@ const SourcesList = ({selectedSource, setSource}) => {
   const [layerSearch, setLayerSearch] = useState("");
   const [cat1, setCat1] = useState();
   const [cat2, setCat2] = useState();
-  const {pgEnv, baseUrl, falcor, falcorCache} = React.useContext(MapEditorContext);
+  const {pgEnv, baseUrl, useFalcor} = React.useContext(MapEditorContext);
+  const { falcor, falcorCache } = useFalcor();
   const [sort, setSort] = useState('asc');
   const sourceDataCat = 'Unknown'
   const isListAll = window.location.pathname.replace(`${baseUrl}/`, '')?.split('/')?.[0] === 'listall';
 
   useEffect(() => {
     async function fetchData() {
-      const lengthPath = ["dama", pgEnv, "sources", "length"];
+      const lengthPath = ["uda", pgEnv, "sources", "length"];
       const resp = await falcor.get(lengthPath);
-
       await falcor.get([
-        "dama", pgEnv, "sources", "byIndex",
+        "uda", pgEnv, "sources", "byIndex",
         { from: 0, to: get(resp.json, lengthPath, 0) - 1 },
-        "attributes", Object.values(SourceAttributes)
+        Object.values(SourceAttributes)
       ]);
     }
 
@@ -191,8 +190,8 @@ const SourcesList = ({selectedSource, setSource}) => {
   }, [falcor, pgEnv]);
 
   const sources = useMemo(() => {
-    return Object.values(get(falcorCache, ["dama", pgEnv, "sources", "byIndex"], {}))
-      .map(v => getAttributes(get(falcorCache, v.value, { "attributes": {} })["attributes"]));
+    return Object.values(get(falcorCache, ["uda", pgEnv, "sources", "byIndex"], []))
+      .map(ref => getAttributes(get(falcorCache, ref.value, {})))
   }, [falcorCache, pgEnv]);
 
   const categories = [...new Set(

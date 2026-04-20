@@ -7,12 +7,6 @@ import { appendHistoryEntry } from '../../pages/edit/editFunctions'
 
 import SectionArray from './sectionArray'
 
-export const sectionGroupTheme = {
-    sideNavContainer1: 'w-[302px] hidden xl:block',
-    sideNavContainer2: 'w-[302px] sticky top-[120px] hidden xl:block h-[calc(100vh_-_128px)] pr-2',
-    sideNavContainer3: 'shadow-md rounded-lg overflow-hidden h-full',
-}
-
 export default function SectionGroup ({group, attributes, edit}) {
   const { theme,  UI } = React.useContext(ThemeContext);
   const { user } = React.useContext(CMSContext) || {};
@@ -56,7 +50,7 @@ export default function SectionGroup ({group, attributes, edit}) {
 }
 
 
-export const updateSections = async ({update, action, item, user, apiUpdate, updateAttribute}) => {
+const updateSections = async ({update, action, item, user, apiUpdate, updateAttribute}) => {
     // const headerSection = item['draft_sections']?.filter(d => d.is_header)?.[0]
     const history = action
       ? appendHistoryEntry(item.history, action, user)

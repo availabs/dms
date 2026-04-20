@@ -10,7 +10,7 @@ export const docs = {
 export const modalTheme = {
     "key": "value pair"
 } 
-export default function({open, setOpen, initialFocus, children, className}) {
+export default function Modal ({open, setOpen, initialFocus, children, className}) {
     return (
         <Transition.Root show={open} as={Fragment}>
             <Dialog as="div" className="relative z-30" initialFocus={initialFocus} onClose={setOpen}>

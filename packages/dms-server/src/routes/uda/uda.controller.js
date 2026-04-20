@@ -445,13 +445,43 @@ async function simpleFilter(env, view_id, options, attributes, indices) {
   return rows;
 }
 
+// Per-table PK column cache. Maps `${schema}.${table}` → column name.
+// DAMA gis_datasets tables use `ogc_fid`; DMS data_items uses `id`. Looking
+// up dynamically lets the same route serve both.
+const _pkCache = new Map();
+
+async function resolvePrimaryKey(db, schema, table) {
+  const key = `${schema}.${table}`;
+  if (_pkCache.has(key)) return _pkCache.get(key);
+
+  let pk = 'id'; // safe default — matches DMS data_items + most schemas
+  if (db.type === 'postgres') {
+    try {
+      const { rows } = await db.query(
+        `SELECT a.attname AS pk
+         FROM pg_index i
+         JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = ANY(i.indkey)
+         WHERE i.indrelid = $1::regclass AND i.indisprimary
+         LIMIT 1`,
+        [`${schema}.${table}`]
+      );
+      if (rows[0]?.pk) pk = rows[0].pk;
+    } catch (e) {
+      // Table may not exist or pg_index lookup may fail — fall back to 'id'.
+    }
+  }
+  _pkCache.set(key, pk);
+  return pk;
+}
+
 async function dataById(env, view_id, ids, attributes) {
   const { isDms, db, app, type, table_schema, table_name } = await getEssentials({ env, view_id, options: { isDama: false } });
 
   const sanitizedAttrs = sanitizeName(attributes).filter(f => f);
   if (!sanitizedAttrs.length) return [];
 
-  const sql = `SELECT id, ${sanitizedAttrs.map(c => quoteAlias(c)).join(', ')} FROM ${table_schema}.${table_name} WHERE id = ANY($1)`;
+  const pkCol = await resolvePrimaryKey(db, table_schema, table_name);
+  const sql = `SELECT ${pkCol} AS id, ${sanitizedAttrs.map(c => quoteAlias(c)).join(', ')} FROM ${table_schema}.${table_name} WHERE ${pkCol} = ANY($1)`;
   const { rows } = await db.query(sql, [ids.map(id => +id)]);
   return rows;
 }

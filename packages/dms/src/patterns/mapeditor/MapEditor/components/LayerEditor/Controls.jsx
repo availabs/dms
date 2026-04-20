@@ -45,7 +45,8 @@ function ControlMenu({ button, children}) {
 
 export function SelectTypeControl({path, datapath, params={}}) {
   const { state, setState } = React.useContext(SymbologyContext);
-  const { falcor, falcorCache, pgEnv } = React.useContext(MapEditorContext);
+  const { useFalcor, pgEnv } = React.useContext(MapEditorContext);
+  const { falcor, falcorCache } = useFalcor();
   //console.log('select control', {path, datapath, params})
 
   const pathBase =
@@ -66,7 +67,7 @@ export function SelectTypeControl({path, datapath, params={}}) {
     //console.log('getmetadat', sourceId)
     if(sourceId) {
       falcor.get([
-          "dama", pgEnv, "sources", "byId", sourceId, "attributes", "metadata"
+        "uda", pgEnv, "sources", "byId", sourceId, "metadata"
       ])//.then(d => console.log('source metadata sourceId', sourceId, d));
     }
   },[sourceId])
@@ -74,15 +75,14 @@ export function SelectTypeControl({path, datapath, params={}}) {
   const metadata = useMemo(() => {
     //console.log('getmetadata', falcorCache)
       let out = get(falcorCache, [
-          "dama", pgEnv, "sources", "byId", sourceId, "attributes", "metadata", "value", "columns"
+          "uda", pgEnv, "sources", "byId", sourceId, "metadata", "value", "columns"
       ], [])
       if(out.length === 0) {
         out = get(falcorCache, [
-          "dama", pgEnv, "sources", "byId", sourceId, "attributes", "metadata", "value"
+          "uda", pgEnv, "sources", "byId", sourceId, "metadata", "value"
         ], [])
       }
-      return out
-
+      return out;
   }, [sourceId,falcorCache])
 
 
@@ -292,7 +292,8 @@ export function SelectControl({path, params={}}) {
 
 function SelectViewColumnControl({path, datapath, params={}}) {
   const { state, setState } = React.useContext(SymbologyContext);
-  const { falcor, falcorCache, pgEnv } = React.useContext(MapEditorContext);
+  const { useFalcor, pgEnv } = React.useContext(MapEditorContext);
+  const { falcor, falcorCache } = useFalcor();
 
   const pathBase =
     params?.version === "interactive"
@@ -313,22 +314,22 @@ function SelectViewColumnControl({path, datapath, params={}}) {
   useEffect(() => {
     if(sourceId) {
       falcor.get([
-          "dama", pgEnv, "sources", "byId", sourceId, "attributes", "metadata"
+          "uda", pgEnv, "sources", "byId", sourceId, "metadata"
       ]);
     }
   },[pgEnv, sourceId])
 
   const metadata = useMemo(() => {
     let out = get(falcorCache, [
-          "dama", pgEnv, "sources", "byId", sourceId, "attributes", "metadata", "value", "columns"
+          "uda", pgEnv, "sources", "byId", sourceId, "metadata", "value", "columns"
       ], [])
     if(out.length === 0) {
         out = get(falcorCache, [
-          "dama", pgEnv, "sources", "byId", sourceId, "attributes", "metadata", "value"
+          "uda", pgEnv, "sources", "byId", sourceId, "metadata", "value"
         ], [])
       }
     return out
-  }, [pgEnv, sourceId, falcorCache])
+  }, [pgEnv, sourceId, falcorCache]);
 
   return (
     <label className='flex w-full'>
@@ -528,7 +529,8 @@ function CategoricalColorControl({path, params={}}) {
 
 function CircleControl({path, params={}}) {
   const { state, setState } = React.useContext(SymbologyContext);
-  const { falcor, falcorCache, pgEnv } = React.useContext(MapEditorContext);
+  // const { useFalcor, pgEnv } = React.useContext(MapEditorContext);
+  // const { falcor, falcorCache } = useFalcor();
   // console.log('CircleControl', params)
 
   const pathBase =
@@ -686,7 +688,8 @@ function roundToNearestTen(v) {
 
 function ChoroplethControl({path, params={}}) {
   const { state, setState } = React.useContext(SymbologyContext);
-  const { falcor, falcorCache, pgEnv } = React.useContext(MapEditorContext);
+  // const { useFalcor, pgEnv } = React.useContext(MapEditorContext);
+  // const { falcor, falcorCache } = useFalcor();
   // console.log('select control', params)
   //let colors = categoricalColors
   const pathBase =
@@ -882,8 +885,9 @@ function ChoroplethControl({path, params={}}) {
               })}
             >
               <option  value={'ckmeans'}>ck-means</option>
-              {/* <option  value={'pretty'}>Pretty Breaks</option> */}
+              <option  value={'quantile'}>Quantile</option>
               <option  value={'equalInterval'}>Equal Interval</option>
+              <option  value={'standardDeviation'}>Standard Deviation</option>
               <option  value={'custom'}>Custom</option>
              
             </select>
@@ -1014,7 +1018,8 @@ const appendSourceColumns = (draft, value, pathBase, sourcePath, selfValuePath, 
 const NUMBER_COLUMNS_REGEX = /integer|number/;
 
 const HeatmapColumnControl = ({ valuePath, paintPath, defaultValue, columnValues, params = {} }) => {
-  const { falcor, falcorCache, pgEnv } = React.useContext(MapEditorContext);
+  const { useFalcor, pgEnv } = React.useContext(MapEditorContext);
+  const { falcor, falcorCache } = useFalcor();
   const { state, setState } = React.useContext(SymbologyContext);
 
 // console.log("HeatmapColumnControl::valuePath, paintPath", valuePath, paintPath);
@@ -1039,20 +1044,18 @@ const HeatmapColumnControl = ({ valuePath, paintPath, defaultValue, columnValues
   useEffect(() => {
     if (sourceId) {
       falcor.get([
-        "dama", pgEnv, "sources", "byId", sourceId, "attributes", "metadata"
+        "uda", pgEnv, "sources", "byId", sourceId, "metadata"
       ]);
     }
   }, [pgEnv, sourceId]);
 
   const columns = useMemo(() => {
     let columns = get(falcorCache, [
-      "dama", pgEnv, "sources", "byId", sourceId, "attributes",
-      "metadata", "value", "columns"
+      "uda", pgEnv, "sources", "byId", sourceId, "metadata", "value", "columns"
     ], []);
     if (columns.length === 0) {
       columns = get(falcorCache, [
-        "dama", pgEnv, "sources", "byId", sourceId, "attributes",
-        "metadata", "value"
+        "uda", pgEnv, "sources", "byId", sourceId,  "metadata", "value"
       ], []);
     }
     if (Array.isArray(columns)) {
@@ -1060,6 +1063,7 @@ const HeatmapColumnControl = ({ valuePath, paintPath, defaultValue, columnValues
     }
     return [];
   }, [pgEnv, sourceId, falcorCache]);
+// console.log("HeatmapColumnControl::columns", columns);
 
   const handleOnChange = React.useCallback(e => {
     const value = e.target.value;

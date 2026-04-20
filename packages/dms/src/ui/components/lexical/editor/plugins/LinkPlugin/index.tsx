@@ -4,15 +4,12 @@ import { useEffect } from 'react';
 import { mergeRegister } from '@lexical/utils';
 import {
     COMMAND_PRIORITY_EDITOR,
-    createCommand,
     $getSelection,
     $isRangeSelection,
     $createTextNode,
 } from 'lexical';
 import { $createLinkNode, $isLinkNode } from '@lexical/link';
-
-// Command accepts an object with url and target
-export const TOGGLE_LINK_COMMAND = createCommand<{ url: string | null; target?: string }>();
+import { TOGGLE_LINK_COMMAND } from './commands';
 
 export default function LinkPlugin(): JSX.Element {
     const [editor] = useLexicalComposerContext();

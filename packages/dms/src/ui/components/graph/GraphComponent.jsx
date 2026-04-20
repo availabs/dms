@@ -7,17 +7,9 @@ import {
 import {get} from "lodash-es";
 import { getGraphComponent } from "./components";
 import {mapColors} from "./utils";
+import {getColorRange} from "./colorRange";
 // import {graphTheme} from "./index";
 // import {ThemeContext} from "../../useTheme";
-
-export const getColorRange = (size, name, reverse=false) => {
-  let range = get(mapColors, [name, size], []).slice();
-
-  if(reverse) {
-    range.reverse()
-  }
-  return range
-}
 
 const GraphTitle = ({ title, position, fontSize, fontWeight }) => {
 

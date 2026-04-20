@@ -72,7 +72,7 @@ const DATA_URL_REGEX = /^data:.+[/].+;base64,.+$/;
 const isDataURL = src => DATA_URL_REGEX.test(src);
 
 const getUniqueFileName = ext => {
-  return `${ Math.random().toString(36).substring(2) }.${ ext }`;
+  return `image_${ Math.random().toString(36).substring(2) }.${ ext }`;
 }
 
 const makeFile = async dataURL => {
@@ -158,6 +158,9 @@ function LazyImage({
     if (isDataURL(imgSrc)) {
       makeFile(imgSrc)
         .then(file => {
+
+console.log("FILE:", file)
+
           return uploadFile(file, altText, DAMA_HOST, pgEnv, id, directory)
         })
         .then(dl_url => {

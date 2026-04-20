@@ -10,7 +10,7 @@ import {useImmer} from "use-immer";
 import {
     getData as getFilterData
 } from "../../page/components/sections/components/dataWrapper/components/filters/utils";
-import Spreadsheet from "../../page/components/sections/components/ComponentRegistry/spreadsheet";
+import Spreadsheet from "../../page/components/sections/components/ComponentRegistry/spreadsheet/config";
 import {Controls} from "../../page/components/sections/components/dataWrapper/components/Controls";
 import {ThemeContext} from "../../../ui/useTheme";
 import {validateCompTheme} from "./validateComp.theme";

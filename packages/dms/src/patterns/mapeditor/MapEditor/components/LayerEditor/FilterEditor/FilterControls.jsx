@@ -46,28 +46,30 @@ export const ExistingFilterList = ({removeFilter, activeColumn, setActiveColumn}
     state,
     `symbology.layers[${state.symbology.activeLayer}].source_id`
   );
-  const { pgEnv, falcor, falcorCache } = useContext(MapEditorContext);
+  const { pgEnv, useFalcor } = useContext(MapEditorContext);
+  const { falcor, falcorCache } = useFalcor();
 
   useEffect(() => {
     if (sourceId) {
       falcor.get([
-        "dama", pgEnv, "sources", "byId", sourceId, "attributes", "metadata"
+        "uda", pgEnv, "sources", "byId", sourceId, "metadata"
     ]);
     }
   }, [sourceId]);
 
   const attributes = useMemo(() => {
     let columns = get(falcorCache, [
-      "dama", pgEnv, "sources", "byId", sourceId, "attributes", "metadata", "value", "columns"
+      "uda", pgEnv, "sources", "byId", sourceId, "metadata", "value", "columns"
     ], []);
 
     if (columns.length === 0) {
       columns = get(falcorCache, [
-        "dama", pgEnv, "sources", "byId", sourceId, "attributes", "metadata", "value"
+        "uda", pgEnv, "sources", "byId", sourceId, "metadata", "value"
       ], []);
     }
     return Array.isArray(columns) ? columns : [];
   }, [sourceId, falcorCache]);
+
   return (
     <div className="flex w-full flex-wrap">
       {Object.keys(existingFilter || {})?.map((selectedCol, i) => {
@@ -139,19 +141,19 @@ export function FilterBuilder({ path, params = {} }) {
   useEffect(() => {
     if (sourceId) {
       falcor.get([
-        "dama", pgEnv, "sources", "byId", sourceId, "attributes", "metadata"
+        "uda", pgEnv, "sources", "byId", sourceId, "metadata"
     ]);
     }
   }, [sourceId]);
 
   const attributes = useMemo(() => {
     let columns = get(falcorCache, [
-      "dama", pgEnv, "sources", "byId", sourceId, "attributes", "metadata", "value", "columns"
+      "uda", pgEnv, "sources", "byId", sourceId, "metadata", "value", "columns"
     ], []);
 
     if (columns.length === 0) {
       columns = get(falcorCache, [
-        "dama", pgEnv, "sources", "byId", sourceId, "attributes", "metadata", "value"
+        "uda", pgEnv, "sources", "byId", sourceId, "metadata", "value"
       ], []);
     }
     return columns;
@@ -273,19 +275,19 @@ function AddFilterColumn({ path, params = {}, setActiveColumn }) {
   useEffect(() => {
     if (sourceId) {
       falcor.get([
-        "dama", pgEnv, "sources", "byId", sourceId, "attributes", "metadata"
+        "uda", pgEnv, "sources", "byId", sourceId, "metadata"
     ]);
     }
   }, [sourceId]);
 
   const attributes = useMemo(() => {
     let columns = get(falcorCache, [
-      "dama", pgEnv, "sources", "byId", sourceId, "attributes", "metadata", "value", "columns"
+      "uda", pgEnv, "sources", "byId", sourceId, "metadata", "value", "columns"
     ], []);
 
     if (columns.length === 0) {
       columns = get(falcorCache, [
-        "dama", pgEnv, "sources", "byId", sourceId, "attributes", "metadata", "value"
+        "uda", pgEnv, "sources", "byId", sourceId, "metadata", "value"
       ], []);
     }
     return columns;
@@ -350,7 +352,8 @@ function AddFilterColumn({ path, params = {}, setActiveColumn }) {
 
 
 function EqualityFilterValueList({params, path, filterSearchValue}) {
-  const { pgEnv, falcor, falcorCache } = useContext(MapEditorContext);
+  const { pgEnv, useFalcor } = useContext(MapEditorContext);
+  const { falcor, falcorCache } = useFalcor();
   const { state, setState } = React.useContext(SymbologyContext);
   const {activeColumn: activeColumnName, setActiveColumn} = params;
   const { viewId, sourceId } = useMemo(
@@ -370,8 +373,8 @@ function EqualityFilterValueList({params, path, filterSearchValue}) {
   useEffect(() => {
     if (sourceId) {
       falcor.get([
-        "dama", pgEnv, "sources", "byId", sourceId, "attributes", "metadata"
-    ]);
+        "uda", pgEnv, "sources", "byId", sourceId, "metadata"
+      ]);
     }
   }, [sourceId]);
 
@@ -381,13 +384,13 @@ function EqualityFilterValueList({params, path, filterSearchValue}) {
   })
   useEffect(() => {
     falcor.get([
-      "dama",
+      "uda",
       pgEnv,
-      "viewsbyId",
+      "viewsById",
       viewId,
       "options",
       options,
-      "databyIndex",
+      "dataByIndex",
       { from: 0, to: 500 },
       [activeColumnName, "count(1)::int as count"],
     ]);
@@ -397,7 +400,7 @@ function EqualityFilterValueList({params, path, filterSearchValue}) {
     return Object.values(
       get(
         falcorCache,
-        ["dama", pgEnv, "viewsbyId", viewId, "options", options, "databyIndex"],
+        ["uda", pgEnv, "viewsById", viewId, "options", options, "dataByIndex"],
         {}
       )
     );

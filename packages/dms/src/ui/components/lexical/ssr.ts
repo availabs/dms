@@ -1,5 +1,5 @@
 import { $generateHtmlFromNodes } from '@lexical/html';
-import { createHeadlessEditor } from './editor/index';
+import { createHeadlessEditor } from './editor/createHeadlessEditor';
 
 // Check if we're in a browser environment
 const isBrowser = typeof window !== 'undefined' && typeof document !== 'undefined';

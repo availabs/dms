@@ -11,7 +11,6 @@ const DmsManager = (props) => {
 		user,
 		navigate,
 		falcor,
-		dama_falcor,
 		mode
 	} = props
 
@@ -54,7 +53,6 @@ const DmsManager = (props) => {
 				user={user}
 				mode={mode}
 				falcor={falcor}
-				dama_falcor={dama_falcor}
 			/>
 
 		})

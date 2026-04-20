@@ -48,7 +48,7 @@ function PermissionsPane() {
 
 export default PermissionsPane
 
-export const togglePageSetting = async (item, type, value = '', apiUpdate) => {
+const togglePageSetting = async (item, type, value = '', apiUpdate) => {
     const newItem = {id: item.id}
     set(newItem, type, value)
     //console.log('update', type, newItem)

@@ -33,25 +33,29 @@ export function ColumnSelectControl({path, params={}}) {
 
   const viewId = get(state,`symbology.layers[${state.symbology.activeLayer}].view_id`)
   const sourceId = get(state,`symbology.layers[${state.symbology.activeLayer}].source_id`);
-  const { pgEnv, falcor, falcorCache } = useContext(MapEditorContext);
+  const { pgEnv, useFalcor } = useContext(MapEditorContext);
+  const { falcor, falcorCache } = useFalcor();
 
   useEffect(() => {
     if (sourceId) {
       falcor.get([
-          "dama", pgEnv, "sources", "byId", sourceId, "attributes", "metadata"
-      ]);
+          "uda", pgEnv, "sources", "byId", sourceId, "metadata"
+      ]).then(res => console.log("RES:", res));
     }
   }, [sourceId]);
 
   const attributes = useMemo(() => {
     let columns = get(falcorCache, [
-      "dama", pgEnv, "sources", "byId", sourceId, "attributes", "metadata", "value", "columns"
+      "uda", pgEnv, "sources", "byId", sourceId, "metadata", "value", "columns"
     ], []);
     if (columns.length === 0) {
       columns = get(falcorCache, [
-        "dama", pgEnv, "sources", "byId", sourceId, "attributes", "metadata", "value"
+        "uda", pgEnv, "sources", "byId", sourceId, "metadata", "value"
       ], []);
     }
+// console.log("falcorCache:", falcorCache);
+
+// console.log("COLUMNS:", columns);
 
     if(params.onlyTypedAttributes) {
       columns = columns.filter(d => {
@@ -65,11 +69,11 @@ export function ColumnSelectControl({path, params={}}) {
     return Array.isArray(columns) ? columns : [];
   }, [sourceId, falcorCache]);
 
-console.log("ColumnSelectControl::attributes", attributes)
+// console.log("ColumnSelectControl::attributes", attributes)
 
   const attributeNames = useMemo(
     () => {
-      console.log('what are attributes', attributes)
+      // console.log('what are attributes', attributes)
       return (attributes || []).map((attr) => attr.name)
     },[attributes]);
 
@@ -120,11 +124,11 @@ console.log("ColumnSelectControl::attributes", attributes)
 
   React.useEffect(() => {
     falcor.get([
-      "dama",
+      "uda",
       pgEnv,
-      "viewsbyId",
+      "viewsById",
       viewId,
-      "databyIndex",
+      "dataByIndex",
       {"from":0, "to": 100},
       selectedColumnNames
     ])
@@ -132,7 +136,7 @@ console.log("ColumnSelectControl::attributes", attributes)
 
   const sampleData = useMemo(() => {
     return Object.values(
-      get(falcorCache, ["dama", pgEnv, "viewsbyId", viewId, "databyIndex"], [])
+      get(falcorCache, ["uda", pgEnv, "viewsById", viewId, "dataByIndex"], [])
     ).map((v) =>  {
       // console.log('what', v)
 
@@ -255,7 +259,7 @@ console.log("ColumnSelectControl::attributes", attributes)
 
 const ExistingColumnList = ({selectedColumns, sampleData, path, reorderAttrs, removeAttr, renameAttr}) => {
 
-console.log("ExistingColumnList::selectedColumns", selectedColumns)
+// console.log("ExistingColumnList::selectedColumns", selectedColumns)
 
   const { UI } = useContext(ThemeContext) || {};
   const { DndList } = UI;

@@ -1,12 +1,13 @@
 import React from "react"
 
-import { cloneDeep } from "lodash-es";
-
-import { useFalcor } from "@availabs/avl-falcor"
+import { falcorGraph, FalcorProvider } from "@availabs/avl-falcor"
 
 import UI from "../../ui"
 import { ThemeContext } from "../../ui/themeContext"
 import { MapEditorContext } from "./context"
+
+import { initializePatternFormat } from "../../dms-manager/_utils"
+import { getInstance } from "../../utils/type-utils"
 
 import MapEditorFormat from "./mapeditor.format"
 
@@ -14,23 +15,23 @@ import MapEditor from "./MapEditor"
 import MapViewer from "./MapEditor/MapViewer"
 
 const mapeditorConfig = ({
-	app, type,
+	app, type: patternType,
 	siteType,
 	baseUrl,
 	pattern,
 	authPermissions,
   API_HOST,
+  DAMA_HOST,
   pgEnv,
+  useFalcor,
 	...rest
 }) => {
 
   baseUrl = baseUrl === '/' ? '' : baseUrl;
 
-	const format = cloneDeep(MapEditorFormat);
-  format.app = app;
-  format.type = type;
-
-// console.log("MapEditor::siteConfig::app, type, baseUrl", app, type, baseUrl);
+  const patternInstance = getInstance(patternType) || patternType;
+  const format = initializePatternFormat(MapEditorFormat, app, patternInstance);
+  const childType = format.type; // e.g. "map_editor_test|symbology"
 
 	return {
 		siteType,
@@ -41,22 +42,34 @@ const mapeditorConfig = ({
 			{ action: "list",
 				path: "/*",
 				authPermissions,
-				type: ({ user, params, children, falcor, dama_falcor }) => {
+				// Outer route is a context wrapper only — it doesn't render
+				// symbology data itself. Restrict its data fetch to just
+				// `name` so the dms-format loader doesn't pull all 247
+				// symbologies' full `data` JSONB (~5MB total) on every page.
+				// The inner `edit/view` routes load full data by id.
+				filter: {
+					attributes: ["name"]
+				},
+				type: ({ user, params, children }) => {
 
-					// const { falcor, falcorCache } = useFalcor();
+					const { falcor, falcorCache } = useFalcor();
 
 					const mapeditorContextValue = React.useMemo(() => {
 						return {
-							app, type,
+							app,
+							type: childType,
+							patternType,
 							siteType,
 							baseUrl,
 							user,
 							pgEnv,
-							falcor: dama_falcor,
+							falcor,
+							falcorCache,
+							useFalcor,
 							params
 						}
-					}, [app, type, siteType, baseUrl, user,
-							params, falcor, pgEnv
+					}, [app, childType, patternType, siteType, baseUrl, user,
+							params, falcor, falcorCache, pgEnv
 					]);
 
 					return (

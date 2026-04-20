@@ -180,7 +180,7 @@ const getKey = v => {
     }
     return v;
 };
-export default function ({
+export default function Table ({
     paginationActive, gridRef,
     allowEdit,
     updateItem, removeItem, isEdit,

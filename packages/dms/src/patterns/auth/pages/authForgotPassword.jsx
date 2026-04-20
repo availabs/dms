@@ -5,7 +5,7 @@ import {AuthContext} from "../context";
 
 
 
-export default (props) => {
+export default function AuthForgotPassword (props) {
     const [ credentials, setCredentials ] = React.useState({email: '', password: ''});
     const [status, setStatus] = React.useState('');
     const { theme, UI } = React.useContext(ThemeContext);

@@ -10,7 +10,7 @@ import { isEqual, merge } from "lodash-es"
 
 
 
-export default function EditWrapper({ Component, format, options, params, user, falcor, dama_falcor, mode, reqPermissions, ...props}) {
+export default function EditWrapper({ Component, format, options, params, user, falcor, mode, reqPermissions, ...props}) {
 
 	const {app, type} = format;
 	const attributes = getAttributes(format, options, 'edit')
@@ -153,7 +153,6 @@ export default function EditWrapper({ Component, format, options, params, user, 
 			// -- submit={submitForm}
 			updateAttribute={updateAttribute} // sectionGroup uses this. Without setting item, going into edit mode of a section shows old value
 			falcor={falcor}
-			dama_falcor={dama_falcor}
 			// setItem={setItem}
 		  // --status={status}
 

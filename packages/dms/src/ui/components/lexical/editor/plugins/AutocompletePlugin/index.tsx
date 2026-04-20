@@ -29,22 +29,18 @@ import {
 } from 'lexical';
 import {useCallback, useEffect} from 'react';
 
-import {useSharedAutocompleteContext} from '../../context/SharedAutocompleteContext';
+import {useSharedAutocompleteContext} from '../../context/useSharedAutocompleteContext';
 import {
   $createAutocompleteNode,
   AutocompleteNode,
 } from '../../nodes/AutocompleteNode';
 import {addSwipeRightListener} from '../../utils/swipe';
+import {uuid} from './uuid';
 
 type SearchPromise = {
   dismiss: () => void;
   promise: Promise<null | string>;
 };
-
-export const uuid = Math.random()
-  .toString(36)
-  .replace(/[^a-z]+/g, '')
-  .substr(0, 5);
 
 // TODO lookup should be custom
 function $search(

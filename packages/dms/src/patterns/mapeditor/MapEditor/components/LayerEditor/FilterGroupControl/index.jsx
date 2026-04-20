@@ -6,7 +6,8 @@ import { MapEditorContext } from "../../../../context"
 import { get, set } from 'lodash-es'
 const FilterGroupControl = ({path, datapath, params={}}) => {
   const { state, setState } = useContext(SymbologyContext);
-  const { falcor, falcorCache, pgEnv } = useContext(MapEditorContext);
+  const { useFalcor, pgEnv } = useContext(MapEditorContext);
+  const { falcor } = useFalcor();
   const pathBase = params?.version === "interactive"
     ? `symbology.layers[${state.symbology.activeLayer}]${params.pathPrefix}`
     : `symbology.layers[${state.symbology.activeLayer}]`;
@@ -31,7 +32,7 @@ const FilterGroupControl = ({path, datapath, params={}}) => {
   useEffect(() => {
     if (sourceId) {
       falcor.get([
-          "dama", pgEnv, "sources", "byId", sourceId, "attributes", "metadata"
+          "uda", pgEnv, "sources", "byId", sourceId, "metadata"
       ]);
     }
   }, [sourceId]);

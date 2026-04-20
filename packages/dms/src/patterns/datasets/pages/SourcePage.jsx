@@ -47,7 +47,7 @@ const SourceNav = ({theme = {}, navItems, page, pageBaseUrl, id, view_id, isDms,
     </nav>
 )
 
-export default function ({ apiLoad, apiUpdate, format, item, params, isDms }) {
+export default function SourcePage ({ apiLoad, apiUpdate, format, item, params, isDms }) {
     const ctx = useContext(DatasetsContext);
     const {baseUrl, user, isUserAuthed, UI, datasources, falcor, damaDataTypes} = ctx;
     const { theme: fullTheme } = useContext(ThemeContext) || {};

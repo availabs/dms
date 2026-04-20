@@ -8,7 +8,7 @@ const theme = {
         viewWrapper: 'whitespace-normal text-sm font-light'
     }
 }
-const Edit = ({value, onChange, className, placeholder, ...rest}) => {
+export const TextareaEdit = ({value, onChange, className, placeholder, ...rest}) => {
     const [tmpValue, setTmpValue] = useState(value)
 
     return (
@@ -25,17 +25,11 @@ const Edit = ({value, onChange, className, placeholder, ...rest}) => {
     )
 }
 
-const View = ({value}) => {
+export const TextareaView = ({value}) => {
     if (!value) return false
     return (
         <div className={theme?.textarea?.viewWrapper}>
             {typeof value === "object" ? JSON.stringify(value) : value}
         </div>
     )
-}
-
-
-export default {
-    "EditComp": Edit,
-    "ViewComp": View
 }

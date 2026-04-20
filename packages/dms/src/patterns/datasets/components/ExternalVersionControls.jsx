@@ -179,8 +179,11 @@ const DownloadModalCheckboxGroup = ({
 };
 
 export default function ExternalVersionControls({isDms, source, view, sourceId, viewId}) {
-    const { datasources, baseUrl, user, falcor, falcorCache, UI, DAMA_HOST } = useContext(DatasetsContext);
+    const { datasources, baseUrl, user, falcor, falcorCache, UI, API_HOST } = useContext(DatasetsContext);
     const pgEnv = getExternalEnv(datasources);
+    // dms-server hosts the DAMA upload/download REST endpoints under
+    // `/dama-admin/` on the main API host. No separate DAMA_HOST anymore.
+    const apiBase = API_HOST;
     const {Button, Modal} = UI;
 
     const [modalState, setModalState] = useState(INITIAL_MODAL_STATE);
@@ -254,7 +257,7 @@ export default function ExternalVersionControls({isDms, source, view, sourceId, 
                 };
 
                 setDeleteModalState({...deleteModalState, loading: true});
-                const res = await fetch(`${DAMA_HOST}/dama-admin/${pgEnv}/gis-dataset/delete-download`,
+                const res = await fetch(`${apiBase}/dama-admin/${pgEnv}/gis-dataset/delete-download`,
                     {
                         method: "DELETE",
                         body: JSON.stringify(deleteData),
@@ -264,8 +267,9 @@ export default function ExternalVersionControls({isDms, source, view, sourceId, 
                     });
 
                 await res.json();
-                await falcor.invalidate(["dama", pgEnv, "viewDependencySubgraphs", "byViewId", viewId]);
-                await falcor.invalidate(["dama", pgEnv, "views", "byId", viewId]);
+                // After delete, clear any cached view-by-id entries so the view's
+                // metadata (which includes download config) re-fetches.
+                await falcor.invalidate(["uda", pgEnv, "viewsById", viewId]);
                 getData({ falcor, pgEnv, viewId });
                 setDeleteModalState(INITIAL_DELETE_MODAL_STATE);
             } catch (err) {
@@ -299,7 +303,7 @@ export default function ExternalVersionControls({isDms, source, view, sourceId, 
                 };
 
                 setModalState({...modalState, loading: true});
-                const res = await fetch(`${DAMA_HOST}/dama-admin/${pgEnv}/gis-dataset/create-download`,
+                const res = await fetch(`${apiBase}/dama-admin/${pgEnv}/gis-dataset/create-download`,
                     {
                         method: "POST",
                         body: JSON.stringify(createData),
@@ -354,8 +358,12 @@ export default function ExternalVersionControls({isDms, source, view, sourceId, 
     }, [pmTilesModalState.columnsHaveBeenInitialized, sourceDataColumns]);
 
     const cachePmTiles = React.useCallback(() => {
+        // PMTiles is now mounted under the plugin path on dms-server
+        // (see `src/dama/datatypes/index.js` which mounts datatype routers
+        // under `/dama-admin/:pgEnv/${name}`). The old URL at
+        // `/dama-admin/:pgEnv/cache-pmtiles` doesn't exist anymore.
         fetch(
-            `${ DAMA_HOST }/dama-admin/${ pgEnv }/cache-pmtiles`,
+            `${ apiBase }/dama-admin/${ pgEnv }/pmtiles/cache-pmtiles`,
             { method: "POST",
                 body: JSON.stringify({
                     columns: [...pmTilesModalState.selectedColumns],
@@ -625,8 +633,12 @@ const PmTilesProgressWindow = ({ etl_context_id }) => {
 
     const getEvents = React.useCallback(() => {
         if (!etl_context_id) return;
-        falcor.invalidate(["dama", pgEnv, "etlContexts", "byEtlContextId", etl_context_id]);
-        falcor.get(["dama", pgEnv, "etlContexts", "byEtlContextId", etl_context_id])
+        // Legacy DAMA server exposed task status via `etlContexts.byEtlContextId`.
+        // dms-server's UDA task routes expose the same info at
+        // `uda[pgEnv].tasks.byId[task_id]` (task_id == the legacy etl_context_id
+        // for pmtiles jobs, since tasks were migrated in-place preserving ids).
+        falcor.invalidate(["uda", pgEnv, "tasks", "byId", etl_context_id]);
+        falcor.get(["uda", pgEnv, "tasks", "byId", etl_context_id])
             .then(() => { setNow(Date.now()); });
     }, [falcor, pgEnv, etl_context_id]);
 
@@ -664,10 +676,11 @@ const PmTilesProgressWindow = ({ etl_context_id }) => {
             setEvents([]);
         }
         else {
+            // UDA task rows carry their events at `tasks.byId[id].events` —
+            // matches legacy shape after the task-port migration.
             const events = get(falcorCache,
-                ["dama", pgEnv, "etlContexts", "byEtlContextId",
-                    etl_context_id, "value", "events"
-                ], []
+                ["uda", pgEnv, "tasks", "byId", etl_context_id, "value", "events"],
+                []
             );
             setEvents(events);
         }

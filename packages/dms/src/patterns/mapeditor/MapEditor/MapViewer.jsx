@@ -1,5 +1,4 @@
 import React from "react"
-import { get } from 'lodash-es'
 import { AvlMap as AvlMap2 } from "../../../ui/components/map"
 import SymbologyViewLayer from './components/SymbologyViewLayer'
 import PluginLayer from './components/PluginLayer'
@@ -8,7 +7,6 @@ import { PLUGIN_TYPE, MAP_STYLES } from "./"
 
 import { MapEditorContext } from "../context"
 
-// import LegendPanel from "./components/LayerManager/LegendPanel"
 import MapViewerLegend from "./components/MapViewerLegend"
 
 import { useImmer } from 'use-immer';
@@ -18,8 +16,7 @@ import { extractState, fetchBoundsForFilter } from './stateUtils';
 import {
   SourceAttributes,
   ViewAttributes,
-  getAttributes,
-  DamaSymbologyAttributes
+  getAttributes
 } from "../attributes";
 
 export const SymbologyContext = React.createContext(undefined);
@@ -37,59 +34,15 @@ const DEFAULT_BLANK_SYMBOLOGY = {
 
 const MapViewer = props => {
 
-// console.log("MapViewer::props", props);
-
   const mounted = React.useRef(false);
 
-  const { falcor, falcorCache, pgEnv } = React.useContext(MapEditorContext);
+  const { useFalcor, pgEnv } = React.useContext(MapEditorContext);
+  const {falcor, falcorCache } = useFalcor();
   const { id: symbologyId } = props.params;
 
-  React.useEffect(() => {
-    if (symbologyId) {
-      falcor.get([
-        "dama", pgEnv, "symbologies", "byId", symbologyId,
-        "attributes", Object.values(DamaSymbologyAttributes)
-      ]);
-    }
-  }, [falcor, symbologyId, pgEnv]);
-
-  React.useEffect(() => {
-    const symbologyLengthPath = ["dama", pgEnv, "symbologies", "length"];
-
-    falcor.get(symbologyLengthPath)
-      .then(res => {
-        const length = get(res.json, symbologyLengthPath, 0);
-        if (length) {
-          falcor.get([
-            "dama", pgEnv, "symbologies",
-            "byIndex", { from: 0, to: length - 1 },
-            "attributes", DamaSymbologyAttributes
-          ]);
-        }
-      });
-  }, [falcor, pgEnv]);
-
-  const damaSymbologies = React.useMemo(() => {
-    return Object.values(get(falcorCache, ["dama", pgEnv, "symbologies", "byIndex"], {}))
-      .map(v => getAttributes(get(falcorCache, v.value, { "attributes": {} })["attributes"]))
-      .filter(v => Object.keys(v).length > 0)
-      .map(sym => ({
-        ...sym,
-        id: sym.symbology_id,
-        symbology: {
-          ...sym.symbology,
-          isDamaSymbology: true
-        }
-      }));
-  }, [falcorCache, pgEnv]);
-
-  const dmsSymbologies = React.useMemo(() => {
-    return [...props.dataItems];
-  }, [props.dataIems]);
-
   const symbologies = React.useMemo(() => {
-    return [...dmsSymbologies, ...damaSymbologies];
-  }, [damaSymbologies, dmsSymbologies]);
+    return [...props.dataItems];
+  }, [props.dataItems]);
 
   const initialSymbology = React.useMemo(() => {
     return symbologies.find(s => s.id == symbologyId);
@@ -116,7 +69,7 @@ const MapViewer = props => {
     //console.log('getmetadat', sourceId)
     if (sourceId) {
       falcor.get([
-          "dama", pgEnv, "sources", "byId", sourceId, "attributes", Object.values(SourceAttributes)
+          "uda", pgEnv, "sources", "byId", sourceId, Object.values(SourceAttributes)
       ])//.then(res => console.log('source metadata res', sourceId, res));
     }
   }, [falcor, sourceId]);

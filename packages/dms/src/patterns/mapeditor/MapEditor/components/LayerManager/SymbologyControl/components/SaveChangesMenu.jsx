@@ -56,25 +56,15 @@ const INITIAL_SAVE_CHANGES_MODAL_STATE = {
 
 function SaveChangesModal ({ open, setOpen })  {
   const cancelButtonRef = useRef(null);
-  const { app, type, falcor, baseUrl, pgEnv } = useContext(MapEditorContext);
+  const { app, type, useFalcor, baseUrl, pgEnv } = useContext(MapEditorContext);
+  const { falcor } = useFalcor();
   const { state, setState, symbologies, params } = useContext(SymbologyContext);
   const { id: symbologyId } = params;
   const navigate = useNavigate();
 
-  const isDamaSymbology = Boolean(state.symbology.isDamaSymbology);
-
   const dbSymbology = useMemo(() => {
     return symbologies.find(s => +s.id === +symbologyId);
   }, [symbologies, symbologyId]);
-
-// console.log("SaveChangesModal::isDamaSymbology", isDamaSymbology);
-// console.log("SaveChangesModal::state", state);
-// console.log("SaveChangesModal::dbSymbology", dbSymbology);
-
-  // const INITIAL_SAVE_CHANGES_MODAL_STATE = {
-  //   action: null,
-  //   name: generateDefaultName(state?.name)
-  // };
 
   const [modalState, setModalState] = useState(INITIAL_SAVE_CHANGES_MODAL_STATE);
 
@@ -84,27 +74,7 @@ function SaveChangesModal ({ open, setOpen })  {
     }));
   }, [state.name]);
 
-/*
-  async function updateData() {
-    await falcor.set({
-      paths: [['dama', pgEnv, 'symbologies', 'byId', +symbologyId, 'attributes', 'symbology']],
-      jsonGraph: { dama: { [pgEnv]: { symbologies: { byId: {
-        [+symbologyId]: { attributes : { symbology: JSON.stringify(state.symbology) }}
-      }}}}}
-    })
-  }
-*/
-  const updateDamaSymbology = React.useCallback(() => {
-    falcor.set({
-      paths: [['dama', pgEnv, 'symbologies', 'byId', symbologyId, 'attributes', 'symbology']],
-      jsonGraph: { dama: { [pgEnv]: { symbologies: { byId: {
-        [symbologyId]: { attributes : { symbology: JSON.stringify(state.symbology) } }
-      } } } } }
-    });
-  }, [symbologyId, state.symbology]);
-
   const updateDmsSymbology = React.useCallback(e => {
-// console.log("SaveChangesModal::updateDmsSymbology::state.symbology", state.symbology);
     falcor.call(
       ["dms", "data", "edit"],
       [app, symbologyId, { symbology: state.symbology }]
@@ -113,27 +83,7 @@ function SaveChangesModal ({ open, setOpen })  {
     })
   }, [app, symbologyId, state.symbology]);
 
-/*
-  async function updateName() {
-    await falcor.set({
-      paths: [['dama', pgEnv, 'symbologies', 'byId', +symbologyId, 'attributes', 'name']],
-      jsonGraph: { dama: { [pgEnv]: { symbologies: { byId: {
-        [+symbologyId]: { attributes : { name: state.name }}
-      }}}}}
-    })
-  }
-*/
-  const updateDamaName = React.useCallback(() => {
-    falcor.set({
-      paths: [['dama', pgEnv, 'symbologies', 'byId', symbologyId, 'attributes', 'name']],
-      jsonGraph: { dama: { [pgEnv]: { symbologies: { byId: {
-        [symbologyId]: { attributes : { name: state.name } }
-      } } } } }
-    });
-  }, [symbologyId, state.name]);
-
   const updateDmsName = React.useCallback(e => {
-// console.log("SaveChangesModal::updateDmsName::state.name", state.name);
     falcor.call(
       ["dms", "data", "edit"],
       [app, symbologyId, { name: state.name }]
@@ -141,40 +91,6 @@ function SaveChangesModal ({ open, setOpen })  {
       falcor.invalidate(["dms", "data", app, "byId", symbologyId]);
     })
   }, [app, symbologyId, state.name]);
-
-/*
-  const createSymbologyMap = async () => {
-    let newSymbology = JSON.stringify({
-      ...state,
-      name: modalState.name
-    });
-
-    Object.keys(state.symbology.layers).forEach(oldLayerId => {
-      const newLayerId = Math.random().toString(36).replace(/[^a-z]+/g, '');
-      newSymbology = newSymbology.replaceAll(oldLayerId, newLayerId)
-    });
-
-    const resp = await falcor.call(
-      ["dama", "symbology", "symbology", "create"],
-      [pgEnv, JSON.parse(newSymbology)]
-    );
-
-    const newSymbologyId = Object.keys(get(resp, ['json','dama', pgEnv , 'symbologies' , 'byId'], {}))?.[0] || false
-    const newSymb = get(resp, ['json','dama', pgEnv , 'symbologies' , 'byId'],{})?.[newSymbologyId]?.attributes
-
-    if(newSymbologyId) {
-      await falcor.invalidate(
-        ["dama", pgEnv, "symbologies", "byIndex"],
-        ["dama", pgEnv, "symbologies", "length"]
-      );
-
-      setOpen(false);
-      setModalState({ action: null, name:'' });
-      navigate(`${baseUrl}/mapeditor/${newSymbologyId}`)
-      setState(newSymb);
-    }
-  }
-*/
 
   const saveAs = React.useCallback(e => {
 
@@ -209,39 +125,15 @@ function SaveChangesModal ({ open, setOpen })  {
     })
   }, [state, baseUrl, app, type, modalState.name, setState]);
 
-/*
-  const onSubmit = () => {
-    const symbologyLocalStorageKey = LOCAL_STORAGE_KEY_BASE + `${ symbologyId }`;
-
-    if(modalState.action === 'save'){
-      if(state?.symbology?.layers && dbSymbology && !isEqual(state?.symbology, dbSymbology?.symbology)) {
-        updateData();
-      }
-      if(state?.name && state?.name !== dbSymbology?.name) {
-        updateName();
-      }
-    } else if (modalState.action === 'discard') {
-      window.localStorage.setItem(symbologyLocalStorageKey, JSON.stringify(dbSymbology));
-      setState(dbSymbology);
-    }
-    else if (modalState.action === "saveas") {
-      window.localStorage.setItem(symbologyLocalStorageKey, JSON.stringify(dbSymbology));
-      saveAs();
-    }
-
-    setOpen(false);
-    setModalState(INITIAL_SAVE_CHANGES_MODAL_STATE);
-  }
-*/
   const onSubmit = React.useCallback(e => {
     const symbologyLocalStorageKey = LOCAL_STORAGE_KEY_BASE + `${ symbologyId }`;
 
     if (modalState.action === 'save') {
       if (state?.symbology?.layers && dbSymbology?.symbology && !isEqual(state?.symbology, dbSymbology?.symbology)) {
-        isDamaSymbology ? updateDamaSymbology() : updateDmsSymbology();
+        updateDmsSymbology();
       }
       if (state?.name && (state?.name !== dbSymbology?.name)) {
-        isDamaSymbology ? updateDamaName() : updateDmsName();
+        updateDmsName();
       }
     }
     else if (modalState.action === 'discard') {
@@ -255,10 +147,7 @@ function SaveChangesModal ({ open, setOpen })  {
 
     setOpen(false);
     setModalState(INITIAL_SAVE_CHANGES_MODAL_STATE);
-  }, [modalState.action, state, dbSymbology, isDamaSymbology,
-      updateDamaSymbology, updateDmsSymbology,
-      updateDamaName, updateDmsName
-  ]);
+  }, [modalState.action, state, dbSymbology, updateDmsSymbology, updateDmsName]);
 
   const isSymbologyModified = useMemo(() => {
     // console.log("diff::",detailedDiff(state, dbSymbology));

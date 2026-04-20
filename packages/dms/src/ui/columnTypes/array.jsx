@@ -1,6 +1,6 @@
 import React from "react"
 
-const Edit = ({Component, value, onChange, attr}) => {
+export const ArrayEdit = ({Component, value, onChange, attr}) => {
     if (!value || !value.map) { 
         value = []
     }
@@ -22,12 +22,8 @@ const Edit = ({Component, value, onChange, attr}) => {
     )
 }
 
-const View = ({Component, value, attr}) => {
+export const ArrayView = ({Component, value, attr}) => {
     if (!value || !value.map) { return '' }
     return value.map((v,i) => <Component.ViewComp {...attr } key={i} value={v}/>)
 }
 
-export default {
-    "EditComp": Edit,
-    "ViewComp": View
-}

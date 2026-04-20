@@ -98,7 +98,8 @@
 ### patterns/mapeditor
 
 - [x] Convert MapEditor from datamanagerclient into standalone DMS pattern (symbology CRUD via DMS instead of DAMA)
-- [ ] Migrate MapEditor from DAMA to UDA routes — 22 files use `dama[pgEnv]` Falcor paths for sources, views, symbologies, view data. Replace with `uda[pgEnv]` equivalents. Fix `.attributes` nesting and `viewsbyId` → `viewsById` case changes.
+- [x] Migrate MapEditor from DAMA to UDA routes — MapEditor + page-pattern `map/` and `map_dama/` components ported off DAMA; server-side `colorDomain` UDA route added; DAMA symbology data migrated to DMS in mitigat-ny-prod (247 rows + 2,217 component rewrites); filter translator wired; numerous follow-on bugs fixed during Phase 5 (substring metadata, category paint, layer panel overflow, FilterableSearch→ComboBox, dataById PK lookup, list fetch payload size)
+- [ ] [Unify `map/` and `map_dama/` components](./tasks/current/map-component-unification.md) — two parallel implementations with distinct features: map_dama has multi-symbology + in-map filter controls; map has DataWrapper page-state filter binding + basemap selector + PMTiles infrastructure. Merge after UDA migration settles.
 
 ### patterns/datasets
 
@@ -133,4 +134,5 @@
 ## project maintenance
 
 - [x] Upgrade to Vite 8 — Rolldown replaces esbuild+Rollup, rename rollupOptions→rolldownOptions, update React Compiler to use @rolldown/plugin-babel + reactCompilerPreset, verify CJS interop and WASM plugins
-- [ ] Vite HMR / Fast Refresh fixes — fix ~127 files with patterns that break hot module reload (mixed exports, anonymous components, object-wrapped exports, wrong file extensions)
+- [x] Vite HMR / Fast Refresh fixes — fix ~127 files with patterns that break hot module reload (mixed exports, anonymous components, object-wrapped exports, wrong file extensions)
+- [x] package.json cleanup — consolidate deps across `dms-template` root, `@availabs/dms`, `@availabs/dms-server`; npm workspaces migration; React 19 / `@types/react` 19 alignment; delete `forms_bak/` + drop `react-table`/`react-popper`; pin `@carbon/icons-react@11.76.0` (11.78 broke Rolldown tree-shaking); vendor chunk ~1.4 MB smaller minified; prep for 2.0 publish

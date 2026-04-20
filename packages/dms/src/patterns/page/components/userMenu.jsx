@@ -64,7 +64,7 @@ const EditControl = ({activeStyle}) => {
     </>
 }
 
-export default ({title, children, activeStyle, navigableMenuActiveStyle}) => {
+export default function UserMenuContainer ({title, children, activeStyle, navigableMenuActiveStyle}) {
   const { user } = React.useContext(AuthContext) || {}
   const { baseUrl = ''} = React.useContext(CMSContext) || {}
   const { theme, UI } = React.useContext(ThemeContext) || {}

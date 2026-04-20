@@ -5,7 +5,7 @@ import {AuthContext} from "../context";
 import {callAuthServer} from "../api";
 
 
-export default (props) => {
+export default function AuthLogin (props) {
     const location = useLocation();
     const [credentials, setCredentials] = React.useState({email: '', password: ''});
     const [error, setError] = useState('');

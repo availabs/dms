@@ -44,7 +44,7 @@ function parseValue(value) {
     return null;
 }
 
-const Edit = ({value, onChange, isCollab, collabId, ...rest}) => {
+export const LexicalEdit = ({value, onChange, isCollab, collabId, ...rest}) => {
     return (
         <Editor
             value={parseValue(value)}
@@ -57,7 +57,7 @@ const Edit = ({value, onChange, isCollab, collabId, ...rest}) => {
     )
 }
 
-const View = React.memo(({value, onChange,  ...rest}) => {
+export const LexicalView = React.memo(function LexicalView ({value, onChange,  ...rest}) {
     // console.log('lexical type edit')
     return (
         <Editor
@@ -100,7 +100,3 @@ const View = React.memo(({value, onChange,  ...rest}) => {
 //   );
 // });
 
-export default {
-    "EditComp": Edit,
-    "ViewComp": View
-}

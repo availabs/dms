@@ -3,7 +3,7 @@ import {ThemeContext} from "../../../../ui/useTheme";
 import {ComponentContext} from "../../context";
 import {ConditionValueInput} from "./ConditionValueInput";
 import {getColumnLabel} from "./controls_utils";
-import {filterTheme} from "./components/dataWrapper/components/filters/RenderFilters";
+import {filterTheme} from "./components/dataWrapper/components/filters/RenderFilters.theme";
 
 const gridClasses = {
     1: 'grid-cols-1',

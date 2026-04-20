@@ -1,7 +1,7 @@
 import React from "react"
 
 
-const Edit = ({value, onChange, placeHolder='Please Select'}) => {
+export const BooleanEdit = ({value, onChange, placeHolder='Please Select'}) => {
     return (
         <select
             className={'px-2 py-1 w-full text-sm font-light border rounded-md focus:border-blue-300 bg-white hover:bg-blue-100 transition ease-in'}
@@ -16,7 +16,7 @@ const Edit = ({value, onChange, placeHolder='Please Select'}) => {
     )
 }
 
-const View = ({value}) => {
+export const BooleanView = ({value}) => {
     if (!value) return false
     return (
         <div>
@@ -25,7 +25,3 @@ const View = ({value}) => {
     )
 }
 
-export default {
-    "EditComp": Edit,
-    "ViewComp": View
-}

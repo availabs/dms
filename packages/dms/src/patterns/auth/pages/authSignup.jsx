@@ -5,7 +5,7 @@ import {AuthContext} from "../context";
 import {callAuthServer} from "../api";
 
 
-export default (props) => {
+export default function AuthSignup (props) {
     const location = useLocation();
     const [credentials, setCredentials] = React.useState({email: '', password: ''});
     const [status, setStatus] = React.useState('');

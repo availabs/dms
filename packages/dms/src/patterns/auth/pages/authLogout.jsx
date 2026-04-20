@@ -2,7 +2,7 @@ import React, {useEffect} from "react";
 import { useNavigate, useLocation } from "react-router";
 import { AuthContext } from "../context";
 
-export default () => {
+export default function AuthLogout () {
     const {defaultRedirectUrl, setUser} = React.useContext(AuthContext);
     const navigate = useNavigate();
     const location = useLocation();

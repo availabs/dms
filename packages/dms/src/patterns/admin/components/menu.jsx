@@ -33,7 +33,7 @@ export const Item = ({to, icon,children}) => (
 )
 
 
-export default ({title, children}) => {
+export default function AdminMenu ({title, children}) {
     const { user, baseUrl, UI } = React.useContext(AdminContext)
     const { theme } = React.useContext(ThemeContext)
     const { Dropdown } = UI;

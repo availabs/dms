@@ -1,0 +1,303 @@
+import React, { useContext, useState } from 'react'
+import { CardSection } from './Card'
+import { ThemeContext } from '../../../../../../ui/useTheme'
+import ColorControls from './sharedControls/ColorControls'
+
+const fontStyleOptions = [
+    { label: '', value: '' },
+    { label: 'X-Small', value: 'textXS' },
+    { label: 'X-Small Regular', value: 'textXSReg' },
+    { label: 'Small', value: 'textSM' },
+    { label: 'Small Regular', value: 'textSMReg' },
+    { label: 'Small Bold', value: 'textSMBold' },
+    { label: 'Small SemiBold', value: 'textSMSemiBold' },
+    { label: 'Base', value: 'textMD' },
+    { label: 'Base Regular', value: 'textMDReg' },
+    { label: 'Base Bold', value: 'textMDBold' },
+    { label: 'Base SemiBold', value: 'textMDSemiBold' },
+    { label: 'XL', value: 'textXL' },
+    { label: 'XL SemiBold', value: 'textXLSemiBold' },
+    { label: '2XL', value: 'text2XL' },
+    { label: '2XL Regular', value: 'text2XLReg' },
+    { label: '3XL', value: 'text3XL' },
+    { label: '3XL Regular', value: 'text3XLReg' },
+    { label: '4XL', value: 'text4XL' },
+    { label: '5XL', value: 'text5XL' },
+    { label: '6XL', value: 'text6XL' },
+    { label: '7XL', value: 'text7XL' },
+    { label: '8XL', value: 'text8XL' },
+];
+
+const handleCopy = async (obj) => {
+    try {
+        const text = JSON.stringify(obj, null, 2);
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(text);
+        } else {
+            throw new Error('Error copying format')
+        }
+    } catch (err) {
+        console.error("Failed to copy:", err);
+    }
+};
+
+const handlePaste = async (attribute, setAttribute) => {
+    try {
+        if (navigator.clipboard && navigator.clipboard.readText) {
+            const obj = await navigator.clipboard.readText();
+            const parsedObj = JSON.parse(obj);
+            const {
+                justify = '',
+                formatFn = '',
+                headerFontStyle = '',
+                valueFontStyle = '',
+                hideHeader = false,
+                hideValue = false,
+                wrapText = false,
+                bgColor = '',
+                cardSpan = ''
+            } = parsedObj;
+
+            const newAttribute = {
+                ...attribute,
+                justify, formatFn, headerFontStyle, valueFontStyle, hideHeader, hideValue, bgColor, cardSpan, wrapText
+            }
+            return setAttribute(newAttribute)
+        } else {
+            throw new Error('Error pasting format')
+        }
+    } catch (e) {
+        console.error("Failed to paste:", e)
+    }
+}
+
+const inHeader = [
+    // settings from in header dropdown are stored in the columns array per column.
+    { type: ({ attribute, setAttribute, moveColumn, removeColumn, close }) => {
+            const { UI } = useContext(ThemeContext);
+            const { Pill, Icon } = UI;
+            const [copied, setCopied] = useState(false);
+            const {
+                justify, formatFn, headerFontStyle, valueFontStyle, hideHeader, hideValue, bgColor, cardSpan, wrapText
+            } = attribute;
+            const objToCopy = { justify, formatFn, headerFontStyle, valueFontStyle, hideHeader, hideValue, bgColor, cardSpan, wrapText };
+
+            return (
+                <div className={'w-full flex justify-between gap-1'}>
+                    <div className={'flex gap-1'}>
+                        <Pill color={'blue'} text={<Icon icon={'ChevronUpSquare'} className={'size-5'} />} title={'Move Up'}
+                              onClick={() => moveColumn(-1)} />
+                        <Pill color={'blue'} text={<Icon icon={'ChevronDownSquare'} className={'size-5'} />} title={'Move Down'}
+                              onClick={() => moveColumn(1)} />
+                        <Pill color={copied ? 'green' : 'blue'} text={<Icon icon={'Copy'} className={'size-5'} />}
+                              title={'Copy Format'}
+                              onClick={() => {
+                                  handleCopy(objToCopy);
+                                  setCopied(true);
+                                  setTimeout(() => setCopied(false), 2000);
+                              }} />
+                        <Pill color={'blue'} text={<Icon icon={'Paste'} className={'size-5'} />} title={'Paste Format'}
+                              onClick={() => handlePaste(attribute, setAttribute)} />
+                    </div>
+
+                    <div className={'flex gap-1'}>
+                        <Pill color={'orange'} text={<Icon icon={'TrashCan'} className={'size-5'} />} title={'Remove'}
+                              onClick={removeColumn} />
+                        <Pill color={'orange'} text={<Icon icon={'CancelCircle'} className={'size-5'} />} title={'Close'}
+                              onClick={close} />
+                    </div>
+                </div>
+            );
+        },
+        label: 'column actions', key: '', hideFromSectionMenu: true, displayCdn: ({ isEdit }) => isEdit,
+        renderPos: 'top', renderCdn: activeParent => !activeParent
+    },
+    { type: ({ close, goBack, goHome }) => {
+            const { UI } = useContext(ThemeContext);
+            const { Pill, Icon } = UI;
+            return (
+                <div className={'w-full flex justify-between gap-1'}>
+                    <div className={'flex gap-1'}>
+                        <Pill color={'blue'} text={<Icon icon={'ArrowLeft'} className={'size-5'} />} title={'Back'} onClick={goBack} />
+                        <Pill color={'blue'} text={<Icon icon={'Home'} className={'size-5'} />} title={'Home'} onClick={goHome} />
+                    </div>
+                    <Pill color={'orange'} text={<Icon icon={'CancelCircle'} className={'size-5'} />} title={'Close'}
+                          onClick={close} />
+                </div>
+            );
+        },
+        label: 'column sub actions', key: '', hideFromSectionMenu: true,
+        renderPos: 'top', renderCdn: activeParent => !!activeParent
+    },
+    { type: 'separator', key: 'toolbar-sep', label: 'toolbar-sep', hideFromSectionMenu: true,
+      renderPos: 'top', renderCdn: () => true },
+
+    // display
+    { type: 'select', label: 'Justify', key: 'justify', isBatchUpdatable: true,
+        options: [
+            { label: 'Not Justified', value: '' },
+            { label: 'Left', value: 'left' },
+            { label: 'Center', value: 'center' },
+            { label: 'Right', value: 'right' },
+            { label: 'Full Justified', value: 'full' }
+        ]
+    },
+    { type: 'select', label: 'Format', key: 'formatFn', isBatchUpdatable: true,
+        options: [
+            { label: 'No Format Applied', value: ' ' },
+            { label: 'Comma Separated', value: 'comma' },
+            { label: 'Comma Separated ($)', value: 'comma_dollar' },
+            { label: 'Abbreviated', value: 'abbreviate' },
+            { label: 'Abbreviated ($)', value: 'abbreviate_dollar' },
+            { label: 'Date', value: 'date' },
+            { label: 'Title', value: 'title' },
+            { label: 'Icon', value: 'icon' },
+            { label: 'Color', value: 'color' },
+        ]
+    },
+    { type: 'select', label: 'Header', key: 'headerFontStyle', options: fontStyleOptions, isBatchUpdatable: true, displayCdn: ({ attribute }) => !attribute.hideHeader },
+    { type: 'select', label: 'Value', key: 'valueFontStyle', options: fontStyleOptions, isBatchUpdatable: true, displayCdn: ({ attribute }) => !attribute.hideValue },
+
+    { type: 'separator', key: 'toolbar-sep', label: 'toolbar-sep', hideFromSectionMenu: true },
+    // layout
+    { type: 'toggle', label: 'Border Below', key: 'borderBelow', displayCdn: ({ display }) => display.compactView },
+    { type: 'input', inputType: 'number', label: 'Padding Below', key: 'pb', isBatchUpdatable: true, displayCdn: ({ display }) => display.compactView },
+    { type: 'toggle', label: 'Hide Header', key: 'hideHeader', isBatchUpdatable: true },
+    { type: 'toggle', label: 'Hide Value', key: 'hideValue', isBatchUpdatable: true },
+    { type: 'input', inputType: 'number', label: 'Span', key: 'cardSpan', displayCdn: ({ display }) => !display.compactView },
+    { type: 'separator', key: 'toolbar-sep', label: 'toolbar-sep', hideFromSectionMenu: true },
+    // other
+    { type: 'toggle', label: 'Allow Edit', key: 'allowEditInView', displayCdn: ({ isEdit }) => isEdit },
+
+    // link controls
+    { type: 'toggle', label: 'Is Link', key: 'isLink', displayCdn: ({ isEdit }) => isEdit },
+    { type: 'toggle', label: 'Is External', key: 'isLinkExternal', displayCdn: ({ attribute, isEdit }) => isEdit && attribute.isLink },
+    { type: 'input', inputType: 'text', label: 'Link Text', key: 'linkText', displayCdn: ({ attribute, isEdit }) => isEdit && attribute.isLink },
+    { type: 'input', inputType: 'text', label: 'Location', key: 'location', displayCdn: ({ attribute, isEdit }) => isEdit && attribute.isLink },
+    { type: 'select', label: 'Search Params', key: 'searchParams', displayCdn: ({ attribute, isEdit }) => isEdit && attribute.isLink,
+        options: [
+            { label: 'None', value: undefined },
+            { label: 'ID', value: 'id' },
+            { label: 'Value', value: 'value' },
+            { label: 'Raw Value', value: 'rawValue' }
+        ]
+    },
+
+    // image controls
+    { type: 'toggle', label: 'Is Image', key: 'isImg', displayCdn: ({ isEdit }) => isEdit },
+    { type: 'input', inputType: 'text', label: 'Image Url', key: 'imageSrc', displayCdn: ({ attribute, isEdit }) => isEdit && attribute.isImg },
+    { type: 'input', inputType: 'text', label: 'Image Location', key: 'imageLocation', displayCdn: ({ attribute, isEdit }) => isEdit && attribute.isImg },
+    { type: 'input', inputType: 'text', label: 'Image Extension', key: 'imageExtension', displayCdn: ({ attribute, isEdit }) => isEdit && attribute.isImg && attribute.imageLocation },
+    { type: 'select', label: 'Image Size', key: 'imageSize',
+        options: [
+            { label: 'X-Small', value: 'imgXS' },
+            { label: 'Small', value: 'imgSM' },
+            { label: 'Base', value: 'imgMD' },
+            { label: 'XL', value: 'imgXL' },
+            { label: '2XL', value: 'img2XL' },
+            { label: '3XL', value: 'img3XL' },
+            { label: '4XL', value: 'img4XL' },
+            { label: '5XL', value: 'img5XL' },
+            { label: '6XL', value: 'img6XL' },
+            { label: '7XL', value: 'img7XL' },
+            { label: '8XL', value: 'img8XL' },
+        ],
+        displayCdn: ({ attribute, isEdit }) => isEdit && attribute.isImg
+    },
+    { type: 'input', inputType: 'number', label: 'Image Top Margin', key: 'imageMargin', displayCdn: ({ attribute, isEdit }) => isEdit && attribute.isImg },
+    { type: 'select', label: 'Sort', key: 'sort',
+        options: [
+            { label: 'Not Sorted', value: '' }, { label: 'A->Z', value: 'asc nulls last' }, { label: 'Z->A', value: 'desc nulls last' }
+        ]
+    },
+    { type: 'textarea', label: 'Description', key: 'description', displayCdn: ({ isEdit }) => isEdit },
+    { type: ({ value, setValue }) => (<ColorControls value={value} setValue={setValue} title={'Background Color'} />), key: 'bgColor', displayCdn: ({ display }) => !display.compactView }
+];
+
+export default {
+    "name": 'Card',
+    "type": 'card',
+    useDataSource: true,
+    useDataWrapper: true,
+    useGetDataOnPageChange: true,
+    useInfiniteScroll: false,
+    showPagination: true,
+    keepOriginalValues: true,
+    showAllColumnsControl: false,
+    themeKey: 'dataCard',
+    defaultState: {
+        filters: { op: 'AND', groups: [] },
+        display: { usePagination: true, pageSize: 5 },
+        columns: [],
+        data: [],
+        externalSource: { columns: [] }
+    },
+    controls: {
+        columns: [
+            { type: 'toggle', label: 'show', key: 'show' },
+            { type: 'toggle', label: 'Group', key: 'group' },
+            { type: 'select', label: 'Fn', key: 'fn',
+                options: [
+                    { label: 'list', value: 'list' }, { label: 'sum', value: 'sum' }, { label: 'count', value: 'count' }, { label: 'avg', value: 'avg' }, { label: 'fn exempt', value: 'exempt' }
+                ]
+            },
+            { type: 'select', label: 'Exclude N/A', key: 'excludeNA',
+                options: [
+                    { label: 'include n/a', value: false }, { label: 'exclude n/a', value: true }
+                ]
+            },
+        ],
+        more: [
+            { type: 'select', label: 'Each Card Represents', key: 'compactView', onClickGoBack: true, defaultValue: false,
+                options: [{ label: 'a row', value: true }, { label: 'a cell', value: false }]
+            },
+            { label: 'Grid Settings', items: [
+                    { type: 'input', inputType: 'number', label: 'Grid Size', key: 'gridSize' },
+                    { type: 'input', inputType: 'number', label: 'Grid Gap', key: 'gridGap' },
+                    { type: 'input', inputType: 'number', label: 'Padding', key: 'padding' },
+                    { type: 'input', inputType: 'number', label: 'Column Gap', key: 'colGap', displayCdn: ({ display }) => display.compactView },
+                ]
+            },
+            { label: 'Default Column Settings', items: [
+                    { type: 'select', label: 'Value Placement', key: 'headerValueLayout', onClickGoBack: true, defaultValue: 'row', options: [{ label: 'Inline', value: 'row' }, { label: 'Stacked', value: 'col' }] },
+                    { type: 'toggle', label: 'Reverse Placement', key: 'reverse', displayCdn: ({ display }) => display.headerValueLayout === 'col' },
+                    { type: 'input', inputType: 'number', label: 'Header Width', key: 'headerWidth', displayCdn: ({ display }) => !display.headerValueLayout || display.headerValueLayout === 'row' },
+                    { type: 'input', inputType: 'number', label: 'Value Width', key: 'valueWidth', displayCdn: ({ display }) => !display.headerValueLayout || display.headerValueLayout === 'row' },
+                ]
+            },
+            { type: 'toggle', label: 'Attribution', key: 'showAttribution' },
+            { type: 'toggle', label: 'Hide if No Data', key: 'hideIfNull' },
+            { type: 'toggle', label: 'Row Border', key: 'addBorder', displayCdn: ({ display }) => !display.compactView },
+            { type: 'toggle', label: 'Cell Border', key: 'removeBorder', negate: true, displayCdn: ({ display }) => !display.compactView },
+            { type: 'toggle', label: 'Row Border', key: 'removeBorder', negate: true, displayCdn: ({ display }) => display.compactView },
+            { type: 'toggle', label: 'Cell Border', key: 'addBorder', displayCdn: ({ display }) => display.compactView },
+            { type: 'toggle', label: 'Use Pagination', key: 'usePagination' },
+            { type: 'input', inputType: 'number', label: 'Page Size', key: 'pageSize', displayCdn: ({ display }) => display.usePagination === true },
+            { type: ({ value, setValue }) => <ColorControls value={value} setValue={setValue} title={'Background Color'} />, key: 'bgColor', displayCdn: ({ display }) => display.compactView },
+        ],
+        data: [
+            { type: 'toggle', label: 'Allow Edit', key: 'allowEditInView',
+                onChange: ({ value, state }) => {
+                    // if editing data is allowed, data should not be cached. unless live edit is used.
+                    if (value) state.display.readyToLoad = true
+                }
+            },
+            { type: 'toggle', label: 'Live Edit', key: 'liveEdit', displayCdn: ({ display }) => display.allowEditInView },
+            { type: 'toggle', label: 'Allow Add New', key: 'allowAdddNew' },
+            { type: 'select', label: 'Add New Behaviour', key: 'addNewBehaviour', displayCdn: ({ display }) => display.allowAdddNew,
+                options: [
+                    { label: 'Append Entry', value: 'append' },
+                    { label: 'Clear Form', value: 'clear' },
+                    { label: 'Navigate', value: 'navigate' },
+                ]
+            },
+            { type: 'input', inputType: 'text', label: 'Navigate to', key: 'navigateUrlOnAdd',
+                displayCdn: ({ display }) => display.allowAdddNew && display.addNewBehaviour === 'navigate' },
+            { type: 'toggle', label: 'Prevent Duplicate Fetch', key: 'preventDuplicateFetch' },
+            { type: 'toggle', label: 'Always Fetch Data', key: 'readyToLoad' },
+        ],
+        inHeader
+    },
+    "EditComp": CardSection,
+    "ViewComp": CardSection,
+}

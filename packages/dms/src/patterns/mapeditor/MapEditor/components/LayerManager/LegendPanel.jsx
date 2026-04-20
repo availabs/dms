@@ -9,11 +9,14 @@ import { Menu, Transition, Tab, Dialog } from '@headlessui/react'
 import { fnumIndex } from '../LayerEditor/datamaps'
 import { extractState } from '../../stateUtils'
 
+const STOP_THE_PROP = e => e.stopPropagation();
+
 export function VisibilityButton ({layer}) {
   const { state, setState  } = React.useContext(SymbologyContext);
   const { activeLayer } = state.symbology;
   const visible = layer.isVisible;
   const onClick = React.useCallback(e => {
+    e.stopPropagation();
     setState(draft => {
       const isVisible = !visible;
       const visibility = isVisible ? 'visible' : 'none';
@@ -422,7 +425,8 @@ export const GET_PAINT_VALUE = {
 
 function LegendRow ({ layer, i, numLayers, onRowMove }) {
   const { state, setState  } = React.useContext(SymbologyContext);
-  const { falcor, falcorCache, pgEnv, baseUrl } = useContext(MapEditorContext);
+  const { useFalcor, pgEnv, baseUrl } = useContext(MapEditorContext);
+  const { falcor, falcorCache } = useFalcor();
   const { activeLayer } = state.symbology;
 
   let {
@@ -481,7 +485,7 @@ function LegendRow ({ layer, i, numLayers, onRowMove }) {
   let paintValue = GET_PAINT_VALUE?.[layer?.type] ? GET_PAINT_VALUE?.[layer?.type](layer) : '#fff'
   const layerTitle = layer.name ?? filterGroupName;
   const layerSource = useMemo(
-    () => get(falcorCache, ["dama", pgEnv, "sources", "byId", sourceId], {}),
+    () => get(falcorCache, ["uda", pgEnv, "sources", "byId", sourceId], {}),
     [sourceId, falcorCache]
   );
 
@@ -498,7 +502,9 @@ function LegendRow ({ layer, i, numLayers, onRowMove }) {
       }
       { !shouldDisplayColorSquare && layerTitle }
       <div className='flex'>
-        <div className='text-sm pt-1  flex items-center'>
+        <div className='text-sm pt-1  flex items-center'
+          onClick={ STOP_THE_PROP }
+        >
           <LayerInfo
             source={layerSource}
             layer={layer}
@@ -506,7 +512,9 @@ function LegendRow ({ layer, i, numLayers, onRowMove }) {
             button={<CircleInfoI size={16} className={` ${activeLayer == layer.id ? 'fill-pink-100' : 'fill-white'} collapse group-hover:visible pb-[2px] cursor-pointer group-hover:fill-gray-400 group-hover:hover:fill-pink-700`}/>}
           />
         </div>
-        <div className='text-sm pt-1  flex items-center'>
+        <div className='text-sm pt-1  flex items-center'
+          onClick={ STOP_THE_PROP }
+        >
           <LayerMenu
             layer={layer}
             button={<MenuDots className={` ${activeLayer == layer.id ? 'fill-pink-100' : 'fill-white'} pb-[2px] cursor-pointer group-hover:fill-gray-400 group-hover:hover:fill-pink-700`}/>}
@@ -535,25 +543,26 @@ function LegendRow ({ layer, i, numLayers, onRowMove }) {
   // -- get selected source views
   // ---------------------------------
   React.useEffect(() => {
-    async function fetchData() {
-      //console.time("fetch data");
-      const lengthPath = ["dama", pgEnv, "sources", "byId", sourceId, "views", "length"];
-      const resp = await falcor.get(lengthPath);
-      return await falcor.get([
-        "dama", pgEnv, "sources", "byId", sourceId, "views", "byIndex",
-        { from: 0, to: get(resp.json, lengthPath, 0) - 1 },
-        "attributes", Object.values(SourceAttributes)
-      ]);
-    }
-    if(sourceId) {
-      fetchData();
+    if (sourceId) {
+      (async () => {
+        //console.time("fetch data");
+        const lengthPath = ["uda", pgEnv, "sources", "byId", sourceId, "views", "length"];
+        const resp = await falcor.get(lengthPath);
+        falcor.get([
+          "uda", pgEnv, "sources", "byId", sourceId, "views", "byIndex",
+          { from: 0, to: get(resp.json, lengthPath, 0) - 1 },
+          Object.values(ViewAttributes)
+        ]);
+      })()
     }
   }, [sourceId, falcor, pgEnv]);
 
   const views = React.useMemo(() => {
-    return Object.values(get(falcorCache, ["dama", pgEnv, "sources", "byId", sourceId, "views", "byIndex"], {}))
-      .map(v => getAttributes(get(falcorCache, v.value, { "attributes": {} })["attributes"]));
+    return Object.values(get(falcorCache, ["uda", pgEnv, "sources", "byId", sourceId, "views", "byIndex"], {}))
+      .map(v => getAttributes(get(falcorCache, v.value, {})));
   }, [falcorCache, sourceId, pgEnv]);
+
+// console.log("LegendRow::views", views)
 
   const groupSelectorElements = [];
   if (type === "interactive" && !isLayerControlledByPlugin) {
@@ -692,7 +701,7 @@ function LegendRow ({ layer, i, numLayers, onRowMove }) {
     <div
       className={`${
         activeLayer == layer.id ? "bg-pink-100" : ""
-      } hover:border-pink-500 group border`}
+      } hover:border-pink-500 group border border-transparent`}
     >
       <div
         className={`w-full pl-2 pt-1 pb-0 flex border-blue-50/50 border justify-between items-center ${
@@ -807,7 +816,8 @@ export default LegendPanel;
 
 const DynamicFilter = ({layer}) => {
   const { state, setState  } = React.useContext(SymbologyContext);
-  const { falcor, falcorCache, pgEnv } = useContext(MapEditorContext);
+  const { useFalcor, pgEnv } = useContext(MapEditorContext);
+  const { falcor, falcorCache } = useFalcor();
   let { layerType, dynamicFilters, viewId } = useMemo(() => {
     return {
       viewId:get(layer,`view_id`),
@@ -815,45 +825,49 @@ const DynamicFilter = ({layer}) => {
       dynamicFilters:get(layer, `['dynamic-filters']`, [])?.filter(dynamicF => !!dynamicF.column_name),
     }
   },[state, layer]);
+
   const selectedColumnNames = dynamicFilters?.map(dynamicF => dynamicF.column_name);
 
   React.useEffect(() => {
-    if(selectedColumnNames.length > 0) {
+    if (selectedColumnNames.length > 0) {
       selectedColumnNames.forEach(colName => {
         const options = JSON.stringify({
           groupBy: [(colName).split('AS ')[0]],
-          exclude: {[(colName).split('AS ')[0]]: ['null']},
-          orderBy: {"2": 'desc'}
-        })
+          exclude: { [(colName).split('AS ')[0]]: ['null'] },
+          orderBy: { "2": 'desc' }
+        });
         falcor.get([
-          'dama',pgEnv,'viewsbyId', viewId, 'options', options, 'databyIndex', { from: 0, to: 200},[colName, 'count(1)::int as count']
-        ])
-      })
+          'uda', pgEnv, 'viewsById', viewId, 'options', options, 'dataByIndex', { from: 0, to: 200 }, [colName, 'count(1)::int as count']
+        ]);
+      });
     }
-  },[selectedColumnNames, layerType, viewId]);
+  }, [selectedColumnNames, viewId]);
+
   return (
     <div className="flex my-2 flex-col">
       <b>Dynamic Filters:</b>
-      {
-        dynamicFilters.map((dFilter, i) => {
+      { dynamicFilters.map((dFilter, i) => {
           const colName  = dFilter.column_name;
           const options = JSON.stringify({
             groupBy: [(colName).split('AS ')[0]],
-            exclude: {[(colName).split('AS ')[0]]: ['null']},
-            orderBy: {"2": 'desc'}
+            exclude: { [(colName).split('AS ')[0]]: ['null'] },
+            orderBy: { "2": 'desc' }
           })
           const sampleData =  Object.values(
-            get(falcorCache, [
-              'dama',pgEnv,'viewsbyId', viewId, 'options', options, 'databyIndex'], [])
+            get(falcorCache,
+              ['uda', pgEnv, 'viewsById', viewId, 'options', options, 'dataByIndex'],
+              []
+              )
           ).map(v =>  v?.[colName]).filter(val => typeof val !== "object");
 
           sampleData.sort();
+
           return (
-            <div key={`${colName}_${i}_legend_filter_option_row`} className='w-full'>
+            <div key={ `${ colName }_${ i }_legend_filter_option_row` } className='w-full'>
               <DynamicFilterControl
-                layer={layer}
-                filterIndex={i}
-                sampleData={sampleData}
+                layer={ layer }
+                filterIndex={ i }
+                sampleData={ sampleData }
                 button={
                   <div className='flex w-full p-1 pl-0 rounded items-center justify-between border-transparent border hover:border-gray-300'>{dFilter.display_name} <CaretDown  className=''/> </div>
                 }
@@ -923,13 +937,13 @@ function DynamicFilterControl({button, layer, sampleData, filterIndex}) {
                             newValues.push(datum);
 
                             setState((draft) => {
-                              console.log(
-                                JSON.parse(
-                                  JSON.stringify(
-                                    draft.symbology.layers[layer.id]
-                                  )
-                                )
-                              );
+                              // console.log(
+                              //   JSON.parse(
+                              //     JSON.stringify(
+                              //       draft.symbology.layers[layer.id]
+                              //     )
+                              //   )
+                              // );
                               draft.symbology.layers[layer.id][
                                 "dynamic-filters"
                               ][filterIndex].values = newValues;

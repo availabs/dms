@@ -1,5 +1,6 @@
 import React, {useState} from 'react'
-import {handleCopy, handleCopyToClipboard, handlePaste, TagComponent} from "./section_utils"
+import {handleCopy, handleCopyToClipboard, handlePaste} from "./section_utils"
+import {TagComponent} from "./section_components"
 import { getComponentTheme } from "../../../../ui/useTheme";
 import {ComplexFilters} from "./ComplexFilters";
 import ColumnManager from "./ColumnManager";

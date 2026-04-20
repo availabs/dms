@@ -34,23 +34,24 @@ export function ColumnSelectControl({path, params={}, setFilterGroupLegendColumn
 
   const viewId = get(state,`symbology.layers[${state.symbology.activeLayer}].view_id`)
   const sourceId = get(state,`symbology.layers[${state.symbology.activeLayer}].source_id`);
-  const { pgEnv, falcor, falcorCache } = useContext(MapEditorContext);
+  const { pgEnv, useFalcor } = useContext(MapEditorContext);
+  const { falcor, falcorCache } = useFalcor();
 
   useEffect(() => {
     if (sourceId) {
       falcor.get([
-          "dama", pgEnv, "sources", "byId", sourceId, "attributes", "metadata"
+          "uda", pgEnv, "sources", "byId", sourceId, "metadata"
       ]);
     }
   }, [sourceId]);
 
   const attributes = useMemo(() => {
     let columns = get(falcorCache, [
-      "dama", pgEnv, "sources", "byId", sourceId, "attributes", "metadata", "value", "columns"
+      "uda", pgEnv, "sources", "byId", sourceId, "metadata", "value", "columns"
     ], []);
     if (columns.length === 0) {
       columns = get(falcorCache, [
-        "dama", pgEnv, "sources", "byId", sourceId, "attributes", "metadata", "value"
+        "uda", pgEnv, "sources", "byId", sourceId, "metadata", "value"
       ], []);
     }
 
@@ -120,11 +121,11 @@ export function ColumnSelectControl({path, params={}, setFilterGroupLegendColumn
 
   React.useEffect(() => {
     falcor.get([
-      "dama",
+      "uda",
       pgEnv,
-      "viewsbyId",
+      "viewsById",
       viewId,
-      "databyIndex",
+      "dataByIndex",
       {"from":0, "to": 100},
       selectedColumnNames
     ])
