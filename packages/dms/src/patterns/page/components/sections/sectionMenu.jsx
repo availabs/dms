@@ -299,7 +299,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                         }))
                     },
                     {
-                        name: 'Join Columns', // Group for join columns
+                        name: 'Join On...', // Group for join columns
                         icon: 'Link', // Placeholder icon
                         cdn: () => canEditSection && isEdit && state.join.sources[sourceAlias].source && state.join.sources[sourceAlias].sourceInfo?.columns,
                         items: [
