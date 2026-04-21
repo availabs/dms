@@ -118,6 +118,32 @@ const ViewItem = ({ file_type, dl_url }) => {
 		return IMAGE_TYPES.includes(file_type);
 	}, [file_type]);
 
+	const hasClipboard = React.useMemo(() => {
+		return Boolean(navigator?.clipboard?.writeText);
+	}, []);
+
+	const [hovering, setHovering] = React.useState(false);
+	const [copied, setCopied] = React.useState(false);
+	const [ref, setRef] = React.useState(null);
+
+	const onMouseEnter = React.useCallback(e => {
+		setHovering(true);
+	}, []);
+	const onMouseLeave = React.useCallback(e => {
+		setHovering(false);
+		setCopied(false);
+	}, []);
+
+	const copyToClipboard = React.useCallback(e => {
+		navigator.clipboard.writeText(dl_url);
+		setCopied(true);
+		ref && (ref.focus(), ref.select());
+	}, [dl_url, ref]);
+
+	const selectUrlInput = React.useCallback(e => {
+		e.target.select();
+	}, []);
+
 	return (
 		<div className="bg-gray-200 p-2 rounded-lg w-fit">
 			<div>File Type: { file_type }</div>
@@ -137,7 +163,7 @@ const ViewItem = ({ file_type, dl_url }) => {
 				<div className={ `
 					  flex justify-center
 							${ isImage ? "" :
-								`w-48 py-2 rounded flex justify-center
+								`w-100 py-2 rounded flex justify-center
 								 bg-gray-300 hover:bg-gray-400 hover:font-bold
 								`
 							}
@@ -146,6 +172,28 @@ const ViewItem = ({ file_type, dl_url }) => {
 					DOWNLOAD
 				</div>
 			</a>
+			<div className={ `mt-2 relative` }
+				onMouseEnter={ onMouseEnter }
+				onMouseLeave={ onMouseLeave }
+			>
+				{ !(hovering && hasClipboard) || copied ? null :
+					<div className={ `
+							absolute inset-0 rounded text-white cursor-pointer
+							flex items-center justify-center
+						` }
+						onClick={ copyToClipboard }
+						style={ {
+							background: "radial-gradient(rgba(0, 0, 0, 1.0), rgba(0, 0, 0, 0.2))"
+						} }
+					>
+						click to copy URL{ isImage ? " to clipboard" : "" }
+					</div>
+				}
+				<input type="text" readOnly ref={ setRef }
+					className="block w-full p-2 focus:outline-2 hover:outline-2 rounded cursor-pointer text-center"
+					value={ dl_url }
+					onClick={ selectUrlInput }/>
+			</div>
 		</div>
 	)
 }
