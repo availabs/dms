@@ -94,14 +94,25 @@ async function simpleFilterLength(ctx, options) {
   const hasArrayElements = groupBy?.[0]?.includes('jsonb_array_elements_text')
     || groupBy?.[0]?.includes('json_each');
 
-  const joinClause = await buildJoin({join, env});
-  console.log({joinClause})
+  const { joins, merges } = await buildJoin({join, env});
+  const hasMerge = merges.length > 0;
+  const hasJoin = joins.length > 0;
+
+  let fromClause;
+  if (hasMerge) {
+    fromClause = `(SELECT * FROM ${table_schema}.${table_name} ${merges}) AS ds`;
+    if (hasJoin) {
+      fromClause += ` ${joins}`;
+    }
+  } else {
+    fromClause = `${table_schema}.${table_name} ${hasJoin ? ' as ds ' : ''} ${joins}`;
+  }
+
   const sql =
     hasArrayElements && sanitizeName(groupBy?.[0])
       ? `WITH t AS (
            SELECT DISTINCT ${groupBy[0]}
-           FROM ${table_schema}.${table_name} ${joinClause.length > 0 ? ' as ds ' : ''}
-           ${joinClause}
+           FROM ${fromClause}
            ${combinedWhere}
            GROUP BY 1
            ${handleHaving(having)}
@@ -112,8 +123,7 @@ async function simpleFilterLength(ctx, options) {
                .map(c => `CASE WHEN ${c} IS NULL THEN '__NULL__VAL__' ELSE ${typeCast(c, 'TEXT', db.type)} END`)
                .join(`|| '-' ||`)}`
            : 1}) numrows
-         FROM ${table_schema}.${table_name} ${joinClause.length > 0 ? ' as ds ' : ''}
-         ${joinClause}
+         FROM ${fromClause}
          ${combinedWhere}
          ${handleHaving(having)}`;
 
@@ -127,7 +137,7 @@ async function simpleFilter(ctx, options, attributes, indices) {
   const num = indices.to - indices.from + 1;
   const { isDms, db, app, type, table_schema, table_name, dmsAttributes } = ctx;
 
-   let sanitizedAttrs = sanitizeName(attributes).filter(f => f);
+  let sanitizedAttrs = sanitizeName(attributes).filter(f => f);
   if (!sanitizedAttrs.length) return [];
 
   // Translate PG-specific SQL to SQLite equivalents
@@ -175,12 +185,23 @@ async function simpleFilter(ctx, options, attributes, indices) {
     filterGroups, isDms, app, type, oldValues, dbType: db.type
   });
 
-  const joinClause = await buildJoin({join, env});
+  const { joins, merges } = await buildJoin({join, env});
+  const hasMerge = merges.length > 0;
+  const hasJoin = joins.length > 0;
+
+  let fromClause;
+  if (hasMerge) {
+    fromClause = `(SELECT * FROM ${table_schema}.${table_name} ${merges}) AS ds`;
+    if (hasJoin) {
+      fromClause += ` ${joins}`;
+    }
+  } else {
+    fromClause = `${table_schema}.${table_name} ${hasJoin ? ' as ds ' : ''} ${joins}`;
+  }
 
   const sql = `
     SELECT ${sanitizedAttrs.map(c => quoteAlias(columnNameMap[c] || c)).join(', ')}
-    FROM ${table_schema}.${table_name} ${joinClause.length > 0 ? ' as ds ' : ''}
-    ${joinClause}
+    FROM ${fromClause}
     ${combinedWhere}
     ${handleGroupBy(groupBy)}
     ${handleHaving(having)}

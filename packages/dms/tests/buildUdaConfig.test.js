@@ -27,14 +27,13 @@ import {
   buildJoin,
   buildJoinSources,
   buildJoinOnClause,
-  buildJoinColumn,
   applyTableAliasToJoin,
 } from "../src/patterns/page/components/sections/components/dataWrapper/buildUdaConfig.js";
 
 // ─── Helper: column shorthand ────────────────────────────────────────────────
 
 const col = (name, overrides = {}) => ({ name, show: true, ...overrides });
-const srcCol = (name, type = "text", display = "text") => ({ name, type, display });
+const srcCol = (name, type = "text", display = "text", overrides = {}) => ({ name, type, display, ...overrides });
 
 // ─── isCalculatedCol ─────────────────────────────────────────────────────────
 
@@ -629,16 +628,14 @@ describe("buildUdaConfig", () => {
       srcCol("county_name", "text", "text", { source_id: 1 }),
     ];
     input.columns = [
-      col("ds.id", { source_id: 1 }),
-      col("ds.county_name", { source_id: 1 }),
-      col("table2.related_id", { source_id: 2 }),
-      col("table2.city_name", { source_id: 2 }),
+      col("id", { source_id: 1 }),
+      col("county_name", { source_id: 1 }),
+      col("related_id", { source_id: 2 }),
+      col("city_name", { source_id: 2 }),
     ];
     input.join = {
       sources: {
-        ds: {
-          joinColumn: { name: "id", source_id: 1 }
-        },
+        ds: { },
         table2: {
           source: 2,
           view: 202,
@@ -664,8 +661,8 @@ describe("buildUdaConfig", () => {
     };
 
     const { options } = buildUdaConfig(input);
-    expect(options.filterGroups.groups[0].col).toBe("ds.county_name");
-    expect(options.filterGroups.groups[1].col).toBe("table2.city_name");
+    expect(options.filterGroups.groups[0].col).toBe("county_name");
+    expect(options.filterGroups.groups[1].col).toBe("city_name");
   });
 
   it("hidden columns are excluded from attributes", () => {
@@ -958,15 +955,6 @@ describe("buildUdaConfig outputSourceInfo integration", () => {
   });
 });
 
-// ─── buildJoinColumn ─────────────────────────────────────────────────────────
-
-describe("buildJoinColumn", () => {
-  it("formats column with source alias", () => {
-    expect(buildJoinColumn({ sourceAlias: "ds", column: "county" })).toBe("ds.county");
-    expect(buildJoinColumn({ sourceAlias: "table2", column: "pop" })).toBe("table2.pop");
-  });
-});
-
 // ─── buildJoinSources ────────────────────────────────────────────────────────
 
 describe("buildJoinSources", () => {
@@ -980,9 +968,7 @@ describe("buildJoinSources", () => {
   it("builds sources object from join config", () => {
     const join = {
       sources: {
-        ds: {
-          // 'ds' represents the primary externalSource
-        },
+        ds: { },
         table2: {
           source: 2,
           view: 202,
@@ -992,41 +978,8 @@ describe("buildJoinSources", () => {
     };
     const result = buildJoinSources({ join, externalSource });
     expect(result).toEqual({
-      ds: { view_id: 101, env: "dama" },
       table2: { view_id: 202, env: "dama_other" },
     });
-  });
-
-  it("uses externalSource for 'ds' if no explicit source in join.sources.ds", () => {
-    const join = {
-      sources: {
-        ds: {}, // No explicit source, should use externalSource
-        table2: {
-          source: 2,
-          view: 202,
-          sourceInfo: { env: "dama_other" },
-        },
-      },
-    };
-    const result = buildJoinSources({ join, externalSource });
-    expect(result.ds).toEqual({ view_id: 101, env: "dama" });
-  });
-
-  it("uses explicit source for 'ds' if provided in join.sources.ds", () => {
-    const join = {
-      sources: {
-        ds: {
-          joinColumn: { name: "id", source_id: 1 }
-        },
-        table2: {
-          source: 2,
-          view: 202,
-          sourceInfo: { env: "dama_other" },
-        },
-      },
-    };
-    const result = buildJoinSources({ join, externalSource });
-    expect(result.ds).toEqual({ view_id: 101, env: "dama" });
   });
 });
 
@@ -1043,33 +996,21 @@ describe("buildJoinOnClause", () => {
   it("builds a basic ON clause with default left join and = operator", () => {
     const join = {
       sources: {
-        ds: { joinColumn: { name: "id" } },
-        table2: { joinColumn: { name: "foreign_id" } },
+        ds: {  },
+        table2: {
+            source: 2,
+            type: "left",
+            joinColumns: [{ dsColumn: "id", joinSourceColumn: "foreign_id" }]
+        },
       },
     };
     const result = buildJoinOnClause({ join, externalSource });
-    expect(result).toEqual({
+    expect(result).toEqual([{
       type: "left",
-      tables: ["ds", "table2"],
+      mergeStrategy: "join",
+      table: "table2",
       on: "ds.id = table2.foreign_id",
-    });
-  });
-
-  it("builds an ON clause with specified join type and operator", () => {
-    const join = {
-      type: "inner",
-      operator: "<>",
-      sources: {
-        ds: { joinColumn: { name: "col1" } },
-        table2: { joinColumn: { name: "col2" } },
-      },
-    };
-    const result = buildJoinOnClause({ join, externalSource });
-    expect(result).toEqual({
-      type: "inner",
-      tables: ["ds", "table2"],
-      on: "ds.col1 <> table2.col2",
-    });
+    }]);
   });
 });
 
@@ -1085,28 +1026,27 @@ describe("buildJoin", () => {
 
   it("builds a complete join object", () => {
     const join = {
-      type: "left",
-      operator: "=",
       sources: {
-        ds: { joinColumn: { name: "id" } },
+        ds: { },
         table2: {
           source: 2,
           view: 202,
           sourceInfo: { env: "dama_other" },
-          joinColumn: { name: "foreign_id" },
+          type: "left",
+          joinColumns: [{ dsColumn: "id", joinSourceColumn: "foreign_id" }],
         },
       },
     };
     const result = buildJoin({ join, externalSource });
     expect(result).toEqual({
       sources: {
-        ds: { view_id: 101, env: "dama" },
         table2: { view_id: 202, env: "dama_other" },
       },
       on: [
         {
           type: "left",
-          tables: ["ds", "table2"],
+          mergeStrategy: "join",
+          table: "table2",
           on: "ds.id = table2.foreign_id",
         },
       ],
@@ -1183,28 +1123,27 @@ describe("applyTableAliasToJoin", () => {
   });
 });
 
-describe("buildUdaConfig filterGroups with join and pageFilters", () => {
-  const basicDamaInput = () => ({
-    externalSource: {
-      source_id: 100,
-      view_id: 200,
-      isDms: false,
-      columns: [
-        srcCol("event_id", "integer", "number"),
-        srcCol("county", "character varying", "text"),
-        srcCol("damage", "numeric", "number"),
-        srcCol("event_type", "character varying", "text"),
-      ],
-    },
-    columns: [
-      col("event_id"),
-      col("county"),
-      col("damage"),
-      col("event_type"),
-    ],
-    filters: null,
-    pageFilters: null,
-  });
-
-// Removed failing test case temporarily.
+describe("union support", () => {
+    it("recognizes union merge strategy", () => {
+        const join = {
+            sources: {
+                ds: {  },
+                table2: {
+                    source: 2,
+                    mergeStrategy: 'union',
+                    view: 202
+                }
+            }
+        };
+        const externalSource = { source_id: 1 };
+        const result = buildJoin({ join, externalSource });
+        expect(result.on).toEqual([
+            {
+                type: "left",
+                mergeStrategy: "union",
+                table: "table2",
+                on: ""
+            }
+        ]);
+    });
 });

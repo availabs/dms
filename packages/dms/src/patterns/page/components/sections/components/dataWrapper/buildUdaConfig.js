@@ -273,7 +273,7 @@ export const extractNormalFiltersFromGroups = (node) => {
 
 const isGroup = (node) => node?.groups && Array.isArray(node.groups);
 
-export const applyTableAliasToJoin = (filterTree, sourceIdToAlias) => {
+export const applyTableAliasToJoin = (filterTree, sourceIdToAlias, baseSourceId) => {
     if (!filterTree) return filterTree;
 
   const applyToNode = (node) => {
@@ -283,16 +283,16 @@ export const applyTableAliasToJoin = (filterTree, sourceIdToAlias) => {
 
     let newNode = { ...node };
 
-    const prefix = sourceIdToAlias[node.source_id] || "ds";
-
+    const prefix = sourceIdToAlias[node.source_id] || (node.source_id === baseSourceId ? 'ds' : "");
     // Always alias 'col' if it exists
-    if (newNode.col) {
+    if (newNode.col && prefix) {
       newNode.col = `${prefix}.${newNode.col.split('.').pop()}`;
     }
 
     // Alias 'searchParamKey' if it exists to allow PageFilter application to find it
-    if (newNode.searchParamKey) {
-      newNode.searchParamKey = `${prefix}.${newNode.searchParamKey.split('.').pop()}`;
+    if (newNode.searchParamKey && prefix) {
+      const paramKey = newNode.searchParamKey.split('.').pop();
+      newNode.searchParamKey = `${prefix}.${paramKey}`;
     }
 
     return newNode;
@@ -702,6 +702,23 @@ export const computeOutputSourceInfo = ({
 
 // ─── Main builder ───────────────────────────────────────────────────────────
 
+const isJoinComplete = (joinSource) => {
+  const strategy = joinSource.mergeStrategy || 'join';
+  if(!joinSource.source || !joinSource.view) {
+    return false
+  } else if (strategy === "union" || strategy === "except") {
+    return true;
+  } else if (strategy === "join") {
+    if (!joinSource.type) return false;
+    if (!joinSource.joinColumns || joinSource.joinColumns.length === 0) return false;
+
+    return joinSource.joinColumns.every(col => col.dsColumn && col.joinSourceColumn);
+  } else {
+    console.log("unknown join strategy::", strategy);
+    return false;
+  }
+}
+
 /**
  * buildUdaConfig — the main entry point.
  *
@@ -719,14 +736,23 @@ export const buildUdaConfig = ({
   externalSource,
   columns: rawColumns,
   filters,
-  join,
+  join: rawJoin,
   pageFilters,
 }) => {
-  // A join is present if we have sources other than the base 'ds'
-  const isJoinPresent = !!join && Object.keys(join.sources || {}).length > 1;
-  
-  const isDms = externalSource?.isDms;
+  //filter out keys from join that are incomplete configs
+  const join = {sources:{}};
 
+  Object.keys(rawJoin?.sources || {}).forEach((alias) => {
+    if (!(alias !== "ds" && !isJoinComplete(rawJoin.sources[alias]))) {
+      join.sources[alias] = rawJoin.sources[alias];
+    }
+  });
+  join.sources.ds = {};
+  // A join is present if we have sources other than the base 'ds'
+  const isJoinPresent =
+      (!!join && Object.keys(join.sources || {}).length > 1) ||
+      (Object.keys(join.sources || {}).length === 1 && Object.keys(join.sources || {})[0] !== "ds");
+  const isDms = externalSource?.isDms;
 
   //ryan todo move this into a function
   //I need source_id to table_alias
@@ -742,12 +768,24 @@ export const buildUdaConfig = ({
   const allCols = [...(externalSource?.columns || []), ...joinColumns];
   const sourceColumns = allCols.map((col) => {
     const colSourceId = col.source_id || externalSource.source_id;
-    return ({ ...col, name: isJoinPresent ? `${sourceIdToTableAlias[colSourceId]}.${col.name}` : col.name })
+    const alias = sourceIdToTableAlias[colSourceId];
+    const isJoin = isJoinPresent && alias && alias !== 'ds';
+
+    return {
+      ...col,
+      name: isJoin ? `${alias}.${col.name}` : col.name,
+    };
   });
   const columns = rawColumns.map((col) => {
     const colSourceId = col.source_id || externalSource.source_id;
-    return ({ ...col, name: isJoinPresent ? `${sourceIdToTableAlias[colSourceId]}.${col.name}` : col.name })
-  });;
+    const alias = sourceIdToTableAlias[colSourceId];
+    const isJoin = isJoinPresent && alias;
+
+    return {
+      ...col,
+      name: isJoin ? `${alias}.${col.name}` : col.name,
+    };
+  });
 
 
 
@@ -757,7 +795,7 @@ export const buildUdaConfig = ({
     sourceColumns,
     isDms,
   );
-  console.log({columnsWithSettings})
+
   const columnsWithSettingsByName = new Map(
     columnsWithSettings.map((col) => [col.name, col]),
   );
@@ -814,13 +852,19 @@ export const buildUdaConfig = ({
   if (isJoinPresent) {
     // Dynamically build alias map from all join sources
     const sourceIdToAlias = Object.keys(join.sources).reduce((acc, alias) => {
-      const source_id = join.sources[alias].source || externalSource.source_id;
-      acc[source_id] = alias;
+      if ((join.sources[alias].mergeStrategy || 'join') !== 'join') return acc;
+      const source_id = join.sources[alias].source || (alias === 'ds' ? externalSource.source_id : null);
+      if (source_id) acc[source_id] = alias;
       return acc;
     }, {});
-    filterTree = applyTableAliasToJoin(filterTree, sourceIdToAlias);
-  }
-  console.log("filter tree after apply join alias::", filterTree)
+
+    // Explicitly set base source alias to 'ds' to ensure correct prefixing
+    if (externalSource.source_id) {
+        sourceIdToAlias[externalSource.source_id] = 'ds';
+    }
+    
+    filterTree = applyTableAliasToJoin(filterTree, sourceIdToAlias, externalSource.source_id);
+    }
   if (pageFilters && Object.keys(pageFilters).length) {
     filterTree = applyPageFilters(filterTree, pageFilters);
   }

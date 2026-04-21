@@ -512,28 +512,29 @@ const buildJoin = async ({join, env}) => {
   //RYAN TODO -- better join conditional. If initial state gets changed to `null`, this is much cleaner
   const isJoinPresent =
     (!!join && Object.keys(join.sources || {}).length > 1) ||
-    (Object.keys(join.sources || {}).length === 1 && Object.keys(join.sources || {})[0] !== "ds");
+    (!!join && Object.keys(join.sources || {}).length === 1 && Object.keys(join.sources || {})[0] !== "ds");
 
-  if(!isJoinPresent) return '';
+  if(!isJoinPresent) return { joins: '', merges: '' };
 
-  const allOnClause = []
+  const joins = [];
+  const merges = [];
+  
   for(let i=0; i< join.on.length; i++) {
     const singleJoinOnConfig = join.on[i];
-
-    const {view_id, env} = join.sources[singleJoinOnConfig.table];
-
-    const {table_schema, table_name} = await getEssentials({view_id, env})
+    const {view_id, env: sourceEnv} = join.sources[singleJoinOnConfig.table];
+    const {table_schema, table_name} = await getEssentials({view_id, env: sourceEnv})
     console.log({table_schema, table_name})
-    allOnClause.push(`${ singleJoinOnConfig.type } JOIN ${table_schema}.${table_name} as ${singleJoinOnConfig.table} ON ${singleJoinOnConfig.on}`);
+    
+    if (singleJoinOnConfig.mergeStrategy === 'union') {
+      merges.push(`UNION SELECT * FROM ${table_schema}.${table_name} as ${singleJoinOnConfig.table}`);
+    } else if (singleJoinOnConfig.mergeStrategy === 'except') {
+      merges.push(`EXCEPT SELECT * FROM ${table_schema}.${table_name} as ${singleJoinOnConfig.table}`);
+    } else {
+      joins.push(`${ singleJoinOnConfig.type } JOIN ${table_schema}.${table_name} as ${singleJoinOnConfig.table} ON ${singleJoinOnConfig.on}`);
+    }
   }
 
-
-  join.on.map(singleJoinConfig => {
-
-  })
-
-
-  return allOnClause.join('\n')
+  return { joins: joins.join('\n'), merges: merges.join('\n') }
 }
 
 

@@ -110,7 +110,9 @@ export const getData = async ({
 
     const { join = {} } = state;
     //RYAN TODO -- better join conditional. If initial state gets changed to `null`, this is much cleaner
-    const isJoinPresent = !!join && Object.keys(join.sources || {}).length > 1;
+    const isJoinPresent =
+        (!!join && Object.keys(join.sources || {}).length > 1) ||
+        (Object.keys(join.sources || {}).length === 1 && Object.keys(join.sources || {})[0] !== "ds");
 
     // Resolve source info — v2 uses externalSource, v1 legacy uses sourceInfo
     const sourceInfo = state.externalSource || state.sourceInfo;
@@ -301,7 +303,7 @@ export const getData = async ({
         const newD = {};
 
         Object.keys(d).forEach(dKey => {
-            const formattedKey = dKey.split(".")[1]
+            const formattedKey = dKey.split(".").length > 1 ? dKey.split(".")[1] : dKey;
             newD[formattedKey] = d[dKey]
         })
 
