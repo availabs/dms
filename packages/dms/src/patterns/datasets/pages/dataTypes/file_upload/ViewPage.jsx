@@ -169,7 +169,7 @@ const ViewItem = ({ file_type, dl_url }) => {
 							}
 					` }
 				>
-					DOWNLOAD
+					click to download
 				</div>
 			</a>
 			<div className={ `mt-2 relative` }
@@ -179,7 +179,7 @@ const ViewItem = ({ file_type, dl_url }) => {
 				{ !(hovering && hasClipboard) || copied ? null :
 					<div className={ `
 							absolute inset-0 rounded text-white cursor-pointer
-							flex items-center justify-center
+							flex items-center justify-center font-bold
 						` }
 						onClick={ copyToClipboard }
 						style={ {
