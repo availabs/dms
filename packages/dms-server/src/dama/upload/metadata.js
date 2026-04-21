@@ -25,6 +25,13 @@ async function createDamaSource(values, pgEnv) {
     statistics = { auth: { users: { [user_id]: '10' }, groups: {} } };
   }
 
+  // JSONB columns need explicit JSON.stringify — node-postgres serializes JS arrays
+  // as PostgreSQL array literals ('{{"x"}}'), which isn't valid JSON and fails the
+  // jsonb cast. Applies to nested categories like [['Uploaded File']].
+  const statisticsJson = statistics ? JSON.stringify(statistics) : null;
+  const metadataJson = metadata ? JSON.stringify(metadata) : null;
+  const categoriesJson = categories ? JSON.stringify(categories) : null;
+
   // Try insert, on duplicate name append _N suffix
   let sourceName = name;
   for (let attempt = 0; attempt < 10; attempt++) {
@@ -34,7 +41,7 @@ async function createDamaSource(values, pgEnv) {
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         RETURNING *
       `, [sourceName, display_name || null, type || null, description || null, user_id || null,
-          statistics, metadata || null, categories || null]);
+          statisticsJson, metadataJson, categoriesJson]);
 
       return rows[0];
     } catch (err) {
@@ -65,11 +72,15 @@ async function createDamaView(values, pgEnv) {
 
   const { source_id, user_id, etl_context_id, metadata, view_dependencies } = values;
 
+  // metadata is JSONB — explicit stringify (see createDamaSource note).
+  // view_dependencies is INTEGER[] — pg driver handles arrays → PG array literals natively.
+  const metadataJson = metadata ? JSON.stringify(metadata) : null;
+
   const { rows } = await db.query(`
     INSERT INTO ${table} (source_id, user_id, etl_context_id, metadata, view_dependencies)
     VALUES ($1, $2, $3, $4, $5)
     RETURNING *
-  `, [source_id, user_id || null, etl_context_id || null, metadata || null, view_dependencies || null]);
+  `, [source_id, user_id || null, etl_context_id || null, metadataJson, view_dependencies || null]);
 
   const view = rows[0];
 
