@@ -38,11 +38,14 @@ const datasetsConfig = ({
     pattern,
     damaDataTypes,
     themes={ default: {} },
+    useFalcor,
     ...props
 }) => {
     const theme = getPatternTheme(themes, pattern)
     const patternFormat = initializePatternFormat(datasetsFormat, app, type);
-    baseUrl = baseUrl === '/' ? '' : baseUrl
+    baseUrl = baseUrl === '/' ? '' : baseUrl;
+
+// console.log("siteConfig::props", props)
 
     return {
         siteType,
@@ -52,7 +55,10 @@ const datasetsConfig = ({
         children: [
             {
               type: (props) => {
-                  const { user, falcor } = props
+                  const { user, falcor, ...otherProps } = props
+
+// console.log("siteConfig::otherProps", otherProps)
+
                   return (
                       <DatasetsContext.Provider value={{
                           UI,
@@ -61,6 +67,7 @@ const datasetsConfig = ({
                           dmsEnv: pattern.dmsEnvId ? dmsEnvById[pattern.dmsEnvId] : null,
                           baseUrl: `${baseUrl}`,
                           falcor,
+                          useFalcor,
                           user,
                           theme, app, type, siteType,
                           parent: pattern, API_HOST, DAMA_HOST,
