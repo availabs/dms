@@ -750,8 +750,9 @@ export const buildUdaConfig = ({
   join.sources.ds = {};
   // A join is present if we have sources other than the base 'ds'
   const isJoinPresent =
-      (!!join && Object.keys(join.sources || {}).length > 1) ||
-      (Object.keys(join.sources || {}).length === 1 && Object.keys(join.sources || {})[0] !== "ds");
+    !!join &&
+    (Object.keys(join.sources || {}).length > 1 ||
+      (Object.keys(join.sources || {}).length === 1 && Object.keys(join.sources || {})[0] !== "ds"));
   const isDms = externalSource?.isDms;
 
   //ryan todo move this into a function

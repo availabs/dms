@@ -86,8 +86,9 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
 
     const { join } = state;
     const isJoinPresent =
-        (!!join && Object.keys(join.sources || {}).length > 1) ||
-        (Object.keys(join.sources || {}).length === 1 && Object.keys(join.sources || {})[0] !== "ds");
+      !!join &&
+      (Object.keys(join.sources || {}).length > 1 ||
+        (Object.keys(join.sources || {}).length === 1 && Object.keys(join.sources || {})[0] !== "ds"));
     const [sources, setSources] = useState([]);
     const [views, setViews] = useState([]);
     const [joinViewsByAlias, setJoinViewsByAlias] = useState({});

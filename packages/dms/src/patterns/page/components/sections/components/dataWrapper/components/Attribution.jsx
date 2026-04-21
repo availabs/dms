@@ -10,8 +10,9 @@ export const Attribution = () => {
     // baseUrl is now included in externalSource by useDataSource.js
         const {state:{ externalSource, join}} = useContext(ComponentContext);
     const isJoinPresent =
-        (!!join && Object.keys(join.sources || {}).length > 1) ||
-        (Object.keys(join.sources || {}).length === 1 && Object.keys(join.sources || {})[0] !== "ds");
+      !!join &&
+      (Object.keys(join.sources || {}).length > 1 ||
+        (Object.keys(join.sources || {}).length === 1 && Object.keys(join.sources || {})[0] !== "ds"));
 
     let attribRows = [];
     const { source_id, name, view_name, view_id, updated_at, baseUrl } = externalSource;

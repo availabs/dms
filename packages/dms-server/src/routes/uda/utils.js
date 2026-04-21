@@ -511,8 +511,9 @@ const buildJoin = async ({join, env}) => {
   console.log("build join, join::", join)
   //RYAN TODO -- better join conditional. If initial state gets changed to `null`, this is much cleaner
   const isJoinPresent =
-    (!!join && Object.keys(join.sources || {}).length > 1) ||
-    (!!join && Object.keys(join.sources || {}).length === 1 && Object.keys(join.sources || {})[0] !== "ds");
+    !!join &&
+    (Object.keys(join.sources || {}).length > 1 ||
+      (Object.keys(join.sources || {}).length === 1 && Object.keys(join.sources || {})[0] !== "ds"));
 
   if(!isJoinPresent) return { joins: '', merges: '' };
 
