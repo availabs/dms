@@ -46,8 +46,8 @@ module.exports = async function createDownloadWorker(ctx) {
   const config = loadConfig(pgEnv);
   const connStr = `host=${config.host} port=${config.port} dbname=${config.database} user=${config.user} password=${config.password}`;
 
-  const fileNameBase = `${(source_name || 'export').replace(/\//g, '-')}_${view_id}${version ? '_' + version : ''}`;
-  const outputDir = `${pgEnv}_${view_id}`;
+  const fileNameBase = `${(source_name || 'export').replace(/\//g, '-')}_s${source_id}_v${view_id}${version ? '_' + version : ''}`;
+  const outputDir = `${pgEnv}/s_${source_id}`;
   const tempDir = path.join(os.tmpdir(), `dms-download-${randomUUID()}`);
   fs.mkdirSync(tempDir, { recursive: true });
 
