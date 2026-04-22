@@ -148,7 +148,7 @@ const DownloadModalCheckboxGroup = ({
                             if (modalState.length === options.length) {
                                 onChange([]);
                             } else {
-                                onChange([...options]);
+                                onChange(options.map(opt => opt?.name || opt));
                             }
                         }}
                     >
