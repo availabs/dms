@@ -304,7 +304,8 @@ export const getData = async ({
         const newD = {};
 
         Object.keys(d).forEach(dKey => {
-            const formattedKey = dKey.split(".").length > 1 ? dKey.split(".")[1] : dKey;
+            const curCol = state.columns.find(c => c.name === dKey);
+            const formattedKey = dKey.split(".").length > 1 && curCol?.type !== "calculated" ? dKey.split(".")[1] : dKey;
             newD[formattedKey] = d[dKey]
         })
 

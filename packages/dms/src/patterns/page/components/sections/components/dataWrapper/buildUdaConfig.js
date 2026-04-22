@@ -774,7 +774,7 @@ export const buildUdaConfig = ({
 
     return {
       ...col,
-      name: isJoin ? `${alias}.${col.name}` : col.name,
+      name: isJoin && !isCalculatedCol(col) ? `${alias}.${col.name}` : col.name,
     };
   });
   const columns = rawColumns.map((col) => {
@@ -784,7 +784,7 @@ export const buildUdaConfig = ({
 
     return {
       ...col,
-      name: isJoin ? `${alias}.${col.name}` : col.name,
+      name: isJoin && !isCalculatedCol(col) ? `${alias}.${col.name}` : col.name,
     };
   });
 

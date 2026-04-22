@@ -310,59 +310,68 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                     },
                     {
                         name: 'Join On...', // Group for join columns
-                        icon: 'Link', // Placeholder icon
+                        icon: 'Link',
                         cdn: () => canEditSection && isEdit && state.join.sources[sourceAlias].source && state.join.sources[sourceAlias].sourceInfo?.columns && (state.join.sources[sourceAlias].mergeStrategy || 'join') === 'join',
                         items: [
-                            // Picker for ds columns
-                            {
-                                name: 'Join on ds column',
-                                id: `${sourceAlias}_ds_join`,
-                                showSearch: true,
-                                value: state.join.sources[sourceAlias]?.joinColumns?.[0]?.dsColumn, // Assuming only one join column for now
-                                items: (state.externalSource.columns || []).map(col => ({
-                                    icon: col?.name === state.join.sources[sourceAlias]?.joinColumns?.[0]?.dsColumn ? 'CircleCheck' : 'Blank',
-                                    id: `join_ds_col_${sourceAlias}_${col?.name}`,
-                                    name: col?.name,
-                                    onClickGoBack: true,
-                                    onClick: () => {
-                                        const currentJoinColumns = state.join.sources[sourceAlias]?.joinColumns || [];
-                                        console.log("ds, currentJoinCols",currentJoinColumns)
-
-                                        /**
-                                         * [
-                                         *   {
-                                         *      
-                                         *   }
-                                         * 
-                                         * ]
-                                         */
-                                        const updatedJoinColumns = currentJoinColumns.length === 0
-                                            ? [{ dsColumn: col.name, joinSourceColumn: state.join.sources[sourceAlias]?.joinColumns?.[0]?.joinSourceColumn }]
-                                            : [{ ...currentJoinColumns[0], dsColumn: col.name }];
-                                        onJoinChange(sourceAlias, 'joinColumns', updatedJoinColumns);
+                            ...(state.join.sources[sourceAlias]?.joinColumns || []).map((joinPair, idx) => ({
+                                name: `Pair ${idx + 1}`,
+                                icon: 'Link',
+                                items: [
+                                    {
+                                        name: 'Join on ds column',
+                                        id: `${sourceAlias}_ds_join_${idx}`,
+                                        showSearch: true,
+                                        value: joinPair.dsColumn,
+                                        items: (state.externalSource.columns || []).map(col => ({
+                                            icon: col?.name === joinPair.dsColumn ? 'CircleCheck' : 'Blank',
+                                            id: `join_ds_col_${sourceAlias}_${idx}_${col?.name}`,
+                                            name: col?.name,
+                                            onClickGoBack: true,
+                                            onClick: () => {
+                                                const currentJoinColumns = [...(state.join.sources[sourceAlias]?.joinColumns || [])];
+                                                currentJoinColumns[idx] = { ...currentJoinColumns[idx], dsColumn: col.name };
+                                                onJoinChange(sourceAlias, 'joinColumns', currentJoinColumns);
+                                            }
+                                        }))
+                                    },
+                                    {
+                                        name: `Join on ${sourceAlias} column`,
+                                        id: `${sourceAlias}_secondary_join_${idx}`,
+                                        showSearch: true,
+                                        value: joinPair.joinSourceColumn,
+                                        items: (state?.join?.sources[sourceAlias]?.sourceInfo?.columns || []).map(col => ({
+                                            icon: col.name === joinPair.joinSourceColumn ? 'CircleCheck' : 'Blank',
+                                            id: `join_${sourceAlias}_col_${idx}_${col.name}`,
+                                            name: col.name,
+                                            onClickGoBack: true,
+                                            onClick: () => {
+                                                const currentJoinColumns = [...(state.join.sources[sourceAlias]?.joinColumns || [])];
+                                                currentJoinColumns[idx] = { ...currentJoinColumns[idx], joinSourceColumn: col.name };
+                                                onJoinChange(sourceAlias, 'joinColumns', currentJoinColumns);
+                                            }
+                                        }))
+                                    },
+                                    {
+                                        name: 'Delete Pair',
+                                        icon: 'TrashCan',
+                                        onClickGoBack: true,
+                                        onClick: () => {
+                                            const currentJoinColumns = [...(state.join.sources[sourceAlias]?.joinColumns || [])];
+                                            currentJoinColumns.splice(idx, 1);
+                                            onJoinChange(sourceAlias, 'joinColumns', currentJoinColumns);
+                                        }
                                     }
-                                }))
-                            },
-                            // Picker for sourceAlias columns
+                                ]
+                            })),
                             {
-                                name: `Join on ${sourceAlias} column`,
-                                id: `${sourceAlias}_secondary_join`,
-                                showSearch: true,
-                                value: state?.join?.sources[sourceAlias]?.joinColumns?.[0]?.joinSourceColumn, // Assuming only one join column
-                                items: (state?.join?.sources[sourceAlias]?.sourceInfo?.columns || []).map(col => ({
-                                    icon: col.name === state.join.sources[sourceAlias]?.joinColumns?.[0]?.joinSourceColumn ? 'CircleCheck' : 'Blank',
-                                    id: `join_${sourceAlias}_col_${col.name}`,
-                                    name: col.name,
-                                    onClickGoBack: true,
-                                    onClick: () => {
-                                        const currentJoinColumns = state.join.sources[sourceAlias]?.joinColumns || [];
-                                        console.log("2nd table, currentJoinCols",currentJoinColumns)
-                                        const updatedJoinColumns = currentJoinColumns.length === 0
-                                            ? [{ dsColumn: state.join.sources[sourceAlias]?.joinColumns?.[0]?.dsColumn, joinSourceColumn: col.name }]
-                                            : [{ ...currentJoinColumns[0], joinSourceColumn: col.name }];
-                                        onJoinChange(sourceAlias, 'joinColumns', updatedJoinColumns);
-                                    }
-                                }))
+                                name: 'Add Column Pair',
+                                icon: 'Plus',
+                                onClickGoBack: false,
+                                onClick: () => {
+                                    const currentJoinColumns = [...(state.join.sources[sourceAlias]?.joinColumns || [])];
+                                    currentJoinColumns.push({ dsColumn: null, joinSourceColumn: null });
+                                    onJoinChange(sourceAlias, 'joinColumns', currentJoinColumns);
+                                }
                             }
                         ].filter(item => !item.cdn || item.cdn())
                     },

@@ -348,6 +348,7 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
                     draft.join.sources[alias].sourceInfo = { ...match, baseUrl, type: sourceType };
                     draft.join.sources[alias].source = newJoinSourceId;
                     draft.join.sources[alias].view = null;
+                    draft.join.sources[alias].type = 'left'
 
                     /**
                      * 
