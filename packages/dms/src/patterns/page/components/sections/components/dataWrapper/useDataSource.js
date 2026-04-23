@@ -285,13 +285,6 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
         },
         [views, setState]
     );
-
-    /**
-     * TODO
-     * SOME/LOTS OF THIS still assumes exactly 2 tables
-     * 1 being the main "data source" for the section
-     * The other being a user selected one, with the hardcoded `table2` alias 
-     */
     const addJoinSource = useCallback(() => {
         setState(draft => {
             if (!draft.join) draft.join = { sources: {} };
@@ -310,6 +303,8 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
                 view: null,
                 sourceInfo: {},
                 joinColumns: [],
+                mergeStrategy: 'join',
+                type: 'left'
             };
         });
     }, [state, setState]);
@@ -322,7 +317,7 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
             const previousJoinSourceId = join?.sources[alias]?.source;
             console.log({previousJoinSourceId});
 
-            const allJoinSourceMap = Object.keys(join?.sources).map((jSourceAlias) => ({
+            const allJoinSourceMap = Object.keys(join?.sources || {}).map((jSourceAlias) => ({
               source: join?.sources[jSourceAlias].source,
               alias: jSourceAlias,
             }));

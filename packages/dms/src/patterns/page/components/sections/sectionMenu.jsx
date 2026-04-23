@@ -252,9 +252,6 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
             ].filter(item => !item.cdn || item.cdn())
         }
 
-        //RYAN TODO -- change the `onClick` for both these items
-        //RYAN TODO -- add UI stuff, start with "join condition"
-        
     const join = {
         name: 'Join Dataset', id: "join_settings", icon: 'Group',
         cdn: () => canEditSection && currentComponent?.useDataSource && (isEdit || isJoinPresent) && activeSource,
@@ -298,7 +295,9 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                             onClick: () => onJoinChange(sourceAlias, 'mergeStrategy', t)
                         }))
                     },
-                    { name: 'Join Type', icon: 'Group', showSearch: false, cdn: () => isEdit && (state.join.sources[sourceAlias].mergeStrategy || 'join') === 'join',
+                    //TODO -- add `UNION` vs `UNION ALL` if mergeStrat is `union`
+                    { name: 'Join Type', icon: 'Group', showSearch: false, 
+                        cdn: () => isEdit && ((state.join.sources[sourceAlias].mergeStrategy) === 'join'),
                         value: state.join.sources[sourceAlias].type || 'left', showValue: true,
                         items: ['left', 'inner', 'full outer'].map(t => ({
                             icon: (state.join.sources[sourceAlias].type || 'left') === t ? 'CircleCheck' : 'Blank',
@@ -311,7 +310,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                     {
                         name: 'Join On...', // Group for join columns
                         icon: 'Link',
-                        cdn: () => canEditSection && isEdit && state.join.sources[sourceAlias].source && state.join.sources[sourceAlias].sourceInfo?.columns && (state.join.sources[sourceAlias].mergeStrategy || 'join') === 'join',
+                        cdn: () => canEditSection && isEdit && state.join.sources[sourceAlias].source && state.join.sources[sourceAlias].sourceInfo?.columns && (state.join.sources[sourceAlias].mergeStrategy) === 'join',
                         items: [
                             ...(state.join.sources[sourceAlias]?.joinColumns || []).map((joinPair, idx) => ({
                                 name: `Pair ${idx + 1}`,
@@ -322,7 +321,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                                         id: `${sourceAlias}_ds_join_${idx}`,
                                         showSearch: true,
                                         value: joinPair.dsColumn,
-                                        items: (state.externalSource.columns || []).map(col => ({
+                                        items: (state.externalSource.columns || []).filter(sCol => !sCol.source_id || sCol.source_id === state.externalSource.source_id).map(col => ({
                                             icon: col?.name === joinPair.dsColumn ? 'CircleCheck' : 'Blank',
                                             id: `join_ds_col_${sourceAlias}_${idx}_${col?.name}`,
                                             name: col?.name,
@@ -377,7 +376,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                     },
                     { type: 'separator', cdn: () => isEdit },
                     { name: 'Remove Dataset', icon: 'TrashCan', cdn: () => isEdit, onClickGoBack: true, onClick: () => dataSource.removeJoinSource(sourceAlias) },
-                ]
+                ].filter(item => !item.cdn || item.cdn())
             })),
             { type: 'separator', cdn: () => isEdit },
             { name: 'Add Join Source', icon: 'Plus', cdn: () => isEdit, onClick: () => dataSource.addJoinSource() },

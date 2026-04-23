@@ -5,7 +5,7 @@ import columnTypes from "../../../../ui/columnTypes";
 import { getColumnLabel, isEqualColumns } from "./controls_utils";
 import AddFormulaColumn from "./AddFormulaColumn";
 import AddCalculatedColumn from "./AddCalculatedColumn";
-import {isEqual} from "lodash-es";
+import {isEqual, uniqWith} from "lodash-es";
 
 const ColumnPicker = ({ dwAPI, allColumns, stagedColumns, setStagedColumns, Pill, Icon }) => {
     const { config: { columns: stateColumns, externalSource, join }, setState } = dwAPI;
@@ -15,7 +15,8 @@ const ColumnPicker = ({ dwAPI, allColumns, stagedColumns, setStagedColumns, Pill
     const isJoinPresent =
         !!join &&
         (Object.keys(join.sources || {}).length > 1 ||
-            (Object.keys(join.sources || {}).length === 1 && Object.keys(join.sources || {})[0] !== "ds"));
+            (Object.keys(join.sources || {}).length === 1 && Object.keys(join.sources || {})[0] !== "ds")
+            && Object.values(join.sources).some(jSource => jSource.mergeStrategy === "join")); //TODO we might want this part of the conditional in more placeS?
 
     const availableColumns = useMemo(() => {
         return (externalSource?.columns || [])
@@ -81,11 +82,10 @@ const ColumnPicker = ({ dwAPI, allColumns, stagedColumns, setStagedColumns, Pill
             />
             {showDropdown && (
                 <div className="max-h-40 overflow-y-auto border rounded bg-white scrollbar-sm overflow-x-hidden">
-                    {availableColumns.map(col => {
+                    {uniqWith(availableColumns, isEqual).map(col => {
                         const tableAlias = col.source_id ? Object.keys(join?.sources).find(jSourceKey => join?.sources[jSourceKey].source === col.source_id) : 0;
                         const match = isJoinPresent && tableAlias?.match(/\d+$/);
                         const tableIdx = match ? Number(match) : 0;
-
                         return (
                             <div
                                 key={`${col.source_id}_${col.name}`}
@@ -101,13 +101,12 @@ const ColumnPicker = ({ dwAPI, allColumns, stagedColumns, setStagedColumns, Pill
                                         {tableIdx > 0 ?
                                             <>
                                                 <Icon icon="Link" size={14}/>
-                                                <span className="absolute -top-1 -right-1 flex h-3 w-3 items-center justify-center rounded-full bg-blue-600 text-[7px] font-bold text-white border border-white">
+                                                <span className="absolute -top-1 -right-1 flex h-3 w-3 items-center justify-center rounded-full bg-blue-500 text-[7px] font-bold text-white border border-white">
                                                     {tableIdx}
                                                 </span>
                                             </>
                                             : <Icon icon="Database" className="text-slate-300" />
                                         }
-
                                     </div>
                                 )}
                             </div>
