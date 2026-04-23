@@ -1,6 +1,10 @@
 # Task: Protect dmsEnv-Linked Sources in DB Cleanup
 
-## Objective
+## Status: CLOSED (unnecessary) — 2026-04-23
+
+The type-system refactor (see `tasks/completed/type-system-refactor.md`) changed how sources are scoped: source types are now `{dmsEnv}|{name}:source`, with dmsEnv ownership baked into the type column. The original concern — that pattern-`doc_type`-based orphan detection would miss dmsEnv-linked sources — predates that change. After migration, the cleanup script's source-validity model needs to be redesigned around dmsEnvs anyway, not patched in place. Closing this as no longer the right framing; if/when cleanup-db.js is revisited, it'll be a fresh task scoped to the new type scheme rather than this incremental fix.
+
+## Original Objective (kept for reference)
 
 Update `scripts/cleanup-db.js` so that `findOrphanedSources()` does not flag sources referenced by dmsEnv rows as orphaned.
 

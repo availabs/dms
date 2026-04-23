@@ -5,6 +5,7 @@ import { cloneDeep } from "lodash-es";
 import {useNavigate, Link} from "react-router";
 import {updateSourceData, parseIfJson} from "./utils";
 import { getExternalEnv } from "../../../utils/datasources";
+import { clearDatasetsListCache } from "../../../utils/datasetsListCache";
 import UdaTaskList from "../../Tasks/UdaTaskList";
 const buttonRedClass = 'p-2 mx-1 bg-red-500 hover:bg-red-700 text-white rounded-md';
 const buttonGreenClass = 'p-2 mx-1 bg-green-500 hover:bg-green-700 text-white rounded-md';
@@ -22,8 +23,13 @@ const DeleteSourceBtn = ({parent, source, apiUpdate, baseUrl}) => {
         // Delete the source row from the database
         await falcor.call(["dms", "data", "delete"], [app, sourceType, sourceId]);
 
-        // Invalidate the UDA sources list so it refetches without the deleted source
-        await falcor.invalidate(['uda', `${app}+${type}`, 'sources']);
+        // Delete-specific invalidation: length + byIndex (positions shift) +
+        // the deleted source's own byId entry. Other byId rows stay cached.
+        const udaEnv = `${app}+${type}`;
+        await falcor.invalidate(['uda', udaEnv, 'sources', 'length']);
+        await falcor.invalidate(['uda', udaEnv, 'sources', 'byIndex']);
+        await falcor.invalidate(['uda', udaEnv, 'sources', 'byId', +sourceId]);
+        clearDatasetsListCache();
 
         navigate(baseUrl);
     }

@@ -4,9 +4,11 @@ const { join } = require("path");
 const { loadConfig, getDbType } = require("./config");
 const { PostgresAdapter, createClient } = require("./adapters/postgres");
 const { SqliteAdapter } = require("./adapters/sqlite");
+const { ClickHouseAdapter } = require("./adapters/clickhouse");
 
 // Database instances cache
 const databases = {};
+const clickhouseDatabases = {};
 const clients = {};
 const initPromises = [];
 
@@ -325,6 +327,32 @@ function getDb(pgEnv) {
 }
 
 /**
+ * Get or create a ClickHouse adapter for a DAMA pgEnv.
+ *
+ * ClickHouse is paired with a Postgres pgEnv as auxiliary storage for large
+ * static dataset tables. The pgEnv config file may include a `clickhouse`
+ * sub-object; this function returns an adapter built from that sub-object,
+ * cached per pgEnv.
+ *
+ * Throws if the pgEnv has no `clickhouse` config — callers should only reach
+ * this path when a view's table_schema starts with `clickhouse.`.
+ *
+ * @param {string} pgEnv - Environment name (same as the Postgres pgEnv)
+ * @returns {ClickHouseAdapter}
+ */
+function getChDb(pgEnv) {
+  if (clickhouseDatabases[pgEnv]) {
+    return clickhouseDatabases[pgEnv];
+  }
+  const config = loadConfig(pgEnv);
+  if (!config.clickhouse) {
+    throw new Error(`No clickhouse config for pgEnv "${pgEnv}"`);
+  }
+  clickhouseDatabases[pgEnv] = new ClickHouseAdapter(config.clickhouse);
+  return clickhouseDatabases[pgEnv];
+}
+
+/**
  * Wait for all pending database initializations to complete.
  * Call this before accepting requests to avoid "no such table" errors.
  */
@@ -394,6 +422,7 @@ function getPostgresCredentials(pgEnv) {
 
 module.exports = {
   getDb,
+  getChDb,
   awaitReady,
   getClient,
   query,

@@ -5,6 +5,9 @@ import { cloneDeep } from "lodash-es";
 import {Link, useNavigate} from "react-router";
 import {updateSourceData, parseIfJson, getSourceData} from "../../default/utils";
 import { getInstance } from "../../../../../../utils/type-utils";
+import { getExternalEnv } from "../../../../utils/datasources";
+import { clearDatasetsListCache } from "../../../../utils/datasetsListCache";
+import UdaTaskList from "../../../Tasks/UdaTaskList";
 
 const buttonRedClass = 'p-2 mx-1 bg-red-500 hover:bg-red-700 text-white rounded-md';
 const buttonGreenClass = 'p-2 mx-1 bg-green-500 hover:bg-green-700 text-white rounded-md';
@@ -22,8 +25,13 @@ const DeleteSourceBtn = ({parent, source, apiUpdate, baseUrl}) => {
         // Delete the source row from the database
         await falcor.call(["dms", "data", "delete"], [app, sourceType, sourceId]);
 
-        // Invalidate the UDA sources list so it refetches without the deleted source
-        await falcor.invalidate(['uda', `${app}+${type}`, 'sources']);
+        // Delete-specific invalidation: length + byIndex (positions shift) +
+        // the deleted source's own byId entry. Other byId rows stay cached.
+        const udaEnv = `${app}+${type}`;
+        await falcor.invalidate(['uda', udaEnv, 'sources', 'length']);
+        await falcor.invalidate(['uda', udaEnv, 'sources', 'byIndex']);
+        await falcor.invalidate(['uda', udaEnv, 'sources', 'byId', +sourceId]);
+        clearDatasetsListCache();
 
         navigate(baseUrl);
     }
@@ -163,6 +171,10 @@ const AddViewBtn = ({source, setSource}) => {
 const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params }) => {
     const {id} = params;
     const {app, baseUrl, pageBaseUrl, user, parent, UI, falcor, datasources} = React.useContext(DatasetsContext) || {};
+    // Tasks for internal_table sources (csv-publish, etc.) run against the
+    // pattern's external pgEnv. UdaTaskList reads that same pgEnv from
+    // DatasetsContext, so no prop wiring is needed here.
+    const taskPgEnv = getExternalEnv(datasources);
     const {AuthAPI} = React.useContext(AuthContext) || {};
     const [users, setUsers] = React.useState([]);
     const [groups, setGroups] = React.useState([]);
@@ -297,6 +309,12 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params }) => {
                         </div>
                     </div>
                 </div>
+                {taskPgEnv && (
+                    <div className={'w-full pt-12'}>
+                        <div className={'text-sm font-medium text-gray-500 pb-2'}>Tasks</div>
+                        <UdaTaskList sourceId={source.source_id} />
+                    </div>
+                )}
             </div>
     )
 }

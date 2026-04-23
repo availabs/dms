@@ -204,6 +204,39 @@ Each processor implements:
 1. Create `processors/<type>.js` implementing `canHandle`, `analyze`, and `parseRows`
 2. Register it in `processors/index.js`
 
+## Analysis Pipeline
+
+Processors only extract headers and rows. The actual column-type inference happens in `src/dama/upload/analysis.js#analyzeLayer()`, which routes by file type:
+
+| File type | Analyzer | Notes |
+|-----------|----------|-------|
+| `.csv`, `.tsv` | `analyzeSchema.js` (legacy port) | Default. Per-value state machine over the first 10K rows. Honors zero-padding (`"036001"` → `TEXT`), the FIPS/GEOID column-name regex, BIGINT overflow → `TEXT`, scientific notation → `NUMERIC`, and collects null/nonnull counts + sample values per type. |
+| `.csv`, `.tsv` with `DAMA_CSV_ANALYZER=ogrinfo` | `ogrinfo` AUTODETECT_TYPE | Fallback path for diffing against the legacy analyzer or when the per-value path is misbehaving. |
+| GIS files | `gdal-async` | Reads field types directly from the OGR layer. |
+| Anything else OGR-supported | `ogrinfo` | Final fallback. |
+
+`analyzeSchema` returns one entry per column:
+
+```js
+{
+  key: 'ttamp_80_pct',          // raw header from the CSV
+  summary: {
+    db_type: 'INTEGER',          // mapped to PG types via LEGACY_TYPE_MAP
+    null: 12,                    // count of empty/null cells observed
+    nonnull: 9988,               // count of value cells observed
+    types: { INT: { samples: ['80', '85', ...] } }  // per-type sample values for UI override pane
+  }
+}
+```
+
+The `summary.null` / `summary.nonnull` / `summary.types[<type>].samples` fields surface in the analysis override UI so users can see what the analyzer saw before accepting or overriding a column type.
+
+### Field metadata pairing (rename-safe)
+
+`generateTableDescriptor()` pairs each entry in `fieldsMetadata` (from the processor) with one in `schemaAnalysis` (from the analyzer). Pairing is **by index first**, with a name-match fallback only when array lengths differ.
+
+This ordering is load-bearing: the UI lets users rename columns (e.g. `ttamp80pct` → `ttamp_80_pct`), and a name-only lookup would miss the analysis entry and silently fall back to `TEXT`. Index pairing preserves the inferred type across renames. If columns are dropped or reordered in the UI (lengths diverge), the fallback walks `schemaAnalysis` by `key` matching either `field.name` or `field.original_name`.
+
 ## Controller Methods Used
 
 The publish and validate handlers use these DMS controller methods:
@@ -230,6 +263,7 @@ All route handlers log with prefixed tags for easy filtering:
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `DMS_DB_ENV` | `dms-sqlite` | Database config for the publish/validate controller |
+| `DAMA_CSV_ANALYZER` | unset (uses `analyzeSchema`) | Set to `ogrinfo` to force the OGR-based analyzer for CSV/TSV instead of the per-value `analyzeSchema` path. Useful for diffing against legacy behavior. Has no effect on GIS files. |
 
 ## Client Integration
 

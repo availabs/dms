@@ -22,10 +22,29 @@ export default function Table ({apiUpdate, apiLoad, format, source, params, isDm
     const { falcor, baseUrl, pageBaseUrl, user, isUserAuthed, datasources} = useContext(DatasetsContext) || {};
     const pgEnv = getExternalEnv(datasources);
 
-    let columns = useMemo(() =>
-        isDms ?
-            isJson(source.config) ? JSON.parse(source.config)?.attributes : [] :
-            (source?.metadata?.columns || []), [source.config, isDms, source?.metadata?.columns])
+    let columns = useMemo(() => {
+        if (!isDms) return source?.metadata?.columns || [];
+        // source.config may arrive as a JSON string (UDA `data->>'config'`)
+        // or as an already-parsed object. Handle both. Empty-string,
+        // missing, and unparseable values all fall through to [].
+        const cfg = source?.config;
+        if (!cfg) return [];
+        let parsed = null;
+        if (typeof cfg === 'string') {
+            try { parsed = JSON.parse(cfg); } catch { parsed = null; }
+        } else if (typeof cfg === 'object') {
+            parsed = cfg;
+        }
+        return Array.isArray(parsed?.attributes) ? parsed.attributes : [];
+    }, [source?.config, isDms, source?.metadata?.columns]);
+
+    // Surface what we actually got so we can see why the spreadsheet may show
+    // zero columns. Remove once internal_table tables are confirmed working.
+    React.useEffect(() => {
+        console.log('[table] source.config typeof=', typeof source?.config,
+            'len=', typeof source?.config === 'string' ? source.config.length : null,
+            'columns=', columns?.length);
+    }, [source?.config, columns]);
 
     const default_columns = (source?.default_columns || source?.defaultColumns) || [];
 
@@ -68,17 +87,32 @@ export default function Table ({apiUpdate, apiLoad, format, source, params, isDm
             columns: source?.metadata?.columns || [],
         };
 
-        const activeColumns = isDms ? undefined : source?.metadata?.columns?.map(c => ({...c, show:true}));
+        // Source-derived columns. For DMS we read from source.config (which
+        // arrives async via getSourceData); for DAMA from source.metadata.columns.
+        const activeColumns = isDms
+            ? columns?.map(c => ({...c, show: true}))
+            : source?.metadata?.columns?.map(c => ({...c, show: true}));
+
         setValue(draft => {
             if(!isEqual(draft.sourceInfo, sourceInfo)){
                 draft.sourceInfo = sourceInfo;
             }
 
-            if(!isDms && !isEqual(draft.columns, activeColumns)){
+            // Initial-mount race: useImmer's initializer ran before
+            // getSourceData() resolved source.config / source.metadata.columns,
+            // so draft.columns is []. When the source finally has columns,
+            // sync them. For DMS we only sync from empty so user toggles
+            // aren't overwritten on subsequent re-renders. For DAMA we keep
+            // the legacy "always sync on change" behavior.
+            if (isDms) {
+                if (!draft.columns?.length && activeColumns?.length) {
+                    draft.columns = activeColumns;
+                }
+            } else if (!isEqual(draft.columns, activeColumns)) {
                 draft.columns = activeColumns;
             }
         })
-    }, [source, id, view_id, isDms, pgEnv])
+    }, [source, id, view_id, isDms, pgEnv, columns])
 
     const saveSettings = useCallback(() => {
         const columns =

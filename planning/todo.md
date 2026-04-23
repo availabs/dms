@@ -56,7 +56,7 @@
 - [x] UDA array contains filter — server-side `array_contains` + `array_not_contains` operations for multiselect columns; removed ~235 lines of async multiselect resolution from client utils.jsx; unblocks synchronous `buildUdaConfig`
 - [x] Database copy CLI — `src/scripts/copy-db.js` copies all DMS data between databases (PG↔SQLite, same-type), preserving IDs, handling cross-DB types, batch processing, split table discovery
 - [x] Dead row cleanup CLI — `src/scripts/cleanup-db.js` analyzes DMS database for orphaned rows (sections without pages, patterns without sites, views without sources), grouped by app+type, with optional `--delete` mode
-- [ ] Cleanup: protect dmsEnv-linked sources — `findOrphanedSources` only validates against pattern `doc_type`, not dmsEnv refs; sources owned by a dmsEnv can be incorrectly flagged as orphans
+- [x] Cleanup: protect dmsEnv-linked sources — closed as unnecessary; the type-system refactor moved source ownership into the type column (`{dmsEnv}|{name}:source`), so cleanup-db.js needs a rethink around dmsEnvs rather than this incremental patch
 - [x] Fix orphaned pages detection — `findOrphanedPages` produces false positives when pattern metadata is missing/misconfigured, causing mass page deletion; pages detector currently disabled from `--delete` mode; also added `page_edits` orphan detection and `skipData` memory optimization
 - [x] Extract embedded Lexical images — script to scan data_items for base64 data URIs in InlineImageNode `src` fields, extract to files, replace with URL paths; deduplication via content hash
 - [x] Clean dms-mercury2 database — delete obsolete apps, countytemplate patterns, templated pages, obsolete patterns, extract images, consolidate history, run orphan cleanup, VACUUM, prepare for split-app mode; target under 200 MB
@@ -65,7 +65,9 @@
 - [x] Per-config split mode — move `DMS_SPLIT_MODE` from server-wide env var to per-database-config setting (`splitMode` field in config JSON), with env var fallback for backward compatibility
 - [x] Migrated dataset fixes — case-insensitive split type regex, sanitize() in new table naming, case-insensitive source lookup, lowercase type for split queries, maxPaths 50K→500K, `--max-http-header-size=1MB`, rename-split-tables script (39 tables renamed)
 - [x] Invalid-entry table consolidation — valid and invalid dataset rows share the same split table (removed `_invalid` suffix from table naming); fixes bugs where re-validation couldn't find invalid rows and `batchUpdateType` left rows in wrong table
-- [ ] DAMA CSV analyzer — port legacy `analyzeSchema.js` as primary CSV type detector (zero-padding + GEOID heuristics, 10K-row state machine, sample collection), keep ogrinfo as fallback, and fix `generateTableDescriptor` rename bug (pair analysis↔metadata by index so UI renames preserve types). Blocker for CSV uploads — view 3384 has 19 integer columns stored as TEXT due to this bug.
+- [x] DAMA CSV analyzer — ported legacy `analyzeSchema.js` (zero-padding + GEOID heuristics, 10K-row state machine, sample collection), kept ogrinfo as `DAMA_CSV_ANALYZER=ogrinfo` fallback, fixed `generateTableDescriptor` rename bug via index pairing. 22 csv-analyzer tests, production-verified, docs updated.
+- [x] UDA ClickHouse support for DAMA pgEnv — auxiliary ClickHouse backend per pgEnv. `data_manager.views.table_schema` prefixed with `clickhouse.` routes reads to a CH query set; mirrors avail-falcor `db_service/clickhouse.js` + `routes/uda_query_sets/`. Live smoke test + cross-DB meta dispatch verified against npmrds2.
+- [x] Fix UDA getSitePatterns / getSiteSources for new type scheme — `getSitePatterns` now matches by exact instance segment (`type LIKE '%|' || $instance || ':pattern'`); `getSiteSources` dropped the `data->>'doc_type'` filter and unused `pattern_doc_types` param; two UDA test fixtures rewritten to new-format types. All 51 UDA tests pass.
 
 ## ui
 

@@ -6,70 +6,21 @@ const {
   getEssentials,
   getSitePatterns,
   getSiteSources,
-  getValuesExceptNulls,
-  getValuesFromGroup,
-  handleFilters,
-  handleFilterGroups,
-  handleGroupBy,
-  handleHaving,
-  handleOrderBy,
-  buildCombinedWhere
 } = require('./utils');
-const { jsonMerge, typeCast } = require('#db/query-utils.js');
-
-/**
- * Translate PostgreSQL-specific SQL expressions to SQLite equivalents.
- * Handles client-sent "calculated columns" and groupBy expressions.
- *
- * Translations:
- *   array_to_string(array_agg(distinct X), 'sep')  →  group_concat(X, 'sep')
- *   array_to_string(array_agg(X), 'sep')           →  group_concat(X, 'sep')
- *   array_agg(X)                                   →  json_group_array(X)
- *   to_jsonb(array_remove(array[...], null))::text  →  json_array(...)
- *   to_jsonb(X)                                    →  json(X)
- *   array_remove(array[...], null)                 →  json_array(...)  (nulls kept — close enough)
- *
- * Note: `distinct` is stripped from group_concat because SQLite does not support
- * DISTINCT with a separator argument. Results may contain duplicates.
- */
-function translatePgToSqlite(expr) {
-  // array_to_string(array_agg(distinct? X), 'sep') → group_concat(X, 'sep')
-  // Strip `distinct` since SQLite group_concat doesn't support DISTINCT with separator
-  expr = expr.replace(
-    /array_to_string\s*\(\s*array_agg\s*\(\s*(?:distinct\s+)?([^)]+)\)\s*,\s*('[^']*')\s*\)/gi,
-    'group_concat($1, $2)'
-  );
-  // standalone array_agg(...) → json_group_array(...)
-  expr = expr.replace(/array_agg\s*\(/gi, 'json_group_array(');
-
-  // to_jsonb(array_remove(array[...], null))::text → json_array(...)
-  // to_jsonb(array_remove(array[...], null))       → json_array(...)
-  // The array[...] contents are CASE expressions; nulls are kept since
-  // SQLite has no array_remove, but the grouping result is equivalent.
-  expr = expr.replace(
-    /to_jsonb\s*\(\s*array_remove\s*\(\s*array\s*\[([^\]]*)\]\s*,\s*null\s*\)\s*\)/gi,
-    'json_array($1)'
-  );
-
-  // Remaining standalone array[...] → json_array(...)
-  expr = expr.replace(/\barray\s*\[([^\]]*)\]/gi, 'json_array($1)');
-
-  // to_jsonb(X) → json(X)
-  expr = expr.replace(/to_jsonb\s*\(/gi, 'json(');
-
-  return expr;
-}
+const { jsonMerge } = require('#db/query-utils.js');
+const querySets = require('./query_sets');
+const { translatePgToSqlite } = require('./query_sets/postgres');
 
 // ================================================= Source Functions ================================================
 
 async function getSourcesLength(env) {
-  const { isDms, db, app, type, splitMode } = await getEssentials({ env });
+  const { isDms, db, app, splitMode } = await getEssentials({ env });
 
   if (isDms) {
     const pattern_ids = await getSitePatterns({ db, app, env, splitMode });
     if (!pattern_ids.length) return 0;
 
-    const sources = await getSiteSources({ db, app, pattern_ids, pattern_doc_types: [type], splitMode });
+    const sources = await getSiteSources({ db, app, pattern_ids, splitMode });
     return sources.length;
   }
 
@@ -81,14 +32,14 @@ async function getSourcesLength(env) {
 }
 
 async function getSourceIdsByIndex(env, indices) {
-  const { isDms, db, app, type, splitMode } = await getEssentials({ env });
+  const { isDms, db, app, splitMode } = await getEssentials({ env });
   const num = indices.to - indices.from + 1;
 
   if (isDms) {
     const pattern_ids = await getSitePatterns({ db, app, env, splitMode });
     if (!pattern_ids.length) return [];
 
-    const sources = await getSiteSources({ db, app, pattern_ids, pattern_doc_types: [type], splitMode });
+    const sources = await getSiteSources({ db, app, pattern_ids, splitMode });
     if (!sources.length) return [];
 
     return sources
@@ -297,193 +248,33 @@ async function updateView(env, viewId, updates) {
 }
 
 // ============================================= Data Query Functions ================================================
+//
+// These three functions dispatch to a per-database-type query set. The
+// context resolved by getEssentials() includes a `dbType` field ('pg' for
+// Postgres/SQLite, 'ch' for ClickHouse); the corresponding query set knows
+// how to build and execute SQL for that backend.
 
 async function simpleFilterLength(env, view_id, options) {
-  const { isDms, db, app, type, table_schema, table_name } = await getEssentials({ env, view_id, options });
-
-  let {
-    filter = {}, exclude = {},
-    gt = {}, gte = {}, lt = {}, lte = {}, like = {},
-    filterRelation = 'and',
-    filterGroups = {},
-    groupBy = [], having = [],
-    normalFilter = []
-  } = JSON.parse(options);
-
-  // Translate PG-specific SQL in groupBy expressions for SQLite
-  if (db.type === 'sqlite' && groupBy.length) {
-    groupBy = groupBy.map(translatePgToSqlite);
-  }
-
-  if (normalFilter.length) {
-    normalFilter.forEach(({ column, values }) => {
-      (filter[column] ??= []).push(...values);
-    });
-  }
-
-  const oldValues = [
-    ...isDms ? [[app], [type]] : [],
-    ...getValuesExceptNulls(filter), ...getValuesExceptNulls(exclude),
-    ...getValuesExceptNulls(gt), ...getValuesExceptNulls(gte),
-    ...getValuesExceptNulls(lt), ...getValuesExceptNulls(lte),
-    ...getValuesExceptNulls(like),
-  ];
-  const newValues = getValuesFromGroup(filterGroups);
-  const values = [...oldValues, ...newValues];
-
-  const combinedWhere = buildCombinedWhere({
-    filter, exclude, gt, gte, lt, lte, like, filterRelation,
-    filterGroups, isDms, app, type, oldValues, dbType: db.type
-  });
-
-  // Check for jsonb_array_elements_text (PG) or json_each (SQLite) in groupBy
-  const hasArrayElements = groupBy?.[0]?.includes('jsonb_array_elements_text')
-    || groupBy?.[0]?.includes('json_each');
-
-  const sql =
-    hasArrayElements && sanitizeName(groupBy?.[0])
-      ? `WITH t AS (
-           SELECT DISTINCT ${groupBy[0]}
-           FROM ${table_schema}.${table_name}
-           ${combinedWhere}
-           GROUP BY 1
-           ${handleHaving(having)}
-         )
-         SELECT count(*) numrows FROM t`
-      : `SELECT count(${groupBy.length
-           ? `DISTINCT ${groupBy.map(g => sanitizeName(g)).filter(g => g)
-               .map(c => `CASE WHEN ${c} IS NULL THEN '__NULL__VAL__' ELSE ${typeCast(c, 'TEXT', db.type)} END`)
-               .join(`|| '-' ||`)}`
-           : 1}) numrows
-         FROM ${table_schema}.${table_name}
-         ${combinedWhere}
-         ${handleHaving(having)}`;
-
-  const { rows } = await db.query(sql, values);
-  return rows?.[0]?.numrows ?? 0;
+  const ctx = await getEssentials({ env, view_id, options });
+  return querySets[ctx.dbType].simpleFilterLength(ctx, options);
 }
 
 async function simpleFilter(env, view_id, options, attributes, indices) {
-  const num = indices.to - indices.from + 1;
-  const { isDms, db, app, type, table_schema, table_name, dmsAttributes } = await getEssentials({ env, view_id, options });
+  const ctx = await getEssentials({ env, view_id, options });
+  const rows = await querySets[ctx.dbType].simpleFilter(ctx, options, attributes, indices);
 
-  let sanitizedAttrs = sanitizeName(attributes).filter(f => f);
-  if (!sanitizedAttrs.length) return [];
-
-  // Translate PG-specific SQL to SQLite equivalents
-  if (db.type === 'sqlite') {
-    sanitizedAttrs = sanitizedAttrs.map(translatePgToSqlite);
-  }
-
-  // Map long column names to short aliases
-  const columnNameMap = sanitizedAttrs.reduce((acc, attr, i) => {
-    const responseName = getResponseColumnName(attr);
-    if (attr.toLowerCase().includes(' as ') && responseName.length > 60) {
-      acc[attr] = attr.replace(` ${responseName}`, ` col_${i}`);
-    }
-    return acc;
-  }, {});
-
-  const {
-    filter = {}, exclude = {},
-    gt = {}, gte = {}, lt = {}, lte = {}, like = {},
-    filterRelation = 'and',
-    filterGroups = {},
-    groupBy = [], having = [], orderBy = {}, meta = {},
-    normalFilter = []
-  } = JSON.parse(options);
-
-  if (normalFilter.length) {
-    normalFilter.forEach(({ column, values }) => {
-      (filter[column] ??= []).push(...values);
-    });
-  }
-
-  const oldValues = [
-    ...isDms ? [[app], [type]] : [],
-    ...getValuesExceptNulls(filter), ...getValuesExceptNulls(exclude),
-    ...getValuesExceptNulls(gt), ...getValuesExceptNulls(gte),
-    ...getValuesExceptNulls(lt), ...getValuesExceptNulls(lte),
-    ...getValuesExceptNulls(like),
-  ];
-  const newValues = getValuesFromGroup(filterGroups);
-  const values = [...oldValues, ...newValues];
-
-  const combinedWhere = buildCombinedWhere({
-    filter, exclude, gt, gte, lt, lte, like, filterRelation,
-    filterGroups, isDms, app, type, oldValues, dbType: db.type
-  });
-
-  const sql = `
-    SELECT ${sanitizedAttrs.map(c => quoteAlias(columnNameMap[c] || c)).join(', ')}
-    FROM ${table_schema}.${table_name}
-    ${combinedWhere}
-    ${handleGroupBy(groupBy)}
-    ${handleHaving(having)}
-    ${handleOrderBy(orderBy, dmsAttributes)}
-    LIMIT ${+num}
-    OFFSET ${indices.from}
-  `;
-
-  const res = await db.query(sql, values);
-
-  // Restore long column names from short aliases
-  let rows = Object.keys(columnNameMap).length
-    ? res.rows.map(row => {
-        const restored = Object.keys(columnNameMap).reduce((acc, originalName) => {
-          return { ...acc, [getResponseColumnName(originalName)]: row[getResponseColumnName(columnNameMap[originalName])] };
-        }, {});
-        return { ...row, ...restored };
-      })
-    : res.rows;
-
-  // Apply meta lookups
+  // Meta lookups may target a different env/db than the main query, so we
+  // re-enter simpleFilter (which will dispatch via its own getEssentials).
+  const { meta = {} } = JSON.parse(options);
   if (Object.keys(meta).length) {
-    rows = await applyMeta(rows, meta, env, isDms, options);
+    return applyMeta(rows, meta, env, ctx.isDms, options);
   }
-
   return rows;
-}
-
-// Per-table PK column cache. Maps `${schema}.${table}` → column name.
-// DAMA gis_datasets tables use `ogc_fid`; DMS data_items uses `id`. Looking
-// up dynamically lets the same route serve both.
-const _pkCache = new Map();
-
-async function resolvePrimaryKey(db, schema, table) {
-  const key = `${schema}.${table}`;
-  if (_pkCache.has(key)) return _pkCache.get(key);
-
-  let pk = 'id'; // safe default — matches DMS data_items + most schemas
-  if (db.type === 'postgres') {
-    try {
-      const { rows } = await db.query(
-        `SELECT a.attname AS pk
-         FROM pg_index i
-         JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = ANY(i.indkey)
-         WHERE i.indrelid = $1::regclass AND i.indisprimary
-         LIMIT 1`,
-        [`${schema}.${table}`]
-      );
-      if (rows[0]?.pk) pk = rows[0].pk;
-    } catch (e) {
-      // Table may not exist or pg_index lookup may fail — fall back to 'id'.
-    }
-  }
-  _pkCache.set(key, pk);
-  return pk;
 }
 
 async function dataById(env, view_id, ids, attributes) {
-  const { isDms, db, app, type, table_schema, table_name } = await getEssentials({ env, view_id, options: { isDama: false } });
-
-  const sanitizedAttrs = sanitizeName(attributes).filter(f => f);
-  if (!sanitizedAttrs.length) return [];
-
-  const pkCol = await resolvePrimaryKey(db, table_schema, table_name);
-  const sql = `SELECT ${pkCol} AS id, ${sanitizedAttrs.map(c => quoteAlias(c)).join(', ')} FROM ${table_schema}.${table_name} WHERE ${pkCol} = ANY($1)`;
-  const { rows } = await db.query(sql, [ids.map(id => +id)]);
-  return rows;
+  const ctx = await getEssentials({ env, view_id, options: { isDama: false } });
+  return querySets[ctx.dbType].dataById(ctx, ids, attributes);
 }
 
 // ================================================= Meta Lookups ===================================================
