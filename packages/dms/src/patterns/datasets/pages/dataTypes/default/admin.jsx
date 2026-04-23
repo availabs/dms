@@ -94,7 +94,7 @@ const AddViewBtn = ({source, format, apiLoad, apiUpdate}) => {
  */
 const DeleteDamaSourceBtn = ({source, baseUrl, pgEnv}) => {
     const {UI, falcor} = useContext(DatasetsContext);
-    const {Modal, Button, Input} = UI;
+    const {Modal} = UI;
     const [open, setOpen] = useState(false);
     const [typedName, setTypedName] = useState('');
     const [busy, setBusy] = useState(false);
@@ -132,54 +132,58 @@ const DeleteDamaSourceBtn = ({source, baseUrl, pgEnv}) => {
             <button className={buttonRedClass} onClick={() => setOpen(true)}>Delete Source</button>
 
             <Modal open={open} setOpen={(v) => (v ? setOpen(true) : close())}>
-                <div className="text-base font-semibold text-gray-900">Delete source #{sourceId}</div>
-                <div className="mt-2 text-sm text-gray-600">
-                    <p>
-                        <span className="font-semibold">Delete</span> removes the source and view rows from <code>data_manager</code>.
-                        Per-view data tables and files remain and could be recovered by an admin.
-                    </p>
-                    <p className="mt-2">
-                        <span className="font-semibold text-red-700">Hard Delete</span> additionally drops each view's data table,
-                        removes download files from storage, and deletes task history. This cannot be undone.
-                    </p>
-                </div>
-                <div className="mt-3 text-sm text-gray-700">
-                    To confirm a <span className="font-semibold text-red-700">Hard Delete</span>, type the source name
-                    <code className="ml-1">{sourceName || '(unnamed)'}</code>:
-                </div>
-                <Input
-                    type="text"
-                    value={typedName}
-                    onChange={e => setTypedName(e.target.value)}
-                    placeholder={sourceName}
-                    className="mt-1 w-full border rounded px-2 py-1 text-sm"
-                />
-                {err ? <div className="mt-2 text-sm text-red-700">Error: {err}</div> : null}
-                <div className="mt-5 flex flex-row-reverse gap-2">
-                    <button
-                        type="button"
-                        disabled={busy || !nameMatches}
-                        className="inline-flex justify-center rounded-md bg-red-700 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-800 disabled:opacity-40"
-                        onClick={() => runDelete(true)}
-                    >
-                        {busy ? 'Working…' : 'Hard Delete'}
-                    </button>
-                    <button
-                        type="button"
-                        disabled={busy}
-                        className="inline-flex justify-center rounded-md bg-yellow-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-yellow-700 disabled:opacity-40"
-                        onClick={() => runDelete(false)}
-                    >
-                        {busy ? 'Working…' : 'Delete'}
-                    </button>
-                    <button
-                        type="button"
-                        disabled={busy}
-                        className="inline-flex justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
-                        onClick={close}
-                    >
-                        Cancel
-                    </button>
+                {/* Stop click propagation so the shared Modal's outer onClick doesn't close on interior clicks (which would steal focus from the input) */}
+                <div onClick={e => e.stopPropagation()}>
+                    <div className="text-base font-semibold text-gray-900">Delete source #{sourceId}</div>
+                    <div className="mt-2 text-sm text-gray-600">
+                        <p>
+                            <span className="font-semibold">Delete</span> removes the source and view rows from <code>data_manager</code>.
+                            Per-view data tables and files remain and could be recovered by an admin.
+                        </p>
+                        <p className="mt-2">
+                            <span className="font-semibold text-red-700">Hard Delete</span> additionally drops each view's data table,
+                            removes download files from storage, and deletes task history. This cannot be undone.
+                        </p>
+                    </div>
+                    <div className="mt-3 text-sm text-gray-700">
+                        To confirm a <span className="font-semibold text-red-700">Hard Delete</span>, type the source name
+                        <code className="ml-1">{sourceName || '(unnamed)'}</code>:
+                    </div>
+                    <input
+                        type="text"
+                        value={typedName}
+                        onChange={e => setTypedName(e.target.value)}
+                        placeholder={sourceName}
+                        autoFocus
+                        className="mt-1 w-full border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+                    />
+                    {err ? <div className="mt-2 text-sm text-red-700">Error: {err}</div> : null}
+                    <div className="mt-5 flex flex-row-reverse gap-2">
+                        <button
+                            type="button"
+                            disabled={busy || !nameMatches}
+                            className="inline-flex justify-center rounded-md bg-red-700 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-800 disabled:opacity-40"
+                            onClick={() => runDelete(true)}
+                        >
+                            {busy ? 'Working…' : 'Hard Delete'}
+                        </button>
+                        <button
+                            type="button"
+                            disabled={busy}
+                            className="inline-flex justify-center rounded-md bg-yellow-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-yellow-700 disabled:opacity-40"
+                            onClick={() => runDelete(false)}
+                        >
+                            {busy ? 'Working…' : 'Delete'}
+                        </button>
+                        <button
+                            type="button"
+                            disabled={busy}
+                            className="inline-flex justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+                            onClick={close}
+                        >
+                            Cancel
+                        </button>
+                    </div>
                 </div>
             </Modal>
         </>
