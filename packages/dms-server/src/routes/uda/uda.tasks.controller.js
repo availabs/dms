@@ -1,32 +1,63 @@
 /**
  * UDA Tasks Controller — query functions for task queue, events, and settings.
- * Tasks always live in a dama-role database (data_manager.tasks / tasks).
+ *
+ * Two backends, same Falcor route shape:
+ *   - DAMA tasks:  env = pgEnv name (no '+'). Reads `data_manager.tasks` etc.
+ *   - DMS tasks:   env = `app+instance` (contains '+'). Reads `dms.tasks` etc.
+ *                  in the DMS database (DMS_DB_ENV), filtered by `app`.
+ *
+ * The DMS path lets internal_table sources show their publish tasks without
+ * any DAMA pgEnv being configured. Mirrors `dama/tasks` <-> `dms/tasks` at
+ * the route layer.
  */
 
 const { getDb } = require('../../db');
 
+function isDmsEnv(env) {
+  return typeof env === 'string' && env.includes('+');
+}
+
 function resolveDb(env) {
-  const dbEnv = env.includes('+') ? (process.env.DMS_DB_ENV || 'dms-sqlite') : env;
+  const dbEnv = isDmsEnv(env) ? (process.env.DMS_DB_ENV || 'dms-sqlite') : env;
   return getDb(dbEnv);
 }
 
-function taskTable(dbType) {
+function taskTable(dbType, env) {
+  if (isDmsEnv(env)) return dbType === 'postgres' ? 'dms.tasks' : 'dms_tasks';
   return dbType === 'postgres' ? 'data_manager.tasks' : 'tasks';
 }
 
-function eventTable(dbType) {
+function eventTable(dbType, env) {
+  if (isDmsEnv(env)) return dbType === 'postgres' ? 'dms.task_events' : 'dms_task_events';
   return dbType === 'postgres' ? 'data_manager.task_events' : 'task_events';
 }
 
-function settingsTable(dbType) {
+function settingsTable(dbType, env) {
+  if (isDmsEnv(env)) return dbType === 'postgres' ? 'dms.settings' : 'dms_settings';
   return dbType === 'postgres' ? 'data_manager.settings' : 'settings';
+}
+
+/**
+ * For DMS env (`app+instance`), return a `(WHERE-clause-fragment, value)` pair
+ * that scopes a query to a single app. For DAMA env, returns no-op.
+ */
+function appScope(env, paramIdx = 1) {
+  if (!isDmsEnv(env)) return { clause: '', value: null };
+  const [app] = env.split('+');
+  return { clause: `app = $${paramIdx}`, value: app };
 }
 
 // --- Tasks ---
 
 async function getTasksLength(env) {
   const db = resolveDb(env);
-  const { rows } = await db.query(`SELECT COUNT(*)::int AS count FROM ${taskTable(db.type)}`);
+  const scope = appScope(env, 1);
+  const where = scope.clause ? `WHERE ${scope.clause}` : '';
+  const params = scope.value !== null ? [scope.value] : [];
+  const { rows } = await db.query(
+    `SELECT COUNT(*)::int AS count FROM ${taskTable(db.type, env)} ${where}`,
+    params
+  );
   return rows[0].count;
 }
 
@@ -35,20 +66,27 @@ async function getTaskIdsByIndex(env, indices) {
   const from = Array.isArray(indices) ? Math.min(...indices) : indices.from || 0;
   const to = Array.isArray(indices) ? Math.max(...indices) : indices.to || 0;
   const limit = to - from + 1;
+  const scope = appScope(env, 1);
+  const where = scope.clause ? `WHERE ${scope.clause}` : '';
+  const params = scope.value !== null ? [scope.value] : [];
 
   const { rows } = await db.query(`
-    SELECT task_id FROM ${taskTable(db.type)}
+    SELECT task_id FROM ${taskTable(db.type, env)}
+    ${where}
     ORDER BY queued_at DESC
     LIMIT ${limit} OFFSET ${from}
-  `);
+  `, params);
   return rows.map(r => r.task_id);
 }
 
 async function getTaskById(env, taskId, attributes) {
   const db = resolveDb(env);
+  const scope = appScope(env, 2);
+  const extra = scope.clause ? ` AND ${scope.clause}` : '';
+  const params = scope.value !== null ? [taskId, scope.value] : [taskId];
   const { rows } = await db.query(
-    `SELECT * FROM ${taskTable(db.type)} WHERE task_id = $1`,
-    [taskId]
+    `SELECT * FROM ${taskTable(db.type, env)} WHERE task_id = $1${extra}`,
+    params
   );
   if (!rows[0]) return null;
 
@@ -64,9 +102,12 @@ async function getTaskById(env, taskId, attributes) {
 
 async function getTasksForSourceLength(env, sourceId) {
   const db = resolveDb(env);
+  const scope = appScope(env, 2);
+  const extra = scope.clause ? ` AND ${scope.clause}` : '';
+  const params = scope.value !== null ? [sourceId, scope.value] : [sourceId];
   const { rows } = await db.query(
-    `SELECT COUNT(*)::int AS count FROM ${taskTable(db.type)} WHERE source_id = $1`,
-    [sourceId]
+    `SELECT COUNT(*)::int AS count FROM ${taskTable(db.type, env)} WHERE source_id = $1${extra}`,
+    params
   );
   return rows[0].count;
 }
@@ -76,13 +117,16 @@ async function getTasksForSourceByIndex(env, sourceId, indices) {
   const from = Array.isArray(indices) ? Math.min(...indices) : indices.from || 0;
   const to = Array.isArray(indices) ? Math.max(...indices) : indices.to || 0;
   const limit = to - from + 1;
+  const scope = appScope(env, 2);
+  const extra = scope.clause ? ` AND ${scope.clause}` : '';
+  const params = scope.value !== null ? [sourceId, scope.value] : [sourceId];
 
   const { rows } = await db.query(`
-    SELECT task_id FROM ${taskTable(db.type)}
-    WHERE source_id = $1
+    SELECT task_id FROM ${taskTable(db.type, env)}
+    WHERE source_id = $1${extra}
     ORDER BY queued_at DESC
     LIMIT ${limit} OFFSET ${from}
-  `, [sourceId]);
+  `, params);
   return rows.map(r => r.task_id);
 }
 
@@ -91,7 +135,7 @@ async function getTasksForSourceByIndex(env, sourceId, indices) {
 async function getTaskEventsLength(env, taskId) {
   const db = resolveDb(env);
   const { rows } = await db.query(
-    `SELECT COUNT(*)::int AS count FROM ${eventTable(db.type)} WHERE task_id = $1`,
+    `SELECT COUNT(*)::int AS count FROM ${eventTable(db.type, env)} WHERE task_id = $1`,
     [taskId]
   );
   return rows[0].count;
@@ -104,7 +148,7 @@ async function getTaskEventsByIndex(env, taskId, indices, attributes) {
   const limit = to - from + 1;
 
   const { rows } = await db.query(`
-    SELECT * FROM ${eventTable(db.type)}
+    SELECT * FROM ${eventTable(db.type, env)}
     WHERE task_id = $1
     ORDER BY event_id ASC
     LIMIT ${limit} OFFSET ${from}
@@ -125,7 +169,7 @@ async function getTaskEventsByIndex(env, taskId, indices, attributes) {
 
 async function getSettings(env) {
   const db = resolveDb(env);
-  const table = settingsTable(db.type);
+  const table = settingsTable(db.type, env);
 
   try {
     // New schema: key/value table
@@ -148,7 +192,7 @@ async function getSettings(env) {
 
 async function setSettings(env, value) {
   const db = resolveDb(env);
-  const table = settingsTable(db.type);
+  const table = settingsTable(db.type, env);
 
   try {
     // Try new schema first

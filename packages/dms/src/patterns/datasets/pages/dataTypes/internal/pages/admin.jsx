@@ -5,7 +5,6 @@ import { cloneDeep } from "lodash-es";
 import {Link, useNavigate} from "react-router";
 import {updateSourceData, parseIfJson, getSourceData} from "../../default/utils";
 import { getInstance } from "../../../../../../utils/type-utils";
-import { getExternalEnv } from "../../../../utils/datasources";
 import { clearDatasetsListCache } from "../../../../utils/datasetsListCache";
 import UdaTaskList from "../../../Tasks/UdaTaskList";
 
@@ -170,11 +169,12 @@ const AddViewBtn = ({source, setSource}) => {
 
 const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params }) => {
     const {id} = params;
-    const {app, baseUrl, pageBaseUrl, user, parent, UI, falcor, datasources} = React.useContext(DatasetsContext) || {};
-    // Tasks for internal_table sources (csv-publish, etc.) run against the
-    // pattern's external pgEnv. UdaTaskList reads that same pgEnv from
-    // DatasetsContext, so no prop wiring is needed here.
-    const taskPgEnv = getExternalEnv(datasources);
+    const {app, type, baseUrl, pageBaseUrl, user, parent, UI, falcor, datasources} = React.useContext(DatasetsContext) || {};
+    // Tasks for internal_table sources live in the DMS task tables
+    // (`dms.tasks` / `dms_tasks`), not in any DAMA pgEnv. The UDA route
+    // layer routes to DMS when the env contains '+', so we build the
+    // DMS env from the pattern's app + instance.
+    const taskEnv = app && type ? `${app}+${type}` : null;
     const {AuthAPI} = React.useContext(AuthContext) || {};
     const [users, setUsers] = React.useState([]);
     const [groups, setGroups] = React.useState([]);
@@ -309,10 +309,10 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params }) => {
                         </div>
                     </div>
                 </div>
-                {taskPgEnv && (
+                {taskEnv && (
                     <div className={'w-full pt-12'}>
                         <div className={'text-sm font-medium text-gray-500 pb-2'}>Tasks</div>
-                        <UdaTaskList sourceId={source.source_id} />
+                        <UdaTaskList env={taskEnv} sourceId={source.source_id} />
                     </div>
                 )}
             </div>

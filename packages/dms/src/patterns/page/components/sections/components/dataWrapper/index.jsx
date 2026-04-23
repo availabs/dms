@@ -114,8 +114,15 @@ const Edit = forwardRef((props, ref) => {
     let {cms_context, value, onChange, component, siteType, pageFormat, onHandle} = props
     const isEdit = Boolean(onChange);
     const { UI, theme: fullTheme } = useContext(ThemeContext)
-    const { apiLoad, apiUpdate } = useContext(PageContext) || {};
-    const {datasources} = useContext(cms_context || CMSContext);
+    const _pageCtx = useContext(PageContext) || {};
+    const _cmsCtx = useContext(cms_context || CMSContext) || {};
+    // apiLoad/apiUpdate normally arrive via PageContext (page pattern). When
+    // DataWrapper is mounted from a non-page pattern (e.g. the datasets
+    // pattern's table admin page), fall back to the cms_context which the
+    // hosting pattern can populate.
+    const apiLoad = _pageCtx.apiLoad || _cmsCtx.apiLoad;
+    const apiUpdate = _pageCtx.apiUpdate || _cmsCtx.apiUpdate;
+    const {datasources} = _cmsCtx;
     const pgEnv = getExternalEnv(datasources);
     const {Icon} = UI;
 
@@ -302,8 +309,12 @@ const Edit = forwardRef((props, ref) => {
 const View = forwardRef(({cms_context, value, onChange, component, editPageMode, onHandle}, ref) => {
     const isEdit = false;
     const navigate = useNavigate();
-    const { apiLoad, apiUpdate } = useContext(PageContext) || {};
-    const {datasources, baseUrl} = useContext(cms_context || CMSContext) || {};
+    const _pageCtx = useContext(PageContext) || {};
+    const _cmsCtx = useContext(cms_context || CMSContext) || {};
+    // Same cms_context fallback as Edit — see comment there.
+    const apiLoad = _pageCtx.apiLoad || _cmsCtx.apiLoad;
+    const apiUpdate = _pageCtx.apiUpdate || _cmsCtx.apiUpdate;
+    const {datasources, baseUrl} = _cmsCtx;
     const pgEnv = getExternalEnv(datasources);
     const { UI, theme: fullTheme } = useContext(ThemeContext)
     const {Icon} = UI;

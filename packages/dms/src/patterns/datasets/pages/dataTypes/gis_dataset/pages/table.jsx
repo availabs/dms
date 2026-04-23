@@ -5,14 +5,8 @@ import Spreadsheet from "../../../../../page/components/sections/components/Comp
 import {useNavigate} from "react-router";
 import DataWrapper from "../../../../../page/components/sections/components/dataWrapper";
 import {cloneDeep, isEqual, uniqBy} from "lodash-es";
-import {ComponentContext} from "../../../../../page/context";
 import {useImmer} from "use-immer";
-import {
-    RenderFilters
-} from "../../../../../page/components/sections/components/dataWrapper/components/filters/RenderFilters";
-import { Controls } from "../../../../../page/components/sections/components/dataWrapper/components/Controls";
 import {ThemeContext} from "../../../../../../ui/useTheme";
-import {isJson} from "../../default/utils";
 import { nameToSlug } from "../../../../../../utils/type-utils";
 
 export default function Table ({apiUpdate, apiLoad, format, source, params, isDms}) {
@@ -38,14 +32,6 @@ export default function Table ({apiUpdate, apiLoad, format, source, params, isDm
         return Array.isArray(parsed?.attributes) ? parsed.attributes : [];
     }, [source?.config, isDms, source?.metadata?.columns]);
 
-    // Surface what we actually got so we can see why the spreadsheet may show
-    // zero columns. Remove once internal_table tables are confirmed working.
-    React.useEffect(() => {
-        console.log('[table] source.config typeof=', typeof source?.config,
-            'len=', typeof source?.config === 'string' ? source.config.length : null,
-            'columns=', columns?.length);
-    }, [source?.config, columns]);
-
     const default_columns = (source?.default_columns || source?.defaultColumns) || [];
 
 
@@ -60,6 +46,10 @@ export default function Table ({apiUpdate, apiLoad, format, source, params, isDm
             usePageFilters: false,
             allowDownload: true,
             hideDatasourceSelector: true,
+            // Enable the spreadsheet's auto-resize pass so columns get
+            // sensible initial widths (Math.max(minInitColSize, gridWidth/n))
+            // instead of rendering at the browser's narrow default.
+            autoResize: true,
         },
         columns: default_columns?.length ?
             uniqBy(default_columns.map(dc => columns.find(col => col.name === dc.name)).filter(c => c).map(c => ({...c, show: true})), d => d?.name) :
@@ -114,6 +104,26 @@ export default function Table ({apiUpdate, apiLoad, format, source, params, isDm
         })
     }, [source, id, view_id, isDms, pgEnv, columns])
 
+    // Build a serialized state snapshot for DataWrapper.EditComp. It owns its
+    // own useImmer state initialized from the `value` prop via migrateToV2;
+    // passing `value=''` (or no value) means DataWrapper starts with empty
+    // defaults and the spreadsheet renders "No columns selected" regardless
+    // of what this outer component thinks. We compose the snapshot here once
+    // source.config has resolved, then hand it to DataWrapper as its initial
+    // state. The snapshot key includes source+view so DataWrapper remounts
+    // cleanly when the user navigates between versions/sources.
+    const dwInitialValue = useMemo(() => {
+        if (!value?.columns?.length) return null;
+        const snapshot = {
+            externalSource: value.sourceInfo,
+            columns: value.columns,
+            filters: { op: 'AND', groups: [] },
+            display: value.display || {},
+            data: [],
+        };
+        return JSON.stringify(snapshot);
+    }, [value?.columns, value?.sourceInfo, value?.display]);
+
     const saveSettings = useCallback(() => {
         const columns =
             (value?.columns || [])
@@ -140,7 +150,11 @@ export default function Table ({apiUpdate, apiLoad, format, source, params, isDm
     // })
     // SpreadSheetCompWithControls.controls.columns = SpreadSheetCompWithControls.controls.columns.filter(({label}) => label !== 'duplicate')
     if(!isDms && !source.source_id) return ;
-    console.log('value', value)
+
+    // Stable per-source/view key so DataWrapper remounts only when navigating
+    // to a different source or version, not on every state change.
+    const dwKey = `table-page-${source?.source_id || source?.id || 'x'}-${params.view_id || 'x'}`;
+
     return (
         (isDms && !source.config) || !value?.sourceInfo?.columns?.length ? <div className={'p-1 text-center'}>Please setup metadata.</div> :
             !params.view_id || params.view_id === 'undefined' ? 'Please select a version' :
@@ -153,25 +167,20 @@ export default function Table ({apiUpdate, apiLoad, format, source, params, isDm
                             </button> :
                             null
                     }
-                    <ComponentContext.Provider value={{
-                        state: value, setState: setValue, apiLoad, apiUpdate,
-                        controls: SpreadSheetCompWithControls.controls,
-                        isActive: true
-                    }}>
-
-                        <Controls context={ComponentContext} cms_context={DatasetsContext}/>
-                        <RenderFilters isEdit={true} defaultOpen={true} />
-
+                    {dwInitialValue ? (
                         <DataWrapper.EditComp
                             cms_context={DatasetsContext}
                             component={SpreadSheetCompWithControls}
+                            value={dwInitialValue}
                             onChange={() => {}}
-                            key={'table-page-spreadsheet'}
+                            key={dwKey}
                             size={1}
                             hideSourceSelector={true}
                             theme={theme}
                         />
-                    </ComponentContext.Provider>
+                    ) : (
+                        <div className="p-4 text-gray-400">Loading columns...</div>
+                    )}
                 </div>
     )
 }

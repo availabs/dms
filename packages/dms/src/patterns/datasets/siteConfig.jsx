@@ -55,7 +55,7 @@ const datasetsConfig = ({
         children: [
             {
               type: (props) => {
-                  const { user, falcor, ...otherProps } = props
+                  const { user, falcor, apiLoad, apiUpdate, ...otherProps } = props
 
 // console.log("siteConfig::otherProps", otherProps)
 
@@ -69,6 +69,12 @@ const datasetsConfig = ({
                           falcor,
                           useFalcor,
                           user,
+                          // DMS API helpers — exposed so descendants (e.g. the
+                          // shared DataWrapper component pulled in by the
+                          // table page) can read them without depending on the
+                          // page pattern's PageContext.
+                          apiLoad,
+                          apiUpdate,
                           theme, app, type, siteType,
                           parent: pattern, API_HOST, DAMA_HOST,
                           authPermissions,

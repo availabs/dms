@@ -200,6 +200,17 @@ async function setupAndListen() {
     }
   }
 
+  // DMS task system — parallel to DAMA's, but targeting the DMS db so DMS-
+  // native workers (internal_table publish) don't depend on a DAMA pgEnv.
+  try {
+    const dmsTasks = require('./dms/tasks');
+    await dmsTasks.recoverStalledTasks();
+    // startPolling is a no-op until a handler is registered — safe to call.
+    dmsTasks.startPolling();
+  } catch (err) {
+    console.warn(`[dms-tasks] Could not initialize: ${err.message}`);
+  }
+
   // SSR: opt-in via DMS_SSR env var
   if (process.env.DMS_SSR) {
     const path = require('path');

@@ -247,6 +247,58 @@ const initDamaTasks = async (dbConnection) => {
 };
 
 /**
+ * Initialize DMS task tables (task queue + event tracking + settings),
+ * mirroring the DAMA task system but in the DMS database. Lets DMS-native
+ * workers (e.g. internal_table publish) record progress without depending
+ * on a DAMA pgEnv being configured.
+ *
+ * PG: tables go in the `dms` schema. SQLite: bare `dms_tasks` /
+ * `dms_task_events` / `dms_settings` to avoid colliding with the DAMA
+ * SQLite schema's unprefixed names.
+ *
+ * @param {Object} dbConnection - Database adapter instance
+ */
+const initDmsTasks = async (dbConnection) => {
+  const db = dbConnection.getDb();
+  const dbType = dbConnection.type;
+
+  let tablesExist;
+  if (dbType === "sqlite") {
+    tablesExist = await dbConnection.tableExists("main", "dms_tasks");
+  } else {
+    tablesExist = await dbConnection.tableExists("dms", "tasks");
+  }
+
+  if (!tablesExist) {
+    console.time(`dms tasks init ${db}`);
+    await dbConnection.beginTransaction();
+
+    try {
+      const sqlFile = dbType === "sqlite" ? "dms_tasks.sqlite.sql" : "dms_tasks.sql";
+      const sqlPath = join(__dirname, "sql/dms", sqlFile);
+      const sql = await readFileAsync(sqlPath, { encoding: "utf8" });
+
+      if (dbType === "sqlite") {
+        const statements = sql.split(";").filter(s => s.trim());
+        for (const stmt of statements) {
+          if (stmt.trim()) {
+            await dbConnection.query(stmt + ";");
+          }
+        }
+      } else {
+        await dbConnection.query(sql);
+      }
+
+      await dbConnection.commitTransaction();
+      console.timeEnd(`dms tasks init ${db}`);
+    } catch (error) {
+      await dbConnection.rollbackTransaction();
+      throw error;
+    }
+  }
+};
+
+/**
  * Create a database adapter based on configuration
  * @param {Object} config - Database configuration
  * @returns {Object} Database adapter instance
@@ -317,6 +369,13 @@ function getDb(pgEnv) {
         console.log("sync init", pgEnv);
       } catch (err) {
         console.error("sync init failed:", err.message);
+      }
+
+      try {
+        await initDmsTasks(databases[pgEnv]);
+        console.log("dms tasks init", pgEnv);
+      } catch (err) {
+        console.error("dms tasks init failed:", err.message);
       }
     }
   };
