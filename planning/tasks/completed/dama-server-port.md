@@ -1,8 +1,10 @@
 # DAMA Server Port to dms-server
 
-## Status: IN PROGRESS — Phase 0-4, 6 DONE, Phase 5 ~60%
+## Status: DONE — 2026-04-23
 
-All server-side infrastructure is complete. The GIS upload pipeline is working end-to-end on npmrds2. The remaining work is finishing the client-side migration (Phase 5) and production testing.
+All phases complete. Server-side DAMA port, client-side migration, production testing, and CSV analyzer follow-up are all shipped. The only intentionally-deferred item — removing the `/events/query` + `newContextId` REST compat shim once the GIS Create wizard is rewritten to poll UDA tasks via Falcor — is split out into its own follow-up task (it does not block shipping; the existing flow is stable via the shim).
+
+A separate but parallel workstream came out of this task: the DMS-native task system (`dms.tasks` / `dms.task_events`) that mirrors DAMA's design for internal_table publishes. Tracked as `tasks/current/dms-task-system.md`.
 
 ## Current State (as of 2026-04-15)
 
@@ -97,7 +99,7 @@ src/dama/
 - [x] **`Create/` (GIS wizard)** — 2026-04-17: switched context to `API_HOST`; still uses `/etl/new-context-id` + `/events/query` REST compat shim. Full Falcor-based polling deferred — works as-is via shim
 - [x] **`TaskList.jsx` / `TaskPage.jsx` / `Tasks/index.jsx`** — 2026-04-17: deleted; `admin.jsx` renders only `UdaTaskList`, routes consolidated to `/tasks` and `/task/:task_id`
 - [x] **`siteConfig.jsx` + `dmsPageFactory.jsx` + `dms-manager`** — 2026-04-17: `dama_falcor` stripped from `dmsPageFactory.jsx`, `dms-manager/index.jsx`, `dms-manager/wrapper.jsx`, and `datasets/siteConfig.jsx` context. `DAMA_HOST` retained in context (still referenced by page pattern, Map.jsx, InlineImageComponent, file_upload CreatePage, overview.jsx) — now defaults to `API_HOST` so no real plumbing cost
-- [ ] **Server cleanup** — Remove `/events/query` compat shim and `newContextId` once Create wizard is migrated (deferred — still in use)
+- [ ] **Server cleanup** — Remove `/events/query` compat shim and `newContextId` once Create wizard is migrated. Deferred to its own follow-up task; not a blocker.
 - [x] **CSV analyzer hybrid pass** — See `tasks/current/dama-csv-analyzer.md`. Implementation complete 2026-04-16: ported legacy `analyzeSchema.js`, wired it as default CSV analyzer (ogrinfo available via `DAMA_CSV_ANALYZER=ogrinfo`), fixed index-based mapping in `generateTableDescriptor` (the root cause of view 3384's TEXT columns). 22 new tests + 12 existing upload tests passing. Awaiting end-to-end production verification.
 
 ### Approach for remaining work
@@ -106,14 +108,14 @@ Only one remaining item: the server-side `/events/query` + `newContextId` REST c
 
 ---
 
-## What Needs Testing Before Ship
+## What Needs Testing Before Ship — DONE 2026-04-23
 
-1. **Production GIS upload** on dmsserver.availabs.org — verify ogr2ogr speed, tiles, metadata
-2. **CSV-to-PG upload** — `csv-publish` worker tested on 2026-04-16: upload + publish work correctly, but type detection diverges from the legacy analyzer (see §6). Blocked on the "CSV analyzer hybrid pass" task under Remaining before production use on CSVs with zero-padded codes.
-3. **Downloads** — `create-download` worker untested with real data
-4. **PMTiles** — requires Tippecanoe installed on production server
-5. **Multiple pgEnvs** — verify hazmit_dama + npmrds2 both work from one server
-6. **Clean up test sources** on npmrds2 (sources 1968-1991)
+1. [x] **Production GIS upload** on dmsserver.availabs.org — verified
+2. [x] **CSV-to-PG upload** — CSV analyzer hybrid pass completed in its own task (`dama-csv-analyzer.md`); zero-padded codes now preserved
+3. [x] **Downloads** — `create-download` worker verified
+4. [x] **PMTiles** — Tippecanoe verified on production server
+5. [x] **Multiple pgEnvs** — hazmit_dama + npmrds2 both working from one server
+6. [x] **Clean up test sources** on npmrds2 (sources 1968-1991)
 
 ---
 

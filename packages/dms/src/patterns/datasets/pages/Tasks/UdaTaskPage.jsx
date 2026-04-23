@@ -50,44 +50,25 @@ const UdaTaskPage = ({params, pageSize = 20}) => {
     const taskId = params?.task_id || params?.etl_context_id;
     const ref = React.useRef();
     const { app, type, datasources, falcor, UI, baseUrl } = React.useContext(DatasetsContext);
-    // Tasks now live in either DMS (`dms.tasks` for internal_table publishes)
-    // or DAMA (`data_manager.tasks` for external workers). We probe both
-    // candidate envs and use whichever has the task — same Falcor route
-    // shape, the server dispatches by env.includes('+').
-    const dmsEnv = app && type ? `${app}+${type}` : null;
+    // Pick an env that routes to the right backend on the server side. Tasks
+    // now live in either DMS (`dms.tasks`) or DAMA (`data_manager.tasks`); the
+    // server dispatches by env.includes('+'). The byId / events queries no
+    // longer scope by app, so any DMS env works (task_id is unique).
+    //
+    // Default to a DMS env. Fall back to the external pgEnv only when the
+    // current site has no app context at all (rare — typically there's at
+    // least an external pgEnv configured).
     const damaEnv = getExternalEnv(datasources);
-    const candidateEnvs = React.useMemo(
-        () => [dmsEnv, damaEnv].filter(Boolean),
-        [dmsEnv, damaEnv]
-    );
-    const [pgEnv, setPgEnv] = React.useState(null);
+    const pgEnv = React.useMemo(() => {
+        if (app && type) return `${app}+${type}`;
+        if (app) return `${app}+_`;
+        if (damaEnv) return damaEnv;
+        return '_+_';
+    }, [app, type, damaEnv]);
     const {Table, Pagination, Layout, LayoutGroup} = UI;
     const [currentPage, setCurrentPage] = React.useState(0);
     const [data, setData] = React.useState({data: [], length: 0});
     const [taskInfo, setTaskInfo] = React.useState(null);
-
-    // Resolve which env owns this task by probing each candidate.
-    React.useEffect(() => {
-        if (!taskId || !falcor || !candidateEnvs.length) return;
-        let cancelled = false;
-        const probe = async () => {
-            for (const env of candidateEnvs) {
-                try {
-                    const res = await falcor.get([
-                        ['uda', env, 'tasks', 'byId', +taskId, 'task_id']
-                    ]);
-                    const tid = get(res, ['json', 'uda', env, 'tasks', 'byId', +taskId, 'task_id']);
-                    if (tid) {
-                        if (!cancelled) setPgEnv(env);
-                        return;
-                    }
-                } catch (e) { /* try next candidate */ }
-            }
-            if (!cancelled) setPgEnv(null);
-        };
-        probe();
-        return () => { cancelled = true; };
-    }, [falcor, taskId, candidateEnvs]);
 
     // Fetch task info
     React.useEffect(() => {

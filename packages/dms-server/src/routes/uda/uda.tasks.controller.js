@@ -81,12 +81,14 @@ async function getTaskIdsByIndex(env, indices) {
 
 async function getTaskById(env, taskId, attributes) {
   const db = resolveDb(env);
-  const scope = appScope(env, 2);
-  const extra = scope.clause ? ` AND ${scope.clause}` : '';
-  const params = scope.value !== null ? [taskId, scope.value] : [taskId];
+  // Lookup by task_id only — no app filter. task_ids are unique inside each
+  // store (dms.tasks or data_manager.tasks), so there's nothing to disambiguate.
+  // Scoping this by app breaks the task detail page when the user navigates
+  // from a site whose DatasetsContext.app doesn't match the task's app
+  // (e.g. a shared base-URL site viewing a task queued under a different app).
   const { rows } = await db.query(
-    `SELECT * FROM ${taskTable(db.type, env)} WHERE task_id = $1${extra}`,
-    params
+    `SELECT * FROM ${taskTable(db.type, env)} WHERE task_id = $1`,
+    [taskId]
   );
   if (!rows[0]) return null;
 
