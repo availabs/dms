@@ -152,18 +152,19 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
                     const baseUrl = envs[existing.srcEnv]?.baseUrl || '';
                     setState((draft) => {
                         if (!draft) return;
-                        console.log("we keep setting columns I hope that conditional is ok!~!@!!!!!")
+
                         //RYAN TODO this conditional is bad. We have arrays of join columns now
                         //we also can have more than 1 extra source
                         if(isJoinPresent){
                             const joinColumns = Object.values(draft.join.sources)
                               .filter((jSource) => !!jSource.sourceInfo)
                               .map((jSource) =>
-                                {console.log({jSource});return (jSource?.sourceInfo?.columns?.map((jSourceCol) => ({
+                                jSource?.sourceInfo?.columns?.map((jSourceCol) => ({
                                   ...jSourceCol,
                                   source_id: jSource.source,
-                                })))},
-                              ).flat();
+                                })),
+                              )
+                              .flat();
 
                             const sourceCols = draft?.externalSource?.columns.filter(sCol => !sCol.source_id || sCol.source_id === draft.externalSource.source_id).map((sCol) => ({
                                   ...sCol,

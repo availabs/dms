@@ -19,7 +19,7 @@ export const Attribution = () => {
     const dateOptions = { year: "numeric", month: "long", day: "numeric", hour: "numeric", minute: "numeric" };
     const updatedTimeString = updated_at ? new Date(updated_at).toLocaleString(undefined, dateOptions) : null;
     attribRows.push(
-      <Link className={`${theme.attribution.link} border-r-1 last:border-r-0 px-1`} to={`${baseUrl || ""}/source/${source_id}`}>
+      <Link key="ds_attribution_link" className={`${theme.attribution.link} border-r-1 last:border-r-0 px-1`} to={`${baseUrl || ""}/source/${source_id}`}>
         {/*to={`/${isDms ? `forms` : damaBaseUrl}/source/${source_id}/${isDms ? `view` : `versions`}/${view_id}`}>*/}
         {name} ({view_name || view_id}) {updatedTimeString ? `(${updatedTimeString})` : null}
       </Link>,
