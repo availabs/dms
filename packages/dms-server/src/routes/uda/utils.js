@@ -57,7 +57,7 @@ function getResponseColumnName(nameWithAccessors, part = 1) {
     // Strip double quotes added by quoteAlias for digit-prefixed identifiers
     return name ? name.replace(/^"|"$/g, '') : name;
   }
-  return nameWithAccessors.split(".").pop();
+  return nameWithAccessors.split(".").pop(); //TODO -- test/verify this is OK
 }
 /**
  * Quote a SQL alias if it starts with a digit (invalid as an unquoted identifier in SQLite).
@@ -86,7 +86,7 @@ function quoteAlias(nameOrExpr) {
 async function getEssentials({ env, view_id, options = {} }) {
   const parsedOptions = typeof options === 'string' ? JSON.parse(options) : options;
   const isDms = env.includes('+') && !parsedOptions.isDama;
-  const {join} = parsedOptions;
+  const { join } = parsedOptions;
 
   // DMS uses the DMS database; DAMA uses the env as pgEnv config name
   const dbEnv = isDms ? (process.env.DMS_DB_ENV || 'dms-sqlite') : env;
@@ -507,9 +507,7 @@ function buildCombinedWhere({ filter, exclude, gt, gte, lt, lte, like, filterRel
 
 
 
-const buildJoin = async ({join, env}) => {
-  console.log("build join, join::", join)
-  //RYAN TODO -- better join conditional. If initial state gets changed to `null`, this is much cleaner
+const buildJoin = async ({ join }) => {
   const isJoinPresent =
     !!join &&
     (Object.keys(join.sources || {}).length > 1 ||
@@ -523,8 +521,7 @@ const buildJoin = async ({join, env}) => {
   for(let i=0; i< join.on.length; i++) {
     const singleJoinOnConfig = join.on[i];
     const {view_id, env: sourceEnv} = join.sources[singleJoinOnConfig.table];
-    const {table_schema, table_name} = await getEssentials({view_id, env: sourceEnv})
-    console.log({table_schema, table_name})
+    const {table_schema, table_name} = await getEssentials({view_id, env: sourceEnv});
     
     if (singleJoinOnConfig.mergeStrategy === 'union') {
       merges.push(`UNION SELECT * FROM ${table_schema}.${table_name} as ${singleJoinOnConfig.table}`);

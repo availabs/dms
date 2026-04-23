@@ -1,3 +1,4 @@
+//RYAN TODO -- still prob need to clean up some of the sectionMenuItems
 import React, {useState} from 'react'
 import {handleCopy, handleCopyToClipboard, handlePaste} from "./section_utils"
 import {TagComponent} from "./section_components"
@@ -28,7 +29,6 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
     // ============================================ helpers begin ======================================================
     // =================================================================================================================
     const groupControl = resolvedControls?.columns?.find(c => c.key === 'group') || {};
-
 
     // Registry of control type transformers - all use nested submenu pattern
     const controlItemTransformers = {

@@ -394,6 +394,7 @@ export const ComplexFilters = ({ state, setState }) => {
             </div>
         );
     };
+
     // When rendered outside the dataWrapper tree (e.g. inside sectionMenu),
     // ComponentContext has its empty default {} — provide the minimum needed for ConditionValueInput.
     const ctxValue = existingCtx?.apiLoad ? existingCtx : { apiLoad, state, setState };

@@ -62,6 +62,7 @@ const getViews = async ({ envs, sourceId, srcEnv, falcor }) => {
     const lenRes = await falcor.get(["uda", srcEnv, "sources", "byId", sourceId, "views", "length",]);
 
     const len = get(lenRes, ["json", "uda", srcEnv, "sources", "byId", sourceId, "views", "length"]);
+
     if (!len) return [];
 
     const byIndexRes = await falcor.get(["uda", srcEnv, "sources", "byId", sourceId, "views", "byIndex", { from: 0, to: len - 1 }, envs[srcEnv].viewAttributes]);
@@ -81,24 +82,21 @@ const getViews = async ({ envs, sourceId, srcEnv, falcor }) => {
 const DEFAULT_SOURCE_TYPES = ["external", "internal"];
 
 export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TYPES }) {
-  const { app, type, falcor, datasources } = useContext(CMSContext) || {};
-  const { format } = useContext(PageContext) || {};
+    const { app, type, falcor, datasources } = useContext(CMSContext) || {};
+    const { format } = useContext(PageContext) || {};
 
     const { join } = state;
     const isJoinPresent =
-      !!join &&
-      (Object.keys(join.sources || {}).length > 1 ||
-        (Object.keys(join.sources || {}).length === 1 && Object.keys(join.sources || {})[0] !== "ds"));
+        !!join &&
+        (Object.keys(join.sources || {}).length > 1 ||
+            (Object.keys(join.sources || {}).length === 1 && Object.keys(join.sources || {})[0] !== "ds"));
     const [sources, setSources] = useState([]);
     const [views, setViews] = useState([]);
     const [joinViewsByAlias, setJoinViewsByAlias] = useState({});
-
     const sourceId = (state?.externalSource?.source_id);
     const viewId = (state?.externalSource?.view_id);
+    const joinSources = (join?.sources || {});
 
-    const joinSources = (state?.join?.sources || {});
-
-    
     const sectionColumns = useMemo(
         () =>
             (
@@ -146,16 +144,18 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
                 setSources(data);
 
                 const existing = data.find((d) => +d.source_id === +sourceId);
-                console.log("existing.columns, and state external::", existing?.columns, state?.externalSource?.columns)
+
                 if (existing && (!isEqual(existing.columns, state?.externalSource?.columns) || isJoinPresent) ) {
                     // Include baseUrl from envs when updating externalSource
                     const baseUrl = envs[existing.srcEnv]?.baseUrl || '';
                     setState((draft) => {
                         if (!draft) return;
+                        //If we have a join, we want to append all the columns from the joined source into
+                        //externalSource.columns. So they show up in the "ColumnManager"
+                        //We make sure there are no duplicates, and we add `source_id` to all of them
 
-                        //RYAN TODO this conditional is bad. We have arrays of join columns now
-                        //we also can have more than 1 extra source
                         if(isJoinPresent){
+                            //Gather all the columns from all our joined sources
                             const joinColumns = Object.values(draft.join.sources)
                               .filter((jSource) => !!jSource.sourceInfo)
                               .map((jSource) =>
@@ -166,17 +166,20 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
                               )
                               .flat();
 
-                            const sourceCols = draft?.externalSource?.columns.filter(sCol => !sCol.source_id || sCol.source_id === draft.externalSource.source_id).map((sCol) => ({
-                                  ...sCol,
-                                  source_id: state?.externalSource.source_id,
-                                }))
+                            //Filter out columns that have a source_id that differs from the main source_id
+                            //Those get added back in via `joinColumns`
+                            const sourceCols = draft?.externalSource?.columns
+                              .filter((sCol) => !sCol.source_id || sCol.source_id === draft.externalSource.source_id)
+                              .map((sCol) => ({
+                                ...sCol,
+                                source_id: state?.externalSource.source_id,
+                              }));
                             const allCols = [...sourceCols, ...joinColumns];
-                            draft.externalSource = { ...draft.externalSource, ...existing, baseUrl, columns:allCols };
+                            draft.externalSource = { ...draft.externalSource, ...existing, baseUrl, columns: allCols };
                         } else {
+                            //Default behavior with no Joins/Unions
                             draft.externalSource = { ...draft.externalSource, ...existing, baseUrl };
                         }
-
-                        
                     });
                 }
             })
@@ -290,14 +293,12 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
             if (!draft.join) draft.join = { sources: {} };
             
             const existingAliases = isJoinPresent ? Object.keys(draft.join.sources) : [];
-            console.log({existingAliases})
             let nextNum = 1;
             while (existingAliases.includes(`table${nextNum}`)) {
                 nextNum++;
             }
-            
             const nextAlias = `table${nextNum}`;
-            console.log({nextAlias})
+            //TODO -- should export this as "blankJoinSourceConfig" or something
             draft.join.sources[nextAlias] = {
                 source: null,
                 view: null,
@@ -311,75 +312,43 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
 
     const onJoinSourceChange = useCallback(
         (alias, newJoinSourceId) => {
-            console.log("changing JOIN SOURCE", alias)
             const match = sources.find((s) => +s.source_id === +newJoinSourceId);
-
             const previousJoinSourceId = join?.sources[alias]?.source;
-            console.log({previousJoinSourceId});
-
-            const allJoinSourceMap = Object.keys(join?.sources || {}).map((jSourceAlias) => ({
-              source: join?.sources[jSourceAlias].source,
-              alias: jSourceAlias,
-            }));
-            console.log({allJoinSourceMap})
-            setState((draft) => {
-                
-
-                /**
-                 * old functionality
-                 * hardcoded to 2 tables
-                 * If source changed, that means:
-                 * Remove the previous additional columns
-                 * Add new source columns
-                 * 
-                 * new functionality
-                 * arbitrary num of join sources
-                 * if we get to `onJoinSourceChange`, that means an existing `joinSource` had its table changed
-                 * We need to filter out the old added columns
-                 */
-
-                if (match) {
-                    const baseUrl = envs[match.srcEnv]?.baseUrl || '';
+            if (match) {
+                setState((draft) => {
+                    const baseUrl = envs[match.srcEnv]?.baseUrl || "";
                     const sourceType = match.name ? nameToSlug(match.name) : draft.join.sources[alias].sourceInfo?.type;
                     draft.join.sources[alias].sourceInfo = { ...match, baseUrl, type: sourceType };
                     draft.join.sources[alias].source = newJoinSourceId;
                     draft.join.sources[alias].view = null;
-                    draft.join.sources[alias].type = 'left'
+                    draft.join.sources[alias].type = "left";
 
                     /**
-                     * 
+                     *
                      * THIS IS kind of a hack when we update the join source.
                      * We append its columns to the main externalSource columns
                      * It is a side effect
                      * Appending columns from the "join source" to the columns for the main "data source"
                      * This lets them appear and be added from the main "columns" menu item
                      */
-
                     //filter out any columns from previous table2 source
                     //Keep columns without a source_id
                     //Remove columns that match the previous source_id
                     //leave any that are from a different join source
                     //leave the rest
-                    draft.externalSource.columns = draft.externalSource.columns
-                        .filter((col) => !col.source_id || previousJoinSourceId !== col.source_id)
-                        //.map((col) => ({ ...col, source_id: draft.externalSource.source_id }));
-                    console.log({sources})
-                    console.log({newJoinSourceId})
+                    draft.externalSource.columns = draft.externalSource.columns.filter(
+                        (col) => !col.source_id || previousJoinSourceId !== col.source_id,
+                    );
 
-                    console.log("join source::", match)
                     draft.externalSource.columns = [
                         ...draft.externalSource.columns,
                         ...match.columns.map((col) => ({ ...col, source_id: newJoinSourceId })),
                     ];
-
-
-
-                }
-            });
+                });
+            }
         },
         [sources, setState, envs]
     );
-
 
     const onJoinViewChange = useCallback(
         (alias, viewId) => {
@@ -392,6 +361,9 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
         },
         [joinViewsByAlias, setState]
     );
+
+    //TODO
+    //Prob should move almost all this logic into a separate function or something
     const onJoinChange = useCallback(
         (alias, path, joinVal) => {
             console.log("join change callback, alias::", alias, "path::", path, "val::", joinVal);
@@ -437,11 +409,6 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
         [onJoinSourceChange, onJoinViewChange, setState]
     );
 
-
-
-
-
-
     const sourceOptions = useMemo(() => [
         {key: `${app}+${type}|page`, label: `${type} (pages)`},
         {key: `${app}+${type}|component`, label: `${type} (sections)`},
@@ -484,17 +451,17 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
         [setState]
     );
  
-return useMemo(() => ({
-    activeSource: sourceId,
-    activeView: viewId,
-    sources: sourceOptions,
-    views: viewOptions,
-    isJoinPresent,
-    activeJoinViewsByAlias: joinViewOptionsByAlias,
-    onSourceChange,
-    onViewChange,
-    onJoinChange,
-    addJoinSource,
-    removeJoinSource
-}), [sourceId, viewId, sourceOptions, viewOptions, joinViewOptionsByAlias, onSourceChange, onViewChange, onJoinChange, addJoinSource, removeJoinSource]);
+    return useMemo(() => ({
+        activeSource: sourceId,
+        activeView: viewId,
+        sources: sourceOptions,
+        views: viewOptions,
+        isJoinPresent,
+        activeJoinViewsByAlias: joinViewOptionsByAlias,
+        onSourceChange,
+        onViewChange,
+        onJoinChange,
+        addJoinSource,
+        removeJoinSource
+    }), [sourceId, viewId, sourceOptions, viewOptions, joinViewOptionsByAlias, onSourceChange, onViewChange, onJoinChange, addJoinSource, removeJoinSource]);
 }

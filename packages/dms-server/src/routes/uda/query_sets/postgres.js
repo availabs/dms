@@ -63,7 +63,7 @@ async function simpleFilterLength(ctx, options) {
     normalFilter = [],
     join = {}
   } = JSON.parse(options);
-  console.log({join})
+
   // Translate PG-specific SQL in groupBy expressions for SQLite
   if (db.type === 'sqlite' && groupBy.length) {
     groupBy = groupBy.map(translatePgToSqlite);
@@ -94,7 +94,7 @@ async function simpleFilterLength(ctx, options) {
   const hasArrayElements = groupBy?.[0]?.includes('jsonb_array_elements_text')
     || groupBy?.[0]?.includes('json_each');
 
-  const { joins, merges } = await buildJoin({join, env});
+  const { joins, merges } = await buildJoin({join});
   const hasMerge = merges.length > 0;
   const hasJoin = joins.length > 0;
 
@@ -105,6 +105,8 @@ async function simpleFilterLength(ctx, options) {
       fromClause += ` ${joins}`;
     }
   } else {
+    //default case for no merge
+    //could have 1 or more joins
     fromClause = `${table_schema}.${table_name} ${hasJoin ? ' as ds ' : ''} ${joins}`;
   }
 
@@ -127,8 +129,7 @@ async function simpleFilterLength(ctx, options) {
          ${combinedWhere}
          ${handleHaving(having)}`;
 
-  console.log("uda controller LENGTH sql::", sql, values)
-  //RYAN TODO -- this is at least 1 place where the query hits. It errors with new stuff, because itdoenst understand table alias yet.
+  console.log("uda controller LENGTH sql::", sql, values);
   const { rows } = await db.query(sql, values);
   return rows?.[0]?.numrows ?? 0;
 }
@@ -137,7 +138,7 @@ async function simpleFilter(ctx, options, attributes, indices) {
   const num = indices.to - indices.from + 1;
   const { isDms, db, app, type, table_schema, table_name, dmsAttributes } = ctx;
 
-  let sanitizedAttrs = sanitizeName(attributes).filter(f => f);
+   let sanitizedAttrs = sanitizeName(attributes).filter(f => f);
   if (!sanitizedAttrs.length) return [];
 
   // Translate PG-specific SQL to SQLite equivalents
@@ -185,7 +186,7 @@ async function simpleFilter(ctx, options, attributes, indices) {
     filterGroups, isDms, app, type, oldValues, dbType: db.type
   });
 
-  const { joins, merges } = await buildJoin({join, env});
+  const { joins, merges } = await buildJoin({join});
   const hasMerge = merges.length > 0;
   const hasJoin = joins.length > 0;
 
@@ -196,6 +197,8 @@ async function simpleFilter(ctx, options, attributes, indices) {
       fromClause += ` ${joins}`;
     }
   } else {
+    //default case for no merge
+    //could have 1 or more joins
     fromClause = `${table_schema}.${table_name} ${hasJoin ? ' as ds ' : ''} ${joins}`;
   }
 

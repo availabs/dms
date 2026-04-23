@@ -121,9 +121,9 @@ export const getData = async ({
     // ─── Build UDA config via the pure builder ────────────────────────────────
     debugTime && console.time('buildUdaConfig')
     const builderInput = state.externalSource ? state : legacyStateToBuildInput(state);
-    console.log({builderInput})
+
     const { options, attributes, columnsToFetch, columnsWithSettings, outputSourceInfo } = buildUdaConfig(builderInput);
-    console.log("build uda config result::", {options, outputSourceInfo})
+
     if (keepOriginalValues) options.keepOriginalValues = keepOriginalValues;
     const filterRelation = state.display?.filterRelation;
     if (filterRelation) options.filterRelation = filterRelation;
@@ -297,9 +297,8 @@ export const getData = async ({
 
     debugTime && console.timeEnd('post-processing')
     debugTime && console.timeEnd('getData fn')
-    console.log({dataToReturn, outputSourceInfo})
-    console.log("state before formatting::", state)
-    console.log({isJoinPresent})
+
+    //If we have a join, we need to remove the prefixed table alias from the response
     const formattedData = isJoinPresent ? dataToReturn.map(d => {
         const newD = {};
 
@@ -311,7 +310,6 @@ export const getData = async ({
 
         return newD;
     }) : dataToReturn;
-    console.log({formattedData})
     return { length, data: formattedData, outputSourceInfo };
 };
 

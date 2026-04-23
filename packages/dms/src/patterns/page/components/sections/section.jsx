@@ -111,7 +111,7 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
                             externalSource: parsed.externalSource || parsed.sourceInfo,
                             columns: parsed.columns || [],
                             filters: parsed.filters || parsed.dataRequest || {},
-                            join: parsed?.join || {sources: {}},
+                            join: parsed?.join || { sources: {} },
                         }), 0);
                         // Slim section element-data to reference + display + data
                         v = { ...v, 'element-data': JSON.stringify({

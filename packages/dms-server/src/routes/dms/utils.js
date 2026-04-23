@@ -114,6 +114,7 @@ function extent(values, valueof) {
   return [min, max];
 }
 
+
 module.exports = {
   handleFilters,
   handleGroupBy,

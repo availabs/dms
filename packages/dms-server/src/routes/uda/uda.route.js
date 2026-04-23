@@ -330,9 +330,7 @@ module.exports = [
 
               indices.forEach((i, ii) => {
                 attributes.forEach(attribute => {
-                  console.log({attribute})
                   const modifiedName = getResponseColumnName(attribute);
-                  console.log({modifiedName})
                   const value = rows?.[ii]?.[modifiedName];
 
                   result.push({

@@ -5,7 +5,7 @@ import columnTypes from "../../../../ui/columnTypes";
 import { getColumnLabel, isEqualColumns } from "./controls_utils";
 import AddFormulaColumn from "./AddFormulaColumn";
 import AddCalculatedColumn from "./AddCalculatedColumn";
-import {isEqual, uniqWith} from "lodash-es";
+import { isEqual, uniqWith } from "lodash-es";
 
 const ColumnPicker = ({ dwAPI, allColumns, stagedColumns, setStagedColumns, Pill, Icon }) => {
     const { config: { columns: stateColumns, externalSource, join }, setState } = dwAPI;
@@ -276,7 +276,7 @@ const ColumnRow = ({ column, index, dwAPI, resolvedControls, Pill, Icon, Switch,
                     </div>
                 </div>
             )}
-        </div>  
+        </div>
     );
 };
 

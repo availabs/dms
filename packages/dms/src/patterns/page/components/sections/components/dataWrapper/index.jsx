@@ -183,7 +183,6 @@ const Edit = forwardRef((props, ref) => {
 
     // ── Save effect ──
     useEffect(() => {
-        console.log("I am in a save use effect??")
         if (!isEdit || !isValidState) return;
         const toSave = {
             externalSource: state.externalSource,
@@ -191,7 +190,7 @@ const Edit = forwardRef((props, ref) => {
             filters: state.filters || { op: 'AND', groups: [] },
             display: { ...(state.display || {}) },
             data: state.data || [],
-            join: state.join || {sources: {}},
+            join: state.join || { sources: {} },
         };
         if (state.dataSourceId) toSave.dataSourceId = state.dataSourceId;
         RUNTIME_DISPLAY_FIELDS.forEach(f => delete toSave.display[f]);
@@ -298,7 +297,7 @@ const Edit = forwardRef((props, ref) => {
             allowEdit: state?.externalSource?.isDms && !groupByColumnsLength
         } : {}
     }, [component.name, newItem, setNewItem, updateItem, removeItem, addItem, currentPage, onPageChange])
-    console.log("dw state::", state)
+
     return (
         <ComponentContext.Provider value={{state, setState, apiLoad, apiUpdate, controls: resolvedControls,
             isActive: true, activeStyle: undefined, sectionId: undefined}}>
@@ -343,7 +342,7 @@ const View = forwardRef(({cms_context, value, onChange, component, editPageMode,
 
     // ── DataWrapper owns its own state ──
     const [state, setState] = useImmer(migrateToV2(value || '', initialState(component?.defaultState), component?.name));
-    
+
     const [newItem, setNewItem] = useState({})
     const liveEditTimerRef = useRef(null);
     const groupByColumnsLength = useMemo(() => state?.columns?.filter(({group}) => group).length, [state?.columns]);
