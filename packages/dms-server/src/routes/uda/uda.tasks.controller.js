@@ -208,6 +208,140 @@ async function updateSourceMetadata(env, sourceId, updates) {
   return rows[0] || null;
 }
 
+// --- Source delete (call routes) ---
+
+/**
+ * Soft delete: removes the source and its view rows from data_manager.
+ * Leaves per-view data tables, task history, and storage files intact.
+ * Recoverable if the underlying data hasn't been separately dropped.
+ */
+async function softDeleteSource(env, sourceId) {
+  const db = resolveDb(env);
+  if (db.type !== 'postgres') {
+    throw new Error('Source delete is only supported on PostgreSQL (data_manager schema)');
+  }
+
+  const { rows: viewRows } = await db.query(
+    `SELECT view_id FROM data_manager.views WHERE source_id = $1`,
+    [sourceId]
+  );
+
+  await db.query(`BEGIN`);
+  try {
+    await db.query(`DELETE FROM data_manager.views WHERE source_id = $1`, [sourceId]);
+    const { rowCount } = await db.query(
+      `DELETE FROM data_manager.sources WHERE source_id = $1`,
+      [sourceId]
+    );
+    await db.query(`COMMIT`);
+    return {
+      source_id: sourceId,
+      deleted_source: rowCount > 0,
+      deleted_views: viewRows.map(r => r.view_id),
+    };
+  } catch (err) {
+    await db.query(`ROLLBACK`);
+    throw err;
+  }
+}
+
+/**
+ * Hard delete: soft delete + drops each view's data table, removes associated
+ * download files from storage, and deletes task rows that reference the source.
+ *
+ * Individual file/table errors are collected and reported in the result rather
+ * than aborting — the intent is "wipe everything possible". The metadata row
+ * deletions (views, tasks, source) run inside a transaction and roll back if
+ * they fail; the external cleanup (DROP TABLE, storage.remove) runs before
+ * the transaction so partial success is visible to the caller.
+ */
+async function hardDeleteSource(env, sourceId) {
+  const db = resolveDb(env);
+  if (db.type !== 'postgres') {
+    throw new Error('Source delete is only supported on PostgreSQL (data_manager schema)');
+  }
+
+  const warnings = [];
+  const dropped_tables = [];
+  const removed_files = [];
+
+  // 1. Fetch view metadata so we know which tables/files to clean up
+  const { rows: viewRows } = await db.query(`
+    SELECT view_id, table_schema, table_name, data_table, metadata
+    FROM data_manager.views WHERE source_id = $1
+  `, [sourceId]);
+
+  // 2. Drop each view's data table and remove per-view download files
+  const storage = (() => {
+    try { return require('../../dama/storage'); }
+    catch (e) { warnings.push(`storage module unavailable: ${e.message}`); return null; }
+  })();
+
+  for (const v of viewRows) {
+    if (v.table_schema && v.table_name) {
+      try {
+        await db.query(`DROP TABLE IF EXISTS "${v.table_schema}"."${v.table_name}"`);
+        dropped_tables.push(`${v.table_schema}.${v.table_name}`);
+      } catch (err) {
+        warnings.push(`failed to drop ${v.table_schema}.${v.table_name}: ${err.message}`);
+      }
+    }
+    const downloadUrls = (v.metadata && v.metadata.download) || {};
+    if (storage) {
+      for (const [fileType, url] of Object.entries(downloadUrls)) {
+        // URLs are returned from storage.getUrl(relPath); local is `/files/{rel}`.
+        const relPath = typeof url === 'string' ? url.replace(/^\/files\//, '') : null;
+        if (!relPath) continue;
+        try {
+          await storage.remove(relPath);
+          removed_files.push(relPath);
+        } catch (err) {
+          warnings.push(`failed to remove file ${relPath}: ${err.message}`);
+        }
+      }
+    }
+  }
+
+  // 3. Remove the source's entire storage folder (catches any stragglers under
+  // the `{pgEnv}/s_{source_id}/` convention used by create-download worker)
+  if (storage) {
+    const sourceDir = `${env}/s_${sourceId}`;
+    try {
+      await storage.remove(sourceDir);
+      removed_files.push(`${sourceDir}/*`);
+    } catch (err) {
+      warnings.push(`failed to remove source dir ${sourceDir}: ${err.message}`);
+    }
+  }
+
+  // 4. Delete metadata rows (views, tasks, source) in a transaction
+  await db.query(`BEGIN`);
+  try {
+    const { rowCount: deletedTasks } = await db.query(
+      `DELETE FROM data_manager.tasks WHERE source_id = $1`,
+      [sourceId]
+    );
+    await db.query(`DELETE FROM data_manager.views WHERE source_id = $1`, [sourceId]);
+    const { rowCount: deletedSource } = await db.query(
+      `DELETE FROM data_manager.sources WHERE source_id = $1`,
+      [sourceId]
+    );
+    await db.query(`COMMIT`);
+    return {
+      source_id: sourceId,
+      deleted_source: deletedSource > 0,
+      deleted_views: viewRows.map(r => r.view_id),
+      deleted_tasks: deletedTasks,
+      dropped_tables,
+      removed_files,
+      warnings,
+    };
+  } catch (err) {
+    await db.query(`ROLLBACK`);
+    throw err;
+  }
+}
+
 module.exports = {
   getTasksLength,
   getTaskIdsByIndex,
@@ -219,4 +353,6 @@ module.exports = {
   getSettings,
   setSettings,
   updateSourceMetadata,
+  softDeleteSource,
+  hardDeleteSource,
 };

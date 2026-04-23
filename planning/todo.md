@@ -112,6 +112,7 @@
 - [x] Fix internal_source blank page — `getSourceData` doesn't include source's own ID in result, causes blank page when UDA `source_id` attribute is unset
 - [x] Source overview cleanup — theme-driven styling, width constraint, show both display_name + column name, remove table height cap, tighten metadata layout
 - [x] Datasets create page — extract create flow from DatasetsList modal into dedicated `/create` route with full-page layout
+- [ ] [Source delete with soft + hard options](./tasks/current/datasets-source-delete.md) — admin page Delete button is currently broken (wrong Falcor route); replace with 3-option modal (Cancel / Delete / Hard Delete). Soft = remove source+view rows from `data_manager`. Hard = also drop per-view data tables, remove download files from storage, purge tasks. New `uda[pgEnv].sources.delete` / `sources.hardDelete` Falcor routes
 - [x] Datasets settings page — category visibility settings, filtered/all toggle on list page, settings link for authed users
 - [x] `internal_table` dataset type — new type combining creation + upload in one step, auto-creates first version, uses split tables for per-version data storage
 - [x] Custom admin page for internal dataset types — version creation follows forms pattern (uses DMS `item` with `.id`), SourcePage allows datatype admin overrides

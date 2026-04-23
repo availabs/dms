@@ -11,6 +11,7 @@ const {
   getViewsByIndexBySourceId,
   getViewById,
   updateView,
+  getViewBySrcCategories,
 
   simpleFilterLength,
   simpleFilter,
@@ -258,7 +259,32 @@ module.exports = [
       }
     },
   },
+    // view.bySourceCategory
+    // only for external sources
+  {
+    route: `uda[{keys:pgEnvs}].views.bySourceCategory[{keys:categories}]`,
+    get: async function(pathSet) {
+      try {
+        const { pgEnvs, categories } = pathSet;
+        const result = [];
 
+        for (const pgEnv of pgEnvs) {
+          for (const category of categories) {
+            const rows = await getViewBySrcCategories(pgEnv, category);
+            result.push({
+              path: ["uda", pgEnv, "views", "bySourceCategory", category],
+              value: $atom(rows),
+            });
+          }
+        }
+
+        return result;
+      } catch (err) {
+        console.error(err);
+        throw err;
+      }
+    },
+  },
   // ============================================= UDA Data Query Routes =============================================
 
   // --------------------------------- options.length ---------------------------------

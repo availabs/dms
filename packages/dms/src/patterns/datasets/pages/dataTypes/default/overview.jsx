@@ -38,7 +38,7 @@ export default function Overview ({
     const [showAllColumns, setShowAllColumns] = useState(false);
     const views = source?.views || [];
 
-console.log("Overview::views", views);
+// console.log("Overview::views", views);
 
     let columns = useMemo(() => {
         if (isDms) {

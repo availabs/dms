@@ -430,9 +430,10 @@ function buildLeafSQL(node, ctx, isDms, dbType) {
       // json_each returns rows with a .value column
       return `${not}EXISTS (SELECT 1 FROM json_each(${col}) _ac WHERE _ac.value = ANY(${index}))`;
     }
-    // PostgreSQL: jsonb_array_elements_text returns scalar text rows
-    // ::jsonb cast handles both text columns (data->>'col') and native jsonb columns
-    return `${not}EXISTS (SELECT 1 FROM jsonb_array_elements_text((${col})::jsonb) _ac WHERE _ac = ANY(${index}))`;
+    // PostgreSQL: use jsonb_typeof to branch on whether the value is a JSON array.
+    // If it is, unnest with jsonb_array_elements_text; if not, wrap the scalar in a
+    // single-element array first so the same EXISTS pattern works for both cases.
+    return `${not}EXISTS (SELECT 1 FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof((${col})::jsonb) = 'array' THEN (${col})::jsonb ELSE jsonb_build_array((${col})::text) END) _ac WHERE _ac = ANY(${index}))`;
   }
 
   const vals = Array.isArray(value) ? value : [value];

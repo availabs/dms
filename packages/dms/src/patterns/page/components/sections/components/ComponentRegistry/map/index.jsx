@@ -148,7 +148,12 @@ export const MapSection = ({ value, onChange, isEdit }) => {
 
 // console.log("searchParamFilterKey", searchParamFilterKey)
 
-        const fI = interactiveFilterOptions.findIndex(f => f.searchParamValue === searchParamFilterKey || f.label === searchParamFilterKey)
+        const fI = interactiveFilterOptions.findIndex((f) => {
+            const filterValues = Array.isArray(searchParamFilterKey) ? searchParamFilterKey : [searchParamFilterKey];
+            return filterValues.some(
+                value => String(f.searchParamValue) === String(value) || String(f.label) === String(value)
+            );
+        })
 
 // console.log("fI", fI)
 

@@ -219,6 +219,28 @@ async function getViewById(env, ids, attributes) {
   return rows;
 }
 
+async function getViewBySrcCategories (env, category){
+  const {db} = await getEssentials({ env });
+  const tbl = db.type === 'postgres' ? 'data_manager.views' : 'views';
+  const sql = `SELECT *
+                FROM ${tbl}
+                WHERE version IS NOT NULL 
+                AND source_id IN (
+                  SELECT source_id
+                  FROM data_manager.sources
+                  WHERE EXISTS (
+                    SELECT 1
+                    FROM jsonb_array_elements(categories) AS outer_elem,
+                        jsonb_array_elements_text(outer_elem) AS inner_elem
+                    WHERE inner_elem = $1
+                  )
+              );`;
+
+  const { rows } = await db.query(sql, [category]);
+
+  return rows;
+
+}
 async function updateView(env, viewId, updates) {
   const { isDms, db, app, splitMode } = await getEssentials({ env });
 
@@ -402,6 +424,7 @@ module.exports = {
   getViewsByIndexBySourceId,
   getViewById,
   updateView,
+  getViewBySrcCategories,
 
   // Data queries
   simpleFilterLength,
