@@ -241,7 +241,7 @@ export default function ExternalVersionControls({isDms, source, view, sourceId, 
     //Should only fire once, when we get the source metadata back from API
     useEffect(() => {
         if (sourceDataColumns) {
-            console.log('cols', sourceDataColumns)
+            //console.log('cols', sourceDataColumns)
             setModalState({ ...modalState, columns: sourceDataColumns.filter(col => isCalculatedCol(col)) });
         }
     }, [sourceDataColumns]);
@@ -376,7 +376,7 @@ export default function ExternalVersionControls({isDms, source, view, sourceId, 
             }
         ).then(res => res.json())
             .then(json => {
-                console.log("RES:", json);
+                //console.log("RES:", json);
                 setPmTilesModalState(prev => ({ ...prev,
                         etl_context_id: json.etl_context_id,
                         progress: "started"
@@ -391,7 +391,7 @@ export default function ExternalVersionControls({isDms, source, view, sourceId, 
 
     const linkClass = 'w-full flex-1 text-center border shadow p-2 font-medium rounded-md hover:text-white'
     const doesViewHaveDownload = view?.metadata?.value?.download && Object.keys(view?.metadata?.value?.download).length > 0;
-    console.log('do i get here?', user, sourceDataColumns)
+    //console.log('do i get here?', user, sourceDataColumns)
     return (
         <div className="w-72 px-5">
             {user.authLevel >= SOURCE_AUTH_CONFIG['SUPER'] ? (

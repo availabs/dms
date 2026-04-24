@@ -70,11 +70,15 @@ const StatusBadge = ({ value, className = "", ...rest }) => {
   );
 };
 
-const UdaTaskList = ({ sourceId, pageSize = 10 }) => {
+const UdaTaskList = ({ sourceId, pageSize = 10, env }) => {
   const ref = React.useRef();
   const { datasources, falcor, falcorCache, baseUrl, UI } =
     React.useContext(DatasetsContext);
-  const pgEnv = getExternalEnv(datasources);
+  // `env` may be passed explicitly (DMS env like `app+instance` for
+  // internal_table sources) or fall through to the pattern's external pgEnv
+  // (DAMA tasks). Lets one component serve both backends — the UDA route
+  // layer dispatches by env.includes('+').
+  const pgEnv = env || getExternalEnv(datasources);
   const { Table, Pagination } = UI;
   const [currentPage, setCurrentPage] = React.useState(0);
   const [data, setData] = React.useState({ data: [], length: 0 });

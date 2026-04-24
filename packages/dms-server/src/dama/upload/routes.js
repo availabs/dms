@@ -11,6 +11,7 @@ const Busboy = require('busboy');
 const store = require('./store');
 const { getProcessor } = require('./processors');
 const { isSplitType, parseSplitDataType } = require('#db/type-utils.js');
+const dmsTasks = require('../../dms/tasks');
 
 const UPLOAD_DIR = process.env.DAMA_ETL_DIR || path.join(__dirname, '../../../var/tmp-etl');
 
@@ -264,57 +265,134 @@ function createPublishHandler(controller) {
         }, {});
       const pivotCols = Object.keys(colRefCount).filter(k => colRefCount[k].length > 1);
 
-      const results = [];
-      // Skip header row (index 0)
-      for (let rowIdx = 1; rowIdx < rows.length; rowIdx++) {
-        const row = rows[rowIdx];
-        try {
-          const data = buildRowData(row, columns, colRefCount, pivotCols);
-          // New format: all rows use same type; legacy: separate valid/invalid types
-          const rowType = isNewFormat ? type : (data.isValid ? validType : invalidType);
+      // Wrap the row-insertion work in a DMS task row so it's visible in the
+      // admin UI (UdaTaskList) and durably recorded with events. If the task
+      // table isn't present for any reason, fall back to running inline
+      // without a task row rather than blocking the publish.
+      const runPublish = async (taskCtx) => {
+        // taskCtx is supplied by runInlineTask. If null, the dispatch helpers
+        // become no-ops so the publish still runs (un-bookkept) on a db that
+        // doesn't have dms.tasks initialized.
+        const dispatch = taskCtx?.dispatchEvent || (async () => {});
+        const updateProgress = taskCtx?.updateProgress || (async () => {});
+        const log = taskCtx?.log || ((msg) => console.log(`[publish ${app}+${type}] ${msg}`));
+        const startTime = Date.now();
 
-          // Primary key upsert: check if matching record exists
-          if (primaryCol && data[primaryCol]) {
-            const existing = await controller.findByDataKey(app, [validType, invalidType], primaryCol, data[primaryCol]);
-            if (existing) {
-              await controller.updateDataById(app, existing.id, rowType, data, user_id);
-              results.push({ row: rowIdx, action: 'updated', id: existing.id });
-              continue;
-            }
+        // Stage 1: parsed input
+        await dispatch(
+          'publish:input',
+          `Parsed ${rows.length - 1} rows from ${entry.fileExt} (layer "${layerName}")`,
+          {
+            uploadId: gisUploadId,
+            layerName,
+            fileExt: entry.fileExt,
+            rowCount: rows.length - 1,
+            columnCount: columns.length,
+            primaryCol: primaryCol || null,
+            pivotCols,
           }
+        );
+        log(`parsed ${rows.length - 1} rows, ${columns.length} columns, primaryCol=${primaryCol || 'none'}`);
 
-          // Insert new row
-          const created = await controller.createData([app, rowType, data], { id: user_id });
-          const newId = created?.[0]?.id;
-          results.push({ row: rowIdx, action: 'created', id: newId });
-        } catch (e) {
-          results.push({ row: rowIdx, action: 'error', error: e.message });
+        // Stage 2: column mapping summary so the events table shows what was
+        // sent vs what got mapped onto existing source attributes
+        const mappedCount = columns.filter(c => c.existingColumnMatch).length;
+        const unmappedCount = columns.length - mappedCount;
+        await dispatch(
+          'publish:columns',
+          `${mappedCount} mapped to existing, ${unmappedCount} unmapped (will be added)`,
+          {
+            mapped: columns.filter(c => c.existingColumnMatch).map(c => ({ from: c.name, to: c.existingColumnMatch })),
+            unmapped: columns.filter(c => !c.existingColumnMatch).map(c => c.name),
+          }
+        );
+
+        // Stage 3: source resolution. The destination split table is
+        // determined by source_id; surface what we resolved (and what we
+        // resolved it FROM) so a missing source is visible in the events.
+        let resolvedSourceId = sourceId;
+        let sourceResolution = sourceId ? { from: 'request', sourceId } : null;
+        if (!resolvedSourceId) {
+          const newParsed = parseSplitDataType(validType);
+          const docType = newParsed ? newParsed.source : validType.replace(/-\d+$/, '');
+          resolvedSourceId = await controller.findSourceIdByDocType(app, docType);
+          sourceResolution = resolvedSourceId
+            ? { from: newParsed ? 'source-instance' : 'doc_type', lookup: docType, sourceId: resolvedSourceId }
+            : { from: newParsed ? 'source-instance' : 'doc_type', lookup: docType, sourceId: null, error: 'not found' };
         }
-      }
+        if (resolvedSourceId) {
+          await dispatch(
+            'publish:source-resolved',
+            `Source ${resolvedSourceId} (${sourceResolution.from}: ${sourceResolution.lookup || 'request body'})`,
+            sourceResolution
+          );
+          log(`resolved source_id=${resolvedSourceId} via ${sourceResolution.from}`);
+        } else {
+          await dispatch(
+            'publish:source-resolved',
+            `WARNING: source not resolved — split table will use fallback naming, source.config will not be updated`,
+            sourceResolution
+          );
+          log(`WARNING: source not resolved (${sourceResolution.from}: ${sourceResolution.lookup})`);
+        }
 
-      const created = results.filter(r => r.action === 'created').length;
-      const updated = results.filter(r => r.action === 'updated').length;
-      const errors = results.filter(r => r.action === 'error').length;
-      console.log(`[publish] ${app}+${type} complete — ${created} created, ${updated} updated, ${errors} errors`);
+        // Stage 4: insert loop
+        const insertStart = Date.now();
+        const results = [];
+        // Skip header row (index 0)
+        for (let rowIdx = 1; rowIdx < rows.length; rowIdx++) {
+          const row = rows[rowIdx];
+          try {
+            const data = buildRowData(row, columns, colRefCount, pivotCols);
+            // New format: all rows use same type; legacy: separate valid/invalid types
+            const rowType = isNewFormat ? type : (data.isValid ? validType : invalidType);
 
-      // Save column metadata as config on the source record.
-      // Derive sourceId from the type if the client didn't provide it.
-      // New format: type is '{source}|{view}:data' → extract source instance name
-      // Legacy: type is '{doc_type}-{view_id}' → strip view_id suffix, look up by doc_type
-      if (columns.length) {
-        try {
-          let resolvedSourceId = sourceId;
-          if (!resolvedSourceId) {
-            const newParsed = parseSplitDataType(validType);
-            const docType = newParsed ? newParsed.source : validType.replace(/-\d+$/, '');
-            resolvedSourceId = await controller.findSourceIdByDocType(app, docType);
-            if (resolvedSourceId) {
-              console.log(`[publish] ${app}+${type} resolved sourceId=${resolvedSourceId} from ${newParsed ? 'source instance' : 'doc_type'}="${docType}"`);
-            } else {
-              console.log(`[publish] ${app}+${type} could not resolve source for ${newParsed ? 'source instance' : 'doc_type'}="${docType}"`);
+            // Primary key upsert: check if matching record exists
+            if (primaryCol && data[primaryCol]) {
+              const existing = await controller.findByDataKey(app, [validType, invalidType], primaryCol, data[primaryCol]);
+              if (existing) {
+                await controller.updateDataById(app, existing.id, rowType, data, user_id);
+                results.push({ row: rowIdx, action: 'updated', id: existing.id });
+                continue;
+              }
             }
+
+            // Insert new row
+            const created = await controller.createData([app, rowType, data], { id: user_id });
+            const newId = created?.[0]?.id;
+            results.push({ row: rowIdx, action: 'created', id: newId });
+          } catch (e) {
+            results.push({ row: rowIdx, action: 'error', error: e.message });
+            await dispatch('publish:row-error', `Row ${rowIdx} failed: ${e.message}`, { row: rowIdx, error: e.message });
           }
-          if (resolvedSourceId) {
+          // Periodic progress event so the events table shows liveness on big files
+          if (rowIdx % 100 === 0) {
+            const pct = (rowIdx - 1) / Math.max(1, rows.length - 1);
+            const createdSoFar = results.filter(r => r.action === 'created').length;
+            const errorsSoFar = results.filter(r => r.action === 'error').length;
+            await updateProgress(pct);
+            await dispatch(
+              'publish:progress',
+              `${rowIdx - 1}/${rows.length - 1} (${Math.round(pct * 100)}%) — ${createdSoFar} created, ${errorsSoFar} errors`,
+              { processed: rowIdx - 1, total: rows.length - 1, created: createdSoFar, errors: errorsSoFar }
+            );
+          }
+        }
+
+        const created = results.filter(r => r.action === 'created').length;
+        const updated = results.filter(r => r.action === 'updated').length;
+        const errors = results.filter(r => r.action === 'error').length;
+        const insertElapsedMs = Date.now() - insertStart;
+        log(`insert loop done: ${created} created, ${updated} updated, ${errors} errors in ${insertElapsedMs}ms`);
+        await dispatch(
+          'publish:inserts-complete',
+          `${created} created, ${updated} updated, ${errors} errors (${insertElapsedMs}ms)`,
+          { created, updated, errors, total: results.length, elapsedMs: insertElapsedMs }
+        );
+
+        // Stage 5: save column metadata as config on the source record.
+        if (columns.length && resolvedSourceId) {
+          try {
             const existingConfig = await controller.getSourceConfig(app, resolvedSourceId);
             const existingAttrs = existingConfig?.attributes || [];
             const newAttrs = columns.filter(c =>
@@ -323,15 +401,82 @@ function createPublishHandler(controller) {
             if (newAttrs.length) {
               const config = JSON.stringify({ attributes: [...existingAttrs, ...newAttrs] });
               await controller.setDataById(resolvedSourceId, { config }, { id: user_id });
-              console.log(`[publish] ${app}+${type} saved config on source ${resolvedSourceId} (${existingAttrs.length} existing + ${newAttrs.length} new attrs)`);
+              await dispatch(
+                'publish:config-saved',
+                `Added ${newAttrs.length} new attribute(s) to source ${resolvedSourceId}.config (existing: ${existingAttrs.length})`,
+                {
+                  sourceId: resolvedSourceId,
+                  existingCount: existingAttrs.length,
+                  addedCount: newAttrs.length,
+                  added: newAttrs.map(c => c.display_name || c.name),
+                }
+              );
+              log(`saved config: +${newAttrs.length} new attrs (${existingAttrs.length} existing) on source ${resolvedSourceId}`);
+            } else {
+              await dispatch(
+                'publish:config-unchanged',
+                `All ${columns.length} columns already in source.config — nothing to add`,
+                { sourceId: resolvedSourceId, existingCount: existingAttrs.length }
+              );
             }
+          } catch (e) {
+            await dispatch(
+              'publish:config-error',
+              `Failed to save source.config: ${e.message}`,
+              { sourceId: resolvedSourceId, error: e.message }
+            );
+            console.error(`[publish] ${app}+${type} WARNING: failed to save config:`, e.message);
           }
-        } catch (e) {
-          console.error(`[publish] ${app}+${type} WARNING: failed to save config:`, e.message);
+        } else if (!resolvedSourceId) {
+          await dispatch(
+            'publish:config-skipped',
+            `Skipping source.config update — no source_id resolved`,
+            null
+          );
         }
+
+        const totalElapsedMs = Date.now() - startTime;
+        await dispatch(
+          'publish:done',
+          `${created} created, ${updated} updated, ${errors} errors in ${totalElapsedMs}ms`,
+          { created, updated, errors, total: results.length, elapsedMs: totalElapsedMs, sourceId: resolvedSourceId }
+        );
+
+        return { results, created, updated, errors, sourceId: resolvedSourceId, elapsedMs: totalElapsedMs };
+      };
+
+      let taskId = null;
+      let runResult;
+      try {
+        const out = await dmsTasks.runInlineTask(
+          {
+            workerPath: 'internal-table/publish',
+            app,
+            sourceId: sourceId ? Number(sourceId) : null,
+            descriptor: {
+              workerPath: 'internal-table/publish',
+              app,
+              sourceId: sourceId ? Number(sourceId) : null,
+              type,
+              gisUploadId,
+              layerName,
+              columnCount: columns.length,
+              primaryCol,
+            },
+          },
+          runPublish
+        );
+        taskId = out.taskId;
+        runResult = out.result;
+      } catch (taskErr) {
+        // Task row creation failed (e.g. dms.tasks not initialized yet on an
+        // un-migrated db). Fall back to running the publish without task
+        // bookkeeping so the feature still works on older deployments.
+        console.warn(`[publish] ${app}+${type} task wrapping failed (${taskErr.message}); running without task row`);
+        runResult = await runPublish(null);
       }
 
-      res.json({ data: results });
+      res.json({ task_id: taskId, data: runResult.results });
     } catch (e) {
       console.error(`[publish] ${app}+${type} FAILED:`, e.message);
       res.json({ err: e.message });

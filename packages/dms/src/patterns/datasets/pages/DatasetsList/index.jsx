@@ -4,6 +4,7 @@ import {Link, useSearchParams} from "react-router";
 import {DatasetsContext} from "../../context";
 import {ThemeContext} from "../../../../ui/useTheme";
 import { buildEnvsForListing, getExternalEnv } from "../../utils/datasources";
+import { getCachedSources, setCachedSources, hasCachedSources } from "../../utils/datasetsListCache";
 import Breadcrumbs from "../../components/Breadcrumbs";
 
 export const isJson = (str)  => {
@@ -17,7 +18,30 @@ export const isJson = (str)  => {
 
 const range = (start, end) => Array.from({length: (end + 1 - start)}, (v, k) => k + start);
 
-const sourcesCache = new Map();
+/**
+ * Extract plain text from a Lexical JSON description. The list view only
+ * needs a short, scannable snippet — mounting a full Lexical Editor per
+ * source is expensive (50+ editors on a page with 50 sources).
+ */
+function extractLexicalText(value) {
+    if (value == null) return '';
+    let node = value;
+    if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if (!trimmed) return '';
+        try { node = JSON.parse(trimmed); }
+        catch { return value; } // not JSON — treat as plain text
+    }
+    if (!node?.root) return '';
+    const out = [];
+    const walk = (n) => {
+        if (!n) return;
+        if (typeof n.text === 'string') out.push(n.text);
+        if (Array.isArray(n.children)) n.children.forEach(walk);
+    };
+    walk(node.root);
+    return out.join(' ').replace(/\s+/g, ' ').trim();
+}
 
 const getSources = async ({envs, falcor, parent, user}) => {
     if(!envs || !Object.keys(envs)) return [];
@@ -34,25 +58,14 @@ const getSources = async ({envs, falcor, parent, user}) => {
 
             const valueGetter = (i, attr) => get(r, ['json', 'uda', e, 'sources', 'byIndex', i, attr])
             return range(0, len-1).map(i => {
-                const app = valueGetter(i, 'app');
                 const env = e;
                 return {
                     ...envs[e].srcAttributes.reduce((acc, attr) => {
                         let value = valueGetter(i, attr);
-                        if(['metadata'].includes(attr)) {
-                            value = value?.columns || [];
-                            return ({...acc, ['columns']: value})
-                        }
-                        if(['config'].includes(attr)) {
-                            value =  JSON.parse(value || '{}')?.attributes || [];
-                            return ({...acc, ['columns']: value})
-                        }
-
-                        if(['categories'].includes(attr)) {
+                        if (attr === 'categories') {
                             value = typeof value === 'string' ? JSON.parse(value || '[]') : (value || []);
-                            return ({...acc, ['categories']: value})
                         }
-                        return ({...acc, [attr]: value})
+                        return ({...acc, [attr]: value});
                     }, {}),
                     source_id: get(r, ['json', 'uda', e, 'sources', 'byIndex', i, '$__path', 4]),
                     env, // to fetch data
@@ -66,14 +79,16 @@ const getSources = async ({envs, falcor, parent, user}) => {
 
 
 const SourceThumb = React.memo(({ source={}, format }) => {
-    const {UI} = useContext(DatasetsContext);
     const {theme} = useContext(ThemeContext) || {};
     const t = theme?.datasets?.datasetsList || {};
-    const {ColumnTypes} = UI;
-    const Lexical = ColumnTypes.lexical.ViewComp;
     const source_id = source.id || source.source_id;
     const {isDms} = source;
     const icon = isDms ? (format.registerFormats || []).find(f => f?.type?.includes('|source'))?.type === source.type ? 'Datasets' : 'Forms' : 'External';
+
+    // Plain-text description for the list view. The full Lexical renderer
+    // mounts an Editor instance per source, which is heavy at 50+ rows.
+    // Detail pages still use the rich Lexical view.
+    const descriptionText = useMemo(() => extractLexicalText(source?.description), [source?.description]);
 
     return (
         <div className={t.sourceCard}>
@@ -89,9 +104,9 @@ const SourceThumb = React.memo(({ source={}, format }) => {
                         )))
                     }
                 </div>
-                <div className={t.sourceDescription}>
-                    <Lexical value={source?.description}/>
-                </div>
+                {descriptionText && (
+                    <div className={t.sourceDescription}>{descriptionText}</div>
+                )}
             </div>
         </div>
     );
@@ -103,7 +118,7 @@ export default function DatasetsList ({attributes, item, dataItems, apiLoad, api
     const t = theme?.datasets?.datasetsList || {};
     const {Layout, Icon, Button, Input} = UI;
     const cacheKey = `${format?.app}-${siteType}`;
-    const [sources, setSources] = useState(() => sourcesCache.get(cacheKey) || []);
+    const [sources, setSources] = useState(() => getCachedSources(cacheKey) || []);
     const [layerSearch, setLayerSearch] = useState("");
     const [searchParams] = useSearchParams();
     const [sort, setSort] = useState('asc');
@@ -115,15 +130,18 @@ export default function DatasetsList ({attributes, item, dataItems, apiLoad, api
     const [isListAll, setIsListAll] = useState(false);
 
     useEffect(() => {
-        // Invalidate UDA cache to get fresh data (e.g., after creating a source in CreatePage)
-        Object.keys(envs).forEach(e => falcor.invalidate(['uda', e, 'sources']));
-        console.log('[DatasetsList] fetching sources, envs:', Object.keys(envs), 'format:', format?.app, format?.type);
+        // Skip the fetch if we already rendered this list once during the
+        // session — Falcor still has the data and the module-level cache
+        // already populated `sources` synchronously via useState's initializer.
+        // Pages that mutate sources (CreatePage etc.) are responsible for
+        // invalidating `['uda', env, 'sources']` and clearing `sourcesCache`
+        // before navigating back here.
+        if (hasCachedSources(cacheKey)) return;
         getSources({envs, falcor, apiLoad, user}).then(data => {
-            console.log('[DatasetsList] sources received:', data?.length, 'sources', data?.slice(0, 2));
             setSources(data);
-            sourcesCache.set(cacheKey, data);
+            setCachedSources(cacheKey, data);
         });
-    }, [format?.app, siteType]);
+    }, [cacheKey]);
 
     useEffect(() => {
         if (!pgEnv) return;

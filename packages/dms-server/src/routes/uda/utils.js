@@ -1,4 +1,4 @@
-const { getDb } = require('#db/index.js');
+const { getDb, getChDb } = require('#db/index.js');
 const { loadConfig } = require('#db/config.js');
 const { resolveTable, parseType, isSplitType, ensureSequence, ensureTable, getSequenceName } = require('#db/table-resolver.js');
 const { parseSplitDataType, getKind } = require('#db/type-utils.js');
@@ -89,7 +89,7 @@ async function getEssentials({ env, view_id, options = {} }) {
 
   // DMS uses the DMS database; DAMA uses the env as pgEnv config name
   const dbEnv = isDms ? (process.env.DMS_DB_ENV || 'dms-sqlite') : env;
-  const db = getDb(dbEnv);
+  let db = getDb(dbEnv);
 
   if (isDms) {
     const config = loadConfig(dbEnv);
@@ -193,12 +193,21 @@ async function getEssentials({ env, view_id, options = {} }) {
       await ensureTable(db, table_schema, table_name, db.type, seqName);
     }
 
-    return { isDms, db, app, type, table_schema, table_name, dmsAttributes, splitMode };
+    // DMS content never lives on ClickHouse — dbType is always pg for DMS mode.
+    return { isDms, db, app, type, table_schema, table_name, dmsAttributes, splitMode, dbType: 'pg' };
   }
 
-  // DAMA mode
-  const { table_schema, table_name } = await getDataTableFromViewId({ db, view_id });
-  return { isDms, db, app: null, type: null, table_schema, table_name, dmsAttributes: undefined };
+  // DAMA mode — view may point at a ClickHouse-backed table via a
+  // `clickhouse.<schema>` prefix in data_manager.views.table_schema. When it
+  // does, swap in the CH adapter and strip the prefix before returning.
+  let { table_schema, table_name } = await getDataTableFromViewId({ db, view_id });
+  let dbType = 'pg';
+  if (typeof table_schema === 'string' && table_schema.startsWith('clickhouse.')) {
+    dbType = 'ch';
+    table_schema = table_schema.replace(/^clickhouse\./, '');
+    db = getChDb(env);
+  }
+  return { isDms, db, app: null, type: null, table_schema, table_name, dmsAttributes: undefined, dbType };
 }
 
 /**
@@ -218,38 +227,45 @@ async function getDataTableFromViewId({ db, view_id }) {
 // ============================================= DMS Source/View Helpers =============================================
 
 /**
- * Get pattern IDs for a DMS site (items with type='pattern' for the given app)
+ * Get pattern IDs for a DMS site.
+ *
+ * Patterns use the post-refactor type scheme `{site}|{instance}:pattern`.
+ * The env's right half is the pattern instance name (e.g., env `myapp+my_docs`
+ * targets the pattern whose instance is `my_docs`). Matching the exact
+ * instance segment in the type column avoids the substring false positives
+ * that came from the old `type LIKE '%<instance>%'` shape and the reliance
+ * on `data.doc_type` that was dropped in the type-system refactor.
  */
 async function getSitePatterns({ db, app, env, splitMode }) {
   const tbl = await dmsMainTable(db, app, splitMode);
-  const docType = env.includes('+') ? env.split('+')[1] : null;
-  // Match patterns containing the doc_type in their type column.
-  // Pattern types look like: 'siteType|pattern', '{site}|{name}:pattern', etc.
-  // The doc_type appears as part of the type string.
-  const sql = docType
-    ? `SELECT id FROM ${tbl} WHERE app = $1 AND (type = 'pattern' OR type LIKE '%|pattern' OR type LIKE '%:pattern') AND type LIKE '%' || $2 || '%'`
-    : `SELECT id FROM ${tbl} WHERE app = $1 AND (type = 'pattern' OR type LIKE '%|pattern' OR type LIKE '%:pattern')`;
-  const params = docType ? [app, docType] : [app];
+  const instance = env.includes('+') ? env.split('+')[1] : null;
+
+  const sql = instance
+    ? `SELECT id FROM ${tbl} WHERE app = $1 AND type LIKE '%|' || $2 || ':pattern'`
+    : `SELECT id FROM ${tbl} WHERE app = $1 AND type LIKE '%:pattern'`;
+  const params = instance ? [app, instance] : [app];
   const { rows } = await db.query(sql, params);
   return rows.map(r => r.id);
 }
 
 /**
- * Get sources from site patterns. Looks at patterns matching doc_types and extracts
- * their sources JSON array. If a pattern has dmsEnvId set, reads sources from the
- * referenced dmsEnv row instead.
+ * Get sources referenced by the given pattern IDs. Reads each pattern's
+ * `data.sources` array (dmsEnv-less patterns) or follows `data.dmsEnvId`
+ * to pull sources from the linked dmsEnv row. Pattern IDs are already
+ * filtered by `getSitePatterns`, so no further type-column filtering is
+ * needed here — and `data.doc_type` has been removed from all new pattern
+ * rows by the type-system refactor.
  */
-async function getSiteSources({ db, app, pattern_ids, pattern_doc_types, splitMode }) {
+async function getSiteSources({ db, app, pattern_ids, splitMode }) {
   if (!pattern_ids.length) return [];
 
   const tbl = await dmsMainTable(db, app, splitMode);
-  // Match patterns by doc_type in data (legacy) or by id (covers new format where doc_type is removed)
   const sql = `
     SELECT data->'sources' AS sources, data->>'dmsEnvId' AS dms_env_id
     FROM ${tbl}
-    WHERE id = ANY($1) AND (data->>'doc_type' = ANY($2) OR data->>'doc_type' IS NULL)
+    WHERE id = ANY($1)
   `;
-  const { rows } = await db.query(sql, [pattern_ids.map(Number), pattern_doc_types]);
+  const { rows } = await db.query(sql, [pattern_ids.map(Number)]);
 
   if (!rows.length) return [];
 
@@ -414,9 +430,10 @@ function buildLeafSQL(node, ctx, isDms, dbType) {
       // json_each returns rows with a .value column
       return `${not}EXISTS (SELECT 1 FROM json_each(${col}) _ac WHERE _ac.value = ANY(${index}))`;
     }
-    // PostgreSQL: jsonb_array_elements_text returns scalar text rows
-    // ::jsonb cast handles both text columns (data->>'col') and native jsonb columns
-    return `${not}EXISTS (SELECT 1 FROM jsonb_array_elements_text((${col})::jsonb) _ac WHERE _ac = ANY(${index}))`;
+    // PostgreSQL: use jsonb_typeof to branch on whether the value is a JSON array.
+    // If it is, unnest with jsonb_array_elements_text; if not, wrap the scalar in a
+    // single-element array first so the same EXISTS pattern works for both cases.
+    return `${not}EXISTS (SELECT 1 FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof((${col})::jsonb) = 'array' THEN (${col})::jsonb ELSE jsonb_build_array((${col})::text) END) _ac WHERE _ac = ANY(${index}))`;
   }
 
   const vals = Array.isArray(value) ? value : [value];

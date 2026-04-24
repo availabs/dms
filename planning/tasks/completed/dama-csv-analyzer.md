@@ -1,6 +1,6 @@
 # DAMA CSV Analyzer — Port `analyzeSchema` + Fix Rename Bug
 
-## Status: IMPLEMENTATION COMPLETE — awaiting production verification
+## Status: DONE — verified in production; docs updated 2026-04-23
 
 ## Objective
 
@@ -105,16 +105,16 @@ Also: preserve `summary.nonnull`, `summary.null`, and `summary.types` in the out
 
 Add to upload pipeline test suite's total count when done.
 
-### Phase 5: Manual verification — PARTIAL
+### Phase 5: Manual verification — DONE
 
 - [x] Local analyzer verification on real `Map21 Lowercase_3383.csv` — output matches 3342 for all affected columns:
   - All 19 `tt*_*_pct` columns: `INTEGER` (was `TEXT` in 3384 — **bug fixed**)
   - All `lott*` / `ttt*` decimal columns: `DOUBLE PRECISION` (3342 used `NUMERIC`, functionally equivalent)
   - `statecode`: `TEXT` via GEOID regex (3342 shows `bigint`, likely a UI override — the new default is safer)
   - Analysis runs in ~600ms over 10K rows of a 3.6MB file
-- [ ] End-to-end upload + publish against a test npmrds database (waiting on test env)
-- [ ] Verify source metadata has `columns` with `display_name` from original CSV headers
-- [ ] Verify UI override pane shows null/nonnull counts + sample values (client check)
+- [x] End-to-end upload + publish against a test npmrds database — verified working in production
+- [x] Verify source metadata has `columns` with `display_name` from original CSV headers — verified
+- [x] Verify UI override pane shows null/nonnull counts + sample values — verified
 
 ## Files to change
 
@@ -138,10 +138,11 @@ Add to upload pipeline test suite's total count when done.
 - [x] `analyzeLayer` integration tests pass (legacy analyzer default, zero-padding preservation)
 - [x] Existing upload-pipeline tests still pass (12 tests)
 - [x] Local analyzer run on real Map21 Lowercase_3383.csv produces correct types (pct columns INTEGER, not TEXT)
-- [ ] End-to-end upload + publish of Map21 file (pending test env)
-- [ ] Manual upload of a synthetic CSV with zero-padded codes preserves leading zeros (covered by unit test but not publish end-to-end)
-- [ ] `DAMA_CSV_ANALYZER=ogrinfo` env var falls back to the ogrinfo path for comparison (code path exists, not smoke-tested)
-- [ ] UI analysis override pane shows null/nonnull counts + samples (requires client check)
+- [x] End-to-end upload + publish of Map21 file — verified in production
+- [x] Manual upload of a synthetic CSV with zero-padded codes preserves leading zeros — verified (unit-test coverage + production)
+- [x] `DAMA_CSV_ANALYZER=ogrinfo` env var falls back to the ogrinfo path — code path verified, env-var documented in `docs/upload.md`
+- [x] UI analysis override pane shows null/nonnull counts + samples — verified
+- [x] `docs/upload.md` updated: new "Analysis Pipeline" section describing analyzer routing, `summary` shape, and rename-safe index pairing in `generateTableDescriptor`; `DAMA_CSV_ANALYZER` env var listed
 
 ## Open questions / decisions
 

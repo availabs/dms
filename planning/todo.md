@@ -6,8 +6,9 @@
 
 ## dama
 
-- [ ] DAMA server port — task queue with host isolation + idempotent locking, GIS/CSV upload pipeline (GDAL), multi-pgEnv routing, UDA task/event Falcor routes, datatype plugin system, legacy migration script
+- [x] DAMA server port — task queue with host isolation + idempotent locking, GIS/CSV upload pipeline (GDAL), multi-pgEnv routing, UDA task/event Falcor routes, datatype plugin system, legacy migration script. All 7 phases shipped + production-verified. One non-blocking follow-up split out: [Remove `/events/query` + `newContextId` REST compat shim](./tasks/current/remove-events-query-shim.md).
 - [ ] [DAMA datatypes migration to plugin system](./tasks/current/dama-datatypes-migration.md) — port legacy hazmit datatypes (references/avail-falcor/…) into the new `registerDatatype` plugin shape. Files live in `dms-template/data-types/`, bootstrap via `DMS_EXTRA_DATATYPES` env var pointing at `dms-template/server/register-datatypes.js`. Guide + worked example for `enhance_nfip_claims_v2`; subsequent datatypes follow the same pattern
+- [ ] [Remove `/events/query` + `newContextId` REST compat shim](./tasks/current/remove-events-query-shim.md) — split out from DAMA server port; non-blocking. Migrate the GIS Create wizard to poll UDA tasks via Falcor, then drop the legacy REST endpoints from `dms-server/src/dama/upload/`.
 
 ## cli
 
@@ -56,7 +57,7 @@
 - [x] UDA array contains filter — server-side `array_contains` + `array_not_contains` operations for multiselect columns; removed ~235 lines of async multiselect resolution from client utils.jsx; unblocks synchronous `buildUdaConfig`
 - [x] Database copy CLI — `src/scripts/copy-db.js` copies all DMS data between databases (PG↔SQLite, same-type), preserving IDs, handling cross-DB types, batch processing, split table discovery
 - [x] Dead row cleanup CLI — `src/scripts/cleanup-db.js` analyzes DMS database for orphaned rows (sections without pages, patterns without sites, views without sources), grouped by app+type, with optional `--delete` mode
-- [ ] Cleanup: protect dmsEnv-linked sources — `findOrphanedSources` only validates against pattern `doc_type`, not dmsEnv refs; sources owned by a dmsEnv can be incorrectly flagged as orphans
+- [x] Cleanup: protect dmsEnv-linked sources — closed as unnecessary; the type-system refactor moved source ownership into the type column (`{dmsEnv}|{name}:source`), so cleanup-db.js needs a rethink around dmsEnvs rather than this incremental patch
 - [x] Fix orphaned pages detection — `findOrphanedPages` produces false positives when pattern metadata is missing/misconfigured, causing mass page deletion; pages detector currently disabled from `--delete` mode; also added `page_edits` orphan detection and `skipData` memory optimization
 - [x] Extract embedded Lexical images — script to scan data_items for base64 data URIs in InlineImageNode `src` fields, extract to files, replace with URL paths; deduplication via content hash
 - [x] Clean dms-mercury2 database — delete obsolete apps, countytemplate patterns, templated pages, obsolete patterns, extract images, consolidate history, run orphan cleanup, VACUUM, prepare for split-app mode; target under 200 MB
@@ -65,7 +66,9 @@
 - [x] Per-config split mode — move `DMS_SPLIT_MODE` from server-wide env var to per-database-config setting (`splitMode` field in config JSON), with env var fallback for backward compatibility
 - [x] Migrated dataset fixes — case-insensitive split type regex, sanitize() in new table naming, case-insensitive source lookup, lowercase type for split queries, maxPaths 50K→500K, `--max-http-header-size=1MB`, rename-split-tables script (39 tables renamed)
 - [x] Invalid-entry table consolidation — valid and invalid dataset rows share the same split table (removed `_invalid` suffix from table naming); fixes bugs where re-validation couldn't find invalid rows and `batchUpdateType` left rows in wrong table
-- [ ] DAMA CSV analyzer — port legacy `analyzeSchema.js` as primary CSV type detector (zero-padding + GEOID heuristics, 10K-row state machine, sample collection), keep ogrinfo as fallback, and fix `generateTableDescriptor` rename bug (pair analysis↔metadata by index so UI renames preserve types). Blocker for CSV uploads — view 3384 has 19 integer columns stored as TEXT due to this bug.
+- [x] DAMA CSV analyzer — ported legacy `analyzeSchema.js` (zero-padding + GEOID heuristics, 10K-row state machine, sample collection), kept ogrinfo as `DAMA_CSV_ANALYZER=ogrinfo` fallback, fixed `generateTableDescriptor` rename bug via index pairing. 22 csv-analyzer tests, production-verified, docs updated.
+- [x] UDA ClickHouse support for DAMA pgEnv — auxiliary ClickHouse backend per pgEnv. `data_manager.views.table_schema` prefixed with `clickhouse.` routes reads to a CH query set; mirrors avail-falcor `db_service/clickhouse.js` + `routes/uda_query_sets/`. Live smoke test + cross-DB meta dispatch verified against npmrds2.
+- [x] Fix UDA getSitePatterns / getSiteSources for new type scheme — `getSitePatterns` now matches by exact instance segment (`type LIKE '%|' || $instance || ':pattern'`); `getSiteSources` dropped the `data->>'doc_type'` filter and unused `pattern_doc_types` param; two UDA test fixtures rewritten to new-format types. All 51 UDA tests pass.
 
 ## ui
 
@@ -110,6 +113,8 @@
 - [x] Fix internal_source blank page — `getSourceData` doesn't include source's own ID in result, causes blank page when UDA `source_id` attribute is unset
 - [x] Source overview cleanup — theme-driven styling, width constraint, show both display_name + column name, remove table height cap, tighten metadata layout
 - [x] Datasets create page — extract create flow from DatasetsList modal into dedicated `/create` route with full-page layout
+- [x] Source delete with soft + hard options (DAMA) — `uda.sources.delete` + `uda.sources.hardDelete` routes shipped; `DeleteDamaSourceBtn` 3-option modal with name-typed confirmation in `default/admin.jsx` working. Internal-table counterpart split out (see below).
+- [x] Internal-table source delete + dmsEnv ownership fixes — `deleteInternalSource` server-side primitive (drops split tables, strips dmsEnv refs, deletes views + source row + dms.tasks rows), DMS branch in `softDeleteSource`/`hardDeleteSource`, client wiring in internal admin page, `cleanup-stale-dmsenv-refs.js` belt-and-suspenders script (registered as `db:cleanup-stale-dmsenv-refs`), fix to `buildDatasources` deduping internal envs by `dmsEnvId` (root cause of the picker showing each source twice when patterns share a dmsEnv).
 - [x] Datasets settings page — category visibility settings, filtered/all toggle on list page, settings link for authed users
 - [x] `internal_table` dataset type — new type combining creation + upload in one step, auto-creates first version, uses split tables for per-version data storage
 - [x] Custom admin page for internal dataset types — version creation follows forms pattern (uses DMS `item` with `.id`), SourcePage allows datatype admin overrides

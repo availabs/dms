@@ -119,6 +119,41 @@ Configs are JSON files in `src/db/configs/`:
 
 The `role` field (`dms`, `auth`, `dama`) determines which schema init scripts run on first connection.
 
+`*.config.json` files in `src/db/configs/` are gitignored (see `configs/.gitignore`) since they often contain real credentials; only `*.example.config.json` and `*-test*.config.json` are tracked. Copy an example and rename when setting up a new environment.
+
+### ClickHouse auxiliary storage (DAMA only)
+
+A DAMA pgEnv can route individual views to ClickHouse for large static datasets while keeping the `data_manager` metadata (sources, views) in PostgreSQL. Add an optional `clickhouse` sub-object to the pgEnv config:
+
+```json
+{
+  "type": "postgres",
+  "role": "dama",
+  "host": "...",
+  "port": 5432,
+  "user": "...",
+  "password": "...",
+  "database": "...",
+  "clickhouse": {
+    "host": "...",
+    "port": 8123,
+    "user": "...",
+    "password": "...",
+    "database": "..."
+  }
+}
+```
+
+**Dispatch**: a view is routed to ClickHouse when its `data_manager.views.table_schema` starts with `clickhouse.` (e.g., `clickhouse.npmrds_raw`). In that case, `getEssentials()` strips the prefix and swaps the adapter to the ClickHouse client via `getChDb(pgEnv)`. The UDA controller then dispatches `simpleFilterLength`, `simpleFilter`, and `dataById` to the CH query set in `src/routes/uda/query_sets/clickhouse.js` instead of the Postgres one.
+
+**Scope**:
+- ClickHouse is auxiliary **read** storage for dataset rows only. Source/view metadata always lives in the pgEnv's PostgreSQL — `getSourcesLength`, `getSourceById`, `getViewById`, etc. never hit ClickHouse.
+- DMS content (`dms.data_items`, split tables, sync tables) never lives on ClickHouse.
+- Write paths (insert/update/delete) are not implemented — data is populated by out-of-band ingestion.
+- Meta lookups dispatch per-env, so a CH main query can pair with a PG meta lookup (or vice versa) and each recursion lands in the correct query set.
+
+**Dependency**: `@clickhouse/client` is in `optionalDependencies`. Installs that don't need CH are not blocked if the module fails to install.
+
 ## Testing
 
 See `tests/CLAUDE.md` for detailed testing guidelines.

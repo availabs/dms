@@ -4,6 +4,7 @@ import {useNavigate} from "react-router";
 import {DatasetsContext} from "../context";
 import {ThemeContext} from "../../../ui/useTheme";
 import {buildEnvsForListing} from "../utils/datasources";
+import { clearDatasetsListCache } from "../utils/datasetsListCache";
 import { nameToSlug, getInstance } from "../../../utils/type-utils";
 import Breadcrumbs from "../components/Breadcrumbs";
 
@@ -93,13 +94,19 @@ export default function CreatePage({apiUpdate, format}) {
                     sources: [...existingRefs, { ref: `${app}+${dmsEnvInstance}|source`, id: +newId }]
                 }]);
                 await falcor.invalidate(['dms', 'data', app, 'byId', dmsEnv.id]);
-                await falcor.invalidate(['uda', `${app}+${type}`, 'sources']);
+                // Create-specific invalidation: length changed, new byIndex entry
+                // appears at the tail. Existing byId rows are still valid, so don't
+                // wipe the whole sources subtree.
+                await falcor.invalidate(['uda', `${app}+${type}`, 'sources', 'length']);
+                await falcor.invalidate(['uda', `${app}+${type}`, 'sources', 'byIndex']);
+                clearDatasetsListCache();
             } else {
                 // Legacy path: add source to pattern's sources array
                 await apiUpdate({
                     data: {...parent, sources: [...(sources || []).filter(s => s.type === `${type}|source`), newData]},
                     config: {format}
                 });
+                clearDatasetsListCache();
             }
             navigate(baseUrl || '/');
         } catch (e) {

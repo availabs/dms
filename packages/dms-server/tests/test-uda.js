@@ -40,37 +40,43 @@ function pass(name) {
 async function testDmsModeSourcesViaPatterns() {
   console.log('\n--- DMS Mode: Sources via Patterns ---');
 
-  // Create a site with a forms pattern that has sources
+  // New type scheme: patterns are '{site}|{instance}:pattern', sources are
+  // '{parent}|{instance}:source'. The env's right half is the pattern instance.
+  const SITE_INSTANCE = TEST_APP; // use the app name as the site instance
+  const PATTERN_INSTANCE = TEST_TYPE; // env becomes TEST_APP+dataset
+  const SOURCE_TYPE = `${PATTERN_INSTANCE}|source`; // type for data row create
+
+  // Create a site — type '{siteInstance}:site'
   const siteResult = await graph.callAsync(
     ['dms', 'data', 'create'],
-    [TEST_APP, 'site', { patterns: [] }]
+    [TEST_APP, `${SITE_INSTANCE}:site`, { patterns: [] }]
   );
   const siteId = Object.keys(siteResult.jsonGraph.dms.data.byId)[0];
 
-  // Create a forms pattern with sources
+  // Create a forms pattern — type '{siteInstance}|{patternInstance}:pattern'
   const patternResult = await graph.callAsync(
     ['dms', 'data', 'create'],
-    [TEST_APP, 'pattern', { doc_type: TEST_TYPE, pattern_type: 'forms', sources: [] }]
+    [TEST_APP, `${SITE_INSTANCE}|${PATTERN_INSTANCE}:pattern`, { name: PATTERN_INSTANCE, pattern_type: 'forms', sources: [] }]
   );
   const patternId = Object.keys(patternResult.jsonGraph.dms.data.byId)[0];
 
-  // Create two source items
+  // Create two source items — types '{patternInstance}|source_a:source' etc.
   const src1Result = await graph.callAsync(
     ['dms', 'data', 'create'],
-    [TEST_APP, TEST_TYPE, { name: 'Source A', display_name: 'Source Alpha' }]
+    [TEST_APP, `${PATTERN_INSTANCE}|source_a:source`, { name: 'Source A', display_name: 'Source Alpha' }]
   );
   const src1Id = Object.keys(src1Result.jsonGraph.dms.data.byId)[0];
 
   const src2Result = await graph.callAsync(
     ['dms', 'data', 'create'],
-    [TEST_APP, TEST_TYPE, { name: 'Source B', display_name: 'Source Beta', views: [{ id: src1Id }] }]
+    [TEST_APP, `${PATTERN_INSTANCE}|source_b:source`, { name: 'Source B', display_name: 'Source Beta', views: [{ id: src1Id }] }]
   );
   const src2Id = Object.keys(src2Result.jsonGraph.dms.data.byId)[0];
 
   // Link sources to pattern
   await graph.callAsync(
     ['dms', 'data', 'edit'],
-    [TEST_APP, patternId, { doc_type: TEST_TYPE, pattern_type: 'forms', sources: [{ id: +src1Id }, { id: +src2Id }] }]
+    [TEST_APP, patternId, { name: PATTERN_INSTANCE, pattern_type: 'forms', sources: [{ id: +src1Id }, { id: +src2Id }] }]
   );
 
   // Link pattern to site
@@ -79,7 +85,7 @@ async function testDmsModeSourcesViaPatterns() {
     [TEST_APP, siteId, { patterns: [{ id: +patternId }] }]
   );
 
-  const env = `${TEST_APP}+${TEST_TYPE}`;
+  const env = `${TEST_APP}+${PATTERN_INSTANCE}`;
 
   // Test sources.length
   const lengthResult = await graph.getAsync([
@@ -123,60 +129,66 @@ async function testDmsModeSourcesViaPatterns() {
   pass('sources.byId.views.byIndex returns $ref');
 
   // Cleanup
-  await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, TEST_TYPE, src1Id, src2Id]);
-  await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, 'pattern', patternId]);
-  await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, 'site', siteId]);
+  await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, `${PATTERN_INSTANCE}|source_a:source`, src1Id]);
+  await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, `${PATTERN_INSTANCE}|source_b:source`, src2Id]);
+  await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, `${SITE_INSTANCE}|${PATTERN_INSTANCE}:pattern`, patternId]);
+  await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, `${SITE_INSTANCE}:site`, siteId]);
 
   pass('DMS source/view routes cleanup complete');
 }
 
 async function testDmsModeRealWorldPatternType() {
-  console.log('\n--- DMS Mode: Real-world pattern type (undefined|pattern) ---');
+  console.log('\n--- DMS Mode: Pattern with "undefined" site instance ---');
 
-  // Real-world patterns created via updateDMSAttrs have type 'undefined|pattern' (or 'siteType|pattern'),
-  // not plain 'pattern'. Verify getSitePatterns finds them and sources listing works.
+  // Patterns created before the site instance is set have `undefined` as
+  // their site parent — e.g., 'undefined|realworld_test:pattern'. The
+  // instance-segment match in getSitePatterns must still find them.
+
+  const PATTERN_INSTANCE = 'realworld_test';
+  const PATTERN_TYPE = `undefined|${PATTERN_INSTANCE}:pattern`;
+  const SOURCE_TYPE = `${PATTERN_INSTANCE}|rs:source`;
 
   const patternResult = await graph.callAsync(
     ['dms', 'data', 'create'],
-    [TEST_APP, 'undefined|pattern', { doc_type: 'realworld-test', pattern_type: 'datasets', sources: [] }]
+    [TEST_APP, PATTERN_TYPE, { name: PATTERN_INSTANCE, pattern_type: 'datasets', sources: [] }]
   );
   const patternId = Object.keys(patternResult.jsonGraph.dms.data.byId)[0];
 
   // Create a source
   const srcResult = await graph.callAsync(
     ['dms', 'data', 'create'],
-    [TEST_APP, 'realworld-test|source', { name: 'Real Source', doc_type: 'rs-uuid' }]
+    [TEST_APP, SOURCE_TYPE, { name: 'Real Source' }]
   );
   const srcId = Object.keys(srcResult.jsonGraph.dms.data.byId)[0];
 
   // Link source to pattern
   await graph.callAsync(
     ['dms', 'data', 'edit'],
-    [TEST_APP, patternId, { doc_type: 'realworld-test', pattern_type: 'datasets', sources: [{ id: +srcId }] }]
+    [TEST_APP, patternId, { name: PATTERN_INSTANCE, pattern_type: 'datasets', sources: [{ id: +srcId }] }]
   );
 
-  const env = `${TEST_APP}+realworld-test`;
+  const env = `${TEST_APP}+${PATTERN_INSTANCE}`;
 
   // Test sources.length — this is the exact query path that was broken
   const lengthResult = await graph.getAsync([
     ['uda', env, 'sources', 'length']
   ]);
   const length = lengthResult.jsonGraph.uda[env].sources.length;
-  assert(length === 1, `Expected 1 source for 'undefined|pattern' type, got ${length}`);
-  pass('getSitePatterns finds patterns with type "undefined|pattern"');
+  assert(length === 1, `Expected 1 source for '${PATTERN_TYPE}', got ${length}`);
+  pass('getSitePatterns finds patterns with an "undefined" site-instance prefix');
 
   // Test sources.byIndex
   const byIndexResult = await graph.getAsync([
     ['uda', env, 'sources', 'byIndex', { from: 0, to: 0 }, 'value']
   ]);
   const idx0 = byIndexResult.jsonGraph.uda[env].sources.byIndex[0];
-  assert(idx0 && idx0.value, 'byIndex[0] should return a $ref for real-world pattern type');
-  pass('sources.byIndex works for real-world pattern type');
+  assert(idx0 && idx0.value, 'byIndex[0] should return a $ref for undefined-prefix pattern');
+  pass('sources.byIndex works for undefined-site-instance pattern');
 
   // Cleanup
-  await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, 'realworld-test|source', srcId]);
-  await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, 'undefined|pattern', patternId]);
-  pass('Real-world pattern type cleanup complete');
+  await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, SOURCE_TYPE, srcId]);
+  await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, PATTERN_TYPE, patternId]);
+  pass('undefined-site-instance pattern cleanup complete');
 }
 
 async function testDmsModeViews() {

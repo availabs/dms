@@ -4,6 +4,7 @@ import { DatasetsContext } from "../../../../context";
 import { ThemeContext } from "../../../../../../ui/themeContext";
 import Upload from "../../../../components/upload";
 import { nameToSlug, getInstance } from "../../../../../../utils/type-utils";
+import { clearDatasetsListCache } from "../../../../utils/datasetsListCache";
 
 function getNewId(falcorRes) {
     return Object.keys(falcorRes?.json?.dms?.data?.byId || {})
@@ -72,9 +73,12 @@ export default function SourceCreate({ context, source }) {
                 sources: [...existingRefs, { ref: `${app}+${dmsEnvInstance}|source`, id: +sourceId }]
             }]);
 
-            // 5. Invalidate caches
+            // 5. Invalidate caches — create-specific: length + byIndex only.
+            // Existing byId entries are unaffected; don't nuke the whole subtree.
             await falcor.invalidate(['dms', 'data', app, 'byId', sourceOwner.id]);
-            await falcor.invalidate(['uda', `${app}+${type}`, 'sources']);
+            await falcor.invalidate(['uda', `${app}+${type}`, 'sources', 'length']);
+            await falcor.invalidate(['uda', `${app}+${type}`, 'sources', 'byIndex']);
+            clearDatasetsListCache();
 
             // 6. Transition to upload stage
             setCreatedSource({
