@@ -3,6 +3,8 @@ import { get, isEqual, set } from "lodash-es";
 import { nameToSlug } from "../../../../../../utils/type-utils";
 import { CMSContext, PageContext } from "../../../../context";
 import { EXTERNAL_SOURCE_KEY } from "./schema";
+import { DEFAULT_SOURCE_JOIN } from "./utils/utils";
+import { SchemaManager } from "./SchemaManager";
 const range = (start, end) => Array.from({ length: end + 1 - start }, (_, k) => k + start);
 
 const getSources = async ({ envs, falcor }) => {
@@ -299,51 +301,29 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
             }
             const nextAlias = `table${nextNum}`;
             //TODO -- should export this as "blankJoinSourceConfig" or something
-            draft.join.sources[nextAlias] = {
-                source: null,
-                view: null,
-                sourceInfo: {},
-                joinColumns: [],
-                mergeStrategy: 'join',
-                type: 'left'
-            };
+            draft.join.sources[nextAlias] = {...DEFAULT_SOURCE_JOIN};
         });
     }, [state, setState]);
 
     const onJoinSourceChange = useCallback(
         (alias, newJoinSourceId) => {
-            const match = sources.find((s) => +s.source_id === +newJoinSourceId);
+            const newJoinMatch = sources.find((s) => +s.source_id === +newJoinSourceId);
             const previousJoinSourceId = join?.sources[alias]?.source;
-            if (match) {
+            if (newJoinMatch) {
                 setState((draft) => {
-                    const baseUrl = envs[match.srcEnv]?.baseUrl || "";
-                    const sourceType = match.name ? nameToSlug(match.name) : draft.join.sources[alias].sourceInfo?.type;
-                    draft.join.sources[alias].sourceInfo = { ...match, baseUrl, type: sourceType };
+                    const baseUrl = envs[newJoinMatch.srcEnv]?.baseUrl || "";
+                    const sourceType = newJoinMatch.name ? nameToSlug(newJoinMatch.name) : draft.join.sources[alias].sourceInfo?.type;
+
+                    draft.join.sources[alias].sourceInfo = { ...newJoinMatch, baseUrl, type: sourceType };
                     draft.join.sources[alias].source = newJoinSourceId;
                     draft.join.sources[alias].view = null;
-                    draft.join.sources[alias].type = "left";
 
-                    /**
-                     *
-                     * THIS IS kind of a hack when we update the join source.
-                     * We append its columns to the main externalSource columns
-                     * It is a side effect
-                     * Appending columns from the "join source" to the columns for the main "data source"
-                     * This lets them appear and be added from the main "columns" menu item
-                     */
-                    //filter out any columns from previous table2 source
-                    //Keep columns without a source_id
-                    //Remove columns that match the previous source_id
-                    //leave any that are from a different join source
-                    //leave the rest
-                    draft[EXTERNAL_SOURCE_KEY].columns = draft[EXTERNAL_SOURCE_KEY].columns.filter(
-                        (col) => !col.source_id || previousJoinSourceId !== col.source_id,
+                    draft[EXTERNAL_SOURCE_KEY].columns = SchemaManager.updateColumnsForJoinSource(
+                        draft[EXTERNAL_SOURCE_KEY].columns,
+                        newJoinMatch,
+                        newJoinSourceId,
+                        previousJoinSourceId
                     );
-
-                    draft[EXTERNAL_SOURCE_KEY].columns = [
-                        ...draft[EXTERNAL_SOURCE_KEY].columns,
-                        ...match.columns.map((col) => ({ ...col, source_id: newJoinSourceId })),
-                    ];
                 });
             }
         },
@@ -352,7 +332,6 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
 
     const onJoinViewChange = useCallback(
         (alias, viewId) => {
-            console.log("CHANGING JOIN VIEW", alias)
             const selectedView = joinViewsByAlias[alias].find(jView => jView.view_id === viewId);
             setState((draft) => {
                 draft.join.sources[alias].view = viewId;
@@ -362,8 +341,38 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
         [joinViewsByAlias, setState]
     );
 
-    //TODO
-    //Prob should move almost all this logic into a separate function or something
+    const onMergeStrategyChange = useCallback(
+      (alias, mergeStrategy) => {
+        setState((draft) => {
+          set(draft.join.sources[alias], "mergeStrategy", mergeStrategy);
+          if (mergeStrategy !== "join") {
+            draft.join.sources[alias].joinColumns = [];
+            draft.join.sources[alias].type = null;
+          }
+        });
+      },
+      [state, setState],
+    );
+
+    const onJoinColumnsChange = useCallback((alias, joinVal) => {
+        setState(draft => {
+            if (!draft.join) draft.join = { sources: {} };
+            // Ensure the source entry and joinColumns array exist
+            if (!draft.join.sources[alias]) {
+                draft.join.sources[alias] = {
+                    source: null,
+                    view: null,
+                    sourceInfo: {},
+                    joinColumns: []
+                };
+            } else if (!draft.join.sources[alias].joinColumns) {
+                draft.join.sources[alias].joinColumns = [];
+            }
+            // Assuming only one join column definition per alias for now
+            draft.join.sources[alias].joinColumns = joinVal;
+        });
+    }, [state, setState])
+
     const onJoinChange = useCallback(
         (alias, path, joinVal) => {
             console.log("join change callback, alias::", alias, "path::", path, "val::", joinVal);
@@ -376,37 +385,12 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
                     set(draft.join.sources[alias], path, joinVal)
                 })
             } else if (path === "mergeStrategy") {
-                setState(draft => {
-                    set(draft.join.sources[alias], path, joinVal);
-                    if (joinVal !== 'join') {
-                        draft.join.sources[alias].joinColumns = [];
-                        draft.join.sources[alias].type = null;
-                    }
-                });
-            } else if (path === "joinColumn") {
-                console.log("WARNING, WHY THE FUCK IS THIS BEING SET? WHO IS CALLING WITH THE WRONG KEY")
+                onMergeStrategyChange(alias, joinVal);
             } else if (path === "joinColumns") {
-                setState(draft => {
-                    if (!draft.join) draft.join = { sources: {} };
-                    // Ensure the source entry and joinColumns array exist
-                    if (!draft.join.sources[alias]) {
-                        draft.join.sources[alias] = {
-                            source: null,
-                            view: null,
-                            sourceInfo: {},
-                            joinColumns: []
-                        };
-                    } else if (!draft.join.sources[alias].joinColumns) {
-                        draft.join.sources[alias].joinColumns = [];
-                    }
-                    console.log("in join columns update", path, alias)
-                    console.log(JSON.parse(JSON.stringify(draft.join.sources[alias].joinColumns)))
-                    // Assuming only one join column definition per alias for now
-                    draft.join.sources[alias].joinColumns = joinVal;
-                });
+                onJoinColumnsChange(alias, joinVal)
             }
         },
-        [onJoinSourceChange, onJoinViewChange, setState]
+        [onJoinSourceChange, onJoinViewChange, onMergeStrategyChange, onJoinColumnsChange, setState]
     );
 
     const sourceOptions = useMemo(() => [
