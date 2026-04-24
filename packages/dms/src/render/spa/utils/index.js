@@ -137,16 +137,32 @@ export function pattern2routes (siteData, props) {
       const dmsEnvId = pattern?.dmsEnvId;
       const dmsEnv = dmsEnvId ? dmsEnvById[dmsEnvId] : null;
 
-      const internal = datasetPatterns.map(dsPattern => ({
-        type: 'internal',
-        env: `${app}+${getInstance(dsPattern.type) || dsPattern.doc_type}`,
-        baseUrl: '/forms',
-        label: 'managed',
-        isDms: true,
-        srcAttributes: ['app', 'name', 'config', 'default_columns'],
-        viewAttributes: ['name', 'updated_at'],
-        pattern: dsPattern,
-      }));
+      // Build one internal datasource per UNIQUE source-set. Sources live on
+      // dmsEnv rows; the server resolves env→pattern→pattern.dmsEnvId→sources.
+      // If two datasetPatterns share a dmsEnvId, both produce envs that
+      // surface the same sources, so the picker would show every source
+      // twice. Dedupe by dmsEnvId to make each unique source-set queryable
+      // exactly once. Patterns with no dmsEnvId (legacy "sources on pattern"
+      // model) each remain unique entry points.
+      const internal = [];
+      const seenDmsEnvIds = new Set();
+      for (const dsPattern of datasetPatterns) {
+        const dsDmsEnvId = dsPattern.dmsEnvId;
+        if (dsDmsEnvId) {
+          if (seenDmsEnvIds.has(dsDmsEnvId)) continue;
+          seenDmsEnvIds.add(dsDmsEnvId);
+        }
+        internal.push({
+          type: 'internal',
+          env: `${app}+${getInstance(dsPattern.type) || dsPattern.doc_type}`,
+          baseUrl: '/forms',
+          label: 'managed',
+          isDms: true,
+          srcAttributes: ['app', 'name', 'config', 'default_columns'],
+          viewAttributes: ['name', 'updated_at'],
+          pattern: dsPattern,
+        });
+      }
 
       return [...external, ...internal];
     }

@@ -12,6 +12,10 @@
  */
 
 const { getDb } = require('../../db');
+const { loadConfig } = require('../../db/config');
+const { resolveTable } = require('../../db/table-resolver');
+const { getInstance } = require('../../db/type-utils');
+const { dmsMainTable } = require('./utils');
 
 function isDmsEnv(env) {
   return typeof env === 'string' && env.includes('+');
@@ -257,11 +261,208 @@ async function updateSourceMetadata(env, sourceId, updates) {
 // --- Source delete (call routes) ---
 
 /**
+ * Delete an internal_table source from DMS. The DMS counterpart to DAMA's
+ * hard delete. There's no soft/hard split for DMS because the data IS the
+ * rows in the per-view split tables — there's no metadata-only deletion to
+ * leave anything around for "recovery".
+ *
+ * Steps (DDL outside transaction, data deletes inside):
+ *   1. Load source row, extract slug + view IDs from data.views
+ *   2. Resolve view types so we know each view's slug for the split-table name
+ *   3. DROP TABLE IF EXISTS for each view's split table (collect warnings,
+ *      do not abort)
+ *   4. Find owning dmsEnv rows whose data.sources contains this source_id and
+ *      strip the ref (in transaction)
+ *   5. DELETE the view rows (in transaction)
+ *   6. DELETE the source row (in transaction)
+ *   7. DELETE dms.tasks rows for (app, source_id); task_events cascade via FK
+ *      (in transaction)
+ *
+ * @param {string} env - DMS env (`app+instance`)
+ * @param {number|string} sourceId
+ * @returns {Promise<Object>} summary of what was removed
+ */
+async function deleteInternalSource(env, sourceId) {
+  const [app] = env.split('+');
+  if (!app) {
+    throw new Error(`Invalid DMS env: "${env}" — expected "app+instance"`);
+  }
+  sourceId = +sourceId;
+  if (!Number.isFinite(sourceId)) {
+    throw new Error(`Invalid sourceId: ${sourceId}`);
+  }
+
+  const db = resolveDb(env);
+  const dbEnvName = process.env.DMS_DB_ENV || 'dms-sqlite';
+  const config = loadConfig(dbEnvName);
+  const splitMode = config.splitMode || process.env.DMS_SPLIT_MODE || 'legacy';
+
+  const mainTbl = await dmsMainTable(db, app, splitMode);
+
+  const warnings = [];
+  const dropped_tables = [];
+  const dmsEnvs_updated = [];
+
+  // 1. Load source row. If missing, we still do a best-effort cleanup of
+  // dmsEnv refs + dms.tasks — that path exists so stale refs left behind by
+  // pre-existing hand-deletions can be repaired by visiting the missing
+  // source's admin page.
+  const { rows: srcRows } = await db.query(
+    `SELECT id, type, data FROM ${mainTbl} WHERE id = $1 AND app = $2`,
+    [sourceId, app]
+  );
+
+  const sourceExists = !!srcRows[0];
+  const source = srcRows[0] || null;
+  const sourceSlug = source ? getInstance(source.type) : null;
+  const sourceData = source
+    ? (typeof source.data === 'string' ? JSON.parse(source.data) : (source.data || {}))
+    : {};
+  const viewRefs = Array.isArray(sourceData.views) ? sourceData.views : [];
+  const viewIds = viewRefs.map(v => +v.id).filter(Number.isFinite);
+
+  if (!sourceExists) {
+    warnings.push(`source row id=${sourceId} not found; proceeding with dmsEnv + task cleanup only`);
+  } else if (!sourceSlug) {
+    throw new Error(`Cannot derive source slug from type "${source.type}" (id=${sourceId})`);
+  }
+
+  // 2. Resolve view types
+  let viewTypes = []; // [{id, type, slug}]
+  if (viewIds.length) {
+    const { rows: viewRows } = await db.query(
+      `SELECT id, type FROM ${mainTbl} WHERE id = ANY($1::INT[]) AND app = $2`,
+      [viewIds, app]
+    );
+    viewTypes = viewRows.map(r => ({
+      id: +r.id,
+      type: r.type,
+      slug: getInstance(r.type) || `v${r.id}`,
+    }));
+  }
+
+  // 3. DROP per-view split tables (DDL — outside transaction, collect warnings)
+  for (const v of viewTypes) {
+    const dataType = `${sourceSlug}|${v.id}:data`;
+    const resolved = resolveTable(app, dataType, db.type, splitMode, sourceId);
+    const fqn = db.type === 'postgres'
+      ? `"${resolved.schema}"."${resolved.table}"`
+      : `"${resolved.table}"`;
+    try {
+      await db.query(`DROP TABLE IF EXISTS ${fqn}`);
+      dropped_tables.push(`${resolved.schema}.${resolved.table}`);
+    } catch (err) {
+      warnings.push(`failed to drop ${resolved.schema}.${resolved.table}: ${err.message}`);
+    }
+  }
+
+  // 4. Find owning dmsEnv rows. There may be more than one (the membership
+  //    bug we're tracking separately can leave a source's ref in multiple
+  //    dmsEnvs); cleaning all of them up is the correct behavior here.
+  let dmsEnvSql, dmsEnvParams;
+  if (db.type === 'postgres') {
+    dmsEnvSql = `
+      SELECT id, data FROM ${mainTbl}
+      WHERE app = $1
+        AND type LIKE '%:dmsenv'
+        AND data->'sources' @> jsonb_build_array(jsonb_build_object('id', $2::int))
+    `;
+    dmsEnvParams = [app, sourceId];
+  } else {
+    // SQLite: walk the sources array
+    dmsEnvSql = `
+      SELECT id, data FROM ${mainTbl}
+      WHERE app = $1
+        AND type LIKE '%:dmsenv'
+        AND EXISTS (
+          SELECT 1 FROM json_each(data, '$.sources')
+          WHERE CAST(json_extract(value, '$.id') AS INTEGER) = $2
+        )
+    `;
+    dmsEnvParams = [app, sourceId];
+  }
+  const { rows: dmsEnvRows } = await db.query(dmsEnvSql, dmsEnvParams);
+
+  // 5-7. Data deletes inside a transaction
+  await db.query('BEGIN');
+  try {
+    for (const envRow of dmsEnvRows) {
+      const data = typeof envRow.data === 'string' ? JSON.parse(envRow.data) : (envRow.data || {});
+      const before = (data.sources || []).length;
+      const newSources = (data.sources || []).filter(s => +s.id !== sourceId);
+      const removed = before - newSources.length;
+      if (removed > 0) {
+        const newData = { ...data, sources: newSources };
+        await db.query(
+          `UPDATE ${mainTbl} SET data = $1 WHERE id = $2 AND app = $3`,
+          [JSON.stringify(newData), envRow.id, app]
+        );
+      }
+      dmsEnvs_updated.push({ id: +envRow.id, removed_ref_count: removed });
+    }
+
+    let deletedViewCount = 0;
+    if (viewIds.length) {
+      const r = await db.query(
+        `DELETE FROM ${mainTbl} WHERE id = ANY($1::INT[]) AND app = $2`,
+        [viewIds, app]
+      );
+      deletedViewCount = r.rowCount ?? r.rows?.length ?? 0;
+    }
+
+    const srcDel = await db.query(
+      `DELETE FROM ${mainTbl} WHERE id = $1 AND app = $2`,
+      [sourceId, app]
+    );
+    const deletedSource = (srcDel.rowCount ?? srcDel.rows?.length ?? 0) > 0;
+
+    // dms.tasks lives in the same DMS db. task_events cascades via FK.
+    const taskTableName = db.type === 'postgres' ? 'dms.tasks' : 'dms_tasks';
+    const tasksDel = await db.query(
+      `DELETE FROM ${taskTableName} WHERE app = $1 AND source_id = $2`,
+      [app, sourceId]
+    );
+    const deletedTasks = tasksDel.rowCount ?? tasksDel.rows?.length ?? 0;
+
+    await db.query('COMMIT');
+
+    console.log(
+      `[uda.sources.delete] DMS source ${app}+${sourceSlug} id=${sourceId} cleaned up — ` +
+      `views=${deletedViewCount}, tables=${dropped_tables.length}, ` +
+      `dmsEnvs=${dmsEnvs_updated.length}, tasks=${deletedTasks}, warnings=${warnings.length}`
+    );
+
+    return {
+      source_id: sourceId,
+      app,
+      source_slug: sourceSlug,
+      deleted_source: deletedSource,
+      deleted_views: viewIds,
+      deleted_view_count: deletedViewCount,
+      deleted_tasks: deletedTasks,
+      dropped_tables,
+      dmsEnvs_updated,
+      warnings,
+    };
+  } catch (err) {
+    try { await db.query('ROLLBACK'); } catch {}
+    throw err;
+  }
+}
+
+/**
  * Soft delete: removes the source and its view rows from data_manager.
  * Leaves per-view data tables, task history, and storage files intact.
  * Recoverable if the underlying data hasn't been separately dropped.
+ *
+ * For DMS env (env contains `+`), branches to `deleteInternalSource` — DMS
+ * sources have no soft-vs-hard distinction (the data lives in split tables
+ * managed entirely by DMS, so cleanup is unconditional).
  */
 async function softDeleteSource(env, sourceId) {
+  if (isDmsEnv(env)) {
+    return deleteInternalSource(env, sourceId);
+  }
   const db = resolveDb(env);
   if (db.type !== 'postgres') {
     throw new Error('Source delete is only supported on PostgreSQL (data_manager schema)');
@@ -300,8 +501,15 @@ async function softDeleteSource(env, sourceId) {
  * deletions (views, tasks, source) run inside a transaction and roll back if
  * they fail; the external cleanup (DROP TABLE, storage.remove) runs before
  * the transaction so partial success is visible to the caller.
+ *
+ * For DMS env (env contains `+`), branches to `deleteInternalSource` —
+ * already does the equivalent cleanup for the DMS-side data layout (split
+ * tables, dmsEnv refs, dms.tasks). Lets the client call either route.
  */
 async function hardDeleteSource(env, sourceId) {
+  if (isDmsEnv(env)) {
+    return deleteInternalSource(env, sourceId);
+  }
   const db = resolveDb(env);
   if (db.type !== 'postgres') {
     throw new Error('Source delete is only supported on PostgreSQL (data_manager schema)');
@@ -401,4 +609,5 @@ module.exports = {
   updateSourceMetadata,
   softDeleteSource,
   hardDeleteSource,
+  deleteInternalSource,
 };

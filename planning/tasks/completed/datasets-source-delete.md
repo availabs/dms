@@ -1,5 +1,14 @@
 # Task: Datasets Source Delete — Soft + Hard Delete with 3-option Modal
 
+## Status: DONE for DAMA (external) sources — 2026-04-24
+
+Server-side primitives, Falcor routes, and the 3-option DAMA modal are all shipped and verified in the UI. The internal_table path was identified as a separate concern (data lives in DMS split tables, not `data_manager.*`) and is split out into its own task: [`internal-table-source-delete.md`](./internal-table-source-delete.md).
+
+### Shipped
+- `softDeleteSource` / `hardDeleteSource` in `packages/dms-server/src/routes/uda/uda.tasks.controller.js`
+- Falcor CALL routes `uda.sources.delete` and `uda.sources.hardDelete` in `packages/dms-server/src/routes/uda/uda.tasks.route.js`
+- `DeleteDamaSourceBtn` component in `packages/dms/src/patterns/datasets/pages/dataTypes/default/admin.jsx` — Cancel / Delete (yellow) / Hard Delete (red) with name-typed confirmation, busy state, error surfacing, Falcor cache invalidation, navigation back to baseUrl on success
+
 ## Objective
 
 Fix the non-functional **Delete Source** button on the datasets default admin page

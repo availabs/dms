@@ -35,6 +35,7 @@
     "test:all": "npm test && npm run test:sync && npm run test:auth && npm run test:pg",
     "db:copy": "node src/scripts/copy-db.js",
     "db:cleanup": "node src/scripts/cleanup-db.js",
+    "db:cleanup-stale-dmsenv-refs": "node src/scripts/cleanup-stale-dmsenv-refs.js",
     "db:extract-images": "node src/scripts/extract-images.js",
     "db:consolidate-history": "node src/scripts/consolidate-page-history.js"
   },

@@ -12,27 +12,55 @@ const buttonRedClass = 'p-2 mx-1 bg-red-500 hover:bg-red-700 text-white rounded-
 const buttonGreenClass = 'p-2 mx-1 bg-green-500 hover:bg-green-700 text-white rounded-md';
 
 const DeleteSourceBtn = ({parent, source, apiUpdate, baseUrl}) => {
-    const {UI, app, type, falcor} = useContext(DatasetsContext);
+    const {UI, app, type, falcor, dmsEnv} = useContext(DatasetsContext);
     const {DeleteModal} = UI;
     const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [busy, setBusy] = useState(false);
+    const [error, setError] = useState(null);
     const navigate = useNavigate();
 
     const deleteSource = async () => {
-        const sourceId = source.source_id || source.id;
-        const sourceType = `${type}|source`;
+        setBusy(true);
+        setError(null);
+        try {
+            const sourceId = +(source.source_id || source.id);
+            const udaEnv = `${app}+${type}`;
 
-        // Delete the source row from the database
-        await falcor.call(["dms", "data", "delete"], [app, sourceType, sourceId]);
+            // Server-side cleanup: drops split tables, deletes view rows,
+            // strips ref from owning dmsEnv(s), deletes source row, deletes
+            // dms.tasks rows for this source. Returns a summary.
+            const res = await falcor.call(['uda', 'sources', 'delete'], [udaEnv, sourceId]);
+            const result = res?.json?.uda?.[udaEnv]?.sources?.delete;
+            if (result?.error) {
+                throw new Error(result.error);
+            }
 
-        // Delete-specific invalidation: length + byIndex (positions shift) +
-        // the deleted source's own byId entry. Other byId rows stay cached.
-        const udaEnv = `${app}+${type}`;
-        await falcor.invalidate(['uda', udaEnv, 'sources', 'length']);
-        await falcor.invalidate(['uda', udaEnv, 'sources', 'byIndex']);
-        await falcor.invalidate(['uda', udaEnv, 'sources', 'byId', +sourceId]);
-        clearDatasetsListCache();
+            // Invalidate UDA caches that may have shown this source.
+            await falcor.invalidate(['uda', udaEnv, 'sources', 'length']);
+            await falcor.invalidate(['uda', udaEnv, 'sources', 'byIndex']);
+            await falcor.invalidate(['uda', udaEnv, 'sources', 'byId', sourceId]);
 
-        navigate(baseUrl);
+            // Invalidate the dmsEnv row so its data.sources array is re-fetched
+            // (the server stripped the source ref). Cover any dmsEnvs the
+            // server reported updating, plus the in-context one as a fallback.
+            const dmsEnvIdsToInvalidate = new Set();
+            if (dmsEnv?.id) dmsEnvIdsToInvalidate.add(+dmsEnv.id);
+            for (const e of result?.dmsEnvs_updated || []) {
+                if (e?.id) dmsEnvIdsToInvalidate.add(+e.id);
+            }
+            for (const id of dmsEnvIdsToInvalidate) {
+                await falcor.invalidate(['dms', 'data', app, 'byId', id]);
+            }
+
+            clearDatasetsListCache();
+            setShowDeleteModal(false);
+            navigate(baseUrl);
+        } catch (e) {
+            console.error('Failed to delete internal source:', e);
+            setError(e?.message || String(e));
+        } finally {
+            setBusy(false);
+        }
     }
     return (
         <>
@@ -40,16 +68,17 @@ const DeleteSourceBtn = ({parent, source, apiUpdate, baseUrl}) => {
 
             <DeleteModal
                 title={`Delete Source`} open={showDeleteModal}
-                prompt={`Are you sure you want to delete this source? All of the source data will be permanently removed
-                                            from our servers forever. This action cannot be undone.`}
-                setOpen={(v) => setShowDeleteModal(v)}
+                prompt={
+                    busy
+                        ? `Deleting…`
+                        : (error
+                            ? `Error: ${error}`
+                            : `Permanently delete this source? This will remove all versions, drop the underlying data tables, strip the source from any dmsEnvs that own it, and delete its task history. This cannot be undone.`)
+                }
+                setOpen={(v) => { if (!busy) { setShowDeleteModal(v); if (!v) setError(null); } }}
                 onDelete={() => {
-                    async function deleteItem() {
-                        await deleteSource()
-                        setShowDeleteModal(false)
-                    }
-
-                    deleteItem()
+                    if (busy) return;
+                    deleteSource();
                 }}
             />
         </>
