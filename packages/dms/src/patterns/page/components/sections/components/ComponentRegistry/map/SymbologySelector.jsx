@@ -76,7 +76,7 @@ export const SymbologySelector = () => {
                     options={layerOptions}
                     value={state.symbologies?.[activeSym]?.symbology?.activeLayer}
                     onChange={e => {
-                        const currLayer = state.symbologies?.[activeSym].symbology[e] || {};
+                        const currLayer = state.symbologies?.[activeSym]?.symbology?.layers?.[e] || {};
                         // console.log('currView', state.symbologies, e)
                         if(currLayer) {
                             setState(draft => {
