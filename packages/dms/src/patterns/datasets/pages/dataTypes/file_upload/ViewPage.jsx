@@ -5,19 +5,15 @@ import { get } from "lodash-es"
 import { DatasetsContext } from "../../../context";
 import { getExternalEnv } from "../../../utils/datasources";
 
-const ViewPage = ({ source }) => {
+const ViewPage = ({ source, isDms }) => {
 
 	const {
+		app,
 		datasources,
-		baseUrl,
 		useFalcor,
-		user,
-		DAMA_HOST
 	} = React.useContext(DatasetsContext);
 
 	const pgEnv = getExternalEnv(datasources);
-
-	const { falcor, falcorCache } = useFalcor();
 
 	const views = React.useMemo(() => {
 		return source?.views?.length ? [...source.views] : [];
@@ -26,11 +22,15 @@ const ViewPage = ({ source }) => {
 	return (
 		<div className="w-fit grid grid-cols-1 gap-2">
 			{ views.map(view => (
-					<View key={ view.view_id }
-						source={ source }
-						view={ view }
-						useFalcor={ useFalcor }
-						pgEnv={ pgEnv }/>
+					isDms
+						? <DmsView key={ view.view_id }
+								app={ app }
+								view={ view }
+								useFalcor={ useFalcor }/>
+						: <LegacyView key={ view.view_id }
+								view={ view }
+								useFalcor={ useFalcor }
+								pgEnv={ pgEnv }/>
 				))
 			}
 		</div>
@@ -38,25 +38,56 @@ const ViewPage = ({ source }) => {
 }
 export default ViewPage;
 
-const NO_DATA = { file_type: null, dl_url: null };
-const OPS = JSON.stringify({});
 const IMAGE_TYPES = [
 	'.jpg', '.jpeg', '.png', '.gif', '.webp',
 	'.avif', '.heif', '.heic', '.tiff', '.svg'
 ].map(it => it.replace(".", "image/"));
 
-const View = ({ source, view, useFalcor, pgEnv }) => {
+const OPS = JSON.stringify({});
 
-// console.log("View::view", view)
+// DMS-backed view — file metadata lives in the view row's `data.file` object.
+// Read via the app-namespaced byId falcor route.
+const DmsView = ({ app, view, useFalcor }) => {
+	const { falcor, falcorCache } = useFalcor();
+
+	const viewId = React.useMemo(() => +view.view_id, [view]);
+
+	React.useEffect(() => {
+		if (!viewId) return;
+		falcor.get(["dms", "data", app, "byId", viewId, "data"]);
+	}, [falcor, app, viewId]);
+
+	const data = get(
+		falcorCache,
+		["dms", "data", app, "byId", String(viewId), "data", "value"],
+		null
+	);
+
+	const file = data?.file;
+
+	return (
+		<div className="p-2 rounded-lg bg-gray-100">
+			<div className="border-b-2 mb-2">
+				{ view.name || `View ${ viewId }` }
+			</div>
+			<div className="grid grid-cols-1 gap-2">
+				{ file ? <ViewItem { ...file }/> : (
+					<div className="text-sm text-gray-500">No file attached.</div>
+				) }
+			</div>
+		</div>
+	)
+}
+
+// Legacy pgEnv-backed view — file metadata lives in data_manager.views.metadata
+// and is surfaced via UDA dataByIndex.
+const LegacyView = ({ view, useFalcor, pgEnv }) => {
 
 	const lengthPath = React.useMemo(() => {
-// uda[{keys:envs}].viewsById[{keys:viewIds}].options[{keys:options}].length
 		return ["uda", pgEnv, "viewsById", view.view_id, "options", OPS, "length"];
 	}, [pgEnv, view.view_id]);
 
 	const [dataLength, setDataLength] = React.useState(0);
-
-// console.log("ViewPage::View::dataLength", dataLength);
 
 	const { falcor, falcorCache } = useFalcor();
 
@@ -70,7 +101,6 @@ const View = ({ source, view, useFalcor, pgEnv }) => {
 
 	React.useEffect(() => {
 		if (dataLength) {
-// uda[{keys:envs}].viewsById[{keys:viewIds}].options[{keys:options}].dataByIndex[{integers:indices}][{keys:attributes}]
 			falcor.get([
 				"uda", pgEnv, "viewsById", view.view_id, "options", OPS,
 				"dataByIndex", { from: 0, to: dataLength - 1 },
@@ -94,8 +124,6 @@ const View = ({ source, view, useFalcor, pgEnv }) => {
 		}
 		setData(data);
 	}, [falcorCache, view.view_id, pgEnv, dataLength]);
-
-// console.log("ViewPage::View::data", data);
 
 	return (
 		<div className="p-2 rounded-lg bg-gray-100">

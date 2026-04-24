@@ -14,6 +14,7 @@
 
 - [x] DMS CLI tool (`packages/dms/cli/`) — terminal access to DMS data via shared API code and Falcor protocol (sites, patterns, pages, sections, datasets)
 - [ ] DMS MCP Server — Claude tool for reading, creating, and editing DMS pages/sections via structured MCP tools (Lexical builder, .dmsrc-aware config)
+- [ ] [CLI refresh for type-system refactor + per-app tables + dmsEnv ownership](./tasks/current/cli-refresh-type-refactor.md) — rewrite type resolution throughout `packages/dms/cli/` to use `{parent}:{instance}|{rowKind}`; drop `doc_type` reads (18 call sites); app-namespace every falcor path; walk `pattern.dmsEnvId → dmsEnv.sources` in `dataset list`; use `:data` split-table types in `dataset dump`/`query`. Fixes `dms site tree` / `dms raw list` / `dms dataset *` on modern databases. Do before the MCP server so both can share updated type helpers.
 
 ## local-first
 
@@ -121,6 +122,7 @@
 - [x] Custom admin page for internal dataset types — version creation follows forms pattern (uses DMS `item` with `.id`), SourcePage allows datatype admin overrides
 - [x] Fix `updateMetaData` in upload component — fixed apiUpdate call to use correct source type format and UDA update path
 - [x] Internal pgEnv (dmsEnv) — decouple source ownership from datasets patterns into shared `dmsEnv` rows; per-pattern pgEnv/dmsEnv config in pattern editor; auto-create on fresh projects. Phases 1-7 shipped: format + admin UI, per-pattern `buildDatasources()`, source create/delete moved to dmsEnv, `migrate-to-dmsenv.js` + `rename-split-tables.js` migration scripts, migrated-dataset compat fixes (case-insensitive split regex/lookups, `sanitize()` in new naming, maxPaths 500K, 1MB header), invalid-entry table consolidation
+- [x] `file_upload` → DMS-backed source metadata — source/view metadata moved into `data_items` rows owned by a `dmsEnv` (with `parent` fallback); new `POST /dms-admin/:app/file_upload` route; storage path keyed on `app`/`dmsEnv`; client `CreatePage`/`ViewPage` retargeted with legacy fallback for old pgEnv-backed views. Production-verified uploading 10 MP3s into `asm+nhomb`. See [tasks/completed/file-upload-dms-backed.md](./tasks/completed/file-upload-dms-backed.md)
 
 ### patterns/forms
 
