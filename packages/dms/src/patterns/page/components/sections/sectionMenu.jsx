@@ -295,17 +295,36 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                             onClick: () => onJoinChange(sourceAlias, 'mergeStrategy', t)
                         }))
                     },
-                    //TODO -- add `UNION` vs `UNION ALL` if mergeStrat is `union`
-                    { name: 'Join Type', icon: 'Group', showSearch: false, 
-                        cdn: () => isEdit && ((state.join.sources[sourceAlias].mergeStrategy) === 'join'),
-                        value: state.join.sources[sourceAlias].type || 'left', showValue: true,
-                        items: ['left', 'inner', 'full outer'].map(t => ({
-                            icon: (state.join.sources[sourceAlias].type || 'left') === t ? 'CircleCheck' : 'Blank',
-                            id: `type_${sourceAlias}_${t}`,
-                            name: t.toUpperCase(),
-                            onClickGoBack: true,
-                            onClick: () => onJoinChange(sourceAlias, 'type', t)
-                        }))
+                    { name: 'Merge Type', icon: 'Group', showSearch: false,
+                        cdn: () => isEdit && ['join', 'union'].includes(state.join.sources[sourceAlias].mergeStrategy),
+                        value: state.join.sources[sourceAlias].mergeStrategy === 'union'
+                            ? (state.join.sources[sourceAlias].type === 'all' ? 'UNION ALL' : 'UNION')
+                            : state.join.sources[sourceAlias].type,
+                        showValue: true,
+                        items: state.join.sources[sourceAlias].mergeStrategy === 'union'
+                            ? [
+                                {
+                                    icon: (state.join.sources[sourceAlias].type !== 'all') ? 'CircleCheck' : 'Blank',
+                                    id: `union_type_${sourceAlias}_null`,
+                                    name: 'UNION',
+                                    onClickGoBack: true,
+                                    onClick: () => onJoinChange(sourceAlias, 'type', null)
+                                },
+                                {
+                                    icon: (state.join.sources[sourceAlias].type === 'all') ? 'CircleCheck' : 'Blank',
+                                    id: `union_type_${sourceAlias}_all`,
+                                    name: 'UNION ALL',
+                                    onClickGoBack: true,
+                                    onClick: () => onJoinChange(sourceAlias, 'type', 'all')
+                                }
+                            ]
+                            : ['left', 'inner', 'full outer'].map(t => ({
+                                icon: (state.join.sources[sourceAlias].type) === t ? 'CircleCheck' : 'Blank',
+                                id: `type_${sourceAlias}_${t}`,
+                                name: t.toUpperCase(),
+                                onClickGoBack: true,
+                                onClick: () => onJoinChange(sourceAlias, 'type', t)
+                            }))
                     },
                     {
                         name: 'Join On...', // Group for join columns

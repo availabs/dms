@@ -524,7 +524,8 @@ const buildJoin = async ({ join }) => {
     const {table_schema, table_name} = await getEssentials({view_id, env: sourceEnv});
     
     if (singleJoinOnConfig.mergeStrategy === 'union') {
-      merges.push(`UNION SELECT * FROM ${table_schema}.${table_name} as ${singleJoinOnConfig.table}`);
+      const all = singleJoinOnConfig.type === 'all' ? ' ALL' : '';
+      merges.push(`UNION${all} SELECT * FROM ${table_schema}.${table_name} as ${singleJoinOnConfig.table}`);
     } else if (singleJoinOnConfig.mergeStrategy === 'except') {
       merges.push(`EXCEPT SELECT * FROM ${table_schema}.${table_name} as ${singleJoinOnConfig.table}`);
     } else {
