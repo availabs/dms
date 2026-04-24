@@ -57,7 +57,7 @@ function getResponseColumnName(nameWithAccessors, part = 1) {
     // Strip double quotes added by quoteAlias for digit-prefixed identifiers
     return name ? name.replace(/^"|"$/g, '') : name;
   }
-  return nameWithAccessors.split(".").pop(); //TODO -- test/verify this is OK
+  return nameWithAccessors.split(".").pop();
 }
 /**
  * Quote a SQL alias if it starts with a digit (invalid as an unquoted identifier in SQLite).
@@ -207,12 +207,8 @@ async function getEssentials({ env, view_id, options = {} }) {
     table_schema = table_schema.replace(/^clickhouse\./, '');
     db = getChDb(env);
   }
-  let joinTable = table_name;
-  if(join && join.sources.ds) {
-    console.log("join sources::", join.sources)
-    joinTable += " ds"
-  }
-  return { isDms, db, app: null, type: null, table_schema, table_name: joinTable, dmsAttributes: undefined,dbType };
+
+  return { isDms, db, app: null, type: null, table_schema, table_name, dmsAttributes: undefined,dbType };
 }
 
 /**
