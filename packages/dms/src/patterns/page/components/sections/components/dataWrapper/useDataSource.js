@@ -231,7 +231,6 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
     const onSourceChange = useCallback(
         (sourceId) => {
             const match = sources.find((s) => +s.source_id === +sourceId);
-            console.log("on source change, does this fire on each pag load???")
             setState((draft) => {
                 if (!match && typeof sourceId === "string" && sourceId.includes("+")) {
                     draft.columns = [];

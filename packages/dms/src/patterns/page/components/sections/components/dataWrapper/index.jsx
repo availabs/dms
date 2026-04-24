@@ -131,7 +131,7 @@ const Edit = forwardRef((props, ref) => {
     const [newItem, setNewItem] = useState({})
     const isValidState = Boolean(state?.externalSource?.source_id || state?.externalSource?.isDms);
     const Comp = useMemo(() => component.EditComp, [component]);
-    console.log("dw state::", state)
+
     // ── Hooks that operate on state ──
     const { loading, currentPage, onPageChange, outputSourceInfo } = useDataLoader({
         state, setState, apiLoad, component,

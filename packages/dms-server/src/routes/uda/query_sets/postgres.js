@@ -19,14 +19,6 @@ const {
   handleHaving,
   handleOrderBy,
   buildCombinedWhere,
-  getValuesExceptNulls,
-  getValuesFromGroup,
-  handleFilters,
-  handleFilterGroups,
-  handleGroupBy,
-  handleHaving,
-  handleOrderBy,
-  buildCombinedWhere,
   buildJoin
 } = require('../utils');
 const { typeCast } = require('#db/query-utils.js');
@@ -76,7 +68,7 @@ async function simpleFilterLength(ctx, options) {
   }
 
   const oldValues = [
-    ...isDms ? [[app], [type]] : [],
+    ...(isDms ? [[app], [type]] : []),
     ...getValuesExceptNulls(filter), ...getValuesExceptNulls(exclude),
     ...getValuesExceptNulls(gt), ...getValuesExceptNulls(gte),
     ...getValuesExceptNulls(lt), ...getValuesExceptNulls(lte),
@@ -87,7 +79,7 @@ async function simpleFilterLength(ctx, options) {
 
   const combinedWhere = buildCombinedWhere({
     filter, exclude, gt, gte, lt, lte, like, filterRelation,
-    filterGroups, isDms, app, type, oldValues, dbType: db.type
+    filterGroups, isDms, app, type, oldValues, dbType: db.type,
   });
 
   // Check for jsonb_array_elements_text (PG) or json_each (SQLite) in groupBy
@@ -121,7 +113,7 @@ async function simpleFilterLength(ctx, options) {
          )
          SELECT count(*) numrows FROM t`
       : `SELECT count(${groupBy.length
-           ? `DISTINCT ${groupBy.map(g => sanitizeName(g)).filter(g => g)
+           ? `DISTINCT ${groupBy.map((g) => sanitizeName(g)).filter((g) => g)
                .map(c => `CASE WHEN ${c} IS NULL THEN '__NULL__VAL__' ELSE ${typeCast(c, 'TEXT', db.type)} END`)
                .join(`|| '-' ||`)}`
            : 1}) numrows
@@ -129,7 +121,6 @@ async function simpleFilterLength(ctx, options) {
          ${combinedWhere}
          ${handleHaving(having)}`;
 
-  console.log("uda controller LENGTH sql::", sql, values);
   const { rows } = await db.query(sql, values);
   return rows?.[0]?.numrows ?? 0;
 }
@@ -138,7 +129,7 @@ async function simpleFilter(ctx, options, attributes, indices) {
   const num = indices.to - indices.from + 1;
   const { isDms, db, app, type, table_schema, table_name, dmsAttributes } = ctx;
 
-   let sanitizedAttrs = sanitizeName(attributes).filter(f => f);
+   let sanitizedAttrs = sanitizeName(attributes).filter((f) => f);
   if (!sanitizedAttrs.length) return [];
 
   // Translate PG-specific SQL to SQLite equivalents
@@ -160,8 +151,8 @@ async function simpleFilter(ctx, options, attributes, indices) {
     gt = {}, gte = {}, lt = {}, lte = {}, like = {},
     filterRelation = 'and',
     filterGroups = {},
-    groupBy = [], having = [], orderBy = {}, meta = {},
-    normalFilter = [],
+    groupBy = [], having = [], orderBy = {},
+    normalFilter = [], meta = {},
     join = {}
   } = JSON.parse(options);
 
@@ -172,7 +163,7 @@ async function simpleFilter(ctx, options, attributes, indices) {
   }
 
   const oldValues = [
-    ...isDms ? [[app], [type]] : [],
+    ...(isDms ? [[app], [type]] : []),
     ...getValuesExceptNulls(filter), ...getValuesExceptNulls(exclude),
     ...getValuesExceptNulls(gt), ...getValuesExceptNulls(gte),
     ...getValuesExceptNulls(lt), ...getValuesExceptNulls(lte),
@@ -203,7 +194,7 @@ async function simpleFilter(ctx, options, attributes, indices) {
   }
 
   const sql = `
-    SELECT ${sanitizedAttrs.map(c => quoteAlias(columnNameMap[c] || c)).join(', ')}
+    SELECT ${sanitizedAttrs.map((c) => quoteAlias(columnNameMap[c] || c)).join(', ')}
     FROM ${fromClause}
     ${combinedWhere}
     ${handleGroupBy(groupBy)}
@@ -212,7 +203,7 @@ async function simpleFilter(ctx, options, attributes, indices) {
     LIMIT ${+num}
     OFFSET ${indices.from}
   `;
-  console.log("uda controller sql::", sql, values)
+
   const res = await db.query(sql, values);
 
   // Restore long column names from short aliases
@@ -225,11 +216,11 @@ async function simpleFilter(ctx, options, attributes, indices) {
       })
     : res.rows;
 
-  // Apply meta lookups
+  // // Apply meta lookups
 
-  if (Object.keys(meta).length) {
-    return applyMeta(rows, meta, env, ctx.isDms, options);
-  }
+  // if (Object.keys(meta).length) {
+  //   return applyMeta(rows, meta, env, ctx.isDms, options);
+  // }
   return rows;
 }
 

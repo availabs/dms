@@ -607,7 +607,7 @@ export const buildJoinOnClause = ({ join, externalSource }) => {
         table: sourceAlias,
         on: conditions.join(" AND "),
       };
-      });
+    });
 };
 
 // ─── Output source info (Phase 4: chainability) ────────────────────────────
@@ -770,7 +770,7 @@ export const buildUdaConfig = ({
     return acc;
   },{}) : {};
   sourceIdToTableAlias[externalSource.source_id] = 'ds';
-  console.log({sourceIdToTableAlias})
+
   const joinColumns = isJoinPresent ? Object.values(join.sources).filter(jSource => Object.keys(jSource.sourceInfo || {}).length).map(jSource => jSource.sourceInfo.columns).flat() : [];
   
   const allCols = [...(externalSource?.columns || []), ...joinColumns];
