@@ -5,6 +5,8 @@ import { CMSContext, PageContext } from "../../../../context";
 import { EXTERNAL_SOURCE_KEY } from "./schema";
 import { DEFAULT_SOURCE_JOIN } from "./utils/utils";
 import { SchemaManager } from "./SchemaManager";
+import { calculateIsJoinPresent } from "./utils/joinUtils"
+
 const range = (start, end) => Array.from({ length: end + 1 - start }, (_, k) => k + start);
 
 const getSources = async ({ envs, falcor }) => {
@@ -89,10 +91,7 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
     const { format } = useContext(PageContext) || {};
 
     const { join } = state;
-    const isJoinPresent =
-        !!join &&
-        (Object.keys(join.sources || {}).length > 1 ||
-            (Object.keys(join.sources || {}).length === 1 && Object.keys(join.sources || {})[0] !== "ds"));
+    const isJoinPresent = calculateIsJoinPresent(join);
     const [sources, setSources] = useState([]);
     const [views, setViews] = useState([]);
     const [joinViewsByAlias, setJoinViewsByAlias] = useState({});

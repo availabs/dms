@@ -5,6 +5,7 @@ import {ThemeContext} from "../../../../ui/useTheme";
 import {PageContext, ComponentContext} from "../../context";
 import {getColumnLabel, isEqualColumns} from "./controls_utils";
 import {ConditionValueInput} from "./ConditionValueInput";
+import { calculateIsJoinPresent } from "./components/dataWrapper/utils/joinUtils";
 
 const complexFilterStructure = {
     op: "AND",
@@ -48,11 +49,7 @@ export const ComplexFilters = ({ state, setState }) => {
     const existingCtx = useContext(ComponentContext);
 
     const { join } = state || {};
-    const isJoinPresent =
-        !!join &&
-        (Object.keys(join.sources || {}).length > 1 ||
-            (Object.keys(join.sources || {}).length === 1 && Object.keys(join.sources || {})[0] !== "ds")
-            && Object.values(join.sources).some(jSource => jSource.mergeStrategy === "join")); //TODO we might want this part of the conditional in more placeS?
+    const isJoinPresent = calculateIsJoinPresent(join);  //TODO MIGHT NEED TO ADD BACK IN CONDITIONAL about mergeStrat
 
 
     const columns = [

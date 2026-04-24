@@ -6,17 +6,14 @@ import { getColumnLabel, isEqualColumns } from "./controls_utils";
 import AddFormulaColumn from "./AddFormulaColumn";
 import AddCalculatedColumn from "./AddCalculatedColumn";
 import { isEqual, uniqWith } from "lodash-es";
+import { calculateIsJoinPresent } from "./components/dataWrapper/utils/joinUtils";
 
 const ColumnPicker = ({ dwAPI, allColumns, stagedColumns, setStagedColumns, Pill, Icon }) => {
     const { config: { columns: stateColumns, externalSource, join }, setState } = dwAPI;
     const [pickerSearch, setPickerSearch] = useState('');
     const [isFocused, setIsFocused] = useState(false);
-
-    const isJoinPresent =
-        !!join &&
-        (Object.keys(join.sources || {}).length > 1 ||
-            (Object.keys(join.sources || {}).length === 1 && Object.keys(join.sources || {})[0] !== "ds")
-            && Object.values(join.sources).some(jSource => jSource.mergeStrategy === "join")); //TODO we might want this part of the conditional in more placeS?
+    //OR, ITS possible we want to add in the mergeStrat check everywhere!
+    const isJoinPresent = calculateIsJoinPresent(join); //TODO MIGHT NEED TO ADD BACK IN CONDITIONAL THAT CHECKS THAT WE HAVE A `JOIN` MERGE STRAT && Object.values(join.sources).some(jSource => jSource.mergeStrategy === "join"))
 
     const availableColumns = useMemo(() => {
         return (externalSource?.columns || [])

@@ -4,15 +4,13 @@ import {ComponentContext} from "../../../../../context";
 import {ThemeContext} from "../../../../../../../ui/useTheme";
 import {legacyStateToBuildInput} from "../buildUdaConfig";
 import {attributionTheme} from "./Attribution.theme";
+import { calculateIsJoinPresent } from "../utils/joinUtils";
 
 export const Attribution = () => {
     const { state:{ externalSource, join } } = useContext(ComponentContext);
     const { theme = { attribution: attributionTheme } } = React.useContext(ThemeContext) || {}
     // baseUrl is now included in externalSource by useDataSource.js
-    const isJoinPresent =
-        !!join &&
-        (Object.keys(join.sources || {}).length > 1 ||
-            (Object.keys(join.sources || {}).length === 1 && Object.keys(join.sources || {})[0] !== "ds"));
+    const isJoinPresent = calculateIsJoinPresent(join);
 
     let attribRows = [];
     const { source_id, name, view_name, view_id, updated_at, baseUrl } = externalSource;

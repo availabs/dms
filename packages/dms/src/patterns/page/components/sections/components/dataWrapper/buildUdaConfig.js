@@ -18,7 +18,7 @@
 const columnRenameRegex = /\s+as\s+/i;
 const splitColNameOnAS = (name) => name.split(columnRenameRegex);
 import { EXTERNAL_SOURCE_KEY } from "./schema";
-
+import { calculateIsJoinPresent } from "../dataWrapper/utils/joinUtils";
 export const isCalculatedCol = ({ display, type, origin, name }) =>
   display === "calculated" ||
   type === "calculated" ||
@@ -755,12 +755,9 @@ export const buildUdaConfig = ({
       join.sources[alias] = rawJoin.sources[alias];
     }
   });
+
+  const isJoinPresent = calculateIsJoinPresent(join);
   join.sources.ds = {};
-  // A join is present if we have sources other than the base 'ds'
-  const isJoinPresent =
-    !!join &&
-    (Object.keys(join.sources || {}).length > 1 ||
-      (Object.keys(join.sources || {}).length === 1 && Object.keys(join.sources || {})[0] !== "ds"));
   const isDms = externalSource?.isDms;
 
   //ryan TODO move this into a function
