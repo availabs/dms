@@ -1,6 +1,20 @@
 # Internal PgEnv (dmsEnv)
 
-## Status: IN PROGRESS — Phases 1-6 implemented, Phase 7 (invalid-entry consolidation) DONE, needs testing
+## Status: DONE — 2026-04-24
+
+## What shipped
+
+- **Schema/format**: `dmsEnv` row type (`{siteType}|dmsEnv` originally, now `{site}|{name}:dmsenv` under the new type scheme) with `name` + `sources` dms-format array. Site record gained `dms_envs` ref attribute.
+- **Pattern editor**: `DmsEnvConfig` in `patternEditor/default/settings.jsx` selects an existing dmsEnv or creates one inline; sets `dmsEnvId` on the pattern. Wired through `AdminContext` for datasets / forms / page / mapeditor patterns.
+- **Datasources refactor**: `pattern2routes()` builds per-pattern `datasources` via `buildDatasources(pattern)` that resolves the pattern's `dmsEnvId` to the right env. Datasets `siteConfig.jsx` exposes `dmsEnv` via `DatasetsContext`; page `siteConfig.jsx` receives `dmsEnvs`/`dmsEnvById`. `buildDatasources` dedupes internal envs by `dmsEnvId` so patterns sharing a dmsEnv don't double-list sources in the picker.
+- **Source ownership moved off patterns**: `CreatePage.jsx` and `internal_table/sourceCreate.jsx` add the source ref to the pattern's `dmsEnv` instead of the pattern's `data.sources`. Internal-table delete (`deleteInternalSource`) strips refs from the dmsEnv too.
+- **Migration script**: `dms-server/src/scripts/migrate-to-dmsenv.js` groups patterns by source set, creates dmsEnvs, sets `dmsEnvId`, removes `sources` from patterns; dry-run by default with `--apply`. Idempotent.
+- **Migrated-dataset fixes**: case-insensitive `NAME_SPLIT_REGEX`, `sanitize()` in new split-table naming (3 paths), case-insensitive `doc_type` lookups in UDA + dms controllers, lowercase type for split queries, Falcor `maxPaths` 50K → 500K, `--max-http-header-size=1MB` for wide-table GETs. `rename-split-tables.js` script renamed 39 tables on dms-mercury-2.
+- **Invalid-entry consolidation**: stripped `_invalid` suffix from split-table naming so valid + invalid rows share one table, distinguished by `type` only — fixes `getRowsByTypes` missing invalid rows on revalidation and `batchUpdateType` leaving rows in the wrong physical table. 137 table-splitting tests pass.
+- **Stale-ref cleanup**: `cleanup-stale-dmsenv-refs.js` belt-and-suspenders script (`db:cleanup-stale-dmsenv-refs`) sweeps dmsEnv `sources` arrays for refs to deleted source rows.
+- **Research doc**: `planning/research/dmsenv-datasets-uda.md` covers the data model, type hierarchy, source creation flow, UDA query resolution, table splitting, and applied fixes.
+
+The `cleanup-protect-dmsenv-sources` follow-up was closed as unnecessary — the type-system refactor moved source ownership into the type column (`{dmsEnv}|{name}:source`), so the original orphan-detection model is obsolete and `cleanup-db.js` needs a fresh redesign instead.
 
 ## Objective
 

@@ -1,5 +1,9 @@
 # DataWrapper: Skip API Fetch When "Always Fetch Data" Is Off
 
+## Status: DONE — 2026-04-24
+
+Verified working: Graph (and other non-paginated) components served from cached `element-data` when "Always Fetch Data" is OFF. Pagination's auto-set of `readyToLoad` no longer leaks into persisted state. The Implementation section below covers what was done.
+
 ## Objective
 
 When a dataWrapper component has "Always Fetch Data" toggled OFF, its data should be served from its saved `element-data` state — no API call should happen. Currently, Graph components (and others) always get preloaded and fetched because `readyToLoad` gets permanently set to `true` via Pagination's auto-set mechanism and then saved into `element-data`.

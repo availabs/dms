@@ -1,6 +1,15 @@
 # DMS Task System (independent of DAMA)
 
-## Status: NOT STARTED
+## Status: DONE — 2026-04-24
+
+## What shipped
+
+- **Schema**: `dms.tasks` + `dms.task_events` (PG and SQLite variants) added at `packages/dms-server/src/db/sql/dms/dms_tasks.sql` + `dms_tasks.sqlite.sql`. `app` column on `dms.tasks` for cross-app filtering. Wired into the dms-role init chain via `initDmsTasks` in `db/index.js`; `recoverStalledTasks` runs on boot.
+- **Task module**: full port of the DAMA task module to `packages/dms-server/src/dms/tasks/index.js` targeting the DMS db (resolved from `DMS_DB_ENV`), with `app` accepted on the write side. Parallel `worker-runner.js` available for forked workers (currently unused — the first consumer runs inline).
+- **UDA dispatch**: `routes/uda/uda.tasks.controller.js` branches on `env.includes('+')` — DMS env routes to the new module, plain pgEnv keeps DAMA behavior. Falcor path `uda[env].tasks.*` is unchanged for clients. `getTaskById` is no longer app-scoped so direct task-id lookups resolve regardless of which env the client guesses.
+- **Internal publish wrap**: `dama/upload/routes.js` createPublishHandler is wrapped in `dmsTasks.runInlineTask`. Dispatches `publish:input`, `publish:columns`, `publish:source-resolved`, `publish:row-error`, `publish:progress`, `publish:inserts-complete`, `publish:config-saved`/`config-unchanged`, `publish:done`. Returns `{task_id, data}` to the client.
+- **Client**: `UdaTaskList` accepts an `env` prop with fallback to `getExternalEnv(datasources)`. `internal/pages/admin.jsx` passes the DMS env; external admin keeps the pgEnv. `UdaTaskPage` constructs `pgEnv` from `app+type` (or `_+_` fallback) so direct-link task pages resolve.
+- **Verified end-to-end**: a CSV upload to an internal_table on a pattern with no external pgEnv now creates a `dms.tasks` row, records progress events, and shows up in the admin task list.
 
 ## Objective
 

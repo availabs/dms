@@ -26,7 +26,7 @@
 ## api
 
 - [x] DataWrapper API-layer loading — move dataWrapper data fetching into the DMS API/loader so section data loads at navigation time (React Router 7 loader) instead of after component mount; detect dataWrapper sections, extract URL-mapped filter params, pre-run getData(), leverage cache freshness to skip component-level re-fetch
-- [ ] DataWrapper skip fetch when cached — when "Always Fetch Data" is OFF, skip API call entirely and use cached `element-data`; currently Pagination.jsx auto-sets `readyToLoad=true` for non-paginated views, bypassing the user's toggle
+- [x] DataWrapper skip fetch when cached — Graph + other non-paginated components honor the "Always Fetch Data" toggle; Pagination's auto-set of `readyToLoad` no longer leaks into persisted state.
 - [x] Falcor loader parallel requests — combine sequential `length` + data `falcor.get()` calls into a single call using a ceiling value for `toIndex`, eliminating one HTTP round-trip (~50ms) from first page load
 
 ## ssr
@@ -69,6 +69,7 @@
 - [x] DAMA CSV analyzer — ported legacy `analyzeSchema.js` (zero-padding + GEOID heuristics, 10K-row state machine, sample collection), kept ogrinfo as `DAMA_CSV_ANALYZER=ogrinfo` fallback, fixed `generateTableDescriptor` rename bug via index pairing. 22 csv-analyzer tests, production-verified, docs updated.
 - [x] UDA ClickHouse support for DAMA pgEnv — auxiliary ClickHouse backend per pgEnv. `data_manager.views.table_schema` prefixed with `clickhouse.` routes reads to a CH query set; mirrors avail-falcor `db_service/clickhouse.js` + `routes/uda_query_sets/`. Live smoke test + cross-DB meta dispatch verified against npmrds2.
 - [x] Fix UDA getSitePatterns / getSiteSources for new type scheme — `getSitePatterns` now matches by exact instance segment (`type LIKE '%|' || $instance || ':pattern'`); `getSiteSources` dropped the `data->>'doc_type'` filter and unused `pattern_doc_types` param; two UDA test fixtures rewritten to new-format types. All 51 UDA tests pass.
+- [x] DMS task system independent of DAMA — `dms.tasks` + `dms.task_events` schema (PG + SQLite) wired into dms-role init with `recoverStalledTasks` on boot; `src/dms/tasks/` module mirrors DAMA surface (with `app` column delta) plus parallel `worker-runner.js`; UDA tasks controller dispatches by `env.includes('+')`; `runInlineTask` wraps internal_table publish handler with rich `publish:*` events; client `UdaTaskList`/`UdaTaskPage` accept DMS env so internal-table admin works without any DAMA pgEnv configured.
 
 ## ui
 
@@ -96,7 +97,7 @@
 - [x] Move lexical component inline controls (style, bgColor, showToolbar) to control config
 - [x] Theme-based component registration (allow themes to declare `pageComponents` that auto-register to page pattern)
 - [x] Consolidate page-edit history — replace per-edit `data_items` rows with single row per page holding `entries[]` array; update format, editFunctions, historyPane; migration script for existing databases
-- [ ] DataWrapper & data sources re-architecture — Phases 1-5B done (buildUdaConfig, useDataLoader, useDataWrapperAPI, outputSourceInfo, page-level dataSources, section↔dataWrapper separation, v2 schema). Remaining: Phase 6 (developer docs), page filter runtime resolution (5.18)
+- [x] DataWrapper & data sources re-architecture — Phases 0/1/2/4/6 shipped: `buildUdaConfig` extracted, `useDataLoader` extracted, output `sourceInfo` for chainability, developer docs. Phases 3 (clean section↔dataWrapper interface), 5 (page-level data sources + state ownership restructure), and 5B (clean data schema) deferred — system works in production; if revisited they should each be their own task rather than reviving the monolith.
 - [ ] DataWrapper join support — multi-source UDA configs with WITH/JOIN, join DSL, server-side SQL generation, join UI in data sources pane
 
 ### patterns/mapeditor
@@ -119,7 +120,7 @@
 - [x] `internal_table` dataset type — new type combining creation + upload in one step, auto-creates first version, uses split tables for per-version data storage
 - [x] Custom admin page for internal dataset types — version creation follows forms pattern (uses DMS `item` with `.id`), SourcePage allows datatype admin overrides
 - [x] Fix `updateMetaData` in upload component — fixed apiUpdate call to use correct source type format and UDA update path
-- [ ] Internal pgEnv (dmsEnv) — decouple source ownership from datasets patterns into shared `dmsEnv` rows; per-pattern pgEnv/dmsEnv config in pattern editor; auto-create on fresh projects
+- [x] Internal pgEnv (dmsEnv) — decouple source ownership from datasets patterns into shared `dmsEnv` rows; per-pattern pgEnv/dmsEnv config in pattern editor; auto-create on fresh projects. Phases 1-7 shipped: format + admin UI, per-pattern `buildDatasources()`, source create/delete moved to dmsEnv, `migrate-to-dmsenv.js` + `rename-split-tables.js` migration scripts, migrated-dataset compat fixes (case-insensitive split regex/lookups, `sanitize()` in new naming, maxPaths 500K, 1MB header), invalid-entry table consolidation
 
 ### patterns/forms
 
