@@ -17,6 +17,7 @@
 
 const columnRenameRegex = /\s+as\s+/i;
 const splitColNameOnAS = (name) => name.split(columnRenameRegex);
+import { EXTERNAL_SOURCE_KEY } from "./schema";
 
 export const isCalculatedCol = ({ display, type, origin, name }) =>
   display === "calculated" ||
@@ -1055,7 +1056,7 @@ export const legacyStateToBuildInput = (state, pageFilters) => {
   }
 
   return {
-    externalSource: state.sourceInfo,
+    [EXTERNAL_SOURCE_KEY]: state.sourceInfo,
     columns: state.columns || [],
     filters,
     join: null,

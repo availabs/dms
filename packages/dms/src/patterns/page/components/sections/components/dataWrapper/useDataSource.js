@@ -2,6 +2,7 @@ import { useContext, useEffect, useMemo, useRef, useState, useCallback } from "r
 import { get, isEqual, set } from "lodash-es";
 import { nameToSlug } from "../../../../../../utils/type-utils";
 import { CMSContext, PageContext } from "../../../../context";
+import { EXTERNAL_SOURCE_KEY } from "./schema";
 const range = (start, end) => Array.from({ length: end + 1 - start }, (_, k) => k + start);
 
 const getSources = async ({ envs, falcor }) => {
@@ -93,8 +94,8 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
     const [sources, setSources] = useState([]);
     const [views, setViews] = useState([]);
     const [joinViewsByAlias, setJoinViewsByAlias] = useState({});
-    const sourceId = (state?.externalSource?.source_id);
-    const viewId = (state?.externalSource?.view_id);
+    const sourceId = (state?.[EXTERNAL_SOURCE_KEY]?.source_id);
+    const viewId = (state?.[EXTERNAL_SOURCE_KEY]?.view_id);
     const joinSources = (join?.sources || {});
 
     const sectionColumns = useMemo(
@@ -145,7 +146,7 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
 
                 const existing = data.find((d) => +d.source_id === +sourceId);
 
-                if (existing && (!isEqual(existing.columns, state?.externalSource?.columns) || isJoinPresent) ) {
+                if (existing && (!isEqual(existing.columns, state?.[EXTERNAL_SOURCE_KEY]?.columns) || isJoinPresent) ) {
                     // Include baseUrl from envs when updating externalSource
                     const baseUrl = envs[existing.srcEnv]?.baseUrl || '';
                     setState((draft) => {
@@ -168,17 +169,17 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
 
                             //Filter out columns that have a source_id that differs from the main source_id
                             //Those get added back in via `joinColumns`
-                            const sourceCols = draft?.externalSource?.columns
-                              .filter((sCol) => !sCol.source_id || sCol.source_id === draft.externalSource.source_id)
+                            const sourceCols = draft?.[EXTERNAL_SOURCE_KEY]?.columns
+                              .filter((sCol) => !sCol.source_id || sCol.source_id === draft[EXTERNAL_SOURCE_KEY].source_id)
                               .map((sCol) => ({
                                 ...sCol,
-                                source_id: state?.externalSource.source_id,
+                                source_id: state?.[EXTERNAL_SOURCE_KEY].source_id,
                               }));
                             const allCols = [...sourceCols, ...joinColumns];
-                            draft.externalSource = { ...draft.externalSource, ...existing, baseUrl, columns: allCols };
+                            draft[EXTERNAL_SOURCE_KEY] = { ...draft[EXTERNAL_SOURCE_KEY], ...existing, baseUrl, columns: allCols };
                         } else {
                             //Default behavior with no Joins/Unions
-                            draft.externalSource = { ...draft.externalSource, ...existing, baseUrl };
+                            draft[EXTERNAL_SOURCE_KEY] = { ...draft[EXTERNAL_SOURCE_KEY], ...existing, baseUrl };
                         }
                     });
                 }
@@ -241,7 +242,7 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
                     // Get baseUrl for internal sources
                     const internalBaseUrl = datasources?.find(ds => ds.type === 'internal')?.baseUrl || '/forms';
 
-                    draft.externalSource = {
+                    draft[EXTERNAL_SOURCE_KEY] = {
                         isDms: true,
                         app,
                         type: sourceType === "pages"
@@ -261,8 +262,8 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
                     const newColumnsNames = newColumns.map(c => c.name);
                     draft.columns = draft.columns.filter(c => newColumnsNames.includes(c.name)).map(c => ({...c, ...newColumns.find(newC => newC.name === c.name)}));
                     const baseUrl = envs[match.srcEnv]?.baseUrl || '';
-                    const sourceType = match.name ? nameToSlug(match.name) : draft.externalSource?.type;
-                    draft.externalSource = { ...match, baseUrl, type: sourceType };
+                    const sourceType = match.name ? nameToSlug(match.name) : draft[EXTERNAL_SOURCE_KEY]?.type;
+                    draft[EXTERNAL_SOURCE_KEY] = { ...match, baseUrl, type: sourceType };
                 }
             });
         },
@@ -277,8 +278,8 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
             const { view_id, name, version, updated_at, _modified_timestamp } = view;
 
             setState((draft) => {
-                draft.externalSource = {
-                    ...draft.externalSource,
+                draft[EXTERNAL_SOURCE_KEY] = {
+                    ...draft[EXTERNAL_SOURCE_KEY],
                     view_id,
                     view_name: version || name,
                     updated_at: _modified_timestamp || updated_at,
@@ -335,12 +336,12 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
                     //Remove columns that match the previous source_id
                     //leave any that are from a different join source
                     //leave the rest
-                    draft.externalSource.columns = draft.externalSource.columns.filter(
+                    draft[EXTERNAL_SOURCE_KEY].columns = draft[EXTERNAL_SOURCE_KEY].columns.filter(
                         (col) => !col.source_id || previousJoinSourceId !== col.source_id,
                     );
 
-                    draft.externalSource.columns = [
-                        ...draft.externalSource.columns,
+                    draft[EXTERNAL_SOURCE_KEY].columns = [
+                        ...draft[EXTERNAL_SOURCE_KEY].columns,
                         ...match.columns.map((col) => ({ ...col, source_id: newJoinSourceId })),
                     ];
                 });
@@ -440,8 +441,8 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
                 delete draft.join.sources[alias];
 
                 // Cleanup associated columns
-                if (draft.externalSource && draft.externalSource.columns) {
-                    draft.externalSource.columns = draft.externalSource.columns.filter(
+                if (draft[EXTERNAL_SOURCE_KEY] && draft[EXTERNAL_SOURCE_KEY].columns) {
+                    draft[EXTERNAL_SOURCE_KEY].columns = draft[EXTERNAL_SOURCE_KEY].columns.filter(
                         (col) => !col.source_id || col.source_id !== sourceIdToRemove
                     );
                 }
