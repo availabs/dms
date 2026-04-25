@@ -72,8 +72,31 @@ function buildCardColumnMenuItems({ attribute, controls, display, isEdit, setSta
         },
     ] : [];
 
+    const pageParamsItems = [
+        {
+            name: 'Use Page Params',
+            showLabel: true,
+            type: 'toggle',
+            enabled: !!attribute.usePageParams,
+            setEnabled: v => updateColumns('usePageParams', v)
+        },
+        ...(attribute.usePageParams ? [{
+            name: 'Page Param Key',
+            value: attribute.pageParamKey,
+            showValue: true,
+            items: [{
+                name: 'Page Param Key input',
+                type: 'input',
+                inputType: 'text',
+                value: attribute.pageParamKey,
+                onChange: e => updateColumns('pageParamKey', e?.target?.value ?? e)
+            }]
+        }] : []),
+    ];
+
     return [
         ...staticItems,
+        ...pageParamsItems,
         ...(controls?.inHeader || [])
         .filter(({ displayCdn }) =>
             typeof displayCdn === 'function' ? displayCdn({ attribute, display, isEdit }) :
@@ -314,9 +337,10 @@ const CardColumnField = ({
     const visible = hovered || isMenuOpen;
     const {isLink, isLinkExternal, location, linkText, isImg, imageSrc, imageLocation, imageExtension, imageSize, imageMargin} = attr || {};
     const span = compactView ? 'span 1' : `span ${attr.cardSpan || 1}`;
+    const source = isNewItem ? newItem : tmpItem;
     const rawValue = attr.origin === 'static'
         ? attr.staticValue
-        : tmpItem[attr.normalName] || tmpItem[attr.name];
+        : source?.[attr.normalName] || source?.[attr.name];
     const id = tmpItem?.id;
     const value =
         isImg ?

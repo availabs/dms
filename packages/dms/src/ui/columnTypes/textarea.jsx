@@ -1,4 +1,4 @@
-import React, {useState} from "react"
+import React, {useEffect, useState} from "react"
 
 import { get } from "lodash-es"
 
@@ -9,8 +9,11 @@ const theme = {
     }
 }
 export const TextareaEdit = ({value, onChange, className, placeholder, ...rest}) => {
-    const [tmpValue, setTmpValue] = useState(value)
+    const [tmpValue, setTmpValue] = useState(value || '')
 
+    useEffect(() => {
+        if(value !== tmpValue) setTmpValue(value)
+    }, [value]);
     return (
         <textarea
             className={ className || (theme?.textarea?.input || 'w-full border p-2')}

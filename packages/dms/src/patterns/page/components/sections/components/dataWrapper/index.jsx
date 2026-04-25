@@ -125,6 +125,7 @@ const Edit = forwardRef((props, ref) => {
     const {datasources} = _cmsCtx;
     const pgEnv = getExternalEnv(datasources);
     const {Icon} = UI;
+    const { pageState: editPageState } = _pageCtx;
 
     // ── DataWrapper owns its own state ──
     const [state, setState] = useImmer(migrateToV2(value || '', initialState(component?.defaultState), component?.name));
@@ -145,6 +146,25 @@ const Edit = forwardRef((props, ref) => {
     }, [outputSourceInfo]);
 
     usePageFilterSync({ state, setState });
+
+    // ── Sync newItem from page params for columns with usePageParams ──
+    useEffect(() => {
+        const pageParamColumns = (state?.columns || []).filter(c => c.usePageParams && c.pageParamKey);
+        if (!pageParamColumns.length) return;
+        const pageFilters = (editPageState?.filters || []).reduce(
+            (acc, curr) => ({ ...acc, [curr.searchKey]: curr.values }), {}
+        );
+        const updates = {};
+        pageParamColumns.forEach(col => {
+            const paramValues = pageFilters[col.pageParamKey];
+            if (paramValues !== undefined) {
+                updates[col.name] = Array.isArray(paramValues) ? paramValues[0] : paramValues;
+            }
+        });
+        if (Object.keys(updates).length) {
+            setNewItem(prev => ({ ...prev, ...updates }));
+        }
+    }, [editPageState?.filters, state?.columns]);
 
     useColumnOptions({ state, setState, apiLoad, component, pgEnv, enabled: !!cms_context });
 
@@ -318,6 +338,7 @@ const View = forwardRef(({cms_context, value, onChange, component, editPageMode,
     const pgEnv = getExternalEnv(datasources);
     const { UI, theme: fullTheme } = useContext(ThemeContext)
     const {Icon} = UI;
+    const { pageState: viewPageState } = _pageCtx;
 
     // ── DataWrapper owns its own state ──
     const [state, setState] = useImmer(migrateToV2(value || '', initialState(component?.defaultState), component?.name));
@@ -355,6 +376,25 @@ const View = forwardRef(({cms_context, value, onChange, component, editPageMode,
 
     usePageFilterSync({ state, setState, setReadyOnChange: true });
 
+    // ── Sync newItem from page params for columns with usePageParams ──
+    useEffect(() => {
+        const pageParamColumns = (state?.columns || []).filter(c => c.usePageParams && c.pageParamKey);
+        if (!pageParamColumns.length) return;
+        const pageFilters = (viewPageState?.filters || []).reduce(
+            (acc, curr) => ({ ...acc, [curr.searchKey]: curr.values }), {}
+        );
+        const updates = {};
+        pageParamColumns.forEach(col => {
+            const paramValues = pageFilters[col.pageParamKey];
+            if (paramValues !== undefined) {
+                updates[col.name] = Array.isArray(paramValues) ? paramValues[0] : paramValues;
+            }
+        });
+        if (Object.keys(updates).length) {
+            setNewItem(prev => ({ ...prev, ...updates }));
+        }
+    }, [viewPageState?.filters, state?.columns]);
+    console.log('new item', newItem)
     useColumnOptions({
         state, setState, apiLoad, component, pgEnv,
         enabled: allowEdit || state?.display?.allowAdddNew || state?.columns?.some(c => c.allowEditInView && c.mapped_options)
