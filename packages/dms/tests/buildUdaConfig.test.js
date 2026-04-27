@@ -640,6 +640,7 @@ describe("buildUdaConfig", () => {
         table2: {
           source: 2,
           view: 202,
+          mergeStrategy: "join",
           type: "left",
           joinColumns: [{ dsColumn: "id", joinSourceColumn: "related_id" }],
           sourceInfo: {
