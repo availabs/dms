@@ -276,7 +276,7 @@ const isGroup = (node) => node?.groups && Array.isArray(node.groups);
 
 export const applyTableAliasToJoin = (filterTree, sourceIdToAlias, baseSourceId) => {
     if (!filterTree) return filterTree;
-
+  
   const applyToNode = (node) => {
     if (isGroup(node)) {
       return { ...node, groups: node.groups.map(applyToNode) };
@@ -284,7 +284,7 @@ export const applyTableAliasToJoin = (filterTree, sourceIdToAlias, baseSourceId)
 
     let newNode = { ...node };
 
-    const prefix = sourceIdToAlias[node.source_id] || (node.source_id === baseSourceId ? 'ds' : "");
+    const prefix = sourceIdToAlias[node.source_id] || (node.source_id === baseSourceId ? 'ds' : ""); 
     // Always alias 'col' if it exists
     if (newNode.col && prefix) {
       newNode.col = `${prefix}.${newNode.col.split('.').pop()}`;
@@ -760,7 +760,6 @@ export const buildUdaConfig = ({
   join.sources.ds = {};
   const isDms = externalSource?.isDms;
 
-  //ryan TODO move this into a function
   const sourceIdToTableAlias = isJoinPresent ? Object.keys(join.sources).reduce((acc, alias) => {
     const curJoinSource = join.sources[alias];
     const source_id = curJoinSource.source || externalSource.source_id;
@@ -769,7 +768,12 @@ export const buildUdaConfig = ({
   },{}) : {};
   sourceIdToTableAlias[externalSource.source_id] = 'ds';
 
-  const joinColumns = isJoinPresent ? Object.values(join.sources).filter(jSource => Object.keys(jSource.sourceInfo || {}).length).map(jSource => jSource.sourceInfo.columns).flat() : [];
+  const joinColumns = isJoinPresent
+    ? Object.values(join.sources)
+        .filter((jSource) => Object.keys(jSource.sourceInfo || {}).length)
+        .map((jSource) => jSource.sourceInfo.columns)
+        .flat()
+    : [];
   
   const allCols = [...(externalSource?.columns || []), ...joinColumns];
 

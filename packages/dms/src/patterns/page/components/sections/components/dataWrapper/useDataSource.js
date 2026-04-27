@@ -332,7 +332,7 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
             const selectedView = joinViewsByAlias[alias].find(jView => jView.view_id === viewId);
             setState((draft) => {
                 draft.join.sources[alias].view = viewId;
-                draft.join.sources[alias].sourceInfo.updated_at = selectedView?._modified_timestamp
+                draft.join.sources[alias].sourceInfo.view_id = viewId;
             });
         },
         [joinViewsByAlias, setState]
