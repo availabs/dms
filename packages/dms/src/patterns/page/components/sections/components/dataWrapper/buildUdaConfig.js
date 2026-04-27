@@ -303,7 +303,6 @@ export const applyTableAliasToJoin = (filterTree, sourceIdToAlias, baseSourceId)
   return applyToNode(filterTree, sourceIdToAlias);
 };
 
-
 /**
  * Apply page-level filter values to conditions with usePageFilters=true.
  * Returns a new filter tree with values updated from pageFilters.
@@ -748,7 +747,7 @@ export const isJoinComplete = (joinSource) => {
  */
 export const buildUdaConfig = ({
   externalSource,
-  columns: rawColumns,
+  columns: rawUserColumns,
   filters,
   join: rawJoin,
   pageFilters,
@@ -758,7 +757,7 @@ export const buildUdaConfig = ({
 
   //filter out keys from join that are incomplete configs
   Object.keys(rawJoin?.sources || {}).forEach((alias) => {
-    if(alias === "ds" || isJoinComplete(rawJoin.sources[alias])) {
+    if(isJoinComplete(rawJoin.sources[alias])) {
       join.sources[alias] = rawJoin.sources[alias];
     }
   });
@@ -804,7 +803,7 @@ export const buildUdaConfig = ({
    * Columns represent the user input
    * AKA the columns they want to display
    */
-  const columns = rawColumns.map((col) => {
+  const columns = rawUserColumns.map((col) => {
     const colSourceId = col.source_id || externalSource.source_id;
     const alias = sourceIdToTableAlias[colSourceId];
     const isJoin = isJoinPresent && alias;
@@ -1064,7 +1063,7 @@ export const legacyStateToBuildInput = (state, pageFilters) => {
   }
 
   return {
-    [EXTERNAL_SOURCE_KEY]: state.sourceInfo,
+    externalSource: state.sourceInfo,
     columns: state.columns || [],
     filters,
     join: null,

@@ -207,7 +207,6 @@ async function getEssentials({ env, view_id, options = {} }) {
     table_schema = table_schema.replace(/^clickhouse\./, '');
     db = getChDb(env);
   }
-
   return { isDms, db, app: null, type: null, table_schema, table_name, dmsAttributes: undefined, dbType };
 }
 
@@ -501,8 +500,6 @@ function buildCombinedWhere({ filter, exclude, gt, gte, lt, lte, like, filterRel
   return oldWhere || (newWhere ? `WHERE ${newWhere}` : '');
 }
 
-
-
 const buildJoin = async ({ join }) => {
   const isJoinPresent =
     !!join &&
@@ -531,7 +528,6 @@ const buildJoin = async ({ join }) => {
 
   return { joins: joins.join('\n'), merges: merges.join('\n') }
 }
-
 
 module.exports = {
   sanitizeName,

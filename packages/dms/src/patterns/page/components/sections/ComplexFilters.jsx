@@ -202,7 +202,6 @@ export const ComplexFilters = ({ state, setState }) => {
         // condition
         const isStale = node.col && !columns.find(c => c.name === node.col);
         const siblingConditions = parentOp === 'AND' ? parentLeafSiblings.filter(s => s !== node) : [];
-
         return (
             <div key={path.join('.')} className={`w-full flex flex-col gap-1 items-center ml-2 p-2 border border-dashed rounded-md ${isStale ? 'border-red-300 bg-red-50' : 'hover:bg-blue-50'}`}>
                 {/* column selector */}

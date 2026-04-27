@@ -47,6 +47,7 @@ const triggerDownload = async ({state, apiLoad, loadAllColumns, setLoading}) => 
             ]
                 .map(c => ({...c, show: true}))
         } : state;
+
     const {data} = await getData({
         state: tmpState,
         apiLoad, fullDataLoad: true});
