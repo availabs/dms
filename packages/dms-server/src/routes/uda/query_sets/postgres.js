@@ -114,7 +114,7 @@ async function simpleFilterLength(ctx, options) {
          SELECT count(*) numrows FROM t`
       : `SELECT count(${groupBy.length
            ? `DISTINCT ${groupBy.map((g) => sanitizeName(g)).filter((g) => g)
-               .map(c => `CASE WHEN ${c} IS NULL THEN '__NULL__VAL__' ELSE ${typeCast(c, 'TEXT', db.type)} END`)
+               .map((c) => `CASE WHEN ${c} IS NULL THEN '__NULL__VAL__' ELSE ${typeCast(c, 'TEXT', db.type)} END`)
                .join(`|| '-' ||`)}`
            : 1}) numrows
          FROM ${fromClause}
@@ -129,7 +129,7 @@ async function simpleFilter(ctx, options, attributes, indices) {
   const num = indices.to - indices.from + 1;
   const { isDms, db, app, type, table_schema, table_name, dmsAttributes } = ctx;
 
-   let sanitizedAttrs = sanitizeName(attributes).filter((f) => f);
+  let sanitizedAttrs = sanitizeName(attributes).filter((f) => f);
   if (!sanitizedAttrs.length) return [];
 
   // Translate PG-specific SQL to SQLite equivalents
@@ -174,7 +174,7 @@ async function simpleFilter(ctx, options, attributes, indices) {
 
   const combinedWhere = buildCombinedWhere({
     filter, exclude, gt, gte, lt, lte, like, filterRelation,
-    filterGroups, isDms, app, type, oldValues, dbType: db.type
+    filterGroups, isDms, app, type, oldValues, dbType: db.type,
   });
 
   const { joins, merges } = await buildJoin({join});

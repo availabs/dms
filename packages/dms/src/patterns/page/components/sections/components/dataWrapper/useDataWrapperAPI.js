@@ -96,7 +96,6 @@ export function useDataWrapperAPI({ state, setState }) {
                 externalSource: s?.externalSource,
                 filters: s?.filters,
                 join: s?.join,
-                joinSource: s?.joinSource
             };
         },
         get runtime() {

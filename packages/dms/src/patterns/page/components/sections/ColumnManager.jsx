@@ -12,8 +12,7 @@ const ColumnPicker = ({ dwAPI, allColumns, stagedColumns, setStagedColumns, Pill
     const { config: { columns: stateColumns, externalSource, join }, setState } = dwAPI;
     const [pickerSearch, setPickerSearch] = useState('');
     const [isFocused, setIsFocused] = useState(false);
-    //OR, ITS possible we want to add in the mergeStrat check everywhere!
-    const isJoinPresent = calculateIsJoinPresent(join); //TODO MIGHT NEED TO ADD BACK IN CONDITIONAL THAT CHECKS THAT WE HAVE A `JOIN` MERGE STRAT && Object.values(join.sources).some(jSource => jSource.mergeStrategy === "join"))
+    const isJoinPresent = calculateIsJoinPresent(join) && Object.values(join.sources).some((jSource) => jSource.mergeStrategy === "join");
 
     const availableColumns = useMemo(() => {
         return (externalSource?.columns || [])

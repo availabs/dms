@@ -95,8 +95,8 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
     const [sources, setSources] = useState([]);
     const [views, setViews] = useState([]);
     const [joinViewsByAlias, setJoinViewsByAlias] = useState({});
-    const sourceId = (state?.[EXTERNAL_SOURCE_KEY]?.source_id);
-    const viewId = (state?.[EXTERNAL_SOURCE_KEY]?.view_id);
+    const sourceId = (state?.externalSource?.source_id);
+    const viewId = (state?.externalSource?.view_id);
     const joinSources = (join?.sources || {});
 
     const sectionColumns = useMemo(
@@ -147,7 +147,7 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
 
                 const existing = data.find((d) => +d.source_id === +sourceId);
 
-                if (existing && (!isEqual(existing.columns, state?.[EXTERNAL_SOURCE_KEY]?.columns) || isJoinPresent) ) {
+                if (existing && (!isEqual(existing.columns, state?.externalSource?.columns) || isJoinPresent) ) {
                     // Include baseUrl from envs when updating externalSource
                     const baseUrl = envs[existing.srcEnv]?.baseUrl || '';
                     setState((draft) => {
@@ -180,7 +180,7 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
                             draft[EXTERNAL_SOURCE_KEY] = { ...draft[EXTERNAL_SOURCE_KEY], ...existing, baseUrl, columns: allCols };
                         } else {
                             //Default behavior with no Joins/Unions
-                            draft[EXTERNAL_SOURCE_KEY] = { ...draft[EXTERNAL_SOURCE_KEY], ...existing, baseUrl };
+                            draft.externalSource = { ...draft?.externalSource, ...existing, baseUrl };
                         }
                     });
                 }
@@ -225,7 +225,6 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
         return () => clearTimeout(timeoutId);
     }, [joinSources, sources]);
 
-
     // =================================================================================================================
     // ================================================ handlers =======================================================
     // =================================================================================================================
@@ -243,7 +242,7 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
                     // Get baseUrl for internal sources
                     const internalBaseUrl = datasources?.find(ds => ds.type === 'internal')?.baseUrl || '/forms';
 
-                    draft[EXTERNAL_SOURCE_KEY] = {
+                    draft.externalSource = {
                         isDms: true,
                         app,
                         type: sourceType === "pages"
@@ -299,7 +298,6 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
                 nextNum++;
             }
             const nextAlias = `table${nextNum}`;
-            //TODO -- should export this as "blankJoinSourceConfig" or something
             draft.join.sources[nextAlias] = {...DEFAULT_SOURCE_JOIN};
         });
     }, [state, setState]);
@@ -376,17 +374,17 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
         (alias, path, joinVal) => {
             console.log("join change callback, alias::", alias, "path::", path, "val::", joinVal);
             if(path === "source"){
-                onJoinSourceChange(alias, joinVal)
+                onJoinSourceChange(alias, joinVal);
             } else if (path === "view"){
-                onJoinViewChange(alias, joinVal)
+                onJoinViewChange(alias, joinVal);
             } else if (path === "type") {
                 setState(draft => {
-                    set(draft.join.sources[alias], path, joinVal)
+                    set(draft.join.sources[alias], path, joinVal);
                 })
             } else if (path === "mergeStrategy") {
                 onMergeStrategyChange(alias, joinVal);
             } else if (path === "joinColumns") {
-                onJoinColumnsChange(alias, joinVal)
+                onJoinColumnsChange(alias, joinVal);
             }
         },
         [onJoinSourceChange, onJoinViewChange, onMergeStrategyChange, onJoinColumnsChange, setState]

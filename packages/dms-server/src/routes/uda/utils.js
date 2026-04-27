@@ -208,7 +208,7 @@ async function getEssentials({ env, view_id, options = {} }) {
     db = getChDb(env);
   }
 
-  return { isDms, db, app: null, type: null, table_schema, table_name, dmsAttributes: undefined,dbType };
+  return { isDms, db, app: null, type: null, table_schema, table_name, dmsAttributes: undefined, dbType };
 }
 
 /**
