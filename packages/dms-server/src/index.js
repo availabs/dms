@@ -157,6 +157,17 @@ async function setupAndListen() {
   const { registerDatatype, mountDatatypeRoutes } = require('./dama/datatypes');
   registerDatatype('pmtiles', require('./dama/datatypes/pmtiles'));
 
+  // App-owned datatype plugins — load via DMS_EXTRA_DATATYPES if set.
+  const extraDatatypes = process.env.DMS_EXTRA_DATATYPES;
+  if (extraDatatypes) {
+    try {
+      const registerExtra = require(extraDatatypes);
+      registerExtra({ registerDatatype });
+    } catch (e) {
+      console.error(`[datatypes] Failed to load DMS_EXTRA_DATATYPES=${extraDatatypes}:`, e.message);
+    }
+  }
+
   // Mount plugin routes with shared helpers
   const tasks = require('./dama/tasks');
   const metadata = require('./dama/upload/metadata');
