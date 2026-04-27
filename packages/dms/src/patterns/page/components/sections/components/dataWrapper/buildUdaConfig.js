@@ -301,7 +301,7 @@ export const applyTableAliasToJoin = (filterTree, sourceIdToAlias, baseSourceId)
   };
 
   return applyToNode(filterTree, sourceIdToAlias);
-}
+};
 
 
 /**
@@ -705,7 +705,7 @@ export const computeOutputSourceInfo = ({
 
 // ─── Main builder ───────────────────────────────────────────────────────────
 
-const isJoinComplete = (joinSource) => {
+export const isJoinComplete = (joinSource) => {
   const strategy = joinSource.mergeStrategy || 'join';
   if(!joinSource.source || !joinSource.view) {
     console.log("join is missing source or view::", joinSource);
@@ -713,11 +713,18 @@ const isJoinComplete = (joinSource) => {
   } else if (strategy === "union" || strategy === "except") {
     return true;
   } else if (strategy === "join") {
-    if (!joinSource.type) return false;
+    if (!joinSource.type) {
+      console.log("join is missing TYPE")
+      return false
+    };
     if (!joinSource.joinColumns || joinSource.joinColumns.length === 0) {
       console.log("join is missing 'on columns'::", joinSource);
       return false
     };
+
+    if(!joinSource.joinColumns.every(col => col.dsColumn && col.joinSourceColumn)){
+      console.log("join is missing a portion of join column pair")
+    } 
 
     return joinSource.joinColumns.every(col => col.dsColumn && col.joinSourceColumn);
   } else {

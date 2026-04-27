@@ -28,6 +28,7 @@ import {
   buildJoinSources,
   buildJoinOnClause,
   applyTableAliasToJoin,
+  isJoinComplete,
 } from "../src/patterns/page/components/sections/components/dataWrapper/buildUdaConfig.js";
 
 // ─── Helper: column shorthand ────────────────────────────────────────────────
@@ -639,6 +640,8 @@ describe("buildUdaConfig", () => {
         table2: {
           source: 2,
           view: 202,
+          type: "left",
+          joinColumns: [{ dsColumn: "id", joinSourceColumn: "related_id" }],
           sourceInfo: {
             env: "dama_other",
             columns: [
@@ -656,13 +659,18 @@ describe("buildUdaConfig", () => {
       op: "AND",
       groups: [
         { col: "county_name", source_id: 1, op: "filter", value: ["Albany"] },
-        { col: "city_name", source_id: 2, op: "filter", value: ["Troy"] },
+        {
+          op: "OR",
+          groups: [
+            { col: "city_name", source_id: 2, op: "filter", value: ["Troy"] }
+          ],
+        },
       ],
     };
 
     const { options } = buildUdaConfig(input);
-    expect(options.filterGroups.groups[0].col).toBe("county_name");
-    expect(options.filterGroups.groups[1].col).toBe("city_name");
+    expect(options.filterGroups.groups[0].col).toBe("ds.county_name");
+    expect(options.filterGroups.groups[1].groups[0].col).toBe("table2.city_name");
   });
 
   it("hidden columns are excluded from attributes", () => {
@@ -1146,4 +1154,28 @@ describe("union support", () => {
             }
         ]);
     });
+});
+
+describe("isJoinComplete", () => {
+  it("returns true for valid union", () => {
+    expect(isJoinComplete({ source: 1, view: 101, mergeStrategy: 'union' })).toBe(true);
+  });
+
+  it("returns true for valid join", () => {
+    expect(isJoinComplete({ 
+        source: 1, 
+        view: 101, 
+        mergeStrategy: 'join', 
+        type: 'left', 
+        joinColumns: [{ dsColumn: 'a', joinSourceColumn: 'b' }] 
+    })).toBe(true);
+  });
+
+  it("returns false if source or view is missing", () => {
+    expect(isJoinComplete({ source: 1 })).toBe(false);
+  });
+
+  it("returns false for join missing type", () => {
+    expect(isJoinComplete({ source: 1, view: 101, mergeStrategy: 'join' })).toBe(false);
+  });
 });
