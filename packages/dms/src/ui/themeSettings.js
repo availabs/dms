@@ -9,6 +9,7 @@ import { tableSettings } from "./components/table/table.theme";
 import { navigableMenuSettings } from "./components/navigableMenu/theme";
 import { lexicalSettings } from "./components/lexical/theme";
 import { textSettingsSettings } from "./themes/textSettings";
+import { avlGraphSettings } from "./components/graph_new/theme"
 
 // -----------------
 // Pattern Settings
@@ -32,5 +33,6 @@ export default (theme) => {
     textSettings: textSettingsSettings(theme),
     ...pagesThemeSettings(theme),
 
+    avlGraph: avlGraphSettings(theme)
   }
 }

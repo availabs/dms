@@ -15,6 +15,8 @@ import PDFGenerator from "./ExportPdf.config";
 import Map from "./map/config"
 import MapDama from "./map_dama/config"
 
+import GraphNew from "./graph_new/config"
+
 // //import Item from "./item";
 const ComponentRegistry = {
     lexical,
@@ -35,7 +37,9 @@ const ComponentRegistry = {
         ViewComp: () => <div>Item Component Deprecated.</div>
     },
     Map,
-    "Map: Dama Map": MapDama //MapDama
+    "Map: Dama Map": MapDama, //MapDama,
+
+    "AVL Graph": GraphNew
 }
 
 

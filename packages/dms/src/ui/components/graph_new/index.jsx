@@ -1,9 +1,9 @@
 import React, {useEffect, useMemo} from "react";
-import { ThemeContext } from '../../useTheme';
+import { ThemeContext, getComponentTheme } from '../../useTheme';
 import {isEqual} from "lodash-es";
 import {GraphComponent} from "./GraphComponent";
 import {getColorRange} from "./colorRange";
-import { graphTheme } from "./theme";
+// import { graphTheme } from "./theme";
 //import TableHeaderCell from "../table/components/TableHeaderCell";
 import {strictNaN, fnumIndex} from "./utils";
 
@@ -11,8 +11,13 @@ import {strictNaN, fnumIndex} from "./utils";
 export default function Graph ({
     isEdit, columns=[], data=[], display={}, controls={}, setState=() => {}, isActive, activeStyle
 }) {
-    const { theme: themeFromContext = {graph: graphTheme}} = React.useContext(ThemeContext) || {};
-    const theme = {...themeFromContext, graph: {...graphTheme, ...(themeFromContext.graph || {})}};
+    // const { theme: themeFromContext = {avlGraph: graphTheme}} = React.useContext(ThemeContext) || {};
+    // const theme = {...themeFromContext, avlGraph: {...graphTheme, ...(themeFromContext.avlGraph || {})}};
+
+  const { theme: contextTheme } = React.useContext(ThemeContext) || { theme: { avlGraph: {} } };
+  const theme = getComponentTheme(contextTheme, 'avlGraph', activeStyle);
+
+// console.log("GraphNew::theme", theme);
 
     // data is restructured into: index, type, value.
     // index is X axis column's values.
@@ -73,13 +78,21 @@ export default function Graph ({
     const stopPoints = [0.75, 0.5, 0.05];
     const stopValues = stopPoints.map(p => maxIndexValue * p);
 
+// console.log("graph::columns", columns);
+// console.log("graph::data", data);
+// console.log("graph::display", display);
+// console.log("graph::controls", controls);
+// console.log("graph::setState", setState);
+// console.log("graph::isActive", isActive);
+// console.log("graph::activeStyle", activeStyle);
+
     //console.log('graph data', graphData, columns, display)
     return (
         <>
             {
-                // isEdit ? <div className={theme.graph.headerWrapper}>
+                // isEdit ? <div className={theme.headerWrapper}>
                 //     {[indexColumn, ...dataColumns].filter(f => f.name).map((attribute, i) =>
-                //         <div key={`controls-${i}`} className={theme.graph.columnControlWrapper}>
+                //         <div key={`controls-${i}`} className={theme.columnControlWrapper}>
                 //             <TableHeaderCell
                 //                 isEdit={isEdit}
                 //                 attribute={attribute}
@@ -90,9 +103,9 @@ export default function Graph ({
                 //         </div>)}
                 // </div> : null
             }
-            {display.showScaleFilter ? <div className={theme.graph.scaleWrapper}>
+            {display.showScaleFilter ? <div className={theme.scaleWrapper}>
                 <div
-                    className={`${theme.graph.scaleItem} ${!display?.upperLimit ? theme.graph.scaleItemActive : theme.graph.scaleItemInActive}`}
+                    className={`${theme.scaleItem} ${!display?.upperLimit ? theme.scaleItemActive : theme.scaleItemInActive}`}
                     onClick={() => setState(draft => {
                         draft.display.upperLimit = undefined
                     })}>
@@ -102,7 +115,7 @@ export default function Graph ({
                     stopValues.map(stopValue => (
                         <div
                             key={stopValue}
-                            className={`${theme.graph.scaleItem} ${display?.upperLimit === stopValue ? theme.graph.scaleItemActive : theme.graph.scaleItemInActive}`}
+                            className={`${theme.scaleItem} ${display?.upperLimit === stopValue ? theme.scaleItemActive : theme.scaleItemInActive}`}
                             onClick={() => setState(draft => {
                                 draft.display.upperLimit = stopValue
                             })}>

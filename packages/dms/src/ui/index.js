@@ -40,6 +40,8 @@ import Popup from "./components/Popup";
 import DndList from "./components/DndList";
 import ColumnTypes from "./columnTypes/index.jsx";
 
+import AvlGraph from "./components/graph_new"
+
 const UI = {
 	// --- Layout
 	Layout,
@@ -90,7 +92,9 @@ const UI = {
   Listbox,
 
   // ------ component modes: {EditComp, ViewComp}
-  ColumnTypes
+  ColumnTypes,
+
+  AvlGraph
 }
 
 //console.log('UI - index - UI', UI, columnTypes)

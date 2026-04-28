@@ -36,6 +36,8 @@ import pagesTheme from "../patterns/page/defaultTheme"
 import datasetsTheme from "../patterns/datasets/defaultTheme"
 import authTheme from "../patterns/auth/defaultTheme"
 
+import { avlGraphTheme } from "./components/graph_new/theme"
+
 // =====================================================================================================
 // ======================================== todo: move these to UI
 // =====================================================================================================
@@ -85,6 +87,7 @@ const components = {
     attribution: attributionTheme,
     filters: filterTheme,
     graph: graphTheme,
+    avlGraph: avlGraphTheme,
     navigableMenu: navigableMenuTheme,
     map: mapTheme,
     nestableInHouse: nestableInHouseTheme
