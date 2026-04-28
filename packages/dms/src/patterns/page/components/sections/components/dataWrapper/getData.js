@@ -12,6 +12,7 @@ import {
     buildUdaConfig,
     legacyStateToBuildInput,
 } from "./buildUdaConfig";
+import { calculateIsJoinPresent } from "./utils/joinUtils";
 
 // ─── Private helpers ────────────────────────────────────────────────────────
 
@@ -107,6 +108,9 @@ export const getData = async ({
     debugTime && console.time('getData fn')
     const debug = debugCall || false;
     debug && console.log("=======getData called===========");
+
+    const { join = {} } = state;
+    const isJoinPresent = calculateIsJoinPresent(join);
 
     // Resolve source info — v2 uses externalSource, v1 legacy uses sourceInfo
     const sourceInfo = state.externalSource || state.sourceInfo;
@@ -289,7 +293,20 @@ export const getData = async ({
 
     debugTime && console.timeEnd('post-processing')
     debugTime && console.timeEnd('getData fn')
-    return { length, data: dataToReturn, outputSourceInfo };
+
+    //If we have a join, we need to remove the prefixed table alias from the response
+    const formattedData = isJoinPresent ? dataToReturn.map(d => {
+        const newD = {};
+
+        Object.keys(d).forEach(dKey => {
+            const curCol = state.columns.find(c => c.name === dKey);
+            const formattedKey = dKey.split(".").length > 1 && curCol?.type !== "calculated" ? dKey.split(".")[1] : dKey;
+            newD[formattedKey] = d[dKey]
+        })
+
+        return newD;
+    }) : dataToReturn;
+    return { length, data: formattedData, outputSourceInfo };
 };
 
 export default getData;

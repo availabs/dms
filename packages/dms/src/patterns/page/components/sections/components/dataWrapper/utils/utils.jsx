@@ -196,6 +196,15 @@ const strColorMap = {
   default: "#ccc",
 };
 
+export const DEFAULT_SOURCE_JOIN = {
+  source: null,
+  view: null,
+  sourceInfo: {},
+  joinColumns: [],
+  mergeStrategy: "join",
+  type: "left",
+};
+
 const formatDate = (dateString) => {
   const options = {
     year: "numeric",

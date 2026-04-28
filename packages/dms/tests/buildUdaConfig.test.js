@@ -24,12 +24,17 @@ import {
   buildUdaConfig,
   legacyStateToBuildInput,
   computeOutputSourceInfo,
+  buildJoin,
+  buildJoinSources,
+  buildJoinOnClause,
+  applyTableAliasToJoin,
+  isJoinComplete,
 } from "../src/patterns/page/components/sections/components/dataWrapper/buildUdaConfig.js";
 
 // ─── Helper: column shorthand ────────────────────────────────────────────────
 
 const col = (name, overrides = {}) => ({ name, show: true, ...overrides });
-const srcCol = (name, type = "text", display = "text") => ({ name, type, display });
+const srcCol = (name, type = "text", display = "text", overrides = {}) => ({ name, type, display, ...overrides });
 
 // ─── isCalculatedCol ─────────────────────────────────────────────────────────
 
@@ -615,6 +620,60 @@ describe("buildUdaConfig", () => {
     expect(options.filterGroups.groups[0].value).toEqual(["Greene"]);
   });
 
+  it("filterGroups with join: applies table alias to filter columns", () => {
+    const input = basicDamaInput();
+    input.externalSource.source_id = 1;
+    input.externalSource.isDms = false;
+    input.externalSource.columns = [
+      srcCol("id", "integer", "number", { source_id: 1 }),
+      srcCol("county_name", "text", "text", { source_id: 1 }),
+    ];
+    input.columns = [
+      col("id", { source_id: 1 }),
+      col("county_name", { source_id: 1 }),
+      col("related_id", { source_id: 2 }),
+      col("city_name", { source_id: 2 }),
+    ];
+    input.join = {
+      sources: {
+        ds: { },
+        table2: {
+          source: 2,
+          view: 202,
+          mergeStrategy: "join",
+          type: "left",
+          joinColumns: [{ dsColumn: "id", joinSourceColumn: "related_id" }],
+          sourceInfo: {
+            env: "dama_other",
+            columns: [
+              srcCol("related_id", "integer", "number"),
+              srcCol("city_name", "text", "text"),
+            ],
+          },
+        },
+      },
+      type: "left",
+      operator: "=",
+      on: "ds.id = table2.related_id",
+    };
+    input.filters = {
+      op: "AND",
+      groups: [
+        { col: "county_name", source_id: 1, op: "filter", value: ["Albany"] },
+        {
+          op: "OR",
+          groups: [
+            { col: "city_name", source_id: 2, op: "filter", value: ["Troy"] }
+          ],
+        },
+      ],
+    };
+
+    const { options } = buildUdaConfig(input);
+    expect(options.filterGroups.groups[0].col).toBe("ds.county_name");
+    expect(options.filterGroups.groups[1].groups[0].col).toBe("table2.city_name");
+  });
+
   it("hidden columns are excluded from attributes", () => {
     const input = basicDamaInput();
     input.columns[2].show = false; // damage
@@ -902,5 +961,222 @@ describe("buildUdaConfig outputSourceInfo integration", () => {
       filters: {},
     });
     expect(result.outputSourceInfo.asUdaConfig).toBeNull();
+  });
+});
+
+// ─── buildJoinSources ────────────────────────────────────────────────────────
+
+describe("buildJoinSources", () => {
+  const externalSource = {
+    source_id: 1,
+    view_id: 101,
+    env: "dama",
+    columns: [],
+  };
+
+  it("builds sources object from join config", () => {
+    const join = {
+      sources: {
+        ds: { },
+        table2: {
+          source: 2,
+          view: 202,
+          sourceInfo: { env: "dama_other" },
+        },
+      },
+    };
+    const result = buildJoinSources({ join, externalSource });
+    expect(result).toEqual({
+      table2: { view_id: 202, env: "dama_other" },
+    });
+  });
+});
+
+// ─── buildJoinOnClause ───────────────────────────────────────────────────────
+
+describe("buildJoinOnClause", () => {
+  const externalSource = {
+    source_id: 1,
+    view_id: 101,
+    env: "dama",
+    columns: [],
+  };
+
+  it("builds a basic ON clause with default left join and = operator", () => {
+    const join = {
+      sources: {
+        ds: {  },
+        table2: {
+            source: 2,
+            type: "left",
+            joinColumns: [{ dsColumn: "id", joinSourceColumn: "foreign_id" }]
+        },
+      },
+    };
+    const result = buildJoinOnClause({ join, externalSource });
+    expect(result).toEqual([{
+      type: "left",
+      mergeStrategy: "join",
+      table: "table2",
+      on: "ds.id = table2.foreign_id",
+    }]);
+  });
+});
+
+// ─── buildJoin ───────────────────────────────────────────────────────────────
+
+describe("buildJoin", () => {
+  const externalSource = {
+    source_id: 1,
+    view_id: 101,
+    env: "dama",
+    columns: [],
+  };
+
+  it("builds a complete join object", () => {
+    const join = {
+      sources: {
+        ds: { },
+        table2: {
+          source: 2,
+          view: 202,
+          sourceInfo: { env: "dama_other" },
+          type: "left",
+          joinColumns: [{ dsColumn: "id", joinSourceColumn: "foreign_id" }],
+        },
+      },
+    };
+    const result = buildJoin({ join, externalSource });
+    expect(result).toEqual({
+      sources: {
+        table2: { view_id: 202, env: "dama_other" },
+      },
+      on: [
+        {
+          type: "left",
+          mergeStrategy: "join",
+          table: "table2",
+          on: "ds.id = table2.foreign_id",
+        },
+      ],
+    });
+  });
+});
+
+// ─── applyTableAliasToJoin ───────────────────────────────────────────────────
+
+describe("applyTableAliasToJoin", () => {
+  const sourceIdToAlias = {
+    1: "ds",
+    2: "table2",
+  };
+
+  it("applies 'ds' alias to columns from externalSource", () => {
+    const filterTree = {
+      col: "columnA",
+      source_id: 1,
+      op: "filter",
+      value: ["val1"],
+    };
+    const result = applyTableAliasToJoin(filterTree, sourceIdToAlias);
+    expect(result.col).toBe("ds.columnA");
+  });
+
+  it("applies 'table2' alias to columns from table2 source", () => {
+    const filterTree = {
+      col: "columnB",
+      source_id: 2,
+      op: "filter",
+      value: ["val2"],
+    };
+    const result = applyTableAliasToJoin(filterTree, sourceIdToAlias);
+    expect(result.col).toBe("table2.columnB");
+  });
+
+  it("handles nested filter groups", () => {
+    const filterTree = {
+      op: "AND",
+      groups: [
+        { col: "columnA", source_id: 1, op: "filter", value: ["val1"] },
+        {
+          op: "OR",
+          groups: [
+            { col: "columnB", source_id: 2, op: "filter", value: ["val2"] },
+            { col: "columnC", source_id: 1, op: "gt", value: 10 },
+          ],
+        },
+      ],
+    };
+    const result = applyTableAliasToJoin(filterTree, sourceIdToAlias);
+    expect(result.groups[0].col).toBe("ds.columnA");
+    expect(result.groups[1].groups[0].col).toBe("table2.columnB");
+    expect(result.groups[1].groups[1].col).toBe("ds.columnC");
+  });
+
+  it("applies alias to searchParamKey if present", () => {
+    const filterTree = {
+      col: "columnA",
+      source_id: 1,
+      op: "filter",
+      value: ["val1"],
+      searchParamKey: "searchA",
+    };
+    const result = applyTableAliasToJoin(filterTree, sourceIdToAlias);
+    expect(result.searchParamKey).toBe("ds.searchA");
+    expect(result.col).toBe("ds.columnA"); // col should also be aliased
+  });
+
+  it("returns null filterTree unchanged", () => {
+    const result = applyTableAliasToJoin(null, sourceIdToAlias);
+    expect(result).toBeNull();
+  });
+});
+
+describe("union support", () => {
+    it("recognizes union merge strategy", () => {
+        const join = {
+            sources: {
+                ds: {  },
+                table2: {
+                    source: 2,
+                    mergeStrategy: 'union',
+                    view: 202
+                }
+            }
+        };
+        const externalSource = { source_id: 1 };
+        const result = buildJoin({ join, externalSource });
+        expect(result.on).toEqual([
+            {
+                type: "left",
+                mergeStrategy: "union",
+                table: "table2",
+                on: ""
+            }
+        ]);
+    });
+});
+
+describe("isJoinComplete", () => {
+  it("returns true for valid union", () => {
+    expect(isJoinComplete({ source: 1, view: 101, mergeStrategy: 'union' })).toBe(true);
+  });
+
+  it("returns true for valid join", () => {
+    expect(isJoinComplete({ 
+        source: 1, 
+        view: 101, 
+        mergeStrategy: 'join', 
+        type: 'left', 
+        joinColumns: [{ dsColumn: 'a', joinSourceColumn: 'b' }] 
+    })).toBe(true);
+  });
+
+  it("returns false if source or view is missing", () => {
+    expect(isJoinComplete({ source: 1 })).toBe(false);
+  });
+
+  it("returns false for join missing type", () => {
+    expect(isJoinComplete({ source: 1, view: 101, mergeStrategy: 'join' })).toBe(false);
   });
 });

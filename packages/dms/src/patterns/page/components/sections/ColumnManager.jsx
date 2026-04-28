@@ -5,12 +5,14 @@ import columnTypes from "../../../../ui/columnTypes";
 import { getColumnLabel, isEqualColumns } from "./controls_utils";
 import AddFormulaColumn from "./AddFormulaColumn";
 import AddCalculatedColumn from "./AddCalculatedColumn";
-import {isEqual} from "lodash-es";
+import { isEqual, uniqWith } from "lodash-es";
+import { calculateIsJoinPresent } from "./components/dataWrapper/utils/joinUtils";
 
 const ColumnPicker = ({ dwAPI, allColumns, stagedColumns, setStagedColumns, Pill, Icon }) => {
-    const { config: { columns: stateColumns, externalSource }, setState } = dwAPI;
+    const { config: { columns: stateColumns, externalSource, join }, setState } = dwAPI;
     const [pickerSearch, setPickerSearch] = useState('');
     const [isFocused, setIsFocused] = useState(false);
+    const isJoinPresent = calculateIsJoinPresent(join) && Object.values(join.sources).some((jSource) => jSource.mergeStrategy === "join");
 
     const availableColumns = useMemo(() => {
         return (externalSource?.columns || [])
@@ -75,19 +77,37 @@ const ColumnPicker = ({ dwAPI, allColumns, stagedColumns, setStagedColumns, Pill
                 onBlur={() => setTimeout(() => setIsFocused(false), 150)}
             />
             {showDropdown && (
-                <div className="max-h-40 overflow-y-auto border rounded bg-white scrollbar-sm">
-                    {availableColumns.map(col => (
-                        <div
-                            key={col.name}
-                            className="px-2 py-1 text-sm hover:bg-blue-100 cursor-pointer"
-                            onMouseDown={(e) => {
-                                e.preventDefault();
-                                stageColumn(col);
-                            }}
-                        >
-                            {getColumnLabel(col)}
-                        </div>
-                    ))}
+                <div className="max-h-40 overflow-y-auto border rounded bg-white scrollbar-sm overflow-x-hidden">
+                    {uniqWith(availableColumns, isEqual).map(col => {
+                        const tableAlias = col.source_id ? Object.keys(join?.sources).find(jSourceKey => join?.sources[jSourceKey].source === col.source_id) : 0;
+                        const match = isJoinPresent && tableAlias?.match(/\d+$/);
+                        const tableIdx = match ? Number(match) : 0;
+                        return (
+                            <div
+                                key={`${col.source_id}_${col.name}`}
+                                className="flex items-center justify-between px-2 h-7 text-sm hover:bg-blue-100 cursor-pointer min-w-0"
+                                onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    stageColumn(col);
+                                }}
+                            >
+                                <span className="truncate mr-2">{getColumnLabel(col)}</span>
+                                {isJoinPresent && (
+                                    <div className="relative flex-shrink-0 h-4 w-4 flex items-center justify-center">
+                                        {tableIdx > 0 ?
+                                            <>
+                                                <Icon icon="Link" size={14}/>
+                                                <span className="absolute -top-1 -right-1 flex h-3 w-3 items-center justify-center rounded-full bg-blue-500 text-[7px] font-bold text-white border border-white">
+                                                    {tableIdx}
+                                                </span>
+                                            </>
+                                            : <Icon icon="Database" className="text-slate-300" />
+                                        }
+                                    </div>
+                                )}
+                            </div>
+                        )
+                    })}
                 </div>
             )}
             {stagedColumns.length > 0 && (

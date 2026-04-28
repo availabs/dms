@@ -48,6 +48,7 @@ function sanitizeName(name) {
  * "data->>'title' as title" → "title"
  * "data->>'2_col' as \"2_col\"" → "2_col"
  * "substring(geoid, 1, 2) as state_fips" → "state_fips"
+ * "ds.geoid" → "geoid" 
  */
 function getResponseColumnName(nameWithAccessors, part = 1) {
   const columnRenameRegex = /\s+as\s+/i;
@@ -56,9 +57,8 @@ function getResponseColumnName(nameWithAccessors, part = 1) {
     // Strip double quotes added by quoteAlias for digit-prefixed identifiers
     return name ? name.replace(/^"|"$/g, '') : name;
   }
-  return nameWithAccessors;
+  return nameWithAccessors.split(".").pop();
 }
-
 /**
  * Quote a SQL alias if it starts with a digit (invalid as an unquoted identifier in SQLite).
  * Handles both bare names ("2_col" → "\"2_col\"") and full expressions
@@ -86,6 +86,7 @@ function quoteAlias(nameOrExpr) {
 async function getEssentials({ env, view_id, options = {} }) {
   const parsedOptions = typeof options === 'string' ? JSON.parse(options) : options;
   const isDms = env.includes('+') && !parsedOptions.isDama;
+  const { join } = parsedOptions;
 
   // DMS uses the DMS database; DAMA uses the env as pgEnv config name
   const dbEnv = isDms ? (process.env.DMS_DB_ENV || 'dms-sqlite') : env;
@@ -192,7 +193,6 @@ async function getEssentials({ env, view_id, options = {} }) {
       await ensureSequence(db, app, db.type, splitMode);
       await ensureTable(db, table_schema, table_name, db.type, seqName);
     }
-
     // DMS content never lives on ClickHouse — dbType is always pg for DMS mode.
     return { isDms, db, app, type, table_schema, table_name, dmsAttributes, splitMode, dbType: 'pg' };
   }
@@ -500,6 +500,35 @@ function buildCombinedWhere({ filter, exclude, gt, gte, lt, lte, like, filterRel
   return oldWhere || (newWhere ? `WHERE ${newWhere}` : '');
 }
 
+const buildJoin = async ({ join }) => {
+  const isJoinPresent =
+    !!join &&
+    (Object.keys(join.sources || {}).length > 1 ||
+      (Object.keys(join.sources || {}).length === 1 && Object.keys(join.sources || {})[0] !== "ds"));
+
+  if(!isJoinPresent) return { joins: '', merges: '' };
+
+  const joins = [];
+  const merges = [];
+  
+  for(let i=0; i< join.on.length; i++) {
+    const singleJoinOnConfig = join.on[i];
+    const {view_id, env: sourceEnv} = join.sources[singleJoinOnConfig.table];
+    const {table_schema, table_name} = await getEssentials({view_id, env: sourceEnv});
+    
+    if (singleJoinOnConfig.mergeStrategy === 'union') {
+      const all = singleJoinOnConfig.type === 'all' ? ' ALL' : '';
+      merges.push(`UNION${all} SELECT * FROM ${table_schema}.${table_name} as ${singleJoinOnConfig.table}`);
+    } else if (singleJoinOnConfig.mergeStrategy === 'except') {
+      merges.push(`EXCEPT SELECT * FROM ${table_schema}.${table_name} as ${singleJoinOnConfig.table}`);
+    } else {
+      joins.push(`${ singleJoinOnConfig.type } JOIN ${table_schema}.${table_name} as ${singleJoinOnConfig.table} ON ${singleJoinOnConfig.on}`);
+    }
+  }
+
+  return { joins: joins.join('\n'), merges: merges.join('\n') }
+}
+
 module.exports = {
   sanitizeName,
   getResponseColumnName,
@@ -516,5 +545,6 @@ module.exports = {
   handleGroupBy,
   handleHaving,
   handleOrderBy,
-  buildCombinedWhere
+  buildCombinedWhere,
+  buildJoin
 };

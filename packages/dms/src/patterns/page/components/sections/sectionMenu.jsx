@@ -1,3 +1,4 @@
+//RYAN TODO -- still prob need to clean up some of the sectionMenuItems
 import React, {useState} from 'react'
 import {handleCopy, handleCopyToClipboard, handlePaste} from "./section_utils"
 import {TagComponent} from "./section_components"
@@ -12,7 +13,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
     const { onEdit, moveItem, updateAttribute, updateElementType, onChange, onCancel, onSave, onAddHelpText, setKey, setState, setShowDeleteModal, setListAllColumns } = actions
     const { user, isUserAuthed, pageAuthPermissions, sectionAuthPermissions, Permissions, AuthAPI } = auth
     const { Switch, Pill, Icon, TitleEditComp, LevelComp, refreshDataBtnRef, isRefreshingData, setIsRefreshingData, theme, RegisteredComponents = {} } = ui
-    const { activeSource, activeView, sources=[], views=[], onSourceChange, onViewChange } = dataSource;
+    const { activeSource, activeView, sources=[], views=[], onSourceChange, onViewChange, onJoinChange, activeJoinViewsByAlias={}, isJoinPresent } = dataSource;
 
     const sectionLink = window ? `${window.location.origin}${window.location.pathname}#${value.id}` : '';
     const canEditSection = isUserAuthed(['edit-section'], sectionAuthPermissions);
@@ -28,11 +29,6 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
     // ============================================ helpers begin ======================================================
     // =================================================================================================================
     const groupControl = resolvedControls?.columns?.find(c => c.key === 'group') || {};
-    const hasGroupControl = Boolean(groupControl);
-    const allColumns = [
-        ...(state?.columns || []),
-        ...(state?.externalSource?.columns || []).filter(c => !(state?.columns || []).map(c => c.name).includes(c.name))
-    ];
 
     // Registry of control type transformers - all use nested submenu pattern
     const controlItemTransformers = {
@@ -255,6 +251,157 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                     .map(transformControlItem),
             ].filter(item => !item.cdn || item.cdn())
         }
+
+    const join = {
+        name: 'Join Dataset', id: "join_settings", icon: 'Group',
+        cdn: () => canEditSection && currentComponent?.useDataSource && (isEdit || isJoinPresent) && activeSource,
+        value: `Sources: ${Object.keys(state?.join?.sources || {}).length}`,
+        showValue: true,
+        items: [
+            ...Object.keys(state?.join?.sources || {}).filter(sAlias => sAlias !== 'ds').map(sourceAlias => ({
+                name: sources?.find(s => s.key === state.join.sources[sourceAlias].source)?.label || `Dataset (${sourceAlias})`, 
+                id: `join_dataset_${sourceAlias}`,
+                icon: 'Group',
+                cdn: () => canEditSection && isEdit,
+                items: [
+                    { name: 'Source', icon: 'Database', showSearch: true, cdn: () => isEdit,
+                        value: sources?.find(s => s.key === state.join.sources[sourceAlias].source)?.label, showValue: true,
+                        items: sources.map(({key, label}) => ({
+                            icon: key === state.join.sources[sourceAlias].source ? 'CircleCheck' : 'Blank',
+                            id: `source_${sourceAlias}_${key}`,
+                            name: label,
+                            onClickGoBack: true,
+                            onClick: () => onJoinChange(sourceAlias, 'source', key)
+                        }))
+                    },
+                    { name: 'Version', icon: 'Database', showSearch: true, cdn: () => isEdit,
+                        value: activeJoinViewsByAlias[sourceAlias]?.find(s => s.key === state.join.sources[sourceAlias].view)?.label || state.join.sources[sourceAlias].view, showValue: true,
+                        items: activeJoinViewsByAlias[sourceAlias]?.map(({key, label}) => ({
+                            icon: key === state.join.sources[sourceAlias].view ? 'CircleCheck' : 'Blank',
+                            id: `version_${sourceAlias}_${key}`,
+                            name: label,
+                            onClickGoBack: true,
+                            onClick: () => onJoinChange(sourceAlias, 'view', key)
+                        }))
+                    },
+                    { type: 'separator', cdn: () => isEdit },
+                    { name: 'Merge Strategy', icon: 'Group', showSearch: false, cdn: () => isEdit,
+                        value: state.join.sources[sourceAlias].mergeStrategy || 'join', showValue: true,
+                        items: ['join', 'union', 'except'].map(t => ({
+                            icon: (state.join.sources[sourceAlias].mergeStrategy || 'join') === t ? 'CircleCheck' : 'Blank',
+                            id: `strategy_${sourceAlias}_${t}`,
+                            name: t.toUpperCase(),
+                            onClickGoBack: true,
+                            onClick: () => onJoinChange(sourceAlias, 'mergeStrategy', t)
+                        }))
+                    },
+                    { name: 'Merge Type', icon: 'Group', showSearch: false,
+                        cdn: () => isEdit && ['join', 'union'].includes(state.join.sources[sourceAlias].mergeStrategy),
+                        value: state.join.sources[sourceAlias].mergeStrategy === 'union'
+                            ? (state.join.sources[sourceAlias].type === 'all' ? 'UNION ALL' : 'UNION')
+                            : state.join.sources[sourceAlias].type,
+                        showValue: true,
+                        items: state.join.sources[sourceAlias].mergeStrategy === 'union'
+                            ? [
+                                {
+                                    icon: (state.join.sources[sourceAlias].type !== 'all') ? 'CircleCheck' : 'Blank',
+                                    id: `union_type_${sourceAlias}_null`,
+                                    name: 'UNION',
+                                    onClickGoBack: true,
+                                    onClick: () => onJoinChange(sourceAlias, 'type', null)
+                                },
+                                {
+                                    icon: (state.join.sources[sourceAlias].type === 'all') ? 'CircleCheck' : 'Blank',
+                                    id: `union_type_${sourceAlias}_all`,
+                                    name: 'UNION ALL',
+                                    onClickGoBack: true,
+                                    onClick: () => onJoinChange(sourceAlias, 'type', 'all')
+                                }
+                            ]
+                            : ['left', 'inner', 'full outer'].map(t => ({
+                                icon: (state.join.sources[sourceAlias].type) === t ? 'CircleCheck' : 'Blank',
+                                id: `type_${sourceAlias}_${t}`,
+                                name: t.toUpperCase(),
+                                onClickGoBack: true,
+                                onClick: () => onJoinChange(sourceAlias, 'type', t)
+                            }))
+                    },
+                    {
+                        name: 'Join On...', // Group for join columns
+                        icon: 'Link',
+                        cdn: () => canEditSection && isEdit && state.join.sources[sourceAlias].source && state.join.sources[sourceAlias].sourceInfo?.columns && (state.join.sources[sourceAlias].mergeStrategy) === 'join',
+                        items: [
+                            ...(state.join.sources[sourceAlias]?.joinColumns || []).map((joinPair, idx) => ({
+                                name: `Pair ${idx + 1}`,
+                                icon: 'Link',
+                                items: [
+                                    {
+                                        name: 'Join on ds column',
+                                        id: `${sourceAlias}_ds_join_${idx}`,
+                                        showSearch: true,
+                                        value: joinPair.dsColumn,
+                                        items: (state.externalSource.columns || []).filter(sCol => !sCol.source_id || sCol.source_id === state.externalSource.source_id).map(col => ({
+                                            icon: col?.name === joinPair.dsColumn ? 'CircleCheck' : 'Blank',
+                                            id: `join_ds_col_${sourceAlias}_${idx}_${col?.name}`,
+                                            name: col?.name,
+                                            onClickGoBack: true,
+                                            onClick: () => {
+                                                const currentJoinColumns = [...(state.join.sources[sourceAlias]?.joinColumns || [])];
+                                                currentJoinColumns[idx] = { ...currentJoinColumns[idx], dsColumn: col.name };
+                                                onJoinChange(sourceAlias, 'joinColumns', currentJoinColumns);
+                                            }
+                                        }))
+                                    },
+                                    {
+                                        name: `Join on ${sourceAlias} column`,
+                                        id: `${sourceAlias}_secondary_join_${idx}`,
+                                        showSearch: true,
+                                        value: joinPair.joinSourceColumn,
+                                        items: (state?.join?.sources[sourceAlias]?.sourceInfo?.columns || []).map(col => ({
+                                            icon: col.name === joinPair.joinSourceColumn ? 'CircleCheck' : 'Blank',
+                                            id: `join_${sourceAlias}_col_${idx}_${col.name}`,
+                                            name: col.name,
+                                            onClickGoBack: true,
+                                            onClick: () => {
+                                                const currentJoinColumns = [...(state.join.sources[sourceAlias]?.joinColumns || [])];
+                                                currentJoinColumns[idx] = { ...currentJoinColumns[idx], joinSourceColumn: col.name };
+                                                onJoinChange(sourceAlias, 'joinColumns', currentJoinColumns);
+                                            }
+                                        }))
+                                    },
+                                    {
+                                        name: 'Delete Pair',
+                                        icon: 'TrashCan',
+                                        onClickGoBack: true,
+                                        onClick: () => {
+                                            const currentJoinColumns = [...(state.join.sources[sourceAlias]?.joinColumns || [])];
+                                            currentJoinColumns.splice(idx, 1);
+                                            onJoinChange(sourceAlias, 'joinColumns', currentJoinColumns);
+                                        }
+                                    }
+                                ]
+                            })),
+                            {
+                                name: 'Add Column Pair',
+                                icon: 'Plus',
+                                onClickGoBack: false,
+                                onClick: () => {
+                                    const currentJoinColumns = [...(state.join.sources[sourceAlias]?.joinColumns || [])];
+                                    currentJoinColumns.push({ dsColumn: null, joinSourceColumn: null });
+                                    onJoinChange(sourceAlias, 'joinColumns', currentJoinColumns);
+                                }
+                            }
+                        ].filter(item => !item.cdn || item.cdn())
+                    },
+                    { type: 'separator', cdn: () => isEdit },
+                    { name: 'Remove Dataset', icon: 'TrashCan', cdn: () => isEdit, onClickGoBack: true, onClick: () => dataSource.removeJoinSource(sourceAlias) },
+                ].filter(item => !item.cdn || item.cdn())
+            })),
+            { type: 'separator', cdn: () => isEdit },
+            { name: 'Add Join Source', icon: 'Plus', cdn: () => isEdit, onClick: () => dataSource.addJoinSource() },
+        ].filter(item => !item.cdn || item.cdn())
+    }
+    
 
     const columns = [
         {
@@ -588,6 +735,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
             ...componentSettings,
             {type: 'separator'},
             dataset,
+            join,
             ...columns,
             ...filter,
             {type: 'separator', cdn: () => currentComponent?.useDataSource && canEditSection},

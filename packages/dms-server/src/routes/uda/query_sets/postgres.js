@@ -19,6 +19,7 @@ const {
   handleHaving,
   handleOrderBy,
   buildCombinedWhere,
+  buildJoin
 } = require('../utils');
 const { typeCast } = require('#db/query-utils.js');
 
@@ -52,8 +53,10 @@ async function simpleFilterLength(ctx, options) {
     filterGroups = {},
     groupBy = [], having = [],
     normalFilter = [],
+    join = {}
   } = JSON.parse(options);
 
+  // Translate PG-specific SQL in groupBy expressions for SQLite
   if (db.type === 'sqlite' && groupBy.length) {
     groupBy = groupBy.map(translatePgToSqlite);
   }
@@ -79,14 +82,31 @@ async function simpleFilterLength(ctx, options) {
     filterGroups, isDms, app, type, oldValues, dbType: db.type,
   });
 
+  // Check for jsonb_array_elements_text (PG) or json_each (SQLite) in groupBy
   const hasArrayElements = groupBy?.[0]?.includes('jsonb_array_elements_text')
     || groupBy?.[0]?.includes('json_each');
+
+  const { joins, merges } = await buildJoin({join});
+  const hasMerge = merges.length > 0;
+  const hasJoin = joins.length > 0;
+
+  let fromClause;
+  if (hasMerge) {
+    fromClause = `(SELECT * FROM ${table_schema}.${table_name} ${merges}) AS ds`;
+    if (hasJoin) {
+      fromClause += ` ${joins}`;
+    }
+  } else {
+    //default case for no merge
+    //could have 1 or more joins
+    fromClause = `${table_schema}.${table_name} ${hasJoin ? ' as ds ' : ''} ${joins}`;
+  }
 
   const sql =
     hasArrayElements && sanitizeName(groupBy?.[0])
       ? `WITH t AS (
            SELECT DISTINCT ${groupBy[0]}
-           FROM ${table_schema}.${table_name}
+           FROM ${fromClause}
            ${combinedWhere}
            GROUP BY 1
            ${handleHaving(having)}
@@ -97,7 +117,7 @@ async function simpleFilterLength(ctx, options) {
                .map((c) => `CASE WHEN ${c} IS NULL THEN '__NULL__VAL__' ELSE ${typeCast(c, 'TEXT', db.type)} END`)
                .join(`|| '-' ||`)}`
            : 1}) numrows
-         FROM ${table_schema}.${table_name}
+         FROM ${fromClause}
          ${combinedWhere}
          ${handleHaving(having)}`;
 
@@ -112,10 +132,12 @@ async function simpleFilter(ctx, options, attributes, indices) {
   let sanitizedAttrs = sanitizeName(attributes).filter((f) => f);
   if (!sanitizedAttrs.length) return [];
 
+  // Translate PG-specific SQL to SQLite equivalents
   if (db.type === 'sqlite') {
     sanitizedAttrs = sanitizedAttrs.map(translatePgToSqlite);
   }
 
+  // Map long column names to short aliases
   const columnNameMap = sanitizedAttrs.reduce((acc, attr, i) => {
     const responseName = getResponseColumnName(attr);
     if (attr.toLowerCase().includes(' as ') && responseName.length > 60) {
@@ -130,7 +152,8 @@ async function simpleFilter(ctx, options, attributes, indices) {
     filterRelation = 'and',
     filterGroups = {},
     groupBy = [], having = [], orderBy = {},
-    normalFilter = [],
+    normalFilter = [], meta = {},
+    join = {}
   } = JSON.parse(options);
 
   if (normalFilter.length) {
@@ -154,9 +177,25 @@ async function simpleFilter(ctx, options, attributes, indices) {
     filterGroups, isDms, app, type, oldValues, dbType: db.type,
   });
 
+  const { joins, merges } = await buildJoin({join});
+  const hasMerge = merges.length > 0;
+  const hasJoin = joins.length > 0;
+
+  let fromClause;
+  if (hasMerge) {
+    fromClause = `(SELECT * FROM ${table_schema}.${table_name} ${merges}) AS ds`;
+    if (hasJoin) {
+      fromClause += ` ${joins}`;
+    }
+  } else {
+    //default case for no merge
+    //could have 1 or more joins
+    fromClause = `${table_schema}.${table_name} ${hasJoin ? ' as ds ' : ''} ${joins}`;
+  }
+
   const sql = `
     SELECT ${sanitizedAttrs.map((c) => quoteAlias(columnNameMap[c] || c)).join(', ')}
-    FROM ${table_schema}.${table_name}
+    FROM ${fromClause}
     ${combinedWhere}
     ${handleGroupBy(groupBy)}
     ${handleHaving(having)}
@@ -167,8 +206,9 @@ async function simpleFilter(ctx, options, attributes, indices) {
 
   const res = await db.query(sql, values);
 
-  const rows = Object.keys(columnNameMap).length
-    ? res.rows.map((row) => {
+  // Restore long column names from short aliases
+  let rows = Object.keys(columnNameMap).length
+    ? res.rows.map(row => {
         const restored = Object.keys(columnNameMap).reduce((acc, originalName) => {
           return { ...acc, [getResponseColumnName(originalName)]: row[getResponseColumnName(columnNameMap[originalName])] };
         }, {});
@@ -176,6 +216,11 @@ async function simpleFilter(ctx, options, attributes, indices) {
       })
     : res.rows;
 
+  // // Apply meta lookups
+
+  // if (Object.keys(meta).length) {
+  //   return applyMeta(rows, meta, env, ctx.isDms, options);
+  // }
   return rows;
 }
 
