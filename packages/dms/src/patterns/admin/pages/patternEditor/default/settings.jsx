@@ -167,6 +167,16 @@ export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest})
                       customTheme
                     },
                     {
+                      label: 'HTML Title',
+                      type: 'Input',
+                      placeholder: tmpValue.name || 'Browser tab title',
+                      value: tmpValue.html_title || '',
+                      onChange: e => setTmpValue(draft => {
+                        draft.html_title = e.target.value
+                      }),
+                      customTheme
+                    },
+                    {
                       type: 'Spacer',
                       customTheme: { field: 'bg-white col-span-3 ' }
                     },

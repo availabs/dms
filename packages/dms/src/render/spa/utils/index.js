@@ -1,4 +1,5 @@
 /* global process */
+import React from 'react'
 import { cloneDeep } from "lodash-es"
 import { useFalcor } from "@availabs/avl-falcor"
 import { withAuth,  dmsPageFactory } from '../../../'
@@ -7,6 +8,7 @@ import { getInstance } from '../../../utils/type-utils';
 import patternTypes from '../../../patterns'
 import { updateAttributes, updateRegisteredFormats } from "../../../dms-manager/_utils";
 import RootErrorBoundary from './RootErrorBoundary'
+import PatternTitle from './PatternTitle'
 
 
 export const getSubdomain = (host) => {
@@ -219,15 +221,27 @@ export function pattern2routes (siteData, props) {
                     damaDataTypes,
                 });
                 // console.log('dmssitefactory Config obj', configObj)
-                return ({
-                  ...dmsPageFactory({
+                const route = dmsPageFactory({
                     dmsConfig: configObj,
                     API_HOST,
                       DAMA_HOST,
                     authWrapper,
                     isAuth: pattern.pattern_type === 'auth',
                     ErrorBoundary: RootErrorBoundary
-                })})
+                });
+                const InnerComponent = route.Component;
+                const titleValue = (typeof pattern?.html_title === 'string' && pattern.html_title.trim())
+                    || pattern?.name
+                    || '';
+                return ({
+                  ...route,
+                  Component: (props) => React.createElement(
+                    React.Fragment,
+                    null,
+                    React.createElement(PatternTitle, { title: titleValue }),
+                    React.createElement(InnerComponent, props)
+                  )
+                })
             }));
 
             return acc;
