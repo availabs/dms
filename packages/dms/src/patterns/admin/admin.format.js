@@ -72,6 +72,11 @@ export const pattern = {
       type: "text",
       required: true
     },
+    { key: "html_title",
+      placeholder: 'Browser tab title (defaults to pattern name)',
+      type: "text",
+      required: false
+    },
     {
       key: "filters",
       type: "json",

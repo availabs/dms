@@ -33,7 +33,7 @@ export default function dmsPageFactory({
     const t1 = import.meta.env.DEV ? performance.now() : 0;
     // Pre-load dataWrapper section data if the pattern supports it
     if (dmsConfig.preload) {
-      data = await dmsConfig.preload(falcor, data, request, params);
+      //data = await dmsConfig.preload(falcor, data, request, params);
     }
     if (import.meta.env.DEV) {
       const t2 = performance.now();

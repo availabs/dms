@@ -11,6 +11,7 @@
 - [ ] [Port `enhance_nfip_claims_v2` to the plugin system](./tasks/current/dama-nfip-claims-migration.md) — first concrete plugin built on the infrastructure. Reference implementation for subsequent hazmit ports. Replaces the smoke-test plugin with `enhance-nfip-claims`.
 - [ ] [Port `map21` to the plugin system + 2023 HPMS TTM spec output](./tasks/current/dama-map21-migration.md) — IMPLEMENTED on 2026-04-26: plugin registered, route mounts at `/dama-admin/:pgEnv/map21/publish`, fast-fail path verified against `dama-sqlite-test`, in-process HPMS 2023 validator agrees with the external `validate-hpms-ttm-2023.cjs` (synthesized 2023-shape row passes; 2025 submittal CSV produces identical errors in both). **Pending: controlled smoke test against `npmrds2` ClickHouse + a real prod NPMRDS source, plus client-side route update.**
 - [ ] [Remove `/events/query` + `newContextId` REST compat shim](./tasks/current/remove-events-query-shim.md) — split out from DAMA server port; non-blocking. Migrate the GIS Create wizard to poll UDA tasks via Falcor, then drop the legacy REST endpoints from `dms-server/src/dama/upload/`.
+- [ ] [now-playing dataType plugin](./tasks/current/dama-now-playing-datatype.md) — port the standalone ACRCloud webhook receiver in `research/now-playing/` into a real DMS plugin (`data-types/now-playing/`). Adds a generic `publicRoutes` capability to the dataType contract (mounted before JWT) so plugins can receive unauthenticated external callbacks. Each "stream" is a DMS source+view with a per-stream `webhook_secret`; detections land in the auto-created split table. Ships a `NowPlayingCard` page-section component for displaying the latest matched track.
 
 ## cli
 
@@ -134,6 +135,7 @@
 - [x] Update admin theme merges to use `mergeTheme` (siteConfig.jsx, editTheme.jsx, themeEditor.jsx)
 - [x] Add delete & duplicate buttons to admin pattern overview — port actions from old `PatternEdit` modal to pattern editor Overview tab + list table
 - [ ] Pattern creation refresh bug — new pattern row appears with blank data, requires page refresh; `dmsDataEditor` mutates input data (replaces dms-format attrs with refs), revalidation doesn't restore correct data
+- [ ] [Pattern-configurable HTML page title](./tasks/current/pattern-html-title.md) — add `html_title` attribute to pattern format, edit field in Overview pane of pattern editor, set `document.title` while pattern's routes are active; fall back to pattern `name` when unset
 
 ### patterns/auth
 
