@@ -157,6 +157,17 @@ async function setupAndListen() {
   const { registerDatatype, mountDatatypeRoutes } = require('./dama/datatypes');
   registerDatatype('pmtiles', require('./dama/datatypes/pmtiles'));
 
+  // App-owned datatype plugins — load via DMS_EXTRA_DATATYPES if set.
+  const extraDatatypes = process.env.DMS_EXTRA_DATATYPES;
+  if (extraDatatypes) {
+    try {
+      const registerExtra = require(extraDatatypes);
+      registerExtra({ registerDatatype });
+    } catch (e) {
+      console.error(`[datatypes] Failed to load DMS_EXTRA_DATATYPES=${extraDatatypes}:`, e.message);
+    }
+  }
+
   // Mount plugin routes with shared helpers
   const tasks = require('./dama/tasks');
   const metadata = require('./dama/upload/metadata');
@@ -198,6 +209,17 @@ async function setupAndListen() {
         console.warn(`[tasks] Could not start polling for ${env}: ${err.message}`);
       }
     }
+  }
+
+  // DMS task system — parallel to DAMA's, but targeting the DMS db so DMS-
+  // native workers (internal_table publish) don't depend on a DAMA pgEnv.
+  try {
+    const dmsTasks = require('./dms/tasks');
+    await dmsTasks.recoverStalledTasks();
+    // startPolling is a no-op until a handler is registered — safe to call.
+    dmsTasks.startPolling();
+  } catch (err) {
+    console.warn(`[dms-tasks] Could not initialize: ${err.message}`);
   }
 
   // SSR: opt-in via DMS_SSR env var

@@ -1,5 +1,24 @@
 # DataWrapper & Data Sources Re-Architecture
 
+## Status: DONE — 2026-04-24
+
+The architecturally important phases shipped: Phase 0 (research), Phase 1 (extract `buildUdaConfig`), Phase 2 (extract `useDataLoader`), Phase 4 (output sourceInfo + chainability), Phase 6 (developer docs). The page section ↔ dataWrapper coupling and page-level data-source ownership work (Phases 3, 5, 5B) was scoped out — the system is working well in production and the remaining phases are large refactors with diminishing returns. If they're picked up later they'll be their own tracked tasks.
+
+### What shipped (the load-bearing pieces)
+
+- **`buildUdaConfig()`** — UDA config construction is now its own module, separated from data loading. Sections that need to compose UDA queries (downloads, validate, etc.) reuse it directly.
+- **`useDataLoader`** — data loading + caching extracted from the section component. Owns when-to-fetch logic; section/dataWrapper just consume the loaded data + loading state.
+- **`outputSourceInfo`** — every data-driven component now publishes a `sourceInfo` describing its output. Lets downstream components chain off the output without knowing the input details. Wired into the spreadsheet, card, graph, and the filters pipeline.
+- **Phase 6 dev docs** — `packages/dms/src/patterns/page/page-pattern-guide.md` covers the new architecture for new contributors.
+
+### Deferred (not blocking — captured here as historical context)
+
+- **Phase 3 — Clean section ↔ dataWrapper interface**: deduplicate hooks shared across section.jsx and dataWrapper, stop persisting runtime fields like `data` in element-data, replace raw `setState` from section menu with a structured editing API. This is cleanup, not a fix; the current coupling works.
+- **Phase 5 — Page-level data sources + state ownership restructure**: move dataSource ownership from section to a page-level dedicated editPane, move `useDataSource`/`useImmer`/`convertOldState` into dataWrapper, restructure ComponentContext providers. Big refactor with broad blast radius; deferred until there's a concrete need.
+- **Phase 5B — Clean data schema**: rename `element-data` to something more meaningful, normalize the persisted shape. Cosmetic + serialization migration; not load-bearing.
+
+If/when these come back on the roadmap they should be split into independent tasks rather than reviving this monolith.
+
 ## Objective
 
 Redesign how datawrappers and data sources work in the page pattern to achieve:

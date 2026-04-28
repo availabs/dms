@@ -114,10 +114,18 @@ const Edit = forwardRef((props, ref) => {
     let {cms_context, value, onChange, component, siteType, pageFormat, onHandle} = props
     const isEdit = Boolean(onChange);
     const { UI, theme: fullTheme } = useContext(ThemeContext)
-    const { apiLoad, apiUpdate } = useContext(PageContext) || {};
-    const {datasources} = useContext(cms_context || CMSContext);
+    const _pageCtx = useContext(PageContext) || {};
+    const _cmsCtx = useContext(cms_context || CMSContext) || {};
+    // apiLoad/apiUpdate normally arrive via PageContext (page pattern). When
+    // DataWrapper is mounted from a non-page pattern (e.g. the datasets
+    // pattern's table admin page), fall back to the cms_context which the
+    // hosting pattern can populate.
+    const apiLoad = _pageCtx.apiLoad || _cmsCtx.apiLoad;
+    const apiUpdate = _pageCtx.apiUpdate || _cmsCtx.apiUpdate;
+    const {datasources} = _cmsCtx;
     const pgEnv = getExternalEnv(datasources);
     const {Icon} = UI;
+    const { pageState: editPageState } = _pageCtx;
 
     // ── DataWrapper owns its own state ──
     const [state, setState] = useImmer(migrateToV2(value || '', initialState(component?.defaultState), component?.name));
@@ -138,6 +146,25 @@ const Edit = forwardRef((props, ref) => {
     }, [outputSourceInfo]);
 
     usePageFilterSync({ state, setState });
+
+    // ── Sync newItem from page params for columns with usePageParams ──
+    useEffect(() => {
+        const pageParamColumns = (state?.columns || []).filter(c => c.usePageParams && c.pageParamKey);
+        if (!pageParamColumns.length) return;
+        const pageFilters = (editPageState?.filters || []).reduce(
+            (acc, curr) => ({ ...acc, [curr.searchKey]: curr.values }), {}
+        );
+        const updates = {};
+        pageParamColumns.forEach(col => {
+            const paramValues = pageFilters[col.pageParamKey];
+            if (paramValues !== undefined) {
+                updates[col.name] = Array.isArray(paramValues) ? paramValues[0] : paramValues;
+            }
+        });
+        if (Object.keys(updates).length) {
+            setNewItem(prev => ({ ...prev, ...updates }));
+        }
+    }, [editPageState?.filters, state?.columns]);
 
     useColumnOptions({ state, setState, apiLoad, component, pgEnv, enabled: !!cms_context });
 
@@ -164,6 +191,7 @@ const Edit = forwardRef((props, ref) => {
             filters: state.filters || { op: 'AND', groups: [] },
             display: { ...(state.display || {}) },
             data: state.data || [],
+            join: state.join || { sources: {} },
         };
         if (state.dataSourceId) toSave.dataSourceId = state.dataSourceId;
         RUNTIME_DISPLAY_FIELDS.forEach(f => delete toSave.display[f]);
@@ -302,11 +330,16 @@ const Edit = forwardRef((props, ref) => {
 const View = forwardRef(({cms_context, value, onChange, component, editPageMode, onHandle}, ref) => {
     const isEdit = false;
     const navigate = useNavigate();
-    const { apiLoad, apiUpdate } = useContext(PageContext) || {};
-    const {datasources, baseUrl} = useContext(cms_context || CMSContext) || {};
+    const _pageCtx = useContext(PageContext) || {};
+    const _cmsCtx = useContext(cms_context || CMSContext) || {};
+    // Same cms_context fallback as Edit — see comment there.
+    const apiLoad = _pageCtx.apiLoad || _cmsCtx.apiLoad;
+    const apiUpdate = _pageCtx.apiUpdate || _cmsCtx.apiUpdate;
+    const {datasources, baseUrl} = _cmsCtx;
     const pgEnv = getExternalEnv(datasources);
     const { UI, theme: fullTheme } = useContext(ThemeContext)
     const {Icon} = UI;
+    const { pageState: viewPageState } = _pageCtx;
 
     // ── DataWrapper owns its own state ──
     const [state, setState] = useImmer(migrateToV2(value || '', initialState(component?.defaultState), component?.name));
@@ -344,6 +377,25 @@ const View = forwardRef(({cms_context, value, onChange, component, editPageMode,
 
     usePageFilterSync({ state, setState, setReadyOnChange: true });
 
+    // ── Sync newItem from page params for columns with usePageParams ──
+    useEffect(() => {
+        const pageParamColumns = (state?.columns || []).filter(c => c.usePageParams && c.pageParamKey);
+        if (!pageParamColumns.length) return;
+        const pageFilters = (viewPageState?.filters || []).reduce(
+            (acc, curr) => ({ ...acc, [curr.searchKey]: curr.values }), {}
+        );
+        const updates = {};
+        pageParamColumns.forEach(col => {
+            const paramValues = pageFilters[col.pageParamKey];
+            if (paramValues !== undefined) {
+                updates[col.name] = Array.isArray(paramValues) ? paramValues[0] : paramValues;
+            }
+        });
+        if (Object.keys(updates).length) {
+            setNewItem(prev => ({ ...prev, ...updates }));
+        }
+    }, [viewPageState?.filters, state?.columns]);
+    console.log('new item', newItem)
     useColumnOptions({
         state, setState, apiLoad, component, pgEnv,
         enabled: allowEdit || state?.display?.allowAdddNew || state?.columns?.some(c => c.allowEditInView && c.mapped_options)

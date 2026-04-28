@@ -17,7 +17,8 @@
 
 const columnRenameRegex = /\s+as\s+/i;
 const splitColNameOnAS = (name) => name.split(columnRenameRegex);
-
+import { EXTERNAL_SOURCE_KEY } from "./schema";
+import { calculateIsJoinPresent } from "../dataWrapper/utils/joinUtils";
 export const isCalculatedCol = ({ display, type, origin, name }) =>
   display === "calculated" ||
   type === "calculated" ||
@@ -64,7 +65,7 @@ export const applyFn = (col = {}, isDms = false) => {
   );
   const colNameAfterAS = (
     (isCalculated ? splitColNameOnAS(col.name)[1] : col.name) || ""
-  ).toLowerCase();
+  ).toLowerCase().replace(".", "_");
 
   const functions = {
     [undefined]:
@@ -273,6 +274,35 @@ export const extractNormalFiltersFromGroups = (node) => {
 
 const isGroup = (node) => node?.groups && Array.isArray(node.groups);
 
+export const applyTableAliasToJoin = (filterTree, sourceIdToAlias, baseSourceId) => {
+    if (!filterTree) return filterTree;
+  
+  const applyToNode = (node) => {
+    if (isGroup(node)) {
+      return { ...node, groups: node.groups.map(applyToNode) };
+    }
+
+    let newNode = { ...node };
+
+    const prefix = sourceIdToAlias[node.source_id] || (node.source_id === baseSourceId ? 'ds' : ""); 
+    // Always alias 'col' if it exists
+    if (newNode.col && prefix) {
+      newNode.col = `${prefix}.${newNode.col.split('.').pop()}`;
+    }
+
+    // Alias 'searchParamKey' if it exists to allow PageFilter application to find it
+    if (newNode.searchParamKey && prefix) {
+      //TODO JOIN TESTING -- need to test page filters / search params
+      const paramKey = newNode.searchParamKey.split('.').pop();
+      newNode.searchParamKey = `${prefix}.${paramKey}`;
+    }
+
+    return newNode;
+  };
+
+  return applyToNode(filterTree, sourceIdToAlias);
+};
+
 /**
  * Apply page-level filter values to conditions with usePageFilters=true.
  * Returns a new filter tree with values updated from pageFilters.
@@ -396,7 +426,7 @@ export const buildColumnsWithSettings = (columns, sourceColumns, isDms) => {
         column.systemCol,
       );
       const [colNameBeforeAS, colNameAfterAS] = splitColNameOnAS(column.name);
-      const totalAlias = colNameAfterAS || colNameBeforeAS;
+      const totalAlias = (colNameAfterAS || colNameBeforeAS).replace(".", "_");
       const colTotalName = `SUM(CASE WHEN (${colRefName})::text ~ '^-?\\d+(\\.\\d+)?$' THEN (${colRefName})::numeric ELSE NULL END ) as ${totalAlias}_total`;
 
       return {
@@ -518,8 +548,69 @@ const buildNormalFilterColumns = (
   return normalColumns;
 };
 
-// ─── Output source info (Phase 4: chainability) ────────────────────────────
+// ─── Joins ────────────────────────────────────────
 
+export const buildJoin = ({ join, externalSource }) => {
+  return {
+    sources: buildJoinSources({ join, externalSource }),
+    on: buildJoinOnClause({ join, externalSource }),
+  };
+};
+
+/**
+ * OUTPUT:
+ * key is the "alias" given to each source.
+ * value is either { view_id: 1648, env: "dama" }, or an udaConfig
+ */
+export const buildJoinSources = ({ join, externalSource }) => {
+  const { sources } = join;
+  return Object.keys(sources).reduce((acc, curKey) => {
+    // If curKey is 'ds', this is our primary/base source.
+    if (curKey === 'ds') return acc;
+
+    const curSource = sources[curKey].source ? sources[curKey] : externalSource;
+    acc[curKey] = {
+      view_id: curSource.view || curSource.view_id,
+      env: curSource?.env || curSource?.sourceInfo?.env,
+    };
+
+    return acc;
+  }, {});
+};
+
+/**
+ * Builds the join 'on' clauses.
+ * Returns an array of join conditions, one for each extra source.
+ */
+export const buildJoinOnClause = ({ join, externalSource }) => {
+  const { sources, operator = "=" } = join;
+
+  // The 'ds' is our base table. We join every other source onto it.
+  return Object.keys(sources)
+    .filter((alias) => alias !== "ds")
+    .map((sourceAlias) => {
+      // Find the joinColumns for this specific source
+      const sourceJoinColumns = sources[sourceAlias].joinColumns || [];
+      // Use the user-selected join type, defaulting to 'left'
+      const type = sources[sourceAlias].type || "left";
+      // Use the user-selected merge strategy, defaulting to 'join'
+      const mergeStrategy = sources[sourceAlias].mergeStrategy || "join";
+
+      // Each sourceAlias should have a corresponding join condition string
+      const conditions = sourceJoinColumns.map(
+        (col) => `ds.${col.dsColumn} ${operator} ${sourceAlias}.${col.joinSourceColumn}`
+      );
+
+      return {
+        type,
+        mergeStrategy,
+        table: sourceAlias,
+        on: conditions.join(" AND "),
+      };
+    });
+};
+
+// ─── Output source info (Phase 4: chainability) ────────────────────────────
 /**
  * Compute outputSourceInfo — describes what this dataWrapper produces after
  * all transforms (column selection, renaming, aggregation, meta lookups, formulas).
@@ -613,6 +704,34 @@ export const computeOutputSourceInfo = ({
 
 // ─── Main builder ───────────────────────────────────────────────────────────
 
+export const isJoinComplete = (joinSource) => {
+  const strategy = joinSource.mergeStrategy || 'join';
+  if(!joinSource.source || !joinSource.view) {
+    console.log("join is missing source or view::", joinSource);
+    return false
+  } else if (strategy === "union" || strategy === "except") {
+    return true;
+  } else if (strategy === "join") {
+    if (!joinSource.type) {
+      console.log("join is missing TYPE")
+      return false
+    };
+    if (!joinSource.joinColumns || joinSource.joinColumns.length === 0) {
+      console.log("join is missing 'on columns'::", joinSource);
+      return false
+    };
+
+    if(!joinSource.joinColumns.every(col => col.dsColumn && col.joinSourceColumn)){
+      console.log("join is missing a portion of join column pair")
+    } 
+
+    return joinSource.joinColumns.every(col => col.dsColumn && col.joinSourceColumn);
+  } else {
+    console.log("unknown join strategy::", strategy);
+    return false;
+  }
+}
+
 /**
  * buildUdaConfig — the main entry point.
  *
@@ -628,13 +747,72 @@ export const computeOutputSourceInfo = ({
  */
 export const buildUdaConfig = ({
   externalSource,
-  columns,
+  columns: rawUserColumns,
   filters,
-  join,
+  join: rawJoin,
   pageFilters,
 }) => {
+
+  const join = { sources:{} };
+
+  //filter out keys from join that are incomplete configs
+  Object.keys(rawJoin?.sources || {}).forEach((alias) => {
+    if(isJoinComplete(rawJoin.sources[alias])) {
+      join.sources[alias] = rawJoin.sources[alias];
+    }
+  });
+
+  const isJoinPresent = calculateIsJoinPresent(join);
+  join.sources.ds = {};
   const isDms = externalSource?.isDms;
-  const sourceColumns = externalSource?.columns || [];
+
+  const sourceIdToTableAlias = isJoinPresent ? Object.keys(join.sources).reduce((acc, alias) => {
+    const curJoinSource = join.sources[alias];
+    const source_id = curJoinSource.source || externalSource.source_id;
+    acc[source_id] = alias;
+    return acc;
+  },{}) : {};
+  sourceIdToTableAlias[externalSource.source_id] = 'ds';
+
+  const joinColumns = isJoinPresent
+    ? Object.values(join.sources)
+        .filter((jSource) => Object.keys(jSource.sourceInfo || {}).length)
+        .map((jSource) => jSource.sourceInfo.columns)
+        .flat()
+    : [];
+  
+  const allCols = [...(externalSource?.columns || []), ...joinColumns];
+
+  /**
+   * Source columns are ALL columns from ALL sources in the section
+   * 
+   */
+  const sourceColumns = allCols.map((col) => {
+    const colSourceId = col.source_id || externalSource.source_id;
+    const alias = sourceIdToTableAlias[colSourceId];
+    const isJoin = isJoinPresent && alias && alias !== 'ds';
+
+    //If column is part of a join, and it isn't a calc column, prefix with table alias
+    return {
+      ...col,
+      name: isJoin && !isCalculatedCol(col) ? `${alias}.${col.name}` : col.name,
+    };
+  });
+
+  /**
+   * Columns represent the user input
+   * AKA the columns they want to display
+   */
+  const columns = rawUserColumns.map((col) => {
+    const colSourceId = col.source_id || externalSource.source_id;
+    const alias = sourceIdToTableAlias[colSourceId];
+    const isJoin = isJoinPresent && alias;
+
+    return {
+      ...col,
+      name: isJoin && !isCalculatedCol(col) ? `${alias}.${col.name}` : col.name,
+    };
+  });
 
   // 1. Build enriched columns with server-side names
   const columnsWithSettings = buildColumnsWithSettings(
@@ -692,6 +870,11 @@ export const buildUdaConfig = ({
 
   // 5. Process top-level filter tree
   let filterTree = filters || {};
+
+  // If join is present, append table alias to filter columns
+  if (isJoinPresent) {    
+    filterTree = applyTableAliasToJoin(filterTree, sourceIdToTableAlias, externalSource.source_id);
+  }
   if (pageFilters && Object.keys(pageFilters).length) {
     filterTree = applyPageFilters(filterTree, pageFilters);
   }
@@ -699,7 +882,6 @@ export const buildUdaConfig = ({
   // Extract normal filters before mapping (they need raw column names)
   const { cleaned: nonNormalFilterGroups, normalFilters: filterGroupNormalFilters } =
     extractNormalFiltersFromGroups(filterTree);
-
   // Map column names to server refs (synchronous — no multiselect resolution)
   // Use columnsWithSettingsByName first (has merged user+source info including type: 'multiselect'),
   // then fall back to sourceColumnsByName (covers columns not in user config)
@@ -813,6 +995,7 @@ export const buildUdaConfig = ({
 
   // 8. Assemble final options
   const options = {
+    join: isJoinPresent ? buildJoin({join, externalSource}) : null,
     filterGroups: finalFilterGroups,
     groupBy: mappedGroupBy,
     orderBy: mappedOrderBy,
@@ -829,6 +1012,7 @@ export const buildUdaConfig = ({
   const attributes = columnsToFetch.map((a) => a.reqName).filter((a) => a);
 
   // 10. Compute output source info (Phase 4: chainability)
+  //When a join is present, the output columns come from multiple sources. The outputSourceInfo.columns should indicate which source table each column came from.
   const outputSourceInfo = computeOutputSourceInfo({
     columnsToFetch,
     columnsWithSettings,

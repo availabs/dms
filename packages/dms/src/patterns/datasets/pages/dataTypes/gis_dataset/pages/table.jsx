@@ -5,14 +5,8 @@ import Spreadsheet from "../../../../../page/components/sections/components/Comp
 import {useNavigate} from "react-router";
 import DataWrapper from "../../../../../page/components/sections/components/dataWrapper";
 import {cloneDeep, isEqual, uniqBy} from "lodash-es";
-import {ComponentContext} from "../../../../../page/context";
 import {useImmer} from "use-immer";
-import {
-    RenderFilters
-} from "../../../../../page/components/sections/components/dataWrapper/components/filters/RenderFilters";
-import { Controls } from "../../../../../page/components/sections/components/dataWrapper/components/Controls";
 import {ThemeContext} from "../../../../../../ui/useTheme";
-import {isJson} from "../../default/utils";
 import { nameToSlug } from "../../../../../../utils/type-utils";
 
 export default function Table ({apiUpdate, apiLoad, format, source, params, isDms}) {
@@ -22,10 +16,21 @@ export default function Table ({apiUpdate, apiLoad, format, source, params, isDm
     const { falcor, baseUrl, pageBaseUrl, user, isUserAuthed, datasources} = useContext(DatasetsContext) || {};
     const pgEnv = getExternalEnv(datasources);
 
-    let columns = useMemo(() =>
-        isDms ?
-            isJson(source.config) ? JSON.parse(source.config)?.attributes : [] :
-            (source?.metadata?.columns || []), [source.config, isDms, source?.metadata?.columns])
+    let columns = useMemo(() => {
+        if (!isDms) return source?.metadata?.columns || [];
+        // source.config may arrive as a JSON string (UDA `data->>'config'`)
+        // or as an already-parsed object. Handle both. Empty-string,
+        // missing, and unparseable values all fall through to [].
+        const cfg = source?.config;
+        if (!cfg) return [];
+        let parsed = null;
+        if (typeof cfg === 'string') {
+            try { parsed = JSON.parse(cfg); } catch { parsed = null; }
+        } else if (typeof cfg === 'object') {
+            parsed = cfg;
+        }
+        return Array.isArray(parsed?.attributes) ? parsed.attributes : [];
+    }, [source?.config, isDms, source?.metadata?.columns]);
 
     const default_columns = (source?.default_columns || source?.defaultColumns) || [];
 
@@ -41,6 +46,10 @@ export default function Table ({apiUpdate, apiLoad, format, source, params, isDm
             usePageFilters: false,
             allowDownload: true,
             hideDatasourceSelector: true,
+            // Enable the spreadsheet's auto-resize pass so columns get
+            // sensible initial widths (Math.max(minInitColSize, gridWidth/n))
+            // instead of rendering at the browser's narrow default.
+            autoResize: true,
         },
         columns: default_columns?.length ?
             uniqBy(default_columns.map(dc => columns.find(col => col.name === dc.name)).filter(c => c).map(c => ({...c, show: true})), d => d?.name) :
@@ -68,17 +77,52 @@ export default function Table ({apiUpdate, apiLoad, format, source, params, isDm
             columns: source?.metadata?.columns || [],
         };
 
-        const activeColumns = isDms ? undefined : source?.metadata?.columns?.map(c => ({...c, show:true}));
+        // Source-derived columns. For DMS we read from source.config (which
+        // arrives async via getSourceData); for DAMA from source.metadata.columns.
+        const activeColumns = isDms
+            ? columns?.map(c => ({...c, show: true}))
+            : source?.metadata?.columns?.map(c => ({...c, show: true}));
+
         setValue(draft => {
             if(!isEqual(draft.sourceInfo, sourceInfo)){
                 draft.sourceInfo = sourceInfo;
             }
 
-            if(!isDms && !isEqual(draft.columns, activeColumns)){
+            // Initial-mount race: useImmer's initializer ran before
+            // getSourceData() resolved source.config / source.metadata.columns,
+            // so draft.columns is []. When the source finally has columns,
+            // sync them. For DMS we only sync from empty so user toggles
+            // aren't overwritten on subsequent re-renders. For DAMA we keep
+            // the legacy "always sync on change" behavior.
+            if (isDms) {
+                if (!draft.columns?.length && activeColumns?.length) {
+                    draft.columns = activeColumns;
+                }
+            } else if (!isEqual(draft.columns, activeColumns)) {
                 draft.columns = activeColumns;
             }
         })
-    }, [source, id, view_id, isDms, pgEnv])
+    }, [source, id, view_id, isDms, pgEnv, columns])
+
+    // Build a serialized state snapshot for DataWrapper.EditComp. It owns its
+    // own useImmer state initialized from the `value` prop via migrateToV2;
+    // passing `value=''` (or no value) means DataWrapper starts with empty
+    // defaults and the spreadsheet renders "No columns selected" regardless
+    // of what this outer component thinks. We compose the snapshot here once
+    // source.config has resolved, then hand it to DataWrapper as its initial
+    // state. The snapshot key includes source+view so DataWrapper remounts
+    // cleanly when the user navigates between versions/sources.
+    const dwInitialValue = useMemo(() => {
+        if (!value?.columns?.length) return null;
+        const snapshot = {
+            externalSource: value.sourceInfo,
+            columns: value.columns,
+            filters: { op: 'AND', groups: [] },
+            display: value.display || {},
+            data: [],
+        };
+        return JSON.stringify(snapshot);
+    }, [value?.columns, value?.sourceInfo, value?.display]);
 
     const saveSettings = useCallback(() => {
         const columns =
@@ -106,7 +150,11 @@ export default function Table ({apiUpdate, apiLoad, format, source, params, isDm
     // })
     // SpreadSheetCompWithControls.controls.columns = SpreadSheetCompWithControls.controls.columns.filter(({label}) => label !== 'duplicate')
     if(!isDms && !source.source_id) return ;
-    console.log('value', value)
+
+    // Stable per-source/view key so DataWrapper remounts only when navigating
+    // to a different source or version, not on every state change.
+    const dwKey = `table-page-${source?.source_id || source?.id || 'x'}-${params.view_id || 'x'}`;
+
     return (
         (isDms && !source.config) || !value?.sourceInfo?.columns?.length ? <div className={'p-1 text-center'}>Please setup metadata.</div> :
             !params.view_id || params.view_id === 'undefined' ? 'Please select a version' :
@@ -119,25 +167,20 @@ export default function Table ({apiUpdate, apiLoad, format, source, params, isDm
                             </button> :
                             null
                     }
-                    <ComponentContext.Provider value={{
-                        state: value, setState: setValue, apiLoad, apiUpdate,
-                        controls: SpreadSheetCompWithControls.controls,
-                        isActive: true
-                    }}>
-
-                        <Controls context={ComponentContext} cms_context={DatasetsContext}/>
-                        <RenderFilters isEdit={true} defaultOpen={true} />
-
+                    {dwInitialValue ? (
                         <DataWrapper.EditComp
                             cms_context={DatasetsContext}
                             component={SpreadSheetCompWithControls}
+                            value={dwInitialValue}
                             onChange={() => {}}
-                            key={'table-page-spreadsheet'}
+                            key={dwKey}
                             size={1}
                             hideSourceSelector={true}
                             theme={theme}
                         />
-                    </ComponentContext.Provider>
+                    ) : (
+                        <div className="p-4 text-gray-400">Loading columns...</div>
+                    )}
                 </div>
     )
 }

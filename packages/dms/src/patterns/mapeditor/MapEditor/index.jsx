@@ -738,9 +738,16 @@ const MapEditor = props => {
   React.useEffect(() => {
     const getFilterBounds = async () => {
       const newExtent = await fetchBoundsForFilter(state, falcor, pgEnv, existingDynamicFilter);
+      if (!newExtent || newExtent === "undefined") return;
 
       setState((draft) => {
-        const parsedExtent = JSON.parse(newExtent);
+        let parsedExtent;
+        try {
+          parsedExtent = typeof newExtent === "string" ? JSON.parse(newExtent) : newExtent;
+        } catch (e) {
+          console.warn("[MapEditor] Invalid filter bounds extent:", newExtent);
+          return;
+        }
 
         const coordinates = parsedExtent?.coordinates[0];
         const mapGeom = coordinates?.reduce((bounds, coord) => {

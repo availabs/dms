@@ -4,9 +4,11 @@ const { join } = require("path");
 const { loadConfig, getDbType } = require("./config");
 const { PostgresAdapter, createClient } = require("./adapters/postgres");
 const { SqliteAdapter } = require("./adapters/sqlite");
+const { ClickHouseAdapter } = require("./adapters/clickhouse");
 
 // Database instances cache
 const databases = {};
+const clickhouseDatabases = {};
 const clients = {};
 const initPromises = [];
 
@@ -245,6 +247,58 @@ const initDamaTasks = async (dbConnection) => {
 };
 
 /**
+ * Initialize DMS task tables (task queue + event tracking + settings),
+ * mirroring the DAMA task system but in the DMS database. Lets DMS-native
+ * workers (e.g. internal_table publish) record progress without depending
+ * on a DAMA pgEnv being configured.
+ *
+ * PG: tables go in the `dms` schema. SQLite: bare `dms_tasks` /
+ * `dms_task_events` / `dms_settings` to avoid colliding with the DAMA
+ * SQLite schema's unprefixed names.
+ *
+ * @param {Object} dbConnection - Database adapter instance
+ */
+const initDmsTasks = async (dbConnection) => {
+  const db = dbConnection.getDb();
+  const dbType = dbConnection.type;
+
+  let tablesExist;
+  if (dbType === "sqlite") {
+    tablesExist = await dbConnection.tableExists("main", "dms_tasks");
+  } else {
+    tablesExist = await dbConnection.tableExists("dms", "tasks");
+  }
+
+  if (!tablesExist) {
+    console.time(`dms tasks init ${db}`);
+    await dbConnection.beginTransaction();
+
+    try {
+      const sqlFile = dbType === "sqlite" ? "dms_tasks.sqlite.sql" : "dms_tasks.sql";
+      const sqlPath = join(__dirname, "sql/dms", sqlFile);
+      const sql = await readFileAsync(sqlPath, { encoding: "utf8" });
+
+      if (dbType === "sqlite") {
+        const statements = sql.split(";").filter(s => s.trim());
+        for (const stmt of statements) {
+          if (stmt.trim()) {
+            await dbConnection.query(stmt + ";");
+          }
+        }
+      } else {
+        await dbConnection.query(sql);
+      }
+
+      await dbConnection.commitTransaction();
+      console.timeEnd(`dms tasks init ${db}`);
+    } catch (error) {
+      await dbConnection.rollbackTransaction();
+      throw error;
+    }
+  }
+};
+
+/**
  * Create a database adapter based on configuration
  * @param {Object} config - Database configuration
  * @returns {Object} Database adapter instance
@@ -316,12 +370,45 @@ function getDb(pgEnv) {
       } catch (err) {
         console.error("sync init failed:", err.message);
       }
+
+      try {
+        await initDmsTasks(databases[pgEnv]);
+        console.log("dms tasks init", pgEnv);
+      } catch (err) {
+        console.error("dms tasks init failed:", err.message);
+      }
     }
   };
 
   initPromises.push(initSequence());
 
   return databases[pgEnv];
+}
+
+/**
+ * Get or create a ClickHouse adapter for a DAMA pgEnv.
+ *
+ * ClickHouse is paired with a Postgres pgEnv as auxiliary storage for large
+ * static dataset tables. The pgEnv config file may include a `clickhouse`
+ * sub-object; this function returns an adapter built from that sub-object,
+ * cached per pgEnv.
+ *
+ * Throws if the pgEnv has no `clickhouse` config — callers should only reach
+ * this path when a view's table_schema starts with `clickhouse.`.
+ *
+ * @param {string} pgEnv - Environment name (same as the Postgres pgEnv)
+ * @returns {ClickHouseAdapter}
+ */
+function getChDb(pgEnv) {
+  if (clickhouseDatabases[pgEnv]) {
+    return clickhouseDatabases[pgEnv];
+  }
+  const config = loadConfig(pgEnv);
+  if (!config.clickhouse) {
+    throw new Error(`No clickhouse config for pgEnv "${pgEnv}"`);
+  }
+  clickhouseDatabases[pgEnv] = new ClickHouseAdapter(config.clickhouse);
+  return clickhouseDatabases[pgEnv];
 }
 
 /**
@@ -394,6 +481,7 @@ function getPostgresCredentials(pgEnv) {
 
 module.exports = {
   getDb,
+  getChDb,
   awaitReady,
   getClient,
   query,

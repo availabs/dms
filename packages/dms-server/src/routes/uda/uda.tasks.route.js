@@ -15,6 +15,8 @@ const {
   getSettings,
   setSettings,
   updateSourceMetadata,
+  softDeleteSource,
+  hardDeleteSource,
 } = require("./uda.tasks.controller");
 
 const TASK_ATTRS = [
@@ -262,6 +264,46 @@ module.exports = [
       } catch (err) {
         console.error("[uda.tasks] sources.update error:", err.message);
         return [];
+      }
+    },
+  },
+
+  // --------------------------------- sources.delete (call) ---------------------------------
+  // Soft delete: removes source + view rows from data_manager only.
+  // Args: [env, sourceId]. Returns a result atom on the source.delete path.
+  {
+    route: `uda.sources.delete`,
+    call: async function (callPath, args) {
+      try {
+        const [env, sourceId] = args;
+        const result = await softDeleteSource(env, sourceId);
+        return [
+          { path: ["uda", env, "sources", "byId", sourceId], invalidated: true },
+          { path: ["uda", env, "sources", "delete"], value: $atom(result) },
+        ];
+      } catch (err) {
+        console.error("[uda.tasks] sources.delete error:", err.message);
+        return [{ path: ["uda", "sources", "delete"], value: $atom({ error: err.message }) }];
+      }
+    },
+  },
+
+  // --------------------------------- sources.hardDelete (call) ---------------------------------
+  // Hard delete: soft delete + drops per-view tables + removes storage files + clears tasks.
+  // Args: [env, sourceId]. Returns a result atom describing what was removed.
+  {
+    route: `uda.sources.hardDelete`,
+    call: async function (callPath, args) {
+      try {
+        const [env, sourceId] = args;
+        const result = await hardDeleteSource(env, sourceId);
+        return [
+          { path: ["uda", env, "sources", "byId", sourceId], invalidated: true },
+          { path: ["uda", env, "sources", "hardDelete"], value: $atom(result) },
+        ];
+      } catch (err) {
+        console.error("[uda.tasks] sources.hardDelete error:", err.message);
+        return [{ path: ["uda", "sources", "hardDelete"], value: $atom({ error: err.message }) }];
       }
     },
   },

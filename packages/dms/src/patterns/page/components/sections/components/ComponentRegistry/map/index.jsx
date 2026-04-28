@@ -148,7 +148,12 @@ export const MapSection = ({ value, onChange, isEdit }) => {
 
 // console.log("searchParamFilterKey", searchParamFilterKey)
 
-        const fI = interactiveFilterOptions.findIndex(f => f.searchParamValue === searchParamFilterKey || f.label === searchParamFilterKey)
+        const fI = interactiveFilterOptions.findIndex((f) => {
+            const filterValues = Array.isArray(searchParamFilterKey) ? searchParamFilterKey : [searchParamFilterKey];
+            return filterValues.some(
+                value => String(f.searchParamValue) === String(value) || String(f.label) === String(value)
+            );
+        })
 
 // console.log("fI", fI)
 
@@ -199,8 +204,15 @@ export const MapSection = ({ value, onChange, isEdit }) => {
             const symbData = get(state, symbPathBase, {})
 
             const newExtent = await fetchBoundsForFilter(symbData, falcor, pgEnv, dynamicFilterOptions);
+            if (!newExtent || newExtent === "undefined") return;
             setState((draft) => {
-                const parsedExtent = JSON.parse(newExtent);
+                let parsedExtent;
+                try {
+                    parsedExtent = typeof newExtent === "string" ? JSON.parse(newExtent) : newExtent;
+                } catch (e) {
+                    console.warn("[Map] Invalid filter bounds extent:", newExtent);
+                    return;
+                }
                 const coordinates = parsedExtent?.coordinates[0];
                 const mapGeom = coordinates?.reduce((bounds, coord) => {
                 return bounds.extend(coord);
@@ -239,7 +251,11 @@ export const MapSection = ({ value, onChange, isEdit }) => {
             if(isReady) {
                 let allLayers = (Object.values(state.symbologies).reduce((out,curr) => {
                     let ids = out.map(d => d.id)
-                    let newSymbLayers = Object.keys(curr?.symbology?.layers)
+                    const activeLayerId = curr?.symbology?.activeLayer;
+                    const visibleLayerKeys = activeLayerId && curr?.symbology?.layers?.[activeLayerId] ?
+                        [activeLayerId] :
+                        Object.keys(curr?.symbology?.layers || {});
+                    let newSymbLayers = visibleLayerKeys
                         .reduce((layerOut, layerKey) => {
                             if( !ids.includes(layerKey) ) {
                                 layerOut[layerKey] = curr?.symbology?.layers?.[layerKey]
@@ -301,9 +317,13 @@ export const MapSection = ({ value, onChange, isEdit }) => {
 
     const layerProps = useMemo(() =>  {
         return Object.values(state.symbologies).reduce((out,curr) => {
+            const activeLayerId = curr?.symbology?.activeLayer;
+            const visibleLayerKeys = activeLayerId && curr?.symbology?.layers?.[activeLayerId] ?
+                [activeLayerId] :
+                Object.keys(curr?.symbology?.layers || {});
             return {
                 ...out,
-                ...Object.keys((curr?.symbology?.layers || {}))
+                ...visibleLayerKeys
                     .reduce((acc, layerId) => ({
                             ...acc,
                             [layerId]: {...(curr?.symbology?.layers?.[layerId] || {}), zoomToFitBounds: state.zoomToFitBounds, zoomToFilterBounds: curr.symbology.zoomToFilterBounds }}

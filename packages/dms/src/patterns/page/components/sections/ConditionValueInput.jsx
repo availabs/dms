@@ -38,13 +38,18 @@ const sortOptions = (options) =>
     );
 
 // Fetches unique values for a column (for filter/exclude multiselect)
-const useColumnOptions = (columnName, columns, operation, search, selectedValues, siblingConditions = []) => {
+const useColumnOptions = (columnName, columns, operation, search, selectedValues, siblingConditions = [], col_source_id = null) => {
     const {apiLoad, state} = useContext(ComponentContext) || {};
     const [options, setOptions] = useState([]);
     const [loading, setLoading] = useState(false);
     const prevSearchRef = useRef('');
 
-    const sourceInfo = state?.externalSource;
+    const { join } = state || {};
+
+    const sourceInfo =
+      (!col_source_id || col_source_id === state?.externalSource.source_id)
+        ? state.externalSource
+        : Object.values(join.sources || {}).find((s) => s.source === col_source_id)?.sourceInfo;
     const isDms = sourceInfo?.isDms;
 
     // Stable dep key — only recompute when sibling values actually change
@@ -88,14 +93,14 @@ const useColumnOptions = (columnName, columns, operation, search, selectedValues
                     : siblingFilterBy;
 
                 const data = await getData({
-                    format: sourceInfo,
-                    apiLoad,
-                    reqName,
-                    refName,
-                    rawName: columnName,
-                    allAttributes: columns,
-                    filterBy,
-                    limit: OPTIONS_LIMIT,
+                  format: sourceInfo,
+                  apiLoad,
+                  reqName,
+                  refName,
+                  rawName: columnName,
+                  allAttributes: columns,
+                  filterBy,
+                  limit: OPTIONS_LIMIT,
                 });
 
                 if (cancelled) return;
@@ -136,7 +141,7 @@ export const ConditionValueInput = ({node, path, columns, updateNodeAtPath, sibl
     const isMultiselect = ['filter', 'exclude'].includes(node.op);
     const selectedValues = isMultiselect ? (Array.isArray(node.value) ? node.value : []) : [];
 
-    const {options, loading} = useColumnOptions(node.col, columns, node.op, search, selectedValues, siblingConditions);
+    const {options, loading} = useColumnOptions(node.col, columns, node.op, search, selectedValues, siblingConditions, node.source_id);
 
     const onSearch = useCallback((term) => setSearch(term), []);
 

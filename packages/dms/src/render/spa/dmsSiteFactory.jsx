@@ -75,12 +75,14 @@ export function DmsSite (config) {
     const [syncAPI, setSyncAPIState] = useState(null);
 
 
-    const routesWithErrorBoundary = React.useMemo(() => routes.map(c => {
+    const routesWithErrorBoundary = React.useMemo(() => routes.filter(c => !c.isLink).map(c => {
         if (!c.errorElement) {
             c.errorElement = <RootErrorBoundary />
         }
         return c
     }), [routes]);
+
+    console.log('routesWithErrorBoundary', routesWithErrorBoundary, routesWithErrorBoundary.length)
 
     const PageNotFoundRoute = React.useMemo(() => ({
         path: "/*",

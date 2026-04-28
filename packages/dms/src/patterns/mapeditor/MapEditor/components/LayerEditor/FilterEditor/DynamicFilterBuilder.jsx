@@ -125,6 +125,7 @@ export const DynamicFilterBuilder = ({path, params={}}) => {
         </div>
         {existingDynamicFilter.length > 0 && <div className='mb-2 w-full'>
           <ExistingColumnList 
+            DndList={DndList}
             selectedColumns={existingDynamicFilter}  
             reorderAttrs={(start, end) => {
               const sections = [...existingDynamicFilter];
@@ -193,6 +194,7 @@ export const DynamicFilterBuilder = ({path, params={}}) => {
 }
 
 export const ExistingColumnList = ({
+  DndList,
   selectedColumns,
   reorderAttrs,
   removeAttr,

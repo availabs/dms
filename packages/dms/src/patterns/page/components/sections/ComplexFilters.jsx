@@ -1,10 +1,11 @@
 import React, {useContext, useEffect, Fragment} from "react";
 import {useImmer} from "use-immer";
-import {isEqual} from "lodash-es";
+import {isEqual, uniqWith} from "lodash-es";
 import {ThemeContext} from "../../../../ui/useTheme";
 import {PageContext, ComponentContext} from "../../context";
 import {getColumnLabel, isEqualColumns} from "./controls_utils";
 import {ConditionValueInput} from "./ConditionValueInput";
+import { calculateIsJoinPresent } from "./components/dataWrapper/utils/joinUtils";
 
 const complexFilterStructure = {
     op: "AND",
@@ -36,7 +37,8 @@ const emptyGroup = () => ({
 const emptyCondition = (columns) => ({
     col: columns?.[0]?.name ?? '',
     op: 'filter',
-    value: []
+    value: [],
+    source_id: columns?.[0]?.source_id ?? null
 });
 
 // only in edit mode
@@ -45,6 +47,10 @@ export const ComplexFilters = ({ state, setState }) => {
     const { Pill, Icon, Popup, Switch, ColumnTypes: {select} } = UI;
     const { apiLoad } = useContext(PageContext) || {};
     const existingCtx = useContext(ComponentContext);
+
+    const { join } = state || {};
+    const isJoinPresent = calculateIsJoinPresent(join);  //TODO MIGHT NEED TO ADD BACK IN CONDITIONAL about mergeStrat
+
 
     const columns = [
         ...(state.columns || []).filter(c => c.systemCol),
@@ -204,19 +210,27 @@ export const ComplexFilters = ({ state, setState }) => {
                     <div className={'w-full flex flex-wrap gap-0.5'}>
                         <select
                             className={'flex-1'}
-                            value={node.col}
+                            value={JSON.stringify(columns.find(c => c.name === node.col && c.source_id === node.source_id))}
                             onChange={e =>
                                 updateNodeAtPath(path, n => {
-                                    n.col = e.target.value;
+                                    const val = JSON.parse(e.target.value);
+                                    
+                                    n.col = val.name
+                                    n.source_id = val.source_id
                                 })
                             }
                         >
                             <option key={'please select a column'} value={''}>Please select a column...</option>
-                            {columns.map(c => (
-                                <option key={c.name} value={c.name}>
-                                    {getColumnLabel(c)}
-                                </option>
-                            ))}
+                            {uniqWith(columns, isEqual).map(c => {
+                                const tableAlias = c.source_id ? Object.keys(join?.sources).find(jSourceKey => join?.sources[jSourceKey].source === c.source_id) : 0;
+                                const match = isJoinPresent && tableAlias?.match(/\d+$/);
+                                const tableIdx = match ? Number(match) : 0;
+                                return (
+                                    <option key={`${tableIdx}_${c.name}`} value={JSON.stringify(c)}>
+                                        {getColumnLabel(c)} {isJoinPresent ? ` 🔗${tableIdx}` : ''}
+                                    </option>
+                                )
+                            })}
                         </select>
                         <select
                             className={'flex-0'}

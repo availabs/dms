@@ -5,10 +5,8 @@ import { useNavigate } from "react-router";
 import { format as d3format } from "d3-format"
 
 import { DatasetsContext } from "../../../context";
-import { getExternalEnv } from "../../../utils/datasources";
-
-// import { DAMA_HOST } from "~/config";
-// import { DamaContext } from "~/pages/DataManager/store";
+import { getInstance } from "../../../../../utils/type-utils";
+import { clearDatasetsListCache } from "../../../utils/datasetsListCache";
 
 const MIN_SOURCE_NAME_LENGTH = 4;
 const intFormat = d3format(",d");
@@ -23,9 +21,11 @@ const CreatePage = ({ source }) => {
 		return source?.name || "";
 	}, [source]);
 
+  // When appending a new file to an existing source, the source_name field
+  // is ignored — only the file payload matters.
   const okToUpload = React.useMemo(() => {
-  	return sourceName.length >= MIN_SOURCE_NAME_LENGTH;
-  }, [sourceName]);
+  	return Boolean(sourceId) || sourceName.length >= MIN_SOURCE_NAME_LENGTH;
+  }, [sourceId, sourceName]);
 
 	const [ref, setRef] = React.useState(null);
 
@@ -56,7 +56,7 @@ const CreatePage = ({ source }) => {
 				>
 					Select a File
 				</button>
-				{ sourceName.length >= MIN_SOURCE_NAME_LENGTH ? null :
+				{ okToUpload ? null :
 					<div className="flex-1 flex justify-end items-center">
 						Enter a source name of length { MIN_SOURCE_NAME_LENGTH } or longer.
 					</div>
@@ -77,13 +77,20 @@ export default CreatePage;
 const File = ({ file, sourceId, sourceName, okToUpload }) => {
 
 	const {
-		datasources,
+		app,
 		baseUrl,
 		falcor,
 		user,
-		DAMA_HOST
+		dmsEnv,
+		parent,
+		DAMA_HOST,
 	} = React.useContext(DatasetsContext);
-	const pgEnv = getExternalEnv(datasources);
+
+	// Owner row that holds the `sources` ref list. dmsEnv is the canonical
+	// owner; fall back to the pattern row for legacy patterns that never
+	// migrated to dmsEnv. Mirrors datasets/pages/CreatePage.jsx.
+	const owner = dmsEnv || parent;
+	const ownerInstance = owner?.type ? getInstance(owner.type) : null;
 
 	const [directory, setDirectory] = React.useState("");
 	const doSetDirectory = React.useCallback(e => {
@@ -110,12 +117,18 @@ const File = ({ file, sourceId, sourceName, okToUpload }) => {
 
   const uploadFile = React.useCallback(e => {
 
+  	if (!owner?.id || !ownerInstance) {
+  		setError("No dmsEnv or parent pattern available to own the source.");
+  		return;
+  	}
+
   	setUploading(true);
 
     const formData = new FormData();
 
-    formData.append("source_name", sourceName);
-    formData.append("type", "file_upload");
+    formData.append("owner_id", owner.id);
+    formData.append("owner_instance", ownerInstance);
+    formData.append("owner_ref", `${app}+${ownerInstance}|source`);
 
     formData.append("file_name", file.name);
     formData.append("file_type", file.type || "application/octet-stream");
@@ -125,30 +138,42 @@ const File = ({ file, sourceId, sourceName, okToUpload }) => {
     formData.append("categories", JSON.stringify([["Uploaded File"]]));
 
     if (sourceId) {
+    	// Server derives source_slug from the existing source row's type.
     	formData.append("source_id", sourceId);
+    } else {
+    	formData.append("source_name", sourceName);
     }
     if (user?.id) {
-    	formData.append("user_id", user?.id);
+    	formData.append("user_id", user.id);
     }
     formData.append("file", file);
 
     fetch(
-      `${ DAMA_HOST }/dama-admin/${ pgEnv }/file_upload`,
+      `${ DAMA_HOST }/dms-admin/${ app }/file_upload`,
       { method: "POST", body: formData }
     ).then(res => res.json())
       .then(json => {
-        console.log("FILE UPLOAD RESPONSE:", json);
         if (json.ok) {
-        	navigate(`${ baseUrl }/source/${ json.source_id }`);
+        	// Invalidate the owner row so its updated sources list is refetched,
+        	// and the new source/view rows so the detail page renders the file.
+        	Promise.all([
+        		falcor.invalidate(["dms", "data", app, "byId", owner.id]),
+        		falcor.invalidate(["dms", "data", app, "byId", json.source_id]),
+        		falcor.invalidate(["dms", "data", app, "byId", json.view_id]),
+        	]).finally(() => {
+        		clearDatasetsListCache();
+        		navigate(`${ baseUrl }/source/${ json.source_id }`);
+        	});
         }
         else {
         	setError(json.error);
         }
       })
+      .catch(err => setError(err.message))
       .finally(e => setUploading(false));
 
-  }, [DAMA_HOST, pgEnv, baseUrl, file, sourceName,
-  		description, user, navigate, sourceId, directory
+  }, [DAMA_HOST, app, owner, ownerInstance, baseUrl, file, sourceName,
+  		description, user, navigate, sourceId, directory, falcor
   	]);
 
 	return (

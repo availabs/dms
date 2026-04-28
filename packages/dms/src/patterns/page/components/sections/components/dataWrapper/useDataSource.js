@@ -1,7 +1,11 @@
 import { useContext, useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { get, isEqual } from "lodash-es";
+import { get, isEqual, set } from "lodash-es";
 import { nameToSlug } from "../../../../../../utils/type-utils";
 import { CMSContext, PageContext } from "../../../../context";
+import { EXTERNAL_SOURCE_KEY } from "./schema";
+import { DEFAULT_SOURCE_JOIN } from "./utils/utils";
+import { SchemaManager } from "./SchemaManager";
+import { calculateIsJoinPresent } from "./utils/joinUtils"
 
 const range = (start, end) => Array.from({ length: end + 1 - start }, (_, k) => k + start);
 
@@ -83,13 +87,17 @@ const getViews = async ({ envs, sourceId, srcEnv, falcor }) => {
 const DEFAULT_SOURCE_TYPES = ["external", "internal"];
 
 export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TYPES }) {
-  const { app, type, falcor, datasources } = useContext(CMSContext) || {};
-  const { format } = useContext(PageContext) || {};
+    const { app, type, falcor, datasources } = useContext(CMSContext) || {};
+    const { format } = useContext(PageContext) || {};
 
+    const { join } = state;
+    const isJoinPresent = calculateIsJoinPresent(join);
     const [sources, setSources] = useState([]);
     const [views, setViews] = useState([]);
+    const [joinViewsByAlias, setJoinViewsByAlias] = useState({});
     const sourceId = (state?.externalSource?.source_id);
     const viewId = (state?.externalSource?.view_id);
+    const joinSources = (join?.sources || {});
 
     const sectionColumns = useMemo(
         () =>
@@ -139,12 +147,41 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
 
                 const existing = data.find((d) => +d.source_id === +sourceId);
 
-                if (existing && !isEqual(existing.columns, state?.externalSource?.columns)) {
+                if (existing && (!isEqual(existing.columns, state?.externalSource?.columns) || isJoinPresent) ) {
                     // Include baseUrl from envs when updating externalSource
                     const baseUrl = envs[existing.srcEnv]?.baseUrl || '';
                     setState((draft) => {
                         if (!draft) return;
-                        draft.externalSource = { ...draft.externalSource, ...existing, baseUrl };
+                        //If we have a join, we want to append all the columns from the joined source into
+                        //externalSource.columns. So they show up in the "ColumnManager"
+                        //We make sure there are no duplicates, and we add `source_id` to all of them
+
+                        if(isJoinPresent){
+                            //Gather all the columns from all our joined sources
+                            const joinColumns = Object.values(draft.join.sources)
+                              .filter((jSource) => !!jSource.sourceInfo)
+                              .map((jSource) =>
+                                jSource?.sourceInfo?.columns?.map((jSourceCol) => ({
+                                  ...jSourceCol,
+                                  source_id: jSource.source,
+                                })),
+                              )
+                              .flat();
+
+                            //Filter out columns that have a source_id that differs from the main source_id
+                            //Those get added back in via `joinColumns`
+                            const sourceCols = draft?.[EXTERNAL_SOURCE_KEY]?.columns
+                              .filter((sCol) => !sCol.source_id || sCol.source_id === draft[EXTERNAL_SOURCE_KEY].source_id)
+                              .map((sCol) => ({
+                                ...sCol,
+                                source_id: state?.[EXTERNAL_SOURCE_KEY].source_id,
+                              }));
+                            const allCols = [...sourceCols, ...joinColumns];
+                            draft[EXTERNAL_SOURCE_KEY] = { ...draft[EXTERNAL_SOURCE_KEY], ...existing, baseUrl, columns: allCols };
+                        } else {
+                            //Default behavior with no Joins/Unions
+                            draft.externalSource = { ...draft?.externalSource, ...existing, baseUrl };
+                        }
                     });
                 }
             })
@@ -170,6 +207,24 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
         return () => clearTimeout(timeoutId);
     }, [sourceId, sources]);
 
+    useEffect(() => {
+        const timeoutId = setTimeout(() => {
+            Object.keys(joinSources).forEach(alias => {
+                if (alias === 'ds') return;
+                const joinSourceId = joinSources[alias].source;
+                const srcEnv = sources.find((d) => +d.source_id === +joinSourceId)?.srcEnv;
+                if (!srcEnv) return;
+                
+                getViews({envs, sourceId: joinSourceId, srcEnv, falcor})
+                    .then((data) => {
+                        setJoinViewsByAlias(prev => ({ ...prev, [alias]: data }));
+                    });
+            });
+        }, 300);
+
+        return () => clearTimeout(timeoutId);
+    }, [joinSources, sources]);
+
     // =================================================================================================================
     // ================================================ handlers =======================================================
     // =================================================================================================================
@@ -177,7 +232,6 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
     const onSourceChange = useCallback(
         (sourceId) => {
             const match = sources.find((s) => +s.source_id === +sourceId);
-
             setState((draft) => {
                 if (!match && typeof sourceId === "string" && sourceId.includes("+")) {
                     draft.columns = [];
@@ -208,8 +262,8 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
                     const newColumnsNames = newColumns.map(c => c.name);
                     draft.columns = draft.columns.filter(c => newColumnsNames.includes(c.name)).map(c => ({...c, ...newColumns.find(newC => newC.name === c.name)}));
                     const baseUrl = envs[match.srcEnv]?.baseUrl || '';
-                    const sourceType = match.name ? nameToSlug(match.name) : draft.externalSource?.type;
-                    draft.externalSource = { ...match, baseUrl, type: sourceType };
+                    const sourceType = match.name ? nameToSlug(match.name) : draft[EXTERNAL_SOURCE_KEY]?.type;
+                    draft[EXTERNAL_SOURCE_KEY] = { ...match, baseUrl, type: sourceType };
                 }
             });
         },
@@ -224,8 +278,8 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
             const { view_id, name, version, updated_at, _modified_timestamp } = view;
 
             setState((draft) => {
-                draft.externalSource = {
-                    ...draft.externalSource,
+                draft[EXTERNAL_SOURCE_KEY] = {
+                    ...draft[EXTERNAL_SOURCE_KEY],
                     view_id,
                     view_name: version || name,
                     updated_at: _modified_timestamp || updated_at,
@@ -233,6 +287,107 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
             });
         },
         [views, setState]
+    );
+    const addJoinSource = useCallback(() => {
+        setState(draft => {
+            if (!draft.join) draft.join = { sources: {} };
+            
+            const existingAliases = isJoinPresent ? Object.keys(draft.join.sources) : [];
+            let nextNum = 1;
+            while (existingAliases.includes(`table${nextNum}`)) {
+                nextNum++;
+            }
+            const nextAlias = `table${nextNum}`;
+            draft.join.sources[nextAlias] = {...DEFAULT_SOURCE_JOIN};
+        });
+    }, [state, setState]);
+
+    const onJoinSourceChange = useCallback(
+        (alias, newJoinSourceId) => {
+            const newJoinMatch = sources.find((s) => +s.source_id === +newJoinSourceId);
+            const previousJoinSourceId = join?.sources[alias]?.source;
+            if (newJoinMatch) {
+                setState((draft) => {
+                    const baseUrl = envs[newJoinMatch.srcEnv]?.baseUrl || "";
+                    const sourceType = newJoinMatch.name ? nameToSlug(newJoinMatch.name) : draft.join.sources[alias].sourceInfo?.type;
+
+                    draft.join.sources[alias].sourceInfo = { ...newJoinMatch, baseUrl, type: sourceType };
+                    draft.join.sources[alias].source = newJoinSourceId;
+                    draft.join.sources[alias].view = null;
+
+                    draft[EXTERNAL_SOURCE_KEY].columns = SchemaManager.updateColumnsForJoinSource(
+                        draft[EXTERNAL_SOURCE_KEY].columns,
+                        newJoinMatch,
+                        newJoinSourceId,
+                        previousJoinSourceId
+                    );
+                });
+            }
+        },
+        [sources, setState, envs]
+    );
+
+    const onJoinViewChange = useCallback(
+        (alias, viewId) => {
+            const selectedView = joinViewsByAlias[alias].find(jView => jView.view_id === viewId);
+            setState((draft) => {
+                draft.join.sources[alias].view = viewId;
+                draft.join.sources[alias].sourceInfo.view_id = viewId;
+            });
+        },
+        [joinViewsByAlias, setState]
+    );
+
+    const onMergeStrategyChange = useCallback(
+      (alias, mergeStrategy) => {
+        setState((draft) => {
+          set(draft.join.sources[alias], "mergeStrategy", mergeStrategy);
+          if (mergeStrategy !== "join") {
+            draft.join.sources[alias].joinColumns = [];
+            draft.join.sources[alias].type = null;
+          }
+        });
+      },
+      [state, setState],
+    );
+
+    const onJoinColumnsChange = useCallback((alias, joinVal) => {
+        setState(draft => {
+            if (!draft.join) draft.join = { sources: {} };
+            // Ensure the source entry and joinColumns array exist
+            if (!draft.join.sources[alias]) {
+                draft.join.sources[alias] = {
+                    source: null,
+                    view: null,
+                    sourceInfo: {},
+                    joinColumns: []
+                };
+            } else if (!draft.join.sources[alias].joinColumns) {
+                draft.join.sources[alias].joinColumns = [];
+            }
+            // Assuming only one join column definition per alias for now
+            draft.join.sources[alias].joinColumns = joinVal;
+        });
+    }, [state, setState])
+
+    const onJoinChange = useCallback(
+        (alias, path, joinVal) => {
+            console.log("join change callback, alias::", alias, "path::", path, "val::", joinVal);
+            if(path === "source"){
+                onJoinSourceChange(alias, joinVal);
+            } else if (path === "view"){
+                onJoinViewChange(alias, joinVal);
+            } else if (path === "type") {
+                setState(draft => {
+                    set(draft.join.sources[alias], path, joinVal);
+                })
+            } else if (path === "mergeStrategy") {
+                onMergeStrategyChange(alias, joinVal);
+            } else if (path === "joinColumns") {
+                onJoinColumnsChange(alias, joinVal);
+            }
+        },
+        [onJoinSourceChange, onJoinViewChange, onMergeStrategyChange, onJoinColumnsChange, setState]
     );
 
     const sourceOptions = useMemo(() => [
@@ -251,12 +406,43 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
         [views]
     );
 
+    const joinViewOptionsByAlias = useMemo(() => {
+        const result = {};
+        Object.keys(joinViewsByAlias).forEach(alias => {
+            result[alias] = joinViewsByAlias[alias].map(({view_id, name, version}) => ({key: view_id, label: name || version || view_id}));
+        });
+        return result;
+    }, [joinViewsByAlias]);
+    const removeJoinSource = useCallback(
+        (alias) => {
+            setState((draft) => {
+                if (!draft.join || !draft.join.sources[alias]) return;
+
+                const sourceIdToRemove = draft.join.sources[alias].source;
+                delete draft.join.sources[alias];
+
+                // Cleanup associated columns
+                if (draft[EXTERNAL_SOURCE_KEY] && draft[EXTERNAL_SOURCE_KEY].columns) {
+                    draft[EXTERNAL_SOURCE_KEY].columns = draft[EXTERNAL_SOURCE_KEY].columns.filter(
+                        (col) => !col.source_id || col.source_id !== sourceIdToRemove
+                    );
+                }
+            });
+        },
+        [setState]
+    );
+ 
     return useMemo(() => ({
         activeSource: sourceId,
         activeView: viewId,
         sources: sourceOptions,
         views: viewOptions,
+        isJoinPresent,
+        activeJoinViewsByAlias: joinViewOptionsByAlias,
         onSourceChange,
         onViewChange,
-    }), [sourceId, viewId, sourceOptions, viewOptions, onSourceChange, onViewChange]);
+        onJoinChange,
+        addJoinSource,
+        removeJoinSource
+    }), [sourceId, viewId, sourceOptions, viewOptions, joinViewOptionsByAlias, onSourceChange, onViewChange, onJoinChange, addJoinSource, removeJoinSource]);
 }
