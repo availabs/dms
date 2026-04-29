@@ -13,6 +13,7 @@ export const Attribution = () => {
     const isJoinPresent = calculateIsJoinPresent(join);
 
     let attribRows = [];
+    if(!externalSource) return null;
     const { source_id, name, view_name, view_id, updated_at, baseUrl } = externalSource;
     const dateOptions = { year: "numeric", month: "long", day: "numeric", hour: "numeric", minute: "numeric" };
     const updatedTimeString = updated_at ? new Date(updated_at).toLocaleString(undefined, dateOptions) : null;
