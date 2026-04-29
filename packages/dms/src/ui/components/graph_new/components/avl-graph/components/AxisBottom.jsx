@@ -181,7 +181,7 @@ const renderAxisBottom = ({ ref, showAnimations, rotateLabels,
         numGridLines = gridLines.size(),
         numTicks = show ? scale.ticks(ticks).length : 0;
 
-      const gridEnter = numGridLines && (numGridLines < numTicks) ?
+      const gridEnter = (numGridLines > 1) && (numGridLines < numTicks) ?
           scale(domain[1] * 1.5) : scale(domain[0]);
 
       const gridExit = show ? (0 === domain[0] && 0 === domain[1]) ? 0 : scale(domain[1] * 1.5) : 0;
@@ -220,18 +220,18 @@ const renderAxisBottom = ({ ref, showAnimations, rotateLabels,
             )
         );
     }
-    else if (type === "band") {
+    else if (type === "band" || type === "ordinal") {
 
       const gridLines = group.selectAll("line.grid-line"),
         numGridLines = gridLines.size(),
         numTicks = show ? domain.length : 0;
 
-      const gridEnter = numGridLines && (numGridLines < numTicks) ?
+      const gridEnter = (numGridLines > 1) && (numGridLines < numTicks) ?
           scale(domain.at(-1)) : scale(domain.at(0));
 
       const gridExit = show ? scale(domain.at(-1)) : 0;
 
-      const shift = scale.bandwidth() * 0.5;
+      const shift = type === "ordinal" ? scale.bandwidth() * 0.5 : 0;
 
       gridLines
         .data(show ? domain : [])

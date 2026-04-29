@@ -471,30 +471,6 @@ export const GridGraph = props => {
 
       <svg className={ `w-full h-full block avl-graph ${ className }` }>
 
-        { !gridData.current.length ? null :
-          <g>
-            { !axisBottom ? null :
-              <AxisBottom { ...restOfState }
-                margin={ Margin }
-                scale={ xScale }
-                domain={ xDomain }
-                type="ordinal"
-                showAnimations={ showAnimations }
-                { ...axisBottom }/>
-            }
-            { !axisLeft ? null :
-              <AxisLeft { ...restOfState }
-                margin={ Margin }
-                scale={ yScale }
-                tickValues={ yTickValues }
-                domain={ yDomain }
-                type="ordinal"
-                showAnimations={ showAnimations }
-                { ...axisLeft }/>
-            }
-          </g>
-        }
-
         <g style={ { transform: `translate(${ Margin.left }px, ${ Margin.top }px)` } }
           onMouseLeave={ onMouseLeave }>
 
@@ -539,6 +515,28 @@ export const GridGraph = props => {
               x={ -1 } y={ -1 }
               width={ hoverData.data.width + 2 }
               height={ state.adjustedHeight + 2 }/>
+          }
+        </g>
+
+        <g>
+          { !axisBottom ? null :
+            <AxisBottom { ...restOfState }
+              margin={ Margin }
+              scale={ xScale }
+              domain={ xDomain }
+              type="ordinal"
+              showAnimations={ showAnimations }
+              { ...axisBottom }/>
+          }
+          { !axisLeft ? null :
+            <AxisLeft { ...restOfState }
+              margin={ Margin }
+              scale={ yScale }
+              tickValues={ yTickValues }
+              domain={ yDomain }
+              type="ordinal"
+              showAnimations={ showAnimations }
+              { ...axisLeft }/>
           }
         </g>
 

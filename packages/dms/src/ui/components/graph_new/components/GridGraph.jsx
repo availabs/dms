@@ -19,6 +19,7 @@ const GridGraphWrapper = props => {
 
 // console.log("GridGraphWrapper::props", props);
 // console.log("GridGraphWrapper::width, height", props.width, props.height);
+// console.log("GridGraphWrapper::data", props.data);
 
     const dataFromProps = React.useMemo(() => {
         if (!props.data.length) return {};

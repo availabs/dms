@@ -52,12 +52,12 @@ const BarGraphWrapper = props => {
 
 	const axisBottom = React.useMemo(() => {
 		if (!props.xAxis) return false;
-		return { ...props.xAxis };
+		return props.orientation === "vertical" ? { ...props.xAxis } : { ...props.yAxis };
 	}, [props.xAxis]);
 
 	const axisLeft = React.useMemo(() => {
 		if (!props.yAxis) return false;
-		return { ...props.yAxis };
+		return props.orientation === "vertical" ? { ...props.yAxis } : { ...props.xAxis };
 	}, [props.yAxis]);
 
 	const margin = React.useMemo(() => {
@@ -69,16 +69,16 @@ const BarGraphWrapper = props => {
 		}
 	}, [props.margins]);
 
+	const height = React.useMemo(() => {
+		return Math.max(margin.top + margin.bottom + 100, props.height);
+	}, [props.height, margin.top, margin.bottom]);
+
 	const hoverComp = React.useMemo(() => {
 		return { ...props.tooltip };
 	}, [props.tooltip]);
 
 // console.log("BarGraphWrapper::dataForGraph", dataForGraph);
 // console.log("BarGraphWrapper::hoverComp", hoverComp);
-
-	const height = React.useMemo(() => {
-		return Math.max(margin.top + margin.bottom + 100, props.height);
-	}, [props.height, margin.top, margin.bottom,]);
 
 	const shouldComponentUpdate = React.useMemo(() => {
 		return ["width", "height"];
@@ -90,6 +90,7 @@ const BarGraphWrapper = props => {
 				style={ { height: `${ height }px` } }
 			>
 				<BarGraph { ...dataForGraph } { ...dataFromProps }
+					orientation={ props.orientation }
 					colors={ colors }
 					groupMode={ props.groupMode }
 					axisBottom={ axisBottom }

@@ -182,47 +182,99 @@ const renderAxisLeft = ({ ref, showAnimations, rotateLabels,
       .style("transform", null)
   }
 
-  const show = (type === "linear") && showGridLines && scale && domain.length;
+  const show = showGridLines &&
+              Boolean(scale) &&
+              Boolean(domain.length);
 
-  const gridLines = group.selectAll("line.grid-line"),
-    numGridLines = gridLines.size(),
-    numTicks = show ? scale.ticks(ticks).length : 0,
+  if (type === "linear") {
+    const gridLines = group.selectAll("line.grid-line"),
+      numGridLines = gridLines.size(),
+      numTicks = show ? scale.ticks(ticks).length : 0,
 
-    gridEnter = (numGridLines > 1) && (numGridLines < numTicks) ?
-      scale(domain[1] * 1.5) : adjustedHeight,
+      gridEnter = (numGridLines > 1) && (numGridLines < numTicks) ?
+        scale(domain[1] * 1.5) : adjustedHeight,
 
-    gridExit = show ? scale(domain[1] * 1.5) : adjustedHeight;
+      gridExit = show ? scale(domain[1] * 1.5) : adjustedHeight;
 
-  gridLines
-    .data(show ? scale.ticks(ticks) : [])
-    .join(
-      enter => enter.append("line")
-        .attr("class", "grid-line")
-        .attr("x1", 0)
-        .attr("x2", adjustedWidth)
-        .attr("y1", gridEnter)
-        .attr("y2", gridEnter)
-        .attr("stroke", "currentColor")
-        .attr("stroke-opacity", gridLineOpacity)
-          .call(enter => transitionWrapper(enter)
-              .attr("y1", d => scale(d) + 0.5)
-              .attr("y2", d => scale(d) + 0.5)
-          ),
-      update => update
-        .call(update => transitionWrapper(
-            update
+      gridLines
+        .data(show ? scale.ticks(ticks) : [])
+        .join(
+          enter => enter.append("line")
+            .attr("class", "grid-line")
+            .attr("x1", 0)
+            .attr("x2", adjustedWidth)
+            .attr("y1", gridEnter)
+            .attr("y2", gridEnter)
             .attr("stroke", "currentColor")
             .attr("stroke-opacity", gridLineOpacity)
+              .call(enter => transitionWrapper(enter)
+                  .attr("y1", d => scale(d) + 0.5)
+                  .attr("y2", d => scale(d) + 0.5)
+              ),
+          update => update
+            .call(update => transitionWrapper(
+                update
+                  .attr("stroke", "currentColor")
+                  .attr("stroke-opacity", gridLineOpacity)
+              )
+                .attr("x2", adjustedWidth)
+                .attr("y1", d => scale(d) + 0.5)
+                .attr("y2", d => scale(d) + 0.5)
+            ),
+          exit => exit
+            .call(exit => transitionWrapper(exit)
+                .attr("y1", gridExit)
+                .attr("y2", gridExit)
+              .remove()
+            )
+        );
+  }
+  else if (type === "band" || type === "ordinal") {
+
+    const gridLines = group.selectAll("line.grid-line"),
+      numGridLines = gridLines.size(),
+      numTicks = show ? domain.length : 0;
+
+    const gridEnter = (numGridLines > 1) && (numGridLines < numTicks) ?
+        scale(domain.at(-1)) : adjustedHeight;
+
+    const gridExit = show ? scale(domain.at(-1)) : adjustedHeight;
+
+    const shift = type === "band" ? scale.bandwidth() * 0.5 : 0;
+
+    gridLines
+      .data(show ? domain : [])
+      .join(
+        enter => enter.append("line")
+          .attr("class", "grid-line")
+          .attr("x1", 0)
+          .attr("x2", adjustedWidth)
+          .attr("y1", gridEnter)
+          .attr("y2", gridEnter)
+          .attr("stroke", "currentColor")
+          .attr("stroke-opacity", gridLineOpacity)
+            .call(enter => transitionWrapper(enter)
+                .attr("y1", d => scale(d) + 0.5 + shift)
+                .attr("y2", d => scale(d) + 0.5 + shift)
+            ),
+        update => update
+          .call(update =>
+            transitionWrapper(
+              update
+                .attr("stroke", "currentColor")
+                .attr("stroke-opacity", gridLineOpacity)
+            )
+                .attr("x2", adjustedWidth)
+              .attr("y1", d => scale(d) + 0.5 + shift)
+              .attr("y2", d => scale(d) + 0.5 + shift)
+          ),
+        exit => exit
+          .call(exit => transitionWrapper(exit)
+              .attr("y1", gridExit)
+              .attr("y2", gridExit)
+            .remove()
           )
-            .attr("x2", adjustedWidth)
-            .attr("y1", d => scale(d) + 0.5)
-            .attr("y2", d => scale(d) + 0.5)
-        ),
-      exit => exit
-        .call(exit => transitionWrapper(exit)
-            .attr("y1", gridExit)
-            .attr("y2", gridExit)
-          .remove()
-        )
-    );
+      );
+  }
+
 }
