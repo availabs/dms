@@ -158,10 +158,12 @@ async function setupAndListen() {
   registerDatatype('pmtiles', require('./dama/datatypes/pmtiles'));
 
   // App-owned datatype plugins — load via DMS_EXTRA_DATATYPES if set.
+  // Resolved against cwd so relative paths (e.g. `./server/register-datatypes.js`)
+  // work in dev without depending on dms-server's own location.
   const extraDatatypes = process.env.DMS_EXTRA_DATATYPES;
   if (extraDatatypes) {
     try {
-      const registerExtra = require(extraDatatypes);
+      const registerExtra = require(require('path').resolve(extraDatatypes));
       registerExtra({ registerDatatype });
     } catch (e) {
       console.error(`[datatypes] Failed to load DMS_EXTRA_DATATYPES=${extraDatatypes}:`, e.message);
