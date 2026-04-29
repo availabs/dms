@@ -402,7 +402,7 @@ async function applyMeta(rows, meta, env, isDms, options) {
             : row[column]?.toString()?.includes(',')
               ? row[column].toString().split(',').map(val => metaData[column][val.trim()]).join(', ')
               : (metaData[column][row[column]] || row[column]);
-        row[column] = value;
+        row[column] = {value, originalValue: row[column]};
       });
     });
   }
