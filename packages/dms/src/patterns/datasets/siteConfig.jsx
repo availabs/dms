@@ -22,6 +22,7 @@ import gis_dataset from "./pages/dataTypes/gis_dataset";
 import internal_table from "./pages/dataTypes/internal_table";
 
 import file_upload from "./pages/dataTypes/file_upload"
+import { expandDamaDataTypes } from "./pages/dataTypes/defaultPages"
 
 const datasetsConfig = ({
     app,
@@ -78,13 +79,16 @@ const datasetsConfig = ({
                           theme, app, type, siteType,
                           parent: pattern, API_HOST, DAMA_HOST,
                           authPermissions,
-                          damaDataTypes: {
+                          // Expand any plugin's `defaultPages: ['table', ...]`
+                          // shorthand against the built-in defaultPages
+                          // registry. Plugin's own page entries always win.
+                          damaDataTypes: expandDamaDataTypes({
                             csv_dataset,
                             gis_dataset,
                             internal_table,
                             file_upload,
                             ...damaDataTypes
-                          },
+                          }),
                           isUserAuthed: (reqPermissions, customAuthPermissions) => isUserAuthed({ user, authPermissions: customAuthPermissions || authPermissions, reqPermissions }),
                       }}>
                           <ThemeContext.Provider value={{ theme, UI }}>
