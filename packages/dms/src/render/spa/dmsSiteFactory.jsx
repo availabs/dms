@@ -30,6 +30,7 @@ export function DmsSite (config) {
         PROJECT_NAME,
         routes = [],
         damaDataTypes = {},
+        damaMapPlugins = {},
         host = typeof window !== 'undefined' ? window.location.host : 'localhost'
     } = config
     let CurrentProjectName = PROJECT_NAME ? PROJECT_NAME : dmsConfig.app
@@ -38,7 +39,7 @@ export function DmsSite (config) {
     const routeProps = {
         dmsConfig, adminPath, authPath, themes, falcor, API_HOST, DAMA_HOST,
         authWrapper, pgEnvs, damaBaseUrl, PROJECT_NAME: CurrentProjectName,
-        damaDataTypes, host
+        damaDataTypes, damaMapPlugins, host
     }
     const localStorePatterns = parseIfJSON(localStorage.getItem(dmsConfig.app+'-'+dmsConfig.type), null)
 

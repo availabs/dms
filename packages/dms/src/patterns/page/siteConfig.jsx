@@ -22,6 +22,8 @@ import PageEdit from "./pages/edit";
 import ErrorPage from "./pages/error";
 import FormatManager from "./pages/formatManager"
 
+import { RegisterPlugin } from "../mapeditor/MapEditor"
+
 // Register page pattern widgets
 registerWidget('UserMenu', { label: 'User Menu', component: DefaultMenu })
 registerWidget('SearchButton', { label: 'Search Button', component: SearchButton })
@@ -36,6 +38,7 @@ const pagesConfig = ({
   datasources,
   dmsEnvs = [],
   dmsEnvById = {},
+  damaMapPlugins = {},
   site,
   pgEnv,
   API_HOST,
@@ -75,6 +78,8 @@ const pagesConfig = ({
     }
     return a;
   }, []);
+
+  Object.keys(damaMapPlugins).forEach(plugin => RegisterPlugin(plugin, damaMapPlugins[plugin]));
 
   const patternFilters = parseIfJSON(pattern?.filters, []);
   // const rightMenuWithSearch = rightMenu; // for live site
