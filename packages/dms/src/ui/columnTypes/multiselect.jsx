@@ -49,7 +49,7 @@ const RenderToken = ({token, value, onChange, theme, isSearching, setIsSearching
                 onChange && <div
                     className={theme?.multiselect?.removeIcon}
                     onClick={e => onChange(value.filter(v => (v.value ?? v) !== (token.value ?? token)).map(v => v?.value ?? v))}
-                > </div>
+                > x </div>
             }
         </div>
     )

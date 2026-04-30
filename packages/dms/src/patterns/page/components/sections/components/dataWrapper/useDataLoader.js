@@ -177,7 +177,7 @@ export function useDataLoader({ state, setState, apiLoad, component, readyToLoad
       }
 
       // Dedup: skip if config hasn't changed
-      if (fetchKey === lastFetchKeyRef.current) return;
+      if (fetchKey === lastFetchKeyRef.current && !state.externalSource?.isDms) return;
 
       async function load() {
         setLoading(true);
