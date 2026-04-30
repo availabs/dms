@@ -398,7 +398,7 @@ async function applyMeta(rows, meta, env, isDms, options) {
       Object.keys(metaData).forEach(column => {
         const value =
           typeof row[column] === 'string' && row[column].startsWith('[') && row[column].endsWith(']')
-            ? JSON.parse(row[column])
+            ? JSON.parse(row[column]).map(val => metaData[column][typeof val === 'string' ? val.trim() : val])
             : row[column]?.toString()?.includes(',')
               ? row[column].toString().split(',').map(val => metaData[column][val.trim()]).join(', ')
               : (metaData[column][row[column]] || row[column]);
