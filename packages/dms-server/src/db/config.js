@@ -8,10 +8,10 @@ const configDir = join(__dirname, "./configs");
  * @param {string} envName - The environment name (e.g., 'dms', 'auth', 'development')
  * @returns {Object} Database configuration object
  *
- * Config file format for PostgreSQL (new format):
+ * Config file format — PostgreSQL:
  * {
  *   "type": "postgres",
- *   "role": "dms",
+ *   "role": "dms" | "auth" | "dama" | ["dms", "auth"],
  *   "host": "localhost",
  *   "port": 5432,
  *   "database": "mydb",
@@ -19,22 +19,18 @@ const configDir = join(__dirname, "./configs");
  *   "password": "secret"
  * }
  *
- * Config file format for PostgreSQL (legacy format - auto-detected):
- * {
- *   "host": "localhost",
- *   "port": 5432,
- *   "database": "mydb",
- *   "user": "postgres",
- *   "password": "secret",
- *   "type": "dms"  // This is actually the role in legacy format
- * }
- *
- * Config file format for SQLite:
+ * Config file format — SQLite:
  * {
  *   "type": "sqlite",
  *   "role": "dms",
  *   "filename": "./data/mydb.sqlite"
  * }
+ *
+ * `type` and `role` are both REQUIRED. There is no inference, no legacy
+ * fallback, no default — a missing or invalid field throws at load time.
+ * This is intentional: an omitted `type` used to silently route the
+ * config into the wrong role (or no role), leaving the caller staring at
+ * "relation X does not exist" errors. Fail fast at config load instead.
  */
 function loadConfig(envName) {
   const configFileName = `${envName}.config.json`;
@@ -42,19 +38,26 @@ function loadConfig(envName) {
 
   try {
     const str = readFileSync(configFilePath, { encoding: "utf8" });
-    const rawConfig = JSON.parse(str);
+    const config = JSON.parse(str);
 
-    // Normalize configuration to new format
-    const config = normalizeConfig(rawConfig);
+    if (config.type !== "postgres" && config.type !== "sqlite") {
+      throw new Error(
+        `Config "${envName}" is missing or has an invalid "type" — set "type": "postgres" or "type": "sqlite"`
+      );
+    }
+    if (!config.role) {
+      throw new Error(
+        `Config "${envName}" is missing "role" — set "role": "dms" | "auth" | "dama" (or an array of those)`
+      );
+    }
 
-    // Validate type-specific fields
     if (config.type === "postgres") {
       if (!config.database) {
-        throw new Error(`PostgreSQL config must specify a "database" field`);
+        throw new Error(`PostgreSQL config "${envName}" must specify a "database" field`);
       }
-    } else if (config.type === "sqlite") {
+    } else {
       if (!config.filename) {
-        throw new Error(`SQLite config must specify a "filename" field`);
+        throw new Error(`SQLite config "${envName}" must specify a "filename" field`);
       }
       // Resolve relative paths from the config directory
       if (!config.filename.startsWith("/")) {
@@ -69,48 +72,6 @@ function loadConfig(envName) {
     }
     throw err;
   }
-}
-
-/**
- * Normalize config to handle both legacy and new formats
- * Legacy format: { host, port, database, user, password, type: "dms"|"auth"|"dama" }
- * New format: { type: "postgres"|"sqlite", role: "dms"|"auth"|"dama", ... }
- */
-function normalizeConfig(rawConfig) {
-  const config = { ...rawConfig };
-
-  // Check if this is new format (type is "postgres" or "sqlite")
-  if (config.type === "postgres" || config.type === "sqlite") {
-    // New format - already normalized
-    return config;
-  }
-
-  // Legacy format detection:
-  // If has host/database, it's PostgreSQL with type used as role
-  if (config.host && config.database) {
-    const role = config.type; // Legacy uses type as role
-    config.type = "postgres";
-    config.role = role;
-    return config;
-  }
-
-  // If has filename, it's SQLite with type possibly used as role
-  if (config.filename) {
-    const role = config.type;
-    config.type = "sqlite";
-    config.role = role;
-    return config;
-  }
-
-  // Default to postgres if we have typical postgres fields
-  if (config.user && config.password) {
-    const role = config.type;
-    config.type = "postgres";
-    config.role = role;
-    return config;
-  }
-
-  throw new Error(`Cannot determine database type from config. Specify "type": "postgres" or "type": "sqlite"`);
 }
 
 

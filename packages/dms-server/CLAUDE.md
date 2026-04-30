@@ -107,7 +107,7 @@ SELECT app || '+' || type AS key
 
 ## Database Configs
 
-Configs are JSON files in `src/db/configs/`:
+Configs are JSON files in `src/db/configs/`. **Both `type` and `role` are required** — there is no inference, no legacy fallback, no default. A missing or invalid field throws at config load time. This is intentional: an omitted `type` used to silently route a config into the wrong role (or no role), leaving the caller staring at "relation X does not exist" errors.
 
 ```json
 // SQLite
@@ -117,7 +117,21 @@ Configs are JSON files in `src/db/configs/`:
 { "type": "postgres", "role": "dms", "host": "localhost", "port": 5432, "database": "dms_db", "user": "postgres", "password": "..." }
 ```
 
-The `role` field (`dms`, `auth`, `dama`) determines which schema init scripts run on first connection.
+### Field reference
+
+| Field | Required | Values | Notes |
+|---|---|---|---|
+| `type` | yes | `"postgres"` \| `"sqlite"` | Picks the adapter. |
+| `role` | yes | `"dms"` \| `"auth"` \| `"dama"`, or an array of these | Determines which schema init scripts run on first connection (`initDms`, `initAuth`, `initDama` + `initDamaTasks`). A pgEnv with `role: "dama"` gets `data_manager.{sources,views,...}` created on first `getDb()` call. Multi-role configs (e.g. `["dms", "auth"]`) run the matching init sequences in order. |
+| `database` | postgres only | string | Postgres database name. |
+| `host`, `port`, `user`, `password` | postgres | | Standard `pg` client options. |
+| `filename` | sqlite only | path | Resolved relative to `src/db/configs/` if not absolute. |
+| `splitMode` | optional | `"legacy"` \| `"per-app"` | Per-config override of the global `DMS_SPLIT_MODE`. Only meaningful for `role: "dms"`. |
+| `clickhouse` | optional, dama | `{ host, port, user, password, database }` | Auxiliary read storage for large views. See "ClickHouse auxiliary storage" below. |
+
+If you see "relation `data_manager.sources` does not exist" against a brand-new pgEnv, check that the config has both `"type": "postgres"` and `"role": "dama"` set — `initDama` only runs when `role` resolves to (or contains) `"dama"`.
+
+### File handling
 
 `*.config.json` files in `src/db/configs/` are gitignored (see `configs/.gitignore`) since they often contain real credentials; only `*.example.config.json` and `*-test*.config.json` are tracked. Copy an example and rename when setting up a new environment.
 
