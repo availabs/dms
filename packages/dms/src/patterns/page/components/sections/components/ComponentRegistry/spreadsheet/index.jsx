@@ -6,7 +6,7 @@ import {
     numColSize as numColSizeDf
 } from "./constants"
 import ActionControls from "./controls/ActionControls";
-import {ComponentContext} from '../../../../../context'
+import {ComponentContext, PageContext} from '../../../../../context'
 import {ThemeContext} from "../../../../../../../ui/useTheme"
 import {isEqualColumns} from "../../dataWrapper/utils/utils";
 import AddFormulaColumn from "../../../AddFormulaColumn";
@@ -21,6 +21,17 @@ export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addIte
     const { UI, theme} = React.useContext(ThemeContext) || {}
     const {Table} = UI;
     const {state:{columns=[], externalSource: sourceInfo={}, display={}, data=[], localFilteredData, fullData}, setState, controls={}, isActive, activeStyle} = useContext(ComponentContext);
+    const { pageState } = useContext(PageContext) || {};
+
+    const subCfg = display._functions?.subscribers?.find(s => s.functionId === 'row_highlight' && s.enabled);
+    const highlightedRow = subCfg && pageState
+        ? (() => {
+            const param = pageState.filters.find(f => f.searchKey === subCfg.paramKey && f.type === 'action');
+            const value = param?.values?.[0];
+            return value !== undefined ? { column: subCfg.args?.column, value, style: subCfg.args?.style || 'bg' } : undefined;
+          })()
+        : undefined;
+
     const gridRef = useRef(null);
 
     const visibleAttributes = useMemo(() => columns.filter(({show}) => show), [columns]);
@@ -70,6 +81,7 @@ export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addIte
                       CalculatedColumnModal: AddCalculatedColumn,
                       sourceColumns: sourceInfo.columns || [],
                   }} setState={setState}
+                  highlightedRow={highlightedRow}
                   allowEdit={allowEdit} isEdit={isEdit} loading={loading}
                   gridRef={gridRef}
                   theme={theme} paginationActive={paginationActive}

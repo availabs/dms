@@ -554,8 +554,14 @@ const RenderItem = memo(function RenderItem ({
         <div
             className={`${theme.subWrapper} ${compactView ? `${theme.subWrapperCompactView} ${removeBorder ? `` : 'border shadow'}` : `${theme.subWrapperSimpleView} ${addBorder ? `border shadow rounded-md` : ``}`} `}
             style={subWrapperStyle}
-            onMouseEnter={() => setCardHovered(true)}
-            onMouseLeave={() => !isPickerOpen && setCardHovered(false)}
+            onMouseEnter={() => {
+                setCardHovered(true);
+                controls?.onCardMouseEnter?.(item);
+            }}
+            onMouseLeave={() => {
+                if (!isPickerOpen) setCardHovered(false);
+                controls?.onCardMouseLeave?.();
+            }}
         >
             {
                 visibleColumns.map((attr, i) => {
