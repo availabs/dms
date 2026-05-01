@@ -214,6 +214,21 @@ const inHeader = [
     { type: ({ value, setValue }) => (<ColorControls value={value} setValue={setValue} title={'Background Color'} />), key: 'bgColor', displayCdn: ({ display }) => !display.compactView }
 ];
 
+export const componentFunctions = {
+    providers: [
+        {
+            id: 'hover_highlight',
+            label: 'Hover: Publish Row',
+            description: 'On hover, publishes a column value to a page action param. Clears on mouse leave.',
+            trigger: 'hover',
+            args: [
+                { key: 'column', label: 'Column to publish', type: 'column-select' },
+            ],
+        },
+    ],
+    subscribers: [],
+};
+
 export default {
     "name": 'Card',
     "type": 'card',
@@ -298,6 +313,7 @@ export default {
         ],
         inHeader
     },
+    componentFunctions,
     "EditComp": CardSection,
     "ViewComp": CardSection,
 }

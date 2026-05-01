@@ -116,6 +116,127 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
     };
     // ============================================= helpers end =======================================================
 
+    // =================================================================================================================
+    // =========================================== component actions helpers begin ===============================================
+    // =================================================================================================================
+    const componentFunctions = currentComponent?.componentFunctions;
+    const hasComponentFunctions = !!(componentFunctions?.providers?.length || componentFunctions?.subscribers?.length);
+
+    const updateFunctionEntry = (side, functionId, updater) => {
+        dwAPI.setState(draft => {
+            if (!draft.display._functions) {
+                draft.display._functions = { providers: [], subscribers: [] };
+            }
+            if (!draft.display._functions[side]) {
+                draft.display._functions[side] = [];
+            }
+            const existing = draft.display._functions[side].find(f => f.functionId === functionId);
+            if (existing) {
+                updater(existing);
+            } else {
+                const entry = { functionId, enabled: false };
+                updater(entry);
+                draft.display._functions[side].push(entry);
+            }
+        });
+    };
+
+    const getFunctionEntry = (side, functionId) =>
+        state.display?._functions?.[side]?.find(f => f.functionId === functionId);
+
+    const buildFunctionMenuItems = (fnList, side) => (fnList || []).map(fn => {
+        const entry = getFunctionEntry(side, fn.id);
+
+        const paramKeyItem = {
+            id: `fn_${side}_${fn.id}_paramkey`,
+            name: 'Param Key',
+            value: entry?.paramKey || '',
+            showValue: true,
+            items: [{
+                id: `fn_${side}_${fn.id}_paramkey_input`,
+                name: 'Param Key',
+                type: 'input',
+                inputType: 'text',
+                value: entry?.paramKey || '',
+                onChange: (e) => {
+                    const val = e?.target?.value ?? e;
+                    updateFunctionEntry(side, fn.id, e => { e.paramKey = val; });
+                }
+            }]
+        };
+
+        const argItems = (fn.args || []).map(arg => {
+            if (arg.type === 'column-select') {
+                const cols = state.columns || [];
+                return {
+                    id: `fn_${side}_${fn.id}_arg_${arg.key}`,
+                    name: arg.label,
+                    value: entry?.args?.[arg.key] || (cols.length ? '' : 'No columns'),
+                    showValue: true,
+                    items: cols.length
+                        ? cols.map(col => ({
+                            id: `fn_${side}_${fn.id}_arg_${arg.key}_${col.name}`,
+                            icon: col.name === entry?.args?.[arg.key] ? 'CircleCheck' : 'Blank',
+                            name: col.name,
+                            onClickGoBack: true,
+                            onClick: () => updateFunctionEntry(side, fn.id, e => {
+                                if (!e.args) e.args = {};
+                                e.args[arg.key] = col.name;
+                            })
+                        }))
+                        : [{ name: 'No columns available', type: 'label' }]
+                };
+            }
+            if (arg.type === 'select') {
+                return {
+                    id: `fn_${side}_${fn.id}_arg_${arg.key}`,
+                    name: arg.label,
+                    value: arg.options?.find(o => o.value === entry?.args?.[arg.key])?.label || '',
+                    showValue: true,
+                    items: (arg.options || []).map(opt => ({
+                        id: `fn_${side}_${fn.id}_arg_${arg.key}_${opt.value}`,
+                        icon: opt.value === entry?.args?.[arg.key] ? 'CircleCheck' : 'Blank',
+                        name: opt.label,
+                        onClickGoBack: true,
+                        onClick: () => updateFunctionEntry(side, fn.id, e => {
+                            if (!e.args) e.args = {};
+                            e.args[arg.key] = opt.value;
+                        })
+                    }))
+                };
+            }
+            return null;
+        }).filter(Boolean);
+
+        return {
+            id: `fn_${side}_${fn.id}`,
+            icon: side === 'providers' ? 'ArrowUpRight' : 'ArrowDownLeft',
+            name: fn.label,
+            items: [
+                {
+                    id: `fn_${side}_${fn.id}_enabled`,
+                    name: 'Enabled',
+                    type: 'toggle',
+                    enabled: !!entry?.enabled,
+                    setEnabled: (v) => updateFunctionEntry(side, fn.id, e => { e.enabled = v; })
+                },
+                { type: 'separator' },
+                paramKeyItem,
+                ...argItems,
+            ]
+        };
+    });
+
+    const componentActions = hasComponentFunctions ? [{
+        name: `${currentComponent?.name} Actions`, icon: 'TouchInteraction',
+        cdn: () => isEdit && canEditSection,
+        items: [
+            ...buildFunctionMenuItems(componentFunctions?.providers, 'providers'),
+            ...buildFunctionMenuItems(componentFunctions?.subscribers, 'subscribers'),
+        ]
+    }] : [];
+    // ============================================= actions helpers end ===============================================
+
 
     // =================================================================================================================
     // ======================================== menu item groups begin =================================================
@@ -733,6 +854,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
             {type: 'separator', renderCdn: () => true, renderPos: 'top'},
             ...component,
             ...componentSettings,
+            ...componentActions,
             {type: 'separator'},
             dataset,
             join,
