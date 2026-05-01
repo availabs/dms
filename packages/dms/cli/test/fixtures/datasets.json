@@ -1,7 +1,6 @@
 [
   {
-    "name": "Test Dataset",
-    "doc_type": "test-internal-ds",
+    "name": "test_dataset",
     "categories": ["testing"],
     "metadata": { "description": "A test dataset for CLI integration tests" },
     "views": []

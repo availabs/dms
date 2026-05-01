@@ -1,8 +1,9 @@
 /**
- * CLI Integration Test Runner
+ * CLI Integration Test Runner.
  *
- * Starts a local dms-server with SQLite, seeds test data,
- * then exercises all CLI commands and verifies output.
+ * Spins up a local dms-server (SQLite, per-app split mode), seeds
+ * fixtures via the modern type scheme (see test/seed.js), then
+ * exercises the commands and verifies output.
  *
  * Usage: node test/run.js
  */
@@ -18,27 +19,32 @@ let manifest;
 async function run() {
   console.log('\nDMS CLI Integration Tests\n');
 
-  // ---- Setup ----
   console.log('Setup:');
   server = await startServer();
 
   console.log('Seeding:');
   manifest = seed();
-  console.log(`  Seeded: site=${manifest.site}, ${manifest.patterns.length} patterns, ${manifest.pages.length} pages, ${manifest.sections.length} sections, ${manifest.datasets.length} datasets`);
+  console.log(
+    `  Seeded: site=${manifest.site}, ${manifest.patterns.length} patterns, `
+    + `${manifest.pages.length} pages, ${manifest.sections.length} sections, `
+    + `${manifest.dmsEnvs.length} dmsEnvs, ${manifest.sources.length} sources`
+  );
 
   // ================================================================
-  // PHASE 1: Raw commands
+  // PHASE 1 — Raw commands
   // ================================================================
 
   describe('Phase 1 — Raw commands', () => {
     test('raw get returns correct item');
     const rawGet = runCli(`raw get ${manifest.site}`);
     assert(rawGet.json, 'should return JSON');
-    assertEqual(rawGet.json.id, manifest.site, 'id matches');
+    // Server returns id as a string; manifest stores it as a number.
+    assertEqual(parseInt(rawGet.json.id, 10), manifest.site, 'id matches');
     pass();
 
     test('raw list returns items');
-    const appType = `${manifest.app}+${manifest.type}`;
+    // Site type is `{TYPE}:site` under per-app split mode.
+    const appType = `${manifest.app}+${manifest.type}:site`;
     const rawList = runCli(`raw list "${appType}"`);
     assert(rawList.json, 'should return JSON');
     assert(rawList.json.total >= 1, 'total >= 1');
@@ -53,12 +59,12 @@ async function run() {
 
     const getResult = runCli(`raw get ${createdId}`);
     assert(getResult.json, 'get returns JSON');
-    assertEqual(getResult.json.id, createdId, 'id matches round-trip');
+    assertEqual(parseInt(getResult.json.id, 10), parseInt(createdId, 10), 'id matches round-trip');
     pass();
   });
 
   // ================================================================
-  // PHASE 2: Content-aware commands
+  // PHASE 2 — Site / pattern / page / section
   // ================================================================
 
   describe('Phase 2 — Site commands', () => {
@@ -85,13 +91,14 @@ async function run() {
     pass();
 
     test('pattern show by name');
-    const patShow = runCli('pattern show Pages');
+    const patShow = runCli('pattern show docs');
     assert(patShow.json, 'should return JSON');
-    assertEqual(patShow.json.name, 'Pages', 'name matches');
+    assertEqual(patShow.json.name, 'docs', 'name matches');
+    assertEqual(patShow.json.instance, 'docs', 'instance from row type');
     pass();
 
     test('pattern dump by name');
-    const patDump = runCli('pattern dump Pages');
+    const patDump = runCli('pattern dump docs');
     assert(patDump.json, 'should return JSON');
     assert(patDump.json.data, 'has data field');
     pass();
@@ -119,30 +126,24 @@ async function run() {
     pass();
 
     test('page create/update/publish/unpublish/delete lifecycle');
-    // Create
     const createResult = runCli("page create --title 'Test Page' --slug 'test-page'");
     assert(createResult.json, 'create returns JSON');
     const testPageId = createResult.json.id;
     assert(testPageId, 'has created page id');
 
-    // Update
     const updateResult = runCli(`page update ${testPageId} --title 'Updated Test Page'`);
     assert(updateResult.json, 'update returns JSON');
     assertIncludes(updateResult.json.message, 'updated', 'update message');
 
-    // Publish
     const pubResult = runCli(`page publish ${testPageId}`);
     assertIncludes(pubResult.json.message, 'published', 'publish message');
 
-    // Verify published
     const showPub = runCli(`page show ${testPageId}`);
     assertEqual(showPub.json.published, 'published', 'page is published');
 
-    // Unpublish
     const unpubResult = runCli(`page unpublish ${testPageId}`);
     assertIncludes(unpubResult.json.message, 'unpublished', 'unpublish message');
 
-    // Delete
     const delResult = runCli(`page delete ${testPageId}`);
     assertIncludes(delResult.json.message, 'deleted', 'delete message');
     pass();
@@ -172,52 +173,53 @@ async function run() {
     pass();
 
     test('section create/update/delete lifecycle');
-    // Create
-    const createResult = runCli(`section create ${homeSlug} --element-type lexical --title 'New Section'`);
+    const createResult = runCli(
+      `section create ${homeSlug} --element-type lexical --title 'New Section'`
+    );
     assert(createResult.json, 'create returns JSON');
     const newSecId = createResult.json.id;
     assert(newSecId, 'has created section id');
+    // Also confirm it ended up with the modern `|component` type.
+    assertIncludes(createResult.json.type, '|component', 'created type ends in |component');
 
-    // Update
     const updateResult = runCli(`section update ${newSecId} --set title='Updated Section'`);
     assert(updateResult.json, 'update returns JSON');
     assertIncludes(updateResult.json.message, 'updated', 'update message');
 
-    // Delete
     const delResult = runCli(`section delete ${newSecId} --page ${homeSlug}`);
     assertIncludes(delResult.json.message, 'deleted', 'delete message');
     pass();
   });
 
   // ================================================================
-  // PHASE 3: New commands
+  // PHASE 3 — Datasets (dmsEnv-driven)
   // ================================================================
 
   describe('Phase 3 — Dataset commands', () => {
-    test('dataset list returns sources');
+    test('dataset list resolves sources via pattern.dmsEnvId');
     const dsList = runCli('dataset list');
     assert(dsList.json, 'should return JSON');
     assert(dsList.json.items.length >= 1, 'has at least 1 source');
-    assertEqual(dsList.json.items[0].name, 'Test Dataset', 'name matches');
+    assertEqual(dsList.json.items[0].data.name, 'test_dataset', 'name matches');
+    assert(dsList.json.dmsEnv, 'response includes dmsEnv id/type');
     pass();
 
     test('dataset show by name');
-    const dsShow = runCli("dataset show 'Test Dataset'");
+    const dsShow = runCli("dataset show 'test_dataset'");
     assert(dsShow.json, 'should return JSON');
-    assertEqual(dsShow.json.name, 'Test Dataset', 'name matches');
+    assertEqual(dsShow.json.name, 'test_dataset', 'name matches');
     assert(dsShow.json.categories, 'has categories');
     pass();
 
-    test('dataset views returns views array');
-    const dsViews = runCli("dataset views 'Test Dataset'");
+    test('dataset views returns array (may be empty)');
+    const dsViews = runCli("dataset views 'test_dataset'");
     assert(dsViews.json !== undefined, 'should return JSON');
-    // Test dataset has empty views, so should be empty array
     assert(Array.isArray(dsViews.json), 'is array');
     pass();
   });
 
   describe('Phase 3 — Site tree', () => {
-    test('site tree output has box-drawing chars and hierarchy');
+    test('site tree renders patterns + pages + sections + sources');
     const treeResult = runCli('site tree');
     assertIncludes(treeResult.stdout, 'Site:', 'contains Site: header');
     assertIncludes(treeResult.stdout, 'Pattern:', 'contains Pattern: label');
@@ -235,20 +237,18 @@ async function run() {
     assert(result.json, 'should return JSON');
     assertIncludes(result.json.message, 'updated', 'update message');
 
-    // Verify the update
     const showResult = runCli(`section show ${sectionId}`);
     assertEqual(showResult.json.title, 'Hero Updated via Stdin', 'title was updated via stdin');
     pass();
   });
 
-  // ---- Summary ----
   const exitCode = summary();
 
   stopServer(server);
   process.exit(exitCode);
 }
 
-run().catch(err => {
+run().catch((err) => {
   console.error('\nTest runner error:', err);
   if (server) stopServer(server);
   process.exit(1);
