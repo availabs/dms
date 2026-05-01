@@ -274,8 +274,8 @@ module.exports = [
   {
     route: `uda.sources.delete`,
     call: async function (callPath, args) {
+      const [env, sourceId] = args;
       try {
-        const [env, sourceId] = args;
         const result = await softDeleteSource(env, sourceId);
         return [
           { path: ["uda", env, "sources", "byId", sourceId], invalidated: true },
@@ -283,7 +283,7 @@ module.exports = [
         ];
       } catch (err) {
         console.error("[uda.tasks] sources.delete error:", err.message);
-        return [{ path: ["uda", "sources", "delete"], value: $atom({ error: err.message }) }];
+        return [{ path: ["uda", env, "sources", "delete"], value: $atom({ error: err.message }) }];
       }
     },
   },
@@ -294,8 +294,8 @@ module.exports = [
   {
     route: `uda.sources.hardDelete`,
     call: async function (callPath, args) {
+      const [env, sourceId] = args;
       try {
-        const [env, sourceId] = args;
         const result = await hardDeleteSource(env, sourceId);
         return [
           { path: ["uda", env, "sources", "byId", sourceId], invalidated: true },
@@ -303,7 +303,7 @@ module.exports = [
         ];
       } catch (err) {
         console.error("[uda.tasks] sources.hardDelete error:", err.message);
-        return [{ path: ["uda", "sources", "hardDelete"], value: $atom({ error: err.message }) }];
+        return [{ path: ["uda", env, "sources", "hardDelete"], value: $atom({ error: err.message }) }];
       }
     },
   },

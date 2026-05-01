@@ -44,6 +44,9 @@ export async function startServer() {
     env: {
       ...process.env,
       DMS_DB_ENV: 'cli-test',
+      // Point auth at the same SQLite file — the cli-test config carries
+      // role: ["dms", "auth"] so initAuth runs there too.
+      DMS_AUTH_DB_ENV: 'cli-test',
       PORT: String(PORT),
     },
     stdio: ['ignore', 'pipe', 'pipe'],
