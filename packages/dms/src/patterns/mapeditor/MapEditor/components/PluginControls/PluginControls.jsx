@@ -60,18 +60,11 @@ export function MultiSelectControl({ path, params = {} }) {
     return get(state, `${path}`, defaultValue);
   }, [state]);
 
-  const options = useMemo(() => {
-    return (params?.options || []).map(opt => ({
-      label: opt.name,
-      value: opt.value ?? opt
-    }));
-  }, [params?.options]);
-
   const selectedValues = Array.isArray(curValue) ? curValue : curValue ? [curValue] : [];
 
   const toggleValue = (val) => {
-    const next = selectedValues.includes(val)
-      ? selectedValues.filter(v => v !== val)
+    const next = selectedValues.some(v => v.value === val.value)
+      ? selectedValues.filter(v => v.value.toString() !== val.value.toString())
       : [...selectedValues, val];
     setState((draft) => { set(draft, `${path}`, next); });
   };
@@ -81,11 +74,11 @@ export function MultiSelectControl({ path, params = {} }) {
       <div className="flex flex-col w-full capitalize">
         <div className="flex flex-wrap gap-1 mb-1">
           { selectedValues.map((v, i) => {
-            const opt = options.find(o => o.value === v.value);
+            const opt = params?.options.find(o => o.value.toString() === v.value.toString());
             return (
               <span key={i} className="inline-flex items-center px-2 py-0.5 rounded bg-blue-100 text-blue-800 text-xs">
                 { opt?.label || v }
-                <span onClick={() => toggleValue(v)} className="ml-1 cursor-pointer hover:text-red-500">&times;</span>
+                <span onClick={() => toggleValue(opt)} className="ml-1 cursor-pointer hover:text-red-500">&times;</span>
               </span>
             )
           })}
@@ -93,13 +86,17 @@ export function MultiSelectControl({ path, params = {} }) {
         <select
           className="w-full py-2 bg-transparent capitalize border rounded text-sm"
           value=""
-          onChange={e => { if (e.target.value) toggleValue(e.target.value); }}
+          onChange={e => {
+            if (e.target.value){
+             toggleValue(JSON.parse(e.target.value))}; 
+            }
+          }
         >
           <option value="">{ params.placeholder || "Select a value..." }</option>
-          { options
+          { params?.options
             .filter(opt => !selectedValues.includes(opt.value))
             .map((opt, i) => (
-              <option key={i} value={opt.value}>{ opt.label }</option>
+              <option key={i} value={JSON.stringify(opt)}>{ opt.label }</option>
             ))
           }
         </select>
