@@ -531,6 +531,22 @@ const RenderItem = memo(function RenderItem ({
     const [cardHovered, setCardHovered] = useState(false);
     const [isPickerOpen, setIsPickerOpen] = useState(false);
 
+    const highlightedItem = controls?.highlightedItem;
+    const isHighlighted = useMemo(() => {
+        if (!highlightedItem) return false;
+        const rawVal = item?.[highlightedItem.column];
+        const itemValue = rawVal && typeof rawVal === 'object' ? (rawVal.value ?? rawVal.originalValue ?? rawVal) : rawVal;
+        const paramValue = typeof highlightedItem.value === 'string' ? highlightedItem.value : String(highlightedItem.value ?? '');
+        const itemStr = typeof itemValue === 'string' ? itemValue : String(itemValue ?? '');
+        return paramValue === itemStr;
+    }, [highlightedItem, item]);
+
+    const highlightClass = isHighlighted
+        ? highlightedItem?.style === 'border'
+            ? 'ring-2 ring-amber-400'
+            : 'bg-amber-100'
+        : '';
+
     useEffect(() => {
         setTmpItem(item)
     }, [item]);
@@ -552,7 +568,7 @@ const RenderItem = memo(function RenderItem ({
     return (
         //  in normal view, grid applied here
         <div
-            className={`${theme.subWrapper} ${compactView ? `${theme.subWrapperCompactView} ${removeBorder ? `` : 'border shadow'}` : `${theme.subWrapperSimpleView} ${addBorder ? `border shadow rounded-md` : ``}`} `}
+            className={`${theme.subWrapper} ${compactView ? `${theme.subWrapperCompactView} ${removeBorder ? `` : 'border shadow'}` : `${theme.subWrapperSimpleView} ${addBorder ? `border shadow rounded-md` : ``}`} ${highlightClass}`}
             style={subWrapperStyle}
             onMouseEnter={() => {
                 setCardHovered(true);

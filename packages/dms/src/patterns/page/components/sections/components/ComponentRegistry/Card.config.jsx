@@ -226,7 +226,26 @@ export const componentFunctions = {
             ],
         },
     ],
-    subscribers: [],
+    subscribers: [
+        {
+            id: 'row_highlight',
+            label: 'Highlight Matching Card',
+            description: 'Highlights card items whose column value matches an incoming action param.',
+            trigger: 'action_param',
+            args: [
+                { key: 'column', label: 'Column to match', type: 'column-select' },
+                {
+                    key: 'style',
+                    label: 'Highlight style',
+                    type: 'select',
+                    options: [
+                        { label: 'Background', value: 'bg' },
+                        { label: 'Border', value: 'border' },
+                    ],
+                },
+            ],
+        },
+    ],
 };
 
 export default {

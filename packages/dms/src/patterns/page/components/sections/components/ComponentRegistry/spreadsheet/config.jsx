@@ -47,7 +47,17 @@ const handlePaste = async (attribute, setAttribute) => {
 }
 
 export const componentFunctions = {
-    providers: [],
+    providers: [
+        {
+            id: 'hover_highlight',
+            label: 'Hover: Publish Row',
+            description: 'On hover, publishes a column value to a page action param. Clears on mouse leave.',
+            trigger: 'hover',
+            args: [
+                { key: 'column', label: 'Column to publish', type: 'column-select' },
+            ],
+        },
+    ],
     subscribers: [
         {
             id: 'row_highlight',

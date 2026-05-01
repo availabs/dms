@@ -20,9 +20,18 @@ export const CardSection = ({
     const {UI} = useContext(ThemeContext);
     const {Card} = UI;
     const {state, setState, controls={}} = useContext(ComponentContext);
-    const { setActionParam, clearActionParam } = useContext(PageContext) || {};
+    const { pageState, setActionParam, clearActionParam } = useContext(PageContext) || {};
 
     const providerCfg = state.display?._functions?.providers?.find(p => p.functionId === 'hover_highlight' && p.enabled);
+
+    const subCfg = state.display?._functions?.subscribers?.find(s => s.functionId === 'row_highlight' && s.enabled);
+    const highlightedItem = subCfg && pageState
+        ? (() => {
+            const param = pageState.filters.find(f => f.searchKey === subCfg.paramKey && f.type === 'action');
+            const value = param?.values?.[0];
+            return value !== undefined ? { column: subCfg.args?.column, value, style: subCfg.args?.style || 'bg' } : undefined;
+          })()
+        : undefined;
 
     const onCardMouseEnter = useCallback((item) => {
         if (!providerCfg || !setActionParam) return;
@@ -41,6 +50,7 @@ export const CardSection = ({
                      FormulaColumnModal: AddFormulaColumn,
                      CalculatedColumnModal: AddCalculatedColumn,
                      ...(providerCfg ? { onCardMouseEnter, onCardMouseLeave } : {}),
+                     ...(highlightedItem ? { highlightedItem } : {}),
                  }}
                  isEdit={isEdit} updateItem={updateItem} addItem={addItem} newItem={newItem} setNewItem={setNewItem} allowEdit={allowEdit}
                  formatFunctions={formatFunctions}
