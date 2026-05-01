@@ -62,6 +62,7 @@ export function pattern2routes (siteData, props) {
         damaBaseUrl,
         PROJECT_NAME,
         damaDataTypes,
+        damaMapPlugins,
         host = typeof window !== 'undefined' ? window.location.host : 'localhost'
     } = props
 
@@ -219,6 +220,7 @@ export function pattern2routes (siteData, props) {
                     DAMA_HOST,
                     PROJECT_NAME,
                     damaDataTypes,
+                    damaMapPlugins,
                 });
                 // console.log('dmssitefactory Config obj', configObj)
                 const route = dmsPageFactory({
