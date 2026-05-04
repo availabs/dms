@@ -248,4 +248,79 @@ function filterToUda(layerFilter) {
   return Object.keys(out).length ? out : null;
 }
 
-export { extractState, fetchBoundsForFilter, createFalcorFilterOptions, filterToUda };
+const normalizeLayerClickFilterConfig = (config = {}) => {
+  const legacyMapping =
+    config?.variable || config?.field
+      ? [{ variable: config?.variable || "", field: config?.field || "" }]
+      : [];
+
+  const mappings = Array.isArray(config?.mappings) ? config.mappings : legacyMapping;
+
+  return {
+    enabled: Boolean(config?.enabled),
+    mappings: mappings.map((mapping) => ({
+      variable: mapping?.variable || "",
+      field: mapping?.field || "",
+      useSearchParams: Boolean(mapping?.useSearchParams),
+    })),
+  };
+};
+
+const getLayerClickFilterValidationErrors = (layer = {}) => {
+  const config = normalizeLayerClickFilterConfig(layer["click-filter"]);
+  const errors = [];
+
+  if (!config.enabled) return errors;
+
+  if (!config.mappings.length) {
+    errors.push("missing-mapping");
+    return errors;
+  }
+
+  const seenVariables = new Set();
+
+  config.mappings.forEach((mapping) => {
+    if (!mapping.variable) {
+      errors.push("missing-variable");
+    }
+    if (!mapping.field) {
+      errors.push("missing-field");
+    }
+
+    const normalizedVariable = mapping.variable.trim().toLowerCase();
+    if (normalizedVariable) {
+      if (seenVariables.has(normalizedVariable)) {
+        errors.push("duplicate-variable");
+      }
+      seenVariables.add(normalizedVariable);
+    }
+  });
+
+  return [...new Set(errors)];
+};
+
+const getSymbologyClickFilterValidationErrors = (symbology = {}) => {
+  return Object.values(symbology?.layers || {}).reduce((acc, layer) => {
+    const errors = getLayerClickFilterValidationErrors(layer);
+
+    if (errors.length) {
+      acc.push({
+        layerId: layer?.id,
+        layerName: layer?.name || layer?.id || "Unnamed layer",
+        errors,
+      });
+    }
+
+    return acc;
+  }, []);
+};
+
+export {
+  extractState,
+  fetchBoundsForFilter,
+  createFalcorFilterOptions,
+  filterToUda,
+  normalizeLayerClickFilterConfig,
+  getLayerClickFilterValidationErrors,
+  getSymbologyClickFilterValidationErrors,
+};

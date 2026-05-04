@@ -4,6 +4,8 @@ import { AvlLayer } from "../../../../../../../ui/components/map"
 import { usePrevious } from './utils.js'
 import { MapContext } from "./"
 import { CMSContext } from '../../../../../context'
+import { PageContext } from '../../../../../context'
+import { normalizeLayerClickFilterConfig } from '../../../../../../mapeditor/MapEditor/stateUtils';
 import bbox from '@turf/bbox';
 import { featureCollection } from '@turf/helpers';
 function onlyUnique(value, index, array) {
@@ -17,6 +19,8 @@ const ViewLayerRender = ({
 }) => {
   const mctx = useContext(MapContext);
   const { state, setState } = mctx ? mctx : {state: {}, setState:() => {}};
+  const { pageState, setPageState, updatePageStateFilters } = useContext(PageContext) || {};
+  const { falcor, pgEnv } = mctx || {};
 
   const [sourceReady, setSourceReady] = React.useState(false);
   const cachedFilterPropsRef = useRef(null);
@@ -365,6 +369,145 @@ const ViewLayerRender = ({
       });
     }
   }, [maplibreMap, allLayerProps]);
+
+  useEffect(() => {
+    if (!maplibreMap) return;
+
+    const clickFilterConfig = normalizeLayerClickFilterConfig(layerProps?.["click-filter"] || {});
+    const activeMappings = (clickFilterConfig.mappings || []).filter(
+      (mapping) => mapping?.variable && mapping?.field
+    );
+
+    if (!clickFilterConfig.enabled || !activeMappings.length) {
+      return;
+    }
+
+    const clickableLayerIds = (layerProps?.layers || [])
+      .map((layer) => layer?.id)
+      .filter((layerId) => layerId && !layerId.includes("_case"));
+
+    if (!clickableLayerIds.length) return;
+
+    const updateFilterValues = (nextFilterEntries) => {
+      const existingFilters = Array.isArray(pageState?.filters) ? pageState.filters : [];
+      const nextFilters = existingFilters
+        .filter((filter) => !nextFilterEntries.some((entry) => entry.searchKey === filter?.searchKey))
+        .concat(
+          nextFilterEntries.map((entry) => {
+            const matchingFilter = existingFilters.find(
+              (filter) => filter?.searchKey === entry.searchKey
+            );
+            return {
+              ...(matchingFilter || {}),
+              searchKey: entry.searchKey,
+              values: [entry.value],
+              useSearchParams: matchingFilter?.useSearchParams ?? Boolean(entry.useSearchParams),
+            };
+          })
+        );
+
+      if (typeof updatePageStateFilters === "function") {
+        updatePageStateFilters(nextFilters);
+        return;
+      }
+
+      if (typeof setPageState === "function") {
+        setPageState((draft) => {
+          if (!Array.isArray(draft.filters)) {
+            draft.filters = [];
+          }
+
+          nextFilterEntries.forEach((entry) => {
+            const filterIndex = draft.filters.findIndex(
+              (filter) => filter?.searchKey === entry.searchKey
+            );
+
+            if (filterIndex >= 0) {
+              draft.filters[filterIndex].values = [entry.value];
+              draft.filters[filterIndex].useSearchParams =
+                draft.filters[filterIndex].useSearchParams ?? Boolean(entry.useSearchParams);
+            } else {
+              draft.filters.push({
+                searchKey: entry.searchKey,
+                values: [entry.value],
+                useSearchParams: Boolean(entry.useSearchParams),
+              });
+            }
+          });
+        });
+      }
+    };
+
+    const handleMapClick = async (event) => {
+      const features = maplibreMap.queryRenderedFeatures(event.point, {
+        layers: clickableLayerIds,
+      });
+      const feature = features?.[0];
+
+      if (!feature) return;
+
+      let resolvedProperties = feature?.properties || {};
+      const missingFields = activeMappings
+        .map((mapping) => mapping.field)
+        .filter((fieldName) => resolvedProperties?.[fieldName] === undefined || resolvedProperties?.[fieldName] === null || resolvedProperties?.[fieldName] === "");
+
+      if (missingFields.length && falcor && pgEnv && layerProps?.view_id && feature?.id !== undefined && feature?.id !== null) {
+        try {
+          const response = await falcor.get([
+            "uda",
+            pgEnv,
+            "viewsById",
+            layerProps.view_id,
+            "dataById",
+            String(feature.id),
+            missingFields
+          ]);
+
+          const fetchedProperties = get(response, [
+            "json",
+            "uda",
+            pgEnv,
+            "viewsById",
+            layerProps.view_id,
+            "dataById",
+            String(feature.id)
+          ], {});
+
+          resolvedProperties = {
+            ...resolvedProperties,
+            ...fetchedProperties
+          };
+        } catch (error) {
+          console.error("[MapClickFilter] failed to fetch missing fields", error);
+        }
+      }
+
+      const nextFilterEntries = activeMappings
+        .map((mapping) => ({
+          searchKey: mapping.variable,
+          value: resolvedProperties?.[mapping.field],
+          useSearchParams: mapping.useSearchParams,
+        }))
+        .filter((entry) => entry.value !== undefined && entry.value !== null && entry.value !== "");
+
+      if (!nextFilterEntries.length) return;
+      updateFilterValues(nextFilterEntries);
+    };
+
+    maplibreMap.on("click", handleMapClick);
+
+    return () => {
+      if (!maplibreMap?.loaded()) return;
+
+      maplibreMap.off("click", handleMapClick);
+    };
+  }, [
+    maplibreMap,
+    layerProps,
+    pageState?.filters,
+    setPageState,
+    updatePageStateFilters,
+  ]);
 }
 
 const getLayerTileUrl = (tileBase, layerProps) => {

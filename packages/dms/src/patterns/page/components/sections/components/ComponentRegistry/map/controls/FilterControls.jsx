@@ -3,9 +3,12 @@ import {ArrowDown} from "../tmp-cache-files/icons.jsx"
 import {ToggleControl, InputControl} from "../tmp-cache-files/controls.jsx";
 import {MapContext} from "../";
 import {useHandleClickOutside} from "../tmp-cache-files/utils.jsx";
+import { normalizeLayerClickFilterConfig } from "../../../../../../../mapeditor/MapEditor/stateUtils";
+import { PageContext } from "../../../../../../context";
 
 export default function FilterControls() {
     const {state, setState} = useContext(MapContext);
+    const { pageState } = useContext(PageContext) || {};
 
     const menuRef = useRef(null);
     const [isOpen, setIsOpen] = useState(false);
@@ -17,6 +20,7 @@ export default function FilterControls() {
     const activeLayer = activeSymSymbology?.layers?.[activeSymSymbology?.activeLayer];
     const interactiveFilterOptions = (activeLayer?.['interactive-filters'] || []);
     const dynamicFilterOptions = (activeLayer?.['dynamic-filters'] || []);
+    const selectedVariableMappings = normalizeLayerClickFilterConfig(activeLayer?.["click-filter"] || {}).mappings || [];
     const activeFilter = activeLayer?.selectedInteractiveFilterIndex;
 
 // console.log("FilterControls::interactiveFilterOptions", interactiveFilterOptions);
@@ -118,6 +122,40 @@ export default function FilterControls() {
                             ))
                         }
                     </div>
+
+                    {
+                        selectedVariableMappings.length ? (
+                            <div className={'grid grid-cols-4 gap-1 px-2 py-1 text-gray-700'}>
+                                <div className={'text-sm font-semibold'}>Selected Variable</div>
+                                <div className={'text-sm font-semibold'}>Use URL Param</div>
+                                <div className={'text-sm font-semibold'}>Layer Field</div>
+                                <div className={'text-sm font-semibold'}>Active Value</div>
+
+                                {
+                                    selectedVariableMappings.map((mapping, mI) => (
+                                        <React.Fragment key={mI}>
+                                            <div className={'text-sm'}>{mapping.variable || 'Untitled variable'}</div>
+                                            <ToggleControl
+                                                value={Boolean(mapping.useSearchParams)}
+                                                setValue={value => setState((draft) => {
+                                                    draft.symbologies[activeSym]
+                                                        .symbology
+                                                        .layers[activeSymSymbology?.activeLayer]
+                                                        ['click-filter']
+                                                        .mappings[mI]
+                                                        .useSearchParams = value;
+                                                })}
+                                            />
+                                            <div className={'text-sm'}>{mapping.field || '-'}</div>
+                                            <div className={'text-sm'}>
+                                                {(pageState?.filters || []).find(f => f.searchKey === mapping.variable)?.values?.join(', ') || '-'}
+                                            </div>
+                                        </React.Fragment>
+                                    ))
+                                }
+                            </div>
+                        ) : null
+                    }
                 </div>
             </div>
         </div>
