@@ -39,8 +39,8 @@ const looselyEqual = (a, b) => {
     return String(a) === String(b);
 }
 
-const RenderToken = ({token, value, onChange, theme, isSearching, setIsSearching, meta}) => {
-    const label = meta?.[token.label || token] || token.label || token;
+const RenderToken = ({token={}, value, onChange, theme, isSearching, setIsSearching, meta}) => {
+    const label = meta?.[token?.label || token] || token?.label || token;
     const safeLabel = label && typeof label === 'object' ? JSON.stringify(label) : label
     return (
         <div className={theme?.multiselect?.tokenWrapper}>
