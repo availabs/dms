@@ -191,7 +191,10 @@ export default function Table ({
     const data = localFilteredData || unFilteredData;
 
     const { theme: themeFromContext = {table: tableTheme}} = React.useContext(ThemeContext) || {};
-    const theme = getComponentTheme(themeFromContext,'table', activeStyle);
+    const tableStyle = getComponentTheme(themeFromContext,'table', activeStyle);
+    const textSettingsStyle = getComponentTheme(themeFromContext, 'textSettings', 0);
+    // textSettings provides typography defaults; table style wins on key conflicts.
+    const theme = { ...textSettingsStyle, ...tableStyle };
 
     const [defaultColumnSize, setDefaultColumnSize] = React.useState(defColSize);
 
