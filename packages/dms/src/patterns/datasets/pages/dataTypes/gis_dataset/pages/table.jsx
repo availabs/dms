@@ -153,25 +153,7 @@ export default function Table ({apiUpdate, apiLoad, format, source, params, isDm
 
     // Stable per-source/view key so DataWrapper remounts only when navigating
     // to a different source or version, not on every state change.
-    //
-    // IMPORTANT: key off `value.sourceInfo.view_id` (state), NOT `params.view_id`
-    // (URL). On a version switch, params updates one render before the effect
-    // commits the new sourceInfo into state. If the key flipped on params, React
-    // would remount DataWrapper with a snapshot still carrying the OLD view_id —
-    // and DataWrapper.EditComp only reads `value` on mount via migrateToV2, so
-    // the next render's correct snapshot would be ignored. Tying the key to
-    // sourceInfo guarantees the remount happens on the same render the snapshot
-    // is rebuilt, keeping key and initialValue in sync.
-    const snapshotViewId = value?.sourceInfo?.view_id ?? value?.sourceInfo?.viewId;
-    const dwKey = `table-page-${source?.source_id || source?.id || 'x'}-${snapshotViewId || 'x'}`;
-
-    // While the URL says one version and state still says another, the snapshot
-    // is in flight — render the loading state instead of mounting DataWrapper
-    // with a stale snapshot. The effect commits in the same tick so this is a
-    // single-render placeholder, not a flash.
-    const snapshotMatchesUrl =
-        !params.view_id || params.view_id === 'undefined' ||
-        +snapshotViewId === +params.view_id;
+    const dwKey = `table-page-${source?.source_id || source?.id || 'x'}-${params.view_id || 'x'}`;
 
     return (
         (isDms && !source.config) || !value?.sourceInfo?.columns?.length ? <div className={'p-1 text-center'}>Please setup metadata.</div> :
@@ -185,7 +167,7 @@ export default function Table ({apiUpdate, apiLoad, format, source, params, isDm
                             </button> :
                             null
                     }
-                    {dwInitialValue && snapshotMatchesUrl ? (
+                    {dwInitialValue ? (
                         <DataWrapper.EditComp
                             cms_context={DatasetsContext}
                             component={SpreadSheetCompWithControls}

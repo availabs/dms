@@ -131,7 +131,6 @@ const ColumnPicker = ({ dwAPI, allColumns, stagedColumns, setStagedColumns, Pill
 };
 
 const renderControl = (control, columnData, onUpdate, { Switch, dwAPI }) => {
-    if (typeof control.displayCdn === 'function' && !control.displayCdn({ display: dwAPI.state?.display, attribute: columnData })) return null;
     const isDisabled = typeof control.disabled === 'function' ? control.disabled({ attribute: columnData }) : control.disabled;
 
     if (control.type === 'toggle') {
@@ -150,13 +149,12 @@ const renderControl = (control, columnData, onUpdate, { Switch, dwAPI }) => {
 
     if (control.type === 'select') {
         const SelectComp = columnTypes?.select?.EditComp;
-        const filteredOptions = (control.options || []).filter(opt => typeof opt.displayCdn !== 'function' || opt.displayCdn({ display: dwAPI.state?.display, attribute: columnData }));
         return SelectComp ? (
             <div key={control.key} className="flex items-center gap-1">
                 <label className="text-xs text-gray-600">{control.label}</label>
                 <SelectComp
                     value={columnData[control.key]}
-                    options={filteredOptions}
+                    options={control.options}
                     disabled={isDisabled}
                     onChange={e => onUpdate(control.key, e, control.onChange)}
                 />

@@ -1,5 +1,4 @@
 export const ExternalSourceAttributes = [
-    "id",
     "source_id",
     "type",
     "name",
@@ -12,12 +11,8 @@ export const ExternalSourceAttributes = [
     "metadata",
 ];
 
-// Internal (DMS) datasets have additional attributes stored in the data column.
-// `id` is the DMS data_items row id (canonical). `source_id` is the legacy
-// DAMA ref some migrated rows still carry under data.source_id and is not
-// the same value — never use it as the row id.
+// Internal (DMS) datasets have additional attributes stored in the data column
 export const InternalSourceAttributes = [
-    "id",
     "source_id",
     "app",
     "type",

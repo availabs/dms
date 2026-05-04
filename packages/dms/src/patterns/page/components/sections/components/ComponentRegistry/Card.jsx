@@ -1,5 +1,5 @@
-import React, { useCallback, useContext } from "react";
-import { ComponentContext, PageContext } from "../../../../context";
+import React, { useContext } from "react";
+import { ComponentContext } from "../../../../context";
 import { ThemeContext } from "../../../../../../ui/useTheme";
 import { formatFunctions } from "../dataWrapper/utils/utils";
 import AddFormulaColumn from "../../AddFormulaColumn";
@@ -20,37 +20,12 @@ export const CardSection = ({
     const {UI} = useContext(ThemeContext);
     const {Card} = UI;
     const {state, setState, controls={}} = useContext(ComponentContext);
-    const { pageState, setActionParam, clearActionParam } = useContext(PageContext) || {};
-
-    const providerCfg = state.display?._functions?.providers?.find(p => p.functionId === 'hover_highlight' && p.enabled);
-
-    const subCfg = state.display?._functions?.subscribers?.find(s => s.functionId === 'row_highlight' && s.enabled);
-    const highlightedItem = subCfg && pageState
-        ? (() => {
-            const param = pageState.filters.find(f => f.searchKey === subCfg.paramKey && f.type === 'action');
-            const value = param?.values?.[0];
-            return value !== undefined ? { column: subCfg.args?.column, value, style: subCfg.args?.style || 'bg' } : undefined;
-          })()
-        : undefined;
-
-    const onCardMouseEnter = useCallback((item) => {
-        if (!providerCfg || !setActionParam) return;
-        const value = item?.[providerCfg.args?.column];
-        if (value !== undefined) setActionParam(providerCfg.paramKey, value);
-    }, [providerCfg, setActionParam]);
-
-    const onCardMouseLeave = useCallback(() => {
-        if (!providerCfg || !clearActionParam) return;
-        clearActionParam(providerCfg.paramKey);
-    }, [providerCfg, clearActionParam]);
 
     return <Card columns={state.columns} data={state.data} display={state.display} sourceInfo={state.externalSource} setState={setState}
                  controls={{
                      ...controls,
                      FormulaColumnModal: AddFormulaColumn,
                      CalculatedColumnModal: AddCalculatedColumn,
-                     ...(providerCfg ? { onCardMouseEnter, onCardMouseLeave } : {}),
-                     ...(highlightedItem ? { highlightedItem } : {}),
                  }}
                  isEdit={isEdit} updateItem={updateItem} addItem={addItem} newItem={newItem} setNewItem={setNewItem} allowEdit={allowEdit}
                  formatFunctions={formatFunctions}

@@ -14,7 +14,6 @@ export const TableRow = memo(function TableRow ({
     const {
         visibleAttrsWithoutOpenOut=[], visibleAttrsWithoutOpenOutLength,
         openOutAttributes, showGutters, striped, hideIfNullOpenouts,
-        onRowMouseEnter, onRowMouseLeave,
     } = useContext(TableStructureContext);
     const [showOpenOut, setShowOpenOut] = useState(false);
     const numColSize = showGutters ? numColSizeDf : 0;
@@ -48,8 +47,6 @@ export const TableRow = memo(function TableRow ({
                     gridTemplateColumns: slicedGridTemplateColumns,
                     gridColumn: `span ${attrsToRender.length + 2} / ${attrsToRender.length + 2}`
                 }}
-                onMouseEnter={onRowMouseEnter ? () => onRowMouseEnter(rowData) : undefined}
-                onMouseLeave={onRowMouseLeave || undefined}
             >
                 <div key={'#'}
                      className={`${theme.gutterCellWrapper} ${isRowSelected ? theme.gutterCellWrapperSelected : theme.gutterCellWrapperNotSelected}`}

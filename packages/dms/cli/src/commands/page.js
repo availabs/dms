@@ -1,75 +1,56 @@
 /**
- * Page commands.
+ * Page commands
  *
- * Pages are typed `{patternInstance}|page`. The pattern is resolved
- * via `--pattern <name|id>` (specific) or auto-picked among patterns
- * with `pattern_type === 'page'`. The pattern's own `type` column
- * provides the instance via `patternInstance(row)`.
+ * List, show, dump, create, update, publish, unpublish, and delete pages.
  */
 
 import { merge, cloneDeep } from 'lodash-es';
 import {
-  makeClient, fetchAll, fetchById, fetchByIds, resolveIdOrSlug,
-  resolvePattern, findPatternByKind,
-  parseData, parseSetPairs, readFileOrJson,
+  makeClient, fetchAll, fetchById, fetchByIds,
+  resolveIdOrSlug, getPageType, parseData, parseSetPairs, readFileOrJson,
 } from '../utils/data.js';
-import { pageTypeFor } from '../utils/types.js';
 import { output, outputError } from '../utils/output.js';
 
 /**
- * Resolve which pattern's pages we're operating on.
- * If --pattern is given, use that one; else pick the first
- * page-type pattern under the site.
- */
-async function resolvePagePattern(falcor, config, patternFlag) {
-  if (patternFlag) {
-    return await resolvePattern(falcor, config, patternFlag);
-  }
-  return await findPatternByKind(falcor, config, 'page');
-}
-
-/**
- * List pages.
+ * List pages
  */
 export async function list(config, options = {}) {
   try {
     const falcor = makeClient(config);
-    const pattern = await resolvePagePattern(falcor, config, options.pattern);
-    const pageType = pageTypeFor(pattern);
-    const pageAppType = `${config.app}+${pageType}`;
+    const docType = await getPageType(falcor, config, options.pattern);
+    const pageType = `${config.app}+${docType}`;
 
     const limit = parseInt(options.limit, 10) || 50;
     const offset = parseInt(options.offset, 10) || 0;
 
     const { items, total } = await fetchAll(
-      falcor, pageAppType,
+      falcor, pageType,
       ['id', 'app', 'type', 'data'],
       { limit, offset }
     );
 
-    let pages = items.map((p) => {
+    let pages = items.map(p => {
       const d = parseData(p.data);
       return {
         id: p.id,
-        type: p.type,
-        data: {
-          title: d.title || '(untitled)',
-          url_slug: d.url_slug || '',
-          parent: d.parent || null,
-          index: d.index || '0',
-          published: d.published || 'draft',
-        },
+        title: d.title || '(untitled)',
+        url_slug: d.url_slug || '',
+        parent: d.parent || null,
+        index: d.index || '0',
+        published: d.published || 'draft',
       };
     });
 
+    // Filter by published/draft if requested
     if (options.published) {
-      pages = pages.filter((p) => p.data.published === 'published');
+      pages = pages.filter(p => p.published === 'published');
     } else if (options.draft) {
-      pages = pages.filter((p) => p.data.published !== 'published');
+      pages = pages.filter(p => p.published !== 'published');
     }
 
     if (options.format === 'tree') {
-      const treePages = items.map((p) => ({ id: p.id, data: parseData(p.data) }));
+      // Re-attach data for tree formatter
+      const treePages = items.map(p => ({ id: p.id, data: parseData(p.data) }));
       output(treePages, options);
       return;
     }
@@ -85,18 +66,16 @@ export async function list(config, options = {}) {
 }
 
 /**
- * Show page details.
+ * Show page details
  */
 export async function show(idOrSlug, config, options = {}) {
   try {
     const falcor = makeClient(config);
-    const pattern = await resolvePagePattern(falcor, config, options.pattern);
-    const pageAppType = `${config.app}+${pageTypeFor(pattern)}`;
+    const docType = await getPageType(falcor, config, options.pattern);
+    const pageType = `${config.app}+${docType}`;
 
-    const id = await resolveIdOrSlug(falcor, pageAppType, idOrSlug);
-    const page = await fetchById(falcor, config.app, id, [
-      'id', 'app', 'type', 'data', 'created_at', 'updated_at',
-    ]);
+    const id = await resolveIdOrSlug(falcor, pageType, idOrSlug);
+    const page = await fetchById(falcor, id, ['id', 'app', 'type', 'data', 'created_at', 'updated_at']);
 
     if (!page) {
       outputError(`Page not found: ${idOrSlug}`);
@@ -105,7 +84,7 @@ export async function show(idOrSlug, config, options = {}) {
 
     const d = parseData(page.data);
 
-    output({
+    const result = {
       id: page.id,
       title: d.title || '(untitled)',
       url_slug: d.url_slug || '',
@@ -117,25 +96,25 @@ export async function show(idOrSlug, config, options = {}) {
       has_changes: d.has_changes || false,
       created_at: page.created_at,
       updated_at: page.updated_at,
-    }, options);
+    };
+
+    output(result, options);
   } catch (error) {
     outputError(error);
   }
 }
 
 /**
- * Dump full page data.
+ * Dump full page data
  */
 export async function dump(idOrSlug, config, options = {}) {
   try {
     const falcor = makeClient(config);
-    const pattern = await resolvePagePattern(falcor, config, options.pattern);
-    const pageAppType = `${config.app}+${pageTypeFor(pattern)}`;
+    const docType = await getPageType(falcor, config, options.pattern);
+    const pageType = `${config.app}+${docType}`;
 
-    const id = await resolveIdOrSlug(falcor, pageAppType, idOrSlug);
-    const page = await fetchById(falcor, config.app, id, [
-      'id', 'app', 'type', 'data', 'created_at', 'updated_at',
-    ]);
+    const id = await resolveIdOrSlug(falcor, pageType, idOrSlug);
+    const page = await fetchById(falcor, id, ['id', 'app', 'type', 'data', 'created_at', 'updated_at']);
 
     if (!page) {
       outputError(`Page not found: ${idOrSlug}`);
@@ -144,19 +123,19 @@ export async function dump(idOrSlug, config, options = {}) {
 
     page.data = parseData(page.data);
 
+    // Expand sections if requested
     if (options.sections) {
       const sectionIds = [
-        ...(page.data.sections || []).map((s) => s.id || s),
-        ...(page.data.draft_sections || []).map((s) => s.id || s),
+        ...(page.data.sections || []).map(s => s.id || s),
+        ...(page.data.draft_sections || []).map(s => s.id || s),
       ].filter(Boolean);
 
+      // Deduplicate
       const uniqueIds = [...new Set(sectionIds)];
 
       if (uniqueIds.length > 0) {
-        const sections = await fetchByIds(falcor, config.app, uniqueIds, [
-          'id', 'app', 'type', 'data',
-        ]);
-        page._expanded_sections = sections.map((s) => ({
+        const sections = await fetchByIds(falcor, uniqueIds, ['id', 'app', 'type', 'data']);
+        page._expanded_sections = sections.map(s => ({
           ...s,
           data: parseData(s.data),
         }));
@@ -170,15 +149,15 @@ export async function dump(idOrSlug, config, options = {}) {
 }
 
 /**
- * Create a new page.
+ * Create a new page
  */
 export async function create(config, options = {}) {
   try {
     const falcor = makeClient(config);
-    const pattern = await resolvePagePattern(falcor, config, options.pattern);
-    const pageType = pageTypeFor(pattern);
+    const docType = await getPageType(falcor, config, options.pattern);
 
     let data = {};
+
     if (options.data) {
       try {
         data = JSON.parse(options.data);
@@ -192,21 +171,22 @@ export async function create(config, options = {}) {
     if (options.slug) data.url_slug = options.slug;
     if (options.parent) data.parent = options.parent;
 
+    // Defaults
     if (!data.published) data.published = 'draft';
     if (!data.index) data.index = '0';
 
-    const result = await falcor.call(['dms', 'data', 'create'], [config.app, pageType, data]);
+    const result = await falcor.call(
+      ['dms', 'data', 'create'],
+      [config.app, docType, data]
+    );
 
-    const byApp = result?.json?.dms?.data?.[config.app]?.byId
-      || result?.json?.dms?.data?.byId
-      || {};
-    const createdId = Object.keys(byApp)[0];
+    const byId = result?.json?.dms?.data?.byId || {};
+    const createdId = Object.keys(byId)[0];
 
     output({
       id: createdId ? parseInt(createdId, 10) : null,
       title: data.title,
       url_slug: data.url_slug,
-      type: pageType,
       message: 'Page created',
     }, options);
   } catch (error) {
@@ -215,17 +195,18 @@ export async function create(config, options = {}) {
 }
 
 /**
- * Update a page.
+ * Update a page
  */
 export async function update(idOrSlug, config, options = {}) {
   try {
     const falcor = makeClient(config);
-    const pattern = await resolvePagePattern(falcor, config, options.pattern);
-    const pageAppType = `${config.app}+${pageTypeFor(pattern)}`;
+    const docType = await getPageType(falcor, config, options.pattern);
+    const pageType = `${config.app}+${docType}`;
 
-    const id = await resolveIdOrSlug(falcor, pageAppType, idOrSlug);
+    const id = await resolveIdOrSlug(falcor, pageType, idOrSlug);
 
     let data = {};
+
     if (options.data) {
       try {
         data = await readFileOrJson(options.data);
@@ -235,6 +216,7 @@ export async function update(idOrSlug, config, options = {}) {
       }
     }
 
+    // Handle --set pairs
     const setPairs = parseSetPairs(options.set);
     data = { ...data, ...setPairs };
 
@@ -246,13 +228,17 @@ export async function update(idOrSlug, config, options = {}) {
       return;
     }
 
+    // When --set/--title/--slug is used, do read-modify-write: fetch current data,
+    // deep-merge client-side, send complete result. This avoids the server's shallow
+    // merge which replaces entire nested objects when you set a deep path.
+    // When only --data is used, send as-is (for full replacements/restores).
     if (options.set || options.title || options.slug) {
-      const current = await fetchById(falcor, config.app, id, ['id', 'data']);
+      const current = await fetchById(falcor, id, ['id', 'data']);
       const currentData = current ? parseData(current.data) : {};
       data = merge(cloneDeep(currentData), data);
     }
 
-    await falcor.call(['dms', 'data', 'edit'], [config.app, id, data]);
+    await falcor.call(['dms', 'data', 'edit'], [id, data]);
 
     output({ id, updated: data, message: 'Page updated' }, options);
   } catch (error) {
@@ -261,16 +247,16 @@ export async function update(idOrSlug, config, options = {}) {
 }
 
 /**
- * Publish a page (copy draft_sections → sections).
+ * Publish a page (copy draft_sections → sections)
  */
 export async function publish(idOrSlug, config, options = {}) {
   try {
     const falcor = makeClient(config);
-    const pattern = await resolvePagePattern(falcor, config, options.pattern);
-    const pageAppType = `${config.app}+${pageTypeFor(pattern)}`;
+    const docType = await getPageType(falcor, config, options.pattern);
+    const pageType = `${config.app}+${docType}`;
 
-    const id = await resolveIdOrSlug(falcor, pageAppType, idOrSlug);
-    const page = await fetchById(falcor, config.app, id, ['id', 'data']);
+    const id = await resolveIdOrSlug(falcor, pageType, idOrSlug);
+    const page = await fetchById(falcor, id, ['id', 'data']);
 
     if (!page) {
       outputError(`Page not found: ${idOrSlug}`);
@@ -286,7 +272,7 @@ export async function publish(idOrSlug, config, options = {}) {
       section_groups: d.draft_section_groups || d.section_groups || [],
     };
 
-    await falcor.call(['dms', 'data', 'edit'], [config.app, id, updateData]);
+    await falcor.call(['dms', 'data', 'edit'], [id, updateData]);
 
     output({ id, message: 'Page published' }, options);
   } catch (error) {
@@ -295,16 +281,17 @@ export async function publish(idOrSlug, config, options = {}) {
 }
 
 /**
- * Unpublish a page.
+ * Unpublish a page
  */
 export async function unpublish(idOrSlug, config, options = {}) {
   try {
     const falcor = makeClient(config);
-    const pattern = await resolvePagePattern(falcor, config, options.pattern);
-    const pageAppType = `${config.app}+${pageTypeFor(pattern)}`;
+    const docType = await getPageType(falcor, config, options.pattern);
+    const pageType = `${config.app}+${docType}`;
 
-    const id = await resolveIdOrSlug(falcor, pageAppType, idOrSlug);
-    await falcor.call(['dms', 'data', 'edit'], [config.app, id, { published: 'draft' }]);
+    const id = await resolveIdOrSlug(falcor, pageType, idOrSlug);
+
+    await falcor.call(['dms', 'data', 'edit'], [id, { published: 'draft' }]);
 
     output({ id, message: 'Page unpublished' }, options);
   } catch (error) {
@@ -313,17 +300,17 @@ export async function unpublish(idOrSlug, config, options = {}) {
 }
 
 /**
- * Delete a page.
+ * Delete a page
  */
 export async function remove(idOrSlug, config, options = {}) {
   try {
     const falcor = makeClient(config);
-    const pattern = await resolvePagePattern(falcor, config, options.pattern);
-    const pageType = pageTypeFor(pattern);
-    const pageAppType = `${config.app}+${pageType}`;
+    const docType = await getPageType(falcor, config, options.pattern);
+    const pageType = `${config.app}+${docType}`;
 
-    const id = await resolveIdOrSlug(falcor, pageAppType, idOrSlug);
-    await falcor.call(['dms', 'data', 'delete'], [config.app, pageType, id]);
+    const id = await resolveIdOrSlug(falcor, pageType, idOrSlug);
+
+    await falcor.call(['dms', 'data', 'delete'], [config.app, docType, id]);
 
     output({ id, message: 'Page deleted' }, options);
   } catch (error) {

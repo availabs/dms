@@ -1,78 +1,86 @@
 /**
- * Site commands.
+ * Site commands
  *
- * Show site info, list its patterns, render the full tree.
- *
- * Site type is the bare instance form (`nhomb`) or the full form
- * (`nhomb:site`) — the CLI normalizes via `siteTypeFor()`.
+ * Display site info and list its patterns.
  */
 
-import {
-  makeClient, fetchAll, fetchByIds, parseData, resolvePattern,
-} from '../utils/data.js';
-import {
-  siteTypeFor, patternInstance, pageTypeFor,
-} from '../utils/types.js';
-import { getKind } from '../../../src/utils/type-utils.js';
+import { makeClient, fetchAll, fetchById, fetchByIds, getPageType, getDatasetType, parseData } from '../utils/data.js';
 import { output, outputError } from '../utils/output.js';
 
 /**
- * Show site info.
+ * Show site info
  */
 export async function show(config, options = {}) {
   try {
     const falcor = makeClient(config);
-    const siteType = siteTypeFor(config.type);
-    const siteAppType = `${config.app}+${siteType}`;
+    const siteType = `${config.app}+${config.type}`;
 
-    const { items } = await fetchAll(falcor, siteAppType, ['id', 'app', 'type', 'data'], { limit: 1 });
+    const { items, total } = await fetchAll(falcor, siteType, ['id', 'app', 'type', 'data'], { limit: 1 });
 
     if (items.length === 0) {
-      outputError(`No site found for ${siteAppType}`);
+      outputError(`No site found for ${siteType}`);
       return;
     }
 
     const site = items[0];
     const data = parseData(site.data);
 
-    output({
+    const result = {
       id: site.id,
       site_name: data.site_name || data.name || '(unnamed)',
       app: site.app,
       type: site.type,
       pattern_count: (data.patterns || []).length,
       theme_refs_count: (data.theme_refs || []).length,
-    }, options);
+    };
+
+    output(result, options);
   } catch (error) {
     outputError(error);
   }
 }
 
 /**
- * List patterns under this site.
+ * List site patterns
  */
 export async function patterns(config, options = {}) {
   try {
     const falcor = makeClient(config);
-    const patternRows = await resolvePattern(falcor, config);
+    const siteType = `${config.app}+${config.type}`;
 
-    if (patternRows.length === 0) {
+    // Fetch site to get pattern refs
+    const { items } = await fetchAll(falcor, siteType, ['id', 'data'], { limit: 1 });
+
+    if (items.length === 0) {
+      outputError(`No site found for ${siteType}`);
+      return;
+    }
+
+    const siteData = parseData(items[0].data);
+    const patternRefs = siteData.patterns || [];
+
+    if (patternRefs.length === 0) {
       output([], { ...options, mode: 'list' });
       return;
     }
 
-    const result = patternRows.map((p) => {
+    // Extract pattern IDs from refs (could be { ref: 'dms.data.byId.X', id: X })
+    const patternIds = patternRefs.map(ref => {
+      if (typeof ref === 'object' && ref.id) return ref.id;
+      if (typeof ref === 'number') return ref;
+      return null;
+    }).filter(Boolean);
+
+    const patternItems = await fetchByIds(falcor, patternIds, ['id', 'app', 'type', 'data']);
+
+    const result = patternItems.map(p => {
       const d = parseData(p.data);
       return {
         id: p.id,
-        type: p.type,
-        data: {
-          name: d.name || patternInstance(p) || '(unnamed)',
-          pattern_type: d.pattern_type || '?',
-          base_url: d.base_url || '/',
-          subdomain: d.subdomain || '*',
-          dmsEnvId: d.dmsEnvId || null,
-        },
+        name: d.name || '(unnamed)',
+        pattern_type: d.pattern_type || '?',
+        base_url: d.base_url || '/',
+        subdomain: d.subdomain || '*',
       };
     });
 
@@ -87,49 +95,63 @@ export async function patterns(config, options = {}) {
 }
 
 /**
- * Show full tree: site → patterns → pages → sections, datasets.
+ * Show full site tree: site → patterns → pages/datasets → sections
  */
 export async function tree(config, options = {}) {
   try {
     const falcor = makeClient(config);
-    const siteType = siteTypeFor(config.type);
-    const siteAppType = `${config.app}+${siteType}`;
+    const siteType = `${config.app}+${config.type}`;
 
-    const { items } = await fetchAll(falcor, siteAppType, ['id', 'app', 'type', 'data'], { limit: 1 });
+    // Fetch site
+    const { items } = await fetchAll(falcor, siteType, ['id', 'app', 'type', 'data'], { limit: 1 });
+
     if (items.length === 0) {
-      outputError(`No site found for ${siteAppType}`);
+      outputError(`No site found for ${siteType}`);
       return;
     }
 
     const site = items[0];
-    const patternRows = await resolvePattern(falcor, config);
+    const siteData = parseData(site.data);
+    const patternRefs = siteData.patterns || [];
 
-    if (patternRows.length === 0) {
+    if (patternRefs.length === 0) {
       output({ site, patterns: [] }, { ...options, format: 'tree' });
       return;
     }
 
-    for (const pat of patternRows) {
+    // Fetch pattern items
+    const patternIds = patternRefs.map(ref => {
+      if (typeof ref === 'object' && ref.id) return ref.id;
+      if (typeof ref === 'number') return ref;
+      return null;
+    }).filter(Boolean);
+
+    const patternItems = await fetchByIds(falcor, patternIds, ['id', 'app', 'type', 'data']);
+
+    // For each pattern, fetch children based on type
+    for (const pat of patternItems) {
       const d = parseData(pat.data);
       pat.data = d;
 
       if (d.pattern_type === 'page') {
-        const pageType = pageTypeFor(pat);
-        const pageAppType = `${config.app}+${pageType}`;
+        // Fetch pages
+        const docType = d.doc_type || (d.base_url || '').replace(/\//g, '');
+        const pageType = `${config.app}+${docType}`;
+        const sectionSuffix = `${docType}|cms-section`;
 
-        const { items: pages } = await fetchAll(falcor, pageAppType, ['id', 'data'], { limit: 500 });
+        const { items: pages } = await fetchAll(falcor, pageType, ['id', 'data'], { limit: 500 });
 
+        // For each page, fetch sections
         for (const pg of pages) {
           pg.data = parseData(pg.data);
           const sectionRefs = pg.data.sections || pg.data.draft_sections || [];
           const sectionIds = sectionRefs
-            .map((s) => (typeof s === 'object' ? s.id : s))
+            .map(s => (typeof s === 'object' ? s.id : s))
             .filter(Boolean);
 
           if (sectionIds.length > 0) {
-            const secs = await fetchByIds(falcor, config.app, sectionIds, ['id', 'app', 'type', 'data']);
-            secs.forEach((s) => { s.data = parseData(s.data); });
-            pg._sections = secs;
+            pg._sections = await fetchByIds(falcor, sectionIds, ['id', 'data']);
+            pg._sections.forEach(s => { s.data = parseData(s.data); });
           } else {
             pg._sections = [];
           }
@@ -137,33 +159,20 @@ export async function tree(config, options = {}) {
 
         pat._pages = pages;
       } else if (d.pattern_type === 'datasets' || d.pattern_type === 'forms') {
-        // Sources for a datasets/forms pattern live under its dmsEnv row.
-        // Resolve the dmsEnv if dmsEnvId is set.
-        const dmsEnvId = d.dmsEnvId;
-        if (dmsEnvId) {
-          const [envRow] = await fetchByIds(falcor, config.app, [dmsEnvId], ['id', 'type', 'data']);
-          if (envRow) {
-            const envData = parseData(envRow.data);
-            const sourceIds = (envData.sources || [])
-              .map((s) => (typeof s === 'object' ? s.id : s))
-              .filter(Boolean);
+        // Fetch dataset sources
+        const docType = d.doc_type || (d.base_url || '').replace(/\//g, '');
+        const sourceType = `${config.app}+${docType}|source`;
 
-            if (sourceIds.length > 0) {
-              const sources = await fetchByIds(
-                falcor, config.app, sourceIds, ['id', 'app', 'type', 'data']
-              );
-              pat._datasets = sources.map((s) => ({ ...s, data: parseData(s.data) }));
-            } else {
-              pat._datasets = [];
-            }
-          }
-        } else {
-          pat._datasets = [];
-        }
+        const { items: sources } = await fetchAll(falcor, sourceType, ['id', 'data'], { limit: 500 });
+
+        pat._datasets = sources.map(s => ({
+          ...s,
+          data: parseData(s.data),
+        }));
       }
     }
 
-    output({ site, patterns: patternRows }, { ...options, format: 'tree' });
+    output({ site, patterns: patternItems }, { ...options, format: 'tree' });
   } catch (error) {
     outputError(error);
   }

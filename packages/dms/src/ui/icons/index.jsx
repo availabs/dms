@@ -43,7 +43,6 @@ const iconList = [
   { icon: "Login" },
   { icon: "Reorder" },
   { icon: "Alert" },
-  { icon: "TouchInteraction" },
 
   // Navigation Icons
   { icon: "ArrowDownSquare" },

@@ -46,41 +46,6 @@ const handlePaste = async (attribute, setAttribute) => {
     }
 }
 
-export const componentFunctions = {
-    providers: [
-        {
-            id: 'hover_highlight',
-            label: 'Hover: Publish Row',
-            description: 'On hover, publishes a column value to a page action param. Clears on mouse leave.',
-            trigger: 'hover',
-            args: [
-                { key: 'column', label: 'Column to publish', type: 'column-select' },
-            ],
-        },
-    ],
-    subscribers: [
-        {
-            id: 'row_highlight',
-            label: 'Highlight Matching Row',
-            description: 'Highlights rows whose column value matches an incoming action param.',
-            trigger: 'action_param',
-            args: [
-                { key: 'column', label: 'Column to match', type: 'column-select' },
-                {
-                    key: 'style',
-                    label: 'Highlight style',
-                    type: 'select',
-                    options: [
-                        { label: 'Background', value: 'bg' },
-                        { label: 'Border', value: 'border' },
-                        { label: 'Bold', value: 'bold' },
-                    ],
-                },
-            ],
-        },
-    ],
-};
-
 export default {
     "name": 'Spreadsheet',
     "type": 'table',
@@ -212,7 +177,6 @@ export default {
             },
         ]
     },
-    componentFunctions,
     "EditComp": RenderTable,
     "ViewComp": RenderTable,
 }

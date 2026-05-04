@@ -23,34 +23,16 @@ const DeleteSourceBtn = ({parent, source, apiUpdate, baseUrl}) => {
         setBusy(true);
         setError(null);
         try {
-            // For internal_table sources, the DMS data_items row id is the
-            // canonical id. `source.source_id` is a legacy DAMA reference
-            // some rows still carry under `data.source_id` — pointing the
-            // delete at it would silently miss every modern source.
-            const sourceId = +(source.id || source.source_id);
+            const sourceId = +(source.source_id || source.id);
             const udaEnv = `${app}+${type}`;
 
             // Server-side cleanup: drops split tables, deletes view rows,
             // strips ref from owning dmsEnv(s), deletes source row, deletes
             // dms.tasks rows for this source. Returns a summary.
             const res = await falcor.call(['uda', 'sources', 'delete'], [udaEnv, sourceId]);
-            // The route used to return server-side errors to a path that
-            // dropped the env segment. Read both the env-scoped and bare
-            // paths so older deployments still surface their errors here.
-            const result =
-                res?.json?.uda?.[udaEnv]?.sources?.delete
-                ?? res?.json?.uda?.sources?.delete;
-            if (!result) {
-                throw new Error('No response from server');
-            }
-            if (result.error) {
+            const result = res?.json?.uda?.[udaEnv]?.sources?.delete;
+            if (result?.error) {
                 throw new Error(result.error);
-            }
-            if (result.deleted_source === false) {
-                throw new Error(
-                    `Source row id=${sourceId} not deleted on server` +
-                    (result.warnings?.length ? ` — ${result.warnings.join('; ')}` : '')
-                );
             }
 
             // Invalidate UDA caches that may have shown this source.

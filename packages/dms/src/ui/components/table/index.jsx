@@ -186,18 +186,12 @@ export default function Table ({
     updateItem, removeItem, isEdit,
     numColSize=defaultNumColSize, frozenColClass, frozenCols=[],
     columns=[], data: unFilteredData=[], localFilteredData, fullData, display={}, controls={}, setState, isActive,
-    addItem, newItem={}, setNewItem, infiniteScrollFetchData, currentPage, activeStyle,
-    highlightedRow,
-    onRowMouseEnter,
-    onRowMouseLeave,
+    addItem, newItem={}, setNewItem, infiniteScrollFetchData, currentPage, activeStyle
 }) {
     const data = localFilteredData || unFilteredData;
 
     const { theme: themeFromContext = {table: tableTheme}} = React.useContext(ThemeContext) || {};
-    const tableStyle = getComponentTheme(themeFromContext,'table', activeStyle);
-    const textSettingsStyle = getComponentTheme(themeFromContext, 'textSettings', 0);
-    // textSettings provides typography defaults; table style wins on key conflicts.
-    const theme = { ...textSettingsStyle, ...tableStyle };
+    const theme = getComponentTheme(themeFromContext,'table', activeStyle);
 
     const [defaultColumnSize, setDefaultColumnSize] = React.useState(defColSize);
 
@@ -549,7 +543,7 @@ export default function Table ({
              onMouseLeave={e => handleMouseUp({setIsDragging})}
              style={{maxHeight: !paginationActive && display.maxHeight ? `${display.maxHeight}px` : undefined}}
         >
-                <TableStructureContext.Provider value={{...structureValues, highlightedRow, onRowMouseEnter, onRowMouseLeave}}>
+                <TableStructureContext.Provider value={structureValues}>
                     <TableCellContext.Provider value={{
                         frozenCols, allowEdit, editing, setEditing, isDragging, isSelecting,
                         setSelection, setIsDragging, startCellCol, startCellRow, selection, selectionRange,

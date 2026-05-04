@@ -1,19 +1,22 @@
 [
   {
-    "name": "docs",
+    "name": "Pages",
     "pattern_type": "page",
+    "doc_type": "docs-page",
     "base_url": "/",
     "subdomain": "*"
   },
   {
-    "name": "auth",
+    "name": "Auth",
     "pattern_type": "auth",
+    "doc_type": "auth",
     "base_url": "/auth",
     "subdomain": "*"
   },
   {
-    "name": "test_datasets",
+    "name": "Datasets",
     "pattern_type": "datasets",
+    "doc_type": "test-datasets",
     "base_url": "/data",
     "subdomain": "*"
   }

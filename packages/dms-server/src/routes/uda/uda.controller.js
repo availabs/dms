@@ -81,16 +81,11 @@ async function getSourceById(env, ids, attributes) {
     return rows;
   }
 
-  // DAMA: select specific columns from data_manager.sources.
-  // Drop 'id' from the attribute list — the table has no `id` column;
-  // `source_id AS id` (always added below) supplies it. Without this, a
-  // Falcor request that includes 'id' in attributes would emit a duplicate
-  // SELECT entry referencing a column that doesn't exist.
+  // DAMA: select specific columns from data_manager.sources
   const tbl = db.type === 'postgres' ? 'data_manager.sources' : 'sources';
-  const dataAttrs = sanitizedAttrs.filter(a => a !== 'id');
-  const colList = dataAttrs.length ? `, ${dataAttrs.map(a => `"${a}"`).join(', ')}` : '';
+  const colList = sanitizedAttrs.map(a => `"${a}"`).join(', ');
   const { rows } = await db.query(
-    `SELECT source_id AS id${colList} FROM ${tbl} WHERE source_id = ANY($1::INT[])`,
+    `SELECT source_id AS id, ${colList} FROM ${tbl} WHERE source_id = ANY($1::INT[])`,
     [ids.map(Number)]
   );
   return rows;

@@ -110,14 +110,7 @@ async function processUpload(uploadId, workDir, filePath, fileName) {
   if (ext === '.zip') {
     console.log(`[upload] ${uploadId} extracting ZIP archive...`);
     const extractDir = path.join(workDir, 'dataset');
-    try {
-      await extractZip(filePath, extractDir);
-    } catch (err) {
-      // Wrap so the upload state surfaces something more actionable than the
-      // raw zlib / yauzl message ("invalid distance too far back" etc.).
-      const reason = err?.message || String(err);
-      throw new Error(`Could not unzip archive: ${reason}. Try re-creating the ZIP with the system 'zip' tool.`);
-    }
+    await extractZip(filePath, extractDir);
     const dataFile = findDataFile(extractDir);
     if (!dataFile) {
       console.log(`[upload] ${uploadId} FAILED — no supported data file in archive`);
@@ -153,19 +146,15 @@ async function processUpload(uploadId, workDir, filePath, fileName) {
 
 /**
  * Extract a ZIP file to a target directory.
- *
- * Uses `extract-zip` (yauzl-backed) instead of `unzipper`. yauzl reads the
- * central directory before any entries, which handles ZIPs `unzipper`'s
- * streaming API chokes on (Deflate64, central-directory-set dictionaries,
- * many macOS Finder-Compress outputs — the symptom is a zlib
- * "invalid distance too far back"). yauzl also rejects path-traversal
- * entries by default.
- *
- * `extract-zip` requires an absolute target path.
  */
 async function extractZip(zipPath, targetDir) {
-  const extract = require('extract-zip');
-  await extract(zipPath, { dir: path.resolve(targetDir) });
+  const unzipper = require('unzipper');
+  await new Promise((resolve, reject) => {
+    fs.createReadStream(zipPath)
+      .pipe(unzipper.Extract({ path: targetDir }))
+      .on('close', resolve)
+      .on('error', reject);
+  });
 }
 
 /**

@@ -11,13 +11,13 @@
 - [ ] [Port `enhance_nfip_claims_v2` to the plugin system](./tasks/current/dama-nfip-claims-migration.md) — first concrete plugin built on the infrastructure. Reference implementation for subsequent hazmit ports. Replaces the smoke-test plugin with `enhance-nfip-claims`.
 - [ ] [Port `map21` to the plugin system + 2023 HPMS TTM spec output](./tasks/current/dama-map21-migration.md) — IMPLEMENTED on 2026-04-26: plugin registered, route mounts at `/dama-admin/:pgEnv/map21/publish`, fast-fail path verified against `dama-sqlite-test`, in-process HPMS 2023 validator agrees with the external `validate-hpms-ttm-2023.cjs` (synthesized 2023-shape row passes; 2025 submittal CSV produces identical errors in both). **Pending: controlled smoke test against `npmrds2` ClickHouse + a real prod NPMRDS source, plus client-side route update.**
 - [ ] [Remove `/events/query` + `newContextId` REST compat shim](./tasks/current/remove-events-query-shim.md) — split out from DAMA server port; non-blocking. Migrate the GIS Create wizard to poll UDA tasks via Falcor, then drop the legacy REST endpoints from `dms-server/src/dama/upload/`.
-- [x] [now_playing dataType plugin](./tasks/completed/dama-now-playing-datatype.md) — ACRCloud webhook receiver shipped as a DMS plugin at `data-types/now_playing/` with full client-side UI (Create + Webhook source-view pages), DAMA source/view provisioning with `metadata.columns`, normalize.js, schema.js with idempotent inserts, ACR Console backfill worker, iTunes/MusicBrainz cover-art enrichment, and the existing `Card` page-section bound to a stream's view to render the latest matched track. Live verified against ACR project 16608 stream `s-Z0XwkcHp`.
+- [ ] [now-playing dataType plugin](./tasks/current/dama-now-playing-datatype.md) — port the standalone ACRCloud webhook receiver in `research/now-playing/` into a real DMS plugin (`data-types/now-playing/`). Adds a generic `publicRoutes` capability to the dataType contract (mounted before JWT) so plugins can receive unauthenticated external callbacks. Each "stream" is a DMS source+view with a per-stream `webhook_secret`; detections land in the auto-created split table. Ships a `NowPlayingCard` page-section component for displaying the latest matched track.
 
 ## cli
 
 - [x] DMS CLI tool (`packages/dms/cli/`) — terminal access to DMS data via shared API code and Falcor protocol (sites, patterns, pages, sections, datasets)
 - [ ] DMS MCP Server — Claude tool for reading, creating, and editing DMS pages/sections via structured MCP tools (Lexical builder, .dmsrc-aware config)
-- [x] [CLI refresh for type-system refactor + per-app tables + dmsEnv ownership](./tasks/completed/cli-refresh-type-refactor.md) — rewrote type resolution throughout `packages/dms/cli/` to use `{parent}:{instance}|{rowKind}`; dropped `doc_type` reads; app-namespaced every falcor path; `dataset list` walks `pattern.dmsEnvId → dmsEnv.sources`; `dataset dump`/`query` use the `:data` split-table types via the hydrating `options` route. 21/21 integration tests pass; verified live against `asm+nhomb`.
+- [ ] [CLI refresh for type-system refactor + per-app tables + dmsEnv ownership](./tasks/current/cli-refresh-type-refactor.md) — rewrite type resolution throughout `packages/dms/cli/` to use `{parent}:{instance}|{rowKind}`; drop `doc_type` reads (18 call sites); app-namespace every falcor path; walk `pattern.dmsEnvId → dmsEnv.sources` in `dataset list`; use `:data` split-table types in `dataset dump`/`query`. Fixes `dms site tree` / `dms raw list` / `dms dataset *` on modern databases. Do before the MCP server so both can share updated type helpers.
 
 ## local-first
 
@@ -78,7 +78,6 @@
 
 ## ui
 
-- [ ] [Expand client column-types into a user-facing interaction system](./tasks/current/expand-client-column-types.md) — extend `ui/columnTypes/index.jsx` from a render-pair registry into a richer per-column adapter (sort, filter, format, edit, view) that drives Card/Spreadsheet/Graph/Table behavior. DAMA `metadata.columns` carries the **default** client type alongside the Postgres type; sections may override per-instance. Unblocks the timestamp-sorts-as-text bug. See [research/unified-column-types.md](./research/unified-column-types.md) (Option B).
 - [x] Table & Card React Router links — replace `<a href>` with React Router `<Link to>` for internal navigation in TableCell.jsx and Card.jsx (eliminates full page reloads)
 - [x] Lexical plaintext normalization — move plaintext-to-Lexical-JSON conversion to shared `parseValue()` so HTML view path handles plaintext
 - [x] Lexical sync HTML render — eliminate View jitter by using synchronous `editorState.read()` + `useMemo` instead of async `useEffect`

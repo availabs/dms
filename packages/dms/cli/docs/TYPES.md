@@ -1,282 +1,263 @@
 # DMS Content Types Reference
 
-All DMS content lives in `data_items` rows, namespaced by `app` + `type`.
-On Postgres in per-app split mode each app has its own `dms_{app}.data_items`
-table; on SQLite it's `data_items__{app}`. Dataset row data goes one level
-deeper into per-source-view split tables (see "Dataset Data Rows" below).
+All DMS content lives in a single `data_items` table. Items are namespaced by `app` + `type` pairs, where `app` is the site's application name and `type` determines the content kind.
 
 ## Type String Format
 
-Every row's `type` column is `{parent}:{instance}|{rowKind}` (separators
-are `|` for hierarchy and `:` for instance name). Reading right-to-left
-lets you peel off the row kind first, then the instance, then the parent
-chain.
+Type strings follow the pattern `{app}+{type}[|suffix]`:
 
-| Row kind | Type column shape | Example |
-|----------|-------------------|---------|
-| Site | `{name}:site` | `nhomb:site` |
-| Theme | `{name}:theme` | `catalyst:theme` |
-| Pattern | `{site}\|{name}:pattern` | `nhomb\|datasets:pattern` |
-| Page | `{patternInstance}\|page` | `datasets\|page` |
-| Component (section) | `{patternInstance}\|component` | `datasets\|component` |
-| dmsEnv | `{site}\|{name}:dmsenv` | `nhomb\|alex_data_env:dmsenv` |
-| Source | `{dmsEnvInstance}\|{name}:source` | `alex_data_env\|songs:source` |
-| View | `{sourceInstance}\|{name}:view` | `songs\|v1:view` |
-| Data row | `{sourceInstance}\|{viewId}:data` | `songs\|1066384:data` |
+```
+avail-dms+pattern-admin           # Site item
+avail-dms+pattern-admin|pattern   # Pattern item
+avail-dms+docs-page               # Page item
+avail-dms+docs-page|cms-section   # Section item
+avail-dms+my-datasets|source      # Dataset source
+avail-dms+my-datasets|source|view # Dataset view
+```
 
-The Falcor cache key for "all rows of type X under app Y" is
-`{app}+{type}` (e.g. `asm+nhomb:site`, `asm+datasets|page`).
-
-The `:data` suffix on dataset rows is what triggers split-table
-routing on the server.
+The `app` value comes from your CLI config (`--app` / `DMS_APP` / `.dmsrc`).
+The base type comes from the site config (`--type` / `DMS_TYPE`).
+Suffixes like `|pattern`, `|cms-section`, `|source` are appended by the CLI based on context.
 
 ## Content Types
 
 ### Site
 
-Top-level container. Exactly one site row per `{app}+{type}` pair.
+The top-level container. Each DMS site has exactly one site item.
 
-**Type column:** `{name}:site`
+**Type string:** `{app}+{type}` (e.g., `avail-dms+pattern-admin`)
 
 **Key fields:**
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `site_name` | string | Display name |
-| `patterns` | array | `[{ id, ref }]` — pattern row refs |
-| `dms_envs` | array | `[{ id, ref }]` — dmsEnv row refs |
-| `theme_refs` | array | `[{ id, ref }]` — theme refs |
+| `site_name` | string | Display name of the site |
+| `patterns` | array | References to pattern items (`[{ ref, id }]`) |
+| `theme_refs` | array | References to theme items |
 
-The CLI's `--type` flag accepts either the bare instance (`nhomb`) or
-the full type (`nhomb:site`).
-
-**CLI:**
+**CLI commands:**
 ```bash
-dms site show       # site info
-dms site patterns   # list patterns
-dms site tree       # full hierarchy (patterns → pages → sections, sources)
+dms site show       # Show site info
+dms site patterns   # List patterns
+dms site tree       # Full hierarchy
 ```
 
 ### Pattern
 
-A routing unit on a site (page, datasets, forms, auth).
+Patterns define a routing unit within the site. Each pattern has a type (page, auth, datasets, forms) and a base URL.
 
-**Type column:** `{siteInstance}|{name}:pattern`
+**Type string:** `{app}+{type}|pattern` (e.g., `avail-dms+pattern-admin|pattern`)
 
 **Key fields:**
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `name` | string | Display name (also matches the type's instance) |
-| `pattern_type` | string | `page`, `datasets`, `forms`, `auth` |
-| `base_url` | string | URL prefix |
-| `subdomain` | string | Subdomain filter (`*` = all) |
-| `dmsEnvId` | number | (datasets/forms) ID of the dmsEnv that owns this pattern's sources |
+| `name` | string | Pattern display name |
+| `pattern_type` | string | One of: `page`, `auth`, `datasets`, `forms` |
+| `base_url` | string | URL prefix (e.g., `/`, `/data`, `/auth`) |
+| `subdomain` | string | Subdomain filter (`*` for all) |
+| `doc_type` | string | Document type for child items (e.g., `docs-page`) |
+| `authPermissions` | object | Permission configuration |
 | `theme` | object | Pattern-level theme overrides |
 
-There is no `doc_type` field — the slug used in downstream type
-strings is the pattern's own type-instance, extracted via
-`getInstance(pattern.type)`.
-
-**CLI:**
+**CLI commands:**
 ```bash
 dms pattern list
-dms pattern show <name|id>
-dms pattern dump <name|id>
+dms pattern show <name-or-id>
+dms pattern dump <name-or-id>
 ```
 
 ### Page
 
-Pages live under a `pattern_type: 'page'` pattern.
+Pages are the primary content units within a `page`-type pattern. Each page has a URL slug, optional parent (for hierarchy), and references to sections.
 
-**Type column:** `{patternInstance}|page`
+**Type string:** `{app}+{doc_type}` (e.g., `avail-dms+docs-page`)
+
+The `doc_type` is resolved from the page pattern's `doc_type` field. The CLI auto-detects this from the first pattern with `pattern_type: "page"`.
 
 **Key fields:**
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `title` | string | Page title |
-| `url_slug` | string | URL slug (also used by CLI slug resolution) |
-| `parent` | string\|number | Parent page ID for hierarchy |
+| `url_slug` | string | URL slug (used for routing and CLI slug resolution) |
+| `parent` | string/number | Parent page ID (for hierarchy) |
 | `index` | string | Sort order among siblings |
-| `published` | string | `'published'` or `'draft'` |
+| `published` | string | `"published"` or `"draft"` |
 | `has_changes` | boolean | Whether draft differs from published |
-| `sections` | array | Published section refs |
-| `draft_sections` | array | Draft section refs |
-| `section_groups`, `draft_section_groups` | array | Layout groups |
+| `sections` | array | Published section references (`[{ ref, id }]`) |
+| `draft_sections` | array | Draft section references |
+| `section_groups` | array | Section grouping/layout info |
+| `draft_section_groups` | array | Draft section grouping |
 | `theme` | object | Page-level theme overrides |
 
-**CLI:**
+**CLI commands:**
 ```bash
-dms page list [--published] [--draft] [--pattern <name|id>]
-dms page show <id|slug>
-dms page dump <id|slug> [--sections]
+dms page list [--published] [--draft]
+dms page show <id-or-slug>
+dms page dump <id-or-slug> [--sections]
 dms page create --title "Title" --slug slug
-dms page update <id|slug> --set field=value
-dms page publish <id|slug>
-dms page unpublish <id|slug>
-dms page delete <id|slug>
+dms page update <id-or-slug> --title "New Title"
+dms page publish <id-or-slug>
+dms page unpublish <id-or-slug>
+dms page delete <id-or-slug>
 ```
 
-### Section (Component)
+**Slug resolution:** The CLI accepts either numeric IDs or URL slugs. Strings are resolved via `searchOne` on the `url_slug` field.
 
-Content blocks attached to a page.
+### Section
 
-**Type column:** `{patternInstance}|component`
+Sections are content blocks within pages. Each section has an element type (e.g., `lexical`, `Card`, `Spreadsheet`) and element data.
 
-The older `cms-section` form is no longer in use.
+**Type string:** `{app}+{doc_type}|cms-section` (e.g., `avail-dms+docs-page|cms-section`)
 
 **Key fields:**
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `title` | string | Section title |
-| `level` | string\|number | Nesting level |
-| `element-type` | string | Component name: `lexical`, `Card`, `Spreadsheet`, `Graph`, `Header`, … |
-| `element-data` | string\|object | Component-specific payload (often a JSON-string body of Lexical state, Card config, etc.) |
-| `tags` | array | Content tags |
+| `level` | string/number | Nesting level |
+| `element-type` | string | Component type: `lexical`, `Card`, `Spreadsheet`, `Message`, etc. |
+| `element-data` | any | Component-specific payload (rich text JSON, card config, etc.) |
+| `tags` | array | Content tags for filtering |
 | `authPermissions` | object | Section-level permissions |
-| `parent` | string | `{"id": "<page-id>", "ref": "<app>+<patternRef>"}` |
-| `group` | string | Section group name |
-| `trackingId` | string | Stable UUID for the section instance |
 
-**CLI:**
+**CLI commands:**
 ```bash
-dms section list <page-id|slug> [--draft]
+dms section list <page-id-or-slug>
 dms section show <section-id>
 dms section dump <section-id>
-dms section create <page-id|slug> --element-type Card --data '...'
-dms section update <section-id> --set element.element-data=...
-dms section delete <section-id> [--page <page-id|slug>]
+dms section create <page-id-or-slug> --element-type lexical
+dms section update <section-id> --data '...'
+dms section delete <section-id> [--page <page-id-or-slug>]
 ```
 
-### dmsEnv
+### Dataset Source
 
-A logical environment that owns a set of sources. Patterns reference
-it via `pattern.data.dmsEnvId`.
+Dataset sources define a managed dataset within a `datasets` or `forms` pattern. Each source has a document type, configuration, and views.
 
-**Type column:** `{siteInstance}|{name}:dmsenv`
-
-**Key fields:**
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `name` | string | Display name (also matches the type's instance) |
-| `sources` | array | `[{ id, ref }]` — source row refs |
-
-The CLI doesn't have `dmsenv` as a top-level command; dataset commands
-read the dmsEnv automatically when given a `--pattern` whose
-`dmsEnvId` is set.
-
-### Source
-
-A managed dataset under a dmsEnv.
-
-**Type column:** `{dmsEnvInstance}|{name}:source`
+**Type string:** `{app}+{doc_type}|source` (e.g., `avail-dms+my-datasets|source`)
 
 **Key fields:**
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `name` | string | Display name |
+| `name` | string | Dataset display name |
+| `doc_type` | string | Type for the actual data rows |
 | `categories` | array | Classification tags |
-| `metadata` | object | Source-level metadata (incl. `metadata.columns` for column-aware UI) |
-| `views` | array | `[{ id, ref }]` — view row refs |
-| `config` | object | Source configuration |
+| `metadata` | object | Configuration metadata |
+| `views` | array | References to view items (`[{ ref, id }]`) |
+| `config` | object | Dataset configuration |
 
-**CLI:**
+**CLI commands:**
 ```bash
-dms dataset list             # all sources under the pattern's dmsEnv
-dms dataset show <id|name>
-dms dataset views <id|name>
-dms dataset dump <id|name>  [--view <id>] [--limit N]
-dms dataset query <id|name> [--view <id>] --filter col=val --order col:asc|desc
+dms dataset list
+dms dataset show <id-or-name>
+dms dataset views <id-or-name>
+dms dataset dump <source-id> [--limit 100]
+dms dataset query <source-id> --filter col=val
 ```
 
-### View
+**Name resolution:** Dataset sources can be referenced by numeric ID or name string.
 
-A saved snapshot/configuration for a source.
+### Dataset View
 
-**Type column:** `{sourceInstance}|{name}:view`
+Views are saved queries/configurations for a dataset source.
+
+**Type string:** `{app}+{doc_type}|source|view`
 
 **Key fields:**
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `name` | string | View name (e.g. `version 1`) |
+| `name` | string | View name |
 | `view_type` | string | View type identifier |
 
 ### Dataset Data Rows
 
-The actual rows for a source view. Stored in a per-view split table on
-the server, addressed via the type-key only — there is no per-row
-`byId` lookup that hits the split table.
+The actual data items for a dataset, stored under the source's `doc_type`.
 
-**Type column:** `{sourceInstance}|{viewId}:data`
+**Type string:** `{app}+{doc_type}` (where `doc_type` comes from the source's `doc_type` field)
 
-**CLI access:** `dms dataset dump` / `dms dataset query`. Both go
-through the Falcor `options` route (with `{}` filter for dump) so the
-server inlines the row attributes — the bare `byIndex → ref → byId`
-path doesn't hydrate split-table rows.
+These are accessed via `dms dataset dump` and `dms dataset query`.
+
+## Relationships
+
+```
+Site
+ └── patterns[] ──→ Pattern
+                      ├── (pattern_type: "page")
+                      │    └── pages (by doc_type) ──→ Page
+                      │         └── sections[] / draft_sections[] ──→ Section
+                      ├── (pattern_type: "datasets" | "forms")
+                      │    └── sources (by doc_type|source) ──→ Dataset Source
+                      │         ├── views[] ──→ Dataset View
+                      │         └── data rows (by source.doc_type) ──→ Data Items
+                      └── (pattern_type: "auth")
+                           └── (auth configuration, no child items)
+```
 
 ## Type Resolution
 
-The CLI builds type strings by:
+The CLI resolves type strings automatically based on pattern configuration:
 
-1. **Site:** `{app}+{config.type}` — `config.type` accepts either `nhomb` or `nhomb:site`; missing `:site` is appended.
-2. **Pattern:** read the row directly via the site's `data.patterns` refs (no string concatenation).
-3. **Page:** `{patternInstance(pattern)}|page` — `patternInstance` extracts the instance via `getInstance(pattern.type)`.
-4. **Section (component):** `{patternInstance(pattern)}|component`.
-5. **Source:** read directly via the dmsEnv's `data.sources` refs.
-6. **View:** read directly via the source's `data.views` refs.
-7. **Data row:** `{sourceInstance(source)}|{viewId}:data` — `viewId` defaults to the latest view, override with `--view`.
+1. **Site type:** `{app}+{type}` — from `--app` and `--type` config
+2. **Pattern type:** `{app}+{type}|pattern` — appends `|pattern` to site type
+3. **Page type:** `{app}+{doc_type}` — reads `doc_type` from the page pattern
+4. **Section type:** `{app}+{doc_type}|cms-section` — appends `|cms-section` to page doc_type
+5. **Source type:** `{app}+{doc_type}|source` — reads `doc_type` from the datasets pattern
+6. **View type:** `{app}+{doc_type}|source|view` — appends `|view` to source type
 
-When multiple patterns share a `pattern_type`, pass `--pattern
-<name|id>` to disambiguate. Without it the CLI picks the first
-matching pattern.
+When multiple patterns of the same type exist, use `--pattern <name-or-id>` to target a specific one. Without `--pattern`, the CLI uses the first matching pattern.
 
 ## Raw Access
 
-`dms raw` commands work with any `{app}+{type}` pair directly. They
-honor `config.app` for `byId` lookups so they work against per-app
-split tables.
+The `dms raw` commands bypass type resolution and work directly with any `app+type` string:
 
 ```bash
-# Bare type — config.app is prepended
-dms raw list 'nhomb:site'
-dms raw list 'datasets|page'
+# These are equivalent:
+dms page show home
+dms raw get <page-id>
 
-# Full app+type form
-dms raw list 'asm+nhomb:site'
-
-# Single row
-dms raw get <id> --attrs id,type,data
+# Access any type directly:
+dms raw list avail-dms+pattern-admin|pattern
+dms raw get 42 --attrs id,data,created_at
 ```
 
 ## The `data` Column
 
-All app-level fields live inside a JSON `data` column. The server's
-edit route performs a **shallow merge** — entire nested objects are
-replaced at the first nesting level.
+All content fields live inside a JSON `data` column. The server's edit route performs a **shallow merge** — it replaces entire nested objects at the first nesting level rather than deep-merging them.
 
-### `--set` does client-side deep merge
+### `--set` Does Client-Side Deep Merge
 
-`--set` fetches current data, deep-merges via lodash `merge`, and
-sends the full result back:
+To safely update nested fields, use `--set`. The CLI fetches the current data, deep-merges your changes with lodash `merge`, and sends the complete result:
 
 ```bash
+# Safe: fetches current data, merges title in, sends everything back
 dms page update home --set title="Updated Title"
-dms raw update <id>  --set theme.layout.options.topNav.size=full
+
+# Safe: deep-merges into nested path without clobbering siblings
+dms raw update <id> --set theme.layout.options.topNav.size=full
 ```
 
-Dot notation creates nested objects.
+Dot notation creates nested objects:
 
-### `--data` sends as-is
+```bash
+dms raw update <id> --set config.sidebar.enabled=true
+# Builds: { "config": { "sidebar": { "enabled": true } } }
+# Then merges into existing data before sending
+```
 
-`--data` posts the JSON directly. Server still shallow-merges, so
-top-level keys you don't include are preserved but nested objects
-under keys you do include get fully replaced.
+### `--data` Sends As-Is
 
-**Caution:** if the row has `{theme: {layout: {...}, navOptions: {...}}}`
-and you send `--data '{"theme": {"layout": {"new": 1}}}'`, the entire
-`theme` value gets replaced — `navOptions` is lost.
+The `--data` flag sends data directly to the server without fetching first. Use this for full replacements or restoring from backup:
+
+```bash
+# Replaces — server shallow-merges this into the item
+dms raw update <id> --data '{"title": "New Title"}'
+
+# Restore from backup file
+dms raw update <id> --data ./backup.json
+```
+
+**Caution:** If the item has `{"theme": {"layout": {...}, "navOptions": {...}}}` and you send `--data '{"theme": {"layout": {"new": 1}}}'`, the server replaces the entire `theme` key — `navOptions` will be lost.

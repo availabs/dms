@@ -359,20 +359,15 @@ async function deleteInternalSource(env, sourceId) {
   // 4. Find owning dmsEnv rows. There may be more than one (the membership
   //    bug we're tracking separately can leave a source's ref in multiple
   //    dmsEnvs); cleaning all of them up is the correct behavior here.
-  //
-  // The `data.sources` JSONB stores each ref's `id` as a string
-  // (`{"id": "123", "ref": "..."}`), so the @> match must compare on text.
-  // Using `$2::int` here used to silently miss every row — strict JSONB type
-  // equality means `"123" != 123` and the dmsEnv ref strip never happened.
   let dmsEnvSql, dmsEnvParams;
   if (db.type === 'postgres') {
     dmsEnvSql = `
       SELECT id, data FROM ${mainTbl}
       WHERE app = $1
         AND type LIKE '%:dmsenv'
-        AND data->'sources' @> jsonb_build_array(jsonb_build_object('id', $2::text))
+        AND data->'sources' @> jsonb_build_array(jsonb_build_object('id', $2::int))
     `;
-    dmsEnvParams = [app, String(sourceId)];
+    dmsEnvParams = [app, sourceId];
   } else {
     // SQLite: walk the sources array
     dmsEnvSql = `

@@ -168,9 +168,7 @@ function renderPageNodes(nodes, indent) {
         const sConnector = sIsLast ? '└── ' : '├── ';
         const sd = typeof section.data === 'string' ? JSON.parse(section.data) : (section.data || {});
         const sTitle = sd.title || `Section ${section.id}`;
-        // Modern sections nest the element-type under `element`. Older
-        // shapes had it at top level — check both for resilience.
-        const sType = sd.element?.['element-type'] || sd['element-type'] || '?';
+        const sType = sd['element-type'] || sd.element_type || '?';
         lines.push(`${indent}${childIndent}${sConnector}Section: ${sTitle} (${sType}) id=${section.id}`);
       });
     }
@@ -195,8 +193,8 @@ function renderDatasetNodes(datasets, indent) {
     const connector = isLast ? '└── ' : '├── ';
     const d = typeof ds.data === 'string' ? JSON.parse(ds.data) : (ds.data || {});
     const name = d.name || `Dataset ${ds.id}`;
-    const type = ds.type || '?';
-    lines.push(`${indent}${connector}Source: ${name} (${type}) id=${ds.id}`);
+    const docType = d.doc_type || '?';
+    lines.push(`${indent}${connector}Source: ${name} (${docType}) id=${ds.id}`);
   });
 
   return lines.join('\n');

@@ -66,7 +66,6 @@
     "busboy": "^1.6.0",
     "compression": "^1.8.1",
     "express": "^4.21.0",
-    "extract-zip": "^2.0.1",
     "falcor-json-graph": "^3.0.1",
     "falcor-path-syntax": "0.2.4",
     "falcor-path-utils": "~0.5.0",
@@ -75,6 +74,7 @@
     "read-excel-file": "^6.0.3",
     "rxjs": "~5.1.1",
     "symbol-observable": "^1.0.4",
+    "unzipper": "^0.12.3",
     "ws": "^8.19.0",
     "y-protocols": "^1.0.7",
     "yjs": "^13.6.30"
