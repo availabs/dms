@@ -204,7 +204,7 @@ export const MapSection = ({ value, onChange, isEdit }) => {
             const symbData = get(state, symbPathBase, {})
 
             const newExtent = await fetchBoundsForFilter(symbData, falcor, pgEnv, dynamicFilterOptions);
-            if (!newExtent || newExtent === "undefined") return;
+            // if (!newExtent || newExtent === "undefined") return;
             setState((draft) => {
                 let parsedExtent;
                 try {
@@ -251,11 +251,7 @@ export const MapSection = ({ value, onChange, isEdit }) => {
             if(isReady) {
                 let allLayers = (Object.values(state.symbologies).reduce((out,curr) => {
                     let ids = out.map(d => d.id)
-                    const activeLayerId = curr?.symbology?.activeLayer;
-                    const visibleLayerKeys = activeLayerId && curr?.symbology?.layers?.[activeLayerId] ?
-                        [activeLayerId] :
-                        Object.keys(curr?.symbology?.layers || {});
-                    let newSymbLayers = visibleLayerKeys
+                        let newSymbLayers = Object.keys(curr?.symbology?.layers)
                         .reduce((layerOut, layerKey) => {
                             if( !ids.includes(layerKey) ) {
                                 layerOut[layerKey] = curr?.symbology?.layers?.[layerKey]
@@ -317,13 +313,9 @@ export const MapSection = ({ value, onChange, isEdit }) => {
 
     const layerProps = useMemo(() =>  {
         return Object.values(state.symbologies).reduce((out,curr) => {
-            const activeLayerId = curr?.symbology?.activeLayer;
-            const visibleLayerKeys = activeLayerId && curr?.symbology?.layers?.[activeLayerId] ?
-                [activeLayerId] :
-                Object.keys(curr?.symbology?.layers || {});
             return {
                 ...out,
-                ...visibleLayerKeys
+                ...Object.keys((curr?.symbology?.layers || {}))
                     .reduce((acc, layerId) => ({
                             ...acc,
                             [layerId]: {...(curr?.symbology?.layers?.[layerId] || {}), zoomToFitBounds: state.zoomToFitBounds, zoomToFilterBounds: curr.symbology.zoomToFilterBounds }}
