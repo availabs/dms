@@ -17,7 +17,7 @@ const mergeData = data => {
 
 const BarGraphWrapper = props => {
 
-// console.log("BarGraphWrapper::props", props);
+// console.log("BarGraphWrapper::data", props.data);
 // console.log("BarGraphWrapper::width, height", props.width, props.height);
 
 	const dataFromProps = React.useMemo(() => {
@@ -120,19 +120,5 @@ const BarGraphWrapper = props => {
 export const BarGraphOption = {
   type: "Bar Graph",
   GraphComp: "BarGraph",
-  Component: BarGraphWrapper,
-  EditorOptions: [
-    { label: "Orientation",
-      type: "select",
-      path: ["orientation"],
-      options: ["vertical", "horizontal"],
-      defaultValue: "vertical"
-    },
-    { label: "Group Mode",
-      type: "select",
-      path: ["groupMode"],
-      options: ["stacked", "grouped"],
-      defaultValue: "stacked"
-    }
-  ]
+  Component: BarGraphWrapper
 }

@@ -156,6 +156,12 @@ const InitialState = {
   SecScale: scaleLinear(),
   adjustedWidth: 0,
   adjustedHeight: 0,
+  lineData: [],
+  previousLineData: new Map(),
+  hasData: false,
+  secondaryData: [],
+  previousSecondaryData: new Map(),
+  hasSecondary: false,
   sliceData: {},
   lineTotals: {},
   barData: []
@@ -179,7 +185,7 @@ export const LineGraph = props => {
     padding = 0.5,
     strokeWidth = 1,
     shouldComponentUpdate = null,
-    showAnimations = true,
+    showAnimations = false,
     colors
   } = props;
 
@@ -219,39 +225,50 @@ export const LineGraph = props => {
     return { ...DefaultMargin, ...margin };
   }, [margin]);
 
+  const colorFunc = React.useMemo(() => {
+    return getColorFunc(colors);
+  }, [colors]);
+
   const ref = React.useRef(),
     { width, height } = useSetSize(ref),
-    [state, setState] = React.useState(InitialState),
+    [state, setState] = React.useState(InitialState);
 
-    lineData = React.useRef(EmptyArray),
-    exitingData = React.useRef(EmptyArray),
-
-    secondaryData = React.useRef(EmptyArray),
-    exitingSecondary = React.useRef(EmptyArray);
+  const PREVIOUS_LINE_DATA = React.useRef(new Map());
+  const PREVIOUS_SECONDARY_DATA = React.useRef(new Map());
 
   const exitData = React.useCallback((secondary = false) => {
-    let data = secondary ? secondaryData : lineData,
-      exiting = secondary ? exitingSecondary : exitingData;
-    data.current = data.current.filter(({ id }) => {
-      return !(id in exiting.current);
-    });
-    setState(prev => ({ ...prev }));
+    if (secondary) {
+      setState(prev => ({
+        ...prev,
+        secondaryData: prev.secondaryData.filter(d => d.state !== "exiting")
+      }))
+    }
+    else {
+      setState(prev => ({
+        ...prev,
+        lineData: prev.lineData.filter(d => d.state !== "exiting")
+      }))
+    }
   }, []);
 
-  const additionalKeys = React.useMemo(() => {
-    return ["data"];
-  }, []);
+  // const additionalKeys = React.useMemo(() => {
+  //   return ["data"];
+  // }, []);
 
-  const ShouldComponentUpdate = useShouldComponentUpdate(props, width, height, additionalKeys);
+  // const ShouldComponentUpdate = useShouldComponentUpdate(props, width, height, additionalKeys);
 
   React.useEffect(() => {
 
-    if (!ShouldComponentUpdate) return;
+    if (!(width && height)) return;
 
     const adjustedWidth = Math.max(0, width - (Margin.left + Margin.right)),
       adjustedHeight = Math.max(0, height - (Margin.top + Margin.bottom));
 
     let xDomain = data.length ? data[0].data.map(d => d.x) : [];
+
+    if (!xDomain.length && secondary.length) {
+      xDomain = secondary[0].data.map(d => d.x);
+    }
 
     const aLeft = {
       ...DefaultAxis,
@@ -269,12 +286,17 @@ export const LineGraph = props => {
       }, []);
     }
 
+    const aRight = {
+      ...DefaultAxis,
+      ...axisRight
+    }
+
     let secDomain = [];
     if (xDomain.length) {
       secDomain = secondary.reduce((a, c) => {
         const y = c.data.reduce((a, c) => Math.max(a, +c.y), 0);
         if (!isNaN(y)) {
-          return [0, Math.max(y, get(a, 1, 0))];
+          return [aRight.min, Math.max(y, get(a, 1, 0))];
         }
         return a;
       }, []);
@@ -329,35 +351,30 @@ export const LineGraph = props => {
   			.y(d => secEnter),
       secBaseLine = secBaseLineGenerator(xDomain);
 
-    const colorFunc = getColorFunc(colors);
-
     const lineTotals = {};
 
 // GENERATE LINE DATA
-    const [updating, exiting] = lineData.current.reduce((a, c) => {
-      const [u, e] = a;
-      u[c[indexBy]] = "updating";
-      e[c[indexBy]] = c;
-      c.state = "exiting";
-      return [u, e];
-    }, [{}, {}]);
-
     const sliceData = xDomain.reduce((a, c) => {
       a[c] = [];
       return a;
     }, {});
 
-    lineData.current = data.map((d, i) => {
+    const NEXT_LINE_DATA = new Map();
+    const lineData = [];
+
+    data.forEach((d, i) => {
+
+      const id = d[indexBy].toString();
 
       const { data, ...rest } = d;
-      delete exiting[d[indexBy]];
+      // delete exiting[d[indexBy]];
 
       const color = colorFunc(d, i);
 
-      lineTotals[d[indexBy]] = 0;
+      lineTotals[id] = 0;
 
       data.forEach(({ x, y }) => {
-        lineTotals[d[indexBy]] += y;
+        lineTotals[id] += y;
         if (x in sliceData) {
           sliceData[x].push({
             ...rest,
@@ -367,23 +384,27 @@ export const LineGraph = props => {
         }
       })
 
-      return {
+      const line = {
         line: lineGenerator(data),
         baseLine,
         color,
-        state: get(updating, d[indexBy], "entering"),
-        id: d[indexBy].toString()
+        state: PREVIOUS_LINE_DATA.current.delete(id) ? "updating" : "entering",
+        id
       };
+      NEXT_LINE_DATA.set(id, line);
+      lineData.push(line);
     });
 
-    exitingData.current = exiting;
-    const exitingAsArray = Object.values(exiting);
+    const hasData = Boolean(lineData.length);
 
-    if (exitingAsArray.length) {
-      setTimeout(exitData, 1050);
+    if (showAnimations) {
+      for (const d of PREVIOUS_LINE_DATA.current.values()) {
+        lineData.push({ ...d, state: "exiting" });
+      }
+      setTimeout(exitData, 1100);
     }
 
-    lineData.current = lineData.current.concat(exitingAsArray);
+    PREVIOUS_LINE_DATA.current = NEXT_LINE_DATA;
 
     for (const k in sliceData) {
       const col = sliceData[k],
@@ -396,56 +417,57 @@ export const LineGraph = props => {
       }
     }
 
-
 // GENERATE SECONDARY DATA
-    let [secUpdating, secExiting] = secondaryData.current.reduce((a, c) => {
-      const [u, e] = a;
-      u[c[indexBy]] = "updating";
-      e[c[indexBy]] = c;
-      c.state = "exiting";
-      return [u, e];
-    }, [{}, {}]);
-
     const secSliceData = xDomain.reduce((a, c) => {
       a[c] = [];
       return a;
     }, {});
 
-    secondaryData.current = secondary.map((d, i) => {
+    const NEXT_SECONDARY_DATA = new Map();
+    const secondaryData = [];
+
+    secondary.forEach((d, i) => {
+
+      const id = d[indexBy].toString();
 
       const { data, ...rest } = d;
-      delete secExiting[d[indexBy]];
 
-      const color = colorFunc(d, i + lineData.current.length);
+      const color = colorFunc(d, i + lineData.length);
 
-      lineTotals[d[indexBy]] = 0;
+      lineTotals[id] = 0;
 
       data.forEach(({ x, y }) => {
-        lineTotals[d[indexBy]] += y;
-        secSliceData[x].push({
-          ...rest,
-          color,
-          y
-        });
+        lineTotals[id] += y;
+        if (x in secSliceData) {
+          secSliceData[x].push({
+            ...rest,
+            color,
+            y
+          });
+        }
       })
 
-      return {
+      const line = {
         line: secGenerator(data),
         baseLine: secBaseLine,
         color,
-        state: get(secUpdating, d[indexBy], "entering"),
+        state: PREVIOUS_SECONDARY_DATA.current.delete(id) ? "updating" : "entering",
         id: d[indexBy].toString()
       };
+      NEXT_SECONDARY_DATA.set(id, line);
+      secondaryData.push(line);
     });
 
-    exitingSecondary.current = secExiting;
-    const secExitingAsArray = Object.values(secExiting);
+    const hasSecondary = Boolean(secondaryData.length);
 
-    if (secExitingAsArray.length) {
-      setTimeout(exitData, 1050, true);
+    if (showAnimations) {
+      for (const d of PREVIOUS_SECONDARY_DATA.current.values()) {
+        secondaryData.push({ ...d, state: "exiting" });
+      }
+      setTimeout(exitData, 1100, true);
     }
 
-    secondaryData.current = secondaryData.current.concat(secExitingAsArray);
+    PREVIOUS_SECONDARY_DATA.current = NEXT_SECONDARY_DATA;
 
     for (const k in secSliceData) {
       const col = secSliceData[k],
@@ -472,12 +494,12 @@ export const LineGraph = props => {
     }));
 
     setState({
-      xDomain, yDomain, XScale, YScale, barData, indexBy, SecScale, secDomain,
-      adjustedWidth, adjustedHeight, sliceData, secSliceData, lineTotals, hasData: barData.length
+      xDomain, yDomain, XScale, YScale, barData, SecScale, secDomain,
+      adjustedWidth, adjustedHeight, hasSecondary, secondaryData,
+      sliceData, secSliceData, lineTotals, hasData, lineData
     });
-  }, [data, width, height, Margin, lineData, colors,
-      padding, exitData, indexBy, secondary, axisLeft,
-      ShouldComponentUpdate
+  }, [data, width, height, Margin, colorFunc, showAnimations,
+      padding, indexBy, secondary, axisLeft
   ]);
 
   const {
@@ -490,11 +512,11 @@ export const LineGraph = props => {
     xDomain, XScale,
     yDomain, YScale,
     secDomain, SecScale,
-    lineTotals, barData, hasData,
+    lineTotals, barData,
+    lineData, hasData,
+    secondaryData, hasSecondary,
     ...restOfState
   } = state;
-
-console.log("LineGraph::yDomain", yDomain)
 
   const {
     HoverComp,
@@ -530,14 +552,14 @@ console.log("LineGraph::yDomain", yDomain)
         <g style={ { transform: `translate(${ Margin.left }px, ${ Margin.top }px)` } }
           onMouseLeave={ onMouseLeave }>
 
-          { lineData.current.map(({ id, ...rest }) => (
+          { lineData.map(({ id, ...rest }) => (
               <Line key={ id } { ...rest }
                 onMouseMove={ onMouseMove }
                 strokeWidth={ strokeWidth }
                 showAnimations={ showAnimations }/>
             ))
           }
-          { secondaryData.current.map(({ id, ...rest }) => (
+          { secondaryData.map(({ id, ...rest }) => (
               <Line key={ id } { ...rest } secondary={ true }
                 onMouseMove={ onMouseMove }
                 strokeWidth={ strokeWidth }
@@ -561,18 +583,18 @@ console.log("LineGraph::yDomain", yDomain)
               x2={ 0.5 } y2={ restOfState.adjustedHeight }/>
           }
         </g>
-        { !secondaryData.current.length ? null :
-          <g>
-            { !axisRight ? null :
-              <AxisRight { ...restOfState }
-                secondary={ true }
-                margin={ Margin }
-                scale={ SecScale }
-                domain={ secDomain }
-                { ...axisRight }/>
-            }
-          </g>
-        }
+        <g>
+          { !axisRight ? null :
+            <AxisRight { ...restOfState }
+              secondary={ true }
+              margin={ Margin }
+              scale={ SecScale }
+              domain={ secDomain }
+              showAnimations={ showAnimations }
+              { ...axisRight }/>
+          }
+        </g>
+
       </svg>
 
       <HoverCompContainer { ...hoverData }

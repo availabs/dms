@@ -28,7 +28,8 @@ import {
 
 import "./avl-graph.css"
 
-const DefaultHoverComp = ({ data, indexFormat, keyFormat, valueFormat, valueLabel, bgColor }) => {
+const DefaultHoverComp = ({ data, indexFormat, keyFormat, valueFormat, valueLabel, bgColor, showTotals }) => {
+
   return (
     <div className={ `
       grid grid-cols-1 gap-1 px-2 pt-1 pb-2 rounded
@@ -46,11 +47,11 @@ const DefaultHoverComp = ({ data, indexFormat, keyFormat, valueFormat, valueLabe
               outline: data.index === i ? `2px solid #000` : null
             } }
           >
-            <div className="mr-2 rounded-sm color-square w-5 h-5 absolute z-10"
+            <div className="rounded-sm color-square w-5 h-5 absolute z-10"
               style={ {
                 backgroundColor: bgColor
               } }/>
-            <div className="mr-2 rounded-sm color-square w-5 h-5 absolute z-50"
+            <div className="rounded-sm color-square w-5 h-5 absolute z-50"
               style={ {
                 backgroundColor: get(data, ["indexData", i, "color"], null),
                 opacity: data.index === i ? 1 : 0.75
@@ -60,10 +61,25 @@ const DefaultHoverComp = ({ data, indexFormat, keyFormat, valueFormat, valueLabe
             </div>
             <div className="text-right flex-1">
               { valueFormat(get(data, ["indexData", i, "value"], 0)) }
-              <b className="ml-1">{ valueLabel }</b>
+              { !valueLabel ? null :
+                <b className="ml-1">{ valueLabel }</b>
+              }
             </div>
           </div>
         ))
+      }
+      { !showTotals ? null :
+        <div className="flex items-center px-2 border-t-2">
+          <div className="mr-4">
+            Total:
+          </div>
+          <div className="text-right flex-1">
+            { valueFormat(data.keyTotal) }
+            { !valueLabel ? null :
+              <b className="ml-1">{ valueLabel }</b>
+            }
+          </div>
+        </div>
       }
     </div>
   )
@@ -75,7 +91,8 @@ const DefaultHoverCompData = {
   keyFormat: Identity,
   valueFormat: Identity,
   valueLabel: "",
-  position: "side"
+  position: "side",
+  showTotals: true
 }
 
 const DefaultPoint = {
@@ -92,49 +109,24 @@ const DefaultBoundsRect = {
 }
 
 const InitialState = {
-  // gridData: [],
-  // exitingData: [],
+  gridData: [],
+  pointData: [],
+  spanLines: [],
+  boundRects: [],
+  hasData: false,
+
+  bgRectState: "entering",
+  totalsByKeys: {},
+
   xDomain: [],
   yDomain: [],
   xTickValues: [],
   yTickValues: [],
-  xScale: null,
-  yScale: null,
+  xScale: scaleOrdinal(),
+  yScale: scaleOrdinal(),
   adjustedWidth: 0,
   adjustedHeight: 0
 }
-// const Reducer = (state, action) => {
-//   const { type, ...payload } = action;
-//   switch (type) {
-//     case "update-state": {
-//       const { gridData, ...rest } = payload;
-//
-//
-//     }
-//     default:
-//       return state;
-//   }
-// }
-
-
-// const calcOrdinalScale = (dataSize, graphSize) => {
-//   const sScale = scaleLinear()
-//     .domain([0, dataSize])
-//     .range([0, graphSize]);
-
-//   let pos = 0;
-//   let next = 0;
-
-//   function scaler(value) {
-//     const s = sScale(value);
-//     next = pos + s;
-//     return pos + s * 0.5;
-//   }
-//   scaler.step = function() {
-//     pos = next;
-//   }
-//   return scaler;
-// }
 
 export const GridGraph = props => {
 
@@ -161,7 +153,7 @@ export const GridGraph = props => {
     // groupMode = "stacked",
     points = EmptyArray,
     bounds = EmptyArray,
-    showAnimations = true
+    showAnimations = false
   } = props;
 
   const Margin = React.useMemo(() => {
@@ -182,28 +174,37 @@ export const GridGraph = props => {
     return hcData;
   }, [hoverComp]);
 
-  const minDistanceForTick = React.useMemo(() => {
-    return 100.0 / get(axisLeft, "tickDensity", 8.0);
+  const AxisBottomData = React.useMemo(() => {
+    if (!axisBottom) return false;
+    const AxisBottomData = { ...axisBottom };
+    if (typeof axisBottom.format === "string") {
+      AxisBottomData.format = d3format(axisBottom.format);
+    }
+    return AxisBottomData;
+  }, [axisBottom]);
+
+  const AxisLeftData = React.useMemo(() => {
+    if (!axisLeft) return false;
+    const AxisLeftData = { ...axisLeft };
+    if (typeof axisLeft.format === "string") {
+      AxisLeftData.format = d3format(axisLeft.format);
+    }
+    return AxisLeftData;
   }, [axisLeft]);
 
-// console.log("GridGraph::minDistanceForTick", minDistanceForTick);
+  const minDistanceForXTick = React.useMemo(() => {
+    return 100.0 / get(AxisBottomData, "tickDensity", 8.0);
+  }, [AxisBottomData]);
+
+  const minDistanceForYTick = React.useMemo(() => {
+    return 100.0 / get(AxisLeftData, "tickDensity", 8.0);
+  }, [AxisLeftData]);
 
   const ref = React.useRef(),
     { width, height } = useSetSize(ref),
-    [state, setState] = React.useState(InitialState),
+    [state, setState] = React.useState(InitialState);
 
-    gridData = React.useRef([]),
-
-    pointData = React.useRef([]),
-    spanLines = React.useRef([]),
-    boundRects = React.useRef([]);
-
-  const exitData = React.useCallback(exiting => {
-    gridData.current = gridData.current.filter(({ id }) => {
-      return !(id in exiting);
-    });
-    setState(prev => ({ ...prev }));
-  }, []);
+  const PREVIOUS_GRID_DATA = React.useRef(new Map());
 
   const pointsMap = React.useMemo(() => {
     return points.reduce((a, c) => {
@@ -223,43 +224,32 @@ export const GridGraph = props => {
     }, {});
   }, [bounds]);
 
-  const prevData = React.useRef([]);
-  const Data = React.useMemo(() => {
-    if (isEqual(prevData.current, data)) {
-      return prevData.current;
-    }
-    prevData.current = data;
-    return data;
-  }, [data]);
+  // const additionalKeys = React.useMemo(() => {
+  //   return ["data", "keys"];
+  // }, []);
 
-  const additionalKeys = React.useMemo(() => {
-    return ["data", "keys"];
-  }, []);
-
-  const ShouldComponentUpdate = useShouldComponentUpdate(props, width, height, additionalKeys);
+  // const ShouldComponentUpdate = useShouldComponentUpdate(props, width, height, additionalKeys);
 
   React.useEffect(() => {
-    if (ShouldComponentUpdate) {
+    if (width && height) {
       const adjustedWidth = Math.max(0, width - (Margin.left + Margin.right)),
         adjustedHeight = Math.max(0, height - (Margin.top + Margin.bottom));
 
-      const xDomain = keys;
+      const xDomain = [...keys];
 
-      let dataWidth = keys.length;
-
-      dataWidth = keys.reduce((a, c) => {
+      const dataWidth = keys.reduce((a, c) => {
         return a + get(keyWidths, c, 1);
       }, 0);
 
-      const [yDomain, dataHeight] = Data.reduce((a, c) => {
+      const [yDomain, dataHeight] = data.reduce((a, c) => {
         let [yd, dh, dw] = a;
         yd.push(c[indexBy]);
         const h = +get(c, "height", 1);
-        const w = +get(c, "width", 1);
-        return [yd, dh + h, dw + w];
+        // const w = +get(c, "width", 1);
+        return [yd, dh + h];
       }, [[], 0]);
 
-      const indexes = Data.map(d => d[indexBy]);
+      const indexes = data.map(d => d[indexBy]);
 
       const wScale = scaleLinear()
         .domain([0, dataWidth])
@@ -279,14 +269,6 @@ export const GridGraph = props => {
 
       const colorFunc = getColorFunc(colors);
 
-      const [updating, exiting] = gridData.current.reduce((a, c) => {
-        const [u, e] = a;
-        u[c.id] = "updating";
-        e[c.id] = c;
-        c.state = "exiting";
-        return [u, e];
-      }, [{}, {}]);
-
       let top = 0;
 
       const indexData = xDomain.reduce((a, c) => {
@@ -294,9 +276,12 @@ export const GridGraph = props => {
         return a;
       }, {});
 
-      pointData.current = [];
-      spanLines.current = [];
-      boundRects.current = [];
+      const NEXT_GRID_DATA = new Map();
+
+      const gridData = [];
+      const pointData = [];
+      const spanLines = [];
+      // const boundRects = [];
 
       const spanData = [];
       const pointPositions = {};
@@ -304,11 +289,30 @@ export const GridGraph = props => {
       const boundsData = {};
 
       const yTickValues = [];
+      const xTickValues = [];
       let prevTickPosition = 0;
 
-      gridData.current = Data.map((d, i) => {
+      let left = 0;
 
-        let left = 0;
+      xDomain.forEach((x, i) => {
+        const width = wScale(get(keyWidths, x, 1));
+        const midPoint = left + width * 0.5;
+        const minWidthForTick = (i === (data.length - 1)) ? minDistanceForXTick : 3;
+        if (prevTickPosition === 0) prevTickPosition = -midPoint;
+        if (((midPoint - prevTickPosition) >= minDistanceForXTick) && (width >= minWidthForTick)) {
+          xTickValues.push(x);
+          prevTickPosition = midPoint;
+        }
+        left += width;
+      })
+
+      prevTickPosition = 0;
+
+      let bgRectState = PREVIOUS_GRID_DATA.current.size ? "updating" : "entering";
+
+      data.forEach((d, i) => {
+
+        left = 0;
 
         const index = d[indexBy];
 
@@ -317,7 +321,7 @@ export const GridGraph = props => {
         const pointsForIndex = get(pointsMap, index, {});
         const boundsForIndex = get(boundsMap, index, {});
 
-        delete exiting[index];
+        // delete exiting[index];
 
         const height = hScale(get(d, "height", 1));
         const midPoint = top + height * 0.5;
@@ -326,9 +330,9 @@ export const GridGraph = props => {
 
         if (prevTickPosition === 0) prevTickPosition = -midPoint;
 
-        const minHeightForTick = (i === (Data.length - 1)) ? minDistanceForTick : 3;
+        const minHeightForTick = (i === (data.length - 1)) ? minDistanceForYTick : 3;
 
-        if (((midPoint - prevTickPosition) >= minDistanceForTick) && (height >= minHeightForTick)) {
+        if (((midPoint - prevTickPosition) >= minDistanceForYTick) && (height >= minHeightForTick)) {
           yTickValues.push(index);
           prevTickPosition = midPoint;
         }
@@ -356,7 +360,7 @@ export const GridGraph = props => {
               cy: top + height * 0.5,
               key: `${ index }-${ key }`
             }
-            pointData.current.push(point);
+            pointData.push(point);
             pointPositions[index][key] = point;
 
             if (spanTo) {
@@ -401,17 +405,27 @@ export const GridGraph = props => {
           grid,
           top,
           data: d,
-          state: get(updating, index, "entering"),
+          state: PREVIOUS_GRID_DATA.current.delete(index) ? "updating" : "entering",
           id: String(index)
         };
+
         top += height;
-        return horizontal;
+
+        NEXT_GRID_DATA.set(index, horizontal);
+        gridData.push(horizontal);
       });
+
+      const totalsByKeys = Object.keys(indexData).reduce((a, c) => {
+        a[c] = Object.values(indexData[c]).reduce((aa, cc) => {
+          return aa + cc.value;
+        }, 0);
+        return a;
+      }, {});
 
       spanData.forEach(([index, from, to]) => {
         const p1 = get(pointPositions, [index, from]),
           p2 = get(pointPositions, [index, to]);
-        spanLines.current.push({
+        spanLines.push({
           x1: p1.cx,
           y1: p1.cy,
           x2: p2.cx,
@@ -422,7 +436,7 @@ export const GridGraph = props => {
         })
       })
 
-      boundRects.current = Object.values(boundsData);
+      const boundRects = Object.values(boundsData);
 
       xRange.push(adjustedWidth);
       xScale.range(xRange);
@@ -430,26 +444,37 @@ export const GridGraph = props => {
       yRange.push(adjustedHeight);
       yScale.range(yRange);
 
-      const exitingAsArray = Object.values(exiting);
+      const hasData = Boolean(gridData.length);
 
-      if (exitingAsArray.length) {
-        setTimeout(exitData, 1050, exiting);
+      if (!hasData) {
+        bgRectState = "exiting";
       }
 
-      gridData.current = gridData.current.concat(exitingAsArray);
+      if (showAnimations) {
+        for (const d of PREVIOUS_GRID_DATA.current.values()) {
+          gridData.push({ ...d, state: "exiting" });
+        }
+      }
+
+      PREVIOUS_GRID_DATA.current = NEXT_GRID_DATA;
 
       setState({
-        xDomain, yDomain, xScale, yScale,
-        adjustedWidth, adjustedHeight, yTickValues
+        xDomain, yDomain, xScale, yScale, hasData, totalsByKeys,
+        adjustedWidth, adjustedHeight, xTickValues, yTickValues,
+        gridData, pointData, spanLines, boundRects, bgRectState
       });
     }
-  }, [Data, keys, width, height, Margin, gridData, minDistanceForTick,
-      colors, indexBy, boundsMap, exitData, pointsMap,
-      keyWidths, nullColor, ShouldComponentUpdate]
+  }, [data, keys, width, height, Margin, showAnimations,
+      colors, indexBy, boundsMap, pointsMap,
+      nullColor, minDistanceForXTick, minDistanceForYTick
+    ]
   );
 
   const {
-    xDomain, xScale, yDomain, yScale, yTickValues,
+    xDomain, xScale, xTickValues,
+    yDomain, yScale, yTickValues,
+    bgRectState, totalsByKeys,
+    gridData, pointData, spanLines, boundRects, hasData,
     ...restOfState
   } = state;
 
@@ -474,11 +499,15 @@ export const GridGraph = props => {
         <g style={ { transform: `translate(${ Margin.left }px, ${ Margin.top }px)` } }
           onMouseLeave={ onMouseLeave }>
 
-          <rect x="0" y="0" fill={ bgColor }
+          <BGRect x="0" y="0" fill={ bgColor }
+            showAnimations={ showAnimations }
+            state={ bgRectState }
             width={ state.adjustedWidth } height={ state.adjustedHeight }/>
 
-          { gridData.current.map(({ id, ...rest }) =>
+          { gridData.map(({ id, ...rest }) =>
               <Horizontal key={ id } { ...rest } index={ id }
+                totalsByKeys={ totalsByKeys }
+                svgHeight={ state.adjustedHeight }
                 onMouseMove={ onMouseMove }
                 showAnimations={ showAnimations }
                 onClick={ onClick }
@@ -487,10 +516,10 @@ export const GridGraph = props => {
             )
           }
 
-          { !gridData.current.length ? null :
+          { !gridData.length ? null :
             <>
               <g style={ { pointerEvents: hoverPoints ? "auto" : "none" } }>
-                { pointData.current.map(point => (
+                { pointData.map(point => (
                     <Point { ...point }
                       onMouseOver={ onMouseOver }
                       showHover={ hoverPoints }
@@ -499,8 +528,8 @@ export const GridGraph = props => {
                 }
               </g>
               <g style={ { pointerEvents: "none" } }>
-                { spanLines.current.map(line => <line { ...line }/>) }
-                { boundRects.current.map(rect => <rect { ...rect }/>) }
+                { spanLines.map(line => <line { ...line }/>) }
+                { boundRects.map(rect => <rect { ...rect }/>) }
               </g>
             </>
           }
@@ -519,16 +548,17 @@ export const GridGraph = props => {
         </g>
 
         <g>
-          { !axisBottom ? null :
+          { !AxisBottomData ? null :
             <AxisBottom { ...restOfState }
               margin={ Margin }
               scale={ xScale }
+              tickValues={ xTickValues }
               domain={ xDomain }
               type="ordinal"
               showAnimations={ showAnimations }
-              { ...axisBottom }/>
+              { ...AxisBottomData }/>
           }
-          { !axisLeft ? null :
+          { !AxisLeftData ? null :
             <AxisLeft { ...restOfState }
               margin={ Margin }
               scale={ yScale }
@@ -536,7 +566,7 @@ export const GridGraph = props => {
               domain={ yDomain }
               type="ordinal"
               showAnimations={ showAnimations }
-              { ...axisLeft }/>
+              { ...AxisLeftData }/>
           }
         </g>
 
@@ -557,6 +587,42 @@ export const GridGraph = props => {
   )
 }
 
+const BGRect = ({ state, showAnimations, ...rest }) => {
+
+  const ref = React.useRef();
+
+  React.useEffect(() => {
+    if (state === "entering") {
+      if (showAnimations) {
+        d3select(ref.current)
+          .attr("opacity", 0.0)
+            .transition().duration(1000)
+              .attr("opacity", 1.0)
+      }
+      else {
+        d3select(ref.current)
+          .attr("opacity", 1.0);
+      }
+    }
+    else if (state === "exiting") {
+      if (showAnimations) {
+        d3select(ref.current)
+          .transition().duration(1000)
+            .attr("opacity", 0.0);
+      }
+      else {
+        d3select(ref.current).attr("opacity", 0.0);
+      }
+    }
+    else {
+      d3select(ref.current).attr("opacity", 1.0)
+    }
+  }, [ref.current, state, showAnimations]);
+  return (
+    <rect ref={ ref } { ...rest }/>
+  )
+}
+
 const Point = ({ showHover, onMouseOver, data, cx, cy, ...rest }) => {
 
   const _onMouseOver = React.useCallback(e => {
@@ -573,71 +639,47 @@ const Point = ({ showHover, onMouseOver, data, cx, cy, ...rest }) => {
 const Grid = React.memo(({ x, width, height, color,
                 state, onMouseMove, onClick,
                 Key, index, value, showAnimations,
-                data, indexData, indexes }) => {
+                data, indexData, totalsByKeys, indexes }) => {
 
   const ref = React.useRef();
 
+  const transitionWrapper = React.useMemo(() => {
+    return showAnimations ?
+      selection => selection.transition().duration(1000) :
+      selection => selection;
+  }, [showAnimations]);
+
   React.useEffect(() => {
     if (state === "entering") {
-      const entering = d3select(ref.current)
-        .attr("width", 0)
-        .attr("height", height)
-        .attr("x", 0)
-        .attr("y", 0)
-        .attr("fill", color);
-
-      if (showAnimations) {
-        entering.transition().duration(1000)
-          .attr("width", width)
-          .attr("x", x);
-      }
-      else {
-        entering
-          .attr("width", width)
-          .attr("x", x);
-      }
+      transitionWrapper(
+          d3select(ref.current)
+            .attr("width", width)
+            .attr("height", 0)
+            .attr("x", x)
+            .attr("y", 0)
+            .attr("fill", color)
+        )
+          .attr("height", height);
+          // .attr("y", y);
     }
     else if (state === "exiting") {
-      const exiting = d3select(ref.current);
-
-      if (showAnimations) {
-        exiting.transition().duration(1000)
-          .attr("width", 0)
-          .attr("height", height)
-          .attr("x", 0)
+      transitionWrapper(d3select(ref.current))
+          .attr("width", width)
+          .attr("height", 0)
           .attr("fill", color);
-      }
-      else {
-        exiting
-          .attr("width", 0)
-          .attr("height", height)
-          .attr("x", 0)
-          .attr("fill", color);
-      }
     }
     else {
-      const updating = d3select(ref.current);
-
-      if (showAnimations) {
-        updating.transition().duration(1000)
-          .attr("width", width)
-          .attr("height", height)
-          .attr("x", x)
-          .attr("fill", color);
-      }
-      else {
-        updating
-          .attr("width", width)
-          .attr("height", height)
-          .attr("x", x)
-          .attr("fill", color);
-      }
+      transitionWrapper(d3select(ref.current))
+        .attr("width", width)
+        .attr("height", height)
+        .attr("x", x)
+        .attr("fill", color);
     }
-  }, [x, width, height, color, state, showAnimations]);
+  }, [x, width, height, color, state, transitionWrapper]);
 
   const _onMouseMove = React.useCallback(e => {
-    onMouseMove(e, { color, key: Key, index, value, data, x, width, indexData, indexes });
-  }, [onMouseMove, color, Key, index, value, data, x, width, indexData, indexes]);
+    onMouseMove(e, { color, key: Key, index, value, data, x, width, indexData, keyTotal: totalsByKeys[Key], indexes });
+  }, [onMouseMove, color, Key, index, value, data, x, width, indexData, indexes, totalsByKeys]);
 
   const _onClick = React.useMemo(() => {
     if (!onClick) return null;
@@ -653,28 +695,47 @@ const Grid = React.memo(({ x, width, height, color,
   )
 })
 
-const Horizontal = React.memo(({ index, grid, top, state, showAnimations,
+const Horizontal = React.memo(({ index, grid, top, state, showAnimations, svgHeight,
                                   onHoverEnter, onHoverLeave, className, ...props }) => {
 
   const ref = React.useRef();
 
   React.useEffect(() => {
     if (state === "entering") {
-      d3select(ref.current)
-        .attr("transform", `translate(0 ${ top })`);
-    }
-    else {
       if (showAnimations) {
         d3select(ref.current)
+          .attr("transform", `translate(0 ${ svgHeight })`)
           .transition().duration(1000)
-          .attr("transform", `translate(0 ${ top })`);
+            .attr("transform", `translate(0 ${ top })`);;
       }
       else {
         d3select(ref.current)
           .attr("transform", `translate(0 ${ top })`);
       }
     }
-  }, [state, top,showAnimations]);
+    else if (state === "exiting") {
+      if (showAnimations) {
+        d3select(ref.current)
+          .transition().duration(1000)
+            .attr("transform", `translate(0 ${ svgHeight })`);
+      }
+      else {
+        d3select(ref.current)
+          .attr("transform", `translate(0 ${ svgHeight })`);
+      }
+    }
+    else {
+      if (showAnimations) {
+        d3select(ref.current)
+          .transition().duration(1000)
+            .attr("transform", `translate(0 ${ top })`);
+      }
+      else {
+        d3select(ref.current)
+          .attr("transform", `translate(0 ${ top })`);
+      }
+    }
+  }, [state, top,showAnimations, svgHeight]);
 
   const onEnter = React.useMemo(() => {
     if (!onHoverEnter) return null;
@@ -715,5 +776,9 @@ export const generateTestGridData = (horizontals = 10, grids = 50) => {
     }
     data.push(hori);
   }
-  return { data, keys };
+  const keyWidths = keys.reduce((a, c) => {
+    a[c] = Math.floor(Math.random() * 30) + 5;
+    return a;
+  }, {})
+  return { data, keys, keyWidths };
 }

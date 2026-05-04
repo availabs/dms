@@ -52,7 +52,7 @@ export const GraphComponent = props => {
     theme
   } = props;
 
-// console.log("GraphComponent::props", props);
+// console.log("GraphComponent::viewData", viewData);
 
   const GraphComponent = React.useMemo(() => {
     return getGraphComponent(activeGraphType.GraphComp);

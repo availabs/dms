@@ -79,10 +79,6 @@ console.log("LineGraphWrapper::dataFromProps", dataFromProps);
 		return Math.max(margin.top + margin.bottom + 100, props.height);
 	}, [props.height, margin.top, margin.bottom,]);
 
-	const shouldComponentUpdate = React.useMemo(() => {
-		return ["width", "height"];
-	}, []);
-
 	return (
 		<div className="bg-inherit">
 			<div className="w-full bg-inherit"
@@ -95,9 +91,9 @@ console.log("LineGraphWrapper::dataFromProps", dataFromProps);
 					colors={ colors }
 					axisBottom={ axisBottom }
 					axisLeft={ axisLeft }
+					axisRight={ axisLeft }
 					margin={ margin }
 					hoverComp={ hoverComp }
-					shouldComponentUpdate={ shouldComponentUpdate }
 					width={ props.width }
 					height={ height }/>
 			</div>

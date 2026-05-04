@@ -73,47 +73,82 @@ export default {
     defaultState,
     controls: {
         columns: [
-            {type: 'select', label: 'Fn', key: 'fn', disabled: ({attribute}) => !attribute.yAxis || !attribute.show,
+            // { type: 'toggle',
+            //     label: 'Group', key: 'group'
+            // },
+            { type: 'select',
+                label: 'Fn', key: 'fn',
                 options: [
-                    {label: 'list', value: 'list'}, {label: 'sum', value: 'sum'}, {label: 'count', value: 'count'}, {label: 'avg', value: 'avg'}, {label: 'fn exempt', value: 'exempt'}
-                ]},
-            {type: 'select', label: 'Exclude N/A', key: 'excludeNA',
+                    { label: 'list', value: 'list' },
+                    { label: 'sum', value: 'sum' },
+                    { label: 'count', value: 'count' },
+                    { label: 'avg', value: 'avg' },
+                    { label: 'fn exempt', value: 'exempt' }
+                ]
+            },
+            { type: "select",
+                key: "target",
+                label: "Target",
                 options: [
-                    {label: 'include n/a', value: false}, {label: 'exclude n/a', value: true}
-                ]},
-            {type: 'toggle', label: 'X Axis', key: 'xAxis', onChange: ({key, value, attribute, state, columnIdx}) => {
-                    if(attribute.yAxis || attribute.categorize) return;
-                    state.columns.forEach(column => {
-                        column.xAxis = value ? column.name === attribute.name : value;
-                        column.group = column.name === attribute.name ? value : column.categorize;
-                        column.show = column.name === attribute.name ? value : column.yAxis || column.categorize;
+                    { label: "X axis", value: "xAxis" },
+                    { label: "Y axis", value: "yAxis" }
+                ],
+                onChange: ({ key, state, value, columnIdx, attribute }) => {
+                    state.columns.forEach((column, i) => {
+                        if (i === columnIdx) {
+                            column.xAxis = value === "xAxis";
+                            column.group = value === "xAxis";
+                            column.yAxis = value === "yAxis";
+                            if (value === "yAxis" && !column.fn) {
+                                column.fn = (column.defaultFn || "sum").toLowerCase();
+                            }
+                        }
                     })
-                }},
-            {type: 'toggle', label: 'Y Axis', key: 'yAxis', onChange: ({key, value, attribute, state, columnIdx}) => {
-                    if(attribute.xAxis || attribute.categorize) return;
-                    const defaultFn = state.columns[columnIdx].defaultFn?.toLowerCase();
-                    state.columns[columnIdx].fn = value ? (['sum', 'count'].includes(defaultFn) ? defaultFn : 'count') : ''
-                    state.columns[columnIdx].show = value;
-                }},
-            {type: 'toggle', label: 'Categorize', key: 'categorize', onChange: ({key, value, attribute, state, columnIdx}) => {
-                    if(attribute.xAxis || attribute.yAxis) return;
-                    state.columns.forEach(column => {
-                        column.categorize = value ? column.name === attribute.name : value;
-                        column.group = column.name === attribute.name ? value : column.xAxis;
-                        column.show = column.name === attribute.name ? value : column.yAxis || column.xAxis;
-                    })
-                }},
-            {type: 'select', label: 'Sort', key: 'sort',
-                options: [
-                    {label: 'Not Sorted', value: ''}, {label: 'A->Z', value: 'asc nulls last'}, {label: 'Z->A', value: 'desc nulls last'}
-                ]},
-            {type: 'select', label: 'Format', key: 'formatFn',
-                options: [
-                    {label: 'No Format Applied', value: ' '},
-                    {label: 'Comma Seperated',   value: 'comma'},
-                    {label: 'Abbreviated',       value: 'abbreviate'},
-                ]},
+                }
+            }
         ],
+        // columns: [
+        //     {type: 'select', label: 'Fn', key: 'fn', disabled: ({attribute}) => !attribute.yAxis || !attribute.show,
+        //         options: [
+        //             {label: 'list', value: 'list'}, {label: 'sum', value: 'sum'}, {label: 'count', value: 'count'}, {label: 'avg', value: 'avg'}, {label: 'fn exempt', value: 'exempt'}
+        //         ]},
+        //     {type: 'select', label: 'Exclude N/A', key: 'excludeNA',
+        //         options: [
+        //             {label: 'include n/a', value: false}, {label: 'exclude n/a', value: true}
+        //         ]},
+        //     {type: 'toggle', label: 'X Axis', key: 'xAxis', onChange: ({key, value, attribute, state, columnIdx}) => {
+        //             if(attribute.yAxis || attribute.categorize) return;
+        //             state.columns.forEach(column => {
+        //                 column.xAxis = value ? column.name === attribute.name : value;
+        //                 column.group = column.name === attribute.name ? value : column.categorize;
+        //                 column.show = column.name === attribute.name ? value : column.yAxis || column.categorize;
+        //             })
+        //         }},
+        //     {type: 'toggle', label: 'Y Axis', key: 'yAxis', onChange: ({key, value, attribute, state, columnIdx}) => {
+        //             if(attribute.xAxis || attribute.categorize) return;
+        //             const defaultFn = state.columns[columnIdx].defaultFn?.toLowerCase();
+        //             state.columns[columnIdx].fn = value ? (['sum', 'count'].includes(defaultFn) ? defaultFn : 'count') : ''
+        //             state.columns[columnIdx].show = value;
+        //         }},
+        //     {type: 'toggle', label: 'Categorize', key: 'categorize', onChange: ({key, value, attribute, state, columnIdx}) => {
+        //             if(attribute.xAxis || attribute.yAxis) return;
+        //             state.columns.forEach(column => {
+        //                 column.categorize = value ? column.name === attribute.name : value;
+        //                 column.group = column.name === attribute.name ? value : column.xAxis;
+        //                 column.show = column.name === attribute.name ? value : column.yAxis || column.xAxis;
+        //             })
+        //         }},
+        //     {type: 'select', label: 'Sort', key: 'sort',
+        //         options: [
+        //             {label: 'Not Sorted', value: ''}, {label: 'A->Z', value: 'asc nulls last'}, {label: 'Z->A', value: 'desc nulls last'}
+        //         ]},
+        //     {type: 'select', label: 'Format', key: 'formatFn',
+        //         options: [
+        //             {label: 'No Format Applied', value: ' '},
+        //             {label: 'Comma Seperated',   value: 'comma'},
+        //             {label: 'Abbreviated',       value: 'abbreviate'},
+        //         ]},
+        // ],
         xAxis: {
             name: 'X Axis',
             items: [
