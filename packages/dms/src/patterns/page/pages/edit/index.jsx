@@ -122,6 +122,24 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
 		initNavigateUsingSearchParams({pageState, search, navigate, baseUrl, item})
 	}, [])
 
+	const setActionParam = React.useCallback((key, value) => {
+		setPageState(draft => {
+			const existing = draft.filters.find(f => f.searchKey === key && f.type === 'action');
+			if (existing) {
+				existing.values = [value];
+			} else {
+				draft.filters.push({ searchKey: key, values: [value], useSearchParams: false, type: 'action' });
+			}
+		});
+	}, [setPageState]);
+
+	const clearActionParam = React.useCallback((key) => {
+		setPageState(draft => {
+			const idx = draft.filters.findIndex(f => f.searchKey === key && f.type === 'action');
+			if (idx !== -1) draft.filters.splice(idx, 1);
+		});
+	}, [setPageState]);
+
 	const updatePageStateFilters = (filters, removeFilter={}) => {
 		const searchParamFilters = pageState.filters.filter(f => f.useSearchParams && !removeFilter[f.searchKey]).map(f => filters.find(updatedFilter => updatedFilter.searchKey === f.searchKey) || f)
 		const nonSearchParamFilters = filters
@@ -189,6 +207,8 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
 			pageState,
 			setPageState,
 			updatePageStateFilters,
+			setActionParam,
+			clearActionParam,
 			dataItems,
 			apiLoad, apiUpdate,
 			updateAttribute,

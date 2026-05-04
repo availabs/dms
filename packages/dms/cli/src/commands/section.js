@@ -1,27 +1,38 @@
 /**
- * Section commands
+ * Section commands.
  *
- * List, show, dump, create, update, and delete sections within pages.
+ * Sections (page components) are typed `{patternInstance}|component`.
+ * Today's data uses `component`; the older `cms-section` form is gone
+ * with the type-system refactor.
  */
 
 import { merge, cloneDeep } from 'lodash-es';
 import {
-  makeClient, fetchById, fetchByIds,
-  resolveIdOrSlug, getPageType, parseData, parseSetPairs, readFileOrJson,
+  makeClient, fetchById, fetchByIds, resolveIdOrSlug,
+  resolvePattern, findPatternByKind,
+  parseData, parseSetPairs, readFileOrJson,
 } from '../utils/data.js';
+import { pageTypeFor, componentTypeFor } from '../utils/types.js';
 import { output, outputError } from '../utils/output.js';
 
+async function resolvePagePattern(falcor, config, patternFlag) {
+  if (patternFlag) {
+    return await resolvePattern(falcor, config, patternFlag);
+  }
+  return await findPatternByKind(falcor, config, 'page');
+}
+
 /**
- * List sections for a page
+ * List sections for a page.
  */
 export async function list(pageIdOrSlug, config, options = {}) {
   try {
     const falcor = makeClient(config);
-    const docType = await getPageType(falcor, config, options.pattern);
-    const pageType = `${config.app}+${docType}`;
+    const pattern = await resolvePagePattern(falcor, config, options.pattern);
+    const pageAppType = `${config.app}+${pageTypeFor(pattern)}`;
 
-    const pageId = await resolveIdOrSlug(falcor, pageType, pageIdOrSlug);
-    const page = await fetchById(falcor, pageId, ['id', 'data']);
+    const pageId = await resolveIdOrSlug(falcor, pageAppType, pageIdOrSlug);
+    const page = await fetchById(falcor, config.app, pageId, ['id', 'data']);
 
     if (!page) {
       outputError(`Page not found: ${pageIdOrSlug}`);
@@ -30,13 +41,12 @@ export async function list(pageIdOrSlug, config, options = {}) {
 
     const d = parseData(page.data);
 
-    // Use draft_sections or sections based on --draft flag
     const sectionRefs = options.draft
       ? (d.draft_sections || [])
       : (d.sections || d.draft_sections || []);
 
     const sectionIds = sectionRefs
-      .map(s => (typeof s === 'object' ? s.id : s))
+      .map((s) => (typeof s === 'object' ? s.id : s))
       .filter(Boolean);
 
     if (sectionIds.length === 0) {
@@ -44,15 +54,20 @@ export async function list(pageIdOrSlug, config, options = {}) {
       return;
     }
 
-    const sections = await fetchByIds(falcor, sectionIds, ['id', 'app', 'type', 'data']);
+    const sections = await fetchByIds(falcor, config.app, sectionIds, [
+      'id', 'app', 'type', 'data',
+    ]);
 
-    const result = sections.map(s => {
+    const result = sections.map((s) => {
       const sd = parseData(s.data);
       return {
         id: s.id,
-        title: sd.title || '(untitled)',
-        level: sd.level || null,
-        'element-type': sd['element-type'] || sd.element_type || sd.element?.['element-type'] || '?',
+        type: s.type,
+        data: {
+          title: sd.title || '(untitled)',
+          level: sd.level || null,
+          'element-type': sd['element-type'] || sd.element?.['element-type'] || '?',
+        },
       };
     });
 
@@ -67,13 +82,14 @@ export async function list(pageIdOrSlug, config, options = {}) {
 }
 
 /**
- * Show section details
+ * Show section details.
  */
 export async function show(sectionId, config, options = {}) {
   try {
     const falcor = makeClient(config);
-
-    const section = await fetchById(falcor, sectionId, ['id', 'app', 'type', 'data']);
+    const section = await fetchById(falcor, config.app, sectionId, [
+      'id', 'app', 'type', 'data',
+    ]);
 
     if (!section) {
       outputError(`Section not found: ${sectionId}`);
@@ -82,28 +98,28 @@ export async function show(sectionId, config, options = {}) {
 
     const d = parseData(section.data);
 
-    const result = {
+    output({
       id: section.id,
+      type: section.type,
       title: d.title || '(untitled)',
       level: d.level || null,
-      'element-type': d['element-type'] || d.element_type || d.element?.['element-type'] || '?',
+      'element-type': d['element-type'] || d.element?.['element-type'] || '?',
       tags: d.tags || [],
-    };
-
-    output(result, options);
+    }, options);
   } catch (error) {
     outputError(error);
   }
 }
 
 /**
- * Dump full section data
+ * Dump full section data.
  */
 export async function dump(sectionId, config, options = {}) {
   try {
     const falcor = makeClient(config);
-
-    const section = await fetchById(falcor, sectionId, ['id', 'app', 'type', 'data', 'created_at', 'updated_at']);
+    const section = await fetchById(falcor, config.app, sectionId, [
+      'id', 'app', 'type', 'data', 'created_at', 'updated_at',
+    ]);
 
     if (!section) {
       outputError(`Section not found: ${sectionId}`);
@@ -111,7 +127,6 @@ export async function dump(sectionId, config, options = {}) {
     }
 
     section.data = parseData(section.data);
-
     output(section, options);
   } catch (error) {
     outputError(error);
@@ -119,19 +134,18 @@ export async function dump(sectionId, config, options = {}) {
 }
 
 /**
- * Create a new section and attach it to a page
+ * Create a section and attach it to a page's `draft_sections`.
  */
 export async function create(pageIdOrSlug, config, options = {}) {
   try {
     const falcor = makeClient(config);
-    const docType = await getPageType(falcor, config, options.pattern);
-    const pageType = `${config.app}+${docType}`;
-    const sectionType = `${docType}|cms-section`;
+    const pattern = await resolvePagePattern(falcor, config, options.pattern);
+    const pageAppType = `${config.app}+${pageTypeFor(pattern)}`;
+    const sectionType = componentTypeFor(pattern);
 
-    const pageId = await resolveIdOrSlug(falcor, pageType, pageIdOrSlug);
+    const pageId = await resolveIdOrSlug(falcor, pageAppType, pageIdOrSlug);
 
     let data = {};
-
     if (options.data) {
       try {
         data = JSON.parse(options.data);
@@ -145,15 +159,15 @@ export async function create(pageIdOrSlug, config, options = {}) {
     if (options.title) data.title = options.title;
     if (options.level) data.level = options.level;
 
-    // Create the section
     const result = await falcor.call(
       ['dms', 'data', 'create'],
       [config.app, sectionType, data]
     );
 
-    const byId = result?.json?.dms?.data?.byId || {};
-    const createdId = Object.keys(byId)[0];
-
+    const byApp = result?.json?.dms?.data?.[config.app]?.byId
+      || result?.json?.dms?.data?.byId
+      || {};
+    const createdId = Object.keys(byApp)[0];
     if (!createdId) {
       outputError('Failed to create section');
       return;
@@ -161,17 +175,17 @@ export async function create(pageIdOrSlug, config, options = {}) {
 
     const sectionId = parseInt(createdId, 10);
 
-    // Attach to page's draft_sections
-    const page = await fetchById(falcor, pageId, ['id', 'data']);
+    // Attach to the page's draft_sections.
+    const page = await fetchById(falcor, config.app, pageId, ['id', 'data']);
     const pageData = parseData(page.data);
     const draftSections = pageData.draft_sections || [];
 
     draftSections.push({
-      ref: `dms.data.byId.${sectionId}`,
-      id: sectionId,
+      id: String(sectionId),
+      ref: `${config.app}+${sectionType}`,
     });
 
-    await falcor.call(['dms', 'data', 'edit'], [pageId, {
+    await falcor.call(['dms', 'data', 'edit'], [config.app, pageId, {
       draft_sections: draftSections,
       has_changes: true,
     }]);
@@ -179,6 +193,7 @@ export async function create(pageIdOrSlug, config, options = {}) {
     output({
       id: sectionId,
       page_id: pageId,
+      type: sectionType,
       message: 'Section created and attached to page',
     }, options);
   } catch (error) {
@@ -187,14 +202,13 @@ export async function create(pageIdOrSlug, config, options = {}) {
 }
 
 /**
- * Update a section
+ * Update a section.
  */
 export async function update(sectionId, config, options = {}) {
   try {
     const falcor = makeClient(config);
 
     let data = {};
-
     if (options.data) {
       try {
         data = await readFileOrJson(options.data);
@@ -204,7 +218,6 @@ export async function update(sectionId, config, options = {}) {
       }
     }
 
-    // Handle --set pairs
     const setPairs = parseSetPairs(options.set);
     data = { ...data, ...setPairs };
 
@@ -213,19 +226,15 @@ export async function update(sectionId, config, options = {}) {
       return;
     }
 
-    // When --set is used, do read-modify-write: fetch current data, deep-merge
-    // client-side, send complete result. This avoids the server's shallow merge
-    // which replaces entire nested objects when you set a deep path.
-    // When only --data is used, send as-is (for full replacements/restores).
     const numId = parseInt(sectionId, 10);
 
     if (options.set) {
-      const current = await fetchById(falcor, numId, ['id', 'data']);
+      const current = await fetchById(falcor, config.app, numId, ['id', 'data']);
       const currentData = current ? parseData(current.data) : {};
       data = merge(cloneDeep(currentData), data);
     }
 
-    await falcor.call(['dms', 'data', 'edit'], [numId, data]);
+    await falcor.call(['dms', 'data', 'edit'], [config.app, numId, data]);
 
     output({ id: numId, updated: data, message: 'Section updated' }, options);
   } catch (error) {
@@ -234,40 +243,39 @@ export async function update(sectionId, config, options = {}) {
 }
 
 /**
- * Delete a section
+ * Delete a section.
+ *
+ * If `--page <id|slug>` is given, also remove the section ref from
+ * the page's draft_sections.
  */
 export async function remove(sectionId, config, options = {}) {
   try {
     const falcor = makeClient(config);
     const numId = parseInt(sectionId, 10);
 
-    // If --page specified, also remove ref from page's draft_sections
     if (options.page) {
-      const docType = await getPageType(falcor, config, options.pattern);
-      const pageType = `${config.app}+${docType}`;
-      const sectionType = `${docType}|cms-section`;
+      const pattern = await resolvePagePattern(falcor, config, options.pattern);
+      const pageAppType = `${config.app}+${pageTypeFor(pattern)}`;
+      const sectionType = componentTypeFor(pattern);
 
-      const pageId = await resolveIdOrSlug(falcor, pageType, options.page);
-      const page = await fetchById(falcor, pageId, ['id', 'data']);
+      const pageId = await resolveIdOrSlug(falcor, pageAppType, options.page);
+      const page = await fetchById(falcor, config.app, pageId, ['id', 'data']);
       const pageData = parseData(page.data);
 
-      // Remove from draft_sections
-      const draftSections = (pageData.draft_sections || []).filter(s => {
+      const draftSections = (pageData.draft_sections || []).filter((s) => {
         const sid = typeof s === 'object' ? s.id : s;
-        return sid !== numId;
+        return parseInt(sid, 10) !== numId;
       });
 
-      await falcor.call(['dms', 'data', 'edit'], [pageId, {
+      await falcor.call(['dms', 'data', 'edit'], [config.app, pageId, {
         draft_sections: draftSections,
         has_changes: true,
       }]);
 
-      // Delete the section
       await falcor.call(['dms', 'data', 'delete'], [config.app, sectionType, numId]);
     } else {
-      // Delete without page context — need app+type info
-      // We'll try to get it from the section itself
-      const section = await fetchById(falcor, numId, ['id', 'app', 'type']);
+      // No page context — read the section's own type/app to issue delete.
+      const section = await fetchById(falcor, config.app, numId, ['id', 'app', 'type']);
       if (!section) {
         outputError(`Section not found: ${sectionId}`);
         return;
