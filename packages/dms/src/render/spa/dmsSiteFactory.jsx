@@ -83,7 +83,6 @@ export function DmsSite (config) {
         return c
     }), [routes]);
 
-    console.log('routesWithErrorBoundary', routesWithErrorBoundary, routesWithErrorBoundary.length)
 
     const PageNotFoundRoute = React.useMemo(() => ({
         path: "/*",

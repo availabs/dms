@@ -674,7 +674,10 @@ export default function Card ({
     newItem, setNewItem, formatFunctions, activeStyle
 }) {
     const { theme: themeFromContext = {dataCard: {}}} = React.useContext(ThemeContext) || {};
-    const theme = getComponentTheme(themeFromContext,'dataCard', activeStyle)
+    const dataCardStyle = getComponentTheme(themeFromContext,'dataCard', activeStyle)
+    const textSettingsStyle = getComponentTheme(themeFromContext, 'textSettings', 0)
+    // textSettings provides typography defaults; dataCard wins on key conflicts.
+    const theme = { ...textSettingsStyle, ...dataCardStyle }
 
     const [draggedCol, setDraggedCol] = useState(null);
 
