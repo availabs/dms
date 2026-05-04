@@ -1,3 +1,6 @@
+// Each entry in ComponentRegistry may optionally export a `componentFunctions` key with
+// `providers` and `subscribers` arrays. Providers publish page action params on UI events;
+// subscribers read them. See component-actions.md in the sections/ directory for the full spec.
 //
 // //import MNYHeader from './mnyHeader';
 //

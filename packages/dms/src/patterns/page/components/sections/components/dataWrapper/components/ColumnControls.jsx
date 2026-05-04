@@ -330,8 +330,11 @@ export default function ColumnControls({context, cms_context}) {
                                                            onChange={e => updateColumns(attribute, 'customName', e.target.value)}
                                                     />
                                                     {
-                                                        controls.columns.map((control, i) => {
+                                                        controls.columns
+                                                        .filter(control => typeof control.displayCdn !== 'function' || control.displayCdn({ display, attribute }))
+                                                        .map((control, i) => {
                                                             const isDisabled = typeof control.disabled === 'function' ? control.disabled({attribute}) : control.disabled;
+                                                            const filteredOptions = control.type === 'select' ? (control.options || []).filter(opt => typeof opt.displayCdn !== 'function' || opt.displayCdn({ display, attribute })) : null;
                                                             return (
                                                                 <div key={`${control.key}-${i}`}>
                                                                     {
@@ -344,7 +347,7 @@ export default function ColumnControls({context, cms_context}) {
                                                                                 onChange={e => updateColumns(attribute, control.key, e.target.value, control.onChange)}
                                                                             >
                                                                                 {
-                                                                                    control.options.map(({label, value}) => <option
+                                                                                    filteredOptions.map(({label, value}) => <option
                                                                                         key={value} value={value}>{label}</option>)
                                                                                 }
                                                                             </select> :

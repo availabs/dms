@@ -4,8 +4,15 @@
  */
 
 const { getDb } = require('../../db');
+const { nameToSlug } = require('../../db/type-utils');
 
 const DEFAULT_SCHEMA = 'gis_datasets';
+
+// Postgres caps identifiers at 63 chars (NAMEDATALEN-1). Reserve room for the
+// `s{source_id}_v{view_id}_` prefix; with worst-case 7-digit IDs that's
+// `s9999999_v9999999_` = 18 chars. Cap the source-name slug at 40 to keep
+// us comfortably under 63.
+const MAX_NAME_SLUG_LEN = 40;
 
 /**
  * Create a new source record.
@@ -60,6 +67,44 @@ async function createDamaSource(values, pgEnv) {
 }
 
 /**
+ * Look up the source name so the generated table name can include it.
+ * Returns null if the source row doesn't exist or has no name.
+ */
+async function fetchSourceName(db, source_id) {
+  const sourcesTable = db.type === 'postgres' ? 'data_manager.sources' : 'sources';
+  const { rows } = await db.query(
+    `SELECT name FROM ${sourcesTable} WHERE source_id = $1`,
+    [source_id]
+  );
+  return rows[0]?.name || null;
+}
+
+/**
+ * Build the per-view physical table name.
+ *
+ * Convention: `s{source_id}_v{view_id}_{source_name_slug}` — the slug
+ * makes per-view tables human-readable when poking around the DB,
+ * which is the predominant pattern in older AVAIL datasets. Falls back
+ * to `s{source_id}_v{view_id}` when the source has no usable name.
+ *
+ * Slug is sanitized via `nameToSlug` and length-capped at
+ * MAX_NAME_SLUG_LEN to keep the full identifier under Postgres's 63-char
+ * limit. If the slug ends up empty after sanitization, omit the suffix.
+ */
+function buildViewTableName(source_id, view_id, source_name) {
+  const base = `s${source_id}_v${view_id}`;
+  if (!source_name) return base;
+  // nameToSlug strips non-alnum but keeps underscores; trim leading/trailing
+  // underscores AND any all-underscore residue ('!!!---' → '___' → '') so a
+  // pathological name doesn't produce ugly trailing underscores in the table.
+  const slug = nameToSlug(source_name)
+    .replace(/^_+|_+$/g, '')
+    .slice(0, MAX_NAME_SLUG_LEN)
+    .replace(/_+$/, ''); // re-trim trailing underscores after slice
+  return slug ? `${base}_${slug}` : base;
+}
+
+/**
  * Create a new view record with auto-generated table name.
  * Table goes in the gis_datasets schema by default.
  * @param {Object} values - { source_id, user_id, etl_context_id, metadata, view_dependencies }
@@ -84,8 +129,17 @@ async function createDamaView(values, pgEnv) {
 
   const view = rows[0];
 
-  // Generate table name and set it
-  const tableName = `s${view.source_id}_v${view.view_id}`;
+  // Look up the source name so we can include a slug in the table name —
+  // standard AVAIL convention for human-readable per-view tables. Best-effort:
+  // if the lookup fails for any reason we fall back to the legacy short shape.
+  let sourceName = null;
+  try {
+    sourceName = await fetchSourceName(db, view.source_id);
+  } catch (err) {
+    console.warn(`[metadata] Could not fetch source name for source_id=${view.source_id}: ${err.message}`);
+  }
+
+  const tableName = buildViewTableName(view.source_id, view.view_id, sourceName);
 
   await db.query(`
     UPDATE ${table}
@@ -109,4 +163,10 @@ async function ensureSchema(db, schemaName) {
   }
 }
 
-module.exports = { createDamaSource, createDamaView, ensureSchema, DEFAULT_SCHEMA };
+module.exports = {
+  createDamaSource,
+  createDamaView,
+  ensureSchema,
+  buildViewTableName,
+  DEFAULT_SCHEMA,
+};

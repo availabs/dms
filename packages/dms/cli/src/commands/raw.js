@@ -1,135 +1,70 @@
 /**
- * Raw data_items access commands
+ * Raw data_items access commands.
  *
- * Low-level CRUD operations on the data_items table.
- * These work with any app+type combination.
+ * Low-level CRUD against any `{app}+{type}` pair. All `byId` paths are
+ * scoped to `config.app` because dms-server runs in per-app split mode
+ * (each app has its own table — `dms_{app}.data_items` on Postgres).
  */
 
 import { merge, cloneDeep } from 'lodash-es';
-import { createFalcorClient } from '../client.js';
-import { readFileOrJson, fetchById, parseData } from '../utils/data.js';
+import {
+  makeClient, fetchById, fetchAll, parseData, parseSetPairs, readFileOrJson,
+} from '../utils/data.js';
 import { output, outputError } from '../utils/output.js';
 
+const ATTRS = ['id', 'app', 'type', 'data', 'created_at', 'updated_at'];
+
 /**
- * Get an item by ID
- *
- * @param {string} id - Item ID
- * @param {Object} config - CLI configuration
- * @param {Object} options - Command options
+ * Get an item by ID (within the current `config.app`).
  */
 export async function get(id, config, options = {}) {
   try {
-    const falcor = createFalcorClient(config.host, config.authToken);
+    if (!config.app) {
+      outputError('raw get requires --app (or DMS_APP / .dmsrc)');
+      return;
+    }
 
+    const falcor = makeClient(config);
     const attrs = options.attrs
-      ? options.attrs.split(',').map(a => a.trim())
-      : ['id', 'app', 'type', 'data', 'created_at', 'updated_at'];
+      ? options.attrs.split(',').map((a) => a.trim())
+      : ATTRS;
 
-    const path = ['dms', 'data', 'byId', parseInt(id, 10), attrs];
-
-    await falcor.get(path);
-    const cache = falcor.getCache();
-
-    const item = cache?.dms?.data?.byId?.[id];
-
-    if (!item || item.$type === 'atom' && item.value === null) {
+    const item = await fetchById(falcor, config.app, id, attrs);
+    if (!item) {
       outputError(`Item not found: ${id}`);
       return;
     }
 
-    // Extract values from cache format
-    const result = {};
-    for (const attr of attrs) {
-      const val = item[attr];
-      result[attr] = val?.$type === 'atom' ? val.value : val;
-    }
-
-    output(result, options);
+    output(item, options);
   } catch (error) {
     outputError(error);
   }
 }
 
 /**
- * List items by app+type
+ * List items by `{app}+{type}` key.
  *
- * @param {string} appType - App+type string (e.g., "avail-dms+docs-page")
- * @param {Object} config - CLI configuration
- * @param {Object} options - Command options
+ * Accepts either the bare type (`nhomb:site`, `datasets|page`) — in
+ * which case `config.app` is prepended — or the full `app+type` form.
  */
-export async function list(appType, config, options = {}) {
+export async function list(appOrType, config, options = {}) {
   try {
-    const falcor = createFalcorClient(config.host, config.authToken);
+    const appType = appOrType.includes('+') ? appOrType : `${config.app}+${appOrType}`;
 
+    const falcor = makeClient(config);
     const limit = parseInt(options.limit, 10) || 20;
     const offset = parseInt(options.offset, 10) || 0;
 
-    // First get the length
-    const lengthPath = ['dms', 'data', appType, 'length'];
-    await falcor.get(lengthPath);
-    const cache = falcor.getCache();
-
-    const lengthVal = cache?.dms?.data?.[appType]?.length;
-    const length = lengthVal?.$type === 'atom' ? lengthVal.value : (lengthVal || 0);
-
-    if (length === 0) {
-      output([], { ...options, mode: 'list' });
-      return;
-    }
-
-    // Calculate range
-    const from = offset;
-    const to = Math.min(offset + limit - 1, length - 1);
-
-    if (from > to) {
-      output([], { ...options, mode: 'list' });
-      return;
-    }
-
-    // Fetch items by index
-    const attrs = ['id', 'app', 'type', 'data'];
-    const indexPath = ['dms', 'data', appType, 'byIndex', { from, to }, attrs];
-
-    await falcor.get(indexPath);
-    const updatedCache = falcor.getCache();
-
-    // Extract items from cache
-    const items = [];
-    const byIndex = updatedCache?.dms?.data?.[appType]?.byIndex || {};
-
-    for (let i = from; i <= to; i++) {
-      const ref = byIndex[i];
-      if (ref && ref.$type === 'ref') {
-        const itemId = ref.value[ref.value.length - 1];
-        // Derive app from ref: ["dms", "data", app, "byId", id] (5 elements) vs legacy (4 elements)
-        const refApp = ref.value.length === 5 ? ref.value[2] : null;
-        const item = refApp
-          ? updatedCache?.dms?.data?.[refApp]?.byId?.[itemId]
-          : updatedCache?.dms?.data?.byId?.[itemId];
-
-        if (item) {
-          const result = {};
-          for (const attr of attrs) {
-            const val = item[attr];
-            result[attr] = val?.$type === 'atom' ? val.value : val;
-          }
-          items.push(result);
-        }
-      }
-    }
-
-    // Add metadata
-    const result = {
-      items,
-      total: length,
-      offset,
-      limit,
-    };
+    const { items, total } = await fetchAll(
+      falcor, appType,
+      ['id', 'app', 'type', 'data'],
+      { limit, offset }
+    );
 
     if (options.format === 'summary') {
       output(items, { ...options, mode: 'list' });
     } else {
-      output(result, options);
+      output({ items, total, offset, limit }, options);
     }
   } catch (error) {
     outputError(error);
@@ -137,19 +72,13 @@ export async function list(appType, config, options = {}) {
 }
 
 /**
- * Create a new item
- *
- * @param {string} app - App namespace
- * @param {string} type - Type identifier
- * @param {Object} config - CLI configuration
- * @param {Object} options - Command options
+ * Create a new item.
  */
 export async function create(app, type, config, options = {}) {
   try {
-    const falcor = createFalcorClient(config.host, config.authToken);
+    const falcor = makeClient(config);
 
     let data = {};
-
     if (options.data) {
       try {
         data = JSON.parse(options.data);
@@ -161,9 +90,11 @@ export async function create(app, type, config, options = {}) {
 
     const result = await falcor.call(['dms', 'data', 'create'], [app, type, data]);
 
-    // Extract the created item ID from the response
-    const byId = result?.json?.dms?.data?.byId || {};
-    const createdId = Object.keys(byId)[0];
+    // Modern create response references the new row under `dms.data.{app}.byId`.
+    const byApp = result?.json?.dms?.data?.[app]?.byId
+      || result?.json?.dms?.data?.byId
+      || {};
+    const createdId = Object.keys(byApp)[0];
 
     if (createdId) {
       output({ id: parseInt(createdId, 10), app, type, data, message: 'Item created' }, options);
@@ -176,19 +107,19 @@ export async function create(app, type, config, options = {}) {
 }
 
 /**
- * Update an item
- *
- * @param {string} id - Item ID
- * @param {Object} config - CLI configuration
- * @param {Object} options - Command options
+ * Update an item. `--set k=v` does a read-modify-write deep merge;
+ * `--data` sends the JSON as-is for full replacement.
  */
 export async function update(id, config, options = {}) {
   try {
-    const falcor = createFalcorClient(config.host, config.authToken);
+    if (!config.app) {
+      outputError('raw update requires --app (or DMS_APP / .dmsrc)');
+      return;
+    }
+
+    const falcor = makeClient(config);
 
     let data = {};
-
-    // Handle --data option (full JSON, file path, or stdin)
     if (options.data) {
       try {
         data = await readFileOrJson(options.data);
@@ -198,34 +129,9 @@ export async function update(id, config, options = {}) {
       }
     }
 
-    // Handle --set option (key=value pairs)
     if (options.set) {
-      const pairs = Array.isArray(options.set) ? options.set : [options.set];
-      for (const pair of pairs) {
-        const eqIndex = pair.indexOf('=');
-        if (eqIndex === -1) {
-          outputError(`Invalid --set format: ${pair}. Use key=value`);
-          return;
-        }
-        const key = pair.slice(0, eqIndex);
-        let value = pair.slice(eqIndex + 1);
-
-        // Try to parse as JSON, otherwise treat as string
-        try {
-          value = JSON.parse(value);
-        } catch (e) {
-          // Keep as string
-        }
-
-        // Support nested keys with dot notation
-        const keys = key.split('.');
-        let current = data;
-        for (let i = 0; i < keys.length - 1; i++) {
-          if (!current[keys[i]]) current[keys[i]] = {};
-          current = current[keys[i]];
-        }
-        current[keys[keys.length - 1]] = value;
-      }
+      const setPairs = parseSetPairs(options.set);
+      data = { ...data, ...setPairs };
     }
 
     if (Object.keys(data).length === 0) {
@@ -235,39 +141,27 @@ export async function update(id, config, options = {}) {
 
     const numId = parseInt(id, 10);
 
-    // When --set is used, do read-modify-write: fetch current data, deep-merge
-    // client-side, send complete result. This avoids the server's shallow merge
-    // which replaces entire nested objects when you set a deep path.
-    // When only --data is used, send as-is (for full replacements/restores).
     if (options.set) {
-      const current = await fetchById(falcor, numId, ['id', 'data']);
+      const current = await fetchById(falcor, config.app, numId, ['id', 'data']);
       const currentData = current ? parseData(current.data) : {};
       data = merge(cloneDeep(currentData), data);
     }
 
-    await falcor.call(['dms', 'data', 'edit'], [numId, data]);
+    await falcor.call(['dms', 'data', 'edit'], [config.app, numId, data]);
 
-    output({ id: numId, updated: options.set ? Object.fromEntries(Object.entries(data).filter(([k]) => !k.startsWith('_'))) : data, message: 'Item updated' }, options);
+    output({ id: numId, updated: data, message: 'Item updated' }, options);
   } catch (error) {
     outputError(error);
   }
 }
 
 /**
- * Delete an item
- *
- * @param {string} app - App namespace
- * @param {string} type - Type identifier
- * @param {string} id - Item ID
- * @param {Object} config - CLI configuration
- * @param {Object} options - Command options
+ * Delete an item.
  */
 export async function remove(app, type, id, config, options = {}) {
   try {
-    const falcor = createFalcorClient(config.host, config.authToken);
-
+    const falcor = makeClient(config);
     await falcor.call(['dms', 'data', 'delete'], [app, type, parseInt(id, 10)]);
-
     output({ id: parseInt(id, 10), app, type, message: 'Item deleted' }, options);
   } catch (error) {
     outputError(error);
