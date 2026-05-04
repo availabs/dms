@@ -7,7 +7,6 @@ import { useParams, useNavigate } from 'react-router'
 import {get, isEqual} from 'lodash-es'
 import { Modal } from '../'
 import { LOCAL_STORAGE_KEY_BASE } from '../../../../'
-import { getSymbologyClickFilterValidationErrors } from '../../../../stateUtils'
 //import { diff, addedDiff, deletedDiff, updatedDiff, detailedDiff } from 'deep-object-diff';
 export function SaveChangesMenu({ button, className}) {
   const [showSaveChanges, setShowSaveChanges] = useState(false)
@@ -164,22 +163,12 @@ function SaveChangesModal ({ open, setOpen })  {
     ) || state?.name !== dbSymbology?.name;
   }, [state, dbSymbology]);
 
-  const clickFilterValidationErrors = useMemo(() => {
-    return getSymbologyClickFilterValidationErrors(state?.symbology);
-  }, [state?.symbology]);
-
-  const canPersistChanges = useMemo(() => {
-    if (!modalState.action) return false;
-    if (modalState.action === "discard") return true;
-    return clickFilterValidationErrors.length === 0;
-  }, [modalState.action, clickFilterValidationErrors.length]);
-
   const modalButtonType = !modalState.action
     ? "white"
     : modalState.action === "discard"
     ? "danger"
     : "primary";
-  const modalButtonClassName = !canPersistChanges ? "disabled:opacity-75 pointer-events-none	" : " ";
+  const modalButtonClassName = !modalState.action ? "disabled:opacity-75 pointer-events-none	" : " ";
 
   return (
     <Modal
@@ -273,30 +262,12 @@ function SaveChangesModal ({ open, setOpen })  {
         }
       </div>
 
-      {
-        clickFilterValidationErrors.length ? (
-          <div className="mt-3 rounded bg-red-50 p-3 text-sm text-red-700">
-            {clickFilterValidationErrors.map(({ layerId, layerName, errors }) => (
-              <div key={layerId || layerName}>
-                {layerName}: {errors.includes("missing-mapping") ? "add at least one filter mapping" : ""}
-                {errors.includes("missing-mapping") && (errors.includes("missing-variable") || errors.includes("missing-field") || errors.includes("duplicate-variable")) ? "; " : ""}
-                {errors.includes("missing-variable") ? "enter a filter variable name" : ""}
-                {errors.includes("missing-variable") && errors.includes("missing-field") ? " and " : ""}
-                {errors.includes("missing-field") ? "select a layer field" : ""}
-                {(errors.includes("missing-variable") || errors.includes("missing-field")) && errors.includes("duplicate-variable") ? "; " : ""}
-                {errors.includes("duplicate-variable") ? "remove duplicate filter variable names" : ""}
-              </div>
-            ))}
-          </div>
-        ) : null
-      }
-
       <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
         <div className="px-1">
           <Button
             themeOptions={{ size: "sm", color: modalButtonType }}
             className={modalButtonClassName}
-            disabled={!canPersistChanges}
+            disabled={!modalState.action}
             onClick={onSubmit}
           >
             {SAVE_CHANGES_BUTTON_LABEL[modalState.action] ?? 'Save ...'}

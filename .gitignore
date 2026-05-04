@@ -22,4 +22,3 @@ migrate-progress-*.json
 
 # Task system host ID and runtime data
 **/var/
-.aider*

@@ -4,7 +4,6 @@ import { SymbologyContext } from "../../../";
 import { ExistingFilterList, FilterBuilder } from "./FilterControls";
 import { DynamicFilterBuilder } from "./DynamicFilterBuilder"
 import { InteractiveFilterControl } from "../InteractiveFilterControl";
-import ClickFilterControl from "../ClickFilterControl";
 import { StyledControl } from '../ControlWrappers'
 import { get, set } from "lodash-es"
 
@@ -142,7 +141,6 @@ function FilterEditor(props) {
           params={{ activeColumn: activeFilterColumn, setActiveColumn: setActiveFilterColumn }}
         />
       )}
-      <ClickFilterControl />
       <div className="w-full mt-1 mx-4 text-slate-500 text-[14px] tracking-wide min-h-[32px] flex items-center mx">
         Dynamic Filters
       </div>
