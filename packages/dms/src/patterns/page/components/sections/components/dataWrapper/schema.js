@@ -63,8 +63,18 @@ export const RUNTIME_DISPLAY_FIELDS = [
  *                     hideIfNull, filterRelation, totalLength, ... },
  *   data:           [...],  // cached rows (for view mode immediate rendering)
  *   dataSourceId:   string|null, // ref to page-level data source (tracking only)
+ *   join:           { operator, sources: { <alias>: { source, view, env, srcEnv,
+ *                     type, mergeStrategy, joinColumns, sourceInfo } } }
+ *                   // optional — only present when section joins additional sources.
+ *                   // Persisted only when sources is non-empty (no `{ sources: {} }`
+ *                   // placeholder on the wire).
  * }
  *
  * NOT persisted: dataRequest, sourceInfo, fullData, localFilteredData,
  *                lastDataRequest, outputSourceInfo
+ *
+ * NOTE: every serializer that emits a v2 element-data string (the save effect
+ * in dataWrapper/index.jsx, preloadSectionData.js, and any future round-tripper)
+ * MUST include `join` when present, or open editors will round-trip a stripped
+ * state back to the server and silently delete user-configured joins.
  */

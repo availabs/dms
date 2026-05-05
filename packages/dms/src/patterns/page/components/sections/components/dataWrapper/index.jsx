@@ -295,9 +295,13 @@ const Edit = forwardRef((props, ref) => {
             newItem, setNewItem,
             updateItem, removeItem, addItem,
             currentPage, infiniteScrollFetchData: onPageChange,
-            allowEdit: state?.externalSource?.isDms && !groupByColumnsLength
+            // Inline editing in edit mode is gated by the same `allowEditInView`
+            // toggle as view mode — opt-in, not implicit-on for DMS sources.
+            allowEdit: state?.externalSource?.isDms
+                && !!state?.display?.allowEditInView
+                && !groupByColumnsLength
         } : {}
-    }, [component.name, newItem, setNewItem, updateItem, removeItem, addItem, currentPage, onPageChange])
+    }, [component.name, newItem, setNewItem, updateItem, removeItem, addItem, currentPage, onPageChange, state?.externalSource?.isDms, state?.display?.allowEditInView, groupByColumnsLength])
 
     return (
         <ComponentContext.Provider value={{state, setState, apiLoad, apiUpdate, controls: resolvedControls,
