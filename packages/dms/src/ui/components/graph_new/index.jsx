@@ -17,7 +17,8 @@ export default function Graph ({
   const { theme: contextTheme } = React.useContext(ThemeContext) || { theme: { avlGraph: {} } };
   const theme = getComponentTheme(contextTheme, 'avlGraph', activeStyle);
 
-// console.log("GraphNew::theme", theme);
+console.log("GraphNew::data", data);
+console.log("GraphNew::columns", columns);
 
     // data is restructured into: index, type, value.
     // index is X axis column's values.
@@ -34,25 +35,58 @@ export default function Graph ({
             dataColumns.forEach(dataColumn => {
                 const value = row[dataColumn.normalName || dataColumn.name];
                 const type = categoryColumn.name ? row[categoryColumn.name] : (dataColumn.customName || dataColumn.display_name || dataColumn.name)
-
-                if(!strictNaN(value) && type && (!display.isLog || value > 0)){
-                    tmpData.push({index, type, value, aggMethod: dataColumn.fn});
+                if (!strictNaN(value) && (index !== undefined) && type && (!display.isLog || value >= 0)){
+                    tmpData.push({
+                        index: typeof index === "object" ? index.value : index,
+                        type: typeof type === "object" ? type.value : type,
+                        value: typeof value === "object" ? value.value : value,
+                        // aggMethod: dataColumn.fn
+                    });
                 }
             })
         })
 
-        if(display.useCustomXDomain && display.xDomain){
-            (display.xDomain)
-                .forEach((domainIdx, i) => {
-                    if(!tmpData.some(d => d.index === domainIdx)){
-                        tmpData.splice(i, 0, {index: domainIdx, value: 0, aggMethod: dataColumns[0]?.fn})
-                    }
-                })
+        if (display.useCustomXDomain && display.xDomain) {
+            display.xDomain.forEach((domainIdx, i) => {
+                if(!tmpData.some(d => d.index === domainIdx)) {
+                    tmpData.splice(i, 0, { index: domainIdx, value: 0 });//, aggMethod: dataColumns[0]?.fn})
+                }
+            })
 
             return tmpData.filter(t => display.xDomain.some(tick => t.index === tick))
         }
-        return tmpData
-    }, [indexColumn, dataColumns.length, categoryColumn, data, display.useCustomXDomain, display.xDomain])
+
+        if (display.makeContinuousXDomain) {
+            console.log("GraphNew::makeContinuousXDomain")
+
+            const [min, max] = data.reduce((a, c) => {
+                const i = c.index;
+                if (!strictNaN(i)) {
+                    return [Math.min(a[0], i), Math.max(a[1], i)];
+                }
+                return a;
+            }, [Infinity, -Infinity]);
+
+            if ((min < Infinity) && (max > -Infinity)) {
+                d3range(min, max + 1)
+                    .forEach((index, i) => {
+                        if(!tmpData.some(d => d.index === domainIdx)) {
+                            tmpData.push({ index, value: 0 })
+                        }
+                    })
+            }
+        }
+        return tmpData;
+        // return tmpData.map(d => {
+        //     return {
+        //         index: typeof d.index === "object" ? d.index.value : d.index,
+        //         type: typeof d.type === "object" ? d.type.value : d.type,
+        //         value: typeof d.value === "object" ? d.value.value : d.value
+        //     };
+        // })
+    }, [indexColumn, dataColumns.length, categoryColumn, data, display.useCustomXDomain, display.xDomain, display.makeContinuousXDomain])
+
+// console.log("GraphNew::graphData", graphData)
 
     useEffect(() => {
         const newDomain = [...new Set(graphData.map(d => d.index))]

@@ -241,6 +241,15 @@ export const componentFunctions = {
                 { key: 'column', label: 'Column to publish', type: 'column-select' },
             ],
         },
+        {
+            id: 'click_publish',
+            label: 'Click: Publish Column',
+            description: 'On click of a specific column cell, publishes that column\'s value to a page action param.',
+            trigger: 'click',
+            args: [
+                { key: 'column', label: 'Column to publish on click', type: 'column-select' },
+            ],
+        },
     ],
     subscribers: [
         {
@@ -260,6 +269,13 @@ export const componentFunctions = {
                     ],
                 },
             ],
+        },
+        {
+            id: 'click_save',
+            label: 'Click: Save All Edited Rows',
+            description: 'When the subscribed action param fires, auto-saves all rows in form-edit mode. Only activates when Allow Edit is on.',
+            trigger: 'action_param',
+            args: [],
         },
     ],
 };

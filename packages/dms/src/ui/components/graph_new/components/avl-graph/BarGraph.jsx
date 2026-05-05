@@ -25,7 +25,6 @@ import {
   DefaultXScale,
   DefaultYScale,
   strictNaN,
-  useShouldComponentUpdate,
   getScale,
   useSetSize
 } from "./utils"
@@ -116,7 +115,7 @@ export const BarGraph = props => {
     colors,
     groupMode = "stacked",
     orientation = "vertical",
-    showAnimations = true,
+    showAnimations = false,
     theme = EmptyObject,
     addons = []
   } = props;
@@ -157,6 +156,8 @@ export const BarGraph = props => {
     return AxisLeftData;
   }, [axisLeft]);
 
+console.log("BarGraph::AxisLeftData", AxisLeftData);
+
   const AxisRightData = React.useMemo(() => {
     if (!axisRight) return false;
     const AxisRightData = { ...axisRight };
@@ -176,23 +177,17 @@ export const BarGraph = props => {
 
   const PREVIOUS_BAR_DATA = React.useRef(new Map());
 
-  const additionalKeys = React.useMemo(() => {
-    return ["data", "keys"];
-  }, []);
-
-  const ShouldComponentUpdate = useShouldComponentUpdate(props, width, height, additionalKeys);
-
   const isHorizontal = orientation === "horizontal";
 
   React.useEffect(() => {
 
-    if (!ShouldComponentUpdate) return;
+    if (!(width && height)) return;
 
     const adjustedWidth = Math.max(0, width - (Margin.left + Margin.right)),
       adjustedHeight = Math.max(0, height - (Margin.top + Margin.bottom));
 
     const xdGetter = data => data.map(d => get(d, indexBy, null));
-    const XScale = getScale({ ...DefaultXScale, ...xScale, type: "band",
+    const XScale = getScale({ ...DefaultXScale, ...xScale,
                               getter: xdGetter, data,
                               range: isHorizontal ? [adjustedHeight, 0] : [0, adjustedWidth],
                               padding, paddingInner, paddingOuter
@@ -231,7 +226,8 @@ export const BarGraph = props => {
 
     const YScale = getScale({ ...DefaultYScale, ...yScale,
                               getter: ydGetter, data,
-                              range: isHorizontal ? [0, adjustedWidth] : [adjustedHeight, 0]
+                              range: isHorizontal ? [0, adjustedWidth] : [adjustedHeight, 0],
+                              padding, paddingInner, paddingOuter
                             });
     let yDomain = YScale.domain();
 
@@ -336,11 +332,14 @@ export const BarGraph = props => {
         barData.push(stackData);
       }
     });
+// END data.forEach
 
     const hasData = Boolean(barData.length);
 
-    for (const d of PREVIOUS_BAR_DATA.current.values()) {
-      barData.push({ ...d, state: "exiting" });
+    if (showAnimations) {
+      for (const d of PREVIOUS_BAR_DATA.current.values()) {
+        barData.push({ ...d, state: "exiting" });
+      }
     }
 
     setState({
@@ -353,8 +352,7 @@ export const BarGraph = props => {
 
   }, [data, keys, width, height, groupMode,
       Margin, colorFunc, indexBy, orientation,
-      padding, paddingInner, paddingOuter,
-      ShouldComponentUpdate
+      padding, paddingInner, paddingOuter, showAnimations
     ]
   );
 
