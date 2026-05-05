@@ -73,8 +73,8 @@ export function MultiSelectControl({ path, params = {} }) {
     <label className="flex w-full">
       <div className="flex flex-col w-full capitalize">
         <div className="flex flex-wrap gap-1 mb-1">
-          { selectedValues.map((v, i) => {
-            const opt = params?.options.find(o => o.value.toString() === v.value.toString());
+          { params?.options?.length && selectedValues.map((v, i) => {
+            const opt = params?.options.find(o => o?.value?.toString() === v?.value?.toString());
             return (
               <span key={i} className="inline-flex items-center px-2 py-0.5 rounded bg-blue-100 text-blue-800 text-xs">
                 { opt?.label || v }
