@@ -164,22 +164,22 @@ function SaveChangesModal ({ open, setOpen })  {
     ) || state?.name !== dbSymbology?.name;
   }, [state, dbSymbology]);
 
-  const clickFilterValidationErrors = useMemo(() => {
-    return getSymbologyClickFilterValidationErrors(state?.symbology);
-  }, [state?.symbology]);
+  // const clickFilterValidationErrors = useMemo(() => {
+  //   return getSymbologyClickFilterValidationErrors(state?.symbology);
+  // }, [state?.symbology]);
 
-  const canPersistChanges = useMemo(() => {
-    if (!modalState.action) return false;
-    if (modalState.action === "discard") return true;
-    return clickFilterValidationErrors.length === 0;
-  }, [modalState.action, clickFilterValidationErrors.length]);
+  // const canPersistChanges = useMemo(() => {
+  //   if (!modalState.action) return false;
+  //   if (modalState.action === "discard") return true;
+  //   return clickFilterValidationErrors.length === 0;
+  // }, [modalState.action, clickFilterValidationErrors.length]);
 
   const modalButtonType = !modalState.action
     ? "white"
     : modalState.action === "discard"
     ? "danger"
     : "primary";
-  const modalButtonClassName = !canPersistChanges ? "disabled:opacity-75 pointer-events-none	" : " ";
+  const modalButtonClassName = !modalState.action ? "disabled:opacity-75 pointer-events-none	" : " ";
 
   return (
     <Modal
@@ -273,7 +273,7 @@ function SaveChangesModal ({ open, setOpen })  {
         }
       </div>
 
-      {
+      {/* {
         clickFilterValidationErrors.length ? (
           <div className="mt-3 rounded bg-red-50 p-3 text-sm text-red-700">
             {clickFilterValidationErrors.map(({ layerId, layerName, errors }) => (
@@ -289,14 +289,14 @@ function SaveChangesModal ({ open, setOpen })  {
             ))}
           </div>
         ) : null
-      }
+      } */}
 
       <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
         <div className="px-1">
           <Button
             themeOptions={{ size: "sm", color: modalButtonType }}
             className={modalButtonClassName}
-            disabled={!canPersistChanges}
+            disabled={!modalState.action}
             onClick={onSubmit}
           >
             {SAVE_CHANGES_BUTTON_LABEL[modalState.action] ?? 'Save ...'}

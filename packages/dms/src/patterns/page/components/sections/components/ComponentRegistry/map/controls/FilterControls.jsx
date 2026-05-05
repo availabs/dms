@@ -21,6 +21,7 @@ export default function FilterControls() {
     const interactiveFilterOptions = (activeLayer?.['interactive-filters'] || []);
     const dynamicFilterOptions = (activeLayer?.['dynamic-filters'] || []);
     const selectedVariableMappings = normalizeLayerClickFilterConfig(activeLayer?.["click-filter"] || {}).mappings || [];
+    const isSelectedVariableMappingsEnabled = normalizeLayerClickFilterConfig(activeLayer?.["click-filter"] || {}).enabled || false;
     const activeFilter = activeLayer?.selectedInteractiveFilterIndex;
 
 // console.log("FilterControls::interactiveFilterOptions", interactiveFilterOptions);
@@ -124,7 +125,7 @@ export default function FilterControls() {
                     </div>
 
                     {
-                        selectedVariableMappings.length ? (
+                        isSelectedVariableMappingsEnabled && selectedVariableMappings.length ? (
                             <div className={'grid grid-cols-4 gap-1 px-2 py-1 text-gray-700'}>
                                 <div className={'text-sm font-semibold'}>Selected Variable</div>
                                 <div className={'text-sm font-semibold'}>Use URL Param</div>
