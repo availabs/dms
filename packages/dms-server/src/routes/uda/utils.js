@@ -363,7 +363,7 @@ function getValuesExceptNulls(conditions) {
  * Build WHERE clause from simple filter options.
  * Returns a string like "WHERE app = ANY($1) AND ..." or empty string.
  */
-function handleFilters({ filter, exclude, gt, gte, lt, lte, like, filterRelation = 'and', isDms, app, type }) {
+function handleFilters({ filter, exclude, gt, gte, lt, lte, like, filterRelation = 'and', isDms, app, type, joinPresent = false }) {
   let i = 0;
   const isNull = (val) =>
     Array.isArray(val)
@@ -377,7 +377,12 @@ function handleFilters({ filter, exclude, gt, gte, lt, lte, like, filterRelation
     }).filter(Boolean);
   };
 
-  const dmsAppTypeClause = isDms ? mapConditions({ app: [app], type: [type] }, 'filter') : [];
+  // When a join is present, both ds and the joined table(s) carry physical
+  // app/type columns — bare references would be ambiguous in Postgres. Qualify
+  // with the ds alias so the filter targets only the base table.
+  const appKey = joinPresent ? 'ds.app' : 'app';
+  const typeKey = joinPresent ? 'ds.type' : 'type';
+  const dmsAppTypeClause = isDms ? mapConditions({ [appKey]: [app], [typeKey]: [type] }, 'filter') : [];
   const clauses = [
     ...mapConditions(filter, 'filter'),
     ...mapConditions(exclude, 'exclude'),
@@ -472,15 +477,23 @@ function handleHaving(clauses) {
 
 function handleOrderBy(orders, dmsAttributes) {
   const sanitized = Object.keys(orders).filter(col => sanitizeName(col) && sanitizeName(orders[col]));
+  const aliasedDmsCol = /^[a-zA-Z_]\w*\.data->>/;
   const orderMap = sanitized.map(col => {
     let dataType;
     if (dmsAttributes && Array.isArray(dmsAttributes)) {
-      const match = dmsAttributes.find(attr => `'${attr.name}'` === col.replace('data->>', '')) || {};
+      // Strip a leading "<alias>." (when present) before matching against the
+      // dmsAttributes catalog — the catalog stores raw column names.
+      const aliasStripped = col.replace(/^[a-zA-Z_]\w*\.data->>/, "data->>");
+      const match = dmsAttributes.find(attr => `'${attr.name}'` === aliasStripped.replace('data->>', '')) || {};
       dataType = match?.dataType;
     }
+    // Preserve the table alias for aliased DMS columns (e.g., "ds.data->>'col'") —
+    // ORDER BY needs to be unambiguous when joins are present. Without an alias,
+    // fall back to getResponseColumnName which extracts the AS alias or splits on `.`.
+    const expr = aliasedDmsCol.test(col) ? col : getResponseColumnName(col);
     return dataType
-      ? `(${getResponseColumnName(col)})::${dataType} ${orders[col]}`
-      : `${getResponseColumnName(col)} ${orders[col]}`;
+      ? `(${expr})::${dataType} ${orders[col]}`
+      : `${expr} ${orders[col]}`;
   });
   return sanitized.length ? `ORDER BY ${orderMap.join(', ')}` : '';
 }
@@ -490,8 +503,8 @@ function handleOrderBy(orders, dmsAttributes) {
 /**
  * Build a combined WHERE clause from both old-style simple filters and new-style filterGroups.
  */
-function buildCombinedWhere({ filter, exclude, gt, gte, lt, lte, like, filterRelation, filterGroups, isDms, app, type, oldValues, dbType }) {
-  const oldWhere = handleFilters({ filter, exclude, gt, gte, lt, lte, like, filterRelation, isDms, app, type });
+function buildCombinedWhere({ filter, exclude, gt, gte, lt, lte, like, filterRelation, filterGroups, isDms, app, type, oldValues, dbType, joinPresent = false }) {
+  const oldWhere = handleFilters({ filter, exclude, gt, gte, lt, lte, like, filterRelation, isDms, app, type, joinPresent });
   const { sql: newWhere } = handleFilterGroups({ filterGroups, isDms, startIndex: oldValues.length, dbType });
 
   if (oldWhere && newWhere) {
