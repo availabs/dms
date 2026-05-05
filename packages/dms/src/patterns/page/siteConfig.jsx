@@ -86,8 +86,11 @@ const pagesConfig = ({
   return {
     siteType,
     format: format,
-    preload: (falcor, data, request, params) =>
-        preloadPageSections(falcor, data, request.url, patternFilters, params?.['*'] || ''),
+    preload: (falcor, data, request, params) => {
+        const raw = params?.['*'] || '';
+        const slug = raw.startsWith('edit/') ? raw.slice('edit/'.length) : raw;
+        return preloadPageSections(falcor, data, request.url, patternFilters, slug);
+    },
     pages: [{path: 'edit_pattern', name: 'Format Manager', component: FormatManager}],
     baseUrl,
     API_HOST,

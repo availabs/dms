@@ -553,6 +553,7 @@ const AvlMapInner = ({
   legend = EmptyObject,
   styleIndex = 0,
   showLayerSelect = false,
+  onMapStyleSelect = () => {},
   mapActions = ["navigation-controls"],
   ...props
 }) => {
@@ -705,6 +706,9 @@ const AvlMapInner = ({
     state.maplibreMap.once("styledata", e => {
       dispatch({ type: "update-state", styleIndex })
     });
+    if (onMapStyleSelect) {
+      onMapStyleSelect(mapStyle);
+    }
     state.maplibreMap.setStyle(mapStyle.style);
   }, [state.maplibreMap, state.mapStyles, state.styleIndex]);
 

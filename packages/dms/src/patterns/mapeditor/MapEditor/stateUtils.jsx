@@ -176,9 +176,9 @@ const fetchBoundsForFilter = async (state, falcor, pgEnv, dynamicFilter) => {
   // console.log("new filteroptions---",filterOptions)
 
   const resp = await falcor.get([
-    'dama',pgEnv,'viewsbyId', viewId, 'options', filterOptions, 'databyIndex',{ },['ST_AsGeojson(ST_Extent(wkb_geometry)) as bextent']
+    'uda',pgEnv,'viewsById', viewId, 'options', filterOptions, 'dataByIndex',{ },['ST_AsGeojson(ST_Extent(wkb_geometry)) as bextent']
   ]);
-  const newExtent = get(resp, ['json','dama',pgEnv,'viewsbyId', viewId, 'options', filterOptions, 'databyIndex',0,['ST_AsGeojson(ST_Extent(wkb_geometry)) as bextent'] ])
+  const newExtent = get(resp, ['json', 'uda',pgEnv,'viewsById', viewId, 'options', filterOptions, 'dataByIndex',0,['ST_AsGeojson(ST_Extent(wkb_geometry)) as bextent'] ])
   return newExtent;
 }
 /**

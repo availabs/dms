@@ -77,9 +77,16 @@ async function simpleFilterLength(ctx, options) {
   const newValues = getValuesFromGroup(filterGroups);
   const values = [...oldValues, ...newValues];
 
+  // Detect whether the request includes a real join (server-side mirror of
+  // calculateIsJoinPresent) so the WHERE builder can disambiguate base-table
+  // columns like app/type with a `ds.` prefix.
+  const joinPresent = !!join &&
+    (Object.keys(join.sources || {}).length > 1 ||
+      (Object.keys(join.sources || {}).length === 1 && Object.keys(join.sources || {})[0] !== 'ds'));
+
   const combinedWhere = buildCombinedWhere({
     filter, exclude, gt, gte, lt, lte, like, filterRelation,
-    filterGroups, isDms, app, type, oldValues, dbType: db.type,
+    filterGroups, isDms, app, type, oldValues, dbType: db.type, joinPresent,
   });
 
   // Check for jsonb_array_elements_text (PG) or json_each (SQLite) in groupBy
@@ -172,9 +179,16 @@ async function simpleFilter(ctx, options, attributes, indices) {
   const newValues = getValuesFromGroup(filterGroups);
   const values = [...oldValues, ...newValues];
 
+  // Detect whether the request includes a real join (server-side mirror of
+  // calculateIsJoinPresent) so the WHERE builder can disambiguate base-table
+  // columns like app/type with a `ds.` prefix.
+  const joinPresent = !!join &&
+    (Object.keys(join.sources || {}).length > 1 ||
+      (Object.keys(join.sources || {}).length === 1 && Object.keys(join.sources || {})[0] !== 'ds'));
+
   const combinedWhere = buildCombinedWhere({
     filter, exclude, gt, gte, lt, lte, like, filterRelation,
-    filterGroups, isDms, app, type, oldValues, dbType: db.type,
+    filterGroups, isDms, app, type, oldValues, dbType: db.type, joinPresent,
   });
 
   const { joins, merges } = await buildJoin({join});
