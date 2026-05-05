@@ -631,7 +631,9 @@ const RenderItem = memo(function RenderItem ({
                     const onCardColumnClick = controls?.onCardColumnClick;
                     const attrKey = attr.normalName || attr.name;
                     const onColumnClick = (clickPublishColumn && onCardColumnClick && attrKey === clickPublishColumn)
-                        ? () => onCardColumnClick(item, attrKey)
+                        ? attr.origin === 'static'
+                            ? () => onCardColumnClick({ [attrKey]: attr.staticValue }, attrKey)
+                            : () => onCardColumnClick(item, attrKey)
                         : undefined;
 
                     return (
