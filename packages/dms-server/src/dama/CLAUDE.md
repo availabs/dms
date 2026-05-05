@@ -58,7 +58,7 @@ One row per **versioned snapshot** of a source. Most plugins create exactly one 
 | `view_id` | SERIAL PK | |
 | `source_id` | INT FK → sources | |
 | `table_schema` | TEXT | Default `gis_datasets` (settable for ClickHouse routing — see below). |
-| `table_name` | TEXT | Default `s{source_id}_v{view_id}` (e.g. `s42_v17`). |
+| `table_name` | TEXT | Default `s{source_id}_v{view_id}_{source_name_slug}` (e.g. `s42_v17_traffic_counts`). The slug is `nameToSlug(source.name)` truncated to 40 chars to keep the full identifier under Postgres's 63-char limit. Falls back to `s{source_id}_v{view_id}` when the source has no name. Existing tables created before this convention keep their original names — this only affects views created from now on. |
 | `data_table` | TEXT | Convenience: `{schema}.{name}`. |
 | `metadata` | JSONB | Per-view: tile config, `schema` tag, etc. **Distinct from the source's metadata** — view metadata is per-snapshot (e.g. tile sources change between uploads), source metadata is the contract. |
 | `etl_context_id` | INT | The task that produced this view. Resolves back via `data_manager.tasks`. |

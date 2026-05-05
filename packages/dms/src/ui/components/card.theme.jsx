@@ -43,27 +43,10 @@ export const dataCardTheme = {
             justifyTextRight: 'text-end justify-items-end rounded-md',
             justifyTextCenter: 'text-center justify-items-center rounded-md',
 
-            textXS: 'text-xs font-medium',
-            textXSReg: 'text-xs font-normal',
-            textSM: 'text-sm font-medium',
-            textSMReg: 'text-sm font-normal',
-            textSMBold: 'text-sm font-normal',
-            textSMSemiBold: 'text-sm font-semibold',
-            textMD: 'text-md font-medium',
-            textMDReg: 'text-md font-normal',
-            textMDBold: 'text-md font-bold',
-            textMDSemiBold: 'text-md font-semibold',
-            textXL: 'text-xl font-medium',
-            textXLSemiBold: 'text-xl font-semibold',
-            text2XL: 'text-2xl font-medium',
-            text2XLReg: 'text-2xl font-regular',
-            text3XL: 'text-3xl font-medium',
-            text3XLReg: 'text-3xl font-normal',
-            text4XL: 'text-4xl font-medium',
-            text5XL: 'text-5xl font-medium',
-            text6XL: 'text-6xl font-medium',
-            text7XL: 'text-7xl font-medium',
-            text8XL: 'text-8xl font-medium',
+            // text* keys come from theme.textSettings — Card.jsx layers
+            // textSettings underneath this style so any text* token a column
+            // references (e.g. valueTextSize: 'textMD') resolves through
+            // textSettings unless a downstream theme overrides it on dataCard.
 
             imgXS: "max-w-16 max-h-16",
             imgSM: "max-w-24 max-h-24",

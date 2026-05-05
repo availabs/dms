@@ -81,27 +81,30 @@ export default {
                 options: [
                     {label: 'include n/a', value: false}, {label: 'exclude n/a', value: true}
                 ]},
-            {type: 'toggle', label: 'X Axis', key: 'xAxis', onChange: ({key, value, attribute, state, columnIdx}) => {
-                    if(attribute.yAxis || attribute.categorize) return;
-                    state.columns.forEach(column => {
-                        column.xAxis = value ? column.name === attribute.name : value;
-                        column.group = column.name === attribute.name ? value : column.categorize;
-                        column.show = column.name === attribute.name ? value : column.yAxis || column.categorize;
-                    })
-                }},
-            {type: 'toggle', label: 'Y Axis', key: 'yAxis', onChange: ({key, value, attribute, state, columnIdx}) => {
-                    if(attribute.xAxis || attribute.categorize) return;
-                    const defaultFn = state.columns[columnIdx].defaultFn?.toLowerCase();
-                    state.columns[columnIdx].fn = value ? (['sum', 'count'].includes(defaultFn) ? defaultFn : 'count') : ''
-                    state.columns[columnIdx].show = value;
-                }},
-            {type: 'toggle', label: 'Categorize', key: 'categorize', onChange: ({key, value, attribute, state, columnIdx}) => {
-                    if(attribute.xAxis || attribute.yAxis) return;
-                    state.columns.forEach(column => {
-                        column.categorize = value ? column.name === attribute.name : value;
-                        column.group = column.name === attribute.name ? value : column.xAxis;
-                        column.show = column.name === attribute.name ? value : column.yAxis || column.xAxis;
-                    })
+            {type: 'select', label: 'Role', key: 'role',
+                options: [
+                    {label: 'None',        value: ''},
+                    {label: 'X Axis',      value: 'xAxis',      displayCdn: ({display}) => display.graphType !== 'GridGraph'},
+                    {label: 'Row',         value: 'xAxis',      displayCdn: ({display}) => display.graphType === 'GridGraph'},
+                    {label: 'Y Axis',      value: 'yAxis',      displayCdn: ({display}) => display.graphType !== 'GridGraph'},
+                    {label: 'Value',       value: 'yAxis',      displayCdn: ({display}) => display.graphType === 'GridGraph'},
+                    {label: 'Categorize',  value: 'categorize', displayCdn: ({display}) => display.graphType !== 'GridGraph'},
+                    {label: 'Column',      value: 'categorize', displayCdn: ({display}) => display.graphType === 'GridGraph'},
+                ],
+                onChange: ({value: newRole, attribute, state, columnIdx}) => {
+                    const col = state.columns[columnIdx];
+                    if (newRole === 'xAxis') {
+                        state.columns.forEach((c, i) => { if (i !== columnIdx && c.xAxis) { c.xAxis = false; c.group = c.categorize || false; c.show = c.yAxis || c.categorize || false; } });
+                    } else if (newRole === 'categorize') {
+                        state.columns.forEach((c, i) => { if (i !== columnIdx && c.categorize) { c.categorize = false; c.group = c.xAxis || false; c.show = c.yAxis || c.xAxis || false; } });
+                    }
+                    col.xAxis = newRole === 'xAxis';
+                    col.yAxis = newRole === 'yAxis';
+                    col.categorize = newRole === 'categorize';
+                    // todo remove this and addd group toggle
+                    col.group = newRole === 'xAxis' || newRole === 'categorize';
+                    col.show = newRole !== '';
+                    col.fn = newRole === 'yAxis' ? (['sum', 'count'].includes(col.defaultFn?.toLowerCase()) ? col.defaultFn.toLowerCase() : 'count') : undefined;
                 }},
             {type: 'select', label: 'Sort', key: 'sort',
                 options: [

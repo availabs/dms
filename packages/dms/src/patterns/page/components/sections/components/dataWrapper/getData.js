@@ -163,12 +163,18 @@ export const getData = async ({
     if (!columnsToFetch.length) {
         return { length, data: [] };
     }
+    // When a join is present, every base-table column reference must be
+    // alias-qualified to avoid Postgres "column ambiguous" errors. Use ds.id.
+    const joinPresent = isJoinPresent;
+    const idCol = joinPresent ? "ds.id" : "id";
+    const idReq = joinPresent ? "ds.id as id" : "id";
     if (isDms && !options.groupBy.length && !fnColumnsExists) {
-        columnsToFetch.push({ name: "id", reqName: "id" });
-        options.orderBy.id = Object.values(options.orderBy || {})?.[0] || "asc";
+        columnsToFetch.push({ name: idCol, reqName: idReq });
+        options.orderBy[idCol] = Object.values(options.orderBy || {})?.[0] || "asc";
     } else {
-        const idx = columnsToFetch.findIndex((column) => column.name === "id");
+        const idx = columnsToFetch.findIndex((column) => column.name === idCol || column.name === "id");
         if (idx !== -1) columnsToFetch.splice(idx, 1);
+        delete options.orderBy[idCol];
         delete options.orderBy.id;
     }
     debugTime && console.timeEnd('check columns')
