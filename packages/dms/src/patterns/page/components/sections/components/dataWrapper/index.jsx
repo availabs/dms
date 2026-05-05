@@ -184,7 +184,7 @@ const Edit = forwardRef((props, ref) => {
 
     // ── Save effect ──
     useEffect(() => {
-        if (!isEdit || !isValidState) return;
+        if (!isEdit) return;
         const toSave = {
             externalSource: state.externalSource,
             columns: state.columns || [],
