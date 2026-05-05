@@ -2,6 +2,7 @@ import React, { useContext, useState } from 'react'
 import { CardSection } from './Card'
 import { ThemeContext } from '../../../../../../ui/useTheme'
 import ColorControls from './sharedControls/ColorControls'
+import columnTypes from '../../../../../../ui/columnTypes'
 
 const fontStyleOptions = [
     { label: '', value: '' },
@@ -55,12 +56,13 @@ const handlePaste = async (attribute, setAttribute) => {
                 hideValue = false,
                 wrapText = false,
                 bgColor = '',
-                cardSpan = ''
+                cardSpan = '',
+                cardRowSpan = ''
             } = parsedObj;
 
             const newAttribute = {
                 ...attribute,
-                justify, formatFn, headerFontStyle, valueFontStyle, hideHeader, hideValue, bgColor, cardSpan, wrapText
+                justify, formatFn, headerFontStyle, valueFontStyle, hideHeader, hideValue, bgColor, cardSpan, cardRowSpan, wrapText
             }
             return setAttribute(newAttribute)
         } else {
@@ -78,9 +80,9 @@ const inHeader = [
             const { Pill, Icon } = UI;
             const [copied, setCopied] = useState(false);
             const {
-                justify, formatFn, headerFontStyle, valueFontStyle, hideHeader, hideValue, bgColor, cardSpan, wrapText
+                justify, formatFn, headerFontStyle, valueFontStyle, hideHeader, hideValue, bgColor, cardSpan, cardRowSpan, wrapText
             } = attribute;
-            const objToCopy = { justify, formatFn, headerFontStyle, valueFontStyle, hideHeader, hideValue, bgColor, cardSpan, wrapText };
+            const objToCopy = { justify, formatFn, headerFontStyle, valueFontStyle, hideHeader, hideValue, bgColor, cardSpan, cardRowSpan, wrapText };
 
             return (
                 <div className={'w-full flex justify-between gap-1'}>
@@ -132,6 +134,15 @@ const inHeader = [
     { type: 'separator', key: 'toolbar-sep', label: 'toolbar-sep', hideFromSectionMenu: true,
       renderPos: 'top', renderCdn: () => true },
 
+    // column type — reads the live ColumnTypes registry so theme-registered
+    // types (registered via theme.columnTypes) appear alongside built-ins.
+    { type: 'select', label: 'Column Type', key: 'type',
+        options: () => Object.keys(columnTypes)
+            .filter(name => name !== 'default')
+            .map(name => ({ label: name, value: name })),
+        displayCdn: ({ isEdit }) => isEdit
+    },
+
     // display
     { type: 'select', label: 'Justify', key: 'justify', isBatchUpdatable: true,
         options: [
@@ -164,10 +175,15 @@ const inHeader = [
     { type: 'input', inputType: 'number', label: 'Padding Below', key: 'pb', isBatchUpdatable: true, displayCdn: ({ display }) => display.compactView },
     { type: 'toggle', label: 'Hide Header', key: 'hideHeader', isBatchUpdatable: true },
     { type: 'toggle', label: 'Hide Value', key: 'hideValue', isBatchUpdatable: true },
-    { type: 'input', inputType: 'number', label: 'Span', key: 'cardSpan', displayCdn: ({ display }) => !display.compactView },
+    { type: 'input', inputType: 'number', label: 'Col Span', key: 'cardSpan', displayCdn: ({ display }) => !display.compactView },
+    { type: 'input', inputType: 'number', label: 'Row Span', key: 'cardRowSpan', displayCdn: ({ display }) => !display.compactView },
     { type: 'separator', key: 'toolbar-sep', label: 'toolbar-sep', hideFromSectionMenu: true },
     // other
     { type: 'toggle', label: 'Allow Edit', key: 'allowEditInView', displayCdn: ({ isEdit }) => isEdit },
+
+    // richtext (lexical) controls — only visible when this column's type is lexical
+    { type: 'toggle', label: 'Show Toolbar', key: 'showToolbar',
+      displayCdn: ({ attribute, isEdit }) => isEdit && attribute.type === 'lexical' },
 
     // link controls
     { type: 'toggle', label: 'Is Link', key: 'isLink', displayCdn: ({ isEdit }) => isEdit },
@@ -290,6 +306,7 @@ export default {
                     { type: 'input', inputType: 'number', label: 'Grid Gap', key: 'gridGap' },
                     { type: 'input', inputType: 'number', label: 'Padding', key: 'padding' },
                     { type: 'input', inputType: 'number', label: 'Column Gap', key: 'colGap', displayCdn: ({ display }) => display.compactView },
+                    { type: 'input', inputType: 'number', label: 'Row Height', key: 'rowHeight', displayCdn: ({ display }) => !display.compactView },
                 ]
             },
             { label: 'Default Column Settings', items: [

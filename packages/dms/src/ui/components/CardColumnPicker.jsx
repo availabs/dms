@@ -2,12 +2,25 @@ import React, { useState, useMemo } from 'react';
 import Popup from './Popup';
 import Icon from './Icon';
 import Input from './Input';
+import columnTypes from '../columnTypes';
 
 const getColumnLabel = (col) => col.customName || col.display_name || col.name;
 const isEqualColumns = (a, b) =>
     a?.name === b?.name && a?.isDuplicate === b?.isDuplicate && a?.copyNum === b?.copyNum;
 const isCalculatedCol = ({ display, type, origin }) =>
     display === 'calculated' || type === 'calculated' || origin === 'calculated-column';
+
+// Seed defaults onto a freshly added column based on its type's cardHints.
+// Only applied when the type declares the corresponding hint — types without
+// hints leave the column shape unchanged.
+const applyCardHintDefaults = (col) => {
+    const hints = columnTypes[col?.type]?.cardHints;
+    if (!hints) return col;
+    return {
+        ...col,
+        ...(hints.defaultHideHeader && col.hideHeader === undefined ? { hideHeader: true } : {}),
+    };
+};
 
 const StaticColumnForm = ({ insertAt, setState, setOpen }) => {
     const [displayName, setDisplayName] = useState('');
@@ -88,7 +101,7 @@ const ColumnSearch = ({ allColumns, sourceColumns, insertAt, setState, setOpen }
                     }
                     draft.columns.splice(insertAt + offset, 0, dup);
                 } else {
-                    const newCol = { ...col, show: true };
+                    const newCol = applyCardHintDefaults({ ...col, show: true });
                     if (isGrouping && !newCol.group && !newCol.fn) {
                         newCol.fn = newCol.defaultFn?.toLowerCase() || 'list';
                     }
