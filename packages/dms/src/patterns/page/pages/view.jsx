@@ -87,34 +87,20 @@ function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdat
     }, [setPageState]);
 
     const updatePageStateFilters = (filters, removeFilter={}) => {
-        const existingPageFilters = pageState.filters || [];
-        const getResolvedFilter = (filter) => {
-            const matchingFilter = existingPageFilters.find(f => f.searchKey === filter.searchKey);
-            return {
-                ...(matchingFilter || {}),
-                ...filter,
-                useSearchParams: matchingFilter?.useSearchParams ?? filter.useSearchParams ?? false
-            };
-        };
-
-        const resolvedFilters = filters.map(getResolvedFilter);
-    const searchParamFilters = resolvedFilters.filter(f => f.useSearchParams && !removeFilter[f.searchKey]);
-    // set non navigable filters
-    const searchKeysToRemove = Object.keys(removeFilter).filter(searchKey => removeFilter[searchKey])
-    if(resolvedFilters?.length || searchKeysToRemove?.length){
-        setPageState(page => {
-            if(!Array.isArray(page.filters)) {
-                page.filters = [];
-            }
-            resolvedFilters.forEach(f => {
-                const idx = page.filters.findIndex(({searchKey}) => searchKey === f.searchKey);
-                if(idx >= 0) {
-                    page.filters[idx] = {
-                            ...page.filters[idx],
-                            ...f
-                        };
-                    } else {
-                        page.filters.push(f);
+        const searchParamFilters = pageState.filters.filter(f => f.useSearchParams && !removeFilter[f.searchKey]).map(f => filters.find(updatedFilter => updatedFilter.searchKey === f.searchKey) || f)
+        const nonSearchParamFilters = filters
+            .filter(({searchKey}) => {
+                const matchingFilter = (pageState.filters || []).find(f => f.searchKey === searchKey);
+                return matchingFilter && !matchingFilter.useSearchParams
+            })
+        // set non navigable filters
+        const searchKeysToRemove = Object.keys(removeFilter).filter(searchKey => removeFilter[searchKey])
+        if(nonSearchParamFilters?.length || searchKeysToRemove?.length){
+            setPageState(page => {
+                nonSearchParamFilters.forEach(f => {
+                    const idx = page.filters.findIndex(({searchKey}) => searchKey === f.searchKey);
+                    if(idx >= 0) {
+                        page.filters[idx].values = f.values;
                     }
                 })
 
