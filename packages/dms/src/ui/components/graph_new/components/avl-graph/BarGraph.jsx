@@ -156,6 +156,8 @@ export const BarGraph = props => {
     return AxisLeftData;
   }, [axisLeft]);
 
+console.log("BarGraph::AxisLeftData", AxisLeftData);
+
   const AxisRightData = React.useMemo(() => {
     if (!axisRight) return false;
     const AxisRightData = { ...axisRight };

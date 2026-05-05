@@ -5,7 +5,7 @@ import Icon from "../../Icon";
 import DataTypes from "../../../columnTypes";
 import {formatFunctions} from "../../../../patterns/page/components/sections/components/dataWrapper/utils/utils";
 import { RenderAction, RenderActionsPopup } from "./RenderActions";
-import {TableCellContext} from "../index";
+import {TableCellContext, TableStructureContext} from "../index";
 import {handleMouseDown, handleMouseMove, handleMouseUp} from "../utils/mouse";
 
 const justifyClass = {
@@ -139,6 +139,7 @@ export const TableCell = memo(function TableCell ({
         setSelection, setIsDragging, startCellCol, startCellRow, selection, selectionRange,
         updateItem, removeItem, columns, display, theme
     } = useContext(TableCellContext);
+    const { highlightedRow, visibleAttrsWithoutOpenOut = [] } = useContext(TableStructureContext);
 
     // =================================================================================================================
     // ============================================ Cell Properties begin ==============================================
@@ -367,16 +368,26 @@ export const TableCell = memo(function TableCell ({
         }
     }, [attribute.meta_lookup])
 
+    const isHighlighted = useMemo(() => {
+        if (!highlightedRow?.column || highlightedRow?.value === undefined || isTotalCell) return false;
+        const raw = item[highlightedRow.column];
+        const val = (raw !== null && raw !== undefined && typeof raw === 'object')
+            ? (raw.value ?? raw.originalValue)
+            : raw;
+        return String(val) === String(highlightedRow.value);
+    }, [highlightedRow, item, isTotalCell]);
+
     const bgColor = useMemo(() =>
             openOutTitle || attribute.openOut ? `` : // open outs are out of grid, we don't paint them
                 isTotalCell ? theme.totalCell :
                     !isValid ? theme.cellInvalid : // invalid cells might want an indicator
                         isSelected ? theme.cellBgSelected : // selected cells color differently
-                            display.striped && index % 2 === 0 ? theme.cellBgOdd : // if striped
-                                display.striped ? theme.cellBgEven :
-                                    theme.cellBg, // fallback
-        [openOutTitle, attribute.openOut, isTotalCell, isValid, isSelected, display.striped, index,
-            theme.cellInvalid, theme.totalCell, theme.cellBgSelected, theme.cellBgOdd, theme.cellBgEven]);
+                            isHighlighted && (!highlightedRow?.style || highlightedRow.style === 'bg') ? 'bg-amber-100 hover:bg-amber-200' :
+                                display.striped && index % 2 === 0 ? theme.cellBgOdd : // if striped
+                                    display.striped ? theme.cellBgEven :
+                                        theme.cellBg, // fallback
+        [openOutTitle, attribute.openOut, isTotalCell, isValid, isSelected, isHighlighted, highlightedRow?.style,
+            display.striped, index, theme.cellInvalid, theme.totalCell, theme.cellBgSelected, theme.cellBgOdd, theme.cellBgEven]);
 
     const compStyle = useMemo(
         () => (renderTextBox ? { borderColor: selectionColor } : undefined),
@@ -385,12 +396,13 @@ export const TableCell = memo(function TableCell ({
 
     const compClassName = useMemo(() => {
         return `${ openOutTitle ? theme?.openOutTitle : attribute.openOut ? theme?.openOutValue : theme?.cellInner }
-                ${justifyClass[attribute.justify] || ''} ${bgColor} ${attribute.formatFn === 'title' ? 'capitalize' : ''} 
+                ${justifyClass[attribute.justify] || ''} ${bgColor} ${attribute.formatFn === 'title' ? 'capitalize' : ''}
                 ${attribute.wrapText ? theme.wrapText : ''}
-                ${renderTextBox ? theme.cellEditableTextBox : ''}`;
+                ${renderTextBox ? theme.cellEditableTextBox : ''}
+                ${isHighlighted && highlightedRow?.style === 'bold' ? 'font-bold' : ''}`;
     }, [
         attribute.openOut, attribute.justify, attribute.wrapText, attribute.formatFn,
-        openOutTitle, renderTextBox, theme, bgColor
+        openOutTitle, renderTextBox, theme, bgColor, isHighlighted, highlightedRow?.style
     ]);
 
     const cellClassName = useMemo(() => {
@@ -401,14 +413,24 @@ export const TableCell = memo(function TableCell ({
     const cellStyle = useMemo(() => {
         if (attribute.openOut || openOutTitle) return undefined;
 
+        const highlightBorder = isHighlighted && highlightedRow?.style === 'border'
+            ? {
+                borderTopColor: '#f59e0b', borderTopWidth: '2px',
+                borderBottomColor: '#f59e0b', borderBottomWidth: '2px',
+                ...(attrI === 0 ? { borderLeftColor: '#f59e0b', borderLeftWidth: '2px' } : {}),
+                ...(attrI === visibleAttrsWithoutOpenOut.length - 1 ? { borderRightColor: '#f59e0b', borderRightWidth: '2px' } : {}),
+            }
+            : {};
+
         return {
             width: attribute.size,
+            ...highlightBorder,
             ...(isSelected && !renderTextBox && {
                     borderWidth: '1px',
                     ...selectionEdgeClassNames[edge]
                 })
         };
-    }, [ attribute.openOut, openOutTitle, attribute.size, isSelected, renderTextBox, edge ]);
+    }, [ attribute.openOut, openOutTitle, attribute.size, isSelected, renderTextBox, edge, isHighlighted, highlightedRow?.style, attrI, visibleAttrsWithoutOpenOut.length ]);
 
     const disableCellEvents = attribute.isLink || attribute.actionType || attribute._isActionsColumn;
     const cellEvents = useMemo(

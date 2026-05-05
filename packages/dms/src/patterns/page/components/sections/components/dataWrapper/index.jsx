@@ -395,7 +395,7 @@ const View = forwardRef(({cms_context, value, onChange, component, editPageMode,
             setNewItem(prev => ({ ...prev, ...updates }));
         }
     }, [viewPageState?.filters, state?.columns]);
-    console.log('new item', newItem)
+
     useColumnOptions({
         state, setState, apiLoad, component, pgEnv,
         enabled: allowEdit || state?.display?.allowAdddNew || state?.columns?.some(c => c.allowEditInView && c.mapped_options)

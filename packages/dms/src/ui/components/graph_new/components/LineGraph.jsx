@@ -15,7 +15,7 @@ const mergeData = data => {
 
 const LineGraphWrapper = props => {
 
-console.log("LineGraphWrapper::props", props);
+// console.log("LineGraphWrapper::props", props);
 
 	const dataFromProps = React.useMemo(() => {
 		if (!props.data.length) return [];
@@ -28,8 +28,6 @@ console.log("LineGraphWrapper::props", props);
 				data: group.map(g => ({ x: g.index, y: g.value }))
 			}
 		})
-
-console.log("ROLLUPS:", rollups);
 
 		return [];
 	}, [props.data]);
@@ -92,6 +90,7 @@ console.log("LineGraphWrapper::dataFromProps", dataFromProps);
 					axisBottom={ axisBottom }
 					axisLeft={ axisLeft }
 					axisRight={ axisLeft }
+					xScale={ props.xScale }
 					margin={ margin }
 					hoverComp={ hoverComp }
 					width={ props.width }

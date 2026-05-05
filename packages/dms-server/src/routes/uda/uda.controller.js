@@ -81,11 +81,16 @@ async function getSourceById(env, ids, attributes) {
     return rows;
   }
 
-  // DAMA: select specific columns from data_manager.sources
+  // DAMA: select specific columns from data_manager.sources.
+  // Drop 'id' from the attribute list — the table has no `id` column;
+  // `source_id AS id` (always added below) supplies it. Without this, a
+  // Falcor request that includes 'id' in attributes would emit a duplicate
+  // SELECT entry referencing a column that doesn't exist.
   const tbl = db.type === 'postgres' ? 'data_manager.sources' : 'sources';
-  const colList = sanitizedAttrs.map(a => `"${a}"`).join(', ');
+  const dataAttrs = sanitizedAttrs.filter(a => a !== 'id');
+  const colList = dataAttrs.length ? `, ${dataAttrs.map(a => `"${a}"`).join(', ')}` : '';
   const { rows } = await db.query(
-    `SELECT source_id AS id, ${colList} FROM ${tbl} WHERE source_id = ANY($1::INT[])`,
+    `SELECT source_id AS id${colList} FROM ${tbl} WHERE source_id = ANY($1::INT[])`,
     [ids.map(Number)]
   );
   return rows;
@@ -398,11 +403,11 @@ async function applyMeta(rows, meta, env, isDms, options) {
       Object.keys(metaData).forEach(column => {
         const value =
           typeof row[column] === 'string' && row[column].startsWith('[') && row[column].endsWith(']')
-            ? JSON.parse(row[column])
+            ? JSON.parse(row[column]).map(val => metaData[column][typeof val === 'string' ? val.trim() : val])
             : row[column]?.toString()?.includes(',')
               ? row[column].toString().split(',').map(val => metaData[column][val.trim()]).join(', ')
               : (metaData[column][row[column]] || row[column]);
-        row[column] = value;
+        row[column] = {value, originalValue: row[column]};
       });
     });
   }

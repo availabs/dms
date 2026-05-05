@@ -1,6 +1,6 @@
 import React, { useContext, Fragment, useRef } from "react";
 import { SymbologyContext, PluginLibrary } from "../../";
-// import { MapContext } from "../dms/map/MapComponent";
+import { MapContext } from "../../../../page/components/sections/components/ComponentRegistry/map"
 // import { DamaContext } from "../../../../../../store"
 import { Menu, Transition, Tab, Dialog } from "@headlessui/react";
 import { wrapperTypes } from '../PluginControls/PluginControlWrappers'
@@ -10,12 +10,10 @@ import { zip } from "lodash-es"
 //Use MapContext if available (otherwise, use SymbologyContext)
 //TODO -- this could break mapEditor plugin stuff
 function ExternalPluginPanel() {
-  // const mctx = React.useContext(MapContext);
-  // const sctx = React.useContext(SymbologyContext);
-  // const ctx = mctx?.falcor ? mctx : sctx;
-  // console.log({MapContext, SymbologyContext})
-  // console.log("external panel ctx::", ctx)
-  const { state, setState } = React.useContext(SymbologyContext)
+  const mctx = React.useContext(MapContext);
+  const sctx = React.useContext(SymbologyContext);
+  const ctx = mctx?.falcor ? mctx : sctx;
+  const { state, setState } = ctx
 
   let tabs;
   

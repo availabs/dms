@@ -1,15 +1,16 @@
 import React, { useMemo, useEffect, Fragment, useState } from "react";
 import { Switch } from '@headlessui/react'
 import { SymbologyContext } from "../../";
+import { MapContext} from "../../../../page/components/sections/components/ComponentRegistry/map"
 import {get, set} from "lodash-es";
 import { ThemeContext } from "../../../../../ui/themeContext";
 
 export function SelectControl({ path, params = {} }) {
   //console.log("select control path::", path)
-  // const mctx = React.useContext(MapContext);
-  // const sctx = React.useContext(SymbologyContext);
-  // const ctx = mctx?.falcor ? mctx : sctx;
-  const { state, setState } = React.useContext(SymbologyContext);
+  const mctx = React.useContext(MapContext);
+  const sctx = React.useContext(SymbologyContext);
+  const ctx = mctx?.falcor ? mctx : sctx;
+  const { state, setState } = ctx
   // console.log('select control params::', params)
   // console.log("select control state::", state)
 //   console.log("select control value::", get(state, `${path}`))
@@ -44,7 +45,10 @@ export function SelectControl({ path, params = {} }) {
 }
 
 export function MultiSelectControl({ path, params = {} }) {
-  const { state, setState } = React.useContext(SymbologyContext);
+  const mctx = React.useContext(MapContext);
+  const sctx = React.useContext(SymbologyContext);
+  const ctx = mctx?.falcor ? mctx : sctx;
+  const { state, setState } = ctx;
   const { UI } = React.useContext(ThemeContext) || {};
 
   const defaultValue =
@@ -77,7 +81,7 @@ export function MultiSelectControl({ path, params = {} }) {
       <div className="flex flex-col w-full capitalize">
         <div className="flex flex-wrap gap-1 mb-1">
           { selectedValues.map((v, i) => {
-            const opt = options.find(o => o.value === v);
+            const opt = options.find(o => o.value === v.value);
             return (
               <span key={i} className="inline-flex items-center px-2 py-0.5 rounded bg-blue-100 text-blue-800 text-xs">
                 { opt?.label || v }

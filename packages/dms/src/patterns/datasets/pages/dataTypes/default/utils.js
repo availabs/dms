@@ -43,7 +43,10 @@ export async function getSourceData ({pgEnv, falcor, source_id, setSource, isDms
         const firstView = views?.[0];
         const lastView = views?.[views?.length - 1];
         console.log('source', res)
-        setSource({...res, source_id: res.source_id ?? +source_id, views, created_at: firstView?.created_at, updated_at: lastView?.updated_at });
+        // The URL/route id IS the DMS row id — take it as canonical and
+        // ignore whatever `id`/`source_id` legacy migrations left in data.
+        // Keep `source_id` exposed for legacy callers but mirror the row id.
+        setSource({...res, id: +source_id, source_id: +source_id, views, created_at: firstView?.created_at, updated_at: lastView?.updated_at });
 
 }
 

@@ -11,7 +11,7 @@ import { getInstance } from "../../utils/type-utils"
 
 import MapEditorFormat from "./mapeditor.format"
 
-import MapEditor from "./MapEditor"
+import MapEditor,{ RegisterPlugin } from "./MapEditor"
 import MapViewer from "./MapEditor/MapViewer"
 
 const mapeditorConfig = ({
@@ -20,18 +20,20 @@ const mapeditorConfig = ({
 	baseUrl,
 	pattern,
 	authPermissions,
+	damaMapPlugins = {},
   API_HOST,
   DAMA_HOST,
   pgEnv,
   useFalcor,
 	...rest
 }) => {
-
   baseUrl = baseUrl === '/' ? '' : baseUrl;
 
   const patternInstance = getInstance(patternType) || patternType;
   const format = initializePatternFormat(MapEditorFormat, app, patternInstance);
   const childType = format.type; // e.g. "map_editor_test|symbology"
+
+	Object.keys(damaMapPlugins).forEach(plugin => RegisterPlugin(plugin, damaMapPlugins[plugin]));
 
 	return {
 		siteType,

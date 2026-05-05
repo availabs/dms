@@ -60,15 +60,25 @@ Config is resolved from three sources (highest priority first):
 
 ### Type Resolution
 
-Content types are resolved automatically from pattern configuration:
-- **Site:** `{app}+{type}` (from config)
-- **Pattern:** `{app}+{type}|pattern`
-- **Page:** `{app}+{doc_type}` (doc_type read from the page pattern)
-- **Section:** `{app}+{doc_type}|cms-section`
-- **Dataset source:** `{app}+{doc_type}|source`
-- **Dataset view:** `{app}+{doc_type}|source|view`
+The modern type scheme is `{parent}:{instance}|{rowKind}` end-to-end
+(see `src/dms/CLAUDE.md`). There is no `doc_type` field — every slug
+lives in the row's `type` column and is extracted with
+`getInstance()` from `utils/type-utils.js`.
 
-`getPageType()` and `getDatasetType()` in `utils/data.js` handle this resolution.
+Built by the CLI (`src/utils/types.js`):
+
+- **Site:** `{app}+{instance}:site` — the user's `--type` flag accepts either `nhomb` or `nhomb:site`.
+- **Pattern:** read directly via `site.data.patterns` refs; the row's `type` column is `{siteInstance}|{patternInstance}:pattern`.
+- **Page:** `{app}+{patternInstance}|page` where `patternInstance = getInstance(pattern.type)`.
+- **Section (component):** `{app}+{patternInstance}|component`. The older `cms-section` form is no longer in use.
+- **dmsEnv:** read directly via `site.data.dms_envs` refs; type is `{siteInstance}|{instance}:dmsenv`.
+- **Source:** read via `dmsEnv.data.sources` refs (the pattern's `data.dmsEnvId` points at the dmsEnv); type is `{dmsEnvInstance}|{instance}:source`.
+- **View:** read via `source.data.views` refs; type is `{sourceInstance}|{instance}:view`.
+- **Dataset data row:** `{app}+{sourceInstance}|{viewId}:data`. The `:data` suffix triggers split-table routing on the server.
+
+The CLI helpers in `src/utils/types.js` (`pageTypeFor`,
+`componentTypeFor`, `viewDataTypeFor`, …) encapsulate every type-string
+build. Commands never hand-concatenate.
 
 ### Update Semantics: `--set` vs `--data`
 

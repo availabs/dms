@@ -1,15 +1,18 @@
 import React from "react";
-import {
-  groups as d3groups,
-  mean as d3mean,
-  sum as d3sum
-} from "d3-array";
+// import {
+//   groups as d3groups,
+//   mean as d3mean,
+//   sum as d3sum
+// } from "d3-array";
+import { format as d3format } from "d3-format";
+import { range as d3range } from "d3-array";
 import {get} from "lodash-es";
 import { getGraphComponent } from "./components";
 import {mapColors} from "./utils";
 import {getColorRange} from "./colorRange";
 // import {graphTheme} from "./index";
 // import {ThemeContext} from "../../useTheme";
+import {strictNaN} from "./utils";
 
 const GraphTitle = ({ title, position, fontSize, fontWeight }) => {
 
@@ -30,14 +33,28 @@ const GraphTitle = ({ title, position, fontSize, fontWeight }) => {
   )
 }
 
-const AggFuncs = {
-  sum: d3sum,
-  avg: d3mean,
-  count: d3sum,
-  exempt: (arr, acc) => acc(arr[0])
-}
-const getAggFunc = aggMethod => {
-  return AggFuncs[aggMethod] //|| d3sum;
+// const AggFuncs = {
+//   sum: d3sum,
+//   avg: d3mean,
+//   count: d3sum,
+//   exempt: (arr, acc) => acc(arr[0])
+// }
+// const getAggFunc = aggMethod => {
+//   return AggFuncs[aggMethod] //|| d3sum;
+// }
+
+const integerFormat = d3format(",d");
+const float1Format = d3format(",.1f");
+const float2Format = d3format(",.2f");
+
+const TICK_FORMATS_MAP = {
+  identity: d => d,
+  integer: integerFormat,
+  float1: float1Format,
+  float2: float2Format,
+  dollars: d => `$${ float2Format(d) }`,
+  millions: d => `$${ integerFormat(d / 1000000.0) }m`,
+  billions: d => `$${ integerFormat(d / 1000000000.0) }b`
 }
 
 export const GraphComponent = props => {
@@ -52,7 +69,7 @@ export const GraphComponent = props => {
     theme
   } = props;
 
-// console.log("GraphComponent::viewData", viewData);
+console.log("GraphComponent::viewData", viewData);
 
   const GraphComponent = React.useMemo(() => {
     return getGraphComponent(activeGraphType.GraphComp);
@@ -66,30 +83,57 @@ export const GraphComponent = props => {
   //   setWidth(width);
   // }, [ref]);
 
-  const groupedData = React.useMemo(() => {
-    const grouped = d3groups(viewData, d => d.index, d => d.type, d => d.aggMethod);
+  // const groupedData = React.useMemo(() => {
+  //   const grouped = d3groups(viewData, d => d.index, d => d.type, d => d.aggMethod);
 
-    return grouped.reduce((a, c) => {
-      const [index, group1] = c;
+  //   return grouped.reduce((a, c) => {
+  //     const [index, group1] = c;
 
-      return group1.reduce((aa, cc) => {
-        const [type, group2] = cc;
+  //     return group1.reduce((aa, cc) => {
+  //       const [type, group2] = cc;
 
-        return group2.reduce((aaa, ccc) => {
-          const [aggMethod, group3] = ccc;
+  //       return group2.reduce((aaa, ccc) => {
+  //         const [aggMethod, group3] = ccc;
 
-          const aggFunc = getAggFunc(aggMethod);
-          aaa.push({
-            index,
-            type,
-            value: aggFunc(group3, d => d.value) // fn seems unnecessary?
-          })
+  //         const aggFunc = getAggFunc(aggMethod);
+  //         aaa.push({
+  //           index,
+  //           type,
+  //           value: aggFunc(group3, d => d.value) // fn seems unnecessary?
+  //         })
 
-          return aaa;
-        }, aa);
-      }, a);
-    }, []);
-  }, [viewData, yAxisColumns]);
+  //         return aaa;
+  //       }, aa);
+  //     }, a);
+  //   }, []);
+  // }, [viewData, yAxisColumns]);
+
+  // const xScale = React.useMemo(() => {
+  //   let domain;
+
+  //   const makeContinuous = graphFormat.xAxis.makeContinuous;
+
+  //   if (makeContinuous) {
+  //     const [min, max] = viewData.reduce((a, c) => {
+  //       const i = c.index;
+  //       if (!strictNaN(i)) {
+  //         return [Math.min(a[0], i), Math.max(a[1], i)];
+  //       }
+  //       return a;
+  //     }, [Infinity, -Infinity]);
+
+  //     if ((min < Infinity) && (max > -Infinity)) {
+  //       domain = d3range(min, max + 1);
+  //     }
+  //   }
+
+  //   return { domain };
+  // }, [graphFormat.xAxis.makeContinuous, viewData])
+
+  const yAxisFormat = React.useMemo(() => {
+    const format = graphFormat?.yAxis?.format || "identity";
+    return TICK_FORMATS_MAP[format];
+  }, [graphFormat?.yAxis?.format])
 
   return (
     <div ref={ setRef }
@@ -105,7 +149,7 @@ export const GraphComponent = props => {
 
       { !activeGraphType || !GraphComponent ? null :
         <GraphComponent
-          data={ groupedData }
+          data={ viewData }
           title={ get(graphFormat, "title", "") }
           height={ get(graphFormat, "height", 0) }
           width={ get(graphFormat, "width", 0) }
@@ -131,7 +175,7 @@ export const GraphComponent = props => {
             label: get(graphFormat, ["yAxis", "label"]),
             rotateLabels: get(graphFormat, ["yAxis", "rotateLabels"], false),
             showGridLines: get(graphFormat, ["yAxis", "showGridLines"], true),
-            tickFormat: get(graphFormat, ["yAxis", "tickFormat"], undefined),
+            format: yAxisFormat,
             show: get(graphFormat, ["yAxis", "show"], true)
           } }
           margins={ get(graphFormat, "margins", {}) }

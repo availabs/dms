@@ -2,6 +2,7 @@ import React, { useEffect, useContext, useMemo } from "react"
 import { AvlLayer } from "../../../../ui/components/map"
 import { get } from 'lodash-es'
 import { SymbologyContext } from "../"
+import { MapContext} from "../../../page/components/sections/components/ComponentRegistry/map"
 import {PluginLibrary} from "../"
 
 //CURRENTLY
@@ -25,10 +26,10 @@ const PluginLayerRender = ({
   layerProps,
   allLayerProps
 }) => {
-  // const mctx = React.useContext(MapContext);
-  // const sctx = React.useContext(SymbologyContext);
-  // const ctx = mctx?.falcor ? mctx : sctx;
-  const { state, setState } = React.useContext(SymbologyContext);
+  const mctx = React.useContext(MapContext);
+  const sctx = React.useContext(SymbologyContext);
+  const ctx = mctx?.falcor ? mctx : sctx;
+  const { state, setState } = ctx;
 
   let layerPluginDataPath = '';
   //console.log("state in plugin layer::", state)

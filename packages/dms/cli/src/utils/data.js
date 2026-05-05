@@ -1,14 +1,25 @@
 /**
- * Shared Falcor data helpers for content-aware commands
+ * Shared Falcor data helpers for content-aware commands.
  *
- * Extracts repeated cache-extraction boilerplate into reusable functions.
+ * The CLI talks to dms-server via Falcor over `POST /graph`. Modern
+ * dms-server runs in per-app split mode — every `data_items` row lives
+ * in `dms_{app}.data_items` (Postgres) or `data_items__{app}` (SQLite),
+ * and the Falcor cache is namespaced as `dms.data.{app}.byId.{id}`.
+ *
+ * All `byId` fetches in this file route through the app-namespaced path.
+ * The CLI takes `--app` (or `DMS_APP` / `.dmsrc`); commands pass it down
+ * via `config.app` so each helper can build the correct cache path.
+ *
+ * Type resolution lives in `./types.js`. This file is purely
+ * cache-extraction + Falcor-call boilerplate.
  */
 
 import { createFalcorClient } from '../client.js';
 import { readFileSync, existsSync } from 'fs';
+import { siteTypeFor } from './types.js';
 
 /**
- * Unwrap a Falcor cache value ($atom, $ref, or plain)
+ * Unwrap a Falcor cache value ($atom, $ref, or plain).
  */
 export function unwrapAtom(val) {
   if (val === null || val === undefined) return val;
@@ -19,7 +30,8 @@ export function unwrapAtom(val) {
 }
 
 /**
- * Parse the data column (string → object)
+ * Parse the `data` column. The server returns it as either a parsed
+ * object (Postgres jsonb auto-parses) or a JSON string (older code path).
  */
 export function parseData(data) {
   if (typeof data === 'string') {
@@ -33,16 +45,10 @@ export function parseData(data) {
 }
 
 /**
- * Extract one item from cache by ID
- * @param {Object} cache - Falcor cache
- * @param {number|string} id - Item ID
- * @param {string[]} attrs - Attributes to extract
- * @param {string} [app] - App namespace (for app-namespaced paths)
+ * Extract one item from the cache by ID, scoped to an app namespace.
  */
-export function extractItem(cache, id, attrs, app = null) {
-  const item = app
-    ? cache?.dms?.data?.[app]?.byId?.[id]
-    : cache?.dms?.data?.byId?.[id];
+export function extractItem(cache, id, attrs, app) {
+  const item = cache?.dms?.data?.[app]?.byId?.[id];
   if (!item || (item.$type === 'atom' && item.value === null)) return null;
 
   const result = {};
@@ -53,7 +59,9 @@ export function extractItem(cache, id, attrs, app = null) {
 }
 
 /**
- * Extract items from cache byIndex, following $ref pointers
+ * Extract items from cache `byIndex`, following `$ref` pointers into
+ * `dms.data.{app}.byId.{id}`. Refs always carry the app segment in
+ * modern split-mode databases — we trust that and read it from the ref.
  */
 export function extractList(cache, appType, from, to, attrs) {
   const byIndex = cache?.dms?.data?.[appType]?.byIndex || {};
@@ -62,9 +70,9 @@ export function extractList(cache, appType, from, to, attrs) {
   for (let i = from; i <= to; i++) {
     const ref = byIndex[i];
     if (ref && ref.$type === 'ref') {
+      // ref.value is ['dms', 'data', app, 'byId', id]
+      const refApp = ref.value[2];
       const itemId = ref.value[ref.value.length - 1];
-      // Derive app from ref: ["dms", "data", app, "byId", id] (5 elements) vs legacy ["dms", "data", "byId", id] (4 elements)
-      const refApp = ref.value.length === 5 ? ref.value[2] : null;
       const item = extractItem(cache, itemId, attrs, refApp);
       if (item) items.push(item);
     }
@@ -74,7 +82,7 @@ export function extractList(cache, appType, from, to, attrs) {
 }
 
 /**
- * Get length from cache for an appType
+ * Get length from cache for an appType key (`{app}+{type}`).
  */
 export function extractLength(cache, appType) {
   const val = cache?.dms?.data?.[appType]?.length;
@@ -82,19 +90,19 @@ export function extractLength(cache, appType) {
 }
 
 /**
- * Fetch all items for an appType
+ * Fetch all items for an `{app}+{type}` key. The key is the global
+ * cache name (`asm+nhomb:site`, `asm+datasets|page`, …). Refs from
+ * the byIndex carry the app for byId resolution.
  *
- * @param {Object} falcor - Falcor client
- * @param {string} appType - e.g. "asm+nhomb|pattern"
- * @param {string[]} attrs - Attributes to fetch
- * @param {Object} opts - { limit, offset }
- * @returns {{ items: Object[], total: number }}
+ * @param {Object} falcor
+ * @param {string} appType  e.g. "asm+datasets|page"
+ * @param {string[]} attrs
+ * @param {Object} [opts]   { limit, offset }
  */
 export async function fetchAll(falcor, appType, attrs, opts = {}) {
   const limit = opts.limit || 100;
   const offset = opts.offset || 0;
 
-  // Get length
   await falcor.get(['dms', 'data', appType, 'length']);
   const cache = falcor.getCache();
   const total = extractLength(cache, appType);
@@ -103,65 +111,62 @@ export async function fetchAll(falcor, appType, attrs, opts = {}) {
 
   const from = offset;
   const to = Math.min(offset + limit - 1, total - 1);
-
   if (from > to) return { items: [], total };
 
-  // Fetch items by index
   await falcor.get(['dms', 'data', appType, 'byIndex', { from, to }, attrs]);
-  const updatedCache = falcor.getCache();
-
-  const items = extractList(updatedCache, appType, from, to, attrs);
-
+  const items = extractList(falcor.getCache(), appType, from, to, attrs);
   return { items, total };
 }
 
 /**
- * Fetch a single item by ID
+ * Fetch a single item by ID under the given app.
+ *
+ * @param {Object} falcor
+ * @param {string} app
+ * @param {number|string} id
+ * @param {string[]} attrs
  */
-export async function fetchById(falcor, id, attrs) {
+export async function fetchById(falcor, app, id, attrs) {
+  if (!app) throw new Error('fetchById requires an app');
   const numId = parseInt(id, 10);
-  await falcor.get(['dms', 'data', 'byId', numId, attrs]);
-  const cache = falcor.getCache();
-  return extractItem(cache, numId, attrs);
+  await falcor.get(['dms', 'data', app, 'byId', numId, attrs]);
+  return extractItem(falcor.getCache(), numId, attrs, app);
 }
 
 /**
- * Batch fetch items by IDs
+ * Batch fetch items by IDs under the given app. Falcor handles the
+ * array path key — one round-trip per call.
  */
-export async function fetchByIds(falcor, ids, attrs) {
+export async function fetchByIds(falcor, app, ids, attrs) {
+  if (!app) throw new Error('fetchByIds requires an app');
   if (!ids || ids.length === 0) return [];
 
-  const numIds = ids.map(id => parseInt(id, 10));
-
-  // Fetch all at once — Falcor handles arrays in path keys
-  await falcor.get(['dms', 'data', 'byId', numIds, attrs]);
+  const numIds = ids.map((id) => parseInt(id, 10));
+  await falcor.get(['dms', 'data', app, 'byId', numIds, attrs]);
   const cache = falcor.getCache();
 
-  return numIds
-    .map(id => extractItem(cache, id, attrs))
-    .filter(Boolean);
+  return numIds.map((id) => extractItem(cache, id, attrs, app)).filter(Boolean);
 }
 
 /**
- * Resolve an ID-or-slug to a numeric ID
+ * Resolve an ID-or-slug to a numeric ID via `searchOne` on `data->>'url_slug'`.
+ * Numeric strings are returned as integers without a server round-trip.
  *
- * If numeric → return as-is. If string → search by url_slug.
+ * `appType` is the global Falcor key under which `searchOne` is registered
+ * (e.g. `asm+datasets|page`).
  */
 export async function resolveIdOrSlug(falcor, appType, idOrSlug) {
   if (/^\d+$/.test(String(idOrSlug))) {
     return parseInt(idOrSlug, 10);
   }
 
-  // Search by url_slug
   const slug = String(idOrSlug);
   const searchFilter = JSON.stringify({
     wildKey: "data ->> 'url_slug'",
     params: slug,
   });
 
-  await falcor.get(
-    ['dms', 'data', appType, 'searchOne', [searchFilter], ['id']]
-  );
+  await falcor.get(['dms', 'data', appType, 'searchOne', [searchFilter], ['id']]);
 
   const cache = falcor.getCache();
   const searchResult = cache?.dms?.data?.[appType]?.searchOne?.[searchFilter];
@@ -170,147 +175,111 @@ export async function resolveIdOrSlug(falcor, appType, idOrSlug) {
     throw new Error(`No item found with slug: ${slug}`);
   }
 
-  // searchOne returns a $ref to the item
   if (searchResult.$type === 'ref') {
     return searchResult.value[searchResult.value.length - 1];
   }
 
-  // Or it may have an id attribute
   const idVal = searchResult?.id;
-  if (idVal) {
-    return unwrapAtom(idVal);
-  }
+  if (idVal) return unwrapAtom(idVal);
 
   throw new Error(`No item found with slug: ${slug}`);
 }
 
 /**
- * Resolve the doc_type (page type) from a pattern
+ * Resolve a pattern row by name or numeric ID.
  *
- * @param {Object} falcor - Falcor client
- * @param {Object} config - { app, type }
- * @param {string} [patternNameOrId] - Specific pattern to look up
- * @returns {string} - The doc_type string
+ * Patterns under a site `{app}+{siteType}` are stored as type
+ * `{siteInstance}|{patternInstance}:pattern`. The Falcor key for the
+ * full pattern list is `{app}+{siteInstance}|%:pattern` — but the
+ * server doesn't expose a wildcard list under that key. Instead we
+ * fetch the site row and follow its `data.patterns` refs (always
+ * present and authoritative on modern data).
+ *
+ * The returned row carries the actual `type` column; downstream callers
+ * use `patternInstance(row)`, `pageTypeFor(row)`, etc.
+ *
+ * @param {Object} falcor
+ * @param {Object} config         { app, type }
+ * @param {string} [nameOrId]     Pattern name (matches data.name) or numeric id
+ * @returns {Promise<Object>} the pattern row { id, app, type, data }
  */
-export async function getPageType(falcor, config, patternNameOrId) {
-  const patternType = `${config.app}+${config.type}|pattern`;
-  const attrs = ['id', 'data'];
+export async function resolvePattern(falcor, config, nameOrId) {
+  if (!config?.app) throw new Error('resolvePattern requires config.app');
 
-  if (patternNameOrId) {
-    // Resolve specific pattern
-    if (/^\d+$/.test(String(patternNameOrId))) {
-      const pattern = await fetchById(falcor, patternNameOrId, attrs);
-      if (!pattern) throw new Error(`Pattern not found: ${patternNameOrId}`);
-      const data = parseData(pattern.data);
-      return data.doc_type || (data.base_url || '').replace(/\//g, '');
-    }
+  const siteType = siteTypeFor(config.type);
+  const siteAppType = `${config.app}+${siteType}`;
 
-    // Search by name
-    const { items } = await fetchAll(falcor, patternType, attrs);
-    const match = items.find(p => {
-      const d = parseData(p.data);
-      return d.name === patternNameOrId;
-    });
-    if (!match) throw new Error(`Pattern not found: ${patternNameOrId}`);
-    const data = parseData(match.data);
-    return data.doc_type || (data.base_url || '').replace(/\//g, '');
+  const { items } = await fetchAll(falcor, siteAppType, ['id', 'data'], { limit: 1 });
+  if (items.length === 0) {
+    throw new Error(`No site found for ${siteAppType}`);
   }
 
-  // Auto-detect: find first pattern with pattern_type === 'page'
-  const { items } = await fetchAll(falcor, patternType, attrs);
-  const pagePattern = items.find(p => {
-    const d = parseData(p.data);
-    return d.pattern_type === 'page';
-  });
+  const siteData = parseData(items[0].data);
+  const patternRefs = siteData.patterns || [];
+  const patternIds = patternRefs
+    .map((ref) => (typeof ref === 'object' ? ref.id : ref))
+    .filter(Boolean)
+    .map((id) => parseInt(id, 10));
 
-  if (!pagePattern) {
-    throw new Error('No page pattern found. Use --pattern to specify one.');
+  const patterns = await fetchByIds(falcor, config.app, patternIds, [
+    'id', 'app', 'type', 'data',
+  ]);
+
+  if (!nameOrId) {
+    return patterns;
   }
 
-  const data = parseData(pagePattern.data);
-  return data.doc_type || (data.base_url || '').replace(/\//g, '');
+  if (/^\d+$/.test(String(nameOrId))) {
+    const numId = parseInt(nameOrId, 10);
+    const match = patterns.find((p) => parseInt(p.id, 10) === numId);
+    if (!match) throw new Error(`Pattern not found: ${nameOrId}`);
+    return match;
+  }
+
+  const match = patterns.find((p) => parseData(p.data).name === nameOrId);
+  if (!match) throw new Error(`Pattern not found: ${nameOrId}`);
+  return match;
 }
 
 /**
- * Build a Falcor client from config (convenience)
+ * Pick a pattern by `pattern_type` filter (e.g. `'page'`, `'datasets'`,
+ * `'forms'`). Used by commands that want to default to "the page
+ * pattern" / "the datasets pattern" when the user didn't pass --pattern.
+ */
+export async function findPatternByKind(falcor, config, kinds) {
+  const wanted = Array.isArray(kinds) ? kinds : [kinds];
+  const all = await resolvePattern(falcor, config);
+  const match = all.find((p) => wanted.includes(parseData(p.data).pattern_type));
+  if (!match) {
+    throw new Error(
+      `No pattern of type ${wanted.join('/')} found. Use --pattern to specify one.`
+    );
+  }
+  return match;
+}
+
+/**
+ * Convenience: build a Falcor client from CLI config.
  */
 export function makeClient(config) {
   return createFalcorClient(config.host, config.authToken);
 }
 
 /**
- * Resolve the dataset type from a pattern
- *
- * Finds the first pattern with pattern_type === 'datasets' or 'forms',
- * then constructs source and view type strings.
- *
- * @param {Object} falcor - Falcor client
- * @param {Object} config - { app, type }
- * @param {string} [patternNameOrId] - Specific pattern to look up
- * @returns {{ docType: string, sourceType: string, viewType: string }}
- */
-export async function getDatasetType(falcor, config, patternNameOrId) {
-  const patternType = `${config.app}+${config.type}|pattern`;
-  const attrs = ['id', 'data'];
-
-  let data;
-
-  if (patternNameOrId) {
-    if (/^\d+$/.test(String(patternNameOrId))) {
-      const pattern = await fetchById(falcor, patternNameOrId, attrs);
-      if (!pattern) throw new Error(`Pattern not found: ${patternNameOrId}`);
-      data = parseData(pattern.data);
-    } else {
-      const { items } = await fetchAll(falcor, patternType, attrs);
-      const match = items.find(p => {
-        const d = parseData(p.data);
-        return d.name === patternNameOrId;
-      });
-      if (!match) throw new Error(`Pattern not found: ${patternNameOrId}`);
-      data = parseData(match.data);
-    }
-  } else {
-    const { items } = await fetchAll(falcor, patternType, attrs);
-    const dsPattern = items.find(p => {
-      const d = parseData(p.data);
-      return d.pattern_type === 'datasets' || d.pattern_type === 'forms';
-    });
-
-    if (!dsPattern) {
-      throw new Error('No datasets/forms pattern found. Use --pattern to specify one.');
-    }
-
-    data = parseData(dsPattern.data);
-  }
-
-  const docType = data.doc_type || (data.base_url || '').replace(/\//g, '');
-
-  return {
-    docType,
-    sourceType: `${docType}|source`,
-    viewType: `${docType}|source|view`,
-  };
-}
-
-/**
- * Read all data from stdin
- * @returns {Promise<string>}
+ * Read all data from stdin.
  */
 export function readStdin() {
   return new Promise((resolve, reject) => {
     let data = '';
     process.stdin.setEncoding('utf-8');
-    process.stdin.on('data', chunk => { data += chunk; });
+    process.stdin.on('data', (chunk) => { data += chunk; });
     process.stdin.on('end', () => resolve(data));
     process.stdin.on('error', reject);
   });
 }
 
 /**
- * Read input as JSON — from file path, stdin ('-'), or inline JSON string
- *
- * @param {string} input - File path, '-' for stdin, or inline JSON
- * @returns {Promise<Object>} Parsed JSON object
+ * Read input as JSON — from file path, stdin (`-`), or inline JSON string.
  */
 export async function readFileOrJson(input) {
   if (input === '-') {
@@ -327,8 +296,8 @@ export async function readFileOrJson(input) {
 }
 
 /**
- * Parse --set key=value pairs into a data object
- * Supports dot-notation for nested keys.
+ * Parse `--set key=value` pairs (repeatable) into a nested object.
+ * Dot-notation in keys → nested keys.
  */
 export function parseSetPairs(setPairs) {
   if (!setPairs) return {};
@@ -343,10 +312,8 @@ export function parseSetPairs(setPairs) {
     const key = pair.slice(0, eqIndex);
     let value = pair.slice(eqIndex + 1);
 
-    // Try to parse as JSON, otherwise treat as string
     try { value = JSON.parse(value); } catch {}
 
-    // Support nested keys with dot notation
     const keys = key.split('.');
     let current = data;
     for (let i = 0; i < keys.length - 1; i++) {

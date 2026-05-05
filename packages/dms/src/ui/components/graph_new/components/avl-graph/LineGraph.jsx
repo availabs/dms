@@ -269,6 +269,12 @@ export const LineGraph = props => {
     if (!xDomain.length && secondary.length) {
       xDomain = secondary[0].data.map(d => d.x);
     }
+    if (xScale) {
+
+console.log("X SCALE:", xScale);
+
+      xDomain = get(xScale, "domain", xDomain);
+    }
 
     const aLeft = {
       ...DefaultAxis,
@@ -284,6 +290,9 @@ export const LineGraph = props => {
         }
         return a;
       }, []);
+    }
+    if (yScale) {
+      yDomain = get(yScale, "domain", yDomain);
     }
 
     const aRight = {
@@ -301,31 +310,22 @@ export const LineGraph = props => {
         return a;
       }, []);
     }
+    if (secScale) {
+      secDomain = get(secScale, "domain", secDomain);
+    }
 
     const XScale = scalePoint()
       .padding(padding)
       .domain(xDomain)
       .range([0, adjustedWidth]);
-    if (xScale) {
-      xDomain = get(xScale, "domain", xDomain);
-      XScale.domain(xDomain);
-    }
 
     const YScale = scaleLinear()
       .domain(yDomain)
       .range([adjustedHeight, 0]);
-    if (yScale) {
-      yDomain = get(yScale, "domain", yDomain);
-      YScale.domain(yDomain);
-    }
 
     const SecScale = scaleLinear()
       .domain(secDomain)
       .range([adjustedHeight, 0]);
-    if (secScale) {
-      secDomain = get(secScale, "domain", secDomain);
-      SecScale.domain(secDomain);
-    }
 
 		const lineGenerator = d3line()
       .curve(curveCatmullRom)

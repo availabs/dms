@@ -193,7 +193,7 @@ const pageCmd = program
 pageCmd
   .command('list')
   .description('List pages')
-  .option('--pattern <name-or-id>', 'Use a specific pattern for doc_type resolution')
+  .option('--pattern <name-or-id>', 'Use a specific pattern for type resolution')
   .option('--published', 'Show only published pages')
   .option('--draft', 'Show only draft pages')
   .option('--limit <n>', 'Maximum number of items', '50')
@@ -207,7 +207,7 @@ pageCmd
 pageCmd
   .command('show <id-or-slug>')
   .description('Show page metadata')
-  .option('--pattern <name-or-id>', 'Use a specific pattern for doc_type resolution')
+  .option('--pattern <name-or-id>', 'Use a specific pattern for type resolution')
   .action(async (idOrSlug, options, cmd) => {
     const config = getConfig(cmd);
     validateConfig(config, ['host', 'app', 'type']);
@@ -217,7 +217,7 @@ pageCmd
 pageCmd
   .command('dump <id-or-slug>')
   .description('Dump full page data as JSON')
-  .option('--pattern <name-or-id>', 'Use a specific pattern for doc_type resolution')
+  .option('--pattern <name-or-id>', 'Use a specific pattern for type resolution')
   .option('--sections', 'Expand section data inline')
   .action(async (idOrSlug, options, cmd) => {
     const config = getConfig(cmd);
@@ -228,7 +228,7 @@ pageCmd
 pageCmd
   .command('create')
   .description('Create a new page')
-  .option('--pattern <name-or-id>', 'Use a specific pattern for doc_type resolution')
+  .option('--pattern <name-or-id>', 'Use a specific pattern for type resolution')
   .option('--title <title>', 'Page title')
   .option('--slug <slug>', 'URL slug')
   .option('--parent <id>', 'Parent page ID')
@@ -242,7 +242,7 @@ pageCmd
 pageCmd
   .command('update <id-or-slug>')
   .description('Update a page')
-  .option('--pattern <name-or-id>', 'Use a specific pattern for doc_type resolution')
+  .option('--pattern <name-or-id>', 'Use a specific pattern for type resolution')
   .option('--title <title>', 'New title (triggers read-modify-write)')
   .option('--slug <slug>', 'New URL slug (triggers read-modify-write)')
   .option('--data <json>', 'JSON data (sent as-is for full replacement)')
@@ -256,7 +256,7 @@ pageCmd
 pageCmd
   .command('publish <id-or-slug>')
   .description('Publish a page (copy draft_sections → sections)')
-  .option('--pattern <name-or-id>', 'Use a specific pattern for doc_type resolution')
+  .option('--pattern <name-or-id>', 'Use a specific pattern for type resolution')
   .action(async (idOrSlug, options, cmd) => {
     const config = getConfig(cmd);
     validateConfig(config, ['host', 'app', 'type']);
@@ -266,7 +266,7 @@ pageCmd
 pageCmd
   .command('unpublish <id-or-slug>')
   .description('Unpublish a page (set to draft)')
-  .option('--pattern <name-or-id>', 'Use a specific pattern for doc_type resolution')
+  .option('--pattern <name-or-id>', 'Use a specific pattern for type resolution')
   .action(async (idOrSlug, options, cmd) => {
     const config = getConfig(cmd);
     validateConfig(config, ['host', 'app', 'type']);
@@ -276,7 +276,7 @@ pageCmd
 pageCmd
   .command('delete <id-or-slug>')
   .description('Delete a page')
-  .option('--pattern <name-or-id>', 'Use a specific pattern for doc_type resolution')
+  .option('--pattern <name-or-id>', 'Use a specific pattern for type resolution')
   .action(async (idOrSlug, options, cmd) => {
     const config = getConfig(cmd);
     validateConfig(config, ['host', 'app', 'type']);
@@ -294,7 +294,7 @@ const sectionCmd = program
 sectionCmd
   .command('list <page-id-or-slug>')
   .description('List sections for a page')
-  .option('--pattern <name-or-id>', 'Use a specific pattern for doc_type resolution')
+  .option('--pattern <name-or-id>', 'Use a specific pattern for type resolution')
   .option('--draft', 'Show draft sections specifically')
   .action(async (pageIdOrSlug, options, cmd) => {
     const config = getConfig(cmd);
@@ -323,7 +323,7 @@ sectionCmd
 sectionCmd
   .command('create <page-id-or-slug>')
   .description('Create a section and attach to a page')
-  .option('--pattern <name-or-id>', 'Use a specific pattern for doc_type resolution')
+  .option('--pattern <name-or-id>', 'Use a specific pattern for type resolution')
   .option('--element-type <element-type>', 'Section element type (e.g., lexical, Card)')
   .option('--title <title>', 'Section title')
   .option('--level <level>', 'Section level')
@@ -348,7 +348,7 @@ sectionCmd
 sectionCmd
   .command('delete <section-id>')
   .description('Delete a section')
-  .option('--pattern <name-or-id>', 'Use a specific pattern for doc_type resolution')
+  .option('--pattern <name-or-id>', 'Use a specific pattern for type resolution')
   .option('--page <id-or-slug>', 'Also remove section ref from this page')
   .action(async (sectionId, options, cmd) => {
     const config = getConfig(cmd);
@@ -401,9 +401,10 @@ datasetCmd
   });
 
 datasetCmd
-  .command('dump <source-id>')
-  .description('Dump data rows for a dataset source')
+  .command('dump <source-id-or-name>')
+  .description('Dump data rows for a dataset source view (split-table)')
   .option('--pattern <name-or-id>', 'Use a specific pattern for type resolution')
+  .option('--view <id>', 'View ID to dump (defaults to latest)')
   .option('--limit <n>', 'Maximum number of rows', '100')
   .option('--offset <n>', 'Skip first n rows', '0')
   .action(async (sourceId, options, cmd) => {
@@ -413,9 +414,10 @@ datasetCmd
   });
 
 datasetCmd
-  .command('query <source-id>')
+  .command('query <source-id-or-name>')
   .description('Query dataset rows with filters and ordering')
   .option('--pattern <name-or-id>', 'Use a specific pattern for type resolution')
+  .option('--view <id>', 'View ID to query (defaults to latest)')
   .option('--filter <col=val>', 'Filter by column value (repeatable)', collectSet)
   .option('--order <col:asc|desc>', 'Order by column')
   .option('--limit <n>', 'Maximum number of rows', '100')
