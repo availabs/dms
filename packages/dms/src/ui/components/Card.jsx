@@ -549,8 +549,15 @@ const RenderItem = memo(function RenderItem ({
             : 'bg-amber-100'
         : '';
 
+    const [isSaving, setIsSaving] = useState(false);
+    const isSavingRef = useRef(false);
+
     useEffect(() => {
-        setTmpItem(item)
+        setTmpItem(item);
+        if (isSavingRef.current) {
+            isSavingRef.current = false;
+            setIsSaving(false);
+        }
     }, [item]);
 
     const isFormLikeEditMode = (allowEdit || visibleColumns.some(c => c.allowEditInView)) && !liveEdit && item.id;
@@ -562,7 +569,12 @@ const RenderItem = memo(function RenderItem ({
         if (triggerSaveToken === undefined || triggerSaveToken === prevSaveTokenRef.current) return;
         prevSaveTokenRef.current = triggerSaveToken;
         if (isFormLikeEditMode) {
-            updateItem(undefined, undefined, tmpItem);
+            const hasPendingChanges = Object.keys(tmpItem).some(k => tmpItem[k] !== item[k]);
+            if (hasPendingChanges) {
+                isSavingRef.current = true;
+                setIsSaving(true);
+                updateItem(undefined, undefined, tmpItem);
+            }
         }
     }, [triggerSaveToken, isFormLikeEditMode, tmpItem, updateItem]);
     const isAddingNewItem = allowAdddNew && !item.id && isDms && addItem;
@@ -581,7 +593,7 @@ const RenderItem = memo(function RenderItem ({
     return (
         //  in normal view, grid applied here
         <div
-            className={`${theme.subWrapper} ${compactView ? `${theme.subWrapperCompactView} ${removeBorder ? `` : 'border shadow'}` : `${theme.subWrapperSimpleView} ${addBorder ? `border shadow rounded-md` : ``}`} ${highlightClass}`}
+            className={`${theme.subWrapper} ${compactView ? `${theme.subWrapperCompactView} ${removeBorder ? `` : 'border shadow'}` : `${theme.subWrapperSimpleView} ${addBorder ? `border shadow rounded-md` : ``}`} ${highlightClass} ${isSaving ? theme.formEditSavingAnimation : ''}`}
             style={subWrapperStyle}
             onMouseEnter={() => {
                 setCardHovered(true);
