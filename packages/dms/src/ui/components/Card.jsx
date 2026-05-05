@@ -676,7 +676,7 @@ const RenderItem = memo(function RenderItem ({
             }
 
             {
-                isFormLikeEditMode ? (
+                isFormLikeEditMode && !controls?.clickSaveActive ? (
                     <div className={theme.formEditButtonsWrapper}>
                         <button className={theme.formEditSaveButton} onClick={() => updateItem(undefined, undefined, tmpItem)}>save</button>
                         <button className={theme.formEditCancelButton} onClick={() => setTmpItem(item)}>cancel</button>

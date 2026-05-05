@@ -81,6 +81,7 @@ export const CardSection = ({
                      ...(highlightedItem ? { highlightedItem } : {}),
                      ...(clickPublishCfg ? { onCardColumnClick, clickPublishColumn: clickPublishCfg.args?.column } : {}),
                      ...(saveToken > 0 ? { triggerSaveToken: saveToken } : {}),
+                     ...(clickSaveSubCfg ? { clickSaveActive: true } : {}),
                  }}
                  isEdit={isEdit} updateItem={updateItem} addItem={addItem} newItem={newItem} setNewItem={setNewItem} allowEdit={allowEdit}
                  formatFunctions={formatFunctions}
