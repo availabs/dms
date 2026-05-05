@@ -161,7 +161,11 @@ export const getData = async ({
     const fnColumnsExists = columnsToFetch.some((column) => column.fn);
 
     if (!columnsToFetch.length) {
-        return { length, data: [] };
+        const hasVisibleStaticColumns = (state.columns || []).some(c => c.show && c.origin === 'static');
+        if (!hasVisibleStaticColumns) {
+            return { length, data: [] };
+        }
+        // Only static columns visible — fall through so the id column gets added below
     }
     // When a join is present, every base-table column reference must be
     // alias-qualified to avoid Postgres "column ambiguous" errors. Use ds.id.

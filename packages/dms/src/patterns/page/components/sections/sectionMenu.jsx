@@ -210,8 +210,9 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
 
         return {
             id: `fn_${side}_${fn.id}`,
-            icon: side === 'providers' ? 'ArrowUpRight' : 'ArrowDownLeft',
+            icon: side === 'providers' ? 'Upload' : 'Download1',
             name: fn.label,
+            value: entry?.enabled ? 'active' : 'inactive', showValue: true,
             items: [
                 {
                     id: `fn_${side}_${fn.id}_enabled`,
