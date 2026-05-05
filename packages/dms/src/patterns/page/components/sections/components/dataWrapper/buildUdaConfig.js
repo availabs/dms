@@ -28,15 +28,30 @@ export const isCalculatedCol = ({ display, type, origin, name }) =>
 /**
  * Column reference string — the SQL accessor used in WHERE/GROUP BY/ORDER BY.
  * DMS columns use data->>'col', DAMA columns use col directly.
+ *
+ * When joins are present, buildUdaConfig prefixes each column name with its
+ * table alias (e.g., "djs.on_air_name"). DMS sources store column values inside
+ * a single `data` JSONB column on the split table, so the SQL must read
+ * `<alias>.data->>'<rawName>'` rather than `data->>'<alias>.<rawName>'` (which
+ * would look up a JSON property literally named "alias.rawName" — never exists).
  */
-export const attributeAccessorStr = (col, isDms, isCalculated, isSystemCol) =>
-  isCalculated ||
-  isSystemCol ||
-  splitColNameOnAS(col)[0]?.includes("data->>")
-    ? splitColNameOnAS(col)[0]
-    : isDms
-      ? `data->>'${col}'`
-      : col;
+export const attributeAccessorStr = (col, isDms, isCalculated, isSystemCol) => {
+  if (
+    isCalculated ||
+    isSystemCol ||
+    splitColNameOnAS(col)[0]?.includes("data->>")
+  ) {
+    return splitColNameOnAS(col)[0];
+  }
+  if (!isDms) return col;
+  const dotIdx = col.indexOf(".");
+  if (dotIdx > 0 && /^[a-zA-Z_]\w*\.\w+$/.test(col)) {
+    const alias = col.slice(0, dotIdx);
+    const name = col.slice(dotIdx + 1);
+    return `${alias}.data->>'${name}'`;
+  }
+  return `data->>'${col}'`;
+};
 
 /**
  * Ref name — column reference for use in SQL expressions (WHERE, GROUP BY).
@@ -581,9 +596,16 @@ export const buildJoinSources = ({ join, externalSource }) => {
 /**
  * Builds the join 'on' clauses.
  * Returns an array of join conditions, one for each extra source.
+ *
+ * Each side is JSONB-unwrapped when its source is DMS-internal (`alias.data->>'col'`)
+ * vs accessed directly when DAMA-backed (`alias.col`). Without this, joining two
+ * DMS sources produces SQL referencing physical columns that don't exist.
  */
 export const buildJoinOnClause = ({ join, externalSource }) => {
   const { sources, operator = "=" } = join;
+  const baseIsDms = !!externalSource?.isDms;
+  const accessor = (alias, col, isDmsSide) =>
+    isDmsSide ? `${alias}.data->>'${col}'` : `${alias}.${col}`;
 
   // The 'ds' is our base table. We join every other source onto it.
   return Object.keys(sources)
@@ -595,10 +617,16 @@ export const buildJoinOnClause = ({ join, externalSource }) => {
       const type = sources[sourceAlias].type || "left";
       // Use the user-selected merge strategy, defaulting to 'join'
       const mergeStrategy = sources[sourceAlias].mergeStrategy || "join";
+      const joinedIsDms = !!sources[sourceAlias].sourceInfo?.isDms;
 
       // Each sourceAlias should have a corresponding join condition string
       const conditions = sourceJoinColumns.map(
-        (col) => `ds.${col.dsColumn} ${operator} ${sourceAlias}.${col.joinSourceColumn}`
+        (col) =>
+          `${accessor("ds", col.dsColumn, baseIsDms)} ${operator} ${accessor(
+            sourceAlias,
+            col.joinSourceColumn,
+            joinedIsDms,
+          )}`,
       );
 
       return {

@@ -74,7 +74,9 @@ const iconList = [
   { icon: "EllipsisVertical" },
   { icon: "Filter" },
   { icon: "LoadingHourGlass" },
+  { icon: "Download1" },
   { icon: "Download" },
+  { icon: "Upload" },
   { icon: "Search" },
 
   // Data/Table Icons

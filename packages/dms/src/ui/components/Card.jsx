@@ -331,6 +331,7 @@ const CardColumnField = ({
     tmpItem, setTmpItem, isNewItem, newItem, setNewItem, updateItem, addItem,
     formatFunctions, controls, setState, isEdit, display,
     pickerLeft, pickerRight, pickerTop, pickerBottom,
+    onColumnClick,
 }) => {
     const [hovered, setHovered] = useState(false);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -417,8 +418,9 @@ const CardColumnField = ({
 
     return (
         <div
-            className={`relative ${theme.headerValueWrapper} ${wrapperFlexClass} ${wrapperViewClass}`}
+            className={`relative ${theme.headerValueWrapper} ${wrapperFlexClass} ${wrapperViewClass}${onColumnClick ? ' cursor-pointer' : ''}`}
             style={style}
+            onClick={onColumnClick}
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => { if (!isMenuOpen) setHovered(false); }}
         >
@@ -547,11 +549,34 @@ const RenderItem = memo(function RenderItem ({
             : 'bg-amber-100'
         : '';
 
+    const [isSaving, setIsSaving] = useState(false);
+    const isSavingRef = useRef(false);
+
     useEffect(() => {
-        setTmpItem(item)
+        setTmpItem(item);
+        if (isSavingRef.current) {
+            isSavingRef.current = false;
+            setIsSaving(false);
+        }
     }, [item]);
 
     const isFormLikeEditMode = (allowEdit || visibleColumns.some(c => c.allowEditInView)) && !liveEdit && item.id;
+
+    const triggerSaveToken = controls?.triggerSaveToken;
+    const prevSaveTokenRef = useRef(triggerSaveToken);
+
+    useEffect(() => {
+        if (triggerSaveToken === undefined || triggerSaveToken === prevSaveTokenRef.current) return;
+        prevSaveTokenRef.current = triggerSaveToken;
+        if (isFormLikeEditMode) {
+            const hasPendingChanges = Object.keys(tmpItem).some(k => tmpItem[k] !== item[k]);
+            if (hasPendingChanges) {
+                isSavingRef.current = true;
+                setIsSaving(true);
+                updateItem(undefined, undefined, tmpItem);
+            }
+        }
+    }, [triggerSaveToken, isFormLikeEditMode, tmpItem, updateItem]);
     const isAddingNewItem = allowAdddNew && !item.id && isDms && addItem;
     const isNewItem = allowAdddNew && !tmpItem.id && isDms && addItem;
 
@@ -568,7 +593,7 @@ const RenderItem = memo(function RenderItem ({
     return (
         //  in normal view, grid applied here
         <div
-            className={`${theme.subWrapper} ${compactView ? `${theme.subWrapperCompactView} ${removeBorder ? `` : 'border shadow'}` : `${theme.subWrapperSimpleView} ${addBorder ? `border shadow rounded-md` : ``}`} ${highlightClass}`}
+            className={`${theme.subWrapper} ${compactView ? `${theme.subWrapperCompactView} ${removeBorder ? `` : 'border shadow'}` : `${theme.subWrapperSimpleView} ${addBorder ? `border shadow rounded-md` : ``}`} ${highlightClass} ${isSaving ? theme.formEditSavingAnimation : ''}`}
             style={subWrapperStyle}
             onMouseEnter={() => {
                 setCardHovered(true);
@@ -614,6 +639,15 @@ const RenderItem = memo(function RenderItem ({
                             triggerClassName="absolute left-0 right-0 bottom-0 translate-y-1/2 h-4 z-20 flex items-center justify-center"
                         />
                     ) : null;
+                    const clickPublishColumn = controls?.clickPublishColumn;
+                    const onCardColumnClick = controls?.onCardColumnClick;
+                    const attrKey = attr.normalName || attr.name;
+                    const onColumnClick = (clickPublishColumn && onCardColumnClick && attrKey === clickPublishColumn)
+                        ? attr.origin === 'static'
+                            ? () => onCardColumnClick({ [attrKey]: attr.staticValue }, attrKey)
+                            : () => onCardColumnClick(item, attrKey)
+                        : undefined;
+
                     return (
                         <CardColumnField
                             key={attr.normalName || attr.name}
@@ -647,13 +681,14 @@ const RenderItem = memo(function RenderItem ({
                             pickerRight={pickerRight}
                             pickerTop={pickerTop}
                             pickerBottom={pickerBottom}
+                            onColumnClick={onColumnClick}
                         />
                     );
                 })
             }
 
             {
-                isFormLikeEditMode ? (
+                isFormLikeEditMode && !controls?.clickSaveActive ? (
                     <div className={theme.formEditButtonsWrapper}>
                         <button className={theme.formEditSaveButton} onClick={() => updateItem(undefined, undefined, tmpItem)}>save</button>
                         <button className={theme.formEditCancelButton} onClick={() => setTmpItem(item)}>cancel</button>

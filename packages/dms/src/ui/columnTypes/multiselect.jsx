@@ -39,8 +39,8 @@ const looselyEqual = (a, b) => {
     return String(a) === String(b);
 }
 
-const RenderToken = ({token, value, onChange, theme, isSearching, setIsSearching, meta}) => {
-    const label = meta?.[token.label || token] || token.label || token;
+const RenderToken = ({token={}, value, onChange, theme, isSearching, setIsSearching, meta}) => {
+    const label = meta?.[token?.label || token] || token?.label || token;
     const safeLabel = label && typeof label === 'object' ? JSON.stringify(label) : label
     return (
         <div className={theme?.multiselect?.tokenWrapper}>
@@ -271,7 +271,7 @@ export const MultiselectEdit = ({value = [], loading, onChange, className,placeh
 
 export const MultiselectView = memo(function MultiselectView ({className, value, options = [], meta}){
 
-    if (!value) return <div className={theme?.multiselect?.mainWrapper} />
+    if (!value || (Array.isArray(value) && value.every(v => !v))) return <div className={theme?.multiselect?.mainWrapper} />
 
     const mappedValue = (Array.isArray(value) ? value : [value]).map(v => (options || []).find(o => looselyEqual((o.value || o), (v.value || v))) || v);
     return (

@@ -151,6 +151,7 @@ export async function preloadSectionData(falcor, elementData, elementType, pageF
             },
             data,
             ...(state.dataSourceId && { dataSourceId: state.dataSourceId }),
+            ...(state.join && Object.keys(state.join.sources || {}).length && { join: state.join }),
         })
     } catch (e) {
         console.error('preloadSectionData failed for', elementType, e)
