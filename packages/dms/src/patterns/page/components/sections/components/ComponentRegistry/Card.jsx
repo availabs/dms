@@ -1,4 +1,4 @@
-import React, { useCallback, useContext } from "react";
+import React, { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { ComponentContext, PageContext } from "../../../../context";
 import { ThemeContext } from "../../../../../../ui/useTheme";
 import { formatFunctions } from "../dataWrapper/utils/utils";
@@ -44,6 +44,34 @@ export const CardSection = ({
         clearActionParam(providerCfg.paramKey);
     }, [providerCfg, clearActionParam]);
 
+    const clickPublishCfg = state.display?._functions?.providers?.find(p => p.functionId === 'click_publish' && p.enabled);
+
+    const onCardColumnClick = useCallback((item, columnKey) => {
+        if (!clickPublishCfg || !setActionParam) return;
+        const value = item?.[columnKey];
+        if (value !== undefined) setActionParam(clickPublishCfg.paramKey, value);
+    }, [clickPublishCfg, setActionParam]);
+
+    const clickSaveSubCfg = state.display?._functions?.subscribers?.find(s => s.functionId === 'click_save' && s.enabled);
+    const clickSaveParam = clickSaveSubCfg && pageState
+        ? pageState.filters.find(f => f.searchKey === clickSaveSubCfg.paramKey && f.type === 'action')
+        : null;
+    const [saveToken, setSaveToken] = useState(0);
+    const handledSaveRef = useRef(false);
+    console.log('click actions', clickPublishCfg, clickSaveSubCfg, saveToken)
+
+    useEffect(() => {
+        if (!clickSaveSubCfg || !state.display?.allowEditInView || !clearActionParam) return;
+        const paramValue = clickSaveParam?.values?.[0];
+        if (paramValue !== undefined && !handledSaveRef.current) {
+            handledSaveRef.current = true;
+            setSaveToken(t => t + 1);
+            clearActionParam(clickSaveSubCfg.paramKey);
+        } else if (paramValue === undefined) {
+            handledSaveRef.current = false;
+        }
+    }, [clickSaveParam, clickSaveSubCfg, state.display?.allowEditInView, clearActionParam]);
+
     return <Card columns={state.columns} data={state.data} display={state.display} sourceInfo={state.externalSource} setState={setState}
                  controls={{
                      ...controls,
@@ -51,6 +79,8 @@ export const CardSection = ({
                      CalculatedColumnModal: AddCalculatedColumn,
                      ...(providerCfg ? { onCardMouseEnter, onCardMouseLeave } : {}),
                      ...(highlightedItem ? { highlightedItem } : {}),
+                     ...(clickPublishCfg ? { onCardColumnClick, clickPublishColumn: clickPublishCfg.args?.column } : {}),
+                     ...(saveToken > 0 ? { triggerSaveToken: saveToken } : {}),
                  }}
                  isEdit={isEdit} updateItem={updateItem} addItem={addItem} newItem={newItem} setNewItem={setNewItem} allowEdit={allowEdit}
                  formatFunctions={formatFunctions}

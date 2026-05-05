@@ -331,6 +331,7 @@ const CardColumnField = ({
     tmpItem, setTmpItem, isNewItem, newItem, setNewItem, updateItem, addItem,
     formatFunctions, controls, setState, isEdit, display,
     pickerLeft, pickerRight, pickerTop, pickerBottom,
+    onColumnClick,
 }) => {
     const [hovered, setHovered] = useState(false);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -417,8 +418,9 @@ const CardColumnField = ({
 
     return (
         <div
-            className={`relative ${theme.headerValueWrapper} ${wrapperFlexClass} ${wrapperViewClass}`}
+            className={`relative ${theme.headerValueWrapper} ${wrapperFlexClass} ${wrapperViewClass}${onColumnClick ? ' cursor-pointer' : ''}`}
             style={style}
+            onClick={onColumnClick}
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => { if (!isMenuOpen) setHovered(false); }}
         >
@@ -552,6 +554,17 @@ const RenderItem = memo(function RenderItem ({
     }, [item]);
 
     const isFormLikeEditMode = (allowEdit || visibleColumns.some(c => c.allowEditInView)) && !liveEdit && item.id;
+
+    const triggerSaveToken = controls?.triggerSaveToken;
+    const prevSaveTokenRef = useRef(triggerSaveToken);
+
+    useEffect(() => {
+        if (triggerSaveToken === undefined || triggerSaveToken === prevSaveTokenRef.current) return;
+        prevSaveTokenRef.current = triggerSaveToken;
+        if (isFormLikeEditMode) {
+            updateItem(undefined, undefined, tmpItem);
+        }
+    }, [triggerSaveToken, isFormLikeEditMode, tmpItem, updateItem]);
     const isAddingNewItem = allowAdddNew && !item.id && isDms && addItem;
     const isNewItem = allowAdddNew && !tmpItem.id && isDms && addItem;
 
@@ -614,6 +627,13 @@ const RenderItem = memo(function RenderItem ({
                             triggerClassName="absolute left-0 right-0 bottom-0 translate-y-1/2 h-4 z-20 flex items-center justify-center"
                         />
                     ) : null;
+                    const clickPublishColumn = controls?.clickPublishColumn;
+                    const onCardColumnClick = controls?.onCardColumnClick;
+                    const attrKey = attr.normalName || attr.name;
+                    const onColumnClick = (clickPublishColumn && onCardColumnClick && attrKey === clickPublishColumn)
+                        ? () => onCardColumnClick(item, attrKey)
+                        : undefined;
+
                     return (
                         <CardColumnField
                             key={attr.normalName || attr.name}
@@ -647,6 +667,7 @@ const RenderItem = memo(function RenderItem ({
                             pickerRight={pickerRight}
                             pickerTop={pickerTop}
                             pickerBottom={pickerBottom}
+                            onColumnClick={onColumnClick}
                         />
                     );
                 })
