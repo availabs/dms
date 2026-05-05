@@ -482,6 +482,105 @@ This is useful for features like textSettings where you want to apply a global o
    - Shared/cross-cutting themes (e.g., a table theme used by many components) can live in a common directory
    - The pattern's `defaultTheme.js` imports from these co-located paths and registers them under the pattern namespace
 
+## Theme-registered column types
+
+Themes can ship custom column types (e.g. a portrait/banner block computed
+from row data) by exporting a `columnTypes` map on the theme. The page
+pattern auto-registers them at site boot via `registerColumnType`, so they
+appear in the live `ColumnTypes` registry alongside built-ins (`text`,
+`number`, `multiselect`, etc.) for any column whose `type` matches.
+
+### Shape
+
+```js
+// src/themes/<your-theme>/wcdb_theme.js (excerpt)
+import portraitBanner from "./columnTypes/portraitBanner.config"
+
+const theme = {
+  // ...
+  columnTypes: {
+    portrait_banner: portraitBanner,
+  },
+}
+```
+
+Each entry follows the same `{ EditComp, ViewComp }` contract as built-in
+types, plus an optional `cardHints` block consumed by `Card.jsx`:
+
+```js
+// src/themes/<your-theme>/columnTypes/portraitBanner.config.js
+import { PortraitBannerEdit, PortraitBannerView } from "./portraitBanner"
+
+export default {
+  EditComp: PortraitBannerEdit,
+  ViewComp: PortraitBannerView,
+  cardHints: {
+    fullBleed: true,         // skip Card's headerValueWrapper chrome
+    spanFullColumns: true,   // gridColumn: 1 / -1 in cell mode
+    spanFullRows: false,     // gridRow: 1 / -1 (rare; takes precedence over cardRowSpan)
+    height: 200,             // fixed pixel height on the field
+    defaultHideHeader: true, // when admin adds this column, default hideHeader=true
+  },
+}
+```
+
+### File conventions
+
+Per the package's Vite Fast-Refresh rules (`packages/dms/CLAUDE.md`),
+components and metadata split across two files:
+
+```
+src/themes/<theme>/columnTypes/
+├── portraitBanner.jsx          ← exports: PortraitBannerEdit, PortraitBannerView
+└── portraitBanner.config.js    ← imports the named exports, default-exports the registry entry
+```
+
+Component files only export named React components; the `.config.js`
+sibling holds the metadata so the `.jsx` stays a Fast-Refresh boundary.
+
+### Card layout hints (`cardHints`)
+
+`Card.jsx` consults `ColumnTypes[attr.type]?.cardHints` once per field
+render. Hints are purely additive — built-ins ship without `cardHints`,
+and the empty-object fallback turns every gate into a no-op. Specifically:
+
+| Hint | Effect |
+|---|---|
+| `fullBleed: true` | Wrapper class swaps from `theme.headerValueWrapper` to `theme.headerValueWrapperFullBleed`; `style.padding`/`paddingBottom` are zeroed; the field header block is suppressed. |
+| `spanFullColumns: true` | `style.gridColumn = '1 / -1'`. In cell mode the column claims every sub-grid track; in row mode this is harmless (flex children ignore `gridColumn`). |
+| `spanFullRows: true` | `style.gridRow = '1 / -1'`. Takes precedence over `cardRowSpan`. |
+| `height: number` | `style.height = '${n}px'`. |
+| `defaultHideHeader: true` | When admin adds a column whose type has this hint via `CardColumnPicker`, the new column is seeded with `hideHeader: true`. Existing columns are not retroactively modified. |
+
+The `theme.dataCard.headerValueWrapperFullBleed` key controls the bare
+wrapper class for full-bleed fields. The default is
+`'w-full relative overflow-hidden'`; themes can override via
+`dataCard.styles[0].headerValueWrapperFullBleed`.
+
+### Naming collisions
+
+If a theme registers a name that already exists in the registry (e.g.
+`text`), the theme's version overrides silently. Themes are trusted code,
+so this is intentional; there's no warning emitted.
+
+### Where theme-registered types appear
+
+- **Card section value rendering** — anywhere `Card.jsx` looks up
+  `ColumnTypes[attr.type]`, the theme's component is used.
+- **Card column picker `defaultHideHeader`** — applied when the column
+  picker creates a new column whose type has the hint.
+- The dataset metadata column-type dropdown
+  (`patterns/datasets/components/MetadataComp/components/RenderField.jsx`)
+  is intentionally *not* updated to surface theme-registered types — it
+  uses a hardcoded developer-facing list of built-in types only.
+
+### Backwards compatibility
+
+Themes that omit `theme.columnTypes` register no entries; the registry
+boots with exactly its built-in contents. The default-export of
+`ui/columnTypes/index.jsx` keeps the same object identity across the
+boot — every existing consumer keeps working unchanged.
+
 ## Troubleshooting
 
 **Theme not applying:**
