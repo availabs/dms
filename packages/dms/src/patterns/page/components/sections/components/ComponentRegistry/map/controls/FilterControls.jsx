@@ -4,11 +4,9 @@ import {ToggleControl, InputControl} from "../tmp-cache-files/controls.jsx";
 import {MapContext} from "../";
 import {useHandleClickOutside} from "../tmp-cache-files/utils.jsx";
 import { normalizeLayerClickFilterConfig } from "../../../../../../../mapeditor/MapEditor/stateUtils";
-import { PageContext } from "../../../../../../context";
 
 export default function FilterControls() {
     const {state, setState} = useContext(MapContext);
-    const { pageState } = useContext(PageContext) || {};
 
     const menuRef = useRef(null);
     const [isOpen, setIsOpen] = useState(false);
@@ -126,34 +124,35 @@ export default function FilterControls() {
 
                     {
                         isSelectedVariableMappingsEnabled && selectedVariableMappings.length ? (
-                            <div className={'grid grid-cols-4 gap-1 px-2 py-1 text-gray-700'}>
-                                <div className={'text-sm font-semibold'}>Selected Variable</div>
-                                <div className={'text-sm font-semibold'}>Use URL Param</div>
-                                <div className={'text-sm font-semibold'}>Layer Field</div>
-                                <div className={'text-sm font-semibold'}>Active Value</div>
+                            <div className={'mt-3 border-t border-gray-200 px-2 pt-3 pb-1 text-gray-700'}>
+                                <div className={'pb-2 text-sm font-semibold text-gray-800'}>Layer Click Filter</div>
+                                <div className={'grid grid-cols-[minmax(0,1.4fr)_auto_minmax(0,1fr)] gap-x-2 gap-y-2'}>
+                                    <div className={'text-sm font-semibold leading-5'}>Selected Variable</div>
+                                    <div className={'text-sm font-semibold leading-5 text-center'}>Use URL Param</div>
+                                    <div className={'text-sm font-semibold leading-5'}>Layer Field</div>
 
-                                {
-                                    selectedVariableMappings.map((mapping, mI) => (
-                                        <React.Fragment key={mI}>
-                                            <div className={'text-sm'}>{mapping.variable || 'Untitled variable'}</div>
-                                            <ToggleControl
-                                                value={Boolean(mapping.useSearchParams)}
-                                                setValue={value => setState((draft) => {
-                                                    draft.symbologies[activeSym]
-                                                        .symbology
-                                                        .layers[activeSymSymbology?.activeLayer]
-                                                        ['click-filter']
-                                                        .mappings[mI]
-                                                        .useSearchParams = value;
-                                                })}
-                                            />
-                                            <div className={'text-sm'}>{mapping.field || '-'}</div>
-                                            <div className={'text-sm'}>
-                                                {(pageState?.filters || []).find(f => f.searchKey === mapping.variable)?.values?.join(', ') || '-'}
-                                            </div>
-                                        </React.Fragment>
-                                    ))
-                                }
+                                    {
+                                        selectedVariableMappings.map((mapping, mI) => (
+                                            <React.Fragment key={mI}>
+                                                <div className={'min-w-0 break-words text-sm leading-5'}>{mapping.variable || 'Untitled variable'}</div>
+                                                <div className={'justify-self-center'}>
+                                                    <ToggleControl
+                                                        value={Boolean(mapping.useSearchParams)}
+                                                        setValue={value => setState((draft) => {
+                                                            draft.symbologies[activeSym]
+                                                                .symbology
+                                                                .layers[activeSymSymbology?.activeLayer]
+                                                                ['click-filter']
+                                                                .mappings[mI]
+                                                                .useSearchParams = value;
+                                                        })}
+                                                    />
+                                                </div>
+                                                <div className={'min-w-0 break-words text-sm leading-5'}>{mapping.field || '-'}</div>
+                                            </React.Fragment>
+                                        ))
+                                    }
+                                </div>
                             </div>
                         ) : null
                     }

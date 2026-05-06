@@ -373,20 +373,55 @@ const ViewLayerRender = ({
   useEffect(() => {
     if (!maplibreMap) return;
 
-    const clickFilterConfig = normalizeLayerClickFilterConfig(layerProps?.["click-filter"] || {});
-    const activeMappings = (clickFilterConfig.mappings || []).filter(
-      (mapping) => mapping?.variable && mapping?.field
-    );
+    const clickableLayerConfigs = Object.values(allLayerProps || {})
+      .map((candidateLayerProps) => {
+        const clickFilterConfig = normalizeLayerClickFilterConfig(
+          candidateLayerProps?.["click-filter"] || {}
+        );
+        const isClickFilterEnabled = clickFilterConfig.enabled === true;
+        const activeMappings = (clickFilterConfig.mappings || []).filter(
+          (mapping) =>
+            isClickFilterEnabled &&
+            mapping?.variable &&
+            mapping?.field &&
+            mapping?.useSearchParams === true
+        );
+        const clickableLayerIds = (candidateLayerProps?.layers || [])
+          .map((layer) => layer?.id)
+          .filter((layerId) => layerId && !layerId.includes("_case"));
 
-    if (!clickFilterConfig.enabled || !activeMappings.length) {
+        if (!isClickFilterEnabled || !activeMappings.length || !clickableLayerIds.length) {
+          return null;
+        }
+
+        return {
+          id: candidateLayerProps?.id,
+          layerProps: candidateLayerProps,
+          activeMappings,
+          clickableLayerIds,
+          order: candidateLayerProps?.order ?? 0
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => {
+        if (a.order !== b.order) {
+          return a.order - b.order;
+        }
+        return String(a.id).localeCompare(String(b.id));
+      });
+
+    if (!clickableLayerConfigs.length) {
       return;
     }
 
-    const clickableLayerIds = (layerProps?.layers || [])
-      .map((layer) => layer?.id)
-      .filter((layerId) => layerId && !layerId.includes("_case"));
+    const clickHandlerOwnerId = clickableLayerConfigs[0]?.id;
+    if (layerProps?.id !== clickHandlerOwnerId) {
+      return;
+    }
 
-    if (!clickableLayerIds.length) return;
+    const clickableLayerIds = clickableLayerConfigs.flatMap(
+      (config) => config.clickableLayerIds
+    );
 
     const updateFilterValues = (nextFilterEntries) => {
       const existingFilters = Array.isArray(pageState?.filters) ? pageState.filters : [];
@@ -438,26 +473,31 @@ const ViewLayerRender = ({
       }
     };
 
-    const handleMapClick = async (event) => {
-      const features = maplibreMap.queryRenderedFeatures(event.point, {
-        layers: clickableLayerIds,
-      });
-      const feature = features?.[0];
-
-      if (!feature) return;
-
+    const resolveFeatureProperties = async ({ feature, candidateLayerProps, activeMappings }) => {
       let resolvedProperties = feature?.properties || {};
       const missingFields = activeMappings
         .map((mapping) => mapping.field)
-        .filter((fieldName) => resolvedProperties?.[fieldName] === undefined || resolvedProperties?.[fieldName] === null || resolvedProperties?.[fieldName] === "");
+        .filter(
+          (fieldName) =>
+            resolvedProperties?.[fieldName] === undefined ||
+            resolvedProperties?.[fieldName] === null ||
+            resolvedProperties?.[fieldName] === ""
+        );
 
-      if (missingFields.length && falcor && pgEnv && layerProps?.view_id && feature?.id !== undefined && feature?.id !== null) {
+      if (
+        missingFields.length &&
+        falcor &&
+        pgEnv &&
+        candidateLayerProps?.view_id &&
+        feature?.id !== undefined &&
+        feature?.id !== null
+      ) {
         try {
           const response = await falcor.get([
             "uda",
             pgEnv,
             "viewsById",
-            layerProps.view_id,
+            candidateLayerProps.view_id,
             "dataById",
             String(feature.id),
             missingFields
@@ -468,7 +508,7 @@ const ViewLayerRender = ({
             "uda",
             pgEnv,
             "viewsById",
-            layerProps.view_id,
+            candidateLayerProps.view_id,
             "dataById",
             String(feature.id)
           ], {});
@@ -482,13 +522,42 @@ const ViewLayerRender = ({
         }
       }
 
-      const nextFilterEntries = activeMappings
-        .map((mapping) => ({
-          searchKey: mapping.variable,
-          value: resolvedProperties?.[mapping.field],
-          useSearchParams: mapping.useSearchParams,
-        }))
-        .filter((entry) => entry.value !== undefined && entry.value !== null && entry.value !== "");
+      return resolvedProperties;
+    };
+
+    const handleMapClick = async (event) => {
+      const features = maplibreMap.queryRenderedFeatures(event.point, {
+        layers: clickableLayerIds,
+      });
+
+      if (!features?.length) return;
+
+      const nextFilterEntries = [];
+
+      for (const clickableLayerConfig of clickableLayerConfigs) {
+        const feature = features.find((candidateFeature) =>
+          clickableLayerConfig.clickableLayerIds.includes(candidateFeature?.layer?.id)
+        );
+
+        if (!feature) continue;
+
+        const resolvedProperties = await resolveFeatureProperties({
+          feature,
+          candidateLayerProps: clickableLayerConfig.layerProps,
+          activeMappings: clickableLayerConfig.activeMappings
+        });
+
+        clickableLayerConfig.activeMappings.forEach((mapping) => {
+          const value = resolvedProperties?.[mapping.field];
+          if (value !== undefined && value !== null && value !== "") {
+            nextFilterEntries.push({
+              searchKey: mapping.variable,
+              value,
+              useSearchParams: mapping.useSearchParams,
+            });
+          }
+        });
+      }
 
       if (!nextFilterEntries.length) return;
       updateFilterValues(nextFilterEntries);
@@ -504,6 +573,7 @@ const ViewLayerRender = ({
   }, [
     maplibreMap,
     layerProps,
+    allLayerProps,
     pageState?.filters,
     setPageState,
     updatePageStateFilters,
