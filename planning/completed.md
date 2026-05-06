@@ -91,6 +91,7 @@
 
 ### patterns/page
 
+- [pattern-preload-setting.md](./tasks/completed/pattern-preload-setting.md) - Pattern-level preload toggle: `preload_data` boolean on pattern format (default false), Switch in Overview pane (page patterns only), gated `preload` registration in page `siteConfig.jsx` so historical patterns stay off; also un-commented `dmsConfig.preload(...)` in `dmsPageFactory.jsx:36` (pre-existing artifact that meant preload never ran) (2026-05-06)
 - [consolidate-page-history.md](./tasks/completed/consolidate-page-history.md) - Consolidate page-edit history: replaced per-edit `data_items` rows with single `page-edit` row per page holding `entries[]` array; updated format, editFunctions, historyPane; migration script for existing databases (2026-03-11)
 - [table-card-react-router-links.md](./tasks/completed/table-card-react-router-links.md) - Replaced `<a href>` with React Router `<Link to>` for internal navigation in TableCell and Card components; external links use `<a>` with `target="_blank"` and `rel="noopener noreferrer"` (2026-02-25)
 - [fix-nav2level-baseurl.md](./tasks/completed/fix-nav2level-baseurl.md) - Fixed nav2Level failing for non-root baseUrl patterns; moved to page pattern as resolveNav callback (2026-01-29)
