@@ -227,7 +227,9 @@ function TableHoverActionsContainer({
                 tableResizeObserver.disconnect();
                 for (const tableKey of tableSetRef.current) {
                   const {tableElement} = $getTableAndElementByKey(tableKey);
-                  tableResizeObserver.observe(tableElement);
+                  if (tableElement) {
+                    tableResizeObserver.observe(tableElement);
+                  }
                 }
                 setShouldListenMouseMove(tableSetRef.current.size > 0);
               }
@@ -266,14 +268,14 @@ function TableHoverActionsContainer({
     <>
       {isShownRow && (
         <button
-          className={`${getTheme()?.tableAddRows}`}
+          className={getTheme()?.tableAddRows ?? ''}
           style={{...position}}
           onClick={() => insertAction(true)}
         />
       )}
       {isShownColumn && (
         <button
-          className={`${getTheme()?.tableAddColumns}`}
+          className={getTheme()?.tableAddColumns ?? ''}
           style={{...position}}
           onClick={() => insertAction(false)}
         />

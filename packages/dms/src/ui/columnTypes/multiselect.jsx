@@ -1,4 +1,4 @@
-import React, {memo, useEffect, useRef, useState} from "react"
+import React, {memo, useCallback, useEffect, useLayoutEffect, useRef, useState} from "react"
 
 const ArrowDown = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={24} height={24} stroke="currentColor" fill={"none"} {...props}>
@@ -19,9 +19,10 @@ const theme = {
         statusWrapper: 'flex items-center p-0.5',
         tokenWrapper: 'w-fit flex m-0.5 px-2 py-1 mx-1 bg-[#C5D7E0] text-[#37576B] hover:bg-[#E0EBF0] rounded-md transition ease-in whitespace-nowrap',
         removeIcon: 'fa fa-xmark px-1 text-xs text-red-500 hover:text-red-600 self-center cursor-pointer transition ease-in',
-        menuWrapper: 'absolute p-2 bg-white min-w-[100px] w-full max-h-[150px] overflow-auto scrollbar-sm shadow-lg z-10 rounded-lg',
-        alwaysOpenMenuWrapper: 'p-2 bg-white min-w-[100px] w-full max-h-[300px] overflow-auto scrollbar-sm z-20 rounded-lg',
-        tabularMenuWrapper: 'flex flex-row flex-wrap p-2 bg-white min-w-[100px] w-full overflow-auto scrollbar-sm z-20 rounded-lg',
+        menuWrapper: 'p-2 bg-white min-w-[100px] shadow-lg rounded-lg',
+        alwaysOpenMenuWrapper: 'p-2 bg-white min-w-[100px] w-full z-20 rounded-lg',
+        tabularMenuWrapper: 'flex flex-row flex-wrap p-2 bg-white min-w-[100px] w-full z-20 rounded-lg',
+        optionsWrapper: 'max-h-[300px] overflow-auto scrollbar-sm',
         menuItem: 'flex gap-0.5 px-2 py-1 text-sm hover:bg-blue-300 hover:cursor-pointer transition ease-in rounded-md',
         smartMenuWrapper: 'w-full h-full flex flex-wrap',
         smartMenuItem: 'w-fit px-1 py-0.5 m-1 bg-blue-100 hover:bg-blue-300 hover:cursor-pointer transition ease-in border rounded-lg text-xs',
@@ -70,13 +71,19 @@ const RenderMenu = ({
     displayDetailedValues,
     keepMenuOpen,
     tabular,
+    menuStyle,
+    menuRef,
     theme
 }) => {
     const mappedValue = value.filter(v => v).map(v => v.value || v);
     const selectAllOption = {label: 'Select All', value: 'select-all'};
     const removeAllOption = {label: 'Remove All', value: 'remove-all'};
     return (
-        <div className={`${isSearching || keepMenuOpen || tabular ? `block` : `hidden`} ${loading ? 'cursor-wait' : ''} ${tabular ? theme?.multiselect?.tabularMenuWrapper : keepMenuOpen ? theme?.multiselect?.alwaysOpenMenuWrapper : theme?.multiselect?.menuWrapper}`}>
+        <div
+            ref={menuRef}
+            className={`${isSearching || keepMenuOpen || tabular ? `block` : `hidden`} ${loading ? 'cursor-wait' : ''} ${tabular ? theme?.multiselect?.tabularMenuWrapper : keepMenuOpen ? theme?.multiselect?.alwaysOpenMenuWrapper : theme?.multiselect?.menuWrapper}`}
+            style={menuStyle}
+        >
             {
                 tabular ? null :
                     <input
@@ -88,8 +95,9 @@ const RenderMenu = ({
                         onFocus={() => setIsSearching(true)}
                     />
             }
-            {
-                tabular ? null :
+            <div className={theme?.multiselect?.optionsWrapper}>
+                {
+                    tabular ? null :
                     <div className={theme?.multiselect?.smartMenuWrapper}>
                         {
                             [selectAllOption, removeAllOption]
@@ -113,43 +121,44 @@ const RenderMenu = ({
                                     </div>)
                         }
                     </div>
-            }
-            {
-                (options || [])
-                    .filter(o =>
-                        (displayDetailedValues ? !mappedValue.includes(o.value || o) : true) && // if not showing selected values in bar, show them in options
-                        (o.label || o)?.toString()?.toLowerCase().includes(searchKeyword?.toLowerCase()) // filter searched value
-                    )
-                    .map((o, i) => {
-                        const isOptionSelected = mappedValue.includes(o.value || o);
-                        return (
-                            <div
-                                key={`option-${i}`}
-                                className={theme?.multiselect?.menuItem}
-                                onClick={e => {
-                                    // newValue should return .value if available instead of full options mapped obj
-                                    const newValue =
-                                        singleSelectOnly ? (o?.value ?? o) :
-                                            isOptionSelected ? mappedValue.filter(v => (v?.value ?? v) !== (o?.value ?? o)) :
-                                            [...value, o].map(o => o?.value ?? o)
-                                    onChange(newValue);
-                                    singleSelectOnly && !keepMenuOpen && setIsSearching(false);
-                                }}>
-                                {
-                                    !displayDetailedValues && isOptionSelected ?
-                                        <CircleCheck className={theme?.multiselect?.selectedValueIcon || 'size-4'} /> : null
-                                }
-                                {meta?.[o.label || o] ?? o.label ?? o}
-                            </div>
-                        )
-                    })
-            }
-            {loading && (
-                <div className="flex items-center justify-center gap-1 py-1 text-xs text-gray-400">
-                    <div className="size-3 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" />
-                    loading...
-                </div>
-            )}
+                    }
+                    {
+                        (options || [])
+                            .filter(o =>
+                                (displayDetailedValues ? !mappedValue.includes(o.value || o) : true) && // if not showing selected values in bar, show them in options
+                                (o.label || o)?.toString()?.toLowerCase().includes(searchKeyword?.toLowerCase()) // filter searched value
+                            )
+                            .map((o, i) => {
+                                const isOptionSelected = mappedValue.includes(o.value || o);
+                                return (
+                                    <div
+                                        key={`option-${i}`}
+                                        className={theme?.multiselect?.menuItem}
+                                        onClick={e => {
+                                            // newValue should return .value if available instead of full options mapped obj
+                                            const newValue =
+                                                singleSelectOnly ? (o?.value ?? o) :
+                                                    isOptionSelected ? mappedValue.filter(v => (v?.value ?? v) !== (o?.value ?? o)) :
+                                                        [...value, o].map(o => o?.value ?? o)
+                                            onChange(newValue);
+                                            singleSelectOnly && !keepMenuOpen && setIsSearching(false);
+                                        }}>
+                                        {
+                                            !displayDetailedValues && isOptionSelected ?
+                                                <CircleCheck className={theme?.multiselect?.selectedValueIcon || 'size-4'} /> : null
+                                        }
+                                        {meta?.[o.label || o] ?? o.label ?? o}
+                                    </div>
+                                )
+                            })
+                    }
+                    {loading && (
+                        <div className="flex items-center justify-center gap-1 py-1 text-xs text-gray-400">
+                            <div className="size-3 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" />
+                            loading...
+                        </div>
+                    )}
+            </div>
         </div>
     )
 }
@@ -194,7 +203,10 @@ export const MultiselectEdit = ({value = [], loading, onChange, className,placeh
 }) => {
     // options: ['1', 's', 't'] || [{label: '1', value: '1'}, {label: 's', value: '2'}, {label: 't', value: '3'}]
     const [searchKeyword, setSearchKeyword] = useState('');
+    const [menuStyle, setMenuStyle] = useState(null);
     const searchTimerRef = useRef(null);
+    const inputRef = useRef(null);
+    const menuRef = useRef(null);
 
     useEffect(() => {
         if (!onSearch) return;
@@ -211,6 +223,46 @@ export const MultiselectEdit = ({value = [], loading, onChange, className,placeh
         setIsSearching
     } = useComponentVisible(false);
 
+    const computeMenuStyle = useCallback(() => {
+        if (!inputRef.current || tabular || keepMenuOpen) return;
+        const rect = inputRef.current.getBoundingClientRect();
+        const menuHeight = menuRef.current?.offsetHeight || 0;
+        const spaceBelow = window.innerHeight - rect.bottom - 8;
+        const spaceAbove = rect.top - 8;
+        const placeAbove = spaceBelow < menuHeight && spaceAbove > spaceBelow;
+        if (placeAbove) {
+            setMenuStyle({
+                position: 'fixed',
+                bottom: window.innerHeight - rect.top + 4,
+                left: rect.left,
+                width: rect.width,
+                zIndex: 10000,
+            });
+        } else {
+            setMenuStyle({
+                position: 'fixed',
+                top: rect.bottom + 4,
+                left: rect.left,
+                width: rect.width,
+                zIndex: 10000,
+            });
+        }
+    }, [tabular, keepMenuOpen]);
+
+    useLayoutEffect(() => {
+        if (isSearching) computeMenuStyle();
+    }, [isSearching]);
+
+    useEffect(() => {
+        if (!isSearching) return;
+        window.addEventListener('scroll', computeMenuStyle, true);
+        window.addEventListener('resize', computeMenuStyle);
+        return () => {
+            window.removeEventListener('scroll', computeMenuStyle, true);
+            window.removeEventListener('resize', computeMenuStyle);
+        };
+    }, [isSearching, computeMenuStyle]);
+
     const invalidValues = typeSafeValue.filter(v => v && (v.value || v) && !(options || [])?.some(o => (o.value || o) === (v.value || v)));
 
     return (
@@ -221,9 +273,8 @@ export const MultiselectEdit = ({value = [], loading, onChange, className,placeh
 
             {
                 tabular ? null :
-                    <div className={(theme?.multiselect?.inputWrapper)} onClick={() => {
+                    <div ref={inputRef} className={(theme?.multiselect?.inputWrapper)} onClick={() => {
                         setIsSearching(!isSearching)
-                        // console.log('ms?', ref.current.top)
                     }}>
                         {
                             displayDetailedValues ?
@@ -263,6 +314,8 @@ export const MultiselectEdit = ({value = [], loading, onChange, className,placeh
                 displayDetailedValues={displayDetailedValues}
                 keepMenuOpen={keepMenuOpen}
                 tabular={tabular}
+                menuStyle={tabular || keepMenuOpen ? undefined : menuStyle}
+                menuRef={tabular || keepMenuOpen ? undefined : menuRef}
                 theme={theme}
             />
         </div>

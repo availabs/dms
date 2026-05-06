@@ -358,6 +358,7 @@ export const MapSection = ({ value, onChange, isEdit }) => {
                         ...draftInteractiveFilter,
                         order: layer.order,
                         "layer-type": "interactive",
+                        "click-filter": layer["click-filter"] ?? draftInteractiveFilter["click-filter"],
                         "interactive-filters": draftFilters,
                         "dynamic-filters": draftDynamicFilters,
                         selectedInteractiveFilterIndex: draftFilterIndex
