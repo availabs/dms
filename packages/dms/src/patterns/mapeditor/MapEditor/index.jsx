@@ -28,7 +28,7 @@ import {
 
 //import { DMS_DATA_ITEM_ATTRIBUTES } from "../attributes"
 
-import { extractState, fetchBoundsForFilter, filterToUda } from './stateUtils';
+import { extractState, fetchBoundsForFilter, filterToUda, setDefaultActiveLayer } from './stateUtils';
 
 export const SymbologyContext = React.createContext(undefined);
 
@@ -194,40 +194,32 @@ const MapEditor = props => {
 
   const initialSymbology = React.useMemo(() => {
     if (localStorageSymbology && Object.keys(localStorageSymbology).length >= NUM_DEFAULT_SYMBOLOGY_KEYS){
-      return localStorageSymbology;
+      return setDefaultActiveLayer(localStorageSymbology);
     }
     else if (dbSymbology) {
-      return dbSymbology;
+      return setDefaultActiveLayer(dbSymbology);
     }
-    return cloneDeep(DEFAULT_BLANK_SYMBOLOGY);
+    return setDefaultActiveLayer(cloneDeep(DEFAULT_BLANK_SYMBOLOGY));
   }, [dbSymbology, localStorageSymbology]);
 
 // console.log("MapEditor::initialSymbology", JSON.parse(JSON.stringify(initialSymbology)))
 
-  // Sets an initial `activeLayer`
-  // if (
-  //   !!initialSymbology?.symbology?.layers &&
-  //   Object.keys(initialSymbology?.symbology?.layers).length > 0 &&
-  //   (initialSymbology?.symbology?.activeLayer === "" ||
-  //     !initialSymbology?.symbology.layers[initialSymbology?.symbology?.activeLayer]
-  //   )
-  // ) {
-  //   initialSymbology.symbology.activeLayer = Object.values(
-  //     initialSymbology?.symbology?.layers
-  //   ).find((layer) => layer.order === 0)?.id;
-  // }
-  React.useEffect(() => {
-    if (Boolean(initialSymbology?.symbology?.layers) &&
-        Object.keys(initialSymbology?.symbology?.layers).length > 0 &&
-        (initialSymbology?.symbology?.activeLayer === "" ||
-          !initialSymbology?.symbology.layers[initialSymbology?.symbology?.activeLayer]
-        )
-    ) {
-      initialSymbology.symbology.activeLayer = Object.values(
-        initialSymbology?.symbology?.layers
-      ).find((layer) => layer.order === 0)?.id;
-    }
-  }, [initialSymbology]);
+
+
+  // // Sets an initial `activeLayer`
+  // React.useEffect(() => {
+  //   if (
+  //     !!initialSymbology?.symbology?.layers &&
+  //     Object.keys(initialSymbology?.symbology?.layers).length > 0 &&
+  //     (initialSymbology?.symbology?.activeLayer === "" ||
+  //       !initialSymbology?.symbology.layers[initialSymbology?.symbology?.activeLayer]
+  //     )
+  //   ) {
+  //     initialSymbology.symbology.activeLayer = Object.values(
+  //       initialSymbology?.symbology?.layers
+  //     ).find((layer) => layer.order === 0)?.id;
+  //   }
+  // }, [initialSymbology]);
 
   // --------------------------------------------------
   // Symbology Object
