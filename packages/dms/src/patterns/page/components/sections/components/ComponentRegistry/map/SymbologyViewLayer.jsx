@@ -370,6 +370,15 @@ const ViewLayerRender = ({
     }
   }, [maplibreMap, allLayerProps]);
 
+  // Coordinate click-filter handling at the map level instead of per layer.
+  // This effect:
+  // 1. collects every layer that has click-filter enabled and at least one
+  //    mapping using URL params,
+  // 2. attaches a single shared map click handler from one owner layer,
+  // 3. gathers matching feature values across all eligible layers for one click,
+  // 4. resolves any missing mapped fields from Falcor when needed, and
+  // 5. sends one merged filter update so later layer handlers do not overwrite
+  //    earlier ones from the same click.
   useEffect(() => {
     if (!maplibreMap) return;
 
