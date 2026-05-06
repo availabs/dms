@@ -78,6 +78,8 @@ const renderAxisLeft = ({ ref, showAnimations, rotateLabels,
     }
   }
 
+// console.log("renderAxisLeft::format", format);
+
   const axisLeft = d3AxisLeft(scale)
     .tickFormat(format);
 

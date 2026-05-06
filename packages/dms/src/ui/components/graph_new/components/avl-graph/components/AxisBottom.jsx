@@ -5,6 +5,7 @@ import { transition as d3transition } from "d3-transition"
 import { axisBottom as d3AxisBottom } from "d3-axis"
 
 export const AxisBottom = props => {
+
   const {
     adjustedWidth, adjustedHeight, type = "band", rotateLabels = false,
     domain, scale, format, ticks, tickValues, hasData,
@@ -231,7 +232,7 @@ const renderAxisBottom = ({ ref, showAnimations, rotateLabels,
 
       const gridExit = show ? scale(domain.at(-1)) : 0;
 
-      const shift = type === "ordinal" ? scale.bandwidth() * 0.5 : 0;
+      const shift = type === "band" ? scale.bandwidth() * 0.5 : 0;
 
       gridLines
         .data(show ? domain : [])

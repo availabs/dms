@@ -140,11 +140,18 @@ function buildCardColumnMenuItems({ attribute, controls, display, isEdit, setSta
                 };
             }
             if (type === 'select') {
+                // options may be a static array or a function that resolves at
+                // menu-build time — used by the Column Type control so the
+                // select reflects the live ColumnTypes registry (themes can
+                // extend it after Card.config.jsx is imported).
+                const resolvedOptions = typeof options === 'function'
+                    ? options({ attribute, isEdit, display }) || []
+                    : (options || []);
                 return {
                     name: label,
                     value: attribute[key],
                     showValue: true,
-                    items: (options || []).map(opt => ({
+                    items: resolvedOptions.map(opt => ({
                         icon: opt.value === attribute[key] ? 'CircleCheck' : 'Blank',
                         name: opt.label,
                         onClickGoBack: true,
@@ -318,7 +325,7 @@ const CompWrapper = ({
                   {...attribute}
                   options={options}
                   meta={optionsMeta}
-                  hideControls={attribute.type==='lexical'}
+                  hideControls={attribute.type==='lexical' && !attribute.showToolbar}
                   showBorder={attribute.type==='lexical' && editMode}
             />
     </div>)
@@ -337,6 +344,12 @@ const CardColumnField = ({
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const visible = hovered || isMenuOpen;
     const {isLink, isLinkExternal, location, linkText, isImg, imageSrc, imageLocation, imageExtension, imageSize, imageMargin} = attr || {};
+    // cardHints: optional metadata declared by a column type (typically a
+    // theme-registered one) that lets the type opt out of the field chrome.
+    // Built-in types ship without hints, so the empty-object fallback is a
+    // strict no-op for legacy columns.
+    const hints = ColumnTypes[attr?.type]?.cardHints || {};
+    const fullBleed = !!hints.fullBleed;
     const span = compactView ? 'span 1' : `span ${attr.cardSpan || 1}`;
     const source = isNewItem ? newItem : tmpItem;
     const rawValue = attr.origin === 'static'
@@ -393,18 +406,29 @@ const CardColumnField = ({
 
 
     const style = {
-        gridColumn: span,
-        padding: compactView ? undefined : padding,
-        paddingBottom: compactView && attr.pb ? +attr.pb : undefined,
+        gridColumn: hints.spanFullColumns ? '1 / -1' : span,
+        // gridRow is only set when explicitly requested in cell mode, so legacy
+        // cards (no cardRowSpan) produce the same computed style as before.
+        ...(hints.spanFullRows ? { gridRow: '1 / -1' } :
+            !compactView && attr.cardRowSpan ? { gridRow: `span ${attr.cardRowSpan}` } : {}),
+        padding: fullBleed ? 0 : (compactView ? undefined : padding),
+        paddingBottom: fullBleed ? 0 : (compactView && attr.pb ? +attr.pb : undefined),
         marginTop: `${imageMargin}px`,
-        backgroundColor: compactView ? undefined : attr.bgColor
+        backgroundColor: compactView ? undefined : attr.bgColor,
+        ...(hints.height ? { height: `${hints.height}px` } : {}),
     }
 
     const hasMenu = isEdit && controls?.inHeader?.length && setState;
     const isRowLayout = !headerValueLayout || headerValueLayout === 'row';
 
+    // fullBleed wrappers have a fixed height + overflow-hidden, so the menu
+    // button needs an explicit top corner placement to avoid landing below
+    // the visible area in natural flow. z-10 keeps it above the banner content.
+    const menuButtonClass = fullBleed
+        ? `absolute top-1 right-1 z-10 shrink-0 ${visible ? 'opacity-100' : 'opacity-0'}`
+        : `absolute right-0 shrink-0 ${visible ? 'opacity-100' : 'opacity-0'}`;
     const menuButton = hasMenu && (
-        <span className={`absolute right-0 shrink-0 ${visible ? 'opacity-100' : 'opacity-0'}`}>
+        <span className={menuButtonClass}>
             <NavigableMenu
                 config={buildCardColumnMenuItems({ attribute: attr, controls, display, isEdit, setState })}
                 title={attr.customName || attr.display_name || attr.normalName || attr.name}
@@ -416,9 +440,16 @@ const CardColumnField = ({
         </span>
     );
 
+    // fullBleed columns get a bare wrapper (no padding/border/rounded chrome)
+    // and the field header is suppressed — they own their own visual surface.
+    const wrapperClass = fullBleed
+        ? `relative ${theme.headerValueWrapperFullBleed || 'w-full relative'}`
+        : `relative ${theme.headerValueWrapper} ${wrapperFlexClass} ${wrapperViewClass}`;
+    const headerVisible = !fullBleed && (!attr.hideHeader || (hasMenu && !isRowLayout));
+
     return (
         <div
-            className={`relative ${theme.headerValueWrapper} ${wrapperFlexClass} ${wrapperViewClass}${onColumnClick ? ' cursor-pointer' : ''}`}
+            className={`${wrapperClass}${onColumnClick ? ' cursor-pointer' : ''}`}
             style={style}
             onClick={onColumnClick}
             onMouseEnter={() => setHovered(true)}
@@ -429,7 +460,7 @@ const CardColumnField = ({
             {pickerTop}
             {pickerBottom}
             {/* Header area — always rendered when there's a label or a menu in col layout */}
-            {(!attr.hideHeader || (hasMenu && !isRowLayout)) && (
+            {headerVisible && (
                 <div
                     className={`${attr.hideHeader ? '' : `${theme.header} ${compactView ? theme.headerCompactView : theme.headerSimpleView}`}`}
                     style={{maxWidth: isRowLayout && !attr.hideValue ? `${headerWidth || 50}%` : undefined}}
@@ -716,9 +747,10 @@ export default function Card ({
 
     const [draggedCol, setDraggedCol] = useState(null);
 
-    const {compactView, gridSize, gridGap, padding, colGap, allowAdddNew, bgColor} = display;
+    const {compactView, gridSize, gridGap, padding, colGap, allowAdddNew, bgColor, rowHeight} = display;
     const visibleColumns = useMemo(() => columns.filter(({show}) => show), [columns]);
     const cardsWithoutSpanLength = useMemo(() => visibleColumns.filter(({cardSpan}) => !cardSpan).length, [visibleColumns]);
+    const hasRowSpan = useMemo(() => visibleColumns.some(c => c.cardRowSpan > 1), [visibleColumns]);
     const imageTopMargin = useMemo(() =>
         Math.max(
             ...visibleColumns
@@ -741,9 +773,13 @@ export default function Card ({
         compactView ? {backgroundColor: bgColor, padding, gap: colGap} :
             {
                 gridTemplateColumns: `repeat(${getGridSize(gridSize) || cardsWithoutSpanLength}, minmax(0, 1fr))`,
-                gap: gridGap
+                gap: gridGap,
+                // gridAutoRows is only set when needed, so legacy cards (no rowHeight,
+                // no cardRowSpan) keep CSS Grid's default 'auto' row sizing.
+                ...(rowHeight ? { gridAutoRows: `${rowHeight}px` } :
+                    hasRowSpan ? { gridAutoRows: 'minmax(0, auto)' } : {}),
             },
-        [compactView, bgColor, padding, gridGap, colGap, gridSize, cardsWithoutSpanLength]);
+        [compactView, bgColor, padding, gridGap, colGap, gridSize, cardsWithoutSpanLength, rowHeight, hasRowSpan]);
 
     // Reordering function
     function handleDrop(targetCol) {

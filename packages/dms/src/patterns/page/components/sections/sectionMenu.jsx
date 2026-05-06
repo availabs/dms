@@ -117,7 +117,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
     // ============================================= helpers end =======================================================
 
     // =================================================================================================================
-    // =========================================== component actions helpers begin ===============================================
+    // =========================================== component interactions helpers begin ===============================================
     // =================================================================================================================
     const componentFunctions = currentComponent?.componentFunctions;
     const hasComponentFunctions = !!(componentFunctions?.providers?.length || componentFunctions?.subscribers?.length);
@@ -228,8 +228,8 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
         };
     });
 
-    const componentActions = hasComponentFunctions ? [{
-        name: `${currentComponent?.name} Actions`, icon: 'TouchInteraction',
+    const componentInteractions = hasComponentFunctions ? [{
+        name: `${currentComponent?.name} Interactions`, icon: 'TouchInteraction',
         cdn: () => isEdit && canEditSection,
         items: [
             ...buildFunctionMenuItems(componentFunctions?.providers, 'providers'),
@@ -855,7 +855,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
             {type: 'separator', renderCdn: () => true, renderPos: 'top'},
             ...component,
             ...componentSettings,
-            ...componentActions,
+            ...componentInteractions,
             {type: 'separator'},
             dataset,
             join,

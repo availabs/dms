@@ -37,12 +37,20 @@ const GridGraphWrapper = props => {
         return { data: allData, keys: [...keySet] };
     }, [props.data]);
 
-    const [dataForGraph, setDataForGraph] = React.useState({ data: [], keys: [] });
+    const [dataForGraph, setDataForGraph] = React.useState({ data: [], keys: [], keyWidths: {} });
+    const [numHoris, setNumHoris] = React.useState(10);
+
     const randomData = React.useCallback(e => {
-        setDataForGraph(generateTestGridData());
-    }, []);
+        setDataForGraph(generateTestGridData(numHoris));
+    }, [numHoris]);
+    const randomHoris = React.useCallback(e => {
+        setNumHoris(Math.round(Math.random() * 10) + 10);
+    }, [randomData]);
+    React.useEffect(() => {
+        setDataForGraph(generateTestGridData(numHoris));
+    }, [numHoris]);
     const clearData = React.useCallback(e => {
-        setDataForGraph({ data: [], keys: [] });
+        setDataForGraph({ data: [], keys: [], keyWidths: {} });
     }, []);
 
     const colors = React.useMemo(() => {
@@ -106,6 +114,12 @@ const GridGraphWrapper = props => {
                 onClick={ randomData }
             >
                 random data
+            </button>
+            <button
+                className="bg-gray-200"
+                onClick={ randomHoris }
+            >
+                random horizontals
             </button>
             <button
                 className="bg-gray-200"

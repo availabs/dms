@@ -24,6 +24,10 @@ export const dataCardTheme = {
             headerValueWrapper: 'w-full rounded-[12px] flex items-center justify-center p-2',
             headerValueWrapperCompactView: 'py-0',
             headerValueWrapperSimpleView: '',
+            // Bare wrapper used when a column type declares cardHints.fullBleed.
+            // No padding, no border, no rounded corners — the column type owns
+            // its own visual surface (e.g. a gradient banner).
+            headerValueWrapperFullBleed: 'w-full relative overflow-hidden',
             componentWrapper: 'w-full',
             headerValueWrapperBorderBelow: 'border-b rounded-none',
 

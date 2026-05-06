@@ -4,7 +4,7 @@ import { BarGraph, generateTestBarData } from "./avl-graph"
 
 import { rollups as d3rollups } from "d3-array"
 
-const mergeData = data => {
+const mergeIndex = data => {
 	const keys = [];
 	const merged = data.reduce((a, c) => {
 		a.index = c.index;
@@ -17,13 +17,15 @@ const mergeData = data => {
 
 const BarGraphWrapper = props => {
 
-// console.log("BarGraphWrapper::props", props);
+// console.log("BarGraphWrapper::data", props.data);
 // console.log("BarGraphWrapper::width, height", props.width, props.height);
 
 	const dataFromProps = React.useMemo(() => {
 		if (!props.data.length) return {};
 
-		const rollups = d3rollups(props.data, mergeData, d => d.index);
+		// const filteredData = props.data.filter(d => d.index !== undefined);
+
+		const rollups = d3rollups(props.data, mergeIndex, d => `${ d.index }`);
 
 		const keySet = new Set();
 		const allData = [];
@@ -35,6 +37,8 @@ const BarGraphWrapper = props => {
 
 		return { data: allData, keys: [...keySet] };
 	}, [props.data]);
+
+// console.log("BarGraphWrapper::dataFromProps", dataFromProps);
 
 	const [dataForGraph, setDataForGraph] = React.useState({ data: [], keys: [] });
 	const randomData = React.useCallback(e => {
@@ -51,14 +55,28 @@ const BarGraphWrapper = props => {
 	}, [props.colors]);
 
 	const axisBottom = React.useMemo(() => {
-		if (!props.xAxis) return false;
-		return props.orientation === "vertical" ? { ...props.xAxis } : { ...props.yAxis };
-	}, [props.xAxis]);
+		if (props.orientation === "vertical") {
+			if (!props.xAxis) return false;
+			return { ...props.xAxis };
+		}
+		else {
+			if (!props.yAxis) return false;
+			return { ...props.yAxis };
+		}
+	}, [props.orientation, props.xAxis, props.yAxis]);
 
 	const axisLeft = React.useMemo(() => {
-		if (!props.yAxis) return false;
-		return props.orientation === "vertical" ? { ...props.yAxis } : { ...props.xAxis };
-	}, [props.yAxis]);
+		if (props.orientation === "vertical") {
+			if (!props.yAxis) return false;
+			return { ...props.yAxis };
+		}
+		else {
+			if (!props.xAxis) return false;
+			return { ...props.xAxis };
+		}
+	}, [props.orientation, props.xAxis, props.yAxis]);
+
+// console.log("BarGraphWrapper::axisLeft", axisLeft);
 
 	const margin = React.useMemo(() => {
 		return {
@@ -74,8 +92,11 @@ const BarGraphWrapper = props => {
 	}, [props.height, margin.top, margin.bottom]);
 
 	const hoverComp = React.useMemo(() => {
-		return { ...props.tooltip };
-	}, [props.tooltip]);
+		return {
+			...props.tooltip,
+			valueFormat: props.yAxis.format
+		};
+	}, [props.tooltip, props.yAxis]);
 
 // console.log("BarGraphWrapper::dataForGraph", dataForGraph);
 // console.log("BarGraphWrapper::hoverComp", hoverComp);
@@ -120,19 +141,5 @@ const BarGraphWrapper = props => {
 export const BarGraphOption = {
   type: "Bar Graph",
   GraphComp: "BarGraph",
-  Component: BarGraphWrapper,
-  EditorOptions: [
-    { label: "Orientation",
-      type: "select",
-      path: ["orientation"],
-      options: ["vertical", "horizontal"],
-      defaultValue: "vertical"
-    },
-    { label: "Group Mode",
-      type: "select",
-      path: ["groupMode"],
-      options: ["stacked", "grouped"],
-      defaultValue: "stacked"
-    }
-  ]
+  Component: BarGraphWrapper
 }

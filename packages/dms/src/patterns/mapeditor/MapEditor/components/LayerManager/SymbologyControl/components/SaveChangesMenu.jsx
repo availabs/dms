@@ -7,7 +7,6 @@ import { useParams, useNavigate } from 'react-router'
 import {get, isEqual} from 'lodash-es'
 import { Modal } from '../'
 import { LOCAL_STORAGE_KEY_BASE } from '../../../../'
-import { getSymbologyClickFilterValidationErrors } from '../../../../stateUtils'
 //import { diff, addedDiff, deletedDiff, updatedDiff, detailedDiff } from 'deep-object-diff';
 export function SaveChangesMenu({ button, className}) {
   const [showSaveChanges, setShowSaveChanges] = useState(false)
@@ -163,16 +162,6 @@ function SaveChangesModal ({ open, setOpen })  {
       )
     ) || state?.name !== dbSymbology?.name;
   }, [state, dbSymbology]);
-
-  // const clickFilterValidationErrors = useMemo(() => {
-  //   return getSymbologyClickFilterValidationErrors(state?.symbology);
-  // }, [state?.symbology]);
-
-  // const canPersistChanges = useMemo(() => {
-  //   if (!modalState.action) return false;
-  //   if (modalState.action === "discard") return true;
-  //   return clickFilterValidationErrors.length === 0;
-  // }, [modalState.action, clickFilterValidationErrors.length]);
 
   const modalButtonType = !modalState.action
     ? "white"

@@ -77,6 +77,25 @@ function SectionGroupControl({
           onClick: () => onUpdateAttribute("theme", name),
         })),
     },
+    {
+      name: 'Is Modal',
+      showLabel: true,
+      type: 'toggle',
+      enabled: fullGroupData?.isModal || false,
+      setEnabled: v => onUpdateAttribute('isModal', v),
+    },
+    ...(fullGroupData?.isModal ? [{
+      name: 'Modal Param Key',
+      value: fullGroupData?.modalParamKey || '',
+      showValue: true,
+      items: [{
+        name: 'Modal Param Key input',
+        type: 'input',
+        inputType: 'text',
+        value: fullGroupData?.modalParamKey || '',
+        onChange: e => onUpdateAttribute('modalParamKey', e?.target?.value ?? e),
+      }],
+    }] : []),
     { type: "separator" },
     { icon: "TrashCan", name: "Delete", onClick: onDelete },
   ];
@@ -226,6 +245,8 @@ export default function SectionGroupsPane() {
         theme: group.theme,
         position: group.position,
         name: group.name,
+        isModal: group.isModal,
+        modalParamKey: group.modalParamKey,
         children: (item?.draft_sections || [])
           .filter(
             (s) =>
@@ -272,6 +293,8 @@ export default function SectionGroupsPane() {
               index: idx,
               theme: groupData.theme || "default",
               full_width: groupData.full_width,
+              isModal: groupData.isModal,
+              modalParamKey: groupData.modalParamKey,
             });
           }
         });

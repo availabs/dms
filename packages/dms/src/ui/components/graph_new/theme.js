@@ -26,7 +26,7 @@ export const avlGraphTheme = {
 }
 
 export const avlGraphSettings = theme => [
-    { label: "Layout Group Styles",
+    { label: "Graph Styles",
         type: 'inline',
         controls: [
             { label: 'Style',

@@ -1,4 +1,4 @@
-import { get } from "lodash-es"
+import { get, cloneDeep } from "lodash-es"
 import {
   rgb2hex,
   toHex,
@@ -266,54 +266,26 @@ const normalizeLayerClickFilterConfig = (config = {}) => {
   };
 };
 
-const getLayerClickFilterValidationErrors = (layer = {}) => {
-  const config = normalizeLayerClickFilterConfig(layer["click-filter"]);
-  const errors = [];
-
-  if (!config.enabled) return errors;
-
-  if (!config.mappings.length) {
-    errors.push("missing-mapping");
-    return errors;
+/**
+ * Clones and returns a copy of the parameter symbology
+ * If the symbology has layers, but no active layer, set the active layer to the layer with order 0 (if it exists)
+ */
+const setDefaultActiveLayer = (symb) => {
+  const newSymb = cloneDeep(symb);
+  if (
+    !!newSymb?.symbology?.layers &&
+    Object.keys(newSymb?.symbology?.layers).length > 0 &&
+    (newSymb?.symbology?.activeLayer === "" ||
+      !newSymb?.symbology.layers[newSymb?.symbology?.activeLayer]
+    )
+  ) {
+    newSymb.symbology.activeLayer = Object.values(
+      newSymb?.symbology?.layers
+    ).find((layer) => layer.order === 0)?.id;
   }
 
-  const seenVariables = new Set();
-
-  config.mappings.forEach((mapping) => {
-    if (!mapping.variable) {
-      errors.push("missing-variable");
-    }
-    if (!mapping.field) {
-      errors.push("missing-field");
-    }
-
-    const normalizedVariable = mapping.variable.trim().toLowerCase();
-    if (normalizedVariable) {
-      if (seenVariables.has(normalizedVariable)) {
-        errors.push("duplicate-variable");
-      }
-      seenVariables.add(normalizedVariable);
-    }
-  });
-
-  return [...new Set(errors)];
-};
-
-const getSymbologyClickFilterValidationErrors = (symbology = {}) => {
-  return Object.values(symbology?.layers || {}).reduce((acc, layer) => {
-    const errors = getLayerClickFilterValidationErrors(layer);
-
-    if (errors.length) {
-      acc.push({
-        layerId: layer?.id,
-        layerName: layer?.name || layer?.id || "Unnamed layer",
-        errors,
-      });
-    }
-
-    return acc;
-  }, []);
-};
+  return newSymb;
+}
 
 export {
   extractState,
@@ -321,6 +293,5 @@ export {
   createFalcorFilterOptions,
   filterToUda,
   normalizeLayerClickFilterConfig,
-  getLayerClickFilterValidationErrors,
-  getSymbologyClickFilterValidationErrors,
+  setDefaultActiveLayer,
 };

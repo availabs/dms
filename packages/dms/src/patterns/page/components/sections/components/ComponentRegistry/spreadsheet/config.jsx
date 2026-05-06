@@ -30,12 +30,13 @@ const handlePaste = async (attribute, setAttribute) => {
                 hideValue = false,
                 wrapText = false,
                 bgColor = '',
-                cardSpan = ''
+                cardSpan = '',
+                cardRowSpan = ''
             } = parsedObj;
 
             const newAttribute = {
                 ...attribute,
-                justify, formatFn, headerFontStyle, valueFontStyle, hideHeader, hideValue, bgColor, cardSpan, wrapText
+                justify, formatFn, headerFontStyle, valueFontStyle, hideHeader, hideValue, bgColor, cardSpan, cardRowSpan, wrapText
             }
             return setAttribute(newAttribute)
         } else {
@@ -155,9 +156,9 @@ export default {
                     const { UI } = useContext(ThemeContext);
                     const { Button } = UI;
                     const {
-                        justify, formatFn, headerFontStyle, valueFontStyle, hideHeader, hideValue, bgColor, cardSpan, wrapText
+                        justify, formatFn, headerFontStyle, valueFontStyle, hideHeader, hideValue, bgColor, cardSpan, cardRowSpan, wrapText
                     } = attribute;
-                    const objToCopy = { justify, formatFn, headerFontStyle, valueFontStyle, hideHeader, hideValue, bgColor, cardSpan, wrapText }
+                    const objToCopy = { justify, formatFn, headerFontStyle, valueFontStyle, hideHeader, hideValue, bgColor, cardSpan, cardRowSpan, wrapText }
 
                     return (
                         <div className={'flex'}>
