@@ -106,6 +106,7 @@
 - [x] Consolidate page-edit history — replace per-edit `data_items` rows with single row per page holding `entries[]` array; update format, editFunctions, historyPane; migration script for existing databases
 - [x] DataWrapper & data sources re-architecture — Phases 0/1/2/4/6 shipped: `buildUdaConfig` extracted, `useDataLoader` extracted, output `sourceInfo` for chainability, developer docs. Phases 3 (clean section↔dataWrapper interface), 5 (page-level data sources + state ownership restructure), and 5B (clean data schema) deferred — system works in production; if revisited they should each be their own task rather than reviving the monolith.
 - [ ] DataWrapper join support — multi-source UDA configs with WITH/JOIN, join DSL, server-side SQL generation, join UI in data sources pane
+- [ ] [Pattern-level preload toggle](./tasks/current/pattern-preload-setting.md) — make `preloadPageSections` opt-in per pattern via a new `preload_data` boolean on the pattern format. Default off; historical patterns stay off. Toggle in the Overview pane (page patterns only). Page siteConfig only attaches `preload` to its config when the flag is true.
 
 ### patterns/mapeditor
 
