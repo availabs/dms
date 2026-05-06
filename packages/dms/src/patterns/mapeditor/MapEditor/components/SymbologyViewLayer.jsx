@@ -453,7 +453,7 @@ export default ViewLayer;
 const HoverComp = ({ data, layer }) => {
 
   if(!layer.props.hover) return
-  const { source_id, view_id } = layer;
+  const { source_id, view_id } = layer?.props?.view_id ? layer.props : layer;
   // const dctx = React.useContext(DamaContext);
   // const cctx = React.useContext(CMSContext);
   // const ctx = dctx?.falcor ? dctx : cctx;
