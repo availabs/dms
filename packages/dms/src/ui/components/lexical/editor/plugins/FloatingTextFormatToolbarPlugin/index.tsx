@@ -10,6 +10,7 @@
 
 import {$isCodeHighlightNode} from '@lexical/code';
 import {$isLinkNode} from '@lexical/link';
+import {$getSelectionStyleValueForProperty, $patchStyleText} from '@lexical/selection';
 import {TOGGLE_LINK_COMMAND} from "../LinkPlugin/commands";
 import {useLexicalComposerContext} from '@lexical/react/LexicalComposerContext';
 import {mergeRegister} from '@lexical/utils';
@@ -30,6 +31,7 @@ import {getDOMRangeRect} from '../../utils/getDOMRangeRect';
 import {getSelectedNode} from '../../utils/getSelectedNode';
 import {setFloatingElemPosition} from '../../utils/setFloatingElemPosition';
 import { useLexicalTheme } from '../../../useLexicalTheme';
+import DropdownColorPicker from '../../ui/DropdownColorPicker';
 //import {INSERT_INLINE_COMMAND} from '../CommentPlugin';
 
 function TextFormatFloatingToolbar({
@@ -43,6 +45,7 @@ function TextFormatFloatingToolbar({
   isStrikethrough,
   isSubscript,
   isSuperscript,
+  fontColor,
 }: {
   editor: LexicalEditor;
   anchorElem: HTMLElement;
@@ -54,9 +57,27 @@ function TextFormatFloatingToolbar({
   isSubscript: boolean;
   isSuperscript: boolean;
   isUnderline: boolean;
+  fontColor: string;
 }): JSX.Element {
   const theme = useLexicalTheme();
   const popupCharStylesEditorRef = useRef<HTMLDivElement | null>(null);
+
+  const applyStyleText = useCallback(
+    (styles: Record<string, string>) => {
+      editor.update(() => {
+        const selection = $getSelection();
+        if (selection !== null) {
+          $patchStyleText(selection, styles);
+        }
+      });
+    },
+    [editor],
+  );
+
+  const onFontColorSelect = useCallback(
+    (value: string) => applyStyleText({color: value}),
+    [applyStyleText],
+  );
 
   const insertLink = useCallback(() => {
     if (!isLink) {
@@ -240,6 +261,14 @@ function TextFormatFloatingToolbar({
             aria-label="Insert link">
             <i className={`${theme.floatingTextFormatPopup_popupItem_icon} ${theme.icon_link}`} />
           </button>
+          <DropdownColorPicker
+            buttonClassName={`${theme.floatingTextFormatPopup_popupItem_base} ${theme.floatingTextFormatPopup_popupItem_spaced} color-picker`}
+            buttonAriaLabel="Formatting text color"
+            buttonIconClassName={`${theme.dropdown_item_icon} ${theme.icon_fontColor}`}
+            color={fontColor}
+            onChange={onFontColorSelect}
+            title="text color"
+          />
         </>
       )}
       {/*<button
@@ -265,6 +294,7 @@ function useFloatingTextFormatToolbar(
   const [isSubscript, setIsSubscript] = useState(false);
   const [isSuperscript, setIsSuperscript] = useState(false);
   const [isCode, setIsCode] = useState(false);
+  const [fontColor, setFontColor] = useState<string>('#000');
 
   const updatePopup = useCallback(() => {
     editor.getEditorState().read(() => {
@@ -300,6 +330,7 @@ function useFloatingTextFormatToolbar(
       setIsSubscript(selection.hasFormat('subscript'));
       setIsSuperscript(selection.hasFormat('superscript'));
       setIsCode(selection.hasFormat('code'));
+      setFontColor($getSelectionStyleValueForProperty(selection, 'color', '#000'));
 
       // Update links
       const parent = node.getParent();
@@ -362,6 +393,7 @@ function useFloatingTextFormatToolbar(
       isSuperscript={isSuperscript}
       isUnderline={isUnderline}
       isCode={isCode}
+      fontColor={fontColor}
     />,
     anchorElem,
   );
