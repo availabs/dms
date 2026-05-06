@@ -3,6 +3,7 @@ import {ArrowDown} from "../tmp-cache-files/icons.jsx"
 import {ToggleControl, InputControl} from "../tmp-cache-files/controls.jsx";
 import {MapContext} from "../";
 import {useHandleClickOutside} from "../tmp-cache-files/utils.jsx";
+import { normalizeLayerClickFilterConfig } from "../../../../../../../mapeditor/MapEditor/stateUtils";
 
 export default function FilterControls() {
     const {state, setState} = useContext(MapContext);
@@ -17,6 +18,8 @@ export default function FilterControls() {
     const activeLayer = activeSymSymbology?.layers?.[activeSymSymbology?.activeLayer];
     const interactiveFilterOptions = (activeLayer?.['interactive-filters'] || []);
     const dynamicFilterOptions = (activeLayer?.['dynamic-filters'] || []);
+    const selectedVariableMappings = normalizeLayerClickFilterConfig(activeLayer?.["click-filter"] || {}).mappings || [];
+    const isSelectedVariableMappingsEnabled = normalizeLayerClickFilterConfig(activeLayer?.["click-filter"] || {}).enabled || false;
     const activeFilter = activeLayer?.selectedInteractiveFilterIndex;
 
 // console.log("FilterControls::interactiveFilterOptions", interactiveFilterOptions);
@@ -118,6 +121,41 @@ export default function FilterControls() {
                             ))
                         }
                     </div>
+
+                    {
+                        isSelectedVariableMappingsEnabled && selectedVariableMappings.length ? (
+                            <div className={'mt-3 border-t border-gray-200 px-2 pt-3 pb-1 text-gray-700'}>
+                                <div className={'pb-2 text-sm font-semibold text-gray-800'}>Layer Click Filter</div>
+                                <div className={'grid grid-cols-[minmax(0,1.4fr)_auto_minmax(0,1fr)] gap-x-2 gap-y-2'}>
+                                    <div className={'text-sm font-semibold leading-5'}>Selected Variable</div>
+                                    <div className={'text-sm font-semibold leading-5 text-center'}>Use URL Param</div>
+                                    <div className={'text-sm font-semibold leading-5'}>Layer Field</div>
+
+                                    {
+                                        selectedVariableMappings.map((mapping, mI) => (
+                                            <React.Fragment key={mI}>
+                                                <div className={'min-w-0 break-words text-sm leading-5'}>{mapping.variable || 'Untitled variable'}</div>
+                                                <div className={'justify-self-center'}>
+                                                    <ToggleControl
+                                                        value={Boolean(mapping.useSearchParams)}
+                                                        setValue={value => setState((draft) => {
+                                                            draft.symbologies[activeSym]
+                                                                .symbology
+                                                                .layers[activeSymSymbology?.activeLayer]
+                                                                ['click-filter']
+                                                                .mappings[mI]
+                                                                .useSearchParams = value;
+                                                        })}
+                                                    />
+                                                </div>
+                                                <div className={'min-w-0 break-words text-sm leading-5'}>{mapping.field || '-'}</div>
+                                            </React.Fragment>
+                                        ))
+                                    }
+                                </div>
+                            </div>
+                        ) : null
+                    }
                 </div>
             </div>
         </div>

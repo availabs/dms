@@ -248,6 +248,24 @@ function filterToUda(layerFilter) {
   return Object.keys(out).length ? out : null;
 }
 
+const normalizeLayerClickFilterConfig = (config = {}) => {
+  const legacyMapping =
+    config?.variable || config?.field
+      ? [{ variable: config?.variable || "", field: config?.field || "" }]
+      : [];
+
+  const mappings = Array.isArray(config?.mappings) ? config.mappings : legacyMapping;
+
+  return {
+    enabled: Boolean(config?.enabled),
+    mappings: mappings.map((mapping) => ({
+      variable: mapping?.variable || "",
+      field: mapping?.field || "",
+      useSearchParams: Boolean(mapping?.useSearchParams),
+    })),
+  };
+};
+
 /**
  * Clones and returns a copy of the parameter symbology
  * If the symbology has layers, but no active layer, set the active layer to the layer with order 0 (if it exists)
@@ -269,4 +287,11 @@ const setDefaultActiveLayer = (symb) => {
   return newSymb;
 }
 
-export { extractState, fetchBoundsForFilter, createFalcorFilterOptions, filterToUda, setDefaultActiveLayer };
+export {
+  extractState,
+  fetchBoundsForFilter,
+  createFalcorFilterOptions,
+  filterToUda,
+  normalizeLayerClickFilterConfig,
+  setDefaultActiveLayer,
+};
