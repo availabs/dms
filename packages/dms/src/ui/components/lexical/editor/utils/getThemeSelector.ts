@@ -1,18 +1,16 @@
 import {type EditorThemeClasses} from 'lexical';
-import invariant from './invariant';
 
 export function getThemeSelector(
   getTheme: () => EditorThemeClasses | null | undefined,
   name: keyof EditorThemeClasses,
 ): string {
   const className = getTheme()?.[name];
-  invariant(
-    typeof className === 'string',
-    'getThemeClass: required theme property %s not defined',
-    String(name),
-  );
+  if (typeof className !== 'string' || !className.trim()) {
+    return '';
+  }
   return className
     .split(/\s+/g)
-    .map((cls) => `.${cls}`)
-    .join();
+    .filter((cls) => cls.length > 0)
+    .map((cls) => `.${CSS.escape(cls)}`)
+    .join('');
 }
