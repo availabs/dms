@@ -1,4 +1,4 @@
-import { get } from "lodash-es"
+import { get, cloneDeep } from "lodash-es"
 import {
   rgb2hex,
   toHex,
@@ -248,4 +248,25 @@ function filterToUda(layerFilter) {
   return Object.keys(out).length ? out : null;
 }
 
-export { extractState, fetchBoundsForFilter, createFalcorFilterOptions, filterToUda };
+/**
+ * Clones and returns a copy of the parameter symbology
+ * If the symbology has layers, but no active layer, set the active layer to the layer with order 0 (if it exists)
+ */
+const setDefaultActiveLayer = (symb) => {
+  const newSymb = cloneDeep(symb);
+  if (
+    !!newSymb?.symbology?.layers &&
+    Object.keys(newSymb?.symbology?.layers).length > 0 &&
+    (newSymb?.symbology?.activeLayer === "" ||
+      !newSymb?.symbology.layers[newSymb?.symbology?.activeLayer]
+    )
+  ) {
+    newSymb.symbology.activeLayer = Object.values(
+      newSymb?.symbology?.layers
+    ).find((layer) => layer.order === 0)?.id;
+  }
+
+  return newSymb;
+}
+
+export { extractState, fetchBoundsForFilter, createFalcorFilterOptions, filterToUda, setDefaultActiveLayer };
