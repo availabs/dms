@@ -61,19 +61,20 @@ export const GraphComponent = props => {
 
   const {
     graphFormat,
-    activeGraphType,
+    graphType,
     viewData,
+    columns,
     showCategories,
     xAxisColumn,
     yAxisColumns,
     theme
   } = props;
 
-console.log("GraphComponent::viewData", viewData);
+// console.log("GraphComponent::viewData", viewData);
 
   const GraphComponent = React.useMemo(() => {
-    return getGraphComponent(activeGraphType.GraphComp);
-  }, [activeGraphType]);
+    return getGraphComponent(graphType);
+  }, [graphType]);
 
   const [ref, setRef] = React.useState(null);
   // const [width, setWidth] = React.useState(640);
@@ -108,33 +109,6 @@ console.log("GraphComponent::viewData", viewData);
   //   }, []);
   // }, [viewData, yAxisColumns]);
 
-  // const xScale = React.useMemo(() => {
-  //   let domain;
-
-  //   const makeContinuous = graphFormat.xAxis.makeContinuous;
-
-  //   if (makeContinuous) {
-  //     const [min, max] = viewData.reduce((a, c) => {
-  //       const i = c.index;
-  //       if (!strictNaN(i)) {
-  //         return [Math.min(a[0], i), Math.max(a[1], i)];
-  //       }
-  //       return a;
-  //     }, [Infinity, -Infinity]);
-
-  //     if ((min < Infinity) && (max > -Infinity)) {
-  //       domain = d3range(min, max + 1);
-  //     }
-  //   }
-
-  //   return { domain };
-  // }, [graphFormat.xAxis.makeContinuous, viewData])
-
-  const yAxisFormat = React.useMemo(() => {
-    const format = graphFormat?.yAxis?.format || "identity";
-    return TICK_FORMATS_MAP[format];
-  }, [graphFormat?.yAxis?.format])
-
   return (
     <div ref={ setRef }
       className={ `
@@ -147,9 +121,10 @@ console.log("GraphComponent::viewData", viewData);
     >
       <GraphTitle { ...graphFormat.title }/>
 
-      { !activeGraphType || !GraphComponent ? null :
+      { !GraphComponent ? null :
         <GraphComponent
-          data={ viewData }
+          viewData={ viewData }
+          columns={ columns }
           title={ get(graphFormat, "title", "") }
           height={ get(graphFormat, "height", 0) }
           width={ get(graphFormat, "width", 0) }
@@ -175,7 +150,6 @@ console.log("GraphComponent::viewData", viewData);
             label: get(graphFormat, ["yAxis", "label"]),
             rotateLabels: get(graphFormat, ["yAxis", "rotateLabels"], false),
             showGridLines: get(graphFormat, ["yAxis", "showGridLines"], true),
-            format: yAxisFormat,
             show: get(graphFormat, ["yAxis", "show"], true)
           } }
           margins={ get(graphFormat, "margins", {}) }
