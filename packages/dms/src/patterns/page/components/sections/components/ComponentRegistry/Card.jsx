@@ -58,7 +58,6 @@ export const CardSection = ({
         : null;
     const [saveToken, setSaveToken] = useState(0);
     const handledSaveRef = useRef(false);
-    console.log('click actions', clickPublishCfg, clickSaveSubCfg, saveToken)
 
     useEffect(() => {
         if (!clickSaveSubCfg || !state.display?.allowEditInView || !clearActionParam) return;

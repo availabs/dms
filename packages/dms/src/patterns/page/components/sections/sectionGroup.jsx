@@ -11,8 +11,8 @@ export default function SectionGroup ({group, attributes, edit}) {
   const { theme,  UI } = React.useContext(ThemeContext);
   const { user } = React.useContext(CMSContext) || {};
 
-  const { apiUpdate, item, updateAttribute } = React.useContext(PageContext);
-  const { SideNav, LayoutGroup } = UI;
+  const { apiUpdate, item, updateAttribute, pageState, clearActionParam } = React.useContext(PageContext);
+  const { SideNav, LayoutGroup, Modal } = UI;
 
   const inPageNav = getInPageNav(item,theme)
   const styleIndex = theme.layoutGroup.styles.map(d => d.name).indexOf(group.theme || 'default')
@@ -23,6 +23,48 @@ export default function SectionGroup ({group, attributes, edit}) {
         ( attributes?.['sections']?.EditComp || SectionArray?.EditComp ) :
         ( attributes?.['sections'].ViewComp || SectionArray?.ViewComp )
   }, [])
+
+  const isModal = group.isModal && !edit;
+  const modalParamKey = group.modalParamKey;
+  const isOpen = isModal
+      ? (pageState?.filters?.some(f => f.searchKey === modalParamKey && f.type === 'action' && f.values?.[0] !== undefined))
+      : true;
+
+  if (isModal && !isOpen) return null;
+  if (isModal) {
+      // return (
+      //     <Modal open={isModal && isOpen} setOpen={() => clearActionParam(modalParamKey)}>
+      //         <SectionArrayComp
+      //             group={group}
+      //             value={item?.['sections'] || [] }
+      //             attr={sectionAttributes}
+      //             onChange={(update, action) => updateSections({update, action, item, user, apiUpdate, updateAttribute})}
+      //         />
+      //     </Modal>
+      // );
+    return (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+        onClick={() => clearActionParam(modalParamKey)}
+      >
+        <div
+          className="relative bg-white rounded-lg shadow-xl w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto"
+          onClick={e => e.stopPropagation()}
+        >
+          <button
+            className="absolute top-3 right-3 text-gray-400 hover:text-gray-700 z-10 text-xl leading-none"
+            onClick={() => clearActionParam(modalParamKey)}
+          >✕</button>
+          <SectionArrayComp
+            group={group}
+            value={item?.['sections'] || [] }
+            attr={sectionAttributes}
+            onChange={(update, action) => updateSections({update, action, item, user, apiUpdate, updateAttribute})}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <LayoutGroup

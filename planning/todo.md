@@ -79,6 +79,7 @@
 ## ui
 
 - [ ] [Expand client column-types into a user-facing interaction system](./tasks/current/expand-client-column-types.md) — extend `ui/columnTypes/index.jsx` from a render-pair registry into a richer per-column adapter (sort, filter, format, edit, view) that drives Card/Spreadsheet/Graph/Table behavior. DAMA `metadata.columns` carries the **default** client type alongside the Postgres type; sections may override per-instance. Unblocks the timestamp-sorts-as-text bug. See [research/unified-column-types.md](./research/unified-column-types.md) (Option B).
+- [ ] [Card row span + theme-registered column types + WCDB DJ portrait card](./tasks/current/card-row-span-and-custom-column-types.md) — add `cardRowSpan` in cell mode (P1), open the column-type registry to themes via `theme.columnTypes` (P2), let column types declare `cardHints` to opt out of field chrome (P3), and ship a WCDB `portrait_banner` column type + DJ portrait card section as the proof of concept. Spreadsheet keeps copy/paste-format compatibility but doesn't surface or render row span. See [research/card-design-controls.md](./research/card-design-controls.md).
 - [x] Table & Card React Router links — replace `<a href>` with React Router `<Link to>` for internal navigation in TableCell.jsx and Card.jsx (eliminates full page reloads)
 - [x] Lexical plaintext normalization — move plaintext-to-Lexical-JSON conversion to shared `parseValue()` so HTML view path handles plaintext
 - [x] Lexical sync HTML render — eliminate View jitter by using synchronous `editorState.read()` + `useMemo` instead of async `useEffect`
@@ -105,6 +106,7 @@
 - [x] Consolidate page-edit history — replace per-edit `data_items` rows with single row per page holding `entries[]` array; update format, editFunctions, historyPane; migration script for existing databases
 - [x] DataWrapper & data sources re-architecture — Phases 0/1/2/4/6 shipped: `buildUdaConfig` extracted, `useDataLoader` extracted, output `sourceInfo` for chainability, developer docs. Phases 3 (clean section↔dataWrapper interface), 5 (page-level data sources + state ownership restructure), and 5B (clean data schema) deferred — system works in production; if revisited they should each be their own task rather than reviving the monolith.
 - [ ] DataWrapper join support — multi-source UDA configs with WITH/JOIN, join DSL, server-side SQL generation, join UI in data sources pane
+- [x] [Pattern-level preload toggle](./tasks/completed/pattern-preload-setting.md) — make `preloadPageSections` opt-in per pattern via a new `preload_data` boolean on the pattern format. Default off; historical patterns stay off. Toggle in the Overview pane (page patterns only). Page siteConfig only attaches `preload` to its config when the flag is true. Also fixed a pre-existing commented-out `dmsConfig.preload(...)` call in `dmsPageFactory.jsx:36`.
 
 ### patterns/mapeditor
 

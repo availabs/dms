@@ -77,6 +77,11 @@ export const pattern = {
       type: "text",
       required: false
     },
+    { key: "preload_data",
+      type: "boolean",
+      required: false,
+      default: false,
+    },
     {
       key: "filters",
       type: "json",

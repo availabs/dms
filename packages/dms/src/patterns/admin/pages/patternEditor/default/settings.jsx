@@ -217,6 +217,10 @@ export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest})
           />
         )}
 
+        {value.pattern_type === 'page' && (
+          <PagePatternSettings value={tmpValue} onChange={setTmpValue} />
+        )}
+
         <div className='flex flex-col gap-2 p-4 border border-red-200 rounded-md'>
           <span className='font-semibold text-sm text-red-600'>Danger Zone</span>
           <div className='flex items-center gap-2'>
@@ -345,6 +349,35 @@ function DmsEnvConfig({ value, onChange, dmsEnvs: initialDmsEnvs, apiLoad, app, 
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function PagePatternSettings({ value, onChange }) {
+  const { UI } = useContext(ThemeContext);
+  const { FieldSet } = UI;
+
+  return (
+    <div className='flex flex-col gap-1 p-4 border rounded-md'>
+      <span className='font-semibold text-lg'>Page Pattern Settings</span>
+      <p className='text-sm text-gray-500 mb-2'>
+        Pre-load section data on page navigation (router loader phase). When off,
+        sections fetch their data after mount.
+      </p>
+      <FieldSet
+        className='grid grid-cols-12 gap-1 border rounded p-4'
+        components={[
+          {
+            label: 'Preload Data',
+            type: 'Switch',
+            enabled: value.preload_data === true,
+            size: 'small',
+            setEnabled: e => onChange(draft => { draft.preload_data = !!e }),
+            className: 'self-center',
+            customTheme: { field: 'pb-2 col-span-12' },
+          },
+        ]}
+      />
     </div>
   );
 }

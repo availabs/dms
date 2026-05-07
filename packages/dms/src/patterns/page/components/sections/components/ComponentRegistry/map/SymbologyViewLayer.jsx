@@ -4,6 +4,8 @@ import { AvlLayer } from "../../../../../../../ui/components/map"
 import { usePrevious } from './utils.js'
 import { MapContext } from "./"
 import { CMSContext } from '../../../../../context'
+import { PageContext } from '../../../../../context'
+import { normalizeLayerClickFilterConfig } from '../../../../../../mapeditor/MapEditor/stateUtils';
 import bbox from '@turf/bbox';
 import { featureCollection } from '@turf/helpers';
 function onlyUnique(value, index, array) {
@@ -17,6 +19,8 @@ const ViewLayerRender = ({
 }) => {
   const mctx = useContext(MapContext);
   const { state, setState } = mctx ? mctx : {state: {}, setState:() => {}};
+  const { pageState, setPageState, updatePageStateFilters } = useContext(PageContext) || {};
+  const { falcor, pgEnv } = mctx || {};
 
   const [sourceReady, setSourceReady] = React.useState(false);
   const cachedFilterPropsRef = useRef(null);
@@ -365,6 +369,224 @@ const ViewLayerRender = ({
       });
     }
   }, [maplibreMap, allLayerProps]);
+
+  // Coordinate click-filter handling at the map level instead of per layer.
+  // This effect:
+  // 1. collects every layer that has click-filter enabled and at least one
+  //    mapping using URL params,
+  // 2. attaches a single shared map click handler from one owner layer,
+  // 3. gathers matching feature values across all eligible layers for one click,
+  // 4. resolves any missing mapped fields from Falcor when needed, and
+  // 5. sends one merged filter update so later layer handlers do not overwrite
+  //    earlier ones from the same click.
+  useEffect(() => {
+    if (!maplibreMap) return;
+
+    const clickableLayerConfigs = Object.values(allLayerProps || {})
+      .map((candidateLayerProps) => {
+        const clickFilterConfig = normalizeLayerClickFilterConfig(
+          candidateLayerProps?.["click-filter"] || {}
+        );
+        const isClickFilterEnabled = clickFilterConfig.enabled === true;
+        const activeMappings = (clickFilterConfig.mappings || []).filter(
+          (mapping) =>
+            isClickFilterEnabled &&
+            mapping?.variable &&
+            mapping?.field &&
+            mapping?.useSearchParams === true
+        );
+        const clickableLayerIds = (candidateLayerProps?.layers || [])
+          .map((layer) => layer?.id)
+          .filter((layerId) => layerId && !layerId.includes("_case"));
+
+        if (!isClickFilterEnabled || !activeMappings.length || !clickableLayerIds.length) {
+          return null;
+        }
+
+        return {
+          id: candidateLayerProps?.id,
+          layerProps: candidateLayerProps,
+          activeMappings,
+          clickableLayerIds,
+          order: candidateLayerProps?.order ?? 0
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => {
+        if (a.order !== b.order) {
+          return a.order - b.order;
+        }
+        return String(a.id).localeCompare(String(b.id));
+      });
+
+    if (!clickableLayerConfigs.length) {
+      return;
+    }
+
+    const clickHandlerOwnerId = clickableLayerConfigs[0]?.id;
+    if (layerProps?.id !== clickHandlerOwnerId) {
+      return;
+    }
+
+    const clickableLayerIds = clickableLayerConfigs.flatMap(
+      (config) => config.clickableLayerIds
+    );
+
+    const updateFilterValues = (nextFilterEntries) => {
+      const existingFilters = Array.isArray(pageState?.filters) ? pageState.filters : [];
+      const nextFilters = existingFilters
+        .filter((filter) => !nextFilterEntries.some((entry) => entry.searchKey === filter?.searchKey))
+        .concat(
+          nextFilterEntries.map((entry) => {
+            const matchingFilter = existingFilters.find(
+              (filter) => filter?.searchKey === entry.searchKey
+            );
+            return {
+              ...(matchingFilter || {}),
+              searchKey: entry.searchKey,
+              values: [entry.value],
+              useSearchParams: matchingFilter?.useSearchParams ?? Boolean(entry.useSearchParams),
+            };
+          })
+        );
+
+      if (typeof updatePageStateFilters === "function") {
+        updatePageStateFilters(nextFilters);
+        return;
+      }
+
+      if (typeof setPageState === "function") {
+        setPageState((draft) => {
+          if (!Array.isArray(draft.filters)) {
+            draft.filters = [];
+          }
+
+          nextFilterEntries.forEach((entry) => {
+            const filterIndex = draft.filters.findIndex(
+              (filter) => filter?.searchKey === entry.searchKey
+            );
+
+            if (filterIndex >= 0) {
+              draft.filters[filterIndex].values = [entry.value];
+              draft.filters[filterIndex].useSearchParams =
+                draft.filters[filterIndex].useSearchParams ?? Boolean(entry.useSearchParams);
+            } else {
+              draft.filters.push({
+                searchKey: entry.searchKey,
+                values: [entry.value],
+                useSearchParams: Boolean(entry.useSearchParams),
+              });
+            }
+          });
+        });
+      }
+    };
+
+    const resolveFeatureProperties = async ({ feature, candidateLayerProps, activeMappings }) => {
+      let resolvedProperties = feature?.properties || {};
+      const missingFields = activeMappings
+        .map((mapping) => mapping.field)
+        .filter(
+          (fieldName) =>
+            resolvedProperties?.[fieldName] === undefined ||
+            resolvedProperties?.[fieldName] === null ||
+            resolvedProperties?.[fieldName] === ""
+        );
+
+      if (
+        missingFields.length &&
+        falcor &&
+        pgEnv &&
+        candidateLayerProps?.view_id &&
+        feature?.id !== undefined &&
+        feature?.id !== null
+      ) {
+        try {
+          const response = await falcor.get([
+            "uda",
+            pgEnv,
+            "viewsById",
+            candidateLayerProps.view_id,
+            "dataById",
+            String(feature.id),
+            missingFields
+          ]);
+
+          const fetchedProperties = get(response, [
+            "json",
+            "uda",
+            pgEnv,
+            "viewsById",
+            candidateLayerProps.view_id,
+            "dataById",
+            String(feature.id)
+          ], {});
+
+          resolvedProperties = {
+            ...resolvedProperties,
+            ...fetchedProperties
+          };
+        } catch (error) {
+          console.error("[MapClickFilter] failed to fetch missing fields", error);
+        }
+      }
+
+      return resolvedProperties;
+    };
+
+    const handleMapClick = async (event) => {
+      const features = maplibreMap.queryRenderedFeatures(event.point, {
+        layers: clickableLayerIds,
+      });
+
+      if (!features?.length) return;
+
+      const nextFilterEntries = [];
+
+      for (const clickableLayerConfig of clickableLayerConfigs) {
+        const feature = features.find((candidateFeature) =>
+          clickableLayerConfig.clickableLayerIds.includes(candidateFeature?.layer?.id)
+        );
+
+        if (!feature) continue;
+
+        const resolvedProperties = await resolveFeatureProperties({
+          feature,
+          candidateLayerProps: clickableLayerConfig.layerProps,
+          activeMappings: clickableLayerConfig.activeMappings
+        });
+
+        clickableLayerConfig.activeMappings.forEach((mapping) => {
+          const value = resolvedProperties?.[mapping.field];
+          if (value !== undefined && value !== null && value !== "") {
+            nextFilterEntries.push({
+              searchKey: mapping.variable,
+              value,
+              useSearchParams: mapping.useSearchParams,
+            });
+          }
+        });
+      }
+
+      if (!nextFilterEntries.length) return;
+      updateFilterValues(nextFilterEntries);
+    };
+
+    maplibreMap.on("click", handleMapClick);
+
+    return () => {
+      if (!maplibreMap?.loaded()) return;
+
+      maplibreMap.off("click", handleMapClick);
+    };
+  }, [
+    maplibreMap,
+    layerProps,
+    allLayerProps,
+    pageState?.filters,
+    setPageState,
+    updatePageStateFilters,
+  ]);
 }
 
 const getLayerTileUrl = (tileBase, layerProps) => {
@@ -493,7 +715,7 @@ export default ViewLayer;
 
 const HoverComp = ({ data, layer }) => {
   if(!layer.props.hover) return
-  const { source_id, view_id } = layer;
+  const { source_id, view_id } = layer?.props?.view_id ? layer.props : layer;
   const mctx = React.useContext(MapContext);
   const cctx = React.useContext(CMSContext);
   const ctx = mctx?.falcor ? mctx : cctx;

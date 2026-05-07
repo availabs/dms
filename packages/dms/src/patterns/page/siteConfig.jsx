@@ -13,6 +13,7 @@ import UI from "../../ui";
 import { ThemeContext, getPatternTheme, getComponentTheme } from "../../ui/useTheme.js";
 import { registerWidget } from "../../ui/widgets";
 import { registerComponents } from './components/sections/componentRegistry';
+import { registerColumnType } from "../../ui/columnTypes";
 import SearchButton from "./components/search/index";
 import DefaultMenu from "./components/userMenu";
 
@@ -59,6 +60,13 @@ const pagesConfig = ({
     }
   }
 
+  // Auto-register theme-provided column types. Themes ship a declarative
+  // { name: { EditComp, ViewComp, cardHints? } } map; collisions override
+  // built-ins silently (themes are trusted code).
+  if (theme.columnTypes) {
+    Object.entries(theme.columnTypes).forEach(([k, v]) => registerColumnType(k, v))
+  }
+
   baseUrl = baseUrl === "/" ? "" : baseUrl;
   const format = initializePatternFormat(cmsFormat, app, type);
   if(pattern?.additionalSectionAttributes?.length){
@@ -82,15 +90,18 @@ const pagesConfig = ({
   Object.keys(damaMapPlugins).forEach(plugin => RegisterPlugin(plugin, damaMapPlugins[plugin]));
 
   const patternFilters = parseIfJSON(pattern?.filters, []);
+  const preloadEnabled = pattern?.preload_data === true;
   // const rightMenuWithSearch = rightMenu; // for live site
   return {
     siteType,
     format: format,
-    preload: (falcor, data, request, params) => {
+    ...(preloadEnabled && {
+      preload: (falcor, data, request, params) => {
         const raw = params?.['*'] || '';
         const slug = raw.startsWith('edit/') ? raw.slice('edit/'.length) : raw;
         return preloadPageSections(falcor, data, request.url, patternFilters, slug);
-    },
+      },
+    }),
     pages: [{path: 'edit_pattern', name: 'Format Manager', component: FormatManager}],
     baseUrl,
     API_HOST,

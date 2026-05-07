@@ -19,6 +19,10 @@ const checkbox = { EditComp: CheckboxEdit, ViewComp: CheckboxView }
 const lexical = { EditComp: LexicalEdit, ViewComp: LexicalView }
 
 // console.log('in column types', Lexical)
+// columnTypes is a mutable registry: themes can extend it via theme.columnTypes
+// (auto-registered in patterns/page/siteConfig.jsx) using registerColumnType.
+// We mutate this object in place so existing consumers that hold a reference
+// (e.g. UI.ColumnTypes via ui/index.js) immediately see new entries.
 const columnTypes = {
 	'text': text,
   'textarea': textarea,
@@ -55,5 +59,15 @@ const columnTypes = {
     },
 	'default': text
 }
+
+export function registerColumnType(name, def) {
+    if (!name || !def) return;
+    columnTypes[name] = def;
+}
+
+export function getColumnTypes() {
+    return columnTypes;
+}
+
 //console.log('columnTypes', columnTypes)
 export default columnTypes;
