@@ -1,6 +1,6 @@
 import React, {useCallback, useContext, useEffect, useMemo, useRef, useState} from "react";
 import {uniqBy} from "lodash-es";
-import {ThemeContext} from "../../../../ui/useTheme";
+import {ThemeContext, getComponentTheme} from "../../../../ui/useTheme";
 import {ComponentContext} from "../../context";
 import {PageContext} from "../../context";
 import {attributeAccessorStr} from "./components/dataWrapper/utils/utils";
@@ -11,6 +11,9 @@ import {
     isSystemCol,
     parseIfJson
 } from "./components/dataWrapper/components/filters/utils";
+import {TimePicker} from "./components/dataWrapper/components/filters/TimePicker/TimePicker";
+import {serializeTimeFilterURL} from "./components/dataWrapper/utils/timeFilter";
+import {complexFiltersTheme} from "./ComplexFilters.theme";
 
 const OPTIONS_LIMIT = 100;
 
@@ -133,17 +136,54 @@ const useColumnOptions = (columnName, columns, operation, search, selectedValues
 };
 
 export const ConditionValueInput = ({node, path, columns, updateNodeAtPath, siblingConditions = []}) => {
-    const {UI} = useContext(ThemeContext);
+    const {UI, theme: themeFromContext = {}} = useContext(ThemeContext) || {};
     const {ColumnTypes} = UI;
+    const t = { ...complexFiltersTheme, ...getComponentTheme(themeFromContext, 'complexFilters') };
     const {pageState, updatePageStateFilters} = useContext(PageContext) || {};
 
     const [search, setSearch] = useState('');
     const isMultiselect = ['filter', 'exclude'].includes(node.op);
     const selectedValues = isMultiselect ? (Array.isArray(node.value) ? node.value : []) : [];
 
+    // All hooks must run unconditionally — the op-based branch below changes
+    // when the user toggles between 'time' and other ops, and React requires
+    // a stable hook-call order across renders. useColumnOptions is a no-op
+    // for non-multiselect ops (it short-circuits internally) so running it
+    // for the 'time' op costs nothing.
     const {options, loading} = useColumnOptions(node.col, columns, node.op, search, selectedValues, siblingConditions, node.source_id);
 
     const onSearch = useCallback((term) => setSearch(term), []);
+
+    // The `time` op carries a structured value object — render the TimePicker
+    // editor instead of the multiselect / scalar paths below. Branching here
+    // (after all hooks have been called) keeps hook order stable.
+    if (node.op === 'time') {
+        const handleTimeChange = (next) => {
+            updateNodeAtPath(path, n => { n.value = next; });
+            // When this leaf is wired to URL search params, also push the
+            // compact token to pageState so the URL stays in sync. We only
+            // serialize what the Phase 2 token grammar can express; richer
+            // values (multi-range OR, DOW, time-of-day) round-trip through
+            // node.value but not through the URL until Phase 3.
+            if (node.usePageFilters && updatePageStateFilters) {
+                const searchKey = node.searchParamKey || node.col;
+                const token = serializeTimeFilterURL(next);
+                const currentPageFilters = (pageState?.filters || [])
+                    .filter(f => f.searchKey !== searchKey)
+                    .map(f => ({searchKey: f.searchKey, values: f.values}));
+                if (token) currentPageFilters.push({ searchKey, values: [token] });
+                updatePageStateFilters(currentPageFilters, { [searchKey]: !token });
+            }
+        };
+        return (
+            <TimePicker
+                value={node.value && typeof node.value === 'object' && !Array.isArray(node.value) ? node.value : {}}
+                onChange={handleTimeChange}
+                columns={columns}
+                startCol={node.col}
+            />
+        );
+    }
 
     const selector = isMultiselect ? 'multiselect' : 'text';
     const Comp = ColumnTypes[selector].EditComp;
@@ -157,7 +197,7 @@ export const ConditionValueInput = ({node, path, columns, updateNodeAtPath, sibl
 
     return (
         <Comp
-            className={'w-full max-h-[150px] flex text-xs overflow-auto scrollbar-sm border rounded-md bg-white p-2'}
+            className={t.valueComp}
             loading={loading}
             value={value}
             placeholder={node.op === 'like' ? 'search...' : isMultiselect ? 'select...' : 'enter a number...'}

@@ -108,7 +108,12 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                 name: item.label,
                 items: item.items
                     .filter(({ displayCdn }) => typeof displayCdn === 'function' ? displayCdn({ display: state.display }) : displayCdn !== false)
-                    .map(i => controlItemTransformers[i.type]?.(i, state.display?.[i.key] ?? i.defaultValue))
+                    // Recurse so grouped items pick up the same handling as
+                    // top-level entries — function-typed controls (e.g. color
+                    // pickers), nested groups, and dotted display keys all
+                    // work, not just the four registry entries.
+                    .map(transformControlItem)
+                    .filter(Boolean)
             })
         }
 

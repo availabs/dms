@@ -19,6 +19,7 @@ const columnRenameRegex = /\s+as\s+/i;
 const splitColNameOnAS = (name) => name.split(columnRenameRegex);
 import { EXTERNAL_SOURCE_KEY } from "./schema";
 import { calculateIsJoinPresent } from "../dataWrapper/utils/joinUtils";
+import { parseTimeFilterURL, mergeUrlOntoExposedAxes } from "./utils/timeFilter";
 export const isCalculatedCol = ({ display, type, origin, name }) =>
   display === "calculated" ||
   type === "calculated" ||
@@ -339,6 +340,20 @@ export const applyPageFilters = (filterTree, pageFilters) => {
     const key = node.searchParamKey || node.col;
     const pageValues = pageFilters[key];
     if (!pageValues) return node;
+
+    // Time filters carry a structured value object — pageState stores a
+    // compact URL token like 'last:7d' as a single-element string array.
+    // Parse the token into a TimeFilterValue so the leaf flows correctly into
+    // the SQL builder. Bad tokens leave the saved value untouched so a typo'd
+    // URL doesn't blow away an admin's configured filter.
+    if (node.op === 'time') {
+      const token = Array.isArray(pageValues) ? pageValues[0] : pageValues;
+      const parsed = typeof token === 'string' ? parseTimeFilterURL(token) : null;
+      // mergeUrlOntoExposedAxes preserves author-locked axes when the leaf has
+      // `exposedAxes` set; a Phase 2-4 leaf without `exposedAxes` continues to
+      // wholesale-replace as before (back-compat).
+      return parsed ? { ...node, value: mergeUrlOntoExposedAxes(node.value, parsed) } : node;
+    }
 
     const normalized = Array.isArray(pageValues) ? pageValues : [pageValues];
     return { ...node, value: normalized };
