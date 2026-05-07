@@ -2,51 +2,85 @@ import React from "react"
 
 import { BarGraph, generateTestBarData } from "./avl-graph"
 
-import { rollups as d3rollups } from "d3-array"
+import {
+	groups as d3groups
+} from "d3-array"
 
-const mergeIndex = data => {
-	const keys = [];
-	const merged = data.reduce((a, c) => {
-		a.index = c.index;
-		a[c.type] = c.value;
-		keys.push(c.type);
-		return a;
-	}, {});
-	return { data: merged, keys };
-}
+import { strictNaN } from "../utils"
+import { getAggFunc } from "./utils"
 
 const BarGraphWrapper = props => {
 
-// console.log("BarGraphWrapper::data", props.data);
+// console.log("BarGraphWrapper::viewData", props.viewData);
+// console.log("BarGraphWrapper::columns", props.columns);
 // console.log("BarGraphWrapper::width, height", props.width, props.height);
 
 	const dataFromProps = React.useMemo(() => {
-		if (!props.data.length) return {};
+		const indexColumn = props.columns.find(c => c.target === "xAxis");
+		const dataColumns = props.columns.filter(c => c.target === "yAxis");
+		const categoryColumn = props.columns.find(c => c.target === "categorize");
 
-		// const filteredData = props.data.filter(d => d.index !== undefined);
+		if (!indexColumn || !dataColumns.length) return {};
 
-		const rollups = d3rollups(props.data, mergeIndex, d => `${ d.index }`);
+// console.log("BarGraphWrapper::indexColumn", indexColumn)
+// console.log("BarGraphWrapper::dataColumns", dataColumns)
+// console.log("BarGraphWrapper::categoryColumn", categoryColumn)
 
-		const keySet = new Set();
-		const allData = [];
-
-		for (const [index, { data, keys }] of rollups) {
-			allData.push(data);
-			keys.forEach(k => keySet.add(k));
+		const groupsArray = [d => d[indexColumn.name]];
+		if (categoryColumn) {
+			groupsArray.push(d => d[categoryColumn.name])
 		}
 
-		return { data: allData, keys: [...keySet] };
-	}, [props.data]);
+		const dataGroups = d3groups(props.viewData, ...groupsArray);
+
+		const data = [];
+		const keySet = new Set();
+
+		for (const [index, iGroup] of dataGroups) {
+
+			if (index === undefined) continue;
+
+// console.log("index", index, iGroup.length)
+
+			const bar = { index };
+
+			if (categoryColumn) {
+				for (const [type, tGroup] of iGroup) {
+					keySet.add(type);
+					let value = 0;
+					for (const dc of dataColumns) {
+						const dcn = dc.name;
+						const aggFunc = getAggFunc(dc);
+						const v = aggFunc(tGroup, d => d[dcn]);
+						if (v) {
+							value += v;
+						}
+					}
+					if (value) {
+						bar[type] = value;
+					}
+				}
+			}
+			else {
+				for (const dc of dataColumns) {
+					const dcn = dc.name;
+					keySet.add(dcn);
+					const aggFunc = getAggFunc(dc);
+					const value = aggFunc(iGroup, d => d[dcn]);
+					if (value) {
+						bar[dcn] = value;
+					}
+				}
+			}
+			if (Object.keys(bar).length > 1) {
+				data.push(bar);
+			}
+		}
+
+		return { data, keys: [...keySet] };
+	}, [props.viewData, props.columns]);
 
 // console.log("BarGraphWrapper::dataFromProps", dataFromProps);
-
-	const [dataForGraph, setDataForGraph] = React.useState({ data: [], keys: [] });
-	const randomData = React.useCallback(e => {
-		setDataForGraph(generateTestBarData());
-	}, []);
-	const clearData = React.useCallback(e => {
-		setDataForGraph({ data: [], keys: [] });
-	}, []);
 
 	const colors = React.useMemo(() => {
 		if (props.colors?.type === "palette") {
@@ -93,8 +127,7 @@ const BarGraphWrapper = props => {
 
 	const hoverComp = React.useMemo(() => {
 		return {
-			...props.tooltip,
-			valueFormat: props.yAxis.format
+			...props.tooltip
 		};
 	}, [props.tooltip, props.yAxis]);
 
@@ -106,34 +139,20 @@ const BarGraphWrapper = props => {
 	}, []);
 
 	return (
-		<div className="bg-inherit">
-			<div className="w-full bg-inherit"
-				style={ { height: `${ height }px` } }
-			>
-				<BarGraph { ...dataForGraph } { ...dataFromProps }
-					orientation={ props.orientation }
-					colors={ colors }
-					groupMode={ props.groupMode }
-					axisBottom={ axisBottom }
-					axisLeft={ axisLeft }
-					margin={ margin }
-					hoverComp={ hoverComp }
-					shouldComponentUpdate={ shouldComponentUpdate }
-					width={ props.width }
-					height={ height }/>
-			</div>
-			<button
-				className="bg-gray-200"
-				onClick={ randomData }
-			>
-				random data
-			</button>
-			<button
-				className="bg-gray-200"
-				onClick={ clearData }
-			>
-				clear data
-			</button>
+		<div className="w-full bg-inherit"
+			style={ { height: `${ height }px` } }
+		>
+			<BarGraph { ...dataFromProps }
+				orientation={ props.orientation }
+				colors={ colors }
+				groupMode={ props.groupMode }
+				axisBottom={ axisBottom }
+				axisLeft={ axisLeft }
+				margin={ margin }
+				hoverComp={ hoverComp }
+				shouldComponentUpdate={ shouldComponentUpdate }
+				width={ props.width }
+				height={ height }/>
 		</div>
 	)
 }

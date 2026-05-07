@@ -52,27 +52,8 @@ import TextInput from '../ui/TextInput';
 import {$isInlineImageNode, InlineImageNode} from './InlineImageNode';
 import ImageResizer from "../ui/ImageResizer";
 
-
-// const imageCache = new Set();
-
-// function useSuspenseImage(src: string) {
-//   if (!imageCache.has(src)) {
-//     throw new Promise((resolve) => {
-//       const img = new Image();
-//       img.src = src;
-//       img.onload = () => {
-//         imageCache.add(src);
-//         resolve(null);
-//       };
-//     });
-//   }
-// }
-
-const DATA_URL_REGEX = /^data:.+[/].+;base64,.+$/;
 const isDataURL = src => {
   if (typeof src === 'string' && src.startsWith('data:')) return true;
-
-  return DATA_URL_REGEX.test(src);
 }
 
 const getUniqueFileName = ext => {
@@ -98,12 +79,14 @@ const uploadFile = (file, altText, DAMA_HOST, pgEnv, id, directory) => {
   formData.append("categories", JSON.stringify([["Uploaded File"]]));
   formData.append("file", file);
 
-  return fetch(
-    `${ DAMA_HOST }/dama-admin/${ pgEnv }/file_upload`,
-    { method: "POST", body: formData }
-  ).then(res => res.json())
+  const url = `${ DAMA_HOST }/dama-admin/${ pgEnv }/file_upload`;
+
+console.log("uploadFile::url", url)
+
+  return fetch(url, { method: "POST", body: formData })
+    .then(res => res.json())
     .then(json => {
-      console.log("FILE UPLOAD RESPONSE:", json);
+console.log("uploadFile::response::json", json);
       if (json.ok) {
         return json.dl_url;
       }
@@ -119,6 +102,33 @@ const NO_FILE_UPLOAD_INFO = {
   directory: null
 };
 
+class FileCache {
+  constructor() {
+    this.cache = new Map();
+    this.useLocalStorage = Boolean(window.localStorage);
+  }
+  has(key) {
+    if (this.useLocalStorage) {
+      return Boolean(window.localStorage.getItem(key))
+    }
+    return this.cache.has(key);
+  }
+  set(key, value) {
+    if (this.useLocalStorage) {
+      return window.localStorage.setItem(key, value);
+    }
+    return this.cache.set(key, value);
+  }
+  get(key) {
+    if (this.useLocalStorage) {
+      return window.localStorage.getItem(key);
+    }
+    return this.cache.get(key);
+  }
+}
+
+const FileUrlCache = new FileCache();
+
 function LazyImage({
   altText,
   className,
@@ -127,7 +137,8 @@ function LazyImage({
   width,
   height,
   position,
-  fileUploadInfo
+  fileUploadInfo,
+  fileName
 }: {
   altText: string;
   className: string | null;
@@ -137,9 +148,11 @@ function LazyImage({
   width: 'inherit' | number;
   position: Position;
   fileUploadInfo: object | null;
+  fileName: string;
 }): JSX.Element {
 
 // console.log("LazyImage::src", src);
+// console.log("LazyImage::fileName", fileName);
 // console.log("LazyImage::fileUploadInfo", fileUploadInfo);
 
   const [imgSrc, setImgSrc] = React.useState(null);
@@ -157,25 +170,28 @@ function LazyImage({
   }, [fileUploadInfo]);
 
   React.useEffect(() => {
+    if (FileUrlCache.has(fileName)) {
+      setImgSrc(FileUrlCache.get(fileName));
+// console.log("LazyImage::FileUrlCache FOUND", fileName, "IN CACHE!!!");
+      return;
+    }
+
     if (!(DAMA_HOST && pgEnv && id && imgSrc)) return;
 
     if (isDataURL(imgSrc)) {
       makeFile(imgSrc)
         .then(file => {
-
-// console.log("FILE:", file)
-
-          return uploadFile(file, altText, DAMA_HOST, pgEnv, id, directory)
+// console.log("LazyImage::makeFile::file", file)
+          return uploadFile(file, altText, DAMA_HOST, pgEnv, id, directory);
         })
         .then(dl_url => {
           if (dl_url) {
             setImgSrc(dl_url);
+            FileUrlCache.set(fileName, dl_url);
           }
         });
     }
-  }, [DAMA_HOST, pgEnv, id, directory, imgSrc, altText]);
-
-  // useSuspenseImage(src);
+  }, [DAMA_HOST, pgEnv, id, directory, imgSrc, altText, fileName]);
 
   return (
     <img
@@ -283,7 +299,8 @@ export default function InlineImageComponent({
   showCaption,
   caption,
   position,
-  fileUploadInfo
+  fileUploadInfo,
+  fileName
 }: {
   altText: string;
   caption: LexicalEditor;
@@ -294,6 +311,7 @@ export default function InlineImageComponent({
   width: 'inherit' | number;
   position: Position;
   fileUploadInfo: object | null;
+  fileName: string;
 }): JSX.Element {
   const [modal, showModal] = useModal();
   const imageRef = useRef<null | HTMLImageElement>(null);
@@ -514,6 +532,7 @@ export default function InlineImageComponent({
             height={height}
             position={position}
             fileUploadInfo={ fileUploadInfo }
+            fileName={ fileName }
           />
         </div>
         {showCaption && (
