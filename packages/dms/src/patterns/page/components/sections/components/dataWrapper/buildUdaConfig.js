@@ -188,6 +188,27 @@ export const mapFilterGroupCols = (node, getColumn, isDms) => {
     col: ref || node.col,
   };
 
+  // Time-filter instant mode: resolve `compareEnd` (a column name or alias)
+  // to its full SQL accessor and stash on the value. The server's instant
+  // predicate prefers `compareEndAccessor` when present, falling back to its
+  // built-in `data->>'<name>'` derivation (which only works for stored
+  // columns). Without this, calc columns referenced as compareEnd would
+  // resolve server-side to `data->>'<calc_alias>'` — a non-existent JSON key.
+  if (node.op === "time" && node.value?.compareEnd) {
+    const endCol = getColumn(node.value.compareEnd);
+    if (endCol) {
+      const endRef = attributeAccessorStr(
+        endCol.name,
+        isDms,
+        isCalculatedCol(endCol),
+        endCol.systemCol,
+      );
+      if (endRef) {
+        mapped.value = { ...mapped.value, compareEndAccessor: endRef };
+      }
+    }
+  }
+
   // For multiselect columns with filter/exclude ops, use array_contains/array_not_contains
   // so the server does JSON array membership check instead of the old client-side fetch-and-match.
   // Null sentinels ('null'/'not null') are kept as-is for IS NULL / IS NOT NULL handling.
@@ -845,15 +866,36 @@ export const buildUdaConfig = ({
   /**
    * Columns represent the user input
    * AKA the columns they want to display
+   *
+   * For non-calc columns: prefix the bare column name with `${alias}.` so
+   * the JSON accessor builder produces `${alias}.data->>'col'`.
+   *
+   * For calc columns: the `name` field already carries the SQL accessor
+   * (`<sql expr> as <alias>`). When a join is present we have to rewrite any
+   * bare `data->>` references inside the SQL to `${alias}.data->>` —
+   * otherwise PG raises "column reference 'data' is ambiguous" because both
+   * the schedule and the joined DJ tables have a `data` JSONB column. The
+   * negative-lookbehind keeps already-aliased `<x>.data->>` references
+   * intact (and avoids matching e.g. `mydata->>` if such a thing existed).
    */
+  const aliasCalcSql = (sql, alias) =>
+    typeof sql === "string" && sql.includes("data->>")
+      ? sql.replace(/(?<![\w.])data->>/g, `${alias}.data->>`)
+      : sql;
+
   const columns = rawUserColumns.map((col) => {
     const colSourceId = col.source_id || externalSource.source_id;
     const alias = sourceIdToTableAlias[colSourceId];
     const isJoin = isJoinPresent && alias;
 
+    if (isCalculatedCol(col)) {
+      return isJoin
+        ? { ...col, name: aliasCalcSql(col.name, alias) }
+        : col;
+    }
     return {
       ...col,
-      name: isJoin && !isCalculatedCol(col) ? `${alias}.${col.name}` : col.name,
+      name: isJoin ? `${alias}.${col.name}` : col.name,
     };
   });
 
@@ -866,7 +908,21 @@ export const buildUdaConfig = ({
   const columnsWithSettingsByName = new Map(
     columnsWithSettings.map((col) => [col.name, col]),
   );
-  const getColumn = (name) => columnsWithSettingsByName.get(name);
+  // For calc columns whose `name` is `<sql> as <alias>`, also index by the
+  // bare alias so callers (notably the time-filter compareEnd resolver) can
+  // look them up by the alias the user picked in the UI.
+  const aliasOf = (name) => {
+    if (!name) return "";
+    const parts = name.split(columnRenameRegex);
+    return (parts[1] || parts[0] || "").trim();
+  };
+  const columnsByAlias = new Map(
+    columnsWithSettings
+      .map((col) => [aliasOf(col.name), col])
+      .filter(([alias]) => alias),
+  );
+  const getColumn = (name) =>
+    columnsWithSettingsByName.get(name) || columnsByAlias.get(name);
 
   // 2. Determine columns to fetch
   const columnsToFetch = getColumnsToFetch(columnsWithSettings, columns);
@@ -936,7 +992,14 @@ export const buildUdaConfig = ({
   ]);
   const mappedFilterGroups = mapFilterGroupCols(
     nonNormalFilterGroups,
-    (name) => columnsWithSettingsByName.get(name) || sourceColumnsByName.get(name),
+    (name) =>
+      columnsWithSettingsByName.get(name) ||
+      sourceColumnsByName.get(name) ||
+      // Calc columns: their `name` field is `<sql> as <alias>`, but filter
+      // leaves reference them by alias (the user-visible name). Fall through
+      // to the alias index so getColumn finds them. Without this, time-filter
+      // compareEnd resolution silently no-ops for calc columns.
+      columnsByAlias.get(name),
     isDms,
   );
 

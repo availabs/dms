@@ -86,6 +86,16 @@ function validateTimeFilter(value) {
     if (value.compareEnd != null && (typeof value.compareEnd !== 'string' || !COL_NAME_REGEX.test(value.compareEnd))) {
         return { error: `invalid compareEnd: ${value.compareEnd}` };
     }
+    // `compareEndAccessor` (optional, since 2026-05-08): client-resolved SQL
+    // accessor for the compareEnd column. Used when compareEnd refers to a
+    // calculated column whose accessor is the calc SQL, not `data->>'<name>'`.
+    // Same trust model as the leaf's main `col` field (which has been passed
+    // as full SQL since Phase 1) — both are constructed by the same trusted
+    // client builder using the column metadata. Validate as a non-empty
+    // string; SQL grammar is too varied to regex-check.
+    if (value.compareEndAccessor != null && (typeof value.compareEndAccessor !== 'string' || !value.compareEndAccessor.trim())) {
+        return { error: `invalid compareEndAccessor: ${value.compareEndAccessor}` };
+    }
     if (value.ranges != null) {
         if (!Array.isArray(value.ranges)) return { error: 'ranges must be an array' };
         for (const r of value.ranges) {
@@ -297,9 +307,22 @@ function buildRangeClause(r, colCast, tzIdx, value, ctx, isDms) {
             if (!value.compareEnd) {
                 return `(${colCast} <= now())`;
             }
-            const compareEndAccessor = isDms
-                ? `(data->>'${value.compareEnd}')::timestamptz`
-                : value.compareEnd;
+            // Prefer the client-resolved accessor when present — it handles
+            // calculated columns (where the "accessor" is the calc SQL, not
+            // `data->>'<name>'`). Cast to timestamptz under isDms so the
+            // comparison against now() is well-typed; for non-DMS sources
+            // we trust the column's declared type, matching the main `col`
+            // path above.
+            let compareEndAccessor;
+            if (value.compareEndAccessor) {
+                compareEndAccessor = isDms
+                    ? `(${value.compareEndAccessor})::timestamptz`
+                    : value.compareEndAccessor;
+            } else {
+                compareEndAccessor = isDms
+                    ? `(data->>'${value.compareEnd}')::timestamptz`
+                    : value.compareEnd;
+            }
             return `(${colCast} <= now() AND ${compareEndAccessor} > now())`;
         }
         default:
@@ -400,8 +423,11 @@ function buildRangeClauseCH(r, col, value, tz) {
         }
         case 'instant': {
             if (!value.compareEnd) return `(${col} <= now())`;
-            // compareEnd is the column name; allow-listed by validateTimeFilter.
-            return `(${col} <= now() AND ${value.compareEnd} > now())`;
+            // CH columns are typed natively; the accessor is just the column
+            // ref (or, for client-resolved calc columns, the SQL expression).
+            // Prefer the client-resolved accessor when present.
+            const accessor = value.compareEndAccessor || value.compareEnd;
+            return `(${col} <= now() AND ${accessor} > now())`;
         }
         default:
             return '';

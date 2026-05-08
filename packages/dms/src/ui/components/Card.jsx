@@ -405,10 +405,15 @@ const CardColumnField = ({
 
     const wrapperViewClass = `${theme.headerValueWrapperSimpleView || ''} ${attr.cellBorderBelow ? theme.headerValueWrapperBorderBelow : ''} ${borderClass}`;
 
+    // cardHints provide a column type's *default* positioning (e.g.,
+    // portrait_banner sets `spanFullColumns: true` so it fills the card by
+    // default). An author-supplied `cellSpan` / `cellRowSpan` is explicit
+    // intent and wins over the type-level hint — without this override,
+    // cellSpan would be silently dropped on hint-bearing column types.
     const style = {
-        gridColumn: hints.spanFullColumns ? '1 / -1' : span,
-        ...(hints.spanFullRows ? { gridRow: '1 / -1' } :
-            attr.cellRowSpan ? { gridRow: `span ${attr.cellRowSpan}` } : {}),
+        gridColumn: attr.cellSpan ? span : (hints.spanFullColumns ? '1 / -1' : span),
+        ...(attr.cellRowSpan ? { gridRow: `span ${attr.cellRowSpan}` } :
+            hints.spanFullRows ? { gridRow: '1 / -1' } : {}),
         padding: fullBleed ? 0 : cellsPadding,
         paddingBottom: fullBleed ? 0 : (attr.cellPaddingBottom ? +attr.cellPaddingBottom : undefined),
         marginTop: `${imageMargin}px`,
