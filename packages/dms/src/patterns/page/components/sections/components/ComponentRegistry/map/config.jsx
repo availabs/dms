@@ -1,6 +1,6 @@
 import React from 'react'
 import { MapSection } from './index'
-import { mapControls } from './settings/controls.jsx'
+import { buildMapControls } from './settings/controls.jsx'
 
 const getData = async () => {
     return {}
@@ -11,7 +11,7 @@ export default {
     "type": 'Map',
     "variables": [],
     getData,
-    controls: mapControls,
+    controls: buildMapControls,
     "EditComp": props => <MapSection {...props} isEdit={true} />,
     "ViewComp": props => <MapSection {...props} isEdit={false} />
 }

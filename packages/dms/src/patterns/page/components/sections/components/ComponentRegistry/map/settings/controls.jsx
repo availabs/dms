@@ -10,87 +10,50 @@ import {
 import { ThemeContext } from "../../../../../../../../ui/useTheme";
 import useMapSettingsControls from "./state.jsx";
 
-const PAGES = {
-  root: "root",
-  filters: "filters",
-  interactive: "interactive",
-  dynamic: "dynamic",
-  click: "click",
-};
-
+const detailControlClassName = "w-full min-h-9";
 const labelClassName = "text-sm font-medium text-slate-100";
 const sectionClassName = "pt-1.5 first:pt-0";
-const pageClassName = "w-full px-4 pb-3 text-slate-100";
 const repeatedSectionClassName = "border-t border-slate-800 pt-1.5";
-const rowSectionClassName = "pt-0";
+const emptyStateClassName = "text-sm text-slate-400";
 
-/**
- * Renders the title for an inner Map Settings screen.
- * The outer Settings shell owns the main breadcrumb/header, so these titles stay local.
- */
-const PageTitle = ({ title }) => (
-  <div className="pb-2">
-    <div className="pb-1 text-xl font-semibold text-slate-100">{title}</div>
-  </div>
-);
-
-/**
- * Shared field wrapper for stacked label/input sections in the settings panel.
- */
 const Field = ({ label, children, compact = false }) => (
-  <div className={compact ? "pb-1.5" : "pb-2"}>
+  <div className={`${compact ? "pb-1.5" : "pb-2"} w-full min-w-0`}>
     <label className={labelClassName}>{label}</label>
     {children}
   </div>
 );
 
 const StaticFieldValue = ({ value }) => (
-  <div className="mt-1 rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-200 break-words">
+  <div className="mt-1 min-h-9 rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm leading-5 text-slate-200 break-words flex items-center">
     {value}
   </div>
 );
 
-/**
- * Navigation row used for screens that drill into deeper map settings.
- */
-const RowLink = ({ label, value, onClick, disabled = false, IconComp }) => (
-  <button
-    type="button"
-    disabled={disabled}
-    onClick={disabled ? undefined : onClick}
-    className={`flex w-full items-center justify-between border-t border-slate-800 py-2.5 text-left text-base ${
-      disabled ? "cursor-not-allowed text-slate-500" : "text-slate-100"
-    }`}
-  >
-    <span>{label}</span>
-    <span className="flex items-center gap-3 text-slate-300">
-      {value ? <span>{value}</span> : null}
-      {IconComp ? <IconComp icon="ArrowRight" className="size-4" /> : <span aria-hidden="true">›</span>}
-    </span>
-  </button>
-);
-
-/**
- * Simple label/switch row for boolean map display settings.
- */
-const ToggleRow = ({ label, value, onChange, border = true, labelClassName = "text-base text-slate-100", SwitchComp }) => (
-  <div className={`${border ? "border-t border-slate-800" : ""} flex items-center justify-between py-2.5`}>
-    <span className={labelClassName}>{label}</span>
-    {SwitchComp ? <SwitchComp enabled={Boolean(value)} setEnabled={onChange} size="small" /> : null}
+const InlineField = ({ label, children, border = true, alignStart = false }) => (
+  <div className={`${border ? "border-t border-slate-800" : ""} flex w-full items-center justify-between gap-3 py-2`}>
+    <label className={`min-w-0 flex-1 text-base text-slate-100 ${alignStart ? "self-start pt-1" : ""}`}>{label}</label>
+    <div className={`${alignStart ? "pt-0" : ""} ml-auto min-w-0 flex-shrink-0`}>
+      {children}
+    </div>
   </div>
 );
 
-const STEP_META = {
-  [PAGES.filters]: { title: "Filters", contextLabel: "Map Settings" },
-  [PAGES.interactive]: { title: "Interactive Filter", contextLabel: "Map Settings / Filters" },
-  [PAGES.dynamic]: { title: "Dynamic Filter", contextLabel: "Map Settings / Filters" },
-  [PAGES.click]: { title: "Layer Click Filter", contextLabel: "Map Settings / Filters" },
-};
+const ToggleRow = ({ label, value, onChange, border = true, labelClassName = "text-base text-slate-100", SwitchComp }) => (
+  <div className={`${border ? "border-t border-slate-800" : ""} flex w-full items-center justify-between gap-3 py-2`}>
+    <span className={`${labelClassName} min-w-0 flex-1`}>{label}</span>
+    <div className="ml-auto flex-shrink-0">
+      {SwitchComp ? <SwitchComp enabled={Boolean(value)} setEnabled={onChange} size="small" /> : null}
+    </div>
+  </div>
+);
 
-/**
- * Searchable select used by the symbology and layer pickers.
- * This stays local to Map Settings so these two controls keep their prior behavior.
- */
+const FilterGroup = ({ title, children, highlighted = false }) => (
+  <div className={`w-full rounded-md px-3 py-3 ${highlighted ? "border border-slate-600 bg-slate-900/30" : "border border-slate-700/80"}`}>
+    {title ? <div className="pb-2 text-base font-medium text-slate-100">{title}</div> : null}
+    {children}
+  </div>
+);
+
 function MapSettingsSearchSelect({ options = [], value, onChange, placeholder = "Search...", disabled = false }) {
   const [query, setQuery] = useState("");
 
@@ -101,7 +64,6 @@ function MapSettingsSearchSelect({ options = [], value, onChange, placeholder = 
 
   const filteredOptions = useMemo(() => {
     if (!query) return options;
-
     const normalizedQuery = query.toLowerCase();
     return options.filter((option) => String(option.label || "").toLowerCase().includes(normalizedQuery));
   }, [options, query]);
@@ -144,252 +106,294 @@ function MapSettingsSearchSelect({ options = [], value, onChange, placeholder = 
   );
 }
 
-/**
- * Main Map Settings panel and its inner screens.
- * This keeps the refactored settings UI aligned with the existing map config handlers.
- */
-function MapSettingsPanel({ dwAPI }) {
-  const [step, setStep] = useState(PAGES.root);
+const useMapSettingsUI = (dwAPI) => {
   const { UI } = useContext(ThemeContext) || { UI: {} };
-  const { Input, Select, Switch, Icon } = UI;
-  const {
-    state,
-    heightOptions,
-    panelPositionOptions,
-    setHeight,
-    setLegendPosition,
-    setZoomPan,
-    setInitialBounds,
-    setBlankBasemap,
-    setZoomToFitBounds,
-    selectedSymbology,
-    symbologyOptions,
-    onSymbologyChange,
-    selectedLayer,
-    layerOptions,
-    onLayerChange,
-    activeLayer,
-    interactiveFilterOptions,
-    dynamicFilterOptions,
-    selectedVariableMappings,
-    isSelectedVariableMappingsEnabled,
-    activeFilter,
-    interactiveCount,
-    dynamicCount,
-    clickCount,
-    totalFilterItems,
-    setUsePageFilters,
-    setSearchParamKey,
-    setInteractiveSearchParamValue,
-    activateInteractiveFilter,
-    setDynamicSearchParamKey,
-    setDynamicDefaultValue,
-    setDynamicDataType,
-    setClickFilterUseSearchParam,
-  } = useMapSettingsControls(dwAPI);
+  const controls = useMapSettingsControls(dwAPI);
+  return { ...controls, UI };
+};
 
-  const stepMeta = STEP_META[step];
-
-  if (step === PAGES.filters) {
-    return (
-      <div className={pageClassName}>
-        <PageTitle title={stepMeta.title} />
-
-        {!activeLayer ? (
-          <div className="text-sm text-slate-400">Select a layer first.</div>
-        ) : (
-          <>
-            <div className={sectionClassName}>
-              <ToggleRow label="Use Page Filters" border={false} value={activeLayer?.usePageFilters} onChange={setUsePageFilters} SwitchComp={Switch} />
-              <Field label="Key Search Param">
-                <div className="mt-1">
-                  <Input type="text" value={activeLayer?.searchParamKey || ""} onChange={(event) => setSearchParamKey(event.target.value)} />
-                </div>
-              </Field>
-            </div>
-
-            <div className={rowSectionClassName}>
-              <RowLink label="Interactive Filter" value={`${interactiveCount}`} disabled={!interactiveCount} onClick={() => setStep(PAGES.interactive)} IconComp={Icon} />
-              <RowLink label="Dynamic Filter" value={`${dynamicCount}`} disabled={!dynamicCount} onClick={() => setStep(PAGES.dynamic)} IconComp={Icon} />
-              <RowLink label="Layer Click Filter" value={`${clickCount}`} disabled={!clickCount} onClick={() => setStep(PAGES.click)} IconComp={Icon} />
-            </div>
-          </>
-        )}
-      </div>
-    );
-  }
-
-  if (step === PAGES.interactive) {
-    const filters = interactiveFilterOptions || [];
-
-    return (
-      <div className={pageClassName}>
-        <PageTitle title={stepMeta.title} />
-
-        {!activeLayer || !filters.length ? (
-          <div className="text-sm text-slate-400">No interactive filters configured</div>
-        ) : (
-          filters.map((filter, index) => (
-            <div key={`${filter.label || "interactive"}_${index}`} className={index === 0 ? sectionClassName : repeatedSectionClassName}>
-              <div className="pb-2 text-base font-medium text-slate-100">{filter.label || `Interactive Filter ${index + 1}`}</div>
-              <Field label="Search Param Value" compact>
-                <div className="mt-1">
-                  <Input type="text" value={filter.searchParamValue || filter.label || ""} onChange={(event) => setInteractiveSearchParamValue(index, event.target.value)} />
-                </div>
-              </Field>
-              <ToggleRow
-                label="Active"
-                border={false}
-                value={activeFilter === index}
-                SwitchComp={Switch}
-                onChange={(enabled) => {
-                  if (!enabled) return;
-                  activateInteractiveFilter(index);
-                }}
-              />
-            </div>
-          ))
-        )}
-      </div>
-    );
-  }
-
-  if (step === PAGES.dynamic) {
-    const filters = dynamicFilterOptions || [];
-
-    return (
-      <div className={pageClassName}>
-        <PageTitle title={stepMeta.title} />
-
-        {!activeLayer || !filters.length ? (
-          <div className="text-sm text-slate-400">No dynamic filters configured</div>
-        ) : (
-          filters.map((filter, index) => (
-            <div key={`${filter.column_name || "dynamic"}_${index}`} className={index === 0 ? sectionClassName : repeatedSectionClassName}>
-              <Field label="Search Param Value" compact>
-                <div className="mt-1">
-                  <Input type="text" value={filter.searchParamKey || filter.column_name || ""} onChange={(event) => setDynamicSearchParamKey(index, event.target.value)} />
-                </div>
-              </Field>
-              <Field label="Default Value" compact>
-                <div className="mt-1">
-                  <Input type="text" value={filter.defaultValue ?? ""} onChange={(event) => setDynamicDefaultValue(index, event.target.value)} />
-                </div>
-              </Field>
-              <Field label="Type" compact>
-                <div className="mt-1">
-                  <Select
-                    value={filter.dataType || ""}
-                    options={[
-                      { label: "String", value: "" },
-                      { label: "Numeric", value: "numeric" },
-                    ]}
-                    onChange={(event) => setDynamicDataType(index, event.target.value)}
-                  />
-                </div>
-              </Field>
-            </div>
-          ))
-        )}
-      </div>
-    );
-  }
-
-  if (step === PAGES.click) {
-    const mappings = isSelectedVariableMappingsEnabled ? selectedVariableMappings || [] : [];
-
-    return (
-      <div className={pageClassName}>
-        <PageTitle title={stepMeta.title} />
-
-        {!activeLayer || !mappings.length ? (
-          <div className="text-sm text-slate-400">No layer click filters configured</div>
-        ) : (
-          mappings.map((mapping, index) => (
-            <div key={`${mapping.variable || "mapping"}_${index}`} className={index === 0 ? sectionClassName : repeatedSectionClassName}>
-              <Field label="Selected Variable" compact>
-                <StaticFieldValue value={mapping.variable || "Untitled variable"} />
-              </Field>
-              <ToggleRow label="Use URL Param" border={false} value={Boolean(mapping.useSearchParams)} onChange={(enabled) => setClickFilterUseSearchParam(index, enabled)} SwitchComp={Switch} />
-              <Field label="Layer Field" compact>
-                <StaticFieldValue value={mapping.field || "-"} />
-              </Field>
-            </div>
-          ))
-        )}
-      </div>
-    );
-  }
+const MapSymbologyControl = ({ dwAPI }) => {
+  const { selectedSymbology, symbologyOptions, onSymbologyChange } = useMapSettingsUI(dwAPI);
 
   return (
-    <div className={pageClassName}>
-      <div className={sectionClassName}>
-        <Field label="Symbology">
-          <MapSettingsSearchSelect
-            value={selectedSymbology || ""}
-            onChange={onSymbologyChange}
-            placeholder="Search..."
-            options={symbologyOptions}
-          />
-        </Field>
-
-        <Field label="Layer">
-          <MapSettingsSearchSelect
-            value={selectedLayer}
-            onChange={onLayerChange}
-            placeholder="Search..."
-            options={layerOptions}
-            disabled={!selectedSymbology}
-          />
-        </Field>
-      </div>
-
-      <div className="pt-2">
-        <RowLink label="Filters" value={activeLayer ? `${totalFilterItems} items` : undefined} disabled={!activeLayer} onClick={() => setStep(PAGES.filters)} IconComp={Icon} />
-      </div>
-
-      <div className={sectionClassName}>
-        <Field label="Height">
-          <div className="mt-1">
-            <Select
-              value={state.height}
-              options={heightOptions.map((option) => ({ label: option, value: option }))}
-              onChange={(event) => setHeight(event.target.value)}
-            />
-          </div>
-        </Field>
-        <Field label="Legend Position">
-          <div className="mt-1">
-            <Select
-              value={state.legendPosition}
-              options={panelPositionOptions.map((option) => ({ label: option, value: option }))}
-              onChange={(event) => setLegendPosition(event.target.value)}
-            />
-          </div>
-        </Field>
-      </div>
-
-      <div className={sectionClassName}>
-        <ToggleRow label="Zoom/pan" border={false} value={state?.zoomPan} onChange={setZoomPan} SwitchComp={Switch} />
-        <ToggleRow
-          label="Set initial viewport"
-          value={state?.setInitialBounds}
-          onChange={setInitialBounds}
-          SwitchComp={Switch}
-          labelClassName="max-w-[9rem] text-base leading-5 text-slate-100"
+    <div className={sectionClassName}>
+      <Field label="Symbology">
+        <MapSettingsSearchSelect
+          value={selectedSymbology || ""}
+          onChange={onSymbologyChange}
+          placeholder="Search..."
+          options={symbologyOptions}
         />
-        <ToggleRow label="Use blank basemap" value={state?.blankBaseMap} onChange={setBlankBasemap} SwitchComp={Switch} />
-        <ToggleRow label="Zoom to Fit" value={state?.zoomToFitBounds} onChange={setZoomToFitBounds} SwitchComp={Switch} />
-      </div>
+      </Field>
     </div>
   );
-}
-
-export const mapControls = {
-  default: [
-    {
-      key: "mapSettings",
-      type: ({ dwAPI }) => <MapSettingsPanel dwAPI={dwAPI} />,
-    },
-  ],
 };
+
+const MapLayerControl = ({ dwAPI }) => {
+  const { selectedSymbology, selectedLayer, layerOptions, onLayerChange } = useMapSettingsUI(dwAPI);
+
+  return (
+    <Field label="Layer">
+      <MapSettingsSearchSelect
+        value={selectedLayer}
+        onChange={onLayerChange}
+        placeholder="Search..."
+        options={layerOptions}
+        disabled={!selectedSymbology}
+      />
+    </Field>
+  );
+};
+
+const MapHeightControl = ({ dwAPI }) => {
+  const { state, heightOptions, setHeight, UI } = useMapSettingsUI(dwAPI);
+  const { Select } = UI;
+
+  return (
+    <InlineField label="Height" border={false}>
+      <div className="w-[8rem] max-w-[40vw]">
+        <Select
+          value={state.height}
+          options={heightOptions.map((option) => ({ label: option, value: option }))}
+          onChange={(event) => setHeight(event.target.value)}
+        />
+      </div>
+    </InlineField>
+  );
+};
+
+const MapLegendPositionControl = ({ dwAPI }) => {
+  const { state, panelPositionOptions, setLegendPosition, UI } = useMapSettingsUI(dwAPI);
+  const { Select } = UI;
+
+  return (
+    <InlineField label="Legend Position">
+      <div className="w-[9.5rem] max-w-[42vw]">
+        <Select
+          value={state.legendPosition}
+          options={panelPositionOptions.map((option) => ({ label: option, value: option }))}
+          onChange={(event) => setLegendPosition(event.target.value)}
+        />
+      </div>
+    </InlineField>
+  );
+};
+
+const MapPluginControlPositionControl = ({ dwAPI }) => {
+  const { state, arePluginsLoaded, panelPositionOptions, setPluginControlPosition, UI } = useMapSettingsUI(dwAPI);
+  const { Select } = UI;
+
+  if (!arePluginsLoaded) return null;
+
+  return (
+    <InlineField label="Plugin Control Position">
+      <div className="w-[9.5rem] max-w-[42vw]">
+        <Select
+          value={state.pluginControlPosition}
+          options={panelPositionOptions.map((option) => ({ label: option, value: option }))}
+          onChange={(event) => setPluginControlPosition(event.target.value)}
+        />
+      </div>
+    </InlineField>
+  );
+};
+
+const MapZoomPanControl = ({ dwAPI }) => {
+  const { state, setZoomPan, UI } = useMapSettingsUI(dwAPI);
+  const { Switch } = UI;
+  return <ToggleRow label="Zoom/pan" border={false} value={state?.zoomPan} onChange={setZoomPan} SwitchComp={Switch} />;
+};
+
+const MapInitialViewportControl = ({ dwAPI }) => {
+  const { state, setInitialBounds, UI } = useMapSettingsUI(dwAPI);
+  const { Switch } = UI;
+  return (
+    <ToggleRow
+      label="Set initial viewport"
+      value={state?.setInitialBounds}
+      onChange={setInitialBounds}
+      SwitchComp={Switch}
+      labelClassName="max-w-[9rem] text-base leading-5 text-slate-100"
+    />
+  );
+};
+
+const MapBlankBasemapControl = ({ dwAPI }) => {
+  const { state, setBlankBasemap, UI } = useMapSettingsUI(dwAPI);
+  const { Switch } = UI;
+  return <ToggleRow label="Use blank basemap" value={state?.blankBaseMap} onChange={setBlankBasemap} SwitchComp={Switch} />;
+};
+
+const MapZoomToFitControl = ({ dwAPI }) => {
+  const { state, setZoomToFitBounds, UI } = useMapSettingsUI(dwAPI);
+  const { Switch } = UI;
+  return <ToggleRow label="Zoom to Fit" value={state?.zoomToFitBounds} onChange={setZoomToFitBounds} SwitchComp={Switch} />;
+};
+
+const MapUsePageFiltersControl = ({ dwAPI, border = false }) => {
+  const { activeLayer, setUsePageFilters, UI } = useMapSettingsUI(dwAPI);
+  const { Switch } = UI;
+
+  if (!activeLayer) return <div className={emptyStateClassName}>Select a layer first.</div>;
+
+  return <ToggleRow label="Use Page Filters" border={border} value={activeLayer?.usePageFilters} onChange={setUsePageFilters} SwitchComp={Switch} />;
+};
+
+const MapKeySearchParamControl = ({ dwAPI, border = true }) => {
+  const { activeLayer, setSearchParamKey, UI } = useMapSettingsUI(dwAPI);
+  const { Input } = UI;
+
+  if (!activeLayer) return null;
+
+  return (
+    <InlineField label="Key Search Param" border={border}>
+      <div className="w-[9.5rem] max-w-[42vw]">
+        <Input type="text" value={activeLayer?.searchParamKey || ""} onChange={(event) => setSearchParamKey(event.target.value)} />
+      </div>
+    </InlineField>
+  );
+};
+
+const MapInteractiveFiltersControl = ({ dwAPI }) => {
+  const { activeLayer, interactiveFilterOptions, activeFilter, setInteractiveSearchParamValue, activateInteractiveFilter, UI } = useMapSettingsUI(dwAPI);
+  const { Input, Switch } = UI;
+  const filters = interactiveFilterOptions || [];
+
+  if (!activeLayer || !filters.length) return <div className={emptyStateClassName}>No interactive filters configured</div>;
+
+  return (
+    <div className={`${sectionClassName} w-full min-w-0`}>
+      {filters.map((filter, index) => (
+        <div key={`${filter.label || "interactive"}_${index}`} className={`${index === 0 ? "" : "mt-3"} w-full min-w-0`}>
+          <FilterGroup title={filter.label || `Interactive Filter ${index + 1}`} highlighted={index > 0}>
+            <Field label="Search Param Value" compact>
+              <div className="w-full">
+                <Input type="text" value={filter.searchParamValue || filter.label || ""} onChange={(event) => setInteractiveSearchParamValue(index, event.target.value)} />
+              </div>
+            </Field>
+          <ToggleRow
+            label="Active"
+            border={false}
+            value={activeFilter === index}
+            SwitchComp={Switch}
+            onChange={(enabled) => {
+              if (!enabled) return;
+              activateInteractiveFilter(index);
+            }}
+          />
+          </FilterGroup>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const MapDynamicFiltersControl = ({ dwAPI }) => {
+  const { activeLayer, dynamicFilterOptions, setDynamicSearchParamKey, setDynamicDefaultValue, setDynamicDataType, UI } = useMapSettingsUI(dwAPI);
+  const { Input, Select } = UI;
+  const filters = dynamicFilterOptions || [];
+
+  if (!activeLayer || !filters.length) return <div className={emptyStateClassName}>No dynamic filters configured</div>;
+
+  return (
+    <div className={`${sectionClassName} w-full min-w-0`}>
+      {filters.map((filter, index) => (
+        <div key={`${filter.column_name || "dynamic"}_${index}`} className={`${index === 0 ? "" : "mt-3"} w-full min-w-0`}>
+          <FilterGroup title={filter.display_name || filter.column_name || `Dynamic Filter ${index + 1}`} highlighted={index > 0}>
+            <Field label="Search Param Value" compact>
+              <Input type="text" value={filter.searchParamKey || filter.column_name || ""} onChange={(event) => setDynamicSearchParamKey(index, event.target.value)} />
+            </Field>
+            <Field label="Default Value" compact>
+              <Input type="text" value={filter.defaultValue ?? ""} onChange={(event) => setDynamicDefaultValue(index, event.target.value)} />
+            </Field>
+            <Field label="Type" compact={false}>
+              <Select
+                value={filter.dataType || ""}
+                options={[
+                  { label: "String", value: "" },
+                  { label: "Numeric", value: "numeric" },
+                ]}
+                onChange={(event) => setDynamicDataType(index, event.target.value)}
+              />
+            </Field>
+          </FilterGroup>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const MapLayerClickFiltersControl = ({ dwAPI }) => {
+  const { activeLayer, isSelectedVariableMappingsEnabled, selectedVariableMappings, setClickFilterUseSearchParam, UI } = useMapSettingsUI(dwAPI);
+  const { Switch, Input } = UI;
+  const mappings = isSelectedVariableMappingsEnabled ? selectedVariableMappings || [] : [];
+
+  if (!activeLayer || !mappings.length) return <div className={emptyStateClassName}>No layer click filters configured</div>;
+
+  return (
+    <div className={`${sectionClassName} w-full min-w-0`}>
+      {mappings.map((mapping, index) => (
+        <div key={`${mapping.variable || "mapping"}_${index}`} className={`${index === 0 ? "" : "mt-3"} w-full min-w-0`}>
+          <FilterGroup title={null} highlighted={index > 0}>
+          <Field label="Selected Variable" compact>
+            <StaticFieldValue value={mapping.variable || "Untitled variable"} />
+          </Field>
+            <ToggleRow
+              label="Use URL Param"
+              border={false}
+              value={Boolean(mapping.useSearchParams)}
+              onChange={(enabled) => setClickFilterUseSearchParam(index, enabled)}
+              SwitchComp={Switch}
+            />
+          <Field label="Layer Field" compact={false}>
+            <StaticFieldValue value={mapping.field || "-"} />
+          </Field>
+          </FilterGroup>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+export const buildMapControls = () => ({
+  default: [
+    { key: "map_symbology", label: "Symbology", type: ({ dwAPI }) => <MapSymbologyControl dwAPI={dwAPI} /> },
+    { key: "map_layer", label: "Layer", type: ({ dwAPI }) => <MapLayerControl dwAPI={dwAPI} /> },
+    {
+      key: "map_filters_nav",
+      label: "Filters",
+      items: [
+        { key: "map_use_page_filters", label: "Use Page Filters", type: ({ dwAPI }) => <MapUsePageFiltersControl dwAPI={dwAPI} border={false} /> },
+        { key: "map_key_search_param", label: "Key Search Param", type: ({ dwAPI }) => <MapKeySearchParamControl dwAPI={dwAPI} border={true} /> },
+        {
+          key: "map_interactive_filters_nav",
+          label: "Interactive Filter",
+          items: [
+            { key: "map_interactive_filters", label: "Interactive Filter Details", type: ({ dwAPI }) => <MapInteractiveFiltersControl dwAPI={dwAPI} /> },
+          ],
+        },
+        {
+          key: "map_dynamic_filters_nav",
+          label: "Dynamic Filter",
+          items: [
+            { key: "map_dynamic_filters", label: "Dynamic Filter Details", type: ({ dwAPI }) => <MapDynamicFiltersControl dwAPI={dwAPI} /> },
+          ],
+        },
+        {
+          key: "map_click_filters_nav",
+          label: "Layer Click Filter",
+          items: [
+            { key: "map_click_filters", label: "Layer Click Filter Details", type: ({ dwAPI }) => <MapLayerClickFiltersControl dwAPI={dwAPI} /> },
+          ],
+        },
+      ],
+    },
+    { key: "map_height", label: "Height", type: ({ dwAPI }) => <MapHeightControl dwAPI={dwAPI} /> },
+    { key: "map_legend_position", label: "Legend Position", type: ({ dwAPI }) => <MapLegendPositionControl dwAPI={dwAPI} /> },
+    { key: "map_plugin_control_position", label: "Plugin Control Position", type: ({ dwAPI }) => <MapPluginControlPositionControl dwAPI={dwAPI} /> },
+    { key: "map_zoom_pan", label: "Zoom/pan", type: ({ dwAPI }) => <MapZoomPanControl dwAPI={dwAPI} /> },
+    { key: "map_initial_viewport", label: "Set initial viewport", type: ({ dwAPI }) => <MapInitialViewportControl dwAPI={dwAPI} /> },
+    { key: "map_blank_basemap", label: "Use blank basemap", type: ({ dwAPI }) => <MapBlankBasemapControl dwAPI={dwAPI} /> },
+    { key: "map_zoom_to_fit", label: "Zoom to Fit", type: ({ dwAPI }) => <MapZoomToFitControl dwAPI={dwAPI} /> },
+  ],
+});
