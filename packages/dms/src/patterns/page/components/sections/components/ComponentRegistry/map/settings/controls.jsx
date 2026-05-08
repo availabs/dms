@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useContext, useMemo, useState } from "react";
 import {
   Combobox,
   ComboboxButton,
@@ -7,7 +7,7 @@ import {
   ComboboxOptions,
 } from "@headlessui/react";
 
-import RenderSwitch from "../tmp-cache-files/Switch.jsx";
+import { ThemeContext } from "../../../../../../../../ui/useTheme";
 import useMapSettingsControls from "./state.jsx";
 
 const PAGES = {
@@ -19,10 +19,6 @@ const PAGES = {
 };
 
 const labelClassName = "text-sm font-medium text-slate-100";
-const inputClassName =
-  "mt-1 w-full rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-100 outline-none focus:border-slate-500";
-const comboBoxClassName =
-  "mt-1 w-full rounded-md border border-slate-700 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500";
 const sectionClassName = "pt-1.5 first:pt-0";
 const pageClassName = "w-full px-4 pb-3 text-slate-100";
 const repeatedSectionClassName = "border-t border-slate-800 pt-1.5";
@@ -48,10 +44,16 @@ const Field = ({ label, children, compact = false }) => (
   </div>
 );
 
+const StaticFieldValue = ({ value }) => (
+  <div className="mt-1 rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-200 break-words">
+    {value}
+  </div>
+);
+
 /**
  * Navigation row used for screens that drill into deeper map settings.
  */
-const RowLink = ({ label, value, onClick, disabled = false }) => (
+const RowLink = ({ label, value, onClick, disabled = false, IconComp }) => (
   <button
     type="button"
     disabled={disabled}
@@ -63,7 +65,7 @@ const RowLink = ({ label, value, onClick, disabled = false }) => (
     <span>{label}</span>
     <span className="flex items-center gap-3 text-slate-300">
       {value ? <span>{value}</span> : null}
-      <span aria-hidden="true">›</span>
+      {IconComp ? <IconComp icon="ArrowRight" className="size-4" /> : <span aria-hidden="true">›</span>}
     </span>
   </button>
 );
@@ -71,10 +73,10 @@ const RowLink = ({ label, value, onClick, disabled = false }) => (
 /**
  * Simple label/switch row for boolean map display settings.
  */
-const ToggleRow = ({ label, value, onChange, border = true, labelClassName = "text-base text-slate-100" }) => (
+const ToggleRow = ({ label, value, onChange, border = true, labelClassName = "text-base text-slate-100", SwitchComp }) => (
   <div className={`${border ? "border-t border-slate-800" : ""} flex items-center justify-between py-2.5`}>
     <span className={labelClassName}>{label}</span>
-    <RenderSwitch enabled={Boolean(value)} setEnabled={onChange} />
+    {SwitchComp ? <SwitchComp enabled={Boolean(value)} setEnabled={onChange} size="small" /> : null}
   </div>
 );
 
@@ -87,7 +89,7 @@ const STEP_META = {
 
 /**
  * Searchable select used by the symbology and layer pickers.
- * It mirrors the existing map selection flow while fitting the settings panel UI.
+ * This stays local to Map Settings so these two controls keep their prior behavior.
  */
 function MapSettingsSearchSelect({ options = [], value, onChange, placeholder = "Search...", disabled = false }) {
   const [query, setQuery] = useState("");
@@ -105,38 +107,40 @@ function MapSettingsSearchSelect({ options = [], value, onChange, placeholder = 
   }, [options, query]);
 
   return (
-    <Combobox
-      value={selectedOption}
-      onChange={(option) => {
-        if (option && onChange) onChange(option.key);
-      }}
-      disabled={disabled}
-    >
-      <div className={`relative z-[1] flex w-full items-center ${comboBoxClassName} focus-within:z-[10050]`}>
-        <i className="fa fa-search pr-2 text-xl font-light text-slate-400" aria-hidden="true" />
-        <ComboboxInput
-          className="w-full min-w-0 bg-transparent text-slate-900 outline-none placeholder:text-slate-300"
-          displayValue={(option) => option?.label ?? ""}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder={placeholder}
-        />
-        <ComboboxButton className="px-1 text-slate-400 hover:text-slate-600">
-          <i className="fa fa-chevron-down" aria-hidden="true" />
-        </ComboboxButton>
-        <ComboboxOptions className="absolute left-0 top-full z-[10050] mt-1 max-h-60 w-full overflow-auto rounded-md bg-white text-slate-900 shadow-lg ring-1 ring-zinc-950/5 empty:invisible">
-          {filteredOptions.map((option, index) => (
-            <ComboboxOption
-              key={`${option.key}_${index}`}
-              value={option}
-              className="block cursor-pointer px-3 py-1.5 text-sm text-slate-900 data-[focus]:bg-slate-100 data-[selected]:bg-blue-50 data-[selected]:font-medium"
-            >
-              {option.label}
-            </ComboboxOption>
-          ))}
-          {filteredOptions.length === 0 ? <div className="px-3 py-2 text-sm italic text-slate-400">No matches</div> : null}
-        </ComboboxOptions>
-      </div>
-    </Combobox>
+    <div className="mt-1">
+      <Combobox
+        value={selectedOption}
+        onChange={(option) => {
+          if (option && onChange) onChange(option.key);
+        }}
+        disabled={disabled}
+      >
+        <div className="relative z-[1] flex w-full items-center rounded-md border border-slate-700 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus-within:z-[10050]">
+          <i className="fa fa-search pr-2 text-xl font-light text-slate-400" aria-hidden="true" />
+          <ComboboxInput
+            className="w-full min-w-0 bg-transparent text-slate-900 outline-none placeholder:text-slate-300"
+            displayValue={(option) => option?.label ?? ""}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder={placeholder}
+          />
+          <ComboboxButton className="px-1 text-slate-400 hover:text-slate-600">
+            <i className="fa fa-chevron-down" aria-hidden="true" />
+          </ComboboxButton>
+          <ComboboxOptions className="absolute left-0 top-full z-[10050] mt-1 max-h-60 w-full overflow-auto rounded-md bg-white text-slate-900 shadow-lg ring-1 ring-zinc-950/5 empty:invisible">
+            {filteredOptions.map((option, index) => (
+              <ComboboxOption
+                key={`${option.key}_${index}`}
+                value={option}
+                className="block cursor-pointer px-3 py-1.5 text-sm text-slate-900 data-[focus]:bg-slate-100 data-[selected]:bg-blue-50 data-[selected]:font-medium"
+              >
+                {option.label}
+              </ComboboxOption>
+            ))}
+            {filteredOptions.length === 0 ? <div className="px-3 py-2 text-sm italic text-slate-400">No matches</div> : null}
+          </ComboboxOptions>
+        </div>
+      </Combobox>
+    </div>
   );
 }
 
@@ -144,8 +148,10 @@ function MapSettingsSearchSelect({ options = [], value, onChange, placeholder = 
  * Main Map Settings panel and its inner screens.
  * This keeps the refactored settings UI aligned with the existing map config handlers.
  */
-function MapSettingsPanel({ dwAPI, isInMenu = false }) {
+function MapSettingsPanel({ dwAPI }) {
   const [step, setStep] = useState(PAGES.root);
+  const { UI } = useContext(ThemeContext) || { UI: {} };
+  const { Input, Select, Switch, Icon } = UI;
   const {
     state,
     heightOptions,
@@ -194,16 +200,18 @@ function MapSettingsPanel({ dwAPI, isInMenu = false }) {
         ) : (
           <>
             <div className={sectionClassName}>
-              <ToggleRow label="Use Page Filters" border={false} value={activeLayer?.usePageFilters} onChange={setUsePageFilters} />
+              <ToggleRow label="Use Page Filters" border={false} value={activeLayer?.usePageFilters} onChange={setUsePageFilters} SwitchComp={Switch} />
               <Field label="Key Search Param">
-                <input className={inputClassName} type="text" value={activeLayer?.searchParamKey || ""} onChange={(event) => setSearchParamKey(event.target.value)} />
+                <div className="mt-1">
+                  <Input type="text" value={activeLayer?.searchParamKey || ""} onChange={(event) => setSearchParamKey(event.target.value)} />
+                </div>
               </Field>
             </div>
 
             <div className={rowSectionClassName}>
-              <RowLink label="Interactive Filter" value={`${interactiveCount}`} disabled={!interactiveCount} onClick={() => setStep(PAGES.interactive)} />
-              <RowLink label="Dynamic Filter" value={`${dynamicCount}`} disabled={!dynamicCount} onClick={() => setStep(PAGES.dynamic)} />
-              <RowLink label="Layer Click Filter" value={`${clickCount}`} disabled={!clickCount} onClick={() => setStep(PAGES.click)} />
+              <RowLink label="Interactive Filter" value={`${interactiveCount}`} disabled={!interactiveCount} onClick={() => setStep(PAGES.interactive)} IconComp={Icon} />
+              <RowLink label="Dynamic Filter" value={`${dynamicCount}`} disabled={!dynamicCount} onClick={() => setStep(PAGES.dynamic)} IconComp={Icon} />
+              <RowLink label="Layer Click Filter" value={`${clickCount}`} disabled={!clickCount} onClick={() => setStep(PAGES.click)} IconComp={Icon} />
             </div>
           </>
         )}
@@ -225,12 +233,15 @@ function MapSettingsPanel({ dwAPI, isInMenu = false }) {
             <div key={`${filter.label || "interactive"}_${index}`} className={index === 0 ? sectionClassName : repeatedSectionClassName}>
               <div className="pb-2 text-base font-medium text-slate-100">{filter.label || `Interactive Filter ${index + 1}`}</div>
               <Field label="Search Param Value" compact>
-                <input className={inputClassName} type="text" value={filter.searchParamValue || filter.label || ""} onChange={(event) => setInteractiveSearchParamValue(index, event.target.value)} />
+                <div className="mt-1">
+                  <Input type="text" value={filter.searchParamValue || filter.label || ""} onChange={(event) => setInteractiveSearchParamValue(index, event.target.value)} />
+                </div>
               </Field>
               <ToggleRow
                 label="Active"
                 border={false}
                 value={activeFilter === index}
+                SwitchComp={Switch}
                 onChange={(enabled) => {
                   if (!enabled) return;
                   activateInteractiveFilter(index);
@@ -256,16 +267,26 @@ function MapSettingsPanel({ dwAPI, isInMenu = false }) {
           filters.map((filter, index) => (
             <div key={`${filter.column_name || "dynamic"}_${index}`} className={index === 0 ? sectionClassName : repeatedSectionClassName}>
               <Field label="Search Param Value" compact>
-                <input className={inputClassName} type="text" value={filter.searchParamKey || filter.column_name || ""} onChange={(event) => setDynamicSearchParamKey(index, event.target.value)} />
+                <div className="mt-1">
+                  <Input type="text" value={filter.searchParamKey || filter.column_name || ""} onChange={(event) => setDynamicSearchParamKey(index, event.target.value)} />
+                </div>
               </Field>
               <Field label="Default Value" compact>
-                <input className={inputClassName} type="text" value={filter.defaultValue ?? ""} onChange={(event) => setDynamicDefaultValue(index, event.target.value)} />
+                <div className="mt-1">
+                  <Input type="text" value={filter.defaultValue ?? ""} onChange={(event) => setDynamicDefaultValue(index, event.target.value)} />
+                </div>
               </Field>
               <Field label="Type" compact>
-                <select className={inputClassName} value={filter.dataType || ""} onChange={(event) => setDynamicDataType(index, event.target.value)}>
-                  <option value="">String</option>
-                  <option value="numeric">Numeric</option>
-                </select>
+                <div className="mt-1">
+                  <Select
+                    value={filter.dataType || ""}
+                    options={[
+                      { label: "String", value: "" },
+                      { label: "Numeric", value: "numeric" },
+                    ]}
+                    onChange={(event) => setDynamicDataType(index, event.target.value)}
+                  />
+                </div>
               </Field>
             </div>
           ))
@@ -287,11 +308,11 @@ function MapSettingsPanel({ dwAPI, isInMenu = false }) {
           mappings.map((mapping, index) => (
             <div key={`${mapping.variable || "mapping"}_${index}`} className={index === 0 ? sectionClassName : repeatedSectionClassName}>
               <Field label="Selected Variable" compact>
-                <div className={`${inputClassName} break-words text-slate-200`}>{mapping.variable || "Untitled variable"}</div>
+                <StaticFieldValue value={mapping.variable || "Untitled variable"} />
               </Field>
-              <ToggleRow label="Use URL Param" border={false} value={Boolean(mapping.useSearchParams)} onChange={(enabled) => setClickFilterUseSearchParam(index, enabled)} />
+              <ToggleRow label="Use URL Param" border={false} value={Boolean(mapping.useSearchParams)} onChange={(enabled) => setClickFilterUseSearchParam(index, enabled)} SwitchComp={Switch} />
               <Field label="Layer Field" compact>
-                <div className={`${inputClassName} break-words text-slate-200`}>{mapping.field || "-"}</div>
+                <StaticFieldValue value={mapping.field || "-"} />
               </Field>
             </div>
           ))
@@ -324,40 +345,41 @@ function MapSettingsPanel({ dwAPI, isInMenu = false }) {
       </div>
 
       <div className="pt-2">
-        <RowLink label="Filters" value={activeLayer ? `${totalFilterItems} items` : undefined} disabled={!activeLayer} onClick={() => setStep(PAGES.filters)} />
+        <RowLink label="Filters" value={activeLayer ? `${totalFilterItems} items` : undefined} disabled={!activeLayer} onClick={() => setStep(PAGES.filters)} IconComp={Icon} />
       </div>
 
       <div className={sectionClassName}>
         <Field label="Height">
-          <select className={inputClassName} value={state.height} onChange={(event) => setHeight(event.target.value)}>
-            {heightOptions.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
+          <div className="mt-1">
+            <Select
+              value={state.height}
+              options={heightOptions.map((option) => ({ label: option, value: option }))}
+              onChange={(event) => setHeight(event.target.value)}
+            />
+          </div>
         </Field>
         <Field label="Legend Position">
-          <select className={inputClassName} value={state.legendPosition} onChange={(event) => setLegendPosition(event.target.value)}>
-            {panelPositionOptions.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
+          <div className="mt-1">
+            <Select
+              value={state.legendPosition}
+              options={panelPositionOptions.map((option) => ({ label: option, value: option }))}
+              onChange={(event) => setLegendPosition(event.target.value)}
+            />
+          </div>
         </Field>
       </div>
 
       <div className={sectionClassName}>
-        <ToggleRow label="Zoom/pan" border={false} value={state?.zoomPan} onChange={setZoomPan} />
+        <ToggleRow label="Zoom/pan" border={false} value={state?.zoomPan} onChange={setZoomPan} SwitchComp={Switch} />
         <ToggleRow
           label="Set initial viewport"
           value={state?.setInitialBounds}
           onChange={setInitialBounds}
+          SwitchComp={Switch}
           labelClassName="max-w-[9rem] text-base leading-5 text-slate-100"
         />
-        <ToggleRow label="Use blank basemap" value={state?.blankBaseMap} onChange={setBlankBasemap} />
-        <ToggleRow label="Zoom to Fit" value={state?.zoomToFitBounds} onChange={setZoomToFitBounds} />
+        <ToggleRow label="Use blank basemap" value={state?.blankBaseMap} onChange={setBlankBasemap} SwitchComp={Switch} />
+        <ToggleRow label="Zoom to Fit" value={state?.zoomToFitBounds} onChange={setZoomToFitBounds} SwitchComp={Switch} />
       </div>
     </div>
   );
@@ -367,7 +389,7 @@ export const mapControls = {
   default: [
     {
       key: "mapSettings",
-      type: ({ dwAPI }) => <MapSettingsPanel dwAPI={dwAPI} isInMenu={false} />,
+      type: ({ dwAPI }) => <MapSettingsPanel dwAPI={dwAPI} />,
     },
   ],
 };
