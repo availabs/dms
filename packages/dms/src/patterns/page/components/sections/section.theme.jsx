@@ -13,7 +13,39 @@ export const sectionTheme = {
       topBarButtonsView: 'z-10',
       menuPosition: 'absolute top-[5px] right-[5px] items-center flex gap-0.5',
       editIcon: 'hover:text-blue-500 size-6',
-      contentWrapper: 'h-full'
+      contentWrapper: 'h-full',
+
+      // Min-height applied only in page edit mode so a section with no
+      // data (empty filter result, empty draft, etc.) still reserves
+      // enough vertical room for its settings handle to be reachable.
+      // View mode is unaffected — the BC contract from the section-height
+      // task is about end-user view rendering.
+      editMinHeight: '40px',
+
+      // Named height presets selectable per-section via `value.height`. The
+      // section wrapper resolves the chosen key against this map and applies
+      // the resulting CSS value as inline style. Sites can override / extend
+      // by shipping `pages.section.styles[i].heights` in their own theme.
+      //
+      //   auto — default; section is content-sized. No inline style applied
+      //          to the wrapper, so existing sections render byte-identical
+      //          to pre-feature behaviour. (Required for backwards compat —
+      //          see planning/tasks/current/section-height-setting.md.)
+      //   fill — sentinel meaning "expand to fill the parent flex/grid track."
+      //          Section wrapper switches to flex sizing (`flex: 1 1 auto`),
+      //          requires the wrapping sectionGroup to be a flex/grid context
+      //          (e.g. the home-page `header` sectionGroup).
+      //   hero/tall/medium/small — literal CSS values. Pass-through verbatim
+      //          so a theme override can encode `clamp(...)` / `calc(...)` /
+      //          `vh` etc.
+      heights: {
+        auto: 'auto',
+        fill: 'fill',
+        hero: 'calc(100vh - 80px)',
+        tall: '640px',
+        medium: '400px',
+        small: '240px',
+      },
     }
   ]
 }

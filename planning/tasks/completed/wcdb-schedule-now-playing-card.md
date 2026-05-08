@@ -1,5 +1,52 @@
 # WCDB schedule migration + now-playing schedule card
 
+## Status: COMPLETE — 2026-05-08
+
+Live and rendering on the WCDB home page (section 1964234, group `d7cb1bb5-…`). Card binds to the WCDB Schedule times view (source 1963488 / view 1963489), filters with `op:'time'` + `kind:'instant'` + `compareEnd:'end_at'`, refreshes on the minute boundary via `useNowTick`.
+
+### Implementation choice
+
+**Option A (calculated-column bridge)** — kept the existing `(show_day_start, show_start, show_day_end, show_end)` storage and added two calc columns that project the recurring weekly slot onto absolute `timestamptz`:
+
+```sql
+start_at = (((date_trunc('week', now() AT TIME ZONE tz) - interval '1 day')
+              AT TIME ZONE tz
+              + (NULLIF(data->>'show_day_start','')::int * interval '1 day')
+              + NULLIF(data->>'show_start','')::interval)
+            - interval '7 days' * (… > now())::int)
+end_at   = start_at + (signed delta of dow+time, wrapping with +7d when negative)
+```
+
+Both calc columns hidden (`show: false`); they exist only to feed the time-filter predicate.
+
+### Server fixes shipped alongside
+
+Four client/server bugs surfaced when wiring the first calc-column-driven time filter and were fixed in the course of this task:
+
+- **`compareEndAccessor` field** added to `time-filter.js` (validator + builder) so the time-filter end column can be a calc-column SQL expression rather than a bare `data->>` accessor. The legacy `(data->>'<name>')::timestamptz` derivation is kept as a fallback.
+- **`mapFilterGroupCols` alias resolution** — `buildUdaConfig.js:972` used a bare `(name) => columnsWithSettingsByName.get(name) || sourceColumnsByName.get(name)`; alias-mapped columns dropped on the floor. Added `|| columnsByAlias.get(name)`.
+- **`aliasCalcSql` rewriting** — calc col SQL with bare `data->>` raised "column reference 'data' is ambiguous" under joins. Added a regex that prefixes `data->>` with the appropriate table alias inside calc expressions.
+- **`getData.js:313`** — the join post-processor stripped table-alias prefixes for any column whose `type !== 'calculated'`, but a calc column with `type:'text'` + `display:'calculated'` (return type vs. origin) fell through and got its full SQL key mangled by `split('.')`. Switched to the canonical `isCalculatedCol(col)` check so calc columns of any return type are recognised.
+
+### Bonus improvements
+
+Done in the same session on the way to a working visual design:
+
+- **`portrait_banner` column type** in `themes/wcdb/columnTypes/` — flat-art card art for the banner (initials + hashed gradient + radial highlight + scan-line texture). Theme-driven `bannerHeights` map (`fill`/`full`/`tall`/`medium`/`small`).
+- **Per-column-type controls registry** — column types may now declare `cardControls: [...]`, which `Card.config.jsx` flattens into the section's `inHeader` toolbar with auto-scoped `displayCdn` (`isEdit && attribute.type === <typeName>`). `controls` is now a function so the resolution happens at consumer time and picks up theme-registered types.
+- **Font-style dropdown sourced from theme** — `valueFontStyle` / `headerFontStyle` options now derive from `theme.textSettings` keys (`buildFontStyleOptions(theme)`), so every key the renderer can apply (`h1..h6`, `body`, `caption`, full `textXS..text8XL` ramp) appears in the dropdown. Previously a hand-curated list silently dropped theme-defined keys.
+- **`cellSpan` overrides `cardHints.spanFullColumns`** — author-supplied `cellSpan` / `cellRowSpan` now wins over a column type's default positioning hint. The hint still kicks in when the author hasn't set a value, so existing fresh banners keep their full-width default.
+
+### Skill extracted
+
+Recipe lives at `src/dms/skills/now-airing-card.md` (and the broader `creating-page-section-components.md`). See `skills/README.md` for the index entry.
+
+### Documentation
+
+`src/dms/documentation/schedule-card-recipe.md` was deferred — the `skills/now-airing-card.md` covers the same ground in recipe form. Revisit if a non-WCDB consumer needs a more reference-style write-up.
+
+---
+
 ## Objective
 
 Render the currently-airing show on the WCDB site by binding a configured `Card` section to the schedule source via the new `op: 'time'` filter primitive (Phase 4: `instant` + `compareEnd`). This is the first real consumer of the time-filter primitive shipped in `datawrapper-time-filters.md`.

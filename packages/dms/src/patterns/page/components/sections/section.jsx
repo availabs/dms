@@ -21,6 +21,34 @@ import {useImmer} from "use-immer";
 import { getRegisteredComponents } from './componentRegistry'
 
 /**
+ * Resolve the section's height setting against the theme's `heights` preset
+ * map and produce inline styles for the wrapper + contentWrapper.
+ *
+ * Backwards compatibility contract: when no height is set (`heightKey` is
+ * falsy or 'auto'), this MUST return `{}` for both styles — callers spread
+ * the result, so `{}` produces no inline style at all and the rendered HTML
+ * is byte-identical to pre-feature behaviour. This is load-bearing — see
+ * planning/tasks/current/section-height-setting.md.
+ */
+function resolveSectionHeightStyles(heightKey, sectionTheme) {
+    if (!heightKey || heightKey === 'auto') return { wrapperStyle: {}, contentWrapperStyle: {} };
+    const heights = sectionTheme?.heights || {};
+    // Unknown keys pass through verbatim — lets a section author write a
+    // literal CSS value (`'50vh'`, `'400px'`) without registering a preset.
+    const resolved = heights[heightKey] ?? heightKey;
+    if (resolved === 'fill') {
+        return {
+            wrapperStyle: { flex: '1 1 auto', minHeight: 0, display: 'flex', flexDirection: 'column' },
+            contentWrapperStyle: { flex: '1 1 auto', minHeight: 0 },
+        };
+    }
+    return {
+        wrapperStyle: { height: resolved, display: 'flex', flexDirection: 'column' },
+        contentWrapperStyle: { flex: '1 1 auto', minHeight: 0 },
+    };
+}
+
+/**
  * Parse element-data JSON string.
  */
 function parseElementData(elementData) {
@@ -200,8 +228,10 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
         ? component.controls(fullTheme)
         : component?.controls;
 
+    const { wrapperStyle, contentWrapperStyle } = resolveSectionHeightStyles(value?.['height'], theme);
+
     return (
-        <div className={theme.wrapper}>
+        <div className={theme.wrapper} style={Object.keys(wrapperStyle).length ? wrapperStyle : undefined}>
             {/* -------------------top line buttons ----------------------*/}
             <div id={`#${value?.title?.replace(/ /g, '_')}`}
                  className={`flex flex-row font-display font-medium uppercase scroll-mt-36 items-center`}>
@@ -235,7 +265,7 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
                 </div>
             </div>
             {/* ------------------- Main Content ----------------------*/}
-            <div className={theme.contentWrapper}>
+            <div className={theme.contentWrapper} style={Object.keys(contentWrapperStyle).length ? contentWrapperStyle : undefined}>
                 <Component.EditComp
                     ref={dataWrapperRef}
                     value={{...value?.['element'], 'element-data': resolvedElementData}}
@@ -382,8 +412,20 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
 
     const canEditSection = isUserAuthed(['edit-section'], sectionAuthPermissions);
 
+    const { wrapperStyle: heightWrapperStyle, contentWrapperStyle: heightContentWrapperStyle } =
+        resolveSectionHeightStyles(value?.['height'], theme);
+
+    // In page edit mode, ensure the section is tall enough for its settings
+    // handle to be reachable even when the section has no data (empty filter,
+    // empty draft, missing source). Theme-driven so sites can tune. Skipped
+    // outside edit mode so end-user view stays byte-identical.
+    const editMinHeightStyle = (editPageMode && theme?.editMinHeight)
+        ? { minHeight: theme.editMinHeight }
+        : null;
+
     return (
-        <div className={editPageMode && hideSection && !editPageMode ? theme.wrapperHidden : theme.wrapper} style={{pageBreakInside: "avoid"}}>
+        <div className={editPageMode && hideSection && !editPageMode ? theme.wrapperHidden : theme.wrapper}
+             style={{ pageBreakInside: 'avoid', ...heightWrapperStyle, ...(editMinHeightStyle || {}) }}>
 
             {/* -------------------top line buttons ----------------------*/}
             <div className={theme.topBar}>
@@ -418,7 +460,7 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
             ) : ''
             }
 
-            <div className={theme.contentWrapper}>
+            <div className={theme.contentWrapper} style={Object.keys(heightContentWrapperStyle).length ? heightContentWrapperStyle : undefined}>
                 {element}
             </div>
 
