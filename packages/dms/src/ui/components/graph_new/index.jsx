@@ -5,7 +5,7 @@ import {GraphComponent} from "./GraphComponent";
 import {getColorRange} from "./colorRange";
 // import { graphTheme } from "./theme";
 //import TableHeaderCell from "../table/components/TableHeaderCell";
-import {strictNaN, fnumIndex} from "./utils";
+import {strictNaN} from "./utils";
 
 import { groups as d3groups, range as d3range } from "d3-array"
 
