@@ -332,7 +332,7 @@ const CompWrapper = ({
 }
 
 const CardColumnField = ({
-    attr, theme, compactView, reverse, addBorder, removeBorder, padding,
+    attr, theme, cellBorder, cellsPadding, reverse,
     headerValueLayout, headerWidth, valueWidth,
     allowAdddNew, liveEdit, isDms, allowEdit,
     tmpItem, setTmpItem, isNewItem, newItem, setNewItem, updateItem, addItem,
@@ -350,7 +350,7 @@ const CardColumnField = ({
     // strict no-op for legacy columns.
     const hints = ColumnTypes[attr?.type]?.cardHints || {};
     const fullBleed = !!hints.fullBleed;
-    const span = compactView ? 'span 1' : `span ${attr.cardSpan || 1}`;
+    const span = `span ${attr.cellSpan || 1}`;
     const source = isNewItem ? newItem : tmpItem;
     const rawValue = attr.origin === 'static'
         ? attr.staticValue
@@ -395,26 +395,29 @@ const CardColumnField = ({
             headerValueLayout === 'col' && reverse ? theme.itemFlexColReverse :
                 headerValueLayout === 'row' && reverse ? theme.itemFlexRowReverse : ''
 
-    const wrapperViewClass = compactView ?
-        `${theme.headerValueWrapperCompactView} ${attr.borderBelow ? theme.headerValueWrapperBorderBelow : ``} 
-            ${isEdit && visible ? `border border-blue-300` : addBorder ? `border shadow rounded-md` : `border border-transparent`}` :
-        `${theme.headerValueWrapperSimpleView} 
-        ${removeBorder && !(isEdit && visible) ? `border border-transparent` :
-            removeBorder && isEdit && visible ? `border border-blue-300` :
-                isEdit && visible ? `border border-blue-300` :
-                theme.itemBorder}`
+    // Cell border: cellBorder=true puts chrome around each cell. Edit-mode
+    // hover always shows the blue editing outline. The transparent fallback
+    // border keeps layout stable when the visible border isn't shown.
+    let borderClass;
+    if (isEdit && visible) borderClass = 'border border-blue-300';
+    else if (cellBorder) borderClass = theme.itemBorder;
+    else borderClass = 'border border-transparent';
 
+    const wrapperViewClass = `${theme.headerValueWrapperSimpleView || ''} ${attr.cellBorderBelow ? theme.headerValueWrapperBorderBelow : ''} ${borderClass}`;
 
+    // cardHints provide a column type's *default* positioning (e.g.,
+    // portrait_banner sets `spanFullColumns: true` so it fills the card by
+    // default). An author-supplied `cellSpan` / `cellRowSpan` is explicit
+    // intent and wins over the type-level hint — without this override,
+    // cellSpan would be silently dropped on hint-bearing column types.
     const style = {
-        gridColumn: hints.spanFullColumns ? '1 / -1' : span,
-        // gridRow is only set when explicitly requested in cell mode, so legacy
-        // cards (no cardRowSpan) produce the same computed style as before.
-        ...(hints.spanFullRows ? { gridRow: '1 / -1' } :
-            !compactView && attr.cardRowSpan ? { gridRow: `span ${attr.cardRowSpan}` } : {}),
-        padding: fullBleed ? 0 : (compactView ? undefined : padding),
-        paddingBottom: fullBleed ? 0 : (compactView && attr.pb ? +attr.pb : undefined),
+        gridColumn: attr.cellSpan ? span : (hints.spanFullColumns ? '1 / -1' : span),
+        ...(attr.cellRowSpan ? { gridRow: `span ${attr.cellRowSpan}` } :
+            hints.spanFullRows ? { gridRow: '1 / -1' } : {}),
+        padding: fullBleed ? 0 : cellsPadding,
+        paddingBottom: fullBleed ? 0 : (attr.cellPaddingBottom ? +attr.cellPaddingBottom : undefined),
         marginTop: `${imageMargin}px`,
-        backgroundColor: compactView ? undefined : attr.bgColor,
+        backgroundColor: attr.cellBgColor,
         ...(hints.height ? { height: `${hints.height}px` } : {}),
     }
 
@@ -462,7 +465,7 @@ const CardColumnField = ({
             {/* Header area — always rendered when there's a label or a menu in col layout */}
             {headerVisible && (
                 <div
-                    className={`${attr.hideHeader ? '' : `${theme.header} ${compactView ? theme.headerCompactView : theme.headerSimpleView}`}`}
+                    className={`${attr.hideHeader ? '' : theme.header}`}
                     style={{maxWidth: isRowLayout && !attr.hideValue ? `${headerWidth || 50}%` : undefined}}
                 >
                     {!attr.hideHeader && (
@@ -476,8 +479,7 @@ const CardColumnField = ({
             {
                 attr.hideValue ? null :
                     <div className={
-                        `${theme.value} ${compactView ? theme.valueCompactView : theme.valueSimpleView}
-                        ${theme[valueTextJustifyClass]} ${theme[attr.valueFontStyle || 'textXS']} ${formatClass}
+                        `${theme.value} ${theme[valueTextJustifyClass]} ${theme[attr.valueFontStyle || 'textXS']} ${formatClass}
                         `} style={{maxWidth: isRowLayout && !attr.hideHeader ? `${valueWidth || 50}%` : undefined}}>
                         {
                             isLink && !(allowEdit || attr.allowEditInView) ?
@@ -551,7 +553,7 @@ const CardColumnField = ({
 
 const RenderItem = memo(function RenderItem ({
                                                  theme,
-                                                 compactView, reverse, removeBorder, addBorder, padding, allowAdddNew,
+                                                 reverse, cardBorder, cellBorder, cellsPadding, allowAdddNew,
                                                  headerValueLayout, headerWidth, valueWidth, liveEdit, // state.display
                                                  isDms, // state.sourceInfo
                                                  item, newItem, setNewItem, addItem, updateItem, allowEdit,
@@ -622,9 +624,13 @@ const RenderItem = memo(function RenderItem ({
     } : null;
 
     return (
-        //  in normal view, grid applied here
+        // Cells grid: every card always lays its cells out as a CSS grid.
+        // The class string carries chrome (rounded corners, bg) from the
+        // legacy `subWrapperCompactView` key; `display: grid` is forced via
+        // `subWrapperStyle` so it overrides any `display: flex` that themes
+        // still ship in that key.
         <div
-            className={`${theme.subWrapper} ${compactView ? `${theme.subWrapperCompactView} ${removeBorder ? `` : 'border shadow'}` : `${theme.subWrapperSimpleView} ${addBorder ? `border shadow rounded-md` : ``}`} ${highlightClass} ${isSaving ? theme.formEditSavingAnimation : ''}`}
+            className={`${theme.subWrapper} ${theme.subWrapperCompactView || ''} ${cardBorder ? 'border shadow' : ''} ${highlightClass} ${isSaving ? theme.formEditSavingAnimation : ''}`}
             style={subWrapperStyle}
             onMouseEnter={() => {
                 setCardHovered(true);
@@ -642,28 +648,32 @@ const RenderItem = memo(function RenderItem ({
                     const insertAtCurrent = fullIdx !== -1 ? fullIdx : 0;
                     const insertAtAfter = fullIdx !== -1 ? fullIdx + 1 : columns.length;
 
-                    const pickerLeft = (pickerProps && !compactView) ? (
+                    // Both axes are real grids in unified mode, so all four
+                    // insertion points are always meaningful. Left/Top insert
+                    // before this cell; Right/Bottom insert after the last
+                    // cell only.
+                    const pickerLeft = pickerProps ? (
                         <CardColumnPicker
                             insertAt={insertAtCurrent}
                             {...pickerProps}
                             triggerClassName="absolute top-0 bottom-0 left-0 -translate-x-1/2 flex items-center z-20 w-4"
                         />
                     ) : null;
-                    const pickerRight = (pickerProps && !compactView && isLast) ? (
+                    const pickerRight = (pickerProps && isLast) ? (
                         <CardColumnPicker
                             insertAt={insertAtAfter}
                             {...pickerProps}
                             triggerClassName="absolute top-0 bottom-0 right-0 translate-x-1/2 flex items-center z-20 w-4"
                         />
                     ) : null;
-                    const pickerTop = (pickerProps && compactView) ? (
+                    const pickerTop = pickerProps ? (
                         <CardColumnPicker
                             insertAt={insertAtCurrent}
                             {...pickerProps}
                             triggerClassName="absolute left-0 right-0 top-0 -translate-y-1/2 h-4 z-20 flex items-center justify-center"
                         />
                     ) : null;
-                    const pickerBottom = (pickerProps && compactView) ? (
+                    const pickerBottom = (pickerProps && isLast) ? (
                         <CardColumnPicker
                             insertAt={insertAtAfter}
                             {...pickerProps}
@@ -684,11 +694,9 @@ const RenderItem = memo(function RenderItem ({
                             key={attr.normalName || attr.name}
                             attr={attr}
                             theme={theme}
-                            compactView={compactView}
+                            cellBorder={cellBorder}
+                            cellsPadding={cellsPadding}
                             reverse={reverse}
-                            addBorder={addBorder}
-                            removeBorder={removeBorder}
-                            padding={padding}
                             headerValueLayout={headerValueLayout}
                             headerWidth={headerWidth}
                             valueWidth={valueWidth}
@@ -747,39 +755,44 @@ export default function Card ({
 
     const [draggedCol, setDraggedCol] = useState(null);
 
-    const {compactView, gridSize, gridGap, padding, colGap, allowAdddNew, bgColor, rowHeight} = display;
+    const {
+        cardsGridSize, cardsGridGap, cardsPadding, cardsBgColor,
+        cellsGridSize, cellsGridGap, cellsRowHeight, cellsPadding,
+        cardBorder, cellBorder,
+        allowAdddNew,
+    } = display;
     const visibleColumns = useMemo(() => columns.filter(({show}) => show), [columns]);
-    const cardsWithoutSpanLength = useMemo(() => visibleColumns.filter(({cardSpan}) => !cardSpan).length, [visibleColumns]);
-    const hasRowSpan = useMemo(() => visibleColumns.some(c => c.cardRowSpan > 1), [visibleColumns]);
+    const cellsWithoutSpanLength = useMemo(() => visibleColumns.filter(({cellSpan}) => !cellSpan).length, [visibleColumns]);
+    const hasRowSpan = useMemo(() => visibleColumns.some(c => c.cellRowSpan > 1), [visibleColumns]);
     const imageTopMargin = useMemo(() =>
         Math.max(
             ...visibleColumns
-                .map(attr => attr.isImg && !isNaN(attr.imageMargin) ? Math.abs(attr.imageMargin) : undefined)
+                .map(attr => (attr.isImg || attr.type === 'image') && !isNaN(attr.imageMargin) ? Math.abs(attr.imageMargin) : undefined)
                 .filter(m=>m)),
         [visibleColumns]);
 
-    const getGridSize = gridSize => gridSize//window?.innerWidth < 640 ? 1 : gridSize;
+    // Cards grid (outer): records laid out across the section. Default 1
+    // column → vertical stack, which matches the legacy "cell mode" look.
+    const mainWrapperStyle = useMemo(() => ({
+        display: 'grid',
+        gridTemplateColumns: `repeat(${cardsGridSize || 1}, minmax(0, 1fr))`,
+        gap: cardsGridGap,
+        paddingTop: imageTopMargin ? `${imageTopMargin}px` : undefined,
+    }), [cardsGridSize, cardsGridGap, imageTopMargin]);
 
-    const mainWrapperStyle = useMemo(() =>
-        gridSize && compactView ?
-            {
-                gridTemplateColumns: `repeat(${getGridSize(gridSize) || data.length}, minmax(0, 1fr))`,
-                gap: gridGap,
-                paddingTop: `${imageTopMargin}px`
-            } :
-            {gap: gridGap, paddingTop: `${imageTopMargin}px`}, [gridSize, compactView, imageTopMargin, gridGap, data.length]);
-
-    const subWrapperStyle = useMemo(() =>
-        compactView ? {backgroundColor: bgColor, padding, gap: colGap} :
-            {
-                gridTemplateColumns: `repeat(${getGridSize(gridSize) || cardsWithoutSpanLength}, minmax(0, 1fr))`,
-                gap: gridGap,
-                // gridAutoRows is only set when needed, so legacy cards (no rowHeight,
-                // no cardRowSpan) keep CSS Grid's default 'auto' row sizing.
-                ...(rowHeight ? { gridAutoRows: `${rowHeight}px` } :
-                    hasRowSpan ? { gridAutoRows: 'minmax(0, auto)' } : {}),
-            },
-        [compactView, bgColor, padding, gridGap, colGap, gridSize, cardsWithoutSpanLength, rowHeight, hasRowSpan]);
+    // Cells grid (inner, per-record): cells laid out across the card.
+    // Default falls back to one cell per visible column (matches the legacy
+    // "cell mode" auto-fit behavior). `display: grid` is forced inline so it
+    // wins over any `display: flex` still shipped via theme.subWrapperCompactView.
+    const subWrapperStyle = useMemo(() => ({
+        display: 'grid',
+        gridTemplateColumns: `repeat(${cellsGridSize || cellsWithoutSpanLength || 1}, minmax(0, 1fr))`,
+        gap: cellsGridGap,
+        backgroundColor: cardsBgColor,
+        padding: cardsPadding,
+        ...(cellsRowHeight ? { gridAutoRows: `${cellsRowHeight}px` } :
+            hasRowSpan ? { gridAutoRows: 'minmax(0, auto)' } : {}),
+    }), [cellsGridSize, cellsWithoutSpanLength, cellsGridGap, cardsBgColor, cardsPadding, cellsRowHeight, hasRowSpan]);
 
     // Reordering function
     function handleDrop(targetCol) {
@@ -824,8 +837,10 @@ export default function Card ({
             {/*    ) : null*/}
             {/*}*/}
 
-            {/* outer wrapper: in compact view, grid applies here */}
-            <div className={gridSize && compactView ? theme.mainWrapperCompactView : theme.mainWrapperSimpleView} style={mainWrapperStyle}>
+            {/* Cards grid wrapper. Always a CSS grid; `display: grid` is also
+                set inline by mainWrapperStyle so themes that didn't ship the
+                `mainWrapperCompactView` key still render correctly. */}
+            <div className={theme.mainWrapperCompactView || ''} style={mainWrapperStyle}>
                 {
                     (allowAdddNew ? [...data, newItem] : data).map((item, i) => (
                         <RenderItem

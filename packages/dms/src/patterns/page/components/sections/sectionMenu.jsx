@@ -108,7 +108,12 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                 name: item.label,
                 items: item.items
                     .filter(({ displayCdn }) => typeof displayCdn === 'function' ? displayCdn({ display: state.display }) : displayCdn !== false)
-                    .map(i => controlItemTransformers[i.type]?.(i, state.display?.[i.key] ?? i.defaultValue))
+                    // Recurse so grouped items pick up the same handling as
+                    // top-level entries — function-typed controls (e.g. color
+                    // pickers), nested groups, and dotted display keys all
+                    // work, not just the four registry entries.
+                    .map(transformControlItem)
+                    .filter(Boolean)
             })
         }
 
@@ -748,6 +753,23 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                         }
                     })
                 },
+                // Section height. Default is 'auto' — section is content-sized
+                // and the wrapper renders unchanged from pre-feature behaviour
+                // (see section.theme.jsx and planning/tasks/.../section-height-setting.md).
+                // Hidden when the active section style ships no `heights` map,
+                // so themes that haven't opted in see no new control.
+                ...(Object.keys(getComponentTheme(theme, 'pages.section').heights || {}).length ? [{
+                    icon: 'Row', name: 'Height', value: value?.['height'] || 'auto', showValue: true,
+                    cdn: () => canEditSection,
+                    items: Object.keys(getComponentTheme(theme, 'pages.section').heights || {}).map((name) => {
+                        return {
+                            icon: name === (value?.['height'] || 'auto') ? 'CircleCheck' : 'Blank',
+                            id: `height_${name}`,
+                            'name': name,
+                            'onClick': () => updateAttribute('height', name === 'auto' ? undefined : name)
+                        }
+                    })
+                }] : []),
                 {
                     icon: 'Row', name: 'Rowspan', value: value?.['rowspan'] || 1, showValue: true,
                     cdn: () => canEditSection,

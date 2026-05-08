@@ -1,9 +1,10 @@
 import React, {useState, useEffect, useContext, useMemo, useCallback} from 'react'
 import {get} from "lodash-es";
 import {DatasetsContext} from "../context";
-import {ThemeContext} from "../../../ui/useTheme";
+import {ThemeContext, getComponentTheme} from "../../../ui/useTheme";
 import {buildEnvsForListing, getExternalEnv} from "../utils/datasources";
 import Breadcrumbs from "../components/Breadcrumbs";
+import {settingsPageTheme} from "./settingsPage.theme";
 
 const range = (start, end) => Array.from({length: (end + 1 - start)}, (v, k) => k + start);
 
@@ -32,7 +33,7 @@ const getSources = async ({envs, falcor}) => {
 export default function SettingsPage({format}) {
     const {baseUrl, falcor, datasources, dmsEnv, UI} = useContext(DatasetsContext);
     const {theme: fullTheme} = useContext(ThemeContext) || {};
-    const theme = fullTheme?.datasets?.settingsPage || {};
+    const theme = { ...settingsPageTheme, ...getComponentTheme(fullTheme, 'datasets.settingsPage') };
     const {Layout, LayoutGroup, Input, Button} = UI;
 
     const [sources, setSources] = useState([]);
@@ -107,16 +108,44 @@ export default function SettingsPage({format}) {
 
     return (
         <Layout navItems={[]}>
-            <div className={theme.pageWrapper || 'max-w-5xl mx-auto w-full'}>
+            <div className={theme.pageWrapper}>
                 <Breadcrumbs items={[
                     {icon: 'Database', href: baseUrl},
                     {name: 'Settings'},
                 ]}/>
                 <LayoutGroup>
-                    <div className={theme.heading || 'text-2xl font-medium text-blue-600'}>
+                    <div className={theme.heading}>
                         Dataset Settings
                     </div>
-                    <div className={theme.toggleRow || 'flex items-center gap-3 my-3'}>
+                    {/* Read-only environment panel — surfaces which dmsEnv (and
+                        pgEnv, when one is configured) this datasets page is
+                        bound to. Editing happens elsewhere (admin pattern
+                        editor); this is purely informational. */}
+                    <div className={theme.envPanel}>
+                        <div className={theme.envPanelLabel}>
+                            Environment
+                        </div>
+                        <div className={theme.envRow}>
+                            <span className={theme.envRowLabel}>DMS Env:</span>
+                            {dmsEnv ? (
+                                <>
+                                    <span className={theme.envRowValue}>{dmsEnv.name || `#${dmsEnv.id}`}</span>
+                                    {dmsEnv.name && dmsEnv.id != null && (
+                                        <span className={theme.envRowMuted}>id: {dmsEnv.id}</span>
+                                    )}
+                                </>
+                            ) : (
+                                <span className={theme.envRowEmpty}>none (legacy pattern)</span>
+                            )}
+                        </div>
+                        {pgEnv ? (
+                            <div className={theme.envRow}>
+                                <span className={theme.envRowLabel}>PG Env:</span>
+                                <span className={theme.envRowValue}>{pgEnv}</span>
+                            </div>
+                        ) : null}
+                    </div>
+                    <div className={theme.toggleRow}>
                         <Button
                             type={showUncategorized ? 'active' : 'plain'}
                             onClick={() => saveSettings({show_uncategorized: !showUncategorized})}
@@ -125,59 +154,59 @@ export default function SettingsPage({format}) {
                             {showUncategorized ? 'Showing' : 'Hiding'} uncategorized sources
                         </Button>
                     </div>
-                    <div className={theme.searchWrapper || 'my-4'}>
+                    <div className={theme.searchWrapper}>
                         <Input
                             placeholder="Search categories..."
                             value={search}
                             onChange={e => setSearch(e.target.value)}
                         />
                     </div>
-                    <div className={theme.columnsWrapper || 'flex flex-col sm:flex-row gap-4'}>
-                        <div className={theme.column || 'flex-1 border rounded-lg p-3 bg-slate-50'}>
-                            <label className={theme.columnLabel || 'text-sm font-medium text-gray-700'}>
+                    <div className={theme.columnsWrapper}>
+                        <div className={theme.column}>
+                            <label className={theme.columnLabel}>
                                 Categories Hidden
-                                <span className={theme.columnHint || 'text-xs italic text-gray-500 ml-1'}>(click to show)</span>
+                                <span className={theme.columnHint}>(click to show)</span>
                             </label>
-                            <div className={theme.categoryList || 'flex flex-wrap gap-1 mt-2 max-h-[70vh] overflow-auto'}>
+                            <div className={theme.categoryList}>
                                 {filterBySearch(hiddenCategories).length ? filterBySearch(hiddenCategories).map(cat => (
                                     <button
                                         key={cat}
-                                        className={theme.categoryButton || 'bg-white hover:bg-blue-50 px-3 py-1.5 rounded-md flex items-center gap-2 text-sm border border-gray-200'}
+                                        className={theme.categoryButton}
                                         onClick={() => saveSettings({filtered_categories: filteredCategories.filter(c => c !== cat)})}
                                         disabled={saving}
                                     >
                                         {cat}
-                                        <span className={theme.categoryCount || 'bg-blue-100 text-blue-600 text-xs w-5 h-5 shrink-0 rounded-full flex items-center justify-center'}>
+                                        <span className={theme.categoryCount}>
                                             {categoriesCount[cat]}
                                         </span>
                                     </button>
                                 )) : (
-                                    <div className={theme.emptyMessage || 'text-gray-400 text-sm italic p-2'}>
+                                    <div className={theme.emptyMessage}>
                                         No categories hidden
                                     </div>
                                 )}
                             </div>
                         </div>
-                        <div className={theme.column || 'flex-1 border rounded-lg p-3 bg-slate-50'}>
-                            <label className={theme.columnLabel || 'text-sm font-medium text-gray-700'}>
+                        <div className={theme.column}>
+                            <label className={theme.columnLabel}>
                                 Categories Shown
-                                <span className={theme.columnHint || 'text-xs italic text-gray-500 ml-1'}>(click to hide)</span>
+                                <span className={theme.columnHint}>(click to hide)</span>
                             </label>
-                            <div className={theme.categoryList || 'flex flex-wrap gap-1 mt-2 max-h-[70vh] overflow-auto'}>
+                            <div className={theme.categoryList}>
                                 {filterBySearch(shownCategories).length ? filterBySearch(shownCategories).map(cat => (
                                     <button
                                         key={cat}
-                                        className={theme.categoryButton || 'bg-white hover:bg-blue-50 px-3 py-1.5 rounded-md flex items-center gap-2 text-sm border border-gray-200'}
+                                        className={theme.categoryButton}
                                         onClick={() => saveSettings({filtered_categories: [...filteredCategories, cat]})}
                                         disabled={saving}
                                     >
                                         {cat}
-                                        <span className={theme.categoryCount || 'bg-blue-100 text-blue-600 text-xs w-5 h-5 shrink-0 rounded-full flex items-center justify-center'}>
+                                        <span className={theme.categoryCount}>
                                             {categoriesCount[cat]}
                                         </span>
                                     </button>
                                 )) : (
-                                    <div className={theme.emptyMessage || 'text-gray-400 text-sm italic p-2'}>
+                                    <div className={theme.emptyMessage}>
                                         All categories shown
                                     </div>
                                 )}

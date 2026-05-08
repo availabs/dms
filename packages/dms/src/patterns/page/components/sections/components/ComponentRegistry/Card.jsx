@@ -5,11 +5,13 @@ import { formatFunctions } from "../dataWrapper/utils/utils";
 import AddFormulaColumn from "../../AddFormulaColumn";
 import AddCalculatedColumn from "../../AddCalculatedColumn";
 
-// cards can be:
-// one cell per row, that carries one column's data,
-// one cell per row, that can carry multiple column's data
-// compact view: bg color per card (which is a row)
-// simple view: one cell per column - value pair; span; inline vs stacked; reverse; bg color per column
+// Card section. Always renders both grids:
+//   cards grid (outer): record-cards laid out across the section
+//   cells grid (inner): attribute-cells laid out inside each record-card
+// Both have independent settings (cardsGrid* / cellsGrid* on display, cellSpan
+// / cellRowSpan / cellBgColor / cellPaddingBottom / cellBorderBelow on each
+// column). Legacy `compactView` blobs are normalized to this shape on hydration
+// by Card.migrate.js (called from migrateToV2).
 
 export const CardSection = ({
                   isEdit, //edit mode

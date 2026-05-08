@@ -4,6 +4,8 @@ import { sectionTheme, sectionSettings } from './components/sections/section.the
 import { userMenuTheme, userMenuSettings } from './components/userMenu.theme'
 import { searchButtonTheme, searchPalletTheme, searchButtonSettings, searchPalletSettings } from './components/search/theme'
 import { sectionGroupControlTheme } from "./pages/edit/editPane/sectionGroupsPane.theme";
+import { complexFiltersTheme } from './components/sections/ComplexFilters.theme'
+import { timePickerTheme } from './components/sections/components/dataWrapper/components/filters/TimePicker/timePicker.theme'
 
 export default {
     sectionGroup: sectionGroupTheme,
@@ -13,6 +15,8 @@ export default {
     searchButton: searchButtonTheme,
     searchPallet: searchPalletTheme,
     sectionGroupsPane: sectionGroupControlTheme,
+    complexFilters: complexFiltersTheme,
+    timePicker: timePickerTheme,
 }
 
 export const pagesThemeSettings = (theme) => {

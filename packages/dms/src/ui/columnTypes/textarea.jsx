@@ -1,30 +1,41 @@
 import React, {useEffect, useState} from "react"
-
-import { get } from "lodash-es"
+import { Textarea } from "../components/Input"
 
 const theme = {
     textarea: {
-        input: 'px-2 py-1 w-full text-sm font-light border rounded-md focus:border-blue-300 focus:outline-none transition ease-in',
         viewWrapper: 'whitespace-normal text-sm font-light'
     }
 }
-export const TextareaEdit = ({value, onChange, className, placeholder, ...rest}) => {
-    const [tmpValue, setTmpValue] = useState(value || '')
+
+// Mirrors text.jsx — cards occasionally pass values containing back-refs that
+// JSON.stringify can't serialize. Coerce safely so we never throw mid-render.
+const toInputValue = (v) => {
+    if (v == null || typeof v !== 'object') return v ?? '';
+    try { return JSON.stringify(v); }
+    catch { return String(v); }
+};
+
+export const TextareaEdit = ({value, onChange, className, placeholder,
+    // Destructure non-DOM props so they don't reach <textarea>
+    loading, singleSelectOnly, displayDetailedValues, keepMenuOpen,
+    tabular, displayInvalidMsg, onSearch, theme: _theme, format,
+    ...rest}) => {
+    const [tmpValue, setTmpValue] = useState(() => toInputValue(value))
 
     useEffect(() => {
-        if(value !== tmpValue) setTmpValue(value)
+        const next = toInputValue(value);
+        if (next !== tmpValue) setTmpValue(next);
     }, [value]);
     return (
-        <textarea
-            className={ className || (theme?.textarea?.input || 'w-full border p-2')}
+        <Textarea
+            {...rest}
             value={tmpValue}
             placeholder={placeholder}
             onChange={(e) => {
                 setTmpValue(e.target.value)
                 onChange(e.target.value)
             }}
-            {...rest}
-        />      
+        />
     )
 }
 

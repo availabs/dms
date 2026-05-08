@@ -191,6 +191,8 @@ export default {
                     { label: 'Abbreviated', value: 'abbreviate' },
                     { label: 'Abbreviated ($)', value: 'abbreviate_dollar' },
                     { label: 'Date', value: 'date' },
+                    { label: 'Time (HH:MM am/pm)', value: 'time' },
+                    { label: 'Date + Time', value: 'datetime' },
                     { label: 'Title', value: 'title' },
                     { label: '0 = N/A', value: 'zero_to_na' },
                 ], displayCdn: ({ isEdit }) => isEdit
