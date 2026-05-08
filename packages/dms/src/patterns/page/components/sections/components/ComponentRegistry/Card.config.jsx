@@ -260,21 +260,10 @@ const buildInHeader = (fontStyleOptions) => [
             // ColumnManager just call the function and use its output as-is),
             // so we wrap the EditComp in our own label container that
             // matches the toggle/select/input styling.
-            //
-            // We forward the column's metadata into the EditComp via spread
-            // so column-type renderers that read column-level config (e.g.,
-            // portrait_banner reads `bannerHeight`) get the right styling
-            // on the inline preview. We then explicitly override visual
-            // sizing keys with compact values so a column whose real render
-            // is huge (`bannerHeight: 'full'` ≈ calc(100vh - 220px)) doesn't
-            // make the toolbar dropdown unscrollable / push other controls
-            // off-screen — `bannerHeight: 'small'` keeps the preview tame.
             return (
                 <div className="flex flex-col gap-0.5">
                     <label className="text-xs text-gray-600">Empty Default</label>
                     <Edit
-                        {...attribute}
-                        bannerHeight={'small'}
                         value={attribute?.blankDefault}
                         onChange={v => setAttribute({ ...attribute, blankDefault: v })}
                         placeholder={'Empty-state default'}
