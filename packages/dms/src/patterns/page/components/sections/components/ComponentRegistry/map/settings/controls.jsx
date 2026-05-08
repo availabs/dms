@@ -10,10 +10,8 @@ import {
 import { ThemeContext } from "../../../../../../../../ui/useTheme";
 import useMapSettingsControls from "./state.jsx";
 
-const detailControlClassName = "w-full min-h-9";
 const labelClassName = "text-sm font-medium text-slate-100";
 const sectionClassName = "pt-1.5 first:pt-0";
-const repeatedSectionClassName = "border-t border-slate-800 pt-1.5";
 const emptyStateClassName = "text-sm text-slate-400";
 
 const Field = ({ label, children, compact = false }) => (
@@ -355,7 +353,7 @@ const MapLayerClickFiltersControl = ({ dwAPI }) => {
   );
 };
 
-export const buildMapControls = () => ({
+export const MapControls = () => ({
   default: [
     { key: "map_symbology", label: "Symbology", type: ({ dwAPI }) => <MapSymbologyControl dwAPI={dwAPI} /> },
     { key: "map_layer", label: "Layer", type: ({ dwAPI }) => <MapLayerControl dwAPI={dwAPI} /> },
