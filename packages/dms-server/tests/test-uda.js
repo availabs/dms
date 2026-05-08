@@ -773,6 +773,254 @@ async function testDamaModeViewsCrud() {
   pass('DAMA views cleanup complete');
 }
 
+// ============================================= time-filter unit tests =============================================
+
+/**
+ * Pure unit tests for the `op: 'time'` filter — validators, value extractor,
+ * and SQL builder. No database required; tests assert SQL string shape and
+ * placeholder/value count parity.
+ */
+async function testTimeFilter() {
+  console.log('\n--- Unit: time-filter validation ---');
+  const { validateTimeFilter, extractTimeFilterValues, buildTimeFilterSQL } = require('../src/routes/uda/time-filter');
+  const { getValuesFromGroup, handleFilterGroups } = require('../src/routes/uda/utils');
+
+  // ── validators ─────────────────────────────────────────────────────────
+  assert(validateTimeFilter({}).ok, 'empty value object validates');
+  assert(validateTimeFilter({ tz: 'America/New_York' }).ok, 'IANA tz validates');
+  assert(validateTimeFilter({ tz: 'UTC' }).ok, 'UTC tz validates');
+  assert(validateTimeFilter({ tz: 'Etc/GMT+5' }).ok, 'Etc/GMT+5 tz validates');
+  assert(validateTimeFilter({ tz: 'Bad/tz; DROP TABLE x' }).error, 'malformed tz rejected');
+  pass('tz validation accepts/rejects expected forms');
+
+  // range kinds
+  assert(validateTimeFilter({ ranges: [{ kind: 'relative', unit: 'day', count: 7, direction: 'past' }] }).ok, 'relative valid');
+  assert(validateTimeFilter({ ranges: [{ kind: 'relative', unit: 'fortnight', count: 1, direction: 'past' }] }).error, 'unknown unit rejected');
+  assert(validateTimeFilter({ ranges: [{ kind: 'relative', unit: 'day', count: -1, direction: 'past' }] }).error, 'negative count rejected');
+  assert(validateTimeFilter({ ranges: [{ kind: 'relative', unit: 'day', count: 7, direction: 'sideways' }] }).error, 'invalid direction rejected');
+
+  assert(validateTimeFilter({ ranges: [{ kind: 'current_period', period: 'week' }] }).ok, 'current_period valid');
+  assert(validateTimeFilter({ ranges: [{ kind: 'current_period', period: 'fortnight' }] }).error, 'invalid period rejected');
+
+  assert(validateTimeFilter({ ranges: [{ kind: 'named', name: 'today' }] }).ok, 'named today valid');
+  assert(validateTimeFilter({ ranges: [{ kind: 'named', name: 'next-tuesday' }] }).error, 'invalid named rejected');
+
+  assert(validateTimeFilter({ ranges: [{ kind: 'absolute', from: '2024-01-01' }] }).ok, 'absolute from-only valid');
+  assert(validateTimeFilter({ ranges: [{ kind: 'absolute', to: '2024-06-30T12:00:00Z' }] }).ok, 'absolute to-only ISO valid');
+  assert(validateTimeFilter({ ranges: [{ kind: 'absolute' }] }).error, 'absolute with neither bound rejected');
+  assert(validateTimeFilter({ ranges: [{ kind: 'absolute', from: 'yesterday' }] }).error, 'malformed absolute date rejected');
+
+  assert(validateTimeFilter({ ranges: [{ kind: 'instant', at: 'now' }] }).ok, 'instant valid');
+  assert(validateTimeFilter({ ranges: [{ kind: 'instant', at: 'soon' }] }).error, 'instant.at != now rejected');
+
+  // dow
+  assert(validateTimeFilter({ dow: [0, 6] }).ok, 'dow [0,6] valid');
+  assert(validateTimeFilter({ dow: [1, 2, 3, 4, 5] }).ok, 'dow weekdays valid');
+  assert(validateTimeFilter({ dow: [7] }).error, 'dow=7 rejected');
+  assert(validateTimeFilter({ dow: [-1] }).error, 'dow=-1 rejected');
+  assert(validateTimeFilter({ dow: ['Sun'] }).error, 'string dow rejected');
+
+  // timeOfDay
+  assert(validateTimeFilter({ timeOfDay: { start: '09:00', end: '17:00' } }).ok, 'timeOfDay 09:00-17:00 valid');
+  assert(validateTimeFilter({ timeOfDay: { start: '9:00', end: '17:00' } }).error, 'malformed start (single-digit hour) rejected');
+  assert(validateTimeFilter({ timeOfDay: { start: '17:00', end: '09:00' } }).error, 'midnight wrap rejected (v1)');
+  assert(validateTimeFilter({ timeOfDay: { start: '09:00', end: '09:00' } }).error, 'zero-width window rejected');
+
+  // compareEnd
+  assert(validateTimeFilter({ compareEnd: 'end_at' }).ok, 'compareEnd column name valid');
+  assert(validateTimeFilter({ compareEnd: 'end_at; DROP TABLE x' }).error, 'compareEnd with semicolon rejected');
+  pass('range / dow / timeOfDay / compareEnd validation');
+
+  // ── value extraction (order matches placeholder order) ────────────────
+  // Composition that needs tz (DOW + timeOfDay both reference AT TIME ZONE):
+  const v1 = {
+    tz: 'America/New_York',
+    ranges: [{ kind: 'relative', unit: 'day', count: 7, direction: 'past' }],
+    dow: [0, 6],
+    timeOfDay: { start: '09:00', end: '17:00' },
+  };
+  const vals1 = extractTimeFilterValues(v1);
+  assert(vals1.length === 5, `expected 5 values, got ${vals1.length}: ${JSON.stringify(vals1)}`);
+  assert(vals1[0] === 'America/New_York', 'value[0] is tz');
+  assert(vals1[1] === 7, 'value[1] is count');
+  assert(Array.isArray(vals1[2]) && vals1[2][0] === 0, 'value[2] is dow array');
+  assert(vals1[3] === '09:00' && vals1[4] === '17:00', 'values[3,4] are timeOfDay');
+
+  // No tz-dependent axis → tz slot is skipped. (relative + absolute alone
+  // evaluate against now()/literals, no calendar boundary reasoning.)
+  const valsNoTz = extractTimeFilterValues({ ranges: [{ kind: 'absolute', from: '2024-01-01', to: '2024-06-30' }] });
+  assert(valsNoTz.length === 2, `expected 2 values (no tz, from, to), got ${valsNoTz.length}: ${JSON.stringify(valsNoTz)}`);
+  assert(valsNoTz[0] === '2024-01-01' && valsNoTz[1] === '2024-06-30', 'absolute from/to bind first when tz is skipped');
+
+  // Adding a calendar-anchored axis brings tz back at slot 0.
+  const valsTz = extractTimeFilterValues({ ranges: [{ kind: 'named', name: 'today' }] });
+  assert(valsTz.length === 1 && valsTz[0] === 'UTC', `tz defaults to UTC when needed, got ${JSON.stringify(valsTz)}`);
+
+  pass('extractTimeFilterValues canonical order + conditional tz');
+
+  // ── SQL builder ───────────────────────────────────────────────────────
+  // helper: build a fresh ctx and assert the placeholder count we minted
+  const build = (value, col, isDms = true, dbType = 'postgres', startIndex = 0) => {
+    const ctx = { index: startIndex };
+    const sql = buildTimeFilterSQL(value, col, ctx, isDms, dbType);
+    return { sql, indexUsed: ctx.index - startIndex };
+  };
+
+  // relative past — relative-alone doesn't need tz, so only `count` is bound.
+  {
+    const { sql, indexUsed } = build({ tz: 'UTC', ranges: [{ kind: 'relative', unit: 'day', count: 7, direction: 'past' }] }, "data->>'event_at'");
+    assert(sql.includes("(data->>'event_at')::timestamptz"), 'DMS col cast to timestamptz');
+    assert(sql.includes("now() -"), 'relative past uses now() -');
+    assert(sql.includes("interval '1 day'"), 'unit "day" inlined');
+    assert(sql.includes('$1'), 'relative count gets first placeholder');
+    assert(indexUsed === 1, `expected 1 placeholder (count only, tz skipped), got ${indexUsed}`);
+  }
+
+  // relative future — same: no calendar boundary, no tz slot.
+  {
+    const { sql, indexUsed } = build({ ranges: [{ kind: 'relative', unit: 'hour', count: 3, direction: 'future' }] }, 'event_at', false);
+    assert(sql.includes("now() +"), 'relative future uses now() +');
+    assert(!sql.includes('::timestamptz'), 'non-DMS col not cast');
+    assert(sql.includes("interval '1 hour'"), 'unit "hour" inlined');
+    assert(indexUsed === 1, `expected 1 placeholder (count only), got ${indexUsed}`);
+  }
+
+  // current_period — week
+  {
+    const { sql } = build({ ranges: [{ kind: 'current_period', period: 'week' }] }, "data->>'created_at'");
+    assert(sql.includes("date_trunc('week'"), 'date_trunc(week) emitted');
+    assert(sql.includes("AT TIME ZONE $1"), 'tz threaded into AT TIME ZONE');
+    assert(sql.includes("interval '1 week'"), 'next-week step inlined');
+  }
+
+  // current_period — quarter (3 months step)
+  {
+    const { sql } = build({ ranges: [{ kind: 'current_period', period: 'quarter' }] }, 'event_at', false);
+    assert(sql.includes("date_trunc('quarter'"), 'date_trunc(quarter)');
+    assert(sql.includes("interval '3 months'"), 'quarter step uses 3 months');
+  }
+
+  // named — today / yesterday / tomorrow
+  {
+    const today = build({ ranges: [{ kind: 'named', name: 'today' }] }, "data->>'ts'");
+    assert(today.sql.includes("date_trunc('day'") && today.sql.includes("interval '1 day'"), 'today uses day trunc');
+    assert(!today.sql.includes("- interval"), 'today does NOT subtract');
+
+    const yest = build({ ranges: [{ kind: 'named', name: 'yesterday' }] }, "data->>'ts'");
+    assert(yest.sql.includes("- interval '1 day'"), 'yesterday subtracts 1 day');
+    // The yesterday hi bound is today's midnight (the bare base expression).
+    assert(yest.sql.match(/date_trunc\('day'/g)?.length >= 2, 'yesterday references today-midnight twice');
+
+    const tom = build({ ranges: [{ kind: 'named', name: 'tomorrow' }] }, "data->>'ts'");
+    assert(tom.sql.includes("+ interval '1 day'") && tom.sql.includes("interval '2 days'"), 'tomorrow uses +1/+2 days');
+  }
+
+  // absolute — both / either bound; absolute alone doesn't need tz.
+  {
+    const both = build({ ranges: [{ kind: 'absolute', from: '2024-01-01', to: '2024-06-30' }] }, 'event_at', false);
+    assert(both.indexUsed === 2, `expected 2 placeholders (from + to, no tz), got ${both.indexUsed}`);
+    assert(both.sql.match(/>= \$\d+::timestamptz/) && both.sql.match(/<= \$\d+::timestamptz/), 'absolute casts to timestamptz');
+
+    const onlyFrom = build({ ranges: [{ kind: 'absolute', from: '2024-01-01' }] }, 'event_at', false);
+    assert(onlyFrom.indexUsed === 1, `expected 1 placeholder (from only), got ${onlyFrom.indexUsed}`);
+    assert(onlyFrom.sql.includes('>=') && !onlyFrom.sql.includes('<= $'), 'from-only emits >= only');
+  }
+
+  // instant + compareEnd (schedule case) — uses now()/literals only, no tz.
+  {
+    const { sql, indexUsed } = build({ ranges: [{ kind: 'instant', at: 'now' }], compareEnd: 'end_at' }, "data->>'start_at'", true);
+    assert(sql.includes("(data->>'start_at')::timestamptz <= now()"), 'col <= now()');
+    assert(sql.includes("(data->>'end_at')::timestamptz > now()"), 'compareEnd > now() (DMS-cast)');
+    assert(indexUsed === 0, `instant binds nothing, got ${indexUsed}`);
+  }
+  // instant without compareEnd falls back to col <= now()
+  {
+    const { sql } = build({ ranges: [{ kind: 'instant', at: 'now' }] }, 'event_at', false);
+    assert(sql.includes('event_at <= now()'), 'instant w/o compareEnd → col <= now()');
+    assert(!sql.includes('>'), 'instant w/o compareEnd has no upper bound');
+  }
+
+  // DOW
+  {
+    const { sql, indexUsed } = build({ dow: [0, 6] }, "data->>'event_at'");
+    assert(sql.includes('EXTRACT(DOW FROM'), 'EXTRACT DOW');
+    assert(sql.includes('= ANY('), 'DOW uses = ANY()');
+    assert(indexUsed === 2, `tz + dow array = 2 placeholders, got ${indexUsed}`);
+  }
+
+  // time-of-day
+  {
+    const { sql, indexUsed } = build({ timeOfDay: { start: '09:00', end: '17:00' } }, "data->>'event_at'");
+    assert(sql.includes('::time >='), 'timeOfDay >= ::time');
+    assert(sql.includes('::time <'), 'timeOfDay < ::time (open upper bound)');
+    assert(indexUsed === 3, `tz + start + end = 3 placeholders, got ${indexUsed}`);
+  }
+
+  // composition: 2 ranges OR'd, then ANDed with DOW + timeOfDay
+  {
+    const value = {
+      tz: 'America/New_York',
+      ranges: [
+        { kind: 'relative', unit: 'day', count: 7, direction: 'past' },
+        { kind: 'absolute', from: '2024-04-01', to: '2024-04-30' },
+      ],
+      dow: [1, 2, 3, 4, 5],
+      timeOfDay: { start: '09:00', end: '17:00' },
+    };
+    const { sql, indexUsed } = build(value, "data->>'event_at'");
+    // tz(1) + relative.count(1) + absolute.from(1) + absolute.to(1) + dow(1) + tod.start(1) + tod.end(1) = 7
+    assert(indexUsed === 7, `composition placeholder count = 7, got ${indexUsed}`);
+    assert(sql.match(/\bOR\b/), 'multiple ranges OR together');
+    assert(sql.match(/\bAND\b/), 'axes AND together');
+
+    // values from getValuesFromGroup match the placeholder count
+    const vals = getValuesFromGroup({ col: "data->>'event_at'", op: 'time', value });
+    assert(vals.length === indexUsed, `values count (${vals.length}) must equal placeholders (${indexUsed})`);
+    pass('composition: range × dow × timeOfDay');
+  }
+
+  // ── handleFilterGroups end-to-end (placeholder count parity) ─────────
+  {
+    const filterGroups = {
+      op: 'and',
+      groups: [
+        {
+          col: "data->>'event_at'",
+          op: 'time',
+          value: { ranges: [{ kind: 'relative', unit: 'day', count: 7, direction: 'past' }] },
+        },
+      ],
+    };
+    const vals = getValuesFromGroup(filterGroups);
+    const { sql } = handleFilterGroups({ filterGroups, isDms: true, startIndex: 0, dbType: 'postgres' });
+    // Count UNIQUE $N placeholders — tz is referenced from multiple axes but
+    // bound once, so counting all occurrences over-reports.
+    const uniquePh = new Set((sql.match(/\$\d+/g) || []));
+    assert(uniquePh.size === vals.length, `parity: ${uniquePh.size} unique placeholders vs ${vals.length} bound; sql=${sql}`);
+    pass(`handleFilterGroups parity: ${uniquePh.size} unique placeholders match ${vals.length} bound values`);
+  }
+
+  // ── unsupported dbType throws ────────────────────────────────────────
+  let threw = false;
+  try {
+    buildTimeFilterSQL({ ranges: [{ kind: 'named', name: 'today' }] }, "data->>'ts'", { index: 0 }, true, 'sqlite');
+  } catch (e) {
+    threw = /sqlite/.test(e.message);
+  }
+  assert(threw, 'SQLite path throws');
+  pass('Phase 1 throws on SQLite');
+
+  // ── builder rejects invalid input ────────────────────────────────────
+  let badThrew = false;
+  try {
+    buildTimeFilterSQL({ ranges: [{ kind: 'relative', unit: 'fortnight', count: 1, direction: 'past' }] }, 'event_at', { index: 0 }, false, 'postgres');
+  } catch (e) {
+    badThrew = /unit/.test(e.message);
+  }
+  assert(badThrew, 'invalid unit throws from builder');
+  pass('builder enforces validator');
+}
+
 // ================================================= Test Runner ===================================================
 
 async function run() {
@@ -799,6 +1047,9 @@ async function run() {
     await testGetValuesFromGroupArrayContains();
     await testBuildLeafSQLArrayContains();
     await testArrayContainsIntegration();
+
+    // time-filter unit tests (Phase 1: PostgreSQL SQL generation, no DB calls)
+    await testTimeFilter();
 
     // DAMA mode tests
     await testDamaModeSourcesCrud();

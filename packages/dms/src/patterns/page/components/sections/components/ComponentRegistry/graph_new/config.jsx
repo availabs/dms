@@ -103,23 +103,33 @@ const homogenizeTargets = rawTargetsMap => {
 const GRAPH_TARGETS_MAP = homogenizeTargets({
     xAxis: {
         exclusive: true,
-        keys: ["xAxis", "group"],
-        remove: ["fn", "yAxis", "categorize"]
+        keys: ["xAxis"],
+        remove: ["fn", "yAxis", "categorize", "color"]
     },
     yAxis: {
         exclusive: false,
         keys: [
             "yAxis",
-            { key: "fn",
-                value: column => column.fn = (column.defaultFn || "count").toLowerCase()
-            }
+            // { key: "fn",
+            //     value: column => column.fn = (column.defaultFn || "count").toLowerCase()
+            // }
         ],
-        remove: ["xAxis", "group", "categorize"]
+        remove: ["xAxis", "categorize", "color"]
     },
     categorize: {
-        keys: ["categorize", "group"],
+        keys: ["categorize"],
         exclusive: true,
-        remove: ["xAxis", "fn", "yAxis"]
+        remove: ["xAxis", "fn", "yAxis", "color"]
+    },
+    color: {
+        exclusive: true,
+        keys: [
+            "color",
+            // { key: "fn",
+            //     value: column => column.fn = (column.defaultFn || "count").toLowerCase()
+            // }
+        ],
+        remove: ["xAxis", "yAxis", "categorize"]
     }
 })
 
@@ -135,8 +145,10 @@ export default {
     "name": 'AVL Graph',
     "type": 'avlGraph',
     "variables": [],
+
     useDataSource: true,
     useDataWrapper: true,
+
     fullDataLoad: true,
     useGetDataOnPageChange: false,
     showPagination: false,
@@ -149,9 +161,9 @@ export default {
                     { label: "X axis", value: "xAxis" },
                     { label: "Y axis", value: "yAxis" },
                     { label: "Categorize", value: "categorize" },
-                    // { label: "Color", value: "color",
-                    //     displayCdn: ({ display }) => display.graphType === "GridGraph"
-                    // },
+                    { label: "Color", value: "color",
+                        displayCdn: ({ display }) => display.graphType === "GridGraph"
+                    },
                     // { label: "Grid Height", value: "height",
                     //     displayCdn: ({ display }) => display.graphType === "GridGraph"
                     // },
@@ -159,42 +171,42 @@ export default {
                     //     displayCdn: ({ display }) => display.graphType === "GridGraph"
                     // }
                 ],
-                onChange: ({ key, state, value, columnIdx, attribute }) => {
+                // onChange: ({ key, state, value, columnIdx, attribute }) => {
 
-                    const isExclusive = Boolean(GRAPH_TARGETS_MAP[value]?.exclusive);
-                    const hasValue = !hasNoValue(value);
+                //     const isExclusive = Boolean(GRAPH_TARGETS_MAP[value]?.exclusive);
+                //     const hasValue = !hasNoValue(value);
 
-                    state.columns.forEach((column, i) => {
-                        if (i === columnIdx) {
-                            if (hasValue) {
-                                GRAPH_TARGETS_MAP[value].keys.forEach(({ key, value }) => {
-                                    column[key] = value(column);
-                                });
-                                GRAPH_TARGETS_MAP[value].remove.forEach(k => delete column[k]);
-                            }
-                            else {
-                                delete column.xAxis;
-                                delete column.categorize;
-                                delete column.group;
-                                delete column.yAxis;
-                            }
-                        }
-                        else if (hasValue && isExclusive) {
-                            const needsRemoval = GRAPH_TARGETS_MAP[value].keys.reduce((a, { key }) => {
-                                return a && Boolean(column[key]);
-                            }, true);
-                            if (needsRemoval) {
-                                GRAPH_TARGETS_MAP[value].keys.forEach(({ key }) => {
-                                    delete column[key];
-                                });
-                                if (column.target === value) {
-                                    delete column.target;
-                                }
-                            }
-                        }
-                    })
+                //     state.columns.forEach((column, i) => {
+                //         if (i === columnIdx) {
+                //             if (hasValue) {
+                //                 GRAPH_TARGETS_MAP[value].keys.forEach(({ key, value }) => {
+                //                     column[key] = value(column);
+                //                 });
+                //                 GRAPH_TARGETS_MAP[value].remove.forEach(k => delete column[k]);
+                //             }
+                //             else {
+                //                 delete column.xAxis;
+                //                 delete column.categorize;
+                //                 delete column.group;
+                //                 delete column.yAxis;
+                //             }
+                //         }
+                //         else if (hasValue && isExclusive) {
+                //             const needsRemoval = GRAPH_TARGETS_MAP[value].keys.reduce((a, { key }) => {
+                //                 return a && Boolean(column[key]);
+                //             }, true);
+                //             if (needsRemoval) {
+                //                 GRAPH_TARGETS_MAP[value].keys.forEach(({ key }) => {
+                //                     delete column[key];
+                //                 });
+                //                 if (column.target === value) {
+                //                     delete column.target;
+                //                 }
+                //             }
+                //         }
+                //     })
 
-                }
+                // }
             },
             { type: 'select',
                 label: 'Fn', key: 'fn',
@@ -205,33 +217,33 @@ export default {
                     { label: 'list', value: 'list' },
                     // { label: 'fn exempt', value: 'exempt' }
                 ],
-                onChange: ({ key, state, value, columnIdx, attribute }) => {
-                    const column = state.columns[columnIdx];
-                    if (hasNoValue(value)) {
-                        column.yAxis = false;
-                        column.categorize = false;
-                        column.target = undefined;
-                    }
-                    else {
-                        column.xAxis = false;
-                        column.yAxis = true;
-                        column.target = "yAxis";
-                    }
-                },
-                displayCdn: ({ attribute }) => attribute.target === "yAxis"
-            },       
-            { type: 'select',
-                label: 'Sort', key: 'sort',
-                options: [
-                    { label: 'Not Sorted', value: '' },
-                    { label: 'A->Z', value: 'asc nulls last' },
-                    { label: 'Z->A', value: 'desc nulls last' }
-                ],
-                displayCdn: ({ attribute }) => attribute.target === "xAxis"
-            },
-            // { type: 'toggle',
-            //     label: 'Group', key: 'group',
-            //     displayCdn: ({ attribute }) => attribute.target === "categorize"
+                // onChange: ({ key, state, value, columnIdx, attribute }) => {
+                //     const column = state.columns[columnIdx];
+                //     if (hasNoValue(value)) {
+                //         column.yAxis = false;
+                //         column.categorize = false;
+                //         column.target = undefined;
+                //     }
+                //     else {
+                //         column.xAxis = false;
+                //         column.yAxis = true;
+                //         column.target = "yAxis";
+                //     }
+                // },
+                // displayCdn: ({ attribute }) => attribute.target === "yAxis"
+            },     
+            { type: 'toggle',
+                label: 'Group', key: 'group',
+                // displayCdn: ({ attribute }) => attribute.target === "categorize"
+            },  
+            // { type: 'select',
+            //     label: 'Sort', key: 'sort',
+            //     options: [
+            //         { label: 'Not Sorted', value: '' },
+            //         { label: 'A->Z', value: 'asc nulls last' },
+            //         { label: 'Z->A', value: 'desc nulls last' }
+            //     ],
+            //     // displayCdn: ({ attribute }) => attribute.target === "xAxis"
             // },
         ],
         // columns: [
@@ -329,11 +341,11 @@ export default {
                 {type: 'input', inputType: 'number', label: 'Padding',          key: 'padding'},
                 {type: 'input', inputType: 'number', label: 'Height',        key: 'height'},
                 // {type: 'toggle',                   label: 'Dark Mode',       key: 'darkMode'},,
-                // { type: "toggle",
-                //     label: "Make Continuous X Domain",
-                //     key: "makeContinuousXDomain",
-                //     displayCdn: ({ display }) => display.graphType === "LineGraph"
-                // },
+                { type: "toggle",
+                    label: "Make Continuous X Domain",
+                    key: "makeContinuousXDomain",
+                    displayCdn: ({ display }) => display.graphType === "LineGraph"
+                },
                 {type: 'toggle',                   label: 'Use Custom X Ticks', key: 'useCustomXDomain'},
                 {
                     type: ({value, setValue, state}) => (

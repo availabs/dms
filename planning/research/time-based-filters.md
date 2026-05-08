@@ -1,307 +1,354 @@
-# Time-based filter values in dataWrapper
+# User-driven time filters in dataWrapper
 
-Research note (not a plan-of-record). Triggered by the WCDB schedule pattern: the home page's schedule card needs to surface only the show that's airing **right now** — i.e., the row where `start_day` matches today's day-of-week, `start_time <= NOW < end_time`. The current dataWrapper filter pipeline has no way to express "now", and the WCDB schedule's stored data shape (12-hour text, full English day names) makes naive comparison wrong even if a "now" injection existed.
+Research note (not a plan-of-record). The original trigger was the WCDB home page's schedule card needing to surface only the show airing **right now**, but that's one corner of a much broader problem: the dataWrapper filter pipeline has no first-class concept of time. End users can't pick "last 30 days" on a logs page; admins can't set "weekends only" on an events card; sections can't compose "last 7 days, weekday afternoons" without writing custom SQL. This note reframes the design space around general user-driven time filtering, with "now" injection as one capability among several.
 
-This note inventories the current filter pipeline, names the gaps, and sketches the design space for a generalizable "current-time" filter mechanism.
+## Goal
 
-## The forcing problem
+Give end users (and admins authoring sections) one composable filter primitive that can express:
 
-WCDB DJs source v2 has a schedule view (`source_id: 1957812`, view 1957813) where each row is a recurring weekly slot:
+- **Relative range from now** — last 30 days, last 7 days, last 1/3/24 hours, this week, this month, today, yesterday.
+- **Absolute date/time range** — from `2024-01-01` to `2024-06-30`, or open-ended (`since 2024-01-01`, `before 2026-01-01`).
+- **Day-of-week restriction** — weekdays only, weekends only, just Saturdays + Sundays, all days except Wednesday.
+- **Time-of-day window** — between 9:00 AM and 5:00 PM regardless of date.
+- **Compositions** of the above — "last 7 days, weekends only, between 8 PM and midnight".
+- **"Now" point-in-range tests** for stored start/end columns — the schedule "show airing right now" case.
 
-| column | observed values |
-|---|---|
-| `start_day` | `"Monday"`, `"Tuesday"`, …, `"Sunday"` (full English name; some empty) |
-| `start_time` | `"10:00AM"`, `"6:00PM"` (12-hour text; some empty) |
-| `end_day` | same shape as `start_day` |
-| `end_time` | same shape as `start_time` |
+The user is comfortable stipulating that the column being filtered is a real `date` or `timestamp` type. That's a load-bearing simplification: server-side cast just works, lexical-comparison footguns disappear, and the UDA generator can emit native Postgres `date_trunc` / `EXTRACT(DOW FROM …)` / `AT TIME ZONE` predicates without wrapping every value in a `to_timestamp()` first. Existing string-time columns (the WCDB schedule's `"6:00PM"` shape) are an *adjacent* problem solved by storage normalization or per-section calculated columns; they don't need to be on the critical path here.
 
-The home page wants the section's filter to be roughly:
+The two genuinely hard parts are:
+
+1. **A primitive shape that compresses these intents into one structured filter** so the UDA SQL generator and the editor UI both have a single thing to consume.
+2. **A user input surface** that exposes all of this without becoming a settings dialog. Many possible knobs × small visible footprint = the design challenge.
+
+## The forcing problems
+
+Two concrete sections drive the requirements:
+
+**Logs / activity feed.** Users want to drop into a logs page and immediately filter to "last hour", "last 24 hours", "today", "last 7 days", or "last 30 days". They want a custom relative range for diagnostics ("last 90 minutes"). They occasionally want an absolute window ("November 2024"). The filter is *user-controllable* — section authors don't fix it ahead of time, they expose it.
+
+**Schedule card (WCDB).** A row represents a recurring weekly slot with `start_day`, `start_time`, `end_day`, `end_time`. The home page wants the row that's airing *right now*. That's the point-in-range test: find the row whose `(start_day, start_time) <= now < (end_day, end_time)`. The filter is *section-fixed* — admins don't set "now"; the section evaluates it on every clock tick.
+
+These look different but share the same primitive: an expression of time intent that resolves to SQL. The logs case wants user choice; the schedule case wants automatic injection. Both compile to the same shape.
+
+## Current filter pipeline (background)
+
+Files under `src/dms/packages/dms/src/patterns/page/components/sections/components/dataWrapper/`.
+
+**Storage.** Two coexisting representations:
+
+- *Per-column legacy filters* — `column.filters: [{type, operation, values, usePageFilters?, searchParamKey?, …}]`. `extractLegacyColumnFilters` (`buildUdaConfig.js:356-407`) flattens these to `{filter, exclude, gt, gte, lt, lte, like}` per-column maps.
+- *Top-level filter tree* — `state.filters = { op: 'AND'|'OR', groups: [...] }` with leaves `{col, op, value, usePageFilters?, searchParamKey?}`. Built/edited in `ComplexFilters.jsx`.
+
+**Runtime** (`buildUdaConfig.js:776+`):
+
+1. `applyTableAliasToJoin` — alias-prefixes `col` for join queries.
+2. `applyPageFilters` — for each leaf with `usePageFilters: true`, replaces `value` with `pageFilters[searchParamKey || col]`.
+3. `extractNormalFiltersFromGroups` — peels per-column "normal" filters out of the tree.
+4. `mapFilterGroupCols` — rewrites `col` to server-side ref form (`data->>'name' as name` for DMS) and translates `multiselect` ops to `array_contains` / `array_not_contains`.
+5. `operationToExpressionMap` translates leaf ops to SQL: `filter→IN`, `exclude→NOT IN`, `gt/gte/lt/lte→>/>=/</<=`, `like→%…%`.
+6. The compiled `options` blob feeds UDA, which emits SQL.
+
+**Page state — the existing "external" feed.** `pageState.filters: Array<{searchKey, values, useSearchParams, type?}>` is written by URL changes (`view.jsx:63-65`), in-section filter UIs (`RenderFilters.jsx:81-99`), and section "providers" (Card/Spreadsheet hover publishes via `setActionParam`). All values are static strings/arrays — nothing produces clock-derived values today.
+
+## Why user time filters don't fit today
+
+Five concrete gaps:
+
+1. **No structured time op.** Every leaf is `{col, op: 'gt'|'lte'|...}` against a scalar value. There's no way to express "this column is within last 7 days" as a single leaf — the user would have to construct two leaves (`gte` + `lte`) and the pipeline has nowhere to look up "now" for either bound.
+2. **No composition primitive for time.** "Last 7 days AND weekends only" is two semantically distinct constraints (range + DOW set). The current tree can AND two leaves, but DOW filtering is `EXTRACT(DOW FROM …)` — there's no leaf op that emits that. A user trying to construct this today gets stuck at "I want to filter on a function of the column, not the column itself".
+3. **No clock-derived values.** `usePageFilters` reads the URL; the URL only carries what something else wrote. There's no `valueSource: 'now'` or `valueSource: 'now - 7d'`.
+4. **No re-trigger on time passing.** Even if a value were injected once at mount, the section wouldn't refetch when the wall clock rolls past the next minute / hour / day boundary. For "last 30 days" the boundary moves every midnight; for "last hour" every minute.
+5. **No type awareness.** `gt`/`lt` on a `text` column generates lexical SQL comparison. Stipulating the column is `date`/`timestamp` removes this gap, but the generator still has to *know* it's safe to emit `column AT TIME ZONE $tz` instead of `data->>'col'`. UDA's column metadata can carry this; today the filter pipeline doesn't consult it.
+
+The unified-column-types research note ([unified-column-types.md](./unified-column-types.md)) covers the type-awareness gap from a different angle. Time filters need that work to land or to live alongside it.
+
+## The operation taxonomy
+
+Every user time intent decomposes into at most three orthogonal axes against a single date/datetime column:
+
+| Axis | What it constrains | Examples |
+|---|---|---|
+| **Range** | The continuous interval the value falls inside | last 7 days; from 2024-01-01 to 2024-06-30; this month; since the start of last quarter; before today |
+| **Day-of-week** | Which weekday(s) of the value's local date | weekdays only; weekends only; Saturdays |
+| **Time-of-day** | Which clock-time window of the value's local time | between 9:00 AM and 5:00 PM; before noon |
+
+Compositions are AND across axes. "Last 7 days, weekends only, between 8 PM and midnight" = `range:last_7d AND dow:[Sat,Sun] AND timeOfDay:[20:00, 24:00)`.
+
+A single column can carry multiple disjoint **range entries** OR'd together (e.g. "April or October"), so the range axis is a list, not a single value:
 
 ```
-start_day = <today_dow_name>
-AND start_time <= <current_local_time>
-AND end_time   >  <current_local_time>
-```
-
-Two distinct problems:
-
-1. **No "now" injection.** Filter values today are static (set in admin) or pulled from page-state filters (which are URL-driven, not clock-driven).
-2. **Lexical comparison won't work on these strings.** `"10:00AM"` < `"6:00PM"` is true because `'1' < '6'`, and `"12:00PM"` > `"6:00PM"` is also true alphabetically — wrong both ways. Even if a "now" injection existed, you couldn't drop `start_time <= "<now>"` against this storage form.
-
-A real solution has to address both — either at the filter layer (interpret + transform values), at the storage layer (normalize ingest), or at both.
-
-## Current filter pipeline
-
-The dataWrapper filter system has two coexisting representations and a runtime resolver. Files are all under `src/dms/packages/dms/src/patterns/page/components/sections/components/dataWrapper/`.
-
-### Storage shapes
-
-**Per-column filter (legacy):** every column may carry a `filters` array of operation entries.
-
-```js
-column.filters = [
-  {
-    type: 'internal' | 'external',
-    operation: 'filter' | 'exclude' | 'like' | 'gt' | 'gte' | 'lt' | 'lte',
-    values: any[],                  // currently always a static literal array
-    usePageFilters?: boolean,       // if true, value pulled from pageState
-    searchParamKey?: string,        // page-state lookup key
-    isMulti?: boolean,
-    fn?: 'sum' | 'count' | 'max' | 'list',
-    display?: 'expanded' | 'tabular',
-  },
-  // …
+ranges: [
+  { kind: 'relative', unit: 'day', count: 7, anchor: 'now' },
+  { kind: 'absolute', from: '2024-04-01', to: '2024-04-30' }
 ]
 ```
 
-`extractLegacyColumnFilters(columns)` (`buildUdaConfig.js:356-407`) walks these, drops invalid entries, and produces a flat per-operation map: `{filter: {colName: values}, exclude: {…}, gt: {colName: val}, like: {…}}`.
+A handful of preset ranges shows up over and over and deserves explicit kinds rather than a generic "from/to":
 
-**Top-level filter tree (current):** `state.filters = { op: 'AND'|'OR', groups: [...] }` where each leaf is `{ col, op, value, usePageFilters?, searchParamKey? }` and each group recurses. Built/edited in `ComplexFilters.jsx`. Carried through unchanged into `buildUdaConfig`.
+| kind | shape | examples |
+|---|---|---|
+| `relative` | `{unit, count, direction: 'past'|'future', anchor: 'now'}` | last 30 days, next 7 days, last 1 hour |
+| `current_period` | `{period: 'hour'|'day'|'week'|'month'|'quarter'|'year'}` | this week, this month |
+| `named` | `{name: 'today'|'yesterday'|'tomorrow'}` | today |
+| `absolute` | `{from?, to?}` (either bound optional → open-ended) | from 2024-01-01 to 2024-06-30; before 2026-01-01 |
+| `instant` | `{at: 'now'}` | the schedule's "show airing right now" — point-in-range test |
 
-### Runtime pipeline (`buildUdaConfig.js:776-…`)
+`instant` is the key piece for the schedule case. With it, "find the row airing now" becomes `range: [{kind: 'instant', at: 'now'}]` against a column with both bounds (or a pair of columns interpreted as start/end). See "Point-in-range" below.
 
-1. `applyTableAliasToJoin(filterTree, …)` — prefixes `col` with the join alias when joins are present (`:292-318`).
-2. `applyPageFilters(filterTree, pageFilters)` (`:325-348`) — for each leaf with `usePageFilters: true`, replaces `value` with `pageFilters[searchParamKey || col]`.
-3. `extractNormalFiltersFromGroups(filterTree)` — splits "normal" (per-row column) filters out of the tree.
-4. `mapFilterGroupCols(filterTree, getColumn, isDms)` (`:161-228`) — rewrites `col` to the server-side ref form (`data->>'name' as name` for DMS, raw column for DAMA), and translates `multiselect` filter/exclude leaves to `array_contains` / `array_not_contains` ops.
-5. Operations map to SQL via `operationToExpressionMap` (`:130-137`): `filter→IN`, `exclude→NOT IN`, `gt→>`, `gte→>=`, `lt→<`, `lte→<=`. `like` is wrapped in `%…%` (`:186`).
-6. The final `options` blob (`:1027-…`) is passed to UDA, which generates SQL.
+The DOW and time-of-day axes are simpler — a small set of weekdays and a `[start, end)` clock-time pair respectively.
 
-### Page state — the existing "external" feed
+## Filter primitive shape
 
-`pageState.filters: Array<{ searchKey, values, useSearchParams, type? }>` lives on the page. Three sources write into it:
-
-- **URL search params** — `view.jsx:63-65` calls `updatePageStateFiltersOnSearchParamChange` on any URL change.
-- **Filter UI inside a section** — `RenderFilters.jsx:81-99`, `RenderFilterValueSelector.jsx:268-298` push back into pageState on user interaction.
-- **Section "providers"** — Card and Spreadsheet sections can publish row values on hover via `setActionParam(key, value)` (`view.jsx:71-80`). These land as `{type: 'action'}` filters in the same pageState array (used by Card's `row_highlight` subscriber, `Card.config.jsx:227-249`).
-
-In all cases the *value* is a static string/array/number — set once and only changed when something else writes back. Nothing produces values from the clock.
-
-## Why "now" doesn't fit today
-
-Concretely, three barriers stop a section from filtering on the current time:
-
-1. **No source for clock-derived values.** `usePageFilters` reads `pageFilters[searchParamKey]`, which can only carry what the URL or another component already wrote. There is no `valueSource: 'now'` or equivalent.
-2. **No re-trigger on time passing.** Even if a value were injected once at mount, the section wouldn't re-fetch when the wall clock rolled past the next minute / hour / day boundary unless something explicitly invalidated.
-3. **No type awareness on filter values.** `gt`/`lt` ops on a `text` column fall through to lexical SQL comparison. The pipeline never asks "what kind of value is this — text, time, day-of-week ordinal?". The unified-column-types research note ([unified-column-types.md](./unified-column-types.md)) covers the deeper version of this problem; time filters expose the same gap from a different angle.
-
-## The storage problem (independent of "now")
-
-Before discussing how to inject `now`, observe that the WCDB schedule data alone breaks `gt`/`lt` filters even with hardcoded values:
-
-| stored `start_time` | sorted lexicographically |
-|---|---|
-| `"10:00AM"` | comes before `"2:00AM"` |
-| `"6:00PM"` | comes before `"7:00AM"` |
-| `"12:00AM"` | comes before `"1:00AM"` |
-
-For ordering or ranged filtering to work on this column at all, one of these has to happen:
-
-- **Server-side cast** — if `start_time` is known to be 12-hour text, the SQL generation must cast: `(data->>'start_time')::time`. This requires the pipeline to know the column's *real* type, which it doesn't (today `column.type` is a render hint only, not a sortable type). Unified-column-types research is the correct vehicle for this.
-- **Client-side normalization at ingest** — the DJs source's CSV import / form publish writes `start_time` as `"22:00:00"` (24-hour ISO `time`) and `start_day_idx` as `1..7` next to the human-readable column. Comparison then "just works" for any new tooling.
-- **Computed columns** — declare a virtual column on the source whose expression is `to_minutes(start_time)`. UDA already supports calculated/formula columns (`AddCalculatedColumn`/`AddFormulaColumn`). This avoids re-importing data but adds a per-section binding.
-
-This note's recommendation (see below) leans on the second approach for new data and the first for existing data; the third is a useful fallback when neither is feasible.
-
-## Design space for "current-time" injection
-
-Four options, ordered roughly by complexity:
-
-### Option A — Computed filter values resolved at buildUdaConfig
-
-Extend the filter leaf shape with a `valueSource` channel:
+The smallest extension that captures the taxonomy is a new leaf op `time` whose value is a structured object:
 
 ```js
 {
-  col: 'start_day',
-  op: 'filter',
-  valueSource: 'now',         // new
-  valueFormat: 'day_name_full',  // new — one of a small library of formats
-  // value is left blank; resolved at build time
+  col: 'event_at',                  // a date or timestamp column
+  op: 'time',                       // new
+  value: {
+    ranges?: Array<RangeEntry>,     // OR'd together; omitted = no range constraint
+    dow?: number[],                 // 0..6 (Sun=0); omitted = all days
+    timeOfDay?: { start: 'HH:MM', end: 'HH:MM' },  // omitted = full day
+    tz?: 'America/New_York',        // omitted = pattern default → browser default
+    compareEnd?: 'col-name',        // for point-in-range; the row's end column
+  },
+  usePageFilters?: boolean,         // existing channel; values come from pageState
+  searchParamKey?: string,
 }
 ```
 
-`buildUdaConfig` resolves it before SQL generation:
+Where `RangeEntry` is one of the kinds in the taxonomy table.
 
-```js
-const resolveValueSource = ({ valueSource, valueFormat, params }, clock = Date) => {
-  if (valueSource !== 'now') return undefined;
-  const now = new clock();
-  switch (valueFormat) {
-    case 'day_name_full': return now.toLocaleString('en-US', { weekday: 'long', timeZone: params?.tz });
-    case 'time_24h':      return now.toLocaleString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: params?.tz });
-    case 'minutes_since_midnight': return now.getHours() * 60 + now.getMinutes();  // tz-aware variant TBD
-    case 'iso_timestamp': return now.toISOString();
-    case 'date_iso':      return now.toISOString().slice(0, 10);
-    // …
-  }
-};
+A few properties of this shape that matter:
+
+- **One leaf, one column, all axes.** The user expresses the full intent in a single editor row instead of stitching two `gte`/`lte` leaves with a magic AND. The UI can render the three axes as three controls inside one card.
+- **Disjoint ranges trivially OR.** "April or October" is two entries in the array; the SQL generator emits `(range1) OR (range2)`. DOW + time-of-day still AND across the union.
+- **`compareEnd` enables point-in-range.** When set, the leaf evaluates `<col> <= now AND <compareEnd> > now` instead of `now BETWEEN col AND compareEnd`-on-one-column. This is the schedule case: `col: start_at, compareEnd: end_at, ranges: [{kind:'instant', at:'now'}]`.
+- **`tz` is per-leaf with pattern-level default.** WCDB station-clock case sets `tz: 'America/New_York'`; default is the browser's resolved zone, with a pattern-level override for site-configured timezones.
+- **`usePageFilters` still applies.** The leaf's structured value can come from page state (URL params) — see "Surface" below for the URL encoding sketch.
+- **`valueSource: 'now'` from the prior draft folds in.** The previous note's "compute the value at build time" mechanism becomes "the `relative` and `instant` range kinds anchor to `now` at build time". One mechanism, multiple expressions.
+
+A `static` filter (existing `gt`/`lt`/etc) on the same column should keep working — the new `time` op is additive, not a replacement. Migration is opt-in: a section author opens the filter, picks "time filter" instead of "greater than", builds the new structure.
+
+### URL / pageState encoding
+
+For user-controllable filters that survive page reloads + sharing, the `time` value needs a URL form. Suggest a compact textual encoding (similar in spirit to Kibana's `now-7d`):
+
+```
+last:7d                          → relative, past, 7 days
+last:1h                          → relative, past, 1 hour
+this:week                        → current_period, week
+today                            → named, today
+since:2024-01-01                 → absolute, from-only
+2024-01-01..2024-06-30           → absolute, from + to
+weekdays                         → dow:[1..5]
+weekends                         → dow:[0,6]
+sat+sun                          → dow:[6,0]
+9:00-17:00                       → timeOfDay
+last:7d&weekdays&9:00-17:00      → composition (AND-joined with &)
+last:7d|2024-04                  → multiple ranges (OR-joined with |)
 ```
 
-A small, named library of formats keeps the channel disciplined; the `params` object lets a leaf pass `tz: 'America/New_York'` (essential for WCDB).
+Parser is small and deterministic; the editor UI roundtrips through this string so URL changes update the editor and vice versa. (Open question: stick with structured JSON in the URL instead, simpler but uglier.)
 
-**Re-trigger on the clock:** `useDataLoader` (or `useDataSource`) subscribes to a `useNowTick({ resolution })` hook that bumps a version each time the resolved value would change. Resolution comes from the leaf's `valueFormat`:
+## Server translation
 
-| valueFormat | natural tick |
-|---|---|
-| `day_name_full`, `date_iso` | midnight (recompute once per day) |
-| `time_24h`, `minutes_since_midnight` | once per minute |
-| `iso_timestamp` (live `created_at` displays) | once per minute, or per second only if requested |
+Each compiled time filter becomes one SQL predicate, ANDed/ORed by the UDA generator at the same level as the existing per-leaf SQL. The work happens in UDA's `handleFilters` (server-side, `routes/uda/utils.js:305-348` per the unified-column-types research note).
 
-The hook can compute the next boundary and use `setTimeout` to fire exactly at that boundary — no polling.
-
-**Scope:** purely client. No server changes. Plays well with the column-name → server-ref mapping that already happens in `mapFilterGroupCols`.
-
-**Tradeoff:** doesn't address the storage problem. If `start_time` is `"6:00PM"` text and the resolved `now` is `"18:00"`, the SQL will still do `data->>'start_time' >= '18:00'` and pick rows lexicographically — wrong.
-
-### Option B — Page-level system params
-
-Treat the clock as another writer to `pageState.filters`:
-
-```js
-// pages/view.jsx
-useNowTick(({ now, today_dow_name, today_minutes }) => {
-  setPageState(draft => {
-    upsertFilter(draft, { searchKey: '__now_dow', values: [today_dow_name], type: 'system' });
-    upsertFilter(draft, { searchKey: '__now_minutes', values: [today_minutes], type: 'system' });
-  });
-});
-```
-
-Filters then reference these via `usePageFilters: true, searchParamKey: '__now_dow'` — exactly the existing channel.
-
-**Scope:** thin glue on top of `pageState.filters` and `usePageFilters`. No schema changes to filter leaves.
-
-**Tradeoffs:**
-- Mixes a clock signal into URL search-param territory (`pageState.filters` is what backs URL params and pattern-level filters today). Adding a `type: 'system'` discriminator avoids URL pollution but adds branching everywhere `pageState.filters` is consumed.
-- Section authors have to know the magic `__now_*` keys; the per-leaf `valueSource: 'now'` of Option A is more self-describing.
-- Same storage tradeoff as A — the value is still a string compared lexically against the column.
-
-### Option C — Server-side `$NOW` expressions
-
-Allow the filter `value` to be a sentinel like `{ $expr: 'now', tz: 'America/New_York' }`, and translate server-side:
+**Range:**
 
 ```sql
--- before
-WHERE data->>'start_time' >= 'AT_NOW'
--- after, server substitutes
-WHERE data->>'start_time' >= to_char(now() AT TIME ZONE $1, 'HH24:MI')
+-- relative: last 7 days
+event_at >= now() - interval '7 days' AND event_at <= now()
+-- current_period: this week  (Postgres date_trunc)
+event_at >= date_trunc('week', now() AT TIME ZONE $tz)
+  AND event_at < date_trunc('week', now() AT TIME ZONE $tz) + interval '1 week'
+-- named: today
+event_at >= date_trunc('day', now() AT TIME ZONE $tz)
+  AND event_at < date_trunc('day', now() AT TIME ZONE $tz) + interval '1 day'
+-- absolute
+event_at >= $1 AND event_at <= $2
+-- instant point-in-range (with compareEnd)
+event_at <= now() AND end_at > now()
 ```
 
-**Tradeoffs:**
-- Unambiguously correct — postgres knows the time and the column type, no client/server clock skew.
-- Naturally pairs with server-side casts (the right place to fix the lexical-comparison problem too).
-- Requires server work (allow-listing expression sentinels, careful escaping). Touches the UDA `handleFilters` path (`routes/uda/utils.js:305-348` per the unified-column-types research). Adds a security surface that has to be carefully bounded.
-- No re-trigger story by itself — the section still has to invalidate on a tick if the user keeps the page open. This option doesn't replace the client-side tick; it complements it.
+**DOW:**
 
-### Option D — Storage normalization
-
-Stop fighting the data shape. For the schedule:
-
-- `start_time_minutes` = integer minutes since midnight of the start (e.g., `1320` for 10:00 PM)
-- `end_time_minutes` = same
-- `start_day_idx` = 0..6 (Sunday=0, matching JS `Date#getDay()`)
-- Keep `start_time` / `start_day` as display-only string columns, derived at render time
-
-With these, `gt`/`lt` work natively. The "active show" filter becomes:
-
-```
-start_day_idx = {now_dow}
-AND start_time_minutes <= {now_minutes}
-AND end_time_minutes  >  {now_minutes}
+```sql
+EXTRACT(DOW FROM event_at AT TIME ZONE $tz)::int IN (0, 6)
 ```
 
-Where `{now_dow}` and `{now_minutes}` come from Option A (or B, or C). Nothing about the comparison logic is special anymore.
+**Time-of-day:**
 
-**Scope:** ingest pipeline change (CSV/form publish handlers), source `metadata.columns` adds two integer columns, existing rows get a one-time migration script to populate them.
+```sql
+(event_at AT TIME ZONE $tz)::time >= '09:00'::time
+  AND (event_at AT TIME ZONE $tz)::time < '17:00'::time
+```
 
-**Tradeoffs:**
-- Permanent fix; downstream tooling (sorting, filtering, charting) all benefits.
-- One-time cost: data migration + client display formatters.
-- Doesn't help sources we can't change (third-party CSVs that arrive with text times). For those, the server-side cast in Option C (or a client-side calculated column) is the relief valve.
+**Composition:** all three predicates ANDed; multiple ranges ORed inside the range bucket then ANDed with DOW + time-of-day.
+
+Two server-side concerns:
+
+- **Allow-list.** The set of `RangeEntry.kind` values, DOW indices, and timeOfDay format must be strictly validated. No raw expression injection. The server accepts only the named shapes from the taxonomy.
+- **`tz` parameterization.** Every clause that depends on calendar boundaries takes a `$tz` IANA name as a parameter. UDA already parameterizes filter values; this is a new bind slot per leaf. Default falls through to a session/server timezone if the leaf doesn't specify.
+
+ClickHouse path (`uda/query_sets/clickhouse.js`) needs the same translations with CH-flavored functions: `now()`, `toStartOfWeek`, `toDayOfWeek`, etc. Identical structure, different syntax tree.
+
+## Live re-trigger
+
+Filters anchored to `now` (any `relative`, `current_period`, `named`, `instant` kind) need to invalidate the section when the clock crosses the next boundary they depend on. Granularity per kind:
+
+| kind | natural tick |
+|---|---|
+| `relative` with `unit: 'minute'` | every minute |
+| `relative` with `unit: 'hour'` | every hour |
+| `relative` with `unit: 'day'`, `current_period: 'day'`, `named: 'today'` | midnight (in `tz`) |
+| `current_period: 'week'`/`'month'`/`'quarter'`/`'year'` | start-of-week/month/quarter/year midnight |
+| `instant: now` | resolution chosen by section (default: minute) |
+
+A `useNowTick({ resolutions, tz })` hook computes the *next* such boundary, sets a single `setTimeout` to fire at it, then re-resolves. The hook returns a counter that participates in `useDataLoader`'s fetch-deps list — a tick triggers refetch through the same path as a column add. No polling.
+
+For a section with multiple time filters at different granularities, the hook aggregates to the finest required tick.
+
+## UX surface (the hard part)
+
+The taxonomy gives us a lot of expressive power; the UI has to expose it without overwhelming. Three observations frame the design:
+
+1. **Most users want one of ~7 presets.** Today, yesterday, last hour, last 24 hours, last 7 days, last 30 days, this month. Anything that makes those one click is a win.
+2. **Compositions are admin- or power-user territory.** Most people don't combine DOW + time-of-day; the few who do are doing it deliberately and tolerate a couple of extra clicks.
+3. **Discoverability vs. footprint.** The filter UI sits in section settings, often in a popover. It can't be a multi-page wizard. But it has to surface that DOW and time-of-day are *available* without forcing them into the user's face.
+
+### Three layout candidates
+
+**Option U1 — Tabbed picker.** A popover with three tabs: `Range | Day | Time`. Most users land on Range, pick a preset, close. Power users open the other tabs to add constraints. Active constraints show as small chips below the tabs ("last 7 days · weekends · 9 AM–5 PM").
+
+```
+┌──────────────────────────────────────────┐
+│ [ Range ] [ Day ] [ Time ]               │
+│                                          │
+│  ◉ Today          ○ This week            │
+│  ○ Yesterday      ○ This month           │
+│  ○ Last hour      ○ This year            │
+│  ○ Last 24 hours  ○ Custom relative…     │
+│  ○ Last 7 days    ○ Custom absolute…     │
+│  ○ Last 30 days                          │
+│                                          │
+│  Timezone: America/New_York [edit]       │
+└──────────────────────────────────────────┘
+
+Below the popover (when collapsed):
+  ⏱ last 7 days · ✕ remove
+  📅 weekends    · ✕ remove
+  🕐 9 AM – 5 PM · ✕ remove
+```
+
+Pros: each tab is small and focused; presets dominate the Range tab; the chip strip makes compositions visible. Cons: hidden tabs reduce discoverability of DOW/time-of-day for first-time users.
+
+**Option U2 — Stacked builder rows.** All three axes visible at once, each a single editable row. Default rows say "Any" and don't constrain.
+
+```
+┌───────────────────────────────────────────────┐
+│ Range:  ▼ last 7 days                          │
+│ Day:    ▼ Any                                  │
+│ Time:   ▼ Any                                  │
+│                                                │
+│ Timezone: America/New_York [edit]              │
+└───────────────────────────────────────────────┘
+```
+
+Pros: zero discoverability cost; the user sees there are three axes immediately. Cons: vertical real-estate; less elegant for the 90% case of "just pick a preset".
+
+**Option U3 — Preset bar + advanced disclosure.** A horizontal preset bar (one click resolves the common cases), with an "Advanced…" link that expands into the U1 or U2 layout for compositions and absolute ranges.
+
+```
+┌─────────────────────────────────────────────────────┐
+│ [Today] [Last hour] [Last 24h] [Last 7d] [Last 30d] │
+│ [Custom range…] [Day of week…] [Time of day…]        │
+└─────────────────────────────────────────────────────┘
+```
+
+Pros: fastest for the common case; presets are buttons, not menu items. Cons: button bar gets visually heavy with 8+ presets; secondary axes still need a place.
+
+### Recommendation
+
+**Hybrid: U3 wraps U1.** A preset row at the top covers the 90% case in one click. Below it, three labeled rows (`Range / Day / Time`) for explicit composition. Each row defaults to "Any" if not set. Custom relative ranges use a small inline editor (`Last [7] [days]`); absolute ranges open a small calendar; DOW is a 7-checkbox grid; time-of-day is two `HH:MM` inputs with a slider variant.
+
+Active constraints render as a chip strip outside the picker so the user sees the composed filter at a glance after they close it.
+
+The preset bar resolves to setting *just* the Range axis; selecting a preset clears any custom Range entries (with a "+ Add another range" affordance for OR'd disjoint windows).
+
+### Section author vs. end user
+
+Two consumers of the same UI, different defaults:
+
+- **Section author (admin)** sets filter shape + a default range, optionally publishes the filter to URL params (`useSearchParams: true`) so end-users can change it. Author can also fix axes (e.g. always weekends, end users can only pick the Range).
+- **End user (viewer)** sees only the axes the author exposed. If the author published the Range axis but locked DOW + time-of-day, the user sees just the preset row + custom range editor — the other two rows are hidden.
+
+This is a per-axis "exposed in view mode?" toggle on the leaf, similar to existing `useSearchParams` but per-axis instead of per-leaf.
+
+### Adjacent UI mechanics
+
+- **Quick-toggle from the URL.** A `?range=last:7d&dow=weekends` query param round-trips with the editor — bookmarkable, shareable.
+- **"Live" indicator.** When a filter resolves to `now`, the section header gets a small ⏱ "live" badge so the user knows the data refreshes on the clock.
+- **Empty / boundary states.** "Last 7 days" with no rows in range should say "No events in the last 7 days" rather than the generic empty-state. The picker can publish a human-readable label (`"last 7 days"`) the section's empty-state template can interpolate.
+
+## Storage normalization (orthogonal, deferred)
+
+The original note's Option D — write sortable integer siblings (`*_minutes`, `*_idx`, `*_epoch`) at ingest — is still the right call for sources that store time as text (the WCDB schedule). But:
+
+- The user's logs / events case already has `date`/`timestamp` columns; nothing to migrate.
+- The schedule case can ship today by either (a) running a one-time migration to normalize `start_time` → `start_time_minutes` and `start_day` → `start_day_idx`, or (b) declaring per-section calculated columns in the dataWrapper that compute those at query time. Either is fine.
+
+This note recommends running the ingest migration when the schedule pattern is rebuilt for the unified-column-types refactor; until then a calculated column unblocks the home page card.
+
+The general principle stays: any new source whose columns matter for sorting/filtering should be `date`/`timestamp` at storage. The `time` filter primitive presumes that.
 
 ## Recommendation
 
-The minimum viable combination:
+1. **Ship the `time` op.** New leaf op with the structured shape above. Server translation in UDA `handleFilters` for the three-axis composition + the `instant` point-in-range case. `useNowTick` hook for live re-trigger. Allow-listed `tz` parameter per leaf.
+2. **Build the hybrid U3+U1 picker.** Preset bar for the 90% case; labeled axis rows for compositions; chip strip outside the popover for active constraints. Per-axis "exposed to viewers" toggle for section authors.
+3. **Ship a small URL encoding** (`last:7d&weekdays&9:00-17:00`) so user-controllable time filters survive reloads and sharing.
+4. **Stipulate `date`/`timestamp` storage** for new sources whose columns are filterable; document the storage convention; defer migration of WCDB schedule (use a calculated column or a one-time data migration).
+5. **Skip the `valueSource: 'now'` shape from the prior draft.** Folded into the `time` op's range kinds. Single mechanism, simpler surface.
 
-1. **Adopt Option A** as the runtime mechanism. `valueSource: 'now'` with a small named-format library, resolved in `buildUdaConfig`, plus a `useNowTick` hook that bumps the section's reload version at the right granularity. This is contained, self-describing, and doesn't touch the server.
-2. **Suggest Option D** as the storage convention for new time-bearing data going forward. Document a "sortable time storage" pattern: when a column's logical type is a time/date/duration, write a sibling integer column (`*_minutes`, `*_idx`, `*_epoch`) and treat the human-readable column as display-only. The schedule source migration is a single CSV reshape + a small write-side handler change.
-3. **Park Option C** until two pressures align: (a) we have a third-party time-bearing source we can't normalize, and (b) the unified-column-types work is far enough along that the server has type metadata to drive the cast. At that point Option C is a small extension to `handleFilters`.
-4. **Skip Option B** outright unless it falls out of unrelated page-state work. The dual-writer story (clock writes alongside URL writes) is more complexity than benefit, and Option A subsumes its expressiveness.
+The schedule "show airing now" card falls out as a special case: a `time` leaf with `compareEnd: 'end_at'` and `ranges: [{kind: 'instant', at: 'now'}]`. No special-case code needed.
 
-For the immediate WCDB schedule problem — getting the home page's "now" card working before storage normalization lands — there's a one-step interim: a client-side calculated column on the schedule section (`start_minutes` = `parseTime(start_time)`) + Option A's `now` injection on a `lte` filter against that calculated column. This proves the pattern out on a single section without committing the data migration.
+## Files this would touch
 
-## Filter shape sketch (Option A)
+**Filter shape + builder (client):**
 
-The smallest extension to the filter leaf that captures the design:
+- `dataWrapper/buildUdaConfig.js` — add `time` op handling: pass the structured value through to UDA; resolve `instant` / relative anchors at build time so refetch keys are stable.
+- `dataWrapper/components/filters/RenderFilters.jsx`, `RenderFilterValueSelector.jsx` — host the new picker UI; keep existing static-op pickers untouched.
+- New: `dataWrapper/components/filters/TimePicker/` — the U3+U1 hybrid component, broken into `PresetBar`, `RangeRow`, `DowRow`, `TimeOfDayRow`, `Chips`.
+- `dataWrapper/useDataLoader.js` (or `useDataSource.js`) — wire `useNowTick({ resolutions, tz })` so its counter participates in fetch deps.
+- New: `dataWrapper/utils/timeFilter.js` — pure helpers: `parseTimeFilterURL`, `serializeTimeFilterURL`, `resolveAnchors(value, now, tz)`, `requiredTickGranularity(value)`.
 
-```js
-// existing filter leaf
-{ col, op, value, usePageFilters?, searchParamKey?, ... }
+**SQL generation (server):**
 
-// extended filter leaf
-{
-  col,
-  op,
-  value,                   // optional when valueSource is set
-  valueSource?: 'static' | 'now' | 'page' | 'date_offset',
-  valueFormat?: string,    // resolver-specific format token (see table below)
-  valueParams?: object,    // resolver-specific options (e.g. { tz, offsetDays })
-  usePageFilters?, searchParamKey?, ...
-}
-```
+- `dms-server/src/routes/uda/utils.js` — `handleFilters` extension for `op === 'time'`. Postgres branch first; ClickHouse branch follows with the same structure.
+- `dms-server/src/routes/uda/query_sets/clickhouse.js` — CH translations of the predicate set.
 
-`valueSource: 'static'` is the implicit default — every existing filter is treated as static and unchanged. `'page'` is shorthand for the existing `usePageFilters: true` plumbing (they could merge over time). `'now'` is the new path. `'date_offset'` is a near-term variant for things like "last 7 days" (`{valueSource: 'date_offset', valueParams: {days: -7}, valueFormat: 'date_iso'}`).
+**Page-state plumbing:**
 
-Suggested initial format library:
-
-| valueFormat | resolved value | tick granularity |
-|---|---|---|
-| `day_name_full` | `"Monday"` | midnight |
-| `day_name_short` | `"Mon"` | midnight |
-| `day_idx` | `0..6` (Sun=0) | midnight |
-| `date_iso` | `"2026-05-05"` | midnight |
-| `time_24h` | `"18:42"` | minute |
-| `minutes_since_midnight` | `1122` | minute |
-| `iso_timestamp` | `"2026-05-05T22:42:00.000Z"` | minute (or second on opt-in) |
-| `epoch_seconds` | `1746479320` | minute |
-
-`valueParams.tz` (IANA name) is honored for every format that depends on a calendar boundary. Default is the browser's resolved timezone; for the WCDB station-clock case the section's filter would set `tz: 'America/New_York'`.
-
-## Schedule storage convention sketch (Option D)
-
-When a source has a time/date column whose semantics matter for filtering or ordering, write *both*:
-
-| display column (text) | sortable sibling | type | example |
-|---|---|---|---|
-| `start_time: "10:00AM"` | `start_time_minutes: 600` | integer | 10:00 AM = 10*60 |
-| `start_day: "Monday"` | `start_day_idx: 1` | integer | Sun=0..Sat=6 |
-| `event_at: "Mar 14, 2026 8 PM"` | `event_at_epoch: 1773993600` | integer | unix seconds |
-
-The display column stays human-friendly for free-text rendering; the sibling drives all comparison and ordering. Card / Spreadsheet sections can hide the sibling (`show: false`) and still filter against it.
-
-This convention is also the right place to introduce a per-source `metadata.columns[i].sortRef` field that points at the sortable sibling for the display column — so a generic `sort: 'asc'` on the display column transparently sorts on the sibling. Out of scope for this note but worth designing in tandem if D is pursued.
-
-## Files this would touch (Option A only)
-
-- `dataWrapper/buildUdaConfig.js` — add `resolveValueSource(filter)` and call it inside `applyPageFilters` (or a new `applyComputedValues` step). Map `'page'` to the existing `usePageFilters` codepath for consistency.
-- `dataWrapper/components/filters/Components/RenderFilterValueSelector.jsx` — add a "Value Source" select alongside operation/type pills with options `static`/`now`/`page`/`date_offset`; conditionally show a "Format" select keyed off the chosen source.
-- `dataWrapper/useDataLoader.js` (or `useDataSource.js`) — wire a `useNowTick({ resolutions })` hook that aggregates the resolutions of every dynamic value across the section's filters and bumps a state-counter at the next boundary. The counter participates in the existing fetch dependency list, so a tick triggers a refetch through the same path as a column add or filter edit.
-- `patterns/page/pages/view.jsx` and `pages/edit/index.jsx` — no changes needed if Option B is skipped.
+- `patterns/page/pages/view.jsx` — URL writer/reader for the new encoding alongside the existing search-param logic.
+- `patterns/page/pages/_utils/index.js` — `updatePageStateFiltersOnSearchParamChange` extension.
 
 ## Open questions
 
-- **Timezone defaulting.** Browser local vs. station/site-configured? Add `theme.timezone` or `pattern.data.timezone` as the default fallback? Per-section override? Suggest: pattern-level default with per-leaf override.
-- **Calculated columns + computed values.** Should a calculated column also be allowed to reference `now` in its formula (e.g. `is_active = (now_dow = start_day_idx) AND (now_minutes BETWEEN start_minutes AND end_minutes)`)? That folds the whole problem into a single derived boolean column the section filters on. Probably yes long-term; out of scope for the first cut.
-- **Active-row vs. visible-row reactivity.** When the clock ticks and the filtered set changes, do we want a smooth animated transition or a hard refetch? For schedule cards specifically, an active-row state (highlight + scroll-to) is preferable to a re-render. That's a UX layer on top of the data layer; consider once the data layer is solid.
-- **Edit-mode preview.** When an admin is editing the section in `isEdit=true`, does `now` always evaluate to the real wall clock, or do we offer a "preview at time T" knob so they can verify the empty / boundary cases? Suggest: real clock by default with an admin-only override, parked behind a feature flag for now.
-- **Caching.** The dataWrapper layer caches by request shape. If the request includes a clock value, every minute boundary is a new cache key — fine, but worth confirming server-side cache budgets aren't hit.
-- **SSR.** Pages rendered on the server have a server-side `now`. The hydrated client may be ~seconds later. For minute-resolution this is invisible; for second-resolution there's a brief blink. Document and accept, or stamp the SSR time and skip the first client tick boundary.
+- **Timezone defaulting.** Browser-local vs station-configured vs site-configured? Suggest: pattern-level default (`pattern.data.timezone`), per-leaf override, fall through to browser if neither set. Document the cascade.
+- **DST + boundary semantics.** "Last 24 hours" on a DST transition day: 23 or 25 hours? Suggest: anchor on UTC instant (`now - 24h`) so duration is exact regardless of local offset; document the edge case.
+- **"This month" semantics on the 31st.** Treats month as `[start_of_month, start_of_next_month)`. Standard, but spell it out.
+- **Multiple time filters on different columns.** A section might filter on `created_at` (logs window) AND `event_at` (event window). Two separate `time` leaves, each on its own column — supported by the shape, just confirm the UI handles it (probably one `TimePicker` instance per column rendered in the filter list).
+- **Calculated columns referencing `now`.** Should a calculated column be allowed to express `is_active = (now BETWEEN start_at AND end_at)` so the section just filters on that boolean? Folds the schedule case into a derived column. Probably yes long-term; out of scope for the first cut.
+- **Edit-mode preview of "now".** Admin authoring a `now`-anchored filter wants to verify boundary cases ("what does 'last 7 days' evaluate to right now? what about at 11:55 PM?"). Suggest: an admin-only "preview at time T" knob behind a feature flag. Not on the critical path.
+- **SSR.** Server-rendered `now` differs from the client's `now` by ~ms to seconds. For minute-resolution filters, invisible. For second-resolution (rare), the first client tick might re-resolve and refetch — accept it, or stamp the SSR time and skip the first tick. Document and revisit if a second-resolution case appears.
+- **Caching.** Each clock tick invalidates the cache for the affected section. Server-side response cache budget should tolerate this — usually fine for minute-resolution but worth confirming for high-traffic logs pages.
+- **URL encoding choice.** Compact textual (`last:7d&weekdays`) vs structured JSON. Suggest textual for shareability / readability; revisit if the parser grows hairy.
 
 ## References
 
 - Filter pipeline: `dataWrapper/buildUdaConfig.js:130-348, 776-1027`
 - Filter UI / page-state plumbing: `dataWrapper/components/filters/RenderFilters.jsx:56-100`, `Components/RenderFilterValueSelector.jsx:99-298`
 - Page-state writers: `pages/view.jsx:71-125`, `pages/_utils/index.js:455`
-- Storage shape (schedule): observed via `dms dataset query 1957812 --view 1957813 --filter "start_day=Monday"` against `dmsserver.availabs.org`
-- Adjacent: [unified-column-types.md](./unified-column-types.md) — the broader "client column types should drive sort/filter/format behavior" thread that "now" filters share a root with.
+- Adjacent: [unified-column-types.md](./unified-column-types.md) — the broader "client column types should drive sort/filter/format behavior" thread that time filters share a root with.
+- Inspiration: Datadog / Grafana time pickers (preset bar + custom range), Kibana relative time format (`now-7d`), Linear's date filters (relative + absolute toggle).

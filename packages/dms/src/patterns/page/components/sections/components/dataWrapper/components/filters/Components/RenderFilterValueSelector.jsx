@@ -11,6 +11,8 @@ const resetColumn = (originalAttribute, setState, columns) => setState(draft => 
     }
 });
 const RenderSearchKeySelector = ({filter, pageState, onChange}) => {
+    const { UI } = React.useContext(ThemeContext) || {};
+    const { Input } = UI || {};
     const [open, setOpen] = React.useState(false);
     const [text, setText] = React.useState(filter.searchParamKey || '');
     const menuRef = React.useRef(null);
@@ -19,8 +21,7 @@ const RenderSearchKeySelector = ({filter, pageState, onChange}) => {
     const optionsClass = 'p-1 hover:bg-blue-500/15 hover:text-blue-700 cursor-pointer rounded-md'
     return (
         <div className={'min-w-fit w-full relative bg-white'}>
-            <input className={'px-1 text-xs rounded-md bg-blue-500/15 text-blue-700 hover:bg-blue-500/25'}
-                   id={menuBtnId}
+            <Input id={menuBtnId}
                    value={text}
                    onChange={e => setText(e.target.value)}
                    onFocus={() => setOpen(true)}
@@ -61,7 +62,7 @@ export const RenderFilterValueSelector = ({
     const { pageState, updatePageStateFilters } =  React.useContext(PageContext) || {}; // page to extract page filters
     const { theme: themeFromContext = {}, UI} = React.useContext(ThemeContext) || {};
     const theme = {...themeFromContext, filters: {...filterTheme, ...(themeFromContext.filter || {})}};
-    const {Switch, ColumnTypes} = UI;
+    const {Switch, Select, Input, Button, ColumnTypes} = UI;
     const options = useMemo(() => filterOptions.find(fo => fo.column === filterColumn.name)?.uniqValues, [filterOptions, filterColumn.name]);
 
     const useDebouncedUpdateFilter = (delay = 300) => {
@@ -116,10 +117,13 @@ export const RenderFilterValueSelector = ({
                     {
                         isEdit ? (
                             <div className={theme.filters.settingPillsWrapper}>
-                                <select
-                                    className={`cursor-pointer ${theme.filters.settingPill}`}
+                                <Select
                                     value={filter.type}
                                     disabled={!isEdit}
+                                    options={[
+                                        { label: 'internal', value: 'internal' },
+                                        { label: 'external', value: 'external' },
+                                    ]}
                                     onChange={e => updateFilter({
                                         key: 'type',
                                         value: e.target.value,
@@ -127,15 +131,20 @@ export const RenderFilterValueSelector = ({
                                         filter,
                                         setState
                                     })}
-                                >
-                                    <option key="internal" value="internal">internal</option>
-                                    <option key="external" value="external">external</option>
-                                </select>
+                                />
 
-                                <select
-                                    className={`cursor-pointer ${theme.filters.settingPill}`}
+                                <Select
                                     value={filter.operation}
                                     disabled={!isEdit}
+                                    options={[
+                                        { label: 'include', value: 'filter' },
+                                        { label: 'exclude', value: 'exclude' },
+                                        { label: 'text', value: 'like' },
+                                        { label: ' > ', value: 'gt' },
+                                        { label: ' >= ', value: 'gte' },
+                                        { label: ' < ', value: 'lt' },
+                                        { label: ' <= ', value: 'lte' },
+                                    ]}
                                     onChange={e => updateFilter({
                                         key: 'operation',
                                         value: e.target.value,
@@ -143,22 +152,20 @@ export const RenderFilterValueSelector = ({
                                         filter,
                                         setState
                                     })}
-                                >
-                                    <option key="filter" value="filter">include</option>
-                                    <option key="exclude" value="exclude">exclude</option>
-                                    <option key="like" value="like">text</option>
-                                    <option key="gt" value="gt"> {">"} </option>
-                                    <option key="gte" value="gte"> {">="} </option>
-                                    <option key="lt" value="lt"> {"<"} </option>
-                                    <option key="lte" value="lte"> {"<="} </option>
-                                </select>
+                                />
 
                                 {
                                     isGrouping ?
-                                        <select
-                                            className={`cursor-pointer ${theme.filters.settingPill}`}
+                                        <Select
                                             value={filter.fn}
                                             disabled={!isEdit}
+                                            options={[
+                                                { label: 'no fn', value: '' },
+                                                { label: 'sum', value: 'sum' },
+                                                { label: 'count', value: 'count' },
+                                                { label: 'max', value: 'max' },
+                                                { label: 'list', value: 'list' },
+                                            ]}
                                             onChange={e => updateFilter({
                                                 key: 'fn',
                                                 value: e.target.value,
@@ -166,13 +173,7 @@ export const RenderFilterValueSelector = ({
                                                 filter,
                                                 setState
                                             })}
-                                        >
-                                            <option key="none" value="">no fn</option>
-                                            <option key="sum" value="sum">sum</option>
-                                            <option key="count" value="count">count</option>
-                                            <option key="max" value="max">max</option>
-                                            <option key="list" value="list">list</option>
-                                        </select> : null
+                                        /> : null
                                 }
 
                                 {
@@ -227,10 +228,14 @@ export const RenderFilterValueSelector = ({
                                         </div> : null
                                 }
 
-                                <select
-                                    className={`cursor-pointer ${theme.filters.settingPill}`}
+                                <Select
                                     value={filter.display}
                                     disabled={!isEdit}
+                                    options={[
+                                        { label: 'compact', value: '' },
+                                        { label: 'expanded', value: 'expanded' },
+                                        { label: 'tabular', value: 'tabular' },
+                                    ]}
                                     onChange={e => updateFilter({
                                         key: 'display',
                                         value: e.target.value,
@@ -238,14 +243,14 @@ export const RenderFilterValueSelector = ({
                                         filter,
                                         setState
                                     })}
-                                >
-                                    <option key="" value="">compact</option>
-                                    <option key="expanded" value="expanded">expanded</option>
-                                    <option key="tabular" value="tabular">tabular</option>
-                                </select>
+                                />
 
                                 {
-                                    isStaleFilter ? <button className={theme.filters.settingPill} onClick={() => resetColumn(filterColumn, setState, state.externalSource.columns)}>Reset Stale Column</button> : null
+                                    isStaleFilter ? (
+                                        <Button onClick={() => resetColumn(filterColumn, setState, state.externalSource.columns)}>
+                                            Reset Stale Column
+                                        </Button>
+                                    ) : null
                                 }
                             </div>
                         ) : null

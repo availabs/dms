@@ -1,4 +1,4 @@
-# UDA `getEssentials` source-id lookup is ambiguous when multiple sources share an instance
+# UDA `getEssentials` source-id lookup is ambiguous when multiple sources share an instance — COMPLETED 2026-05-07
 
 ## Objective
 

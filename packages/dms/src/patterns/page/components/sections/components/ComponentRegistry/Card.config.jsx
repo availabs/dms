@@ -55,14 +55,19 @@ const handlePaste = async (attribute, setAttribute) => {
                 hideHeader = false,
                 hideValue = false,
                 wrapText = false,
-                bgColor = '',
-                cardSpan = '',
-                cardRowSpan = ''
             } = parsedObj;
+            // Accept both new (cellSpan/cellRowSpan/cellBgColor) and legacy
+            // (cardSpan/cardRowSpan/bgColor) clipboard payloads — the
+            // Spreadsheet section still copies the legacy keys, so this
+            // keeps cross-section paste working.
+            const cellSpan = parsedObj.cellSpan ?? parsedObj.cardSpan ?? '';
+            const cellRowSpan = parsedObj.cellRowSpan ?? parsedObj.cardRowSpan ?? '';
+            const cellBgColor = parsedObj.cellBgColor ?? parsedObj.bgColor ?? '';
 
             const newAttribute = {
                 ...attribute,
-                justify, formatFn, headerFontStyle, valueFontStyle, hideHeader, hideValue, bgColor, cardSpan, cardRowSpan, wrapText
+                justify, formatFn, headerFontStyle, valueFontStyle, hideHeader, hideValue,
+                cellSpan, cellRowSpan, cellBgColor, wrapText,
             }
             return setAttribute(newAttribute)
         } else {
@@ -80,9 +85,13 @@ const inHeader = [
             const { Pill, Icon } = UI;
             const [copied, setCopied] = useState(false);
             const {
-                justify, formatFn, headerFontStyle, valueFontStyle, hideHeader, hideValue, bgColor, cardSpan, cardRowSpan, wrapText
+                justify, formatFn, headerFontStyle, valueFontStyle, hideHeader, hideValue,
+                cellBgColor, cellSpan, cellRowSpan, wrapText
             } = attribute;
-            const objToCopy = { justify, formatFn, headerFontStyle, valueFontStyle, hideHeader, hideValue, bgColor, cardSpan, cardRowSpan, wrapText };
+            const objToCopy = {
+                justify, formatFn, headerFontStyle, valueFontStyle, hideHeader, hideValue,
+                cellBgColor, cellSpan, cellRowSpan, wrapText
+            };
 
             return (
                 <div className={'w-full flex justify-between gap-1'}>
@@ -161,6 +170,8 @@ const inHeader = [
             { label: 'Abbreviated', value: 'abbreviate' },
             { label: 'Abbreviated ($)', value: 'abbreviate_dollar' },
             { label: 'Date', value: 'date' },
+            { label: 'Time (HH:MM am/pm)', value: 'time' },
+            { label: 'Date + Time', value: 'datetime' },
             { label: 'Title', value: 'title' },
             { label: 'Icon', value: 'icon' },
             { label: 'Color', value: 'color' },
@@ -170,13 +181,13 @@ const inHeader = [
     { type: 'select', label: 'Value', key: 'valueFontStyle', options: fontStyleOptions, isBatchUpdatable: true, displayCdn: ({ attribute }) => !attribute.hideValue },
 
     { type: 'separator', key: 'toolbar-sep', label: 'toolbar-sep', hideFromSectionMenu: true },
-    // layout
-    { type: 'toggle', label: 'Border Below', key: 'borderBelow', displayCdn: ({ display }) => display.compactView },
-    { type: 'input', inputType: 'number', label: 'Padding Below', key: 'pb', isBatchUpdatable: true, displayCdn: ({ display }) => display.compactView },
+    // layout — all per-cell controls always visible (no mode gating)
+    { type: 'toggle', label: 'Border Below', key: 'cellBorderBelow' },
+    { type: 'input', inputType: 'number', label: 'Padding Below', key: 'cellPaddingBottom', isBatchUpdatable: true },
     { type: 'toggle', label: 'Hide Header', key: 'hideHeader', isBatchUpdatable: true },
     { type: 'toggle', label: 'Hide Value', key: 'hideValue', isBatchUpdatable: true },
-    { type: 'input', inputType: 'number', label: 'Col Span', key: 'cardSpan', displayCdn: ({ display }) => !display.compactView },
-    { type: 'input', inputType: 'number', label: 'Row Span', key: 'cardRowSpan', displayCdn: ({ display }) => !display.compactView },
+    { type: 'input', inputType: 'number', label: 'Col Span', key: 'cellSpan' },
+    { type: 'input', inputType: 'number', label: 'Row Span', key: 'cellRowSpan' },
     { type: 'separator', key: 'toolbar-sep', label: 'toolbar-sep', hideFromSectionMenu: true },
     // other
     { type: 'toggle', label: 'Allow Edit', key: 'allowEditInView', displayCdn: ({ isEdit }) => isEdit },
@@ -199,11 +210,16 @@ const inHeader = [
         ]
     },
 
-    // image controls
-    { type: 'toggle', label: 'Is Image', key: 'isImg', displayCdn: ({ isEdit }) => isEdit },
-    { type: 'input', inputType: 'text', label: 'Image Url', key: 'imageSrc', displayCdn: ({ attribute, isEdit }) => isEdit && attribute.isImg },
-    { type: 'input', inputType: 'text', label: 'Image Location', key: 'imageLocation', displayCdn: ({ attribute, isEdit }) => isEdit && attribute.isImg },
-    { type: 'input', inputType: 'text', label: 'Image Extension', key: 'imageExtension', displayCdn: ({ attribute, isEdit }) => isEdit && attribute.isImg && attribute.imageLocation },
+    // The legacy `Is Image` / `Image Url` / `Image Location` / `Image Extension`
+    // controls have been retired from the editor — new cards should use the
+    // dedicated `image` column type instead. Card.jsx still honors the
+    // `attr.isImg` flag at render time, so existing text-as-image columns
+    // keep rendering identically; they just can't be reconfigured through
+    // the menu. To edit, convert the column type to `image`.
+
+    // image-column controls — same size set as the legacy isImg path.
+    // `defaultImage` is shown when the row's value is empty.
+    { type: 'input', inputType: 'text', label: 'Default Image URL', key: 'defaultImage', displayCdn: ({ attribute, isEdit }) => isEdit && attribute.type === 'image' },
     { type: 'select', label: 'Image Size', key: 'imageSize',
         options: [
             { label: 'X-Small', value: 'imgXS' },
@@ -218,16 +234,16 @@ const inHeader = [
             { label: '7XL', value: 'img7XL' },
             { label: '8XL', value: 'img8XL' },
         ],
-        displayCdn: ({ attribute, isEdit }) => isEdit && attribute.isImg
+        displayCdn: ({ attribute, isEdit }) => isEdit && attribute.type === 'image'
     },
-    { type: 'input', inputType: 'number', label: 'Image Top Margin', key: 'imageMargin', displayCdn: ({ attribute, isEdit }) => isEdit && attribute.isImg },
+    { type: 'input', inputType: 'number', label: 'Image Top Margin', key: 'imageMargin', displayCdn: ({ attribute, isEdit }) => isEdit && attribute.type === 'image' },
     { type: 'select', label: 'Sort', key: 'sort',
         options: [
             { label: 'Not Sorted', value: '' }, { label: 'A->Z', value: 'asc nulls last' }, { label: 'Z->A', value: 'desc nulls last' }
         ]
     },
     { type: 'textarea', label: 'Description', key: 'description', displayCdn: ({ isEdit }) => isEdit },
-    { type: ({ value, setValue }) => (<ColorControls value={value} setValue={setValue} title={'Background Color'} />), key: 'bgColor', displayCdn: ({ display }) => !display.compactView }
+    { type: ({ value, setValue }) => (<ColorControls value={value} setValue={setValue} title={'Background Color'} />), key: 'cellBgColor' }
 ];
 
 export const componentFunctions = {
@@ -314,15 +330,22 @@ export default {
             },
         ],
         more: [
-            { type: 'select', label: 'Each Card Represents', key: 'compactView', onClickGoBack: true, defaultValue: false,
-                options: [{ label: 'a row', value: true }, { label: 'a cell', value: false }]
+            // Cards grid: how record-cards are laid out across the section.
+            { label: 'Cards Grid', items: [
+                    { type: 'input', inputType: 'number', label: 'Cards Across', key: 'cardsGridSize' },
+                    { type: 'input', inputType: 'number', label: 'Gap', key: 'cardsGridGap' },
+                    { type: 'input', inputType: 'number', label: 'Card Padding', key: 'cardsPadding' },
+                    { type: ({ value, setValue }) => <ColorControls value={value} setValue={setValue} title={'Card Background'} />, key: 'cardsBgColor' },
+                    { type: 'toggle', label: 'Card Border', key: 'cardBorder' },
+                ]
             },
-            { label: 'Grid Settings', items: [
-                    { type: 'input', inputType: 'number', label: 'Grid Size', key: 'gridSize' },
-                    { type: 'input', inputType: 'number', label: 'Grid Gap', key: 'gridGap' },
-                    { type: 'input', inputType: 'number', label: 'Padding', key: 'padding' },
-                    { type: 'input', inputType: 'number', label: 'Column Gap', key: 'colGap', displayCdn: ({ display }) => display.compactView },
-                    { type: 'input', inputType: 'number', label: 'Row Height', key: 'rowHeight', displayCdn: ({ display }) => !display.compactView },
+            // Cells grid: how attribute-cells are laid out inside each card.
+            { label: 'Cells Grid', items: [
+                    { type: 'input', inputType: 'number', label: 'Cells Across', key: 'cellsGridSize' },
+                    { type: 'input', inputType: 'number', label: 'Gap', key: 'cellsGridGap' },
+                    { type: 'input', inputType: 'number', label: 'Row Height', key: 'cellsRowHeight' },
+                    { type: 'input', inputType: 'number', label: 'Cell Padding', key: 'cellsPadding' },
+                    { type: 'toggle', label: 'Cell Border', key: 'cellBorder' },
                 ]
             },
             { label: 'Default Column Settings', items: [
@@ -334,13 +357,8 @@ export default {
             },
             { type: 'toggle', label: 'Attribution', key: 'showAttribution' },
             { type: 'toggle', label: 'Hide if No Data', key: 'hideIfNull' },
-            { type: 'toggle', label: 'Row Border', key: 'addBorder', displayCdn: ({ display }) => !display.compactView },
-            { type: 'toggle', label: 'Cell Border', key: 'removeBorder', negate: true, displayCdn: ({ display }) => !display.compactView },
-            { type: 'toggle', label: 'Row Border', key: 'removeBorder', negate: true, displayCdn: ({ display }) => display.compactView },
-            { type: 'toggle', label: 'Cell Border', key: 'addBorder', displayCdn: ({ display }) => display.compactView },
             { type: 'toggle', label: 'Use Pagination', key: 'usePagination' },
             { type: 'input', inputType: 'number', label: 'Page Size', key: 'pageSize', displayCdn: ({ display }) => display.usePagination === true },
-            { type: ({ value, setValue }) => <ColorControls value={value} setValue={setValue} title={'Background Color'} />, key: 'bgColor', displayCdn: ({ display }) => display.compactView },
         ],
         data: [
             { type: 'toggle', label: 'Allow Edit', key: 'allowEditInView',
