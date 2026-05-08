@@ -7,11 +7,11 @@ import { useImmer } from 'use-immer';
 import LegendPanel from './LegendPanel/LegendPanel.jsx'
 import SymbologyViewLayer from './SymbologyViewLayer.jsx'
 import { PageContext, CMSContext } from "../../../../../context.js";
-import {SymbologySelector} from "./SymbologySelector.jsx";
-import {useSearchParams} from "react-router";
-import FilterControls from "./controls/FilterControls.jsx";
+// import {SymbologySelector} from "./SymbologySelector.jsx";
+// import {useSearchParams} from "react-router";
+// import FilterControls from "./controls/FilterControls.jsx";
 import {defaultStyles, blankStyles} from "./styles.js";
-import MoreControls from "./controls/MoreControls.jsx";
+// import MoreControls from "./controls/MoreControls.jsx";
 import PluginLayer from "../../../../../../mapeditor/MapEditor/components/PluginLayer"
 import { PluginLibrary, PLUGIN_TYPE } from "../../../../../../mapeditor/MapEditor";
 import ExternalPluginPanel from "../../../../../../mapeditor/MapEditor/components/ExternalPluginPanel";
@@ -53,7 +53,7 @@ export const MapContext = createContext(undefined);
 const EMPTY_TABS = [{ "name": "Layers", rows: [] }];
 const EMPTY_OBJECT = {};
 
-export const MapSection = ({ value, onChange, isEdit }) => {
+export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
     // const {falcor, falcorCache} = useFalcor();
     // controls: symbology, more, filters: lists all interactive and dynamic filters and allows for searchParams match.
 
@@ -105,6 +105,19 @@ export const MapSection = ({ value, onChange, isEdit }) => {
             })
         }, Promise.resolve([]));
     }, [apiLoad, mapeditorKeys]);
+
+    useEffect(() => {
+        if (!onHandle) return;
+        onHandle({
+            state,
+            setState,
+            dwAPI: {
+                state,
+                setState,
+                doApiLoad
+            }
+        });
+    }, [onHandle, state, setState, doApiLoad]);
 
 // console.log("Map::pageState", pageState);
 
@@ -406,7 +419,7 @@ export const MapSection = ({ value, onChange, isEdit }) => {
 
     return (
         <MapContext.Provider value={{state, setState, falcor, falcorCache, pgEnv, doApiLoad}}>
-            {
+            {/* {
                 isEdit ? (
                     <>
                         <SymbologySelector context={MapContext}/>
@@ -414,7 +427,7 @@ export const MapSection = ({ value, onChange, isEdit }) => {
                         <MoreControls />
                     </>
                 ) : null
-            }
+            } */}
             <div id='dama_map_edit' className="w-full relative" style={{height: heightStyle}}>
                 <AvlMap
                   layers={ mapLayers }
