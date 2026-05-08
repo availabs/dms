@@ -15,8 +15,8 @@ const GridGraphWrapper = props => {
 
 // console.log("GridGraphWrapper::props", props);
 
-console.log("GridGraphWrapper::viewData", props.viewData);
-console.log("GridGraphWrapper::columns", props.columns);
+// console.log("GridGraphWrapper::viewData", props.viewData);
+// console.log("GridGraphWrapper::columns", props.columns);
 
     const dataFromProps = React.useMemo(() => {
         const xColumn = props.columns.find(c => c.target === "xAxis");
@@ -99,26 +99,33 @@ console.log("GridGraphWrapper::columns", props.columns);
             colors = scaleLinear().domain([min, mid, max]).range(["green", "yellow", "red"])
         }
 
-        const keys = [...keySet]
-            .sort((a, b) => {
+        const keys = [...keySet];
+
+        if (xColumn.sort) {
+            const sortDir = xColumn.sort === "desc" ? -1 : 1;
+            keys.sort((a, b) => {
                 const aNaN = strictNaN(+a);
                 const bNaN = strictNaN(+b);
                 if (aNaN || bNaN) {
-                    return a < b ? -1 : a > b ? 1 : 0;
+                    return (a < b ? -1 : a > b ? 1 : 0) * sortDir;;
                 }
-                return +a - +b;
+                return (+a - +b) * sortDir;
             })
+        }
+        // const keys = [...keySet]
+        //     .sort((a, b) => {
+        //         const aNaN = strictNaN(+a);
+        //         const bNaN = strictNaN(+b);
+        //         if (aNaN || bNaN) {
+        //             return a < b ? -1 : a > b ? 1 : 0;
+        //         }
+        //         return +a - +b;
+        //     })
 
         return { data, keys, colors };
     }, [props.viewData, props.columns]);
 
-console.log("GridGraphWrapper::dataFromProps", dataFromProps);
-
-    const colors = React.useMemo(() => {
-        if (props.colors?.type === "palette") {
-            return props.colors?.value || [];
-        }
-    }, [props.colors]);
+// console.log("GridGraphWrapper::dataFromProps", dataFromProps);
 
     const axisBottom = React.useMemo(() => {
         if (!props.xAxis) return false;
@@ -158,7 +165,8 @@ console.log("GridGraphWrapper::dataFromProps", dataFromProps);
         <div className="w-full bg-inherit"
             style={ { height: `${ height }px` } }
         >
-            <GridGraph colors={ colors }
+            <GridGraph
+                colors={ props.colors }
                 { ...dataFromProps }
                 groupMode={ props.groupMode }
                 axisBottom={ axisBottom }

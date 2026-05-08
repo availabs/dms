@@ -77,16 +77,24 @@ const BarGraphWrapper = props => {
 			}
 		}
 
-		return { data, keys: [...keySet] };
+    const keys = [...keySet];
+
+    if (indexColumn.sort) {
+      const sortDir = indexColumn.sort === "desc" ? -1 : 1;
+      keys.sort((a, b) => {
+          const aNaN = strictNaN(+a);
+          const bNaN = strictNaN(+b);
+          if (aNaN || bNaN) {
+              return (a < b ? -1 : a > b ? 1 : 0) * sortDir;;
+          }
+          return (+a - +b) * sortDir;
+      })
+    }
+
+		return { data, keys };
 	}, [props.viewData, props.columns]);
 
 // console.log("BarGraphWrapper::dataFromProps", dataFromProps);
-
-	const colors = React.useMemo(() => {
-		if (props.colors?.type === "palette") {
-			return props.colors?.value || [];
-		}
-	}, [props.colors]);
 
 	const axisBottom = React.useMemo(() => {
 		if (props.orientation === "vertical") {
@@ -144,7 +152,7 @@ const BarGraphWrapper = props => {
 		>
 			<BarGraph { ...dataFromProps }
 				orientation={ props.orientation }
-				colors={ colors }
+				colors={ props.colors }
 				groupMode={ props.groupMode }
 				axisBottom={ axisBottom }
 				axisLeft={ axisLeft }
