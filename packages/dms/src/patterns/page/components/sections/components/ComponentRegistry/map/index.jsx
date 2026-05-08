@@ -106,6 +106,10 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
         }, Promise.resolve([]));
     }, [apiLoad, mapeditorKeys]);
 
+    /**
+     * Exposes live map state and the map-specific API to the outer section settings shell.
+     * Map Settings is rendered outside this component tree, so it needs this handle bridge.
+     */
     useEffect(() => {
         if (!onHandle) return;
         onHandle({

@@ -1,5 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 
+/**
+ * Loads available DMS symbologies and derives the current symbology/layer selection state.
+ * This helper is shared by the Map Settings symbology and layer screens.
+ */
 export default function useSymbologySelectorState({ state = {}, setState, doApiLoad } = {}) {
   const [dmsSymbologies, setDmsSymbologies] = useState([]);
 

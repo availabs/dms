@@ -1,5 +1,9 @@
 import { normalizeLayerClickFilterConfig } from "../../../../../../../mapeditor/MapEditor/stateUtils";
 
+/**
+ * Returns filter-related values and update handlers for the Map Settings filter screens.
+ * All values come from the active layer config so the refactor does not create parallel state.
+ */
 export default function useMapSettingsFilters({ state = {}, setState } = {}) {
 
   const activeSym = Object.keys(state.symbologies || {}).find((sym) => state.symbologies[sym].isVisible);

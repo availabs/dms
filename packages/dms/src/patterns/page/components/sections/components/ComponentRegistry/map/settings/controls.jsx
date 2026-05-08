@@ -28,12 +28,19 @@ const pageClassName = "w-full px-4 pb-3 text-slate-100";
 const repeatedSectionClassName = "border-t border-slate-800 pt-1.5";
 const rowSectionClassName = "pt-0";
 
+/**
+ * Renders the title for an inner Map Settings screen.
+ * The outer Settings shell owns the main breadcrumb/header, so these titles stay local.
+ */
 const PageTitle = ({ title }) => (
   <div className="pb-2">
     <div className="pb-1 text-xl font-semibold text-slate-100">{title}</div>
   </div>
 );
 
+/**
+ * Shared field wrapper for stacked label/input sections in the settings panel.
+ */
 const Field = ({ label, children, compact = false }) => (
   <div className={compact ? "pb-1.5" : "pb-2"}>
     <label className={labelClassName}>{label}</label>
@@ -41,6 +48,9 @@ const Field = ({ label, children, compact = false }) => (
   </div>
 );
 
+/**
+ * Navigation row used for screens that drill into deeper map settings.
+ */
 const RowLink = ({ label, value, onClick, disabled = false }) => (
   <button
     type="button"
@@ -58,6 +68,9 @@ const RowLink = ({ label, value, onClick, disabled = false }) => (
   </button>
 );
 
+/**
+ * Simple label/switch row for boolean map display settings.
+ */
 const ToggleRow = ({ label, value, onChange, border = true, labelClassName = "text-base text-slate-100" }) => (
   <div className={`${border ? "border-t border-slate-800" : ""} flex items-center justify-between py-2.5`}>
     <span className={labelClassName}>{label}</span>
@@ -72,6 +85,10 @@ const STEP_META = {
   [PAGES.click]: { title: "Layer Click Filter", contextLabel: "Map Settings / Filters" },
 };
 
+/**
+ * Searchable select used by the symbology and layer pickers.
+ * It mirrors the existing map selection flow while fitting the settings panel UI.
+ */
 function MapSettingsSearchSelect({ options = [], value, onChange, placeholder = "Search...", disabled = false }) {
   const [query, setQuery] = useState("");
 
@@ -123,6 +140,10 @@ function MapSettingsSearchSelect({ options = [], value, onChange, placeholder = 
   );
 }
 
+/**
+ * Main Map Settings panel and its inner screens.
+ * This keeps the refactored settings UI aligned with the existing map config handlers.
+ */
 function MapSettingsPanel({ dwAPI, isInMenu = false }) {
   const [step, setStep] = useState(PAGES.root);
   const {

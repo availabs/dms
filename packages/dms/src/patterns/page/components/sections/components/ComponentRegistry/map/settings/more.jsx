@@ -1,5 +1,9 @@
 import { HEIGHT_OPTIONS, PANEL_POSITION_OPTIONS } from "../index.jsx";
 
+/**
+ * Returns the inline "more" settings shown on the main Map Settings screen.
+ * These handlers write directly to the existing map display config keys.
+ */
 export default function useMapSettingsMore({ state = {}, setState } = {}) {
   const arePluginsLoaded = Object.values(state.symbologies || {}).some(
     (symbology) => Object.keys(symbology?.symbology?.plugins || {}).length > 0
