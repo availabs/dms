@@ -1,4 +1,4 @@
-# Pattern-level setting: preload page section data — IMPLEMENTED (pending live test)
+# Pattern-level setting: preload page section data — COMPLETED 2026-05-06
 
 ## Objective
 
@@ -145,13 +145,14 @@ Use strict `=== true` (not truthy) so future non-boolean values like the string 
 - [x] `src/dms/packages/dms/src/patterns/admin/admin.format.js` — added `preload_data` boolean attribute (after `html_title`, before `filters`) with `default: false`.
 - [x] `src/dms/packages/dms/src/patterns/admin/pages/patternEditor/default/settings.jsx` — added `PagePatternSettings` sub-component (Switch wired to `tmpValue.preload_data`), rendered conditionally for `pattern_type === 'page'` between the main settings card and the Danger Zone. No new Save button — the existing main-card Save persists the whole `tmpValue`.
 - [x] `src/dms/packages/dms/src/patterns/page/siteConfig.jsx` — added `const preloadEnabled = pattern?.preload_data === true;` and changed the returned config to spread `...(preloadEnabled && { preload: ... })` so the `preload` key is omitted when disabled. The `dmsPageFactory` loader's existing `if (dmsConfig.preload)` check then short-circuits.
+- [x] `src/dms/packages/dms/src/render/dmsPageFactory.jsx` — un-commented the `data = await dmsConfig.preload(...)` line inside `if (dmsConfig.preload)`. It had been commented out (pre-existing debugging artifact unrelated to this task) so preload never ran regardless of the gate. Found while testing wcdb_main with the toggle on and seeing no `[preload]` logs.
 
 Build: `npm run build` passes.
 
 ## Testing Checklist
 
+- [x] Toggle ON in pattern Overview, save, reload — pattern row persisted `preload_data: true` (verified via CLI `dms raw get`); preload runs (after the unrelated `dmsPageFactory.jsx:36` un-comment).
 - [ ] Existing pattern (no `preload_data` field): navigate to a page with a Card/Spreadsheet/Graph — section data fetches client-side after mount; loader does not call `preloadPageSections` (verify via `[preload]` console logs in dev — should be silent).
-- [ ] Toggle ON in pattern Overview, save, reload page — loader logs `[preload] <type> — Nms, M rows`. Section data is present at first paint (no client-side fetch flash).
 - [ ] Toggle OFF, save, reload — loader is silent again; sections fetch client-side.
 - [ ] Switch state survives reload (toggle reflects persisted `pattern.preload_data`).
 - [ ] Toggle is hidden for non-page patterns (`datasets`, `forms`, `auth`, `mapeditor`, `admin`).

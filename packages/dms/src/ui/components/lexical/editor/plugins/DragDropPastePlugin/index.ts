@@ -41,13 +41,14 @@ export default function DragDropPaste({ fileUploadInfo }): null {
           );
           for (const { file, result } of filesResult) {
 
-// console.log("DragDropPaste::DISPATCHING??????????????????")
+console.log("DragDropPaste::file", file);
 
             editor.dispatchCommand(INSERT_INLINE_IMAGE_COMMAND, {
               altText: file.name,
               src: result,
               position: "left",
-              fileUploadInfo
+              fileUploadInfo,
+              fileName: `${ file.name }|${ file.size }`
             });
           }
         })();

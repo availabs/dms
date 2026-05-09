@@ -43,7 +43,8 @@ export interface InlineImagePayload {
     src: string;
     width?: number;
     position?: Position;
-    fileUploadInfo?: object | null
+    fileUploadInfo?: object | null,
+    fileName?: string
 }
 
 export interface UpdateInlineImagePayload {
@@ -71,6 +72,7 @@ export type SerializedInlineImageNode = Spread<
         width?: number;
         position?: Position;
         fileUploadInfo?: object | null;
+        fileName?: string
     },
     SerializedLexicalNode
 >;
@@ -84,6 +86,7 @@ export class InlineImageNode extends DecoratorNode<JSX.Element> {
     __caption: LexicalEditor;
     __position: Position;
     __fileUploadInfo: object | null;
+    __fileName: string
 
     static getType(): string {
         return 'image';
@@ -99,15 +102,23 @@ export class InlineImageNode extends DecoratorNode<JSX.Element> {
             node.__showCaption,
             node.__caption,
             node.__key,
-            node.__fileUploadInfo
+            node.__fileUploadInfo,
+            node.__fileName
         );
     }
 
     static importJSON(
         serializedNode: SerializedInlineImageNode,
     ): InlineImageNode {
-        const {altText, height, width, caption, src, showCaption, position = 'full', fileUploadInfo} =
-            serializedNode;
+        const {
+            altText,
+            height, width,
+            caption, showCaption,
+            src, 
+            position = 'full',
+            fileUploadInfo,
+            fileName
+        } = serializedNode;
         const node = $createInlineImageNode({
             altText,
             height,
@@ -115,7 +126,8 @@ export class InlineImageNode extends DecoratorNode<JSX.Element> {
             showCaption,
             src,
             width,
-            fileUploadInfo
+            fileUploadInfo,
+            fileName
         });
         const nestedEditor = node.__caption;
         const editorState = nestedEditor.parseEditorState(caption.editorState);
@@ -143,11 +155,12 @@ export class InlineImageNode extends DecoratorNode<JSX.Element> {
         showCaption?: boolean,
         caption?: LexicalEditor,
         key?: NodeKey,
-        fileUploadInfo?: object | null
+        fileUploadInfo?: object | null,
+        fileName?: string
     ) {
         super(key);
 
-// console.log("InlineImageNode::constructor::fileUploadInfo", fileUploadInfo)
+// console.log("InlineImageNode::constructor::fileName", fileName)
 
         this.__src = src;
         this.__altText = altText;
@@ -157,6 +170,7 @@ export class InlineImageNode extends DecoratorNode<JSX.Element> {
         this.__caption = caption || createEditor();
         this.__position = position;
         this.__fileUploadInfo = fileUploadInfo ? { ...fileUploadInfo } : null;
+        this.__fileName = fileName;
     }
 
     exportDOM(editor?: LexicalEditor): DOMExportOutput {
@@ -186,7 +200,8 @@ export class InlineImageNode extends DecoratorNode<JSX.Element> {
             type: 'image',
             version: 1,
             width: this.__width === 'inherit' ? 0 : this.__width,
-            fileUploadInfo: this.__fileUploadInfo
+            fileUploadInfo: this.__fileUploadInfo,
+            fileName: this.__fileName
         };
     }
 
@@ -287,6 +302,7 @@ export class InlineImageNode extends DecoratorNode<JSX.Element> {
                     caption={this.__caption}
                     position={this.__position}
                     fileUploadInfo={ this.__fileUploadInfo }
+                    fileName={ this.__fileName }
                 />
             </Suspense>
         );
@@ -302,7 +318,8 @@ export function $createInlineImageNode({
                                            showCaption,
                                            caption,
                                            key,
-                                           fileUploadInfo
+                                           fileUploadInfo,
+                                           fileName
                                        }: InlineImagePayload): InlineImageNode {
 
 // console.log("$createInlineImageNode::fileUploadInfo", fileUploadInfo);
@@ -317,7 +334,8 @@ export function $createInlineImageNode({
             showCaption,
             caption,
             key,
-            fileUploadInfo
+            fileUploadInfo,
+            fileName
         ),
     );
 }

@@ -22,6 +22,7 @@
  */
 
 import { RUNTIME_DISPLAY_FIELDS } from './schema';
+import { migrateCardState } from '../../../../../../ui/components/Card.migrate';
 
 const isJson = (str) => {
     try { JSON.parse(str); return true; } catch { return false; }
@@ -206,21 +207,30 @@ export function migrateToV2(input, defaultState, compName) {
     }
     if (state?.symbologies) return state; // map component
 
-    // Already v2? (has externalSource)
-    if (state.externalSource) return state;
-
-    // v1 format (has sourceInfo or dataRequest)
-    if (state.sourceInfo || state.dataRequest) {
-        return migrateV1ToV2(state);
+    let migrated;
+    if (state.externalSource) {
+        // Already v2.
+        migrated = state;
+    } else if (state.sourceInfo || state.dataRequest) {
+        // v1 format (has sourceInfo or dataRequest)
+        migrated = migrateV1ToV2(state);
+    } else if (Array.isArray(state.attributes) || state.format) {
+        // v0 format (has attributes/format)
+        migrated = migrateV1ToV2(migrateV0ToV1(state));
+    } else {
+        // Unknown format — return with defaults
+        migrated = defaultState || state;
     }
 
-    // v0 format (has attributes/format)
-    if (Array.isArray(state.attributes) || state.format) {
-        return migrateV1ToV2(migrateV0ToV1(state));
+    // Card-specific shape migration: collapse the legacy compactView modes
+    // into the unified cardsGrid + cellsGrid setting groups. Runs as the
+    // last step so per-section migrations and per-shape migrations are
+    // independent.
+    if (compName === 'Card') {
+        migrated = migrateCardState(migrated);
     }
 
-    // Unknown format — return with defaults
-    return defaultState || state;
+    return migrated;
 }
 
 export default migrateToV2;

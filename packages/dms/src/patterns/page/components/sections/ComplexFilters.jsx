@@ -1,11 +1,13 @@
 import React, {useContext, useEffect, Fragment} from "react";
 import {useImmer} from "use-immer";
 import {isEqual, uniqWith} from "lodash-es";
-import {ThemeContext} from "../../../../ui/useTheme";
+import {ThemeContext, getComponentTheme} from "../../../../ui/useTheme";
 import {PageContext, ComponentContext} from "../../context";
 import {getColumnLabel, isEqualColumns} from "./controls_utils";
 import {ConditionValueInput} from "./ConditionValueInput";
 import { calculateIsJoinPresent } from "./components/dataWrapper/utils/joinUtils";
+import { isTimeColumnType } from "./components/dataWrapper/utils/timeFilter";
+import { complexFiltersTheme } from "./ComplexFilters.theme";
 
 const complexFilterStructure = {
     op: "AND",
@@ -43,8 +45,9 @@ const emptyCondition = (columns) => ({
 
 // only in edit mode
 export const ComplexFilters = ({ state, setState }) => {
-    const { UI } = useContext(ThemeContext);
-    const { Pill, Icon, Popup, Switch, ColumnTypes: {select} } = UI;
+    const { UI, theme: themeFromContext = {} } = useContext(ThemeContext) || {};
+    const { Pill, Icon, Popup, Switch, Select, Input, ColumnTypes: {select} } = UI;
+    const t = { ...complexFiltersTheme, ...getComponentTheme(themeFromContext, 'complexFilters') };
     const { apiLoad } = useContext(PageContext) || {};
     const existingCtx = useContext(ComponentContext);
 
@@ -147,134 +150,85 @@ export const ComplexFilters = ({ state, setState }) => {
     const renderNode = (node, path = [], parentOp = 'AND', parentLeafSiblings = []) => {
         if (isGroup(node)) {
             const leafSiblings = node.groups.filter(child => !isGroup(child));
+            const isRoot = !path.length;
             return (
-                <div key={path.join('.')} className={`border rounded-lg p-2 ${path.length ? `ml-2` : ''}`}>
-                    {/* AND / OR */}
-                    <div className={'flex gap-1'}>
-                        <Pill color={'orange'} text={<Icon icon={'TrashCan'} className={'size-4'} />} onClick={() => removeAtPath(path)} />
-                        <div className="flex items-center gap-2 mb-1 text-xs text-gray-500 font-medium">
-                            <span>(</span>
-
-                            <select
-                                className={''}
+                <div
+                    key={path.join('.')}
+                    className={`${t.groupWrapper} ${isRoot ? '' : t.groupWrapperNested}`}
+                >
+                    {/* Group header: "Match [All ▾] of the following" + remove */}
+                    <div className={t.groupHeader}>
+                        <div className={t.groupHeaderLabel}>
+                            <span className={t.groupHeaderMatch}>Match</span>
+                            <Select
                                 value={node.op}
+                                options={[
+                                    { label: 'All', value: 'AND' },
+                                    { label: 'Any', value: 'OR' },
+                                ]}
                                 onChange={e =>
                                     updateNodeAtPath(path, n => {
                                         n.op = e.target.value;
                                     })
                                 }
-                            >
-                                <option value="AND">AND</option>
-                                <option value="OR">OR</option>
-                            </select>
-
-                            <span>)</span>
+                            />
+                            <span>of the following</span>
                         </div>
-                    </div>
-
-                    <div className="ml-4 space-y-2">
-                        {node.groups.map((child, i) =>
-                            <React.Fragment key={`node_child_${i}`}>
-                                {renderNode(child, [...path, i], node.op, leafSiblings)}
-                                {node.groups.length - 1 > i && <div className={'text-xs text-gray-500 font-medium'}>{node.op}</div>}
-                            </React.Fragment>
+                        {!isRoot && (
+                            <Pill
+                                color={'orange'}
+                                text={<Icon icon={'TrashCan'} className={t.popupTrash} />}
+                                title={'Remove group'}
+                                onClick={() => removeAtPath(path)}
+                            />
                         )}
                     </div>
 
-                    <div className="flex gap-1 mt-2">
+                    {/* Children — no inline AND/OR labels between (the header
+                        already conveys the relation). */}
+                    {node.groups.length > 0 && (
+                        <div className={t.groupChildren}>
+                            {node.groups.map((child, i) =>
+                                <React.Fragment key={`node_child_${i}`}>
+                                    {renderNode(child, [...path, i], node.op, leafSiblings)}
+                                </React.Fragment>
+                            )}
+                        </div>
+                    )}
+
+                    <div className={t.groupActions}>
                         <Pill
-                            color="blue"
-                            text="Add Group"
-                            onClick={() => addAtPath(path, emptyGroup())}
+                            color={'blue'}
+                            text={'+ Condition'}
+                            onClick={() => addAtPath(path, emptyCondition(columns))}
                         />
                         <Pill
-                            color="blue"
-                            text="Add Column"
-                            onClick={() =>
-                                addAtPath(path, emptyCondition(columns))
-                            }
+                            color={'blue'}
+                            text={'+ Group'}
+                            onClick={() => addAtPath(path, emptyGroup())}
                         />
                     </div>
                 </div>
             );
         }
 
-        // condition
+        // condition (leaf)
         const isStale = node.col && !columns.find(c => c.name === node.col);
         const siblingConditions = parentOp === 'AND' ? parentLeafSiblings.filter(s => s !== node) : [];
+        const showValueEditor = !['is_null', 'is_not_null'].includes(node.op);
         return (
-            <div key={path.join('.')} className={`w-full flex flex-col gap-1 items-center ml-2 p-2 border border-dashed rounded-md ${isStale ? 'border-red-300 bg-red-50' : 'hover:bg-blue-50'}`}>
-                {/* column selector */}
-                <div className={'w-full flex flex-wrap items-center gap-1'}>
-                    {isStale && <span className={'text-red-500 text-xs'}>stale</span>}
-                    <div className={'w-full flex flex-wrap gap-0.5'}>
-                        <select
-                            className={'flex-1'}
-                            value={JSON.stringify(columns.find(c => c.name === node.col && c.source_id === node.source_id))}
-                            onChange={e =>
-                                updateNodeAtPath(path, n => {
-                                    const val = JSON.parse(e.target.value);
-                                    
-                                    n.col = val.name
-                                    n.source_id = val.source_id
-                                })
-                            }
-                        >
-                            <option key={'please select a column'} value={''}>Please select a column...</option>
-                            {uniqWith(columns, isEqual).map(c => {
-                                const tableAlias = c.source_id ? Object.keys(join?.sources).find(jSourceKey => join?.sources[jSourceKey].source === c.source_id) : 0;
-                                const match = isJoinPresent && tableAlias?.match(/\d+$/);
-                                const tableIdx = match ? Number(match) : 0;
-                                return (
-                                    <option key={`${tableIdx}_${c.name}`} value={JSON.stringify(c)}>
-                                        {getColumnLabel(c)} {isJoinPresent ? ` 🔗${tableIdx}` : ''}
-                                    </option>
-                                )
-                            })}
-                        </select>
-                        <select
-                            className={'flex-0'}
-                            value={node.op}
-                            onChange={e => {
-                                const newOp = e.target.value;
-                                const wasMulti = ['filter', 'exclude'].includes(node.op);
-                                const isMulti = ['filter', 'exclude'].includes(newOp);
-                                updateNodeAtPath(path, n => {
-                                    n.op = newOp;
-                                    if (wasMulti !== isMulti || ['is_null', 'is_not_null'].includes(newOp)) {
-                                        n.value = isMulti ? [] : '';
-                                    }
-                                });
-                            }}
-                        >
-                            <option key="filter" value="filter">contains</option>
-                            <option key="exclude" value="exclude">does not contain</option>
-                            <option key="like" value="like">partially contains</option>
-                            <option key="gt" value="gt"> {">"} </option>
-                            <option key="gte" value="gte"> {">="} </option>
-                            <option key="lt" value="lt"> {"<"} </option>
-                            <option key="lte" value="lte"> {"<="} </option>
-                            <option key="is_not_null" value="is_not_null">exclude N/A</option>
-                            <option key="is_null" value="is_null">show only N/As</option>
-                        </select>
-                    </div>
-                    {!['is_null', 'is_not_null'].includes(node.op) && (
-                        <div className={'w-3/4'}>
-                            <ConditionValueInput
-                                node={node}
-                                path={path}
-                                columns={columns}
-                                updateNodeAtPath={updateNodeAtPath}
-                                siblingConditions={siblingConditions}
-                            />
-                        </div>
-                    )}
-                    <Popup button={<Icon icon={'EllipsisVertical'} className={'size-6'}/>} preventCloseOnClickOutside={false}>
+            <div
+                key={path.join('.')}
+                className={`${t.leafWrapper} ${isStale ? t.leafWrapperStale : t.leafWrapperDefault}`}
+            >
+                {/* Top-right ellipsis menu — leaf-level toggles + remove. */}
+                <div className={t.leafEllipsisWrapper}>
+                    <Popup button={<Icon icon={'EllipsisVertical'} className={t.leafEllipsisIcon}/>} preventCloseOnClickOutside={false}>
                         {
                             () => (
-                                <div className={'flex flex-col gap-2 p-2 bg-white shadow-md border rounded-md text-sm'}>
-                                    <div className={'flex items-center gap-1'}>
-                                        <Icon icon={'Filter'} className={'size-4'} />
+                                <div className={t.popup}>
+                                    <div className={t.popupRow}>
+                                        <Icon icon={'Filter'} className={t.popupIcon} />
                                         <label className={''}>Is Multiselect:</label>
                                         <Switch label={'Multi'}
                                                 disabled={!['filter', 'exclude'].includes(node.op)}
@@ -284,24 +238,24 @@ export const ComplexFilters = ({ state, setState }) => {
                                         />
                                     </div>
                                     {isGrouping && (
-                                        <div className={'flex items-center gap-1'}>
-                                            <Icon icon={'Filter'} className={'size-4'} />
+                                        <div className={t.popupRow}>
+                                            <Icon icon={'Filter'} className={t.popupIcon} />
                                             <label>Aggregate fn:</label>
-                                            <select
-                                                className={'text-xs rounded-md border px-1'}
+                                            <Select
                                                 value={node.fn || ''}
+                                                options={[
+                                                    { label: 'none', value: '' },
+                                                    { label: 'sum', value: 'sum' },
+                                                    { label: 'count', value: 'count' },
+                                                    { label: 'max', value: 'max' },
+                                                    { label: 'list', value: 'list' },
+                                                ]}
                                                 onChange={e => updateNodeAtPath(path, n => { n.fn = e.target.value || undefined; })}
-                                            >
-                                                <option value="">none</option>
-                                                <option value="sum">sum</option>
-                                                <option value="count">count</option>
-                                                <option value="max">max</option>
-                                                <option value="list">list</option>
-                                            </select>
+                                            />
                                         </div>
                                     )}
-                                    <div className={'flex items-center gap-1'}>
-                                        <Icon icon={'Filter'} className={'size-4'} />
+                                    <div className={t.popupRow}>
+                                        <Icon icon={'Filter'} className={t.popupIcon} />
                                         <label className={''}>Use Page Filters:</label>
                                         <Switch label={'Use Page Filters'}
                                                 enabled={node.usePageFilters}
@@ -313,16 +267,15 @@ export const ComplexFilters = ({ state, setState }) => {
                                                 })}
                                                 size={'xs'}
                                         />
-                                        <input
+                                        <Input
                                             disabled={!node.usePageFilters}
-                                            className={'px-1 text-xs rounded-md bg-blue-500/15 text-blue-700 border'}
                                             value={node.searchParamKey || ''}
                                             placeholder={'search key'}
                                             onChange={e => updateNodeAtPath(path, n => { n.searchParamKey = e.target.value; })}
                                         />
                                     </div>
-                                    <div className={'flex items-center gap-1'}>
-                                        <Icon icon={'Filter'} className={'size-4'} />
+                                    <div className={t.popupRow}>
+                                        <Icon icon={'Filter'} className={t.popupIcon} />
                                         <label>External:</label>
                                         <Switch label={'External'}
                                                 enabled={node.isExternal}
@@ -331,22 +284,22 @@ export const ComplexFilters = ({ state, setState }) => {
                                         />
                                     </div>
                                     {node.isExternal && (
-                                        <div className={'flex items-center gap-1'}>
-                                            <Icon icon={'Filter'} className={'size-4'} />
+                                        <div className={t.popupRow}>
+                                            <Icon icon={'Filter'} className={t.popupIcon} />
                                             <label>Display:</label>
-                                            <select
-                                                className={'text-xs rounded-md border px-1'}
+                                            <Select
                                                 value={node.display || ''}
+                                                options={[
+                                                    { label: 'compact', value: '' },
+                                                    { label: 'expanded', value: 'expanded' },
+                                                    { label: 'tabular', value: 'tabular' },
+                                                ]}
                                                 onChange={e => updateNodeAtPath(path, n => { n.display = e.target.value || undefined; })}
-                                            >
-                                                <option value="">compact</option>
-                                                <option value="expanded">expanded</option>
-                                                <option value="tabular">tabular</option>
-                                            </select>
+                                            />
                                         </div>
                                     )}
-                                    <div className={'flex items-center gap-1'}>
-                                        <Icon icon={'Filter'} className={'size-4'} />
+                                    <div className={t.popupRow}>
+                                        <Icon icon={'Filter'} className={t.popupIcon} />
                                         <label>Normal Filter:</label>
                                         <Switch label={'Normal Filter'}
                                                 enabled={node.isNormalFilter}
@@ -363,30 +316,115 @@ export const ComplexFilters = ({ state, setState }) => {
                                         />
                                     </div>
                                     {node.isNormalFilter && (
-                                        <div className={'flex items-center gap-1'}>
-                                            <Icon icon={'Filter'} className={'size-4'} />
+                                        <div className={t.popupRow}>
+                                            <Icon icon={'Filter'} className={t.popupIcon} />
                                             <label>Value Column:</label>
-                                            <select
-                                                className={'text-xs rounded-md border px-1'}
+                                            <Select
                                                 value={node.valueCol || ''}
+                                                options={columns.map(c => ({
+                                                    label: getColumnLabel(c),
+                                                    value: c.name,
+                                                }))}
                                                 onChange={e => updateNodeAtPath(path, n => { n.valueCol = e.target.value; })}
-                                            >
-                                                {columns.map(c => (
-                                                    <option key={c.name} value={c.name}>
-                                                        {getColumnLabel(c)}
-                                                    </option>
-                                                ))}
-                                            </select>
+                                            />
                                         </div>
                                     )}
-                                    <div className={'flex gap-1 text-red-500 hover:text-red-700 cursor-pointer'} onClick={() => removeAtPath(path)}>
-                                        <Icon icon={'TrashCan'} className={'size-4'} /> Remove
+                                    <div className={t.popupRemove} onClick={() => removeAtPath(path)}>
+                                        <Icon icon={'TrashCan'} className={t.popupTrash} /> Remove
                                     </div>
                                 </div>
                             )
                         }
                     </Popup>
                 </div>
+
+                {/* Stale-column warning (if any) above the fields. */}
+                {isStale && <span className={t.leafStaleBadge}>stale</span>}
+
+                {/* Each field on its own line: Column → Operation → Value. The
+                    fieldWithEllipsisGutter row leaves space for the absolute-
+                    positioned ellipsis in the top-right corner. */}
+                <div className={t.fieldWithEllipsisGutter}>
+                    <label className={t.fieldLabel}>Column</label>
+                    <Select
+                        value={JSON.stringify(columns.find(c => c.name === node.col && c.source_id === node.source_id))}
+                        options={[
+                            { label: 'Please select a column...', value: '' },
+                            ...uniqWith(columns, isEqual).map(c => {
+                                const tableAlias = c.source_id ? Object.keys(join?.sources).find(jSourceKey => join?.sources[jSourceKey].source === c.source_id) : 0;
+                                const match = isJoinPresent && tableAlias?.match(/\d+$/);
+                                const tableIdx = match ? Number(match) : 0;
+                                return {
+                                    label: `${getColumnLabel(c)}${isJoinPresent ? ` 🔗${tableIdx}` : ''}`,
+                                    value: JSON.stringify(c),
+                                };
+                            }),
+                        ]}
+                        onChange={e => {
+                            const raw = e.target.value;
+                            if (!raw) return;
+                            updateNodeAtPath(path, n => {
+                                const val = JSON.parse(raw);
+                                n.col = val.name;
+                                n.source_id = val.source_id;
+                            });
+                        }}
+                    />
+                </div>
+
+                <div className={t.field}>
+                    <label className={t.fieldLabel}>Operation</label>
+                    <Select
+                        value={node.op}
+                        options={[
+                            { label: 'contains', value: 'filter' },
+                            { label: 'does not contain', value: 'exclude' },
+                            { label: 'partially contains', value: 'like' },
+                            { label: ' > ', value: 'gt' },
+                            { label: ' >= ', value: 'gte' },
+                            { label: ' < ', value: 'lt' },
+                            { label: ' <= ', value: 'lte' },
+                            { label: 'exclude N/A', value: 'is_not_null' },
+                            { label: 'show only N/As', value: 'is_null' },
+                            // `time` is a structured op — only meaningful for date/timestamp
+                            // columns. Surface it only when the selected column qualifies so
+                            // it can't be applied to text/number columns.
+                            ...(isTimeColumnType(columns.find(c => c.name === node.col)?.type)
+                                ? [{ label: 'time filter', value: 'time' }]
+                                : []),
+                        ]}
+                        onChange={e => {
+                            const newOp = e.target.value;
+                            const wasMulti = ['filter', 'exclude'].includes(node.op);
+                            const isMulti = ['filter', 'exclude'].includes(newOp);
+                            const wasTime = node.op === 'time';
+                            const isTime = newOp === 'time';
+                            updateNodeAtPath(path, n => {
+                                n.op = newOp;
+                                // Reset the value shape when switching between fundamentally
+                                // different ops (multi vs scalar, time vs scalar, IS [NOT] NULL).
+                                if (isTime !== wasTime || wasMulti !== isMulti || ['is_null', 'is_not_null'].includes(newOp)) {
+                                    if (isTime) n.value = {};
+                                    else if (isMulti) n.value = [];
+                                    else n.value = '';
+                                }
+                            });
+                        }}
+                    />
+                </div>
+
+                {showValueEditor && (
+                    <div className={t.field}>
+                        <label className={t.fieldLabel}>Value</label>
+                        <ConditionValueInput
+                            node={node}
+                            path={path}
+                            columns={columns}
+                            updateNodeAtPath={updateNodeAtPath}
+                            siblingConditions={siblingConditions}
+                        />
+                    </div>
+                )}
             </div>
         );
     };
@@ -397,7 +435,7 @@ export const ComplexFilters = ({ state, setState }) => {
 
     return (
         <ComponentContext.Provider value={ctxValue}>
-            <div className={'w-full hover:bg-white rounded-md'}>
+            <div className={t.root}>
                 {renderNode(filterGroups)}
                 <Pill color={'blue'} text={'save'} onClick={save} />
             </div>

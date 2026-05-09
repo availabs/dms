@@ -2,6 +2,7 @@ const { getDb, getChDb } = require('#db/index.js');
 const { loadConfig } = require('#db/config.js');
 const { resolveTable, parseType, isSplitType, ensureSequence, ensureTable, getSequenceName } = require('#db/table-resolver.js');
 const { parseSplitDataType, getKind } = require('#db/type-utils.js');
+const { extractTimeFilterValues, buildTimeFilterSQL } = require('./time-filter.js');
 
 /**
  * Resolve the fully-qualified main table name for DMS content (non-split items).
@@ -404,6 +405,11 @@ function handleFilters({ filter, exclude, gt, gte, lt, lte, like, filterRelation
 function getValuesFromGroup(node) {
   if (!node) return [];
   if (node.groups) return node.groups.flatMap(getValuesFromGroup);
+  // `time` op carries a structured value object — extract its bind values in
+  // the same canonical order buildTimeFilterSQL mints placeholders.
+  if (node.op === 'time') {
+    return extractTimeFilterValues(node.value);
+  }
   if (!node.value) return [];
   if (Array.isArray(node.value)) {
     const filtered = node.value.filter(v => !['null', 'not null'].includes(v));
@@ -424,6 +430,14 @@ function buildLeafSQL(node, ctx, isDms, dbType) {
   // they exist in filterGroups only for UI tracking, not SQL generation.
   // Also skip nodes with no value (would generate a placeholder with no matching param).
   if (value == null) return '';
+
+  // `time` op: structured value (ranges/dow/timeOfDay/tz/compareEnd) compiled
+  // into a single compound predicate. Values are extracted by getValuesFromGroup
+  // in the same canonical order the SQL emits placeholders. PostgreSQL only in
+  // Phase 1 — buildTimeFilterSQL throws on SQLite/ClickHouse.
+  if (op === 'time') {
+    return buildTimeFilterSQL(value, col, ctx, isDms, dbType);
+  }
 
   // array_contains / array_not_contains: check if a JSON array column contains (or doesn't contain) any of the given values
   if (op === 'array_contains' || op === 'array_not_contains') {

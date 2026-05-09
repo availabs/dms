@@ -4,7 +4,6 @@ import React from "react";
 //   mean as d3mean,
 //   sum as d3sum
 // } from "d3-array";
-import { format as d3format } from "d3-format";
 import { range as d3range } from "d3-array";
 import {get} from "lodash-es";
 import { getGraphComponent } from "./components";
@@ -12,7 +11,7 @@ import {mapColors} from "./utils";
 import {getColorRange} from "./colorRange";
 // import {graphTheme} from "./index";
 // import {ThemeContext} from "../../useTheme";
-import {strictNaN} from "./utils";
+import { strictNaN, getFormatFunc } from "./utils";
 
 const GraphTitle = ({ title, position, fontSize, fontWeight }) => {
 
@@ -43,97 +42,30 @@ const GraphTitle = ({ title, position, fontSize, fontWeight }) => {
 //   return AggFuncs[aggMethod] //|| d3sum;
 // }
 
-const integerFormat = d3format(",d");
-const float1Format = d3format(",.1f");
-const float2Format = d3format(",.2f");
-
-const TICK_FORMATS_MAP = {
-  identity: d => d,
-  integer: integerFormat,
-  float1: float1Format,
-  float2: float2Format,
-  dollars: d => `$${ float2Format(d) }`,
-  millions: d => `$${ integerFormat(d / 1000000.0) }m`,
-  billions: d => `$${ integerFormat(d / 1000000000.0) }b`
-}
-
 export const GraphComponent = props => {
 
   const {
     graphFormat,
-    activeGraphType,
+    graphType,
     viewData,
+    columns,
     showCategories,
     xAxisColumn,
     yAxisColumns,
     theme
   } = props;
 
-console.log("GraphComponent::viewData", viewData);
-
   const GraphComponent = React.useMemo(() => {
-    return getGraphComponent(activeGraphType.GraphComp);
-  }, [activeGraphType]);
+    return getGraphComponent(graphType);
+  }, [graphType]);
 
   const [ref, setRef] = React.useState(null);
-  // const [width, setWidth] = React.useState(640);
-  // React.useEffect(() => {
-  //   if (!ref) return;
-  //   const { width } = ref.getBoundingClientRect();
-  //   setWidth(width);
-  // }, [ref]);
 
-  // const groupedData = React.useMemo(() => {
-  //   const grouped = d3groups(viewData, d => d.index, d => d.type, d => d.aggMethod);
-
-  //   return grouped.reduce((a, c) => {
-  //     const [index, group1] = c;
-
-  //     return group1.reduce((aa, cc) => {
-  //       const [type, group2] = cc;
-
-  //       return group2.reduce((aaa, ccc) => {
-  //         const [aggMethod, group3] = ccc;
-
-  //         const aggFunc = getAggFunc(aggMethod);
-  //         aaa.push({
-  //           index,
-  //           type,
-  //           value: aggFunc(group3, d => d.value) // fn seems unnecessary?
-  //         })
-
-  //         return aaa;
-  //       }, aa);
-  //     }, a);
-  //   }, []);
-  // }, [viewData, yAxisColumns]);
-
-  // const xScale = React.useMemo(() => {
-  //   let domain;
-
-  //   const makeContinuous = graphFormat.xAxis.makeContinuous;
-
-  //   if (makeContinuous) {
-  //     const [min, max] = viewData.reduce((a, c) => {
-  //       const i = c.index;
-  //       if (!strictNaN(i)) {
-  //         return [Math.min(a[0], i), Math.max(a[1], i)];
-  //       }
-  //       return a;
-  //     }, [Infinity, -Infinity]);
-
-  //     if ((min < Infinity) && (max > -Infinity)) {
-  //       domain = d3range(min, max + 1);
-  //     }
-  //   }
-
-  //   return { domain };
-  // }, [graphFormat.xAxis.makeContinuous, viewData])
-
-  const yAxisFormat = React.useMemo(() => {
-    const format = graphFormat?.yAxis?.format || "identity";
-    return TICK_FORMATS_MAP[format];
-  }, [graphFormat?.yAxis?.format])
+  const colors = React.useMemo(() => {
+    if (graphFormat.colors?.type === "palette") {
+      return graphFormat.colors?.value || [];
+    }
+  }, [graphFormat.colors]);
 
   return (
     <div ref={ setRef }
@@ -147,14 +79,15 @@ console.log("GraphComponent::viewData", viewData);
     >
       <GraphTitle { ...graphFormat.title }/>
 
-      { !activeGraphType || !GraphComponent ? null :
+      { !GraphComponent ? null :
         <GraphComponent
-          data={ viewData }
+          viewData={ viewData }
+          columns={ columns }
           title={ get(graphFormat, "title", "") }
           height={ get(graphFormat, "height", 0) }
           width={ get(graphFormat, "width", 0) }
           bgColor={ get(graphFormat, "bgColor", "#ffffff") }
-          colors={ get(graphFormat, "colors") }
+          colors={ colors }
           upperLimit={ get(graphFormat, "upperLimit") }
 
           showCategories={ showCategories }
@@ -175,12 +108,16 @@ console.log("GraphComponent::viewData", viewData);
             label: get(graphFormat, ["yAxis", "label"]),
             rotateLabels: get(graphFormat, ["yAxis", "rotateLabels"], false),
             showGridLines: get(graphFormat, ["yAxis", "showGridLines"], true),
-            format: yAxisFormat,
-            show: get(graphFormat, ["yAxis", "show"], true)
+            show: get(graphFormat, ["yAxis", "show"], true),
+            format: getFormatFunc(get(graphFormat, ["yAxis", "format"]))
           } }
           margins={ get(graphFormat, "margins", {}) }
           legend={ get(graphFormat, "legend", {}) }
-          tooltip={ get(graphFormat, "tooltip", {}) }/>
+          tooltip={ {
+            show: get(graphFormat, ["tooltip", "show"], true),
+            valueFormat: getFormatFunc(get(graphFormat, ["tooltip", "valueFormat"])),
+            yFormat: getFormatFunc(get(graphFormat, ["tooltip", "yFormat"]))
+          } }/>
       }
     </div>
   )

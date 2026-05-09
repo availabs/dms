@@ -10,6 +10,7 @@
 
 import {
     buildUdaConfig,
+    isCalculatedCol,
     legacyStateToBuildInput,
     attributeAccessorStr,
 } from "./buildUdaConfig";
@@ -364,18 +365,56 @@ export const getData = async ({
     debugTime && console.timeEnd('post-processing')
     debugTime && console.timeEnd('getData fn')
 
-    //If we have a join, we need to remove the prefixed table alias from the response
+    //If we have a join, we need to remove the prefixed table alias from the response.
+    // Skip the strip for calculated columns: their `name` is a SQL expression that
+    // typically contains '.' (e.g. `ds.data->>'col'`), so naively splitting on '.'
+    // mangles the key. Use isCalculatedCol so calc columns of any return type
+    // (text, timestamp, numeric, …) are recognised — checking only `type === 'calculated'`
+    // misses calc columns that declare their return type via `type` and use
+    // `display: 'calculated'` to mark origin.
     const formattedData = isJoinPresent ? dataToReturn.map(d => {
         const newD = {};
 
         Object.keys(d).forEach(dKey => {
             const curCol = state.columns.find(c => c.name === dKey);
-            const formattedKey = dKey.split(".").length > 1 && curCol?.type !== "calculated" ? dKey.split(".")[1] : dKey;
+            const formattedKey = dKey.split(".").length > 1 && !isCalculatedCol(curCol || {}) ? dKey.split(".")[1] : dKey;
             newD[formattedKey] = d[dKey]
         })
 
         return newD;
     }) : dataToReturn;
+
+    // Empty-result fallback. Opt-in via `display.useBlankRowFallback`.
+    // When the real query returned 0 rows AND the section has opted in,
+    // synthesize a single placeholder row keyed by the same
+    // `column.normalName || column.name` shape used for real rows above
+    // (so Card.jsx's `source[attr.normalName] || source[attr.name]` lookup
+    // chain finds the values without renderer changes). Each cell is
+    // populated from `column.blankDefault`, an arbitrary scalar matching
+    // the column type's value shape (string for text/calc-text, hue for
+    // portrait_banner, URL for image, etc.). Calc columns store their
+    // literal final value here — no SQL re-evaluation in fallback mode.
+    //
+    // The row is tagged with `_isBlankFallback: true` (underscore-prefixed
+    // so it can't collide with a column whose `name` is `isBlankFallback`)
+    // so renderers can opt into differentiated styling. Default renderers
+    // ignore it and render exactly as they do for a real row with possibly-
+    // empty cells. `length` becomes 1 — every consumer of dataWrapper
+    // already handles "render N rows," nothing else changes shape.
+    //
+    // BC: the entire branch is gated on `display.useBlankRowFallback`;
+    // sections that haven't opted in see `length: 0, data: []` exactly as
+    // before.
+    if (length === 0 && state.display?.useBlankRowFallback) {
+        const blankRow = { _isBlankFallback: true };
+        for (const column of state.columns || []) {
+            if (column.show === false) continue;
+            const key = column.normalName || column.name;
+            blankRow[key] = column.blankDefault ?? null;
+        }
+        return { length: 1, data: [blankRow], outputSourceInfo };
+    }
+
     return { length, data: formattedData, outputSourceInfo };
 };
 

@@ -70,7 +70,7 @@ export const getColorFunc = colors => {
   }
 }
 
-export const strictNaN = v => (v === null) || isNaN(v);
+export const strictNaN = v => (v === null) || (v === "") || isNaN(v);
 
 export const DefaultXScale = {
   type: "band",

@@ -1,8 +1,12 @@
 import React from 'react'
 import { Graph, DomainEditor } from './index'
-import { getColorRange } from '../../../../../../../ui/components/graph/colorRange'
+import { getColorRange } from '../../../../../../../ui/components/graph_new/colorRange'
+import { ValueFormats } from "../../../../../../../ui/components/graph_new/utils";
+
+// import PalettePicker from "./PalettePicker"
 
 const DefaultPalette = getColorRange(20, "div7");
+
 const graphOptions = {
     readyToLoad: false,
     graphType: 'BarGraph',
@@ -48,20 +52,9 @@ const graphOptions = {
         label: "",
     },
     tooltip: {
-        show: true,
-        fontSize: 12
+        show: true
     }
 }
-
-const TICK_FORMATS = [
-    { label: "Identity", value: "identity" },
-    { label: "Integer", value: "integer" },
-    { label: "Float (1 decimal)", value: "float1" },
-    { label: "Float (2 decimal)", value: "float2" },
-    { label: "Dollars", value: "dollars" },
-    { label: "Millions", value: "millions" },
-    { label: "Billions", value: "billions" }
-]
 
 const defaultState = {
     filters: { op: 'AND', groups: [] },
@@ -103,23 +96,33 @@ const homogenizeTargets = rawTargetsMap => {
 const GRAPH_TARGETS_MAP = homogenizeTargets({
     xAxis: {
         exclusive: true,
-        keys: ["xAxis", "group"],
-        remove: ["fn", "yAxis", "categorize"]
+        keys: ["xAxis"],
+        remove: ["fn", "yAxis", "categorize", "color"]
     },
     yAxis: {
         exclusive: false,
         keys: [
             "yAxis",
-            { key: "fn",
-                value: column => column.fn = (column.defaultFn || "count").toLowerCase()
-            }
+            // { key: "fn",
+            //     value: column => column.fn = (column.defaultFn || "count").toLowerCase()
+            // }
         ],
-        remove: ["xAxis", "group", "categorize"]
+        remove: ["xAxis", "categorize", "color"]
     },
     categorize: {
-        keys: ["categorize", "group"],
+        keys: ["categorize"],
         exclusive: true,
-        remove: ["xAxis", "fn", "yAxis"]
+        remove: ["xAxis", "fn", "yAxis", "color"]
+    },
+    color: {
+        exclusive: true,
+        keys: [
+            "color",
+            // { key: "fn",
+            //     value: column => column.fn = (column.defaultFn || "count").toLowerCase()
+            // }
+        ],
+        remove: ["xAxis", "yAxis", "categorize"]
     }
 })
 
@@ -135,8 +138,10 @@ export default {
     "name": 'AVL Graph',
     "type": 'avlGraph',
     "variables": [],
+
     useDataSource: true,
     useDataWrapper: true,
+
     fullDataLoad: true,
     useGetDataOnPageChange: false,
     showPagination: false,
@@ -148,53 +153,13 @@ export default {
                 options: [
                     { label: "X axis", value: "xAxis" },
                     { label: "Y axis", value: "yAxis" },
-                    { label: "Categorize", value: "categorize" },
-                    // { label: "Color", value: "color",
-                    //     displayCdn: ({ display }) => display.graphType === "GridGraph"
-                    // },
-                    // { label: "Grid Height", value: "height",
-                    //     displayCdn: ({ display }) => display.graphType === "GridGraph"
-                    // },
-                    // { label: "Grid Width", value: "width",
-                    //     displayCdn: ({ display }) => display.graphType === "GridGraph"
-                    // }
+                    { label: "Categorize", value: "categorize",
+                        displayCdn: ({ display }) => display.graphType !== "GridGraph"
+                    },
+                    { label: "Color", value: "color",
+                        displayCdn: ({ display }) => display.graphType === "GridGraph"
+                    },
                 ],
-                onChange: ({ key, state, value, columnIdx, attribute }) => {
-
-                    const isExclusive = Boolean(GRAPH_TARGETS_MAP[value]?.exclusive);
-                    const hasValue = !hasNoValue(value);
-
-                    state.columns.forEach((column, i) => {
-                        if (i === columnIdx) {
-                            if (hasValue) {
-                                GRAPH_TARGETS_MAP[value].keys.forEach(({ key, value }) => {
-                                    column[key] = value(column);
-                                });
-                                GRAPH_TARGETS_MAP[value].remove.forEach(k => delete column[k]);
-                            }
-                            else {
-                                delete column.xAxis;
-                                delete column.categorize;
-                                delete column.group;
-                                delete column.yAxis;
-                            }
-                        }
-                        else if (hasValue && isExclusive) {
-                            const needsRemoval = GRAPH_TARGETS_MAP[value].keys.reduce((a, { key }) => {
-                                return a && Boolean(column[key]);
-                            }, true);
-                            if (needsRemoval) {
-                                GRAPH_TARGETS_MAP[value].keys.forEach(({ key }) => {
-                                    delete column[key];
-                                });
-                                if (column.target === value) {
-                                    delete column.target;
-                                }
-                            }
-                        }
-                    })
-
-                }
             },
             { type: 'select',
                 label: 'Fn', key: 'fn',
@@ -205,34 +170,18 @@ export default {
                     { label: 'list', value: 'list' },
                     // { label: 'fn exempt', value: 'exempt' }
                 ],
-                onChange: ({ key, state, value, columnIdx, attribute }) => {
-                    const column = state.columns[columnIdx];
-                    if (hasNoValue(value)) {
-                        column.yAxis = false;
-                        column.categorize = false;
-                        column.target = undefined;
-                    }
-                    else {
-                        column.xAxis = false;
-                        column.yAxis = true;
-                        column.target = "yAxis";
-                    }
-                },
-                displayCdn: ({ attribute }) => attribute.target === "yAxis"
-            },       
+            },     
+            { type: 'toggle',
+                label: 'Group', key: 'group'
+            },  
             { type: 'select',
                 label: 'Sort', key: 'sort',
                 options: [
-                    { label: 'Not Sorted', value: '' },
-                    { label: 'A->Z', value: 'asc nulls last' },
-                    { label: 'Z->A', value: 'desc nulls last' }
+                    { label: 'A->Z', value: 'asc' },
+                    { label: 'Z->A', value: 'desc' }
                 ],
                 displayCdn: ({ attribute }) => attribute.target === "xAxis"
-            },
-            // { type: 'toggle',
-            //     label: 'Group', key: 'group',
-            //     displayCdn: ({ attribute }) => attribute.target === "categorize"
-            // },
+            }
         ],
         // columns: [
         //     {type: 'select', label: 'Fn', key: 'fn', disabled: ({attribute}) => !attribute.yAxis || !attribute.show,
@@ -303,37 +252,73 @@ export default {
                     //     {label: 'Abbreviate',      value: 'abbreviate'},
                     //     {label: 'Comma Separated', value: 'comma'},
                     // ]
-                    options: TICK_FORMATS
+                    options: ValueFormats
                 },
                 {type: 'toggle', label: 'Show Gridlines', key: 'yAxis.showGridLines', defaultValue: true},
                 {type: 'toggle', label: 'Rotate Labels',  key: 'yAxis.rotateLabels'},
                 {type: 'toggle',                     label: 'Show Y Axis',     key: 'yAxis.show' },
             ]
         },
+        tooltipForLineGraph: {
+            name: "ToolTip",
+            displayCdn: ({ display }) => display.graphType === 'LineGraph',
+            items: [
+                { type: "select",
+                    label: "Y Format", key: "tooltip.yFormat",
+                    options: ValueFormats
+                }
+            ]
+        },
+        tooltip: {
+            name: "ToolTip",
+            displayCdn: ({ display }) => display.graphType !== 'LineGraph',
+            items: [
+                {type: 'toggle',
+                    label: 'Tooltip', key: 'tooltip.show'
+                },
+                { type: "select",
+                    label: "Value Format", key: "tooltip.valueFormat",
+                    options: ValueFormats
+                }
+            ]
+        },
         graph: {
             name: 'Graph',
             items: [
-                {type: 'select', label: 'Type', key: 'graphType', onClickGoBack: true, showValue: true,
+                {   type: 'select',
+                    label: 'Graph Type', key: 'graphType',
+                    onClickGoBack: true, showValue: true,
                     options: [
                         {label: 'Bar',     value: 'BarGraph'},
                         {label: 'Line',    value: 'LineGraph'},
                         // {label: 'Scatter', value: 'ScatterPlot'},
                         {label: 'Grid',    value: 'GridGraph'},
-                    ]},
+                    ],
+                    onChange: ({ key, value, state }) => {
+                        if (value === "GridGraph") {
+                            state.columns.forEach(col => {
+                                if (col.target === "categorize") {
+                                    col.target = undefined;
+                                }
+                            })
+                        }
+                        else {
+                            state.columns.forEach(col => {
+                                if (col.target === "color") {
+                                    col.target = undefined;
+                                }
+                            })
+                        }
+                    }
+                },
                 {type: 'input', inputType: 'text', label: 'Title',          key: 'title.title'},
                 {type: 'toggle',                   label: 'Legend',          key: 'legend.show'},
                 {type: 'toggle',                   label: 'Hide if No Data', key: 'hideIfNull'},
-                {type: 'toggle',                   label: 'Tooltip',         key: 'tooltip.show'},
+                // {type: 'toggle',                   label: 'Tooltip',         key: 'tooltip.show'},
                 {type: 'toggle',                   label: 'Attribution',     key: 'showAttribution'},
                 {type: 'toggle',                   label: 'Scale Filter',    key: 'showScaleFilter'},
                 {type: 'input', inputType: 'number', label: 'Padding',          key: 'padding'},
                 {type: 'input', inputType: 'number', label: 'Height',        key: 'height'},
-                // {type: 'toggle',                   label: 'Dark Mode',       key: 'darkMode'},,
-                // { type: "toggle",
-                //     label: "Make Continuous X Domain",
-                //     key: "makeContinuousXDomain",
-                //     displayCdn: ({ display }) => display.graphType === "LineGraph"
-                // },
                 {type: 'toggle',                   label: 'Use Custom X Ticks', key: 'useCustomXDomain'},
                 {
                     type: ({value, setValue, state}) => (

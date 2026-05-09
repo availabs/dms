@@ -99,3 +99,97 @@ If a downstream consumer wants their own custom component to be Fast-Refresh-cle
 ### When in doubt
 
 Run the dev server and edit the component — if the page keeps state across the edit, the file is a Fast-Refresh boundary. If it full-reloads, something in the module is breaking the boundary; look for object-literal exports, non-component named exports, or an anonymous default.
+
+## Theming — no Tailwind in markup
+
+**All markup must be styled through the theme.** Inline `className="..."` strings with Tailwind utilities don't belong in components — they live in `.theme.{js,jsx}` siblings and are pulled into the component via `ThemeContext`. This is what lets downstream sites re-skin the entire app without forking components.
+
+If you find yourself writing `className="flex items-center gap-2 ..."` in a component body, stop and move the string into the matching theme file as a named key.
+
+### Two flavors of themed component
+
+The right place for the theme depends on where the component lives and how it gets its data:
+
+#### 1. Reusable UI primitives — `ui/components/Foo.{jsx,theme.{js,jsx}}`
+
+Components that take **all data through props** and don't know about patterns, page state, or routes (Button, Input, Select, Pill, Switch, Card, Tabs, etc.). These are the project-wide reusables.
+
+- Implementation in `ui/components/Foo.jsx`, theme in sibling `Foo.theme.{js,jsx}`.
+- Theme is registered in `ui/defaultTheme.js`.
+- Themes typically expose multiple **named styles** under a `styles[]` array with an `options.activeStyle` selector — site authors can swap the entire visual treatment without touching code.
+
+```js
+// ui/components/Button.theme.jsx
+export const buttonTheme = {
+  options: { activeStyle: 0 },
+  styles: [
+    { name: 'default Buttons', button: 'inline-flex items-center …' },
+    { name: 'plain',            button: 'cursor-pointer relative …' },
+    { name: 'active',           button: 'cursor-pointer px-4 …' },
+  ],
+};
+```
+
+#### 2. Pattern-tied components — `patterns/<pattern>/.../Foo.{jsx,theme.{js,jsx}}`
+
+Components that consume context, page state, joins, filter trees, etc. — they're meaningful only inside a pattern (page, datasets, auth, …). The current filter-editor (`ComplexFilters`), section components (`section`, `sectionArray`, `sectionGroup`), `userMenu`, search, dataset pages, etc.
+
+- Implementation lives under the pattern (`patterns/page/components/sections/ComplexFilters.jsx`), theme in sibling (`ComplexFilters.theme.js`).
+- Theme is registered in **`patterns/<pattern>/defaultTheme.js`** under a namespace key (e.g., `complexFilters`, `sectionGroupsPane`). The pattern's `defaultTheme` is merged into the global theme by `getPatternTheme()` at site load.
+- Themes are usually a flat `{ key: classString }` map — the multi-`styles[]` shape is overkill for tightly-scoped pattern UIs. Use it only if the component genuinely has multiple visual variants the user can switch.
+
+### Loading the theme inside a component
+
+Always go through `ThemeContext` and `getComponentTheme` from `ui/useTheme.js` — don't `import buttonTheme` directly into a component body, because that bypasses the merged + overridden theme that the site has configured.
+
+```jsx
+import { ThemeContext, getComponentTheme } from "<path-to>/ui/useTheme";
+import { complexFiltersTheme } from "./ComplexFilters.theme";
+
+const Foo = () => {
+  const { UI, theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
+  const t = {
+    ...complexFiltersTheme,                                  // local default fallback
+    ...getComponentTheme(themeFromContext, 'complexFilters') // merged + overridden
+  };
+  return <div className={t.groupWrapper}>…</div>;
+};
+```
+
+#### What `getComponentTheme(theme, compType, activeStyle?)` does
+
+`compType` is a lodash-`get` path (`'button'`, `'pages.sectionGroupsPane'`, `'complexFilters'`).
+
+- **Flat shape** — if `theme[compType]` has no `styles` array, returns the object as-is. This is the typical pattern-tied case (`{ groupWrapper: '...', leafWrapper: '...' }`).
+- **Styles shape** — if `theme[compType].styles` is an array:
+  - Resolves the style by passed-in `activeStyle`, then by `theme[compType].options.activeStyle`, then `0`.
+  - Accepts a numeric index *or* a style `name`.
+  - Non-default styles inherit missing keys from `styles[0]` (so style authors only need to override what differs).
+- Always returns `{}` instead of `undefined` if the key is missing — safe to destructure.
+
+#### When you need a specific style
+
+Pass the third argument explicitly:
+
+```jsx
+const theme = getComponentTheme(themeFromContext, 'button', 'plain');
+// or by index:
+const theme = getComponentTheme(themeFromContext, 'button', 2);
+```
+
+Otherwise omit it and let `options.activeStyle` (configured per-site) drive selection.
+
+#### The local-default spread
+
+Spreading `complexFiltersTheme` (or `buttonTheme`, etc.) before `getComponentTheme(...)` is defensive — it covers the case where the component is rendered outside a pattern's theme tree (e.g., a settings dialog mounting a filter editor without the page-pattern theme merged in). The override from context wins on any key it provides; missing keys fall through to the local default.
+
+### Theme settings authoring (advanced)
+
+UI primitives also export a `*Settings` function that produces editable controls for the theme manager (see `Button.theme.jsx`'s `buttonSettings(theme)`). This is what lets site authors edit theme values from the admin UI. Pattern-tied themes don't need this unless the theme is large enough to warrant in-product editing.
+
+### Quick checklist for new themed work
+
+- Writing a UI primitive (props in, JSX out, no context)? → `ui/components/Foo.{jsx,theme.{js,jsx}}`, register in `ui/defaultTheme.js`, prefer `styles[]` + `options.activeStyle`.
+- Writing a pattern-tied component? → next to the component, register in `patterns/<pattern>/defaultTheme.js`, flat key map is fine.
+- Reading the theme in JSX? → `getComponentTheme(themeFromContext, '<key>')`, spread your local default first as a fallback.
+- Tempted to write `className="flex …"` directly? → name a key in the theme, use it instead.

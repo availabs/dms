@@ -2,53 +2,88 @@ import React from "react"
 
 import { LineGraph, generateTestLineData } from "./avl-graph"
 
-import { rollups as d3rollups } from "d3-array"
+import {
+	groups as d3groups
+} from "d3-array"
 
-const mergeData = data => {
-	const merged = data.reduce((a, c) => {
-		a.index = c.index;
-		a[c.type] = c.value;
-		return a;
-	}, {});
-	return data;
-} 
+import { strictNaN } from "../utils"
+import { getAggFunc } from "./utils"
 
 const LineGraphWrapper = props => {
 
 // console.log("LineGraphWrapper::props", props);
 
+// console.log("LineGraphWrapper::viewData", props.viewData);
+// console.log("LineGraphWrapper::columns", props.columns);
+
 	const dataFromProps = React.useMemo(() => {
-		if (!props.data.length) return [];
+		const xColumn = props.columns.find(c => c.target === "xAxis");
+		const yColumns = props.columns.filter(c => c.target === "yAxis");
+		const idColumn = props.columns.find(c => c.target === "categorize");
 
-		const rollups = d3rollups(props.data, mergeData, d => d.type);
+		if (!xColumn || !yColumns.length) return [];
 
-		return rollups.map(([type, group]) => {
-			return {
-				id: type,
-				data: group.map(g => ({ x: g.index, y: g.value }))
+		const data = [];
+
+		if (idColumn) {
+			const dataGroups = d3groups(props.viewData, d => d[idColumn.name], d => d[xColumn.name]);
+
+			for (const [id, iGroup] of dataGroups) {
+
+				if (id === undefined) continue;
+
+				const line = { id, data: [] };
+				for (const [x, xGroup] of iGroup) {
+					if (x === undefined) continue;
+					let y = 0;
+					for (const yc of yColumns) {
+						const ycn = yc.name;
+						const aggFunc = getAggFunc(yc);
+						const v = aggFunc(xGroup, d => d[ycn]);
+						if (!strictNaN(v)) {
+							y += v;
+						}
+					}
+					line.data.push({ x, y });
+				}
+				data.push(line);
 			}
+		}
+		else {
+			const dataGroups = d3groups(props.viewData, d => d[xColumn.name]);
+
+			for (const yc of yColumns) {
+				const ycn = yc.name;
+				const aggFunc = getAggFunc(yc);
+
+				const line = { id: ycn, data: [] };
+
+				for (const [x, xGroup] of dataGroups) {
+					if (x === undefined) continue;
+					const y = aggFunc(xGroup, d => d[ycn]);
+					if (!strictNaN(y)) {
+						line.data.push({ x, y })
+					}
+				}
+				data.push(line);
+			}
+		}
+
+		data.forEach(d => {
+			d.data.sort((a, b) => {
+	      const aNaN = strictNaN(+a.x);
+	      const bNaN = strictNaN(+b.x);
+	      if (aNaN || bNaN) {
+	        return a < b ? -1 : a > b ? 1 : 0;
+	      }
+	      return +a.x - +b.x;
+			})
 		})
 
-		return [];
-	}, [props.data]);
+		return data;
+	}, [props.viewData, props.columns]);
 
-console.log("LineGraphWrapper::dataFromProps", dataFromProps);
-
-	const [dataForGraph, setDataForGraph] = React.useState([]);
-	const randomData = React.useCallback(e => {
-		setDataForGraph(generateTestLineData());
-	}, []);
-	const clearData = React.useCallback(e => {
-		setDataForGraph([]);
-	}, []);
-
-// console.log("LineGraphWrapper::dataForGraph", dataForGraph);
-
-	const colors = React.useMemo(() => {
-		if (props.colors?.type === "palette") {
-			return props.colors?.value || [];
-		}
-	}, [props.colors]);
+// console.log("LineGraphWrapper::dataFromProps", dataFromProps);
 
 	const axisBottom = React.useMemo(() => {
 		if (!props.xAxis) return false;
@@ -78,36 +113,20 @@ console.log("LineGraphWrapper::dataFromProps", dataFromProps);
 	}, [props.height, margin.top, margin.bottom,]);
 
 	return (
-		<div className="bg-inherit">
-			<div className="w-full bg-inherit"
-				style={ { height: `${ height }px` } }
-			>
-				<LineGraph
-					data={
-						dataFromProps.length ? dataFromProps : dataForGraph
-					}
-					colors={ colors }
-					axisBottom={ axisBottom }
-					axisLeft={ axisLeft }
-					axisRight={ axisLeft }
-					xScale={ props.xScale }
-					margin={ margin }
-					hoverComp={ hoverComp }
-					width={ props.width }
-					height={ height }/>
-			</div>
-			<button
-				className="bg-gray-200"
-				onClick={ randomData }
-			>
-				random data
-			</button>
-			<button
-				className="bg-gray-200"
-				onClick={ clearData }
-			>
-				clear data
-			</button>
+		<div className="w-full bg-inherit"
+			style={ { height: `${ height }px` } }
+		>
+			<LineGraph
+				data={ dataFromProps }
+				colors={ props.colors }
+				axisBottom={ axisBottom }
+				axisLeft={ axisLeft }
+				axisRight={ axisLeft }
+				xScale={ props.xScale }
+				margin={ margin }
+				hoverComp={ hoverComp }
+				width={ props.width }
+				height={ height }/>
 		</div>
 	)
 }

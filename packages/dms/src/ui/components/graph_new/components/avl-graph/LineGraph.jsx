@@ -9,7 +9,7 @@ import { format as d3format } from "d3-format"
 
 import get from "lodash/get"
 
-import { useSetSize } from "./utils"
+import { useSetSize, strictNaN } from "./utils"
 
 import {
   AxisBottom,
@@ -264,16 +264,27 @@ export const LineGraph = props => {
     const adjustedWidth = Math.max(0, width - (Margin.left + Margin.right)),
       adjustedHeight = Math.max(0, height - (Margin.top + Margin.bottom));
 
-    let xDomain = data.length ? data[0].data.map(d => d.x) : [];
+    let xDomain = get(xScale, "domain", []);
 
-    if (!xDomain.length && secondary.length) {
-      xDomain = secondary[0].data.map(d => d.x);
-    }
-    if (xScale) {
+    if (!xDomain.length) {
+      const xDomainSet = new Set();
 
-console.log("X SCALE:", xScale);
+      data.forEach(({ data }) => {
+        data.forEach(({ x }) => xDomainSet.add(x));
+      });
+      secondary.forEach(({ data }) => {
+        data.forEach(({ x }) => xDomainSet.add(x));
+      });
 
-      xDomain = get(xScale, "domain", xDomain);
+      xDomain = [...xDomainSet]
+        .sort((a, b) => {
+          const aNaN = strictNaN(+a);
+          const bNaN = strictNaN(+b);
+          if (aNaN || bNaN) {
+            return a < b ? -1 : a > b ? 1 : 0;
+          }
+          return +a - +b;
+        });
     }
 
     const aLeft = {
@@ -330,12 +341,14 @@ console.log("X SCALE:", xScale);
 		const lineGenerator = d3line()
       .curve(curveCatmullRom)
 			.x(d => XScale(d.x))
-			.y(d => YScale(d.y));
+			.y(d => YScale(d.y))
+      .defined(d => !strictNaN(d.x));
 
     const secGenerator = d3line()
       .curve(curveCatmullRom)
 			.x(d => XScale(d.x))
-			.y(d => SecScale(d.y));
+			.y(d => SecScale(d.y))
+      .defined(d => !strictNaN(d.x));
 
 		const yEnter = YScale(yDomain[0]),
       baseLineGenerator = d3line()

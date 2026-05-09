@@ -12,6 +12,13 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { isEqual } from "lodash-es";
 import { getData } from "./getData";
+import { useNowTick } from "./hooks/useNowTick";
+import { walkTreeForTickGranularity } from "./utils/timeFilter";
+
+const RESOLVED_TZ = (() => {
+    try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; }
+    catch { return 'UTC'; }
+})();
 
 const DEBOUNCE_MS = 300;
 
@@ -161,7 +168,20 @@ export function useDataLoader({ state, setState, apiLoad, component, readyToLoad
   // Serializes only the inputs that affect the fetch result. When this changes,
   // the load effect fires. Replaces the old preventDuplicateFetch + lastDataRequest.
 
-  const fetchKey = useMemo(() => computeFetchKey(state), [
+  // ─── Clock-anchored refetch ───────────────────────────────────────────────
+  // Time filters that anchor to `now` (relative ranges, current_period, named,
+  // instant) need the section to refetch when the clock crosses the next
+  // boundary at the right granularity. useNowTick schedules a single timeout
+  // to that boundary — no polling — and returns a counter we mix into the
+  // fetchKey so the existing dedup naturally allows a refetch each tick.
+  const tickGranularity = useMemo(() => walkTreeForTickGranularity(state.filters), [state.filters]);
+  const tickTz = RESOLVED_TZ;
+  const nowTick = useNowTick({ granularity: tickGranularity, tz: tickTz });
+
+  const fetchKey = useMemo(() => {
+    const base = computeFetchKey(state);
+    return tickGranularity ? `${base}|tick:${nowTick}` : base;
+  }, [
     state.columns,
     state.filters,
     state.display?.filterRelation,
@@ -170,6 +190,8 @@ export function useDataLoader({ state, setState, apiLoad, component, readyToLoad
     state.display?.pageSize,
     state.display?.showTotal,
     state.pivot,
+    tickGranularity,
+    nowTick,
   ]);
 
   const isValidState = Boolean(state?.externalSource?.source_id || state?.externalSource?.isDms);

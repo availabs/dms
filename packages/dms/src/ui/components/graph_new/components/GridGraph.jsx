@@ -2,62 +2,130 @@ import React from "react"
 
 import { GridGraph, generateTestGridData } from "./avl-graph"
 
-import { rollups as d3rollups } from "d3-array"
+import {
+    groups as d3groups
+} from "d3-array"
 
-const mergeData = data => {
-    const keys = [];
-    const merged = data.reduce((a, c) => {
-        a.index = c.index;
-        a[c.type] = c.value;
-        keys.push(c.type);
-        return a;
-    }, {});
-    return { data: merged, keys };
-}
+import { scaleLinear } from "d3-scale"
+
+import { strictNaN } from "../utils"
+import { getAggFunc } from "./utils"
 
 const GridGraphWrapper = props => {
 
 // console.log("GridGraphWrapper::props", props);
-// console.log("GridGraphWrapper::width, height", props.width, props.height);
-// console.log("GridGraphWrapper::data", props.data);
+
+// console.log("GridGraphWrapper::viewData", props.viewData);
+// console.log("GridGraphWrapper::columns", props.columns);
 
     const dataFromProps = React.useMemo(() => {
-        if (!props.data.length) return {};
+        const xColumn = props.columns.find(c => c.target === "xAxis");
+        const yColumn = props.columns.find(c => c.target === "yAxis");
+        const colorColumns = props.columns.filter(c => c.target === "color");
 
-        const rollups = d3rollups(props.data, mergeData, d => d.index);
+        if (!xColumn || !colorColumns.length) return {};
 
+        const data = [];
         const keySet = new Set();
-        const allData = [];
 
-        for (const [index, { data, keys }] of rollups) {
-            allData.push(data);
-            keys.forEach(k => keySet.add(k));
+        let min = Infinity;
+        let max = -Infinity;
+
+        if (yColumn) {
+
+            const dataGroups = d3groups(props.viewData,
+                                            d => d[yColumn.name],
+                                            d => d[xColumn.name]
+                                        );
+
+            for (const [index, iGroup] of dataGroups) {
+
+                if (index === undefined) continue;
+
+                const grid = { index };
+
+                for (const [key, kGroup] of iGroup) {
+
+                    let value = 0;
+
+                    for (const cc of colorColumns) {
+                        const ccn = cc.name;
+                        const aggFunc = getAggFunc(cc);
+                        const v = aggFunc(kGroup, d => d[ccn]);
+                        if (v) {
+                            value += v;
+                        }
+                    }
+
+                    if (value) {
+                        keySet.add(key);
+                        grid[key] = value;
+
+                        min = Math.min(min, value);
+                        max = Math.max(max, value);
+                    }
+                }
+
+                data.push(grid);
+            }
+
+        }
+        else {
+            const keyGroups = d3groups(props.viewData, d => d[xColumn.name]);
+
+            for (const cc of colorColumns) {
+                const aggFunc = getAggFunc(cc);
+                const ccn = cc.name;
+                const grid = { index: ccn };
+                for (const [key, kGroup] of keyGroups) {
+                    const v = aggFunc(kGroup, d => d[ccn]);
+                    if (v) {
+                        keySet.add(key);
+                        grid[key] = v;
+
+                        min = Math.min(min, v);
+                        max = Math.max(max, v);
+                    }
+                }
+                data.push(grid);
+            }
         }
 
-        return { data: allData, keys: [...keySet] };
-    }, [props.data]);
 
-    const [dataForGraph, setDataForGraph] = React.useState({ data: [], keys: [], keyWidths: {} });
-    const [numHoris, setNumHoris] = React.useState(10);
+        let colors;
 
-    const randomData = React.useCallback(e => {
-        setDataForGraph(generateTestGridData(numHoris));
-    }, [numHoris]);
-    const randomHoris = React.useCallback(e => {
-        setNumHoris(Math.round(Math.random() * 10) + 10);
-    }, [randomData]);
-    React.useEffect(() => {
-        setDataForGraph(generateTestGridData(numHoris));
-    }, [numHoris]);
-    const clearData = React.useCallback(e => {
-        setDataForGraph({ data: [], keys: [], keyWidths: {} });
-    }, []);
-
-    const colors = React.useMemo(() => {
-        if (props.colors?.type === "palette") {
-            return props.colors?.value || [];
+        if ((min < Infinity) && (max > -Infinity)) {
+            const mid = min + (max - min) * 0.5;
+            colors = scaleLinear().domain([min, mid, max]).range(["green", "yellow", "red"])
         }
-    }, [props.colors]);
+
+        const keys = [...keySet];
+
+        if (xColumn.sort) {
+            const sortDir = xColumn.sort === "desc" ? -1 : 1;
+            keys.sort((a, b) => {
+                const aNaN = strictNaN(+a);
+                const bNaN = strictNaN(+b);
+                if (aNaN || bNaN) {
+                    return (a < b ? -1 : a > b ? 1 : 0) * sortDir;;
+                }
+                return (+a - +b) * sortDir;
+            })
+        }
+        // const keys = [...keySet]
+        //     .sort((a, b) => {
+        //         const aNaN = strictNaN(+a);
+        //         const bNaN = strictNaN(+b);
+        //         if (aNaN || bNaN) {
+        //             return a < b ? -1 : a > b ? 1 : 0;
+        //         }
+        //         return +a - +b;
+        //     })
+
+        return { data, keys, colors };
+    }, [props.viewData, props.columns]);
+
+// console.log("GridGraphWrapper::dataFromProps", dataFromProps);
 
     const axisBottom = React.useMemo(() => {
         if (!props.xAxis) return false;
@@ -94,39 +162,20 @@ const GridGraphWrapper = props => {
     }, []);
 
     return (
-        <div className="bg-inherit">
-            <div className="w-full bg-inherit"
-                style={ { height: `${ height }px` } }
-            >
-                <GridGraph { ...dataForGraph } { ...dataFromProps }
-                    colors={ colors }
-                    groupMode={ props.groupMode }
-                    axisBottom={ axisBottom }
-                    axisLeft={ axisLeft }
-                    margin={ margin }
-                    hoverComp={ hoverComp }
-                    shouldComponentUpdate={ shouldComponentUpdate }
-                    width={ props.width }
-                    height={ height }/>
-            </div>
-            <button
-                className="bg-gray-200"
-                onClick={ randomData }
-            >
-                random data
-            </button>
-            <button
-                className="bg-gray-200"
-                onClick={ randomHoris }
-            >
-                random horizontals
-            </button>
-            <button
-                className="bg-gray-200"
-                onClick={ clearData }
-            >
-                clear data
-            </button>
+        <div className="w-full bg-inherit"
+            style={ { height: `${ height }px` } }
+        >
+            <GridGraph
+                colors={ props.colors }
+                { ...dataFromProps }
+                groupMode={ props.groupMode }
+                axisBottom={ axisBottom }
+                axisLeft={ axisLeft }
+                margin={ margin }
+                hoverComp={ hoverComp }
+                shouldComponentUpdate={ shouldComponentUpdate }
+                width={ props.width }
+                height={ height }/>
         </div>
     )
 }

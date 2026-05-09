@@ -360,19 +360,27 @@ async function deleteInternalSource(env, sourceId) {
   //    bug we're tracking separately can leave a source's ref in multiple
   //    dmsEnvs); cleaning all of them up is the correct behavior here.
   //
-  // The `data.sources` JSONB stores each ref's `id` as a string
-  // (`{"id": "123", "ref": "..."}`), so the @> match must compare on text.
-  // Using `$2::int` here used to silently miss every row — strict JSONB type
-  // equality means `"123" != 123` and the dmsEnv ref strip never happened.
+  // `data.sources[].id` is stored inconsistently across frontend paths:
+  // CreatePage / internal_table sourceCreate write `+id` (JSON number),
+  // older migrations and CLI seed paths write strings. Postgres JSONB `@>`
+  // is strictly type-equal — `{"id": 123}` does NOT contain `{"id": "123"}`
+  // — so a containment match on either shape silently misses the other,
+  // which is what left the dmsEnv refs orphaned when sources were deleted.
+  // Use a jsonb_array_elements walk + `->>` text extract + cast to int so
+  // the comparison normalizes both shapes through the same code path the
+  // SQLite branch uses below.
   let dmsEnvSql, dmsEnvParams;
   if (db.type === 'postgres') {
     dmsEnvSql = `
       SELECT id, data FROM ${mainTbl}
       WHERE app = $1
         AND type LIKE '%:dmsenv'
-        AND data->'sources' @> jsonb_build_array(jsonb_build_object('id', $2::text))
+        AND EXISTS (
+          SELECT 1 FROM jsonb_array_elements(COALESCE(data->'sources', '[]'::jsonb)) s
+          WHERE (s->>'id')::int = $2
+        )
     `;
-    dmsEnvParams = [app, String(sourceId)];
+    dmsEnvParams = [app, sourceId];
   } else {
     // SQLite: walk the sources array
     dmsEnvSql = `

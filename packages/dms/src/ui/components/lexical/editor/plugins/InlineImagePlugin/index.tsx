@@ -67,6 +67,7 @@ export function InsertInlineImageDialog({
 // console.log("InsertInlineImageDialog::fileUploadInfo", fileUploadInfo);
 
   const [src, setSrc] = useState('');
+  const [file, setFile] = useState(null);
   const [altText, setAltText] = useState('');
   const [showCaption, setShowCaption] = useState(false);
   const [position, setPosition] = useState<Position>('left');
@@ -95,6 +96,7 @@ export function InsertInlineImageDialog({
     };
     if (files !== null) {
       reader.readAsDataURL(files[0]);
+      setFile(files[0]);
     }
   };
 
@@ -112,7 +114,11 @@ export function InsertInlineImageDialog({
   // }, [activeEditor]);
 
   const handleOnClick = () => {
-    const payload = {altText, position, showCaption, src, fileUploadInfo};
+    const payload = {
+      altText, position, showCaption, src,
+      fileUploadInfo,
+      fileName: `${ file.name }|${ file.size }`
+    };
     activeEditor.dispatchCommand(INSERT_INLINE_IMAGE_COMMAND, payload);
     onClose();
   };
@@ -249,7 +255,8 @@ function onDragStart(event: DragEvent): boolean {
         showCaption: node.__showCaption,
         src: node.__src,
         width: node.__width,
-        fileUploadInfo: node.__fileUploadInfo
+        fileUploadInfo: node.__fileUploadInfo,
+        fileName: node.__fileName
       },
       type: 'image',
     }),

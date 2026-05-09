@@ -216,6 +216,34 @@ const formatDate = (dateString) => {
     ? new Date(dateString).toLocaleDateString(undefined, options)
     : ``;
 };
+
+// Time-of-day formatter: produces strings like "10:30 am" / "10:30 pm" using
+// the browser's locale + resolved timezone. Local tz (rather than UTC like
+// formatDate above) is intentional — for time columns the user almost always
+// wants the wall-clock time of the event in their own zone, not the stored
+// UTC instant. Returns '' for null/empty/unparseable input.
+const formatTime = (dateString) => {
+  if (!dateString) return "";
+  const d = new Date(dateString);
+  if (Number.isNaN(d.getTime())) return "";
+  const formatted = d.toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+  // toLocaleTimeString returns "10:30 AM" — lowercase the period to match
+  // the editorial convention requested.
+  return formatted.replace(/\s?(AM|PM)$/i, (_, p) => ` ${p.toLowerCase()}`);
+};
+
+// Combined date + time-of-day. Falls back to whichever half is parseable.
+const formatDateTime = (dateString) => {
+  if (!dateString) return "";
+  const date = formatDate(dateString);
+  const time = formatTime(dateString);
+  return [date, time].filter(Boolean).join(" ");
+};
+
 export const formatFunctions = {
   abbreviate: (d, isDollar) => fnumIndex(d, 1, isDollar),
   abbreviate_dollar: (d) => fnumIndex(d, 1, true),
@@ -223,6 +251,8 @@ export const formatFunctions = {
   comma_dollar: (d) => fnum(d, true),
   zero_to_na: (d) => (!d || (d && +d === 0) || d === "0" ? "N/A" : d),
   date: (d) => formatDate(d),
+  time: (d) => formatTime(d),
+  datetime: (d) => formatDateTime(d),
   icon: (strValue, props, Icon) => (
     <>
       <Icon icon={strValue} className={"size-8"} {...props} />{" "}

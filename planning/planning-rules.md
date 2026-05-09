@@ -101,6 +101,25 @@ Changes to pattern implementations, organized by pattern:
    - Move the task file to `tasks/completed/`
    - Move the task entry from `todo.md` to `completed.md` with the completion date
    - Link to the task file in `completed.md`
+   - **If the task created or configured data inside the DMS** (a new section type, a new dataset shape, a configured pattern with non-obvious wiring, a recurring authoring workflow), **consider extracting a skill** to `src/dms/skills/`. See "When to extract a skill" below.
+
+## When to extract a skill
+
+The `src/dms/skills/` folder holds outcome-oriented how-tos for repeatable authoring tasks (creating a section type, configuring a "currently active" card, provisioning a new dataset plugin, etc.). Tasks frequently produce skill candidates as a byproduct, but only some warrant capture.
+
+A task is a **skill candidate** when it:
+
+- **Creates or configures DMS data**: a new section / column type, a new dataType plugin, a configured page section with non-obvious wiring (calc columns, joins, filter trees), a new dataset shape, or any recurring authoring pattern someone else will replicate.
+- **Hit non-obvious gotchas** that took real debugging — the kind of thing the next person would re-hit if the lessons stay buried in commit messages or task docs.
+- **Has a clear "do this to get that" framing.** If you can write a one-line outcome ("render a card showing the row whose interval contains now()"), it's a skill. If the outcome is "we shipped feature X," it's a task summary, not a skill.
+
+**Don't write a skill** when:
+
+- The pattern is one-off (a migration, a hotfix, a site-specific tweak that no one else will repeat).
+- The information already lives in `CLAUDE.md` (project conventions) or `documentation/` (system reference) — link to those instead of duplicating.
+- The pattern hasn't been used yet. Skills capture *proven* patterns; speculative ones stay as task notes until a real consumer ships against them.
+
+**How to extract:** at task-completion time, write a `src/dms/skills/<kebab-case-outcome>.md` modeled on the existing entries (see `now-airing-card.md` for a recipe-style skill, `creating-page-section-components.md` for a broader how-to). Add an entry to `skills/README.md`'s index. Cross-link from the now-completed task file so the trail is traceable.
 
 ## Plans Must Be Written Into the Task File
 
