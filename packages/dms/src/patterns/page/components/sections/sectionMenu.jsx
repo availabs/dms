@@ -627,7 +627,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                 }))
             },
             {
-                name: 'Single Header', label: 'Single Header View', type: 'toggle',
+                name: 'Single Header', label: 'Single Header View', type: 'toggle', showLabel: true,
                 enabled: !!state.pivot?.singleHeader,
                 cdn: () => !!state.pivot?.enabled && (state.pivot?.pivotColumns?.length > 1),
                 setEnabled: v => dwAPI.setPivot('singleHeader', v)

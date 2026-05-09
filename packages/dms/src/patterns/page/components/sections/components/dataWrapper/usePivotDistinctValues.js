@@ -105,23 +105,37 @@ export function usePivotDistinctValues({ state, setState, apiLoad }) {
                 setState(draft => {
                     if (!draft?.pivot) return;
                     draft.pivot.distinctValuesByColumn = distinctValuesByColumn;
+
+                    // Preserve sizes from existing pivot_col columns so that user
+                    // resizes survive re-injection (without this, missing sizes
+                    // trigger the autoResize effect which resets all column widths).
+                    const existingSizes = Object.fromEntries(
+                        (draft.columns || [])
+                            .filter(c => c.origin === 'pivot_col' && c.size)
+                            .map(c => [c.name, c.size])
+                    );
+
                     draft.columns = [
                         ...(draft.columns || []).filter(c => c.origin !== 'pivot_col'),
-                        ...combinations.map(combo => ({
-                            name: combo.map((v, i) => `${pivotColumns[i]}_${slug(v)}`).join('__'),
-                            // singleHeader: flat compound label ("N / car"), no group metadata.
-                            // grouped (default): leaf label only ("car"); _pivotCombo/_pivotColumns
-                            // drive the group header rows in TableHeader.
-                            display_name: singleHeader || pivotColumns.length === 1
-                                ? combo.join(' / ')
-                                : String(combo[combo.length - 1]),
-                            show: true,
-                            origin: 'pivot_col',
-                            ...(!singleHeader && pivotColumns.length > 1 && {
-                                _pivotCombo: combo,
-                                _pivotColumns: pivotColumns,
-                            }),
-                        })),
+                        ...combinations.map(combo => {
+                            const name = combo.map((v, i) => `${pivotColumns[i]}_${slug(v)}`).join('__');
+                            return {
+                                name,
+                                // singleHeader: flat compound label ("N / car"), no group metadata.
+                                // grouped (default): leaf label only ("car"); _pivotCombo/_pivotColumns
+                                // drive the group header rows in TableHeader.
+                                display_name: singleHeader || pivotColumns.length === 1
+                                    ? combo.join(' / ')
+                                    : String(combo[combo.length - 1]),
+                                show: true,
+                                origin: 'pivot_col',
+                                ...(existingSizes[name] && { size: existingSizes[name] }),
+                                ...(!singleHeader && pivotColumns.length > 1 && {
+                                    _pivotCombo: combo,
+                                    _pivotColumns: pivotColumns,
+                                }),
+                            };
+                        }),
                     ];
                 });
             } catch (e) {
