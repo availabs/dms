@@ -365,8 +365,13 @@ export default function ColumnManager({ dwAPI, resolvedControls, Pill, Icon, Swi
             }
         });
     }, [externalSource?.columns, setState]);
+    const pivotColumns = useMemo(() =>
+        (stateColumns || []).filter(c => c.origin === 'pivot_col'),
+        [stateColumns]
+    );
+
     const allColumns = useMemo(() => [
-        ...(stateColumns || []),
+        ...(stateColumns || []).filter(c => c.origin !== 'pivot_col'),
         ...(externalSource?.columns || [])
             .filter(c => !(stateColumns || []).map(c => c.name).includes(c.name))
     ], [stateColumns, externalSource?.columns]);
@@ -381,10 +386,12 @@ export default function ColumnManager({ dwAPI, resolvedControls, Pill, Icon, Swi
     const isSystemIDColOn = (stateColumns || []).find(c => c.systemCol && c.name === 'id');
 
     const activeColumns = useMemo(() =>
-        (stateColumns || []).map((column, i) => ({
-            id: `${column.name}_${column.isDuplicate ? column.copyNum : ''}_${i}`,
-            column
-        })),
+        (stateColumns || [])
+            .filter(c => c.origin !== 'pivot_col')
+            .map((column, i) => ({
+                id: `${column.name}_${column.isDuplicate ? column.copyNum : ''}_${i}`,
+                column
+            })),
         [stateColumns]
     );
 
@@ -474,7 +481,32 @@ export default function ColumnManager({ dwAPI, resolvedControls, Pill, Icon, Swi
                 />
             )}
 
-            {activeColumns.length === 0 && (
+            {/* Pivot Columns (read-only — controlled by pivot config) */}
+            {pivotColumns.length > 0 && (
+                <div className="flex flex-col gap-1">
+                    <div className="text-xs font-medium text-gray-500 px-1 pt-1 uppercase tracking-wide">
+                        Pivot Columns
+                    </div>
+                    {pivotColumns.map(col => (
+                        <div key={col.name} className="border rounded bg-white mb-0.5">
+                            <div className="flex items-center justify-between px-2 py-1 gap-1">
+                                <span className="text-sm truncate flex-1">
+                                    {col.display_name || col.name}
+                                </span>
+                                <button
+                                    className={`p-0.5 rounded hover:bg-gray-100 ${col.show ? 'text-blue-500' : 'text-gray-300'} cursor-pointer`}
+                                    onClick={() => dwAPI.updateColumn(col, 'show', !col.show)}
+                                    title={col.show ? 'Hide' : 'Show'}
+                                >
+                                    <Icon icon={col.show ? 'Eye' : 'EyeClosed'} className="size-4" />
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {activeColumns.length === 0 && pivotColumns.length === 0 && (
                 <div className="text-sm text-gray-400 text-center py-2">
                     No columns configured. Use search above to add columns.
                 </div>

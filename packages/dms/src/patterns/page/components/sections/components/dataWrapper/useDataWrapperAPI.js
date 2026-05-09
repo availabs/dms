@@ -86,6 +86,22 @@ export function useDataWrapperAPI({ state, setState }) {
         (newOrder) => setState(draft => { draft.columns = newOrder; }),
         [setState]
     );
+
+    // ── Pivot operations ──
+    const setPivot = useCallback(
+        (key, value) => setState(draft => {
+            if (!draft.pivot) draft.pivot = { enabled: false, maxValues: 10, aggregateFn: 'count' };
+            draft.pivot[key] = value;
+            // Eagerly clear stale pivot columns when the pivot column changes so the
+            // table doesn't briefly show the old column set before the distinct-values
+            // hook re-fetches.
+            if (key === 'pivotColumn') {
+                draft.pivot.distinctValues = [];
+                draft.columns = (draft.columns || []).filter(c => c.origin !== 'pivot_col');
+            }
+        }),
+        [setState]
+    );
     return useMemo(() => ({
         // ── Read access (getters — always read live state via ref) ──
         get config() {
@@ -96,6 +112,7 @@ export function useDataWrapperAPI({ state, setState }) {
                 externalSource: s?.externalSource,
                 filters: s?.filters,
                 join: s?.join,
+                pivot: s?.pivot,
             };
         },
         get runtime() {
@@ -127,6 +144,9 @@ export function useDataWrapperAPI({ state, setState }) {
         addCalculatedColumn,
         reorderColumns,
 
+        // ── Pivot operations ──
+        setPivot,
+
         // ── Raw access (escape hatch) ──
         // Needed for: ComplexFilters, custom control types, handlePaste.
         // Phase 5 must close these — see handoff notes in task file.
@@ -139,5 +159,6 @@ export function useDataWrapperAPI({ state, setState }) {
         duplicateColumn, resetColumn, resetAllColumns,
         toggleIdFilter, toggleGlobalVisibility,
         addFormulaColumn, addCalculatedColumn, reorderColumns,
+        setPivot,
     ]);
 }

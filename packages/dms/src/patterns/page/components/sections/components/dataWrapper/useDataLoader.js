@@ -48,6 +48,14 @@ function computeFetchKey(state) {
       view_id: state.externalSource?.view_id,
       pageSize: state.display?.pageSize,
       showTotal: state.display?.showTotal,
+      pivot: state.pivot?.enabled ? {
+        rowColumn: state.pivot.rowColumn,
+        pivotColumn: state.pivot.pivotColumn,
+        valueColumn: state.pivot.valueColumn,
+        aggregateFn: state.pivot.aggregateFn,
+        distinctValues: state.pivot.distinctValues,
+        maxValues: state.pivot.maxValues,
+      } : null,
     });
   } catch {
     return null;
@@ -161,6 +169,7 @@ export function useDataLoader({ state, setState, apiLoad, component, readyToLoad
     state.externalSource?.view_id,
     state.display?.pageSize,
     state.display?.showTotal,
+    state.pivot,
   ]);
 
   const isValidState = Boolean(state?.externalSource?.source_id || state?.externalSource?.isDms);

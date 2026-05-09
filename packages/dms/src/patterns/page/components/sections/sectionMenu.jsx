@@ -549,6 +549,79 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
     ]
 
 
+    const pivot = {
+        name: 'Pivot', icon: 'ListView',
+        cdn: () => isEdit && currentComponent?.useDataSource && canEditSection,
+        value: state.pivot?.enabled ? 'On' : 'Off',
+        showValue: true,
+        items: [
+            {
+                name: 'Enabled', type: 'toggle',
+                enabled: !!state.pivot?.enabled,
+                setEnabled: v => dwAPI.setPivot('enabled', v)
+            },
+            { type: 'separator' },
+            {
+                name: 'Row Column', showValue: true, showSearch: true,
+                value: state.pivot?.rowColumn || '',
+                cdn: () => !!state.pivot?.enabled,
+                items: (state.externalSource?.columns || []).map(col => ({
+                    icon: col.name === state.pivot?.rowColumn ? 'CircleCheck' : 'Blank',
+                    name: col.name,
+                    onClickGoBack: true,
+                    onClick: () => dwAPI.setPivot('rowColumn', col.name)
+                }))
+            },
+            {
+                name: 'Pivot Column', showValue: true, showSearch: true,
+                value: state.pivot?.pivotColumn || '',
+                cdn: () => !!state.pivot?.enabled,
+                items: (state.externalSource?.columns || []).map(col => ({
+                    icon: col.name === state.pivot?.pivotColumn ? 'CircleCheck' : 'Blank',
+                    name: col.name,
+                    onClickGoBack: true,
+                    onClick: () => dwAPI.setPivot('pivotColumn', col.name)
+                }))
+            },
+            {
+                name: 'Value Column', showValue: true, showSearch: true,
+                value: state.pivot?.valueColumn || '',
+                cdn: () => !!state.pivot?.enabled,
+                items: (state.externalSource?.columns || []).map(col => ({
+                    icon: col.name === state.pivot?.valueColumn ? 'CircleCheck' : 'Blank',
+                    name: col.name,
+                    onClickGoBack: true,
+                    onClick: () => dwAPI.setPivot('valueColumn', col.name)
+                }))
+            },
+            {
+                name: 'Aggregate', showValue: true,
+                value: (state.pivot?.aggregateFn || 'count').toUpperCase(),
+                cdn: () => !!state.pivot?.enabled,
+                items: ['count', 'sum', 'avg', 'max', 'min'].map(fn => ({
+                    icon: (state.pivot?.aggregateFn || 'count') === fn ? 'CircleCheck' : 'Blank',
+                    name: fn.toUpperCase(),
+                    onClickGoBack: true,
+                    onClick: () => dwAPI.setPivot('aggregateFn', fn)
+                }))
+            },
+            {
+                name: 'Max Values', showValue: true,
+                value: state.pivot?.maxValues || 10,
+                cdn: () => !!state.pivot?.enabled,
+                items: [{
+                    id: 'pivot_max_values_input',
+                    name: 'Max Values',
+                    type: 'input',
+                    inputType: 'number',
+                    value: state.pivot?.maxValues || 10,
+                    onChange: e => dwAPI.setPivot('maxValues', +(e?.target?.value ?? e) || 10)
+                }]
+            },
+        ].filter(item => !item.cdn || item.cdn())
+    }
+
+
     const filter = [
         {name: 'Filters', icon: 'Filter',
             value: `${parseInt(state?.display?.totalLength).toLocaleString()} rows`,
@@ -860,6 +933,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
             dataset,
             join,
             ...columns,
+            pivot,
             ...filter,
             {type: 'separator', cdn: () => currentComponent?.useDataSource && canEditSection},
             ...display,

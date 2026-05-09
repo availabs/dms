@@ -91,6 +91,7 @@
 
 ### patterns/page
 
+- [pivot_table.md](./tasks/completed/pivot_table.md) - Pivot table support for DataWrapper/Spreadsheet: pivot config state + save/load (Phase 1), `usePivotDistinctValues` hook (distinct values fetch + `pivot_col` column injection, Phase 2), CASE column SQL generation in `getData` with `sum/count/avg/max/min` support + DMS `::numeric` cast + SQL injection escaping (Phase 3), `setPivot` API in `useDataWrapperAPI` (Phase 4), SectionMenu pivot block with row/pivot/value column pickers + aggregate fn + max values (Phase 5), ColumnManager read-only pivot columns section with show/hide toggle (Phase 6), autoResize `pivot_col` fix in Spreadsheet (Phase 7) (2026-05-09)
 - [consolidate-page-history.md](./tasks/completed/consolidate-page-history.md) - Consolidate page-edit history: replaced per-edit `data_items` rows with single `page-edit` row per page holding `entries[]` array; updated format, editFunctions, historyPane; migration script for existing databases (2026-03-11)
 - [table-card-react-router-links.md](./tasks/completed/table-card-react-router-links.md) - Replaced `<a href>` with React Router `<Link to>` for internal navigation in TableCell and Card components; external links use `<a>` with `target="_blank"` and `rel="noopener noreferrer"` (2026-02-25)
 - [fix-nav2level-baseurl.md](./tasks/completed/fix-nav2level-baseurl.md) - Fixed nav2Level failing for non-root baseUrl patterns; moved to page pattern as resolveNav callback (2026-01-29)

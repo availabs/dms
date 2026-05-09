@@ -15,6 +15,7 @@ import { useColumnOptions } from "./useColumnOptions";
 import { RUNTIME_FIELDS, RUNTIME_DISPLAY_FIELDS } from "./schema";
 import { useDataWrapperAPI } from "./useDataWrapperAPI";
 import { useDataSource } from "./useDataSource";
+import { usePivotDistinctValues } from "./usePivotDistinctValues";
 import { initialState } from "../../section_utils";
 import { Attribution } from "./components/Attribution";
 import { Pagination } from "./components/Pagination";
@@ -168,6 +169,8 @@ const Edit = forwardRef((props, ref) => {
 
     useColumnOptions({ state, setState, apiLoad, component, pgEnv, enabled: !!cms_context });
 
+    usePivotDistinctValues({ state, setState, apiLoad });
+
     // ── useDataSource + dwAPI (owned by dataWrapper) ──
     const dataSourceInfo = useDataSource({ state, setState });
     const dwAPI = useDataWrapperAPI({ state, setState });
@@ -194,6 +197,10 @@ const Edit = forwardRef((props, ref) => {
             join: state.join || { sources: {} },
         };
         if (state.dataSourceId) toSave.dataSourceId = state.dataSourceId;
+        if (state.pivot?.enabled) {
+            const { distinctValues: _dv, ...pivotConfig } = state.pivot;
+            toSave.pivot = pivotConfig;
+        }
         RUNTIME_DISPLAY_FIELDS.forEach(f => delete toSave.display[f]);
         const serialized = JSON.stringify(toSave);
         if (isEqual(value, serialized)) return;
@@ -400,6 +407,8 @@ const View = forwardRef(({cms_context, value, onChange, component, editPageMode,
         state, setState, apiLoad, component, pgEnv,
         enabled: allowEdit || state?.display?.allowAdddNew || state?.columns?.some(c => c.allowEditInView && c.mapped_options)
     });
+
+    usePivotDistinctValues({ state, setState, apiLoad });
 
     // ── useDataSource + dwAPI (owned by dataWrapper) ──
     const dataSourceInfo = useDataSource({ state, setState });
