@@ -138,7 +138,6 @@ export const getData = async ({
 
     const isPivotMode = Boolean(
         state.pivot?.enabled &&
-        state.pivot?.rowColumn &&
         state.pivot?.pivotColumn &&
         state.pivot?.distinctValues?.length
     );
@@ -148,12 +147,15 @@ export const getData = async ({
     if (isPivotMode) {
         const { rowColumn, pivotColumn, valueColumn, aggregateFn = 'count', distinctValues } = state.pivot;
 
-        // Call buildUdaConfig with just the row column (group: true) so filters are
-        // resolved correctly and groupBy is set from the existing infrastructure.
-        const pivotBuilderInput = { ...builderInput, columns: [{ name: rowColumn, group: true, show: true }] };
+        // Call buildUdaConfig with the row column (group: true) when set so filters are
+        // resolved correctly. Without a row column, pass an empty columns array —
+        // the result will be a single aggregate row with no GROUP BY.
+        const pivotBuilderColumns = rowColumn
+            ? [{ name: rowColumn, group: true, show: true }]
+            : [];
+        const pivotBuilderInput = { ...builderInput, columns: pivotBuilderColumns };
         ({ options, columnsToFetch, columnsWithSettings, outputSourceInfo } = buildUdaConfig(pivotBuilderInput));
 
-        const rowRef = attributeAccessorStr(rowColumn, isDms, false, false);
         const pivotRef = attributeAccessorStr(pivotColumn, isDms, false, false);
         const valueRef = valueColumn ? attributeAccessorStr(valueColumn, isDms, false, false) : null;
 
@@ -163,10 +165,16 @@ export const getData = async ({
             return { name: alias, reqName: expr, normalName: alias, isPivotCol: true };
         });
 
-        columnsToFetch = [...columnsToFetch, ...caseColumns];
-        options.groupBy = [rowRef];
-        if (!Object.keys(options.orderBy || {}).length) {
-            options.orderBy = { [rowRef]: 'asc' };
+        if (rowColumn) {
+            const rowRef = attributeAccessorStr(rowColumn, isDms, false, false);
+            columnsToFetch = [...columnsToFetch, ...caseColumns];
+            options.groupBy = [rowRef];
+            if (!Object.keys(options.orderBy || {}).length) {
+                options.orderBy = { [rowRef]: 'asc' };
+            }
+        } else {
+            columnsToFetch = caseColumns;
+            options.groupBy = [];
         }
     } else {
         ({ options, columnsToFetch, columnsWithSettings, outputSourceInfo } = buildUdaConfig(builderInput));

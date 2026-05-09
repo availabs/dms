@@ -563,14 +563,22 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
             { type: 'separator' },
             {
                 name: 'Row Column', showValue: true, showSearch: true,
-                value: state.pivot?.rowColumn || '',
+                value: state.pivot?.rowColumn || '(none)',
                 cdn: () => !!state.pivot?.enabled,
-                items: (state.externalSource?.columns || []).map(col => ({
-                    icon: col.name === state.pivot?.rowColumn ? 'CircleCheck' : 'Blank',
-                    name: col.name,
-                    onClickGoBack: true,
-                    onClick: () => dwAPI.setPivot('rowColumn', col.name)
-                }))
+                items: [
+                    {
+                        icon: !state.pivot?.rowColumn ? 'CircleCheck' : 'Blank',
+                        name: '(none — single aggregate row)',
+                        onClickGoBack: true,
+                        onClick: () => dwAPI.setPivot('rowColumn', '')
+                    },
+                    ...(state.externalSource?.columns || []).map(col => ({
+                        icon: col.name === state.pivot?.rowColumn ? 'CircleCheck' : 'Blank',
+                        name: col.name,
+                        onClickGoBack: true,
+                        onClick: () => dwAPI.setPivot('rowColumn', col.name)
+                    }))
+                ]
             },
             {
                 name: 'Pivot Column', showValue: true, showSearch: true,
