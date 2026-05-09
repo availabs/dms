@@ -21,6 +21,12 @@ import { calculateIsJoinPresent } from "./utils/joinUtils";
 const slugForPivot = (v) =>
     String(v).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
 
+// For calculated columns ("expr as alias"), return the alias; otherwise return the name as-is.
+const colKey = (name) => {
+    const parts = name.split(/\s+as\s+/i);
+    return (parts.length > 1 ? parts[parts.length - 1] : parts[0]).trim();
+};
+
 // conditions: [{ ref, value }, ...] — ANDed together (one per pivot column)
 const buildPivotCaseExpr = ({ conditions, valueRef, fn, alias, isDms }) => {
     const conditionStr = conditions
@@ -178,9 +184,9 @@ export const getData = async ({
         // Build CASE columns for every combination of distinct values (cartesian product).
         const combinations = cartesian(pivotColumns.map(col => distinctValuesByColumn[col] || []));
         const caseColumns = combinations.map(combo => {
-            const alias = combo.map((v, i) => `${pivotColumns[i]}_${slugForPivot(v)}`).join('__');
+            const alias = combo.map((v, i) => `${slugForPivot(colKey(pivotColumns[i]))}_${slugForPivot(v)}`).join('__');
             const conditions = combo.map((v, i) => ({
-                ref: attributeAccessorStr(pivotColumns[i], isDms, false, false),
+                ref: attributeAccessorStr(pivotColumns[i], isDms, isCalculatedCol({ name: pivotColumns[i] }), false),
                 value: v,
             }));
             const expr = buildPivotCaseExpr({ conditions, valueRef, fn: aggregateFn, alias, isDms });
@@ -252,7 +258,7 @@ export const getData = async ({
     const joinPresent = isJoinPresent;
     const idCol = joinPresent ? "ds.id" : "id";
     const idReq = joinPresent ? "ds.id as id" : "id";
-    if (isDms && !options.groupBy.length && !fnColumnsExists) {
+    if (isDms && !isPivotMode && !options.groupBy.length && !fnColumnsExists) {
         columnsToFetch.push({ name: idCol, reqName: idReq });
         options.orderBy[idCol] = Object.values(options.orderBy || {})?.[0] || "asc";
     } else {

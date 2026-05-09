@@ -5,6 +5,7 @@ import {TagComponent} from "./section_components"
 import { getComponentTheme } from "../../../../ui/useTheme";
 import {ComplexFilters} from "./ComplexFilters";
 import ColumnManager from "./ColumnManager";
+import { getColumnLabel } from "./controls_utils";
 
 
 export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSource={}, dwAPI, pageDataSources={}, ...rest }) => {
@@ -556,7 +557,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
 
     const pivot = {
         name: 'Pivot', icon: 'ListView',
-        cdn: () => isEdit && currentComponent?.useDataSource && canEditSection,
+        cdn: () => isEdit && currentComponent?.name === 'Spreadsheet' && currentComponent?.useDataSource && canEditSection,
         value: state.pivot?.enabled ? 'On' : 'Off',
         showValue: true,
         items: [
@@ -568,7 +569,9 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
             { type: 'separator' },
             {
                 name: 'Row Column', showValue: true, showSearch: true,
-                value: state.pivot?.rowColumn || '(none)',
+                value: (state.externalSource?.columns || []).find(c => c.name === state.pivot?.rowColumn)
+                    ? getColumnLabel((state.externalSource.columns).find(c => c.name === state.pivot.rowColumn))
+                    : '(none)',
                 cdn: () => !!state.pivot?.enabled,
                 items: [
                     {
@@ -579,7 +582,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                     },
                     ...(state.externalSource?.columns || []).map(col => ({
                         icon: col.name === state.pivot?.rowColumn ? 'CircleCheck' : 'Blank',
-                        name: col.name,
+                        name: getColumnLabel(col),
                         onClickGoBack: true,
                         onClick: () => dwAPI.setPivot('rowColumn', col.name)
                     }))
@@ -587,14 +590,18 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
             },
             {
                 name: 'Pivot Columns', showValue: true, showSearch: true,
-                value: (state.pivot?.pivotColumns || (state.pivot?.pivotColumn ? [state.pivot.pivotColumn] : [])).join(', ') || '',
+                value: (() => {
+                    const selected = state.pivot?.pivotColumns || (state.pivot?.pivotColumn ? [state.pivot.pivotColumn] : []);
+                    const sourceCols = state.externalSource?.columns || [];
+                    return selected.map(n => getColumnLabel(sourceCols.find(c => c.name === n) || { name: n })).join(', ');
+                })() || '',
                 cdn: () => !!state.pivot?.enabled,
                 items: (state.externalSource?.columns || []).map(col => {
                     const selected = state.pivot?.pivotColumns || (state.pivot?.pivotColumn ? [state.pivot.pivotColumn] : []);
                     const isSelected = selected.includes(col.name);
                     return {
                         icon: isSelected ? 'CircleCheck' : 'Blank',
-                        name: col.name,
+                        name: getColumnLabel(col),
                         onClick: () => {
                             const next = isSelected
                                 ? selected.filter(c => c !== col.name)
@@ -606,11 +613,13 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
             },
             {
                 name: 'Value Column', showValue: true, showSearch: true,
-                value: state.pivot?.valueColumn || '',
+                value: (state.externalSource?.columns || []).find(c => c.name === state.pivot?.valueColumn)
+                    ? getColumnLabel((state.externalSource.columns).find(c => c.name === state.pivot.valueColumn))
+                    : '',
                 cdn: () => !!state.pivot?.enabled,
                 items: (state.externalSource?.columns || []).map(col => ({
                     icon: col.name === state.pivot?.valueColumn ? 'CircleCheck' : 'Blank',
-                    name: col.name,
+                    name: getColumnLabel(col),
                     onClickGoBack: true,
                     onClick: () => dwAPI.setPivot('valueColumn', col.name)
                 }))

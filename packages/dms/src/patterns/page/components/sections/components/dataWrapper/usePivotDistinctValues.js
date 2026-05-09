@@ -4,6 +4,12 @@ import { getData } from "./getData";
 const slug = (v) =>
     String(v).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
 
+// For calculated columns ("expr as alias"), return the alias; otherwise the name as-is.
+const colKey = (name) => {
+    const parts = name.split(/\s+as\s+/i);
+    return (parts.length > 1 ? parts[parts.length - 1] : parts[0]).trim();
+};
+
 const cartesian = (arrays) =>
     arrays.reduce((acc, arr) => acc.flatMap(combo => arr.map(val => [...combo, val])), [[]]);
 
@@ -118,7 +124,7 @@ export function usePivotDistinctValues({ state, setState, apiLoad }) {
                     draft.columns = [
                         ...(draft.columns || []).filter(c => c.origin !== 'pivot_col'),
                         ...combinations.map(combo => {
-                            const name = combo.map((v, i) => `${pivotColumns[i]}_${slug(v)}`).join('__');
+                            const name = combo.map((v, i) => `${slug(colKey(pivotColumns[i]))}_${slug(v)}`).join('__');
                             return {
                                 name,
                                 // singleHeader: flat compound label ("N / car"), no group metadata.
