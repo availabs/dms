@@ -95,8 +95,8 @@ export function useDataWrapperAPI({ state, setState }) {
             // Eagerly clear stale pivot columns when the pivot column changes so the
             // table doesn't briefly show the old column set before the distinct-values
             // hook re-fetches.
-            if (key === 'pivotColumn') {
-                draft.pivot.distinctValues = [];
+            if (key === 'pivotColumns') {
+                draft.pivot.distinctValuesByColumn = {};
                 draft.columns = (draft.columns || []).filter(c => c.origin !== 'pivot_col');
             }
         }),

@@ -4,12 +4,18 @@ import { getData } from "./getData";
 const slug = (v) =>
     String(v).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
 
+const cartesian = (arrays) =>
+    arrays.reduce((acc, arr) => acc.flatMap(combo => arr.map(val => [...combo, val])), [[]]);
+
 function computePivotFetchKey(state) {
     try {
         const pivot = state.pivot;
-        if (!pivot?.enabled || !pivot?.pivotColumn) return null;
+        // Normalize legacy single-column format
+        const pivotColumns = pivot?.pivotColumns?.length ? pivot.pivotColumns
+            : pivot?.pivotColumn ? [pivot.pivotColumn] : [];
+        if (!pivot?.enabled || !pivotColumns.length) return null;
         return JSON.stringify({
-            pivotColumn: pivot.pivotColumn,
+            pivotColumns,
             maxValues: pivot.maxValues || 10,
             view_id: state.externalSource?.view_id,
             source_id: state.externalSource?.source_id,
@@ -21,81 +27,91 @@ function computePivotFetchKey(state) {
 }
 
 /**
- * usePivotDistinctValues — fetches distinct values for the pivot column and
- * injects ephemeral pivot_col columns into state.columns.
+ * usePivotDistinctValues — fetches distinct values for each pivot column and
+ * injects ephemeral pivot_col columns (cartesian product) into state.columns.
  *
- * Fires when pivot.enabled + pivot.pivotColumn changes (or when the source view
- * or active filters change). Uses a minimal getData call that groups by the pivot
- * column only, respecting the section's current filters, limited to maxValues rows.
+ * Supports multiple pivot columns: each combination of distinct values becomes
+ * one CASE column with a compound name (e.g. direction_n__vehicle_type_car)
+ * and a readable display_name (e.g. "N / car").
  *
- * When pivot is disabled or pivotColumn is unset, clears any existing pivot_col
- * columns from state.columns and resets state.pivot.distinctValues.
- *
- * Uses the same fetchKey dedup pattern as useDataLoader: only re-fetches when the
- * relevant state actually changes, not on every mount/render.
+ * Uses the same fetchKey dedup pattern as useDataLoader: only re-fetches when
+ * the relevant state actually changes, not on every mount/render.
  */
 export function usePivotDistinctValues({ state, setState, apiLoad }) {
-    const pivotEnabled = state.pivot?.enabled;
-    const pivotColumn = state.pivot?.pivotColumn;
+    const pivot = state.pivot;
+    const pivotEnabled = pivot?.enabled;
+    // Normalize legacy single-column saved configs
+    const pivotColumns = pivot?.pivotColumns?.length ? pivot.pivotColumns
+        : pivot?.pivotColumn ? [pivot.pivotColumn] : [];
 
     const fetchKey = computePivotFetchKey(state);
 
-    // Start null so the initial fetch always fires on mount (to get fresh distinct
-    // values). pivot_col columns are persisted in the save payload so the table
-    // renders immediately; the fetch updates them in the background.
+    // Always start null on mount so the initial fetch fires to get fresh values.
+    // pivot_col columns are persisted in the save payload so the table renders
+    // immediately; the fetch updates them in the background.
     const lastFetchKeyRef = useRef(null);
-    // Counter-based stale-request guard: only the most recent fetch writes to state.
     const reqRef = useRef(0);
 
     useEffect(() => {
-        if (!pivotEnabled || !pivotColumn) {
+        if (!pivotEnabled || !pivotColumns.length) {
             setState(draft => {
                 if (!draft) return;
-                const hasPivotCols = (draft.columns || []).some(c => c.origin === 'pivot_col');
-                if (hasPivotCols) {
+                if ((draft.columns || []).some(c => c.origin === 'pivot_col')) {
                     draft.columns = draft.columns.filter(c => c.origin !== 'pivot_col');
                 }
-                if (draft.pivot) draft.pivot.distinctValues = [];
+                if (draft.pivot) draft.pivot.distinctValuesByColumn = {};
             });
             lastFetchKeyRef.current = null;
             return;
         }
 
-        // Dedup: skip if the relevant pivot state hasn't changed.
         if (fetchKey === lastFetchKeyRef.current) return;
 
         const reqId = ++reqRef.current;
+        const maxValues = pivot?.maxValues || 10;
 
         async function fetchDistinct() {
-            const minimalState = {
-                externalSource: state.externalSource,
-                columns: [{ name: pivotColumn, group: true, show: true }],
-                filters: state.filters || { op: 'AND', groups: [] },
-                display: { pageSize: state.pivot?.maxValues || 10 },
-                join: {},
-            };
-
             try {
-                const { data } = await getData({ state: minimalState, apiLoad });
+                // Fetch distinct values for each pivot column in parallel.
+                const results = await Promise.all(
+                    pivotColumns.map(col => getData({
+                        state: {
+                            externalSource: state.externalSource,
+                            columns: [{ name: col, group: true, show: true }],
+                            filters: state.filters || { op: 'AND', groups: [] },
+                            display: { pageSize: maxValues },
+                            join: {},
+                        },
+                        apiLoad,
+                    }))
+                );
+
                 if (reqId !== reqRef.current) return;
 
-                const distinctValues = (data || [])
-                    .map(r => r[pivotColumn])
-                    .filter(v => v != null && v !== '');
+                const distinctValuesByColumn = Object.fromEntries(
+                    pivotColumns.map((col, i) => [
+                        col,
+                        (results[i].data || []).map(r => r[col]).filter(v => v != null && v !== ''),
+                    ])
+                );
+
+                // Cartesian product of all distinct value arrays.
+                const combinations = cartesian(pivotColumns.map(col => distinctValuesByColumn[col] || []));
 
                 lastFetchKeyRef.current = fetchKey;
 
                 setState(draft => {
                     if (!draft?.pivot) return;
-                    draft.pivot.distinctValues = distinctValues;
+                    draft.pivot.distinctValuesByColumn = distinctValuesByColumn;
                     draft.columns = [
                         ...(draft.columns || []).filter(c => c.origin !== 'pivot_col'),
-                        ...distinctValues.map(v => ({
-                            name: `${pivotColumn}_${slug(v)}`,
-                            display_name: String(v),
+                        ...combinations.map(combo => ({
+                            name: combo.map((v, i) => `${pivotColumns[i]}_${slug(v)}`).join('__'),
+                            display_name: combo.join(' / '),
                             show: true,
                             origin: 'pivot_col',
-                            _pivotValue: v,
+                            _pivotCombo: combo,
+                            _pivotColumns: pivotColumns,
                         })),
                     ];
                 });

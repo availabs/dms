@@ -21,17 +21,23 @@ import { calculateIsJoinPresent } from "./utils/joinUtils";
 const slugForPivot = (v) =>
     String(v).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
 
-const buildPivotCaseExpr = ({ pivotRef, valueRef, value, fn, alias, isDms }) => {
-    const safeVal = String(value).replace(/'/g, "''");
+// conditions: [{ ref, value }, ...] — ANDed together (one per pivot column)
+const buildPivotCaseExpr = ({ conditions, valueRef, fn, alias, isDms }) => {
+    const conditionStr = conditions
+        .map(({ ref, value }) => `${ref} = '${String(value).replace(/'/g, "''")}'`)
+        .join(' AND ');
     const numericValueRef = isDms ? `(${valueRef})::numeric` : valueRef;
     switch (fn) {
-        case 'sum':   return `SUM(CASE WHEN ${pivotRef} = '${safeVal}' THEN ${numericValueRef} ELSE 0 END) AS ${alias}`;
-        case 'avg':   return `AVG(CASE WHEN ${pivotRef} = '${safeVal}' THEN ${numericValueRef} ELSE NULL END) AS ${alias}`;
-        case 'max':   return `MAX(CASE WHEN ${pivotRef} = '${safeVal}' THEN ${numericValueRef} ELSE NULL END) AS ${alias}`;
-        case 'min':   return `MIN(CASE WHEN ${pivotRef} = '${safeVal}' THEN ${numericValueRef} ELSE NULL END) AS ${alias}`;
-        default:      return `COUNT(CASE WHEN ${pivotRef} = '${safeVal}' THEN 1 ELSE NULL END) AS ${alias}`;
+        case 'sum':   return `SUM(CASE WHEN ${conditionStr} THEN ${numericValueRef} ELSE 0 END) AS ${alias}`;
+        case 'avg':   return `AVG(CASE WHEN ${conditionStr} THEN ${numericValueRef} ELSE NULL END) AS ${alias}`;
+        case 'max':   return `MAX(CASE WHEN ${conditionStr} THEN ${numericValueRef} ELSE NULL END) AS ${alias}`;
+        case 'min':   return `MIN(CASE WHEN ${conditionStr} THEN ${numericValueRef} ELSE NULL END) AS ${alias}`;
+        default:      return `COUNT(CASE WHEN ${conditionStr} THEN 1 ELSE NULL END) AS ${alias}`;
     }
 };
+
+const cartesian = (arrays) =>
+    arrays.reduce((acc, arr) => acc.flatMap(combo => arr.map(val => [...combo, val])), [[]]);
 
 const parseIfJson = (value) => {
     try { return JSON.parse(value); } catch { return value; }
@@ -137,16 +143,26 @@ export const getData = async ({
     const builderInput = state.externalSource ? state : legacyStateToBuildInput(state);
     const isDms = sourceInfo.isDms;
 
+    // Normalize to array format; support legacy single-column saved configs.
+    const pivotColumns = state.pivot?.pivotColumns?.length
+        ? state.pivot.pivotColumns
+        : state.pivot?.pivotColumn ? [state.pivot.pivotColumn] : [];
+
+    const distinctValuesByColumn = state.pivot?.distinctValuesByColumn
+        || (state.pivot?.pivotColumn && state.pivot?.distinctValues?.length
+            ? { [state.pivot.pivotColumn]: state.pivot.distinctValues }
+            : {});
+
     const isPivotMode = Boolean(
         state.pivot?.enabled &&
-        state.pivot?.pivotColumn &&
-        state.pivot?.distinctValues?.length
+        pivotColumns.length &&
+        pivotColumns.every(col => distinctValuesByColumn[col]?.length)
     );
 
     let options, columnsToFetch, columnsWithSettings, outputSourceInfo;
 
     if (isPivotMode) {
-        const { rowColumn, pivotColumn, valueColumn, aggregateFn = 'count', distinctValues } = state.pivot;
+        const { rowColumn, valueColumn, aggregateFn = 'count' } = state.pivot;
 
         // Call buildUdaConfig with the row column (group: true) when set so filters are
         // resolved correctly. Without a row column, pass an empty columns array —
@@ -157,12 +173,17 @@ export const getData = async ({
         const pivotBuilderInput = { ...builderInput, columns: pivotBuilderColumns };
         ({ options, columnsToFetch, columnsWithSettings, outputSourceInfo } = buildUdaConfig(pivotBuilderInput));
 
-        const pivotRef = attributeAccessorStr(pivotColumn, isDms, false, false);
         const valueRef = valueColumn ? attributeAccessorStr(valueColumn, isDms, false, false) : null;
 
-        const caseColumns = distinctValues.map(v => {
-            const alias = `${pivotColumn}_${slugForPivot(v)}`;
-            const expr = buildPivotCaseExpr({ pivotRef, valueRef, value: v, fn: aggregateFn, alias, isDms });
+        // Build CASE columns for every combination of distinct values (cartesian product).
+        const combinations = cartesian(pivotColumns.map(col => distinctValuesByColumn[col] || []));
+        const caseColumns = combinations.map(combo => {
+            const alias = combo.map((v, i) => `${pivotColumns[i]}_${slugForPivot(v)}`).join('__');
+            const conditions = combo.map((v, i) => ({
+                ref: attributeAccessorStr(pivotColumns[i], isDms, false, false),
+                value: v,
+            }));
+            const expr = buildPivotCaseExpr({ conditions, valueRef, fn: aggregateFn, alias, isDms });
             return { name: alias, reqName: expr, normalName: alias, isPivotCol: true };
         });
 

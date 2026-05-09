@@ -57,10 +57,11 @@ function computeFetchKey(state) {
       showTotal: state.display?.showTotal,
       pivot: state.pivot?.enabled ? {
         rowColumn: state.pivot.rowColumn,
-        pivotColumn: state.pivot.pivotColumn,
+        pivotColumns: state.pivot.pivotColumns?.length ? state.pivot.pivotColumns
+          : state.pivot.pivotColumn ? [state.pivot.pivotColumn] : [],
         valueColumn: state.pivot.valueColumn,
         aggregateFn: state.pivot.aggregateFn,
-        distinctValues: state.pivot.distinctValues,
+        distinctValuesByColumn: state.pivot.distinctValuesByColumn,
         maxValues: state.pivot.maxValues,
       } : null,
     });

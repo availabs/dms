@@ -586,15 +586,23 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                 ]
             },
             {
-                name: 'Pivot Column', showValue: true, showSearch: true,
-                value: state.pivot?.pivotColumn || '',
+                name: 'Pivot Columns', showValue: true, showSearch: true,
+                value: (state.pivot?.pivotColumns || (state.pivot?.pivotColumn ? [state.pivot.pivotColumn] : [])).join(', ') || '',
                 cdn: () => !!state.pivot?.enabled,
-                items: (state.externalSource?.columns || []).map(col => ({
-                    icon: col.name === state.pivot?.pivotColumn ? 'CircleCheck' : 'Blank',
-                    name: col.name,
-                    onClickGoBack: true,
-                    onClick: () => dwAPI.setPivot('pivotColumn', col.name)
-                }))
+                items: (state.externalSource?.columns || []).map(col => {
+                    const selected = state.pivot?.pivotColumns || (state.pivot?.pivotColumn ? [state.pivot.pivotColumn] : []);
+                    const isSelected = selected.includes(col.name);
+                    return {
+                        icon: isSelected ? 'CircleCheck' : 'Blank',
+                        name: col.name,
+                        onClick: () => {
+                            const next = isSelected
+                                ? selected.filter(c => c !== col.name)
+                                : [...selected, col.name];
+                            dwAPI.setPivot('pivotColumns', next);
+                        }
+                    };
+                })
             },
             {
                 name: 'Value Column', showValue: true, showSearch: true,

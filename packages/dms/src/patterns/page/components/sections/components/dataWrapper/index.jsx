@@ -198,7 +198,7 @@ const Edit = forwardRef((props, ref) => {
         };
         if (state.dataSourceId) toSave.dataSourceId = state.dataSourceId;
         if (state.pivot?.enabled) {
-            const { distinctValues: _dv, ...pivotConfig } = state.pivot;
+            const { distinctValues: _dv, distinctValuesByColumn: _dvbc, ...pivotConfig } = state.pivot;
             toSave.pivot = pivotConfig;
         }
         RUNTIME_DISPLAY_FIELDS.forEach(f => delete toSave.display[f]);
