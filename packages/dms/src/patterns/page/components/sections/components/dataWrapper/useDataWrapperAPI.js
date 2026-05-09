@@ -92,12 +92,23 @@ export function useDataWrapperAPI({ state, setState }) {
         (key, value) => setState(draft => {
             if (!draft.pivot) draft.pivot = { enabled: false, maxValues: 10, aggregateFn: 'count' };
             draft.pivot[key] = value;
-            // Eagerly clear stale pivot columns when the pivot column changes so the
-            // table doesn't briefly show the old column set before the distinct-values
-            // hook re-fetches.
             if (key === 'pivotColumns') {
                 draft.pivot.distinctValuesByColumn = {};
                 draft.columns = (draft.columns || []).filter(c => c.origin !== 'pivot_col');
+            }
+            if (key === 'rowColumn' && value) {
+                const sourceCols = draft.externalSource?.columns || [];
+                const sourceCol = sourceCols.find(c => c.name === value);
+                if (sourceCol) {
+                    const existing = (draft.columns || []).findIndex(c => c.name === value && !c.isDuplicate);
+                    if (existing !== -1) {
+                        const [col] = draft.columns.splice(existing, 1);
+                        col.show = true;
+                        draft.columns.unshift(col);
+                    } else {
+                        draft.columns = [{ ...sourceCol, show: true }, ...(draft.columns || [])];
+                    }
+                }
             }
         }),
         [setState]
