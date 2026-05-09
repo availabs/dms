@@ -17,6 +17,7 @@ function computePivotFetchKey(state) {
         return JSON.stringify({
             pivotColumns,
             maxValues: pivot.maxValues || 10,
+            singleHeader: !!pivot.singleHeader,
             view_id: state.externalSource?.view_id,
             source_id: state.externalSource?.source_id,
             filters: state.filters,
@@ -40,6 +41,7 @@ function computePivotFetchKey(state) {
 export function usePivotDistinctValues({ state, setState, apiLoad }) {
     const pivot = state.pivot;
     const pivotEnabled = pivot?.enabled;
+    const singleHeader = !!pivot?.singleHeader;
     // Normalize legacy single-column saved configs
     const pivotColumns = pivot?.pivotColumns?.length ? pivot.pivotColumns
         : pivot?.pivotColumn ? [pivot.pivotColumn] : [];
@@ -107,14 +109,18 @@ export function usePivotDistinctValues({ state, setState, apiLoad }) {
                         ...(draft.columns || []).filter(c => c.origin !== 'pivot_col'),
                         ...combinations.map(combo => ({
                             name: combo.map((v, i) => `${pivotColumns[i]}_${slug(v)}`).join('__'),
-                            // For a single pivot column the leaf value IS the full label.
-                            // For multiple pivot columns the group header rows show the
-                            // parent values, so the leaf cell shows only the deepest value.
-                            display_name: String(combo[combo.length - 1]),
+                            // singleHeader: flat compound label ("N / car"), no group metadata.
+                            // grouped (default): leaf label only ("car"); _pivotCombo/_pivotColumns
+                            // drive the group header rows in TableHeader.
+                            display_name: singleHeader || pivotColumns.length === 1
+                                ? combo.join(' / ')
+                                : String(combo[combo.length - 1]),
                             show: true,
                             origin: 'pivot_col',
-                            _pivotCombo: combo,
-                            _pivotColumns: pivotColumns,
+                            ...(!singleHeader && pivotColumns.length > 1 && {
+                                _pivotCombo: combo,
+                                _pivotColumns: pivotColumns,
+                            }),
                         })),
                     ];
                 });
