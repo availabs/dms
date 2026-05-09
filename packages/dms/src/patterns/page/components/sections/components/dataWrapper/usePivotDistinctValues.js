@@ -107,7 +107,10 @@ export function usePivotDistinctValues({ state, setState, apiLoad }) {
                         ...(draft.columns || []).filter(c => c.origin !== 'pivot_col'),
                         ...combinations.map(combo => ({
                             name: combo.map((v, i) => `${pivotColumns[i]}_${slug(v)}`).join('__'),
-                            display_name: combo.join(' / '),
+                            // For a single pivot column the leaf value IS the full label.
+                            // For multiple pivot columns the group header rows show the
+                            // parent values, so the leaf cell shows only the deepest value.
+                            display_name: String(combo[combo.length - 1]),
                             show: true,
                             origin: 'pivot_col',
                             _pivotCombo: combo,
