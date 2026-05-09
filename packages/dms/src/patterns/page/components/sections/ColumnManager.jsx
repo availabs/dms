@@ -370,6 +370,23 @@ export default function ColumnManager({ dwAPI, resolvedControls, Pill, Icon, Swi
         [stateColumns]
     );
 
+    const activePivotColumns = useMemo(() =>
+        pivotColumns.map((column, i) => ({ id: `pivot_${i}_${column.name}`, column })),
+        [pivotColumns]
+    );
+
+    const onReorderPivot = useCallback((updatedItems) => {
+        setState(draft => {
+            const reordered = updatedItems
+                .map(item => draft.columns.find(c => c.origin === 'pivot_col' && c.name === item.column.name))
+                .filter(Boolean);
+            draft.columns = [
+                ...draft.columns.filter(c => c.origin !== 'pivot_col'),
+                ...reordered,
+            ];
+        });
+    }, [setState]);
+
     const allColumns = useMemo(() => [
         ...(stateColumns || []).filter(c => c.origin !== 'pivot_col'),
         ...(externalSource?.columns || [])
@@ -481,28 +498,33 @@ export default function ColumnManager({ dwAPI, resolvedControls, Pill, Icon, Swi
                 />
             )}
 
-            {/* Pivot Columns (read-only — controlled by pivot config) */}
-            {pivotColumns.length > 0 && (
+            {/* Pivot Columns — orderable; row column always precedes this section */}
+            {activePivotColumns.length > 0 && (
                 <div className="flex flex-col gap-1">
                     <div className="text-xs font-medium text-gray-500 px-1 pt-1 uppercase tracking-wide">
                         Pivot Columns
                     </div>
-                    {pivotColumns.map(col => (
-                        <div key={col.name} className="border rounded bg-white mb-0.5">
-                            <div className="flex items-center justify-between px-2 py-1 gap-1">
-                                <span className="text-sm truncate flex-1">
-                                    {col.display_name || col.name}
-                                </span>
-                                <button
-                                    className={`p-0.5 rounded hover:bg-gray-100 ${col.show ? 'text-blue-500' : 'text-gray-300'} cursor-pointer`}
-                                    onClick={() => dwAPI.updateColumn(col, 'show', !col.show)}
-                                    title={col.show ? 'Hide' : 'Show'}
-                                >
-                                    <Icon icon={col.show ? 'Eye' : 'EyeClosed'} className="size-4" />
-                                </button>
+                    <DraggableList
+                        dataItems={activePivotColumns}
+                        onChange={onReorderPivot}
+                        renderItem={({ item }) => (
+                            <div className="border rounded bg-white mb-0.5">
+                                <div className="flex items-center justify-between px-2 py-1 gap-1">
+                                    <div className="flex items-center gap-1 flex-1 min-w-0">
+                                        <Icon icon="Reorder" className="size-4 text-gray-400 shrink-0 cursor-grab" />
+                                        <span className="text-sm truncate">{item.column.display_name || item.column.name}</span>
+                                    </div>
+                                    <button
+                                        className={`p-0.5 rounded hover:bg-gray-100 ${item.column.show ? 'text-blue-500' : 'text-gray-300'} cursor-pointer`}
+                                        onClick={() => dwAPI.updateColumn(item.column, 'show', !item.column.show)}
+                                        title={item.column.show ? 'Hide' : 'Show'}
+                                    >
+                                        <Icon icon={item.column.show ? 'Eye' : 'EyeClosed'} className="size-4" />
+                                    </button>
+                                </div>
                             </div>
-                        </div>
-                    ))}
+                        )}
+                    />
                 </div>
             )}
 

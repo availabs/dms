@@ -112,36 +112,45 @@ export function usePivotDistinctValues({ state, setState, apiLoad }) {
                     if (!draft?.pivot) return;
                     draft.pivot.distinctValuesByColumn = distinctValuesByColumn;
 
-                    // Preserve sizes from existing pivot_col columns so that user
-                    // resizes survive re-injection (without this, missing sizes
-                    // trigger the autoResize effect which resets all column widths).
+                    // Snapshot existing pivot_col order and sizes before clearing.
+                    const existingOrder = (draft.columns || [])
+                        .filter(c => c.origin === 'pivot_col')
+                        .map(c => c.name);
                     const existingSizes = Object.fromEntries(
                         (draft.columns || [])
                             .filter(c => c.origin === 'pivot_col' && c.size)
                             .map(c => [c.name, c.size])
                     );
 
+                    const newPivotCols = combinations.map(combo => {
+                        const name = combo.map((v, i) => `${slug(colKey(pivotColumns[i]))}_${slug(v)}`).join('__');
+                        return {
+                            name,
+                            display_name: singleHeader || pivotColumns.length === 1
+                                ? combo.join(' / ')
+                                : String(combo[combo.length - 1]),
+                            show: true,
+                            origin: 'pivot_col',
+                            ...(existingSizes[name] && { size: existingSizes[name] }),
+                            ...(!singleHeader && pivotColumns.length > 1 && {
+                                _pivotCombo: combo,
+                                _pivotColumns: pivotColumns,
+                            }),
+                        };
+                    });
+
+                    // Preserve user-defined column order; new combinations go at end.
+                    // Non-pivot columns (including row column) always precede pivot_col.
+                    const orderedPivotCols = [
+                        ...existingOrder
+                            .map(name => newPivotCols.find(c => c.name === name))
+                            .filter(Boolean),
+                        ...newPivotCols.filter(c => !existingOrder.includes(c.name)),
+                    ];
+
                     draft.columns = [
                         ...(draft.columns || []).filter(c => c.origin !== 'pivot_col'),
-                        ...combinations.map(combo => {
-                            const name = combo.map((v, i) => `${slug(colKey(pivotColumns[i]))}_${slug(v)}`).join('__');
-                            return {
-                                name,
-                                // singleHeader: flat compound label ("N / car"), no group metadata.
-                                // grouped (default): leaf label only ("car"); _pivotCombo/_pivotColumns
-                                // drive the group header rows in TableHeader.
-                                display_name: singleHeader || pivotColumns.length === 1
-                                    ? combo.join(' / ')
-                                    : String(combo[combo.length - 1]),
-                                show: true,
-                                origin: 'pivot_col',
-                                ...(existingSizes[name] && { size: existingSizes[name] }),
-                                ...(!singleHeader && pivotColumns.length > 1 && {
-                                    _pivotCombo: combo,
-                                    _pivotColumns: pivotColumns,
-                                }),
-                            };
-                        }),
+                        ...orderedPivotCols,
                     ];
                 });
             } catch (e) {
