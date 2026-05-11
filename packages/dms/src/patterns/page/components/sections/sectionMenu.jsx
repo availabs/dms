@@ -557,7 +557,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
 
     const pivot = {
         name: 'Pivot', icon: 'ListView',
-        cdn: () => isEdit && currentComponent?.name === 'Spreadsheet' && currentComponent?.useDataSource && canEditSection,
+        cdn: () => isEdit && ['Spreadsheet', 'Graph'].includes(currentComponent?.name) && currentComponent?.useDataSource && canEditSection,
         value: state.pivot?.enabled ? 'On' : 'Off',
         showValue: true,
         items: [

@@ -9,17 +9,33 @@ import {strictNaN, fnumIndex} from "./utils";
 
 
 export default function Graph ({
-    isEdit, columns=[], data=[], display={}, controls={}, setState=() => {}, isActive, activeStyle
+    isEdit, columns=[], data=[], display={}, pivot={}, controls={}, setState=() => {}, isActive, activeStyle
 }) {
     const { theme: themeFromContext = {graph: graphTheme}} = React.useContext(ThemeContext) || {};
     const theme = {...themeFromContext, graph: {...graphTheme, ...(themeFromContext.graph || {})}};
 
+    const isPivotMode = pivot?.enabled && columns.some(c => c.origin === 'pivot_col');
+
     // data is restructured into: index, type, value.
     // index is X axis column's values.
     // type is either category column's values or Y axis column's display name or name.
-    const indexColumn = useMemo(() => columns.find(({xAxis}) => xAxis) || {}, [columns]);
-    const dataColumns = useMemo(() => columns.filter(({yAxis}) => yAxis) || [], [columns]);
-    const categoryColumn = useMemo(() => columns.find(({categorize}) => categorize) || {}, [columns]);
+    const indexColumn = useMemo(() => {
+        if (isPivotMode) {
+            if (!pivot.rowColumn) return {};
+            return columns.find(c => c.name === pivot.rowColumn || c.origin === 'pivot_row') || {};
+        }
+        return columns.find(({xAxis}) => xAxis) || {};
+    }, [columns, isPivotMode, pivot?.rowColumn]);
+
+    const dataColumns = useMemo(() => {
+        if (isPivotMode) return columns.filter(c => c.origin === 'pivot_col');
+        return columns.filter(({yAxis}) => yAxis) || [];
+    }, [columns, isPivotMode]);
+
+    const categoryColumn = useMemo(() => {
+        if (isPivotMode) return {};
+        return columns.find(({categorize}) => categorize) || {};
+    }, [columns, isPivotMode]);
 
     const graphData = useMemo(() => {
         const tmpData = [];
@@ -113,7 +129,7 @@ export default function Graph ({
             </div> : null}
             <GraphComponent
                 graphFormat={ {...display, colors} }
-                activeGraphType={{GraphComp: display.graphType} }
+                activeGraphType={{GraphComp: display.graphType || 'BarGraph'} }
                 viewData={ graphData }
                 showCategories={ Boolean(categoryColumn.name) || (dataColumns.length > 1) }
                 xAxisColumn={ indexColumn }
