@@ -30,14 +30,16 @@ const GraphTitle = ({ title, position, fontSize, fontWeight }) => {
   )
 }
 
+const passthrough = (arr, acc) => acc(arr[0]);
+
 const AggFuncs = {
   sum: d3sum,
   avg: d3mean,
   count: d3sum,
-  exempt: (arr, acc) => acc(arr[0])
+  exempt: passthrough
 }
 const getAggFunc = aggMethod => {
-  return AggFuncs[aggMethod] //|| d3sum;
+  return AggFuncs[aggMethod] || passthrough;
 }
 
 export const GraphComponent = props => {
