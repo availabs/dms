@@ -15,7 +15,7 @@ import {tableTheme} from "./table.theme";
 const defaultNumColSize = 0;
 const VIRTUAL_VIEWPORT_INCREASE = { top: 300, bottom: 300, left: 100, right: 100 };
 const defColSize = 250;
-const minColSize = 50;
+const minColSize = 100;
 
 const windowFake = typeof window === "undefined" ? {} : window;
 export const TableCellContext = createContext({});

@@ -68,10 +68,15 @@ export const RUNTIME_DISPLAY_FIELDS = [
  *                   // optional — only present when section joins additional sources.
  *                   // Persisted only when sources is non-empty (no `{ sources: {} }`
  *                   // placeholder on the wire).
+ *   pivot:          { enabled, rowColumn, pivotColumn, valueColumn, aggregateFn, maxValues }
+ *                   // optional — only present when pivot has been configured.
+ *                   // pivot.distinctValues is runtime-only and stripped from the save payload.
+ *                   // columns with origin='pivot_col' are also runtime-only and stripped.
  * }
  *
  * NOT persisted: dataRequest, sourceInfo, fullData, localFilteredData,
- *                lastDataRequest, outputSourceInfo
+ *                lastDataRequest, outputSourceInfo, pivot.distinctValues,
+ *                columns where origin='pivot_col'
  *
  * NOTE: every serializer that emits a v2 element-data string (the save effect
  * in dataWrapper/index.jsx, preloadSectionData.js, and any future round-tripper)

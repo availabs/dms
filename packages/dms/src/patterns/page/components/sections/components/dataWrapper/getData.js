@@ -12,10 +12,38 @@ import {
     buildUdaConfig,
     isCalculatedCol,
     legacyStateToBuildInput,
+    attributeAccessorStr,
 } from "./buildUdaConfig";
 import { calculateIsJoinPresent } from "./utils/joinUtils";
 
 // ─── Private helpers ────────────────────────────────────────────────────────
+
+const slugForPivot = (v) =>
+    String(v).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+
+// For calculated columns ("expr as alias"), return the alias; otherwise return the name as-is.
+const colKey = (name) => {
+    const parts = name.split(/\s+as\s+/i);
+    return (parts.length > 1 ? parts[parts.length - 1] : parts[0]).trim();
+};
+
+// conditions: [{ ref, value }, ...] — ANDed together (one per pivot column)
+const buildPivotCaseExpr = ({ conditions, valueRef, fn, alias, isDms }) => {
+    const conditionStr = conditions
+        .map(({ ref, value }) => `${ref} = '${String(value).replace(/'/g, "''")}'`)
+        .join(' AND ');
+    const numericValueRef = isDms ? `(${valueRef})::numeric` : valueRef;
+    switch (fn) {
+        case 'sum':   return `SUM(CASE WHEN ${conditionStr} THEN ${numericValueRef} ELSE 0 END) AS ${alias}`;
+        case 'avg':   return `AVG(CASE WHEN ${conditionStr} THEN ${numericValueRef} ELSE NULL END) AS ${alias}`;
+        case 'max':   return `MAX(CASE WHEN ${conditionStr} THEN ${numericValueRef} ELSE NULL END) AS ${alias}`;
+        case 'min':   return `MIN(CASE WHEN ${conditionStr} THEN ${numericValueRef} ELSE NULL END) AS ${alias}`;
+        default:      return `COUNT(CASE WHEN ${conditionStr} THEN 1 ELSE NULL END) AS ${alias}`;
+    }
+};
+
+const cartesian = (arrays) =>
+    arrays.reduce((acc, arr) => acc.flatMap(combo => arr.map(val => [...combo, val])), [[]]);
 
 const parseIfJson = (value) => {
     try { return JSON.parse(value); } catch { return value; }
@@ -119,15 +147,72 @@ export const getData = async ({
     // ─── Build UDA config via the pure builder ────────────────────────────────
     debugTime && console.time('buildUdaConfig')
     const builderInput = state.externalSource ? state : legacyStateToBuildInput(state);
-    const { options, attributes, columnsToFetch, columnsWithSettings, outputSourceInfo } = buildUdaConfig(builderInput);
+    const isDms = sourceInfo.isDms;
+
+    // Normalize to array format; support legacy single-column saved configs.
+    const pivotColumns = state.pivot?.pivotColumns?.length
+        ? state.pivot.pivotColumns
+        : state.pivot?.pivotColumn ? [state.pivot.pivotColumn] : [];
+
+    const distinctValuesByColumn = state.pivot?.distinctValuesByColumn
+        || (state.pivot?.pivotColumn && state.pivot?.distinctValues?.length
+            ? { [state.pivot.pivotColumn]: state.pivot.distinctValues }
+            : {});
+
+    const isPivotMode = Boolean(
+        state.pivot?.enabled &&
+        pivotColumns.length &&
+        pivotColumns.every(col => distinctValuesByColumn[col]?.length)
+    );
+
+    let options, columnsToFetch, columnsWithSettings, outputSourceInfo;
+
+    if (isPivotMode) {
+        const { rowColumn, valueColumn, aggregateFn = 'count' } = state.pivot;
+
+        // Call buildUdaConfig with the row column (group: true) when set so filters are
+        // resolved correctly. Without a row column, pass an empty columns array —
+        // the result will be a single aggregate row with no GROUP BY.
+        const pivotBuilderColumns = rowColumn
+            ? [{ name: rowColumn, group: true, show: true }]
+            : [];
+        const pivotBuilderInput = { ...builderInput, columns: pivotBuilderColumns };
+        ({ options, columnsToFetch, columnsWithSettings, outputSourceInfo } = buildUdaConfig(pivotBuilderInput));
+
+        const valueRef = valueColumn ? attributeAccessorStr(valueColumn, isDms, false, false) : null;
+
+        // Build CASE columns for every combination of distinct values (cartesian product).
+        const combinations = cartesian(pivotColumns.map(col => distinctValuesByColumn[col] || []));
+        const caseColumns = combinations.map(combo => {
+            const alias = combo.map((v, i) => `${slugForPivot(colKey(pivotColumns[i]))}_${slugForPivot(v)}`).join('__');
+            const conditions = combo.map((v, i) => ({
+                ref: attributeAccessorStr(pivotColumns[i], isDms, isCalculatedCol({ name: pivotColumns[i] }), false),
+                value: v,
+            }));
+            const expr = buildPivotCaseExpr({ conditions, valueRef, fn: aggregateFn, alias, isDms });
+            return { name: alias, reqName: expr, normalName: alias, isPivotCol: true };
+        });
+
+        if (rowColumn) {
+            const rowRef = attributeAccessorStr(rowColumn, isDms, false, false);
+            columnsToFetch = [...columnsToFetch, ...caseColumns];
+            options.groupBy = [rowRef];
+            if (!Object.keys(options.orderBy || {}).length) {
+                options.orderBy = { [rowRef]: 'asc' };
+            }
+        } else {
+            columnsToFetch = caseColumns;
+            options.groupBy = [];
+        }
+    } else {
+        ({ options, columnsToFetch, columnsWithSettings, outputSourceInfo } = buildUdaConfig(builderInput));
+    }
 
     if (keepOriginalValues) options.keepOriginalValues = keepOriginalValues;
     const filterRelation = state.display?.filterRelation;
     if (filterRelation) options.filterRelation = filterRelation;
 
     debugTime && console.timeEnd('buildUdaConfig')
-
-    const isDms = sourceInfo.isDms;
 
     debug && console.log("debug getdata: options", options, state);
 
@@ -173,7 +258,7 @@ export const getData = async ({
     const joinPresent = isJoinPresent;
     const idCol = joinPresent ? "ds.id" : "id";
     const idReq = joinPresent ? "ds.id as id" : "id";
-    if (isDms && !options.groupBy.length && !fnColumnsExists) {
+    if (isDms && !isPivotMode && !options.groupBy.length && !fnColumnsExists) {
         columnsToFetch.push({ name: idCol, reqName: idReq });
         options.orderBy[idCol] = Object.values(options.orderBy || {})?.[0] || "asc";
     } else {
@@ -185,38 +270,40 @@ export const getData = async ({
     debugTime && console.timeEnd('check columns')
 
     // ─── Check for invalid state ──────────────────────────────────────────────
-    debugTime && console.time('check invalid')
-    let visibleColumnsLength = 0;
-    let groupedColumnsLength = 0;
-    let fnColumnsLength = 0;
-    let nonGroupedColumnsLength = 0;
+    if (!isPivotMode) {
+        debugTime && console.time('check invalid')
+        let visibleColumnsLength = 0;
+        let groupedColumnsLength = 0;
+        let fnColumnsLength = 0;
+        let nonGroupedColumnsLength = 0;
 
-    for (const col of columnsWithSettings) {
-        if (col.show && col.origin !== 'static') visibleColumnsLength++;
-        if (col.group) groupedColumnsLength++;
-        if (col.fn) fnColumnsLength++;
-        if (col.show && !col.group && col.origin !== 'static') nonGroupedColumnsLength++;
+        for (const col of columnsWithSettings) {
+            if (col.show && col.origin !== 'static') visibleColumnsLength++;
+            if (col.group) groupedColumnsLength++;
+            if (col.fn) fnColumnsLength++;
+            if (col.show && !col.group && col.origin !== 'static') nonGroupedColumnsLength++;
+        }
+
+        const noGroupSomeFnCondition =
+            visibleColumnsLength > 1 &&
+            !groupedColumnsLength &&
+            fnColumnsLength > 0 &&
+            fnColumnsLength !== visibleColumnsLength;
+
+        const groupNoFnCondition =
+            groupedColumnsLength && fnColumnsLength !== nonGroupedColumnsLength;
+        const isInvalidState = noGroupSomeFnCondition || groupNoFnCondition;
+
+        if (isInvalidState) {
+            const invalidStateText = noGroupSomeFnCondition
+                ? `All visible columns don't have a function. # Visible columns: ${visibleColumnsLength}, # Function applied: ${fnColumnsLength}`
+                : groupNoFnCondition
+                    ? `All Non grouped columns must have a function applied. # Non grouped columns: ${nonGroupedColumnsLength}, # Function applied: ${fnColumnsLength}.`
+                    : "";
+            return { length, data: [], invalidState: invalidStateText };
+        }
+        debugTime && console.timeEnd('check invalid')
     }
-
-    const noGroupSomeFnCondition =
-        visibleColumnsLength > 1 &&
-        !groupedColumnsLength &&
-        fnColumnsLength > 0 &&
-        fnColumnsLength !== visibleColumnsLength;
-
-    const groupNoFnCondition =
-        groupedColumnsLength && fnColumnsLength !== nonGroupedColumnsLength;
-    const isInvalidState = noGroupSomeFnCondition || groupNoFnCondition;
-
-    if (isInvalidState) {
-        const invalidStateText = noGroupSomeFnCondition
-            ? `All visible columns don't have a function. # Visible columns: ${visibleColumnsLength}, # Function applied: ${fnColumnsLength}`
-            : groupNoFnCondition
-                ? `All Non grouped columns must have a function applied. # Non grouped columns: ${nonGroupedColumnsLength}, # Function applied: ${fnColumnsLength}.`
-                : "";
-        return { length, data: [], invalidState: invalidStateText };
-    }
-    debugTime && console.timeEnd('check invalid')
 
     // ─── Fetch data ───────────────────────────────────────────────────────────
     const children = [
@@ -245,7 +332,7 @@ export const getData = async ({
     }
 
     // ─── Fetch total row ──────────────────────────────────────────────────────
-    if (state.display.showTotal || columnsToFetch.some((c) => c.showTotal)) {
+    if (!isPivotMode && (state.display.showTotal || columnsToFetch.some((c) => c.showTotal))) {
         const totalRowChildren = [
             {
                 type: () => {},

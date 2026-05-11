@@ -5,6 +5,7 @@ import {TagComponent} from "./section_components"
 import { getComponentTheme } from "../../../../ui/useTheme";
 import {ComplexFilters} from "./ComplexFilters";
 import ColumnManager from "./ColumnManager";
+import { getColumnLabel } from "./controls_utils";
 
 
 export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSource={}, dwAPI, pageDataSources={}, ...rest }) => {
@@ -554,6 +555,109 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
     ]
 
 
+    const pivot = {
+        name: 'Pivot', icon: 'ListView',
+        cdn: () => isEdit && ['Spreadsheet', 'Graph'].includes(currentComponent?.name) && currentComponent?.useDataSource && canEditSection,
+        value: state.pivot?.enabled ? 'On' : 'Off',
+        showValue: true,
+        items: [
+            {
+                name: 'Enabled', type: 'toggle',
+                enabled: !!state.pivot?.enabled,
+                setEnabled: v => dwAPI.setPivot('enabled', v)
+            },
+            { type: 'separator' },
+            {
+                name: 'Row Column', showValue: true, showSearch: true,
+                value: (state.externalSource?.columns || []).find(c => c.name === state.pivot?.rowColumn)
+                    ? getColumnLabel((state.externalSource.columns).find(c => c.name === state.pivot.rowColumn))
+                    : '(none)',
+                cdn: () => !!state.pivot?.enabled,
+                items: [
+                    {
+                        icon: !state.pivot?.rowColumn ? 'CircleCheck' : 'Blank',
+                        name: '(none — single aggregate row)',
+                        onClickGoBack: true,
+                        onClick: () => dwAPI.setPivot('rowColumn', '')
+                    },
+                    ...(state.externalSource?.columns || []).map(col => ({
+                        icon: col.name === state.pivot?.rowColumn ? 'CircleCheck' : 'Blank',
+                        name: getColumnLabel(col),
+                        onClickGoBack: true,
+                        onClick: () => dwAPI.setPivot('rowColumn', col.name)
+                    }))
+                ]
+            },
+            {
+                name: 'Pivot Columns', showValue: true, showSearch: true,
+                value: (() => {
+                    const selected = state.pivot?.pivotColumns || (state.pivot?.pivotColumn ? [state.pivot.pivotColumn] : []);
+                    const sourceCols = state.externalSource?.columns || [];
+                    return selected.map(n => getColumnLabel(sourceCols.find(c => c.name === n) || { name: n })).join(', ');
+                })() || '',
+                cdn: () => !!state.pivot?.enabled,
+                items: (state.externalSource?.columns || []).map(col => {
+                    const selected = state.pivot?.pivotColumns || (state.pivot?.pivotColumn ? [state.pivot.pivotColumn] : []);
+                    const isSelected = selected.includes(col.name);
+                    return {
+                        icon: isSelected ? 'CircleCheck' : 'Blank',
+                        name: getColumnLabel(col),
+                        onClick: () => {
+                            const next = isSelected
+                                ? selected.filter(c => c !== col.name)
+                                : [...selected, col.name];
+                            dwAPI.setPivot('pivotColumns', next);
+                        }
+                    };
+                })
+            },
+            {
+                name: 'Value Column', showValue: true, showSearch: true,
+                value: (state.externalSource?.columns || []).find(c => c.name === state.pivot?.valueColumn)
+                    ? getColumnLabel((state.externalSource.columns).find(c => c.name === state.pivot.valueColumn))
+                    : '',
+                cdn: () => !!state.pivot?.enabled,
+                items: (state.externalSource?.columns || []).map(col => ({
+                    icon: col.name === state.pivot?.valueColumn ? 'CircleCheck' : 'Blank',
+                    name: getColumnLabel(col),
+                    onClickGoBack: true,
+                    onClick: () => dwAPI.setPivot('valueColumn', col.name)
+                }))
+            },
+            {
+                name: 'Aggregate', showValue: true,
+                value: (state.pivot?.aggregateFn || 'count').toUpperCase(),
+                cdn: () => !!state.pivot?.enabled,
+                items: ['count', 'sum', 'avg', 'max', 'min'].map(fn => ({
+                    icon: (state.pivot?.aggregateFn || 'count') === fn ? 'CircleCheck' : 'Blank',
+                    name: fn.toUpperCase(),
+                    onClickGoBack: true,
+                    onClick: () => dwAPI.setPivot('aggregateFn', fn)
+                }))
+            },
+            {
+                name: 'Single Header', label: 'Single Header View', type: 'toggle', showLabel: true,
+                enabled: !!state.pivot?.singleHeader,
+                cdn: () => !!state.pivot?.enabled && (state.pivot?.pivotColumns?.length > 1),
+                setEnabled: v => dwAPI.setPivot('singleHeader', v)
+            },
+            {
+                name: 'Max Values', showValue: true,
+                value: state.pivot?.maxValues || 10,
+                cdn: () => !!state.pivot?.enabled,
+                items: [{
+                    id: 'pivot_max_values_input',
+                    name: 'Max Values',
+                    type: 'input',
+                    inputType: 'number',
+                    value: state.pivot?.maxValues || 10,
+                    onChange: e => dwAPI.setPivot('maxValues', +(e?.target?.value ?? e) || 10)
+                }]
+            },
+        ].filter(item => !item.cdn || item.cdn())
+    }
+
+
     const filter = [
         {name: 'Filters', icon: 'Filter',
             value: `${parseInt(state?.display?.totalLength).toLocaleString()} rows`,
@@ -882,6 +986,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
             dataset,
             join,
             ...columns,
+            pivot,
             ...filter,
             {type: 'separator', cdn: () => currentComponent?.useDataSource && canEditSection},
             ...display,
