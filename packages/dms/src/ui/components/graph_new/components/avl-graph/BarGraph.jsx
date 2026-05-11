@@ -31,7 +31,7 @@ import {
 
 import "./avl-graph.css"
 
-const DefaultHoverComp = ({ data, keys, indexFormat, keyFormat, valueFormat, showTotals = true }) => {
+const DefaultHoverComp = ({ data, keys, indexFormat, keyFormat, valueFormat, valueLabel, showTotals = true }) => {
   return (
     <div className={ `
       flex flex-col px-2 pt-1 rounded
@@ -57,6 +57,9 @@ const DefaultHoverComp = ({ data, keys, indexFormat, keyFormat, valueFormat, sho
             </div>
             <div className="text-right flex-1">
               { valueFormat(get(data, ["data", key], 0)) }
+              { !valueLabel ? null :
+                <b className="ml-1">{ valueLabel }</b>
+              }
             </div>
           </div>
         ))

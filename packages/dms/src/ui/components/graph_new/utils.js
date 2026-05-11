@@ -1,28 +1,28 @@
 import React from "react"
 
 import { uniq } from "lodash-es"
-import {formatFunctions} from "../../../patterns/page/components/sections/components/dataWrapper/utils/utils";
+// import {formatFunctions} from "../../../patterns/page/components/sections/components/dataWrapper/utils/utils";
+import { format as d3format } from "d3-format";
 
-
-const fnum = (number, currency = false) => `${currency ? '$ ' : ''} ${isNaN(number) ? 0 : parseInt(number).toLocaleString()}`;
-export const fnumIndex = (d, fractions = 2, currency = false) => {
-        if(isNaN(d)) return '0'
-        if(typeof d === 'number' && d < 1) return `${currency ? '$' : ``} ${d?.toFixed(fractions)}`
-        if (d >= 1_000_000_000_000_000) {
-            return `${currency ? '$' : ``} ${(d / 1_000_000_000_000_000).toFixed(fractions)} Q`;
-        }else if (d >= 1_000_000_000_000) {
-            return `${currency ? '$' : ``} ${(d / 1_000_000_000_000).toFixed(fractions)} T`;
-        } else if (d >= 1_000_000_000) {
-            return `${currency ? '$' : ``} ${(d / 1_000_000_000).toFixed(fractions)} B`;
-        } else if (d >= 1_000_000) {
-            return `${currency ? '$' : ``} ${(d / 1_000_000).toFixed(fractions)} M`;
-        } else if (d >= 1_000) {
-            return `${currency ? '$' : ``} ${(d / 1_000).toFixed(fractions)} K`;
-        } else {
-            return typeof d === "object" ? `` : `${currency ? '$' : ``} ${parseInt(d)}`;
-        }
-    }
-;
+// const fnum = (number, currency = false) => `${currency ? '$ ' : ''} ${isNaN(number) ? 0 : parseInt(number).toLocaleString()}`;
+// export const fnumIndex = (d, fractions = 2, currency = false) => {
+//         if(isNaN(d)) return '0'
+//         if(typeof d === 'number' && d < 1) return `${currency ? '$' : ``} ${d?.toFixed(fractions)}`
+//         if (d >= 1_000_000_000_000_000) {
+//             return `${currency ? '$' : ``} ${(d / 1_000_000_000_000_000).toFixed(fractions)} Q`;
+//         }else if (d >= 1_000_000_000_000) {
+//             return `${currency ? '$' : ``} ${(d / 1_000_000_000_000).toFixed(fractions)} T`;
+//         } else if (d >= 1_000_000_000) {
+//             return `${currency ? '$' : ``} ${(d / 1_000_000_000).toFixed(fractions)} B`;
+//         } else if (d >= 1_000_000) {
+//             return `${currency ? '$' : ``} ${(d / 1_000_000).toFixed(fractions)} M`;
+//         } else if (d >= 1_000) {
+//             return `${currency ? '$' : ``} ${(d / 1_000).toFixed(fractions)} K`;
+//         } else {
+//             return typeof d === "object" ? `` : `${currency ? '$' : ``} ${parseInt(d)}`;
+//         }
+//     }
+// ;
 export const strictNaN = v => {
     const NaNValues = ["", null]
     if (NaNValues.includes(v)) return true;
@@ -40,58 +40,58 @@ export const useAxisTicks = (data, tickSpacing, key = "index") => {
     }, [data, tickSpacing])
 }
 
-export const useGenericPlotOptions = props => {
-    const {
-        data,
-        margins,
-        height,
-        width,
-        xAxis,
-        yAxis,
-        colors,
-        legend
-    } = props;
+// export const useGenericPlotOptions = props => {
+//     const {
+//         data,
+//         margins,
+//         height,
+//         width,
+//         xAxis,
+//         yAxis,
+//         colors,
+//         legend
+//     } = props;
 
-    const xAxisTicks = useAxisTicks(data, xAxis.tickSpacing);
+//     const xAxisTicks = useAxisTicks(data, xAxis.tickSpacing);
 
-    const graphHeight = React.useMemo(() => {
-        const {marginTop: mt, marginBottom: mb} = margins;
-        if ((mt + mb) > height) {
-            return mt + mb + 100;
-        }
-        return height;
-    }, [height, margins]);
+//     const graphHeight = React.useMemo(() => {
+//         const {marginTop: mt, marginBottom: mb} = margins;
+//         if ((mt + mb) > height) {
+//             return mt + mb + 100;
+//         }
+//         return height;
+//     }, [height, margins]);
 
-    return React.useMemo(() => {
-        return {
-            x: {
-                type: "point",
-                label: xAxis.label || xAxis.name,
-                grid: xAxis.showGridLines,
-                textAnchor: xAxis.rotateLabels ? "start" : "middle",
-                tickRotate: xAxis.rotateLabels ? 45 : 0,
-                axis: "bottom",
-                ticks: xAxisTicks
-            },
-            y: {
-                axis: "left",
-                grid: yAxis.showGridLines,
-                tickFormat: formatFunctions[yAxis.tickFormat],
-                label: yAxis.label
-            },
-            color: {
-                legend: legend.show,
-                width: legend.width,
-                height: legend.height,
-                label: legend.label,
-                range: colors.value
-            },
-            height: graphHeight,
-            width,
-            ...margins
-        }
-    }, [margins, graphHeight, width, xAxis, yAxis, colors, legend]);
-}
+//     return React.useMemo(() => {
+//         return {
+//             x: {
+//                 type: "point",
+//                 label: xAxis.label || xAxis.name,
+//                 grid: xAxis.showGridLines,
+//                 textAnchor: xAxis.rotateLabels ? "start" : "middle",
+//                 tickRotate: xAxis.rotateLabels ? 45 : 0,
+//                 axis: "bottom",
+//                 ticks: xAxisTicks
+//             },
+//             y: {
+//                 axis: "left",
+//                 grid: yAxis.showGridLines,
+//                 tickFormat: formatFunctions[yAxis.tickFormat],
+//                 label: yAxis.label
+//             },
+//             color: {
+//                 legend: legend.show,
+//                 width: legend.width,
+//                 height: legend.height,
+//                 label: legend.label,
+//                 range: colors.value
+//             },
+//             height: graphHeight,
+//             width,
+//             ...margins
+//         }
+//     }, [margins, graphHeight, width, xAxis, yAxis, colors, legend]);
+// }
 
 export const useGenericTipOptions = props => {
     const {
@@ -337,4 +337,48 @@ export const mapColors = {
         "singlehue": [],
         "diverging": ["div1", "div2", "div3", "div4", "div5", "div6", "div7"]
     }
+}
+
+const integerFormat = d3format(",d");
+const float1Format = d3format(",.1f");
+const float2Format = d3format(",.2f");
+
+export const ValueFormats = [
+    { label: "Identity", value: "identity",
+        func: d => d
+    },
+    { label: "Integer", value: "integer",
+        func: integerFormat
+    },
+    { label: "Float (1 decimal)", value: "float1",
+        func: float1Format
+    },
+    { label: "Float (2 decimal)", value: "float2",
+        func: float2Format
+    },
+    { label: "Dollars", value: "dollars",
+        func: d => `$${ integerFormat(d) }`
+    },
+    { label: "Dollars (2 decimal)", value: "dollars2",
+        func: d => `$${ float2Format(d) }`
+    },
+    { label: "Millions", value: "millions",
+        func: d => `$${ integerFormat(d / 1000000.0) }m`
+    },
+    { label: "Millions (2 decimal)", value: "millions2",
+        func: d => `$${ float2Format(d / 1000000.0) }m`
+    },
+    { label: "Billions", value: "billions",
+        func: d => `$${ integerFormat(d / 1000000000.0) }b`
+    },
+    { label: "Billions (2 decimal)", value: "billions2",
+        func: d => `$${ float2Format(d / 1000000000.0) }b`
+    }
+];
+const ValueFormatsFuncMap = ValueFormats.reduce((a, c) => {
+    a[c.value] = c.func;
+    return a;
+}, {});
+export const getFormatFunc = format => {
+    return ValueFormatsFuncMap[format] || ValueFormatsFuncMap["identity"] ;
 }

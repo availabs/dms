@@ -13,8 +13,8 @@ const LineGraphWrapper = props => {
 
 // console.log("LineGraphWrapper::props", props);
 
-console.log("LineGraphWrapper::viewData", props.viewData);
-console.log("LineGraphWrapper::columns", props.columns);
+// console.log("LineGraphWrapper::viewData", props.viewData);
+// console.log("LineGraphWrapper::columns", props.columns);
 
 	const dataFromProps = React.useMemo(() => {
 		const xColumn = props.columns.find(c => c.target === "xAxis");
@@ -34,6 +34,7 @@ console.log("LineGraphWrapper::columns", props.columns);
 
 				const line = { id, data: [] };
 				for (const [x, xGroup] of iGroup) {
+					if (x === undefined) continue;
 					let y = 0;
 					for (const yc of yColumns) {
 						const ycn = yc.name;
@@ -58,10 +59,11 @@ console.log("LineGraphWrapper::columns", props.columns);
 				const line = { id: ycn, data: [] };
 
 				for (const [x, xGroup] of dataGroups) {
-						const y = aggFunc(xGroup, d => d[ycn]);
-						if (!strictNaN(y)) {
-							line.data.push({ x, y })
-						}
+					if (x === undefined) continue;
+					const y = aggFunc(xGroup, d => d[ycn]);
+					if (!strictNaN(y)) {
+						line.data.push({ x, y })
+					}
 				}
 				data.push(line);
 			}
@@ -81,13 +83,7 @@ console.log("LineGraphWrapper::columns", props.columns);
 		return data;
 	}, [props.viewData, props.columns]);
 
-console.log("LineGraphWrapper::dataFromProps", dataFromProps);
-
-	const colors = React.useMemo(() => {
-		if (props.colors?.type === "palette") {
-			return props.colors?.value || [];
-		}
-	}, [props.colors]);
+// console.log("LineGraphWrapper::dataFromProps", dataFromProps);
 
 	const axisBottom = React.useMemo(() => {
 		if (!props.xAxis) return false;
@@ -122,7 +118,7 @@ console.log("LineGraphWrapper::dataFromProps", dataFromProps);
 		>
 			<LineGraph
 				data={ dataFromProps }
-				colors={ colors }
+				colors={ props.colors }
 				axisBottom={ axisBottom }
 				axisLeft={ axisLeft }
 				axisRight={ axisLeft }
