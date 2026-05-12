@@ -8,7 +8,7 @@ import ColumnManager from "./ColumnManager";
 import { getColumnLabel } from "./controls_utils";
 
 
-export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSource={}, dwAPI, pageDataSources={}, ...rest }) => {
+export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSource={}, dwAPI, mapAPI, pageDataSources={}, ...rest }) => {
     const { isEdit, value, attributes, i, showDeleteModal, listAllColumns, state: rawState, setSectionState } = sectionState
     const state = rawState || { columns: [], display: {}, externalSource: { columns: [] }, filters: { op: 'AND', groups: [] } }
     const { onEdit, moveItem, updateAttribute, updateElementType, onChange, onCancel, onSave, onAddHelpText, setKey, setState, setShowDeleteModal, setListAllColumns } = actions
@@ -95,7 +95,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
         if (typeof item.type === 'function') {
             return {
                 id: item.key, icon: item.icon, name: item.label,
-                type: () => item.type({ value, setValue: v => dwAPI?.setDisplay?.(item.key, v, item.onChange), state: dwAPI?.state, setState: dwAPI?.setState, dwAPI })
+                type: () => item.type({ value, setValue: v => dwAPI?.setDisplay?.(item.key, v, item.onChange), state: mapAPI?.state ?? dwAPI?.state, setState: mapAPI?.setState ?? dwAPI?.setState, dwAPI, mapAPI, })
             };
         }
 
@@ -716,7 +716,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                   if (!config?.items?.length) {
                       const rawType = config?.type;
                       const wrappedType = typeof rawType === 'function'
-                          ? () => rawType({ state: dwAPI?.state, setState: dwAPI?.setState, dwAPI })
+                          ? () => rawType({ state: mapAPI?.state ?? dwAPI?.state, setState: mapAPI?.setState ?? dwAPI?.setState, dwAPI, mapAPI })
                           : rawType;
                       return { id: groupId, name: config?.name || controlGroup, items: [{name: 'component', type: wrappedType}] };
                   }

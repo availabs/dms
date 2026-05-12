@@ -115,7 +115,7 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
         onHandle({
             state,
             setState,
-            dwAPI: {
+            mapAPI: {
                 state,
                 setState,
                 doApiLoad

@@ -204,6 +204,7 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
 
     // ── Menu: read from dataWrapper handle (state-based, triggers re-renders) ──
     const dwAPI = dwHandle?.dwAPI;
+    const mapAPI = dwHandle?.mapAPI;
     const dataSourceFromRef = dwHandle?.dataSource || {};
     const stateFromRef = dwHandle?.state;
 
@@ -221,6 +222,7 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
         ui:  { Switch, Pill, Icon, TitleEditComp, LevelComp, theme: fullTheme, RegisteredComponents },
         dataSource: dataSourceFromRef,
         dwAPI: dwAPI || {},
+        mapAPI: mapAPI || {},
         pageDataSources: { dataSources, dataSourceId, switchDataSource },
     })
     const canEditSection = isUserAuthed(['edit-section'], sectionAuthPermissions);
@@ -394,6 +396,7 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
 
     // ── Menu from handle ──
     const dwAPI = dwHandle?.dwAPI;
+    const mapAPI = dwHandle?.mapAPI;
     const dataSourceFromRef = dwHandle?.dataSource || {};
     const stateFromRef = dwHandle?.state;
 
@@ -404,6 +407,7 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
         ui:  { Switch, Pill, Icon, TitleEditComp, LevelComp, refreshDataBtnRef, isRefreshingData, setIsRefreshingData, theme: fullTheme, RegisteredComponents },
         dataSource: dataSourceFromRef,
         dwAPI: dwAPI || {},
+        mapAPI: mapAPI || {},
     })
 
     const resolvedControls = typeof component?.controls === 'function'

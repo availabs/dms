@@ -7,14 +7,11 @@ import useMapSettingsSymbology from "./symbology.jsx";
  * Builds the data and handlers used by the Map Settings panel.
  * This keeps the refactored UI connected to the same map state and update flow.
  */
-export default function useMapSettingsControls(dwAPI) {
-  const { state, setState, doApiLoad } = dwAPI || {};
-  const mapAPI = { state, setState, doApiLoad };
-
-  const symbology = useMapSettingsSymbology(mapAPI);
-  const layers = useMapSettingsLayers(mapAPI);
-  const filters = useMapSettingsFilters(mapAPI);
-  const more = useMapSettingsMore(mapAPI);
+export default function useMapSettingsControls(mapAPI) {
+  const symbology = useMapSettingsSymbology(mapAPI || {});
+  const layers = useMapSettingsLayers(mapAPI || {});
+  const filters = useMapSettingsFilters(mapAPI || {});
+  const more = useMapSettingsMore(mapAPI || {});
 
   return {
     ...more,

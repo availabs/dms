@@ -138,8 +138,8 @@ At a high level, the shape looks like this:
 The Settings panel does not maintain a separate map-settings store.
 
 - `MapSection` initializes map state from the saved `value` prop.
-- `MapSection` exposes `state`, `setState`, and `doApiLoad` through `dwAPI`.
-- `map/settings/state.jsx` builds a settings API by composing focused hooks around that shared `dwAPI`.
+- `MapSection` exposes `state`, `setState`, and `doApiLoad` through `mapAPI`.
+- `map/settings/state.jsx` builds a settings API by composing focused hooks around that shared `mapAPI`.
 
 ### Selection Model
 
@@ -337,8 +337,8 @@ If a saved config omits some top-level keys, `MapSection` still applies defaults
 
 ## Practical Checklist For Future Changes
 
-- Read from `dwAPI.state`.
-- Write through `dwAPI.setState`.
+- Read from `mapAPI.state`.
+- Write through `mapAPI.setState`.
 - Keep examples and logic generic across symbologies and layers.
 - Update the setting where the runtime map already expects it.
 - Preserve compatibility unless a deliberate schema migration is planned.

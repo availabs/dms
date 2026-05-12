@@ -104,14 +104,14 @@ function MapSettingsSearchSelect({ options = [], value, onChange, placeholder = 
   );
 }
 
-const useMapSettingsUI = (dwAPI) => {
+const useMapSettingsUI = (mapAPI) => {
   const { UI } = useContext(ThemeContext) || { UI: {} };
-  const controls = useMapSettingsControls(dwAPI);
+  const controls = useMapSettingsControls(mapAPI);
   return { ...controls, UI };
 };
 
-const MapSymbologyControl = ({ dwAPI }) => {
-  const { selectedSymbology, symbologyOptions, onSymbologyChange } = useMapSettingsUI(dwAPI);
+const MapSymbologyControl = ({ mapAPI }) => {
+  const { selectedSymbology, symbologyOptions, onSymbologyChange } = useMapSettingsUI(mapAPI);
 
   return (
     <div className={sectionClassName}>
@@ -127,8 +127,8 @@ const MapSymbologyControl = ({ dwAPI }) => {
   );
 };
 
-const MapLayerControl = ({ dwAPI }) => {
-  const { selectedSymbology, selectedLayer, layerOptions, onLayerChange } = useMapSettingsUI(dwAPI);
+const MapLayerControl = ({ mapAPI }) => {
+  const { selectedSymbology, selectedLayer, layerOptions, onLayerChange } = useMapSettingsUI(mapAPI);
 
   return (
     <Field label="Layer">
@@ -143,8 +143,8 @@ const MapLayerControl = ({ dwAPI }) => {
   );
 };
 
-const MapHeightControl = ({ dwAPI }) => {
-  const { state, heightOptions, setHeight, UI } = useMapSettingsUI(dwAPI);
+const MapHeightControl = ({ mapAPI }) => {
+  const { state, heightOptions, setHeight, UI } = useMapSettingsUI(mapAPI);
   const { Select } = UI;
 
   return (
@@ -160,8 +160,8 @@ const MapHeightControl = ({ dwAPI }) => {
   );
 };
 
-const MapLegendPositionControl = ({ dwAPI }) => {
-  const { state, panelPositionOptions, setLegendPosition, UI } = useMapSettingsUI(dwAPI);
+const MapLegendPositionControl = ({ mapAPI }) => {
+  const { state, panelPositionOptions, setLegendPosition, UI } = useMapSettingsUI(mapAPI);
   const { Select } = UI;
 
   return (
@@ -177,8 +177,8 @@ const MapLegendPositionControl = ({ dwAPI }) => {
   );
 };
 
-const MapPluginControlPositionControl = ({ dwAPI }) => {
-  const { state, arePluginsLoaded, panelPositionOptions, setPluginControlPosition, UI } = useMapSettingsUI(dwAPI);
+const MapPluginControlPositionControl = ({ mapAPI }) => {
+  const { state, arePluginsLoaded, panelPositionOptions, setPluginControlPosition, UI } = useMapSettingsUI(mapAPI);
   const { Select } = UI;
 
   if (!arePluginsLoaded) return null;
@@ -196,14 +196,14 @@ const MapPluginControlPositionControl = ({ dwAPI }) => {
   );
 };
 
-const MapZoomPanControl = ({ dwAPI }) => {
-  const { state, setZoomPan, UI } = useMapSettingsUI(dwAPI);
+const MapZoomPanControl = ({ mapAPI }) => {
+  const { state, setZoomPan, UI } = useMapSettingsUI(mapAPI);
   const { Switch } = UI;
   return <ToggleRow label="Zoom/pan" border={false} value={state?.zoomPan} onChange={setZoomPan} SwitchComp={Switch} />;
 };
 
-const MapInitialViewportControl = ({ dwAPI }) => {
-  const { state, setInitialBounds, UI } = useMapSettingsUI(dwAPI);
+const MapInitialViewportControl = ({ mapAPI }) => {
+  const { state, setInitialBounds, UI } = useMapSettingsUI(mapAPI);
   const { Switch } = UI;
   return (
     <ToggleRow
@@ -216,20 +216,20 @@ const MapInitialViewportControl = ({ dwAPI }) => {
   );
 };
 
-const MapBlankBasemapControl = ({ dwAPI }) => {
-  const { state, setBlankBasemap, UI } = useMapSettingsUI(dwAPI);
+const MapBlankBasemapControl = ({ mapAPI }) => {
+  const { state, setBlankBasemap, UI } = useMapSettingsUI(mapAPI);
   const { Switch } = UI;
   return <ToggleRow label="Use blank basemap" value={state?.blankBaseMap} onChange={setBlankBasemap} SwitchComp={Switch} />;
 };
 
-const MapZoomToFitControl = ({ dwAPI }) => {
-  const { state, setZoomToFitBounds, UI } = useMapSettingsUI(dwAPI);
+const MapZoomToFitControl = ({ mapAPI }) => {
+  const { state, setZoomToFitBounds, UI } = useMapSettingsUI(mapAPI);
   const { Switch } = UI;
   return <ToggleRow label="Zoom to Fit" value={state?.zoomToFitBounds} onChange={setZoomToFitBounds} SwitchComp={Switch} />;
 };
 
-const MapUsePageFiltersControl = ({ dwAPI, border = false }) => {
-  const { activeLayer, setUsePageFilters, UI } = useMapSettingsUI(dwAPI);
+const MapUsePageFiltersControl = ({ mapAPI, border = false }) => {
+  const { activeLayer, setUsePageFilters, UI } = useMapSettingsUI(mapAPI);
   const { Switch } = UI;
 
   if (!activeLayer) return <div className={emptyStateClassName}>Select a layer first.</div>;
@@ -237,8 +237,8 @@ const MapUsePageFiltersControl = ({ dwAPI, border = false }) => {
   return <ToggleRow label="Use Page Filters" border={border} value={activeLayer?.usePageFilters} onChange={setUsePageFilters} SwitchComp={Switch} />;
 };
 
-const MapKeySearchParamControl = ({ dwAPI, border = true }) => {
-  const { activeLayer, setSearchParamKey, UI } = useMapSettingsUI(dwAPI);
+const MapKeySearchParamControl = ({ mapAPI, border = true }) => {
+  const { activeLayer, setSearchParamKey, UI } = useMapSettingsUI(mapAPI);
   const { Input } = UI;
 
   if (!activeLayer) return null;
@@ -252,8 +252,8 @@ const MapKeySearchParamControl = ({ dwAPI, border = true }) => {
   );
 };
 
-const MapInteractiveFiltersControl = ({ dwAPI }) => {
-  const { activeLayer, interactiveFilterOptions, activeFilter, setInteractiveSearchParamValue, activateInteractiveFilter, UI } = useMapSettingsUI(dwAPI);
+const MapInteractiveFiltersControl = ({ mapAPI }) => {
+  const { activeLayer, interactiveFilterOptions, activeFilter, setInteractiveSearchParamValue, activateInteractiveFilter, UI } = useMapSettingsUI(mapAPI);
   const { Input, Switch } = UI;
   const filters = interactiveFilterOptions || [];
 
@@ -286,8 +286,8 @@ const MapInteractiveFiltersControl = ({ dwAPI }) => {
   );
 };
 
-const MapDynamicFiltersControl = ({ dwAPI }) => {
-  const { activeLayer, dynamicFilterOptions, setDynamicSearchParamKey, setDynamicDefaultValue, setDynamicDataType, UI } = useMapSettingsUI(dwAPI);
+const MapDynamicFiltersControl = ({ mapAPI }) => {
+  const { activeLayer, dynamicFilterOptions, setDynamicSearchParamKey, setDynamicDefaultValue, setDynamicDataType, UI } = useMapSettingsUI(mapAPI);
   const { Input, Select } = UI;
   const filters = dynamicFilterOptions || [];
 
@@ -321,8 +321,8 @@ const MapDynamicFiltersControl = ({ dwAPI }) => {
   );
 };
 
-const MapLayerClickFiltersControl = ({ dwAPI }) => {
-  const { activeLayer, isSelectedVariableMappingsEnabled, selectedVariableMappings, setClickFilterUseSearchParam, UI } = useMapSettingsUI(dwAPI);
+const MapLayerClickFiltersControl = ({ mapAPI }) => {
+  const { activeLayer, isSelectedVariableMappingsEnabled, selectedVariableMappings, setClickFilterUseSearchParam, UI } = useMapSettingsUI(mapAPI);
   const { Switch, Input } = UI;
   const mappings = isSelectedVariableMappingsEnabled ? selectedVariableMappings || [] : [];
 
@@ -355,43 +355,43 @@ const MapLayerClickFiltersControl = ({ dwAPI }) => {
 
 export const MapControls = () => ({
   default: [
-    { key: "map_symbology", label: "Symbology", type: ({ dwAPI }) => <MapSymbologyControl dwAPI={dwAPI} /> },
-    { key: "map_layer", label: "Layer", type: ({ dwAPI }) => <MapLayerControl dwAPI={dwAPI} /> },
+    { key: "map_symbology", label: "Symbology", type: ({ mapAPI }) => <MapSymbologyControl mapAPI={mapAPI} /> },
+    { key: "map_layer", label: "Layer", type: ({ mapAPI }) => <MapLayerControl mapAPI={mapAPI} /> },
     {
       key: "map_filters_nav",
       label: "Filters",
       items: [
-        { key: "map_use_page_filters", label: "Use Page Filters", type: ({ dwAPI }) => <MapUsePageFiltersControl dwAPI={dwAPI} border={false} /> },
-        { key: "map_key_search_param", label: "Key Search Param", type: ({ dwAPI }) => <MapKeySearchParamControl dwAPI={dwAPI} border={true} /> },
+        { key: "map_use_page_filters", label: "Use Page Filters", type: ({ mapAPI }) => <MapUsePageFiltersControl mapAPI={mapAPI} border={false} /> },
+        { key: "map_key_search_param", label: "Key Search Param", type: ({ mapAPI }) => <MapKeySearchParamControl mapAPI={mapAPI} border={true} /> },
         {
           key: "map_interactive_filters_nav",
           label: "Interactive Filter",
           items: [
-            { key: "map_interactive_filters", label: "Interactive Filter Details", type: ({ dwAPI }) => <MapInteractiveFiltersControl dwAPI={dwAPI} /> },
+            { key: "map_interactive_filters", label: "Interactive Filter Details", type: ({ mapAPI }) => <MapInteractiveFiltersControl mapAPI={mapAPI} /> },
           ],
         },
         {
           key: "map_dynamic_filters_nav",
           label: "Dynamic Filter",
           items: [
-            { key: "map_dynamic_filters", label: "Dynamic Filter Details", type: ({ dwAPI }) => <MapDynamicFiltersControl dwAPI={dwAPI} /> },
+            { key: "map_dynamic_filters", label: "Dynamic Filter Details", type: ({ mapAPI }) => <MapDynamicFiltersControl mapAPI={mapAPI} /> },
           ],
         },
         {
           key: "map_click_filters_nav",
           label: "Layer Click Filter",
           items: [
-            { key: "map_click_filters", label: "Layer Click Filter Details", type: ({ dwAPI }) => <MapLayerClickFiltersControl dwAPI={dwAPI} /> },
+            { key: "map_click_filters", label: "Layer Click Filter Details", type: ({ mapAPI }) => <MapLayerClickFiltersControl mapAPI={mapAPI} /> },
           ],
         },
       ],
     },
-    { key: "map_height", label: "Height", type: ({ dwAPI }) => <MapHeightControl dwAPI={dwAPI} /> },
-    { key: "map_legend_position", label: "Legend Position", type: ({ dwAPI }) => <MapLegendPositionControl dwAPI={dwAPI} /> },
-    { key: "map_plugin_control_position", label: "Plugin Control Position", type: ({ dwAPI }) => <MapPluginControlPositionControl dwAPI={dwAPI} /> },
-    { key: "map_zoom_pan", label: "Zoom/pan", type: ({ dwAPI }) => <MapZoomPanControl dwAPI={dwAPI} /> },
-    { key: "map_initial_viewport", label: "Set initial viewport", type: ({ dwAPI }) => <MapInitialViewportControl dwAPI={dwAPI} /> },
-    { key: "map_blank_basemap", label: "Use blank basemap", type: ({ dwAPI }) => <MapBlankBasemapControl dwAPI={dwAPI} /> },
-    { key: "map_zoom_to_fit", label: "Zoom to Fit", type: ({ dwAPI }) => <MapZoomToFitControl dwAPI={dwAPI} /> },
+    { key: "map_height", label: "Height", type: ({ mapAPI }) => <MapHeightControl mapAPI={mapAPI} /> },
+    { key: "map_legend_position", label: "Legend Position", type: ({ mapAPI }) => <MapLegendPositionControl mapAPI={mapAPI} /> },
+    { key: "map_plugin_control_position", label: "Plugin Control Position", type: ({ mapAPI }) => <MapPluginControlPositionControl mapAPI={mapAPI} /> },
+    { key: "map_zoom_pan", label: "Zoom/pan", type: ({ mapAPI }) => <MapZoomPanControl mapAPI={mapAPI} /> },
+    { key: "map_initial_viewport", label: "Set initial viewport", type: ({ mapAPI }) => <MapInitialViewportControl mapAPI={mapAPI} /> },
+    { key: "map_blank_basemap", label: "Use blank basemap", type: ({ mapAPI }) => <MapBlankBasemapControl mapAPI={mapAPI} /> },
+    { key: "map_zoom_to_fit", label: "Zoom to Fit", type: ({ mapAPI }) => <MapZoomToFitControl mapAPI={mapAPI} /> },
   ],
 });
