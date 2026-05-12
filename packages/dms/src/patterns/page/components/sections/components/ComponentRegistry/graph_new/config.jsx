@@ -3,8 +3,6 @@ import { Graph, DomainEditor } from './index'
 import { getColorRange } from '../../../../../../../ui/components/graph_new/colorRange'
 import { ValueFormats } from "../../../../../../../ui/components/graph_new/utils";
 
-// import PalettePicker from "./PalettePicker"
-
 const DefaultPalette = getColorRange(20, "div7");
 
 const graphOptions = {
@@ -50,6 +48,8 @@ const graphOptions = {
     legend: {
         show: true,
         label: "",
+        position: "right",
+        orientation: "vertical"
     },
     tooltip: {
         show: true
@@ -62,76 +62,6 @@ const defaultState = {
     data: [],
     display: graphOptions,
     externalSource: { columns: [] }
-}
-
-const homogenizeTargets = rawTargetsMap => {
-    const targetsMap = {};
-
-    for (const target in rawTargetsMap) {
-        targetsMap[target] = {
-            ...rawTargetsMap[target]
-        };
-        targetsMap[target].keys = rawTargetsMap[target].keys.map(key => {
-            if (typeof key === "string") {
-                return {
-                    key,
-                    value: column => column[key] = true
-                }
-            }
-            else if (typeof key === "object") {
-                if (typeof key.value === "string") {
-                    return {
-                        key: key.key,
-                        value: column => column[key.key] = key.value
-                    }
-                }
-                return key;
-            }
-        })
-    }
-
-    return targetsMap;
-}
-
-const GRAPH_TARGETS_MAP = homogenizeTargets({
-    xAxis: {
-        exclusive: true,
-        keys: ["xAxis"],
-        remove: ["fn", "yAxis", "categorize", "color"]
-    },
-    yAxis: {
-        exclusive: false,
-        keys: [
-            "yAxis",
-            // { key: "fn",
-            //     value: column => column.fn = (column.defaultFn || "count").toLowerCase()
-            // }
-        ],
-        remove: ["xAxis", "categorize", "color"]
-    },
-    categorize: {
-        keys: ["categorize"],
-        exclusive: true,
-        remove: ["xAxis", "fn", "yAxis", "color"]
-    },
-    color: {
-        exclusive: true,
-        keys: [
-            "color",
-            // { key: "fn",
-            //     value: column => column.fn = (column.defaultFn || "count").toLowerCase()
-            // }
-        ],
-        remove: ["xAxis", "yAxis", "categorize"]
-    }
-})
-
-const hasNoValue = value => {
-    if (value === undefined) return true;
-    if (value === null) return true;
-    if ((typeof value === "string") && (value.length === 0)) return true;
-    if ((typeof value == "object") && (Object.keys(value).length === 0)) return true;
-    return false;
 }
 
 export default {
@@ -180,7 +110,13 @@ export default {
                     { label: 'A->Z', value: 'asc' },
                     { label: 'Z->A', value: 'desc' }
                 ],
-                displayCdn: ({ attribute }) => attribute.target === "xAxis"
+                displayCdn: ({ attribute, display }) => {
+                    return (attribute.target === "xAxis") ||
+                            (attribute.target === "categorize") ||
+                            ((attribute.target === "yAxis") &&
+                                (display.graphType === "GridGraph")
+                            )
+                }
             }
         ],
         // columns: [
@@ -225,6 +161,21 @@ export default {
         //             {label: 'Abbreviated',       value: 'abbreviate'},
         //         ]},
         // ],
+        legend: {
+            name: "Legend",
+            items: [
+                { type: "toggle",
+                    label: "Show", key: "legend.show"
+                },
+                { type: "select",
+                    label: "Position", key: "legend.position",
+                    options: [
+                        { label: "Right", value: "right" },
+                        { label: "Left", value: "left" }
+                    ]
+                }
+            ]
+        },
         xAxis: {
             name: 'X Axis',
             items: [
@@ -312,12 +263,12 @@ export default {
                     }
                 },
                 {type: 'input', inputType: 'text', label: 'Title',          key: 'title.title'},
-                {type: 'toggle',                   label: 'Legend',          key: 'legend.show'},
+                // {type: 'toggle',                   label: 'Legend',          key: 'legend.show'},
                 {type: 'toggle',                   label: 'Hide if No Data', key: 'hideIfNull'},
                 // {type: 'toggle',                   label: 'Tooltip',         key: 'tooltip.show'},
                 {type: 'toggle',                   label: 'Attribution',     key: 'showAttribution'},
-                {type: 'toggle',                   label: 'Scale Filter',    key: 'showScaleFilter'},
-                {type: 'input', inputType: 'number', label: 'Padding',          key: 'padding'},
+                // {type: 'toggle',                   label: 'Scale Filter',    key: 'showScaleFilter'},
+                // {type: 'input', inputType: 'number', label: 'Padding',          key: 'padding'},
                 {type: 'input', inputType: 'number', label: 'Height',        key: 'height'},
                 {type: 'toggle',                   label: 'Use Custom X Ticks', key: 'useCustomXDomain'},
                 {
