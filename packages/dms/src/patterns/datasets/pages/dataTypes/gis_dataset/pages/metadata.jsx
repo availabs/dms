@@ -31,9 +31,8 @@ export default function ManageForm ({
                     onChange={(v) => {
                         updateSourceData({data: v, attrKey: isDms ? 'config' : 'metadata', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id})
                     }}
-                    onIndexChange={async (columnName) => {
-                        if(!columnName) return;
-                        await falcor.call(['uda', 'sources', 'setIndex'], [env, id, columnName]);
+                    onIndexChange={async (columnName, enable) => {
+                        await falcor.call(['uda', 'sources', 'setIndex'], [env, id, columnName, enable]);
                     }}
                     apiLoad={apiLoad}
                     format={format}

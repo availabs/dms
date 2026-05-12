@@ -428,7 +428,7 @@ const parseIfJSON = str => {
     return {}
   }
 }
-async function setIndexColumn(env, sourceId, columnName) {
+async function setIndexColumn(env, sourceId, columnName, enable) {
   const { isDms, db, app, splitMode } = await getEssentials({ env });
 
   if (isDms) {
@@ -441,52 +441,47 @@ async function setIndexColumn(env, sourceId, columnName) {
 
     const { data, type: dmsRowType } = rows[0];
     const config = parseIfJSON(data.config) || {};
-    console.log('config', typeof config, config)
     const cols = config.attributes || [];
-    console.log('cols', cols)
-    const oldIndexColumn = cols.find(c => c.isIndex)?.name || null;
 
     const updatedCols = cols.map(c => {
-      if (columnName && c.name === columnName) return { ...c, isIndex: true };
-      return c;
+      if (c.name !== columnName) return c;
+      if (enable) return { ...c, isIndex: true };
+      const { isIndex: _, ...rest } = c;
+      return rest;
     });
-    console.log('updated columns:', updatedCols)
+
     await updateSource(env, sourceId, { config: { ...config, attributes: updatedCols } });
 
     // DDL: manage expression indexes on each view's split table
     const sourceSlug = getInstance(dmsRowType);
     const views = data.views || [];
     const viewIds = views.map(v => (typeof v === 'object' ? v.id : v)).filter(Boolean);
+    const safeCol = sanitizeName(columnName);
 
     for (const viewId of viewIds) {
+      if (!safeCol) continue;
       const dataType = `${sourceSlug}|${viewId}:data`;
       const { schema: ts, table: tn } = resolveTable(app, dataType, db.type, splitMode, Number(sourceId));
       const fqt = db.type === 'postgres' ? `${ts}.${tn}` : tn;
+      const idxName = pgIdent(`idx_${sanitize(tn)}_${sanitize(safeCol)}`);
 
-      // if (oldIndexColumn) {
-      //   const oldIdx = pgIdent(`idx_${sanitize(tn)}_${sanitize(oldIndexColumn)}`);
-      //   try {
-      //     await db.query(db.type === 'postgres'
-      //       ? `DROP INDEX IF EXISTS ${ts}.${oldIdx}`
-      //       : `DROP INDEX IF EXISTS ${oldIdx}`);
-      //   } catch (e) {
-      //     console.warn(`[setIndex] drop DMS index: ${e.message}`);
-      //   }
-      // }
-
-      if (columnName) {
-        const safeCol = sanitizeName(columnName);
-        if (safeCol) {
-          const newIdx = pgIdent(`idx_${sanitize(tn)}_${sanitize(safeCol)}`);
-          const expr = db.type === 'postgres'
-            ? `((data->>'${safeCol}'))`
-            : `(json_extract(data, '$.${safeCol}'))`;
-          try {
-            await db.query(`CREATE INDEX IF NOT EXISTS ${newIdx} ON ${fqt} ${expr}`);
-          } catch (e) {
-            // Split table may not exist yet (no data uploaded) — safe to skip
-            console.warn(`[setIndex] create DMS index skipped (${fqt}): ${e.message}`);
-          }
+      if (enable) {
+        const expr = db.type === 'postgres'
+          ? `((data->>'${safeCol}'))`
+          : `(json_extract(data, '$.${safeCol}'))`;
+        try {
+          await db.query(`CREATE INDEX IF NOT EXISTS ${idxName} ON ${fqt} ${expr}`);
+        } catch (e) {
+          // Split table may not exist yet (no data uploaded) — safe to skip
+          console.warn(`[setIndex] create DMS index skipped (${fqt}): ${e.message}`);
+        }
+      } else {
+        try {
+          await db.query(db.type === 'postgres'
+            ? `DROP INDEX IF EXISTS ${ts}.${idxName}`
+            : `DROP INDEX IF EXISTS ${idxName}`);
+        } catch (e) {
+          console.warn(`[setIndex] drop DMS index: ${e.message}`);
         }
       }
     }
@@ -504,11 +499,12 @@ async function setIndexColumn(env, sourceId, columnName) {
   const raw = rows[0].metadata;
   const metadata = parseIfJSON(raw);
   const cols = metadata.columns || [];
-  const oldIndexColumn = cols.find(c => c.isIndex)?.name || null;
 
   const updatedCols = cols.map(c => {
-    if (columnName && c.name === columnName) return { ...c, isIndex: true };
-    return c;
+    if (c.name !== columnName) return c;
+    if (enable) return { ...c, isIndex: true };
+    const { isIndex: _, ...rest } = c;
+    return rest;
   });
 
   await updateSource(env, sourceId, { metadata: { ...metadata, columns: updatedCols } });
@@ -519,31 +515,26 @@ async function setIndexColumn(env, sourceId, columnName) {
     `SELECT table_schema, table_name FROM ${viewsTbl} WHERE source_id = $1 AND table_name IS NOT NULL`,
     [Number(sourceId)]
   );
+  const safeCol = sanitizeName(columnName);
 
   for (const { table_schema, table_name } of viewRows) {
-    if (!table_schema || !table_name) continue;
+    if (!table_schema || !table_name || !safeCol) continue;
     const fqt = db.type === 'postgres' ? `${table_schema}.${table_name}` : table_name;
+    const idxName = pgIdent(`idx_${sanitize(table_name)}_${sanitize(safeCol)}`);
 
-    // if (oldIndexColumn) {
-    //   const oldIdx = pgIdent(`idx_${sanitize(table_name)}_${sanitize(oldIndexColumn)}`);
-    //   try {
-    //     await db.query(db.type === 'postgres'
-    //       ? `DROP INDEX IF EXISTS ${table_schema}.${oldIdx}`
-    //       : `DROP INDEX IF EXISTS ${oldIdx}`);
-    //   } catch (e) {
-    //     console.warn(`[setIndex] drop DAMA index: ${e.message}`);
-    //   }
-    // }
-
-    if (columnName) {
-      const safeCol = sanitizeName(columnName);
-      if (safeCol) {
-        const newIdx = pgIdent(`idx_${sanitize(table_name)}_${sanitize(safeCol)}`);
-        try {
-          await db.query(`CREATE INDEX IF NOT EXISTS ${newIdx} ON ${fqt} ("${safeCol}")`);
-        } catch (e) {
-          console.warn(`[setIndex] create DAMA index skipped (${fqt}): ${e.message}`);
-        }
+    if (enable) {
+      try {
+        await db.query(`CREATE INDEX IF NOT EXISTS ${idxName} ON ${fqt} ("${safeCol}")`);
+      } catch (e) {
+        console.warn(`[setIndex] create DAMA index skipped (${fqt}): ${e.message}`);
+      }
+    } else {
+      try {
+        await db.query(db.type === 'postgres'
+          ? `DROP INDEX IF EXISTS ${table_schema}.${idxName}`
+          : `DROP INDEX IF EXISTS ${idxName}`);
+      } catch (e) {
+        console.warn(`[setIndex] drop DAMA index: ${e.message}`);
       }
     }
   }

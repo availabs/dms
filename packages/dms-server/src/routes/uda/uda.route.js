@@ -385,15 +385,14 @@ module.exports = [
   },
 
   // --------------------------------- sources.setIndex (call) ---------------------------------
-  // Args: [env, sourceId, columnName | null]
-  // Sets index:true on the named column and clears it from all others.
-  // Pass null as columnName to clear all index flags.
+  // Args: [env, sourceId, columnName, enable]
+  // Toggles isIndex on the named column. enable=true creates the DB index, enable=false drops it.
   {
     route: `uda.sources.setIndex`,
     call: async function(callPath, args) {
       try {
-        const [env, sourceId, columnName = null] = args;
-        await setIndexColumn(env, sourceId, columnName);
+        const [env, sourceId, columnName, enable = true] = args;
+        await setIndexColumn(env, sourceId, columnName, enable);
         return [
           { path: ["uda", env, "sources", "byId", +sourceId], invalidated: true },
         ];

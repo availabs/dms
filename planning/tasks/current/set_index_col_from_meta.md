@@ -34,10 +34,10 @@ Both arrays hold flexible JSON objects. The index flag is stored as `index: true
 
 **In scope**
 - `internal_table` and external sources — index toggle in `MetadataComp`.
-- One index per source (toggling a column ON clears the flag on all other columns).
+- Multiple index columns supported — each column's toggle is independent.
 - UDA CALL route `setIndex` to atomically validate, persist, and run DDL server-side.
 - Visual indicator ("IDX" badge) in the column list for columns marked as indexed.
-- Support unsetting the index from the UI (passing `null` to the CALL route). ← **remaining**
+- Setting and unsetting from the UI.
 
 **Out of scope**
 - DDL `ALTER TABLE … ADD PRIMARY KEY` (actual SQL PK constraint). We create/drop a btree index.
@@ -64,36 +64,29 @@ Both arrays hold flexible JSON objects. The index flag is stored as `index: true
 **File:** `packages/dms-server/src/routes/uda/uda.route.js`
 
 CALL route: `uda.sources.setIndex`
-Arguments: `[env, sourceId, columnName | null]`
+Arguments: `[env, sourceId, columnName, enable]`
 
 Logic:
 1. Fetch source row.
 2. Determine column array (`config.attributes` for DMS, `metadata.columns` for external).
-3. Set `index: true` on the named column; remove the flag from all others.
+3. Add or remove `isIndex: true` on the named column only (others untouched — multi-index).
 4. Persist via `updateSource()`.
-5. Run DDL: drop old index (`pk_<table>_<oldCol>`), create new index (`pk_<table>_<newCol>`).
+5. Run DDL: `CREATE INDEX IF NOT EXISTS` when enabling, `DROP INDEX IF EXISTS` when disabling.
 6. Invalidate affected Falcor paths.
 
 **File:** `packages/dms-server/src/routes/uda/uda.controller.js`
 
-- `setIndexColumn(env, sourceId, columnName)` implements the above for both DMS and DAMA source paths.
+- `setIndexColumn(env, sourceId, columnName, enable)` implements the above for both DMS and DAMA source paths.
 
 ### Phase 3 — Wire frontend to CALL route ✓
 
-`metadata.jsx` calls `falcor.call(['uda', 'sources', 'setIndex'], [env, id, columnName])` on toggle.
+`metadata.jsx` calls `falcor.call(['uda', 'sources', 'setIndex'], [env, id, columnName, enable])` on toggle.
 
-### Phase 4 — Support unsetting index from UI [ ]
+### Phase 4 — Support unsetting index from UI ✓
 
-Currently `metadata.jsx` has an early return when `columnName` is null/falsy, so toggling a column OFF does not reach the server. The CALL route already handles `null` correctly (clears all index flags and drops the old DB index). The fix is to remove the guard and let the null propagate.
-
-**File:** `packages/dms/src/patterns/datasets/pages/dataTypes/gis_dataset/pages/metadata.jsx`
-
-```js
-// remove: if(!columnName) return;
-onIndexChange={async (columnName) => {
-    await falcor.call(['uda', 'sources', 'setIndex'], [env, id, columnName]);
-}}
-```
+- `MetadataComp/index.jsx`: `setIndex(colName, enable)` now correctly strips `isIndex` when `enable=false` and passes `(colName, enable)` to `onIndexChange`.
+- `metadata.jsx`: removed early-return guard; passes `enable` through to the CALL route.
+- Controller: `enable=false` path removes `isIndex` from stored metadata and drops the DB index.
 
 ---
 
@@ -111,10 +104,10 @@ onIndexChange={async (columnName) => {
 
 ## Testing Checklist
 
-- [ ] `internal_table` source: toggle index ON — verify `index: true` saved in `source.config.attributes`
-- [ ] `internal_table` source: toggle index on a second column — verify first column's flag is cleared
-- [ ] External (`gis_dataset`) source: same two tests on `source.metadata.columns`
-- [ ] Toggle index OFF — verify flag cleared in metadata and DB index dropped (Phase 4)
-- [ ] UDA CALL route: call `setIndex` with `null` — verify all index flags cleared
+- [ ] `internal_table` source: toggle index ON — verify `isIndex: true` saved in `source.config.attributes`
+- [ ] `internal_table` source: toggle index ON for a second column — verify both columns have `isIndex: true` (multi-index)
+- [ ] `internal_table` source: toggle index OFF — verify `isIndex` removed from metadata and DB index dropped
+- [ ] External (`gis_dataset`) source: same three tests on `source.metadata.columns`
 - [ ] No index set: verify all toggle controls render unchecked
 - [ ] Reload after save: verify index toggle state persists
+- [ ] "IDX" badge appears on indexed columns in the column list header

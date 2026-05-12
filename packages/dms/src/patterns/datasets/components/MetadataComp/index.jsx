@@ -73,14 +73,16 @@ export default function MetadataComp ({isDms, value = '{}', accessKey, onChange,
     const setIndex = (colName, enable) => {
         const allCols = item[accessKey] || [];
         const updated = allCols.map(c => {
-            if (c.name === colName) return enable ? { ...c, isIndex: true } : c;
-            return enable ? c : c;
+            if (c.name !== colName) return c;
+            if (enable) return { ...c, isIndex: true };
+            const { isIndex: _, ...rest } = c;
+            return rest;
         });
 
         if (onIndexChange) {
             // Targeted CALL route — update optimistically, skip full save
             setItem({ ...item, [accessKey]: updated });
-            onIndexChange(enable ? colName : null);
+            onIndexChange(colName, enable);
         } else {
             // Fallback: full save via onChange (no onIndexChange provided)
             const newItem = { ...item, [accessKey]: updated, is_dirty: true };
