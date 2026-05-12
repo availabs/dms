@@ -1,6 +1,6 @@
 import React from "react"
 
-import { GridGraph, generateTestGridData } from "./avl-graph"
+import { GridGraph, Legend } from "./avl-graph"
 
 import {
     groups as d3groups
@@ -112,15 +112,17 @@ const GridGraphWrapper = props => {
                 return (+a - +b) * sortDir;
             })
         }
-        // const keys = [...keySet]
-        //     .sort((a, b) => {
-        //         const aNaN = strictNaN(+a);
-        //         const bNaN = strictNaN(+b);
-        //         if (aNaN || bNaN) {
-        //             return a < b ? -1 : a > b ? 1 : 0;
-        //         }
-        //         return +a - +b;
-        //     })
+        if (yColumn.sort) {
+            const sortDir = xColumn.sort === "desc" ? -1 : 1;
+            data.sort((a, b) => {
+                const aNaN = strictNaN(+a.index);
+                const bNaN = strictNaN(+b.index);
+                if (aNaN || bNaN) {
+                    return (a.index < b.index ? -1 : a.index > b.index ? 1 : 0) * sortDir;;
+                }
+                return (+a.index - +b.index) * sortDir;
+            }).reverse()
+        }
 
         return { data, keys, colors };
     }, [props.viewData, props.columns]);
@@ -146,36 +148,50 @@ const GridGraphWrapper = props => {
         }
     }, [props.margins]);
 
-    const hoverComp = React.useMemo(() => {
-        return { ...props.tooltip };
-    }, [props.tooltip]);
+  const legend = React.useMemo(() => {
+    return {
+      ...props.legend,
+      position: "top-left",
+      type: "linear",
+      scale: dataFromProps.colors,
+      format: props.hoverComp.valueFormat
+    };
+  }, [props.legend, props.colors, props.hoverComp, dataFromProps]);
 
 // console.log("GridGraphWrapper::dataForGraph", dataForGraph);
 // console.log("GridGraphWrapper::hoverComp", hoverComp);
-
-    const height = React.useMemo(() => {
-        return Math.max(margin.top + margin.bottom + 100, props.height);
-    }, [props.height, margin.top, margin.bottom,]);
-
-    const shouldComponentUpdate = React.useMemo(() => {
-        return ["width", "height"];
-    }, []);
+// console.log("GridGraphWrapper::colors", props.colors);
 
     return (
-        <div className="w-full bg-inherit"
-            style={ { height: `${ height }px` } }
-        >
+        <div className={ `
+                w-full bg-inherit
+                ${ legend.position.includes("-") ? "" : "flex" }
+            ` }>
+          { !legend.show || legend.position !== "top-left" ? null :
+            <Legend { ...legend }/>
+          }
+          { !legend.show || legend.position !== "left" ? null :
+            <Legend { ...legend }/>
+          }
+          <div className="bg-inherit flex-1"
+            style={ {
+              height: `${ props.height }px`
+            } }
+          >
             <GridGraph
                 colors={ props.colors }
                 { ...dataFromProps }
-                groupMode={ props.groupMode }
                 axisBottom={ axisBottom }
                 axisLeft={ axisLeft }
                 margin={ margin }
-                hoverComp={ hoverComp }
-                shouldComponentUpdate={ shouldComponentUpdate }
+                hoverComp={ props.hoverComp }
                 width={ props.width }
-                height={ height }/>
+                height={ props.height }
+                bgColor={ props.bgColor }/>
+          </div>
+          { !legend.show || legend.position !== "right" ? null :
+            <Legend { ...legend }/>
+          }
         </div>
     )
 }

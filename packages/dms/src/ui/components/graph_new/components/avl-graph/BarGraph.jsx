@@ -182,6 +182,8 @@ export const BarGraph = props => {
 
   const isHorizontal = orientation === "horizontal";
 
+// console.log("BarGraph::width, height", width, height);
+
   React.useEffect(() => {
 
     if (!(width && height)) return;
