@@ -8,8 +8,12 @@ const {
   getSiteSources,
 } = require('./utils');
 const { jsonMerge } = require('#db/query-utils.js');
+const { resolveTable, sanitize } = require('#db/table-resolver.js');
+const { getInstance } = require('#db/type-utils.js');
 const querySets = require('./query_sets');
 const { translatePgToSqlite } = require('./query_sets/postgres');
+
+const pgIdent = n => (n.length <= 63 ? n : n.slice(0, 63));
 
 // ================================================= Source Functions ================================================
 
@@ -415,6 +419,136 @@ async function applyMeta(rows, meta, env, isDms, options) {
   return rows;
 }
 
+// ================================================= Index Functions ================================================
+const parseIfJSON = str => {
+  try{
+    if (!!str && typeof str === 'object') return str;
+    return JSON.parse(str)
+  }catch (e){
+    return {}
+  }
+}
+async function setIndexColumn(env, sourceId, columnName) {
+  const { isDms, db, app, splitMode } = await getEssentials({ env });
+
+  if (isDms) {
+    const tbl = await dmsMainTable(db, app, splitMode);
+    const { rows } = await db.query(
+      `SELECT data, type FROM ${tbl} WHERE id = $1`,
+      [Number(sourceId)]
+    );
+    if (!rows.length) throw new Error(`Source ${sourceId} not found`);
+
+    const { data, type: dmsRowType } = rows[0];
+    const config = parseIfJSON(data.config) || {};
+    console.log('config', typeof config, config)
+    const cols = config.attributes || [];
+    console.log('cols', cols)
+    const oldIndexColumn = cols.find(c => c.isIndex)?.name || null;
+
+    const updatedCols = cols.map(c => {
+      if (columnName && c.name === columnName) return { ...c, isIndex: true };
+      return c;
+    });
+    console.log('updated columns:', updatedCols)
+    await updateSource(env, sourceId, { config: { ...config, attributes: updatedCols } });
+
+    // DDL: manage expression indexes on each view's split table
+    const sourceSlug = getInstance(dmsRowType);
+    const views = data.views || [];
+    const viewIds = views.map(v => (typeof v === 'object' ? v.id : v)).filter(Boolean);
+
+    for (const viewId of viewIds) {
+      const dataType = `${sourceSlug}|${viewId}:data`;
+      const { schema: ts, table: tn } = resolveTable(app, dataType, db.type, splitMode, Number(sourceId));
+      const fqt = db.type === 'postgres' ? `${ts}.${tn}` : tn;
+
+      // if (oldIndexColumn) {
+      //   const oldIdx = pgIdent(`idx_${sanitize(tn)}_${sanitize(oldIndexColumn)}`);
+      //   try {
+      //     await db.query(db.type === 'postgres'
+      //       ? `DROP INDEX IF EXISTS ${ts}.${oldIdx}`
+      //       : `DROP INDEX IF EXISTS ${oldIdx}`);
+      //   } catch (e) {
+      //     console.warn(`[setIndex] drop DMS index: ${e.message}`);
+      //   }
+      // }
+
+      if (columnName) {
+        const safeCol = sanitizeName(columnName);
+        if (safeCol) {
+          const newIdx = pgIdent(`idx_${sanitize(tn)}_${sanitize(safeCol)}`);
+          const expr = db.type === 'postgres'
+            ? `((data->>'${safeCol}'))`
+            : `(json_extract(data, '$.${safeCol}'))`;
+          try {
+            await db.query(`CREATE INDEX IF NOT EXISTS ${newIdx} ON ${fqt} ${expr}`);
+          } catch (e) {
+            // Split table may not exist yet (no data uploaded) — safe to skip
+            console.warn(`[setIndex] create DMS index skipped (${fqt}): ${e.message}`);
+          }
+        }
+      }
+    }
+    return;
+  }
+
+  // External (DAMA) source
+  const srcTbl = db.type === 'postgres' ? 'data_manager.sources' : 'sources';
+  const { rows } = await db.query(
+    `SELECT metadata FROM ${srcTbl} WHERE source_id = $1`,
+    [Number(sourceId)]
+  );
+  if (!rows.length) throw new Error(`Source ${sourceId} not found`);
+
+  const raw = rows[0].metadata;
+  const metadata = parseIfJSON(raw);
+  const cols = metadata.columns || [];
+  const oldIndexColumn = cols.find(c => c.isIndex)?.name || null;
+
+  const updatedCols = cols.map(c => {
+    if (columnName && c.name === columnName) return { ...c, isIndex: true };
+    return c;
+  });
+
+  await updateSource(env, sourceId, { metadata: { ...metadata, columns: updatedCols } });
+
+  // DDL: manage indexes on each DAMA view's data table
+  const viewsTbl = db.type === 'postgres' ? 'data_manager.views' : 'views';
+  const { rows: viewRows } = await db.query(
+    `SELECT table_schema, table_name FROM ${viewsTbl} WHERE source_id = $1 AND table_name IS NOT NULL`,
+    [Number(sourceId)]
+  );
+
+  for (const { table_schema, table_name } of viewRows) {
+    if (!table_schema || !table_name) continue;
+    const fqt = db.type === 'postgres' ? `${table_schema}.${table_name}` : table_name;
+
+    // if (oldIndexColumn) {
+    //   const oldIdx = pgIdent(`idx_${sanitize(table_name)}_${sanitize(oldIndexColumn)}`);
+    //   try {
+    //     await db.query(db.type === 'postgres'
+    //       ? `DROP INDEX IF EXISTS ${table_schema}.${oldIdx}`
+    //       : `DROP INDEX IF EXISTS ${oldIdx}`);
+    //   } catch (e) {
+    //     console.warn(`[setIndex] drop DAMA index: ${e.message}`);
+    //   }
+    // }
+
+    if (columnName) {
+      const safeCol = sanitizeName(columnName);
+      if (safeCol) {
+        const newIdx = pgIdent(`idx_${sanitize(table_name)}_${sanitize(safeCol)}`);
+        try {
+          await db.query(`CREATE INDEX IF NOT EXISTS ${newIdx} ON ${fqt} ("${safeCol}")`);
+        } catch (e) {
+          console.warn(`[setIndex] create DAMA index skipped (${fqt}): ${e.message}`);
+        }
+      }
+    }
+  }
+}
+
 module.exports = {
   getResponseColumnName,
 
@@ -423,6 +557,7 @@ module.exports = {
   getSourceIdsByIndex,
   getSourceById,
   updateSource,
+  setIndexColumn,
 
   // Views
   getViewLengthBySourceId,

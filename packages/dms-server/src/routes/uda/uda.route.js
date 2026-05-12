@@ -6,6 +6,7 @@ const {
   getSourceIdsByIndex,
   getSourceById,
   updateSource,
+  setIndexColumn,
 
   getViewLengthBySourceId,
   getViewsByIndexBySourceId,
@@ -378,6 +379,26 @@ module.exports = [
         return result;
       } catch (err) {
         console.error(err);
+        throw err;
+      }
+    },
+  },
+
+  // --------------------------------- sources.setIndex (call) ---------------------------------
+  // Args: [env, sourceId, columnName | null]
+  // Sets index:true on the named column and clears it from all others.
+  // Pass null as columnName to clear all index flags.
+  {
+    route: `uda.sources.setIndex`,
+    call: async function(callPath, args) {
+      try {
+        const [env, sourceId, columnName = null] = args;
+        await setIndexColumn(env, sourceId, columnName);
+        return [
+          { path: ["uda", env, "sources", "byId", +sourceId], invalidated: true },
+        ];
+      } catch (err) {
+        console.error('[uda] sources.setIndex error:', err.message);
         throw err;
       }
     },

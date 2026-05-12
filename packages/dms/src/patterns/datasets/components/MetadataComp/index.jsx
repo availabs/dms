@@ -15,7 +15,7 @@ const parseJson = value => {
     }
 }
 
-export default function MetadataComp ({isDms, value = '{}', accessKey, onChange, className, apiLoad, format}) {
+export default function MetadataComp ({isDms, value = '{}', accessKey, onChange, onIndexChange, className, apiLoad, format}) {
     const {UI} = useContext(DatasetsContext)
     const {Input, Icon} = UI;
     const {theme} = useContext(ThemeContext) || {};
@@ -70,6 +70,25 @@ export default function MetadataComp ({isDms, value = '{}', accessKey, onChange,
         onChange(JSON.stringify(newItem))
     }
 
+    const setIndex = (colName, enable) => {
+        const allCols = item[accessKey] || [];
+        const updated = allCols.map(c => {
+            if (c.name === colName) return enable ? { ...c, isIndex: true } : c;
+            return enable ? c : c;
+        });
+
+        if (onIndexChange) {
+            // Targeted CALL route — update optimistically, skip full save
+            setItem({ ...item, [accessKey]: updated });
+            onIndexChange(enable ? colName : null);
+        } else {
+            // Fallback: full save via onChange (no onIndexChange provided)
+            const newItem = { ...item, [accessKey]: updated, is_dirty: true };
+            setItem(newItem);
+            onChange(JSON.stringify(newItem));
+        }
+    };
+
     const removeAttribute = (col) => {
         const newItem = {...item, [accessKey]: item[accessKey].filter(attr => attr.name !== col), is_dirty: true}
         setItem(newItem)
@@ -105,6 +124,7 @@ export default function MetadataComp ({isDms, value = '{}', accessKey, onChange,
                                              removeAttribute={removeAttribute} apiLoad={apiLoad} format={format}
                                              dragStart={dragStart} dragEnter={dragEnter} dragOver={dragOver} drop={drop}
                                              isDms={isDms}
+                                             onSetIndex={setIndex}
                                 />
                             )
                         })
