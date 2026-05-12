@@ -8,6 +8,7 @@ export const metadataCompTheme = {
     addFieldWrapper: 'w-full p-2',
 
     // RenderField.jsx — field rows
+    pkBadge: 'text-xs font-bold bg-blue-600 text-white px-1.5 py-0.5 rounded uppercase tracking-wide shrink-0',
     fieldRow: 'hover:bg-blue-100 border-l-4 border-blue-100 hover:border-blue-300 mb-1 px-2 pb-2 w-full flex flex-col',
     fieldRowEven: 'bg-white',
     fieldRowOdd: 'bg-blue-50',

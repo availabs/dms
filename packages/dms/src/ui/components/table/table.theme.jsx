@@ -52,6 +52,8 @@ export const tableTheme = {
             openOutContainerWrapperBgColor: '#00000066',
             openOutIconWrapper: 'px-2 cursor-pointer bg-transparent text-gray-500 hover:text-gray-600',
 
+            pivotGroupHeader: 'bg-gray-100 text-gray-700 text-center border-b border-r border-gray-200',
+
             headerCellWrapper: 'relative w-full',
             headerCellBtn: 'group inline-flex items-center w-full justify-between gap-x-1.5 rounded-md cursor-pointer',
             headerCellLabel: 'truncate select-none',

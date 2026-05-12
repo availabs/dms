@@ -55,6 +55,15 @@ function computeFetchKey(state) {
       view_id: state.externalSource?.view_id,
       pageSize: state.display?.pageSize,
       showTotal: state.display?.showTotal,
+      pivot: state.pivot?.enabled ? {
+        rowColumn: state.pivot.rowColumn,
+        pivotColumns: state.pivot.pivotColumns?.length ? state.pivot.pivotColumns
+          : state.pivot.pivotColumn ? [state.pivot.pivotColumn] : [],
+        valueColumn: state.pivot.valueColumn,
+        aggregateFn: state.pivot.aggregateFn,
+        distinctValuesByColumn: state.pivot.distinctValuesByColumn,
+        maxValues: state.pivot.maxValues,
+      } : null,
     });
   } catch {
     return null;
@@ -181,6 +190,7 @@ export function useDataLoader({ state, setState, apiLoad, component, readyToLoad
     state.externalSource?.view_id,
     state.display?.pageSize,
     state.display?.showTotal,
+    state.pivot,
     tickGranularity,
     nowTick,
   ]);

@@ -238,12 +238,16 @@ async function simpleFilter(ctx, options, attributes, indices) {
   return rows;
 }
 
-// Per-table PK column cache. DAMA gis_datasets tables use `ogc_fid`; DMS
+// Per-table IDX column cache. DAMA gis_datasets tables use `ogc_fid`; DMS
 // data_items uses `id`. Looking up dynamically lets the same route serve both.
 const _pkCache = new Map();
 
-async function resolvePrimaryKey(db, schema, table) {
+async function resolvePrimaryKey(db, schema, table, storedIdx = null) {
   const key = `${schema}.${table}`;
+  if (storedIdx) {
+    _pkCache.set(key, storedIdx);
+    return storedIdx;
+  }
   if (_pkCache.has(key)) return _pkCache.get(key);
 
   let pk = 'id';
@@ -267,13 +271,15 @@ async function resolvePrimaryKey(db, schema, table) {
 }
 
 async function dataById(ctx, ids, attributes) {
-  const { db, table_schema, table_name } = ctx;
+  const { db, table_schema, table_name, isDms, idxColumn } = ctx;
 
   const sanitizedAttrs = sanitizeName(attributes).filter((f) => f);
   if (!sanitizedAttrs.length) return [];
 
-  const pkCol = await resolvePrimaryKey(db, table_schema, table_name);
-  const sql = `SELECT ${pkCol} AS id, ${sanitizedAttrs.map((c) => quoteAlias(c)).join(', ')} FROM ${table_schema}.${table_name} WHERE ${pkCol} = ANY($1)`;
+  // For DMS, the split table's SQL PK is always 'id'; the stored primaryKeyColumn
+  // is a data field name (inside the JSONB 'data' column) and should not override it.
+  const idxCol = await resolvePrimaryKey(db, table_schema, table_name, isDms ? null : idxColumn);
+  const sql = `SELECT ${idxCol} AS id, ${sanitizedAttrs.map((c) => quoteAlias(c)).join(', ')} FROM ${table_schema}.${table_name} WHERE ${idxCol} = ANY($1)`;
   const { rows } = await db.query(sql, [ids.map((id) => +id)]);
   return rows;
 }

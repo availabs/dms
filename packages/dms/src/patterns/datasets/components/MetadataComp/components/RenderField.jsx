@@ -116,6 +116,23 @@ const RenderInputSwitch = ({label, value='', col, attr, updateAttribute, trueVal
     )
 }
 
+const RenderIndexSwitch = ({value, col, onSetIndex}) => {
+    const {UI} = React.useContext(DatasetsContext);
+    const {theme} = React.useContext(ThemeContext) || {};
+    const t = theme?.datasets?.metadataComp || metadataCompTheme;
+    const {Switch} = UI;
+    return (
+        <div className={t.inputWrapper}>
+            <label className={t.label}>Index</label>
+            <Switch
+                enabled={!!value}
+                setEnabled={e => onSetIndex(col, e)}
+                size={'small'}
+            />
+        </div>
+    );
+};
+
 const RenderInputButtonSelect = ({label, value='', col, attr, updateAttribute, options}) => {
     const {UI} = React.useContext(DatasetsContext);
     const {theme} = React.useContext(ThemeContext) || {};
@@ -373,7 +390,7 @@ const RenderRemoveBtn = ({col, removeAttribute}) => {
     )
 }
 
-export const RenderField = ({isDms, i, item, attribute, attributeList=[], updateAttribute, removeAttribute, apiLoad, format, dragStart, dragEnter, dragOver, drop}) => {
+export const RenderField = ({isDms, i, item, attribute, attributeList=[], updateAttribute, removeAttribute, onSetIndex, apiLoad, format, dragStart, dragEnter, dragOver, drop}) => {
     const {theme} = useContext(ThemeContext) || {};
     const t = theme?.datasets?.metadataComp || metadataCompTheme;
     const [showAdvanced, setShowAdvanced] = useState(false);
@@ -389,6 +406,7 @@ export const RenderField = ({isDms, i, item, attribute, attributeList=[], update
                  draggable={true}
             >
                 <div className={t.fieldHeader}>
+                    {item.isIndex && <span className={t.pkBadge}>IDX</span>}
                     <div className={t.dragHandle}>
                         <svg data-v-4e778f45=""
                              className={t.dragHandleSvg}
@@ -435,6 +453,12 @@ export const RenderField = ({isDms, i, item, attribute, attributeList=[], update
                             col={item.name}
                             attr={'required'}
                             updateAttribute={updateAttribute}
+                        />
+                        <RenderIndexSwitch
+                            key={`${item.name}-index`}
+                            value={item.isIndex}
+                            col={item.name}
+                            onSetIndex={onSetIndex}
                         />
                         <RenderInputButtonSelect
                             key={`${item.name}-display`}
