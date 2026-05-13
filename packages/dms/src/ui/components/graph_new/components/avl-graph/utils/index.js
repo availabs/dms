@@ -181,11 +181,11 @@ export const useShouldComponentUpdate = (props, width, height, additionalKeys = 
 const DEFAULT_SIZE = { width: 0, height: 0 };
 
 const getBoundingClientRect = node => {
-  if (!node) return null;
+  if (!node) return DEFAULT_SIZE;
   return node.getBoundingClientRect();
 }
 
-export const useSetSize = (ref, callback) => {
+export const useSetSizeOLD = (ref, callback) => {
 
   const node = "current" in ref ? ref.current : ref;
 
@@ -215,6 +215,44 @@ export const useSetSize = (ref, callback) => {
   }, [doSetSize]);
 
   return size || DEFAULT_SIZE;
+}
+
+export const useSetSize = ref => {
+
+  const [width, setWidth] = React.useState(0);
+  const [height, setHeight] = React.useState(0);
+
+  const size = React.useMemo(() => {
+    return { width, height };
+  }, [width, height]);
+
+  const node = "current" in ref ? ref.current : ref;
+  const rect = getBoundingClientRect(node);
+  if (rect.width !== width) {
+    setWidth(rect.width);
+  }
+  if (rect.height !== height) {
+    setHeight(rect.height);
+  }
+
+  const doSetSize = React.useCallback(e => {
+    const rect = getBoundingClientRect(node);
+    if (rect.width !== width) {
+      setWidth(rect.width);
+    }
+    if (rect.height !== height) {
+      setHeight(rect.height);
+    }
+  }, [node, width, height]);
+
+  React.useEffect(() => {
+    window.addEventListener("resize", doSetSize);
+    return () => {
+      window.removeEventListener("resize", doSetSize);
+    }
+  }, [doSetSize]);
+
+  return size;
 }
 
 export const theme = {

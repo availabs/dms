@@ -124,6 +124,7 @@
 
 ### patterns/datasets
 
+- [ ] [Set primary column from metadata UI](./tasks/current/set_primary_col_from_meta.md) — PK toggle in MetadataComp (RenderField) for internal_table + external sources, mutual exclusivity, UDA `setPrimaryKey` CALL route
 - [x] Fix dataset creation → listing bug — getSitePatterns LIKE query, dmsSiteFactory siteType, DatasetsList category filter, UDA cache invalidation
 - [x] Modernize datasets pattern — own defaultTheme, context-only siteConfig wrapper, per-page Layout, UI components throughout
 - [x] DatasetsList style cleanup — transparent container, card/sidebar backgrounds, spacing, full-height, design pass, performance

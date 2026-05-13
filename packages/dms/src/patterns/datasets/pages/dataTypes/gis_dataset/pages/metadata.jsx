@@ -17,6 +17,7 @@ export default function ManageForm ({
     const {id} = params;
     const { baseUrl, pageBaseUrl, theme, falcor, datasources } = React.useContext(DatasetsContext) || {}
     const pgEnv = getExternalEnv(datasources);
+    const env = isDms ? `${format?.app}+${source?.type}` : pgEnv;
 
     return (
       <div className={`${theme?.page?.wrapper1}`}>
@@ -28,8 +29,10 @@ export default function ManageForm ({
                     value={isDms ? source?.config : source?.metadata}
                     accessKey={isDms ? 'attributes' : 'columns'}
                     onChange={(v) => {
-                        console.log('updated data', v)
                         updateSourceData({data: v, attrKey: isDms ? 'config' : 'metadata', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id})
+                    }}
+                    onIndexChange={async (columnName, enable) => {
+                        await falcor.call(['uda', 'sources', 'setIndex'], [env, id, columnName, enable]);
                     }}
                     apiLoad={apiLoad}
                     format={format}
