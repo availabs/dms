@@ -11,6 +11,17 @@ import { featureCollection } from '@turf/helpers';
 function onlyUnique(value, index, array) {
   return array.indexOf(value) === index;
 }
+
+const getLayerInteractionIds = (candidateLayerProps = {}) =>
+  (candidateLayerProps?.layers || [])
+    .map((mapLayer) => mapLayer?.id)
+    .filter((layerId) => layerId && !layerId.includes("_case"));
+
+const hasInteractionValue = (value) =>
+  value !== undefined && value !== null && value !== "";
+
+const getInteractionProviders = (state) => state?.display?._functions?.providers || [];
+
 const ViewLayerRender = ({
   maplibreMap,
   layer,
@@ -19,7 +30,7 @@ const ViewLayerRender = ({
 }) => {
   const mctx = useContext(MapContext);
   const { state, setState } = mctx ? mctx : {state: {}, setState:() => {}};
-  const { pageState, setPageState, updatePageStateFilters } = useContext(PageContext) || {};
+  const { pageState, setPageState, updatePageStateFilters, setActionParam, clearActionParam } = useContext(PageContext) || {};
   const { falcor, pgEnv } = mctx || {};
 
   const [sourceReady, setSourceReady] = React.useState(false);
@@ -132,8 +143,6 @@ const ViewLayerRender = ({
         maplibreMap.removeSource(newSource.id)
         if(!maplibreMap.getSource(newSource.id)){
           maplibreMap.addSource(newSource.id, newSource.source)
-        } else {
-          console.log('cant add',maplibreMap.getSource(newSource.id))
         }
 
         let beneathLayer = Object.values(allLayerProps).find(l => l?.order === (layerProps.order+1))
@@ -166,8 +175,6 @@ const ViewLayerRender = ({
         maplibreMap.removeSource(oldSource.id)
         if(!maplibreMap.getSource(newSource.id)){
           maplibreMap.addSource(newSource.id, newSource.source)
-        } else {
-          console.log('cant add',maplibreMap.getSource(newSource.id))
         }
 
         let beneathLayer = Object.values(allLayerProps).find(l => l?.order === (layerProps.order+1))
@@ -370,6 +377,178 @@ const ViewLayerRender = ({
     }
   }, [maplibreMap, allLayerProps]);
 
+  /**
+   * Resolves the feature properties needed by map interactions before we try to
+   * publish values to shared page filters.
+   *
+   * In many cases, the rendered map feature already includes the field we need
+   * in `feature.properties`, so this helper simply returns those properties as-is.
+   * However, some map sources only include a partial property set in the vector
+   * tile / rendered feature payload. When that happens, an interaction may be
+   * configured to publish a field that is not currently present on the feature.
+   *
+   * This helper checks which requested `fieldNames` are missing, and if enough
+   * context is available (`falcor`, `pgEnv`, `view_id`, and `feature.id`), it
+   * performs a fallback fetch against the backing view record to retrieve just
+   * those missing fields. The fetched values are then merged back into the
+   * existing `feature.properties` object and returned as one resolved property bag.
+   *
+   * That lets hover/click providers stay generic:
+   * - the interaction config only names a `field`
+   * - the runtime does not have to know whether that field is already present
+   *   on the rendered feature or must be fetched from the data source
+   *
+   * This is especially important for layer interactions because both click-filter
+   * mappings and hover/click publish providers rely on a consistent way to read
+   * feature values, even when map rendering and backing data do not expose the
+   * exact same property set.
+   */
+  const resolveFeatureProperties = React.useCallback(async ({ feature, candidateLayerProps, fieldNames = [] }) => {
+    let resolvedProperties = feature?.properties || {};
+    const missingFields = fieldNames.filter(
+      (fieldName) =>
+        fieldName &&
+        (resolvedProperties?.[fieldName] === undefined ||
+          resolvedProperties?.[fieldName] === null ||
+          resolvedProperties?.[fieldName] === "")
+    );
+
+    if (
+      missingFields.length &&
+      falcor &&
+      pgEnv &&
+      candidateLayerProps?.view_id &&
+      feature?.id !== undefined &&
+      feature?.id !== null
+    ) {
+      try {
+        const response = await falcor.get([
+          "uda",
+          pgEnv,
+          "viewsById",
+          candidateLayerProps.view_id,
+          "dataById",
+          String(feature.id),
+          missingFields
+        ]);
+
+        const fetchedProperties = get(response, [
+          "json",
+          "uda",
+          pgEnv,
+          "viewsById",
+          candidateLayerProps.view_id,
+          "dataById",
+          String(feature.id)
+        ], {});
+
+        resolvedProperties = {
+          ...resolvedProperties,
+          ...fetchedProperties
+        };
+      } catch (error) {
+        console.error("[MapInteractions] failed to fetch missing fields", error);
+      }
+    }
+
+    return resolvedProperties;
+  }, [falcor, pgEnv]);
+
+  useEffect(() => {
+    if (!maplibreMap) return;
+    if (typeof setActionParam !== "function") return;
+
+    const orderedLayerConfigs = Object.values(allLayerProps || {})
+      .map((candidateLayerProps) => ({
+        id: candidateLayerProps?.id,
+        layerProps: candidateLayerProps,
+        hoverableLayerIds: getLayerInteractionIds(candidateLayerProps),
+        order: candidateLayerProps?.order ?? 0,
+      }))
+      .filter((config) => config.hoverableLayerIds.length > 0)
+      .sort((a, b) => {
+        if (a.order !== b.order) return a.order - b.order;
+        return String(a.id).localeCompare(String(b.id));
+      });
+
+    if (!orderedLayerConfigs.length) return;
+
+    const hoverHandlerOwnerId = orderedLayerConfigs[0]?.id;
+    if (layerProps?.id !== hoverHandlerOwnerId) return;
+
+    const hoverableLayerIds = orderedLayerConfigs.flatMap((config) => config.hoverableLayerIds);
+    let lastPublishedValue;
+    let lastPublishedKey;
+
+    const handleHoverMove = async (event) => {
+      const features = maplibreMap.queryRenderedFeatures(event.point, { layers: hoverableLayerIds });
+      if (!features?.length) return;
+
+      for (const feature of features) {
+        const ownerLayerConfig = orderedLayerConfigs.find((config) =>
+          config.hoverableLayerIds.includes(feature?.layer?.id)
+        );
+        if (!ownerLayerConfig) continue;
+        const hoverPublishCfg = getInteractionProviders(state)?.find(
+          (provider) =>
+            provider?.functionId === "hover_publish" &&
+            provider?.enabled &&
+            provider?.args?.layerId === ownerLayerConfig.layerProps?.id
+        );
+        if (!hoverPublishCfg?.paramKey || !hoverPublishCfg?.args?.field) continue;
+
+        const resolvedProperties = await resolveFeatureProperties({
+          feature,
+          candidateLayerProps: ownerLayerConfig.layerProps,
+          fieldNames: [hoverPublishCfg.args.field],
+        });
+
+        const publishedValue = resolvedProperties?.[hoverPublishCfg.args.field];
+        if (!hasInteractionValue(publishedValue)) continue;
+
+        if (lastPublishedValue !== String(publishedValue) || lastPublishedKey !== hoverPublishCfg.paramKey) {
+          if (lastPublishedKey && lastPublishedKey !== hoverPublishCfg.paramKey) {
+            clearActionParam?.(lastPublishedKey);
+          }
+          lastPublishedKey = hoverPublishCfg.paramKey;
+          lastPublishedValue = String(publishedValue);
+          setActionParam(hoverPublishCfg.paramKey, publishedValue);
+        }
+        return;
+      }
+    };
+
+    const handleHoverLeave = () => {
+      lastPublishedValue = undefined;
+      if (lastPublishedKey) {
+        clearActionParam?.(lastPublishedKey);
+      }
+      lastPublishedKey = undefined;
+    };
+
+    hoverableLayerIds.forEach((hoverLayerId) => {
+      maplibreMap.on("mousemove", hoverLayerId, handleHoverMove);
+      maplibreMap.on("mouseleave", hoverLayerId, handleHoverLeave);
+    });
+
+    return () => {
+      hoverableLayerIds.forEach((hoverLayerId) => {
+        maplibreMap.off("mousemove", hoverLayerId, handleHoverMove);
+        maplibreMap.off("mouseleave", hoverLayerId, handleHoverLeave);
+      });
+      if (lastPublishedKey) {
+        clearActionParam?.(lastPublishedKey);
+      }
+    };
+  }, [
+    maplibreMap,
+    allLayerProps,
+    layerProps?.id,
+    resolveFeatureProperties,
+    setActionParam,
+    clearActionParam,
+  ]);
+
   // Coordinate click-filter handling at the map level instead of per layer.
   // This effect:
   // 1. collects every layer that has click-filter enabled and at least one
@@ -419,18 +598,40 @@ const ViewLayerRender = ({
         return String(a.id).localeCompare(String(b.id));
       });
 
-    if (!clickableLayerConfigs.length) {
+    const mapClickableLayerConfigs = Object.values(allLayerProps || {})
+      .map((candidateLayerProps) => ({
+        id: candidateLayerProps?.id,
+        layerProps: candidateLayerProps,
+        clickableLayerIds: getLayerInteractionIds(candidateLayerProps),
+        order: candidateLayerProps?.order ?? 0,
+      }))
+      .filter((config) => config.clickableLayerIds.length > 0)
+      .sort((a, b) => {
+        if (a.order !== b.order) {
+          return a.order - b.order;
+        }
+        return String(a.id).localeCompare(String(b.id));
+      });
+
+    if (!clickableLayerConfigs.length && !mapClickableLayerConfigs.some((config) =>
+      getInteractionProviders(state)?.some(
+        (provider) =>
+          provider?.functionId === "click_publish" &&
+          provider?.enabled &&
+          provider?.paramKey &&
+          provider?.args?.field &&
+          provider?.args?.layerId === config.layerProps?.id
+      )
+    )) {
       return;
     }
 
-    const clickHandlerOwnerId = clickableLayerConfigs[0]?.id;
+    const clickHandlerOwnerId = mapClickableLayerConfigs[0]?.id || clickableLayerConfigs[0]?.id;
     if (layerProps?.id !== clickHandlerOwnerId) {
       return;
     }
 
-    const clickableLayerIds = clickableLayerConfigs.flatMap(
-      (config) => config.clickableLayerIds
-    );
+    const clickableLayerIds = mapClickableLayerConfigs.flatMap((config) => config.clickableLayerIds);
 
     const updateFilterValues = (nextFilterEntries) => {
       const existingFilters = Array.isArray(pageState?.filters) ? pageState.filters : [];
@@ -482,58 +683,6 @@ const ViewLayerRender = ({
       }
     };
 
-    const resolveFeatureProperties = async ({ feature, candidateLayerProps, activeMappings }) => {
-      let resolvedProperties = feature?.properties || {};
-      const missingFields = activeMappings
-        .map((mapping) => mapping.field)
-        .filter(
-          (fieldName) =>
-            resolvedProperties?.[fieldName] === undefined ||
-            resolvedProperties?.[fieldName] === null ||
-            resolvedProperties?.[fieldName] === ""
-        );
-
-      if (
-        missingFields.length &&
-        falcor &&
-        pgEnv &&
-        candidateLayerProps?.view_id &&
-        feature?.id !== undefined &&
-        feature?.id !== null
-      ) {
-        try {
-          const response = await falcor.get([
-            "uda",
-            pgEnv,
-            "viewsById",
-            candidateLayerProps.view_id,
-            "dataById",
-            String(feature.id),
-            missingFields
-          ]);
-
-          const fetchedProperties = get(response, [
-            "json",
-            "uda",
-            pgEnv,
-            "viewsById",
-            candidateLayerProps.view_id,
-            "dataById",
-            String(feature.id)
-          ], {});
-
-          resolvedProperties = {
-            ...resolvedProperties,
-            ...fetchedProperties
-          };
-        } catch (error) {
-          console.error("[MapClickFilter] failed to fetch missing fields", error);
-        }
-      }
-
-      return resolvedProperties;
-    };
-
     const handleMapClick = async (event) => {
       const features = maplibreMap.queryRenderedFeatures(event.point, {
         layers: clickableLayerIds,
@@ -553,7 +702,7 @@ const ViewLayerRender = ({
         const resolvedProperties = await resolveFeatureProperties({
           feature,
           candidateLayerProps: clickableLayerConfig.layerProps,
-          activeMappings: clickableLayerConfig.activeMappings
+          fieldNames: clickableLayerConfig.activeMappings.map((mapping) => mapping.field)
         });
 
         clickableLayerConfig.activeMappings.forEach((mapping) => {
@@ -566,6 +715,34 @@ const ViewLayerRender = ({
             });
           }
         });
+      }
+
+      if (typeof setActionParam === "function") {
+        for (const feature of features) {
+          const ownerLayerConfig = mapClickableLayerConfigs.find((config) =>
+            config.clickableLayerIds.includes(feature?.layer?.id)
+          );
+          if (!ownerLayerConfig) continue;
+          const clickPublishCfg = getInteractionProviders(state)?.find(
+            (provider) =>
+              provider?.functionId === "click_publish" &&
+              provider?.enabled &&
+              provider?.args?.layerId === ownerLayerConfig.layerProps?.id
+          );
+          if (!clickPublishCfg?.paramKey || !clickPublishCfg?.args?.field) continue;
+
+          const resolvedProperties = await resolveFeatureProperties({
+            feature,
+            candidateLayerProps: ownerLayerConfig.layerProps,
+            fieldNames: [clickPublishCfg.args.field],
+          });
+
+          const publishedValue = resolvedProperties?.[clickPublishCfg.args.field];
+          if (hasInteractionValue(publishedValue)) {
+            setActionParam(clickPublishCfg.paramKey, publishedValue);
+            break;
+          }
+        }
       }
 
       if (!nextFilterEntries.length) return;
@@ -586,6 +763,9 @@ const ViewLayerRender = ({
     pageState?.filters,
     setPageState,
     updatePageStateFilters,
+    setActionParam,
+    resolveFeatureProperties,
+    state?.display?._functions,
   ]);
 }
 

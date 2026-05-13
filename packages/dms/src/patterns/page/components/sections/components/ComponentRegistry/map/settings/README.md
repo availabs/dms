@@ -232,6 +232,94 @@ The flow is:
 
 This means the Settings refactor changed where edits happen in the UI, but not how the section ultimately saves.
 
+## Map Interactions
+
+Map interactions now follow the same DMS provider/subscriber pattern used by other interactive components.
+
+### Source Of Truth
+
+- Static interaction capabilities are declared in [`map/config.jsx`](/home/sarang/Documents/avail/transportNY/src/modules/dms/packages/dms/src/patterns/page/components/sections/components/ComponentRegistry/map/config.jsx) through `componentFunctions`.
+- Instance-level interaction config is stored on the map section state under `display._functions`.
+- The `Layer` select used by Map interaction providers is declared in config with `options: { stateKey: 'interactionOptions.mapLayers' }`.
+- `MapSection` exposes that `interactionOptions.mapLayers` array through `mapAPI.state`, so the shared section menu can render layer choices without hardcoding map layer logic into the menu itself.
+- Shared action values are still written to and read from `pageState.filters` with `type: "action"`.
+
+### Config Shape
+
+Map provider config uses the standard `display._functions` shape and adds a layer-scoping arg:
+
+```json
+{
+  "display": {
+    "_functions": {
+      "providers": [
+        {
+          "functionId": "hover_publish",
+          "enabled": true,
+          "paramKey": "shared_hover_key",
+          "args": {
+            "layerId": "<layerId>",
+            "field": "<featureField>"
+          }
+        },
+        {
+          "functionId": "click_publish",
+          "enabled": true,
+          "paramKey": "shared_click_key",
+          "args": {
+            "layerId": "<layerId>",
+            "field": "<featureField>"
+          }
+        }
+      ],
+      "subscribers": []
+    }
+  }
+}
+```
+
+### How Layer Scoping Works
+
+- `layerId` determines which map layer owns the provider.
+- `field` determines which feature property is published.
+- `paramKey` determines which shared page action filter is written.
+
+This keeps the interaction system generic:
+
+- no hardcoded layer names
+- no hardcoded feature fields
+- no direct map-to-component communication
+- layer options are data-driven from map state, not hardcoded in the shared menu
+
+If multiple layers intentionally use the same `paramKey`, the latest interaction wins. That is a configuration choice, not a map-specific rule.
+
+### Runtime Flow
+
+Hover provider:
+
+1. A feature is hovered.
+2. The runtime finds the enabled `hover_publish` config whose `args.layerId` matches the interacted layer.
+3. The runtime reads `feature.properties[args.field]`.
+4. It publishes that value with `setActionParam(paramKey, value)`.
+5. On hover end, it clears that same action key with `clearActionParam(paramKey)`.
+
+Click provider:
+
+1. A feature is clicked.
+2. The runtime finds the enabled `click_publish` config whose `args.layerId` matches the interacted layer.
+3. The runtime reads `feature.properties[args.field]`.
+4. It publishes that value with `setActionParam(paramKey, value)`.
+
+### Why This Uses `display._functions`
+
+The current implementation keeps Map aligned with standard DMS interaction behavior:
+
+- the shared section menu edits interaction config
+- `componentFunctions` remains the static declaration point
+- runtime logic in `SymbologyViewLayer.jsx` decides which configured layer should publish
+
+This means Map stays inside the same provider/subscriber ecosystem as Card and Spreadsheet, while still allowing provider behavior to be layer-specific.
+
 ## Previous Behavior vs New Behavior
 
 ### Previous

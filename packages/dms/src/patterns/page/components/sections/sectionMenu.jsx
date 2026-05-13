@@ -128,27 +128,46 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
     const componentFunctions = currentComponent?.componentFunctions;
     const hasComponentFunctions = !!(componentFunctions?.providers?.length || componentFunctions?.subscribers?.length);
 
+    const activeComponentAPI = mapAPI?.setState ? mapAPI : dwAPI;
+
+    /**
+     * Ensures the shared interaction config container exists on component state
+     * and returns the mutable `_functions` object used by providers/subscribers.
+     */
+    const ensureInteractionState = (draft) => {
+        if (!draft.display) {
+            draft.display = {};
+        }
+        if (!draft.display._functions) {
+            draft.display._functions = { providers: [], subscribers: [] };
+        }
+        return draft.display._functions;
+    };
+
+    /**
+     * Finds or creates a provider/subscriber entry for a given function id,
+     * then applies the caller's updater so interaction settings can be edited
+     * without duplicating insert/update logic in each menu control.
+     */
     const updateFunctionEntry = (side, functionId, updater) => {
-        dwAPI.setState(draft => {
-            if (!draft.display._functions) {
-                draft.display._functions = { providers: [], subscribers: [] };
+        activeComponentAPI?.setState?.(draft => {
+            const functionState = ensureInteractionState(draft);
+            if (!functionState[side]) {
+                functionState[side] = [];
             }
-            if (!draft.display._functions[side]) {
-                draft.display._functions[side] = [];
-            }
-            const existing = draft.display._functions[side].find(f => f.functionId === functionId);
+            const existing = functionState[side].find(f => f.functionId === functionId);
             if (existing) {
                 updater(existing);
             } else {
                 const entry = { functionId, enabled: false };
                 updater(entry);
-                draft.display._functions[side].push(entry);
+                functionState[side].push(entry);
             }
         });
     };
 
     const getFunctionEntry = (side, functionId) =>
-        state.display?._functions?.[side]?.find(f => f.functionId === functionId);
+        state?.display?._functions?.[side]?.find(f => f.functionId === functionId);
 
     const buildFunctionMenuItems = (fnList, side) => (fnList || []).map(fn => {
         const entry = getFunctionEntry(side, fn.id);
@@ -193,13 +212,41 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                         : [{ name: 'No columns available', type: 'label' }]
                 };
             }
-            if (arg.type === 'select') {
+            if (arg.type === 'input') {
                 return {
                     id: `fn_${side}_${fn.id}_arg_${arg.key}`,
                     name: arg.label,
-                    value: arg.options?.find(o => o.value === entry?.args?.[arg.key])?.label || '',
+                    value: entry?.args?.[arg.key] || '',
                     showValue: true,
-                    items: (arg.options || []).map(opt => ({
+                    items: [{
+                        id: `fn_${side}_${fn.id}_arg_${arg.key}_input`,
+                        name: arg.label,
+                        type: 'input',
+                        inputType: arg.inputType || 'text',
+                        value: entry?.args?.[arg.key] || '',
+                        onChange: (e) => {
+                            const val = e?.target?.value ?? e;
+                            updateFunctionEntry(side, fn.id, cfg => {
+                                if (!cfg.args) cfg.args = {};
+                                cfg.args[arg.key] = val;
+                            });
+                        }
+                    }]
+                };
+            }
+            if (arg.type === 'select') {
+                const currentState = mapAPI?.state ?? dwAPI?.state;
+                const options = typeof arg.options === 'function'
+                    ? arg.options({ state: currentState, dwAPI, mapAPI }) || []
+                    : arg.options?.stateKey
+                        ? arg.options.stateKey.split('.').reduce((acc, key) => acc?.[key], currentState) || []
+                        : (arg.options || []);
+                return {
+                    id: `fn_${side}_${fn.id}_arg_${arg.key}`,
+                    name: arg.label,
+                    value: options.find(o => o.value === entry?.args?.[arg.key])?.label || '',
+                    showValue: true,
+                    items: options.map(opt => ({
                         id: `fn_${side}_${fn.id}_arg_${arg.key}_${opt.value}`,
                         icon: opt.value === entry?.args?.[arg.key] ? 'CircleCheck' : 'Blank',
                         name: opt.label,
