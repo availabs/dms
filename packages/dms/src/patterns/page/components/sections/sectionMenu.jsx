@@ -21,6 +21,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
     const canEditPageLayout = isUserAuthed(['edit-page-layout'], pageAuthPermissions);
     const canEditSectionPermissions = isUserAuthed(['edit-section-permissions'], sectionAuthPermissions);
     const currentComponent = RegisteredComponents[value?.element?.['element-type'] || 'lexical'];
+    const componentAPI = mapAPI || dwAPI;
     // Resolve controls - may be a function that receives theme, or a static object
     const resolvedControls = typeof currentComponent?.controls === 'function'
         ? currentComponent.controls(theme)
@@ -95,7 +96,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
         if (typeof item.type === 'function') {
             return {
                 id: item.key, icon: item.icon, name: item.label,
-                type: () => item.type({ value, setValue: v => dwAPI?.setDisplay?.(item.key, v, item.onChange), state: mapAPI?.state ?? dwAPI?.state, setState: mapAPI?.setState ?? dwAPI?.setState, dwAPI, mapAPI, })
+                type: () => item.type({ value, setValue: v => dwAPI?.setDisplay?.(item.key, v, item.onChange), state: componentAPI?.state, setState: componentAPI?.setState, dwAPI, mapAPI })
             };
         }
 
@@ -127,47 +128,32 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
     // =================================================================================================================
     const componentFunctions = currentComponent?.componentFunctions;
     const hasComponentFunctions = !!(componentFunctions?.providers?.length || componentFunctions?.subscribers?.length);
+    const setInteractionState = componentAPI?.setState;
 
-    const activeComponentAPI = mapAPI?.setState ? mapAPI : dwAPI;
-
-    /**
-     * Ensures the shared interaction config container exists on component state
-     * and returns the mutable `_functions` object used by providers/subscribers.
-     */
-    const ensureInteractionState = (draft) => {
-        if (!draft.display) {
-            draft.display = {};
-        }
-        if (!draft.display._functions) {
-            draft.display._functions = { providers: [], subscribers: [] };
-        }
-        return draft.display._functions;
-    };
-
-    /**
-     * Finds or creates a provider/subscriber entry for a given function id,
-     * then applies the caller's updater so interaction settings can be edited
-     * without duplicating insert/update logic in each menu control.
-     */
     const updateFunctionEntry = (side, functionId, updater) => {
-        activeComponentAPI?.setState?.(draft => {
-            const functionState = ensureInteractionState(draft);
-            if (!functionState[side]) {
-                functionState[side] = [];
+        setInteractionState?.(draft => {
+            if (!draft.display) {
+                draft.display = {};
             }
-            const existing = functionState[side].find(f => f.functionId === functionId);
+            if (!draft.display._functions) {
+                draft.display._functions = { providers: [], subscribers: [] };
+            }
+            if (!draft.display._functions[side]) {
+                draft.display._functions[side] = [];
+            }
+            const existing = draft.display._functions[side].find(f => f.functionId === functionId);
             if (existing) {
                 updater(existing);
             } else {
                 const entry = { functionId, enabled: false };
                 updater(entry);
-                functionState[side].push(entry);
+                draft.display._functions[side].push(entry);
             }
         });
     };
 
     const getFunctionEntry = (side, functionId) =>
-        state?.display?._functions?.[side]?.find(f => f.functionId === functionId);
+        state.display?._functions?.[side]?.find(f => f.functionId === functionId);
 
     const buildFunctionMenuItems = (fnList, side) => (fnList || []).map(fn => {
         const entry = getFunctionEntry(side, fn.id);
@@ -224,22 +210,20 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                         type: 'input',
                         inputType: arg.inputType || 'text',
                         value: entry?.args?.[arg.key] || '',
-                        onChange: (e) => {
-                            const val = e?.target?.value ?? e;
-                            updateFunctionEntry(side, fn.id, cfg => {
-                                if (!cfg.args) cfg.args = {};
-                                cfg.args[arg.key] = val;
-                            });
-                        }
+                        onChange: (e) => updateFunctionEntry(side, fn.id, entry => {
+                            if (!entry.args) {
+                                entry.args = {};
+                            }
+                            entry.args[arg.key] = e?.target?.value ?? e;
+                        })
                     }]
                 };
             }
             if (arg.type === 'select') {
-                const currentState = mapAPI?.state ?? dwAPI?.state;
                 const options = typeof arg.options === 'function'
-                    ? arg.options({ state: currentState, dwAPI, mapAPI }) || []
+                    ? arg.options({ state: componentAPI?.state, dwAPI, mapAPI }) || []
                     : arg.options?.stateKey
-                        ? arg.options.stateKey.split('.').reduce((acc, key) => acc?.[key], currentState) || []
+                        ? arg.options.stateKey.split('.').reduce((acc, key) => acc?.[key], componentAPI?.state) || []
                         : (arg.options || []);
                 return {
                     id: `fn_${side}_${fn.id}_arg_${arg.key}`,
@@ -763,7 +747,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                   if (!config?.items?.length) {
                       const rawType = config?.type;
                       const wrappedType = typeof rawType === 'function'
-                          ? () => rawType({ state: mapAPI?.state ?? dwAPI?.state, setState: mapAPI?.setState ?? dwAPI?.setState, dwAPI, mapAPI })
+                          ? () => rawType({ state: componentAPI?.state, setState: componentAPI?.setState, dwAPI, mapAPI })
                           : rawType;
                       return { id: groupId, name: config?.name || controlGroup, items: [{name: 'component', type: wrappedType}] };
                   }

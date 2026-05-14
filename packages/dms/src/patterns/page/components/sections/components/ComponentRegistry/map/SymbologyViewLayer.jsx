@@ -8,15 +8,34 @@ import { PageContext } from '../../../../../context'
 import { normalizeLayerClickFilterConfig } from '../../../../../../mapeditor/MapEditor/stateUtils';
 import bbox from '@turf/bbox';
 import { featureCollection } from '@turf/helpers';
+
+/**
+ * Utility predicate for array filtering when we want to keep only the first
+ * occurrence of each value. Used while building unique field/column lists for
+ * layer tile URLs and other map-derived collections.
+ */
 function onlyUnique(value, index, array) {
   return array.indexOf(value) === index;
 }
 
+/**
+ * Returns the rendered MapLibre layer ids that should participate in generic
+ * hover/click interactions for one logical DMS map layer.
+ *
+ * We intentionally skip `_case` render layers here because those are support
+ * layers created for visual styling, while interaction handling should usually
+ * target the main rendered layer ids only.
+ */
 const getLayerInteractionIds = (candidateLayerProps = {}) =>
   (candidateLayerProps?.layers || [])
     .map((mapLayer) => mapLayer?.id)
     .filter((layerId) => layerId && !layerId.includes("_case"));
 
+/**
+ * Shared check for whether an interaction/subscriber value is meaningful
+ * enough to publish or match. This keeps empty string / null / undefined
+ * values from creating stale action filters or empty highlight overlays.
+ */
 const hasInteractionValue = (value) =>
   value !== undefined && value !== null && value !== "";
 
@@ -40,12 +59,45 @@ const getInteractionProviders = (state) => state?.display?._functions?.providers
  */
 const getInteractionSubscribers = (state) => state?.display?._functions?.subscribers || [];
 
+/**
+ * Builds the MapLibre layer id used for a temporary subscriber highlight
+ * overlay. Each base rendered layer gets separate hover/click overlay ids so
+ * the highlight lifecycle can be managed without mutating the original layer.
+ */
 const getSubscriberHighlightLayerId = (layerId, mode) =>
   `${layerId}__subscriber_${mode}_highlight`;
 
+/**
+ * Builds the companion GeoJSON source id for a subscriber highlight overlay.
+ * The highlight source stores only the currently matched features for a given
+ * mode and rendered layer.
+ */
 const getSubscriberHighlightSourceId = (layerId, mode) =>
   `${layerId}__subscriber_${mode}_highlight_source`;
 
+/**
+ * Chooses which rendered layers should receive subscriber highlight overlays
+ * for one logical DMS layer.
+ *
+ * We prefer non-`_case` layers to avoid duplicating highlight work across
+ * support styling layers. If a logical layer only has `_case` layers, we fall
+ * back to the full rendered layer list so the subscriber still works.
+ */
+const getSubscriberHighlightLayers = (layerProps = {}) => {
+  const nonCaseLayers = (layerProps?.layers || []).filter(
+    (mapLayer) => mapLayer?.id && !mapLayer.id.includes("_case")
+  );
+
+  return nonCaseLayers.length ? nonCaseLayers : (layerProps?.layers || []);
+};
+
+/**
+ * Removes any temporary subscriber highlight layers and their GeoJSON sources
+ * for the provided logical layer.
+ *
+ * This is used during unmount, source refresh, and highlight recomputation so
+ * stale overlays do not survive map rebuilds or block source removal.
+ */
 const removeSubscriberHighlightLayers = (maplibreMap, layerProps = {}) => {
   if (
     !maplibreMap ||
@@ -57,7 +109,7 @@ const removeSubscriberHighlightLayers = (maplibreMap, layerProps = {}) => {
     return;
   }
 
-  (layerProps?.layers || []).forEach((mapLayer) => {
+  getSubscriberHighlightLayers(layerProps).forEach((mapLayer) => {
     ["hover", "click"].forEach((mode) => {
       const highlightLayerId = getSubscriberHighlightLayerId(mapLayer?.id, mode);
       const highlightSourceId = getSubscriberHighlightSourceId(mapLayer?.id, mode);
@@ -75,6 +127,11 @@ const removeSubscriberHighlightLayers = (maplibreMap, layerProps = {}) => {
   });
 };
 
+/**
+ * Creates the paint object for a subscriber highlight overlay based on the
+ * rendered layer type. The overlay intentionally uses a fixed fallback style
+ * so matching features are visually distinct without altering the base layer.
+ */
 const buildSubscriberHighlightPaint = (mapLayer = {}) => {
   const currentPaint = mapLayer.paint || {};
 
@@ -107,6 +164,11 @@ const buildSubscriberHighlightPaint = (mapLayer = {}) => {
   }
 };
 
+/**
+ * Builds the actual MapLibre layer definition for a subscriber highlight
+ * overlay. The overlay mirrors the base layer's type/layout, but swaps in the
+ * temporary GeoJSON source and highlight paint.
+ */
 const buildSubscriberHighlightLayer = ({ mapLayer, mode }) => {
   const paint = buildSubscriberHighlightPaint(mapLayer);
   if (!paint) return null;
@@ -120,6 +182,14 @@ const buildSubscriberHighlightLayer = ({ mapLayer, mode }) => {
   };
 };
 
+/**
+ * Main runtime renderer for one logical map layer.
+ *
+ * This component synchronizes rendered MapLibre sources/layers with DMS layer
+ * state, handles hover/click publishing into shared page action filters, and
+ * renders temporary subscriber highlight overlays when shared action filters
+ * target this layer.
+ */
 const ViewLayerRender = ({
   maplibreMap,
   layer,
@@ -133,6 +203,11 @@ const ViewLayerRender = ({
 
   const [sourceReady, setSourceReady] = React.useState(false);
   const cachedFilterPropsRef = useRef(null);
+  const pageFiltersRef = useRef(pageState?.filters || []);
+
+  useEffect(() => {
+    pageFiltersRef.current = pageState?.filters || [];
+  }, [pageState?.filters]);
 
   useEffect(() => {
     const sourceId = layerProps?.sources?.[0]?.id;
@@ -591,6 +666,14 @@ const ViewLayerRender = ({
     let lastPublishedValue;
     let lastPublishedKey;
 
+    /**
+     * Hover publisher runtime:
+     * - finds the top-most hovered interaction layer
+     * - resolves the configured feature field
+     * - publishes that value into the shared page action filter bus
+     * - remembers the last published key/value so we only republish when the
+     *   hovered feature or target action key actually changes
+     */
     const handleHoverMove = async (event) => {
       const features = maplibreMap.queryRenderedFeatures(event.point, { layers: hoverableLayerIds });
       if (!features?.length) return;
@@ -629,6 +712,11 @@ const ViewLayerRender = ({
       }
     };
 
+    /**
+     * Clears the transient hover action filter when the cursor leaves the
+     * hovered feature/layer. Hover interactions are intentionally temporary,
+     * so leaving the layer should remove the shared action state as well.
+     */
     const handleHoverLeave = () => {
       lastPublishedValue = undefined;
       if (lastPublishedKey) {
@@ -744,13 +832,24 @@ const ViewLayerRender = ({
 
     const clickableLayerIds = mapClickableLayerConfigs.flatMap((config) => config.clickableLayerIds);
 
+    /**
+     * Applies click-filter URL/search-param mappings for the map click system.
+     *
+     * Important: this merge intentionally ignores `type: "action"` filters so
+     * transient interaction state continues to be owned exclusively by
+     * `setActionParam`, while click-filter mappings only manage normal page
+     * filters/search-param values.
+     */
     const updateFilterValues = (nextFilterEntries) => {
-      const existingFilters = Array.isArray(pageState?.filters) ? pageState.filters : [];
-      const nextFilters = existingFilters
-        .filter((filter) => !nextFilterEntries.some((entry) => entry.searchKey === filter?.searchKey))
+      const existingFilters = Array.isArray(pageFiltersRef.current) ? pageFiltersRef.current : [];
+      const existingNonActionFilters = existingFilters.filter((filter) => filter?.type !== "action");
+      const nextFilters = existingNonActionFilters
+        .filter((filter) =>
+          !nextFilterEntries.some((entry) => entry.searchKey === filter?.searchKey)
+        )
         .concat(
           nextFilterEntries.map((entry) => {
-            const matchingFilter = existingFilters.find(
+            const matchingFilter = existingNonActionFilters.find(
               (filter) => filter?.searchKey === entry.searchKey
             );
             return {
@@ -794,12 +893,22 @@ const ViewLayerRender = ({
       }
     };
 
+    /**
+     * Shared click handler for all click-enabled map layers.
+     *
+     * On each click it:
+     * 1. resolves mapped click-filter values for search-param/page-filter
+     *    updates,
+     * 2. resolves the configured `click_publish` provider value for the first
+     *    matching interaction feature, and
+     * 3. sends the two update streams through their respective systems:
+     *    - `setActionParam` for transient interaction state
+     *    - `updatePageStateFilters` for normal page filters
+     */
     const handleMapClick = async (event) => {
       const features = maplibreMap.queryRenderedFeatures(event.point, {
         layers: clickableLayerIds,
       });
-
-      if (!features?.length) return;
 
       const nextFilterEntries = [];
 
@@ -829,7 +938,7 @@ const ViewLayerRender = ({
       }
 
       if (typeof setActionParam === "function") {
-        for (const feature of features) {
+        for (const feature of features || []) {
           const ownerLayerConfig = mapClickableLayerConfigs.find((config) =>
             config.clickableLayerIds.includes(feature?.layer?.id)
           );
@@ -856,6 +965,7 @@ const ViewLayerRender = ({
         }
       }
 
+      if (!features?.length) return;
       if (!nextFilterEntries.length) return;
       updateFilterValues(nextFilterEntries);
     };
@@ -871,7 +981,6 @@ const ViewLayerRender = ({
     maplibreMap,
     layerProps,
     allLayerProps,
-    pageState?.filters,
     setPageState,
     updatePageStateFilters,
     setActionParam,
@@ -939,8 +1048,19 @@ const ViewLayerRender = ({
     const hoverValue = hoverParam?.values?.[0];
     const clickValue = clickParam?.values?.[0];
 
+    /**
+     * Rebuilds the subscriber highlight overlay for one interaction mode.
+     *
+     * The flow is:
+     * - remove any old temporary overlay for this layer+mode
+     * - query rendered features from the preferred rendered layer(s)
+     * - resolve the configured match field on each feature
+     * - keep only features whose value matches the subscribed action value
+     * - write the matches into a GeoJSON source
+     * - add or update the highlight overlay layer
+     */
     const applyHighlight = async (mode, subscriberCfg, subscribedValue) => {
-      (layerProps?.layers || []).forEach((mapLayer) => {
+      getSubscriberHighlightLayers(layerProps).forEach((mapLayer) => {
         const highlightLayerId = getSubscriberHighlightLayerId(mapLayer?.id, mode);
         const highlightSourceId = getSubscriberHighlightSourceId(mapLayer?.id, mode);
         if (highlightLayerId && maplibreMap.getLayer(highlightLayerId)) {
@@ -953,7 +1073,7 @@ const ViewLayerRender = ({
 
       if (!subscriberCfg?.args?.field || !hasInteractionValue(subscribedValue)) return;
 
-      for (const mapLayer of (layerProps?.layers || [])) {
+      for (const mapLayer of getSubscriberHighlightLayers(layerProps)) {
         const highlightLayer = buildSubscriberHighlightLayer({
           mapLayer,
           mode,
@@ -986,22 +1106,21 @@ const ViewLayerRender = ({
         if (!matchedFeatures.length || !maplibreMap.getLayer(mapLayer.id)) continue;
 
         const highlightSourceId = getSubscriberHighlightSourceId(mapLayer.id, mode);
-        maplibreMap.addSource(highlightSourceId, {
-          type: "geojson",
-          data: featureCollection(matchedFeatures),
-        });
+        const highlightData = featureCollection(matchedFeatures);
+        const existingHighlightSource = maplibreMap.getSource(highlightSourceId);
 
-        console.log("[MapSubscriber] add highlight layer", {
-          mode,
-          baseLayerId: mapLayer.id,
-          highlightLayerId: highlightLayer.id,
-          highlightSourceId,
-          field: subscriberCfg.args.field,
-          subscribedValue,
-          matchCount: matchedFeatures.length,
-        });
+        if (existingHighlightSource && typeof existingHighlightSource.setData === "function") {
+          existingHighlightSource.setData(highlightData);
+        } else {
+          maplibreMap.addSource(highlightSourceId, {
+            type: "geojson",
+            data: highlightData,
+          });
+        }
 
-        maplibreMap.addLayer(highlightLayer);
+        if (!maplibreMap.getLayer(highlightLayer.id)) {
+          maplibreMap.addLayer(highlightLayer);
+        }
       }
     };
 
@@ -1020,6 +1139,19 @@ const ViewLayerRender = ({
   ]);
 }
 
+/**
+ * Rebuilds the layer tile/source URL so the backing vector source includes
+ * every column needed by the current map state.
+ *
+ * This appends:
+ * - data columns required by filter-group or direct data-column usage
+ * - dynamic filter columns
+ * - explicit filter columns
+ *
+ * The goal is to keep rendered feature properties aligned with the current
+ * map configuration so later paint/filter/interaction logic has access to the
+ * fields it needs.
+ */
 const getLayerTileUrl = (tileBase, layerProps) => {
   let newTileUrl = `${tileBase}`;
 
@@ -1087,6 +1219,13 @@ const getLayerTileUrl = (tileBase, layerProps) => {
   return newTileUrl;
 };
 
+/**
+ * AvlLayer wrapper used by the map section runtime.
+ *
+ * It exposes the rendered MapLibre layer/source definitions, hover behavior,
+ * and the React `RenderComponent` responsible for keeping the runtime layer
+ * synchronized with DMS state.
+ */
 class ViewLayer extends AvlLayer { 
   // constructor makes onHover not work??
   // constructor(layer, view) { 
@@ -1143,7 +1282,13 @@ export default ViewLayer;
 
 
 
-
+/**
+ * Default hover popup component used by the base Map layer runtime.
+ *
+ * This is separate from the provider/subscriber interaction system: it reads
+ * the hovered feature id, fetches additional attribute data when needed, and
+ * renders the configured hover attributes for the user-facing popup.
+ */
 const HoverComp = ({ data, layer }) => {
   if(!layer.props.hover) return
   const { source_id, view_id } = layer?.props?.view_id ? layer.props : layer;
