@@ -69,7 +69,7 @@ const DataSourceForm = ({editing, updateAttribute, col, attr, type}) => {
                     customTheme
                 },
                 {
-                    type: 'Button', children: 'save',
+                    type: 'Button', children: 'save', activeStyle: 'active',
                     onClick: () => {
                         updateAttribute(col, {[attr]: JSON.stringify(metaObj)});
                     }
@@ -118,14 +118,14 @@ const CustomEntryForm = ({editing, updateAttribute, col, attr, type}) => {
                             customTheme
                         },
                         {
-                            type: 'Button', children: 'update',
+                            type: 'Button', children: 'update', activeStyle: 'active',
                             onClick: () => {
                                 const finalObj = metaObj.reduce((acc, curr) => ({...acc, [curr.key]: curr.value}) , {})
                                 updateAttribute(col, {[attr]: JSON.stringify(finalObj)});
                             }
                         },
                         {
-                            type: 'Button', children: 'remove',
+                            type: 'Button', children: 'remove', activeStyle: 'danger',
                             onClick: () => {
                                 const finalObj = metaObj.filter((_, mi) => mi !== i).reduce((acc, curr) => ({...acc, [curr.key]: curr.value}) , {})
                                 updateAttribute(col, {[attr]: JSON.stringify(finalObj)});
@@ -148,7 +148,7 @@ const CustomEntryForm = ({editing, updateAttribute, col, attr, type}) => {
                         customTheme
                     },
                     {
-                        type: 'Button', children: 'add',
+                        type: 'Button', children: 'add', activeStyle: 'active',
                         onClick: () => {
                             const finalObj = {...editing, [newPair.key]: newPair.value};
                             updateAttribute(col, {[attr]: JSON.stringify(finalObj)});
@@ -184,8 +184,8 @@ export const Metadata = ({value={}, col, drivingAttribute, attr, updateAttribute
     return (
         <div>
             <div className={t.metadataHeader}>
-                <label>metadata</label>
-                <Button onClick={() => updateAttribute(col, {[attr]: undefined})}>clear metadata</Button>
+                <label className={t.labelUpperCase}>metadata</label>
+                <Button activeStyle={'danger'} onClick={() => updateAttribute(col, {[attr]: undefined})}>clear metadata</Button>
             </div>
             <Tabs
                 selectedIndex={type === 'datasource' ? 0 : 1}

@@ -43,7 +43,7 @@ export const RenderAddField = ({placeHolder, attributes=[], className, addAttrib
                 }}
                 onKeyDown={e =>  !error && e.key === 'Enter' && triggerAddEvent()}
             />
-            <Button className={error ? t.addButtonError : t.addButton} onClick={e => fn()}>
+            <Button activeStyle={error ? 'danger' : 'active'} onClick={e => fn()}>
                 {
                     error ?
                         <div className={t.addButtonContent}><Icon icon={'Alert'} className={t.addButtonIcon}/> {error} </div> :
