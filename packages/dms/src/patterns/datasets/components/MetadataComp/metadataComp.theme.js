@@ -29,7 +29,7 @@ export const metadataCompTheme = {
     optionsWrapper: 'flex flex-col items-start w-full gap-1',
     optionsInner: 'w-full flex flex-col',
     optionsList: 'flex flex-row flex-wrap',
-    optionTag: 'bg-red-500 hover:bg-red-700 text-white text-xs font-semibold px-1.5 py-1 m-1 flex no-wrap items-center rounded-md',
+    optionTag: 'bg-red-300 hover:bg-red-200 text-red-800 text-xs font-normal px-1.5 py-1 m-1 flex no-wrap items-center rounded-md',
     optionTagLabel: 'hover:cursor-pointer',
     optionRemove: 'p-0.5 px-1 cursor-pointer',
     optionFormRow: 'w-full flex',
