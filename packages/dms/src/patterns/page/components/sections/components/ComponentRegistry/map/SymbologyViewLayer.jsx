@@ -20,7 +20,105 @@ const getLayerInteractionIds = (candidateLayerProps = {}) =>
 const hasInteractionValue = (value) =>
   value !== undefined && value !== null && value !== "";
 
+/**
+ * Provider config is stored with the map section's other display settings under
+ * `state.display._functions.providers`.
+ *
+ * Each provider entry is declared in `map/config.jsx`, configured in the shared
+ * section menu, and then consumed here at runtime to decide whether this layer
+ * should publish hover/click values into `pageState.filters`.
+ */
 const getInteractionProviders = (state) => state?.display?._functions?.providers || [];
+
+/**
+ * Subscriber config follows the same storage path as providers, but under
+ * `state.display._functions.subscribers`.
+ *
+ * These entries tell the map which shared page action key to listen to
+ * (`paramKey`), which logical map layer should react (`args.layerId`), and
+ * which feature property should be matched (`args.field`).
+ */
+const getInteractionSubscribers = (state) => state?.display?._functions?.subscribers || [];
+
+const getSubscriberHighlightLayerId = (layerId, mode) =>
+  `${layerId}__subscriber_${mode}_highlight`;
+
+const getSubscriberHighlightSourceId = (layerId, mode) =>
+  `${layerId}__subscriber_${mode}_highlight_source`;
+
+const removeSubscriberHighlightLayers = (maplibreMap, layerProps = {}) => {
+  if (
+    !maplibreMap ||
+    typeof maplibreMap.getLayer !== "function" ||
+    typeof maplibreMap.removeLayer !== "function" ||
+    typeof maplibreMap.getSource !== "function" ||
+    typeof maplibreMap.removeSource !== "function"
+  ) {
+    return;
+  }
+
+  (layerProps?.layers || []).forEach((mapLayer) => {
+    ["hover", "click"].forEach((mode) => {
+      const highlightLayerId = getSubscriberHighlightLayerId(mapLayer?.id, mode);
+      const highlightSourceId = getSubscriberHighlightSourceId(mapLayer?.id, mode);
+      try {
+        if (highlightLayerId && maplibreMap.getLayer(highlightLayerId)) {
+          maplibreMap.removeLayer(highlightLayerId);
+        }
+        if (highlightSourceId && maplibreMap.getSource(highlightSourceId)) {
+          maplibreMap.removeSource(highlightSourceId);
+        }
+      } catch (error) {
+        // Layer/source teardown can race during map refresh; ignore cleanup misses.
+      }
+    });
+  });
+};
+
+const buildSubscriberHighlightPaint = (mapLayer = {}) => {
+  const currentPaint = mapLayer.paint || {};
+
+  switch (mapLayer.type) {
+    case "fill":
+      return {
+        ...currentPaint,
+        "fill-color": "#facc15",
+        "fill-opacity": 0.65,
+        "fill-outline-color": "#111827",
+      };
+    case "line":
+      return {
+        ...currentPaint,
+        "line-color": "#facc15",
+        "line-width": 4,
+        "line-opacity": 1,
+      };
+    case "circle":
+      return {
+        ...currentPaint,
+        "circle-color": "#facc15",
+        "circle-opacity": 1,
+        "circle-radius": 8,
+        "circle-stroke-color": "#111827",
+        "circle-stroke-width": 2,
+      };
+    default:
+      return null;
+  }
+};
+
+const buildSubscriberHighlightLayer = ({ mapLayer, mode }) => {
+  const paint = buildSubscriberHighlightPaint(mapLayer);
+  if (!paint) return null;
+
+  return {
+    id: getSubscriberHighlightLayerId(mapLayer.id, mode),
+    type: mapLayer.type,
+    source: getSubscriberHighlightSourceId(mapLayer.id, mode),
+    layout: cloneDeep(mapLayer.layout || {}),
+    paint,
+  };
+};
 
 const ViewLayerRender = ({
   maplibreMap,
@@ -61,6 +159,7 @@ const ViewLayerRender = ({
   // ---------------
   useEffect(() => {  
     return () => { 
+      removeSubscriberHighlightLayers(maplibreMap, layerProps);
       //console.log('unmount', layer.id, layerProps.name, layer)
       layer.layers.forEach(l => {
         try {
@@ -135,6 +234,12 @@ const ViewLayerRender = ({
         }
 
         layerProps?.layers?.forEach(l => {
+          ["hover", "click"].forEach((mode) => {
+            const highlightLayerId = getSubscriberHighlightLayerId(l?.id, mode);
+            if(maplibreMap.getLayer(highlightLayerId)){
+              maplibreMap.removeLayer(highlightLayerId)
+            }
+          })
           if(maplibreMap.getLayer(l?.id) && maplibreMap.getLayer(l?.id)){
             maplibreMap.removeLayer(l?.id) 
           }
@@ -167,6 +272,12 @@ const ViewLayerRender = ({
         }
 
         layerProps?.layers?.forEach(l => {
+          ["hover", "click"].forEach((mode) => {
+            const highlightLayerId = getSubscriberHighlightLayerId(l?.id, mode);
+            if(maplibreMap.getLayer(highlightLayerId)){
+              maplibreMap.removeLayer(highlightLayerId)
+            }
+          })
           if(maplibreMap.getLayer(l?.id) && maplibreMap.getLayer(l?.id)){
             maplibreMap.removeLayer(l?.id) 
           }
@@ -765,6 +876,146 @@ const ViewLayerRender = ({
     updatePageStateFilters,
     setActionParam,
     resolveFeatureProperties,
+    state?.display?._functions,
+  ]);
+
+  useEffect(() => {
+    if (!maplibreMap || !layerProps?.id || !sourceReady) return;
+
+    /**
+     * For the current logical map layer, read the enabled subscriber configs
+     * that should react to shared page action params.
+     *
+     * The config is layer-scoped by `args.layerId`, so even though the page may
+     * have many map layers and many subscriber definitions, this render instance
+     * only reacts to the ones explicitly targeting `layerProps.id`.
+     */
+    const hoverSubscriberCfg = getInteractionSubscribers(state)?.find(
+      (subscriber) =>
+        subscriber?.functionId === "hover_highlight" &&
+        subscriber?.enabled &&
+        subscriber?.args?.layerId === layerProps.id
+    );
+
+    const clickSubscriberCfg = getInteractionSubscribers(state)?.find(
+      (subscriber) =>
+        subscriber?.functionId === "click_highlight" &&
+        subscriber?.enabled &&
+        subscriber?.args?.layerId === layerProps.id
+    );
+
+    /**
+     * Action params are the shared cross-component bus. Publishers write them
+     * into `pageState.filters` with `type: "action"`, and subscribers read them
+     * back using the configured `paramKey`.
+     *
+     * These lookups bridge:
+     * - another component publishing a value
+     * - this map layer deciding whether it should render a highlight overlay
+     */
+    const hoverParam = hoverSubscriberCfg?.paramKey
+      ? pageState?.filters?.find(
+          (filter) =>
+            filter?.searchKey === hoverSubscriberCfg.paramKey &&
+            filter?.type === "action"
+        )
+      : undefined;
+
+    const clickParam = clickSubscriberCfg?.paramKey
+      ? pageState?.filters?.find(
+          (filter) =>
+            filter?.searchKey === clickSubscriberCfg.paramKey &&
+            filter?.type === "action"
+        )
+      : undefined;
+
+    /**
+     * These are the live subscribed values currently driving highlight state.
+     *
+     * If a value exists, the matching highlight layer for that mode can be
+     * built. If the value disappears, the temporary highlight overlay is
+     * removed and the base layer continues rendering unchanged.
+     */
+    const hoverValue = hoverParam?.values?.[0];
+    const clickValue = clickParam?.values?.[0];
+
+    const applyHighlight = async (mode, subscriberCfg, subscribedValue) => {
+      (layerProps?.layers || []).forEach((mapLayer) => {
+        const highlightLayerId = getSubscriberHighlightLayerId(mapLayer?.id, mode);
+        const highlightSourceId = getSubscriberHighlightSourceId(mapLayer?.id, mode);
+        if (highlightLayerId && maplibreMap.getLayer(highlightLayerId)) {
+          maplibreMap.removeLayer(highlightLayerId);
+        }
+        if (highlightSourceId && maplibreMap.getSource(highlightSourceId)) {
+          maplibreMap.removeSource(highlightSourceId);
+        }
+      });
+
+      if (!subscriberCfg?.args?.field || !hasInteractionValue(subscribedValue)) return;
+
+      for (const mapLayer of (layerProps?.layers || [])) {
+        const highlightLayer = buildSubscriberHighlightLayer({
+          mapLayer,
+          mode,
+        });
+
+        if (!highlightLayer) continue;
+
+        const renderedFeatures = maplibreMap.queryRenderedFeatures(undefined, {
+          layers: [mapLayer.id],
+        });
+
+        const matchedFeatures = [];
+        for (const feature of renderedFeatures) {
+          const resolvedProperties = await resolveFeatureProperties({
+            feature,
+            candidateLayerProps: layerProps,
+            fieldNames: [subscriberCfg.args.field],
+          });
+
+          if (String(resolvedProperties?.[subscriberCfg.args.field]) === String(subscribedValue)) {
+            matchedFeatures.push({
+              type: "Feature",
+              id: feature.id,
+              properties: resolvedProperties,
+              geometry: cloneDeep(feature.geometry),
+            });
+          }
+        }
+
+        if (!matchedFeatures.length || !maplibreMap.getLayer(mapLayer.id)) continue;
+
+        const highlightSourceId = getSubscriberHighlightSourceId(mapLayer.id, mode);
+        maplibreMap.addSource(highlightSourceId, {
+          type: "geojson",
+          data: featureCollection(matchedFeatures),
+        });
+
+        console.log("[MapSubscriber] add highlight layer", {
+          mode,
+          baseLayerId: mapLayer.id,
+          highlightLayerId: highlightLayer.id,
+          highlightSourceId,
+          field: subscriberCfg.args.field,
+          subscribedValue,
+          matchCount: matchedFeatures.length,
+        });
+
+        maplibreMap.addLayer(highlightLayer);
+      }
+    };
+
+    applyHighlight("hover", hoverSubscriberCfg, hoverValue);
+    applyHighlight("click", clickSubscriberCfg, clickValue);
+
+    return () => {
+      removeSubscriberHighlightLayers(maplibreMap, layerProps);
+    };
+  }, [
+    maplibreMap,
+    layerProps,
+    sourceReady,
+    pageState?.filters,
     state?.display?._functions,
   ]);
 }

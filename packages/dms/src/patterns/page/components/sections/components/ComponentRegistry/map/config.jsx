@@ -29,7 +29,28 @@ export const componentFunctions = {
             ],
         },
     ],
-    subscribers: [],
+    subscribers: [
+        {
+            id: 'hover_highlight',
+            label: 'Highlight Feature On Hover',
+            description: 'Highlights matching features on the selected map layer when a shared hover action param changes.',
+            trigger: 'action_param',
+            args: [
+                { key: 'layerId', label: 'Layer', type: 'select', options: { stateKey: 'interactionOptions.mapLayers' } },
+                { key: 'field', label: 'Feature Field', type: 'input', inputType: 'text' },
+            ],
+        },
+        {
+            id: 'click_highlight',
+            label: 'Highlight Feature On Click',
+            description: 'Highlights matching features on the selected map layer when a shared click action param changes.',
+            trigger: 'action_param',
+            args: [
+                { key: 'layerId', label: 'Layer', type: 'select', options: { stateKey: 'interactionOptions.mapLayers' } },
+                { key: 'field', label: 'Feature Field', type: 'input', inputType: 'text' },
+            ],
+        },
+    ],
 };
 
 export default {

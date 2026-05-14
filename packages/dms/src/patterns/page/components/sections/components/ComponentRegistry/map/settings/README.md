@@ -240,13 +240,13 @@ Map interactions now follow the same DMS provider/subscriber pattern used by oth
 
 - Static interaction capabilities are declared in [`map/config.jsx`](/home/sarang/Documents/avail/transportNY/src/modules/dms/packages/dms/src/patterns/page/components/sections/components/ComponentRegistry/map/config.jsx) through `componentFunctions`.
 - Instance-level interaction config is stored on the map section state under `display._functions`.
-- The `Layer` select used by Map interaction providers is declared in config with `options: { stateKey: 'interactionOptions.mapLayers' }`.
+- The `Layer` select used by Map interaction providers/subscribers is declared in config with `options: { stateKey: 'interactionOptions.mapLayers' }`.
 - `MapSection` exposes that `interactionOptions.mapLayers` array through `mapAPI.state`, so the shared section menu can render layer choices without hardcoding map layer logic into the menu itself.
 - Shared action values are still written to and read from `pageState.filters` with `type: "action"`.
 
 ### Config Shape
 
-Map provider config uses the standard `display._functions` shape and adds a layer-scoping arg:
+Map interaction config uses the standard `display._functions` shape and adds a layer-scoping arg:
 
 ```json
 {
@@ -272,7 +272,26 @@ Map provider config uses the standard `display._functions` shape and adds a laye
           }
         }
       ],
-      "subscribers": []
+      "subscribers": [
+        {
+          "functionId": "hover_highlight",
+          "enabled": true,
+          "paramKey": "shared_hover_key",
+          "args": {
+            "layerId": "<layerId>",
+            "field": "<featureField>"
+          }
+        },
+        {
+          "functionId": "click_highlight",
+          "enabled": true,
+          "paramKey": "shared_click_key",
+          "args": {
+            "layerId": "<layerId>",
+            "field": "<featureField>"
+          }
+        }
+      ]
     }
   }
 }
@@ -280,9 +299,9 @@ Map provider config uses the standard `display._functions` shape and adds a laye
 
 ### How Layer Scoping Works
 
-- `layerId` determines which map layer owns the provider.
-- `field` determines which feature property is published.
-- `paramKey` determines which shared page action filter is written.
+- `layerId` determines which map layer owns the provider/subscriber.
+- `field` determines which feature property is published or matched.
+- `paramKey` determines which shared page action filter is written or read.
 
 This keeps the interaction system generic:
 
@@ -292,6 +311,8 @@ This keeps the interaction system generic:
 - layer options are data-driven from map state, not hardcoded in the shared menu
 
 If multiple layers intentionally use the same `paramKey`, the latest interaction wins. That is a configuration choice, not a map-specific rule.
+
+If you want hover and click subscriber behavior to stay separate, use different `paramKey` values for hover and click. The current shared action-filter payload only distinguishes action entries by `searchKey` and `type: "action"`, so two different publishers using the same key will intentionally share the same action value.
 
 ### Runtime Flow
 
@@ -310,13 +331,159 @@ Click provider:
 3. The runtime reads `feature.properties[args.field]`.
 4. It publishes that value with `setActionParam(paramKey, value)`.
 
+Hover subscriber:
+
+1. The runtime finds the enabled `hover_highlight` config for the current map layer.
+2. It reads the current action filter from `pageState.filters` using `paramKey`.
+3. It matches the incoming value against the configured layer field.
+4. It renders a temporary highlight overlay above the base map layer for matching features.
+5. When the hover action filter clears, the highlight overlay is removed.
+
+Click subscriber:
+
+1. The runtime finds the enabled `click_highlight` config for the current map layer.
+2. It reads the current action filter from `pageState.filters` using `paramKey`.
+3. It matches the incoming value against the configured layer field.
+4. It renders a highlight overlay above the base map layer for matching features.
+5. The highlight remains until the click action value changes or clears.
+
+### How `SymbologyViewLayer.jsx` Handles Each Action
+
+`SymbologyViewLayer.jsx` is the runtime entry point for both provider and subscriber behavior.
+
+#### Hover Publish
+
+- Collects all map layers that can participate in hover interactions.
+- Registers one shared `mousemove` / `mouseleave` handler for the owning map layer instance.
+- Queries rendered features under the pointer.
+- Finds the configured `hover_publish` entry whose `args.layerId` matches the interacted logical layer.
+- Resolves the configured field value from the feature.
+- Calls `setActionParam(paramKey, value)`.
+- On leave, calls `clearActionParam(paramKey)`.
+
+#### Click Publish
+
+- Collects all map layers that can participate in click publish.
+- Registers one shared map click handler.
+- Finds the clicked rendered feature for the configured logical layer.
+- Resolves the configured field value from the feature.
+- Calls `setActionParam(paramKey, value)`.
+
+#### Click Filter Updates
+
+Map still supports the existing click-filter behavior separately from provider/subscriber actions.
+
+- On click, the runtime also evaluates any enabled `click-filter` mappings.
+- Matching mapped values are merged into page filters through `updatePageStateFilters(...)`.
+- This is separate from the provider/subscriber system, even though both run inside the same click handler.
+
+#### Hover Highlight Subscriber
+
+- Reads the enabled `hover_highlight` entry for the current logical layer from `display._functions.subscribers`.
+- Looks up the current shared action value in `pageState.filters` using `paramKey`.
+- Queries rendered features from the configured map layer.
+- Resolves the configured field on each feature.
+- Builds a GeoJSON overlay from matching rendered features.
+- Adds a temporary highlight layer above the base layer.
+- Removes that overlay when the hover action value clears or the layer refreshes.
+
+How the map layer is affected:
+
+- The original configured map layer is not edited or recolored directly.
+- Instead, Map creates a second temporary render layer for the same logical layer.
+- That temporary layer sits above the base layer and only contains the matched features.
+- When the hover subscriber value changes, the temporary hover highlight layer is rebuilt from the latest matching features.
+- When hover clears, only the temporary hover highlight layer is removed; the original layer keeps rendering normally.
+
+#### Click Highlight Subscriber
+
+- Reads the enabled `click_highlight` entry for the current logical layer from `display._functions.subscribers`.
+- Looks up the current shared action value in `pageState.filters` using `paramKey`.
+- Queries rendered features from the configured map layer.
+- Resolves the configured field on each feature.
+- Builds a GeoJSON overlay from matching rendered features.
+- Adds a highlight layer above the base layer.
+- Keeps that overlay until the subscribed action value changes or disappears.
+
+How the map layer is affected:
+
+- The original configured map layer remains the main render layer.
+- Map adds a separate temporary click highlight layer above it.
+- That temporary layer is built only from the features whose configured field matches the current subscribed value.
+- If a new click subscriber value arrives, the old click highlight layer/source is removed and rebuilt for the new match set.
+- If the click subscriber value disappears, the temporary click highlight layer is removed and the base layer continues unchanged.
+
+#### Why The Highlight Uses A GeoJSON Overlay
+
+The subscriber highlight does not directly mutate the base vector source or base symbology paint.
+
+Instead it:
+
+- queries the rendered features already on the map
+- resolves the configured match field
+- creates a temporary GeoJSON source for the matched features
+- renders a separate highlight layer from that source
+
+This is safer in the current architecture because it avoids:
+
+- mutating the base layer style
+- assuming the subscriber field is always available in the rendered source filter context
+- interfering with existing layer/source refresh logic
+
+In practice, each subscriber highlight cycle looks like this:
+
+1. Read the subscriber config for the current logical layer.
+2. Read the current shared action value from `pageState.filters`.
+3. Query the rendered map features for that base layer.
+4. Keep only the features whose configured field matches the subscriber value.
+5. Remove any previous temporary highlight layer/source for that same mode (`hover` or `click`).
+6. Create a fresh GeoJSON source from the matched features.
+7. Add a fresh temporary highlight layer above the base layer.
+
+#### Highlight Style Defaults
+
+Map currently uses a fixed fallback highlight style:
+
+- `fill`: yellow fill with dark outline
+- `line`: yellow line
+- `circle`: yellow circle with dark outline
+
+Layer types use those values like this:
+
+- `fill`
+  - fill color + fill opacity
+  - outline color from stroke color/stroke opacity
+- `line`
+  - line color + line opacity
+- `circle`
+  - circle fill color + fill opacity
+  - circle stroke color + stroke opacity
+
+#### Cleanup Behavior
+
+Subscriber highlight layers are removed:
+
+- when the subscribed value no longer exists
+- when the component unmounts
+- before layer/source teardown during map refresh
+
+This cleanup is important because MapLibre will throw if a source is removed while a highlight layer is still attached to it.
+
+One important detail:
+
+- During a normal map refresh, `SymbologyViewLayer.jsx` removes old temporary subscriber highlight layers first.
+- Then it updates or rebuilds the base layer/source.
+- After the base layer is ready again, the subscriber effect can add the temporary hover/click highlight layer back if a subscribed value is still active.
+
+So yes, the highlight layer is intentionally removed and later re-appended as part of the refresh-safe lifecycle.
+
 ### Why This Uses `display._functions`
 
 The current implementation keeps Map aligned with standard DMS interaction behavior:
 
 - the shared section menu edits interaction config
 - `componentFunctions` remains the static declaration point
-- runtime logic in `SymbologyViewLayer.jsx` decides which configured layer should publish
+- runtime logic in `SymbologyViewLayer.jsx` decides which configured layer should publish or highlight
 
 This means Map stays inside the same provider/subscriber ecosystem as Card and Spreadsheet, while still allowing provider behavior to be layer-specific.
 
