@@ -2,7 +2,14 @@ import React from "react"
 
 import { scaleLinear } from "d3-scale"
 
-const VerticalLegendItem = ({ label, color }) => {
+const identity = d => d;
+
+const SizeMap = {
+	medium: [250, 30, "text-xs"],
+	large: [400, 40, "text-sm"]
+}
+
+const VerticalCategoricalLegendItem = ({ label, color }) => {
 	return (
 		<div className="flex items-center">
 			<div className="w-4 h-4 rounded mr-1"
@@ -20,9 +27,9 @@ const VerticalCategoricalLegend = ({ categories = [], colors = [] }) => {
 		}).reverse();
 	}, [categories, colors]);
 	return (
-		<div className="px-4">
+		<div className="px-4 grid grid-cols-1 gap-1">
 			{ categoriesAndColors.map(([cat, color]) =>
-					<VerticalLegendItem key={ cat }
+					<VerticalCategoricalLegendItem key={ cat }
 						label={ cat }
 						color={ color }/>
 				)
@@ -31,71 +38,158 @@ const VerticalCategoricalLegend = ({ categories = [], colors = [] }) => {
 	)
 }
 
-const VerticalLinearLegend = ({ scale }) => {
-
+const VerticalLinearLegendTick = ({ value, format, width }) => {
+	return (
+		<>
+			<div className="border-t-1 border-b-1 border-current pointer-events-none"
+				style={ {
+					transform: "translate(-50%, -1px)",
+					width: `${ width }px`
+				} }/>
+			<div className="pr-2"
+				style={ {
+					transform: "translate(2px, 0)",
+				} }
+			>
+				{ format(value) }
+			</div>
+		</>
+	)
 }
 
-const IDENTITY = d => d;
+const VerticalLinearLegend = ({ size, scale = scaleLinear(), format = identity }) => {
 
-const HorizontalLinearLegend = ({ scale, format = IDENTITY }) => {
+	const [height, width] = React.useMemo(() => {
+		return SizeMap[size];
+	}, [size]);
 
-	const domain = scale.domain();
-	const range = scale.range();
-
-	const min = domain.at(0);
-	const max = domain.at(-1);
-	const diff = max - min;
-	const p10 = diff * 0.10 + min;
-	const p50 = diff * 0.50 + min;
-	const p90 = diff * 0.90 + min;
-
-	const wScale = scaleLinear().domain([min, max]).range([0, 200])
+	const ticks = React.useMemo(() => {
+		const domain = scale.domain();
+		const min = domain.at(0);
+		const max = domain.at(-1);
+		const diff = max - min;
+		const p0 = min;
+		const p25 = diff * 0.25 + min;
+		const p50 = diff * 0.50 + min;
+		const p75 = diff * 0.75 + min;
+		const p100 = max;
+		return [p0, p25, p50, p75, p100]
+	}, [scale, height]);
 
 	return (
-		<div className="w-[200px] h-8 relative">
-			<div className="w-[200px] h-4 rounded relative overflow-visible"
+		<div className="relative w-fit flex"
+			style={ {
+				height: `${ height }px`
+			} }
+		>
+			<div
+				className="rounded"
 				style={ {
-					background: `linear-gradient(to right, ${ range })`
-				} }
-			>
-			</div>
-			<div className="absolute h-8 border-l-1 border-r-1"
-				style={ {
-					top: "-50%",
-					left: `${ wScale(p10) - 1 }px`
+					background: `linear-gradient(to bottom, ${ scale.range() })`,
+					width: `${ width * 0.5 }px`,
+					height: `${ height }px`
 				} }/>
-			<div className="absolute text-xs"
-				style={ {
-					transform: `translate(${ wScale(p10) + 1 }px, -200%)`
-				} }
-			>
-				{ format(p10) }
-			</div>
 
-			<div className="absolute top-0 h-8 border-l-1 border-r-1"
-				style={ {
-					left: `${ wScale(p50) - 1 }px`
-				} }/>
-			<div className="absolute bottom-0 text-xs"
-				style={ {
-					transform: `translate(${ wScale(p50) + 1 }px, 0%)`
-				} }
-			>
-				{ format(p50) }
+			<div className="grid grid-cols-1">
+				{ ticks.slice(0, -1).map((t, i) =>
+						<div key={ t }
+							style={ {
+								height: `${ height * 0.25 }px`
+							} }
+						>
+							<VerticalLinearLegendTick key={ t }
+								value={ t }
+								format={ format }
+								width={ width }/>
+						</div>
+					)
+				}
+				<VerticalLinearLegendTick
+					value={ ticks.at(-1) }
+					format={ format }
+					width={ width }/>
 			</div>
+		</div>
+	)
+}
 
-			<div className="absolute h-8 border-l-1 border-r-1"
+const HorizontalLinearLegendTick = ({ scale, value, format, below, height }) => {
+	return below ? (
+		<>
+			<div className="absolute border-l-1 border-r-1 border-current pointer-events-none"
 				style={ {
-					top: "-50%",
-					left: `${ wScale(p90) - 1 }px`
+					transform: `translate(${ scale(value) - 1 }px, -50%)`,
+					height: `${ height }px`
 				} }/>
-			<div className="absolute text-xs"
+			<div className="absolute bottom-0"
 				style={ {
-					transform: `translate(${ wScale(p90) + 1 }px, -200%)`
+					transform: `translate(${ scale(value) + 4 }px, 0%)`
 				} }
 			>
-				{ format(p90) }
+				{ format(value) }
 			</div>
+		</>
+	) : (
+		<>
+			<div className="absolute border-l-1 border-r-1 border-current pointer-events-none"
+				style={ {
+					transform: `translate(${ scale(value) - 1 }px, -100%)`,
+					height: `${ height }px`
+				} }/>
+			<div className="absolute"
+				style={ {
+					transform: `translate(${ scale(value) + 4 }px, -200%)`
+				} }
+			>
+				{ format(value) }
+			</div>
+		</>
+	)
+}
+
+const HorizontalLinearLegend = ({ size, scale = scaleLinear(), format = identity }) => {
+
+	const [width, height] = React.useMemo(() => {
+		return SizeMap[size];
+	}, [size]);
+
+	const [wScale, ...ticks] = React.useMemo(() => {
+		const domain = scale.domain();
+		const min = domain.at(0);
+		const max = domain.at(-1);
+		const diff = max - min;
+		const p0 = min;
+		const p25 = diff * 0.25 + min;
+		const p50 = diff * 0.50 + min;
+		const p75 = diff * 0.75 + min;
+		const p100 = max;
+		const wScale = scaleLinear().domain([min, max]).range([0, width]);
+		return [wScale, p0, p25, p50, p75, p100]
+	}, [scale, width]);
+
+	return (
+		<div className="relative"
+			style={ {
+				width: `${ width }px`,
+				height: `${ height }px`
+			} }
+		>
+			<div
+				className="rounded"
+				style={ {
+					background: `linear-gradient(to right, ${ scale.range() })`,
+					width: `${ width }px`,
+					height: `${ height * 0.5 }px`
+				} }/>
+			{ ticks.map((t, i) =>
+					<HorizontalLinearLegendTick key={ t }
+						below={ i % 2 === 0}
+						scale={ wScale }
+						value={ t }
+						format={ format }
+						height={ height }/>
+				)
+			}
 		</div>
 	)
 }
@@ -106,15 +200,21 @@ const getLegend = (type, orientation) =>
 																	HorizontalLinearLegend;
 
 export const Legend = props => {
-	const { type, orientation = "horizontal", ...rest } = props
+	const { type, orientation = "horizontal", size = "medium", ...rest } = props;
+
+// console.log("Legend::type, orientation", type, orientation)
 
 	const Legend = React.useMemo(() => {
 		return getLegend(type, orientation);
 	}, [type, orientation]);
 
+	const textSize = React.useMemo(() => {
+		return (SizeMap[size] || SizeMap["medium"])[2];
+	}, [size]);
+
 	return (
-		<div className="text-sm">
-			<Legend { ...rest }/>
+		<div className={ textSize }>
+			<Legend size={ size } { ...rest }/>
 		</div>
 	)
 }

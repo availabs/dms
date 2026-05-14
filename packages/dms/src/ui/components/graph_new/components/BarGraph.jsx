@@ -92,7 +92,7 @@ const BarGraphWrapper = props => {
       })
     }
     if (categoryColumn.sort) {
-      const sortDir = indexColumn.sort === "desc" ? -1 : 1;
+      const sortDir = categoryColumn.sort === "desc" ? -1 : 1;
       keys.sort((a, b) => {
           const aNaN = strictNaN(+a);
           const bNaN = strictNaN(+b);
@@ -132,17 +132,6 @@ const BarGraphWrapper = props => {
 
 // console.log("BarGraphWrapper::axisLeft", axisLeft);
 
-	const margin = React.useMemo(() => {
-		return {
-			top: props.margins?.marginTop || 20,
-			right: props.margins?.marginRight || 20,
-			bottom: props.margins.marginBottom || 50,
-			left: props.margins?.marginLeft || 100
-		}
-	}, [props.margins]);
-
-// console.log("BarGraphWrapper::margin", margin);
-
   const legend = React.useMemo(() => {
     return {
       ...props.legend,
@@ -159,27 +148,24 @@ const BarGraphWrapper = props => {
 	return (
     <div className="w-full bg-inherit flex">
       { !legend.show || legend.position !== "left" ? null :
-        <Legend { ...legend }/>
+      	<div className="flex items-center">
+        	<Legend { ...legend }/>
+        </div>
       }
       <div className="bg-inherit flex-1"
         style={ {
           height: `${ props.height }px`
         } }
       >
-				<BarGraph { ...dataFromProps }
-					orientation={ props.orientation }
-					colors={ props.colors }
-					groupMode={ props.groupMode }
+				<BarGraph { ...props }
+					{ ...dataFromProps }
 					axisBottom={ axisBottom }
-					axisLeft={ axisLeft }
-					margin={ margin }
-					hoverComp={ props.hoverComp }
-					width={ props.width }
-					height={ props.height }
-					bgColor={ props.bgColor }/>
+					axisLeft={ axisLeft }/>
       </div>
       { !legend.show || legend.position !== "right" ? null :
-        <Legend { ...legend }/>
+      	<div className="flex items-center">
+        	<Legend { ...legend }/>
+        </div>
       }
     </div>
 	)
