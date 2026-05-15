@@ -40,31 +40,30 @@ const DefaultHoverComp = ({ data, keys, indexFormat, keyFormat, valueFormat, val
       <div className="font-bold text-lg leading-6 border-b-2 mb-1 pl-2">
         { indexFormat(get(data, "index", null)) }
       </div>
-      { keys.slice().reverse()
-        .filter(key => get(data, ["data", key], false))
-        .map(key => (
-          <div key={ key } className={ `
-            flex items-center px-2 border-2 rounded transition
-            ${ data.key === key ? "border-current" : "border-transparent" }
-          `}>
-            <div className="mr-2 rounded-sm color-square w-5 h-5"
-              style={ {
-                backgroundColor: get(data, ["barValues", key, "color"], null),
-                opacity: data.key === key ? 1 : 0.2
-              } }/>
-            <div className="mr-4">
-              { keyFormat(key) }:
+      { keys.filter(key => get(data, ["data", key], false))
+          .reverse().map(key => (
+            <div key={ key } className={ `
+              flex items-center px-2 border-2 rounded transition
+              ${ data.key === key ? "border-current" : "border-transparent" }
+            `}>
+              <div className="mr-2 rounded-sm color-square w-5 h-5"
+                style={ {
+                  backgroundColor: get(data, ["barValues", key, "color"], null),
+                  opacity: data.key === key ? 1 : 0.2
+                } }/>
+              <div className="mr-4">
+                { keyFormat(key) }:
+              </div>
+              <div className="text-right flex-1">
+                { valueFormat(get(data, ["data", key], 0)) }
+                { !valueLabel ? null :
+                  <b className="ml-1">{ valueLabel }</b>
+                }
+              </div>
             </div>
-            <div className="text-right flex-1">
-              { valueFormat(get(data, ["data", key], 0)) }
-              { !valueLabel ? null :
-                <b className="ml-1">{ valueLabel }</b>
-              }
-            </div>
-          </div>
-        ))
+          ))
       }
-      { keys.length <= 1 ? null :
+      { (keys.length <= 1) || !showTotals ? null :
         <div className="flex pr-2">
           <div className="w-5 mr-2"/>
           <div className="mr-4 pl-2">
@@ -83,6 +82,7 @@ const DefaultHoverCompData = {
   indexFormat: Identity,
   keyFormat: Identity,
   valueFormat: Identity,
+  valueLabel: null,
   position: "side",
   showTotals: true
 }

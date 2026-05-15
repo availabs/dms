@@ -13,34 +13,23 @@ import {getColorRange} from "./colorRange";
 // import {ThemeContext} from "../../useTheme";
 import { strictNaN, getFormatFunc } from "./utils";
 
-const GraphTitle = ({ title, position, fontSize, fontWeight }) => {
+const GraphTitle = ({ title, ...props }) => {
 
-  const justify = React.useMemo(() => {
-    return `justify-${ position }`;
-  }, [position]);
+  const className = React.useMemo(() => {
+    const {
+      fontSize = "text-2xl",
+      fontWeight = "font-normal",
+      justify = "justify-start"
+    } = props;
+    return `${ fontSize } ${ fontWeight } ${ justify }`;
+  }, [props]);
 
-  return ! title ? null : (
-    <div className={ `w-full flex ${ justify } mb-4` }>
-      <div style={ {
-          fontSize: `${ fontSize }px`,
-          fontWeight
-        } }
-      >
-        { title }
-      </div>
+  return !title ? null : (
+    <div className={ `w-full flex ${ className }` }>
+      { title }
     </div>
   )
 }
-
-// const AggFuncs = {
-//   sum: d3sum,
-//   avg: d3mean,
-//   count: d3sum,
-//   exempt: (arr, acc) => acc(arr[0])
-// }
-// const getAggFunc = aggMethod => {
-//   return AggFuncs[aggMethod] //|| d3sum;
-// }
 
 export const GraphComponent = props => {
 
@@ -67,11 +56,20 @@ export const GraphComponent = props => {
     }
   }, [graphFormat.colors]);
 
+  const margin = React.useMemo(() => {
+    return {
+      top: graphFormat.margin?.top || 20,
+      right: graphFormat.margin?.right || 20,
+      bottom: graphFormat.margin?.bottom || 50,
+      left: graphFormat.margin?.left || 100
+    }
+  }, [graphFormat.margin]);
+
   const graphHeight = React.useMemo(() => {
-    const mt = get(graphFormat, ["margins", "marginTop"], 20);
-    const mb = get(graphFormat, ["margins", "marginBottom"], 50);
+    const mt = get(margin, "top", 20);
+    const mb = get(margin, "bottom", 50);
     return Math.max(mt + mb + 100, graphFormat.height);
-  }, [graphFormat.height, graphFormat.margins]);
+  }, [graphFormat.height, margin]);
 
   const hoverComp = React.useMemo(() => {
     return {
@@ -81,6 +79,7 @@ export const GraphComponent = props => {
     };
   }, [graphFormat.tooltip]);
 
+// if (graphType === "PieGraph")
 // console.log("GraphComponent::hoverComp", hoverComp);
 
   return (
@@ -124,7 +123,7 @@ export const GraphComponent = props => {
           show: get(graphFormat, ["yAxis", "show"], true),
           format: getFormatFunc(get(graphFormat, ["yAxis", "format"]))
         } }
-        margins={ get(graphFormat, "margins", {}) }
+        margin={ margin }
         legend={ get(graphFormat, "legend", {}) }
         hoverComp={ hoverComp }/>
 

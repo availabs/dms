@@ -702,6 +702,18 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
             showValue: true,
             cdn: () => isEdit && currentComponent?.useDataSource && canEditSection,
             items: [
+                // Suppresses the round Filter-icon pill that toggles the external-
+                // filter panel open/closed. Default `true` on new sections via
+                // each registry entry's `defaultState.display.hideExternalToggle`;
+                // absent on existing rows so the pill keeps rendering as before.
+                {
+                    name: 'Hide External Filter Toggle',
+                    label: 'Hide External Filter Toggle',
+                    type: 'toggle',
+                    showLabel: true,
+                    enabled: state?.display?.hideExternalToggle === true,
+                    setEnabled: v => dwAPI.setDisplay('hideExternalToggle', v),
+                },
                 {name: 'Filter Groups Component', type: () => <ComplexFilters state={dwAPI.state} setState={dwAPI.setState} />}
             ]}
     ]

@@ -562,6 +562,8 @@ const RenderItem = memo(function RenderItem ({
                                                  formatFunctions= {},
                                                  controls, setState, isEdit, display,
                                              }) {
+    const { UI } = React.useContext(ThemeContext) || {};
+    const { Button } = UI || {};
     const [tmpItem, setTmpItem] = useState(item || {}); // for form edit controls
     const [cardHovered, setCardHovered] = useState(false);
     const [isPickerOpen, setIsPickerOpen] = useState(false);
@@ -630,7 +632,7 @@ const RenderItem = memo(function RenderItem ({
         // `subWrapperStyle` so it overrides any `display: flex` that themes
         // still ship in that key.
         <div
-            className={`${theme.subWrapper} ${theme.subWrapperCompactView || ''} ${cardBorder ? 'border shadow' : ''} ${highlightClass} ${isSaving ? theme.formEditSavingAnimation : ''}`}
+            className={`${theme.subWrapper} ${theme.subWrapperCompactView || ''} ${cardBorder ? (theme.cardBorder || 'border shadow') : ''} ${highlightClass} ${isSaving ? theme.formEditSavingAnimation : ''}`}
             style={subWrapperStyle}
             onMouseEnter={() => {
                 setCardHovered(true);
@@ -729,13 +731,17 @@ const RenderItem = memo(function RenderItem ({
             {
                 isFormLikeEditMode && !controls?.clickSaveActive ? (
                     <div className={theme.formEditButtonsWrapper}>
-                        <button className={theme.formEditSaveButton} onClick={() => updateItem(undefined, undefined, tmpItem)}>save</button>
-                        <button className={theme.formEditCancelButton} onClick={() => setTmpItem(item)}>cancel</button>
+                        <Button activeStyle="active" onClick={() => updateItem(undefined, undefined, tmpItem)}>save</Button>
+                        <Button onClick={() => setTmpItem(item)}>cancel</Button>
                     </div>
                 ) : null
             }
             {
-                isAddingNewItem ? <button className={theme.formAddNewItemButton} onClick={() => addItem()}>add</button> : null
+                isAddingNewItem ? (
+                    <div className={theme.formAddNewItemWrapper}>
+                        <Button activeStyle="active" onClick={() => addItem()}>add</Button>
+                    </div>
+                ) : null
             }
         </div>
     )

@@ -34,6 +34,7 @@
 .avl-graph g.axis.secondary path.domain {
   stroke-dasharray: 4 4;
 }
+.avl-graph text.avl-pie-label,
 .avl-graph g.axis g.tick text {
   font-size: 0.75rem;
 }

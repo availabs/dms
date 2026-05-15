@@ -1,5 +1,4 @@
-import * as Headless from '@headlessui/react'
-import React, { forwardRef } from 'react'
+import React from 'react'
 import {ThemeContext} from '../useTheme'
 import Button from "./Button";
 

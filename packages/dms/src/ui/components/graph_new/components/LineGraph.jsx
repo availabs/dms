@@ -2,9 +2,7 @@ import React from "react"
 
 import { LineGraph, Legend } from "./avl-graph"
 
-import {
-	groups as d3groups
-} from "d3-array"
+import { groups as d3groups } from "d3-array"
 
 import { strictNaN } from "../utils"
 import { getAggFunc } from "./utils"
@@ -107,15 +105,6 @@ const LineGraphWrapper = props => {
 		return { ...props.yAxis };
 	}, [props.yAxis]);
 
-	const margin = React.useMemo(() => {
-		return {
-			top: props.margins?.marginTop || 20,
-			right: props.margins?.marginRight || 20,
-			bottom: props.margins.marginBottom || 50,
-			left: props.margins?.marginLeft || 100
-		}
-	}, [props.margins]);
-
   const legend = React.useMemo(() => {
     return {
       ...props.legend,
@@ -125,33 +114,30 @@ const LineGraphWrapper = props => {
     };
   }, [props.legend, props.colors, dataFromProps]);
 
-// console.log("GraphComponent::legend", legend);
+// console.log("LineGraphWrapper::legend", legend);
 
 	return (
     <div className="w-full bg-inherit flex">
       { !legend.show || legend.position !== "left" ? null :
-        <Legend { ...legend }/>
+      	<div className="flex items-center">
+        	<Legend { ...legend }/>
+        </div>
       }
       <div className="bg-inherit flex-1"
         style={ {
           height: `${ props.height }px`
         } }
       >
-				<LineGraph
+				<LineGraph { ...props }
 					data={ dataFromProps }
-					colors={ props.colors }
 					axisBottom={ axisBottom }
 					axisLeft={ axisLeft }
-					axisRight={ axisLeft }
-					xScale={ props.xScale }
-					margin={ margin }
-					hoverComp={ props.hoverComp }
-					width={ props.width }
-					height={ props.height }
-					bgColor={ props.bgColor }/>
+					axisRight={ axisLeft }/>
       </div>
       { !legend.show || legend.position !== "right" ? null :
-        <Legend { ...legend }/>
+      	<div className="flex items-center">
+        	<Legend { ...legend }/>
+        </div>
       }
     </div>
 	)

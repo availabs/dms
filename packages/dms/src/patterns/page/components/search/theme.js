@@ -105,7 +105,9 @@ export const searchButtonSettings = (theme) => {
       controls: [
         {
           label: 'Style',
-          type: 'Select',
+          type: 'MultiSelect',
+          singleSelectOnly: true,
+          searchable: false,
           options: (theme?.pages?.searchButton?.styles || [{}])
             .map((k, i) => ({ label: k?.name || i, value: i })),
           path: `pages.searchButton.options.activeStyle`,
@@ -144,7 +146,9 @@ export const searchPalletSettings = (theme) => {
       controls: [
         {
           label: 'Style',
-          type: 'Select',
+          type: 'MultiSelect',
+          singleSelectOnly: true,
+          searchable: false,
           options: (theme?.pages?.searchPallet?.styles || [{}])
             .map((k, i) => ({ label: k?.name || i, value: i })),
           path: `pages.searchPallet.options.activeStyle`,

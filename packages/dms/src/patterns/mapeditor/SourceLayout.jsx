@@ -7,19 +7,6 @@ import { Link, useParams } from 'react-router'
 import { get } from 'lodash-es'
 
 
-const Item = (to, icon, span, condition) => (
-    condition === undefined || condition ?
-        <Link to={ to } >
-            <div className='px-6 py-2 bg-blue-500 text-white hover:text-blue-100'>
-                <div className='hover:translate-x-2 transition duration-100 ease-out hover:ease-in'>
-                    <i className={`${icon} `} />
-                    <span className='pl-2'>{span}</span>
-                </div>
-            </div>
-        </Link>
-    : null
-)
-
 const SourcesLayout = ({children, fullWidth, hideBreadcrumbs, isListAll }) => {
   return (
 
@@ -38,37 +25,26 @@ const SourcesLayout = ({children, fullWidth, hideBreadcrumbs, isListAll }) => {
 
 export const Header = ({baseUrl=''}) => {
   const { UI } = React.useContext(ThemeContext) || {};
-  const { Dropdown } = UI;
+  const { NavigableMenu } = UI;
 
   return (
     <div className='pt-[2px]'>
-      <div className='h-full z-50'>
-        <Dropdown control={
+      <div className='h-full z-50 text-gray-800 group'>
+        <NavigableMenu
+          showTitle={false}
+          config={[
+            { type: 'link', name: 'Sources', path: `${baseUrl}/` },
+            { type: 'link', name: 'Map Editor', path: `${baseUrl}/mapeditor` },
+            { type: 'link', name: 'Activity', path: `${baseUrl}/tasks` },
+            { type: 'link', name: 'Upload', path: `${baseUrl}/create/source` },
+            { type: 'link', name: 'Schedule Tasks', path: `${baseUrl}/schedules` },
+          ]}
+        >
           <div className='px-2 flex text-lg'>
             <div className=' font-medium text-gray-800'> Data Manager</div>
             <div className='fal fa-angle-down px-3 mt-[6px] '/>
-          </div>}
-          className={`text-gray-800 group z-50`}
-          openType='click'
-        >
-          <div className='p-1 bg-blue-500 text-base z-40'>
-            <div key={'Sources'} className='py-1 '>
-              {Item(`${baseUrl}/`, 'fa fa-files flex-shrink-0  pr-1', 'Sources')}
-            </div>
-            <div key={'Map Editor'} className='py-1 '>
-              {Item(`${baseUrl}/mapeditor`, 'fa fa-pen-to-square flex-shrink-0  pr-1', 'Map Editor')}
-            </div>
-            <div key={'Activity'} className='py-1 '>
-              {Item(`${baseUrl}/tasks`, 'fa fa-list flex-shrink-0  pr-1', 'Activity')}
-            </div>
-            <div key={'Upload'} className='py-1 '>
-              {Item(`${baseUrl}/create/source`, 'fa fa-file-plus flex-shrink-0  pr-1', 'Upload')}
-            </div>
-            <div key={'Schedule Tasks'} className='py-1 '>
-              {Item(`${baseUrl}/schedules`, 'fa fa-clock flex-shrink-0  pr-1', 'Schedule Tasks')}
-            </div>
           </div>
-        </Dropdown>
+        </NavigableMenu>
       </div>
 
     </div>
@@ -77,7 +53,7 @@ export const Header = ({baseUrl=''}) => {
 
 export const DataManagerHeader = () => {
   const { UI } = React.useContext(ThemeContext) || {};
-  const { Dropdown } = UI;
+  const { NavigableMenu } = UI;
   // const { pgEnv } = React.useContext(MapEditorContext)
   // const baseUrl = '/'
   const { baseUrl='/', user={}} = {}
@@ -86,24 +62,19 @@ export const DataManagerHeader = () => {
     <div className='pt-[2px]'>
       { user?.authLevel >= 5 ?
         (
-          <div className='h-full'>
-            <Dropdown control={
+          <div className='h-full text-gray-800 group'>
+            <NavigableMenu
+              showTitle={false}
+              config={[
+                { type: 'link', name: 'Add New Datasource', path: `${baseUrl}/create/source` },
+              ]}
+            >
               <div className='px-2 flex text-lg'>
                 <div className=' font-medium text-gray-800'> Data Manager</div>
                 <div className='fal fa-angle-down px-3 mt-[6px] '/>
 
-              </div>}
-              className={`text-gray-800 group`} openType='click'
-            >
-              <div className='p-1 bg-blue-500 text-base'>
-                <div className='py-1 '>
-                    {Item(`${baseUrl}/create/source`, 'fa fa-file-plus flex-shrink-0  pr-1', 'Add New Datasource')}
-                </div>
-                {/*<div className='py-1 '>
-                    {Item(`${baseUrl}/settings`, 'fa fa-cog flex-shrink-0  pr-1', 'Datamanager Settings')}
-                </div>*/}
               </div>
-            </Dropdown>
+            </NavigableMenu>
           </div>
         )
         : <div/>

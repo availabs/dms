@@ -64,7 +64,7 @@ function DraggableNavItem ({activeItem, item, dataItems, handleCollapseIconClick
     const { baseUrl, user } = React.useContext(CMSContext);
     const { theme, UI } = React.useContext(ThemeContext);
 
-    const { Icon, Menu } = UI;
+    const { Icon, NavigableMenu } = UI;
     const { apiUpdate } =  React.useContext(PageContext) || {}
     const { pathname = '/edit' } = useLocation();
     const submit = useSubmit()
@@ -100,8 +100,9 @@ function DraggableNavItem ({activeItem, item, dataItems, handleCollapseIconClick
                             }
                         ].map(modal => <div onClick={modal.onClick}>{modal.name}</div>)
                     }*/}
-                    <Menu
-                      items={[
+                    <NavigableMenu
+                      showTitle={false}
+                      config={[
                         {
                           name: (<span className=''>Rename</span>),
                           onClick: () => setShowRename(true)
@@ -125,7 +126,7 @@ function DraggableNavItem ({activeItem, item, dataItems, handleCollapseIconClick
                       <div className='flex items-center text-slate-300 hover:text-slate-600 rounded-full hover:bg-blue-300'>
                         <Icon icon={'EllipsisVertical'} className='size-5' />
                       </div>
-                    </Menu>
+                    </NavigableMenu>
                     {/*unpublished pill*/}
                     {/*{hasChanges ?  <DraftPage className={'text-orange-500'} />  : null}*/}
 
@@ -313,20 +314,17 @@ export function PublishButton () {
 
   if(!isUserAuthed(['publish-page'])) return null;
   return (
-    <div className='w-full flex justify-center h-[40px]'>
+    <div className='w-full flex justify-center gap-1 h-[40px]'>
       { hasChanges && (
         <Button
-          padding={'flex items-center h-[40px] mr-1 cursor-pointer'}
-          type={'inactive'}
           onClick={() => discardChanges(user,item, apiUpdate)}
         >
           <span className='text-nowrap'> Discard </span>
         </Button>
       )}
       <Button
-          padding={' flex items-center h-[40px]'}
           disabled={!hasChanges}
-          type={hasChanges ? 'active' : 'inactive'}
+          activeStyle={hasChanges ? 'active' : undefined}
           onClick={() => publish(user,item, apiUpdate)}
       >
         <span className='text-nowrap'> {hasChanges ? `Publish` : `No Changes`} </span>

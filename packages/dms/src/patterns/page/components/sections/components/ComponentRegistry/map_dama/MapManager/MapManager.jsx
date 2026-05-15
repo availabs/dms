@@ -1,8 +1,8 @@
-import React, { useContext, useMemo, Fragment, useRef, useEffect} from 'react'
+import React, { useContext, useMemo, useRef, useEffect} from 'react'
 import { MapContext } from '../'
 import mapboxgl from "maplibre-gl";
 import { isEqual, get, set, cloneDeep } from "lodash-es"
-import { Menu, Transition, Tab, Dialog } from '@headlessui/react'
+import { ThemeContext } from "../../../../../../../../ui/themeContext"
 import { Fill, Line, Circle, MenuDots , CaretUpSolid, CaretDownSolid, CaretDown,  Plus, Eye, EyeSlashed,EyeClosed} from '../../../../../../../mapeditor/MapEditor/components/icons'
 import { SelectSymbology } from './SymbologySelector'
 import {categoryPaint, isValidCategoryPaint ,choroplethPaint} from '../../../../../../../mapeditor/MapEditor/components/LayerEditor/datamaps';
@@ -64,28 +64,16 @@ function arraymove(arr, fromIndex, toIndex) {
 }
 
 
-function SymbologyMenu({button, location='left-0', width='w-36', children}) {
-  
+function SymbologyMenu({button, width='w-36', children}) {
+  const { UI } = React.useContext(ThemeContext) || {};
+  const { Popup } = UI || {};
 
   return (
-      <Menu as="div" className="relative inline-block text-left">
-        <Menu.Button>
-          {button}
-        </Menu.Button>
-        <Transition
-          as={Fragment}
-          enter="transition ease-out duration-100"
-          enterFrom="transform opacity-0 scale-95"
-          enterTo="transform opacity-100 scale-100"
-          leave="transition ease-in duration-75"
-          leaveFrom="transform opacity-100 scale-100"
-          leaveTo="transform opacity-0 scale-95"
-        >
-          <Menu.Items className={`absolute ${location} mt-1 ${width} origin-top-left divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black/5 focus:outline-none`}>
-            {children}
-          </Menu.Items>
-        </Transition>
-      </Menu>
+    <Popup button={button}>
+      <div className={`${width} divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black/5`}>
+        {children}
+      </div>
+    </Popup>
   )
 }
 
@@ -416,7 +404,7 @@ function SymbologyRow ({tabIndex, row, rowIndex}) {
             button={<MenuDots className={ `fill-white cursor-pointer group-hover:fill-gray-400 group-hover:hover:fill-pink-700`}/>}
           >
             {dynamicFilters && dynamicFilters.length > 0 && <div className="px-1 py-1 ">
-              <Menu.Item >
+              <div>
                 {({ active }) => (
                   <div 
                     className={`${
@@ -435,10 +423,10 @@ function SymbologyRow ({tabIndex, row, rowIndex}) {
                     </button>
                   </div>
                 )}
-              </Menu.Item>
+              </div>
             </div>}
             <div className="px-1 py-1 ">
-                <Menu.Item >
+                <div>
                   {({ active }) => (
                     <div 
                       className={`${
@@ -452,10 +440,10 @@ function SymbologyRow ({tabIndex, row, rowIndex}) {
                       }}
                     >Remove</div>
                   )}
-                </Menu.Item>
+                </div>
               </div>
             <div className="px-1 py-1 ">
-              <Menu.Item >
+              <div>
                 {({ active }) => (
                   <div 
                     className={`${
@@ -478,7 +466,7 @@ function SymbologyRow ({tabIndex, row, rowIndex}) {
                     }}
                   >Update symbology</div>
                 )}
-              </Menu.Item>
+              </div>
             </div>
           </SymbologyMenu>
         </div>)}
@@ -553,7 +541,7 @@ function TabPanel ({tabIndex, tab}) {
             }
           >
             <div className="px-1 py-1 ">
-                <Menu.Item >
+                <div>
                   {({ active }) => (
                     <div 
                       className={`${
@@ -567,10 +555,10 @@ function TabPanel ({tabIndex, tab}) {
                       }}
                     >Remove</div>
                   )}
-                </Menu.Item>
+                </div>
               </div>
               {tabIndex !== 0 && <div className="px-1 py-1 ">
-                <Menu.Item >
+                <div>
                   {({ active }) => (
                     <div 
                       className={`${
@@ -583,10 +571,10 @@ function TabPanel ({tabIndex, tab}) {
                       }}
                     >Move section up</div>
                   )}
-                </Menu.Item>
+                </div>
               </div>}
               {tabIndex !== numTabs-1 && <div className="px-1 py-1 ">
-                <Menu.Item >
+                <div>
                   {({ active }) => (
                     <div  
                       className={`${
@@ -599,7 +587,7 @@ function TabPanel ({tabIndex, tab}) {
                       }}
                     >Move section down</div>
                   )}
-                </Menu.Item>
+                </div>
               </div>}
           </SymbologyMenu>
           <SymbologyMenu 
@@ -615,25 +603,15 @@ function TabPanel ({tabIndex, tab}) {
             <div className="px-1 py-1 flex flex-wrap">
                 {iconList.map(icon => {
                   return (
-                    <Menu.Item key={icon}>
-                      {({ active }) => (
-                        <div 
-                          className={`${
-                            active ? 'bg-pink-50 ' : ''
-                          } rounded-md p-1 text-lg`}
-                          onClick={() => {
-                            setState(draft => {
-                              draft.tabs[tabIndex].icon = icon
-                              //console.log('remove tab', state, tabIndex)
-                              //draft.tabs.splice(tabIndex,1)
-                            })
-                          }}
-                        >
-                          <div className={` cursor-pointer w-[28px] h-[28px] justify-center rounded hover:bg-slate-100 flex items-center ${icon}`} />
-                          
-                        </div>
-                      )}
-                    </Menu.Item>
+                    <div key={icon} className='rounded-md p-1 text-lg hover:bg-pink-50'
+                      onClick={() => {
+                        setState(draft => {
+                          draft.tabs[tabIndex].icon = icon
+                        })
+                      }}
+                    >
+                      <div className={` cursor-pointer w-[28px] h-[28px] justify-center rounded hover:bg-slate-100 flex items-center ${icon}`} />
+                    </div>
                   )
                 })}
               </div>
@@ -674,8 +652,9 @@ export const HEIGHT_OPTIONS = {
 
 function MapManager () {
   const { state, setState } = React.useContext(MapContext);
-  
-  const { blankBaseMap, isEdit, hideControls, initialBounds, tabs, height, zoomPan } = useMemo(() => {  
+  const [tabIdx, setTabIdx] = React.useState(0);
+
+  const { blankBaseMap, isEdit, hideControls, initialBounds, tabs, height, zoomPan } = useMemo(() => {
     return {
       isEdit: get(state, ['isEdit'], false),
       blankBaseMap: get(state, ['blankBaseMap'], false),
@@ -686,32 +665,34 @@ function MapManager () {
       zoomPan: get(state, ['zoomPan'], true),
     };
   }, [state]);
+  const safeTabIdx = Math.min(tabIdx, Math.max(tabs.length - 1, 0));
   const containerOverflow = isEdit ? 'overflow-x-auto overflow-x-visible' : 'overflow-y-auto';
+  // Inline tab implementation rather than UI.Tabs because SymbologyMenu + Plus
+  // siblings live in the same flex column as the tab list, and tabs are derived
+  // from runtime state (Component-per-tab would force re-mount on each change).
   return(
     <div className='p-4'>
       <div className={`bg-white/95 w-[340px] ${containerOverflow} rounded-lg drop-shadow-lg pointer-events-auto  min-h-[400px] max-h-[calc(100vh_-_111px)] scrollbar-sm `}>
-        <Tab.Group className='flex'>
+        <div className='flex'>
           <div className='flex flex-col justify-between items-center border-r'>
-            <Tab.List className='flex w-[45px] flex-1 flex-col '>
+            <div role="tablist" className='flex w-[45px] flex-1 flex-col '>
               {tabs.map((tab,i) => (
-                <Tab  key={tab.name} as={Fragment}>
-                  {({ selected }) => (
-                    <div
-                      className={`
-                        ${selected ? 
-                          'text-blue-500 border-r-2 border-blue-600' : 
-                          'text-slate-400'} text-sm cursor-pointer
-                      `}
-                    >
-                      <div className='w-full flex items-center'>
-                        <i className={`text-lg hover:text-blue-500 ${tab?.icon || 'fad fa-layer-group'} fa-fw mx-auto`} />
-                      </div>
-                      
-                    </div>
-                  )}
-                </Tab>
+                <button
+                  key={tab.name}
+                  type="button"
+                  role="tab"
+                  aria-selected={i === safeTabIdx}
+                  onClick={() => setTabIdx(i)}
+                  className={`${i === safeTabIdx ?
+                    'text-blue-500 border-r-2 border-blue-600' :
+                    'text-slate-400'} text-sm cursor-pointer`}
+                >
+                  <div className='w-full flex items-center'>
+                    <i className={`text-lg hover:text-blue-500 ${tab?.icon || 'fad fa-layer-group'} fa-fw mx-auto`} />
+                  </div>
+                </button>
               ))}
-            </Tab.List>
+            </div>
             {
               isEdit && (
               <>
@@ -724,145 +705,75 @@ function MapManager () {
                     </div>
                   }
                 >
-                  <div className="px-1 py-1">
-                    <Menu.Item>
-                      {({ active }) => (
-                        <div 
-                          className={`${
-                            active ? 'bg-pink-50 ' : ''
-                          } group flex w-full items-center rounded-md p-1 text-sm`}
-                        >
-                          Height:
-                          <select
-                            className={`ml-1 bg-transparent`}
-                            value={height}
-                            onChange={(e) => {
-                              setState((draft) => {
-                                console.log("setting new map hieght::", e)
-                                draft.height = e.target.value;
-                              });
-                            }}
-                          >
-                            {Object.keys(HEIGHT_OPTIONS).map((hOptionKey, i) => {
-                              return (
-                                <option key={i} value={hOptionKey}>
-                                  {HEIGHT_OPTIONS[hOptionKey]}
-                                </option>
-                              );
-                            })}
-                          </select>
-                        </div>
-                      )}
-                    </Menu.Item>
+                  <div className="px-1 py-1 hover:bg-pink-50 group flex w-full items-center rounded-md p-1 text-sm">
+                    Height:
+                    <select
+                      className='ml-1 bg-transparent'
+                      value={height}
+                      onChange={(e) => {
+                        setState((draft) => {
+                          draft.height = e.target.value;
+                        });
+                      }}
+                    >
+                      {Object.keys(HEIGHT_OPTIONS).map((hOptionKey, i) => (
+                        <option key={i} value={hOptionKey}>
+                          {HEIGHT_OPTIONS[hOptionKey]}
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                  <div className="px-1 py-1">
-                    <Menu.Item>
-                      {({ active }) => (
-                        <div 
-                          className={`${
-                            active ? 'bg-pink-50 ' : ''
-                          } group flex w-full items-center rounded-md p-1 text-sm`}
-                        >
-                          <button
-                            onClick={() => {
-                              setState(draft => {
-                                draft.hideControls = !hideControls;
-                              })
-                            }}
-                          >
-                            {hideControls ? "Show Map Controls" : "Hide Map Controls"}
-                          </button>
-                        </div>
-                      )}
-                    </Menu.Item>
+                  <div className="px-1 py-1 hover:bg-pink-50 group flex w-full items-center rounded-md text-sm">
+                    <button
+                      onClick={() => {
+                        setState(draft => { draft.hideControls = !hideControls })
+                      }}
+                    >
+                      {hideControls ? "Show Map Controls" : "Hide Map Controls"}
+                    </button>
                   </div>
-                  <div className="px-1 py-1">
-                    <Menu.Item>
-                      {({ active }) => (
-                        <div 
-                          className={`${
-                            active ? 'bg-pink-50 ' : ''
-                          } group flex w-full items-center rounded-md p-1 text-sm`}
-                        >
-                          <button 
-                            onClick={() => {
-                            setState(draft => {
-                              draft.zoomPan = !zoomPan;
-                            })
-                          }}>
-                            {zoomPan ? "Disable zoom/pan" : "Enable zoom/pan"}
-                          </button>
-                        </div>
-                      )}
-                    </Menu.Item>
+                  <div className="px-1 py-1 hover:bg-pink-50 group flex w-full items-center rounded-md text-sm">
+                    <button
+                      onClick={() => {
+                        setState(draft => { draft.zoomPan = !zoomPan })
+                      }}
+                    >
+                      {zoomPan ? "Disable zoom/pan" : "Enable zoom/pan"}
+                    </button>
                   </div>
-                  <div className="px-1 py-1">
-                    <Menu.Item>
-                      {({ active }) => (
-                        <div 
-                          className={`${
-                            active ? 'bg-pink-50 ' : ''
-                          } group flex w-full items-center rounded-md p-1 text-sm`}
-                        >
-                          <button
-                            onClick={() => {
-                              setState(draft => {
-                                draft.setInitialBounds = true;
-                              })
-                            }}
-                          >
-                            Set Initial Viewport
-                          </button>
-                        </div>
-                      )}
-                    </Menu.Item>
+                  <div className="px-1 py-1 hover:bg-pink-50 group flex w-full items-center rounded-md text-sm">
+                    <button
+                      onClick={() => {
+                        setState(draft => { draft.setInitialBounds = true })
+                      }}
+                    >
+                      Set Initial Viewport
+                    </button>
                   </div>
                   {
-                    initialBounds && (                  
-                      <div className="px-1 py-1">
-                        <Menu.Item>
-                          {({ active }) => (
-                            <div 
-                              className={`${
-                                active ? 'bg-pink-50 ' : ''
-                              } group flex w-full items-center text-red-400 rounded-md p-1 text-sm`}
-                            >
-                              <button
-                                onClick={() => {
-                                  setState(draft => {
-                                    draft.setInitialBounds = false;
-                                    draft.initialBounds = null;
-                                  })
-                                }}
-                              >
-                                Remove Initial Viewport
-                              </button>
-                            </div>
-                          )}
-                        </Menu.Item>
+                    initialBounds && (
+                      <div className="px-1 py-1 hover:bg-pink-50 group flex w-full items-center text-red-400 rounded-md text-sm">
+                        <button
+                          onClick={() => {
+                            setState(draft => {
+                              draft.setInitialBounds = false;
+                              draft.initialBounds = null;
+                            })
+                          }}
+                        >
+                          Remove Initial Viewport
+                        </button>
                       </div>
                     )
                   }
-                  <div className="px-1 py-1">
-                    <Menu.Item>
-                      {({ active }) => (
-                        <div 
-                          className={`${
-                            active ? 'bg-pink-50 ' : ''
-                          } group flex w-full items-center rounded-md p-1 text-sm`}
-                        >
-                          <button
-                            onClick={() => {
-                              setState(draft => {
-                                draft.blankBaseMap = !draft.blankBaseMap;
-                              })
-                            }}
-                          >
-                            {blankBaseMap ? "Reset base map layer" : "Use blank basemap"}
-                          </button>
-                        </div>
-                      )}
-                    </Menu.Item>
+                  <div className="px-1 py-1 hover:bg-pink-50 group flex w-full items-center rounded-md text-sm">
+                    <button
+                      onClick={() => {
+                        setState(draft => { draft.blankBaseMap = !draft.blankBaseMap })
+                      }}
+                    >
+                      {blankBaseMap ? "Reset base map layer" : "Use blank basemap"}
+                    </button>
                   </div>
                 </SymbologyMenu>
                 <div 
@@ -877,14 +788,14 @@ function MapManager () {
           )}  
           </div>
 
-          <Tab.Panels className='flex-1 w-[220px] '>
-            {tabs.map((tab,i) => (
-              <Tab.Panel key={i} className='w-full'>
-                <TabPanel  tab={tab} tabIndex={i} />
-              </Tab.Panel>)
+          <div role="tabpanel" className='flex-1 w-[220px] '>
+            {tabs[safeTabIdx] && (
+              <div className='w-full'>
+                <TabPanel tab={tabs[safeTabIdx]} tabIndex={safeTabIdx} />
+              </div>
             )}
-          </Tab.Panels>
-        </Tab.Group>
+          </div>
+        </div>
       </div>
     </div>
   )
@@ -956,6 +867,8 @@ const DynamicFilter = ({layer, symbology_id}) => {
 
 
 function DynamicFilterControl({button, layer, sampleData, filterIndex, symbology_id}) {
+  const { UI } = React.useContext(ThemeContext) || {};
+  const { Popup } = UI || {};
   const { state, setState, falcor, pgEnv  } = React.useContext(MapContext);
   const falcorCache = falcor.getCache();
 
@@ -966,71 +879,37 @@ function DynamicFilterControl({button, layer, sampleData, filterIndex, symbology
   }, [state, filterIndex]);
   
   return (
-    <Menu as="div" className="relative inline-block text-left w-full">
-      <Menu.Button as="div">{button}</Menu.Button>
-      <Transition
-        as={Fragment}
-        enter="transition ease-out duration-100"
-        enterFrom="transform opacity-0 scale-95"
-        enterTo="transform opacity-100 scale-100"
-        leave="transition ease-in duration-75"
-        leaveFrom="transform opacity-100 scale-100"
-        leaveTo="transform opacity-0 scale-95"
-      >
-        <Menu.Items
-          anchor="right"
-          className="absolute w-48 origin-top-right divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black/5 focus:outline-none"
-        >
-          <div className=" p-2 max-h-[250px] overflow-auto ">
-            {sampleData.map((datum) => {
-              return (
-                <Menu.Item key={`menu_item_${datum}`}>
-                  {({ active }) => (
-                    <div
-                      className={`${
-                        active ? "bg-pink-50 " : ""
-                      } group flex w-full items-center rounded-md px-1 py-1 text-sm`}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={filterValues.includes(datum)}
-                        onChange={(e) => {
-                          if (filterValues.includes(datum)) {
-                            setState((draft) => {
-                              draft.symbologies[symbology_id].symbology.layers[layer.id][
-                                "dynamic-filters"
-                              ][filterIndex].values = filterValues.filter(
-                                (val) => val !== datum
-                              );
-                            });
-                          } else {
-                            const newValues = [...filterValues];
-                            newValues.push(datum);
-
-                            setState((draft) => {
-                              draft.symbologies[symbology_id].symbology.layers[layer.id][
-                                "dynamic-filters"
-                              ][filterIndex].values = newValues;
-                            });
-                          }
-                        }}
-                      />
-                      <div className="truncate flex items-center text-[15px] px-4 py-1">
-                        {datum}
-                      </div>
-                    </div>
-                  )}
-                </Menu.Item>
-              );
-            })}
+    <Popup button={button}>
+      <div className="w-48 rounded-md bg-white shadow-lg ring-1 ring-black/5 p-2 max-h-[250px] overflow-auto">
+        {sampleData.map((datum) => (
+          <div
+            key={`menu_item_${datum}`}
+            className="group flex w-full items-center rounded-md px-1 py-1 text-sm hover:bg-pink-50"
+          >
+            <input
+              type="checkbox"
+              checked={filterValues.includes(datum)}
+              onChange={() => {
+                if (filterValues.includes(datum)) {
+                  setState((draft) => {
+                    draft.symbologies[symbology_id].symbology.layers[layer.id]["dynamic-filters"][filterIndex].values =
+                      filterValues.filter((val) => val !== datum);
+                  });
+                } else {
+                  setState((draft) => {
+                    draft.symbologies[symbology_id].symbology.layers[layer.id]["dynamic-filters"][filterIndex].values =
+                      [...filterValues, datum];
+                  });
+                }
+              }}
+            />
+            <div className="truncate flex items-center text-[15px] px-4 py-1">
+              {datum}
+            </div>
           </div>
-        </Menu.Items>
-      </Transition>
-    </Menu>
+        ))}
+      </div>
+    </Popup>
   );
 } 
 

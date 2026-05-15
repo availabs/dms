@@ -26,8 +26,8 @@ const gridClasses = {
 export const RenderFilters = ({ isEdit, defaultOpen = true }) => {
     const {state, setState, apiLoad} = React.useContext(ComponentContext) || {};
     const { theme: themeFromContext = {}, UI } = React.useContext(ThemeContext) || {};
-    const theme = {...themeFromContext, filters: {...filterTheme, ...(themeFromContext.filter || {})}}
-    const { Icon } = UI;
+    const theme = {...themeFromContext, filters: {...filterTheme, ...(themeFromContext.filters || {})}}
+    const { Icon, Button } = UI;
     const { pageState } = React.useContext(PageContext) || {}; // page to extract page filters
     const [open, setOpen] = useState(defaultOpen);
     const [filterOptions, setFilterOptions] = useState([]); // [{column, uniqValues}]
@@ -245,30 +245,33 @@ export const RenderFilters = ({ isEdit, defaultOpen = true }) => {
         inline: theme.filters.labelWrapperInline,
         stacked: theme.filters.labelWrapperStacked
     }
+    const rowClass = placement === 'inline'
+        ? theme.filters.conditionRowInline
+        : theme.filters.conditionRowStacked;
+
+    const toggleButton = (
+        <Button
+            className={theme.filters.toggleButton}
+            onClick={() => setOpen(o => !o)}
+        >
+            <Icon icon={'Filter'} className={theme.filters.toggleIcon} title={'Filter'} />
+        </Button>
+    );
+
     if(!open) {
         return (
             <div className={`${theme.filters.filtersWrapper} print:hidden`}>
-                <div className={'w-fit -mt-4 p-2 border rounded-full self-end'}>
-                    <Icon icon={'Filter'}
-                          className={'text-slate-400 hover:text-blue-500 size-4 hover:cursor-pointer'}
-                          title={'Filter'}
-                          onClick={() => setOpen(true)} />
-                </div>
+                {toggleButton}
             </div>
         )
     }
 
     return (
         <div className={`${theme.filters.filtersWrapper} print:hidden`}>
-            <div className={'w-fit -mt-4 p-2 border rounded-full self-end'}>
-                <Icon icon={'Filter'}
-                    className={'text-slate-400 hover:text-blue-500 size-4 hover:cursor-pointer'}
-                    title={'Filter'}
-                    onClick={() => setOpen(false)} />
-            </div>
-            <div className={`grid ${gridClasses[gridSize]}`}>
+            {toggleButton}
+            <div className={`${theme.filters.conditionsGrid} ${gridClasses[gridSize]}`}>
                 {filterColumnsToRender.map((filterColumn, i) => (
-                    <div key={i} className={`w-full flex ${placement === 'inline' ? 'flex-row'  : 'flex-col'} items-center gap-1`}>
+                    <div key={i} className={rowClass}>
                         <div className={labelWrapperClass[placement]}>
                             <span className={theme.filters.filterLabel}>{filterColumn.customName || filterColumn.display_name || filterColumn.name}</span>
                             <span className={theme.filters.loadingText}>{loading ? 'loading...' : ''}</span>

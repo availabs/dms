@@ -5,7 +5,6 @@ import { ThemeContext } from "../../../../../../ui/themeContext"
 import { StyledControl } from '../ControlWrappers'
 import {AddColumnSelectControl, controlTypes } from '../Controls'
 import { get, set } from 'lodash-es'
-import { Switch } from '@headlessui/react'
 import { Close } from '../../icons'
 const DEFAULT_STRING_FILTER = {
   operator: "==",
