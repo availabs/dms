@@ -36,8 +36,6 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
     // ============================================ helpers begin ======================================================
     // =================================================================================================================
     const groupControl = resolvedControls?.columns?.find(c => c.key === 'group') || {};
-
-    console.log("currentComponent: ", currentComponent);
     
     // Registry of control type transformers - all use nested submenu pattern
     const controlItemTransformers = {

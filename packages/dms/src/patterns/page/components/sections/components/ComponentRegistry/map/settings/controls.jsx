@@ -52,6 +52,27 @@ const FilterGroup = ({ title, children, highlighted = false }) => (
   </div>
 );
 
+/**
+ * Map settings previously expected `ThemeContext.UI.Select`, but the shared
+ * DMS UI bundle does not expose a Select component. Use a small local select
+ * so these controls keep working in every siteconfig/theme context without
+ * depending on a missing UI export.
+ */
+const MapSettingsSelect = ({ value, options = [], onChange, disabled = false }) => (
+  <select
+    className="w-full rounded-md border border-slate-700 bg-white px-3 py-2 text-sm text-slate-900 outline-none disabled:cursor-not-allowed disabled:opacity-60"
+    value={value ?? ""}
+    onChange={onChange}
+    disabled={disabled}
+  >
+    {options.map((option, index) => (
+      <option key={`${option.value}_${index}`} value={option.value}>
+        {option.label}
+      </option>
+    ))}
+  </select>
+);
+
 function MapSettingsSearchSelect({ options = [], value, onChange, placeholder = "Search...", disabled = false }) {
   const [query, setQuery] = useState("");
 
@@ -144,13 +165,12 @@ const MapLayerControl = ({ mapAPI }) => {
 };
 
 const MapHeightControl = ({ mapAPI }) => {
-  const { state, heightOptions, setHeight, UI } = useMapSettingsUI(mapAPI);
-  const { Select } = UI;
+  const { state, heightOptions, setHeight } = useMapSettingsUI(mapAPI);
 
   return (
     <InlineField label="Height" border={false}>
       <div className="w-[8rem] max-w-[40vw]">
-        <Select
+        <MapSettingsSelect
           value={state.height}
           options={heightOptions.map((option) => ({ label: option, value: option }))}
           onChange={(event) => setHeight(event.target.value)}
@@ -161,13 +181,12 @@ const MapHeightControl = ({ mapAPI }) => {
 };
 
 const MapLegendPositionControl = ({ mapAPI }) => {
-  const { state, panelPositionOptions, setLegendPosition, UI } = useMapSettingsUI(mapAPI);
-  const { Select } = UI;
+  const { state, panelPositionOptions, setLegendPosition } = useMapSettingsUI(mapAPI);
 
   return (
     <InlineField label="Legend Position">
       <div className="w-[9.5rem] max-w-[42vw]">
-        <Select
+        <MapSettingsSelect
           value={state.legendPosition}
           options={panelPositionOptions.map((option) => ({ label: option, value: option }))}
           onChange={(event) => setLegendPosition(event.target.value)}
@@ -178,15 +197,14 @@ const MapLegendPositionControl = ({ mapAPI }) => {
 };
 
 const MapPluginControlPositionControl = ({ mapAPI }) => {
-  const { state, arePluginsLoaded, panelPositionOptions, setPluginControlPosition, UI } = useMapSettingsUI(mapAPI);
-  const { Select } = UI;
+  const { state, arePluginsLoaded, panelPositionOptions, setPluginControlPosition } = useMapSettingsUI(mapAPI);
 
   if (!arePluginsLoaded) return null;
 
   return (
     <InlineField label="Plugin Control Position">
       <div className="w-[9.5rem] max-w-[42vw]">
-        <Select
+        <MapSettingsSelect
           value={state.pluginControlPosition}
           options={panelPositionOptions.map((option) => ({ label: option, value: option }))}
           onChange={(event) => setPluginControlPosition(event.target.value)}
@@ -288,7 +306,7 @@ const MapInteractiveFiltersControl = ({ mapAPI }) => {
 
 const MapDynamicFiltersControl = ({ mapAPI }) => {
   const { activeLayer, dynamicFilterOptions, setDynamicSearchParamKey, setDynamicDefaultValue, setDynamicDataType, UI } = useMapSettingsUI(mapAPI);
-  const { Input, Select } = UI;
+  const { Input } = UI;
   const filters = dynamicFilterOptions || [];
 
   if (!activeLayer || !filters.length) return <div className={emptyStateClassName}>No dynamic filters configured</div>;
@@ -305,7 +323,7 @@ const MapDynamicFiltersControl = ({ mapAPI }) => {
               <Input type="text" value={filter.defaultValue ?? ""} onChange={(event) => setDynamicDefaultValue(index, event.target.value)} />
             </Field>
             <Field label="Type" compact={false}>
-              <Select
+              <MapSettingsSelect
                 value={filter.dataType || ""}
                 options={[
                   { label: "String", value: "" },
