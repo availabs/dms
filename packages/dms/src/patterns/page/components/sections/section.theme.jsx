@@ -79,7 +79,9 @@ export const sectionSettings = (theme) => {
       controls: [
         {
           label: 'Style',
-          type: 'Select',
+          type: 'MultiSelect',
+          singleSelectOnly: true,
+          searchable: false,
           options: (theme?.pages?.section?.styles || [{}])
             .map((k, i) => ({ label: k?.name || i, value: i })),
           path: `pages.section.options.activeStyle`,

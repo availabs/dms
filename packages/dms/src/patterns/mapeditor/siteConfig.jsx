@@ -4,6 +4,7 @@ import { falcorGraph, FalcorProvider } from "@availabs/avl-falcor"
 
 import UI from "../../ui"
 import { ThemeContext } from "../../ui/themeContext"
+import { getPatternTheme } from "../../ui/useTheme"
 import { MapEditorContext } from "./context"
 
 import { initializePatternFormat } from "../../dms-manager/_utils"
@@ -25,6 +26,7 @@ const mapeditorConfig = ({
   DAMA_HOST,
   pgEnv,
   useFalcor,
+  themes = {},
 	...rest
 }) => {
   baseUrl = baseUrl === '/' ? '' : baseUrl;
@@ -32,6 +34,8 @@ const mapeditorConfig = ({
   const patternInstance = getInstance(patternType) || patternType;
   const format = initializePatternFormat(MapEditorFormat, app, patternInstance);
   const childType = format.type; // e.g. "map_editor_test|symbology"
+
+  const theme = getPatternTheme(themes, pattern);
 
 	Object.keys(damaMapPlugins).forEach(plugin => RegisterPlugin(plugin, damaMapPlugins[plugin]));
 
@@ -76,7 +80,7 @@ const mapeditorConfig = ({
 
 					return (
 						<MapEditorContext.Provider value={ mapeditorContextValue }>
-							<ThemeContext.Provider value={{ UI }}>
+							<ThemeContext.Provider value={{ theme, UI }}>
 								{ children }
 							</ThemeContext.Provider>
 						</MapEditorContext.Provider>

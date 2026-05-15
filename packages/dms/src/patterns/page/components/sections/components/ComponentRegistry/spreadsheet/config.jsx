@@ -95,7 +95,7 @@ export default {
     themeKey: 'table',
     defaultState: {
         filters: { op: 'AND', groups: [] },
-        display: { usePagination: true, pageSize: 5 },
+        display: { usePagination: true, pageSize: 5, hideExternalToggle: true },
         columns: [],
         data: [],
         externalSource: { columns: [] }

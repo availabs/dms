@@ -94,7 +94,9 @@ export const sectionArraySettings = (theme) => {
       controls: [
         {
           label: 'Style',
-          type: 'Select',
+          type: 'MultiSelect',
+          singleSelectOnly: true,
+          searchable: false,
           options: (theme?.pages?.sectionArray?.styles || [{}])
             .map((k, i) => ({ label: k?.name || i, value: i })),
           path: `pages.sectionArray.options.activeStyle`,

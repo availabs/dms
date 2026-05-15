@@ -84,3 +84,19 @@ export const makeLexicalFormat = value => {
         return value?.root?.children ? value : makeDefaultLexicalValue(value);
     }
 }
+
+// Column-type predicate for choropleth/heatmap eligibility. Covers both the
+// DMS-normalized strings ('integer'/'number') and raw Postgres types that
+// arrive from UDA sources (INTEGER, BIGINT, DOUBLE PRECISION, NUMERIC, etc.).
+const NUMERIC_COLUMN_TYPES = new Set([
+    'integer', 'number',
+    'int', 'int2', 'int4', 'int8',
+    'smallint', 'bigint',
+    'real', 'double precision', 'float', 'float4', 'float8',
+    'numeric', 'decimal',
+    'serial', 'smallserial', 'bigserial',
+    'money',
+]);
+
+export const isNumericColumnType = (t) =>
+    typeof t === 'string' && NUMERIC_COLUMN_TYPES.has(t.trim().toLowerCase());

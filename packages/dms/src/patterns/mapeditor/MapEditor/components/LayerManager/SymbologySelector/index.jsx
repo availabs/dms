@@ -3,15 +3,13 @@ import { useNavigate } from 'react-router'
 import { MapEditorContext } from "../../../../context"
 import { ThemeContext } from "../../../../../../ui/themeContext"
 
-import { Dialog } from '@headlessui/react'
-
 import { SymbologiesList } from './SymbologiesList';
-import { Modal, INITIAL_NEW_MAP_MODAL_STATE } from '../SymbologyControl';
+import { INITIAL_NEW_MAP_MODAL_STATE } from '../SymbologyControl';
 
 export const SelectSymbology = ({ modalState, setModalState }) => {
   const { baseUrl, falcor, app, type } = React.useContext(MapEditorContext);
   const { UI } = React.useContext(ThemeContext) || {};
-  const { Button } = UI;
+  const { Button, Modal } = UI;
   const navigate = useNavigate();
 
   const deleteSymbology = React.useCallback(e => {
@@ -29,7 +27,7 @@ export const SelectSymbology = ({ modalState, setModalState }) => {
       <Modal
         open={modalState.open}
         setOpen={() => setModalState({ ...modalState, open: !modalState.open })}
-        width={"w-[1200px]"}
+        activeStyle="wide"
       >
         <div className="sm:flex sm:items-start">
           <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 sm:mx-0 sm:h-10 sm:w-10">
@@ -39,12 +37,9 @@ export const SelectSymbology = ({ modalState, setModalState }) => {
             />
           </div>
           <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left w-full">
-            <Dialog.Title
-              as="h3"
-              className="text-base font-semibold leading-6 text-gray-900"
-            >
+            <h3 className="text-base font-semibold leading-6 text-gray-900">
               Select Symbology
-            </Dialog.Title>
+            </h3>
           </div>
         </div>
         <div className="mt-2 ">

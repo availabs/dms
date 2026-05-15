@@ -5,7 +5,7 @@ import {MapContext} from "./";
 export const SymbologySelector = () => {
     const { state, setState, doApiLoad } = useContext(MapContext);
     const { UI } = useContext(ThemeContext) || {};
-    const { ComboBox } = UI || {};
+    const { MultiSelect } = UI || {};
 
     const [dmsSymbologies, setDmsSymbologies] = React.useState([]);
 
@@ -42,8 +42,8 @@ export const SymbologySelector = () => {
 
 // console.log("SymbologySelector::activeSym", activeSym);
 
-    const symOptions = symbologies.map(sym => ({label: sym.name, key: sym.id || sym.symbology_id }));
-    const layerOptions = Object.values(state.symbologies?.[activeSym]?.symbology?.layers || {}).map((layer, i) => ({label: layer.name?.length && layer.name !== ' ' ? layer.name : `layer - ${i+1}`, key: layer.id}));
+    const symOptions = symbologies.map(sym => ({label: sym.name, value: sym.id || sym.symbology_id }));
+    const layerOptions = Object.values(state.symbologies?.[activeSym]?.symbology?.layers || {}).map((layer, i) => ({label: layer.name?.length && layer.name !== ' ' ? layer.name : `layer - ${i+1}`, value: layer.id}));
 
 // console.log("SymbologySelector::state.symbologies", Object.values(state.symbologies?.[activeSym]?.symbology?.layers || {}))
 // console.log("SymbologySelector::symOptions", symOptions)
@@ -53,8 +53,8 @@ export const SymbologySelector = () => {
         <div className={'flex w-full bg-white items-center'}>
             <label className={'p-1'}>Symbology: </label>
             <div className={'w-1/2'}>
-                <ComboBox
-                    className={'flex-row-reverse'}
+                <MultiSelect
+                    singleSelectOnly
                     placeholder={'Search...'}
                     options={symOptions}
                     value={activeSym}
@@ -70,8 +70,8 @@ export const SymbologySelector = () => {
             </div>
             <label className={'p-1'}>Layer: </label>
             <div className={'w-1/2'}>
-                <ComboBox
-                    className={'flex-row-reverse'}
+                <MultiSelect
+                    singleSelectOnly
                     placeholder={'Search...'}
                     options={layerOptions}
                     value={state.symbologies?.[activeSym]?.symbology?.activeLayer}

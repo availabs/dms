@@ -129,14 +129,18 @@ export const topNavsettings =  (theme) => [
     controls: [
       {
         label: 'Style',
-        type: 'Select',
+        type: 'MultiSelect',
+        singleSelectOnly: true,
+        searchable: false,
         options: (theme?.topnav?.styles || [{}])
           .map((k, i) => ({ label: k?.name || i, value: i })),
         path: `topnav.options.activeStyle`,
       },
       {
         label: 'Max Depth',
-        type: 'Select',
+        type: 'MultiSelect',
+        singleSelectOnly: true,
+        searchable: false,
         options: [
           { label: '1 (No submenus)', value: 0 },
           { label: '2 (One level)', value: 1 },

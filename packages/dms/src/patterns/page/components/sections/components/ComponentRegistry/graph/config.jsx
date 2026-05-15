@@ -5,6 +5,7 @@ import { getColorRange } from '../../../../../../../ui/components/graph/colorRan
 const DefaultPalette = getColorRange(20, "div7");
 const graphOptions = {
     readyToLoad: false,
+    hideExternalToggle: true,
     graphType: 'BarGraph',
     groupMode: 'stacked',
     orientation: 'vertical',

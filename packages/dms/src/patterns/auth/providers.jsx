@@ -20,7 +20,7 @@ export const authProvider = (Component, config) => {
       try {
         const token = window.localStorage.getItem('userToken');
         if (token) {
-          return { ...defaultUserState(), token, authed: true };
+          return { ...defaultUserState(), token, authed: true, isAuthenticating: true };
         }
       } catch (e) {}
       return defaultUserState();

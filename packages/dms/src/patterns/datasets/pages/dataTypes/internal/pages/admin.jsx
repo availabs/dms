@@ -225,7 +225,7 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params }) => {
     const {AuthAPI} = React.useContext(AuthContext) || {};
     const [users, setUsers] = React.useState([]);
     const [groups, setGroups] = React.useState([]);
-    const {Select, Input, Button} = UI;
+    const {MultiSelect, Input, Button} = UI;
 
     useEffect(() => {
         async function load () {
@@ -249,14 +249,16 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params }) => {
                     <div className={'w-3/4'}>
                         <div className={'shadow-md rounded-md place-content-center p-4 w-full'}>
                             <label className={'text-xl text-gray-900 font-semibold'}>User Access Controls</label>
-                            <Select className={'w-1/2'}
+                            <MultiSelect className={'w-1/2'}
+                                    singleSelectOnly
+                                    searchable={false}
                                     options={[{label: 'Add user access', value: undefined}, ...users.map(u => ({label: u.email, value: u.id}))]}
-                                    onChange={e => {
+                                    onChange={v => {
                                         const newAuth = {
                                             ...parseIfJson(source?.statistics, {})?.auth,
                                             users: {
                                                 ...(parseIfJson(source?.statistics, {})?.auth?.users || {}),
-                                                [e.target.value]: "1",
+                                                [v]: "1",
                                             },
                                         };
                                         updateSourceData({data: ({auth: newAuth}), attrKey: 'statistics', isDms: true, apiUpdate, setSource, format, source, falcor, id})
@@ -299,14 +301,16 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params }) => {
 
                         <div className={'shadow-lg rounded-md place-content-center p-4 w-full'}>
                             <label className={'text-xl text-gray-900 font-semibold'}>Group Access Controls</label>
-                            <Select className={'w-1/2'}
+                            <MultiSelect className={'w-1/2'}
+                                    singleSelectOnly
+                                    searchable={false}
                                     options={[{label: 'Add group access', value: undefined}, ...groups.map(u => ({label: u.name, value: u.name}))]}
-                                    onChange={e => {
+                                    onChange={v => {
                                         const newAuth = {
                                             ...parseIfJson(source?.statistics, {})?.auth,
                                             groups: {
                                                 ...(parseIfJson(source?.statistics, {})?.auth?.groups || {}),
-                                                [e.target.value]: "1",
+                                                [v]: "1",
                                             },
                                         };
                                         updateSourceData({data: ({auth: newAuth}), attrKey: 'statistics', isDms: true, apiUpdate, setSource, format, source, falcor, id})

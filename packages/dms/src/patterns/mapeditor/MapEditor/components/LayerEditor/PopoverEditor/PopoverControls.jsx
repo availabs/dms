@@ -7,6 +7,7 @@ import { Close } from '../../icons'
 
 import {AddColumnSelectControl} from "../Controls"
 import { get, set } from 'lodash-es'
+import { isNumericColumnType } from '../../../../utils'
 function onlyUnique(value, index, array) {
   return array.indexOf(value) === index;
 }
@@ -59,7 +60,7 @@ export function ColumnSelectControl({path, params={}}) {
 
     if(params.onlyTypedAttributes) {
       columns = columns.filter(d => {
-        if(layerType === 'choropleth' && !['integer', 'number'].includes(d.type)){
+        if(layerType === 'choropleth' && !isNumericColumnType(d.type)){
           return false
         }
         return true
