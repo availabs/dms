@@ -47,6 +47,15 @@ What did **not** change:
 - `more.jsx`
   Exposes display and map-behavior settings shown on the main settings screen.
 
+## Shared UI Components
+
+Map settings use the shared DMS UI components from `ThemeContext`.
+
+- Searchable symbology/layer pickers use the local `MapSettingsSearchSelect` combobox.
+- Standard dropdown-style settings such as `height`, `legendPosition`, `pluginControlPosition`, and dynamic-filter `dataType` use `UI.MultiSelect` with `singleSelectOnly={true}`.
+
+This is the current DMS single-select pattern for custom settings controls. 
+
 ## Saved Config Shape
 
 The saved config remains the map section state owned by [`map/index.jsx`](/home/sarang/Documents/avail/transportNY/src/modules/dms/packages/dms/src/patterns/page/components/sections/components/ComponentRegistry/map/index.jsx).

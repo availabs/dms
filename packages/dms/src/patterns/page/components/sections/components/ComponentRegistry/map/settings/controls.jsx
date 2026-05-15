@@ -52,27 +52,6 @@ const FilterGroup = ({ title, children, highlighted = false }) => (
   </div>
 );
 
-/**
- * Map settings previously expected `ThemeContext.UI.Select`, but the shared
- * DMS UI bundle does not expose a Select component. Use a small local select
- * so these controls keep working in every siteconfig/theme context without
- * depending on a missing UI export.
- */
-const MapSettingsSelect = ({ value, options = [], onChange, disabled = false }) => (
-  <select
-    className="w-full rounded-md border border-slate-700 bg-white px-3 py-2 text-sm text-slate-900 outline-none disabled:cursor-not-allowed disabled:opacity-60"
-    value={value ?? ""}
-    onChange={onChange}
-    disabled={disabled}
-  >
-    {options.map((option, index) => (
-      <option key={`${option.value}_${index}`} value={option.value}>
-        {option.label}
-      </option>
-    ))}
-  </select>
-);
-
 function MapSettingsSearchSelect({ options = [], value, onChange, placeholder = "Search...", disabled = false }) {
   const [query, setQuery] = useState("");
 
@@ -128,7 +107,8 @@ function MapSettingsSearchSelect({ options = [], value, onChange, placeholder = 
 const useMapSettingsUI = (mapAPI) => {
   const { UI } = useContext(ThemeContext) || { UI: {} };
   const controls = useMapSettingsControls(mapAPI);
-  return { ...controls, UI };
+  const Select = UI?.MultiSelect || (() => null);
+  return { ...controls, UI, Select };
 };
 
 const MapSymbologyControl = ({ mapAPI }) => {
@@ -152,8 +132,8 @@ const MapLayerControl = ({ mapAPI }) => {
   const { selectedSymbology, selectedLayer, layerOptions, onLayerChange } = useMapSettingsUI(mapAPI);
 
   return (
-    <Field label="Layer">
-      <MapSettingsSearchSelect
+      <Field label="Layer">
+        <MapSettingsSearchSelect
         value={selectedLayer}
         onChange={onLayerChange}
         placeholder="Search..."
@@ -165,15 +145,16 @@ const MapLayerControl = ({ mapAPI }) => {
 };
 
 const MapHeightControl = ({ mapAPI }) => {
-  const { state, heightOptions, setHeight } = useMapSettingsUI(mapAPI);
+  const { state, heightOptions, setHeight, Select } = useMapSettingsUI(mapAPI);
 
   return (
     <InlineField label="Height" border={false}>
       <div className="w-[8rem] max-w-[40vw]">
-        <MapSettingsSelect
+        <Select
           value={state.height}
           options={heightOptions.map((option) => ({ label: option, value: option }))}
-          onChange={(event) => setHeight(event.target.value)}
+          onChange={setHeight}
+          singleSelectOnly={true}
         />
       </div>
     </InlineField>
@@ -181,15 +162,16 @@ const MapHeightControl = ({ mapAPI }) => {
 };
 
 const MapLegendPositionControl = ({ mapAPI }) => {
-  const { state, panelPositionOptions, setLegendPosition } = useMapSettingsUI(mapAPI);
+  const { state, panelPositionOptions, setLegendPosition, Select } = useMapSettingsUI(mapAPI);
 
   return (
     <InlineField label="Legend Position">
       <div className="w-[9.5rem] max-w-[42vw]">
-        <MapSettingsSelect
+        <Select
           value={state.legendPosition}
           options={panelPositionOptions.map((option) => ({ label: option, value: option }))}
-          onChange={(event) => setLegendPosition(event.target.value)}
+          onChange={setLegendPosition}
+          singleSelectOnly={true}
         />
       </div>
     </InlineField>
@@ -197,17 +179,18 @@ const MapLegendPositionControl = ({ mapAPI }) => {
 };
 
 const MapPluginControlPositionControl = ({ mapAPI }) => {
-  const { state, arePluginsLoaded, panelPositionOptions, setPluginControlPosition } = useMapSettingsUI(mapAPI);
+  const { state, arePluginsLoaded, panelPositionOptions, setPluginControlPosition, Select } = useMapSettingsUI(mapAPI);
 
   if (!arePluginsLoaded) return null;
 
   return (
     <InlineField label="Plugin Control Position">
       <div className="w-[9.5rem] max-w-[42vw]">
-        <MapSettingsSelect
+        <Select
           value={state.pluginControlPosition}
           options={panelPositionOptions.map((option) => ({ label: option, value: option }))}
-          onChange={(event) => setPluginControlPosition(event.target.value)}
+          onChange={setPluginControlPosition}
+          singleSelectOnly={true}
         />
       </div>
     </InlineField>
@@ -305,7 +288,7 @@ const MapInteractiveFiltersControl = ({ mapAPI }) => {
 };
 
 const MapDynamicFiltersControl = ({ mapAPI }) => {
-  const { activeLayer, dynamicFilterOptions, setDynamicSearchParamKey, setDynamicDefaultValue, setDynamicDataType, UI } = useMapSettingsUI(mapAPI);
+  const { activeLayer, dynamicFilterOptions, setDynamicSearchParamKey, setDynamicDefaultValue, setDynamicDataType, UI, Select } = useMapSettingsUI(mapAPI);
   const { Input } = UI;
   const filters = dynamicFilterOptions || [];
 
@@ -323,13 +306,14 @@ const MapDynamicFiltersControl = ({ mapAPI }) => {
               <Input type="text" value={filter.defaultValue ?? ""} onChange={(event) => setDynamicDefaultValue(index, event.target.value)} />
             </Field>
             <Field label="Type" compact={false}>
-              <MapSettingsSelect
+              <Select
                 value={filter.dataType || ""}
                 options={[
                   { label: "String", value: "" },
                   { label: "Numeric", value: "numeric" },
                 ]}
-                onChange={(event) => setDynamicDataType(index, event.target.value)}
+                onChange={(value) => setDynamicDataType(index, value)}
+                singleSelectOnly={true}
               />
             </Field>
           </FilterGroup>
