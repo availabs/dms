@@ -37,6 +37,8 @@ const getCurrDate = () => {
 };
 
 
+const DOWNLOAD_CHUNK_SIZE = 5000;
+
 const triggerDownload = async ({state, apiLoad, loadAllColumns, setLoading}) => {
     setLoading(true);
     const tmpState = loadAllColumns ?
@@ -49,9 +51,28 @@ const triggerDownload = async ({state, apiLoad, loadAllColumns, setLoading}) => 
                 .map(c => ({...c, show: true}))
         } : state;
 
-    const {data} = await getData({
-        state: tmpState,
-        apiLoad, fullDataLoad: true});
+    const downloadState = {
+        ...tmpState,
+        display: { ...tmpState.display, pageSize: DOWNLOAD_CHUNK_SIZE }
+    };
+
+    let allData = [];
+    let totalLength = null;
+    let page = 0;
+
+    while (true) {
+        const { data, length } = await getData({
+            state: downloadState,
+            apiLoad,
+            fullDataLoad: false,
+            currentPage: page,
+        });
+        if (totalLength === null) totalLength = length;
+        if (!data?.length) break;
+        allData = allData.concat(data);
+        if (allData.length >= totalLength) break;
+        page++;
+    }
 
     const schema = tmpState?.columns
         .filter(({show}) => show)
@@ -63,7 +84,7 @@ const triggerDownload = async ({state, apiLoad, loadAllColumns, setLoading}) => 
     const filterStr = Object.keys(state?.filters?.groups || {}).length ? JSON.stringify(state?.filters) : '';
     const fileName = `${state?.externalSource.view_name} - ${filterStr} - ${getCurrDate()}`;
 
-    await writeXlsxFile(data, {
+    await writeXlsxFile(allData, {
         schema,
         fileName: `${fileName}.xlsx`,
     });
@@ -310,6 +331,7 @@ const Edit = forwardRef((props, ref) => {
         <ComponentContext.Provider value={{state, setState, apiLoad, apiUpdate, controls: resolvedControls,
             isActive: true, activeStyle: undefined, sectionId: undefined}}>
             <RenderFilters isEdit={true} defaultOpen={true} />
+            <ExternalFilters defaultOpen={true} />
             <div className={'w-full h-full'}>
                 <div className={'w-full flex items-center place-content-end'}>
                     {loading ? <Icon id={'loading'}

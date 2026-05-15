@@ -193,3 +193,24 @@ UI primitives also export a `*Settings` function that produces editable controls
 - Writing a pattern-tied component? → next to the component, register in `patterns/<pattern>/defaultTheme.js`, flat key map is fine.
 - Reading the theme in JSX? → `getComponentTheme(themeFromContext, '<key>')`, spread your local default first as a fallback.
 - Tempted to write `className="flex …"` directly? → name a key in the theme, use it instead.
+
+## No 1–2 line convenience wrappers around load-bearing APIs
+
+When using a load-bearing codebase or library API in a short pattern (1–2 lines), **inline the call at every site** rather than wrapping it in a helper hook / utility — even if the same 1–2 lines repeat across many files.
+
+The bar for a new helper is "the underlying logic is non-trivial" or "the wrapping adds real semantic value beyond brevity." Saving keystrokes alone is not enough.
+
+**Why:** new developers reading this code pick up the important abstractions through their repetition. A convenience wrapper hides the underlying API from them — they see the wrapper and learn *that*, but miss the actual abstraction the codebase wants them to internalize.
+
+**Concrete:** the canonical theme-read at the top of a themed component is
+
+```js
+const { theme: themeFromContext = {} } = useContext(ThemeContext) || {};
+const t = { ...fooTheme.styles[0], ...getComponentTheme(themeFromContext, 'foo', activeStyle) };
+```
+
+This appears verbatim at every themed component. **Do not** factor it into a `useFooTheme()` hook or `getFooTheme(themeFromContext)` helper. `ThemeContext` and `getComponentTheme` are exactly the abstractions every contributor should recognize on sight.
+
+The same rule applies elsewhere with the same shape: `apiLoad + format mapping`, `falcor.get + path build`, `useContext(AuthContext)`, etc. — if a pattern is the canonical way to use a core codebase utility, repeat it at the call site.
+
+**Exception:** real abstractions — debounce + cache + retry, multi-step state machines, anything that's actually doing work — earn a helper.

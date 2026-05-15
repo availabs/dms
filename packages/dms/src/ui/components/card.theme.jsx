@@ -32,6 +32,7 @@ export const dataCardTheme = {
             headerValueWrapperBorderBelow: 'border-b rounded-none',
 
             itemBorder: 'border shadow',
+            cardBorder: 'border shadow',
             itemFlexCol: 'flex-col',
             itemFlexRow: 'flex-row',
             itemFlexColReverse: 'flex-col flex-col-reverse',
@@ -75,7 +76,9 @@ export const cardSettings = (theme) => [
         controls: [
             {
                 label: 'Style',
-                type: 'Select',
+                type: 'MultiSelect',
+                singleSelectOnly: true,
+                searchable: false,
                 options: (theme?.dataCard?.styles || [{}])
                     .map((k, i) => ({ label: k?.name || i, value: i })),
                 path: `dataCard.options.activeStyle`,

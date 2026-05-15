@@ -1,9 +1,10 @@
 import React from "react"
 
-import { BarGraph, generateTestBarData } from "./avl-graph"
+import { BarGraph, Legend } from "./avl-graph"
 
 import {
-	groups as d3groups
+	groups as d3groups,
+	range as d3range
 } from "d3-array"
 
 import { strictNaN } from "../utils"
@@ -20,7 +21,7 @@ const BarGraphWrapper = props => {
 		const dataColumns = props.columns.filter(c => c.target === "yAxis");
 		const categoryColumn = props.columns.find(c => c.target === "categorize");
 
-		if (!indexColumn || !dataColumns.length) return {};
+		if (!indexColumn || !dataColumns.length) return { keys: [] };
 
 // console.log("BarGraphWrapper::indexColumn", indexColumn)
 // console.log("BarGraphWrapper::dataColumns", dataColumns)
@@ -81,6 +82,17 @@ const BarGraphWrapper = props => {
 
     if (indexColumn.sort) {
       const sortDir = indexColumn.sort === "desc" ? -1 : 1;
+      data.sort((a, b) => {
+          const aNaN = strictNaN(+a.index);
+          const bNaN = strictNaN(+b.index);
+          if (aNaN || bNaN) {
+              return (a.index < b.index ? -1 : a.index > b.index ? 1 : 0) * sortDir;;
+          }
+          return (+a.index - +b.index) * sortDir;
+      })
+    }
+    if (categoryColumn.sort) {
+      const sortDir = categoryColumn.sort === "desc" ? -1 : 1;
       keys.sort((a, b) => {
           const aNaN = strictNaN(+a);
           const bNaN = strictNaN(+b);
@@ -120,48 +132,42 @@ const BarGraphWrapper = props => {
 
 // console.log("BarGraphWrapper::axisLeft", axisLeft);
 
-	const margin = React.useMemo(() => {
-		return {
-			top: props.margins?.marginTop || 20,
-			right: props.margins?.marginRight || 20,
-			bottom: props.margins.marginBottom || 50,
-			left: props.margins?.marginLeft || 100
-		}
-	}, [props.margins]);
+  const legend = React.useMemo(() => {
+    return {
+      ...props.legend,
+      type: "categorical",
+      colors: props.colors,
+      categories: dataFromProps.keys
+    };
+  }, [props.legend, props.colors, dataFromProps.keys]);
 
-	const height = React.useMemo(() => {
-		return Math.max(margin.top + margin.bottom + 100, props.height);
-	}, [props.height, margin.top, margin.bottom]);
+// console.log("BarGraphWrapper::legend", legend);
 
-	const hoverComp = React.useMemo(() => {
-		return {
-			...props.tooltip
-		};
-	}, [props.tooltip, props.yAxis]);
-
-// console.log("BarGraphWrapper::dataForGraph", dataForGraph);
-// console.log("BarGraphWrapper::hoverComp", hoverComp);
-
-	const shouldComponentUpdate = React.useMemo(() => {
-		return ["width", "height"];
-	}, []);
+// console.log("BarGraphWrapper::hoverComp", props.hoverComp);
 
 	return (
-		<div className="w-full bg-inherit"
-			style={ { height: `${ height }px` } }
-		>
-			<BarGraph { ...dataFromProps }
-				orientation={ props.orientation }
-				colors={ props.colors }
-				groupMode={ props.groupMode }
-				axisBottom={ axisBottom }
-				axisLeft={ axisLeft }
-				margin={ margin }
-				hoverComp={ hoverComp }
-				shouldComponentUpdate={ shouldComponentUpdate }
-				width={ props.width }
-				height={ height }/>
-		</div>
+    <div className="w-full bg-inherit flex">
+      { !legend.show || legend.position !== "left" ? null :
+      	<div className="flex items-center">
+        	<Legend { ...legend }/>
+        </div>
+      }
+      <div className="bg-inherit flex-1"
+        style={ {
+          height: `${ props.height }px`
+        } }
+      >
+				<BarGraph { ...props }
+					{ ...dataFromProps }
+					axisBottom={ axisBottom }
+					axisLeft={ axisLeft }/>
+      </div>
+      { !legend.show || legend.position !== "right" ? null :
+      	<div className="flex items-center">
+        	<Legend { ...legend }/>
+        </div>
+      }
+    </div>
 	)
 }
 

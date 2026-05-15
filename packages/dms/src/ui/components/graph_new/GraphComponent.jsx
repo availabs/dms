@@ -13,34 +13,23 @@ import {getColorRange} from "./colorRange";
 // import {ThemeContext} from "../../useTheme";
 import { strictNaN, getFormatFunc } from "./utils";
 
-const GraphTitle = ({ title, position, fontSize, fontWeight }) => {
+const GraphTitle = ({ title, ...props }) => {
 
-  const justify = React.useMemo(() => {
-    return `justify-${ position }`;
-  }, [position]);
+  const className = React.useMemo(() => {
+    const {
+      fontSize = "text-2xl",
+      fontWeight = "font-normal",
+      justify = "justify-start"
+    } = props;
+    return `${ fontSize } ${ fontWeight } ${ justify }`;
+  }, [props]);
 
-  return ! title ? null : (
-    <div className={ `w-full flex ${ justify } mb-4` }>
-      <div style={ {
-          fontSize: `${ fontSize }px`,
-          fontWeight
-        } }
-      >
-        { title }
-      </div>
+  return !title ? null : (
+    <div className={ `w-full flex ${ className }` }>
+      { title }
     </div>
   )
 }
-
-// const AggFuncs = {
-//   sum: d3sum,
-//   avg: d3mean,
-//   count: d3sum,
-//   exempt: (arr, acc) => acc(arr[0])
-// }
-// const getAggFunc = aggMethod => {
-//   return AggFuncs[aggMethod] //|| d3sum;
-// }
 
 export const GraphComponent = props => {
 
@@ -67,58 +56,77 @@ export const GraphComponent = props => {
     }
   }, [graphFormat.colors]);
 
+  const margin = React.useMemo(() => {
+    return {
+      top: graphFormat.margin?.top || 20,
+      right: graphFormat.margin?.right || 20,
+      bottom: graphFormat.margin?.bottom || 50,
+      left: graphFormat.margin?.left || 100
+    }
+  }, [graphFormat.margin]);
+
+  const graphHeight = React.useMemo(() => {
+    const mt = get(margin, "top", 20);
+    const mb = get(margin, "bottom", 50);
+    return Math.max(mt + mb + 100, graphFormat.height);
+  }, [graphFormat.height, margin]);
+
+  const hoverComp = React.useMemo(() => {
+    return {
+      ...graphFormat.tooltip,
+      valueFormat: getFormatFunc(get(graphFormat, ["tooltip", "valueFormat"])),
+      yFormat: getFormatFunc(get(graphFormat, ["tooltip", "yFormat"]))
+    };
+  }, [graphFormat.tooltip]);
+
+// if (graphType === "PieGraph")
+// console.log("GraphComponent::hoverComp", hoverComp);
+
   return (
     <div ref={ setRef }
       className={ `
         w-full h-fit ${ theme.bgColor }
         ${ theme.text } ${ theme.textColor }
       ` }
-      style={ {
-        padding: `${ get(graphFormat, "padding", 0.5) }rem`
-      } }
     >
+
       <GraphTitle { ...graphFormat.title }/>
 
-      { !GraphComponent ? null :
-        <GraphComponent
-          viewData={ viewData }
-          columns={ columns }
-          title={ get(graphFormat, "title", "") }
-          height={ get(graphFormat, "height", 0) }
-          width={ get(graphFormat, "width", 0) }
-          bgColor={ get(graphFormat, "bgColor", "#ffffff") }
-          colors={ colors }
-          upperLimit={ get(graphFormat, "upperLimit") }
+      <GraphComponent
+        viewData={ viewData }
+        columns={ columns }
+        title={ get(graphFormat, "title", "") }
+        height={ graphHeight }
+        width={ get(graphFormat, "width") }
+        bgColor={ get(graphFormat, "bgColor", "#ffffff") }
+        colors={ colors }
+        upperLimit={ get(graphFormat, "upperLimit") }
 
-          showCategories={ showCategories }
-          xAxisColumn={ xAxisColumn }
+        showCategories={ showCategories }
+        xAxisColumn={ xAxisColumn }
 
-          orientation={ get(graphFormat, "orientation", "vertical") }
-          groupMode={ get(graphFormat, "groupMode", "stacked") }
-          isLog={ get(graphFormat, "isLog", false) }
+        orientation={ get(graphFormat, "orientation", "vertical") }
+        groupMode={ get(graphFormat, "groupMode", "stacked") }
+        isLog={ get(graphFormat, "isLog", false) }
 
-          xAxis={ {
-            label: get(graphFormat, ["xAxis", "label"]),
-            rotateLabels: get(graphFormat, ["xAxis", "rotateLabels"], false),
-            tickDensity: get(graphFormat, ["xAxis", "tickDensity"], 2),
-            showGridLines: get(graphFormat, ["xAxis", "showGridLines"], false),
-            show: get(graphFormat, ["xAxis", "show"], true)
-          } }
-          yAxis={ {
-            label: get(graphFormat, ["yAxis", "label"]),
-            rotateLabels: get(graphFormat, ["yAxis", "rotateLabels"], false),
-            showGridLines: get(graphFormat, ["yAxis", "showGridLines"], true),
-            show: get(graphFormat, ["yAxis", "show"], true),
-            format: getFormatFunc(get(graphFormat, ["yAxis", "format"]))
-          } }
-          margins={ get(graphFormat, "margins", {}) }
-          legend={ get(graphFormat, "legend", {}) }
-          tooltip={ {
-            show: get(graphFormat, ["tooltip", "show"], true),
-            valueFormat: getFormatFunc(get(graphFormat, ["tooltip", "valueFormat"])),
-            yFormat: getFormatFunc(get(graphFormat, ["tooltip", "yFormat"]))
-          } }/>
-      }
+        xAxis={ {
+          label: get(graphFormat, ["xAxis", "label"]),
+          rotateLabels: get(graphFormat, ["xAxis", "rotateLabels"], false),
+          tickDensity: get(graphFormat, ["xAxis", "tickDensity"], 2),
+          showGridLines: get(graphFormat, ["xAxis", "showGridLines"], false),
+          show: get(graphFormat, ["xAxis", "show"], true)
+        } }
+        yAxis={ {
+          label: get(graphFormat, ["yAxis", "label"]),
+          rotateLabels: get(graphFormat, ["yAxis", "rotateLabels"], false),
+          showGridLines: get(graphFormat, ["yAxis", "showGridLines"], true),
+          show: get(graphFormat, ["yAxis", "show"], true),
+          format: getFormatFunc(get(graphFormat, ["yAxis", "format"]))
+        } }
+        margin={ margin }
+        legend={ get(graphFormat, "legend", {}) }
+        hoverComp={ hoverComp }/>
+
     </div>
   )
 }

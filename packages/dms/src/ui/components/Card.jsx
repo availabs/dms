@@ -630,7 +630,7 @@ const RenderItem = memo(function RenderItem ({
         // `subWrapperStyle` so it overrides any `display: flex` that themes
         // still ship in that key.
         <div
-            className={`${theme.subWrapper} ${theme.subWrapperCompactView || ''} ${cardBorder ? 'border shadow' : ''} ${highlightClass} ${isSaving ? theme.formEditSavingAnimation : ''}`}
+            className={`${theme.subWrapper} ${theme.subWrapperCompactView || ''} ${cardBorder ? (theme.cardBorder || 'border shadow') : ''} ${highlightClass} ${isSaving ? theme.formEditSavingAnimation : ''}`}
             style={subWrapperStyle}
             onMouseEnter={() => {
                 setCardHovered(true);

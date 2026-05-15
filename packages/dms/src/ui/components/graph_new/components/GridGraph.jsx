@@ -1,10 +1,8 @@
 import React from "react"
 
-import { GridGraph, generateTestGridData } from "./avl-graph"
+import { GridGraph, Legend } from "./avl-graph"
 
-import {
-    groups as d3groups
-} from "d3-array"
+import { groups as d3groups } from "d3-array"
 
 import { scaleLinear } from "d3-scale"
 
@@ -112,15 +110,17 @@ const GridGraphWrapper = props => {
                 return (+a - +b) * sortDir;
             })
         }
-        // const keys = [...keySet]
-        //     .sort((a, b) => {
-        //         const aNaN = strictNaN(+a);
-        //         const bNaN = strictNaN(+b);
-        //         if (aNaN || bNaN) {
-        //             return a < b ? -1 : a > b ? 1 : 0;
-        //         }
-        //         return +a - +b;
-        //     })
+        if (yColumn.sort) {
+            const sortDir = xColumn.sort === "desc" ? -1 : 1;
+            data.sort((a, b) => {
+                const aNaN = strictNaN(+a.index);
+                const bNaN = strictNaN(+b.index);
+                if (aNaN || bNaN) {
+                    return (a.index < b.index ? -1 : a.index > b.index ? 1 : 0) * sortDir;;
+                }
+                return (+a.index - +b.index) * sortDir;
+            }).reverse()
+        }
 
         return { data, keys, colors };
     }, [props.viewData, props.columns]);
@@ -137,45 +137,76 @@ const GridGraphWrapper = props => {
         return { ...props.yAxis };
     }, [props.yAxis]);
 
-    const margin = React.useMemo(() => {
-        return {
-            top: props.margins?.marginTop || 20,
-            right: props.margins?.marginRight || 20,
-            bottom: props.margins.marginBottom || 50,
-            left: props.margins?.marginLeft || 100
-        }
-    }, [props.margins]);
+  const legend = React.useMemo(() => {
+    return {
+      ...props.legend,
+      type: "linear",
+      orientation: ["right", "left"].includes(props.legend.position || "right") ? "vertical" : "horizontal",
+      scale: dataFromProps.colors,
+      format: props.hoverComp?.valueFormat
+    };
+  }, [props.legend, props.colors, props.hoverComp?.valueFormat, dataFromProps]);
 
-    const hoverComp = React.useMemo(() => {
-        return { ...props.tooltip };
-    }, [props.tooltip]);
+// console.log("GridGraphWrapper::legend", legend);
 
 // console.log("GridGraphWrapper::dataForGraph", dataForGraph);
 // console.log("GridGraphWrapper::hoverComp", hoverComp);
+// console.log("GridGraphWrapper::colors", props.colors);
 
-    const height = React.useMemo(() => {
-        return Math.max(margin.top + margin.bottom + 100, props.height);
-    }, [props.height, margin.top, margin.bottom,]);
-
-    const shouldComponentUpdate = React.useMemo(() => {
-        return ["width", "height"];
-    }, []);
+const TopOrBottomRegex = /^top|bottom/;
+const LeftOrRightRegex = /^(left|right)$/;
 
     return (
-        <div className="w-full bg-inherit"
-            style={ { height: `${ height }px` } }
+        <div
+            className={ `
+                w-full bg-inherit flex
+                ${ TopOrBottomRegex.test(legend.position) ? "flex-col" : "" }
+            ` }
         >
-            <GridGraph
-                colors={ props.colors }
+          { !legend.show || !legend.position.includes("top") ? null :
+            <div
+                className={ `
+                    flex
+                    ${ legend.position === "top-right" ? "justify-end" : "" }
+                ` }
+            >
+                <Legend { ...legend }/>
+            </div>
+          }
+          { !legend.show || (legend.position !== "left") ? null :
+            <div className="flex items-center">
+                <Legend { ...legend }/>
+            </div>
+          }
+          <div
+            className={ `
+                bg-inherit
+                ${ LeftOrRightRegex.test(legend.position) ? "flex-1" : "" }
+            ` }
+            style={ {
+              height: `${ props.height }px`
+            } }
+          >
+            <GridGraph { ...props }
                 { ...dataFromProps }
-                groupMode={ props.groupMode }
                 axisBottom={ axisBottom }
-                axisLeft={ axisLeft }
-                margin={ margin }
-                hoverComp={ hoverComp }
-                shouldComponentUpdate={ shouldComponentUpdate }
-                width={ props.width }
-                height={ height }/>
+                axisLeft={ axisLeft }/>
+          </div>
+          { !legend.show || !legend.position.includes("bottom") ? null :
+            <div
+                className={ `
+                    flex
+                    ${ legend.position === "bottom-right" ? "justify-end" : "" }
+                ` }
+            >
+                <Legend { ...legend }/>
+            </div>
+          }
+          { !legend.show || (legend.position !== "right") ? null :
+            <div className="flex items-center">
+                <Legend { ...legend }/>
+            </div>
+          }
         </div>
     )
 }

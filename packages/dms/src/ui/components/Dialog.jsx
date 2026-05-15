@@ -1,32 +1,35 @@
 import React from 'react'
-import * as Headless from '@headlessui/react'
+import {createPortal} from 'react-dom'
 import {ThemeContext} from '../useTheme'
 import {dialogTheme} from './Dialog.theme'
+import useModalOverlay from './useModalOverlay'
 
 export default function DialogComp({ size = 'lg', open=false, onClose=()=>{}, className, children, ...props }) {
-    const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
-    const theme = {...themeFromContext, dialog: {...dialogTheme, ...(themeFromContext?.dialog || {})}};
-  return (
-    <Headless.Dialog open={open} onClose={onClose} {...props}>
-      <Headless.DialogBackdrop
-        transition
-        className={theme?.dialog?.backdrop}
-      />
+  const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
+  const theme = {...themeFromContext, dialog: {...dialogTheme, ...(themeFromContext?.dialog || {})}};
+  useModalOverlay(open, onClose);
 
-      <div className={theme?.dialog?.dialogContainer}>
-        <div className={theme?.dialog?.dialogContainer2}>
-          <Headless.DialogPanel
-            transition
-            className={`
-              ${className}
-              ${theme?.dialog?.sizes?.[size]}
-              ${theme?.dialog?.dialogPanel}
-            `}
-          >
-            {children}
-          </Headless.DialogPanel>
+  if (!open || typeof document === 'undefined') return null;
+
+  const overlay = (
+    <div
+      role="dialog"
+      aria-modal="true"
+      className={theme?.dialog?.dialogContainer}
+      onClick={onClose}
+      {...props}
+    >
+      <div className={theme?.dialog?.backdrop} aria-hidden="true" />
+      <div className={theme?.dialog?.dialogContainer2}>
+        <div
+          className={`${className || ''} ${theme?.dialog?.sizes?.[size] || ''} ${theme?.dialog?.dialogPanel}`}
+          onClick={e => e.stopPropagation()}
+        >
+          {children}
         </div>
       </div>
-    </Headless.Dialog>
-  )
+    </div>
+  );
+
+  return createPortal(overlay, document.body);
 }

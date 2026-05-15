@@ -195,20 +195,21 @@ async function getEssentials({ env, view_id, options = {} }) {
       await ensureTable(db, table_schema, table_name, db.type, seqName);
     }
     // DMS content never lives on ClickHouse — dbType is always pg for DMS mode.
-    return { isDms, db, app, type, table_schema, table_name, dmsAttributes, splitMode, dbType: 'pg' };
+    const idxColumn = dmsAttributes?.find(a => a.isIndex)?.name || null;
+    return { isDms, db, app, type, table_schema, table_name, dmsAttributes, idxColumn, splitMode, dbType: 'pg' };
   }
 
   // DAMA mode — view may point at a ClickHouse-backed table via a
   // `clickhouse.<schema>` prefix in data_manager.views.table_schema. When it
   // does, swap in the CH adapter and strip the prefix before returning.
-  let { table_schema, table_name } = await getDataTableFromViewId({ db, view_id });
+  let { table_schema, table_name, idxColumn = null } = await getDataTableFromViewId({ db, view_id });
   let dbType = 'pg';
   if (typeof table_schema === 'string' && table_schema.startsWith('clickhouse.')) {
     dbType = 'ch';
     table_schema = table_schema.replace(/^clickhouse\./, '');
     db = getChDb(env);
   }
-  return { isDms, db, app: null, type: null, table_schema, table_name, dmsAttributes: undefined, dbType };
+  return { isDms, db, app: null, type: null, table_schema, table_name, dmsAttributes: undefined, idxColumn, dbType };
 }
 
 /**
@@ -217,12 +218,23 @@ async function getEssentials({ env, view_id, options = {} }) {
 async function getDataTableFromViewId({ db, view_id }) {
   if (!view_id) return {};
 
-  const tbl = db.type === 'postgres' ? 'data_manager.views' : 'views';
-  const sql = `SELECT source_id, view_id, table_schema, table_name FROM ${tbl} WHERE view_id = $1`;
+  const vTbl = db.type === 'postgres' ? 'data_manager.views' : 'views';
+  const sTbl = db.type === 'postgres' ? 'data_manager.sources' : 'sources';
+  const sql = `
+    SELECT v.table_schema, v.table_name, s.metadata
+    FROM ${vTbl} v
+    LEFT JOIN ${sTbl} s ON s.source_id = v.source_id
+    WHERE v.view_id = $1
+  `;
   const { rows } = await db.query(sql, [+view_id]);
 
   if (!rows.length) return {};
-  return { table_schema: rows[0].table_schema, table_name: rows[0].table_name };
+
+  const raw = rows[0].metadata;
+  const metadata = typeof raw === 'string' ? JSON.parse(raw) : (raw || {});
+  const idxColumn = (metadata.columns || []).find(c => c.isIndex)?.name || null;
+
+  return { table_schema: rows[0].table_schema, table_name: rows[0].table_name, idxColumn };
 }
 
 // ============================================= DMS Source/View Helpers =============================================

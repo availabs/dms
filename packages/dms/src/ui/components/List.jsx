@@ -1,6 +1,5 @@
 
-import React, { Fragment } from 'react'
-import * as Headless from '@headlessui/react'
+import React from 'react'
 // import { CMSContext } from '../../../siteConfig';
 /*  ---------------------------------------------------------
  Use Example:

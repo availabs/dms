@@ -6,6 +6,7 @@ const {
   getSourceIdsByIndex,
   getSourceById,
   updateSource,
+  setIndexColumn,
 
   getViewLengthBySourceId,
   getViewsByIndexBySourceId,
@@ -378,6 +379,25 @@ module.exports = [
         return result;
       } catch (err) {
         console.error(err);
+        throw err;
+      }
+    },
+  },
+
+  // --------------------------------- sources.setIndex (call) ---------------------------------
+  // Args: [env, sourceId, columnName, enable]
+  // Toggles isIndex on the named column. enable=true creates the DB index, enable=false drops it.
+  {
+    route: `uda.sources.setIndex`,
+    call: async function(callPath, args) {
+      try {
+        const [env, sourceId, columnName, enable = true] = args;
+        await setIndexColumn(env, sourceId, columnName, enable);
+        return [
+          { path: ["uda", env, "sources", "byId", +sourceId], invalidated: true },
+        ];
+      } catch (err) {
+        console.error('[uda] sources.setIndex error:', err.message);
         throw err;
       }
     },

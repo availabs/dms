@@ -75,18 +75,19 @@ const RenderInputSelect = ({disabled, label, value='', col, attr, updateAttribut
     const {UI} = React.useContext(DatasetsContext);
     const {theme} = React.useContext(ThemeContext) || {};
     const t = theme?.datasets?.metadataComp || metadataCompTheme;
-    const {Select} = UI;
+    const {MultiSelect} = UI;
 
     return (
         <div className={t.inputWrapper}>
             <label className={t.label}>{label}</label>
-            <Select
-                disabled={disabled}
+            <MultiSelect
+                singleSelectOnly
+                searchable={false}
                 value={value}
-                onChange={e => {
-                    const valueToUpdate = {[attr]: e.target.value};
+                onChange={v => {
+                    const valueToUpdate = {[attr]: v};
                     if(attr === 'type') {
-                        valueToUpdate['dataType'] = options.find(o => o.value === e.target.value)?.dataType || undefined;
+                        valueToUpdate['dataType'] = options.find(o => o.value === v)?.dataType || undefined;
 
                     }
                     updateAttribute(col, valueToUpdate)
@@ -115,6 +116,23 @@ const RenderInputSwitch = ({label, value='', col, attr, updateAttribute, trueVal
         </div>
     )
 }
+
+const RenderIndexSwitch = ({value, col, onSetIndex}) => {
+    const {UI} = React.useContext(DatasetsContext);
+    const {theme} = React.useContext(ThemeContext) || {};
+    const t = theme?.datasets?.metadataComp || metadataCompTheme;
+    const {Switch} = UI;
+    return (
+        <div className={t.inputWrapper}>
+            <label className={t.label}>Index</label>
+            <Switch
+                enabled={!!value}
+                setEnabled={e => onSetIndex(col, e)}
+                size={'small'}
+            />
+        </div>
+    );
+};
 
 const RenderInputButtonSelect = ({label, value='', col, attr, updateAttribute, options}) => {
     const {UI} = React.useContext(DatasetsContext);
@@ -177,7 +195,7 @@ const RenderAddForm = ({editing, newOption, setNewOption, addNewValue, value}) =
                 placeHolder={'Add new option...'}
             />
             <Button
-                className={'p-2'}
+                activeStyle={'active'}
                 onClick={e => addNewValue(value, newOption)}>
                 add
             </Button>
@@ -213,7 +231,7 @@ const RenderEditingForm = ({editingIndex, item, setEditing, value, replaceValue}
                 placeHolder={'filter'}
             />
             <Button
-                className={'p-2'}
+                activeStyle={'active'}
                 onClick={e => {
                     replaceValue(value, editingCopy, editingIndex)
                     setEditing(undefined)
@@ -251,7 +269,7 @@ const RenderOptions = ({attributeList, col, drivingAttribute, attr, value=[], de
 
     return (
         <div className={t.optionsWrapper}>
-            <label className={t.label}>Options</label>
+            <label className={t.labelUpperCase}>options</label>
             <div className={t.optionsInner}>
                 <RenderAddForm {...{editing, Input, newOption, setNewOption, addNewValue, Button, value}} />
                 <RenderEditingForm key={editing} {...{editingIndex: editing, item: options[editing], setEditing, value, replaceValue}} />
@@ -302,7 +320,7 @@ const RenderMappedOptions = ({col, drivingAttribute, attr, value='', updateAttri
     if(!['select', 'multiselect'].includes(drivingAttribute)) return null;
     return (
         <>
-            <label className={t.label}>Options Map</label>
+            <label className={t.labelUpperCase}>Options Map</label>
             <FieldSet
                 className={t.mappedGrid}
                 components={[
@@ -323,13 +341,13 @@ const RenderMappedOptions = ({col, drivingAttribute, attr, value='', updateAttri
                         customTheme
                     },
                     {
-                        type: 'Button', children: 'update',
+                        type: 'Button', children: 'update', activeStyle: 'active',
                         onClick: () => {
                             updateAttribute(col, {[attr]: JSON.stringify(newOption)});
                         }
                     },
                     {
-                        type: 'Button', children: 'remove',
+                        type: 'Button', children: 'remove', activeStyle: 'danger',
                         onClick: () => {
                             updateAttribute(col, {[attr]: undefined});
                             setNewOption({})
@@ -357,14 +375,14 @@ const RenderRemoveBtn = ({col, removeAttribute}) => {
                 <div>This action can not be undone.</div>
                 </div>
                 <Button
-                    className={t.deleteButton}
+                    activeStyle={'danger'}
                     onClick={() => removeAttribute(col)}
                 >
                     delete
                 </Button>
             </Modal>
             <Button
-                className={t.deleteButton}
+                activeStyle={'danger'}
                 onClick={() => setShowDeleteModal(true)}
             >
                 delete
@@ -373,7 +391,7 @@ const RenderRemoveBtn = ({col, removeAttribute}) => {
     )
 }
 
-export const RenderField = ({isDms, i, item, attribute, attributeList=[], updateAttribute, removeAttribute, apiLoad, format, dragStart, dragEnter, dragOver, drop}) => {
+export const RenderField = ({isDms, i, item, attribute, attributeList=[], updateAttribute, removeAttribute, onSetIndex, apiLoad, format, dragStart, dragEnter, dragOver, drop}) => {
     const {theme} = useContext(ThemeContext) || {};
     const t = theme?.datasets?.metadataComp || metadataCompTheme;
     const [showAdvanced, setShowAdvanced] = useState(false);
@@ -388,7 +406,8 @@ export const RenderField = ({isDms, i, item, attribute, attributeList=[], update
                  onDragEnd={drop}
                  draggable={true}
             >
-                <div className={t.fieldHeader}>
+                <div className={showAdvanced ? `${t.fieldHeader} bg-blue-50` : t.fieldHeader}>
+                    {item.isIndex && <span className={t.pkBadge}>IDX</span>}
                     <div className={t.dragHandle}>
                         <svg data-v-4e778f45=""
                              className={t.dragHandleSvg}
@@ -426,6 +445,23 @@ export const RenderField = ({isDms, i, item, attribute, attributeList=[], update
                             attr={'type'}
                             options={fieldTypes}
                             updateAttribute={updateAttribute}
+                        />
+
+                        <div title={'Advanced Settings'}
+                             className={t.advancedToggle}
+                             onClick={() => setShowAdvanced(!showAdvanced)}
+                        >...
+                        </div>
+                    </div>
+                </div>
+
+                <div className={showAdvanced ? t.advancedPanel : 'hidden'}>
+                    <div className={`flex flex-row justify-between p-4 bg-blue-50 items-center`}>
+                        <RenderIndexSwitch
+                            key={`${item.name}-index`}
+                            value={item.isIndex}
+                            col={item.name}
+                            onSetIndex={onSetIndex}
                         />
                         <RenderInputSwitch
                             key={`${item.name}-required`}
@@ -466,45 +502,37 @@ export const RenderField = ({isDms, i, item, attribute, attributeList=[], update
                             options={dataTypes}
                             updateAttribute={updateAttribute}
                         />
-                        <div title={'Advanced Settings'}
-                             className={t.advancedToggle}
-                             onClick={() => setShowAdvanced(!showAdvanced)}
-                        >...
-                        </div>
-                    </div>
-                </div>
-
-                <div className={showAdvanced ? t.advancedPanel : 'hidden'}>
-                    <div className={t.advancedDescRow}>
-                        <RenderInputLexical
-                            key={`${item.name}-description`}
-                            label={'description'}
-                            attr={'description'}
-                            value={item.description || item.desc}
+                        <RenderInputText
+                            key={`${item.name}-trueValue`}
+                            label={'Checked Value'}
+                            attr={'trueValue'}
+                            value={item.trueValue}
                             col={item.name}
                             updateAttribute={updateAttribute}
+                            hidden={!['checkbox', 'switch'].includes(item.type)}
                         />
-                        <div className={'flex flex-col'}>
-
-                        </div>
                     </div>
-                    <RenderInputText
-                        key={`${item.name}-prompt`}
-                        label={'prompt'}
-                        attr={'prompt'}
-                        value={item.prompt}
-                        col={item.name}
-                        updateAttribute={updateAttribute}
-                    />
-                    <RenderInputText
-                        key={`${item.name}-trueValue`}
-                        label={'Checked Value'}
-                        attr={'trueValue'}
-                        value={item.trueValue}
-                        col={item.name}
-                        updateAttribute={updateAttribute}
-                        hidden={!['checkbox', 'switch'].includes(item.type)}
-                    />
+                    {/*<div className={t.advancedDescRow}>*/}
+                    {/*    <RenderInputLexical*/}
+                    {/*        key={`${item.name}-description`}*/}
+                    {/*        label={'description'}*/}
+                    {/*        attr={'description'}*/}
+                    {/*        value={item.description || item.desc}*/}
+                    {/*        col={item.name}*/}
+                    {/*        updateAttribute={updateAttribute}*/}
+                    {/*    />*/}
+                    {/*    <div className={'flex flex-col'}>*/}
+
+                    {/*    </div>*/}
+                    {/*</div>*/}
+                    {/*<RenderInputText*/}
+                    {/*    key={`${item.name}-prompt`}*/}
+                    {/*    label={'prompt'}*/}
+                    {/*    attr={'prompt'}*/}
+                    {/*    value={item.prompt}*/}
+                    {/*    col={item.name}*/}
+                    {/*    updateAttribute={updateAttribute}*/}
+                    {/*/>*/}
                     <RenderOptions key={`${item.name}-options`}
                                    col={item.name}
                                    attributeList={attributeList}

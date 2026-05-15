@@ -10,7 +10,9 @@ export const layoutSettings = (theme) => {
   const topNavOptions = [
     {
       label: 'TopNav Menu',
-      type: 'Select',
+      type: 'MultiSelect',
+      singleSelectOnly: true,
+      searchable: false,
       options: [
         { label: 'none', value: 'none' },
         { label: 'main', value: 'main' },
@@ -20,7 +22,9 @@ export const layoutSettings = (theme) => {
     },
     {
       label: 'Active Style',
-      type: 'Select',
+      type: 'MultiSelect',
+      singleSelectOnly: true,
+      searchable: false,
       options: [
         { label: 'default', value: "" },
         ...(theme?.topNav?.styles || [{}])
@@ -30,13 +34,14 @@ export const layoutSettings = (theme) => {
     },
     {
       label: "Top Nav - Left Menu",
-      type: "Listbox",
+      type: "MultiSelect",
+      singleSelectOnly: true,
+      searchable: false,
       options: widgetOptions(theme?.widgets),
-      onChange:(e, setState) => {
-        //console.log('lisbox on Change', )
+      onChange:(value, setState) => {
         setState(draft => {
           draft.layout.options.topNav.leftMenu = draft?.layout?.options?.topNav.leftMenu || []
-          draft?.layout?.options?.topNav?.leftMenu .push({ type: e })
+          draft?.layout?.options?.topNav?.leftMenu .push({ type: value })
         })
       }
     },
@@ -54,14 +59,14 @@ export const layoutSettings = (theme) => {
     },
     {
       label: "Top Nav - Right Menu",
-      type: "Listbox",
+      type: "MultiSelect",
+      singleSelectOnly: true,
+      searchable: false,
       options: widgetOptions(theme?.widgets),
-      onChange:(e, setState) => {
-        //console.log('lisbox on Change', )
+      onChange:(value, setState) => {
         setState(draft => {
-
           set(draft,'layout.options.topNav.rightMenu', draft?.layout?.options?.topNav.rightMenu || [])
-          draft?.layout?.options?.topNav?.rightMenu .push({ type: e })
+          draft?.layout?.options?.topNav?.rightMenu .push({ type: value })
         })
       }
     },
@@ -81,7 +86,9 @@ export const layoutSettings = (theme) => {
   const sideNavOptions = [
     {
       label: 'Active Style',
-      type: 'Select',
+      type: 'MultiSelect',
+      singleSelectOnly: true,
+      searchable: false,
       options: [
         { label: 'default', value: "" },
         ...(theme?.sidenav?.styles || [{}])
@@ -91,7 +98,9 @@ export const layoutSettings = (theme) => {
     },
     {
       label: 'SideNav Menu',
-      type: 'Select',
+      type: 'MultiSelect',
+      singleSelectOnly: true,
+      searchable: false,
       options: [
         { label: 'none', value: 'none' },
         { label: 'main', value: 'main' },
@@ -106,13 +115,14 @@ export const layoutSettings = (theme) => {
     },
     {
       label: "Side Nav - Top Menu",
-      type: "Listbox",
+      type: "MultiSelect",
+      singleSelectOnly: true,
+      searchable: false,
       options: widgetOptions(theme?.widgets),
-      onChange:(e, setState) => {
+      onChange:(value, setState) => {
         setState(draft => {
-          //draft.layout.options.sideNav.topMenu = draft?.layout?.options?.sideNav?.topMenu || []
           set(draft,'layout.options.sideNav.topMenu', draft?.layout?.options?.sideNav.topMenu || [])
-          draft.layout.options.sideNav.topMenu.push({ type: e })
+          draft.layout.options.sideNav.topMenu.push({ type: value })
         })
       }
     },
@@ -130,13 +140,14 @@ export const layoutSettings = (theme) => {
     },
     {
       label: "Side Nav - Bottom Menu",
-      type: "Listbox",
+      type: "MultiSelect",
+      singleSelectOnly: true,
+      searchable: false,
       options: widgetOptions(theme?.widgets),
-      onChange:(e, setState) => {
-        //console.log('lisbox on Change', )
+      onChange:(value, setState) => {
         setState(draft => {
           draft.layout.options.sideNav.bottomMenu = draft?.layout?.options?.sideNav?.bottomMenu || []
-          draft?.layout?.options?.sideNav?.bottomMenu .push({ type: e })
+          draft?.layout?.options?.sideNav?.bottomMenu .push({ type: value })
         })
       }
     },
@@ -163,7 +174,9 @@ export const layoutSettings = (theme) => {
       controls: [
         {
           label: 'TopNav',
-          type: 'Select',
+          type: 'MultiSelect',
+      singleSelectOnly: true,
+      searchable: false,
           options: [{ label: 'hide', value: 'none' },{ label: 'show', value: 'compact' }],
           path: `layout.options.topNav.size`,
         },
@@ -176,7 +189,9 @@ export const layoutSettings = (theme) => {
       controls:[
         {
           label: 'Side Nav',
-          type: 'Select',
+          type: 'MultiSelect',
+      singleSelectOnly: true,
+      searchable: false,
           options: [{ label: 'hide', value: 'none' },{ label: 'show', value: 'compact' }],
           path: `layout.options.sideNav.size`,
         },
@@ -190,7 +205,9 @@ export const layoutSettings = (theme) => {
       controls:[
         {
           label: 'Style',
-          type: 'Select',
+          type: 'MultiSelect',
+      singleSelectOnly: true,
+      searchable: false,
           options: (theme?.layout?.styles || [{}])
             .map((k,i) => ({ label: k?.name || i, value: i })),
           path: `layout.options.activeStyle`,

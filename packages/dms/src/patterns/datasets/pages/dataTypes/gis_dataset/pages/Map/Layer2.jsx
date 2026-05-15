@@ -883,15 +883,10 @@ const Identity = i => i;
 
 const RangeSizeSelector = ({ size, onChange }) => {
   const { UI } = React.useContext(ThemeContext) || {};
-  const Listbox = UI?.Listbox;
+  const { MultiSelect } = UI || {};
   const options = RangeSizes.map(s => ({ label: String(s), value: s }));
-  return Listbox ? (
-    <Listbox options={ options } value={ size } onChange={ onChange }/>
-  ) : (
-    <select value={ size } onChange={ e => onChange(+e.target.value) }
-      className="w-full px-2 py-1 border rounded text-sm">
-      { RangeSizes.map(s => <option key={s} value={s}>{s}</option>) }
-    </select>
+  return (
+    <MultiSelect singleSelectOnly searchable={false} options={ options } value={ size } onChange={ v => onChange(+v) } />
   )
 }
 
@@ -903,14 +898,9 @@ const LegendTypes = [
 
 const TypeSelector = ({ type, updateLegend }) => {
   const { UI } = React.useContext(ThemeContext) || {};
-  const Listbox = UI?.Listbox;
-  return Listbox ? (
-    <Listbox options={ LegendTypes } value={ type } onChange={ updateLegend }/>
-  ) : (
-    <select value={ type } onChange={ e => updateLegend(e.target.value) }
-      className="w-full px-2 py-1 border rounded text-sm">
-      { LegendTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>) }
-    </select>
+  const { MultiSelect } = UI || {};
+  return (
+    <MultiSelect singleSelectOnly searchable={false} options={ LegendTypes } value={ type } onChange={ v => updateLegend(v) } />
   )
 }
 

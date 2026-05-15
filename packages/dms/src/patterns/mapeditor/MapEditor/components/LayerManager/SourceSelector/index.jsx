@@ -1,12 +1,10 @@
 import React, { useEffect, useContext , useMemo, useRef } from 'react'
-//import {Button} from '~/modules/avl-components/src'
 import {SymbologyContext} from '../../..'
 import { MapEditorContext } from "../../../../context"
+import { ThemeContext } from "../../../../../../ui/themeContext"
 import { get, set } from 'lodash-es'
 import { getLayer } from '../utils'
 import { Plus, Close } from '../../icons'
-import { Modal } from "../SymbologyControl";
-import { Menu, Transition, Tab, Dialog } from '@headlessui/react'
 
 import { SourceAttributes, ViewAttributes, getAttributes } from "../../../../attributes"
 
@@ -23,6 +21,8 @@ function SourceSelector () {
   const { state, setState } = React.useContext(SymbologyContext);
   const { pgEnv, baseUrl, useFalcor } = React.useContext(MapEditorContext);
   const {falcor, falcorCache } = useFalcor();
+  const { UI } = React.useContext(ThemeContext) || {};
+  const { Modal } = UI || {};
 
   const [source, setSource] = React.useState(DEFAULT_SOURCE);
 
@@ -167,7 +167,7 @@ function SourceSelector () {
       <Modal
         open={source.add}
         setOpen={() => setSource({ ...source, add: !source.add })}
-        width={'w-[1200px]'}
+        activeStyle="wide"
       >
         <div className='sm:flex sm:items-start'>
           <div className='mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 sm:mx-0 sm:h-10 sm:w-10'>
@@ -177,12 +177,9 @@ function SourceSelector () {
             />
           </div>
           <div className='mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left w-full'>
-            <Dialog.Title
-              as='h3'
-              className='text-base font-semibold leading-6 text-gray-900'
-            >
+            <h3 className='text-base font-semibold leading-6 text-gray-900'>
               Add Layer
-            </Dialog.Title>
+            </h3>
           </div>
         </div>
         <div className="mt-2 w-full">

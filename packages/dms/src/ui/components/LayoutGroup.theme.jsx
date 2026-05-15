@@ -33,7 +33,9 @@ export const layoutGroupSettings =  (theme) => [
     controls: [
       {
         label: 'Style',
-        type: 'Select',
+        type: 'MultiSelect',
+        singleSelectOnly: true,
+        searchable: false,
         options: (theme?.layoutGroup?.styles || [{}])
           .map((k, i) => ({ label: k?.name || i, value: i })),
         path: `layoutGroup.options.activeStyle`,

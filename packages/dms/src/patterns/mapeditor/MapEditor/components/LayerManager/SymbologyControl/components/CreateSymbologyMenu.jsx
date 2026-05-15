@@ -1,10 +1,9 @@
 import React from 'react'
 import { SymbologyContext } from '../../../..'
 import { MapEditorContext } from "../../../../../context"
-import { Dialog } from '@headlessui/react'
+import { ThemeContext } from "../../../../../../../ui/themeContext"
 import { useNavigate } from 'react-router'
 import { get } from 'lodash-es'
-import { Modal } from '../'
 
 
 export function CreateSymbologyMenu({ button, className}) {
@@ -30,6 +29,8 @@ function CreateSymbologyModal ({ open, setOpen })  {
   const cancelButtonRef = React.useRef(null)
   const { app, type, useFalcor, baseUrl } = React.useContext(MapEditorContext);
   const { falcor } = useFalcor();
+  const { UI } = React.useContext(ThemeContext) || {};
+  const { Modal } = UI || {};
   const { state, setState } = React.useContext(SymbologyContext)
   const navigate = useNavigate();
   const [modalState, setModalState] = React.useState(DEFAULT_CREATE_SYMBOLOGY_MODAL_STATE)
@@ -76,9 +77,9 @@ function CreateSymbologyModal ({ open, setOpen })  {
           <i className="fad fa-layer-group text-blue-600" aria-hidden="true" />
         </div>
         <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left w-full">
-          <Dialog.Title as="h3" className="text-base font-semibold leading-6 text-gray-900">
+          <h3 className="text-base font-semibold leading-6 text-gray-900">
             Create New Map
-          </Dialog.Title>
+          </h3>
           <div className="mt-2 w-full">
             <input
               value={modalState.name}

@@ -1,11 +1,9 @@
 import React, { useContext, useState, useRef, useMemo, useEffect } from 'react'
 import { SymbologyContext } from '../../../..'
 import { MapEditorContext } from "../../../../../context"
-//import { Button } from "~/modules/avl-components/src";
-import { Dialog, Button } from '@headlessui/react'
+import { ThemeContext } from "../../../../../../../ui/themeContext"
 import { useParams, useNavigate } from 'react-router'
 import {get, isEqual} from 'lodash-es'
-import { Modal } from '../'
 import { LOCAL_STORAGE_KEY_BASE } from '../../../../'
 //import { diff, addedDiff, deletedDiff, updatedDiff, detailedDiff } from 'deep-object-diff';
 export function SaveChangesMenu({ button, className}) {
@@ -58,6 +56,8 @@ function SaveChangesModal ({ open, setOpen })  {
   const cancelButtonRef = useRef(null);
   const { app, type, useFalcor, baseUrl, pgEnv } = useContext(MapEditorContext);
   const { falcor } = useFalcor();
+  const { UI } = useContext(ThemeContext) || {};
+  const { Button, Modal } = UI || {};
   const { state, setState, symbologies, params } = useContext(SymbologyContext);
   const { id: symbologyId } = params;
   const navigate = useNavigate();
@@ -181,9 +181,9 @@ function SaveChangesModal ({ open, setOpen })  {
           <i className='fa-regular fa-floppy-disk text-blue-600' aria-hidden="true"/>
         </div>
         <div className="mt-3 text-center sm:ml-2 sm:mt-0 sm:text-left w-full">
-          <Dialog.Title as="h3" className="text-base font-semibold leading-6 text-gray-900">
+          <h3 className="text-base font-semibold leading-6 text-gray-900">
             Manage Changes
-          </Dialog.Title>
+          </h3>
           {
             !isSymbologyModified ?
               <div className="text-sm text-green-700 italic">No pending changes</div> :

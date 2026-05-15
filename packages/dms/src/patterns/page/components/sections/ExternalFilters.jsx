@@ -31,9 +31,14 @@ const getExternalConditions = (node, path = [], parentOp = 'AND', parentLeafSibl
 export const ExternalFilters = ({ defaultOpen = true }) => {
     const { state, setState } = useContext(ComponentContext) || {};
     const { theme: themeFromContext = {}, UI } = useContext(ThemeContext) || {};
-    const theme = { ...themeFromContext, filters: { ...filterTheme, ...(themeFromContext.filter || {}) } };
-    const { Icon } = UI;
+    const theme = { ...themeFromContext, filters: { ...filterTheme, ...(themeFromContext.filters || {}) } };
+    const { Icon, Button } = UI;
     const [open, setOpen] = useState(defaultOpen);
+
+    // New sections set display.hideExternalToggle: true so the round Filter
+    // toggle pill is suppressed; existing rows without the key fall through to
+    // the previous behavior (pill renders, toggles open/closed).
+    const showToggle = state?.display?.hideExternalToggle !== true;
 
     const columns = state?.externalSource?.columns || [];
     const filterGroups = state?.filters;
@@ -67,35 +72,37 @@ export const ExternalFilters = ({ defaultOpen = true }) => {
         inline: theme.filters.labelWrapperInline,
         stacked: theme.filters.labelWrapperStacked,
     };
+    const rowClass = placement === 'inline'
+        ? theme.filters.conditionRowInline
+        : theme.filters.conditionRowStacked;
 
-    if (!open) {
+    const toggleButton = showToggle ? (
+        <Button
+            className={theme.filters.toggleButton}
+            onClick={() => setOpen(o => !o)}
+        >
+            <Icon icon={'Filter'} className={theme.filters.toggleIcon} title={'Filter'} />
+        </Button>
+    ) : null;
+
+    if (showToggle && !open) {
         return (
             <div className={`${theme.filters.filtersWrapper} print:hidden`}>
-                <div className={'w-fit -mt-4 p-2 border rounded-full self-end'}>
-                    <Icon icon={'Filter'}
-                          className={'text-slate-400 hover:text-blue-500 size-4 hover:cursor-pointer'}
-                          title={'Filter'}
-                          onClick={() => setOpen(true)} />
-                </div>
+                {toggleButton}
             </div>
         );
     }
 
     return (
         <div className={`${theme.filters.filtersWrapper} print:hidden`}>
-            <div className={'w-fit -mt-4 p-2 border rounded-full self-end'}>
-                <Icon icon={'Filter'}
-                      className={'text-slate-400 hover:text-blue-500 size-4 hover:cursor-pointer'}
-                      title={'Filter'}
-                      onClick={() => setOpen(false)} />
-            </div>
-            <div className={`grid ${gridClasses[gridSize]}`}>
+            {toggleButton}
+            <div className={`${theme.filters.conditionsGrid} ${gridClasses[gridSize]}`}>
                 {externalConditions.map(({ node, path, siblingConditions }) => {
                     const column = columns.find(c => c.name === node.col);
                     const label = column ? getColumnLabel(column) : node.col;
 
                     return (
-                        <div key={path.join('.')} className={`w-full flex ${placement === 'inline' ? 'flex-row' : 'flex-col'} items-center gap-1`}>
+                        <div key={path.join('.')} className={rowClass}>
                             <div className={labelWrapperClass[placement]}>
                                 <span className={theme.filters.filterLabel}>{label}</span>
                             </div>
