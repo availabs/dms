@@ -3,8 +3,6 @@ import { Graph, DomainEditor } from './index'
 import { getColorRange } from '../../../../../../../ui/components/graph_new/colorRange'
 import { ValueFormats } from "../../../../../../../ui/components/graph_new/utils";
 
-// import PalettePicker from "./PalettePicker"
-
 const DefaultPalette = getColorRange(20, "div7");
 
 const graphOptions = {
@@ -15,10 +13,7 @@ const graphOptions = {
     orientation: 'vertical',
     showAttribution: true,
     title: {
-        title: "",
-        position: "start",
-        fontSize: 32,
-        fontWeight: "bold"
+        title: ""
     },
     description: "",
     bgColor: "#ffffff",
@@ -29,11 +24,11 @@ const graphOptions = {
     },
     height: 300,
     width: undefined,
-    margins: {
-        marginTop: 20,
-        marginRight: 20,
-        marginBottom: 50,
-        marginLeft: 100
+    margin: {
+        top: 20,
+        right: 20,
+        bottom: 50,
+        left: 100
     },
     xAxis: {
         label: "",
@@ -51,6 +46,9 @@ const graphOptions = {
     legend: {
         show: true,
         label: "",
+        position: "right",
+        orientation: "vertical",
+        size: "medium"
     },
     tooltip: {
         show: true
@@ -63,76 +61,6 @@ const defaultState = {
     data: [],
     display: graphOptions,
     externalSource: { columns: [] }
-}
-
-const homogenizeTargets = rawTargetsMap => {
-    const targetsMap = {};
-
-    for (const target in rawTargetsMap) {
-        targetsMap[target] = {
-            ...rawTargetsMap[target]
-        };
-        targetsMap[target].keys = rawTargetsMap[target].keys.map(key => {
-            if (typeof key === "string") {
-                return {
-                    key,
-                    value: column => column[key] = true
-                }
-            }
-            else if (typeof key === "object") {
-                if (typeof key.value === "string") {
-                    return {
-                        key: key.key,
-                        value: column => column[key.key] = key.value
-                    }
-                }
-                return key;
-            }
-        })
-    }
-
-    return targetsMap;
-}
-
-const GRAPH_TARGETS_MAP = homogenizeTargets({
-    xAxis: {
-        exclusive: true,
-        keys: ["xAxis"],
-        remove: ["fn", "yAxis", "categorize", "color"]
-    },
-    yAxis: {
-        exclusive: false,
-        keys: [
-            "yAxis",
-            // { key: "fn",
-            //     value: column => column.fn = (column.defaultFn || "count").toLowerCase()
-            // }
-        ],
-        remove: ["xAxis", "categorize", "color"]
-    },
-    categorize: {
-        keys: ["categorize"],
-        exclusive: true,
-        remove: ["xAxis", "fn", "yAxis", "color"]
-    },
-    color: {
-        exclusive: true,
-        keys: [
-            "color",
-            // { key: "fn",
-            //     value: column => column.fn = (column.defaultFn || "count").toLowerCase()
-            // }
-        ],
-        remove: ["xAxis", "yAxis", "categorize"]
-    }
-})
-
-const hasNoValue = value => {
-    if (value === undefined) return true;
-    if (value === null) return true;
-    if ((typeof value === "string") && (value.length === 0)) return true;
-    if ((typeof value == "object") && (Object.keys(value).length === 0)) return true;
-    return false;
 }
 
 export default {
@@ -181,7 +109,13 @@ export default {
                     { label: 'A->Z', value: 'asc' },
                     { label: 'Z->A', value: 'desc' }
                 ],
-                displayCdn: ({ attribute }) => attribute.target === "xAxis"
+                displayCdn: ({ attribute, display }) => {
+                    return (attribute.target === "xAxis") ||
+                            (attribute.target === "categorize") ||
+                            ((attribute.target === "yAxis") &&
+                                (display.graphType === "GridGraph")
+                            )
+                }
             }
         ],
         // columns: [
@@ -226,6 +160,54 @@ export default {
         //             {label: 'Abbreviated',       value: 'abbreviate'},
         //         ]},
         // ],
+        graph: {
+            name: 'Graph',
+            items: [
+                {   type: 'select',
+                    label: 'Graph Type', key: 'graphType',
+                    onClickGoBack: true, showValue: true,
+                    options: [
+                        { label: 'Bar', value: 'BarGraph' },
+                        { label: 'Line', value: 'LineGraph' },
+                        { label: 'Pie', value: 'PieGraph' },
+                        { label: 'Grid', value: 'GridGraph' },
+                    ],
+                    onChange: ({ key, value, state }) => {
+                        if (value === "GridGraph") {
+                            state.columns.forEach(col => {
+                                if (col.target === "categorize") {
+                                    col.target = undefined;
+                                }
+                            })
+                        }
+                        else {
+                            state.columns.forEach(col => {
+                                if (col.target === "color") {
+                                    col.target = undefined;
+                                }
+                            })
+                            state.display.legend.position = "right";
+                        }
+                    }
+                },
+                {type: 'input', inputType: 'text', label: 'Title',          key: 'title.title'},
+                // {type: 'toggle',                   label: 'Legend',          key: 'legend.show'},
+                {type: 'toggle',                   label: 'Hide if No Data', key: 'hideIfNull'},
+                // {type: 'toggle',                   label: 'Tooltip',         key: 'tooltip.show'},
+                {type: 'toggle',                   label: 'Attribution',     key: 'showAttribution'},
+                // {type: 'toggle',                   label: 'Scale Filter',    key: 'showScaleFilter'},
+                // {type: 'input', inputType: 'number', label: 'Padding',          key: 'padding'},
+                {type: 'input', inputType: 'number', label: 'Height',        key: 'height'},
+                // {type: 'toggle',                   label: 'Use Custom X Ticks', key: 'useCustomXDomain'},
+                {
+                    type: ({value, setValue, state}) => (
+                        <DomainEditor value={value} setValue={setValue} display={state?.display || {}} />
+                    ),
+                    label: 'Custom X Ticks', key: 'xDomain',
+                    displayCdn: ({display}) => display.useCustomXDomain
+                },
+            ]
+        },
         xAxis: {
             name: 'X Axis',
             items: [
@@ -260,6 +242,72 @@ export default {
                 {type: 'toggle',                     label: 'Show Y Axis',     key: 'yAxis.show' },
             ]
         },
+        margin: {
+            name: "Margins",
+            items: [
+                { type: "input", inputType: "number",
+                    label: "Margin Top", key: "margin.top"
+                },
+                { type: "input", inputType: "number",
+                    label: "Margin Right", key: "margin.right"
+                },
+                { type: "input", inputType: "number",
+                    label: "Margin Bottom", key: "margin.bottom"
+                },
+                { type: "input", inputType: "number",
+                    label: "Margin Left", key: "margin.left"
+                }
+            ]
+        },
+        legend: {
+            name: "Legend",
+            displayCdn: ({ display }) => display.graphType !== "GridGraph",
+            items: [
+                { type: "toggle",
+                    label: "Show", key: "legend.show"
+                },
+                { type: "select",
+                    label: "Position", key: "legend.position",
+                    options: [
+                        { label: "Right", value: "right" },
+                        { label: "Left", value: "left" }
+                    ]
+                }
+            ]
+        },
+        legendForGridGraph: {
+            name: "Legend",
+            displayCdn: ({ display }) => display.graphType === "GridGraph",
+            items: [
+                { type: "toggle",
+                    label: "Show", key: "legend.show"
+                },
+                { type: "select",
+                    label: "Position", key: "legend.position",
+                    options: [
+                        { label: "Right", value: "right" },
+                        { label: "Left", value: "left" },
+                        { label: "Top Right", value: "top-right" },
+                        { label: "Top Left", value: "top-left" },
+                        { label: "Bottom Right", value: "bottom-right" },
+                        { label: "Bottom Left", value: "bottom-left" }
+                    ]
+                }
+            ]
+        },
+        tooltip: {
+            name: "ToolTip",
+            displayCdn: ({ display }) => display.graphType !== 'LineGraph',
+            items: [
+                { type: 'toggle',
+                    label: 'Show', key: 'tooltip.show'
+                },
+                { type: "select",
+                    label: "Value Format", key: "tooltip.valueFormat",
+                    options: ValueFormats
+                }
+            ]
+        },
         tooltipForLineGraph: {
             name: "ToolTip",
             displayCdn: ({ display }) => display.graphType === 'LineGraph',
@@ -268,66 +316,6 @@ export default {
                     label: "Y Format", key: "tooltip.yFormat",
                     options: ValueFormats
                 }
-            ]
-        },
-        tooltip: {
-            name: "ToolTip",
-            displayCdn: ({ display }) => display.graphType !== 'LineGraph',
-            items: [
-                {type: 'toggle',
-                    label: 'Tooltip', key: 'tooltip.show'
-                },
-                { type: "select",
-                    label: "Value Format", key: "tooltip.valueFormat",
-                    options: ValueFormats
-                }
-            ]
-        },
-        graph: {
-            name: 'Graph',
-            items: [
-                {   type: 'select',
-                    label: 'Graph Type', key: 'graphType',
-                    onClickGoBack: true, showValue: true,
-                    options: [
-                        {label: 'Bar',     value: 'BarGraph'},
-                        {label: 'Line',    value: 'LineGraph'},
-                        // {label: 'Scatter', value: 'ScatterPlot'},
-                        {label: 'Grid',    value: 'GridGraph'},
-                    ],
-                    onChange: ({ key, value, state }) => {
-                        if (value === "GridGraph") {
-                            state.columns.forEach(col => {
-                                if (col.target === "categorize") {
-                                    col.target = undefined;
-                                }
-                            })
-                        }
-                        else {
-                            state.columns.forEach(col => {
-                                if (col.target === "color") {
-                                    col.target = undefined;
-                                }
-                            })
-                        }
-                    }
-                },
-                {type: 'input', inputType: 'text', label: 'Title',          key: 'title.title'},
-                {type: 'toggle',                   label: 'Legend',          key: 'legend.show'},
-                {type: 'toggle',                   label: 'Hide if No Data', key: 'hideIfNull'},
-                // {type: 'toggle',                   label: 'Tooltip',         key: 'tooltip.show'},
-                {type: 'toggle',                   label: 'Attribution',     key: 'showAttribution'},
-                {type: 'toggle',                   label: 'Scale Filter',    key: 'showScaleFilter'},
-                {type: 'input', inputType: 'number', label: 'Padding',          key: 'padding'},
-                {type: 'input', inputType: 'number', label: 'Height',        key: 'height'},
-                {type: 'toggle',                   label: 'Use Custom X Ticks', key: 'useCustomXDomain'},
-                {
-                    type: ({value, setValue, state}) => (
-                        <DomainEditor value={value} setValue={setValue} display={state?.display || {}} />
-                    ),
-                    label: 'Custom X Ticks', key: 'xDomain',
-                    displayCdn: ({display}) => display.useCustomXDomain
-                },
             ]
         },
         layout: {

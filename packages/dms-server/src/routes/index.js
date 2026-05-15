@@ -25,7 +25,7 @@ const BaseRouter = Router.createClass(routeFiles);
 
 class falcorRoutes extends BaseRouter {
   constructor(config) {
-    super({ maxPaths: 500000 });
+    super({ maxPaths: 10_000_000 });
     this.user = config.user;
   }
 }

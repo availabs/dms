@@ -8,7 +8,7 @@ import { format as d3format } from "d3-format"
 import isEqual from "lodash/isEqual"
 import get from "lodash/get"
 
-import { theme, useSetSize } from "./utils"
+import { useSetSize } from "./utils"
 
 import {
   AxisBottom,
@@ -33,7 +33,6 @@ const DefaultHoverComp = ({ data, indexFormat, keyFormat, valueFormat, valueLabe
   return (
     <div className={ `
       grid grid-cols-1 gap-1 px-2 pt-1 pb-2 rounded
-      ${ theme.accent1 }
     ` }>
       <div className="font-bold text-lg leading-6 border-b-2 border-current pl-2">
         { keyFormat(get(data, "key", null)) }
@@ -144,7 +143,7 @@ export const GridGraph = props => {
     onHoverEnter = null,
     onHoverLeave = null,
     bgColor = "#000000",
-    nullColor = "#000000",
+    nullColor = "transparent",
     hoverPoints = false,
     // paddingInner = 0,
     // paddingOuter = 0,
@@ -488,6 +487,7 @@ export const GridGraph = props => {
   const {
     HoverComp,
     position,
+    show: showHoverComp,
     ...hoverCompRest
   } = HoverCompData;
 
@@ -572,16 +572,18 @@ export const GridGraph = props => {
 
       </svg>
 
-      <HoverCompContainer { ...hoverData }
-        position={ position }
-        svgWidth={ width }
-        svgHeight={ height }
-        margin={ Margin }>
-        { !hoverData.data ? null :
-            <HoverComp target={ hoverData.target } bgColor={ bgColor }
-              data={ hoverData.data } keys={ keys } { ...hoverCompRest }/>
-        }
-      </HoverCompContainer>
+      { !showHoverComp ? null :
+        <HoverCompContainer { ...hoverData }
+          position={ position }
+          svgWidth={ width }
+          svgHeight={ height }
+          margin={ Margin }>
+          { !hoverData.data ? null :
+              <HoverComp target={ hoverData.target } bgColor={ bgColor }
+                data={ hoverData.data } keys={ keys } { ...hoverCompRest }/>
+          }
+        </HoverCompContainer>
+      }
 
     </div>
   )

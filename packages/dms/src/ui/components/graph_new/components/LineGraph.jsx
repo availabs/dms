@@ -1,10 +1,8 @@
 import React from "react"
 
-import { LineGraph, generateTestLineData } from "./avl-graph"
+import { LineGraph, Legend } from "./avl-graph"
 
-import {
-	groups as d3groups
-} from "d3-array"
+import { groups as d3groups } from "d3-array"
 
 import { strictNaN } from "../utils"
 import { getAggFunc } from "./utils"
@@ -44,7 +42,9 @@ const LineGraphWrapper = props => {
 							y += v;
 						}
 					}
-					line.data.push({ x, y });
+					if (y) {
+						line.data.push({ x, y });
+					}
 				}
 				data.push(line);
 			}
@@ -61,7 +61,7 @@ const LineGraphWrapper = props => {
 				for (const [x, xGroup] of dataGroups) {
 					if (x === undefined) continue;
 					const y = aggFunc(xGroup, d => d[ycn]);
-					if (!strictNaN(y)) {
+					if (y) {
 						line.data.push({ x, y })
 					}
 				}
@@ -74,11 +74,21 @@ const LineGraphWrapper = props => {
 	      const aNaN = strictNaN(+a.x);
 	      const bNaN = strictNaN(+b.x);
 	      if (aNaN || bNaN) {
-	        return a < b ? -1 : a > b ? 1 : 0;
+	        return a.x < b.x ? -1 : a.x > b.x ? 1 : 0;
 	      }
 	      return +a.x - +b.x;
 			})
 		})
+		if (idColumn.sort) {
+			data.sort((a, b) => {
+	      const aNaN = strictNaN(+a.index);
+	      const bNaN = strictNaN(+b.index);
+	      if (aNaN || bNaN) {
+	        return a.index < b.index ? -1 : a.index > b.index ? 1 : 0;
+	      }
+	      return +a.index - +b.index;
+			})
+		}
 
 		return data;
 	}, [props.viewData, props.columns]);
@@ -95,39 +105,41 @@ const LineGraphWrapper = props => {
 		return { ...props.yAxis };
 	}, [props.yAxis]);
 
-	const margin = React.useMemo(() => {
-		return {
-			top: props.margins?.marginTop || 20,
-			right: props.margins?.marginRight || 20,
-			bottom: props.margins.marginBottom || 50,
-			left: props.margins?.marginLeft || 100
-		}
-	}, [props.margins]);
+  const legend = React.useMemo(() => {
+    return {
+      ...props.legend,
+      type: "categorical",
+      colors: props.colors,
+      categories: dataFromProps.map(l => l.id)
+    };
+  }, [props.legend, props.colors, dataFromProps]);
 
-	const hoverComp = React.useMemo(() => {
-		return { ...props.tooltip };
-	}, [props.tooltip]);
-
-	const height = React.useMemo(() => {
-		return Math.max(margin.top + margin.bottom + 100, props.height);
-	}, [props.height, margin.top, margin.bottom,]);
+// console.log("LineGraphWrapper::legend", legend);
 
 	return (
-		<div className="w-full bg-inherit"
-			style={ { height: `${ height }px` } }
-		>
-			<LineGraph
-				data={ dataFromProps }
-				colors={ props.colors }
-				axisBottom={ axisBottom }
-				axisLeft={ axisLeft }
-				axisRight={ axisLeft }
-				xScale={ props.xScale }
-				margin={ margin }
-				hoverComp={ hoverComp }
-				width={ props.width }
-				height={ height }/>
-		</div>
+    <div className="w-full bg-inherit flex">
+      { !legend.show || legend.position !== "left" ? null :
+      	<div className="flex items-center">
+        	<Legend { ...legend }/>
+        </div>
+      }
+      <div className="bg-inherit flex-1"
+        style={ {
+          height: `${ props.height }px`
+        } }
+      >
+				<LineGraph { ...props }
+					data={ dataFromProps }
+					axisBottom={ axisBottom }
+					axisLeft={ axisLeft }
+					axisRight={ axisLeft }/>
+      </div>
+      { !legend.show || legend.position !== "right" ? null :
+      	<div className="flex items-center">
+        	<Legend { ...legend }/>
+        </div>
+      }
+    </div>
 	)
 }
 
