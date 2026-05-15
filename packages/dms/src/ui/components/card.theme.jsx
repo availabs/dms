@@ -39,10 +39,8 @@ export const dataCardTheme = {
             itemFlexRowReverse: 'flex-row flex-row-reverse',
             iconAndColorValues: 'flex items-center gap-1.5 uppercase',
 
-            formEditButtonsWrapper: 'self-end flex gap-0.5 text-sm',
-            formEditSaveButton: 'bg-blue-300 hover:bg-blue-400 text-blue-700 rounded-lg w-fit px-2 py-0.5',
-            formEditCancelButton: 'bg-red-300 hover:bg-red-400 text-red-700 rounded-lg w-fit px-2 py-0.5',
-            formAddNewItemButton: 'bg-blue-300 hover:bg-blue-400 text-blue-700 rounded-lg w-fit px-2 py-0.5 text-sm self-end',
+            formEditButtonsWrapper: 'w-fit justify-self-end self-end flex gap-0.5',
+            formAddNewItemWrapper: 'w-fit justify-self-end self-end',
 
             justifyTextLeft: 'text-start justify-items-start  rounded-md',
             justifyTextRight: 'text-end justify-items-end rounded-md',
