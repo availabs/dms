@@ -222,7 +222,7 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
         ui:  { Switch, Pill, Icon, TitleEditComp, LevelComp, theme: fullTheme, RegisteredComponents },
         dataSource: dataSourceFromRef,
         dwAPI: dwAPI || {},
-        mapAPI: mapAPI || {},
+        mapAPI,
         pageDataSources: { dataSources, dataSourceId, switchDataSource },
     })
     const canEditSection = isUserAuthed(['edit-section'], sectionAuthPermissions);
@@ -407,7 +407,7 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
         ui:  { Switch, Pill, Icon, TitleEditComp, LevelComp, refreshDataBtnRef, isRefreshingData, setIsRefreshingData, theme: fullTheme, RegisteredComponents },
         dataSource: dataSourceFromRef,
         dwAPI: dwAPI || {},
-        mapAPI: mapAPI || {},
+        mapAPI,
     })
 
     const resolvedControls = typeof component?.controls === 'function'

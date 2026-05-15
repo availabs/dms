@@ -21,7 +21,12 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
     const canEditPageLayout = isUserAuthed(['edit-page-layout'], pageAuthPermissions);
     const canEditSectionPermissions = isUserAuthed(['edit-section-permissions'], sectionAuthPermissions);
     const currentComponent = RegisteredComponents[value?.element?.['element-type'] || 'lexical'];
-    const componentAPI = mapAPI || dwAPI;
+    /** Use the map API only for the Map component; all other sections continue to use dwAPI. */
+    const componentAPI =
+    ['Map'].includes(currentComponent?.name) && mapAPI?.setState
+        ? mapAPI
+        : dwAPI;
+
     // Resolve controls - may be a function that receives theme, or a static object
     const resolvedControls = typeof currentComponent?.controls === 'function'
         ? currentComponent.controls(theme)
@@ -32,6 +37,8 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
     // =================================================================================================================
     const groupControl = resolvedControls?.columns?.find(c => c.key === 'group') || {};
 
+    console.log("currentComponent: ", currentComponent);
+    
     // Registry of control type transformers - all use nested submenu pattern
     const controlItemTransformers = {
         select: (item, value) => ({
