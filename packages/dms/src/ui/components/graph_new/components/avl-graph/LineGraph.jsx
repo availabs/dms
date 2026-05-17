@@ -534,6 +534,7 @@ export const LineGraph = props => {
   const {
     HoverComp,
     position,
+    show: showHoverComp,
     ...hoverCompRest
   } = HoverCompData;
 
@@ -610,16 +611,18 @@ export const LineGraph = props => {
 
       </svg>
 
-      <HoverCompContainer { ...hoverData }
-        position={ position }
-        svgWidth={ width }
-        svgHeight={ height }
-        margin={ Margin }>
-        { !hoverData.data ? null :
-          <HoverComp data={ hoverData.data } lineTotals={ lineTotals }
-            { ...hoverCompRest }/>
-        }
-      </HoverCompContainer>
+      { !showHoverComp ? null :
+        <HoverCompContainer { ...hoverData }
+          position={ position }
+          svgWidth={ width }
+          svgHeight={ height }
+          margin={ Margin }>
+          { !hoverData.data ? null :
+            <HoverComp data={ hoverData.data } lineTotals={ lineTotals }
+              { ...hoverCompRest }/>
+          }
+        </HoverCompContainer>
+      }
 
     </div>
   )

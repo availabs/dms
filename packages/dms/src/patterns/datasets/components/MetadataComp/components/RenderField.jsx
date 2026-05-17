@@ -75,18 +75,19 @@ const RenderInputSelect = ({disabled, label, value='', col, attr, updateAttribut
     const {UI} = React.useContext(DatasetsContext);
     const {theme} = React.useContext(ThemeContext) || {};
     const t = theme?.datasets?.metadataComp || metadataCompTheme;
-    const {Select} = UI;
+    const {MultiSelect} = UI;
 
     return (
         <div className={t.inputWrapper}>
             <label className={t.label}>{label}</label>
-            <Select
-                disabled={disabled}
+            <MultiSelect
+                singleSelectOnly
+                searchable={false}
                 value={value}
-                onChange={e => {
-                    const valueToUpdate = {[attr]: e.target.value};
+                onChange={v => {
+                    const valueToUpdate = {[attr]: v};
                     if(attr === 'type') {
-                        valueToUpdate['dataType'] = options.find(o => o.value === e.target.value)?.dataType || undefined;
+                        valueToUpdate['dataType'] = options.find(o => o.value === v)?.dataType || undefined;
 
                     }
                     updateAttribute(col, valueToUpdate)

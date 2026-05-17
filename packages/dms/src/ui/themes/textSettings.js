@@ -72,7 +72,9 @@ export const textSettingsSettings = (theme) => {
       controls: [
         {
           label: 'Style',
-          type: 'Select',
+          type: 'MultiSelect',
+          singleSelectOnly: true,
+          searchable: false,
           options: (theme?.textSettings?.styles || [{}])
             .map((k, i) => ({ label: k?.name || i, value: i })),
           path: `textSettings.options.activeStyle`,

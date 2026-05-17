@@ -82,7 +82,9 @@ export const sideNavsettings =  (theme) => [
     controls: [
       {
         label: 'Style',
-        type: 'Select',
+        type: 'MultiSelect',
+        singleSelectOnly: true,
+        searchable: false,
         options: (theme?.sidenav?.styles || [{}])
           .map((k, i) => ({ label: k?.name || i, value: i })),
         path: `sidenav.options.activeStyle`,

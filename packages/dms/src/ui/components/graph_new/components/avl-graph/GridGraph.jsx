@@ -487,6 +487,7 @@ export const GridGraph = props => {
   const {
     HoverComp,
     position,
+    show: showHoverComp,
     ...hoverCompRest
   } = HoverCompData;
 
@@ -571,16 +572,18 @@ export const GridGraph = props => {
 
       </svg>
 
-      <HoverCompContainer { ...hoverData }
-        position={ position }
-        svgWidth={ width }
-        svgHeight={ height }
-        margin={ Margin }>
-        { !hoverData.data ? null :
-            <HoverComp target={ hoverData.target } bgColor={ bgColor }
-              data={ hoverData.data } keys={ keys } { ...hoverCompRest }/>
-        }
-      </HoverCompContainer>
+      { !showHoverComp ? null :
+        <HoverCompContainer { ...hoverData }
+          position={ position }
+          svgWidth={ width }
+          svgHeight={ height }
+          margin={ Margin }>
+          { !hoverData.data ? null :
+              <HoverComp target={ hoverData.target } bgColor={ bgColor }
+                data={ hoverData.data } keys={ keys } { ...hoverCompRest }/>
+          }
+        </HoverCompContainer>
+      }
 
     </div>
   )

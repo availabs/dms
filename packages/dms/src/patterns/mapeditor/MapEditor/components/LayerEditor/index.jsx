@@ -1,8 +1,8 @@
-import React, { useContext , useMemo, Fragment}from 'react'
+import React, { useContext , useMemo}from 'react'
 import {SymbologyContext} from '../../'
+import { ThemeContext } from "../../../../../ui/themeContext"
 import { Plus, Close, MenuDots } from '../icons'
 import { LayerMenu } from '../LayerManager/LayerPanel'
-import { Menu, Transition, Tab, Dialog } from '@headlessui/react'
 
 import { extractState } from '../../stateUtils';
 
@@ -12,13 +12,21 @@ import LegendEditor from './LegendEditor'
 import FilterEditor from './FilterEditor'
 
 
+const LAYER_EDITOR_TABS = [
+  { name: 'Style', Component: StyleEditor },
+  { name: 'Legend', Component: LegendEditor },
+  { name: 'Popup', Component: PopoverEditor },
+  { name: 'Filter', Component: FilterEditor },
+];
+
 function LayerManager (props) {
   const { state, setState } = React.useContext(SymbologyContext);
+  const { UI } = React.useContext(ThemeContext) || {};
+  const { Tabs } = UI || {};
   const { activeLayer, isActiveLayerPlugin, controllingPluginName } = useMemo(() => {
     return extractState(state);
   }, [state]);
 
-  const tabs = ['Style', 'Legend','Popup','Filter']
   return activeLayer && (
     <div className='p-4'>
       <div className='bg-white/95 w-[312px] rounded-lg drop-shadow-lg pointer-events-auto min-h-[400px] max-h-[calc(100vh_-_161px)]  '>
@@ -60,33 +68,7 @@ function LayerManager (props) {
                 </div>
             </div> :
             <div className='min-h-20 relative'>
-              <Tab.Group>
-                <div className='flex justify-between items-center border-b'>
-                  <Tab.List>
-                    {tabs.map(tabName => (
-                      <Tab  key={tabName} as={Fragment}>
-                        {({ selected }) => (
-                          <button
-                            className={`
-                              ${selected ? 
-                                'text-slate-600 border-b font-medium border-slate-600' : 
-                                'text-slate-400'} mx-1 text-sm p-2 cursor-pointer
-                            `}
-                          >
-                            {tabName}
-                          </button>
-                        )}
-                      </Tab>
-                    ))}
-                  </Tab.List>
-                </div>
-                <Tab.Panels>
-                  <Tab.Panel><StyleEditor /></Tab.Panel>
-                  <Tab.Panel><LegendEditor /></Tab.Panel>
-                  <Tab.Panel><PopoverEditor /></Tab.Panel>
-                  <Tab.Panel><FilterEditor /></Tab.Panel>
-                </Tab.Panels>
-              </Tab.Group>
+              <Tabs tabs={LAYER_EDITOR_TABS} activeStyle="panel" />
             </div>
         }
       </div>

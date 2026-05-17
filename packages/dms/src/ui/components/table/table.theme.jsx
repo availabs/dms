@@ -86,7 +86,9 @@ export const tableSettings = (theme) => [
         controls: [
             {
                 label: 'Style',
-                type: 'Select',
+                type: 'MultiSelect',
+                singleSelectOnly: true,
+                searchable: false,
                 options: (theme?.table?.styles || [{}])
                     .map((k, i) => ({ label: k?.name || i, value: i })),
                 path: `table.options.activeStyle`,

@@ -30,7 +30,9 @@ export const avlGraphSettings = theme => [
         type: 'inline',
         controls: [
             { label: 'Style',
-                type: 'Select',
+                type: 'MultiSelect',
+                singleSelectOnly: true,
+                searchable: false,
                 options: (theme?.avlGraph?.styles || [])
                     .map((k, i) => ({ label: k?.name || i, value: i })),
                 path: `avlGraph.options.activeStyle`,

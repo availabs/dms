@@ -23,7 +23,7 @@ import {
   EmptyObject
 } from "./utils"
 
-const DefaultHoverComp = ({ data, keys, indexFormat, keyFormat, valueFormat, ...rest }) => {
+const DefaultHoverComp = ({ data, keys, indexFormat, keyFormat, valueFormat, valueLabel, showTotals, ...rest }) => {
   return (
     <div className={ `
       flex flex-col px-2 pt-1 rounded
@@ -33,26 +33,31 @@ const DefaultHoverComp = ({ data, keys, indexFormat, keyFormat, valueFormat, ...
       <div className="font-bold text-lg leading-6 border-b-2 mb-1 pl-2">
         { indexFormat(get(data, "index", null)) }
       </div>
-      { keys.map(key => (
-          <div key={ key } className={ `
-            flex items-center px-2 border-2 rounded transition
-            ${ data.key === key ? "border-current" : "border-transparent" }
-          `}>
-            <div className="mr-2 rounded-sm color-square w-5 h-5"
-              style={ {
-                backgroundColor: get(data, ["colorMap", data.index, key], null),
-                opacity: data.key === key ? 1 : 0.2
-              } }/>
-            <div className="mr-4">
-              { keyFormat(key) }:
+      { keys.filter(k => get(data, ["data", k], 0))
+          .sort((a, b) => get(data, ["data", b], 0) - get(data, ["data", a], 0))
+          .map(key => (
+            <div key={ key } className={ `
+              flex items-center px-2 border-2 rounded transition
+              ${ data.key === key ? "border-current" : "border-transparent" }
+            `}>
+              <div className="mr-2 rounded-sm color-square w-5 h-5"
+                style={ {
+                  backgroundColor: get(data, ["colorMap", data.index, key], null),
+                  opacity: data.key === key ? 1 : 0.2
+                } }/>
+              <div className="mr-4">
+                { keyFormat(key) }:
+              </div>
+              <div className="text-right flex-1">
+                { valueFormat(get(data, ["data", key], 0)) }
+                { !valueLabel ? null :
+                  <b className="ml-1">{ valueLabel }</b>
+                }
+              </div>
             </div>
-            <div className="text-right flex-1">
-              { valueFormat(get(data, ["data", key], 0)) }
-            </div>
-          </div>
-        ))
+          ))
       }
-      { keys.length <= 1 ? null :
+      { (keys.length <= 1) || !showTotals ? null :
         <div className="flex pr-2">
           <div className="w-5 mr-2"/>
           <div className="mr-4 pl-2">
@@ -72,23 +77,21 @@ const DefaultHoverCompData = {
   indexFormat: Identity,
   keyFormat: Identity,
   valueFormat: Identity,
+  valueLabel: null,
+  showTotals: true,
   position: "side"
 }
 
 const InitialState = {
-  radiusDomain: [],
-  radiusScale: null,
-  adjustedWidth: 0,
-  adjustedHeight: 0,
   pieData: [],
   exiting: []
 }
 const Reducer = (state, action) => {
-  const { type, ...payload } = action;
+  const { type, showAnimations, ...payload } = action;
   switch (type) {
     case "update-state": {
       const { pieData } = state;
-      const prevIds = pieData.reduce((a, c) => {
+      let prevIds = pieData.reduce((a, c) => {
         a[c.index] = c;
         return a;
       }, {});
@@ -98,9 +101,10 @@ const Reducer = (state, action) => {
           delete prevIds[pie.index];
         }
       })
+      if (!showAnimations) {
+        prevIds = {};
+      }
       return {
-        ...state,
-        ...payload,
         pieData: [
           ...payload.pieData,
           ...Object.values(prevIds).map(p => ({ ...p, state: "exiting" }))
@@ -110,7 +114,6 @@ const Reducer = (state, action) => {
     }
     case "exit-data":
       return {
-        ...state,
         pieData: state.pieData.filter(pie => {
           return payload.exiting.includes(pie.index) ? pie.state !== "exiting" : true;
         }),
@@ -140,6 +143,7 @@ const maxSquare = (x, y, n) => {
   else {
     sx = x / px;
   }
+
   const py = Math.ceil(Math.sqrt(n * y / x));
   if (Math.floor(py * x / y) * py < n) {
     sy = x / Math.ceil(py * x / y);
@@ -147,6 +151,7 @@ const maxSquare = (x, y, n) => {
   else {
     sy = y / py;
   }
+
   return Math.max(sx, sy);
 }
 
@@ -162,7 +167,8 @@ export const PieGraph = props => {
     startAngle = 0,
     endAngle = 2 * Math.PI,
     padAngle = 0,
-    colors
+    colors,
+    showAnimations = false
   } = props;
 
   const Margin = React.useMemo(() => {
@@ -205,7 +211,7 @@ export const PieGraph = props => {
       .startAngle(startAngle)
       .endAngle(endAngle)
       .padAngle(padAngle)
-      .sort(null);
+      .sort((a, b) => b.value - a.value);
 
     const colorFunc = getColorFunc(colors);
 
@@ -254,9 +260,7 @@ export const PieGraph = props => {
 
     const h = adjustedHeight / numRows;
 
-    ms = Math.min(ms, h - labelPadding);
-
-    const diff = h - ms;
+    const pieDiameter = Math.min(ms, h - labelPadding);
 
     const domain = d3extent(pieData, d => d.total);
 
@@ -266,7 +270,7 @@ export const PieGraph = props => {
 
     const radiusScale = scaleLinear()
       .domain(domain)
-      .range([0.3 * ms, 0.475 * ms]);
+      .range([0.125 * pieDiameter, 0.5 * pieDiameter]);
 
     pieData.forEach((p, i) => {
       const col = i % numCols,
@@ -276,16 +280,15 @@ export const PieGraph = props => {
 
       p.radius = radiusScale(p.total);
       p.dx = w * col + w * 0.5;
-      p.dy = h * row + (h - diff) * 0.5;
-      p.ms = ms;
+      p.dy = h * row + (h - labelPadding) * 0.5;
+      // p.ldy = (h - labelPadding) * 0.5;
+      p.ldy = p.radius;
     })
 
     dispatch({
       type: "update-state",
-      radiusScale,
-      adjustedWidth,
-      adjustedHeight,
-      pieData
+      pieData,
+      showAnimations
     });
 
   }, [
@@ -294,10 +297,10 @@ export const PieGraph = props => {
   ]);
 
   React.useEffect(() => {
-    if (state.exiting.length) {
-      setTimeout(exitData, 1050, state.exiting);
+    if (showAnimations && state.exiting.length) {
+      setTimeout(exitData, 1050, [...state.exiting]);
     }
-  }, [exitData, state.exiting]);
+  }, [showAnimations, exitData, state.exiting]);
 
   const {
     onMouseMove,
@@ -308,6 +311,7 @@ export const PieGraph = props => {
   const {
     HoverComp,
     position,
+    show: showHoverComp,
     ...hoverCompRest
   } = HoverCompData;
 
@@ -323,28 +327,31 @@ export const PieGraph = props => {
           { state.pieData
               .map((pie, i) => (
                 <Pie key={ pie.index } { ...pie }
-                  onMouseMove={ onMouseMove }/>
+                  onMouseMove={ onMouseMove }
+                  showAnimations={ showAnimations }/>
               ))
           }
 
         </g>
       </svg>
 
-      <HoverCompContainer { ...hoverData }
-        position={ position }
-        svgWidth={ width }
-        svgHeight={ height }
-        margin={ Margin }>
-        { !hoverData.data ? null :
-          <HoverComp data={ hoverData.data } keys={ keys }
-            { ...hoverCompRest }/>
-        }
-      </HoverCompContainer>
+      { !showHoverComp ? null :
+        <HoverCompContainer { ...hoverData }
+          position={ position }
+          svgWidth={ width }
+          svgHeight={ height }
+          margin={ Margin }>
+          { !hoverData.data ? null :
+            <HoverComp data={ hoverData.data } keys={ keys }
+              { ...hoverCompRest }/>
+          }
+        </HoverCompContainer>
+      }
     </div>
   )
 }
 
-const Slice = React.memo(({ state, data, radius, index, onMouseMove,
+const Slice = React.memo(({ state, data, radius, index, onMouseMove, showAnimations,
                             endAngle, startAngle, padAngle }) => {
 
   // const zeroArc = React.useMemo(() => {
@@ -353,6 +360,12 @@ const Slice = React.memo(({ state, data, radius, index, onMouseMove,
   //     .innerRadius(0)
   //     .cornerRadius(0);
   // }, []);
+
+  const transitionWrapper = React.useMemo(() => {
+    return showAnimations ?
+      selection => selection.transition().duration(1000) :
+      selection => selection;
+  }, [showAnimations]);
 
   const arc = React.useMemo(() => {
     return d3shape.arc()
@@ -364,41 +377,48 @@ const Slice = React.memo(({ state, data, radius, index, onMouseMove,
   const ref = React.useRef();
 
   React.useEffect(() => {
-    d3select(ref.current)
-      .datum({ endAngle, startAngle, padAngle, outerRadius: radius })
-  }, [endAngle, startAngle, padAngle, radius])
+    if (state === "entering") {
+      d3select(ref.current)
+        .datum({ endAngle, startAngle, padAngle, outerRadius: radius });
+    }
+  }, [state, endAngle, startAngle, padAngle, radius])
 
   React.useEffect(() => {
     if (state === "entering") {
-      d3select(ref.current)
-        // .datum({ endAngle, startAngle, padAngle, outerRadius: radius })
+      transitionWrapper(d3select(ref.current)
         .attr("d", arc({ endAngle, startAngle, padAngle, outerRadius: 0.1 }))
-        .transition().duration(1000)
-          .attr("d", arc({ endAngle, startAngle, padAngle, outerRadius: radius }))
-          .attr("fill", data.color);
+      )
+      .attr("d", arc({ endAngle, startAngle, padAngle, outerRadius: radius }))
+      .attr("fill", data.color);
     }
     else if (state === "exiting") {
-      d3select(ref.current)
-        .transition().duration(1000)
-          .attr("d", arc({ endAngle, startAngle, padAngle, outerRadius: 0.1 }));
+      transitionWrapper(d3select(ref.current))
+        .attr("d", arc({ endAngle, startAngle, padAngle, outerRadius: 0.1 }));
     }
     else {
-      d3select(ref.current)
-        .transition().duration(1000)
+      if (showAnimations) {
+        d3select(ref.current)
+          .transition().duration(1000)
+            .attrTween("d", d => {
+              const i1 = d3interpolate(d.startAngle, startAngle);
+              const i2 = d3interpolate(d.endAngle, endAngle);
+              const i3 = d3interpolate(d.outerRadius, radius)
+              return t => {
+                d.startAngle = i1(t);
+                d.endAngle = i2(t);
+                d.outerRadius = i3(t);
+                return arc(d);
+              };
+            })
+            .attr("fill", data.color)
+      }
+      else {
+        d3select(ref.current)
           .attr("fill", data.color)
-          .attrTween("d", d => {
-            const i1 = d3interpolate(d.startAngle, startAngle);
-            const i2 = d3interpolate(d.endAngle, endAngle);
-            const i3 = d3interpolate(d.outerRadius, radius)
-            return t => {
-              d.startAngle = i1(t);
-              d.endAngle = i2(t);
-              d.outerRadius = i3(t);
-              return arc(d);
-            };
-          })
+          .attr("d", arc({ endAngle, startAngle, padAngle, outerRadius: radius }))
+      }
     }
-  }, [ref, arc, data, radius, endAngle, startAngle, padAngle, state]);
+  }, [ref, arc, data, radius, endAngle, startAngle, padAngle, state, transitionWrapper, showAnimations]);
 
   const _onMouseMove = React.useCallback(e => {
     onMouseMove(e, { ...data });
@@ -410,49 +430,57 @@ const Slice = React.memo(({ state, data, radius, index, onMouseMove,
   )
 })
 
-const Pie = React.memo(({ pie, dx, dy, ms, state, label, ...props }) => {
+const Pie = React.memo(({ pie, dx, dy, ldy, state, label, showAnimations, ...props }) => {
 
   const ref = React.useRef();
 
+  const transitionWrapper = React.useMemo(() => {
+    return showAnimations ?
+      selection => selection.transition().duration(1000) :
+      selection => selection;
+  }, [showAnimations]);
+
   React.useEffect(() => {
     if (state === "entering") {
-      d3select(ref.current)
-        .style("transform", `translate(${ dx }px, ${ dy }px)`)
-        .style("opacity", 0)
-          .transition().duration(1000)
-            .style("opacity", 1);
+      transitionWrapper(
+        d3select(ref.current)
+          .style("transform", `translate(${ dx }px, ${ dy }px)`)
+          .style("opacity", 0)
+      )
+      .style("opacity", 1);
     }
     else if (state === "exiting") {
-      d3select(ref.current)
-        .transition().duration(1000)
-          .style("transform", `translate(${ dx }px, ${ dy }px)`)
-          .style("opacity", 0);
+      transitionWrapper(d3select(ref.current))
+        .style("transform", `translate(${ dx }px, ${ dy }px)`)
+        .style("opacity", 0);
     }
     else {
-      d3select(ref.current)
-        .transition().duration(1000)
-          .style("transform", `translate(${ dx }px, ${ dy }px)`)
-          .style("opacity", 1);
+      transitionWrapper(d3select(ref.current))
+        .style("transform", `translate(${ dx }px, ${ dy }px)`)
+        .style("opacity", 1);
     }
-  }, [ref, dx, dy, state]);
+  }, [ref, dx, dy, state, transitionWrapper]);
 
   const labelRef = React.useRef();
+
   React.useEffect(() => {
-    d3select(labelRef.current)
-      .transition().duration(1000)
-        .style("transform", `translateY(${ ms * 0.5 + 15 }px)`)
-  }, [labelRef, ms])
+    transitionWrapper(d3select(labelRef.current))
+      .style("transform", `translateY(${ ldy }px)`)
+  }, [labelRef, ldy, transitionWrapper]);
 
   return (
     <g ref={ ref }>
       { pie.map((p, i) => (
           <Slice key={ p.data.key }
             { ...props } { ...p }
-            state={ state }/>
+            state={ state }
+            showAnimations={ showAnimations }/>
         ))
       }
       <g ref={ labelRef }>
-        <text textAnchor="middle">{ label }</text>
+        <text textAnchor="middle"
+          dominantBaseline="hanging"
+          className="avl-pie-label">{ label }</text>
       </g>
     </g>
   )

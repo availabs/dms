@@ -18,7 +18,7 @@ export function PdfExport({ }) {
   const { UI } = React.useContext(ThemeContext)
   const { app, API_HOST, siteType } = React.useContext(CMSContext) || {};
   const { apiLoad, format } = React.useContext(PageContext) || {};
-  const { Icon, Button, Select } = UI || {};
+  const { Icon, Button, MultiSelect } = UI || {};
 
   useEffect(() => {
     const fetchPatterns = async () => {
@@ -351,14 +351,16 @@ export function PdfExport({ }) {
       </div>
 
       <div className="mb-3">
-        <Select
+        <MultiSelect
+          singleSelectOnly
+          searchable={false}
           options={patterns.map(o => ({
             label: `${o?.name ?? ''} (${o?.doc_type ?? ''})`,
             value: JSON.stringify(o),
           }))}
           value={selectedPattern ? JSON.stringify(selectedPattern) : ""}
-          onChange={(e) => {
-            const obj = JSON.parse(e.target.value);
+          onChange={(value) => {
+            const obj = JSON.parse(value);
             setSelectedPattern(obj);
             setSelectedPageIds(new Set());
             setExpandedNodeIds(new Set());
@@ -387,13 +389,15 @@ export function PdfExport({ }) {
 
         {isTocMode &&  (
             coverPages.length > 0 ? (
-              <Select
+              <MultiSelect
+                singleSelectOnly
+                searchable={false}
                 options={coverPages.map(p => ({
                   label: p.title,
                   value: p.id,
                 }))}
                 value={selectedCoverPage}
-                onChange={(e) => setSelectCoverPage(e.target.value)}
+                onChange={(value) => setSelectCoverPage(value)}
                 placeholder="Select cover page..."
               />
             ) : (

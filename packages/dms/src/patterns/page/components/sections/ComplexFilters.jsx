@@ -46,7 +46,7 @@ const emptyCondition = (columns) => ({
 // only in edit mode
 export const ComplexFilters = ({ state, setState }) => {
     const { UI, theme: themeFromContext = {} } = useContext(ThemeContext) || {};
-    const { Pill, Icon, Popup, Switch, Select, Input, ColumnTypes: {select} } = UI;
+    const { Pill, Icon, Popup, Switch, MultiSelect, Input, ColumnTypes: {select} } = UI;
     const t = { ...complexFiltersTheme, ...getComponentTheme(themeFromContext, 'complexFilters') };
     const { apiLoad } = useContext(PageContext) || {};
     const existingCtx = useContext(ComponentContext);
@@ -160,15 +160,17 @@ export const ComplexFilters = ({ state, setState }) => {
                     <div className={t.groupHeader}>
                         <div className={t.groupHeaderLabel}>
                             <span className={t.groupHeaderMatch}>Match</span>
-                            <Select
+                            <MultiSelect
+                                singleSelectOnly
+                                searchable={false}
                                 value={node.op}
                                 options={[
                                     { label: 'All', value: 'AND' },
                                     { label: 'Any', value: 'OR' },
                                 ]}
-                                onChange={e =>
+                                onChange={value =>
                                     updateNodeAtPath(path, n => {
-                                        n.op = e.target.value;
+                                        n.op = value;
                                     })
                                 }
                             />
@@ -229,7 +231,7 @@ export const ComplexFilters = ({ state, setState }) => {
                                 <div className={t.popup}>
                                     <div className={t.popupRow}>
                                         <Icon icon={'Filter'} className={t.popupIcon} />
-                                        <label className={''}>Is Multiselect:</label>
+                                        <label className={t.popupRowLabel}>Is Multiselect:</label>
                                         <Switch label={'Multi'}
                                                 disabled={!['filter', 'exclude'].includes(node.op)}
                                                 enabled={node.isMulti}
@@ -240,8 +242,10 @@ export const ComplexFilters = ({ state, setState }) => {
                                     {isGrouping && (
                                         <div className={t.popupRow}>
                                             <Icon icon={'Filter'} className={t.popupIcon} />
-                                            <label>Aggregate fn:</label>
-                                            <Select
+                                            <label className={t.popupRowLabel}>Aggregate fn:</label>
+                                            <MultiSelect
+                                                singleSelectOnly
+                                                searchable={false}
                                                 value={node.fn || ''}
                                                 options={[
                                                     { label: 'none', value: '' },
@@ -250,13 +254,13 @@ export const ComplexFilters = ({ state, setState }) => {
                                                     { label: 'max', value: 'max' },
                                                     { label: 'list', value: 'list' },
                                                 ]}
-                                                onChange={e => updateNodeAtPath(path, n => { n.fn = e.target.value || undefined; })}
+                                                onChange={value => updateNodeAtPath(path, n => { n.fn = value || undefined; })}
                                             />
                                         </div>
                                     )}
                                     <div className={t.popupRow}>
                                         <Icon icon={'Filter'} className={t.popupIcon} />
-                                        <label className={''}>Use Page Filters:</label>
+                                        <label className={t.popupRowLabel}>Use Page Filters:</label>
                                         <Switch label={'Use Page Filters'}
                                                 enabled={node.usePageFilters}
                                                 setEnabled={value => updateNodeAtPath(path, n => {
@@ -276,7 +280,7 @@ export const ComplexFilters = ({ state, setState }) => {
                                     </div>
                                     <div className={t.popupRow}>
                                         <Icon icon={'Filter'} className={t.popupIcon} />
-                                        <label>External:</label>
+                                        <label className={t.popupRowLabel}>External:</label>
                                         <Switch label={'External'}
                                                 enabled={node.isExternal}
                                                 setEnabled={value => updateNodeAtPath(path, n => { n.isExternal = value; })}
@@ -286,21 +290,23 @@ export const ComplexFilters = ({ state, setState }) => {
                                     {node.isExternal && (
                                         <div className={t.popupRow}>
                                             <Icon icon={'Filter'} className={t.popupIcon} />
-                                            <label>Display:</label>
-                                            <Select
+                                            <label className={t.popupRowLabel}>Display:</label>
+                                            <MultiSelect
+                                                singleSelectOnly
+                                                searchable={false}
                                                 value={node.display || ''}
                                                 options={[
                                                     { label: 'compact', value: '' },
                                                     { label: 'expanded', value: 'expanded' },
                                                     { label: 'tabular', value: 'tabular' },
                                                 ]}
-                                                onChange={e => updateNodeAtPath(path, n => { n.display = e.target.value || undefined; })}
+                                                onChange={value => updateNodeAtPath(path, n => { n.display = value || undefined; })}
                                             />
                                         </div>
                                     )}
                                     <div className={t.popupRow}>
                                         <Icon icon={'Filter'} className={t.popupIcon} />
-                                        <label>Normal Filter:</label>
+                                        <label className={t.popupRowLabel}>Normal Filter:</label>
                                         <Switch label={'Normal Filter'}
                                                 enabled={node.isNormalFilter}
                                                 setEnabled={value => updateNodeAtPath(path, n => {
@@ -318,14 +324,16 @@ export const ComplexFilters = ({ state, setState }) => {
                                     {node.isNormalFilter && (
                                         <div className={t.popupRow}>
                                             <Icon icon={'Filter'} className={t.popupIcon} />
-                                            <label>Value Column:</label>
-                                            <Select
+                                            <label className={t.popupRowLabel}>Value Column:</label>
+                                            <MultiSelect
+                                                singleSelectOnly
+                                                searchable={false}
                                                 value={node.valueCol || ''}
                                                 options={columns.map(c => ({
                                                     label: getColumnLabel(c),
                                                     value: c.name,
                                                 }))}
-                                                onChange={e => updateNodeAtPath(path, n => { n.valueCol = e.target.value; })}
+                                                onChange={value => updateNodeAtPath(path, n => { n.valueCol = value; })}
                                             />
                                         </div>
                                     )}
@@ -346,7 +354,9 @@ export const ComplexFilters = ({ state, setState }) => {
                     positioned ellipsis in the top-right corner. */}
                 <div className={t.fieldWithEllipsisGutter}>
                     <label className={t.fieldLabel}>Column</label>
-                    <Select
+                    <MultiSelect
+                        singleSelectOnly
+                        searchable={false}
                         value={JSON.stringify(columns.find(c => c.name === node.col && c.source_id === node.source_id))}
                         options={[
                             { label: 'Please select a column...', value: '' },
@@ -360,8 +370,7 @@ export const ComplexFilters = ({ state, setState }) => {
                                 };
                             }),
                         ]}
-                        onChange={e => {
-                            const raw = e.target.value;
+                        onChange={raw => {
                             if (!raw) return;
                             updateNodeAtPath(path, n => {
                                 const val = JSON.parse(raw);
@@ -374,7 +383,9 @@ export const ComplexFilters = ({ state, setState }) => {
 
                 <div className={t.field}>
                     <label className={t.fieldLabel}>Operation</label>
-                    <Select
+                    <MultiSelect
+                        singleSelectOnly
+                        searchable={false}
                         value={node.op}
                         options={[
                             { label: 'contains', value: 'filter' },
@@ -393,8 +404,7 @@ export const ComplexFilters = ({ state, setState }) => {
                                 ? [{ label: 'time filter', value: 'time' }]
                                 : []),
                         ]}
-                        onChange={e => {
-                            const newOp = e.target.value;
+                        onChange={newOp => {
                             const wasMulti = ['filter', 'exclude'].includes(node.op);
                             const isMulti = ['filter', 'exclude'].includes(newOp);
                             const wasTime = node.op === 'time';

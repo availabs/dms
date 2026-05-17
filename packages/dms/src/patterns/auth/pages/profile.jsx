@@ -21,7 +21,7 @@ export default function Profile (props) {
     const {theme, UI} = React.useContext(ThemeContext);
     const { user, AUTH_HOST, PROJECT_NAME, defaultRedirectUrl, baseUrl } = React.useContext(AuthContext);
     const gridRef = useRef(null)
-    const {Modal, Table, Input, Select, Button} = UI;
+    const {Modal, Table, Input, Button} = UI;
 
     useEffect(() => {
         async function loadGroups(){

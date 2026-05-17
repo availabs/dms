@@ -15,7 +15,7 @@ import {tableTheme} from "./table.theme";
 const defaultNumColSize = 0;
 const VIRTUAL_VIEWPORT_INCREASE = { top: 300, bottom: 300, left: 100, right: 100 };
 const defColSize = 250;
-const minColSize = 100;
+const minColSize = 120;
 
 const windowFake = typeof window === "undefined" ? {} : window;
 export const TableCellContext = createContext({});
@@ -292,7 +292,7 @@ export default function Table ({
         if(!gridRef?.current) return;
 
         const gridWidth = gridRef?.current?.offsetWidth || 1;
-        setDefaultColumnSize(Math.max(50, gridWidth / columns.length) - 5)
+        setDefaultColumnSize(Math.max(minColSize, gridWidth / columns.length) - 5)
     }, [gridRef?.current, columns.length]);
 
     // =================================================================================================================

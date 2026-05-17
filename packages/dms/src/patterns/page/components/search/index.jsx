@@ -1,5 +1,4 @@
-import React, {Fragment, useEffect, useContext, useState} from "react";
-import {Dialog, DialogPanel, Input, Transition} from '@headlessui/react'
+import React, {useEffect, useContext, useState} from "react";
 import {dmsDataLoader} from "../../../../api";
 import { ThemeContext, getComponentTheme } from "../../../../ui/useTheme";
 import {CMSContext} from "../../context";
@@ -160,7 +159,7 @@ export const SearchPallet = ({open, setOpen, app: appFromProps, type: typeFromPr
     const {baseUrl, falcor, app=appFromProps, type=typeFromProps} = useContext(CMSContext) || {};
     const { theme: fullTheme = { pages: { searchPallet: searchPalletTheme } }, UI } = useContext(ThemeContext);
     const theme = getComponentTheme(fullTheme, 'pages.searchPallet', activeStyle);
-    const {Icon} = UI;
+    const {Icon, Modal, Input} = UI;
     const [query, setQuery] = useState();
     const [tmpQuery, setTmpQuery] = useState(searchStr);
     const [loading, setLoading] = useState(false);
@@ -173,6 +172,12 @@ export const SearchPallet = ({open, setOpen, app: appFromProps, type: typeFromPr
     useEffect(() => {
         setTmpQuery(searchStr)
     }, [searchStr])
+
+    // Headless's Transition.Root had `afterLeave={() => setQuery('')}` to clear
+    // the query when the palette closed; replicate via a simple close-effect.
+    useEffect(() => {
+        if (!open) setQuery('');
+    }, [open])
 
     useEffect(() => {
         // Debounce logic: only update `query` after a delay when `tmpQuery` changes
@@ -262,56 +267,22 @@ export const SearchPallet = ({open, setOpen, app: appFromProps, type: typeFromPr
     }, [data, query])
 
     return (
-        <Transition.Root show={open} as={Fragment} afterLeave={() => setQuery('')} appear>
-            <Dialog key={'search-dialogue'} as="div" className="relative z-20" onClose={setOpen}>
-                <Transition.Child
-                    as={Fragment}
-                    enter="ease-out duration-300"
-                    enterFrom="opacity-0"
-                    enterTo="opacity-100"
-                    leave="ease-in duration-200"
-                    leaveFrom="opacity-100"
-                    leaveTo="opacity-0"
-                >
-                    <div className={theme?.backdrop}/>
-                </Transition.Child>
-
-                <div className={theme?.dialogContainer}>
-                    <Transition.Child
-                        as={Fragment}
-                        enter="ease-out duration-300"
-                        enterFrom="opacity-0 scale-95"
-                        enterTo="opacity-100 scale-100"
-                        leave="ease-in duration-200"
-                        leaveFrom="opacity-100 scale-100"
-                        leaveTo="opacity-0 scale-95"
-                    >
-                        <DialogPanel className={theme?.dialogPanel}>
-                            <div className={theme?.inputWrapper}>
-                                <Input
-                                    autoFocus
-                                    className={theme?.input}
-                                    placeholder="Search..."
-                                    value={tmpQuery}
-                                    onChange={(event) =>{
-                                        setTmpQuery(event.target.value)
-                                    }}
-                                />
-                                <div className={theme?.searchIconWrapper}>
-                                    <Icon icon={theme?.searchIcon} className={theme?.searchIconClass} />
-                                </div>
-                            </div>
-
-                            {/*<RenderSuggestions tags={tags} individualTags={individualTags} query={tmpQuery} setQuery={setTmpQuery} theme={theme} />*/}
-
-                            <RenderItems key={'search-items'} items={items} query={query} theme={theme} Icon={Icon}/>
-
-                            <RenderStatus key={'search-suggestions'} query={query} loading={loading} itemsLen={Object.keys(items).length} theme={theme}/>
-                        </DialogPanel>
-                    </Transition.Child>
+        <Modal open={open} setOpen={setOpen}>
+            <div className={theme?.inputWrapper}>
+                <Input
+                    autoFocus
+                    placeholder="Search..."
+                    value={tmpQuery}
+                    onChange={(event) => setTmpQuery(event.target.value)}
+                />
+                <div className={theme?.searchIconWrapper}>
+                    <Icon icon={theme?.searchIcon} className={theme?.searchIconClass} />
                 </div>
-            </Dialog>
-        </Transition.Root>
+            </div>
+
+            <RenderItems key={'search-items'} items={items} query={query} theme={theme} Icon={Icon}/>
+            <RenderStatus key={'search-suggestions'} query={query} loading={loading} itemsLen={Object.keys(items).length} theme={theme}/>
+        </Modal>
     )
 }
 

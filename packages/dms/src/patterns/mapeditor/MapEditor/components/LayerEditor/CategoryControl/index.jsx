@@ -2,7 +2,6 @@ import React, { useMemo, useEffect }from 'react'
 import { SymbologyContext } from '../../../'
 import { MapEditorContext } from "../../../../context"
 import { ThemeContext } from "../../../../../../ui/themeContext"
-import { Switch } from '@headlessui/react'
 import { Close } from '../../icons'
 import { rgb2hex, toHex, categoricalColors } from '../../LayerManager/utils'
 import { StyledControl } from '../ControlWrappers'
@@ -16,7 +15,7 @@ function CategoryControl({path, params={}}) {
   const { useFalcor, pgEnv } = React.useContext(MapEditorContext);
   const { falcor, falcorCache } = useFalcor();
   const { UI } = React.useContext(ThemeContext) || {};
-  const { DndList } = UI;
+  const { DndList, Switch } = UI;
 
   const pathBase =
     params?.version === "interactive"
@@ -150,24 +149,15 @@ function CategoryControl({path, params={}}) {
           <div className='text-sm text-slate-400 px-2'>Show Other</div>
           <div className='flex items-center'>
             <Switch
-              checked={isShowOtherEnabled}
-              onChange={()=>{
-                setState(draft=> {
+              enabled={!!isShowOtherEnabled}
+              setEnabled={() => {
+                setState(draft => {
                   const update = isShowOtherEnabled ? 'rgba(0,0,0,0)' : '#ccc';
-                  set(draft, `${pathBase}['category-show-other']`, update) 
-                })
+                  set(draft, `${pathBase}['category-show-other']`, update);
+                });
               }}
-              className={`${
-                isShowOtherEnabled ? 'bg-blue-500' : 'bg-gray-200'
-              } relative inline-flex h-4 w-8 items-center rounded-full `}
-            >
-              <span className="sr-only">Show other</span>
-              <div
-                className={`${
-                  isShowOtherEnabled ? 'translate-x-5' : 'translate-x-0'
-                } inline-block h-4 w-4  transform rounded-full bg-white transition border-[0.5] border-slate-600`}
-              />
-            </Switch>
+              size={'small'}
+            />
           </div>
         </div>
         <div className='w-full max-h-[250px] overflow-auto'>

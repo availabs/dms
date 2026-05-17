@@ -11,16 +11,16 @@ const resetColumn = (originalAttribute, setState, columns) => setState(draft => 
     }
 });
 const RenderSearchKeySelector = ({filter, pageState, onChange}) => {
-    const { UI } = React.useContext(ThemeContext) || {};
+    const { theme: themeFromContext = {}, UI } = React.useContext(ThemeContext) || {};
+    const theme = { ...themeFromContext, filters: { ...filterTheme, ...(themeFromContext.filters || {}) } };
     const { Input } = UI || {};
     const [open, setOpen] = React.useState(false);
     const [text, setText] = React.useState(filter.searchParamKey || '');
     const menuRef = React.useRef(null);
     const menuBtnId = `search-menu-btn-${filter.type}-${filter.operation}`;
     useHandleClickOutside(menuRef, menuBtnId, () => {setText(filter.searchParamKey || ''); setOpen(false)})
-    const optionsClass = 'p-1 hover:bg-blue-500/15 hover:text-blue-700 cursor-pointer rounded-md'
     return (
-        <div className={'min-w-fit w-full relative bg-white'}>
+        <div className={theme.filters.searchKeySelectorWrapper}>
             <Input id={menuBtnId}
                    value={text}
                    onChange={e => setText(e.target.value)}
@@ -28,10 +28,10 @@ const RenderSearchKeySelector = ({filter, pageState, onChange}) => {
             />
             {
                 open ? (
-                    <div ref={menuRef} className={'absolute w-full bg-white p-1 text-xs rounded-md shadow-md z-1'}>
+                    <div ref={menuRef} className={theme.filters.searchKeyMenuWrapper}>
                         {
                             text ? (
-                                <div className={optionsClass}
+                                <div className={theme.filters.searchKeyMenuItem}
                                      onClick={() => {
                                          onChange(text)
                                          setOpen(false)
@@ -42,7 +42,7 @@ const RenderSearchKeySelector = ({filter, pageState, onChange}) => {
                             (pageState?.filters || [])
                                 .filter(({searchKey}) => searchKey.toLowerCase().includes(text.toLowerCase()))
                                 .map(({searchKey}) => <div key={`${searchKey}`}
-                                                           className={optionsClass}
+                                                           className={theme.filters.searchKeyMenuItem}
                                                            onClick={() => {
                                                                setText(searchKey)
                                                                onChange(searchKey)
@@ -61,8 +61,8 @@ export const RenderFilterValueSelector = ({
                                           }) => {
     const { pageState, updatePageStateFilters } =  React.useContext(PageContext) || {}; // page to extract page filters
     const { theme: themeFromContext = {}, UI} = React.useContext(ThemeContext) || {};
-    const theme = {...themeFromContext, filters: {...filterTheme, ...(themeFromContext.filter || {})}};
-    const {Switch, Select, Input, Button, ColumnTypes} = UI;
+    const theme = {...themeFromContext, filters: {...filterTheme, ...(themeFromContext.filters || {})}};
+    const {Switch, MultiSelect, Input, Button, ColumnTypes} = UI;
     const options = useMemo(() => filterOptions.find(fo => fo.column === filterColumn.name)?.uniqValues, [filterOptions, filterColumn.name]);
 
     const useDebouncedUpdateFilter = (delay = 300) => {
@@ -113,29 +113,31 @@ export const RenderFilterValueSelector = ({
 
             const isStaleFilter = (state.externalSource || {})?.columns?.findIndex(({name}) => name === filterColumn.name) === -1;
             return (
-                <div key={`${filterColumn.name}-${filter.operation}`} className={'p-1 relative text-xs'}>
+                <div key={`${filterColumn.name}-${filter.operation}`} className={theme.filters.filterRowWrapper}>
                     {
                         isEdit ? (
                             <div className={theme.filters.settingPillsWrapper}>
-                                <Select
+                                <MultiSelect
+                                    singleSelectOnly
+                                    searchable={false}
                                     value={filter.type}
-                                    disabled={!isEdit}
                                     options={[
                                         { label: 'internal', value: 'internal' },
                                         { label: 'external', value: 'external' },
                                     ]}
-                                    onChange={e => updateFilter({
+                                    onChange={v => updateFilter({
                                         key: 'type',
-                                        value: e.target.value,
+                                        value: v,
                                         filterColumn,
                                         filter,
                                         setState
                                     })}
                                 />
 
-                                <Select
+                                <MultiSelect
+                                    singleSelectOnly
+                                    searchable={false}
                                     value={filter.operation}
-                                    disabled={!isEdit}
                                     options={[
                                         { label: 'include', value: 'filter' },
                                         { label: 'exclude', value: 'exclude' },
@@ -145,9 +147,9 @@ export const RenderFilterValueSelector = ({
                                         { label: ' < ', value: 'lt' },
                                         { label: ' <= ', value: 'lte' },
                                     ]}
-                                    onChange={e => updateFilter({
+                                    onChange={v => updateFilter({
                                         key: 'operation',
-                                        value: e.target.value,
+                                        value: v,
                                         filterColumn,
                                         filter,
                                         setState
@@ -156,9 +158,10 @@ export const RenderFilterValueSelector = ({
 
                                 {
                                     isGrouping ?
-                                        <Select
+                                        <MultiSelect
+                                            singleSelectOnly
+                                            searchable={false}
                                             value={filter.fn}
-                                            disabled={!isEdit}
                                             options={[
                                                 { label: 'no fn', value: '' },
                                                 { label: 'sum', value: 'sum' },
@@ -166,9 +169,9 @@ export const RenderFilterValueSelector = ({
                                                 { label: 'max', value: 'max' },
                                                 { label: 'list', value: 'list' },
                                             ]}
-                                            onChange={e => updateFilter({
+                                            onChange={v => updateFilter({
                                                 key: 'fn',
-                                                value: e.target.value,
+                                                value: v,
                                                 filterColumn,
                                                 filter,
                                                 setState
@@ -178,7 +181,7 @@ export const RenderFilterValueSelector = ({
 
                                 {
                                     ['filter', 'exclude'].includes(filter.operation) ? (
-                                        <div className={'flex flex-wrap items-center gap-1'}>
+                                        <div className={theme.filters.inlineSwitchRow}>
                                             <label className={theme.filters.settingLabel}>Multiselect: </label>
                                             <Switch label={'Multi'}
                                                     enabled={filter.isMulti}
@@ -196,7 +199,7 @@ export const RenderFilterValueSelector = ({
                                 }
 
                                 {/* UI to match to search params. only show if using search params.*/}
-                                <div className={'flex flex-wrap items-center gap-1'}>
+                                <div className={theme.filters.inlineSwitchRow}>
                                     <label className={theme.filters.settingLabel}>Use Page Filters: </label>
                                     <Switch label={'Use Page Filters'}
                                             enabled={filter.usePageFilters}
@@ -213,7 +216,7 @@ export const RenderFilterValueSelector = ({
 
                                 {
                                     filter.usePageFilters ?
-                                        <div className={'flex items-center gap-0.5'}>
+                                        <div className={theme.filters.searchKeyRow}>
                                             <label className={`shrink-0 ${theme.filters.settingLabel}`}>Search key: </label>
                                             <RenderSearchKeySelector pageState={pageState}
                                                                      filter={filter}
@@ -228,17 +231,18 @@ export const RenderFilterValueSelector = ({
                                         </div> : null
                                 }
 
-                                <Select
+                                <MultiSelect
+                                    singleSelectOnly
+                                    searchable={false}
                                     value={filter.display}
-                                    disabled={!isEdit}
                                     options={[
                                         { label: 'compact', value: '' },
                                         { label: 'expanded', value: 'expanded' },
                                         { label: 'tabular', value: 'tabular' },
                                     ]}
-                                    onChange={e => updateFilter({
+                                    onChange={v => updateFilter({
                                         key: 'display',
-                                        value: e.target.value,
+                                        value: v,
                                         filterColumn,
                                         filter,
                                         setState

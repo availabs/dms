@@ -335,6 +335,7 @@ const Edit = forwardRef((props, ref) => {
         <ComponentContext.Provider value={{state, setState, apiLoad, apiUpdate, controls: resolvedControls,
             isActive: true, activeStyle: undefined, sectionId: undefined}}>
             <RenderFilters isEdit={true} defaultOpen={true} />
+            <ExternalFilters defaultOpen={true} />
             <div className={'w-full h-full'}>
                 <div className={'w-full flex items-center place-content-end'}>
                     {loading ? <Icon id={'loading'}

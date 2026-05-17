@@ -1,5 +1,4 @@
 import React, { useMemo, useEffect, Fragment, useState } from "react";
-import { Switch } from '@headlessui/react'
 import { SymbologyContext } from "../../";
 import { MapContext} from "../../../../page/components/sections/components/ComponentRegistry/map"
 import {get, set} from "lodash-es";
@@ -177,10 +176,9 @@ export function RadioControl({ path, params = {} }) {
 }
 
 export function ToggleControl({path, params={title:""}}) {
-  // const mctx = React.useContext(MapContext);
-  // const sctx = React.useContext(SymbologyContext);
-  // const ctx = mctx?.falcor ? mctx : sctx;
   const { state, setState } = React.useContext(SymbologyContext);
+  const { UI } = React.useContext(ThemeContext) || {};
+  const { Switch } = UI || {};
   const defaultValue =
     params.default !== null && params.default !== undefined
       ? params.default
@@ -191,28 +189,17 @@ export function ToggleControl({path, params={title:""}}) {
   }, [state]);
 
   return (
-    <label className='flex'>
-      <div className='flex items-center'>
-        <Switch
-          checked={curValue}
-          onChange={()=>{
-            setState(draft=> {
-              set(draft, `${path}`,!curValue)
-            })
-          }}
-          className={`${
-            curValue ? 'bg-blue-500' : 'bg-gray-200'
-          } relative inline-flex h-4 w-8 items-center rounded-full `}
-        >
-          <span className="sr-only">{params.title}</span>
-          <div
-            className={`${
-              curValue ? 'translate-x-5' : 'translate-x-0'
-            } inline-block h-4 w-4  transform rounded-full bg-white transition border-[0.5] border-slate-600`}
-          />
-        </Switch>
-      </div>
-    </label>
+    <div className='flex items-center'>
+      <Switch
+        enabled={!!curValue}
+        setEnabled={() => {
+          setState(draft => {
+            set(draft, `${path}`, !curValue);
+          });
+        }}
+        size={'small'}
+      />
+    </div>
   )
 }
 

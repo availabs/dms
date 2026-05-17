@@ -9,15 +9,13 @@ import defaultWidgets from './widgets'
 import { layoutGroupTheme } from './components/LayoutGroup.theme';
 import {tabsTheme} from "./components/Tabs.theme";
 import {buttonTheme} from "./components/Button.theme";
-import {menuTheme} from "./components/Menu.theme";
 import {inputTheme} from "./components/Input.theme";
 import iconTheme from "./components/Icon.theme";
 import {fieldTheme} from "./components/FieldSet.theme";
 import {dialogTheme} from "./components/Dialog.theme";
-import {popoverTheme} from "./components/Popover.theme";
+import {modalTheme} from "./components/Modal.theme";
 import {labelTheme} from "./components/Label";
-import {selectTheme} from "./components/Select";
-import {listboxTheme} from "./components/Listbox.theme";
+import {multiselectTheme} from "./components/MultiSelect.theme";
 import {tableTheme} from "./components/table/table.theme";
 import {nestableTheme} from "./components/draggableNav"
 import {dataCardTheme} from "./components/card.theme";
@@ -71,15 +69,13 @@ const components = {
     logo: logoTheme,
     tabs: tabsTheme,
     button: buttonTheme,
-    menu: menuTheme,
     input: inputTheme,
     icon: iconTheme,
     field: fieldTheme,
     dialog: dialogTheme,
-    popover: popoverTheme,
+    modal: modalTheme,
     label: labelTheme,
-    select: selectTheme,
-    listbox: listboxTheme,
+    multiselect: multiselectTheme,
     table: tableTheme,
     lexical:lexicalTheme,
     textSettings: textSettingsTheme,

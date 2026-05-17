@@ -2,7 +2,6 @@ import React, { useContext , useMemo, useCallback, Fragment, useRef} from 'react
 import { MapContext } from '../'
 // import { DamaContext } from "../../../../../../store"
 // import SourceSelector from './SourceSelector'
-import { Menu, Transition, Tab, Dialog } from '@headlessui/react'
 import { useParams, useNavigate } from 'react-router'
 import { ThemeContext } from '../../../../../../../../ui/useTheme'
 import { Eye, EyeClosed, SquareMinusSolid, SquarePlusSolid } from '../../../../../../../mapeditor/MapEditor/components/icons'

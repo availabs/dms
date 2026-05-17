@@ -1,4 +1,4 @@
-import React, {useEffect, useMemo, createContext} from "react";
+import React, {useEffect, useMemo, createContext, useRef} from "react";
 import { get, cloneDeep, isEqual } from "lodash-es"
 import mapboxgl from "maplibre-gl";
 import { AvlMap } from "../../../../../../../ui/components/map"
@@ -7,11 +7,11 @@ import { useImmer } from 'use-immer';
 import LegendPanel from './LegendPanel/LegendPanel.jsx'
 import SymbologyViewLayer from './SymbologyViewLayer.jsx'
 import { PageContext, CMSContext } from "../../../../../context.js";
-import {SymbologySelector} from "./SymbologySelector.jsx";
-import {useSearchParams} from "react-router";
-import FilterControls from "./controls/FilterControls.jsx";
+// import {SymbologySelector} from "./SymbologySelector.jsx";
+// import {useSearchParams} from "react-router";
+// import FilterControls from "./controls/FilterControls.jsx";
 import {defaultStyles, blankStyles} from "./styles.js";
-import MoreControls from "./controls/MoreControls.jsx";
+// import MoreControls from "./controls/MoreControls.jsx";
 import PluginLayer from "../../../../../../mapeditor/MapEditor/components/PluginLayer"
 import { PluginLibrary, PLUGIN_TYPE } from "../../../../../../mapeditor/MapEditor";
 import ExternalPluginPanel from "../../../../../../mapeditor/MapEditor/components/ExternalPluginPanel";
@@ -53,7 +53,7 @@ export const MapContext = createContext(undefined);
 const EMPTY_TABS = [{ "name": "Layers", rows: [] }];
 const EMPTY_OBJECT = {};
 
-export const MapSection = ({ value, onChange, isEdit }) => {
+export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
     // const {falcor, falcorCache} = useFalcor();
     // controls: symbology, more, filters: lists all interactive and dynamic filters and allows for searchParams match.
 
@@ -63,9 +63,14 @@ export const MapSection = ({ value, onChange, isEdit }) => {
     const { falcor, falcorCache, pgEnv, apiLoad, mapeditorKeys } = React.useContext(CMSContext);
     const { pageState, setPageState } =  React.useContext(PageContext) || {}
     const cachedData = typeof value === 'object' ? value : value && isJson(value) ? JSON.parse(value) : {};
+    const cachedDisplay = cachedData.display || {};
     const [state, setState] = useImmer({
         tabs: cachedData.tabs || EMPTY_TABS,
         symbologies: cachedData.symbologies || EMPTY_OBJECT,
+        display: {
+            ...cachedDisplay,
+            _functions: cachedDisplay._functions || cachedData._functions || { providers: [], subscribers: [] },
+        },
         isEdit,
         setInitialBounds: cachedData.setInitialBounds || false,
         initialBounds: cachedData.initialBounds || null,
@@ -106,6 +111,34 @@ export const MapSection = ({ value, onChange, isEdit }) => {
         }, Promise.resolve([]));
     }, [apiLoad, mapeditorKeys]);
 
+    const interactionOptions = useMemo(() => {
+        const mapLayers = Object.values(state.symbologies || {}).flatMap((symbology) =>
+            Object.values(symbology?.symbology?.layers || {}).map((layer, index) => ({
+                label: layer.name?.length && layer.name !== " " ? layer.name : `layer - ${index + 1}`,
+                value: layer.id,
+            }))
+        );
+
+        return { mapLayers };
+    }, [state.symbologies]);
+
+    /**
+     * Exposes live map state and the map-specific API to the outer section settings shell.
+     * Map Settings is rendered outside this component tree, so it needs this handle bridge.
+     */
+    useEffect(() => {
+        if (!onHandle) return;
+        onHandle({
+            state,
+            setState,
+            mapAPI: {
+                state: { ...state, interactionOptions },
+                setState,
+                doApiLoad
+            }
+        });
+    }, [onHandle, state, setState, doApiLoad, interactionOptions]);
+
 // console.log("Map::pageState", pageState);
 
     const [mapLayers, setMapLayers] = useImmer([]);
@@ -133,7 +166,43 @@ export const MapSection = ({ value, onChange, isEdit }) => {
     const pageFilters = useMemo(() => {
         return pageState.filters
     },[pageState])
+
+    /**
+     * `pageState.filters` now contains both "real" page filters and temporary
+     * interaction filters (`type: 'action'`) published by components such as
+     * Map/Card/Spreadsheet on hover or click.
+     *
+     * The map's symbology/filter sync should only react to real data/search
+     * filters. If action filters are included here, a hover/click interaction
+     * would be treated like a true map filter change, which can trigger map
+     * state updates and visible layer/source refreshes.
+     *
+     * To avoid that, `dataPageFilters` keeps only the non-action filters that
+     * should participate in the map's normal filter synchronization flow.
+     */
+    const dataPageFilters = useMemo(() => {
+        return (pageFilters || []).filter(filter => filter?.type !== 'action');
+    }, [pageFilters]);
+
+    /**
+     * `pageState.filters` receives a new array reference whenever action filters
+     * are set/cleared, even if the underlying non-action filters did not change.
+     *
+     * This ref stores the previous non-action filter snapshot so we can compare
+     * it with the current `dataPageFilters` value and skip the map filter-sync
+     * effect when only temporary interaction state changed.
+     *
+     * In practice, this prevents hover/click provider updates from retriggering
+     * expensive map sync work and causing the layer refresh behavior we saw
+     * earlier.
+     */
+    const prevDataPageFiltersRef = useRef(dataPageFilters);
     useEffect(() => {
+        if (isEqual(prevDataPageFiltersRef.current, dataPageFilters)) {
+            return;
+        }
+        prevDataPageFiltersRef.current = dataPageFilters;
+
         const usePageFilters = Object.values(activeSymSymbology.layers || {}).some(layer => layer['dynamic-filters']?.length);
 
         if(!usePageFilters) return;
@@ -144,7 +213,7 @@ export const MapSection = ({ value, onChange, isEdit }) => {
 // console.log("interactiveFilterOptions", interactiveFilterOptions)
 
         const searchParamKey = activeLayer?.searchParamKey;
-        const searchParamFilterKey = (pageFilters || []).find(f => f.searchKey === searchParamKey)?.values;
+        const searchParamFilterKey = (dataPageFilters || []).find(f => f.searchKey === searchParamKey)?.values;
 
 // console.log("searchParamFilterKey", searchParamFilterKey)
 
@@ -160,13 +229,12 @@ export const MapSection = ({ value, onChange, isEdit }) => {
         // dynamic filters update for all layers
         const getSearchParamKey = f => f.searchParamKey || f.column_name;
         const searchParamValues = dynamicFilterOptions =>
-            dynamicFilterOptions.reduce((acc, curr) => ({...acc, [getSearchParamKey(curr)]: (pageFilters || []).find(f => f.searchKey === getSearchParamKey(curr))?.values}), {});
+            dynamicFilterOptions.reduce((acc, curr) => ({...acc, [getSearchParamKey(curr)]: (dataPageFilters || []).find(f => f.searchKey === getSearchParamKey(curr))?.values}), {});
 
         setState(draft => {
             if(fI !== -1){
                 draft.symbologies[activeSym].symbology.layers[activeSymSymbology?.activeLayer].selectedInteractiveFilterIndex = fI;
             }
-            draft.symbologies[activeSym].symbology.pageFilters = pageFilters;
 
             Object.values(draft.symbologies[activeSym].symbology.layers)
                 .filter(l => l['dynamic-filters'])
@@ -189,7 +257,7 @@ export const MapSection = ({ value, onChange, isEdit }) => {
                         })
                 })
         })
-    }, [pageFilters])
+    }, [dataPageFilters])
 
     const dynamicFilterOptions = useMemo(() => {
         return (activeLayer?.['dynamic-filters'] || []);
@@ -236,7 +304,7 @@ export const MapSection = ({ value, onChange, isEdit }) => {
             });
         }
         }
-    }, [dynamicFilterOptions, pageFilters]);
+    }, [dynamicFilterOptions, dataPageFilters]);
 
     const arePluginsLoaded = Object.values((state.symbologies || {})).some(symb => Object.keys((symb?.symbology?.plugins || {})).length > 0);
 
@@ -406,7 +474,7 @@ export const MapSection = ({ value, onChange, isEdit }) => {
 
     return (
         <MapContext.Provider value={{state, setState, falcor, falcorCache, pgEnv, doApiLoad}}>
-            {
+            {/* {
                 isEdit ? (
                     <>
                         <SymbologySelector context={MapContext}/>
@@ -414,7 +482,7 @@ export const MapSection = ({ value, onChange, isEdit }) => {
                         <MoreControls />
                     </>
                 ) : null
-            }
+            } */}
             <div id='dama_map_edit' className="w-full relative" style={{height: heightStyle}}>
                 <AvlMap
                   layers={ mapLayers }
