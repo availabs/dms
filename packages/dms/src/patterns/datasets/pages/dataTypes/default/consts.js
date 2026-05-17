@@ -30,6 +30,13 @@ export const InternalSourceAttributes = [
     "description",
     "statistics",
     "metadata",
+    "views"
+];
+
+export const InternalViewAttributes = [
+    "id",
+    "view_id",
+    "name",
 ];
 
 export const ExternalViewAttributes = [

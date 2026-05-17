@@ -225,6 +225,9 @@ const Edit = forwardRef((props, ref) => {
         RUNTIME_DISPLAY_FIELDS.forEach(f => delete toSave.display[f]);
         const serialized = JSON.stringify(toSave);
         if (isEqual(value, serialized)) return;
+
+        // if (serialized === prevSerializedRef.current) return;
+        // prevSerializedRef.current = serialized;
         onChange(serialized);
     }, [state])
 
@@ -234,6 +237,7 @@ const Edit = forwardRef((props, ref) => {
 
     const editStateRef = useRef(state);
     editStateRef.current = state;
+    // const prevSerializedRef = useRef(null);
 
     const handle = useMemo(() => ({
         dwAPI, dataSource: dataSourceInfo,
