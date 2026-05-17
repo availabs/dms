@@ -165,15 +165,23 @@ export const mapFilterGroupCols = (node, getColumn, isDms) => {
   if (node.groups && Array.isArray(node.groups)) {
     return {
       ...node,
-      groups: node.groups.map((child) =>
-        mapFilterGroupCols(child, getColumn, isDms),
-      ),
+      groups: node.groups
+        .map((child) => mapFilterGroupCols(child, getColumn, isDms))
+        .filter(Boolean),
     };
   }
 
   // Leaf condition: map col name to refName
   const col = getColumn(node.col);
   if (!col) return node;
+
+  // For like ops, skip the node entirely when value is empty (all-empty-string array
+  // or empty array). This matches the guard in extractLegacyColumnFilters and prevents
+  // `LIKE '%%'` from being sent — which would silently exclude NULL rows.
+  if (node.op === "like") {
+    const vals = Array.isArray(node.value) ? node.value : (node.value != null ? [node.value] : []);
+    if (!vals.length || !vals.every((v) => String(v).length)) return null;
+  }
 
   const ref = attributeAccessorStr(
     col.name,
@@ -184,7 +192,7 @@ export const mapFilterGroupCols = (node, getColumn, isDms) => {
 
   const mapped = {
     ...node,
-    value: node.op === "like" && node.value ? `%${node.value}%` : node.value,
+    value: node.op === "like" ? `%${node.value}%` : node.value,
     col: ref || node.col,
   };
 
