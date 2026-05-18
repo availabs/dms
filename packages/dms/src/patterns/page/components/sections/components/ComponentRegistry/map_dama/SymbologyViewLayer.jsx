@@ -255,8 +255,8 @@ const ViewLayerRender = ({
                   parseMapDataFunction = "to-number"
                   mapFilter = [
                     "all",
-                    [">=", ["to-string", filterColumnClause], ["to-string", filterValue?.[0]]],
-                    ["<=", ["to-string", filterColumnClause], ["to-string", filterValue?.[1]]],
+                    [">=", [parseMapDataFunction, filterColumnClause], [parseMapDataFunction, filterValue?.[0]]],
+                    ["<=", [parseMapDataFunction, filterColumnClause], [parseMapDataFunction, filterValue?.[1]]],
                   ];
                 }
                 else {
