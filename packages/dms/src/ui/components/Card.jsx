@@ -315,6 +315,11 @@ const CompWrapper = ({
         return value
     }
 
+    // `row` exposes the full data record to the column-type Comp so composite
+    // column types (e.g. wcdb stream_player) can pull sibling fields without
+    // needing one Card column per piece of metadata.
+    const row = isNewItem ? newItem : tmpItem;
+
     return (
         <div className={componentWrapperClassName}>
             <Comp value={editMode && isValueFormatted ? rawValue : value}
@@ -323,6 +328,7 @@ const CompWrapper = ({
                   onChange={onChange}
                   className={`${editMode ? 'border' : ''} ${className}`}
                   {...attribute}
+                  row={row}
                   options={options}
                   meta={optionsMeta}
                   hideControls={attribute.type==='lexical' && !attribute.showToolbar}
@@ -410,12 +416,27 @@ const CardColumnField = ({
     // default). An author-supplied `cellSpan` / `cellRowSpan` is explicit
     // intent and wins over the type-level hint — without this override,
     // cellSpan would be silently dropped on hint-bearing column types.
+    // Per-cell padding: section-level `cellsPadding` is the ambient default;
+    // a column may override with `cellPadding` (all sides) and/or any of the
+    // four side-specific keys. Side-specific keys win over `cellPadding`
+    // because React's later-key-wins rule applies them after the shorthand.
+    // The `!== '' && !== undefined` guard distinguishes "author cleared the
+    // field" (fall through to ambient) from "author typed 0" (apply 0).
+    const padOverride = (key, fallback) => {
+        const v = attr[key];
+        if (fullBleed) return 0;
+        if (v === undefined || v === null || v === '') return fallback;
+        return +v;
+    };
     const style = {
         gridColumn: attr.cellSpan ? span : (hints.spanFullColumns ? '1 / -1' : span),
         ...(attr.cellRowSpan ? { gridRow: `span ${attr.cellRowSpan}` } :
             hints.spanFullRows ? { gridRow: '1 / -1' } : {}),
-        padding: fullBleed ? 0 : cellsPadding,
-        paddingBottom: fullBleed ? 0 : (attr.cellPaddingBottom ? +attr.cellPaddingBottom : undefined),
+        padding: padOverride('cellPadding', cellsPadding),
+        paddingTop: padOverride('cellPaddingTop', undefined),
+        paddingRight: padOverride('cellPaddingRight', undefined),
+        paddingBottom: padOverride('cellPaddingBottom', undefined),
+        paddingLeft: padOverride('cellPaddingLeft', undefined),
         marginTop: `${imageMargin}px`,
         backgroundColor: attr.cellBgColor,
         ...(hints.height ? { height: `${hints.height}px` } : {}),
@@ -764,6 +785,7 @@ export default function Card ({
     const {
         cardsGridSize, cardsGridGap, cardsPadding, cardsBgColor,
         cellsGridSize, cellsGridGap, cellsRowHeight, cellsPadding,
+        cellsTracksTemplate,
         cardBorder, cellBorder,
         allowAdddNew,
     } = display;
@@ -790,15 +812,64 @@ export default function Card ({
     // Default falls back to one cell per visible column (matches the legacy
     // "cell mode" auto-fit behavior). `display: grid` is forced inline so it
     // wins over any `display: flex` still shipped via theme.subWrapperCompactView.
+    //
+    // Track sizing rules:
+    //   - `display.cellsTracksTemplate` (raw `grid-template-columns` string),
+    //     when set, wins outright. Author escape hatch for layouts the
+    //     per-column knobs can't express.
+    //   - Otherwise each visible column may declare `cellWidth` (e.g. `'64px'`,
+    //     `'auto'`, `'1fr'`). The walker below mirrors sparse auto-flow's
+    //     track cursor and lets the FIRST column to land on a given track
+    //     impose its width on that track. Other tracks default to
+    //     `minmax(0, 1fr)`. This intentionally ignores row spans for the
+    //     purpose of sizing — the column whose cursor first reaches a track
+    //     wins it.
+    const gridTemplateColumns = useMemo(() => {
+        if (typeof cellsTracksTemplate === 'string' && cellsTracksTemplate.trim()) {
+            return cellsTracksTemplate;
+        }
+        const trackCount = cellsGridSize || cellsWithoutSpanLength || 1;
+        const tracks = new Array(trackCount).fill('minmax(0, 1fr)');
+        let col = 1;
+        for (const c of visibleColumns) {
+            const span = +c.cellSpan || 1;
+            if (col + span - 1 > trackCount) col = 1; // wrap to a new row
+            if (c.cellWidth && tracks[col - 1] === 'minmax(0, 1fr)') {
+                const w = String(c.cellWidth).trim();
+                // 'fluid' is an alias for the default; '' clears any prior claim.
+                if (w && w !== 'fluid') {
+                    tracks[col - 1] = w;
+                    // Cell-width semantics: a column's `cellWidth` is the
+                    // size of the *cell*, not just its first track. When
+                    // `cellSpan > 1`, collapse the additional spanned
+                    // tracks (only when still unclaimed) so the resulting
+                    // cell is exactly `w` wide. Pre-claimed tracks (first
+                    // wins) keep their existing size — authors who want
+                    // span-2 fluid behaviour can stack a fluid column
+                    // first or fall back to `cellsTracksTemplate`.
+                    for (let i = 1; i < span; i++) {
+                        const idx = col - 1 + i;
+                        if (idx < trackCount && tracks[idx] === 'minmax(0, 1fr)') {
+                            tracks[idx] = '0px';
+                        }
+                    }
+                }
+            }
+            col += span;
+            if (col > trackCount) col = 1; // wrap explicitly when the cell exits the last track
+        }
+        return tracks.join(' ');
+    }, [cellsTracksTemplate, cellsGridSize, cellsWithoutSpanLength, visibleColumns]);
+
     const subWrapperStyle = useMemo(() => ({
         display: 'grid',
-        gridTemplateColumns: `repeat(${cellsGridSize || cellsWithoutSpanLength || 1}, minmax(0, 1fr))`,
+        gridTemplateColumns,
         gap: cellsGridGap,
         backgroundColor: cardsBgColor,
         padding: cardsPadding,
         ...(cellsRowHeight ? { gridAutoRows: `${cellsRowHeight}px` } :
             hasRowSpan ? { gridAutoRows: 'minmax(0, auto)' } : {}),
-    }), [cellsGridSize, cellsWithoutSpanLength, cellsGridGap, cardsBgColor, cardsPadding, cellsRowHeight, hasRowSpan]);
+    }), [gridTemplateColumns, cellsGridGap, cardsBgColor, cardsPadding, cellsRowHeight, hasRowSpan]);
 
     // Reordering function
     function handleDrop(targetCol) {
