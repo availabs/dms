@@ -271,29 +271,23 @@ const LegendPanel = (props) => {
 
   //first conditional filters out all symbologies that have NO legends enabled
   const legendRows = layersBySymbology
-    .filter((symb) => {
-      //look thru symb.layer for an enabled legend
-      Object.values(symb.layers).some((layer) => {
-        return (
-          layer?.["legend-orientation"] !== "none" ||
-          Object.values(layer?.pluginData || {}).some(
-            (layerPluginData) => layerPluginData?.["default-legend"] !== false,
-          )
-        );
-      });
-    })
+    .filter(
+      (symb) =>
+        //make sure that the plugin for a given symbology does not specify to hide the default legend;
+        Object.values(symb?.pluginData || {}).some(
+          (layerPluginData) => layerPluginData?.["default-legend"] !== false,
+        ) &&
+        //look thru all layers within symb for an enabled legend
+        Object.values(symb.layers).some(
+          (layer) => layer?.["legend-orientation"] !== "none",
+        ),
+    )
     .map((symb) => (
       <div key={symb.id} className="m-1 p-1 rounded">
         {Object.values(symb.layers)
           .sort((a, b) => b.order - a.order)
           //these condtionals filter out the layers themselves that do not have a legend enabled
           .filter((layer) => layer?.["legend-orientation"] !== "none")
-          .filter((layer) =>
-            Object.values(layer?.pluginData || {}).some(
-              (layerPluginData) =>
-                layerPluginData?.["default-legend"] !== false,
-            ),
-          )
           .map((layer, i) => (
             <LegendRow
               key={layer.id}
