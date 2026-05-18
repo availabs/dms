@@ -211,8 +211,9 @@ The padding precedence is **side-specific > `cellPadding` > `cellsPadding`** —
 | `title`               | Title Case (also adds `capitalize` class) |
 | `icon`                | Renders an `<Icon>` from the value. Pairs with `iconAndColorValues` theme class. |
 | `color`               | Renders a colored swatch. |
+| `combine`             | Renders `<value><separator><row[combineWith]>` — two row fields on one editorial line. Reads `combineWith` (sibling column name) + `combineSeparator` (default `' — '`) off the column attr. The sibling column must be `show: true` somewhere on the card so the data loader fetches it; the sibling cell itself is usually `hideHeader: true, hideValue: true, cellSpan: <full grid>` (a hidden loader). |
 
-`icon` and `color` are special-cased: in view mode the renderer returns the formatted JSX directly without going through `CompWrapper`, so their column type's `ViewComp` is not consulted.
+`icon`, `color`, and `combine` are special-cased: in view mode the renderer returns the formatted result directly without going through `CompWrapper`. `combine`'s signature is `(value, row, attr)` rather than the standard `(value, isDollar)` — it needs the row to resolve the sibling field. It also skips the trailing `.replaceAll(' ', '')` the numeric formatters use, so separator whitespace is preserved.
 
 ### Edit & data flow
 
@@ -328,6 +329,46 @@ Row 3: [album_cover cont.] [album (4-10)]
 
 The `stream_player` column type renders a 52×52 ▶ button and nothing else (see `src/themes/wcdb/columnTypes/streamPlayer.jsx`). It declares `cardHints.defaultHideHeader: true` so the picker ships new instances with the header hidden. No `fullBleed`, no `spanFullColumns` — it's a normal Card cell that happens to render a button.
 
+### Two fields on one editorial line (`formatFn: 'combine'`)
+
+WCDB now-playing card: `<song> — <artist>` on one line, `<album>` on the next. Three fields, two visible rows.
+
+```js
+columns: [
+  { name: 'album_cover', type: 'image', isImg: true, imageSize: 'imgSM',
+    show: true, hideHeader: true, cellSpan: 1, cellRowSpan: 2, cellWidth: '96px' },
+
+  // The visible cell. `combine` reads `artist_name` off the row and joins with
+  // the separator to render "Eternal Life — Jeff Buckley".
+  { name: 'title', type: 'text', show: true, hideHeader: true,
+    valueFontStyle: 'text2XL', cellSpan: 7,
+    formatFn: 'combine', combineWith: 'artist_name', combineSeparator: ' — ' },
+
+  { name: 'play', type: 'stream_player', show: true, hideHeader: true,
+    cellSpan: 1, cellRowSpan: 2, cellWidth: '52px', origin: 'static', staticValue: '' },
+
+  { name: 'album', type: 'text', show: true, hideHeader: true,
+    valueFontStyle: 'textSMReg', cellSpan: 7 },
+
+  // Hidden loader for `artist_name` — kept `show: true` so the query SELECTs
+  // it, hidden via `hideHeader + hideValue`, and pushed to its own row with
+  // `cellSpan: <full grid>` so it doesn't grab a visible slot.
+  { name: 'artist_name', type: 'text', show: true,
+    hideHeader: true, hideValue: true, cellSpan: 9 },
+],
+display: { cellsGridSize: 9, cellsGridGap: 8, cellsPadding: 4 }
+```
+
+Visual layout:
+
+```
+Row 1: [album_cover] [title combined with artist (7 cols)] [play]
+Row 2: [album_cover] [album (7 cols)]                       [play]
+Row 3: (hidden artist_name loader, full 9 cols)
+```
+
+The order of columns matters: `artist_name` sits AFTER `album` so sparse auto-flow doesn't pull it into row 2's text slot. Reorder if you change the visible rows.
+
 ### Standard 3-up record cards with image header
 
 ```js
@@ -431,7 +472,8 @@ columns[i].cellPadding   → override all sides (beats ambient cellsPadding)
 columns[i].cellPaddingTop / cellPaddingRight / cellPaddingBottom / cellPaddingLeft → per-side override (beats cellPadding)
 columns[i].justify       → 'left'|'right'|'center'|'full'
 columns[i].headerFontStyle / valueFontStyle → textSettings key
-columns[i].formatFn      → comma/date/time/title/icon/color/…
+columns[i].formatFn      → comma/date/time/title/icon/color/combine/…
+columns[i].combineWith / combineSeparator → for `formatFn: 'combine'`, the sibling row field and join string
 columns[i].isImg + imageSize/imageLocation/imageExtension/imageSrc/imageMargin → image cell
 columns[i].isLink + isLinkExternal/linkText/location/searchParams → link cell
 columns[i].allowEditInView → inline-edit this cell
