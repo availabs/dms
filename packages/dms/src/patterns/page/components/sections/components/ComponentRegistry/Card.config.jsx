@@ -422,8 +422,13 @@ const buildControls = (theme) => ({
             },
             { type: 'input', inputType: 'text', label: 'Navigate to', key: 'navigateUrlOnAdd',
                 displayCdn: ({ display }) => display.allowAdddNew && display.addNewBehaviour === 'navigate' },
-            { type: 'toggle', label: 'Prevent Duplicate Fetch', key: 'preventDuplicateFetch' },
-            { type: 'toggle', label: 'Always Fetch Data', key: 'readyToLoad' },
+            { type: 'select', label: 'Data Fetch Mode', key: 'fetchMode',
+              options: [
+                { label: 'Cache (use preloaded data)', value: 'cache' },
+                { label: 'Smart (fetch on change)',    value: 'smart' },
+                { label: 'Force (always re-fetch)',    value: 'force' },
+              ]
+            },
             // Empty-result fallback. When on AND the query returns 0 rows,
             // getData.js synthesizes a single row from each column's
             // `blankDefault` (per-column toolbar control, gated on this flag).

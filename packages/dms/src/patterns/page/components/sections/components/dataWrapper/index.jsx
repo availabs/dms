@@ -167,8 +167,7 @@ const Edit = forwardRef((props, ref) => {
 
     // ── Hooks that operate on state ──
     const { loading, currentPage, onPageChange, outputSourceInfo } = useDataLoader({
-        state, setState, apiLoad, component,
-        readyToLoad: isValidState,
+        state, setState, apiLoad, component, isEditMode: true,
     });
 
     useEffect(() => {
@@ -409,7 +408,6 @@ const View = forwardRef(({cms_context, value, onChange, component, editPageMode,
     // ── Hooks ──
     const { loading, currentPage, onPageChange, outputSourceInfo } = useDataLoader({
         state, setState, apiLoad, component,
-        readyToLoad: isValidState && (state?.display?.readyToLoad || state?.display?.allowEditInView),
     });
 
     useEffect(() => {
