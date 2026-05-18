@@ -144,6 +144,7 @@ const ViewLayerRender = ({
             maplibreMap.addLayer(l) 
           }
         })
+        cachedFilterPropsRef.current = null;
       }
     }
 
