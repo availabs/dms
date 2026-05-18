@@ -179,11 +179,23 @@ const buildInHeader = (fontStyleOptions) => [
     { type: 'separator', key: 'toolbar-sep', label: 'toolbar-sep', hideFromSectionMenu: true },
     // layout — all per-cell controls always visible (no mode gating)
     { type: 'toggle', label: 'Border Below', key: 'cellBorderBelow' },
+    // Per-cell padding overrides — side-specific wins over `cellPadding`,
+    // `cellPadding` wins over section-level `cellsPadding`.
+    { type: 'input', inputType: 'number', label: 'Padding', key: 'cellPadding', isBatchUpdatable: true },
+    { type: 'input', inputType: 'number', label: 'Padding Top', key: 'cellPaddingTop', isBatchUpdatable: true },
+    { type: 'input', inputType: 'number', label: 'Padding Right', key: 'cellPaddingRight', isBatchUpdatable: true },
     { type: 'input', inputType: 'number', label: 'Padding Below', key: 'cellPaddingBottom', isBatchUpdatable: true },
+    { type: 'input', inputType: 'number', label: 'Padding Left', key: 'cellPaddingLeft', isBatchUpdatable: true },
     { type: 'toggle', label: 'Hide Header', key: 'hideHeader', isBatchUpdatable: true },
     { type: 'toggle', label: 'Hide Value', key: 'hideValue', isBatchUpdatable: true },
     { type: 'input', inputType: 'number', label: 'Col Span', key: 'cellSpan' },
     { type: 'input', inputType: 'number', label: 'Row Span', key: 'cellRowSpan' },
+    // Cell Width — per-column grid track size. Accepts:
+    //   ''            → fluid (track stays minmax(0, 1fr), matches the row default)
+    //   'auto'        → track shrinks to fit the cell's natural content
+    //   '<N>px' / etc → fixed CSS size; first column to claim a track wins it.
+    // See src/dms/skills/card-layout.md → "Sizing tracks (fluid / content / fixed)".
+    { type: 'input', inputType: 'text', label: 'Cell Width', key: 'cellWidth' },
     { type: 'separator', key: 'toolbar-sep', label: 'toolbar-sep', hideFromSectionMenu: true },
     // other
     { type: 'toggle', label: 'Allow Edit', key: 'allowEditInView', displayCdn: ({ isEdit }) => isEdit },
@@ -390,6 +402,9 @@ const buildControls = (theme) => ({
                     { type: 'input', inputType: 'number', label: 'Row Height', key: 'cellsRowHeight' },
                     { type: 'input', inputType: 'number', label: 'Cell Padding', key: 'cellsPadding' },
                     { type: 'toggle', label: 'Cell Border', key: 'cellBorder' },
+                    // Track Template — raw grid-template-columns string, wins over
+                    // per-column `cellWidth`. Power-user escape hatch.
+                    { type: 'input', inputType: 'text', label: 'Track Template', key: 'cellsTracksTemplate' },
                 ]
             },
             { label: 'Default Column Settings', items: [
