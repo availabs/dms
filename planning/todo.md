@@ -159,6 +159,7 @@
 ### patterns/auth
 
 - [x] Fix `/groups/byproject` response shape — dms-server returns plain array, client expects `{ groups: [...] }` wrapper with synthetic "public" group
+- [ ] [Email redesign](./tasks/current/email-redesign.md) — redesign transactional emails (signup welcome, forgot password, password-changed confirmation) to match auth page visual identity; wire up email sending in 3 handler stubs
 
 ## config
 
