@@ -19,7 +19,6 @@ import {PluginLibrary} from "../"
 
 
 const NO_PLUGIN = () => null;
-let didRegister = false;
 const PluginLayerRender = ({
   maplibreMap,
   layer,
@@ -51,10 +50,7 @@ const PluginLayerRender = ({
   // On Load Unload
   // ---------------
   useEffect(() => {
-    if(!didRegister) {
-      plugin?.mapRegister(maplibreMap, state, setState);
-      didRegister = true;
-    }
+    plugin?.mapRegister(maplibreMap, state, setState);
 
     return () => {
       plugin?.cleanup(maplibreMap, state, setState)
@@ -71,7 +67,7 @@ const PluginLayerRender = ({
     } else {
       plugin.dataUpdate(maplibreMap, state, setState);
     }
-  }, [layerPluginData]);
+  }, [layerPluginData, plugin]);
 
   const RenderComp = plugin?.comp || NO_PLUGIN;
 
