@@ -171,8 +171,16 @@ const buildInHeader = (fontStyleOptions) => [
             { label: 'Title', value: 'title' },
             { label: 'Icon', value: 'icon' },
             { label: 'Color', value: 'color' },
+            { label: 'Combine columns', value: 'combine' },
         ]
     },
+    // `combine` formatFn: renders `<value><separator><row[combineWith]>` in one
+    // cell. The sibling column must still be `show: true` somewhere on the card
+    // so the data loader fetches it.
+    { type: 'input', inputType: 'text', label: 'Combine With', key: 'combineWith', isBatchUpdatable: true,
+        displayCdn: ({ attribute, isEdit }) => isEdit && attribute.formatFn === 'combine' },
+    { type: 'input', inputType: 'text', label: 'Separator', key: 'combineSeparator', isBatchUpdatable: true,
+        displayCdn: ({ attribute, isEdit }) => isEdit && attribute.formatFn === 'combine' },
     { type: 'select', label: 'Header', key: 'headerFontStyle', options: fontStyleOptions, isBatchUpdatable: true, displayCdn: ({ attribute }) => !attribute.hideHeader },
     { type: 'select', label: 'Value', key: 'valueFontStyle', options: fontStyleOptions, isBatchUpdatable: true, displayCdn: ({ attribute }) => !attribute.hideValue },
 

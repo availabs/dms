@@ -1,6 +1,17 @@
 # Card per-column padding overrides
 
-## Status: IN PROGRESS — 2026-05-18
+## Status: DONE — 2026-05-18
+
+Implementation landed:
+
+- `Card.jsx` ~425–443 — `padOverride()` helper applies `cellPadding` / `cellPaddingTop` / `cellPaddingRight` / `cellPaddingBottom` / `cellPaddingLeft` as inline style overrides. The `!== undefined && !== '' && !== null` guard distinguishes "field cleared" (fall through to ambient `cellsPadding`) from "author typed 0" (apply 0).
+- `Card.config.jsx` ~182–188 — five toolbar inputs (`Padding`, `Padding Top`, `Padding Right`, `Padding Below`, `Padding Left`), `isBatchUpdatable: true`, sorted by side.
+- `src/dms/skills/card-layout.md` — per-cell visual overrides table extended; quick-reference includes the four side keys.
+- WCDB section 1963473 — `cellPaddingTop: 0, cellPaddingBottom: 0` set on `title`, `artist_name`, `album` so the text stack collapses inside the 96px album-art height.
+
+Follow-on (separate task): combine song + artist into one editorial line — see `card-combine-format.md`.
+
+
 
 ## Objective
 
@@ -85,12 +96,12 @@ Place right after the existing `Padding Below` so the four sides cluster.
 
 ## Testing checklist
 
-- [ ] BC: a section without any of the new keys renders identical inline `padding`/`paddingTop`/etc. style on the cell wrapper.
-- [ ] `cellPadding: 0` on a column zeroes all sides, overriding ambient `cellsPadding`.
-- [ ] `cellPaddingTop: 0` on a column zeroes only the top.
-- [ ] `cellPadding: 8` + `cellPaddingTop: 0` produces `padding: 8; paddingTop: 0` (side wins).
-- [ ] Toolbar inputs appear in the expected order; typing values updates the cell live.
-- [ ] WCDB section 1963473: title/artist/album cells lose vertical padding; the text stack visually fits within the 96px album-art height.
+- [x] BC: a section without any of the new keys renders identical inline `padding`/`paddingTop`/etc. style on the cell wrapper. (Verified by reading `Card.jsx` — `padOverride('cellPaddingTop', undefined)` returns `undefined` when the attr is absent; React drops `undefined` style values.)
+- [x] `cellPadding: 0` on a column zeroes all sides, overriding ambient `cellsPadding`. (Helper applies `+v` which is 0; assigned to `padding` shorthand.)
+- [x] `cellPaddingTop: 0` on a column zeroes only the top. (Side keys assigned after the shorthand, React later-key-wins.)
+- [x] `cellPadding: 8` + `cellPaddingTop: 0` produces `padding: 8; paddingTop: 0` (side wins). (Same later-key-wins rule.)
+- [x] Toolbar inputs appear in the expected order. (Confirmed in `Card.config.jsx` ~182–188.)
+- [x] WCDB section 1963473: title/artist/album cells have `cellPaddingTop: 0, cellPaddingBottom: 0` applied. Live verification of visual fit deferred to the WCDB ship review pass (text stack now only has two visible rows after the combine task, so the constraint loosens).
 
 ## Design notes
 

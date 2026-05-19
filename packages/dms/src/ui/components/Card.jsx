@@ -374,6 +374,12 @@ const CardColumnField = ({
                 <div className={theme.iconAndColorValues}>
                     {formatFunctions[attr.formatFn](rawValue?.value || rawValue, attr.isDollar, Icon)}
                 </div> :
+                // `combine` reads a sibling row field, so it needs `source` (the
+                // row) and `attr`. Skip the trailing `.replaceAll(' ', '')` that
+                // the generic branch applies — the combine separator carries
+                // intentional whitespace that the numeric formatters don't.
+                attr.formatFn === 'combine' && formatFunctions.combine ?
+                    formatFunctions.combine(rawValue?.value ?? rawValue, source, attr) :
                 attr.formatFn && formatFunctions[attr.formatFn] ?
                     formatFunctions[attr.formatFn](rawValue?.value || rawValue, attr.isDollar).replaceAll(' ', '') :
                     rawValue;

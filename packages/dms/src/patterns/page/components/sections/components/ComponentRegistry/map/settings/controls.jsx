@@ -1,11 +1,4 @@
-import React, { useContext, useMemo, useState } from "react";
-import {
-  Combobox,
-  ComboboxButton,
-  ComboboxInput,
-  ComboboxOption,
-  ComboboxOptions,
-} from "@headlessui/react";
+import React, { useContext } from "react";
 
 import { ThemeContext } from "../../../../../../../../ui/useTheme";
 import useMapSettingsControls from "./state.jsx";
@@ -52,58 +45,6 @@ const FilterGroup = ({ title, children, highlighted = false }) => (
   </div>
 );
 
-function MapSettingsSearchSelect({ options = [], value, onChange, placeholder = "Search...", disabled = false }) {
-  const [query, setQuery] = useState("");
-
-  const selectedOption = useMemo(
-    () => options.find((option) => String(option.key) === String(value)) || null,
-    [options, value]
-  );
-
-  const filteredOptions = useMemo(() => {
-    if (!query) return options;
-    const normalizedQuery = query.toLowerCase();
-    return options.filter((option) => String(option.label || "").toLowerCase().includes(normalizedQuery));
-  }, [options, query]);
-
-  return (
-    <div className="mt-1">
-      <Combobox
-        value={selectedOption}
-        onChange={(option) => {
-          if (option && onChange) onChange(option.key);
-        }}
-        disabled={disabled}
-      >
-        <div className="relative z-[1] flex w-full items-center rounded-md border border-slate-700 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus-within:z-[10050]">
-          <i className="fa fa-search pr-2 text-xl font-light text-slate-400" aria-hidden="true" />
-          <ComboboxInput
-            className="w-full min-w-0 bg-transparent text-slate-900 outline-none placeholder:text-slate-300"
-            displayValue={(option) => option?.label ?? ""}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder={placeholder}
-          />
-          <ComboboxButton className="px-1 text-slate-400 hover:text-slate-600">
-            <i className="fa fa-chevron-down" aria-hidden="true" />
-          </ComboboxButton>
-          <ComboboxOptions className="absolute left-0 top-full z-[10050] mt-1 max-h-60 w-full overflow-auto rounded-md bg-white text-slate-900 shadow-lg ring-1 ring-zinc-950/5 empty:invisible">
-            {filteredOptions.map((option, index) => (
-              <ComboboxOption
-                key={`${option.key}_${index}`}
-                value={option}
-                className="block cursor-pointer px-3 py-1.5 text-sm text-slate-900 data-[focus]:bg-slate-100 data-[selected]:bg-blue-50 data-[selected]:font-medium"
-              >
-                {option.label}
-              </ComboboxOption>
-            ))}
-            {filteredOptions.length === 0 ? <div className="px-3 py-2 text-sm italic text-slate-400">No matches</div> : null}
-          </ComboboxOptions>
-        </div>
-      </Combobox>
-    </div>
-  );
-}
-
 const useMapSettingsUI = (mapAPI) => {
   const { UI } = useContext(ThemeContext) || { UI: {} };
   const controls = useMapSettingsControls(mapAPI);
@@ -112,16 +53,17 @@ const useMapSettingsUI = (mapAPI) => {
 };
 
 const MapSymbologyControl = ({ mapAPI }) => {
-  const { selectedSymbology, symbologyOptions, onSymbologyChange } = useMapSettingsUI(mapAPI);
+  const { selectedSymbology, symbologyOptions, onSymbologyChange, Select } = useMapSettingsUI(mapAPI);
 
   return (
     <div className={sectionClassName}>
       <Field label="Symbology">
-        <MapSettingsSearchSelect
+        <Select
           value={selectedSymbology || ""}
+          options={symbologyOptions.map((option) => ({ label: option.label, value: option.key }))}
           onChange={onSymbologyChange}
           placeholder="Search..."
-          options={symbologyOptions}
+          singleSelectOnly={true}
         />
       </Field>
     </div>
@@ -129,16 +71,16 @@ const MapSymbologyControl = ({ mapAPI }) => {
 };
 
 const MapLayerControl = ({ mapAPI }) => {
-  const { selectedSymbology, selectedLayer, layerOptions, onLayerChange } = useMapSettingsUI(mapAPI);
+  const { selectedSymbology, selectedLayer, layerOptions, onLayerChange, Select } = useMapSettingsUI(mapAPI);
 
   return (
-      <Field label="Layer">
-        <MapSettingsSearchSelect
+    <Field label="Layer">
+      <Select
         value={selectedLayer}
+        options={layerOptions.map((option) => ({ label: option.label, value: option.key }))}
         onChange={onLayerChange}
         placeholder="Search..."
-        options={layerOptions}
-        disabled={!selectedSymbology}
+        singleSelectOnly={true}
       />
     </Field>
   );
