@@ -399,7 +399,18 @@ const CardColumnField = ({
             attr.searchParams === 'id' ? encodeURIComponent(id) :
                 ['value', 'rawValue'].includes(attr.searchParams) ?
                     encodeURIComponent(valueFormattedForSearchParams) : ``;
-        url = `${location || valueFormattedForDisplay}${searchParams}`;
+        if (attr.persistSearchParams && location) {
+            const rawSearchParamValue =
+                attr.searchParams === 'id' ? id :
+                ['value', 'rawValue'].includes(attr.searchParams) ? valueFormattedForSearchParams : null;
+            const qIdx = location.indexOf('?');
+            const locationKey = qIdx !== -1 ? location.slice(qIdx + 1).split('=')[0] : null;
+            const currentParams = new URLSearchParams(window.location.search);
+            if (locationKey && rawSearchParamValue !== null) currentParams.set(locationKey, rawSearchParamValue);
+            url = `${qIdx !== -1 ? location.slice(0, qIdx) : location}?${currentParams.toString()}`;
+        } else {
+            url = `${location || valueFormattedForDisplay}${searchParams}`;
+        }
     }
 
     const wrapperFlexClass = headerValueLayout === 'col' && !reverse ? theme.itemFlexCol :

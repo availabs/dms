@@ -218,6 +218,7 @@ export default {
                     { label: 'Raw Value', value: 'rawValue' }
                 ]
             },
+            { type: 'toggle', label: 'Persist Search Params', key: 'persistSearchParams', displayCdn: ({ attribute, isEdit }) => isEdit && attribute.isLink },
         ]
     },
     componentFunctions,
