@@ -209,8 +209,6 @@ export const getData = async ({
     }
 
     if (keepOriginalValues) options.keepOriginalValues = keepOriginalValues;
-    const filterRelation = state.display?.filterRelation;
-    if (filterRelation) options.filterRelation = filterRelation;
 
     debugTime && console.timeEnd('buildUdaConfig')
 
@@ -345,7 +343,6 @@ export const getData = async ({
                         filter: options.filter,
                         exclude: options.exclude,
                         filterGroups: options.filterGroups,
-                        filterRelation: options.filterRelation,
                         normalFilter: options.normalFilter,
                     }),
                     attributes: columnsToFetch

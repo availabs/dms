@@ -50,7 +50,6 @@ function computeFetchKey(state) {
         showTotal: c.showTotal,
       })),
       filterGroups: state.filters,
-      filterRelation: state.display?.filterRelation,
       source_id: state.externalSource?.source_id,
       view_id: state.externalSource?.view_id,
       pageSize: state.display?.pageSize,
@@ -199,10 +198,10 @@ export function useDataLoader({ state, setState, apiLoad, component, isEditMode 
 
   // ─── Fetch mode (derived from state, with backward-compat for readyToLoad bool) ──
   // Edit mode always uses 'smart' (fetch with dedup); View mode honors fetchMode.
-  const fetchMode = isEditMode
-      ? 'smart'
-      : (state?.display?.fetchMode ?? (state?.display?.readyToLoad === true ? 'smart' : 'cache'));
-  const readyToLoad = isValidState && (fetchMode !== 'cache' || state?.display?.allowEditInView);
+  const fetchMode =
+      // isEditMode ? 'smart' : // doesn't fetch in edit mode and shows stale cached data
+      (state?.display?.fetchMode ?? (state?.display?.readyToLoad === true ? 'smart' : 'cache'));
+  const readyToLoad = isEditMode || (isValidState && (fetchMode !== 'cache' || state?.display?.allowEditInView));
   const bypassDedup = fetchMode === 'force';
 
   // ─── Main load effect ──────────────────────────────────────────────────────
