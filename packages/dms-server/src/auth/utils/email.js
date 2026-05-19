@@ -127,7 +127,6 @@ function buildEmailHtml({ title, body, ctaText, ctaUrl, footer, theme = {} }) {
         </td>
       </tr>`
     : '';
-  console.log('build html')
   return `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>

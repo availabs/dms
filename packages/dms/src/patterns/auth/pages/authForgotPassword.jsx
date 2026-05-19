@@ -46,7 +46,7 @@ export default function AuthForgotPassword (props) {
                 };
                 await AuthAPI.callAuthServer(`/password/reset`,
                     {...credentials, token: user.token, project: PROJECT_NAME,
-                     host: `${window.location.host}`, url: `/${baseUrl}/login`, emailTheme})
+                     host: `${window.location.host}`, url: `${baseUrl}/login`, emailTheme})
                     .then(res => {
                         if (res.error) {
                             setStatus(res.error)
