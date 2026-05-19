@@ -51,6 +51,10 @@ export const dataCardTheme = {
             // references (e.g. valueTextSize: 'textMD') resolves through
             // textSettings unless a downstream theme overrides it on dataCard.
 
+            // Applied to <a>/<Link> when isLink and no valueFontStyle is chosen.
+            // Override in the theme editor or set valueFontStyle to 'button' etc.
+            linkColValue: 'text-blue-600 underline',
+
             imgXS: "max-w-16 max-h-16",
             imgSM: "max-w-24 max-h-24",
             imgMD: "max-w-32 max-h-32",

@@ -517,12 +517,12 @@ const CardColumnField = ({
             {
                 attr.hideValue ? null :
                     <div className={
-                        `${theme.value} ${theme[valueTextJustifyClass]} ${theme[attr.valueFontStyle || 'textXS']} ${formatClass}
+                        `${theme.value} ${theme[valueTextJustifyClass]} ${theme[(attr.valueFontStyle && attr.valueFontStyle !== 'button') ? attr.valueFontStyle : 'textXS']} ${formatClass}
                         `} style={{maxWidth: isRowLayout && !attr.hideHeader ? `${valueWidth || 50}%` : undefined}}>
                         {
                             isLink && !(allowEdit || attr.allowEditInView) ?
                                 (isLinkExternal ?
-                                <a className={theme.linkColValue}
+                                <a className={(attr.valueFontStyle && attr.valueFontStyle !== 'button') ? (theme[attr.valueFontStyle] || '') : (theme.linkColValue || '')}
                                    target="_blank"
                                    rel="noopener noreferrer"
                                    href={url}
@@ -545,7 +545,7 @@ const CardColumnField = ({
                                                  componentWrapperClassName={theme.componentWrapper}
                                     />
                                 </a> :
-                                <Link className={theme.linkColValue} to={url}>
+                                <Link className={(attr.valueFontStyle && attr.valueFontStyle !== 'button') ? (theme[attr.valueFontStyle] || '') : (theme.linkColValue || '')} to={url}>
                                     <CompWrapper attribute={attr}
                                                  value={linkText || valueFormattedForDisplay}
                                                  rawValue={valueFormattedForEdit}
