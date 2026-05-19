@@ -3,12 +3,12 @@ import React from "react"
 import { BarGraph, Legend } from "./avl-graph"
 
 import {
-	groups as d3groups,
-	range as d3range
+	groups as d3groups
 } from "d3-array"
 
 import { strictNaN } from "../utils"
 import { getAggFunc } from "./utils"
+import { getColorRange } from "../colorSchemeUnifier"
 
 const BarGraphWrapper = props => {
 
@@ -21,7 +21,7 @@ const BarGraphWrapper = props => {
 		const dataColumns = props.columns.filter(c => c.target === "yAxis");
 		const categoryColumn = props.columns.find(c => c.target === "categorize");
 
-		if (!indexColumn || !dataColumns.length) return { keys: [] };
+		if (!indexColumn || !dataColumns.length) return { data: [], keys: [] };
 
 // console.log("BarGraphWrapper::indexColumn", indexColumn)
 // console.log("BarGraphWrapper::dataColumns", dataColumns)
@@ -106,6 +106,18 @@ const BarGraphWrapper = props => {
 		return { data, keys };
 	}, [props.viewData, props.columns]);
 
+  const colors = React.useMemo(() => {
+    let colors = [];
+
+    if (props.colors?.type === "palette") {
+      colors = props.colors?.value || [];
+    }
+    else if (props.colors?.type === "scheme") {
+      colors = getColorRange(props.colors.scheme, dataFromProps.keys?.length);
+    }
+    return props.colors?.reverse ? colors.reverse() : colors;
+  }, [props.colors, dataFromProps.keys?.length]);
+
 // console.log("BarGraphWrapper::dataFromProps", dataFromProps);
 
 	const axisBottom = React.useMemo(() => {
@@ -136,10 +148,10 @@ const BarGraphWrapper = props => {
     return {
       ...props.legend,
       type: "categorical",
-      colors: props.colors,
+      colors: colors,
       categories: dataFromProps.keys
     };
-  }, [props.legend, props.colors, dataFromProps.keys]);
+  }, [props.legend, colors, dataFromProps.keys]);
 
 // console.log("BarGraphWrapper::legend", legend);
 
@@ -159,6 +171,7 @@ const BarGraphWrapper = props => {
       >
 				<BarGraph { ...props }
 					{ ...dataFromProps }
+					colors={ colors }
 					axisBottom={ axisBottom }
 					axisLeft={ axisLeft }/>
       </div>

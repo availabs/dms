@@ -200,6 +200,82 @@ export const PieGraph = props => {
     });
   }, []);
 
+  // React.useEffect(() => {
+  //   if (!(width && height)) return;
+
+  //   const adjustedWidth = Math.max(0, width - (Margin.left + Margin.right)),
+  //     adjustedHeight = Math.max(0, height - (Margin.top + Margin.bottom));
+
+  //   const maxRadius = Math.min(adjustedWidth, adjustedHeight) * 0.5;
+
+  //   const colorFunc = getColorFunc(colors);
+
+  //   const pieMaker = d3shape.pie()
+  //     .value(d => d.sum)
+  //     .startAngle(startAngle)
+  //     .endAngle(endAngle)
+  //     .padAngle(padAngle)
+  //     .sort(null);
+
+  //   const pieData = [];
+
+  //   const colorMap = {};
+
+  //   pieData.push({
+  //     pie: pieMaker(data.map((d, i)=> ({ ...d, key: d[indexBy], color: colorFunc(null, i) }))),
+  //     innerRadius: maxRadius * 0.25,
+  //     outerRadius: maxRadius * 0.5,
+  //     dx: adjustedWidth * 0.5,
+  //     dy: adjustedHeight * 0.5,
+  //     index: "inner-ring"
+  //   })
+
+  //   pieData[0].pie.forEach(p => {
+
+  //     colorMap[p.data.index] = {};
+
+  //     const pieMaker = d3shape.pie()
+  //       .value(d => d.value)
+  //       .startAngle(p.startAngle)
+  //       .endAngle(p.endAngle)
+  //       .padAngle(padAngle)
+  //       .sort((a, b) => b.value - a.value);
+
+  //     const pieParts = keys.map((key, ii) => {
+  //       const value = get(p.data, key, 0);
+  //       // const color = colorFunc(value, ii, key, p.data);
+  //       colorMap[p.data.index][key] = color;
+  //       return {
+  //         data: p.data,
+  //         colorMap,
+  //         color: p,
+  //         value,
+  //         key,
+  //         index: `${ p.data.index }-${ key }`
+  //       }
+  //     }).filter(p => Boolean(p.value));
+
+  //     pieData.push({
+  //       pie: pieMaker(pieParts),
+  //       innerRadius: maxRadius * 0.5,
+  //       outerRadius: maxRadius * 1.0,
+  //       dx: adjustedWidth * 0.5,
+  //       dy: adjustedHeight * 0.5,
+  //       index: `${ p.data.index }`
+  //     })
+  //   })
+
+  //   dispatch({
+  //     type: "update-state",
+  //     pieData,
+  //     showAnimations
+  //   });
+
+  // }, [
+  //   data, keys, width, height, colors,
+  //   Margin, indexBy, startAngle, endAngle, padAngle
+  // ]);
+
   React.useEffect(() => {
     if (!(width && height)) return;
 
@@ -219,28 +295,30 @@ export const PieGraph = props => {
 
     const pieData = data.map(d => {
 
-      colorMap[d[indexBy]] = {};
+      const index = d[indexBy];
+
+      colorMap[index] = {};
 
       const pieParts = keys.map((key, ii) => {
         const value = get(d, key, 0);
-        const color = colorFunc(value, ii, d, key);
-        colorMap[d[indexBy]][key] = color;
+        const color = colorFunc(value, ii, key, d);
+        colorMap[index][key] = color;
         return {
           data: d,
           colorMap,
           color,
           value,
           key,
-          index: d[indexBy]
+          index
         }
       }).filter(p => Boolean(p.value));
 
       return {
-        index: d[indexBy],
+        index,
         pie: pieMaker(pieParts),
         total: d3sum(pieParts, d => d.value),
         state: "entering",
-        label: d[indexBy]
+        label: index
       };
     });
 
@@ -252,11 +330,11 @@ export const PieGraph = props => {
       numRows = Math.ceil(pieData.length / numCols),
       numPiesInLastRow = pieData.length - ((numRows - 1) * numCols);
 
-    while (numPiesInLastRow <= (numCols - 1) - (numRows - 1)) {
-      --numCols;
-      numRows = Math.ceil(pieData.length / numCols);
-      numPiesInLastRow = pieData.length - ((numRows - 1) * numCols);
-    }
+    // while (numPiesInLastRow <= (numCols - 1) - (numRows - 1)) {
+    //   --numCols;
+    //   numRows = Math.ceil(pieData.length / numCols);
+    //   numPiesInLastRow = pieData.length - ((numRows - 1) * numCols);
+    // }
 
     const h = adjustedHeight / numRows;
 
@@ -278,11 +356,11 @@ export const PieGraph = props => {
         rowLength = (row + 1) < numRows ? numCols : numPiesInLastRow,
         w = adjustedWidth / rowLength;
 
-      p.radius = radiusScale(p.total);
+      p.innerRadius = 0;
+      p.outerRadius = radiusScale(p.total);
       p.dx = w * col + w * 0.5;
       p.dy = h * row + (h - labelPadding) * 0.5;
-      // p.ldy = (h - labelPadding) * 0.5;
-      p.ldy = p.radius;
+      p.ldy = p.outerRadius;
     })
 
     dispatch({
@@ -314,6 +392,8 @@ export const PieGraph = props => {
     show: showHoverComp,
     ...hoverCompRest
   } = HoverCompData;
+
+// console.log("PieGraph::pieData", state.pieData)
 
   return (
     <div ref={ ref } className="w-full h-full avl-graph-container relative">
@@ -351,15 +431,8 @@ export const PieGraph = props => {
   )
 }
 
-const Slice = React.memo(({ state, data, radius, index, onMouseMove, showAnimations,
+const Slice = React.memo(({ state, data, innerRadius, outerRadius, index, onMouseMove, showAnimations,
                             endAngle, startAngle, padAngle }) => {
-
-  // const zeroArc = React.useMemo(() => {
-  //   return d3shape.arc()
-  //     .outerRadius(1)
-  //     .innerRadius(0)
-  //     .cornerRadius(0);
-  // }, []);
 
   const transitionWrapper = React.useMemo(() => {
     return showAnimations ?
@@ -369,26 +442,25 @@ const Slice = React.memo(({ state, data, radius, index, onMouseMove, showAnimati
 
   const arc = React.useMemo(() => {
     return d3shape.arc()
-      // .outerRadius(radius)
-      .innerRadius(0)
+      .innerRadius(innerRadius)
       .cornerRadius(0);
-  }, []);
+  }, [innerRadius]);
 
   const ref = React.useRef();
 
   React.useEffect(() => {
     if (state === "entering") {
       d3select(ref.current)
-        .datum({ endAngle, startAngle, padAngle, outerRadius: radius });
+        .datum({ endAngle, startAngle, padAngle, outerRadius });
     }
-  }, [state, endAngle, startAngle, padAngle, radius])
+  }, [state, endAngle, startAngle, padAngle, outerRadius])
 
   React.useEffect(() => {
     if (state === "entering") {
       transitionWrapper(d3select(ref.current)
         .attr("d", arc({ endAngle, startAngle, padAngle, outerRadius: 0.1 }))
       )
-      .attr("d", arc({ endAngle, startAngle, padAngle, outerRadius: radius }))
+      .attr("d", arc({ endAngle, startAngle, padAngle, outerRadius }))
       .attr("fill", data.color);
     }
     else if (state === "exiting") {
@@ -402,7 +474,7 @@ const Slice = React.memo(({ state, data, radius, index, onMouseMove, showAnimati
             .attrTween("d", d => {
               const i1 = d3interpolate(d.startAngle, startAngle);
               const i2 = d3interpolate(d.endAngle, endAngle);
-              const i3 = d3interpolate(d.outerRadius, radius)
+              const i3 = d3interpolate(d.outerRadius, outerRadius)
               return t => {
                 d.startAngle = i1(t);
                 d.endAngle = i2(t);
@@ -415,10 +487,10 @@ const Slice = React.memo(({ state, data, radius, index, onMouseMove, showAnimati
       else {
         d3select(ref.current)
           .attr("fill", data.color)
-          .attr("d", arc({ endAngle, startAngle, padAngle, outerRadius: radius }))
+          .attr("d", arc({ endAngle, startAngle, padAngle, outerRadius }))
       }
     }
-  }, [ref, arc, data, radius, endAngle, startAngle, padAngle, state, transitionWrapper, showAnimations]);
+  }, [ref, arc, data, outerRadius, endAngle, startAngle, padAngle, state, transitionWrapper, showAnimations]);
 
   const _onMouseMove = React.useCallback(e => {
     onMouseMove(e, { ...data });

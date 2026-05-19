@@ -1,9 +1,11 @@
 import React from 'react'
 import { Graph, DomainEditor } from './index'
-import { getColorRange } from '../../../../../../../ui/components/graph_new/colorRange'
+import { getColorRange, SchemeOptions } from '../../../../../../../ui/components/graph_new/colorSchemeUnifier'
 import { ValueFormats } from "../../../../../../../ui/components/graph_new/utils";
 
 const DefaultPalette = getColorRange(20, "div7");
+
+// console.log("SchemeOptions", SchemeOptions)
 
 const graphOptions = {
     readyToLoad: false,
@@ -19,7 +21,9 @@ const graphOptions = {
     textColor: "#000000",
     colors: {
         type: "palette",
-        value: [...DefaultPalette]
+        value: [...DefaultPalette],
+        scheme: null,
+        reverse: false
     },
     height: 300,
     width: undefined,
@@ -79,10 +83,20 @@ export default {
             { type: "select",
                 label: "Target", key: "target",
                 options: [
-                    { label: "X axis", value: "xAxis" },
-                    { label: "Y axis", value: "yAxis" },
+                    { label: "X axis", value: "xAxis",
+                        displayCdn: ({ display }) => display.graphType !== "PieGraph"
+                    },
+                    { label: "Y axis", value: "yAxis",
+                        displayCdn: ({ display }) => display.graphType !== "PieGraph"
+                    },
                     { label: "Categorize", value: "categorize",
                         displayCdn: ({ display }) => display.graphType !== "GridGraph"
+                    },
+                    { label: "Index", value: "index",
+                        displayCdn: ({ display }) => display.graphType === "PieGraph"
+                    },
+                    { label: "Slice", value: "slice",
+                        displayCdn: ({ display }) => display.graphType === "PieGraph"
                     },
                     { label: "Color", value: "color",
                         displayCdn: ({ display }) => display.graphType === "GridGraph"
@@ -96,7 +110,7 @@ export default {
                     { label: 'count', value: 'count' },
                     { label: 'avg', value: 'avg' },
                     { label: 'list', value: 'list' },
-                    // { label: 'fn exempt', value: 'exempt' }
+                    { label: 'fn exempt', value: 'exempt' }
                 ],
             },     
             { type: 'toggle',
@@ -113,52 +127,13 @@ export default {
                             (attribute.target === "categorize") ||
                             ((attribute.target === "yAxis") &&
                                 (display.graphType === "GridGraph")
+                            ) ||
+                            ((attribute.target === "index") &&
+                                (display.graphType === "PieGraph")
                             )
                 }
             }
         ],
-        // columns: [
-        //     {type: 'select', label: 'Fn', key: 'fn', disabled: ({attribute}) => !attribute.yAxis || !attribute.show,
-        //         options: [
-        //             {label: 'list', value: 'list'}, {label: 'sum', value: 'sum'}, {label: 'count', value: 'count'}, {label: 'avg', value: 'avg'}, {label: 'fn exempt', value: 'exempt'}
-        //         ]},
-        //     {type: 'select', label: 'Exclude N/A', key: 'excludeNA',
-        //         options: [
-        //             {label: 'include n/a', value: false}, {label: 'exclude n/a', value: true}
-        //         ]},
-        //     {type: 'toggle', label: 'X Axis', key: 'xAxis', onChange: ({key, value, attribute, state, columnIdx}) => {
-        //             if(attribute.yAxis || attribute.categorize) return;
-        //             state.columns.forEach(column => {
-        //                 column.xAxis = value ? column.name === attribute.name : value;
-        //                 column.group = column.name === attribute.name ? value : column.categorize;
-        //                 column.show = column.name === attribute.name ? value : column.yAxis || column.categorize;
-        //             })
-        //         }},
-        //     {type: 'toggle', label: 'Y Axis', key: 'yAxis', onChange: ({key, value, attribute, state, columnIdx}) => {
-        //             if(attribute.xAxis || attribute.categorize) return;
-        //             const defaultFn = state.columns[columnIdx].defaultFn?.toLowerCase();
-        //             state.columns[columnIdx].fn = value ? (['sum', 'count'].includes(defaultFn) ? defaultFn : 'count') : ''
-        //             state.columns[columnIdx].show = value;
-        //         }},
-        //     {type: 'toggle', label: 'Categorize', key: 'categorize', onChange: ({key, value, attribute, state, columnIdx}) => {
-        //             if(attribute.xAxis || attribute.yAxis) return;
-        //             state.columns.forEach(column => {
-        //                 column.categorize = value ? column.name === attribute.name : value;
-        //                 column.group = column.name === attribute.name ? value : column.xAxis;
-        //                 column.show = column.name === attribute.name ? value : column.yAxis || column.xAxis;
-        //             })
-        //         }},
-        //     {type: 'select', label: 'Sort', key: 'sort',
-        //         options: [
-        //             {label: 'Not Sorted', value: ''}, {label: 'A->Z', value: 'asc nulls last'}, {label: 'Z->A', value: 'desc nulls last'}
-        //         ]},
-        //     {type: 'select', label: 'Format', key: 'formatFn',
-        //         options: [
-        //             {label: 'No Format Applied', value: ' '},
-        //             {label: 'Comma Seperated',   value: 'comma'},
-        //             {label: 'Abbreviated',       value: 'abbreviate'},
-        //         ]},
-        // ],
         graph: {
             name: 'Graph',
             items: [
@@ -255,6 +230,21 @@ export default {
                 },
                 { type: "input", inputType: "number",
                     label: "Margin Left", key: "margin.left"
+                }
+            ]
+        },
+        colors: {
+            name: "Colors",
+            items: [
+                { type: "select",
+                    label: "Scheme", key: "colors.scheme",
+                    options: SchemeOptions,
+                    onChange: ({ key, value, state }) => {
+                        state.display.colors.type = "scheme";
+                    }
+                },
+                { type: "toggle",
+                    label: "Reverse", key: "colors.reverse"
                 }
             ]
         },
