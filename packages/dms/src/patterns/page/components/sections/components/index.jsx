@@ -46,6 +46,7 @@ function NonDataEditComp({ value, onChange, component, siteType, pageFormat, onH
                 onChange={v => updateAttribute('element-data', v)}
                 siteType={siteType}
                 pageFormat={pageFormat}
+                onHandle={onHandle}
             />
         </ComponentContext.Provider>
     )

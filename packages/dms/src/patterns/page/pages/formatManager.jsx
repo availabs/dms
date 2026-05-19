@@ -33,7 +33,7 @@ function MenuItemsEditor({onSave, onCancel, items}) {
 
 function FormatManager ({apiUpdate, app, type, value}) {
     const { theme, UI } = React.useContext(ThemeContext);
-    const {Layout, SideNavContainer, Icon} = UI;
+    const {Layout, Icon} = UI;
   const [ additionalSectionAttributes, setAdditionalSectionAttributes ] = React.useState(value.additionalSectionAttributes || [])
 
   const PatternFormat = {

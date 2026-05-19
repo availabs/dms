@@ -209,8 +209,6 @@ export const getData = async ({
     }
 
     if (keepOriginalValues) options.keepOriginalValues = keepOriginalValues;
-    const filterRelation = state.display?.filterRelation;
-    if (filterRelation) options.filterRelation = filterRelation;
 
     debugTime && console.timeEnd('buildUdaConfig')
 
@@ -237,7 +235,7 @@ export const getData = async ({
     const toIndex = fullDataLoad
         ? length
         : Math.min(length, currentPage * state.display.pageSize + state.display.pageSize) - 1;
-    if (fromIndex > length) {
+    if (fromIndex >= length) {
         return { length, data: [] };
     }
     debugTime && console.timeEnd('check indices')
@@ -345,7 +343,6 @@ export const getData = async ({
                         filter: options.filter,
                         exclude: options.exclude,
                         filterGroups: options.filterGroups,
-                        filterRelation: options.filterRelation,
                         normalFilter: options.normalFilter,
                     }),
                     attributes: columnsToFetch

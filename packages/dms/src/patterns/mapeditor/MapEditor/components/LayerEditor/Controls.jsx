@@ -1,7 +1,7 @@
-import React, { useMemo, useEffect, Fragment, useState }from 'react'
+import React, { useMemo, useEffect, useState }from 'react'
 import {SymbologyContext} from '../../'
 import { MapEditorContext } from "../../../context"
-import { Menu, Transition, Switch } from '@headlessui/react'
+import { ThemeContext } from "../../../../../ui/themeContext"
 import { isEqual, get, set, cloneDeep } from 'lodash-es'
 import { CaretDown, Close } from '../icons'
 import { rgb2hex, toHex, categoricalColors, rangeColors } from '../LayerManager/utils'
@@ -9,6 +9,7 @@ import {categoryPaint, isValidCategoryPaint ,choroplethPaint} from './datamaps'
 import colorbrewer from '../LayerManager/colors'//"colorbrewer"
 import { StyledControl } from './ControlWrappers'
 import { CategoryControl } from './CategoryControl';
+import { isNumericColumnType } from '../../../utils';
 import { InteractiveFilterControl } from './InteractiveFilterControl';
 import { FilterGroupControl } from './FilterGroupControl';
 import { ViewGroupControl } from './ViewGroupControl';
@@ -19,27 +20,15 @@ import {
 } from "../LayerManager/utils"
 
 function ControlMenu({ button, children}) {
-  const { state, setState  } = React.useContext(SymbologyContext);
+  const { UI } = React.useContext(ThemeContext) || {};
+  const { Popup } = UI || {};
 
   return (
-      <Menu as="div" className="relative inline-block text-left w-full">
-        <Menu.Button className='w-full'>
-          {button}
-        </Menu.Button>
-        <Transition
-          as={Fragment}
-          enter="transition ease-out duration-100"
-          enterFrom="transform opacity-0 scale-95"
-          enterTo="transform opacity-100 scale-100"
-          leave="transition ease-in duration-75"
-          leaveFrom="transform opacity-100 scale-100"
-          leaveTo="transform opacity-0 scale-95"
-        >
-          <Menu.Items className='absolute -right-[10px] w-[226px] max-h-[400px] overflow-auto py-2 origin-top-right divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black/5 focus:outline-none z-20'>
-            {children}
-          </Menu.Items>
-        </Transition>
-      </Menu>
+    <Popup button={button}>
+      <div className='w-[226px] max-h-[400px] overflow-auto py-2 divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black/5 z-20'>
+        {children}
+      </div>
+    </Popup>
   )
 }
 
@@ -94,12 +83,12 @@ export function SelectTypeControl({path, datapath, params={}}) {
           value={get(state, `${pathBase}.${path}`, params.default || params?.options?.[0]?.value ) || ""}
           onChange={(e) => setState(draft => {
             if(!column && e.target.value === 'categories') {
-              const defaultColorColumn = metadata?.filter(col => !['integer', 'number'].includes(col.type))[0]?.name ?? metadata[0]?.name;
+              const defaultColorColumn = metadata?.filter(col => !isNumericColumnType(col.type))[0]?.name ?? metadata[0]?.name;
               set(draft, `${pathBase}['data-column']`, defaultColorColumn)
             } else if (e.target.value === 'choropleth') {
               const currentColumn = metadata?.find(col => col.name === column);
-              if(!['integer', 'number'].includes(currentColumn?.type)) {
-                const defaultColorColumn = metadata.filter(col => ['integer', 'number'].includes(col.type))[0]?.name ?? metadata[0]?.name;
+              if(!isNumericColumnType(currentColumn?.type)) {
+                const defaultColorColumn = metadata.filter(col => isNumericColumnType(col.type))[0]?.name ?? metadata[0]?.name;
                 set(draft, `${pathBase}['data-column']`, defaultColorColumn)
               }
             }
@@ -231,30 +220,21 @@ function ToggleControl({path, params={title:"", default: false}}) {
       value: get(state, `${pathBase}.${path}`, params.default),
     }
   },[state]);
+  const { UI } = React.useContext(ThemeContext) || {};
+  const { Switch } = UI || {};
 
   return (
-    <label className='flex'>
-      <div className='flex items-center'>
-        <Switch
-          checked={value}
-          onChange={()=>{
-            setState(draft=> {
-              set(draft, `${pathBase}${path}`,!value)
-            })
-          }}
-          className={`${
-            value ? 'bg-blue-500' : 'bg-gray-200'
-          } relative inline-flex h-4 w-8 items-center rounded-full `}
-        >
-          <span className="sr-only">{params.title}</span>
-          <div
-            className={`${
-              value ? 'translate-x-5' : 'translate-x-0'
-            } inline-block h-4 w-4  transform rounded-full bg-white transition border-[0.5] border-slate-600`}
-          />
-        </Switch>
-      </div>
-    </label>
+    <div className='flex items-center'>
+      <Switch
+        enabled={!!value}
+        setEnabled={() => {
+          setState(draft => {
+            set(draft, `${pathBase}${path}`, !value)
+          })
+        }}
+        size={'small'}
+      />
+    </div>
   )
 }
 
@@ -362,7 +342,7 @@ function SelectViewColumnControl({path, datapath, params={}}) {
         >
           {(metadata && metadata.length ? metadata : [])
             .filter(d => {
-              if(layerType === 'choropleth' && !['integer', 'number'].includes(d.type)){
+              if(layerType === 'choropleth' && !isNumericColumnType(d.type)){
                 return false
               }
               return true
@@ -426,9 +406,9 @@ function ColorRangeControl({ path, params={}}) {
           </div>
           }
         >
-          <Menu.Item className='z-20'>
+          <div className='z-20'>
             <div className='px-4 font-semibold text-sm text-slate-600'>SEQUENTIAL</div>
-          </Menu.Item>
+          </div>
           { colorbrewer.schemeGroups.sequential.map(colorKey => (
               <ColorMenuItem key={ colorKey }
                 colorKey={ colorKey }
@@ -436,9 +416,9 @@ function ColorRangeControl({ path, params={}}) {
                 onChange={ handleOnChange }/>
             ))
           }
-          <Menu.Item className='z-20'>
+          <div className='z-20'>
             <div className='px-4 font-semibold text-sm text-slate-600'>Diverging</div>
-          </Menu.Item>
+          </div>
           { colorbrewer.schemeGroups.diverging.map(colorKey => (
               <ColorMenuItem key={ colorKey }
                 colorKey={ colorKey }
@@ -501,25 +481,21 @@ function CategoricalColorControl({path, params={}}) {
         >
           {Object.keys(colors).map(colorKey => {
             return (
-              <Menu.Item className='z-20' key={colorKey}>
-                {({ active }) => (
-                  <div className={`${active ? 'bg-blue-50 ' : ''} flex`} >
-                    <div className='w-4 h-4' />
-                    <div
-                      className = {`flex-1 flex w-full p-2`}
-                      onClick={() => {
-                        setState(draft => {
-                          const newCategories = replaceCategoryPaint(categories, colors[colorKey]);
-                          set(draft, `${pathBase}.${path}`, colors[colorKey]);
-                          set(draft, `${pathBase}['categories']`, newCategories);
-                        });
-                      }}
-                    >
-                      {colors[colorKey].map((d,i) => <div key={i} className='w-4 h-4' style={{backgroundColor: d}} />)}
-                    </div>
-                  </div>
-                )}
-              </Menu.Item>
+              <div className='z-20 flex hover:bg-blue-50' key={colorKey}>
+                <div className='w-4 h-4' />
+                <div
+                  className='flex-1 flex w-full p-2 cursor-pointer'
+                  onClick={() => {
+                    setState(draft => {
+                      const newCategories = replaceCategoryPaint(categories, colors[colorKey]);
+                      set(draft, `${pathBase}.${path}`, colors[colorKey]);
+                      set(draft, `${pathBase}['categories']`, newCategories);
+                    });
+                  }}
+                >
+                  {colors[colorKey].map((d,i) => <div key={i} className='w-4 h-4' style={{backgroundColor: d}} />)}
+                </div>
+              </div>
             )
           })}
         </ControlMenu>
@@ -688,6 +664,8 @@ function roundToNearestTen(v) {
 
 function ChoroplethControl({path, params={}}) {
   const { state, setState } = React.useContext(SymbologyContext);
+  const { UI } = React.useContext(ThemeContext) || {};
+  const { Switch } = UI || {};
   // const { useFalcor, pgEnv } = React.useContext(MapEditorContext);
   // const { falcor, falcorCache } = useFalcor();
   // console.log('select control', params)
@@ -897,24 +875,15 @@ function ChoroplethControl({path, params={}}) {
           <div className='text-sm text-slate-400 px-2'>Show missing data</div>
           <div className='flex items-center'>
             <Switch
-              checked={isShowOtherEnabled}
-              onChange={()=>{
-                setState(draft=> {
+              enabled={!!isShowOtherEnabled}
+              setEnabled={() => {
+                setState(draft => {
                   const update = isShowOtherEnabled ? 'rgba(0,0,0,0)' : '#ccc';
-                  set(draft, `${pathBase}['category-show-other']`,update)
+                  set(draft, `${pathBase}['category-show-other']`, update)
                 })
               }}
-              className={`${
-                isShowOtherEnabled ? 'bg-blue-500' : 'bg-gray-200'
-              } relative inline-flex h-4 w-8 items-center rounded-full `}
-            >
-              <span className="sr-only">Show other</span>
-              <div
-                className={`${
-                  isShowOtherEnabled ? 'translate-x-5' : 'translate-x-0'
-                } inline-block h-4 w-4  transform rounded-full bg-white transition border-[0.5] border-slate-600`}
-              />
-            </Switch>
+              size={'small'}
+            />
 
           </div>
 
@@ -1015,8 +984,6 @@ const appendSourceColumns = (draft, value, pathBase, sourcePath, selfValuePath, 
   }
 }
 
-const NUMBER_COLUMNS_REGEX = /integer|number/;
-
 const HeatmapColumnControl = ({ valuePath, paintPath, defaultValue, columnValues, params = {} }) => {
   const { useFalcor, pgEnv } = React.useContext(MapEditorContext);
   const { falcor, falcorCache } = useFalcor();
@@ -1059,7 +1026,7 @@ const HeatmapColumnControl = ({ valuePath, paintPath, defaultValue, columnValues
       ], []);
     }
     if (Array.isArray(columns)) {
-      return columns.filter(col => NUMBER_COLUMNS_REGEX.test(col.type));
+      return columns.filter(col => isNumericColumnType(col.type));
     }
     return [];
   }, [pgEnv, sourceId, falcorCache]);
@@ -1191,9 +1158,9 @@ const HeatmapColorControl = ({ keyPath, paintPath, binsPath, params = {} }) => {
           </div>
         }
       >
-        <Menu.Item className='z-20'>
+        <div className='z-20'>
           <div className='px-4 font-semibold text-sm text-slate-600'>SEQUENTIAL</div>
-        </Menu.Item>
+        </div>
         { colorbrewer.schemeGroups.sequential.map(colorKey => (
             <ColorMenuItem key={ colorKey }
               colorKey={ colorKey }
@@ -1201,9 +1168,9 @@ const HeatmapColorControl = ({ keyPath, paintPath, binsPath, params = {} }) => {
               onChange={ handleOnChange }/>
           ))
         }
-        <Menu.Item className='z-20'>
+        <div className='z-20'>
           <div className='px-4 font-semibold text-sm text-slate-600'>Diverging</div>
-        </Menu.Item>
+        </div>
         { colorbrewer.schemeGroups.diverging.map(colorKey => (
             <ColorMenuItem key={ colorKey }
               colorKey={ colorKey }
@@ -1223,24 +1190,19 @@ const ColorMenuItem = ({ colorKey, numbins, onChange }) => {
   }, [onChange, colorKey]);
 
   return (
-    <Menu.Item className='z-20'>
-      { ({ active }) => (
-          <div className={ `${ active ? 'bg-blue-50 ' : '' } flex` } >
-            <div className='w-4 h-4'/>
-            <div className = {`flex-1 flex w-full p-2`}
-              onClick={ handleOnChange }
-            >
-              { colorbrewer[colorKey][numbins].map((d, i) =>
-                  <div key={ i }
-                    className='flex-1 h-4'
-                    style={ { backgroundColor: d } }/>
-                )
-              }
-            </div>
-          </div>
-        )
-      }
-    </Menu.Item>
+    <div className='z-20 flex hover:bg-blue-50'>
+      <div className='w-4 h-4'/>
+      <div className='flex-1 flex w-full p-2 cursor-pointer'
+        onClick={ handleOnChange }
+      >
+        { colorbrewer[colorKey][numbins].map((d, i) =>
+            <div key={ i }
+              className='flex-1 h-4'
+              style={ { backgroundColor: d } }/>
+          )
+        }
+      </div>
+    </div>
   )
 }
 

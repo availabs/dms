@@ -84,7 +84,7 @@ export default function UsersAdmin() {
         const res = await callAuthServer(`${AUTH_HOST}/signup/assign/group`, {
             token: user.token,
             email,
-            url: window?.location?.host,
+            url: `${window.location.origin}${baseUrl}/login`,
             project: PROJECT_NAME
         });
 
@@ -289,7 +289,7 @@ export default function UsersAdmin() {
                             project_name: PROJECT_NAME,
                             email: editUser?.email,
                             host: `${window?.location?.host}`,
-                            url: `/${baseUrl}/login`
+                            url: `${baseUrl}/login`
                         });
                         setStatus(res.error || res.message);
                     }}>

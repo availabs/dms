@@ -34,7 +34,7 @@ export default function CreatePage({apiUpdate, format}) {
     const {baseUrl, user, falcor, type, app, parent, damaDataTypes, datasources, dmsEnv, UI} = ctx;
     const {theme: fullTheme} = useContext(ThemeContext) || {};
     const theme = fullTheme?.datasets?.createPage || {};
-    const {Layout, LayoutGroup, Select, Input, Button} = UI;
+    const {Layout, LayoutGroup, MultiSelect, Input, Button} = UI;
     const navigate = useNavigate();
 
     const [data, setData] = useState({name: ''});
@@ -54,8 +54,7 @@ export default function CreatePage({apiUpdate, format}) {
         ...Object.keys(damaDataTypes).map(k => ({label: k, value: k})),
     ];
 
-    const handleSelectChange = (e) => {
-        const val = e.target.value;
+    const handleSelectChange = (val) => {
         if (damaDataTypes[val]) {
             setData({...data, type: val});
         } else {
@@ -131,7 +130,9 @@ export default function CreatePage({apiUpdate, format}) {
                     <div className={theme.form || 'flex flex-col gap-4 mt-4'}>
                         <div>
                             <label className={theme.fieldLabel || 'text-sm font-medium text-gray-700'}>Type</label>
-                            <Select
+                            <MultiSelect
+                                singleSelectOnly
+                                searchable={false}
                                 options={selectOptions}
                                 value={data.id || data.type || ''}
                                 onChange={handleSelectChange}

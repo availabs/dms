@@ -1091,7 +1091,9 @@ export const lexicalSettings = (theme) => {
       controls: [
         {
           label: 'Style',
-          type: 'Select',
+          type: 'MultiSelect',
+          singleSelectOnly: true,
+          searchable: false,
           options: (theme?.lexical?.styles || [{}])
             .map((k, i) => ({ label: k?.name || i, value: i })),
           path: `lexical.options.activeStyle`,

@@ -61,7 +61,9 @@ export const navigableMenuSettings = (theme) => {
       controls: [
         {
           label: 'Style',
-          type: 'Select',
+          type: 'MultiSelect',
+          singleSelectOnly: true,
+          searchable: false,
           options: (theme?.navigableMenu?.styles || [{}])
             .map((k, i) => ({ label: k?.name || i, value: i })),
           path: `navigableMenu.options.activeStyle`,

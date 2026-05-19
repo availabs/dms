@@ -1,10 +1,8 @@
 import React from 'react'
 import { MapEditorContext } from "../../../../../context"
 import { ThemeContext } from "../../../../../../../ui/themeContext"
-import { Dialog } from '@headlessui/react'
 import { useParams, useNavigate } from 'react-router'
 import { LOCAL_STORAGE_KEY_BASE } from '../../../../'
-import { Modal } from '../'
 
 export function SymbologyControlMenu({ button, className }) {
   const [showSaveChanges, setShowSaveChanges] = React.useState(false)
@@ -24,7 +22,7 @@ const DeleteSymbologyModal = ({open, setOpen}) => {
   const { app, type, useFalcor, baseUrl, params } = React.useContext(MapEditorContext);
   const { falcor } = useFalcor();
   const { UI } = React.useContext(ThemeContext) || {};
-  const { Button } = UI;
+  const { Button, Modal } = UI;
   const { id: symbologyId } = params;
   const navigate = useNavigate();
 
@@ -50,9 +48,9 @@ const DeleteSymbologyModal = ({open, setOpen}) => {
           <i className="fad fa-layer-group text-blue-600" aria-hidden="true" />
         </div>
         <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left w-full">
-          <Dialog.Title as="h3" className="text-base font-semibold leading-6 text-gray-900">
+          <h3 className="text-base font-semibold leading-6 text-gray-900">
             Delete Symbology
-          </Dialog.Title>
+          </h3>
         </div>
       </div>
       <div className='flex items-center'>

@@ -171,19 +171,39 @@ const buildInHeader = (fontStyleOptions) => [
             { label: 'Title', value: 'title' },
             { label: 'Icon', value: 'icon' },
             { label: 'Color', value: 'color' },
+            { label: 'Combine columns', value: 'combine' },
         ]
     },
+    // `combine` formatFn: renders `<value><separator><row[combineWith]>` in one
+    // cell. The sibling column must still be `show: true` somewhere on the card
+    // so the data loader fetches it.
+    { type: 'input', inputType: 'text', label: 'Combine With', key: 'combineWith', isBatchUpdatable: true,
+        displayCdn: ({ attribute, isEdit }) => isEdit && attribute.formatFn === 'combine' },
+    { type: 'input', inputType: 'text', label: 'Separator', key: 'combineSeparator', isBatchUpdatable: true,
+        displayCdn: ({ attribute, isEdit }) => isEdit && attribute.formatFn === 'combine' },
     { type: 'select', label: 'Header', key: 'headerFontStyle', options: fontStyleOptions, isBatchUpdatable: true, displayCdn: ({ attribute }) => !attribute.hideHeader },
     { type: 'select', label: 'Value', key: 'valueFontStyle', options: fontStyleOptions, isBatchUpdatable: true, displayCdn: ({ attribute }) => !attribute.hideValue },
 
     { type: 'separator', key: 'toolbar-sep', label: 'toolbar-sep', hideFromSectionMenu: true },
     // layout — all per-cell controls always visible (no mode gating)
     { type: 'toggle', label: 'Border Below', key: 'cellBorderBelow' },
+    // Per-cell padding overrides — side-specific wins over `cellPadding`,
+    // `cellPadding` wins over section-level `cellsPadding`.
+    { type: 'input', inputType: 'number', label: 'Padding', key: 'cellPadding', isBatchUpdatable: true },
+    { type: 'input', inputType: 'number', label: 'Padding Top', key: 'cellPaddingTop', isBatchUpdatable: true },
+    { type: 'input', inputType: 'number', label: 'Padding Right', key: 'cellPaddingRight', isBatchUpdatable: true },
     { type: 'input', inputType: 'number', label: 'Padding Below', key: 'cellPaddingBottom', isBatchUpdatable: true },
+    { type: 'input', inputType: 'number', label: 'Padding Left', key: 'cellPaddingLeft', isBatchUpdatable: true },
     { type: 'toggle', label: 'Hide Header', key: 'hideHeader', isBatchUpdatable: true },
     { type: 'toggle', label: 'Hide Value', key: 'hideValue', isBatchUpdatable: true },
     { type: 'input', inputType: 'number', label: 'Col Span', key: 'cellSpan' },
     { type: 'input', inputType: 'number', label: 'Row Span', key: 'cellRowSpan' },
+    // Cell Width — per-column grid track size. Accepts:
+    //   ''            → fluid (track stays minmax(0, 1fr), matches the row default)
+    //   'auto'        → track shrinks to fit the cell's natural content
+    //   '<N>px' / etc → fixed CSS size; first column to claim a track wins it.
+    // See src/dms/skills/card-layout.md → "Sizing tracks (fluid / content / fixed)".
+    { type: 'input', inputType: 'text', label: 'Cell Width', key: 'cellWidth' },
     { type: 'separator', key: 'toolbar-sep', label: 'toolbar-sep', hideFromSectionMenu: true },
     // other
     { type: 'toggle', label: 'Allow Edit', key: 'allowEditInView', displayCdn: ({ isEdit }) => isEdit },
@@ -205,6 +225,7 @@ const buildInHeader = (fontStyleOptions) => [
             { label: 'Raw Value', value: 'rawValue' }
         ]
     },
+    { type: 'toggle', label: 'Persist Search Params', key: 'persistSearchParams', displayCdn: ({ attribute, isEdit }) => isEdit && attribute.isLink },
 
     // The legacy `Is Image` / `Image Url` / `Image Location` / `Image Extension`
     // controls have been retired from the editor — new cards should use the
@@ -260,21 +281,10 @@ const buildInHeader = (fontStyleOptions) => [
             // ColumnManager just call the function and use its output as-is),
             // so we wrap the EditComp in our own label container that
             // matches the toggle/select/input styling.
-            //
-            // We forward the column's metadata into the EditComp via spread
-            // so column-type renderers that read column-level config (e.g.,
-            // portrait_banner reads `bannerHeight`) get the right styling
-            // on the inline preview. We then explicitly override visual
-            // sizing keys with compact values so a column whose real render
-            // is huge (`bannerHeight: 'full'` ≈ calc(100vh - 220px)) doesn't
-            // make the toolbar dropdown unscrollable / push other controls
-            // off-screen — `bannerHeight: 'small'` keeps the preview tame.
             return (
                 <div className="flex flex-col gap-0.5">
                     <label className="text-xs text-gray-600">Empty Default</label>
                     <Edit
-                        {...attribute}
-                        bannerHeight={'small'}
                         value={attribute?.blankDefault}
                         onChange={v => setAttribute({ ...attribute, blankDefault: v })}
                         placeholder={'Empty-state default'}
@@ -401,6 +411,9 @@ const buildControls = (theme) => ({
                     { type: 'input', inputType: 'number', label: 'Row Height', key: 'cellsRowHeight' },
                     { type: 'input', inputType: 'number', label: 'Cell Padding', key: 'cellsPadding' },
                     { type: 'toggle', label: 'Cell Border', key: 'cellBorder' },
+                    // Track Template — raw grid-template-columns string, wins over
+                    // per-column `cellWidth`. Power-user escape hatch.
+                    { type: 'input', inputType: 'text', label: 'Track Template', key: 'cellsTracksTemplate' },
                 ]
             },
             { label: 'Default Column Settings', items: [
@@ -433,8 +446,13 @@ const buildControls = (theme) => ({
             },
             { type: 'input', inputType: 'text', label: 'Navigate to', key: 'navigateUrlOnAdd',
                 displayCdn: ({ display }) => display.allowAdddNew && display.addNewBehaviour === 'navigate' },
-            { type: 'toggle', label: 'Prevent Duplicate Fetch', key: 'preventDuplicateFetch' },
-            { type: 'toggle', label: 'Always Fetch Data', key: 'readyToLoad' },
+            { type: 'select', label: 'Data Fetch Mode', key: 'fetchMode',
+              options: [
+                { label: 'Cache (use preloaded data)', value: 'cache' },
+                { label: 'Smart (fetch on change)',    value: 'smart' },
+                { label: 'Force (always re-fetch)',    value: 'force' },
+              ]
+            },
             // Empty-result fallback. When on AND the query returns 0 rows,
             // getData.js synthesizes a single row from each column's
             // `blankDefault` (per-column toolbar control, gated on this flag).
@@ -458,7 +476,7 @@ export default {
     themeKey: 'dataCard',
     defaultState: {
         filters: { op: 'AND', groups: [] },
-        display: { usePagination: true, pageSize: 5 },
+        display: { usePagination: true, pageSize: 5, hideExternalToggle: true },
         columns: [],
         data: [],
         externalSource: { columns: [] }

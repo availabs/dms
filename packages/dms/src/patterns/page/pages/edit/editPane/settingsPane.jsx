@@ -115,7 +115,7 @@ function SettingsPane () {
   const { theme, UI } = React.useContext(ThemeContext);
   const { baseUrl, user, isUserAuthed  } = React.useContext(CMSContext) || {}
   const { item, pageState, dataItems, apiUpdate } =  React.useContext(PageContext) || {}
-  const { Button, Menu, FieldSet, Icon, Input } = UI;
+  const { Button, FieldSet, Icon, Input } = UI;
     const pageAuthPermissions = getPageAuthPermissions(pageState?.authPermissions);
     const themeSettings = React.useMemo(() => {
     return (theme?.pageOptions?.settingsPane || [])
@@ -151,9 +151,11 @@ function SettingsPane () {
                   }
               },
               {
-                  type:'Listbox',
+                  type:'MultiSelect',
+                  singleSelectOnly: true,
                   label: 'Icon',
                   value:  item?.icon,
+                  placeholder: 'Select an icon…',
                   options: [
                       ...Object.keys(theme.Icons)
                           .map((iconName) => {
@@ -174,9 +176,7 @@ function SettingsPane () {
                       {label: 'No Icon', value: 'none'}
                   ],
                   onChange:(e) => {
-                      //console.log('update icon thing', e)
                       togglePageSetting(item, 'icon', e,  apiUpdate)
-
                   }
               },
               {
@@ -207,7 +207,9 @@ function SettingsPane () {
                   }
               },
               {
-                  type:'Select',
+                  type:'MultiSelect',
+                  singleSelectOnly: true,
+                  searchable: false,
                   label: 'Show Content Sidebar',
                   value: item.sidebar || '',
                   options: [
@@ -216,12 +218,14 @@ function SettingsPane () {
                       {label: 'Right', value: 'right'},
 
                   ],
-                  onChange:(e) => {
-                      togglePageSetting(item, 'sidebar', e.target.value,  apiUpdate)
+                  onChange:(value) => {
+                      togglePageSetting(item, 'sidebar', value,  apiUpdate)
                   }
               },
               {
-                  type:'Select',
+                  type:'MultiSelect',
+                  singleSelectOnly: true,
+                  searchable: false,
                   label: 'Show SideNav',
                   value: theme?.layout?.options?.sideNav?.size || '',
                   options: [
@@ -229,13 +233,14 @@ function SettingsPane () {
                       {label: 'Hide', value: 'none'}
 
                   ],
-                  onChange:(e) => {
-                      console.log('toggle sidenave', e.target.value)
-                      togglePageSetting(item, 'theme.layout.options.sideNav.size', e.target.value,  apiUpdate)
+                  onChange:(value) => {
+                      togglePageSetting(item, 'theme.layout.options.sideNav.size', value,  apiUpdate)
                   }
               },
               {
-                  type:'Select',
+                  type:'MultiSelect',
+                  singleSelectOnly: true,
+                  searchable: false,
                   label: 'Sidenav Style',
                   value: item?.theme?.layout?.options?.sideNav?.activeStyle || '',
                   options: [
@@ -243,9 +248,8 @@ function SettingsPane () {
                       ...(theme?.sidenav?.styles || [{}])
                           .map((k, i) => ({ label: k?.name || i, value: i })),
                   ],
-                  onChange:(e) => {
-                      console.log('toggle active style')
-                      togglePageSetting(item, 'theme.layout.options.sideNav.activeStyle', e.target.value,  apiUpdate)
+                  onChange:(value) => {
+                      togglePageSetting(item, 'theme.layout.options.sideNav.activeStyle', value,  apiUpdate)
                   }
               },
               ...themeSettings,

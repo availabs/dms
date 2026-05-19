@@ -1,7 +1,6 @@
 import React, { useContext , useMemo, Fragment}from 'react'
 import {SymbologyContext} from '../../'
 import { Plus, Close, MenuDots, CaretDown } from '../icons'
-import { Menu, Popover, Transition, Tab, Dialog } from '@headlessui/react'
 import { toHex } from '../LayerManager/utils'
 import { get, set } from 'lodash-es'
 

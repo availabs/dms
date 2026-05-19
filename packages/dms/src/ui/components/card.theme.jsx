@@ -32,16 +32,15 @@ export const dataCardTheme = {
             headerValueWrapperBorderBelow: 'border-b rounded-none',
 
             itemBorder: 'border shadow',
+            cardBorder: 'border shadow',
             itemFlexCol: 'flex-col',
             itemFlexRow: 'flex-row',
             itemFlexColReverse: 'flex-col flex-col-reverse',
             itemFlexRowReverse: 'flex-row flex-row-reverse',
             iconAndColorValues: 'flex items-center gap-1.5 uppercase',
 
-            formEditButtonsWrapper: 'self-end flex gap-0.5 text-sm',
-            formEditSaveButton: 'bg-blue-300 hover:bg-blue-400 text-blue-700 rounded-lg w-fit px-2 py-0.5',
-            formEditCancelButton: 'bg-red-300 hover:bg-red-400 text-red-700 rounded-lg w-fit px-2 py-0.5',
-            formAddNewItemButton: 'bg-blue-300 hover:bg-blue-400 text-blue-700 rounded-lg w-fit px-2 py-0.5 text-sm self-end',
+            formEditButtonsWrapper: 'w-fit justify-self-end self-end flex gap-0.5',
+            formAddNewItemWrapper: 'w-fit justify-self-end self-end',
 
             justifyTextLeft: 'text-start justify-items-start  rounded-md',
             justifyTextRight: 'text-end justify-items-end rounded-md',
@@ -51,6 +50,10 @@ export const dataCardTheme = {
             // textSettings underneath this style so any text* token a column
             // references (e.g. valueTextSize: 'textMD') resolves through
             // textSettings unless a downstream theme overrides it on dataCard.
+
+            // Applied to <a>/<Link> when isLink and no valueFontStyle is chosen.
+            // Override in the theme editor or set valueFontStyle to 'button' etc.
+            linkColValue: 'text-blue-600 underline',
 
             imgXS: "max-w-16 max-h-16",
             imgSM: "max-w-24 max-h-24",
@@ -75,7 +78,9 @@ export const cardSettings = (theme) => [
         controls: [
             {
                 label: 'Style',
-                type: 'Select',
+                type: 'MultiSelect',
+                singleSelectOnly: true,
+                searchable: false,
                 options: (theme?.dataCard?.styles || [{}])
                     .map((k, i) => ({ label: k?.name || i, value: i })),
                 path: `dataCard.options.activeStyle`,

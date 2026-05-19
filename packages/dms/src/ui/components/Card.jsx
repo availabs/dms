@@ -315,6 +315,11 @@ const CompWrapper = ({
         return value
     }
 
+    // `row` exposes the full data record to the column-type Comp so composite
+    // column types (e.g. wcdb stream_player) can pull sibling fields without
+    // needing one Card column per piece of metadata.
+    const row = isNewItem ? newItem : tmpItem;
+
     return (
         <div className={componentWrapperClassName}>
             <Comp value={editMode && isValueFormatted ? rawValue : value}
@@ -323,6 +328,7 @@ const CompWrapper = ({
                   onChange={onChange}
                   className={`${editMode ? 'border' : ''} ${className}`}
                   {...attribute}
+                  row={row}
                   options={options}
                   meta={optionsMeta}
                   hideControls={attribute.type==='lexical' && !attribute.showToolbar}
@@ -368,6 +374,12 @@ const CardColumnField = ({
                 <div className={theme.iconAndColorValues}>
                     {formatFunctions[attr.formatFn](rawValue?.value || rawValue, attr.isDollar, Icon)}
                 </div> :
+                // `combine` reads a sibling row field, so it needs `source` (the
+                // row) and `attr`. Skip the trailing `.replaceAll(' ', '')` that
+                // the generic branch applies — the combine separator carries
+                // intentional whitespace that the numeric formatters don't.
+                attr.formatFn === 'combine' && formatFunctions.combine ?
+                    formatFunctions.combine(rawValue?.value ?? rawValue, source, attr) :
                 attr.formatFn && formatFunctions[attr.formatFn] ?
                     formatFunctions[attr.formatFn](rawValue?.value || rawValue, attr.isDollar).replaceAll(' ', '') :
                     rawValue;
@@ -387,7 +399,24 @@ const CardColumnField = ({
             attr.searchParams === 'id' ? encodeURIComponent(id) :
                 ['value', 'rawValue'].includes(attr.searchParams) ?
                     encodeURIComponent(valueFormattedForSearchParams) : ``;
-        url = `${location || valueFormattedForDisplay}${searchParams}`;
+        if (attr.persistSearchParams && location) {
+            const rawSearchParamValue =
+                attr.searchParams === 'id' ? id :
+                ['value', 'rawValue'].includes(attr.searchParams) ? valueFormattedForSearchParams : null;
+            const qIdx = location.indexOf('?');
+            const basePath = qIdx !== -1 ? location.slice(0, qIdx) : location;
+            const currentParams = new URLSearchParams(window.location.search);
+            if (qIdx !== -1) {
+                new URLSearchParams(location.slice(qIdx + 1)).forEach((v, k) => currentParams.set(k, v));
+            }
+            if (rawSearchParamValue !== null) {
+                const locationKey = qIdx !== -1 ? location.slice(qIdx + 1).split('=')[0] : null;
+                if (locationKey) currentParams.set(locationKey, rawSearchParamValue);
+            }
+            url = `${basePath}?${currentParams.toString()}`;
+        } else {
+            url = `${location || valueFormattedForDisplay}${searchParams}`;
+        }
     }
 
     const wrapperFlexClass = headerValueLayout === 'col' && !reverse ? theme.itemFlexCol :
@@ -410,12 +439,27 @@ const CardColumnField = ({
     // default). An author-supplied `cellSpan` / `cellRowSpan` is explicit
     // intent and wins over the type-level hint — without this override,
     // cellSpan would be silently dropped on hint-bearing column types.
+    // Per-cell padding: section-level `cellsPadding` is the ambient default;
+    // a column may override with `cellPadding` (all sides) and/or any of the
+    // four side-specific keys. Side-specific keys win over `cellPadding`
+    // because React's later-key-wins rule applies them after the shorthand.
+    // The `!== '' && !== undefined` guard distinguishes "author cleared the
+    // field" (fall through to ambient) from "author typed 0" (apply 0).
+    const padOverride = (key, fallback) => {
+        const v = attr[key];
+        if (fullBleed) return 0;
+        if (v === undefined || v === null || v === '') return fallback;
+        return +v;
+    };
     const style = {
         gridColumn: attr.cellSpan ? span : (hints.spanFullColumns ? '1 / -1' : span),
         ...(attr.cellRowSpan ? { gridRow: `span ${attr.cellRowSpan}` } :
             hints.spanFullRows ? { gridRow: '1 / -1' } : {}),
-        padding: fullBleed ? 0 : cellsPadding,
-        paddingBottom: fullBleed ? 0 : (attr.cellPaddingBottom ? +attr.cellPaddingBottom : undefined),
+        padding: padOverride('cellPadding', cellsPadding),
+        paddingTop: padOverride('cellPaddingTop', undefined),
+        paddingRight: padOverride('cellPaddingRight', undefined),
+        paddingBottom: padOverride('cellPaddingBottom', undefined),
+        paddingLeft: padOverride('cellPaddingLeft', undefined),
         marginTop: `${imageMargin}px`,
         backgroundColor: attr.cellBgColor,
         ...(hints.height ? { height: `${hints.height}px` } : {}),
@@ -465,7 +509,7 @@ const CardColumnField = ({
             {/* Header area — always rendered when there's a label or a menu in col layout */}
             {headerVisible && (
                 <div
-                    className={`${attr.hideHeader ? '' : theme.header}`}
+                    className={`${attr.hideHeader ? '' : attr.headerFontStyle === 'button' ? theme.linkColValue : theme.header}`}
                     style={{maxWidth: isRowLayout && !attr.hideValue ? `${headerWidth || 50}%` : undefined}}
                 >
                     {!attr.hideHeader && (
@@ -479,12 +523,12 @@ const CardColumnField = ({
             {
                 attr.hideValue ? null :
                     <div className={
-                        `${theme.value} ${theme[valueTextJustifyClass]} ${theme[attr.valueFontStyle || 'textXS']} ${formatClass}
+                        `${theme.value} ${theme[valueTextJustifyClass]} ${theme[(attr.valueFontStyle && attr.valueFontStyle !== 'button') ? attr.valueFontStyle : 'textXS']} ${formatClass}
                         `} style={{maxWidth: isRowLayout && !attr.hideHeader ? `${valueWidth || 50}%` : undefined}}>
                         {
                             isLink && !(allowEdit || attr.allowEditInView) ?
                                 (isLinkExternal ?
-                                <a className={theme.linkColValue}
+                                <a className={(attr.valueFontStyle && attr.valueFontStyle !== 'button') ? (theme[attr.valueFontStyle] || '') : (theme.linkColValue || '')}
                                    target="_blank"
                                    rel="noopener noreferrer"
                                    href={url}
@@ -507,7 +551,7 @@ const CardColumnField = ({
                                                  componentWrapperClassName={theme.componentWrapper}
                                     />
                                 </a> :
-                                <Link className={theme.linkColValue} to={url}>
+                                <Link className={(attr.valueFontStyle && attr.valueFontStyle !== 'button') ? (theme[attr.valueFontStyle] || '') : (theme.linkColValue || '')} to={url}>
                                     <CompWrapper attribute={attr}
                                                  value={linkText || valueFormattedForDisplay}
                                                  rawValue={valueFormattedForEdit}
@@ -526,6 +570,26 @@ const CardColumnField = ({
                                                  componentWrapperClassName={theme.componentWrapper}
                                     />
                                 </Link>) :
+                                attr.valueFontStyle === 'button' ?
+                                <span className={theme.linkColValue || ''}>
+                                    <CompWrapper attribute={attr}
+                                                 value={valueFormattedForDisplay}
+                                                 rawValue={valueFormattedForEdit}
+                                                 isValueFormatted={isValueFormatted}
+                                                 updateItem={isNewItem ? undefined : updateItem}
+                                                 liveEdit={liveEdit}
+                                                 tmpItem={tmpItem}
+                                                 setTmpItem={setTmpItem}
+                                                 isNewItem={isNewItem}
+                                                 newItem={isNewItem ? newItem : undefined}
+                                                 setNewItem={isNewItem ? setNewItem : undefined}
+                                                 id={id}
+                                                 allowEdit={allowEdit || attr.allowEditInView}
+                                                 formatFunctions={formatFunctions}
+                                                 className={`${theme[valueTextJustifyClass]} ${theme.valueWrapper}`}
+                                                 componentWrapperClassName={theme.componentWrapper}
+                                    />
+                                </span> :
                                 <CompWrapper attribute={attr}
                                              value={valueFormattedForDisplay}
                                              rawValue={valueFormattedForEdit}
@@ -562,6 +626,8 @@ const RenderItem = memo(function RenderItem ({
                                                  formatFunctions= {},
                                                  controls, setState, isEdit, display,
                                              }) {
+    const { UI } = React.useContext(ThemeContext) || {};
+    const { Button } = UI || {};
     const [tmpItem, setTmpItem] = useState(item || {}); // for form edit controls
     const [cardHovered, setCardHovered] = useState(false);
     const [isPickerOpen, setIsPickerOpen] = useState(false);
@@ -630,7 +696,7 @@ const RenderItem = memo(function RenderItem ({
         // `subWrapperStyle` so it overrides any `display: flex` that themes
         // still ship in that key.
         <div
-            className={`${theme.subWrapper} ${theme.subWrapperCompactView || ''} ${cardBorder ? 'border shadow' : ''} ${highlightClass} ${isSaving ? theme.formEditSavingAnimation : ''}`}
+            className={`${theme.subWrapper} ${theme.subWrapperCompactView || ''} ${cardBorder ? (theme.cardBorder || 'border shadow') : ''} ${highlightClass} ${isSaving ? theme.formEditSavingAnimation : ''}`}
             style={subWrapperStyle}
             onMouseEnter={() => {
                 setCardHovered(true);
@@ -729,13 +795,17 @@ const RenderItem = memo(function RenderItem ({
             {
                 isFormLikeEditMode && !controls?.clickSaveActive ? (
                     <div className={theme.formEditButtonsWrapper}>
-                        <button className={theme.formEditSaveButton} onClick={() => updateItem(undefined, undefined, tmpItem)}>save</button>
-                        <button className={theme.formEditCancelButton} onClick={() => setTmpItem(item)}>cancel</button>
+                        <Button activeStyle="active" onClick={() => updateItem(undefined, undefined, tmpItem)}>save</Button>
+                        <Button onClick={() => setTmpItem(item)}>cancel</Button>
                     </div>
                 ) : null
             }
             {
-                isAddingNewItem ? <button className={theme.formAddNewItemButton} onClick={() => addItem()}>add</button> : null
+                isAddingNewItem ? (
+                    <div className={theme.formAddNewItemWrapper}>
+                        <Button activeStyle="active" onClick={() => addItem()}>add</Button>
+                    </div>
+                ) : null
             }
         </div>
     )
@@ -758,6 +828,7 @@ export default function Card ({
     const {
         cardsGridSize, cardsGridGap, cardsPadding, cardsBgColor,
         cellsGridSize, cellsGridGap, cellsRowHeight, cellsPadding,
+        cellsTracksTemplate,
         cardBorder, cellBorder,
         allowAdddNew,
     } = display;
@@ -784,15 +855,64 @@ export default function Card ({
     // Default falls back to one cell per visible column (matches the legacy
     // "cell mode" auto-fit behavior). `display: grid` is forced inline so it
     // wins over any `display: flex` still shipped via theme.subWrapperCompactView.
+    //
+    // Track sizing rules:
+    //   - `display.cellsTracksTemplate` (raw `grid-template-columns` string),
+    //     when set, wins outright. Author escape hatch for layouts the
+    //     per-column knobs can't express.
+    //   - Otherwise each visible column may declare `cellWidth` (e.g. `'64px'`,
+    //     `'auto'`, `'1fr'`). The walker below mirrors sparse auto-flow's
+    //     track cursor and lets the FIRST column to land on a given track
+    //     impose its width on that track. Other tracks default to
+    //     `minmax(0, 1fr)`. This intentionally ignores row spans for the
+    //     purpose of sizing — the column whose cursor first reaches a track
+    //     wins it.
+    const gridTemplateColumns = useMemo(() => {
+        if (typeof cellsTracksTemplate === 'string' && cellsTracksTemplate.trim()) {
+            return cellsTracksTemplate;
+        }
+        const trackCount = cellsGridSize || cellsWithoutSpanLength || 1;
+        const tracks = new Array(trackCount).fill('minmax(0, 1fr)');
+        let col = 1;
+        for (const c of visibleColumns) {
+            const span = +c.cellSpan || 1;
+            if (col + span - 1 > trackCount) col = 1; // wrap to a new row
+            if (c.cellWidth && tracks[col - 1] === 'minmax(0, 1fr)') {
+                const w = String(c.cellWidth).trim();
+                // 'fluid' is an alias for the default; '' clears any prior claim.
+                if (w && w !== 'fluid') {
+                    tracks[col - 1] = w;
+                    // Cell-width semantics: a column's `cellWidth` is the
+                    // size of the *cell*, not just its first track. When
+                    // `cellSpan > 1`, collapse the additional spanned
+                    // tracks (only when still unclaimed) so the resulting
+                    // cell is exactly `w` wide. Pre-claimed tracks (first
+                    // wins) keep their existing size — authors who want
+                    // span-2 fluid behaviour can stack a fluid column
+                    // first or fall back to `cellsTracksTemplate`.
+                    for (let i = 1; i < span; i++) {
+                        const idx = col - 1 + i;
+                        if (idx < trackCount && tracks[idx] === 'minmax(0, 1fr)') {
+                            tracks[idx] = '0px';
+                        }
+                    }
+                }
+            }
+            col += span;
+            if (col > trackCount) col = 1; // wrap explicitly when the cell exits the last track
+        }
+        return tracks.join(' ');
+    }, [cellsTracksTemplate, cellsGridSize, cellsWithoutSpanLength, visibleColumns]);
+
     const subWrapperStyle = useMemo(() => ({
         display: 'grid',
-        gridTemplateColumns: `repeat(${cellsGridSize || cellsWithoutSpanLength || 1}, minmax(0, 1fr))`,
+        gridTemplateColumns,
         gap: cellsGridGap,
         backgroundColor: cardsBgColor,
         padding: cardsPadding,
         ...(cellsRowHeight ? { gridAutoRows: `${cellsRowHeight}px` } :
             hasRowSpan ? { gridAutoRows: 'minmax(0, auto)' } : {}),
-    }), [cellsGridSize, cellsWithoutSpanLength, cellsGridGap, cardsBgColor, cardsPadding, cellsRowHeight, hasRowSpan]);
+    }), [gridTemplateColumns, cellsGridGap, cardsBgColor, cardsPadding, cellsRowHeight, hasRowSpan]);
 
     // Reordering function
     function handleDrop(targetCol) {

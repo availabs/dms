@@ -269,15 +269,15 @@ function DmsEnvConfig({ value, onChange, dmsEnvs: initialDmsEnvs, apiLoad, app, 
   const [creating, setCreating] = useState(false);
   const [localEnvs, setLocalEnvs] = useState(initialDmsEnvs);
   const { UI } = useContext(ThemeContext);
-  const { Select, Input, Button } = UI;
+  const { MultiSelect, Input, Button } = UI;
 
   const envOptions = [
     { label: 'None (legacy)', value: '' },
     ...localEnvs.map(env => ({ label: env.name || `Env #${env.id}`, value: String(env.id) })),
   ];
 
-  const handleEnvChange = (e) => {
-    const envId = e.target.value ? +e.target.value : undefined;
+  const handleEnvChange = (value) => {
+    const envId = value ? +value : undefined;
     onChange(draft => { draft.dmsEnvId = envId; });
   };
 
@@ -328,7 +328,9 @@ function DmsEnvConfig({ value, onChange, dmsEnvs: initialDmsEnvs, apiLoad, app, 
       <div className='grid grid-cols-12 gap-2'>
         <div className='col-span-6'>
           <label className='text-sm font-medium text-gray-700'>DMS Environment</label>
-          <Select
+          <MultiSelect
+            singleSelectOnly
+            searchable={false}
             options={envOptions}
             value={String(value.dmsEnvId || '')}
             onChange={handleEnvChange}

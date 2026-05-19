@@ -1,8 +1,7 @@
-import React, { useContext , useMemo, useCallback, Fragment, useRef} from 'react'
+import React, { useContext , useMemo, useCallback, useRef} from 'react'
 import { SymbologyContext } from '../../'
 import { ThemeContext } from "../../../../../ui/themeContext"
 import SourceSelector from './SourceSelector'
-import { Menu, Transition, Tab, Dialog } from '@headlessui/react'
 import { useParams, useNavigate, Link } from 'react-router'
 import { Fill, Line, Circle, Eye, EyeClosed, MenuDots , CaretDown} from '../icons'
 import { get } from 'lodash-es'
@@ -15,84 +14,45 @@ import {
   GET_PAINT_VALUE
 } from "./LegendPanel"
 
-export function LayerMenu({layer, button, location='left-0'}) {
+export function LayerMenu({layer, button}) {
   const { state, setState  } = React.useContext(SymbologyContext);
+  const { UI } = React.useContext(ThemeContext) || {};
+  const { NavigableMenu } = UI || {};
 
   return (
-      <Menu as="div" className="relative inline-block text-left">
-        <Menu.Button>
-          {button}
-        </Menu.Button>
-        <Transition
-          as={Fragment}
-          enter="transition ease-out duration-100"
-          enterFrom="transform opacity-0 scale-95"
-          enterTo="transform opacity-100 scale-100"
-          leave="transition ease-in duration-75"
-          leaveFrom="transform opacity-100 scale-100"
-          leaveTo="transform opacity-0 scale-95"
-        >
-          <Menu.Items className={`absolute ${location} mt-1 w-36 origin-top-left divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black/5 focus:outline-none`}>
-            <div className="px-1 py-1 ">
-              <Menu.Item>
-                <ZoomToFit layer={layer}/>
-              </Menu.Item>
-              <Menu.Item>
-                <DuplicateLayerItem layer={layer}/>
-              </Menu.Item>
-              <Menu.Item>
-                {({ active }) => (
-                  <div 
-                    className={`${
-                      active ? 'bg-pink-50 ' : ''
-                    } group flex w-full items-center text-red-400 rounded-md px-2 py-2 text-sm`}
-                    onClick={() => {
-                      setState(draft => {
-                        delete draft.symbology.layers[layer.id]
-                        Object.values(draft.symbology.layers)
-                          .sort((a, b) => a.order - b.order)
-                          .forEach((l,i) => l.order = i)
-                      })
-                    }}
-                  >Remove</div>
-                )}
-              </Menu.Item>
-            </div>
-          </Menu.Items>
-        </Transition>
-      </Menu>
+    <NavigableMenu
+      showTitle={false}
+      config={[
+        { name: 'zoom-to-fit', type: () => <ZoomToFit layer={layer}/> },
+        { name: 'duplicate', type: () => <DuplicateLayerItem layer={layer}/> },
+        {
+          name: <span className='text-red-400'>Remove</span>,
+          onClick: () => {
+            setState(draft => {
+              delete draft.symbology.layers[layer.id]
+              Object.values(draft.symbology.layers)
+                .sort((a, b) => a.order - b.order)
+                .forEach((l, i) => l.order = i)
+            })
+          }
+        }
+      ]}
+    >
+      {button}
+    </NavigableMenu>
   )
-} 
+}
 
-export function LayerInfo({ layer, button, source, baseUrl, location = "left-0" }) {
-  const sourceUrl = `${baseUrl}/source/${layer.source_id}`
+export function LayerInfo({ layer, button, source, baseUrl }) {
+  const { UI } = React.useContext(ThemeContext) || {};
+  const { Popup } = UI || {};
   return (
-    <Menu as="div" className="relative inline-block text-left">
-      <Menu.Button>{button}</Menu.Button>
-      <Transition
-        as={Fragment}
-        enter="transition ease-out duration-100"
-        enterFrom="transform opacity-0 scale-95"
-        enterTo="transform opacity-100 scale-100"
-        leave="transition ease-in duration-75"
-        leaveFrom="transform opacity-100 scale-100"
-        leaveTo="transform opacity-0 scale-95"
-      >
-        <Menu.Items
-          className={`absolute ${location} mt-1 w-64 origin-top-left divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black/5 focus:outline-none`}
-        >
-          <div className="px-2 py-2 flex gap-2 flex-col">
-            <div><b>Source Name:</b> {source?.attributes?.name}</div>
-            <div><b>Source Id:</b> {source?.attributes?.source_id}</div>
-            {/*
-            <Link className="text-blue-600 hover:text-pink-400" to={sourceUrl} target="_blank" rel="noopener noreferrer">
-              Link to Data Manager Source
-            </Link>
-            */}
-          </div>
-        </Menu.Items>
-      </Transition>
-    </Menu>
+    <Popup button={button}>
+      <div className="w-64 rounded-md bg-white shadow-lg ring-1 ring-black/5 px-2 py-2 flex gap-2 flex-col">
+        <div><b>Source Name:</b> {source?.attributes?.name}</div>
+        <div><b>Source Id:</b> {source?.attributes?.source_id}</div>
+      </div>
+    </Popup>
   );
 }
 

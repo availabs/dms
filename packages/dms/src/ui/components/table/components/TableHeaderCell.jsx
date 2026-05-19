@@ -2,7 +2,7 @@ import React, {memo, useCallback, useEffect, useMemo, useRef, useState} from "re
 import Icon from "../../Icon";
 import Switch from "../../Switch";
 import Popup from "../../Popup";
-import { MultiselectEdit } from "../../../columnTypes/multiselect"
+import { MultiSelectEdit as MultiselectEdit } from "../../MultiSelect"
 import {getComponentTheme, ThemeContext} from "../../../../ui/useTheme";
 
 const getColIdName = col => col.normalName || col.name;

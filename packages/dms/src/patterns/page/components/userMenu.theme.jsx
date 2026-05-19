@@ -8,7 +8,7 @@ export const userMenuTheme = {
       // UserMenu component
       userMenuContainer: 'flex flex-1 w-full items-center justify-center rounded-xl min-w-[60px] @container',
       avatarWrapper: 'flex p-2 justify-center items-center',
-      avatar: 'size-8 border border-[#E0EBF0] rounded-full place-items-center content-center hover:bg-slate-400',
+      avatar: 'size-8 border border-[#E0EBF0] rounded-full flex items-center justify-center hover:bg-slate-400',
       avatarIcon: 'size-6 fill-[#37576b]',
       infoWrapper: 'flex-1 p-2 @max-[150px]:hidden',
       emailText: 'text-xs font-thin tracking-tighter text-left',
@@ -24,7 +24,7 @@ export const userMenuTheme = {
       // Login/Auth section
       loginWrapper: 'flex items-center justify-center py-2',
       loginLink: 'flex items-center',
-      loginIconWrapper: 'size-8 place-items-center content-center border border-[#E0EBF0] rounded-full hover:bg-slate-400',
+      loginIconWrapper: 'size-8 flex items-center justify-center border border-[#E0EBF0] rounded-full hover:bg-slate-400',
       loginIcon: 'size-6 stroke-slate-500 text-slate-500',
       loginText: 'hidden',
       authContainer: '@container w-full',
@@ -73,7 +73,9 @@ export const userMenuSettings = (theme) => {
       controls: [
         {
           label: 'Style',
-          type: 'Select',
+          type: 'MultiSelect',
+          singleSelectOnly: true,
+          searchable: false,
           options: (theme?.pages?.userMenu?.styles || [{}])
             .map((k, i) => ({ label: k?.name || i, value: i })),
           path: `pages.userMenu.options.activeStyle`,

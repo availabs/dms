@@ -49,7 +49,6 @@ async function simpleFilterLength(ctx, options) {
   let {
     filter = {}, exclude = {},
     gt = {}, gte = {}, lt = {}, lte = {}, like = {},
-    filterRelation = 'and',
     filterGroups = {},
     groupBy = [], having = [],
     normalFilter = [],
@@ -85,7 +84,7 @@ async function simpleFilterLength(ctx, options) {
       (Object.keys(join.sources || {}).length === 1 && Object.keys(join.sources || {})[0] !== 'ds'));
 
   const combinedWhere = buildCombinedWhere({
-    filter, exclude, gt, gte, lt, lte, like, filterRelation,
+    filter, exclude, gt, gte, lt, lte, like,
     filterGroups, isDms, app, type, oldValues, dbType: db.type, joinPresent,
   });
 
@@ -187,7 +186,7 @@ async function simpleFilter(ctx, options, attributes, indices) {
       (Object.keys(join.sources || {}).length === 1 && Object.keys(join.sources || {})[0] !== 'ds'));
 
   const combinedWhere = buildCombinedWhere({
-    filter, exclude, gt, gte, lt, lte, like, filterRelation,
+    filter, exclude, gt, gte, lt, lte, like,
     filterGroups, isDms, app, type, oldValues, dbType: db.type, joinPresent,
   });
 

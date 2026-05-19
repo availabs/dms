@@ -1,11 +1,11 @@
 import React, { useMemo, useContext, Fragment } from 'react'
 import { SymbologyContext } from '../../'
 import { MapEditorContext } from "../../../context"
+import { ThemeContext } from "../../../../../ui/themeContext"
 import { Fill, Line, Eye, EyeClosed, MenuDots , CaretDown, CaretDownSolid, CaretUpSolid, CircleInfoI } from '../icons'
 import { get, set } from 'lodash-es'
 import { LayerMenu, LayerInfo } from './LayerPanel'
 import { SourceAttributes, ViewAttributes, getAttributes } from "../../../attributes"
-import { Menu, Transition, Tab, Dialog } from '@headlessui/react'
 import { fnumIndex } from '../LayerEditor/datamaps'
 import { extractState } from '../../stateUtils'
 
@@ -884,6 +884,8 @@ const DynamicFilter = ({layer}) => {
 
 function DynamicFilterControl({button, layer, sampleData, filterIndex}) {
   const { state, setState  } = React.useContext(SymbologyContext);
+  const { UI } = React.useContext(ThemeContext) || {};
+  const { Popup } = UI || {};
 
   const {filterValues} = useMemo(() => {
     return {
@@ -891,77 +893,36 @@ function DynamicFilterControl({button, layer, sampleData, filterIndex}) {
     }
   }, [state, filterIndex])
   return (
-    <Menu as="div" className="relative inline-block text-left w-full">
-      <Menu.Button as="div">{button}</Menu.Button>
-      <Transition
-        as={Fragment}
-        enter="transition ease-out duration-100"
-        enterFrom="transform opacity-0 scale-95"
-        enterTo="transform opacity-100 scale-100"
-        leave="transition ease-in duration-75"
-        leaveFrom="transform opacity-100 scale-100"
-        leaveTo="transform opacity-0 scale-95"
-      >
-        <Menu.Items
-          anchor="right"
-          className="absolute w-48 origin-top-right divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black/5 focus:outline-none"
-        >
-          <div className=" p-2 max-h-[250px] overflow-auto ">
-            {sampleData.map((datum) => {
-              return (
-                <Menu.Item key={`menu_item_${datum}`}>
-                  {({ active }) => (
-                    <div
-                      className={`${
-                        active ? "bg-pink-50 " : ""
-                      } group flex w-full items-center rounded-md px-1 py-1 text-sm`}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={filterValues.includes(datum)}
-                        onChange={(e) => {
-                          if (filterValues.includes(datum)) {
-                            setState((draft) => {
-                              draft.symbology.layers[layer.id][
-                                "dynamic-filters"
-                              ][filterIndex].values = filterValues.filter(
-                                (val) => val !== datum
-                              );
-                            });
-                          } else {
-                            const newValues = [...filterValues];
-                            newValues.push(datum);
-
-                            setState((draft) => {
-                              // console.log(
-                              //   JSON.parse(
-                              //     JSON.stringify(
-                              //       draft.symbology.layers[layer.id]
-                              //     )
-                              //   )
-                              // );
-                              draft.symbology.layers[layer.id][
-                                "dynamic-filters"
-                              ][filterIndex].values = newValues;
-                            });
-                          }
-                        }}
-                      />
-                      <div className="truncate flex items-center text-[15px] px-4 py-1">
-                        {datum}
-                      </div>
-                    </div>
-                  )}
-                </Menu.Item>
-              );
-            })}
+    <Popup button={button} preventCloseOnClickOutside={false}>
+      <div className="w-48 rounded-md bg-white shadow-lg ring-1 ring-black/5 p-2 max-h-[250px] overflow-auto">
+        {sampleData.map((datum) => (
+          <div
+            key={`menu_item_${datum}`}
+            className="group flex w-full items-center rounded-md px-1 py-1 text-sm hover:bg-pink-50"
+          >
+            <input
+              type="checkbox"
+              checked={filterValues.includes(datum)}
+              onChange={() => {
+                if (filterValues.includes(datum)) {
+                  setState((draft) => {
+                    draft.symbology.layers[layer.id]["dynamic-filters"][filterIndex].values =
+                      filterValues.filter((val) => val !== datum);
+                  });
+                } else {
+                  setState((draft) => {
+                    draft.symbology.layers[layer.id]["dynamic-filters"][filterIndex].values =
+                      [...filterValues, datum];
+                  });
+                }
+              }}
+            />
+            <div className="truncate flex items-center text-[15px] px-4 py-1">
+              {datum}
+            </div>
           </div>
-        </Menu.Items>
-      </Transition>
-    </Menu>
+        ))}
+      </div>
+    </Popup>
   );
 }

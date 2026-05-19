@@ -1,8 +1,5 @@
-import React, {useEffect, useState} from "react";
-import Select from "./Select";
-import Button from "./Button";
-import Pill from "./Pill"
-import ColumnTypes from "../columnTypes"
+import React, {useContext, useEffect, useState} from "react";
+import {ThemeContext} from "../../../ui/useTheme";
 import {cloneDeep} from "lodash-es";
 
 const parseIfJSON = strValue => {
@@ -37,6 +34,8 @@ export default function Permissions ({
     permissionDomain = defaultPermissionsDomain,
     defaultPermission = []
 }) {
+    const { UI } = useContext(ThemeContext) || {};
+    const { MultiSelect, Button, Pill, ColumnTypes } = UI;
     const [users, setUsers] = React.useState([]);
     const [groups, setGroups] = React.useState([]);
     const [tmpValue, setTmpValue] = useState(parseIfJSON(value));
@@ -104,17 +103,19 @@ export default function Permissions ({
         <div className={permissionsTheme.componentWrapper}>
             <div className={permissionsTheme.selectWrapper}>
                 <label className={permissionsTheme.selectLabel}>User Access Controls</label>
-                <Select className={permissionsTheme.select}
+                <MultiSelect className={permissionsTheme.select}
+                        singleSelectOnly
+                        searchable={false}
                         options={[{label: 'Add user access', value: undefined}, ...users
                             .filter(u => !(u.id in inheritedUsers))
                             .map(u => ({label: u.email, value: u.id}))]}
-                        onChange={e => {
+                        onChange={v => {
                             const clonedValue = cloneDeep(tmpValue);
                             const newAuth = {
                                 ...clonedValue,
                                 users: {
                                     ...(clonedValue?.users || {}),
-                                    [e.target.value]: defaultPermission || [],
+                                    [v]: defaultPermission || [],
                                 },
                             };
                             applyChanges(newAuth)
@@ -182,17 +183,19 @@ export default function Permissions ({
 
             <div className={permissionsTheme.selectWrapper}>
                 <label className={permissionsTheme.selectLabel}>Group Access Controls</label>
-                <Select className={permissionsTheme.select}
+                <MultiSelect className={permissionsTheme.select}
+                        singleSelectOnly
+                        searchable={false}
                         options={[{label: 'Add group access', value: undefined}, ...groups
                             .filter(g => !(g.name in inheritedGroups))
                             .map(g => ({label: g.name, value: g.name}))]}
-                        onChange={e => {
+                        onChange={v => {
                             const clonedValue = cloneDeep(tmpValue);
                             const newAuth = {
                                 ...clonedValue,
                                 groups: {
                                     ...(clonedValue?.groups || {}),
-                                    [e.target.value]: defaultPermission || [],
+                                    [v]: defaultPermission || [],
                                 },
                             };
 

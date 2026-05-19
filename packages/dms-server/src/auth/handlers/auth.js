@@ -7,6 +7,7 @@
 
 const { verifyToken, comparePassword, hashPassword, createUserToken, signToken, passwordGen } = require('../utils/crypto');
 const q = require('../utils/queries');
+const { sendEmail, buildEmailHtml } = require('../utils/email');
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -368,7 +369,7 @@ async function passwordForce(db, { token, userEmail, password }) {
 }
 
 /** POST /password/update — user changes own password */
-async function passwordUpdate(db, { token, current, password }) {
+async function passwordUpdate(db, { token, current, password, emailTheme = {} }) {
   const userData = await verifyAndGetUserData(db, token);
 
   if (!comparePassword(current, userData.password)) throw new Error('Incorrect password.');
@@ -376,11 +377,24 @@ async function passwordUpdate(db, { token, current, password }) {
   const passwordHash = hashPassword(password);
   await q.updateUserPassword(db, userData.email, passwordHash);
   const newToken = await createUserToken(userData.email, passwordHash, userData.project);
+
+  sendEmail(
+    userData.email,
+    'Your password has been changed',
+    'Your password was successfully updated. If you did not make this change, contact your administrator.',
+    buildEmailHtml({
+      title: 'Password Changed',
+      body: 'Your password was successfully updated.',
+      footer: "If you didn't make this change, contact your administrator immediately.",
+      theme: emailTheme,
+    })
+  ).catch(() => {});
+
   return { token: newToken, message: 'Your password has been updated.' };
 }
 
 /** POST /password/reset — generate random password, email it */
-async function passwordReset(db, { email, project_name }) {
+async function passwordReset(db, { email, project_name, url, emailTheme = {} }) {
   email = email.toLowerCase();
   const { rows } = await q.getUserByEmail(db, email);
   const userData = rows[0];
@@ -390,7 +404,24 @@ async function passwordReset(db, { email, project_name }) {
   const passwordHash = hashPassword(newPassword);
   await q.updateUserPassword(db, email, passwordHash);
   const newToken = await createUserToken(email, passwordHash, project_name);
-  // Email with newPassword and newToken would be sent here (Phase 5)
+  const loginUrl = url
+    ? (url.startsWith('http') ? url : `${emailTheme.siteOrigin || ''}${url}`)
+    : null;
+
+  await sendEmail(
+    email,
+    'Your password has been reset',
+    `Your password has been reset. Temporary password: ${newPassword}. Sign in and change it soon.`,
+    buildEmailHtml({
+      title: 'Password Reset',
+      body: `Your password has been reset.<br><br>Your new temporary password is:<br><strong style="font-size:16px">${newPassword}</strong><br><br>Please sign in and update your password as soon as possible.`,
+      ctaText: loginUrl ? 'Sign In' : undefined,
+      ctaUrl:  loginUrl || undefined,
+      footer: "If you didn't request a password reset, contact your administrator.",
+      theme: emailTheme,
+    })
+  );
+
   return { message: 'Your password has been reset. You should receive an email shortly.', password: newPassword, token: newToken };
 }
 
@@ -496,7 +527,7 @@ async function getRequestsForProject(db, { token, project_name }) {
 }
 
 /** POST /signup/assign/group — create user and assign to group */
-async function signupAssignGroup(db, { email, password, project, group, url }) {
+async function signupAssignGroup(db, { email, password, project, group, url, emailTheme = {} }) {
   if (!email || !project) throw new Error('Invalid request.');
   email = email.toLowerCase();
   const groupName = group || `${project} Public`;
@@ -529,7 +560,41 @@ async function signupAssignGroup(db, { email, password, project, group, url }) {
     await q.assignUserToGroup(db, userEmail, groupName, 'signup_accept_script');
     await db.commitTransaction();
 
-    // Email with generated password would go here (Phase 5)
+    const loginUrl = url
+      ? (url.startsWith('http') ? url : `${emailTheme.siteOrigin || ''}${url}`)
+      : null;
+
+    if (generatedPassword) {
+      console.log('generated pwd')
+      await sendEmail(
+        userEmail,
+        'Your account has been created',
+        `Your account has been created. Temporary password: ${generatedPassword}. Please sign in and change it.`,
+        buildEmailHtml({
+          title: 'Welcome',
+          body: `Your account has been created.<br><br>Your temporary password is:<br><strong style="font-size:16px">${generatedPassword}</strong><br><br>Please sign in and change your password.`,
+          ctaText: loginUrl ? 'Sign In' : undefined,
+          ctaUrl:  loginUrl || undefined,
+          footer: 'You received this because an account was created for your email address.',
+          theme: emailTheme,
+        })
+      );
+    } else {
+      console.log('pwd already set')
+      await sendEmail(
+        userEmail,
+        'Your account has been created',
+        'Your account has been created. You can now sign in.',
+        buildEmailHtml({
+          title: 'Welcome',
+          body: 'Your account has been created. You can now sign in.',
+          ctaText: loginUrl ? 'Sign In' : undefined,
+          ctaUrl:  loginUrl || undefined,
+          theme: emailTheme,
+        })
+      );
+    }
+
     return { message: 'success!' };
   } catch (e) {
     await db.rollbackTransaction();

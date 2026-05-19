@@ -50,7 +50,6 @@ function computeFetchKey(state) {
         showTotal: c.showTotal,
       })),
       filterGroups: state.filters,
-      filterRelation: state.display?.filterRelation,
       source_id: state.externalSource?.source_id,
       view_id: state.externalSource?.view_id,
       pageSize: state.display?.pageSize,
@@ -72,14 +71,14 @@ function computeFetchKey(state) {
 
 /**
  * @param {Object} params
- * @param {Object}   params.state       - The dataWrapper immer state
- * @param {Function} params.setState    - The immer setState updater
- * @param {Function} params.apiLoad     - DMS data loader function
- * @param {Object}   params.component   - Component config (fullDataLoad, keepOriginalValues, useGetDataOnPageChange)
- * @param {boolean}  params.readyToLoad - Whether this component should fetch data
+ * @param {Object}   params.state      - The dataWrapper immer state
+ * @param {Function} params.setState   - The immer setState updater
+ * @param {Function} params.apiLoad    - DMS data loader function
+ * @param {Object}   params.component  - Component config (fullDataLoad, keepOriginalValues, useGetDataOnPageChange)
+ * @param {boolean}  params.isEditMode - True in Edit mode: always fetch with dedup, ignoring fetchMode
  * @returns {{ loading: boolean, currentPage: number, onPageChange: Function }}
  */
-export function useDataLoader({ state, setState, apiLoad, component, readyToLoad }) {
+export function useDataLoader({ state, setState, apiLoad, component, isEditMode = false }) {
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
   // Seed the dedup ref when state already has data (e.g., from preloadSectionData).
@@ -197,6 +196,14 @@ export function useDataLoader({ state, setState, apiLoad, component, readyToLoad
 
   const isValidState = Boolean(state?.externalSource?.source_id || state?.externalSource?.isDms);
 
+  // ─── Fetch mode (derived from state, with backward-compat for readyToLoad bool) ──
+  // Edit mode always uses 'smart' (fetch with dedup); View mode honors fetchMode.
+  const fetchMode =
+      // isEditMode ? 'smart' : // doesn't fetch in edit mode and shows stale cached data
+      (state?.display?.fetchMode ?? (state?.display?.readyToLoad === true ? 'smart' : 'cache'));
+  const readyToLoad = isEditMode || (isValidState && (fetchMode !== 'cache' || state?.display?.allowEditInView));
+  const bypassDedup = fetchMode === 'force';
+
   // ─── Main load effect ──────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -208,8 +215,8 @@ export function useDataLoader({ state, setState, apiLoad, component, readyToLoad
         return;
       }
 
-      // Dedup: skip if config hasn't changed
-      if (fetchKey === lastFetchKeyRef.current && !state.externalSource?.isDms) return;
+      // Dedup: skip if config hasn't changed (bypassed in 'force' fetch mode)
+      if (!bypassDedup && fetchKey === lastFetchKeyRef.current) return;
 
       async function load() {
         setLoading(true);
@@ -243,7 +250,7 @@ export function useDataLoader({ state, setState, apiLoad, component, readyToLoad
     }, DEBOUNCE_MS);
 
     return () => clearTimeout(timeoutId);
-  }, [fetchKey, readyToLoad, isValidState, hasLocalFilters, localFilters]);
+  }, [fetchKey, readyToLoad, bypassDedup, isValidState, hasLocalFilters, localFilters]);
 
   // ─── Page change handler ───────────────────────────────────────────────────
 

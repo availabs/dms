@@ -48,7 +48,6 @@ function buildFilterContext({ options, column, excludeNull, excludeZero, isDms, 
   const lt = { ...(options.lt || {}) };
   const lte = { ...(options.lte || {}) };
   const like = { ...(options.like || {}) };
-  const filterRelation = options.filterRelation || 'and';
   const filterGroups = options.filterGroups || {};
 
   // Default-exclude nulls on the target column (can be disabled by caller).
@@ -74,7 +73,7 @@ function buildFilterContext({ options, column, excludeNull, excludeZero, isDms, 
   const values = [...oldValues, ...newValues];
 
   const whereClause = buildCombinedWhere({
-    filter, exclude, gt, gte, lt, lte, like, filterRelation,
+    filter, exclude, gt, gte, lt, lte, like,
     filterGroups, isDms, app, type, oldValues, dbType,
   });
 
