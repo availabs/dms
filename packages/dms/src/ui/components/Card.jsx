@@ -503,7 +503,7 @@ const CardColumnField = ({
             {/* Header area — always rendered when there's a label or a menu in col layout */}
             {headerVisible && (
                 <div
-                    className={`${attr.hideHeader ? '' : theme.header}`}
+                    className={`${attr.hideHeader ? '' : attr.headerFontStyle === 'button' ? theme.linkColValue : theme.header}`}
                     style={{maxWidth: isRowLayout && !attr.hideValue ? `${headerWidth || 50}%` : undefined}}
                 >
                     {!attr.hideHeader && (
@@ -564,6 +564,26 @@ const CardColumnField = ({
                                                  componentWrapperClassName={theme.componentWrapper}
                                     />
                                 </Link>) :
+                                attr.valueFontStyle === 'button' ?
+                                <span className={theme.linkColValue || ''}>
+                                    <CompWrapper attribute={attr}
+                                                 value={valueFormattedForDisplay}
+                                                 rawValue={valueFormattedForEdit}
+                                                 isValueFormatted={isValueFormatted}
+                                                 updateItem={isNewItem ? undefined : updateItem}
+                                                 liveEdit={liveEdit}
+                                                 tmpItem={tmpItem}
+                                                 setTmpItem={setTmpItem}
+                                                 isNewItem={isNewItem}
+                                                 newItem={isNewItem ? newItem : undefined}
+                                                 setNewItem={isNewItem ? setNewItem : undefined}
+                                                 id={id}
+                                                 allowEdit={allowEdit || attr.allowEditInView}
+                                                 formatFunctions={formatFunctions}
+                                                 className={`${theme[valueTextJustifyClass]} ${theme.valueWrapper}`}
+                                                 componentWrapperClassName={theme.componentWrapper}
+                                    />
+                                </span> :
                                 <CompWrapper attribute={attr}
                                              value={valueFormattedForDisplay}
                                              rawValue={valueFormattedForEdit}
