@@ -24,7 +24,7 @@ export const complexFiltersTheme = {
 
     // labeled field rows inside the leaf
     field: 'flex flex-col gap-1',
-    // Column row needs a right gutter so its <Select> doesn't run under
+    // Column row needs a right gutter so its <MultiSelect> doesn't run under
     // the absolute-positioned ellipsis menu.
     fieldWithEllipsisGutter: 'flex flex-col gap-1 pr-8',
     fieldLabel: 'text-xs font-medium text-slate-600',
@@ -32,6 +32,7 @@ export const complexFiltersTheme = {
     // ellipsis popup body
     popup: 'flex flex-col gap-2 p-2 bg-white shadow-md border rounded-md text-sm',
     popupRow: 'flex items-center gap-1',
+    popupRowLabel: 'text-xs text-slate-600',
     popupRemove: 'flex gap-1 text-red-500 hover:text-red-700 cursor-pointer',
     popupIcon: 'size-4',
     popupTrash: 'size-4',

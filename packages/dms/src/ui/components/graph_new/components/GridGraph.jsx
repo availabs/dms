@@ -2,9 +2,7 @@ import React from "react"
 
 import { GridGraph, Legend } from "./avl-graph"
 
-import {
-    groups as d3groups
-} from "d3-array"
+import { groups as d3groups } from "d3-array"
 
 import { scaleLinear } from "d3-scale"
 
@@ -139,58 +137,75 @@ const GridGraphWrapper = props => {
         return { ...props.yAxis };
     }, [props.yAxis]);
 
-    const margin = React.useMemo(() => {
-        return {
-            top: props.margins?.marginTop || 20,
-            right: props.margins?.marginRight || 20,
-            bottom: props.margins.marginBottom || 50,
-            left: props.margins?.marginLeft || 100
-        }
-    }, [props.margins]);
-
   const legend = React.useMemo(() => {
     return {
       ...props.legend,
-      position: "top-left",
       type: "linear",
+      orientation: ["right", "left"].includes(props.legend.position || "right") ? "vertical" : "horizontal",
       scale: dataFromProps.colors,
-      format: props.hoverComp.valueFormat
+      format: props.hoverComp?.valueFormat
     };
-  }, [props.legend, props.colors, props.hoverComp, dataFromProps]);
+  }, [props.legend, props.colors, props.hoverComp?.valueFormat, dataFromProps]);
+
+// console.log("GridGraphWrapper::legend", legend);
 
 // console.log("GridGraphWrapper::dataForGraph", dataForGraph);
 // console.log("GridGraphWrapper::hoverComp", hoverComp);
 // console.log("GridGraphWrapper::colors", props.colors);
 
+const TopOrBottomRegex = /^top|bottom/;
+const LeftOrRightRegex = /^(left|right)$/;
+
     return (
-        <div className={ `
-                w-full bg-inherit
-                ${ legend.position.includes("-") ? "" : "flex" }
-            ` }>
-          { !legend.show || legend.position !== "top-left" ? null :
-            <Legend { ...legend }/>
+        <div
+            className={ `
+                w-full bg-inherit flex
+                ${ TopOrBottomRegex.test(legend.position) ? "flex-col" : "" }
+            ` }
+        >
+          { !legend.show || !legend.position.includes("top") ? null :
+            <div
+                className={ `
+                    flex
+                    ${ legend.position === "top-right" ? "justify-end" : "" }
+                ` }
+            >
+                <Legend { ...legend }/>
+            </div>
           }
-          { !legend.show || legend.position !== "left" ? null :
-            <Legend { ...legend }/>
+          { !legend.show || (legend.position !== "left") ? null :
+            <div className="flex items-center">
+                <Legend { ...legend }/>
+            </div>
           }
-          <div className="bg-inherit flex-1"
+          <div
+            className={ `
+                bg-inherit
+                ${ LeftOrRightRegex.test(legend.position) ? "flex-1" : "" }
+            ` }
             style={ {
               height: `${ props.height }px`
             } }
           >
-            <GridGraph
-                colors={ props.colors }
+            <GridGraph { ...props }
                 { ...dataFromProps }
                 axisBottom={ axisBottom }
-                axisLeft={ axisLeft }
-                margin={ margin }
-                hoverComp={ props.hoverComp }
-                width={ props.width }
-                height={ props.height }
-                bgColor={ props.bgColor }/>
+                axisLeft={ axisLeft }/>
           </div>
-          { !legend.show || legend.position !== "right" ? null :
-            <Legend { ...legend }/>
+          { !legend.show || !legend.position.includes("bottom") ? null :
+            <div
+                className={ `
+                    flex
+                    ${ legend.position === "bottom-right" ? "justify-end" : "" }
+                ` }
+            >
+                <Legend { ...legend }/>
+            </div>
+          }
+          { !legend.show || (legend.position !== "right") ? null :
+            <div className="flex items-center">
+                <Legend { ...legend }/>
+            </div>
           }
         </div>
     )

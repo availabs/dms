@@ -5,6 +5,7 @@ import { getColorRange } from '../../../../../../../ui/components/graph/colorRan
 const DefaultPalette = getColorRange(20, "div7");
 const graphOptions = {
     readyToLoad: false,
+    hideExternalToggle: true,
     graphType: 'BarGraph',
     groupMode: 'stacked',
     orientation: 'vertical',
@@ -185,8 +186,13 @@ export default {
             ]
         },
         data: [
-            {type: 'toggle', label: 'Prevent Duplicate Fetch', key: 'preventDuplicateFetch'},
-            {type: 'toggle', label: 'Always Fetch Data',       key: 'readyToLoad'},
+            { type: 'select', label: 'Data Fetch Mode', key: 'fetchMode',
+              options: [
+                { label: 'Cache (use preloaded data)', value: 'cache' },
+                { label: 'Smart (fetch on change)',    value: 'smart' },
+                { label: 'Force (always re-fetch)',    value: 'force' },
+              ]
+            },
         ]
     },
     "EditComp": Graph,

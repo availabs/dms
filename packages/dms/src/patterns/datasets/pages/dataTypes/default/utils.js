@@ -1,16 +1,16 @@
 import {get} from "lodash-es";
-import {ExternalSourceAttributes, InternalSourceAttributes, ExternalViewAttributes} from "./consts";
+import {ExternalSourceAttributes, InternalSourceAttributes, InternalViewAttributes, ExternalViewAttributes} from "./consts";
 
-export async function getViews ({pgEnv, falcor, source_id}) {
+export async function getViews ({pgEnv, falcor, source_id, isDms}) {
     try {
         const reqLenPath = ['uda', pgEnv, 'sources', 'byId', +source_id, 'views', 'length'];
         const resLenJson = await falcor.get(reqLenPath);
         const len = get(resLenJson, ['json', ...reqLenPath], 0);
 
         if (!len) return [];
-
         const reqIndexPath = ['uda', pgEnv, 'sources', 'byId', +source_id, 'views', 'byIndex'];
-        const resIndexJson = await falcor.get([...reqIndexPath, {from: 0, to: len - 1}, ExternalViewAttributes]);
+
+        const resIndexJson = await falcor.get([...reqIndexPath, {from: 0, to: len - 1}, isDms ? InternalViewAttributes : ExternalViewAttributes]);
         const views = get(resIndexJson, ['json', ...reqIndexPath], {})
         return Object.values(views).filter(version => +version.view_id).map(({
                                                                                  version,
@@ -24,6 +24,7 @@ export async function getViews ({pgEnv, falcor, source_id}) {
             ...rest
         }));
     } catch (e) {
+        console.error(e)
         return []
     }
 }
@@ -31,18 +32,36 @@ export async function getViews ({pgEnv, falcor, source_id}) {
 export async function getSourceData ({pgEnv, falcor, source_id, setSource, isDms}) {
     //console.log('gettting data')
 
-      const views = await getViews({ pgEnv, falcor, source_id });
-        console.log('get Source Data', views)
+        const externalViews = !isDms && await getViews({ pgEnv, falcor, source_id, isDms });
         const reqPath = ['uda', pgEnv, 'sources', 'byId', +source_id]
         const sourceAttributes = isDms ? InternalSourceAttributes : ExternalSourceAttributes;
-        console.log('get Source Data',[...reqPath, sourceAttributes] )
 
         const resJson = await falcor.get([...reqPath, sourceAttributes]);
         const res = get(resJson, ['json', ...reqPath], {})
 
+        let views;
+        if (isDms) {
+            // res.views contains raw DMS refs [{ref, id}] — no name. Fetch names from the view rows.
+            const rawViews = parseIfJson(res.views) || [];
+            const viewIds = rawViews.map(v => +v.id).filter(Boolean);
+            if (viewIds.length) {
+                const nameRes = await falcor.get(['uda', pgEnv, 'views', 'byId', viewIds, InternalViewAttributes]);
+                const viewsById = get(nameRes, ['json', 'uda', pgEnv, 'views', 'byId'], {});
+                views = rawViews.map(v => ({
+                    ...v,
+                    view_id: +v.id,
+                    name: viewsById[+v.id]?.name || v.name,
+                }));
+            } else {
+                views = rawViews;
+            }
+        } else {
+            views = externalViews;
+        }
+
         const firstView = views?.[0];
         const lastView = views?.[views?.length - 1];
-        console.log('source', res)
+
         // The URL/route id IS the DMS row id — take it as canonical and
         // ignore whatever `id`/`source_id` legacy migrations left in data.
         // Keep `source_id` exposed for legacy callers but mirror the row id.

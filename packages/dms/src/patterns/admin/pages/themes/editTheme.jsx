@@ -18,17 +18,14 @@ const compOptions = [
 	{ label: 'Card', value: 'Card' },
 	{ label: 'Drawer', value: 'Drawer' },
 	{ label: 'DraggableNav', value: 'DraggableNav' },
-	{ label: 'Dropdown', value: 'Dropdown' },
 	{ label: 'FieldSet', value: 'FieldSet' },
 	{ label: 'Graph', value: 'Graph' },
 	{ label: 'Icon', value: 'Icon' },
 	{ label: 'Input', value: 'Input' },
 	{ label: 'Label', value: 'Label' },
-	{ label: 'Menu', value: 'Menu' },
 	{ label: 'Pagination', value: 'Pagination' },
 	{ label: 'Pill', value: 'Pill' },
-	{ label: 'Popover', value: 'Popover' },
-	{ label: 'Select', value: 'Select' },
+	{ label: 'MultiSelect', value: 'MultiSelect' },
 	{ label: 'SideNav', value: 'SideNav' },
 	{ label: 'Switch', value: 'Switch' },
 	{ label: 'Table', value: 'Table' },
@@ -53,8 +50,9 @@ function ControlRenderer({ config, state, setState }) {
         onChange: d?.onChange ?
           (e) => d.onChange(e,setState) :
           (e) => setState(draft => {
-            //console.log('onChange', d.path)
-          set(draft, `${d.path}`, e.target.value)
+            // Input/Textarea hand us a DOM event; MultiSelect hands us the
+            // value directly. Accept either shape.
+            set(draft, `${d.path}`, e?.target?.value ?? e)
           })
       }
     })
@@ -87,7 +85,7 @@ function ComponentList ({
 	const navigate = useNavigate();
 	const { UI } = useContext(ThemeContext);
 	const { baseUrl, user } = React.useContext(AdminContext) || {};
-	const { Select, Button } = UI;
+	const { MultiSelect, Button } = UI;
 	const theme = defaultTheme
 
 	const {theme_id, component, ...restparams} = params;
@@ -131,18 +129,20 @@ function ComponentList ({
 				<div className='flex'>
           <div className={'text-2xl font-semibold text-gray-700'}>{themeObj?.name}</div>
 					<div className='px-4'>
-						<Select
+						<MultiSelect
+  					  singleSelectOnly
+  					  searchable={false}
   					  value={currentComponent}
-  						onChange={e => {
-    						  setCurrentComponent(e.target.value)
-      						navigate(`${baseUrl}/${path.replace(':theme_id', theme_id).replace(':component?', e.target.value.toLowerCase())}`)
+  						onChange={value => {
+    						  setCurrentComponent(value)
+      						navigate(`${baseUrl}/${path.replace(':theme_id', theme_id).replace(':component?', value.toLowerCase())}`)
     				  }}
      			    options={compOptions}
        	    />
 					</div>
 					<div>
-			      <Select value={currentComponentPropsIdx}
-     					onChange={e => setCurrentComponentPropsIdx(e.target.value)}
+			      <MultiSelect singleSelectOnly searchable={false} value={currentComponentPropsIdx}
+     					onChange={value => setCurrentComponentPropsIdx(value)}
      					options={
       						(Array.isArray(componentDocs?.[currentComponent]) ? componentDocs?.[currentComponent] : [componentDocs?.[currentComponent]])
      							.map((o, i) => ({label: o?.doc_name || `Example ${i + 1}`, value: i}))
@@ -155,10 +155,10 @@ function ComponentList ({
 			<div className={'flex flex-col sm:flex-row divide-x relative'}>
 				<div className={'w-[250px] order-2 overflow-hidden'}>
     		  <div className={'pb-2'}>
-   					<Select value={currentThemeSetting}
-              onChange={e => {
-  						  setCurrentThemeSetting(e.target.value)
-    						//navigate(`${baseUrl}/${path.replace(':theme_id', theme_id).replace(':component?', e.target.value.toLowerCase())}`)
+   					<MultiSelect singleSelectOnly searchable={false} value={currentThemeSetting}
+              onChange={value => {
+  						  setCurrentThemeSetting(value)
+    						//navigate(`${baseUrl}/${path.replace(':theme_id', theme_id).replace(':component?', value.toLowerCase())}`)
  					    }}
  							options={
                 Object.keys(themeSettings)

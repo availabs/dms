@@ -10,6 +10,10 @@ Skills sit alongside `planning/` (work tracking) and `documentation/` (reference
 
 - [Creating a page-section component](./creating-page-section-components.md) — when you need a new section type (Card, Spreadsheet, Header, etc. are page-section components). Walks through the file split (`Foo.jsx` + `Foo.config.{js,jsx}` + `Foo.theme.js`), the registry entry shape, the EditComp/ViewComp contract, theme wiring, and Fast-Refresh rules.
 
+### Layout reference
+
+- [Card section layout](./card-layout.md) — every layout knob on the `Card` section: the two grids (cards-grid + cells-grid), `cellSpan`/`cellRowSpan`, image/link/format cells, `cardHints` (`fullBleed`, `spanFullColumns`), the `row` prop available to composite column types, and recipes for stat strips / 3-up record cards / composite "owns its own layout" cells. Read before configuring any non-trivial card.
+
 ### Recipes — configured sections (no new component needed)
 
 - [Currently-active row card (WCDB schedule "Now Airing")](./now-airing-card.md) — render the row whose `[start_at, end_at]` interval contains `now()`. Per-pattern data shape with day-of-week + time-of-day columns, calc-column projection to absolute timestamptz, `op:'time'` `kind:'instant'` filter with `compareEnd`. The pattern works for any "currently happening" feed (event calendars, live indicators, on-call rotations).

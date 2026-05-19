@@ -273,4 +273,18 @@ export const formatFunctions = {
       <div>{strValue}</div>
     </>
   ),
+  // Renders `<value><separator><row[combineWith]>` — lets a Card cell carry two
+  // row fields on one editorial line (e.g. "Stereolab — Lo Boob Oscillator").
+  // Non-standard signature: needs the row to resolve the sibling field and the
+  // column attr to read `combineWith`/`combineSeparator`. Card.jsx routes the
+  // call so this format never goes through the generic value-resolution branch
+  // that would strip whitespace from the separator.
+  combine: (value, row, attr) => {
+    const sep = attr?.combineSeparator ?? " — ";
+    const otherField = attr?.combineWith;
+    const other = otherField && row ? (row[otherField]?.value ?? row[otherField]) : undefined;
+    const a = value?.value ?? value;
+    const parts = [a, other].filter(v => v !== undefined && v !== null && v !== "");
+    return parts.join(sep);
+  },
 };

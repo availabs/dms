@@ -53,11 +53,24 @@ const LinkComp = ({attribute, columns, newItem, removeItem, value}) => {
             typeof value === 'object' && value?.hasOwnProperty('value') ?
                 value.value : value;
 
+        const rawSearchParamValue =
+            attribute.searchParams === 'id' ? newItem.id :
+            ['value', 'rawValue'].includes(attribute.searchParams) ? valueFormattedForSearchParams : null;
+
         const searchParams =
             attribute.searchParams === 'id' ? encodeURIComponent(newItem.id) :
                 ['value', 'rawValue'].includes(attribute.searchParams) ? encodeURIComponent(valueFormattedForSearchParams) : ``;
 
-        const url = `${location || valueFormattedForDisplay}${searchParams}`;
+        let url;
+        if (attribute.persistSearchParams && location) {
+            const qIdx = location.indexOf('?');
+            const locationKey = qIdx !== -1 ? location.slice(qIdx + 1).split('=')[0] : null;
+            const currentParams = new URLSearchParams(window.location.search);
+            if (locationKey && rawSearchParamValue !== null) currentParams.set(locationKey, rawSearchParamValue);
+            url = `${qIdx !== -1 ? location.slice(0, qIdx) : location}?${currentParams.toString()}`;
+        } else {
+            url = `${location || valueFormattedForDisplay}${searchParams}`;
+        }
         return isLinkExternal
             ? ({show, isLink, searchParams: _sp, hideControls, ...props}) => <a {...props} href={url} target="_blank" rel="noopener noreferrer">{linkText || valueFormattedForDisplay}</a>
             : ({show, isLink, searchParams: _sp, hideControls, ...props}) => <Link {...props} to={url}>{linkText || valueFormattedForDisplay}</Link>

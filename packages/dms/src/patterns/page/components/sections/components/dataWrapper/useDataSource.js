@@ -9,6 +9,8 @@ import { calculateIsJoinPresent } from "./utils/joinUtils"
 
 const range = (start, end) => Array.from({ length: end + 1 - start }, (_, k) => k + start);
 
+const EMPTY_JOIN_SOURCES = {};
+
 const getSources = async ({ envs, falcor }) => {
     if (!envs || !Object.keys(envs).length) return [];
 
@@ -64,24 +66,38 @@ const getSources = async ({ envs, falcor }) => {
 const getViews = async ({ envs, sourceId, srcEnv, falcor }) => {
     if (!srcEnv || !sourceId) return [];
 
-    const lenRes = await falcor.get(["uda", srcEnv, "sources", "byId", sourceId, "views", "length",]);
+    const lenRes = await falcor.get(["uda", srcEnv, "sources", "byId", sourceId, "views", "length"]);
 
     const len = get(lenRes, ["json", "uda", srcEnv, "sources", "byId", sourceId, "views", "length"]);
 
     if (!len) return [];
 
-    const byIndexRes = await falcor.get(["uda", srcEnv, "sources", "byId", sourceId, "views", "byIndex", { from: 0, to: len - 1 }, envs[srcEnv].viewAttributes]);
+    // For DMS sources also request `id` and `view_id` so we have a numeric ID
+    // fallback when $__path isn't populated by the Falcor client.
+    const isDms = envs[srcEnv]?.isDms;
+    const viewAttrs = isDms
+        ? [...new Set([...envs[srcEnv].viewAttributes, 'id', 'view_id'])]
+        : envs[srcEnv].viewAttributes;
 
-    return range(0, len - 1).map((i) => ({
-        view_id: get(byIndexRes, ["json", "uda", srcEnv, "sources", "byId", sourceId, "views", "byIndex", i, "$__path", 4]),
-        ...envs[srcEnv].viewAttributes.reduce(
-            (acc, attr) => ({
-                ...acc,
-                [attr]: get(byIndexRes, ["json", "uda", srcEnv, "sources", "byId", sourceId, "views", "byIndex", i, attr]),
-            }),
-            {}
-        ),
-    }));
+    const byIndexRes = await falcor.get(["uda", srcEnv, "sources", "byId", sourceId, "views", "byIndex", { from: 0, to: len - 1 }, viewAttrs]);
+
+    const base = ["json", "uda", srcEnv, "sources", "byId", sourceId, "views", "byIndex"];
+    return range(0, len - 1).map((i) => {
+        const refId = get(byIndexRes, [...base, i, "$__path", 4]);
+        const fetchedViewId = get(byIndexRes, [...base, i, "view_id"]);
+        const fetchedId = get(byIndexRes, [...base, i, "id"]);
+        const view_id = refId ?? (fetchedViewId != null ? +fetchedViewId : null) ?? (fetchedId != null ? +fetchedId : null);
+        return {
+            view_id,
+            ...envs[srcEnv].viewAttributes.reduce(
+                (acc, attr) => ({
+                    ...acc,
+                    [attr]: get(byIndexRes, [...base, i, attr]),
+                }),
+                {}
+            ),
+        };
+    });
 };
 
 const DEFAULT_SOURCE_TYPES = ["external", "internal"];
@@ -97,7 +113,7 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
     const [joinViewsByAlias, setJoinViewsByAlias] = useState({});
     const sourceId = (state?.externalSource?.source_id);
     const viewId = (state?.externalSource?.view_id);
-    const joinSources = (join?.sources || {});
+    const joinSources = join?.sources ?? EMPTY_JOIN_SOURCES;
 
     const sectionColumns = useMemo(
         () =>
@@ -174,7 +190,7 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
                               .filter((sCol) => !sCol.source_id || sCol.source_id === draft[EXTERNAL_SOURCE_KEY].source_id)
                               .map((sCol) => ({
                                 ...sCol,
-                                source_id: state?.[EXTERNAL_SOURCE_KEY].source_id,
+                                source_id: draft?.[EXTERNAL_SOURCE_KEY]?.source_id,
                               }));
                             const allCols = [...sourceCols, ...joinColumns];
                             draft[EXTERNAL_SOURCE_KEY] = { ...draft[EXTERNAL_SOURCE_KEY], ...existing, baseUrl, columns: allCols };
@@ -291,8 +307,8 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
     const addJoinSource = useCallback(() => {
         setState(draft => {
             if (!draft.join) draft.join = { sources: {} };
-            
-            const existingAliases = isJoinPresent ? Object.keys(draft.join.sources) : [];
+
+            const existingAliases = Object.keys(draft.join.sources);
             let nextNum = 1;
             while (existingAliases.includes(`table${nextNum}`)) {
                 nextNum++;
@@ -300,7 +316,7 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
             const nextAlias = `table${nextNum}`;
             draft.join.sources[nextAlias] = {...DEFAULT_SOURCE_JOIN};
         });
-    }, [state, setState]);
+    }, [setState]);
 
     const onJoinSourceChange = useCallback(
         (alias, newJoinSourceId) => {
@@ -348,13 +364,12 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
           }
         });
       },
-      [state, setState],
+      [setState],
     );
 
     const onJoinColumnsChange = useCallback((alias, joinVal) => {
         setState(draft => {
             if (!draft.join) draft.join = { sources: {} };
-            // Ensure the source entry and joinColumns array exist
             if (!draft.join.sources[alias]) {
                 draft.join.sources[alias] = {
                     source: null,
@@ -365,10 +380,9 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
             } else if (!draft.join.sources[alias].joinColumns) {
                 draft.join.sources[alias].joinColumns = [];
             }
-            // Assuming only one join column definition per alias for now
             draft.join.sources[alias].joinColumns = joinVal;
         });
-    }, [state, setState])
+    }, [setState])
 
     const onJoinChange = useCallback(
         (alias, path, joinVal) => {

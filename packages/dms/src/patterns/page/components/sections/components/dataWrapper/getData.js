@@ -237,7 +237,7 @@ export const getData = async ({
     const toIndex = fullDataLoad
         ? length
         : Math.min(length, currentPage * state.display.pageSize + state.display.pageSize) - 1;
-    if (fromIndex > length) {
+    if (fromIndex >= length) {
         return { length, data: [] };
     }
     debugTime && console.timeEnd('check indices')

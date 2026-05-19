@@ -1,5 +1,4 @@
 import React from 'react'
-import { Button } from '@headlessui/react'
 import { ThemeContext, getComponentTheme } from '../useTheme'
 
 // buttonType = type. in some configs, type is reserved for component type, but here to pick theme, they're the same
@@ -26,13 +25,14 @@ export default function ButtonComp ({ children, disabled, onClick=()=>{}, type='
   }
 
   return (
-    <Button
+    <button
+      type="button"
       disabled={disabled}
       className={buttonClass}
       onClick={onClick}
       {...props}
     >
       {children}
-    </Button>
+    </button>
   )
 }

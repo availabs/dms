@@ -1,5 +1,4 @@
 import React, {useContext, useRef, useState} from "react"
-import {Combobox} from '@headlessui/react'
 import {CMSContext} from '../../context'
 import {ThemeContext} from "../../../../ui/useTheme";
 
@@ -162,9 +161,9 @@ export function TagComponent({value, placeholder, onChange, edit = false}) {
     return (
         <div className='w-full bg-white shadow-md'>
 
-            {edit && <Combobox>
+            {edit && <div>
                 <div className="relative z-20">
-                    <Combobox.Input
+                    <input
                         className="h-12 w-[189px] bg-blue-50 m-1 p-2 text-gray-900 placeholder:text-gray-400 focus:ring-0 sm:text-sm"
                         placeholder={placeholder}
                         value={newTag}
@@ -183,8 +182,8 @@ export function TagComponent({value, placeholder, onChange, edit = false}) {
                 {tags
                     .filter(tag => (!newTag?.length || tag.toLowerCase().includes(newTag.toLowerCase())))
                     .length ? (
-                    <Combobox.Options
-                        static
+                    <div
+                        role="listbox"
                         className="max-h-96 transform-gpu scroll-py-3 overflow-y-auto p-3"
                     >
 
@@ -192,20 +191,20 @@ export function TagComponent({value, placeholder, onChange, edit = false}) {
                             .filter(tag => (newTag.length > 0 && tag.toLowerCase().includes(newTag.toLowerCase())))
                             .filter((tag, i) => i <= 5)
                             .map((tag) => (
-                                <Combobox.Option
+                                <div
                                     key={tag}
-                                    value={tag}
+                                    role="option"
                                     onClick={() => {
                                         setNewTag(tag)
                                     }}
-                                    className={({active}) => `flex cursor-pointer select-none rounded-xl p-1 ${active && 'bg-gray-100'}`}>
+                                    className="flex cursor-pointer select-none rounded-xl p-1 hover:bg-gray-100">
                                     <Label text={tag}/>
-                                </Combobox.Option>
+                                </div>
                             ))}
-                    </Combobox.Options>
+                    </div>
                 ) : null
                 }
-            </Combobox>}
+            </div>}
             <div className='w-full min-h-8 flex flex-col gap-1 px-1 py-2'>
                 {
                     arrayValue

@@ -56,8 +56,14 @@ export default function AuthSignup (props) {
                 className={sectionGroupTheme.actionButton}
                 disabled={credentials.password !== credentials.verifyPassword}
                 onClick={async () => {
+                const emailTheme = {
+                    ...(theme?.auth?.emailTheme || {}),
+                    logoUrl:    theme?.logo?.img   || '',
+                    logoTitle:  theme?.logo?.title || PROJECT_NAME,
+                    siteOrigin: window.location.origin,
+                };
                 await callAuthServer(`${AUTH_HOST}/signup/assign/group`,
-                    {...credentials, project: PROJECT_NAME})
+                    {...credentials, project: PROJECT_NAME, emailTheme})
                     .then(res => {
                         if (res.error) {
                             setStatus(res.error)
@@ -72,7 +78,7 @@ export default function AuthSignup (props) {
                         console.error('Cannot contact authentication server.');
                     });
             }}>
-                <span className={sectionGroupTheme.actionText}>Sign in</span>
+                <span className={sectionGroupTheme.actionText}>Sign up</span>
             </Button>
 
             <div className={sectionGroupTheme.prompt}>

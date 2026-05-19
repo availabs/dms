@@ -36,9 +36,7 @@ export default function Overview ({
 
     const [editing, setEditing] = useState();
     const [showAllColumns, setShowAllColumns] = useState(false);
-    const views = source?.views || [];
-
-// console.log("Overview::views", views);
+    const views = parseIfJson(source?.views) || [];
 
     let columns = useMemo(() => {
         if (isDms) {
@@ -192,7 +190,7 @@ export default function Overview ({
                                     if (col === 'name') {
                                         return (
                                             <div {...rest}>
-                                                <Link to={`${pageBaseUrl}/${params.id}/version/${row?.view_id}`}>
+                                                <Link to={`${pageBaseUrl}/${params.id}/version/${isDms ? row?.id : row?.view_id}`}>
                                                     {value || 'No Name'}
                                                 </Link>
                                             </div>

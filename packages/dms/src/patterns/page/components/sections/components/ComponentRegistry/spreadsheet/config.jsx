@@ -95,7 +95,7 @@ export default {
     themeKey: 'table',
     defaultState: {
         filters: { op: 'AND', groups: [] },
-        display: { usePagination: true, pageSize: 5 },
+        display: { usePagination: true, pageSize: 5, hideExternalToggle: true },
         columns: [],
         data: [],
         externalSource: { columns: [] }
@@ -146,8 +146,13 @@ export default {
             { type: 'input', inputType: 'text', label: 'Navigate to', key: 'navigateUrlOnAdd',
                 displayCdn: ({ display }) => display.allowAdddNew && display.addNewBehaviour === 'navigate' },
             { type: 'toggle', label: 'Show Total', key: 'showTotal' },
-            { type: 'toggle', label: 'Prevent Duplicate Fetch', key: 'preventDuplicateFetch' },
-            { type: 'toggle', label: 'Always Fetch Data', key: 'readyToLoad' },
+            { type: 'select', label: 'Data Fetch Mode', key: 'fetchMode',
+                options: [
+                    { label: 'Cache (use preloaded data)', value: 'cache' },
+                    { label: 'Smart (fetch on change)',    value: 'smart' },
+                    { label: 'Force (always re-fetch)',    value: 'force' },
+                ]
+            },
         ],
         inHeader: [
             { type: 'input', inputType: 'text', label: 'Display Name', key: 'display_name', displayCdn: ({ attribute }) => attribute.origin === 'static' },
@@ -213,6 +218,7 @@ export default {
                     { label: 'Raw Value', value: 'rawValue' }
                 ]
             },
+            { type: 'toggle', label: 'Persist Search Params', key: 'persistSearchParams', displayCdn: ({ attribute, isEdit }) => isEdit && attribute.isLink },
         ]
     },
     componentFunctions,

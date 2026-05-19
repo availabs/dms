@@ -1,4 +1,10 @@
 const theme = {
+    emailTheme: {
+        primaryColor:    '#1e3a8a',  // blue-900 — titles, button text
+        accentColor:     '#dbeafe',  // blue-100 — header bg, button bg, card border
+        textColor:       '#374151',  // gray-700 — body copy
+        backgroundColor: '#f4f4f5', // page background
+    },
     authPages: {
         container: `bg-[linear-gradient(0deg,rgba(244,244,244,0.96),rgba(244,244,244,0.96))]  bg-[size:500px] pb-[4px]`,//`bg-gradient-to-b from-[#F4F4F4] to-[#F4F4F4] bg-[url('/themes/mny/topolines.png')] `,
         wrapper1: 'w-full h-full flex-1 flex flex-col ', // first div inside Layout

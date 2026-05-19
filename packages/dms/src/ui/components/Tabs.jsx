@@ -1,5 +1,4 @@
 import React from 'react'
-import { Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react'
 import {getComponentTheme, ThemeContext} from "../useTheme";
 
 const defaultTabs = [
@@ -14,33 +13,46 @@ const defaultTabs = [
 ]
 
 export default function Tabs ({tabs=defaultTabs, defaultIndex=0, selectedIndex, setSelectedIndex, activeStyle}) {
-  const [internalIndex, setInternalIndex] = React.useState(selectedIndex || defaultIndex)
+  const isControlled = selectedIndex !== undefined && typeof setSelectedIndex === 'function';
+  const [internalIndex, setInternalIndex] = React.useState(selectedIndex ?? defaultIndex);
+  React.useEffect(() => {
+    if (isControlled) setInternalIndex(selectedIndex);
+  }, [selectedIndex, isControlled]);
 
-  React.useEffect(() => setInternalIndex(selectedIndex),[selectedIndex])
+  const activeIndex = isControlled ? selectedIndex : internalIndex;
+  const onSelect = (i) => {
+    if (isControlled) setSelectedIndex(i);
+    else setInternalIndex(i);
+  };
 
-  const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {}
-  const theme = getComponentTheme(themeFromContext,'tabs', activeStyle)
+  const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
+  const theme = getComponentTheme(themeFromContext, 'tabs', activeStyle);
+
+  const ActivePanel = tabs[activeIndex]?.Component;
+  const activeTitle = tabs[activeIndex]?.title;
 
   return (
-    <TabGroup selectedIndex={internalIndex} onChange={setSelectedIndex || setInternalIndex} className={theme?.tabGroup}>
-      <TabPanels className={theme?.tabpanels}>
-        {tabs.map(({ name, title, Component }, i) => (
-          <TabPanel key={i} className={theme?.tabpanel}>
-              <div className={theme?.tabTitle}>{title}</div>
-              <Component />
-          </TabPanel>
-        ))}
-      </TabPanels>
-      <TabList className={theme?.tablist}>
+    <div className={theme?.tabGroup}>
+      <div className={theme?.tabpanels}>
+        <div className={theme?.tabpanel} role="tabpanel">
+          {activeTitle && <div className={theme?.tabTitle}>{activeTitle}</div>}
+          {ActivePanel ? <ActivePanel /> : null}
+        </div>
+      </div>
+      <div className={theme?.tablist} role="tablist">
         {tabs.map(({ name }, i) => (
-            <Tab
-                key={i}
-                className={theme?.tab}
-            >
-              {name}
-            </Tab>
+          <button
+            key={i}
+            type="button"
+            role="tab"
+            aria-selected={i === activeIndex}
+            className={theme?.tab}
+            onClick={() => onSelect(i)}
+          >
+            {name}
+          </button>
         ))}
-      </TabList>
-    </TabGroup>
-  )
+      </div>
+    </div>
+  );
 }

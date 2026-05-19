@@ -58,6 +58,8 @@ export const textSettingsTheme = {
     bodySmall: 'text-sm font-normal',
     caption: 'text-xs font-normal text-gray-500',
     label: 'text-sm font-medium',
+
+    button: '',
   }]
 };
 
@@ -72,7 +74,9 @@ export const textSettingsSettings = (theme) => {
       controls: [
         {
           label: 'Style',
-          type: 'Select',
+          type: 'MultiSelect',
+          singleSelectOnly: true,
+          searchable: false,
           options: (theme?.textSettings?.styles || [{}])
             .map((k, i) => ({ label: k?.name || i, value: i })),
           path: `textSettings.options.activeStyle`,

@@ -1,14 +1,13 @@
 import React, {useContext} from 'react'
 import { ThemeContext } from '../../../../../../../../../ui/useTheme'
 import { cloneDeep } from 'lodash-es'
-import { Dialog } from '@headlessui/react'
 import { SymbologiesList } from './SymbologiesList';
-import { Modal, INITIAL_NEW_MAP_MODAL_STATE } from '../../../../../../../../mapeditor/MapEditor/components/LayerManager/SymbologyControl';
+import { INITIAL_NEW_MAP_MODAL_STATE } from '../../../../../../../../mapeditor/MapEditor/components/LayerManager/SymbologyControl';
 import { MapContext } from '../../'
 
 export const SelectSymbology = ({ modalState, setModalState, tabIndex }) => {
   const { UI } = useContext(ThemeContext) || {};
-  const { Button } = UI;
+  const { Button, Modal } = UI;
   const { setState, doApiLoad } = useContext(MapContext);
 
   const [symbologies, setSymbologies] = React.useState([]);
@@ -65,12 +64,9 @@ export const SelectSymbology = ({ modalState, setModalState, tabIndex }) => {
             />
           </div>
           <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left w-full">
-            <Dialog.Title
-              as="h3"
-              className="text-base font-semibold leading-6 text-gray-900"
-            >
+            <h3 className="text-base font-semibold leading-6 text-gray-900">
               Select Symbology
-            </Dialog.Title>
+            </h3>
           </div>
         </div>
         <div className="mt-2 ">
