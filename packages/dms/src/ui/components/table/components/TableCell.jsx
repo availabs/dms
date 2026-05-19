@@ -64,10 +64,16 @@ const LinkComp = ({attribute, columns, newItem, removeItem, value}) => {
         let url;
         if (attribute.persistSearchParams && location) {
             const qIdx = location.indexOf('?');
-            const locationKey = qIdx !== -1 ? location.slice(qIdx + 1).split('=')[0] : null;
+            const basePath = qIdx !== -1 ? location.slice(0, qIdx) : location;
             const currentParams = new URLSearchParams(window.location.search);
-            if (locationKey && rawSearchParamValue !== null) currentParams.set(locationKey, rawSearchParamValue);
-            url = `${qIdx !== -1 ? location.slice(0, qIdx) : location}?${currentParams.toString()}`;
+            if (qIdx !== -1) {
+                new URLSearchParams(location.slice(qIdx + 1)).forEach((v, k) => currentParams.set(k, v));
+            }
+            if (rawSearchParamValue !== null) {
+                const locationKey = qIdx !== -1 ? location.slice(qIdx + 1).split('=')[0] : null;
+                if (locationKey) currentParams.set(locationKey, rawSearchParamValue);
+            }
+            url = `${basePath}?${currentParams.toString()}`;
         } else {
             url = `${location || valueFormattedForDisplay}${searchParams}`;
         }
