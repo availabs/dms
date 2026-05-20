@@ -45,12 +45,12 @@ export function LayerMenu({layer, button}) {
 
 export function LayerInfo({ layer, button, source, baseUrl }) {
   const { UI } = React.useContext(ThemeContext) || {};
-  const { Popup } = UI || {};
+  const { Popup, Button } = UI || {};
   return (
-    <Popup button={button}>
+    <Popup button={<Button type="plain" className="p-0">{button}</Button>}>
       <div className="w-64 rounded-md bg-white shadow-lg ring-1 ring-black/5 px-2 py-2 flex gap-2 flex-col">
-        <div><b>Source Name:</b> {source?.attributes?.name}</div>
-        <div><b>Source Id:</b> {source?.attributes?.source_id}</div>
+        <div><b>Source Name:</b> {source?.name}</div>
+        <div><b>Source Id:</b> {source?.source_id}</div>
       </div>
     </Popup>
   );

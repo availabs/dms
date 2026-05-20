@@ -297,7 +297,11 @@ btnVisibleOnGroupHover, defaultOpen, preferredPosition, activeStyle, preventClos
     if(!isEqual(configStateFlat, newConfigStateFlat)) setConfigStateFlat(newConfigStateFlat);
   }, [config]);
 
-  const popUpButton = children ? children : (
+  const popUpButton = children ? (
+    <Button type={'plain'} className={`${theme?.button} ${btnVisibleOnGroupHover ? theme?.buttonHidden : ''}`}>
+        {children}
+    </Button>
+  ) : (
     <Button type={'plain'} className={`${theme?.button} ${btnVisibleOnGroupHover ? theme?.buttonHidden : ''}`}>
       <Icon className={theme?.iconWrapper} icon={theme?.icon}/>
     </Button>
