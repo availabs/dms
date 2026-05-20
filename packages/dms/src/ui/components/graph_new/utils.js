@@ -24,21 +24,22 @@ import { format as d3format } from "d3-format";
 //     }
 // ;
 export const strictNaN = v => {
-    const NaNValues = ["", null]
+    const NaNValues = ["", null, []]
     if (NaNValues.includes(v)) return true;
     return isNaN(v);
 }
-export const useAxisTicks = (data, tickSpacing, key = "index") => {
-    return React.useMemo(() => {
-        const indexes = uniq(data.map(d => d[key]));
-        return indexes.reduce((a, c, i) => {
-            if ((i % tickSpacing) === 0) {
-                a.push(c);
-            }
-            return a;
-        }, [])
-    }, [data, tickSpacing])
-}
+
+// export const useAxisTicks = (data, tickSpacing, key = "index") => {
+//     return React.useMemo(() => {
+//         const indexes = uniq(data.map(d => d[key]));
+//         return indexes.reduce((a, c, i) => {
+//             if ((i % tickSpacing) === 0) {
+//                 a.push(c);
+//             }
+//             return a;
+//         }, [])
+//     }, [data, tickSpacing])
+// }
 
 // export const useGenericPlotOptions = props => {
 //     const {
@@ -93,21 +94,21 @@ export const useAxisTicks = (data, tickSpacing, key = "index") => {
 //     }, [margins, graphHeight, width, xAxis, yAxis, colors, legend]);
 // }
 
-export const useGenericTipOptions = props => {
-    const {
-        bgColor,
-        tooltip
-    } = props;
-    return React.useMemo(() => {
-        return !tooltip.show ? undefined :
-            {
-                fill: bgColor,
-                fontSize: tooltip.fontSize,
-                x: "index",
-                y: "value"
-            }
-    }, [bgColor, tooltip]);
-}
+// export const useGenericTipOptions = props => {
+//     const {
+//         bgColor,
+//         tooltip
+//     } = props;
+//     return React.useMemo(() => {
+//         return !tooltip.show ? undefined :
+//             {
+//                 fill: bgColor,
+//                 fontSize: tooltip.fontSize,
+//                 x: "index",
+//                 y: "value"
+//             }
+//     }, [bgColor, tooltip]);
+// }
 
 export const mapColors = {
     "seq1": {
@@ -334,8 +335,8 @@ export const mapColors = {
     },
     "schemeGroups": {
         "sequential": ["seq1", "seq2", "seq3", "seq4", "seq5", "seq6", "seq7", "seq8", "seq9", "seq10", "seq11", "seq12"],
-        "singlehue": [],
-        "diverging": ["div1", "div2", "div3", "div4", "div5", "div6", "div7"]
+        "diverging": ["div1", "div2", "div3", "div4", "div5", "div6"],
+        "categorical": ["div7"]
     }
 }
 

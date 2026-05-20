@@ -8,7 +8,7 @@ import ColumnManager from "./ColumnManager";
 import { getColumnLabel } from "./controls_utils";
 
 
-export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSource={}, dwAPI, pageDataSources={}, ...rest }) => {
+export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSource={}, dwAPI, mapAPI, pageDataSources={}, ...rest }) => {
     const { isEdit, value, attributes, i, showDeleteModal, listAllColumns, state: rawState, setSectionState } = sectionState
     const state = rawState || { columns: [], display: {}, externalSource: { columns: [] }, filters: { op: 'AND', groups: [] } }
     const { onEdit, moveItem, updateAttribute, updateElementType, onChange, onCancel, onSave, onAddHelpText, setKey, setState, setShowDeleteModal, setListAllColumns } = actions
@@ -21,6 +21,12 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
     const canEditPageLayout = isUserAuthed(['edit-page-layout'], pageAuthPermissions);
     const canEditSectionPermissions = isUserAuthed(['edit-section-permissions'], sectionAuthPermissions);
     const currentComponent = RegisteredComponents[value?.element?.['element-type'] || 'lexical'];
+    /** Use the map API only for the Map component; all other sections continue to use dwAPI. */
+    const componentAPI =
+    ['Map'].includes(currentComponent?.name) && mapAPI?.setState
+        ? mapAPI
+        : dwAPI;
+
     // Resolve controls - may be a function that receives theme, or a static object
     const resolvedControls = typeof currentComponent?.controls === 'function'
         ? currentComponent.controls(theme)
@@ -30,7 +36,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
     // ============================================ helpers begin ======================================================
     // =================================================================================================================
     const groupControl = resolvedControls?.columns?.find(c => c.key === 'group') || {};
-
+    
     // Registry of control type transformers - all use nested submenu pattern
     const controlItemTransformers = {
         select: (item, value) => ({
@@ -95,7 +101,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
         if (typeof item.type === 'function') {
             return {
                 id: item.key, icon: item.icon, name: item.label,
-                type: () => item.type({ value, setValue: v => dwAPI?.setDisplay?.(item.key, v, item.onChange), state: dwAPI?.state, setState: dwAPI?.setState, dwAPI })
+                type: () => item.type({ value, setValue: v => dwAPI?.setDisplay?.(item.key, v, item.onChange), state: componentAPI?.state, setState: componentAPI?.setState, dwAPI, mapAPI })
             };
         }
 
@@ -127,9 +133,13 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
     // =================================================================================================================
     const componentFunctions = currentComponent?.componentFunctions;
     const hasComponentFunctions = !!(componentFunctions?.providers?.length || componentFunctions?.subscribers?.length);
+    const setInteractionState = componentAPI?.setState;
 
     const updateFunctionEntry = (side, functionId, updater) => {
-        dwAPI.setState(draft => {
+        setInteractionState?.(draft => {
+            if (!draft.display) {
+                draft.display = {};
+            }
             if (!draft.display._functions) {
                 draft.display._functions = { providers: [], subscribers: [] };
             }
@@ -193,13 +203,39 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                         : [{ name: 'No columns available', type: 'label' }]
                 };
             }
-            if (arg.type === 'select') {
+            if (arg.type === 'input') {
                 return {
                     id: `fn_${side}_${fn.id}_arg_${arg.key}`,
                     name: arg.label,
-                    value: arg.options?.find(o => o.value === entry?.args?.[arg.key])?.label || '',
+                    value: entry?.args?.[arg.key] || '',
                     showValue: true,
-                    items: (arg.options || []).map(opt => ({
+                    items: [{
+                        id: `fn_${side}_${fn.id}_arg_${arg.key}_input`,
+                        name: arg.label,
+                        type: 'input',
+                        inputType: arg.inputType || 'text',
+                        value: entry?.args?.[arg.key] || '',
+                        onChange: (e) => updateFunctionEntry(side, fn.id, entry => {
+                            if (!entry.args) {
+                                entry.args = {};
+                            }
+                            entry.args[arg.key] = e?.target?.value ?? e;
+                        })
+                    }]
+                };
+            }
+            if (arg.type === 'select') {
+                const options = typeof arg.options === 'function'
+                    ? arg.options({ state: componentAPI?.state, dwAPI, mapAPI }) || []
+                    : arg.options?.stateKey
+                        ? arg.options.stateKey.split('.').reduce((acc, key) => acc?.[key], componentAPI?.state) || []
+                        : (arg.options || []);
+                return {
+                    id: `fn_${side}_${fn.id}_arg_${arg.key}`,
+                    name: arg.label,
+                    value: options.find(o => o.value === entry?.args?.[arg.key])?.label || '',
+                    showValue: true,
+                    items: options.map(opt => ({
                         id: `fn_${side}_${fn.id}_arg_${arg.key}_${opt.value}`,
                         icon: opt.value === entry?.args?.[arg.key] ? 'CircleCheck' : 'Blank',
                         name: opt.label,
@@ -728,7 +764,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                   if (!config?.items?.length) {
                       const rawType = config?.type;
                       const wrappedType = typeof rawType === 'function'
-                          ? () => rawType({ state: dwAPI?.state, setState: dwAPI?.setState, dwAPI })
+                          ? () => rawType({ state: componentAPI?.state, setState: componentAPI?.setState, dwAPI, mapAPI })
                           : rawType;
                       return { id: groupId, name: config?.name || controlGroup, items: [{name: 'component', type: wrappedType}] };
                   }

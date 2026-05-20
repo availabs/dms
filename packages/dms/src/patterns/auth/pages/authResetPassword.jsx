@@ -69,8 +69,14 @@ export default function AuthResetPassword (props) {
                 className={sectionGroupTheme.actionButton}
                 disabled={credentials.password !== credentials.verifyPassword}
                 onClick={async () => {
+                const emailTheme = {
+                    ...(theme?.auth?.emailTheme || {}),
+                    logoUrl:    theme?.logo?.img   || '',
+                    logoTitle:  theme?.logo?.title || PROJECT_NAME,
+                    siteOrigin: window.location.origin,
+                };
                 await callAuthServer(`${AUTH_HOST}/password/update`,
-                    {...credentials, token: user.token, project: PROJECT_NAME})
+                    {...credentials, token: user.token, project: PROJECT_NAME, emailTheme})
                     .then(res => {
                         if (res.error) {
                             setStatus(res.error)

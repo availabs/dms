@@ -58,6 +58,8 @@ export const textSettingsTheme = {
     bodySmall: 'text-sm font-normal',
     caption: 'text-xs font-normal text-gray-500',
     label: 'text-sm font-medium',
+
+    button: '',
   }]
 };
 

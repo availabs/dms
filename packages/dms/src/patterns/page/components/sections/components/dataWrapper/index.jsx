@@ -39,6 +39,11 @@ const getCurrDate = () => {
 
 const DOWNLOAD_CHUNK_SIZE = 5000;
 
+// Set-returning functions (e.g. jsonb_array_elements_text) expand each row into
+// N rows in the result — one per array element — causing row multiplication.
+// Filter these out of the download column list to avoid duplicates.
+const isDisaggregatingCol = c => typeof c.name === 'string' && c.name.includes('jsonb_array_elements_text');
+
 const triggerDownload = async ({state, apiLoad, loadAllColumns, setLoading}) => {
     setLoading(true);
     const tmpState = loadAllColumns ?
@@ -48,12 +53,16 @@ const triggerDownload = async ({state, apiLoad, loadAllColumns, setLoading}) => 
                 ...state?.columns,
                 ...state?.externalSource.columns.filter(originalColumn => !state?.columns.find(c => c.name === originalColumn.name))
             ]
+                .filter(c => !isDisaggregatingCol(c))
                 .map(c => ({...c, show: true}))
-        } : state;
+        } : {
+            ...state,
+            columns: state?.columns?.filter(c => !isDisaggregatingCol(c))
+        };
 
     const downloadState = {
         ...tmpState,
-        display: { ...tmpState.display, pageSize: DOWNLOAD_CHUNK_SIZE }
+        display: { ...tmpState.display, pageSize: DOWNLOAD_CHUNK_SIZE, showTotal: false }
     };
 
     let allData = [];
@@ -68,8 +77,9 @@ const triggerDownload = async ({state, apiLoad, loadAllColumns, setLoading}) => 
             currentPage: page,
         });
         if (totalLength === null) totalLength = length;
-        if (!data?.length) break;
-        allData = allData.concat(data);
+        const pageData = (data || []).filter(r => !r.totalRow);
+        if (!pageData.length) break;
+        allData = allData.concat(pageData);
         if (allData.length >= totalLength) break;
         page++;
     }
@@ -103,7 +113,7 @@ const RenderDownload = ({state, apiLoad, cms_context}) => {
 
     if(!state?.display?.allowDownload) return;
     return (
-        <div className={''}>
+        <div className={'pr-8'}>
             <div className={'relative flex flex-col print:hidden'}>
                 <div className={'w-fit p-2 border rounded-full '}>
                     <Icon id={menuBtnId}
@@ -157,8 +167,7 @@ const Edit = forwardRef((props, ref) => {
 
     // ── Hooks that operate on state ──
     const { loading, currentPage, onPageChange, outputSourceInfo } = useDataLoader({
-        state, setState, apiLoad, component,
-        readyToLoad: isValidState,
+        state, setState, apiLoad, component, isEditMode: true,
     });
 
     useEffect(() => {
@@ -225,6 +234,9 @@ const Edit = forwardRef((props, ref) => {
         RUNTIME_DISPLAY_FIELDS.forEach(f => delete toSave.display[f]);
         const serialized = JSON.stringify(toSave);
         if (isEqual(value, serialized)) return;
+
+        // if (serialized === prevSerializedRef.current) return;
+        // prevSerializedRef.current = serialized;
         onChange(serialized);
     }, [state])
 
@@ -234,6 +246,7 @@ const Edit = forwardRef((props, ref) => {
 
     const editStateRef = useRef(state);
     editStateRef.current = state;
+    // const prevSerializedRef = useRef(null);
 
     const handle = useMemo(() => ({
         dwAPI, dataSource: dataSourceInfo,
@@ -395,7 +408,6 @@ const View = forwardRef(({cms_context, value, onChange, component, editPageMode,
     // ── Hooks ──
     const { loading, currentPage, onPageChange, outputSourceInfo } = useDataLoader({
         state, setState, apiLoad, component,
-        readyToLoad: isValidState && (state?.display?.readyToLoad || state?.display?.allowEditInView),
     });
 
     useEffect(() => {

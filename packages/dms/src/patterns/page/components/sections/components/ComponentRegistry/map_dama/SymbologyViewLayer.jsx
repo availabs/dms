@@ -255,13 +255,14 @@ const ViewLayerRender = ({
                   parseMapDataFunction = "to-number"
                   mapFilter = [
                     "all",
-                    [">=", ["to-string", filterColumnClause], ["to-string", filterValue?.[0]]],
-                    ["<=", ["to-string", filterColumnClause], ["to-string", filterValue?.[1]]],
+                    [">=", [parseMapDataFunction, filterColumnClause], [parseMapDataFunction, filterValue?.[0]]],
+                    ["<=", [parseMapDataFunction, filterColumnClause], [parseMapDataFunction, filterValue?.[1]]],
                   ];
                 }
                 else {
-                  //attempt to parseFloat the value from the user. If NaN, we are comparing strings
-                  if(isNaN(parseFloat(filterValue))){
+                  //determine if this is number or non-number
+                  const numRegex = /^-?\d+(\.\d+)?$/;
+                  if(!numRegex.test(filterValue)){
                     parseMapDataFunction = "to-string"
                   } else {
                     parseMapDataFunction = "to-number"
@@ -306,8 +307,9 @@ const ViewLayerRender = ({
               let parsedFilterValues; 
 
               let parseMapDataFunction = '';
-              //Determine if this is a numeric or string field
-              if(isNaN(parseFloat(filterValue))){
+              //determine if this is number or non-number
+              const numRegex = /^-?\d+(\.\d+)?$/;
+              if(!numRegex.test(filterValue)){
                 parseMapDataFunction = "to-string"
                 parsedFilterValues = dFilter.values.map(val => val.toString());
               } else {

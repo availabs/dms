@@ -6,6 +6,7 @@ import { groups as d3groups } from "d3-array"
 
 import { strictNaN } from "../utils"
 import { getAggFunc } from "./utils"
+import { getColorRange } from "../colorSchemeUnifier"
 
 const LineGraphWrapper = props => {
 
@@ -93,6 +94,18 @@ const LineGraphWrapper = props => {
 		return data;
 	}, [props.viewData, props.columns]);
 
+  const colors = React.useMemo(() => {
+    let colors = [];
+
+    if (props.colors?.type === "palette") {
+      colors = props.colors?.value || [];
+    }
+    else if (props.colors?.type === "scheme") {
+      colors = getColorRange(props.colors.scheme, dataFromProps?.length);
+    }
+    return props.colors?.reverse ? colors.reverse() : colors;
+  }, [props.colors, dataFromProps?.length]);
+
 // console.log("LineGraphWrapper::dataFromProps", dataFromProps);
 
 	const axisBottom = React.useMemo(() => {
@@ -109,10 +122,10 @@ const LineGraphWrapper = props => {
     return {
       ...props.legend,
       type: "categorical",
-      colors: props.colors,
+      colors: colors,
       categories: dataFromProps.map(l => l.id)
     };
-  }, [props.legend, props.colors, dataFromProps]);
+  }, [props.legend, colors, dataFromProps]);
 
 // console.log("LineGraphWrapper::legend", legend);
 
@@ -130,6 +143,7 @@ const LineGraphWrapper = props => {
       >
 				<LineGraph { ...props }
 					data={ dataFromProps }
+					colors={ colors }
 					axisBottom={ axisBottom }
 					axisLeft={ axisLeft }
 					axisRight={ axisLeft }/>
