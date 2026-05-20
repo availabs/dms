@@ -111,7 +111,12 @@ for (const k in availColorRanges) {
 	}
 }
 
-export const getColorRange = (scheme, length, reverse = false) => {
+const DefaultOptions = {
+	reverse: false,
+	prefer: "quantitative"
+}
+
+export const getColorRange = (scheme, length, options = DefaultOptions) => {
 
 	if (strictNaN(length)) {
 		const temp = scheme;
@@ -119,12 +124,24 @@ export const getColorRange = (scheme, length, reverse = false) => {
 		length = temp;
 	}
 
+	if (typeof options === "boolean") {
+		const reverse = options;
+		options = {
+			...DefaultOptions,
+			reverse
+		}
+	}
+
+	const { reverse, prefer } = options;
+
+console.log("colorSchemeUnifier::getColorRange::options", options);
+
 	let range = [];
 
 	if (scheme in availColorRanges) {
 		range = get(availColorRanges, [scheme, length], []);
 	}
-	else if (quantitativeSchemes.has(scheme)) {
+	else if (quantitativeSchemes.has(scheme) && (prefer === "quantitative")) {
 		range = quantitativeRange(scheme, length);
 	}
 	else if (ordinalSchemes.has(scheme)) {

@@ -217,23 +217,6 @@ export default {
                 {type: 'toggle',                     label: 'Show Y Axis',     key: 'yAxis.show' },
             ]
         },
-        margin: {
-            name: "Margins",
-            items: [
-                { type: "input", inputType: "number",
-                    label: "Margin Top", key: "margin.top"
-                },
-                { type: "input", inputType: "number",
-                    label: "Margin Right", key: "margin.right"
-                },
-                { type: "input", inputType: "number",
-                    label: "Margin Bottom", key: "margin.bottom"
-                },
-                { type: "input", inputType: "number",
-                    label: "Margin Left", key: "margin.left"
-                }
-            ]
-        },
         colors: {
             name: "Colors",
             items: [
@@ -308,8 +291,25 @@ export default {
                 }
             ]
         },
+        margin: {
+            name: "Margins",
+            items: [
+                { type: "input", inputType: "number",
+                    label: "Margin Top", key: "margin.top"
+                },
+                { type: "input", inputType: "number",
+                    label: "Margin Right", key: "margin.right"
+                },
+                { type: "input", inputType: "number",
+                    label: "Margin Bottom", key: "margin.bottom"
+                },
+                { type: "input", inputType: "number",
+                    label: "Margin Left", key: "margin.left"
+                }
+            ]
+        },
         layout: {
-            name: 'Layout',
+            name: 'BarGraph Layout',
             displayCdn: ({display}) => display.graphType === 'BarGraph',
             items: [
                 {type: 'select', label: 'Orientation', key: 'orientation', onClickGoBack: true,
