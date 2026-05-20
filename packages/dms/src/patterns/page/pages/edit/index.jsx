@@ -1,5 +1,5 @@
 import React, {useEffect} from 'react';
-import { Link, useNavigate, useLocation, useSearchParams} from "react-router";
+import { Link, Navigate, useNavigate, useLocation, useSearchParams} from "react-router";
 import {cloneDeep} from "lodash-es";
 import {useImmer} from "use-immer";
 import { ThemeContext, mergeTheme } from "../../../../ui/useTheme";
@@ -197,6 +197,9 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
 
     const pageAuthPermissions = getPageAuthPermissions(pageState?.authPermissions);
 	if( !isUserAuthed(reqPermissions) || !isUserAuthed(reqPermissions, pageAuthPermissions) ){
+		if (user?.authed) {
+			return <Navigate to={`${baseUrl}/${item.url_slug}${search}`} />;
+		}
 		return <div>You do not have permission to view this page. <Link to={baseUrl}>Click here to visit Home</Link></div>
 	}
 

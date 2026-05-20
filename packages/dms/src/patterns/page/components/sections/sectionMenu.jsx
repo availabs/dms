@@ -12,14 +12,14 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
     const { isEdit, value, attributes, i, showDeleteModal, listAllColumns, state: rawState, setSectionState } = sectionState
     const state = rawState || { columns: [], display: {}, externalSource: { columns: [] }, filters: { op: 'AND', groups: [] } }
     const { onEdit, moveItem, updateAttribute, updateElementType, onChange, onCancel, onSave, onAddHelpText, setKey, setState, setShowDeleteModal, setListAllColumns } = actions
-    const { user, isUserAuthed, pageAuthPermissions, sectionAuthPermissions, Permissions, AuthAPI } = auth
+    const { user, isUserAuthed, pageAuthPermissions, sectionAuthPermissions, canEditPageContent, Permissions, AuthAPI } = auth
     const { Switch, Pill, Icon, TitleEditComp, LevelComp, refreshDataBtnRef, isRefreshingData, setIsRefreshingData, theme, RegisteredComponents = {} } = ui
     const { activeSource, activeView, sources=[], views=[], onSourceChange, onViewChange, onJoinChange, activeJoinViewsByAlias={}, isJoinPresent } = dataSource;
 
     const sectionLink = window ? `${window.location.origin}${window.location.pathname}#${value.id}` : '';
-    const canEditSection = isUserAuthed(['edit-section'], sectionAuthPermissions);
-    const canEditPageLayout = isUserAuthed(['edit-page-layout'], pageAuthPermissions);
-    const canEditSectionPermissions = isUserAuthed(['edit-section-permissions'], sectionAuthPermissions);
+    const canEditSection = isUserAuthed(['edit', 'edit-section'], sectionAuthPermissions);
+    const canEditPageLayout = isUserAuthed(['edit-page', 'edit-page-layout'], pageAuthPermissions);
+    const canEditSectionPermissions = isUserAuthed(['edit-page-permissions'], pageAuthPermissions);
     const currentComponent = RegisteredComponents[value?.element?.['element-type'] || 'lexical'];
     /** Use the map API only for the Map component; all other sections continue to use dwAPI. */
     const componentAPI =
@@ -308,7 +308,8 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                                       }, 2000);
                                   }}/>
 
-                            {canEditSection ? <Pill color={copied === 'section' ? 'green' : 'blue'} text={<Icon icon={'Copy'} className={'size-5'}/>}
+                            {(canEditSection || canEditPageContent) ?
+                                <Pill color={copied === 'section' ? 'green' : 'blue'} text={<Icon icon={'Copy'} className={'size-5'}/>}
                                                     title={'Copy Section'}
                                                     onClick={(e) => {
                                                         handleCopy(value)
@@ -320,11 +321,11 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                             {isEdit && canEditSection ? <Pill color={'blue'} text={<Icon icon={'Paste'} className={'size-5'}/>} title={'Paste Section'}
                                                               onClick={e => handlePaste(e, setKey, setSectionState, value, onChange)}/> : null}
 
-                            {!isEdit && canEditPageLayout ?
+                            {!isEdit && canEditPageLayout && canEditSection ?
                                 <Pill color={'blue'} text={<Icon icon={'ChevronUpSquare'} className={'size-5'} />} title={'Move Up'}
                                       onClick={() => moveItem(i, -1)} />  : null}
 
-                            {!isEdit && canEditPageLayout ?
+                            {!isEdit && canEditPageLayout && canEditSection ?
                                 <Pill color={'blue'} text={<Icon icon={'ChevronDownSquare'} className={'size-5'} />} title={'Move Down'}
                                       onClick={() => moveItem(i, 1)} /> : null}
                             {!isEdit && canEditSection ? <Pill color={'blue'} text={<Icon icon={'Refresh'} className={'size-5'} />} title={'Refresh Data'} onClick={() => refreshDataBtnRef.current?.refresh({isRefreshingData, setIsRefreshingData})} /> : null}
@@ -991,7 +992,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                 },
                 {type: 'separator'},
                 {
-                    icon: 'AccessControl', name: 'Permissions', cdn: () => canEditSectionPermissions,
+                    icon: 'AccessControl', name: 'Permissions', cdn: () => canEditSectionPermissions && canEditSection,
                     items: [
                         {
                             name: 'Permissions Comp',

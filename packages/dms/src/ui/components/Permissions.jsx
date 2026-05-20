@@ -1,5 +1,5 @@
 import React, {useContext, useEffect, useState} from "react";
-import {ThemeContext} from "../../../ui/useTheme";
+import {ThemeContext} from "../useTheme";
 import {cloneDeep} from "lodash-es";
 
 const parseIfJSON = strValue => {

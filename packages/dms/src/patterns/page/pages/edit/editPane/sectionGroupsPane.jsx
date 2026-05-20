@@ -308,7 +308,7 @@ export default function SectionGroupsPane() {
       },
     });
   };
-
+  if (!item.id) return <div>Please create a page to manage section groups.</div>
   return (
     <div className="relative mt-2 flex-0 w-full h-full">
       <DraggableMenu
