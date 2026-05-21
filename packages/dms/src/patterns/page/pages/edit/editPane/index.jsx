@@ -31,7 +31,8 @@ const panes = [
       {
         icon: 'Pages',
           title: 'Pages',
-        Component: PagesPane
+        Component: PagesPane,
+          reqPermissions: ['create-page']
       },
       {
         icon: 'History',
@@ -54,7 +55,7 @@ export function EditPane () {
     const hasChanges = item.published === 'draft' || item.has_changes
 
     const { isUserAuthed } = React.useContext(CMSContext) || {};
-    const reqPermissions = ['edit-page', 'edit-page-params', 'edit-page-permissions']
+    const reqPermissions = ['edit-page', 'edit-page-permissions']
     const pageAuthPermissions = getPageAuthPermissions(pageState?.authPermissions);
     const userHasEditPageAccess = isUserAuthed(reqPermissions, pageAuthPermissions)
 

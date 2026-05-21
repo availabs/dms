@@ -106,6 +106,7 @@
 
 ### patterns/page
 
+- [x] [Permissions refinement](./tasks/completed/permissions-refinement.md) — consolidate `edit-page-layout`/`edit-page-params` into `edit-page`, remove `edit-section-permissions`, rename section `edit-section`→`edit`, gate Pages pane on `create-page`, show copy/link to anyone with `edit-page`, move/permissions require section `edit`, `PublishButton` respects page-level override, redirect logged-in non-editors to view page
 - [x] Fix nav2Level baseUrl bug and move to page pattern
 - [x] Move lexical component inline controls (style, bgColor, showToolbar) to control config
 - [x] Theme-based component registration (allow themes to declare `pageComponents` that auto-register to page pattern)

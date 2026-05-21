@@ -5,7 +5,6 @@ import { AuthContext } from "../../../../auth/context";
 import { AdminContext } from "../../../context";
 import { parseIfJSON } from "../../../../page/pages/_utils";
 import { ThemeContext } from "../../../../../ui/useTheme";
-import Permissions from "../../../components/Permissions";
 
 const DEFAULT_PERMISSIONS = { groups: { public: ['view-page'] }, users: {} };
 
@@ -31,7 +30,7 @@ export const PatternPermissionsEditor = ({
     const { AuthAPI } = React.useContext(AuthContext) || {};
     const { UI } = React.useContext(ThemeContext);
     const { user, apiUpdate } = React.useContext(AdminContext) || {};
-    const { FieldSet } = UI;
+    const { FieldSet, Permissions } = UI;
     const permissionDomain = attributes?.authPermissions?.permissionDomain;
 
     const inputValue = cloneDeep(parseIfJSON(value));
