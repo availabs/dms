@@ -113,6 +113,79 @@ function handleFiltersCH({
   return clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
 }
 
+function handleFilterGroupsCH(node, hasExistingFilters = false) {
+  if (!node || !node.groups?.length) return '';
+
+  const escapeValue = (v) =>
+    typeof v === 'string' ? `'${v.replace(/'/g, "''")}'` : v;
+
+  const buildLeafSQL = (node) => {
+    const { col, op, value } = node;
+    if (value == null) return '';
+
+    const vals = Array.isArray(value) ? value : [value];
+    
+    // Simple helpers for leaf ops
+    const toCondition = (v) => {
+      if (v === 'null') return `${col} IS NULL`;
+      if (v === 'not null') return `${col} IS NOT NULL`;
+      return `${col} = ${escapeValue(v)}`;
+    };
+
+    switch (op) {
+      case 'filter': {
+        const nulls = vals.filter(v => v === 'null' || v === 'not null');
+        const reals = vals.filter(v => v !== 'null' && v !== 'not null');
+        const conds = [];
+        if (reals.length === 1) conds.push(`${col} = ${escapeValue(reals[0])}`);
+        else if (reals.length > 1) conds.push(`${col} IN (${reals.map(escapeValue).join(', ')})`);
+        conds.push(...nulls.map(toCondition));
+        return conds.length > 1 ? `(${conds.join(' OR ')})` : (conds[0] || '');
+      }
+      case 'exclude': {
+        const nulls = vals.filter(v => v === 'null' || v === 'not null');
+        const reals = vals.filter(v => v !== 'null' && v !== 'not null');
+        const conds = [];
+        if (reals.length === 1) conds.push(`${col} != ${escapeValue(reals[0])}`);
+        else if (reals.length > 1) conds.push(`${col} NOT IN (${reals.map(escapeValue).join(', ')})`);
+        const toNotCondition = (v) => {
+          if (v === 'null') return `${col} IS NOT NULL`;
+          if (v === 'not null') return `${col} IS NULL`;
+          return `${col} != ${escapeValue(v)}`;
+        };
+        conds.push(...nulls.map(toNotCondition));
+        return conds.length > 1 ? `(${conds.join(' AND ')})` : (conds[0] || '');
+      }
+      case 'gt': return `${col} > ${escapeValue(value)}`;
+      case 'gte': return `${col} >= ${escapeValue(value)}`;
+      case 'lt': return `${col} < ${escapeValue(value)}`;
+      case 'lte': return `${col} <= ${escapeValue(value)}`;
+      case 'like': {
+        const likeStr = Array.isArray(value)
+          ? value.map((v) => `${col} LIKE '%${v}%'`).join(' OR ')
+          : `${col} LIKE '%${value}%'`;
+        return `(${likeStr})`;
+      }
+      case 'array_contains':
+        return `has(${col}, ${escapeValue(value)})`;
+      case 'array_not_contains':
+        return `NOT has(${col}, ${escapeValue(value)})`;
+      default: return '';
+    }
+  };
+
+  const buildGroupSQL = (node) => {
+    const clauses = node.groups
+      .map(child => child.groups ? buildGroupSQL(child) : buildLeafSQL(child))
+      .filter(Boolean);
+    return clauses.length ? `(${clauses.join(` ${node.op.toUpperCase()} `)})` : '';
+  };
+
+  const sql = buildGroupSQL(node);
+  if (!sql) return '';
+  return hasExistingFilters ? `AND ${sql}` : `WHERE ${sql}`;
+}
+
 /**
  * Extract non-null, non-sentinel values from condition objects for use as
  * ClickHouse named query parameters. Currently unused by handleFiltersCH
@@ -167,6 +240,7 @@ function handleOrderByCH(orders) {
 
 module.exports = {
   handleFiltersCH,
+  handleFilterGroupsCH,
   getClickhouseQueryParams,
   handleGroupByCH,
   handleHavingCH,
