@@ -10,6 +10,8 @@
  */
 
 const { sanitizeName } = require('../utils');
+const { extractTimeFilterValues, buildTimeFilterCH } = require('../time-filter.js');
+
 
 /**
  * Build a ClickHouse-safe WHERE clause from simple filter/exclude/gt/.../like
@@ -123,6 +125,10 @@ function handleFilterGroupsCH(node, hasExistingFilters = false) {
     const { col, op, value } = node;
     if (value == null) return '';
 
+    if (op === 'time') {
+      return buildTimeFilterCH(value, col, false);
+    }
+
     const vals = Array.isArray(value) ? value : [value];
     
     // Simple helpers for leaf ops
@@ -166,6 +172,8 @@ function handleFilterGroupsCH(node, hasExistingFilters = false) {
           : `${col} LIKE '%${value}%'`;
         return `(${likeStr})`;
       }
+      case 'time':
+        return buildTimeFilterCH(value, col, false);
       case 'array_contains':
         return `has(${col}, ${escapeValue(value)})`;
       case 'array_not_contains':

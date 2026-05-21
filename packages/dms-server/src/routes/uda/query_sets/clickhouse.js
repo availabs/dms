@@ -22,6 +22,15 @@ const {
   handleOrderByCH,
 } = require('./helpers');
 
+function buildCombinedWhereCH({ filter, exclude, gt, gte, lt, lte, like, filterGroups }) {
+  const filterClause = handleFiltersCH({ filter, exclude, gt, gte, lt, lte, like });
+  const hasExisting = !!filterClause;
+  const filterGroupsClause = handleFilterGroupsCH(filterGroups, hasExisting);
+
+  if (!filterClause && !filterGroupsClause) return '';
+  return `${filterClause} ${filterGroupsClause}`.trim();
+}
+
 async function simpleFilterLength(ctx, options) {
   const { db, table_schema, table_name } = ctx;
   const {
@@ -44,14 +53,14 @@ async function simpleFilterLength(ctx, options) {
     ? `count(DISTINCT concat(${sanitizedGroupBy.map((c) => `toString(${c})`).join(", '-' ,")}))`
     : `count(*)`;
 
-  const filterClause = handleFiltersCH({ filter, exclude, gt, gte, lt, lte, like });
-  const filterGroupsClause = handleFilterGroupsCH(filterGroups, !!filterClause);
+  const combinedWhere = buildCombinedWhereCH({
+    filter, exclude, gt, gte, lt, lte, like, filterGroups,
+  });
 
   const sql = `
     SELECT ${countExpr} AS numRows
     FROM ${table_schema}.${table_name}
-    ${filterClause}
-    ${filterGroupsClause}
+    ${combinedWhere}
     ${handleHavingCH(having)}
   `;
 
@@ -103,14 +112,14 @@ async function simpleFilter(ctx, options, attributes, indices) {
     });
   }
 
-  const filterClause = handleFiltersCH({ filter, exclude, gt, gte, lt, lte, like });
-  const filterGroupsClause = handleFilterGroupsCH(filterGroups, !!filterClause);
+  const combinedWhere = buildCombinedWhereCH({
+    filter, exclude, gt, gte, lt, lte, like, filterGroups,
+  });
 
   const sql = `
     SELECT ${sanitizedAttrs.map((c) => columnNameMap[c] || c).join(', ')}
     FROM ${table_schema}.${table_name}
-    ${filterClause}
-    ${filterGroupsClause}
+    ${combinedWhere}
     ${handleGroupByCH(groupBy)}
     ${handleHavingCH(having)}
     ${handleOrderByCH(orderBy)}
