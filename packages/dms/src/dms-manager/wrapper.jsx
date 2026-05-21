@@ -18,7 +18,8 @@ export default function EditWrapper({ Component, format, options, params, user, 
 	const { pathname, search, hash } = useLocation();
 	const navigate = useNavigate();
 	const { revalidate } = useRevalidator();
-	const { data=[] } = useLoaderData() || {};
+	const loaderResult = useLoaderData();
+	const { data=[] } = loaderResult || {};
 	const [ busy, setBusy ] = React.useState({updating: 0, loading: 0})
 	let status = useActionData()
 	const {defaultSort = (d) => d } = format
@@ -133,9 +134,7 @@ export default function EditWrapper({ Component, format, options, params, user, 
 	}
 
 	const EditComponent = React.useMemo(() => Component, [])
-	//console.log('edit wrapper render', data, item)
-
-	return React.useMemo(() => (
+	const rendered = React.useMemo(() => (
 		<EditComponent
 			{...props}
 			format={format}
@@ -158,4 +157,7 @@ export default function EditWrapper({ Component, format, options, params, user, 
 
 		/>
 	),[data,item])
+
+	if (!loaderResult) return null;
+	return rendered;
 }

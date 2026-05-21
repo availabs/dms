@@ -158,6 +158,7 @@
 - [x] Add delete & duplicate buttons to admin pattern overview — port actions from old `PatternEdit` modal to pattern editor Overview tab + list table
 - [ ] Pattern creation refresh bug — new pattern row appears with blank data, requires page refresh; `dmsDataEditor` mutates input data (replaces dms-format attrs with refs), revalidation doesn't restore correct data
 - [x] [Pattern-configurable HTML page title](./tasks/completed/pattern-html-title.md) — add `html_title` attribute to pattern format, edit field in Overview pane of pattern editor, set `document.title` while pattern's routes are active; fall back to pattern `name` when unset
+- [x] [Admin site-edit auth + separate create route](./tasks/completed/admin-site-edit-auth.md) — split editSite into protected edit route (admin group only) + public create route; in-component auth guard handles no-site bootstrap case; auto-login after site creation; auth pattern permissions control who else can access the list page
 
 ### patterns/auth
 
