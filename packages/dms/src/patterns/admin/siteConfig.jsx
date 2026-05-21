@@ -14,6 +14,7 @@ import DefaultMenu from "./components/menu";
 import adminFormat, { pattern, themeFormat } from "./admin.format.js";
 
 import SiteEdit from "./pages/editSite";
+import NewSite from "./pages/createSite";
 import ThemeList from "./pages/themes/list";
 import ThemeEdit from "./pages/themes/editTheme";
 import PatternEditor from "./pages/patternEditor";
@@ -46,6 +47,7 @@ const adminConfig = ({
   dmsEnvs = [],
   dmsEnvById = {},
   pattern: patternData,
+  authPermissions = {},
 }) => {
   const format = cloneDeep(adminFormat);
   format.app = app;
@@ -96,6 +98,7 @@ const adminConfig = ({
                 UI,
                 dmsEnvs,
                 dmsEnvById,
+                authPermissions,
               }}
             >
               <ThemeContext.Provider value={{ theme, themes, UI }}>
@@ -117,6 +120,14 @@ const adminConfig = ({
             ),
             path: "",
             action: "edit",
+          },
+          {
+            type: (props) => (
+              <SectionGroup>
+                <NewSite {...props} />
+              </SectionGroup>
+            ),
+            path: "create",
           },
           {
             type: (props) => (

@@ -1,20 +1,18 @@
 import React from 'react'
 import {AdminContext} from "../context";
-// import { Link, useLocation } from 'react-router'
 import { useFalcor } from "@availabs/avl-falcor";
-import { useNavigate, useLocation } from "react-router";
+import { useNavigate } from "react-router";
 import { AuthContext } from '../../auth/context';
 import { ThemeContext } from '../../../ui/useTheme';
 import { getInstance } from '../../../utils/type-utils';
 
 
-export default function NewSite ({app, apiUpdate}) {
+export default function NewSite ({ apiUpdate }) {
 	const { UI } = React.useContext(ThemeContext);
-	const { AuthAPI, PROJECT_NAME } = React.useContext(AuthContext)
-	const { type: siteType } = React.useContext(AdminContext) || {};
+	const { AuthAPI, PROJECT_NAME, setUser } = React.useContext(AuthContext)
+	const { type: siteType, app, baseUrl } = React.useContext(AdminContext) || {};
 	const { falcor } = useFalcor();
 	const navigate = useNavigate();
-	const { pathname, search } = useLocation();
 	const {Input, Button} = UI;
 	const [newUser, setNewUser] = React.useState({email: '', password: '', verify: ''});
 	const [status, setStatus] = React.useState('');
@@ -45,7 +43,7 @@ export default function NewSite ({app, apiUpdate}) {
 					pattern_type: 'auth',
 					name: 'Auth',
 					base_url: 'auth',
-					authPermissions: JSON.stringify({[`${PROJECT_NAME} Admin`]: ['*']}),
+					authPermissions: JSON.stringify({ groups: { [`${PROJECT_NAME} Admin`]: ['*'], public: [] }, users: {} }),
 				};
 				const patternRes = await falcor.call(
 					["dms", "data", "create"],
@@ -61,7 +59,18 @@ export default function NewSite ({app, apiUpdate}) {
 					}]);
 				}
 
-				navigate(`${pathname}${search}`);
+				// 4. Auto-login so the user lands directly on the admin edit page
+				const loginRes = await AuthAPI.callAuthServer(`/login`, {
+					email: newUser.email,
+					password: newUser.password,
+					project: PROJECT_NAME,
+				});
+				if (loginRes?.user?.token) {
+					window.localStorage.setItem('userToken', loginRes.user.token);
+					setUser({ ...loginRes.user, groups: [...(loginRes.user.groups || []), 'public'], authed: true, isAuthenticating: false });
+				}
+
+				navigate(baseUrl || '/');
 			} catch (error) {
 				console.error('Error creating site:', error);
 				setStatus('Error creating site');
