@@ -238,6 +238,42 @@ export const getData = async ({
         ? length
         : Math.min(length, currentPage * state.display.pageSize + state.display.pageSize) - 1;
     if (fromIndex >= length) {
+        // Empty-result fallback. Opt-in via `display.useBlankRowFallback`.
+        // When the real query returned 0 rows AND the section has opted in,
+        // synthesize a single placeholder row keyed by the same
+        // `column.normalName || column.name` shape getData uses for real
+        // rows (so Card.jsx's `source[attr.normalName] || source[attr.name]`
+        // lookup finds the values without renderer changes). Each cell is
+        // populated from `column.blankDefault`, an arbitrary scalar matching
+        // the column type's value shape (string for text/calc-text, hue for
+        // portrait_banner, URL for image, etc.). Calc columns store their
+        // literal final value here — no SQL re-evaluation in fallback mode.
+        //
+        // Tagged with `_isBlankFallback: true` (underscore-prefixed so it
+        // can't collide with a column whose `name` is `isBlankFallback`) so
+        // renderers can opt into differentiated styling. Default renderers
+        // ignore it and render exactly as they do for a real row with
+        // possibly-empty cells. `length` becomes 1 — every consumer of
+        // dataWrapper already handles "render N rows," nothing else changes
+        // shape.
+        //
+        // This branch sits in the `fromIndex >= length` guard rather than
+        // at the function tail because when `length === 0` we exit here
+        // (fromIndex 0 >= length 0 is true) — a tail-positioned synthesis
+        // would never run for the case it exists to handle.
+        //
+        // BC: gated on `display.useBlankRowFallback`; sections that haven't
+        // opted in fall through to `{ length: 0, data: [] }` exactly as
+        // before.
+        if (length === 0 && state.display?.useBlankRowFallback) {
+            const blankRow = { _isBlankFallback: true };
+            for (const column of state.columns || []) {
+                if (column.show === false) continue;
+                const key = column.normalName || column.name;
+                blankRow[key] = column.blankDefault ?? null;
+            }
+            return { length: 1, data: [blankRow], outputSourceInfo };
+        }
         return { length, data: [] };
     }
     debugTime && console.timeEnd('check indices')
@@ -410,37 +446,6 @@ export const getData = async ({
 
         return newD;
     }) : dataToReturn;
-
-    // Empty-result fallback. Opt-in via `display.useBlankRowFallback`.
-    // When the real query returned 0 rows AND the section has opted in,
-    // synthesize a single placeholder row keyed by the same
-    // `column.normalName || column.name` shape used for real rows above
-    // (so Card.jsx's `source[attr.normalName] || source[attr.name]` lookup
-    // chain finds the values without renderer changes). Each cell is
-    // populated from `column.blankDefault`, an arbitrary scalar matching
-    // the column type's value shape (string for text/calc-text, hue for
-    // portrait_banner, URL for image, etc.). Calc columns store their
-    // literal final value here — no SQL re-evaluation in fallback mode.
-    //
-    // The row is tagged with `_isBlankFallback: true` (underscore-prefixed
-    // so it can't collide with a column whose `name` is `isBlankFallback`)
-    // so renderers can opt into differentiated styling. Default renderers
-    // ignore it and render exactly as they do for a real row with possibly-
-    // empty cells. `length` becomes 1 — every consumer of dataWrapper
-    // already handles "render N rows," nothing else changes shape.
-    //
-    // BC: the entire branch is gated on `display.useBlankRowFallback`;
-    // sections that haven't opted in see `length: 0, data: []` exactly as
-    // before.
-    if (length === 0 && state.display?.useBlankRowFallback) {
-        const blankRow = { _isBlankFallback: true };
-        for (const column of state.columns || []) {
-            if (column.show === false) continue;
-            const key = column.normalName || column.name;
-            blankRow[key] = column.blankDefault ?? null;
-        }
-        return { length: 1, data: [blankRow], outputSourceInfo };
-    }
 
     return { length, data: formattedData, outputSourceInfo };
 };

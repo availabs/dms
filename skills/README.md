@@ -17,6 +17,7 @@ Skills sit alongside `planning/` (work tracking) and `documentation/` (reference
 ### Recipes — configured sections (no new component needed)
 
 - [Currently-active row card (WCDB schedule "Now Airing")](./now-airing-card.md) — render the row whose `[start_at, end_at]` interval contains `now()`. Per-pattern data shape with day-of-week + time-of-day columns, calc-column projection to absolute timestamptz, `op:'time'` `kind:'instant'` filter with `compareEnd`. The pattern works for any "currently happening" feed (event calendars, live indicators, on-call rotations).
+- [Uploading a song file and adding an Audio Player section](./uploading-a-song-and-audio-player.md) — end-to-end: `POST /dms-admin/:app/file_upload` to append a new view (file_upload source), then `dms section create` an `Audio Player` section bound to the returned `dl_url`. Covers resolving `owner_id`/`owner_instance` from the dmsEnv, the section's stringified-JSON `element-data` shape `{title, audioUrl}`, and the section_group / parent-ref gotchas. Worked example: `asm+nhomb` Songs source → demos page.
 
 ## How skills are organized
 
