@@ -21,6 +21,7 @@ import Modal from "./components/Modal";
 import {DeleteModal} from "./components/DeleteModal";
 import DraggableNav from "./components/draggableNav";
 import DraggableMenu from "./components/nestableInHouse";
+import Permissions from "./components/Permissions";
 //import DraggableNavOld from "./components/nestable/draggableNav";
 import Pagination from "./components/Pagination";
 import Table from "./components/table";
@@ -75,6 +76,9 @@ const UI = {
 	Table,
 	Card,
 	Graph,
+
+	// -- Auth
+	Permissions,
 
   // ------ component modes: {EditComp, ViewComp}
   ColumnTypes,

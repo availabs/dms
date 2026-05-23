@@ -1,11 +1,7 @@
-import {get} from "lodash-es";
-import {mapColors} from "./utils";
+import { get } from "lodash-es";
+import { mapColors } from "./utils";
 
 export const getColorRange = (size, name, reverse=false) => {
-  let range = get(mapColors, [name, size], []).slice();
-
-  if(reverse) {
-    range.reverse()
-  }
-  return range
+  const range = get(mapColors, [name, size], []).slice();
+  return reverse ? range.reverse() : range;
 }

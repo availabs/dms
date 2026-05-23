@@ -1,17 +1,8 @@
 import React from "react";
-// import {
-//   groups as d3groups,
-//   mean as d3mean,
-//   sum as d3sum
-// } from "d3-array";
-import { range as d3range } from "d3-array";
-import {get} from "lodash-es";
+
+import { get } from "lodash-es";
 import { getGraphComponent } from "./components";
-import {mapColors} from "./utils";
-import {getColorRange} from "./colorRange";
-// import {graphTheme} from "./index";
-// import {ThemeContext} from "../../useTheme";
-import { strictNaN, getFormatFunc } from "./utils";
+import { getFormatFunc } from "./utils";
 
 const GraphTitle = ({ title, ...props }) => {
 
@@ -48,13 +39,18 @@ export const GraphComponent = props => {
     return getGraphComponent(graphType);
   }, [graphType]);
 
-  const [ref, setRef] = React.useState(null);
+  // const colors = React.useMemo(() => {
+  //   let colors = [];
 
-  const colors = React.useMemo(() => {
-    if (graphFormat.colors?.type === "palette") {
-      return graphFormat.colors?.value || [];
-    }
-  }, [graphFormat.colors]);
+  //   if (graphFormat.colors?.type === "palette") {
+  //     colors = graphFormat.colors?.value || [];
+  //   }
+  //   else if (graphFormat.colors?.type === "scheme") {
+  //     colors = getColorRange(graphFormat.colors.scheme, 13)
+  //   }
+
+  //   return graphFormat.colors?.reverse ? colors.reverse() : colors;
+  // }, [graphFormat.colors]);
 
   const margin = React.useMemo(() => {
     return {
@@ -83,7 +79,7 @@ export const GraphComponent = props => {
 // console.log("GraphComponent::hoverComp", hoverComp);
 
   return (
-    <div ref={ setRef }
+    <div
       className={ `
         w-full h-fit ${ theme.bgColor }
         ${ theme.text } ${ theme.textColor }
@@ -99,7 +95,7 @@ export const GraphComponent = props => {
         height={ graphHeight }
         width={ get(graphFormat, "width") }
         bgColor={ get(graphFormat, "bgColor", "#ffffff") }
-        colors={ colors }
+        colors={ graphFormat.colors }
         upperLimit={ get(graphFormat, "upperLimit") }
 
         showCategories={ showCategories }

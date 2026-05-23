@@ -107,6 +107,7 @@
 
 ### patterns/page
 
+- [x] [Permissions refinement](./tasks/completed/permissions-refinement.md) — consolidate `edit-page-layout`/`edit-page-params` into `edit-page`, remove `edit-section-permissions`, rename section `edit-section`→`edit`, gate Pages pane on `create-page`, show copy/link to anyone with `edit-page`, move/permissions require section `edit`, `PublishButton` respects page-level override, redirect logged-in non-editors to view page
 - [x] Fix nav2Level baseUrl bug and move to page pattern
 - [x] Move lexical component inline controls (style, bgColor, showToolbar) to control config
 - [x] Theme-based component registration (allow themes to declare `pageComponents` that auto-register to page pattern)
@@ -158,10 +159,12 @@
 - [x] Add delete & duplicate buttons to admin pattern overview — port actions from old `PatternEdit` modal to pattern editor Overview tab + list table
 - [ ] Pattern creation refresh bug — new pattern row appears with blank data, requires page refresh; `dmsDataEditor` mutates input data (replaces dms-format attrs with refs), revalidation doesn't restore correct data
 - [x] [Pattern-configurable HTML page title](./tasks/completed/pattern-html-title.md) — add `html_title` attribute to pattern format, edit field in Overview pane of pattern editor, set `document.title` while pattern's routes are active; fall back to pattern `name` when unset
+- [x] [Admin site-edit auth + separate create route](./tasks/completed/admin-site-edit-auth.md) — split editSite into protected edit route (admin group only) + public create route; in-component auth guard handles no-site bootstrap case; auto-login after site creation; auth pattern permissions control who else can access the list page
 
 ### patterns/auth
 
 - [x] Fix `/groups/byproject` response shape — dms-server returns plain array, client expects `{ groups: [...] }` wrapper with synthetic "public" group
+- [ ] [Email redesign](./tasks/current/email-redesign.md) — redesign transactional emails (signup welcome, forgot password, password-changed confirmation) to match auth page visual identity; wire up email sending in 3 handler stubs
 
 ## config
 

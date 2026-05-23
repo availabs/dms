@@ -265,29 +265,47 @@ const LegendPanel = (props) => {
     return Object.values(state?.symbologies || {})
       .filter(symb => symb.isVisible)
       .map((symb) => {
-        return { name: symb.name, id: symb.id || symb.symbology_id, layers: { ...symb.symbology.layers } };
+        return { name: symb.name, id: symb.id || symb.symbology_id, layers: { ...symb.symbology.layers }, pluginData: symb.symbology.pluginData };
       });
   }, [state]);
 
-// console.log("LegendPanel::layersBySymbology", layersBySymbology);
+  //first conditional filters out all symbologies that have NO legends enabled
+  const legendRows = layersBySymbology
+    .filter(
+      (symb) =>
+        //make sure that the plugin for a given symbology does not specify to hide the default legend;
+        Object.values(symb?.pluginData || {}).some(
+          (layerPluginData) => layerPluginData?.["default-legend"] !== false,
+        ) &&
+        //look thru all layers within symb for an enabled legend
+        Object.values(symb.layers).some(
+          (layer) => layer?.["legend-orientation"] !== "none",
+        ),
+    )
+    .map((symb) => (
+      <div key={symb.id} className="m-1 p-1 rounded">
+        {Object.values(symb.layers)
+          .sort((a, b) => b.order - a.order)
+          //these condtionals filter out the layers themselves that do not have a legend enabled
+          .filter((layer) => layer?.["legend-orientation"] !== "none")
+          .map((layer, i) => (
+            <LegendRow
+              key={layer.id}
+              baseUrl={dataSourcesBaseUrl}
+              layer={layer}
+              i={i}
+              id={symb.id}
+            />
+          ))}
+      </div>
+    ));
 
-  return (
+  return (legendRows.length > 0 && 
     <>
       {/* ------Layer Pane ----------- */}
       <div className='p-4'>
         <div className='min-h-10 relative bg-white/75 max-h-[calc(100vh_-_111px)] overflow-auto pointer-events-auto scrollbar-sm'>
-          {layersBySymbology.map((symb) => (
-            <div
-              key={symb.id}
-              className="m-1 p-1 rounded"
-            >
-              {/*<div className="font-normal">{symb.name}</div>*/}
-              {Object.values(symb.layers)
-                .sort((a,b) => b.order - a.order)
-                .filter(layer => layer?.['legend-orientation'] !== 'none')
-                .map((layer,i) => <LegendRow key={layer.id} baseUrl={dataSourcesBaseUrl} layer={layer} i={i} id={symb.id}/>)}
-            </div>
-          ))}
+          {legendRows}
         </div>
       </div>
     </>

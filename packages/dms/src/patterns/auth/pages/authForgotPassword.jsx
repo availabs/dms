@@ -38,8 +38,15 @@ export default function AuthForgotPassword (props) {
                 type={'plain'}
                 className={sectionGroupTheme.actionButton}
                 onClick={async () => {
+                const emailTheme = {
+                    ...(theme?.auth?.emailTheme || {}),
+                    logoUrl:    theme?.logo?.img   || '',
+                    logoTitle:  theme?.logo?.title || PROJECT_NAME,
+                    siteOrigin: window.location.origin,
+                };
                 await AuthAPI.callAuthServer(`/password/reset`,
-                    {...credentials, token: user.token, project: PROJECT_NAME, host: `${window.location.host}`, url: `/${baseUrl}/login`})
+                    {...credentials, token: user.token, project: PROJECT_NAME,
+                     host: `${window.location.host}`, url: `${baseUrl}/login`, emailTheme})
                     .then(res => {
                         if (res.error) {
                             setStatus(res.error)

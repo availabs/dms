@@ -306,13 +306,13 @@ function RenameModal ({title, prompt, item={}, dataItems, open, setOpen})  {
 
 
 export function PublishButton () {
-  const {item, apiUpdate, reqPermissions } =  React.useContext(PageContext) || {}
+  const {item, apiUpdate, reqPermissions, pageState } =  React.useContext(PageContext) || {}
   const hasChanges = item.published === 'draft' || item.has_changes
   const { user, authPermissions, isUserAuthed } = React.useContext(CMSContext) || {};
+  const pageAuthPermissions = getPageAuthPermissions(pageState?.authPermissions);
   const { UI } = React.useContext(ThemeContext)
   const {Button} = UI;
-
-  if(!isUserAuthed(['publish-page'])) return null;
+  if(!isUserAuthed(['publish-page'], pageAuthPermissions)) return null;
   return (
     <div className='w-full flex justify-center gap-1 h-[40px]'>
       { hasChanges && (

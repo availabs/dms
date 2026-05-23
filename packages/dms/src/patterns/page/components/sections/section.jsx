@@ -215,17 +215,18 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
     const helpTextArray = getHelpTextArray(value, true)
     const onAddHelpText = () => updateAttribute('helpText', [...helpTextArray, {text: ''}]);
 
+    const canEditPageContent = isUserAuthed(['edit-page', 'edit-page-layout'], pageAuthPermissions);
     const sectionMenuItems = getSectionMenuItems({
         sectionState: { isEdit, value, attributes, i, showDeleteModal, listAllColumns, state: stateFromRef, setSectionState },
         actions: { moveItem, updateAttribute, updateElementType, onChange, onCancel, onSave, onAddHelpText, setKey, setState: dwHandle?.setState, setShowDeleteModal, setListAllColumns },
-        auth: { user, isUserAuthed, pageAuthPermissions, sectionAuthPermissions, Permissions, AuthAPI },
+        auth: { user, isUserAuthed, pageAuthPermissions, sectionAuthPermissions, canEditPageContent, Permissions, AuthAPI },
         ui:  { Switch, Pill, Icon, TitleEditComp, LevelComp, theme: fullTheme, RegisteredComponents },
         dataSource: dataSourceFromRef,
         dwAPI: dwAPI || {},
         mapAPI,
         pageDataSources: { dataSources, dataSourceId, switchDataSource },
     })
-    const canEditSection = isUserAuthed(['edit-section'], sectionAuthPermissions);
+    const canEditSection = isUserAuthed(['edit', 'edit-section'], sectionAuthPermissions);
     const resolvedControls = typeof component?.controls === 'function'
         ? component.controls(fullTheme)
         : component?.controls;
@@ -400,10 +401,11 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
     const dataSourceFromRef = dwHandle?.dataSource || {};
     const stateFromRef = dwHandle?.state;
 
+    const canEditPageContent = isUserAuthed(['edit-page', 'edit-page-layout'], pageAuthPermissions);
     const sectionMenuItems = getSectionMenuItems({
         sectionState: { isEdit, value, attributes, i, showDeleteModal, state: stateFromRef },
         actions: { onEdit, moveItem, updateAttribute, updateElementType, onChange, setState: dwHandle?.setState, setShowDeleteModal },
-        auth: { user, isUserAuthed, pageAuthPermissions, sectionAuthPermissions, Permissions, AuthAPI },
+        auth: { user, isUserAuthed, pageAuthPermissions, sectionAuthPermissions, canEditPageContent, Permissions, AuthAPI },
         ui:  { Switch, Pill, Icon, TitleEditComp, LevelComp, refreshDataBtnRef, isRefreshingData, setIsRefreshingData, theme: fullTheme, RegisteredComponents },
         dataSource: dataSourceFromRef,
         dwAPI: dwAPI || {},
@@ -414,7 +416,7 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
         ? component.controls(fullTheme)
         : component?.controls;
 
-    const canEditSection = isUserAuthed(['edit-section'], sectionAuthPermissions);
+    const canEditSection = isUserAuthed(['edit', 'edit-section'], sectionAuthPermissions);
 
     const { wrapperStyle: heightWrapperStyle, contentWrapperStyle: heightContentWrapperStyle } =
         resolveSectionHeightStyles(value?.['height'], theme);

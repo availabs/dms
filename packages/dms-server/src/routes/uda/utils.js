@@ -529,12 +529,12 @@ function handleOrderBy(orders, dmsAttributes) {
 /**
  * Build a combined WHERE clause from both old-style simple filters and new-style filterGroups.
  */
-function buildCombinedWhere({ filter, exclude, gt, gte, lt, lte, like, filterRelation, filterGroups, isDms, app, type, oldValues, dbType, joinPresent = false }) {
-  const oldWhere = handleFilters({ filter, exclude, gt, gte, lt, lte, like, filterRelation, isDms, app, type, joinPresent });
+function buildCombinedWhere({ filter, exclude, gt, gte, lt, lte, like, filterGroups, isDms, app, type, oldValues, dbType, joinPresent = false }) {
+  const oldWhere = handleFilters({ filter, exclude, gt, gte, lt, lte, like, isDms, app, type, joinPresent });
   const { sql: newWhere } = handleFilterGroups({ filterGroups, isDms, startIndex: oldValues.length, dbType });
 
   if (oldWhere && newWhere) {
-    return `WHERE (${oldWhere.replace(/^WHERE\s*/, '')}) ${filterRelation} ${newWhere}`;
+    return `WHERE (${oldWhere.replace(/^WHERE\s*/, '')}) and ${newWhere}`;
   }
   return oldWhere || (newWhere ? `WHERE ${newWhere}` : '');
 }

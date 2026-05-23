@@ -10,6 +10,10 @@ Skills sit alongside `planning/` (work tracking) and `documentation/` (reference
 
 - [Creating a page-section component](./creating-page-section-components.md) — when you need a new section type (Card, Spreadsheet, Header, etc. are page-section components). Walks through the file split (`Foo.jsx` + `Foo.config.{js,jsx}` + `Foo.theme.js`), the registry entry shape, the EditComp/ViewComp contract, theme wiring, and Fast-Refresh rules.
 
+### Theming
+
+- [Designing a theme and design system for DMS](./designing-a-dms-theme.md) — the structural grammar (Site → Layout → LayoutGroup → Section → Component), the theme contract (`options/styles` + class strings), and the deliverable shape: `theme/` (code artifact) + `design-system/` (four documentation pages) + `pages/` (theme-chosen examples). Mockup pages must be **plain HTML + Tailwind CDN, no JSX, no build step**. Worked examples in `src/themes/transportny/.../dms_design_system/` and `src/themes/tessera/design_system_v2/`.
+
 ### Layout reference
 
 - [Card section layout](./card-layout.md) — every layout knob on the `Card` section: the two grids (cards-grid + cells-grid), `cellSpan`/`cellRowSpan`, image/link/format cells, `cardHints` (`fullBleed`, `spanFullColumns`), the `row` prop available to composite column types, and recipes for stat strips / 3-up record cards / composite "owns its own layout" cells. Read before configuring any non-trivial card.

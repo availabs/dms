@@ -2,12 +2,11 @@ import React from 'react'
 import {v4 as uuidv4} from "uuid";
 import { useFalcor } from "@availabs/avl-falcor";
 import {AdminContext} from "../context";
-// import { AuthContext } from '../../auth/context';
 import { ThemeContext } from '../../../ui/useTheme';
-import { Link, useLocation } from 'react-router'
-import NewSite from './createSite'
+import { Link, useLocation, useNavigate, useNavigation } from 'react-router'
 import { parseIfJSON } from '../../page/pages/_utils';
 import { nameToSlug, getInstance } from '../../../utils/type-utils';
+import { isUserAuthed } from '../utils';
 
 
 function SiteEdit ({
@@ -18,29 +17,51 @@ function SiteEdit ({
    status,
    apiUpdate,
    format,
-	...propsNewSite
 }) {
 
-	const { baseUrl, authPath, theme, app, user, AUTH_HOST } = React.useContext(AdminContext) || {}
-	const location = useLocation()
-  const updateData = (data, attrKey) => {
-		//console.log('admin pattern - siteEdit - updateData', attrKey, data, format)
-		apiUpdate({data: {...item, ...{[attrKey]: data}}, config: {format}})
-	}
+	const { baseUrl, authPath, app, user, authPermissions } = React.useContext(AdminContext) || {}
+	const navigate = useNavigate()
+	const { state: navState } = useNavigation()
 
-	if(!item.id && dataItems?.length > 0) {
+	if (!item.id && dataItems?.length > 0) {
 		item = dataItems[0]
 	}
 
-	// change to redirect
-	if(!item.id) return (
-	  <NewSite
-  	  app={app}
-  		user={user}
-  		AUTH_HOST={AUTH_HOST}
-  		apiUpdate={apiUpdate}
-  	/>
-	)
+	const resolvedId = item?.id
+	const isAdmin = (user?.groups || []).some(g => g === `${app} Admin`)
+	const hasAccess = isAdmin || isUserAuthed(user, authPermissions)
+
+	// navState === 'loading' means a loader is in-flight (e.g. router just recreated by
+	// dmsSiteFactory). dataItems is [] by default in wrapper.jsx until the loader
+	// resolves, so we must not treat [] as "no site" while loading.
+	const isLoading = navState === 'loading'
+
+	React.useEffect(() => {
+		if (isLoading) return
+		if (dataItems === undefined) return
+
+		if (!resolvedId) {
+			navigate(`${baseUrl}/create`)
+			return
+		}
+
+		if (!user?.authed) {
+			navigate(`${authPath}/login`, { state: { from: baseUrl } })
+			return
+		}
+
+		if (!hasAccess) {
+			navigate('/')
+		}
+	}, [resolvedId, user?.authed, JSON.stringify(user?.groups), dataItems, isLoading])
+
+	const updateData = (data, attrKey) => {
+		apiUpdate({data: {...item, ...{[attrKey]: data}}, config: {format}})
+	}
+
+	if (isLoading || dataItems === undefined || !resolvedId || !user?.authed || !hasAccess) {
+		return null
+	}
 
 	return (
 	  <PatternList

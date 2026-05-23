@@ -8,6 +8,7 @@ import { scaleLinear } from "d3-scale"
 
 import { strictNaN } from "../utils"
 import { getAggFunc } from "./utils"
+import { getColorRange } from "../colorSchemeUnifier"
 
 const GridGraphWrapper = props => {
 
@@ -15,6 +16,19 @@ const GridGraphWrapper = props => {
 
 // console.log("GridGraphWrapper::viewData", props.viewData);
 // console.log("GridGraphWrapper::columns", props.columns);
+// console.log("GridGraphWrapper::colors", props.colors);
+
+      const colors = React.useMemo(() => {
+        let colors = [];
+
+        if (props.colors?.type === "palette") {
+          colors = props.colors?.value || [];
+        }
+        else if (props.colors?.type === "scheme") {
+          colors = getColorRange(props.colors.scheme, 3);
+        }
+        return props.colors?.reverse ? colors.reverse() : colors;
+      }, [props.colors]);
 
     const dataFromProps = React.useMemo(() => {
         const xColumn = props.columns.find(c => c.target === "xAxis");
@@ -90,11 +104,11 @@ const GridGraphWrapper = props => {
         }
 
 
-        let colors;
+        let colorFunc;
 
         if ((min < Infinity) && (max > -Infinity)) {
             const mid = min + (max - min) * 0.5;
-            colors = scaleLinear().domain([min, mid, max]).range(["green", "yellow", "red"])
+            colorFunc = scaleLinear().domain([min, mid, max]).range(colors);
         }
 
         const keys = [...keySet];
@@ -122,8 +136,8 @@ const GridGraphWrapper = props => {
             }).reverse()
         }
 
-        return { data, keys, colors };
-    }, [props.viewData, props.columns]);
+        return { data, keys, colors: colorFunc };
+    }, [props.viewData, props.columns, colors]);
 
 // console.log("GridGraphWrapper::dataFromProps", dataFromProps);
 

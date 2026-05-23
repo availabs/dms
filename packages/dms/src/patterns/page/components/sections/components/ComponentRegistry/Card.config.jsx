@@ -225,6 +225,7 @@ const buildInHeader = (fontStyleOptions) => [
             { label: 'Raw Value', value: 'rawValue' }
         ]
     },
+    { type: 'toggle', label: 'Persist Search Params', key: 'persistSearchParams', displayCdn: ({ attribute, isEdit }) => isEdit && attribute.isLink },
 
     // The legacy `Is Image` / `Image Url` / `Image Location` / `Image Extension`
     // controls have been retired from the editor — new cards should use the

@@ -399,7 +399,24 @@ const CardColumnField = ({
             attr.searchParams === 'id' ? encodeURIComponent(id) :
                 ['value', 'rawValue'].includes(attr.searchParams) ?
                     encodeURIComponent(valueFormattedForSearchParams) : ``;
-        url = `${location || valueFormattedForDisplay}${searchParams}`;
+        if (attr.persistSearchParams && location) {
+            const rawSearchParamValue =
+                attr.searchParams === 'id' ? id :
+                ['value', 'rawValue'].includes(attr.searchParams) ? valueFormattedForSearchParams : null;
+            const qIdx = location.indexOf('?');
+            const basePath = qIdx !== -1 ? location.slice(0, qIdx) : location;
+            const currentParams = new URLSearchParams(window.location.search);
+            if (qIdx !== -1) {
+                new URLSearchParams(location.slice(qIdx + 1)).forEach((v, k) => currentParams.set(k, v));
+            }
+            if (rawSearchParamValue !== null) {
+                const locationKey = qIdx !== -1 ? location.slice(qIdx + 1).split('=')[0] : null;
+                if (locationKey) currentParams.set(locationKey, rawSearchParamValue);
+            }
+            url = `${basePath}?${currentParams.toString()}`;
+        } else {
+            url = `${location || valueFormattedForDisplay}${searchParams}`;
+        }
     }
 
     const wrapperFlexClass = headerValueLayout === 'col' && !reverse ? theme.itemFlexCol :
@@ -492,7 +509,7 @@ const CardColumnField = ({
             {/* Header area — always rendered when there's a label or a menu in col layout */}
             {headerVisible && (
                 <div
-                    className={`${attr.hideHeader ? '' : theme.header}`}
+                    className={`${attr.hideHeader ? '' : attr.headerFontStyle === 'button' ? theme.linkColValue : theme.header}`}
                     style={{maxWidth: isRowLayout && !attr.hideValue ? `${headerWidth || 50}%` : undefined}}
                 >
                     {!attr.hideHeader && (
@@ -506,12 +523,12 @@ const CardColumnField = ({
             {
                 attr.hideValue ? null :
                     <div className={
-                        `${theme.value} ${theme[valueTextJustifyClass]} ${theme[attr.valueFontStyle || 'textXS']} ${formatClass}
+                        `${theme.value} ${theme[valueTextJustifyClass]} ${theme[(attr.valueFontStyle && attr.valueFontStyle !== 'button') ? attr.valueFontStyle : 'textXS']} ${formatClass}
                         `} style={{maxWidth: isRowLayout && !attr.hideHeader ? `${valueWidth || 50}%` : undefined}}>
                         {
                             isLink && !(allowEdit || attr.allowEditInView) ?
                                 (isLinkExternal ?
-                                <a className={theme.linkColValue}
+                                <a className={(attr.valueFontStyle && attr.valueFontStyle !== 'button') ? (theme[attr.valueFontStyle] || '') : (theme.linkColValue || '')}
                                    target="_blank"
                                    rel="noopener noreferrer"
                                    href={url}
@@ -534,7 +551,7 @@ const CardColumnField = ({
                                                  componentWrapperClassName={theme.componentWrapper}
                                     />
                                 </a> :
-                                <Link className={theme.linkColValue} to={url}>
+                                <Link className={(attr.valueFontStyle && attr.valueFontStyle !== 'button') ? (theme[attr.valueFontStyle] || '') : (theme.linkColValue || '')} to={url}>
                                     <CompWrapper attribute={attr}
                                                  value={linkText || valueFormattedForDisplay}
                                                  rawValue={valueFormattedForEdit}
@@ -553,6 +570,26 @@ const CardColumnField = ({
                                                  componentWrapperClassName={theme.componentWrapper}
                                     />
                                 </Link>) :
+                                attr.valueFontStyle === 'button' ?
+                                <span className={theme.linkColValue || ''}>
+                                    <CompWrapper attribute={attr}
+                                                 value={valueFormattedForDisplay}
+                                                 rawValue={valueFormattedForEdit}
+                                                 isValueFormatted={isValueFormatted}
+                                                 updateItem={isNewItem ? undefined : updateItem}
+                                                 liveEdit={liveEdit}
+                                                 tmpItem={tmpItem}
+                                                 setTmpItem={setTmpItem}
+                                                 isNewItem={isNewItem}
+                                                 newItem={isNewItem ? newItem : undefined}
+                                                 setNewItem={isNewItem ? setNewItem : undefined}
+                                                 id={id}
+                                                 allowEdit={allowEdit || attr.allowEditInView}
+                                                 formatFunctions={formatFunctions}
+                                                 className={`${theme[valueTextJustifyClass]} ${theme.valueWrapper}`}
+                                                 componentWrapperClassName={theme.componentWrapper}
+                                    />
+                                </span> :
                                 <CompWrapper attribute={attr}
                                              value={valueFormattedForDisplay}
                                              rawValue={valueFormattedForEdit}
