@@ -1,13 +1,28 @@
 # dataWrapper blank-row fallback for empty results
 
-## Status: IMPLEMENTED — 2026-05-08 (pending live test)
+## Status: SHIPPED — 2026-05-18 (live-verified on WCDB show card)
 
-Phases 1-3 shipped. Decisions locked:
+Phases 1-3 shipped 2026-05-08. Live smoke test on 2026-05-18 surfaced one bug
+and fixed it:
+
+- **Live-test regression (now fixed):** the synthesis was originally inserted
+  at the function tail, but `getData.js` exits earlier through the
+  `if (fromIndex >= length) return { length, data: [] }` guard whenever
+  `length === 0` (because `fromIndex` is `0` on page 1, and `0 >= 0`). That
+  made the tail-positioned synthesis unreachable for the very case it was
+  built to handle. **Fix:** moved the synthesis inside the `fromIndex >=
+  length` guard, gated on `length === 0 && useBlankRowFallback`. The tail
+  block was removed since it was dead code (any execution that reaches the
+  tail necessarily has `length > 0`). Caught when the WCDB show card
+  (section 1964234) rendered blank during an off-air slot — visible across
+  all old-format cards that opted in.
+
+Decisions still in force from the 2026-05-08 implementation:
 
 - **Field name:** `display.useBlankRowFallback` (matches existing `display.use*` shape).
 - **Toggle location:** `controls.data` group (data-loading behaviour, not section chrome). Sits right below `Always Fetch Data`.
 - **Per-column control:** `inHeader` "Empty Default" entry, gated on `isEdit && display.useBlankRowFallback === true`. Mounts `columnTypes[attribute.type].EditComp` so every column type — text, textarea, portrait_banner, image, calc-text, etc. — gets a type-appropriate authoring widget for free.
-- **Synthesis:** `getData.js` tail, before the final return. Keys the synthetic row by `column.normalName || column.name` to match the real-row shape; tags with `_isBlankFallback: true`; sets `length: 1`. Calc columns' `name` is the full SQL string and the lookup chain (`Card.jsx:357`) handles it transparently.
+- **Synthesis location (UPDATED 2026-05-18):** inside the `if (fromIndex >= length)` guard in `getData.js`, BEFORE the early `return { length, data: [] }`. Keys the synthetic row by `column.normalName || column.name` to match the real-row shape; tags with `_isBlankFallback: true`; sets `length: 1`. Calc columns' `name` is the full SQL string and the lookup chain (`Card.jsx:357`) handles it transparently.
 - **BC:** `display.useBlankRowFallback` defaults to absent/false → synthesis branch never fires → `getData.js` returns `{ length: 0, data: [] }` exactly as before.
 
 ### Open questions left for live testing

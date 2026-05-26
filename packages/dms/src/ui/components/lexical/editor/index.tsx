@@ -47,6 +47,36 @@ export default function Lexicals ({value, hideControls, showBorder, onChange, bg
   if (theme?.Icons) {
     nestedLexicalTheme.Icons = theme.Icons;
   }
+  // Pass the brand's textSettings tokens through so StyledParagraphNode can
+  // resolve a styleKey (e.g. 'proseLG', 'metaSM upper') to its class string.
+  // This is the backbone for the slash menu's named-style options — see
+  // src/dms/skills/translating-design-system-to-dms-theme.md §3.1.4
+  // (Approach B). Reads textSettings's currently active style.
+  const tsStyles = theme?.textSettings?.styles;
+  if (Array.isArray(tsStyles) && tsStyles.length) {
+    const activeIdx = theme?.textSettings?.options?.activeStyle ?? 0;
+    nestedLexicalTheme.brandTextStyles = { ...(tsStyles[0] || {}), ...(tsStyles[activeIdx] || {}) };
+  }
+  // Optional theme-driven filter: themes can declare which textSettings keys
+  // should surface as `/Style: <key>` slash options. Without this filter,
+  // every key (including the size-ladder textXS..text8XL) generates an
+  // option — that's a lot for the menu. A brand with named tokens can
+  // declare `textSettings.options.slashKeys: ['displayHero', ..., 'metaXS']`
+  // to show ONLY those.
+  const slashKeys = theme?.textSettings?.options?.slashKeys;
+  if (Array.isArray(slashKeys)) {
+    nestedLexicalTheme.brandTextStyleSlashKeys = slashKeys;
+  }
+  // Theme-driven column-layout templates for InsertLayoutDialog (`/columns`).
+  // Without this, the dialog uses a hardcoded set of 6 generic Tailwind
+  // grid-cols presets. Themes can declare their own brand-appropriate
+  // templates — for tessera's 12-col grid we want splits like 1/3 + 2/3,
+  // hero-CTA rows with content-width columns, etc. Falls back to the
+  // hardcoded list when undefined.
+  const layoutTemplates = (theme?.lexical as { layoutTemplates?: unknown })?.layoutTemplates;
+  if (Array.isArray(layoutTemplates)) {
+    nestedLexicalTheme.layoutTemplates = layoutTemplates;
+  }
 
     const initialConfig = {
         // In collab mode, Yjs is the source of truth — editor starts empty,
