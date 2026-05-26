@@ -540,6 +540,30 @@ async function setIndexColumn(env, sourceId, columnName, enable) {
   }
 }
 
+async function clearViewData(env, view_id) {
+  const { isDms, db, table_schema, table_name } = await getEssentials({ env, view_id: +view_id });
+  if (!isDms) throw new Error('clearViewData only supported for DMS internal_table sources');
+  if (table_name === 'data_items') throw new Error('Cannot clear main data_items table — split table not found for this view');
+
+  const execClear = async (ts, tn) => {
+    const fqt = db.type === 'postgres' ? `"${ts}"."${tn}"` : `"${tn}"`;
+    await db.query(db.type === 'postgres' ? `TRUNCATE TABLE ${fqt}` : `DELETE FROM ${fqt}`);
+  };
+
+  await execClear(table_schema, table_name);
+
+  // Clear the invalid-entry split table too (may not exist yet — safe to skip)
+  const [appPart, sourceSlug] = env.split('+');
+  try {
+    const inv = await getEssentials({ env: `${appPart}+${sourceSlug}-invalid-entry`, view_id: +view_id });
+    if (inv.table_name !== 'data_items') await execClear(inv.table_schema, inv.table_name);
+  } catch (e) {
+    // invalid-entry table not yet created — nothing to clear
+  }
+
+  return { cleared: true, table: table_name };
+}
+
 module.exports = {
   getResponseColumnName,
 
@@ -549,6 +573,7 @@ module.exports = {
   getSourceById,
   updateSource,
   setIndexColumn,
+  clearViewData,
 
   // Views
   getViewLengthBySourceId,

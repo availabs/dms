@@ -222,54 +222,6 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
       },
     },
     {
-      route: "dms.data[{keys:appKeys}].options[{keys:options}].byIndex[{integers:indices}][{keys:attributes}]",
-      get: async function(pathSet) {
-        try{
-          const [, , keys, , options, , indices, attributes] = pathSet;
-          const user = this.user;
-          const response = [];
-
-          for (const option of options) {
-            const rows = await controller.filteredDataByIndex(keys, indices, option, attributes);
-
-            for (const key of keys) {
-              const [app, type] = key.split('+');
-              if (getKind(type) === 'page') {
-                const patternAuth = await controller.getPatternAuthPermissions(app, getParent(type));
-                if (!isUserAuthed({ user, reqPermissions: ['view-page'], authPermissions: patternAuth || {} })) {
-                  indices.forEach((i) => {
-                    attributes.forEach(attribute => {
-                      response.push({ path: ["dms", "data", key, 'options', option, "byIndex", i, attribute], value: null });
-                    });
-                  });
-                  continue;
-                }
-              }
-              const reduced = rows.reduce((a, c) => (c.key == key ? c.rows : a), []);
-              indices.forEach((i) => {
-                const row = reduced.find(c => c.i == i);
-                attributes.forEach(attribute => {
-                  const modifiedName =
-                      attribute.includes(' as ') ? attribute.split(' as ')[1]?.trim() :
-                          attribute.includes(' AS ') ? attribute.split(' AS ')[1]?.trim() :
-                              attribute;
-                  response.push({
-                    path: ["dms", "data", key, 'options', option, "byIndex", i, attribute],
-                    value: typeof row?.[modifiedName] === 'object' ? $atom(row?.[modifiedName]) : row?.[modifiedName]
-                  });
-                });
-              });
-            }
-          }
-
-          return response;
-        } catch (err) {
-          console.error(err);
-          throw err;
-        }
-      },
-    },
-    {
       route: "dms.data[{keys:appKeys}].opts[{keys:options}].byIndex[{integers:indices}]",
       get: async function(pathSet) {
         try{

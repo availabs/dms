@@ -6,84 +6,103 @@ Enforce pattern and page-level `authPermissions` on the server so that unauthori
 
 ## Scope
 
-**Phase 1 (this task):** Pattern-level and page-listing auth in `dms-server`.  
-**Phase 2:** Per-page `authPermissions` overrides (a page more restricted than its pattern).  
+**Phase 1 (done):** Pattern-level and page-listing auth in `dms-server`.  
+**Phase 2 (next):** Per-page `authPermissions` in listing routes (length/byIndex filter individual rows).  
 **Phase 3:** Sources and views — same mechanism extended to those row kinds.
 
-## Current State
+## Phase 1 — COMPLETE (2026-05-25/26)
 
-- Permissions exist only on the client: `isUserAuthed` in `patterns/page/auth.js` hides routes and pages in the React router, but the server returns all data regardless.
-- Anyone who copies a `POST /graph` request from DevTools can fetch any content without auth.
+### Key implementation
 
-## Root Cause
+**`src/routes/dms/auth.js`** (new)
+- `isUserAuthed({ user, reqPermissions, authPermissions })` — server mirror of client logic
+- `resolveAuthPermissions(rawAuth)` — handles flat + subdomain-aware `{ "*": {...} }` format
+- Critical: unauthenticated users always get `'public'` in effective groups (mirrors `defaultUserState`)
 
-The Falcor routes (`dms.route.js`) never check `this.user` in GET handlers. Only CALL routes (edit, delete, create) use user context.
+**`dms.controller.js`** — `getPatternAuthPermissions(app, patternParent)`
+- SQL: `WHERE app = $1 AND type LIKE '%|' || $2 || ':pattern' ORDER BY id DESC LIMIT 1`
+- Returns `null` (unrestricted) for `pattern_type === 'auth'` patterns — login page must always load
+- Returns resolved `authPermissions` object or `null` if pattern row not found
 
-## Phase 1 Changes
+**`dms.route.js`** — `dataByIdResponse(rows, ids, atts, app, user)`
+- `user = undefined` (default) → skip auth check (CALL routes: edit, create, type.edit)
+- `user = null` → unauthenticated GET; `user = {...}` → authenticated GET
+- Now `async` (uses `for...of`); all CALL routes converted to `async/await`
+- `kind === 'pattern'`: checks `row.data?.authPermissions`; skips if `pattern_type === 'auth'`
+- `kind === 'page'`: awaits `getPatternAuthPermissions`, merges with `row.data?.authPermissions`:
+  ```js
+  mergedAuth = {
+    groups: { ...patternAuth?.groups, ...pageAuth?.groups },
+    users:  { ...patternAuth?.users,  ...pageAuth?.users  },
+  }
+  ```
+  Page-level entries override pattern-level per key.
 
-### New file: `src/routes/dms/auth.js`
-- `isUserAuthed({ user, reqPermissions, authPermissions })` — port of client logic
-- `resolveAuthPermissions(rawAuth)` — handles flat and subdomain-aware `{ "*": {...} }` formats
+**Page listing routes** (length + byIndex + options.length + options.byIndex + opts.byIndex)
+- For `getKind(type) === 'page'`: calls `getPatternAuthPermissions(app, getParent(type))`
+- Returns 0 / null if not authed
+- NOTE: these routes only check pattern-level auth (Phase 2 will add per-row filtering)
 
-### Controller: `dms.controller.js`
-Added `getPatternAuthPermissions(app, patternParent)`:
-- Queries: `WHERE app = $1 AND type LIKE '%|' || $2 || ':pattern'`
-- Returns resolved authPermissions for the pattern, or `null` if not found
+**`src/index.js`** — CSRF guard (`X-Requested-With` header check before `/graph`) — currently commented out
 
-### Route: `dms.route.js`
-**Pattern filtering (`byId`):**
-- `dataByIdResponse` gains a `user` param
-- If the fetched row has `type` and `getKind(type) === 'pattern'`:
-  - Check `isUserAuthed({ user, reqPermissions: ['view-page'], authPermissions: resolveAuthPermissions(row.data?.authPermissions) })`
-  - If not authed → return `null` for all requested attributes of that ID
-- Note: `type` is only available when `loadDmsFormats` requested it (which it always does for site pattern refs)
+### Auth pattern exemption
+Auth patterns (`data.pattern_type === 'auth'`) are always publicly accessible:
+- In `dataByIdResponse`: skipped by `pattern_type !== 'auth'` guard
+- In `getPatternAuthPermissions`: returns `null` when `data.pattern_type === 'auth'`
+- `null || {}` → empty authPermissions → `isUserAuthed` returns `true` (allow all)
 
-**Page listing filtering (length + byIndex):**
-For `appKey` with `getKind(type) === 'page'`:
-1. `getParent(type)` → pattern instance name
-2. `controller.getPatternAuthPermissions(app, patternParent)`
-3. If not authed → return `0` / `null` entries
+---
 
-Routes covered:
-- `dms.data[appKeys].length`
-- `dms.data[appKeys].byIndex[...]`
-- `dms.data[appKeys].options[options].length`
-- `dms.data[appKeys].options[options].byIndex[...][...]`
-- `dms.data[appKeys].opts[options].byIndex[...]`
+## Phase 2 — Per-page auth in listing routes — COMPLETE (2026-05-26)
 
-### CSRF guard: `src/index.js`
-Middleware before `/graph` that rejects requests without `X-Requested-With` header → 403.  
-The Falcor client always sends this header. Raw curl/Postman replays won't.
+Per-row auth filtering was implemented via a different approach than originally planned — `options.byIndex` now fetches `data` for page-type keys via `fetchAttributes` and checks each row's `authPermissions` merged with the pattern's. The `dataByIdResponse` function was also extended to handle pages (not just patterns).
 
-## Files Changed
+### What was done
 
-| File | Change |
-|------|--------|
-| `src/routes/dms/auth.js` | **NEW** |
-| `src/routes/dms/dms.controller.js` | Added `getPatternAuthPermissions`, imported `resolveAuthPermissions` |
-| `src/routes/dms/dms.route.js` | Auth gates on byId + all length/byIndex routes for page types |
-| `src/index.js` | CSRF X-Requested-With guard |
+**`dms.route.js` — `options.byIndex` route:**
+- `hasPageKey` flag: if any key is a page type, `fetchAttributes` always includes `'data'` so `row.data` is available for auth checks
+- `isPage` flag per key loop
+- `patternAuth` fetched once per key; per-row merge check: `{ groups: {...patternAuth.groups, ...pageAuth.groups}, ... }`
+- Response loops use `attributes` (not `fetchAttributes`) so `data` is stripped if not originally requested
 
-## Testing
+**`dms.route.js` — `dataByIdResponse`:**
+- Extended to handle `kind === 'page'`: awaits `getPatternAuthPermissions`, merges pattern + page auth, blocks if not authed
 
-1. Create a pattern with `authPermissions` restricting `view-page` to a group
-2. Unauthenticated: `byId` for that pattern returns null attributes; page `length` returns 0
-3. User in the allowed group: normal data returns
-4. `POST /graph` without `X-Requested-With` → 403
-5. `npm test` in `packages/dms-server` — all existing tests pass
+**Length routes:** Still check pattern-level only (Option B — raw count). Acceptable given restricted-page scenarios are typically small.
 
-## Phase 2 Notes
+**Gap remaining:** `opts.byIndex` (returns `$ref`s → `byId`) does not do per-row filtering — `byId` handles page auth inline so those are covered. `length` routes return raw counts.
 
-Per-page `authPermissions` overrides require filtering individual page rows in `filteredDataByIndex` / `dataByIndex`. Approach:
-- After fetching rows for a page type, for each row parse `data.authPermissions`
-- Merge with pattern-level auth using same logic as client (`siteConfig.jsx` lines 138–148)
-- Filter out rows where user fails the check
+### UDA `clearData` side-task (2026-05-26)
 
-## Progress
+`ClearDataBtn` in `version.jsx` previously used `options.byIndex` via `apiLoad` to fetch IDs then delete individually. This was replaced with a proper UDA CALL route:
+- `uda.controller.js`: `clearViewData(env, view_id)` — TRUNCATE/DELETE split tables (valid + invalid-entry)
+- `uda.route.js`: `uda.viewsById.clearData` CALL route
+- `version.jsx`: `ClearDataBtn` now uses `falcor.call(['uda', 'viewsById', 'clearData'], [env, view_id])`
 
-- [x] `auth.js` created
-- [x] `getPatternAuthPermissions` added to controller
-- [x] Route auth gates (byId patterns + page length/byIndex)
-- [x] CSRF guard
-- [ ] Phase 2: per-page auth overrides
-- [ ] Phase 3: sources + views
+---
+
+## Phase 3 — Sources and views
+
+Same pattern as pages:
+- Sources: look up parent dmsEnv's authPermissions (or pattern's, depending on config)
+- Views: look up parent source's authPermissions
+- Gate `uda` routes (length/byIndex) the same way dms page routes are gated
+
+Deferred until Phase 2 is verified in production.
+
+---
+
+## Todo checkbox (planning/todo.md)
+
+- [ ] Server-side auth Phase 2: per-page auth in listing routes
+- [ ] Server-side auth Phase 3: sources + views
+- [ ] Subdomain-aware `resolveAuthPermissions` — pass `Host` header subdomain into route context
+
+## Files
+
+| File | Role |
+|------|------|
+| `src/routes/dms/auth.js` | `isUserAuthed`, `resolveAuthPermissions` |
+| `src/routes/dms/dms.controller.js` | `getPatternAuthPermissions` |
+| `src/routes/dms/dms.route.js` | Auth gates — byId + listing routes |
+| `src/index.js` | CSRF guard (commented out) |

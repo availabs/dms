@@ -54,18 +54,7 @@ export const createRequest = (wrapperConfig,format, path, length) => {
 				[ "id", "updated_at", "created_at","app", "type",...dataAttrs]
 			]
 		}
-		case 'load': { // use a new route that can accept filter and calculate length
-			return [
-				'dms', 'data', `${ app }+${ type }`,
-				'options', options,
-				'byIndex', {from: fromIndex, to: toIndex },
-				[
-					//due to group by, simple data->>'col_name' is not sufficient.
-					...(filterAttrs.length > 0 ? filterAttrs : ['data'])
-				]
-			]
-		}
-		case 'uda': { // use a new route that can accept filter and calculate length
+case 'uda': { // use a new route that can accept filter and calculate length
 			return [
 				'uda', env, 'viewsById', view_id,
 				'options', options,
