@@ -96,7 +96,7 @@ const authConfig = ({
 
             },
           {
-              type: props => <AuthLogin {...props} />,
+              type: props => <AuthLogin {...props} disableSignup={!!pattern?.disable_signup} />,
               path: "login",
           },
           {
@@ -104,7 +104,7 @@ const authConfig = ({
               path: "logout",
           },
           {
-              type: props => <AuthSignup{...props} />,
+              type: props => <AuthSignup {...props} disableSignup={!!pattern?.disable_signup} />,
               path: "signup",
           },
             {
