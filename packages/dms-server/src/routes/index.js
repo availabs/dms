@@ -27,6 +27,7 @@ class falcorRoutes extends BaseRouter {
   constructor(config) {
     super({ maxPaths: 10_000_000 });
     this.user = config.user;
+    this.subdomain = config.subdomain || '';
   }
 }
 

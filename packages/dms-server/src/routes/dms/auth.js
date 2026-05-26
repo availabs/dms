@@ -10,25 +10,27 @@
  *   - flat format:       { groups: {...}, users: {...} }
  *   - subdomain format:  { "*": { groups: {...}, users: {...} }, "sub": {...} }
  *
- * The server doesn't have subdomain context per-request, so we use the
- * global "*" entry if present, otherwise treat the value as flat.
+ * Mirrors resolveSubdomainAuthPermissions() in render/spa/utils/index.js.
+ * Presence of a "*" key signals the subdomain-aware format; the subdomain-
+ * specific entry is preferred, with "*" as fallback.
  *
  * @param {Object|string|null|undefined} rawAuth
+ * @param {string} subdomain  e.g. "songs", "" for no subdomain
  * @returns {Object} { groups: {}, users: {} }
  */
-function resolveAuthPermissions(rawAuth) {
+function resolveAuthPermissions(rawAuth, subdomain = '') {
   if (!rawAuth) return {};
-  const parsed = typeof rawAuth === 'string'
-    ? (() => { try { return JSON.parse(rawAuth); } catch { return {}; } })()
-    : rawAuth;
+  const parse = v => {
+    if (!v) return {};
+    if (typeof v === 'string') { try { return JSON.parse(v); } catch { return {}; } }
+    return v;
+  };
 
-  // Subdomain-aware format — use the global '*' entry
-  if (parsed['*'] !== undefined) {
-    const inner = parsed['*'];
-    return typeof inner === 'string'
-      ? (() => { try { return JSON.parse(inner); } catch { return {}; } })()
-      : (inner || {});
-  }
+  const parsed = parse(rawAuth);
+
+  // Subdomain-aware format — pick subdomain entry, fall back to '*'
+  if (parsed['*'] !== undefined)
+    return parse(parsed[subdomain] !== undefined ? parsed[subdomain] : parsed['*']);
 
   return parsed;
 }
@@ -46,7 +48,6 @@ function isUserAuthed({ user = null, reqPermissions = [], authPermissions = {} }
   const u = user || {};
   const authedGroups = authPermissions.groups || {};
   const authedUsers  = authPermissions.users  || {};
-  console.log('authed groups and users', authedGroups, authedUsers)
   // No restrictions beyond the public group and user is logged in → allow
   if (
     u.authed &&

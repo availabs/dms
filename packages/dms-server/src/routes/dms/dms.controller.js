@@ -260,7 +260,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
      * by its parent instance name (e.g. 'my_docs' from type 'my_docs|page').
      * Returns the parsed + subdomain-resolved authPermissions, or null if not found.
      */
-    async getPatternAuthPermissions(app, patternParent) {
+    async getPatternAuthPermissions(app, patternParent, subdomain = '') {
       const table = await mainTable(app);
       const rows = await dms_db.promise(
         `SELECT data FROM ${table} WHERE app = $1 AND type LIKE '%|' || $2 || ':pattern' ORDER BY id DESC LIMIT 1`,
@@ -272,7 +272,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
         : (rows[0].data || {});
       // Auth patterns are always publicly accessible — they contain the login page.
       if (data.pattern_type === 'auth') return null;
-      return resolveAuthPermissions(data.authPermissions);
+      return resolveAuthPermissions(data.authPermissions, subdomain);
     },
 
     getFormat: appKeys => {

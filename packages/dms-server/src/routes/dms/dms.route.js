@@ -27,7 +27,7 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
   // user=undefined → skip auth check (CALL routes returning freshly written rows)
   // user=null     → unauthenticated GET request
   // user={...}    → authenticated GET request
-  const dataByIdResponse = async (rows, ids, atts, app = null, user = undefined) => {
+  const dataByIdResponse = async (rows, ids, atts, app = null, user = undefined, subdomain = '') => {
     const response = [];
     for (const id of ids) {
       const row = rows.reduce((a, c) => (c.id == id ? c : a), {});
@@ -41,7 +41,7 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
           // Auth patterns (login page) are always publicly accessible.
           const pattern_type = row.data?.pattern_type || row?.pattern_type;
           if (pattern_type !== 'auth') {
-            const authPermissions = resolveAuthPermissions(row.data?.authPermissions || row?.authPermissions);
+            const authPermissions = resolveAuthPermissions(row.data?.authPermissions || row?.authPermissions, subdomain);
             blocked = !isUserAuthed({ user, reqPermissions: ['view-page'], authPermissions });
           }
         } else if (kind === 'page') {
@@ -50,9 +50,8 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
           // getPatternAuthPermissions returns null for auth patterns (unrestricted).
           const appForLookup = app || row.app;
           if (appForLookup) {
-            const patternAuth = await controller.getPatternAuthPermissions(appForLookup, getParent(row.type));
-            const pageAuth = resolveAuthPermissions(row.data?.authPermissions || row?.authPermissions);
-            console.log('auth', id, patternAuth, pageAuth)
+            const patternAuth = await controller.getPatternAuthPermissions(appForLookup, getParent(row.type), subdomain);
+            const pageAuth = resolveAuthPermissions(row.data?.authPermissions || row?.authPermissions, subdomain);
             const mergedAuth = {
               groups: { ...(patternAuth?.groups || {}), ...(pageAuth?.groups || {}) },
               users:  { ...(patternAuth?.users  || {}), ...(pageAuth?.users  || {}) },
@@ -122,12 +121,13 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
       get: async function(pathSet) {
         const [, , keys] = pathSet;
         const user = this.user;
+        const subdomain = this.subdomain;
         const rows = await controller.dataLength(keys);
         const response = [];
         for (const key of keys) {
           const [app, type] = key.split('+');
           if (getKind(type) === 'page') {
-            const patternAuth = await controller.getPatternAuthPermissions(app, getParent(type));
+            const patternAuth = await controller.getPatternAuthPermissions(app, getParent(type), subdomain);
             if (!isUserAuthed({ user, reqPermissions: ['view-page'], authPermissions: patternAuth || {} })) {
               response.push({ path: ["dms", "data", key, "length"], value: 0 });
               continue;
@@ -167,12 +167,13 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
       get: async function(pathSet) {
         const [, , keys, , indices] = pathSet;
         const user = this.user;
+        const subdomain = this.subdomain;
         const rows = await controller.dataByIndex(keys, indices);
         const response = [];
         for (const key of keys) {
           const [app, type] = key.split('+');
           if (getKind(type) === 'page') {
-            const patternAuth = await controller.getPatternAuthPermissions(app, getParent(type));
+            const patternAuth = await controller.getPatternAuthPermissions(app, getParent(type), subdomain);
             if (!isUserAuthed({ user, reqPermissions: ['view-page'], authPermissions: patternAuth || {} })) {
               indices.forEach((i) => {
                 response.push({ path: ["dms", "data", key, "byIndex", i], value: null });
@@ -197,6 +198,7 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
       get: async function(pathSet) {
         const [, , keys, , options] = pathSet;
         const user = this.user;
+        const subdomain = this.subdomain;
         const response = [];
 
         for (const option of options) {
@@ -204,7 +206,7 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
           for (const key of keys) {
             const [app, type] = key.split('+');
             if (getKind(type) === 'page') {
-              const patternAuth = await controller.getPatternAuthPermissions(app, getParent(type));
+              const patternAuth = await controller.getPatternAuthPermissions(app, getParent(type), subdomain);
               if (!isUserAuthed({ user, reqPermissions: ['view-page'], authPermissions: patternAuth || {} })) {
                 response.push({ path: ["dms", "data", key, "options", option, "length"], value: 0 });
                 continue;
@@ -227,6 +229,7 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
         try{
           const [, , keys, , options, , indices ] = pathSet;
           const user = this.user;
+          const subdomain = this.subdomain;
           const response = [];
 
           for (const option of options) {
@@ -235,7 +238,7 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
             for (const key of keys) {
               const [app, type] = key.split('+');
               if (getKind(type) === 'page') {
-                const patternAuth = await controller.getPatternAuthPermissions(app, getParent(type));
+                const patternAuth = await controller.getPatternAuthPermissions(app, getParent(type), subdomain);
                 if (!isUserAuthed({ user, reqPermissions: ['view-page'], authPermissions: patternAuth || {} })) {
                   indices.forEach((i) => {
                     response.push({ path: ["dms", "data", key, 'opts', option, "byIndex", i], value: null });
@@ -359,8 +362,9 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
       get: async function(pathSet) {
         const [, , , ids, atts] = pathSet;
         const user = this.user;
+        const subdomain = this.subdomain;
         const rows = await controller.getDataById(ids, atts);
-        return await dataByIdResponse(rows, ids, atts, null, user);
+        return await dataByIdResponse(rows, ids, atts, null, user, subdomain);
       },
     },
     {
@@ -369,10 +373,11 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
       get: async function(pathSet) {
         const [, , apps, , ids, atts] = pathSet;
         const user = this.user;
+        const subdomain = this.subdomain;
         const results = await Promise.all(
           apps.map(app =>
             controller.getDataById(ids, atts, app)
-              .then(rows => dataByIdResponse(rows, ids, atts, app, user))
+              .then(rows => dataByIdResponse(rows, ids, atts, app, user, subdomain))
           )
         );
         return [].concat(...results);
