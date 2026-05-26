@@ -22,17 +22,40 @@ import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext
 import {DecoratorNode} from 'lexical';
 
 import * as React from 'react';
-import {Link, useLocation} from 'react-router'
+import {useLocation, useNavigate} from 'react-router'
 import {InsertButtonDialog} from "../plugins/ButtonPlugin";
 import useModal from "../hooks/useModal";
+import { ThemeContext, getComponentTheme } from "../../../../useTheme";
 
-const BUTTON_STYLES = {
-  primary: 'w-fit h-fit cursor-pointer uppercase bg-[#EAAD43] hover:bg-[#F1CA87] text-[#37576B] font-[700] leading-[14.62px] rounded-full text-[12px] text-center py-[16px] px-[24px]',
-  secondary: 'w-fit h-fit cursor-pointer uppercase border border-[#E0EBF0] bg-white hover:bg-[#E0EBF0] text-[#37576B] font-[700] leading-[14.62px] rounded-full text-[12px] text-center py-[16px] px-[24px]',
-  primarySmall: `w-fit h-fit font-['Proxima_Nova'] cursor-pointer uppercase bg-[#EAAD43] hover:bg-[#F1CA87] text-[#37576B] font-[700] leading-[14.62px] rounded-full text-[12px] text-center pt-[9px] pb-[7px] px-[12px]`,
-  secondarySmall: `w-fit h-fit font-['Proxima_Nova'] cursor-pointer uppercase border bg-[#E0EBF0] hover:bg-[#C5D7E0] text-[#37576B] font-[700] leading-[14.62px] rounded-full text-[12px] text-center pt-[9px] pb-[7px] px-[12px]`,
-  whiteSmall: `w-fit h-fit font-['Proxima_Nova'] cursor-pointer uppercase border border-[#E0EBF0] bg-white hover:bg-[#E0EBF0] text-[#37576B] font-[700] leading-[14.62px] rounded-full text-[12px] text-center pt-[9px] pb-[7px] px-[12px]`,
-  greenSmall: `w-fit h-fit font-['Proxima_Nova'] cursor-pointer uppercase border border-[#327D49] bg-[#D1EBDA] hover:bg-[#BCD1C3] text-[#327D49] font-[700] leading-[14.62px] rounded-full text-[12px] text-center pt-[9px] pb-[7px] px-[12px]`,
+/**
+ * Resolve which `button.styles[]` variant a button node should render with.
+ *
+ * Picks the active theme's matching style by name. Falls back to the
+ * theme's first style (styles[0].name) when the node carries a legacy
+ * style name from the pre-theme-integration era (e.g. 'primary',
+ * 'secondary', 'primarySmall', 'whiteSmall'). Logs once per unknown
+ * legacy name so the migration path is discoverable in devtools.
+ */
+const _warnedLegacyStyles = typeof Set !== 'undefined' ? new Set<string>() : null;
+function resolveButtonStyleName(
+  themeButton: { styles?: Array<{ name?: string }> } | undefined,
+  storedStyle: string | undefined,
+): string {
+  const styles = themeButton?.styles || [];
+  if (!styles.length) return storedStyle || 'default';
+  const matches = styles.some(s => s?.name === storedStyle);
+  if (matches) return storedStyle as string;
+  const fallback = styles[0]?.name || 'default';
+  if (storedStyle && _warnedLegacyStyles && !_warnedLegacyStyles.has(storedStyle)) {
+    _warnedLegacyStyles.add(storedStyle);
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[Lexical Button] Stored style "${storedStyle}" is not a name in ` +
+      `theme.button.styles[]. Rendering with "${fallback}" instead. ` +
+      `Migrate legacy button data to a current style name to silence this warning.`
+    );
+  }
+  return fallback;
 }
 
 function ButtonComponent({nodeKey, linkText, path, keepSearchParams, style}) {
@@ -40,34 +63,65 @@ function ButtonComponent({nodeKey, linkText, path, keepSearchParams, style}) {
   const [editor] = useLexicalComposerContext();
   const [modal, showModal] = useModal();
   const location = useLocation();
+  const navigate = useNavigate();
   const linkPath = keepSearchParams ? `${path}${location.search}` : path;
-  // type ShowModal = ReturnType<typeof useModal>[1];
 
-  return (
+  const { theme: fullTheme = {}, UI } = React.useContext(ThemeContext) || {};
+  const Button = UI?.Button;
+
+  // Pick the active style — falls back gracefully for legacy stored names.
+  const activeStyle = resolveButtonStyleName(
+    fullTheme?.button as { styles?: Array<{ name?: string }> } | undefined,
+    style,
+  );
+
+  // Click target depends on mode:
+  //   - editable → opens the InsertButtonDialog with the current node's values
+  //   - view     → navigates: useNavigate for internal paths, window.open
+  //                for external (http(s):// or //) so React Router doesn't
+  //                try to route external URLs.
+  const handleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (isEditable) {
+      showModal('Insert Button', (onClose) => (
+        <InsertButtonDialog
+          activeEditor={editor}
+          onClose={onClose}
+          initialValues={{linkText, keepSearchParams, path, style, nodeKey}}
+        />
+      ));
+      return;
+    }
+    if (!linkPath) return;
+    if (/^(https?:)?\/\//.test(linkPath)) {
+      window.open(linkPath, '_blank', 'noopener,noreferrer');
+    } else {
+      navigate(linkPath);
+    }
+  };
+
+  // Belt-and-braces: if UI.Button isn't available (e.g. node rendered
+  // outside a ThemeContext provider) fall back to a span with the theme's
+  // button class string. Same brand skin, different element.
+  if (!Button) {
+    const t = getComponentTheme(fullTheme, 'button', activeStyle);
+    return (
       <>
-        {isEditable ? (
-            <span
-                className={`${BUTTON_STYLES[style] || BUTTON_STYLES['primary']}`}
-                onClick={(e) => {
-                  e.preventDefault();
-                  showModal('Insert Button', (onClose) => (
-                      <InsertButtonDialog activeEditor={editor} onClose={onClose} initialValues={{linkText, keepSearchParams, path, style, nodeKey}}/>
-                  ))
-                }}
-            >
-              {linkText || 'submit'}
-            </span>
-        ) : (
-            <Link
-                className={`${BUTTON_STYLES[style] || BUTTON_STYLES['primary']}`}
-                to={linkPath}
-            >
-              {linkText || 'submit'}
-            </Link>
-        )}
-
+        <span className={t?.button || ''} onClick={handleClick}>
+          {linkText || 'submit'}
+        </span>
         {modal}
       </>
+    );
+  }
+
+  return (
+    <>
+      <Button activeStyle={activeStyle} onClick={handleClick}>
+        {linkText || 'submit'}
+      </Button>
+      {modal}
+    </>
   );
 }
 export interface ButtonPayload {
@@ -92,8 +146,7 @@ function convertButtonElement(
 ): null | DOMConversionOutput {
   const linkText = domNode.innerText
   const path = domNode.getAttribute('href') //getAttribute('data-lexical-button');
-  const style = domNode.style
-  //console.log("converyButton element", linkText, path, style, domNode)
+  const style = domNode.getAttribute('data-lexical-button-style') || undefined;
   if (linkText) {
     const node = $createButtonNode({linkText, path, style});
     return {node};
@@ -148,10 +201,17 @@ export class ButtonNode extends DecoratorNode {
   }
 
   exportDOM(): DOMExportOutput {
+    // HTML/PDF export: emit a clean <a> with the link text and a
+    // data-lexical-button-style attribute so the round-trip
+    // ($importDOM → $convertButtonElement) preserves the style choice.
+    // Classes are intentionally NOT inlined — the live React render
+    // (decorate()) owns styling via the brand theme; exporters or
+    // downstream consumers can apply their own styling at conversion
+    // time if they need it.
     const element = document.createElement('a');
     element.setAttribute('href', this.__path);
     element.setAttribute('data-lexical-button', 'true');
-    element.className = BUTTON_STYLES[this.__style] || BUTTON_STYLES['primary'];
+    if (this.__style) element.setAttribute('data-lexical-button-style', this.__style);
     element.textContent = this.__linkText;
     return {element};
   }

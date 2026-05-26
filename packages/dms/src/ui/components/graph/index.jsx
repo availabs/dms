@@ -41,10 +41,17 @@ export default function Graph ({
         const tmpData = [];
         data.forEach(row => {
             const index = row[indexColumn.name] && typeof row[indexColumn.name] !== 'object' && typeof row[indexColumn.name] !== 'string' ?
-                row[indexColumn.name].toString() : row[indexColumn.name];
+                row[indexColumn.name].toString() :
+            typeof row[indexColumn.name] === 'object' && row[indexColumn.name]?.value ? row[indexColumn.name].value : row[indexColumn.name];
             dataColumns.forEach(dataColumn => {
                 const value = row[dataColumn.normalName || dataColumn.name];
-                const type = categoryColumn.name ? row[categoryColumn.name] : (dataColumn.customName || dataColumn.display_name || dataColumn.name)
+                const type =
+                    categoryColumn.name ?
+                        (
+                            typeof row[categoryColumn.name] === 'object' && row[categoryColumn.name]?.value ?
+                            row[categoryColumn.name]?.value : row[categoryColumn.name]
+                        ) :
+                        (dataColumn.customName || dataColumn.display_name || dataColumn.name)
 
                 if(!strictNaN(value) && type && (!display.isLog || value > 0)){
                     tmpData.push({index, type, value, aggMethod: dataColumn.fn});

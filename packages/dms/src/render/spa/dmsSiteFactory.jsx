@@ -34,7 +34,6 @@ export function DmsSite (config) {
         host = typeof window !== 'undefined' ? window.location.host : 'localhost'
     } = config
     let CurrentProjectName = PROJECT_NAME ? PROJECT_NAME : dmsConfig.app
-    const [loading, setLoading] = useState(false);
 
     const routeProps = {
         dmsConfig, adminPath, authPath, themes, falcor, API_HOST, DAMA_HOST,
@@ -42,7 +41,7 @@ export function DmsSite (config) {
         damaDataTypes, damaMapPlugins, host
     }
     const localStorePatterns = parseIfJSON(localStorage.getItem(dmsConfig.app+'-'+dmsConfig.type), null)
-
+    const [loading, setLoading] = useState(() => !localStorePatterns?.length && !defaultData?.length);
     const [dynamicRoutes, setDynamicRoutes] = useState(() => {
         if (localStorePatterns?.length || defaultData?.length) {
             // console.log('has localstore patterns')
