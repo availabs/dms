@@ -17,7 +17,9 @@ import Drawer from "./components/Drawer";
 import Input from "./components/Input"
 import Textarea from "./components/Textarea"
 import Dialog from "./components/Dialog";
+import DialogActions from "./components/DialogActions";
 import Modal from "./components/Modal";
+import Select from "./components/Select";
 import {DeleteModal} from "./components/DeleteModal";
 import DraggableNav from "./components/draggableNav";
 import DraggableMenu from "./components/nestableInHouse";
@@ -54,6 +56,7 @@ const UI = {
 	Button,
   ButtonSelect,
 	Dialog,
+  DialogActions,
 	Label,
 	Pill,
   Popup,
@@ -65,6 +68,7 @@ const UI = {
 	Input,
   Textarea,
 	MultiSelect,
+	Select,
 	ColorPicker,
 	Tabs,
 	Drawer,

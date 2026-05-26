@@ -1,4 +1,4 @@
-import React, {useEffect, useImperativeHandle, forwardRef} from "react";
+import React, {useEffect, useRef, useState, useImperativeHandle, forwardRef} from "react";
 import {isEqual} from "lodash-es";
 import {useImmer} from "use-immer";
 import DataWrapper from "./dataWrapper";
@@ -11,14 +11,30 @@ import { initialState } from "../section_utils";
  * that don't use the dataWrapper (lexical, Filter, Upload, Validate, etc.)
  */
 function NonDataEditComp({ value, onChange, component, siteType, pageFormat, onHandle }) {
+    // Track the last element-data we emitted so we can tell external changes (paste)
+    // from our own onChange round-trips.
+    const lastEmitted = useRef(value?.['element-data']);
+    const [childKey, setChildKey] = useState(0);
+
     const updateAttribute = (k, v) => {
         if (!isEqual(value, {...value, [k]: v})) {
+            if (k === 'element-data') lastEmitted.current = v;
             onChange({...value, [k]: v})
         }
     }
 
     const [state, setState] = useImmer(convertOldState(value?.['element-data'] || '', initialState(component?.defaultState), component?.name));
     const { apiLoad, apiUpdate } = React.useContext(PageContext) || {};
+
+    // When element-data arrives from outside (paste), remount the child so it
+    // reinitialises its own state (e.g. RichtextEdit's `text` useState).
+    const elementData = value?.['element-data'];
+    useEffect(() => {
+        if (elementData === lastEmitted.current) return;
+        lastEmitted.current = elementData;
+        setState(convertOldState(elementData || '', initialState(component?.defaultState), component?.name));
+        setChildKey(k => k + 1);
+    }, [elementData]);
 
     // Expose state to section menu so controls (e.g., AudioPlayer's title/audioUrl inputs) work
     useEffect(() => {
@@ -42,7 +58,8 @@ function NonDataEditComp({ value, onChange, component, siteType, pageFormat, onH
     return (
         <ComponentContext.Provider value={{state, setState, apiLoad, apiUpdate}}>
             <component.EditComp
-                value={value?.['element-data'] || ''}
+                key={childKey}
+                value={elementData || ''}
                 onChange={v => updateAttribute('element-data', v)}
                 siteType={siteType}
                 pageFormat={pageFormat}
@@ -106,6 +123,7 @@ const EditComp = forwardRef(({value, onChange, compKey, component, siteType, pag
 
     return (
         <NonDataEditComp
+            key={compKey || ''}
             value={value}
             onChange={onChange}
             component={component}

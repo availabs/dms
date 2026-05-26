@@ -175,18 +175,31 @@ const UdaTaskList = ({ sourceId, pageSize = 10, env }) => {
 
       const dataRes = await falcor.get(dataPath);
 
-      // Read the resolved data from the response JSON
-      // After ref resolution, the data appears at the byIndex path with resolved values
+      // Read the resolved data from the response JSON.
+      //
+      // Falcor's `byIndex[i]` route returns `$ref(["uda", env, "tasks", "byId", taskId])`.
+      // With a warm cache, the ref materializes inline at `byIndex[i]` (resolved object).
+      // With a cold cache (e.g. after a page refresh), `byIndex[i]` stays as the
+      // bare `{$type: "ref", value: [...]}` sentinel — but the byId attrs ARE
+      // present in the same response under `byId[taskId]`. Follow the ref
+      // ourselves so cold-cache renders show the same task rows as warm-cache ones.
       const basePath = sourceId
         ? ["json", "uda", pgEnv, "tasks", "forSource", +sourceId, "byIndex"]
         : ["json", "uda", pgEnv, "tasks", "byIndex"];
       const indexed = get(dataRes, basePath, {});
+      const byIdMap = get(dataRes, ["json", "uda", pgEnv, "tasks", "byId"], {});
 
       const tasks = [];
       const sourceIds = [];
 
       for (let i = from; i <= to; i++) {
-        const task = indexed[i];
+        let task = indexed[i];
+        if (task && task.$type === "ref" && Array.isArray(task.value)) {
+          // ref value path is ["uda", env, "tasks", "byId", taskId] — the taskId
+          // is the last segment. Look the resolved object up in byIdMap.
+          const refTaskId = task.value[task.value.length - 1];
+          task = byIdMap[refTaskId];
+        }
         if (!task || task.$type === "ref") continue;
         const taskId = task.task_id;
         if (!taskId && taskId !== 0) continue;

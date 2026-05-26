@@ -5,7 +5,7 @@ import {AuthContext} from "../context";
 import {callAuthServer} from "../api";
 
 
-export default function AuthSignup (props) {
+export default function AuthSignup ({ disableSignup, ...props }) {
     const location = useLocation();
     const [credentials, setCredentials] = React.useState({email: '', password: ''});
     const [status, setStatus] = React.useState('');
@@ -14,9 +14,18 @@ export default function AuthSignup (props) {
     const {FieldSet, Button} = UI;
     const navigate = useNavigate();
 
-    if(status) return <div>{status}</div>
-
     const sectionGroupTheme = theme?.auth?.authPages?.sectionGroup?.default || {};
+
+    if (disableSignup) {
+        return (
+            <div className={sectionGroupTheme.pageWrapper}>
+                <div className={sectionGroupTheme.pageTitle}>Sign Up Disabled</div>
+                <p className='text-sm text-gray-500'>Sign up is not available. Please contact an administrator.</p>
+            </div>
+        );
+    }
+
+    if(status) return <div>{status}</div>
     return (
         <div className={sectionGroupTheme.pageWrapper}>
             <div className={sectionGroupTheme.pageTitle}>Sign Up</div>

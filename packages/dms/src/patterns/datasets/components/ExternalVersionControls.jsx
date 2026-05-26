@@ -148,7 +148,7 @@ const DownloadModalCheckboxGroup = ({
                             if (modalState.length === options.length) {
                                 onChange([]);
                             } else {
-                                onChange(options.map(opt => opt?.name || opt));
+                                onChange(options.filter(opt => !opt?.name?.includes(" ")).map(opt => opt?.name || opt));
                             }
                         }}
                     >
@@ -171,7 +171,7 @@ const DownloadModalCheckboxGroup = ({
                     inputName={option?.name || option}
                     checked={modalState.includes(option?.name || option)}
                     onChange={onChange}
-                    disabled={hasCalcColumn && option?.includes(" ")}
+                    disabled={hasCalcColumn && option?.name?.includes(" ")}
                 />
             ))}
         </div>

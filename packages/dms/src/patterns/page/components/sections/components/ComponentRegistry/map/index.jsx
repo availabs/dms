@@ -15,7 +15,8 @@ import {defaultStyles, blankStyles} from "./styles.js";
 import PluginLayer from "../../../../../../mapeditor/MapEditor/components/PluginLayer"
 import { PluginLibrary, PLUGIN_TYPE } from "../../../../../../mapeditor/MapEditor";
 import ExternalPluginPanel from "../../../../../../mapeditor/MapEditor/components/ExternalPluginPanel";
-import {fetchBoundsForFilter} from '../../../../../../mapeditor/MapEditor/stateUtils';
+import { buildLayerUdaFilterOptions, fetchBoundsForFilter } from '../../../../../../mapeditor/MapEditor/stateUtils';
+import { choroplethPaint } from "./utils.js";
 
 import mapeditorFormat from "../../../../../../mapeditor/mapeditor.format"
 
@@ -52,6 +53,37 @@ export const MapContext = createContext(undefined);
 
 const EMPTY_TABS = [{ "name": "Layers", rows: [] }];
 const EMPTY_OBJECT = {};
+
+/**
+ * Reuses the saved category legend rows as the source of truth for labels and
+ * colors, then narrows that legend to only the categories present after the
+ * current runtime filters have been applied.
+ */
+const getCategoryLegendFromFilteredData = (layer, filteredData = []) => {
+    const dataColumn = layer?.["data-column"];
+    const baseLegend = layer?.__runtimeBaseLegendData || layer?.["legend-data"] || [];
+    const baseCategoryData = layer?.__runtimeBaseCategoryData || layer?.["category-data"] || [];
+    const colorSet = layer?.["color-set"] || [];
+
+    const baseLegendByValue = new Map(
+        (baseCategoryData || []).map((row, index) => [
+            String(row?.[dataColumn]),
+            baseLegend[index] || null,
+        ])
+    );
+
+    return (filteredData || [])
+        .map((row, index) => {
+            const value = row?.[dataColumn];
+            if (value === undefined || value === null) return null;
+            const savedLegendRow = baseLegendByValue.get(String(value));
+            return {
+                color: savedLegendRow?.color || colorSet[index % colorSet.length] || "#ccc",
+                label: savedLegendRow?.label || String(value),
+            };
+        })
+        .filter(Boolean);
+};
 
 export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
     // const {falcor, falcorCache} = useFalcor();
@@ -125,6 +157,14 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
     /**
      * Exposes live map state and the map-specific API to the outer section settings shell.
      * Map Settings is rendered outside this component tree, so it needs this handle bridge.
+     */
+    /**
+     * Runtime-only legend refresh for DMS map layers.
+     *
+     * Interactive filter switching already swaps the active layer config, but
+     * dynamic-filter value changes only update rendered features. This effect
+     * keeps legend data in sync with those live filtered results without
+     * persisting temporary legend changes back into the saved symbology.
      */
     useEffect(() => {
         if (!onHandle) return;
@@ -305,6 +345,177 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
         }
         }
     }, [dynamicFilterOptions, dataPageFilters]);
+
+    /**
+     * Keep runtime legend data aligned with the currently active layer filters.
+     * When dynamic filters are active, refetch filtered legend inputs and store
+     * the derived legend state on the live layer only. When filters clear,
+     * restore the layer's original saved legend values.
+     */
+    useEffect(() => {
+        if (isEdit || !activeSym || !isReady) return;
+
+        let cancelled = false;
+
+        const refreshLegendData = async () => {
+            const visibleSymbologies = Object.entries(state.symbologies || {})
+                .filter(([, symb]) => symb?.isVisible);
+
+            for (const [symbologyId, symb] of visibleSymbologies) {
+                const layers = Object.values(symb?.symbology?.layers || {});
+
+                for (const layer of layers) {
+                    /**
+                     * Interactive layers keep the active variant nested under
+                     * `interactive-filters`, while the top-level layer remains
+                     * marked as `"interactive"`. Resolve the effective active
+                     * legend type here so dynamic-filter legend refresh can
+                     * still branch into categories / choropleth / circles.
+                     */
+                    const selectedInteractiveFilterIndex = layer?.selectedInteractiveFilterIndex;
+                    const layerType = layer?.["layer-type"] === "interactive"
+                        ? get(layer, `['interactive-filters'][${selectedInteractiveFilterIndex}]['layer-type']`)
+                        : layer?.["layer-type"];
+                    const dataColumn = layer?.["data-column"];
+                    const viewId = layer?.view_id;
+                    const activeLegendFilters = buildLayerUdaFilterOptions({
+                        layerFilter: layer?.filter,
+                        dynamicFilters: layer?.["dynamic-filters"],
+                        filterMode: layer?.filterMode,
+                    });
+
+                    const hasActiveDynamicFilters = (layer?.["dynamic-filters"] || []).some(
+                        (dynamicFilter) => Array.isArray(dynamicFilter?.values) && dynamicFilter.values.length > 0
+                    );
+
+                    /**
+                     * Prevent repeated runtime legend fetches when the live
+                     * filter envelope for this layer has not changed.
+                     */
+                    const runtimeLegendKey = JSON.stringify({
+                        layerType,
+                        viewId,
+                        dataColumn,
+                        filterMode: layer?.filterMode || "all",
+                        filters: activeLegendFilters || null,
+                    });
+
+                    if (!hasActiveDynamicFilters || !activeLegendFilters || !dataColumn || !viewId) {
+                        if (layer?.__runtimeLegendFilterKey) {
+                            setState((draft) => {
+                                const draftLayer = draft.symbologies?.[symbologyId]?.symbology?.layers?.[layer.id];
+                                if (!draftLayer) return;
+                                if (draftLayer.__runtimeBaseLegendData) {
+                                    draftLayer["legend-data"] = cloneDeep(draftLayer.__runtimeBaseLegendData);
+                                }
+                                if (draftLayer.__runtimeBaseCategoryData) {
+                                    draftLayer["category-data"] = cloneDeep(draftLayer.__runtimeBaseCategoryData);
+                                }
+                                delete draftLayer.__runtimeLegendFilterKey;
+                            });
+                        }
+                        continue;
+                    }
+
+                    if (layer?.__runtimeLegendFilterKey === runtimeLegendKey) {
+                        continue;
+                    }
+
+                    if (layerType === "categories") {
+                        const options = JSON.stringify({
+                            groupBy: [dataColumn.split("AS ")[0]],
+                            exclude: { [dataColumn.split("AS ")[0]]: ["null"] },
+                            orderBy: { "2": "desc" },
+                            ...activeLegendFilters,
+                        });
+
+                        const response = await falcor.get([
+                            "uda", pgEnv, "viewsById", viewId, "options", options,
+                            "dataByIndex", { from: 0, to: 100 }, [dataColumn, "count(1)::int as count"]
+                        ]);
+
+                        if (cancelled) return;
+
+                        const filteredData = get(
+                            response,
+                            ["json", "uda", pgEnv, "viewsById", viewId, "options", options, "dataByIndex"],
+                            []
+                        );
+                        const nextLegendData = getCategoryLegendFromFilteredData(layer, filteredData);
+
+                        setState((draft) => {
+                            const draftLayer = draft.symbologies?.[symbologyId]?.symbology?.layers?.[layer.id];
+                            if (!draftLayer) return;
+                            if (!draftLayer.__runtimeBaseLegendData) {
+                                draftLayer.__runtimeBaseLegendData = cloneDeep(draftLayer["legend-data"] || []);
+                            }
+                            if (!draftLayer.__runtimeBaseCategoryData) {
+                                draftLayer.__runtimeBaseCategoryData = cloneDeep(draftLayer["category-data"] || []);
+                            }
+                            if (!isEqual(draftLayer["legend-data"], nextLegendData)) {
+                                draftLayer["legend-data"] = nextLegendData;
+                            }
+                            if (!isEqual(draftLayer["category-data"], filteredData)) {
+                                draftLayer["category-data"] = filteredData;
+                            }
+                            draftLayer.__runtimeLegendFilterKey = runtimeLegendKey;
+                        });
+                    }
+                    else if (layerType === "choropleth" || layerType === "circles") {
+                        const domainOptions = JSON.stringify({
+                            column: dataColumn,
+                            numbins: layer?.["num-bins"] || 9,
+                            method: layer?.["bin-method"] || "ckmeans",
+                            ...activeLegendFilters,
+                        });
+
+                        const response = await falcor.get([
+                            "uda", pgEnv, "viewsById", +viewId, "colorDomain", domainOptions
+                        ]);
+
+                        if (cancelled) return;
+
+                        const domainResult = get(
+                            response,
+                            ["json", "uda", pgEnv, "viewsById", +viewId, "colorDomain", domainOptions],
+                            {}
+                        );
+
+                        const paintResult = choroplethPaint(
+                            dataColumn,
+                            domainResult?.max,
+                            layer?.["color-range"] || [],
+                            layer?.["num-bins"] || 9,
+                            layer?.["bin-method"] || "ckmeans",
+                            domainResult?.breaks || [],
+                            layer?.["category-show-other"] || "#ccc",
+                            layer?.["legend-orientation"] || "vertical"
+                        );
+
+                        const nextLegendData = paintResult?.legend || [];
+
+                        setState((draft) => {
+                            const draftLayer = draft.symbologies?.[symbologyId]?.symbology?.layers?.[layer.id];
+                            if (!draftLayer) return;
+                            if (!draftLayer.__runtimeBaseLegendData) {
+                                draftLayer.__runtimeBaseLegendData = cloneDeep(draftLayer["legend-data"] || []);
+                            }
+                            if (!isEqual(draftLayer["legend-data"], nextLegendData)) {
+                                draftLayer["legend-data"] = nextLegendData;
+                            }
+                            draftLayer.__runtimeLegendFilterKey = runtimeLegendKey;
+                        });
+                    }
+                }
+            }
+        };
+
+        refreshLegendData();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [activeSym, falcor, isEdit, isReady, pgEnv, setState, state.symbologies]);
 
     const arePluginsLoaded = Object.values((state.symbologies || {})).some(symb => Object.keys((symb?.symbology?.plugins || {})).length > 0);
 
