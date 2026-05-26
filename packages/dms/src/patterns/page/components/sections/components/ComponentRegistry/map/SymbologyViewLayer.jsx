@@ -92,6 +92,17 @@ const getSubscriberHighlightLayers = (layerProps = {}) => {
 };
 
 /**
+ * Compares only the dynamic-filter fields that actually affect rendered data.
+ * Config-only edits such as search key / display label / type should not force
+ * a source rebuild in the runtime map.
+ */
+const getDynamicFilterDataSignature = (dynamicFilters = []) =>
+  (dynamicFilters || []).map((filter) => ({
+    column_name: filter?.column_name,
+    values: Array.isArray(filter?.values) ? filter.values : [],
+  }));
+
+/**
  * Removes any temporary subscriber highlight layers and their GeoJSON sources
  * for the provided logical layer.
  *
@@ -279,10 +290,16 @@ const ViewLayerRender = ({
       !layerProps.filterGroupEnabled &&
       layerProps?.["data-column"] !== prevLayerProps?.["data-column"];
 
-
-
   const didFilterChange = layerProps?.filter !== prevLayerProps?.["filter"];
-  const didDynamicFilterChange = layerProps?.['dynamic-filters'] !== prevLayerProps?.['dynamic-filters'];
+  /**
+   * Only treat dynamic-filter edits as data changes when the column/value
+   * payload changes. UI-only edits like type or search key should not rebuild
+   * the runtime layer source.
+   */
+  const didDynamicFilterChange = !isEqual(
+    getDynamicFilterDataSignature(layerProps?.["dynamic-filters"]),
+    getDynamicFilterDataSignature(prevLayerProps?.["dynamic-filters"])
+  );
 
   useEffect(() => {
     // ------------------------------------------------------

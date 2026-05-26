@@ -9,19 +9,17 @@ export default {
     defaultState: {
         filters: { op: 'AND', groups: [] },
         columns: [],
-        display: {},
+        display: {showAttribution: false},
         externalSource: {}
     },
     controls: {
-        columns: [{type: 'toggle', label: 'Filter', key: 'filters', trueValue: [{type: 'internal', operation: 'filter', values: []}],
-            onChange: ({key, value, attribute, state, columnIdx}) => {
-                state.columns[columnIdx].show = Boolean(value?.length);
-            }}],
+        columns: [],
         more: [
             {type: 'input', inputType: 'number', label: 'Grid Size', key: 'gridSize', min: 1, max: 5},
             {type: 'select', label: 'Placement', key: 'placement',
                 options: [{label: 'stacked', value: 'stacked'}, {label: 'inline', value: 'inline'}]
             },
+            {type: 'toggle', label: 'Attribution', key: 'showAttribution'},
         ]
     },
     "EditComp": FilterEdit,

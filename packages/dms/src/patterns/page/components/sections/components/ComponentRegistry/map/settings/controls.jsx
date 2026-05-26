@@ -248,13 +248,18 @@ const MapDynamicFiltersControl = ({ mapAPI }) => {
               <Input type="text" value={filter.defaultValue ?? ""} onChange={(event) => setDynamicDefaultValue(index, event.target.value)} />
             </Field>
             <Field label="Type" compact={false}>
+              {/**
+                * Store an explicit string value for the select so the "String"
+                * label renders correctly and the handler accepts either a raw
+                * value or the full option object returned by MultiSelect.
+                */}
               <Select
-                value={filter.dataType || ""}
+                value={filter.dataType || "string"}
                 options={[
-                  { label: "String", value: "" },
+                  { label: "String", value: "string" },
                   { label: "Numeric", value: "numeric" },
                 ]}
-                onChange={(value) => setDynamicDataType(index, value)}
+                onChange={(value) => setDynamicDataType(index, value?.value ?? value ?? "string")}
                 singleSelectOnly={true}
               />
             </Field>

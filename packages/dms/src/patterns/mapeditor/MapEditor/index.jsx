@@ -28,7 +28,7 @@ import {
 
 //import { DMS_DATA_ITEM_ATTRIBUTES } from "../attributes"
 
-import { extractState, fetchBoundsForFilter, filterToUda, setDefaultActiveLayer } from './stateUtils';
+import { buildLayerUdaFilterOptions, extractState, fetchBoundsForFilter, setDefaultActiveLayer } from './stateUtils';
 
 export const SymbologyContext = React.createContext(undefined);
 
@@ -413,6 +413,7 @@ const MapEditor = props => {
     pluginData,
     isActiveLayerPlugin,
     existingDynamicFilter,
+    filterMode,
     hoverCasing,
     polygonLayerType
   } = React.useMemo(() => {
@@ -599,9 +600,32 @@ const MapEditor = props => {
 
         let colorBreaks;
         let targetViewId = viewId;
+        /**
+         * Reuse the combined static + dynamic filter envelope for legend-domain
+         * requests so the editor legend matches the filtered layer dataset.
+         */
+        const activeLegendFilters = buildLayerUdaFilterOptions({
+          layerFilter: filter,
+          dynamicFilters: existingDynamicFilter,
+          filterMode,
+        });
+        /**
+         * Cache legend breaks by both data target and active filter envelope so
+         * we only reuse breaks when they were generated for the same filters.
+         */
+        const legendFilterKey = JSON.stringify({
+          filters: activeLegendFilters || null,
+          targetViewId: viewGroupEnabled ? viewGroupId : viewId,
+          targetColumn: filterGroupEnabled ? filterGroupLegendColumn || baseDataColumn : baseDataColumn,
+        });
 
         let regenerateLegend = false;
-        if(choroplethdata && Object.keys(choroplethdata).length === 2 && viewGroupId === prevViewGroupId) {
+        if(
+          choroplethdata &&
+          Object.keys(choroplethdata).length >= 2 &&
+          viewGroupId === prevViewGroupId &&
+          choroplethdata?.legendFilterKey === legendFilterKey
+        ) {
           colorBreaks = choroplethdata;
         }
         else {
@@ -612,12 +636,9 @@ const MapEditor = props => {
           if(viewGroupEnabled) {
             targetViewId = viewGroupId;
           }
-          // Translate the layer's filter state `{col: {operator, value}}` into
-          // the flat UDA envelope `{filter, exclude, gt, gte, lt, lte}` the
-          // server expects. Merge its slots into domainOptions (spread so each
-          // slot sits at the top level, which is what buildFilterContext reads).
-          const udaFilter = filterToUda(filter);
-          if (udaFilter) Object.assign(domainOptions, udaFilter);
+          if (activeLegendFilters) {
+            Object.assign(domainOptions, activeLegendFilters);
+          }
 
           setState(draft => {
             set(draft, `${pathBase}['is-loading-colorbreaks']`, true);
@@ -630,8 +651,8 @@ const MapEditor = props => {
             "json", "uda", pgEnv, "viewsById", +targetViewId, "colorDomain", optsKey
           ]);
           colorBreaks = (cdResult && Array.isArray(cdResult.breaks) && cdResult.breaks.length)
-            ? { breaks: cdResult.breaks, max: cdResult.max }
-            : { breaks: [], max: 0 };
+            ? { breaks: cdResult.breaks, max: cdResult.max, legendFilterKey }
+            : { breaks: [], max: 0, legendFilterKey };
           setState(draft => {
             set(draft, `${pathBase}['is-loading-colorbreaks']`, false);
           });
@@ -702,7 +723,8 @@ const MapEditor = props => {
     }
   }, [categories, layerType, baseDataColumn, categorydata, activeLayer.type,
       colors, numCategories, showOther, numbins, method,
-      choroplethdata, viewGroupId, filterGroupLegendColumn, isActiveLayerPlugin
+      choroplethdata, viewGroupId, filterGroupLegendColumn, isActiveLayerPlugin,
+      filter, existingDynamicFilter, filterMode
   ]);
 
   React.useEffect(() => {
@@ -923,24 +945,50 @@ const MapEditor = props => {
 
   React.useEffect(() => {
     if(baseDataColumn && layerType === 'categories' && !isActiveLayerPlugin) {
-      const options = JSON.stringify({
+      const optionsObject = {
         groupBy: [(baseDataColumn).split('AS ')[0]],
         exclude: {[(baseDataColumn).split('AS ')[0]]: ['null']},
         orderBy: {"2": 'desc'}
-      })
+      };
+      /**
+       * Category legends should query against the same active static/dynamic
+       * filter set as the rendered layer.
+       */
+      const activeLegendFilters = buildLayerUdaFilterOptions({
+        layerFilter: filter,
+        dynamicFilters: existingDynamicFilter,
+        filterMode,
+      });
+      if (activeLegendFilters) {
+        Object.assign(optionsObject, activeLegendFilters);
+      }
+      const options = JSON.stringify(optionsObject)
       falcor.get([
         'uda', pgEnv, 'viewsById', viewId, 'options', options, 'dataByIndex', { from: 0, to: 100 }, [baseDataColumn, 'count(1)::int as count']
       ])
     }
-  },[baseDataColumn, layerType, viewId, isActiveLayerPlugin])
+  },[baseDataColumn, layerType, viewId, isActiveLayerPlugin, filter, existingDynamicFilter, filterMode])
 
   React.useEffect(() => {
     if(baseDataColumn && layerType === 'categories' && !isActiveLayerPlugin) {
-      const options = JSON.stringify({
+      const optionsObject = {
         groupBy: [(baseDataColumn).split('AS ')[0]],
         exclude: {[(baseDataColumn).split('AS ')[0]]: ['null']},
         orderBy: {"2": 'desc'}
-      })
+      };
+      /**
+       * Read back category legend data from the same filtered cache key used by
+       * the request effect above so the saved legend state stays in sync.
+       */
+      const activeLegendFilters = buildLayerUdaFilterOptions({
+        layerFilter: filter,
+        dynamicFilters: existingDynamicFilter,
+        filterMode,
+      });
+      if (activeLegendFilters) {
+        Object.assign(optionsObject, activeLegendFilters);
+      }
+      const options = JSON.stringify(optionsObject)
       let data = get(falcorCache, [
         'uda', pgEnv, 'viewsById', viewId, 'options', options, 'dataByIndex'
       ], {})
@@ -948,7 +996,7 @@ const MapEditor = props => {
         set(draft, `${pathBase}['category-data']`, data)
       })
     }
-  }, [baseDataColumn, layerType, viewId, falcorCache, isActiveLayerPlugin]);
+  }, [baseDataColumn, layerType, viewId, falcorCache, isActiveLayerPlugin, filter, existingDynamicFilter, filterMode]);
 
   const SymbologyContextValue = React.useMemo(() => {
     return { state, setState, symbologies, params: props.params };

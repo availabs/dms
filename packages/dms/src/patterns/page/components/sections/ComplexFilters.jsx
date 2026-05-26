@@ -290,6 +290,17 @@ export const ComplexFilters = ({ state, setState }) => {
                                     {node.isExternal && (
                                         <div className={t.popupRow}>
                                             <Icon icon={'Filter'} className={t.popupIcon} />
+                                            <label className={t.popupRowLabel}>Display Name:</label>
+                                            <Input
+                                                value={node.displayName || ''}
+                                                placeholder={node.col || 'label…'}
+                                                onChange={e => updateNodeAtPath(path, n => { n.displayName = e.target.value || undefined; })}
+                                            />
+                                        </div>
+                                    )}
+                                    {node.isExternal && (
+                                        <div className={t.popupRow}>
+                                            <Icon icon={'Filter'} className={t.popupIcon} />
                                             <label className={t.popupRowLabel}>Display:</label>
                                             <MultiSelect
                                                 singleSelectOnly
