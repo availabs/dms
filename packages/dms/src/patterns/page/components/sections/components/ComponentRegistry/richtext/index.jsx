@@ -1,4 +1,4 @@
-import {useContext, useEffect, useState, useMemo} from "react";
+import {useContext, useEffect, useRef, useState, useMemo} from "react";
 import {isEqual} from 'lodash-es';
 import { ThemeContext } from "../../../../../../../ui/useTheme";
 import { CMSContext, ComponentContext } from "../../../../../context";
@@ -27,6 +27,9 @@ export const RichtextEdit = ({value, onChange}) => {
     const { state, setState, sectionId } = useContext(ComponentContext);
     const { user, fileUploadInfo } = useContext(CMSContext) || {};
     const { ColumnTypes: {lexical: Lexical}} = UI;
+
+    const instanceId = useRef(`lexical-${Math.random().toString(36).slice(2)}`);
+    const editorId = sectionId || instanceId.current;
 
     // Enable collaborative editing when sync WebSocket is connected
     const isCollab = sectionId && globalThis.__dmsSyncAPI?.isCollabReady?.();
@@ -87,6 +90,7 @@ export const RichtextEdit = ({value, onChange}) => {
                             bgColor={bgColor}
                             hideControls={!showToolbar}
                             styleName={isCard || undefined}
+                            id={editorId}
                             isCollab={isCollab}
                             collabId={collabId}
                             collabUsername={collabUsername}
