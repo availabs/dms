@@ -16,6 +16,7 @@ const {
   currentTimestamp,
   QueryBuilder
 } = require('#db/query-utils.js');
+const { resolveAuthPermissions } = require('./auth');
 const {
   isSplitType,
   parseType,
@@ -253,6 +254,26 @@ function createController(dbName = 'dms-sqlite', options = {}) {
      * @param {Function} fn - (app, msg) => void
      */
     setNotifyChange(fn) { _notifyChange = fn; },
+
+    /**
+     * Look up the resolved authPermissions object for a pattern identified
+     * by its parent instance name (e.g. 'my_docs' from type 'my_docs|page').
+     * Returns the parsed + subdomain-resolved authPermissions, or null if not found.
+     */
+    async getPatternAuthPermissions(app, patternParent) {
+      const table = await mainTable(app);
+      const rows = await dms_db.promise(
+        `SELECT data FROM ${table} WHERE app = $1 AND type LIKE '%|' || $2 || ':pattern' ORDER BY id DESC LIMIT 1`,
+        [app, patternParent]
+      );
+      if (!rows[0]) return null;
+      const data = typeof rows[0].data === 'string'
+        ? JSON.parse(rows[0].data)
+        : (rows[0].data || {});
+      // Auth patterns are always publicly accessible — they contain the login page.
+      if (data.pattern_type === 'auth') return null;
+      return resolveAuthPermissions(data.authPermissions);
+    },
 
     getFormat: appKeys => {
       const arrayResult = buildArrayComparison("app || '+' || type", appKeys, dbType);
