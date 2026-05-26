@@ -128,9 +128,13 @@ app.use('/graph', (req, res, next) => {
   next();
 });
 
-// Mirrors getSubdomain() in render/spa/utils/index.js — single-depth subdomain only.
-function getSubdomain(host) {
-  const hostname = (host || '').split(':')[0];
+// Extract subdomain from the request. Mirrors getSubdomain() in render/spa/utils/index.js.
+// Reads Origin (the frontend's host on cross-origin requests) rather than Host
+// (which is the API server's own hostname and carries no subdomain info).
+function getSubdomain(req) {
+  const origin = req.headers.origin || '';
+  const raw = origin ? origin.replace(/^https?:\/\//, '') : (req.headers.host || '');
+  const hostname = raw.split(':')[0];
   const isLocalhost = hostname === 'localhost' || hostname.endsWith('.localhost');
   const minParts = isLocalhost || process.env.NODE_ENV === 'development' ? 2 : 3;
   const parts = hostname.split('.');
@@ -142,7 +146,7 @@ app.use(
   falcorExpress.dataSourceRoute(function (req, res) {
     try {
       const { user = null } = req.availAuthContext || {};
-      const subdomain = getSubdomain(req.headers.host || '');
+      const subdomain = getSubdomain(req);
       return falcorRoutes({ user, subdomain });
     } catch (e) {
       console.error('[graph] Error creating data source:', e);

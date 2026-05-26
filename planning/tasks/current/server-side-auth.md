@@ -92,11 +92,21 @@ Deferred until Phase 2 is verified in production.
 
 ---
 
+## Subdomain-aware auth — COMPLETE (2026-05-26)
+
+`resolveAuthPermissions(rawAuth, subdomain)` now accepts a subdomain string. The server
+extracts the subdomain from `req.headers.host` via `getSubdomain()` (mirrors client logic
+in `render/spa/utils/index.js`), stores it as `this.subdomain` on the Falcor router
+(alongside `this.user`), and threads it through every auth check:
+- `dataByIdResponse` — patterns + pages
+- `length`, `byIndex`, `options.length`, `opts.byIndex` listing routes
+- `getPatternAuthPermissions(app, patternParent, subdomain)` in the controller
+
 ## Todo checkbox (planning/todo.md)
 
-- [ ] Server-side auth Phase 2: per-page auth in listing routes
+- [x] Server-side auth Phase 1+2: patterns, page listings, per-page authPermissions
+- [x] Subdomain-aware `resolveAuthPermissions` — `Host` header subdomain threaded through all auth checks
 - [ ] Server-side auth Phase 3: sources + views
-- [ ] Subdomain-aware `resolveAuthPermissions` — pass `Host` header subdomain into route context
 
 ## Files
 
