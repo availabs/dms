@@ -12,11 +12,16 @@ Skills sit alongside `planning/` (work tracking) and `documentation/` (reference
 
 ### Theming
 
-- [Designing a theme and design system for DMS](./designing-a-dms-theme.md) — the structural grammar (Site → Layout → LayoutGroup → Section → Component), the theme contract (`options/styles` + class strings), and the deliverable shape: `theme/` (code artifact) + `design-system/` (four documentation pages) + `pages/` (theme-chosen examples). Mockup pages must be **plain HTML + Tailwind CDN, no JSX, no build step**. Worked examples in `src/themes/transportny/.../dms_design_system/` and `src/themes/tessera/design_system_v2/`.
+- [Designing a DMS-compatible design system (HTML + Tailwind)](./designing-a-dms-design-system.md) — the structural grammar (Site → Layout → LayoutGroup → Section → Component) and the visual deliverable: `design-system/` (four docs pages) + `pages/` (theme-chosen examples) + `_shared.css`. Mockup pages must be **plain HTML + Tailwind Play CDN, no JSX, no build step**. Lookup table for finding each primitive's source-of-truth `.theme.{js,jsx}` file. Worked examples in `src/themes/transportny/.../dms_design_system/` and `src/themes/tessera/design_system_v2/`.
+- [Translating a design system into a DMS theme](./translating-design-system-to-dms-theme.md) — taking a completed design-system folder and producing the runnable `theme/theme.js` overlay (plus `icons.js`, `tailwind.additions.js`, `index.css.additions`). Covers the `options/styles` conventions, sparse overrides, theme merging, and a per-primitive key checklist sourced from `src/dms/packages/dms/src/ui/components/*.theme.{js,jsx}`. Includes the TopNav/SideNav-keys gap that the first Tessera pass tripped on, as a worked example of why invented keys silently no-op.
 
 ### Layout reference
 
 - [Card section layout](./card-layout.md) — every layout knob on the `Card` section: the two grids (cards-grid + cells-grid), `cellSpan`/`cellRowSpan`, image/link/format cells, `cardHints` (`fullBleed`, `spanFullColumns`), the `row` prop available to composite column types, and recipes for stat strips / 3-up record cards / composite "owns its own layout" cells. Read before configuring any non-trivial card.
+
+### Authoring at the pattern level
+
+- [Creating pages from a design pattern via the DMS CLI](./creating-pages-from-a-design-pattern.md) — taking a completed design system (or a set of design mockups) and instantiating the corresponding pages + draft sections inside a live DMS pattern. Covers `dms page create` / `dms section create --data`, the `element-data` JSON-string gotcha, the Lexical state shape, when a `Card` placeholder is the right call vs a real data binding, and the **draft-only discipline** (this skill never publishes — humans run `dms page publish`). Worked example: `scripts/seed-tessera-pages.mjs` seeds the 12 Tessera design-system pages into `app=tessera, pattern=main|main:pattern`.
 
 ### Recipes — configured sections (no new component needed)
 

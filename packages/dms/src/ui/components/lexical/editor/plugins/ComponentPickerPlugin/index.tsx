@@ -42,6 +42,7 @@ import {InsertInlineImageDialog} from '../InlineImagePlugin';
 import InsertLayoutDialog from '../LayoutPlugin/InsertLayoutDialog';
 import {InsertTableDialog} from '../TablePlugin';
 import {INSERT_PAGE_BREAK} from '../PageBreakPlugin';
+import {$createStyledParagraphNode} from '../../nodes/StyledParagraphNode';
 
 class ComponentPickerOption extends MenuOption {
     // What shows up in the editor
@@ -158,10 +159,15 @@ function getBaseOptions(editor: LexicalEditor, showModal: ShowModal, fileUploadI
                     }
                 }),
         }),
-        ...([1, 2, 3, 4] as const).map(
+        // Heading range 1–6 so themes can map the full display ladder
+        // (h1 = display hero, h6 = small display title). The icon map only
+        // includes h1–h4; for h5/h6 we fall back to the h4 icon. Themes
+        // that don't define h5/h6 in their textSettings will inherit the
+        // codebase defaults, which is fine.
+        ...([1, 2, 3, 4, 5, 6] as const).map(
             (n) =>
                 new ComponentPickerOption(`Heading ${n}`, {
-                    icon: <i className={`${theme.typeaheadPopover.ul.li.icon} ${theme.icon[`h${n}`]}`}/>,
+                    icon: <i className={`${theme.typeaheadPopover.ul.li.icon} ${theme.icon[`h${n}`] || theme.icon.h4}`}/>,
                     keywords: ['heading', 'header', `h${n}`],
                     onSelect: () =>
                         editor.update(() => {
@@ -294,7 +300,55 @@ function getBaseOptions(editor: LexicalEditor, showModal: ShowModal, fileUploadI
                         editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, alignment),
                 }),
         ),
+
+        // Brand text-style tokens — auto-generated from
+        // theme.brandTextStyles (which mirrors the active theme's
+        // textSettings.styles[0]). Each key becomes a `/Style: <key>` option
+        // that converts the current paragraph into a StyledParagraphNode
+        // carrying the key. The node resolves the key → className at render
+        // via theme.brandTextStyles at decorate time.
+        //
+        // Themes can opt out specific keys by setting
+        // theme.textSettings.options.slashKeys to an explicit allow-list;
+        // if present, only those keys generate options. This lets brands
+        // filter the size-ladder (textXS…text8XL) out of the menu while
+        // keeping their named brand tokens (displayHero, proseSM, metaSM…)
+        // pickable.
+        ...buildStyleOptions(editor),
     ];
+}
+
+/** Build /Style: options from the active theme's brandTextStyles. */
+function buildStyleOptions(editor: LexicalEditor): ComponentPickerOption[] {
+    const theme = editor?._config?.theme || {};
+    const brand = (theme as Record<string, unknown>).brandTextStyles as
+      | Record<string, string>
+      | undefined;
+    if (!brand) return [];
+
+    // Optional allow-list set by the theme to filter the menu.
+    const allow = (theme as Record<string, unknown>).brandTextStyleSlashKeys as
+      | string[]
+      | undefined;
+    const keys = Object.keys(brand).filter(k => {
+        if (!brand[k] || typeof brand[k] !== 'string') return false;
+        if (k.startsWith('_')) return false;          // internal (_replace etc.)
+        if (allow && allow.length) return allow.includes(k);
+        return true;
+    });
+
+    return keys.map(key =>
+        new ComponentPickerOption(`Style: ${key}`, {
+            keywords: ['style', 'token', 'text', key.toLowerCase()],
+            onSelect: () =>
+                editor.update(() => {
+                    const selection = $getSelection();
+                    if ($isRangeSelection(selection)) {
+                        $setBlocksType(selection, () => $createStyledParagraphNode(key));
+                    }
+                }),
+        }),
+    );
 }
 
 export default function ComponentPickerMenuPlugin({ fileUploadInfo }): JSX.Element {
