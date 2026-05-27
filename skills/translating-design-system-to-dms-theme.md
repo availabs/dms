@@ -24,6 +24,37 @@ renders pages matching the mockups.
 
 ---
 
+## If you take nothing else from this skill
+
+Three gotchas every theme translation hits, in order of how often
+they bite. Each one looks like a one-character config detail and is
+actually load-bearing. Skip to the linked sections; the rest of this
+doc is reference material organized around the per-primitive checklist.
+
+1. **TopNav / SideNav keys** — see [§3.1](#31-the-topnavsidenav-gap--invented-keys-silently-no-op).
+   Open the matching `.theme.{js,jsx}` file first and copy its key
+   set verbatim; don't invent keys from your mockup's div structure.
+   Invented keys silently no-op and the live nav falls back to Catalyst.
+2. **`pages.sectionArray.styles[0]` overrides** —
+   see [§3.1.55](#3155-the-make-the-default-look-right-rule).
+   Without `_replace: ['sizes']`, your 12-col `sizes` map deep-merges
+   with the codebase's 6-col defaults and you get half a grid. And
+   `layouts.centered` ships as `'max-w-[1020px] mx-auto'` by default —
+   product LayoutGroups need `'max-w-[<your-cap>] mr-auto'` (left-
+   aligned, not centred) or content drifts away from the SideNav's
+   right edge.
+3. **`lexical.heading_h1..h6` must be set explicitly** —
+   see [§3.1.5](#315-the-lexical--textsettings-trap)
+   Quirk 2. The textSettings backfill only fires when these keys are
+   falsy, and the codebase ships them set. Without explicit override,
+   the codebase default's `font-display` rule shadows your brand
+   tokens and headings render in the wrong family inside Lexical.
+
+Three sentences at the top of this skill save every brand half a day
+of debugging.
+
+---
+
 ## Outcome
 
 You ship a folder shaped like this — and an engineer can drop it
@@ -684,12 +715,31 @@ Translate this in two ways:
 
 **The single most common trap:** `pages.sectionArray.styles[0].layouts.centered`
 defaults to `max-w-[1020px] mx-auto`. Almost every brand's
-LayoutGroup wrapper has a wider max-width (Tessera's is 1280px),
-so the codebase default ends up showing content as a narrow
-centered column inside an oversized parchment box. Reading is
-"left-aligned in a thin column" rather than "filling the surface."
+LayoutGroup wrapper has a wider max-width (Tessera's is 1280px;
+TransportNY's is 1480px), so the codebase default ends up showing
+content as a narrow centered column inside an oversized parchment
+box. Reading is "left-aligned in a thin column" rather than
+"filling the surface."
 
-The fix is a one-line theme override:
+**There are *two* swaps to make**, both easy to miss:
+
+1. **The max-width** — bump from 1020 to your brand's data
+   container (typically 1280 or 1480).
+2. **`mx-auto` → `mr-auto`** — for any product theme with a
+   persistent SideNav, the codebase's `mx-auto` centres content
+   between the SideNav and the right viewport edge, which drifts
+   content away from the SideNav on wide monitors. Switch to
+   `mr-auto` so the sectionArray hugs the SideNav with the
+   LayoutGroup's `px-8` padding for breathing room. Only the
+   `auth` LayoutGroup keeps `mx-auto` (sign-in forms are the one
+   intentional centred surface).
+
+Apply the same `mr-auto` to every product LayoutGroup's
+`wrapper2` while you're at it (see the design skill §7.3.1's
+wrapper-class reference table) — they all share the centering
+reflex.
+
+The fix is a two-line theme override:
 
 ```js
 // tessera-theme.js — under pagesTheme
@@ -698,7 +748,7 @@ sectionArray: {
   styles: [{
     name: 'default',
     layouts: {
-      centered: 'max-w-[1280px] mx-auto',   // match your brand's --grid-max
+      centered: 'max-w-[1280px] mr-auto',   // brand cap + left-align (NOT mx-auto)
       fullwidth: '',                          // rare full-bleed bands only
     },
   }],

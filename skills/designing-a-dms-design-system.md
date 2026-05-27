@@ -555,6 +555,16 @@ breaks the in-product illusion slightly, but the alternative
 (making reviewers navigate the deliverable by re-typing URLs)
 makes the deliverable unusable as a deliverable.
 
+**The strip is documentation chrome, not Layout chrome.** Style it
+via a single CSS class in `_shared.css` (convention:
+`.<brand-prefix>-meta-nav`). The strip never appears on a live DMS
+site — a real DMS page hasn't got a "go to design-system" link.
+
+If you find yourself wanting to theme the strip via theme keys
+(`theme.metaNav`, etc.), stop: you're conflating documentation chrome
+with product chrome. Keep the strip's styling out of `theme.js`
+entirely; it ships in the mockup `_shared.css` only.
+
 ### 7.1 The "pages as documentation" principle
 
 Every file in `design-system/` and `pages/` is structured as a real
@@ -579,6 +589,15 @@ Why:
   JSON.
 - **It looks like the product.** A potential customer browsing the
   design system sees what the product actually produces.
+
+**Which Layout do the design-system pages themselves use?** The
+brand's *product* Layout — the one a real authored page would use.
+For a theme whose product surfaces ship a persistent SideNav
+(Layout `app`), the design-system pages should also render inside
+Layout `app` with that SideNav. The brand documents itself **as the
+brand**, not in a generic documentation chrome. If a reviewer can't
+tell the design-system pages apart from product pages at a glance
+(modulo content), you've got it right.
 
 ### 7.2 `design-system/theme.html` — the tokens page
 
@@ -763,12 +782,92 @@ them — see §3.3 for the recommended `default` / `app` / `bare` set):
 | `header` | Lexical | Title + explanation that this page demonstrates the structural layer |
 | `header` | Lexical (annotated) | Visual diagram of the Site → Layout → LayoutGroup → Section → Component hierarchy from §1 |
 | `content` | Card or Lexical | **Layout variants** — one Card per named Layout style (`default`, `app`, `bare`, plus any brand additions). Each card shows a mini-mockup of the layout chrome (outer wrapper, TopNav presence, SideNav presence, content area) annotated with which wrapper key drives which surface |
-| `content` | Card | **LayoutGroup variants** — one Card per named LayoutGroup style (`content`, `header`, `auth`, plus any brand additions), showing the surface recipe (boxed vs. unboxed, shadow vs. flat, padding density) with annotations |
+| `content` | Card | **LayoutGroup variants** — one Card per named LayoutGroup style (`content`, `header`, `auth`, plus any brand additions), showing the surface recipe (boxed vs. unboxed, shadow vs. flat, padding density) with annotations. **Required**, not optional — every brand-shipped variant needs a card here so a reviewer can scan the catalogue. |
+| `content` | Card | **LayoutGroup wrapper class reference** — a literal table with one row per named variant, columns for `wrapper1` / `wrapper2` / **alignment**. The `wrapper2` column holds the class string verbatim; the alignment column states the intent (`left-aligned · cap`, `centred · cap`, `full-bleed · no cap`). **Required.** See §7.3.1. |
+| `content` | Card | **Section width — regular vs full-width groups** — documents how `sectionArray.layouts.centered` / `layouts.fullwidth` nest inside the LayoutGroup wrapper, and how the `group.full_width: 'show'` editor flag picks between them. **Required.** See §7.3.2. |
 | `content` | Lexical | **Nesting example** — a single visual showing Layout with multiple LayoutGroups stacked, illustrating band composition |
 | `content` | Lexical | **Naming reference** — table listing which Layout / LayoutGroup variant should be used for which kind of page |
 
 **What this page proves:** every page in `pages/` uses one of the
-Layouts documented here and stacks LayoutGroups documented here.
+Layouts documented here and stacks LayoutGroups documented here,
+with their wrapper class strings reading consistently across the
+catalogue.
+
+#### 7.3.1 The LayoutGroup wrapper class reference table (required)
+
+The visual variant cards convey shape but not the actual class
+strings on `wrapper1` / `wrapper2`. The brand's `mx-auto` /
+`mr-auto` decisions hide inside those strings — without a literal
+side-by-side reference, alignment drift slips in and stays
+invisible until a reviewer notices on screenshots.
+
+Ship a Card with this table on every `layouts.html`:
+
+| Variant | wrapper1 | wrapper2 | Alignment |
+|---|---|---|---|
+| `content` | `w-full bg-<pane> py-12` | `mr-auto w-full max-w-[<cap>] pl-12 pr-8 …` | left-aligned · cap |
+| `content_tint` | `w-full bg-<pane-tint> py-12` | `mr-auto w-full max-w-[<cap>] pl-12 pr-8 …` | left-aligned · cap |
+| `header` | `w-full bg-white border-b` | `mr-auto w-full max-w-[<cap>] pl-12 pr-8 py-10` | left-aligned · cap |
+| `hero` | `w-full <topo-bg> border-b` | `mr-auto w-full max-w-[<cap>] pl-12 pr-8 py-14` | left-aligned · cap |
+| `tone_bar` | `w-full bg-<accent>` | `mr-auto w-full max-w-[<cap>] pl-12 pr-8 h-12` | left-aligned · cap |
+| `footer` | `w-full bg-white border-t` | `mr-auto w-full max-w-[<cap>] pl-12 pr-8 py-4` | left-aligned · cap |
+| `auth` | `w-full flex-1 flex p-6 bg-<pane>` | `mx-auto w-full max-w-md flex flex-col …` | centred (intentional) |
+| `workbench` | `w-full bg-<pane> py-6` | `w-full px-0` | full-bleed · no cap |
+
+The asymmetric `pl-12 pr-8` (48px left, 32px right) gives the band
+breathing room from the SideNav's right edge without expanding the
+right side — the right side already has unlimited viewport because
+`mr-auto` consumes any excess width. Symmetric `px-8` looks cramped
+on the left, especially on dense product pages where content butts
+right up against the SideNav.
+
+Under the table, add a callout rule: *Product LayoutGroups use
+`mr-auto`, not `mx-auto`. The codebase default (sectionArray.theme.jsx
+ships `max-w-[1020px] mx-auto`) centres content on wide monitors and
+drifts it away from the sidebar's right edge — looks "marketing-y."
+Use `mr-auto` so the band hugs the sidebar with `px-8` for breathing
+room. Only `auth` keeps `mx-auto`; sign-in forms are the one
+intentional centred surface.* See §10 done criteria #8.
+
+#### 7.3.2 Section width — regular vs full-width groups (required)
+
+Inside any LayoutGroup, the sectionArray applies one of two layout
+classes to its grid container, picked by `group.full_width`. The
+literal code (from `src/dms/packages/dms/src/patterns/page/components/sections/sectionArray.jsx`)
+is:
+
+```js
+className={`
+  ${theme.container}
+  ${theme.layouts[group.full_width === 'show' ? 'fullwidth' : 'centered']}
+`}
+```
+
+Ship a Card with this table:
+
+| `group.full_width` | Class applied | Result |
+|---|---|---|
+| `'off'` (default) | `layouts.centered` (`'max-w-[<cap>] mr-auto'`) | Sections capped at brand width, left-aligned |
+| `'show'` | `layouts.fullwidth` (`''`) | Sections fill the parent — for map workbenches, dense canvases |
+
+The toggle lives in
+`src/dms/packages/dms/src/patterns/page/pages/edit/editPane/sectionGroupsPane.jsx`
+as a two-item menu (*Full Width: off / show*) the author flips
+per-group. Developers don't intervene.
+
+**Pair with the LayoutGroup variant.** Setting
+`group.full_width: 'show'` on a `content` group still constrains
+the section to the parent's max-width because `wrapper2` itself
+caps at the brand width. For a true edge-to-edge map workbench, use
+the `workbench` LayoutGroup variant (which drops `max-w` from
+`wrapper2`) **and** set `group.full_width: 'show'` so the inner
+sectionArray also drops its cap.
+
+**When to use `workbench`:** any time a Section needs edge-to-edge
+canvas — map workbenches, dense data tables that need horizontal
+scroll, code editors, chart canvases that benefit from extra
+width. Don't reach for it for ordinary content — the 1480-cap
+content variant is correct for almost every band.
 
 ### 7.4 `design-system/grid.html` — the page-content column grid
 
@@ -859,6 +958,18 @@ listed in §2. One LayoutGroup per primitive category; within each
 LayoutGroup, one Section per primitive showing it in its default
 style, every named-style variant, and every relevant state.
 
+**Every primitive in §2 gets a brand-skinned treatment.** Don't ship
+codebase defaults for primitives the brand brief doesn't explicitly
+discuss — translate them as best as possible from the brand's
+chosen tokens (palette, type ladder, spacing scale, surface
+treatment). A Drawer, a Popup, a DeleteModal, a ButtonSelect — each
+should appear in the brand's voice even when the brief is silent
+about them, because an author will eventually drop one on a page
+and the live render shouldn't look like Catalyst leaked through.
+The brand README can still note primitives the theme isn't designed
+*for* (e.g., a long-form magazine theme that doesn't expect Maps),
+but those primitives should still be themed sensibly — not skipped.
+
 **Recommended page structure** (Layout: `app`):
 
 | LayoutGroup | Sections within |
@@ -916,6 +1027,43 @@ data-section pattern, the form pattern, the auth pattern — these
 are the moments where individual themed primitives have to look
 right together, not just individually.
 
+#### 7.6.5 Brand-recurring patterns to transcribe from the handoff
+
+When translating a handoff design system into the DMS deliverable,
+watch for *recurring* patterns that appear across multiple pages.
+These aren't covered by primitives in §2 or page archetypes in
+§7.6 — they're brand conventions the handoff applies to every page
+of a certain type, and they're easy to drop because they read as
+"per-page decoration" until you notice they're on six pages.
+
+Catalogue these recurring patterns explicitly during the handoff
+read, before producing pages. **The simplest test:** if you see a
+UI element on 3+ pages in the handoff, it's a pattern, not a
+one-off. Common ones:
+
+- **Sticky right-rail TOC** — anchored to section heads. Appears
+  on documentation pages, multi-section catalogs, design-system
+  reference pages, "getting started"-style catalogs. Implement as
+  a `[1fr_240px]` two-column wrapper inside the content
+  LayoutGroup with the right column `position: sticky`. The DMS
+  contract doesn't ship a native TOC primitive, so this is
+  documentation-time wrapping — note it on the design system's
+  `patterns.html` so it's discoverable.
+- **Breadcrumbs** — almost always present on product pages above
+  the page header. Note the separator character (slash, chevron,
+  pipe) and whether it sits above or beside the page-header
+  metadata.
+- **Metadata strip** (refresh timestamp, status dot, data
+  currency). Appears on dashboards near the page header. Easy to
+  drop because it looks like one-off chrome but is the brand's
+  consistent "freshness signal."
+- **Page-header actions** — the right-aligned primary + secondary
+  button pair next to the page title. Document the button styles
+  used.
+
+Add to §10 done criteria: *every recurring pattern depicted on 3+
+handoff pages is preserved on every page that should have it.*
+
 ### 7.7 `pages/` — optional example pages (theme's choice)
 
 One or more DMS-shaped pages that demonstrate **what this theme is
@@ -942,6 +1090,51 @@ extend it.
 **File naming:** descriptive, kebab-case, no fixed list —
 `radio-station-home.html`, `county-overview.html`, etc.
 
+### 7.7.1 Transcription discipline — when a handoff exists
+
+If the brand ships a high-fidelity handoff (HTML/JSX prototypes,
+Figma frames, a rendered prototype site), your `pages/` mockups are
+**transcriptions** of those designs, not redesigns. Specifically:
+
+- **Content** — every visible element on the handoff page appears in
+  your transcription. Same eyebrows, same h2 titles, same chips,
+  same KPI metric cards, same charts. No "improvements" that drop
+  content the handoff includes.
+- **Structure** — same sections in the same order, with the same
+  relative widths and the same primitives in the same roles. The
+  handoff is the layout contract.
+- **Primitives** — pick the closest theme primitive for each
+  handoff element. The *role* matches even if a single class string
+  or weight value has to change to use the theme's tokens. The
+  theme's primitives are the building blocks; the handoff is the
+  spec for what to assemble out of them.
+- **Tokens** — every text class on every transcribed page resolves
+  to a `textSettings` token. See §8 MUST list.
+
+**Two specific deviation traps:**
+
+1. **Token-first invention.** When the brand brief says one thing
+   and the handoff does another, **follow the handoff**. The brief
+   documents intent; the handoff is the contract. (E.g. the brief
+   may say "status is a dot, never a background" but the handoff's
+   compliance KPI cards use bordered colored-bg pills. The pills
+   win; reconcile the brief later.) Note the disagreement in the
+   brand README so the brief can be updated, but don't redesign the
+   page to follow the brief.
+
+2. **Class-string copying.** When the handoff uses
+   `font-oswald font-semibold text-[22px]` and the theme ships
+   `displaySM` (`font-display font-medium text-[22px]`), use
+   `displaySM` even if the weight differs. The token represents the
+   brand's intended size+family role across the catalogue; tweaking
+   600 → 500 may feel like a regression on that one element but
+   keeps the brand consistent everywhere.
+
+The discipline is: **handoff for content + structure + primitive
+selection; theme tokens for implementation.** Both halves matter —
+verbatim handoff transcription drifts from the brand's tokens; pure
+token-first translation drifts from the design.
+
 ---
 
 ## 8. Implementation rules for mockup pages
@@ -960,6 +1153,46 @@ The four `design-system/` pages and every `pages/` page are
   declarations, brand surface classes, any hover/press effects
   that can't be Tailwind-expressed. Each page links it:
   `<link rel="stylesheet" href="../_shared.css"/>`.
+- ✅ **Brand font-family classes defined as plain CSS in
+  `_shared.css`.** Every brand font-family class referenced by
+  mockups (`.font-display`, `.font-proxima`, `.font-oswald`, etc.)
+  must be a literal CSS rule, not relied on from an inline
+  `tailwind.config` block:
+  ```css
+  .font-display, .font-oswald { font-family: "Oswald", "Bebas Neue", sans-serif; }
+  .font-proxima               { font-family: "Proxima Nova", "Source Sans 3", system-ui, sans-serif; }
+  ```
+  The inline `tailwind.config` block is per-page and easy to forget
+  on the N-th page; the CSS rule covers every mockup that links the
+  stylesheet. (The inline config is for the *production runtime*
+  via Tailwind v4 `@theme`, not for the static mockups — see the
+  translation skill's `fonts` array entry.)
+- ✅ **Every text class string on every mockup page resolves to a
+  `textSettings` token.** Orthogonal modifier axes — color
+  (`text-emerald-700`), family (`font-display` / `font-proxima` /
+  `font-mono`), `italic`, `tabular-nums`, `uppercase`,
+  `tracking-…` — are applied at the call site as additional
+  classes; that's not "inventing a token", that's using the token
+  correctly. But `text-[19px]`, `font-medium text-[37px]`, inline
+  `style="font-family: …"`, and any other invented size/weight
+  combination are out — pick the nearest token or earn a new one
+  in `theme.html`'s Type section first (§7.2.1 earn-a-token rule).
+  This is what populates the live DMS Card section's
+  `valueFontStyle` dropdown — invented inline classes are
+  unreachable to authors.
+- ✅ **Brand typefaces via Google Fonts CDN** in every mockup's
+  `<head>`, not local woff2 files:
+  ```html
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Source+Sans+3:wght@400;500;600;700&display=swap">
+  ```
+  Don't bundle local woff2 into the mockup folders. `_shared.css`
+  lives in multiple subdirectories and relative `./fonts/` paths
+  drift; `file://` previewing has woff2 CORS quirks; and copies
+  duplicate every kilobyte. Local fonts belong in the *production*
+  theme (`theme/fonts/`) consumed by `theme.js`'s `fonts` array —
+  that's an orthogonal concern.
 - ✅ **DMS hierarchy in HTML.** Each page is a real
   `<div class="…outerWrapper…">` (Layout) containing
   `<div class="…wrapper1…">` (LayoutGroup) containing
@@ -995,6 +1228,30 @@ The four `design-system/` pages and every `pages/` page are
 - The constraint forces honesty: if a primitive needs a build step
   to demo, it can't be themed by Tailwind classes — and the theme
   system is Tailwind classes, full stop.
+
+### 8.0.5 `_shared.css` — one canonical source
+
+`theme/index.css.additions` is the canonical source. Earlier
+versions of this skill suggested copying it into
+`design-system/_shared.css` and `pages/_shared.css`. **Don't** —
+the copies drift the moment a token changes and the
+documentation-vs-production rules disagree.
+
+Both `design-system/*.html` and `pages/*.html` should link the
+canonical file via relative path:
+
+```html
+<!-- from design-system/*.html -->
+<link rel="stylesheet" href="../theme/index.css.additions"/>
+
+<!-- from pages/*.html -->
+<link rel="stylesheet" href="../theme/index.css.additions"/>
+```
+
+The Play CDN doesn't care about the `.additions` extension; it's
+plain CSS. If your editor needs `.css` for syntax highlighting,
+make `_shared.css` a one-line `@import "../theme/index.css.additions";`
+shim rather than a content copy.
 
 ### 8.1 Annotation overlay (optional)
 
@@ -1049,13 +1306,26 @@ A design system is **done** when:
    See §7.4.
 7. The brand README states which primitives the theme is and
    isn't designed for, and which example pages prove it.
+8. **Product LayoutGroups use `mr-auto`, not `mx-auto`** on
+   `wrapper2`, and `sectionArray.styles[0].layouts.centered` is
+   `'max-w-[<cap>] mr-auto'`. Only the `auth` variant retains
+   `mx-auto`. See §7.3.1.
+9. **`layouts.html` ships the LayoutGroup variants Card AND the
+   wrapper-class reference table AND the section-width section.**
+   All three are required — variants alone don't surface the
+   `mx-auto` / `mr-auto` decision. See §7.3.
+10. **Every recurring pattern depicted on 3+ handoff pages is
+    preserved on every page that should have it.** Sticky right-rail
+    TOCs, breadcrumbs, metadata strips, page-header action pairs —
+    see §7.6.5.
+11. **Every primitive in §2 has a brand-skinned treatment in
+    `components.html`** (best-effort from brand tokens, even when
+    the brief is silent about that primitive). No codebase-default
+    Catalyst chrome leaking through.
 
 What the design system is **not** required to do:
 
 - Render every possible kind of site the platform supports.
-- Demonstrate primitives the brand doesn't use (a long-form-
-  reading theme can leave `map`, `graph` un-themed if it never
-  shows maps or charts; it just needs to say so in the README).
 - Match what other themes do.
 
 ---
@@ -1092,23 +1362,39 @@ For that hand-off to work cleanly:
 
 Before designing for DMS, read in order:
 
-1. **The chosen brand brief** (`references/dms product/brand-tessera.md`
-   / `brand-lingua.md`) — the aesthetic decisions for this design
-   pass.
-2. **This document** — the structural grammar.
+1. **The handoff design** if one exists (HTML/JSX prototypes,
+   Figma frames, rendered prototype site) — the canonical
+   approved design you'll be transcribing. **This is the
+   contract**, not the brief. When transcribing a brand that ships
+   a handoff, the handoff is read first because every transcription
+   decision flows from it.
+2. **The chosen brand brief** (`references/dms product/brand-tessera.md`
+   / `brand-lingua.md`) — documentation of the aesthetic intent
+   the handoff implements. Read second; useful when reconciling
+   the handoff against tokens.
+3. **This document** — the structural grammar.
 3. **`src/dms/packages/dms/src/ui/components/`** — the authoritative
    primitives catalogue. Skim the filenames; you don't need to read
    the components themselves, just know what exists.
 4. **`src/themes/CLAUDE.md`** — the "configure the Card, don't write
    a new component" philosophy. Important for understanding why the
    Card primitive is the workhorse and gets the most design attention.
-5. **`src/themes/avail/theme.js`** and **`src/themes/wcdb/`** — two
+5. **[`card-layout.md`](./card-layout.md)** — the full surface of
+   Card-section authoring knobs (cellsGridSize, cellSpan, formatFn,
+   cardHints, etc.). Read before deciding how a dataCard variant is
+   themed — the Card is the workhorse primitive and most of its
+   visual personality is configurable, not themed.
+6. **`src/themes/avail/theme.js`** and **`src/themes/wcdb/`** — two
    existing themes, very different in tone, that demonstrate how
    the platform supports a wide visual range.
-6. **`src/themes/transportny/TransportNY Design System/dms_design_system/`**
+7. **`src/themes/transportny/TransportNY Design System/dms_design_system_v2/`**
    and **`src/themes/tessera/design_system_v2/`** — two completed
    design systems shaped by this skill.
-7. **[`translating-design-system-to-dms-theme.md`](./translating-design-system-to-dms-theme.md)**
+8. **[`creating-page-section-components.md`](./creating-page-section-components.md)**
+   — when a primitive genuinely doesn't exist and a new page-section
+   component is justified. Bar is high; read this skill before
+   reaching for it.
+9. **[`translating-design-system-to-dms-theme.md`](./translating-design-system-to-dms-theme.md)**
    — the next step: how your output becomes a runnable theme.
 
 ---

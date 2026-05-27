@@ -11,12 +11,109 @@
  *   6. Update source metadata (columns) and view metadata (tiles)
  */
 
-const { execFileSync } = require('child_process');
+const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const { randomUUID } = require('crypto');
 const { createDamaView, ensureSchema, DEFAULT_SCHEMA } = require('../metadata');
+
+// Hardcoded last-resort default for tile URLs when neither DMS_PUBLIC_URL nor
+// DAMA_SERVER_URL is set. Matches the production deploy at dmsserver.availabs.org.
+// A non-AVAIL deploy should override via DMS_PUBLIC_URL — when it doesn't, the
+// fallback is announced via a console warning AND a gis-dataset:public_url_missing
+// task event, so the operator can discover and fix it from the task detail page.
+const DEFAULT_PUBLIC_URL = 'https://dmsserver.availabs.org';
+
+// Resolve the public host used in tile URLs written to view.metadata.tiles.
+// Read at task-run time (not module import) so an --env-file-if-exists loaded
+// after this module first requires still takes effect.
+function resolvePublicUrl(ctx) {
+  const fromNew = process.env.DMS_PUBLIC_URL;
+  if (fromNew) return fromNew.replace(/\/$/, '');
+  const fromOld = process.env.DAMA_SERVER_URL;
+  if (fromOld) {
+    console.warn(`[gis-publish] Using legacy DAMA_SERVER_URL; prefer DMS_PUBLIC_URL going forward.`);
+    return fromOld.replace(/\/$/, '');
+  }
+  console.warn(`[gis-publish] Neither DMS_PUBLIC_URL nor DAMA_SERVER_URL is set — falling back to ${DEFAULT_PUBLIC_URL}. Set DMS_PUBLIC_URL on this deploy if that's wrong.`);
+  ctx.dispatchEvent(
+    'gis-dataset:public_url_missing',
+    `DMS_PUBLIC_URL not set; using fallback ${DEFAULT_PUBLIC_URL}. Override via DMS_PUBLIC_URL.`,
+    { fallback_url: DEFAULT_PUBLIC_URL },
+  ).catch(() => {});
+  return DEFAULT_PUBLIC_URL;
+}
+
+// Run ogr2ogr asynchronously so the event loop stays alive during the load.
+// Stream stderr into task_events as `gis-dataset:ogr2ogr_progress`, drive the
+// worker's progress bar from the percent markers ogr2ogr emits with `-progress`,
+// emit a no-payload heartbeat event every 15s while the child is alive, and
+// surface a non-zero exit or signal as a rejected promise.
+//
+// dispatchEvent/updateProgress are intentionally NOT awaited inside the stdout
+// consumer — we don't want to block stderr parsing on a DB INSERT. .catch swallows
+// the rare insert failure without crashing the worker.
+async function runOgr2OgrAsync(args, taskCtx) {
+  const { dispatchEvent, updateProgress } = taskCtx;
+
+  return new Promise((resolve, reject) => {
+    const child = spawn('ogr2ogr', ['-progress', ...args], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+
+    let stderrTail = '';
+    let lastPercent = 10;        // matches the 0.10 we set before spawning
+    const HEARTBEAT_MS = 15_000;
+    const heartbeat = setInterval(() => {
+      dispatchEvent('gis-dataset:ogr2ogr_heartbeat',
+        `ogr2ogr still running (last progress ${lastPercent}%)`, null)
+        .catch(() => {});
+    }, HEARTBEAT_MS);
+    heartbeat.unref();
+
+    const emitLine = (line) => {
+      if (!line) return;
+      // ogr2ogr -progress prints "10...20...30..." style dots; pluck the last
+      // percent token from the line.
+      const m = line.match(/(\d{1,3})\s*%?\s*\.{2,3}/g);
+      if (m) {
+        const last = +m[m.length - 1].match(/\d+/)[0];
+        if (last > lastPercent && last <= 100) {
+          lastPercent = last;
+          // Map 0..100 in ogr2ogr space to 0.10..0.70 in worker progress space.
+          const p = 0.10 + (last / 100) * 0.60;
+          updateProgress(p).catch(() => {});
+          dispatchEvent('gis-dataset:ogr2ogr_progress',
+            `ogr2ogr ${last}%`, { ogr2ogr_percent: last })
+            .catch(() => {});
+        }
+      } else {
+        // Real diagnostic line — surface as a log event (truncated).
+        dispatchEvent('gis-dataset:ogr2ogr_progress', line.slice(0, 240), null)
+          .catch(() => {});
+      }
+    };
+
+    child.stdout.on('data', d => emitLine(String(d).trim()));
+    child.stderr.on('data', d => {
+      const s = String(d);
+      stderrTail = (stderrTail + s).slice(-2048);
+      for (const line of s.split('\n')) emitLine(line.trim());
+    });
+
+    child.on('error', (err) => {
+      clearInterval(heartbeat);
+      reject(new Error(`ogr2ogr spawn failed: ${err.message}`));
+    });
+    child.on('exit', (code, signal) => {
+      clearInterval(heartbeat);
+      if (code === 0) return resolve();
+      const reason = signal ? `killed by signal ${signal}` : `exit code ${code}`;
+      reject(new Error(`ogr2ogr ${reason}: ${stderrTail.trim() || '(no stderr)'}`));
+    });
+  });
+}
 
 module.exports = async function gisPublishWorker(ctx) {
   const { task, pgEnv, db, dispatchEvent, updateProgress } = ctx;
@@ -115,20 +212,16 @@ module.exports = async function gisPublishWorker(ctx) {
   ];
 
   await dispatchEvent('gis-dataset:ogr2ogr_start', 'Loading data via ogr2ogr', null);
-  console.log(`[gis-publish] Running ogr2ogr (sync, ${args.length} args)...`);
+  console.log(`[gis-publish] Running ogr2ogr (async, ${args.length} args)...`);
 
   try {
-    execFileSync('ogr2ogr', args, {
-      maxBuffer: 50 * 1024 * 1024,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
+    await runOgr2OgrAsync(args, ctx);
     console.log(`[gis-publish] ogr2ogr completed`);
   } catch (err) {
-    const stderr = err.stderr?.toString()?.slice(0, 500) || '';
-    console.error(`[gis-publish] ogr2ogr failed (code ${err.status}): ${stderr || err.message}`);
+    console.error(`[gis-publish] ogr2ogr failed: ${err.message}`);
     // Clean up temp table
     try { await db.query(`DROP TABLE IF EXISTS "${table_schema}"."${tempTable}"`); } catch (e) {}
-    throw new Error(`ogr2ogr failed: ${stderr || err.message}`);
+    throw err;
   } finally {
     try { fs.unlinkSync(sqlFile); } catch (e) {}
   }
@@ -308,7 +401,7 @@ module.exports = async function gisPublishWorker(ctx) {
           sources: [{
             id: tilesetName,
             source: {
-              tiles: [`${process.env.DAMA_SERVER_URL || ''}/dama-admin/${pgEnv}/tiles/${view_id}/{z}/{x}/{y}/t.pbf`],
+              tiles: [`${resolvePublicUrl(ctx)}/dama-admin/${pgEnv}/tiles/${view_id}/{z}/{x}/{y}/t.pbf`],
               format: 'pbf',
               type: 'vector',
             },
