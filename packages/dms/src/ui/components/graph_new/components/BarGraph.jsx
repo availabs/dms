@@ -80,9 +80,9 @@ const BarGraphWrapper = props => {
 
     const keys = [...keySet];
 
-    if (indexColumn.sort) {
+    if (indexColumn?.sort) {
       const sortDir = indexColumn.sort === "desc" ? -1 : 1;
-      data.sort((a, b) => {
+      (data || []).sort((a, b) => {
           const aNaN = strictNaN(+a.index);
           const bNaN = strictNaN(+b.index);
           if (aNaN || bNaN) {
