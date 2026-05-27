@@ -64,7 +64,7 @@ async function simpleFilterLength(ctx, options) {
     ${handleHavingCH(having)}
   `;
 
-  console.log("sql simple filter LENGTH::", sql)
+  //console.log("sql simple filter LENGTH::", sql)
   const result = await db.query({ query: sql, format: 'JSON' });
   const rows = await result.json();
   return rows?.data?.[0]?.numRows != null ? Number(rows.data[0].numRows) : 0;
@@ -126,7 +126,7 @@ async function simpleFilter(ctx, options, attributes, indices) {
     LIMIT ${+num}
     OFFSET ${indices.from}
   `;
-  console.log("sql simple filter::", sql)
+  //console.log("sql simple filter::", sql)
   const result = await db.query({ query: sql, format: 'JSON' });
   const json = await result.json();
   const rawRows = json.data || [];

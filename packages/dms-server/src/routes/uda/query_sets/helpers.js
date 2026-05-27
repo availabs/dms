@@ -89,8 +89,8 @@ function handleFiltersCH({
     if (type === 'lte') return `${col} <= ${escapeValue(val)}`;
     if (type === 'like') {
       const likeStr = Array.isArray(val)
-        ? val.map((v) => `${col} LIKE '%${v}%'`).join(' OR ')
-        : `${col} LIKE '%${val}%'`;
+        ? val.map((v) => `toString(${col}) LIKE '%${v}%'`).join(' OR ')
+        : `toString(${col}) LIKE '%${val}%'`;
       return `(${likeStr})`;
     }
 
@@ -168,8 +168,8 @@ function handleFilterGroupsCH(node, hasExistingFilters = false) {
       case 'lte': return `${col} <= ${escapeValue(value)}`;
       case 'like': {
         const likeStr = Array.isArray(value)
-          ? value.map((v) => `${col} LIKE '%${v}%'`).join(' OR ')
-          : `${col} LIKE '%${value}%'`;
+          ? value.map((v) => `toString(${col}) LIKE '%${v}%'`).join(' OR ')
+          : `toString(${col}) LIKE '%${value}%'`;
         return `(${likeStr})`;
       }
       case 'time':
