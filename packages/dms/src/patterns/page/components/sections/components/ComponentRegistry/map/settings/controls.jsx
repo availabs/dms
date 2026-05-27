@@ -52,6 +52,33 @@ const useMapSettingsUI = (mapAPI) => {
   return { ...controls, UI, Select };
 };
 
+const DebouncedTextInput = ({ value, onCommit, delay = 500, Input, ...props }) => {
+  const [draftValue, setDraftValue] = React.useState(value ?? "");
+
+  React.useEffect(() => {
+    setDraftValue(value ?? "");
+  }, [value]);
+
+  React.useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      if ((value ?? "") !== draftValue) {
+        onCommit(draftValue);
+      }
+    }, delay);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [delay, draftValue, onCommit, value]);
+
+  return (
+    <Input
+      {...props}
+      type="text"
+      value={draftValue}
+      onChange={(event) => setDraftValue(event.target.value)}
+    />
+  );
+};
+
 const MapSymbologyControl = ({ mapAPI }) => {
   const { selectedSymbology, symbologyOptions, onSymbologyChange, Select } = useMapSettingsUI(mapAPI);
 
@@ -189,7 +216,12 @@ const MapKeySearchParamControl = ({ mapAPI, border = true }) => {
   return (
     <InlineField label="Key Search Param" border={border}>
       <div className="w-[9.5rem] max-w-[42vw]">
-        <Input type="text" value={activeLayer?.searchParamKey || ""} onChange={(event) => setSearchParamKey(event.target.value)} />
+        <DebouncedTextInput
+          Input={Input}
+          value={activeLayer?.searchParamKey || ""}
+          delay={750}
+          onCommit={setSearchParamKey}
+        />
       </div>
     </InlineField>
   );
@@ -209,7 +241,12 @@ const MapInteractiveFiltersControl = ({ mapAPI }) => {
           <FilterGroup title={filter.label || `Interactive Filter ${index + 1}`} highlighted={index > 0}>
             <Field label="Search Param Value" compact>
               <div className="w-full">
-                <Input type="text" value={filter.searchParamValue || filter.label || ""} onChange={(event) => setInteractiveSearchParamValue(index, event.target.value)} />
+                <DebouncedTextInput
+                  Input={Input}
+                  value={filter.searchParamValue || filter.label || ""}
+                  delay={500}
+                  onCommit={(value) => setInteractiveSearchParamValue(index, value)}
+                />
               </div>
             </Field>
           <ToggleRow
@@ -242,10 +279,20 @@ const MapDynamicFiltersControl = ({ mapAPI }) => {
         <div key={`${filter.column_name || "dynamic"}_${index}`} className={`${index === 0 ? "" : "mt-3"} w-full min-w-0`}>
           <FilterGroup title={filter.display_name || filter.column_name || `Dynamic Filter ${index + 1}`} highlighted={index > 0}>
             <Field label="Search Param Value" compact>
-              <Input type="text" value={filter.searchParamKey || filter.column_name || ""} onChange={(event) => setDynamicSearchParamKey(index, event.target.value)} />
+              <DebouncedTextInput
+                Input={Input}
+                value={filter.searchParamKey || filter.column_name || ""}
+                delay={500}
+                onCommit={(value) => setDynamicSearchParamKey(index, value)}
+              />
             </Field>
             <Field label="Default Value" compact>
-              <Input type="text" value={filter.defaultValue ?? ""} onChange={(event) => setDynamicDefaultValue(index, event.target.value)} />
+              <DebouncedTextInput
+                Input={Input}
+                value={filter.defaultValue ?? ""}
+                delay={500}
+                onCommit={(value) => setDynamicDefaultValue(index, value)}
+              />
             </Field>
             <Field label="Type" compact={false}>
               {/**
