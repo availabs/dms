@@ -16,16 +16,27 @@
 const { sanitizeName, getResponseColumnName } = require('../utils');
 const {
   handleFiltersCH,
+  handleFilterGroupsCH,
   handleGroupByCH,
   handleHavingCH,
   handleOrderByCH,
 } = require('./helpers');
+
+function buildCombinedWhereCH({ filter, exclude, gt, gte, lt, lte, like, filterGroups }) {
+  const filterClause = handleFiltersCH({ filter, exclude, gt, gte, lt, lte, like });
+  const hasExisting = !!filterClause;
+  const filterGroupsClause = handleFilterGroupsCH(filterGroups, hasExisting);
+
+  if (!filterClause && !filterGroupsClause) return '';
+  return `${filterClause} ${filterGroupsClause}`.trim();
+}
 
 async function simpleFilterLength(ctx, options) {
   const { db, table_schema, table_name } = ctx;
   const {
     filter = {}, exclude = {},
     gt = {}, gte = {}, lt = {}, lte = {}, like = {},
+    filterGroups = {},
     groupBy = [], having = [],
     normalFilter = [],
   } = JSON.parse(options);
@@ -42,23 +53,41 @@ async function simpleFilterLength(ctx, options) {
     ? `count(DISTINCT concat(${sanitizedGroupBy.map((c) => `toString(${c})`).join(", '-' ,")}))`
     : `count(*)`;
 
+  const combinedWhere = buildCombinedWhereCH({
+    filter, exclude, gt, gte, lt, lte, like, filterGroups,
+  });
+
   const sql = `
     SELECT ${countExpr} AS numRows
     FROM ${table_schema}.${table_name}
-    ${handleFiltersCH({ filter, exclude, gt, gte, lt, lte, like })}
+    ${combinedWhere}
     ${handleHavingCH(having)}
   `;
 
+  //console.log("sql simple filter LENGTH::", sql)
   const result = await db.query({ query: sql, format: 'JSON' });
   const rows = await result.json();
   return rows?.data?.[0]?.numRows != null ? Number(rows.data[0].numRows) : 0;
+}
+
+function transformAttributesForClickHouse(attrs) {
+  return attrs.map(attr => {
+    // Matches: array_to_string(array_agg(distinct COLUMN), ', ') as ALIAS
+    const regex = /array_to_string\(array_agg\(distinct\s+([\w.]+)\),\s*',\s*'\)\s+as\s+(\w+)/i;
+    
+    return attr.replace(regex, (match, column, alias) => {
+      // ClickHouse: arrayStringConcat(groupArrayDistinct(COLUMN), ', ') as ALIAS
+      return `arrayStringConcat(groupArrayDistinct(${column}), ', ') as ${alias}`;
+    });
+  });
 }
 
 async function simpleFilter(ctx, options, attributes, indices) {
   const num = indices.to - indices.from + 1;
   const { db, table_schema, table_name } = ctx;
 
-  const sanitizedAttrs = sanitizeName(attributes).filter((f) => f);
+  const transformedAttributes = transformAttributesForClickHouse(attributes);
+  const sanitizedAttrs = sanitizeName(transformedAttributes).filter((f) => f);
   if (!sanitizedAttrs.length) return [];
 
   const columnNameMap = sanitizedAttrs.reduce((acc, attrName, i) => {
@@ -72,6 +101,7 @@ async function simpleFilter(ctx, options, attributes, indices) {
   const {
     filter = {}, exclude = {},
     gt = {}, gte = {}, lt = {}, lte = {}, like = {},
+    filterGroups = {},
     groupBy = [], having = [], orderBy = {},
     normalFilter = [],
   } = JSON.parse(options);
@@ -82,17 +112,21 @@ async function simpleFilter(ctx, options, attributes, indices) {
     });
   }
 
+  const combinedWhere = buildCombinedWhereCH({
+    filter, exclude, gt, gte, lt, lte, like, filterGroups,
+  });
+
   const sql = `
     SELECT ${sanitizedAttrs.map((c) => columnNameMap[c] || c).join(', ')}
     FROM ${table_schema}.${table_name}
-    ${handleFiltersCH({ filter, exclude, gt, gte, lt, lte, like })}
+    ${combinedWhere}
     ${handleGroupByCH(groupBy)}
     ${handleHavingCH(having)}
     ${handleOrderByCH(orderBy)}
     LIMIT ${+num}
     OFFSET ${indices.from}
   `;
-
+  //console.log("sql simple filter::", sql)
   const result = await db.query({ query: sql, format: 'JSON' });
   const json = await result.json();
   const rawRows = json.data || [];

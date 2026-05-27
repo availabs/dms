@@ -4,6 +4,17 @@ Self-contained how-to documents for common authoring tasks in the DMS. Each skil
 
 Skills sit alongside `planning/` (work tracking) and `documentation/` (reference material) but with a different purpose: **skills tell you how to accomplish a specific outcome**, end-to-end, in the project's idioms.
 
+## Reading order for a new contributor
+
+If you're new to DMS and want to design or theme a brand, read in this order — the topical index below is good for lookup, but new readers fumble without a sequence:
+
+1. **[`designing-a-dms-design-system.md`](./designing-a-dms-design-system.md)** — the structural grammar (Site → Layout → LayoutGroup → Section → Component), the deliverable shape (`design-system/` + `pages/` + `_shared.css`), and the implementation rules (plain HTML + Tailwind CDN, no build step). Start here.
+2. **[`translating-design-system-to-dms-theme.md`](./translating-design-system-to-dms-theme.md)** — how the completed HTML/CSS design system becomes the runnable `theme.js` overlay. Has a top-of-file "if you take nothing else" callout with the 3 gotchas every translation hits.
+3. **[`card-layout.md`](./card-layout.md)** — the workhorse primitive's full surface. Read before configuring any non-trivial Card section.
+4. **[`creating-page-section-components.md`](./creating-page-section-components.md)** — when a primitive genuinely doesn't exist and you need a new one. Bar is high; this skill exists to keep it high.
+5. **[`creating-pages-from-a-design-pattern.md`](./creating-pages-from-a-design-pattern.md)** — taking a completed design system and instantiating real pages in a live DMS pattern via the CLI.
+6. The **recipes** below (now-airing card, audio-player upload) — read when the use case comes up.
+
 ## Index
 
 ### Building components

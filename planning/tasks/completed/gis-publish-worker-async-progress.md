@@ -224,20 +224,35 @@ recorded under "Operational notes" below). The deploy on
 In `gis-publish.js`:
 
 - Read **`DMS_PUBLIC_URL` first**, then fall back to `DAMA_SERVER_URL` for
-  back-compat with any deploy that already set the old name, then fail
-  loud.
-- **No silent empty-string fallback.** If neither var is set, log a
-  prominent warning to the worker stdout (the parent server's
-  `[task:NNNN]` prefix already proxies this into the console) AND
-  emit a `gis-dataset:public_url_missing` event with a clear message, so
-  the task detail page surfaces the issue. The relative URL still goes
-  into the metadata (better than nothing for dev / localhost setups) but
-  the user knows something is wrong.
+  back-compat with any deploy that already set the old name.
+- **If neither is set, default to the AVAIL production host
+  (`https://dmsserver.availabs.org`)** rather than to a silent empty
+  string. This is the pragmatic choice for the current deployment shape:
+  every uploaded view today is served from that host, and the prior
+  `''` fallback shipped 10 broken-URL views in `npmrds2` (see
+  "Operational note" below). A hardcoded fallback ties the OSS source
+  to AVAIL's specific hosting; that's accepted for v0.1 given the
+  realistic deploy topology. A future task can move the default into
+  the dms-server config (a `publicUrl` field on the role-`dms` config)
+  if the project grows third-party deploys.
+- **Warn loudly even when the default kicks in.** Log a prominent
+  warning to the worker stdout (the parent server's `[task:NNNN]`
+  prefix already proxies this into the console) AND emit a
+  `gis-dataset:public_url_missing` event naming the default that was
+  used, so the task detail page surfaces the issue. Anyone running
+  this code on a non-AVAIL deploy will see the fallback in the event
+  stream and can override via `DMS_PUBLIC_URL`.
 
 Code shape (place at the top of the worker, near the existing
 `require`s — no helper module):
 
 ```js
+// Hardcoded last-resort default. Matches the production deploy at
+// dmsserver.availabs.org. A non-AVAIL deploy should override via
+// DMS_PUBLIC_URL (and will see a warning in the task event stream
+// telling them to do so).
+const DEFAULT_PUBLIC_URL = 'https://dmsserver.availabs.org';
+
 function resolvePublicUrl(ctx) {
   const fromNew = process.env.DMS_PUBLIC_URL;
   if (fromNew) return fromNew.replace(/\/$/, '');
@@ -246,13 +261,13 @@ function resolvePublicUrl(ctx) {
     console.warn(`[gis-publish] Using legacy DAMA_SERVER_URL; prefer DMS_PUBLIC_URL going forward.`);
     return fromOld.replace(/\/$/, '');
   }
-  console.warn(`[gis-publish] Neither DMS_PUBLIC_URL nor DAMA_SERVER_URL is set — tile URLs will be relative and likely unreachable from other origins.`);
+  console.warn(`[gis-publish] Neither DMS_PUBLIC_URL nor DAMA_SERVER_URL is set — falling back to ${DEFAULT_PUBLIC_URL}. Set DMS_PUBLIC_URL on this deploy if that's wrong.`);
   ctx.dispatchEvent(
     'gis-dataset:public_url_missing',
-    'Set DMS_PUBLIC_URL on the dms-server deploy to produce absolute tile URLs.',
-    null,
+    `DMS_PUBLIC_URL not set; using fallback ${DEFAULT_PUBLIC_URL}. Override via DMS_PUBLIC_URL.`,
+    { fallback_url: DEFAULT_PUBLIC_URL },
   ).catch(() => {});
-  return '';
+  return DEFAULT_PUBLIC_URL;
 }
 ```
 
@@ -277,25 +292,48 @@ pattern. Cross-link this task from there before starting work.
 
 ## Files requiring changes
 
-- `dms-template/src/dms/packages/dms-server/src/dama/upload/workers/gis-publish.js`
-  - Drop the `execFileSync` require, add `spawn`.
-  - Insert the `runOgr2OgrAsync` helper inside the same file (don't extract
+- [x] `dms-template/src/dms/packages/dms-server/src/dama/upload/workers/gis-publish.js`
+  - [x] Drop the `execFileSync` require, add `spawn`.
+  - [x] Insert the `runOgr2OgrAsync` helper inside the same file (don't extract
     — repeats nowhere else and the surrounding context is small).
-  - Replace the one call site (line 121).
-  - Update the `console.log` line above the call so it reads
+  - [x] Replace the one call site.
+  - [x] Update the `console.log` line above the call so it reads
     "Running ogr2ogr (async, …)".
-  - Add `resolvePublicUrl(ctx)` helper near the top of the worker;
-    replace the `${process.env.DAMA_SERVER_URL || ''}` interpolation at
-    line 311 with `${resolvePublicUrl(ctx)}`.
-- `dms-template/src/dms/packages/dms-server/Dockerfile`
-  - Update the comment block (line 12) so the canonical env var is
+  - [x] Add `resolvePublicUrl(ctx)` helper near the top of the worker;
+    replace the `${process.env.DAMA_SERVER_URL || ''}` interpolation
+    with `${resolvePublicUrl(ctx)}`. **Default fallback hardcoded to
+    `https://dmsserver.availabs.org` per the post-design refinement**
+    (warning + `gis-dataset:public_url_missing` event still fire so
+    non-AVAIL deploys can discover and override the fallback).
+- [x] `dms-template/src/dms/packages/dms-server/Dockerfile`
+  - [x] Update the comment block so the canonical env var is
     `DMS_PUBLIC_URL` (with `DAMA_SERVER_URL` noted as a deprecated alias).
+  - [x] Note the AVAIL fallback so non-AVAIL deployers know they MUST
+    set `DMS_PUBLIC_URL`.
 
 No other source files. No new dependencies. No schema changes.
 
+### Implementation status — DONE 2026-05-26
+
+All source changes shipped. Unit verification:
+
+- **resolvePublicUrl** — 12 assertions across the three branches
+  (DMS_PUBLIC_URL precedence + trailing-slash strip, DAMA_SERVER_URL
+  back-compat with deprecation warning, hardcoded AVAIL fallback with
+  warning + event + payload). All pass.
+- **runOgr2OgrAsync** — 8 assertions against a fake ogr2ogr script
+  (successful run emits progress events + climbs progress to 0.70,
+  non-zero exit rejects with the exit code in the error message,
+  SIGKILL rejects with the signal in the error message). All pass.
+
+The unit tests are not committed — they were one-off harness scripts
+that loaded the worker module in isolation (replacing the
+`module.exports` line with a test re-export). Re-derive from the
+`§ Testing checklist` below if regression coverage is wanted.
+
 ## Testing checklist
 
-### Async progress
+### Async progress (LIVE — requires a real PostgreSQL + ogr2ogr deploy)
 - [ ] Re-upload the 288k-block GeoPackage (`employment_by_industry_block_2022.gpkg`)
       and confirm the dms-server console log shows ongoing `[task:NNNN]`
       ogr2ogr progress output while the load runs.
@@ -317,15 +355,27 @@ No other source files. No new dependencies. No schema changes.
       and column rendering should not regress.
 
 ### Public-URL resolution
-- [ ] With `DMS_PUBLIC_URL=https://dmsserver.availabs.org` set, publish a
+- [x] Unit: `resolvePublicUrl` returns `DMS_PUBLIC_URL` (trailing slash
+      stripped) when set; `DAMA_SERVER_URL` with deprecation warning when
+      only the legacy var is set; `DEFAULT_PUBLIC_URL` with warning +
+      `gis-dataset:public_url_missing` event when neither is set.
+- [ ] LIVE: With `DMS_PUBLIC_URL=https://dmsserver.availabs.org` set, publish a
       view and confirm the new row's `metadata.tiles.sources[0].source.tiles[0]`
       is `https://dmsserver.availabs.org/dama-admin/...` (absolute).
-- [ ] With only `DAMA_SERVER_URL` set (back-compat path), confirm the
+- [ ] LIVE: With only `DAMA_SERVER_URL` set (back-compat path), confirm the
       tile URL still works and the console emits the deprecation warning.
-- [ ] With neither set, confirm the worker emits a
-      `gis-dataset:public_url_missing` event on the task, logs a warning
-      to stdout, and the tile URL is still written (relative) so the
-      task completes rather than failing hard.
+- [ ] LIVE: With neither set, confirm the worker emits a
+      `gis-dataset:public_url_missing` event on the task (with the
+      `fallback_url` payload), logs a warning to stdout naming the
+      fallback, and writes
+      `https://dmsserver.availabs.org/dama-admin/...` into
+      `metadata.tiles.sources[0].source.tiles[0]` (the hardcoded
+      `DEFAULT_PUBLIC_URL`). The task completes successfully and
+      future loads from any origin can resolve the tile URL.
+- [ ] LIVE: On a non-AVAIL deploy (e.g. a local dev environment), confirm
+      the fallback URL is wrong-but-discoverable: the event stream
+      surfaces it on the task detail page and the operator can fix it
+      by setting `DMS_PUBLIC_URL`.
 
 ## Related work / follow-ups (out of scope for this task)
 
