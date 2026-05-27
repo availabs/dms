@@ -97,8 +97,23 @@ export class StyledParagraphNode extends ParagraphNode {
     const dom = super.createDOM(config);
     const extra = resolveStyleClassName(editor, this.__styleKey);
     if (extra) {
-      dom.className = dom.className ? `${dom.className} ${extra}` : extra;
+      // Replace, don't append. The paragraph default class from the
+      // lexical theme (typically `font-sans text-[Npx] text-slate-X
+      // mb-Y`) competes with the brand textSettings token under equal
+      // Tailwind specificity, and the winner depends on CSS compile
+      // order — which is non-deterministic for arbitrary values like
+      // `text-[10.5px]`. Themes were having to mark every token's
+      // font/size/color with `!important` to win. Treating the brand
+      // token as a full replacement matches the intent of
+      // styled-paragraph ("I'm specifying my own styling end-to-end")
+      // and removes the trap. Themes that want margin on a styled
+      // paragraph should include `mb-N` in the token itself.
+      dom.className = extra;
     }
+    // When there's no extra (no styleKey OR no brandTextStyles
+    // registered), `dom.className` retains the paragraph default —
+    // unstyled/unresolved styled-paragraphs still render as plain
+    // paragraphs, preserving backwards compatibility.
     if (this.__styleKey) {
       dom.setAttribute('data-style-key', this.__styleKey);
     }
