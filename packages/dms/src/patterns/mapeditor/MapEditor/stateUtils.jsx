@@ -115,9 +115,21 @@ const extractState = (state) => {
   };
 };
 
+/**
+ * Runtime legend/bounds requests should only include dynamic filters that have
+ * a real selected value set.
+ */
+const getActiveDynamicFilters = (dynamicFilter = []) =>
+  (dynamicFilter || []).filter(
+    (filter) =>
+      filter?.column_name &&
+      Array.isArray(filter?.values) &&
+      filter.values.length > 0
+  );
+
 const createFalcorFilterOptions = ({dynamicFilter, filterMode, dataFilter}) => {
   const filterEqualOptions = {};
-  dynamicFilter.reduce((acc, curr) => {
+  getActiveDynamicFilters(dynamicFilter).reduce((acc, curr) => {
     acc[curr.column_name] = curr.values;
     return acc;
   }, filterEqualOptions)
@@ -248,6 +260,81 @@ function filterToUda(layerFilter) {
   return Object.keys(out).length ? out : null;
 }
 
+/**
+ * Builds one combined UDA filter payload from the layer's static filters plus
+ * any active dynamic-filter values. This is shared by editor/runtime legend
+ * requests so both use the same filtered dataset.
+ */
+function buildLayerUdaFilterOptions({ layerFilter, dynamicFilters = [], filterMode = 'all' } = {}) {
+  const activeDynamicFilters = getActiveDynamicFilters(dynamicFilters);
+  const groups = [];
+
+  for (const [col, filter] of Object.entries(layerFilter || {})) {
+    if (!filter || filter.value === undefined || filter.value === null || filter.value === '') continue;
+
+    switch (filter.operator) {
+      case '==':
+      case undefined:
+        groups.push({ op: 'filter', col, value: Array.isArray(filter.value) ? filter.value : [filter.value] });
+        break;
+      case '!=':
+        groups.push({ op: 'exclude', col, value: Array.isArray(filter.value) ? filter.value : [filter.value] });
+        break;
+      case '>':
+        groups.push({ op: 'gt', col, value: Array.isArray(filter.value) ? filter.value[0] : filter.value });
+        break;
+      case '>=':
+        groups.push({ op: 'gte', col, value: Array.isArray(filter.value) ? filter.value[0] : filter.value });
+        break;
+      case '<':
+        groups.push({ op: 'lt', col, value: Array.isArray(filter.value) ? filter.value[0] : filter.value });
+        break;
+      case '<=':
+        groups.push({ op: 'lte', col, value: Array.isArray(filter.value) ? filter.value[0] : filter.value });
+        break;
+      case 'between':
+        if (Array.isArray(filter.value) && filter.value.length === 2) {
+          const betweenGroup = { op: 'AND', groups: [] };
+          const [lo, hi] = filter.value;
+          if (lo !== undefined && lo !== null && lo !== '') {
+            betweenGroup.groups.push({ op: 'gte', col, value: lo });
+          }
+          if (hi !== undefined && hi !== null && hi !== '') {
+            betweenGroup.groups.push({ op: 'lte', col, value: hi });
+          }
+          if (betweenGroup.groups.length === 1) {
+            groups.push(betweenGroup.groups[0]);
+          }
+          else if (betweenGroup.groups.length === 2) {
+            groups.push(betweenGroup);
+          }
+        }
+        break;
+      default:
+        break;
+    }
+  }
+
+  activeDynamicFilters.forEach((dynamicFilter) => {
+    groups.push({
+      op: 'filter',
+      col: dynamicFilter.column_name,
+      value: dynamicFilter.values,
+    });
+  });
+
+  if (!groups.length) {
+    return null;
+  }
+
+  return {
+    filterGroups: {
+      op: filterMode === 'any' ? 'OR' : 'AND',
+      groups,
+    },
+  };
+}
+
 const normalizeLayerClickFilterConfig = (config = {}) => {
   const legacyMapping =
     config?.variable || config?.field
@@ -292,6 +379,7 @@ export {
   fetchBoundsForFilter,
   createFalcorFilterOptions,
   filterToUda,
+  buildLayerUdaFilterOptions,
   normalizeLayerClickFilterConfig,
   setDefaultActiveLayer,
 };

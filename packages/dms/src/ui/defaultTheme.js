@@ -13,6 +13,7 @@ import {inputTheme} from "./components/Input.theme";
 import iconTheme from "./components/Icon.theme";
 import {fieldTheme} from "./components/FieldSet.theme";
 import {dialogTheme} from "./components/Dialog.theme";
+import {dialogActionsTheme} from "./components/DialogActions.theme";
 import {modalTheme} from "./components/Modal.theme";
 import {labelTheme} from "./components/Label";
 import {multiselectTheme} from "./components/MultiSelect.theme";
@@ -73,6 +74,7 @@ const components = {
     icon: iconTheme,
     field: fieldTheme,
     dialog: dialogTheme,
+    dialogActions: dialogActionsTheme,
     modal: modalTheme,
     label: labelTheme,
     multiselect: multiselectTheme,

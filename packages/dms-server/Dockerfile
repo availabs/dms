@@ -9,7 +9,11 @@
 #   PORT                        Server port (default: 5555)
 #   DMS_DB_ENV                  DMS database config name
 #   DMS_AUTH_DB_ENV             Auth database config name
-#   DAMA_SERVER_URL             Public URL for tile metadata (e.g., https://dmsserver.availabs.org)
+#   DMS_PUBLIC_URL              Public URL for tile metadata (e.g., https://dmsserver.availabs.org).
+#                               Falls back to https://dmsserver.availabs.org if unset; non-AVAIL
+#                               deploys MUST set this so absolute tile URLs are written correctly.
+#   DAMA_SERVER_URL             Deprecated alias for DMS_PUBLIC_URL; honoured for back-compat with
+#                               existing deploys but the worker logs a warning when read from it.
 #   DMS_STORAGE_TYPE            Storage backend: 'local' (default) or 's3'
 #   AWS_*                       S3 credentials (when DMS_STORAGE_TYPE=s3)
 

@@ -50,25 +50,52 @@ const UdaTaskPage = ({params, pageSize = 20}) => {
     const taskId = params?.task_id || params?.etl_context_id;
     const ref = React.useRef();
     const { app, type, datasources, falcor, UI, baseUrl } = React.useContext(DatasetsContext);
-    // Pick an env that routes to the right backend on the server side. Tasks
-    // now live in either DMS (`dms.tasks`) or DAMA (`data_manager.tasks`); the
-    // server dispatches by env.includes('+'). The byId / events queries no
-    // longer scope by app, so any DMS env works (task_id is unique).
-    //
-    // Default to a DMS env. Fall back to the external pgEnv only when the
-    // current site has no app context at all (rare — typically there's at
-    // least an external pgEnv configured).
+    // Tasks live in either DMS (`dms.tasks`) or DAMA (`data_manager.tasks`).
+    // The server dispatches by env.includes('+'), and task_id sequences are
+    // independent across backends — so task 6771 in DAMA is *not* the same
+    // row as (any) task 6771 in DMS. To pick the right backend we probe
+    // each candidate env in order until one returns a row for this task_id.
+    // UdaTaskList queries DAMA first (it falls back to the external pgEnv),
+    // so we use the same order here to stay consistent.
     const damaEnv = getExternalEnv(datasources);
-    const pgEnv = React.useMemo(() => {
-        if (app && type) return `${app}+${type}`;
-        if (app) return `${app}+_`;
-        if (damaEnv) return damaEnv;
-        return '_+_';
+    const envCandidates = React.useMemo(() => {
+        const out = [];
+        if (damaEnv) out.push(damaEnv);
+        if (app && type) out.push(`${app}+${type}`);
+        if (app) out.push(`${app}+_`);
+        if (!out.includes('_+_')) out.push('_+_');
+        return out;
     }, [app, type, damaEnv]);
+
+    // `null`  = still probing
+    // `''`    = no env has this task
+    // string  = the env that owns this task
+    const [pgEnv, setPgEnv] = React.useState(null);
+
     const {Table, Pagination, Layout, LayoutGroup} = UI;
     const [currentPage, setCurrentPage] = React.useState(0);
     const [data, setData] = React.useState({data: [], length: 0});
     const [taskInfo, setTaskInfo] = React.useState(null);
+
+    // Probe candidate envs to discover which backend owns this task_id.
+    React.useEffect(() => {
+        if (!taskId || !falcor || envCandidates.length === 0) return;
+        let cancelled = false;
+        const probe = async () => {
+            for (const env of envCandidates) {
+                const res = await falcor.get(["uda", env, "tasks", "byId", +taskId, "task_id"]);
+                if (cancelled) return;
+                const found = get(res, ["json", "uda", env, "tasks", "byId", +taskId, "task_id"]);
+                if (found != null) {
+                    setPgEnv(env);
+                    return;
+                }
+            }
+            if (!cancelled) setPgEnv('');
+        };
+        probe();
+        return () => { cancelled = true; };
+    }, [falcor, taskId, envCandidates]);
 
     // Fetch task info
     React.useEffect(() => {
@@ -139,7 +166,11 @@ const UdaTaskPage = ({params, pageSize = 20}) => {
                     </div>
                 )}
                 <div className={'w-full'}>
-                    {data.length > 0 ? (
+                    {pgEnv === null ? (
+                        <div className="text-gray-400 text-sm py-4">Looking up task…</div>
+                    ) : pgEnv === '' ? (
+                        <div className="text-gray-400 text-sm py-4">Task {taskId} was not found in any configured environment ({envCandidates.join(', ')}).</div>
+                    ) : data.length > 0 ? (
                         <>
                             <Table data={data.data} columns={COLUMNS} gridRef={ref} display={{striped: true}}/>
                             <Pagination currentPage={currentPage} setCurrentPage={setCurrentPage} pageSize={pageSize} usePagination={true}

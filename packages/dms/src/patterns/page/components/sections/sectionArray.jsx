@@ -171,9 +171,14 @@ const Edit = ({ value, onChange, attr, group, siteType }) => {
                         return <React.Fragment key={i}></React.Fragment>
                     }
 
-                    const size = (edit.index === i ? edit?.value?.size : v?.size) || "1";
+                    // Theme can declare what "no explicit size" means for new
+                    // sections via `theme.defaultSize`. The legacy 6-col grid
+                    // used "1" (= full width); a 12-col grid wants "12".
+                    // Falls back to "1" so existing themes are unaffected.
+                    const defaultSize = theme?.defaultSize || "1";
+                    const size = (edit.index === i ? edit?.value?.size : v?.size) || defaultSize;
                     const rowspan = (edit.index === i ? edit?.value?.rowspan : v?.rowspan) || "1";
-                    const colspanClass = (theme?.sizes?.[size] || theme?.sizes?.["1"])?.className;
+                    const colspanClass = (theme?.sizes?.[size] || theme?.sizes?.[defaultSize])?.className;
                     const rowspanClass = (theme?.rowspans?.[rowspan] || theme?.rowspans?.["1"])?.className
 
                     // console.log('section', v, v.error)
@@ -292,9 +297,10 @@ const View = ({value, attr, group, siteType}) => {
                     .filter(v => v.group === group.name || (!v.group && group?.name === 'default'))
                     //.sort((a,b) => a.order - b.order)
                     .map((v, i) => {
-                        const size = v?.size || "1";
+                        const defaultSize = theme?.defaultSize || "1";
+                        const size = v?.size || defaultSize;
                         const rowspan = v?.rowspan || "1";
-                        const colspanClass = (theme?.sizes?.[size] || theme?.sizes?.["1"])?.className;
+                        const colspanClass = (theme?.sizes?.[size] || theme?.sizes?.[defaultSize])?.className;
                         const rowspanClass = (theme?.rowspans?.[rowspan] || theme?.rowspans?.["1"])?.className;
 
                         return (
@@ -351,7 +357,7 @@ const AddSectionButton = ({onClick}) => {
             className={`
                 p-[1px]
                 ${theme?.sectionEditWrapper}
-                ${theme?.sizes?.["1"]?.className}
+                ${theme?.sizes?.[theme?.defaultSize || "1"]?.className}
                 ${theme?.rowspans?.["1"]?.className}
             `}
         >

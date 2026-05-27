@@ -256,7 +256,12 @@ export const TableCell = memo(function TableCell ({
     // =================================================================================================================
 
     const [newItem, setNewItem] = useState(item);
-    const rawValue = useMemo(() => newItem[attribute.normalName] || newItem[attribute.name], [newItem, attribute.name, attribute.normalName]);
+    const rawValue = useMemo(() => {
+        // In edit mode, prefer name (what onChange writes to) so local changes are reflected immediately.
+        // In view mode, prefer normalName (the joined/display alias) as before.
+        if (isCellEditing) return newItem[attribute.name] ?? newItem[attribute.normalName];
+        return newItem[attribute.normalName] || newItem[attribute.name];
+    }, [newItem, attribute.name, attribute.normalName, isCellEditing]);
 
     const renderTextBox = attribute.type === 'text' && isCellEditing && allowEdit;
     const compType = attribute.type === 'calculated' && Array.isArray(rawValue) ? 'multiselect' : attribute.type;
@@ -303,7 +308,7 @@ export const TableCell = memo(function TableCell ({
     useEffect(() => {
         if (!(isCellEditing && allowEdit)) return;
 
-        const original = rawValue?.originalValue ?? rawValue;
+        const original = newItem[attribute.name]?.originalValue ?? newItem[attribute.name];
         const newVal = item[attribute.name]?.originalValue ?? item[attribute.name];
 
         if (!isEqual(original, newVal) && updateItem) {
@@ -315,7 +320,7 @@ export const TableCell = memo(function TableCell ({
                 clearTimeout(timeoutId);
             };
         }
-    }, [rawValue]);
+    }, [newItem]);
 
     useEffect(() => {
         const el = cellRef.current;

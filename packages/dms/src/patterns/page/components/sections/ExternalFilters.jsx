@@ -99,7 +99,7 @@ export const ExternalFilters = ({ defaultOpen = true }) => {
             <div className={`${theme.filters.conditionsGrid} ${gridClasses[gridSize]}`}>
                 {externalConditions.map(({ node, path, siblingConditions }) => {
                     const column = columns.find(c => c.name === node.col);
-                    const label = column ? getColumnLabel(column) : node.col;
+                    const label = node.displayName || (column ? getColumnLabel(column) : node.col);
 
                     return (
                         <div key={path.join('.')} className={rowClass}>

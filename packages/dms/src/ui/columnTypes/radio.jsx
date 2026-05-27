@@ -28,7 +28,7 @@ export const RadioEdit = ({value = '', onChange, options = [], inline=true}) => 
                                    onChange={e => onChange(e.target.value)} />
 
                             <label
-                                htmlFor={o.label || o}
+                                htmlFor={o.value || o}
                                 className={theme?.radio?.label || 'text-sm font-light p-1 self-center'}
                             > {o.label || o} </label>
                         </div>

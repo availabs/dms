@@ -88,6 +88,10 @@ export function pattern2routes (siteData, props) {
     dmsConfigUpdated.attributes = updateAttributes(dmsConfigUpdated.attributes, dmsConfig.app, siteInstance)
 
     // console.log('dmsConfigUpdated', dmsConfigUpdated)
+    const authPattern = siteData
+      .reduce((acc, curr) => [...acc, ...(curr?.patterns || [])], [])
+      .find(p => p.pattern_type === 'auth');
+
     let AdminPattern = {
       app: dmsConfigUpdated?.format?.app || dmsConfigUpdated.app,
       type: siteType,
@@ -98,7 +102,7 @@ export function pattern2routes (siteData, props) {
       pattern: {},
       pattern_type: 'admin',
       subdomain: "*",
-      authPermissions: "{}",
+      authPermissions: authPattern?.authPermissions || "{}",
       theme: themes['default'],
       themes
     }

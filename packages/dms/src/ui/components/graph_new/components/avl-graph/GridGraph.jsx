@@ -484,6 +484,8 @@ export const GridGraph = props => {
     hoverData
   } = useHoverComp(ref);
 
+// console.log("GridGraph::hoverData", hoverData);
+
   const {
     HoverComp,
     position,
@@ -573,7 +575,8 @@ export const GridGraph = props => {
       </svg>
 
       { !showHoverComp ? null :
-        <HoverCompContainer { ...hoverData }
+        <HoverCompContainer
+          { ...hoverData }
           position={ position }
           svgWidth={ width }
           svgHeight={ height }

@@ -1,6 +1,9 @@
 /* GRAPH STUFF */
 .avl-graph-container {
   background-color: inherit;
+  width: 100%;
+  height: 100%;
+  position: relative;
 }
 .avl-graph {
   /* background-color: var(--graph-bg-color); */

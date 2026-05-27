@@ -66,7 +66,11 @@ function CategoryLegend({layer}) {
   const TypeSymbol = typeSymbols[layer.type] || typeSymbols['fill']
   let  legenddata = layer?.['legend-data'] || []
   let paintValue = typeof typePaint[layer.type](layer) === 'object' ? typePaint[layer.type](layer) : []
-  const categories = legenddata || (paintValue || []).filter((d,i) => i > 2 )
+  /**
+   * Saved symbologies can carry an empty `legend-data` array. Fall back to the
+   * paint-derived legend in that case so the runtime legend still renders.
+   */
+  const categories = legenddata?.length ? legenddata : (paintValue || []).filter((d,i) => i > 2 )
     .map((d,i) => {
       if(i%2 === 0) {
         return {color: d, label: paintValue[i+2]}
@@ -104,7 +108,11 @@ function StepLegend({layer}) {
   let paintValue = typeof typePaint[layer.type](layer) === 'object' ? typePaint[layer.type](layer) : []
   const max = Math.max(...choroplethdata)
   // console.log('StepLegend', paintValue, choroplethdata, Math.min(...choroplethdata), )
-  const categories = legenddata || [
+  /**
+   * Choropleth legends use the same empty-array fallback so ranges still show
+   * when `legend-data` exists as `[]` in the saved layer config.
+   */
+  const categories = legenddata?.length ? legenddata : [
     ...(paintValue || []).filter((d,i) => i > 2 )
     .map((d,i) => {
     
@@ -269,14 +277,18 @@ const LegendPanel = (props) => {
       });
   }, [state]);
 
-  //first conditional filters out all symbologies that have NO legends enabled
+  /**
+   * Default to showing legends when no plugin explicitly opts out. Missing or
+   * empty `pluginData` should not suppress the entire legend panel.
+   */
   const legendRows = layersBySymbology
     .filter(
       (symb) =>
-        //make sure that the plugin for a given symbology does not specify to hide the default legend;
-        Object.values(symb?.pluginData || {}).some(
-          (layerPluginData) => layerPluginData?.["default-legend"] !== false,
-        ) &&
+        // Default to showing the legend when there is no plugin override.
+        (!Object.keys(symb?.pluginData || {}).length ||
+          Object.values(symb?.pluginData || {}).some(
+            (layerPluginData) => layerPluginData?.["default-legend"] !== false,
+          )) &&
         //look thru all layers within symb for an enabled legend
         Object.values(symb.layers).some(
           (layer) => layer?.["legend-orientation"] !== "none",
