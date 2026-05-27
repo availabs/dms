@@ -9,7 +9,7 @@ import { interpolate as d3interpolate } from "d3-interpolate"
 
 import get from "lodash/get"
 
-import { theme, useSetSize } from "./utils"
+import { useSetSize } from "./utils"
 
 import {
   HoverCompContainer,
@@ -28,7 +28,6 @@ const DefaultHoverComp = ({ data, keys, indexFormat, keyFormat, valueFormat, val
     <div className={ `
       flex flex-col px-2 pt-1 rounded
       ${ keys.length <= 1 ? "pb-2" : "pb-1" }
-      ${ theme.accent1 }
     ` }>
       <div className="font-bold text-lg leading-6 border-b-2 mb-1 pl-2">
         { indexFormat(get(data, "index", null)) }
@@ -199,82 +198,6 @@ export const PieGraph = props => {
       exiting
     });
   }, []);
-
-  // React.useEffect(() => {
-  //   if (!(width && height)) return;
-
-  //   const adjustedWidth = Math.max(0, width - (Margin.left + Margin.right)),
-  //     adjustedHeight = Math.max(0, height - (Margin.top + Margin.bottom));
-
-  //   const maxRadius = Math.min(adjustedWidth, adjustedHeight) * 0.5;
-
-  //   const colorFunc = getColorFunc(colors);
-
-  //   const pieMaker = d3shape.pie()
-  //     .value(d => d.sum)
-  //     .startAngle(startAngle)
-  //     .endAngle(endAngle)
-  //     .padAngle(padAngle)
-  //     .sort(null);
-
-  //   const pieData = [];
-
-  //   const colorMap = {};
-
-  //   pieData.push({
-  //     pie: pieMaker(data.map((d, i)=> ({ ...d, key: d[indexBy], color: colorFunc(null, i) }))),
-  //     innerRadius: maxRadius * 0.25,
-  //     outerRadius: maxRadius * 0.5,
-  //     dx: adjustedWidth * 0.5,
-  //     dy: adjustedHeight * 0.5,
-  //     index: "inner-ring"
-  //   })
-
-  //   pieData[0].pie.forEach(p => {
-
-  //     colorMap[p.data.index] = {};
-
-  //     const pieMaker = d3shape.pie()
-  //       .value(d => d.value)
-  //       .startAngle(p.startAngle)
-  //       .endAngle(p.endAngle)
-  //       .padAngle(padAngle)
-  //       .sort((a, b) => b.value - a.value);
-
-  //     const pieParts = keys.map((key, ii) => {
-  //       const value = get(p.data, key, 0);
-  //       // const color = colorFunc(value, ii, key, p.data);
-  //       colorMap[p.data.index][key] = color;
-  //       return {
-  //         data: p.data,
-  //         colorMap,
-  //         color: p,
-  //         value,
-  //         key,
-  //         index: `${ p.data.index }-${ key }`
-  //       }
-  //     }).filter(p => Boolean(p.value));
-
-  //     pieData.push({
-  //       pie: pieMaker(pieParts),
-  //       innerRadius: maxRadius * 0.5,
-  //       outerRadius: maxRadius * 1.0,
-  //       dx: adjustedWidth * 0.5,
-  //       dy: adjustedHeight * 0.5,
-  //       index: `${ p.data.index }`
-  //     })
-  //   })
-
-  //   dispatch({
-  //     type: "update-state",
-  //     pieData,
-  //     showAnimations
-  //   });
-
-  // }, [
-  //   data, keys, width, height, colors,
-  //   Margin, indexBy, startAngle, endAngle, padAngle
-  // ]);
 
   React.useEffect(() => {
     if (!(width && height)) return;

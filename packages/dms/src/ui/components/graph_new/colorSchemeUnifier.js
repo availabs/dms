@@ -131,10 +131,21 @@ export const getColorRange = (scheme, length, options = DefaultOptions) => {
 			reverse
 		}
 	}
+	else if (typeof options === "string") {
+		const prefer = options;
+		options = {
+			...DefaultOptions,
+			prefer
+		}
+	}
+	else if (typeof options === "object") {
+		options = {
+			...DefaultOptions,
+			...options
+		}
+	}
 
 	const { reverse, prefer } = options;
-
-console.log("colorSchemeUnifier::getColorRange::options", options);
 
 	let range = [];
 

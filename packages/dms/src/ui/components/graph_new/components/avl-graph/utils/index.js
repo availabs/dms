@@ -137,6 +137,8 @@ export const EmptyArray = [];
 
 export const EmptyObject = {};
 
+export const EmptyMap = new Map();
+
 export const DefaultMargin = {
   left: 70,
   top: 20,

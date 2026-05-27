@@ -2,27 +2,33 @@ import React from "react"
 
 import throttle from "lodash/throttle"
 
-const getTranslate = ({ pos, svgWidth, svgHeight, margin, position }) => {
+const getTranslate = ({ pos, svgWidth, svgHeight, margin, position, windowPos }) => {
 
-  const gap = 30, padding = 10, [x, y] = pos;
+  const gap = 30, padding = 10, [x, y] = pos, [wx, wy] = windowPos;
 
   switch (position) {
     case "above": {
       const xMax = svgWidth - margin.right;
       return `translate(
         max(
-          min(calc(${ x }px - 50%), calc(${ xMax - padding }px - 100%)),
+          min(calc(${ x }px - 50%), calc(${ xMax - padding }px - 75%)),
           calc(${ margin.left + padding }px)
         ),
         calc(-100% - ${ gap - y }px)
       )`;
     }
     default: {
-      const yMax = svgHeight - margin.bottom,
-        yTrans = `max(
-          ${ margin.top + padding }px,
-          min(${ y - gap }px, calc(${ yMax - padding }px - 100%))
-        )`;
+      const yMax = svgHeight - margin.bottom;
+
+      let yTrans = `max(
+                        ${ margin.top + padding }px,
+                        min(${ y - gap }px, ${ yMax - padding }px )
+                      )`;
+
+      if (wy > window.innerHeight * 0.5) {
+        yTrans = `calc(-75% + ${ y - padding }px )`;
+      }
+
       if (x < margin.left + (svgWidth - margin.left - margin.right) * 0.5) {
         return `translate(
           ${ x + gap }px,
@@ -38,23 +44,26 @@ const getTranslate = ({ pos, svgWidth, svgHeight, margin, position }) => {
 
 }
 
-export const HoverCompContainer = ({ show, children, theme = {}, ...rest }) => (
-  <div className={ `
-      absolute top-0 left-0 z-50 pointer-events-none
-      rounded whitespace-nowrap hover-comp bg-inherit
-    ` }
-    style={ {
-      display: show ? "inline-block" : "none",
-      transform: getTranslate(rest),
-      boxShadow: "2px 2px 8px 0px rgba(0, 0, 0, 0.75)",
-      transition: "transform 0.15s ease-out"
-    } }
-  >
-    { children }
-  </div>
-)
+export const HoverCompContainer = ({ show, children, theme = {}, ...rest }) => {
+  return (
+    <div
+      className={ `
+        absolute top-0 left-0 z-50 pointer-events-none
+        rounded whitespace-nowrap hover-comp bg-inherit
+      ` }
+      style={ {
+        display: show ? "inline-block" : "none",
+        transform: getTranslate(rest),
+        boxShadow: "2px 2px 8px 0px rgba(0, 0, 0, 0.75)",
+        transition: "transform 0.15s ease-out"
+      } }
+    >
+      { children }
+    </div>
+  )
+}
 
-const UPDATE_DATA = "update-data";
+const UPDATE_DATA = "update-data"
 
 const Reducer = (state, action) => {
   const { type, ...payload } = action;
@@ -68,6 +77,7 @@ const Reducer = (state, action) => {
 const InitialState = {
   show: false,
   pos: [0, 0],
+  windowPos: [0, 0],
   data: null,
   target: "graph"
 }
@@ -86,6 +96,7 @@ export const useHoverComp = ref => {
       show: true,
       target,
       data,
+      windowPos: [e.clientX, e.clientY],
       pos: pos ?
         [pos.x - rect.x, pos.y - rect.y] :
         [e.clientX - rect.x, e.clientY - rect.y]
@@ -99,6 +110,7 @@ export const useHoverComp = ref => {
       show: true,
       target,
       data,
+      windowPos: [e.clientX, e.clientY],
       pos: pos ?
         [pos.x - rect.x, pos.y - rect.y] :
         [e.clientX - rect.x, e.clientY - rect.y]
