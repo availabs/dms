@@ -18,56 +18,83 @@ const PieGraphWrapper = props => {
     const dataColumns = props.columns.filter(c => c.target === "slice");
     const categoryColumn = props.columns.find(c => c.target === "categorize");
 
-    if (!indexColumn || !dataColumns.length) return { data: [], keys: [] };
+    if (!(indexColumn || categoryColumn) || !dataColumns.length) return { data: [], keys: [] };
 
 // console.log("PieGraphWrapper::indexColumn", indexColumn)
 // console.log("PieGraphWrapper::dataColumns", dataColumns)
 // console.log("PieGraphWrapper::categoryColumn", categoryColumn)
 
-    const groupsArray = [d => d[indexColumn.name]];
-    if (categoryColumn) {
-      groupsArray.push(d => d[categoryColumn.name])
-    }
-
-    const dataGroups = d3groups(props.viewData, ...groupsArray);
-
     const data = [];
     const keySet = new Set();
 
-    for (const [index, iGroup] of dataGroups) {
-
-      if (index === undefined) continue;
-
-// console.log("index", index, iGroup.length)
-
-      const pie = { index };
-
+    if (indexColumn) {
+      const groupsArray = [d => d[indexColumn.name]];
       if (categoryColumn) {
-        for (const [type, tGroup] of iGroup) {
-          keySet.add(type);
-          let value = 0;
+        groupsArray.push(d => d[categoryColumn.name])
+      }
+
+      const dataGroups = d3groups(props.viewData, ...groupsArray);
+
+      for (const [index, iGroup] of dataGroups) {
+
+        if (index === undefined) continue;
+
+  // console.log("index", index, iGroup.length)
+
+        const pie = { index };
+
+        if (categoryColumn) {
+          for (const [type, tGroup] of iGroup) {
+            let value = 0;
+            for (const dc of dataColumns) {
+              const dcn = dc.name;
+              const aggFunc = getAggFunc(dc);
+              const v = aggFunc(tGroup, d => d[dcn]);
+              if (v) {
+                value += v;
+              }
+            }
+            if (value) {
+              keySet.add(type);
+              pie[type] = value;
+            }
+          }
+        }
+        else {
           for (const dc of dataColumns) {
             const dcn = dc.name;
             const aggFunc = getAggFunc(dc);
-            const v = aggFunc(tGroup, d => d[dcn]);
-            if (v) {
-              value += v;
+            const value = aggFunc(iGroup, d => d[dcn]);
+            if (value) {
+              keySet.add(dcn);
+              pie[dcn] = value;
             }
           }
-          if (value) {
-            pie[type] = value;
-          }
+        }
+        if (Object.keys(pie).length > 1) {
+          data.push(pie);
         }
       }
-      else {
+    }
+    else if (categoryColumn) {
+
+      const dataGroups = d3groups(props.viewData, d => d[categoryColumn.name]);
+
+      const pie = { index: "" };
+      
+      for (const [type, tGroup] of dataGroups) {
+        let value = 0;
         for (const dc of dataColumns) {
           const dcn = dc.name;
-          keySet.add(dcn);
           const aggFunc = getAggFunc(dc);
-          const value = aggFunc(iGroup, d => d[dcn]);
-          if (value) {
-            pie[dcn] = value;
+          const v = aggFunc(tGroup, d => d[dcn]);
+          if (v) {
+            value += v;
           }
+        }
+        if (value) {
+          keySet.add(type);
+          pie[type] = value;
         }
       }
       if (Object.keys(pie).length > 1) {
@@ -119,7 +146,7 @@ const PieGraphWrapper = props => {
     return props.colors?.reverse ? colors.reverse() : colors;
   }, [props.colors, dataFromProps.keys?.length]);
 
-// console.log("PieGraphWrapper::dataFromProps", dataFromProps)
+console.log("PieGraphWrapper::dataFromProps", dataFromProps)
 
   const legend = React.useMemo(() => {
     return {
