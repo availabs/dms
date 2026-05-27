@@ -115,7 +115,9 @@ async function getUsersByProject(db, { token, project }) {
   if (authLevel < 10) throw new Error(`You do not have the authority to list users for project ${project}.`);
 
   const { rows } = await db.query(
-    `SELECT u.id, uig.user_email AS email, uig.group_name
+    `SELECT u.id, uig.user_email AS email, uig.group_name, u.created_at,
+            (SELECT MAX(l.created_at) FROM logins l
+             WHERE l.user_email = uig.user_email AND l.project_name = $1) AS last_login
      FROM users_in_groups AS uig
      INNER JOIN users AS u ON uig.user_email = u.email
      INNER JOIN groups_in_projects AS gip ON uig.group_name = gip.group_name
@@ -128,7 +130,7 @@ async function getUsersByProject(db, { token, project }) {
   const userMap = {};
   for (const row of rows) {
     if (!userMap[row.email]) {
-      userMap[row.email] = { id: row.id, email: row.email, groups: [] };
+      userMap[row.email] = { id: row.id, email: row.email, groups: [], created_at: row.created_at, last_login: row.last_login };
     }
     userMap[row.email].groups.push(row.group_name);
   }

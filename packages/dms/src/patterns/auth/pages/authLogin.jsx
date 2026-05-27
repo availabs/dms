@@ -5,7 +5,7 @@ import {AuthContext} from "../context";
 import {callAuthServer} from "../api";
 
 
-export default function AuthLogin (props) {
+export default function AuthLogin ({ disableSignup, ...props }) {
     const location = useLocation();
     const [credentials, setCredentials] = React.useState({email: '', password: ''});
     const [error, setError] = useState('');
@@ -65,10 +65,12 @@ export default function AuthLogin (props) {
                             });
                     }}
             > <span className={sectionGroupTheme.actionText}>Sign In</span> </Button>
-            <div className={sectionGroupTheme.prompt}>
-              Don't have an account?
-              <span className={sectionGroupTheme.forgotPasswordText}><Link to={`${baseUrl}/signup`}>Sign up</Link></span>
-            </div>
+            {!disableSignup && (
+              <div className={sectionGroupTheme.prompt}>
+                Don't have an account?
+                <span className={sectionGroupTheme.forgotPasswordText}><Link to={`${baseUrl}/signup`}>Sign up</Link></span>
+              </div>
+            )}
 
         </div>
     )
