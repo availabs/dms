@@ -124,7 +124,6 @@ export default function UsersAdmin() {
 
         load();
     }, [PROJECT_NAME, AUTH_HOST, user.token, user.email]);
-
     /* --------------------------- Table columns --------------------------- */
 
     // const requestsColumns = [
@@ -170,11 +169,19 @@ export default function UsersAdmin() {
     //     }
     // ];
 
+    const fmtDate = ts => {
+        if (!ts) return '—';
+        const d = new Date(ts);
+        return isNaN(d) ? '—' : d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+    };
+
     const userColumns = [
-        {name: 'email', display_name: 'User', show: true, type: 'text',
-            // isLink: true, searchParams: 'id', location: '/auth/manage/profile/'
-        },
+        {name: 'email', display_name: 'User', show: true, type: 'text'},
         {name: 'groups', display_name: 'Groups', show: true, type: 'multiselect', options: groups.map(g => g.name)},
+        {name: 'created_at', display_name: 'Created', show: true, type: 'ui',
+            Comp: ({ row }) => <span>{fmtDate(row.created_at)}</span>},
+        {name: 'last_login', display_name: 'Last Login', show: true, type: 'ui',
+            Comp: ({ row }) => <span>{fmtDate(row.last_login)}</span>},
         {
             name: '', display_name: '', show: true, type: 'ui',
             Comp: d => <Button onClick={() => setEditUser(d.row)}>reset password</Button>
@@ -212,11 +219,18 @@ export default function UsersAdmin() {
         const su = searchUser.toLowerCase();
         const sg = searchGroup.toLowerCase();
 
-        return users.filter(u => {
-            if (su && !u.email.toLowerCase().includes(su)) return false;
-            if (sg && !(u.groups || []).some(g => g.toLowerCase().includes(sg))) return false;
-            return true;
-        });
+        return users
+            .filter(u => {
+                if (su && !u.email.toLowerCase().includes(su)) return false;
+                if (sg && !(u.groups || []).some(g => g.toLowerCase().includes(sg))) return false;
+                return true;
+            })
+            .sort((a, b) => {
+                if (!a.last_login && !b.last_login) return 0;
+                if (!a.last_login) return 1;
+                if (!b.last_login) return -1;
+                return new Date(b.last_login) - new Date(a.last_login);
+            });
     }, [users, searchUser, searchGroup]);
 
     // const filteredRequests = useMemo(() => {

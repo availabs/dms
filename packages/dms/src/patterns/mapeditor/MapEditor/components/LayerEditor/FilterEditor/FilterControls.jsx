@@ -3,6 +3,7 @@ import {SymbologyContext} from '../../../'
 import { MapEditorContext } from "../../../../context"
 import { StyledControl } from '../ControlWrappers'
 import {AddColumnSelectControl, controlTypes } from '../Controls'
+import { isNumericColumnType } from "../../../../utils"
 import { get, set } from 'lodash-es'
 
 const {simple: SimpleControl, select: SelectControl} = controlTypes;
@@ -18,6 +19,39 @@ const FILTER_OPERATORS = {
   string: ["!=", "==" ],
   integer: ["!=", "<", "<=", "==", ">=", ">", "between" ],
   number: ["!=", "<", "<=", "==", ">=", ">", "between" ]
+};
+
+/**
+ * Source metadata can arrive as normalized UI types (`string` / `number`) or
+ * as database-native types (`varchar`, `text`, `bigint`, etc.). Normalize that
+ * shape before choosing filter operators so the editor always has a matching
+ * operator list.
+ */
+const STRING_COLUMN_TYPES = new Set([
+  "string",
+  "text",
+  "varchar",
+  "character varying",
+  "char",
+  "character",
+  "uuid",
+  "date",
+  "timestamp",
+  "timestamp without time zone",
+  "timestamp with time zone",
+  "bool",
+  "boolean",
+]);
+
+/** Maps raw column metadata into the existing filter operator buckets. */
+const getFilterColumnType = (type) => {
+  if (isNumericColumnType(type)) {
+    return "number";
+  }
+  if (typeof type === "string" && STRING_COLUMN_TYPES.has(type.trim().toLowerCase())) {
+    return "string";
+  }
+  return "string";
 };
 
 export const ExistingFilterList = ({removeFilter, activeColumn, setActiveColumn}) => {
@@ -78,7 +112,8 @@ export const ExistingFilterList = ({removeFilter, activeColumn, setActiveColumn}
         const filterRowClass = activeColumn === selectedCol ? 'bg-pink-100' : ''
         const filterIconClass = activeColumn === selectedCol ? 'text-pink-100': 'text-white' 
 
-        const isEqualityOperator = selectedColAttr.type === "string" && ["!=", "=="].includes(filter.operator);
+        const selectedColType = getFilterColumnType(selectedColAttr.type);
+        const isEqualityOperator = selectedColType === "string" && ["!=", "=="].includes(filter.operator);
         const isBetweenOperator = filter.operator === "between";
 
         const display_name = attributes.find(attr => attr.name === selectedCol)?.display_name || selectedCol;
@@ -163,7 +198,8 @@ export function FilterBuilder({ path, params = {} }) {
     return attributes.find((attr) => attr.name === activeColumnName);
   }, [activeColumnName]);
 
-  const filterOperators = FILTER_OPERATORS[activeAttr?.type] || [];
+  const activeAttrType = activeAttr ? getFilterColumnType(activeAttr.type) : null;
+  const filterOperators = activeAttrType ? (FILTER_OPERATORS[activeAttrType] || []) : [];
   const existingFilter = get(
     state,
     `symbology.layers[${state.symbology.activeLayer}]${path}`,
@@ -172,7 +208,7 @@ export function FilterBuilder({ path, params = {} }) {
 
   const valuePath = `${path}.${activeColumnName}.value`;
   const isBetweenOperator = existingFilter?.[activeColumnName]?.operator === "between";
-  const isEqualityOperator = activeAttr?.type === "string" && ["!=", "=="].includes(existingFilter?.[activeColumnName]?.operator);
+  const isEqualityOperator = activeAttrType === "string" && ["!=", "=="].includes(existingFilter?.[activeColumnName]?.operator);
 
   const valueInputComponent = isEqualityOperator ? (
     <StyledControl>
@@ -329,7 +365,7 @@ function AddFilterColumn({ path, params = {}, setActiveColumn }) {
               ...DEFAULT_STRING_FILTER,
               columnName: newColumn,
             };
-            if(newAttr.type !== "string") {
+            if(getFilterColumnType(newAttr?.type) !== "string") {
               newValue = {
                 ...DEFAULT_NUM_FILTER,
                 columnName: newColumn,

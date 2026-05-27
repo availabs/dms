@@ -221,6 +221,10 @@ export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest})
           <PagePatternSettings value={tmpValue} onChange={setTmpValue} />
         )}
 
+        {value.pattern_type === 'auth' && (
+          <AuthPatternSettings value={tmpValue} onChange={setTmpValue} />
+        )}
+
         <div className='flex flex-col gap-2 p-4 border border-red-200 rounded-md'>
           <span className='font-semibold text-sm text-red-600'>Danger Zone</span>
           <div className='flex items-center gap-2'>
@@ -375,6 +379,31 @@ function PagePatternSettings({ value, onChange }) {
             enabled: value.preload_data === true,
             size: 'small',
             setEnabled: e => onChange(draft => { draft.preload_data = !!e }),
+            className: 'self-center',
+            customTheme: { field: 'pb-2 col-span-12' },
+          },
+        ]}
+      />
+    </div>
+  );
+}
+
+function AuthPatternSettings({ value, onChange }) {
+  const { UI } = useContext(ThemeContext);
+  const { FieldSet } = UI;
+
+  return (
+    <div className='flex flex-col gap-1 p-4 border rounded-md'>
+      <span className='font-semibold text-lg'>Auth Pattern Settings</span>
+      <FieldSet
+        className='grid grid-cols-12 gap-1 border rounded p-4'
+        components={[
+          {
+            label: 'Disable Signup',
+            type: 'Switch',
+            enabled: value.disable_signup === true,
+            size: 'small',
+            setEnabled: e => onChange(draft => { draft.disable_signup = !!e }),
             className: 'self-center',
             customTheme: { field: 'pb-2 col-span-12' },
           },

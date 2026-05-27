@@ -17,10 +17,13 @@ import Drawer from "./components/Drawer";
 import Input from "./components/Input"
 import Textarea from "./components/Textarea"
 import Dialog from "./components/Dialog";
+import DialogActions from "./components/DialogActions";
 import Modal from "./components/Modal";
+import Select from "./components/Select";
 import {DeleteModal} from "./components/DeleteModal";
 import DraggableNav from "./components/draggableNav";
 import DraggableMenu from "./components/nestableInHouse";
+import Permissions from "./components/Permissions";
 //import DraggableNavOld from "./components/nestable/draggableNav";
 import Pagination from "./components/Pagination";
 import Table from "./components/table";
@@ -53,6 +56,7 @@ const UI = {
 	Button,
   ButtonSelect,
 	Dialog,
+  DialogActions,
 	Label,
 	Pill,
   Popup,
@@ -64,6 +68,7 @@ const UI = {
 	Input,
   Textarea,
 	MultiSelect,
+	Select,
 	ColorPicker,
 	Tabs,
 	Drawer,
@@ -75,6 +80,9 @@ const UI = {
 	Table,
 	Card,
 	Graph,
+
+	// -- Auth
+	Permissions,
 
   // ------ component modes: {EditComp, ViewComp}
   ColumnTypes,

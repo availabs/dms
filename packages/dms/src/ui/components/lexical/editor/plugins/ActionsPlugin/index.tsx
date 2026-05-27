@@ -29,13 +29,13 @@ import * as React from 'react';
 import {useCallback, useEffect, useState} from 'react';
 //
 import useModal from '../../hooks/useModal';
-import Button from '../../ui/Button';
 //import {PLAYGROUND_TRANSFORMERS} from '../MarkdownTransformers';
 import {
   SPEECH_TO_TEXT_COMMAND,
   SUPPORT_SPEECH_RECOGNITION,
 } from '../SpeechToTextPlugin';
 import { useLexicalTheme } from '../../../useLexicalTheme';
+import { ThemeContext } from '../../../../../useTheme';
 
 async function sendEditorState(editor: LexicalEditor): Promise<void> {
   const stringifiedEditorState = JSON.stringify(editor.getEditorState());
@@ -256,25 +256,52 @@ function ShowClearDialog({
   editor: LexicalEditor;
   onClose: () => void;
 }): JSX.Element {
+  const { UI } = React.useContext(ThemeContext) || {};
+  const Button = UI?.Button;
   return (
     <>
       Are you sure you want to clear the editor?
       <div className="Modal__content">
-        <Button
-          onClick={() => {
-            editor.dispatchCommand(CLEAR_EDITOR_COMMAND, undefined);
-            editor.focus();
-            onClose();
-          }}>
-          Clear
-        </Button>{' '}
-        <Button
-          onClick={() => {
-            editor.focus();
-            onClose();
-          }}>
-          Cancel
-        </Button>
+        {Button ? (
+          <Button
+            activeStyle="danger"
+            onClick={() => {
+              editor.dispatchCommand(CLEAR_EDITOR_COMMAND, undefined);
+              editor.focus();
+              onClose();
+            }}>
+            Clear
+          </Button>
+        ) : (
+          <button
+            onClick={() => {
+              editor.dispatchCommand(CLEAR_EDITOR_COMMAND, undefined);
+              editor.focus();
+              onClose();
+            }}
+            className="px-3 py-1.5 bg-red-500 text-white">
+            Clear
+          </button>
+        )}{' '}
+        {Button ? (
+          <Button
+            activeStyle="plain"
+            onClick={() => {
+              editor.focus();
+              onClose();
+            }}>
+            Cancel
+          </Button>
+        ) : (
+          <button
+            onClick={() => {
+              editor.focus();
+              onClose();
+            }}
+            className="px-3 py-1.5">
+            Cancel
+          </button>
+        )}
       </div>
     </>
   );

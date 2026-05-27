@@ -39,11 +39,8 @@ import {
   InlineImageNode,
   type InlineImagePayload,
 } from '../../nodes/InlineImageNode';
-import Button from '../../ui/Button';
-import {DialogActions} from '../../ui/Dialog';
 import FileInput from '../../ui/FileInput';
-import Select from '../../ui/Select';
-import TextInput from '../../ui/TextInput';
+import { ThemeContext } from '../../../../../useTheme';
 
 export type InsertInlineImagePayload = Readonly<InlineImagePayload>;
 
@@ -66,6 +63,14 @@ export function InsertInlineImageDialog({
 
 // console.log("InsertInlineImageDialog::fileUploadInfo", fileUploadInfo);
 
+  const { UI } = React.useContext(ThemeContext) || {};
+  const Input = UI?.Input;
+  const Button = UI?.Button;
+  const Switch = UI?.Switch;
+  const Select = UI?.Select;
+  const DialogActions = UI?.DialogActions
+    || (({children}: {children: React.ReactNode}) => <div className="flex justify-end gap-2 mt-4">{children}</div>);
+
   const [src, setSrc] = useState('');
   const [file, setFile] = useState(null);
   const [altText, setAltText] = useState('');
@@ -74,13 +79,11 @@ export function InsertInlineImageDialog({
 
   const isDisabled = src === '';
 
-  const handleShowCaptionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setShowCaption(e.target.checked);
-  };
-
-  const handlePositionChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setPosition(e.target.value as Position);
-  };
+  const POSITION_OPTIONS = [
+    { label: 'Left',       value: 'left'  },
+    { label: 'Right',      value: 'right' },
+    { label: 'Full Width', value: 'full'  },
+  ];
 
   const loadImage = (files: FileList | null) => {
 
@@ -124,8 +127,8 @@ export function InsertInlineImageDialog({
   };
 
   return (
-    <>
-      <div style={{marginBottom: '1em'}}>
+    <div className="flex flex-col gap-4">
+      <div>
         <FileInput
           label="Image Upload"
           onChange={loadImage}
@@ -133,46 +136,82 @@ export function InsertInlineImageDialog({
           data-test-id="image-modal-file-upload"
         />
       </div>
-      <div style={{marginBottom: '1em'}}>
-        <TextInput
-          label="Alt Text"
-          placeholder="Descriptive alternative text"
-          onChange={setAltText}
-          value={altText}
-          data-test-id="image-modal-alt-text-input"
-        />
-      </div>
 
-      <Select
-        style={{marginBottom: '1em', width: '290px'}}
-        label="Position"
-        name="position"
-        id="position-select"
-        onChange={handlePositionChange}>
-        <option value="left">Left</option>
-        <option value="right">Right</option>
-        <option value="full">Full Width</option>
-      </Select>
+      <label className="flex flex-col gap-1.5">
+        <span className="text-sm font-medium">Alt Text</span>
+        {Input ? (
+          <Input
+            value={altText}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAltText(e.target.value)}
+            placeholder="Descriptive alternative text"
+            data-test-id="image-modal-alt-text-input"
+          />
+        ) : (
+          <input
+            type="text"
+            value={altText}
+            onChange={(e) => setAltText(e.target.value)}
+            placeholder="Descriptive alternative text"
+            className="border px-2 py-1"
+            data-test-id="image-modal-alt-text-input"
+          />
+        )}
+      </label>
 
-      <div className="Input__wrapper">
-        <input
-          id="caption"
-          type="checkbox"
-          checked={showCaption}
-          onChange={handleShowCaptionChange}
-        />
-        <label htmlFor="caption">Show Caption</label>
-      </div>
+      <label className="flex flex-col gap-1.5">
+        <span className="text-sm font-medium">Position</span>
+        {Select ? (
+          <Select
+            options={POSITION_OPTIONS}
+            value={position}
+            onChange={(next: string) => { if (next) setPosition(next as Position); }}
+          />
+        ) : (
+          <select
+            value={position}
+            onChange={(e) => setPosition(e.target.value as Position)}
+            className="border px-2 py-1">
+            {POSITION_OPTIONS.map(opt => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        )}
+      </label>
+
+      <label className="flex items-center gap-2 cursor-pointer">
+        {Switch ? (
+          <Switch
+            checked={showCaption}
+            onChange={(checked: boolean) => setShowCaption(checked)}
+          />
+        ) : (
+          <input
+            type="checkbox"
+            checked={showCaption}
+            onChange={(e) => setShowCaption(e.target.checked)}
+          />
+        )}
+        <span className="text-sm">Show Caption</span>
+      </label>
 
       <DialogActions>
-        <Button
-          data-test-id="image-modal-file-upload-btn"
-          disabled={isDisabled}
-          onClick={() => handleOnClick()}>
-          Confirm
-        </Button>
+        {Button ? (
+          <Button
+            data-test-id="image-modal-file-upload-btn"
+            disabled={isDisabled}
+            onClick={() => handleOnClick()}>
+            Confirm
+          </Button>
+        ) : (
+          <button
+            disabled={isDisabled}
+            onClick={() => handleOnClick()}
+            className="px-3 py-1.5 bg-slate-800 text-white">
+            Confirm
+          </button>
+        )}
       </DialogActions>
-    </>
+    </div>
   );
 }
 

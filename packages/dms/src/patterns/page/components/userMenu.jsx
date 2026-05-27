@@ -48,8 +48,6 @@ const EditControl = ({activeStyle}) => {
         isUserAuthed([
             'create-page',
             'edit-page',
-            'edit-page-layout',
-            'edit-page-params',
             'edit-page-permissions',
             'publish-page'
         ])

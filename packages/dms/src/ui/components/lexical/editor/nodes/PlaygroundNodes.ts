@@ -49,6 +49,7 @@ import {PageBreakNode} from './PageBreakNode';
 
 import { ButtonNode } from './ButtonNode'
 import { IconNode } from "./IconNode";
+import { StyledParagraphNode } from "./StyledParagraphNode";
 
 const PlaygroundNodes: Array<Klass<LexicalNode>> = [
   HeadingNode,
@@ -94,7 +95,8 @@ const PlaygroundNodes: Array<Klass<LexicalNode>> = [
   LayoutContainerNode,
   LayoutItemNode,
   ButtonNode,
-  IconNode
+  IconNode,
+  StyledParagraphNode,
 ];
 
 export default PlaygroundNodes;
