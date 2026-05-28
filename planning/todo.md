@@ -111,6 +111,7 @@
 
 ### patterns/page
 
+- [ ] [Filter leaf "include prior period"](./tasks/current/filter-include-prior-period.md) — let a single-select page filter on a numeric/period column (e.g. `year_record`) expand to `[Y, Y-1]` at `applyPageFilters` time via a new leaf option `includePriorPeriod` (+ `priorPeriodStep`), so authors can build "vs prior period" deltas with calc + formula columns (GROUP BY period + `lag()` + formula) driven by ONE control. Motivating consumer: MAP-21 per-year KPI cards (page 2173049). ~10 lines in `buildUdaConfig.applyPageFilters` + a Switch in `ComplexFilters.jsx`.
 - [x] [Permissions refinement](./tasks/completed/permissions-refinement.md) — consolidate `edit-page-layout`/`edit-page-params` into `edit-page`, remove `edit-section-permissions`, rename section `edit-section`→`edit`, gate Pages pane on `create-page`, show copy/link to anyone with `edit-page`, move/permissions require section `edit`, `PublishButton` respects page-level override, redirect logged-in non-editors to view page
 - [x] Fix nav2Level baseUrl bug and move to page pattern
 - [x] Move lexical component inline controls (style, bgColor, showToolbar) to control config

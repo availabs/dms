@@ -278,6 +278,29 @@ export const ComplexFilters = ({ state, setState }) => {
                                             onChange={e => updateNodeAtPath(path, n => { n.searchParamKey = e.target.value; })}
                                         />
                                     </div>
+                                    {/* Include prior period — expands a single-select page value (e.g.
+                                        year_record=2025) to also include the prior period(s) (2024) so a
+                                        card can compute "vs prior" deltas with GROUP BY period + lag() +
+                                        a formula column. See applyPageFilters in buildUdaConfig.js. */}
+                                    <div className={t.popupRow}>
+                                        <Icon icon={'Filter'} className={t.popupIcon} />
+                                        <label className={t.popupRowLabel}>Include Prior Period:</label>
+                                        <Switch label={'Include Prior Period'}
+                                                enabled={node.includePriorPeriod}
+                                                setEnabled={value => updateNodeAtPath(path, n => { n.includePriorPeriod = value; })}
+                                                size={'xs'}
+                                                disabled={!node.usePageFilters}
+                                        />
+                                        <Input
+                                            disabled={!node.usePageFilters || !node.includePriorPeriod}
+                                            value={node.priorPeriodStep ?? ''}
+                                            placeholder={'step (1)'}
+                                            onChange={e => updateNodeAtPath(path, n => {
+                                                const v = e.target.value;
+                                                n.priorPeriodStep = v === '' ? undefined : Number(v);
+                                            })}
+                                        />
+                                    </div>
                                     <div className={t.popupRow}>
                                         <Icon icon={'Filter'} className={t.popupIcon} />
                                         <label className={t.popupRowLabel}>External:</label>
