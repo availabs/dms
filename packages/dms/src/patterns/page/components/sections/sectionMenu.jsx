@@ -926,7 +926,13 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                 {
                     icon: 'Row', name: 'Rowspan', value: value?.['rowspan'] || 1, showValue: true,
                     cdn: () => canEditSection,
-                    items: Object.keys(theme?.sectionArray?.rowspans || {}).sort((a, b) => {
+                    // Read from the resolved sectionArray style — the rowspans
+                    // map lives in `pages.sectionArray.styles[N].rowspans`,
+                    // not at `theme.sectionArray.rowspans` (the previous path
+                    // skipped `pages.` and bypassed getComponentTheme, so the
+                    // menu rendered "Rowspan" with no items even when the
+                    // theme had a full 1..8 map).
+                    items: Object.keys(getComponentTheme(theme, 'pages.sectionArray').rowspans || {}).sort((a, b) => {
                         return +a - +b
                     }).map((name, i) => {
                         return {

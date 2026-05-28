@@ -13,6 +13,7 @@ const graphOptions = {
     graphType: 'BarGraph',
     groupMode: 'stacked',
     orientation: 'vertical',
+    innerPadding: 0.0,
     showAttribution: true,
     title: {
         title: ""
@@ -324,7 +325,7 @@ export default {
             ]
         },
         layout: {
-            name: 'BarGraph Layout',
+            name: 'Bar Graph Layout',
             displayCdn: ({display}) => display.graphType === 'BarGraph',
             items: [
                 {type: 'select', label: 'Orientation', key: 'orientation', onClickGoBack: true,
@@ -337,6 +338,9 @@ export default {
                         {label: 'Stacked', value: 'stacked'},
                         {label: 'Grouped', value: 'grouped'},
                     ]},
+                { type: "input", inputType: "number",
+                    label: "Inner Padding", key: "paddingInner"
+                }
                 // {type: 'toggle', label: 'Log Scale', key: 'isLog'},
             ]
         },
