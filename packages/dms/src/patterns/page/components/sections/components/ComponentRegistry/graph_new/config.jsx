@@ -19,6 +19,7 @@ const graphOptions = {
     innerPadding: 0.0,
 
 // Treemap State
+    tileMethod: "treemapSquarify",
     indexTextSize: "medium",
     valueFormat: "identity",
     valueTextSize: "medium",
@@ -390,6 +391,13 @@ export default {
             name: "Treemap Graph Display",
             displayCdn: ({ display }) => display.graphType === 'TreemapGraph',
             items: [
+                { type: "select",
+                    label: "Tile Method", key: "tileMethod", onClickGoBack: true,
+                    options: [
+                        { label: "Squarify", value: "treemapSquarify" },
+                        { label: "Binary", value: "treemapBinary" }
+                    ]
+                },
                 { type: "select",
                     label: "Index Text Size", key: "indexTextSize", onClickGoBack: true,
                     options: [

@@ -107,6 +107,7 @@ export const GraphComponent = props => {
         paddingInner={ get(graphFormat, "paddingInner", 0.0) }
         paddingOuter={ get(graphFormat, "paddingOuter", 0.0) }
 
+        tileMethod={ get(graphFormat, "tileMethod", "treemapSquarify") }
         indexTextSize={ get(graphFormat, "indexTextSize", "medium") }
         valueTextSize={ get(graphFormat, "valueTextSize", "medium") }
 

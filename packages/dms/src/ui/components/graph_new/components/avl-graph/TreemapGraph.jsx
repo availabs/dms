@@ -4,7 +4,9 @@ import * as d3shape from "d3-shape"
 import { select as d3select } from "d3-selection"
 import {
   hierarchy as d3hierarchy,
-  treemap as d3treemap
+  treemap as d3treemap,
+  treemapBinary,
+  treemapSquarify
 } from "d3-hierarchy"
 
 import {
@@ -139,12 +141,18 @@ const DefaultMargin = {
   bottom: 10
 }
 
+const TileMethodMap = {
+  "treemapSquarify": treemapSquarify,
+  "treemapBinary": treemapBinary
+}
+
 export const TreemapGraph = props => {
 
   const {
     data = EmptyArray,
     margin = EmptyObject,
     hoverComp = EmptyObject,
+    tileMethod = "treemapSquarify",
     indexTextSize = "medium",
     valueTextSize = "medium",
     className ="",
@@ -222,6 +230,7 @@ export const TreemapGraph = props => {
                     // .sort((a, b) => b.value - a.value);
 
       const treemap = d3treemap()
+                        .tile(TileMethodMap[tileMethod] || treemapSquarify)
                         // .padding(1)
                         // .paddingInner(2.0)
                         // .paddingOuter(2.0)
@@ -234,7 +243,7 @@ export const TreemapGraph = props => {
         treemapData: [treemap]
       });
     }
-  }, [data, Margin, width, height, colorFunc]);
+  }, [data, Margin, width, height, colorFunc, tileMethod]);
 
   const {
     onMouseMove,
