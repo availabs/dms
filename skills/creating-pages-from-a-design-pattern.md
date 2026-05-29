@@ -369,7 +369,7 @@ The minimum viable shape:
 
 ```bash
 dms section create marketing-homepage --data '{
-  "title": "Hero",
+  "title": "",
   "type": "main|component",
   "group": "<section-group-uuid>",
   "parent": "{\"id\":\"<page-id>\",\"ref\":\"<app>+<pattern>|page\"}",
@@ -385,7 +385,7 @@ dms section create marketing-homepage --data '{
 
 | Field | Type | What it is |
 |---|---|---|
-| `title` | string | Shown in the section toolbar / page tree |
+| `title` | string | **Leave empty (`""`) by default.** Although described as "section toolbar / page tree" metadata, some themes render the section's `title` as a visible label *above the section content on the live page*. The section's own heading/h1 lives inside `element-data` (e.g. the Lexical state), so a non-empty `title` produces a duplicate label. Set `title: ""` unless the section is genuinely a labelled container the user wants to see chrome for. |
 | `type` | string | The component type — usually `{patternInstance}\|component` (e.g. `main\|component`) |
 | `group` | string | UUID matching a `name` in the page's `draft_section_groups` |
 | `parent` | JSON string | Stringified `{ id, ref }` pointing at the parent page |

@@ -48,7 +48,6 @@ const BarGraphWrapper = props => {
 
 			if (categoryColumn) {
 				for (const [type, tGroup] of iGroup) {
-					keySet.add(type);
 					let value = 0;
 					for (const dc of dataColumns) {
 						const dcn = dc.name;
@@ -59,6 +58,7 @@ const BarGraphWrapper = props => {
 						}
 					}
 					if (value) {
+						keySet.add(type);
 						bar[type] = value;
 					}
 				}
@@ -66,10 +66,10 @@ const BarGraphWrapper = props => {
 			else {
 				for (const dc of dataColumns) {
 					const dcn = dc.name;
-					keySet.add(dcn);
 					const aggFunc = getAggFunc(dc);
 					const value = aggFunc(iGroup, d => d[dcn]);
 					if (value) {
+						keySet.add(dcn);
 						bar[dcn] = value;
 					}
 				}

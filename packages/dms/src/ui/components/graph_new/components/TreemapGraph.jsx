@@ -3,26 +3,26 @@ import React from "react"
 import { group as d3group, rollups as d3rollups } from "d3-array"
 import get from "lodash/get"
 
-import { SunburstGraph, Legend } from "./avl-graph"
+import { TreemapGraph, Legend } from "./avl-graph"
 
 import { strictNaN } from "../utils"
 import { getAggFunc } from "./utils"
 import { getColorRange } from "../colorSchemeUnifier"
 
-const SunburstGraphWrapper = props => {
+const TreemapGraphWrapper = props => {
 
-// console.log("SunburstGraphWrapper::viewData", props.viewData)
+// console.log("TreemapGraphWrapper::viewData", props.viewData)
 
   const dataFromProps = React.useMemo(() => {
     const indexColumn = props.columns.find(c => c.target === "index");
-    const dataColumns = props.columns.filter(c => c.target === "slice");
+    const dataColumns = props.columns.filter(c => c.target === "rectangle");
     const categoryColumn = props.columns.find(c => c.target === "categorize");
 
     if (!indexColumn || !categoryColumn || !dataColumns.length) return [];
 
-// console.log("SunburstGraphWrapper::indexColumn", indexColumn)
-// console.log("SunburstGraphWrapper::dataColumns", dataColumns)
-// console.log("SunburstGraphWrapper::categoryColumn", categoryColumn)
+// console.log("TreemapGraphWrapper::indexColumn", indexColumn)
+// console.log("TreemapGraphWrapper::dataColumns", dataColumns)
+// console.log("TreemapGraphWrapper::categoryColumn", categoryColumn)
 
     const groupsArray = [d => d[indexColumn.name]];
     if (categoryColumn) {
@@ -72,7 +72,7 @@ const SunburstGraphWrapper = props => {
 
   }, [props.viewData, props.columns]);
 
-// console.log("SunburstGraphWrapper::dataFromProps", dataFromProps);
+// console.log("TreemapGraphWrapper::dataFromProps", dataFromProps);
 
   const colors = React.useMemo(() => {
     let colors = [];
@@ -86,7 +86,7 @@ const SunburstGraphWrapper = props => {
     return props.colors?.reverse ? colors.reverse() : colors;
   }, [props.colors, dataFromProps]);
 
-// console.log("SunburstGraphWrapper::colors", colors);
+// console.log("TreemapGraphWrapper::colors", colors);
 
   const legend = React.useMemo(() => {
     return {
@@ -109,7 +109,7 @@ const SunburstGraphWrapper = props => {
           height: `${ props.height }px`
         } }
       >
-        <SunburstGraph { ...props }
+        <TreemapGraph { ...props }
           data={ dataFromProps }
           colors={ colors }/>
       </div>
@@ -122,8 +122,8 @@ const SunburstGraphWrapper = props => {
   )
 }
 
-export const SunburstGraphOption = {
-  type: "Sunburst Graph",
-  GraphComp: "SunburstGraph",
-  Component: SunburstGraphWrapper
+export const TreemapGraphOption = {
+  type: "Treemap Graph",
+  GraphComp: "TreemapGraph",
+  Component: TreemapGraphWrapper
 }

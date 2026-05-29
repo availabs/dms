@@ -10,11 +10,13 @@
 }
 .avl-graph rect.avl-stack,
 .avl-graph rect.avl-grid,
-.avl-graph path.avl-slice {
+.avl-graph path.avl-slice,
+.avl-graph rect.avl-rect {
   transition: fill-opacity 0.15s ease-out;
   fill-opacity: 0.75;
 }
 .avl-graph rect.avl-stack:hover,
+.avl-graph rect.avl-rect:hover,
 .avl-graph path.avl-slice:hover {
   fill-opacity: 1;
 }

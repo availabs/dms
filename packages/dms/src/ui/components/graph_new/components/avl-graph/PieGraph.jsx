@@ -245,7 +245,7 @@ export const PieGraph = props => {
       };
     });
 
-    const labelPadding = 15;
+    const labelPadding = pieData.length === 1 ? 0 : 15;
 
     let ms = maxSquare(adjustedWidth, adjustedHeight, pieData.length);
 

@@ -2,7 +2,7 @@ export const getConfig = ({
       app,
       type,
       filter,
-      action = 'load',
+      action,
       tags, searchType,
       attributes = [
           {key: 'id', label: 'id'},

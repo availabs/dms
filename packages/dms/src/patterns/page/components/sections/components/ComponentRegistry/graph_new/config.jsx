@@ -11,9 +11,19 @@ const graphOptions = {
     readyToLoad: false,
     hideExternalToggle: true,
     graphType: 'BarGraph',
+
+// BarGraph State
     groupMode: 'stacked',
     orientation: 'vertical',
+    outerPadding: 0.0,
     innerPadding: 0.0,
+
+// Treemap State
+    tileMethod: "treemapSquarify",
+    indexTextSize: "medium",
+    valueFormat: "identity",
+    valueTextSize: "medium",
+
     showAttribution: true,
     title: {
         title: ""
@@ -56,7 +66,8 @@ const graphOptions = {
         size: "medium"
     },
     tooltip: {
-        show: true
+        show: true,
+        isDollars: false
     }
 }
 
@@ -88,13 +99,15 @@ export default {
                     { label: "X axis", value: "xAxis",
                         displayCdn: ({ display }) => {
                             return display.graphType !== "PieGraph" &&
-                                display.graphType !== "SunburstGraph"
+                                display.graphType !== "SunburstGraph" &&
+                                display.graphType !== "TreemapGraph"
                         }
                     },
                     { label: "Y axis", value: "yAxis",
                         displayCdn: ({ display }) => {
                             return display.graphType !== "PieGraph" &&
-                                display.graphType !== "SunburstGraph"
+                                display.graphType !== "SunburstGraph" &&
+                                display.graphType !== "TreemapGraph"
                         }
                     },
                     { label: "Categorize", value: "categorize",
@@ -103,13 +116,19 @@ export default {
                     { label: "Index", value: "index",
                         displayCdn: ({ display }) => {
                             return display.graphType === "PieGraph" ||
-                                display.graphType === "SunburstGraph"
+                                display.graphType === "SunburstGraph" ||
+                                display.graphType === "TreemapGraph"
                         }
                     },
                     { label: "Slice", value: "slice",
                         displayCdn: ({ display }) => {
                             return display.graphType === "PieGraph" ||
                                 display.graphType === "SunburstGraph"
+                        }
+                    },
+                    { label: "Rectangle", value: "rectangle",
+                        displayCdn: ({ display }) => {
+                            return display.graphType === "TreemapGraph"
                         }
                     },
                     { label: "Color", value: "color",
@@ -144,7 +163,8 @@ export default {
                             ) ||
                             ((attribute.target === "index") && (
                                     (display.graphType === "PieGraph") ||
-                                    (display.graphType === "SunburstGraph")
+                                    (display.graphType === "SunburstGraph") ||
+                                    (display.graphType === "TreemapGraph")
                                 )
                             )
                 }
@@ -162,6 +182,7 @@ export default {
                         { label: 'Pie Graph', value: 'PieGraph' },
                         { label: 'Grid Graph', value: 'GridGraph' },
                         { label: 'Sunburst Graph', value: 'SunburstGraph' },
+                        { label: 'Treemap Graph', value: 'TreemapGraph' }
                     ],
                     onChange: ({ key, value, state }) => {
                         if (value === "GridGraph") {
@@ -201,6 +222,11 @@ export default {
         },
         xAxis: {
             name: 'X Axis',
+            displayCdn: ({ display }) => {
+                return display.graphType !== "SunburstGraph" &&
+                        display.graphType !== "TreemapGraph" &&
+                        display.graphType !== "PieGraph"
+            },
             items: [
                 { type: 'input', inputType: 'text',
                     label: 'Label', key: 'xAxis.label' },
@@ -216,6 +242,11 @@ export default {
         },
         yAxis: {
             name: 'Y Axis',
+            displayCdn: ({ display }) => {
+                return display.graphType !== "SunburstGraph" &&
+                        display.graphType !== "TreemapGraph" &&
+                        display.graphType !== "PieGraph"
+            },
             items: [
                 {type: 'input', inputType: 'text',   label: 'Label',        key: 'yAxis.label'},
                 {type: 'input', inputType: 'number', label: 'Tick Spacing', key: 'yAxis.tickSpacing'},
@@ -227,6 +258,9 @@ export default {
                     //     {label: 'Comma Separated', value: 'comma'},
                     // ]
                     options: ValueFormats
+                },
+                { type: "toggle",
+                    label: "Use Dollars", key: "yAxis.isDollars"
                 },
                 {type: 'toggle', label: 'Show Gridlines', key: 'yAxis.showGridLines', defaultValue: true},
                 {type: 'toggle', label: 'Rotate Labels',  key: 'yAxis.rotateLabels'},
@@ -294,6 +328,9 @@ export default {
                 { type: "select",
                     label: "Value Format", key: "tooltip.valueFormat",
                     options: ValueFormats
+                },
+                { type: "toggle",
+                    label: "Use Dollars", key: "tooltip.isDollars"
                 }
             ]
         },
@@ -301,9 +338,15 @@ export default {
             name: "ToolTip",
             displayCdn: ({ display }) => display.graphType === 'LineGraph',
             items: [
+                { type: 'toggle',
+                    label: 'Show', key: 'tooltip.show'
+                },
                 { type: "select",
                     label: "Y Format", key: "tooltip.yFormat",
                     options: ValueFormats
+                },
+                { type: "toggle",
+                    label: "Use Dollars", key: "tooltip.isDollars"
                 }
             ]
         },
@@ -324,9 +367,9 @@ export default {
                 }
             ]
         },
-        layout: {
+        barGraph: {
             name: 'Bar Graph Layout',
-            displayCdn: ({display}) => display.graphType === 'BarGraph',
+            displayCdn: ({ display }) => display.graphType === 'BarGraph',
             items: [
                 {type: 'select', label: 'Orientation', key: 'orientation', onClickGoBack: true,
                     options: [
@@ -342,6 +385,39 @@ export default {
                     label: "Inner Padding", key: "paddingInner"
                 }
                 // {type: 'toggle', label: 'Log Scale', key: 'isLog'},
+            ]
+        },
+        treemapGraph: {
+            name: "Treemap Graph Display",
+            displayCdn: ({ display }) => display.graphType === 'TreemapGraph',
+            items: [
+                { type: "select",
+                    label: "Tile Method", key: "tileMethod", onClickGoBack: true,
+                    options: [
+                        { label: "Squarify", value: "treemapSquarify" },
+                        { label: "Binary", value: "treemapBinary" }
+                    ]
+                },
+                { type: "select",
+                    label: "Index Text Size", key: "indexTextSize", onClickGoBack: true,
+                    options: [
+                        { label: "Extra Small", value: "xsmall" },
+                        { label: "Small", value: "small" },
+                        { label: "Medium", value: "medium" },
+                        { label: "Large", value: "large" },
+                        { label: "Extra Large", value: "xlarge" }
+                    ]
+                },
+                { type: "select",
+                    label: "Value Text Size", key: "valueTextSize", onClickGoBack: true,
+                    options: [
+                        { label: "Extra Small", value: "xsmall" },
+                        { label: "Small", value: "small" },
+                        { label: "Medium", value: "medium" },
+                        { label: "Large", value: "large" },
+                        { label: "Extra Large", value: "xlarge" }
+                    ]
+                }
             ]
         },
         data: [
