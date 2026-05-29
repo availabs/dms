@@ -198,31 +198,280 @@ This plan must make **no backwards-incompatible change to anything UDA uses.** T
 
 > Mark items `[x]` + update phase headers AS YOU GO (planning-rules.md §Workflow).
 
-### Phase 1 — Server: reusable SQL builder — NOT STARTED
-- [ ] Extract `buildSimpleFilterSql(ctx, options, attributes, indices) → { sql, values }`; rewire `simpleFilter`; export it.
-- [ ] UDA suite (`dms-server` `npm test` / `npm run test:graph`) green — extraction is behavior-preserving.
+### Phase 1 — Server: extract a reusable SQL builder — NOT STARTED
+
+**File:** `dms-server/src/routes/uda/query_sets/postgres.js`. Expose the linked SELECT as a string the tile route can embed as a CTE, **without changing `simpleFilter`'s behavior** (see Backwards Compatibility). `buildJoin` is `await`ed inside, so the builder is `async`.
+
+- [ ] **Step 1.1** — Add `buildSimpleFilterSql`, lifting the SQL construction from `simpleFilter` (current lines 134-218) and returning instead of executing:
+  ```js
+  // returns { sql, values, columnNameMap }; sql === null when there are no attributes
+  async function buildSimpleFilterSql(ctx, options, attributes, indices) {
+    const num = indices.to - indices.from + 1;
+    const { isDms, db, app, type, table_schema, table_name, dmsAttributes } = ctx;
+
+    let sanitizedAttrs = sanitizeName(attributes).filter((f) => f);
+    if (!sanitizedAttrs.length) return { sql: null, values: [], columnNameMap: {} };
+    if (db.type === 'sqlite') sanitizedAttrs = sanitizedAttrs.map(translatePgToSqlite);
+
+    const columnNameMap = sanitizedAttrs.reduce((acc, attr, i) => {
+      const responseName = getResponseColumnName(attr);
+      if (attr.toLowerCase().includes(' as ') && responseName.length > 60) acc[attr] = attr.replace(` ${responseName}`, ` col_${i}`);
+      return acc;
+    }, {});
+
+    const {
+      filter = {}, exclude = {}, gt = {}, gte = {}, lt = {}, lte = {}, like = {},
+      filterGroups = {}, groupBy = [], having = [], orderBy = {}, normalFilter = [], join = {},
+    } = JSON.parse(options);
+
+    if (normalFilter.length) normalFilter.forEach(({ column, values }) => { (filter[column] ??= []).push(...values); });
+
+    const oldValues = [
+      ...(isDms ? [[app], [type]] : []),
+      ...getValuesExceptNulls(filter), ...getValuesExceptNulls(exclude),
+      ...getValuesExceptNulls(gt), ...getValuesExceptNulls(gte),
+      ...getValuesExceptNulls(lt), ...getValuesExceptNulls(lte), ...getValuesExceptNulls(like),
+    ];
+    const values = [...oldValues, ...getValuesFromGroup(filterGroups)];
+
+    const joinPresent = !!join &&
+      (Object.keys(join.sources || {}).length > 1 ||
+       (Object.keys(join.sources || {}).length === 1 && Object.keys(join.sources || {})[0] !== 'ds'));
+    const combinedWhere = buildCombinedWhere({ filter, exclude, gt, gte, lt, lte, like, filterGroups, isDms, app, type, oldValues, dbType: db.type, joinPresent });
+
+    const { joins, merges } = await buildJoin({ join });
+    const hasMerge = merges.length > 0, hasJoin = joins.length > 0;
+    const fromClause = hasMerge
+      ? `(SELECT * FROM ${table_schema}.${table_name} ${merges}) AS ds${hasJoin ? ` ${joins}` : ''}`
+      : `${table_schema}.${table_name} ${hasJoin ? ' as ds ' : ''} ${joins}`;
+
+    const sql = `
+      SELECT ${sanitizedAttrs.map((c) => quoteAlias(columnNameMap[c] || c)).join(', ')}
+      FROM ${fromClause}
+      ${combinedWhere}
+      ${handleGroupBy(groupBy)} ${handleHaving(having)} ${handleOrderBy(orderBy, dmsAttributes)}
+      LIMIT ${+num} OFFSET ${indices.from}`;
+
+    return { sql, values, columnNameMap };
+  }
+  ```
+
+- [ ] **Step 1.2** — Replace `simpleFilter`'s body so it delegates and keeps the existing post-query alias restoration verbatim:
+  ```js
+  async function simpleFilter(ctx, options, attributes, indices) {
+    const { db } = ctx;
+    const { sql, values, columnNameMap } = await buildSimpleFilterSql(ctx, options, attributes, indices);
+    if (!sql) return [];
+    const res = await db.query(sql, values);
+    return Object.keys(columnNameMap).length
+      ? res.rows.map((row) => ({
+          ...row,
+          ...Object.keys(columnNameMap).reduce((acc, originalName) => ({
+            ...acc, [getResponseColumnName(originalName)]: row[getResponseColumnName(columnNameMap[originalName])],
+          }), {}),
+        }))
+      : res.rows;
+  }
+  ```
+
+- [ ] **Step 1.3** — Add `buildSimpleFilterSql` to `module.exports` (keep `simpleFilter`/`simpleFilterLength`/`dataById`/`translatePgToSqlite`).
+
+- [ ] **Step 1.4** — Run the UDA suite; do not proceed until unchanged-green:
+  ```bash
+  cd packages/dms-server && npm test     # or: npm run test:graph
+  ```
 
 ### Phase 2 — Server: tile join via CTE — NOT STARTED
-- [ ] `join` param parse + `shiftParams`; resolve linked view via `getEssentials`; build linked CTE via `buildSimpleFilterSql`; compose `WITH linked … LEFT JOIN` tile SQL; renumber + concat params; sanitize keys/cols.
-- [ ] Integration test against PG+PostGIS: tile with an **aggregated** linked query (groupBy + sum) returns an MVT whose features carry the aggregate as a property; feature count unchanged (the grouped CTE is 1:1 on the key). Document the command.
 
-### Phase 3 — Client: tile URL wiring (3 copies) — NOT STARTED
-- [ ] Each `getLayerTileUrl` appends `&join=<encoded>` from the layer's `'linked-data'` config when enabled.
-- [ ] Verify the tile request carries `join` and the joined column is present in the returned tile (devtools / `queryRenderedFeatures`).
+**File:** `dms-server/src/dama/tiles/tiles.rest.js`.
+
+- [ ] **Step 2.1** — Imports at top:
+  ```js
+  const { getEssentials } = require('../../routes/uda/utils');
+  const { buildSimpleFilterSql } = require('../../routes/uda/query_sets/postgres');
+  ```
+
+- [ ] **Step 2.2** — Param-renumber helper (linked CTE uses `$1..$N`; tile owns `$1,$2,$3`):
+  ```js
+  // Shift every $N in a SQL fragment by `offset` so it can sit after the tile's $1,$2,$3 (z,x,y).
+  const shiftParams = (sql, offset) => sql.replace(/\$(\d+)/g, (_, n) => `$${+n + offset}`);
+  ```
+
+- [ ] **Step 2.3** — Add `getJoinedTileData`. The linked CTE is built by the UDA builder (so it already carries the author's filter/groupBy/aggregate); the tile just LEFT JOINs it 1:1:
+  ```js
+  async function getJoinedTileData(pgEnv, viewId, z, x, y, columns, filter, join) {
+    const geoTable = await resolveTable(pgEnv, viewId);
+    if (!geoTable) return null;
+    const db = getDb(pgEnv);
+
+    const linkedCtx = await getEssentials({ env: pgEnv, view_id: join.viewId, options: join.options || {} });
+    if (linkedCtx.dbType !== 'postgres') return null;            // PG-only; CH-backed linked views unsupported (V1)
+
+    const { sql: linkedSql, values: linkedValues } = await buildSimpleFilterSql(
+      linkedCtx,
+      JSON.stringify(join.options || {}),
+      join.attributes,                                            // ["w_geocode","sum(S000)::numeric as total_workers"]
+      { from: 0, to: 1_000_000 - 1 },                             // generous cap; the join key bounds real output
+    );
+    if (!linkedSql) return null;
+
+    const q = (c) => `"${String(c).replace(/"/g, '')}"`;
+    const geomCols = (columns || []).map((c) => `, geo.${q(c)}`).join('');
+    const joinedCols = (join.tileCols || []).map((c) => `, linked.${q(c)}`).join('');
+
+    const sql = `
+      WITH linked AS ( ${shiftParams(linkedSql, 3)} ),
+      mvtgeom AS (
+        SELECT ST_AsMVTGeom(ST_Transform(geo.wkb_geometry, 3857), ST_TileEnvelope($1,$2,$3)) AS geom
+          ${geomCols} ${joinedCols}
+          , geo.ogc_fid
+        FROM ${geoTable} geo
+        LEFT JOIN linked ON geo.${q(join.localKey)} = linked.${q(join.linkedKey)}
+        , (SELECT ST_SRID(wkb_geometry) AS srid FROM ${geoTable} WHERE wkb_geometry IS NOT NULL LIMIT 1) a
+        WHERE ST_Intersects(geo.wkb_geometry, ST_Transform(ST_TileEnvelope($1,$2,$3), srid))
+        ${filter ? ` AND ${filter}` : ''}
+      )
+      SELECT ST_AsMVT(mvtgeom.*, 'view_${+viewId}', 4096, 'geom', 'ogc_fid') AS mvt FROM mvtgeom`;
+
+    try {
+      const { rows } = await db.query(sql, [+z, +x, +y, ...linkedValues]);
+      return rows[0]?.mvt || null;
+    } catch (e) {
+      console.error(`[tiles] join tile error (view ${viewId} ⋈ ${join.viewId}, ${z}/${x}/${y}):`, e.message);
+      return null;
+    }
+  }
+  ```
+  **Output-name caveat:** `join.linkedKey`/`join.tileCols` must match the linked CTE's *output* column names. `buildSimpleFilterSql` aliases an output to `col_i` only when its response name is >60 chars — keep aggregate aliases short (`total_workers`) so this never trips. (If long aliases are ever needed, thread `columnNameMap` out and remap.)
+
+- [ ] **Step 2.4** — In `serveTile`, parse `join` and dispatch (no-`join` path unchanged):
+  ```js
+  const { cols, filter, join: joinRaw } = req.query;
+  const join = joinRaw ? JSON.parse(joinRaw) : null;          // express already URL-decodes query values
+  const mvt = join
+    ? await getJoinedTileData(pgEnv, view_id, +z, +x, +y, cols?.split(',') || [], filter, join)
+    : await getTileData(pgEnv, view_id, +z, +x, +y, cols?.split(',') || [], filter);
+  ```
+
+- [ ] **Step 2.5** — Verify against PG+PostGIS using a geometry view + an analytical view sharing a key:
+  ```bash
+  JOIN='{"viewId":<linkedViewId>,"localKey":"<geomKey>","linkedKey":"w_geocode","options":{"groupBy":["w_geocode"]},"attributes":["w_geocode","sum(S000)::numeric as total_workers"],"tileCols":["total_workers"]}'
+  ENC=$(node -e 'process.stdout.write(encodeURIComponent(process.argv[1]))' "$JOIN")
+  curl -s "http://localhost:<port>/dama-admin/<pgEnv>/tiles/<geomViewId>/<z>/<x>/<y>/t.pbf?cols=<geomKey>&join=$ENC" -o /tmp/t.pbf
+  node -e 'const {VectorTile}=require("@mapbox/vector-tile"),Pbf=require("pbf"),fs=require("fs");const t=new VectorTile(new Pbf(fs.readFileSync("/tmp/t.pbf")));const l=t.layers["view_<geomViewId>"];console.log("features:",l.length,"props[0]:",l.feature(0).properties);'
+  ```
+  Expected: features carry `total_workers`; layer feature count equals the no-join tile (grouped CTE is 1:1 on the key → no fan-out).
+
+### Phase 3 — Client: append `join` in all three `getLayerTileUrl` copies — NOT STARTED
+
+**Files:** `patterns/page/.../map/SymbologyViewLayer.jsx` (~:1175), `patterns/page/.../map_dama/SymbologyViewLayer.jsx` (~:373), `patterns/mapeditor/MapEditor/components/SymbologyViewLayer.jsx` (~:307). Re-implement the same edit in each (no cross-pattern import).
+
+- [ ] **Step 3.1** — Add a module-scope helper in each file. The linked-query → UDA `{options, attributes}` mapping mirrors dataWrapper's `buildUdaConfig` (re-implemented):
+  ```js
+  // Build the encoded `join` query param from a layer's linked-data config (""=disabled).
+  const buildJoinParam = (layerProps) => {
+    const ld = layerProps?.["linked-data"];
+    if (!ld?.enabled || !ld.linkedJoinColumn || !ld.linked?.viewId) return "";
+    const { filters = {}, groupBy = [], columns = [] } = ld.linkedQuery || {};
+    const join = {
+      viewId: ld.linked.viewId,
+      localKey: ld.featureKeyColumn,
+      linkedKey: ld.linkedJoinColumn,
+      options: { ...filters, groupBy },     // filters already in UDA filter/filterGroups shape
+      attributes: columns,                  // SELECT list incl. aggregate exprs + the join key column
+      tileCols: ld.tileColumns || [],
+    };
+    return encodeURIComponent(JSON.stringify(join));
+  };
+  ```
+
+- [ ] **Step 3.2** — Before `return newTileUrl`, append the join param. **Joined columns must NOT be in `?cols=`** (the geometry table lacks them) — they travel in `join.tileCols`:
+  ```js
+  const joinParam = buildJoinParam(layerProps);
+  if (joinParam) newTileUrl += `${newTileUrl.includes("?") ? "&" : "?"}join=${joinParam}`;
+  ```
+  Adjust the existing `?cols=` assembly (the `dataFilterCols`/`colsToAppend` block above) to exclude any column listed in `layerProps["linked-data"].tileColumns` — those are joined outputs, not geometry columns. Simplest: after computing `colsToAppend`, drop entries that appear in `tileColumns`.
+
+- [ ] **Step 3.3** — Verify in devtools: enabling a join makes the tile request URL carry `&join=…`; `map.queryRenderedFeatures(point)` on a feature shows the joined property.
 
 ### Phase 4 — Editor: Linked Data tab + linked-query builder — NOT STARTED
-- [ ] `constants.js` + `normalizeLayerLinkedDataConfig`.
-- [ ] Add the tab; build `LinkedDataControl` + `JoinSetup` (geometry key column, linked source/view same-pgEnv, join key column).
-- [ ] Build `LinkedQueryBuilder` (re-implemented dataWrapper-style): columns + groupBy + per-column aggregate `fn` + filters → `linkedQuery`; `tileColumns` selector.
-- [ ] Verify config persists (layer switch + reload + saved `symbology` JSON) and produces a sensible `join` param.
 
-### Phase 5 — Editor: style/popup on joined outputs — NOT STARTED
-- [ ] Merge `tileColumns` into the Style/Legend/Popup column options (tagged as joined).
-- [ ] **End-to-end proof:** OD-style aggregate join (block geometry + OD grouped by `w_geocode`, `sum(S000) as total_workers`) → choose `total_workers` as the choropleth column → blocks color by inbound-worker totals.
+- [ ] **Step 4.1** — `LinkedDataControl/constants.js` (`.js`, no JSX):
+  ```js
+  export const LINKED_DATA_AGG_OPS = ["sum", "count", "avg", "min", "max"];
+  export const LINKED_DATA_ROW_CAP = 1_000_000;
+  ```
 
-### Phase 6 — Docs — NOT STARTED
-- [ ] Document `'linked-data'` + the `join` tile param in `map/settings/README.md`. Note the **index on the linked join column** as the perf lever and that V1 assumes a correctly-configured 1:1 query.
-- [ ] On completion: move to `tasks/completed/`, flip `todo.md`, add dated `completed.md` entry. Skill-candidate check (a "choropleth a geometry layer by an aggregated joined query" recipe likely warrants `skills/map-linked-data-join.md`).
+- [ ] **Step 4.2** — `MapEditor/stateUtils.jsx`: add + export `normalizeLayerLinkedDataConfig` (model on `normalizeLayerClickFilterConfig` at :338):
+  ```js
+  const normalizeLayerLinkedDataConfig = (config = {}) => ({
+    enabled: Boolean(config?.enabled),
+    featureKeyColumn: config?.featureKeyColumn || "",
+    linked: {
+      sourceId: config?.linked?.sourceId ?? null,
+      viewId: config?.linked?.viewId ?? null,
+      env: config?.linked?.env ?? null,
+    },
+    linkedJoinColumn: config?.linkedJoinColumn || "",
+    linkedQuery: {
+      filters: config?.linkedQuery?.filters || {},
+      groupBy: Array.isArray(config?.linkedQuery?.groupBy) ? config.linkedQuery.groupBy : [],
+      columns: Array.isArray(config?.linkedQuery?.columns) ? config.linkedQuery.columns : [],
+    },
+    tileColumns: Array.isArray(config?.tileColumns) ? config.tileColumns : [],
+  });
+  ```
+  Add `normalizeLayerLinkedDataConfig` to the `export { … }` block (alongside `normalizeLayerClickFilterConfig`).
+
+- [ ] **Step 4.3** — `LayerEditor/index.jsx`: import + register the tab:
+  ```js
+  import LinkedDataControl from './LinkedDataControl'
+  // …
+  const LAYER_EDITOR_TABS = [
+    { name: 'Style', Component: StyleEditor },
+    { name: 'Legend', Component: LegendEditor },
+    { name: 'Popup', Component: PopoverEditor },
+    { name: 'Filter', Component: FilterEditor },
+    { name: 'Linked Data', Component: LinkedDataControl },
+  ];
+  ```
+
+- [ ] **Step 4.4** — `LinkedDataControl/index.jsx` — mirror `ClickFilterControl/index.jsx` structure (`.jsx`, components only):
+  - Read `SymbologyContext` (`state`, `setState`) + `MapEditorContext` (`pgEnv`, falcor via `useFalcor`).
+  - `activeLayerId = state?.symbology?.activeLayer`; `linkedDataPath = \`symbology.layers[${activeLayerId}]['linked-data']\``.
+  - `currentConfig = useMemo(() => normalizeLayerLinkedDataConfig(get(state, linkedDataPath, {})), [state, linkedDataPath])`.
+  - `setLinkedDataConfig(updater)`: `setState(draft => { const next = normalizeLayerLinkedDataConfig(get(draft, linkedDataPath, {})); updater(next); set(draft, linkedDataPath, next); })`.
+  - Render an `Enabled` checkbox (toggles `enabled`), then `<JoinSetup config currentConfig set={setLinkedDataConfig} />` and `<LinkedQueryBuilder … />` when `currentConfig.enabled`.
+
+- [ ] **Step 4.5** — `LinkedDataControl/JoinSetup.jsx` (`.jsx`):
+  - **Feature key column** `<select>` from THIS layer's source metadata — inline fetch verbatim from `ClickFilterControl`: `useEffect(() => { if (sourceId && falcor && pgEnv) falcor.get(["uda", pgEnv, "sources", "byId", sourceId, "metadata"]); }, […])`; read `get(falcorCache, ["uda", pgEnv, "sources", "byId", sourceId, "metadata", "value", "columns"], [])`. Bind `featureKeyColumn`.
+  - **Linked source/view** picker — reuse the editor's existing source/view selection affordance, scoped to the same `pgEnv`; persist `linked.sourceId`/`linked.viewId`/`linked.env`.
+  - **Linked join column** `<select>` from the LINKED source's metadata — a second inline `falcor.get(["uda", pgEnv, "sources", "byId", linked.sourceId, "metadata"])`. Bind `linkedJoinColumn`.
+
+- [ ] **Step 4.6** — `LinkedDataControl/LinkedQueryBuilder.jsx` (`.jsx`) — re-implemented dataWrapper-style query editor over the linked view's columns. Per column: a `group` toggle (→ groupBy) and an aggregate `fn` select (`LINKED_DATA_AGG_OPS`). Compose the SELECT expressions:
+  ```js
+  // grouped col → "col"; aggregated col → "fn(col)::numeric as fn_col" (count → "count(1)::int as count_col")
+  const toSelectExpr = (c) =>
+    c.fn === "count" ? `count(1)::int as count_${c.name}`
+    : c.fn ? `${c.fn}(${c.name})::numeric as ${c.fn}_${c.name}`
+    : c.name;
+  ```
+  Persist: `linkedQuery.groupBy` = names of grouped columns (must include the join key for 1:1); `linkedQuery.columns` = the select exprs (include the join key column); `linkedQuery.filters` = a small filter editor writing UDA `filter`/`filterGroups`. Provide a `tileColumns` multiselect over the query's output names (aggregate aliases like `sum_S000`/`total_workers` + grouped columns) — these are what get baked into the tile.
+
+- [ ] **Step 4.7** — Verify: configure a grouped+aggregated linked query; confirm `'linked-data'` persists across layer switch + reload (inspect saved `symbology` JSON) and that Phase 3's `buildJoinParam` produces a sensible param.
+
+### Phase 5 — Editor: let Style/Legend/Popup use joined output columns — NOT STARTED
+
+The Style/Legend/Popup editors build their column dropdowns from the layer's own source metadata. To choropleth/show a joined column, merge `linked-data.tileColumns` (the joined output names) into those options so they're selectable as `data-column` / hover columns.
+
+- [ ] **Step 5.1** — Locate the shared column-options source those editors use. Start at `LayerEditor/Controls.jsx` `SelectViewColumnControl` (fetches `["uda", pgEnv, "sources", "byId", sourceId, "metadata"]`) and the `datamaps` column reads; find where the `data-column` dropdown options array is assembled.
+- [ ] **Step 5.2** — Where that list is built, append the active layer's joined outputs as synthetic column entries tagged joined, e.g. for each `tileColumns` entry: `{ name: alias, display_name: alias, type: 'numeric', _joined: true }`. Keep the merge local to the option-building site — do not widen primitive APIs (per `feedback_no_className_passthrough` discipline).
+- [ ] **Step 5.3 — End-to-end proof:** block-geometry layer + OD linked view grouped by `w_geocode` with `sum(S000)::numeric as total_workers`, `tileColumns: ['total_workers']`. In the Style tab pick `total_workers` as the choropleth `data-column`. Expected: tiles carry `total_workers` (Phase 2/3) and blocks color by inbound-worker totals; hover shows the joined value.
+
+### Phase 6 — Docs + completion — NOT STARTED
+- [ ] **Step 6.1** — Document the `'linked-data'` config shape + the `join` tile param in `patterns/page/.../map/settings/README.md`. Call out: V1 assumes a correctly-configured 1:1 query (no fan-out guard); the linked view must be in the same Postgres pgEnv; and an **index on the linked join column** is the perf lever (without it, large linked tables degrade per-tile).
+- [ ] **Step 6.2** — On completion: move this file to `tasks/completed/`, flip the `todo.md` entry to `[x]`, add a dated `completed.md` entry linking it.
+- [ ] **Step 6.3** — Skill-candidate check (planning-rules.md §"When to extract a skill"): a "choropleth a geometry layer by an aggregated joined query" recipe likely warrants `skills/map-linked-data-join.md` — write it + index it in `skills/README.md` if the pattern proves reusable.
 
 ## Testing Checklist
 

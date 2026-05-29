@@ -64,6 +64,11 @@ export const RenderFilterValueSelector = ({
     const theme = {...themeFromContext, filters: {...filterTheme, ...(themeFromContext.filters || {})}};
     const {Switch, MultiSelect, Input, Button, ColumnTypes} = UI;
     const options = useMemo(() => filterOptions.find(fo => fo.column === filterColumn.name)?.uniqValues, [filterOptions, filterColumn.name]);
+    // Let a Filter section pick which named `multiselect` theme style its value
+    // control renders with (e.g. 'compact' for a page-level chip). Defaults to
+    // undefined → the multiselect's own options.activeStyle. This selects a named
+    // theme style (not a className passthrough), keeping the primitive's API closed.
+    const controlStyle = state?.display?.filterControlStyle;
 
     const useDebouncedUpdateFilter = (delay = 300) => {
         const timeoutRef = useRef(null);
@@ -118,6 +123,7 @@ export const RenderFilterValueSelector = ({
                         isEdit ? (
                             <div className={theme.filters.settingPillsWrapper}>
                                 <MultiSelect
+                                    activeStyle={controlStyle}
                                     singleSelectOnly
                                     searchable={false}
                                     value={filter.type}
@@ -135,6 +141,7 @@ export const RenderFilterValueSelector = ({
                                 />
 
                                 <MultiSelect
+                                    activeStyle={controlStyle}
                                     singleSelectOnly
                                     searchable={false}
                                     value={filter.operation}
@@ -159,6 +166,7 @@ export const RenderFilterValueSelector = ({
                                 {
                                     isGrouping ?
                                         <MultiSelect
+                                    activeStyle={controlStyle}
                                             singleSelectOnly
                                             searchable={false}
                                             value={filter.fn}
@@ -232,6 +240,7 @@ export const RenderFilterValueSelector = ({
                                 }
 
                                 <MultiSelect
+                                    activeStyle={controlStyle}
                                     singleSelectOnly
                                     searchable={false}
                                     value={filter.display}
