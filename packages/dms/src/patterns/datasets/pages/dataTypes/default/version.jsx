@@ -49,58 +49,12 @@ const DeleteViewBtn = ({source, view_id, format, url, apiUpdate, baseUrl}) => {
     )
 }
 
-const ClearDataBtn = ({app, sourceSlug, view_id, apiLoad, apiUpdate}) => {
+const ClearDataBtn = ({app, sourceSlug, view_id, falcor}) => {
     const {UI} = useContext(ThemeContext);
     const {DeleteModal} = UI;
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const clearData = async () => {
-        // fetch all ids based on app and type (doc_type of source), and then call dmsDataEditor with config={app, type}, data={id}, requestType='delete
-        const attributes = ['id']
-        const action = 'load'
-        const validDataconfig = {
-            format: {
-                app: app,
-                type: `${sourceSlug}|${view_id}:data`,
-                attributes
-            },
-            children: [
-                {
-                    type: () => {},
-                    action,
-                    filter: {
-                        options: JSON.stringify({}),
-                        attributes
-                    },
-                    path: '/'
-                }
-            ]
-        }
-        const invalidDataconfig = {
-            format: {
-                app: app,
-                type: `${sourceSlug}|${view_id}:data-invalid-entry`,
-                attributes
-            },
-            children: [
-                {
-                    type: () => {},
-                    action,
-                    filter: {
-                        options: JSON.stringify({}),
-                        attributes
-                    },
-                    path: '/'
-                }
-            ]
-        }
-
-        const validDataRes = await apiLoad(validDataconfig);
-        const invalidDataRes = await apiLoad(invalidDataconfig);
-        if(!validDataRes?.length && !invalidDataRes?.length) return;
-        const ids = [...validDataRes, ...invalidDataRes].map(r => r.id).filter(r => r && typeof r !== 'object');
-        if(!ids?.length) return;
-
-        await apiUpdate({data: {id: ids}, config: validDataconfig, requestType: 'delete'});
+        await falcor.call(['uda', 'viewsById', 'clearData'], [`${app}+${sourceSlug}`, +view_id]);
     }
     return (
         <div className={'w-full'}>
@@ -175,7 +129,7 @@ export default function ManageForm ({ status, apiLoad, apiUpdate, format, source
                                 {
                                     isDms ? (
                                             <>
-                                                <ClearDataBtn app={app} sourceSlug={nameToSlug(source.name)} view_id={params.view_id} apiLoad={apiLoad} apiUpdate={apiUpdate}/>
+                                                <ClearDataBtn app={app} sourceSlug={nameToSlug(source.name)} view_id={params.view_id} falcor={falcor}/>
                                                 <DeleteViewBtn source={source} format={format} view_id={params.view_id} url={`${pageBaseUrl}/${params.id}`} apiUpdate={apiUpdate} baseUrl={baseUrl}/>
                                             </>
                                     ) : <ExternalVersionControl source={source} view={currentView} sourceId={params.id} viewId={params.view_id} />

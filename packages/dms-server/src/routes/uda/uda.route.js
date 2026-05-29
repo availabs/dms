@@ -16,7 +16,8 @@ const {
 
   simpleFilterLength,
   simpleFilter,
-  dataById
+  dataById,
+  clearViewData
 } = require("./uda.controller");
 
 // ================================================= UDA Source Routes =================================================
@@ -398,6 +399,25 @@ module.exports = [
         ];
       } catch (err) {
         console.error('[uda] sources.setIndex error:', err.message);
+        throw err;
+      }
+    },
+  },
+
+  // --------------------------------- viewsById.clearData (call) ---------------------------------
+  // Args: [env, view_id]
+  // Truncates / deletes all rows in the split table for the given view.
+  {
+    route: 'uda.viewsById.clearData',
+    call: async function(callPath, args) {
+      try {
+        const [env, view_id] = args;
+        await clearViewData(env, +view_id);
+        return [
+          { path: ['uda', env, 'viewsById', +view_id], invalidated: true },
+        ];
+      } catch (err) {
+        console.error('[uda] viewsById.clearData error:', err.message);
         throw err;
       }
     },

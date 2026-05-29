@@ -26,7 +26,7 @@ renders pages matching the mockups.
 
 ## If you take nothing else from this skill
 
-Three gotchas every theme translation hits, in order of how often
+Four gotchas every theme translation hits, in order of how often
 they bite. Each one looks like a one-character config detail and is
 actually load-bearing. Skip to the linked sections; the rest of this
 doc is reference material organized around the per-primitive checklist.
@@ -43,14 +43,25 @@ doc is reference material organized around the per-primitive checklist.
    product LayoutGroups need `'max-w-[<your-cap>] mr-auto'` (left-
    aligned, not centred) or content drifts away from the SideNav's
    right edge.
-3. **`lexical.heading_h1..h6` must be set explicitly** —
+3. **Edit-mode chrome — hover outline + Add Section button** —
+   see [§3.1.56](#3156-edit-mode-chrome--the-load-bearing-structure-for-hover--add-section).
+   `sectionEditHover` / `sectionEditing` / `sectionHighlight` are
+   *absolutely-positioned overlay divs* — they MUST start
+   `absolute inset-0 …` or they paint at zero size and nothing
+   appears on hover. `addSectionButton` needs `hidden group-hover:flex
+   absolute -top-5` and its wrapper needs `relative group`.
+   `addSectionIcon` is a className string (the icon name `"Plus"` is
+   hardcoded in the JSX) — overriding it with `"Plus"` makes the icon
+   render unstyled. `rowspans` must be `{ "N": { className: "…" } }`
+   objects, not flat strings.
+4. **`lexical.heading_h1..h6` must be set explicitly** —
    see [§3.1.5](#315-the-lexical--textsettings-trap)
    Quirk 2. The textSettings backfill only fires when these keys are
    falsy, and the codebase ships them set. Without explicit override,
    the codebase default's `font-display` rule shadows your brand
    tokens and headings render in the wrong family inside Lexical.
 
-Three sentences at the top of this skill save every brand half a day
+Four sentences at the top of this skill save every brand half a day
 of debugging.
 
 ---
@@ -873,6 +884,159 @@ ask "does this look right out of the box?" Don't leave a key
 inherited from the codebase default unless you've verified it
 matches your brand.**
 
+### 3.1.56 Edit-mode chrome — the load-bearing structure for hover + add-section
+
+`pages.sectionArray.styles[0]` carries eleven keys that together make
+editing a page feel discoverable: hovering a section paints a dashed
+outline, the section being edited paints a solid outline, deep-linked
+sections flash highlight, and an "Add" pill appears between sections
+on hover so authors can insert a new band. **Every theme overlay must
+re-skin all eleven** — overriding only a subset, or substituting
+non-overlay-shaped classes, silently breaks the UX.
+
+Source: `src/dms/packages/dms/src/patterns/page/components/sections/sectionArray.{jsx,theme.jsx}`.
+
+#### How the structure actually renders
+
+Each section in edit mode renders as:
+
+```jsx
+<div className={theme?.sectionEditWrapper /* "relative group" */}>
+  <div className={theme?.sectionEditHover  /* absolute inset-0 overlay */} />
+  {/* hover-only: Add Section button just above each section */}
+  <div className={theme?.addSectionButton /* "hidden group-hover:flex absolute -top-5" */}>
+    <div className={theme?.spacer}/>
+    <div className={theme?.addSectionIconWrapper /* "group/icon" */}>
+      <Icon icon="Plus" className={theme?.addSectionIcon /* class string */} />
+      <div className={theme?.addSectionTextWrapper}>
+        <div className={theme?.addSectionText}>Add</div>
+      </div>
+    </div>
+    <div className={theme?.spacer}/>
+  </div>
+  <SectionEditOrView … />
+</div>
+```
+
+Two structural rules that are *not* obvious from reading the theme keys:
+
+1. **`sectionEditWrapper` must include the `group` class** (alongside
+   `relative`). Every `group-hover:*` utility on the overlay and the
+   add-section button depends on it. Drop `group` → no hover effect
+   anywhere. Same for `sectionViewWrapper` in view mode.
+2. **`sectionEditHover` / `sectionEditing` / `sectionHighlight` are
+   absolutely-positioned full-bleed overlay divs**, not classes on the
+   section itself. They MUST start with `absolute inset-0 …`
+   (plus `pointer-events-none z-10` so they don't block clicks).
+   Without absolute positioning the div has zero size and the styling
+   never paints anywhere — the most common failure mode.
+
+#### The icon-then-text expansion on Add
+
+The Add button uses a nested `group/icon` so the pill grows from "+"
+into "Add" on its own hover, separately from the section group:
+
+```
+addSectionIconWrapper    flex items-center group/icon
+  ├─ addSectionIcon      size-6 ... group-hover/icon:hidden       ← swaps out
+  └─ addSectionTextWrapper  hidden group-hover/icon:flex          ← swaps in
+       └─ addSectionText  px-2.5 py-1 ... rounded-full
+```
+
+Two things to remember:
+
+- **`addSectionIcon` is a className string**, not an icon name. The
+  Icon name `"Plus"` is hardcoded in the JSX. Setting
+  `addSectionIcon: "Plus"` makes the icon's className be the literal
+  string `"Plus"` (invalid Tailwind) — the icon renders unstyled and
+  invisible. The key takes Tailwind classes like
+  `size-6 p-1.5 text-white bg-[#brand] rounded-full group-hover/icon:hidden`.
+- **There is no `addSectionIconClass` key.** It looks like there
+  should be one (mirroring the `Icon className` prop pattern used
+  elsewhere), but the source reads `addSectionIcon` directly as the
+  className. Inventing `addSectionIconClass` silently no-ops.
+
+#### `rowspans` shape — flat strings vs `{className}` objects
+
+The codebase reads `theme?.rowspans?.["1"]?.className`, so rowspans
+must be a map of objects, not a map of strings:
+
+```js
+// WRONG — silently no-ops, sections never span rows
+rowspans: {
+  "1": "row-span-1",
+  "2": "row-span-2",
+}
+
+// RIGHT
+rowspans: {
+  "1": { className: "" },
+  "2": { className: "md:row-span-2" },
+  "3": { className: "md:row-span-3" },
+  // … through 8
+}
+```
+
+`sizes` uses the same `{ className, iconSize }` shape — straightforward
+to get right because the existing v1 themes show that pattern. The
+trap is rowspans, which a quick scan can read as "just a list of row-
+span utilities."
+
+#### The eleven keys, brand-fit
+
+Drop these into `pages.sectionArray.styles[0]` and re-skin the
+literal classes to your brand. The structural classes (`absolute
+inset-0`, `pointer-events-none z-10`, `relative group`,
+`hidden group-hover:flex absolute -top-5`, `group/icon`,
+`group-hover/icon:hidden`, `group-hover/icon:flex`) are
+load-bearing — keep them.
+
+```js
+// Brand-fit template (TransportNY shown — swap the colours)
+sectionEditWrapper: "relative group",
+sectionViewWrapper: "relative group",
+
+sectionEditHover:   "absolute inset-0 border-2 border-transparent group-hover:border-[#FACC15] border-dashed pointer-events-none z-10 rounded-[8px] transition-colors",
+sectionEditing:     "absolute inset-0 border-2 border-[#FACC15] border-dashed pointer-events-none z-10 rounded-[8px]",
+sectionHighlight:   "absolute inset-0 border-2 border-[#EAAD43] border-dashed pointer-events-none z-10 rounded-[8px]",
+
+addSectionButton:      "cursor-pointer flex items-center w-full -ml-4 my-2 hidden group-hover:flex absolute -top-5 z-20",
+spacer:                "flex-1",
+addSectionIconWrapper: "flex items-center group/icon cursor-pointer",
+addSectionIcon:        "size-6 p-1.5 text-white bg-[#1F3F8F] rounded-full group-hover/icon:hidden",
+addSectionTextWrapper: "hidden group-hover/icon:flex items-center",
+addSectionText:        "px-2.5 py-1 text-white text-[12px] font-display uppercase tracking-wide bg-[#1F3F8F] rounded-full",
+```
+
+#### Verification — what to click in the live editor
+
+Open a page with the theme applied and put it in edit mode:
+
+1. **Hover any section.** A dashed brand-coloured outline should
+   appear over the section (`sectionEditHover` firing on group-hover).
+   If nothing appears: either the wrapper lost its `group`, or your
+   `sectionEditHover` is missing `absolute inset-0`.
+2. **Hover the area just above a section.** An "Add" pill should
+   fade in just above (`addSectionButton` group-hover:flex). If the
+   pill never shows: same wrapper-`group` issue, or your
+   `addSectionButton` is missing `hidden group-hover:flex absolute -top-5`.
+3. **Hover the "+" pill itself.** It should expand into an "Add" text
+   pill (`addSectionIcon` swaps out, `addSectionTextWrapper` swaps
+   in via the nested `group/icon`). If it doesn't: your
+   `addSectionIconWrapper` is missing `group/icon`, or you've
+   overridden `addSectionIcon` with something that lacks
+   `group-hover/icon:hidden`.
+4. **Click "+" to insert.** The section editor opens (this is
+   `addSectionButton`'s `onClick` wiring, not theme — but it confirms
+   the pill is interactive and not blocked by the overlay).
+5. **Click into a section to edit it.** The section's overlay should
+   switch from dashed-hover to dashed-solid (`sectionEditing`).
+6. **Click a TOC link / deep-link a section.** That section's overlay
+   should switch to a static dashed-amber highlight
+   (`sectionHighlight`).
+
+Steps 1–3 cover the bug class this section exists to prevent.
+
 ### 3.1.6 textSettings — the global type scale
 
 `textSettings` is **not** a primitive; it's a top-level theme key
@@ -1655,6 +1819,21 @@ If a live page looks off:
 - **Auth / dataset / pattern UI looks generic.** You didn't ship
   the `pages.*` / `datasets.*` / `auth.*` overlay. Check
   `patterns.html` for the matching mockup and produce the overlay.
+- **Edit-mode hover outline never appears.** Your
+  `sectionEditHover` / `sectionEditing` / `sectionHighlight` is
+  missing `absolute inset-0` (or the parent `sectionEditWrapper` lost
+  its `group` class). These keys are overlay divs, not classes on the
+  section itself. See [§3.1.56](#3156-edit-mode-chrome--the-load-bearing-structure-for-hover--add-section).
+- **Add Section button doesn't appear on hover between sections.**
+  Same root cause — `sectionEditWrapper` needs `relative group` and
+  `addSectionButton` needs `hidden group-hover:flex absolute -top-5`.
+  If the pill appears but doesn't expand into "Add" text on hover,
+  `addSectionIconWrapper` lost its nested `group/icon`. See §3.1.56.
+- **Sections don't span multiple rows.** Your `rowspans` map is
+  `{ "1": "row-span-1", … }` (flat strings) but the codebase reads
+  `theme?.rowspans?.["1"]?.className` — needs
+  `{ "1": { className: "" }, "2": { className: "md:row-span-2" }, … }`
+  shape. Sizes already use that shape; rowspans is easy to overlook.
 
 ---
 
