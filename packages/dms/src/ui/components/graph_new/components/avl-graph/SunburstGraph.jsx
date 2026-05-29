@@ -145,6 +145,8 @@ export const SunburstGraph = props => {
     data = EmptyArray,
     margin = EmptyObject,
     hoverComp = EmptyObject,
+    indexTextSize = "medium",
+    valueTextSize = "medium",
     className ="",
     startAngle = 0,
     endAngle = 2 * Math.PI,
@@ -248,6 +250,9 @@ export const SunburstGraph = props => {
           			colorFunc={ colorFunc }
           			color="#666"
           			node={ n }
+                indexTextSize={ indexTextSize }
+                valueTextSize={ valueTextSize }
+                valueFormat={ HoverCompData.valueFormat }
           			onMouseMove={ onMouseMove }/>
           	))
           }
@@ -272,9 +277,49 @@ export const SunburstGraph = props => {
   )
 }
 
-const Slice = React.memo(({ node, colorFunc, color, isRoot, onMouseMove }) => {
+let id = 0;
+const getUniqueTextPathId = () => `text-path-${ id++ }`;
+
+const labelTransform = node => {
+  const x = (node.x0 + node.x1) / 2 * 180 / Math.PI;
+  const y = (node.y0 + node.y1) / 2;
+  return `rotate(${ x - 90 }) translate(${ y }, 0) rotate(${ x < 180 ? 0 : 180 })`;
+}
+
+const IndexTextSizeMap = {
+  xsmall: 0.1,
+  small: 0.2,
+  medium: 0.3,
+  large: 0.4,
+  xlarge: 0.5
+}
+
+const Slice = React.memo(({ node, colorFunc, isRoot, ...props }) => {
+
+  const {
+    color,
+    onMouseMove,
+    indexTextSize,
+    valueTextSize,
+    valueFormat
+  } = props;
 
   const ref = React.useRef();
+
+  const doOnMouseMove = React.useCallback(e => {
+  	onMouseMove(e, node);
+  }, [node, onMouseMove]);
+
+  const id = React.useMemo(() => {
+    return getUniqueTextPathId();
+  }, []);
+
+  const [itSize, vtSize] = React.useMemo(() => {
+    return [
+      IndexTextSizeMap[indexTextSize] || IndexTextSizeMap["medium"],
+      (IndexTextSizeMap[valueTextSize] || IndexTextSizeMap["medium"]) * 0.5
+    ]
+  }, [indexTextSize, valueTextSize]);
 
   const rgbaColor = React.useMemo(() => {
   	const alpha = Math.min(1.0, 1.0 - (node.depth - 1) * 0.15);
@@ -297,16 +342,91 @@ const Slice = React.memo(({ node, colorFunc, color, isRoot, onMouseMove }) => {
 
   }, [node, rgbaColor]);
 
-  const doOnMouseMove = React.useCallback(e => {
-  	onMouseMove(e, node);
-  }, [node, onMouseMove]);
+  const [width, height] = React.useMemo(() => {
+  	if (node.depth === 0) return [0, 0];
+  	return [
+  		2 * (node.x1 - node.x0) * (node.y0 + (node.y1 - node.y0) * 0.5),
+  		node.y1 - node.y0
+  	];
+  }, [node]);
+
+  const textPath = React.useMemo(() => {
+  	if (width >= 200) {
+  		return d3shape.arc()
+	      .innerRadius(node.y0 + (node.y1 - node.y0) * 0.5)
+	      .outerRadius(node.y0 + (node.y1 - node.y0) * 0.5)
+	      .startAngle(node.x0)
+	      .endAngle(node.x1)
+	      .padAngle(0)
+	      .cornerRadius(0)()
+  	}
+	  return null
+  }, [node]);
+
+  const startOffset = React.useMemo(() => {
+  	const avgAngle = node.x0 + (node.x1 - node.x0) * 0.5;
+  	const PI = Math.PI;
+  	return avgAngle > PI * 0.5 && avgAngle < PI * 1.5 ? "75%" : "25%";
+  }, [node])
 
 	return (
 		<g>
-    	<path ref={ ref } className="avl-slice cursor-pointer" stroke="none"
+    	<path ref={ ref } className="avl-slice" stroke="none"
     		onMouseMove={ doOnMouseMove }/>
+
+    	<defs>
+    		<path id={ id } d={ textPath } fill="none" stroke="none"/>
+    	</defs>
+
+    	{ width < 200 ? 
+    		<>
+    			<text
+		    		textAnchor="middle"
+		        dominantBaseline="ideographic"
+		    		transform={ labelTransform(node) }
+	    			className="pointer-events-none font-medium"
+	          fontSize={ Math.min(width, height) * itSize * 0.5 }
+    			>
+		    		{ node.data[0] }
+    			</text>
+    			<text
+		    		textAnchor="middle"
+		        dominantBaseline="hanging"
+		    		transform={ labelTransform(node) }
+	    			className="pointer-events-none"
+	          fontSize={ Math.min(width, height) * vtSize * 0.5 }
+    			>
+		    		{ valueFormat(node.value) }
+    			</text>
+    		</> :
+    		<>
+		    	<text>
+		    		<textPath href={ `#${ id }` }
+		    			startOffset={ startOffset }
+		          dominantBaseline="ideographic"
+		    			textAnchor="middle"
+		    			className="pointer-events-none font-medium"
+	          	fontSize={ Math.min(width, height) * itSize }
+		    		>
+		    			{ node.data[0] }
+		    		</textPath>
+		    	</text>
+		    	<text>
+		    		<textPath href={ `#${ id }` }
+		    			startOffset={ startOffset }
+		          dominantBaseline="hanging"
+		    			textAnchor="middle"
+	    				className="pointer-events-none"
+          		fontSize={ Math.min(width, height) * vtSize }
+		    		>
+		    			{ valueFormat(node.value) }
+		    		</textPath>
+		    	</text>
+		    </>
+    	}
+
     	{ node.children?.map((n, i) => (
-    			<Slice key={ n.data[0] }
+    			<Slice key={ n.data[0] } { ...props }
     				node={ n }
     				color={ isRoot ? colorFunc(n, i) : color }
     				onMouseMove={ onMouseMove }/>
