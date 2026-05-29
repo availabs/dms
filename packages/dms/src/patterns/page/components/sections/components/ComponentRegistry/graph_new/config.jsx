@@ -13,6 +13,7 @@ const graphOptions = {
     graphType: 'BarGraph',
     groupMode: 'stacked',
     orientation: 'vertical',
+    innerPadding: 0.0,
     showAttribution: true,
     title: {
         title: ""
@@ -85,19 +86,31 @@ export default {
                 label: "Target", key: "target",
                 options: [
                     { label: "X axis", value: "xAxis",
-                        displayCdn: ({ display }) => display.graphType !== "PieGraph"
+                        displayCdn: ({ display }) => {
+                            return display.graphType !== "PieGraph" &&
+                                display.graphType !== "SunburstGraph"
+                        }
                     },
                     { label: "Y axis", value: "yAxis",
-                        displayCdn: ({ display }) => display.graphType !== "PieGraph"
+                        displayCdn: ({ display }) => {
+                            return display.graphType !== "PieGraph" &&
+                                display.graphType !== "SunburstGraph"
+                        }
                     },
                     { label: "Categorize", value: "categorize",
                         displayCdn: ({ display }) => display.graphType !== "GridGraph"
                     },
                     { label: "Index", value: "index",
-                        displayCdn: ({ display }) => display.graphType === "PieGraph"
+                        displayCdn: ({ display }) => {
+                            return display.graphType === "PieGraph" ||
+                                display.graphType === "SunburstGraph"
+                        }
                     },
                     { label: "Slice", value: "slice",
-                        displayCdn: ({ display }) => display.graphType === "PieGraph"
+                        displayCdn: ({ display }) => {
+                            return display.graphType === "PieGraph" ||
+                                display.graphType === "SunburstGraph"
+                        }
                     },
                     { label: "Color", value: "color",
                         displayCdn: ({ display }) => display.graphType === "GridGraph"
@@ -129,8 +142,10 @@ export default {
                             ((attribute.target === "yAxis") &&
                                 (display.graphType === "GridGraph")
                             ) ||
-                            ((attribute.target === "index") &&
-                                (display.graphType === "PieGraph")
+                            ((attribute.target === "index") && (
+                                    (display.graphType === "PieGraph") ||
+                                    (display.graphType === "SunburstGraph")
+                                )
                             )
                 }
             }
@@ -142,10 +157,11 @@ export default {
                     label: 'Graph Type', key: 'graphType',
                     onClickGoBack: true, showValue: true,
                     options: [
-                        { label: 'Bar', value: 'BarGraph' },
-                        { label: 'Line', value: 'LineGraph' },
-                        { label: 'Pie', value: 'PieGraph' },
-                        { label: 'Grid', value: 'GridGraph' },
+                        { label: 'Bar Graph', value: 'BarGraph' },
+                        { label: 'Line Graph', value: 'LineGraph' },
+                        { label: 'Pie Graph', value: 'PieGraph' },
+                        { label: 'Grid Graph', value: 'GridGraph' },
+                        { label: 'Sunburst Graph', value: 'SunburstGraph' },
                     ],
                     onChange: ({ key, value, state }) => {
                         if (value === "GridGraph") {
@@ -215,23 +231,6 @@ export default {
                 {type: 'toggle', label: 'Show Gridlines', key: 'yAxis.showGridLines', defaultValue: true},
                 {type: 'toggle', label: 'Rotate Labels',  key: 'yAxis.rotateLabels'},
                 {type: 'toggle',                     label: 'Show Y Axis',     key: 'yAxis.show' },
-            ]
-        },
-        margin: {
-            name: "Margins",
-            items: [
-                { type: "input", inputType: "number",
-                    label: "Margin Top", key: "margin.top"
-                },
-                { type: "input", inputType: "number",
-                    label: "Margin Right", key: "margin.right"
-                },
-                { type: "input", inputType: "number",
-                    label: "Margin Bottom", key: "margin.bottom"
-                },
-                { type: "input", inputType: "number",
-                    label: "Margin Left", key: "margin.left"
-                }
             ]
         },
         colors: {
@@ -308,8 +307,25 @@ export default {
                 }
             ]
         },
+        margin: {
+            name: "Margins",
+            items: [
+                { type: "input", inputType: "number",
+                    label: "Margin Top", key: "margin.top"
+                },
+                { type: "input", inputType: "number",
+                    label: "Margin Right", key: "margin.right"
+                },
+                { type: "input", inputType: "number",
+                    label: "Margin Bottom", key: "margin.bottom"
+                },
+                { type: "input", inputType: "number",
+                    label: "Margin Left", key: "margin.left"
+                }
+            ]
+        },
         layout: {
-            name: 'Layout',
+            name: 'Bar Graph Layout',
             displayCdn: ({display}) => display.graphType === 'BarGraph',
             items: [
                 {type: 'select', label: 'Orientation', key: 'orientation', onClickGoBack: true,
@@ -322,6 +338,9 @@ export default {
                         {label: 'Stacked', value: 'stacked'},
                         {label: 'Grouped', value: 'grouped'},
                     ]},
+                { type: "input", inputType: "number",
+                    label: "Inner Padding", key: "paddingInner"
+                }
                 // {type: 'toggle', label: 'Log Scale', key: 'isLog'},
             ]
         },

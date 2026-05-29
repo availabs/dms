@@ -103,7 +103,7 @@ export const GraphComponent = props => {
 
         orientation={ get(graphFormat, "orientation", "vertical") }
         groupMode={ get(graphFormat, "groupMode", "stacked") }
-        isLog={ get(graphFormat, "isLog", false) }
+        paddingInner={ get(graphFormat, "paddingInner", 0.0) }
 
         xAxis={ {
           label: get(graphFormat, ["xAxis", "label"]),

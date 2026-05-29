@@ -17,9 +17,10 @@ const BarGraphWrapper = props => {
 // console.log("BarGraphWrapper::width, height", props.width, props.height);
 
 	const dataFromProps = React.useMemo(() => {
-		const indexColumn = props.columns.find(c => c.target === "xAxis");
-		const dataColumns = props.columns.filter(c => c.target === "yAxis");
-		const categoryColumn = props.columns.find(c => c.target === "categorize");
+		const columns = Array.isArray(props.columns) ? props.columns : [];
+		const indexColumn = columns.find(c => c.target === "xAxis");
+		const dataColumns = columns.filter(c => c.target === "yAxis");
+		const categoryColumn = columns.find(c => c.target === "categorize");
 
 		if (!indexColumn || !dataColumns.length) return { data: [], keys: [] };
 
@@ -80,9 +81,9 @@ const BarGraphWrapper = props => {
 
     const keys = [...keySet];
 
-    if (indexColumn.sort) {
+    if (indexColumn?.sort) {
       const sortDir = indexColumn.sort === "desc" ? -1 : 1;
-      data.sort((a, b) => {
+      (data || []).sort((a, b) => {
           const aNaN = strictNaN(+a.index);
           const bNaN = strictNaN(+b.index);
           if (aNaN || bNaN) {
@@ -91,7 +92,7 @@ const BarGraphWrapper = props => {
           return (+a.index - +b.index) * sortDir;
       })
     }
-    if (categoryColumn.sort) {
+    if (categoryColumn?.sort) {
       const sortDir = categoryColumn.sort === "desc" ? -1 : 1;
       keys.sort((a, b) => {
           const aNaN = strictNaN(+a);

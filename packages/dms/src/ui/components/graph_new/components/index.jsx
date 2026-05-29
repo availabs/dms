@@ -4,12 +4,14 @@ import { BarGraphOption } from "./BarGraph"
 import { LineGraphOption } from "./LineGraph"
 import { PieGraphOption } from "./PieGraph"
 import { GridGraphOption } from "./GridGraph"
+import { SunburstGraphOption } from "./SunburstGraph"
 
 const GraphTypeOptions = [
   BarGraphOption,
   LineGraphOption,
   PieGraphOption,
-  GridGraphOption
+  GridGraphOption,
+  SunburstGraphOption
 ]
 
 const [GraphTypes, GraphTypeMap, EditorOptionsMap] = GraphTypeOptions.reduce((a, c) => {
