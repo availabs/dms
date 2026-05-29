@@ -344,6 +344,20 @@ const integerFormat = d3format(",d");
 const float1Format = d3format(",.1f");
 const float2Format = d3format(",.2f");
 
+const fnum = d => {
+    if (+d <= 999) return `${ +d }`;
+    if (+d <= 999999) return `${ integerFormat(+d / 1000.0) }k`;
+    if (+d <= 999999999) return `${ integerFormat(+d / 1000000.0) }m`;
+    return `${ integerFormat(+d / 1000000000.0) }b`;
+}
+
+const fnum2 = d => {
+    if (+d <= 999) return `${ +d }`;
+    if (+d <= 999999) return `${ float2Format(+d / 1000.0) }k`;
+    if (+d <= 999999999) return `${ float2Format(+d / 1000000.0) }m`;
+    return `${ float2Format(+d / 1000000000.0) }b`;
+}
+
 export const ValueFormats = [
     { label: "Identity", value: "identity",
         func: d => d
@@ -357,29 +371,33 @@ export const ValueFormats = [
     { label: "Float (2 decimal)", value: "float2",
         func: float2Format
     },
-    { label: "Dollars", value: "dollars",
-        func: d => `$${ integerFormat(d) }`
-    },
-    { label: "Dollars (2 decimal)", value: "dollars2",
-        func: d => `$${ float2Format(d) }`
-    },
     { label: "Millions", value: "millions",
-        func: d => `$${ integerFormat(d / 1000000.0) }m`
+        func: d => `${ integerFormat(d / 1000000.0) }m`
     },
     { label: "Millions (2 decimal)", value: "millions2",
-        func: d => `$${ float2Format(d / 1000000.0) }m`
+        func: d => `${ float2Format(d / 1000000.0) }m`
     },
     { label: "Billions", value: "billions",
-        func: d => `$${ integerFormat(d / 1000000000.0) }b`
+        func: d => `${ integerFormat(d / 1000000000.0) }b`
     },
     { label: "Billions (2 decimal)", value: "billions2",
-        func: d => `$${ float2Format(d / 1000000000.0) }b`
+        func: d => `${ float2Format(d / 1000000000.0) }b`
+    },
+    { label: "By Value", value: "fnum",
+        func: fnum
+    },
+    { label: "By Value (2 decimal)", value: "fnum2",
+        func: fnum2
     }
 ];
 const ValueFormatsFuncMap = ValueFormats.reduce((a, c) => {
     a[c.value] = c.func;
     return a;
 }, {});
-export const getFormatFunc = format => {
-    return ValueFormatsFuncMap[format] || ValueFormatsFuncMap["identity"] ;
+export const getFormatFunc = (format, isDollars = false) => {
+    const func = ValueFormatsFuncMap[format] || ValueFormatsFuncMap["identity"];
+    if (isDollars) {
+        return d => `$${ func(d) }`;
+    }
+    return func;
 }

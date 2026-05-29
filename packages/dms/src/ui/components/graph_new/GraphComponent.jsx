@@ -68,10 +68,11 @@ export const GraphComponent = props => {
   }, [graphFormat.height, margin]);
 
   const hoverComp = React.useMemo(() => {
+    const isDollars = Boolean(graphFormat.tooltip?.isDollars);
     return {
       ...graphFormat.tooltip,
-      valueFormat: getFormatFunc(get(graphFormat, ["tooltip", "valueFormat"])),
-      yFormat: getFormatFunc(get(graphFormat, ["tooltip", "yFormat"]))
+      valueFormat: getFormatFunc(get(graphFormat, ["tooltip", "valueFormat"]), isDollars),
+      yFormat: getFormatFunc(get(graphFormat, ["tooltip", "yFormat"]), isDollars)
     };
   }, [graphFormat.tooltip]);
 
@@ -104,6 +105,10 @@ export const GraphComponent = props => {
         orientation={ get(graphFormat, "orientation", "vertical") }
         groupMode={ get(graphFormat, "groupMode", "stacked") }
         paddingInner={ get(graphFormat, "paddingInner", 0.0) }
+        paddingOuter={ get(graphFormat, "paddingOuter", 0.0) }
+
+        indexTextSize={ get(graphFormat, "indexTextSize", "medium") }
+        valueTextSize={ get(graphFormat, "valueTextSize", "medium") }
 
         xAxis={ {
           label: get(graphFormat, ["xAxis", "label"]),
@@ -117,7 +122,7 @@ export const GraphComponent = props => {
           rotateLabels: get(graphFormat, ["yAxis", "rotateLabels"], false),
           showGridLines: get(graphFormat, ["yAxis", "showGridLines"], true),
           show: get(graphFormat, ["yAxis", "show"], true),
-          format: getFormatFunc(get(graphFormat, ["yAxis", "format"]))
+          format: getFormatFunc(get(graphFormat, ["yAxis", "format"]), get(graphFormat, ["yAxis", "isDollars"]))
         } }
         margin={ margin }
         legend={ get(graphFormat, "legend", {}) }

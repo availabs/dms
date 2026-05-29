@@ -47,7 +47,9 @@ const LineGraphWrapper = props => {
 						line.data.push({ x, y });
 					}
 				}
-				data.push(line);
+				if (line.data.length) {
+					data.push(line);
+				}
 			}
 		}
 		else {
@@ -66,7 +68,9 @@ const LineGraphWrapper = props => {
 						line.data.push({ x, y })
 					}
 				}
-				data.push(line);
+				if (line.data.length) {
+					data.push(line);
+				}
 			}
 		}
 
