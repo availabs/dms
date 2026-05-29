@@ -182,6 +182,18 @@ Tile cache key includes the query string, so distinct joins cache independently.
 - No convenience wrappers: inline `falcor.get([...])`.
 - Tile SQL readable at the call site; `$N` params.
 
+## Backwards Compatibility (hard constraints)
+
+This plan must make **no backwards-incompatible change to anything UDA uses.** The only shared-code touch is `query_sets/postgres.js`; everything else is additive. Invariants for the implementer:
+
+- **`simpleFilter` signature + behavior unchanged.** It is dispatched as `querySets[ctx.dbType].simpleFilter(ctx, options, attributes, indices)` (`uda.controller.js:295`), with a parallel `clickhouse.js#simpleFilter` of the same shape. The extraction only moves SQL-string construction into a new internal `buildSimpleFilterSql(ctx, options, attributes, indices) → { sql, values, columnNameMap }`; `simpleFilter` then does `const { sql, values } = buildSimpleFilterSql(...); const res = await db.query(sql, values);` and keeps its existing post-query column-name restoration (postgres.js:222-230) verbatim. Net behavior for every existing caller is identical.
+- **Exports are additive only.** Add `buildSimpleFilterSql` to `module.exports`; do not remove or rename `simpleFilter` / `simpleFilterLength` / `dataById` / `translatePgToSqlite`.
+- **Do NOT change the `querySets` dispatch contract** (`{ simpleFilter, simpleFilterLength, dataById }`) and **do NOT touch `query_sets/clickhouse.js`.** `buildSimpleFilterSql` is consumed only by the tile route (PG-only) and never via `querySets`, so ClickHouse needs no parallel and the controller is unaffected.
+- **`getEssentials` is called read-only** by the tile route (`getEssentials({ env: pgEnv, view_id: join.viewId, options })`); no change to it. If the resolved linked `ctx.dbType !== 'postgres'` (e.g. a ClickHouse-backed view), the tile route bails to the no-join path / errors — it must not attempt a PG CTE against a CH view.
+- **`tiles.rest.js` stays BC**: `join` is an optional query param; when absent the SQL and response are byte-identical to today. Existing tile consumers are unaffected.
+- **Client + editor changes are additive**: `getLayerTileUrl` appends `join` only when a layer has an enabled `'linked-data'` config (layers without it emit identical URLs); the new `'linked-data'` layer key, the `Linked Data` tab, and `normalizeLayerLinkedDataConfig` (defaults to disabled when absent) introduce no change for existing layers/maps.
+- **Gate:** Phase 1 is not "done" until the full `dms-server` UDA test suite (`npm test` / `npm run test:graph`) passes unchanged — that is the proof the extraction preserved behavior.
+
 ## Implementation Plan (phased)
 
 > Mark items `[x]` + update phase headers AS YOU GO (planning-rules.md §Workflow).
