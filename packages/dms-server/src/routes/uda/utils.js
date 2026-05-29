@@ -504,6 +504,9 @@ function handleHaving(clauses) {
 function handleOrderBy(orders, dmsAttributes) {
   const sanitized = Object.keys(orders).filter(col => sanitizeName(col) && sanitizeName(orders[col]));
   const aliasedDmsCol = /^[a-zA-Z_]\w*\.data->>/;
+  // DAMA-backed join column already carrying a table alias, e.g. "ds.year_record".
+  // (Plain `word.word`; excludes `data->>` exprs, `… as …` renames, and function calls.)
+  const aliasedDamaCol = /^[a-zA-Z_]\w*\.[a-zA-Z_]\w*$/;
   const orderMap = sanitized.map(col => {
     let dataType;
     if (dmsAttributes && Array.isArray(dmsAttributes)) {
@@ -513,10 +516,14 @@ function handleOrderBy(orders, dmsAttributes) {
       const match = dmsAttributes.find(attr => `'${attr.name}'` === aliasStripped.replace('data->>', '')) || {};
       dataType = match?.dataType;
     }
-    // Preserve the table alias for aliased DMS columns (e.g., "ds.data->>'col'") —
-    // ORDER BY needs to be unambiguous when joins are present. Without an alias,
-    // fall back to getResponseColumnName which extracts the AS alias or splits on `.`.
-    const expr = aliasedDmsCol.test(col) ? col : getResponseColumnName(col);
+    // Preserve the table alias for already-qualified columns — both DMS
+    // ("ds.data->>'col'") and DAMA ("ds.year_record") — so ORDER BY is
+    // unambiguous when a join puts the same column name in two tables. Without
+    // an alias, fall back to getResponseColumnName (extracts the AS alias or
+    // splits on `.`).
+    const expr = aliasedDmsCol.test(col) || aliasedDamaCol.test(col)
+      ? col
+      : getResponseColumnName(col);
     return dataType
       ? `(${expr})::${dataType} ${orders[col]}`
       : `${expr} ${orders[col]}`;
