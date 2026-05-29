@@ -58,6 +58,9 @@
 - [x] SQLite compatibility fixes — ID type normalization (string coercion for consistent `$ref` resolution) + UDA controller PG-only SQL translation (`array_agg`, `array_remove`, `to_jsonb`, `ARRAY[...]`)
 - [x] Test suite per-app mode — migrate test code from legacy `byId` route to app-namespaced route, set all test configs to `splitMode: "per-app"`, verify on SQLite + PostgreSQL
 - [x] Fix auth test PG socket hang up — `test-auth.js` test #14 (Falcor created_by/updated_by) fails on PostgreSQL with `ECONNRESET`; client disconnects before Falcor route response arrives
+- [x] [Server-side auth](./tasks/current/server-side-auth.md) — Phases 1+2 done: patterns/page listings gated + per-page authPermissions override in options.byIndex + dataByIdResponse + UDA clearData route replacing ClearDataBtn's options.byIndex usage; options.byIndex route commented out; load action removed from client API
+- [ ] Server-side auth Phase 3 — gate UDA listing routes (length/byIndex) by source/view authPermissions; deferred until Phase 2 verified in production
+- [ ] Server-side auth subdomain awareness — `resolveAuthPermissions` currently always uses the global `"*"` key; need to pass the requesting subdomain (from `Host` header or JWT claims) through the Falcor route context so the correct subdomain entry is used when `authPermissions` is in subdomain-aware format
 - [ ] Split table virtual columns — auto-generate SQLite virtual columns + indexes (and PG expression indexes) from source config attributes for B-tree query speed on dataset tables
 - [x] [UDA `getEssentials` source-id lookup is ambiguous](./tasks/completed/uda-source-lookup-ambiguity.md) — `ORDER BY id DESC LIMIT 1` in `routes/uda/utils.js:162-184` silently routed to the wrong source when two rows shared `(app, {instance}:source)`; fixed by resolving source via `view_id` ∈ source.data.views. Triggered the 2026-04-24 "Songs" incident (practice_recordings rename + 409 guard in file-upload route are band-aids).
 - [x] UDA array contains filter — server-side `array_contains` + `array_not_contains` operations for multiselect columns; removed ~235 lines of async multiselect resolution from client utils.jsx; unblocks synchronous `buildUdaConfig`
@@ -111,6 +114,7 @@
 
 ### patterns/page
 
+- [ ] [Filter leaf "include prior period"](./tasks/current/filter-include-prior-period.md) — let a single-select page filter on a numeric/period column (e.g. `year_record`) expand to `[Y, Y-1]` at `applyPageFilters` time via a new leaf option `includePriorPeriod` (+ `priorPeriodStep`), so authors can build "vs prior period" deltas with calc + formula columns (GROUP BY period + `lag()` + formula) driven by ONE control. Motivating consumer: MAP-21 per-year KPI cards (page 2173049). ~10 lines in `buildUdaConfig.applyPageFilters` + a Switch in `ComplexFilters.jsx`.
 - [x] [Permissions refinement](./tasks/completed/permissions-refinement.md) — consolidate `edit-page-layout`/`edit-page-params` into `edit-page`, remove `edit-section-permissions`, rename section `edit-section`→`edit`, gate Pages pane on `create-page`, show copy/link to anyone with `edit-page`, move/permissions require section `edit`, `PublishButton` respects page-level override, redirect logged-in non-editors to view page
 - [x] Fix nav2Level baseUrl bug and move to page pattern
 - [x] Move lexical component inline controls (style, bgColor, showToolbar) to control config

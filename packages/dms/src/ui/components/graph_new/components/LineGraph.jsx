@@ -37,7 +37,7 @@ const LineGraphWrapper = props => {
 					let y = 0;
 					for (const yc of yColumns) {
 						const ycn = yc.name;
-						const aggFunc = getAggFunc(yc);
+            const aggFunc = getAggFunc(yc);
 						const v = aggFunc(xGroup, d => d[ycn]);
 						if (!strictNaN(v)) {
 							y += v;
@@ -83,10 +83,11 @@ const LineGraphWrapper = props => {
 	      }
 	      return +a.x - +b.x;
 			})
-		})
-		if (idColumn.sort) {
+    })
+
+    if (idColumn?.sort) {
       const sortDir = idColumn.sort === "desc" ? -1 : 1;
-			data.sort((a, b) => {
+			(data || []).sort((a, b) => {
 	      const aNaN = strictNaN(+a.index);
 	      const bNaN = strictNaN(+b.index);
 	      if (aNaN || bNaN) {
