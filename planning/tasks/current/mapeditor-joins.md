@@ -1,319 +1,242 @@
-# MapEditor Joins (Linked Data Interaction)
+# MapEditor Joins (tile-level linked-data join via a dataWrapper-style query)
 
 ## Objective
 
-Add a per-layer **"Linked Data" join** capability to the MapEditor pattern, configured through a new `Linked Data` tab in the `LayerEditor`. An author can:
+Let a MapEditor author **join a second analytical view into a rendered geometry layer by key, so the joined columns become vector-tile feature properties** — at which point the *existing* MapLibre styling (choropleth / categories / graduated circles) and hover/click popups work on the joined columns with no further changes.
 
-1. **Define a simple join** — pick a key column on the rendered geometry layer, pick a *different* analytical view, pick the join column on that view, and shape the returned result (rows or grouped/aggregate). This is the base capability.
-2. **Optionally add a click interaction on top** — turn on a click trigger so that clicking a rendered feature runs the join (filtering the linked view by the clicked feature's key) and shows the result in a map popup. **This is an additive option layered on the join, not the join itself.**
+The linked side of the join is configured as a **dataWrapper-style query** (filters + groupBy + aggregate metrics + selected columns). That query's output must be **≤ 1 row per join key (1:1)** — for a table whose raw rows are *many* per key (e.g. LODES OD: many rows per `w_geocode`), the author achieves 1:1 by grouping/aggregating (e.g. `GROUP BY w_geocode, sum(S000) AS total_workers`). The query is wrapped in a `WITH` CTE and the geometry `LEFT JOIN`s against it, **server-side at tile-request time in `tiles.rest.js`**, reusing the UDA SQL builder.
 
-The join is the data relationship; the click interaction is one (optional) way to fire it. In V1 the click interaction is the only consumer, but the two are configured separately so that later triggers (hover, action-param publishing) can reuse the same join definition.
+This is why the editor UI is **informed by how the page pattern's dataWrapper works** (per the original directive): the linked-query controls mirror dataWrapper's source/column/groupBy/aggregate/filter model — **re-implemented in the mapeditor pattern, not shared.**
 
-Source design doc: [`references/map-joins.md`](../../../../../references/map-joins.md) (in `dms-template/references/`). This task file is the implementation source of truth; the reference doc is the product rationale.
+**V1 priority: make it work when the author configures it correctly.** A naive build lets the author misconfigure (not grouping by the key → row fan-out, colliding column names, etc.). Per the product owner, V1 does **not** need to prevent those — only to produce correct tiles when the query is configured correctly. Guardrails are a later concern.
 
-## Cross-pattern policy (READ FIRST)
+Source design doc: [`references/map-joins.md`](../../../../../references/map-joins.md) (product rationale; this task supersedes its click-popup framing — see "Why not the popup approach").
 
-**We do not share code across patterns. Re-implement, do not import.**
+## Decisions (confirmed with product owner)
 
-The page pattern's `dataWrapper` (`patterns/page/components/sections/components/dataWrapper/`) already solves the same shaped problems — source/view selection, column metadata, aggregate/groupBy UI, and UDA query building (`buildUdaConfig.js` / `getData.js`). **Use it as a design reference for shape and vocabulary, but re-implement the parts we need inside the relevant pattern.** Specifically:
+1. **Execution: request-time join in `tiles.rest.js`.** Not materialized — materializing under the 1:1 model is tricky (clone the large geometry per join, police the 1:1 invariant, manage staleness). For an inlined CTE with an index on the join key, request-time cost is acceptable.
+2. **Linked side = a dataWrapper-style query (filter + groupBy + aggregate) whose output is 1:1 per join key.** Aggregation/groupBy is therefore *in* V1 — it is the mechanism for collapsing a many-per-key table to 1:1, not a separate deferred feature.
+3. **Reuse the UDA SQL builder as a CTE.** Extract the SQL-build from `simpleFilter` and embed it as `WITH linked AS (…)`. The CTE is whatever UDA emits (incl. groupBy/aggregate), so the join "just works" for both flat and aggregated linked queries.
+5. **Clean separation of concerns — the tile API is agnostic to aggregation.** Making the linked side 1:1 is done *entirely* in the UDA/dataWrapper config (groupBy + aggregate produce one row per key). `tiles.rest.js` never knows or cares whether aggregation happened — it always assumes the CTE is a 1:1 join input and just `LEFT JOIN`s on the key. The 1:many→1:1 collapse is the client/UDA config's job; the join is the tile's job.
+4. **V1 optimizes for correct configuration, not foolproofing.** Minimal validation; the author owns the 1:1 contract.
 
-- The MapEditor UI (this pattern, `patterns/mapeditor/`) gets its **own** controls and config normalizer — do not import dataWrapper controls.
-- The runtime click execution lives in the **page pattern** map component (`patterns/page/.../ComponentRegistry/map/`) and gets its **own** linked-query builder — do not import `buildUdaConfig.js`/`getData.js` from dataWrapper.
+## Why not the popup approach (context for the next session)
 
-Copying a ~40-line pure query-builder into each pattern is the intended outcome here. Per `packages/dms/CLAUDE.md`, that also matches the "no convenience wrappers around load-bearing APIs" rule — inline `falcor.get([...])` at the call sites the way `ClickFilterControl` does, rather than building shared fetch hooks.
+An earlier draft queried UDA at click-time and rendered a popup. Wrong for "map data join": MapLibre styling reads **tile properties** — `datamaps/index.js` builds choropleth as `['step', ['to-number', ['get', column]], …]`, categories as `['match', ['to-string', ['get', column_ref]], …]`, circles via `['get', baseDataColumn]`. `['get', col]` only sees columns physically in the MVT (hence `getLayerTileUrl` appends `?cols=`). `setFeatureState` is hover/select-only; `colorDomain` returns only scale breaks. So a side-query can never color the map — the joined value must be **in the tile**. The join belongs in the tile pipeline.
+
+## Cross-pattern / cross-package policy (READ FIRST)
+
+- **In `dms-server`, reuse the UDA SQL machinery** — the tile route and UDA query sets are one package; composing the UDA builder into the tile SQL is correct reuse.
+- **Across client patterns, do NOT share code; re-implement locally.** The linked-query editor is **informed by** dataWrapper (`patterns/page/.../dataWrapper/`: `buildUdaConfig.js`, `getData.js`, `useColumnOptions.js`, filter tree) but **re-implemented** in `patterns/mapeditor/`. `getLayerTileUrl` exists in **three** copies (page `map/`, page `map_dama/`, mapeditor) — edit each in place (the `map-component-unification` task merges them later).
+- Inline `falcor.get([...])` at each call site (like `ClickFilterControl`), per `packages/dms/CLAUDE.md`.
 
 ## Scope
 
 ### In scope (V1)
-
-- New `Linked Data` tab in `LayerEditor` with controls to define a join + an optional click-interaction sub-section.
-- Per-layer persisted config under the layer key `'linked-data'` (kebab-case, matching sibling keys `click-filter`, `hover-columns`, `dynamic-filters`).
-- Linked-view column metadata fetch (a *second* source's metadata — new vs. existing controls which only read the layer's own source).
-- Result shaping: `rows` mode (explicit return columns + orderBy + limit) and `aggregate` mode (groupBy + metrics + orderBy + limit).
-- Runtime: on feature click (when the click interaction is enabled), read the feature key, run the linked UDA query, render results in a pinned popup with loading / empty / error states.
-- Hard safety cap on `limit` (100) and validation of required config.
+- New `Linked Data` tab in `LayerEditor` to configure: geometry-side key column; linked source/view (same pgEnv); a dataWrapper-style linked query (filters + groupBy + aggregate metrics + selected columns); the join key column; and which linked-query output columns to bake into the tile.
+- Per-layer persisted config under layer key `'linked-data'`.
+- Server: extract a reusable `buildSimpleFilterSql` from `query_sets/postgres.js`; extend `tiles.rest.js` to accept a `join` param and compose `WITH linked AS (<uda sql>) … LEFT JOIN` (with `$N` param renumbering).
+- Client: all three `getLayerTileUrl` copies append the `join` param; linked-query output columns are merged into the column options the Style/Legend/Popup editors consume so the author can style/show a joined column.
 
 ### Out of scope (deferred)
-
-- Hover trigger, debounce, result caching (V2).
-- Side-panel display mode (V2).
-- Publishing returned result sets as page action/filter payloads (V3).
-- Geometry/flow rendering of returned rows, OD path drawing (V4).
-- An in-editor live "preview" that runs the query (deferred; if added later it re-implements the runtime builder, see Cross-pattern policy).
-- Multi-condition joins, multiple linked views, freeform SQL.
+- Materialized / precomputed joined views.
+- 1:many "click → popup list of related rows" side query (display-only; revisit separately).
+- ClickHouse-backed or cross-pgEnv linked views (PG-only inline join).
+- **Misconfiguration guardrails** beyond the minimum (1:1-enforcement, fan-out detection, collision prevention) — explicitly deferred.
+- Hover debounce, action-param publishing, flow/path rendering.
 
 ## Current State
 
-### How layer behaviors work today
-
-- `LayerEditor/index.jsx:15` defines the tab list as a literal array:
-  ```js
-  const LAYER_EDITOR_TABS = [
-    { name: 'Style',  Component: StyleEditor },
-    { name: 'Legend', Component: LegendEditor },
-    { name: 'Popup',  Component: PopoverEditor },
-    { name: 'Filter', Component: FilterEditor },
-  ];
-  ```
-  rendered via `<Tabs tabs={LAYER_EDITOR_TABS} activeStyle="panel" />` (line 71). Adding a tab is a one-line array addition + a new component.
-
-- Per-layer behaviors are stored as kebab-case keys on `state.symbology.layers[layerId]`. Confirmed existing and functional:
-  - `'click-filter'` — `{ enabled, mappings: [{ variable, field, useSearchParams }] }`, normalized by `normalizeLayerClickFilterConfig()` in `stateUtils.jsx`, edited by `LayerEditor/ClickFilterControl/index.jsx`.
-  - `'hover'` (`'' | 'hover'`) and `'hover-columns'` (`[{ column_name, display_name }]`) — `LayerEditor/PopoverEditor/index.jsx`.
-  - `'dynamic-filters'` — `[{ column_name, values, zoomToFilterBounds? }]` — read/applied in the runtime `SymbologyViewLayer.jsx`.
-
-- **Config persistence**: edits go through `useImmer` state in `MapEditor/index.jsx`, auto-synced to `localStorage`, and saved to the DB as part of the `symbology` JSON blob (type `json` in `mapeditor.format.js`). A new key on the layer object persists automatically with no format change.
-
-- **Column metadata fetch pattern** (the canonical inline pattern, from `ClickFilterControl/index.jsx:22-57`):
-  ```js
-  const mapEditorContext = useContext(MapEditorContext) || {};
-  const { pgEnv, useFalcor } = mapEditorContext;
-  const falcorApi = typeof useFalcor === "function" ? useFalcor() : mapEditorContext;
-  const falcor = falcorApi?.falcor;
-  const falcorCache = falcorApi?.falcorCache || falcor?.getCache?.() || {};
-
-  useEffect(() => {
-    if (sourceId && falcor && pgEnv) {
-      falcor.get(["uda", pgEnv, "sources", "byId", sourceId, "metadata"]);
-    }
-  }, [falcor, pgEnv, sourceId]);
-
-  const sourceColumns = get(falcorCache,
-    ["uda", pgEnv, "sources", "byId", sourceId, "metadata", "value", "columns"], []);
-  ```
-  Each column carries at least `{ name, display_name, type }`.
-
-### How the runtime map handles clicks today
-
-- The page-pattern runtime layer component `patterns/page/components/sections/components/ComponentRegistry/map/SymbologyViewLayer.jsx` owns per-layer click/hover behavior (click handler ~lines 928-991). It calls `maplibreMap.queryRenderedFeatures(...)`, then resolves feature props via `resolveFeatureProperties()` (~lines 612-661).
-- **Key fact (de-risks the "is the key column in the tile?" concern):** `resolveFeatureProperties()` already falls back to a Falcor fetch `["uda", pgEnv, "viewsById", view_id, "dataById", String(feature.id), missingFields]` when a requested field is missing from the tile properties. Tiles always carry `ogc_fid` as `feature.id` (`dms-server/src/dama/tiles/tiles.rest.js`). So the configured `featureKeyColumn` is reliably resolvable on click even if it is not baked into the tile. (Performance note below.)
-- Popups / pinned popups render via `ui/components/map/avl-map.jsx` (`HoverComp`, ~lines 1277-1426). The popup receives `[featureId, layerId, feature.properties]` and formats via `getAttributes`. The linked-data popup will render through this same pinned-popup surface.
-
-### How dataWrapper builds UDA queries today (reference only — do not import)
-
-`getData.js` issues a UDA request shaped like:
+### Tile route (single-source today)
+`dms-server/src/dama/tiles/tiles.rest.js` — `getTileData` builds an MVT from ONE view's table:
 ```js
-falcor.get([
-  "uda", pgEnv, "viewsById", viewId, "options",
-  JSON.stringify(options),         // see options shape below
-  "dataByIndex", { from, to },
-  attributes,                      // array of SELECT expressions, e.g. ["h_geocode", "sum(S000)::numeric as total_workers"]
-]);
+const sql = `
+  WITH mvtgeom AS (
+    SELECT ST_AsMVTGeom(ST_Transform(wkb_geometry,3857), ST_TileEnvelope($1,$2,$3)) AS geom
+      ${colExpr}            // ', "col1", "col2"' from the `cols` query param
+      , ogc_fid
+    FROM ${table},
+      (SELECT ST_SRID(wkb_geometry) AS srid FROM ${table} WHERE wkb_geometry IS NOT NULL LIMIT 1) a
+    WHERE ST_Intersects(wkb_geometry, ST_Transform(ST_TileEnvelope($1,$2,$3), srid))
+    ${filter ? ` AND ${filter}` : ''}
+  )
+  SELECT ST_AsMVT(mvtgeom.*, 'view_${+viewId}', 4096, 'geom', 'ogc_fid') AS mvt FROM mvtgeom`;
 ```
-The `options` object supports `filter` (`{ col: [values] }` → `WHERE col = ANY(...)`), `groupBy` (array of column expressions), `orderBy`, `exclude`, `having`, comparison ops, etc. (server: `dms-server/src/routes/uda/query_sets/postgres.js`, `utils.js`).
+Route `GET /dama-admin/:pgEnv/tiles/:view_id/:z/:x/:y/t.pbf`, params `cols`, `filter`. PG+PostGIS only. `resolveTable(pgEnv, viewId)` resolves any view in the pgEnv → resolves the linked view too.
 
-**Verified gap (matters for the runtime builder):** the server's `handleOrderBy` (`routes/uda/utils.js:504`) does **not** order by an aggregate *alias*. Existing client code orders by **positional ordinal** instead — `orderBy: { "2": "desc" }` emits `ORDER BY "2" desc` (Postgres ordinal position of the 2nd SELECT column). Our runtime builder must therefore translate the semantic saved `orderBy: { column, direction }` into the **1-based ordinal of that column within the `attributes` array**, not pass the alias string. See Phase 4.
+### UDA SQL builder (to be made reusable)
+`dms-server/src/routes/uda/query_sets/postgres.js#simpleFilter` (lines 134-238) builds and then immediately executes:
+```js
+const sql = `
+  SELECT ${sanitizedAttrs.map(c => quoteAlias(columnNameMap[c] || c)).join(', ')}
+  FROM ${fromClause}
+  ${combinedWhere} ${handleGroupBy(groupBy)} ${handleHaving(having)} ${handleOrderBy(orderBy, dmsAttributes)}
+  LIMIT ${+num} OFFSET ${indices.from}`;
+const res = await db.query(sql, values);   // ← build + execute welded together (line 220)
+```
+Already handles DMS `data->>` accessors, casts, filters/filterGroups, **groupBy + aggregate attributes**, `$N` params. `ctx` comes from `getEssentials(pgEnv, viewId)`. **Not yet exposed as a pure SQL string** — that's the refactor.
+
+### dataWrapper query model (design reference for the linked-query UI — re-implement, don't import)
+`patterns/page/.../dataWrapper/`: columns carry `{ name, display_name, type, group (→GROUP BY), fn ('sum'|'count'|'avg'|…), customName }`; `buildUdaConfig.js` turns column config + a filter tree into the UDA `options` object + the `attributes` SELECT list (aggregates as `sum(col)::numeric as alias`); `useColumnOptions.js` loads column metadata. The linked-query editor mirrors this shape.
+
+### Styling reads tile properties (confirmed)
+`datamaps/index.js` paint uses `['get', column]`. `getLayerTileUrl` (mapeditor `SymbologyViewLayer.jsx:307`, page `map/…:1175`, page `map_dama/…:373`) appends `?cols=` so styled columns are in the tile.
+
+### Layer config + editor
+Per-layer config = kebab-case keys on `state.symbology.layers[layerId]`, persisted in the `symbology` JSON blob (`mapeditor.format.js`, type `json`) → a new `'linked-data'` key needs no format change. Tabs: `LayerEditor/index.jsx:15` `LAYER_EDITOR_TABS` literal. Metadata fetch pattern (inline): `falcor.get(["uda", pgEnv, "sources", "byId", sourceId, "metadata"])` → `…metadata.value.columns`.
 
 ## Proposed Config Shape
 
-Stored at `state.symbology.layers[layerId]['linked-data']`:
-
+`state.symbology.layers[layerId]['linked-data']`:
 ```js
 'linked-data': {
-  enabled: false,                 // master toggle for the linked-data feature on this layer
-
-  // --- the simple join (base capability) ---
-  featureKeyColumn: '',           // column on THIS layer's source; the value read from the clicked feature
-  linked: {                       // the linked analytical view (a DIFFERENT view)
-    sourceId: null,
-    viewId: null,
-    env: null,                    // pgEnv for the linked view; defaults to the layer's pgEnv when null
+  enabled: false,
+  featureKeyColumn: '',              // geometry-side local key (column on THIS layer's source)
+  linked: { sourceId: null, viewId: null, env: null },   // linked view (SAME pgEnv); env defaults to layer pgEnv
+  linkedJoinColumn: '',              // the linked-query OUTPUT column to join on (typically a groupBy column)
+  linkedQuery: {                     // dataWrapper-style; OUTPUT should be ≤1 row per linkedJoinColumn
+    filters: {},                     // UDA filter / filterGroups (e.g. { year: [2021] })
+    groupBy: [],                     // e.g. ['w_geocode'] — include the join key for 1:1
+    columns: [],                     // SELECT/aggregate outputs, e.g. ['w_geocode', 'sum(S000)::numeric as total_workers']
   },
-  linkedJoinColumn: '',           // column on the linked view matched against featureKeyColumn's value
-
-  resultMode: 'rows',             // 'rows' | 'aggregate'
-
-  // rows mode
-  returnColumns: [],              // e.g. ['h_geocode', 'S000']
-
-  // aggregate mode
-  groupBy: [],                    // e.g. ['h_geocode']
-  metrics: [                      // e.g. [{ column: 'S000', operation: 'sum', alias: 'total_workers' }]
-    // { column, operation: 'sum'|'count'|'avg'|'min'|'max', alias }
-  ],
-
-  // both modes
-  orderBy: { column: '', direction: 'desc' },   // column = a returnColumn name or a metric alias
-  limit: 20,                                     // clamped to LINKED_DATA_MAX_LIMIT (100) at runtime
-
-  // --- optional click interaction (the additive option) ---
-  clickInteraction: {
-    enabled: false,               // when true AND `enabled` true: clicks fire the join
-    trigger: 'click',             // V1: 'click' only (UI shows it disabled/locked; later 'hover')
-    displayMode: 'popup',         // V1: 'popup' only (later 'side-panel')
-  },
+  tileColumns: [],                   // which linkedQuery output columns/aliases to bake into the tile
 }
 ```
+Top-level key kebab-case (matches siblings); nested camelCase (matches existing nested config). This is a **data contract** shared editor↔server↔runtime — share the shape, not code.
 
-Design notes:
-- Top-level `enabled` gates the whole feature; the join fields define **what**; `clickInteraction` gates **whether/how it fires**. A join with `clickInteraction.enabled === false` is configured but inert in V1 — that is the intended "define the join, optionally add the click" separation.
-- Keys: top-level layer key is kebab-case (`'linked-data'`) to match siblings; nested fields are camelCase to match existing nested config (`click-filter` uses `mappings`/`variable`/`field`).
-- This is the data contract shared between the editor (writer) and runtime (reader). It is **data**, not code — sharing the shape across patterns is fine; sharing code is not.
-
-## Runtime result contract (normalized before render)
-
-The runtime builder/executor returns a normalized object so the popup never sees raw Falcor shapes:
-
-```js
-{
-  featureKeyColumn: 'block_geoid',
-  featureKeyValue: '360610001001',
-  linkedViewId: 1234,
-  resultMode: 'aggregate',
-  rows: [ { h_geocode: '360610002001', total_workers: 412 }, ... ],
-  totalReturned: 20,
-  truncated: true,                 // true if rows hit the clamped limit
-  status: 'success',               // 'loading' | 'success' | 'empty' | 'error'
-  error: null,                     // string when status === 'error'
+## Tile `join` request param
+URL-encoded JSON appended to the tile URL:
+```
+…/t.pbf?cols=<geomCols>&join=<urlencoded JSON>
+join = {
+  "viewId": 1234,
+  "localKey": "block_geoid",            // = featureKeyColumn (geometry side)
+  "linkedKey": "w_geocode",             // = linkedJoinColumn (linked-query output)
+  "options": { "filter": {...}, "groupBy": ["w_geocode"] },   // → buildSimpleFilterSql options
+  "attributes": ["w_geocode", "sum(S000)::numeric as total_workers"],  // → SELECT list of the CTE
+  "tileCols": ["total_workers"]         // which CTE outputs to emit as MVT properties
 }
 ```
+Tile cache key includes the query string, so distinct joins cache independently.
 
 ## Architecture / file map
 
-### A. MapEditor (admin) — `patterns/mapeditor/`
+### Server (`dms-server`)
+1. **`src/routes/uda/query_sets/postgres.js`** *(modify)* — extract `buildSimpleFilterSql(ctx, options, attributes, indices) → { sql, values }`; `simpleFilter` becomes a thin caller. Export it. The existing UDA path must stay byte-identical (regression-covered by the UDA suite).
+2. **`src/dama/tiles/tiles.rest.js`** *(modify)* —
+   - Parse `join`.
+   - `const linkedCtx = await getEssentials(pgEnv, join.viewId)` (same helper the UDA controller uses).
+   - `const { sql: linkedSql, values: linkedValues } = buildSimpleFilterSql(linkedCtx, JSON.stringify(join.options || {}), join.attributes, { from: 0, to: <big cap> })` → the linked CTE body (carries the author's filters + groupBy + aggregate).
+   - **Param renumbering**: tile SQL owns `$1,$2,$3` (z,x,y); shift each `$n` in `linkedSql` → `$(n+3)` (helper `shiftParams(sql, 3)`, regex `/\$(\d+)/g`), then `db.query(tileSql, [z, x, y, ...linkedValues])`.
+   - Compose: alias geometry table `geo`, qualify geometry refs (`geo.wkb_geometry`, `geo.ogc_fid`, `geo."<geomCol>"`), `LEFT JOIN linked ON geo."<localKey>" = linked."<linkedKey>"`, add `linked."<col>"` for each `join.tileCols` to the `ST_AsMVTGeom` select:
+     ```sql
+     WITH linked AS ( <shifted linkedSql> ),
+     mvtgeom AS (
+       SELECT ST_AsMVTGeom(ST_Transform(geo.wkb_geometry,3857), ST_TileEnvelope($1,$2,$3)) AS geom
+         , geo.<cols>, linked.<tileCols>, geo.ogc_fid
+       FROM ${geoTable} geo
+       LEFT JOIN linked ON geo."${localKey}" = linked."${linkedKey}"
+       , (SELECT ST_SRID(wkb_geometry) srid FROM ${geoTable} WHERE wkb_geometry IS NOT NULL LIMIT 1) a
+       WHERE ST_Intersects(geo.wkb_geometry, ST_Transform(ST_TileEnvelope($1,$2,$3), srid))
+     )
+     SELECT ST_AsMVT(mvtgeom.*, 'view_${+viewId}', 4096, 'geom', 'ogc_fid') mvt FROM mvtgeom
+     ```
+   - Sanitize `localKey`/`linkedKey`/`tileCols` like existing `cols`. No-`join` path unchanged.
 
-1. **`MapEditor/components/LayerEditor/index.jsx`** *(modify)* — add `{ name: 'Linked Data', Component: LinkedDataControl }` to `LAYER_EDITOR_TABS` and import it.
+### Client runtime (three patterns — edit each locally)
+3. **`patterns/page/.../map/SymbologyViewLayer.jsx`** `getLayerTileUrl` *(~:1175)* — append `&join=<encoded>` (built from the layer's `'linked-data'` config) when enabled.
+4. **`patterns/page/.../map_dama/SymbologyViewLayer.jsx`** `getLayerTileUrl` *(~:373)* — same.
+5. **`patterns/mapeditor/MapEditor/components/SymbologyViewLayer.jsx`** `getLayerTileUrl` *(~:307)* — same (editor preview map).
 
-2. **`MapEditor/components/LayerEditor/LinkedDataControl/index.jsx`** *(create)* — the tab component `LinkedDataControl` (named export default `function LinkedDataControl`). Owns: enable toggle, join setup, result shape, and the click-interaction sub-section. Reads/writes `state.symbology.layers[layerId]['linked-data']` via the SymbologyContext `setState` + the normalizer, mirroring `ClickFilterControl`'s `setClickFilterConfig` pattern. `.jsx`, components only.
-
-3. **`MapEditor/components/LayerEditor/LinkedDataControl/JoinSetup.jsx`** *(create)* — feature-key-column picker (from this layer's source metadata), linked source/view picker, linked-join-column picker (from the linked view's source metadata). Components only.
-
-4. **`MapEditor/components/LayerEditor/LinkedDataControl/ResultShape.jsx`** *(create)* — result mode toggle, return-columns multi-select (rows mode), groupBy + metrics editor (aggregate mode), orderBy (column dropdown sourced from returnColumns/metric aliases + direction), limit input. Components only.
-
-5. **`MapEditor/components/LayerEditor/LinkedDataControl/ClickInteractionSection.jsx`** *(create)* — the additive click-interaction sub-section: enable toggle, trigger (locked to `click` in V1), displayMode (locked to `popup` in V1). Components only.
-
-6. **`MapEditor/stateUtils.jsx`** *(modify)* — add `normalizeLayerLinkedDataConfig(raw)` next to `normalizeLayerClickFilterConfig`. Pure function returning the full config shape with defaults filled in (so the editor never reads undefined nested fields).
-
-7. **`MapEditor/components/LayerEditor/LinkedDataControl/constants.js`** *(create)* — `LINKED_DATA_RESULT_MODES`, `LINKED_DATA_METRIC_OPERATIONS`, `LINKED_DATA_MAX_LIMIT = 100`, `LINKED_DATA_DEFAULT_LIMIT = 20`. `.js` (no JSX) per Fast-Refresh rules.
-
-### B. Runtime (page pattern map) — `patterns/page/.../ComponentRegistry/map/`
-
-8. **`map/linkedDataQuery.js`** *(create)* — pure builder (re-implemented locally, NOT imported from dataWrapper). Exports:
-   - `clampLinkedDataLimit(limit)` → number in `[1, 100]`.
-   - `buildLinkedDataRequest(config, featureKeyValue)` → `{ viewId, env, options, attributes, fromTo }` ready to splice into a `falcor.get(["uda", env, "viewsById", viewId, "options", JSON.stringify(options), "dataByIndex", fromTo, attributes])`. Encodes the orderBy→positional-ordinal translation and aggregate metric expressions (`sum(S000)::numeric as total_workers`).
-   - `normalizeLinkedDataRows(config, attributes, rawRows)` → the `rows` array of the result contract.
-   `.js`, no JSX.
-
-9. **`map/SymbologyViewLayer.jsx`** *(modify)* — in the existing click handler, after resolving feature properties, if the active layer has `'linked-data'` with `enabled && clickInteraction.enabled && trigger === 'click'`:
-   - read `featureKeyColumn` from resolved feature properties (using the existing `resolveFeatureProperties` fallback for missing fields),
-   - build the request via `buildLinkedDataRequest`, set popup status `loading`, run the inline `falcor.get([...])`, normalize, and set the pinned-popup payload to a linked-data result.
-
-10. **`map/avl-map.jsx`** *(modify, minimal)* — branch the pinned-popup renderer to render a linked-data result (title = layer name, feature key value, linked view label, a small table of `rows`, plus loading/empty/error states) when the popup payload is a linked-data result. Reuse existing popup chrome; do not build a new popup system.
+### Editor UI (`patterns/mapeditor`)
+6. **`LayerEditor/index.jsx`** *(modify)* — add `{ name: 'Linked Data', Component: LinkedDataControl }`.
+7. **`LayerEditor/LinkedDataControl/index.jsx`** *(create)* — tab; enable toggle; composes the sub-editors; `setLinkedDataConfig(updater)` mirrors `ClickFilterControl.setClickFilterConfig`.
+8. **`LayerEditor/LinkedDataControl/JoinSetup.jsx`** *(create)* — geometry-side `featureKeyColumn` picker (this layer's source metadata), linked source/view picker (same pgEnv), and the `linkedJoinColumn` picker (from the linked query's output columns).
+9. **`LayerEditor/LinkedDataControl/LinkedQueryBuilder.jsx`** *(create)* — the dataWrapper-informed linked-query editor (re-implemented): pick linked-view columns, mark groupBy, choose aggregate `fn` per column (sum/count/avg/min/max → emits `fn(col)::… as alias`), add filters. Produces `linkedQuery.{ filters, groupBy, columns }`. Then a `tileColumns` selector for which outputs to bake into the tile.
+10. **`LayerEditor/LinkedDataControl/constants.js`** *(create)* — aggregate ops, linked-CTE row cap. `.js`.
+11. **`MapEditor/stateUtils.jsx`** *(modify)* — `normalizeLayerLinkedDataConfig(raw)` (full shape, defaults), beside `normalizeLayerClickFilterConfig`.
+12. **`LayerEditor/Controls.jsx` (+ `datamaps`)** *(modify — integration point to locate)* — merge `tileColumns` (the joined outputs) into the column options the Style/Legend/Popup editors consume, so a joined column can be the choropleth `data-column` / a hover column.
 
 ## Files Requiring Changes
 
 | File | Change |
 |------|--------|
-| `patterns/mapeditor/MapEditor/components/LayerEditor/index.jsx` | Add `Linked Data` tab entry + import |
-| `patterns/mapeditor/MapEditor/components/LayerEditor/LinkedDataControl/index.jsx` | **New** — tab component |
-| `patterns/mapeditor/MapEditor/components/LayerEditor/LinkedDataControl/JoinSetup.jsx` | **New** — join pickers |
-| `patterns/mapeditor/MapEditor/components/LayerEditor/LinkedDataControl/ResultShape.jsx` | **New** — result shaping |
-| `patterns/mapeditor/MapEditor/components/LayerEditor/LinkedDataControl/ClickInteractionSection.jsx` | **New** — optional click add-on |
-| `patterns/mapeditor/MapEditor/components/LayerEditor/LinkedDataControl/constants.js` | **New** — enums + caps |
-| `patterns/mapeditor/MapEditor/stateUtils.jsx` | Add `normalizeLayerLinkedDataConfig` |
-| `patterns/page/components/sections/components/ComponentRegistry/map/linkedDataQuery.js` | **New** — pure runtime builder (re-implemented) |
-| `patterns/page/components/sections/components/ComponentRegistry/map/SymbologyViewLayer.jsx` | Wire click → linked query → popup |
-| `patterns/page/components/sections/components/ComponentRegistry/map/avl-map.jsx` | Linked-data popup render branch |
-| `patterns/page/.../ComponentRegistry/map/settings/README.md` | Document `'linked-data'` config shape (follow-up) |
+| `dms-server/src/routes/uda/query_sets/postgres.js` | Extract + export `buildSimpleFilterSql`; `simpleFilter` calls it |
+| `dms-server/src/dama/tiles/tiles.rest.js` | `join` param → linked CTE via UDA builder + param renumbering + LEFT JOIN |
+| `patterns/page/.../map/SymbologyViewLayer.jsx` | `getLayerTileUrl` appends `join` |
+| `patterns/page/.../map_dama/SymbologyViewLayer.jsx` | same, local copy |
+| `patterns/mapeditor/MapEditor/components/SymbologyViewLayer.jsx` | same, local copy (preview) |
+| `patterns/mapeditor/MapEditor/components/LayerEditor/index.jsx` | add `Linked Data` tab |
+| `…/LayerEditor/LinkedDataControl/index.jsx` | **New** — tab component |
+| `…/LayerEditor/LinkedDataControl/JoinSetup.jsx` | **New** — keys + source/view |
+| `…/LayerEditor/LinkedDataControl/LinkedQueryBuilder.jsx` | **New** — dataWrapper-style linked query |
+| `…/LayerEditor/LinkedDataControl/constants.js` | **New** |
+| `patterns/mapeditor/MapEditor/stateUtils.jsx` | `normalizeLayerLinkedDataConfig` |
+| `…/LayerEditor/Controls.jsx` (+ `datamaps`) | merge joined outputs into style/popup column options |
+| `dms-server/src/dama/tiles/` (test) | tile-join integration/SQL test |
+| `patterns/page/.../map/settings/README.md` | document `'linked-data'` config + `join` param (follow-up) |
 
-## Conventions to follow (from `packages/dms/CLAUDE.md`)
-
-- **Fast Refresh**: component files are `.jsx` and export only components (named). Normalizers, constants, and the query builder are `.js`.
-- **No convenience wrappers**: inline `falcor.get([...])` and the `MapEditorContext` falcor read at each call site, like `ClickFilterControl` — do **not** factor a `useColumnMetadata` hook.
-- **Match sibling control style**: the LayerEditor controls (`ClickFilterControl`, `PopoverEditor`) use inline Tailwind + `StyledControl` from `ControlWrappers` and pull `UI` from `ThemeContext`. New controls follow the same local style (do not introduce a new theming scheme just for this tab).
-- **Navigation/data rules**: stay within the mapeditor's established direct-falcor-via-`MapEditorContext` pattern; this is the runtime norm for the map patterns.
+## Conventions
+- Fast Refresh: components `.jsx` (named, components only); normalizer/constants `.js`.
+- Match sibling LayerEditor controls (`ClickFilterControl`/`PopoverEditor`): inline Tailwind + `StyledControl`, `UI` from `ThemeContext`, falcor via `MapEditorContext`.
+- No convenience wrappers: inline `falcor.get([...])`.
+- Tile SQL readable at the call site; `$N` params.
 
 ## Implementation Plan (phased)
 
-> Mark items `[x]` and add status to phase headers AS YOU GO (planning-rules.md §Workflow). The task file is the source of truth between sessions.
+> Mark items `[x]` + update phase headers AS YOU GO (planning-rules.md §Workflow).
 
-### Phase 1 — Config foundation (mapeditor) — NOT STARTED
+### Phase 1 — Server: reusable SQL builder — NOT STARTED
+- [ ] Extract `buildSimpleFilterSql(ctx, options, attributes, indices) → { sql, values }`; rewire `simpleFilter`; export it.
+- [ ] UDA suite (`dms-server` `npm test` / `npm run test:graph`) green — extraction is behavior-preserving.
 
-- [ ] Create `LinkedDataControl/constants.js` with `LINKED_DATA_RESULT_MODES = ['rows','aggregate']`, `LINKED_DATA_METRIC_OPERATIONS = ['sum','count','avg','min','max']`, `LINKED_DATA_DEFAULT_LIMIT = 20`, `LINKED_DATA_MAX_LIMIT = 100`.
-- [ ] Add `normalizeLayerLinkedDataConfig(raw)` to `stateUtils.jsx` returning the full config shape (Proposed Config Shape) with every nested field defaulted. Model the signature/return discipline on `normalizeLayerClickFilterConfig`.
-- [ ] Verify: in the browser, no console errors when a layer has no `'linked-data'` key (normalizer must tolerate `undefined`/`{}`).
+### Phase 2 — Server: tile join via CTE — NOT STARTED
+- [ ] `join` param parse + `shiftParams`; resolve linked view via `getEssentials`; build linked CTE via `buildSimpleFilterSql`; compose `WITH linked … LEFT JOIN` tile SQL; renumber + concat params; sanitize keys/cols.
+- [ ] Integration test against PG+PostGIS: tile with an **aggregated** linked query (groupBy + sum) returns an MVT whose features carry the aggregate as a property; feature count unchanged (the grouped CTE is 1:1 on the key). Document the command.
 
-### Phase 2 — "Linked Data" tab: the simple join (mapeditor) — NOT STARTED
+### Phase 3 — Client: tile URL wiring (3 copies) — NOT STARTED
+- [ ] Each `getLayerTileUrl` appends `&join=<encoded>` from the layer's `'linked-data'` config when enabled.
+- [ ] Verify the tile request carries `join` and the joined column is present in the returned tile (devtools / `queryRenderedFeatures`).
 
-- [ ] Add the tab to `LAYER_EDITOR_TABS` in `LayerEditor/index.jsx` and import `LinkedDataControl`.
-- [ ] Build `LinkedDataControl/index.jsx`: SymbologyContext `state`/`setState`, `MapEditorContext` falcor, `activeLayerId`, `linkedDataPath = \`symbology.layers[${activeLayerId}]['linked-data']\``. Implement `setLinkedDataConfig(updater)` mirroring `ClickFilterControl.setClickFilterConfig` (read → normalize → updater → `set`). Render the master enable toggle, then `<JoinSetup/>`, `<ResultShape/>`, `<ClickInteractionSection/>` when enabled.
-- [ ] Build `JoinSetup.jsx`:
-  - Feature key column: inline-fetch this layer's source metadata (`["uda", pgEnv, "sources", "byId", sourceId, "metadata"]`), populate a `<select>` (filter out `wkb_geometry`), bind `featureKeyColumn`.
-  - Linked source/view picker: reuse the editor's existing source/view selection affordance for choosing a *different* view; persist `linked.sourceId` / `linked.viewId` / `linked.env`.
-  - Linked join column: inline-fetch the **linked** source's metadata using `linked.sourceId` (a second `falcor.get` keyed on the linked source id), populate a `<select>`, bind `linkedJoinColumn`.
-- [ ] Build `ResultShape.jsx`:
-  - Mode toggle (`rows`/`aggregate`).
-  - Rows mode: multi-select `returnColumns` from the linked view's columns.
-  - Aggregate mode: `groupBy` multi-select + a `metrics` list editor (`{ column, operation, alias }`, add/remove rows).
-  - `orderBy`: a column dropdown whose options are the rows-mode `returnColumns` or the aggregate metric aliases + groupBy columns, plus a direction toggle. `limit` number input (default 20; show the 100 cap).
-- [ ] Verify: editing the join in the tab persists into `state` and survives a layer switch + reload (localStorage roundtrip). Inspect the saved `symbology` JSON to confirm the `'linked-data'` key shape.
+### Phase 4 — Editor: Linked Data tab + linked-query builder — NOT STARTED
+- [ ] `constants.js` + `normalizeLayerLinkedDataConfig`.
+- [ ] Add the tab; build `LinkedDataControl` + `JoinSetup` (geometry key column, linked source/view same-pgEnv, join key column).
+- [ ] Build `LinkedQueryBuilder` (re-implemented dataWrapper-style): columns + groupBy + per-column aggregate `fn` + filters → `linkedQuery`; `tileColumns` selector.
+- [ ] Verify config persists (layer switch + reload + saved `symbology` JSON) and produces a sensible `join` param.
 
-### Phase 3 — Optional click interaction add-on (mapeditor) — NOT STARTED
+### Phase 5 — Editor: style/popup on joined outputs — NOT STARTED
+- [ ] Merge `tileColumns` into the Style/Legend/Popup column options (tagged as joined).
+- [ ] **End-to-end proof:** OD-style aggregate join (block geometry + OD grouped by `w_geocode`, `sum(S000) as total_workers`) → choose `total_workers` as the choropleth column → blocks color by inbound-worker totals.
 
-- [ ] Build `ClickInteractionSection.jsx`: an `Add click interaction` enable toggle (`clickInteraction.enabled`), a `Trigger` control locked to `Click` (disabled, with a "hover coming later" hint), and a `Display` control locked to `Popup`. Render it visually as an addition layered under the join config (e.g. a divider + secondary heading) to reinforce that it is optional.
-- [ ] Only allow enabling the click interaction when the join is sufficiently configured (`featureKeyColumn`, `linked.viewId`, `linkedJoinColumn` set); otherwise show a hint and keep the toggle disabled.
-- [ ] Verify: toggling the click interaction on/off persists; turning it off leaves the join config intact.
-
-### Phase 4 — Runtime query builder (page pattern, pure, re-implemented) — NOT STARTED
-
-- [ ] Create `map/linkedDataQuery.js` (re-implemented locally; do **not** import dataWrapper):
-  - `clampLinkedDataLimit(limit)` → `Math.min(Math.max(1, +limit || 20), 100)`.
-  - `buildLinkedDataRequest(config, featureKeyValue)`:
-    - `attributes`: rows mode → `config.returnColumns`; aggregate mode → `[...config.groupBy, ...config.metrics.map(m => \`${m.operation}(${m.column})::numeric as ${m.alias}\`)]`. (Use `count(1)::int as ${alias}` form for `count`.)
-    - `options.filter = { [config.linkedJoinColumn]: [featureKeyValue] }`.
-    - aggregate mode → `options.groupBy = config.groupBy`.
-    - **orderBy translation**: find the 1-based ordinal of `config.orderBy.column` within `attributes` (match on the column name for rows, or the metric `alias`/groupBy name for aggregate); emit `options.orderBy = { [String(ordinal)]: config.orderBy.direction }`. If not found, omit orderBy.
-    - `fromTo = { from: 0, to: clampLinkedDataLimit(config.limit) - 1 }`.
-    - return `{ viewId: config.linked.viewId, env: config.linked.env || layerPgEnv, options, attributes, fromTo }`.
-  - `normalizeLinkedDataRows(config, attributes, rawRows)` → map each raw row to `{ [name]: value }` keyed by the attribute output name (alias for metrics).
-- [ ] Add a lightweight assertion check (matching how the package tests run — `node` script, no new framework) covering: aggregate attributes string, filter shape, and the orderBy ordinal translation (e.g. `orderBy.column = 'total_workers'` with metrics ordered after groupBy resolves to the correct ordinal). Document the command in the Testing Checklist.
-
-### Phase 5 — Runtime click execution + popup (page pattern) — NOT STARTED
-
-- [ ] In `SymbologyViewLayer.jsx` click handler: detect `layerProps['linked-data']` with `enabled && clickInteraction.enabled && trigger === 'click'`. Read `featureKeyColumn` via the existing `resolveFeatureProperties` (which falls back to `dataById` if the column isn't in the tile). Guard: if no key value, set popup `status: 'error'` with a friendly "missing key value" message.
-- [ ] Build the request with `buildLinkedDataRequest`, set the pinned-popup payload to `{ status: 'loading', ... }`, run the inline `falcor.get(["uda", env, "viewsById", viewId, "options", JSON.stringify(options), "dataByIndex", fromTo, attributes])`, read rows from the falcor cache, `normalizeLinkedDataRows`, and set the popup payload to the success/empty result contract (`truncated = rows.length >= clampedLimit`).
-- [ ] In `avl-map.jsx`, branch the pinned-popup renderer for a linked-data payload: header (layer name + feature key value + linked view label if available), a small table of `rows`, and explicit `loading` / `empty` ("No results") / `error` states.
-- [ ] Verify end-to-end against ≥2 source/view combinations that share a key (e.g. an OD inflow aggregate and a WAC rows lookup keyed on `block_geoid`).
-
-### Phase 6 — Docs + cleanup — NOT STARTED
-
-- [ ] Document the `'linked-data'` config shape in `map/settings/README.md`.
-- [ ] Update this task file (phase statuses, design-note deviations), then on completion move to `tasks/completed/`, flip the `todo.md` entry to `[x]`, and add a dated `completed.md` entry.
-- [ ] Skill candidate check (planning-rules.md §"When to extract a skill"): if the OD inflow/outflow + WAC/RAC join recipe proves reusable for authors, write `skills/map-linked-data-join.md` with a "do this to get that" recipe and cross-link.
+### Phase 6 — Docs — NOT STARTED
+- [ ] Document `'linked-data'` + the `join` tile param in `map/settings/README.md`. Note the **index on the linked join column** as the perf lever and that V1 assumes a correctly-configured 1:1 query.
+- [ ] On completion: move to `tasks/completed/`, flip `todo.md`, add dated `completed.md` entry. Skill-candidate check (a "choropleth a geometry layer by an aggregated joined query" recipe likely warrants `skills/map-linked-data-join.md`).
 
 ## Testing Checklist
 
-Manual (patterns layer has no unit-test framework; `packages/dms` `npm test` runs `node test.js`):
+**Server**
+- [ ] UDA suite green after `buildSimpleFilterSql` extraction.
+- [ ] Aggregated-join tile: features carry the aggregate property; count == no-join tile (grouped CTE is 1:1 on key).
+- [ ] `shiftParams` + param concat verified (linked filters bind correctly alongside z/x/y).
+- [ ] No-`join` requests unchanged.
 
 **Editor**
-- [ ] `Linked Data` tab appears in LayerEditor and renders without errors for a layer with no prior config.
-- [ ] Feature-key-column dropdown is populated from the layer's own source metadata.
-- [ ] Linked view picker selects a *different* view; the linked-join-column dropdown populates from that view's metadata.
-- [ ] Rows mode: return columns multi-select works; orderBy options reflect chosen return columns.
-- [ ] Aggregate mode: groupBy + metrics editor works; orderBy options reflect metric aliases + groupBy.
-- [ ] Limit input enforces the 100 cap in the UI.
-- [ ] Click-interaction sub-section only enables when the join is complete; toggling it does not clear join config.
-- [ ] Config survives layer switch + page reload (localStorage) and appears in the saved `symbology` JSON.
+- [ ] Linked Data tab configures key + linked source/view (same pgEnv) + a groupBy/aggregate linked query + tileColumns.
+- [ ] Config persists; joined outputs appear in Style/Legend/Popup pickers.
 
-**Runtime query builder** (Phase 4)
-- [ ] Run the `linkedDataQuery.js` assertion script: `node <path-to-script>` exits 0 with all checks passing (aggregate attribute strings, filter shape, orderBy ordinal translation).
-
-**Runtime end-to-end**
-- [ ] Clicking a feature with the click interaction enabled shows a loading state, then results, in a pinned popup.
-- [ ] OD inflow aggregate (groupBy `h_geocode`, `sum(S000) as total_workers`, order by `total_workers` desc, limit 20) returns sensible ordered rows.
-- [ ] A rows-mode lookup (e.g. WAC by `block_geoid`) returns the explicit columns.
-- [ ] Empty result renders "No results"; a feature missing the key renders a friendly error.
-- [ ] `featureKeyColumn` resolves correctly even when NOT baked into the tile (relies on the `dataById` fallback) — verify on a layer whose tiles only carry `ogc_fid`.
+**End-to-end**
+- [ ] OD aggregate join colors blocks by `total_workers` (the headline use case).
+- [ ] A flat 1:1 join (per-block stat table keyed on `block_geoid`) colors by a joined column.
+- [ ] Hover popup shows joined columns.
 
 ## Risks & Notes
-
-- **orderBy by alias is not supported server-side** — must translate to a positional ordinal in `buildLinkedDataRequest` (see Phase 4). This is the one genuine query-shape wrinkle; everything else the UDA layer already supports.
-- **Double round-trip on click** — when the key column isn't in the tile, click triggers a `dataById` fetch (resolve key) then the linked query. Acceptable for click-only V1. For a future hover trigger, add the key column to the tile via the existing `cols` param on the tile route (an `interaction-columns` config appended in `getLayerTileUrl`); out of scope here.
-- **Linked-view metadata fetch is net-new UI** — existing controls only fetch the layer's own source; this adds a second-source metadata fetch. Budget it as new work, not pure reuse.
-- **Position relative to existing `click-filter`** — `'click-filter'` publishes clicked attributes into page filter variables; `'linked-data'` runs a query and shows results. They are distinct behaviors that both read clicked-feature properties. Wire the linked-data branch *inside* the existing click handler (alongside the click-filter/`click_publish` branches), not as a parallel `queryRenderedFeatures` path.
+- **1:1 is the author's responsibility in V1.** If the linked query isn't grouped to one row per join key, the `LEFT JOIN` fans out → duplicate features. V1 does not detect/prevent this (explicit decision). Note it in the UI copy; fan-out detection is a later guardrail.
+- **Column-name collisions** (joined output vs geometry column) clobber the MVT property — author-managed in V1.
+- **Perf**: inlined non-`MATERIALIZED` CTE + an **index on the linked join column** keeps per-tile cost ≈ (features-in-tile × index lookups). A grouped/aggregated CTE scans the linked table per tile — fine for moderate tables; very large linked tables (full OD) may later justify materialization. Index is the key lever.
+- **Same-pgEnv, PG-only**: inline SQL join needs the linked view in the same Postgres pgEnv. ClickHouse-backed / cross-pgEnv linked views unsupported in V1.
+- **Param renumbering** is the subtle server bug surface — cover with a focused test.
 
 ## Related tasks
-
-- [`datawrapper-join-support.md`](./datawrapper-join-support.md) — the page-pattern dataWrapper join (server-side SQL JOIN via WITH-clause). Different mechanism (combine sources into one result set) but shares vocabulary; reference for join-config UX, do not share code.
-- [`map-component-unification.md`](./map-component-unification.md) — unify `map/` and `map_dama/`. Land linked-data in `map/` (the DataWrapper-bound runtime) and re-evaluate after unification.
-- [`expand-client-column-types.md`](./expand-client-column-types.md) — column-type formatting that the popup could later use to format result cells (currently popup shows raw values).
+- [`datawrapper-join-support.md`](./datawrapper-join-support.md) — page-pattern dataWrapper join (server SQL join via WITH/CTE for tabular sections). Same "UDA-query-as-CTE" idea; reference for the linked-query UX (re-implement, don't share).
+- [`map-component-unification.md`](./map-component-unification.md) — will merge the three `getLayerTileUrl`/`SymbologyViewLayer` copies; until then edit all three.
+- [`split-table-virtual-columns.md`](./split-table-virtual-columns.md) — auto-indexes on dataset columns; directly relevant to the join-column index perf lever.
