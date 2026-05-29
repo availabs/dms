@@ -343,7 +343,6 @@ const Slice = React.memo(({ node, colorFunc, isRoot, ...props }) => {
   }, [node, rgbaColor]);
 
   const [width, height] = React.useMemo(() => {
-  	if (node.depth === 0) return [0, 0];
   	return [
   		2 * (node.x1 - node.x0) * (node.y0 + (node.y1 - node.y0) * 0.5),
   		node.y1 - node.y0
@@ -378,51 +377,70 @@ const Slice = React.memo(({ node, colorFunc, isRoot, ...props }) => {
     		<path id={ id } d={ textPath } fill="none" stroke="none"/>
     	</defs>
 
-    	{ width < 200 ? 
-    		<>
-    			<text
-		    		textAnchor="middle"
-		        dominantBaseline="ideographic"
-		    		transform={ labelTransform(node) }
-	    			className="pointer-events-none font-medium"
-	          fontSize={ Math.min(width, height) * itSize * 0.5 }
-    			>
-		    		{ node.data[0] }
-    			</text>
-    			<text
-		    		textAnchor="middle"
-		        dominantBaseline="hanging"
-		    		transform={ labelTransform(node) }
-	    			className="pointer-events-none"
-	          fontSize={ Math.min(width, height) * vtSize * 0.5 }
-    			>
-		    		{ valueFormat(node.value) }
-    			</text>
-    		</> :
-    		<>
-		    	<text>
-		    		<textPath href={ `#${ id }` }
-		    			startOffset={ startOffset }
-		          dominantBaseline="ideographic"
-		    			textAnchor="middle"
+    	{ node.depth === 0 ?
+	    		<>
+	    			<text
+			    		textAnchor="middle"
+			        dominantBaseline="ideographic"
 		    			className="pointer-events-none font-medium"
-	          	fontSize={ Math.min(width, height) * itSize }
-		    		>
-		    			{ node.data[0] }
-		    		</textPath>
-		    	</text>
-		    	<text>
-		    		<textPath href={ `#${ id }` }
-		    			startOffset={ startOffset }
-		          dominantBaseline="hanging"
-		    			textAnchor="middle"
-	    				className="pointer-events-none"
-          		fontSize={ Math.min(width, height) * vtSize }
-		    		>
-		    			{ valueFormat(node.value) }
-		    		</textPath>
-		    	</text>
-		    </>
+		          fontSize={ Math.min(width, height) * itSize }
+	    			>
+			    		Total
+	    			</text>
+	    			<text
+			    		textAnchor="middle"
+			        dominantBaseline="hanging"
+		    			className="pointer-events-none"
+		          fontSize={ Math.min(width, height) * vtSize }
+	    			>
+			    		{ valueFormat(node.value) }
+	    			</text>
+	    		</> :
+    		width < 200 ? 
+	    		<>
+	    			<text
+			    		textAnchor="middle"
+			        dominantBaseline="ideographic"
+			    		transform={ labelTransform(node) }
+		    			className="pointer-events-none font-medium"
+		          fontSize={ Math.min(width, height) * itSize * 0.5 }
+	    			>
+			    		{ node.data[0] }
+	    			</text>
+	    			<text
+			    		textAnchor="middle"
+			        dominantBaseline="hanging"
+			    		transform={ labelTransform(node) }
+		    			className="pointer-events-none"
+		          fontSize={ Math.min(width, height) * vtSize * 0.5 }
+	    			>
+			    		{ valueFormat(node.value) }
+	    			</text>
+	    		</> :
+	    		<>
+			    	<text>
+			    		<textPath href={ `#${ id }` }
+			    			startOffset={ startOffset }
+			          dominantBaseline="ideographic"
+			    			textAnchor="middle"
+			    			className="pointer-events-none font-medium"
+		          	fontSize={ Math.min(width, height) * itSize }
+			    		>
+			    			{ node.data[0] || "Total" }
+			    		</textPath>
+			    	</text>
+			    	<text>
+			    		<textPath href={ `#${ id }` }
+			    			startOffset={ startOffset }
+			          dominantBaseline="hanging"
+			    			textAnchor="middle"
+		    				className="pointer-events-none"
+	          		fontSize={ Math.min(width, height) * vtSize }
+			    		>
+			    			{ valueFormat(node.value) }
+			    		</textPath>
+			    	</text>
+			    </>
     	}
 
     	{ node.children?.map((n, i) => (
