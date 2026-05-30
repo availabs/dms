@@ -260,6 +260,10 @@ const CompWrapper = ({
     const editMode = allowEdit || (isNewItem && setNewItem && !tmpItem.id);
     const compIdEdit = `${attribute.name}-${id}`;
     const Comp = ColumnTypes[attribute.type]?.[editMode ? 'EditComp' : 'ViewComp'] || DefaultComp;
+    // Strip the column's data `key` field before spreading — otherwise React reads
+    // the spread `key` as its own key prop and warns ("a key prop is being spread
+    // into JSX"). The column is still identified by `name` everywhere else.
+    const { key: _columnKey, ...attributeProps } = attribute;
 
     const options = useMemo(() => {
         const isDropDownCol = ['select', 'multiselect', 'radio'].includes(attribute.type);
@@ -336,7 +340,7 @@ const CompWrapper = ({
                   id={compIdEdit}
                   onChange={onChange}
                   className={`${editMode ? 'border' : ''} ${className}`}
-                  {...attribute}
+                  {...attributeProps}
                   row={row}
                   options={options}
                   meta={optionsMeta}

@@ -224,29 +224,52 @@ gaps are now built and the cards transcribed via the Playwright loop:
   brands → candidate `card-layout.md` additions + possibly a "status & delta
   column types" recipe.
 
-## Build status (session 2026-05-30)
-- **§01 (Phase 2): DONE & verified** (4 cards + column types + themed pill + header controls).
-- **§06 download (Phase 7): BUILT, visually UNVERIFIED.** Section **2173959** created as a
-  near-verbatim clone of the working Spreadsheet 2173042 (source 2001/3394, `year_record`
-  + `ua_name` `usePageFilters`, `allowDownload`, pageSize 50). High confidence; needs a
-  loop pass to confirm.
-- **§03 explainer (Phase 4): BUILT, visually UNVERIFIED.** Section **2173960** (lexical) —
-  significant-progress two-prong test + UZA applicability + state legend. Low risk (static).
-- **§02 trends (Phase 3): DEFERRED.** No `Graph` template exists in npmrdsv5 to clone, and
-  the stepped FHWA target reference-line + annotation overlay are confirmed Graph gaps.
-  Building a Graph blind (no template, no visual loop) is too risky — needs the loop + a
-  Graph reference-series capability assessment first.
-- **§04 regional (Phase 5) / §05 urban (Phase 6): NOT BUILT — blocked on the loop.** The
-  grouped-aggregate SQL (GROUP BY `mpo_name` / `ua_name`) reuses the proven card metric SQL
-  and is ready to build, but these are exactly the data-bound sections that have repeatedly
-  shown *silent* query-breaks only the Playwright loop catches. **The auth token expired
-  mid-session** (loop down) — building these blind would risk shipping blank sections. Build
-  + verify in a fresh-token pass. §05 PHED /cap remains a hard data blocker (no UZA
-  population source).
-- **Process note:** new sections are created with `dms section create <page> --pattern
-  npmrds_sub --element-type <T> --data <data>` (without `--pattern` the CLI defaulted to the
-  wrong pattern `freightatlas2`). `section delete` leaves a **dangling `draft_sections` ref**
-  — prune it from the page after deleting.
+## Build status (session 2026-05-30) — ALL SIX SECTIONS BUILT & VERIFIED ✅
+
+Page **2173915** now has 15 draft sections rendering top-to-bottom in reading order
+(full-page shot verified via the Playwright loop):
+- **§01 Compliance snapshot (Phase 2)** — 4 KPI cards (2173919–22): status_pill,
+  value+%, target_bar, delta, margin. ✅
+- **§02 Reliability over time (Phase 3)** — 3 `Graph` line charts (2173963/64/65):
+  Interstate / Non-Interstate / Truck TTTR over 2016–2025 (the 2020 COVID spike is
+  visible). ✅ Built from the graph `defaultState` (no template existed) — `graphType:
+  'LineGraph'`, `year_record` as `xAxis`+`group`, the metric as `yAxis` (`fn:exempt`),
+  no `year_record` leaf (ignores the Year selector). **Deferred (Graph gaps):** the
+  stepped FHWA target reference series, the COVID/period-boundary annotations, and
+  per-point meets/below colouring.
+- **§03 How targets work (Phase 4)** — `lexical` explainer (2173960). ✅
+- **§04 Regional · by MPO (Phase 5)** — `Spreadsheet` (2173961), GROUP BY `mpo_name`,
+  per-measure reliability + PHED total, year-filtered. ✅ **Deferred:** per-cell
+  verdict dots, `Met X/3` roll-up, MPO/County group-by toggle (no group-by page
+  variable yet).
+- **§05 Urban congestion (Phase 6)** — `Spreadsheet` (2173962), GROUP BY `ua_name`,
+  filtered to the two reporting UZAs (`urban_code IN (63217,71803)`). ✅ **Deferred /
+  blocked:** PHED **per-capita** and **Non-SOV** are not computable from source 2001
+  (no UZA population, no non-SOV column) — shows PHED **total** + reliability instead.
+- **§06 Annual download (Phase 7)** — `Spreadsheet` (2173959) cloned from the working
+  2173042: source 2001/3394, `year_record` `usePageFilters`, `allowDownload`,
+  paginated (20,682 rows for CY 2025). ✅
+
+**Cross-cutting polish still deferred:** band/tint separation per § (all new sections
+appended into the §01 report group — functional, not visually banded); the §01 "3/3
+measures met" header roll-up; the dashed/slate PHED "context" chrome; smaller-unit
+`%`/`hr/yr` superscript; sticky-TOC chrome.
+
+**Process notes learned this phase:**
+- Create sections with `dms section create <page> --pattern npmrds_sub --element-type
+  <T> --data <data>` — **without `--pattern` the CLI defaults to the wrong pattern**
+  (`freightatlas2`), producing a mis-typed section.
+- `dms section delete` leaves a **dangling `draft_sections` ref** on the page — prune
+  it (page raw update) or the page render breaks.
+- **Build data-bound sections by cloning a working section** of the same element-type
+  (Spreadsheet ← 2173042; calc-column shapes ← a KPI card) — hand-built column objects
+  miss fields `createRequest` needs.
+- **The auth token expires (~6h)** and the loop silently fails (login redirect); refresh
+  `scratchpad/<env>/auth.json` with a new `userToken`. The Spreadsheet/Graph `fn`
+  ("exempt") labels seen in shots are **edit-mode chrome**, not real columns.
+- Fixed a real bug surfaced by the new column types: the Card spread the column's data
+  `key` field into the cell `Comp`, which React read as its own `key` → warning. Now
+  stripped before the spread (`Card.jsx` CompWrapper).
 
 ## Phase 3 — §02 Reliability over time (trends)
 
