@@ -57,18 +57,18 @@ const RenderSearchKeySelector = ({filter, pageState, onChange}) => {
 }
 
 export const RenderFilterValueSelector = ({
-                                              loading, isEdit, filterColumn, filterOptions=[], state, setState, filterWithSearchParamKeys, columns
+                                              loading, isEdit, filterColumn, filterOptions=[], state, setState, filterWithSearchParamKeys, columns, controlStyle: controlStyleProp
                                           }) => {
     const { pageState, updatePageStateFilters } =  React.useContext(PageContext) || {}; // page to extract page filters
     const { theme: themeFromContext = {}, UI} = React.useContext(ThemeContext) || {};
     const theme = {...themeFromContext, filters: {...filterTheme, ...(themeFromContext.filters || {})}};
     const {Switch, MultiSelect, Input, Button, ColumnTypes} = UI;
     const options = useMemo(() => filterOptions.find(fo => fo.column === filterColumn.name)?.uniqValues, [filterOptions, filterColumn.name]);
-    // Let a Filter section pick which named `multiselect` theme style its value
-    // control renders with (e.g. 'compact' for a page-level chip). Defaults to
-    // undefined → the multiselect's own options.activeStyle. This selects a named
-    // theme style (not a className passthrough), keeping the primitive's API closed.
-    const controlStyle = state?.display?.filterControlStyle;
+    // The value control's multiselect style comes from the active filter DESIGN
+    // (theme.filters.<style>.controlStyle, passed down by RenderFilters), with a
+    // legacy display.filterControlStyle fallback. Selecting a named theme style
+    // (not a className passthrough) keeps the primitive's API closed.
+    const controlStyle = controlStyleProp ?? state?.display?.filterControlStyle;
 
     const useDebouncedUpdateFilter = (delay = 300) => {
         const timeoutRef = useRef(null);
@@ -271,6 +271,7 @@ export const RenderFilterValueSelector = ({
 
                     <Comp
                         key={`filter-${filterColumn.name}-${filter.type}`}
+                        activeStyle={controlStyle}
                         className={theme.filters.input}
                         loading={loading}
                         value={value}

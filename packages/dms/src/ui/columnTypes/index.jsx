@@ -8,6 +8,9 @@ import { MultiSelectEdit as MultiselectEdit, MultiSelectView as MultiselectView 
 import { RadioEdit, RadioView } from './radio'
 import { CheckboxEdit, CheckboxView } from './checkbox'
 import { ImageEdit, ImageView } from './image'
+import { StatusPillEdit, StatusPillView } from './statusPill'
+import { DeltaEdit, DeltaView } from './delta'
+import { TargetBarEdit, TargetBarView } from './targetBar'
 import Switch from '../components/Switch'
 
 const text = { EditComp: TextEdit, ViewComp: TextView }
@@ -19,6 +22,9 @@ const radio = { EditComp: RadioEdit, ViewComp: RadioView }
 const checkbox = { EditComp: CheckboxEdit, ViewComp: CheckboxView }
 const lexical = { EditComp: LexicalEdit, ViewComp: LexicalView }
 const image = { EditComp: ImageEdit, ViewComp: ImageView }
+const statusPill = { EditComp: StatusPillEdit, ViewComp: StatusPillView }
+const delta = { EditComp: DeltaEdit, ViewComp: DeltaView }
+const targetBar = { EditComp: TargetBarEdit, ViewComp: TargetBarView }
 
 // console.log('in column types', Lexical)
 // columnTypes is a mutable registry: themes can extend it via theme.columnTypes
@@ -51,6 +57,9 @@ const columnTypes = {
 	'radio': radio,
   'checkbox': checkbox,
   'image': image,
+  'status_pill': statusPill,
+  'delta': delta,
+  'target_bar': targetBar,
   'switch': {
         EditComp: ({trueValue=true, value, onChange, ...props}) =>
             <Switch {...props} enabled={value === trueValue}

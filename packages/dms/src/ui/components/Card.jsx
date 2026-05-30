@@ -204,6 +204,15 @@ const justifyClass = {
     full: {header: 'justifyTextLeft', value: 'justifyTextRight'}
 };
 
+// Header text-transform. Default '' = as-authored (the Card no longer force-
+// capitalizes headers). Authors opt into a transform via the `headerCase` column control.
+const caseClass = {
+    '': '',
+    capitalize: 'capitalize',
+    uppercase: 'uppercase',
+    lowercase: 'lowercase',
+};
+
 
 
 const parseIfJson = strValue => {
@@ -386,7 +395,9 @@ const CardColumnField = ({
 
     const formatClass = attr.formatFn === 'title' ? 'capitalize' : '';
     const isValueFormatted = isImg || Boolean(formatFunctions[attr.formatFn]);
-    const headerTextJustifyClass = justifyClass[attr.justify || 'left']?.header || justifyClass[attr.justify || 'left'];
+    // Header alignment is independent of value `justify`; defaults to left
+    // (the header always rendered left before, so this is backward-compatible).
+    const headerTextJustifyClass = justifyClass[attr.headerJustify || 'left']?.header || justifyClass[attr.headerJustify || 'left'];
     const valueTextJustifyClass = justifyClass[attr.justify || 'left']?.value || justifyClass[attr.justify || 'left'];
     let valueFormattedForSearchParams, valueFormattedForDisplay, valueFormattedForEdit, searchParams, url;
 
@@ -509,11 +520,11 @@ const CardColumnField = ({
             {/* Header area — always rendered when there's a label or a menu in col layout */}
             {headerVisible && (
                 <div
-                    className={`${attr.hideHeader ? '' : attr.headerFontStyle === 'button' ? theme.linkColValue : theme.header}`}
+                    className={`${attr.hideHeader ? '' : `${attr.headerFontStyle === 'button' ? theme.linkColValue : theme.header} ${theme[headerTextJustifyClass] || ''} ${caseClass[attr.headerCase || '']}`}`}
                     style={{maxWidth: isRowLayout && !attr.hideValue ? `${headerWidth || 50}%` : undefined}}
                 >
                     {!attr.hideHeader && (
-                        <span className={`${theme[headerTextJustifyClass]} ${theme[attr.headerFontStyle || 'textXS']}`}>
+                        <span className={`${theme[attr.headerFontStyle || 'textXS']}`}>
                             {attr.customName || attr.display_name || attr.normalName || attr.name}
                             {attr?.description ? <DefaultComp className={theme.description} value={attr.description} /> : null}
                         </span>
