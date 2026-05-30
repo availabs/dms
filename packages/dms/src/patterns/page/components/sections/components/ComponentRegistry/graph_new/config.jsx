@@ -387,6 +387,32 @@ export default {
                 // {type: 'toggle', label: 'Log Scale', key: 'isLog'},
             ]
         },
+        sunburstGraph: {
+            name: "Sunburst Graph Display",
+            displayCdn: ({ display }) => display.graphType === 'SunburstGraph',
+            items: [
+                { type: "select",
+                    label: "Index Text Size", key: "indexTextSize", onClickGoBack: true,
+                    options: [
+                        { label: "Extra Small", value: "xsmall" },
+                        { label: "Small", value: "small" },
+                        { label: "Medium", value: "medium" },
+                        { label: "Large", value: "large" },
+                        { label: "Extra Large", value: "xlarge" }
+                    ]
+                },
+                { type: "select",
+                    label: "Value Text Size", key: "valueTextSize", onClickGoBack: true,
+                    options: [
+                        { label: "Extra Small", value: "xsmall" },
+                        { label: "Small", value: "small" },
+                        { label: "Medium", value: "medium" },
+                        { label: "Large", value: "large" },
+                        { label: "Extra Large", value: "xlarge" }
+                    ]
+                }
+            ]
+        },
         treemapGraph: {
             name: "Treemap Graph Display",
             displayCdn: ({ display }) => display.graphType === 'TreemapGraph',
