@@ -107,6 +107,11 @@ export const GraphComponent = props => {
         paddingInner={ get(graphFormat, "paddingInner", 0.0) }
         paddingOuter={ get(graphFormat, "paddingOuter", 0.0) }
 
+        interpolation={ get(graphFormat, "interpolation", "catmullrom") }
+        strokeWidth={ get(graphFormat, "strokeWidth", 1) }
+        area={ get(graphFormat, "area", false) }
+        areaOpacity={ get(graphFormat, "areaOpacity", 0.15) }
+
         tileMethod={ get(graphFormat, "tileMethod", "treemapSquarify") }
         indexTextSize={ get(graphFormat, "indexTextSize", "medium") }
         valueTextSize={ get(graphFormat, "valueTextSize", "medium") }
@@ -116,12 +121,16 @@ export const GraphComponent = props => {
           rotateLabels: get(graphFormat, ["xAxis", "rotateLabels"], false),
           tickDensity: get(graphFormat, ["xAxis", "tickDensity"], 2),
           showGridLines: get(graphFormat, ["xAxis", "showGridLines"], false),
+          gridLineOpacity: get(graphFormat, ["xAxis", "gridLineOpacity"], 0.25),
+          axisColor: get(graphFormat, ["xAxis", "axisColor"], "currentColor"),
           show: get(graphFormat, ["xAxis", "show"], true)
         } }
         yAxis={ {
           label: get(graphFormat, ["yAxis", "label"]),
           rotateLabels: get(graphFormat, ["yAxis", "rotateLabels"], false),
           showGridLines: get(graphFormat, ["yAxis", "showGridLines"], true),
+          gridLineOpacity: get(graphFormat, ["yAxis", "gridLineOpacity"], 0.25),
+          axisColor: get(graphFormat, ["yAxis", "axisColor"], "currentColor"),
           show: get(graphFormat, ["yAxis", "show"], true),
           format: getFormatFunc(get(graphFormat, ["yAxis", "format"]), get(graphFormat, ["yAxis", "isDollars"]))
         } }

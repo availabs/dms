@@ -86,6 +86,44 @@ draft) with 3 bands (`Page header` / `Report` / `Footer`). Sections: a page-head
 written + indexed in `skills/README.md` (page-variable model, `includePriorPeriod`,
 ignore-the-variable, gotchas; worked refs 2173049 + 2173915).
 
+**Fix (page-variable registry was missing — the interactivity "part 0"):** the
+page itself must declare each variable in its top-level `data.filters` array
+(`{searchKey, values, useSearchParams:true}`) — this whitelist seeds
+`pageState.filters` via `mergeFilters` in `view.jsx`. Page 2173915 had
+`filters: undefined`, so even though the Year selector (2173917) and the §01 cards
+(2173919–21) all had correct `usePageFilters:true` + `searchParamKey:'year_record'`
+leaves, nothing reacted: `updatePageStateFilters` drops unregistered keys from the
+URL, `updatePageStateFiltersOnSearchParamChange` ignores unregistered URL params,
+and `usePageFilterSync` bails when `pageState.filters` is empty. Registered
+`year_record` (default `2025`) on 2173915; verified all four section leaves were
+already correct. The `creating-interactive-pages.md` skill now leads with this as
+**Step 0** + a "why nothing happens" box + the section-tree-vs-column-filter
+duality gotcha (the column-attached `columns[].filters` are empty on these cards;
+the live leaf is in `element-data.filters.groups`, which is what the query builder
+reads).
+
+**Primitive enrichment shipped — author-selectable whole-filter "Filter style":**
+The Year selector's appearance is now driven by a **named-styles `filters` theme
+block** (in `themes/transportny/themev2.js`: `panel` / `chip` / `labeled` /
+`tone_bar`), not by ad-hoc per-control styling. Each style bundles the wrapper,
+label, condition-row, `placement`, **and** the multiselect `controlStyle` it passes
+down to its value control. A site author picks the whole design from the Filter
+section toolbar via the new **"Filter style"** select (key `display.filterStyle`,
+options sourced from `theme.filters.styles`). Wiring:
+- `FilterComponent.config.js` — "Filter style" select (was a per-control "Control
+  style"); options from `theme.filters.styles`. Added a separate "Placement
+  (override)" select (`display.placement` wins over the style's `placement`).
+- `ExternalFilters.jsx` (the viewer-visible control) + `RenderFilters.jsx`
+  (edit/legacy + internal) — both resolve the design with
+  `getComponentTheme(theme,'filters', display.filterStyle)` and thread
+  `theme.filters.controlStyle` down to the value control.
+- `ConditionValueInput.jsx` / `RenderFilterValueSelector.jsx` — accept + forward
+  `activeStyle` to the `multiselect` `EditComp`; `controlStyleProp ??
+  display.filterControlStyle` keeps the legacy per-control key as a fallback.
+- Live: section **2173917** set to `filterStyle: 'chip'`, `hideExternalToggle: true`,
+  `placement: 'inline'`; legacy `filterControlStyle` removed. No className
+  passthroughs added (per `themes/CLAUDE.md` author-empowerment rule).
+
 **Deferred (primitive gap):** the sticky "on this page" TOC chrome — no first-class
 DMS support for in-page anchored section nav yet; left out of the live page pending
 the Phase-1 decision (theme/layout feature vs section). Logged in the ledger.
@@ -139,10 +177,24 @@ selector + page chrome), and write the new skill.
 card** as a `lexical` dashed card (2173922). The 3 cards react to the Year
 selector; verify live and confirm values for the selected year.
 
-**Primitive gaps confirmed (not yet built — see ledger):** status-pill column
-type, target-bar column type, signed/arrow delta formatFn. The cards currently
-render status as text + a bare signed Δ; the pill / bar / arrow treatments from
-the mockup need those enrichments.
+**✅ Phase 2 fully complete — all four §01 cards match the mockup.** The primitive
+gaps are now built and the cards transcribed via the Playwright loop:
+- **status_pill / target_bar / delta** shipped as **built-in column types**
+  (`ui/columnTypes/`), + a **`percent`** formatFn. See
+  [`map21-kpi-column-types.md`](./map21-kpi-column-types.md).
+- **UI.Pill made themeable** (design-system contract) → the brand bordered/dotted/
+  uppercase status pill flows design-system → theme → UI.Pill → status_pill → card.
+  See [`theme-ui-pill.md`](./theme-ui-pill.md).
+- **Card header** alignment + casing controls (`headerJustify`/`headerCase`) so the
+  title is left-aligned sentence-case. See [`card-header-alignment-and-casing.md`](./card-header-alignment-and-casing.md).
+- **PHED card converted from `lexical` → data-bound Card** (2173922): UZA-measure
+  pill, `sum(phed)` hr/yr value, note.
+- Cards: Interstate 2173919 (79.8% / ≥75% / +1.3 / 4.8 pts above), Non-Int 2173920
+  (83.2% / ≥70% / −3.6 red / 13.2 pts above), Truck 2173921 (1.46 / ≤2 / +0.02 red /
+  0.5 pts below), PHED 2173922 (374,711,700 hr/yr).
+- **Deferred polish:** the `%`/`hr/yr` smaller-unit superscript; the PHED card's
+  dashed "context" chrome + "Urban congestion below →" link; the §01 "3/3 measures
+  met" roll-up header.
 
 **Original plan ↓**
 
@@ -171,6 +223,53 @@ the mockup need those enrichments.
 - **Skill notes:** the three column-type/formatFn enrichments are reusable across
   brands → candidate `card-layout.md` additions + possibly a "status & delta
   column types" recipe.
+
+## Build status (session 2026-05-30) — ALL SIX SECTIONS BUILT & VERIFIED ✅
+
+Page **2173915** now has 15 draft sections rendering top-to-bottom in reading order
+(full-page shot verified via the Playwright loop):
+- **§01 Compliance snapshot (Phase 2)** — 4 KPI cards (2173919–22): status_pill,
+  value+%, target_bar, delta, margin. ✅
+- **§02 Reliability over time (Phase 3)** — 3 `Graph` line charts (2173963/64/65):
+  Interstate / Non-Interstate / Truck TTTR over 2016–2025 (the 2020 COVID spike is
+  visible). ✅ Built from the graph `defaultState` (no template existed) — `graphType:
+  'LineGraph'`, `year_record` as `xAxis`+`group`, the metric as `yAxis` (`fn:exempt`),
+  no `year_record` leaf (ignores the Year selector). **Deferred (Graph gaps):** the
+  stepped FHWA target reference series, the COVID/period-boundary annotations, and
+  per-point meets/below colouring.
+- **§03 How targets work (Phase 4)** — `lexical` explainer (2173960). ✅
+- **§04 Regional · by MPO (Phase 5)** — `Spreadsheet` (2173961), GROUP BY `mpo_name`,
+  per-measure reliability + PHED total, year-filtered. ✅ **Deferred:** per-cell
+  verdict dots, `Met X/3` roll-up, MPO/County group-by toggle (no group-by page
+  variable yet).
+- **§05 Urban congestion (Phase 6)** — `Spreadsheet` (2173962), GROUP BY `ua_name`,
+  filtered to the two reporting UZAs (`urban_code IN (63217,71803)`). ✅ **Deferred /
+  blocked:** PHED **per-capita** and **Non-SOV** are not computable from source 2001
+  (no UZA population, no non-SOV column) — shows PHED **total** + reliability instead.
+- **§06 Annual download (Phase 7)** — `Spreadsheet` (2173959) cloned from the working
+  2173042: source 2001/3394, `year_record` `usePageFilters`, `allowDownload`,
+  paginated (20,682 rows for CY 2025). ✅
+
+**Cross-cutting polish still deferred:** band/tint separation per § (all new sections
+appended into the §01 report group — functional, not visually banded); the §01 "3/3
+measures met" header roll-up; the dashed/slate PHED "context" chrome; smaller-unit
+`%`/`hr/yr` superscript; sticky-TOC chrome.
+
+**Process notes learned this phase:**
+- Create sections with `dms section create <page> --pattern npmrds_sub --element-type
+  <T> --data <data>` — **without `--pattern` the CLI defaults to the wrong pattern**
+  (`freightatlas2`), producing a mis-typed section.
+- `dms section delete` leaves a **dangling `draft_sections` ref** on the page — prune
+  it (page raw update) or the page render breaks.
+- **Build data-bound sections by cloning a working section** of the same element-type
+  (Spreadsheet ← 2173042; calc-column shapes ← a KPI card) — hand-built column objects
+  miss fields `createRequest` needs.
+- **The auth token expires (~6h)** and the loop silently fails (login redirect); refresh
+  `scratchpad/<env>/auth.json` with a new `userToken`. The Spreadsheet/Graph `fn`
+  ("exempt") labels seen in shots are **edit-mode chrome**, not real columns.
+- Fixed a real bug surfaced by the new column types: the Card spread the column's data
+  `key` field into the cell `Comp`, which React read as its own `key` → warning. Now
+  stripped before the spread (`Card.jsx` CompWrapper).
 
 ## Phase 3 — §02 Reliability over time (trends)
 
@@ -291,11 +390,20 @@ the mockup need those enrichments.
 ## Cross-cutting: primitive-gap ledger (keep updated as phases run)
 
 Single place to track DMS primitive work surfaced by this build (move each to its
-own `patterns/page` task when it's ready to implement):
+own `patterns/page` task when it's ready to implement).
 
-- [ ] Status-pill column type / formatFn (Phase 2)
-- [ ] Target-bar column type (Phase 2)
-- [ ] Signed/arrow delta formatFn or delta column type (Phase 2)
+> **Procedure for closing these:** use
+> [`transcribing-a-design-card-to-dms.md`](../../skills/transcribing-a-design-card-to-dms.md)
+> — inventory the mockup atoms, map each via the decision ladder (the status-pill /
+> target-bar / delta items below are all rung-3 "look depends on the value" →
+> column types), build authorable atoms first, then verify with the Playwright
+> helper `scripts/card-shot.mjs` (mockup `[data-dms-section="kpi-interstate"]` vs
+> live section 2173919). Playwright is a one-time `npm i -D playwright && npx
+> playwright install chromium`.
+
+- [x] Status-pill column type (Phase 2) — built-in `status_pill` + themeable `UI.Pill`.
+- [x] Target-bar column type (Phase 2) — built-in `target_bar` (range-scaled + marker).
+- [x] Signed/arrow delta column type (Phase 2) — built-in `delta` + `percent` formatFn.
 - [ ] Graph: stepped target reference series + annotations + per-point colour (Phase 3)
 - [ ] `Met X/N` verdict roll-up (formula or helper) (Phase 5)
 - [ ] Sortable matrix columns on Card/Spreadsheet (Phase 5)
@@ -303,6 +411,9 @@ own `patterns/page` task when it's ready to implement):
 - [ ] UZA population join for PHED per-capita (Phase 6)
 - [ ] Multi-key (2-col) DAMA join verification (Phase 6)
 - [ ] Sticky-TOC page chrome — theme/layout feature vs section (Phase 1)
+- [x] **Author-selectable whole-filter "Filter style"** (named `filters` theme styles
+      + `display.filterStyle` toolbar control + `controlStyle` passthrough to the
+      value multiselect) — shipped in Phase 1; see Phase 1 note. (Phase 1)
 
 ## Testing checklist
 

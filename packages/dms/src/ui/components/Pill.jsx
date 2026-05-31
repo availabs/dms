@@ -1,17 +1,23 @@
 import React from 'react'
+import { ThemeContext, getComponentTheme } from '../useTheme'
+import { pillTheme } from './Pill.theme'
 
-export default function Pill ({color, text, ...rest}) {
-    const colors = {
-        orange: `bg-orange-500/15 text-orange-700 hover:bg-orange-500/25`,
-        blue: `bg-blue-500/15 text-blue-700 hover:bg-blue-500/25`,
-        green: `bg-green-500/15 text-green-700 hover:bg-green-500/25`,
-        gray: `text-gray-400`
-    };
+// Themed pill. The visual treatment is a NAMED style in theme.pill.styles, selected
+// by `activeStyle` — or, for back-compat, by the legacy `color` prop (color names
+// double as style names: 'blue' | 'green' | 'orange' | 'red' | 'gray', plus brand
+// variants like 'status_good' | 'status_bad' | 'status_warn' | 'status_na'). The
+// entire look — including a leading status dot via `::before` on the status variants —
+// lives in the style's `wrapper` class, so a site theme re-skins every pill at once.
+export default function Pill ({ color, activeStyle, text, onClick, ...rest }) {
+    const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
+    const t = { ...pillTheme.styles[0], ...getComponentTheme(themeFromContext, 'pill', activeStyle ?? color) };
     return (
-        <div className="relative inline-flex rounded-md focus:outline-none hover:cursor-pointer" {...rest}>
-            <span className={
-                `inline-flex items-center gap-x-1.5 rounded-md px-1.5 py-0.5 text-sm/5 font-regular sm:text-xs/5 forced-colors:outline ${colors[color]}`}>
-                {text}</span>
-        </div>
+        <span
+            className={`${t.wrapper}${onClick ? ' cursor-pointer' : ''}`}
+            onClick={onClick}
+            {...rest}
+        >
+            {text}
+        </span>
     )
 }

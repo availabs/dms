@@ -206,6 +206,11 @@ to `options/styles` shape** — that's a codebase change, not a
 theme decision. Mention it in the brand README if you want it on
 the roadmap.
 
+**The one documented exception is `filters`** — its consuming
+components were enriched to handle both shapes *and* to expose the
+named styles as an author dropdown, so promoting it is a supported
+theme decision. See [§3.1.7](#317-filters--author-selectable-whole-filter-designs-a-flat-theme-you-should-promote).
+
 ### 1.3 How a component reads its theme (so you know what merging
 does)
 
@@ -1169,6 +1174,90 @@ dropdown gains `textSMNum`, `textBaseNum`, `text2XLNum` as
 selectable options — authors can pick them per column without
 touching code.
 
+### 3.1.7 `filters` — author-selectable whole-filter designs (a flat theme you SHOULD promote)
+
+`theme.filters` styles the **Filter section** and the external
+(viewer-facing) filter controls a `dataWrapper` section renders — the
+page-variable selectors (e.g. a Year picker) that drive the rest of a
+page. Source of truth:
+`patterns/page/.../filters/RenderFilters.theme.js`. The codebase
+default is **flat** (a single `{ key: classString }` map).
+
+**This is the one flat theme you should promote to `options/styles`**
+— and it's an exception to the §1.2 "don't unilaterally promote a flat
+theme" rule, because the consuming components were enriched to support
+it. When you ship `theme.filters` as a named-styles block, a site
+author can pick a **whole filter DESIGN** from the Filter section's
+toolbar — not just recolour the inner select. Each named style bundles
+the wrapper, label, condition-row, `placement` (`stacked` | `inline`),
+**and** a `controlStyle` that names which `multiselect` style the value
+control renders with. Worked example:
+[`src/themes/transportny/themev2.js`](../../../themes/transportny/themev2.js)
+ships `panel` / `chip` / `labeled` / `tone_bar`.
+
+```js
+// theme.filters — promoted to options/styles
+filters: {
+  options: { activeStyle: 0 },
+  styles: [
+    { // styles[0] = the complete default; later styles inherit its keys
+      name: "panel", placement: "stacked",
+      controlStyle: "default",                 // ← a theme.multiselect style name
+      filterLabel: "uppercase text-[11px] …",
+      labelWrapperStacked: "w-full …", conditionRowStacked: "flex flex-col gap-1",
+      filterSettingsWrapperStacked: "w-full", conditionsGrid: "grid",
+      filtersWrapper: "w-full p-3 flex flex-col gap-2 rounded-[6px] bg-slate-50/60",
+      input: "w-full … border rounded-[6px] bg-white p-2",
+      settingPillsWrapper: "…", settingPill: "…", settingLabel: "…",
+      toggleButton: "hidden", toggleIcon: "hidden",   // hide the round Filter pill
+    },
+    { name: "chip", placement: "inline",
+      controlStyle: "filter_chip",             // a borderless multiselect style
+      // label sits INSIDE a bordered chip; control is borderless
+      conditionRowInline: "inline-flex items-center gap-1.5 h-8 pl-2.5 pr-1.5 rounded-[6px] border bg-white w-fit",
+      labelWrapperInline: "shrink-0 inline-flex items-center gap-1",
+      filtersWrapper: "w-full flex flex-wrap items-start gap-2" },
+    // … labeled, tone_bar (sparse — inherit the rest from styles[0])
+  ],
+},
+```
+
+**How it wires up (so you know which keys are load-bearing):**
+
+- **The author control is auto-generated.** `FilterComponent.config.js`'s
+  toolbar **"Filter style"** select is populated from
+  `theme.filters.styles[].name` — exactly like the `/Button` dialog
+  reads `theme.button.styles[].name`. The author's pick is stored on the
+  section as `display.filterStyle`; a separate "Placement (override)"
+  (`display.placement`) wins over the style's own `placement`.
+- **The design is resolved with `getComponentTheme`.** Both
+  `ExternalFilters.jsx` (the viewer-visible control) and
+  `RenderFilters.jsx` (edit/internal) call
+  `getComponentTheme(theme, 'filters', display.filterStyle)` — so named
+  styles, index/name resolution, and styles[0] inheritance all work the
+  standard way. A brand that leaves `filters` flat still renders fine
+  (getComponentTheme returns the flat block as-is).
+- **`controlStyle` is the bridge to the value control.** It must name a
+  real `theme.multiselect.styles[].name`. The filter passes it down as
+  the multiselect's `activeStyle`, so the inner select adopts the
+  matching look (e.g. a borderless `filter_chip` inside a chip wrapper).
+  This is why you usually ship a paired `multiselect` style alongside
+  each filter style.
+- **No className passthroughs.** The whole point is that the *design*
+  is named and theme-resolved — don't widen the Filter/MultiSelect API
+  with a `className` prop to achieve a look. Add a named style instead
+  (see the author-empowerment rule in `themes/CLAUDE.md`).
+
+**Key set for `filters.styles[0]` (the complete default):**
+`placement`, `controlStyle`, `filterLabel`, `loadingText`,
+`filterSettingsWrapperInline`, `filterSettingsWrapperStacked`,
+`labelWrapperInline`, `labelWrapperStacked`, `conditionRowInline`,
+`conditionRowStacked`, `conditionsGrid`, `input`,
+`settingPillsWrapper`, `settingPill`, `settingLabel`, `filtersWrapper`,
+`toggleButton`, `toggleIcon` (set the last two to `"hidden"` to suppress
+the round Filter toggle pill, or set the section's
+`display.hideExternalToggle: true`).
+
 ### 3.2 The lookup table
 
 | Primitive | Top-level key in theme | Theme shape | Source of truth |
@@ -1183,6 +1272,7 @@ touching code.
 | Button | `button` | options/styles | `src/dms/packages/dms/src/ui/components/Button.theme.jsx` |
 | Input | `input` | flat | `src/dms/packages/dms/src/ui/components/Input.theme.js` |
 | MultiSelect | `multiselect` | options/styles | `src/dms/packages/dms/src/ui/components/MultiSelect.theme.js` |
+| Filter (data-wrapper / external filters) | `filters` | flat by default — **promote to options/styles** (see §3.1.7) | `src/dms/packages/dms/src/patterns/page/components/sections/components/dataWrapper/components/filters/RenderFilters.theme.js` |
 | Tabs | `tabs` | options/styles | `src/dms/packages/dms/src/ui/components/Tabs.theme.jsx` |
 | Switch | `switch` | options/styles | `src/dms/packages/dms/src/ui/components/Switch.theme.js` |
 | FieldSet | `field` | flat | `src/dms/packages/dms/src/ui/components/FieldSet.theme.js` |

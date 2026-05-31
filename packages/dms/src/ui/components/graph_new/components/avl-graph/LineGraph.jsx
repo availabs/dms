@@ -2,9 +2,30 @@ import React from "react"
 
 import { scalePoint, scaleLinear } from "d3-scale"
 import { select as d3select } from "d3-selection"
-import { line as d3line, curveCatmullRom } from "d3-shape"
+import {
+  line as d3line,
+  area as d3area,
+  curveCatmullRom,
+  curveLinear,
+  curveStepAfter,
+  curveMonotoneX,
+  curveBasis
+} from "d3-shape"
 import { range as d3range } from "d3-array"
 import { format as d3format } from "d3-format"
+
+// Per-series interpolation: map an author-set string to a d3 curve factory.
+// `step` uses curveStepAfter so a value holds until the next x (the FHWA target
+// reference line is a `step` series joined onto the data). Default catmullrom
+// preserves the historical look (BC).
+const CURVES = {
+  linear: curveLinear,
+  step: curveStepAfter,
+  monotone: curveMonotoneX,
+  basis: curveBasis,
+  catmullrom: curveCatmullRom
+};
+const getCurve = interpolation => CURVES[interpolation] || curveCatmullRom;
 
 
 import get from "lodash/get"
@@ -186,7 +207,10 @@ export const LineGraph = props => {
     strokeWidth = 1,
     shouldComponentUpdate = null,
     showAnimations = false,
-    colors
+    colors,
+    interpolation = "catmullrom",
+    area = false,
+    areaOpacity = 0.15
   } = props;
 
   const HoverCompData = React.useMemo(() => {
@@ -338,14 +362,25 @@ export const LineGraph = props => {
       .domain(secDomain)
       .range([adjustedHeight, 0]);
 
-		const lineGenerator = d3line()
-      .curve(curveCatmullRom)
+    // Generators are built per-series so each line can carry its own
+    // `interpolation` (the series default falls back to the chart-level
+    // `interpolation` prop, then `catmullrom`). `area` opt-in renders a filled
+    // band under the line.
+    const makeLineGenerator = interp => d3line()
+      .curve(getCurve(interp))
 			.x(d => XScale(d.x))
 			.y(d => YScale(d.y))
       .defined(d => !strictNaN(d.x));
 
+    const makeAreaGenerator = interp => d3area()
+      .curve(getCurve(interp))
+      .x(d => XScale(d.x))
+      .y0(adjustedHeight)
+      .y1(d => YScale(d.y))
+      .defined(d => !strictNaN(d.x));
+
     const secGenerator = d3line()
-      .curve(curveCatmullRom)
+      .curve(getCurve(interpolation))
 			.x(d => XScale(d.x))
 			.y(d => SecScale(d.y))
       .defined(d => !strictNaN(d.x));
@@ -382,7 +417,8 @@ export const LineGraph = props => {
       const { data, ...rest } = d;
       // delete exiting[d[indexBy]];
 
-      const color = colorFunc(d, i);
+      // A per-series `color` (e.g. an amber target line) overrides the palette.
+      const color = rest.color || colorFunc(d, i);
 
       lineTotals[id] = 0;
 
@@ -397,8 +433,14 @@ export const LineGraph = props => {
         }
       })
 
+      const seriesInterp = rest.interpolation || interpolation;
+      const seriesArea = "area" in rest ? rest.area : area;
+
       const line = {
-        line: lineGenerator(data),
+        line: makeLineGenerator(seriesInterp)(data),
+        area: seriesArea ? makeAreaGenerator(seriesInterp)(data) : null,
+        areaOpacity,
+        dashArray: rest.dashArray || null,
         baseLine,
         color,
         state: PREVIOUS_LINE_DATA.current.delete(id) ? "updating" : "entering",
@@ -512,7 +554,8 @@ export const LineGraph = props => {
       sliceData, secSliceData, lineTotals, hasData, lineData
     });
   }, [data, width, height, Margin, colorFunc, showAnimations,
-      padding, indexBy, secondary, axisLeft
+      padding, indexBy, secondary, axisLeft,
+      interpolation, area, areaOpacity
   ]);
 
   const {
@@ -629,16 +672,19 @@ export const LineGraph = props => {
 }
 export default LineGraph;
 
-const Line = React.memo(({ line, baseLine, state, color, strokeWidth = 1, secondary = false, showAnimations }) => {
+const Line = React.memo(({ line, area = null, areaOpacity = 0.15, dashArray = null, baseLine, state, color, strokeWidth = 1, secondary = false, showAnimations }) => {
 
   const ref = React.useRef();
+
+  // Per-series dash wins; secondary (right-axis) series keep the legacy "8 4".
+  const dash = dashArray || (secondary ? "8 4" : null);
 
   React.useEffect(() => {
     if (state === "entering") {
       const selection = d3select(ref.current)
         .attr("d", baseLine)
         .attr("stroke", color)
-        .attr("stroke-dasharray", secondary ? "8 4" : null)
+        .attr("stroke-dasharray", dash)
         .attr("stroke-width", strokeWidth);
       if (showAnimations) {
         selection.transition().duration(1000)
@@ -663,20 +709,25 @@ const Line = React.memo(({ line, baseLine, state, color, strokeWidth = 1, second
       if (showAnimations) {
         selection.transition().duration(1000)
           .attr("stroke", color)
+          .attr("stroke-dasharray", dash)
           .attr("stroke-width", strokeWidth)
           .attr("d", line);
       }
       else {
         selection
           .attr("stroke", color)
+          .attr("stroke-dasharray", dash)
           .attr("stroke-width", strokeWidth)
           .attr("d", line);
       }
     }
-  }, [ref, state, line, baseLine, color, secondary, showAnimations]);
+  }, [ref, state, line, baseLine, color, dash, secondary, showAnimations]);
 
   return (
     <g>
+      { !area ? null :
+        <path d={ area } fill={ color } fillOpacity={ areaOpacity } stroke="none"/>
+      }
       <path ref={ ref } fill="none" strokeWidth="4"/>
     </g>
   )

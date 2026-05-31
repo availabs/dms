@@ -6,7 +6,7 @@ export const dataCardTheme = {
         {
             name: 'default',
 
-            header: 'w-full capitalize',
+            header: 'w-full',
             value: 'w-full',
             valueWrapper: 'min-h-[20px]',
             description: 'w-full text-xs font-light',

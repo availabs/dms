@@ -20,6 +20,7 @@ If you're new to DMS and want to design or theme a brand, read in this order —
 ### Building components
 
 - [Creating a page-section component](./creating-page-section-components.md) — when you need a new section type (Card, Spreadsheet, Header, etc. are page-section components). Walks through the file split (`Foo.jsx` + `Foo.config.{js,jsx}` + `Foo.theme.js`), the registry entry shape, the EditComp/ViewComp contract, theme wiring, and Fast-Refresh rules.
+- [Transcribing a design card into a DMS card](./transcribing-a-design-card-to-dms.md) — the disciplined loop for matching a live `Card` to a single design mockup: (1) inventory the mockup into atoms, (2) map each atom with the **decision ladder** (static text → `valueFontStyle`; numeric → `formatFn`; **look depends on the value → a small column type**; arrangement → Card `display`; only a layout the grid can't express → a new section), (3) build authorable atoms first then ledger primitives, (4) **verify with Playwright** — includes a from-zero Playwright primer and the `scripts/card-shot.mjs` mockup-vs-live screenshot helper. Has the crisp column-type-vs-extend-the-component test.
 
 ### Theming
 
@@ -29,6 +30,8 @@ If you're new to DMS and want to design or theme a brand, read in this order —
 ### Layout reference
 
 - [Card section layout](./card-layout.md) — every layout knob on the `Card` section: the two grids (cards-grid + cells-grid), `cellSpan`/`cellRowSpan`, image/link/format cells, `cardHints` (`fullBleed`, `spanFullColumns`), the `row` prop available to composite column types, and recipes for stat strips / 3-up record cards / composite "owns its own layout" cells. Read before configuring any non-trivial card.
+
+- [Authoring graphs (avlGraph / graph2)](./authoring-graphs.md) — building/styling chart sections: the `avlGraph` data model (`target: xAxis|yAxis|categorize`, multi-series), the **theme-vs-settings** split (`theme.avlGraph.chartDefaults` brand defaults merged under per-section `display`), and the recurring patterns — a **target/reference line is just a second `yAxis` series with `step` interpolation from a joined target column** (not a bespoke feature), and the **header + hero-stat** card above a chart. Notes the open avlGraph calc-column binding gotcha + the planned theme-token/interpolation work.
 
 ### Authoring at the pattern level
 
