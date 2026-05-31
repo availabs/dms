@@ -125,6 +125,12 @@ export const GraphComponent = props => {
           show: get(graphFormat, ["yAxis", "show"], true),
           format: getFormatFunc(get(graphFormat, ["yAxis", "format"]), get(graphFormat, ["yAxis", "isDollars"]))
         } }
+        pieAxis={ {
+          showAxis: get(graphFormat, ["pieAxis", "showAxis"], false),
+          showValue: get(graphFormat, ["pieAxis", "showValue"], false),
+          valueTextSize: get(graphFormat, ["pieAxis", "valueTextSize"], false),
+          valueFormat: getFormatFunc(get(graphFormat, ["pieAxis", "valueFormat"]), get(graphFormat, ["pieAxis", "isDollars"], false)),
+        } }
         margin={ margin }
         legend={ get(graphFormat, "legend", {}) }
         hoverComp={ hoverComp }/>

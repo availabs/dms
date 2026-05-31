@@ -20,7 +20,8 @@ import {
   getColorFunc,
   Identity,
   EmptyArray,
-  EmptyObject
+  EmptyObject,
+  getUniqueId
 } from "./utils"
 
 const DefaultHoverComp = ({ data, keys, indexFormat, keyFormat, valueFormat, valueLabel, showTotals, ...rest }) => {
@@ -161,6 +162,7 @@ export const PieGraph = props => {
     keys = EmptyArray,
     margin = EmptyObject,
     hoverComp = EmptyObject,
+    pieAxis = EmptyObject,
     indexBy = "index",
     className ="",
     startAngle = 0,
@@ -231,6 +233,7 @@ export const PieGraph = props => {
           colorMap,
           color,
           value,
+          formattedValue: pieAxis.valueFormat(value),
           key,
           index
         }
@@ -293,7 +296,7 @@ export const PieGraph = props => {
     });
 
   }, [
-    data, keys, width, height, colors,
+    data, keys, width, height, colors, pieAxis.valueFormat,
     Margin, indexBy, startAngle, endAngle, padAngle
   ]);
 
@@ -316,8 +319,6 @@ export const PieGraph = props => {
     ...hoverCompRest
   } = HoverCompData;
 
-// console.log("PieGraph::pieData", state.pieData)
-
   return (
     <div ref={ ref } className="w-full h-full avl-graph-container relative">
 
@@ -331,7 +332,10 @@ export const PieGraph = props => {
               .map((pie, i) => (
                 <Pie key={ pie.index } { ...pie }
                   onMouseMove={ onMouseMove }
-                  showAnimations={ showAnimations }/>
+                  showAnimations={ showAnimations }
+                  showAxis={ pieAxis.showAxis }
+                  showValue={ pieAxis.showValue }
+                  valueTextSize={ pieAxis.valueTextSize }/>
               ))
           }
 
@@ -354,8 +358,17 @@ export const PieGraph = props => {
   )
 }
 
-const Slice = React.memo(({ state, data, innerRadius, outerRadius, index, onMouseMove, showAnimations,
-                            endAngle, startAngle, padAngle }) => {
+const ValueTextSizeMap = {
+  xsmall: 0.1,
+  small: 0.2,
+  medium: 0.3,
+  large: 0.4,
+  xlarge: 0.5
+}
+
+const Slice = React.memo(({ state, data, innerRadius, outerRadius, index,
+                            onMouseMove, showAnimations, valueTextSize,
+                            endAngle, startAngle, padAngle, ...props }) => {
 
   const transitionWrapper = React.useMemo(() => {
     return showAnimations ?
@@ -419,13 +432,176 @@ const Slice = React.memo(({ state, data, innerRadius, outerRadius, index, onMous
     onMouseMove(e, { ...data });
   }, [onMouseMove, data]);
 
+  const { showValue, ...valueData } = React.useMemo(() => {
+    if (!props.showValue) return { showValue: false };
+    if ((endAngle - startAngle) < Math.PI * (3.0 / 5.0)) return { showValue: false };
+
+    const radius = innerRadius + (outerRadius - innerRadius) * 0.625;
+
+    const halfAngle = startAngle + (endAngle - startAngle) * 0.5;
+
+    const a0 = startAngle + Math.PI / 180;
+    const x0 = radius * Math.cos(a0 - Math.PI * 0.5);
+    const y0 = radius * Math.sin(a0 - Math.PI * 0.5);
+
+    const a1 = endAngle - Math.PI / 180;
+    const x1 = radius * Math.cos(a1 - Math.PI * 0.5);
+    const y1 = radius * Math.sin(a1 - Math.PI * 0.5);
+
+    const orientation = halfAngle > Math.PI * 0.5 && halfAngle < Math.PI * 1.5 ? "counter" : "clockwise";
+
+    const laf = endAngle - startAngle >= Math.PI ? 1 : 0;
+    const sf = orientation === "counter" ? 0 : 1;
+
+    const x2 = orientation === "counter" ? x1 : x0;
+    const y2 = orientation === "counter" ? y1 : y0;
+
+    const x3 = orientation === "counter" ? x0 : x1;
+    const y3 = orientation === "counter" ? y0 : y1;
+
+    const d = `M ${ x2 } ${ y2 } A ${ radius } ${ radius } 0 ${ laf } ${ sf } ${ x3 } ${ y3 }`;
+
+    return {
+      showValue: true,
+      id: getUniqueTextPathId(),
+      d,
+      value: data.formattedValue,
+      dominantBaseline: sf === 1 ? "ideographic" : "hanging",
+      fontSize: radius * (ValueTextSizeMap[valueTextSize] || ValueTextSizeMap["medium"])
+    }  
+  }, [startAngle, endAngle, innerRadius, outerRadius, data, props.showValue, valueTextSize]);
+
   return (
-    <path ref={ ref } className="avl-slice" stroke="none"
-      onMouseMove={ _onMouseMove }/>
+    <>
+      <path ref={ ref } className="avl-slice" stroke="none"
+        onMouseMove={ _onMouseMove }/>
+
+      { !showValue ? null :
+        <>
+          <defs>
+            <path id={ valueData.id }
+              d={ valueData.d }
+              fill="none" stroke="transparent"/>
+          </defs>
+
+          <text>
+            <textPath href={ `#${ valueData.id }` }
+              startOffset="50%"
+              textAnchor="middle"
+              dominantBaseline={ valueData.dominantBaseline }
+              className="pointer-events-none"
+              fontSize={ valueData.fontSize }
+            >
+              { valueData.value }
+            </textPath>
+          </text>
+        </>
+      }
+    </>
   )
 })
 
-const Pie = React.memo(({ pie, dx, dy, ldy, state, label, showAnimations, ...props }) => {
+const getUniqueTextPathId = () => getUniqueId(`text-path-`);
+
+const CircleAxis = ({ pie, outerRadius }) => {
+
+  const axisTicks = React.useMemo(() => {
+
+    const density = 200;
+
+    let dist = density;
+    let curAngle = 0;
+
+    return pie.sort((a, b) => a.index - b.index)
+      .reduce((a, p) => {
+        const radius = outerRadius + 6;
+
+        const halfAngle = p.startAngle + (p.endAngle - p.startAngle) * 0.5;
+
+        dist += 2 * (halfAngle - curAngle) * radius;
+
+        curAngle = halfAngle;
+
+        if (dist < density) return a;
+
+        dist = 0;
+
+        const a0 = halfAngle + Math.PI - Math.PI / 180;
+        const x0 = radius * Math.cos(a0 - Math.PI * 0.5);
+        const y0 = radius * Math.sin(a0 - Math.PI * 0.5);
+
+        const a1 = halfAngle + Math.PI + Math.PI / 180;
+        const x1 = radius * Math.cos(a1 - Math.PI * 0.5);
+        const y1 = radius * Math.sin(a1 - Math.PI * 0.5);
+
+        const orientation = halfAngle > Math.PI * 0.5 && halfAngle < Math.PI * 1.5 ? "counter" : "clockwise";
+
+        const sf = orientation === "clockwise" ? 1 : 0;
+
+        const x2 = orientation === "clockwise" ? x1 : x0;
+        const y2 = orientation === "clockwise" ? y1 : y0;
+
+        const x3 = orientation === "clockwise" ? x0 : x1;
+        const y3 = orientation === "clockwise" ? y0 : y1;
+
+        a.push({
+          label: p.data.key,
+          id: getUniqueTextPathId(),
+          d: `M ${ x2 } ${ y2 } A ${ radius } ${ radius } 0 1 ${ sf } ${ x3 } ${ y3 }`,
+          rotate: halfAngle  * 180 / Math.PI,
+          dominantBaseline: sf === 1 ? "ideographic" : "hanging"
+        })
+
+        return a;
+      }, []);
+  }, [pie, outerRadius]);
+
+  return (
+    <g>
+      <circle
+        r={ outerRadius + Math.max(1.0, Math.min(2, Math.floor(outerRadius * 0.05))) * 0.5 }
+        fill="none"
+        stroke="black"
+        strokeWidth={ Math.max(1.0, Math.min(2, Math.floor(outerRadius * 0.05))) }/>
+
+
+      { axisTicks.map((t, i) => {
+
+          const { d, id, label, rotate, dominantBaseline } = t;
+
+          return (
+            <React.Fragment key={ label }>
+              <defs>
+                <path id={ id }
+                  d={ d }
+                  fill="none" stroke="transparent"/>
+              </defs>
+
+              <text>
+                <textPath href={ `#${ id }` }
+                  startOffset="50%"
+                  textAnchor="middle"
+                  dominantBaseline={ dominantBaseline }
+                  className="pointer-events-none"
+                >
+                  { label }
+                </textPath>
+              </text>
+              <path
+                d={ `M 0 -${ outerRadius } V -${ outerRadius + 6 }` }
+                fill="none"
+                stroke="black"
+                strokeWidth="1"
+                transform={ `rotate(${ rotate }, 0, 0)`}/>
+            </React.Fragment>
+          )
+        })
+      }
+    </g>
+  )
+}
+
+const Pie = React.memo(({ pie, dx, dy, ldy, state, label, showAnimations, showAxis, ...props }) => {
 
   const ref = React.useRef();
 
@@ -454,7 +630,7 @@ const Pie = React.memo(({ pie, dx, dy, ldy, state, label, showAnimations, ...pro
         .style("transform", `translate(${ dx }px, ${ dy }px)`)
         .style("opacity", 1);
     }
-  }, [ref, dx, dy, state, transitionWrapper]);
+  }, [ref.current, dx, dy, state, transitionWrapper]);
 
   const labelRef = React.useRef();
 
@@ -472,10 +648,19 @@ const Pie = React.memo(({ pie, dx, dy, ldy, state, label, showAnimations, ...pro
             showAnimations={ showAnimations }/>
         ))
       }
+
+      { !showAxis ? null :
+        <CircleAxis { ...props }
+          pie={ pie }/>
+      }
+
       <g ref={ labelRef }>
         <text textAnchor="middle"
           dominantBaseline="hanging"
-          className="avl-pie-label">{ label }</text>
+          className="avl-pie-label pointer-events-none"
+        >
+          { label }
+        </text>
       </g>
     </g>
   )

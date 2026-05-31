@@ -21,7 +21,8 @@ import {
   getColorFunc,
   Identity,
   EmptyArray,
-  EmptyObject
+  EmptyObject,
+  getUniqueId
 } from "./utils"
 
 const DefaultHoverComp = ({ data: node, indexFormat, keyFormat, valueFormat }) => {
@@ -277,8 +278,7 @@ export const SunburstGraph = props => {
   )
 }
 
-let id = 0;
-const getUniqueTextPathId = () => `text-path-${ id++ }`;
+const getUniqueTextPathId = () => getUniqueId(`text-path-`);
 
 const labelTransform = node => {
   const x = (node.x0 + node.x1) / 2 * 180 / Math.PI;
@@ -382,7 +382,7 @@ const Slice = React.memo(({ node, colorFunc, isRoot, ...props }) => {
 	    			<text
 			    		textAnchor="middle"
 			        dominantBaseline="ideographic"
-		    			className="pointer-events-none font-medium"
+		    			className="pointer-events-none"
 		          fontSize={ Math.min(width, height) * itSize }
 	    			>
 			    		Total
@@ -402,7 +402,7 @@ const Slice = React.memo(({ node, colorFunc, isRoot, ...props }) => {
 			    		textAnchor="middle"
 			        dominantBaseline="ideographic"
 			    		transform={ labelTransform(node) }
-		    			className="pointer-events-none font-medium"
+		    			className="pointer-events-none"
 		          fontSize={ Math.min(width, height) * itSize * 0.5 }
 	    			>
 			    		{ node.data[0] }
@@ -423,7 +423,7 @@ const Slice = React.memo(({ node, colorFunc, isRoot, ...props }) => {
 			    			startOffset={ startOffset }
 			          dominantBaseline="ideographic"
 			    			textAnchor="middle"
-			    			className="pointer-events-none font-medium"
+			    			className="pointer-events-none"
 		          	fontSize={ Math.min(width, height) * itSize }
 			    		>
 			    			{ node.data[0] || "Total" }

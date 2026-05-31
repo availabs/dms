@@ -23,7 +23,8 @@ import {
   getColorFunc,
   Identity,
   EmptyArray,
-  EmptyObject
+  EmptyObject,
+  getUniqueId
 } from "./utils"
 
 const DefaultHoverComp = ({ data: node, indexFormat, keyFormat, valueFormat }) => {
@@ -309,8 +310,7 @@ const IndexTextSizeMap = {
   xlarge: 0.5
 }
 
-let id = 0;
-const getUniqueClipPathId = () => `clip-path-${ id++ }`;
+const getUniqueClipPathId = () => getUniqueId(`clip-path-`);
 
 const Rect = React.memo(({ node, isRoot, colorFunc, ...props }) => {
 
@@ -379,7 +379,7 @@ const Rect = React.memo(({ node, isRoot, colorFunc, ...props }) => {
           x={ x + width * 0.5 }
           y={ y + height * 0.5 }
           fontSize={ Math.min(width, height) * itSize }
-          className="pointer-events-none font-medium"
+          className="pointer-events-none"
           transform={ `rotate(${ width > height ? "0" : "-90" }, ${ x + width * 0.5 }, ${ y + height * 0.5 })` }
           clipPath={ `url(#${ id })` }
         >
