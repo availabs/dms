@@ -271,6 +271,45 @@ measures met" header roll-up; the dashed/slate PHED "context" chrome; smaller-un
   `key` field into the cell `Comp`, which React read as its own `key` → warning. Now
   stripped before the spread (`Card.jsx` CompWrapper).
 
+## Session 2026-05-31 — §02 trends moved to `avlGraph` + Graph primitive built up ✅
+
+Focused session on the **§02 trend charts** and the underlying **`avlGraph` (`graph_new`)**
+primitive (its own task: [`avlgraph-theme-integration.md`](./avlgraph-theme-integration.md)).
+All three §02 trends (2173963/64/65) were **converted from the legacy `graph` to `avlGraph`**
+and now render the design's **emerald area+line**; the Interstate chart (2173963) carries a
+**dashed amber 75% target reference line**. Verified via the Playwright loop; both repos
+committed + pushed to `master` (`availabs/dms` `5d246c5e`, `availabs/dms-template` `3733274`).
+
+**What shipped (all BC, all author-accessible):**
+- **Calc-series binding fixed** — the blank-line blocker was *two* bugs: (1) the wrapper read
+  `row[yc.name]` but rows are keyed `normalName || name` (now resolved that way, matching
+  `getData.js` / `Card.jsx`); (2) **the actual cause** — a calc column's `fn:"exempt"` hit a
+  `getAggFunc` fallback (`id = x => x`) that returned the *group array* instead of applying the
+  accessor → `NaN` line. `graph_new/components/utils.js` now handles `exempt`/unknown fns by
+  pulling the first non-empty accessed value. Keep the calc column `name` = full SQL.
+- **Theme/section line+axis tokens** threaded through `GraphComponent` → wrapper → d3 renderer:
+  `strokeWidth`, `area`+`areaOpacity` (new filled `<path>`), gridline `gridLineOpacity` +
+  `axisColor`. Brand defaults in `theme.avlGraph.chartDefaults` + transportny `chartDefaults`.
+- **Per-series controls** on a yAxis column: `interpolation` (linear/step/monotone/basis/
+  catmullrom), `area`, `color`, `dashArray` — in `ComponentRegistry/graph_new/config.jsx`.
+- **Reference line = a styled second series** (not a bespoke feature): a second yAxis column
+  (`75.0 as lottr_interstate_target`) with `interpolation:"step"` + amber `color` + `dashArray`.
+
+**Open items carried forward (⚠️ note for next session):**
+- **Target values for the other two trends.** Only the Interstate target (75%, stated in the
+  mockup) is wired. **Non-Interstate NHS LOTTR and Truck TTTR targets aren't in the mockup —
+  confirm the values + source with the user before adding their reference lines; do NOT
+  fabricate regulatory targets.** Capability is ready (add a `<target> as <name>` 2nd yAxis
+  column, step interp, amber dash); for a stepped P1→P2 line use a `CASE WHEN year_record >= …`
+  calc column with `step` interpolation.
+- **Per-chart hero-stat card** (the design's small "CY 2025 · 79.8% · ● meets" header above
+  each trend) — still deferred. The §01 KPI strip already shows the hero stats with
+  `status_pill`s; a per-chart card is a nice-to-have (build as a sibling `Card`, reuse
+  `status_pill`).
+- **Still on the Graph gap list:** point markers + the last-point label badge; the
+  COVID/period-boundary vertical annotations; per-point meets/below colouring; tick font-size
+  token. (Interpolation/area/color/dash + the stepped-target capability are now DONE.)
+
 ## Phase 3 — §02 Reliability over time (trends)
 
 - **Mockup:** 3 line charts (Interstate, Non-Int, TTTR) with a **stepped FHWA
@@ -404,7 +443,12 @@ own `patterns/page` task when it's ready to implement).
 - [x] Status-pill column type (Phase 2) — built-in `status_pill` + themeable `UI.Pill`.
 - [x] Target-bar column type (Phase 2) — built-in `target_bar` (range-scaled + marker).
 - [x] Signed/arrow delta column type (Phase 2) — built-in `delta` + `percent` formatFn.
-- [ ] Graph: stepped target reference series + annotations + per-point colour (Phase 3)
+- [~] Graph (Phase 3, §02 on `avlGraph` — session 2026-05-31): **DONE** — stepped target
+      reference line (as a styled 2nd yAxis series: step interp + color + dash), per-series
+      interpolation/area/color/dash, theme line+axis tokens, calc-series binding +
+      `fn:"exempt"` agg fix. **REMAINING** — point markers + last-point label, COVID/period
+      vertical annotations, per-point meets/below colour; confirm Non-Int/TTTR target values.
+      (See [`avlgraph-theme-integration.md`](./avlgraph-theme-integration.md).)
 - [ ] `Met X/N` verdict roll-up (formula or helper) (Phase 5)
 - [ ] Sortable matrix columns on Card/Spreadsheet (Phase 5)
 - [ ] Group-by page variable (MPO/County toggle) (Phase 5)
