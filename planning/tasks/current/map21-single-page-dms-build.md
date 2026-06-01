@@ -310,6 +310,124 @@ committed + pushed to `master` (`availabs/dms` `5d246c5e`, `availabs/dms-templat
   COVID/period-boundary vertical annotations; per-point meets/below colouring; tick font-size
   token. (Interpolation/area/color/dash + the stepped-target capability are now DONE.)
 
+## Session 2026-05-31 (continuation) — Table theme + graph tick padding + hover label
+
+Three small but high-impact fixes; all changes BC and author-accessible.
+
+**Shipped:**
+- **Spreadsheet/Table theme actually applied.** transportny's `theme.table.styles[0]` was
+  keyed to HTML-element names (`wrapper`/`thead`/`th`/`tr`/`td`) — the Table component
+  renders a CSS-grid of `<div>`s and reads `tableContainer` / `headerCellContainer` /
+  `headerCellContainerBg` / `cell` / `cellInner` / `cellBg…` / `gutterCellWrapper` / etc.,
+  so the brand block was dead. Re-keyed and **restructured into three named styles** to
+  match the design system's source of truth (`dms_design_system_v2/design-system/
+  components.html`):
+  - **`default`** = the components page's "default · dashboard · amber-hover" example:
+    `font-display uppercase text-[11px] tracking-wide text-slate-600` header on
+    `bg-slate-50/80`, `px-3 py-2 text-[13px] text-slate-700` cells, bottom-only
+    `border-b border-zinc-950/05` rows, `hover:bg-[#FFFBEB]`. Rounded white shell.
+  - **`editorial`** = the components page's "editorial · deep-navy header · printable":
+    `bg-[#0F2D4D]` header on a `#F5F1E8` body with all-sides slate-200 hairlines.
+  - **`report`** (new) = the MAP-21 page's tighter treatment: `font-mono text-[10px]
+    uppercase tracking-[0.16em] text-slate-500` header on `bg-slate-50/60`,
+    `px-4 py-2.5 text-[13px] text-slate-700` Proxima body. Inherits the rest from
+    `default`. **This is the brand's current global default** (`options.activeStyle:
+    "report"`) because §04/§05/§06 are the only Spreadsheets on the site today.
+  All three styles share the same admin chrome (popup menu, open-out drawer) via two
+  shared spread-fragments (`tableHeaderChrome` / `tableOpenOutChrome`) so the styles
+  declare only what visually differs.
+- **LineGraph first tick flush to the y-axis.** `avl-graph/LineGraph.jsx` default
+  `padding = 0.5` → `0` on the `scalePoint()` x-axis. The 2016 (or first-year) data point
+  now lands at x=0 with no gap; right edge is symmetric. (Authors who want padding can
+  pass `display.padding` through `chartDefaults` if/when threaded.)
+- **Graph hover shows the column's display name, not the SQL.** A `yAxis` calc column's
+  `name` is the raw SQL expression and the series `id` had to stay the SQL alias for d3
+  binding, so the hover tooltip surfaced the SQL. Now `components/LineGraph.jsx` attaches
+  `displayName: yc.customName || yc.display_name || ycn` to each series and the
+  `DefaultHoverComp` in `avl-graph/LineGraph.jsx` uses `idFormat(rest.displayName || id,
+  rest)` instead of `idFormat(id, rest)`. BC: series `id` (the join key) is unchanged.
+
+**Process notes:**
+- **Theme edits don't hot-reload reliably** (per `transcribing-a-design-card-to-dms.md`).
+  Restart `npm run dev` after editing `themev2.js` or the table will still look like the
+  old library default. Component edits (LineGraph wrapper / DefaultHoverComp) do hot-
+  reload, so the graph fixes show up immediately.
+- The transportny `table` block was structurally broken (wrong keys for ~2 years' worth
+  of work) but never crashed because the Table component reads each key via `theme.foo`
+  and a missing key just falls into the className as the literal string `undefined` —
+  visually broken but functionally inert. **Lesson:** theme keys should be type-checked
+  somewhere (or at least dev-warned) so that an authored block that nothing reads
+  doesn't silently ship.
+
+## Cross-cutting polish (deferred — tracked here)
+
+These are visual deltas the live build doesn't yet match. None block usability; each is
+a polish pass. Listed roughly in order of design impact.
+
+- [ ] **§01 "3/3 measures met" roll-up header.** The mockup shows a small status pill
+      above the four KPI cards summarizing "n/3 measures met this year". Calc:
+      `sum(case when status='Meets' then 1 else 0 end) || '/3 measures met'`. Build as a
+      single `Card` above the §01 row, or as a header cell with a new `status_pill` calc.
+- [x] **PHED "context" card style** — shipped as a new `dataCard` named style.
+      `theme.dataCard.styles[7] = {name: 'context', ...}` with the mockup's `border-
+      dashed border-zinc-950/15 bg-slate-50/60 p-5 flex-col gap-3 h-full` wrapper,
+      `font-display font-medium text-[15px]` header, `font-display font-semibold
+      text-[28px] tabular-nums` value, and `font-proxima text-[12.5px] text-slate-600`
+      description. Also added to `dms_design_system_v2/design-system/components.html`
+      as the 8th dataCard example with the PHED sample data ("UZA measure" slate pill,
+      "Peak-hour excessive delay", "366,000,000 hr/yr", note). To apply on live
+      section 2173922: in edit mode open the PHED card's "More" menu → Card style →
+      `context`. (Still **deferred**: the "Urban congestion below →" link, which is a
+      separate column-level concern — `isLink + location: '#urban-congestion'` on a
+      column rendered with `metaSM` font-style would do it.)
+- [ ] **Smaller-unit superscript on KPI values.** Mockup renders `79.8%` and
+      `374,711,700 hr/yr` with the unit at smaller weight. Likely a new formatFn
+      (`percent_with_unit` / `value_with_unit`) that wraps the unit in `<sup>`-style
+      Tailwind classes, or a column-type cardHint that splits unit from value.
+- [ ] **Band/tint separation per section.** The mockup alternates white surface (§01/§02)
+      and slate-tinted (`bg-[#ECEEF2]`) bands (§03/§04/§05/§06) — the live page renders
+      every section into a single `Report` LayoutGroup with no per-band background. The
+      page pattern currently doesn't expose a "per-section band background" token; the
+      cleanest fix is to introduce a `band` LayoutGroup attribute (theme-driven) and
+      assign each §-row to its band.
+- [ ] **Sticky in-page TOC chrome.** Right-rail `<aside class="sticky top-4 self-start
+      …" data-dms-section="toc">` in the mockup; the page pattern has no first-class
+      anchored section nav yet. Options: (a) theme/layout feature with `pageLayout:
+      'with-toc'`, (b) a new `toc` chrome section type that auto-collects sibling
+      `<section id>`s, (c) a `lexical` section with hand-wired anchor links (cheap, not
+      author-resilient). Decision deferred from Phase 1.
+- [ ] **§04 per-cell verdict dots + `Met X/3` roll-up.** Each measure cell in the MPO
+      matrix should render `<dot> <value>` (emerald/red by meets/below) and the right-
+      most column should count meets. Needs a compact `status_cell` (mini status_pill)
+      column type and a formula referencing sibling calc columns.
+- [ ] **§04 MPO/County group-by toggle.** Today the matrix is MPO-only. A page variable
+      that swaps the GROUP BY column is the right shape — primitive gap on the ledger.
+- [ ] **§05 PHED per-capita + Non-SOV.** Blocked on data: per-capita needs a UZA
+      population join (HPMS/ACS); Non-SOV isn't in source 2001 at all. Coordinate with
+      data team for a populations table, or carry per-capita in upload 6822 directly.
+- [x] **Per-section "Table style" picker on Spreadsheet** — shipped. `spreadsheet/
+      config.jsx`'s `controls` is now a function `(theme) => ({...})` (matches the
+      Card / FilterComponent contract; `sectionMenu.jsx:31-33` already invokes
+      `controls(theme)` if it's a function). New `Table style` select in `more` with
+      options from `buildTableStyleOptions(theme)` — reads `theme.table.styles[].name`
+      and prepends a `(theme default)` empty-value option. `display.tableStyle` is
+      resolved as `display.tableStyle || activeStyle` in `RenderTable` (spreadsheet/
+      index.jsx). Authors now pick `default` / `editorial` / `report` per Spreadsheet.
+- [x] **Per-section "Card style" picker on Card** — shipped. `Card.config.jsx`
+      adds `buildCardStyleOptions(theme)` reading `theme.dataCard.styles[].name`,
+      and a `Card style` select at the top of `more`. The section wrapper
+      `ComponentRegistry/Card.jsx` now destructures `activeStyle` from
+      `ComponentContext` and passes `activeStyle={state.display?.cardStyle ||
+      activeStyle}` down to the UI primitive `Card.jsx` (which reads it at line 836
+      `getComponentTheme(theme,'dataCard',activeStyle)`). Authors pick from the 6
+      transportny dataCard styles (default / kpi / compliance / editorial /
+      title_bar / compact / dashboard) per Card section.
+- [ ] **Audit other multi-style components.** Only Card + Spreadsheet currently have
+      multi-style themes that need pickers. Graph / avlGraph / Lexical / Map each
+      have one style today. If a brand adds a second style to any of those, the
+      same pattern (function-form `controls` + style-select + `display.<x>Style ||
+      activeStyle` thread) is the standard.
+
 ## Phase 3 — §02 Reliability over time (trends)
 
 - **Mockup:** 3 line charts (Interstate, Non-Int, TTTR) with a **stepped FHWA
@@ -458,6 +576,16 @@ own `patterns/page` task when it's ready to implement).
 - [x] **Author-selectable whole-filter "Filter style"** (named `filters` theme styles
       + `display.filterStyle` toolbar control + `controlStyle` passthrough to the
       value multiselect) — shipped in Phase 1; see Phase 1 note. (Phase 1)
+- [x] **transportny `theme.table` re-keyed to the Table component's actual tokens**
+      (`tableContainer` / `headerCellContainer` / `cell` / `cellInner` / `cellBg*` / …)
+      so the brand's MAP-21 mockup design (rounded shell, font-mono uppercase header,
+      bottom-only hairlines, amber hover) actually applies to §04/§05/§06. Was dead
+      code (HTML-element keys nothing reads). (continuation session)
+- [x] **LineGraph x-axis padding default** flipped from `0.5` → `0` so the first tick
+      lands at x=0 (flush against the y-axis). (continuation session)
+- [x] **Graph hover label** prefers `customName || display_name || alias` over the raw
+      column `name`, so a calc column's SQL expression doesn't appear in the popover.
+      (continuation session)
 
 ## Testing checklist
 
