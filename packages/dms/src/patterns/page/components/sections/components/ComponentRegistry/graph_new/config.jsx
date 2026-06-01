@@ -458,7 +458,7 @@ export default {
               label: "Tick Density", key: "pieAxis.tickDensity"
             },
             { type: "toggle",
-              label: "Show Value", key: "pieAxis.showValue"
+              label: "Show Values", key: "pieAxis.showValue"
             },
             { type: "select",
                 label: "Value Text Size", key: "pieAxis.valueTextSize", onClickGoBack: true,

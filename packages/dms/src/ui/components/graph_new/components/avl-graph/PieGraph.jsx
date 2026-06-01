@@ -441,17 +441,18 @@ const Slice = React.memo(({ state, data, innerRadius, outerRadius, index,
 
   const { showValue, showLarge, ...valueData } = React.useMemo(() => {
     if (!props.showValue) return { showValue: false };
-    if ((endAngle - startAngle) < Math.PI * 0.1) return { showValue: false };
+    if ((endAngle - startAngle) < Math.PI * 0.01) return { showValue: false };
 
-    if ((endAngle - startAngle) < Math.PI * 0.5) {
+    if ((endAngle - startAngle) < Math.PI * 0.6) {
 
-      const radius = innerRadius + (outerRadius - innerRadius);
+      const width = 2 * (endAngle - startAngle) * outerRadius * 0.5;
+      const height = outerRadius;
 
       return {
         showValue: true,
         showLarge: false,
         value: data.formattedValue,
-        fontSize: radius * (ValueTextSizeMap[valueTextSize] || ValueTextSizeMap["medium"]) * 0.25
+        fontSize: Math.min(width, height) * (ValueTextSizeMap[valueTextSize] || ValueTextSizeMap["medium"]) * 0.5
       };
     }
 
