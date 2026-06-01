@@ -3,6 +3,8 @@ const falcorJsonGraph = require("falcor-json-graph"),
   $ref = falcorJsonGraph.ref,
   { createController, DATA_ATTRIBUTES } = require("./dms.controller.js"),
   FORMAT_ATTRIUBTES = ["app", "type", "attributes"];
+const { isUserAuthed, resolveAuthPermissions } = require('./auth');
+const { getKind, getParent } = require('#db/type-utils.js');
 
 /*
  Controller Settings
@@ -22,13 +24,54 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
    * When app is provided, uses the app-namespaced path: dms.data[app].byId[id][att]
    * Otherwise uses legacy path: dms.data.byId[id][att]
    */
-  const dataByIdResponse = (rows, ids, atts, app = null) => {
+  // user=undefined → skip auth check (CALL routes returning freshly written rows)
+  // user=null     → unauthenticated GET request
+  // user={...}    → authenticated GET request
+  const dataByIdResponse = async (rows, ids, atts, app = null, user = undefined, subdomain = '') => {
     const response = [];
-    ids.forEach((id) => {
+    for (const id of ids) {
       const row = rows.reduce((a, c) => (c.id == id ? c : a), {});
       const idStr = String(id);
 
-      atts.forEach((att) => {
+      if (user !== undefined && row.type) {
+        const kind = getKind(row.type);
+        let blocked = false;
+
+        if (kind === 'pattern') {
+          // Auth patterns (login page) are always publicly accessible.
+          const pattern_type = row.data?.pattern_type || row?.pattern_type;
+          if (pattern_type !== 'auth') {
+            const authPermissions = resolveAuthPermissions(row.data?.authPermissions || row?.authPermissions, subdomain);
+            blocked = !isUserAuthed({ user, reqPermissions: ['view-page'], authPermissions });
+          }
+        } else if (kind === 'page') {
+          // Merge pattern-level and page-level authPermissions.
+          // Pattern sets the base; page-level entries override per group/user key.
+          // getPatternAuthPermissions returns null for auth patterns (unrestricted).
+          const appForLookup = app || row.app;
+          if (appForLookup) {
+            const patternAuth = await controller.getPatternAuthPermissions(appForLookup, getParent(row.type), subdomain);
+            const pageAuth = resolveAuthPermissions(row.data?.authPermissions || row?.authPermissions, subdomain);
+            const mergedAuth = {
+              groups: { ...(patternAuth?.groups || {}), ...(pageAuth?.groups || {}) },
+              users:  { ...(patternAuth?.users  || {}), ...(pageAuth?.users  || {}) },
+            };
+            blocked = !isUserAuthed({ user, reqPermissions: ['view-page'], authPermissions: mergedAuth });
+          }
+        }
+
+        if (blocked) {
+          for (const att of atts) {
+            const path = app
+              ? ["dms", "data", app, "byId", idStr, att]
+              : ["dms", "data", "byId", idStr, att];
+            response.push({ path, value: null });
+          }
+          continue;
+        }
+      }
+
+      for (const att of atts) {
         let getAtt = att;
         if(getAtt.includes('data ->> ')){
           getAtt = att.split('->>')[1].trim().replace(/[']/g, '')
@@ -43,8 +86,8 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
           path,
           value: att === "data" ? $atom(value) : value,
         });
-      });
-    });
+      }
+    }
     return response;
   };
 
@@ -75,14 +118,27 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
     },
     {
       route: "dms.data[{keys:appKeys}].length",
-      get: function(pathSet) {
+      get: async function(pathSet) {
         const [, , keys] = pathSet;
-        return controller.dataLength(keys).then((rows) => {
-          return keys.map((key) => ({
+        const user = this.user;
+        const subdomain = this.subdomain;
+        const rows = await controller.dataLength(keys);
+        const response = [];
+        for (const key of keys) {
+          const [app, type] = key.split('+');
+          if (getKind(type) === 'page') {
+            const patternAuth = await controller.getPatternAuthPermissions(app, getParent(type), subdomain);
+            if (!isUserAuthed({ user, reqPermissions: ['view-page'], authPermissions: patternAuth || {} })) {
+              response.push({ path: ["dms", "data", key, "length"], value: 0 });
+              continue;
+            }
+          }
+          response.push({
             path: ["dms", "data", key, "length"],
             value: rows.reduce((a, c) => (c.key === key ? c.length : a), 0),
-          }));
-        });
+          });
+        }
+        return response;
       },
     },
     {
@@ -108,86 +164,63 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
     },
     {
       route: "dms.data[{keys:appKeys}].byIndex[{integers:indices}]",
-      get: function(pathSet) {
+      get: async function(pathSet) {
         const [, , keys, , indices] = pathSet;
-        return controller.dataByIndex(keys, indices).then((rows) => {
-          const response = [];
-          keys.forEach((key) => {
-            const [app] = key.split('+');
-            const reduced = rows.reduce(
-              (a, c) => (c.key == key ? c.rows : a),
-              []
-            );
-            indices.forEach((i) => {
-              const id = reduced.reduce((a, c) => (c.i == i ? c.id : a), null);
-              response.push({
-                path: ["dms", "data", key, "byIndex", i],
-                value: id ? $ref(["dms", "data", app, "byId", String(id)]) : null,
+        const user = this.user;
+        const subdomain = this.subdomain;
+        const rows = await controller.dataByIndex(keys, indices);
+        const response = [];
+        for (const key of keys) {
+          const [app, type] = key.split('+');
+          if (getKind(type) === 'page') {
+            const patternAuth = await controller.getPatternAuthPermissions(app, getParent(type), subdomain);
+            if (!isUserAuthed({ user, reqPermissions: ['view-page'], authPermissions: patternAuth || {} })) {
+              indices.forEach((i) => {
+                response.push({ path: ["dms", "data", key, "byIndex", i], value: null });
               });
+              continue;
+            }
+          }
+          const reduced = rows.reduce((a, c) => (c.key == key ? c.rows : a), []);
+          indices.forEach((i) => {
+            const id = reduced.reduce((a, c) => (c.i == i ? c.id : a), null);
+            response.push({
+              path: ["dms", "data", key, "byIndex", i],
+              value: id ? $ref(["dms", "data", app, "byId", String(id)]) : null,
             });
           });
-          return response;
-        });
+        }
+        return response;
       },
     },
     {
       route: "dms.data[{keys:appKeys}].options[{keys:options}].length",
       get: async function(pathSet) {
         const [, , keys, , options] = pathSet;
+        const user = this.user;
+        const subdomain = this.subdomain;
         const response = [];
 
-        for(const option of options){
+        for (const option of options) {
           const rows = await controller.filteredDataLength(keys, option);
-          keys.forEach(key => {
+          for (const key of keys) {
+            const [app, type] = key.split('+');
+            if (getKind(type) === 'page') {
+              const patternAuth = await controller.getPatternAuthPermissions(app, getParent(type), subdomain);
+              if (!isUserAuthed({ user, reqPermissions: ['view-page'], authPermissions: patternAuth || {} })) {
+                response.push({ path: ["dms", "data", key, "options", option, "length"], value: 0 });
+                continue;
+              }
+            }
             const reduced = rows.reduce((a, c) => (c.key === key ? c.length : a), 0);
             response.push({
               path: ["dms", "data", key, "options", option, "length"],
               value: reduced || 0,
-            })
-          })
-
+            });
+          }
         }
 
         return response;
-      },
-    },
-    {
-      route: "dms.data[{keys:appKeys}].options[{keys:options}].byIndex[{integers:indices}][{keys:attributes}]",
-      get: async function(pathSet) {
-        try{
-          const [, , keys, , options, , indices, attributes] = pathSet;
-          const response = [];
-
-          for(const option of options){
-            const rows = await controller.filteredDataByIndex(keys, indices, option, attributes)
-
-            keys.forEach((key) => {
-              const reduced = rows.reduce(
-                  (a, c) => (c.key == key ? c.rows : a),
-                  []
-              );
-              indices.forEach((i) => {
-                const row = reduced.find(c => c.i == i);
-                attributes.forEach(attribute => {
-                  const modifiedName =
-                      attribute.includes(' as ') ? attribute.split(' as ')[1]?.trim() :
-                          attribute.includes(' AS ') ? attribute.split(' AS ')[1]?.trim() :
-                              attribute;
-                  response.push({
-                    path: ["dms", "data", key, 'options', option, "byIndex", i, attribute],
-                    value: typeof row?.[modifiedName] === 'object' ? $atom(row?.[modifiedName]) : row?.[modifiedName]
-                  });
-                })
-              });
-            });
-          }
-
-          return response;
-        } catch (err) {
-          console.error(err);
-          throw err;
-        }
-
       },
     },
     {
@@ -195,25 +228,33 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
       get: async function(pathSet) {
         try{
           const [, , keys, , options, , indices ] = pathSet;
+          const user = this.user;
+          const subdomain = this.subdomain;
           const response = [];
 
-          for(const option of options){
-            const rows = await controller.filteredDataByIndex(keys, indices, option, ['id'])
+          for (const option of options) {
+            const rows = await controller.filteredDataByIndex(keys, indices, option, ['id']);
 
-            keys.forEach((key) => {
-              const [app] = key.split('+');
-              const reduced = rows.reduce(
-                  (a, c) => (c.key == key ? c.rows : a),
-                  []
-              );
+            for (const key of keys) {
+              const [app, type] = key.split('+');
+              if (getKind(type) === 'page') {
+                const patternAuth = await controller.getPatternAuthPermissions(app, getParent(type), subdomain);
+                if (!isUserAuthed({ user, reqPermissions: ['view-page'], authPermissions: patternAuth || {} })) {
+                  indices.forEach((i) => {
+                    response.push({ path: ["dms", "data", key, 'opts', option, "byIndex", i], value: null });
+                  });
+                  continue;
+                }
+              }
+              const reduced = rows.reduce((a, c) => (c.key == key ? c.rows : a), []);
               indices.forEach((i) => {
                 const row = reduced.find(c => c.i == i) || {};
                 response.push({
-                    path: ["dms", "data", key, 'opts', option, "byIndex", i],
-                    value: row?.id ? $ref(["dms", "data", app, "byId", String(row.id)]) : null,
+                  path: ["dms", "data", key, 'opts', option, "byIndex", i],
+                  value: row?.id ? $ref(["dms", "data", app, "byId", String(row.id)]) : null,
                 });
               });
-            });
+            }
           }
 
           return response;
@@ -221,7 +262,6 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
           console.error(err);
           throw err;
         }
-
       },
     },
     {
@@ -319,50 +359,44 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
     {
       // Legacy byId route — queries data_items (no app context)
       route: `dms.data.byId[{keys:ids}][{keys:attributes}]`,
-      get: function(pathSet) {
+      get: async function(pathSet) {
         const [, , , ids, atts] = pathSet;
-
-        return controller
-          .getDataById(ids,atts)
-          .then((rows) => {
-             return dataByIdResponse(rows, ids, atts)
-          });
+        const user = this.user;
+        const subdomain = this.subdomain;
+        const rows = await controller.getDataById(ids, atts);
+        return await dataByIdResponse(rows, ids, atts, null, user, subdomain);
       },
     },
     {
       // App-namespaced byId route — resolves per-app table when in per-app mode
       route: `dms.data[{keys:apps}].byId[{keys:ids}][{keys:attributes}]`,
-      get: function(pathSet) {
+      get: async function(pathSet) {
         const [, , apps, , ids, atts] = pathSet;
-
-        return Promise.all(
+        const user = this.user;
+        const subdomain = this.subdomain;
+        const results = await Promise.all(
           apps.map(app =>
             controller.getDataById(ids, atts, app)
-              .then(rows => dataByIdResponse(rows, ids, atts, app))
+              .then(rows => dataByIdResponse(rows, ids, atts, app, user, subdomain))
           )
-        ).then(results => [].concat(...results));
+        );
+        return [].concat(...results);
       },
     },
     {
       route: "dms.data.edit",
-      call: function(callPath, args) {
+      call: async function(callPath, args) {
         if (args.length >= 3) {
           // New format: [app, id, data] or [app, id, data, type]
           // When type is provided, the controller resolves the split table for dataset rows.
           const [app, id, data, type] = args;
-          return controller.setDataById(id, data, this.user, app, type || null).then((rows) => {
-            return [
-              ...dataByIdResponse(rows, [id], DATA_ATTRIBUTES, app),
-            ];
-          });
+          const rows = await controller.setDataById(id, data, this.user, app, type || null);
+          return await dataByIdResponse(rows, [id], DATA_ATTRIBUTES, app);
         }
         // Legacy format: [id, data]
         const [id, data] = args;
-        return controller.setDataById(id, data, this.user).then((rows) => {
-          return [
-            ...dataByIdResponse(rows, [id], DATA_ATTRIBUTES),
-          ];
-        });
+        const rows = await controller.setDataById(id, data, this.user);
+        return await dataByIdResponse(rows, [id], DATA_ATTRIBUTES);
       },
     },
     {
@@ -380,54 +414,39 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
     },
     {
       route: "dms.type.edit",
-      call: function(callPath, args) {
+      call: async function(callPath, args) {
         if (args.length >= 3) {
           // New format: [app, id, type]
           const [app, id, type] = args;
-          return controller.setTypeById(id, type, this.user, app).then((rows) => {
-            return [
-              ...dataByIdResponse(rows, [id], DATA_ATTRIBUTES, app),
-            ];
-          });
+          const rows = await controller.setTypeById(id, type, this.user, app);
+          return await dataByIdResponse(rows, [id], DATA_ATTRIBUTES, app);
         }
         // Legacy format: [id, type]
         const [id, type] = args;
-        return controller.setTypeById(id, type, this.user).then((rows) => {
-          return [
-            ...dataByIdResponse(rows, [id], DATA_ATTRIBUTES),
-          ];
-        });
+        const rows = await controller.setTypeById(id, type, this.user);
+        return await dataByIdResponse(rows, [id], DATA_ATTRIBUTES);
       },
     },
     {
       route: "dms.data.create",
-      call: function(callPath, args) {
+      call: async function(callPath, args) {
         const [app, type] = args;
         const t0 = Date.now();
         console.log('[dms.data.create] START app=%s type=%s user=%s t=%d', app, type, this.user?.id || 'anon', t0);
-        return controller.createData(args, this.user)
-          .then((rows) => {
-            console.log('[dms.data.create] OK rows=%d id=%s elapsed=%dms', rows.length, rows[0]?.id, Date.now() - t0);
-            return [
-              // Return at both paths so old and new clients can find the data
-              ...dataByIdResponse(
-                rows,
-                rows.map(({ id }) => String(id)),
-                DATA_ATTRIBUTES
-              ),
-              ...dataByIdResponse(
-                rows,
-                rows.map(({ id }) => String(id)),
-                DATA_ATTRIBUTES,
-                app
-              ),
-              { path: ["dms", "data", `${app}+${type}`], invalidated: true },
-            ];
-          })
-          .catch(e => {
-            console.error('[dms.data.create] ERROR:', e);
-            throw e;
-          });
+        try {
+          const rows = await controller.createData(args, this.user);
+          console.log('[dms.data.create] OK rows=%d id=%s elapsed=%dms', rows.length, rows[0]?.id, Date.now() - t0);
+          const ids = rows.map(({ id }) => String(id));
+          return [
+            // Return at both paths so old and new clients can find the data
+            ...await dataByIdResponse(rows, ids, DATA_ATTRIBUTES),
+            ...await dataByIdResponse(rows, ids, DATA_ATTRIBUTES, app),
+            { path: ["dms", "data", `${app}+${type}`], invalidated: true },
+          ];
+        } catch (e) {
+          console.error('[dms.data.create] ERROR:', e);
+          throw e;
+        }
       },
     },
     {

@@ -12,6 +12,21 @@ import {strictNaN} from "./utils";
 
 import { getColorRange } from "./colorSchemeUnifier"
 
+// Merge the theme's brand chart defaults UNDER the section's own display settings, so a
+// section with a sparse `display` inherits brand visuals (colors/margins/axes) while any
+// explicit per-section setting still wins. One level of nesting (margin/xAxis/yAxis) is
+// deep-merged; everything else is a shallow override. BC: a section whose `display`
+// already carries these keys is unchanged.
+const mergeChartDefaults = (defaults = {}, display = {}) => {
+    const out = { ...defaults, ...display };
+    for (const k of ["margin", "xAxis", "yAxis", "legend", "title", "colors"]) {
+        if (defaults[k] && typeof defaults[k] === "object") {
+            out[k] = { ...defaults[k], ...(display[k] || {}) };
+        }
+    }
+    return out;
+};
+
 export default function Graph ({
     isEdit, columns=[], data=[], display={}, controls={}, setState=() => {}, isActive, activeStyle
 }) {
@@ -182,7 +197,7 @@ export default function Graph ({
                 //     </div> : null
             }
             <GraphComponent
-                graphFormat={ { ...display } }
+                graphFormat={ mergeChartDefaults(theme?.chartDefaults, display) }
                 graphType={ display.graphType }
                 viewData={ data }
                 columns={ columns }

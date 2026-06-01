@@ -232,7 +232,7 @@ function PatternList({
 	const data = value
 		.map(v => ({
             ...v,
-            name: v.name,
+            name: v.name || 'undefined',
             edit_url: `${baseUrl}/manage_pattern/${v.id}`,
         }))
 		.filter(v => !search || v.name.toLowerCase().includes(search.toLowerCase()));

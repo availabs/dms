@@ -5,13 +5,15 @@ import { LineGraphOption } from "./LineGraph"
 import { PieGraphOption } from "./PieGraph"
 import { GridGraphOption } from "./GridGraph"
 import { SunburstGraphOption } from "./SunburstGraph"
+import { TreemapGraphOption } from "./TreemapGraph"
 
 const GraphTypeOptions = [
   BarGraphOption,
   LineGraphOption,
   PieGraphOption,
   GridGraphOption,
-  SunburstGraphOption
+  SunburstGraphOption,
+  TreemapGraphOption
 ]
 
 const [GraphTypes, GraphTypeMap, EditorOptionsMap] = GraphTypeOptions.reduce((a, c) => {

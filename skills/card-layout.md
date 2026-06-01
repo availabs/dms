@@ -203,6 +203,7 @@ The padding precedence is **side-specific > `cellPadding` > `cellsPadding`** —
 |-----------------------|-------------------------------|
 | `comma`               | `1,234,567`                   |
 | `comma_dollar`        | `$1,234,567`                  |
+| `percent`             | appends `%` (`79.8` → `79.8%`); does not multiply — value is already a percentage |
 | `abbreviate`          | `1.2M`, `3.4K`                |
 | `abbreviate_dollar`   | `$1.2M`                       |
 | `date`                | `MM/DD/YYYY` (locale-ish)     |
@@ -245,6 +246,27 @@ Hints currently honoured:
 | `defaultHideHeader: true`| Suggestion only — the picker UI uses this when the column is freshly added so it ships with `hideHeader: true`. The renderer ignores it; the column's own `hideHeader` still drives runtime behaviour. |
 
 `portrait_banner` ships `fullBleed: true, spanFullColumns: true, defaultHideHeader: true`. `stream_player` ships the same shape. Both are templates for "I am a composite column type that owns its layout."
+
+## KPI/dashboard column types (built-in, value-driven)
+
+Three built-in column types render a value as a styled, **value-driven** widget (the
+"look depends on the value" rung — see `transcribing-a-design-card-to-dms.md`). Each
+reads only its own `value` and is configured via column attributes:
+
+| `type`        | Renders | Key attributes |
+|---------------|---------|----------------|
+| `status_pill` | the value as a colored `UI.Pill` (good/bad/warn/na) | `pillColors` (map `value → pill style`); else keyword heuristics (meets/above → good, below/miss/fail → bad). Themeable via `theme.pill`. |
+| `delta`       | signed arrow + value, colored, + "vs <year-1>" suffix | `deltaGoodDirection` (`up`\|`down` — which sign is green), `deltaYearField` (row col with the period year → "vs Y-1"), `deltaSuffix` (static). Theme key `delta`. |
+| `target_bar`  | progress bar + target marker + "≥/≤ target" caption | `targetValue` (or `targetColumn`), `barMin`/`barMax` (range scale — ratio metrics like TTTR use `1.0`/`2.2`), `barDirection`, `barUnit`. Theme key `targetBar`. |
+
+Worked example — the MAP-21 §01 KPI cards (live: sections 2173919–22 on page 2173915):
+a `status_pill` (from a `status_text` CASE column), the metric value (`formatFn: 'percent'`),
+a `target_bar` (value = the metric, static `targetValue`), a `delta` (a **calculated**
+column `round(metric − prior, N)` — *not* a formula column, which is type-gated), and a
+margin caption (calculated `… || ' pts above/below target'`). Two traps that blank the
+card: retyping a **formula** column to `delta` (its UUID `name` becomes invalid SQL), and
+`origin:'static'` columns ("Error getting length") — use SQL-literal calculated columns and
+**clone a working column** for the field shape.
 
 ## What a column type receives
 

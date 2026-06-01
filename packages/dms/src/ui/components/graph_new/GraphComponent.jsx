@@ -68,10 +68,11 @@ export const GraphComponent = props => {
   }, [graphFormat.height, margin]);
 
   const hoverComp = React.useMemo(() => {
+    const isDollars = Boolean(graphFormat.tooltip?.isDollars);
     return {
       ...graphFormat.tooltip,
-      valueFormat: getFormatFunc(get(graphFormat, ["tooltip", "valueFormat"])),
-      yFormat: getFormatFunc(get(graphFormat, ["tooltip", "yFormat"]))
+      valueFormat: getFormatFunc(get(graphFormat, ["tooltip", "valueFormat"]), isDollars),
+      yFormat: getFormatFunc(get(graphFormat, ["tooltip", "yFormat"]), isDollars)
     };
   }, [graphFormat.tooltip]);
 
@@ -104,20 +105,40 @@ export const GraphComponent = props => {
         orientation={ get(graphFormat, "orientation", "vertical") }
         groupMode={ get(graphFormat, "groupMode", "stacked") }
         paddingInner={ get(graphFormat, "paddingInner", 0.0) }
+        paddingOuter={ get(graphFormat, "paddingOuter", 0.0) }
+
+        interpolation={ get(graphFormat, "interpolation", "catmullrom") }
+        strokeWidth={ get(graphFormat, "strokeWidth", 1) }
+        area={ get(graphFormat, "area", false) }
+        areaOpacity={ get(graphFormat, "areaOpacity", 0.15) }
+
+        tileMethod={ get(graphFormat, "tileMethod", "treemapSquarify") }
+        indexTextSize={ get(graphFormat, "indexTextSize", "medium") }
+        valueTextSize={ get(graphFormat, "valueTextSize", "medium") }
 
         xAxis={ {
           label: get(graphFormat, ["xAxis", "label"]),
           rotateLabels: get(graphFormat, ["xAxis", "rotateLabels"], false),
           tickDensity: get(graphFormat, ["xAxis", "tickDensity"], 2),
           showGridLines: get(graphFormat, ["xAxis", "showGridLines"], false),
+          gridLineOpacity: get(graphFormat, ["xAxis", "gridLineOpacity"], 0.25),
+          axisColor: get(graphFormat, ["xAxis", "axisColor"], "currentColor"),
           show: get(graphFormat, ["xAxis", "show"], true)
         } }
         yAxis={ {
           label: get(graphFormat, ["yAxis", "label"]),
           rotateLabels: get(graphFormat, ["yAxis", "rotateLabels"], false),
           showGridLines: get(graphFormat, ["yAxis", "showGridLines"], true),
+          gridLineOpacity: get(graphFormat, ["yAxis", "gridLineOpacity"], 0.25),
+          axisColor: get(graphFormat, ["yAxis", "axisColor"], "currentColor"),
           show: get(graphFormat, ["yAxis", "show"], true),
-          format: getFormatFunc(get(graphFormat, ["yAxis", "format"]))
+          format: getFormatFunc(get(graphFormat, ["yAxis", "format"]), get(graphFormat, ["yAxis", "isDollars"]))
+        } }
+        pieAxis={ {
+          showAxis: get(graphFormat, ["pieAxis", "showAxis"], false),
+          showValue: get(graphFormat, ["pieAxis", "showValue"], false),
+          valueTextSize: get(graphFormat, ["pieAxis", "valueTextSize"], false),
+          valueFormat: getFormatFunc(get(graphFormat, ["pieAxis", "valueFormat"]), get(graphFormat, ["pieAxis", "isDollars"], false)),
         } }
         margin={ margin }
         legend={ get(graphFormat, "legend", {}) }

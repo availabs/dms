@@ -146,7 +146,7 @@ const PieGraphWrapper = props => {
     return props.colors?.reverse ? colors.reverse() : colors;
   }, [props.colors, dataFromProps.keys?.length]);
 
-console.log("PieGraphWrapper::dataFromProps", dataFromProps)
+// console.log("PieGraphWrapper::dataFromProps", dataFromProps)
 
   const legend = React.useMemo(() => {
     return {

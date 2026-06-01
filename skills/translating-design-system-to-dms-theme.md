@@ -26,7 +26,7 @@ renders pages matching the mockups.
 
 ## If you take nothing else from this skill
 
-Three gotchas every theme translation hits, in order of how often
+Four gotchas every theme translation hits, in order of how often
 they bite. Each one looks like a one-character config detail and is
 actually load-bearing. Skip to the linked sections; the rest of this
 doc is reference material organized around the per-primitive checklist.
@@ -43,14 +43,25 @@ doc is reference material organized around the per-primitive checklist.
    product LayoutGroups need `'max-w-[<your-cap>] mr-auto'` (left-
    aligned, not centred) or content drifts away from the SideNav's
    right edge.
-3. **`lexical.heading_h1..h6` must be set explicitly** —
+3. **Edit-mode chrome — hover outline + Add Section button** —
+   see [§3.1.56](#3156-edit-mode-chrome--the-load-bearing-structure-for-hover--add-section).
+   `sectionEditHover` / `sectionEditing` / `sectionHighlight` are
+   *absolutely-positioned overlay divs* — they MUST start
+   `absolute inset-0 …` or they paint at zero size and nothing
+   appears on hover. `addSectionButton` needs `hidden group-hover:flex
+   absolute -top-5` and its wrapper needs `relative group`.
+   `addSectionIcon` is a className string (the icon name `"Plus"` is
+   hardcoded in the JSX) — overriding it with `"Plus"` makes the icon
+   render unstyled. `rowspans` must be `{ "N": { className: "…" } }`
+   objects, not flat strings.
+4. **`lexical.heading_h1..h6` must be set explicitly** —
    see [§3.1.5](#315-the-lexical--textsettings-trap)
    Quirk 2. The textSettings backfill only fires when these keys are
    falsy, and the codebase ships them set. Without explicit override,
    the codebase default's `font-display` rule shadows your brand
    tokens and headings render in the wrong family inside Lexical.
 
-Three sentences at the top of this skill save every brand half a day
+Four sentences at the top of this skill save every brand half a day
 of debugging.
 
 ---
@@ -194,6 +205,11 @@ overlay merges cleanly. **Don't unilaterally promote a flat theme
 to `options/styles` shape** — that's a codebase change, not a
 theme decision. Mention it in the brand README if you want it on
 the roadmap.
+
+**The one documented exception is `filters`** — its consuming
+components were enriched to handle both shapes *and* to expose the
+named styles as an author dropdown, so promoting it is a supported
+theme decision. See [§3.1.7](#317-filters--author-selectable-whole-filter-designs-a-flat-theme-you-should-promote).
 
 ### 1.3 How a component reads its theme (so you know what merging
 does)
@@ -873,6 +889,159 @@ ask "does this look right out of the box?" Don't leave a key
 inherited from the codebase default unless you've verified it
 matches your brand.**
 
+### 3.1.56 Edit-mode chrome — the load-bearing structure for hover + add-section
+
+`pages.sectionArray.styles[0]` carries eleven keys that together make
+editing a page feel discoverable: hovering a section paints a dashed
+outline, the section being edited paints a solid outline, deep-linked
+sections flash highlight, and an "Add" pill appears between sections
+on hover so authors can insert a new band. **Every theme overlay must
+re-skin all eleven** — overriding only a subset, or substituting
+non-overlay-shaped classes, silently breaks the UX.
+
+Source: `src/dms/packages/dms/src/patterns/page/components/sections/sectionArray.{jsx,theme.jsx}`.
+
+#### How the structure actually renders
+
+Each section in edit mode renders as:
+
+```jsx
+<div className={theme?.sectionEditWrapper /* "relative group" */}>
+  <div className={theme?.sectionEditHover  /* absolute inset-0 overlay */} />
+  {/* hover-only: Add Section button just above each section */}
+  <div className={theme?.addSectionButton /* "hidden group-hover:flex absolute -top-5" */}>
+    <div className={theme?.spacer}/>
+    <div className={theme?.addSectionIconWrapper /* "group/icon" */}>
+      <Icon icon="Plus" className={theme?.addSectionIcon /* class string */} />
+      <div className={theme?.addSectionTextWrapper}>
+        <div className={theme?.addSectionText}>Add</div>
+      </div>
+    </div>
+    <div className={theme?.spacer}/>
+  </div>
+  <SectionEditOrView … />
+</div>
+```
+
+Two structural rules that are *not* obvious from reading the theme keys:
+
+1. **`sectionEditWrapper` must include the `group` class** (alongside
+   `relative`). Every `group-hover:*` utility on the overlay and the
+   add-section button depends on it. Drop `group` → no hover effect
+   anywhere. Same for `sectionViewWrapper` in view mode.
+2. **`sectionEditHover` / `sectionEditing` / `sectionHighlight` are
+   absolutely-positioned full-bleed overlay divs**, not classes on the
+   section itself. They MUST start with `absolute inset-0 …`
+   (plus `pointer-events-none z-10` so they don't block clicks).
+   Without absolute positioning the div has zero size and the styling
+   never paints anywhere — the most common failure mode.
+
+#### The icon-then-text expansion on Add
+
+The Add button uses a nested `group/icon` so the pill grows from "+"
+into "Add" on its own hover, separately from the section group:
+
+```
+addSectionIconWrapper    flex items-center group/icon
+  ├─ addSectionIcon      size-6 ... group-hover/icon:hidden       ← swaps out
+  └─ addSectionTextWrapper  hidden group-hover/icon:flex          ← swaps in
+       └─ addSectionText  px-2.5 py-1 ... rounded-full
+```
+
+Two things to remember:
+
+- **`addSectionIcon` is a className string**, not an icon name. The
+  Icon name `"Plus"` is hardcoded in the JSX. Setting
+  `addSectionIcon: "Plus"` makes the icon's className be the literal
+  string `"Plus"` (invalid Tailwind) — the icon renders unstyled and
+  invisible. The key takes Tailwind classes like
+  `size-6 p-1.5 text-white bg-[#brand] rounded-full group-hover/icon:hidden`.
+- **There is no `addSectionIconClass` key.** It looks like there
+  should be one (mirroring the `Icon className` prop pattern used
+  elsewhere), but the source reads `addSectionIcon` directly as the
+  className. Inventing `addSectionIconClass` silently no-ops.
+
+#### `rowspans` shape — flat strings vs `{className}` objects
+
+The codebase reads `theme?.rowspans?.["1"]?.className`, so rowspans
+must be a map of objects, not a map of strings:
+
+```js
+// WRONG — silently no-ops, sections never span rows
+rowspans: {
+  "1": "row-span-1",
+  "2": "row-span-2",
+}
+
+// RIGHT
+rowspans: {
+  "1": { className: "" },
+  "2": { className: "md:row-span-2" },
+  "3": { className: "md:row-span-3" },
+  // … through 8
+}
+```
+
+`sizes` uses the same `{ className, iconSize }` shape — straightforward
+to get right because the existing v1 themes show that pattern. The
+trap is rowspans, which a quick scan can read as "just a list of row-
+span utilities."
+
+#### The eleven keys, brand-fit
+
+Drop these into `pages.sectionArray.styles[0]` and re-skin the
+literal classes to your brand. The structural classes (`absolute
+inset-0`, `pointer-events-none z-10`, `relative group`,
+`hidden group-hover:flex absolute -top-5`, `group/icon`,
+`group-hover/icon:hidden`, `group-hover/icon:flex`) are
+load-bearing — keep them.
+
+```js
+// Brand-fit template (TransportNY shown — swap the colours)
+sectionEditWrapper: "relative group",
+sectionViewWrapper: "relative group",
+
+sectionEditHover:   "absolute inset-0 border-2 border-transparent group-hover:border-[#FACC15] border-dashed pointer-events-none z-10 rounded-[8px] transition-colors",
+sectionEditing:     "absolute inset-0 border-2 border-[#FACC15] border-dashed pointer-events-none z-10 rounded-[8px]",
+sectionHighlight:   "absolute inset-0 border-2 border-[#EAAD43] border-dashed pointer-events-none z-10 rounded-[8px]",
+
+addSectionButton:      "cursor-pointer flex items-center w-full -ml-4 my-2 hidden group-hover:flex absolute -top-5 z-20",
+spacer:                "flex-1",
+addSectionIconWrapper: "flex items-center group/icon cursor-pointer",
+addSectionIcon:        "size-6 p-1.5 text-white bg-[#1F3F8F] rounded-full group-hover/icon:hidden",
+addSectionTextWrapper: "hidden group-hover/icon:flex items-center",
+addSectionText:        "px-2.5 py-1 text-white text-[12px] font-display uppercase tracking-wide bg-[#1F3F8F] rounded-full",
+```
+
+#### Verification — what to click in the live editor
+
+Open a page with the theme applied and put it in edit mode:
+
+1. **Hover any section.** A dashed brand-coloured outline should
+   appear over the section (`sectionEditHover` firing on group-hover).
+   If nothing appears: either the wrapper lost its `group`, or your
+   `sectionEditHover` is missing `absolute inset-0`.
+2. **Hover the area just above a section.** An "Add" pill should
+   fade in just above (`addSectionButton` group-hover:flex). If the
+   pill never shows: same wrapper-`group` issue, or your
+   `addSectionButton` is missing `hidden group-hover:flex absolute -top-5`.
+3. **Hover the "+" pill itself.** It should expand into an "Add" text
+   pill (`addSectionIcon` swaps out, `addSectionTextWrapper` swaps
+   in via the nested `group/icon`). If it doesn't: your
+   `addSectionIconWrapper` is missing `group/icon`, or you've
+   overridden `addSectionIcon` with something that lacks
+   `group-hover/icon:hidden`.
+4. **Click "+" to insert.** The section editor opens (this is
+   `addSectionButton`'s `onClick` wiring, not theme — but it confirms
+   the pill is interactive and not blocked by the overlay).
+5. **Click into a section to edit it.** The section's overlay should
+   switch from dashed-hover to dashed-solid (`sectionEditing`).
+6. **Click a TOC link / deep-link a section.** That section's overlay
+   should switch to a static dashed-amber highlight
+   (`sectionHighlight`).
+
+Steps 1–3 cover the bug class this section exists to prevent.
+
 ### 3.1.6 textSettings — the global type scale
 
 `textSettings` is **not** a primitive; it's a top-level theme key
@@ -1005,6 +1174,90 @@ dropdown gains `textSMNum`, `textBaseNum`, `text2XLNum` as
 selectable options — authors can pick them per column without
 touching code.
 
+### 3.1.7 `filters` — author-selectable whole-filter designs (a flat theme you SHOULD promote)
+
+`theme.filters` styles the **Filter section** and the external
+(viewer-facing) filter controls a `dataWrapper` section renders — the
+page-variable selectors (e.g. a Year picker) that drive the rest of a
+page. Source of truth:
+`patterns/page/.../filters/RenderFilters.theme.js`. The codebase
+default is **flat** (a single `{ key: classString }` map).
+
+**This is the one flat theme you should promote to `options/styles`**
+— and it's an exception to the §1.2 "don't unilaterally promote a flat
+theme" rule, because the consuming components were enriched to support
+it. When you ship `theme.filters` as a named-styles block, a site
+author can pick a **whole filter DESIGN** from the Filter section's
+toolbar — not just recolour the inner select. Each named style bundles
+the wrapper, label, condition-row, `placement` (`stacked` | `inline`),
+**and** a `controlStyle` that names which `multiselect` style the value
+control renders with. Worked example:
+[`src/themes/transportny/themev2.js`](../../../themes/transportny/themev2.js)
+ships `panel` / `chip` / `labeled` / `tone_bar`.
+
+```js
+// theme.filters — promoted to options/styles
+filters: {
+  options: { activeStyle: 0 },
+  styles: [
+    { // styles[0] = the complete default; later styles inherit its keys
+      name: "panel", placement: "stacked",
+      controlStyle: "default",                 // ← a theme.multiselect style name
+      filterLabel: "uppercase text-[11px] …",
+      labelWrapperStacked: "w-full …", conditionRowStacked: "flex flex-col gap-1",
+      filterSettingsWrapperStacked: "w-full", conditionsGrid: "grid",
+      filtersWrapper: "w-full p-3 flex flex-col gap-2 rounded-[6px] bg-slate-50/60",
+      input: "w-full … border rounded-[6px] bg-white p-2",
+      settingPillsWrapper: "…", settingPill: "…", settingLabel: "…",
+      toggleButton: "hidden", toggleIcon: "hidden",   // hide the round Filter pill
+    },
+    { name: "chip", placement: "inline",
+      controlStyle: "filter_chip",             // a borderless multiselect style
+      // label sits INSIDE a bordered chip; control is borderless
+      conditionRowInline: "inline-flex items-center gap-1.5 h-8 pl-2.5 pr-1.5 rounded-[6px] border bg-white w-fit",
+      labelWrapperInline: "shrink-0 inline-flex items-center gap-1",
+      filtersWrapper: "w-full flex flex-wrap items-start gap-2" },
+    // … labeled, tone_bar (sparse — inherit the rest from styles[0])
+  ],
+},
+```
+
+**How it wires up (so you know which keys are load-bearing):**
+
+- **The author control is auto-generated.** `FilterComponent.config.js`'s
+  toolbar **"Filter style"** select is populated from
+  `theme.filters.styles[].name` — exactly like the `/Button` dialog
+  reads `theme.button.styles[].name`. The author's pick is stored on the
+  section as `display.filterStyle`; a separate "Placement (override)"
+  (`display.placement`) wins over the style's own `placement`.
+- **The design is resolved with `getComponentTheme`.** Both
+  `ExternalFilters.jsx` (the viewer-visible control) and
+  `RenderFilters.jsx` (edit/internal) call
+  `getComponentTheme(theme, 'filters', display.filterStyle)` — so named
+  styles, index/name resolution, and styles[0] inheritance all work the
+  standard way. A brand that leaves `filters` flat still renders fine
+  (getComponentTheme returns the flat block as-is).
+- **`controlStyle` is the bridge to the value control.** It must name a
+  real `theme.multiselect.styles[].name`. The filter passes it down as
+  the multiselect's `activeStyle`, so the inner select adopts the
+  matching look (e.g. a borderless `filter_chip` inside a chip wrapper).
+  This is why you usually ship a paired `multiselect` style alongside
+  each filter style.
+- **No className passthroughs.** The whole point is that the *design*
+  is named and theme-resolved — don't widen the Filter/MultiSelect API
+  with a `className` prop to achieve a look. Add a named style instead
+  (see the author-empowerment rule in `themes/CLAUDE.md`).
+
+**Key set for `filters.styles[0]` (the complete default):**
+`placement`, `controlStyle`, `filterLabel`, `loadingText`,
+`filterSettingsWrapperInline`, `filterSettingsWrapperStacked`,
+`labelWrapperInline`, `labelWrapperStacked`, `conditionRowInline`,
+`conditionRowStacked`, `conditionsGrid`, `input`,
+`settingPillsWrapper`, `settingPill`, `settingLabel`, `filtersWrapper`,
+`toggleButton`, `toggleIcon` (set the last two to `"hidden"` to suppress
+the round Filter toggle pill, or set the section's
+`display.hideExternalToggle: true`).
+
 ### 3.2 The lookup table
 
 | Primitive | Top-level key in theme | Theme shape | Source of truth |
@@ -1019,6 +1272,7 @@ touching code.
 | Button | `button` | options/styles | `src/dms/packages/dms/src/ui/components/Button.theme.jsx` |
 | Input | `input` | flat | `src/dms/packages/dms/src/ui/components/Input.theme.js` |
 | MultiSelect | `multiselect` | options/styles | `src/dms/packages/dms/src/ui/components/MultiSelect.theme.js` |
+| Filter (data-wrapper / external filters) | `filters` | flat by default — **promote to options/styles** (see §3.1.7) | `src/dms/packages/dms/src/patterns/page/components/sections/components/dataWrapper/components/filters/RenderFilters.theme.js` |
 | Tabs | `tabs` | options/styles | `src/dms/packages/dms/src/ui/components/Tabs.theme.jsx` |
 | Switch | `switch` | options/styles | `src/dms/packages/dms/src/ui/components/Switch.theme.js` |
 | FieldSet | `field` | flat | `src/dms/packages/dms/src/ui/components/FieldSet.theme.js` |
@@ -1655,6 +1909,21 @@ If a live page looks off:
 - **Auth / dataset / pattern UI looks generic.** You didn't ship
   the `pages.*` / `datasets.*` / `auth.*` overlay. Check
   `patterns.html` for the matching mockup and produce the overlay.
+- **Edit-mode hover outline never appears.** Your
+  `sectionEditHover` / `sectionEditing` / `sectionHighlight` is
+  missing `absolute inset-0` (or the parent `sectionEditWrapper` lost
+  its `group` class). These keys are overlay divs, not classes on the
+  section itself. See [§3.1.56](#3156-edit-mode-chrome--the-load-bearing-structure-for-hover--add-section).
+- **Add Section button doesn't appear on hover between sections.**
+  Same root cause — `sectionEditWrapper` needs `relative group` and
+  `addSectionButton` needs `hidden group-hover:flex absolute -top-5`.
+  If the pill appears but doesn't expand into "Add" text on hover,
+  `addSectionIconWrapper` lost its nested `group/icon`. See §3.1.56.
+- **Sections don't span multiple rows.** Your `rowspans` map is
+  `{ "1": "row-span-1", … }` (flat strings) but the codebase reads
+  `theme?.rowspans?.["1"]?.className` — needs
+  `{ "1": { className: "" }, "2": { className: "md:row-span-2" }, … }`
+  shape. Sizes already use that shape; rowspans is easy to overlook.
 
 ---
 

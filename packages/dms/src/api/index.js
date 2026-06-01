@@ -227,9 +227,8 @@ export async function dmsDataLoader (falcor, config, path='/') {
 	// -- Always want to know how many data items of a type we have
 	let lengthReq = ['dms', 'data', `${ app }+${ type }`, 'length' ]
 
-	if(activeConfigs.find(ac => ['list','load','filteredLength'].includes(ac.action))){
-		// special routes for 'load', 'uda' action
-		const options = activeConfigs.find(ac => ['list','load','filteredLength'].includes(ac.action))?.filter?.options;
+	if(activeConfigs.find(ac => ['list','filteredLength'].includes(ac.action))){
+		const options = activeConfigs.find(ac => ['list','filteredLength'].includes(ac.action))?.filter?.options;
 		if(options) lengthReq = ['dms', 'data', `${ app }+${ type }`, 'options', options, 'length' ];
 	}
 
@@ -309,11 +308,6 @@ export async function dmsDataLoader (falcor, config, path='/') {
 
 		return get(newReqFalcor, path, {});
 	}
-	if(activeConfigs.find(ac => ac.action === 'load')){
-		// special return for 'load' action
-		const path =  newRequests[0].filter((r, i) => i <= newRequests[0].indexOf('byIndex'));
-		return Object.values(get(newReqFalcor, path, {}));
-	}
 	if(activeConfigs.find(ac => ac.action === 'uda')){
 		// special return for 'uda' action
 		const path =  newRequests[0].filter((r, i) => i <= newRequests[0].indexOf('dataByIndex'));
@@ -324,7 +318,6 @@ export async function dmsDataLoader (falcor, config, path='/') {
 
 	// get active ids
 	const activeIds =  activeConfigs
-		.filter(config => config.action !== 'load')
 		.map(config => getIdPath(config, format))
 		.filter(routes => routes?.length)
 		.map(path => {

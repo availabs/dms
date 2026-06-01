@@ -70,6 +70,40 @@ export const getColorFunc = colors => {
   }
 }
 
+const rgbRegex = /^rgb\((\d{1, 3}),\s*(\d{1, 3}),\s*(\d{1, 3})\)/;
+const rgbaRegex = /^rgba\((\d{1, 3}),\s*(\d{1, 3}),\s*(\d{1, 3}),\s*(\d{1, 3})\)/;
+const hexRegex = /^#([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})/;
+
+export const color2rgba = (color, alpha) => {
+
+  alpha = Math.max(0.0, Math.min(alpha, 1.0));
+
+  if (rgbRegex.test(color)) {
+    const [, r, g, b] = rgbaRegex.exec(color);
+    return `rgba(${ r }, ${ g }, ${ b }, ${ alpha }`;
+  }
+
+  if (rgbaRegex.test(color)) {
+    const [, r, g, b] = rgbaRegex.exec(color);
+    return `rgba(${ r }, ${ g }, ${ b }, ${ alpha }`;
+  }
+
+  if (hexRegex.test(color)) {
+    const [, hr, hg, hb] = hexRegex.exec(color);
+    const r = parseInt(hr, 16).toString();
+    const g = parseInt(hg, 16).toString();
+    const b = parseInt(hb, 16).toString();
+    return `rgba(${ r }, ${ g }, ${ b }, ${ alpha })`;
+  }
+
+  return color;
+}
+
+let id = 0;
+export const getUniqueId = (string = "unique-id-") => {
+  return `${ string }${ id++ }`;
+}
+
 export const strictNaN = v => (v === null) || (v === "") || isNaN(v);
 
 export const DefaultXScale = {

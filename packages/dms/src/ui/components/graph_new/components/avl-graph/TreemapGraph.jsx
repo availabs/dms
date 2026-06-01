@@ -4,7 +4,9 @@ import * as d3shape from "d3-shape"
 import { select as d3select } from "d3-selection"
 import {
   hierarchy as d3hierarchy,
-  partition as d3partition
+  treemap as d3treemap,
+  treemapBinary,
+  treemapSquarify
 } from "d3-hierarchy"
 
 import {
@@ -13,8 +15,8 @@ import {
 } from "./components"
 
 import {
-	useSetSize,
-	color2rgba
+  useSetSize,
+  color2rgba
 } from "./utils"
 
 import {
@@ -85,7 +87,7 @@ const DefaultHoverCompData = {
 }
 
 const InitialState = {
-  sunburstData: [],
+  treemapData: [],
   exiting: [],
   adjustedWidth: 0,
   adjustedHeight: 0
@@ -97,12 +99,12 @@ const Reducer = (state, action) => {
   		return { ...state, ...payload }
   	}
     case "set-data": {
-      const { sunburstData } = state;
-      let prevIds = sunburstData.reduce((a, c) => {
+      const { treemapData } = state;
+      let prevIds = treemapData.reduce((a, c) => {
         a[c.index] = c;
         return a;
       }, {});
-      payload.sunburstData.forEach(pie => {
+      payload.treemapData.forEach(pie => {
         if (pie.index in prevIds) {
           pie.state = "updating";
           delete prevIds[pie.index];
@@ -112,8 +114,8 @@ const Reducer = (state, action) => {
         prevIds = {};
       }
       return {
-        sunburstData: [
-          ...payload.sunburstData,
+        treemapData: [
+          ...payload.treemapData,
           ...Object.values(prevIds).map(p => ({ ...p, state: "exiting" }))
         ],
         exiting: Object.keys(prevIds)
@@ -121,7 +123,7 @@ const Reducer = (state, action) => {
     }
     case "exit-data":
       return {
-        sunburstData: state.sunburstData.filter(pie => {
+        treemapData: state.treemapData.filter(pie => {
           return payload.exiting.includes(pie.index) ? pie.state !== "exiting" : true;
         }),
         exiting: state.exiting.filter(e => {
@@ -140,12 +142,18 @@ const DefaultMargin = {
   bottom: 10
 }
 
-export const SunburstGraph = props => {
+const TileMethodMap = {
+  "treemapSquarify": treemapSquarify,
+  "treemapBinary": treemapBinary
+}
+
+export const TreemapGraph = props => {
 
   const {
     data = EmptyArray,
     margin = EmptyObject,
     hoverComp = EmptyObject,
+    tileMethod = "treemapSquarify",
     indexTextSize = "medium",
     valueTextSize = "medium",
     className ="",
@@ -156,7 +164,7 @@ export const SunburstGraph = props => {
     showAnimations = false
   } = props;
 
-// console.log("SunburstGraph::data", data);
+// console.log("TreemapGraph::data", data);
 
   const Margin = React.useMemo(() => {
     return { ...DefaultMargin, ...margin };
@@ -191,6 +199,8 @@ export const SunburstGraph = props => {
     return hcData;
   }, [hoverComp]);
 
+// console.log("TreemapGraph::HoverCompData", HoverCompData)
+
   React.useEffect(() => {
 
     if (!(width && height)) return;
@@ -198,29 +208,43 @@ export const SunburstGraph = props => {
     const adjustedWidth = Math.max(0, width - (Margin.left + Margin.right)),
       adjustedHeight = Math.max(0, height - (Margin.top + Margin.bottom));
 
-    const children = d => {
-    	return Array.isArray(d) ? d[1] : null
-    };
+    if (!data.length) {
+      dispatch({
+        type: "update-state",
+        adjustedWidth,
+        adjustedHeight,
+        treemapData: []
+      });
+    }
+    else {
+      const getChildren = d => {
+        return Array.isArray(d) ? d[1] : null
+      };
 
-    const hierarchy = d3hierarchy([null, data], children)
-                  .sum(([i, d]) => {
-                    if (typeof d === "number") {
-                      return d;
-                    }
-                    return 0.0;
-                  })
-                  // .sort((a, b) => b.value - a.value);
+      const hierarchy = d3hierarchy([null, data], getChildren)
+                    .sum(([i, d]) => {
+                      if (typeof d === "number") {
+                        return d;
+                      }
+                      return 0.0;
+                    })
+                    // .sort((a, b) => b.value - a.value);
 
-    const partitions = d3partition().size([Math.PI * 2, adjustedHeight * 0.5])(hierarchy);
+      const treemap = d3treemap()
+                        .tile(TileMethodMap[tileMethod] || treemapSquarify)
+                        // .padding(1)
+                        // .paddingInner(2.0)
+                        // .paddingOuter(2.0)
+                        .size([adjustedWidth, adjustedHeight])(hierarchy);
 
-    dispatch({
-    	type: "update-state",
-    	adjustedWidth,
-    	adjustedHeight,
-    	sunburstData: [partitions]
-    })
-
-  }, [data, Margin, width, height, colorFunc]);
+      dispatch({
+        type: "update-state",
+        adjustedWidth,
+        adjustedHeight,
+        treemapData: [treemap]
+      });
+    }
+  }, [data, Margin, width, height, colorFunc, tileMethod]);
 
   const {
     onMouseMove,
@@ -235,7 +259,7 @@ export const SunburstGraph = props => {
     ...hoverCompRest
   } = HoverCompData;
 
-// console.log("SunburstGraph::state.sunburstData", state.sunburstData);
+// console.log("TreemapGraph::state.treemapData", state.treemapData);
   
   return (
   	<div className="avl-graph-container" ref={ ref }>
@@ -243,18 +267,18 @@ export const SunburstGraph = props => {
       <svg className={ `w-full h-full block avl-graph ${ className }` }>
         <g onMouseLeave={ onMouseLeave }
           style={ {
-            transform: `translate(${ Margin.left + state.adjustedWidth * 0.5 }px, ${ Margin.top + state.adjustedHeight * 0.5 }px)`
+            transform: `translate(${ Margin.left }px, ${ Margin.top }px)`
           } }>
 
-          { state.sunburstData?.map((n, i) => (
-          		<Slice key="root" isRoot
+          { state.treemapData?.map((n, i) => (
+          		<Rect key="root" isRoot
           			colorFunc={ colorFunc }
-          			color="#666"
+          			color="transparent"
           			node={ n }
+          			onMouseMove={ onMouseMove }
                 indexTextSize={ indexTextSize }
                 valueTextSize={ valueTextSize }
-                valueFormat={ HoverCompData.valueFormat }
-          			onMouseMove={ onMouseMove }/>
+                valueFormat={ HoverCompData.valueFormat }/>
           	))
           }
 
@@ -278,14 +302,6 @@ export const SunburstGraph = props => {
   )
 }
 
-const getUniqueTextPathId = () => getUniqueId(`text-path-`);
-
-const labelTransform = node => {
-  const x = (node.x0 + node.x1) / 2 * 180 / Math.PI;
-  const y = (node.y0 + node.y1) / 2;
-  return `rotate(${ x - 90 }) translate(${ y }, 0) rotate(${ x < 180 ? 0 : 180 })`;
-}
-
 const IndexTextSizeMap = {
   xsmall: 0.1,
   small: 0.2,
@@ -294,7 +310,9 @@ const IndexTextSizeMap = {
   xlarge: 0.5
 }
 
-const Slice = React.memo(({ node, colorFunc, isRoot, ...props }) => {
+const getUniqueClipPathId = () => getUniqueId(`clip-path-`);
+
+const Rect = React.memo(({ node, isRoot, colorFunc, ...props }) => {
 
   const {
     color,
@@ -304,16 +322,6 @@ const Slice = React.memo(({ node, colorFunc, isRoot, ...props }) => {
     valueFormat
   } = props;
 
-  const ref = React.useRef();
-
-  const doOnMouseMove = React.useCallback(e => {
-  	onMouseMove(e, node);
-  }, [node, onMouseMove]);
-
-  const id = React.useMemo(() => {
-    return getUniqueTextPathId();
-  }, []);
-
   const [itSize, vtSize] = React.useMemo(() => {
     return [
       IndexTextSizeMap[indexTextSize] || IndexTextSizeMap["medium"],
@@ -321,133 +329,85 @@ const Slice = React.memo(({ node, colorFunc, isRoot, ...props }) => {
     ]
   }, [indexTextSize, valueTextSize]);
 
-  const rgbaColor = React.useMemo(() => {
-  	const alpha = Math.min(1.0, 1.0 - (node.depth - 1) * 0.15);
-  	return color2rgba(color, alpha);
-  }, [node, color]);
+  const id = React.useMemo(() => {
+    return getUniqueClipPathId();
+  }, []);
 
-  React.useEffect(() => {
+  // const rgbaColor = React.useMemo(() => {
+  // 	const alpha = Math.max(0.2, 1.0 - (node.depth - 2) * 0.15);
+  // 	return color2rgba(color, alpha);
+  // }, [node, color]);
 
-  	const arc = d3shape.arc()
-      .innerRadius(node.y0)
-      .outerRadius(node.y1)
-      .startAngle(node.x0)
-      .endAngle(node.x1)
-      .padAngle(0)
-      .cornerRadius(0);
-
-    d3select(ref.current)
-    	.attr("d", arc())
-    	.attr("fill", rgbaColor);
-
-  }, [node, rgbaColor]);
-
-  const [width, height] = React.useMemo(() => {
-  	return [
-  		2 * (node.x1 - node.x0) * (node.y0 + (node.y1 - node.y0) * 0.5),
-  		node.y1 - node.y0
-  	];
+  const [x, y, width, height, strokeWidth] = React.useMemo(() => {
+    const w = node.x1 - node.x0;
+    const h = node.y1 - node.y0;
+    const sw = w <= 5 || h <= 5 ? "0.5" : "1.0";
+    return [node.x0, node.y0, w, h, sw];
   }, [node]);
 
-  const textPath = React.useMemo(() => {
-  	if (width >= 200) {
-  		return d3shape.arc()
-	      .innerRadius(node.y0 + (node.y1 - node.y0) * 0.5)
-	      .outerRadius(node.y0 + (node.y1 - node.y0) * 0.5)
-	      .startAngle(node.x0)
-	      .endAngle(node.x1)
-	      .padAngle(0)
-	      .cornerRadius(0)()
-  	}
-	  return null
-  }, [node]);
+  const doOnMouseMove = React.useCallback(e => {
+  	onMouseMove(e, node);
+  }, [node, onMouseMove]);
 
-  const startOffset = React.useMemo(() => {
-  	const avgAngle = node.x0 + (node.x1 - node.x0) * 0.5;
-  	const PI = Math.PI;
-  	return avgAngle > PI * 0.5 && avgAngle < PI * 1.5 ? "75%" : "25%";
-  }, [node])
+  const label = React.useMemo(() => {
+    if (node.depth < 2) return null;
+    return node.data[0];
+  }, [node]);
 
 	return (
 		<g>
-    	<path ref={ ref } className="avl-slice" stroke="none"
-    		onMouseMove={ doOnMouseMove }/>
+    	<rect className="avl-rect"
+        stroke="#666" strokeWidth={ strokeWidth }
+        x={ x } width={ width }
+        y={ y } height={ height }
+    		onMouseMove={ doOnMouseMove }
+        fill={ node.depth < 2 ? "none" : color }/>
 
-    	<defs>
-    		<path id={ id } d={ textPath } fill="none" stroke="none"/>
-    	</defs>
+      <defs>
+        <clipPath id={ id }>
+          <rect
+            x={ x } width={ width }
+            y={ y } height={ height }
+            transform={ `rotate(${ width > height ? "0" : "-90" }, ${ x + width * 0.5 }, ${ y + height * 0.5 })` }/>
+        </clipPath>
+      </defs>
 
-    	{ node.depth === 0 ?
-	    		<>
-	    			<text
-			    		textAnchor="middle"
-			        dominantBaseline="ideographic"
-		    			className="pointer-events-none"
-		          fontSize={ Math.min(width, height) * itSize }
-	    			>
-			    		Total
-	    			</text>
-	    			<text
-			    		textAnchor="middle"
-			        dominantBaseline="hanging"
-		    			className="pointer-events-none"
-		          fontSize={ Math.min(width, height) * vtSize }
-	    			>
-			    		{ valueFormat(node.value) }
-	    			</text>
-	    		</> :
-    		width < 200 ? 
-	    		<>
-	    			<text
-			    		textAnchor="middle"
-			        dominantBaseline="ideographic"
-			    		transform={ labelTransform(node) }
-		    			className="pointer-events-none"
-		          fontSize={ Math.min(width, height) * itSize * 0.5 }
-	    			>
-			    		{ node.data[0] }
-	    			</text>
-	    			<text
-			    		textAnchor="middle"
-			        dominantBaseline="hanging"
-			    		transform={ labelTransform(node) }
-		    			className="pointer-events-none"
-		          fontSize={ Math.min(width, height) * vtSize * 0.5 }
-	    			>
-			    		{ valueFormat(node.value) }
-	    			</text>
-	    		</> :
-	    		<>
-			    	<text>
-			    		<textPath href={ `#${ id }` }
-			    			startOffset={ startOffset }
-			          dominantBaseline="ideographic"
-			    			textAnchor="middle"
-			    			className="pointer-events-none"
-		          	fontSize={ Math.min(width, height) * itSize }
-			    		>
-			    			{ node.data[0] || "Total" }
-			    		</textPath>
-			    	</text>
-			    	<text>
-			    		<textPath href={ `#${ id }` }
-			    			startOffset={ startOffset }
-			          dominantBaseline="hanging"
-			    			textAnchor="middle"
-		    				className="pointer-events-none"
-	          		fontSize={ Math.min(width, height) * vtSize }
-			    		>
-			    			{ valueFormat(node.value) }
-			    		</textPath>
-			    	</text>
-			    </>
-    	}
+      { label === null ? null :
+        <text 
+          textAnchor="middle"
+          dominantBaseline="ideographic"
+          x={ x + width * 0.5 }
+          y={ y + height * 0.5 }
+          fontSize={ Math.min(width, height) * itSize }
+          className="pointer-events-none"
+          transform={ `rotate(${ width > height ? "0" : "-90" }, ${ x + width * 0.5 }, ${ y + height * 0.5 })` }
+          clipPath={ `url(#${ id })` }
+        >
+          { label }
+        </text>
+      }
+
+      { label === null ? null :
+        <text 
+          textAnchor="middle"
+          dominantBaseline="hanging"
+          x={ x + width * 0.5 }
+          y={ y + height * 0.5 }
+          fontSize={ Math.min(width, height) * vtSize }
+          className="pointer-events-none"
+          transform={ `rotate(${ width > height ? "0" : "-90" }, ${ x + width * 0.5 }, ${ y + height * 0.5 })` }
+          clipPath={ `url(#${ id })` }
+        >
+          { valueFormat(node.value) }
+        </text>
+      }
 
     	{ node.children?.map((n, i) => (
-    			<Slice key={ n.data[0] } { ...props }
+    			<Rect key={ n.data[0] } { ...props }
     				node={ n }
-    				color={ isRoot ? colorFunc(n, i) : color }
-    				onMouseMove={ onMouseMove }/>
+    				color={ isRoot ? colorFunc(n.data[1], i, n.data[0], n) : color }
+    				onMouseMove={ onMouseMove }
+            valueFormat={ valueFormat }/>
     		))
     	}
     </g>

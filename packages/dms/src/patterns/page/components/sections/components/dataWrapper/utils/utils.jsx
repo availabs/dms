@@ -249,6 +249,9 @@ export const formatFunctions = {
   abbreviate_dollar: (d) => fnumIndex(d, 1, true),
   comma: (d, isDollar) => fnum(d, isDollar),
   comma_dollar: (d) => fnum(d, true),
+  // append a percent sign to a ready-to-display value (does not multiply by 100 —
+  // the value is assumed to already be a percentage, e.g. 79.8 → "79.8%").
+  percent: (d) => (d === null || d === undefined || d === "" ? "" : `${d}%`),
   zero_to_na: (d) => (!d || (d && +d === 0) || d === "0" ? "N/A" : d),
   date: (d) => formatDate(d),
   time: (d) => formatTime(d),

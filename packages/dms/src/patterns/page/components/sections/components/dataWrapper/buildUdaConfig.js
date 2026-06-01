@@ -391,6 +391,50 @@ export const applyPageFilters = (filterTree, pageFilters) => {
   return applyToNode(filterTree);
 };
 
+/**
+ * "Include prior period" expansion. For any leaf flagged
+ * `includePriorPeriod`, expand each NUMERIC value `v` to also include
+ * `v - step`, `v - 2*step`, … (`priorPeriodCount` steps) so the prior
+ * period(s) land in scope alongside the selected one. This lets a card
+ * compute "vs prior period" deltas (GROUP BY period + lag() + a formula
+ * column) from a SINGLE period control.
+ *
+ * Runs as its own pass over the RESOLVED filter tree — AFTER applyPageFilters —
+ * so it catches the value whether it arrived via a live page filter or sits on
+ * the section's saved leaf. Non-numeric values pass through untouched; leaf op
+ * stays `filter` (IN). Leaves without the flag are returned unchanged, so
+ * existing rows are byte-identical.
+ */
+export const applyPriorPeriodExpansion = (filterTree) => {
+  if (!filterTree) return filterTree;
+
+  const applyToNode = (node) => {
+    if (isGroup(node)) {
+      return { ...node, groups: node.groups.map(applyToNode) };
+    }
+    if (!node?.includePriorPeriod) return node;
+    if (!Array.isArray(node.value) || !node.value.length) return node;
+
+    const step = Number(node.priorPeriodStep) || 1;
+    const count = Number(node.priorPeriodCount) || 1;
+    const expanded = [];
+    for (const raw of node.value) {
+      expanded.push(raw);
+      const v = Number(raw);
+      if (raw !== '' && raw !== null && Number.isFinite(v)) {
+        const isStr = typeof raw === 'string';
+        for (let i = 1; i <= count; i++) {
+          const prior = v - i * step;
+          expanded.push(isStr ? String(prior) : prior);
+        }
+      }
+    }
+    return { ...node, value: [...new Set(expanded)] };
+  };
+
+  return applyToNode(filterTree);
+};
+
 // ─── Legacy column filter extraction ────────────────────────────────────────
 
 /**
@@ -985,6 +1029,10 @@ export const buildUdaConfig = ({
   if (pageFilters && Object.keys(pageFilters).length) {
     filterTree = applyPageFilters(filterTree, pageFilters);
   }
+  // Expand `includePriorPeriod` leaves on the resolved tree — runs whether the
+  // value arrived via a page filter or sits on the saved leaf (e.g. year_record
+  // → IN(Y, Y-1)). No-op for leaves without the flag.
+  filterTree = applyPriorPeriodExpansion(filterTree);
 
   // Extract normal filters before mapping (they need raw column names)
   const { cleaned: nonNormalFilterGroups, normalFilters: filterGroupNormalFilters } =
