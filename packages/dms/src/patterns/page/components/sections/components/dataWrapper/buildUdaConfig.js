@@ -26,6 +26,8 @@ export const isCalculatedCol = ({ display, type, origin, name }) =>
   origin === "calculated-column" ||
   (name && name.toLowerCase().includes(" as "));
 
+const isGroupByPageFilterCol = (col) => col.groupByPageFilter;
+
 /**
  * Column reference string — the SQL accessor used in WHERE/GROUP BY/ORDER BY.
  * DMS columns use data->>'col', DAMA columns use col directly.
@@ -496,6 +498,21 @@ const extractLegacyColumnFilters = (columns) => {
 
 // ─── Column settings computation ────────────────────────────────────────────
 
+export const buildPageFilterColumn = (column) => {
+  // (CASE 
+  //       WHEN ds.tmc IN ('120-50371', '120P05935') THEN 'Group 1'
+  //       WHEN ds.tmc IN ('115-04234', '115P04235', '115-04236') THEN 'Group 2'
+  //       ELSE 'Unknown Group'
+  //   END) as tmc_group
+  
+  // const groupColName = `${column.name}_filter_group`
+  const valueClauses = column.value.map((val, i) => {
+      const arrayVal = Array.isArray(val) ? val : [val]
+      return `WHEN ${column.name} IN (${arrayVal.map((v) => `'${v}'`).join(" ")}) THEN 'Group ${i+1}'`
+    });
+  return `(CASE ${valueClauses.join(" ")} ELSE 'Unknown Group' END) as ${column.name}_group`;
+}
+
 /**
  * Build columnsWithSettings — enriches user columns with server-side ref/req/total names.
  * This is the core column metadata computation previously inline in getData().
@@ -726,6 +743,34 @@ export const buildJoinOnClause = ({ join, externalSource }) => {
     });
 };
 
+export const isJoinComplete = (joinSource) => {
+  const strategy = joinSource.mergeStrategy || 'join';
+  if(!joinSource.source || !joinSource.view) {
+    console.log("join is missing source or view::", joinSource);
+    return false
+  } else if (strategy === "union" || strategy === "except") {
+    return true;
+  } else if (strategy === "join") {
+    if (!joinSource.type) {
+      console.log("join is missing TYPE")
+      return false
+    };
+    if (!joinSource.joinColumns || joinSource.joinColumns.length === 0) {
+      console.log("join is missing 'on columns'::", joinSource);
+      return false
+    };
+
+    if(!joinSource.joinColumns.every(col => col.dsColumn && col.joinSourceColumn)){
+      console.log("join is missing a portion of join column pair")
+    } 
+
+    return joinSource.joinColumns.every(col => col.dsColumn && col.joinSourceColumn);
+  } else {
+    console.log("unknown join strategy::", strategy);
+    return false;
+  }
+}
+
 // ─── Output source info (Phase 4: chainability) ────────────────────────────
 /**
  * Compute outputSourceInfo — describes what this dataWrapper produces after
@@ -819,34 +864,6 @@ export const computeOutputSourceInfo = ({
 };
 
 // ─── Main builder ───────────────────────────────────────────────────────────
-
-export const isJoinComplete = (joinSource) => {
-  const strategy = joinSource.mergeStrategy || 'join';
-  if(!joinSource.source || !joinSource.view) {
-    console.log("join is missing source or view::", joinSource);
-    return false
-  } else if (strategy === "union" || strategy === "except") {
-    return true;
-  } else if (strategy === "join") {
-    if (!joinSource.type) {
-      console.log("join is missing TYPE")
-      return false
-    };
-    if (!joinSource.joinColumns || joinSource.joinColumns.length === 0) {
-      console.log("join is missing 'on columns'::", joinSource);
-      return false
-    };
-
-    if(!joinSource.joinColumns.every(col => col.dsColumn && col.joinSourceColumn)){
-      console.log("join is missing a portion of join column pair")
-    } 
-
-    return joinSource.joinColumns.every(col => col.dsColumn && col.joinSourceColumn);
-  } else {
-    console.log("unknown join strategy::", strategy);
-    return false;
-  }
-}
 
 /**
  * buildUdaConfig — the main entry point.
@@ -945,6 +962,13 @@ export const buildUdaConfig = ({
         ? { ...col, name: aliasCalcSql(col.name, alias) }
         : col;
     }
+    // if (isGroupByPageFilterCol(col)) {
+    //   return {
+    //     ...col,
+    //     type: "calculated",
+    //     name: buildPageFilterColumn({ ...col, name: isJoin ? `${col.name}` : col.name }),
+    //   };
+    // }
     return {
       ...col,
       name: isJoin ? `${alias}.${col.name}` : col.name,
@@ -981,7 +1005,7 @@ export const buildUdaConfig = ({
 
   // 3. Derive groupBy, orderBy, fn, serverFn, meta from columns
   const groupBy = columns
-    .filter((column) => column.group)
+    .filter((column) => column.group || column.groupByPageFilter)
     .map((column) => column.name);
 
   const orderBy = columns
