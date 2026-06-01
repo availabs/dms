@@ -379,7 +379,7 @@ const Rect = React.memo(({ node, isRoot, colorFunc, ...props }) => {
           x={ x + width * 0.5 }
           y={ y + height * 0.5 }
           fontSize={ Math.min(width, height) * itSize }
-          className="pointer-events-none"
+          className="pointer-events-none font-medium"
           transform={ `rotate(${ width > height ? "0" : "-90" }, ${ x + width * 0.5 }, ${ y + height * 0.5 })` }
           clipPath={ `url(#${ id })` }
         >

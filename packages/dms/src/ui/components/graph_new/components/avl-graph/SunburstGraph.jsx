@@ -382,7 +382,7 @@ const Slice = React.memo(({ node, colorFunc, isRoot, ...props }) => {
 	    			<text
 			    		textAnchor="middle"
 			        dominantBaseline="ideographic"
-		    			className="pointer-events-none"
+		    			className="pointer-events-none font-medium"
 		          fontSize={ Math.min(width, height) * itSize }
 	    			>
 			    		Total
@@ -402,7 +402,7 @@ const Slice = React.memo(({ node, colorFunc, isRoot, ...props }) => {
 			    		textAnchor="middle"
 			        dominantBaseline="ideographic"
 			    		transform={ labelTransform(node) }
-		    			className="pointer-events-none"
+		    			className="pointer-events-none font-medium"
 		          fontSize={ Math.min(width, height) * itSize * 0.5 }
 	    			>
 			    		{ node.data[0] }
@@ -423,7 +423,7 @@ const Slice = React.memo(({ node, colorFunc, isRoot, ...props }) => {
 			    			startOffset={ startOffset }
 			          dominantBaseline="ideographic"
 			    			textAnchor="middle"
-			    			className="pointer-events-none"
+			    			className="pointer-events-none font-medium"
 		          	fontSize={ Math.min(width, height) * itSize }
 			    		>
 			    			{ node.data[0] || "Total" }

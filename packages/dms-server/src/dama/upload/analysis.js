@@ -297,7 +297,9 @@ function generateTableDescriptor(layerMetadata, layerAnalysis) {
     const summary = analysisField?.summary || {};
     const dbType = summary.db_type || 'TEXT';
 
-    let col = toSnakeCase(field.name);
+    const rawName = (field.name || '').trim();
+    const baseName = rawName === '' ? `unnamed_${i + 1}` : rawName;
+    let col = toSnakeCase(baseName);
     if (seen[col]) {
       let suffix = 1;
       while (seen[`${col}_${suffix}`]) suffix++;

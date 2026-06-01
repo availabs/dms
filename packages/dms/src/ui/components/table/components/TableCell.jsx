@@ -419,13 +419,19 @@ export const TableCell = memo(function TableCell ({
     );
 
     const compClassName = useMemo(() => {
+        // Per-column valueFontStyle overrides typography on the cell — mirrors
+        // the Card cell pattern, so a column can pick a textSettings key
+        // (e.g. `numDiag` for diagnostic / no-verdict numbers) and have it
+        // win over the table's default `cellInner` styling.
+        const valueStyleClass = attribute.valueFontStyle ? (theme?.[attribute.valueFontStyle] || '') : '';
         return `${ openOutTitle ? theme?.openOutTitle : attribute.openOut ? theme?.openOutValue : theme?.cellInner }
                 ${justifyClass[attribute.justify] || ''} ${bgColor} ${attribute.formatFn === 'title' ? 'capitalize' : ''}
                 ${attribute.wrapText ? theme.wrapText : ''}
                 ${renderTextBox ? theme.cellEditableTextBox : ''}
-                ${isHighlighted && highlightedRow?.style === 'bold' ? 'font-bold' : ''}`;
+                ${isHighlighted && highlightedRow?.style === 'bold' ? 'font-bold' : ''}
+                ${valueStyleClass}`;
     }, [
-        attribute.openOut, attribute.justify, attribute.wrapText, attribute.formatFn,
+        attribute.openOut, attribute.justify, attribute.wrapText, attribute.formatFn, attribute.valueFontStyle,
         openOutTitle, renderTextBox, theme, bgColor, isHighlighted, highlightedRow?.style
     ]);
 

@@ -71,7 +71,14 @@ const LineGraphWrapper = props => {
 				const aggFunc = getAggFunc(yc);
 
 				// Each yColumn is its own series; carry its per-series visuals through.
-				const line = { id: ycn, data: [], interpolation: yc.interpolation };
+				// `displayName` flows to the hover tooltip so a calc column doesn't surface
+				// its raw SQL — the d3 series key (`id`) stays the SQL-safe alias.
+				const line = {
+					id: ycn,
+					displayName: yc.customName || yc.display_name || ycn,
+					data: [],
+					interpolation: yc.interpolation
+				};
 				if (yc.area !== undefined) line.area = yc.area;
 				if (yc.color) line.color = yc.color;
 				if (yc.dashArray) line.dashArray = yc.dashArray;

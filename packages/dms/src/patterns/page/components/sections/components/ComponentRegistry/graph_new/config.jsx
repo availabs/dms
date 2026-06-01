@@ -454,6 +454,9 @@ export default {
             { type: "toggle",
               label: "Show Axis", key: "pieAxis.showAxis"
             },
+            { type: "input", inputType: "number",
+              label: "Tick Density", key: "pieAxis.tickDensity"
+            },
             { type: "toggle",
               label: "Show Value", key: "pieAxis.showValue"
             },

@@ -74,7 +74,7 @@ export const TableRow = memo(function TableRow ({
                     // })}
                     // onMouseUp={e => setIsDragging && handleMouseUp({setIsDragging})}
                 >
-                    {showGutters && (isTotalRow ? 'T' : index + 1)}
+                    {showGutters && (isTotalRow ? 'T' : String(index + 1).padStart(2, '0'))}
                 </div>
                 {attrsToRender
                     .map((attribute, i) => {

@@ -21,7 +21,7 @@ export const CardSection = ({
               }) => {
     const {UI} = useContext(ThemeContext);
     const {Card} = UI;
-    const {state, setState, controls={}} = useContext(ComponentContext);
+    const {state, setState, controls={}, activeStyle} = useContext(ComponentContext);
     const { pageState, setActionParam, clearActionParam } = useContext(PageContext) || {};
 
     const providerCfg = state.display?._functions?.providers?.find(p => p.functionId === 'hover_highlight' && p.enabled);
@@ -85,6 +85,7 @@ export const CardSection = ({
                      ...(clickSaveSubCfg ? { clickSaveActive: true } : {}),
                  }}
                  isEdit={isEdit} updateItem={updateItem} addItem={addItem} newItem={newItem} setNewItem={setNewItem} allowEdit={allowEdit}
+                 activeStyle={state.display?.cardStyle || activeStyle}
                  formatFunctions={formatFunctions}
     />
 }
