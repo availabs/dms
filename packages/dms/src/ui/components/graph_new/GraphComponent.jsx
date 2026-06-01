@@ -136,6 +136,7 @@ export const GraphComponent = props => {
         } }
         pieAxis={ {
           showAxis: get(graphFormat, ["pieAxis", "showAxis"], false),
+          tickDensity: get(graphFormat, ["pieAxis", "tickDensity"], 0.5),
           showValue: get(graphFormat, ["pieAxis", "showValue"], false),
           valueTextSize: get(graphFormat, ["pieAxis", "valueTextSize"], false),
           valueFormat: getFormatFunc(get(graphFormat, ["pieAxis", "valueFormat"]), get(graphFormat, ["pieAxis", "isDollars"], false)),

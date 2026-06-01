@@ -334,6 +334,7 @@ export const PieGraph = props => {
                   onMouseMove={ onMouseMove }
                   showAnimations={ showAnimations }
                   showAxis={ pieAxis.showAxis }
+                  tickDensity={ pieAxis.tickDensity }
                   showValue={ pieAxis.showValue }
                   valueTextSize={ pieAxis.valueTextSize }/>
               ))
@@ -503,11 +504,11 @@ const Slice = React.memo(({ state, data, innerRadius, outerRadius, index,
 
 const getUniqueTextPathId = () => getUniqueId(`text-path-`);
 
-const CircleAxis = ({ pie, outerRadius }) => {
+const CircleAxis = ({ pie, outerRadius, tickDensity }) => {
 
   const axisTicks = React.useMemo(() => {
 
-    const density = 200;
+    const density = 100 / tickDensity;
 
     let dist = density;
     let curAngle = 0;
@@ -554,7 +555,7 @@ const CircleAxis = ({ pie, outerRadius }) => {
 
         return a;
       }, []);
-  }, [pie, outerRadius]);
+  }, [pie, outerRadius, tickDensity]);
 
   return (
     <g>
