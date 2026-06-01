@@ -86,6 +86,44 @@ draft) with 3 bands (`Page header` / `Report` / `Footer`). Sections: a page-head
 written + indexed in `skills/README.md` (page-variable model, `includePriorPeriod`,
 ignore-the-variable, gotchas; worked refs 2173049 + 2173915).
 
+**Fix (page-variable registry was missing — the interactivity "part 0"):** the
+page itself must declare each variable in its top-level `data.filters` array
+(`{searchKey, values, useSearchParams:true}`) — this whitelist seeds
+`pageState.filters` via `mergeFilters` in `view.jsx`. Page 2173915 had
+`filters: undefined`, so even though the Year selector (2173917) and the §01 cards
+(2173919–21) all had correct `usePageFilters:true` + `searchParamKey:'year_record'`
+leaves, nothing reacted: `updatePageStateFilters` drops unregistered keys from the
+URL, `updatePageStateFiltersOnSearchParamChange` ignores unregistered URL params,
+and `usePageFilterSync` bails when `pageState.filters` is empty. Registered
+`year_record` (default `2025`) on 2173915; verified all four section leaves were
+already correct. The `creating-interactive-pages.md` skill now leads with this as
+**Step 0** + a "why nothing happens" box + the section-tree-vs-column-filter
+duality gotcha (the column-attached `columns[].filters` are empty on these cards;
+the live leaf is in `element-data.filters.groups`, which is what the query builder
+reads).
+
+**Primitive enrichment shipped — author-selectable whole-filter "Filter style":**
+The Year selector's appearance is now driven by a **named-styles `filters` theme
+block** (in `themes/transportny/themev2.js`: `panel` / `chip` / `labeled` /
+`tone_bar`), not by ad-hoc per-control styling. Each style bundles the wrapper,
+label, condition-row, `placement`, **and** the multiselect `controlStyle` it passes
+down to its value control. A site author picks the whole design from the Filter
+section toolbar via the new **"Filter style"** select (key `display.filterStyle`,
+options sourced from `theme.filters.styles`). Wiring:
+- `FilterComponent.config.js` — "Filter style" select (was a per-control "Control
+  style"); options from `theme.filters.styles`. Added a separate "Placement
+  (override)" select (`display.placement` wins over the style's `placement`).
+- `ExternalFilters.jsx` (the viewer-visible control) + `RenderFilters.jsx`
+  (edit/legacy + internal) — both resolve the design with
+  `getComponentTheme(theme,'filters', display.filterStyle)` and thread
+  `theme.filters.controlStyle` down to the value control.
+- `ConditionValueInput.jsx` / `RenderFilterValueSelector.jsx` — accept + forward
+  `activeStyle` to the `multiselect` `EditComp`; `controlStyleProp ??
+  display.filterControlStyle` keeps the legacy per-control key as a fallback.
+- Live: section **2173917** set to `filterStyle: 'chip'`, `hideExternalToggle: true`,
+  `placement: 'inline'`; legacy `filterControlStyle` removed. No className
+  passthroughs added (per `themes/CLAUDE.md` author-empowerment rule).
+
 **Deferred (primitive gap):** the sticky "on this page" TOC chrome — no first-class
 DMS support for in-page anchored section nav yet; left out of the live page pending
 the Phase-1 decision (theme/layout feature vs section). Logged in the ledger.
@@ -139,10 +177,24 @@ selector + page chrome), and write the new skill.
 card** as a `lexical` dashed card (2173922). The 3 cards react to the Year
 selector; verify live and confirm values for the selected year.
 
-**Primitive gaps confirmed (not yet built — see ledger):** status-pill column
-type, target-bar column type, signed/arrow delta formatFn. The cards currently
-render status as text + a bare signed Δ; the pill / bar / arrow treatments from
-the mockup need those enrichments.
+**✅ Phase 2 fully complete — all four §01 cards match the mockup.** The primitive
+gaps are now built and the cards transcribed via the Playwright loop:
+- **status_pill / target_bar / delta** shipped as **built-in column types**
+  (`ui/columnTypes/`), + a **`percent`** formatFn. See
+  [`map21-kpi-column-types.md`](./map21-kpi-column-types.md).
+- **UI.Pill made themeable** (design-system contract) → the brand bordered/dotted/
+  uppercase status pill flows design-system → theme → UI.Pill → status_pill → card.
+  See [`theme-ui-pill.md`](./theme-ui-pill.md).
+- **Card header** alignment + casing controls (`headerJustify`/`headerCase`) so the
+  title is left-aligned sentence-case. See [`card-header-alignment-and-casing.md`](./card-header-alignment-and-casing.md).
+- **PHED card converted from `lexical` → data-bound Card** (2173922): UZA-measure
+  pill, `sum(phed)` hr/yr value, note.
+- Cards: Interstate 2173919 (79.8% / ≥75% / +1.3 / 4.8 pts above), Non-Int 2173920
+  (83.2% / ≥70% / −3.6 red / 13.2 pts above), Truck 2173921 (1.46 / ≤2 / +0.02 red /
+  0.5 pts below), PHED 2173922 (374,711,700 hr/yr).
+- **Deferred polish:** the `%`/`hr/yr` smaller-unit superscript; the PHED card's
+  dashed "context" chrome + "Urban congestion below →" link; the §01 "3/3 measures
+  met" roll-up header.
 
 **Original plan ↓**
 
@@ -171,6 +223,210 @@ the mockup need those enrichments.
 - **Skill notes:** the three column-type/formatFn enrichments are reusable across
   brands → candidate `card-layout.md` additions + possibly a "status & delta
   column types" recipe.
+
+## Build status (session 2026-05-30) — ALL SIX SECTIONS BUILT & VERIFIED ✅
+
+Page **2173915** now has 15 draft sections rendering top-to-bottom in reading order
+(full-page shot verified via the Playwright loop):
+- **§01 Compliance snapshot (Phase 2)** — 4 KPI cards (2173919–22): status_pill,
+  value+%, target_bar, delta, margin. ✅
+- **§02 Reliability over time (Phase 3)** — 3 `Graph` line charts (2173963/64/65):
+  Interstate / Non-Interstate / Truck TTTR over 2016–2025 (the 2020 COVID spike is
+  visible). ✅ Built from the graph `defaultState` (no template existed) — `graphType:
+  'LineGraph'`, `year_record` as `xAxis`+`group`, the metric as `yAxis` (`fn:exempt`),
+  no `year_record` leaf (ignores the Year selector). **Deferred (Graph gaps):** the
+  stepped FHWA target reference series, the COVID/period-boundary annotations, and
+  per-point meets/below colouring.
+- **§03 How targets work (Phase 4)** — `lexical` explainer (2173960). ✅
+- **§04 Regional · by MPO (Phase 5)** — `Spreadsheet` (2173961), GROUP BY `mpo_name`,
+  per-measure reliability + PHED total, year-filtered. ✅ **Deferred:** per-cell
+  verdict dots, `Met X/3` roll-up, MPO/County group-by toggle (no group-by page
+  variable yet).
+- **§05 Urban congestion (Phase 6)** — `Spreadsheet` (2173962), GROUP BY `ua_name`,
+  filtered to the two reporting UZAs (`urban_code IN (63217,71803)`). ✅ **Deferred /
+  blocked:** PHED **per-capita** and **Non-SOV** are not computable from source 2001
+  (no UZA population, no non-SOV column) — shows PHED **total** + reliability instead.
+- **§06 Annual download (Phase 7)** — `Spreadsheet` (2173959) cloned from the working
+  2173042: source 2001/3394, `year_record` `usePageFilters`, `allowDownload`,
+  paginated (20,682 rows for CY 2025). ✅
+
+**Cross-cutting polish still deferred:** band/tint separation per § (all new sections
+appended into the §01 report group — functional, not visually banded); the §01 "3/3
+measures met" header roll-up; the dashed/slate PHED "context" chrome; smaller-unit
+`%`/`hr/yr` superscript; sticky-TOC chrome.
+
+**Process notes learned this phase:**
+- Create sections with `dms section create <page> --pattern npmrds_sub --element-type
+  <T> --data <data>` — **without `--pattern` the CLI defaults to the wrong pattern**
+  (`freightatlas2`), producing a mis-typed section.
+- `dms section delete` leaves a **dangling `draft_sections` ref** on the page — prune
+  it (page raw update) or the page render breaks.
+- **Build data-bound sections by cloning a working section** of the same element-type
+  (Spreadsheet ← 2173042; calc-column shapes ← a KPI card) — hand-built column objects
+  miss fields `createRequest` needs.
+- **The auth token expires (~6h)** and the loop silently fails (login redirect); refresh
+  `scratchpad/<env>/auth.json` with a new `userToken`. The Spreadsheet/Graph `fn`
+  ("exempt") labels seen in shots are **edit-mode chrome**, not real columns.
+- Fixed a real bug surfaced by the new column types: the Card spread the column's data
+  `key` field into the cell `Comp`, which React read as its own `key` → warning. Now
+  stripped before the spread (`Card.jsx` CompWrapper).
+
+## Session 2026-05-31 — §02 trends moved to `avlGraph` + Graph primitive built up ✅
+
+Focused session on the **§02 trend charts** and the underlying **`avlGraph` (`graph_new`)**
+primitive (its own task: [`avlgraph-theme-integration.md`](./avlgraph-theme-integration.md)).
+All three §02 trends (2173963/64/65) were **converted from the legacy `graph` to `avlGraph`**
+and now render the design's **emerald area+line**; the Interstate chart (2173963) carries a
+**dashed amber 75% target reference line**. Verified via the Playwright loop; both repos
+committed + pushed to `master` (`availabs/dms` `5d246c5e`, `availabs/dms-template` `3733274`).
+
+**What shipped (all BC, all author-accessible):**
+- **Calc-series binding fixed** — the blank-line blocker was *two* bugs: (1) the wrapper read
+  `row[yc.name]` but rows are keyed `normalName || name` (now resolved that way, matching
+  `getData.js` / `Card.jsx`); (2) **the actual cause** — a calc column's `fn:"exempt"` hit a
+  `getAggFunc` fallback (`id = x => x`) that returned the *group array* instead of applying the
+  accessor → `NaN` line. `graph_new/components/utils.js` now handles `exempt`/unknown fns by
+  pulling the first non-empty accessed value. Keep the calc column `name` = full SQL.
+- **Theme/section line+axis tokens** threaded through `GraphComponent` → wrapper → d3 renderer:
+  `strokeWidth`, `area`+`areaOpacity` (new filled `<path>`), gridline `gridLineOpacity` +
+  `axisColor`. Brand defaults in `theme.avlGraph.chartDefaults` + transportny `chartDefaults`.
+- **Per-series controls** on a yAxis column: `interpolation` (linear/step/monotone/basis/
+  catmullrom), `area`, `color`, `dashArray` — in `ComponentRegistry/graph_new/config.jsx`.
+- **Reference line = a styled second series** (not a bespoke feature): a second yAxis column
+  (`75.0 as lottr_interstate_target`) with `interpolation:"step"` + amber `color` + `dashArray`.
+
+**Open items carried forward (⚠️ note for next session):**
+- **Target values for the other two trends.** Only the Interstate target (75%, stated in the
+  mockup) is wired. **Non-Interstate NHS LOTTR and Truck TTTR targets aren't in the mockup —
+  confirm the values + source with the user before adding their reference lines; do NOT
+  fabricate regulatory targets.** Capability is ready (add a `<target> as <name>` 2nd yAxis
+  column, step interp, amber dash); for a stepped P1→P2 line use a `CASE WHEN year_record >= …`
+  calc column with `step` interpolation.
+- **Per-chart hero-stat card** (the design's small "CY 2025 · 79.8% · ● meets" header above
+  each trend) — still deferred. The §01 KPI strip already shows the hero stats with
+  `status_pill`s; a per-chart card is a nice-to-have (build as a sibling `Card`, reuse
+  `status_pill`).
+- **Still on the Graph gap list:** point markers + the last-point label badge; the
+  COVID/period-boundary vertical annotations; per-point meets/below colouring; tick font-size
+  token. (Interpolation/area/color/dash + the stepped-target capability are now DONE.)
+
+## Session 2026-05-31 (continuation) — Table theme + graph tick padding + hover label
+
+Three small but high-impact fixes; all changes BC and author-accessible.
+
+**Shipped:**
+- **Spreadsheet/Table theme actually applied.** transportny's `theme.table.styles[0]` was
+  keyed to HTML-element names (`wrapper`/`thead`/`th`/`tr`/`td`) — the Table component
+  renders a CSS-grid of `<div>`s and reads `tableContainer` / `headerCellContainer` /
+  `headerCellContainerBg` / `cell` / `cellInner` / `cellBg…` / `gutterCellWrapper` / etc.,
+  so the brand block was dead. Re-keyed and **restructured into three named styles** to
+  match the design system's source of truth (`dms_design_system_v2/design-system/
+  components.html`):
+  - **`default`** = the components page's "default · dashboard · amber-hover" example:
+    `font-display uppercase text-[11px] tracking-wide text-slate-600` header on
+    `bg-slate-50/80`, `px-3 py-2 text-[13px] text-slate-700` cells, bottom-only
+    `border-b border-zinc-950/05` rows, `hover:bg-[#FFFBEB]`. Rounded white shell.
+  - **`editorial`** = the components page's "editorial · deep-navy header · printable":
+    `bg-[#0F2D4D]` header on a `#F5F1E8` body with all-sides slate-200 hairlines.
+  - **`report`** (new) = the MAP-21 page's tighter treatment: `font-mono text-[10px]
+    uppercase tracking-[0.16em] text-slate-500` header on `bg-slate-50/60`,
+    `px-4 py-2.5 text-[13px] text-slate-700` Proxima body. Inherits the rest from
+    `default`. **This is the brand's current global default** (`options.activeStyle:
+    "report"`) because §04/§05/§06 are the only Spreadsheets on the site today.
+  All three styles share the same admin chrome (popup menu, open-out drawer) via two
+  shared spread-fragments (`tableHeaderChrome` / `tableOpenOutChrome`) so the styles
+  declare only what visually differs.
+- **LineGraph first tick flush to the y-axis.** `avl-graph/LineGraph.jsx` default
+  `padding = 0.5` → `0` on the `scalePoint()` x-axis. The 2016 (or first-year) data point
+  now lands at x=0 with no gap; right edge is symmetric. (Authors who want padding can
+  pass `display.padding` through `chartDefaults` if/when threaded.)
+- **Graph hover shows the column's display name, not the SQL.** A `yAxis` calc column's
+  `name` is the raw SQL expression and the series `id` had to stay the SQL alias for d3
+  binding, so the hover tooltip surfaced the SQL. Now `components/LineGraph.jsx` attaches
+  `displayName: yc.customName || yc.display_name || ycn` to each series and the
+  `DefaultHoverComp` in `avl-graph/LineGraph.jsx` uses `idFormat(rest.displayName || id,
+  rest)` instead of `idFormat(id, rest)`. BC: series `id` (the join key) is unchanged.
+
+**Process notes:**
+- **Theme edits don't hot-reload reliably** (per `transcribing-a-design-card-to-dms.md`).
+  Restart `npm run dev` after editing `themev2.js` or the table will still look like the
+  old library default. Component edits (LineGraph wrapper / DefaultHoverComp) do hot-
+  reload, so the graph fixes show up immediately.
+- The transportny `table` block was structurally broken (wrong keys for ~2 years' worth
+  of work) but never crashed because the Table component reads each key via `theme.foo`
+  and a missing key just falls into the className as the literal string `undefined` —
+  visually broken but functionally inert. **Lesson:** theme keys should be type-checked
+  somewhere (or at least dev-warned) so that an authored block that nothing reads
+  doesn't silently ship.
+
+## Cross-cutting polish (deferred — tracked here)
+
+These are visual deltas the live build doesn't yet match. None block usability; each is
+a polish pass. Listed roughly in order of design impact.
+
+- [ ] **§01 "3/3 measures met" roll-up header.** The mockup shows a small status pill
+      above the four KPI cards summarizing "n/3 measures met this year". Calc:
+      `sum(case when status='Meets' then 1 else 0 end) || '/3 measures met'`. Build as a
+      single `Card` above the §01 row, or as a header cell with a new `status_pill` calc.
+- [x] **PHED "context" card style** — shipped as a new `dataCard` named style.
+      `theme.dataCard.styles[7] = {name: 'context', ...}` with the mockup's `border-
+      dashed border-zinc-950/15 bg-slate-50/60 p-5 flex-col gap-3 h-full` wrapper,
+      `font-display font-medium text-[15px]` header, `font-display font-semibold
+      text-[28px] tabular-nums` value, and `font-proxima text-[12.5px] text-slate-600`
+      description. Also added to `dms_design_system_v2/design-system/components.html`
+      as the 8th dataCard example with the PHED sample data ("UZA measure" slate pill,
+      "Peak-hour excessive delay", "366,000,000 hr/yr", note). To apply on live
+      section 2173922: in edit mode open the PHED card's "More" menu → Card style →
+      `context`. (Still **deferred**: the "Urban congestion below →" link, which is a
+      separate column-level concern — `isLink + location: '#urban-congestion'` on a
+      column rendered with `metaSM` font-style would do it.)
+- [ ] **Smaller-unit superscript on KPI values.** Mockup renders `79.8%` and
+      `374,711,700 hr/yr` with the unit at smaller weight. Likely a new formatFn
+      (`percent_with_unit` / `value_with_unit`) that wraps the unit in `<sup>`-style
+      Tailwind classes, or a column-type cardHint that splits unit from value.
+- [ ] **Band/tint separation per section.** The mockup alternates white surface (§01/§02)
+      and slate-tinted (`bg-[#ECEEF2]`) bands (§03/§04/§05/§06) — the live page renders
+      every section into a single `Report` LayoutGroup with no per-band background. The
+      page pattern currently doesn't expose a "per-section band background" token; the
+      cleanest fix is to introduce a `band` LayoutGroup attribute (theme-driven) and
+      assign each §-row to its band.
+- [ ] **Sticky in-page TOC chrome.** Right-rail `<aside class="sticky top-4 self-start
+      …" data-dms-section="toc">` in the mockup; the page pattern has no first-class
+      anchored section nav yet. Options: (a) theme/layout feature with `pageLayout:
+      'with-toc'`, (b) a new `toc` chrome section type that auto-collects sibling
+      `<section id>`s, (c) a `lexical` section with hand-wired anchor links (cheap, not
+      author-resilient). Decision deferred from Phase 1.
+- [ ] **§04 per-cell verdict dots + `Met X/3` roll-up.** Each measure cell in the MPO
+      matrix should render `<dot> <value>` (emerald/red by meets/below) and the right-
+      most column should count meets. Needs a compact `status_cell` (mini status_pill)
+      column type and a formula referencing sibling calc columns.
+- [ ] **§04 MPO/County group-by toggle.** Today the matrix is MPO-only. A page variable
+      that swaps the GROUP BY column is the right shape — primitive gap on the ledger.
+- [ ] **§05 PHED per-capita + Non-SOV.** Blocked on data: per-capita needs a UZA
+      population join (HPMS/ACS); Non-SOV isn't in source 2001 at all. Coordinate with
+      data team for a populations table, or carry per-capita in upload 6822 directly.
+- [x] **Per-section "Table style" picker on Spreadsheet** — shipped. `spreadsheet/
+      config.jsx`'s `controls` is now a function `(theme) => ({...})` (matches the
+      Card / FilterComponent contract; `sectionMenu.jsx:31-33` already invokes
+      `controls(theme)` if it's a function). New `Table style` select in `more` with
+      options from `buildTableStyleOptions(theme)` — reads `theme.table.styles[].name`
+      and prepends a `(theme default)` empty-value option. `display.tableStyle` is
+      resolved as `display.tableStyle || activeStyle` in `RenderTable` (spreadsheet/
+      index.jsx). Authors now pick `default` / `editorial` / `report` per Spreadsheet.
+- [x] **Per-section "Card style" picker on Card** — shipped. `Card.config.jsx`
+      adds `buildCardStyleOptions(theme)` reading `theme.dataCard.styles[].name`,
+      and a `Card style` select at the top of `more`. The section wrapper
+      `ComponentRegistry/Card.jsx` now destructures `activeStyle` from
+      `ComponentContext` and passes `activeStyle={state.display?.cardStyle ||
+      activeStyle}` down to the UI primitive `Card.jsx` (which reads it at line 836
+      `getComponentTheme(theme,'dataCard',activeStyle)`). Authors pick from the 6
+      transportny dataCard styles (default / kpi / compliance / editorial /
+      title_bar / compact / dashboard) per Card section.
+- [ ] **Audit other multi-style components.** Only Card + Spreadsheet currently have
+      multi-style themes that need pickers. Graph / avlGraph / Lexical / Map each
+      have one style today. If a brand adds a second style to any of those, the
+      same pattern (function-form `controls` + style-select + `display.<x>Style ||
+      activeStyle` thread) is the standard.
 
 ## Phase 3 — §02 Reliability over time (trends)
 
@@ -291,18 +547,45 @@ the mockup need those enrichments.
 ## Cross-cutting: primitive-gap ledger (keep updated as phases run)
 
 Single place to track DMS primitive work surfaced by this build (move each to its
-own `patterns/page` task when it's ready to implement):
+own `patterns/page` task when it's ready to implement).
 
-- [ ] Status-pill column type / formatFn (Phase 2)
-- [ ] Target-bar column type (Phase 2)
-- [ ] Signed/arrow delta formatFn or delta column type (Phase 2)
-- [ ] Graph: stepped target reference series + annotations + per-point colour (Phase 3)
+> **Procedure for closing these:** use
+> [`transcribing-a-design-card-to-dms.md`](../../skills/transcribing-a-design-card-to-dms.md)
+> — inventory the mockup atoms, map each via the decision ladder (the status-pill /
+> target-bar / delta items below are all rung-3 "look depends on the value" →
+> column types), build authorable atoms first, then verify with the Playwright
+> helper `scripts/card-shot.mjs` (mockup `[data-dms-section="kpi-interstate"]` vs
+> live section 2173919). Playwright is a one-time `npm i -D playwright && npx
+> playwright install chromium`.
+
+- [x] Status-pill column type (Phase 2) — built-in `status_pill` + themeable `UI.Pill`.
+- [x] Target-bar column type (Phase 2) — built-in `target_bar` (range-scaled + marker).
+- [x] Signed/arrow delta column type (Phase 2) — built-in `delta` + `percent` formatFn.
+- [~] Graph (Phase 3, §02 on `avlGraph` — session 2026-05-31): **DONE** — stepped target
+      reference line (as a styled 2nd yAxis series: step interp + color + dash), per-series
+      interpolation/area/color/dash, theme line+axis tokens, calc-series binding +
+      `fn:"exempt"` agg fix. **REMAINING** — point markers + last-point label, COVID/period
+      vertical annotations, per-point meets/below colour; confirm Non-Int/TTTR target values.
+      (See [`avlgraph-theme-integration.md`](./avlgraph-theme-integration.md).)
 - [ ] `Met X/N` verdict roll-up (formula or helper) (Phase 5)
 - [ ] Sortable matrix columns on Card/Spreadsheet (Phase 5)
 - [ ] Group-by page variable (MPO/County toggle) (Phase 5)
 - [ ] UZA population join for PHED per-capita (Phase 6)
 - [ ] Multi-key (2-col) DAMA join verification (Phase 6)
 - [ ] Sticky-TOC page chrome — theme/layout feature vs section (Phase 1)
+- [x] **Author-selectable whole-filter "Filter style"** (named `filters` theme styles
+      + `display.filterStyle` toolbar control + `controlStyle` passthrough to the
+      value multiselect) — shipped in Phase 1; see Phase 1 note. (Phase 1)
+- [x] **transportny `theme.table` re-keyed to the Table component's actual tokens**
+      (`tableContainer` / `headerCellContainer` / `cell` / `cellInner` / `cellBg*` / …)
+      so the brand's MAP-21 mockup design (rounded shell, font-mono uppercase header,
+      bottom-only hairlines, amber hover) actually applies to §04/§05/§06. Was dead
+      code (HTML-element keys nothing reads). (continuation session)
+- [x] **LineGraph x-axis padding default** flipped from `0.5` → `0` so the first tick
+      lands at x=0 (flush against the y-axis). (continuation session)
+- [x] **Graph hover label** prefers `customName || display_name || alias` over the raw
+      column `name`, so a calc column's SQL expression doesn't appear in the popover.
+      (continuation session)
 
 ## Testing checklist
 

@@ -39,6 +39,11 @@ const graphOptions = {
     },
     height: 300,
     width: undefined,
+// LineGraph line/area defaults (per-series settings on a yAxis column override these)
+    interpolation: "catmullrom",
+    strokeWidth: 1,
+    area: false,
+    areaOpacity: 0.15,
     margin: {
         top: 20,
         right: 20,
@@ -168,6 +173,43 @@ export default {
                                 )
                             )
                 }
+            },
+            // Per-series line shape. `step` draws a held line — used to turn a joined
+            // target column into the stepped FHWA reference line while the data series
+            // stays smooth. Only meaningful for a yAxis series on a LineGraph.
+            { type: 'select',
+                label: 'Interpolation', key: 'interpolation',
+                options: [
+                    { label: 'Curved (catmullrom)', value: 'catmullrom' },
+                    { label: 'Linear', value: 'linear' },
+                    { label: 'Step', value: 'step' },
+                    { label: 'Monotone', value: 'monotone' },
+                    { label: 'Basis', value: 'basis' }
+                ],
+                displayCdn: ({ attribute, display }) =>
+                    (attribute.target === "yAxis") && (display.graphType === "LineGraph")
+            },
+            { type: 'toggle',
+                label: 'Area Fill', key: 'area',
+                displayCdn: ({ attribute, display }) =>
+                    (attribute.target === "yAxis") && (display.graphType === "LineGraph")
+            },
+            // Per-series colour + dash — used to style a joined target column as a
+            // dashed reference line (e.g. amber `#EAAD43`, dash `6 4`, step interp).
+            { type: 'input', inputType: 'text',
+                label: 'Series Color', key: 'color',
+                displayCdn: ({ attribute, display }) =>
+                    (attribute.target === "yAxis") && (display.graphType === "LineGraph")
+            },
+            { type: 'select',
+                label: 'Dash', key: 'dashArray',
+                options: [
+                    { label: 'Solid', value: '' },
+                    { label: 'Dashed', value: '6 4' },
+                    { label: 'Dotted', value: '2 3' }
+                ],
+                displayCdn: ({ attribute, display }) =>
+                    (attribute.target === "yAxis") && (display.graphType === "LineGraph")
             }
         ],
         graph: {
@@ -367,6 +409,24 @@ export default {
                 }
             ]
         },
+        lineGraph: {
+            name: 'Line Graph Layout',
+            displayCdn: ({ display }) => display.graphType === 'LineGraph',
+            items: [
+                { type: 'select', label: 'Interpolation (default)', key: 'interpolation', onClickGoBack: true,
+                    options: [
+                        { label: 'Curved (catmullrom)', value: 'catmullrom' },
+                        { label: 'Linear', value: 'linear' },
+                        { label: 'Step', value: 'step' },
+                        { label: 'Monotone', value: 'monotone' },
+                        { label: 'Basis', value: 'basis' }
+                    ]
+                },
+                { type: 'input', inputType: 'number', label: 'Line Width', key: 'strokeWidth' },
+                { type: 'toggle', label: 'Area Fill (default)', key: 'area' },
+                { type: 'input', inputType: 'number', label: 'Area Opacity', key: 'areaOpacity' }
+            ]
+        },
         barGraph: {
             name: 'Bar Graph Layout',
             displayCdn: ({ display }) => display.graphType === 'BarGraph',
@@ -385,6 +445,64 @@ export default {
                     label: "Inner Padding", key: "paddingInner"
                 }
                 // {type: 'toggle', label: 'Log Scale', key: 'isLog'},
+            ]
+        },
+        pieGraph: {
+          name: "Pie Graph Layout",
+          displayCdn: ({ display }) => display.graphType === 'PieGraph',
+          items: [
+            { type: "toggle",
+              label: "Show Axis", key: "pieAxis.showAxis"
+            },
+            { type: "input", inputType: "number",
+              label: "Tick Density", key: "pieAxis.tickDensity"
+            },
+            { type: "toggle",
+              label: "Show Value", key: "pieAxis.showValue"
+            },
+            { type: "select",
+                label: "Value Text Size", key: "pieAxis.valueTextSize", onClickGoBack: true,
+                options: [
+                    { label: "Extra Small", value: "xsmall" },
+                    { label: "Small", value: "small" },
+                    { label: "Medium", value: "medium" },
+                    { label: "Large", value: "large" },
+                    { label: "Extra Large", value: "xlarge" }
+                ]
+            },
+            { type: 'select',
+              label: 'Value Format', key: 'pieAxis.valueFormat', onClickGoBack: true,
+                options: ValueFormats
+            },
+            { type: "toggle",
+              label: "Show Dollars", key: "pieAxis.isDollars"
+            }
+          ]
+        },
+        sunburstGraph: {
+            name: "Sunburst Graph Display",
+            displayCdn: ({ display }) => display.graphType === 'SunburstGraph',
+            items: [
+                { type: "select",
+                    label: "Index Text Size", key: "indexTextSize", onClickGoBack: true,
+                    options: [
+                        { label: "Extra Small", value: "xsmall" },
+                        { label: "Small", value: "small" },
+                        { label: "Medium", value: "medium" },
+                        { label: "Large", value: "large" },
+                        { label: "Extra Large", value: "xlarge" }
+                    ]
+                },
+                { type: "select",
+                    label: "Value Text Size", key: "valueTextSize", onClickGoBack: true,
+                    options: [
+                        { label: "Extra Small", value: "xsmall" },
+                        { label: "Small", value: "small" },
+                        { label: "Medium", value: "medium" },
+                        { label: "Large", value: "large" },
+                        { label: "Extra Large", value: "xlarge" }
+                    ]
+                }
             ]
         },
         treemapGraph: {

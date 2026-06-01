@@ -162,14 +162,18 @@ export default memo(function TableHeaderCell({isEdit, attribute, columns, localF
                     }
                     <div className={theme.headerCellIconWrapper}>
                         {
-                            attribute.group ? <Icon icon={theme.headerCellGroupIcon} key={`group-${colIdName}`} className={theme.headerCellFnIconClass} {...iconSizes} /> :
-                                attribute.fn ? fnIcons[attribute.fn] || attribute.fn : null
+                            // Group + fn indicators are admin-only chrome — show them in
+                            // edit mode, hide in published view. Without this, calc-column
+                            // headers print their `fn` (e.g. "exempt") as literal text next
+                            // to the column name in the rendered report.
+                            isEdit && attribute.group ? <Icon icon={theme.headerCellGroupIcon} key={`group-${colIdName}`} className={theme.headerCellFnIconClass} {...iconSizes} /> :
+                                isEdit && attribute.fn ? fnIcons[attribute.fn] || attribute.fn : null
                         }
                         {
                             attribute.sort === 'asc nulls last' ? <Icon icon={theme.headerCellSortAscIcon} key={'sort-asc-icon'} className={theme.headerCellFnIconClass} {...iconSizes} /> :
                                 attribute.sort === 'desc nulls last' ? <Icon icon={theme.headerCellSortDescIcon} key={'sort-desc-icon'} className={theme.headerCellFnIconClass} {...iconSizes} /> : null
                         }
-                        <Icon icon={theme.headerCellMenuIcon} key={`arrow-down-${colIdName}`} className={theme.headerCellMenuIconClass}/>
+                        {isEdit ? <Icon icon={theme.headerCellMenuIcon} key={`arrow-down-${colIdName}`} className={theme.headerCellMenuIconClass}/> : null}
                     </div>
                 </div>
             }>

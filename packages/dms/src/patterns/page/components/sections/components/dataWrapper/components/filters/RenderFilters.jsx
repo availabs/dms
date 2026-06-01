@@ -11,7 +11,7 @@ import {
     getNormalFilters, getData as getFilterData, isSystemCol
 } from "./utils"
 import { RenderFilterValueSelector } from "./Components/RenderFilterValueSelector";
-import { ThemeContext } from "../../../../../../../../ui/useTheme";
+import { ThemeContext, getComponentTheme } from "../../../../../../../../ui/useTheme";
 import { filterTheme } from "./RenderFilters.theme";
 
 const filterValueDelimiter = '|||';
@@ -26,7 +26,7 @@ const gridClasses = {
 export const RenderFilters = ({ isEdit, defaultOpen = true }) => {
     const {state, setState, apiLoad} = React.useContext(ComponentContext) || {};
     const { theme: themeFromContext = {}, UI } = React.useContext(ThemeContext) || {};
-    const theme = {...themeFromContext, filters: {...filterTheme, ...(themeFromContext.filters || {})}}
+    const theme = {...themeFromContext, filters: {...filterTheme, ...getComponentTheme(themeFromContext, 'filters', state?.display?.filterStyle)}}
     const { Icon, Button } = UI;
     const { pageState } = React.useContext(PageContext) || {}; // page to extract page filters
     const [open, setOpen] = useState(defaultOpen);
@@ -236,7 +236,7 @@ export const RenderFilters = ({ isEdit, defaultOpen = true }) => {
     // add UI to change filter operation
     //console.log('filters', filterOptions)
     const gridSize = Math.min(state?.display?.gridSize || 1, filterColumnsToRender.length);
-    const placement = state?.display?.placement || 'stacked';
+    const placement = state?.display?.placement || theme.filters.placement || 'stacked';
     const placementClass = {
         inline: theme.filters.filterSettingsWrapperInline,
         stacked: theme.filters.filterSettingsWrapperStacked
@@ -287,6 +287,7 @@ export const RenderFilters = ({ isEdit, defaultOpen = true }) => {
                                                        filterWithSearchParamKeys={filterWithSearchParamKeys}
                                                        delimiter={filterValueDelimiter}
                                                        columns={state.columns}
+                                                       controlStyle={theme.filters.controlStyle}
                             />
                         </div>
                     </div>

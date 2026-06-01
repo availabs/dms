@@ -23,7 +23,8 @@ import {
   getColorFunc,
   Identity,
   EmptyArray,
-  EmptyObject
+  EmptyObject,
+  getUniqueId
 } from "./utils"
 
 const DefaultHoverComp = ({ data: node, indexFormat, keyFormat, valueFormat }) => {
@@ -309,8 +310,7 @@ const IndexTextSizeMap = {
   xlarge: 0.5
 }
 
-let id = 0;
-const getUniqueClipPathId = () => `clip-path-${ id++ }`;
+const getUniqueClipPathId = () => getUniqueId(`clip-path-`);
 
 const Rect = React.memo(({ node, isRoot, colorFunc, ...props }) => {
 
@@ -333,10 +333,10 @@ const Rect = React.memo(({ node, isRoot, colorFunc, ...props }) => {
     return getUniqueClipPathId();
   }, []);
 
-  const rgbaColor = React.useMemo(() => {
-  	const alpha = Math.max(0.2, 1.0 - (node.depth - 2) * 0.15);
-  	return color2rgba(color, alpha);
-  }, [node, color]);
+  // const rgbaColor = React.useMemo(() => {
+  // 	const alpha = Math.max(0.2, 1.0 - (node.depth - 2) * 0.15);
+  // 	return color2rgba(color, alpha);
+  // }, [node, color]);
 
   const [x, y, width, height, strokeWidth] = React.useMemo(() => {
     const w = node.x1 - node.x0;
@@ -361,7 +361,7 @@ const Rect = React.memo(({ node, isRoot, colorFunc, ...props }) => {
         x={ x } width={ width }
         y={ y } height={ height }
     		onMouseMove={ doOnMouseMove }
-        fill={ node.depth < 2 ? "none" : rgbaColor }/>
+        fill={ node.depth < 2 ? "none" : color }/>
 
       <defs>
         <clipPath id={ id }>

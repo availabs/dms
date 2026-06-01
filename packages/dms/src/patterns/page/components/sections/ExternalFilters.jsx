@@ -1,5 +1,5 @@
 import React, {useContext, useMemo, useState} from "react";
-import {ThemeContext} from "../../../../ui/useTheme";
+import {ThemeContext, getComponentTheme} from "../../../../ui/useTheme";
 import {ComponentContext} from "../../context";
 import {ConditionValueInput} from "./ConditionValueInput";
 import {getColumnLabel} from "./controls_utils";
@@ -31,7 +31,10 @@ const getExternalConditions = (node, path = [], parentOp = 'AND', parentLeafSibl
 export const ExternalFilters = ({ defaultOpen = true }) => {
     const { state, setState } = useContext(ComponentContext) || {};
     const { theme: themeFromContext = {}, UI } = useContext(ThemeContext) || {};
-    const theme = { ...themeFromContext, filters: { ...filterTheme, ...(themeFromContext.filters || {}) } };
+    // Resolve the named filter DESIGN (display.filterStyle) — getComponentTheme
+    // picks the styles[] entry (inheriting styles[0]) or returns a flat filters
+    // block as-is for themes that don't use named styles.
+    const theme = { ...themeFromContext, filters: { ...filterTheme, ...getComponentTheme(themeFromContext, 'filters', state?.display?.filterStyle) } };
     const { Icon, Button } = UI;
     const [open, setOpen] = useState(defaultOpen);
 
@@ -63,7 +66,8 @@ export const ExternalFilters = ({ defaultOpen = true }) => {
     if (!externalConditions.length) return null;
 
     const gridSize = Math.min(state?.display?.gridSize || 1, externalConditions.length);
-    const placement = state?.display?.placement || 'stacked';
+    // placement comes from the filter style; an explicit display.placement overrides it.
+    const placement = state?.display?.placement || theme.filters.placement || 'stacked';
     const placementClass = {
         inline: theme.filters.filterSettingsWrapperInline,
         stacked: theme.filters.filterSettingsWrapperStacked,
@@ -113,6 +117,7 @@ export const ExternalFilters = ({ defaultOpen = true }) => {
                                     columns={columns}
                                     updateNodeAtPath={updateNodeAtPath}
                                     siblingConditions={siblingConditions}
+                                    activeStyle={theme.filters.controlStyle}
                                 />
                             </div>
                         </div>

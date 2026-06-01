@@ -22,21 +22,32 @@ const LineGraphWrapper = props => {
 
 		if (!xColumn || !yColumns.length) return [];
 
+		// The dataWrapper keys each row by `normalName || name` (see
+		// dataWrapper/getData.js). For a CALCULATED column `name` is the full SQL
+		// expression and `normalName` is the query alias the row is actually keyed
+		// on — so reading `row[name]` returns undefined and the series renders empty.
+		// Resolve every series/axis value by `normalName || name`, matching Card.jsx.
+		const xKey = xColumn.normalName || xColumn.name;
+		const idKey = idColumn ? (idColumn.normalName || idColumn.name) : undefined;
+
 		const data = [];
 
 		if (idColumn) {
-			const dataGroups = d3groups(props.viewData, d => d[idColumn.name], d => d[xColumn.name]);
+			const dataGroups = d3groups(props.viewData, d => d[idKey], d => d[xKey]);
 
 			for (const [id, iGroup] of dataGroups) {
 
 				if (id === undefined) continue;
 
-				const line = { id, data: [] };
+				// In categorize mode every series shares the single yColumn's
+				// per-series visuals (interpolation / area).
+				const line = { id, data: [], interpolation: yColumns[0]?.interpolation };
+				if (yColumns[0]?.area !== undefined) line.area = yColumns[0].area;
 				for (const [x, xGroup] of iGroup) {
 					if (x === undefined) continue;
 					let y = 0;
 					for (const yc of yColumns) {
-						const ycn = yc.name;
+						const ycn = yc.normalName || yc.name;
             const aggFunc = getAggFunc(yc);
 						const v = aggFunc(xGroup, d => d[ycn]);
 						if (!strictNaN(v)) {
@@ -53,13 +64,24 @@ const LineGraphWrapper = props => {
 			}
 		}
 		else {
-			const dataGroups = d3groups(props.viewData, d => d[xColumn.name]);
+			const dataGroups = d3groups(props.viewData, d => d[xKey]);
 
 			for (const yc of yColumns) {
-				const ycn = yc.name;
+				const ycn = yc.normalName || yc.name;
 				const aggFunc = getAggFunc(yc);
 
-				const line = { id: ycn, data: [] };
+				// Each yColumn is its own series; carry its per-series visuals through.
+				// `displayName` flows to the hover tooltip so a calc column doesn't surface
+				// its raw SQL — the d3 series key (`id`) stays the SQL-safe alias.
+				const line = {
+					id: ycn,
+					displayName: yc.customName || yc.display_name || ycn,
+					data: [],
+					interpolation: yc.interpolation
+				};
+				if (yc.area !== undefined) line.area = yc.area;
+				if (yc.color) line.color = yc.color;
+				if (yc.dashArray) line.dashArray = yc.dashArray;
 
 				for (const [x, xGroup] of dataGroups) {
 					if (x === undefined) continue;

@@ -24,32 +24,111 @@ year and every card/chart/table updates."
 ## The one idea: a page variable is a URL search param
 
 DMS "page variables" are just **URL search params** held in `PageContext`
-(`patterns/page/.../context`). Nothing more exotic. Two roles:
+(`patterns/page/.../context`). Nothing more exotic. But there are **three** parts
+that must all line up — and the one beginners miss is the first:
 
 ```
+┌──────────────────────────────────────────────────────────────────────────┐
+│ 0. PAGE REGISTRY  page.filters: [{ searchKey:'year_record',               │
+│    (the whitelist)                values:'2025', useSearchParams:true }]   │
+│    Declares which keys are allowed to be page variables. Seeds            │
+│    pageState.filters on load (view.jsx: mergeFilters(item.filters,…)).    │
+└───────────────┬────────────────────────────────────────────┬─────────────┘
+                │ only registered keys round-trip              │ seeds
+                ▼                                              ▼
 ┌─────────────────┐  writes ?year_record=2025   ┌──────────────────────────┐
-│  Filter section │ ──────────────────────────▶ │  PageContext search params│
-│ (a control)     │      (page variable)        └────────────┬─────────────┘
-└─────────────────┘                                          │ reads
-                                                              ▼
+│ 1. Filter section│ ──────────────────────────▶ │  PageContext.pageState    │
+│    (a control)   │      (page variable)        │  .filters  ⇄  URL params  │
+│  isExternal:true │                             └────────────┬─────────────┘
+│  usePageFilters  │                                          │ usePageFilterSync
+└─────────────────┘                                           ▼
                                           ┌───────────────────────────────────┐
-                                          │ every dataWrapper section whose     │
+                                          │ 2. every dataWrapper section whose  │
                                           │ filter leaf has usePageFilters:true │
                                           │ + searchParamKey:'year_record'      │
                                           └───────────────────────────────────┘
 ```
 
-- **Set** by a `Filter` section (the `FilterComponent`) — or any control wired to
-  write a search param. The control is bound to a `searchParamKey`.
-- **Read** by data sections (`Card`/`Spreadsheet`/`Graph` — all dataWrapper-backed)
-  whose filter tree contains a leaf flagged `usePageFilters: true` with a matching
-  `searchParamKey`. At query time, `applyPageFilters` (in
-  `patterns/page/.../dataWrapper/buildUdaConfig.js`) swaps that leaf's `value` with
-  the live page-variable value before building the UDA query.
-- **Sync** is handled by `usePageFilterSync.js` (URL ⇄ PageContext ⇄ section state).
+Three parts, all required:
 
-So: **one control → N reacting sections**, with no per-section glue beyond the
-matching leaf. That's the whole model.
+0. **Registered** on the **page itself** — `page.filters` is an array of
+   `{ searchKey, values, useSearchParams: true }` entries. This is the **whitelist
+   of page variables**. On load, `view.jsx` (line ~27) seeds
+   `pageState.filters = mergeFilters(item.filters, patternFilters)` from it. **A
+   key that isn't registered here can never become a page variable** — see the
+   "why nothing happens" box below.
+1. **Set** by a `Filter` section (the `FilterComponent`) — or any control wired to
+   write a search param. The control's leaf is `isExternal: true` (so it renders)
+   with `usePageFilters: true` + a `searchParamKey`.
+2. **Read** by data sections (`Card`/`Spreadsheet`/`Graph` — all dataWrapper-backed)
+   whose filter tree contains a leaf flagged `usePageFilters: true` with a matching
+   `searchParamKey` (no `isExternal` — they consume silently). At query time,
+   `applyPageFilters` (in `patterns/page/.../dataWrapper/buildUdaConfig.js`) swaps
+   that leaf's `value` with the live page-variable value before building the UDA
+   query.
+
+**Sync** is handled by `usePageFilterSync.js` (URL ⇄ PageContext ⇄ section state)
+and `view.jsx` / `_utils` (`updatePageStateFilters`,
+`updatePageStateFiltersOnSearchParamChange`).
+
+> ### ⚠️ Why "the control and the cards are both set, but nothing happens"
+> This is the single most common failure, and it's **always part 0**. Every link
+> in the chain is gated on the page registry:
+> - `updatePageStateFilters` (view.jsx:~90) builds the URL by **mapping over
+>   `pageState.filters` filtered to `useSearchParams` entries** — a key not in the
+>   registry is silently dropped, so the control's change never reaches the URL.
+> - `updatePageStateFiltersOnSearchParamChange` (`_utils`:~466) reads the URL back
+>   **only for registered `useSearchParams` keys** — unregistered URL params are
+>   ignored.
+> - `usePageFilterSync` bails on its **very first line** if `pageState.filters` is
+>   empty: `if (!Object.keys(pageFilters).length) return;`. With no registry,
+>   `pageState.filters` is `[]`, so no section is ever updated and no re-fetch fires.
+>
+> So you can have a perfectly-wired Filter control **and** perfectly-wired card
+> leaves and still see zero reaction — because the page never declared the variable.
+> **If a page is inert, check `page.filters` first.** (This is exactly what broke
+> page 2173915: the cards and the Year selector were both correct; `page.filters`
+> was `undefined`.)
+
+So: **one control → N reacting sections**, but only once the variable is
+registered on the page. That registration is the load-bearing glue.
+
+---
+
+## Step 0 — register the page variable on the PAGE
+
+Before any control or card matters, the page must declare the variable in its
+top-level `filters` array. This is a field on the page row's `data`, **not** on any
+section:
+
+```jsonc
+// page.data.filters  — the page-variable whitelist
+[
+  { "id": "map21-year-record", "values": "2025",
+    "searchKey": "year_record", "useSearchParams": true }
+]
+```
+
+- `searchKey` is the page-variable name — it must match the `searchParamKey` on the
+  control leaf (Step 1) and every consuming leaf (Step 2).
+- `useSearchParams: true` routes it through the URL (shareable, back/forward-able).
+  `false` keeps it in memory only (rare; used for `action`-type params).
+- `values` is the page default until a control or the URL overrides it.
+- Register **one entry per variable**. The original 2173049 registers four
+  (`year_record`, `county_name`, `mpo_name`, `ua_name`); the single-page report
+  2173915 registers just `year_record` because that's its only interactive control.
+
+Set it via the CLI with a read-modify-write on the page `data` (there's no
+dedicated flag; `filters` is a top-level `data` key):
+
+```bash
+dms raw get <pageId>            # grab data, add the filters array in your editor/script
+dms raw update <pageId> --data "$(cat newdata.json)"   # full data replacement
+dms raw get <pageId>            # verify data.filters is present
+```
+
+(Live: page **2173915** now registers `year_record`; the working original **2173049**
+registers all four.)
 
 ---
 
@@ -152,6 +231,24 @@ from the original cards on 2173049). The leaf option + expansion pass are the
    component — Vite HMR won't hot-swap it; hard-refresh after editing.
 5. **`comma` formatFn truncates decimals** (`parseInt`). Use `formatFn: ' '` for
    ratios/indices; reserve `comma` for integers.
+6. **Two filter representations — edit the right one.** A section's
+   page-variable leaves live in the **section-level filter tree**
+   (`element-data.filters` = `{op:'AND', groups:[…]}`), which is what
+   `ExternalFilters` (the viewer control), `applyPageFilters`, and the query
+   builder read. There's a *separate*, older per-column representation
+   (`element-data.columns[i].filters[]`) that the edit-mode `RenderFilters` UI
+   reads. On the KPI cards these column-attached filters are empty/`null` — the
+   year leaf exists **only in the tree**. Consequence: opening the column-filter
+   editor can make a correctly-wired section *look* like it has no page filter.
+   When verifying `usePageFilters`/`searchParamKey`, inspect
+   `element-data.filters.groups`, not the columns. (This is why "the components
+   aren't set to use page filters" can be a false alarm — the tree leaf was set
+   the whole time.)
+7. **The registry default vs the leaf default.** `page.filters[].values` (Step 0)
+   is the page-wide default; a consuming leaf's saved `value` is only its
+   fallback before any page variable resolves. Once registered, `usePageFilterSync`
+   overwrites the leaf `value` from `pageState.filters` on every change — so don't
+   rely on the leaf's saved value for the live selection.
 
 ---
 
@@ -171,9 +268,16 @@ on purpose.
 
 ## Source-of-truth files
 
+- `patterns/page/pages/view.jsx` — seeds `pageState.filters` from the page registry
+  (`mergeFilters`), defines `updatePageStateFilters` (control → URL, registry-gated).
+- `patterns/page/pages/_utils/index.js` — `mergeFilters` (registry + patternFilters),
+  `updatePageStateFiltersOnSearchParamChange` (URL → pageState, registry-gated),
+  `convertToUrlParams`, `initNavigateUsingSearchParams`.
+- `patterns/page/.../dataWrapper/usePageFilterSync.js` — pageState ⇄ section tree
+  sync; **bails if `pageState.filters` is empty** (the part-0 gate).
 - `patterns/page/.../dataWrapper/buildUdaConfig.js` — `applyPageFilters`,
   `applyPriorPeriodExpansion`, `applyTableAliasToJoin`.
-- `patterns/page/.../dataWrapper/usePageFilterSync.js` — URL ⇄ PageContext sync.
 - `patterns/page/.../components/ComponentRegistry/FilterComponent.{jsx,config.js}` — the control.
 - `patterns/page/.../components/sections/ComplexFilters.jsx` — the leaf editor
-  (the `usePageFilters` / `searchParamKey` / `includePriorPeriod` toggles).
+  (the `usePageFilters` / `searchParamKey` / `includePriorPeriod` toggles); edits
+  the **section-level filter tree** (`element-data.filters`).

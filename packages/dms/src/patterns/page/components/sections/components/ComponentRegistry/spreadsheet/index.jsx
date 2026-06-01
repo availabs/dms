@@ -105,7 +105,7 @@ export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addIte
                   numColSize={numColSize} gutterColSize={gutterColSize} frozenColClass={frozenColClass} frozenCols={frozenCols}
                   currentPage={currentPage}
                   infiniteScrollFetchData={infiniteScrollFetchData}
-                  isActive={isActive} activeStyle={activeStyle}
+                  isActive={isActive} activeStyle={display.tableStyle || activeStyle}
     />
 }
 

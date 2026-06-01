@@ -99,6 +99,11 @@ export const color2rgba = (color, alpha) => {
   return color;
 }
 
+let id = 0;
+export const getUniqueId = (string = "unique-id-") => {
+  return `${ string }${ id++ }`;
+}
+
 export const strictNaN = v => (v === null) || (v === "") || isNaN(v);
 
 export const DefaultXScale = {

@@ -22,6 +22,15 @@ const buildFontStyleOptions = (theme) => {
     ];
 };
 
+// Per-section "Card style" picker — mirror of FilterComponent's `display.filterStyle`
+// and Spreadsheet's `display.tableStyle`. Options come from `theme.dataCard.styles` so
+// adding a new named style in the brand theme surfaces it in the toolbar with no code
+// change. Empty value = the theme's `theme.dataCard.options.activeStyle`.
+const buildCardStyleOptions = (theme) => {
+    const styles = theme?.dataCard?.styles || [];
+    return [{ label: '(theme default)', value: '' }, ...styles.map(s => ({ label: s.name, value: s.name }))];
+};
+
 const handleCopy = async (obj) => {
     try {
         const text = JSON.stringify(obj, null, 2);
@@ -42,6 +51,8 @@ const handlePaste = async (attribute, setAttribute) => {
             const parsedObj = JSON.parse(obj);
             const {
                 justify = '',
+                headerJustify = '',
+                headerCase = '',
                 formatFn = '',
                 headerFontStyle = '',
                 valueFontStyle = '',
@@ -59,7 +70,7 @@ const handlePaste = async (attribute, setAttribute) => {
 
             const newAttribute = {
                 ...attribute,
-                justify, formatFn, headerFontStyle, valueFontStyle, hideHeader, hideValue,
+                justify, headerJustify, headerCase, formatFn, headerFontStyle, valueFontStyle, hideHeader, hideValue,
                 cellSpan, cellRowSpan, cellBgColor, wrapText,
             }
             return setAttribute(newAttribute)
@@ -81,11 +92,11 @@ const buildInHeader = (fontStyleOptions) => [
             const { Pill, Icon } = UI;
             const [copied, setCopied] = useState(false);
             const {
-                justify, formatFn, headerFontStyle, valueFontStyle, hideHeader, hideValue,
+                justify, headerJustify, headerCase, formatFn, headerFontStyle, valueFontStyle, hideHeader, hideValue,
                 cellBgColor, cellSpan, cellRowSpan, wrapText
             } = attribute;
             const objToCopy = {
-                justify, formatFn, headerFontStyle, valueFontStyle, hideHeader, hideValue,
+                justify, headerJustify, headerCase, formatFn, headerFontStyle, valueFontStyle, hideHeader, hideValue,
                 cellBgColor, cellSpan, cellRowSpan, wrapText
             };
 
@@ -158,11 +169,22 @@ const buildInHeader = (fontStyleOptions) => [
             { label: 'Full Justified', value: 'full' }
         ]
     },
+    // Header alignment — independent of value `justify` (which aligns the value).
+    // Default '' → left, preserving prior behavior (the header always rendered left).
+    { type: 'select', label: 'Header Justify', key: 'headerJustify', isBatchUpdatable: true,
+        displayCdn: ({ attribute }) => !attribute.hideHeader,
+        options: [
+            { label: 'Left (default)', value: '' },
+            { label: 'Center', value: 'center' },
+            { label: 'Right', value: 'right' },
+        ]
+    },
     { type: 'select', label: 'Format', key: 'formatFn', isBatchUpdatable: true,
         options: [
             { label: 'No Format Applied', value: ' ' },
             { label: 'Comma Separated', value: 'comma' },
             { label: 'Comma Separated ($)', value: 'comma_dollar' },
+            { label: 'Percent (append %)', value: 'percent' },
             { label: 'Abbreviated', value: 'abbreviate' },
             { label: 'Abbreviated ($)', value: 'abbreviate_dollar' },
             { label: 'Date', value: 'date' },
@@ -182,6 +204,17 @@ const buildInHeader = (fontStyleOptions) => [
     { type: 'input', inputType: 'text', label: 'Separator', key: 'combineSeparator', isBatchUpdatable: true,
         displayCdn: ({ attribute, isEdit }) => isEdit && attribute.formatFn === 'combine' },
     { type: 'select', label: 'Header', key: 'headerFontStyle', options: fontStyleOptions, isBatchUpdatable: true, displayCdn: ({ attribute }) => !attribute.hideHeader },
+    // Header casing — default '' = as-authored (no transform). The Card no longer
+    // force-capitalizes headers; authors opt into a transform here.
+    { type: 'select', label: 'Header Case', key: 'headerCase', isBatchUpdatable: true,
+        displayCdn: ({ attribute }) => !attribute.hideHeader,
+        options: [
+            { label: 'As authored', value: '' },
+            { label: 'Capitalize', value: 'capitalize' },
+            { label: 'UPPERCASE', value: 'uppercase' },
+            { label: 'lowercase', value: 'lowercase' },
+        ]
+    },
     { type: 'select', label: 'Value', key: 'valueFontStyle', options: fontStyleOptions, isBatchUpdatable: true, displayCdn: ({ attribute }) => !attribute.hideValue },
 
     { type: 'separator', key: 'toolbar-sep', label: 'toolbar-sep', hideFromSectionMenu: true },
@@ -395,6 +428,8 @@ const buildControls = (theme) => ({
             },
         ],
         more: [
+            { type: 'select', label: 'Card style', key: 'cardStyle',
+                options: buildCardStyleOptions(theme) },
             // Cards grid: how record-cards are laid out across the section.
             { label: 'Cards Grid', items: [
                     { type: 'input', inputType: 'number', label: 'Cards Across', key: 'cardsGridSize' },
