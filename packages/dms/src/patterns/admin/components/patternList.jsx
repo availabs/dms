@@ -150,7 +150,15 @@ function PatternEdit({
 	const [editingItem, setEditingItem] = useState(undefined);
 	const [isDuplicating, setIsDuplicating] = useState(false);
 	const siteInstance = getInstance(siteType) || siteType;
-	const attrToAddNew = ['pattern_type', 'name', 'subdomain', 'base_url', 'filters', 'authPermissions'];
+	const tenantSub = (() => {
+		if (!isMultiTenant) return '';
+		const hostname = window.location.hostname;
+		const isLocalhost = hostname === 'localhost' || hostname.endsWith('.localhost');
+		const minParts = isLocalhost ? 2 : 3;
+		const parts = hostname.split('.');
+		return parts.length >= minParts ? parts[0] : '';
+	})();
+	const attrToAddNew = ['pattern_type', 'name', ...(tenantSub ? [] : ['subdomain']), 'base_url', 'filters', 'authPermissions'];
 	const columns = [
 		{name: 'name', display_name: 'Name', show: true, type: 'text'},
 		{name: 'subdomain', display_name: 'Subdomain', show: true, type: 'text'},

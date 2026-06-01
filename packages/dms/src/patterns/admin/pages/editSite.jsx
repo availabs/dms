@@ -75,13 +75,22 @@ function SiteEdit ({
 
 	if (isPlatformAdmin) {
 		return (
-			<TenantList
-				value={item?.['tenants'] || []}
-				format={format}
-				attributes={attributes['tenants']?.attributes || {}}
-				onChange={(v) => updateAttribute('tenants', v)}
-				onSubmit={data => updateData(data, 'tenants')}
-			/>
+			<>
+				<TenantList
+					value={item?.['tenants'] || []}
+					format={format}
+					attributes={attributes['tenants']?.attributes || {}}
+					onChange={(v) => updateAttribute('tenants', v)}
+					onSubmit={data => updateData(data, 'tenants')}
+				/>
+				<PatternList
+					value={item?.['patterns']}
+					format={format}
+					attributes={attributes['patterns'].attributes}
+					onChange={(v) => updateAttribute('patterns', v)}
+					onSubmit={data => updateData(data, 'patterns')}
+				/>
+			</>
 		)
 	}
 
@@ -124,7 +133,8 @@ function PatternList({
 	const [editingItem, setEditingItem] = React.useState(undefined);
 	const [isDuplicating, setIsDuplicating] = React.useState(false);
 	const [deletingItem, setDeletingItem] = React.useState(undefined);
-	const attrToAddNew = ['pattern_type', 'name', 'subdomain', 'base_url', 'filters', 'authPermissions'];
+	const tenantSub = isMultiTenant ? getSubdomainFromHost() : '';
+	const attrToAddNew = ['pattern_type', 'name', ...(tenantSub ? [] : ['subdomain']), 'base_url', 'filters', 'authPermissions'];
 	//console.log('test 123', location)
 	const columns = [
 		{name: 'name', display_name: 'Name', show: true, type: 'text'},
