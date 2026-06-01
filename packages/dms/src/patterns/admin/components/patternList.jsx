@@ -139,7 +139,7 @@ function PatternEdit({
 	 format,
 	 ...rest
 }) {
-	const {app, type: siteType, API_HOST, baseUrl} = useContext(AdminContext);
+	const {app, type: siteType, API_HOST, baseUrl, isMultiTenant} = useContext(AdminContext);
 	const {UI} = useContext(ThemeContext)
 	const { falcor } = useFalcor();
 	const {Table, Input, Button, Modal} = UI;
@@ -177,6 +177,15 @@ function PatternEdit({
 		if (existingSlugs.includes(slug)) {
 			alert(`A pattern with identifier "${slug}" already exists`);
 			return;
+		}
+
+		if (isMultiTenant) {
+			const hostname = window.location.hostname;
+			const isLocalhost = hostname === 'localhost' || hostname.endsWith('.localhost');
+			const minParts = isLocalhost ? 2 : 3;
+			const parts = hostname.split('.');
+			const tenantSub = parts.length >= minParts ? parts[0] : '';
+			if (tenantSub && !data.subdomain) data.subdomain = tenantSub;
 		}
 
 		const patternType = `${siteInstance}|${slug}:pattern`;

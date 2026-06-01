@@ -48,6 +48,7 @@ const adminConfig = ({
   dmsEnvById = {},
   pattern: patternData,
   authPermissions = {},
+  isMultiTenant = false,
 }) => {
   const format = cloneDeep(adminFormat);
   format.app = app;
@@ -99,6 +100,7 @@ const adminConfig = ({
                 dmsEnvs,
                 dmsEnvById,
                 authPermissions,
+                isMultiTenant,
               }}
             >
               <ThemeContext.Provider value={{ theme, themes, UI }}>
