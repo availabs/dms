@@ -18,6 +18,8 @@ import { useEffect, useContext } from "react";
 import { isEqual } from "lodash-es";
 import { PageContext } from "../../../../context";
 import { isGroup } from "../../ComplexFilters";
+import { buildPageFilterColumn } from "./buildUdaConfig"
+
 
 export function usePageFilterSync({ state, setState, setReadyOnChange = false }) {
     const { pageState } = useContext(PageContext) || {};
@@ -63,4 +65,53 @@ export function usePageFilterSync({ state, setState, setReadyOnChange = false })
             update(draft.filters);
         });
     }, [pageState?.filters]);
+
+    /**
+     * Update columns that use page filters
+     */
+    useEffect(() => {
+        const pageFilters = (pageState?.filters || []).reduce(
+            (acc, curr) => ({ ...acc, [curr.searchKey]: curr.values }), {}
+        );
+        // walk tree, check if any page-synced condition needs updating
+        const needsUpdate = (node) => {
+            if (Array.isArray(node)) return node.some(needsUpdate);
+            if (!node?.groupByPageFilter) return false;
+
+            const key = node.groupByPageFilterKey || node.col;
+            const pageValues = pageFilters[key];
+
+            if (!pageValues) return false;
+            const normalized = Array.isArray(pageValues) ? pageValues : [pageValues];
+            return !isEqual(node.value, normalized);
+        };
+
+        if (!needsUpdate(state.columns)) return;
+
+        setState(draft => {
+            const update = (node) => {
+                if (Array.isArray(node)) {
+                    node.forEach(update);
+                    return;
+                }
+                if (!node?.groupByPageFilter) return;
+                const key = node.groupByPageFilterKey || node.col;
+                const pageValues = pageFilters[key];
+                if (!pageValues) return;
+                const normalized = Array.isArray(pageValues) ? pageValues : [pageValues];
+                if (!isEqual(node.value, normalized)) {
+                    node.value = normalized;
+                    node.colName = node.colName || node.name; //initalizes colName so we can keep rebuilding this funky column
+                    node.name = buildPageFilterColumn(({...node, name: node.colName}));
+                    node.type='calculated'
+                    
+                    if (setReadyOnChange && !draft.display.readyToLoad) {
+                        draft.display.readyToLoad = true;
+                    }
+                }
+            };
+            update(draft.columns);
+        });
+
+    },[pageState?.filters])
 }

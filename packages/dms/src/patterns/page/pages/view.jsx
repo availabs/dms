@@ -71,10 +71,11 @@ function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdat
     const setActionParam = React.useCallback((key, value) => {
         setPageState(draft => {
             const existing = draft.filters.find(f => f.searchKey === key && f.type === 'action');
+            const arrayValue  = Array.isArray(value) ? value : [value];
             if (existing) {
-                existing.values = [value];
+                existing.values = arrayValue;
             } else {
-                draft.filters.push({ searchKey: key, values: [value], useSearchParams: false, type: 'action' });
+                draft.filters.push({ searchKey: key, values: arrayValue, useSearchParams: false, type: 'action' });
             }
         });
     }, [setPageState]);

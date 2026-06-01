@@ -58,6 +58,15 @@ export const componentFunctions = {
                 { key: 'column', label: 'Column to publish', type: 'column-select' },
             ],
         },
+        {
+            id: 'click_publish',
+            label: 'Click: Publish Row',
+            description: 'On click, publishes a column value to a page action param.',
+            trigger: 'click',
+            args: [
+                { key: 'column', label: 'Column to publish', type: 'column-select' },
+            ],
+        },
     ],
     subscribers: [
         {
@@ -79,6 +88,7 @@ export const componentFunctions = {
                 },
             ],
         },
+        //RYAN TODO TEMP -- starting in `spreadsheet`, but really we want to implement this in `graph`
     ],
 };
 
@@ -97,6 +107,8 @@ const buildControls = (theme) => ({
     columns: [
             { type: 'toggle', label: 'show', key: 'show' },
             { type: 'toggle', label: 'Group', key: 'group' },
+            { type: 'toggle', label: 'Group By Page Filter', key: 'groupByPageFilter' },
+            { type: 'input', label: '', key: 'groupByPageFilterKey', displayCdn: ({attribute}) => { console.log({attribute}); return attribute.groupByPageFilter} },
             { type: 'select', label: 'Fn', key: 'fn',
                 options: [
                     { label: 'list', value: 'list' }, { label: 'sum', value: 'sum' }, { label: 'count', value: 'count' }, { label: 'avg', value: 'avg' }, { label: 'fn exempt', value: 'exempt' }
