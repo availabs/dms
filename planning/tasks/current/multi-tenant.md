@@ -110,11 +110,26 @@ No changes to: `createSite.jsx`, `dmsDataLoader`, `dmsDataEditor`, `dms.route.js
   - Inline error display; "Creating…" button state during submission
 - [x] Standard single-user signup path unchanged (when `!isMultiTenant || currentSubdomain`)
 
-**Bug fixes applied post-completion:**
-- `authSignup.jsx:87-89`: `falcor.getCache()` cache navigation used wrong `['json', ...]` prefix — fixed to `['dms', ...]` (cache has no `json` wrapper, unlike `falcor.get()` responses)
-- `authSignup.jsx` step 5: auth pattern was missing `subdomain: slug` — `pattern2routes` filters patterns by subdomain, so tenant patterns must have their subdomain set
-- `patternList.jsx` `addNewValue`: auto-inject `subdomain` from current hostname when `isMultiTenant` and on a subdomain
-- `editSite.jsx` `addNewValue`: same auto-inject via existing `getSubdomainFromHost()`
+**Bug fixes and enhancements applied post-completion:**
+
+*Signup flow*
+- `authSignup.jsx:87-89`: `falcor.getCache()` cache navigation used wrong `['json', ...]` prefix — fixed to `['dms', ...]` (getCache returns the raw cache without a `json` wrapper)
+- `authSignup.jsx` step 5: auth pattern was missing `subdomain: slug` — `pattern2routes` filters patterns by subdomain field, so tenant patterns must carry their subdomain to be included on the tenant subdomain
+
+*Pattern creation — subdomain auto-injection*
+- `editSite.jsx` `PatternList.addNewValue`: auto-inject `subdomain = getSubdomainFromHost()` when `isMultiTenant` and on a tenant subdomain
+- `patternList.jsx` `PatternEdit.addNewValue`: same auto-inject via inline hostname detection
+- `settings.jsx` `PatternSettingsEditor`: subdomain field disabled (not editable) when on a tenant subdomain; field hidden entirely in `editSite.jsx` and `patternList.jsx` add/edit modals
+
+*`isMultiTenant` propagation fix*
+- `siteConfig.jsx` `patternConfig`: was silently dropping `isMultiTenant` from its props — added to destructure params and to the `AdminContext.Provider` value so `settings.jsx` and other pattern-level components receive it correctly
+
+*Platform admin `/list` page*
+- `editSite.jsx` `SiteEdit`: when `isPlatformAdmin`, now renders both `TenantList` and `PatternList` in a fragment (previously only showed TenantList, hiding master site patterns)
+
+*Create site redirect*
+- `siteConfig.jsx`: added `action: "list"` to the `create` route so the DMS framework loads site data before rendering `NewSite`
+- `createSite.jsx` `NewSite`: added `dataItems` prop + `useNavigation` guard (same pattern as `editSite.jsx`); redirects to `baseUrl` when a site already exists instead of showing the creation form
 
 ### Phase 5 — Wire `App.jsx` and end-to-end testing — COMPLETE
 
