@@ -87,7 +87,7 @@ const DefaultHoverComp = ({ data, idFormat, xFormat, yFormat, lineTotals, showTo
                         background: `${ color }${ isMax ? "ff" : "33" }`
                       } }/>
                     <div className="mr-4 flex-1">
-                      { idFormat(id, rest) }:
+                      { idFormat(rest.displayName || id, rest) }:
                     </div>
                   </div>
                 </div>
@@ -134,7 +134,7 @@ const DefaultHoverComp = ({ data, idFormat, xFormat, yFormat, lineTotals, showTo
                         background: `${ color }${ isMax ? "ff" : "33" }`
                       } }/>
                     <div className="mr-4">
-                      { idFormat(id, rest) }:
+                      { idFormat(rest.displayName || id, rest) }:
                     </div>
                   </div>
                 </div>
@@ -203,7 +203,7 @@ export const LineGraph = props => {
     hoverComp = EmptyObject,
     indexBy = "id",
     className = "",
-    padding = 0.5,
+    padding = 0,
     strokeWidth = 1,
     shouldComponentUpdate = null,
     showAnimations = false,

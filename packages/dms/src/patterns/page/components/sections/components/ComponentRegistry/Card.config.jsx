@@ -22,6 +22,15 @@ const buildFontStyleOptions = (theme) => {
     ];
 };
 
+// Per-section "Card style" picker — mirror of FilterComponent's `display.filterStyle`
+// and Spreadsheet's `display.tableStyle`. Options come from `theme.dataCard.styles` so
+// adding a new named style in the brand theme surfaces it in the toolbar with no code
+// change. Empty value = the theme's `theme.dataCard.options.activeStyle`.
+const buildCardStyleOptions = (theme) => {
+    const styles = theme?.dataCard?.styles || [];
+    return [{ label: '(theme default)', value: '' }, ...styles.map(s => ({ label: s.name, value: s.name }))];
+};
+
 const handleCopy = async (obj) => {
     try {
         const text = JSON.stringify(obj, null, 2);
@@ -419,6 +428,8 @@ const buildControls = (theme) => ({
             },
         ],
         more: [
+            { type: 'select', label: 'Card style', key: 'cardStyle',
+                options: buildCardStyleOptions(theme) },
             // Cards grid: how record-cards are laid out across the section.
             { label: 'Cards Grid', items: [
                     { type: 'input', inputType: 'number', label: 'Cards Across', key: 'cardsGridSize' },
