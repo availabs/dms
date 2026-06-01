@@ -82,26 +82,19 @@ export const componentFunctions = {
     ],
 };
 
-export default {
-    "name": 'Spreadsheet',
-    "type": 'table',
-    useDataSource: true,
-    useDataWrapper: true,
-    useGetDataOnPageChange: true,
-    useInfiniteScroll: true,
-    showPagination: true,
-    keepOriginalValues: true,
-    showAllColumnsControl: false,
-    themeKey: 'table',
-    defaultState: {
-        filters: { op: 'AND', groups: [] },
-        display: { usePagination: true, pageSize: 5, hideExternalToggle: true },
-        columns: [],
-        data: [],
-        externalSource: { columns: [] }
-    },
-    controls: {
-        columns: [
+// Per-section "Table style" picker — mirror of FilterComponent's `display.filterStyle`.
+// Options come from `theme.table.styles` so adding a new named style in the brand theme
+// surfaces it in the toolbar with no code change. Empty value = the theme's
+// `theme.table.options.activeStyle` (the brand default).
+const buildTableStyleOptions = (theme) => {
+    const styles = theme?.table?.styles || [];
+    return [{ label: '(theme default)', value: '' }, ...styles.map(s => ({ label: s.name, value: s.name }))];
+};
+
+// `controls` is a function of the merged theme (same contract as Card.config /
+// FilterComponent.config) so style options reflect the live theme.
+const buildControls = (theme) => ({
+    columns: [
             { type: 'toggle', label: 'show', key: 'show' },
             { type: 'toggle', label: 'Group', key: 'group' },
             { type: 'select', label: 'Fn', key: 'fn',
@@ -122,6 +115,8 @@ export default {
         ],
         actions: { name: 'Actions', Comp: ActionControls, type: ({ dwAPI }) => <ActionControls isInMenu={true} dwAPI={dwAPI} /> },
         more: [
+            { type: 'select', label: 'Table style', key: 'tableStyle',
+                options: buildTableStyleOptions(theme) },
             { type: 'toggle', label: 'Attribution', key: 'showAttribution' },
             { type: 'toggle', label: 'Striped', key: 'striped' },
             { type: 'toggle', label: 'Auto Resize Columns', key: 'autoResize' },
@@ -220,7 +215,27 @@ export default {
             },
             { type: 'toggle', label: 'Persist Search Params', key: 'persistSearchParams', displayCdn: ({ attribute, isEdit }) => isEdit && attribute.isLink },
         ]
+});
+
+export default {
+    "name": 'Spreadsheet',
+    "type": 'table',
+    useDataSource: true,
+    useDataWrapper: true,
+    useGetDataOnPageChange: true,
+    useInfiniteScroll: true,
+    showPagination: true,
+    keepOriginalValues: true,
+    showAllColumnsControl: false,
+    themeKey: 'table',
+    defaultState: {
+        filters: { op: 'AND', groups: [] },
+        display: { usePagination: true, pageSize: 5, hideExternalToggle: true },
+        columns: [],
+        data: [],
+        externalSource: { columns: [] }
     },
+    controls: buildControls,
     componentFunctions,
     "EditComp": RenderTable,
     "ViewComp": RenderTable,
