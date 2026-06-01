@@ -130,6 +130,7 @@ const adminConfig = ({
               </SectionGroup>
             ),
             path: "create",
+            action: "list",
           },
           {
             type: (props) => (
