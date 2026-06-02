@@ -28,13 +28,17 @@ const mergeChartDefaults = (defaults = {}, display = {}) => {
 };
 
 export default function Graph ({
-    isEdit, columns=[], data=[], display={}, controls={}, setState=() => {}, isActive, activeStyle
+    isEdit, columns=[], data=[], display={}, controls={}, state={}, setState=() => {}, isActive, activeStyle
 }) {
     // const { theme: themeFromContext = {avlGraph: graphTheme}} = React.useContext(ThemeContext) || {};
     // const theme = {...themeFromContext, avlGraph: {...graphTheme, ...(themeFromContext.avlGraph || {})}};
 
   const { theme: contextTheme } = React.useContext(ThemeContext) || { theme: { avlGraph: {} } };
   const theme = getComponentTheme(contextTheme, 'avlGraph', activeStyle);
+
+  const subCfg = state.display?._functions?.subscribers?.find(s => s.functionId === 'hover_highlight' && s.enabled);
+
+console.log("graph_new.index::subCfg", subCfg)
 
 // console.log("GraphNew::data", data);
 // console.log("GraphNew::columns", columns);
