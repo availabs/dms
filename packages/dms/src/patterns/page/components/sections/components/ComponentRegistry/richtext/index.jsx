@@ -48,14 +48,20 @@ export const RichtextEdit = ({value, onChange}) => {
     // Sync state.display changes and text to element-data via onChange
     useEffect(() => {
         const newData = {
-            bgColor: state?.display?.bgColor || 'rgba(0,0,0,0)',
-            isCard: state?.display?.isCard || '',
-            showToolbar: state?.display?.showToolbar || false,
+            bgColor: state?.display?.bgColor ?? bgColor ?? 'rgba(0,0,0,0)',
+            isCard: state?.display?.isCard ?? isCard ?? '',
+            showToolbar: state?.display?.showToolbar ?? showToolbar ?? false,
             text
         };
         const currentData = value && isJson(value) ? JSON.parse(value) : {};
+        const oldData = {
+            bgColor: currentData.bgColor,
+            isCard: currentData.isCard,
+            showToolbar: currentData.showToolbar,
+            text: currentData.text
+        }
 
-        if (!isEqual(newData, {bgColor: currentData.bgColor, isCard: currentData.isCard, showToolbar: currentData.showToolbar, text: currentData.text})) {
+        if (!isEqual(newData, oldData)) {
             onChange(JSON.stringify(newData));
         }
     }, [state?.display?.bgColor, state?.display?.isCard, state?.display?.showToolbar, text]);

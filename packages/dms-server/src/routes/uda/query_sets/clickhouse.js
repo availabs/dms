@@ -13,7 +13,7 @@
  * by getEssentials, so SQL references ${table_schema}.${table_name} directly.
  */
 
-const { sanitizeName, getResponseColumnName } = require('../utils');
+const { sanitizeName, getResponseColumnName, getEssentials, buildJoin } = require('../utils');
 const {
   handleFiltersCH,
   handleFilterGroupsCH,
@@ -22,8 +22,8 @@ const {
   handleOrderByCH,
 } = require('./helpers');
 
-function buildCombinedWhereCH({ filter, exclude, gt, gte, lt, lte, like, filterGroups }) {
-  const filterClause = handleFiltersCH({ filter, exclude, gt, gte, lt, lte, like });
+function buildCombinedWhereCH({ filter, exclude, gt, gte, lt, lte, like, filterGroups, joinPresent }) {
+  const filterClause = handleFiltersCH({ filter, exclude, gt, gte, lt, lte, like, joinPresent });
   const hasExisting = !!filterClause;
   const filterGroupsClause = handleFilterGroupsCH(filterGroups, hasExisting);
 
@@ -39,7 +39,14 @@ async function simpleFilterLength(ctx, options) {
     filterGroups = {},
     groupBy = [], having = [],
     normalFilter = [],
+    join = {}
   } = JSON.parse(options);
+
+  // Detect whether the request includes a real join so the WHERE builder can
+  // disambiguate base-table columns like app/type with a `ds.` prefix.
+  const joinPresent = !!join &&
+    (Object.keys(join.sources || {}).length > 1 ||
+      (Object.keys(join.sources || {}).length === 1 && Object.keys(join.sources || {})[0] !== 'ds'));
 
   if (normalFilter.length) {
     normalFilter.forEach(({ column, values }) => {
@@ -57,9 +64,25 @@ async function simpleFilterLength(ctx, options) {
     filter, exclude, gt, gte, lt, lte, like, filterGroups,
   });
 
+  const { joins, merges } = await buildJoin({join});
+  const hasMerge = merges.length > 0;
+  const hasJoin = joins.length > 0;
+
+  let fromClause;
+  if (hasMerge) {
+    fromClause = `(SELECT * FROM ${table_schema}.${table_name} ${merges}) AS ds`;
+    if (hasJoin) {
+      fromClause += ` ${joins}`;
+    }
+  } else {
+    //default case for no merge
+    //could have 1 or more joins
+    fromClause = `${table_schema}.${table_name} ${hasJoin ? ' as ds ' : ''} ${joins}`;
+  }
+
   const sql = `
     SELECT ${countExpr} AS numRows
-    FROM ${table_schema}.${table_name}
+    FROM ${fromClause}
     ${combinedWhere}
     ${handleHavingCH(having)}
   `;
@@ -103,7 +126,7 @@ async function simpleFilter(ctx, options, attributes, indices) {
     gt = {}, gte = {}, lt = {}, lte = {}, like = {},
     filterGroups = {},
     groupBy = [], having = [], orderBy = {},
-    normalFilter = [],
+    normalFilter = [], join = {}
   } = JSON.parse(options);
 
   if (normalFilter.length) {
@@ -112,13 +135,35 @@ async function simpleFilter(ctx, options, attributes, indices) {
     });
   }
 
+ // Detect whether the request includes a real join (server-side mirror of
+  // calculateIsJoinPresent) so the WHERE builder can disambiguate base-table
+  // columns like app/type with a `ds.` prefix.
+  const joinPresent = !!join &&
+    (Object.keys(join.sources || {}).length > 1 ||
+      (Object.keys(join.sources || {}).length === 1 && Object.keys(join.sources || {})[0] !== 'ds'));
+
   const combinedWhere = buildCombinedWhereCH({
-    filter, exclude, gt, gte, lt, lte, like, filterGroups,
+    filter, exclude, gt, gte, lt, lte, like, filterGroups, joinPresent
   });
+
+  const { joins, merges } = await buildJoin({join});
+  const hasMerge = merges.length > 0;
+  const hasJoin = joins.length > 0;
+  let fromClause;
+  if (hasMerge) {
+    fromClause = `(SELECT * FROM ${table_schema}.${table_name} ${merges}) AS ds`;
+    if (hasJoin) {
+      fromClause += ` ${joins}`;
+    }
+  } else {
+    //default case for no merge
+    //could have 1 or more joins
+    fromClause = `${table_schema}.${table_name} ${hasJoin ? ' as ds ' : ''} ${joins}`;
+  }
 
   const sql = `
     SELECT ${sanitizedAttrs.map((c) => columnNameMap[c] || c).join(', ')}
-    FROM ${table_schema}.${table_name}
+    FROM ${fromClause}
     ${combinedWhere}
     ${handleGroupByCH(groupBy)}
     ${handleHavingCH(having)}
@@ -126,7 +171,7 @@ async function simpleFilter(ctx, options, attributes, indices) {
     LIMIT ${+num}
     OFFSET ${indices.from}
   `;
-  //console.log("sql simple filter::", sql)
+  // console.log("CH sql simple filter::", sql)
   const result = await db.query({ query: sql, format: 'JSON' });
   const json = await result.json();
   const rawRows = json.data || [];

@@ -426,7 +426,7 @@ const Slice = React.memo(({ node, colorFunc, isRoot, ...props }) => {
 			    			className="pointer-events-none font-medium"
 		          	fontSize={ Math.min(width, height) * itSize }
 			    		>
-			    			{ node.data[0] || "Total" }
+			    			{ node.data[0] }
 			    		</textPath>
 			    	</text>
 			    	<text>
