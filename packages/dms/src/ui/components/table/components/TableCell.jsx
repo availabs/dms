@@ -453,14 +453,17 @@ export const TableCell = memo(function TableCell ({
             : {};
 
         return {
-            width: attribute.size,
+            // Pin width only for explicitly-sized columns; flexible columns leave width
+            // unset so the cell fills its `minmax(default, 1fr)` grid track (and stays
+            // aligned with the header, which does the same).
+            width: attribute._hasFixedSize ? attribute.size : undefined,
             ...highlightBorder,
             ...(isSelected && !renderTextBox && {
                     borderWidth: '1px',
                     ...selectionEdgeClassNames[edge]
                 })
         };
-    }, [ attribute.openOut, openOutTitle, attribute.size, isSelected, renderTextBox, edge, isHighlighted, highlightedRow?.style, attrI, visibleAttrsWithoutOpenOut.length ]);
+    }, [ attribute.openOut, openOutTitle, attribute._hasFixedSize, attribute.size, isSelected, renderTextBox, edge, isHighlighted, highlightedRow?.style, attrI, visibleAttrsWithoutOpenOut.length ]);
 
     const disableCellEvents = attribute.isLink || attribute.actionType || attribute._isActionsColumn;
     const cellEvents = useMemo(

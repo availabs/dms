@@ -794,6 +794,65 @@ heading that needs *one* italic phrase, or vice-versa. Don't reach
 for two stacked `styled(...)` paragraphs — that breaks the line
 into two visual lines and loses the design's inline reading.
 
+### 5.6.9 `rowspan` — one tall card beside a stacked column
+
+The `size` splits above all assume each row sums to ≤12 and the next row wraps.
+But some mockups put **one tall card next to a column of shorter stacked cards**
+(e.g. MAP-21 §03: a `col-span-7` "two-prong test" card beside a `col-span-5`
+column holding three small cards). A flat row-wrapping grid can't express that —
+the right-hand cards would wrap *under* the tall card, not stack beside it.
+
+Sections carry a **`rowspan`** field alongside `size` (read via
+`theme.pages.sectionArray.rowspans["N"].className` → `md:row-span-N`). Give the
+tall card a `rowspan` equal to the number of cards stacking beside it, and CSS
+grid auto-placement fills the rest of the column:
+
+```js
+sections: [
+  { title:'', size:'12', data: lexical([ /* kicker + h2 */ ]) },          // full-width heading row
+  { title:'', size:'7', rowspan:'3', border:'full', data: lexical([…]) }, // tall left card, spans 3 rows
+  { title:'', size:'5', border:'full', data: lexical([…]) },              // right card 1 → col 8–12, row 2
+  { title:'', size:'5', border:'full', data: lexical([…]) },              // right card 2 → row 3
+  { title:'', size:'5', border:'full', data: lexical([…]) },              // right card 3 → row 4
+]
+```
+
+The left card occupies cols 1–7 across rows 2–4; the three `size:5` cards
+auto-flow into cols 8–12, one per row. (Heights won't be pixel-identical to a
+hand-nested flex column, but the structure matches and stays fully author-editable.)
+
+### 5.6.10 Card chrome is a section setting (gap-0 + inner box), not Lexical content
+
+A recurring trap when matching a mockup: a Lexical section renders **flowing rich
+text** — it has `heading`/`paragraph`/`list`/`quote`/`code`/`image`/`horizontalrule`/
+`icon`/`layout-container` nodes and the block-level `StyledParagraphNode` (the
+`styled('key', …)` helper), but it has **no inline styled span** (no lettered-badge
+node). So don't try to produce a circular "A"/"B" badge from inside Lexical. Instead:
+
+- **Card chrome (border / radius / background)** is a **per-section layout setting**,
+  applied by the section on an **inner box** *inside* the section's gutter padding
+  (Settings → Layout → Border / Radius / Background). The grid is `gap-0`; the section
+  **padding is the gutter**. So ANY component (lexical, graph, spreadsheet) becomes a card
+  by setting its section's border/radius/bg — no lexical "card style" needed. See the
+  section layout model in
+  [`translating-design-system-to-dms-theme.md` §3.1.58](./translating-design-system-to-dms-theme.md#3158-the-section-layout-model--gap-0-padding-gutters-inner-box-chrome).
+- **Two sections fused into ONE card (compound visual unit).** Put the sections adjacent
+  in the band, then **zero the shared-edge padding** and coordinate the borders/corners:
+  upper section = border top+left+right, radius tl+tr, `padding.bottom = 0`; lower section =
+  border left+right+bottom, radius bl+br, `padding.top = 0`. Their inner boxes touch → one
+  continuous card. (Worked example: MAP-21 §02 — a header/hero lexical **Card** + the
+  interstate **Graph**, composed into one card; the header carries the kicker/title/hero,
+  the graph is the tinted chart footer.) Set the upper section's `title` to `""` if it would
+  render a label band between the two.
+- **Colored dots / simple inline marks** → a Lexical text run with an inline `style`
+  (`color:#10B981`) on a `●`, or the `icon` node — inline before a label.
+- **Lettered circular badges** → no native inline node; approximate (colored dot + a bold
+  `styled` letter), or add a small inline badge node only if pixel parity is required.
+
+The principle: **layout + chrome** are section concerns (`size`/`rowspan`/padding-gutter/
+border/radius/bg); **content** is the component's; a component owns its **internal** padding.
+Trying to force card chrome into Lexical content is the wrong layer.
+
 ### 5.7 Side-by-side CTAs — the column-layout pattern
 
 For two CTAs immediately adjacent (e.g. a marketing hero with

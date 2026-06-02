@@ -23,8 +23,10 @@ export const TableRow = memo(function TableRow ({
         .slice(startCol, endCol + 1);
 
     const slicedGridTemplateColumns = useMemo(() => {
+        // `_track`: fixed `${size}px` for explicitly-sized columns, `minmax(default, 1fr)`
+        // for unsized ones so they stretch to fill leftover width (see table/index.jsx).
         const cols = attrsToRender
-            .map(c => `${c.size}px`)
+            .map(c => c._track || `${c.size}px`)
             .join(" ");
 
         return `${numColSize}px ${cols}`;
