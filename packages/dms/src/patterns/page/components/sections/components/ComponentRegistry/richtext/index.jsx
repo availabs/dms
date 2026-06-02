@@ -87,7 +87,10 @@ export const RichtextEdit = ({value, onChange}) => {
     return (
         <div className='w-full'>
             <div className='relative'>
-                <div className='flex'>
+                {/* `p-4` matches RichtextView's default content padding so an editing
+                    card has the same inset as the rendered one (component owns its
+                    sensible display; the section padding is the outer gutter). */}
+                <div className='flex p-4'>
                     {isCard === 'Handwritten' && <div className='w-[50px]'> {'<---'} </div>}
                     <div className='flex-1'>
                         <Lexical.EditComp
@@ -135,7 +138,11 @@ export const RichtextView = ({value}) => {
 
 
     return (
-        <div className='flex'>
+        // `p-4` is the lexical component's own default content padding. Since the section
+        // grid moved to gap-0 + the section's border/bg now render on an inner box, the
+        // section padding is the OUTER gutter — so the text needs its own inset to keep
+        // off a card's border. Fixed default for now (not author-configurable).
+        <div className='flex p-4'>
             {['Handwritten', 'Handwritten_1', 'Handwritten_2', 'Handwritten_3'].includes(isCard)  && <div className='pt-2 pr-2'><img src='/themes/mny/handwritten_arrow.svg'/></div>}
             <div className='flex-1'>
             <Lexical.ViewComp

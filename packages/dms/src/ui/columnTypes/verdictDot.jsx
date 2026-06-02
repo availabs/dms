@@ -18,7 +18,11 @@ import { ThemeContext, getComponentTheme } from "../useTheme";
 //                       table is a compliance matrix and below-target should
 //                       read as alarming.
 const verdictDotDefault = {
-  wrapper: "inline-flex items-center gap-1.5 justify-end tabular-nums",
+  // The dot + value group. Stays `inline-flex` (shrinks to content) so the CELL's
+  // own justify (left/right/center, threaded via `className`) decides alignment —
+  // the column type must not hardcode its own justify or it overrides the author's
+  // per-column setting.
+  wrapper: "inline-flex items-center gap-1.5 tabular-nums",
   good:    "",
   bad:     "",
   badEmphasized: "font-semibold text-[#991B1B]",
@@ -32,13 +36,16 @@ const isMeet = (n, threshold, direction) => {
   return direction === "le" ? n <= threshold : n >= threshold;
 };
 
-export const VerdictDotView = ({ value, verdictThreshold, verdictDirection = "ge", verdictEmphasize = false }) => {
+export const VerdictDotView = ({ value, className = "", verdictThreshold, verdictDirection = "ge", verdictEmphasize = false }) => {
   const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
   const t = { ...verdictDotDefault, ...getComponentTheme(themeFromContext, "verdict_dot") };
 
-  if (value === null || value === undefined || value === "") return null;
+  // `className` is the cell's resolved class (theme `cellInner` w-full flex + the
+  // column's `justify-*` + any `valueFontStyle`). Apply it on the outer element so
+  // the dot+value group honours the column's alignment, exactly like a plain cell.
+  if (value === null || value === undefined || value === "") return <div className={className} />;
   const n = parseFloat(value);
-  if (Number.isNaN(n)) return <span className={t.wrapper}>{value}</span>;
+  if (Number.isNaN(n)) return <div className={className}>{value}</div>;
 
   const threshold = parseFloat(verdictThreshold);
   const meets = isMeet(n, threshold, verdictDirection);
@@ -47,10 +54,12 @@ export const VerdictDotView = ({ value, verdictThreshold, verdictDirection = "ge
   const valueClass = meets === false && verdictEmphasize ? t.badEmphasized : (meets ? t.good : t.bad);
 
   return (
-    <span className={`${t.wrapper} ${valueClass}`}>
-      <span className={dotClass}></span>
-      {n}
-    </span>
+    <div className={className}>
+      <span className={`${t.wrapper} ${valueClass}`}>
+        <span className={dotClass}></span>
+        {value}
+      </span>
+    </div>
   );
 };
 

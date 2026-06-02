@@ -10,6 +10,71 @@ import { isJson } from './section_utils'
 import { sectionArrayTheme } from './sectionArray.theme'
 import {useImmer} from "use-immer";
 
+// ── Per-section chrome (border / radius / margin) ────────────────────────────
+// Compound-card layout model (see
+// planning/tasks/current/gap0-section-grid-compound-cards-migration.md): the band
+// grid is gap-0 and spacing/borders/corners live on sections.
+//   • border: new per-side shape { top,right,bottom,left } composes from the theme's
+//     `borderSides` literal-class map; a legacy string key ('full'/'openLeft'/…)
+//     still resolves via the theme's `border` preset map (radius baked in) for BC.
+//   • radius: per-corner shape { tl,tr,bl,br } composes from `radiusCorners`.
+//   • margin: a literal class string (picker-composed) wins; `defaultMargin` is the
+//     fallback gutter AND the opt-in switch — themes that don't set it are untouched
+//     (they keep their grid gap), so this is fully BC for un-migrated themes.
+const resolveBorder = (border, theme) => {
+    if (border && typeof border === "object") {
+        return ["top", "right", "bottom", "left"]
+            .filter(s => border[s]).map(s => theme?.borderSides?.[s] || "").join(" ");
+    }
+    return theme?.border?.[border || "none"] || "";
+};
+const resolveRadius = (radius, theme) => {
+    if (radius && typeof radius === "object") {
+        return ["tl", "tr", "bl", "br"]
+            .filter(c => radius[c]).map(c => theme?.radiusCorners?.[c] || "").join(" ");
+    }
+    return "";
+};
+// Padding is the section's spacing primitive (NO margins — they fight grid/flex).
+// On a gap-0 grid the inter-section gutter is the section wrapper's padding; per-side
+// so the shared edge can be zeroed to compose a flush compound card. A literal string
+// is used as-is (legacy/BC); a per-side object composes from `theme.paddings`, with
+// `theme.sectionPadding` as the all-sides default.
+const resolvePadding = (padding, theme) => {
+    if (typeof padding === "string") return padding;            // legacy/literal
+    const def = theme?.defaultPaddingStep;                      // per-side default step (gutter)
+    const map = theme?.paddings || {};
+    if (def == null) {                                          // un-migrated theme
+        if (padding && typeof padding === "object") {
+            return ["top", "right", "bottom", "left"]
+                .filter(s => padding[s] != null && padding[s] !== "")
+                .map(s => map?.[s]?.[padding[s]] || "").join(" ");
+        }
+        return theme?.sectionPadding || "";
+    }
+    // migrated theme: every side defaults to `def`; a per-side object overrides sides
+    // (e.g. { bottom: "0" } zeroes the shared edge to fuse with the section below).
+    const obj = (padding && typeof padding === "object") ? padding : {};
+    return ["top", "right", "bottom", "left"].map(s => {
+        const step = (obj[s] != null && obj[s] !== "") ? obj[s] : def;
+        return map?.[s]?.[step] || "";
+    }).filter(Boolean).join(" ");
+};
+// Background for the inner card box. A themed key (`theme.backgrounds[bg]`, e.g.
+// white / tint / none) or a literal `bg-…` class. (Legacy `border:'full'` already
+// bundles `bg-white`, so legacy cards keep their background without setting `bg`.)
+const resolveBg = (bg, theme) =>
+    theme?.backgrounds?.[bg] || (typeof bg === "string" && bg.startsWith("bg-") ? bg : "");
+// The section's card chrome — rendered on an INNER box (inside the gutter padding) so
+// the padding is a true gutter that separates bordered cards (and a shared edge can be
+// zeroed to fuse two sections into one card). Content padding inside the card is the
+// component's concern (a component-type setting), NOT the section gutter.
+// The section's card chrome — rendered on an INNER box (inside the gutter padding).
+// Content padding INSIDE the card is the COMPONENT's concern (e.g. the lexical
+// component's own default padding), not the section.
+const sectionChrome = (v, theme) =>
+    `${resolveBorder(v?.border, theme)} ${resolveRadius(v?.radius, theme)} ${resolveBg(v?.bg, theme)}`.trim();
+
 const Edit = ({ value, onChange, attr, group, siteType }) => {
     const {hash} = useLocation();
     const { editPane, format, item  } =  React.useContext(PageContext) || {}
@@ -187,10 +252,9 @@ const Edit = ({ value, onChange, attr, group, siteType }) => {
                             key={i}
                             id={v?.id}
                             className={`
-                                ${v?.padding ?  v.padding : theme?.sectionPadding}
+                                ${resolvePadding(v?.padding, theme)}
                                 ${theme?.sectionEditWrapper}
                                 ${colspanClass} ${rowspanClass}
-                                ${theme?.border?.[v?.border || 'none']}
 
                             `}
                             style={{paddingTop: v?.offset }}
@@ -218,6 +282,11 @@ const Edit = ({ value, onChange, attr, group, siteType }) => {
                                 </div>
                              }
 
+                            {/* Inner card box — carries the section's chrome (border /
+                                radius / bg) inside the gutter padding, so the gutter
+                                separates bordered cards and a zeroed shared edge fuses
+                                two sections into one card. */}
+                            <div className={sectionChrome(v, theme)}>
                             {/* edit new or existing section */}
                             {edit.index === i
                                 ? <SectionEdit
@@ -253,6 +322,7 @@ const Edit = ({ value, onChange, attr, group, siteType }) => {
                                     // addAbove={() => setEditIndex(i)}
                                     onEdit={ edit.index === -1 ? (e) => update(i)  : null }
                                 /> : v?.status?.length > 1 ? <div>Error</div> : ''}
+                            </div>
 
                             {/* add new section at end  */}
 
@@ -306,11 +376,10 @@ const View = ({value, attr, group, siteType}) => {
                         return (
                             <div id={v?.id} key={i}
                                 className={`
-                                    ${v?.is_header ? '' : v?.padding ?  v.padding : theme?.sectionPadding}
+                                    ${v?.is_header ? '' : resolvePadding(v?.padding, theme)}
                                     ${theme?.sectionViewWrapper}
                                     ${hash === `#${v.id}` ? theme?.sectionHighlight : ``}
                                     ${colspanClass} ${rowspanClass}
-                                    ${theme?.border?.[v?.border || 'none']}
                                 `}
                                 style={{ paddingTop: v?.offset }}
                                  onClick={() => {
@@ -322,7 +391,9 @@ const View = ({value, attr, group, siteType}) => {
                                      }
                                  }}
                             >
-
+                                {/* Inner card box — section chrome (border/radius/bg)
+                                    inside the gutter padding. */}
+                                <div className={sectionChrome(v, theme)}>
                                 <SectionView
                                     key={v?.id || i}
                                     i={i}
@@ -332,6 +403,7 @@ const View = ({value, attr, group, siteType}) => {
                                     format={format}
                                     isActive={v?.element?.['element-type'] === 'Spreadsheet' ? active === v?.id : undefined}
                                 />
+                                </div>
                             </div>
                         )
                     })

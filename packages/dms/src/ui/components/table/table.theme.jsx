@@ -1,3 +1,5 @@
+import { getComponentTheme } from '../../useTheme';
+
 export const tableTheme = {
     options: {
         activeStyle: 0
@@ -79,7 +81,13 @@ export const tableTheme = {
 }
 
 // used in theme editor
-export const tableSettings = (theme) => [
+export const tableSettings = (theme) => {
+  const activeStyle = theme?.table?.options?.activeStyle || 0;
+  // getComponentTheme resolves the active style (inheriting from styles[0]) and
+  // always returns {} rather than undefined, so the key listing below is crash-safe
+  // even when the selected theme has no table styles.
+  const styleKeys = Object.keys(getComponentTheme(theme, 'table', activeStyle));
+  return [
     {
         label: "Layout Group Styles",
         type: 'inline',
@@ -112,7 +120,7 @@ export const tableSettings = (theme) => [
                 onClick: (e, setState) => {
                     setState(draft => {
                         if (draft.table.styles.length > 1) {
-                            draft.table.styles.splice(theme.table.options.activeStyle, 1)
+                            draft.table.styles.splice(activeStyle, 1)
                             draft.table.options.activeStyle = 0
                         }
                     })
@@ -125,7 +133,7 @@ export const tableSettings = (theme) => [
         label: "Table",
         type: 'inline',
         controls: [
-            ...Object.keys(theme?.table?.styles?.[theme?.table?.options?.activeStyle || 0] )
+            ...styleKeys
                 .filter(k => !k.includes('Wrapper') && !k.startsWith('cell') && !k.includes('Cell') &&
                     !k.startsWith('openOut') && !k.startsWith('headerCell') && !k.startsWith('pagination') && !k.startsWith('pageRange') &&
                     !k.includes('Row'))
@@ -133,7 +141,7 @@ export const tableSettings = (theme) => [
                     return {
                         label: k,
                         type: 'Textarea',
-                        path: `table.styles[${theme?.table?.options?.activeStyle}].${k}`
+                        path: `table.styles[${activeStyle}].${k}`
                     }
                 })
         ]
@@ -142,13 +150,13 @@ export const tableSettings = (theme) => [
         label: "Wrappers",
         type: 'inline',
         controls: [
-            ...Object.keys(theme?.table?.styles?.[theme?.table?.options?.activeStyle || 0] )
+            ...styleKeys
                 .filter(k => k.includes('Wrapper'))
                 .map(k => {
                     return {
                         label: k,
                         type: 'Textarea',
-                        path: `table.styles[${theme?.table?.options?.activeStyle}].${k}`
+                        path: `table.styles[${activeStyle}].${k}`
                     }
                 })
         ]
@@ -157,13 +165,13 @@ export const tableSettings = (theme) => [
         label: "Header Cell (Control)",
         type: 'inline',
         controls: [
-            ...Object.keys(theme?.table?.styles?.[theme?.table?.options?.activeStyle || 0] )
+            ...styleKeys
                 .filter(k => k.startsWith('headerCell'))
                 .map(k => {
                     return {
                         label: k,
                         type: 'Textarea',
-                        path: `table.styles[${theme?.table?.options?.activeStyle}].${k}`
+                        path: `table.styles[${activeStyle}].${k}`
                     }
                 })
         ]
@@ -172,13 +180,13 @@ export const tableSettings = (theme) => [
         label: "Cell",
         type: 'inline',
         controls: [
-            ...Object.keys(theme?.table?.styles?.[theme?.table?.options?.activeStyle || 0] )
+            ...styleKeys
                 .filter(k => (k.startsWith('cell') || k.includes('Cell')) && !k.startsWith('headerCell'))
                 .map(k => {
                     return {
                         label: k,
                         type: 'Textarea',
-                        path: `table.styles[${theme?.table?.options?.activeStyle}].${k}`
+                        path: `table.styles[${activeStyle}].${k}`
                     }
                 })
         ]
@@ -187,13 +195,13 @@ export const tableSettings = (theme) => [
         label: "Row",
         type: 'inline',
         controls: [
-            ...Object.keys(theme?.table?.styles?.[theme?.table?.options?.activeStyle || 0] )
+            ...styleKeys
                 .filter(k => k.includes('Row'))
                 .map(k => {
                     return {
                         label: k,
                         type: 'Textarea',
-                        path: `table.styles[${theme?.table?.options?.activeStyle}].${k}`
+                        path: `table.styles[${activeStyle}].${k}`
                     }
                 })
         ]
@@ -202,13 +210,13 @@ export const tableSettings = (theme) => [
         label: "Open out",
         type: 'inline',
         controls: [
-            ...Object.keys(theme?.table?.styles?.[theme?.table?.options?.activeStyle || 0] )
+            ...styleKeys
                 .filter(k => k.startsWith('openOut'))
                 .map(k => {
                     return {
                         label: k,
                         type: 'Textarea',
-                        path: `table.styles[${theme?.table?.options?.activeStyle}].${k}`
+                        path: `table.styles[${activeStyle}].${k}`
                     }
                 })
         ]
@@ -217,18 +225,19 @@ export const tableSettings = (theme) => [
         label: "Pagination",
         type: 'inline',
         controls: [
-            ...Object.keys(theme?.table?.styles?.[theme?.table?.options?.activeStyle || 0] )
+            ...styleKeys
                 .filter(k => k.startsWith('pagination') || k.startsWith('pageRange'))
                 .map(k => {
                     return {
                         label: k,
                         type: 'Textarea',
-                        path: `table.styles[${theme?.table?.options?.activeStyle}].${k}`
+                        path: `table.styles[${activeStyle}].${k}`
                     }
                 })
         ]
     },
-];
+  ];
+};
 
 export const docs = {
     columns: [

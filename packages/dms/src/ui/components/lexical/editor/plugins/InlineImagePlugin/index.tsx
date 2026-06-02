@@ -120,7 +120,7 @@ export function InsertInlineImageDialog({
     const payload = {
       altText, position, showCaption, src,
       fileUploadInfo,
-      fileName: `${ file.name }|${ file.size }`
+      fileName: `${ file?.name }|${ file?.size }`
     };
     activeEditor.dispatchCommand(INSERT_INLINE_IMAGE_COMMAND, payload);
     onClose();

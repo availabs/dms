@@ -19,6 +19,7 @@ export const sectionArrayTheme = {
       sectionHighlight: 'absolute inset-0 border border-orange-300 border-dashed pointer-events-none z-10 rounded-md', // on scroll url hash
       sectionViewWrapper: 'relative group',
       sectionPadding: 'p-4',
+      defaultPaddingStep: '4',      // per-side gutter default (matches the old p-4 spacing)
       gridviewGrid: 'z-0 bg-slate-50 h-full',
       gridviewItem: 'border-x bg-white border-slate-100/75 border-dashed h-full p-[6px]',
       defaultOffset: 16,
@@ -44,6 +45,9 @@ export const sectionArrayTheme = {
           "7" : { className: 'md:row-span-7'},
           "8" : { className: 'md:row-span-8'},
       },
+      // Legacy named border presets (radius baked in) — kept so existing sections
+      // (`border: 'full'`, etc.) render unchanged. New edits use `borderSides` +
+      // `radiusCorners` (per-side / per-corner) below.
       border: {
           none: '',
           full: 'border border-[#E0EBF0] rounded-lg',
@@ -52,7 +56,32 @@ export const sectionArrayTheme = {
           openTop: 'border border-[#E0EBF0] border-t-transparent rounded-b-lg',
           openBottom: 'border border-[#E0EBF0] border-b-transparent rounded-t-lg',
           borderX: 'border border-[#E0EBF0] border-y-transparent'
-      }
+      },
+      // ── Compound-card per-edge controls (literal classes so Tailwind generates
+      // them; the picker offers these, the render composes the chosen ones). ──
+      // Per-side border toggles against the one brand line.
+      borderSides: {
+          top:    'border-t border-[#E0EBF0]',
+          right:  'border-r border-[#E0EBF0]',
+          bottom: 'border-b border-[#E0EBF0]',
+          left:   'border-l border-[#E0EBF0]',
+      },
+      // Per-corner radius toggles (one brand corner size).
+      radiusCorners: {
+          tl: 'rounded-tl-lg', tr: 'rounded-tr-lg', bl: 'rounded-bl-lg', br: 'rounded-br-lg',
+      },
+      // Inner-card background options (the per-side border carries no bg of its own).
+      backgrounds: {
+          none: '', white: 'bg-white', tint: 'bg-slate-50',
+      },
+      // Per-side padding steps the picker offers.
+      // Curated gutter steps (fewer = wider, more usable buttons).
+      paddings: {
+          top:    { '0':'pt-0','2':'pt-2','4':'pt-4','6':'pt-6','8':'pt-8' },
+          right:  { '0':'pr-0','2':'pr-2','4':'pr-4','6':'pr-6','8':'pr-8' },
+          bottom: { '0':'pb-0','2':'pb-2','4':'pb-4','6':'pb-6','8':'pb-8' },
+          left:   { '0':'pl-0','2':'pl-2','4':'pl-4','6':'pl-6','8':'pl-8' },
+      },
     }
   ]
 }
