@@ -437,6 +437,26 @@ export const applyPriorPeriodExpansion = (filterTree) => {
   return applyToNode(filterTree);
 };
 
+export const flattenFilterValues = filterTree => {
+  if (!filterTree) return filterTree;
+
+  const applyToNode = (node) => {
+    if (isGroup(node)) {
+      return { ...node, groups: node.groups.map(applyToNode) };
+    }
+
+    if (!Array.isArray(node.value) || !node.value.length) return node;
+
+    console.log("about to flatten",node.value)
+    const arrVal = Array.isArray(node.value) ? node.value.flat() : node.value;
+        console.log("---FLAT---",arrVal)
+    return { ...node, value: arrVal};
+    //return { ...node, value: node.value.flatMap(arrVal => arrVal.map(v => (`'${v}'`)))};
+  };
+
+  return applyToNode(filterTree);
+}
+
 // ─── Legacy column filter extraction ────────────────────────────────────────
 
 /**
@@ -506,9 +526,10 @@ export const buildPageFilterColumn = (column) => {
   //   END) as tmc_group
   
   // const groupColName = `${column.name}_filter_group`
+  console.log("builda uda filter, column::", column)
   const valueClauses = column.value.map((val, i) => {
-      const arrayVal = Array.isArray(val) ? val : [val]
-      return `WHEN ${column.name} IN (${arrayVal.map((v) => `'${v}'`).join(" ")}) THEN 'Group ${i+1}'`
+      const arrayVal = Array.isArray(val) ? val : [val];
+      return `WHEN ${column.name} IN (${arrayVal.map((v) => `'${v}'`).join(", ")}) THEN 'Group ${i+1}'`
     });
   return `(CASE ${valueClauses.join(" ")} ELSE 'Unknown Group' END) as ${column.name}_group`;
 }
@@ -1058,6 +1079,9 @@ export const buildUdaConfig = ({
   // → IN(Y, Y-1)). No-op for leaves without the flag.
   filterTree = applyPriorPeriodExpansion(filterTree);
 
+  
+  filterTree = flattenFilterValues(filterTree)
+    console.log("after flat",{filterTree})
   // Extract normal filters before mapping (they need raw column names)
   const { cleaned: nonNormalFilterGroups, normalFilters: filterGroupNormalFilters } =
     extractNormalFiltersFromGroups(filterTree);
@@ -1082,7 +1106,7 @@ export const buildUdaConfig = ({
       columnsByAlias.get(name),
     isDms,
   );
-
+  console.log({nonNormalFilterGroups})
   // Extract HAVING conditions from mapped tree
   const { filterGroups: finalFilterGroups, having: filterGroupHaving } =
     extractHavingFromFilterGroups(mappedFilterGroups);

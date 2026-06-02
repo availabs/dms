@@ -108,7 +108,7 @@ const buildControls = (theme) => ({
             { type: 'toggle', label: 'show', key: 'show' },
             { type: 'toggle', label: 'Group', key: 'group' },
             { type: 'toggle', label: 'Group By Page Filter', key: 'groupByPageFilter' },
-            { type: 'input', label: '', key: 'groupByPageFilterKey', displayCdn: ({attribute}) => { console.log({attribute}); return attribute.groupByPageFilter} },
+            { type: 'input', label: '', key: 'groupByPageFilterKey', displayCdn: ({attribute}) =>  attribute.groupByPageFilter },
             { type: 'select', label: 'Fn', key: 'fn',
                 options: [
                     { label: 'list', value: 'list' }, { label: 'sum', value: 'sum' }, { label: 'count', value: 'count' }, { label: 'avg', value: 'avg' }, { label: 'fn exempt', value: 'exempt' }
