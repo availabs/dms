@@ -207,6 +207,9 @@ export function useDataLoader({ state, setState, apiLoad, component, isEditMode 
   // ─── Main load effect ──────────────────────────────────────────────────────
 
   useEffect(() => {
+    const __dbg = state?.externalSource?.source_id === 2001;
+    const __tag = state?.columns?.[0]?.customName || state?.columns?.[0]?.name;
+    if (__dbg) console.log("DBGLOAD effect-entry", JSON.stringify({tag:__tag, ncols:state?.columns?.length, isValidState, readyToLoad, isEditMode, fetchMode, hasLocalFilters}));
     if (!isValidState || !readyToLoad) return;
 
     const timeoutId = setTimeout(() => {
@@ -216,7 +219,9 @@ export function useDataLoader({ state, setState, apiLoad, component, isEditMode 
       }
 
       // Dedup: skip if config hasn't changed (bypassed in 'force' fetch mode)
+      if (__dbg) console.log("DBGLOAD pre-dedup", JSON.stringify({tag:__tag, sameKey: fetchKey === lastFetchKeyRef.current, bypassDedup}));
       if (!bypassDedup && fetchKey === lastFetchKeyRef.current) return;
+      if (__dbg) console.log("DBGLOAD will-fetch", JSON.stringify({tag:__tag}));
 
       async function load() {
         setLoading(true);
