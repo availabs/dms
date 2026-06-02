@@ -41,7 +41,7 @@ async function simpleFilterLength(ctx, options) {
     normalFilter = [],
     join = {}
   } = JSON.parse(options);
-
+  console.log("options::", options)
   // Detect whether the request includes a real join so the WHERE builder can
   // disambiguate base-table columns like app/type with a `ds.` prefix.
   const joinPresent = !!join &&
@@ -87,7 +87,7 @@ async function simpleFilterLength(ctx, options) {
     ${handleHavingCH(having)}
   `;
 
-  //console.log("sql simple filter LENGTH::", sql)
+  console.log("sql simple filter LENGTH::", sql)
   const result = await db.query({ query: sql, format: 'JSON' });
   const rows = await result.json();
   return rows?.data?.[0]?.numRows != null ? Number(rows.data[0].numRows) : 0;
@@ -95,9 +95,12 @@ async function simpleFilterLength(ctx, options) {
 
 function transformAttributesForClickHouse(attrs) {
   return attrs.map(attr => {
-    // Matches: array_to_string(array_agg(distinct COLUMN), ', ') as ALIAS
-    const regex = /array_to_string\(array_agg\(distinct\s+([\w.]+)\),\s*',\s*'\)\s+as\s+(\w+)/i;
+    // // Matches: array_to_string(array_agg(distinct COLUMN), ', ') as ALIAS
+    // const regex = /array_to_string\(array_agg\(distinct\s+([\w.]+)\),\s*',\s*'\)\s+as\s+(\w+)/i;
     
+    // Matches simple columns AND complex CASE statements inside distinct (...)
+    const regex = /array_to_string\(array_agg\(distinct\s+(?:\(\s*)?([\s\S]+?)(?:\s*\))?\),\s*',\s*'\)\s+as\s+(\w+)/i;
+
     return attr.replace(regex, (match, column, alias) => {
       // ClickHouse: arrayStringConcat(groupArrayDistinct(COLUMN), ', ') as ALIAS
       return `arrayStringConcat(groupArrayDistinct(${column}), ', ') as ${alias}`;
@@ -105,11 +108,15 @@ function transformAttributesForClickHouse(attrs) {
   });
 }
 
+
+//arrayStringConcat
+
 async function simpleFilter(ctx, options, attributes, indices) {
   const num = indices.to - indices.from + 1;
   const { db, table_schema, table_name } = ctx;
 
   const transformedAttributes = transformAttributesForClickHouse(attributes);
+  console.log("transformedAttributes::",transformedAttributes)
   const sanitizedAttrs = sanitizeName(transformedAttributes).filter((f) => f);
   if (!sanitizedAttrs.length) return [];
 
@@ -171,7 +178,7 @@ async function simpleFilter(ctx, options, attributes, indices) {
     LIMIT ${+num}
     OFFSET ${indices.from}
   `;
-  // console.log("CH sql simple filter::", sql)
+  console.log("CH sql simple filter::", sql)
   const result = await db.query({ query: sql, format: 'JSON' });
   const json = await result.json();
   const rawRows = json.data || [];

@@ -20,12 +20,12 @@ export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addIte
                                 currentPage, infiniteScrollFetchData}) => {
     const { UI, theme} = React.useContext(ThemeContext) || {}
     const {Table} = UI;
-    const {state:{columns=[], externalSource: sourceInfo={}, display={}, data=[], localFilteredData, fullData}, setState, controls={}, isActive, activeStyle} = useContext(ComponentContext);
-    const { pageState, setActionParam, clearActionParam } = useContext(PageContext) || {};
-
+    const {state, state:{filters, columns=[], externalSource: sourceInfo={}, display={}, data=[], localFilteredData, fullData}, setState, controls={}, isActive, activeStyle} = useContext(ComponentContext);
+    const { pageState, setPageState, setActionParam, clearActionParam } = useContext(PageContext) || {};
+                                    console.log("useContext(PageContext)::",useContext(PageContext))
     const providerCfg = display._functions?.providers?.find(p => p.functionId === 'hover_highlight' && p.enabled);
     const clickPublishCfg = display._functions?.providers?.find(p => p.functionId === 'click_publish' && p.enabled);
-
+                                    console.log({filters})
     const onRowMouseEnter = useCallback((rowData) => {
         if (!providerCfg || !setActionParam) return;
         const value = rowData?.[providerCfg.args?.column];
@@ -38,11 +38,30 @@ export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addIte
     }, [providerCfg, clearActionParam]);
 
     const onRowMouseClick = useCallback((rowData) => {
-        console.log("onRowClick", {rowData})
-        if (!clickPublishCfg || !setActionParam) return;
-        const value = rowData?.[clickPublishCfg.args?.column];
-        console.log({value})
-        if (value !== undefined) setActionParam(clickPublishCfg.paramKey, value);
+        console.log({pageState})
+        if (!clickPublishCfg) return;
+        
+
+
+        setPageState(draft => {
+            const value = rowData?.[clickPublishCfg.args?.column];
+            const existing = draft.filters?.find(f => f.searchKey === clickPublishCfg.args?.column);
+                    console.log(JSON.parse(JSON.stringify({existing})))
+            if (value !== undefined) {
+                if (existing?.values?.length === 0 || !existing?.values) {
+
+                    existing.values = [value]; //RYAN TODO MAYBE THIS SHOULD BE ARRAY OF ARRAYS OR SOMETHING HERE
+                    
+                } else if (existing?.values?.length) {
+                    //RYAN TODO -- make sure we don't allow for duplicates in here
+                    existing.values = [value, ...existing.values]; //RYAN TODO MAYBE THIS SHOULD BE ARRAY OF ARRAYS OR SOMETHING HERE
+                    
+                }
+            }
+        })
+
+
+
     }, [clickPublishCfg, setActionParam]);
 
 
