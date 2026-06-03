@@ -87,8 +87,10 @@ export function DmsSite (config) {
     // on initial load need to be fetched now so their routes exist for navigation.
     useEffect(() => {
         const handleLogin = async () => {
+            setLoading(true)
             const routes = await dmsSiteFactory(routePropsRef.current);
             setDynamicRoutes(routes);
+            setLoading(false)
         };
         window.addEventListener('dms-user-login', handleLogin);
         return () => window.removeEventListener('dms-user-login', handleLogin);
