@@ -68,26 +68,13 @@ function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdat
         initNavigateUsingSearchParams({pageState, search, navigate, baseUrl, item, isView: true})
     }, [])
 
-    // const setActionParam = React.useCallback((key, value) => {
-    //     setPageState(draft => {
-    //         console.log("set page state value::", value)
-    //         const existing = draft.filters.find(f => f.searchKey === key && f.type === 'action');
-    //         const arrayValue  = Array.isArray(value) ? value : [value];
-    //         if (existing) {
-    //             existing.values = [value];
-    //         } else {
-    //             draft.filters.push({ searchKey: key, values: [value], useSearchParams: false, type: 'action' });
-    //         }
-    //     });
-    // }, [setPageState]);
-        const setActionParam = React.useCallback((key, value) => {
+    const setActionParam = React.useCallback((key, value) => {
         setPageState(draft => {
             const existing = draft.filters.find(f => f.searchKey === key && f.type === 'action');
-            const arrayValue  = Array.isArray(value) ? value : [value];
             if (existing) {
-                existing.values = arrayValue;
+                existing.values = [value];
             } else {
-                draft.filters.push({ searchKey: key, values: arrayValue, useSearchParams: false, type: 'action' });
+                draft.filters.push({ searchKey: key, values: [value], useSearchParams: false, type: 'action' });
             }
         });
     }, [setPageState]);
