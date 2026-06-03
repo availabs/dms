@@ -507,3 +507,37 @@ ColumnTypes[type].cardHints.spanFullRows    → default gridRow '1 / -1'
 ColumnTypes[type].cardHints.height          → fixed pixel height
 ColumnTypes[type].cardHints.defaultHideHeader → picker ships column with hideHeader on
 ```
+
+## Interior padding belongs on the card SETTING, not the theme style
+
+`display.cardsPadding` (the "Card Padding" control) is applied as an inline `padding`
+on the card box (`Card.jsx` subWrapperStyle) and therefore **overrides** any `p-*`
+baked into the dataCard theme style's `subWrapperCompactView` className. Keep theme
+styles for *visual identity only* (bg / border / radius) and set interior padding via
+`cardsPadding`, so a card's content inset is consistent regardless of which style it
+uses. Symptom this fixes: cards on the same row whose pills/first cell sit at different
+heights because one style bakes in `p-5` and another doesn't (MAP-21 §01: the slate
+"UZA measure" PHED card vs the white target cards — set `cardsPadding: 20` on all four
+to align them while the PHED card keeps its slate/dashed style).
+
+## Component height: `auto` = content, `fill` = section (content top-aligned)
+
+Design intent (mirrors the design handoff's `… p-5 flex flex-col gap-3 h-full` cards):
+a card with `height: auto` is its content height; with the section set to `height:'fill'`
+it fills the section and **top-aligns** its content (pill/first cell flush at top, slack
+at the bottom).
+
+IMPLEMENTED 2026-06-03 — the fill chain (each link gated to `fill` or CSS-conditional so
+`auto` is byte-identical):
+- `sectionArray.jsx` `resolveHeight`: `fill` → `h-full flex flex-col` (chrome box is a flex
+  column so its child can `flex-1` up to the section height).
+- `section.jsx` `resolveSectionHeightStyles` `fill`: `contentWrapperStyle` is now a flex
+  column (`display:flex; flexDirection:column`) so the data component can fill it.
+- `dataWrapper/index.jsx`: the Comp's wrapper (both edit + view blocks) is `w-full h-full
+  flex flex-col` (was `w-full` / `w-full h-full` block), so the component fills.
+- `Card.jsx` `mainWrapperStyle`: `flex:'1 1 auto'; minHeight:0; gridAutoRows:'minmax(max-content,1fr)'`.
+  In a flex-column parent (fill) it grows and the card row stretches; in an `auto` parent
+  the flex is ignored and `1fr`→`max-content` = the legacy auto row (BC).
+Verified: PHED §01 card (`height:'fill'`) box 227px→364px (fills); auto KPI cards, graphs,
+spreadsheets, and the §02 header cards all unchanged. Other data components (Spreadsheet,
+Graph) now also fill when their section is `fill` (they were content-height before).

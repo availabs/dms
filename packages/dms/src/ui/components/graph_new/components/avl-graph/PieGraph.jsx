@@ -367,6 +367,12 @@ const ValueTextSizeMap = {
   xlarge: 0.5
 }
 
+const labelTransform = (x0, x1, y0, y1) => {
+  const x = (x0 + x1) / 2 * 180 / Math.PI;
+  const y = (y0 + y1) * 0.95;
+  return `rotate(${ x - 90 }) translate(${ y }, 0) rotate(${ x < 180 ? 0 : 180 })`;
+}
+
 const Slice = React.memo(({ state, data, innerRadius, outerRadius, index,
                             onMouseMove, showAnimations, valueTextSize,
                             endAngle, startAngle, padAngle, ...props }) => {
@@ -433,9 +439,22 @@ const Slice = React.memo(({ state, data, innerRadius, outerRadius, index,
     onMouseMove(e, { ...data });
   }, [onMouseMove, data]);
 
-  const { showValue, ...valueData } = React.useMemo(() => {
+  const { showValue, showLarge, ...valueData } = React.useMemo(() => {
     if (!props.showValue) return { showValue: false };
-    if ((endAngle - startAngle) < Math.PI * (3.0 / 5.0)) return { showValue: false };
+    if ((endAngle - startAngle) < Math.PI * 0.01) return { showValue: false };
+
+    if ((endAngle - startAngle) < Math.PI * 0.6) {
+
+      const width = 2 * (endAngle - startAngle) * outerRadius * 0.5;
+      const height = outerRadius;
+
+      return {
+        showValue: true,
+        showLarge: false,
+        value: data.formattedValue,
+        fontSize: Math.min(width, height) * (ValueTextSizeMap[valueTextSize] || ValueTextSizeMap["medium"]) * 0.5
+      };
+    }
 
     const radius = innerRadius + (outerRadius - innerRadius) * 0.625;
 
@@ -464,6 +483,7 @@ const Slice = React.memo(({ state, data, innerRadius, outerRadius, index,
 
     return {
       showValue: true,
+      showLarge: true,
       id: getUniqueTextPathId(),
       d,
       value: data.formattedValue,
@@ -478,25 +498,37 @@ const Slice = React.memo(({ state, data, innerRadius, outerRadius, index,
         onMouseMove={ _onMouseMove }/>
 
       { !showValue ? null :
-        <>
-          <defs>
-            <path id={ valueData.id }
-              d={ valueData.d }
-              fill="none" stroke="transparent"/>
-          </defs>
-
-          <text>
-            <textPath href={ `#${ valueData.id }` }
-              startOffset="50%"
-              textAnchor="middle"
-              dominantBaseline={ valueData.dominantBaseline }
-              className="pointer-events-none"
-              fontSize={ valueData.fontSize }
-            >
-              { valueData.value }
-            </textPath>
+        !showLarge ? (
+          <text
+            textAnchor="start"
+            dominantBaseline="middle"
+            transform={ labelTransform(startAngle, endAngle, innerRadius, outerRadius) }
+            className="pointer-events-none"
+            fontSize={ valueData.fontSize }
+          >
+            { valueData.value }
           </text>
-        </>
+        ) : (
+          <>
+            <defs>
+              <path id={ valueData.id }
+                d={ valueData.d }
+                fill="none" stroke="transparent"/>
+            </defs>
+
+            <text>
+              <textPath href={ `#${ valueData.id }` }
+                startOffset="50%"
+                textAnchor="middle"
+                dominantBaseline={ valueData.dominantBaseline }
+                className="pointer-events-none"
+                fontSize={ valueData.fontSize }
+              >
+                { valueData.value }
+              </textPath>
+            </text>
+          </>
+        )
       }
     </>
   )

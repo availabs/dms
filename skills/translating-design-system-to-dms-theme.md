@@ -26,7 +26,7 @@ renders pages matching the mockups.
 
 ## If you take nothing else from this skill
 
-Four gotchas every theme translation hits, in order of how often
+Five gotchas every theme translation hits, in order of how often
 they bite. Each one looks like a one-character config detail and is
 actually load-bearing. Skip to the linked sections; the rest of this
 doc is reference material organized around the per-primitive checklist.
@@ -60,8 +60,15 @@ doc is reference material organized around the per-primitive checklist.
    falsy, and the codebase ships them set. Without explicit override,
    the codebase default's `font-display` rule shadows your brand
    tokens and headings render in the wrong family inside Lexical.
+5. **Leading-zero Tailwind opacity (`/05`, `/06`) is invalid in
+   Tailwind v4** — see [§3.1.57](#3157-leading-zero-opacity-classes-are-invalid-in-tailwind-v4).
+   `border-zinc-950/05` compiles fine under the mockup's Tailwind Play
+   CDN but generates **no rule** in the live v4 build, so the border
+   falls back to a dark default (currentColor). Copy-pasting opacities
+   straight from a mockup silently ships near-black hairlines. Use `/5`,
+   `/6` — single-digit, no leading zero.
 
-Four sentences at the top of this skill save every brand half a day
+Five sentences at the top of this skill save every brand half a day
 of debugging.
 
 ---
@@ -1257,6 +1264,63 @@ filters: {
 `toggleButton`, `toggleIcon` (set the last two to `"hidden"` to suppress
 the round Filter toggle pill, or set the section's
 `display.hideExternalToggle: true`).
+
+### 3.1.57 Leading-zero opacity classes are invalid in Tailwind v4
+
+Mockups built on the **Tailwind Play CDN** happily render
+`border-zinc-950/05`, `bg-zinc-950/06`, etc. — the CDN's JIT tolerates the
+leading zero. The **live site runs Tailwind v4 via the Vite plugin**, which does
+**not**: `/05` is not a valid opacity modifier (the valid forms are `/5`, `/6`,
+… or arbitrary `/[5%]`), so the utility **generates no CSS rule at all**. The
+property then falls back — and because Tailwind v4 changed the default border
+color to `currentColor`, an unstyled `border-b` paints a **near-black hairline**
+instead of the intended 5% tint. The bug is invisible in the mockup and only
+appears on the live page.
+
+This bit the MAP-21 spreadsheet: `theme.table` shipped `border-zinc-950/05` on
+every row, and the live rows drew solid black dividers (computed
+`border-bottom-color: rgb(0,0,0)`) until the classes were normalized to `/5`.
+
+**Rule:** when you copy a color/opacity straight from a mockup's class list,
+strip any leading zero on the opacity modifier — `/05 → /5`, `/06 → /6`. Grep the
+finished theme for the pattern before shipping:
+
+```bash
+grep -nE '/(0[0-9])\b' src/themes/<brand>/theme*.js   # any leading-zero opacity → fix to single digit
+```
+
+(The same applies to `bg-…/0N`, `stroke-…/0N`, `text-…/0N`, `divide-…/0N`, etc.,
+not just borders.)
+
+### 3.1.58 The section layout model — gap-0, padding gutters, inner-box chrome
+
+The page-content grid (`pages.sectionArray`) follows a **padding-only, gap-0** model so that
+distinct sections can either sit apart *or* fuse into one visual card — without margins (which
+fight grid/flex). Three rules every brand's `sectionArray` style must honor:
+
+1. **`container` is `gap-0`.** The inter-section gutter is **per-section padding**, not grid gap
+   — so a section can zero one edge's padding and sit flush against its neighbour.
+2. **Spacing comes from a curated step scale.** Set `defaultPaddingStep` (the gutter applied to
+   every side by default) and `paddings: { top|right|bottom|left: { <step>: '<literal class>' } }`
+   (literal `pt-3` etc. so Tailwind generates them; keep the set small — ~5 steps — so the
+   per-side picker's buttons stay usable). The section menu's Padding picker reads these.
+3. **The section's chrome renders on an INNER box, inside the gutter padding.** `border` /
+   `radius` / `bg` do NOT go on the outer (gutter) box — `sectionArray.jsx` puts them on an inner
+   box so the padding is a true gutter that *separates* bordered cards. Provide:
+   - `borderSides: { top|right|bottom|left: 'border-t border-<color>' }` (per-side toggles draw
+     against this single line; legacy `border` preset keys still resolve for BC),
+   - `radiusCorners: { tl|tr|bl|br: 'rounded-tl-<size>' }` (per-corner toggles),
+   - `backgrounds: { none:'', white:'bg-white', tint:'<brand tint>' }`.
+
+**Content padding INSIDE a card is the component's job, not the section's.** The section only
+owns the gutter + the inner card's border/radius/bg. A component that renders into a card
+(lexical, graph, …) is responsible for its own sensible internal padding (the lexical component
+ships a fixed `p-4`). Don't add an "inner content padding" to the sectionArray theme.
+
+**Composing a flush compound card** (e.g. a header/hero card + a chart as one card): two adjacent
+full-width sections, the upper with `border` top+left+right + `radius` tl+tr + `padding.bottom=0`,
+the lower with `border` left+right+bottom + `radius` bl+br + `padding.top=0`. Their inner boxes
+touch at the zeroed edge → one continuous card. (Worked example: MAP-21 §02 interstate trend.)
 
 ### 3.2 The lookup table
 

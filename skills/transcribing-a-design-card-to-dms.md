@@ -40,6 +40,17 @@ tells you how close you are.
 
 ## Step 1 — inventory: decompose the mockup into atoms
 
+> **First decide: one section, or a compound of several?** A mockup "card" is
+> sometimes *not* one DMS section. If its pieces need **different data/queries** — e.g.
+> a trend card = a **header + hero stat** (one current-year value) + a **chart** (a
+> multi-year series) — they're separate `dataWrapper` sections that **compose into one
+> visual card**. The section grid is `gap-0`, so you fuse them by zeroing the shared-edge
+> **padding** and coordinating per-side **border** + per-corner **radius** (top piece:
+> border top/sides + rounded-t, `padding.bottom=0`; bottom piece: border sides/bottom +
+> rounded-b, `padding.top=0`). See
+> [`creating-pages-from-a-design-pattern.md` §5.6.10](./creating-pages-from-a-design-pattern.md).
+> If the whole card is one query, it's one section — carry on below.
+
 Open the mockup HTML and break the card into the smallest independent visual
 pieces. For the MAP-21 interstate card the atoms are: status badge, title, big
 value (+ unit), target label, target bar, delta, margin caption, and the
@@ -242,15 +253,32 @@ because the live theme was stale.)
   shows only *published* sections — 0 on a draft), and edit is auth-gated. So you
   need a saved session. Capture one once with the headed helper, then pass it with
   `--storage`:
+  **Headless (preferred when you have dev credentials — no browser needed):**
+  ```bash
+  node scripts/mint-token.mjs \
+    --host http://localhost:3001 \
+    --email availabs@gmail.com --password test123 --project npmrdsv5 \
+    --origin http://npmrds.localhost:5173 \
+    --out scratchpad/npmrdsv5-dev2/auth.json
+  ```
+  The app stores its JWT in `localStorage.userToken` (see
+  `patterns/auth/pages/authLogin.jsx`); the login route is a plain
+  `POST {API_HOST}/login {email, password, project}` → `{user:{token}}` on the same
+  host the CLI uses (`VITE_API_HOST`, e.g. `http://localhost:3001`). `mint-token.mjs`
+  calls it and writes the storageState seeding that one key. **This is how you refresh
+  an expired token in an agent loop** (the headed helper can't run without a display).
+  Confirm the live page is reachable; the dev creds above are the npmrdsv5 dev box's.
+
+  **Headed (when there are no API credentials / SSO only):**
   ```bash
   node scripts/save-auth.mjs \
     --url "http://npmrds.localhost:5173/edit/<slug>?year_record=2025" \
     --out scratchpad/<env>/auth.json
   # a real browser window opens — log in by hand; it saves & closes itself
-  node scripts/card-shot.mjs … --storage scratchpad/<env>/auth.json
   ```
-  The session lasts until the token expires; re-run `save-auth.mjs` when shots start
-  landing on the login screen again. On an open localhost, omit `--storage`.
+  Then `node scripts/card-shot.mjs … --storage scratchpad/<env>/auth.json`.
+  Tokens expire ~6h; re-mint when shots start landing on `/auth/login`. The token is a
+  JWT — decode its `.exp` to check freshness. On an open localhost, omit `--storage`.
 - **Draft pages need `/edit/`, and the host is subdomain-based.** The live URL is
   `http://<pattern-subdomain>.localhost:5173/edit/<slug>` (e.g.
   `npmrds.localhost`), not the `/list` admin base. Sections render as

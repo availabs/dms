@@ -959,41 +959,146 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                     ],
                 },
                 {
-                    icon: 'Padding', name: 'padding', value: value?.['padding'] || theme?.sectionArray?.sectionPadding,
-                    showValue: true,
-                    cdn: () => canEditSection,
-                    items: ['p-0', 'p-1', 'p-2', theme?.sectionArray?.sectionPadding].map((v, i) => {
-                        return {
-                            icon: v === (value?.['padding'] || theme?.sectionArray?.sectionPadding) ? 'CircleCheck' : 'Blank',
-                            'name': `${v}`,
-                            id: `padding_${v}`,
-                            'onClick': () => updateAttribute('padding', v)
-                        }
-                    }),
-                },
-                {
-                    icon: 'Border', name: 'Border', value: value?.['border'] || 1,
+                    // Per-side gutter padding — the section's outer spacing on a gap-0
+                    // grid. Steps come from the theme (`sectionArray.paddings[side]`);
+                    // unset sides fall back to `defaultPaddingStep`. Zeroing a side lets
+                    // the section sit flush with its neighbor (compound card).
+                    icon: 'Padding', name: 'Padding',
                     cdn: () => canEditSection,
                     items: [
-                        {
-                            name: 'border', type: () => {
-                                return (
-                                    <div className={'flex flex-wrap gap-1'}>
-                                        {
-                                            Object.keys(theme?.sectionArray?.border || {})
-                                                .map((name, i) => {
-                                                    return (
-                                                        <div
-                                                            className={`px-4 py-2 rounded-md ${name === (value?.['border'] || 'None') ? `bg-blue-300` : ``} hover:bg-blue-100`}
-                                                            onClick={() => updateAttribute('border', name)}>
-                                                            {name}
-                                                        </div>)
-                                                })
-                                        }
+                        { name: 'padding', type: () => {
+                            const sa = getComponentTheme(theme, 'pages.sectionArray');
+                            const paddings = sa?.paddings || {};
+                            const defStep = sa?.defaultPaddingStep;
+                            // Seed from a legacy string padding (e.g. "p-6", "px-4 py-2") so
+                            // editing one side preserves the others' existing values instead
+                            // of resetting them to the theme default.
+                            const parseLegacyPad = p => {
+                                if (!p || typeof p !== 'string') return {};
+                                const o = {}; const sm = { t:'top', r:'right', b:'bottom', l:'left' };
+                                p.split(/\s+/).forEach(c => {
+                                    let m;
+                                    if ((m = c.match(/^p-(\d+)$/))) { o.top=o.right=o.bottom=o.left=m[1]; }
+                                    else if ((m = c.match(/^px-(\d+)$/))) { o.left=o.right=m[1]; }
+                                    else if ((m = c.match(/^py-(\d+)$/))) { o.top=o.bottom=m[1]; }
+                                    else if ((m = c.match(/^p([trbl])-(\d+)$/))) { o[sm[m[1]]]=m[2]; }
+                                });
+                                return o;
+                            };
+                            const cur = (value?.['padding'] && typeof value['padding'] === 'object') ? value['padding'] : parseLegacyPad(value?.['padding']);
+                            const allSteps = Object.keys(paddings?.top || {});
+                            const gridStyle = { display: 'grid', gridTemplateColumns: `repeat(${allSteps.length}, minmax(0,1fr))`, gap: '2px' };
+                            const sideVals = ['top','right','bottom','left'].map(s => String(cur[s] != null && cur[s] !== '' ? cur[s] : defStep));
+                            const allActive = sideVals.every(v => v === sideVals[0]) ? sideVals[0] : null;
+                            const rows = [
+                                { key: 'all',    label: 'All',   bold: true, active: allActive,  pick: s => updateAttribute('padding', { top: s, right: s, bottom: s, left: s }) },
+                                { key: 'top',    label: 'Top',   active: sideVals[0], pick: s => updateAttribute('padding', { ...cur, top: s }) },
+                                { key: 'right',  label: 'Right', active: sideVals[1], pick: s => updateAttribute('padding', { ...cur, right: s }) },
+                                { key: 'bottom', label: 'Bottom',active: sideVals[2], pick: s => updateAttribute('padding', { ...cur, bottom: s }) },
+                                { key: 'left',   label: 'Left',  active: sideVals[3], pick: s => updateAttribute('padding', { ...cur, left: s }) },
+                            ];
+                            const renderRow = r => (
+                                <div key={r.key} className={'flex items-center gap-2 w-full'}>
+                                    <div className={`w-12 shrink-0 text-[11px] ${r.bold ? 'font-semibold text-slate-600' : 'text-slate-400'}`}>{r.label}</div>
+                                    <div className={'flex-1 min-w-0'} style={gridStyle}>
+                                        {allSteps.map(step => (
+                                            <div key={step} onClick={() => r.pick(step)}
+                                                className={`h-8 flex items-center justify-center rounded-md text-[12.5px] font-medium tabular-nums cursor-pointer transition ${String(r.active) === String(step) ? 'bg-[#1F3F8F] text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+                                                {step}
+                                            </div>
+                                        ))}
                                     </div>
-                                )
-                            }
-                        },
+                                </div>
+                            );
+                            return (
+                                <div className={'flex flex-col gap-1.5 px-1 py-1.5 w-full'}>
+                                    {renderRow(rows[0])}
+                                    <div className={'border-t border-slate-100 my-0.5'} />
+                                    {rows.slice(1).map(renderRow)}
+                                </div>
+                            );
+                        }},
+                    ],
+                },
+                {
+                    // Border — toggle each side independently by clicking the edges of
+                    // the box. Theme owns the line style; legacy string keys (full /
+                    // openLeft / …) are mapped to a side-set for display (BC).
+                    icon: 'Border', name: 'Border',
+                    cdn: () => canEditSection,
+                    items: [
+                        { name: 'border', type: () => {
+                            const legacy = { full:{top:1,right:1,bottom:1,left:1}, openLeft:{top:1,right:1,bottom:1}, openRight:{top:1,bottom:1,left:1}, openTop:{right:1,bottom:1,left:1}, openBottom:{top:1,right:1,left:1}, borderX:{left:1,right:1} };
+                            const b = value?.['border'];
+                            const cur = (b && typeof b === 'object') ? b : (legacy[b] || {});
+                            const toggle = side => updateAttribute('border', { ...cur, [side]: cur[side] ? undefined : true });
+                            const edge = (side, cls) => (
+                                <div onClick={() => toggle(side)}
+                                    className={`absolute ${cls} rounded cursor-pointer transition ${cur[side] ? 'bg-[#1F3F8F]' : 'bg-slate-200 hover:bg-slate-300'}`}/>
+                            );
+                            return (
+                                <div className={'flex justify-center py-2'}>
+                                    <div className={'relative size-24'}>
+                                        <div className={'absolute inset-[10px] bg-slate-50 rounded flex items-center justify-center text-[10px] uppercase tracking-wide text-slate-400'}>edges</div>
+                                        {edge('top',    'top-0 left-2.5 right-2.5 h-2')}
+                                        {edge('bottom', 'bottom-0 left-2.5 right-2.5 h-2')}
+                                        {edge('left',   'left-0 top-2.5 bottom-2.5 w-2')}
+                                        {edge('right',  'right-0 top-2.5 bottom-2.5 w-2')}
+                                    </div>
+                                </div>
+                            );
+                        }},
+                    ],
+                },
+                {
+                    // Radius — toggle each corner by clicking the dots; theme owns the size.
+                    icon: 'Border', name: 'Radius',
+                    cdn: () => canEditSection,
+                    items: [
+                        { name: 'radius', type: () => {
+                            const r = value?.['radius'];
+                            const cur = (r && typeof r === 'object') ? r : {};
+                            const toggle = c => updateAttribute('radius', { ...cur, [c]: cur[c] ? undefined : true });
+                            const corner = (c, cls) => (
+                                <div onClick={() => toggle(c)}
+                                    className={`absolute ${cls} size-3.5 rounded-full cursor-pointer transition ${cur[c] ? 'bg-[#1F3F8F]' : 'bg-slate-300 hover:bg-slate-400'}`}/>
+                            );
+                            return (
+                                <div className={'flex justify-center py-2'}>
+                                    <div className={'relative size-24'}>
+                                        <div className={'absolute inset-2 border-2 border-slate-200 rounded-lg'}/>
+                                        {corner('tl', 'top-0.5 left-0.5')}
+                                        {corner('tr', 'top-0.5 right-0.5')}
+                                        {corner('bl', 'bottom-0.5 left-0.5')}
+                                        {corner('br', 'bottom-0.5 right-0.5')}
+                                    </div>
+                                </div>
+                            );
+                        }},
+                    ],
+                },
+                {
+                    // Background — themed options (none / white / tint).
+                    icon: 'Border', name: 'Background',
+                    cdn: () => canEditSection,
+                    items: [
+                        { name: 'bg', type: () => {
+                            const sa = getComponentTheme(theme, 'pages.sectionArray');
+                            const bgMap = sa?.backgrounds || {};
+                            const cur = value?.['bg'] || 'none';
+                            return (
+                                <div className={'flex flex-wrap gap-1 px-1 py-1.5'}>
+                                    {Object.keys(bgMap).map(name => (
+                                        <div key={name} onClick={() => updateAttribute('bg', name)}
+                                            className={`pl-1.5 pr-2.5 h-8 inline-flex items-center gap-1.5 rounded-md text-[12.5px] capitalize cursor-pointer transition ${cur === name ? 'bg-[#1F3F8F] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+                                            {/* swatch showing the actual background (empty/transparent for "none") */}
+                                            <span className={`size-4 rounded border border-zinc-950/15 shrink-0 ${bgMap[name] || ''}`}/>
+                                            {name}
+                                        </div>
+                                    ))}
+                                </div>
+                            );
+                        }},
                     ],
                 },
                 {type: 'separator'},

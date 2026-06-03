@@ -907,6 +907,28 @@ The 12-column grid gives authors finer-grained span control (1/12 ≈
 vocabulary. New themes should default to 12 unless they have a
 deliberate reason to stay on 6.
 
+**The gap-0 / padding-gutter / inner-box-chrome model (mockups must follow this).**
+The sectionArray grid is **`gap-0`**; the gutter between sections is **per-section
+padding**, and a section's **border / radius / background render on an inner box** inside
+that padding. This is what lets distinct sections either sit apart *or* fuse into one
+visual card. So when authoring the HTML mockups in `pages/`:
+- Build the section grid as `grid grid-cols-12 gap-0` (no grid `gap`); express the gutter as
+  **padding on each section wrapper** (e.g. `p-3`). Component-internal flex gaps
+  (`gap-2/3/4` inside a card) are fine — only the *section* grid is gap-0.
+- A bordered "card" = a section whose **inner** element carries `border + rounded + bg`,
+  with the section padding *outside* it as the gutter.
+- A **compound card** (header + chart as one card, etc.) = two adjacent sections with the
+  **shared-edge padding zeroed** and borders/corners coordinated (top piece: border
+  top/sides + rounded-t; bottom piece: border sides/bottom + rounded-b). Author it that way
+  so it maps 1:1 to two DMS sections.
+- **Content padding inside a card is the component's**, not the section gutter — don't
+  conflate them.
+
+Document this on `grid.html` (the spec table should list `gap-0`, `defaultPaddingStep`, the
+curated `paddings` steps, `borderSides`, `radiusCorners`, `backgrounds`) with a worked
+compound-card example. See
+[`translating-design-system-to-dms-theme.md` §3.1.58](./translating-design-system-to-dms-theme.md#3158-the-section-layout-model--gap-0-padding-gutters-inner-box-chrome).
+
 **Themes that constrain the page differently** (the WCDB case):
 some brands split the page into a *higher-level layout grid* via the
 Layout's `childWrapper` (e.g. `md:grid md:grid-cols-2` to produce a

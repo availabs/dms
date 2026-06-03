@@ -63,7 +63,9 @@ export const Header = memo(function Header ({
     const [headerHovered, setHeaderHovered] = useState(false);
 
     const slicedGridTemplateColumns = useMemo(() => {
-        const cols = attrsToRender.map(c => `${c.size}px`).join(" ");
+        // `_track` is each column's grid token: fixed `${size}px` for explicitly-sized
+        // columns, `minmax(${default}px, 1fr)` for unsized ones so they stretch to fill.
+        const cols = attrsToRender.map(c => c._track || `${c.size}px`).join(" ");
         return `${numColSize}px ${cols}`;
     }, [ start, end, attrsToRender, numColSize ]);
 
@@ -133,7 +135,7 @@ export const Header = memo(function Header ({
                                 <div
                                     key={i}
                                     className={`relative ${tableTheme.headerWrapper} ${frozenCols?.includes(i) ? tableTheme.headerWrapperFrozen : ''}`}
-                                    style={{width: attribute.size}}
+                                    style={{width: attribute._hasFixedSize ? attribute.size : undefined}}
                                 >
                                     <div key={`controls-${i}`}
                                          className={`

@@ -210,6 +210,13 @@ export default {
                 ],
                 displayCdn: ({ attribute, display }) =>
                     (attribute.target === "yAxis") && (display.graphType === "LineGraph")
+            },
+            // Per-series point marks (dots at each datum, like the design mock).
+            // Falls back to the chart-level `showMarks` default when unset.
+            { type: 'toggle',
+                label: 'Point Marks', key: 'showMarks',
+                displayCdn: ({ attribute, display }) =>
+                    (attribute.target === "yAxis") && (display.graphType === "LineGraph")
             }
         ],
         graph: {
@@ -292,6 +299,10 @@ export default {
             items: [
                 {type: 'input', inputType: 'text',   label: 'Label',        key: 'yAxis.label'},
                 {type: 'input', inputType: 'number', label: 'Tick Spacing', key: 'yAxis.tickSpacing'},
+                // Custom y-domain. Unset → auto-scale to the data (current behavior).
+                // e.g. set Domain Max = 100 to fix the top of a percent chart.
+                {type: 'input', inputType: 'number', label: 'Domain Min', key: 'yAxis.domainMin'},
+                {type: 'input', inputType: 'number', label: 'Domain Max', key: 'yAxis.domainMax'},
                 {type: 'select', label: 'Tick Format', key: 'yAxis.format', onClickGoBack: true,
                     // options: [
                     //     {label: 'Default',         value: ''},
@@ -373,6 +384,9 @@ export default {
                 },
                 { type: "toggle",
                     label: "Use Dollars", key: "tooltip.isDollars"
+                },
+                { type: "toggle",
+                    label: "Show Totals", key: "tooltip.showTotal", defaultValue: true
                 }
             ]
         },
@@ -389,6 +403,9 @@ export default {
                 },
                 { type: "toggle",
                     label: "Use Dollars", key: "tooltip.isDollars"
+                },
+                { type: "toggle",
+                    label: "Show Totals", key: "tooltip.showTotal", defaultValue: true
                 }
             ]
         },
@@ -424,7 +441,8 @@ export default {
                 },
                 { type: 'input', inputType: 'number', label: 'Line Width', key: 'strokeWidth' },
                 { type: 'toggle', label: 'Area Fill (default)', key: 'area' },
-                { type: 'input', inputType: 'number', label: 'Area Opacity', key: 'areaOpacity' }
+                { type: 'input', inputType: 'number', label: 'Area Opacity', key: 'areaOpacity' },
+                { type: 'toggle', label: 'Point Marks (default)', key: 'showMarks' }
             ]
         },
         barGraph: {
@@ -458,7 +476,7 @@ export default {
               label: "Tick Density", key: "pieAxis.tickDensity"
             },
             { type: "toggle",
-              label: "Show Value", key: "pieAxis.showValue"
+              label: "Show Values", key: "pieAxis.showValue"
             },
             { type: "select",
                 label: "Value Text Size", key: "pieAxis.valueTextSize", onClickGoBack: true,
