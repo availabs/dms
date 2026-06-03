@@ -10,7 +10,7 @@ export const withAuth = Component => {
 }
 
 export const authProvider = (Component, config) => {
-  const { AUTH_HOST, PROJECT_NAME, baseUrl = '/auth', defaultRedirectUrl = '/' } = config
+  const { AUTH_HOST, PROJECT_NAME, baseUrl = '/auth', defaultRedirectUrl = '/', isMultiTenant = false, siteType } = config
   const AuthProvider = ({ ...props }) => {
 
     // Initialize with token from localStorage if available.
@@ -36,7 +36,7 @@ export const authProvider = (Component, config) => {
     }, []);
 
     return (
-      <AuthContext.Provider value={{ user, setUser, AUTH_HOST, PROJECT_NAME, AuthAPI, baseUrl, defaultRedirectUrl }}>
+      <AuthContext.Provider value={{ user, setUser, AUTH_HOST, PROJECT_NAME, AuthAPI, baseUrl, defaultRedirectUrl, isMultiTenant, siteType }}>
         <Component {...props} />
       </AuthContext.Provider>
     )

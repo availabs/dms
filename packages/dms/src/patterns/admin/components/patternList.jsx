@@ -139,7 +139,7 @@ function PatternEdit({
 	 format,
 	 ...rest
 }) {
-	const {app, type: siteType, API_HOST, baseUrl} = useContext(AdminContext);
+	const {app, type: siteType, API_HOST, baseUrl, isMultiTenant} = useContext(AdminContext);
 	const {UI} = useContext(ThemeContext)
 	const { falcor } = useFalcor();
 	const {Table, Input, Button, Modal} = UI;
@@ -150,7 +150,15 @@ function PatternEdit({
 	const [editingItem, setEditingItem] = useState(undefined);
 	const [isDuplicating, setIsDuplicating] = useState(false);
 	const siteInstance = getInstance(siteType) || siteType;
-	const attrToAddNew = ['pattern_type', 'name', 'subdomain', 'base_url', 'filters', 'authPermissions'];
+	const tenantSub = (() => {
+		if (!isMultiTenant) return '';
+		const hostname = window.location.hostname;
+		const isLocalhost = hostname === 'localhost' || hostname.endsWith('.localhost');
+		const minParts = isLocalhost ? 2 : 3;
+		const parts = hostname.split('.');
+		return parts.length >= minParts ? parts[0] : '';
+	})();
+	const attrToAddNew = ['pattern_type', 'name', ...(tenantSub ? [] : ['subdomain']), 'base_url', 'filters', 'authPermissions'];
 	const columns = [
 		{name: 'name', display_name: 'Name', show: true, type: 'text'},
 		{name: 'subdomain', display_name: 'Subdomain', show: true, type: 'text'},
@@ -177,6 +185,15 @@ function PatternEdit({
 		if (existingSlugs.includes(slug)) {
 			alert(`A pattern with identifier "${slug}" already exists`);
 			return;
+		}
+
+		if (isMultiTenant) {
+			const hostname = window.location.hostname;
+			const isLocalhost = hostname === 'localhost' || hostname.endsWith('.localhost');
+			const minParts = isLocalhost ? 2 : 3;
+			const parts = hostname.split('.');
+			const tenantSub = parts.length >= minParts ? parts[0] : '';
+			if (tenantSub && !data.subdomain) data.subdomain = tenantSub;
 		}
 
 		const patternType = `${siteInstance}|${slug}:pattern`;

@@ -20,6 +20,7 @@
  *   my-env|adamtest1:source           → parent: 'my-env',   instance: 'adamtest1',       kind: 'source'
  *   adamtest1|v1:view                 → parent: 'adamtest1', instance: 'v1',             kind: 'view'
  *   adamtest1|v1:data                 → parent: 'adamtest1', instance: 'v1',             kind: 'data'
+ *   main|acme:tenant                  → parent: 'main',      instance: 'acme',            kind: 'tenant'
  */
 
 /**
