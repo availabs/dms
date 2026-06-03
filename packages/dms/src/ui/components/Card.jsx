@@ -864,6 +864,14 @@ export default function Card ({
         gridTemplateColumns: `repeat(${cardsGridSize || 1}, minmax(0, 1fr))`,
         gap: cardsGridGap,
         paddingTop: imageTopMargin ? `${imageTopMargin}px` : undefined,
+        // Fill behaviour (BC): when the section is `height:'fill'` it gives this a
+        // flex-column parent with a definite height → `flex:1` fills it and the card
+        // rows grow to that height. In an `auto` (content-height) parent, `flex` is
+        // ignored and `minmax(max-content,1fr)` resolves to max-content = the legacy
+        // `auto` row, so nothing changes.
+        flex: '1 1 auto',
+        minHeight: 0,
+        gridAutoRows: 'minmax(max-content, 1fr)',
     }), [cardsGridSize, cardsGridGap, imageTopMargin]);
 
     // Cells grid (inner, per-record): cells laid out across the card.
@@ -925,6 +933,12 @@ export default function Card ({
         gap: cellsGridGap,
         backgroundColor: cardsBgColor,
         padding: cardsPadding,
+        // Pack cells to the top. When the card box is taller than its cells (a
+        // `height:'fill'` card with less content than its section), the grid's
+        // default `align-content: stretch` would distribute the slack across the
+        // cell rows; `start` keeps content top-aligned with the slack at the
+        // bottom. BC: no slack (content == box) → identical to stretch.
+        alignContent: 'start',
         ...(cellsRowHeight ? { gridAutoRows: `${cellsRowHeight}px` } :
             hasRowSpan ? { gridAutoRows: 'minmax(0, auto)' } : {}),
     }), [gridTemplateColumns, cellsGridGap, cardsBgColor, cardsPadding, cellsRowHeight, hasRowSpan]);

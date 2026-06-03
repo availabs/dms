@@ -345,7 +345,7 @@ const Edit = forwardRef((props, ref) => {
             isActive: true, activeStyle: undefined, sectionId: undefined}}>
             <RenderFilters isEdit={true} defaultOpen={true} />
             <ExternalFilters defaultOpen={true} />
-            <div className={'w-full h-full'}>
+            <div className={'w-full h-full flex flex-col'}>
                 <div className={'w-full flex items-center place-content-end'}>
                     {loading ? <Icon id={'loading'}
                                      icon={'LoadingHourGlass'}
@@ -592,7 +592,7 @@ const View = forwardRef(({cms_context, value, onChange, component, editPageMode,
             <RenderFilters isEdit={false} defaultOpen={true} />
             <ExternalFilters defaultOpen={true} />
             <div className={'w-full h-full'}>
-                <div className={'w-full'}>
+                <div className={'w-full h-full flex flex-col'}>
                     <div className={'w-full flex items-center place-content-end'}>
                         {loading ?  <Icon id={'loading'}
                                           icon={'LoadingHourGlass'}
