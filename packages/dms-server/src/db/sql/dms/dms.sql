@@ -56,18 +56,6 @@ CREATE INDEX IF NOT EXISTS idx_hide_in_nav
 
 COMMENT ON INDEX dms.idx_hide_in_nav
     IS 'index to improve performance of selecting nav-visible pages in case of high number of template generated pages';
--- Index: idx_data_items_app_type_template_id
-
--- Composite index covering the common page-list query pattern:
--- WHERE app = $1 AND type = $2 AND data->>'template_id' IS NULL
--- Avoids heap fetches when filtering out template-generated pages.
-
-CREATE INDEX IF NOT EXISTS idx_data_items_app_type_template_id
-    ON dms.data_items USING btree
-    (app COLLATE pg_catalog."default" ASC NULLS LAST,
-     type COLLATE pg_catalog."default" ASC NULLS LAST,
-     (data ->> 'template_id'::text) COLLATE pg_catalog."default" ASC NULLS LAST)
-    TABLESPACE pg_default;
 -- Index: idx_tags
 
 -- DROP INDEX IF EXISTS dms.idx_tags;

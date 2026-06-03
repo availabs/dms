@@ -58,16 +58,7 @@ FalcorEndpoint.dataSourceRoute = function(getDataSource) {
             return res.status(500).json({ error: 'Internal error: no observable' });
         }
 
-        var reqStart = Date.now();
-        var pathCount = context.paths ? context.paths.length : 0;
-        if (context.method === 'get') {
-            console.log('[PERF] === REQUEST START === paths=%d', pathCount);
-        }
         var subscription = obs.subscribe(function(jsonGraphEnvelope) {
-            if (context.method === 'get') {
-                var responseSize = JSON.stringify(jsonGraphEnvelope).length;
-                console.log('[PERF] === REQUEST DONE === paths=%d total=%dms responseKB=%.1f', pathCount, Date.now() - reqStart, responseSize / 1024);
-            }
             if (context.method === "call") {
                 console.log('[falcor-express] CALL response ready:', JSON.stringify(context.callPath), 'headersSent=%s t=%d', res.headersSent, Date.now());
             }

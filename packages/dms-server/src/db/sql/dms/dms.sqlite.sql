@@ -32,10 +32,6 @@ CREATE INDEX IF NOT EXISTS idx_data_items_tags
 CREATE INDEX IF NOT EXISTS idx_data_items_id
     ON data_items (id);
 
--- Composite index for page-list queries filtering out template-generated pages
-CREATE INDEX IF NOT EXISTS idx_data_items_app_type_template_id
-    ON data_items (app, type, json_extract(data, '$.template_id'));
-
 -- Formats table for storing format definitions
 CREATE TABLE IF NOT EXISTS formats (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

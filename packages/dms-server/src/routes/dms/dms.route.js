@@ -28,9 +28,7 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
   // user=null     → unauthenticated GET request
   // user={...}    → authenticated GET request
   const dataByIdResponse = async (rows, ids, atts, app = null, user = undefined, subdomain = '') => {
-    const t0 = Date.now();
     const response = [];
-    let authQueries = 0;
     // Cache pattern auth results within this response to avoid repeated DB lookups
     const patternAuthCache = new Map();
     for (const id of ids) {
@@ -60,7 +58,6 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
             if (patternAuthCache.has(cacheKey)) {
               patternAuth = patternAuthCache.get(cacheKey);
             } else {
-              authQueries++;
               patternAuth = await controller.getPatternAuthPermissions(appForLookup, parentKey, subdomain);
               patternAuthCache.set(cacheKey, patternAuth);
             }
@@ -101,7 +98,6 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
         });
       }
     }
-    console.log('[PERF] dataByIdResponse ids=%d atts=%d authQueries=%d total=%dms', ids.length, atts.length, authQueries, Date.now() - t0);
     return response;
   };
 
@@ -179,19 +175,15 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
     {
       route: "dms.data[{keys:appKeys}].byIndex[{integers:indices}]",
       get: async function(pathSet) {
-        const t0 = Date.now();
         const [, , keys, , indices] = pathSet;
         const user = this.user;
         const subdomain = this.subdomain;
         const rows = await controller.dataByIndex(keys, indices);
-        const tDb = Date.now();
         const response = [];
         for (const key of keys) {
           const [app, type] = key.split('+');
           if (getKind(type) === 'page') {
-            const tAuth = Date.now();
             const patternAuth = await controller.getPatternAuthPermissions(app, getParent(type), subdomain);
-            console.log('[PERF] route:byIndex auth check for %s took %dms', key, Date.now() - tAuth);
             if (!isUserAuthed({ user, reqPermissions: ['view-page'], authPermissions: patternAuth || {} })) {
               indices.forEach((i) => {
                 response.push({ path: ["dms", "data", key, "byIndex", i], value: null });
@@ -208,7 +200,6 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
             });
           });
         }
-        console.log('[PERF] route:byIndex keys=%s indices=%d db=%dms auth+build=%dms total=%dms refs=%d', keys.join(','), indices.length, tDb - t0, Date.now() - tDb, Date.now() - t0, response.filter(r => r.value).length);
         return response;
       },
     },
@@ -390,7 +381,6 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
       // App-namespaced byId route — resolves per-app table when in per-app mode
       route: `dms.data[{keys:apps}].byId[{keys:ids}][{keys:attributes}]`,
       get: async function(pathSet) {
-        const t0 = Date.now();
         const [, , apps, , ids, atts] = pathSet;
         const user = this.user;
         const subdomain = this.subdomain;
@@ -400,7 +390,6 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
               .then(rows => dataByIdResponse(rows, ids, atts, app, user, subdomain))
           )
         );
-        console.log('[PERF] route:byId(app) apps=%s ids=%d attrs=%d total=%dms', apps.join(','), ids.length, atts.length, Date.now() - t0);
         return [].concat(...results);
       },
     },
