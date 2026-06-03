@@ -1,5 +1,5 @@
 import React, {useContext, useEffect, useRef} from 'react'
-import { Link, useSearchParams, useLocation, useNavigate } from "react-router";
+import { Link, Navigate, useSearchParams, useLocation, useNavigate } from "react-router";
 import { cloneDeep } from "lodash-es"
 import { useImmer } from "use-immer";
 import {
@@ -21,7 +21,7 @@ function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdat
     const { search, pathname } = useLocation()
     const pdfRef = useRef(); // To capture the section of the page to be converted to PDF
     const {theme: fullTheme, UI, getComponentTheme} = useContext(ThemeContext);
-    const { Menu, baseUrl, patternFilters = [], isUserAuthed = () => true, authPermissions } = React.useContext(CMSContext) || {};
+    const { Menu, baseUrl, patternFilters = [], isUserAuthed = () => true, authPermissions, user, authBaseUrl } = React.useContext(CMSContext) || {};
     const dataItems = allDataItems.filter(d => !d.authPermissions || isUserAuthed(reqPermissions, d.authPermissions));
 
     const [pageState, setPageState] = useImmer({
@@ -144,6 +144,13 @@ function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdat
       createDataSource: () => {},
   }), [item.dataSources]);
 
+    if (item?.id === 'no-access') {
+        if (user?.isAuthenticating) return null;
+        if (!user?.authed) {
+            return <Navigate to={`${authBaseUrl}/login`} state={{ from: pathname + search }} replace />;
+        }
+        return <div>You do not have permission to view this page. <Link to={baseUrl}>Click here to visit Home</Link></div>;
+    }
   return (
       <DataSourceContext.Provider value={dataSourceActions}>
       <PageContext.Provider
