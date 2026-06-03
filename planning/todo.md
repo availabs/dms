@@ -173,6 +173,7 @@
 
 ### patterns/admin
 
+- [ ] [Multi-tenant support](./tasks/current/multi-tenant.md) — new `tenant` row kind; master site refs tenants like it refs patterns; each tenant has its own app+schema; `dmsSiteFactory` two-step load (master→tenant by subdomain); platform admin sees tenant list; opt-in via `isMultiTenant` flag; single-tenant deployments unaffected
 - [x] Update admin theme merges to use `mergeTheme` (siteConfig.jsx, editTheme.jsx, themeEditor.jsx)
 - [x] Add delete & duplicate buttons to admin pattern overview — port actions from old `PatternEdit` modal to pattern editor Overview tab + list table
 - [ ] Pattern creation refresh bug — new pattern row appears with blank data, requires page refresh; `dmsDataEditor` mutates input data (replaces dms-format attrs with refs), revalidation doesn't restore correct data

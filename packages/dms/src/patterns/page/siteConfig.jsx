@@ -158,11 +158,6 @@ const pagesConfig = ({
         path: "/*",
         authPermissions, // passed down from dmsSiteFactory. these are saved authorisations in patterns.
         filter: {
-          options: JSON.stringify({
-            filter: {
-              "data->>'template_id'": ["null"],
-            },
-          }),
           attributes: [
             "title", "index", "authPermissions", "url_slug","parent",
             "published", "description", "icon", "navOptions", "hide_in_nav",

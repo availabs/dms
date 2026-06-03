@@ -8,6 +8,14 @@ import { parseIfJSON } from '../../page/pages/_utils';
 import { nameToSlug, getInstance } from '../../../utils/type-utils';
 import { isUserAuthed } from '../utils';
 
+function getSubdomainFromHost(host) {
+  const hostname = (host || window.location.host).split(':')[0];
+  const isLocalhost = hostname === 'localhost' || hostname.endsWith('.localhost');
+  const minParts = isLocalhost ? 2 : 3;
+  const parts = hostname.split('.');
+  return parts.length >= minParts ? parts[0] : '';
+}
+
 
 function SiteEdit ({
    item={},
@@ -19,7 +27,7 @@ function SiteEdit ({
    format,
 }) {
 
-	const { baseUrl, authPath, app, user, authPermissions } = React.useContext(AdminContext) || {}
+	const { baseUrl, authPath, app, user, authPermissions, isMultiTenant } = React.useContext(AdminContext) || {}
 	const navigate = useNavigate()
 	const { state: navState } = useNavigation()
 
@@ -30,7 +38,7 @@ function SiteEdit ({
 	const resolvedId = item?.id
 	const isAdmin = (user?.groups || []).some(g => g === `${app} Admin`)
 	const hasAccess = isAdmin || isUserAuthed(user, authPermissions)
-
+	console.log('user', user, hasAccess, isAdmin)
 	// navState === 'loading' means a loader is in-flight (e.g. router just recreated by
 	// dmsSiteFactory). dataItems is [] by default in wrapper.jsx until the loader
 	// resolves, so we must not treat [] as "no site" while loading.
@@ -63,6 +71,29 @@ function SiteEdit ({
 		return null
 	}
 
+	const isPlatformAdmin = isMultiTenant && !getSubdomainFromHost();
+
+	if (isPlatformAdmin) {
+		return (
+			<>
+				<TenantList
+					value={item?.['tenants'] || []}
+					format={format}
+					attributes={attributes['tenants']?.attributes || {}}
+					onChange={(v) => updateAttribute('tenants', v)}
+					onSubmit={data => updateData(data, 'tenants')}
+				/>
+				<PatternList
+					value={item?.['patterns']}
+					format={format}
+					attributes={attributes['patterns'].attributes}
+					onChange={(v) => updateAttribute('patterns', v)}
+					onSubmit={data => updateData(data, 'patterns')}
+				/>
+			</>
+		)
+	}
+
 	return (
 	  <PatternList
       value={item?.['patterns']}
@@ -89,7 +120,7 @@ function PatternList({
 	 format,
 	 ...rest
 }) {
-	const {app, type: siteType, API_HOST, baseUrl} = React.useContext(AdminContext);
+	const {app, type: siteType, API_HOST, baseUrl, isMultiTenant} = React.useContext(AdminContext);
 	const {UI} = React.useContext(ThemeContext)
 	const { falcor } = useFalcor();
 	const location = useLocation()
@@ -102,7 +133,8 @@ function PatternList({
 	const [editingItem, setEditingItem] = React.useState(undefined);
 	const [isDuplicating, setIsDuplicating] = React.useState(false);
 	const [deletingItem, setDeletingItem] = React.useState(undefined);
-	const attrToAddNew = ['pattern_type', 'name', 'subdomain', 'base_url', 'filters', 'authPermissions'];
+	const tenantSub = isMultiTenant ? getSubdomainFromHost() : '';
+	const attrToAddNew = ['pattern_type', 'name', ...(tenantSub ? [] : ['subdomain']), 'base_url', 'filters', 'authPermissions'];
 	//console.log('test 123', location)
 	const columns = [
 		{name: 'name', display_name: 'Name', show: true, type: 'text'},
@@ -195,6 +227,9 @@ function PatternList({
 			alert(`A pattern with identifier "${slug}" already exists`);
 			return;
 		}
+
+		const tenantSub = isMultiTenant ? getSubdomainFromHost() : '';
+		if (tenantSub && !data.subdomain) data.subdomain = tenantSub;
 
 		const patternType = `${siteInstance}|${slug}:pattern`;
 		const res = await falcor.call(
@@ -417,6 +452,161 @@ function PatternList({
 				</Modal>
 			</div>
 	)
+}
+
+function TenantList({
+	value = [],
+	format,
+	attributes = {},
+	onSubmit,
+	onChange,
+}) {
+	const { app, type: siteType, baseUrl } = React.useContext(AdminContext);
+	const { UI } = React.useContext(ThemeContext);
+	const { falcor } = useFalcor();
+	const { Table, Input, Button, Modal, Icon } = UI;
+	const siteInstance = getInstance(siteType) || siteType;
+
+	const [addingNew, setAddingNew] = React.useState(false);
+	const [newItem, setNewItem] = React.useState({ name: '', subdomain: '' });
+	const [deletingItem, setDeletingItem] = React.useState(undefined);
+	const [error, setError] = React.useState('');
+
+	// Build base domain from current host (we are on the root domain here)
+	const host = window.location.host;
+	const protocol = host.includes('localhost') ? 'http' : 'https';
+	const baseDomain = host; // no subdomain on platform admin
+
+	const columns = [
+		{ name: 'name', display_name: 'Name', show: true, type: 'text' },
+		{ name: 'subdomain', display_name: 'Subdomain', show: true, type: 'text' },
+		{
+			name: 'link', display_name: 'Site', show: true, type: 'ui',
+			Comp: (d) => {
+				const url = `${protocol}://${d.row.subdomain}.${baseDomain}${baseUrl}`;
+				return (
+					<a
+						href={url}
+						className='flex items-center p-2 w-full h-full py-1 font-[400] text-[14px] leading-[18px] text-blue-600 hover:underline'
+					>
+						{d.row.subdomain}.{baseDomain}
+					</a>
+				);
+			}
+		},
+		{
+			name: 'actions', display_name: '', show: true, type: 'ui',
+			Comp: (d) => (
+				<div className='flex items-center justify-center gap-1 w-full h-full py-1'>
+					<button
+						className='p-1.5 text-slate-400 hover:text-red-600 rounded-full hover:bg-red-50'
+						title='Remove tenant'
+						onClick={() => setDeletingItem(d.row)}
+					>
+						<Icon icon='TrashCan' className='size-4' />
+					</button>
+				</div>
+			)
+		}
+	];
+
+	const addTenant = async () => {
+		setError('');
+		const slug = nameToSlug(newItem.subdomain || newItem.name);
+		if (!slug) { setError('Subdomain is required'); return; }
+
+		const existingSlugs = value.map(v => v.subdomain).filter(Boolean);
+		if (existingSlugs.includes(slug)) {
+			setError(`A tenant with subdomain "${slug}" already exists`);
+			return;
+		}
+
+		const tenantType = `${siteInstance}|${slug}:tenant`;
+		const res = await falcor.call(
+			['dms', 'data', 'create'],
+			[app, tenantType, { name: newItem.name || slug, subdomain: slug, app: slug }]
+		);
+		const newId = Object.keys(res?.json?.dms?.data?.byId || {})
+			.filter(d => d !== '$__path')?.[0];
+
+		if (newId) {
+			const newData = [...value, { ref: `${app}+${siteInstance}|tenant`, id: +newId }];
+			onChange(newData);
+			onSubmit(newData);
+		}
+		setNewItem({ name: '', subdomain: '' });
+		setAddingNew(false);
+	};
+
+	return (
+		<div className='flex flex-1 flex-col w-full overflow-auto'>
+			<div className='w-full flex items-center justify-between border-b-2 border-blue-400 pb-2'>
+				<div className='text-2xl font-semibold text-gray-700'>Tenants</div>
+				<Button className='shrink-0' onClick={() => { setAddingNew(true); setError(''); }}>
+					Add tenant
+				</Button>
+			</div>
+			<Table columns={columns} data={value} isEdit={false} />
+
+			<Modal open={addingNew} setOpen={setAddingNew}>
+				<div className='flex flex-col gap-3 p-1'>
+					<div className='text-lg font-semibold text-slate-700'>New Tenant</div>
+					<div className='flex flex-col gap-1'>
+						<label className='text-sm text-slate-600'>Name</label>
+						<Input
+							value={newItem.name}
+							onChange={e => setNewItem({ ...newItem, name: e.target.value })}
+							placeholder='Acme Corp'
+						/>
+					</div>
+					<div className='flex flex-col gap-1'>
+						<label className='text-sm text-slate-600'>Subdomain</label>
+						<Input
+							value={newItem.subdomain}
+							onChange={e => setNewItem({ ...newItem, subdomain: e.target.value })}
+							placeholder='acme'
+						/>
+					</div>
+					{error && <div className='text-sm text-red-600'>{error}</div>}
+					<div className='flex items-center gap-2 pt-1'>
+						<Button type='plain' onClick={addTenant}>Add</Button>
+						<Button type='plain' onClick={() => setAddingNew(false)}>Cancel</Button>
+					</div>
+				</div>
+			</Modal>
+
+			<Modal open={Boolean(deletingItem)} setOpen={setDeletingItem}>
+				<div className='flex flex-col gap-4 p-2'>
+					<div className='text-lg font-semibold text-slate-700'>Remove Tenant</div>
+					<div className='text-sm text-slate-500'>
+						Remove <span className='font-medium text-slate-700'>{deletingItem?.name}</span> from this
+						site? The tenant's data is not deleted.
+					</div>
+					<div className='flex items-center justify-end gap-2'>
+						<Button
+							type='plain'
+							className='px-3 py-1.5 text-sm text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg'
+							onClick={() => setDeletingItem(undefined)}
+						>
+							Cancel
+						</Button>
+						<Button
+							type='plain'
+							className='px-3 py-1.5 text-sm text-white bg-red-500 hover:bg-red-600 rounded-lg'
+							onClick={() => {
+								const newData = value.filter(v => v.id !== deletingItem.id);
+								onChange(newData);
+								onSubmit(newData);
+								setDeletingItem(undefined);
+							}}
+						>
+							Remove
+						</Button>
+					</div>
+				</div>
+			</Modal>
+		</div>
+	);
 }
 
 const RenderFilters = ({value=[], onChange, ...rest}) => {

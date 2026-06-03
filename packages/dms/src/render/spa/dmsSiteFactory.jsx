@@ -6,7 +6,7 @@ import { dmsDataLoader, withAuth, authProvider, dmsPageFactory, _setSyncAPI } fr
 import { parseIfJSON } from '../../patterns/page/pages/_utils';
 import { getInstance } from '../../utils/type-utils';
 import { updateAttributes, updateRegisteredFormats } from "../../dms-manager/_utils";
-import { pattern2routes } from './utils'
+import { pattern2routes, getSubdomain } from './utils'
 import RootErrorBoundary from './utils/RootErrorBoundary.jsx';
 
 const DMS_SYNC_ENABLED = typeof import.meta !== 'undefined'
@@ -31,16 +31,26 @@ export function DmsSite (config) {
         routes = [],
         damaDataTypes = {},
         damaMapPlugins = {},
+        isMultiTenant = false,
         host = typeof window !== 'undefined' ? window.location.host : 'localhost'
     } = config
-    let CurrentProjectName = PROJECT_NAME ? PROJECT_NAME : dmsConfig.app
+    // On a tenant subdomain the auth project is the subdomain (= tenant.app by convention).
+    // Without this, authProvider would use the master app as PROJECT_NAME and all
+    // login/token-check calls on tenant subdomains would hit the wrong auth project.
+    const tenantSubdomain = isMultiTenant ? getSubdomain(host) : false;
+    let CurrentProjectName = tenantSubdomain || (PROJECT_NAME ? PROJECT_NAME : dmsConfig.app)
 
     const routeProps = {
         dmsConfig, adminPath, authPath, themes, falcor, API_HOST, DAMA_HOST,
         authWrapper, pgEnvs, damaBaseUrl, PROJECT_NAME: CurrentProjectName,
-        damaDataTypes, damaMapPlugins, host
+        damaDataTypes, damaMapPlugins, host, isMultiTenant
     }
-    const localStorePatterns = parseIfJSON(localStorage.getItem(dmsConfig.app+'-'+dmsConfig.type), null)
+    // In multi-tenant+subdomain mode the master-app cache belongs to a different
+    // site; skip it to avoid briefly rendering the platform admin routes.
+    const isTenantSubdomain = isMultiTenant && Boolean(getSubdomain(host));
+    const localStorePatterns = isTenantSubdomain
+        ? null
+        : parseIfJSON(localStorage.getItem(dmsConfig.app+'-'+dmsConfig.type), null)
     const [loading, setLoading] = useState(() => !localStorePatterns?.length && !defaultData?.length);
     const [dynamicRoutes, setDynamicRoutes] = useState(() => {
         if (localStorePatterns?.length || defaultData?.length) {
@@ -90,8 +100,13 @@ export function DmsSite (config) {
     }), []);
 
     const AuthedRouteProvider = React.useMemo(
-      () => authProvider(RouterProvider, { AUTH_HOST, PROJECT_NAME:CurrentProjectName }),
-      [AUTH_HOST, CurrentProjectName]
+      () => authProvider(RouterProvider, {
+          AUTH_HOST,
+          PROJECT_NAME: CurrentProjectName,
+          isMultiTenant,
+          siteType: dmsConfig.type,
+      }),
+      [AUTH_HOST, CurrentProjectName, isMultiTenant, dmsConfig.type]
     );
 
     const router = React.useMemo(
@@ -166,7 +181,9 @@ export function DmsSite (config) {
 }
 
 export default async function dmsSiteFactory(config) {
-    let { dmsConfig, falcor, API_HOST } = config
+    let { dmsConfig, falcor, API_HOST, isMultiTenant, host } = config
+
+    // Step 1 — always load the master site
     let dmsConfigUpdated = cloneDeep(dmsConfig);
     const siteType = dmsConfig?.format?.type || dmsConfig.type;
     const siteInstance = getInstance(siteType) || siteType;
@@ -176,11 +193,62 @@ export default async function dmsSiteFactory(config) {
     falcor = falcor || falcorGraph(API_HOST)
     let data = await dmsDataLoader(falcor, dmsConfigUpdated, `/`);
     if (localStorage) {
-      //console.log(' setting data',data)
       localStorage.setItem(dmsConfigUpdated.app + '-' + dmsConfigUpdated.type, JSON.stringify(data))
     }
-    //console.log('dmsSiteFactory - got data', data, localStorage)
 
+    if (!isMultiTenant) {
+        return pattern2routes(data, config)
+    }
 
-    return pattern2routes(data, config)
+    // Step 2 — multi-tenant: detect subdomain and route accordingly
+    const currentHost = host || (typeof window !== 'undefined' ? window.location.host : '');
+    const subdomain = getSubdomain(currentHost);
+
+    if (!subdomain) {
+        // Platform admin (root domain) — serve master site routes.
+        // Phase 3 will render TenantList inside editSite when !subdomain && isMultiTenant.
+        return pattern2routes(data, config)
+    }
+
+    // Find the tenant row whose subdomain matches
+    const tenants = data[0]?.tenants || [];
+    const matchedTenant = tenants.find(t => t.subdomain === subdomain);
+
+    if (!matchedTenant) {
+        return [{
+            path: '/*',
+            Component: () => React.createElement(
+                'div',
+                { className: 'w-screen h-screen flex items-center justify-center' },
+                `Tenant "${subdomain}" not found`
+            )
+        }];
+    }
+
+    // Step 3 — build a tenant-scoped config: swap every app reference to tenant.app
+    const tenantApp = matchedTenant.app;
+    const tenantDmsConfig = cloneDeep(dmsConfig);
+    tenantDmsConfig.app = tenantApp;
+    tenantDmsConfig.format = { ...tenantDmsConfig.format, app: tenantApp };
+    if (Array.isArray(tenantDmsConfig.format.registerFormats)) {
+        tenantDmsConfig.format.registerFormats.forEach(rf => { rf.app = tenantApp; });
+    }
+    if (Array.isArray(tenantDmsConfig.format.attributes)) {
+        tenantDmsConfig.format.attributes.forEach(attr => {
+            if (attr.format) attr.format = `${tenantApp}+${attr.format.split('+')[1]}`;
+        });
+    }
+
+    let tenantDmsConfigUpdated = cloneDeep(tenantDmsConfig);
+    tenantDmsConfigUpdated.registerFormats = updateRegisteredFormats(tenantDmsConfigUpdated.registerFormats, tenantApp, siteInstance)
+    tenantDmsConfigUpdated.attributes = updateAttributes(tenantDmsConfigUpdated.attributes, tenantApp, siteInstance)
+
+    // Step 4 — load the tenant's own site (lives in dms_<tenantApp> schema)
+    const tenantData = await dmsDataLoader(falcor, tenantDmsConfigUpdated, '/');
+    if (localStorage) {
+        localStorage.setItem(tenantDmsConfigUpdated.app + '-' + tenantDmsConfigUpdated.type, JSON.stringify(tenantData))
+    }
+
+    // Step 5 — build routes scoped to the tenant
+    return pattern2routes(tenantData, { ...config, dmsConfig: tenantDmsConfig })
 }
