@@ -75,7 +75,11 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
             const path = app
               ? ["dms", "data", app, "byId", idStr, att]
               : ["dms", "data", "byId", idStr, att];
-            response.push({ path, value: null });
+            let value = null;
+            if (att === 'app') value = row.app || app || null;
+            else if (att === 'type') value = row.type || null
+            else value = 'no-access';
+            response.push({ path, value });
           }
           continue;
         }
