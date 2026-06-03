@@ -122,13 +122,26 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
 		initNavigateUsingSearchParams({pageState, search, navigate, baseUrl, item})
 	}, [])
 
+	// const setActionParam = React.useCallback((key, value) => {
+	// 	setPageState(draft => {
+	// 		const existing = draft.filters.find(f => f.searchKey === key && f.type === 'action');
+	// 		const arrayValue  = Array.isArray(value) ? value : [value];
+	// 		if (existing) {
+	// 			existing.values =  [value];
+	// 		} else {
+	// 			draft.filters.push({ searchKey: key, values:  [value], useSearchParams: false, type: 'action' });
+	// 		}
+	// 	});
+	// }, [setPageState]);
+
 	const setActionParam = React.useCallback((key, value) => {
 		setPageState(draft => {
 			const existing = draft.filters.find(f => f.searchKey === key && f.type === 'action');
+			const arrayValue  = Array.isArray(value) ? value : [value];
 			if (existing) {
-				existing.values = [value];
+				existing.values = arrayValue;
 			} else {
-				draft.filters.push({ searchKey: key, values: [value], useSearchParams: false, type: 'action' });
+				draft.filters.push({ searchKey: key, values: arrayValue, useSearchParams: false, type: 'action' });
 			}
 		});
 	}, [setPageState]);

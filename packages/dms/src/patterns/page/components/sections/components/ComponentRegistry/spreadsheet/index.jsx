@@ -22,7 +22,9 @@ export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addIte
     const {Table} = UI;
     const {state, state:{filters, columns=[], externalSource: sourceInfo={}, display={}, data=[], localFilteredData, fullData}, setState, controls={}, isActive, activeStyle} = useContext(ComponentContext);
     const { pageState, setPageState, setActionParam, clearActionParam } = useContext(PageContext) || {};
-                                    console.log("useContext(PageContext)::",useContext(PageContext))
+    console.log("------render table-----")
+    console.log("pageState filters:",pageState?.filters)
+    console.log("state::",state)
     const providerCfg = display._functions?.providers?.find(p => p.functionId === 'hover_highlight' && p.enabled);
     const clickPublishCfg = display._functions?.providers?.find(p => p.functionId === 'click_publish' && p.enabled);
                                     console.log({filters})
@@ -39,30 +41,27 @@ export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addIte
 
     const onRowMouseClick = useCallback((rowData) => {
         console.log({pageState})
-        if (!clickPublishCfg) return;
-        
-
-
-        setPageState(draft => {
-            const value = rowData?.[clickPublishCfg.args?.column];
-            const existing = draft.filters?.find(f => f.searchKey === clickPublishCfg.args?.column);
-                    console.log(JSON.parse(JSON.stringify({existing})))
-            if (value !== undefined) {
-                if (existing?.values?.length === 0 || !existing?.values) {
-
-                    existing.values = [value]; //RYAN TODO MAYBE THIS SHOULD BE ARRAY OF ARRAYS OR SOMETHING HERE
-                    
-                } else if (existing?.values?.length) {
-                    //RYAN TODO -- make sure we don't allow for duplicates in here
-                    existing.values = [value, ...existing.values]; //RYAN TODO MAYBE THIS SHOULD BE ARRAY OF ARRAYS OR SOMETHING HERE
-                    
-                }
+        console.log("on row mouse click rowData::", rowData)
+        if (!clickPublishCfg || !setActionParam) return;
+        const {column, append_params} = clickPublishCfg?.args || {};
+        console.log("args column", column)
+        console.log("args APPEND_PARAMS", append_params)
+        console.log("param key::", clickPublishCfg.paramKey)
+        const value = rowData?.[clickPublishCfg.args?.column];
+        console.log({value})
+        if (value !== undefined) {
+            let finalValue = value;
+            if(append_params) {
+                //mutate final value
+                const curFilter = pageState?.filters?.find(f => f.searchKey === clickPublishCfg.paramKey && f.type === 'action');
+                const curValues = curFilter?.values || [];
+                console.log({curValues})
+                finalValue = [...curValues, value];
             }
-        })
-
-
-
-    }, [clickPublishCfg, setActionParam]);
+            console.log({finalValue})
+            setActionParam(clickPublishCfg.paramKey, finalValue);
+        }
+    }, [clickPublishCfg, setActionParam, pageState]);
 
 
     const subCfg = display._functions?.subscribers?.find(s => s.functionId === 'row_highlight' && s.enabled);

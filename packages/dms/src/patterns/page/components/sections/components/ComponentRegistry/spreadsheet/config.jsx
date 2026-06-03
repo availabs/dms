@@ -61,10 +61,20 @@ export const componentFunctions = {
         {
             id: 'click_publish',
             label: 'Click: Publish Row',
-            description: 'On click, publishes a column value to a page action param.',
+            description: 'On click, publishes a custom object value to a page action param.',
             trigger: 'click',
+            paramKey: "routes",
             args: [
-                { key: 'column', label: 'Column to publish', type: 'column-select' },
+                { key: 'column', label: 'Column to publishzzzz', type: 'column-select' },
+                { 
+                    key: 'append_params', 
+                    label: 'Append Params',
+                    type: 'select',
+                    options: [
+                        { label: 'Append', value: true },
+                        { label: 'Replace', value: false },
+                    ],
+                }
             ],
         },
     ],
@@ -107,8 +117,6 @@ const buildControls = (theme) => ({
     columns: [
             { type: 'toggle', label: 'show', key: 'show' },
             { type: 'toggle', label: 'Group', key: 'group' },
-            { type: 'toggle', label: 'Group By Page Filter', key: 'groupByPageFilter' },
-            { type: 'input', label: '', key: 'groupByPageFilterKey', displayCdn: ({attribute}) =>  attribute.groupByPageFilter },
             { type: 'select', label: 'Fn', key: 'fn',
                 options: [
                     { label: 'list', value: 'list' }, { label: 'sum', value: 'sum' }, { label: 'count', value: 'count' }, { label: 'avg', value: 'avg' }, { label: 'fn exempt', value: 'exempt' }
