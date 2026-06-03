@@ -60,6 +60,9 @@ export function DmsSite (config) {
         return []
     });
 
+    const routePropsRef = React.useRef(routeProps);
+    useEffect(() => { routePropsRef.current = routeProps; });
+
     useEffect(() => {
         let isStale = false;
         async function load () {
@@ -78,6 +81,17 @@ export function DmsSite (config) {
         }
         load()
         return () => { isStale = true }
+    }, []);
+
+    // When the user logs in, authed patterns that were blocked by server-side auth
+    // on initial load need to be fetched now so their routes exist for navigation.
+    useEffect(() => {
+        const handleLogin = async () => {
+            const routes = await dmsSiteFactory(routePropsRef.current);
+            setDynamicRoutes(routes);
+        };
+        window.addEventListener('dms-user-login', handleLogin);
+        return () => window.removeEventListener('dms-user-login', handleLogin);
     }, []);
 
     // --- Sync state (effects run after router is defined below) ---
