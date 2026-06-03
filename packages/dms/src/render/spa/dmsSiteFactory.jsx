@@ -62,6 +62,18 @@ export function DmsSite (config) {
 
     const routePropsRef = React.useRef(routeProps);
     useEffect(() => { routePropsRef.current = routeProps; });
+    // When the user logs in, authed patterns that were blocked by server-side auth
+    // on initial load need to be fetched now so their routes exist for navigation.
+    useEffect(() => {
+        const handleLogin = async () => {
+            setLoading(true)
+            const routes = await dmsSiteFactory(routePropsRef.current);
+            setDynamicRoutes(routes);
+            setLoading(false)
+        };
+        window.addEventListener('dms-user-login', handleLogin);
+        return () => window.removeEventListener('dms-user-login', handleLogin);
+    }, []);
 
     useEffect(() => {
         let isStale = false;
@@ -83,18 +95,6 @@ export function DmsSite (config) {
         return () => { isStale = true }
     }, []);
 
-    // When the user logs in, authed patterns that were blocked by server-side auth
-    // on initial load need to be fetched now so their routes exist for navigation.
-    useEffect(() => {
-        const handleLogin = async () => {
-            setLoading(true)
-            const routes = await dmsSiteFactory(routePropsRef.current);
-            setDynamicRoutes(routes);
-            setLoading(false)
-        };
-        window.addEventListener('dms-user-login', handleLogin);
-        return () => window.removeEventListener('dms-user-login', handleLogin);
-    }, []);
 
     // --- Sync state (effects run after router is defined below) ---
     const [syncActive, setSyncActive] = useState(false);
