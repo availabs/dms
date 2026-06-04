@@ -7,7 +7,7 @@ const {
   getSitePatterns,
   getSiteSources,
 } = require('./utils');
-const { jsonMerge } = require('#db/query-utils.js');
+const { jsonMerge, buildArrayComparison, jsonExtract } = require('#db/query-utils.js');
 const { resolveTable, sanitize } = require('#db/table-resolver.js');
 const { getInstance } = require('#db/type-utils.js');
 const querySets = require('./query_sets');
@@ -292,13 +292,16 @@ async function simpleFilterLength(env, view_id, options) {
 
 async function simpleFilter(env, view_id, options, attributes, indices) {
   const ctx = await getEssentials({ env, view_id, options });
-  const rows = await querySets[ctx.dbType].simpleFilter(ctx, options, attributes, indices);
+  let rows = await querySets[ctx.dbType].simpleFilter(ctx, options, attributes, indices);
 
   // Meta lookups may target a different env/db than the main query, so we
   // re-enter simpleFilter (which will dispatch via its own getEssentials).
-  const { meta = {} } = JSON.parse(options);
+  const { meta = {}, serverFn = {} } = JSON.parse(options);
   if (Object.keys(meta).length) {
-    return applyMeta(rows, meta, env, ctx.isDms, options);
+    rows = await applyMeta(rows, meta, env, ctx.isDms, options);
+  }
+  if (Object.keys(serverFn).length) {
+    rows = await applyServerFn(rows, serverFn, ctx.app, ctx.db, ctx.splitMode);
   }
   return rows;
 }
@@ -306,6 +309,106 @@ async function simpleFilter(env, view_id, options, attributes, indices) {
 async function dataById(env, view_id, ids, attributes) {
   const ctx = await getEssentials({ env, view_id, options: { isDama: false } });
   return querySets[ctx.dbType].dataById(ctx, ids, attributes);
+}
+
+// ================================================= Server Functions ===============================================
+
+// Resolves columns that have a serverFn defined (e.g. recurse_extract_data).
+// Called after the main simpleFilter query when options.serverFn is non-empty.
+//
+// getData.js guarantees that `id` is always included in isDms result rows (line 295).
+// This lets us do a secondary joinKey lookup when joinKey !== colName and the joinKey
+// field is absent from the result set (e.g. sections' url_slug column uses joinKey:
+// "parent", which may not have been a selected column).
+//
+// DMS stores parent refs as JSON: {"id":"570240","ref":"app+type"} where ref uses
+// the app||'+'||type composite key format. Parse both fields so the lookup query
+// can be scoped to the correct type (e.g. "my_docs|page").
+function parseParentRef(val) {
+  if (val == null || val === '') return null;
+  const s = String(val).trimStart();
+  if (s.startsWith('{')) {
+    try {
+      const obj = JSON.parse(s);
+      if (obj.id == null) return null;
+      return { id: String(obj.id), ref: obj.ref || null };
+    } catch {}
+  }
+  return { id: s, ref: null };
+}
+
+async function applyServerFn(rows, serverFn, app, db, splitMode) {
+  if (!rows.length) return rows;
+  const tbl = await dmsMainTable(db, app, splitMode);
+
+  for (const [colName, { serverFn: fn, joinKey, valueKey, keepOriginal, joinWithChar }] of Object.entries(serverFn)) {
+    if (fn !== 'recurse_extract_data') continue;
+
+    const safeJoinKey = sanitizeName(joinKey);
+    const safeValueKey = sanitizeName(valueKey);
+    if (!safeJoinKey || !safeValueKey) continue;
+
+    // Build array of raw stored joinKey values parallel to rows.
+    // When joinKey === colName the stored value IS the field to resolve; read directly.
+    // When joinKey !== colName (e.g. sections url_slug uses joinKey=parent), the foreign
+    // key lives in a different field that may not have been SELECTed — fetch it via row id.
+    let foreignKeys;
+
+    const firstMissing = joinKey !== colName && rows.some(r => r[joinKey] === undefined);
+    if (firstMissing) {
+      const rowIds = rows.map(r => r.id).filter(v => v != null && !isNaN(+v)).map(Number);
+      if (!rowIds.length) continue;
+      const { sql: jkSql, values: jkVals } = buildArrayComparison('id', rowIds, db.type);
+      const { rows: jkRows } = await db.query(
+        `SELECT id, ${jsonExtract('data', safeJoinKey, db.type)} AS jk FROM ${tbl} WHERE ${jkSql}`,
+        jkVals
+      );
+      const jkByRowId = Object.fromEntries(jkRows.map(r => [String(r.id), r.jk]));
+      foreignKeys = rows.map(r => jkByRowId[String(r.id)] ?? null);
+    } else {
+      foreignKeys = rows.map(r => r[joinKey] ?? null);
+    }
+
+    // Collect unique numeric parent IDs from all foreign key values.
+    // id is a PK in data_items so no type-scope filter is needed for correctness.
+    // (The stored ref in sections is just the pattern name, not the full type string,
+    // so filtering by ref would cause false-negative misses — see sectionArray.jsx:171.)
+    const idSet = new Set();
+    foreignKeys.forEach(v => {
+      if (v == null || v === '') return;
+      const s = String(v).trimStart();
+      const entries = !s.startsWith('{') && s.includes(',')
+        ? s.split(',').map(p => parseParentRef(p.trim())).filter(Boolean)
+        : [parseParentRef(s)].filter(Boolean);
+      for (const { id } of entries) {
+        if (id && !isNaN(+id)) idSet.add(Number(id));
+      }
+    });
+
+    if (!idSet.size) continue;
+
+    const { sql: idSql, values: idVals } = buildArrayComparison('id', [...idSet], db.type);
+    const { rows: lookupRows } = await db.query(
+      `SELECT id, ${jsonExtract('data', safeValueKey, db.type)} AS val FROM ${tbl} WHERE ${idSql}`,
+      idVals
+    );
+    const lookup = {}; // id (string) → resolved value
+    for (const r of lookupRows) lookup[String(r.id)] = r.val;
+
+    rows.forEach((row, i) => {
+      const rawVal = foreignKeys[i];
+      if (rawVal == null || rawVal === '') return;
+      const s = String(rawVal).trimStart();
+      const entries = !s.startsWith('{') && s.includes(',')
+        ? s.split(',').map(p => parseParentRef(p.trim())).filter(Boolean)
+        : [parseParentRef(s)].filter(Boolean);
+      const resolved = entries
+        .map(({ id }) => id ? (lookup[id] ?? (keepOriginal ? id : null)) : null)
+        .filter(v => v != null);
+      row[colName] = joinWithChar ? resolved.join(joinWithChar) : (resolved.length === 1 ? resolved[0] : resolved);
+    });
+  }
+  return rows;
 }
 
 // ================================================= Meta Lookups ===================================================
