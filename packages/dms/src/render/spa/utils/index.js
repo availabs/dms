@@ -93,6 +93,9 @@ export function pattern2routes (siteData, props) {
       .reduce((acc, curr) => [...acc, ...(curr?.patterns || [])], [])
       .find(p => p.pattern_type === 'auth');
 
+    const authBaseUrl = authPath
+      || (authPattern?.base_url ? `/${authPattern.base_url.replace(/^\/|\/$/g, '')}` : '/auth');
+
     let AdminPattern = {
       app: dmsConfigUpdated?.format?.app || dmsConfigUpdated.app,
       type: siteType,
@@ -212,6 +215,7 @@ export function pattern2routes (siteData, props) {
                     pattern: { ...pattern, filters: resolvedFilters },
                     pattern_type: pattern?.pattern_type,
                     authPermissions,
+                    authBaseUrl,
                     datasources: patternDatasources,
                     dmsEnvs,
                     dmsEnvById,

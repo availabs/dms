@@ -443,6 +443,7 @@ export const mergeFilters = (pageFilters=[], patternFilters=[]) => {
     // patternFilters should take over if present
 
     const pageFiltersFormatted = parseIfJSON(pageFilters, pageFilters || []);
+    if(pageFiltersFormatted === 'no-access') return [];
     // console.log('??', pageFiltersFormatted)
     // make sure page filters work both in edit and view mode when url is used
     // test what happens if two users are on the same page and one changes the filter

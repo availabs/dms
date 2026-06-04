@@ -3,7 +3,7 @@ import { Link, Navigate, useNavigate, useLocation, useSearchParams} from "react-
 import {cloneDeep} from "lodash-es";
 import {useImmer} from "use-immer";
 import { ThemeContext, mergeTheme } from "../../../../ui/useTheme";
-import { CMSContext, PageContext, DataSourceContext } from '../../context'
+import { CMSContext, PageContext, DataSourceContext } from '../../context';
 import {
     sectionsEditBackill, dataItemsNav, nav2Level, mergeFilters, detectNavLevel, getInPageNav,
     convertToUrlParams, updatePageStateFiltersOnSearchParamChange, initNavigateUsingSearchParams, getPageAuthPermissions
@@ -18,7 +18,7 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
 	const { pathname = '/edit', search } = useLocation();
 
 	const { theme: fullTheme, UI, getComponentTheme } = React.useContext(ThemeContext);
-	const {  Menu, baseUrl, user, patternFilters=[], isUserAuthed } = React.useContext(CMSContext) || {};
+	const {  Menu, baseUrl, user, patternFilters=[], isUserAuthed, authBaseUrl } = React.useContext(CMSContext) || {};
 	const dataItems = allDataItems.filter(d => !d.authPermissions || isUserAuthed(reqPermissions, d.authPermissions));
 
 	const [ pageState, setPageState ] = useImmer({ ...item, filters: mergeFilters(item.filters, patternFilters) });
@@ -193,6 +193,13 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
 			))
 	}
 
+	if (item?.id === 'no-access') {
+		if (user?.isAuthenticating) return null;
+		if (!user?.authed) {
+			return <Navigate to={`${authBaseUrl}/login`} state={{ from: pathname + search }} replace />;
+		}
+		return <div>You do not have permission to view this page. <Link to={baseUrl}>Click here to visit Home</Link></div>;
+	}
 	if(!item) return <div>page does not exist.</div>;
 
     const pageAuthPermissions = getPageAuthPermissions(pageState?.authPermissions);

@@ -85,6 +85,7 @@ export default function AuthLogin ({ disableSignup, ...props }) {
                                         window.localStorage.setItem('userToken', res?.user?.token);
                                     }
                                     setUser({ ...res.user, groups: [...(res.user.groups || []), 'public'], authed: true, isAuthenticating: false })
+                                    window.dispatchEvent(new CustomEvent('dms-user-login'));
                                     navigate(location?.state?.from || defaultRedirectUrl);
                                 }
                             })
