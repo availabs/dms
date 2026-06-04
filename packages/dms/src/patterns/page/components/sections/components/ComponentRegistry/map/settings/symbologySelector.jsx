@@ -1,5 +1,33 @@
 import { useEffect, useMemo, useState } from "react";
 
+const inFlightSymbologyRequests = new WeakMap();
+
+function normalizeSymbologies(res) {
+  return (res || []).map((sym) => ({
+    ...sym,
+    symbology: {
+      ...sym.symbology,
+      id: sym.id,
+    },
+  }));
+}
+
+function getSymbologyRequest(doApiLoad) {
+  if (!doApiLoad) return null;
+
+  const inFlight = inFlightSymbologyRequests.get(doApiLoad);
+  if (inFlight) return inFlight;
+
+  const request = Promise.resolve(doApiLoad())
+    .then((res) => normalizeSymbologies(res))
+    .finally(() => {
+      inFlightSymbologyRequests.delete(doApiLoad);
+    });
+
+  inFlightSymbologyRequests.set(doApiLoad, request);
+  return request;
+}
+
 /**
  * Loads available DMS symbologies and derives the current symbology/layer selection state.
  * This helper is shared by the Map Settings symbology and layer screens.
@@ -9,18 +37,19 @@ export default function useSymbologySelectorState({ state = {}, setState, doApiL
 
   useEffect(() => {
     if (!doApiLoad) return;
+    const request = getSymbologyRequest(doApiLoad);
+    if (!request) return;
 
-    doApiLoad().then((res) => {
-      setDmsSymbologies(
-        res.map((sym) => ({
-          ...sym,
-          symbology: {
-            ...sym.symbology,
-            id: sym.id,
-          },
-        }))
-      );
+    let isMounted = true;
+    request.then((data) => {
+      if (isMounted) {
+        setDmsSymbologies(data);
+      }
     });
+
+    return () => {
+      isMounted = false;
+    };
   }, [doApiLoad]);
 
   const symbologies = dmsSymbologies;
