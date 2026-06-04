@@ -105,7 +105,7 @@ export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addIte
         }
     }, [visibleAttributesLen, visibleAttrsWithoutOpenOutLen, sourceInfo.columns, display.autoResize]);
     // ============================================ auto resize end ====================================================
-
+    console.log("table render state::", {state, pageState})
     //console.log('render table')
     if(!visibleAttributes.length) return <div className={'p-2'}>No columns selected.</div>;
     return <Table columns={columns} data={data} localFilteredData={localFilteredData} fullData={fullData}

@@ -113,6 +113,15 @@ export function useDataWrapperAPI({ state, setState }) {
         }),
         [setState]
     );
+
+    //setCustomBuckets
+    const setCustomBuckets = useCallback(
+        (value) => setState(draft => {
+            draft.customBuckets = value;
+        }),
+        [setState]
+    );
+    
     return useMemo(() => ({
         // ── Read access (getters — always read live state via ref) ──
         get config() {
@@ -124,6 +133,7 @@ export function useDataWrapperAPI({ state, setState }) {
                 filters: s?.filters,
                 join: s?.join,
                 pivot: s?.pivot,
+                customBuckets: s?.customBuckets,
             };
         },
         get runtime() {
@@ -158,6 +168,9 @@ export function useDataWrapperAPI({ state, setState }) {
         // ── Pivot operations ──
         setPivot,
 
+        // ── Custom Buckets operations ──
+        setCustomBuckets,
+
         // ── Raw access (escape hatch) ──
         // Needed for: ComplexFilters, custom control types, handlePaste.
         // Phase 5 must close these — see handoff notes in task file.
@@ -171,5 +184,6 @@ export function useDataWrapperAPI({ state, setState }) {
         toggleIdFilter, toggleGlobalVisibility,
         addFormulaColumn, addCalculatedColumn, reorderColumns,
         setPivot,
+        setCustomBuckets,
     ]);
 }

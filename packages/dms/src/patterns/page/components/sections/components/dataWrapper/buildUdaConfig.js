@@ -20,6 +20,7 @@ const splitColNameOnAS = (name) => name.split(columnRenameRegex);
 import { EXTERNAL_SOURCE_KEY } from "./schema";
 import { calculateIsJoinPresent } from "../dataWrapper/utils/joinUtils";
 import { parseTimeFilterURL, mergeUrlOntoExposedAxes } from "./utils/timeFilter";
+import _ from 'lodash';
 export const isCalculatedCol = ({ display, type, origin, name }) =>
   display === "calculated" ||
   type === "calculated" ||
@@ -889,6 +890,8 @@ export const buildUdaConfig = ({
   filters,
   join: rawJoin,
   pageFilters,
+  customBuckets,
+  //currentPageState, // Add currentPageState here
 }) => {
 
   const join = { sources:{} };
@@ -1202,6 +1205,14 @@ export const buildUdaConfig = ({
     ...(allHaving.length > 0 && { having: allHaving }),
   };
 
+   if (customBuckets && Object.keys(customBuckets).length > 0) {
+     //options.aliasGroups = resolveAliasGroups(externalSource.customBuckets, currentPageState);
+     // Pass the customBuckets configuration directly to resolveAliasGroups
+     // No currentPageState is needed here as resolveAliasGroups will process the static config
+     options.aliasGroups = resolveAliasGroups(customBuckets, pageFilters);
+   }
+
+
   // 9. Build attributes list
   const attributes = columnsToFetch.map((a) => a.reqName).filter((a) => a);
 
@@ -1264,5 +1275,36 @@ export const legacyStateToBuildInput = (state, pageFilters) => {
     pageFilters: pageFilters || {},
   };
 };
+
+export function resolveAliasGroups(uiConfig, pageFilters) {
+  if (uiConfig.type === 'static') {
+    const groups = {};
+    (uiConfig.staticGroups || []).forEach(group => {
+      if (group.label && group.values) {
+        groups[group.label] = group.values.split(',').map(v => v.trim());
+      }
+    });
+    return { [uiConfig.alias]: { column: uiConfig.sourceField, fallback: uiConfig.fallback, groups: groups } };
+  }
+
+  // Safely extract the dynamic array from your application state
+  const rawRoutes = _.get(pageFilters, uiConfig.binding.statePath) || [];
+  console.log({rawRoutes})
+  // Transform it into the exact Label -> Array shape the server wants
+  const groups = {};
+  rawRoutes.forEach(route => {
+    const label = route[uiConfig.binding.labelKey];
+    const values = route[uiConfig.binding.valueKey];
+    if (label && values) groups[label] = values;
+  });
+
+  return {
+    [uiConfig.alias]: {
+      column: uiConfig.sourceField,
+      fallback: uiConfig.fallback,
+      groups: groups
+    }
+  };
+}
 
 export default buildUdaConfig;

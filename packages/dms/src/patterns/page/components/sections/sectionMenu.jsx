@@ -6,6 +6,7 @@ import { getComponentTheme } from "../../../../ui/useTheme";
 import {ComplexFilters} from "./ComplexFilters";
 import ColumnManager from "./ColumnManager";
 import { getColumnLabel } from "./controls_utils";
+import { CustomBucketsConfigurator } from "./components/CustomBucketsConfigurator";
 
 
 export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSource={}, dwAPI, mapAPI, pageDataSources={}, ...rest }) => {
@@ -13,7 +14,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
     const state = rawState || { columns: [], display: {}, externalSource: { columns: [] }, filters: { op: 'AND', groups: [] } }
     const { onEdit, moveItem, updateAttribute, updateElementType, onChange, onCancel, onSave, onAddHelpText, setKey, setState, setShowDeleteModal, setListAllColumns } = actions
     const { user, isUserAuthed, pageAuthPermissions, sectionAuthPermissions, canEditPageContent, Permissions, AuthAPI } = auth
-    const { Switch, Pill, Icon, TitleEditComp, LevelComp, refreshDataBtnRef, isRefreshingData, setIsRefreshingData, theme, RegisteredComponents = {} } = ui
+    const { Switch, Pill, Icon, TitleEditComp, LevelComp, refreshDataBtnRef, isRefreshingData, setIsRefreshingData, Input, theme, RegisteredComponents = {} } = ui
     const { activeSource, activeView, sources=[], views=[], onSourceChange, onViewChange, onJoinChange, activeJoinViewsByAlias={}, isJoinPresent } = dataSource;
 
     const sectionLink = window ? `${window.location.origin}${window.location.pathname}#${value.id}` : '';
@@ -594,6 +595,25 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
         },
     ]
 
+    console.log({state})
+    const customBuckets = {
+        name: 'Custom Buckets', icon: 'ColorSwatch',
+        cdn: () => isEdit && currentComponent?.useDataSource && canEditSection,
+        items: [{
+            name: 'Configure Custom Buckets',
+            noHover: true,
+            type: () => (
+                <CustomBucketsConfigurator
+                    value={state?.customBuckets}
+                    setValue={(v) => dwAPI.setCustomBuckets(v)}
+                    state={state}
+                    setState={dwAPI.setState}
+                    dwAPI={dwAPI}
+                    mapAPI={mapAPI}
+                    ui={ui}
+                />            )
+        }]
+    };
 
     const pivot = {
         name: 'Pivot', icon: 'ListView',
@@ -1149,6 +1169,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
             dataset,
             join,
             ...columns,
+            customBuckets,
             pivot,
             ...filter,
             {type: 'separator', cdn: () => currentComponent?.useDataSource && canEditSection},
