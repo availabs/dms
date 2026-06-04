@@ -1,5 +1,15 @@
 # Task: Build the MAP-21 PM3 single-page report as a live DMS page
 
+> **✅ CLOSED 2026-06-03.** All eight phases shipped: the full MAP-21 PM3 page
+> (§01–§06) is built and verified live in `npmrdsv5+npmrds_sub` (see *Build status
+> (session 2026-05-30)* and the later session logs), and the `creating-interactive-pages`
+> skill is written + indexed. Closed at higher-priority request with a handful of
+> **cross-cutting polish items intentionally left open** (see *Cross-cutting polish
+> (deferred)* and the unchecked primitive-gap ledger entries — e.g. §01 roll-up
+> header, KPI superscript units, per-section band tints, sticky-TOC chrome, MPO/County
+> group-by toggle, §05 per-capita/Non-SOV blocked on UZA population data). These are
+> deferred, not forgotten — revisit if the client raises them.
+
 > **Phased build.** Each section of the mockup is its own phase. Phase 1 creates
 > the page + a new **"creating interactive pages"** skill. Every later phase
 > implements one section, names its components + datasets, plans the UDA config,
@@ -406,6 +416,14 @@ All BC, author-accessible. Shipped:
   no-op top-level `data.display` key.) Themeable **axis fonts** are a separate gap →
   new task `graph-axis-font-theming.md`.
 
+**Skill rollup (living mandate):** the session's reusable CLI mechanics landed in
+`creating-pages-from-a-design-pattern.md` §5.2.1 — the `--set`-can't-reach-`element-data`
+trap + parse/modify/re-stringify recipe, section ordering/insertion via a `draft_sections`
+full-replace reorder (`create` appends), and the "clear `title` + frame with sibling lexical
+header/footnote" pattern. Graph axis-font theming + the `fnum2`→`fnum` format note are in
+`authoring-graphs.md`. The editorial patterns (eyebrow/prose styleKeys, CTAs, rowspan, card
+chrome) were already documented from earlier phases.
+
 **Data note:** UZA population + Non-SOV actuals are NOT in DAMA — must be sourced
 externally and loaded before §05 per-capita / Non-SOV can be built. Performance-measure
 *targets* (2027 statewide LOTTR/TTTR, 2028 per-UZA PHED/Non-SOV) ARE loaded.
@@ -640,12 +658,13 @@ own `patterns/page` task when it's ready to implement).
 
 ## Testing checklist
 
-- [ ] Page created (draft); `draft_section_groups` set for the bands.
-- [ ] Year `Filter` drives §01/§04/§05/§06; §02 ignores it (live).
-- [ ] Each data section's UDA query returns sane values for CY 2025.
-- [ ] Joins resolve (state targets on `year_record`; UZA targets on
-      `year_record`+`urban_code`).
-- [ ] `dms page dump --sections` matches the mockup section inventory.
-- [ ] Nothing published by the task (humans publish).
-- [ ] `creating-interactive-pages.md` written + indexed; per-phase skill notes
+- [x] Page created (draft); `draft_section_groups` set for the bands.
+- [x] Year `Filter` drives §01/§04/§05/§06; §02 ignores it (live).
+- [x] Each data section's UDA query returns sane values for CY 2025.
+- [x] Joins resolve (state targets on `year_record`; UZA targets on
+      `year_record`+`urban_code`). _(UZA two-key join verified for §05; multi-key
+      DAMA join generalization still ledgered as a primitive gap.)_
+- [x] `dms page dump --sections` matches the mockup section inventory.
+- [x] Nothing published by the task (humans publish).
+- [x] `creating-interactive-pages.md` written + indexed; per-phase skill notes
       rolled into edits.

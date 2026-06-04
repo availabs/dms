@@ -1,6 +1,6 @@
 # AVL Graph — author-editable options: y-domain, point marks, tooltip format & totals
 
-## Status: IMPLEMENTED — 2026-06-02 (verified on MAP-21 PM3 graphs)
+## Status: ✅ COMPLETE — 2026-06-03 (all four options + PHED graph shipped & verified on MAP-21 PM3)
 
 All four options shipped, BC (defaults preserve current render), author-editable via the
 section controls. Files touched:
@@ -88,5 +88,6 @@ point marks like the design mock, decimals in tooltips, and no totals row).
   §01 KPI cards (`2173919`/`2173920`/`2173921`), trimmed to mockup columns (kicker +
   heading + value + meets-target; no delta/bar), value `displayLG`, heading `displayXS`,
   value row-spans the kicker+heading block. Truck keeps its index (non-%) format.
-- [ ] Add a **PHED graph** (4th measure; KPI model `2173922`, 4 cols, 7-digit hr/yr —
-  not a %) + its header card. Needs the PHED time-series SQL/source — confirm source/version.
+- [x] Add a **PHED graph** (4th measure) + its header card — shipped 2026-06-03 (lex
+  `2174100` + card `2174101` + graph `2174102`; `round(sum("phed"))` y-series off source
+  2001/3394, abbreviated axis later cleaned `fnum2`→`fnum`). Completes the §02 trend set.
