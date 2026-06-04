@@ -1206,10 +1206,7 @@ export const buildUdaConfig = ({
   };
 
    if (customBuckets && Object.keys(customBuckets).length > 0) {
-     //options.aliasGroups = resolveAliasGroups(externalSource.customBuckets, currentPageState);
-     // Pass the customBuckets configuration directly to resolveAliasGroups
-     // No currentPageState is needed here as resolveAliasGroups will process the static config
-     options.aliasGroups = resolveAliasGroups(customBuckets, pageFilters);
+     options.aliasGroups = customBuckets?.config;
    }
 
 
@@ -1275,36 +1272,5 @@ export const legacyStateToBuildInput = (state, pageFilters) => {
     pageFilters: pageFilters || {},
   };
 };
-
-export function resolveAliasGroups(uiConfig, pageFilters) {
-  if (uiConfig.type === 'static') {
-    const groups = {};
-    (uiConfig.staticGroups || []).forEach(group => {
-      if (group.label && group.values) {
-        groups[group.label] = group.values.split(',').map(v => v.trim());
-      }
-    });
-    return { [uiConfig.alias]: { column: uiConfig.sourceField, fallback: uiConfig.fallback, groups: groups } };
-  }
-
-  // Safely extract the dynamic array from your application state
-  const rawRoutes = _.get(pageFilters, uiConfig.binding.statePath) || [];
-  console.log({rawRoutes})
-  // Transform it into the exact Label -> Array shape the server wants
-  const groups = {};
-  rawRoutes.forEach(route => {
-    const label = route[uiConfig.binding.labelKey];
-    const values = route[uiConfig.binding.valueKey];
-    if (label && values) groups[label] = values;
-  });
-
-  return {
-    [uiConfig.alias]: {
-      column: uiConfig.sourceField,
-      fallback: uiConfig.fallback,
-      groups: groups
-    }
-  };
-}
 
 export default buildUdaConfig;

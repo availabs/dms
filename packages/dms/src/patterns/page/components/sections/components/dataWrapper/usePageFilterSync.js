@@ -15,10 +15,9 @@
  */
 
 import { useEffect, useContext } from "react";
-import { isEqual } from "lodash-es";
+import { isEqual, get } from "lodash-es";
 import { PageContext } from "../../../../context";
 import { isGroup } from "../../ComplexFilters";
-
 
 export function usePageFilterSync({ state, setState, setReadyOnChange = false }) {
     const { pageState } = useContext(PageContext) || {};
@@ -64,4 +63,52 @@ export function usePageFilterSync({ state, setState, setReadyOnChange = false })
             update(draft.filters);
         });
     }, [pageState?.filters]);
+
+    //CUSTOM BUCKET UPDATING
+    useEffect(() => {
+        const pageFilters = (pageState?.filters || []).reduce(
+            (acc, curr) => ({ ...acc, [curr.searchKey]: curr.values }), {}
+        );
+
+        if (!Object.keys(pageFilters).length || !Object.keys(state?.customBuckets || {}).length) return;
+        console.log("custom bucket use effect, after null check. state::", state)
+        const newCustomBucketConfig = resolveAliasGroups(state?.customBuckets, pageFilters);
+        console.log({newCustomBucketConfig})
+
+        if(!isEqual(state.customBuckets.config, newCustomBucketConfig)){
+            setState(draft => {
+                draft.customBuckets.config = newCustomBucketConfig
+            })
+        }
+    }, [pageState?.filters, state?.customBuckets]);
+}
+
+function resolveAliasGroups(uiConfig, pageFilters) {
+  if (uiConfig.type === 'static') {
+    const groups = {};
+    (uiConfig.staticGroups || []).forEach(group => {
+      if (group.label && group.values) {
+        groups[group.label] = group.values.split(',').map(v => v.trim());
+      }
+    });
+    return { [uiConfig.alias]: { column: uiConfig.sourceField, fallback: uiConfig.fallback, groups: groups } };
+  }
+
+  const rawRoutes = get(pageFilters, uiConfig.binding.statePath) || [];
+
+  // Transform it into the exact Label -> Array shape the server wants
+  const groups = {};
+  rawRoutes.forEach(route => {
+    const label = route[uiConfig.binding.labelKey];
+    const values = route[uiConfig.binding.valueKey];
+    if (label && values) groups[label] = values;
+  });
+
+  return {
+    [uiConfig.alias]: {
+      column: uiConfig.sourceField,
+      fallback: uiConfig.fallback,
+      groups: groups
+    }
+  };
 }
