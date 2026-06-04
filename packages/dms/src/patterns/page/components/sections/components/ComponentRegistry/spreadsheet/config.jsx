@@ -65,7 +65,7 @@ export const componentFunctions = {
             trigger: 'click',
             paramKey: "routes",
             args: [
-                { key: 'column', label: 'Column to publishzzzz', type: 'column-select' },
+                { key: 'column', label: 'Column to publish', type: 'column-select' },
                 { 
                     key: 'append_params', 
                     label: 'Append Params',

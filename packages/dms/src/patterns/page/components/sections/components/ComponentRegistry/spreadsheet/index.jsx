@@ -22,12 +22,12 @@ export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addIte
     const {Table} = UI;
     const {state, state:{filters, columns=[], externalSource: sourceInfo={}, display={}, data=[], localFilteredData, fullData}, setState, controls={}, isActive, activeStyle} = useContext(ComponentContext);
     const { pageState, setPageState, setActionParam, clearActionParam } = useContext(PageContext) || {};
-    console.log("------render table-----")
-    console.log("pageState filters:",pageState?.filters)
-    console.log("state::",state)
+    // console.log("------render table-----")
+    // console.log("pageState filters:",pageState?.filters)
+    // console.log("state::",state)
     const providerCfg = display._functions?.providers?.find(p => p.functionId === 'hover_highlight' && p.enabled);
     const clickPublishCfg = display._functions?.providers?.find(p => p.functionId === 'click_publish' && p.enabled);
-                                    console.log({filters})
+
     const onRowMouseEnter = useCallback((rowData) => {
         if (!providerCfg || !setActionParam) return;
         const value = rowData?.[providerCfg.args?.column];
@@ -40,25 +40,18 @@ export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addIte
     }, [providerCfg, clearActionParam]);
 
     const onRowMouseClick = useCallback((rowData) => {
-        console.log({pageState})
-        console.log("on row mouse click rowData::", rowData)
         if (!clickPublishCfg || !setActionParam) return;
         const {column, append_params} = clickPublishCfg?.args || {};
-        console.log("args column", column)
-        console.log("args APPEND_PARAMS", append_params)
-        console.log("param key::", clickPublishCfg.paramKey)
-        const value = rowData?.[clickPublishCfg.args?.column];
-        console.log({value})
+        const value = [rowData?.[clickPublishCfg.args?.column]];
+
         if (value !== undefined) {
             let finalValue = value;
             if(append_params) {
                 //mutate final value
                 const curFilter = pageState?.filters?.find(f => f.searchKey === clickPublishCfg.paramKey && f.type === 'action');
                 const curValues = curFilter?.values || [];
-                console.log({curValues})
-                finalValue = [...curValues, value];
+                finalValue = [...curValues, ...value];
             }
-            console.log({finalValue})
             setActionParam(clickPublishCfg.paramKey, finalValue);
         }
     }, [clickPublishCfg, setActionParam, pageState]);

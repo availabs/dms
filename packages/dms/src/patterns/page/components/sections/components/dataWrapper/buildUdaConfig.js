@@ -518,22 +518,6 @@ const extractLegacyColumnFilters = (columns) => {
 
 // ─── Column settings computation ────────────────────────────────────────────
 
-export const buildPageFilterColumn = (column) => {
-  // (CASE 
-  //       WHEN ds.tmc IN ('120-50371', '120P05935') THEN 'Group 1'
-  //       WHEN ds.tmc IN ('115-04234', '115P04235', '115-04236') THEN 'Group 2'
-  //       ELSE 'Unknown Group'
-  //   END) as tmc_group
-  
-  // const groupColName = `${column.name}_filter_group`
-  console.log("builda uda filter, column::", column)
-  const valueClauses = column.value.map((val, i) => {
-      const arrayVal = Array.isArray(val) ? val : [val];
-      return `WHEN ${column.name} IN (${arrayVal.map((v) => `'${v}'`).join(", ")}) THEN 'Group ${i+1}'`
-    });
-  return `(CASE ${valueClauses.join(" ")} ELSE 'Unknown Group' END) as ${column.name}_group`;
-}
-
 /**
  * Build columnsWithSettings — enriches user columns with server-side ref/req/total names.
  * This is the core column metadata computation previously inline in getData().
