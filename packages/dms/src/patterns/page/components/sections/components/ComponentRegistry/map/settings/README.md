@@ -56,6 +56,33 @@ Map settings use the shared DMS UI components from `ThemeContext`.
 
 This is the current DMS single-select pattern for custom settings controls. 
 
+## UI Architecture Notes
+
+### Theme And Text Styling
+
+Map settings should follow the same visual language as the surrounding Settings menu rather than behaving like a separate app inside the panel.
+
+- Shared controls are still sourced from `ThemeContext`.
+- Descriptive/helper text can use the shared field-style treatment.
+- Labels and menu-facing text should align visually with the Settings / Navigable Menu text styles so top-level map controls and drill-in items feel like one continuous menu system.
+- Any layout-only classes that are unique to the map settings screen should stay local to `controls.jsx` instead of expanding the shared menu theme unnecessarily.
+
+### Layout Ownership
+
+Map settings fields often need wider, form-like layouts than normal menu rows.
+
+- The shared menu should stay generic.
+- Map-specific full-width or block-style behavior should be owned by the map settings package itself.
+- This keeps reusable menu infrastructure simple while still allowing map controls to present richer form layouts.
+
+### Handle / API Flow
+
+The map settings screen depends on the same runtime map state used by the rendered map.
+
+- `MapSection` exposes map state and helpers through `mapAPI`.
+- The settings package reads and writes through that same handle instead of creating a parallel settings store.
+- Any wrapper between the section shell and the map component must preserve the child map handle so settings controls continue to target the live map state.
+
 ## Saved Config Shape
 
 The saved config remains the map section state owned by [`map/index.jsx`](/home/sarang/Documents/avail/transportNY/src/modules/dms/packages/dms/src/patterns/page/components/sections/components/ComponentRegistry/map/index.jsx).

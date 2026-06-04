@@ -10,10 +10,15 @@ import { initialState } from "../section_utils";
  * Non-data component wrapper — creates state + ComponentContext for components
  * that don't use the dataWrapper (lexical, Filter, Upload, Validate, etc.)
  */
-function NonDataEditComp({ value, onChange, component, siteType, pageFormat, onHandle }) {
+function NonDataEditComp({ value, onChange, component, siteType, pageFormat, onHandle: parentOnHandle }) {
     // Track the last element-data we emitted so we can tell external changes (paste)
     // from our own onChange round-trips.
     const lastEmitted = useRef(value?.['element-data']);
+    /**
+     * Preserve the most recent map handle field emitted by the child so the
+     * wrapper's later generic handle updates do not drop it.
+     */
+    const mapAPIRef = useRef(null);
     const [childKey, setChildKey] = useState(0);
 
     const updateAttribute = (k, v) => {
@@ -36,9 +41,23 @@ function NonDataEditComp({ value, onChange, component, siteType, pageFormat, onH
         setChildKey(k => k + 1);
     }, [elementData]);
 
-    // Expose state to section menu so controls (e.g., AudioPlayer's title/audioUrl inputs) work
+    /**
+     * Forward child handles upstream immediately, while caching map-specific
+     * API fields that the wrapper itself does not recreate.
+     */
+    const onHandle = React.useCallback((nextHandle) => {
+        if (nextHandle?.mapAPI) {
+            mapAPIRef.current = nextHandle.mapAPI;
+        }
+        parentOnHandle?.(nextHandle);
+    }, [parentOnHandle]);
+
+    /**
+     * Re-emit the wrapper-owned handle whenever local wrapper state changes,
+     * while reattaching any cached map API from the child handle.
+     */
     useEffect(() => {
-        if (!onHandle) return;
+        if (!parentOnHandle) return;
         const setDisplay = (key, value, onChangeCb) => {
             setState(draft => {
                 if (!draft.display) draft.display = {};
@@ -46,8 +65,13 @@ function NonDataEditComp({ value, onChange, component, siteType, pageFormat, onH
             });
             onChangeCb?.({ key, value, state });
         };
-        onHandle({ state, setState, dwAPI: { state, setState, setDisplay } });
-    }, [state]);
+        parentOnHandle({
+            state,
+            setState,
+            dwAPI: { state, setState, setDisplay },
+            mapAPI: mapAPIRef.current ?? null,
+        });
+    }, [parentOnHandle, setState, state]);
 
     useEffect(() => {
         if (!value?.['element-type']) {
