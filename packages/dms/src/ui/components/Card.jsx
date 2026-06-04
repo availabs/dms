@@ -204,6 +204,15 @@ const justifyClass = {
     full: {header: 'justifyTextLeft', value: 'justifyTextRight'}
 };
 
+// Header text-transform. Default '' = as-authored (the Card no longer force-
+// capitalizes headers). Authors opt into a transform via the `headerCase` column control.
+const caseClass = {
+    '': '',
+    capitalize: 'capitalize',
+    uppercase: 'uppercase',
+    lowercase: 'lowercase',
+};
+
 
 
 const parseIfJson = strValue => {
@@ -251,6 +260,10 @@ const CompWrapper = ({
     const editMode = allowEdit || (isNewItem && setNewItem && !tmpItem.id);
     const compIdEdit = `${attribute.name}-${id}`;
     const Comp = ColumnTypes[attribute.type]?.[editMode ? 'EditComp' : 'ViewComp'] || DefaultComp;
+    // Strip the column's data `key` field before spreading — otherwise React reads
+    // the spread `key` as its own key prop and warns ("a key prop is being spread
+    // into JSX"). The column is still identified by `name` everywhere else.
+    const { key: _columnKey, ...attributeProps } = attribute;
 
     const options = useMemo(() => {
         const isDropDownCol = ['select', 'multiselect', 'radio'].includes(attribute.type);
@@ -327,7 +340,7 @@ const CompWrapper = ({
                   id={compIdEdit}
                   onChange={onChange}
                   className={`${editMode ? 'border' : ''} ${className}`}
-                  {...attribute}
+                  {...attributeProps}
                   row={row}
                   options={options}
                   meta={optionsMeta}
@@ -386,7 +399,9 @@ const CardColumnField = ({
 
     const formatClass = attr.formatFn === 'title' ? 'capitalize' : '';
     const isValueFormatted = isImg || Boolean(formatFunctions[attr.formatFn]);
-    const headerTextJustifyClass = justifyClass[attr.justify || 'left']?.header || justifyClass[attr.justify || 'left'];
+    // Header alignment is independent of value `justify`; defaults to left
+    // (the header always rendered left before, so this is backward-compatible).
+    const headerTextJustifyClass = justifyClass[attr.headerJustify || 'left']?.header || justifyClass[attr.headerJustify || 'left'];
     const valueTextJustifyClass = justifyClass[attr.justify || 'left']?.value || justifyClass[attr.justify || 'left'];
     let valueFormattedForSearchParams, valueFormattedForDisplay, valueFormattedForEdit, searchParams, url;
 
@@ -509,11 +524,11 @@ const CardColumnField = ({
             {/* Header area — always rendered when there's a label or a menu in col layout */}
             {headerVisible && (
                 <div
-                    className={`${attr.hideHeader ? '' : attr.headerFontStyle === 'button' ? theme.linkColValue : theme.header}`}
+                    className={`${attr.hideHeader ? '' : `${attr.headerFontStyle === 'button' ? theme.linkColValue : theme.header} ${theme[headerTextJustifyClass] || ''} ${caseClass[attr.headerCase || '']}`}`}
                     style={{maxWidth: isRowLayout && !attr.hideValue ? `${headerWidth || 50}%` : undefined}}
                 >
                     {!attr.hideHeader && (
-                        <span className={`${theme[headerTextJustifyClass]} ${theme[attr.headerFontStyle || 'textXS']}`}>
+                        <span className={`${theme[attr.headerFontStyle || 'textXS']}`}>
                             {attr.customName || attr.display_name || attr.normalName || attr.name}
                             {attr?.description ? <DefaultComp className={theme.description} value={attr.description} /> : null}
                         </span>
@@ -849,6 +864,14 @@ export default function Card ({
         gridTemplateColumns: `repeat(${cardsGridSize || 1}, minmax(0, 1fr))`,
         gap: cardsGridGap,
         paddingTop: imageTopMargin ? `${imageTopMargin}px` : undefined,
+        // Fill behaviour (BC): when the section is `height:'fill'` it gives this a
+        // flex-column parent with a definite height → `flex:1` fills it and the card
+        // rows grow to that height. In an `auto` (content-height) parent, `flex` is
+        // ignored and `minmax(max-content,1fr)` resolves to max-content = the legacy
+        // `auto` row, so nothing changes.
+        flex: '1 1 auto',
+        minHeight: 0,
+        gridAutoRows: 'minmax(max-content, 1fr)',
     }), [cardsGridSize, cardsGridGap, imageTopMargin]);
 
     // Cells grid (inner, per-record): cells laid out across the card.
@@ -910,6 +933,12 @@ export default function Card ({
         gap: cellsGridGap,
         backgroundColor: cardsBgColor,
         padding: cardsPadding,
+        // Pack cells to the top. When the card box is taller than its cells (a
+        // `height:'fill'` card with less content than its section), the grid's
+        // default `align-content: stretch` would distribute the slack across the
+        // cell rows; `start` keeps content top-aligned with the slack at the
+        // bottom. BC: no slack (content == box) → identical to stretch.
+        alignContent: 'start',
         ...(cellsRowHeight ? { gridAutoRows: `${cellsRowHeight}px` } :
             hasRowSpan ? { gridAutoRows: 'minmax(0, auto)' } : {}),
     }), [gridTemplateColumns, cellsGridGap, cardsBgColor, cardsPadding, cellsRowHeight, hasRowSpan]);

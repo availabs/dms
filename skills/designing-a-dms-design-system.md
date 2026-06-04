@@ -530,40 +530,85 @@ brand-output/
 A reviewer (designer, engineer, prospective customer) opens any
 single HTML file and needs to be able to **reach every other page
 in the deliverable in one click**. The five `design-system/` pages
-and every `pages/` example must include:
+and every `pages/` example must include two navigation mechanisms:
 
-- A **meta-nav strip** at the very top of `<body>` (above the
-  in-DMS TopNav each page renders for its own simulated content)
-  with a brand label and direct links to all five `design-system/`
-  pages and every `pages/` example. The current page is marked
-  active. Keep this strip visually distinct from the DMS chrome
-  below it — it's documentation scaffolding, not part of the
-  rendered surface. A thin strip with mono labels and hairline
-  separators is the typical treatment.
-- A **footer link block** repeating the same index in the page
-  footer, so a long-scroll page is navigable from the bottom too.
+#### 7.0.1 TopNav integration
 
-The meta-nav is the documentation scaffolding that holds the
-deliverable together. Without it, a page in `pages/` is an island
-— a reviewer who lands on `marketing-homepage.html` first has no
-way to discover the design system pages, and vice versa.
+The TopNav on `design-system/` pages doubles as the design system
+navigation. Instead of showing placeholder product nav items, it
+shows the brand logo, a "Design System" label, and direct links to
+all five `design-system/` pages. The current page is highlighted
+with the brand accent color. A subtle page counter (e.g. "3 / 5")
+sits at the far right.
 
-The strip is the only piece of "documentation chrome" allowed on
-pages in `pages/`. Everything else on those pages must look like a
-real product surface. This is a deliberate compromise: the strip
-breaks the in-product illusion slightly, but the alternative
-(making reviewers navigate the deliverable by re-typing URLs)
-makes the deliverable unusable as a deliverable.
+This keeps the TopNav functional rather than decorative, while
+still demonstrating the brand's TopNav styling (floating, rounded,
+shadow, etc.). The product-style TopNav with real site navigation
+items is documented as a pattern on `layouts.html`.
 
-**The strip is documentation chrome, not Layout chrome.** Style it
-via a single CSS class in `_shared.css` (convention:
-`.<brand-prefix>-meta-nav`). The strip never appears on a live DMS
-site — a real DMS page hasn't got a "go to design-system" link.
+On `pages/` examples the TopNav should show the product navigation
+(not the design system links) — those pages demonstrate real
+product surfaces.
 
-If you find yourself wanting to theme the strip via theme keys
-(`theme.metaNav`, etc.), stop: you're conflating documentation chrome
-with product chrome. Keep the strip's styling out of `theme.js`
-entirely; it ships in the mockup `_shared.css` only.
+#### 7.0.2 Floating navigation widget
+
+Every page (`design-system/` and `pages/`) must include a
+**floating navigation widget** — a small icon button fixed to the
+**bottom-right** corner of the viewport. Clicking it opens a panel
+listing all design system and example pages. The current page is
+marked with the brand accent color. The widget:
+
+- Defaults to a compact icon (40×40px rounded button, brand-dark
+  background, white hamburger/menu icon)
+- On click, toggles a white panel above it with the full page list
+- Uses `position: fixed` so it stays visible while scrolling
+- Animates open/close with opacity + transform transition
+- Has high z-index (9999) so it floats above page content
+
+**Use inline styles on the widget elements.** Do not rely on
+external CSS classes — the widget must render correctly regardless
+of stylesheet loading order or file-extension MIME-type issues.
+The inline onclick handler toggles the panel via direct style
+manipulation (opacity, transform, pointerEvents).
+
+Widget HTML template (adapt colors/links per brand):
+
+```html
+<div id="dsWidget" style="position:fixed;bottom:24px;right:24px;z-index:9999;font-family:'Source Sans 3',system-ui,sans-serif;">
+  <div id="dsPanel" style="position:absolute;bottom:52px;right:0;background:white;border-radius:10px;padding:12px 0;min-width:190px;box-shadow:0 4px 20px rgba(0,0,0,0.12);opacity:0;transform:translateY(8px) scale(0.95);pointer-events:none;transition:opacity 0.15s,transform 0.15s;">
+    <div style="font-family:..brand-display..;font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:0.08em;color:..brand-muted..;padding:0 16px 8px;border-bottom:1px solid ..brand-border..;margin-bottom:4px;">Brand Design System</div>
+    <a href="theme.html" style="display:flex;align-items:center;gap:8px;padding:6px 16px;font-size:13px;font-weight:600;color:..brand-accent..;text-decoration:none;">
+      <span style="font-size:10px;font-weight:500;color:..brand-muted..;min-width:14px;">1</span> Theme</a>
+    <!-- ...remaining links, active page gets brand-accent color, others get brand-text color... -->
+  </div>
+  <button onclick="var p=document.getElementById('dsPanel');var o=p.style.opacity==='1';p.style.opacity=o?'0':'1';p.style.transform=o?'translateY(8px) scale(0.95)':'translateY(0) scale(1)';p.style.pointerEvents=o?'none':'auto';"
+          style="width:40px;height:40px;border-radius:10px;background:..brand-dark..;color:white;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.15);"
+          aria-label="Design system navigation">
+    <svg xmlns="http://www.w3.org/2000/svg" style="width:20px;height:20px;" viewBox="0 0 20 20" fill="currentColor">
+      <path d="M2 4.75A.75.75 0 0 1 2.75 4h14.5a.75.75 0 0 1 0 1.5H2.75A.75.75 0 0 1 2 4.75Zm0 10.5a.75.75 0 0 1 .75-.75h7.5a.75.75 0 0 1 0 1.5h-7.5a.75.75 0 0 1-.75-.75ZM2 10a.75.75 0 0 1 .75-.75h14.5a.75.75 0 0 1 0 1.5H2.75A.75.75 0 0 1 2 10Z"/></svg>
+  </button>
+</div>
+```
+
+Place the widget just before `</body>` on every page.
+
+#### 7.0.3 Footer link block
+
+A **footer link block** repeating the page index at the bottom of
+the page content, so a long-scroll page is navigable from the
+bottom too.
+
+#### Why two mechanisms?
+
+The TopNav links are visible immediately but scroll out of view on
+long pages. The floating widget stays accessible at all scroll
+positions but is small and requires a click. Together they ensure
+a reviewer can always navigate, whether they're at the top of a
+page or deep into a 900-line components reference.
+
+The widget is documentation scaffolding, not Layout chrome. It
+never appears on a live DMS site. Keep its styling out of
+`theme.js` — it ships inline in the mockup HTML only.
 
 ### 7.1 The "pages as documentation" principle
 
@@ -906,6 +951,28 @@ The 12-column grid gives authors finer-grained span control (1/12 ≈
 8.3% increments) and matches the contemporary web-design grid
 vocabulary. New themes should default to 12 unless they have a
 deliberate reason to stay on 6.
+
+**The gap-0 / padding-gutter / inner-box-chrome model (mockups must follow this).**
+The sectionArray grid is **`gap-0`**; the gutter between sections is **per-section
+padding**, and a section's **border / radius / background render on an inner box** inside
+that padding. This is what lets distinct sections either sit apart *or* fuse into one
+visual card. So when authoring the HTML mockups in `pages/`:
+- Build the section grid as `grid grid-cols-12 gap-0` (no grid `gap`); express the gutter as
+  **padding on each section wrapper** (e.g. `p-3`). Component-internal flex gaps
+  (`gap-2/3/4` inside a card) are fine — only the *section* grid is gap-0.
+- A bordered "card" = a section whose **inner** element carries `border + rounded + bg`,
+  with the section padding *outside* it as the gutter.
+- A **compound card** (header + chart as one card, etc.) = two adjacent sections with the
+  **shared-edge padding zeroed** and borders/corners coordinated (top piece: border
+  top/sides + rounded-t; bottom piece: border sides/bottom + rounded-b). Author it that way
+  so it maps 1:1 to two DMS sections.
+- **Content padding inside a card is the component's**, not the section gutter — don't
+  conflate them.
+
+Document this on `grid.html` (the spec table should list `gap-0`, `defaultPaddingStep`, the
+curated `paddings` steps, `borderSides`, `radiusCorners`, `backgrounds`) with a worked
+compound-card example. See
+[`translating-design-system-to-dms-theme.md` §3.1.58](./translating-design-system-to-dms-theme.md#3158-the-section-layout-model--gap-0-padding-gutters-inner-box-chrome).
 
 **Themes that constrain the page differently** (the WCDB case):
 some brands split the page into a *higher-level layout grid* via the

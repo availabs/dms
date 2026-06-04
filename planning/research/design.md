@@ -1,0 +1,3 @@
+read the dms skills folder, specifically for dms design system. I wanna generate dms design system at src/themes/mny/design. the main refs for this design system should be the images in   
+the references folder. this is already a complete design system, that we wanna convert to a dms design system. you can also look at https://mitigateny.org, which is the implementation of  
+this currently. you can also look at dms themes file at themes/mny. for now, generate only the design theme files, and don't generate any pages.    

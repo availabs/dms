@@ -39,7 +39,9 @@ function resolveSectionHeightStyles(heightKey, sectionTheme) {
     if (resolved === 'fill') {
         return {
             wrapperStyle: { flex: '1 1 auto', minHeight: 0, display: 'flex', flexDirection: 'column' },
-            contentWrapperStyle: { flex: '1 1 auto', minHeight: 0 },
+            // contentWrapper is itself a flex column so the section component (Card,
+            // graph, …) can `flex-1`/`h-full` up to the section height.
+            contentWrapperStyle: { flex: '1 1 auto', minHeight: 0, display: 'flex', flexDirection: 'column' },
         };
     }
     return {

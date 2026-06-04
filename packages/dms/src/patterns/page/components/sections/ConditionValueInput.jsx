@@ -135,7 +135,7 @@ const useColumnOptions = (columnName, columns, operation, search, selectedValues
     return {options, loading};
 };
 
-export const ConditionValueInput = ({node, path, columns, updateNodeAtPath, siblingConditions = []}) => {
+export const ConditionValueInput = ({node, path, columns, updateNodeAtPath, siblingConditions = [], activeStyle}) => {
     const {UI, theme: themeFromContext = {}} = useContext(ThemeContext) || {};
     const {ColumnTypes} = UI;
     const t = { ...complexFiltersTheme, ...getComponentTheme(themeFromContext, 'complexFilters') };
@@ -197,6 +197,7 @@ export const ConditionValueInput = ({node, path, columns, updateNodeAtPath, sibl
 
     return (
         <Comp
+            activeStyle={activeStyle}
             className={t.valueComp}
             loading={loading}
             value={value}

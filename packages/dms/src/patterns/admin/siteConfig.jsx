@@ -48,6 +48,7 @@ const adminConfig = ({
   dmsEnvById = {},
   pattern: patternData,
   authPermissions = {},
+  isMultiTenant = false,
 }) => {
   const format = cloneDeep(adminFormat);
   format.app = app;
@@ -99,6 +100,7 @@ const adminConfig = ({
                 dmsEnvs,
                 dmsEnvById,
                 authPermissions,
+                isMultiTenant,
               }}
             >
               <ThemeContext.Provider value={{ theme, themes, UI }}>
@@ -128,6 +130,7 @@ const adminConfig = ({
               </SectionGroup>
             ),
             path: "create",
+            action: "list",
           },
           {
             type: (props) => (
@@ -171,6 +174,7 @@ const patternConfig = ({
   rightMenu = <DefaultMenu />,
   dmsEnvs = [],
   dmsEnvById = {},
+  isMultiTenant = false,
 }) => {
   const format = cloneDeep(pattern);
   format.app = app;
@@ -222,6 +226,7 @@ const patternConfig = ({
                 UI,
                 dmsEnvs,
                 dmsEnvById,
+                isMultiTenant,
               }}
             >
               <ThemeContext.Provider value={{ theme, themes, UI }}>

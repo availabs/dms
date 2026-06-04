@@ -17,6 +17,26 @@ const VIRTUAL_VIEWPORT_INCREASE = { top: 300, bottom: 300, left: 100, right: 100
 const defColSize = 250;
 const minColSize = 120;
 
+// The table is a CSS grid, so `grid-template-columns` must declare a width per
+// column. A column with an explicit author `size` (set in the toolbar or pinned by
+// a drag-resize) gets a FIXED `${size}px` track; a column with no explicit size gets
+// a `minmax(${default}px, 1fr)` track so it stretches to share leftover width while
+// never shrinking below the default. This lets fixed and elastic columns coexist and
+// the grid fill its container instead of leaving empty space. Returns the column
+// augmented with `_hasFixedSize` (tells the cell whether to pin its width) and
+// `_track` (the grid-template token). `size` stays defaulted for existing consumers.
+const augmentColSizing = (c, defaultColumnSize, forceFixed = false) => {
+    const hasFixed = forceFixed ||
+        (c.size !== undefined && c.size !== null && c.size !== '' && !isNaN(+c.size));
+    const size = hasFixed ? +c.size : defaultColumnSize;
+    return {
+        ...c,
+        size,
+        _hasFixedSize: hasFixed,
+        _track: hasFixed ? `${size}px` : `minmax(${size}px, 1fr)`,
+    };
+};
+
 const windowFake = typeof window === "undefined" ? {} : window;
 export const TableCellContext = createContext({});
 export const TableStructureContext = createContext({});
@@ -89,10 +109,11 @@ const AddNew = ({allowAdddNew,
         .filter(attr => !attr._isActionsColumn);
 
     const slicedGridTemplateColumns = useMemo(() => {
+        // i===0 carries the add-new button, so its track is the column width minus the
+        // button (kept fixed-px for a definite button slot); the rest use the shared
+        // `_track` so the add-new row aligns with the body's fixed/flex columns.
         const cols = attrsToRender
-            .map((v, i) => v.size ?
-                `${i === 0 ? (+v.size - addNewButtonWidth) : v.size}px` :
-                `${i === 0 ? (defaultNumColSize - addNewButtonWidth) : defaultColumnSize}px`)
+            .map((v, i) => i === 0 ? `${(+v.size || defaultColumnSize) - addNewButtonWidth}px` : v._track)
             .join(' ')
 
 
@@ -139,7 +160,7 @@ const AddNew = ({allowAdddNew,
                             <div
                                 key={`add-new-${attrI}`}
                                 className={`flex border border-slate-50 p-1 bg-white hover:bg-blue-50 w-full h-full'`}
-                                style={{width: size}}
+                                style={{width: attrI === 0 ? size : (attribute._hasFixedSize ? attribute.size : undefined)}}
                             >
                                 <Comp
                                     key={`${attribute.name}`}
@@ -203,11 +224,13 @@ export default function Table ({
 
     const actionsColSize = 50;
     const structureValues = useMemo(() => {
-        const visibleAttributes = columns.filter(c => c.show && !c.actionType).map(c => ({...c, size: c.size || defaultColumnSize}));
-        const actionColumns = columns.filter(c => c.show && c.actionType && (c.display === 'both' || isEdit)).map(c => ({...c, size: c.size || defaultColumnSize}));
+        const visibleAttributes = columns.filter(c => c.show && !c.actionType).map(c => augmentColSizing(c, defaultColumnSize));
+        const actionColumns = columns.filter(c => c.show && c.actionType && (c.display === 'both' || isEdit)).map(c => augmentColSizing(c, defaultColumnSize));
         const regularAttrsWithoutOpenOut = visibleAttributes.filter(c => !c.openOut);
+        // The actions column is always a fixed, narrow utility column.
+        const actionsCol = augmentColSizing({ _isActionsColumn: true, name: '_actions', display_name: ' ', actionColumns, size: actionsColSize }, defaultColumnSize, true);
         const visibleAttrsWithoutOpenOut = actionColumns.length
-            ? [{ _isActionsColumn: true, name: '_actions', display_name: ' ', actionColumns, size: actionsColSize }, ...regularAttrsWithoutOpenOut]
+            ? [actionsCol, ...regularAttrsWithoutOpenOut]
             : regularAttrsWithoutOpenOut;
         const openOutAttributes = visibleAttributes.filter(c => c.openOut);
 

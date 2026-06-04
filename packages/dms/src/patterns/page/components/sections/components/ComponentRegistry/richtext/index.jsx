@@ -23,7 +23,7 @@ function emailToColor(email) {
 }
 
 export const RichtextEdit = ({value, onChange}) => {
-    const { theme, UI } = useContext(ThemeContext)
+    const { theme = {}, UI } = useContext(ThemeContext)
     const { state, setState, sectionId } = useContext(ComponentContext);
     const { user, fileUploadInfo } = useContext(CMSContext) || {};
     const { ColumnTypes: {lexical: Lexical}} = UI;
@@ -48,14 +48,20 @@ export const RichtextEdit = ({value, onChange}) => {
     // Sync state.display changes and text to element-data via onChange
     useEffect(() => {
         const newData = {
-            bgColor: state?.display?.bgColor || 'rgba(0,0,0,0)',
-            isCard: state?.display?.isCard || '',
-            showToolbar: state?.display?.showToolbar || false,
+            bgColor: state?.display?.bgColor ?? bgColor ?? 'rgba(0,0,0,0)',
+            isCard: state?.display?.isCard ?? isCard ?? '',
+            showToolbar: state?.display?.showToolbar ?? showToolbar ?? false,
             text
         };
         const currentData = value && isJson(value) ? JSON.parse(value) : {};
+        const oldData = {
+            bgColor: currentData.bgColor,
+            isCard: currentData.isCard,
+            showToolbar: currentData.showToolbar,
+            text: currentData.text
+        }
 
-        if (!isEqual(newData, {bgColor: currentData.bgColor, isCard: currentData.isCard, showToolbar: currentData.showToolbar, text: currentData.text})) {
+        if (!isEqual(newData, oldData)) {
             onChange(JSON.stringify(newData));
         }
     }, [state?.display?.bgColor, state?.display?.isCard, state?.display?.showToolbar, text]);
@@ -81,7 +87,7 @@ export const RichtextEdit = ({value, onChange}) => {
     return (
         <div className='w-full'>
             <div className='relative'>
-                <div className='flex'>
+                <div className={`flex ${theme?.richtext?.contentPadding ?? 'p-4'}`}>
                     {isCard === 'Handwritten' && <div className='w-[50px]'> {'<---'} </div>}
                     <div className='flex-1'>
                         <Lexical.EditComp
@@ -110,7 +116,7 @@ RichtextEdit.settings = {
 }
 
 export const RichtextView = ({value}) => {
-  const { theme , UI } = useContext(ThemeContext)
+  const { theme = {} , UI } = useContext(ThemeContext)
   // console.log('richtext view - UI', UI)
   const { ColumnTypes: { lexical: Lexical } } = UI;
     if (!value) return <div className='h-6' />
@@ -129,7 +135,7 @@ export const RichtextView = ({value}) => {
 
 
     return (
-        <div className='flex'>
+        <div className={`flex ${theme?.richtext?.contentPadding ?? 'p-4'}`}>
             {['Handwritten', 'Handwritten_1', 'Handwritten_2', 'Handwritten_3'].includes(isCard)  && <div className='pt-2 pr-2'><img src='/themes/mny/handwritten_arrow.svg'/></div>}
             <div className='flex-1'>
             <Lexical.ViewComp

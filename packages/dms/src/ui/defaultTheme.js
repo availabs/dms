@@ -16,6 +16,7 @@ import {dialogTheme} from "./components/Dialog.theme";
 import {dialogActionsTheme} from "./components/DialogActions.theme";
 import {modalTheme} from "./components/Modal.theme";
 import {labelTheme} from "./components/Label";
+import {pillTheme} from "./components/Pill.theme";
 import {multiselectTheme} from "./components/MultiSelect.theme";
 import {tableTheme} from "./components/table/table.theme";
 import {nestableTheme} from "./components/draggableNav"
@@ -77,6 +78,7 @@ const components = {
     dialogActions: dialogActionsTheme,
     modal: modalTheme,
     label: labelTheme,
+    pill: pillTheme,
     multiselect: multiselectTheme,
     table: tableTheme,
     lexical:lexicalTheme,

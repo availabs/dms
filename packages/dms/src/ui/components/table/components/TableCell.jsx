@@ -419,13 +419,19 @@ export const TableCell = memo(function TableCell ({
     );
 
     const compClassName = useMemo(() => {
+        // Per-column valueFontStyle overrides typography on the cell — mirrors
+        // the Card cell pattern, so a column can pick a textSettings key
+        // (e.g. `numDiag` for diagnostic / no-verdict numbers) and have it
+        // win over the table's default `cellInner` styling.
+        const valueStyleClass = attribute.valueFontStyle ? (theme?.[attribute.valueFontStyle] || '') : '';
         return `${ openOutTitle ? theme?.openOutTitle : attribute.openOut ? theme?.openOutValue : theme?.cellInner }
                 ${justifyClass[attribute.justify] || ''} ${bgColor} ${attribute.formatFn === 'title' ? 'capitalize' : ''}
                 ${attribute.wrapText ? theme.wrapText : ''}
                 ${renderTextBox ? theme.cellEditableTextBox : ''}
-                ${isHighlighted && highlightedRow?.style === 'bold' ? 'font-bold' : ''}`;
+                ${isHighlighted && highlightedRow?.style === 'bold' ? 'font-bold' : ''}
+                ${valueStyleClass}`;
     }, [
-        attribute.openOut, attribute.justify, attribute.wrapText, attribute.formatFn,
+        attribute.openOut, attribute.justify, attribute.wrapText, attribute.formatFn, attribute.valueFontStyle,
         openOutTitle, renderTextBox, theme, bgColor, isHighlighted, highlightedRow?.style
     ]);
 
@@ -447,14 +453,17 @@ export const TableCell = memo(function TableCell ({
             : {};
 
         return {
-            width: attribute.size,
+            // Pin width only for explicitly-sized columns; flexible columns leave width
+            // unset so the cell fills its `minmax(default, 1fr)` grid track (and stays
+            // aligned with the header, which does the same).
+            width: attribute._hasFixedSize ? attribute.size : undefined,
             ...highlightBorder,
             ...(isSelected && !renderTextBox && {
                     borderWidth: '1px',
                     ...selectionEdgeClassNames[edge]
                 })
         };
-    }, [ attribute.openOut, openOutTitle, attribute.size, isSelected, renderTextBox, edge, isHighlighted, highlightedRow?.style, attrI, visibleAttrsWithoutOpenOut.length ]);
+    }, [ attribute.openOut, openOutTitle, attribute._hasFixedSize, attribute.size, isSelected, renderTextBox, edge, isHighlighted, highlightedRow?.style, attrI, visibleAttrsWithoutOpenOut.length ]);
 
     const disableCellEvents = attribute.isLink || attribute.actionType || attribute._isActionsColumn;
     const cellEvents = useMemo(

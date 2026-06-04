@@ -26,7 +26,7 @@ const theme = {
   paragraph: "m-0 relative", //'PlaygroundEditorTheme__paragraph',
   
   quote: "m-0 mb-2 py-6 font-['Oswald'] text-[30px] leading-[36px] text-[#2D3E4C] border-l-4 border-[#37576B] pl-4", //'PlaygroundEditorTheme__quote',
-  link: "text-[#37576B] font-[500] no-underline inline-block hover:underline hover:cursor-pointer", //"PlaygroundEditorTheme__link",
+  link: "text-[#37576B] font-[600] no-underline inline-block hover:underline hover:cursor-pointer", //"PlaygroundEditorTheme__link",
   
   // editorShell: "rounded-[2px] relative", //'.editor-shell',
   

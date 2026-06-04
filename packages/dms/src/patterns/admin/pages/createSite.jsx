@@ -1,18 +1,26 @@
 import React from 'react'
 import {AdminContext} from "../context";
 import { useFalcor } from "@availabs/avl-falcor";
-import { useNavigate } from "react-router";
+import { useNavigate, useNavigation } from "react-router";
 import { AuthContext } from '../../auth/context';
 import { ThemeContext } from '../../../ui/useTheme';
 import { getInstance } from '../../../utils/type-utils';
 
 
-export default function NewSite ({ apiUpdate }) {
+export default function NewSite ({ apiUpdate, dataItems }) {
 	const { UI } = React.useContext(ThemeContext);
 	const { AuthAPI, PROJECT_NAME, setUser } = React.useContext(AuthContext)
 	const { type: siteType, app, baseUrl } = React.useContext(AdminContext) || {};
 	const { falcor } = useFalcor();
 	const navigate = useNavigate();
+	const { state: navState } = useNavigation();
+	const isLoading = navState === 'loading';
+
+	React.useEffect(() => {
+		if (isLoading) return;
+		if (dataItems === undefined) return;
+		if (dataItems?.length > 0) navigate(baseUrl || '/');
+	}, [dataItems, isLoading]);
 	const {Input, Button} = UI;
 	const [newUser, setNewUser] = React.useState({email: '', password: '', verify: ''});
 	const [status, setStatus] = React.useState('');

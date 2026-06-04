@@ -71,6 +71,8 @@ export const GraphComponent = props => {
     const isDollars = Boolean(graphFormat.tooltip?.isDollars);
     return {
       ...graphFormat.tooltip,
+      // map config `showTotal` → avl-graph DefaultHoverComp `showTotals` (default true = BC)
+      showTotals: get(graphFormat, ["tooltip", "showTotal"], true),
       valueFormat: getFormatFunc(get(graphFormat, ["tooltip", "valueFormat"]), isDollars),
       yFormat: getFormatFunc(get(graphFormat, ["tooltip", "yFormat"]), isDollars)
     };
@@ -107,6 +109,12 @@ export const GraphComponent = props => {
         paddingInner={ get(graphFormat, "paddingInner", 0.0) }
         paddingOuter={ get(graphFormat, "paddingOuter", 0.0) }
 
+        interpolation={ get(graphFormat, "interpolation", "catmullrom") }
+        strokeWidth={ get(graphFormat, "strokeWidth", 1) }
+        area={ get(graphFormat, "area", false) }
+        areaOpacity={ get(graphFormat, "areaOpacity", 0.15) }
+        showMarks={ get(graphFormat, "showMarks", false) }
+
         tileMethod={ get(graphFormat, "tileMethod", "treemapSquarify") }
         indexTextSize={ get(graphFormat, "indexTextSize", "medium") }
         valueTextSize={ get(graphFormat, "valueTextSize", "medium") }
@@ -116,14 +124,28 @@ export const GraphComponent = props => {
           rotateLabels: get(graphFormat, ["xAxis", "rotateLabels"], false),
           tickDensity: get(graphFormat, ["xAxis", "tickDensity"], 2),
           showGridLines: get(graphFormat, ["xAxis", "showGridLines"], false),
+          gridLineOpacity: get(graphFormat, ["xAxis", "gridLineOpacity"], 0.25),
+          axisColor: get(graphFormat, ["xAxis", "axisColor"], "currentColor"),
           show: get(graphFormat, ["xAxis", "show"], true)
         } }
         yAxis={ {
           label: get(graphFormat, ["yAxis", "label"]),
           rotateLabels: get(graphFormat, ["yAxis", "rotateLabels"], false),
           showGridLines: get(graphFormat, ["yAxis", "showGridLines"], true),
+          gridLineOpacity: get(graphFormat, ["yAxis", "gridLineOpacity"], 0.25),
+          axisColor: get(graphFormat, ["yAxis", "axisColor"], "currentColor"),
           show: get(graphFormat, ["yAxis", "show"], true),
-          format: getFormatFunc(get(graphFormat, ["yAxis", "format"]), get(graphFormat, ["yAxis", "isDollars"]))
+          format: getFormatFunc(get(graphFormat, ["yAxis", "format"]), get(graphFormat, ["yAxis", "isDollars"])),
+          // Custom y-domain (unset → auto-scale). Read by the avl-graph LineGraph.
+          domainMin: get(graphFormat, ["yAxis", "domainMin"]),
+          domainMax: get(graphFormat, ["yAxis", "domainMax"])
+        } }
+        pieAxis={ {
+          showAxis: get(graphFormat, ["pieAxis", "showAxis"], false),
+          tickDensity: get(graphFormat, ["pieAxis", "tickDensity"], 0.5),
+          showValue: get(graphFormat, ["pieAxis", "showValue"], false),
+          valueTextSize: get(graphFormat, ["pieAxis", "valueTextSize"], false),
+          valueFormat: getFormatFunc(get(graphFormat, ["pieAxis", "valueFormat"]), get(graphFormat, ["pieAxis", "isDollars"], false)),
         } }
         margin={ margin }
         legend={ get(graphFormat, "legend", {}) }

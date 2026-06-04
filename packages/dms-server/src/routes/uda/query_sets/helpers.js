@@ -17,7 +17,8 @@ const { extractTimeFilterValues, buildTimeFilterCH } = require('../time-filter.j
  * Build a ClickHouse-safe WHERE clause from simple filter/exclude/gt/.../like
  * condition objects. Values are inlined into the SQL (escaped) rather than
  * parameterized — matches avail-falcor behavior. See handleFiltersCH upstream.
- */
+ * TODO -- may need special handling for join cases 
+*/
 function handleFiltersCH({
   filter = {},
   exclude = {},
@@ -26,6 +27,7 @@ function handleFiltersCH({
   lt = {},
   lte = {},
   like = {},
+  joinPresent = false
 }) {
   const escapeValue = (v) =>
     typeof v === 'string' ? `'${v.replace(/'/g, "''")}'` : v;

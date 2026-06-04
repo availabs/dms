@@ -34,6 +34,7 @@ const pagesConfig = ({
   siteType,
   baseUrl = "/",
   authPermissions,
+  authBaseUrl = '/auth',
   themes = { default: {} },
   pattern,
   datasources,
@@ -128,6 +129,7 @@ const pagesConfig = ({
               falcor,
               patternFilters: [...patternFilters, {id: 'user_id_default_filter', searchKey: 'user_id', values: user?.id}],
               authPermissions,
+              authBaseUrl,
               mapeditorKeys,
               isUserAuthed: (reqPermissions, customAuthPermissions) => {
                 if (!customAuthPermissions) {
@@ -158,11 +160,6 @@ const pagesConfig = ({
         path: "/*",
         authPermissions, // passed down from dmsSiteFactory. these are saved authorisations in patterns.
         filter: {
-          options: JSON.stringify({
-            filter: {
-              "data->>'template_id'": ["null"],
-            },
-          }),
           attributes: [
             "title", "index", "authPermissions", "url_slug","parent",
             "published", "description", "icon", "navOptions", "hide_in_nav",
