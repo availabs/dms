@@ -131,6 +131,104 @@ async function simpleFilterLength(ctx, options) {
   return rows?.[0]?.numrows ?? 0;
 }
 
+async function buildSimpleFilterSql(ctx, options, attributes, indices) {
+  const num = indices.to - indices.from + 1;
+  const { isDms, db, app, type, table_schema, table_name, dmsAttributes } = ctx;
+
+  let sanitizedAttrs = sanitizeName(attributes).filter((f) => f);
+  if (!sanitizedAttrs.length) {
+    return {
+      sql: null,
+      values: [],
+      columnNameMap: {},
+    };
+  }
+
+  // Translate PG-specific SQL to SQLite equivalents
+  if (db.type === 'sqlite') {
+    sanitizedAttrs = sanitizedAttrs.map(translatePgToSqlite);
+  }
+
+  // Map long column names to short aliases
+  const columnNameMap = sanitizedAttrs.reduce((acc, attr, i) => {
+    const responseName = getResponseColumnName(attr);
+    if (attr.toLowerCase().includes(' as ') && responseName.length > 60) {
+      acc[attr] = attr.replace(` ${responseName}`, ` col_${i}`);
+    }
+    return acc;
+  }, {});
+
+  const {
+    filter = {}, exclude = {},
+    gt = {}, gte = {}, lt = {}, lte = {}, like = {},
+    filterRelation = 'and',
+    filterGroups = {},
+    groupBy = [], having = [], orderBy = {},
+    normalFilter = [], meta = {},
+    join = {}
+  } = JSON.parse(options);
+
+  if (normalFilter.length) {
+    normalFilter.forEach(({ column, values }) => {
+      (filter[column] ??= []).push(...values);
+    });
+  }
+
+  const oldValues = [
+    ...(isDms ? [[app], [type]] : []),
+    ...getValuesExceptNulls(filter), ...getValuesExceptNulls(exclude),
+    ...getValuesExceptNulls(gt), ...getValuesExceptNulls(gte),
+    ...getValuesExceptNulls(lt), ...getValuesExceptNulls(lte),
+    ...getValuesExceptNulls(like),
+  ];
+  const newValues = getValuesFromGroup(filterGroups);
+  const values = [...oldValues, ...newValues];
+
+  // Detect whether the request includes a real join (server-side mirror of
+  // calculateIsJoinPresent) so the WHERE builder can disambiguate base-table
+  // columns like app/type with a `ds.` prefix.
+  const joinPresent = !!join &&
+    (Object.keys(join.sources || {}).length > 1 ||
+      (Object.keys(join.sources || {}).length === 1 && Object.keys(join.sources || {})[0] !== 'ds'));
+
+  const combinedWhere = buildCombinedWhere({
+    filter, exclude, gt, gte, lt, lte, like,
+    filterGroups, isDms, app, type, oldValues, dbType: db.type, joinPresent,
+  });
+
+  const { joins, merges } = await buildJoin({join});
+  const hasMerge = merges.length > 0;
+  const hasJoin = joins.length > 0;
+
+  let fromClause;
+  if (hasMerge) {
+    fromClause = `(SELECT * FROM ${table_schema}.${table_name} ${merges}) AS ds`;
+    if (hasJoin) {
+      fromClause += ` ${joins}`;
+    }
+  } else {
+    //default case for no merge
+    //could have 1 or more joins
+    fromClause = `${table_schema}.${table_name} ${hasJoin ? ' as ds ' : ''} ${joins}`;
+  }
+
+  const sql = `
+    SELECT ${sanitizedAttrs.map((c) => quoteAlias(columnNameMap[c] || c)).join(', ')}
+    FROM ${fromClause}
+    ${combinedWhere}
+    ${handleGroupBy(groupBy)}
+    ${handleHaving(having)}
+    ${handleOrderBy(orderBy, dmsAttributes)}
+    LIMIT ${+num}
+    OFFSET ${indices.from}
+  `;
+  return {
+    sql,
+    values,
+    columnNameMap,
+  };
+}
+
 async function simpleFilter(ctx, options, attributes, indices) {
   const num = indices.to - indices.from + 1;
   const { isDms, db, app, type, table_schema, table_name, dmsAttributes } = ctx;
@@ -287,6 +385,7 @@ module.exports = {
   simpleFilterLength,
   simpleFilter,
   dataById,
+  buildSimpleFilterSql,
   // Exported for testing
   translatePgToSqlite,
 };

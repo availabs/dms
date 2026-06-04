@@ -353,6 +353,37 @@ const normalizeLayerClickFilterConfig = (config = {}) => {
   };
 };
 
+const normalizeLayerJoinConfig = (config = {}, legacyConfig = {}) => {
+  const sourceConfig =
+    config && Object.keys(config).length
+      ? config
+      : legacyConfig && Object.keys(legacyConfig).length
+        ? legacyConfig
+        : {};
+  const joinSourceConfig = sourceConfig?.source || sourceConfig?.linked || {};
+  const joinQueryConfig = sourceConfig?.query || sourceConfig?.linkedQuery || {};
+
+  return {
+    enabled: Boolean(sourceConfig?.enabled),
+    featureKeyColumn: sourceConfig?.featureKeyColumn || "",
+    source: {
+      sourceId: joinSourceConfig?.sourceId ?? null,
+      viewId: joinSourceConfig?.viewId ?? null,
+      env: joinSourceConfig?.env ?? null,
+    },
+    joinColumn: sourceConfig?.joinColumn || sourceConfig?.linkedJoinColumn || "",
+    query: {
+      filters: joinQueryConfig?.filters || {},
+      groupBy: Array.isArray(joinQueryConfig?.groupBy) ? joinQueryConfig.groupBy : [],
+      columns: Array.isArray(joinQueryConfig?.columns) ? joinQueryConfig.columns : [],
+      columnConfigs: Array.isArray(joinQueryConfig?.columnConfigs) ? joinQueryConfig.columnConfigs : [],
+      filterRows: Array.isArray(joinQueryConfig?.filterRows) ? joinQueryConfig.filterRows : [],
+      filterMode: joinQueryConfig?.filterMode === "any" ? "any" : "all",
+    },
+    tileColumns: Array.isArray(sourceConfig?.tileColumns) ? sourceConfig.tileColumns : [],
+  };
+};
+
 /**
  * Clones and returns a copy of the parameter symbology
  * If the symbology has layers, but no active layer, set the active layer to the layer with order 0 (if it exists)
@@ -381,5 +412,6 @@ export {
   filterToUda,
   buildLayerUdaFilterOptions,
   normalizeLayerClickFilterConfig,
+  normalizeLayerJoinConfig,
   setDefaultActiveLayer,
 };

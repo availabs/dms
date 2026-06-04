@@ -618,9 +618,16 @@ const ViewLayerRender = ({
           resolvedProperties?.[fieldName] === null ||
           resolvedProperties?.[fieldName] === "")
     );
+    const {
+      joinConfig,
+      joinFields,
+      baseFields,
+      fieldToRequestAttribute,
+      requestAttributes,
+    } = getJoinFieldLookup(candidateLayerProps, missingFields);
 
     if (
-      missingFields.length &&
+      baseFields.length &&
       falcor &&
       pgEnv &&
       candidateLayerProps?.view_id &&
@@ -635,7 +642,7 @@ const ViewLayerRender = ({
           candidateLayerProps.view_id,
           "dataById",
           String(feature.id),
-          missingFields
+          baseFields
         ]);
 
         const fetchedProperties = get(response, [
@@ -652,8 +659,129 @@ const ViewLayerRender = ({
           ...resolvedProperties,
           ...fetchedProperties
         };
-      } catch (error) {
+        } catch (error) {
         console.error("[MapInteractions] failed to fetch missing fields", error);
+      }
+    }
+
+    if (
+      joinFields.length &&
+      falcor &&
+      pgEnv &&
+      joinConfig?.enabled &&
+      joinConfig?.source?.viewId &&
+      joinConfig?.featureKeyColumn &&
+      joinConfig?.joinColumn
+    ) {
+      try {
+        let localJoinValue = resolvedProperties?.[joinConfig.featureKeyColumn];
+
+        if (
+          !hasResolvedValue(localJoinValue) &&
+          candidateLayerProps?.view_id &&
+          feature?.id !== undefined &&
+          feature?.id !== null
+        ) {
+          const localKeyResponse = await falcor.get([
+            "uda",
+            pgEnv,
+            "viewsById",
+            candidateLayerProps.view_id,
+            "dataById",
+            String(feature.id),
+            [joinConfig.featureKeyColumn]
+          ]);
+
+          const localKeyProperties = get(localKeyResponse, [
+            "json",
+            "uda",
+            pgEnv,
+            "viewsById",
+            candidateLayerProps.view_id,
+            "dataById",
+            String(feature.id)
+          ], {});
+
+          resolvedProperties = {
+            ...resolvedProperties,
+            ...localKeyProperties
+          };
+          localJoinValue = localKeyProperties?.[joinConfig.featureKeyColumn];
+        }
+
+        if (hasResolvedValue(localJoinValue) && requestAttributes.length) {
+          const joinQuery = joinConfig.query || {};
+          const joinFilterOptions = buildJoinFilterOptions(joinQuery);
+          let joinOptions = {
+            ...joinFilterOptions,
+            groupBy: Array.isArray(joinQuery.groupBy) ? joinQuery.groupBy : [],
+          };
+
+          if (joinFilterOptions?.filterGroups) {
+            joinOptions = {
+              ...joinOptions,
+              filterGroups: {
+                op: "AND",
+                groups: [
+                  ...(joinFilterOptions.filterGroups.groups || []),
+                  {
+                    op: "filter",
+                    col: joinConfig.joinColumn,
+                    value: [localJoinValue],
+                  },
+                ],
+              },
+            };
+          } else {
+            joinOptions = {
+              ...joinOptions,
+              filter: {
+                ...(joinFilterOptions?.filter || {}),
+                [joinConfig.joinColumn]: [localJoinValue],
+              },
+            };
+          }
+
+          const joinOptionsKey = JSON.stringify(joinOptions);
+          const joinResponse = await falcor.get([
+            "uda",
+            pgEnv,
+            "viewsById",
+            joinConfig.source.viewId,
+            "options",
+            joinOptionsKey,
+            "dataByIndex",
+            { from: 0, to: 0 },
+            requestAttributes
+          ]);
+
+          const joinRow = get(joinResponse, [
+            "json",
+            "uda",
+            pgEnv,
+            "viewsById",
+            joinConfig.source.viewId,
+            "options",
+            joinOptionsKey,
+            "dataByIndex",
+            0
+          ], {});
+
+          const joinResolvedProperties = joinFields.reduce((acc, fieldName) => {
+            const requestAttribute = fieldToRequestAttribute[fieldName];
+            if (Object.prototype.hasOwnProperty.call(joinRow || {}, requestAttribute)) {
+              acc[fieldName] = joinRow[requestAttribute];
+            }
+            return acc;
+          }, {});
+
+          resolvedProperties = {
+            ...resolvedProperties,
+            ...joinResolvedProperties
+          };
+        }
+      } catch (error) {
+        console.error("[MapInteractions] failed to fetch join fields", error);
       }
     }
 
@@ -768,15 +896,14 @@ const ViewLayerRender = ({
     clearActionParam,
   ]);
 
-  // Coordinate click-filter handling at the map level instead of per layer.
-  // This effect:
-  // 1. collects every layer that has click-filter enabled and at least one
-  //    mapping using URL params,
-  // 2. attaches a single shared map click handler from one owner layer,
-  // 3. gathers matching feature values across all eligible layers for one click,
-  // 4. resolves any missing mapped fields from Falcor when needed, and
-  // 5. sends one merged filter update so later layer handlers do not overwrite
-  //    earlier ones from the same click.
+  /**
+   * Coordinates click-filter handling for the whole DMS map.
+   *
+   * Rather than letting each rendered layer update search params on its own,
+   * this effect installs one shared click handler that batches all eligible
+   * click-filter mappings, resolves missing base or join-backed fields, and
+   * applies one merged page-filter update for the click.
+   */
   useEffect(() => {
     if (!maplibreMap) return;
 
@@ -930,32 +1057,35 @@ const ViewLayerRender = ({
         layers: clickableLayerIds,
       });
 
-      const nextFilterEntries = [];
+      const nextFilterEntries = (
+        await Promise.all(
+          clickableLayerConfigs.map(async (clickableLayerConfig) => {
+            const feature = features.find((candidateFeature) =>
+              clickableLayerConfig.clickableLayerIds.includes(candidateFeature?.layer?.id)
+            );
 
-      for (const clickableLayerConfig of clickableLayerConfigs) {
-        const feature = features.find((candidateFeature) =>
-          clickableLayerConfig.clickableLayerIds.includes(candidateFeature?.layer?.id)
-        );
+            if (!feature) return [];
 
-        if (!feature) continue;
-
-        const resolvedProperties = await resolveFeatureProperties({
-          feature,
-          candidateLayerProps: clickableLayerConfig.layerProps,
-          fieldNames: clickableLayerConfig.activeMappings.map((mapping) => mapping.field)
-        });
-
-        clickableLayerConfig.activeMappings.forEach((mapping) => {
-          const value = resolvedProperties?.[mapping.field];
-          if (value !== undefined && value !== null && value !== "") {
-            nextFilterEntries.push({
-              searchKey: mapping.variable,
-              value,
-              useSearchParams: mapping.useSearchParams,
+            const resolvedProperties = await resolveFeatureProperties({
+              feature,
+              candidateLayerProps: clickableLayerConfig.layerProps,
+              fieldNames: clickableLayerConfig.activeMappings.map((mapping) => mapping.field)
             });
-          }
-        });
-      }
+
+            return clickableLayerConfig.activeMappings.reduce((acc, mapping) => {
+              const value = resolvedProperties?.[mapping.field];
+              if (value !== undefined && value !== null && value !== "") {
+                acc.push({
+                  searchKey: mapping.variable,
+                  value,
+                  useSearchParams: mapping.useSearchParams,
+                });
+              }
+              return acc;
+            }, []);
+          })
+        )
+      ).flat();
 
       if (typeof setActionParam === "function") {
         for (const feature of features || []) {
@@ -1160,21 +1290,181 @@ const ViewLayerRender = ({
 }
 
 /**
- * Rebuilds the layer tile/source URL so the backing vector source includes
- * every column needed by the current map state.
- *
- * This appends:
- * - data columns required by filter-group or direct data-column usage
- * - dynamic filter columns
- * - explicit filter columns
- *
- * The goal is to keep rendered feature properties aligned with the current
- * map configuration so later paint/filter/interaction logic has access to the
- * fields it needs.
+ * Returns the join-authored tile columns that should be emitted as feature
+ * properties on rendered vector tiles for this map layer.
  */
+const getJoinTileColumns = (layerProps) =>
+  Array.isArray((layerProps?.join || layerProps?.["linked-data"])?.tileColumns)
+    ? (layerProps.join || layerProps["linked-data"]).tileColumns.filter(Boolean)
+    : [];
+
+/**
+ * Normalizes the saved join config so the DMS runtime can consume one shape
+ * even while older symbologies still carry legacy nested join keys.
+ */
+const normalizeJoinRuntimeConfig = (layerProps = {}) => {
+  const joinConfig = layerProps?.join || layerProps?.["linked-data"] || null;
+  if (!joinConfig) return null;
+  return {
+    ...joinConfig,
+    source: joinConfig.source || joinConfig.linked || {},
+    joinColumn: joinConfig.joinColumn || joinConfig.linkedJoinColumn || "",
+    query: joinConfig.query || joinConfig.linkedQuery || {},
+  };
+};
+
+/**
+ * Converts editor-managed join filter rows into the UDA options payload used
+ * by tile requests and on-demand join-side field resolution.
+ */
+const buildJoinFilterOptions = (joinQuery = {}) => {
+  const filterRows = Array.isArray(joinQuery?.filterRows) ? joinQuery.filterRows : [];
+  const filterMode = joinQuery?.filterMode === "any" ? "OR" : "AND";
+  const groups = filterRows.reduce((acc, row) => {
+    if (!row?.column) return acc;
+    const values = String(row.valuesText || "")
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean);
+
+    if (!values.length) return acc;
+    acc.push({
+      op: "filter",
+      col: row.column,
+      value: values,
+    });
+    return acc;
+  }, []);
+
+  if (groups.length) {
+    return {
+      filterGroups: {
+        op: filterMode,
+        groups,
+      },
+    };
+  }
+
+  return joinQuery?.filters && Object.keys(joinQuery.filters).length
+    ? joinQuery.filters
+    : {};
+};
+
+/**
+ * Serializes the layer join config into the encoded `join` param appended to
+ * tile URLs for the DMS runtime map.
+ */
+const buildJoinParam = (layerProps) => {
+  const joinConfig = normalizeJoinRuntimeConfig(layerProps);
+  if (!joinConfig?.enabled || !joinConfig?.source?.viewId || !joinConfig?.featureKeyColumn || !joinConfig?.joinColumn) {
+    return "";
+  }
+
+  const queryConfig = joinConfig.query || {};
+  const groupBy = Array.isArray(queryConfig?.groupBy) ? queryConfig.groupBy : [];
+  const columns = Array.isArray(queryConfig?.columns) ? queryConfig.columns : [];
+  return encodeURIComponent(JSON.stringify({
+    viewId: joinConfig.source.viewId,
+    localKey: joinConfig.featureKeyColumn,
+    joinKey: joinConfig.joinColumn,
+    options: { ...buildJoinFilterOptions(queryConfig), groupBy },
+    attributes: columns,
+    tileCols: getJoinTileColumns(layerProps),
+  }));
+};
+
+/**
+ * Returns every output name exposed by the join, combining explicit tile
+ * columns with aliased query expressions so downstream runtime lookups can
+ * recognize join-backed fields consistently.
+ */
+const getJoinOutputColumns = (layerProps) => {
+  const joinConfig = normalizeJoinRuntimeConfig(layerProps);
+  if (!joinConfig) return [];
+
+  const tileColumns = Array.isArray(joinConfig?.tileColumns)
+    ? joinConfig.tileColumns.filter(Boolean)
+    : [];
+  const queryColumns = Array.isArray(joinConfig?.query?.columns)
+    ? joinConfig.query.columns.map((expr) => {
+        const aliasMatch = String(expr).match(/\s+as\s+("?)([^"]+)\1\s*$/i);
+        return aliasMatch?.[2] || String(expr).trim();
+      }).filter(Boolean)
+    : [];
+
+  return Array.from(new Set([...tileColumns, ...queryColumns]));
+};
+
+/**
+ * Extracts the resolved output alias from a SQL join expression so runtime
+ * fetches can map a requested join field back to the expression that creates
+ * it on the join side.
+ */
+const getJoinOutputNameFromExpr = (expr) => {
+  const aliasMatch = String(expr).match(/\s+as\s+("?)([^"]+)\1\s*$/i);
+  if (aliasMatch?.[2]) return aliasMatch[2];
+  return String(expr).trim();
+};
+
+/**
+ * Shared guard for whether a value should count as "already resolved" by the
+ * interaction system while still treating `0` and `false` as valid values.
+ */
+const hasResolvedValue = (value) =>
+  !(value === undefined || value === null || value === "");
+
+/**
+ * Splits requested interaction fields into base-table fields vs join-owned
+ * outputs and prepares the expression lookup needed to fetch joined values
+ * from the correct source.
+ */
+const getJoinFieldLookup = (layerProps, fieldNames = []) => {
+  const joinConfig = normalizeJoinRuntimeConfig(layerProps);
+  if (!joinConfig) {
+    return {
+      joinConfig: null,
+      joinFields: [],
+      baseFields: fieldNames,
+      fieldToRequestAttribute: {},
+      requestAttributes: [],
+    };
+  }
+
+  const joinOutputs = new Set(getJoinOutputColumns(layerProps));
+  const queryColumns = Array.isArray(joinConfig?.query?.columns)
+    ? joinConfig.query.columns
+    : [];
+  const outputToExpression = queryColumns.reduce((acc, expr) => {
+    acc[getJoinOutputNameFromExpr(expr)] = expr;
+    return acc;
+  }, {});
+
+  const joinFields = fieldNames.filter((fieldName) => joinOutputs.has(fieldName));
+  const baseFields = fieldNames.filter((fieldName) => !joinOutputs.has(fieldName));
+  const fieldToRequestAttribute = joinFields.reduce((acc, fieldName) => {
+    acc[fieldName] = outputToExpression[fieldName] || fieldName;
+    return acc;
+  }, {});
+  const requestAttributes = Array.from(
+    new Set(Object.values(fieldToRequestAttribute).filter(Boolean))
+  );
+
+  return {
+    joinConfig,
+    joinFields,
+    baseFields,
+    fieldToRequestAttribute,
+    requestAttributes,
+  };
+};
+
 const getLayerTileUrl = (tileBase, layerProps) => {
   let newTileUrl = `${tileBase}`;
-
+  if (typeof newTileUrl === "string") {
+    newTileUrl = newTileUrl.split("?")[0];
+  }
+  const joinTileColumns = getJoinTileColumns(layerProps);
+  const joinTileColumnSet = new Set(joinTileColumns);
 
   const layerHasFilter = (layerProps?.filter && Object.keys(layerProps?.filter)?.length > 0) 
 
@@ -1187,7 +1477,11 @@ const getLayerTileUrl = (tileBase, layerProps) => {
   const dynamicCols = layerProps?.["dynamic-filters"]
     ?.filter((dFilter) => dFilter?.values?.length > 0)
     .map((dFilter) => dFilter.column_name); 
-  const colsToAppend = dataFilterCols.concat(dynamicCols).filter(onlyUnique).filter(col => !!col).join(",")
+  const colsToAppend = dataFilterCols
+    .concat(dynamicCols)
+    .filter(onlyUnique)
+    .filter((col) => !!col && !joinTileColumnSet.has(col))
+    .join(",")
 
   if (newTileUrl && (colsToAppend || layerHasFilter)) {
     if (!newTileUrl?.includes("?cols=")) {
@@ -1206,11 +1500,12 @@ const getLayerTileUrl = (tileBase, layerProps) => {
     }
 
     if (layerHasFilter) {
+      const filterColumns = Object.keys(layerProps.filter).filter((filterCol) => !joinTileColumnSet.has(filterCol));
       const splitUrl = newTileUrl.split("?cols=");
-      if (splitUrl[1].length !== 0) {
+      if (splitUrl[1].length !== 0 && filterColumns.length) {
         newTileUrl += ",";
       }
-      Object.keys(layerProps.filter).forEach((filterCol, i) => {
+      filterColumns.forEach((filterCol, i) => {
         //TODO actually handle calculated columns
         if(filterCol.includes("rpad(substring(prop_class, 1, 1), 3, '0')")){
           newTileUrl += `prop_class`;
@@ -1219,11 +1514,16 @@ const getLayerTileUrl = (tileBase, layerProps) => {
           newTileUrl += `${filterCol}`;
         }
 
-        if (i < Object.keys(layerProps.filter).length - 1) {
+        if (i < filterColumns.length - 1) {
           newTileUrl += ",";
         }
       });
     }
+  }
+
+  const joinParam = buildJoinParam(layerProps);
+  if (joinParam) {
+    newTileUrl += `${newTileUrl.includes("?") ? "&" : "?"}join=${joinParam}`;
   }
 
   // if(newTileUrl && newTileUrl?.includes('.pmtiles')){
@@ -1325,14 +1625,28 @@ const HoverComp = ({ data, layer }) => {
     return layer.props['hover-columns'];
   }, [layer]);
 
+  const joinedColumns = React.useMemo(() => {
+    const joinConfig = layer?.props?.join || layer?.props?.["linked-data"];
+    const tileColumns = Array.isArray(joinConfig?.tileColumns)
+      ? joinConfig.tileColumns.filter(Boolean)
+      : [];
+    const queryColumns = Array.isArray(joinConfig?.query?.columns)
+      ? joinConfig.query.columns.map((expr) => {
+          const aliasMatch = String(expr).match(/\s+as\s+("?)([^"]+)\1\s*$/i);
+          return aliasMatch?.[2] || String(expr).trim();
+        }).filter(Boolean)
+      : [];
+    return Array.from(new Set([...tileColumns, ...queryColumns]));
+  }, [layer]);
+
   useEffect(() => {
-    if(source_id) {
+    if(source_id && falcor && pgEnv) {
       falcor.get([
           "uda", pgEnv, "sources", "byId", source_id, "metadata"
       ]);
     }
 
-  }, [source_id, hoverColumns]);
+  }, [source_id, hoverColumns, falcor, pgEnv]);
 
   const attributes = React.useMemo(() => {
     if (!hoverColumns) {
@@ -1364,30 +1678,212 @@ const HoverComp = ({ data, layer }) => {
     return Array.isArray(out) ? out : []
   }, [source_id, falcorCache]);
 
-  let getAttributes = (typeof attributes?.[0] === 'string' ?
-    attributes : attributes.map(d => d.name || d.column_name)).filter(d => !['wkb_geometry'].includes(d))
+  const requestedAttributes = React.useMemo(() => (
+    (typeof attributes?.[0] === 'string'
+      ? attributes
+      : attributes.map(d => d.name || d.column_name))
+      .filter(d => !['wkb_geometry'].includes(d))
+  ), [attributes]);
 
+  const featureProps = React.useMemo(() => get(data, "[2]", {}), [data]);
+  const featureBackedAttributes = React.useMemo(
+    () => requestedAttributes.filter(
+      (attribute) =>
+        joinedColumns.includes(attribute) ||
+        Object.prototype.hasOwnProperty.call(featureProps, attribute)
+    ),
+    [requestedAttributes, joinedColumns, featureProps]
+  );
+  const baseAttributes = React.useMemo(
+    () => requestedAttributes.filter((attribute) => !featureBackedAttributes.includes(attribute)),
+    [requestedAttributes, featureBackedAttributes]
+  );
+
+  const joinedAttrInfo = React.useMemo(() => {
+    return featureBackedAttributes.reduce((acc, attribute) => {
+      if (Object.prototype.hasOwnProperty.call(featureProps, attribute)) {
+        acc[attribute] = featureProps[attribute];
+      }
+      return acc;
+    }, {});
+  }, [featureBackedAttributes, featureProps]);
+
+  const joinMissingAttributes = React.useMemo(
+    () => featureBackedAttributes.filter(
+      (attribute) =>
+        joinedColumns.includes(attribute) &&
+        !Object.prototype.hasOwnProperty.call(featureProps, attribute)
+    ),
+    [featureBackedAttributes, joinedColumns, featureProps]
+  );
+
+  /**
+   * Keeps the hover popup hydrated with both base-table and join-backed
+   * attributes. Base fields come from `dataById`, while missing join outputs
+   * are resolved from the join source using the same join filters and key as
+   * the rendered layer.
+   */
   React.useEffect(() => {
-    falcor.get([
-      "uda",
-      pgEnv,
-      "viewsById",
-      view_id,
-      "dataById",
-      id,
-      getAttributes
-    ]).then(d => {
-      let out = get(
-          d,
-          [
-            "json",
-            "uda", pgEnv, "viewsById", view_id, "dataById", ''+id
-          ],
-          []
+    if (!id) return;
+    let cancelled = false;
+
+    const fetchAttrInfo = async () => {
+      let nextAttrInfo = { ...joinedAttrInfo };
+
+      if (baseAttributes.length) {
+        const response = await falcor.get([
+          "uda",
+          pgEnv,
+          "viewsById",
+          view_id,
+          "dataById",
+          id,
+          baseAttributes
+        ]);
+
+        if (cancelled) return;
+
+        const baseOut = get(
+          response,
+          ["json", "uda", pgEnv, "viewsById", view_id, "dataById", ''+id],
+          {}
         );
-      setAttrInfo(out)
-    });
-  }, [falcor, pgEnv, view_id, id, attributes]);
+
+        nextAttrInfo = {
+          ...baseOut,
+          ...nextAttrInfo,
+        };
+      }
+
+      const {
+        joinConfig,
+        requestAttributes,
+        fieldToRequestAttribute,
+      } = getJoinFieldLookup(layer?.props, joinMissingAttributes);
+
+      if (
+        joinMissingAttributes.length &&
+        joinConfig?.enabled &&
+        joinConfig?.source?.viewId &&
+        joinConfig?.featureKeyColumn &&
+        joinConfig?.joinColumn
+      ) {
+        let localJoinValue = nextAttrInfo?.[joinConfig.featureKeyColumn];
+
+        if (!hasResolvedValue(localJoinValue)) {
+          const localKeyResponse = await falcor.get([
+            "uda",
+            pgEnv,
+            "viewsById",
+            view_id,
+            "dataById",
+            id,
+            [joinConfig.featureKeyColumn]
+          ]);
+
+          if (cancelled) return;
+
+          const localKeyOut = get(
+            localKeyResponse,
+            ["json", "uda", pgEnv, "viewsById", view_id, "dataById", ''+id],
+            {}
+          );
+
+          nextAttrInfo = {
+            ...localKeyOut,
+            ...nextAttrInfo,
+          };
+          localJoinValue = localKeyOut?.[joinConfig.featureKeyColumn];
+        }
+
+        if (hasResolvedValue(localJoinValue) && requestAttributes.length) {
+          const joinQuery = joinConfig.query || {};
+          const joinFilterOptions = buildJoinFilterOptions(joinQuery);
+          let joinOptions = {
+            ...joinFilterOptions,
+            groupBy: Array.isArray(joinQuery.groupBy) ? joinQuery.groupBy : [],
+          };
+
+          if (joinFilterOptions?.filterGroups) {
+            joinOptions = {
+              ...joinOptions,
+              filterGroups: {
+                op: "AND",
+                groups: [
+                  ...(joinFilterOptions.filterGroups.groups || []),
+                  {
+                    op: "filter",
+                    col: joinConfig.joinColumn,
+                    value: [localJoinValue],
+                  },
+                ],
+              },
+            };
+          } else {
+            joinOptions = {
+              ...joinOptions,
+              filter: {
+                ...(joinFilterOptions?.filter || {}),
+                [joinConfig.joinColumn]: [localJoinValue],
+              },
+            };
+          }
+
+          const joinOptionsKey = JSON.stringify(joinOptions);
+          const joinResponse = await falcor.get([
+            "uda",
+            pgEnv,
+            "viewsById",
+            joinConfig.source.viewId,
+            "options",
+            joinOptionsKey,
+            "dataByIndex",
+            { from: 0, to: 0 },
+            requestAttributes
+          ]);
+
+          if (cancelled) return;
+
+          const joinRow = get(
+            joinResponse,
+            [
+              "json",
+              "uda",
+              pgEnv,
+              "viewsById",
+              joinConfig.source.viewId,
+              "options",
+              joinOptionsKey,
+              "dataByIndex",
+              0
+            ],
+            {}
+          );
+
+          const joinResolvedProperties = joinMissingAttributes.reduce((acc, fieldName) => {
+            const requestAttribute = fieldToRequestAttribute[fieldName];
+            if (Object.prototype.hasOwnProperty.call(joinRow || {}, requestAttribute)) {
+              acc[fieldName] = joinRow[requestAttribute];
+            }
+            return acc;
+          }, {});
+
+          nextAttrInfo = {
+            ...joinResolvedProperties,
+            ...nextAttrInfo,
+          };
+        }
+      }
+
+      setAttrInfo(nextAttrInfo);
+    };
+
+    fetchAttrInfo();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [falcor, pgEnv, view_id, id, baseAttributes, joinedAttrInfo, joinMissingAttributes, layer]);
 
   return (
     <div className="bg-white p-4 max-h-64 max-w-lg min-w-[300px] scrollbar-xs overflow-y-scroll">

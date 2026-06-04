@@ -26,6 +26,7 @@
  */
 
 const { getEssentials, sanitizeName, buildCombinedWhere, getValuesExceptNulls, getValuesFromGroup } = require('./utils');
+const { buildSimpleFilterSql } = require('./query_sets/postgres');
 const { ckmeans } = require('./colorDomain/ckmeans');
 
 const DEFAULTS = {
@@ -35,6 +36,13 @@ const DEFAULTS = {
 };
 
 const round2 = (n) => Math.round(n * 100) / 100;
+const quoteIdentifier = (name) => `"${String(name).replace(/"/g, '')}"`;
+const shiftParams = (sql, offset) => sql.replace(/\$(\d+)/g, (_, n) => `$${+n + offset}`);
+const getOutputName = (expr) => {
+  const aliasMatch = String(expr).match(/\s+as\s+("?)([^"]+)\1\s*$/i);
+  if (aliasMatch?.[2]) return aliasMatch[2];
+  return String(expr).trim();
+};
 
 /**
  * Parse incoming options and merge null/zero exclusion into the filter shape.
@@ -80,6 +88,64 @@ function buildFilterContext({ options, column, excludeNull, excludeZero, isDms, 
   return { whereClause, values };
 }
 
+async function buildColorDomainTarget({ env, view_id, options, safeColumn, whereClause, values }) {
+  const essentials = await getEssentials({ env, view_id, options });
+  const { db, table_schema, table_name } = essentials;
+
+  if (db.type !== 'postgres') {
+    throw new Error('colorDomain: PostgreSQL only');
+  }
+
+  const tableRef = `${table_schema}.${table_name}`;
+  const join = options?.join;
+  const joinedColumns = Array.isArray(join?.tileCols) ? join.tileCols.filter(Boolean) : [];
+  const joinAttributeColumns = Array.isArray(join?.attributes)
+    ? join.attributes.map(getOutputName).filter(Boolean)
+    : [];
+  const joinKey = join?.joinKey || join?.linkedKey;
+
+  if (!join || !(joinedColumns.includes(safeColumn) || joinAttributeColumns.includes(safeColumn))) {
+    return { db, tableRef, whereClause, values };
+  }
+
+  const joinCtx = await getEssentials({ env, view_id: join.viewId, options: join.options || {} });
+  if (joinCtx.dbType !== 'pg') {
+    throw new Error('colorDomain: join view must be PostgreSQL');
+  }
+
+  const { sql: joinSql, values: joinValues } = await buildSimpleFilterSql(
+    joinCtx,
+    JSON.stringify(join.options || {}),
+    join.attributes || [],
+    { from: 0, to: 1_000_000 - 1 }
+  );
+
+  if (!joinSql) {
+    return { db, tableRef, whereClause, values };
+  }
+
+  const joinedSelect = joinedColumns
+    .map((column) => `joined_cte.${quoteIdentifier(column)} AS ${quoteIdentifier(column)}`)
+    .join(', ');
+
+  const joinedTableRef = `(
+    WITH joined_cte AS (${shiftParams(joinSql, values.length)})
+    SELECT
+      geo.*
+      ${joinedSelect ? `, ${joinedSelect}` : ''}
+    FROM ${tableRef} geo
+    LEFT JOIN joined_cte
+      ON geo.${quoteIdentifier(join.localKey)} = joined_cte.${quoteIdentifier(joinKey)}
+  ) joined_data`;
+
+  return {
+    db,
+    tableRef: joinedTableRef,
+    whereClause,
+    values: [...values, ...joinValues],
+  };
+}
+
 /**
  * Top-level entry point. Dispatches on method, returns the break config.
  *
@@ -109,7 +175,7 @@ async function colorDomain(env, view_id, rawOptions) {
   const numbins = Math.max(2, Math.min(12, Number(rawNumbins) || 2));
 
   const essentials = await getEssentials({ env, view_id, options });
-  const { isDms, db, app, type, table_schema, table_name } = essentials;
+  const { isDms, app, type, db } = essentials;
 
   if (db.type !== 'postgres') {
     throw new Error('colorDomain: PostgreSQL only');
@@ -119,7 +185,12 @@ async function colorDomain(env, view_id, rawOptions) {
     options, column: safeColumn, excludeNull, excludeZero, isDms, app, type, dbType: db.type,
   });
 
-  const tableRef = `${table_schema}.${table_name}`;
+  const {
+    db: domainDb,
+    tableRef: domainTableRef,
+    whereClause: domainWhereClause,
+    values: domainValues,
+  } = await buildColorDomainTarget({ env, view_id, options, safeColumn, whereClause, values });
 
   // Bounds + count in one query — needed by every method to decide branching
   // and to return `{min, max, count}` alongside the breaks.
@@ -128,10 +199,10 @@ async function colorDomain(env, view_id, rawOptions) {
       min(${safeColumn}::double precision) AS min,
       max(${safeColumn}::double precision) AS max,
       count(${safeColumn}) AS cnt
-    FROM ${tableRef}
-    ${whereClause}
+    FROM ${domainTableRef}
+    ${domainWhereClause}
   `;
-  const { rows: statsRows } = await db.query(statsSql, values);
+  const { rows: statsRows } = await domainDb.query(statsSql, domainValues);
   const stats = statsRows?.[0] || {};
   const min = stats.min === null || stats.min === undefined ? null : Number(stats.min);
   const max = stats.max === null || stats.max === undefined ? null : Number(stats.max);
@@ -157,12 +228,12 @@ async function colorDomain(env, view_id, rawOptions) {
     case 'equalInterval':
       return equalIntervalFromStats({ min, max, numbins, count });
     case 'quantile':
-      return await quantileBreaks({ db, tableRef, safeColumn, whereClause, values, numbins, min, max, count });
+      return await quantileBreaks({ db: domainDb, tableRef: domainTableRef, safeColumn, whereClause: domainWhereClause, values: domainValues, numbins, min, max, count });
     case 'standardDeviation':
-      return await stdDevBreaks({ db, tableRef, safeColumn, whereClause, values, numbins, min, max, count });
+      return await stdDevBreaks({ db: domainDb, tableRef: domainTableRef, safeColumn, whereClause: domainWhereClause, values: domainValues, numbins, min, max, count });
     case 'ckmeans':
       return await ckmeansBreaks({
-        db, tableRef, safeColumn, whereClause, values, numbins, min, max, count,
+        db: domainDb, tableRef: domainTableRef, safeColumn, whereClause: domainWhereClause, values: domainValues, numbins, min, max, count,
         ckmeansFullScanThreshold, histogramBuckets, ckmeansMaxRepresentatives,
       });
     default:

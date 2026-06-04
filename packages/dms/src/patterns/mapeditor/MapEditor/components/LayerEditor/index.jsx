@@ -10,13 +10,14 @@ import StyleEditor from './StyleEditor'
 import PopoverEditor from './PopoverEditor'
 import LegendEditor from './LegendEditor'
 import FilterEditor from './FilterEditor'
-
+import LinkedDataControl from './LinkedDataControl'
 
 const LAYER_EDITOR_TABS = [
   { name: 'Style', Component: StyleEditor },
   { name: 'Legend', Component: LegendEditor },
   { name: 'Popup', Component: PopoverEditor },
   { name: 'Filter', Component: FilterEditor },
+  { name: 'Join', Component: LinkedDataControl },
 ];
 
 function LayerManager (props) {

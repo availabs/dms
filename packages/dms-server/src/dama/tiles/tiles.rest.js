@@ -13,9 +13,13 @@
  */
 
 const { getDb } = require('../../db');
+const { getEssentials } = require('../../routes/uda/utils');
+const { buildSimpleFilterSql } = require('../../routes/uda/query_sets/postgres');
 
 // Cache view_id → data_table mapping in memory
 const tableByView = {};
+const quoteIdentifier = (value) => `"${String(value).replace(/"/g, '')}"`;
+const shiftParams = (sql, offset) => sql.replace(/\$(\d+)/g, (_, n) => `$${+n + offset}`);
 
 async function resolveTable(pgEnv, viewId) {
   const key = `${pgEnv}:${viewId}`;
@@ -77,9 +81,78 @@ async function getTileData(pgEnv, viewId, z, x, y, columns, filter) {
   }
 }
 
+async function getJoinedTileData(pgEnv, viewId, z, x, y, columns, filter, join) {
+  const geoTable = await resolveTable(pgEnv, viewId);
+  if (!geoTable) return null;
+  const joinKey = join?.joinKey || join?.linkedKey;
+  if (!join?.viewId || !join?.localKey || !joinKey) return null;
+
+  const db = getDb(pgEnv);
+  const joinCtx = await getEssentials({
+    env: pgEnv,
+    view_id: join.viewId,
+    options: join.options || {},
+  });
+
+  if (joinCtx.dbType !== 'pg') return null;
+
+  const { sql: joinSql, values: joinValues } = await buildSimpleFilterSql(
+    joinCtx,
+    JSON.stringify(join.options || {}),
+    join.attributes || [],
+    { from: 0, to: 1_000_000 - 1 }
+  );
+
+  if (!joinSql) return null;
+
+  const geomCols = columns.length > 0
+    ? ', ' + columns.map((c) => `geo.${quoteIdentifier(c)}`).join(', ')
+    : '';
+  const joinedCols = (join.tileCols || []).length > 0
+    ? ', ' + (join.tileCols || []).map((c) => `joined_cte.${quoteIdentifier(c)}`).join(', ')
+    : '';
+
+  const sql = `
+    WITH joined_cte AS (
+      ${shiftParams(joinSql, 3)}
+    ),
+    mvtgeom AS (
+      SELECT
+        ST_AsMVTGeom(
+          ST_Transform(geo.wkb_geometry, 3857),
+          ST_TileEnvelope($1, $2, $3)
+        ) AS geom
+        ${geomCols}
+        ${joinedCols}
+        , geo.ogc_fid
+      FROM ${geoTable} geo
+      LEFT JOIN joined_cte
+        ON geo.${quoteIdentifier(join.localKey)} = joined_cte.${quoteIdentifier(joinKey)}
+      ,
+        (SELECT ST_SRID(wkb_geometry) AS srid
+         FROM ${geoTable} WHERE wkb_geometry IS NOT NULL LIMIT 1) a
+      WHERE ST_Intersects(
+        geo.wkb_geometry,
+        ST_Transform(ST_TileEnvelope($1, $2, $3), srid)
+      )
+      ${filter ? ` AND ${filter}` : ''}
+    )
+    SELECT ST_AsMVT(mvtgeom.*, 'view_${+viewId}', 4096, 'geom', 'ogc_fid') AS mvt
+    FROM mvtgeom
+  `;
+
+  try {
+    const { rows } = await db.query(sql, [+z, +x, +y, ...joinValues]);
+    return rows[0]?.mvt || null;
+  } catch (e) {
+    console.error(`[tiles] join tile error (view ${viewId} ⋈ ${join.viewId}, ${z}/${x}/${y}):`, e.message);
+    return null;
+  }
+}
+
 async function serveTile(req, res) {
   const { pgEnv, view_id, z, x, y } = req.params;
-  const { cols, filter } = req.query;
+  const { cols, filter, join: joinRaw } = req.query;
 
   if (!pgEnv || !view_id || !z || !x || !y) {
     return res.status(400).json({ error: 'Missing required params: pgEnv, view_id, z, x, y' });
@@ -90,7 +163,21 @@ async function serveTile(req, res) {
     return res.status(501).json({ error: 'Tile serving requires PostgreSQL with PostGIS' });
   }
 
-  const mvt = await getTileData(pgEnv, view_id, +z, +x, +y, cols?.split(',') || [], filter);
+  let join = null;
+  if (joinRaw) {
+    try {
+      join = JSON.parse(joinRaw);
+    } catch (e) {
+      return res.status(400).json({ error: 'Invalid join param JSON' });
+    }
+  }
+
+  const joinedColumnList = (cols?.split(',') || [])
+    .map((col) => String(col || '').trim())
+    .filter(Boolean);
+  const mvt = join
+    ? await getJoinedTileData(pgEnv, view_id, +z, +x, +y, joinedColumnList, filter, join)
+    : await getTileData(pgEnv, view_id, +z, +x, +y, cols?.split(',') || [], filter);
 
   if (!mvt || mvt.length === 0) {
     return res.status(204).send();

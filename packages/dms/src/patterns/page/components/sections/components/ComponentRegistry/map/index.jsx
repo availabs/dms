@@ -55,6 +55,127 @@ const EMPTY_TABS = [{ "name": "Layers", rows: [] }];
 const EMPTY_OBJECT = {};
 
 /**
+ * Returns the join-authored output columns that should be emitted onto vector
+ * tile features for this layer. These tile columns are the runtime surface
+ * area that the DMS map can style, hover, and filter against later.
+ */
+const getJoinTileColumns = (layerConfig) =>
+    Array.isArray((layerConfig?.join || layerConfig?.["linked-data"])?.tileColumns)
+        ? (layerConfig.join || layerConfig["linked-data"]).tileColumns.filter(Boolean)
+        : [];
+
+/**
+ * Normalizes the saved join config so the runtime can read one consistent
+ * shape even while older saved symbologies still use legacy nested keys.
+ */
+const normalizeJoinRuntimeConfig = (layerConfig = {}) => {
+    const joinConfig = layerConfig?.join || layerConfig?.["linked-data"] || null;
+    if (!joinConfig) return null;
+    return {
+        ...joinConfig,
+        source: joinConfig.source || joinConfig.linked || {},
+        joinColumn: joinConfig.joinColumn || joinConfig.linkedJoinColumn || "",
+        query: joinConfig.query || joinConfig.linkedQuery || {},
+    };
+};
+
+/**
+ * Converts the editor-side join query filter rows into the UDA filter payload
+ * expected by `colorDomain` and other runtime fetches.
+ */
+const buildJoinFilterOptions = (joinQuery = {}) => {
+    const filterRows = Array.isArray(joinQuery?.filterRows) ? joinQuery.filterRows : [];
+    const filterMode = joinQuery?.filterMode === "any" ? "OR" : "AND";
+    const groups = filterRows.reduce((acc, row) => {
+        if (!row?.column) return acc;
+        const values = String(row.valuesText || "")
+            .split(",")
+            .map((value) => value.trim())
+            .filter(Boolean);
+
+        if (!values.length) return acc;
+        acc.push({
+            op: "filter",
+            col: row.column,
+            value: values,
+        });
+        return acc;
+    }, []);
+
+    if (groups.length) {
+        return {
+            filterGroups: {
+                op: filterMode,
+                groups,
+            },
+        };
+    }
+
+    return joinQuery?.filters && Object.keys(joinQuery.filters).length
+        ? joinQuery.filters
+        : {};
+};
+
+/**
+ * Finds the SQL select expression that produces a given join output name. This
+ * lets the runtime ask for the exact join expression that backs a styled or
+ * filtered join column instead of assuming the alias is a physical table field.
+ */
+const getJoinQueryAttributeByOutputName = (layerConfig, outputName) => {
+    const joinConfig = normalizeJoinRuntimeConfig(layerConfig);
+    const joinAttributes = Array.isArray(joinConfig?.query?.columns)
+        ? joinConfig.query.columns
+        : [];
+
+    return joinAttributes.find((attribute) => {
+        const aliasMatch = String(attribute).match(/\s+as\s+("?)([^"]+)\1\s*$/i);
+        const resolvedName = aliasMatch?.[2] || String(attribute).trim();
+        return resolvedName === outputName;
+    }) || null;
+};
+
+/**
+ * Builds the join payload sent to DMS runtime `colorDomain` requests.
+ *
+ * When a specific joined style column is active, the payload narrows the join
+ * attributes down to the join key plus the requested output expression so
+ * legend refresh only pulls the join-side fields it actually needs.
+ */
+const buildJoinOptions = (layerConfig, targetColumn = null) => {
+    const joinConfig = normalizeJoinRuntimeConfig(layerConfig);
+    if (
+        !joinConfig?.enabled ||
+        !joinConfig?.source?.viewId ||
+        !joinConfig?.featureKeyColumn ||
+        !joinConfig?.joinColumn
+    ) {
+        return null;
+    }
+
+    const queryConfig = joinConfig.query || {};
+    const groupBy = Array.isArray(queryConfig?.groupBy) ? queryConfig.groupBy : [];
+    const columns = Array.isArray(queryConfig?.columns) ? queryConfig.columns : [];
+    let attributes = columns;
+    let tileCols = getJoinTileColumns(layerConfig);
+
+    if (targetColumn) {
+        const targetAttribute = getJoinQueryAttributeByOutputName(layerConfig, targetColumn);
+        const joinAttribute = getJoinQueryAttributeByOutputName(layerConfig, joinConfig.joinColumn);
+        attributes = [joinAttribute, targetAttribute].filter(Boolean);
+        tileCols = targetAttribute ? [targetColumn] : [];
+    }
+
+    return {
+        viewId: joinConfig.source.viewId,
+        localKey: joinConfig.featureKeyColumn,
+        joinKey: joinConfig.joinColumn,
+        options: { ...buildJoinFilterOptions(queryConfig), groupBy },
+        attributes,
+        tileCols,
+    };
+};
+
+/**
  * Reuses the saved category legend rows as the source of truth for labels and
  * colors, then narrows that legend to only the categories present after the
  * current runtime filters have been applied.
@@ -378,6 +499,9 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
                         : layer?.["layer-type"];
                     const dataColumn = layer?.["data-column"];
                     const viewId = layer?.view_id;
+                    const joinedTileColumns = new Set(getJoinTileColumns(layer));
+                    const isJoinedDataColumn = joinedTileColumns.has(dataColumn);
+                    const joinOptions = isJoinedDataColumn ? buildJoinOptions(layer, dataColumn) : null;
                     const activeLegendFilters = buildLayerUdaFilterOptions({
                         layerFilter: layer?.filter,
                         dynamicFilters: layer?.["dynamic-filters"],
@@ -398,6 +522,7 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
                         dataColumn,
                         filterMode: layer?.filterMode || "all",
                         filters: activeLegendFilters || null,
+                        join: joinOptions,
                     });
 
                     if (!hasActiveDynamicFilters || !activeLegendFilters || !dataColumn || !viewId) {
@@ -467,6 +592,7 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
                             numbins: layer?.["num-bins"] || 9,
                             method: layer?.["bin-method"] || "ckmeans",
                             ...activeLegendFilters,
+                            ...(joinOptions ? { join: joinOptions } : {}),
                         });
 
                         const response = await falcor.get([

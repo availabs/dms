@@ -132,6 +132,140 @@ At a high level, the shape looks like this:
 }
 ```
 
+## Symbology Data Structure
+
+The most important saved object for map rendering is the nested symbology record:
+
+```json
+{
+  "symbologies": {
+    "<symbologyId>": {
+      "id": "<symbologyId>",
+      "name": "<symbologyName>",
+      "isVisible": true,
+      "symbology": {
+        "activeLayer": "<layerId>",
+        "layers": {
+          "<layerId>": {
+            "id": "<layerId>",
+            "name": "<layerName>",
+            "view_id": 123,
+            "source_id": 456,
+            "layer-type": "polygons",
+            "type": "fill",
+            "data-column": "<columnOrJoinOutput>",
+            "filter": {
+              "<column>": {
+                "operator": "==",
+                "value": ["<value>"]
+              }
+            },
+            "dynamic-filters": [],
+            "click-filter": {
+              "enabled": false,
+              "mappings": []
+            },
+            "join": {
+              "enabled": true,
+              "source": {
+                "viewId": 789
+              },
+              "featureKeyColumn": "<baseViewColumn>",
+              "joinColumn": "<joinViewColumn>",
+              "query": {
+                "columns": [
+                  "w_geocode",
+                  "sum(s_000)::numeric as sum_s_000"
+                ],
+                "columnConfigs": [
+                  {
+                    "name": "s_000",
+                    "alias": "Sum of Incoming Traffic",
+                    "fn": "sum",
+                    "group": false,
+                    "includeInTile": true
+                  }
+                ],
+                "filters": [
+                  {
+                    "column": "file_type",
+                    "valuesText": "main,aux"
+                  }
+                ],
+                "groupBy": ["w_geocode"]
+              },
+              "tileColumns": ["w_geocode", "sum_s_000"]
+            }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+### What The Layer Keys Mean
+
+- `view_id`
+  The base geometry/data view used to render the layer.
+- `source_id`
+  The source metadata id used by the map/editor to discover available columns and metadata.
+- `layer-type`
+  The high-level rendering mode such as polygons, circles, lines, or interactive layers.
+- `type`
+  The MapLibre layer type used for the concrete paint/layout definition, for example `fill`, `line`, or `circle`.
+- `data-column`
+  The currently selected column used for styling, legends, filters, and other data-driven behavior. This can be either a base-table column or a join-produced output column.
+- `filter`
+  Static per-layer filters stored in the MapEditor format and translated into UDA query options at runtime.
+- `dynamic-filters`
+  Runtime-driven filter entries that can read from page state, search params, and interaction state.
+- `click-filter`
+  Layer click mapping config used to publish clicked feature values into DMS page filters and optional URL search params.
+
+### Join Structure
+
+`layer.join` is the saved runtime contract for the join feature. The editor writes this structure, and both MapEditor and the DMS map runtime consume it.
+
+- `enabled`
+  Turns the tile-time join behavior on for the layer.
+- `source.viewId`
+  The join-side UDA view id.
+- `featureKeyColumn`
+  The base-view column used to match the rendered feature to the join side.
+- `joinColumn`
+  The join-side column matched against `featureKeyColumn`.
+- `query.columns`
+  The SQL expressions actually selected from the join source. These are the authoritative server-side join outputs.
+- `query.columnConfigs`
+  The UI-facing authoring records for join columns. These store the selected source column, user label, aggregate function, grouping intent, and tile inclusion flag.
+- `query.filters`
+  The join-side filter rows authored in the Join panel.
+- `query.groupBy`
+  The join-side grouping columns used to keep join SQL valid when grouped/aggregated outputs are selected.
+- `tileColumns`
+  The final output column names expected to appear on the vector tile feature properties. These are the join-backed columns available to style, popup, hover, click-filter, and legend logic.
+
+### Join Naming Rules
+
+Join columns have two different identities:
+
+- Technical key
+  Used by the server/runtime, for example `sum_s_000`, `count_h_geocode`, or `w_geocode`.
+- Display label
+  Used in the UI, for example `Sum of Incoming Traffic`.
+
+The runtime always saves and requests the technical key. The UI may display the friendly label, and MapEditor selectors may mark join-backed options with `(join)`.
+
+### Runtime Expectations
+
+When a layer uses `join`:
+
+- Tile requests append an encoded `join=` payload.
+- Joined output columns listed in `tileColumns` are expected on the rendered feature properties.
+- If `data-column` points at a joined output, legend/color-domain requests must also include the join payload.
+- Hover, popup, click-filter, and other feature resolution logic should prefer joined feature props for joined columns instead of querying the base geometry table for those fields.
+
 ### Notes On The Shape
 
 - Top-level keys such as `height`, `zoomPan`, `legendPosition`, `pluginControlPosition`, `setInitialBounds`, `initialBounds`, `zoomToFitBounds`, `blankBaseMap`, and `basemapStyle` are page-level map settings.
@@ -606,3 +740,112 @@ If a saved config omits some top-level keys, `MapSection` still applies defaults
 - Keep examples and logic generic across symbologies and layers.
 - Update the setting where the runtime map already expects it.
 - Preserve compatibility unless a deliberate schema migration is planned.
+
+## Tile Joins
+
+Map layers can optionally carry a tile-time join under:
+
+```json
+symbologies["<symbologyId>"].symbology.layers["<layerId>"].join
+```
+
+The V1 config shape is:
+
+```json
+{
+  "enabled": true,
+  "featureKeyColumn": "geoid",
+  "source": {
+    "sourceId": 123,
+    "viewId": 456,
+    "env": "npmrds2"
+  },
+  "joinColumn": "w_geocode",
+  "query": {
+    "filters": {
+      "filter": {
+        "job_type": ["JT00"],
+        "file_type": ["main", "aux"]
+      }
+    },
+    "groupBy": ["w_geocode"],
+    "columns": [
+      "w_geocode",
+      "sum(s_000)::numeric as sum_s_000"
+    ]
+  },
+  "tileColumns": ["sum_s_000"]
+}
+```
+
+### What The Fields Mean
+
+- `featureKeyColumn`
+  Geometry-side join key on the rendered layer.
+- `source.viewId`
+  Joined analytical view queried at tile request time.
+- `joinColumn`
+  Output column from the join query matched to the geometry key.
+- `query.filters`
+  UDA-style filter options for the join query.
+- `query.groupBy`
+  Columns that collapse the join side to one row per join key.
+- `query.columns`
+  SQL select expressions emitted by the join query builder.
+- `tileColumns`
+  Join-query outputs exposed as vector-tile feature properties.
+
+### Tile `join` Param
+
+When the join is enabled, tile requests append an encoded `join` param:
+
+```json
+{
+  "viewId": 456,
+  "localKey": "geoid",
+  "joinKey": "w_geocode",
+  "options": {
+    "filter": {
+      "job_type": ["JT00"],
+      "file_type": ["main", "aux"]
+    },
+    "groupBy": ["w_geocode"]
+  },
+  "attributes": [
+    "w_geocode",
+    "sum(s_000)::numeric as sum_s_000"
+  ],
+  "tileCols": ["sum_s_000"]
+}
+```
+
+The tile route reuses the UDA SQL builder and composes:
+
+- `WITH joined_cte AS (<UDA SQL>)`
+- `LEFT JOIN joined_cte ON geo."<localKey>" = joined_cte."<joinKey>"`
+
+### V1 Limits
+
+- The join query must return at most one row per join key.
+- V1 does not prevent row fan-out or column-name collisions.
+- The join view must be in the same Postgres `pgEnv`.
+- Joined aliases such as `sum_s_000` are tile-time properties, not physical geometry-table columns.
+- An index on the join column is the main performance lever for large joined tables.
+
+### DMS Runtime Behavior
+
+The page-level DMS `map` component consumes `layer.join` as a runtime feature. It does not provide a separate join editor, but it does honor join outputs anywhere the live map needs them.
+
+- Tile URLs append the encoded `join` payload when the layer join is enabled.
+- Joined output columns can be used as `data-column` values for choropleth / circle styling.
+- Runtime legend refresh sends the same `join` payload into `colorDomain` requests when the styled column comes from the join.
+- Hover and popup reads prefer tile feature props first, then resolve missing join-backed fields from the joined view instead of the geometry table.
+- Layer click filters can target join outputs. When the clicked field belongs to the join, the map resolves it from the join-side view before updating page filters or search params.
+
+### MapEditor Join UX
+
+MapEditor now treats join outputs as first-class selectable columns across the editor.
+
+- Style selectors, popup selectors, click-filter mappings, normal filters, and dynamic filters can all include join outputs.
+- Join-backed options keep their technical saved key, but use the configured display label in the UI when available.
+- Selectors mark join-backed options with a lightweight `(join)` suffix so authors can tell them apart from base-table columns.

@@ -8,6 +8,7 @@ import { Close } from '../../icons'
 import {AddColumnSelectControl} from "../Controls"
 import { get, set } from 'lodash-es'
 import { isNumericColumnType } from '../../../../utils'
+import { getJoinOutputKey, getJoinOutputLabel } from "../LinkedDataControl/constants"
 function onlyUnique(value, index, array) {
   return array.indexOf(value) === index;
 }
@@ -15,15 +16,38 @@ const getDiffColumns = (baseArray, subArray) => {
   return baseArray.filter(baseItem => !subArray.includes(baseItem))
 }
 
+const getJoinedColumnOptions = (state, activeLayerId) => {
+  const joinConfig =
+    get(state, `symbology.layers[${activeLayerId}].join`) ??
+    get(state, `symbology.layers[${activeLayerId}]['linked-data']`, {});
+  const tileColumns = Array.isArray(joinConfig?.tileColumns) ? joinConfig.tileColumns : [];
+  const columnConfigs = Array.isArray(joinConfig?.query?.columnConfigs) ? joinConfig.query.columnConfigs : [];
+  const displayNameByKey = columnConfigs.reduce((acc, columnConfig) => {
+    const key = getJoinOutputKey(columnConfig);
+    if (key) acc[key] = getJoinOutputLabel(columnConfig);
+    return acc;
+  }, {});
+
+  return tileColumns
+    .filter(Boolean)
+    .map((columnName) => ({
+      name: columnName,
+      display_name: displayNameByKey[columnName] || columnName,
+      type: "number",
+      _joined: true,
+    }));
+};
+
 export function ColumnSelectControl({path, params={}}) {
   const { state, setState } = React.useContext(SymbologyContext);
   const { UI } = useContext(ThemeContext) || {};
   const { DndList, Button } = UI;
+  const activeLayerId = state.symbology.activeLayer;
 
   const pathBase =
     params?.version === "interactive"
-      ? `symbology.layers[${state.symbology.activeLayer}]${params.pathPrefix}`
-      : `symbology.layers[${state.symbology.activeLayer}]`;
+      ? `symbology.layers[${activeLayerId}]${params.pathPrefix}`
+      : `symbology.layers[${activeLayerId}]`;
 
   const { selectedColumns, layerType } = useMemo(() => {
     return {
@@ -32,8 +56,8 @@ export function ColumnSelectControl({path, params={}}) {
     };
   }, [state, path, params]);
 
-  const viewId = get(state,`symbology.layers[${state.symbology.activeLayer}].view_id`)
-  const sourceId = get(state,`symbology.layers[${state.symbology.activeLayer}].source_id`);
+  const viewId = get(state,`symbology.layers[${activeLayerId}].view_id`)
+  const sourceId = get(state,`symbology.layers[${activeLayerId}].source_id`);
   const { pgEnv, useFalcor } = useContext(MapEditorContext);
   const { falcor, falcorCache } = useFalcor();
 
@@ -41,7 +65,7 @@ export function ColumnSelectControl({path, params={}}) {
     if (sourceId) {
       falcor.get([
           "uda", pgEnv, "sources", "byId", sourceId, "metadata"
-      ]).then(res => console.log("RES:", res));
+      ]);
     }
   }, [sourceId]);
 
@@ -66,9 +90,12 @@ export function ColumnSelectControl({path, params={}}) {
         return true
       })
     }
+    const joinedColumns = getJoinedColumnOptions(state, activeLayerId);
+    const existingNames = new Set((columns || []).map((column) => column?.name));
+    const mergedColumns = [...columns, ...joinedColumns.filter((column) => !existingNames.has(column.name))];
 
-    return Array.isArray(columns) ? columns : [];
-  }, [sourceId, falcorCache]);
+    return Array.isArray(mergedColumns) ? mergedColumns : [];
+  }, [sourceId, falcorCache, state, activeLayerId, layerType, params.onlyTypedAttributes]);
 
 // console.log("ColumnSelectControl::attributes", attributes)
 
@@ -166,7 +193,7 @@ export function ColumnSelectControl({path, params={}}) {
           availableColumnNames = {
             availableColumnNames.map(colName => {
               const newAttr = attributes.find(attr => attr.name === colName);
-              return { value: colName, label: newAttr?.display_name || colName };
+              return { value: colName, label: newAttr?.display_name || colName, _joined: newAttr?._joined };
             })
           }
         />
