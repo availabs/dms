@@ -9,7 +9,12 @@ export const AxisLeft = props => {
     adjustedWidth, adjustedHeight, showGridLines = true, showAnimations = true,
     gridLineOpacity = 0.25, axisColor = "currentColor", axisOpacity = 1,
     domain, scale, format, type = "linear", hasData = true, rotateLabels = false,
-    secondary, label, margin, ticks = 10, tickValues, tickDensity = 8, show = true
+    secondary, label, margin, ticks = 10, tickValues, tickDensity = 8, show = true,
+    // Axis typography (theme/per-section). Tick keys unset → inherit the CSS default
+    // (`.tick text { font-size: 0.75rem }`, currentColor) so the render is BC. Label
+    // keys default to the historical literals.
+    tickFontSize, tickFontFamily, tickFontWeight, tickColor,
+    labelFontSize = "1rem", labelFontFamily, labelFontWeight = "bold", labelColor = "currentColor"
   } = props;
 
   const ref = React.useRef();
@@ -22,13 +27,17 @@ export const AxisLeft = props => {
         domain, scale, type, format, showAxis: show,
         secondary, label, margin, rotateLabels,
         ticks, tickValues, showGridLines, gridLineOpacity,
-        axisColor, axisOpacity, tickDensity, hasData
+        axisColor, axisOpacity, tickDensity, hasData,
+        tickFontSize, tickFontFamily, tickFontWeight, tickColor,
+        labelFontSize, labelFontFamily, labelFontWeight, labelColor
       });
     }
   }, [adjustedWidth, adjustedHeight, showGridLines, hasData,
       domain, scale, type, format, showAnimations, rotateLabels,
       secondary, label, margin, ticks, tickValues, show,
-      gridLineOpacity, axisColor, axisOpacity, tickDensity]
+      gridLineOpacity, axisColor, axisOpacity, tickDensity,
+      tickFontSize, tickFontFamily, tickFontWeight, tickColor,
+      labelFontSize, labelFontFamily, labelFontWeight, labelColor]
   );
 
   return <g ref={ ref }/>;
@@ -39,7 +48,9 @@ const renderAxisLeft = ({ ref, showAnimations, rotateLabels,
                         domain, scale, type, format,
                         secondary, label, margin, showAxis,
                         ticks, tickValues, showGridLines, gridLineOpacity,
-                        axisColor, axisOpacity, tickDensity, hasData }) => {
+                        axisColor, axisOpacity, tickDensity, hasData,
+                        tickFontSize, tickFontFamily, tickFontWeight, tickColor,
+                        labelFontSize, labelFontFamily, labelFontWeight, labelColor }) => {
 
   if (!showAxis) {
     domain = [];
@@ -168,9 +179,10 @@ const renderAxisLeft = ({ ref, showAnimations, rotateLabels,
         `translate(${ -left + 20 }px, ${ adjustedHeight * 0.5 }px) rotate(-90deg)`
       )
       .attr("text-anchor", "middle")
-      .attr("fill", "currentColor")
-      .attr("font-size", "1rem")
-      .attr("font-weight", "bold")
+      .attr("fill", labelColor)
+      .style("font-size", labelFontSize)
+      .style("font-weight", labelFontWeight)
+      .style("font-family", labelFontFamily || null)
       .text(d => d);
 
   if (rotateLabels) {
@@ -183,6 +195,14 @@ const renderAxisLeft = ({ ref, showAnimations, rotateLabels,
       .attr("text-anchor", null)
       .style("transform", null)
   }
+
+  // Tick-label typography. Each `.style(_, null)` when unset removes the inline
+  // value so the CSS default applies → BC when no token is set.
+  group.selectAll(".tick text")
+    .style("font-size", tickFontSize || null)
+    .style("font-family", tickFontFamily || null)
+    .style("font-weight", tickFontWeight || null)
+    .style("fill", tickColor || null);
 
   const show = showGridLines &&
               Boolean(scale) &&

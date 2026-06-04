@@ -11,7 +11,11 @@ export const AxisBottom = props => {
     domain, scale, format, ticks, tickValues, hasData,
     secondary, label, margin, tickDensity = 2, show = true,
     showGridLines = true, showAnimations = true,
-    gridLineOpacity = 0.25, axisColor = "currentColor", axisOpacity = 1
+    gridLineOpacity = 0.25, axisColor = "currentColor", axisOpacity = 1,
+    // Axis typography (theme/per-section). Tick keys unset → inherit the CSS default
+    // (BC); label keys default to the historical literals.
+    tickFontSize, tickFontFamily, tickFontWeight, tickColor,
+    labelFontSize = "1rem", labelFontFamily, labelFontWeight = "bold", labelColor = "currentColor"
   } = props;
 
   const ref = React.useRef();
@@ -23,13 +27,17 @@ export const AxisBottom = props => {
         adjustedWidth, adjustedHeight, type, showAxis: show,
         domain, scale, format, ticks, tickValues,
         secondary, label, margin, tickDensity,
-        showGridLines, gridLineOpacity, axisColor, axisOpacity, hasData
+        showGridLines, gridLineOpacity, axisColor, axisOpacity, hasData,
+        tickFontSize, tickFontFamily, tickFontWeight, tickColor,
+        labelFontSize, labelFontFamily, labelFontWeight, labelColor
       });
     }
   }, [adjustedWidth, adjustedHeight, type, showAnimations, ref.current,
       domain, scale, format, ticks, tickValues, hasData, show,
       secondary, label, margin, tickDensity, rotateLabels,
-      showGridLines, gridLineOpacity, axisColor, axisOpacity]
+      showGridLines, gridLineOpacity, axisColor, axisOpacity,
+      tickFontSize, tickFontFamily, tickFontWeight, tickColor,
+      labelFontSize, labelFontFamily, labelFontWeight, labelColor]
   );
 
   return <g ref={ ref }/>;
@@ -40,7 +48,9 @@ const renderAxisBottom = ({ ref, showAnimations, rotateLabels,
                     domain, scale, format, ticks, tickValues,
                     secondary, label, margin, tickDensity,
                     showGridLines, gridLineOpacity, renderAxisBottom,
-                    axisColor, axisOpacity, hasData }) => {
+                    axisColor, axisOpacity, hasData,
+                    tickFontSize, tickFontFamily, tickFontWeight, tickColor,
+                    labelFontSize, labelFontFamily, labelFontWeight, labelColor }) => {
 
   if (!showAxis) {
     domain = [];
@@ -156,9 +166,10 @@ const renderAxisBottom = ({ ref, showAnimations, rotateLabels,
         .attr("class", "axis-label axis-label-bottom")
         .style("transform", `translate(${ adjustedWidth * 0.5 }px, calc(${ bottom }px - 0.5rem))`)
         .attr("text-anchor", "middle")
-				.attr("fill", "currentColor")
-        .attr("font-size", "1rem")
-        .attr("font-weight", "bold")
+				.attr("fill", labelColor)
+        .style("font-size", labelFontSize)
+        .style("font-weight", labelFontWeight)
+        .style("font-family", labelFontFamily || null)
         .text(d => d);
 
     if (rotateLabels) {
@@ -171,6 +182,13 @@ const renderAxisBottom = ({ ref, showAnimations, rotateLabels,
         .attr("text-anchor", null)
         .style("transform", null)
     }
+
+    // Tick-label typography. `.style(_, null)` when unset → CSS default applies (BC).
+    group.selectAll(".tick text")
+      .style("font-size", tickFontSize || null)
+      .style("font-family", tickFontFamily || null)
+      .style("font-weight", tickFontWeight || null)
+      .style("fill", tickColor || null);
 
     const show = showGridLines &&
                 Boolean(scale) &&

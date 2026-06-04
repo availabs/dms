@@ -21,8 +21,17 @@ const ChartDefaults = {
     strokeWidth: 1,
     area: false,
     areaOpacity: 0.15,
-    xAxis: { show: true, showGridLines: false, rotateLabels: false, tickDensity: 2, gridLineOpacity: 0.25, axisColor: "currentColor" },
-    yAxis: { show: true, showGridLines: true, format: "Integer", gridLineOpacity: 0.25, axisColor: "currentColor" },
+    // Axis typography (CSS-valued, applied inline by the axis renderers). The defaults
+    // reproduce the historical look: tick = the CSS 0.75rem / inherited family / normal
+    // weight, now colored by `currentColor` so it follows `textColor` (this also fixes
+    // dark-mode ticks, which were black); axis label = 1rem bold. A brand overrides any
+    // of these in its own `chartDefaults` (see transportny themev2.js).
+    xAxis: { show: true, showGridLines: false, rotateLabels: false, tickDensity: 2, gridLineOpacity: 0.25, axisColor: "currentColor",
+        tickFontSize: "0.75rem", tickFontFamily: "inherit", tickFontWeight: "normal", tickColor: "currentColor",
+        labelFontSize: "1rem", labelFontFamily: "inherit", labelFontWeight: "bold", labelColor: "currentColor" },
+    yAxis: { show: true, showGridLines: true, format: "Integer", gridLineOpacity: 0.25, axisColor: "currentColor",
+        tickFontSize: "0.75rem", tickFontFamily: "inherit", tickFontWeight: "normal", tickColor: "currentColor",
+        labelFontSize: "1rem", labelFontFamily: "inherit", labelFontWeight: "bold", labelColor: "currentColor" },
     legend: { show: true },
 };
 
