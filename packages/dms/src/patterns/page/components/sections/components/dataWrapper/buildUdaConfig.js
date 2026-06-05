@@ -1013,7 +1013,7 @@ export const buildUdaConfig = ({
 
   // 3. Derive groupBy, orderBy, fn, serverFn, meta from columns
   const groupBy = columns
-    .filter((column) => column.group || column.groupByPageFilter)
+    .filter((column) => column.group)
     .map((column) => column.name);
 
   const orderBy = columns
@@ -1189,7 +1189,11 @@ export const buildUdaConfig = ({
   }
 
   const allHaving = [...comparisonHaving, ...filterGroupHaving];
-
+  if(customBuckets && Object.keys(customBuckets).length > 0) {
+    console.log("BUILD UDA CONFIG customBuckets::",customBuckets)
+    mappedGroupBy.push(customBuckets.alias)
+  }
+  console.log({mappedGroupBy})
   // 8. Assemble final options
   const options = {
     join: isJoinPresent ? buildJoin({join, externalSource}) : null,

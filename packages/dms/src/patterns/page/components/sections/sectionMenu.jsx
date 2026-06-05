@@ -595,7 +595,6 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
         },
     ]
 
-    console.log({state})
     const customBuckets = {
         name: 'Custom Buckets', icon: 'ColorSwatch',
         cdn: () => isEdit && currentComponent?.useDataSource && canEditSection,

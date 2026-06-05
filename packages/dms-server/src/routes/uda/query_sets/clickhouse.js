@@ -22,6 +22,22 @@ const {
   handleOrderByCH,
 } = require('./helpers');
 
+function buildAliasGroupCase(definition) {
+  const { column, fallback, groups } = definition;
+  console.log({ column, fallback, groups })
+  let caseStmt = `CASE `;
+  for (const [label, values] of Object.entries(groups)) {
+    const valArray = typeof values === 'string' ? JSON.parse(values) : values;
+    const escapedValues = valArray.map(v => typeof v === 'string' ? `'${v.replace(/'/g, "''")}'` : v).join(', ');
+    caseStmt += `WHEN ${column} IN (${escapedValues}) THEN '${label.replace(/'/g, "''")}' `;
+  }
+  if (fallback) {
+    caseStmt += `ELSE '${fallback.replace(/'/g, "''")}' `;
+  }
+  caseStmt += `END`;
+  return caseStmt;
+}
+
 function buildCombinedWhereCH({ filter, exclude, gt, gte, lt, lte, like, filterGroups, joinPresent }) {
   const filterClause = handleFiltersCH({ filter, exclude, gt, gte, lt, lte, like, joinPresent });
   const hasExisting = !!filterClause;
@@ -39,7 +55,8 @@ async function simpleFilterLength(ctx, options) {
     filterGroups = {},
     groupBy = [], having = [],
     normalFilter = [],
-    join = {}
+    join = {},
+    aliasGroups = {}
   } = JSON.parse(options);
   console.log("options::", options)
   // Detect whether the request includes a real join so the WHERE builder can
@@ -53,9 +70,18 @@ async function simpleFilterLength(ctx, options) {
       (filter[column] ??= []).push(...values);
     });
   }
+  console.log({aliasGroups, groupBy})
+  const activeAliasGroups = {};
+  if (aliasGroups) {
+    for (const [alias, definition] of Object.entries(aliasGroups)) {
+      if (groupBy.includes(alias)) {
+        activeAliasGroups[alias] = buildAliasGroupCase(definition);
+      }
+    }
+  }
 
-  const sanitizedGroupBy = sanitizeName(groupBy).filter(Boolean);
-
+  const sanitizedGroupBy = groupBy.map(g => activeAliasGroups[g] || sanitizeName(g)).filter(Boolean);
+  console.log({sanitizedGroupBy})
   const countExpr = sanitizedGroupBy.length
     ? `count(DISTINCT concat(${sanitizedGroupBy.map((c) => `toString(${c})`).join(", '-' ,")}))`
     : `count(*)`;
@@ -115,9 +141,46 @@ async function simpleFilter(ctx, options, attributes, indices) {
   const num = indices.to - indices.from + 1;
   const { db, table_schema, table_name } = ctx;
 
+  const {
+    filter = {}, exclude = {},
+    gt = {}, gte = {}, lt = {}, lte = {}, like = {},
+    filterGroups = {},
+    groupBy = [], having = [], orderBy = {},
+    normalFilter = [], join = {},
+    aliasGroups = {}
+  } = JSON.parse(options);
+
+  const activeAliasGroups = {};
+  if (aliasGroups) {
+    for (const [alias, definition] of Object.entries(aliasGroups)) {
+      if (groupBy.includes(alias)) {
+        activeAliasGroups[alias] = buildAliasGroupCase(definition);
+      }
+    }
+  }
+
   const transformedAttributes = transformAttributesForClickHouse(attributes);
   console.log("transformedAttributes::",transformedAttributes)
-  const sanitizedAttrs = sanitizeName(transformedAttributes).filter((f) => f);
+  
+  const sanitizedAttrs = sanitizeName(transformedAttributes).filter((f) => f)
+    .map(attr => {
+      const respName = getResponseColumnName(attr);
+      if (activeAliasGroups[respName]) {
+        return `${activeAliasGroups[respName]} as ${respName}`;
+      }
+      return attr;
+    });
+
+  // Ensure grouped alias groups are in the SELECT clause
+  groupBy.forEach(g => {
+    if (activeAliasGroups[g]) {
+      const alreadyIn = sanitizedAttrs.some(attr => getResponseColumnName(attr) === g);
+      if (!alreadyIn) {
+        sanitizedAttrs.push(`${activeAliasGroups[g]} as ${g}`);
+      }
+    }
+  });
+
   if (!sanitizedAttrs.length) return [];
 
   const columnNameMap = sanitizedAttrs.reduce((acc, attrName, i) => {
@@ -127,14 +190,6 @@ async function simpleFilter(ctx, options, attributes, indices) {
     }
     return acc;
   }, {});
-
-  const {
-    filter = {}, exclude = {},
-    gt = {}, gte = {}, lt = {}, lte = {}, like = {},
-    filterGroups = {},
-    groupBy = [], having = [], orderBy = {},
-    normalFilter = [], join = {}
-  } = JSON.parse(options);
 
   if (normalFilter.length) {
     normalFilter.forEach(({ column, values }) => {
@@ -172,7 +227,7 @@ async function simpleFilter(ctx, options, attributes, indices) {
     SELECT ${sanitizedAttrs.map((c) => columnNameMap[c] || c).join(', ')}
     FROM ${fromClause}
     ${combinedWhere}
-    ${handleGroupByCH(groupBy)}
+    ${handleGroupByCH(groupBy.map(g => activeAliasGroups[g] || g))}
     ${handleHavingCH(having)}
     ${handleOrderByCH(orderBy)}
     LIMIT ${+num}
