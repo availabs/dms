@@ -55,8 +55,27 @@ display via the section controls).
 band under the line), `interpolation` (chart default), and axis `gridLineOpacity` /
 `axisColor` — all flow theme `chartDefaults` → section `display` → the d3 renderer.
 **Per-series (a yAxis column):** `interpolation`, `area`, `color`, `dashArray` (see the
-per-column controls in `ComponentRegistry/graph_new/config.jsx`). Point markers / tick
-font-size remain on the to-do list (`planning/tasks/current/avlgraph-theme-integration.md`).
+per-column controls in `ComponentRegistry/graph_new/config.jsx`).
+
+### Axis typography (per axis, theme- or section-set)
+Both `xAxis` and `yAxis` take **CSS-valued** font keys, applied inline by the axis
+renderers (`AxisLeft/Bottom/Right.jsx`) via `.style(...)`:
+
+- **Ticks:** `tickFontSize` (e.g. `"11px"`), `tickFontFamily` (a real CSS stack, *not* a
+  Tailwind class — e.g. `"ui-monospace, SFMono-Regular, Menlo, monospace"`),
+  `tickFontWeight` (e.g. `"400"`), `tickColor` (e.g. `"#64748b"` or `"currentColor"`).
+- **Axis label** (the rotated title): `labelFontSize`, `labelFontFamily`, `labelFontWeight`,
+  `labelColor`.
+
+They flow the same path (`chartDefaults` → `display` → renderer; **display wins**). The
+generic `graph_new/theme.js` `ChartDefaults` sets explicit defaults that reproduce the
+historical look (tick `0.75rem` / inherited family / normal weight / `currentColor`; label
+`1rem` bold); the transportny `chartDefaults` overrides ticks to the **mono numeric ladder**
+(11px slate-500 monospace) so every report graph's axis is on-brand without per-section
+config. A section author overrides any key in the **X/Y-Axis** control group.
+**Two gotchas:** (1) `tickFontFamily` is a CSS font string, not `font-mono`; (2) the
+*number format* (`yAxis.format`, e.g. `fnum` vs `fnum2`) is a separate concern from the
+font — decimals/abbreviation live in `utils.js ValueFormats`.
 
 ## Pattern: a target/reference line is just a styled second series ✅
 **Don't build a bespoke "reference line" feature** — it's a second `yAxis` series, styled.

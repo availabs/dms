@@ -30,10 +30,13 @@ export default function FieldSetComp ({ components, className, activeStyle }) {
       {
         components.map((c,i) => {
           let Comp = typeof c.type === 'function' ? c.type : (componentRegistry[c.type] || Input);
+          // labelAccessory is a FieldComp concern (a node rendered alongside the
+          // label, e.g. an inline "Forgot?" link) — keep it off the input element.
+          const { labelAccessory, ...compProps } = c;
 
           return (
             <FieldComp key={i} {...c} activeStyle={activeStyle}>
-              <Comp {...c} type={c.input_type} />
+              <Comp {...compProps} type={c.input_type} />
             </FieldComp>
           )
         })
@@ -42,7 +45,7 @@ export default function FieldSetComp ({ components, className, activeStyle }) {
   )
 }
 
-export function FieldComp  ({ label, description, children, customTheme, activeStyle}) {
+export function FieldComp  ({ label, description, children, customTheme, activeStyle, labelAccessory}) {
   const { theme: themeFromContext = {} } = React.useContext(ThemeContext);
   const theme = {
       ...getComponentTheme(themeFromContext, 'field', activeStyle),
@@ -64,7 +67,14 @@ export function FieldComp  ({ label, description, children, customTheme, activeS
 
   return (
     <div className={theme.field}>
-      {label && <label htmlFor={inputId} className={theme?.label}>{label}</label>}
+      {labelAccessory ? (
+        <div className={theme?.labelRow}>
+          {label && <label htmlFor={inputId} className={theme?.label}>{label}</label>}
+          {labelAccessory}
+        </div>
+      ) : (
+        label && <label htmlFor={inputId} className={theme?.label}>{label}</label>
+      )}
       {description && <p className={theme?.description}>{description}</p>}
       {enhancedChildren}
     </div>

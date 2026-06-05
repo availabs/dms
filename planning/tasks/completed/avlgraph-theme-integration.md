@@ -1,10 +1,11 @@
 # avlGraph (graph2) theme integration + trend-chart design
 
 **Topic:** ui (`avlGraph` / `graph_new` primitive) + themes (transportny) + MAP-21 §02 trends.
-**Status:** core complete & verified (2026-05-30) — binding fix + theme-driven line/area/axis
-tokens + per-series interpolation/color/dash + reference-line-as-a-styled-series. All three §02
-trends rebuilt on `avlGraph` (emerald area+line, Interstate carries a dashed amber 75% target).
-Remaining: optional per-chart hero-stat card + confirm the other two charts' target values.
+**Status:** ✅ COMPLETE — 2026-06-03. Core (2026-05-30): binding fix + theme-driven
+line/area/axis tokens + per-series interpolation/color/dash + reference-line-as-a-styled-series.
+Closed out 2026-06-03: per-chart header + hero-stat cards (all 4 §02 trends), real 2027 targets
+wired (stepped per year), PHED graph added. Axis-font theming spun off to its own (also-shipped)
+task `graph-axis-font-theming.md`.
 
 ## Objective
 Move the immature **`avlGraph`** ("AVL Graph") component forward and use it to upgrade
@@ -59,17 +60,17 @@ and BC by default.
   `theme.avlGraph.chartDefaults` (+ transportny `chartDefaults`), per-section/-series overrides
   in `display`/columns; `mergeChartDefaults` keeps display winning.
 
-## ⏳ Remaining (optional / needs input)
-- [ ] **Per-chart header + hero-stat card (C).** The §01 KPI strip already shows the hero
-  stats with `status_pill`s, and each chart has its title; a dedicated per-chart hero card
-  above each trend is a nice-to-have. Build as a sibling `Card` (reuse `status_pill`).
-- [ ] **Target values for the other two trends.** Interstate uses the design's stated 75%.
-  Non-Interstate NHS LOTTR and Truck TTTR targets aren't stated in the mockup — **confirm the
-  values/source with the user** before adding their reference lines (don't fabricate). The
-  capability is ready: add a `<target> as <name>` second yAxis column, step interp, amber dash.
-- [ ] **Stepped P1→P2 target** (vs a flat line): once real period targets are known, encode
-  them as a `CASE WHEN year_record >= <P2start> THEN <p2> ELSE <p1> END as target` calc column
-  with `step` interpolation — the `step` curve already draws the riser correctly.
+## ✅ Remaining items — all completed 2026-06-03
+- [x] **Per-chart header + hero-stat card (C).** Shipped for all four §02 trends as compound
+  bands — a left lexical (kicker + heading) + a right data `Card` (hero value + `status_pill`),
+  composed flush above each graph via section `height:'fill'`. (See the map21 build task's
+  2026-06-03 session log; cards `2174097`/`2174095`/`2174096`/`2174101`.)
+- [x] **Target values for the other two trends.** Wired the **real** 2027 statewide targets
+  (`*_applicable_target` joined on `year_record`) for Interstate / Non-Interstate / Truck —
+  no fabricated values. Each renders as a dashed amber second yAxis series.
+- [x] **Stepped P1→P2 target.** The joined `applicable_target` varies per `year_record`, so the
+  reference line steps naturally (e.g. Truck 2.00→2.10 in 2020–21→2.00; Non-Int 63→70 at 2022)
+  — `step` interpolation draws the risers. No CASE column needed; the real per-year target does it.
 
 ## Design target (mockup §02, per chart)
 A **card**: header (kicker `// 01 · LOTTR · Interstate · target ≥75%` + h3 title) + a
