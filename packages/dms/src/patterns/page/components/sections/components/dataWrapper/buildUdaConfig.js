@@ -318,6 +318,66 @@ export const extractNormalFiltersFromGroups = (node) => {
   return { cleaned: { ...node, groups: keptGroups }, normalFilters };
 };
 
+// ─── Custom bucket filtering ────────────────────────────────────────────────
+
+/**
+ * Build filter leaves that restrict fetched rows to those that fall into at
+ * least one defined custom bucket.
+ *
+ * Reads the RESOLVED `customBuckets.config` (built by resolveAliasGroups —
+ * works for both static groups and dynamic page-filter-bound groups). Produces
+ * one `IN (...)` leaf per alias: `col` is that alias's source column, `value`
+ * is the union of all its group value-arrays (deduped). Fallback labels are
+ * intentionally excluded — fallback rows are exactly the ones "filter to
+ * buckets" mode is meant to drop.
+ *
+ * Gating:
+ * - Default ON: only an explicit `filterToBuckets === false` disables it.
+ * - Empty/missing groups → no leaf for that alias (toggle-on with nothing
+ *   configured is a safe no-op that returns all rows).
+ *
+ * `source_id` is stamped on the leaf so applyTableAliasToJoin aliases the
+ * column to `ds.` under a join (avoids ambiguous `data->>` in DMS-on-DMS joins).
+ */
+export const buildCustomBucketFilters = (customBuckets, baseSourceId) => {
+  if (!customBuckets || customBuckets.filterToBuckets === false) return [];
+  const cfg = customBuckets.config || {};
+
+  // A group's values may be a real array (static groups, split from CSV) OR a
+  // JSON-stringified array (dynamic page-filter bindings whose value field holds
+  // a stringified list). Normalize both — mirrors the server's CASE builder,
+  // which does `typeof values === 'string' ? JSON.parse(values) : values`.
+  // Without this, a stringified array survives as a single scalar and the leaf
+  // compiles to `col = '["a","b"]'` instead of `col IN ('a','b')`.
+  const coerceGroupValues = (values) => {
+    if (Array.isArray(values)) return values;
+    if (typeof values === "string") {
+      try {
+        const parsed = JSON.parse(values);
+        return Array.isArray(parsed) ? parsed : [parsed];
+      } catch {
+        return [values];
+      }
+    }
+    return values == null ? [] : [values];
+  };
+
+  return Object.values(cfg)
+    .map(({ column, groups } = {}) => {
+      const values = [
+        ...new Set(
+          Object.values(groups || {})
+            .flatMap(coerceGroupValues)
+            .filter((v) => v != null && v !== ""),
+        ),
+      ];
+      return column && values.length
+        ? { col: column, op: "filter", value: values, source_id: baseSourceId }
+        : null;
+    })
+    .filter(Boolean);
+};
+
 // ─── Page filter application ────────────────────────────────────────────────
 
 const isGroup = (node) => node?.groups && Array.isArray(node.groups);
@@ -1055,6 +1115,20 @@ export const buildUdaConfig = ({
   // 5. Process top-level filter tree
   let filterTree = filters || {};
 
+  // "Filter to buckets" — when enabled, restrict rows to those that fall into a
+  // defined custom bucket. AND-restrict at the top level regardless of the
+  // user's filter relation so the bucket constraint can't be folded into an OR.
+  const bucketLeaves = buildCustomBucketFilters(
+    customBuckets,
+    externalSource?.source_id,
+  );
+  if (bucketLeaves.length) {
+    filterTree = {
+      op: "AND",
+      groups: [...(filterTree.groups ? [filterTree] : []), ...bucketLeaves],
+    };
+  }
+  
   // If join is present, append table alias to filter columns
   if (isJoinPresent) {    
     filterTree = applyTableAliasToJoin(filterTree, sourceIdToTableAlias, externalSource.source_id);
@@ -1069,7 +1143,7 @@ export const buildUdaConfig = ({
 
   
   filterTree = flattenFilterValues(filterTree)
-    console.log("after flat",{filterTree})
+    console.log("after flat",(JSON.stringify({filterTree})))
   // Extract normal filters before mapping (they need raw column names)
   const { cleaned: nonNormalFilterGroups, normalFilters: filterGroupNormalFilters } =
     extractNormalFiltersFromGroups(filterTree);

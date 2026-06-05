@@ -22,6 +22,7 @@ import {
   buildColumnsWithSettings,
   getColumnsToFetch,
   buildUdaConfig,
+  buildCustomBucketFilters,
   legacyStateToBuildInput,
   computeOutputSourceInfo,
   buildJoin,
@@ -711,6 +712,175 @@ describe("buildUdaConfig", () => {
     expect(attributes).toEqual([]);
     expect(options.groupBy).toEqual([]);
     expect(options.filterGroups).toEqual({});
+  });
+
+  // ─── custom bucket "filter to buckets" ──────────────────────────────────────
+
+  const bucketConfig = (groups, extra = {}) => ({
+    alias: "region",
+    sourceField: "county",
+    fallback: "Other",
+    config: { region: { column: "county", fallback: "Other", groups } },
+    ...extra,
+  });
+
+  it("filter to buckets OFF: filterGroups identical to today (no injection)", () => {
+    const input = basicDamaInput();
+    input.customBuckets = bucketConfig(
+      { North: ["Albany", "Greene"] },
+      { filterToBuckets: false },
+    );
+    const { options } = buildUdaConfig(input);
+    // No filters configured + toggle off → empty tree, same as a no-bucket run.
+    expect(options.filterGroups).toEqual({});
+  });
+
+  it("filter to buckets ON: injects IN leaf with bucket values on source col", () => {
+    const input = basicDamaInput();
+    input.customBuckets = bucketConfig({ North: ["Albany", "Greene"] });
+    const { options } = buildUdaConfig(input);
+    const leaf = options.filterGroups.groups[0];
+    expect(options.filterGroups.op).toBe("AND");
+    expect(leaf.col).toBe("county");
+    expect(leaf.op).toBe("filter");
+    expect(leaf.value).toEqual(["Albany", "Greene"]);
+  });
+
+  it("filter to buckets ON (default/unset): treated as enabled", () => {
+    const input = basicDamaInput();
+    input.customBuckets = bucketConfig({ North: ["Albany"] }); // no filterToBuckets key
+    const { options } = buildUdaConfig(input);
+    expect(options.filterGroups.groups[0].value).toEqual(["Albany"]);
+  });
+
+  it("filter to buckets ON: flattens + dedupes across multiple groups", () => {
+    const input = basicDamaInput();
+    input.customBuckets = bucketConfig({
+      North: ["Albany", "Greene"],
+      South: ["Greene", "Ulster"],
+    });
+    const { options } = buildUdaConfig(input);
+    expect(options.filterGroups.groups[0].value).toEqual([
+      "Albany",
+      "Greene",
+      "Ulster",
+    ]);
+  });
+
+  it("filter to buckets ON, DMS: maps bucket col to data->> accessor", () => {
+    const input = basicDmsInput();
+    input.customBuckets = {
+      alias: "bucket",
+      sourceField: "county",
+      config: { bucket: { column: "county", groups: { A: ["Albany"] } } },
+    };
+    const { options } = buildUdaConfig(input);
+    expect(options.filterGroups.groups[0].col).toBe("data->>'county'");
+  });
+
+  it("filter to buckets ON but empty groups: no injection (returns all rows)", () => {
+    const input = basicDamaInput();
+    input.customBuckets = bucketConfig({});
+    const { options } = buildUdaConfig(input);
+    expect(options.filterGroups).toEqual({});
+  });
+
+  it("filter to buckets ON: AND-restricts existing OR filters at top level", () => {
+    const input = basicDamaInput();
+    input.filters = {
+      op: "OR",
+      groups: [
+        { col: "county", op: "filter", value: ["Albany"] },
+        { col: "event_type", op: "filter", value: ["Flood"] },
+      ],
+    };
+    input.customBuckets = bucketConfig({ North: ["Albany", "Greene"] });
+    const { options } = buildUdaConfig(input);
+    // Top level is AND: [ original OR tree, bucket leaf ]
+    expect(options.filterGroups.op).toBe("AND");
+    expect(options.filterGroups.groups[0].op).toBe("OR");
+    expect(options.filterGroups.groups[0].groups).toHaveLength(2);
+    expect(options.filterGroups.groups[1].col).toBe("county");
+    expect(options.filterGroups.groups[1].value).toEqual(["Albany", "Greene"]);
+  });
+});
+
+// ─── buildCustomBucketFilters ────────────────────────────────────────────────
+
+describe("buildCustomBucketFilters", () => {
+  it("returns [] when filterToBuckets is explicitly false", () => {
+    const cb = {
+      filterToBuckets: false,
+      config: { r: { column: "county", groups: { A: ["Albany"] } } },
+    };
+    expect(buildCustomBucketFilters(cb, 100)).toEqual([]);
+  });
+
+  it("returns [] for undefined customBuckets", () => {
+    expect(buildCustomBucketFilters(undefined, 100)).toEqual([]);
+  });
+
+  it("stamps source_id on the leaf for join aliasing", () => {
+    const cb = { config: { r: { column: "county", groups: { A: ["Albany"] } } } };
+    expect(buildCustomBucketFilters(cb, 7)).toEqual([
+      { col: "county", op: "filter", value: ["Albany"], source_id: 7 },
+    ]);
+  });
+
+  it("builds one leaf per alias", () => {
+    const cb = {
+      config: {
+        r: { column: "county", groups: { A: ["Albany"] } },
+        t: { column: "type", groups: { B: ["Flood"] } },
+      },
+    };
+    const leaves = buildCustomBucketFilters(cb, 1);
+    expect(leaves).toHaveLength(2);
+    expect(leaves.map((l) => l.col).sort()).toEqual(["county", "type"]);
+  });
+
+  it("skips aliases with no values", () => {
+    const cb = {
+      config: {
+        r: { column: "county", groups: {} },
+        t: { column: "type", groups: { B: ["Flood"] } },
+      },
+    };
+    const leaves = buildCustomBucketFilters(cb, 1);
+    expect(leaves).toHaveLength(1);
+    expect(leaves[0].col).toBe("type");
+  });
+
+  it("drops null/empty-string values", () => {
+    const cb = {
+      config: { r: { column: "county", groups: { A: ["Albany", "", null] } } },
+    };
+    expect(buildCustomBucketFilters(cb, 1)[0].value).toEqual(["Albany"]);
+  });
+
+  it("parses JSON-stringified array group values (dynamic bindings)", () => {
+    // Dynamic page-filter bindings can store the value list as a JSON string.
+    // It must expand to a real array so the leaf compiles to IN (...), not
+    // `col = '["a","b"]'`.
+    const cb = {
+      config: { r: { column: "tmc", groups: { A: '["120-50371","120P05935"]' } } },
+    };
+    expect(buildCustomBucketFilters(cb, 1)[0].value).toEqual([
+      "120-50371",
+      "120P05935",
+    ]);
+  });
+
+  it("mixes stringified and real array groups, deduping across both", () => {
+    const cb = {
+      config: {
+        r: {
+          column: "tmc",
+          groups: { A: '["a","b"]', B: ["b", "c"] },
+        },
+      },
+    };
+    expect(buildCustomBucketFilters(cb, 1)[0].value).toEqual(["a", "b", "c"]);
   });
 });
 

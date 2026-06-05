@@ -613,6 +613,12 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                     { icon: cbConfig.type === 'static'  ? 'CircleCheck' : 'Blank', name: 'Static',  onClickGoBack: true, onClick: () => setCbConfig({ type: 'static' }) },
                 ]
             },
+            {
+                name: 'Filter rows to buckets', label: 'Filter rows to buckets',
+                type: 'toggle', showLabel: true,
+                enabled: cbConfig.filterToBuckets !== false,
+                setEnabled: v => setCbConfig({ filterToBuckets: v })
+            },
             { type: 'separator' },
             {
                 name: 'Dimension Alias',
