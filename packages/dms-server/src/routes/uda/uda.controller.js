@@ -296,12 +296,12 @@ async function simpleFilter(env, view_id, options, attributes, indices) {
 
   // Meta lookups may target a different env/db than the main query, so we
   // re-enter simpleFilter (which will dispatch via its own getEssentials).
-  const { meta = {}, serverFn = {} } = JSON.parse(options);
+  const { meta = {}, serverFn = {}, keepOriginalValues = false } = JSON.parse(options);
   if (Object.keys(meta).length) {
     rows = await applyMeta(rows, meta, env, ctx.isDms, options);
   }
   if (Object.keys(serverFn).length) {
-    rows = await applyServerFn(rows, serverFn, ctx.app, ctx.db, ctx.splitMode);
+    rows = await applyServerFn(rows, serverFn, ctx.app, ctx.db, ctx.splitMode, keepOriginalValues);
   }
   return rows;
 }
@@ -337,7 +337,7 @@ function parseParentRef(val) {
   return { id: s, ref: null };
 }
 
-async function applyServerFn(rows, serverFn, app, db, splitMode) {
+async function applyServerFn(rows, serverFn, app, db, splitMode, keepOriginalValues = false) {
   if (!rows.length) return rows;
   const tbl = await dmsMainTable(db, app, splitMode);
 
@@ -405,7 +405,10 @@ async function applyServerFn(rows, serverFn, app, db, splitMode) {
       const resolved = entries
         .map(({ id }) => id ? (lookup[id] ?? (keepOriginal ? id : null)) : null)
         .filter(v => v != null);
-      row[colName] = joinWithChar ? resolved.join(joinWithChar) : (resolved.length === 1 ? resolved[0] : resolved);
+      const resolvedTitle = joinWithChar ? resolved.join(joinWithChar) : (resolved.length === 1 ? resolved[0] : resolved);
+      row[colName] = keepOriginalValues
+        ? { value: resolvedTitle, originalValue: rawVal }
+        : resolvedTitle;
     });
   }
   return rows;

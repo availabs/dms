@@ -12,7 +12,7 @@ export const formattedAttributeStr = (col, isDms, isCalculatedCol) => isCalculat
 
 export const getData = async ({format, apiLoad,
                                   // length,
-                                  reqName, refName, rawName, allAttributes, filterBy={}, limit}) =>{
+                                  reqName, refName, rawName, allAttributes, filterBy={}, limit, serverFn = {}}) =>{
     const prependWithDistinct = !reqName.toLowerCase().startsWith('distinct');
     const appendWithAS = !reqName.toLowerCase().includes(' as ');
     const mappedAttributeName = `${prependWithDistinct ? `distinct ` : ``}${reqName}${appendWithAS ? ` as ${reqName}` : ``}` // to get uniq values
@@ -40,7 +40,8 @@ export const getData = async ({format, apiLoad,
                 // exclude: {[attribute]: ['null']},
                 // orderBy: {1: 'asc nulls last'},
                 meta,
-                keepOriginalValues: true
+                keepOriginalValues: true,
+                ...(Object.keys(serverFn).length ? { serverFn } : {})
             }),
             attributes: [mappedAttributeName],
             stopFullDataLoad: true

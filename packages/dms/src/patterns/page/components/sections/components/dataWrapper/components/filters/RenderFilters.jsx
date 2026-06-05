@@ -169,6 +169,11 @@ export const RenderFilters = ({ isEdit, defaultOpen = true }) => {
                         // get all the filters with value
                         // build a filterOptions object including each filter type (filter, exclude, gt, gte...),
                         // for filter and exclude types, and multiselect column combination, pull value sets for
+                        const colDef = (state.columns || []).find(c => c.name === columnName);
+                        const colServerFn = (colDef?.serverFn && colDef?.joinKey)
+                          ? { [columnName]: { serverFn: colDef.serverFn, joinKey: colDef.joinKey, valueKey: colDef.valueKey, keepOriginal: colDef.keepOriginal, joinWithChar: colDef.joinWithChar } }
+                          : {};
+
                         let data = await getData({
                             format: state.externalSource,
                             apiLoad,
@@ -177,7 +182,8 @@ export const RenderFilters = ({ isEdit, defaultOpen = true }) => {
                             refName: getAttributeAccessorStr(columnName), // column name without as
                             rawName: columnName, // column name without accessor (response name)
                             allAttributes: state.columns,
-                            filterBy
+                            filterBy,
+                            serverFn: colServerFn
                         })
 
                         // console.log('fo data?', columnName, data)
@@ -192,7 +198,13 @@ export const RenderFilters = ({ isEdit, defaultOpen = true }) => {
 
                             const metaValue = parseIfJson(responseValue?.value || responseValue);
 
-                            const originalValue = parseIfJson(responseValue?.originalValue || responseValue);
+                            // Use originalValue as-is (raw stored string) when the server wrapped it via
+                            // applyMeta or applyServerFn — avoids parseIfJson turning a JSON-blob
+                            // originalValue (e.g. section parent '{"id":...}') into an object,
+                            // which would break SQL matching when that value is used as a filter.
+                            const originalValue = responseValue?.originalValue != null
+                              ? responseValue.originalValue
+                              : parseIfJson(responseValue);
 
                             const value = Array.isArray(originalValue)
                                 ? originalValue.map((pv, i) => ({ label: metaValue?.[i] || pv, value: pv }))

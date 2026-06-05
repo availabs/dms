@@ -140,3 +140,4 @@ Editing from a published page requires `display.allowEditInView = true`, which i
 ## Summary
 
 The pages/sections data source is efficient and architecturally sound. Direct columns filter, group, and sort correctly. CRUD works. `parent` and `url_slug` now resolve to human-readable values via `applyServerFn`. The main open item is filtering by resolved parent name (currently filters match raw IDs). The remaining items are UX refinements for author accessibility.
+
