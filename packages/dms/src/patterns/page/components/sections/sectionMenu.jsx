@@ -6,7 +6,6 @@ import { getComponentTheme } from "../../../../ui/useTheme";
 import {ComplexFilters} from "./ComplexFilters";
 import ColumnManager from "./ColumnManager";
 import { getColumnLabel } from "./controls_utils";
-import { CustomBucketsConfigurator } from "./components/CustomBucketsConfigurator";
 
 
 export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSource={}, dwAPI, mapAPI, pageDataSources={}, ...rest }) => {
@@ -595,23 +594,128 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
         },
     ]
 
+    const cbConfig = state?.customBuckets || {
+        alias: '', sourceField: '', type: 'dynamic',
+        binding: { statePath: '', labelKey: '', valueKey: '' }, fallback: 'Other'
+    };
+    const setCbConfig = (partial) => dwAPI.setCustomBuckets({ ...cbConfig, ...partial });
+    const setCbBinding = (partial) => setCbConfig({ binding: { ...cbConfig.binding, ...partial } });
+
     const customBuckets = {
         name: 'Custom Buckets', icon: 'ColorSwatch',
         cdn: () => isEdit && currentComponent?.useDataSource && canEditSection,
-        items: [{
-            name: 'Configure Custom Buckets',
-            noHover: true,
-            type: () => (
-                <CustomBucketsConfigurator
-                    value={state?.customBuckets}
-                    setValue={(v) => dwAPI.setCustomBuckets(v)}
-                    state={state}
-                    setState={dwAPI.setState}
-                    dwAPI={dwAPI}
-                    mapAPI={mapAPI}
-                    ui={ui}
-                />            )
-        }]
+        items: [
+            {
+                name: 'Type',
+                value: cbConfig.type === 'dynamic' ? 'Dynamic' : 'Static', showValue: true,
+                items: [
+                    { icon: cbConfig.type === 'dynamic' ? 'CircleCheck' : 'Blank', name: 'Dynamic', onClickGoBack: true, onClick: () => setCbConfig({ type: 'dynamic' }) },
+                    { icon: cbConfig.type === 'static'  ? 'CircleCheck' : 'Blank', name: 'Static',  onClickGoBack: true, onClick: () => setCbConfig({ type: 'static' }) },
+                ]
+            },
+            { type: 'separator' },
+            {
+                name: 'Dimension Alias',
+                value: cbConfig.alias, showValue: true,
+                items: [{
+                    id: 'cb_alias_input', name: 'Dimension Alias',
+                    type: 'input', inputType: 'text', value: cbConfig.alias,
+                    onChange: e => setCbConfig({ alias: e?.target?.value ?? e })
+                }]
+            },
+            {
+                name: 'Source Column',
+                value: cbConfig.sourceField, showValue: true,
+                showSearch: (state.externalSource?.columns || []).length > 5,
+                items: (state.externalSource?.columns || []).map(col => ({
+                    icon: col.name === cbConfig.sourceField ? 'CircleCheck' : 'Blank',
+                    name: col.name, onClickGoBack: true,
+                    onClick: () => setCbConfig({ sourceField: col.name })
+                }))
+            },
+            {
+                name: 'Fallback Label',
+                value: cbConfig.fallback, showValue: true,
+                items: [{
+                    id: 'cb_fallback_input', name: 'Fallback Label',
+                    type: 'input', inputType: 'text', value: cbConfig.fallback,
+                    onChange: e => setCbConfig({ fallback: e?.target?.value ?? e })
+                }]
+            },
+            { type: 'separator' },
+            {
+                name: 'State Path', cdn: () => cbConfig.type === 'dynamic',
+                value: cbConfig.binding?.statePath, showValue: true,
+                items: [{
+                    id: 'cb_statepath_input', name: 'State Path',
+                    type: 'input', inputType: 'text', value: cbConfig.binding?.statePath,
+                    onChange: e => setCbBinding({ statePath: e?.target?.value ?? e })
+                }]
+            },
+            {
+                name: 'Label Property', cdn: () => cbConfig.type === 'dynamic',
+                value: cbConfig.binding?.labelKey, showValue: true,
+                items: [{
+                    id: 'cb_labelkey_input', name: 'Label Property',
+                    type: 'input', inputType: 'text', value: cbConfig.binding?.labelKey,
+                    onChange: e => setCbBinding({ labelKey: e?.target?.value ?? e })
+                }]
+            },
+            {
+                name: 'Value Property', cdn: () => cbConfig.type === 'dynamic',
+                value: cbConfig.binding?.valueKey, showValue: true,
+                items: [{
+                    id: 'cb_valuekey_input', name: 'Value Property',
+                    type: 'input', inputType: 'text', value: cbConfig.binding?.valueKey,
+                    onChange: e => setCbBinding({ valueKey: e?.target?.value ?? e })
+                }]
+            },
+            ...(cbConfig.type === 'static' ? (cbConfig.staticGroups || []).map((group, idx) => ({
+                name: `Group ${idx + 1}`, icon: 'Group',
+                items: [
+                    {
+                        name: 'Group Label',
+                        value: group.label, showValue: true,
+                        items: [{
+                            id: `cb_group_${idx}_label`, name: 'Group Label',
+                            type: 'input', inputType: 'text', value: group.label,
+                            onChange: e => {
+                                const groups = [...(cbConfig.staticGroups || [])];
+                                groups[idx] = { ...groups[idx], label: e?.target?.value ?? e };
+                                setCbConfig({ staticGroups: groups });
+                            }
+                        }]
+                    },
+                    {
+                        name: 'Values (CSV)',
+                        value: group.values, showValue: true,
+                        items: [{
+                            id: `cb_group_${idx}_values`, name: 'Values (CSV)',
+                            type: 'input', inputType: 'text', value: group.values,
+                            onChange: e => {
+                                const groups = [...(cbConfig.staticGroups || [])];
+                                groups[idx] = { ...groups[idx], values: e?.target?.value ?? e };
+                                setCbConfig({ staticGroups: groups });
+                            }
+                        }]
+                    },
+                    { type: 'separator' },
+                    {
+                        name: 'Remove Group', icon: 'TrashCan', onClickGoBack: true,
+                        onClick: () => {
+                            const groups = [...(cbConfig.staticGroups || [])];
+                            groups.splice(idx, 1);
+                            setCbConfig({ staticGroups: groups });
+                        }
+                    }
+                ]
+            })) : []),
+            {
+                name: 'Add Group', icon: 'Plus',
+                cdn: () => cbConfig.type === 'static',
+                onClick: () => setCbConfig({ staticGroups: [...(cbConfig.staticGroups || []), { label: '', values: '' }] })
+            },
+        ].filter(item => !item.cdn || item.cdn())
     };
 
     const pivot = {
