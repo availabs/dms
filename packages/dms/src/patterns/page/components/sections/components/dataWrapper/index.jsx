@@ -37,7 +37,35 @@ const getCurrDate = () => {
     return new Date().toLocaleDateString(undefined, options);
 };
 
+function resolveAliasGroups(uiConfig, pageFilters) {
+  if (uiConfig.type === 'static') {
+    const groups = {};
+    (uiConfig.staticGroups || []).forEach(group => {
+      if (group.label && group.values) {
+        groups[group.label] = group.values.split(',').map(v => v.trim());
+      }
+    });
+    return { [uiConfig.alias]: { column: uiConfig.sourceField, fallback: uiConfig.fallback, groups: groups } };
+  }
 
+  const rawRoutes = get(pageFilters, uiConfig.binding.statePath) || [];
+
+  // Transform it into the exact Label -> Array shape the server wants
+  const groups = {};
+  rawRoutes.forEach(route => {
+    const label = route[uiConfig.binding.labelKey];
+    const values = route[uiConfig.binding.valueKey];
+    if (label && values) groups[label] = values;
+  });
+
+  return {
+    [uiConfig.alias]: {
+      column: uiConfig.sourceField,
+      fallback: uiConfig.fallback,
+      groups: groups
+    }
+  };
+}
 const DOWNLOAD_CHUNK_SIZE = 5000;
 
 // Set-returning functions (e.g. jsonb_array_elements_text) expand each row into
@@ -225,6 +253,74 @@ const Edit = forwardRef((props, ref) => {
             setState(draft => { if (draft) draft.outputSourceInfo = outputSourceInfo; });
         }
     }, [outputSourceInfo]);
+    
+    // Dynamically add/remove custom bucket column to state.columns for UI
+    useEffect(() => {
+        console.log("in use effect for custom bucket stuff")
+        setState(draft => {
+            if (!draft) return;
+
+            const existingCustomBucketColIndex = draft.columns.findIndex(
+                (col) => col.origin === 'custom-bucket' && col.name === draft.customBuckets?.alias
+            );
+
+            if (draft.customBuckets && draft.customBuckets.alias) {
+                if (existingCustomBucketColIndex === -1) {
+                    // Add the custom bucket column if it doesn't exist
+                    draft.columns.push({
+                        name: draft.customBuckets.alias,
+                        alias: draft.customBuckets.alias,
+                        type: draft.customBuckets.type || 'text',
+                        show: true,
+                        group: true,
+                        isCalculatedColumn: false,
+                        origin: 'custom-bucket',
+                    });
+                } else {
+                    // Update existing custom bucket column properties if they've changed
+                    const existingCol = draft.columns[existingCustomBucketColIndex];
+                    if (
+                        existingCol.type !== (draft.customBuckets.type || 'text') ||
+                        existingCol.name !== draft.customBuckets.alias
+                    ) {
+                        existingCol.name = draft.customBuckets.alias;
+                        existingCol.alias = draft.customBuckets.alias;
+                        existingCol.type = draft.customBuckets.type || 'text';
+                    }
+                }
+            } else if (existingCustomBucketColIndex !== -1) {
+                // Remove the custom bucket column if customBuckets is disabled
+                draft.columns.splice(existingCustomBucketColIndex, 1);
+            }
+        });
+
+        const pageFilters = (editPageState?.filters || []).reduce(
+            (acc, curr) => ({ ...acc, [curr.searchKey]: curr.values }), {}
+        );
+
+        if (!Object.keys(pageFilters).length || !Object.keys(state?.customBuckets || {}).length) return;
+        const customBucketColumns = (state?.columns || []).filter(c => c.origin === "custom-bucket");
+        //const newCustomBucketConfig = resolveAliasGroups(state?.customBuckets, pageFilters);
+
+        const updates = {};
+        customBucketColumns.forEach(col => {
+            const paramValues = pageFilters[state?.customBuckets.binding.statePath];
+            if (paramValues !== undefined) {
+                updates[col.name] = Array.isArray(paramValues) ? paramValues[0] : paramValues;
+            }
+        });
+        console.log("about to update")
+        if (Object.keys(updates).length) {
+            setNewItem(prev => ({ ...prev, ...updates }));
+        }
+
+        // if(!isEqual(state.customBuckets.config, newCustomBucketConfig)){
+        //     setState(draft => {
+        //         draft.customBuckets.config = newCustomBucketConfig
+        //     })
+        // }
+
+    }, [state?.customBuckets, editPageState?.filters, setState]); // Re-run when customBuckets or its alias/type changes
 
     usePageFilterSync({ state, setState });
 
@@ -466,6 +562,67 @@ const View = forwardRef(({cms_context, value, onChange, component, editPageMode,
             setState(draft => { if (draft) draft.outputSourceInfo = outputSourceInfo; });
         }
     }, [outputSourceInfo]);
+
+    // Dynamically add/remove custom bucket column to state.columns for UI
+    useEffect(() => {
+        console.log("in use effect for custom bucket stuff")
+        setState(draft => {
+            if (!draft) return;
+
+            const existingCustomBucketColIndex = draft.columns.findIndex(
+                (col) => col.origin === 'custom-bucket' && col.name === draft.customBuckets?.alias
+            );
+
+            if (draft.customBuckets && draft.customBuckets.alias) {
+                if (existingCustomBucketColIndex === -1) {
+                    // Add the custom bucket column if it doesn't exist
+                    draft.columns.push({
+                        name: draft.customBuckets.alias,
+                        alias: draft.customBuckets.alias,
+                        type: draft.customBuckets.type || 'text',
+                        show: true,
+                        group: true,
+                        isCalculatedColumn: false,
+                        origin: 'custom-bucket',
+                    });
+                } else {
+                    // Update existing custom bucket column properties if they've changed
+                    const existingCol = draft.columns[existingCustomBucketColIndex];
+                    if (
+                        existingCol.type !== (draft.customBuckets.type || 'text') ||
+                        existingCol.name !== draft.customBuckets.alias
+                    ) {
+                        existingCol.name = draft.customBuckets.alias;
+                        existingCol.alias = draft.customBuckets.alias;
+                        existingCol.type = draft.customBuckets.type || 'text';
+                    }
+                }
+            } else if (existingCustomBucketColIndex !== -1) {
+                // Remove the custom bucket column if customBuckets is disabled
+                draft.columns.splice(existingCustomBucketColIndex, 1);
+            }
+        });
+
+        const pageFilters = (viewPageState?.filters || []).reduce(
+            (acc, curr) => ({ ...acc, [curr.searchKey]: curr.values }), {}
+        );
+
+        if (!Object.keys(pageFilters).length || !Object.keys(state?.customBuckets || {}).length) return;
+        const newCustomBucketConfig = resolveAliasGroups(state?.customBuckets, pageFilters);
+
+        if(!isEqual(state.customBuckets.config, newCustomBucketConfig)){
+            setState(draft => {
+                draft.customBuckets.config = newCustomBucketConfig
+            })
+        }
+
+        // if(!isEqual(state.customBuckets.config, newCustomBucketConfig)){
+        //     setState(draft => {
+        //         draft.customBuckets.config = newCustomBucketConfig
+        //     })
+        // }
+
+    }, [state?.customBuckets, viewPageState?.filters, setState]); // Re-run when customBuckets or its alias/type changes
 
     usePageFilterSync({ state, setState, setReadyOnChange: true });
 

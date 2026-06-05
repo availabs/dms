@@ -71,9 +71,8 @@ export function usePageFilterSync({ state, setState, setReadyOnChange = false })
         );
 
         if (!Object.keys(pageFilters).length || !Object.keys(state?.customBuckets || {}).length) return;
-        console.log("custom bucket use effect, after null check. state::", state)
+
         const newCustomBucketConfig = resolveAliasGroups(state?.customBuckets, pageFilters);
-        console.log({newCustomBucketConfig})
 
         if(!isEqual(state.customBuckets.config, newCustomBucketConfig)){
             setState(draft => {

@@ -82,7 +82,7 @@ export const applyFn = (col = {}, isDms = false) => {
     isCalculated,
     col.systemCol,
   );
-  const colNameAfterAS = (
+   const colNameAfterAS = (
     (isCalculated ? splitColNameOnAS(col.name)[1] : col.name) || ""
   ).toLowerCase().replace(".", "_");
 
@@ -332,7 +332,7 @@ export const applyTableAliasToJoin = (filterTree, sourceIdToAlias, baseSourceId)
 
     let newNode = { ...node };
 
-    const prefix = sourceIdToAlias[node.source_id] || (node.source_id === baseSourceId ? 'ds' : ""); 
+    const prefix = sourceIdToAlias[node.source_id] || (node.source_id === baseSourceId ? 'ds' : "");
     // Always alias 'col' if it exists
     if (newNode.col && prefix) {
       newNode.col = `${prefix}.${newNode.col.split('.').pop()}`;
@@ -768,7 +768,7 @@ export const isJoinComplete = (joinSource) => {
 
     if(!joinSource.joinColumns.every(col => col.dsColumn && col.joinSourceColumn)){
       console.log("join is missing a portion of join column pair")
-    } 
+    }
 
     return joinSource.joinColumns.every(col => col.dsColumn && col.joinSourceColumn);
   } else {
@@ -882,6 +882,7 @@ export const computeOutputSourceInfo = ({
  * @param {Object} input.filters - Top-level filter tree {op, groups} (promoted from dataRequest.filterGroups)
  * @param {Object} [input.join] - Optional join config (Phase 6)
  * @param {Object} [input.pageFilters] - Runtime URL search params for usePageFilters conditions
+ * @param {Object} [input.customBuckets] - Configuration for custom bucket columns
  * @returns {{ options: Object, attributes: string[], columnsToFetch: Array, columnsWithSettings: Array, outputSourceInfo: Object }}
  */
 export const buildUdaConfig = ({
@@ -926,7 +927,7 @@ export const buildUdaConfig = ({
 
   /**
    * Source columns are ALL columns from ALL sources in the section
-   * 
+   *
    */
   const sourceColumns = allCols.map((col) => {
     const colSourceId = col.source_id || externalSource.source_id;
@@ -979,7 +980,7 @@ export const buildUdaConfig = ({
     // }
     return {
       ...col,
-      name: isJoin ? `${alias}.${col.name}` : col.name,
+      name: isJoin && col.origin !== 'custom-bucket' ? `${alias}.${col.name}` : col.name,
     };
   });
 
@@ -1189,11 +1190,6 @@ export const buildUdaConfig = ({
   }
 
   const allHaving = [...comparisonHaving, ...filterGroupHaving];
-  if(customBuckets && Object.keys(customBuckets).length > 0) {
-    console.log("BUILD UDA CONFIG customBuckets::",customBuckets)
-    mappedGroupBy.push(customBuckets.alias)
-  }
-  console.log({mappedGroupBy})
   // 8. Assemble final options
   const options = {
     join: isJoinPresent ? buildJoin({join, externalSource}) : null,
@@ -1210,6 +1206,8 @@ export const buildUdaConfig = ({
   };
 
    if (customBuckets && Object.keys(customBuckets).length > 0) {
+     // Pass the detailed grouping configuration to the backend via aliasGroups.
+     // This is where the backend will use `customBuckets.config` and `customBuckets.fallback`.
      options.aliasGroups = customBuckets?.config;
    }
 
