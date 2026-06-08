@@ -627,10 +627,27 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
     const setCbConfig = (partial) => dwAPI.setCustomBuckets({ ...cbConfig, ...partial });
     const setCbBinding = (partial) => setCbConfig({ binding: { ...cbConfig.binding, ...partial } });
 
+    const cbEnabled = cbConfig.enabled === true;
+
     const customBuckets = {
         name: 'Custom Buckets', icon: 'ColorSwatch',
         cdn: () => isEdit && currentComponent?.useDataSource && canEditSection,
+        value: cbEnabled ? 'On' : 'Off', showValue: true,
         items: [
+            {
+                // Master on/off. "Off" drops the synthetic bucket column and
+                // stops applying buckets in buildUdaConfig, but the customBuckets
+                // config is retained so it can be re-enabled.
+                name: 'Enabled', label: 'Enabled',
+                type: 'toggle', showLabel: true,
+                enabled: cbEnabled,
+                setEnabled: v => {
+                    setCbConfig({ enabled: v });
+                    dwAPI.reconcileCustomBucketColumn();
+                }
+            },
+            { type: 'separator' },
+            ...(!cbEnabled ? [] : [
             {
                 name: 'Type',
                 value: cbConfig.type === 'dynamic' ? 'Dynamic' : 'Static', showValue: true,
@@ -756,6 +773,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                 cdn: () => cbConfig.type === 'static',
                 onClick: () => setCbConfig({ staticGroups: [...(cbConfig.staticGroups || []), { label: '', values: '' }] })
             },
+            ]),
         ].filter(item => !item.cdn || item.cdn())
     };
 

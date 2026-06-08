@@ -134,9 +134,12 @@ export function useDataWrapperAPI({ state, setState }) {
         () => setState(draft => {
             if (!draft) return;
             const alias = draft.customBuckets?.alias;
+            const enabled = draft.customBuckets?.enabled === true;
             const idx = (draft.columns || []).findIndex(c => c.origin === 'custom-bucket');
 
-            if (!alias) {
+            // No alias or master-off → the synthetic column shouldn't exist.
+            // (Config stays on draft.customBuckets so re-enabling restores it.)
+            if (!alias || !enabled) {
                 if (idx !== -1) draft.columns.splice(idx, 1);
                 return;
             }

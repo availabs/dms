@@ -331,7 +331,9 @@ export const extractNormalFiltersFromGroups = (node) => {
  * buckets" mode is meant to drop.
  *
  * Gating:
- * - Default ON: only an explicit `filterToBuckets === false` disables it.
+ * - Master switch: bucket behavior is OFF unless `customBuckets.enabled === true`.
+ * - When enabled, "filter to buckets" defaults ON; `filterToBuckets === false`
+ *   disables just the row-filtering while keeping the bucket column/aliasGroups.
  * - Empty/missing groups → no leaf for that alias (toggle-on with nothing
  *   configured is a safe no-op that returns all rows).
  *
@@ -339,7 +341,12 @@ export const extractNormalFiltersFromGroups = (node) => {
  * column to `ds.` under a join (avoids ambiguous `data->>` in DMS-on-DMS joins).
  */
 export const buildCustomBucketFilters = (customBuckets, baseSourceId) => {
-  if (!customBuckets || customBuckets.filterToBuckets === false) return [];
+  if (
+    !customBuckets ||
+    customBuckets.enabled !== true ||
+    customBuckets.filterToBuckets === false
+  )
+    return [];
   const cfg = customBuckets.config || {};
 
   // A group's values may be a real array (static groups, split from CSV) OR a
@@ -1273,7 +1280,7 @@ export const buildUdaConfig = ({
     ...(allHaving.length > 0 && { having: allHaving }),
   };
 
-  if (customBuckets && Object.keys(customBuckets).length > 0) {
+  if (customBuckets?.enabled === true && Object.keys(customBuckets).length > 0) {
     // Pass the detailed grouping configuration to the backend via aliasGroups.
     // This is where the backend will use `customBuckets.config` and `customBuckets.fallback`.
     options.aliasGroups = customBuckets?.config;

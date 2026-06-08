@@ -720,6 +720,7 @@ describe("buildUdaConfig", () => {
     alias: "region",
     sourceField: "county",
     fallback: "Other",
+    enabled: true,
     config: { region: { column: "county", fallback: "Other", groups } },
     ...extra,
   });
@@ -772,6 +773,7 @@ describe("buildUdaConfig", () => {
     input.customBuckets = {
       alias: "bucket",
       sourceField: "county",
+      enabled: true,
       config: { bucket: { column: "county", groups: { A: ["Albany"] } } },
     };
     const { options } = buildUdaConfig(input);
@@ -803,14 +805,53 @@ describe("buildUdaConfig", () => {
     expect(options.filterGroups.groups[1].col).toBe("county");
     expect(options.filterGroups.groups[1].value).toEqual(["Albany", "Greene"]);
   });
+
+  // ─── custom bucket master enable/disable ──────────────────────────────────
+
+  it("master default (unset enabled): no aliasGroups, no bucket filter", () => {
+    const input = basicDamaInput();
+    input.customBuckets = bucketConfig(
+      { North: ["Albany"] },
+      { enabled: undefined, filterToBuckets: true },
+    );
+    const { options } = buildUdaConfig(input);
+    expect(options.aliasGroups).toBeUndefined();
+    expect(options.filterGroups).toEqual({});
+  });
+
+  it("master OFF: no aliasGroups, no bucket filter, even with filterToBuckets on", () => {
+    const input = basicDamaInput();
+    input.customBuckets = bucketConfig(
+      { North: ["Albany", "Greene"] },
+      { enabled: false, filterToBuckets: true },
+    );
+    const { options } = buildUdaConfig(input);
+    expect(options.aliasGroups).toBeUndefined();
+    expect(options.filterGroups).toEqual({});
+  });
+
+  it("master ON (enabled:true): aliasGroups passed through", () => {
+    const input = basicDamaInput();
+    input.customBuckets = bucketConfig({ North: ["Albany"] });
+    const { options } = buildUdaConfig(input);
+    expect(options.aliasGroups).toEqual(input.customBuckets.config);
+  });
 });
 
 // ─── buildCustomBucketFilters ────────────────────────────────────────────────
 
 describe("buildCustomBucketFilters", () => {
-  it("returns [] when filterToBuckets is explicitly false", () => {
+  it("returns [] when filterToBuckets is explicitly false (master on)", () => {
     const cb = {
+      enabled: true,
       filterToBuckets: false,
+      config: { r: { column: "county", groups: { A: ["Albany"] } } },
+    };
+    expect(buildCustomBucketFilters(cb, 100)).toEqual([]);
+  });
+
+  it("returns [] when master enabled is unset (default off)", () => {
+    const cb = {
       config: { r: { column: "county", groups: { A: ["Albany"] } } },
     };
     expect(buildCustomBucketFilters(cb, 100)).toEqual([]);
@@ -820,8 +861,16 @@ describe("buildCustomBucketFilters", () => {
     expect(buildCustomBucketFilters(undefined, 100)).toEqual([]);
   });
 
+  it("returns [] when master enabled is explicitly false", () => {
+    const cb = {
+      enabled: false,
+      config: { r: { column: "county", groups: { A: ["Albany"] } } },
+    };
+    expect(buildCustomBucketFilters(cb, 100)).toEqual([]);
+  });
+
   it("stamps source_id on the leaf for join aliasing", () => {
-    const cb = { config: { r: { column: "county", groups: { A: ["Albany"] } } } };
+    const cb = { enabled: true, config: { r: { column: "county", groups: { A: ["Albany"] } } } };
     expect(buildCustomBucketFilters(cb, 7)).toEqual([
       { col: "county", op: "filter", value: ["Albany"], source_id: 7 },
     ]);
@@ -829,6 +878,7 @@ describe("buildCustomBucketFilters", () => {
 
   it("builds one leaf per alias", () => {
     const cb = {
+      enabled: true,
       config: {
         r: { column: "county", groups: { A: ["Albany"] } },
         t: { column: "type", groups: { B: ["Flood"] } },
@@ -841,6 +891,7 @@ describe("buildCustomBucketFilters", () => {
 
   it("skips aliases with no values", () => {
     const cb = {
+      enabled: true,
       config: {
         r: { column: "county", groups: {} },
         t: { column: "type", groups: { B: ["Flood"] } },
@@ -853,6 +904,7 @@ describe("buildCustomBucketFilters", () => {
 
   it("drops null/empty-string values", () => {
     const cb = {
+      enabled: true,
       config: { r: { column: "county", groups: { A: ["Albany", "", null] } } },
     };
     expect(buildCustomBucketFilters(cb, 1)[0].value).toEqual(["Albany"]);
@@ -863,6 +915,7 @@ describe("buildCustomBucketFilters", () => {
     // It must expand to a real array so the leaf compiles to IN (...), not
     // `col = '["a","b"]'`.
     const cb = {
+      enabled: true,
       config: { r: { column: "tmc", groups: { A: '["120-50371","120P05935"]' } } },
     };
     expect(buildCustomBucketFilters(cb, 1)[0].value).toEqual([
@@ -873,6 +926,7 @@ describe("buildCustomBucketFilters", () => {
 
   it("mixes stringified and real array groups, deduping across both", () => {
     const cb = {
+      enabled: true,
       config: {
         r: {
           column: "tmc",
