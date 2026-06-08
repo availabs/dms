@@ -514,9 +514,7 @@ export const flattenFilterValues = filterTree => {
 
     if (!Array.isArray(node.value) || !node.value.length) return node;
 
-    const arrVal = Array.isArray(node.value) ? node.value.flat() : node.value;
-    return { ...node, value: arrVal};
-    //return { ...node, value: node.value.flatMap(arrVal => arrVal.map(v => (`'${v}'`)))};
+    return { ...node, value: node.value.flat() };
   };
 
   return applyToNode(filterTree);

@@ -77,6 +77,10 @@ export function usePageFilterSync({ state, setState, setReadyOnChange = false })
         if (!isStatic && !Object.keys(pageFilters).length) return;
         const newCustomBucketConfig = resolveAliasGroups(state?.customBuckets, pageFilters);
 
+        // The setState below mutates state.customBuckets, which is a dependency of
+        // this effect — so it re-runs. The isEqual guard is load-bearing: it stops
+        // the cycle once the resolved config is stable. resolveAliasGroups must stay
+        // deterministic for a given (customBuckets, pageFilters) or this would loop.
         if(!isEqual(state.customBuckets.config, newCustomBucketConfig)){
             setState(draft => {
                 draft.customBuckets.config = newCustomBucketConfig

@@ -39,15 +39,15 @@ export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addIte
     const onRowMouseClick = useCallback((rowData) => {
         if (!clickPublishCfg || !setActionParam) return;
         const {column, append_params} = clickPublishCfg?.args || {};
-        const value = [rowData?.[clickPublishCfg.args?.column]];
+        const cellValue = rowData?.[column];
 
-        if (value !== undefined) {
-            let finalValue = value;
+        if (cellValue != null) {
+            let finalValue = [cellValue];
             if(append_params) {
                 //mutate final value
                 const curFilter = pageState?.filters?.find(f => f.searchKey === clickPublishCfg.paramKey && f.type === 'action');
                 const curValues = curFilter?.values || [];
-                finalValue = [...curValues, ...value];
+                finalValue = [...curValues, cellValue];
             }
             setActionParam(clickPublishCfg.paramKey, finalValue);
         }
