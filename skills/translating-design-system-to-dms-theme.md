@@ -115,9 +115,19 @@ in the product.
 4. **Translate the mockup HTML → class strings.** For each
    primitive, copy the Tailwind classes off the mockup element
    into the corresponding theme key. Where the mockup used a
-   surface utility from `_shared.css` (`.tny-pane`, etc.), the
-   class is still a literal string in the theme; the CSS rule
-   moves to `index.css.additions`.
+   surface utility from `_shared.css` (`.tny-pane`, `.tny-hero-topo`,
+   `.tny-press`, etc.), the class is still a literal string in the
+   theme; the CSS rule moves to `index.css.additions`.
+   > **Gotcha — the CSS rule must actually be *injected*, or the class
+   > silently no-ops.** A `wrapper1: "… tny-hero-topo"` renders a plain
+   > background until the `.tny-hero-topo` rule exists in the running app.
+   > The self-contained way (no consumer `index.css` edit) is a
+   > `fonts: [{ type: 'style', id: '<brand>-surfaces', content: '…raw CSS…' }]`
+   > entry on the theme — `getPatternTheme` injects it into `<head>` once.
+   > This is required for any rule that can't be a Tailwind class: stacked
+   > gradients (`tny-hero-topo`/`tny-map`), `:active` margin-shift (`tny-press`),
+   > `@font-face`. Symptom of forgetting it: the hero/buttons look unstyled
+   > even though the theme key is correct.
 5. **Wire up the icons.** Inline-pasted SVGs in the mockups become
    React components in `theme/icons/`, registered in
    `theme/icons.js` as a `{ Name: <Component /> }` map.
@@ -1363,7 +1373,19 @@ authoritative top-level key list, plus pattern-level entries:
 |---|---|
 | `pages.attribution`, `pages.complexFilters`, `pages.sectionGroupsPane`, `pages.search*` | `src/dms/packages/dms/src/patterns/page/defaultTheme.js` |
 | `datasets.datasetsList`, `datasets.metadataComp` | `src/dms/packages/dms/src/patterns/datasets/defaultTheme.js` |
-| `auth.login`, `auth.signup` | `src/dms/packages/dms/src/patterns/auth/defaultTheme.js` |
+| `auth.authPages.sectionGroup.default.*` (+ `auth.field.*`) | `src/dms/packages/dms/src/patterns/auth/defaultTheme.js` |
+
+> **Auth gotcha — style `auth.authPages.sectionGroup.default.*`, NOT `auth.login`.**
+> The login/signup pages are fixed components (`patterns/auth/pages/authLogin.jsx`,
+> `authSignup.jsx`) that read `theme.auth.authPages.sectionGroup.default.*`
+> (`pageWrapper`/`pageTitle`/`forgotPasswordText`/`actionButton`/`actionText`/`prompt`
+> + the `wrapper3`/`wrapper4` layout slots). A drafted `auth.login`/`auth.signup` block
+> (with `divider`/`ssoButton`/`fieldStack` keys) is **read by nothing** — verify with
+> `grep "auth?.login"` before styling, then fold its design into `authPages.*`. The
+> login inputs/labels come from the **global** `field`/`input` themes, not `auth.*`.
+> And the form renders the auth **base defaults** until the auth pattern's
+> `selectedTheme` points at your brand theme. Full recipe + the theme-vs-component
+> boundary: [`implementing-an-auth-login-page.md`](./implementing-an-auth-login-page.md).
 
 ### 3.3 The per-primitive workflow (repeat for each)
 

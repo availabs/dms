@@ -230,7 +230,7 @@ Each section_group on `data.draft_section_groups` has:
 |---|---|---|
 | `name` | UUID string | The band's identity. Sections reference it via `data.group`. |
 | `index` | integer | Order within `position`. |
-| `position` | `'top' \| 'content' \| 'bottom'` | Which Layout slot the band renders in. `top` → above the Layout via `headerChildren`; `content` → inside the Layout's `childWrapper`; `bottom` → below the Layout via `footerChildren`. |
+| `position` | `'top' \| 'content' \| 'bottom'` | Which Layout slot the band renders in. `top` → above the Layout via `headerChildren`; `content` → inside the Layout's `childWrapper`; `bottom` → below the Layout via `footerChildren`. **With a sidenav, `top`/`bottom` bands render full-viewport-width *outside* the Layout, so their left edge does NOT line up with the sidenav-offset content column. For a topnav/footer that must align with the page content, use `position:'content'` (first/last content band), not `top`/`bottom`.** |
 | `theme` | string | The **name** of a `layoutGroup.styles[]` entry (e.g. `'content'`, `'header'`, `'auth'`, `'footer'` in the Tessera theme). The renderer looks up the named style: `theme.layoutGroup.styles.find(s => s.name === group.theme)`. If the name doesn't match, `styles[0]` is used. |
 | `displayName` | string | Shown in the page editor's section-groups pane. |
 
@@ -410,6 +410,64 @@ Before creating any sections, ensure the page has at least one
 `draft_section_group`. The script template in §7 does this
 automatically. If you skip the group, sections will land in the
 page's draft array but have no group to render into.
+
+### 5.2.1 Editing & ordering sections AFTER creation
+
+Three mechanics that aren't obvious and will cost you a round-trip each
+if you miss them:
+
+**`--set` cannot reach inside `element-data`.** Because `element-data`
+is a stringified JSON blob (gotcha #1 above), a dot-path like
+`--set element-data.display.yAxis.format=fnum` does **not** edit the
+graph's format — it silently writes a *new* top-level
+`data.display.yAxis.format` key that the renderer ignores. To change any
+nested setting (a graph's `display.yAxis.format`, a Card column's
+`type`, a Spreadsheet's column SQL, …) you must **parse → modify →
+re-stringify → write the whole `element`**:
+
+```bash
+dms section dump <id> | python3 -c "
+import json,sys
+d=json.load(sys.stdin); data=d['data']
+ed=json.loads(data['element']['element-data'])
+ed['display']['yAxis']['format']='fnum'        # the real edit
+data['element']['element-data']=json.dumps(ed)
+open('/tmp/sec.json','w').write(json.dumps(data))
+"
+dms section update <id> --data "$(cat /tmp/sec.json)"
+```
+
+`--set` is only safe for keys that live at the **top level of `data`**
+(`title`, `size`, `group`, `bg`, `border`, `padding`, `height`, …) — those
+are real object keys, so the read-modify-write merge reaches them.
+
+**`section create` appends to the end of `draft_sections`.** The render
+order *within a band* is the order of ids in the page's `draft_sections`
+array — not creation time, not `index`. So to **insert or interleave**
+new sections (e.g. drop a header lexical *above* an existing data section
+and a footnote *below* it), create them (they land at the end), then
+**reorder the array** with a full-replace of that one key:
+
+```bash
+# fetch order, splice the new ids into place, write it back
+dms page update <page-id> --data '{"draft_sections":[
+  {"id":"<id-a>","ref":"<app>+<pattern>|component"}, … ]}'
+```
+
+`--data` shallow-merges at the top level, so replacing `draft_sections`
+preserves every other page key. (Group/band order is separate — that's
+`index`/`position` on `draft_section_groups`, §4.2.)
+
+**Removing a section's rendered title.** A section renders its `title` as
+a heading above the component (`section.jsx` `showHeader`). To drop that
+heading — e.g. to convert a bare data Spreadsheet into a mockup-faithful
+section whose framing comes from sibling lexical header/footnote sections
+— clear it: `dms section update <id> --set 'title='` (`title` is
+top-level, so `--set` reaches it). Then add the eyebrow/heading/prose as
+their own `lexical` sections (§5.6.6) ordered around it via the reorder
+above. This "clear title + frame with lexicals" pattern is how the
+MAP-21 §04/§05 data tables got their `// 04 · Regional` kicker + question
+heading + scoring footnote without baking chrome into the table.
 
 ### 5.3 Common element types
 
@@ -836,6 +894,18 @@ node). So don't try to produce a circular "A"/"B" badge from inside Lexical. Ins
   by setting its section's border/radius/bg — no lexical "card style" needed. See the
   section layout model in
   [`translating-design-system-to-dms-theme.md` §3.1.58](./translating-design-system-to-dms-theme.md#3158-the-section-layout-model--gap-0-padding-gutters-inner-box-chrome).
+- **A lexical card has NO per-cell padding — that's a `Card`-section feature.** Inside a
+  lexical card, the *inner* padding is the global `theme.richtext.contentPadding` (default
+  `p-4`, not per-section), and the *vertical spacing between text lines* is the global lexical
+  `paragraph` margin (transportny: a tight `mb-1`) plus whatever vertical margin the
+  `styled('key', …)` token carries. So to space the lines of one lexical card without
+  disturbing others, put the margin on a token that's **exclusive to that card** (e.g. a
+  `statNum` token used only on stat cards: `… mt-2! mb-2.5!`) — shared tokens (`metaSM`,
+  `prose`, …) would shift every other use. When you need true **per-cell** padding
+  (`cellPadding`/`cellPaddingTop`/`…`), that only exists on a real **`Card`** section —
+  see [`card-layout.md`](./card-layout.md) — which needs a data source (or the blank-row
+  fallback for static values); for static marketing stats a lexical card + an exclusive
+  token is usually the lighter call.
 - **Two sections fused into ONE card (compound visual unit).** Put the sections adjacent
   in the band, then **zero the shared-edge padding** and coordinate the borders/corners:
   upper section = border top+left+right, radius tl+tr, `padding.bottom = 0`; lower section =
@@ -846,6 +916,13 @@ node). So don't try to produce a circular "A"/"B" badge from inside Lexical. Ins
   render a label band between the two.
 - **Colored dots / simple inline marks** → a Lexical text run with an inline `style`
   (`color:#10B981`) on a `●`, or the `icon` node — inline before a label.
+- **Icon *chip* (a colored/tinted square holding an SVG, e.g. a product-card icon)** → the
+  `icon` node takes an optional **`styleKey`**: `{ type:'icon', iconName:'Activity', styleKey:'productChip' }`.
+  It resolves `theme.iconStyles[styleKey] = { box, icon }` and renders the SVG inside the
+  `box` span (omit `styleKey` → inline, as before — BC). Define the chip once in the brand
+  theme (`iconStyles.productChip: { box:'inline-flex size-12 rounded bg-[…]/10 …', icon:'w-6 h-6' }`);
+  `iconName` must be a key in `theme.Icons`. A **text chip** (a brand "NY" box, not an SVG)
+  has no node — use an inline-styled text run (`style:'display:inline-flex;width:28px;height:28px;background:#…;border-radius:4px;…'`).
 - **Lettered circular badges** → no native inline node; approximate (colored dot + a bold
   `styled` letter), or add a small inline badge node only if pixel parity is required.
 
@@ -890,6 +967,24 @@ Three things to know:
    side-by-side template). The dialog auto-reads from
    `editor._config.theme.layoutTemplates`. See the worked example
    in `src/themes/tessera/tessera-theme.js`.
+4. **Full-width row (a `1fr` spacer pushing one column to the far edge —
+   e.g. a topnav `brand · links · [1fr] · actions`) needs width to flow from
+   TWO places, or the `1fr` collapses and the right column lands mid-row:**
+   - **The band wrapper must *stretch* the section, not shrink-wrap it.** A
+     `layoutGroup` style whose `wrapper2` is a flex **row** (`flex items-center`)
+     sizes its section child to content width. Use `flex flex-col justify-center`
+     instead (cross-axis stretch fills the band width; `justify-center` still
+     centers vertically in a fixed-height bar) — that's what the normal content
+     bands do (`flex flex-col gap-…`). This was the real culprit for a topnav bar
+     that rendered half-width.
+   - **Then the layout-container needs `w-full`.** `LayoutContainerNode.createDOM`
+     appends `templateColumns` verbatim as classes alongside
+     `theme.lexical.layoutContainer`, which is often just `grid gap-… mt-…` (no
+     width) — so even inside a full-width section the grid shrink-wraps. Pass e.g.
+     `layout('w-full !mt-0 items-center grid-cols-[max-content_1fr_max-content]', …)`
+     (`!mt-0` cancels the container's default top margin when the row must sit flush).
+   Verify by measuring band widths in the DOM — a too-narrow band among otherwise
+   equal bands points at (a); a full-width band with a narrow grid points at (b).
 
 ---
 
@@ -979,8 +1074,11 @@ After running the seed script:
 2. **`dms page dump <slug> --sections`** — sanity-check a couple
    of pages' sections.
 3. **Open the admin UI** at the configured base URL. Walk the
-   draft page in edit mode. Confirm Lexical renders as expected,
-   Card placeholders are clearly labelled.
+   draft page in edit mode (`<host>/edit/<slug>`). Confirm Lexical
+   renders as expected, Card placeholders are clearly labelled.
+   **Draft sections only render in edit mode**, which needs auth —
+   point `card-shot.mjs --storage <auth.json>` at the edit URL
+   (mint with `scripts/mint-token.mjs`).
 4. **Hand off.** Write a short note (or a `scripts/README.md`)
    for the reviewer with: which pages exist as drafts, what
    each represents, and the publish command they should run when
@@ -996,6 +1094,7 @@ After running the seed script:
 | Section type comes through as `(untitled)` lexical | `--title` flag was not passed and `--data` did not include a `title` key | Re-create the section with `--title` |
 | Section appears in the admin tree but renders blank on the page | The CLI `--data` payload was flat (`element-type` / `element-data` at top level) instead of wrapped in `element: { … }`. The renderer reads `value.element['element-data']` and ignores top-level keys. | Re-shape the payload per §5.2 and re-create the section. The flag-driven `--element-type` form falls into the same trap; always use `--data` with the full nested shape. |
 | `dms section create` fails with "pattern not found" | Wrong `DMS_APP` / `DMS_TYPE`, or the pattern doesn't exist | Run `dms site tree` to verify; check `.dmsrc` or env vars |
+| `/edit/<slug>` shows a **different pattern's page** (or your page is unreachable) | **Multiple patterns share `base_url: /`** on the site. A subdomain-specific pattern (e.g. `npmrds_sub` on `npmrds.localhost`) shadows a `subdomain: null` pattern at `/`. | A `subdomain: null` pattern is the **default/fallback** — reach it on the **bare host**: `http://localhost:5173/edit/<slug>` (mint a token for *that* origin: `mint-token.mjs --origin http://localhost:5173`). Confirm ownership with `dms site tree` (lists every pattern's `base_url`). Also pass `--pattern <id>` on `section create` so type resolution doesn't pick a sibling `/` pattern. |
 
 ---
 
