@@ -107,30 +107,10 @@ const defaultState = {
     externalSource: { columns: [] }
 }
 
-export const componentFunctions = {
-    providers: [
-
-    ],
-    subscribers: [
-        {
-            id: 'custom_group',
-            label: 'Custom groups',
-            description: 'Group data in custom groups based on a column value from incoming action param.',
-            trigger: 'action_param',
-            paramKey: "routes",
-            args: [
-                { key: 'column', label: 'Column to match', type: 'column-select' },
-            ],
-        },
-    ],
-};
-
-
 export default {
     "name": 'AVL Graph',
     "type": 'avlGraph',
     "variables": [],
-    componentFunctions,
     useDataSource: true,
     useDataWrapper: true,
 
@@ -195,7 +175,7 @@ export default {
             },     
             { type: 'toggle',
                 label: 'Group', key: 'group'
-            },
+            }, 
             { type: 'select',
                 label: 'Sort', key: 'sort',
                 options: [

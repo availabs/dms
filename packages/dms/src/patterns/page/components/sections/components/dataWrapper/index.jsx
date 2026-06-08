@@ -304,7 +304,7 @@ const Edit = forwardRef((props, ref) => {
 
         const updates = {};
         customBucketColumns.forEach(col => {
-            const paramValues = pageFilters[state?.customBuckets.binding.statePath];
+            const paramValues = pageFilters[state?.customBuckets?.binding?.statePath];
             if (paramValues !== undefined) {
                 updates[col.name] = Array.isArray(paramValues) ? paramValues[0] : paramValues;
             }

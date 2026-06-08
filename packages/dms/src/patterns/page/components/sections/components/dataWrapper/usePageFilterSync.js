@@ -71,7 +71,6 @@ export function usePageFilterSync({ state, setState, setReadyOnChange = false })
         );
 
         if (!Object.keys(pageFilters).length || !Object.keys(state?.customBuckets || {}).length) return;
-
         const newCustomBucketConfig = resolveAliasGroups(state?.customBuckets, pageFilters);
 
         if(!isEqual(state.customBuckets.config, newCustomBucketConfig)){
@@ -93,7 +92,7 @@ function resolveAliasGroups(uiConfig, pageFilters) {
     return { [uiConfig.alias]: { column: uiConfig.sourceField, fallback: uiConfig.fallback, groups: groups } };
   }
 
-  const rawRoutes = get(pageFilters, uiConfig.binding.statePath) || [];
+  const rawRoutes = get(pageFilters, uiConfig?.binding?.statePath) || [];
 
   // Transform it into the exact Label -> Array shape the server wants
   const groups = {};
