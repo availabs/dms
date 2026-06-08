@@ -70,7 +70,11 @@ export function usePageFilterSync({ state, setState, setReadyOnChange = false })
             (acc, curr) => ({ ...acc, [curr.searchKey]: curr.values }), {}
         );
 
-        if (!Object.keys(pageFilters).length || !Object.keys(state?.customBuckets || {}).length) return;
+        // Static buckets resolve from staticGroups and don't need page filters;
+        // dynamic buckets read values out of the page filters, so skip when none.
+        if (!Object.keys(state?.customBuckets || {}).length) return;
+        const isStatic = state.customBuckets.type === 'static';
+        if (!isStatic && !Object.keys(pageFilters).length) return;
         const newCustomBucketConfig = resolveAliasGroups(state?.customBuckets, pageFilters);
 
         if(!isEqual(state.customBuckets.config, newCustomBucketConfig)){

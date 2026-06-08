@@ -1,12 +1,38 @@
 //RYAN TODO -- still prob need to clean up some of the sectionMenuItems
-import React, {useState} from 'react'
+import React, {useState, useEffect} from 'react'
 import {handleCopy, handleCopyToClipboard, handlePaste} from "./section_utils"
 import {TagComponent} from "./section_components"
-import { getComponentTheme } from "../../../../ui/useTheme";
+import { getComponentTheme, ThemeContext } from "../../../../ui/useTheme";
 import {ComplexFilters} from "./ComplexFilters";
 import ColumnManager from "./ColumnManager";
 import { getColumnLabel } from "./controls_utils";
 
+
+/**
+ * Draft input for the custom-bucket "Dimension Alias". Holds a local draft so
+ * typing doesn't churn state on every keystroke, and only commits the alias (and
+ * reconciles the synthetic column) on blur or Enter — i.e. when the author leaves
+ * the field / navigates back out of the sub-menu.
+ */
+const CustomBucketAliasInput = ({ initialValue = '', onCommit }) => {
+    const { UI } = React.useContext(ThemeContext) || {};
+    const { Input } = UI || {};
+    const [draft, setDraft] = useState(initialValue);
+    // Re-sync if the committed value changes from elsewhere (e.g. section reload).
+    useEffect(() => { setDraft(initialValue); }, [initialValue]);
+
+    const commit = () => { if (draft !== initialValue) onCommit(draft); };
+
+    return (
+        <Input
+            type="text"
+            value={draft}
+            onChange={e => setDraft(e?.target?.value ?? e)}
+            onBlur={commit}
+            onKeyDown={e => { if (e.key === 'Enter') { commit(); e.target?.blur?.(); } }}
+        />
+    );
+};
 
 export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSource={}, dwAPI, mapAPI, pageDataSources={}, ...rest }) => {
     const { isEdit, value, attributes, i, showDeleteModal, listAllColumns, state: rawState, setSectionState } = sectionState
@@ -625,8 +651,17 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                 value: cbConfig.alias, showValue: true,
                 items: [{
                     id: 'cb_alias_input', name: 'Dimension Alias',
-                    type: 'input', inputType: 'text', value: cbConfig.alias,
-                    onChange: e => setCbConfig({ alias: e?.target?.value ?? e })
+                    // Commit the alias (and add/rename the synthetic column) only on
+                    // blur / back — not on every keystroke.
+                    type: () => (
+                        <CustomBucketAliasInput
+                            initialValue={cbConfig.alias}
+                            onCommit={(alias) => {
+                                setCbConfig({ alias });
+                                dwAPI.reconcileCustomBucketColumn();
+                            }}
+                        />
+                    )
                 }]
             },
             {

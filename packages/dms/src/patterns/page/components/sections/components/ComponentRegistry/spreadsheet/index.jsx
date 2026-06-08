@@ -22,9 +22,6 @@ export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addIte
     const {Table} = UI;
     const {state, state:{filters, columns=[], externalSource: sourceInfo={}, display={}, data=[], localFilteredData, fullData}, setState, controls={}, isActive, activeStyle} = useContext(ComponentContext);
     const { pageState, setPageState, setActionParam, clearActionParam } = useContext(PageContext) || {};
-    // console.log("------render table-----")
-    // console.log("pageState filters:",pageState?.filters)
-    // console.log("state::",state)
     const providerCfg = display._functions?.providers?.find(p => p.functionId === 'hover_highlight' && p.enabled);
     const clickPublishCfg = display._functions?.providers?.find(p => p.functionId === 'click_publish' && p.enabled);
 
@@ -55,7 +52,6 @@ export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addIte
             setActionParam(clickPublishCfg.paramKey, finalValue);
         }
     }, [clickPublishCfg, setActionParam, pageState]);
-
 
     const subCfg = display._functions?.subscribers?.find(s => s.functionId === 'row_highlight' && s.enabled);
     const highlightedRow = subCfg && pageState
@@ -105,7 +101,6 @@ export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addIte
         }
     }, [visibleAttributesLen, visibleAttrsWithoutOpenOutLen, sourceInfo.columns, display.autoResize]);
     // ============================================ auto resize end ====================================================
-    //console.log("table render state::", {state, pageState})
     //console.log('render table')
     if(!visibleAttributes.length) return <div className={'p-2'}>No columns selected.</div>;
     return <Table columns={columns} data={data} localFilteredData={localFilteredData} fullData={fullData}

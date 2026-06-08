@@ -121,7 +121,43 @@ export function useDataWrapperAPI({ state, setState }) {
         }),
         [setState]
     );
-    
+
+    // Reconcile the synthetic custom-bucket column in state.columns to match the
+    // committed alias. This is an explicit action (fired when the alias field is
+    // committed — see sectionMenu) rather than a reactive effect, so typing the
+    // alias no longer churns columns on every keystroke.
+    //
+    // Single-bucket model: the column is identified by origin alone, so an alias
+    // change RENAMES the existing column instead of adding a duplicate. The
+    // customBuckets config stays multi-capable (keyed by alias) for the future.
+    const reconcileCustomBucketColumn = useCallback(
+        () => setState(draft => {
+            if (!draft) return;
+            const alias = draft.customBuckets?.alias;
+            const idx = (draft.columns || []).findIndex(c => c.origin === 'custom-bucket');
+
+            if (!alias) {
+                if (idx !== -1) draft.columns.splice(idx, 1);
+                return;
+            }
+            if (idx === -1) {
+                draft.columns.push({
+                    name: alias,
+                    alias,
+                    type: 'text',
+                    show: true,
+                    group: true,
+                    isCalculatedColumn: false,
+                    origin: 'custom-bucket',
+                });
+            } else {
+                draft.columns[idx].name = alias;
+                draft.columns[idx].alias = alias;
+            }
+        }),
+        [setState]
+    );
+
     return useMemo(() => ({
         // ── Read access (getters — always read live state via ref) ──
         get config() {
@@ -170,6 +206,7 @@ export function useDataWrapperAPI({ state, setState }) {
 
         // ── Custom Buckets operations ──
         setCustomBuckets,
+        reconcileCustomBucketColumn,
 
         // ── Raw access (escape hatch) ──
         // Needed for: ComplexFilters, custom control types, handlePaste.
@@ -185,5 +222,6 @@ export function useDataWrapperAPI({ state, setState }) {
         addFormulaColumn, addCalculatedColumn, reorderColumns,
         setPivot,
         setCustomBuckets,
+        reconcileCustomBucketColumn,
     ]);
 }

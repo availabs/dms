@@ -20,14 +20,13 @@ const splitColNameOnAS = (name) => name.split(columnRenameRegex);
 import { EXTERNAL_SOURCE_KEY } from "./schema";
 import { calculateIsJoinPresent } from "../dataWrapper/utils/joinUtils";
 import { parseTimeFilterURL, mergeUrlOntoExposedAxes } from "./utils/timeFilter";
-import _ from 'lodash';
+
 export const isCalculatedCol = ({ display, type, origin, name }) =>
   display === "calculated" ||
   type === "calculated" ||
   origin === "calculated-column" ||
   (name && name.toLowerCase().includes(" as "));
 
-const isGroupByPageFilterCol = (col) => col.groupByPageFilter;
 
 /**
  * Column reference string — the SQL accessor used in WHERE/GROUP BY/ORDER BY.
@@ -82,7 +81,7 @@ export const applyFn = (col = {}, isDms = false) => {
     isCalculated,
     col.systemCol,
   );
-   const colNameAfterAS = (
+  const colNameAfterAS = (
     (isCalculated ? splitColNameOnAS(col.name)[1] : col.name) || ""
   ).toLowerCase().replace(".", "_");
 
@@ -508,9 +507,7 @@ export const flattenFilterValues = filterTree => {
 
     if (!Array.isArray(node.value) || !node.value.length) return node;
 
-    console.log("about to flatten",node.value)
     const arrVal = Array.isArray(node.value) ? node.value.flat() : node.value;
-        console.log("---FLAT---",arrVal)
     return { ...node, value: arrVal};
     //return { ...node, value: node.value.flatMap(arrVal => arrVal.map(v => (`'${v}'`)))};
   };
@@ -952,7 +949,6 @@ export const buildUdaConfig = ({
   join: rawJoin,
   pageFilters,
   customBuckets,
-  //currentPageState, // Add currentPageState here
 }) => {
 
   const join = { sources:{} };
@@ -1141,9 +1137,7 @@ export const buildUdaConfig = ({
   // → IN(Y, Y-1)). No-op for leaves without the flag.
   filterTree = applyPriorPeriodExpansion(filterTree);
 
-  
-  filterTree = flattenFilterValues(filterTree)
-    console.log("after flat",(JSON.stringify({filterTree})))
+  filterTree = flattenFilterValues(filterTree);
   // Extract normal filters before mapping (they need raw column names)
   const { cleaned: nonNormalFilterGroups, normalFilters: filterGroupNormalFilters } =
     extractNormalFiltersFromGroups(filterTree);
@@ -1168,7 +1162,7 @@ export const buildUdaConfig = ({
       columnsByAlias.get(name),
     isDms,
   );
-  console.log({nonNormalFilterGroups})
+
   // Extract HAVING conditions from mapped tree
   const { filterGroups: finalFilterGroups, having: filterGroupHaving } =
     extractHavingFromFilterGroups(mappedFilterGroups);
@@ -1279,12 +1273,11 @@ export const buildUdaConfig = ({
     ...(allHaving.length > 0 && { having: allHaving }),
   };
 
-   if (customBuckets && Object.keys(customBuckets).length > 0) {
-     // Pass the detailed grouping configuration to the backend via aliasGroups.
-     // This is where the backend will use `customBuckets.config` and `customBuckets.fallback`.
-     options.aliasGroups = customBuckets?.config;
-   }
-
+  if (customBuckets && Object.keys(customBuckets).length > 0) {
+    // Pass the detailed grouping configuration to the backend via aliasGroups.
+    // This is where the backend will use `customBuckets.config` and `customBuckets.fallback`.
+    options.aliasGroups = customBuckets?.config;
+  }
 
   // 9. Build attributes list
   const attributes = columnsToFetch.map((a) => a.reqName).filter((a) => a);
