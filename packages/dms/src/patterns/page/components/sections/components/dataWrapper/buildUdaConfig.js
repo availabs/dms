@@ -1034,13 +1034,6 @@ export const buildUdaConfig = ({
         ? { ...col, name: aliasCalcSql(col.name, alias) }
         : col;
     }
-    // if (isGroupByPageFilterCol(col)) {
-    //   return {
-    //     ...col,
-    //     type: "calculated",
-    //     name: buildPageFilterColumn({ ...col, name: isJoin ? `${col.name}` : col.name }),
-    //   };
-    // }
     return {
       ...col,
       name: isJoin && col.origin !== 'custom-bucket' ? `${alias}.${col.name}` : col.name,

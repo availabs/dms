@@ -24,12 +24,16 @@ const {
 
 function buildAliasGroupCase(definition) {
   const { column, fallback, groups } = definition;
-  console.log({ column, fallback, groups })
+  // Column names bypass the groupBy sanitizeName() path (see sanitizedGroupBy
+  // below), so guard the only raw identifier interpolated into the CASE here.
+  // Values, labels and fallback are single-quote-escaped string literals.
+  const safeColumn = sanitizeName(column);
+  if (!safeColumn) return null;
   let caseStmt = `CASE `;
   for (const [label, values] of Object.entries(groups)) {
     const valArray = typeof values === 'string' ? JSON.parse(values) : values;
     const escapedValues = valArray.map(v => typeof v === 'string' ? `'${v.replace(/'/g, "''")}'` : v).join(', ');
-    caseStmt += `WHEN ${column} IN (${escapedValues}) THEN '${label.replace(/'/g, "''")}' `;
+    caseStmt += `WHEN ${safeColumn} IN (${escapedValues}) THEN '${label.replace(/'/g, "''")}' `;
   }
   if (fallback) {
     caseStmt += `ELSE '${fallback.replace(/'/g, "''")}' `;
@@ -58,7 +62,7 @@ async function simpleFilterLength(ctx, options) {
     join = {},
     aliasGroups = {}
   } = JSON.parse(options);
-  console.log("options::", options)
+
   // Detect whether the request includes a real join so the WHERE builder can
   // disambiguate base-table columns like app/type with a `ds.` prefix.
   const joinPresent = !!join &&
@@ -70,7 +74,7 @@ async function simpleFilterLength(ctx, options) {
       (filter[column] ??= []).push(...values);
     });
   }
-  console.log({aliasGroups, groupBy})
+
   const activeAliasGroups = {};
   if (aliasGroups) {
     for (const [alias, definition] of Object.entries(aliasGroups)) {
@@ -81,7 +85,7 @@ async function simpleFilterLength(ctx, options) {
   }
 
   const sanitizedGroupBy = groupBy.map(g => activeAliasGroups[g] || sanitizeName(g)).filter(Boolean);
-  console.log({sanitizedGroupBy})
+
   const countExpr = sanitizedGroupBy.length
     ? `count(DISTINCT concat(${sanitizedGroupBy.map((c) => `toString(${c})`).join(", '-' ,")}))`
     : `count(*)`;
@@ -113,7 +117,7 @@ async function simpleFilterLength(ctx, options) {
     ${handleHavingCH(having)}
   `;
 
-  console.log("sql simple filter LENGTH::", sql)
+  //console.log("sql simple filter LENGTH::", sql)
   const result = await db.query({ query: sql, format: 'JSON' });
   const rows = await result.json();
   return rows?.data?.[0]?.numRows != null ? Number(rows.data[0].numRows) : 0;
@@ -121,9 +125,6 @@ async function simpleFilterLength(ctx, options) {
 
 function transformAttributesForClickHouse(attrs) {
   return attrs.map(attr => {
-    // // Matches: array_to_string(array_agg(distinct COLUMN), ', ') as ALIAS
-    // const regex = /array_to_string\(array_agg\(distinct\s+([\w.]+)\),\s*',\s*'\)\s+as\s+(\w+)/i;
-    
     // Matches simple columns AND complex CASE statements inside distinct (...)
     const regex = /array_to_string\(array_agg\(distinct\s+(?:\(\s*)?([\s\S]+?)(?:\s*\))?\),\s*',\s*'\)\s+as\s+(\w+)/i;
 
@@ -133,9 +134,6 @@ function transformAttributesForClickHouse(attrs) {
     });
   });
 }
-
-
-//arrayStringConcat
 
 async function simpleFilter(ctx, options, attributes, indices) {
   const num = indices.to - indices.from + 1;
@@ -160,8 +158,7 @@ async function simpleFilter(ctx, options, attributes, indices) {
   }
 
   const transformedAttributes = transformAttributesForClickHouse(attributes);
-  console.log("transformedAttributes::",transformedAttributes)
-  
+
   const sanitizedAttrs = sanitizeName(transformedAttributes).filter((f) => f)
     .map(attr => {
       const respName = getResponseColumnName(attr);
@@ -233,7 +230,7 @@ async function simpleFilter(ctx, options, attributes, indices) {
     LIMIT ${+num}
     OFFSET ${indices.from}
   `;
-  console.log("CH sql simple filter::", sql)
+  // console.log("CH sql simple filter::", sql)
   const result = await db.query({ query: sql, format: 'JSON' });
   const json = await result.json();
   const rawRows = json.data || [];
