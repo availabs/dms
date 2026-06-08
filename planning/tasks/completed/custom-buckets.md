@@ -11,9 +11,9 @@ and the whole feature ships with a master on/off switch.
 
 ## Mechanism
 
-### Server — `clickhouse.js`
+### Server — `clickhouse.js` + `postgres.js`
 - New `buildAliasGroupCase(definition)` compiles one bucket definition
-  `{ column, fallback, groups: { [label]: [values] } }` into a ClickHouse
+  `{ column, fallback, groups: { [label]: [values] } }` into a
   `CASE WHEN <column> IN (...) THEN '<label>' … ELSE '<fallback>' END`.
   - `column` is `sanitizeName()`-guarded (the only raw identifier); labels,
     values, and fallback are single-quote-escaped string literals.
@@ -25,6 +25,20 @@ and the whole feature ships with a master on/off switch.
   GROUP BY and SELECT (`<CASE> as <alias>`), ensuring grouped aliases are in the
   SELECT clause. `transformAttributesForClickHouse` regex widened to match a
   CASE statement inside `array_agg(distinct …)`.
+- **Postgres/SQLite port** (`query_sets/postgres.js`): the same
+  `buildAliasGroupCase` + `aliasGroups` wiring was ported from `clickhouse.js`.
+  The standard CASE/IN syntax is identical on PostgreSQL and SQLite, so the one
+  builder serves both backends with no dialect translation.
+  - `simpleFilterLength`: alias CASE substituted into the `count(DISTINCT …)`
+    expression in place of the bare `sanitizeName(g)` column.
+  - `simpleFilter`: options now parsed before the SELECT is built so the alias
+    CASE can be substituted into matching SELECT columns and pushed in when a
+    grouped alias is missing; `handleGroupBy(groupBy.map(g => activeAliasGroups[g]
+    || g))` uses the CASE in GROUP BY. `buildAliasGroupCase` exported for testing
+    alongside `translatePgToSqlite`.
+  - `transformAttributesForClickHouse` is **not** ported — Postgres already
+    speaks native `array_to_string(array_agg(distinct …))`, so no transform is
+    needed there.
 
 ### Client — dataWrapper / buildUdaConfig
 - `state.customBuckets`:
@@ -85,6 +99,7 @@ and the whole feature ships with a master on/off switch.
 ## Files
 
 - `packages/dms-server/src/routes/uda/query_sets/clickhouse.js` — `buildAliasGroupCase`, `aliasGroups` in `simpleFilter`/`simpleFilterLength`, widened attr regex.
+- `packages/dms-server/src/routes/uda/query_sets/postgres.js` — Postgres/SQLite port of `buildAliasGroupCase` + `aliasGroups` in `simpleFilter`/`simpleFilterLength` (no attr regex; native PG aggregate syntax).
 - `packages/dms/src/patterns/page/components/sections/components/dataWrapper/buildUdaConfig.js` — `aliasGroups` passthrough + `buildCustomBucketFilters` + injection.
 - `packages/dms/src/patterns/page/components/sections/components/dataWrapper/usePageFilterSync.js` — `resolveAliasGroups` (sole config recompute; static-bucket guard fix).
 - `packages/dms/src/patterns/page/components/sections/components/dataWrapper/useDataWrapperAPI.js` — `reconcileCustomBucketColumn`.
@@ -99,6 +114,11 @@ and the whole feature ships with a master on/off switch.
 Code complete; unit tests green (127/127). Frontend-driven with a single server
 addition (`buildAliasGroupCase`).
 
+**Update 2026-06-08** — server addition was originally ClickHouse-only; the
+`buildAliasGroupCase` + `aliasGroups` logic has since been ported to the
+Postgres/SQLite query set (`query_sets/postgres.js`) so custom buckets work on
+PG-backed views as well. Existing server UDA suite green (58/58) after the port.
+
 ## Testing Checklist
 
 - [x] Bucket as GROUP BY dimension → server emits `CASE … END as <alias>` in GROUP BY + SELECT; data groups correctly (verified live against a ClickHouse npmrds source).
@@ -110,4 +130,6 @@ addition (`buildAliasGroupCase`).
 - [x] Master ON → `aliasGroups` passed through, synthetic column present; toggling restores config from state.
 - [x] Alias commit on blur/Enter renames the synthetic column instead of duplicating; typing doesn't churn columns.
 - [x] `npx vitest run packages/dms/tests/buildUdaConfig.test.js` green (127 passed).
+- [x] Postgres/SQLite port: `buildAliasGroupCase` + `aliasGroups` wiring mirrored from `clickhouse.js`; CASE/IN works on both backends; server UDA suite green (58/58). Spot-checked CASE generation (string-quoted, numeric-unquoted, JSON-stringified groups parsed, fallback emitted, `;`-injection column rejected) and GROUP BY passthrough via `sanitizeName`.
 - [ ] Live: toggle the master switch — confirm the bucket column disappears and the row set reverts to un-bucketed, then re-enable and confirm restoration.
+- [ ] Live: exercise custom buckets against a PG-backed (non-ClickHouse) view to confirm grouping + length parity with the CH path.
