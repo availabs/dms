@@ -949,12 +949,28 @@ export const computeOutputSourceInfo = ({
  */
 export const buildUdaConfig = ({
   externalSource,
-  columns: rawUserColumns,
+  columns: rawUserColumnsInput,
   filters,
   join: rawJoin,
   pageFilters,
   customBuckets,
 }) => {
+
+  // Custom buckets are "active" only when enabled AND the resolved config has at
+  // least one alias whose groups actually carry values. A dynamic binding stays
+  // unresolved until usePageFilterSync runs (e.g. no page filters present yet),
+  // leaving config empty — in that state we must NOT group/select the synthetic
+  // bucket column, or the server would reference a phantom alias column that
+  // doesn't exist in the table. Inactive → drop the column entirely (safe no-op
+  // matching "buckets off"); the config stays on state so it can resolve later.
+  const activeCustomBuckets =
+    customBuckets?.enabled === true &&
+    Object.values(customBuckets.config || {}).some(
+      (def) => def && Object.keys(def.groups || {}).length > 0,
+    );
+  const rawUserColumns = activeCustomBuckets
+    ? rawUserColumnsInput
+    : rawUserColumnsInput.filter((c) => c.origin !== "custom-bucket");
 
   const join = { sources:{} };
 
@@ -1271,10 +1287,10 @@ export const buildUdaConfig = ({
     ...(allHaving.length > 0 && { having: allHaving }),
   };
 
-  if (customBuckets?.enabled === true && Object.keys(customBuckets).length > 0) {
+  if (activeCustomBuckets) {
     // Pass the detailed grouping configuration to the backend via aliasGroups.
-    // This is where the backend will use `customBuckets.config` and `customBuckets.fallback`.
-    options.aliasGroups = customBuckets?.config;
+    // The backend builds a CASE per alias from `config` (column + groups).
+    options.aliasGroups = customBuckets.config;
   }
 
   // 9. Build attributes list

@@ -836,6 +836,21 @@ describe("buildUdaConfig", () => {
     const { options } = buildUdaConfig(input);
     expect(options.aliasGroups).toEqual(input.customBuckets.config);
   });
+
+  it("enabled but config unresolved (no groups): no aliasGroups, bucket col not grouped", () => {
+    // Dynamic binding before usePageFilterSync resolves it — config has an alias
+    // entry but empty groups. The synthetic grouped column must be dropped so the
+    // server never GROUP BYs a phantom alias column that isn't in the table.
+    const input = basicDamaInput();
+    input.columns.push(col("region", { group: true, origin: "custom-bucket" }));
+    input.customBuckets = bucketConfig(
+      {},
+      { config: { region: { column: "county", fallback: "Other", groups: {} } } },
+    );
+    const { options } = buildUdaConfig(input);
+    expect(options.aliasGroups).toBeUndefined();
+    expect(options.groupBy).not.toContain("region");
+  });
 });
 
 // ─── buildCustomBucketFilters ────────────────────────────────────────────────

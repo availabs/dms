@@ -39,7 +39,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
     const state = rawState || { columns: [], display: {}, externalSource: { columns: [] }, filters: { op: 'AND', groups: [] } }
     const { onEdit, moveItem, updateAttribute, updateElementType, onChange, onCancel, onSave, onAddHelpText, setKey, setState, setShowDeleteModal, setListAllColumns } = actions
     const { user, isUserAuthed, pageAuthPermissions, sectionAuthPermissions, canEditPageContent, Permissions, AuthAPI } = auth
-    const { Switch, Pill, Icon, TitleEditComp, LevelComp, refreshDataBtnRef, isRefreshingData, setIsRefreshingData, Input, theme, RegisteredComponents = {} } = ui
+    const { Switch, Pill, Icon, TitleEditComp, LevelComp, refreshDataBtnRef, isRefreshingData, setIsRefreshingData, theme, RegisteredComponents = {} } = ui
     const { activeSource, activeView, sources=[], views=[], onSourceChange, onViewChange, onJoinChange, activeJoinViewsByAlias={}, isJoinPresent } = dataSource;
 
     const sectionLink = window ? `${window.location.origin}${window.location.pathname}#${value.id}` : '';
