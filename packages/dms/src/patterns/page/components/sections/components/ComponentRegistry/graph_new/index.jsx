@@ -1,5 +1,5 @@
-import React, {useState, useContext, useEffect} from "react";
-import {ComponentContext, PageContext} from "../../../../../context";
+import React, {useState, useContext} from "react";
+import {ComponentContext} from "../../../../../context";
 import { ThemeContext } from "../../../../../../../ui/useTheme";
 import {InputControl} from "../../dataWrapper/components/InputControl";
 
@@ -34,26 +34,7 @@ export const DomainEditor = ({value, setValue, display}) => {
         </div>
     ) : null;
 };
-//TODO this may or may not work with JOINS!!!!
-/**
- * Values is an array of object, must always be the following shape:
- * [{label, value}]
- */
-export const buildPageFilterColumn = ({colName, values}) => {
-  // (CASE 
-  //       WHEN ds.tmc IN ('120-50371', '120P05935') THEN 'Group 1'
-  //       WHEN ds.tmc IN ('115-04234', '115P04235', '115-04236') THEN 'Group 2'
-  //       ELSE 'Unknown Group'
-  //   END) as tmc_group
-  
-  // const groupColName = `${column.name}_filter_group`
-  console.log("builda uda filter, column::", {colName, values})
-  const valueClauses = values?.map((val, i) => {
-      const arrayVal = Array.isArray(val.value) ? val.value : [val.value];
-      return `WHEN ${colName} IN (${arrayVal.map((v) => `'${v}'`).join(", ")}) THEN '${val.label}'`
-    });
-  return `(CASE ${valueClauses.join(" ")} ELSE 'Unknown Group' END) as ${colName}_group`;
-}
+
 export const Graph = ({isEdit}) => {
     const {state, setState, controls={}, activeStyle} = useContext(ComponentContext);
     const pageContext = useContext(PageContext);
