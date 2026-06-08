@@ -7,6 +7,29 @@ const DefaultPalette = getColorRange(20, "div7");
 
 // console.log("SchemeOptions", SchemeOptions)
 
+const componentFunctions = {
+  providers: [
+    { id: 'hover_publish',
+      label: 'Hover: Publish Column',
+      description: 'On hover, publishes a column value to a page action param. Clears on mouse leave.',
+      trigger: 'hover',
+      args: [
+        { key: 'column', label: 'Column to publish', type: 'column-select' },
+      ],
+    }
+  ],
+  subscribers: [
+    { id: 'hover_highlight',
+      label: 'Hover: Highlight Column',
+      description: 'Highlights graph parts represented by received column.',
+      trigger: 'action_param',
+      args: [
+        { key: 'column', label: 'Column to highlight', type: 'column-select' }
+      ],
+    }
+  ]
+};
+
 const graphOptions = {
     readyToLoad: false,
     hideExternalToggle: true,
@@ -548,49 +571,7 @@ export default {
             },
         ]
     },
+    componentFunctions,
     "EditComp": Graph,
     "ViewComp": Graph,
 }
-
-export const componentFunctions = {
-    providers: [
-    //     {
-    //         id: 'hover_highlight',
-    //         label: 'Hover: Publish Row',
-    //         description: 'On hover, publishes a column value to a page action param. Clears on mouse leave.',
-    //         trigger: 'hover',
-    //         args: [
-    //             { key: 'column', label: 'Column to publish', type: 'column-select' },
-    //         ],
-    //     },
-    //     {
-    //         id: 'click_publish',
-    //         label: 'Click: Publish Column',
-    //         description: 'On click of a specific column cell, publishes that column\'s value to a page action param.',
-    //         trigger: 'click',
-    //         args: [
-    //             { key: 'column', label: 'Column to publish on click', type: 'column-select' },
-    //         ],
-    //     },
-    ],
-    subscribers: [
-        {
-            id: 'hover_highlight',
-            label: 'Highlight Stuff',
-            description: 'Highlights card items whose column value matches an incoming action param.',
-            trigger: 'action_param',
-            args: [
-                { key: 'column', label: 'Column to match', type: 'column-select' },
-                {
-                    key: 'style',
-                    label: 'Highlight style',
-                    type: 'select',
-                    options: [
-                        { label: 'Background', value: 'bg' },
-                        { label: 'Border', value: 'border' },
-                    ],
-                },
-            ],
-        }
-    ],
-};

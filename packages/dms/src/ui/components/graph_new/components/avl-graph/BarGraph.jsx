@@ -120,7 +120,12 @@ export const BarGraph = props => {
     orientation = "vertical",
     showAnimations = false,
     theme = EmptyObject,
-    addons = []
+    addons = EmptyArray,
+    highlights = EmptyArray,
+    onBarEnter = null,
+    onBarLeave = null,
+    onStackEnter = null,
+    onStackLeave = null
   } = props;
 
   const Margin = React.useMemo(() => {
@@ -455,10 +460,15 @@ export const BarGraph = props => {
           onMouseLeave={ onMouseLeave }
         >
           { barData.map(({ id, ...rest }) =>
-              <Bar key={ id } { ...rest }
+              <Bar key={ id } index={ id } { ...rest }
                 svgHeight={ state.adjustedHeight }
                 onMouseMove={ onMouseMove }
-                showAnimations={ showAnimations }/>
+                showAnimations={ showAnimations }
+                highlights={ highlights }
+                onBarEnter={ onBarEnter }
+                onBarLeave={ onBarLeave }
+                onStackEnter={ onStackEnter }
+                onStackLeave={ onStackLeave }/>
             )
           }
           { !barData.length ? null :
@@ -503,7 +513,10 @@ const Stack = React.memo(props => {
     color,
     onMouseMove,
     Key, index, value, data, barValues,
-    showAnimations
+    showAnimations,
+    highlight,
+    onStackEnter,
+    onStackLeave
   } = props;
 
   const ref = React.useRef();
@@ -542,17 +555,56 @@ const Stack = React.memo(props => {
     }
   }, [ref, state, width, svgHeight, height, x, y, color, transitionWrapper]);
 
+  // const highlight = React.useMemo(() => {
+  //   const filtered = highlights.filter(h => h.type === "key" && h.value === Key);
+  //   return Boolean(filtered.length);
+  // }, [highlights, Key]);
+
   const _onMouseMove = React.useCallback(e => {
     onMouseMove(e, { color, key: Key, index, value, data, barValues });
   }, [onMouseMove, color, Key, index, value, data, barValues]);
 
+  const doOnStackEnter = React.useMemo(() => {
+    if (typeof onStackEnter === "function") {
+      return e => {
+        onStackEnter(e, { index, key: Key, data });
+      }
+    }
+  }, [onStackEnter, index, Key, data]);
+
+  const doOnStackLeave = React.useMemo(() => {
+    if (typeof onStackLeave === "function") {
+      return e => {
+        onStackLeave(e, { index, key: Key, data });
+      }
+    }
+  }, [onStackLeave, index, Key, data]);
+
   return (
     <rect className="avl-stack" ref={ ref }
-      onMouseMove={ _onMouseMove }/>
+      style={ {
+        fill: highlight ? "red" : null,
+        fillOpacity: highlight ? 1.0 : null
+      } }
+      onMouseMove={ _onMouseMove }
+      onMouseEnter={ doOnStackEnter }
+      onMouseLeave={ doOnStackLeave }/>
   )
 })
 
-const Bar = React.memo(({ stacks, left = 0, top = 0, state, showAnimations, ...props }) => {
+const Bar = React.memo(props => {
+
+  const {
+    stacks,
+    index,
+    left = 0, top = 0,
+    state,
+    showAnimations,
+    highlights,
+    onBarEnter,
+    onBarLeave,
+    ...restOfProps
+  } = props;
 
   const ref = React.useRef();
 
@@ -573,11 +625,39 @@ const Bar = React.memo(({ stacks, left = 0, top = 0, state, showAnimations, ...p
     }
   }, [ref, state, left, top, showAnimations]);
 
+  const highlight = React.useMemo(() => {
+    const filtered = highlights.filter(h => h.type === "index" && h.value == index);
+    return Boolean(filtered.length);
+  }, [highlights, index]);
+
+  const doOnBarEnter = React.useMemo(() => {
+    if (typeof onBarEnter === "function") {
+      return e => {
+        onBarEnter(e, { index, stacks })
+      }
+    }
+  }, [onBarEnter, index, stacks]);
+
+  const doOnBarLeave = React.useMemo(() => {
+    if (typeof onBarLeave === "function") {
+      return e => {
+        onBarLeave(e, { index, stacks })
+      }
+    }
+  }, [onBarLeave, index, stacks]);
+
   return (
-    <g className="avl-bar" ref={ ref }>
+    <g className="avl-bar" ref={ ref }
+      onMouseEnter={ doOnBarEnter }
+      onMouseLeave={ doOnBarLeave }
+    >
       { stacks.map(({ key, ...rest }, i) =>
           <Stack key={ key } Key={ key } state={ state }
-            { ...props } { ...rest } showAnimations={ showAnimations }/>
+            { ...restOfProps } { ...rest }
+            showAnimations={ showAnimations }
+            highlight={
+              highlight || Boolean(highlights.find(h => h.type === "key" && h.value == key))
+            }/>
         )
       }
     </g>

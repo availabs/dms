@@ -14,11 +14,15 @@ const LineGraphWrapper = props => {
 
 // console.log("LineGraphWrapper::viewData", props.viewData);
 // console.log("LineGraphWrapper::columns", props.columns);
+	const [xColumn, yColumns, idColumn] = React.useMemo(() => {
+		return [
+			props.columns.find(c => c.target === "xAxis"),
+			props.columns.filter(c => c.target === "yAxis"),
+			props.columns.find(c => c.target === "categorize")
+		]
+	}, [props.columns])
 
 	const dataFromProps = React.useMemo(() => {
-		const xColumn = props.columns.find(c => c.target === "xAxis");
-		const yColumns = props.columns.filter(c => c.target === "yAxis");
-		const idColumn = props.columns.find(c => c.target === "categorize");
 
 		if (!xColumn || !yColumns.length) return [];
 
@@ -120,7 +124,7 @@ const LineGraphWrapper = props => {
 		}
 
 		return data;
-	}, [props.viewData, props.columns]);
+	}, [props.viewData, xColumn, yColumns, idColumn]);
 
   const colors = React.useMemo(() => {
     let colors = [];
@@ -146,6 +150,53 @@ const LineGraphWrapper = props => {
 		return { ...props.yAxis };
 	}, [props.yAxis]);
 
+  const {
+    publishHoverData: publish,
+    hoverProvider: provider,
+    actions
+  } = props;
+
+  const highlights = React.useMemo(() => {
+
+    const hhlActions = actions.filter(a => a.action === "hover_highlight");
+
+		const idKey = idColumn ? (idColumn.normalName || idColumn.name) : undefined;
+
+    if (idColumn) {
+      return hhlActions.reduce((a, c) => {
+        if (c.column === idKey) {
+          for (const v of c.value) {
+            a.push({
+              type: "id",
+              value: v
+            })
+          }
+        }
+        return a;
+      }, [])
+    }
+    else if (yColumns.length) {
+      return hhlActions.reduce((a, c) => {
+        for (const yc of yColumns) {
+        	const ycn = yc.normalName || yc.name;
+          for (const v of c.value) {
+            if (ycn === c.column) {
+              a.push({
+                type: "id",
+                value: ycn
+              })
+            }
+          }
+        }
+        return a;
+      }, [])
+    }
+    return [];
+
+  }, [actions, xColumn, yColumns, idColumn]);
+
+// console.log("LineGraphWrapper::highlights", highlights); 
+
   const legend = React.useMemo(() => {
     return {
       ...props.legend,
@@ -155,13 +206,37 @@ const LineGraphWrapper = props => {
     };
   }, [props.legend, colors, dataFromProps]);
 
+  const onLegendEnter = React.useMemo(() => {
+    if (!publish || !provider) return null;
+    return key => {
+      publish({
+        action: "hover_publish",
+        column: provider.args?.column,
+        value: key
+      })
+    }
+  }, [publish, provider]);
+
+  const onLegendLeave = React.useMemo(() => {
+    if (!publish || !provider) return null;
+    return () => publish(null);
+  }, [publish, provider]);
+
+  const InstantiatedLegend = React.useMemo(() => {
+    return !legend.show ? null : (
+      <Legend { ...legend } actions={ actions }
+        onEnter={ onLegendEnter }
+        onLeave={ onLegendLeave }/>
+    )
+  }, [legend, actions, onLegendEnter, onLegendLeave]);
+
 // console.log("LineGraphWrapper::legend", legend);
 
 	return (
     <div className="w-full bg-inherit flex">
       { !legend.show || legend.position !== "left" ? null :
       	<div className="flex items-center">
-        	<Legend { ...legend }/>
+        	{ InstantiatedLegend }
         </div>
       }
       <div className="bg-inherit flex-1"
@@ -174,11 +249,12 @@ const LineGraphWrapper = props => {
 					colors={ colors }
 					axisBottom={ axisBottom }
 					axisLeft={ axisLeft }
-					axisRight={ axisLeft }/>
+					axisRight={ axisLeft }
+					highlights={ highlights }/>
       </div>
       { !legend.show || legend.position !== "right" ? null :
       	<div className="flex items-center">
-        	<Legend { ...legend }/>
+        	{ InstantiatedLegend }
         </div>
       }
     </div>

@@ -1,4 +1,4 @@
-import React, {useEffect, useMemo} from "react";
+import React, {useEffect, useMemo,useContext} from "react";
 import {isEqual} from "lodash-es";
 import { groups as d3groups, range as d3range } from "d3-array"
 
@@ -27,105 +27,82 @@ const mergeChartDefaults = (defaults = {}, display = {}) => {
     return out;
 };
 
-export default function Graph ({
-    isEdit, columns=[], data=[], display={}, controls={}, state={}, setState=() => {}, isActive, activeStyle
-}) {
-    // const { theme: themeFromContext = {avlGraph: graphTheme}} = React.useContext(ThemeContext) || {};
-    // const theme = {...themeFromContext, avlGraph: {...graphTheme, ...(themeFromContext.avlGraph || {})}};
+const useGetActions = (pageState, display) => {
+  // const providers = (display?._functions?.providers || []).filter(p => p.enabled);
+  const enabledSubscribers = (display?._functions?.subscribers || []).filter(s => s.enabled);
+
+// console.log("graph_new.index::useGetActions::pageState", pageState);
+// console.log("graph_new.index::useGetActions::providers", providers);
+// console.log("graph_new.index::useGetActions::subscribers", subscribers);
+
+  const paramKeys = enabledSubscribers.reduce((a, c) => {
+    a.add(c.paramKey);
+    return a;
+  }, new Set());
+
+  return pageState.filters
+    .filter(f =>
+      f.type === "action" ? paramKeys.has(f.searchKey) : false
+    ).reduce((a, c) => {
+      const subscribers = enabledSubscribers.filter(s => s.paramKey === c.searchKey);
+      for (const sub of subscribers) {
+        a.push({
+          action: sub.functionId,
+          column: sub.args?.column,
+          value: [...c.values]
+        })
+      }
+      return a;
+    }, []);
+}
+
+export default function Graph (props) {
+
+    const {
+        isEdit, state, activeStyle, pageContext
+    } = props;
+
+    const {
+        pageState, setActionParam, clearActionParam
+    } = pageContext;
+// console.log("ui.components.graph_new.index::pageContext", pageContext);
+
+    const {
+        columns, data, display
+    } = state;
+// console.log("ui.components.graph_new.index::display", display);
 
   const { theme: contextTheme } = React.useContext(ThemeContext) || { theme: { avlGraph: {} } };
   const theme = getComponentTheme(contextTheme, 'avlGraph', activeStyle);
 
-  const subCfg = state.display?._functions?.subscribers?.find(s => s.functionId === 'hover_highlight' && s.enabled);
+  const hoverProvider = React.useMemo(() => {
+    return display?._functions?.providers.find(p => p.functionId === 'hover_publish' && p.enabled);
+  }, [display]);
 
-console.log("graph_new.index::subCfg", subCfg)
+  const publishHoverData = React.useCallback(action => {
+    if (!hoverProvider) return;
+    if (!action) {
+      clearActionParam(hoverProvider.paramKey);
+    }
+    else {
+      setActionParam(hoverProvider.paramKey, action.value);
+    }
+  }, [setActionParam, clearActionParam, hoverProvider]);
 
-// console.log("GraphNew::data", data);
-// console.log("GraphNew::columns", columns);
+    //   const onCardMouseEnter = useCallback((item) => {
+    //     if (!providerCfg || !setActionParam) return;
+    //     const value = item?.[providerCfg.args?.column];
+    //     if (value !== undefined) setActionParam(providerCfg.paramKey, value);
+    // }, [providerCfg, setActionParam]);
 
-    // data is restructured into: index, type, value.
-    // index is X axis column's values.
-    // type is either category column's values or Y axis column's display name or name.
-    // const indexColumn = useMemo(() => columns.find(({xAxis}) => xAxis) || {}, [columns]);
-    // const dataColumns = useMemo(() => columns.filter(({yAxis}) => yAxis) || [], [columns]);
-    // const categoryColumn = useMemo(() => columns.find(({categorize}) => categorize) || {}, [columns]);
+    // const onCardMouseLeave = useCallback(() => {
+    //     if (!providerCfg || !clearActionParam) return;
+    //     clearActionParam(providerCfg.paramKey);
+    // }, [providerCfg, clearActionParam]);
 
-    // const graphData = useMemo(() => {
-    //     const tmpData = [];
-    //     const categories = new Set();
+    //   const providerCfg = state.display?._functions?.providers?.find(p => p.functionId === 'hover_highlight' && p.enabled);
 
-    //     data.forEach(row => {
-    //         const index = row[indexColumn.name] && typeof row[indexColumn.name] !== 'object' && typeof row[indexColumn.name] !== 'string' ?
-    //             row[indexColumn.name].toString() : row[indexColumn.name];
-    //         dataColumns.forEach(dataColumn => {
-    //             const value = row[dataColumn.normalName || dataColumn.name];
-    //             const type = categoryColumn.name ? row[categoryColumn.name] : (dataColumn.customName || dataColumn.display_name || dataColumn.name);
-    //             if (!strictNaN(value) && (index !== undefined) && type && (!display.isLog || value >= 0)) {
-    //                 categories.add(type);
-    //                 tmpData.push({
-    //                     index: typeof index === "object" ? index.value : index,
-    //                     type: typeof type === "object" ? type.value : type,
-    //                     value: typeof value === "object" ? value.value : value,
-    //                     // aggMethod: dataColumn.fn
-    //                 });
-    //             }
-    //         })
-    //     })
-
-    //     if (display.useCustomXDomain && display.xDomain) {
-    //         display.xDomain.forEach((domainIdx, i) => {
-    //             if(!tmpData.some(d => d.index === domainIdx)) {
-    //                 tmpData.splice(i, 0, { index: domainIdx, value: 0 });//, aggMethod: dataColumns[0]?.fn})
-    //             }
-    //         })
-
-    //         return tmpData.filter(t => display.xDomain.some(tick => t.index === tick))
-    //     }
-
-    //     if (display.makeContinuousXDomain && (display.graphType === "LineGraph")) {
-
-    //         const [min, max] = tmpData.reduce((a, c) => {
-    //             const i = c.index;
-    //             if (!strictNaN(i)) {
-    //                 return [Math.min(a[0], i), Math.max(a[1], i)];
-    //             }
-    //             return a;
-    //         }, [Infinity, -Infinity]);
-
-    //         if ((min < Infinity) && (max > -Infinity)) {
-    //             const range = d3range(min, max + 1).map(r => r.toString());
-    //             const dataByType = d3groups(tmpData, d => d.type);
-
-    //             for (const [type, data] of dataByType) {
-    //                 const dataByIndex = data.reduce((a, c) => {
-    //                     a[c.index] = c;
-    //                     return a;
-    //                 }, {});
-    //                 for (const index of range) {
-    //                     if (!(index in dataByIndex)) {
-    //                         tmpData.push({ index, type, value: 0 })
-    //                     }
-    //                 }
-    //             }
-
-    //                 // .forEach((index, i) => {
-    //                 //     if(!tmpData.some(d => d.index === domainIdx)) {
-    //                 //         tmpData.push({ index, value: 0 })
-    //                 //     }
-    //                 // })
-    //         }
-    //     }
-    //     return tmpData;
-    //     // return tmpData.map(d => {
-    //     //     return {
-    //     //         index: typeof d.index === "object" ? d.index.value : d.index,
-    //     //         type: typeof d.type === "object" ? d.type.value : d.type,
-    //     //         value: typeof d.value === "object" ? d.value.value : d.value
-    //     //     };
-    //     // })
-    // }, [indexColumn, dataColumns.length, categoryColumn, data, display.useCustomXDomain, display.xDomain, display.makeContinuousXDomain])
-
-// console.log("GraphNew::graphData", graphData)
+    // const subCfg = display?._functions?.subscribers?.find(s => s.functionId === 'hover_highlight' && s.enabled);
 
     // useEffect(() => {
     //     const newDomain = [...new Set(graphData.map(d => d.index))]
@@ -150,14 +127,6 @@ console.log("graph_new.index::subCfg", subCfg)
     // const maxIndexValue = Math.max(...Object.values(indexTotals));
     // const stopPoints = [0.75, 0.5, 0.05];
     // const stopValues = stopPoints.map(p => maxIndexValue * p);
-
-// console.log("graph::columns", columns);
-// console.log("graph::data", data);
-// console.log("graph::display", display);
-// console.log("graph::controls", controls);
-// console.log("graph::setState", setState);
-// console.log("graph::isActive", isActive);
-// console.log("graph::activeStyle", activeStyle);
 
     //console.log('graph data', graphData, columns, display)
     return (
@@ -205,7 +174,10 @@ console.log("graph_new.index::subCfg", subCfg)
                 graphType={ display.graphType }
                 viewData={ data }
                 columns={ columns }
-                theme={theme}
+                theme={ theme }
+                actions={ useGetActions(pageState, display) }
+                publishHoverData={ publishHoverData }
+                hoverProvider={ hoverProvider }
             />
         </>
     )

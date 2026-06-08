@@ -9,6 +9,9 @@ import { scaleLinear } from "d3-scale"
 import { strictNaN } from "../utils"
 import { getAggFunc } from "./utils"
 import { getColorRange } from "../colorSchemeUnifier"
+  
+const TopOrBottomRegex = /^top|bottom/;
+const LeftOrRightRegex = /^(left|right)$/;
 
 const GridGraphWrapper = props => {
 
@@ -30,10 +33,15 @@ const GridGraphWrapper = props => {
     return props.colors?.reverse ? colors.reverse() : colors;
   }, [props.colors]);
 
+  const [xColumn, yColumn, colorColumns] = React.useMemo(() => {
+    return [
+      props.columns.find(c => c.target === "xAxis"),
+      props.columns.find(c => c.target === "yAxis"),
+      props.columns.filter(c => c.target === "color")
+    ]
+  }, [props.columns]);
+
   const dataFromProps = React.useMemo(() => {
-    const xColumn = props.columns.find(c => c.target === "xAxis");
-    const yColumn = props.columns.find(c => c.target === "yAxis");
-    const colorColumns = props.columns.filter(c => c.target === "color");
 
     if (!xColumn || !colorColumns.length) return {};
 
@@ -137,7 +145,7 @@ const GridGraphWrapper = props => {
     }
 
     return { data, keys, colors: colorFunc };
-  }, [props.viewData, props.columns, colors]);
+  }, [props.viewData, xColumn, yColumn, colorColumns, colors]);
 
 // console.log("GridGraphWrapper::dataFromProps", dataFromProps);
 
@@ -161,14 +169,127 @@ const GridGraphWrapper = props => {
     };
   }, [props.legend, props.colors, props.hoverComp?.valueFormat, dataFromProps]);
 
-// console.log("GridGraphWrapper::legend", legend);
+  const {
+    publishHoverData: publish,
+    hoverProvider: provider,
+    actions
+  } = props;
 
-// console.log("GridGraphWrapper::dataForGraph", dataForGraph);
-// console.log("GridGraphWrapper::hoverComp", hoverComp);
-// console.log("GridGraphWrapper::colors", props.colors);
+  const highlights = React.useMemo(() => {
 
-const TopOrBottomRegex = /^top|bottom/;
-const LeftOrRightRegex = /^(left|right)$/;
+    const hhlActions = actions.filter(a => a.action === "hover_highlight");
+
+    if (xColumn && yColumn) {
+      return hhlActions.reduce((a, c) => {
+        if (c.column === xColumn.name) {
+          for (const v of c.value) {
+            a.push({
+              type: "key",
+              value: v
+            })
+          }
+        }
+        else if (c.column === yColumn.name) {
+          for (const v of c.value) {
+            a.push({
+              type: "index",
+              value: v
+            })
+          }
+        }
+        return a;
+      }, [])
+    }
+    else if (xColumn && colorColumns.length) {
+      return hhlActions.reduce((a, c) => {
+        if (c.column === xColumn.name) {
+          for (const v of c.value) {
+            a.push({
+              type: "key",
+              value: v
+            })
+          }
+        }
+        else {
+          for (const cc of colorColumns) {
+            for (const v of c.value) {
+              if (cc.name === c.column) {
+                a.push({
+                  type: "index",
+                  value: cc.name
+                })
+              }
+            }
+          }
+        }
+        return a;
+      }, [])
+    }
+    return [];
+
+  }, [actions, xColumn, yColumn, colorColumns]);
+
+// console.log("GridGraphWrapper::highlights", highlights);
+
+  const onLegendEnter = React.useMemo(() => {
+    if (!publish || !provider) return null;
+    return key => {
+      publish({
+        action: "hover_publish",
+        column: provider.args?.column,
+        value: key
+      })
+    }
+  }, [publish, provider]);
+
+  const onLegendLeave = React.useMemo(() => {
+    if (!publish || !provider) return null;
+    return () => publish(null);
+  }, [publish, provider]);
+
+  const InstantiatedLegend = React.useMemo(() => {
+    return !legend.show ? null : (
+      <Legend { ...legend } actions={ actions }
+        onEnter={ onLegendEnter }
+        onLeave={ onLegendLeave }/>
+    )
+  }, [legend, actions, onLegendEnter, onLegendLeave]);
+
+  const onHorizontalEnter = React.useMemo(() => {
+    if (!publish || !provider) return null;
+    if (provider.args?.column !== yColumn?.name) return null;
+    return (e, data) => {
+      publish({
+        action: "hover_publish",
+        column: provider.args?.column,
+        value: data.index
+      })
+    }
+  }, [publish, provider, yColumn]);
+
+  const onHorizontalLeave = React.useMemo(() => {
+    if (!publish || !provider) return null;
+    if (provider.args?.column !== yColumn?.name) return null;
+    return () => publish(null);
+  }, [publish, provider, yColumn]);
+
+  const onGridEnter = React.useMemo(() => {
+    if (!publish || !provider) return null;
+    if (provider.args?.column !== xColumn?.name) return null;
+    return (e, data) => {
+      publish({
+        action: "hover_publish",
+        column: provider.args?.column,
+        value: data.key
+      })
+    }
+  }, [publish, provider, xColumn]);
+
+  const onGridLeave = React.useMemo(() => {
+    if (!publish || !provider) return null;
+    if (provider.args?.column !== xColumn?.name) return null;
+    return () => publish(null);
+  }, [publish, provider, xColumn]);
 
   return (
     <div
@@ -184,12 +305,12 @@ const LeftOrRightRegex = /^(left|right)$/;
               ${ legend.position === "top-right" ? "justify-end" : "" }
           ` }
         >
-          <Legend { ...legend }/>
+          { InstantiatedLegend }
         </div>
       }
       { !legend.show || (legend.position !== "left") ? null :
         <div className="flex items-center">
-          <Legend { ...legend }/>
+          { InstantiatedLegend }
         </div>
       }
       <div
@@ -204,7 +325,12 @@ const LeftOrRightRegex = /^(left|right)$/;
         <GridGraph { ...props }
           { ...dataFromProps }
           axisBottom={ axisBottom }
-          axisLeft={ axisLeft }/>
+          axisLeft={ axisLeft }
+          highlights={ highlights }
+          onHorizontalEnter={ onHorizontalEnter }
+          onHorizontalLeave={ onHorizontalLeave }
+          onGridEnter={ onGridEnter }
+          onGridLeave={ onGridLeave }/>
       </div>
       { !legend.show || !legend.position.includes("bottom") ? null :
         <div
@@ -213,12 +339,12 @@ const LeftOrRightRegex = /^(left|right)$/;
             ${ legend.position === "bottom-right" ? "justify-end" : "" }
           ` }
         >
-          <Legend { ...legend }/>
+          { InstantiatedLegend }
         </div>
       }
       { !legend.show || (legend.position !== "right") ? null :
         <div className="flex items-center">
-          <Legend { ...legend }/>
+          { InstantiatedLegend }
         </div>
       }
     </div>
