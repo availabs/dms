@@ -83,8 +83,33 @@ export const cmsSection = {
     { key: "element",
       // type: "selector",
       required: false,
-    }
-  ] 
+    },
+    // Virtual columns — extracted from nested element JSON at query time via
+    // SQL expressions. name defaults to key (via useDataSource line 124: name = a.name || a.key)
+    // so isCalculatedCol detects the " as " and emits the SQL expression directly.
+    {
+      key: "data->'element'->>'element-type' as component_type",
+      display_name: "Component Type",
+      type: "text",
+      editable: false,
+    },
+    {
+      key: "data->'element'->'externalSource'->>'source_id' as source_id",
+      display_name: "Source ID",
+      type: "text",
+    },
+    {
+      key: "data->'element'->'externalSource'->>'view_id' as view_id",
+      display_name: "View ID",
+      type: "text",
+    },
+    {
+      key: "element_preview",
+      display_name: "Preview",
+      type: "element_preview",
+      editable: false,
+    },
+  ]
 }
 
 
@@ -249,10 +274,10 @@ const cmsPageFormat = {
       type: "json",
       hidden: true
     },
-    // status
+    // status — renders as an inline publish/discard control in spreadsheets
     {
       key: 'published',
-      type: 'text',
+      type: 'page_publish',
       default: "draft"
     },
     {

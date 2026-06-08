@@ -195,6 +195,7 @@ const buildControls = (theme) => ({
                     { label: 'Date + Time', value: 'datetime' },
                     { label: 'Title', value: 'title' },
                     { label: '0 = N/A', value: 'zero_to_na' },
+                    { label: 'Page Link', value: 'page_link' },
                 ], displayCdn: ({ isEdit }) => isEdit
             },
             { type: 'toggle', label: 'Wrap Text', key: 'wrapText', displayCdn: ({ isEdit }) => isEdit },

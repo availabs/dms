@@ -194,6 +194,7 @@ const buildInHeader = (fontStyleOptions) => [
             { label: 'Icon', value: 'icon' },
             { label: 'Color', value: 'color' },
             { label: 'Combine columns', value: 'combine' },
+            { label: 'Page Link', value: 'page_link' },
         ]
     },
     // `combine` formatFn: renders `<value><separator><row[combineWith]>` in one

@@ -281,7 +281,7 @@ export const TableCell = memo(function TableCell ({
     const value = isTotalCell && !(attribute.showTotal || display.showTotal) ? null :
         compMode === 'EditComp' ? rawValue : // edit mode should always show raw value
             attribute.formatFn && formatFunctions[attribute.formatFn.toLowerCase()] ?
-                formatFunctions[attribute.formatFn.toLowerCase()](rawValue, attribute.isDollar) :
+                formatFunctions[attribute.formatFn.toLowerCase()](rawValue, attribute.isDollar, newItem) :
                 rawValue;
 
     const selectionColor = '#2100f8'

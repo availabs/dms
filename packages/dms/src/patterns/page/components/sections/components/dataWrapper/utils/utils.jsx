@@ -1,4 +1,6 @@
+import React from "react";
 import { useCallback, useEffect } from "react";
+import { Link } from "react-router";
 import { isEqual } from "lodash-es";
 
 const operationToExpressionMap = {
@@ -282,6 +284,13 @@ export const formatFunctions = {
   // column attr to read `combineWith`/`combineSeparator`. Card.jsx routes the
   // call so this format never goes through the generic value-resolution branch
   // that would strip whitespace from the separator.
+  // Renders the cell value as a React Router link using the row's url_slug.
+  // Pass this formatFn on the title (or any text) column of a pages spreadsheet.
+  page_link: (value, _isDollar, row) => {
+    const slug = row?.url_slug;
+    if (!slug) return value;
+    return <Link to={slug}>{value}</Link>;
+  },
   combine: (value, row, attr) => {
     const sep = attr?.combineSeparator ?? " — ";
     const otherField = attr?.combineWith;

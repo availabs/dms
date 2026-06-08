@@ -49,6 +49,22 @@ const parseIfJson = (value) => {
     try { return JSON.parse(value); } catch { return value; }
 };
 
+// For DMS calculated columns the reqName is a PostgreSQL JSON path expression
+// like data->'element'->>'element-type'. The value lives in the already-fetched
+// row JSON (out = d.data.value in processNewData) — traverse it in JS instead
+// of relying on a SQL column alias that never arrives through the byId path.
+const extractDmsJsonPath = (row, expr) => {
+    // Strip leading "data" keyword then split on -> / ->>
+    const raw = expr.replace(/^\s*data\s*/, '');
+    const parts = raw.split(/->+/).map(p => p.replace(/^['"]+|['"]+$/g, '').trim()).filter(Boolean);
+    let val = row;
+    for (const part of parts) {
+        if (val == null) return undefined;
+        val = val[part];
+    }
+    return val ?? undefined;
+};
+
 const cleanValue = (value) => {
     let valueType = typeof value;
 
@@ -410,7 +426,17 @@ export const getData = async ({
 
         for (const column of columnsToFetch) {
             const key = isTotalRow ? column.totalName : column.reqName;
-            rowWithData[column.normalName || column.name] = cleanValue(row[key]);
+            let value;
+            if (isDms && column.isCalculatedColumn && !isTotalRow) {
+                // Calculated DMS columns: reqName is a SQL expression that the
+                // byId route never returns. Extract the equivalent value from
+                // the already-fetched row JSON (processNewData builds from data.value).
+                const expr = splitColNameOnAS(column.name)[0];
+                value = extractDmsJsonPath(row, expr);
+            } else {
+                value = row[key];
+            }
+            rowWithData[column.normalName || column.name] = cleanValue(value);
         }
 
         if (formulaColumns.length) {
