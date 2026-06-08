@@ -111,6 +111,7 @@ export default {
     "name": 'AVL Graph',
     "type": 'avlGraph',
     "variables": [],
+
     useDataSource: true,
     useDataWrapper: true,
 
@@ -175,7 +176,7 @@ export default {
             },     
             { type: 'toggle',
                 label: 'Group', key: 'group'
-            }, 
+            },  
             { type: 'select',
                 label: 'Sort', key: 'sort',
                 options: [
