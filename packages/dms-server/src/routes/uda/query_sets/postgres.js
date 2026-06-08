@@ -43,6 +43,37 @@ function translatePgToSqlite(expr) {
   return expr;
 }
 
+/**
+ * Compile one custom-bucket (alias group) definition into a CASE expression.
+ *
+ * A definition is `{ column, fallback, groups: { [label]: [values] } }` and maps
+ * the values of `column` into the author-defined labels:
+ *   CASE WHEN <column> IN (...) THEN '<label>' … ELSE '<fallback>' END
+ *
+ * The standard CASE/IN syntax works identically on PostgreSQL and SQLite, so the
+ * same builder serves both. Only `column` is a raw identifier (groupBy bypasses
+ * the sanitizeName() path for these CASE expressions), so it is sanitizeName()-
+ * guarded here; labels, values and fallback are single-quote-escaped literals. A
+ * group's `values` may arrive JSON-stringified (dynamic page-filter bindings
+ * store the list as a string) — tolerated via the JSON.parse fallback.
+ */
+function buildAliasGroupCase(definition) {
+  const { column, fallback, groups } = definition;
+  const safeColumn = sanitizeName(column);
+  if (!safeColumn) return null;
+  let caseStmt = `CASE `;
+  for (const [label, values] of Object.entries(groups)) {
+    const valArray = typeof values === 'string' ? JSON.parse(values) : values;
+    const escapedValues = valArray.map(v => typeof v === 'string' ? `'${v.replace(/'/g, "''")}'` : v).join(', ');
+    caseStmt += `WHEN ${safeColumn} IN (${escapedValues}) THEN '${label.replace(/'/g, "''")}' `;
+  }
+  if (fallback) {
+    caseStmt += `ELSE '${fallback.replace(/'/g, "''")}' `;
+  }
+  caseStmt += `END`;
+  return caseStmt;
+}
+
 async function simpleFilterLength(ctx, options) {
   const { isDms, db, app, type, table_schema, table_name } = ctx;
 
@@ -52,7 +83,8 @@ async function simpleFilterLength(ctx, options) {
     filterGroups = {},
     groupBy = [], having = [],
     normalFilter = [],
-    join = {}
+    join = {},
+    aliasGroups = {}
   } = JSON.parse(options);
 
   // Translate PG-specific SQL in groupBy expressions for SQLite
@@ -64,6 +96,17 @@ async function simpleFilterLength(ctx, options) {
     normalFilter.forEach(({ column, values }) => {
       (filter[column] ??= []).push(...values);
     });
+  }
+
+  // Custom buckets: for any groupBy entry that names an alias group, compile its
+  // definition into a CASE expression to use in place of the bare column.
+  const activeAliasGroups = {};
+  if (aliasGroups) {
+    for (const [alias, definition] of Object.entries(aliasGroups)) {
+      if (groupBy.includes(alias)) {
+        activeAliasGroups[alias] = buildAliasGroupCase(definition);
+      }
+    }
   }
 
   const oldValues = [
@@ -119,7 +162,7 @@ async function simpleFilterLength(ctx, options) {
          )
          SELECT count(*) numrows FROM t`
       : `SELECT count(${groupBy.length
-           ? `DISTINCT ${groupBy.map((g) => sanitizeName(g)).filter((g) => g)
+           ? `DISTINCT ${groupBy.map((g) => activeAliasGroups[g] || sanitizeName(g)).filter((g) => g)
                .map((c) => `CASE WHEN ${c} IS NULL THEN '__NULL__VAL__' ELSE ${typeCast(c, 'TEXT', db.type)} END`)
                .join(`|| '-' ||`)}`
            : 1}) numrows
@@ -135,6 +178,28 @@ async function simpleFilter(ctx, options, attributes, indices) {
   const num = indices.to - indices.from + 1;
   const { isDms, db, app, type, table_schema, table_name, dmsAttributes } = ctx;
 
+  const {
+    filter = {}, exclude = {},
+    gt = {}, gte = {}, lt = {}, lte = {}, like = {},
+    filterRelation = 'and',
+    filterGroups = {},
+    groupBy = [], having = [], orderBy = {},
+    normalFilter = [], meta = {},
+    join = {},
+    aliasGroups = {}
+  } = JSON.parse(options);
+
+  // Custom buckets: compile the CASE expression for any alias group that the
+  // request groups by, so it can be substituted into the SELECT and GROUP BY.
+  const activeAliasGroups = {};
+  if (aliasGroups) {
+    for (const [alias, definition] of Object.entries(aliasGroups)) {
+      if (groupBy.includes(alias)) {
+        activeAliasGroups[alias] = buildAliasGroupCase(definition);
+      }
+    }
+  }
+
   let sanitizedAttrs = sanitizeName(attributes).filter((f) => f);
   if (!sanitizedAttrs.length) return [];
 
@@ -142,6 +207,20 @@ async function simpleFilter(ctx, options, attributes, indices) {
   if (db.type === 'sqlite') {
     sanitizedAttrs = sanitizedAttrs.map(translatePgToSqlite);
   }
+
+  // Substitute the alias-group CASE expression into any SELECT column whose
+  // response name matches an active alias group.
+  sanitizedAttrs = sanitizedAttrs.map(attr => {
+    const respName = getResponseColumnName(attr);
+    return activeAliasGroups[respName] ? `${activeAliasGroups[respName]} as ${respName}` : attr;
+  });
+
+  // Ensure grouped alias groups are present in the SELECT clause.
+  groupBy.forEach(g => {
+    if (activeAliasGroups[g] && !sanitizedAttrs.some(attr => getResponseColumnName(attr) === g)) {
+      sanitizedAttrs.push(`${activeAliasGroups[g]} as ${g}`);
+    }
+  });
 
   // Map long column names to short aliases
   const columnNameMap = sanitizedAttrs.reduce((acc, attr, i) => {
@@ -151,16 +230,6 @@ async function simpleFilter(ctx, options, attributes, indices) {
     }
     return acc;
   }, {});
-
-  const {
-    filter = {}, exclude = {},
-    gt = {}, gte = {}, lt = {}, lte = {}, like = {},
-    filterRelation = 'and',
-    filterGroups = {},
-    groupBy = [], having = [], orderBy = {},
-    normalFilter = [], meta = {},
-    join = {}
-  } = JSON.parse(options);
 
   if (normalFilter.length) {
     normalFilter.forEach(({ column, values }) => {
@@ -210,7 +279,7 @@ async function simpleFilter(ctx, options, attributes, indices) {
     SELECT ${sanitizedAttrs.map((c) => quoteAlias(columnNameMap[c] || c)).join(', ')}
     FROM ${fromClause}
     ${combinedWhere}
-    ${handleGroupBy(groupBy)}
+    ${handleGroupBy(groupBy.map(g => activeAliasGroups[g] || g))}
     ${handleHaving(having)}
     ${handleOrderBy(orderBy, dmsAttributes)}
     LIMIT ${+num}
@@ -289,4 +358,5 @@ module.exports = {
   dataById,
   // Exported for testing
   translatePgToSqlite,
+  buildAliasGroupCase,
 };
