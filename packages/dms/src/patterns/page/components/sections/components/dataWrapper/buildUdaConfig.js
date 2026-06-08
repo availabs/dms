@@ -972,6 +972,23 @@ export const buildUdaConfig = ({
     ? rawUserColumnsInput
     : rawUserColumnsInput.filter((c) => c.origin !== "custom-bucket");
 
+  // Guard against the "unfiltered full-table scan" trap. When custom buckets are
+  // enabled with "filter to buckets" active AND the binding is dynamic (its group
+  // values come from page filters), an unresolved config — no page params present
+  // yet — drops BOTH the bucket column AND the row-restricting bucket filter
+  // (buildCustomBucketFilters returns [] for an empty config). That leaves a query
+  // whose only intended constraint has vanished, so it scans the whole table
+  // (millions of rows → multi-minute hang). Signal the caller to skip the fetch
+  // entirely; once usePageFilterSync resolves config from the page filters, the
+  // fetchKey changes and the section refetches with the proper bucket constraint.
+  // Static buckets are excluded: an empty static config is an intentional no-op
+  // ("filter to buckets on, nothing configured" returns all rows by design).
+  const skipFetch =
+    customBuckets?.enabled === true &&
+    customBuckets?.filterToBuckets !== false &&
+    customBuckets?.type !== "static" &&
+    !activeCustomBuckets;
+
   const join = { sources:{} };
 
   //filter out keys from join that are incomplete configs
@@ -1313,6 +1330,7 @@ export const buildUdaConfig = ({
     columnsToFetch,
     columnsWithSettings,
     outputSourceInfo,
+    skipFetch,
   };
 };
 

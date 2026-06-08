@@ -851,6 +851,62 @@ describe("buildUdaConfig", () => {
     expect(options.aliasGroups).toBeUndefined();
     expect(options.groupBy).not.toContain("region");
   });
+
+  // ─── skipFetch: unresolved dynamic binding must not fire an unfiltered query ──
+
+  it("skipFetch: dynamic binding unresolved + filterToBuckets on → skip the fetch", () => {
+    // The regression case. A dynamic (page-filter-bound) binding before page
+    // params arrive: config carries the alias but no group values. Dropping
+    // aliasGroups also drops the row-restricting bucket filter, so without this
+    // guard the query would scan the whole unfiltered table.
+    const input = basicDamaInput();
+    input.customBuckets = bucketConfig(
+      {},
+      { config: { region: { column: "county", fallback: "Other", groups: {} } } },
+    );
+    const { skipFetch } = buildUdaConfig(input);
+    expect(skipFetch).toBe(true);
+  });
+
+  it("skipFetch: static buckets with empty config do NOT skip (intentional no-op)", () => {
+    const input = basicDamaInput();
+    input.customBuckets = bucketConfig(
+      {},
+      {
+        type: "static",
+        config: { region: { column: "county", fallback: "Other", groups: {} } },
+      },
+    );
+    const { skipFetch } = buildUdaConfig(input);
+    expect(skipFetch).toBe(false);
+  });
+
+  it("skipFetch: filterToBuckets off + unresolved does NOT skip", () => {
+    const input = basicDamaInput();
+    input.customBuckets = bucketConfig(
+      {},
+      {
+        filterToBuckets: false,
+        config: { region: { column: "county", fallback: "Other", groups: {} } },
+      },
+    );
+    const { skipFetch } = buildUdaConfig(input);
+    expect(skipFetch).toBe(false);
+  });
+
+  it("skipFetch: resolved config (has group values) does NOT skip", () => {
+    const input = basicDamaInput();
+    input.customBuckets = bucketConfig({ North: ["Albany"] });
+    const { skipFetch } = buildUdaConfig(input);
+    expect(skipFetch).toBe(false);
+  });
+
+  it("skipFetch: buckets disabled does NOT skip", () => {
+    const input = basicDamaInput();
+    input.customBuckets = bucketConfig({}, { enabled: false });
+    const { skipFetch } = buildUdaConfig(input);
+    expect(skipFetch).toBe(false);
+  });
 });
 
 // ─── buildCustomBucketFilters ────────────────────────────────────────────────
