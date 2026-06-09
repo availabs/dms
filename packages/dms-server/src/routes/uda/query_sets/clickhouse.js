@@ -20,27 +20,10 @@ const {
   handleGroupByCH,
   handleHavingCH,
   handleOrderByCH,
+  buildAliasGroupCaseCH,
 } = require('./helpers');
 
-function buildAliasGroupCase(definition) {
-  const { column, fallback, groups } = definition;
-  // Column names bypass the groupBy sanitizeName() path (see sanitizedGroupBy
-  // below), so guard the only raw identifier interpolated into the CASE here.
-  // Values, labels and fallback are single-quote-escaped string literals.
-  const safeColumn = sanitizeName(column);
-  if (!safeColumn) return null;
-  let caseStmt = `CASE `;
-  for (const [label, values] of Object.entries(groups)) {
-    const valArray = typeof values === 'string' ? JSON.parse(values) : values;
-    const escapedValues = valArray.map(v => typeof v === 'string' ? `'${v.replace(/'/g, "''")}'` : v).join(', ');
-    caseStmt += `WHEN ${safeColumn} IN (${escapedValues}) THEN '${label.replace(/'/g, "''")}' `;
-  }
-  if (fallback) {
-    caseStmt += `ELSE '${fallback.replace(/'/g, "''")}' `;
-  }
-  caseStmt += `END`;
-  return caseStmt;
-}
+
 
 function buildCombinedWhereCH({ filter, exclude, gt, gte, lt, lte, like, filterGroups, joinPresent }) {
   const filterClause = handleFiltersCH({ filter, exclude, gt, gte, lt, lte, like, joinPresent });
@@ -79,7 +62,7 @@ async function simpleFilterLength(ctx, options) {
   if (aliasGroups) {
     for (const [alias, definition] of Object.entries(aliasGroups)) {
       if (groupBy.includes(alias)) {
-        activeAliasGroups[alias] = buildAliasGroupCase(definition);
+        activeAliasGroups[alias] = buildAliasGroupCaseCH(definition);
       }
     }
   }
@@ -151,7 +134,7 @@ async function simpleFilter(ctx, options, attributes, indices) {
   if (aliasGroups) {
     for (const [alias, definition] of Object.entries(aliasGroups)) {
       if (groupBy.includes(alias)) {
-        activeAliasGroups[alias] = buildAliasGroupCase(definition);
+        activeAliasGroups[alias] = buildAliasGroupCaseCH(definition);
       }
     }
   }

@@ -224,11 +224,6 @@ const Edit = forwardRef((props, ref) => {
             setState(draft => { if (draft) draft.outputSourceInfo = outputSourceInfo; });
         }
     }, [outputSourceInfo]);
-    
-    // The synthetic custom-bucket column is reconciled explicitly on alias commit
-    // (dwAPI.reconcileCustomBucketColumn — see sectionMenu), and customBuckets.config
-    // is recomputed reactively in usePageFilterSync. Nothing custom-bucket-related
-    // belongs in a reactive effect here.
 
     usePageFilterSync({ state, setState });
 
@@ -470,10 +465,6 @@ const View = forwardRef(({cms_context, value, onChange, component, editPageMode,
             setState(draft => { if (draft) draft.outputSourceInfo = outputSourceInfo; });
         }
     }, [outputSourceInfo]);
-
-    // customBuckets.config is recomputed reactively in usePageFilterSync; the
-    // synthetic column is persisted in state.columns (no reactive add needed in
-    // view mode). See the matching note in Edit.
 
     usePageFilterSync({ state, setState, setReadyOnChange: true });
 

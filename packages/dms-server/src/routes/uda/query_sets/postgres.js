@@ -19,7 +19,8 @@ const {
   handleHaving,
   handleOrderBy,
   buildCombinedWhere,
-  buildJoin
+  buildJoin,
+  buildAliasGroupCase
 } = require('../utils');
 const { typeCast } = require('#db/query-utils.js');
 
@@ -43,36 +44,7 @@ function translatePgToSqlite(expr) {
   return expr;
 }
 
-/**
- * Compile one custom-bucket (alias group) definition into a CASE expression.
- *
- * A definition is `{ column, fallback, groups: { [label]: [values] } }` and maps
- * the values of `column` into the author-defined labels:
- *   CASE WHEN <column> IN (...) THEN '<label>' … ELSE '<fallback>' END
- *
- * The standard CASE/IN syntax works identically on PostgreSQL and SQLite, so the
- * same builder serves both. Only `column` is a raw identifier (groupBy bypasses
- * the sanitizeName() path for these CASE expressions), so it is sanitizeName()-
- * guarded here; labels, values and fallback are single-quote-escaped literals. A
- * group's `values` may arrive JSON-stringified (dynamic page-filter bindings
- * store the list as a string) — tolerated via the JSON.parse fallback.
- */
-function buildAliasGroupCase(definition) {
-  const { column, fallback, groups } = definition;
-  const safeColumn = sanitizeName(column);
-  if (!safeColumn) return null;
-  let caseStmt = `CASE `;
-  for (const [label, values] of Object.entries(groups)) {
-    const valArray = typeof values === 'string' ? JSON.parse(values) : values;
-    const escapedValues = valArray.map(v => typeof v === 'string' ? `'${v.replace(/'/g, "''")}'` : v).join(', ');
-    caseStmt += `WHEN ${safeColumn} IN (${escapedValues}) THEN '${label.replace(/'/g, "''")}' `;
-  }
-  if (fallback) {
-    caseStmt += `ELSE '${fallback.replace(/'/g, "''")}' `;
-  }
-  caseStmt += `END`;
-  return caseStmt;
-}
+
 
 async function simpleFilterLength(ctx, options) {
   const { isDms, db, app, type, table_schema, table_name } = ctx;

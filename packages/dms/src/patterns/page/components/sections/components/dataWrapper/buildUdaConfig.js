@@ -20,13 +20,11 @@ const splitColNameOnAS = (name) => name.split(columnRenameRegex);
 import { EXTERNAL_SOURCE_KEY } from "./schema";
 import { calculateIsJoinPresent } from "../dataWrapper/utils/joinUtils";
 import { parseTimeFilterURL, mergeUrlOntoExposedAxes } from "./utils/timeFilter";
-
 export const isCalculatedCol = ({ display, type, origin, name }) =>
   display === "calculated" ||
   type === "calculated" ||
   origin === "calculated-column" ||
   (name && name.toLowerCase().includes(" as "));
-
 
 /**
  * Column reference string — the SQL accessor used in WHERE/GROUP BY/ORDER BY.

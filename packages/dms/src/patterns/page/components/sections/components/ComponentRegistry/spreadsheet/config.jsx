@@ -61,7 +61,7 @@ export const componentFunctions = {
         {
             id: 'click_publish',
             label: 'Click: Publish Row',
-            description: 'On click, publishes a custom object value to a page action param.',
+            description: 'On click, publishes a the column value to a page action param.',
             trigger: 'click',
             paramKey: "",
             args: [

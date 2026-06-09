@@ -64,7 +64,10 @@ export function usePageFilterSync({ state, setState, setReadyOnChange = false })
         });
     }, [pageState?.filters]);
 
-    //CUSTOM BUCKET UPDATING
+    // The synthetic custom-bucket column is reconciled explicitly on alias commit
+    // (dwAPI.reconcileCustomBucketColumn — see sectionMenu), and customBuckets.config
+    // is recomputed reactively in usePageFilterSync. Nothing custom-bucket-related
+    // belongs in a reactive effect here. the synthetic column is persisted in state.columns
     useEffect(() => {
         const pageFilters = (pageState?.filters || []).reduce(
             (acc, curr) => ({ ...acc, [curr.searchKey]: curr.values }), {}
