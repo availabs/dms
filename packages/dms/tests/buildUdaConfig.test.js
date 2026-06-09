@@ -852,6 +852,25 @@ describe("buildUdaConfig", () => {
     expect(options.groupBy).not.toContain("region");
   });
 
+  it("enabled but config has groups with empty column (source swapped): no aliasGroups", () => {
+    // After a source change the sourceField is cleared but a dynamic binding may
+    // still resolve groups from page filters, leaving config with values but an
+    // empty `column`. The bucket must be inactive so the server never emits a
+    // CASE on an empty column. Also drops the synthetic grouped column.
+    const input = basicDamaInput();
+    input.columns.push(col("region", { group: true, origin: "custom-bucket" }));
+    input.customBuckets = bucketConfig(
+      {},
+      {
+        sourceField: "",
+        config: { region: { column: "", fallback: "Other", groups: { North: ["Albany"] } } },
+      },
+    );
+    const { options } = buildUdaConfig(input);
+    expect(options.aliasGroups).toBeUndefined();
+    expect(options.groupBy).not.toContain("region");
+  });
+
   // ─── skipFetch: unresolved dynamic binding must not fire an unfiltered query ──
 
   it("skipFetch: dynamic binding unresolved + filterToBuckets on → skip the fetch", () => {

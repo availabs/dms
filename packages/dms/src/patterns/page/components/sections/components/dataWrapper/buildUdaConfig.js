@@ -964,7 +964,11 @@ export const buildUdaConfig = ({
   const activeCustomBuckets =
     customBuckets?.enabled === true &&
     Object.values(customBuckets.config || {}).some(
-      (def) => def && Object.keys(def.groups || {}).length > 0,
+      // `def.column` (the source column) is required: after a source swap the
+      // sourceField is cleared but a dynamic binding may still resolve groups
+      // from page filters — without this guard that would emit a CASE on an
+      // empty column and break the server query.
+      (def) => def && def.column && Object.keys(def.groups || {}).length > 0,
     );
   const rawUserColumns = activeCustomBuckets
     ? rawUserColumnsInput

@@ -105,6 +105,7 @@ and the whole feature ships with a master on/off switch.
 - `packages/dms/src/patterns/page/components/sections/components/dataWrapper/useDataWrapperAPI.js` — `reconcileCustomBucketColumn`.
 - `packages/dms/src/patterns/page/components/sections/components/dataWrapper/index.jsx` — removed dual-purpose useEffect (Edit + View).
 - `packages/dms/src/patterns/page/components/sections/components/dataWrapper/useDataLoader.js` — load on resolved config.
+- `packages/dms/src/patterns/page/components/sections/components/dataWrapper/useDataSource.js` — `onSourceChange` resets source-bound bucket fields (`sourceField`/`staticGroups`/`config`) and preserves the synthetic dimension column across a source swap.
 - `packages/dms/src/patterns/page/components/sections/sectionMenu.jsx` — Custom Buckets JSON menu, master toggle, filter toggle, draft alias input.
 - `packages/dms/src/patterns/page/components/sections/components/ComponentRegistry/spreadsheet/{config,index}.jsx`, `table/{index,components/TableRow}.jsx`, `pages/{edit/index,view}.jsx` — wiring.
 - `packages/dms/tests/buildUdaConfig.test.js` — unit tests.
@@ -135,6 +136,31 @@ strips the surrounding quotes so the round-trip key stays consistent. Added
 `testCustomBucketAliasCaseRoundTrip` to `tests/test-uda.js` (a PG-only guard —
 passes on SQLite either way because SQLite doesn't case-fold). Server UDA suite
 green (60/60) on SQLite; PG run not exercised locally (no Docker in this env).
+
+**Update 2026-06-09 (follow-ups)** — two menu/UX refinements:
+
+1. **Commit-style static group inputs.** The generic `CustomBucketAliasInput`
+   draft component in `sectionMenu.jsx` was renamed `CommitInput` (draft held
+   locally, committed on blur/Enter) and reused for the static groups' **Group
+   Label** and **Values (CSV)** inputs, which previously wrote section state on
+   every keystroke. Same pattern as the Dimension Alias — typing no longer
+   churns state per character; the value commits when the author leaves the
+   field / navigates back.
+
+2. **Reset source-bound bucket fields on source change.** `onSourceChange`
+   (`useDataSource.js`) now nulls the custom-bucket fields tied to the previous
+   source: `sourceField = ''`, `staticGroups = []`, `config = {}`. Source-
+   independent author config (alias, type, fallback, dynamic binding,
+   enabled/filterToBuckets toggles) is preserved, and the synthetic
+   `origin:'custom-bucket'` dimension column is now carried through the source
+   swap (both the internal-DMS and matched-source branches) instead of being
+   dropped by the generic column-name filter — so the dimension stays visible
+   and just needs rebinding to a column in the new source.
+   - Defensive gate in `buildUdaConfig.js`: `activeCustomBuckets` now also
+     requires `def.column`. After a source swap a *dynamic* binding can still
+     resolve groups from page filters while `sourceField` is empty; without the
+     guard that would emit a `CASE` on an empty column and break the query.
+     Covered by a new unit test (`buildUdaConfig.test.js`, 134 passed).
 
 ## Testing Checklist
 

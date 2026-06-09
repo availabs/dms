@@ -9,12 +9,13 @@ import { getColumnLabel } from "./controls_utils";
 
 
 /**
- * Draft input for the custom-bucket "Dimension Alias". Holds a local draft so
- * typing doesn't churn state on every keystroke, and only commits the alias (and
- * reconciles the synthetic column) on blur or Enter — i.e. when the author leaves
- * the field / navigates back out of the sub-menu.
+ * Draft text input that holds a local draft so typing doesn't churn section
+ * state on every keystroke, committing (via onCommit) only on blur or Enter —
+ * i.e. when the author leaves the field / navigates back out of the sub-menu.
+ * Used across the custom-bucket menu: the Dimension Alias (whose commit also
+ * reconciles the synthetic column) and each static group's Label / Values list.
  */
-const CustomBucketAliasInput = ({ initialValue = '', onCommit }) => {
+const CommitInput = ({ initialValue = '', onCommit }) => {
     const { UI } = React.useContext(ThemeContext) || {};
     const { Input } = UI || {};
     const [draft, setDraft] = useState(initialValue);
@@ -674,10 +675,8 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                 value: cbConfig.alias, showValue: true,
                 items: [{
                     id: 'cb_alias_input', name: 'Dimension Alias',
-                    // Commit the alias (and add/rename the synthetic column) only on
-                    // blur / back — not on every keystroke.
                     type: () => (
-                        <CustomBucketAliasInput
+                        <CommitInput
                             initialValue={cbConfig.alias}
                             onCommit={(alias) => {
                                 setCbConfig({ alias });
@@ -742,12 +741,16 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                         value: group.label, showValue: true,
                         items: [{
                             id: `cb_group_${idx}_label`, name: 'Group Label',
-                            type: 'input', inputType: 'text', value: group.label,
-                            onChange: e => {
-                                const groups = [...(cbConfig.staticGroups || [])];
-                                groups[idx] = { ...groups[idx], label: e?.target?.value ?? e };
-                                setCbConfig({ staticGroups: groups });
-                            }
+                            type: () => (
+                                <CommitInput
+                                    initialValue={group.label}
+                                    onCommit={(label) => {
+                                        const groups = [...(cbConfig.staticGroups || [])];
+                                        groups[idx] = { ...groups[idx], label };
+                                        setCbConfig({ staticGroups: groups });
+                                    }}
+                                />
+                            )
                         }]
                     },
                     {
@@ -755,12 +758,16 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                         value: group.values, showValue: true,
                         items: [{
                             id: `cb_group_${idx}_values`, name: 'Values (CSV)',
-                            type: 'input', inputType: 'text', value: group.values,
-                            onChange: e => {
-                                const groups = [...(cbConfig.staticGroups || [])];
-                                groups[idx] = { ...groups[idx], values: e?.target?.value ?? e };
-                                setCbConfig({ staticGroups: groups });
-                            }
+                            type: () => (
+                                <CommitInput
+                                    initialValue={group.values}
+                                    onCommit={(values) => {
+                                        const groups = [...(cbConfig.staticGroups || [])];
+                                        groups[idx] = { ...groups[idx], values };
+                                        setCbConfig({ staticGroups: groups });
+                                    }}
+                                />
+                            )
                         }]
                     },
                     { type: 'separator' },
