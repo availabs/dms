@@ -233,6 +233,13 @@ export default {
                 ],
                 displayCdn: ({ attribute, display }) =>
                     (attribute.target === "yAxis") && (display.graphType === "LineGraph")
+            },
+            // Per-series point marks (dots at each datum, like the design mock).
+            // Falls back to the chart-level `showMarks` default when unset.
+            { type: 'toggle',
+                label: 'Point Marks', key: 'showMarks',
+                displayCdn: ({ attribute, display }) =>
+                    (attribute.target === "yAxis") && (display.graphType === "LineGraph")
             }
         ],
         graph: {
@@ -302,7 +309,17 @@ export default {
                 { type: 'toggle',
                     label: 'Rotate Labels', key: 'xAxis.rotateLabels' },
                 { type: 'toggle',
-                    label: 'Show X Axis', key: 'xAxis.show' }
+                    label: 'Show X Axis', key: 'xAxis.show' },
+                // Axis typography (CSS values, e.g. "11px" / a font stack / "#64748b").
+                // Unset → inherits the theme/component default (BC).
+                { type: 'input', inputType: 'text', label: 'Tick Font Size',   key: 'xAxis.tickFontSize' },
+                { type: 'input', inputType: 'text', label: 'Tick Font Family', key: 'xAxis.tickFontFamily' },
+                { type: 'input', inputType: 'text', label: 'Tick Font Weight', key: 'xAxis.tickFontWeight' },
+                { type: 'input', inputType: 'text', label: 'Tick Color',       key: 'xAxis.tickColor' },
+                { type: 'input', inputType: 'text', label: 'Label Font Size',   key: 'xAxis.labelFontSize' },
+                { type: 'input', inputType: 'text', label: 'Label Font Family', key: 'xAxis.labelFontFamily' },
+                { type: 'input', inputType: 'text', label: 'Label Font Weight', key: 'xAxis.labelFontWeight' },
+                { type: 'input', inputType: 'text', label: 'Label Color',       key: 'xAxis.labelColor' }
             ]
         },
         yAxis: {
@@ -315,6 +332,10 @@ export default {
             items: [
                 {type: 'input', inputType: 'text',   label: 'Label',        key: 'yAxis.label'},
                 {type: 'input', inputType: 'number', label: 'Tick Spacing', key: 'yAxis.tickSpacing'},
+                // Custom y-domain. Unset → auto-scale to the data (current behavior).
+                // e.g. set Domain Max = 100 to fix the top of a percent chart.
+                {type: 'input', inputType: 'number', label: 'Domain Min', key: 'yAxis.domainMin'},
+                {type: 'input', inputType: 'number', label: 'Domain Max', key: 'yAxis.domainMax'},
                 {type: 'select', label: 'Tick Format', key: 'yAxis.format', onClickGoBack: true,
                     // options: [
                     //     {label: 'Default',         value: ''},
@@ -330,6 +351,16 @@ export default {
                 {type: 'toggle', label: 'Show Gridlines', key: 'yAxis.showGridLines', defaultValue: true},
                 {type: 'toggle', label: 'Rotate Labels',  key: 'yAxis.rotateLabels'},
                 {type: 'toggle',                     label: 'Show Y Axis',     key: 'yAxis.show' },
+                // Axis typography (CSS values, e.g. "11px" / a font stack / "#64748b").
+                // Unset → inherits the theme/component default (BC).
+                { type: 'input', inputType: 'text', label: 'Tick Font Size',   key: 'yAxis.tickFontSize' },
+                { type: 'input', inputType: 'text', label: 'Tick Font Family', key: 'yAxis.tickFontFamily' },
+                { type: 'input', inputType: 'text', label: 'Tick Font Weight', key: 'yAxis.tickFontWeight' },
+                { type: 'input', inputType: 'text', label: 'Tick Color',       key: 'yAxis.tickColor' },
+                { type: 'input', inputType: 'text', label: 'Label Font Size',   key: 'yAxis.labelFontSize' },
+                { type: 'input', inputType: 'text', label: 'Label Font Family', key: 'yAxis.labelFontFamily' },
+                { type: 'input', inputType: 'text', label: 'Label Font Weight', key: 'yAxis.labelFontWeight' },
+                { type: 'input', inputType: 'text', label: 'Label Color',       key: 'yAxis.labelColor' },
             ]
         },
         colors: {
@@ -396,6 +427,9 @@ export default {
                 },
                 { type: "toggle",
                     label: "Use Dollars", key: "tooltip.isDollars"
+                },
+                { type: "toggle",
+                    label: "Show Totals", key: "tooltip.showTotal", defaultValue: true
                 }
             ]
         },
@@ -412,6 +446,9 @@ export default {
                 },
                 { type: "toggle",
                     label: "Use Dollars", key: "tooltip.isDollars"
+                },
+                { type: "toggle",
+                    label: "Show Totals", key: "tooltip.showTotal", defaultValue: true
                 }
             ]
         },
@@ -447,7 +484,8 @@ export default {
                 },
                 { type: 'input', inputType: 'number', label: 'Line Width', key: 'strokeWidth' },
                 { type: 'toggle', label: 'Area Fill (default)', key: 'area' },
-                { type: 'input', inputType: 'number', label: 'Area Opacity', key: 'areaOpacity' }
+                { type: 'input', inputType: 'number', label: 'Area Opacity', key: 'areaOpacity' },
+                { type: 'toggle', label: 'Point Marks (default)', key: 'showMarks' }
             ]
         },
         barGraph: {

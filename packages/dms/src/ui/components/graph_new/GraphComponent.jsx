@@ -4,6 +4,22 @@ import { get } from "lodash-es";
 import { getGraphComponent } from "./components";
 import { getFormatFunc } from "./utils";
 
+// Collect the axis-typography keys for one axis off `graphFormat` (which already has
+// theme `chartDefaults` merged under the section's `display`, so brand defaults and
+// per-section overrides both land here). Unset keys come back `undefined` → the axis
+// component's own destructuring defaults apply (BC). Tick font is CSS-valued
+// (e.g. "11px" / a font-family stack / "#64748b"); label keys default to 1rem bold.
+const axisFontProps = (graphFormat, axis) => ({
+  tickFontSize: get(graphFormat, [axis, "tickFontSize"]),
+  tickFontFamily: get(graphFormat, [axis, "tickFontFamily"]),
+  tickFontWeight: get(graphFormat, [axis, "tickFontWeight"]),
+  tickColor: get(graphFormat, [axis, "tickColor"]),
+  labelFontSize: get(graphFormat, [axis, "labelFontSize"]),
+  labelFontFamily: get(graphFormat, [axis, "labelFontFamily"]),
+  labelFontWeight: get(graphFormat, [axis, "labelFontWeight"]),
+  labelColor: get(graphFormat, [axis, "labelColor"]),
+});
+
 const GraphTitle = ({ title, ...props }) => {
 
   const className = React.useMemo(() => {
@@ -60,6 +76,8 @@ export const GraphComponent = props => {
     const isDollars = Boolean(graphFormat.tooltip?.isDollars);
     return {
       ...graphFormat.tooltip,
+      // map config `showTotal` → avl-graph DefaultHoverComp `showTotals` (default true = BC)
+      showTotals: get(graphFormat, ["tooltip", "showTotal"], true),
       valueFormat: getFormatFunc(get(graphFormat, ["tooltip", "valueFormat"]), isDollars),
       yFormat: getFormatFunc(get(graphFormat, ["tooltip", "yFormat"]), isDollars)
     };
@@ -94,6 +112,7 @@ export const GraphComponent = props => {
         strokeWidth={ get(graphFormat, "strokeWidth", 1) }
         area={ get(graphFormat, "area", false) }
         areaOpacity={ get(graphFormat, "areaOpacity", 0.15) }
+        showMarks={ get(graphFormat, "showMarks", false) }
 
         tileMethod={ get(graphFormat, "tileMethod", "treemapSquarify") }
         indexTextSize={ get(graphFormat, "indexTextSize", "medium") }
@@ -106,7 +125,9 @@ export const GraphComponent = props => {
           showGridLines: get(graphFormat, ["xAxis", "showGridLines"], false),
           gridLineOpacity: get(graphFormat, ["xAxis", "gridLineOpacity"], 0.25),
           axisColor: get(graphFormat, ["xAxis", "axisColor"], "currentColor"),
-          show: get(graphFormat, ["xAxis", "show"], true)
+          show: get(graphFormat, ["xAxis", "show"], true),
+          // Axis typography — unset keys leave the axis renderer's BC defaults.
+          ...axisFontProps(graphFormat, "xAxis")
         } }
         yAxis={ {
           label: get(graphFormat, ["yAxis", "label"]),
@@ -115,7 +136,12 @@ export const GraphComponent = props => {
           gridLineOpacity: get(graphFormat, ["yAxis", "gridLineOpacity"], 0.25),
           axisColor: get(graphFormat, ["yAxis", "axisColor"], "currentColor"),
           show: get(graphFormat, ["yAxis", "show"], true),
-          format: getFormatFunc(get(graphFormat, ["yAxis", "format"]), get(graphFormat, ["yAxis", "isDollars"]))
+          format: getFormatFunc(get(graphFormat, ["yAxis", "format"]), get(graphFormat, ["yAxis", "isDollars"])),
+          // Custom y-domain (unset → auto-scale). Read by the avl-graph LineGraph.
+          domainMin: get(graphFormat, ["yAxis", "domainMin"]),
+          domainMax: get(graphFormat, ["yAxis", "domainMax"]),
+          // Axis typography — unset keys leave the axis renderer's BC defaults.
+          ...axisFontProps(graphFormat, "yAxis")
         } }
         pieAxis={ {
           showAxis: get(graphFormat, ["pieAxis", "showAxis"], false),

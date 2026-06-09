@@ -232,6 +232,32 @@ Visually equivalent to today's `bannerHeight: 'full'` (`calc(100vh - 220px)`) bu
 - **Default `heights` values.** The presets above are first-pass guesses (WCDB-flavoured). The default theme should ship sensible cross-site values; sites override per their typography ramp. Bikeshed in PR review.
 - **Should `fill` be the default for sections inside `header`-type sectionGroups?** Probably not — explicit-opt-in is safer. But worth considering a sectionGroup-side default that propagates if individual sections don't override.
 
+## Update — `sectionArray` (gap-0 grid) wiring (MAP-21 compound cards) — 2026-06-02
+
+The height styles were resolved only in `section.jsx` (single-section, flex-parent
+mechanism). The MAP-21 report renders through **`sectionArray.jsx`** (the gap-0 band
+grid), which had no height handling — so side-by-side compound cards (lexical header +
+KPI card sharing one band) left a gap below whichever section had less content: grid
+cells stretch to the row height, but the **chrome inner-box** (`sectionChrome` =
+border/radius/bg) is content-height, so the shorter section's white box didn't reach
+the cell bottom (the "notch").
+
+Implemented in `sectionArray.jsx`:
+- Added `resolveHeight(v, theme)`: `''` for unset/`'auto'` (BC — byte-identical render),
+  `theme.heights[key].className` for presets, `'h-full'` for `'fill'`.
+- Applied to **both** the outer grid-cell div and the inner `sectionChrome` box, in
+  **both** edit-mode and view-mode blocks. In the grid the cell already stretches to
+  the row; `h-full` makes the chrome box fill it → flush compound cards.
+- Verified §02 Interstate header (left lexical kicker+heading + right card value+pill,
+  both `height:'fill'`): chrome bottoms == graph top (y=879), notch gone.
+
+Author control: the existing section-menu Height entry reads `pages.section.heights`
+and writes `value.height` (consumed by the new resolver), so **`fill` is already
+author-pickable** for these sections via the menu (works through the hardcoded `fill`
+fallback even though `pages.sectionArray` ships no `heights` map).
+- [ ] Optional polish: give `pages.sectionArray` its own `heights` map in transportnyv2
+  if non-`fill` presets (hero/tall) are wanted for grid sections too.
+
 ## References
 
 - Now-airing task that surfaced this need: [tasks/completed/wcdb-schedule-now-playing-card.md](../completed/wcdb-schedule-now-playing-card.md)

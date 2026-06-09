@@ -63,6 +63,7 @@ export function pattern2routes (siteData, props) {
         PROJECT_NAME,
         damaDataTypes,
         damaMapPlugins,
+        isMultiTenant = false,
         host = typeof window !== 'undefined' ? window.location.host : 'localhost'
     } = props
 
@@ -91,6 +92,9 @@ export function pattern2routes (siteData, props) {
     const authPattern = siteData
       .reduce((acc, curr) => [...acc, ...(curr?.patterns || [])], [])
       .find(p => p.pattern_type === 'auth');
+
+    const authBaseUrl = authPath
+      || (authPattern?.base_url ? `/${authPattern.base_url.replace(/^\/|\/$/g, '')}` : '/auth');
 
     let AdminPattern = {
       app: dmsConfigUpdated?.format?.app || dmsConfigUpdated.app,
@@ -211,6 +215,7 @@ export function pattern2routes (siteData, props) {
                     pattern: { ...pattern, filters: resolvedFilters },
                     pattern_type: pattern?.pattern_type,
                     authPermissions,
+                    authBaseUrl,
                     datasources: patternDatasources,
                     dmsEnvs,
                     dmsEnvById,
@@ -225,6 +230,7 @@ export function pattern2routes (siteData, props) {
                     PROJECT_NAME,
                     damaDataTypes,
                     damaMapPlugins,
+                    isMultiTenant,
                 });
                 // console.log('dmssitefactory Config obj', configObj)
                 const route = dmsPageFactory({

@@ -13,6 +13,7 @@ import { DeltaEdit, DeltaView } from './delta'
 import { TargetBarEdit, TargetBarView } from './targetBar'
 import { VerdictDotEdit, VerdictDotView } from './verdictDot'
 import { CodeWithSubEdit, CodeWithSubView } from './codeWithSub'
+import { DownloadButtonEdit, DownloadButtonView } from './downloadButton'
 import Switch from '../components/Switch'
 
 const text = { EditComp: TextEdit, ViewComp: TextView }
@@ -29,6 +30,7 @@ const delta = { EditComp: DeltaEdit, ViewComp: DeltaView }
 const targetBar = { EditComp: TargetBarEdit, ViewComp: TargetBarView }
 const verdictDot = { EditComp: VerdictDotEdit, ViewComp: VerdictDotView }
 const codeWithSub = { EditComp: CodeWithSubEdit, ViewComp: CodeWithSubView }
+const downloadButton = { EditComp: DownloadButtonEdit, ViewComp: DownloadButtonView }
 
 // console.log('in column types', Lexical)
 // columnTypes is a mutable registry: themes can extend it via theme.columnTypes
@@ -66,6 +68,7 @@ const columnTypes = {
   'target_bar': targetBar,
   'verdict_dot': verdictDot,
   'code_with_sub': codeWithSub,
+  'download_button': downloadButton,
   'switch': {
         EditComp: ({trueValue=true, value, onChange, ...props}) =>
             <Switch {...props} enabled={value === trueValue}

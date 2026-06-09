@@ -102,10 +102,22 @@ in `render/spa/utils/index.js`), stores it as `this.subdomain` on the Falcor rou
 - `length`, `byIndex`, `options.length`, `opts.byIndex` listing routes
 - `getPatternAuthPermissions(app, patternParent, subdomain)` in the controller
 
+## `no-access` sentinel — COMPLETE (2026-06-03)
+
+When `dataByIdResponse` blocks a request, it now returns `'no-access'` for the `id` attribute instead of `null`, plus real `app` and `type` values. This lets `processNewData` (client) keep the item in the result array rather than filtering it out (requires `d.id` to be truthy, and `d.app`/`d.type` to match).
+
+`PageView` (`patterns/page/pages/view.jsx`) checks `item.id === 'no-access'` before rendering:
+- If `authUser.isAuthenticating`: return `null` (wait for auth check to complete)
+- If `!authUser.authed`: redirect via `<Navigate to="${authBaseUrl}/login" replace />`
+- If authenticated but blocked: show "no permission" message same as client-side check
+
+Auth base URL comes from `useAuth()` → `AuthContext.baseUrl` (defaults to `/auth`).
+
 ## Todo checkbox (planning/todo.md)
 
 - [x] Server-side auth Phase 1+2: patterns, page listings, per-page authPermissions
 - [x] Subdomain-aware `resolveAuthPermissions` — `Host` header subdomain threaded through all auth checks
+- [x] `no-access` sentinel — byId blocked responses carry signal to client for redirect vs message
 - [ ] Server-side auth Phase 3: sources + views
 
 ## Files
@@ -116,3 +128,4 @@ in `render/spa/utils/index.js`), stores it as `this.subdomain` on the Falcor rou
 | `src/routes/dms/dms.controller.js` | `getPatternAuthPermissions` |
 | `src/routes/dms/dms.route.js` | Auth gates — byId + listing routes |
 | `src/index.js` | CSRF guard (commented out) |
+| `packages/dms/src/patterns/page/pages/view.jsx` | `no-access` client handler |

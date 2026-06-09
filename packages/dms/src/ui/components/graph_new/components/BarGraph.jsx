@@ -33,9 +33,9 @@ const BarGraphWrapper = props => {
 // console.log("BarGraphWrapper::dataColumns", dataColumns)
 // console.log("BarGraphWrapper::categoryColumn", categoryColumn)
 
-		const groupsArray = [d => d[indexColumn.name]];
+		const groupsArray = [d => d[indexColumn.key]];
 		if (categoryColumn) {
-			groupsArray.push(d => d[categoryColumn.name])
+			groupsArray.push(d => d[categoryColumn.key])
 		}
 
 		const dataGroups = d3groups(props.viewData, ...groupsArray);
@@ -55,7 +55,7 @@ const BarGraphWrapper = props => {
 				for (const [type, tGroup] of iGroup) {
 					let value = 0;
 					for (const dc of dataColumns) {
-						const dcn = dc.name;
+						const dcn = dc.key;
 						const aggFunc = getAggFunc(dc);
 						const v = aggFunc(tGroup, d => d[dcn]);
 						if (v) {
@@ -70,7 +70,7 @@ const BarGraphWrapper = props => {
 			}
 			else {
 				for (const dc of dataColumns) {
-					const dcn = dc.name;
+					const dcn = dc.key;
 					const aggFunc = getAggFunc(dc);
 					const value = aggFunc(iGroup, d => d[dcn]);
 					if (value) {
@@ -177,7 +177,7 @@ const BarGraphWrapper = props => {
 
 		if (indexColumn && categoryColumn) {
 			return hhlActions.reduce((a, c) => {
-				if (c.column === indexColumn.name) {
+				if (c.column === indexColumn.key) {
 					for (const v of c.value) {
 						a.push({
 							type: "index",
@@ -185,7 +185,7 @@ const BarGraphWrapper = props => {
 						})
 					}
 				}
-				else if (c.column === categoryColumn.name) {
+				else if (c.column === categoryColumn.key) {
 					for (const v of c.value) {
 						a.push({
 							type: "key",
@@ -198,7 +198,7 @@ const BarGraphWrapper = props => {
 		}
 		else if (indexColumn && dataColumns.length) {
 			return hhlActions.reduce((a, c) => {
-				if (c.column === indexColumn.name) {
+				if (c.column === indexColumn.key) {
 					for (const v of c.value) {
 						a.push({
 							type: "index",
@@ -209,10 +209,10 @@ const BarGraphWrapper = props => {
 				else {
 					for (const dc of dataColumns) {
 						for (const v of c.value) {
-							if (dc.name === c.column) {
+							if (dc.key === c.column) {
 								a.push({
 									type: "key",
-									value: dc.name
+									value: dc.key
 								})
 							}
 						}
@@ -254,7 +254,7 @@ const BarGraphWrapper = props => {
 
   const onBarEnter = React.useMemo(() => {
   	if (!publish || !provider) return null;
-  	if (provider.args?.column !== indexColumn?.name) return null;
+  	if (provider.args?.column !== indexColumn?.key) return null;
 		return (e, data) => {
 			publish({
 	  		action: "hover_publish",
@@ -266,13 +266,13 @@ const BarGraphWrapper = props => {
 
   const onBarLeave = React.useMemo(() => {
   	if (!publish || !provider) return null;
-  	if (provider.args?.column !== indexColumn?.name) return null;
+  	if (provider.args?.column !== indexColumn?.key) return null;
 		return () => publish(null);
   }, [publish, provider, indexColumn]);
 
   const onStackEnter = React.useMemo(() => {
   	if (!publish || !provider) return null;
-  	if (provider.args?.column === categoryColumn?.name) {
+  	if (provider.args?.column === categoryColumn?.key) {
 			return (e, data) => {
 				publish({
 		  		action: "hover_publish",
@@ -283,12 +283,12 @@ const BarGraphWrapper = props => {
 		}
 		if (dataColumns.length) {
 			return (e, data) => {
-				const dc = dataColumns.find(dc => dc.name === provider.args?.column);
+				const dc = dataColumns.find(dc => dc.key === provider.args?.column);
 				if (dc) {
 					publish({
 			  		action: "hover_publish",
 			  		column: provider.args?.column,
-			  		value: data.data[dc.name]
+			  		value: data.data[dc.key]
 			  	})
 				}
 			}
@@ -298,7 +298,7 @@ const BarGraphWrapper = props => {
 
   const onStackLeave = React.useMemo(() => {
   	if (!publish || !provider) return null;
-  	if (provider.args?.column !== categoryColumn?.name) return null;
+  	if (provider.args?.column !== categoryColumn?.key) return null;
 		return () => publish(null);
   }, [publish, provider, categoryColumn]);
 

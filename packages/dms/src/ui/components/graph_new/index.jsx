@@ -89,96 +89,19 @@ export default function Graph (props) {
     }
   }, [setActionParam, clearActionParam, hoverProvider]);
 
-    //   const onCardMouseEnter = useCallback((item) => {
-    //     if (!providerCfg || !setActionParam) return;
-    //     const value = item?.[providerCfg.args?.column];
-    //     if (value !== undefined) setActionParam(providerCfg.paramKey, value);
-    // }, [providerCfg, setActionParam]);
+  const keyedColumns = React.useMemo(() => {
+    return columns.map(c => ({ ...c, key: c.normalName || c.name }));
+  }, []);
 
-    // const onCardMouseLeave = useCallback(() => {
-    //     if (!providerCfg || !clearActionParam) return;
-    //     clearActionParam(providerCfg.paramKey);
-    // }, [providerCfg, clearActionParam]);
-
-    //   const providerCfg = state.display?._functions?.providers?.find(p => p.functionId === 'hover_highlight' && p.enabled);
-
-    // const subCfg = display?._functions?.subscribers?.find(s => s.functionId === 'hover_highlight' && s.enabled);
-
-    // useEffect(() => {
-    //     const newDomain = [...new Set(graphData.map(d => d.index))]
-    //     if(!display.useCustomXDomain && !isEqual(display.xDomain, newDomain)){
-    //         setState(draft => {
-    //             draft.display.xDomain = newDomain;
-    //         })
-    //     }
-    // }, [graphData]);
-
-    // const colorPaletteSize = categoryColumn.name ? (new Set(data.map(item => item[categoryColumn.name]))).size : dataColumns.length
-
-    // const colors = useMemo(() => ({
-    //     type: "palette",
-    //     value: [...getColorRange(colorPaletteSize < 20 ? colorPaletteSize : 20, "div7")]
-    // }), [colorPaletteSize])
-
-    // const indexTotals = graphData.reduce((acc, curr) => {
-    //     acc[curr.index] = (acc[curr.index] || 0) + (+curr.value || 0);
-    //     return acc;
-    // },{})
-    // const maxIndexValue = Math.max(...Object.values(indexTotals));
-    // const stopPoints = [0.75, 0.5, 0.05];
-    // const stopValues = stopPoints.map(p => maxIndexValue * p);
-
-    //console.log('graph data', graphData, columns, display)
-    return (
-        <>
-            {
-                // isEdit ? <div className={theme.headerWrapper}>
-                //     {[indexColumn, ...dataColumns].filter(f => f.name).map((attribute, i) =>
-                //         <div key={`controls-${i}`} className={theme.columnControlWrapper}>
-                //             <TableHeaderCell
-                //                 isEdit={isEdit}
-                //                 attribute={attribute}
-                //                 columns={columns}
-                //                 display={display} controls={controls} setState={setState}
-                //                 activeStyle={activeStyle}
-                //             />
-                //         </div>)}
-                // </div> : null
-            }
-            {
-                // display.showScaleFilter ?
-                //     <div className={theme.scaleWrapper}>
-                //         <div
-                //             className={`${theme.scaleItem} ${!display?.upperLimit ? theme.scaleItemActive : theme.scaleItemInActive}`}
-                //             onClick={() => setState(draft => {
-                //                 draft.display.upperLimit = undefined
-                //             })}>
-                //             Max
-                //         </div>
-                //         {
-                //             stopValues.map(stopValue => (
-                //                 <div
-                //                     key={stopValue}
-                //                     className={`${theme.scaleItem} ${display?.upperLimit === stopValue ? theme.scaleItemActive : theme.scaleItemInActive}`}
-                //                     onClick={() => setState(draft => {
-                //                         draft.display.upperLimit = stopValue
-                //                     })}>
-                //                     {fnumIndex(stopValue, 0)}
-                //                 </div>
-                //             ))
-                //         }
-                //     </div> : null
-            }
-            <GraphComponent
-                graphFormat={ mergeChartDefaults(theme?.chartDefaults, display) }
-                graphType={ display.graphType }
-                viewData={ data }
-                columns={ columns }
-                theme={ theme }
-                actions={ useGetActions(pageState, display) }
-                publishHoverData={ publishHoverData }
-                hoverProvider={ hoverProvider }
-            />
-        </>
-    )
+  return (
+    <GraphComponent
+        graphFormat={ mergeChartDefaults(theme?.chartDefaults, display) }
+        graphType={ display.graphType }
+        viewData={ data }
+        columns={ keyedColumns }
+        theme={ theme }
+        actions={ useGetActions(pageState, display) }
+        publishHoverData={ publishHoverData }
+        hoverProvider={ hoverProvider }/>
+  )
 }

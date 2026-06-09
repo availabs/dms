@@ -75,6 +75,21 @@ const resolveBg = (bg, theme) =>
 const sectionChrome = (v, theme) =>
     `${resolveBorder(v?.border, theme)} ${resolveRadius(v?.radius, theme)} ${resolveBg(v?.bg, theme)}`.trim();
 
+// Section height. The band is a CSS grid, so a section's cell already stretches
+// to its row height; the chrome box inside it is content-height by default,
+// which leaves a gap below the shorter of two side-by-side sections. `fill`
+// makes both the cell and its chrome box `h-full` so the chrome reaches the
+// bottom of the (stretched) cell and side-by-side compound cards compose flush.
+// BC: unset/'auto' → '' (no class), so existing sections render byte-identically.
+const resolveHeight = (v, theme) => {
+    const h = v?.height;
+    if (!h || h === 'auto') return '';
+    // `fill` also makes the box a flex column so a section component (its child)
+    // can `flex-1`/`h-full` up to the section height — see section.jsx fill styles
+    // and Card.jsx mainWrapper. Presets/literal heights just set the height.
+    return theme?.heights?.[h]?.className ?? (h === 'fill' ? 'h-full flex flex-col' : '');
+};
+
 const Edit = ({ value, onChange, attr, group, siteType }) => {
     const {hash} = useLocation();
     const { editPane, format, item  } =  React.useContext(PageContext) || {}
@@ -255,7 +270,7 @@ const Edit = ({ value, onChange, attr, group, siteType }) => {
                                 ${resolvePadding(v?.padding, theme)}
                                 ${theme?.sectionEditWrapper}
                                 ${colspanClass} ${rowspanClass}
-
+                                ${resolveHeight(v, theme)}
                             `}
                             style={{paddingTop: v?.offset }}
                             onClick={() => {
@@ -286,7 +301,7 @@ const Edit = ({ value, onChange, attr, group, siteType }) => {
                                 radius / bg) inside the gutter padding, so the gutter
                                 separates bordered cards and a zeroed shared edge fuses
                                 two sections into one card. */}
-                            <div className={sectionChrome(v, theme)}>
+                            <div className={`${sectionChrome(v, theme)} ${resolveHeight(v, theme)}`.trim()}>
                             {/* edit new or existing section */}
                             {edit.index === i
                                 ? <SectionEdit
@@ -380,6 +395,7 @@ const View = ({value, attr, group, siteType}) => {
                                     ${theme?.sectionViewWrapper}
                                     ${hash === `#${v.id}` ? theme?.sectionHighlight : ``}
                                     ${colspanClass} ${rowspanClass}
+                                    ${resolveHeight(v, theme)}
                                 `}
                                 style={{ paddingTop: v?.offset }}
                                  onClick={() => {
@@ -393,7 +409,7 @@ const View = ({value, attr, group, siteType}) => {
                             >
                                 {/* Inner card box — section chrome (border/radius/bg)
                                     inside the gutter padding. */}
-                                <div className={sectionChrome(v, theme)}>
+                                <div className={`${sectionChrome(v, theme)} ${resolveHeight(v, theme)}`.trim()}>
                                 <SectionView
                                     key={v?.id || i}
                                     i={i}

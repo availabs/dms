@@ -29,6 +29,8 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
   // user={...}    → authenticated GET request
   const dataByIdResponse = async (rows, ids, atts, app = null, user = undefined, subdomain = '') => {
     const response = [];
+    // Cache pattern auth results within this response to avoid repeated DB lookups
+    const patternAuthCache = new Map();
     for (const id of ids) {
       const row = rows.reduce((a, c) => (c.id == id ? c : a), {});
       const idStr = String(id);
@@ -50,7 +52,15 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
           // getPatternAuthPermissions returns null for auth patterns (unrestricted).
           const appForLookup = app || row.app;
           if (appForLookup) {
-            const patternAuth = await controller.getPatternAuthPermissions(appForLookup, getParent(row.type), subdomain);
+            const parentKey = getParent(row.type);
+            const cacheKey = `${appForLookup}:${parentKey}`;
+            let patternAuth;
+            if (patternAuthCache.has(cacheKey)) {
+              patternAuth = patternAuthCache.get(cacheKey);
+            } else {
+              patternAuth = await controller.getPatternAuthPermissions(appForLookup, parentKey, subdomain);
+              patternAuthCache.set(cacheKey, patternAuth);
+            }
             const pageAuth = resolveAuthPermissions(row.data?.authPermissions || row?.authPermissions, subdomain);
             const mergedAuth = {
               groups: { ...(patternAuth?.groups || {}), ...(pageAuth?.groups || {}) },
@@ -65,7 +75,11 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
             const path = app
               ? ["dms", "data", app, "byId", idStr, att]
               : ["dms", "data", "byId", idStr, att];
-            response.push({ path, value: null });
+            let value = null;
+            if (att === 'app') value = row.app || app || null;
+            else if (att === 'type') value = row.type || null
+            else value = 'no-access';
+            response.push({ path, value });
           }
           continue;
         }

@@ -145,13 +145,15 @@ const DefaultHoverComp = ({ data, idFormat, xFormat, yFormat, lineTotals, showTo
                     { yFormat(y, rest) }
                   </div>
                 </div>
-                <div className="col-span-1">
-                  <div className={ `
-                    text-right transition pr-2
-                  ` }>
-                    ({ yFormat(lineTotals[id], rest) })
+                { !showTotals ? null :
+                  <div className="col-span-1">
+                    <div className={ `
+                      text-right transition pr-2
+                    ` }>
+                      ({ yFormat(lineTotals[id], rest) })
+                    </div>
                   </div>
-                </div>
+                }
               </div>
             ))
         }
@@ -211,7 +213,8 @@ export const LineGraph = props => {
     interpolation = "catmullrom",
     area = false,
     areaOpacity = 0.15,
-    highlights = EmptyArray
+    highlights = EmptyArray,
+    showMarks = false
   } = props;
 
   const HoverCompData = React.useMemo(() => {
@@ -330,6 +333,13 @@ export const LineGraph = props => {
     if (yScale) {
       yDomain = get(yScale, "domain", yDomain);
     }
+    // Author-set custom y-domain (unset → auto). `domainMin` overrides the default
+    // bottom (aLeft.min = 0); `domainMax` pins the top instead of the data max.
+    if (yDomain.length) {
+      const dMin = aLeft.domainMin, dMax = aLeft.domainMax;
+      if (dMin != null && dMin !== "" && !strictNaN(+dMin)) yDomain[0] = +dMin;
+      if (dMax != null && dMax !== "" && !strictNaN(+dMax)) yDomain[1] = +dMax;
+    }
 
     const aRight = {
       ...DefaultAxis,
@@ -436,6 +446,7 @@ export const LineGraph = props => {
 
       const seriesInterp = rest.interpolation || interpolation;
       const seriesArea = "area" in rest ? rest.area : area;
+      const seriesMarks = "showMarks" in rest ? rest.showMarks : showMarks;
 
       const line = {
         line: makeLineGenerator(seriesInterp)(data),
@@ -444,6 +455,8 @@ export const LineGraph = props => {
         dashArray: rest.dashArray || null,
         baseLine,
         color,
+        showMarks: seriesMarks,
+        points: seriesMarks ? data.map(d => ({ cx: XScale(d.x), cy: YScale(d.y) })) : null,
         state: PREVIOUS_LINE_DATA.current.delete(id) ? "updating" : "entering",
         id
       };
@@ -674,7 +687,7 @@ export const LineGraph = props => {
 }
 export default LineGraph;
 
-const Line = React.memo(({ line, id, area = null, areaOpacity = 0.15, dashArray = null, baseLine, state, color, strokeWidth = 1, secondary = false, showAnimations, highlights }) => {
+const Line = React.memo(({ line, id, area = null, areaOpacity = 0.15, dashArray = null, baseLine, state, color, strokeWidth = 1, secondary = false, showAnimations, highlights, showMarks = false, points = null }) => {
 
   const ref = React.useRef();
 
@@ -739,6 +752,12 @@ const Line = React.memo(({ line, id, area = null, areaOpacity = 0.15, dashArray 
           strokeWidth: highlight ? "6" : null,
           stroke: highlight ? "red" : null
         } }/>
+      { !showMarks || !points ? null :
+        points.map((p, i) => (
+          <circle key={ i } cx={ p.cx } cy={ p.cy } r={ 3 }
+            fill="#ffffff" stroke={ color } strokeWidth={ 1.5 }/>
+        ))
+      }
     </g>
   )
 })

@@ -86,6 +86,7 @@ const LineGraphWrapper = props => {
 				if (yc.area !== undefined) line.area = yc.area;
 				if (yc.color) line.color = yc.color;
 				if (yc.dashArray) line.dashArray = yc.dashArray;
+				if (yc.showMarks !== undefined) line.showMarks = yc.showMarks;
 
 				for (const [x, xGroup] of dataGroups) {
 					if (x === undefined) continue;

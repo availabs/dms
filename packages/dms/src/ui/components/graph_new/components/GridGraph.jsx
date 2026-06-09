@@ -54,8 +54,8 @@ const GridGraphWrapper = props => {
     if (yColumn) {
 
       const dataGroups = d3groups(props.viewData,
-                                    d => d[yColumn.name],
-                                    d => d[xColumn.name]
+                                    d => d[yColumn.key],
+                                    d => d[xColumn.key]
                                   );
 
       for (const [index, iGroup] of dataGroups) {
@@ -69,7 +69,7 @@ const GridGraphWrapper = props => {
           let value = 0;
 
           for (const cc of colorColumns) {
-            const ccn = cc.name;
+            const ccn = cc.key;
             const aggFunc = getAggFunc(cc);
             const v = aggFunc(kGroup, d => d[ccn]);
             if (v) {
@@ -91,11 +91,11 @@ const GridGraphWrapper = props => {
 
     }
     else {
-      const keyGroups = d3groups(props.viewData, d => d[xColumn.name]);
+      const keyGroups = d3groups(props.viewData, d => d[xColumn.key]);
 
       for (const cc of colorColumns) {
         const aggFunc = getAggFunc(cc);
-        const ccn = cc.name;
+        const ccn = cc.key;
         const grid = { index: ccn };
         for (const [key, kGroup] of keyGroups) {
           const v = aggFunc(kGroup, d => d[ccn]);
@@ -181,7 +181,7 @@ const GridGraphWrapper = props => {
 
     if (xColumn && yColumn) {
       return hhlActions.reduce((a, c) => {
-        if (c.column === xColumn.name) {
+        if (c.column === xColumn.key) {
           for (const v of c.value) {
             a.push({
               type: "key",
@@ -189,7 +189,7 @@ const GridGraphWrapper = props => {
             })
           }
         }
-        else if (c.column === yColumn.name) {
+        else if (c.column === yColumn.key) {
           for (const v of c.value) {
             a.push({
               type: "index",
@@ -202,7 +202,7 @@ const GridGraphWrapper = props => {
     }
     else if (xColumn && colorColumns.length) {
       return hhlActions.reduce((a, c) => {
-        if (c.column === xColumn.name) {
+        if (c.column === xColumn.key) {
           for (const v of c.value) {
             a.push({
               type: "key",
@@ -213,10 +213,10 @@ const GridGraphWrapper = props => {
         else {
           for (const cc of colorColumns) {
             for (const v of c.value) {
-              if (cc.name === c.column) {
+              if (cc.key === c.column) {
                 a.push({
                   type: "index",
-                  value: cc.name
+                  value: cc.key
                 })
               }
             }
@@ -257,7 +257,7 @@ const GridGraphWrapper = props => {
 
   const onHorizontalEnter = React.useMemo(() => {
     if (!publish || !provider) return null;
-    if (provider.args?.column !== yColumn?.name) return null;
+    if (provider.args?.column !== yColumn?.key) return null;
     return (e, data) => {
       publish({
         action: "hover_publish",
@@ -269,13 +269,13 @@ const GridGraphWrapper = props => {
 
   const onHorizontalLeave = React.useMemo(() => {
     if (!publish || !provider) return null;
-    if (provider.args?.column !== yColumn?.name) return null;
+    if (provider.args?.column !== yColumn?.key) return null;
     return () => publish(null);
   }, [publish, provider, yColumn]);
 
   const onGridEnter = React.useMemo(() => {
     if (!publish || !provider) return null;
-    if (provider.args?.column !== xColumn?.name) return null;
+    if (provider.args?.column !== xColumn?.key) return null;
     return (e, data) => {
       publish({
         action: "hover_publish",
@@ -287,7 +287,7 @@ const GridGraphWrapper = props => {
 
   const onGridLeave = React.useMemo(() => {
     if (!publish || !provider) return null;
-    if (provider.args?.column !== xColumn?.name) return null;
+    if (provider.args?.column !== xColumn?.key) return null;
     return () => publish(null);
   }, [publish, provider, xColumn]);
 

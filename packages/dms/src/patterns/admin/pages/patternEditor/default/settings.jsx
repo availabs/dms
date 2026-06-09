@@ -25,8 +25,17 @@ async function loadSiteData(apiLoad, app, siteType) {
 }
 
 export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest}) => {
-  const { apiUpdate, app, type, siteType, API_HOST, parentBaseUrl, dmsEnvs = [], dmsEnvById = {} } = useContext(AdminContext);
+  const { apiUpdate, app, type, siteType, API_HOST, parentBaseUrl, dmsEnvs = [], dmsEnvById = {}, isMultiTenant } = useContext(AdminContext);
   const { UI } = useContext(ThemeContext)
+  const tenantSub = (() => {
+    if (!isMultiTenant) return '';
+    const hostname = window.location.hostname;
+    const isLocalhost = hostname === 'localhost' || hostname.endsWith('.localhost');
+    const minParts = isLocalhost ? 2 : 3;
+    const parts = hostname.split('.');
+    return parts.length >= minParts ? parts[0] : '';
+  })();
+  console.log('tenantsub', tenantSub, isMultiTenant)
   const { FieldSet, Button, Icon } = UI;
   const navigate = useNavigate();
   const [tmpValue, setTmpValue] = useImmer(value);
@@ -149,6 +158,7 @@ export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest})
                     {
                       label: 'Subdomain',
                       type: 'Input',
+                        disabled: tenantSub?.length,
                       placeholder: '',
                       value: tmpValue.subdomain,
                       onChange: e => setTmpValue(draft => {
