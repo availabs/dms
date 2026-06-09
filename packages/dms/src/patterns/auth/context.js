@@ -12,5 +12,9 @@ export const defaultUserState = () => ({
   email: null
 });
 
-export const AuthContext = React.createContext({ user: defaultUserState() });
+export const AuthContext = React.createContext({
+  user: defaultUserState(),
+  viewAsUser: null,
+  setViewAsUser: () => {},
+});
 export const useAuth = () => React.useContext(AuthContext);

@@ -126,7 +126,8 @@ const manageAuthConfig = ({
   baseUrl = '/dms_auth',
   adminPath='/',
   themes = {},
-    pattern,
+  pattern,
+  authPermissions = {},
   rightMenu = <DefaultMenu />,
 }) => {
 
@@ -195,7 +196,7 @@ const manageAuthConfig = ({
         path: `/*`,
         children: [
           {
-            type: props => <AuthUsers {...props} />,
+            type: props => <AuthUsers {...props} app={app} authPermissions={authPermissions} />,
             reqPermissions: ['auth-users'],
             path: "users",
           },

@@ -3,6 +3,7 @@ import {ThemeContext} from "../../../ui/useTheme";
 import {AuthContext} from "../context";
 import {callAuthServer} from "../api";
 import {isEqual} from "lodash-es";
+import { isUserAuthed } from "../../../utils/auth";
 
 const InputControl = ({show, value, onChange, placeHolder}) => {
     const { UI } = React.useContext(ThemeContext);
@@ -55,7 +56,7 @@ function AddUserModal({ open, setOpen, onAdd, loading, status }) {
     );
 }
 
-export default function UsersAdmin() {
+export default function UsersAdmin({ app = '', authPermissions = {} }) {
     const [groups, setGroups] = useState([]);
     const [users, setUsers] = useState([]);
     const [requests, setRequests] = useState([]);
@@ -67,7 +68,9 @@ export default function UsersAdmin() {
     const [editUser, setEditUser] = useState(null);
     const [status, setStatus] = useState('');
     const { UI } = React.useContext(ThemeContext);
-    const { user, AUTH_HOST, PROJECT_NAME, baseUrl } = React.useContext(AuthContext);
+    const { user, AUTH_HOST, PROJECT_NAME, baseUrl, viewAsUser, setViewAsUser } = React.useContext(AuthContext);
+    const canViewAs = (user?.groups || []).some(g => g === `${app} Admin`)
+      || isUserAuthed({ user, authPermissions, reqPermissions: ['view-as'] });
     const gridRef = useRef(null);
     const { Modal, Table, Button } = UI;
 
@@ -182,6 +185,19 @@ export default function UsersAdmin() {
             Comp: ({ row }) => <span>{fmtDate(row.created_at)}</span>},
         {name: 'last_login', display_name: 'Last Login', show: true, type: 'ui',
             Comp: ({ row }) => <span>{fmtDate(row.last_login)}</span>},
+        {
+            name: 'view_as', display_name: '', show: canViewAs, type: 'ui',
+            Comp: ({ row }) => {
+                const isActive = viewAsUser?.email === row.email;
+                return (
+                    <Button
+                        onClick={() => setViewAsUser(isActive ? null : { ...row, groups: [...new Set([...(row.groups || []), 'public'])], authed: true, isAuthenticating: false })}
+                    >
+                        {isActive ? 'Viewing As' : 'View As'}
+                    </Button>
+                );
+            }
+        },
         {
             name: '', display_name: '', show: true, type: 'ui',
             Comp: d => <Button onClick={() => setEditUser(d.row)}>reset password</Button>

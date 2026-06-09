@@ -1,4 +1,7 @@
+import { viewAsBarTheme } from './components/ViewAsBar.theme';
+
 const theme = {
+    viewAsBar: viewAsBarTheme,
     emailTheme: {
         primaryColor:    '#1e3a8a',  // blue-900 — titles, button text
         accentColor:     '#dbeafe',  // blue-100 — header bg, button bg, card border

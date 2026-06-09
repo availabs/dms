@@ -38,7 +38,6 @@ function SiteEdit ({
 	const resolvedId = item?.id
 	const isAdmin = (user?.groups || []).some(g => g === `${app} Admin`)
 	const hasAccess = isAdmin || isUserAuthed(user, authPermissions)
-	console.log('user', user, hasAccess, isAdmin)
 	// navState === 'loading' means a loader is in-flight (e.g. router just recreated by
 	// dmsSiteFactory). dataItems is [] by default in wrapper.jsx until the loader
 	// resolves, so we must not treat [] as "no site" while loading.
