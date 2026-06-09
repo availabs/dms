@@ -1,7 +1,6 @@
 import React from "react"
 import Icon from "../../Icon"
-import { ThemeContext } from "../../../themeContext"
-import { mapTheme as defaultMapTheme } from "../map.theme"
+import useMapTheme from "../useMapTheme"
 
 const getTranslate = (pos, width, height) => {
   const gap = 30, padding = 10, { x, y } = pos;
@@ -31,8 +30,7 @@ const getTransform = ({ x, y }, height, orientation) => {
 }
 
 const RemoveButton = ({ orientation, onClick }) => {
-  const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
-  const mapIcons = { ...defaultMapTheme, ...themeFromContext?.map };
+  const mapTheme = useMapTheme();
   return (
     <div onClick={ onClick }
       style={ {
@@ -41,20 +39,19 @@ const RemoveButton = ({ orientation, onClick }) => {
           "translate(-0.75rem, -0.75rem)" : "translate(0.75rem, -0.75rem)"
       } }
       className={ `
-        rounded absolute inline-block top-0
-        bg-white hover:text-blue-500 cursor-pointer
+        ${mapTheme.hover.removeButton}
         ${ orientation === "left" ? "left-0" : "right-0" }
       ` }
     >
       <div className="w-6 h-6 flex items-center justify-center">
-        <Icon icon={ mapIcons.closeIcon } className="size-4"/>
+        <Icon icon={ mapTheme.closeIcon } className="size-4"/>
       </div>
     </div>
   )
 }
 
 export const PinnedHoverComponent = ({ children, remove, id, lngLat, project, width, height }) => {
-
+  const mapTheme = useMapTheme();
   const pos = project(lngLat);
 
   const orientation = React.useMemo(() => {
@@ -85,7 +82,7 @@ export const PinnedHoverComponent = ({ children, remove, id, lngLat, project, wi
         <RemoveButton orientation={ orientation } onClick={ doRemove }/>
       </div>
       <div style={ pointerStyle }
-        className="absolute w-6 h-6 rounded-bl rounded-tr bg-white top-0 left-0 z-10"/>
+        className={mapTheme.hover.pointer}/>
     </>
   )
 }

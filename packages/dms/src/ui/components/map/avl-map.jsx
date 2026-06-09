@@ -3,10 +3,9 @@ import React from "react"
 import { get } from "lodash-es"
 
 import Icon from "../Icon"
-import { ThemeContext } from "../../themeContext"
-import { mapTheme as defaultMapTheme } from "./map.theme"
 import { LayerRenderComponent } from "./avl-layer"
 import { HoverComponent, PinnedHoverComponent } from "./components/HoverComponent"
+import useMapTheme from "./useMapTheme"
 import { useSetSize } from "./utils"
 
 let idCounter = 0;
@@ -888,8 +887,7 @@ const AvlMapInner = ({
 
   const { current: { containerId } } = MapOptions;
 
-  const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
-  const mapIcons = { ...defaultMapTheme, ...themeFromContext?.map };
+  const mapIcons = useMapTheme();
 
   return (
     <div className="block relative w-full h-full max-w-full max-h-full overflow-visible text-gray-800">
