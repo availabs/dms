@@ -169,7 +169,7 @@ async function simpleFilterLength(ctx, options) {
          FROM ${fromClause}
          ${combinedWhere}
          ${handleHaving(having)}`;
-
+  console.log("PG SIMPLE FILTER LENGTH", sql)
   const { rows } = await db.query(sql, values);
   return rows?.[0]?.numrows ?? 0;
 }
@@ -210,15 +210,25 @@ async function simpleFilter(ctx, options, attributes, indices) {
 
   // Substitute the alias-group CASE expression into any SELECT column whose
   // response name matches an active alias group.
+  //
+  // The alias is double-quoted so PostgreSQL preserves its exact case. Unlike
+  // regular columns (whose client-side alias is already lowercased via
+  // colNameAfterAS), the custom-bucket alias must stay verbatim to match the
+  // aliasGroups key + groupBy. An UNquoted `as RoadClass` is folded to
+  // `roadclass` by PG, so the returned row is keyed lowercase while the route
+  // reads it back by the original-case attribute (rows[ii][getResponseColumnName
+  // (attr)]) → undefined → null cell. ClickHouse preserves case, which is why
+  // the bug only surfaced on the PG/SQLite port. getResponseColumnName strips
+  // the surrounding quotes, so the round-trip key stays consistent.
   sanitizedAttrs = sanitizedAttrs.map(attr => {
     const respName = getResponseColumnName(attr);
-    return activeAliasGroups[respName] ? `${activeAliasGroups[respName]} as ${respName}` : attr;
+    return activeAliasGroups[respName] ? `${activeAliasGroups[respName]} as "${respName}"` : attr;
   });
 
   // Ensure grouped alias groups are present in the SELECT clause.
   groupBy.forEach(g => {
     if (activeAliasGroups[g] && !sanitizedAttrs.some(attr => getResponseColumnName(attr) === g)) {
-      sanitizedAttrs.push(`${activeAliasGroups[g]} as ${g}`);
+      sanitizedAttrs.push(`${activeAliasGroups[g]} as "${g}"`);
     }
   });
 
@@ -285,7 +295,7 @@ async function simpleFilter(ctx, options, attributes, indices) {
     LIMIT ${+num}
     OFFSET ${indices.from}
   `;
-
+console.log("PG SIMPLE FILTER LENGTH", sql)
   const res = await db.query(sql, values);
 
   // Restore long column names from short aliases

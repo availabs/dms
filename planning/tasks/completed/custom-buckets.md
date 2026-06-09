@@ -119,6 +119,23 @@ addition (`buildAliasGroupCase`).
 Postgres/SQLite query set (`query_sets/postgres.js`) so custom buckets work on
 PG-backed views as well. Existing server UDA suite green (58/58) after the port.
 
+**Update 2026-06-09** — PG port bug: bucket cells rendered blank against a
+Postgres-backed view (data was correctly bucketed in SQL but null in the Falcor
+response). Root cause: the bucket alias is sent verbatim (not lowercased like
+ordinary columns, since it must match the `aliasGroups` key + `groupBy`), and
+`simpleFilter` emitted an **unquoted** `CASE … END as <alias>`. PostgreSQL folds
+unquoted output identifiers to lowercase, so a mixed-case alias (`RoadType`)
+returned a row keyed `roadtype` while the route reads the value back by the
+original-case attribute (`rows[ii][getResponseColumnName(attr)]`) → undefined →
+null. ClickHouse preserves identifier case, so the bug never appeared on the CH
+path; SQLite also preserves unquoted-alias case, so it only manifests on
+Postgres. Fix: double-quote the alias in both SELECT-substitution sites in
+`query_sets/postgres.js` (`as "<alias>"`); `getResponseColumnName` already
+strips the surrounding quotes so the round-trip key stays consistent. Added
+`testCustomBucketAliasCaseRoundTrip` to `tests/test-uda.js` (a PG-only guard —
+passes on SQLite either way because SQLite doesn't case-fold). Server UDA suite
+green (60/60) on SQLite; PG run not exercised locally (no Docker in this env).
+
 ## Testing Checklist
 
 - [x] Bucket as GROUP BY dimension → server emits `CASE … END as <alias>` in GROUP BY + SELECT; data groups correctly (verified live against a ClickHouse npmrds source).

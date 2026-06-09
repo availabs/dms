@@ -288,6 +288,72 @@ async function testDmsModeDataQueries() {
   pass('Data query cleanup complete');
 }
 
+// ============================================= Custom Bucket (aliasGroups) Tests ==============================================
+
+/**
+ * Regression: custom-bucket (aliasGroups) values must survive the round-trip
+ * when the bucket alias contains uppercase letters.
+ *
+ * The bucket column's alias is sent verbatim (not lowercased like ordinary
+ * columns). simpleFilter builds `CASE … END as <alias>` and the route reads the
+ * value back via rows[ii][getResponseColumnName(attribute)] — i.e. by the
+ * original-case alias. PostgreSQL folds an UNquoted output identifier to
+ * lowercase, so `as RoadType` returns a row keyed `roadtype` while the route
+ * looks up `RoadType` → undefined → null cell. ClickHouse preserves case, so
+ * the bug only appeared on the PG/SQLite port. The fix double-quotes the alias
+ * in the SELECT so the response key matches. SQLite likewise preserves a quoted
+ * alias, so this test guards both backends.
+ */
+async function testCustomBucketAliasCaseRoundTrip() {
+  console.log('\n--- Custom Buckets: mixed-case alias round-trip ---');
+
+  const items = [];
+  for (const category of ['alpha', 'alpha', 'beta']) {
+    const result = await graph.callAsync(
+      ['dms', 'data', 'create'],
+      [TEST_APP, 'buckettest', { name: `n-${category}`, category }]
+    );
+    items.push(Object.keys(result.jsonGraph.dms.data.byId)[0]);
+  }
+
+  const env = `${TEST_APP}+buckettest`;
+  const viewId = items[0];
+
+  // Mirror the client: groupBy + attribute carry the bare mixed-case alias,
+  // aliasGroups carries the CASE definition. The source column is referenced
+  // through its DMS JSON accessor (data->>'category').
+  const ALIAS = 'RoadType';
+  const options = JSON.stringify({
+    groupBy: [ALIAS],
+    aliasGroups: {
+      [ALIAS]: {
+        column: "data->>'category'",
+        fallback: 'Other',
+        groups: { Interstate: ['alpha'] },
+      },
+    },
+  });
+
+  const dataResult = await graph.getAsync([
+    ['uda', env, 'viewsById', viewId, 'options', options, 'dataByIndex', { from: 0, to: 9 }, [ALIAS]],
+  ]);
+
+  const byIndex = dataResult.jsonGraph.uda[env].viewsById[viewId].options[options].dataByIndex;
+  const bucketValues = Object.values(byIndex)
+    .map((row) => row?.[ALIAS])
+    .filter((v) => v !== undefined && v !== null);
+
+  // Two distinct buckets ('Interstate' for alpha, 'Other' for beta) must come
+  // back under the mixed-case alias key — not null.
+  assert(bucketValues.length >= 2, `Expected ≥2 non-null bucket values, got ${JSON.stringify(bucketValues)}`);
+  assert(bucketValues.includes('Interstate'), `Expected an 'Interstate' bucket, got ${JSON.stringify(bucketValues)}`);
+  assert(bucketValues.includes('Other'), `Expected an 'Other' (fallback) bucket, got ${JSON.stringify(bucketValues)}`);
+  pass('custom-bucket mixed-case alias values round-trip (not null)');
+
+  await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, 'buckettest', ...items]);
+  pass('Custom bucket test cleanup complete');
+}
+
 // ============================================= filterGroups Tests ==============================================
 
 /**
@@ -1038,6 +1104,7 @@ async function run() {
     await testDmsModeRealWorldPatternType();
     await testDmsModeViews();
     await testDmsModeDataQueries();
+    await testCustomBucketAliasCaseRoundTrip();
 
     // filterGroups regression tests
     await testGetValuesFromGroupNullLeaves();

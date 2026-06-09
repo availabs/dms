@@ -620,9 +620,15 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
         },
     ]
 
-    const cbConfig = state?.customBuckets || {
+    // Merge defaults UNDER the stored config so a partially-populated
+    // customBuckets (e.g. just `{ enabled: true }` after the master toggle on a
+    // fresh component) still resolves `type`/`fallback`/etc. Replacing wholesale
+    // left `type` undefined, which displayed as "Static" while resolving as
+    // dynamic.
+    const cbConfig = {
         alias: '', sourceField: '', type: 'dynamic',
-        binding: { statePath: '', labelKey: '', valueKey: '' }, fallback: 'Other'
+        binding: { statePath: '', labelKey: '', valueKey: '' }, fallback: 'Other',
+        ...(state?.customBuckets || {})
     };
     const setCbConfig = (partial) => dwAPI.setCustomBuckets({ ...cbConfig, ...partial });
     const setCbBinding = (partial) => setCbConfig({ binding: { ...cbConfig.binding, ...partial } });
@@ -653,7 +659,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                 value: cbConfig.type === 'dynamic' ? 'Dynamic' : 'Static', showValue: true,
                 items: [
                     { icon: cbConfig.type === 'dynamic' ? 'CircleCheck' : 'Blank', name: 'Dynamic', onClickGoBack: true, onClick: () => setCbConfig({ type: 'dynamic' }) },
-                    { icon: cbConfig.type === 'static'  ? 'CircleCheck' : 'Blank', name: 'Static',  onClickGoBack: true, onClick: () => setCbConfig({ type: 'static' }) },
+                    { icon: cbConfig.type === 'static'  ? 'CircleCheck' : 'Blank', name: 'Static',  onClickGoBack: true, onClick: () => setCbConfig({ type: 'static', staticGroups: (cbConfig.staticGroups || []).length ? cbConfig.staticGroups : [{ label: '', values: '' }] }) },
                 ]
             },
             {
