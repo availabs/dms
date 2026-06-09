@@ -169,7 +169,7 @@ async function simpleFilterLength(ctx, options) {
          FROM ${fromClause}
          ${combinedWhere}
          ${handleHaving(having)}`;
-  console.log("PG SIMPLE FILTER LENGTH", sql)
+
   const { rows } = await db.query(sql, values);
   return rows?.[0]?.numrows ?? 0;
 }
@@ -295,7 +295,7 @@ async function simpleFilter(ctx, options, attributes, indices) {
     LIMIT ${+num}
     OFFSET ${indices.from}
   `;
-console.log("PG SIMPLE FILTER LENGTH", sql)
+
   const res = await db.query(sql, values);
 
   // Restore long column names from short aliases
