@@ -604,13 +604,18 @@ export const buildColumnsWithSettings = (columns, sourceColumns, isDms) => {
       const isCalculated = isCalculatedCol(column);
       const isCopiedColumn =
         !column.isDuplicate && duplicatedColumnNames.has(column.name);
-      const colReqName = reqName(fullColumn, isDms);
-      const colRefName = attributeAccessorStr(
-        column.name,
-        isDms,
-        isCalculated,
-        column.systemCol,
-      );
+      // The synthetic custom-bucket dimension is a server-side alias, not a real
+      // column: its ref/req must stay the bare alias (verbatim) so it matches the
+      // `aliasGroups` key the server groups by and substitutes the CASE into. If
+      // it went through attributeAccessorStr it would become `data->>'<alias>'`
+      // for DMS sources — a phantom JSON key the server's `groupBy.includes(alias)`
+      // match would miss, silently disabling the whole bucket dimension. (DAMA
+      // returns the bare name anyway, so this only changes the DMS path.)
+      const isCustomBucket = column.origin === "custom-bucket";
+      const colReqName = isCustomBucket ? column.name : reqName(fullColumn, isDms);
+      const colRefName = isCustomBucket
+        ? column.name
+        : attributeAccessorStr(column.name, isDms, isCalculated, column.systemCol);
       const [colNameBeforeAS, colNameAfterAS] = splitColNameOnAS(column.name);
       const totalAlias = (colNameAfterAS || colNameBeforeAS).replace(".", "_");
       const colTotalName = `SUM(CASE WHEN (${colRefName})::text ~ '^-?\\d+(\\.\\d+)?$' THEN (${colRefName})::numeric ELSE NULL END ) as ${totalAlias}_total`;
@@ -1309,7 +1314,20 @@ export const buildUdaConfig = ({
   if (activeCustomBuckets) {
     // Pass the detailed grouping configuration to the backend via aliasGroups.
     // The backend builds a CASE per alias from `config` (column + groups).
-    options.aliasGroups = customBuckets.config;
+    //
+    // Resolve each definition's `column` to its SQL accessor the same way every
+    // other column ref is built: DMS internal sources read values out of a JSONB
+    // `data` column, so the CASE must compare `data->>'col'`, not a bare physical
+    // `col` that doesn't exist on the split table. DAMA columns are physical, so
+    // attributeAccessorStr returns them unchanged (isDms=false). The raw column
+    // name stays on customBuckets.config (state) for buildCustomBucketFilters,
+    // which maps it through its own mapFilterGroupCols accessor path.
+    options.aliasGroups = Object.fromEntries(
+      Object.entries(customBuckets.config).map(([alias, def]) => [
+        alias,
+        { ...def, column: attributeAccessorStr(def.column, isDms, false, false) },
+      ]),
+    );
   }
 
   // 9. Build attributes list

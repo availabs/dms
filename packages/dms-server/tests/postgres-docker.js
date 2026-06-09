@@ -215,7 +215,7 @@ async function runTests(testScript) {
   try {
     if (testScript) {
       // Run a specific test
-      exitCode = await spawnAsync('node', [testScript], env);
+      exitCode = await spawnAsync(process.execPath, [testScript], env);
     } else {
       // Run all parameterized tests (skip test-sqlite.js and test-controller.js — SQLite-specific).
       // test-uda.js: its DMS-mode half runs on PG (DMS_TEST_DB), exercising the UDA
@@ -223,7 +223,7 @@ async function runTests(testScript) {
       // this run (no dama-postgres-test config — DAMA_TEST_DB defaults to dama-sqlite-test).
       for (const test of ['tests/test-graph.js', 'tests/test-workflow.js', 'tests/test-uda.js', 'tests/test-auth.js']) {
         console.log(`\n========== ${test} ==========\n`);
-        const code = await spawnAsync('node', [test], env);
+        const code = await spawnAsync(process.execPath, [test], env);
         if (code !== 0) {
           exitCode = code;
           break;

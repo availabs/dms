@@ -593,10 +593,16 @@ function buildAliasGroupCase(definition) {
   const { column, fallback, groups } = definition;
   const safeColumn = sanitizeName(column);
   if (!safeColumn) return null;
+  // DMS internal sources read column values out of a JSONB `data` column via
+  // `data->>'col'`, which always yields TEXT. Force every comparison value to a
+  // quoted string literal in that case, so a numeric bucket value doesn't compile
+  // to `data->>'col' IN (5)` — a text/integer mismatch Postgres rejects. DAMA
+  // physical columns keep native typing (numbers stay unquoted).
+  const isJsonText = safeColumn.includes("data->>");
   let caseStmt = `CASE `;
   for (const [label, values] of Object.entries(groups)) {
     const valArray = typeof values === 'string' ? JSON.parse(values) : values;
-    const escapedValues = valArray.map(v => typeof v === 'string' ? `'${v.replace(/'/g, "''")}'` : v).join(', ');
+    const escapedValues = valArray.map(v => (typeof v === 'string' || isJsonText) ? `'${String(v).replace(/'/g, "''")}'` : v).join(', ');
     caseStmt += `WHEN ${safeColumn} IN (${escapedValues}) THEN '${label.replace(/'/g, "''")}' `;
   }
   if (fallback) {

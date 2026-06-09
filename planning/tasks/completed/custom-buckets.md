@@ -162,6 +162,61 @@ green (60/60) on SQLite; PG run not exercised locally (no Docker in this env).
      guard that would emit a `CASE` on an empty column and break the query.
      Covered by a new unit test (`buildUdaConfig.test.js`, 134 passed).
 
+**Update 2026-06-09 (DMS internal-source compatibility)** — custom buckets
+previously worked only for DAMA-backed views (physical columns) and DAMA-on-
+ClickHouse, **not** for DMS internal sources, whose values live inside a JSONB
+`data` column and are read as `data->>'col'`. Two distinct accessor gaps were
+fixed, both rooted in the bucket dimension bypassing the `attributeAccessorStr`
+translation every other column ref already goes through:
+
+1. **Synthetic bucket column got wrongly JSONB-wrapped (the load-bearing bug).**
+   The `origin:'custom-bucket'` column (`useDataWrapperAPI.js`) is not recognized
+   by `isCalculatedCol`, so for DMS its `refName`/`reqName` resolved to
+   `data->>'<alias>'`. That went into `options.groupBy`, but the server activates
+   the CASE only when `groupBy.includes(alias)` matches the **bare** alias
+   (`postgres.js` / `clickhouse.js`). Mismatch → no CASE emitted → the query
+   grouped by a phantom JSON key → all-null/blank dimension. (DAMA returned the
+   bare name, so it only manifested on DMS.) **Fix:** `buildColumnsWithSettings`
+   now special-cases `origin === 'custom-bucket'` to keep the ref/req as the
+   verbatim alias on both DMS and DAMA. The server then substitutes the CASE into
+   the SELECT for that alias and round-trips the value by the alias key.
+
+2. **CASE source column was raw.** `options.aliasGroups` shipped `config.column`
+   (the raw source field) verbatim, so `buildAliasGroupCase` emitted
+   `CASE WHEN roadname IN (...)` — a nonexistent physical column on a DMS split
+   table. **Fix:** `buildUdaConfig` now resolves each definition's `column`
+   through `attributeAccessorStr(column, isDms, …)` when assigning
+   `options.aliasGroups` → `data->>'roadname'` for DMS, unchanged for DAMA. The
+   **raw** column stays on `customBuckets.config` (state) because
+   `buildCustomBucketFilters` ("filter to buckets") needs the bare name to map
+   through its own `mapFilterGroupCols` accessor path (that path already produced
+   `data->>` correctly, so filter-to-buckets was never broken on DMS).
+
+3. **Numeric values vs. JSON text typing (server).** `data->>` always yields
+   TEXT, so a numeric bucket value left unquoted compiles to
+   `data->>'col' IN (2022)` — a text/integer mismatch Postgres rejects.
+   `buildAliasGroupCase` (`utils.js`) now text-quotes all values when the column
+   expression contains `data->>`; DAMA physical columns keep native (unquoted)
+   numeric typing.
+
+DMS content never routes to ClickHouse (`getEssentials` forces `dbType:'pg'`), so
+only the Postgres/SQLite path (`utils.js` `buildAliasGroupCase`, imported by
+`postgres.js`) needed the server tweak; `clickhouse.js` is DMS-irrelevant and was
+left untouched. **Deferred:** DMS-on-DMS *joins* would additionally need the CASE
+column prefixed (`ds.data->>'col'`) to avoid PG's "column reference data is
+ambiguous" — not yet handled (mirrors how the filter-leaf path uses `source_id`→
+`ds` aliasing).
+
+Files touched: `buildUdaConfig.js` (custom-bucket ref/req verbatim in
+`buildColumnsWithSettings`; accessor-resolved `aliasGroups`),
+`dms-server/src/routes/uda/utils.js` (`buildAliasGroupCase` text-quotes DMS
+values). Tests: `buildUdaConfig.test.js` +3 (137 passed) — DMS bare-alias
+groupBy/attribute, DMS `data->>` CASE column, DAMA regression;
+`dms-server/tests/test-uda.js` +1 (61 passed) —
+`testBuildAliasGroupCaseDmsNumericQuoting`. The pre-existing
+`testCustomBucketAliasCaseRoundTrip` (a DMS `data->>'category'` round-trip) now
+exercises the full client→server DMS path end to end.
+
 ## Testing Checklist
 
 - [x] Bucket as GROUP BY dimension → server emits `CASE … END as <alias>` in GROUP BY + SELECT; data groups correctly (verified live against a ClickHouse npmrds source).
@@ -176,3 +231,6 @@ green (60/60) on SQLite; PG run not exercised locally (no Docker in this env).
 - [x] Postgres/SQLite port: `buildAliasGroupCase` + `aliasGroups` wiring mirrored from `clickhouse.js`; CASE/IN works on both backends; server UDA suite green (58/58). Spot-checked CASE generation (string-quoted, numeric-unquoted, JSON-stringified groups parsed, fallback emitted, `;`-injection column rejected) and GROUP BY passthrough via `sanitizeName`.
 - [ ] Live: toggle the master switch — confirm the bucket column disappears and the row set reverts to un-bucketed, then re-enable and confirm restoration.
 - [ ] Live: exercise custom buckets against a PG-backed (non-ClickHouse) view to confirm grouping + length parity with the CH path.
+- [x] DMS internal source: synthetic alias stays bare in groupBy/SELECT; CASE column resolved to `data->>'col'`; numeric DMS values text-quoted. Unit-covered (`buildUdaConfig.test.js` 137, `test-uda.js` 61, incl. `testCustomBucketAliasCaseRoundTrip` end-to-end DMS round-trip).
+- [ ] Live: exercise custom buckets against a DMS internal source (grouping dimension + filter-to-buckets) to confirm the column groups correctly and length parity.
+- [ ] DMS-on-DMS join + custom bucket dimension (deferred): CASE column needs `ds.data->>'col'` prefixing — not yet implemented.

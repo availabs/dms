@@ -837,6 +837,58 @@ describe("buildUdaConfig", () => {
     expect(options.aliasGroups).toEqual(input.customBuckets.config);
   });
 
+  // ─── custom bucket DMS-source compatibility ───────────────────────────────
+  //
+  // DMS internal sources store column values inside a JSONB `data` column, so
+  // every column ref is `data->>'col'`. The bucket dimension has two distinct
+  // accessor requirements the rest of the pipeline doesn't handle by default:
+  //   (a) the synthetic alias column must stay the BARE alias in groupBy/SELECT
+  //       so the server's `groupBy.includes(alias)` match fires (a data->>'alias'
+  //       ref would be a phantom JSON key and silently disable bucketing);
+  //   (b) the CASE's source column must be resolved to `data->>'col'` so the
+  //       server compares the JSONB value, not a nonexistent physical column.
+
+  const dmsBucket = () => ({
+    alias: "region",
+    sourceField: "county",
+    fallback: "Other",
+    enabled: true,
+    config: { region: { column: "county", fallback: "Other", groups: { North: ["Albany"] } } },
+  });
+
+  it("DMS bucket dimension: groupBy + attribute use the bare alias, not data->>", () => {
+    const input = basicDmsInput();
+    input.columns.push(col("region", { group: true, origin: "custom-bucket" }));
+    input.customBuckets = dmsBucket();
+    const { options, attributes } = buildUdaConfig(input);
+    // Bare alias so the server's groupBy.includes(alias) match fires.
+    expect(options.groupBy).toContain("region");
+    expect(options.groupBy).not.toContain("data->>'region'");
+    // Bucket attribute is the bare alias (the server substitutes the CASE for it).
+    expect(attributes).toContain("region");
+    expect(attributes).not.toContain("data->>'region' as region");
+  });
+
+  it("DMS aliasGroups: resolves the CASE column to a data->> accessor", () => {
+    const input = basicDmsInput();
+    input.columns.push(col("region", { group: true, origin: "custom-bucket" }));
+    input.customBuckets = dmsBucket();
+    const { options } = buildUdaConfig(input);
+    expect(options.aliasGroups.region.column).toBe("data->>'county'");
+    // groups + fallback pass through untouched
+    expect(options.aliasGroups.region.groups).toEqual({ North: ["Albany"] });
+    expect(options.aliasGroups.region.fallback).toBe("Other");
+  });
+
+  it("DAMA aliasGroups: CASE column stays a bare physical column (regression)", () => {
+    const input = basicDamaInput();
+    input.columns.push(col("region", { group: true, origin: "custom-bucket" }));
+    input.customBuckets = bucketConfig({ North: ["Albany"] });
+    const { options } = buildUdaConfig(input);
+    expect(options.aliasGroups.region.column).toBe("county");
+    expect(options.groupBy).toContain("region");
+  });
+
   it("enabled but config unresolved (no groups): no aliasGroups, bucket col not grouped", () => {
     // Dynamic binding before usePageFilterSync resolves it — config has an alias
     // entry but empty groups. The synthetic grouped column must be dropped so the

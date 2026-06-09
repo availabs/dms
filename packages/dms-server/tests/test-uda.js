@@ -354,6 +354,35 @@ async function testCustomBucketAliasCaseRoundTrip() {
   pass('Custom bucket test cleanup complete');
 }
 
+/**
+ * Unit: buildAliasGroupCase must text-quote numeric group values when the bucket
+ * column is a DMS JSON accessor (`data->>'col'`).
+ *
+ * DMS internal sources read column values out of a JSONB `data` column, and
+ * `data->>` always yields TEXT. A numeric bucket value left unquoted compiles to
+ * `data->>'col' IN (2022)` — a text/integer mismatch Postgres rejects. DAMA
+ * physical columns keep native typing, so their numeric values stay unquoted.
+ */
+async function testBuildAliasGroupCaseDmsNumericQuoting() {
+  console.log('\n--- Unit: buildAliasGroupCase text-quotes numeric DMS (data->>) values ---');
+  const { buildAliasGroupCase } = require('../src/routes/uda/utils');
+
+  // DAMA physical column: numeric values stay unquoted (native typing).
+  const dama = buildAliasGroupCase({ column: 'year_record', groups: { Recent: [2022, 2023] }, fallback: 'Old' });
+  assert(/IN \(2022, 2023\)/.test(dama), `DAMA numeric should be unquoted: ${dama}`);
+
+  // DMS JSON text accessor: numeric values must be quoted as text.
+  const dms = buildAliasGroupCase({ column: "data->>'year_record'", groups: { Recent: [2022, 2023] }, fallback: 'Old' });
+  assert(/IN \('2022', '2023'\)/.test(dms), `DMS numeric should be text-quoted: ${dms}`);
+  assert(dms.includes("CASE WHEN data->>'year_record' IN"), `DMS CASE should reference the JSON accessor: ${dms}`);
+
+  // String values are quoted in both shapes (unchanged behavior).
+  const str = buildAliasGroupCase({ column: 'cat', groups: { A: ['x'] } });
+  assert(str.includes("IN ('x')"), `string values should be quoted: ${str}`);
+
+  pass('buildAliasGroupCase text-quotes numeric values for DMS data->> columns');
+}
+
 // ============================================= filterGroups Tests ==============================================
 
 /**
@@ -1105,6 +1134,7 @@ async function run() {
     await testDmsModeViews();
     await testDmsModeDataQueries();
     await testCustomBucketAliasCaseRoundTrip();
+    await testBuildAliasGroupCaseDmsNumericQuoting();
 
     // filterGroups regression tests
     await testGetValuesFromGroupNullLeaves();
