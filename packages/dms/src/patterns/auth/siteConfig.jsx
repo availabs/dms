@@ -171,7 +171,7 @@ const manageAuthConfig = ({
 
     baseUrl = baseUrl === '/' ? '' : baseUrl;
 
-    const theme = getPatternTheme(themes, {...pattern, theme: {selectedTheme: 'mny_admin'}}); //getPatternTheme(themes, {...pattern, theme: {selectedTheme: ''}});
+    const theme = getPatternTheme(themes, {...pattern, theme: {selectedTheme: 'tessera'}}); //getPatternTheme(themes, {...pattern, theme: {selectedTheme: ''}});
 
     theme.navOptions = theme?.admin?.navOptions || theme?.navOptions
     theme.navOptions.sideNav.dropdown = 'top'

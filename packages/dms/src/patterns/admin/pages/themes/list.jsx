@@ -1,9 +1,23 @@
 import React, {useContext, useRef, useState} from 'react'
 import {AdminContext} from "../../context";
-import { ThemeContext } from '../../../../ui/useTheme';
+import { ThemeContext, getComponentTheme } from '../../../../ui/useTheme';
 import { Link, useLocation } from 'react-router'
 import { cloneDeep } from 'lodash-es';
 import { nameToSlug } from '../../../../utils/type-utils';
+import { parseIfJSON } from '../../../page/pages/_utils';
+
+function PaletteStrip({ themeJson, className }) {
+  const parsed = parseIfJSON(themeJson);
+  const colors = Object.values(parsed?.c || {}).slice(0, 6);
+  if (!colors.length) return <div className={className} style={{ background: '#E8E2D5' }} />;
+  return (
+    <div className={`flex ${className || ''}`}>
+      {colors.map((color, i) => (
+        <div key={i} className="flex-1" style={{ background: color }} />
+      ))}
+    </div>
+  );
+}
 
 function ThemeList ({
    item={},
@@ -13,41 +27,25 @@ function ThemeList ({
    apiUpdate,
    format,
 }) {
-	// themes is an array of {name, theme, id}
 	const location = useLocation()
 	const { baseUrl, authPath, user, } = React.useContext(AdminContext) || {};
-  const { UI } = React.useContext(ThemeContext) || {};
+  const { UI, theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
+	const t = getComponentTheme(themeFromContext, 'admin');
 	const [addingNew, setAddingNew] = useState(false);
 	const [newItem, setNewItem] = useState({});
 	const [editingItem, setEditingItem] = useState();
 	const [search, setSearch] = useState('');
 	const gridRef = useRef(null);
-	const {Modal, Input, Button, Table, Icon} = UI;
-
+	const {Modal, Input, Button, Icon} = UI;
 
 	const attrToAddNew = ['name', 'theme'];
-	const columns = [
-		{name: 'name', display_name: 'Theme name', show: true, type: 'text'},
-
-    {
-      name: 'edit', display_name: 'Edit', show: true, type: 'ui',
-      Comp: (d) => (
-        <div className='flex items-center justify-center w-full h-full py-1'>
-          <Link to={d?.row?.manage_url || ''} className='flex items-center px-2 py-1 text-sm text-slate-700 bg-slate-200 rounded-full'>
-            <Icon icon='PencilEditSquare' className='size-5' /><span className='pl-1'>Edit</span>
-          </Link>
-          <div
-            onClick={async () => { setEditingItem(d.row)}}
-            className='flex mx-1 items-center px-2 py-1 text-sm text-slate-700 bg-slate-200 rounded-full cursor-pointer'>
-            <Icon icon='' className='size-5' /><span className='pl-1'>Settings</span>
-          </div>
-
-        </div>
-      ),
-    }
-	]
+	const patterns = item.patterns || [];
 	const data = (item.theme_refs || [])
-		.map(v => ({...v, manage_url: `${baseUrl}/theme/${v.theme_id}`}))
+		.map(v => ({
+      ...v,
+      manage_url: `${baseUrl}/theme/${v.theme_id}`,
+      used_by: patterns.filter(p => parseIfJSON(p.theme)?.selectedTheme === v.name).map(p => p.name),
+    }))
 		.filter(v => !search || v.name.toLowerCase().includes(search.toLowerCase()));
 
 	const onSubmit = (value) => {
@@ -66,24 +64,47 @@ function ThemeList ({
 	if(!item.id && dataItems?.length > 0) {
 		item = dataItems[0]
 	}
-  // if(!user?.authed) return <div>To access this page, you need to: <Link to={`${authPath}/login`} state={{ from: location.pathname }}>login</Link></div>
-	// render a list of themes. render an add new form
 	return (
 		<div className={'flex flex-col w-full'}>
-			<div className={'w-full items-center flex justify-between border-b-2 border-blue-400 pb-2'}>
-				<div className={'text-2xl font-semibold text-gray-700'}>Themes</div>
+			<div className={t.pageHeader || 'w-full items-center flex justify-between border-b-2 border-blue-400 pb-2'}>
+				<div className={t.pageTitle || 'text-2xl font-semibold text-gray-700'}>Themes</div>
 				<Button className={'shrink-0'} onClick={() => setAddingNew(true)}> Add theme </Button>
 			</div>
 			<div className={'w-full flex'}>
 				<Input type={'text'} value={search} onChange={e => setSearch(e.target.value)} placeHolder={'Filter themes'} />
-
-				{/*<Button className={'shrink-0'} onClick={() => onSubmit([])}> Clear themes </Button>*/}
 			</div>
-			<Table columns={columns}
-				   data={data}
-				   isEdit={false}
-				   gridRef={gridRef}
-			/>
+			<div className={t.themeGrid || 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4'}>
+				{data.map(row => (
+          <div key={row.theme_id} className={t.themeCard || 'border rounded flex flex-col'}>
+            <PaletteStrip themeJson={row.theme} className={t.themeCardPalette || 'h-12'} />
+            <div className={t.themeCardBody || 'p-4 flex-1'}>
+              <div className={t.themeCardName || 'text-lg font-semibold'}>{row.name}</div>
+              <div className={t.themeCardMeta || 'text-xs text-slate-400 mt-0.5 uppercase tracking-wide'}>
+                {row.theme_id}
+              </div>
+            </div>
+            <div className={t.themeCardFooter || 'px-4 py-3 border-t flex items-center justify-between gap-2'}>
+              <div className="flex flex-wrap gap-1">
+                {row.used_by.length > 0
+                  ? row.used_by.map(n => <span key={n} className={t.themeUsageChip || 'text-xs border px-1.5'}>{n}</span>)
+                  : <span className={t.themeCardMeta || 'text-xs text-slate-400'}>Unused</span>
+                }
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <Link to={row.manage_url} className='flex items-center px-2 py-1 text-sm text-slate-700 bg-slate-100 hover:bg-slate-200 rounded'>
+                  <Icon icon='PencilEditSquare' className='size-4' /><span className='pl-1'>Edit</span>
+                </Link>
+                <button
+                  onClick={() => setEditingItem(row)}
+                  className='flex items-center px-2 py-1 text-sm text-slate-700 bg-slate-100 hover:bg-slate-200 rounded cursor-pointer'
+                >
+                  Settings
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+			</div>
 
 			<Modal open={addingNew} setOpen={setAddingNew}>
 				<div className={`flex flex-col`}>

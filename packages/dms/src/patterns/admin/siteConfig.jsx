@@ -3,6 +3,7 @@ import React from "react";
 
 import { cloneDeep } from "lodash-es";
 import { ThemeContext, mergeTheme, getPatternTheme } from "../../ui/useTheme";
+import { registerColumnType } from "../../ui/columnTypes";
 import { AdminContext } from "./context";
 import UI from "../../ui";
 import defaultTheme from "../../ui/defaultTheme";
@@ -23,12 +24,12 @@ import PatternEditor from "./pages/patternEditor";
 const SectionGroup = ({
   children,
   maxWidth = "max-w-7xl",
-  padding = "p-4",
+  padding = "p-6",
   ...props
 }) => (
-  <div className={`h-full flex flex-1 p-1.5 `}>
+  <div className="h-full flex flex-1 bg-[#FBF9F4]">
     <div
-      className={`flex flex-1 w-full flex-col shadow-md bg-white rounded-lg relative text-md font-light leading-7 ${padding} h-full min-h-[calc(100vh_-_102px)]`}
+      className={`flex flex-1 w-full flex-col relative text-base font-normal leading-7 ${padding} h-full min-h-[calc(100vh_-_56px)]`}
     >
       <div className={`h-full flex flex-col w-full ${maxWidth}`}>
         {children}
@@ -70,8 +71,12 @@ const adminConfig = ({
   //console.log('defaultTheme', theme)
   let theme = getPatternTheme(themes, {
     ...patternData,
-    theme: { selectedTheme: "default" },
+    theme: { selectedTheme: "tessera" },
   });
+
+  if (theme.columnTypes) {
+    Object.entries(theme.columnTypes).forEach(([k, v]) => registerColumnType(k, v));
+  }
 
   // console.log('admin siteconfig API', API_HOST)
   return {

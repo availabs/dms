@@ -1,9 +1,74 @@
 import React, {useEffect, useMemo, useRef, useState} from "react";
-import {ThemeContext} from "../../../ui/useTheme";
+import {ThemeContext, getComponentTheme} from "../../../ui/useTheme";
 import {AuthContext} from "../context";
 import {callAuthServer} from "../api";
 import {isEqual} from "lodash-es";
 import { isUserAuthed } from "../../../utils/auth";
+
+const AVATAR_COLORS = ['bg-[#5D8A85]', 'bg-[#B45309]', 'bg-[#B5532C]', 'bg-[#4A5160]', 'bg-[#2A2F36]'];
+
+function colorIndex(str) {
+  let h = 0;
+  for (let i = 0; i < (str || '').length; i++) h = (h * 31 + str.charCodeAt(i)) & 0xffff;
+  return h % AVATAR_COLORS.length;
+}
+
+function UserAvatar({ email, t }) {
+  const initials = (email || '').slice(0, 2).toUpperCase();
+  const color = AVATAR_COLORS[colorIndex(email)];
+  return (
+    <span className={`${t.avatar || ''} ${color} rounded-full`} title={email}>{initials}</span>
+  );
+}
+
+function GroupBadges({ groups, t }) {
+  return (
+    <div className="flex flex-wrap gap-1">
+      {(groups || []).map(g => {
+        const variant = /admin/i.test(g) ? t.groupPillAdmin || ''
+          : /edit|steward|author/i.test(g) ? t.groupPillEditor || ''
+          : '';
+        return <span key={g} className={`${t.groupPill || ''} ${variant}`}>{g}</span>;
+      })}
+    </div>
+  );
+}
+
+function StatusDot({ lastLogin, t }) {
+  const now = Date.now();
+  const ts = lastLogin ? new Date(lastLogin).getTime() : 0;
+  const daysDiff = (now - ts) / (1000 * 60 * 60 * 24);
+  let cls, label;
+  if (!lastLogin) { cls = t.statusDotPending || ''; label = 'Never logged in'; }
+  else if (daysDiff <= 30) { cls = t.statusDotActive || ''; label = 'Active'; }
+  else { cls = t.statusDotInactive || ''; label = 'Inactive'; }
+  return <span className={cls} title={label} />;
+}
+
+function UserKpiStrip({ users, groups, t }) {
+  const now = Date.now();
+  const activeCount = users.filter(u => {
+    const ts = u.last_login ? new Date(u.last_login).getTime() : 0;
+    return (now - ts) / (1000 * 60 * 60 * 24) <= 30;
+  }).length;
+  const pendingCount = users.filter(u => !u.last_login).length;
+  const cells = [
+    { label: 'Total Users', value: users.length },
+    { label: 'Active (30d)', value: activeCount },
+    { label: 'Never Logged In', value: pendingCount },
+    { label: 'Groups', value: groups.length },
+  ];
+  return (
+    <div className={`${t.kpiStrip || ''} grid-cols-4 mb-4`}>
+      {cells.map(({ label, value }) => (
+        <div key={label} className={t.kpiCell || ''}>
+          <div className={t.kpiLabel || ''}>{label}</div>
+          <div className={t.kpiValue || ''}>{value}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 const InputControl = ({show, value, onChange, placeHolder}) => {
     const { UI } = React.useContext(ThemeContext);
@@ -67,7 +132,9 @@ export default function UsersAdmin({ app = '', authPermissions = {} }) {
     const [loadingAdd, setLoadingAdd] = useState(false);
     const [editUser, setEditUser] = useState(null);
     const [status, setStatus] = useState('');
-    const { UI } = React.useContext(ThemeContext);
+    const [activeTab, setActiveTab] = useState('all');
+    const { UI, theme: themeFromContext = {} } = React.useContext(ThemeContext);
+    const t = getComponentTheme(themeFromContext, 'admin');
     const { user, AUTH_HOST, PROJECT_NAME, baseUrl, viewAsUser, setViewAsUser } = React.useContext(AuthContext);
     const canViewAs = (user?.groups || []).some(g => g === `${app} Admin`)
       || isUserAuthed({ user, authPermissions, reqPermissions: ['view-as'] });
@@ -179,12 +246,16 @@ export default function UsersAdmin({ app = '', authPermissions = {} }) {
     };
 
     const userColumns = [
+        {name: 'avatar', display_name: '', show: true, type: 'ui',
+            Comp: ({ row }) => <UserAvatar email={row.email} t={t} />},
         {name: 'email', display_name: 'User', show: true, type: 'text'},
         {name: 'groups', display_name: 'Groups', show: true, type: 'multiselect', options: groups.map(g => g.name)},
+        {name: 'status', display_name: 'Status', show: true, type: 'ui',
+            Comp: ({ row }) => <StatusDot lastLogin={row.last_login} t={t} />},
         {name: 'created_at', display_name: 'Created', show: true, type: 'ui',
-            Comp: ({ row }) => <span>{fmtDate(row.created_at)}</span>},
+            Comp: ({ row }) => <span className="text-sm text-slate-400">{fmtDate(row.created_at)}</span>},
         {name: 'last_login', display_name: 'Last Login', show: true, type: 'ui',
-            Comp: ({ row }) => <span>{fmtDate(row.last_login)}</span>},
+            Comp: ({ row }) => <span className="text-sm text-slate-400">{fmtDate(row.last_login)}</span>},
         {
             name: 'view_as', display_name: '', show: canViewAs, type: 'ui',
             Comp: ({ row }) => {
@@ -237,6 +308,7 @@ export default function UsersAdmin({ app = '', authPermissions = {} }) {
 
         return users
             .filter(u => {
+                if (activeTab === 'pending' && u.last_login) return false;
                 if (su && !u.email.toLowerCase().includes(su)) return false;
                 if (sg && !(u.groups || []).some(g => g.toLowerCase().includes(sg))) return false;
                 return true;
@@ -247,7 +319,9 @@ export default function UsersAdmin({ app = '', authPermissions = {} }) {
                 if (!b.last_login) return -1;
                 return new Date(b.last_login) - new Date(a.last_login);
             });
-    }, [users, searchUser, searchGroup]);
+    }, [users, searchUser, searchGroup, activeTab]);
+
+    const pendingCount = useMemo(() => users.filter(u => !u.last_login).length, [users]);
 
     // const filteredRequests = useMemo(() => {
     //     const sr = searchRequest.toLowerCase();
@@ -262,12 +336,32 @@ export default function UsersAdmin({ app = '', authPermissions = {} }) {
 
     if (!user?.authed) return <div>To access this page, you need to login.</div>;
 
+    const tabs = [
+      { id: 'all', label: 'All Users', count: users.length },
+      { id: 'pending', label: 'Never Logged In', count: pendingCount },
+    ];
+
     return (
         <div className="flex flex-col gap-3">
 
-            <div className="w-full flex justify-between border-b-2 border-blue-400">
-                <div className="text-2xl font-semibold text-gray-700">Users</div>
+            <div className={t.pageHeader || 'w-full flex justify-between border-b-2 border-blue-400'}>
+                <div className={t.pageTitle || 'text-2xl font-semibold text-gray-700'}>Users</div>
                 <Button className="shrink-0" onClick={() => setAddingNew(true)}>Add new</Button>
+            </div>
+
+            {users.length > 0 && <UserKpiStrip users={users} groups={groups} t={t} />}
+
+            <div className={t.tabStrip || 'flex border-b gap-0 mb-2'}>
+              {tabs.map(tab => (
+                <button
+                  key={tab.id}
+                  className={`${t.tab || ''} ${activeTab === tab.id ? t.tabActive || '' : ''}`}
+                  onClick={() => setActiveTab(tab.id)}
+                >
+                  {tab.label}
+                  <span className={t.tabCount || 'ml-1 text-xs'}>{tab.count}</span>
+                </button>
+              ))}
             </div>
 
             {/* <Table data={filteredRequests} columns={requestsColumns} controls={requestsTableControls} customTheme={customTableTheme} /> */}

@@ -2,7 +2,7 @@ import React from 'react'
 import {v4 as uuidv4} from "uuid";
 import { useFalcor } from "@availabs/avl-falcor";
 import {AdminContext} from "../context";
-import { ThemeContext } from '../../../ui/useTheme';
+import { ThemeContext, getComponentTheme } from '../../../ui/useTheme';
 import { Link, useLocation, useNavigate, useNavigation } from 'react-router'
 import { parseIfJSON } from '../../page/pages/_utils';
 import { nameToSlug, getInstance } from '../../../utils/type-utils';
@@ -109,6 +109,76 @@ function SiteEdit ({
 export default SiteEdit
 
 
+function fmtDate(ts) {
+  if (!ts) return '—';
+  const d = new Date(ts);
+  return isNaN(d) ? '—' : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function KpiStrip({ patterns, t }) {
+  const total = patterns.length;
+  const subdomains = new Set(patterns.map(p => p.subdomain).filter(s => s && s !== '*')).size;
+  const themes = new Set(patterns.map(p => parseIfJSON(p.theme)?.selectedTheme).filter(Boolean)).size;
+  const lastMod = patterns.reduce((acc, p) => {
+    const ts = new Date(p.updated_at);
+    return !isNaN(ts) && ts > acc ? ts : acc;
+  }, new Date(0));
+  const lastModStr = lastMod.getTime() === 0 ? '—' : lastMod.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  const cells = [
+    { label: 'Patterns', value: total },
+    { label: 'Subdomains', value: subdomains || '—' },
+    { label: 'Themes', value: themes || '—' },
+    { label: 'Last Modified', value: lastModStr },
+  ];
+  return (
+    <div className={`${t.kpiStrip || ''} grid-cols-4`}>
+      {cells.map(({ label, value }) => (
+        <div key={label} className={t.kpiCell || ''}>
+          <div className={t.kpiLabel || ''}>{label}</div>
+          <div className={t.kpiValue || ''}>{value}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function FilterChips({ types, active, onSelect, t }) {
+  return (
+    <div className="flex items-center flex-wrap gap-2">
+      <button
+        className={`${t.filterChip || ''} ${!active ? t.filterChipActive || '' : ''}`}
+        onClick={() => onSelect(null)}
+      >
+        All
+      </button>
+      {types.map(type => (
+        <button
+          key={type}
+          className={`${t.filterChip || ''} ${active === type ? t.filterChipActive || '' : ''}`}
+          onClick={() => onSelect(type)}
+        >
+          {type}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function BulkActionBar({ selected, onClear, t }) {
+  if (!selected.length) return null;
+  return (
+    <div className={t.bulkBar || 'flex items-center gap-3 px-4 py-3 bg-slate-800 text-white'}>
+      <span className={t.bulkBarCount || 'text-xs text-slate-400'}>{selected.length} selected</span>
+      <button
+        className="text-xs underline cursor-pointer"
+        onClick={onClear}
+      >
+        Clear
+      </button>
+    </div>
+  );
+}
+
 function PatternList({
 	 Component,
 	 attributes={},
@@ -120,13 +190,16 @@ function PatternList({
 	 ...rest
 }) {
 	const {app, type: siteType, API_HOST, baseUrl, isMultiTenant} = React.useContext(AdminContext);
-	const {UI} = React.useContext(ThemeContext)
+	const {UI, theme: themeFromContext = {}} = React.useContext(ThemeContext)
+	const t = getComponentTheme(themeFromContext, 'admin');
 	const { falcor } = useFalcor();
 	const location = useLocation()
 	const {Table, Input, Button, Modal, Icon} = UI;
 	const siteInstance = getInstance(siteType) || siteType;
 	const gridRef = React.useRef(null);
 	const [search, setSearch] = React.useState('');
+	const [filterType, setFilterType] = React.useState(null);
+	const [selectedIds, setSelectedIds] = React.useState([]);
 	const [newItem, setNewItem] = React.useState({app: format?.app});
 	const [addingNew, setAddingNew] = React.useState(false);
 	const [editingItem, setEditingItem] = React.useState(undefined);
@@ -134,40 +207,43 @@ function PatternList({
 	const [deletingItem, setDeletingItem] = React.useState(undefined);
 	const tenantSub = isMultiTenant ? getSubdomainFromHost() : '';
 	const attrToAddNew = ['pattern_type', 'name', ...(tenantSub ? [] : ['subdomain']), 'base_url', 'filters', 'authPermissions'];
-	//console.log('test 123', location)
 	const columns = [
 		{name: 'name', display_name: 'Name', show: true, type: 'text'},
-		{name: 'base_url', display_name: 'Base URL', show: true, type: 'ui',
+		{name: 'pattern_type', display_name: 'Type', show: true, type: 'type_badge'},
+		{name: 'subdomain', display_name: 'Subdomain', show: true, type: 'subdomain_pill'},
+		{name: 'base_url', display_name: 'URL', show: true, type: 'ui',
       Comp: (d) => {
         const host = window.location.host
         const protocol = host.includes('localhost') ? 'http' : 'https'
         const sub = d.row.subdomain
         const needsSub = sub && sub !== '*'
-        // Strip existing subdomain (first segment) to get the base domain,
-        // but only if the current host actually has a subdomain.
         const parts = host.split('.')
         const isLocalhost = host.includes('localhost')
         const hasSubdomain = isLocalhost ? parts.length >= 2 : parts.length > 2
         const baseDomain = hasSubdomain ? parts.slice(1).join('.') : host
         const targetHost = needsSub ? `${sub}.${baseDomain}` : host
-        const baseUrl = d.row.base_url
-        if (!baseUrl) return <span className='p-2 text-[14px] text-slate-400'>—</span>
-        const normalizedUrl = baseUrl.startsWith('/') ? baseUrl : `/${baseUrl}`
+        const rowBaseUrl = d.row.base_url
+        if (!rowBaseUrl) return <span className='p-2 text-[14px] text-slate-400'>—</span>
+        const normalizedUrl = rowBaseUrl.startsWith('/') ? rowBaseUrl : `/${rowBaseUrl}`
         return (
           <Link
             to={`${protocol}://${targetHost}${normalizedUrl}`}
-            className='flex items-center p-2 w-full h-full py-1 font-[400] text-[14px]  leading-[18px] text-slate-600'
+            className='flex items-center p-2 w-full h-full py-1 font-[400] text-[14px] leading-[18px] text-slate-600'
           >
-            {baseUrl}
+            {rowBaseUrl}
           </Link>
         )
       }
 		},
-		{name: 'subdomain', display_name: 'Subdomain', show: true, type: 'text'},
-		// {name: 'updated_at', display_name: 'Updated', show: true, type: 'text', formatFn: 'date'},
-		// {name: 'edit', display_name: 'Edit', show: true, type: 'ui', Comp: (d) => {
-		// 		return <Button onClick={() => setEditingItem(d.row)}>Edit</Button>
-		// 	}},
+		{name: 'theme_name', display_name: 'Theme', show: true, type: 'ui',
+      Comp: (d) => {
+        const themeName = parseIfJSON(d.row.theme)?.selectedTheme;
+        return <span className='text-sm text-slate-500'>{themeName || '—'}</span>;
+      }
+		},
+		{name: 'updated_at', display_name: 'Modified', show: true, type: 'ui',
+      Comp: (d) => <span className='text-sm text-slate-400'>{fmtDate(d.row.updated_at)}</span>
+		},
 		{name: 'edit', display_name: 'Edit', show: true, type: 'ui',
       Comp: (d) => {
         return (
@@ -263,23 +339,28 @@ function PatternList({
 		setIsDuplicating(false);
 	}
 
-	const data = value
+	const allRows = value
 		.map(v => ({
             ...v,
             name: v.name || 'undefined',
             edit_url: `${baseUrl}/manage_pattern/${v.id}`,
-        }))
-		.filter(v => !search || v.name.toLowerCase().includes(search.toLowerCase()));
-	const authExists = data.some(d => d.pattern_type === 'auth')
+        }));
+	const data = allRows
+		.filter(v => !search || v.name.toLowerCase().includes(search.toLowerCase()))
+		.filter(v => !filterType || v.pattern_type === filterType);
+	const authExists = allRows.some(d => d.pattern_type === 'auth');
+	const patternTypes = [...new Set(allRows.map(v => v.pattern_type).filter(Boolean))];
 
 	return (
 			<div className={'flex flex-1 flex-col w-full overflow-auto'}>
-				<div className={'w-full flex items-center justify-between border-b-2 border-blue-400 pb-2'}>
-					<div className={'text-2xl font-semibold text-gray-700'}>Sites</div>
+				<div className={t.pageHeader || 'w-full flex items-center justify-between border-b-2 border-blue-400 pb-2'}>
+					<div className={t.pageTitle || 'text-2xl font-semibold text-gray-700'}>Sites</div>
 					<Button className={'shrink-0'} onClick={() => setAddingNew(true)}> Add site </Button>
 				</div>
-				<div className={'w-full flex'}>
-					<Input type={'text'} value={search} onChange={e => setSearch(e.target.value)} placeholder={'Filter sites'} />
+				{value.length > 0 && <KpiStrip patterns={value} t={t} />}
+				<div className={t.toolbar || 'flex items-center gap-3 mt-5 mb-3'}>
+					<Input type={'text'} value={search} onChange={e => setSearch(e.target.value)} placeHolder={'Filter sites'} />
+					{patternTypes.length > 1 && <FilterChips types={patternTypes} active={filterType} onSelect={setFilterType} t={t} />}
 				</div>
 				<Table
 				  columns={columns}
@@ -287,6 +368,7 @@ function PatternList({
 					isEdit={false}
 					gridRef={gridRef}
 				/>
+				<BulkActionBar selected={selectedIds} onClear={() => setSelectedIds([])} t={t} />
 
 				<Modal open={Boolean(editingItem)} setOpen={setEditingItem}>
 					<div className={`flex flex-col`}>
