@@ -337,8 +337,14 @@ export const extractNormalFiltersFromGroups = (node) => {
  *
  * `source_id` is stamped on the leaf so applyTableAliasToJoin aliases the
  * column to `ds.` under a join (avoids ambiguous `data->>` in DMS-on-DMS joins).
+ *
+ * `isDms` text-coerces the leaf values: DMS columns resolve to `data->>'col'`
+ * (always TEXT), so a numeric bucket value left native would compile to
+ * `data->>'col' IN (2022)` — a text/integer mismatch Postgres rejects. DAMA
+ * physical columns keep native typing. Mirrors the server's `isJsonText`
+ * handling in buildAliasGroupCase.
  */
-export const buildCustomBucketFilters = (customBuckets, baseSourceId) => {
+export const buildCustomBucketFilters = (customBuckets, baseSourceId, isDms = false) => {
   if (
     !customBuckets ||
     customBuckets.enabled !== true ||
@@ -372,7 +378,9 @@ export const buildCustomBucketFilters = (customBuckets, baseSourceId) => {
         ...new Set(
           Object.values(groups || {})
             .flatMap(coerceGroupValues)
-            .filter((v) => v != null && v !== ""),
+            .filter((v) => v != null && v !== "")
+            // DMS columns are JSON text (`data->>`), so values must be text too.
+            .map((v) => (isDms ? String(v) : v)),
         ),
       ];
       return column && values.length
@@ -1155,6 +1163,7 @@ export const buildUdaConfig = ({
   const bucketLeaves = buildCustomBucketFilters(
     customBuckets,
     externalSource?.source_id,
+    isDms,
   );
   if (bucketLeaves.length) {
     filterTree = {

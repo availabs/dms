@@ -355,6 +355,67 @@ async function testCustomBucketAliasCaseRoundTrip() {
 }
 
 /**
+ * Regression: a custom-bucket whose values/labels contain a SQL keyword token
+ * (e.g. the value "Union" — Union County is real data) must still group.
+ *
+ * simpleFilter substitutes the bucket CASE into GROUP BY. The bug passed that
+ * CASE back through handleGroupBy()'s sanitizeName(), which rejects any string
+ * containing a disallowed keyword (`union`, `cast`, `select`, …) as a whole-word
+ * token. `... IN ('Union') ...` matches `\bunion\b`, so sanitizeName dropped the
+ * whole CASE from GROUP BY while it stayed in the SELECT → Postgres errors
+ * ("must appear in GROUP BY"); SQLite/ClickHouse silently collapse every row
+ * into a single group. simpleFilterLength bypasses sanitizeName for the CASE, so
+ * the two diverged. The fix sanitizes only the bare column entries and leaves the
+ * already-vetted CASE verbatim. Two distinct buckets must come back.
+ */
+async function testCustomBucketKeywordValueGroupBy() {
+  console.log('\n--- Custom Buckets: SQL-keyword bucket value still groups ---');
+
+  const items = [];
+  for (const category of ['Union', 'Union', 'County']) {
+    const result = await graph.callAsync(
+      ['dms', 'data', 'create'],
+      [TEST_APP, 'bucketkw', { name: `n-${category}`, category }]
+    );
+    items.push(Object.keys(result.jsonGraph.dms.data.byId)[0]);
+  }
+
+  const env = `${TEST_APP}+bucketkw`;
+  const viewId = items[0];
+  const ALIAS = 'region';
+  const options = JSON.stringify({
+    groupBy: [ALIAS],
+    aliasGroups: {
+      [ALIAS]: {
+        column: "data->>'category'",
+        fallback: 'Other',
+        groups: { Matched: ['Union'] },   // 'union' would trip sanitizeName
+      },
+    },
+  });
+
+  const dataResult = await graph.getAsync([
+    ['uda', env, 'viewsById', viewId, 'options', options, 'dataByIndex', { from: 0, to: 9 }, [ALIAS]],
+  ]);
+
+  const byIndex = dataResult.jsonGraph.uda[env].viewsById[viewId].options[options].dataByIndex;
+  const buckets = Object.values(byIndex)
+    .map((row) => row?.[ALIAS])
+    .filter((v) => typeof v === 'string'); // drop Falcor {$type:'atom'} empty-slot placeholders
+
+  // The two 'Union' rows must collapse into ONE 'Matched' group → exactly 2 rows.
+  // Under the bug the CASE was dropped from GROUP BY, so the rows came back
+  // ungrouped (Matched, Matched, Other) — 'Matched' appearing twice.
+  assert(buckets.length === 2, `Expected exactly 2 grouped buckets, got ${JSON.stringify(buckets)}`);
+  assert(buckets.filter((b) => b === 'Matched').length === 1, `'Matched' should be grouped to one row, got ${JSON.stringify(buckets)}`);
+  assert(buckets.includes('Other'), `Expected an 'Other' (fallback) bucket, got ${JSON.stringify(buckets)}`);
+  pass('SQL-keyword bucket value ("Union") still groups via the CASE');
+
+  await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, 'bucketkw', ...items]);
+  pass('Custom bucket keyword test cleanup complete');
+}
+
+/**
  * Unit: buildAliasGroupCase must text-quote numeric group values when the bucket
  * column is a DMS JSON accessor (`data->>'col'`).
  *
@@ -1134,6 +1195,7 @@ async function run() {
     await testDmsModeViews();
     await testDmsModeDataQueries();
     await testCustomBucketAliasCaseRoundTrip();
+    await testCustomBucketKeywordValueGroupBy();
     await testBuildAliasGroupCaseDmsNumericQuoting();
 
     // filterGroups regression tests

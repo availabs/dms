@@ -15,7 +15,6 @@ const {
   quoteAlias,
   getValuesExceptNulls,
   getValuesFromGroup,
-  handleGroupBy,
   handleHaving,
   handleOrderBy,
   buildCombinedWhere,
@@ -257,11 +256,19 @@ async function simpleFilter(ctx, options, attributes, indices) {
     fromClause = `${table_schema}.${table_name} ${hasJoin ? ' as ds ' : ''} ${joins}`;
   }
 
+  // Bucket aliases are already compiled into a vetted CASE expression
+  // (activeAliasGroups); only the bare column entries still need sanitizing.
+  // Passing the CASE through handleGroupBy()'s sanitizeName() would discard it
+  // whenever a label/value/fallback contains a SQL keyword token (e.g. a "Union"
+  // county value), dropping the SELECT's CASE column out of GROUP BY. Sanitize
+  // per-entry instead — mirrors simpleFilterLength.
+  const groupByExprs = groupBy.map(g => activeAliasGroups[g] || sanitizeName(g)).filter(Boolean);
+
   const sql = `
     SELECT ${sanitizedAttrs.map((c) => quoteAlias(columnNameMap[c] || c)).join(', ')}
     FROM ${fromClause}
     ${combinedWhere}
-    ${handleGroupBy(groupBy.map(g => activeAliasGroups[g] || g))}
+    ${groupByExprs.length ? `GROUP BY ${groupByExprs.join(', ')}` : ''}
     ${handleHaving(having)}
     ${handleOrderBy(orderBy, dmsAttributes)}
     LIMIT ${+num}

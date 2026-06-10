@@ -17,7 +17,6 @@ const { sanitizeName, getResponseColumnName, getEssentials, buildJoin } = requir
 const {
   handleFiltersCH,
   handleFilterGroupsCH,
-  handleGroupByCH,
   handleHavingCH,
   handleOrderByCH,
   buildAliasGroupCaseCH,
@@ -202,11 +201,19 @@ async function simpleFilter(ctx, options, attributes, indices) {
     fromClause = `${table_schema}.${table_name} ${hasJoin ? ' as ds ' : ''} ${joins}`;
   }
 
+  // Bucket aliases are already compiled into a vetted CASE expression
+  // (activeAliasGroups); only the bare column entries still need sanitizing.
+  // Passing the CASE through handleGroupByCH()'s sanitizeName() would discard it
+  // whenever a label/value/fallback contains a SQL keyword token (e.g. a "Union"
+  // county value), dropping the SELECT's CASE column out of GROUP BY. Sanitize
+  // per-entry instead — mirrors simpleFilterLength.
+  const groupByExprs = groupBy.map(g => activeAliasGroups[g] || sanitizeName(g)).filter(Boolean);
+
   const sql = `
     SELECT ${sanitizedAttrs.map((c) => columnNameMap[c] || c).join(', ')}
     FROM ${fromClause}
     ${combinedWhere}
-    ${handleGroupByCH(groupBy.map(g => activeAliasGroups[g] || g))}
+    ${groupByExprs.length ? `GROUP BY ${groupByExprs.join(', ')}` : ''}
     ${handleHavingCH(having)}
     ${handleOrderByCH(orderBy)}
     LIMIT ${+num}
