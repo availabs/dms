@@ -235,6 +235,18 @@ const PieGraphWrapper = props => {
             })
           }
         }
+        else {
+          for (const dc of dataColumns) {
+            for (const v of c.value) {
+              if (dc.key === c.column) {
+                a.push({
+                  type: "key",
+                  value: dc.key
+                })
+              }
+            }
+          }
+        }
         return a;
       }, []);
     }
