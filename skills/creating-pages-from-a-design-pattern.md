@@ -185,11 +185,15 @@ A page lands in `published: "draft"` state by default. It owns:
 
 - A `title` and `url_slug` (URL path).
 - An optional `parent` (another page's id) for tree hierarchy.
-- An array of `draft_sections` (what your CLI commands populate)
-  and `sections` (what publish copies into; never write here
-  directly from this skill).
-- Optional `draft_section_groups` / `section_groups` for visual
-  grouping in the editor.
+- Two parallel pairs — a **draft** pair you write and a **published**
+  pair you must never write:
+  - `draft_sections` + `draft_section_groups` — the editing copy.
+    **This is what your CLI commands populate.**
+  - `sections` + `section_groups` — the published rendering.
+    **Never write either directly from this skill.** `dms page
+    publish` is the only thing that updates them (it copies the draft
+    pair across). Writing them by hand corrupts the live page — see
+    the warning in §4.2.
 
 ```bash
 # Top-level page
@@ -264,36 +268,45 @@ only band that uses the `header` style.
 use `dms raw update --set`):
 
 ```bash
-# Build the array, then push it onto the page's draft_section_groups
+# Build the array, then push it onto the page's draft_section_groups ONLY
 GROUPS='[
   {"name":"<uuid-1>","index":0,"theme":"header","position":"content","displayName":"Hero"},
   {"name":"<uuid-2>","index":1,"theme":"content","position":"content","displayName":"Surfaces"},
   {"name":"<uuid-3>","index":2,"theme":"footer","position":"bottom","displayName":"Site footer"}
 ]'
 
-dms raw update <page-id> \
-  --set "draft_section_groups=$GROUPS" \
-  --set "section_groups=$GROUPS"
+dms raw update <page-id> --set "draft_section_groups=$GROUPS"
 ```
 
-Setting both `draft_section_groups` and `section_groups` to the
-same value is correct: the live array is the published rendering;
-the draft array is the editing copy. The page's `published` field
-is what gates whether anything renders publicly — the section_group
-arrays themselves are just structure.
+> ⚠️ **Write `draft_section_groups` ONLY — never `section_groups`.**
+> `section_groups` is the *published* band array, the structural twin
+> of `sections`; like `sections` it is owned exclusively by `dms page
+> publish` (which copies the draft pair across). Writing it by hand —
+> especially with freshly-generated `name` UUIDs, as a re-runnable seed
+> script does — silently corrupts an already-published page:
+>
+> Every **published** `sections` row stores a `group` UUID pointing at
+> an entry in `section_groups`. Overwrite `section_groups` with new
+> UUIDs and all those published sections are orphaned — each section's
+> `group` matches no band, so the live page renders blank/ungrouped
+> until the next publish. A re-seed must never touch what's live; only
+> `dms page publish` reconciles the draft pair into the published pair
+> **together**, keeping their UUIDs consistent. This is the single most
+> common way re-running a seed script blanks a previously-published page.
 
 Once the groups exist, each section you create must include a
 `group` field whose value is the UUID `name` of its band. See §5.2.
 
-### 4.2.5 Per-section `size` and `padding` overrides
+### 4.2.5 Per-section `size`, `padding`, and `height` overrides
 
-Two fields on a section's `data.*` give per-section width and
-gutter control without touching the theme:
+Three fields on a section's `data.*` give per-section width, gutter,
+and height control without touching the theme:
 
 | Field | Type | What it does |
 |---|---|---|
 | `size` | string | The column span. Tessera's `pages.sectionArray` ships a 12-col grid (`"1"`..`"12"`); the codebase default ships `"1/3" \| "1/2" \| "2/3" \| "1"`. Omit to take the section's full width. |
 | `padding` | string | Tailwind class that overrides the sectionArray's `sectionPadding` default (usually `p-4`). Use `'p-0'` to align section content with the **LayoutGroup wrapper's left edge** — the marketing-homepage hero uses this so the eyebrow and h1 don't get the standard gutter. Set to any Tailwind padding class (`'p-2'`, `'px-0 py-6'`, etc.). |
+| `height` | string | `'fill'` makes the section's grid cell **and** its chrome box `h-full` so it stretches to the row height. **Set `height: 'fill'` on every card in a multi-card row** (KPI strips, mode/feature/tile grids, a tall card beside a short one) so siblings render **equal height** instead of each shrink-wrapping its own content. Leave it **unset (auto)** for a full-width (`size:'12'`) section or any card that's alone in its row — there's nothing to match, and auto is the right default. (`resolveHeight` in `sectionArray.jsx`; falls back to `h-full flex flex-col` when the theme ships no `heights` map.) |
 
 Seed-script example (`scripts/seed-tessera-pages.mjs`):
 ```js
@@ -309,16 +322,24 @@ The seed-loop reads these and passes them through:
 ```js
 payload.size = s.size || '12';            // default full-width
 if (s.padding != null) payload.padding = s.padding;
+if (s.height != null) payload.height = s.height;   // 'fill' for equal-height rows
+// A clean heuristic that bakes the rule in: any bordered card narrower than
+// full-width sits beside siblings, so fill it; full-width singles stay auto.
+if (s.border === 'full' && s.size !== '12') payload.height = 'fill';
 ```
 
 Common patterns:
 - **Hero / marketing intro**: `size: '8'`, `padding: 'p-0'` — flush-left
   narrow column, no gutter inside the unboxed `header` LayoutGroup.
 - **Two-column data section**: two sections at `size: '6'` each in the
-  same band — they sit side-by-side filling the row.
+  same band — they sit side-by-side filling the row; add `height: 'fill'`
+  to both so they're equal height.
+- **Card grid (KPI strip, tile/feature row)**: N cards at the same `size`
+  (e.g. four `size: '3'`), each with `border: 'full'` + **`height: 'fill'`** so
+  the row reads as a tidy equal-height set, not ragged shrink-wrapped boxes.
 - **Sidebar/main split**: `size: '3'` + `size: '9'`.
 - **Default for everything else**: omit `size` (defaults to `'12'`,
-  full-width within the LayoutGroup wrapper).
+  full-width) and omit `height` (auto — correct for full-width singles).
 
 ### 4.3 If sections look narrow / centred inside the band
 
@@ -986,6 +1007,20 @@ Three things to know:
    Verify by measuring band widths in the DOM — a too-narrow band among otherwise
    equal bands points at (a); a full-width band with a narrow grid points at (b).
 
+### 5.7.1 Inline text links that navigate (nav / footer / "View →")
+
+For *text* links that should navigate **client-side** (topnav items, footer link
+columns, a card's "View →"), prefer the **`button()` node with a chrome-less style**
+over a Lexical `link` node. Two reasons: the `ButtonNode` navigates via `useNavigate`
+(SPA, no full reload — the DMS nav convention) and uses `window.open` for external
+`http(s)://`/`//` URLs; and its `style` lets each link match the surrounding type
+(a Lexical `link` node renders an `<a>` with a single global blue-underline style and
+full-page reloads on internal paths). Add brand button styles with no bg/border (e.g.
+`navlink`, `footerlink`, `cardlink`) and call `button('Label', '/path', 'navlink')`.
+Unbuilt targets → `'#'` is a safe placeholder (the node `preventDefault`s and
+`navigate('#')` stays on the page). In view mode the node renders as a `<span>` with the
+style's classes, so it reads as text, not a `<button>`.
+
 ---
 
 ## 6. Draft-only discipline
@@ -1172,8 +1207,9 @@ Common commands:
   dms page dump <slug-or-id> --sections
   dms page create --title "…" --slug "…" [--parent <id>]
   dms page update <id> --set key=val
-  dms raw update <page-id> --set draft_section_groups='[…]' \    ← write the band list
-                            --set section_groups='[…]'
+  dms raw update <page-id> --set draft_section_groups='[…]'      ← write the band list (draft ONLY;
+                                                                    never --set section_groups — that's
+                                                                    published, owned by `page publish`)
   dms section create <page-id-or-slug> --data '<json-with-nested-element>'
   dms section update <id> --data ./file.json
   dms section delete <id> --page <slug>
