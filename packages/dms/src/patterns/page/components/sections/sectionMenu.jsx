@@ -892,6 +892,16 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
         ].filter(item => !item.cdn || item.cdn())
     }
 
+    // Nest the data-shaping menus (join / custom buckets / pivot) under the
+    // Dataset menu so they no longer crowd the top level. Each keeps its own
+    // cdn; pre-filter here (matching their previous top-level visibility) since
+    // the menu renderer doesn't evaluate cdn on nested items.
+    const datasetSubMenus = [join, customBuckets, pivot].filter(item => !item.cdn || item.cdn());
+    if (datasetSubMenus.length) {
+        if (dataset.items.length) dataset.items.push({ type: 'separator' });
+        dataset.items.push(...datasetSubMenus);
+    }
+
 
     const filter = [
         {name: 'Filters', icon: 'Filter',
@@ -1342,10 +1352,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
             ...componentInteractions,
             {type: 'separator'},
             dataset,
-            join,
             ...columns,
-            customBuckets,
-            pivot,
             ...filter,
             {type: 'separator', cdn: () => currentComponent?.useDataSource && canEditSection},
             ...display,
