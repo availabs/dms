@@ -45,7 +45,7 @@ const defaultMapStyle = {
     listItemText: "truncate flex items-center text-[15px] px-4 py-1",
   },
   hover: {
-    panel: "bg-white p-4 max-h-64 max-w-lg min-w-[300px] scrollbar-xs overflow-y-scroll",
+    panel: "bg-white p-4 max-h-64 w-[300px] min-w-[300px] max-w-[300px] scrollbar-xs overflow-y-scroll",
     title: "font-medium pb-1 w-full border-b",
     row: "flex border-b pt-1",
     label: "flex-1 font-medium text-xs text-slate-400 pl-1",
@@ -107,7 +107,7 @@ const currentDefault2Style = {
     listItemText: "truncate flex items-center px-4 py-1 text-[15px]",
   },
   hover: {
-    panel: "min-w-[300px] max-w-lg max-h-64 overflow-y-scroll rounded-lg border border-zinc-950/10 bg-white/95 p-4 shadow-sm scrollbar-xs",
+    panel: "w-[300px] min-w-[300px] max-w-[300px] max-h-64 overflow-y-scroll rounded-lg border border-zinc-950/10 bg-white/95 p-4 shadow-sm scrollbar-xs",
     title: "w-full border-b border-zinc-100 pb-1 font-medium text-zinc-700",
     row: "flex border-b border-zinc-100/80 pt-1",
     label: "flex-1 pl-1 text-xs font-medium text-zinc-500",
