@@ -44,21 +44,23 @@ const DOWNLOAD_CHUNK_SIZE = 5000;
 // Filter these out of the download column list to avoid duplicates.
 const isDisaggregatingCol = c => typeof c.name === 'string' && c.name.includes('jsonb_array_elements_text');
 
-const triggerDownload = async ({state, apiLoad, loadAllColumns, setLoading}) => {
+const triggerDownload = async ({state, apiLoad, loadAllColumns, withId, setLoading}) => {
     setLoading(true);
-    const tmpState = loadAllColumns ?
-        {
-            ...state,
-            columns: [
-                ...state?.columns,
-                ...state?.externalSource.columns.filter(originalColumn => !state?.columns.find(c => c.name === originalColumn.name))
-            ]
-                .filter(c => !isDisaggregatingCol(c))
-                .map(c => ({...c, show: true}))
-        } : {
-            ...state,
-            columns: state?.columns?.filter(c => !isDisaggregatingCol(c))
-        };
+    const needAllCols = loadAllColumns || withId;
+    let cols = needAllCols
+        ? [
+            ...state?.columns,
+            ...(state?.externalSource?.columns || []).filter(col => !state?.columns.find(c => c.name === col.name))
+          ]
+            .filter(c => !isDisaggregatingCol(c))
+            .map(c => ({...c, show: true}))
+        : state?.columns?.filter(c => !isDisaggregatingCol(c));
+
+    if (withId && !cols.some(c => c.name === 'id')) {
+        cols = [{ name: 'id', display_name: 'id', show: true, systemCol: true }, ...cols];
+    }
+
+    const tmpState = {...state, columns: cols};
 
     const downloadState = {
         ...tmpState,
@@ -129,10 +131,16 @@ const RenderDownload = ({state, apiLoad, cms_context}) => {
                     }}>Visible Columns</div>
                     {
                         isGrouping ? null : (
-                            <div className={`px-1 py-0.5 hover:bg-blue-50 ${loading ? 'hover:cursor-wait' : 'hover:cursor-pointer'} rounded-md`} onClick={() => {
-                                setOpen(false);
-                                return triggerDownload({state, apiLoad, loading, setLoading, loadAllColumns: true})
-                            }}>All Columns</div>
+                            <>
+                                <div className={`px-1 py-0.5 hover:bg-blue-50 ${loading ? 'hover:cursor-wait' : 'hover:cursor-pointer'} rounded-md`} onClick={() => {
+                                    setOpen(false);
+                                    return triggerDownload({state, apiLoad, loading, setLoading, loadAllColumns: true})
+                                }}>All Columns</div>
+                                <div className={`px-1 py-0.5 hover:bg-blue-50 ${loading ? 'hover:cursor-wait' : 'hover:cursor-pointer'} rounded-md`} onClick={() => {
+                                    setOpen(false);
+                                    return triggerDownload({state, apiLoad, loading, setLoading, withId: true})
+                                }}>All Columns + ID</div>
+                            </>
                         )
                     }
                 </div>

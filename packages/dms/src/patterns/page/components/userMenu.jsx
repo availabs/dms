@@ -4,6 +4,7 @@ import { CMSContext } from '../context'
 import { AuthContext } from "../../auth/context";
 import { ThemeContext, getComponentTheme } from "../../../ui/useTheme";
 import {userMenuTheme} from './userMenu.theme'
+import { isUserAuthed } from "../../../utils/auth";
 
 // import {NavItem, NavMenu, NavMenuItem, NavMenuSeparator, withAuth} from 'components/avl-components/src'
 // import user from "@availabs/ams/dist/reducers/user";
@@ -63,12 +64,18 @@ const EditControl = ({activeStyle}) => {
 }
 
 export default function UserMenuContainer ({title, children, activeStyle, navigableMenuActiveStyle}) {
-  const { user } = React.useContext(AuthContext) || {}
-  const { baseUrl = ''} = React.useContext(CMSContext) || {}
+  const { user, viewAsUser, setViewAsUser } = React.useContext(AuthContext) || {}
+  const { baseUrl = '', app, authPermissions } = React.useContext(CMSContext) || {}
   const { theme, UI } = React.useContext(ThemeContext) || {}
   const { NavigableMenu, Icon } = UI;
   const location = useLocation();
   const menuTheme = getComponentTheme(theme, 'pages.userMenu', activeStyle) || userMenuTheme.styles[0]
+
+  const isAdmin = React.useMemo(
+    () => (user?.groups || []).some(g => g === `${app} Admin`)
+      || isUserAuthed({ user, authPermissions, reqPermissions: ['view-as'] }),
+    [user?.groups, app, authPermissions]
+  );
 
   let authMenuItems = theme?.navOptions?.authMenu?.navItems || [
     {
@@ -90,7 +97,29 @@ export default function UserMenuContainer ({title, children, activeStyle, naviga
     }
   })
 
-  //console.log('authMenuItems', authMenuItems)
+  const viewAsMenuItems = viewAsUser
+    ? [
+        { type: 'separator' },
+        {
+          type: () => (
+            <div className="px-3 py-1 text-xs text-amber-700 font-medium truncate max-w-[200px]">
+              Viewing as {viewAsUser.email}
+            </div>
+          )
+        },
+        {
+          name: 'Exit View As',
+          icon: 'X',
+          onClick: () => setViewAsUser(null),
+        },
+      ]
+    : isAdmin
+      ? [
+          { type: 'separator' },
+          { name: 'View As User…', icon: 'Users', path: '/auth/manage/users', type: 'link' },
+        ]
+      : [];
+
   return (
     <>
       {!user?.authed ?
@@ -106,12 +135,11 @@ export default function UserMenuContainer ({title, children, activeStyle, naviga
             <div className={menuTheme.authWrapper}>
               <NavigableMenu
                 config={[
-
                   ...authMenuItems.map(menuItem => ({...menuItem, icon: menuItem.icon || 'PageRound'})),
-                    { name: 'Profile', path: '/auth/manage/profile', type: 'link', icon: 'User' },
-                    { type: 'separator'},
+                  { name: 'Profile', path: '/auth/manage/profile', type: 'link', icon: 'User' },
+                  ...viewAsMenuItems,
+                  { type: 'separator'},
                   { name: 'Logout', path: '/auth/logout', type: 'link', icon: 'Logout' },
-                  // { type: () =>  <UserMenu activeStyle={activeStyle} /> },
                 ]}
                 showTitle={false}
                 activeStyle={navigableMenuActiveStyle}

@@ -1,11 +1,13 @@
 import React from 'react'
 import { getAPI } from "./api";
 import { AuthContext, useAuth, defaultUserState } from "./context";
+import ViewAsBar from "./components/ViewAsBar";
 
 export const withAuth = Component => {
   return ({ ...props }) => {
     const authContext = useAuth()
-    return <Component {...props } user={authContext?.user }/>
+    const effectiveUser = authContext?.viewAsUser ?? authContext?.user;
+    return <Component {...props} user={effectiveUser} />
   }
 }
 
@@ -25,7 +27,13 @@ export const authProvider = (Component, config) => {
       } catch (e) {}
       return defaultUserState();
     });
+    const [viewAsUser, setViewAsUserState] = React.useState(null);
     const AuthAPI = getAPI({ AUTH_HOST, PROJECT_NAME })
+
+    const setViewAsUser = React.useCallback((targetUser) => {
+      globalThis.__dmsViewAsActive = !!targetUser;
+      setViewAsUserState(targetUser);
+    }, []);
 
     React.useEffect(() => {
       async function load() {
@@ -36,8 +44,9 @@ export const authProvider = (Component, config) => {
     }, []);
 
     return (
-      <AuthContext.Provider value={{ user, setUser, AUTH_HOST, PROJECT_NAME, AuthAPI, baseUrl, defaultRedirectUrl, isMultiTenant, siteType }}>
+      <AuthContext.Provider value={{ user, setUser, viewAsUser, setViewAsUser, AUTH_HOST, PROJECT_NAME, AuthAPI, baseUrl, defaultRedirectUrl, isMultiTenant, siteType }}>
         <Component {...props} />
+        <ViewAsBar />
       </AuthContext.Provider>
     )
   }

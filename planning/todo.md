@@ -188,6 +188,7 @@
 
 - [x] Fix `/groups/byproject` response shape — dms-server returns plain array, client expects `{ groups: [...] }` wrapper with synthetic "public" group
 - [ ] [Email redesign](./tasks/current/email-redesign.md) — redesign transactional emails (signup welcome, forgot password, password-changed confirmation) to match auth page visual identity; wire up email sending in 3 handler stubs
+- [x] [View As](./tasks/completed/view-as.md) — admin can impersonate any project user client-side; all permission checks use the viewAs user's groups; mutations blocked via globalThis flag; fixed banner with exit; works in single-tenant + multi-tenant
 
 ## config
 

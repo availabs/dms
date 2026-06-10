@@ -378,6 +378,11 @@ export async function dmsDataLoader (falcor, config, path='/') {
 }
 
 export async function dmsDataEditor (falcor, config, data={}, requestType, /*path='/'*/ ) {
+	if (globalThis.__dmsViewAsActive) {
+		console.warn('[dms] dmsDataEditor blocked — view-as mode is active');
+		window.dispatchEvent(new CustomEvent('dms-view-as-blocked', { detail: { requestType } }));
+		return { data: [] };
+	}
 	// console.log('API - dmsDataEditor', config,data)
 	const { app , type } = config.format
 	//const activeConfig = getActiveConfig(config.children, path)
