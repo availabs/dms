@@ -67,14 +67,15 @@ const uploadGisDataset = async ({file, user, damaServerPath, setGisUploadId, set
 }
 
 const publish = async ({userId, email, gisUploadId, layerName, app, type, dmsServerPath, setPublishing, setPublishStatus,
-                           updateMetaData, existingAttributes = [], columns = [], sourceId}) => {
+                           updateMetaData, existingAttributes = [], columns = [], sourceId, primaryColName}) => {
     const publishData = {
         user_id: userId,
         email: email,
         gisUploadId,
         layerName,
         columns,
-        sourceId
+        sourceId,
+        primaryColName
     };
 
     setPublishing(true);
@@ -134,6 +135,7 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate,
     const inputClass = `p-1.5 hover:bg-blue-100 rounded-sm`;
     const existingAttributes = JSON.parse(format.config || '{}')?.attributes || [];
     const [columns, setColumns] = useState([]);
+    const [primaryColName, setPrimaryColName] = useState('id');
     // pivot columns convert column headers into their values if source column has any data in them.
     // {Flooding: {pivotColumn: 'associated_hazards'}
     // pivotColumns: {finalCOlName: [srcCol1, srcCol2, srcCol3, ...]}
@@ -269,18 +271,15 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate,
 
                 {/*Render primary column selector*/}
                 <div className={'w-full pb-4 text-red-500'}>
-                    <label htmlFor={'layer-selector'}>Primary Column <span className={'text-xs italic'}>(If selected, existing records will be updated for matching column values)</span>:</label>
+                    <label htmlFor={'primary-col-selector'}>Primary Column <span className={'text-xs italic'}>(Existing records will be updated when the primary column value matches)</span>:</label>
                     <select
                         id={'primary-col-selector'}
                         className={'p-2 ml-4 bg-transparent border rounded-md hover:cursor-pointer border-red-500'}
-                        value={columns.find(c => c.isPrimary)?.name}
-                        onChange={e => setColumns(columns.map(c => c.name === e.target.value ? ({
-                            ...c,
-                            isPrimary: true
-                        }) : c))}
+                        value={primaryColName}
+                        onChange={e => setPrimaryColName(e.target.value)}
                     >
-                        <option key={'primary-col-selector-default-option'} value={undefined}>Please select a Primary column if applicable...
-                        </option>
+                        <option key={'primary-col-id'} value={'id'}>id (Row ID)</option>
+                        <option key={'primary-col-none'} value={''}>None (always insert)</option>
                         {
                             columns.map(({name, display_name}) => <option key={name}
                                                                           value={name}>{display_name || name}</option>)
@@ -360,6 +359,7 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate,
                                             type: format.type,
                                             dmsServerPath,
                                             columns,
+                                            primaryColName,
                                             publishStatus,
                                             setPublishStatus,
                                             setPublishing,

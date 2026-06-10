@@ -38,6 +38,8 @@ const GraphTitle = ({ title, ...props }) => {
   )
 }
 
+const noOp = () => {};
+
 export const GraphComponent = props => {
 
   const {
@@ -45,28 +47,15 @@ export const GraphComponent = props => {
     graphType,
     viewData,
     columns,
-    showCategories,
-    xAxisColumn,
-    yAxisColumns,
-    theme
+    theme,
+    actions = [],
+    publishHoverData = noOp,
+    hoverProvider = null
   } = props;
 
   const GraphComponent = React.useMemo(() => {
     return getGraphComponent(graphType);
   }, [graphType]);
-
-  // const colors = React.useMemo(() => {
-  //   let colors = [];
-
-  //   if (graphFormat.colors?.type === "palette") {
-  //     colors = graphFormat.colors?.value || [];
-  //   }
-  //   else if (graphFormat.colors?.type === "scheme") {
-  //     colors = getColorRange(graphFormat.colors.scheme, 13)
-  //   }
-
-  //   return graphFormat.colors?.reverse ? colors.reverse() : colors;
-  // }, [graphFormat.colors]);
 
   const margin = React.useMemo(() => {
     return {
@@ -94,8 +83,7 @@ export const GraphComponent = props => {
     };
   }, [graphFormat.tooltip]);
 
-// if (graphType === "PieGraph")
-// console.log("GraphComponent::hoverComp", hoverComp);
+// console.log("GraphComponent::actions", props.actions);
 
   return (
     <div
@@ -105,20 +93,15 @@ export const GraphComponent = props => {
       ` }
     >
 
-      <GraphTitle { ...graphFormat.title }/>
+      <GraphTitle { ...(graphFormat.title || {}) }/>
 
       <GraphComponent
         viewData={ viewData }
         columns={ columns }
-        title={ get(graphFormat, "title", "") }
         height={ graphHeight }
         width={ get(graphFormat, "width") }
         bgColor={ get(graphFormat, "bgColor", "#ffffff") }
         colors={ graphFormat.colors }
-        upperLimit={ get(graphFormat, "upperLimit") }
-
-        showCategories={ showCategories }
-        xAxisColumn={ xAxisColumn }
 
         orientation={ get(graphFormat, "orientation", "vertical") }
         groupMode={ get(graphFormat, "groupMode", "stacked") }
@@ -169,7 +152,11 @@ export const GraphComponent = props => {
         } }
         margin={ margin }
         legend={ get(graphFormat, "legend", {}) }
-        hoverComp={ hoverComp }/>
+        hoverComp={ hoverComp }
+
+        actions={ actions }
+        publishHoverData={ publishHoverData }
+        hoverProvider={ hoverProvider }/>
 
     </div>
   )

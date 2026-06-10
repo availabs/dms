@@ -8,7 +8,7 @@ import { preloadPageSections } from "../../api/preloadSectionData.js";
 // components
 import cmsFormat from "./page.format.js";
 import { CMSContext } from "./context";
-import { isUserAuthed } from "./auth.js";
+import { isUserAuthed } from "../../utils/auth.js";
 import UI from "../../ui";
 import { ThemeContext, getPatternTheme, getComponentTheme } from "../../ui/useTheme.js";
 import { registerWidget } from "../../ui/widgets";
@@ -163,6 +163,8 @@ const pagesConfig = ({
           attributes: [
             "title", "index", "authPermissions", "url_slug","parent",
             "published", "description", "icon", "navOptions", "hide_in_nav",
+            // needed when no page is registered at / and we're picking 0th page as /
+            "draft_sections", "draft_section_groups", "sections", "section_groups"
           ],
         },
         children: [

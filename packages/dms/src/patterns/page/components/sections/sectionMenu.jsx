@@ -21,6 +21,9 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
     const canEditPageLayout = isUserAuthed(['edit-page', 'edit-page-layout'], pageAuthPermissions);
     const canEditSectionPermissions = isUserAuthed(['edit-page-permissions'], pageAuthPermissions);
     const currentComponent = RegisteredComponents[value?.element?.['element-type'] || 'lexical'];
+
+// console.log("getSectionMenuItems::currentComponent", currentComponent)
+
     /** Use the map API only for the Map component; all other sections continue to use dwAPI. */
     const componentAPI =
     ['Map'].includes(currentComponent?.name) && mapAPI?.setState

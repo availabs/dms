@@ -7,6 +7,29 @@ const DefaultPalette = getColorRange(20, "div7");
 
 // console.log("SchemeOptions", SchemeOptions)
 
+const componentFunctions = {
+  providers: [
+    { id: 'hover_publish',
+      label: 'Hover: Publish Column',
+      description: 'On hover, publishes a column value to a page action param. Clears on mouse leave.',
+      trigger: 'hover',
+      args: [
+        { key: 'column', label: 'Column to publish', type: 'column-select' },
+      ],
+    }
+  ],
+  subscribers: [
+    { id: 'hover_highlight',
+      label: 'Hover: Highlight Column',
+      description: 'Highlights graph parts represented by received column.',
+      trigger: 'action_param',
+      args: [
+        { key: 'column', label: 'Column to highlight', type: 'column-select' }
+      ],
+    }
+  ]
+};
+
 const graphOptions = {
     readyToLoad: false,
     hideExternalToggle: true,
@@ -586,6 +609,7 @@ export default {
             },
         ]
     },
+    componentFunctions,
     "EditComp": Graph,
     "ViewComp": Graph,
 }
