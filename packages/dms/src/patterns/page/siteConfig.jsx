@@ -8,7 +8,7 @@ import { preloadPageSections } from "../../api/preloadSectionData.js";
 // components
 import cmsFormat from "./page.format.js";
 import { CMSContext } from "./context";
-import { isUserAuthed } from "./auth.js";
+import { isUserAuthed } from "../../utils/auth.js";
 import UI from "../../ui";
 import { ThemeContext, getPatternTheme, getComponentTheme } from "../../ui/useTheme.js";
 import { registerWidget } from "../../ui/widgets";

@@ -46,7 +46,13 @@ module.exports = async function createDownloadWorker(ctx) {
   const config = loadConfig(pgEnv);
   const connStr = `host=${config.host} port=${config.port} dbname=${config.database} user=${config.user} password=${config.password}`;
 
-  const fileNameBase = `${(source_name || 'export').replace(/\//g, '-')}_s${source_id}_v${view_id}${version ? '_' + version : ''}`;
+  // Sanitize the WHOLE composed name — not just source_name's slashes. The view `version`
+  // can carry a date like "02/27/2026"; its `/` makes ogr2ogr try to mkdir nested directories
+  // (".../02/27/2026.esri shapefile") and fail. Spaces are also awkward in shapefile paths.
+  // Collapse any run of unsafe chars to a single underscore.
+  const fileNameBase = `${source_name || 'export'}_s${source_id}_v${view_id}${version ? '_' + version : ''}`
+    .replace(/[^a-zA-Z0-9._-]+/g, '_')
+    .replace(/^_+|_+$/g, '');
   const outputDir = `${pgEnv}/s_${source_id}`;
   const tempDir = path.join(os.tmpdir(), `dms-download-${randomUUID()}`);
   fs.mkdirSync(tempDir, { recursive: true });
@@ -80,7 +86,7 @@ module.exports = async function createDownloadWorker(ctx) {
         for (const row of distinctRows) {
           const val = row.val || 'null';
           const safeVal = String(val).replace(/[^a-zA-Z0-9_-]/g, '_');
-          const groupFile = path.join(groupDir, `${safeVal}.${typeInfo.ext || fileType.toLowerCase()}`);
+          const groupFile = path.join(groupDir, typeInfo.ext ? `${safeVal}.${typeInfo.ext}` : safeVal);
           const sql = `SELECT ${selectCols} FROM ${dataSource} WHERE "${groupedByColumn}" = '${val}'`;
 
           await runOgr2ogr(typeInfo.ogr, groupFile, connStr, null, sql);
@@ -95,8 +101,10 @@ module.exports = async function createDownloadWorker(ctx) {
         await storage.write(relativePath, fs.createReadStream(zipPath));
         downloadMeta[fileType] = storage.getUrl(relativePath);
       } else {
-        // Single file
-        const outFile = path.join(tempDir, `${fileNameBase}.${typeInfo.ext || fileType.toLowerCase()}`);
+        // Single output. Shapefile has ext '' → use the bare name so ogr2ogr creates a
+        // directory datastore (.shp + .shx/.dbf/.prj inside), which runZip then zips;
+        // appending ".esri shapefile" (the old `|| fileType.toLowerCase()` fallback) is wrong.
+        const outFile = path.join(tempDir, typeInfo.ext ? `${fileNameBase}.${typeInfo.ext}` : fileNameBase);
         await runOgr2ogr(typeInfo.ogr, outFile, connStr, dataSource, null, selectCols);
 
         // Zip the output

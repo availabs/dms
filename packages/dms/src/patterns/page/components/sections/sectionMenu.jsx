@@ -21,6 +21,9 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
     const canEditPageLayout = isUserAuthed(['edit-page', 'edit-page-layout'], pageAuthPermissions);
     const canEditSectionPermissions = isUserAuthed(['edit-page-permissions'], pageAuthPermissions);
     const currentComponent = RegisteredComponents[value?.element?.['element-type'] || 'lexical'];
+
+// console.log("getSectionMenuItems::currentComponent", currentComponent)
+
     /** Use the map API only for the Map component; all other sections continue to use dwAPI. */
     const componentAPI =
     ['Map'].includes(currentComponent?.name) && mapAPI?.setState
@@ -830,6 +833,42 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                                 value={value?.['tags']}
                                 placeholder={'Add Tag...'}
                                 onChange={(v) => updateAttribute('tags', v)}
+                            />
+                        }
+                    ]
+                },
+                {
+                    // In-page-nav opt-in: a section with a Nav Label appears in the
+                    // sidebar rail "on this page" and gets a clean anchor id.
+                    name: 'Page Nav Label',
+                    cdn: () => canEditSection,
+                    value: value?.['navLabel'] || '',
+                    showValue: true,
+                    items: [
+                        {
+                            name: '',
+                            type: () => <input
+                                className='p-2 w-full bg-transparent border-b border-slate-200 text-sm focus:outline-none'
+                                placeholder={'e.g. Compliance snapshot'}
+                                defaultValue={value?.['navLabel'] || ''}
+                                onBlur={(e) => updateAttribute('navLabel', e.target.value)}
+                            />
+                        }
+                    ]
+                },
+                {
+                    name: 'Anchor ID (optional)',
+                    cdn: () => canEditSection && !!value?.['navLabel'],
+                    value: value?.['anchorId'] || '',
+                    showValue: true,
+                    items: [
+                        {
+                            name: '',
+                            type: () => <input
+                                className='p-2 w-full bg-transparent border-b border-slate-200 text-sm focus:outline-none'
+                                placeholder={'auto from label'}
+                                defaultValue={value?.['anchorId'] || ''}
+                                onBlur={(e) => updateAttribute('anchorId', e.target.value)}
                             />
                         }
                     ]

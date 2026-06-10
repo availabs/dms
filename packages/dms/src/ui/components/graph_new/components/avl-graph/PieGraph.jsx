@@ -169,7 +169,12 @@ export const PieGraph = props => {
     endAngle = 2 * Math.PI,
     padAngle = 0,
     colors,
-    showAnimations = false
+    showAnimations = false,
+    onPieEnter = null,
+    onPieLeave = null,
+    onSliceEnter = null,
+    onSliceLeave = null,
+    highlights = EmptyArray
   } = props;
 
   const Margin = React.useMemo(() => {
@@ -319,6 +324,8 @@ export const PieGraph = props => {
     ...hoverCompRest
   } = HoverCompData;
 
+// console.log("PieGraph::highlights", highlights);
+
   return (
     <div ref={ ref } className="w-full h-full avl-graph-container relative">
 
@@ -336,7 +343,12 @@ export const PieGraph = props => {
                   showAxis={ pieAxis.showAxis }
                   tickDensity={ pieAxis.tickDensity }
                   showValue={ pieAxis.showValue }
-                  valueTextSize={ pieAxis.valueTextSize }/>
+                  valueTextSize={ pieAxis.valueTextSize }
+                  onPieEnter={ onPieEnter }
+                  onPieLeave={ onPieLeave }
+                  onSliceEnter={ onSliceEnter }
+                  onSliceLeave={ onSliceLeave }
+                  highlights={ highlights }/>
               ))
           }
 
@@ -373,9 +385,15 @@ const labelTransform = (x0, x1, y0, y1) => {
   return `rotate(${ x - 90 }) translate(${ y }, 0) rotate(${ x < 180 ? 0 : 180 })`;
 }
 
-const Slice = React.memo(({ state, data, innerRadius, outerRadius, index,
-                            onMouseMove, showAnimations, valueTextSize,
-                            endAngle, startAngle, padAngle, ...props }) => {
+const Slice = React.memo(props => {
+
+  const {
+    state, data, innerRadius, outerRadius, index,
+    onMouseMove, showAnimations, valueTextSize,
+    endAngle, startAngle, padAngle,
+    onSliceEnter, onSliceLeave, highlight = false,
+    ...restOfProps
+  } = props
 
   const transitionWrapper = React.useMemo(() => {
     return showAnimations ?
@@ -388,6 +406,10 @@ const Slice = React.memo(({ state, data, innerRadius, outerRadius, index,
       .innerRadius(innerRadius)
       .cornerRadius(0);
   }, [innerRadius]);
+
+  const color = React.useMemo(() => {
+    return highlight ? "red" : data.color;
+  }, [highlight, data.color]);
 
   const ref = React.useRef();
 
@@ -404,7 +426,7 @@ const Slice = React.memo(({ state, data, innerRadius, outerRadius, index,
         .attr("d", arc({ endAngle, startAngle, padAngle, outerRadius: 0.1 }))
       )
       .attr("d", arc({ endAngle, startAngle, padAngle, outerRadius }))
-      .attr("fill", data.color);
+      .attr("fill", color);
     }
     else if (state === "exiting") {
       transitionWrapper(d3select(ref.current))
@@ -425,22 +447,32 @@ const Slice = React.memo(({ state, data, innerRadius, outerRadius, index,
                 return arc(d);
               };
             })
-            .attr("fill", data.color)
+            .attr("fill", color)
       }
       else {
         d3select(ref.current)
-          .attr("fill", data.color)
+          .attr("fill", color)
           .attr("d", arc({ endAngle, startAngle, padAngle, outerRadius }))
       }
     }
-  }, [ref, arc, data, outerRadius, endAngle, startAngle, padAngle, state, transitionWrapper, showAnimations]);
+  }, [ref, arc, data, color, outerRadius, endAngle, startAngle, padAngle, state, transitionWrapper, showAnimations]);
 
   const _onMouseMove = React.useCallback(e => {
     onMouseMove(e, { ...data });
   }, [onMouseMove, data]);
 
+  const onMouseEnter = React.useMemo(() => {
+    if (typeof onSliceEnter !== "function") return null;
+    return e => onSliceEnter(e, { index, key: data.key, data });
+  }, [onSliceEnter, index, data]);
+
+  const onMouseLeave = React.useMemo(() => {
+    if (typeof onSliceLeave !== "function") return null;
+    return e => onSliceLeave(e, { index, key: data.key, data });
+  }, [onSliceLeave, index, data]);
+
   const { showValue, showLarge, ...valueData } = React.useMemo(() => {
-    if (!props.showValue) return { showValue: false };
+    if (!restOfProps.showValue) return { showValue: false };
     if ((endAngle - startAngle) < Math.PI * 0.01) return { showValue: false };
 
     if ((endAngle - startAngle) < Math.PI * 0.6) {
@@ -490,12 +522,14 @@ const Slice = React.memo(({ state, data, innerRadius, outerRadius, index,
       dominantBaseline: sf === 1 ? "ideographic" : "hanging",
       fontSize: radius * (ValueTextSizeMap[valueTextSize] || ValueTextSizeMap["medium"])
     }  
-  }, [startAngle, endAngle, innerRadius, outerRadius, data, props.showValue, valueTextSize]);
+  }, [startAngle, endAngle, innerRadius, outerRadius, data, restOfProps.showValue, valueTextSize]);
 
   return (
     <>
       <path ref={ ref } className="avl-slice" stroke="none"
-        onMouseMove={ _onMouseMove }/>
+        onMouseMove={ _onMouseMove }
+        onMouseEnter={ onMouseEnter }
+        onMouseLeave={ onMouseLeave }/>
 
       { !showValue ? null :
         !showLarge ? (
@@ -634,7 +668,20 @@ const CircleAxis = ({ pie, outerRadius, tickDensity }) => {
   )
 }
 
-const Pie = React.memo(({ pie, dx, dy, ldy, state, label, showAnimations, showAxis, ...props }) => {
+const Pie = React.memo(props => {
+
+  const {
+    pie, index,
+    dx, dy, ldy,
+    state,
+    label,
+    showAnimations,
+    showAxis,
+    onPieEnter,
+    onPieLeave,
+    highlights,
+    ...restOfProps
+  } = props;
 
   const ref = React.useRef();
 
@@ -672,18 +719,41 @@ const Pie = React.memo(({ pie, dx, dy, ldy, state, label, showAnimations, showAx
       .style("transform", `translateY(${ ldy }px)`)
   }, [labelRef, ldy, transitionWrapper]);
 
+  const onMouseEnter = React.useMemo(() => {
+    if (typeof onPieEnter !== "function") return null;
+    return e => onPieEnter(e, { index, pie });
+  }, [onPieEnter, index, pie]);
+
+  const onMouseLeave = React.useMemo(() => {
+    if (typeof onPieLeave !== "function") return null;
+    return e => onPieLeave(e, { index, pie });
+  }, [onPieLeave, index, pie]);
+
+  const highlight = React.useMemo(() => {
+    const filtered = highlights.filter(h => h.type === "index" && h.value == index);
+    return Boolean(filtered.length);
+  }, [highlights, index]);
+
   return (
     <g ref={ ref }>
-      { pie.map((p, i) => (
-          <Slice key={ p.data.key }
-            { ...props } { ...p }
-            state={ state }
-            showAnimations={ showAnimations }/>
-        ))
-      }
+      <g
+        onMouseEnter={ onMouseEnter }
+        onMouseLeave={ onMouseLeave }
+      >
+
+        { pie.map((p, i) => (
+            <Slice key={ p.data.key }
+              { ...restOfProps } { ...p }
+              state={ state }
+              showAnimations={ showAnimations }
+              index={ index }
+              highlight={ highlight || Boolean(highlights.find(h => h.type === "key" && h.value == p.data.key)) }/>
+          ))
+        }
+      </g>
 
       { !showAxis ? null :
-        <CircleAxis { ...props }
+        <CircleAxis { ...restOfProps }
           pie={ pie }/>
       }
 

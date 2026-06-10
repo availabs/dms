@@ -1,6 +1,7 @@
 import React, {useState, useEffect, useMemo, useRef, useCallback, useContext, useImperativeHandle, forwardRef} from 'react'
 import {useNavigate} from "react-router";
-import writeXlsxFile from 'write-excel-file';
+import ExcelJS from 'exceljs';
+import JSZip from 'jszip';
 import { isEqual } from "lodash-es";
 import {useImmer} from "use-immer";
 import {CMSContext, ComponentContext, PageContext} from "../../../../context";
@@ -44,21 +45,23 @@ const DOWNLOAD_CHUNK_SIZE = 5000;
 // Filter these out of the download column list to avoid duplicates.
 const isDisaggregatingCol = c => typeof c.name === 'string' && c.name.includes('jsonb_array_elements_text');
 
-const triggerDownload = async ({state, apiLoad, loadAllColumns, setLoading}) => {
+const triggerDownload = async ({state, apiLoad, loadAllColumns, withId, setLoading}) => {
     setLoading(true);
-    const tmpState = loadAllColumns ?
-        {
-            ...state,
-            columns: [
-                ...state?.columns,
-                ...state?.externalSource.columns.filter(originalColumn => !state?.columns.find(c => c.name === originalColumn.name))
-            ]
-                .filter(c => !isDisaggregatingCol(c))
-                .map(c => ({...c, show: true}))
-        } : {
-            ...state,
-            columns: state?.columns?.filter(c => !isDisaggregatingCol(c))
-        };
+    const needAllCols = loadAllColumns || withId;
+    let cols = needAllCols
+        ? [
+            ...state?.columns,
+            ...(state?.externalSource?.columns || []).filter(col => !state?.columns.find(c => c.name === col.name))
+          ]
+            .filter(c => !isDisaggregatingCol(c))
+            .map(c => ({...c, show: true}))
+        : state?.columns?.filter(c => !isDisaggregatingCol(c));
+
+    if (withId && !cols.some(c => c.name === 'id')) {
+        cols = [{ name: 'id', display_name: 'id', show: true, systemCol: true }, ...cols];
+    }
+
+    const tmpState = {...state, columns: cols};
 
     const downloadState = {
         ...tmpState,
@@ -84,20 +87,61 @@ const triggerDownload = async ({state, apiLoad, loadAllColumns, setLoading}) => 
         page++;
     }
 
-    const schema = tmpState?.columns
-        .filter(({show}) => show)
-        .map(({name, display_name, customName}) => ({
-            column: customName || display_name || name,
-            value: data => !Array.isArray(data?.[name]) && typeof data?.[name] === 'object' ? JSON.stringify(data?.[name]) : data?.[name],
-        }));
+    const visibleCols = tmpState?.columns.filter(({show}) => show);
+
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Sheet1');
+
+    worksheet.columns = visibleCols.map(({name, display_name, customName}) => ({
+        header: customName || display_name || name,
+        key: name,
+    }));
+
+    allData.forEach(rowData => {
+        const row = {};
+        visibleCols.forEach(({name}) => {
+            const val = rowData[name];
+            row[name] = !Array.isArray(val) && typeof val === 'object' && val !== null ? JSON.stringify(val) : val;
+        });
+        worksheet.addRow(row);
+    });
+
+    const hasSystemCol = visibleCols.some(c => c.systemCol);
+
+    if (hasSystemCol) {
+        worksheet.eachRow(row => {
+            row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+                cell.protection = { locked: visibleCols[colNumber - 1]?.systemCol === true };
+            });
+        });
+        // protect() with no password so ExcelJS emits <sheetProtection sheet="1"/>
+        // without the SHA-512 hash that LibreOffice/Google Sheets don't honour.
+        // We then inject the legacy OOXML XOR hash for "0000" via JSZip post-processing.
+        await worksheet.protect('');
+    }
 
     const filterStr = Object.keys(state?.filters?.groups || {}).length ? JSON.stringify(state?.filters) : '';
     const fileName = `${state?.externalSource.view_name} - ${filterStr} - ${getCurrDate()}`;
 
-    await writeXlsxFile(allData, {
-        schema,
-        fileName: `${fileName}.xlsx`,
-    });
+    let buffer = await workbook.xlsx.writeBuffer();
+
+    if (hasSystemCol) {
+        const zip = await JSZip.loadAsync(buffer);
+        const sheetXml = await zip.file('xl/worksheets/sheet1.xml').async('string');
+        // CC6F is the legacy OOXML XOR hash for the password "0000"
+        zip.file('xl/worksheets/sheet1.xml',
+            sheetXml.replace('<sheetProtection sheet="1"/>', '<sheetProtection sheet="1" password="CC6F"/>'));
+        buffer = await zip.generateAsync({ type: 'arraybuffer', compression: 'DEFLATE' });
+    }
+
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${fileName}.xlsx`;
+    a.click();
+    URL.revokeObjectURL(url);
+
     setLoading(false);
 }
 const RenderDownload = ({state, apiLoad, cms_context}) => {
@@ -129,10 +173,16 @@ const RenderDownload = ({state, apiLoad, cms_context}) => {
                     }}>Visible Columns</div>
                     {
                         isGrouping ? null : (
-                            <div className={`px-1 py-0.5 hover:bg-blue-50 ${loading ? 'hover:cursor-wait' : 'hover:cursor-pointer'} rounded-md`} onClick={() => {
-                                setOpen(false);
-                                return triggerDownload({state, apiLoad, loading, setLoading, loadAllColumns: true})
-                            }}>All Columns</div>
+                            <>
+                                <div className={`px-1 py-0.5 hover:bg-blue-50 ${loading ? 'hover:cursor-wait' : 'hover:cursor-pointer'} rounded-md`} onClick={() => {
+                                    setOpen(false);
+                                    return triggerDownload({state, apiLoad, loading, setLoading, loadAllColumns: true})
+                                }}>All Columns</div>
+                                <div className={`px-1 py-0.5 hover:bg-blue-50 ${loading ? 'hover:cursor-wait' : 'hover:cursor-pointer'} rounded-md`} onClick={() => {
+                                    setOpen(false);
+                                    return triggerDownload({state, apiLoad, loading, setLoading, withId: true})
+                                }}>All Columns + ID</div>
+                            </>
                         )
                     }
                 </div>

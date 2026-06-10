@@ -922,6 +922,28 @@ function createController(dbName = 'dms-sqlite', options = {}) {
     },
 
     /**
+     * Find a row by its actual `id` column (integer primary key).
+     * Used by publish upsert when primary column is 'id' (not data->>'id').
+     * @param {string} app
+     * @param {string[]} types - types to search across (e.g. [validType, invalidType])
+     * @param {number|string} rowId - the row id value to match
+     * @returns {Object|null} first matching row {id, type, data} or null
+     */
+    findByRowId: async (app, types, rowId) => {
+      const resolved = await ensureForRead(app, types[0]);
+      const qb = new QueryBuilder(dbType);
+      const sql = `
+        SELECT id, type, data FROM ${resolved.fullName}
+        WHERE app = ${qb.param(app)}
+        AND ${qb.arrayIn('type', types)}
+        AND id = ${qb.param(Number(rowId))}
+        LIMIT 1;
+      `;
+      const rows = await dms_db.promise(sql, qb.getValues());
+      return rows[0] || null;
+    },
+
+    /**
      * Update both type and data for a row by ID. Split-table aware.
      * Used by publish upsert when a matching record is found.
      * @param {string} app - application name (for source_id lookup)

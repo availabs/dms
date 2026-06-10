@@ -148,12 +148,15 @@ export const SunburstGraph = props => {
     hoverComp = EmptyObject,
     indexTextSize = "medium",
     valueTextSize = "medium",
-    className ="",
+    className = "",
     startAngle = 0,
     endAngle = 2 * Math.PI,
     padAngle = 0,
     colors,
-    showAnimations = false
+    showAnimations = false,
+    highlights = EmptyArray,
+    onSliceEnter = null,
+    onSliceLeave = null
   } = props;
 
 // console.log("SunburstGraph::data", data);
@@ -235,6 +238,9 @@ export const SunburstGraph = props => {
     ...hoverCompRest
   } = HoverCompData;
 
+// console.log("SunburstGraph::onSliceEnter", onSliceEnter)
+// console.log("SunburstGraph::onSliceLeave", onSliceLeave)
+
 // console.log("SunburstGraph::state.sunburstData", state.sunburstData);
   
   return (
@@ -254,7 +260,10 @@ export const SunburstGraph = props => {
                 indexTextSize={ indexTextSize }
                 valueTextSize={ valueTextSize }
                 valueFormat={ HoverCompData.valueFormat }
-          			onMouseMove={ onMouseMove }/>
+          			onMouseMove={ onMouseMove }
+          			highlights={ highlights }
+          			onSliceEnter={ onSliceEnter }
+          			onSliceLeave={ onSliceLeave }/>
           	))
           }
 
@@ -301,7 +310,11 @@ const Slice = React.memo(({ node, colorFunc, isRoot, ...props }) => {
     onMouseMove,
     indexTextSize,
     valueTextSize,
-    valueFormat
+    valueFormat,
+    onSliceEnter,
+    onSliceLeave,
+    highlights = EmptyArray,
+    highlight = false
   } = props;
 
   const ref = React.useRef();
@@ -321,10 +334,28 @@ const Slice = React.memo(({ node, colorFunc, isRoot, ...props }) => {
     ]
   }, [indexTextSize, valueTextSize]);
 
+  const doHighlight = React.useMemo(() => {
+  	if (node.depth === 0) return false;
+
+  	if (highlight) return true;
+
+  	const index = node.depth === 1 ? node.data[0] : node.parent.data[0];
+  	const key = node.depth === 2 ? node.data[0] : undefined;
+
+  	if (node.depth === 1) {
+	    const filtered = highlights.filter(h => h.type === "index" && h.value == index);
+	    return Boolean(filtered.length);
+  	}
+  	if (node.depth === 2) {
+	    const filtered = highlights.filter(h => h.type === "key" && h.value == key);
+	    return Boolean(filtered.length);
+  	}
+  }, [highlights, highlight, node]);
+
   const rgbaColor = React.useMemo(() => {
   	const alpha = Math.min(1.0, 1.0 - (node.depth - 1) * 0.15);
-  	return color2rgba(color, alpha);
-  }, [node, color]);
+  	return doHighlight ? color2rgba("#ff0000", alpha) : color2rgba(color, alpha);
+  }, [node, color, doHighlight]);
 
   React.useEffect(() => {
 
@@ -366,12 +397,33 @@ const Slice = React.memo(({ node, colorFunc, isRoot, ...props }) => {
   	const avgAngle = node.x0 + (node.x1 - node.x0) * 0.5;
   	const PI = Math.PI;
   	return avgAngle > PI * 0.5 && avgAngle < PI * 1.5 ? "75%" : "25%";
-  }, [node])
+  }, [node]);
+
+  const onMouseEnter = React.useMemo(() => {
+  	if (node.depth === 0) return null;
+  	if (typeof onSliceEnter !== "function") return null;
+  	const index = node.depth === 1 ? node.data[0] : node.parent.data[0];
+  	const key = node.depth === 2 ? node.data[0] : undefined;
+  	return e => onSliceEnter(e, { node, index, key });
+  }, [onSliceEnter, node]);
+
+  const onMouseLeave = React.useMemo(() => {
+  	if (node.depth === 0) return null;
+  	if (typeof onSliceLeave !== "function") return null;
+  	const index = node.depth === 1 ? node.data[0] : node.parent.data[0];
+  	const key = node.depth === 2 ? node.data[0] : undefined;
+  	return e => onSliceLeave(e, { node, index, key });
+  }, [onSliceLeave, node]);
+
+// console.log("SunburstGraph::Slice::onMouseEnter", onMouseEnter)
+// console.log("SunburstGraph::Slice::onMouseLeave", onMouseLeave)
 
 	return (
 		<g>
     	<path ref={ ref } className="avl-slice" stroke="none"
-    		onMouseMove={ doOnMouseMove }/>
+    		onMouseMove={ doOnMouseMove }
+    		onMouseEnter={ onMouseEnter }
+    		onMouseLeave={ onMouseLeave }/>
 
     	<defs>
     		<path id={ id } d={ textPath } fill="none" stroke="none"/>
@@ -447,7 +499,7 @@ const Slice = React.memo(({ node, colorFunc, isRoot, ...props }) => {
     			<Slice key={ n.data[0] } { ...props }
     				node={ n }
     				color={ isRoot ? colorFunc(n, i) : color }
-    				onMouseMove={ onMouseMove }/>
+    				highlight={ doHighlight }/>
     		))
     	}
     </g>

@@ -26,3 +26,5 @@ export const getAggFunc = column => {
 	const type = (column.fn || column.defaultFn || "count").toLowerCase();
 	return AggFuncs?.[type] || first;
 }
+
+export const getColumnName = column => column.normalName || column.name;
