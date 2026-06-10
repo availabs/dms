@@ -106,7 +106,9 @@ const triggerDownload = async ({state, apiLoad, loadAllColumns, withId, setLoadi
         worksheet.addRow(row);
     });
 
-    if (withId) {
+    const hasSystemCol = visibleCols.some(c => c.systemCol);
+
+    if (hasSystemCol) {
         worksheet.eachRow(row => {
             row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
                 cell.protection = { locked: visibleCols[colNumber - 1]?.systemCol === true };
@@ -123,7 +125,7 @@ const triggerDownload = async ({state, apiLoad, loadAllColumns, withId, setLoadi
 
     let buffer = await workbook.xlsx.writeBuffer();
 
-    if (withId) {
+    if (hasSystemCol) {
         const zip = await JSZip.loadAsync(buffer);
         const sheetXml = await zip.file('xl/worksheets/sheet1.xml').async('string');
         // CC6F is the legacy OOXML XOR hash for the password "0000"
