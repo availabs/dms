@@ -1,7 +1,111 @@
 # Task: In-page nav — make the existing sidebar rail themeable, author-toggleable, and able to host custom content
 
 **Topic:** patterns/page (section group / in-page nav) + ui (`SideNav`) + themes (transportny)
-**Status:** scoped 2026-06-03 — not started.
+**Status:** ✅ **DONE 2026-06-09** — built + verified live on map_21 (2173915); skill written
+([`adding-an-in-page-nav-rail.md`](../../skills/adding-an-in-page-nav-rail.md)). See Build plan below.
+
+## Build plan & status (session 2026-06-08)
+
+Working repo: **dms-template** (the running dev env — vite `npmrds.localhost:5173`,
+dms-server `localhost:3001`; `transportNY/src/modules/dms` is an in-sync mirror checkout
+of the same `availabs/dms` repo, synced via the remote later). Live target page:
+**2173915** (`map_21_system_performance`, `npmrdsv5+npmrds_sub`).
+
+**Decisions locked this session**
+- **D1 (Phase 2 item rendering):** render the rail from a NEW dedicated, themeable
+  `InPageNav` component driven by `pages.sectionGroup` theme keys — NOT `UI.SideNav`.
+  Cleaner scroll-spy active state + single pattern-theme surface. `UI.SideNav` is a
+  heavyweight route-based nav; overkill for an in-page TOC.
+- **D2 (Phase 5 rail content):** **Option A — a `sidebar` section group.** A group named
+  `sidebar` with `position: 'sidebar'` (so `getSectionGroups('content'/'top'/'bottom')`
+  never renders it as a band). Its sections render in the rail below the nav via the
+  existing `SectionArray` scoped to that group (full editability preserved — SectionArray
+  filters the full sections array by `group` internally). (User-selected.)
+- **D3 (Phase 6 gating):** rail attaches to the **primary content group** = first
+  `position==='content'` group by index (was hardcoded `group.name === 'default'`). BC:
+  docs sites' primary content group IS `default`, so the rail still attaches there.
+- **D4 (Phase 1):** the author toggle **already exists** — `settingsPane.jsx:209-224`
+  ("Show Content Sidebar" None/Left/Right → `togglePageSetting(item,'sidebar',…)`). No
+  page.format select needed; just add `navLabel`/`anchorId` as recognized section fields.
+
+**File changes (dms-template/src/dms/…)** — ✅ all done + verified live in edit mode
+- [x] `patterns/page/components/sections/sectionGroup.theme.js` — rail container keys +
+      nav card/label/list/item/active + **`contentRow`/`contentCol`** (the two-column row).
+      Minimal default look (no card, plain links, empty label) so legacy rails ~unchanged.
+- [x] `ui/components/useScrollSpy.js` (NEW, `.js` hook) — IntersectionObserver active id,
+      `rootMargin` tuned to the ~128px sticky offset. **Verified: active item flips on scroll.**
+- [x] `patterns/page/components/sections/InPageNav.jsx` (NEW, component-only) — renders
+      menuItems from `pages.sectionGroup` theme + scroll-spy active state.
+- [x] `patterns/page/pages/_utils/index.js` (`getInPageNav`) — `edit` arg (draft vs
+      published); NEW `navLabel`/`anchorId` opt-in branch (decoupled from title/level/type);
+      each menuItem carries `anchorId`. Exported `slugifyAnchor` (shared w/ section.jsx).
+- [x] `patterns/page/components/sections/section.jsx` — clean `id={anchorId}` + `scroll-mt-36`
+      on both SectionEdit & SectionView wrappers; legacy `#Title` alias kept.
+- [x] `patterns/page/components/sections/sectionGroup.jsx` — see **DESIGN PIVOT** below.
+- [x] `patterns/page/page.format.js` — `navLabel` + `anchorId` added to `cmsSection.attributes`.
+- [x] `patterns/page/components/sections/sectionMenu.jsx` — "Page Nav Label" + "Anchor ID"
+      inputs in the section Display submenu (anchorId only shows once navLabel is set).
+- [x] `src/themes/transportny/themev2.js` — `pages.sectionGroup` block (card, mono "ON THIS
+      PAGE" label, slate items, amber active) **+ `contentRow`/`contentCol`**. NOTE: the
+      earlier flex hack on `layoutGroup.styles[content]` was **reverted** (see pivot).
+- [x] Live wiring on 2173915 (Phase 7): `sidebar:'right'`; 6 `navLabel`s on draft header rows
+      **2173918** (Compliance snapshot) / **2174073** (Reliability trends) / **2173960** (How
+      targets work) / **2174150** (Regional · MPO) / **2174152** (Urban congestion) /
+      **2174103** (Annual download); `sidebar` group (`position:'sidebar'`) + "related" lexical
+      card **2174693** (group `sidebar`). Verified via Playwright on the live edit page.
+
+### DESIGN PIVOT (2026-06-08) — rail column layout lives in the **pages theme**, not layoutGroup
+Initial build rendered the rail as the `LayoutGroup`'s `outerChildren` and made the band a
+flex row by adding `flex` to `layoutGroup.styles[content].wrapper1`. That stacked the rail
+above content on transportny (the band's `theme:'default'` resolves to the `content`
+layoutGroup style, whose `wrapper1` is a plain block), and editing the shared `content`
+style is too broad. **Per user guidance** ("the page pattern has settings for the layout of
+these columns and it is also controlled in the pages theme"), the rail is now rendered
+**inside the band content** as a flex row `pages.sectionGroup.contentRow` →
+`[contentCol (flex-1) | rail (w-302, sticky)]`, with the `layoutGroup` change reverted. Net:
+the entire content↔rail two-column layout is owned by `pages.sectionGroup` theme keys; no
+shared `layoutGroup` style is touched. Rail side flips via flex `order`. Rail card sits
+inside the band's `max-w-[1480px]` container (matches the mockup), content reflows narrower.
+
+### Data-model notes (for the next session)
+- Stored `draft_sections` are `{id, ref}` refs; the full section (incl. `group` = band UUID
+  and `navLabel`) lives on the **component row** and is hydrated at render. So `navLabel` is
+  set on the component row (`dms section update <id> --set navLabel=…`).
+- Gating: rail attaches to the band of the **first section carrying a `navLabel`**
+  (`railGroupName = sections.find(s=>s.navLabel)?.group || 'default'`). Robust to this page's
+  three same-`position:'content'` bands; `'default'` fallback keeps legacy docs BC.
+- The page has separate published `sections` (2174519+) vs `draft_sections` (2173918+). Our
+  navLabels are on the **draft** rows → rail shows in **edit** mode (task is draft-only).
+
+### BC notes
+- Non-rail bands: `showRail` gates everything; band renders `mainSections` directly (no
+  `contentRow` wrapper) → byte-identical. Verified by code path.
+- Legacy `item.sidebar` docs pages: rail moved from `outerChildren` to in-content flex row;
+  default `sectionGroupTheme` now supplies `contentRow`/`contentCol`, so they still get a
+  working rail beside content (look may shift slightly — acceptable per Phase-2 decision).
+
+### Sticky fix (2026-06-09)
+`contentRow` must be `items-stretch`, NOT `items-start`. With `items-start` the rail flex
+column collapses to its content height, so the inner `sideNavContainer2` (`sticky`) has no
+room to pin and scrolls away. `items-stretch` makes the rail column full band height → the
+sticky inner pins while you scroll the band. Pin offset set to `top-[60px]` /
+`h-[calc(100vh-68px)]` (per user request, was 120/128). Verified: rail nav top goes 309 → 60
+(pinned) → 60 across scrollY 0 / 1600 / 3200.
+
+### Verification (Playwright, live edit page `npmrds.localhost:5173/edit/map_21`)
+- Rail renders on the right with the transportNYv2 card; "ON THIS PAGE" label + all 6 nav
+  items; "// RELATED" card below from the `sidebar` group. Content reflows to the left col.
+- Scroll-spy: active item flips with scroll (e.g. "Regional · MPO" active at scrollY 2600).
+- Console: only the pre-existing Card-cell `key`-spread warnings (DisplayCalculatedCell /
+  VerdictDotView) — none from InPageNav / useScrollSpy / sectionGroup.
+- Auth helper: `scratchpad/npmrdsv5-dev2/{login,verify_rail3}.mjs`; auth.json refreshed.
+
+### Follow-ups (not done this session)
+- Sync the dms-lib + theme changes to the `transportNY/src/modules/dms` mirror checkout
+  (same `availabs/dms` remote) when convenient.
+- `transportny` `pages.sectionGroup` additions (the `contentRow`/`contentCol`/card keys) and
+  the reverted `layoutGroup` edit take effect on a `themev2.js` reload; the bundled default
+  `sectionGroupTheme` already covers the layout so the live page works now.
 
 ## Decision / context
 

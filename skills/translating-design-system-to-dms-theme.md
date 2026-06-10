@@ -128,9 +128,15 @@ in the product.
    > gradients (`tny-hero-topo`/`tny-map`), `:active` margin-shift (`tny-press`),
    > `@font-face`. Symptom of forgetting it: the hero/buttons look unstyled
    > even though the theme key is correct.
-5. **Wire up the icons.** Inline-pasted SVGs in the mockups become
-   React components in `theme/icons/`, registered in
-   `theme/icons.js` as a `{ Name: <Component /> }` map.
+5. **Wire up the icons.** The mockups' inline SVGs become named entries
+   in the design-system registry `theme/icons.js` (`{ Name: <Component /> }`),
+   and the **live** `icons.jsx` is **generated** from it — don't hand-maintain
+   two copies. Run `node scripts/icons-audit.mjs --brand <b>` to confirm every
+   page svg is a named, registered icon (fill any gaps in `theme/icons.js` +
+   the `theme.html` catalog), then `node scripts/icons-sync.mjs --brand <b>` to
+   regenerate `icons.jsx` (CI: `--check`). The runtime reads `theme.Icons` from
+   the generated file. Full lifecycle:
+   [`managing-design-system-icons.md`](./managing-design-system-icons.md).
 6. **Produce `tailwind.additions.js` and `index.css.additions`.**
    Brand colours, font families, custom scales → Tailwind config.
    `@font-face`, surface utilities → CSS additions.

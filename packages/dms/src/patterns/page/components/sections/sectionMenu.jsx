@@ -835,6 +835,42 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                     ]
                 },
                 {
+                    // In-page-nav opt-in: a section with a Nav Label appears in the
+                    // sidebar rail "on this page" and gets a clean anchor id.
+                    name: 'Page Nav Label',
+                    cdn: () => canEditSection,
+                    value: value?.['navLabel'] || '',
+                    showValue: true,
+                    items: [
+                        {
+                            name: '',
+                            type: () => <input
+                                className='p-2 w-full bg-transparent border-b border-slate-200 text-sm focus:outline-none'
+                                placeholder={'e.g. Compliance snapshot'}
+                                defaultValue={value?.['navLabel'] || ''}
+                                onBlur={(e) => updateAttribute('navLabel', e.target.value)}
+                            />
+                        }
+                    ]
+                },
+                {
+                    name: 'Anchor ID (optional)',
+                    cdn: () => canEditSection && !!value?.['navLabel'],
+                    value: value?.['anchorId'] || '',
+                    showValue: true,
+                    items: [
+                        {
+                            name: '',
+                            type: () => <input
+                                className='p-2 w-full bg-transparent border-b border-slate-200 text-sm focus:outline-none'
+                                placeholder={'auto from label'}
+                                defaultValue={value?.['anchorId'] || ''}
+                                onBlur={(e) => updateAttribute('anchorId', e.target.value)}
+                            />
+                        }
+                    ]
+                },
+                {
                     name: 'Add Help Text',
                     cdn: () => canEditSection,
                     onClick: onAddHelpText

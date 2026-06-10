@@ -171,11 +171,18 @@ function toTitleCase(str='') {
     text => text.charAt(0).toUpperCase() + text.substring(1).toLowerCase()
   );
 }
-export const sectionsEditBackill = (item, baseUrl, apiUpdate, search) => {
+export const sectionsEditBackill = (item, baseUrl, apiUpdate, search, theme) => {
     if(!item.draft_section_groups && item?.id) {
+            // Default section-group style comes from the pages theme (sane simple
+            // setting), so a brand owns the default scaffold. Falls back to 'content'.
+            const defaultStyle = theme?.pages?.sectionGroup?.defaultStyle || 'content'
             let newItem = {id: item.id}
             newItem.draft_section_groups = [
-                {name: 'default', position: 'content', index: 0, theme: 'content'}
+                {name: 'default', position: 'content', index: 0, theme: defaultStyle},
+                // Every page gets a `sidebar` group so the in-page-nav rail always has an
+                // author-reachable content area. position:'sidebar' keeps it out of the
+                // top/content/bottom band renders (and out of the section-groups pane).
+                {name: 'sidebar', position: 'sidebar', index: 99, theme: defaultStyle},
             ]
             if(item?.header && item?.header !== 'none' ) {
                 newItem.draft_section_groups.push(
@@ -266,13 +273,35 @@ export const sectionsBackill = (item, baseUrl, apiUpdate) => {
 
 const parseData = data => !data ? {} : typeof data === "object" ? data : JSON.parse(data)?.text
 
-export function getInPageNav(item, theme) {
-    const currentDI = item
+// Slug used as a section's DOM anchor id. Shared by getInPageNav (the rail link
+// target) and section.jsx (the id it emits) so the two always agree — this is a
+// correctness coupling, not a brevity helper.
+export const slugifyAnchor = (str = '') =>
+    String(str).toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+
+export function getInPageNav(item, theme, edit) {
+    // In edit mode the rail must preview the in-progress draft; in view it reads
+    // the published sections. (Phase 6 — was hardcoded to item.sections.)
+    const sections = edit ? item?.draft_sections : item?.sections
 
     //console.log('test 123', theme)
 
-    const menuItems = (Array.isArray(currentDI?.sections) ? currentDI.sections : []).reduce((acc, {title, element, level: levelFromProp, ...props}) => {
+    const menuItems = (Array.isArray(sections) ? sections : []).reduce((acc, {title, element, level: levelFromProp, navLabel, anchorId, ...props}) => {
         if(!element) return acc;
+
+        // ── NEW: explicit opt-in via `navLabel` ──
+        // Decoupled from title/level/element-type, so empty-title `h2`-headed
+        // sections (e.g. the MAP-21 §-headers) can participate in the rail.
+        if(navLabel) {
+            const id = anchorId || slugifyAnchor(navLabel);
+            acc.push({
+                name: navLabel,
+                anchorId: id,
+                onClick: () => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' }),
+            });
+            return acc;
+        }
+
         const level = Array.isArray(levelFromProp) ? levelFromProp[0] : levelFromProp;
         const isLexical = element['element-type'] === 'lexical' || !element['element-type'];
         const isCard = element['element-type'] === 'Card';
