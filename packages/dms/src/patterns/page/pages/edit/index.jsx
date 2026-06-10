@@ -96,7 +96,7 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
 		// -------------------------------------------------------------------]
 		if(!item.draft_section_groups && item?.id) {
 			console.log('backfill------------------')
-			sectionsEditBackill(item,baseUrl,apiUpdate, search)
+			sectionsEditBackill(item,baseUrl,apiUpdate, search, theme)
 		}
 
 	},[])

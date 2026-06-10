@@ -67,6 +67,17 @@ mockup across all five bands.
   — `top`/`bottom` bands won't align with the content column.**
 - **Centered topnav nav links** (user): override the nav styled-paragraph `format:'center'`
   so it centers in the 1fr middle column (mirrors the mockup's justify-between middle group).
+- **Wired the links** (user): converted the plain-text nav/footer/card "links" into
+  **ButtonNode** links (client-side `useNavigate`, not `<a>` full-reload) so styling is
+  preserved. Added three chrome-less button styles to transportnyv2: `navlink` (topnav),
+  `footerlink` (footer columns — also drops the bullets to match the mockup), `cardlink`
+  (product "View →"). Real targets where pages exist (Data→/datasources, Documentation/
+  User Guide/Read the docs→/docs/npmrds/overview, Get started/Start exploring→
+  /docs/npmrds/quick_start, MAP-21→/map_21, NPMRDS routes→/docs/npmrds/route_analysis,
+  Freight atlas→/freight_atlas, Sign in→/auth/login); unbuilt labels (Products, About,
+  Work zones, Floating Car, Congestion, NPMRDS, API Guide, Data Dictionary, What's New)
+  → `#` (ButtonNode `preventDefault`+`navigate('#')` stays on page — safe placeholder).
+  **Note:** cross-pattern paths resolve per the site's `/`-routing/subdomain setup.
 - **CURRENT COVERAGE card vertical spacing** (user): the stat card is a **lexical** card, which
   has no per-cell padding — inner padding is the global `richtext.contentPadding` and line
   spacing is the global lexical `paragraph` mb-1. Added vertical margin to the **exclusive**
