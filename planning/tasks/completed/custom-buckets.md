@@ -217,6 +217,54 @@ groupBy/attribute, DMS `data->>` CASE column, DAMA regression;
 `testCustomBucketAliasCaseRoundTrip` (a DMS `data->>'category'` round-trip) now
 exercises the full client→server DMS path end to end.
 
+**Update 2026-06-10 (bucket on the `id` system column)** — selecting `id` as a
+bucket's **Source Column** matched nothing on DMS internal sources. Root cause:
+the `aliasGroups` resolution in `buildUdaConfig` (the GROUP-BY-dimension path)
+hard-coded `attributeAccessorStr(def.column, isDms, false, false)`, so the system
+`id` column resolved to `data->>'id'` — but `id` is a physical top-level column,
+never a key inside the JSONB `data` blob, so `data->>'id'` is NULL on every row.
+The CASE then always fell through to the fallback → the bucket matched nothing.
+(The quoting of the `IN (...)` values was *not* the cause: both Postgres and
+SQLite coerce quoted string literals against a numeric column — verified locally,
+`id IN ('1','2')` hits on both. The accessor was the bug.) **Fix:** the
+`aliasGroups` path now resolves the source column exactly like a display column
+(mirroring `mapFilterGroupCols`) — it looks the column up via `getColumn`, honors
+its calculated/system flags, and falls back to the codebase-wide `id`
+system-column convention (`def.column === 'id'`) for a source column that isn't
+also a display column. So `id` → bare `id`, other DMS columns → `data->>'col'`,
+DAMA physical columns unchanged. The filter-to-buckets path was already correct
+(`mapFilterGroupCols` resolves `id` to bare `id` or passes the raw name through).
+Files: `buildUdaConfig.js` (aliasGroups accessor resolution). Tests:
+`buildUdaConfig.test.js` +1 (138 passed) — DMS `id` bucket resolves to bare `id`;
+server UDA suite still green (63/63). Also removed leftover `console.log` debug
+lines from `query_sets/postgres.js` `simpleFilter`.
+
+**Update 2026-06-10 (follow-up — calculated/renamed source column).** The first
+fix was incomplete. A live query showed the CASE compiling to
+`data->>'id as id' IN (...)` — i.e. the bucket's **Source Column** was stored as
+`id as id`, not `id`. The Source Column picker (`sectionMenu.jsx`) offers every
+`externalSource.column` — including synthetic/renamed ones — and stamps the
+column's full `name` onto `sourceField`; `resolveAliasGroups` copies that to
+`config[alias].column`. A renamed column's `name` is `<accessor> as <alias>`
+(for the system `id` column the accessor is bare `id`, so the renamed form is
+literally `id as id`). My `def.column === 'id'` guard only caught the literal
+`id`, and `getColumn('id as id')` missed (the bucket source is usually *not* a
+display column), so `attributeAccessorStr` fell to the default DMS branch →
+`data->>'id as id'` (a phantom JSON key → NULL → matches nothing). **Fix:**
+detect the calc/renamed form from the raw `def.column` itself using the same
+`" as "` heuristic `isCalculatedCol` already uses, instead of relying on
+`getColumn` finding a display column: `const isCalculated = colInfo ?
+isCalculatedCol(colInfo) : isCalculatedCol({ name: def.column })`. For a calc
+name `attributeAccessorStr` returns the expression half verbatim (`id as id` →
+`id`, `data->>'foo' as bar` → `data->>'foo'`), which already carries the correct
+accessor. This is consistent with how `refName`/`mapFilterGroupCols` treat every
+calc column. Tests: `buildUdaConfig.test.js` +1 (139 passed) — DMS bucket on a
+`<expr> as <alias>` source column resolves to the expr; server UDA 63/63.
+Note: the filter-to-buckets path has the same latent gap for a *calc-named*
+source column (its leaf `col` would stay `id as id` if `getColumn`/`sourceColumns`
+miss), but non-calc source columns resolve fine there and filterToBuckets was off
+in the repro — left as-is for now. Files: `buildUdaConfig.js`.
+
 ## Testing Checklist
 
 - [x] Bucket as GROUP BY dimension → server emits `CASE … END as <alias>` in GROUP BY + SELECT; data groups correctly (verified live against a ClickHouse npmrds source).

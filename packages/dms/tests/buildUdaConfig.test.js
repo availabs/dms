@@ -880,6 +880,44 @@ describe("buildUdaConfig", () => {
     expect(options.aliasGroups.region.fallback).toBe("Other");
   });
 
+  it("DMS aliasGroups on the `id` system column: bare `id`, not data->>'id'", () => {
+    // `id` is the DMS system column — a physical top-level column, not a key in
+    // the JSONB `data` blob. Resolving it to `data->>'id'` yields NULL for every
+    // row, so the CASE always falls through to the fallback and the bucket matches
+    // nothing. The CASE column must stay a bare `id`.
+    const input = basicDmsInput();
+    input.columns.push(col("region", { group: true, origin: "custom-bucket" }));
+    input.customBuckets = {
+      alias: "region",
+      sourceField: "id",
+      fallback: "Other",
+      enabled: true,
+      config: { region: { column: "id", fallback: "Other", groups: { Picked: ["1", "2"] } } },
+    };
+    const { options } = buildUdaConfig(input);
+    expect(options.aliasGroups.region.column).toBe("id");
+  });
+
+  it("DMS aliasGroups on a calculated/renamed source column (`<expr> as <alias>`): accessor is the expr, not data->>'<full name>'", () => {
+    // The Source Column picker offers every externalSource column — including
+    // synthetic/renamed ones — and stores the column's full `name` as sourceField.
+    // For a renamed column like `id as id`, the bucket source is NOT one of the
+    // section's display columns, so getColumn() misses. The accessor must still be
+    // the calc form's expression half (`id`), never `data->>'id as id'` (a phantom
+    // JSON key → the CASE matches nothing).
+    const input = basicDmsInput();
+    input.columns.push(col("region", { group: true, origin: "custom-bucket" }));
+    input.customBuckets = {
+      alias: "region",
+      sourceField: "id as id",
+      fallback: "Other",
+      enabled: true,
+      config: { region: { column: "id as id", fallback: "Other", groups: { Picked: ["1", "2"] } } },
+    };
+    const { options } = buildUdaConfig(input);
+    expect(options.aliasGroups.region.column).toBe("id");
+  });
+
   it("DAMA aliasGroups: CASE column stays a bare physical column (regression)", () => {
     const input = basicDamaInput();
     input.columns.push(col("region", { group: true, origin: "custom-bucket" }));

@@ -1332,10 +1332,41 @@ export const buildUdaConfig = ({
     // name stays on customBuckets.config (state) for buildCustomBucketFilters,
     // which maps it through its own mapFilterGroupCols accessor path.
     options.aliasGroups = Object.fromEntries(
-      Object.entries(customBuckets.config).map(([alias, def]) => [
-        alias,
-        { ...def, column: attributeAccessorStr(def.column, isDms, false, false) },
-      ]),
+      Object.entries(customBuckets.config).map(([alias, def]) => {
+        // Resolve the bucket's source column to its SQL accessor exactly as a
+        // display column would be (mirroring mapFilterGroupCols). Two cases that
+        // a naive `data->>'<col>'` gets wrong, both of which the Source Column
+        // picker can feed in (it offers every externalSource column, including
+        // synthetic ones, and stores the column's full `name` as sourceField):
+        //
+        //   • `id` — the DMS system column is a physical top-level column, not a
+        //     key in the JSONB `data` blob, so it must resolve to a bare `id`.
+        //   • A calculated/renamed column whose `name` is `<expr> as <alias>`
+        //     (e.g. `id as id`) — the accessor is the `<expr>` half, never
+        //     `data->>'id as id'` (a phantom JSON key → CASE matches nothing).
+        //
+        // The source column is usually NOT one of the section's display columns,
+        // so getColumn(def.column) misses. Detect calc form from the raw name the
+        // same way isCalculatedCol does (the `" as "` heuristic), and fall back to
+        // the codebase-wide `id` system-column convention — don't rely on colInfo.
+        const colInfo = getColumn(def.column);
+        const isCalculated = colInfo
+          ? isCalculatedCol(colInfo)
+          : isCalculatedCol({ name: def.column });
+        const isSystem = colInfo?.systemCol || def.column === "id";
+        return [
+          alias,
+          {
+            ...def,
+            column: attributeAccessorStr(
+              def.column,
+              isDms,
+              isCalculated,
+              isSystem,
+            ),
+          },
+        ];
+      }),
     );
   }
 

@@ -37,6 +37,7 @@ const getCurrDate = () => {
     return new Date().toLocaleDateString(undefined, options);
 };
 
+
 const DOWNLOAD_CHUNK_SIZE = 5000;
 
 // Set-returning functions (e.g. jsonb_array_elements_text) expand each row into
