@@ -163,8 +163,8 @@ export function InsertButtonDialog({
       <label className="flex items-center gap-2 cursor-pointer">
         {Switch ? (
           <Switch
-            checked={keepSearchParams}
-            onChange={(checked: boolean) => setKeepSearchParams(checked)}
+            enabled={keepSearchParams}
+            setEnabled={(checked: boolean) => setKeepSearchParams(checked)}
           />
         ) : (
           <input
