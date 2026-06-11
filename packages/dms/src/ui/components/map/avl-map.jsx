@@ -3,10 +3,9 @@ import React from "react"
 import { get } from "lodash-es"
 
 import Icon from "../Icon"
-import { ThemeContext } from "../../themeContext"
-import { mapTheme as defaultMapTheme } from "./map.theme"
 import { LayerRenderComponent } from "./avl-layer"
 import { HoverComponent, PinnedHoverComponent } from "./components/HoverComponent"
+import useMapTheme from "./useMapTheme"
 import { useSetSize } from "./utils"
 
 let idCounter = 0;
@@ -16,6 +15,30 @@ const EmptyArray = [];
 const EmptyObject = {};
 
 const PIN_OUTLINE_LAYER_SUFFIX = 'pin_outline'
+
+const normalizeMarkerElement = (marker) => {
+  const markerEl = marker?.getElement?.();
+  if (!markerEl) return marker;
+  const markerChild = markerEl.firstElementChild;
+  const fallbackWidth = markerChild?.getAttribute?.("width") || "27px";
+  const fallbackHeight = markerChild?.getAttribute?.("height") || "41px";
+
+  // Keep the marker wrapper sized to the pin itself so MapLibre's
+  // translate(-50%, -50%) centers the actual pin instead of a stretched box.
+  markerEl.style.position = "absolute";
+  markerEl.style.left = "0";
+  markerEl.style.top = "0";
+  markerEl.style.width = fallbackWidth;
+  markerEl.style.maxWidth = "none";
+  markerEl.style.minWidth = fallbackWidth;
+  markerEl.style.height = fallbackHeight;
+  markerEl.style.minHeight = fallbackHeight;
+  markerEl.style.display = "block";
+  markerEl.style.padding = "0";
+  markerEl.style.margin = "0";
+
+  return marker;
+};
 
 export const DefaultStyles = [
   { name: "Dark",
@@ -724,7 +747,10 @@ const AvlMapInner = ({
   maplibreRef.current = maplibre;
 
   const pinHoverComp = React.useCallback(({ lngLat }) => {
-    const marker = new maplibreRef.current.Marker().setLngLat(lngLat);
+    const marker = normalizeMarkerElement(
+      new maplibreRef.current.Marker().setLngLat(lngLat)
+    );
+
     dispatch({ type: "pin-hover-comp", lngLat, marker });
   }, []);
 
@@ -888,11 +914,10 @@ const AvlMapInner = ({
 
   const { current: { containerId } } = MapOptions;
 
-  const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
-  const mapIcons = { ...defaultMapTheme, ...themeFromContext?.map };
+  const mapIcons = useMapTheme();
 
   return (
-    <div className="block relative w-full h-full max-w-full max-h-full overflow-visible text-gray-800">
+    <div className="block relative w-full h-full max-w-full max-h-full overflow-hidden text-gray-800">
       <div ref={ setRef } id={ containerId } className="w-full h-full relative"/>
 
       <div id={ `${ containerId }-box-select-blocker` }

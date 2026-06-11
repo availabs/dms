@@ -1,7 +1,10 @@
 import React, { useEffect } from "react"
 import {get, isEqual, cloneDeep} from 'lodash-es'
 import { AvlLayer } from "../../../../ui/components/map"
+import useMapTheme from "../../../../ui/components/map/useMapTheme"
+import { ThemeContext, getComponentTheme } from "../../../../ui/useTheme"
 import { usePrevious } from './LayerManager/utils'
+import { formatFunctions } from "../../../page/components/sections/components/dataWrapper/utils/utils.jsx"
 
 import { MapEditorContext } from "../../context"
 
@@ -625,6 +628,91 @@ class ViewLayer extends AvlLayer {
 
 export default ViewLayer;
 
+const justifyClass = {
+  left: 'justifyTextLeft',
+  right: 'justifyTextRight',
+  center: 'justifyTextCenter',
+  full: { header: 'justifyTextLeft', value: 'justifyTextRight' }
+};
+
+const justifyLayoutClass = {
+  left: 'justify-start text-left',
+  right: 'justify-end text-right',
+  center: 'justify-center text-center',
+  full: { header: 'justify-start text-left', value: 'justify-end text-right' }
+};
+
+const caseClass = {
+  '': '',
+  capitalize: 'capitalize',
+  uppercase: 'uppercase',
+  lowercase: 'lowercase',
+};
+
+const toImportantClasses = (className = '') =>
+  String(className)
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((token) => token.startsWith('!') ? token : `!${token}`)
+    .join(' ');
+
+const hasPaddingOverride = (hoverAttr = {}) =>
+  [
+    'cellPadding',
+    'cellPaddingTop',
+    'cellPaddingRight',
+    'cellPaddingBottom',
+    'cellPaddingLeft',
+  ].some((key) => {
+    const value = hoverAttr?.[key];
+    return value !== undefined && value !== null && `${value}`.trim() !== '';
+  });
+
+const HOVER_GRID_COLUMNS = 2;
+
+const normalizeHoverColumn = (column) => {
+  if (typeof column === "string") {
+    return {
+      column_name: column,
+      display_name: column,
+      customName: "",
+      formatFn: " ",
+      justify: "right",
+      headerJustify: "",
+      headerCase: "",
+      headerFontStyle: "",
+      valueFontStyle: "",
+      cellPadding: "",
+      cellPaddingTop: "",
+      cellPaddingRight: "",
+      cellPaddingBottom: "",
+      cellPaddingLeft: "",
+      cellSpan: "",
+      cellRowSpan: "",
+    };
+  }
+
+  return {
+    ...column,
+    column_name: column?.column_name || column?.name || "",
+    display_name: column?.display_name || column?.column_name || column?.name || "",
+    customName: column?.customName || "",
+    formatFn: column?.formatFn || " ",
+    justify: column?.justify || "right",
+    headerJustify: column?.headerJustify || "",
+    headerCase: column?.headerCase || "",
+    headerFontStyle: column?.headerFontStyle || "",
+    valueFontStyle: column?.valueFontStyle || "",
+    cellPadding: column?.cellPadding ?? "",
+    cellPaddingTop: column?.cellPaddingTop ?? "",
+    cellPaddingRight: column?.cellPaddingRight ?? "",
+    cellPaddingBottom: column?.cellPaddingBottom ?? "",
+    cellPaddingLeft: column?.cellPaddingLeft ?? "",
+    cellSpan: column?.cellSpan ?? "",
+    cellRowSpan: column?.cellRowSpan ?? "",
+  };
+};
+
 
 
 
@@ -636,6 +724,11 @@ export default ViewLayer;
  * missing join-backed fields from the join source using the live join config.
  */
 const HoverComp = ({ data, layer }) => {
+  const mapTheme = useMapTheme();
+  const { theme: fullTheme = {} } = React.useContext(ThemeContext) || {};
+  const textTheme = getComponentTheme(fullTheme, 'textSettings', 0) || {};
+  const dataCardTheme = getComponentTheme(fullTheme, 'dataCard', 0) || {};
+  const hoverFieldTheme = { ...textTheme, ...dataCardTheme };
 
   if(!layer.props.hover) return
   const { source_id, view_id } = layer?.props?.view_id ? layer.props : layer;
@@ -655,7 +748,7 @@ const HoverComp = ({ data, layer }) => {
   // console.log(source_id, view_id, id)
 
   const hoverColumns = React.useMemo(() => {
-    return layer.props['hover-columns'];
+    return (layer.props['hover-columns'] || []).map(normalizeHoverColumn);
   }, [layer]);
 
   const joinedTileColumns = React.useMemo(() => {
@@ -927,11 +1020,78 @@ const HoverComp = ({ data, layer }) => {
     };
   }, [falcor, pgEnv, view_id, id, joinedAttrInfo, baseAttributes, joinMissingAttributes, layer]);
 
+  const getFormattedValue = React.useCallback((hoverAttr, rawValue) => {
+    if (rawValue === "null" || rawValue === null || rawValue === undefined) {
+      return "";
+    }
+
+    const resolvedValue = get(JSON.parse(metadata.find(attr => attr.name === (hoverAttr.name || hoverAttr.column_name) || attr.column_name === (hoverAttr.name || hoverAttr.column_name))?.meta_lookup || "{}"), rawValue, rawValue);
+    const formatFn = hoverAttr?.formatFn;
+
+    if (!formatFn || formatFn === " ") {
+      return resolvedValue;
+    }
+
+    if (formatFn === "title") {
+      return typeof resolvedValue === "string" ? resolvedValue : String(resolvedValue);
+    }
+
+    const formatter = formatFunctions[formatFn];
+    if (typeof formatter !== "function") {
+      return resolvedValue;
+    }
+
+    try {
+      return formatter(resolvedValue);
+    } catch (e) {
+      return resolvedValue;
+    }
+  }, [metadata]);
+
+  const getFieldStyle = React.useCallback((hoverAttr) => {
+    const hasExplicitColSpan =
+      hoverAttr?.cellSpan !== undefined &&
+      hoverAttr?.cellSpan !== null &&
+      `${hoverAttr.cellSpan}`.trim() !== '';
+    const span = hasExplicitColSpan
+      ? Math.max(1, Math.min(HOVER_GRID_COLUMNS, +hoverAttr?.cellSpan || 1))
+      : HOVER_GRID_COLUMNS;
+    const rowSpan = +hoverAttr?.cellRowSpan || undefined;
+    const padOverride = (key, fallback) => {
+      const value = hoverAttr?.[key];
+      if (value === undefined || value === null || value === '') return fallback;
+      return +value;
+    };
+
+    return {
+      gridColumn: `span ${span}`,
+      ...(rowSpan ? { gridRow: `span ${rowSpan}` } : {}),
+      height: '100%',
+      minHeight: '100%',
+      alignSelf: 'stretch',
+      padding: padOverride('cellPadding', undefined),
+      paddingTop: padOverride('cellPaddingTop', undefined),
+      paddingRight: padOverride('cellPaddingRight', undefined),
+      paddingBottom: padOverride('cellPaddingBottom', undefined),
+      paddingLeft: padOverride('cellPaddingLeft', undefined),
+    };
+  }, []);
+
   return (
-    <div className="bg-white p-4 max-h-64 max-w-lg min-w-[300px] scrollbar-xs overflow-y-scroll">
-      <div className="font-medium pb-1 w-full border-b ">
+    <div
+      className={mapTheme.hover.panel}
+      style={{ width: "300px", minWidth: "300px", maxWidth: "300px" }}
+    >
+      <div className={mapTheme.hover.title}>
         {layer?.name || ''}
       </div>
+      <div
+        className="grid gap-1"
+        style={{
+          gridTemplateColumns: `repeat(${HOVER_GRID_COLUMNS}, minmax(0, 1fr))`,
+          gridAutoRows: "minmax(0, auto)",
+        }}
+      >
       {Object.keys(attrInfo).length === 0 && attributes?.length !== 0 ? `Fetching Attributes ${id}` : ""}
       {Object.keys(attrInfo)
         .filter((k) => typeof attrInfo[k] !== "object")
@@ -942,24 +1102,43 @@ const HoverComp = ({ data, layer }) => {
         })
         .map((k, i) => {
           //console.log({k})
-          const hoverAttr = (attributes || []).find(attr => attr.name === k || attr.column_name === k) || {};
+          const hoverAttr = normalizeHoverColumn((attributes || []).find(attr => attr.name === k || attr.column_name === k) || {});
 
-          const metadataAttr = metadata.find(attr => attr.name === k || attr.column_name === k) || {};
-          const columnMetadata = JSON.parse(metadataAttr?.meta_lookup || "{}");
           if ( !(hoverAttr.name || hoverAttr.display_name) ) {
             return <span key={i}></span>;
           }
           else {
+            const formattedValue = getFormattedValue(hoverAttr, attrInfo?.[k]);
+            const headerJustifyKey = hoverAttr.headerJustify || 'left';
+            const valueJustifyKey = hoverAttr.justify || 'right';
+            const headerTextJustifyClass = justifyClass[headerJustifyKey]?.header || justifyClass[headerJustifyKey] || '';
+            const valueTextJustifyClass = justifyClass[valueJustifyKey]?.value || justifyClass[valueJustifyKey] || '';
+            const headerLayoutJustifyClass = justifyLayoutClass[headerJustifyKey]?.header || justifyLayoutClass[headerJustifyKey] || '';
+            const valueLayoutJustifyClass = justifyLayoutClass[valueJustifyKey]?.value || justifyLayoutClass[valueJustifyKey] || '';
+            const headerCase = caseClass[hoverAttr.headerCase || ''] || '';
+            const headerFontClass = toImportantClasses(hoverFieldTheme[hoverAttr.headerFontStyle || 'textXS'] || '');
+            const valueFontClass = hoverAttr.valueFontStyle && hoverAttr.valueFontStyle !== 'button'
+              ? toImportantClasses(hoverFieldTheme[hoverAttr.valueFontStyle] || '')
+              : '';
+            const paddingResetClass = hasPaddingOverride(hoverAttr) ? '!p-0' : '';
             return (
-              <div className="flex border-b pt-1" key={i}>
-                <div className="flex-1 font-medium text-xs text-slate-400 pl-1">{hoverAttr.display_name || hoverAttr.name }</div>
-                <div className="flex-1 text-right text-sm font-thin pl-4 pr-1">
-                  {attrInfo?.[k] !== "null" ? get(columnMetadata, attrInfo?.[k],attrInfo?.[k]) : ""}
+              <div
+                className={`${mapTheme.hover.row} !grid w-full items-start gap-x-3`}
+                key={i}
+                style={{
+                  ...getFieldStyle(hoverAttr),
+                  gridTemplateColumns: "minmax(0, 1fr) minmax(0, auto)",
+                }}
+              >
+                <div className={`${mapTheme.hover.label} ${paddingResetClass} !block !min-w-0 !flex-none truncate ${headerLayoutJustifyClass} ${hoverFieldTheme[headerTextJustifyClass] || ''} ${headerCase} ${headerFontClass} ${hoverAttr.formatFn === "title" ? "capitalize" : ""}`}>{hoverAttr.customName || hoverAttr.display_name || hoverAttr.name || hoverAttr.column_name }</div>
+                <div className={`${mapTheme.hover.value} ${paddingResetClass} !block !min-w-0 !flex-none whitespace-nowrap ${valueLayoutJustifyClass} ${hoverFieldTheme[valueTextJustifyClass] || ''} ${valueFontClass} ${hoverAttr.formatFn === "title" ? "capitalize" : ""}`}>
+                  {formattedValue}
                 </div>
               </div>
             );
           }
         })}
+      </div>
     </div>
   );
 };
