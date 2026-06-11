@@ -250,7 +250,12 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
             const match = sources.find((s) => +s.source_id === +sourceId);
             setState((draft) => {
                 if (!match && typeof sourceId === "string" && sourceId.includes("+")) {
-                    draft.columns = [];
+                    // Preserve the synthetic custom-bucket dimension column across the
+                    // source swap — the dimension (alias) is still valid; only its
+                    // source binding is reset below. Everything else is replaced by
+                    // the new source's columns.
+                    const bucketCol = (draft.columns || []).find(c => c.origin === 'custom-bucket');
+                    draft.columns = bucketCol ? [bucketCol] : [];
                     const sourceType = sourceId.endsWith("|component")
                         ? "sections"
                         : "pages";
@@ -276,10 +281,30 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
                     // Get baseUrl from the matched source's environment
                     const newColumns = match.columns;
                     const newColumnsNames = newColumns.map(c => c.name);
-                    draft.columns = draft.columns.filter(c => newColumnsNames.includes(c.name)).map(c => ({...c, ...newColumns.find(newC => newC.name === c.name)}));
+                    // Keep columns that exist in the new source, plus the synthetic
+                    // custom-bucket dimension column (its name is the author's alias,
+                    // which won't appear in newColumnsNames — but the dimension is
+                    // still valid; only its source binding is reset below).
+                    draft.columns = (draft.columns || [])
+                        .filter(c => c.origin === 'custom-bucket' || newColumnsNames.includes(c.name))
+                        .map(c => c.origin === 'custom-bucket' ? c : ({...c, ...newColumns.find(newC => newC.name === c.name)}));
                     const baseUrl = envs[match.srcEnv]?.baseUrl || '';
                     const sourceType = match.name ? nameToSlug(match.name) : draft[EXTERNAL_SOURCE_KEY]?.type;
                     draft[EXTERNAL_SOURCE_KEY] = { ...match, baseUrl, type: sourceType };
+                }
+
+                // Reset the custom-bucket fields bound to the previous source. The
+                // source column and any static group values reference data that no
+                // longer exists after a source swap, so null them; the resolved
+                // `config` is cleared so no stale aliasGroups / bucket filter is
+                // applied before usePageFilterSync re-resolves. Source-independent
+                // author config (alias, type, fallback, dynamic binding, the
+                // enabled/filterToBuckets toggles, and the synthetic column kept
+                // above) is preserved so the bucket can be rebound to the new source.
+                if (draft.customBuckets) {
+                    draft.customBuckets.sourceField = '';
+                    draft.customBuckets.staticGroups = [];
+                    draft.customBuckets.config = {};
                 }
             });
         },

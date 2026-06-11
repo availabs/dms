@@ -17,10 +17,12 @@ const { sanitizeName, getResponseColumnName, getEssentials, buildJoin } = requir
 const {
   handleFiltersCH,
   handleFilterGroupsCH,
-  handleGroupByCH,
   handleHavingCH,
   handleOrderByCH,
+  buildAliasGroupCaseCH,
 } = require('./helpers');
+
+
 
 function buildCombinedWhereCH({ filter, exclude, gt, gte, lt, lte, like, filterGroups, joinPresent }) {
   const filterClause = handleFiltersCH({ filter, exclude, gt, gte, lt, lte, like, joinPresent });
@@ -39,7 +41,8 @@ async function simpleFilterLength(ctx, options) {
     filterGroups = {},
     groupBy = [], having = [],
     normalFilter = [],
-    join = {}
+    join = {},
+    aliasGroups = {}
   } = JSON.parse(options);
 
   // Detect whether the request includes a real join so the WHERE builder can
@@ -54,7 +57,16 @@ async function simpleFilterLength(ctx, options) {
     });
   }
 
-  const sanitizedGroupBy = sanitizeName(groupBy).filter(Boolean);
+  const activeAliasGroups = {};
+  if (aliasGroups) {
+    for (const [alias, definition] of Object.entries(aliasGroups)) {
+      if (groupBy.includes(alias)) {
+        activeAliasGroups[alias] = buildAliasGroupCaseCH(definition);
+      }
+    }
+  }
+
+  const sanitizedGroupBy = groupBy.map(g => activeAliasGroups[g] || sanitizeName(g)).filter(Boolean);
 
   const countExpr = sanitizedGroupBy.length
     ? `count(DISTINCT concat(${sanitizedGroupBy.map((c) => `toString(${c})`).join(", '-' ,")}))`
@@ -87,7 +99,6 @@ async function simpleFilterLength(ctx, options) {
     ${handleHavingCH(having)}
   `;
 
-  //console.log("sql simple filter LENGTH::", sql)
   const result = await db.query({ query: sql, format: 'JSON' });
   const rows = await result.json();
   return rows?.data?.[0]?.numRows != null ? Number(rows.data[0].numRows) : 0;
@@ -95,9 +106,9 @@ async function simpleFilterLength(ctx, options) {
 
 function transformAttributesForClickHouse(attrs) {
   return attrs.map(attr => {
-    // Matches: array_to_string(array_agg(distinct COLUMN), ', ') as ALIAS
-    const regex = /array_to_string\(array_agg\(distinct\s+([\w.]+)\),\s*',\s*'\)\s+as\s+(\w+)/i;
-    
+    // Matches simple columns AND complex CASE statements inside distinct (...)
+    const regex = /array_to_string\(array_agg\(distinct\s+(?:\(\s*)?([\s\S]+?)(?:\s*\))?\),\s*',\s*'\)\s+as\s+(\w+)/i;
+
     return attr.replace(regex, (match, column, alias) => {
       // ClickHouse: arrayStringConcat(groupArrayDistinct(COLUMN), ', ') as ALIAS
       return `arrayStringConcat(groupArrayDistinct(${column}), ', ') as ${alias}`;
@@ -109,8 +120,45 @@ async function simpleFilter(ctx, options, attributes, indices) {
   const num = indices.to - indices.from + 1;
   const { db, table_schema, table_name } = ctx;
 
+  const {
+    filter = {}, exclude = {},
+    gt = {}, gte = {}, lt = {}, lte = {}, like = {},
+    filterGroups = {},
+    groupBy = [], having = [], orderBy = {},
+    normalFilter = [], join = {},
+    aliasGroups = {}
+  } = JSON.parse(options);
+
+  const activeAliasGroups = {};
+  if (aliasGroups) {
+    for (const [alias, definition] of Object.entries(aliasGroups)) {
+      if (groupBy.includes(alias)) {
+        activeAliasGroups[alias] = buildAliasGroupCaseCH(definition);
+      }
+    }
+  }
+
   const transformedAttributes = transformAttributesForClickHouse(attributes);
-  const sanitizedAttrs = sanitizeName(transformedAttributes).filter((f) => f);
+
+  const sanitizedAttrs = sanitizeName(transformedAttributes).filter((f) => f)
+    .map(attr => {
+      const respName = getResponseColumnName(attr);
+      if (activeAliasGroups[respName]) {
+        return `${activeAliasGroups[respName]} as ${respName}`;
+      }
+      return attr;
+    });
+
+  // Ensure grouped alias groups are in the SELECT clause
+  groupBy.forEach(g => {
+    if (activeAliasGroups[g]) {
+      const alreadyIn = sanitizedAttrs.some(attr => getResponseColumnName(attr) === g);
+      if (!alreadyIn) {
+        sanitizedAttrs.push(`${activeAliasGroups[g]} as ${g}`);
+      }
+    }
+  });
+
   if (!sanitizedAttrs.length) return [];
 
   const columnNameMap = sanitizedAttrs.reduce((acc, attrName, i) => {
@@ -120,14 +168,6 @@ async function simpleFilter(ctx, options, attributes, indices) {
     }
     return acc;
   }, {});
-
-  const {
-    filter = {}, exclude = {},
-    gt = {}, gte = {}, lt = {}, lte = {}, like = {},
-    filterGroups = {},
-    groupBy = [], having = [], orderBy = {},
-    normalFilter = [], join = {}
-  } = JSON.parse(options);
 
   if (normalFilter.length) {
     normalFilter.forEach(({ column, values }) => {
@@ -161,17 +201,25 @@ async function simpleFilter(ctx, options, attributes, indices) {
     fromClause = `${table_schema}.${table_name} ${hasJoin ? ' as ds ' : ''} ${joins}`;
   }
 
+  // Bucket aliases are already compiled into a vetted CASE expression
+  // (activeAliasGroups); only the bare column entries still need sanitizing.
+  // Passing the CASE through handleGroupByCH()'s sanitizeName() would discard it
+  // whenever a label/value/fallback contains a SQL keyword token (e.g. a "Union"
+  // county value), dropping the SELECT's CASE column out of GROUP BY. Sanitize
+  // per-entry instead — mirrors simpleFilterLength.
+  const groupByExprs = groupBy.map(g => activeAliasGroups[g] || sanitizeName(g)).filter(Boolean);
+
   const sql = `
     SELECT ${sanitizedAttrs.map((c) => columnNameMap[c] || c).join(', ')}
     FROM ${fromClause}
     ${combinedWhere}
-    ${handleGroupByCH(groupBy)}
+    ${groupByExprs.length ? `GROUP BY ${groupByExprs.join(', ')}` : ''}
     ${handleHavingCH(having)}
     ${handleOrderByCH(orderBy)}
     LIMIT ${+num}
     OFFSET ${indices.from}
   `;
-  // console.log("CH sql simple filter::", sql)
+
   const result = await db.query({ query: sql, format: 'JSON' });
   const json = await result.json();
   const rawRows = json.data || [];
