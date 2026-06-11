@@ -5,6 +5,7 @@ import {TagComponent} from "./section_components"
 import { getComponentTheme, ThemeContext } from "../../../../ui/useTheme";
 import {ComplexFilters} from "./ComplexFilters";
 import ColumnManager from "./ColumnManager";
+import TemplateManager from "./TemplateManager";
 import { getColumnLabel } from "./controls_utils";
 
 
@@ -990,6 +991,33 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
       },
     ]
 
+    // Component Templates — save the live config as a named, reusable template
+    // and apply templates that match this component type. Gated behind the
+    // registry's `supportsTemplates` flag (Spreadsheet first). TemplateManager
+    // reads apiLoad/apiUpdate/format from PageContext; the section primitives
+    // (value/state/setKey/onChange) are already in scope here.
+    const templates = currentComponent?.supportsTemplates ? [
+        {
+            name: 'Templates', icon: 'Copy',
+            cdn: () => isEdit && canEditSection,
+            items: [
+                {
+                    name: 'Template Manager',
+                    noHover: true,
+                    type: () => (
+                        <TemplateManager
+                            componentType={currentComponent?.name}
+                            sectionValue={value}
+                            dwState={state}
+                            setKey={setKey}
+                            onChange={onChange}
+                        />
+                    )
+                }
+            ]
+        }
+    ] : []
+
     const display = [
         {
             name: 'Display', icon: 'Section',
@@ -1386,6 +1414,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
             ...component,
             ...componentSettings,
             ...componentInteractions,
+            ...templates,
             {type: 'separator'},
             dataset,
             ...columns,
