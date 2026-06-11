@@ -248,6 +248,26 @@ function handleOrderByCH(orders) {
     : '';
 }
 
+function buildAliasGroupCaseCH(definition) {
+  const { column, fallback, groups } = definition;
+  // Column names bypass the groupBy sanitizeName() path (see sanitizedGroupBy
+  // below), so guard the only raw identifier interpolated into the CASE here.
+  // Values, labels and fallback are single-quote-escaped string literals.
+  const safeColumn = sanitizeName(column);
+  if (!safeColumn) return null;
+  let caseStmt = `CASE `;
+  for (const [label, values] of Object.entries(groups)) {
+    const valArray = typeof values === 'string' ? JSON.parse(values) : values;
+    const escapedValues = valArray.map(v => typeof v === 'string' ? `'${v.replace(/'/g, "''")}'` : v).join(', ');
+    caseStmt += `WHEN ${safeColumn} IN (${escapedValues}) THEN '${label.replace(/'/g, "''")}' `;
+  }
+  if (fallback) {
+    caseStmt += `ELSE '${fallback.replace(/'/g, "''")}' `;
+  }
+  caseStmt += `END`;
+  return caseStmt;
+}
+
 module.exports = {
   handleFiltersCH,
   handleFilterGroupsCH,
@@ -255,4 +275,5 @@ module.exports = {
   handleGroupByCH,
   handleHavingCH,
   handleOrderByCH,
+  buildAliasGroupCaseCH
 };

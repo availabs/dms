@@ -15,11 +15,11 @@ const {
   quoteAlias,
   getValuesExceptNulls,
   getValuesFromGroup,
-  handleGroupBy,
   handleHaving,
   handleOrderBy,
   buildCombinedWhere,
-  buildJoin
+  buildJoin,
+  buildAliasGroupCase
 } = require('../utils');
 const { typeCast } = require('#db/query-utils.js');
 
@@ -43,6 +43,8 @@ function translatePgToSqlite(expr) {
   return expr;
 }
 
+
+
 async function simpleFilterLength(ctx, options) {
   const { isDms, db, app, type, table_schema, table_name } = ctx;
 
@@ -52,7 +54,8 @@ async function simpleFilterLength(ctx, options) {
     filterGroups = {},
     groupBy = [], having = [],
     normalFilter = [],
-    join = {}
+    join = {},
+    aliasGroups = {}
   } = JSON.parse(options);
 
   // Translate PG-specific SQL in groupBy expressions for SQLite
@@ -64,6 +67,17 @@ async function simpleFilterLength(ctx, options) {
     normalFilter.forEach(({ column, values }) => {
       (filter[column] ??= []).push(...values);
     });
+  }
+
+  // Custom buckets: for any groupBy entry that names an alias group, compile its
+  // definition into a CASE expression to use in place of the bare column.
+  const activeAliasGroups = {};
+  if (aliasGroups) {
+    for (const [alias, definition] of Object.entries(aliasGroups)) {
+      if (groupBy.includes(alias)) {
+        activeAliasGroups[alias] = buildAliasGroupCase(definition);
+      }
+    }
   }
 
   const oldValues = [
@@ -119,7 +133,7 @@ async function simpleFilterLength(ctx, options) {
          )
          SELECT count(*) numrows FROM t`
       : `SELECT count(${groupBy.length
-           ? `DISTINCT ${groupBy.map((g) => sanitizeName(g)).filter((g) => g)
+           ? `DISTINCT ${groupBy.map((g) => activeAliasGroups[g] || sanitizeName(g)).filter((g) => g)
                .map((c) => `CASE WHEN ${c} IS NULL THEN '__NULL__VAL__' ELSE ${typeCast(c, 'TEXT', db.type)} END`)
                .join(`|| '-' ||`)}`
            : 1}) numrows
@@ -135,6 +149,28 @@ async function simpleFilter(ctx, options, attributes, indices) {
   const num = indices.to - indices.from + 1;
   const { isDms, db, app, type, table_schema, table_name, dmsAttributes } = ctx;
 
+  const {
+    filter = {}, exclude = {},
+    gt = {}, gte = {}, lt = {}, lte = {}, like = {},
+    filterRelation = 'and',
+    filterGroups = {},
+    groupBy = [], having = [], orderBy = {},
+    normalFilter = [], meta = {},
+    join = {},
+    aliasGroups = {}
+  } = JSON.parse(options);
+
+  // Custom buckets: compile the CASE expression for any alias group that the
+  // request groups by, so it can be substituted into the SELECT and GROUP BY.
+  const activeAliasGroups = {};
+  if (aliasGroups) {
+    for (const [alias, definition] of Object.entries(aliasGroups)) {
+      if (groupBy.includes(alias)) {
+        activeAliasGroups[alias] = buildAliasGroupCase(definition);
+      }
+    }
+  }
+
   let sanitizedAttrs = sanitizeName(attributes).filter((f) => f);
   if (!sanitizedAttrs.length) return [];
 
@@ -142,6 +178,30 @@ async function simpleFilter(ctx, options, attributes, indices) {
   if (db.type === 'sqlite') {
     sanitizedAttrs = sanitizedAttrs.map(translatePgToSqlite);
   }
+
+  // Substitute the alias-group CASE expression into any SELECT column whose
+  // response name matches an active alias group.
+  //
+  // The alias is double-quoted so PostgreSQL preserves its exact case. Unlike
+  // regular columns (whose client-side alias is already lowercased via
+  // colNameAfterAS), the custom-bucket alias must stay verbatim to match the
+  // aliasGroups key + groupBy. An UNquoted `as RoadClass` is folded to
+  // `roadclass` by PG, so the returned row is keyed lowercase while the route
+  // reads it back by the original-case attribute (rows[ii][getResponseColumnName
+  // (attr)]) → undefined → null cell. ClickHouse preserves case, which is why
+  // the bug only surfaced on the PG/SQLite port. getResponseColumnName strips
+  // the surrounding quotes, so the round-trip key stays consistent.
+  sanitizedAttrs = sanitizedAttrs.map(attr => {
+    const respName = getResponseColumnName(attr);
+    return activeAliasGroups[respName] ? `${activeAliasGroups[respName]} as "${respName}"` : attr;
+  });
+
+  // Ensure grouped alias groups are present in the SELECT clause.
+  groupBy.forEach(g => {
+    if (activeAliasGroups[g] && !sanitizedAttrs.some(attr => getResponseColumnName(attr) === g)) {
+      sanitizedAttrs.push(`${activeAliasGroups[g]} as "${g}"`);
+    }
+  });
 
   // Map long column names to short aliases
   const columnNameMap = sanitizedAttrs.reduce((acc, attr, i) => {
@@ -151,16 +211,6 @@ async function simpleFilter(ctx, options, attributes, indices) {
     }
     return acc;
   }, {});
-
-  const {
-    filter = {}, exclude = {},
-    gt = {}, gte = {}, lt = {}, lte = {}, like = {},
-    filterRelation = 'and',
-    filterGroups = {},
-    groupBy = [], having = [], orderBy = {},
-    normalFilter = [], meta = {},
-    join = {}
-  } = JSON.parse(options);
 
   if (normalFilter.length) {
     normalFilter.forEach(({ column, values }) => {
@@ -206,11 +256,19 @@ async function simpleFilter(ctx, options, attributes, indices) {
     fromClause = `${table_schema}.${table_name} ${hasJoin ? ' as ds ' : ''} ${joins}`;
   }
 
+  // Bucket aliases are already compiled into a vetted CASE expression
+  // (activeAliasGroups); only the bare column entries still need sanitizing.
+  // Passing the CASE through handleGroupBy()'s sanitizeName() would discard it
+  // whenever a label/value/fallback contains a SQL keyword token (e.g. a "Union"
+  // county value), dropping the SELECT's CASE column out of GROUP BY. Sanitize
+  // per-entry instead — mirrors simpleFilterLength.
+  const groupByExprs = groupBy.map(g => activeAliasGroups[g] || sanitizeName(g)).filter(Boolean);
+
   const sql = `
     SELECT ${sanitizedAttrs.map((c) => quoteAlias(columnNameMap[c] || c)).join(', ')}
     FROM ${fromClause}
     ${combinedWhere}
-    ${handleGroupBy(groupBy)}
+    ${groupByExprs.length ? `GROUP BY ${groupByExprs.join(', ')}` : ''}
     ${handleHaving(having)}
     ${handleOrderBy(orderBy, dmsAttributes)}
     LIMIT ${+num}
@@ -289,4 +347,5 @@ module.exports = {
   dataById,
   // Exported for testing
   translatePgToSqlite,
+  buildAliasGroupCase,
 };

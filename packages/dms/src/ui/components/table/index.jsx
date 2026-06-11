@@ -209,6 +209,7 @@ export default function Table ({
     columns=[], data: unFilteredData=[], localFilteredData, fullData, display={}, controls={}, setState, isActive,
     addItem, newItem={}, setNewItem, infiniteScrollFetchData, currentPage, activeStyle,
     highlightedRow,
+    onRowMouseClick,
     onRowMouseEnter,
     onRowMouseLeave,
 }) {
@@ -572,7 +573,7 @@ export default function Table ({
              onMouseLeave={e => handleMouseUp({setIsDragging})}
              style={{maxHeight: !paginationActive && display.maxHeight ? `${display.maxHeight}px` : undefined}}
         >
-                <TableStructureContext.Provider value={{...structureValues, highlightedRow, onRowMouseEnter, onRowMouseLeave}}>
+                <TableStructureContext.Provider value={{...structureValues, highlightedRow, onRowMouseClick, onRowMouseEnter, onRowMouseLeave}}>
                     <TableCellContext.Provider value={{
                         frozenCols, allowEdit, editing, setEditing, isDragging, isSelecting,
                         setSelection, setIsDragging, startCellCol, startCellRow, selection, selectionRange,
