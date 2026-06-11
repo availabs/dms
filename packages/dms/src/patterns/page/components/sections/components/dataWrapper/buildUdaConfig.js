@@ -315,6 +315,81 @@ export const extractNormalFiltersFromGroups = (node) => {
   return { cleaned: { ...node, groups: keptGroups }, normalFilters };
 };
 
+// ─── Custom bucket filtering ────────────────────────────────────────────────
+
+/**
+ * Build filter leaves that restrict fetched rows to those that fall into at
+ * least one defined custom bucket.
+ *
+ * Reads the RESOLVED `customBuckets.config` (built by resolveAliasGroups —
+ * works for both static groups and dynamic page-filter-bound groups). Produces
+ * one `IN (...)` leaf per alias: `col` is that alias's source column, `value`
+ * is the union of all its group value-arrays (deduped). Fallback labels are
+ * intentionally excluded — fallback rows are exactly the ones "filter to
+ * buckets" mode is meant to drop.
+ *
+ * Gating:
+ * - Master switch: bucket behavior is OFF unless `customBuckets.enabled === true`.
+ * - When enabled, "filter to buckets" defaults ON; `filterToBuckets === false`
+ *   disables just the row-filtering while keeping the bucket column/aliasGroups.
+ * - Empty/missing groups → no leaf for that alias (toggle-on with nothing
+ *   configured is a safe no-op that returns all rows).
+ *
+ * `source_id` is stamped on the leaf so applyTableAliasToJoin aliases the
+ * column to `ds.` under a join (avoids ambiguous `data->>` in DMS-on-DMS joins).
+ *
+ * `isDms` text-coerces the leaf values: DMS columns resolve to `data->>'col'`
+ * (always TEXT), so a numeric bucket value left native would compile to
+ * `data->>'col' IN (2022)` — a text/integer mismatch Postgres rejects. DAMA
+ * physical columns keep native typing. Mirrors the server's `isJsonText`
+ * handling in buildAliasGroupCase.
+ */
+export const buildCustomBucketFilters = (customBuckets, baseSourceId, isDms = false) => {
+  if (
+    !customBuckets ||
+    customBuckets.enabled !== true ||
+    customBuckets.filterToBuckets === false
+  )
+    return [];
+  const cfg = customBuckets.config || {};
+
+  // A group's values may be a real array (static groups, split from CSV) OR a
+  // JSON-stringified array (dynamic page-filter bindings whose value field holds
+  // a stringified list). Normalize both — mirrors the server's CASE builder,
+  // which does `typeof values === 'string' ? JSON.parse(values) : values`.
+  // Without this, a stringified array survives as a single scalar and the leaf
+  // compiles to `col = '["a","b"]'` instead of `col IN ('a','b')`.
+  const coerceGroupValues = (values) => {
+    if (Array.isArray(values)) return values;
+    if (typeof values === "string") {
+      try {
+        const parsed = JSON.parse(values);
+        return Array.isArray(parsed) ? parsed : [parsed];
+      } catch {
+        return [values];
+      }
+    }
+    return values == null ? [] : [values];
+  };
+
+  return Object.values(cfg)
+    .map(({ column, groups } = {}) => {
+      const values = [
+        ...new Set(
+          Object.values(groups || {})
+            .flatMap(coerceGroupValues)
+            .filter((v) => v != null && v !== "")
+            // DMS columns are JSON text (`data->>`), so values must be text too.
+            .map((v) => (isDms ? String(v) : v)),
+        ),
+      ];
+      return column && values.length
+        ? { col: column, op: "filter", value: values, source_id: baseSourceId }
+        : null;
+    })
+    .filter(Boolean);
+};
+
 // ─── Page filter application ────────────────────────────────────────────────
 
 const isGroup = (node) => node?.groups && Array.isArray(node.groups);
@@ -329,7 +404,7 @@ export const applyTableAliasToJoin = (filterTree, sourceIdToAlias, baseSourceId)
 
     let newNode = { ...node };
 
-    const prefix = sourceIdToAlias[node.source_id] || (node.source_id === baseSourceId ? 'ds' : ""); 
+    const prefix = sourceIdToAlias[node.source_id] || (node.source_id === baseSourceId ? 'ds' : "");
     // Always alias 'col' if it exists
     if (newNode.col && prefix) {
       newNode.col = `${prefix}.${newNode.col.split('.').pop()}`;
@@ -435,6 +510,22 @@ export const applyPriorPeriodExpansion = (filterTree) => {
   return applyToNode(filterTree);
 };
 
+export const flattenFilterValues = filterTree => {
+  if (!filterTree) return filterTree;
+
+  const applyToNode = (node) => {
+    if (isGroup(node)) {
+      return { ...node, groups: node.groups.map(applyToNode) };
+    }
+
+    if (!Array.isArray(node.value) || !node.value.length) return node;
+
+    return { ...node, value: node.value.flat() };
+  };
+
+  return applyToNode(filterTree);
+}
+
 // ─── Legacy column filter extraction ────────────────────────────────────────
 
 /**
@@ -521,13 +612,18 @@ export const buildColumnsWithSettings = (columns, sourceColumns, isDms) => {
       const isCalculated = isCalculatedCol(column);
       const isCopiedColumn =
         !column.isDuplicate && duplicatedColumnNames.has(column.name);
-      const colReqName = reqName(fullColumn, isDms);
-      const colRefName = attributeAccessorStr(
-        column.name,
-        isDms,
-        isCalculated,
-        column.systemCol,
-      );
+      // The synthetic custom-bucket dimension is a server-side alias, not a real
+      // column: its ref/req must stay the bare alias (verbatim) so it matches the
+      // `aliasGroups` key the server groups by and substitutes the CASE into. If
+      // it went through attributeAccessorStr it would become `data->>'<alias>'`
+      // for DMS sources — a phantom JSON key the server's `groupBy.includes(alias)`
+      // match would miss, silently disabling the whole bucket dimension. (DAMA
+      // returns the bare name anyway, so this only changes the DMS path.)
+      const isCustomBucket = column.origin === "custom-bucket";
+      const colReqName = isCustomBucket ? column.name : reqName(fullColumn, isDms);
+      const colRefName = isCustomBucket
+        ? column.name
+        : attributeAccessorStr(column.name, isDms, isCalculated, column.systemCol);
       const [colNameBeforeAS, colNameAfterAS] = splitColNameOnAS(column.name);
       const totalAlias = (colNameAfterAS || colNameBeforeAS).replace(".", "_");
       const colTotalName = `SUM(CASE WHEN (${colRefName})::text ~ '^-?\\d+(\\.\\d+)?$' THEN (${colRefName})::numeric ELSE NULL END ) as ${totalAlias}_total`;
@@ -726,6 +822,34 @@ export const buildJoinOnClause = ({ join, externalSource }) => {
     });
 };
 
+export const isJoinComplete = (joinSource) => {
+  const strategy = joinSource.mergeStrategy || 'join';
+  if(!joinSource.source || !joinSource.view) {
+    console.log("join is missing source or view::", joinSource);
+    return false
+  } else if (strategy === "union" || strategy === "except") {
+    return true;
+  } else if (strategy === "join") {
+    if (!joinSource.type) {
+      console.log("join is missing TYPE")
+      return false
+    };
+    if (!joinSource.joinColumns || joinSource.joinColumns.length === 0) {
+      console.log("join is missing 'on columns'::", joinSource);
+      return false
+    };
+
+    if(!joinSource.joinColumns.every(col => col.dsColumn && col.joinSourceColumn)){
+      console.log("join is missing a portion of join column pair")
+    }
+
+    return joinSource.joinColumns.every(col => col.dsColumn && col.joinSourceColumn);
+  } else {
+    console.log("unknown join strategy::", strategy);
+    return false;
+  }
+}
+
 // ─── Output source info (Phase 4: chainability) ────────────────────────────
 /**
  * Compute outputSourceInfo — describes what this dataWrapper produces after
@@ -820,34 +944,6 @@ export const computeOutputSourceInfo = ({
 
 // ─── Main builder ───────────────────────────────────────────────────────────
 
-export const isJoinComplete = (joinSource) => {
-  const strategy = joinSource.mergeStrategy || 'join';
-  if(!joinSource.source || !joinSource.view) {
-    console.log("join is missing source or view::", joinSource);
-    return false
-  } else if (strategy === "union" || strategy === "except") {
-    return true;
-  } else if (strategy === "join") {
-    if (!joinSource.type) {
-      console.log("join is missing TYPE")
-      return false
-    };
-    if (!joinSource.joinColumns || joinSource.joinColumns.length === 0) {
-      console.log("join is missing 'on columns'::", joinSource);
-      return false
-    };
-
-    if(!joinSource.joinColumns.every(col => col.dsColumn && col.joinSourceColumn)){
-      console.log("join is missing a portion of join column pair")
-    } 
-
-    return joinSource.joinColumns.every(col => col.dsColumn && col.joinSourceColumn);
-  } else {
-    console.log("unknown join strategy::", strategy);
-    return false;
-  }
-}
-
 /**
  * buildUdaConfig — the main entry point.
  *
@@ -859,15 +955,54 @@ export const isJoinComplete = (joinSource) => {
  * @param {Object} input.filters - Top-level filter tree {op, groups} (promoted from dataRequest.filterGroups)
  * @param {Object} [input.join] - Optional join config (Phase 6)
  * @param {Object} [input.pageFilters] - Runtime URL search params for usePageFilters conditions
+ * @param {Object} [input.customBuckets] - Configuration for custom bucket columns
  * @returns {{ options: Object, attributes: string[], columnsToFetch: Array, columnsWithSettings: Array, outputSourceInfo: Object }}
  */
 export const buildUdaConfig = ({
   externalSource,
-  columns: rawUserColumns,
+  columns: rawUserColumnsInput,
   filters,
   join: rawJoin,
   pageFilters,
+  customBuckets,
 }) => {
+
+  // Custom buckets are "active" only when enabled AND the resolved config has at
+  // least one alias whose groups actually carry values. A dynamic binding stays
+  // unresolved until usePageFilterSync runs (e.g. no page filters present yet),
+  // leaving config empty — in that state we must NOT group/select the synthetic
+  // bucket column, or the server would reference a phantom alias column that
+  // doesn't exist in the table. Inactive → drop the column entirely (safe no-op
+  // matching "buckets off"); the config stays on state so it can resolve later.
+  const activeCustomBuckets =
+    customBuckets?.enabled === true &&
+    Object.values(customBuckets.config || {}).some(
+      // `def.column` (the source column) is required: after a source swap the
+      // sourceField is cleared but a dynamic binding may still resolve groups
+      // from page filters — without this guard that would emit a CASE on an
+      // empty column and break the server query.
+      (def) => def && def.column && Object.keys(def.groups || {}).length > 0,
+    );
+  const rawUserColumns = activeCustomBuckets
+    ? rawUserColumnsInput
+    : rawUserColumnsInput.filter((c) => c.origin !== "custom-bucket");
+
+  // Guard against the "unfiltered full-table scan" trap. When custom buckets are
+  // enabled with "filter to buckets" active AND the binding is dynamic (its group
+  // values come from page filters), an unresolved config — no page params present
+  // yet — drops BOTH the bucket column AND the row-restricting bucket filter
+  // (buildCustomBucketFilters returns [] for an empty config). That leaves a query
+  // whose only intended constraint has vanished, so it scans the whole table
+  // (millions of rows → multi-minute hang). Signal the caller to skip the fetch
+  // entirely; once usePageFilterSync resolves config from the page filters, the
+  // fetchKey changes and the section refetches with the proper bucket constraint.
+  // Static buckets are excluded: an empty static config is an intentional no-op
+  // ("filter to buckets on, nothing configured" returns all rows by design).
+  const skipFetch =
+    customBuckets?.enabled === true &&
+    customBuckets?.filterToBuckets !== false &&
+    customBuckets?.type !== "static" &&
+    !activeCustomBuckets;
 
   const join = { sources:{} };
 
@@ -901,7 +1036,7 @@ export const buildUdaConfig = ({
 
   /**
    * Source columns are ALL columns from ALL sources in the section
-   * 
+   *
    */
   const sourceColumns = allCols.map((col) => {
     const colSourceId = col.source_id || externalSource.source_id;
@@ -947,7 +1082,7 @@ export const buildUdaConfig = ({
     }
     return {
       ...col,
-      name: isJoin ? `${alias}.${col.name}` : col.name,
+      name: isJoin && col.origin !== 'custom-bucket' ? `${alias}.${col.name}` : col.name,
     };
   });
 
@@ -1022,6 +1157,21 @@ export const buildUdaConfig = ({
   // 5. Process top-level filter tree
   let filterTree = filters || {};
 
+  // "Filter to buckets" — when enabled, restrict rows to those that fall into a
+  // defined custom bucket. AND-restrict at the top level regardless of the
+  // user's filter relation so the bucket constraint can't be folded into an OR.
+  const bucketLeaves = buildCustomBucketFilters(
+    customBuckets,
+    externalSource?.source_id,
+    isDms,
+  );
+  if (bucketLeaves.length) {
+    filterTree = {
+      op: "AND",
+      groups: [...(filterTree.groups ? [filterTree] : []), ...bucketLeaves],
+    };
+  }
+  
   // If join is present, append table alias to filter columns
   if (isJoinPresent) {    
     filterTree = applyTableAliasToJoin(filterTree, sourceIdToTableAlias, externalSource.source_id);
@@ -1034,6 +1184,7 @@ export const buildUdaConfig = ({
   // → IN(Y, Y-1)). No-op for leaves without the flag.
   filterTree = applyPriorPeriodExpansion(filterTree);
 
+  filterTree = flattenFilterValues(filterTree);
   // Extract normal filters before mapping (they need raw column names)
   const { cleaned: nonNormalFilterGroups, normalFilters: filterGroupNormalFilters } =
     extractNormalFiltersFromGroups(filterTree);
@@ -1154,7 +1305,6 @@ export const buildUdaConfig = ({
   }
 
   const allHaving = [...comparisonHaving, ...filterGroupHaving];
-
   // 8. Assemble final options
   const options = {
     join: isJoinPresent ? buildJoin({join, externalSource}) : null,
@@ -1169,6 +1319,56 @@ export const buildUdaConfig = ({
     ...(Object.keys(comparisonFilters).length > 0 && comparisonFilters),
     ...(allHaving.length > 0 && { having: allHaving }),
   };
+
+  if (activeCustomBuckets) {
+    // Pass the detailed grouping configuration to the backend via aliasGroups.
+    // The backend builds a CASE per alias from `config` (column + groups).
+    //
+    // Resolve each definition's `column` to its SQL accessor the same way every
+    // other column ref is built: DMS internal sources read values out of a JSONB
+    // `data` column, so the CASE must compare `data->>'col'`, not a bare physical
+    // `col` that doesn't exist on the split table. DAMA columns are physical, so
+    // attributeAccessorStr returns them unchanged (isDms=false). The raw column
+    // name stays on customBuckets.config (state) for buildCustomBucketFilters,
+    // which maps it through its own mapFilterGroupCols accessor path.
+    options.aliasGroups = Object.fromEntries(
+      Object.entries(customBuckets.config).map(([alias, def]) => {
+        // Resolve the bucket's source column to its SQL accessor exactly as a
+        // display column would be (mirroring mapFilterGroupCols). Two cases that
+        // a naive `data->>'<col>'` gets wrong, both of which the Source Column
+        // picker can feed in (it offers every externalSource column, including
+        // synthetic ones, and stores the column's full `name` as sourceField):
+        //
+        //   • `id` — the DMS system column is a physical top-level column, not a
+        //     key in the JSONB `data` blob, so it must resolve to a bare `id`.
+        //   • A calculated/renamed column whose `name` is `<expr> as <alias>`
+        //     (e.g. `id as id`) — the accessor is the `<expr>` half, never
+        //     `data->>'id as id'` (a phantom JSON key → CASE matches nothing).
+        //
+        // The source column is usually NOT one of the section's display columns,
+        // so getColumn(def.column) misses. Detect calc form from the raw name the
+        // same way isCalculatedCol does (the `" as "` heuristic), and fall back to
+        // the codebase-wide `id` system-column convention — don't rely on colInfo.
+        const colInfo = getColumn(def.column);
+        const isCalculated = colInfo
+          ? isCalculatedCol(colInfo)
+          : isCalculatedCol({ name: def.column });
+        const isSystem = colInfo?.systemCol || def.column === "id";
+        return [
+          alias,
+          {
+            ...def,
+            column: attributeAccessorStr(
+              def.column,
+              isDms,
+              isCalculated,
+              isSystem,
+            ),
+          },
+        ];
+      }),
+    );
+  }
 
   // 9. Build attributes list
   const attributes = columnsToFetch.map((a) => a.reqName).filter((a) => a);
@@ -1190,6 +1390,7 @@ export const buildUdaConfig = ({
     columnsToFetch,
     columnsWithSettings,
     outputSourceInfo,
+    skipFetch,
   };
 };
 
