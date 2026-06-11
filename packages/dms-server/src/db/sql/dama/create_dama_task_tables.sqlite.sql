@@ -14,7 +14,10 @@ CREATE TABLE IF NOT EXISTS tasks (
     queued_at        TEXT NOT NULL DEFAULT (datetime('now')),
     started_at       TEXT,
     completed_at     TEXT,
-    worker_pid       INTEGER
+    worker_pid       INTEGER,
+    attempt          INTEGER NOT NULL DEFAULT 1,
+    max_attempts     INTEGER NOT NULL DEFAULT 1,
+    schedule_id      INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS task_events (

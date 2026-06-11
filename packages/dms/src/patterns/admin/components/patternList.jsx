@@ -214,18 +214,31 @@ function PatternEdit({
 
 	const duplicate = async({oldInstance, newInstance}, item) => {
 		setIsDuplicating(true);
-		// call server to copy over pages and sections
-		const res = await fetch(`${dmsServerPath}/dms/${app}+${oldInstance}/duplicate`,
-			{
-				method: "POST",
-				body: JSON.stringify({newApp: app, newType: newInstance}),
-				headers: {
-					"Content-Type": "application/json",
-				},
-			});
-
-		await addNewValue(item);
-		setIsDuplicating(false);
+		try {
+			// call server to copy over pages and sections (the new instance's content)
+			const res = await fetch(`${dmsServerPath}/dms/${app}+${oldInstance}/duplicate`,
+				{
+					method: "POST",
+					body: JSON.stringify({newApp: app, newType: newInstance}),
+					headers: {
+						"Content-Type": "application/json",
+					},
+				});
+			// Surface a failed copy instead of silently creating an empty pattern.
+			const body = await res.json().catch(() => ({}));
+			if (!res.ok || body?.err) {
+				console.error('[duplicate] page/section copy failed:', body?.err || res.status);
+				window.alert(`Pattern duplicate failed: ${body?.err || `HTTP ${res.status}`}. Pattern not created.`);
+				return;
+			}
+			// Pages/sections cloned server-side; now create the pattern row for the new instance.
+			await addNewValue(item);
+		} catch (err) {
+			console.error('[duplicate] error:', err);
+			window.alert(`Pattern duplicate failed: ${err.message}`);
+		} finally {
+			setIsDuplicating(false);
+		}
 	}
 
 	const data = value

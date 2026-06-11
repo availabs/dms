@@ -14,7 +14,10 @@ CREATE TABLE IF NOT EXISTS data_manager.tasks (
     queued_at        TIMESTAMP NOT NULL DEFAULT NOW(),
     started_at       TIMESTAMP,
     completed_at     TIMESTAMP,
-    worker_pid       INTEGER
+    worker_pid       INTEGER,
+    attempt          INTEGER NOT NULL DEFAULT 1,
+    max_attempts     INTEGER NOT NULL DEFAULT 1,
+    schedule_id      INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS data_manager.task_events (

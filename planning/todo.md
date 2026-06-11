@@ -9,6 +9,7 @@
 - [x] DAMA server port — task queue with host isolation + idempotent locking, GIS/CSV upload pipeline (GDAL), multi-pgEnv routing, UDA task/event Falcor routes, datatype plugin system, legacy migration script. All 7 phases shipped + production-verified. One non-blocking follow-up split out: [Remove `/events/query` + `newContextId` REST compat shim](./tasks/current/remove-events-query-shim.md).
 - [x] [Datatypes plugin infrastructure](./tasks/completed/datatypes-plugin-infrastructure.md) — `data-types/` + `server/register-datatypes.js` + `DMS_EXTRA_DATATYPES` env-var hook landed; submodule `dms-server/src/index.js` patched; smoke-test `_hello-world` plugin verifies the round-trip end-to-end (POST → events → done).
 - [ ] [Port `enhance_nfip_claims_v2` to the plugin system](./tasks/current/dama-nfip-claims-migration.md) — first concrete plugin built on the infrastructure. Reference implementation for subsequent hazmit ports. Replaces the smoke-test plugin with `enhance-nfip-claims`.
+- [x] [Port the pattern "duplicate" route to dms-server](./tasks/completed/port-pattern-duplicate-route.md) — DONE 2026-06-10. Added `/dama-admin/dms/:appType/duplicate` + `dama/upload/dms-duplicate.js`: a new-type-model deep clone of `{instance}|page` + `{instance}|component` rows under the new instance (remapping `draft_sections`/`sections` refs, section `parent`, `data.id`; drops history; pattern row still created client-side via `addNewValue`). Client (`patternList.jsx`/`editSite.jsx`) now checks `res.ok` and surfaces failures. Verified: cloned freightatlas2 → 7 pages/195 components, refs remapped, test rows cleaned up. UI end-to-end pending user confirm.
 - [ ] [Port `map21` to the plugin system + 2023 HPMS TTM spec output](./tasks/current/dama-map21-migration.md) — IMPLEMENTED on 2026-04-26: plugin registered, route mounts at `/dama-admin/:pgEnv/map21/publish`, fast-fail path verified against `dama-sqlite-test`, in-process HPMS 2023 validator agrees with the external `validate-hpms-ttm-2023.cjs` (synthesized 2023-shape row passes; 2025 submittal CSV produces identical errors in both). **Pending: controlled smoke test against `npmrds2` ClickHouse + a real prod NPMRDS source, plus client-side route update.**
 - [ ] [Remove `/events/query` + `newContextId` REST compat shim](./tasks/current/remove-events-query-shim.md) — split out from DAMA server port; non-blocking. Migrate the GIS Create wizard to poll UDA tasks via Falcor, then drop the legacy REST endpoints from `dms-server/src/dama/upload/`.
 - [x] [now_playing dataType plugin](./tasks/completed/dama-now-playing-datatype.md) — ACRCloud webhook receiver shipped as a DMS plugin at `data-types/now_playing/` with full client-side UI (Create + Webhook source-view pages), DAMA source/view provisioning with `metadata.columns`, normalize.js, schema.js with idempotent inserts, ACR Console backfill worker, iTunes/MusicBrainz cover-art enrichment, and the existing `Card` page-section bound to a stream's view to render the latest matched track. Live verified against ACR project 16608 stream `s-Z0XwkcHp`.
@@ -44,6 +45,14 @@
 - [x] Centralize format initialization (`updateAttributes`/`updateRegisteredFormats`) — remove duplicated definitions from patterns, add `initializePatternFormat` helper
 
 ## dms-server
+
+- [ ] **Scheduled data-loader runs** — cron scheduling for datatype workers (data_manager.schedules +
+      due-sweep + plugin `schedulables` contract) + datasets-pattern UI: authorable cron creation per
+      source + run-history/interrogation pages. Ports the legacy pg-boss npmrds/transcom cadences with
+      their weaknesses fixed (duplicate guard, RITIS daily-budget preflight, loud failures).
+      **P1 (server core + retry hardening) + P2 (plugin opt-ins) DONE 2026-06-10; P3 (UI) + P4
+      (docs/golden-path) remain.**
+      Task: [datatype-download-scheduling.md](./tasks/current/datatype-download-scheduling.md)
 
 - [x] Search tags query performance — `getTags()` takes 4+ minutes due to `json_each` cartesian product, `CAST(id AS TEXT)` join, no caching; fix with direct section query + server-side cache
 - [x] Add SQLite compatibility
