@@ -103,13 +103,21 @@ function resolveAliasGroups(uiConfig, pageFilters) {
     return { [uiConfig.alias]: { column: uiConfig.sourceField, fallback: uiConfig.fallback, groups: groups } };
   }
 
-  const rawRoutes = get(pageFilters, uiConfig?.binding?.statePath) || [];
+  const rawPageFilterValue = get(pageFilters, uiConfig?.binding?.statePath) || [];
+  const { labelKey, valueKey } = uiConfig.binding;
 
   // Transform it into the exact Label -> Array shape the server wants
   const groups = {};
-  rawRoutes.forEach(route => {
-    const label = route[uiConfig.binding.labelKey];
-    const values = route[uiConfig.binding.valueKey];
+  rawPageFilterValue.forEach(entry => {
+    // A provider may publish a per-row composite { id, value } so distinct
+    // rows toggle independently (spreadsheet click_publish with an id column). When
+    // the row fields aren't on the entry itself but it carries a `.value`, unwrap
+    // it. A direct entry (any other page-filter source) is used as-is.
+    const entryVal = (entry && typeof entry === 'object' && entry[labelKey] === undefined && entry.value !== undefined)
+      ? entry.value
+      : entry;
+    const label = entryVal?.[labelKey];
+    const values = entryVal?.[valueKey];
     if (label && values) groups[label] = values;
   });
 

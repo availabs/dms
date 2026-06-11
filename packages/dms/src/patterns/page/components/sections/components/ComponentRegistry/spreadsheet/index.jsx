@@ -1,4 +1,5 @@
 import React, {useCallback, useContext, useEffect, useMemo, useRef, useState} from "react";
+import {computeRowPublish} from "./rowPublish";
 import {
     actionsColSize,
     gutterColSize as gutterColSizeDf,
@@ -38,20 +39,11 @@ export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addIte
 
     const onRowMouseClick = useCallback((rowData) => {
         if (!clickPublishCfg || !setActionParam) return;
-        const {column, append_params} = clickPublishCfg?.args || {};
-        const cellValue = rowData?.[column];
-
-        if (cellValue != null) {
-            let finalValue = [cellValue];
-            if(append_params) {
-                //mutate final value
-                const curFilter = pageState?.filters?.find(f => f.searchKey === clickPublishCfg.paramKey && f.type === 'action');
-                const curValues = curFilter?.values || [];
-                finalValue = [...curValues, cellValue];
-            }
-            setActionParam(clickPublishCfg.paramKey, finalValue);
-        }
-    }, [clickPublishCfg, setActionParam, pageState]);
+        const curValues = pageState?.filters?.find(f => f.searchKey === clickPublishCfg.paramKey && f.type === 'action')?.values || [];
+        const { op, values } = computeRowPublish(rowData, clickPublishCfg.args || {}, curValues);
+        if (op === 'clear') clearActionParam(clickPublishCfg.paramKey);
+        else if (op === 'set') setActionParam(clickPublishCfg.paramKey, values);
+    }, [clickPublishCfg, setActionParam, clearActionParam, pageState]);
 
     const subCfg = display._functions?.subscribers?.find(s => s.functionId === 'row_highlight' && s.enabled);
     const highlightedRow = subCfg && pageState
