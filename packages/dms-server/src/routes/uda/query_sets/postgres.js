@@ -16,6 +16,7 @@ const {
   getValuesExceptNulls,
   getValuesFromGroup,
   handleHaving,
+  handleGroupBy,
   handleOrderBy,
   buildCombinedWhere,
   buildJoin,
