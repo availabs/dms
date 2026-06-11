@@ -139,9 +139,11 @@ export const GridGraph = props => {
     axisBottom = null,
     axisLeft = null,
     className = "",
-    onClick = null,
-    onHoverEnter = null,
-    onHoverLeave = null,
+    onHorizontalEnter = null,
+    onHorizontalLeave = null,
+    onGridEnter = null,
+    onGridLeave = null,
+    onGridClick = null,
     bgColor = "#000000",
     nullColor = "transparent",
     hoverPoints = false,
@@ -152,7 +154,8 @@ export const GridGraph = props => {
     // groupMode = "stacked",
     points = EmptyArray,
     bounds = EmptyArray,
-    showAnimations = false
+    showAnimations = false,
+    highlights = EmptyArray
   } = props;
 
   const Margin = React.useMemo(() => {
@@ -512,9 +515,12 @@ export const GridGraph = props => {
                 svgHeight={ state.adjustedHeight }
                 onMouseMove={ onMouseMove }
                 showAnimations={ showAnimations }
-                onClick={ onClick }
-                onHoverEnter={ onHoverEnter }
-                onHoverLeave={ onHoverLeave }/>
+                onGridClick={ onGridClick }
+                onHorizontalEnter={ onHorizontalEnter }
+                onHorizontalLeave={ onHorizontalLeave }
+                onGridEnter={ onGridEnter }
+                onGridLeave={ onGridLeave }
+                highlights={ highlights }/>
             )
           }
 
@@ -642,9 +648,10 @@ const Point = ({ showHover, onMouseOver, data, cx, cy, ...rest }) => {
 }
 
 const Grid = React.memo(({ x, width, height, color,
-                state, onMouseMove, onClick,
+                state, onMouseMove, onGridClick, highlight,
                 Key, index, value, showAnimations,
-                data, indexData, totalsByKeys, indexes }) => {
+                data, indexData, totalsByKeys, indexes,
+                onGridEnter, onGridLeave }) => {
 
   const ref = React.useRef();
 
@@ -686,22 +693,38 @@ const Grid = React.memo(({ x, width, height, color,
     onMouseMove(e, { color, key: Key, index, value, data, x, width, indexData, keyTotal: totalsByKeys[Key], indexes });
   }, [onMouseMove, color, Key, index, value, data, x, width, indexData, indexes, totalsByKeys]);
 
-  const _onClick = React.useMemo(() => {
-    if (!onClick) return null;
+  const onClick = React.useMemo(() => {
+    if (typeof onGridClick !== "function") return null;
     return e => {
-      onClick(e, { key: Key, index, value });
+      onGridClick(e, { key: Key, index, value, data });
     }
-  }, [onClick, Key, index, value]);
+  }, [onGridClick, Key, index, value, data]);
+
+  const onMouseEnter = React.useMemo(() => {
+    if (typeof onGridEnter !== "function") return null;
+    return e => onGridEnter(e, { key: Key, index, data, value })
+  }, [onGridEnter, Key, index, data, value]);
+
+  const onMouseLeave = React.useMemo(() => {
+    if (typeof onGridLeave !== "function") return null;
+    return e => onGridLeave(e, { key: Key, index, data, value })
+  }, [onGridLeave, Key, index, data, value]);
 
   return (
     <rect ref={ ref } className="avl-grid"
       onMouseMove={ _onMouseMove }
-      onClick={ _onClick }/>
+      onClick={ onClick }
+      onMouseEnter={ onMouseEnter }
+      onMouseLeave={ onMouseLeave }
+      style={ {
+        fill: highlight ? "red" : null,
+        fillOpacity: highlight ? 1.0 : null
+      } }/>
   )
 })
 
 const Horizontal = React.memo(({ index, grid, top, state, showAnimations, svgHeight,
-                                  onHoverEnter, onHoverLeave, className, ...props }) => {
+                                  onHorizontalEnter, onHorizontalLeave, className, highlights, ...props }) => {
 
   const ref = React.useRef();
 
@@ -742,26 +765,34 @@ const Horizontal = React.memo(({ index, grid, top, state, showAnimations, svgHei
     }
   }, [state, top,showAnimations, svgHeight]);
 
-  const onEnter = React.useMemo(() => {
-    if (!onHoverEnter) return null;
-    return e => onHoverEnter(e, index);
-  }, [onHoverEnter, index]);
+  const onMouseEnter = React.useMemo(() => {
+    if (typeof onHorizontalEnter !== "function") return null;
+    return e => onHorizontalEnter(e, { index, grid });
+  }, [onHorizontalEnter, index, grid]);
 
-  const onLeave = React.useMemo(() => {
-    if (!onHoverLeave) return null;
-    return e => onHoverLeave(e, index);
-  }, [onHoverLeave, index]);
+  const onMouseLeave = React.useMemo(() => {
+    if (typeof onHorizontalLeave !== "function") return null;
+    return e => onHorizontalLeave(e, { index, grid });
+  }, [onHorizontalLeave, index, grid]);
+
+  const highlight = React.useMemo(() => {
+    const filtered = highlights.filter(h => h.type === "index" && h.value == index);
+    return Boolean(filtered.length);
+  }, [highlights, index]);
 
   return (
     <g ref={ ref }
       className={ `avl-grid-horizontal ${ className ? className : "" }` }
-      onMouseEnter={ onEnter }
-      onMouseLeave={ onLeave }
+      onMouseEnter={ onMouseEnter }
+      onMouseLeave={ onMouseLeave }
     >
       { grid.map(({ key, ...rest }) =>
           <Grid key={ key } Key={ key } state={ state }
             { ...props } { ...rest }
-            showAnimations={ showAnimations }/>
+            showAnimations={ showAnimations }
+            highlight={
+              highlight || Boolean(highlights.find(h => h.type === "key" && h.value == key))
+            }/>
         )
       }
     </g>

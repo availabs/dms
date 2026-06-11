@@ -9,29 +9,87 @@ const SizeMap = {
 	large: [400, 40, "text-sm"]
 }
 
-const VerticalCategoricalLegendItem = ({ label, color }) => {
+const VerticalCategoricalLegendItem = props => {
+
+	const {
+		label,
+		color,
+		doHighlight = false,
+		onEnter,
+		onLeave
+	} = props;
+
+	const doOnEnter = React.useCallback(e => {
+		e.stopPropagation();
+		if (typeof onEnter !== "function") return;
+		onEnter(label);
+	}, [onEnter, label]);
+
+	const doOnLeave = React.useCallback(e => {
+		e.stopPropagation();
+		if (typeof onLeave !== "function") return;
+		onLeave(null);
+	}, [onLeave, label]);
+
 	return (
-		<div className="flex items-center">
+		<div
+			className={ `
+				flex items-center px-1
+				${ doHighlight ? "outline outline-2 outline-offset-1 rounded" : "" }
+			` }
+			onMouseEnter={ doOnEnter }
+			onMouseLeave={ doOnLeave }
+		>
 			<div className="w-4 h-4 rounded mr-1"
-				style={ { backgroundColor: color } }/>
-			<div>{ label }</div>
+				style={ {
+					backgroundColor: doHighlight ? "red" : color
+				} }/>
+			<div>
+				{ label }
+			</div>
 		</div>
 	)
 }
 
-const VerticalCategoricalLegend = ({ categories = [], colors = [] }) => {
+const VerticalCategoricalLegend = props => {
+
+	const {
+		categories = [],
+		colors = [],
+		actions = [],
+		...rest
+	} = props;
+
 	const categoriesAndColors = React.useMemo(() => {
 		const l = colors.length;
 		return categories.map((cat, i) => {
 			return [cat, colors[i % l]];
 		}).reverse();
 	}, [categories, colors]);
+
+// console.log("VerticalCategoricalLegend::actions", actions);
+
+	const catsToHiglight = React.useMemo(() => {
+		return actions.reduce((a, c) => {
+			if (c.action === "hover_highlight") {
+				for (const v of c.value) {
+					a.add(v);
+				}
+			}
+			return a;
+		}, new Set());
+	}, [actions]);
+
+// console.log("VerticalCategoricalLegend::catsToHiglight", catsToHiglight);
+
 	return (
 		<div className="px-4 grid grid-cols-1 gap-1">
 			{ categoriesAndColors.map(([cat, color]) =>
 					<VerticalCategoricalLegendItem key={ cat }
+						{ ...rest }
 						label={ cat }
-						color={ color }/>
+						color={ color }
+						doHighlight={ catsToHiglight.has(cat) }/>
 				)
 		}
 		</div>
@@ -60,7 +118,7 @@ const VerticalLinearLegendTick = ({ value, format, width }) => {
 const VerticalLinearLegend = ({ size, scale = scaleLinear(), format = identity }) => {
 
 	const [height, width] = React.useMemo(() => {
-		return SizeMap[size];
+		return SizeMap[size] || SizeMap["medium"];
 	}, [size]);
 
 	const ticks = React.useMemo(() => {
@@ -150,7 +208,7 @@ const HorizontalLinearLegendTick = ({ scale, value, format, below, height }) => 
 const HorizontalLinearLegend = ({ size, scale = scaleLinear(), format = identity }) => {
 
 	const [width, height] = React.useMemo(() => {
-		return SizeMap[size];
+		return SizeMap[size] || SizeMap["medium"];
 	}, [size]);
 
 	const [wScale, ...ticks] = React.useMemo(() => {
@@ -214,7 +272,8 @@ export const Legend = props => {
 
 	return (
 		<div className={ textSize }>
-			<Legend size={ size } { ...rest }/>
+			<Legend size={ size } { ...rest }
+				actions={ props.actions || [] }/>
 		</div>
 	)
 }

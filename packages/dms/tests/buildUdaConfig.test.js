@@ -22,6 +22,7 @@ import {
   buildColumnsWithSettings,
   getColumnsToFetch,
   buildUdaConfig,
+  buildCustomBucketFilters,
   legacyStateToBuildInput,
   computeOutputSourceInfo,
   buildJoin,
@@ -711,6 +712,409 @@ describe("buildUdaConfig", () => {
     expect(attributes).toEqual([]);
     expect(options.groupBy).toEqual([]);
     expect(options.filterGroups).toEqual({});
+  });
+
+  // ─── custom bucket "filter to buckets" ──────────────────────────────────────
+
+  const bucketConfig = (groups, extra = {}) => ({
+    alias: "region",
+    sourceField: "county",
+    fallback: "Other",
+    enabled: true,
+    config: { region: { column: "county", fallback: "Other", groups } },
+    ...extra,
+  });
+
+  it("filter to buckets OFF: filterGroups identical to today (no injection)", () => {
+    const input = basicDamaInput();
+    input.customBuckets = bucketConfig(
+      { North: ["Albany", "Greene"] },
+      { filterToBuckets: false },
+    );
+    const { options } = buildUdaConfig(input);
+    // No filters configured + toggle off → empty tree, same as a no-bucket run.
+    expect(options.filterGroups).toEqual({});
+  });
+
+  it("filter to buckets ON: injects IN leaf with bucket values on source col", () => {
+    const input = basicDamaInput();
+    input.customBuckets = bucketConfig({ North: ["Albany", "Greene"] });
+    const { options } = buildUdaConfig(input);
+    const leaf = options.filterGroups.groups[0];
+    expect(options.filterGroups.op).toBe("AND");
+    expect(leaf.col).toBe("county");
+    expect(leaf.op).toBe("filter");
+    expect(leaf.value).toEqual(["Albany", "Greene"]);
+  });
+
+  it("filter to buckets ON (default/unset): treated as enabled", () => {
+    const input = basicDamaInput();
+    input.customBuckets = bucketConfig({ North: ["Albany"] }); // no filterToBuckets key
+    const { options } = buildUdaConfig(input);
+    expect(options.filterGroups.groups[0].value).toEqual(["Albany"]);
+  });
+
+  it("filter to buckets ON: flattens + dedupes across multiple groups", () => {
+    const input = basicDamaInput();
+    input.customBuckets = bucketConfig({
+      North: ["Albany", "Greene"],
+      South: ["Greene", "Ulster"],
+    });
+    const { options } = buildUdaConfig(input);
+    expect(options.filterGroups.groups[0].value).toEqual([
+      "Albany",
+      "Greene",
+      "Ulster",
+    ]);
+  });
+
+  it("filter to buckets ON, DMS: maps bucket col to data->> accessor", () => {
+    const input = basicDmsInput();
+    input.customBuckets = {
+      alias: "bucket",
+      sourceField: "county",
+      enabled: true,
+      config: { bucket: { column: "county", groups: { A: ["Albany"] } } },
+    };
+    const { options } = buildUdaConfig(input);
+    expect(options.filterGroups.groups[0].col).toBe("data->>'county'");
+  });
+
+  it("filter to buckets ON but empty groups: no injection (returns all rows)", () => {
+    const input = basicDamaInput();
+    input.customBuckets = bucketConfig({});
+    const { options } = buildUdaConfig(input);
+    expect(options.filterGroups).toEqual({});
+  });
+
+  it("filter to buckets ON: AND-restricts existing OR filters at top level", () => {
+    const input = basicDamaInput();
+    input.filters = {
+      op: "OR",
+      groups: [
+        { col: "county", op: "filter", value: ["Albany"] },
+        { col: "event_type", op: "filter", value: ["Flood"] },
+      ],
+    };
+    input.customBuckets = bucketConfig({ North: ["Albany", "Greene"] });
+    const { options } = buildUdaConfig(input);
+    // Top level is AND: [ original OR tree, bucket leaf ]
+    expect(options.filterGroups.op).toBe("AND");
+    expect(options.filterGroups.groups[0].op).toBe("OR");
+    expect(options.filterGroups.groups[0].groups).toHaveLength(2);
+    expect(options.filterGroups.groups[1].col).toBe("county");
+    expect(options.filterGroups.groups[1].value).toEqual(["Albany", "Greene"]);
+  });
+
+  // ─── custom bucket master enable/disable ──────────────────────────────────
+
+  it("master default (unset enabled): no aliasGroups, no bucket filter", () => {
+    const input = basicDamaInput();
+    input.customBuckets = bucketConfig(
+      { North: ["Albany"] },
+      { enabled: undefined, filterToBuckets: true },
+    );
+    const { options } = buildUdaConfig(input);
+    expect(options.aliasGroups).toBeUndefined();
+    expect(options.filterGroups).toEqual({});
+  });
+
+  it("master OFF: no aliasGroups, no bucket filter, even with filterToBuckets on", () => {
+    const input = basicDamaInput();
+    input.customBuckets = bucketConfig(
+      { North: ["Albany", "Greene"] },
+      { enabled: false, filterToBuckets: true },
+    );
+    const { options } = buildUdaConfig(input);
+    expect(options.aliasGroups).toBeUndefined();
+    expect(options.filterGroups).toEqual({});
+  });
+
+  it("master ON (enabled:true): aliasGroups passed through", () => {
+    const input = basicDamaInput();
+    input.customBuckets = bucketConfig({ North: ["Albany"] });
+    const { options } = buildUdaConfig(input);
+    expect(options.aliasGroups).toEqual(input.customBuckets.config);
+  });
+
+  // ─── custom bucket DMS-source compatibility ───────────────────────────────
+  //
+  // DMS internal sources store column values inside a JSONB `data` column, so
+  // every column ref is `data->>'col'`. The bucket dimension has two distinct
+  // accessor requirements the rest of the pipeline doesn't handle by default:
+  //   (a) the synthetic alias column must stay the BARE alias in groupBy/SELECT
+  //       so the server's `groupBy.includes(alias)` match fires (a data->>'alias'
+  //       ref would be a phantom JSON key and silently disable bucketing);
+  //   (b) the CASE's source column must be resolved to `data->>'col'` so the
+  //       server compares the JSONB value, not a nonexistent physical column.
+
+  const dmsBucket = () => ({
+    alias: "region",
+    sourceField: "county",
+    fallback: "Other",
+    enabled: true,
+    config: { region: { column: "county", fallback: "Other", groups: { North: ["Albany"] } } },
+  });
+
+  it("DMS bucket dimension: groupBy + attribute use the bare alias, not data->>", () => {
+    const input = basicDmsInput();
+    input.columns.push(col("region", { group: true, origin: "custom-bucket" }));
+    input.customBuckets = dmsBucket();
+    const { options, attributes } = buildUdaConfig(input);
+    // Bare alias so the server's groupBy.includes(alias) match fires.
+    expect(options.groupBy).toContain("region");
+    expect(options.groupBy).not.toContain("data->>'region'");
+    // Bucket attribute is the bare alias (the server substitutes the CASE for it).
+    expect(attributes).toContain("region");
+    expect(attributes).not.toContain("data->>'region' as region");
+  });
+
+  it("DMS aliasGroups: resolves the CASE column to a data->> accessor", () => {
+    const input = basicDmsInput();
+    input.columns.push(col("region", { group: true, origin: "custom-bucket" }));
+    input.customBuckets = dmsBucket();
+    const { options } = buildUdaConfig(input);
+    expect(options.aliasGroups.region.column).toBe("data->>'county'");
+    // groups + fallback pass through untouched
+    expect(options.aliasGroups.region.groups).toEqual({ North: ["Albany"] });
+    expect(options.aliasGroups.region.fallback).toBe("Other");
+  });
+
+  it("DMS aliasGroups on the `id` system column: bare `id`, not data->>'id'", () => {
+    // `id` is the DMS system column — a physical top-level column, not a key in
+    // the JSONB `data` blob. Resolving it to `data->>'id'` yields NULL for every
+    // row, so the CASE always falls through to the fallback and the bucket matches
+    // nothing. The CASE column must stay a bare `id`.
+    const input = basicDmsInput();
+    input.columns.push(col("region", { group: true, origin: "custom-bucket" }));
+    input.customBuckets = {
+      alias: "region",
+      sourceField: "id",
+      fallback: "Other",
+      enabled: true,
+      config: { region: { column: "id", fallback: "Other", groups: { Picked: ["1", "2"] } } },
+    };
+    const { options } = buildUdaConfig(input);
+    expect(options.aliasGroups.region.column).toBe("id");
+  });
+
+  it("DMS aliasGroups on a calculated/renamed source column (`<expr> as <alias>`): accessor is the expr, not data->>'<full name>'", () => {
+    // The Source Column picker offers every externalSource column — including
+    // synthetic/renamed ones — and stores the column's full `name` as sourceField.
+    // For a renamed column like `id as id`, the bucket source is NOT one of the
+    // section's display columns, so getColumn() misses. The accessor must still be
+    // the calc form's expression half (`id`), never `data->>'id as id'` (a phantom
+    // JSON key → the CASE matches nothing).
+    const input = basicDmsInput();
+    input.columns.push(col("region", { group: true, origin: "custom-bucket" }));
+    input.customBuckets = {
+      alias: "region",
+      sourceField: "id as id",
+      fallback: "Other",
+      enabled: true,
+      config: { region: { column: "id as id", fallback: "Other", groups: { Picked: ["1", "2"] } } },
+    };
+    const { options } = buildUdaConfig(input);
+    expect(options.aliasGroups.region.column).toBe("id");
+  });
+
+  it("DAMA aliasGroups: CASE column stays a bare physical column (regression)", () => {
+    const input = basicDamaInput();
+    input.columns.push(col("region", { group: true, origin: "custom-bucket" }));
+    input.customBuckets = bucketConfig({ North: ["Albany"] });
+    const { options } = buildUdaConfig(input);
+    expect(options.aliasGroups.region.column).toBe("county");
+    expect(options.groupBy).toContain("region");
+  });
+
+  it("enabled but config unresolved (no groups): no aliasGroups, bucket col not grouped", () => {
+    // Dynamic binding before usePageFilterSync resolves it — config has an alias
+    // entry but empty groups. The synthetic grouped column must be dropped so the
+    // server never GROUP BYs a phantom alias column that isn't in the table.
+    const input = basicDamaInput();
+    input.columns.push(col("region", { group: true, origin: "custom-bucket" }));
+    input.customBuckets = bucketConfig(
+      {},
+      { config: { region: { column: "county", fallback: "Other", groups: {} } } },
+    );
+    const { options } = buildUdaConfig(input);
+    expect(options.aliasGroups).toBeUndefined();
+    expect(options.groupBy).not.toContain("region");
+  });
+
+  it("enabled but config has groups with empty column (source swapped): no aliasGroups", () => {
+    // After a source change the sourceField is cleared but a dynamic binding may
+    // still resolve groups from page filters, leaving config with values but an
+    // empty `column`. The bucket must be inactive so the server never emits a
+    // CASE on an empty column. Also drops the synthetic grouped column.
+    const input = basicDamaInput();
+    input.columns.push(col("region", { group: true, origin: "custom-bucket" }));
+    input.customBuckets = bucketConfig(
+      {},
+      {
+        sourceField: "",
+        config: { region: { column: "", fallback: "Other", groups: { North: ["Albany"] } } },
+      },
+    );
+    const { options } = buildUdaConfig(input);
+    expect(options.aliasGroups).toBeUndefined();
+    expect(options.groupBy).not.toContain("region");
+  });
+
+  // ─── skipFetch: unresolved dynamic binding must not fire an unfiltered query ──
+
+  it("skipFetch: dynamic binding unresolved + filterToBuckets on → skip the fetch", () => {
+    // The regression case. A dynamic (page-filter-bound) binding before page
+    // params arrive: config carries the alias but no group values. Dropping
+    // aliasGroups also drops the row-restricting bucket filter, so without this
+    // guard the query would scan the whole unfiltered table.
+    const input = basicDamaInput();
+    input.customBuckets = bucketConfig(
+      {},
+      { config: { region: { column: "county", fallback: "Other", groups: {} } } },
+    );
+    const { skipFetch } = buildUdaConfig(input);
+    expect(skipFetch).toBe(true);
+  });
+
+  it("skipFetch: static buckets with empty config do NOT skip (intentional no-op)", () => {
+    const input = basicDamaInput();
+    input.customBuckets = bucketConfig(
+      {},
+      {
+        type: "static",
+        config: { region: { column: "county", fallback: "Other", groups: {} } },
+      },
+    );
+    const { skipFetch } = buildUdaConfig(input);
+    expect(skipFetch).toBe(false);
+  });
+
+  it("skipFetch: filterToBuckets off + unresolved does NOT skip", () => {
+    const input = basicDamaInput();
+    input.customBuckets = bucketConfig(
+      {},
+      {
+        filterToBuckets: false,
+        config: { region: { column: "county", fallback: "Other", groups: {} } },
+      },
+    );
+    const { skipFetch } = buildUdaConfig(input);
+    expect(skipFetch).toBe(false);
+  });
+
+  it("skipFetch: resolved config (has group values) does NOT skip", () => {
+    const input = basicDamaInput();
+    input.customBuckets = bucketConfig({ North: ["Albany"] });
+    const { skipFetch } = buildUdaConfig(input);
+    expect(skipFetch).toBe(false);
+  });
+
+  it("skipFetch: buckets disabled does NOT skip", () => {
+    const input = basicDamaInput();
+    input.customBuckets = bucketConfig({}, { enabled: false });
+    const { skipFetch } = buildUdaConfig(input);
+    expect(skipFetch).toBe(false);
+  });
+});
+
+// ─── buildCustomBucketFilters ────────────────────────────────────────────────
+
+describe("buildCustomBucketFilters", () => {
+  it("returns [] when filterToBuckets is explicitly false (master on)", () => {
+    const cb = {
+      enabled: true,
+      filterToBuckets: false,
+      config: { r: { column: "county", groups: { A: ["Albany"] } } },
+    };
+    expect(buildCustomBucketFilters(cb, 100)).toEqual([]);
+  });
+
+  it("returns [] when master enabled is unset (default off)", () => {
+    const cb = {
+      config: { r: { column: "county", groups: { A: ["Albany"] } } },
+    };
+    expect(buildCustomBucketFilters(cb, 100)).toEqual([]);
+  });
+
+  it("returns [] for undefined customBuckets", () => {
+    expect(buildCustomBucketFilters(undefined, 100)).toEqual([]);
+  });
+
+  it("returns [] when master enabled is explicitly false", () => {
+    const cb = {
+      enabled: false,
+      config: { r: { column: "county", groups: { A: ["Albany"] } } },
+    };
+    expect(buildCustomBucketFilters(cb, 100)).toEqual([]);
+  });
+
+  it("stamps source_id on the leaf for join aliasing", () => {
+    const cb = { enabled: true, config: { r: { column: "county", groups: { A: ["Albany"] } } } };
+    expect(buildCustomBucketFilters(cb, 7)).toEqual([
+      { col: "county", op: "filter", value: ["Albany"], source_id: 7 },
+    ]);
+  });
+
+  it("builds one leaf per alias", () => {
+    const cb = {
+      enabled: true,
+      config: {
+        r: { column: "county", groups: { A: ["Albany"] } },
+        t: { column: "type", groups: { B: ["Flood"] } },
+      },
+    };
+    const leaves = buildCustomBucketFilters(cb, 1);
+    expect(leaves).toHaveLength(2);
+    expect(leaves.map((l) => l.col).sort()).toEqual(["county", "type"]);
+  });
+
+  it("skips aliases with no values", () => {
+    const cb = {
+      enabled: true,
+      config: {
+        r: { column: "county", groups: {} },
+        t: { column: "type", groups: { B: ["Flood"] } },
+      },
+    };
+    const leaves = buildCustomBucketFilters(cb, 1);
+    expect(leaves).toHaveLength(1);
+    expect(leaves[0].col).toBe("type");
+  });
+
+  it("drops null/empty-string values", () => {
+    const cb = {
+      enabled: true,
+      config: { r: { column: "county", groups: { A: ["Albany", "", null] } } },
+    };
+    expect(buildCustomBucketFilters(cb, 1)[0].value).toEqual(["Albany"]);
+  });
+
+  it("parses JSON-stringified array group values (dynamic bindings)", () => {
+    // Dynamic page-filter bindings can store the value list as a JSON string.
+    // It must expand to a real array so the leaf compiles to IN (...), not
+    // `col = '["a","b"]'`.
+    const cb = {
+      enabled: true,
+      config: { r: { column: "tmc", groups: { A: '["120-50371","120P05935"]' } } },
+    };
+    expect(buildCustomBucketFilters(cb, 1)[0].value).toEqual([
+      "120-50371",
+      "120P05935",
+    ]);
+  });
+
+  it("mixes stringified and real array groups, deduping across both", () => {
+    const cb = {
+      enabled: true,
+      config: {
+        r: {
+          column: "tmc",
+          groups: { A: '["a","b"]', B: ["b", "c"] },
+        },
+      },
+    };
+    expect(buildCustomBucketFilters(cb, 1)[0].value).toEqual(["a", "b", "c"]);
   });
 });
 

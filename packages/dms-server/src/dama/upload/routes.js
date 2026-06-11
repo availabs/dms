@@ -226,7 +226,7 @@ function getLayers(req, res) {
 function createPublishHandler(controller) {
   return async function publish(req, res) {
     const { appType } = req.params;
-    const { gisUploadId, layerName, columns = [], user_id, sourceId } = req.body;
+    const { gisUploadId, layerName, columns = [], user_id, sourceId, primaryColName } = req.body;
 
     const [app, type] = appType.split('+');
     if (!app || !type) {
@@ -263,7 +263,8 @@ function createPublishHandler(controller) {
       const validType = isNewFormat ? type : type.replace(invalidSuffix, '');
       const invalidType = isNewFormat ? type : validType + invalidSuffix;
 
-      const primaryCol = columns.find(c => c.isPrimary)?.name;
+      // Use explicit primaryColName from body if provided (new client); fall back to isPrimary flag on columns (old client).
+      const primaryCol = primaryColName !== undefined ? primaryColName : columns.find(c => c.isPrimary)?.name;
       console.log(`[publish] ${app}+${type} processing ${rows.length - 1} data rows${primaryCol ? ` (primary: ${primaryCol})` : ''}`);
 
       // Build pivot column lookup: existingColumnMatch → [source columns that map to it]
@@ -358,18 +359,34 @@ function createPublishHandler(controller) {
             // New format: all rows use same type; legacy: separate valid/invalid types
             const rowType = isNewFormat ? type : (data.isValid ? validType : invalidType);
 
-            // Primary key upsert: check if matching record exists
-            if (primaryCol && data[primaryCol]) {
-              const existing = await controller.findByDataKey(app, [validType, invalidType], primaryCol, data[primaryCol]);
-              if (existing) {
-                await controller.updateDataById(app, existing.id, rowType, data, user_id);
-                results.push({ row: rowIdx, action: 'updated', id: existing.id });
-                continue;
+            // When primaryCol is 'id', strip id from data — it's the row PK, not a data field.
+            // The id value is only used for match lookup; storing it in data JSON is redundant.
+            let dataToStore = data;
+            let rowIdForMatch = null;
+            if (primaryCol === 'id') {
+              const { id: _rowId, ...rest } = data;
+              dataToStore = rest;
+              rowIdForMatch = _rowId;
+            }
+
+            // Primary key upsert: find existing record
+            let existing = null;
+            if (primaryCol === 'id') {
+              if (rowIdForMatch != null && String(rowIdForMatch).trim() !== '') {
+                existing = await controller.findByRowId(app, [validType, invalidType], rowIdForMatch);
               }
+            } else if (primaryCol && data[primaryCol]) {
+              existing = await controller.findByDataKey(app, [validType, invalidType], primaryCol, data[primaryCol]);
+            }
+
+            if (existing) {
+              await controller.updateDataById(app, existing.id, rowType, dataToStore, user_id);
+              results.push({ row: rowIdx, action: 'updated', id: existing.id });
+              continue;
             }
 
             // Insert new row
-            const created = await controller.createData([app, rowType, data], { id: user_id });
+            const created = await controller.createData([app, rowType, dataToStore], { id: user_id });
             const newId = created?.[0]?.id;
             results.push({ row: rowIdx, action: 'created', id: newId });
           } catch (e) {

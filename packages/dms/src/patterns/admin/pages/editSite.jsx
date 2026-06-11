@@ -38,7 +38,6 @@ function SiteEdit ({
 	const resolvedId = item?.id
 	const isAdmin = (user?.groups || []).some(g => g === `${app} Admin`)
 	const hasAccess = isAdmin || isUserAuthed(user, authPermissions)
-	console.log('user', user, hasAccess, isAdmin)
 	// navState === 'loading' means a loader is in-flight (e.g. router just recreated by
 	// dmsSiteFactory). dataItems is [] by default in wrapper.jsx until the loader
 	// resolves, so we must not treat [] as "no site" while loading.
@@ -249,19 +248,29 @@ function PatternList({
 
 	const duplicate = async({oldInstance, newInstance}, item) => {
 		setIsDuplicating(true);
-		// call server to copy over pages and sections
-		const res = await fetch(`${dmsServerPath}/dms/${app}+${oldInstance}/duplicate`,
-			{
-				method: "POST",
-				body: JSON.stringify({newApp: app, newType: newInstance}),
-				headers: {
-					"Content-Type": "application/json",
-				},
-			});
-
-		const publishFinalEvent = await res.json();
-		await addNewValue(item);
-		setIsDuplicating(false);
+		try {
+			// call server to copy over pages and sections
+			const res = await fetch(`${dmsServerPath}/dms/${app}+${oldInstance}/duplicate`,
+				{
+					method: "POST",
+					body: JSON.stringify({newApp: app, newType: newInstance}),
+					headers: {
+						"Content-Type": "application/json",
+					},
+				});
+			const body = await res.json().catch(() => ({}));
+			if (!res.ok || body?.err) {
+				console.error('[duplicate] page/section copy failed:', body?.err || res.status);
+				window.alert(`Pattern duplicate failed: ${body?.err || `HTTP ${res.status}`}. Pattern not created.`);
+				return;
+			}
+			await addNewValue(item);
+		} catch (err) {
+			console.error('[duplicate] error:', err);
+			window.alert(`Pattern duplicate failed: ${err.message}`);
+		} finally {
+			setIsDuplicating(false);
+		}
 	}
 
 	const data = value

@@ -1,23 +1,50 @@
 import React from 'react'
 import { Link, useLocation } from 'react-router'
-import { ThemeContext } from "../../../../ui/useTheme";
+import { ThemeContext, getComponentTheme } from "../../../../ui/useTheme";
 import { PageContext, CMSContext } from '../../context'
 import { getInPageNav } from '../../pages/_utils'
 import { appendHistoryEntry } from '../../pages/edit/editFunctions'
 
 import SectionArray from './sectionArray'
+import InPageNav from './InPageNav'
+import { sectionGroupTheme } from './sectionGroup.theme'
 
 export default function SectionGroup ({group, attributes, edit}) {
   const { theme,  UI } = React.useContext(ThemeContext);
   const { user } = React.useContext(CMSContext) || {};
 
   const { apiUpdate, item, updateAttribute, pageState, clearActionParam } = React.useContext(PageContext);
-  const { SideNav, LayoutGroup, Modal } = UI;
+  const { LayoutGroup, Modal } = UI;
 
-  const inPageNav = getInPageNav(item,theme)
+  const t = { ...sectionGroupTheme, ...getComponentTheme(theme, 'pages.sectionGroup') }
+  const inPageNav = getInPageNav(item, theme, edit)
   const styleIndex = theme.layoutGroup.styles.map(d => d.name).indexOf(group.theme || 'default')
   const activeStyle =  styleIndex === -1 ? 0 : styleIndex
   const sectionAttributes =  attributes?.['sections']?.attributes
+
+  // ── Rail attachment (Phase 6) ──
+  // Attach the rail to the band that actually holds the nav sections — i.e. the
+  // group of the first section carrying a `navLabel`. This is self-locating and
+  // robust to pages whose bands are all position:'content' (the bands differ only
+  // by `theme`), where "first content group" would wrongly land on a header band.
+  // Fallback to the legacy `'default'` group so existing docs pages (title/level-1
+  // nav, content in the `default` group) keep attaching exactly where they did.
+  const groupSource = (edit ? item?.draft_section_groups : item?.section_groups) || []
+  const sectionSource = (edit ? item?.draft_sections : item?.sections) || []
+  // Attach the rail to the band holding the nav sections; with no navLabels yet,
+  // fall back to the first content band, then the legacy 'default' name — so the
+  // rail renders as soon as `item.sidebar` is on, even before any navLabel is set.
+  const contentBands = groupSource
+      .filter(g => (g?.position || 'content') === 'content')
+      .sort((a, b) => (a?.index ?? 0) - (b?.index ?? 0))
+  const railGroupName = sectionSource.find(s => s?.navLabel)?.group || contentBands[0]?.name || 'default'
+  const showRail = Boolean(item?.sidebar && group.name === railGroupName)
+  // The sidebar group (rail content): its sections render in the rail below the nav.
+  // position:'sidebar' keeps it out of the top/content/bottom band renders. New pages
+  // are seeded with this group (theme scaffold); synthesize one for pages that predate
+  // it so the rail always has an author-reachable content area.
+  const sidebarGroup = groupSource.find(g => g?.position === 'sidebar' || g?.name === 'sidebar')
+      || { name: 'sidebar', position: 'sidebar', index: 99, theme: 'content' }
   const SectionArrayComp = React.useMemo(() => {
       return edit ?
         ( attributes?.['sections']?.EditComp || SectionArray?.EditComp ) :
@@ -66,27 +93,49 @@ export default function SectionGroup ({group, attributes, edit}) {
     );
   }
 
+  // The band's main content (this group's sections).
+  const mainSections = (
+    <SectionArrayComp
+      group={group}
+      value={sectionSource}
+      attr={sectionAttributes}
+      onChange={(update, action ) => updateSections({update, action, item, user, apiUpdate, updateAttribute})}
+    />
+  )
+
+  // The sticky in-page-nav rail: the generated nav + any sidebar-group sections.
+  // Rendered INSIDE the band content (not as the LayoutGroup's outerChildren) so
+  // the content↔rail two-column layout is owned entirely by the pages theme
+  // (`pages.sectionGroup.contentRow/contentCol/sideNavContainer*`) — no reliance
+  // on the shared layoutGroup wrapper being flex. `order` flips the rail side.
+  const rail = (
+    <div className={`${t.sideNavContainer1} ${item?.sidebar === 'left' ? '' : 'order-2'}`}>
+      <div className={t.sideNavContainer2}>
+        <div className={t.sideNavContainer3}>
+          <InPageNav menuItems={inPageNav.menuItems} />
+          {sidebarGroup ? (
+            <SectionArrayComp
+              group={sidebarGroup}
+              value={sectionSource}
+              attr={sectionAttributes}
+              onChange={(update, action) => updateSections({update, action, item, user, apiUpdate, updateAttribute})}
+            />
+          ) : null}
+        </div>
+      </div>
+    </div>
+  )
+
   return (
-    <LayoutGroup
-      activeStyle={ activeStyle }
-      outerChildren={
-        item?.sidebar && group.name === 'default' && (
-          <div className={`${theme?.pages?.sectionGroup?.sideNavContainer1} ${item?.sidebar === 'left' ? '': 'order-2'}`}>
-            <div className={theme?.pages?.sectionGroup?.sideNavContainer2}>
-              <div className={theme?.pages?.sectionGroup?.sideNavContainer3}>
-                <SideNav {...inPageNav} />
-              </div>
-            </div>
+    <LayoutGroup activeStyle={ activeStyle }>
+      {showRail ? (
+        <div className={t.contentRow}>
+          <div className={`${t.contentCol} ${item?.sidebar === 'left' ? 'order-2' : ''}`}>
+            {mainSections}
           </div>
-        )
-      }
-    >
-      <SectionArrayComp
-        group={group}
-        value={item?.[edit ? 'draft_sections' : 'sections'] || [] }
-        attr={sectionAttributes}
-        onChange={(update, action ) => updateSections({update, action, item, user, apiUpdate, updateAttribute})}
-      />
+          {rail}
+        </div>
+      ) : mainSections}
     </LayoutGroup>
   )
 }

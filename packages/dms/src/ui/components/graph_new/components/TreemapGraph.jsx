@@ -12,29 +12,29 @@ import { getColorRange } from "../colorSchemeUnifier"
 const TreemapGraphWrapper = props => {
 
 // console.log("TreemapGraphWrapper::viewData", props.viewData)
+  const [indexColumn, dataColumns, categoryColumn] = React.useMemo(() => {
+    return [
+      props.columns.find(c => c.target === "index"),
+      props.columns.filter(c => c.target === "rectangle"),
+      props.columns.find(c => c.target === "categorize")
+    ]
+  }, [props.columns]);
 
   const dataFromProps = React.useMemo(() => {
-    const indexColumn = props.columns.find(c => c.target === "index");
-    const dataColumns = props.columns.filter(c => c.target === "rectangle");
-    const categoryColumn = props.columns.find(c => c.target === "categorize");
 
     if (!indexColumn || !categoryColumn || !dataColumns.length) return [];
 
-// console.log("TreemapGraphWrapper::indexColumn", indexColumn)
-// console.log("TreemapGraphWrapper::dataColumns", dataColumns)
-// console.log("TreemapGraphWrapper::categoryColumn", categoryColumn)
-
-    const groupsArray = [d => d[indexColumn.name]];
+    const groupsArray = [d => d[indexColumn.key]];
     if (categoryColumn) {
-      groupsArray.push(d => d[categoryColumn.name]);
+      groupsArray.push(d => d[categoryColumn.key]);
     }
 
-    const filteredViewData = props.viewData.filter(d => Boolean(d[indexColumn.name]));
+    const filteredViewData = props.viewData.filter(d => Boolean(d[indexColumn.key]));
 
     const reducer = d => {
       return d.reduce((a, c) => {
         return dataColumns.reduce((aa, cc) => {
-          return aa + (c[cc.name] || 0.0);
+          return aa + (c[cc.key] || 0.0);
         }, a)
       }, 0)
     };
@@ -70,7 +70,7 @@ const TreemapGraphWrapper = props => {
       return g.reduce((a, c) => a + c[1], 0);
     });
 
-  }, [props.viewData, props.columns]);
+  }, [props.viewData, indexColumn, dataColumns, categoryColumn]);
 
 // console.log("TreemapGraphWrapper::dataFromProps", dataFromProps);
 
@@ -88,6 +88,41 @@ const TreemapGraphWrapper = props => {
 
 // console.log("TreemapGraphWrapper::colors", colors);
 
+  const {
+    publishHoverData: publish,
+    hoverProvider: provider,
+    actions
+  } = props;
+
+  const highlights = React.useMemo(() => {
+
+    const hhlActions = actions.filter(a => a.action === "hover_highlight");
+
+    if (indexColumn && categoryColumn) {
+      return hhlActions.reduce((a, c) => {
+        if (c.column === indexColumn.key) {
+          for (const v of c.value) {
+            a.push({
+              type: "index",
+              value: v
+            })
+          }
+        }
+        else if (c.column === categoryColumn.key) {
+          for (const v of c.value) {
+            a.push({
+              type: "key",
+              value: v
+            })
+          }
+        }
+        return a;
+      }, [])
+    }
+
+    return [];
+  }, [actions, indexColumn, categoryColumn]);
+
   const legend = React.useMemo(() => {
     return {
       ...props.legend,
@@ -97,11 +132,77 @@ const TreemapGraphWrapper = props => {
     };
   }, [props.legend, colors, dataFromProps]);
 
+  const onLegendEnter = React.useMemo(() => {
+    if (!publish || !provider) return null;
+    return key => {
+      publish({
+        action: "hover_publish",
+        column: provider.args?.column,
+        value: key
+      })
+    }
+  }, [publish, provider]);
+
+  const onLegendLeave = React.useMemo(() => {
+    if (!publish || !provider) return null;
+    return () => publish(null);
+  }, [publish, provider]);
+
+  const InstantiatedLegend = React.useMemo(() => {
+    return !legend.show ? null : (
+      <Legend { ...legend } actions={ actions }
+        onEnter={ onLegendEnter }
+        onLeave={ onLegendLeave }/>
+    )
+  }, [legend, actions, onLegendEnter, onLegendLeave]);
+
+  const onRectEnter = React.useMemo(() => {
+    if (!publish || !provider) return null;
+    if (provider.args?.column === indexColumn?.key) {
+      return (e, data) => {
+        publish({
+          action: "hover_publish",
+          column: provider.args?.column,
+          value: data.index
+        })
+      }
+    }
+    if (provider.args?.column === categoryColumn?.key) {
+      return (e, data) => {
+        publish({
+          action: "hover_publish",
+          column: provider.args?.column,
+          value: data.key
+        })
+      }
+    }
+    if (dataColumns.length) {
+      return (e, data) => {
+        const dc = dataColumns.find(dc => dc.key === provider.args?.column);
+        if (dc) {
+          publish({
+            action: "hover_publish",
+            column: provider.args?.column,
+            value: data.data[dc.key]
+          })
+        }
+      }
+    }
+    return null;
+  }, [publish, provider, indexColumn, categoryColumn, dataColumns]);
+
+  const onRectLeave = React.useMemo(() => {
+    if (!publish || !provider) return null;
+    if ((provider.args?.column !== indexColumn?.key) &&
+        (provider.args?.column !== categoryColumn?.key)) return null;
+    return () => publish(null);
+  }, [publish, provider, indexColumn, categoryColumn]);
+
   return (
     <div className="w-full bg-inherit flex">
       { !legend.show || legend.position !== "left" ? null :
         <div className="flex items-center">
-          <Legend { ...legend }/>
+          { InstantiatedLegend }
         </div>
       }
       <div className="bg-inherit flex-1"
@@ -111,11 +212,14 @@ const TreemapGraphWrapper = props => {
       >
         <TreemapGraph { ...props }
           data={ dataFromProps }
-          colors={ colors }/>
+          colors={ colors }
+          highlights={ highlights }
+          onRectEnter={ onRectEnter }
+          onRectLeave={ onRectLeave }/>
       </div>
       { !legend.show || legend.position !== "right" ? null :
         <div className="flex items-center">
-          <Legend { ...legend }/>
+          { InstantiatedLegend }
         </div>
       }
     </div>
