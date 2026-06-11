@@ -16,6 +16,30 @@ const EmptyObject = {};
 
 const PIN_OUTLINE_LAYER_SUFFIX = 'pin_outline'
 
+const normalizeMarkerElement = (marker) => {
+  const markerEl = marker?.getElement?.();
+  if (!markerEl) return marker;
+  const markerChild = markerEl.firstElementChild;
+  const fallbackWidth = markerChild?.getAttribute?.("width") || "27px";
+  const fallbackHeight = markerChild?.getAttribute?.("height") || "41px";
+
+  // Keep the marker wrapper sized to the pin itself so MapLibre's
+  // translate(-50%, -50%) centers the actual pin instead of a stretched box.
+  markerEl.style.position = "absolute";
+  markerEl.style.left = "0";
+  markerEl.style.top = "0";
+  markerEl.style.width = fallbackWidth;
+  markerEl.style.maxWidth = "none";
+  markerEl.style.minWidth = fallbackWidth;
+  markerEl.style.height = fallbackHeight;
+  markerEl.style.minHeight = fallbackHeight;
+  markerEl.style.display = "block";
+  markerEl.style.padding = "0";
+  markerEl.style.margin = "0";
+
+  return marker;
+};
+
 export const DefaultStyles = [
   { name: "Dark",
     style: "https://api.maptiler.com/maps/dataviz-dark/style.json?key=mU28JQ6HchrQdneiq6k9"
@@ -723,7 +747,10 @@ const AvlMapInner = ({
   maplibreRef.current = maplibre;
 
   const pinHoverComp = React.useCallback(({ lngLat }) => {
-    const marker = new maplibreRef.current.Marker().setLngLat(lngLat);
+    const marker = normalizeMarkerElement(
+      new maplibreRef.current.Marker().setLngLat(lngLat)
+    );
+
     dispatch({ type: "pin-hover-comp", lngLat, marker });
   }, []);
 
@@ -890,7 +917,7 @@ const AvlMapInner = ({
   const mapIcons = useMapTheme();
 
   return (
-    <div className="block relative w-full h-full max-w-full max-h-full overflow-visible text-gray-800">
+    <div className="block relative w-full h-full max-w-full max-h-full overflow-hidden text-gray-800">
       <div ref={ setRef } id={ containerId } className="w-full h-full relative"/>
 
       <div id={ `${ containerId }-box-select-blocker` }

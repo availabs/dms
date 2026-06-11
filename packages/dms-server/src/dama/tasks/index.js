@@ -47,14 +47,14 @@ async function queueTask(descriptor, pgEnv) {
   const db = getDb(pgEnv);
   const table = taskTable(db.type);
 
-  const { workerPath, sourceId = null } = descriptor;
+  const { workerPath, sourceId = null, schedule_id = null, max_attempts = 1 } = descriptor;
   if (!workerPath) throw new Error('Task descriptor must include workerPath');
 
   const { rows } = await db.query(`
-    INSERT INTO ${table} (host_id, source_id, worker_path, status, descriptor)
-    VALUES ($1, $2, $3, 'queued', $4)
+    INSERT INTO ${table} (host_id, source_id, worker_path, status, descriptor, schedule_id, max_attempts)
+    VALUES ($1, $2, $3, 'queued', $4, $5, $6)
     RETURNING task_id
-  `, [hostId, sourceId, workerPath, descriptor]);
+  `, [hostId, sourceId, workerPath, descriptor, schedule_id, Math.max(1, Number(max_attempts) || 1)]);
 
   const taskId = rows[0].task_id;
   console.log(`[tasks] Queued task ${taskId}: ${workerPath} (pgEnv: ${pgEnv}, source: ${sourceId || 'none'})`);
@@ -176,8 +176,46 @@ async function startTaskWorker(task, pgEnv) {
     const result = await handler(context);
     await completeTask(task_id, result, pgEnv);
   } catch (err) {
-    await failTask(task_id, err.message || String(err), pgEnv);
+    const message = err.message || String(err);
+    const attempt = Number(task.attempt) || 1;
+    const maxAttempts = Number(task.max_attempts) || 1;
+    if (TRANSIENT_ERROR_RE.test(message) && attempt < maxAttempts) {
+      await retryTask(task, message, pgEnv);
+    } else {
+      await failTask(task_id, message, pgEnv);
+    }
   }
+}
+
+/**
+ * Transient-failure classification (upstreamed from the v2 backfill drivers):
+ * network blips against ClickHouse / external APIs that are safe to retry
+ * with the same descriptor. Anything else fails immediately.
+ */
+const TRANSIENT_ERROR_RE = /socket hang up|ECONNRESET|ETIMEDOUT|EPIPE|fetch failed/i;
+
+/**
+ * Requeue a task after a transient failure. Keeps the same row (and thus the
+ * same descriptor + task_id the client is polling) and bumps `attempt`; the
+ * normal poll loop re-claims it. Only reached when attempt < max_attempts —
+ * manual queueTask defaults to max_attempts=1, so existing behavior is
+ * unchanged unless a caller (e.g. the scheduler) opts in.
+ */
+async function retryTask(task, error, pgEnv) {
+  const db = getDb(pgEnv);
+  const table = taskTable(db.type);
+  const nextAttempt = (Number(task.attempt) || 1) + 1;
+
+  await db.query(`
+    UPDATE ${table}
+    SET status = 'queued', attempt = $1, started_at = NULL, worker_pid = NULL, error = NULL
+    WHERE task_id = $2
+  `, [nextAttempt, task.task_id]);
+
+  console.warn(`[tasks] Task ${task.task_id} transient failure (attempt ${task.attempt || 1}/${task.max_attempts}): ${error} — requeued`);
+  await dispatchEvent(task.task_id, 'retry',
+    `Transient failure on attempt ${task.attempt || 1}/${task.max_attempts}: ${error}`,
+    { attempt: nextAttempt, max_attempts: task.max_attempts }, pgEnv);
 }
 
 /**

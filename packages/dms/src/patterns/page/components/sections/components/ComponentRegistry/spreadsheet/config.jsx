@@ -246,6 +246,7 @@ export default {
     showPagination: true,
     keepOriginalValues: true,
     showAllColumnsControl: false,
+    supportsTemplates: true,
     themeKey: 'table',
     defaultState: {
         filters: { op: 'AND', groups: [] },
