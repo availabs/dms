@@ -58,6 +58,25 @@ export const componentFunctions = {
                 { key: 'column', label: 'Column to publish', type: 'column-select' },
             ],
         },
+        {
+            id: 'click_publish',
+            label: 'Click: Publish Row',
+            description: 'On click, publishes a the column value to a page action param.',
+            trigger: 'click',
+            paramKey: "",
+            args: [
+                { key: 'column', label: 'Column to publish', type: 'column-select' },
+                { 
+                    key: 'append_params', 
+                    label: 'Append Params',
+                    type: 'select',
+                    options: [
+                        { label: 'Append', value: true },
+                        { label: 'Replace', value: false },
+                    ],
+                }
+            ],
+        },
     ],
     subscribers: [
         {
@@ -227,6 +246,7 @@ export default {
     showPagination: true,
     keepOriginalValues: true,
     showAllColumnsControl: false,
+    supportsTemplates: true,
     themeKey: 'table',
     defaultState: {
         filters: { op: 'AND', groups: [] },

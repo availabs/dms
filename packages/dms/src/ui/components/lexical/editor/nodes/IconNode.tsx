@@ -14,18 +14,23 @@ import {
 
 export class IconNode extends DecoratorNode<JSX.Element> {
     __iconName: string;
+    // Optional named box treatment. When set, the icon renders inside the
+    // styled box from `theme.iconStyles[styleKey]` (e.g. a tinted square chip).
+    // Omitted → the icon renders inline as before (backward-compatible).
+    __styleKey?: string;
 
     static getType(): string {
         return 'icon';
     }
 
     static clone(node: IconNode): IconNode {
-        return new IconNode(node.__iconName, node.__key);
+        return new IconNode(node.__iconName, node.__styleKey, node.__key);
     }
 
-    constructor(iconName: string, key?: NodeKey) {
+    constructor(iconName: string, styleKey?: string, key?: NodeKey) {
         super(key);
         this.__iconName = iconName;
+        this.__styleKey = styleKey;
     }
 
     static importDOM(): DOMConversionMap | null {
@@ -49,7 +54,7 @@ export class IconNode extends DecoratorNode<JSX.Element> {
     }
 
     static importJSON(serializedNode): IconNode {
-        return new IconNode(serializedNode.iconName);
+        return new IconNode(serializedNode.iconName, serializedNode.styleKey);
     }
 
     exportJSON() {
@@ -57,13 +62,15 @@ export class IconNode extends DecoratorNode<JSX.Element> {
             type: 'icon',
             version: 1,
             iconName: this.__iconName,
+            styleKey: this.__styleKey,
         };
     }
 
     createDOM(config): HTMLElement {
-        //console.log('config icon', config)
         const span = document.createElement('span');
-        span.className = 'inline-block align-middle mr-1';
+        // With a styleKey the box owns all layout (see decorate); keep the host
+        // neutral. Without one, preserve the original inline treatment.
+        span.className = this.__styleKey ? '' : 'inline-block align-middle mr-1';
         return span;
     }
 
@@ -88,6 +95,14 @@ export class IconNode extends DecoratorNode<JSX.Element> {
         const Icon = config?.theme?.Icons?.[this.__iconName];
         if (!Icon) {
             return <span>Icon not found</span>;
+        }
+        const style = this.__styleKey ? config?.theme?.iconStyles?.[this.__styleKey] : null;
+        if (style) {
+            return React.createElement(
+                'span',
+                { className: style.box },
+                React.createElement(Icon, { className: style.icon || 'w-6 h-6' }),
+            );
         }
         return React.createElement(Icon, { className: 'w-[1.5em] h-[1.5em] -mt-[5px]' });
     }

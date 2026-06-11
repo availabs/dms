@@ -213,6 +213,7 @@ export const LineGraph = props => {
     interpolation = "catmullrom",
     area = false,
     areaOpacity = 0.15,
+    highlights = EmptyArray,
     showMarks = false
   } = props;
 
@@ -623,17 +624,17 @@ export const LineGraph = props => {
           onMouseLeave={ onMouseLeave }>
 
           { lineData.map(({ id, ...rest }) => (
-              <Line key={ id } { ...rest }
-                onMouseMove={ onMouseMove }
+              <Line key={ id } id={ id } { ...rest }
                 strokeWidth={ strokeWidth }
-                showAnimations={ showAnimations }/>
+                showAnimations={ showAnimations }
+                highlights={ highlights }/>
             ))
           }
           { secondaryData.map(({ id, ...rest }) => (
-              <Line key={ id } { ...rest } secondary={ true }
-                onMouseMove={ onMouseMove }
+              <Line key={ id } id={ id } { ...rest } secondary={ true }
                 strokeWidth={ strokeWidth }
-                showAnimations={ showAnimations }/>
+                showAnimations={ showAnimations }
+                highlights={ highlights }/>
             ))
           }
 
@@ -647,7 +648,8 @@ export const LineGraph = props => {
             <line stroke="currentColor" strokeWidth="1"
               style={ {
                 transform: `translate(${ hoverData.data.center }px)`,
-                transition: "transform 0.15s ease-out"
+                transition: "transform 0.15s ease-out",
+                pointerEvents: "none"
               } }
               x1={ 0.5 } y1={ 0 }
               x2={ 0.5 } y2={ restOfState.adjustedHeight }/>
@@ -685,7 +687,7 @@ export const LineGraph = props => {
 }
 export default LineGraph;
 
-const Line = React.memo(({ line, area = null, areaOpacity = 0.15, dashArray = null, baseLine, state, color, strokeWidth = 1, secondary = false, showAnimations, showMarks = false, points = null }) => {
+const Line = React.memo(({ line, id, area = null, areaOpacity = 0.15, dashArray = null, baseLine, state, color, strokeWidth = 1, secondary = false, showAnimations, highlights, showMarks = false, points = null }) => {
 
   const ref = React.useRef();
 
@@ -736,12 +738,20 @@ const Line = React.memo(({ line, area = null, areaOpacity = 0.15, dashArray = nu
     }
   }, [ref, state, line, baseLine, color, dash, secondary, showAnimations]);
 
+  const highlight = React.useMemo(() => {
+    return Boolean(highlights.find(hl => hl.type === "id" && hl.value == id))
+  }, [highlights, id]);
+
   return (
     <g>
       { !area ? null :
         <path d={ area } fill={ color } fillOpacity={ areaOpacity } stroke="none"/>
       }
-      <path ref={ ref } fill="none" strokeWidth="4"/>
+      <path ref={ ref } fill="none" strokeWidth="4"
+        style={ {
+          strokeWidth: highlight ? "6" : null,
+          stroke: highlight ? "red" : null
+        } }/>
       { !showMarks || !points ? null :
         points.map((p, i) => (
           <circle key={ i } cx={ p.cx } cy={ p.cy } r={ 3 }
@@ -759,7 +769,7 @@ const InteractiveBar = React.memo(({ id, left, center, data, secondary, height, 
   }, [onMouseMove, id, data, secondary, center]);
 
   return (
-    <rect fill="#00000000"
+    <rect fill="transparent"
       x={ left } y={ 0 } width={ width } height={ height }
       onMouseMove={ _onMouseMove }/>
   )

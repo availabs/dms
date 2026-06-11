@@ -1,5 +1,5 @@
 import React, {useState, useContext} from "react";
-import {ComponentContext} from "../../../../../context";
+import {ComponentContext, PageContext} from "../../../../../context";
 import { ThemeContext } from "../../../../../../../ui/useTheme";
 import {InputControl} from "../../dataWrapper/components/InputControl";
 
@@ -36,9 +36,16 @@ export const DomainEditor = ({value, setValue, display}) => {
 };
 
 export const Graph = ({isEdit}) => {
-    const {state, setState, controls={}} = useContext(ComponentContext);
+    const {state, setState, controls={}, activeStyle} = useContext(ComponentContext);
+    const pageContext = useContext(PageContext);
     const {UI} = useContext(ThemeContext);
     const {AvlGraph} = UI;
 
-    return <AvlGraph {...state} setState={setState} controls={controls} isEdit={isEdit} />
+    return (
+        <AvlGraph isEdit={ isEdit }
+            pageContext={ pageContext }
+            state={ state }
+            setState={ setState }
+            controls={ controls }/>
+    )
 }

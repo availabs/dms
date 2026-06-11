@@ -4,6 +4,22 @@ import { get } from "lodash-es";
 import { getGraphComponent } from "./components";
 import { getFormatFunc } from "./utils";
 
+// Collect the axis-typography keys for one axis off `graphFormat` (which already has
+// theme `chartDefaults` merged under the section's `display`, so brand defaults and
+// per-section overrides both land here). Unset keys come back `undefined` → the axis
+// component's own destructuring defaults apply (BC). Tick font is CSS-valued
+// (e.g. "11px" / a font-family stack / "#64748b"); label keys default to 1rem bold.
+const axisFontProps = (graphFormat, axis) => ({
+  tickFontSize: get(graphFormat, [axis, "tickFontSize"]),
+  tickFontFamily: get(graphFormat, [axis, "tickFontFamily"]),
+  tickFontWeight: get(graphFormat, [axis, "tickFontWeight"]),
+  tickColor: get(graphFormat, [axis, "tickColor"]),
+  labelFontSize: get(graphFormat, [axis, "labelFontSize"]),
+  labelFontFamily: get(graphFormat, [axis, "labelFontFamily"]),
+  labelFontWeight: get(graphFormat, [axis, "labelFontWeight"]),
+  labelColor: get(graphFormat, [axis, "labelColor"]),
+});
+
 const GraphTitle = ({ title, ...props }) => {
 
   const className = React.useMemo(() => {
@@ -22,6 +38,8 @@ const GraphTitle = ({ title, ...props }) => {
   )
 }
 
+const noOp = () => {};
+
 export const GraphComponent = props => {
 
   const {
@@ -29,28 +47,15 @@ export const GraphComponent = props => {
     graphType,
     viewData,
     columns,
-    showCategories,
-    xAxisColumn,
-    yAxisColumns,
-    theme
+    theme,
+    actions = [],
+    publishHoverData = noOp,
+    hoverProvider = null
   } = props;
 
   const GraphComponent = React.useMemo(() => {
     return getGraphComponent(graphType);
   }, [graphType]);
-
-  // const colors = React.useMemo(() => {
-  //   let colors = [];
-
-  //   if (graphFormat.colors?.type === "palette") {
-  //     colors = graphFormat.colors?.value || [];
-  //   }
-  //   else if (graphFormat.colors?.type === "scheme") {
-  //     colors = getColorRange(graphFormat.colors.scheme, 13)
-  //   }
-
-  //   return graphFormat.colors?.reverse ? colors.reverse() : colors;
-  // }, [graphFormat.colors]);
 
   const margin = React.useMemo(() => {
     return {
@@ -78,8 +83,7 @@ export const GraphComponent = props => {
     };
   }, [graphFormat.tooltip]);
 
-// if (graphType === "PieGraph")
-// console.log("GraphComponent::hoverComp", hoverComp);
+// console.log("GraphComponent::actions", props.actions);
 
   return (
     <div
@@ -89,20 +93,15 @@ export const GraphComponent = props => {
       ` }
     >
 
-      <GraphTitle { ...graphFormat.title }/>
+      <GraphTitle { ...(graphFormat.title || {}) }/>
 
       <GraphComponent
         viewData={ viewData }
         columns={ columns }
-        title={ get(graphFormat, "title", "") }
         height={ graphHeight }
         width={ get(graphFormat, "width") }
         bgColor={ get(graphFormat, "bgColor", "#ffffff") }
         colors={ graphFormat.colors }
-        upperLimit={ get(graphFormat, "upperLimit") }
-
-        showCategories={ showCategories }
-        xAxisColumn={ xAxisColumn }
 
         orientation={ get(graphFormat, "orientation", "vertical") }
         groupMode={ get(graphFormat, "groupMode", "stacked") }
@@ -126,7 +125,9 @@ export const GraphComponent = props => {
           showGridLines: get(graphFormat, ["xAxis", "showGridLines"], false),
           gridLineOpacity: get(graphFormat, ["xAxis", "gridLineOpacity"], 0.25),
           axisColor: get(graphFormat, ["xAxis", "axisColor"], "currentColor"),
-          show: get(graphFormat, ["xAxis", "show"], true)
+          show: get(graphFormat, ["xAxis", "show"], true),
+          // Axis typography — unset keys leave the axis renderer's BC defaults.
+          ...axisFontProps(graphFormat, "xAxis")
         } }
         yAxis={ {
           label: get(graphFormat, ["yAxis", "label"]),
@@ -138,7 +139,9 @@ export const GraphComponent = props => {
           format: getFormatFunc(get(graphFormat, ["yAxis", "format"]), get(graphFormat, ["yAxis", "isDollars"])),
           // Custom y-domain (unset → auto-scale). Read by the avl-graph LineGraph.
           domainMin: get(graphFormat, ["yAxis", "domainMin"]),
-          domainMax: get(graphFormat, ["yAxis", "domainMax"])
+          domainMax: get(graphFormat, ["yAxis", "domainMax"]),
+          // Axis typography — unset keys leave the axis renderer's BC defaults.
+          ...axisFontProps(graphFormat, "yAxis")
         } }
         pieAxis={ {
           showAxis: get(graphFormat, ["pieAxis", "showAxis"], false),
@@ -149,7 +152,11 @@ export const GraphComponent = props => {
         } }
         margin={ margin }
         legend={ get(graphFormat, "legend", {}) }
-        hoverComp={ hoverComp }/>
+        hoverComp={ hoverComp }
+
+        actions={ actions }
+        publishHoverData={ publishHoverData }
+        hoverProvider={ hoverProvider }/>
 
     </div>
   )

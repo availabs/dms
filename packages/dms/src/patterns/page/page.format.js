@@ -76,6 +76,20 @@ export const cmsSection = {
       key: "size",
       type: "text"
     },
+    // In-page-nav opt-in (Phase 3). A section with `navLabel` shows in the
+    // sidebar rail and gets a clean DOM anchor id — decoupled from title/level
+    // so empty-title `h2`-headed sections can participate. `anchorId` overrides
+    // the slug derived from `navLabel`.
+    {
+      key: "navLabel",
+      type: "text",
+      required: false
+    },
+    {
+      key: "anchorId",
+      type: "text",
+      required: false
+    },
       {
           "key": "is_draft",
           "type": "switch",

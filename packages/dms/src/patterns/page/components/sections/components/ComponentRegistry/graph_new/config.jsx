@@ -7,6 +7,29 @@ const DefaultPalette = getColorRange(20, "div7");
 
 // console.log("SchemeOptions", SchemeOptions)
 
+const componentFunctions = {
+  providers: [
+    { id: 'hover_publish',
+      label: 'Hover: Publish Column',
+      description: 'On hover, publishes a column value to a page action param. Clears on mouse leave.',
+      trigger: 'hover',
+      args: [
+        { key: 'column', label: 'Column to publish', type: 'column-select' },
+      ],
+    }
+  ],
+  subscribers: [
+    { id: 'hover_highlight',
+      label: 'Hover: Highlight Column',
+      description: 'Highlights graph parts represented by received column.',
+      trigger: 'action_param',
+      args: [
+        { key: 'column', label: 'Column to highlight', type: 'column-select' }
+      ],
+    }
+  ]
+};
+
 const graphOptions = {
     readyToLoad: false,
     hideExternalToggle: true,
@@ -286,7 +309,17 @@ export default {
                 { type: 'toggle',
                     label: 'Rotate Labels', key: 'xAxis.rotateLabels' },
                 { type: 'toggle',
-                    label: 'Show X Axis', key: 'xAxis.show' }
+                    label: 'Show X Axis', key: 'xAxis.show' },
+                // Axis typography (CSS values, e.g. "11px" / a font stack / "#64748b").
+                // Unset → inherits the theme/component default (BC).
+                { type: 'input', inputType: 'text', label: 'Tick Font Size',   key: 'xAxis.tickFontSize' },
+                { type: 'input', inputType: 'text', label: 'Tick Font Family', key: 'xAxis.tickFontFamily' },
+                { type: 'input', inputType: 'text', label: 'Tick Font Weight', key: 'xAxis.tickFontWeight' },
+                { type: 'input', inputType: 'text', label: 'Tick Color',       key: 'xAxis.tickColor' },
+                { type: 'input', inputType: 'text', label: 'Label Font Size',   key: 'xAxis.labelFontSize' },
+                { type: 'input', inputType: 'text', label: 'Label Font Family', key: 'xAxis.labelFontFamily' },
+                { type: 'input', inputType: 'text', label: 'Label Font Weight', key: 'xAxis.labelFontWeight' },
+                { type: 'input', inputType: 'text', label: 'Label Color',       key: 'xAxis.labelColor' }
             ]
         },
         yAxis: {
@@ -318,6 +351,16 @@ export default {
                 {type: 'toggle', label: 'Show Gridlines', key: 'yAxis.showGridLines', defaultValue: true},
                 {type: 'toggle', label: 'Rotate Labels',  key: 'yAxis.rotateLabels'},
                 {type: 'toggle',                     label: 'Show Y Axis',     key: 'yAxis.show' },
+                // Axis typography (CSS values, e.g. "11px" / a font stack / "#64748b").
+                // Unset → inherits the theme/component default (BC).
+                { type: 'input', inputType: 'text', label: 'Tick Font Size',   key: 'yAxis.tickFontSize' },
+                { type: 'input', inputType: 'text', label: 'Tick Font Family', key: 'yAxis.tickFontFamily' },
+                { type: 'input', inputType: 'text', label: 'Tick Font Weight', key: 'yAxis.tickFontWeight' },
+                { type: 'input', inputType: 'text', label: 'Tick Color',       key: 'yAxis.tickColor' },
+                { type: 'input', inputType: 'text', label: 'Label Font Size',   key: 'yAxis.labelFontSize' },
+                { type: 'input', inputType: 'text', label: 'Label Font Family', key: 'yAxis.labelFontFamily' },
+                { type: 'input', inputType: 'text', label: 'Label Font Weight', key: 'yAxis.labelFontWeight' },
+                { type: 'input', inputType: 'text', label: 'Label Color',       key: 'yAxis.labelColor' },
             ]
         },
         colors: {
@@ -566,6 +609,7 @@ export default {
             },
         ]
     },
+    componentFunctions,
     "EditComp": Graph,
     "ViewComp": Graph,
 }

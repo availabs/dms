@@ -1,5 +1,15 @@
 # Task: Build the MAP-21 PM3 single-page report as a live DMS page
 
+> **✅ CLOSED 2026-06-03.** All eight phases shipped: the full MAP-21 PM3 page
+> (§01–§06) is built and verified live in `npmrdsv5+npmrds_sub` (see *Build status
+> (session 2026-05-30)* and the later session logs), and the `creating-interactive-pages`
+> skill is written + indexed. Closed at higher-priority request with a handful of
+> **cross-cutting polish items intentionally left open** (see *Cross-cutting polish
+> (deferred)* and the unchecked primitive-gap ledger entries — e.g. §01 roll-up
+> header, KPI superscript units, per-section band tints, sticky-TOC chrome, MPO/County
+> group-by toggle, §05 per-capita/Non-SOV blocked on UZA population data). These are
+> deferred, not forgotten — revisit if the client raises them.
+
 > **Phased build.** Each section of the mockup is its own phase. Phase 1 creates
 > the page + a new **"creating interactive pages"** skill. Every later phase
 > implements one section, names its components + datasets, plans the UDA config,
@@ -359,6 +369,65 @@ Three small but high-impact fixes; all changes BC and author-accessible.
   somewhere (or at least dev-warned) so that an authored block that nothing reads
   doesn't silently ship.
 
+## Session 2026-06-03 — split headers, PHED graph, §06, fill behaviour, real graph targets
+
+All BC, author-accessible. Shipped:
+- **§02 measure headers rebuilt as compound bands** — left lexical (kicker + heading) +
+  right Card (value + pill) composing flush above each graph via section `height:'fill'`;
+  graph titles removed; graph chrome set to compose (rounded-b, tint footer).
+- **PHED trend graph added** (`2174100` lex + `2174101` card + `2174102` graph) — 4th
+  trend; y-series `round(sum("phed"))`, abbreviated axis/tooltip.
+- **AVL Graph author options** (BC, theme-driven) — custom y-domain (`yAxis.domainMin/Max`,
+  set 0–100 on the % graphs), per-series **point marks** (`showMarks`, data-only here),
+  **tooltip format fn** (`tooltip.yFormat`, decimals), **tooltip totals toggle**
+  (`tooltip.showTotal`). See `card-layout.md` / the avlGraph options task.
+- **§06 Annual-data section** — kicker+heading header + **Download CSV** button (new
+  `download_button` column type, `UI.Button` + `activeStyle`, interpolates page `year_record`
+  into a placeholder URL — swap real URL in the button card's column `urlTemplate`) +
+  3-measure **summary Card** (all measures' columns in one Card) + tinted title bar + footnote.
+- **`height:'fill'` end-to-end** — `sectionArray`/`section.jsx`/`dataWrapper`/`Card.jsx`
+  now propagate fill so a component fills its section, content top-aligned (`auto`=content,
+  BC). Card interior padding standardized via the `cardsPadding` setting (not the style).
+  Fixed PHED §01 pill cell `valueFontStyle` (`displayXL`→`textSMBold`) that inflated its line box.
+- **Theme-editor crash fixed** (`tableSettings` → `getComponentTheme`).
+- **[x] §02 graph target reference lines now use the REAL targets** — joined 2027
+  `*_applicable_target` (Interstate/Non-Interstate/Truck) instead of hardcoded literals;
+  the line steps per year (e.g. Truck target 2.00→2.10 in 2020–21→2.00). Gotcha: a target
+  column needs `show:true` or it's dropped from the SELECT and the GROUP BY validation
+  errors ("Non grouped columns must have a function applied"). PHED has no statewide target.
+
+- **§04 / §05 contextual content added; spreadsheet titles removed.** The two data
+  tables (`2173961` §04 MPO matrix, `2173962` §05 reporting-UZA table) had their bare
+  section `title` cleared and were wrapped in mockup framing lexicals:
+  - §04: header `2174150` (kicker `// 04 · Regional · MPO · CY 2025` + h2 "Who meets
+    which target, region by region?" + proseSM) above the table; footnote `2174151`
+    (proseXS scoring note) below. **MPO-only** per request — no County/MPO switch built;
+    the eyebrow/footnote drop the County references the mockup carries.
+  - §05: header `2174152` (kicker `// 05 · Urban congestion · CMAQ · per UZA` + h2 +
+    proseSM about >200k pop / CMAQ nonattainment / per-capita) above the table;
+    non-reporting note `2174153` (kicker + proseXS, the 11-other-UZAs paragraph) below.
+  - `draft_sections` reordered to interleave: `…2174051, 2174150, 2173961, 2174151,
+    2174152, 2173962, 2174153, 2174103…`. All new sections are bare full-width
+    (size 12, no card chrome) modeled on the §03 header `2173960`.
+- **PHED graph y-axis decimals cleaned.** `display.yAxis.format` on graph `2174102`
+  `fnum2`→`fnum` (`338.71m`→`339m`) — config-only, the format options already exist and
+  are author-selectable. (Editing format requires patching the stringified `element-data`,
+  NOT `--set display.yAxis.format` — that dot-path lands at the wrong level and adds a
+  no-op top-level `data.display` key.) Themeable **axis fonts** are a separate gap →
+  new task `graph-axis-font-theming.md`.
+
+**Skill rollup (living mandate):** the session's reusable CLI mechanics landed in
+`creating-pages-from-a-design-pattern.md` §5.2.1 — the `--set`-can't-reach-`element-data`
+trap + parse/modify/re-stringify recipe, section ordering/insertion via a `draft_sections`
+full-replace reorder (`create` appends), and the "clear `title` + frame with sibling lexical
+header/footnote" pattern. Graph axis-font theming + the `fnum2`→`fnum` format note are in
+`authoring-graphs.md`. The editorial patterns (eyebrow/prose styleKeys, CTAs, rowspan, card
+chrome) were already documented from earlier phases.
+
+**Data note:** UZA population + Non-SOV actuals are NOT in DAMA — must be sourced
+externally and loaded before §05 per-capita / Non-SOV can be built. Performance-measure
+*targets* (2027 statewide LOTTR/TTTR, 2028 per-UZA PHED/Non-SOV) ARE loaded.
+
 ## Cross-cutting polish (deferred — tracked here)
 
 These are visual deltas the live build doesn't yet match. None block usability; each is
@@ -396,12 +465,12 @@ a polish pass. Listed roughly in order of design impact.
       'with-toc'`, (b) a new `toc` chrome section type that auto-collects sibling
       `<section id>`s, (c) a `lexical` section with hand-wired anchor links (cheap, not
       author-resilient). Decision deferred from Phase 1.
-- [ ] **§04 per-cell verdict dots + `Met X/3` roll-up.** Each measure cell in the MPO
-      matrix should render `<dot> <value>` (emerald/red by meets/below) and the right-
-      most column should count meets. Needs a compact `status_cell` (mini status_pill)
-      column type and a formula referencing sibling calc columns.
-- [ ] **§04 MPO/County group-by toggle.** Today the matrix is MPO-only. A page variable
-      that swaps the GROUP BY column is the right shape — primitive gap on the ledger.
+- [x] **§04 per-cell verdict dots + `Met X/3` roll-up.** Shipped — the live MPO matrix
+      (`2173961`) renders `<dot> <value>` per measure (emerald/red by meets/below) and a
+      `Met X/3` column. Framing header/footnote added 2026-06-03 (see session log).
+- [ ] **§04 MPO/County group-by toggle.** Today the matrix is MPO-only **by request**
+      (2026-06-03: "keep it just MPO"). A page variable that swaps the GROUP BY column is
+      the right shape when revisited — primitive gap on the ledger.
 - [ ] **§05 PHED per-capita + Non-SOV.** Blocked on data: per-capita needs a UZA
       population join (HPMS/ACS); Non-SOV isn't in source 2001 at all. Coordinate with
       data team for a populations table, or carry per-capita in upload 6822 directly.
@@ -589,12 +658,13 @@ own `patterns/page` task when it's ready to implement).
 
 ## Testing checklist
 
-- [ ] Page created (draft); `draft_section_groups` set for the bands.
-- [ ] Year `Filter` drives §01/§04/§05/§06; §02 ignores it (live).
-- [ ] Each data section's UDA query returns sane values for CY 2025.
-- [ ] Joins resolve (state targets on `year_record`; UZA targets on
-      `year_record`+`urban_code`).
-- [ ] `dms page dump --sections` matches the mockup section inventory.
-- [ ] Nothing published by the task (humans publish).
-- [ ] `creating-interactive-pages.md` written + indexed; per-phase skill notes
+- [x] Page created (draft); `draft_section_groups` set for the bands.
+- [x] Year `Filter` drives §01/§04/§05/§06; §02 ignores it (live).
+- [x] Each data section's UDA query returns sane values for CY 2025.
+- [x] Joins resolve (state targets on `year_record`; UZA targets on
+      `year_record`+`urban_code`). _(UZA two-key join verified for §05; multi-key
+      DAMA join generalization still ledgered as a primitive gap.)_
+- [x] `dms page dump --sections` matches the mockup section inventory.
+- [x] Nothing published by the task (humans publish).
+- [x] `creating-interactive-pages.md` written + indexed; per-phase skill notes
       rolled into edits.

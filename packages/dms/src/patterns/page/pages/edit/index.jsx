@@ -96,7 +96,7 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
 		// -------------------------------------------------------------------]
 		if(!item.draft_section_groups && item?.id) {
 			console.log('backfill------------------')
-			sectionsEditBackill(item,baseUrl,apiUpdate, search)
+			sectionsEditBackill(item,baseUrl,apiUpdate, search, theme)
 		}
 
 	},[])
@@ -125,10 +125,11 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
 	const setActionParam = React.useCallback((key, value) => {
 		setPageState(draft => {
 			const existing = draft.filters.find(f => f.searchKey === key && f.type === 'action');
+			const arrayValue  = Array.isArray(value) ? value : [value];
 			if (existing) {
-				existing.values = [value];
+				existing.values = arrayValue;
 			} else {
-				draft.filters.push({ searchKey: key, values: [value], useSearchParams: false, type: 'action' });
+				draft.filters.push({ searchKey: key, values: arrayValue, useSearchParams: false, type: 'action' });
 			}
 		});
 	}, [setPageState]);

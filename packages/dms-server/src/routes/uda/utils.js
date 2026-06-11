@@ -575,6 +575,43 @@ const buildJoin = async ({ join }) => {
   return { joins: joins.join('\n'), merges: merges.join('\n') }
 }
 
+/**
+ * Compile one custom-bucket (alias group) definition into a CASE expression.
+ *
+ * A definition is `{ column, fallback, groups: { [label]: [values] } }` and maps
+ * the values of `column` into the author-defined labels:
+ *   CASE WHEN <column> IN (...) THEN '<label>' … ELSE '<fallback>' END
+ *
+ * The standard CASE/IN syntax works identically on PostgreSQL and SQLite, so the
+ * same builder serves both. Only `column` is a raw identifier (groupBy bypasses
+ * the sanitizeName() path for these CASE expressions), so it is sanitizeName()-
+ * guarded here; labels, values and fallback are single-quote-escaped literals. A
+ * group's `values` may arrive JSON-stringified (dynamic page-filter bindings
+ * store the list as a string) — tolerated via the JSON.parse fallback.
+ */
+function buildAliasGroupCase(definition) {
+  const { column, fallback, groups } = definition;
+  const safeColumn = sanitizeName(column);
+  if (!safeColumn) return null;
+  // DMS internal sources read column values out of a JSONB `data` column via
+  // `data->>'col'`, which always yields TEXT. Force every comparison value to a
+  // quoted string literal in that case, so a numeric bucket value doesn't compile
+  // to `data->>'col' IN (5)` — a text/integer mismatch Postgres rejects. DAMA
+  // physical columns keep native typing (numbers stay unquoted).
+  const isJsonText = safeColumn.includes("data->>");
+  let caseStmt = `CASE `;
+  for (const [label, values] of Object.entries(groups)) {
+    const valArray = typeof values === 'string' ? JSON.parse(values) : values;
+    const escapedValues = valArray.map(v => (typeof v === 'string' || isJsonText) ? `'${String(v).replace(/'/g, "''")}'` : v).join(', ');
+    caseStmt += `WHEN ${safeColumn} IN (${escapedValues}) THEN '${label.replace(/'/g, "''")}' `;
+  }
+  if (fallback) {
+    caseStmt += `ELSE '${fallback.replace(/'/g, "''")}' `;
+  }
+  caseStmt += `END`;
+  return caseStmt;
+}
+
 module.exports = {
   sanitizeName,
   getResponseColumnName,
@@ -592,5 +629,6 @@ module.exports = {
   handleHaving,
   handleOrderBy,
   buildCombinedWhere,
-  buildJoin
+  buildJoin,
+  buildAliasGroupCase
 };
