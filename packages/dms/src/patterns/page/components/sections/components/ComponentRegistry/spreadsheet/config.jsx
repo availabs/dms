@@ -66,8 +66,14 @@ export const componentFunctions = {
             paramKey: "",
             args: [
                 { key: 'column', label: 'Column to publish', type: 'column-select' },
-                { 
-                    key: 'append_params', 
+                {
+                    key: 'id_column',
+                    label: 'Row identity column (optional)',
+                    description: 'When set, publishes a { id, value } composite so rows sharing the same published value toggle independently. Leave empty to toggle by value.',
+                    type: 'column-select',
+                },
+                {
+                    key: 'append_params',
                     label: 'Append Params',
                     type: 'select',
                     options: [
