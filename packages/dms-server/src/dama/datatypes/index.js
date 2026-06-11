@@ -19,12 +19,20 @@ const { registerHandler } = require('../tasks');
 
 const datatypes = {};
 
+// workerPath → schedulable spec (+ datatype name). Read by the schedule
+// sweep (buildDescriptor/preflight) and the /schedulables route (UI forms).
+const schedulables = {};
+
 /**
  * Register a datatype plugin.
  * @param {string} name - Datatype name (used as URL prefix: /dama-admin/:pgEnv/{name}/)
  * @param {Object} definition
  * @param {Object} [definition.workers] - Map of workerPath → async handler function
  * @param {Function} [definition.routes] - fn(router, helpers) to define Express routes
+ * @param {Object} [definition.schedulables] - Map of workerPath → schedulable spec:
+ *   { label, defaultCron, params, buildDescriptor({schedule, db, pgEnv}),
+ *     preflight({schedule, descriptor, db, pgEnv}) } — opts the worker into
+ *   cron scheduling (see dama/tasks/schedules.js).
  */
 function registerDatatype(name, definition) {
   if (datatypes[name]) {
@@ -35,6 +43,16 @@ function registerDatatype(name, definition) {
   if (definition.workers) {
     for (const [workerPath, handler] of Object.entries(definition.workers)) {
       registerHandler(workerPath, handler);
+    }
+  }
+
+  if (definition.schedulables) {
+    for (const [workerPath, spec] of Object.entries(definition.schedulables)) {
+      if (typeof spec.buildDescriptor !== 'function') {
+        console.warn(`[datatypes] schedulable ${workerPath} missing buildDescriptor — skipped`);
+        continue;
+      }
+      schedulables[workerPath] = { ...spec, datatype: name };
     }
   }
 
@@ -70,4 +88,12 @@ function getDatatypes() {
   return { ...datatypes };
 }
 
-module.exports = { registerDatatype, mountDatatypeRoutes, getDatatypes };
+/**
+ * Get all registered schedulables: workerPath → { label, defaultCron, params,
+ * buildDescriptor, preflight?, datatype }.
+ */
+function getSchedulables() {
+  return { ...schedulables };
+}
+
+module.exports = { registerDatatype, mountDatatypeRoutes, getDatatypes, getSchedulables };

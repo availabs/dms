@@ -20,6 +20,8 @@
 import Table from "./gis_dataset/pages/table";
 import Map from "./gis_dataset/pages/Map";
 import Metadata from "./gis_dataset/pages/metadata";
+import SchedulePage from "./schedule/SchedulePage";
+import RunsPage from "./schedule/RunsPage";
 
 const defaultPages = {
   table: {
@@ -37,6 +39,22 @@ const defaultPages = {
     path: "/metadata",
     cdn: () => false,    // hide from nav by default — match existing convention
     component: Metadata,
+  },
+  // Scheduled data-loader runs (cron authoring) + run history. DAMA-only —
+  // schedules live in data_manager.schedules, so hide for internal (DMS)
+  // sources. Run detail anchors at source/:id/runs/:taskId (the SourcePage
+  // route's third segment carries a task_id here, not a view_id).
+  schedule: {
+    name: "Schedule",
+    path: "/schedule",
+    cdn: ({ isDms }) => !isDms,
+    component: SchedulePage,
+  },
+  runs: {
+    name: "Runs",
+    path: "/runs",
+    cdn: ({ isDms }) => !isDms,
+    component: RunsPage,
   },
 };
 

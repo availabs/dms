@@ -100,6 +100,10 @@ app.use(createJwtMiddleware(authDbEnv));
 // Upload routes — DAMA-compatible file upload endpoints (after JWT so uploads are authenticated)
 registerUploadRoutes(app);
 
+// Schedule routes — cron schedules for data-type loaders (after JWT; mutations require auth)
+const { registerScheduleRoutes } = require('./dama/tasks/schedule-routes');
+registerScheduleRoutes(app);
+
 // Always log graph requests to console (summary line)
 app.use('/graph', (req, res, next) => {
   const params = req.method === 'POST' ? req.body : req.query;
@@ -217,10 +221,12 @@ async function setupAndListen() {
     }
     await awaitReady(); // wait for all inits to complete
 
+    const schedules = require('./dama/tasks/schedules');
     for (const env of damaEnvs) {
       try {
         await tasks.recoverStalledTasks(env);
         tasks.startPolling(env);
+        schedules.startScheduleSweep(env);
       } catch (err) {
         console.warn(`[tasks] Could not start polling for ${env}: ${err.message}`);
       }

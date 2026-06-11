@@ -72,11 +72,19 @@ export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest})
 
           // 1. Copy pages/sections on the server
           const dmsServerPath = `${API_HOST}/dama-admin`;
-          await fetch(`${dmsServerPath}/dms/${app}+${oldInstance}/duplicate`, {
+          const dupRes = await fetch(`${dmsServerPath}/dms/${app}+${oldInstance}/duplicate`, {
               method: "POST",
               body: JSON.stringify({ newApp: app, newType: newSlug }),
               headers: { "Content-Type": "application/json" },
           });
+          // Surface a failed copy (e.g. server without the /duplicate route) instead of
+          // silently creating an empty pattern.
+          const dupBody = await dupRes.json().catch(() => ({}));
+          if (!dupRes.ok || dupBody?.err) {
+              console.error('[duplicate] page/section copy failed:', dupBody?.err || dupRes.status);
+              window.alert(`Pattern duplicate failed: ${dupBody?.err || `HTTP ${dupRes.status}`} (server: ${API_HOST}). Pattern not created.`);
+              return;
+          }
 
           // 2. Create new pattern record
           const dataToCopy = {
