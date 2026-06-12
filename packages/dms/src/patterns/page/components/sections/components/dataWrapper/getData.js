@@ -146,7 +146,21 @@ export const getData = async ({
 
     // ─── Build UDA config via the pure builder ────────────────────────────────
     debugTime && console.time('buildUdaConfig')
-    const builderInput = state.externalSource ? state : legacyStateToBuildInput(state);
+    let builderInput = state.externalSource ? state : legacyStateToBuildInput(state);
+    // Inject ephemeral table-header filters (state.tableFilters) without touching state.filters.
+    // They are ANDed with the persisted filter tree but never saved or shown in the filter editor.
+    if (state.tableFilters?.length) {
+        builderInput = {
+            ...builderInput,
+            filters: {
+                op: 'AND',
+                groups: [
+                    ...(builderInput.filters?.groups || []),
+                    ...state.tableFilters,
+                ],
+            },
+        };
+    }
     const isDms = sourceInfo.isDms;
 
     // Normalize to array format; support legacy single-column saved configs.

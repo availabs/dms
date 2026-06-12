@@ -41,7 +41,7 @@ const sortOptions = (options) =>
     );
 
 // Fetches unique values for a column (for filter/exclude multiselect)
-const useColumnOptions = (columnName, columns, operation, search, selectedValues, siblingConditions = [], col_source_id = null) => {
+export const useColumnOptions = (columnName, columns, operation, search, selectedValues, siblingConditions = [], col_source_id = null) => {
     const {apiLoad, state} = useContext(ComponentContext) || {};
     const [options, setOptions] = useState([]);
     const [loading, setLoading] = useState(false);

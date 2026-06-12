@@ -50,6 +50,7 @@ function computeFetchKey(state) {
         showTotal: c.showTotal,
       })),
       filterGroups: state.filters,
+      tableFilters: state.tableFilters,
       source_id: state.externalSource?.source_id,
       view_id: state.externalSource?.view_id,
       pageSize: state.display?.pageSize,
@@ -186,6 +187,7 @@ export function useDataLoader({ state, setState, apiLoad, component, isEditMode 
   }, [
     state.columns,
     state.filters,
+    state.tableFilters,
     state.display?.filterRelation,
     state.externalSource?.source_id,
     state.externalSource?.view_id,

@@ -194,6 +194,7 @@ const buildControls = (theme) => ({
                 },
                 label: 'format controls', key: '', displayCdn: ({ isEdit }) => isEdit
             },
+            { type: 'toggle', label: 'Server Filter', key: 'serverFilter', displayCdn: ({ isEdit }) => isEdit },
             { type: 'filter', label: 'filter', placeHolder: 'search...', key: 'localFilter' },
             { type: 'select', label: 'Sort', key: 'sort', dataFetch: true,
                 options: [
