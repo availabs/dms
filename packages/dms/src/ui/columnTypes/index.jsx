@@ -12,6 +12,7 @@ import { StatusPillEdit, StatusPillView } from './statusPill'
 import { DeltaEdit, DeltaView } from './delta'
 import { TargetBarEdit, TargetBarView } from './targetBar'
 import { VerdictDotEdit, VerdictDotView } from './verdictDot'
+import { StatValueEdit, StatValueView } from './statValue'
 import { CodeWithSubEdit, CodeWithSubView } from './codeWithSub'
 import { DownloadButtonEdit, DownloadButtonView } from './downloadButton'
 import Switch from '../components/Switch'
@@ -29,6 +30,7 @@ const statusPill = { EditComp: StatusPillEdit, ViewComp: StatusPillView }
 const delta = { EditComp: DeltaEdit, ViewComp: DeltaView }
 const targetBar = { EditComp: TargetBarEdit, ViewComp: TargetBarView }
 const verdictDot = { EditComp: VerdictDotEdit, ViewComp: VerdictDotView }
+const statValue = { EditComp: StatValueEdit, ViewComp: StatValueView }
 const codeWithSub = { EditComp: CodeWithSubEdit, ViewComp: CodeWithSubView }
 const downloadButton = { EditComp: DownloadButtonEdit, ViewComp: DownloadButtonView }
 
@@ -67,6 +69,7 @@ const columnTypes = {
   'delta': delta,
   'target_bar': targetBar,
   'verdict_dot': verdictDot,
+  'stat_value': statValue,
   'code_with_sub': codeWithSub,
   'download_button': downloadButton,
   'switch': {

@@ -88,8 +88,9 @@ export const GraphComponent = props => {
   return (
     <div
       className={ `
-        w-full h-fit ${ theme.bgColor }
-        ${ theme.text } ${ theme.textColor }
+        w-full h-fit ${ theme.bgColor || "" }
+        ${ theme.text || "" } ${ theme.textColor || "" }
+        ${ theme.padding || "" }
       ` }
     >
 

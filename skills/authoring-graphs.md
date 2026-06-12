@@ -94,6 +94,46 @@ target lives in a real table, **join** it (`using-a-datawrapper-card.md`) and po
 second series at the joined column instead of a constant. **Confirm target values/source
 with the user before binding — don't fabricate regulatory targets.**
 
+## Pattern: BarGraph — rotation, grouped bars, hidden axes, bar spacing ✅
+
+All of these are **section `display` keys** (author-editable in the graph controls; theme
+`chartDefaults` can set brand defaults the same way). Worked example: the Freight Atlas
+Home mode-share (2175321) + growth (2175322) charts, matched to design panels that use
+horizontal bars with no axes.
+
+- **`groupMode: "grouped" | "stacked"`** — ⚠ default is **`stacked`**: two `yAxis` series
+  silently stack (sums on one bar) unless you set `"grouped"` for side-by-side bars.
+- **`orientation: "vertical" | "horizontal"`** — rotates the chart (config control
+  "Orientation", BarGraph settings). **Axis configs swap with it**: in `horizontal`, the
+  section's `xAxis` config (the category axis) renders as the **left** axis and `yAxis`
+  (values) renders as the **bottom**. Two gotchas:
+  1. the first data row lands at the **bottom** — to put the biggest category on top,
+     `sort: "asc"` on the measure column (not desc);
+  2. long category labels clip — give them room with `margin: { left: 64 }`.
+- **Hiding axes/ticks/gridlines** (design panels often want none):
+  `xAxis: { show: false }` / `yAxis: { show: false }` kill the whole axis;
+  `yAxis.showGridLines: false` (⚠ y default is **true**; x default false) kills the grid.
+  To keep **category labels but no axis line**, leave `show: true` and set
+  `axisColor: "transparent"` (+ `tickColor` for the label color).
+- **Bar spacing** — `paddingInner: 0..1` (d3 band-scale inner padding; ~`0.3` reads like
+  the design-system bars; default 0 = bars touch). `paddingOuter` exists too (edge gap;
+  no config control yet, but the display key works).
+- **Series colors** — `colors: { type: "palette", value: ["#1F3F8F", "#E5A646"] }` maps
+  palette entries to series in column order (per-column `color` is honored by LineGraph
+  series, not BarGraph bars — use the palette for bars).
+- **Legend** — `legend: { show: true, position: "right" }`. ⚠ BarGraph only renders the
+  legend at `position: "left" | "right"` — `{ show: true }` with no position renders
+  **nothing**. Series-mode legend labels show the column's `customName`/`display_name`
+  (the wrapper translates the alias keys — raw `tons_share`-style aliases used to leak
+  through; fixed in `components/BarGraph.jsx`). Categorize-mode keys are data values and
+  pass through as-is.
+- **Height** — `height` (px) is a **graph display setting, not a layout concern**: the
+  section/card stretches with the band, the plot does not. Two graphs side by side must
+  set the **same `height`** or their baselines misalign.
+- **Built-in padding** — the chart's outer div takes a `padding` class token from the
+  **avlGraph theme** (`theme.js` styles + brand overrides, e.g. transportny's `p-4`), so
+  plots don't sit flush against the section edge. Brand-level, not per-section.
+
 ## Pattern: chart header + hero stat
 The design's trend cards carry a header (kicker + title) and a right-aligned **hero
 stat** (the current-year value + a meets/below pill). Build it as a small **`Card`**

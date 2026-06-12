@@ -847,7 +847,11 @@ export default function Card ({
         cardBorder, cellBorder,
         allowAdddNew,
     } = display;
-    const visibleColumns = useMemo(() => columns.filter(({show}) => show), [columns]);
+    // selectOnly: the column participates in the query (SELECT/GROUP BY — it must
+    // keep show:true or the dataWrapper drops it from the grouping) but renders NO
+    // cell. Without it, a hidden (hideHeader+hideValue) data column still occupies
+    // a grid slot and shifts every later cell in multi-column cell grids.
+    const visibleColumns = useMemo(() => columns.filter(({show, selectOnly}) => show && !selectOnly), [columns]);
     const cellsWithoutSpanLength = useMemo(() => visibleColumns.filter(({cellSpan}) => !cellSpan).length, [visibleColumns]);
     const hasRowSpan = useMemo(() => visibleColumns.some(c => c.cellRowSpan > 1), [visibleColumns]);
     const imageTopMargin = useMemo(() =>

@@ -43,12 +43,16 @@ export const avlGraphTheme = {
         { name: "Light Mode",
             bgColor: "bg-white",
             textColor: "text-slate-800",
+            // Built-in breathing room so the plot doesn't sit flush against the
+            // section edge; a brand overrides via its own avlGraph `padding` token.
+            padding: "p-4",
             chartDefaults: ChartDefaults,
             ...SharedThemeOptions
         },
         { name: "Dark Mode",
             bgColor: "bg-slate-800",
             textColor: "text-white",
+            padding: "p-4",
             chartDefaults: { ...ChartDefaults },
             ...SharedThemeOptions
         }

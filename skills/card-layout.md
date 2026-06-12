@@ -258,6 +258,7 @@ reads only its own `value` and is configured via column attributes:
 | `status_pill` | the value as a colored `UI.Pill` (good/bad/warn/na) | `pillColors` (map `value → pill style`); else keyword heuristics (meets/above → good, below/miss/fail → bad). Themeable via `theme.pill`. |
 | `delta`       | signed arrow + value, colored, + "vs <year-1>" suffix | `deltaGoodDirection` (`up`\|`down` — which sign is green), `deltaYearField` (row col with the period year → "vs Y-1"), `deltaSuffix` (static). Theme key `delta`. |
 | `target_bar`  | progress bar + target marker + "≥/≤ target" caption | `targetValue` (or `targetColumn`), `barMin`/`barMax` (range scale — ratio metrics like TTTR use `1.0`/`2.2`), `barDirection`, `barUnit`. Theme key `targetBar`. |
+| `stat_value`  | KPI figure with inline prefix + smaller muted unit on one baseline ("$6.2 billion", "310.9 M veh-hrs", "80 %") | `prefix` (figure-size, e.g. `$`), `unit` (suffix), `valueFontStyle` (figure token, e.g. `statXL`), `unitFontStyle` (unit token; defaults to theme `statValue.unit`, ~40% size muted). Use this instead of jamming the unit into the column header/label. |
 
 Worked example — the MAP-21 §01 KPI cards (live: sections 2173919–22 on page 2173915):
 a `status_pill` (from a `status_text` CASE column), the metric value (`formatFn: 'percent'`),
@@ -267,6 +268,40 @@ margin caption (calculated `… || ' pts above/below target'`). Two traps that b
 card: retyping a **formula** column to `delta` (its UUID `name` becomes invalid SQL), and
 `origin:'static'` columns ("Error getting length") — use SQL-literal calculated columns and
 **clone a working column** for the field shape.
+
+## Data-only columns: `selectOnly` (the phantom-cell gotcha)
+
+**A `show:true` column ALWAYS occupies a grid cell — `hideHeader`+`hideValue`
+hide its content, not its slot.** In a `cellsGridSize: 1` stack that's invisible;
+in any multi-column cell grid the empty cell shifts every later cell (a hidden
+`year` GROUP BY column in a 2-col KPI card pushes the label to column 2, the
+as-of chip to the next row, and so on — this broke the TSMO-home hero).
+
+Set **`selectOnly: true`** on columns that exist only for the query (GROUP BY
+keys, sort drivers, fields a column type reads off `row`): the column stays in
+the SELECT (keep `show: true` — dropping `show` changes the GROUP BY, see the
+aggregate gotcha) but renders no cell. Toolbar: "Select Only (no cell)".
+
+Related per-cell chrome: `cellBorderBelow: true` draws the theme hairline under
+a cell (`theme.headerValueWrapperBorderBelow`) — the design-system divider
+between a KPI's note and its substat row.
+
+Two more multi-column traps from the same build: (1) **`valueFontStyle` /
+`headerFontStyle` resolve against the CARD theme** (`theme.dataCard.styles[]`),
+NOT `textSettings` — a token that exists only in textSettings silently falls
+back to the default cell style. Keep the dataCard font map in parity with
+textSettings (the transportny themev2 marks the parity block with a comment),
+AND give the dataCard copies `!` importance on their size/color classes
+(`text-[12px]!`): the value div also carries `theme.value`'s baseline
+`text-[14px] text-[#0F1722]`, and Tailwind's order for arbitrary values is
+non-deterministic — without `!` the token loses the specificity race on some
+builds (verified: a `metaAccent` cell computing 14px instead of 12px). Stat
+tokens should also carry `pb-0!` to cancel `theme.value`'s baked-in `pb-3`
+under the figure.
+(2) **`cellWidth: 'max-content'` + spanning cells steal width**: a `cellSpan: 2`
+figure distributes its width into a max-content track and starves the 1fr
+column. For a right-side chip/badge column, use a fixed track instead
+(`cellWidth: '110px'`).
 
 ## What a column type receives
 
