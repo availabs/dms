@@ -75,10 +75,21 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
             const path = app
               ? ["dms", "data", app, "byId", idStr, att]
               : ["dms", "data", "byId", idStr, att];
-            let value = null;
+            let value;
             if (att === 'app') value = row.app || app || null;
-            else if (att === 'type') value = row.type || null
-            else value = 'no-access';
+            else if (att === 'type') value = row.type || null;
+            else if (kind === 'pattern' && att === 'data') {
+              // Return minimal routing info so the client builds the route and
+              // redirects to login instead of 404ing.
+              value = $atom({
+                id: 'no-access',
+                base_url: row.data?.base_url,
+                pattern_type: row.data?.pattern_type,
+                subdomain: row.data?.subdomain,
+                authPermissions: row.data?.authPermissions,
+                name: row.data?.name,
+              });
+            } else value = 'no-access';
             response.push({ path, value });
           }
           continue;
