@@ -2,10 +2,35 @@ import React, { useContext, useEffect, useMemo } from "react";
 import { get, set } from "lodash-es";
 import { SymbologyContext } from "../../../";
 import { MapEditorContext } from "../../../../context";
-import { StyledControl } from "../ControlWrappers";
 import { normalizeLayerClickFilterConfig } from "../../../stateUtils";
+import { formatJoinOptionLabel, getJoinOutputKey, getJoinOutputLabel } from "../LinkedDataControl/constants";
 
 const EMPTY_ARRAY = [];
+const FieldShell = ({ children, className = "" }) => (
+  <div className={`rounded-md border border-slate-200 bg-white px-3 py-2 shadow-sm ${className}`}>
+    {children}
+  </div>
+);
+const getJoinedColumnOptions = (state, activeLayerId) => {
+  const joinConfig =
+    get(state, `symbology.layers[${activeLayerId}].join`) ??
+    get(state, `symbology.layers[${activeLayerId}]['linked-data']`, {});
+  const columnConfigs = Array.isArray(joinConfig?.query?.columnConfigs)
+    ? joinConfig.query.columnConfigs
+    : [];
+
+  return columnConfigs
+    .map((columnConfig) => {
+      const name = getJoinOutputKey(columnConfig);
+      if (!name) return null;
+      return {
+        name,
+        display_name: getJoinOutputLabel(columnConfig),
+        _joined: true,
+      };
+    })
+    .filter(Boolean);
+};
 
 function ClickFilterControl() {
   const { state, setState } = useContext(SymbologyContext);
@@ -26,21 +51,10 @@ function ClickFilterControl() {
   }, [falcor, pgEnv, sourceId]);
 
   const sourceColumns = useMemo(() => {
-    if (!sourceId || !pgEnv) return EMPTY_ARRAY;
+    let filteredColumns = EMPTY_ARRAY;
 
-    let columns = get(falcorCache, [
-      "uda",
-      pgEnv,
-      "sources",
-      "byId",
-      sourceId,
-      "metadata",
-      "value",
-      "columns",
-    ], []);
-
-    if (columns.length === 0) {
-      columns = get(falcorCache, [
+    if (sourceId && pgEnv) {
+      let columns = get(falcorCache, [
         "uda",
         pgEnv,
         "sources",
@@ -48,13 +62,34 @@ function ClickFilterControl() {
         sourceId,
         "metadata",
         "value",
+        "columns",
       ], []);
+
+      if (columns.length === 0) {
+        columns = get(falcorCache, [
+          "uda",
+          pgEnv,
+          "sources",
+          "byId",
+          sourceId,
+          "metadata",
+          "value",
+        ], []);
+      }
+
+      filteredColumns = Array.isArray(columns)
+        ? columns.filter((col) => col?.name !== "wkb_geometry")
+        : EMPTY_ARRAY;
     }
 
-    return Array.isArray(columns)
-      ? columns.filter((col) => col?.name !== "wkb_geometry")
-      : EMPTY_ARRAY;
-  }, [falcorCache, pgEnv, sourceId]);
+    const joinedColumns = getJoinedColumnOptions(state, activeLayerId);
+    const existingNames = new Set(filteredColumns.map((column) => column?.name));
+
+    return [
+      ...filteredColumns,
+      ...joinedColumns.filter((column) => !existingNames.has(column.name)),
+    ];
+  }, [falcorCache, pgEnv, sourceId, state, activeLayerId]);
 
   const currentConfig = useMemo(() => {
     return normalizeLayerClickFilterConfig(get(state, clickFilterPath, {}));
@@ -133,12 +168,12 @@ function ClickFilterControl() {
             const isDuplicate = duplicateVariableIndexes.has(index);
 
             return (
-              <div key={index} className="rounded border border-slate-200 p-2">
-                <div className="mb-2 flex items-center justify-between">
-                  <div className="text-sm text-slate-700">Filter mapping {index + 1}</div>
+              <div key={index} className="rounded-lg border border-slate-200 bg-slate-50/60 p-3">
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <div className="text-sm font-medium text-slate-700">Filter mapping {index + 1}</div>
                   <button
                     type="button"
-                    className="text-xs text-red-500"
+                    className="text-xs text-red-500 hover:text-red-600"
                     onClick={() => removeMapping(index)}
                   >
                     Remove
@@ -146,21 +181,18 @@ function ClickFilterControl() {
                 </div>
 
                 <div>
-                  <div className="mb-1 text-sm text-slate-700">Filter variable</div>
-                  <StyledControl>
+                  <div className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">Filter variable</div>
+                  <FieldShell className="px-0 py-0">
                     <label className="flex w-full">
                       <input
-                        className="w-full bg-transparent py-2"
+                        className="w-full rounded-md bg-transparent px-3 py-2 text-sm"
                         type="text"
                         placeholder="Enter variable name"
                         value={mapping.variable}
                         onChange={(e) => updateMapping(index, "variable", e.target.value)}
                       />
                     </label>
-                  </StyledControl>
-                  {/* <div className="mt-1 text-xs text-slate-500">
-                    Enter the filter name you want to update when this layer is clicked.
-                  </div> */}
+                  </FieldShell>
                   {isDuplicate ? (
                     <div className="mt-1 text-xs text-red-600">
                       This variable name is already used in another mapping on this layer.
@@ -169,25 +201,25 @@ function ClickFilterControl() {
                 </div>
 
                 <div className="mt-3">
-                  <div className="mb-1 text-sm text-slate-700">Use layer field</div>
-                  <StyledControl>
+                  <div className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">Use layer field</div>
+                  <FieldShell className="px-0 py-0">
                     <label className="flex w-full">
                       <div className="flex w-full items-center">
                         <select
-                          className="w-full py-2 bg-transparent"
+                          className="w-full rounded-md bg-transparent px-3 py-2 text-sm"
                           value={mapping.field}
                           onChange={(e) => updateMapping(index, "field", e.target.value)}
                         >
                           <option value="">Select field</option>
                           {sourceColumns.map((column) => (
                             <option key={column.name} value={column.name}>
-                              {column.display_name || column.name}
+                              {formatJoinOptionLabel(column.display_name || column.name, column._joined)}
                             </option>
                           ))}
                         </select>
                       </div>
                     </label>
-                  </StyledControl>
+                  </FieldShell>
                 </div>
               </div>
             );
@@ -195,7 +227,7 @@ function ClickFilterControl() {
 
           <button
             type="button"
-            className="text-sm text-blue-600"
+            className="inline-flex rounded-md bg-blue-50 px-2.5 py-1 text-sm font-medium text-blue-600 hover:bg-blue-100"
             onClick={addMapping}
           >
             Add filter variable

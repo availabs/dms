@@ -6,6 +6,7 @@ import { StyledControl } from '../ControlWrappers'
 import {AddColumnSelectControl, controlTypes } from '../Controls'
 import { get, set } from 'lodash-es'
 import { Close } from '../../icons'
+import { getJoinOutputKey, getJoinOutputLabel } from "../LinkedDataControl/constants";
 const DEFAULT_STRING_FILTER = {
   operator: "==",
   value: [],
@@ -18,6 +19,28 @@ const DEFAULT_NUM_FILTER = {
 
 const getDiffColumns = (baseArray, subArray) => {
   return baseArray.filter(baseItem => !subArray.includes(baseItem))
+}
+
+const getJoinedColumnOptions = (state, activeLayerId) => {
+  const joinConfig =
+    get(state, `symbology.layers[${activeLayerId}].join`) ??
+    get(state, `symbology.layers[${activeLayerId}]['linked-data']`, {});
+  const columnConfigs = Array.isArray(joinConfig?.query?.columnConfigs)
+    ? joinConfig.query.columnConfigs
+    : [];
+
+  return columnConfigs
+    .map((columnConfig) => {
+      const name = getJoinOutputKey(columnConfig);
+      if (!name) return null;
+      return {
+        name,
+        display_name: getJoinOutputLabel(columnConfig),
+        type: columnConfig?.fn ? "number" : "string",
+        _joined: true,
+      };
+    })
+    .filter(Boolean);
 }
 
 export const DynamicFilterBuilder = ({path, params={}}) => {
@@ -80,8 +103,14 @@ export const DynamicFilterBuilder = ({path, params={}}) => {
         "uda", pgEnv, "sources", "byId", sourceId, "metadata", "value"
       ], []);
     }
-    return Array.isArray(columns) ? columns : [];
-  }, [sourceId, falcorCache]);
+    const sourceColumns = Array.isArray(columns) ? columns : [];
+    const joinedColumns = getJoinedColumnOptions(state, state.symbology.activeLayer);
+    const existingNames = new Set(sourceColumns.map((column) => column?.name));
+    return [
+      ...sourceColumns,
+      ...joinedColumns.filter((column) => !existingNames.has(column.name)),
+    ];
+  }, [sourceId, falcorCache, state]);
 
   const attributeNames = useMemo(
     () =>
@@ -96,7 +125,7 @@ export const DynamicFilterBuilder = ({path, params={}}) => {
     existingFilterColumns.concat(existingDynamicColumns)
   ).map((colName) => {
     const newAttr = attributes.find((attr) => attr.name === colName);
-    return { value: colName, label: newAttr?.display_name || colName };
+    return { value: colName, label: newAttr?.display_name || colName, _joined: newAttr?._joined };
   }); 
 
   return (

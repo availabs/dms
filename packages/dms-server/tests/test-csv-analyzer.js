@@ -329,6 +329,26 @@ async function runTests() {
     assert(desc.columnTypes[0].db_type === 'TEXT', `got ${desc.columnTypes[0].db_type}`);
   });
 
+  // --- csv.analyze: header detection must not materialize the whole file ---
+  // Regression: analyze() used readFileSync, so any CSV past Node's max string
+  // length (~512 MB) threw "Cannot create a string longer than 0x1fffffe8
+  // characters". Sparse file keeps the test instant.
+
+  await test('analyze reads header from a >512MB file without materializing it', async () => {
+    const csvProcessor = require('../src/dama/upload/processors/csv');
+    const p = path.join(os.tmpdir(), `dms-csv-huge-${Date.now()}.csv`);
+    fs.writeFileSync(p, '"Year","Origin_Region","Tons"\n2021,36001,1.5\n');
+    fs.truncateSync(p, 600 * 1024 * 1024); // sparse-extend past the string limit
+    try {
+      const layers = csvProcessor.analyze(p);
+      assert(layers.length === 1, `expected 1 layer, got ${layers.length}`);
+      const names = layers[0].fieldsMetadata.map(f => f.name);
+      assert(names.join(',') === 'year,origin_region,tons', `got ${names.join(',')}`);
+    } finally {
+      fs.unlinkSync(p);
+    }
+  });
+
   console.log(`\n=== ${passed} passed, ${failed} failed ===\n`);
   process.exit(failed > 0 ? 1 : 0);
 }

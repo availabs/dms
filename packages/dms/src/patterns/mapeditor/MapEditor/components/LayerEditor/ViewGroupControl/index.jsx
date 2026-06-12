@@ -93,7 +93,6 @@ const ViewGroupControl = ({path, datapath, params={}}) => {
           label={"Add Data View"}
           setState={(newViewId) => {
             setState((draft) => {
-              console.log("adding new viewId to group::", newViewId)
               set(
                 draft,
                 `${pathBase}.${path}`,
@@ -163,7 +162,6 @@ export const ExistingColumnList = ({selectedViews, reorderAttrs, removeAttr, vie
             <div
               className="flex items-center border-slate-200 cursor-pointer fill-white group-hover/title:fill-slate-300 hover:bg-slate-100 rounded group/icon col-span-1 p-0.5"
               onClick={() => {
-                console.log("legend prop change, setting viewId::",selectedView)
                 setViewGroupId(selectedView.view_id)
               }}
             >

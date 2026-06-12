@@ -10,6 +10,7 @@ import { navigableMenuSettings } from "./components/navigableMenu/theme";
 import { lexicalSettings } from "./components/lexical/theme";
 import { textSettingsSettings } from "./themes/textSettings";
 import { avlGraphSettings } from "./components/graph_new/theme"
+import { mapSettings } from "./components/map/map.theme";
 
 // -----------------
 // Pattern Settings
@@ -31,6 +32,7 @@ export default (theme) => {
     navigableMenu: navigableMenuSettings(theme),
     lexical: lexicalSettings(theme),
     textSettings: textSettingsSettings(theme),
+    map: mapSettings(theme),
     ...pagesThemeSettings(theme),
 
     avlGraph: avlGraphSettings(theme)

@@ -153,13 +153,20 @@ const BarGraphWrapper = props => {
 // console.log("BarGraphWrapper::axisLeft", axisLeft);
 
   const legend = React.useMemo(() => {
+    // Series-mode keys are column aliases (normalName — often a raw SQL alias like
+    // "tons_share"), which read terribly in a legend. Show the column's custom/display
+    // name instead. Categorize-mode keys are data VALUES and pass through unchanged.
+    const labelForKey = key => {
+      const dc = dataColumns.find(c => (c.normalName || c.key || c.name) === key || c.key === key);
+      return dc?.customName || dc?.display_name || key;
+    };
     return {
       ...props.legend,
       type: "categorical",
       colors: colors,
-      categories: dataFromProps.keys
+      categories: dataFromProps.keys.map(labelForKey)
     };
-  }, [props.legend, colors, dataFromProps.keys]);
+  }, [props.legend, colors, dataFromProps.keys, dataColumns]);
 
 // console.log("BarGraphWrapper::legend", legend);
 

@@ -1,36 +1,32 @@
 import React, { useContext } from "react";
 
-import { ThemeContext } from "../../../../../../../../ui/useTheme";
+import { ThemeContext, getComponentTheme } from "../../../../../../../../ui/useTheme";
 import useMapSettingsControls from "./state.jsx";
 
-const labelClassName = "text-sm font-medium text-slate-100";
-const sectionClassName = "pt-1.5 first:pt-0";
-const emptyStateClassName = "text-sm text-slate-400";
-
-const Field = ({ label, children, compact = false }) => (
+const Field = ({ label, children, compact = false, labelClassName }) => (
   <div className={`${compact ? "pb-1.5" : "pb-2"} w-full min-w-0`}>
     <label className={labelClassName}>{label}</label>
     {children}
   </div>
 );
 
-const StaticFieldValue = ({ value }) => (
-  <div className="mt-1 min-h-9 rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm leading-5 text-slate-200 break-words flex items-center">
+const StaticFieldValue = ({ value, valueClassName, fieldPanelClassName }) => (
+  <div className={`mt-1 min-h-9 rounded-md border px-3 py-2 text-sm leading-5 break-words flex items-center ${fieldPanelClassName} ${valueClassName}`}>
     {value}
   </div>
 );
 
-const InlineField = ({ label, children, border = true, alignStart = false }) => (
-  <div className={`${border ? "border-t border-slate-800" : ""} flex w-full items-center justify-between gap-3 py-2`}>
-    <label className={`min-w-0 flex-1 text-base text-slate-100 ${alignStart ? "self-start pt-1" : ""}`}>{label}</label>
+const InlineField = ({ label, children, border = true, alignStart = false, labelClassName, dividerClassName }) => (
+  <div className={`${border ? `border-t ${dividerClassName}` : ""} flex w-full items-center justify-between gap-3 py-2`}>
+    <label className={`min-w-0 flex-1 ${labelClassName} ${alignStart ? "self-start pt-1" : ""}`}>{label}</label>
     <div className={`${alignStart ? "pt-0" : ""} ml-auto min-w-0 flex-shrink-0`}>
       {children}
     </div>
   </div>
 );
 
-const ToggleRow = ({ label, value, onChange, border = true, labelClassName = "text-base text-slate-100", SwitchComp }) => (
-  <div className={`${border ? "border-t border-slate-800" : ""} flex w-full items-center justify-between gap-3 py-2`}>
+const ToggleRow = ({ label, value, onChange, border = true, labelClassName, SwitchComp, dividerClassName }) => (
+  <div className={`${border ? `border-t ${dividerClassName}` : ""} flex w-full items-center justify-between gap-3 py-2`}>
     <span className={`${labelClassName} min-w-0 flex-1`}>{label}</span>
     <div className="ml-auto flex-shrink-0">
       {SwitchComp ? <SwitchComp enabled={Boolean(value)} setEnabled={onChange} size="small" /> : null}
@@ -38,18 +34,47 @@ const ToggleRow = ({ label, value, onChange, border = true, labelClassName = "te
   </div>
 );
 
-const FilterGroup = ({ title, children, highlighted = false }) => (
-  <div className={`w-full rounded-md px-3 py-3 ${highlighted ? "border border-slate-600 bg-slate-900/30" : "border border-slate-700/80"}`}>
-    {title ? <div className="pb-2 text-base font-medium text-slate-100">{title}</div> : null}
+const FilterGroup = ({ title, children, highlighted = false, titleClassName, fieldPanelClassName, highlightedPanelClassName }) => (
+  <div className={`w-full rounded-md px-3 py-3 border ${highlighted ? highlightedPanelClassName : fieldPanelClassName}`}>
+    {title ? <div className={`pb-2 ${titleClassName}`}>{title}</div> : null}
     {children}
   </div>
 );
 
+const inlineSelectWrapperClassName = "w-[9.5rem] max-w-[42vw]";
+const sectionClassName = "pt-1.5 first:pt-0";
+const dividerClassName = "border-zinc-200 dark:border-white/10";
+const fieldPanelClassName = "border-zinc-200 bg-white dark:border-white/10 dark:bg-white/5";
+const highlightedPanelClassName = "border-zinc-300 bg-zinc-50/80 dark:border-white/15 dark:bg-white/5";
+
+const getTextThemeClasses = (className = "") =>
+  className
+    .split(/\s+/)
+    .filter((token) =>
+      /^(text-|font-|tracking-|leading-|uppercase|lowercase|capitalize|dark:text-)/.test(token)
+    )
+    .join(" ");
+
 const useMapSettingsUI = (mapAPI) => {
-  const { UI } = useContext(ThemeContext) || { UI: {} };
+  const { UI, theme: themeFromContext = {} } = useContext(ThemeContext) || { UI: {}, theme: {} };
   const controls = useMapSettingsControls(mapAPI);
   const Select = UI?.MultiSelect || (() => null);
-  return { ...controls, UI, Select };
+  const fieldTheme = getComponentTheme(themeFromContext, "field") || {};
+  const navigableMenuTheme = getComponentTheme(themeFromContext, "navigableMenu") || {};
+  const menuLabelClassName = getTextThemeClasses(navigableMenuTheme.menuItem);
+
+  return {
+    ...controls,
+    UI,
+    Select,
+    fieldTheme,
+    labelClassName: `${menuLabelClassName || fieldTheme.label} select-none`,
+    descriptionClassName: fieldTheme.description,
+    sectionClassName,
+    dividerClassName,
+    fieldPanelClassName,
+    highlightedPanelClassName,
+  };
 };
 
 const DebouncedTextInput = ({ value, onCommit, delay = 500, Input, ...props }) => {
@@ -79,13 +104,47 @@ const DebouncedTextInput = ({ value, onCommit, delay = 500, Input, ...props }) =
   );
 };
 
-const MapSymbologyControl = ({ mapAPI }) => {
-  const { selectedSymbology, symbologyOptions, onSymbologyChange, Select } = useMapSettingsUI(mapAPI);
+const FullWidthSelectField = ({ Select, className = "", ...props }) => {
+  const wrapperRef = React.useRef(null);
+
+  React.useLayoutEffect(() => {
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
+
+    [
+      wrapper,
+      wrapper.firstElementChild,
+      wrapper.firstElementChild?.firstElementChild,
+    ]
+      .filter(Boolean)
+      .forEach((element) => {
+        element.style.width = "100%";
+        element.style.minWidth = "0";
+      });
+  }, [props.options, props.value]);
 
   return (
-    <div className={sectionClassName}>
-      <Field label="Symbology">
-        <Select
+    <div ref={wrapperRef} className={`w-full min-w-0 ${className}`}>
+      <Select {...props} />
+    </div>
+  );
+};
+
+const renderMenuField = (render) => (props) => (
+  <div className="w-full min-w-0 block">
+    {render(props)}
+  </div>
+);
+
+const MapSymbologyControl = ({ mapAPI }) => {
+  const { selectedSymbology, symbologyOptions, onSymbologyChange, Select, labelClassName, sectionClassName } = useMapSettingsUI(mapAPI);
+
+  return (
+    <div className={`${sectionClassName} w-full min-w-0`}>
+      <Field label="Symbology" labelClassName={labelClassName}>
+        <FullWidthSelectField
+          Select={Select}
+          className="mt-1"
           value={selectedSymbology || ""}
           options={symbologyOptions.map((option) => ({ label: option.label, value: option.key }))}
           onChange={onSymbologyChange}
@@ -98,11 +157,13 @@ const MapSymbologyControl = ({ mapAPI }) => {
 };
 
 const MapLayerControl = ({ mapAPI }) => {
-  const { selectedSymbology, selectedLayer, layerOptions, onLayerChange, Select } = useMapSettingsUI(mapAPI);
+  const { selectedSymbology, selectedLayer, layerOptions, onLayerChange, Select, labelClassName } = useMapSettingsUI(mapAPI);
 
   return (
-    <Field label="Layer">
-      <Select
+    <Field label="Layer" labelClassName={labelClassName}>
+      <FullWidthSelectField
+        Select={Select}
+        className="mt-1"
         value={selectedLayer}
         options={layerOptions.map((option) => ({ label: option.label, value: option.key }))}
         onChange={onLayerChange}
@@ -114,11 +175,11 @@ const MapLayerControl = ({ mapAPI }) => {
 };
 
 const MapHeightControl = ({ mapAPI }) => {
-  const { state, heightOptions, setHeight, Select } = useMapSettingsUI(mapAPI);
+  const { state, heightOptions, setHeight, Select, labelClassName, dividerClassName } = useMapSettingsUI(mapAPI);
 
   return (
-    <InlineField label="Height" border={false}>
-      <div className="w-[8rem] max-w-[40vw]">
+    <InlineField label="Height" border={false} labelClassName={labelClassName} dividerClassName={dividerClassName}>
+      <div className={inlineSelectWrapperClassName}>
         <Select
           value={state.height}
           options={heightOptions.map((option) => ({ label: option, value: option }))}
@@ -131,11 +192,11 @@ const MapHeightControl = ({ mapAPI }) => {
 };
 
 const MapLegendPositionControl = ({ mapAPI }) => {
-  const { state, panelPositionOptions, setLegendPosition, Select } = useMapSettingsUI(mapAPI);
+  const { state, panelPositionOptions, setLegendPosition, Select, labelClassName, dividerClassName } = useMapSettingsUI(mapAPI);
 
   return (
-    <InlineField label="Legend Position">
-      <div className="w-[9.5rem] max-w-[42vw]">
+    <InlineField label="Legend Position" labelClassName={labelClassName} dividerClassName={dividerClassName}>
+      <div className={inlineSelectWrapperClassName}>
         <Select
           value={state.legendPosition}
           options={panelPositionOptions.map((option) => ({ label: option, value: option }))}
@@ -148,13 +209,13 @@ const MapLegendPositionControl = ({ mapAPI }) => {
 };
 
 const MapPluginControlPositionControl = ({ mapAPI }) => {
-  const { state, arePluginsLoaded, panelPositionOptions, setPluginControlPosition, Select } = useMapSettingsUI(mapAPI);
+  const { state, arePluginsLoaded, panelPositionOptions, setPluginControlPosition, Select, labelClassName, dividerClassName } = useMapSettingsUI(mapAPI);
 
   if (!arePluginsLoaded) return null;
 
   return (
-    <InlineField label="Plugin Control Position">
-      <div className="w-[9.5rem] max-w-[42vw]">
+    <InlineField label="Plugin Control Position" labelClassName={labelClassName} dividerClassName={dividerClassName}>
+      <div className={inlineSelectWrapperClassName}>
         <Select
           value={state.pluginControlPosition}
           options={panelPositionOptions.map((option) => ({ label: option, value: option }))}
@@ -167,55 +228,57 @@ const MapPluginControlPositionControl = ({ mapAPI }) => {
 };
 
 const MapZoomPanControl = ({ mapAPI }) => {
-  const { state, setZoomPan, UI } = useMapSettingsUI(mapAPI);
+  const { state, setZoomPan, UI, labelClassName, dividerClassName } = useMapSettingsUI(mapAPI);
   const { Switch } = UI;
-  return <ToggleRow label="Zoom/pan" border={false} value={state?.zoomPan} onChange={setZoomPan} SwitchComp={Switch} />;
+  return <ToggleRow label="Zoom/pan" value={state?.zoomPan} onChange={setZoomPan} SwitchComp={Switch} labelClassName={labelClassName} dividerClassName={dividerClassName} />;
 };
 
 const MapInitialViewportControl = ({ mapAPI }) => {
-  const { state, setInitialBounds, UI } = useMapSettingsUI(mapAPI);
+  const { state, setInitialBounds, UI, labelClassName, dividerClassName } = useMapSettingsUI(mapAPI);
   const { Switch } = UI;
+  const hasInitialViewport = Boolean(state?.setInitialBounds || state?.initialBounds);
   return (
     <ToggleRow
       label="Set initial viewport"
-      value={state?.setInitialBounds}
+      value={hasInitialViewport}
       onChange={setInitialBounds}
       SwitchComp={Switch}
-      labelClassName="max-w-[9rem] text-base leading-5 text-slate-100"
+      labelClassName={`${labelClassName} max-w-[9rem] leading-5`}
+      dividerClassName={dividerClassName}
     />
   );
 };
 
 const MapBlankBasemapControl = ({ mapAPI }) => {
-  const { state, setBlankBasemap, UI } = useMapSettingsUI(mapAPI);
+  const { state, setBlankBasemap, UI, labelClassName, dividerClassName } = useMapSettingsUI(mapAPI);
   const { Switch } = UI;
-  return <ToggleRow label="Use blank basemap" value={state?.blankBaseMap} onChange={setBlankBasemap} SwitchComp={Switch} />;
+  return <ToggleRow label="Use blank basemap" value={state?.blankBaseMap} onChange={setBlankBasemap} SwitchComp={Switch} labelClassName={labelClassName} dividerClassName={dividerClassName} />;
 };
 
 const MapZoomToFitControl = ({ mapAPI }) => {
-  const { state, setZoomToFitBounds, UI } = useMapSettingsUI(mapAPI);
+  const { state, setZoomToFitBounds, UI, labelClassName, dividerClassName } = useMapSettingsUI(mapAPI);
   const { Switch } = UI;
-  return <ToggleRow label="Zoom to Fit" value={state?.zoomToFitBounds} onChange={setZoomToFitBounds} SwitchComp={Switch} />;
+  return <ToggleRow label="Zoom to Fit" value={state?.zoomToFitBounds} onChange={setZoomToFitBounds} SwitchComp={Switch} labelClassName={labelClassName} dividerClassName={dividerClassName} />;
 };
 
 const MapUsePageFiltersControl = ({ mapAPI, border = false }) => {
-  const { activeLayer, setUsePageFilters, UI } = useMapSettingsUI(mapAPI);
+  const { activeLayer, setUsePageFilters, UI, labelClassName, descriptionClassName, dividerClassName } = useMapSettingsUI(mapAPI);
   const { Switch } = UI;
 
-  if (!activeLayer) return <div className={emptyStateClassName}>Select a layer first.</div>;
+  if (!activeLayer) return <div className={descriptionClassName}>Select a layer first.</div>;
 
-  return <ToggleRow label="Use Page Filters" border={border} value={activeLayer?.usePageFilters} onChange={setUsePageFilters} SwitchComp={Switch} />;
+  return <ToggleRow label="Use Page Filters" border={border} value={activeLayer?.usePageFilters} onChange={setUsePageFilters} SwitchComp={Switch} labelClassName={labelClassName} dividerClassName={dividerClassName} />;
 };
 
 const MapKeySearchParamControl = ({ mapAPI, border = true }) => {
-  const { activeLayer, setSearchParamKey, UI } = useMapSettingsUI(mapAPI);
+  const { activeLayer, setSearchParamKey, UI, labelClassName, dividerClassName } = useMapSettingsUI(mapAPI);
   const { Input } = UI;
 
   if (!activeLayer) return null;
 
   return (
-    <InlineField label="Key Search Param" border={border}>
-      <div className="w-[9.5rem] max-w-[42vw]">
+    <InlineField label="Key Search Param" border={border} labelClassName={labelClassName} dividerClassName={dividerClassName}>
+      <div className={inlineSelectWrapperClassName}>
         <DebouncedTextInput
           Input={Input}
           value={activeLayer?.searchParamKey || ""}
@@ -228,18 +291,37 @@ const MapKeySearchParamControl = ({ mapAPI, border = true }) => {
 };
 
 const MapInteractiveFiltersControl = ({ mapAPI }) => {
-  const { activeLayer, interactiveFilterOptions, activeFilter, setInteractiveSearchParamValue, activateInteractiveFilter, UI } = useMapSettingsUI(mapAPI);
+  const {
+    activeLayer,
+    interactiveFilterOptions,
+    activeFilter,
+    setInteractiveSearchParamValue,
+    activateInteractiveFilter,
+    UI,
+    labelClassName,
+    descriptionClassName,
+    sectionClassName,
+    dividerClassName,
+    fieldPanelClassName,
+    highlightedPanelClassName,
+  } = useMapSettingsUI(mapAPI);
   const { Input, Switch } = UI;
   const filters = interactiveFilterOptions || [];
 
-  if (!activeLayer || !filters.length) return <div className={emptyStateClassName}>No interactive filters configured</div>;
+  if (!activeLayer || !filters.length) return <div className={descriptionClassName}>No interactive filters configured</div>;
 
   return (
     <div className={`${sectionClassName} w-full min-w-0`}>
       {filters.map((filter, index) => (
         <div key={`${filter.label || "interactive"}_${index}`} className={`${index === 0 ? "" : "mt-3"} w-full min-w-0`}>
-          <FilterGroup title={filter.label || `Interactive Filter ${index + 1}`} highlighted={index > 0}>
-            <Field label="Search Param Value" compact>
+          <FilterGroup
+            title={filter.label || `Interactive Filter ${index + 1}`}
+            highlighted={index > 0}
+            titleClassName={labelClassName}
+            fieldPanelClassName={fieldPanelClassName}
+            highlightedPanelClassName={highlightedPanelClassName}
+          >
+            <Field label="Search Param Value" compact labelClassName={labelClassName}>
               <div className="w-full">
                 <DebouncedTextInput
                   Input={Input}
@@ -249,14 +331,16 @@ const MapInteractiveFiltersControl = ({ mapAPI }) => {
                 />
               </div>
             </Field>
-          <ToggleRow
-            label="Active"
-            border={false}
-            value={activeFilter === index}
-            SwitchComp={Switch}
-            onChange={(enabled) => {
-              if (!enabled) return;
-              activateInteractiveFilter(index);
+            <ToggleRow
+              label="Active"
+              border={false}
+              value={activeFilter === index}
+              SwitchComp={Switch}
+              labelClassName={labelClassName}
+              dividerClassName={dividerClassName}
+              onChange={(enabled) => {
+                if (!enabled) return;
+                activateInteractiveFilter(index);
             }}
           />
           </FilterGroup>
@@ -267,18 +351,37 @@ const MapInteractiveFiltersControl = ({ mapAPI }) => {
 };
 
 const MapDynamicFiltersControl = ({ mapAPI }) => {
-  const { activeLayer, dynamicFilterOptions, setDynamicSearchParamKey, setDynamicDefaultValue, setDynamicDataType, UI, Select } = useMapSettingsUI(mapAPI);
+  const {
+    activeLayer,
+    dynamicFilterOptions,
+    setDynamicSearchParamKey,
+    setDynamicDefaultValue,
+    setDynamicDataType,
+    UI,
+    Select,
+    labelClassName,
+    descriptionClassName,
+    sectionClassName,
+    fieldPanelClassName,
+    highlightedPanelClassName,
+  } = useMapSettingsUI(mapAPI);
   const { Input } = UI;
   const filters = dynamicFilterOptions || [];
 
-  if (!activeLayer || !filters.length) return <div className={emptyStateClassName}>No dynamic filters configured</div>;
+  if (!activeLayer || !filters.length) return <div className={descriptionClassName}>No dynamic filters configured</div>;
 
   return (
     <div className={`${sectionClassName} w-full min-w-0`}>
       {filters.map((filter, index) => (
         <div key={`${filter.column_name || "dynamic"}_${index}`} className={`${index === 0 ? "" : "mt-3"} w-full min-w-0`}>
-          <FilterGroup title={filter.display_name || filter.column_name || `Dynamic Filter ${index + 1}`} highlighted={index > 0}>
-            <Field label="Search Param Value" compact>
+          <FilterGroup
+            title={filter.display_name || filter.column_name || `Dynamic Filter ${index + 1}`}
+            highlighted={index > 0}
+            titleClassName={labelClassName}
+            fieldPanelClassName={fieldPanelClassName}
+            highlightedPanelClassName={highlightedPanelClassName}
+          >
+            <Field label="Search Param Value" compact labelClassName={labelClassName}>
               <DebouncedTextInput
                 Input={Input}
                 value={filter.searchParamKey || filter.column_name || ""}
@@ -286,7 +389,7 @@ const MapDynamicFiltersControl = ({ mapAPI }) => {
                 onCommit={(value) => setDynamicSearchParamKey(index, value)}
               />
             </Field>
-            <Field label="Default Value" compact>
+            <Field label="Default Value" compact labelClassName={labelClassName}>
               <DebouncedTextInput
                 Input={Input}
                 value={filter.defaultValue ?? ""}
@@ -294,7 +397,7 @@ const MapDynamicFiltersControl = ({ mapAPI }) => {
                 onCommit={(value) => setDynamicDefaultValue(index, value)}
               />
             </Field>
-            <Field label="Type" compact={false}>
+            <Field label="Type" compact={false} labelClassName={labelClassName}>
               {/**
                 * Store an explicit string value for the select so the "String"
                 * label renders correctly and the handler accepts either a raw
@@ -318,19 +421,37 @@ const MapDynamicFiltersControl = ({ mapAPI }) => {
 };
 
 const MapLayerClickFiltersControl = ({ mapAPI }) => {
-  const { activeLayer, isSelectedVariableMappingsEnabled, selectedVariableMappings, setClickFilterUseSearchParam, UI } = useMapSettingsUI(mapAPI);
+  const {
+    activeLayer,
+    isSelectedVariableMappingsEnabled,
+    selectedVariableMappings,
+    setClickFilterUseSearchParam,
+    UI,
+    labelClassName,
+    descriptionClassName,
+    sectionClassName,
+    dividerClassName,
+    fieldPanelClassName,
+    highlightedPanelClassName,
+  } = useMapSettingsUI(mapAPI);
   const { Switch, Input } = UI;
   const mappings = isSelectedVariableMappingsEnabled ? selectedVariableMappings || [] : [];
 
-  if (!activeLayer || !mappings.length) return <div className={emptyStateClassName}>No layer click filters configured</div>;
+  if (!activeLayer || !mappings.length) return <div className={descriptionClassName}>No layer click filters configured</div>;
 
   return (
     <div className={`${sectionClassName} w-full min-w-0`}>
       {mappings.map((mapping, index) => (
         <div key={`${mapping.variable || "mapping"}_${index}`} className={`${index === 0 ? "" : "mt-3"} w-full min-w-0`}>
-          <FilterGroup title={null} highlighted={index > 0}>
-          <Field label="Selected Variable" compact>
-            <StaticFieldValue value={mapping.variable || "Untitled variable"} />
+          <FilterGroup
+            title={null}
+            highlighted={index > 0}
+            titleClassName={labelClassName}
+            fieldPanelClassName={fieldPanelClassName}
+            highlightedPanelClassName={highlightedPanelClassName}
+          >
+          <Field label="Selected Variable" compact labelClassName={labelClassName}>
+            <StaticFieldValue value={mapping.variable || "Untitled variable"} valueClassName={labelClassName} fieldPanelClassName={fieldPanelClassName} />
           </Field>
             <ToggleRow
               label="Use URL Param"
@@ -338,9 +459,11 @@ const MapLayerClickFiltersControl = ({ mapAPI }) => {
               value={Boolean(mapping.useSearchParams)}
               onChange={(enabled) => setClickFilterUseSearchParam(index, enabled)}
               SwitchComp={Switch}
+              labelClassName={labelClassName}
+              dividerClassName={dividerClassName}
             />
-          <Field label="Layer Field" compact={false}>
-            <StaticFieldValue value={mapping.field || "-"} />
+          <Field label="Layer Field" compact={false} labelClassName={labelClassName}>
+            <StaticFieldValue value={mapping.field || "-"} valueClassName={labelClassName} fieldPanelClassName={fieldPanelClassName} />
           </Field>
           </FilterGroup>
         </div>
@@ -351,43 +474,43 @@ const MapLayerClickFiltersControl = ({ mapAPI }) => {
 
 export const MapControls = () => ({
   default: [
-    { key: "map_symbology", label: "Symbology", type: ({ mapAPI }) => <MapSymbologyControl mapAPI={mapAPI} /> },
-    { key: "map_layer", label: "Layer", type: ({ mapAPI }) => <MapLayerControl mapAPI={mapAPI} /> },
+    { key: "map_symbology", label: "Symbology", type: renderMenuField(({ mapAPI }) => <MapSymbologyControl mapAPI={mapAPI} />) },
+    { key: "map_layer", label: "Layer", type: renderMenuField(({ mapAPI }) => <MapLayerControl mapAPI={mapAPI} />) },
     {
       key: "map_filters_nav",
       label: "Filters",
       items: [
-        { key: "map_use_page_filters", label: "Use Page Filters", type: ({ mapAPI }) => <MapUsePageFiltersControl mapAPI={mapAPI} border={false} /> },
-        { key: "map_key_search_param", label: "Key Search Param", type: ({ mapAPI }) => <MapKeySearchParamControl mapAPI={mapAPI} border={true} /> },
+        { key: "map_use_page_filters", label: "Use Page Filters", type: renderMenuField(({ mapAPI }) => <MapUsePageFiltersControl mapAPI={mapAPI} border={false} />) },
+        { key: "map_key_search_param", label: "Key Search Param", type: renderMenuField(({ mapAPI }) => <MapKeySearchParamControl mapAPI={mapAPI} border={true} />) },
         {
           key: "map_interactive_filters_nav",
           label: "Interactive Filter",
           items: [
-            { key: "map_interactive_filters", label: "Interactive Filter Details", type: ({ mapAPI }) => <MapInteractiveFiltersControl mapAPI={mapAPI} /> },
+            { key: "map_interactive_filters", label: "Interactive Filter Details", type: renderMenuField(({ mapAPI }) => <MapInteractiveFiltersControl mapAPI={mapAPI} />) },
           ],
         },
         {
           key: "map_dynamic_filters_nav",
           label: "Dynamic Filter",
           items: [
-            { key: "map_dynamic_filters", label: "Dynamic Filter Details", type: ({ mapAPI }) => <MapDynamicFiltersControl mapAPI={mapAPI} /> },
+            { key: "map_dynamic_filters", label: "Dynamic Filter Details", type: renderMenuField(({ mapAPI }) => <MapDynamicFiltersControl mapAPI={mapAPI} />) },
           ],
         },
         {
           key: "map_click_filters_nav",
           label: "Layer Click Filter",
           items: [
-            { key: "map_click_filters", label: "Layer Click Filter Details", type: ({ mapAPI }) => <MapLayerClickFiltersControl mapAPI={mapAPI} /> },
+            { key: "map_click_filters", label: "Layer Click Filter Details", type: renderMenuField(({ mapAPI }) => <MapLayerClickFiltersControl mapAPI={mapAPI} />) },
           ],
         },
       ],
     },
-    { key: "map_height", label: "Height", type: ({ mapAPI }) => <MapHeightControl mapAPI={mapAPI} /> },
-    { key: "map_legend_position", label: "Legend Position", type: ({ mapAPI }) => <MapLegendPositionControl mapAPI={mapAPI} /> },
-    { key: "map_plugin_control_position", label: "Plugin Control Position", type: ({ mapAPI }) => <MapPluginControlPositionControl mapAPI={mapAPI} /> },
-    { key: "map_zoom_pan", label: "Zoom/pan", type: ({ mapAPI }) => <MapZoomPanControl mapAPI={mapAPI} /> },
-    { key: "map_initial_viewport", label: "Set initial viewport", type: ({ mapAPI }) => <MapInitialViewportControl mapAPI={mapAPI} /> },
-    { key: "map_blank_basemap", label: "Use blank basemap", type: ({ mapAPI }) => <MapBlankBasemapControl mapAPI={mapAPI} /> },
-    { key: "map_zoom_to_fit", label: "Zoom to Fit", type: ({ mapAPI }) => <MapZoomToFitControl mapAPI={mapAPI} /> },
+    { key: "map_height", label: "Height", type: renderMenuField(({ mapAPI }) => <MapHeightControl mapAPI={mapAPI} />) },
+    { key: "map_legend_position", label: "Legend Position", type: renderMenuField(({ mapAPI }) => <MapLegendPositionControl mapAPI={mapAPI} />) },
+    { key: "map_plugin_control_position", label: "Plugin Control Position", type: renderMenuField(({ mapAPI }) => <MapPluginControlPositionControl mapAPI={mapAPI} />) },
+    { key: "map_zoom_pan", label: "Zoom/pan", type: renderMenuField(({ mapAPI }) => <MapZoomPanControl mapAPI={mapAPI} />) },
+    { key: "map_initial_viewport", label: "Set initial viewport", type: renderMenuField(({ mapAPI }) => <MapInitialViewportControl mapAPI={mapAPI} />) },
+    { key: "map_blank_basemap", label: "Use blank basemap", type: renderMenuField(({ mapAPI }) => <MapBlankBasemapControl mapAPI={mapAPI} />) },
+    { key: "map_zoom_to_fit", label: "Zoom to Fit", type: renderMenuField(({ mapAPI }) => <MapZoomToFitControl mapAPI={mapAPI} />) },
   ],
 });

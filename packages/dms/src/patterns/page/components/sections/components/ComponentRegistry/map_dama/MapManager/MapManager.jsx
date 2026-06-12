@@ -3,6 +3,7 @@ import { MapContext } from '../'
 import mapboxgl from "maplibre-gl";
 import { isEqual, get, set, cloneDeep } from "lodash-es"
 import { ThemeContext } from "../../../../../../../../ui/themeContext"
+import useMapTheme from "../../../../../../../../ui/components/map/useMapTheme"
 import { Fill, Line, Circle, MenuDots , CaretUpSolid, CaretDownSolid, CaretDown,  Plus, Eye, EyeSlashed,EyeClosed} from '../../../../../../../mapeditor/MapEditor/components/icons'
 import { SelectSymbology } from './SymbologySelector'
 import {categoryPaint, isValidCategoryPaint ,choroplethPaint} from '../../../../../../../mapeditor/MapEditor/components/LayerEditor/datamaps';
@@ -67,10 +68,11 @@ function arraymove(arr, fromIndex, toIndex) {
 function SymbologyMenu({button, width='w-36', children}) {
   const { UI } = React.useContext(ThemeContext) || {};
   const { Popup } = UI || {};
+  const mapTheme = useMapTheme();
 
   return (
     <Popup button={button}>
-      <div className={`${width} divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black/5`}>
+      <div className={`${width} ${mapTheme.popup.menuPanel}`}>
         {children}
       </div>
     </Popup>
@@ -869,6 +871,7 @@ const DynamicFilter = ({layer, symbology_id}) => {
 function DynamicFilterControl({button, layer, sampleData, filterIndex, symbology_id}) {
   const { UI } = React.useContext(ThemeContext) || {};
   const { Popup } = UI || {};
+  const mapTheme = useMapTheme();
   const { state, setState, falcor, pgEnv  } = React.useContext(MapContext);
   const falcorCache = falcor.getCache();
 
@@ -880,11 +883,11 @@ function DynamicFilterControl({button, layer, sampleData, filterIndex, symbology
   
   return (
     <Popup button={button}>
-      <div className="w-48 rounded-md bg-white shadow-lg ring-1 ring-black/5 p-2 max-h-[250px] overflow-auto">
+      <div className={mapTheme.popup.listPanel}>
         {sampleData.map((datum) => (
           <div
             key={`menu_item_${datum}`}
-            className="group flex w-full items-center rounded-md px-1 py-1 text-sm hover:bg-pink-50"
+            className={mapTheme.popup.listItem}
           >
             <input
               type="checkbox"
@@ -903,7 +906,7 @@ function DynamicFilterControl({button, layer, sampleData, filterIndex, symbology
                 }
               }}
             />
-            <div className="truncate flex items-center text-[15px] px-4 py-1">
+            <div className={mapTheme.popup.listItemText}>
               {datum}
             </div>
           </div>

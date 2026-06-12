@@ -38,17 +38,50 @@ function detectSeparator(headerLine, filePath) {
 }
 
 /**
+ * Read the first non-empty line of a file in bounded chunks. A full
+ * readFileSync dies past Node's max string length (~512 MB), so multi-GB
+ * CSVs must never be materialized just to get at the header row.
+ * @param {string} filePath
+ * @param {number} [maxBytes] - give up if no newline within this many bytes
+ * @returns {string} first non-empty line ('' if none found)
+ */
+function readFirstLine(filePath, maxBytes = 1024 * 1024) {
+  const fd = fs.openSync(filePath, 'r');
+  try {
+    const chunk = Buffer.alloc(64 * 1024);
+    let acc = Buffer.alloc(0);
+    let pos = 0;
+    while (pos < maxBytes) {
+      const n = fs.readSync(fd, chunk, 0, chunk.length, pos);
+      if (n === 0) break;
+      acc = Buffer.concat([acc, chunk.subarray(0, n)]);
+      pos += n;
+      let nl = acc.indexOf(0x0a);
+      while (nl !== -1) {
+        const line = acc.subarray(0, nl).toString('utf-8').replace(/\r$/, '');
+        if (line.trim()) return line;
+        acc = acc.subarray(nl + 1);
+        nl = acc.indexOf(0x0a);
+      }
+    }
+    const tail = acc.toString('utf-8').replace(/\r$/, '');
+    return tail.trim() ? tail : '';
+  } finally {
+    fs.closeSync(fd);
+  }
+}
+
+/**
  * Analyze a CSV file: read header row, return layer metadata.
  * @param {string} filePath - path to the CSV file
  * @returns {Array} [{layerName, fieldsMetadata}]
  */
 function analyze(filePath) {
-  const content = fs.readFileSync(filePath, 'utf-8');
-  const lines = content.split(/\r?\n/).filter(l => l.trim());
-  if (!lines.length) return [];
+  const headerLine = readFirstLine(filePath);
+  if (!headerLine) return [];
 
-  const separator = detectSeparator(lines[0], filePath);
-  const headers = parseCSVRow(lines[0], separator);
+  const separator = detectSeparator(headerLine, filePath);
+  const headers = parseCSVRow(headerLine, separator);
 
   const fieldsMetadata = headers.map((header, i) => ({
     name: snakeCase(header) || `col_${i + 1}`,
