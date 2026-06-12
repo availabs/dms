@@ -248,19 +248,29 @@ function PatternList({
 
 	const duplicate = async({oldInstance, newInstance}, item) => {
 		setIsDuplicating(true);
-		// call server to copy over pages and sections
-		const res = await fetch(`${dmsServerPath}/dms/${app}+${oldInstance}/duplicate`,
-			{
-				method: "POST",
-				body: JSON.stringify({newApp: app, newType: newInstance}),
-				headers: {
-					"Content-Type": "application/json",
-				},
-			});
-
-		const publishFinalEvent = await res.json();
-		await addNewValue(item);
-		setIsDuplicating(false);
+		try {
+			// call server to copy over pages and sections
+			const res = await fetch(`${dmsServerPath}/dms/${app}+${oldInstance}/duplicate`,
+				{
+					method: "POST",
+					body: JSON.stringify({newApp: app, newType: newInstance}),
+					headers: {
+						"Content-Type": "application/json",
+					},
+				});
+			const body = await res.json().catch(() => ({}));
+			if (!res.ok || body?.err) {
+				console.error('[duplicate] page/section copy failed:', body?.err || res.status);
+				window.alert(`Pattern duplicate failed: ${body?.err || `HTTP ${res.status}`}. Pattern not created.`);
+				return;
+			}
+			await addNewValue(item);
+		} catch (err) {
+			console.error('[duplicate] error:', err);
+			window.alert(`Pattern duplicate failed: ${err.message}`);
+		} finally {
+			setIsDuplicating(false);
+		}
 	}
 
 	const data = value

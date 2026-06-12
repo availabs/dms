@@ -8,6 +8,7 @@ const { gisGuard, layerNames, startLayerAnalysis, getLayerAnalysis, getTableDesc
 const { downloadGuard, createDownload, deleteDownload } = require('./download-routes');
 const { fileUpload } = require('./file-upload-route');
 const { createFileUploadDmsHandler } = require('./file-upload-dms-route');
+const { createDuplicateHandler } = require('./dms-duplicate');
 const { serveTile } = require('../tiles/tiles.rest');
 const { createController } = require('../../routes/dms/dms.controller');
 
@@ -33,6 +34,9 @@ function registerUploadRoutes(app) {
 
   // Phase 3: Validate
   app.post('/dama-admin/dms/:appType/validate', createValidateHandler(controller));
+
+  // Pattern duplicate — deep-clones a pattern + its pages + sections under a new instance.
+  app.post('/dama-admin/dms/:appType/duplicate', createDuplicateHandler(controller));
 
   // GIS analysis + publish routes (some require GDAL)
   app.get('/dama-admin/:pgEnv/gis-dataset/:fileId/layerNames', layerNames);

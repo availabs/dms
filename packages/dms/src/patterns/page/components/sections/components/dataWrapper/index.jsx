@@ -275,6 +275,7 @@ const Edit = forwardRef((props, ref) => {
             display: { ...(state.display || {}) },
             data: state.data || [],
             join: state.join || { sources: {} },
+            customBuckets: state.customBuckets || {},
         };
         if (state.dataSourceId) toSave.dataSourceId = state.dataSourceId;
         if (state.pivot?.enabled) {

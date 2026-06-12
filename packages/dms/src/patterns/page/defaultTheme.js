@@ -5,6 +5,7 @@ import { userMenuTheme, userMenuSettings } from './components/userMenu.theme'
 import { searchButtonTheme, searchPalletTheme, searchButtonSettings, searchPalletSettings } from './components/search/theme'
 import { sectionGroupControlTheme } from "./pages/edit/editPane/sectionGroupsPane.theme";
 import { complexFiltersTheme } from './components/sections/ComplexFilters.theme'
+import { templateManagerTheme } from './components/sections/TemplateManager.theme'
 import { timePickerTheme } from './components/sections/components/dataWrapper/components/filters/TimePicker/timePicker.theme'
 
 export default {
@@ -16,6 +17,7 @@ export default {
     searchPallet: searchPalletTheme,
     sectionGroupsPane: sectionGroupControlTheme,
     complexFilters: complexFiltersTheme,
+    templateManager: templateManagerTheme,
     timePicker: timePickerTheme,
 }
 
