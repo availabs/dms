@@ -87,7 +87,16 @@ const useColumnOptions = (columnName, columns, operation, search, selectedValues
                     const sibIsSys = isSystemCol(sibling.col, columns);
                     const sibRef = attributeAccessorStr(sibling.col, isDms, sibIsCalc, sibIsSys);
                     const values = Array.isArray(val) ? val : [val];
-                    acc[sibling.op] = { ...(acc[sibling.op] || {}), [sibRef]: values };
+                    // Multiselect columns store JSON arrays — use array_contains so the
+                    // server checks array membership instead of scalar equality (= ANY).
+                    const sibCol = columns.find(c => c.name === sibling.col);
+                    if (sibCol?.type === 'multiselect' && (sibling.op === 'filter' || sibling.op === 'exclude')) {
+                        const arrayOp = sibling.op === 'exclude' ? 'array_not_contains' : 'array_contains';
+                        if (!acc.filterGroups) acc.filterGroups = { op: 'AND', groups: [] };
+                        acc.filterGroups.groups.push({ col: sibRef, op: arrayOp, value: values });
+                    } else {
+                        acc[sibling.op] = { ...(acc[sibling.op] || {}), [sibRef]: values };
+                    }
                     return acc;
                 }, {});
 
