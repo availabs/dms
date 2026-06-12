@@ -375,6 +375,37 @@ Recipe A.
 
 ---
 
+## 3.5 Data Fetch Mode — cache / smart / force (set it deliberately)
+
+Every dataWrapper section has `display.fetchMode` (toolbar: "Data Fetch Mode"),
+governing **view-mode** loading (edit mode always fetches with dedup). Choose
+per section — the default is whatever `readyToLoad` implied, which is usually
+wrong for at least some cards on a page:
+
+| Mode | View-mode behavior | Use for |
+|---|---|---|
+| `smart` | Renders the saved `data` rows immediately; the dedup key is seeded from them, so it **refetches ONLY when a param changes** (a page-variable filter, a config edit) — not on every page load. | Sections whose query is fixed *except* for filter params — KPI cards and sparks driven by a year/region selector. |
+| `cache` | Renders the saved `data` rows; **never fetches** in view mode. Refresh by re-saving the section (or a seed script). | Sections whose data genuinely can't change between content publishes — an annual-series chart, reference tables. |
+| `force` | Refetches every load (bypasses dedup). | Only sections whose underlying rows change between page loads with **no param to signal it** — live feeds ("latest event"), running counts, as-of/span panels over a growing series. |
+
+**Decision rule:** filter-driven → `smart`; static-until-republished → `cache`;
+live/growing with no params → `force`. A page full of `force` cards re-runs
+every query on every visit for data that hasn't changed — the TSMO home page
+runs 12 of its 15 data sections on `smart`/`cache` and only the three live
+freshness/count panels on `force`.
+
+**Seeding is part of the job.** `cache` renders nothing without saved rows, and
+`smart` only skips the initial fetch if the saved rows + config produce a
+matching dedup key. So when you set these modes from a seed script, also
+populate `element-data.data` with the query's current rows (keyed by
+`normalName || name` — same as getData). Worked example:
+`scratchpad/npmrdsv5-dev2/set_fetch_modes.mjs` (classifies by config shape,
+runs each card's own SQL against the source pgEnv, writes rows + mode back).
+Bonus: seeded `smart` cards paint instantly even when their query is slow —
+the fetch cost is only paid when a user actually changes a param.
+
+---
+
 ## 4. Common refrains
 
 **Q: Can I just hand-build the `columns` array without going
