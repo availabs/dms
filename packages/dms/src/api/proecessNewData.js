@@ -131,7 +131,11 @@ async function loadDmsFormats (item,dmsAttrsConfigs, format, falcor, isDataByApp
 
 
         if(typeof item?.[key] === 'string') {
-            item[key] = JSON.parse(item[key])
+            if(item[key] === 'no-access') {
+                item[key] = null;
+            } else {
+                item[key] = JSON.parse(item[key]);
+            }
         }
         // if dmstype isArray
         const attrsToFetch = ['data', 'type', 'created_at', 'updated_at', 'created_by', 'updated_by']

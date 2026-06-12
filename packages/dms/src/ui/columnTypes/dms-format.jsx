@@ -5,7 +5,6 @@ import { isEqual } from "lodash-es"
 
 export function DmsFormatEdit({value, onChange, attributes={}}) {
     //const item
-    console.log('dms-format', value, attributes)
     const updateAttribute = (k, v) => {
         if(!isEqual(value, {...value, [k]: v})){
             onChange({...value, [k]: v})
@@ -39,14 +38,12 @@ export function DmsFormatEdit({value, onChange, attributes={}}) {
 }
 
 export const DmsFormatView = ({value={}, attributes={}}) => {
-    console.log('dms-format value', value, attributes)
     // if(!Object.keys(attributes).length) return <></>
 
     return (
         <div>
             {Object.keys(attributes)
                 .map((attrKey,i) => {
-                    // console.log('dmsformat', attrKey, attributes)
                     let ViewComp = attributes[attrKey].ViewComp
                     return(
                         <div key={`${attrKey}-${i}`} >  

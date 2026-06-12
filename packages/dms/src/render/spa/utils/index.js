@@ -197,7 +197,11 @@ export function pattern2routes (siteData, props) {
             acc.push(
               ...c.map(config => {
                   const authPermissions = resolveSubdomainAuthPermissions(pattern?.authPermissions, SUBDOMAIN || '');
-                  if (!authPermissions?.groups?.public) {
+                  // Don't add the public default for patterns blocked by the server —
+                  // their id is 'no-access' (set in the minimal data atom returned for
+                  // restricted patterns). Adding public view-page would let isUserAuthed
+                  // pass for anonymous users, defeating the auth check in view.jsx.
+                  if (pattern?.id !== 'no-access' && !authPermissions?.groups?.public) {
                       authPermissions.groups ??= {};
                       authPermissions.groups.public ??= ['view-page'];
                   }

@@ -34,6 +34,10 @@ function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdat
     if( !isUserAuthed(reqPermissions || []) ||
         (pageState?.authPermissions && !isUserAuthed(reqPermissions, pageState.authPermissions))
     ){
+        if (user?.isAuthenticating) return null;
+        if (!user?.authed) {
+            return <Navigate to={`${authBaseUrl}/login`} state={{ from: pathname + search }} replace />;
+        }
         return <div>You do not have permission to view this page. <Link to={baseUrl}>Click here to visit Home</Link></div>
     }
 

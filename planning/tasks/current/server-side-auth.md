@@ -113,6 +113,20 @@ When `dataByIdResponse` blocks a request, it now returns `'no-access'` for the `
 
 Auth base URL comes from `useAuth()` → `AuthContext.baseUrl` (defaults to `/auth`).
 
+## Pattern-level 404 fix — COMPLETE (2026-06-12)
+
+**Bug:** Visiting a restricted pattern URL while unauthenticated caused a 404 instead of a login redirect. The pattern's route was never built because the server returned `'no-access'` for the entire `data` attribute, stripping `base_url`/`pattern_type`/`subdomain` so `pattern2routes` couldn't identify or register the route.
+
+**Three-part fix:**
+
+1. **`dms.route.js` — `dataByIdResponse`**: For blocked `kind === 'pattern'` rows, the `data` attribute now returns `$atom({ id: 'no-access', base_url, pattern_type, subdomain, authPermissions, name })` instead of the `'no-access'` string. All other attributes still return `'no-access'`. This lets `loadDmsFormats` build a minimal pattern object with enough info to register the route.
+
+2. **`render/spa/utils/index.js` — `pattern2routes`**: Blocked patterns (`pattern.id === 'no-access'`) no longer get the `public: ['view-page']` default added to their `authPermissions`. Without this guard, anonymous users (who are in the `public` group) would pass the `isUserAuthed` check and see an empty page rather than a login redirect.
+
+3. **`patterns/page/pages/view.jsx` — `PageView`**: The existing `isUserAuthed` failure path (pattern-level auth check) now also handles unauthenticated users: waits for `isAuthenticating`, then redirects to login if `!user.authed`, then falls through to the "no permission" message for authenticated-but-blocked users. Previously it showed the "no permission" message for everyone including anonymous users.
+
+4. **`api/proecessNewData.js` — `loadDmsFormats`**: Added guard at the `JSON.parse` call for dms-format attributes. When `item[key] === 'no-access'` (a per-page restricted page's dms-format attribute like `sections` returned as the sentinel), it now sets `item[key] = null` instead of crashing with `SyntaxError: Unexpected token 'o'`.
+
 ## Todo checkbox (planning/todo.md)
 
 - [x] Server-side auth Phase 1+2: patterns, page listings, per-page authPermissions
@@ -129,3 +143,4 @@ Auth base URL comes from `useAuth()` → `AuthContext.baseUrl` (defaults to `/au
 | `src/routes/dms/dms.route.js` | Auth gates — byId + listing routes |
 | `src/index.js` | CSRF guard (commented out) |
 | `packages/dms/src/patterns/page/pages/view.jsx` | `no-access` client handler |
+| `packages/dms/src/api/proecessNewData.js` | Guard `JSON.parse` for `'no-access'` sentinel in dms-format attrs |
