@@ -63,38 +63,7 @@ const TextAreaControl = ({updateColumns, value='', attributeKey, onChange, dataF
 }
 
 
-const FilterControl = ({updateColumns, type, value, attributeKey, onChange, dataFetch, localFilterData, className}) => {
-    const [tmpValue, setTmpValue] = useState(value);
 
-    useEffect(() => {
-        const timeOutId = setTimeout(() => {
-            if(value !== tmpValue) updateColumns(attributeKey, tmpValue, onChange, dataFetch)
-        }, 300);
-
-        return () => clearTimeout(timeOutId);
-    }, [tmpValue]);
-
-    const options = useMemo(() => {
-        if(!['select', 'multiselect', 'radio'].includes(type) || !localFilterData) return undefined;
-        return Array.from(localFilterData.values()).map(v => ({label: v.value ?? v, value: v.originalValue ?? v}))
-        }, [type, localFilterData]);
-
-    return ['select', 'multiselect', 'radio'].includes(type) ?
-        <MultiselectEdit className={className}
-                              value={value}
-                              options={options}
-                              onChange={setTmpValue}
-                              singleSelectOnly={false}
-                              displayDetailedValues={false}
-        /> : (
-        <input
-            className={className}
-            type={'text'}
-            value={tmpValue}
-            onChange={e => setTmpValue(e.target.value)}
-        />
-    )
-}
 // Server-backed column filter — writes to state.tableFilters (a runtime-only array, never
 // persisted and never shown in the section menu's filter editor). Cleaned up on unmount.
 const ServerFilterControl = ({ attribute, className }) => {
@@ -181,7 +150,7 @@ const ServerFilterControl = ({ attribute, className }) => {
 };
 
 // in header menu for each column
-export default memo(function TableHeaderCell({isEdit, attribute, columns, localFilterData, display, controls, activeStyle, setState=Noop}) {
+export default memo(function TableHeaderCell({isEdit, attribute, columns, display, controls, activeStyle, setState=Noop}) {
     const { theme: themeFromContext = {table: {}}} = React.useContext(ThemeContext) || {};
     const theme = getComponentTheme(themeFromContext,'table', activeStyle);
 
@@ -330,20 +299,10 @@ export default memo(function TableHeaderCell({isEdit, attribute, columns, localF
                                                                             dataFetch={dataFetch}
                                                                         /> :
                                                                         type === 'filter' ?
-                                                                            attribute.serverFilter ?
-                                                                                <ServerFilterControl
-                                                                                    className={theme.headerCellControl}
-                                                                                    attribute={attribute}
-                                                                                /> :
-                                                                                <FilterControl
-                                                                                    className={theme.headerCellControl}
-                                                                                    type={attribute.type}
-                                                                                    localFilterData={localFilterData?.[attribute.name]}
-                                                                                    value={attribute[key]}
-                                                                                    updateColumns={updateColumns}
-                                                                                    attributeKey={key}
-                                                                                    dataFetch={dataFetch}
-                                                                                /> :
+                                                                            <ServerFilterControl
+                                                                                className={theme.headerCellControl}
+                                                                                attribute={attribute}
+                                                                            /> :
                                                                             `${type} not available`
                                                         }
                                                     </div>

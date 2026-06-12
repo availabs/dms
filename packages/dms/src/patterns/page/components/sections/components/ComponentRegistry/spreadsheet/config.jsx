@@ -195,7 +195,7 @@ const buildControls = (theme) => ({
                 label: 'format controls', key: '', displayCdn: ({ isEdit }) => isEdit
             },
             { type: 'toggle', label: 'Server Filter', key: 'serverFilter', displayCdn: ({ isEdit }) => isEdit },
-            { type: 'filter', label: 'filter', placeHolder: 'search...', key: 'localFilter' },
+            { type: 'filter', label: 'Filter', key: 'serverFilterValue', displayCdn: ({ attribute }) => attribute.serverFilter },
             { type: 'select', label: 'Sort', key: 'sort', dataFetch: true,
                 options: [
                     { label: 'Not Sorted', value: '' }, { label: 'A->Z', value: 'asc nulls last' }, { label: 'Z->A', value: 'desc nulls last' }
