@@ -166,6 +166,33 @@ placed above the graph in the same band — reuse the **`status_pill`** column t
 the pill and a big value cell for the number. (Not a chart feature — it's a sibling
 section, so it stays author-editable.)
 
+## Pattern: heat grid (GridGraph) — month × category with within-row shading
+
+`graphType: "GridGraph"` renders the design-system heat grid. Column targets
+differ from Bar/Line: **`xAxis`** = grid columns (e.g. `month`, group:true),
+**`yAxis`** = row index (e.g. `region_name`, group:true), **`target: "color"`**
+= the cell value (aggregated; `fn:'exempt'` for calc columns). Colors:
+`{type:'palette', value:[lo, mid, hi]}` — exactly **3 stops** (linear scale
+domain is [min, mid, max]).
+
+- **Within-row normalization** (the "share of each row's total" design): make
+  the color column a window-over-aggregate calc —
+  `sum(x) * 100.0 / nullif(sum(sum(x)) over (partition by row_col), 0)`.
+- **Row order = data order** (no built-in sort-by-value): prepend a hidden
+  window calc `sum(sum(x)) over (partition by row_col) as row_total` with
+  `sort:'desc'` as the FIRST column — ORDER BY makes rows arrive
+  biggest-first and d3groups preserves it.
+- Exclude null categories with an explicit IN-list filter leaf (a null row
+  renders as a blank band).
+- Top month letters: same `xAxis.position:'top'` + `tickLabels` recipe as
+  sparks.
+- ⚠ Fixed in `components/GridGraph.jsx`: the chart slot only had `flex-1`
+  when a left/right legend was set — with `legend.show:false` the grid
+  shrink-wrapped to ~its height. The slot now always fills (`flex-1 min-w-0`).
+
+Worked example: congestion_v2 seasonality (section 2175689) — month × region,
+% of region's annual delay, 3-stop amber palette.
+
 ## Worked example
 MAP-21 §02 — three trend charts (Interstate / Non-Interstate / Truck TTTR) over
 2016–2025, ignoring the Year selector (no `year_record` leaf), GROUP BY `year_record`
