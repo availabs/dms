@@ -1,5 +1,6 @@
 import React from 'react'
 import { Graph, DomainEditor } from './index'
+import { getComponentTheme } from '../../../../../../../ui/useTheme'
 import { getColorRange, SchemeOptions } from '../../../../../../../ui/components/graph_new/colorSchemeUnifier'
 import { ValueFormats } from "../../../../../../../ui/components/graph_new/utils";
 
@@ -107,7 +108,7 @@ const defaultState = {
     externalSource: { columns: [] }
 }
 
-export default {
+const graphConfig = {
     "name": 'AVL Graph',
     "type": 'avlGraph',
     "variables": [],
@@ -613,3 +614,30 @@ export default {
     "EditComp": Graph,
     "ViewComp": Graph,
 }
+
+// `controls` as a function of the live theme (the dataWrapper resolves it — same hook
+// Card.config uses): the margin inputs show the EFFECTIVE default as a placeholder.
+// Margins merge the theme's `avlGraph.chartDefaults.margin` under a section's own
+// display (GraphComponent falls back to 20/20/50/100 when neither is set) — without
+// the placeholder an empty input silently means "some theme value", which reads as a
+// mystery to the author.
+const GRAPH_MARGIN_FALLBACK = { top: 20, right: 20, bottom: 50, left: 100 };
+
+const controlsWithThemeDefaults = (fullTheme) => {
+    const themeMargin = getComponentTheme(fullTheme, 'avlGraph')?.chartDefaults?.margin || {};
+    const items = graphConfig.controls.margin.items.map(item => {
+        const side = item.key.split('.')[1];
+        const effective = themeMargin[side] ?? GRAPH_MARGIN_FALLBACK[side];
+        return {
+            ...item,
+            // sectionMenu shows `value ?? defaultValue` in the row + input — the effective
+            // merged margin displays without being written to the section's display.
+            defaultValue: effective,
+            // MoreControls' InputControl renders this as the input placeholder.
+            placeHolder: `${effective} (theme default)`,
+        };
+    });
+    return { ...graphConfig.controls, margin: { ...graphConfig.controls.margin, items } };
+};
+
+export default { ...graphConfig, controls: controlsWithThemeDefaults };

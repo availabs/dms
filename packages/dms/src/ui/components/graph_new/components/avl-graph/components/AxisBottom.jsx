@@ -2,14 +2,14 @@ import React from "react"
 
 import { select as d3select } from "d3-selection"
 import { transition as d3transition } from "d3-transition"
-import { axisBottom as d3AxisBottom } from "d3-axis"
+import { axisBottom as d3AxisBottom, axisTop as d3AxisTop } from "d3-axis"
 
 export const AxisBottom = props => {
 
   const {
     adjustedWidth, adjustedHeight, type = "band", rotateLabels = false,
     domain, scale, format, ticks, tickValues, hasData,
-    secondary, label, margin, tickDensity = 2, show = true,
+    secondary, label, margin, tickDensity = 2, show = true, position = "bottom",
     showGridLines = true, showAnimations = true,
     gridLineOpacity = 0.25, axisColor = "currentColor", axisOpacity = 1,
     // Axis typography (theme/per-section). Tick keys unset → inherit the CSS default
@@ -26,7 +26,7 @@ export const AxisBottom = props => {
         ref: ref.current, showAnimations, rotateLabels,
         adjustedWidth, adjustedHeight, type, showAxis: show,
         domain, scale, format, ticks, tickValues,
-        secondary, label, margin, tickDensity,
+        secondary, label, margin, tickDensity, position,
         showGridLines, gridLineOpacity, axisColor, axisOpacity, hasData,
         tickFontSize, tickFontFamily, tickFontWeight, tickColor,
         labelFontSize, labelFontFamily, labelFontWeight, labelColor
@@ -34,7 +34,7 @@ export const AxisBottom = props => {
     }
   }, [adjustedWidth, adjustedHeight, type, showAnimations, ref.current,
       domain, scale, format, ticks, tickValues, hasData, show,
-      secondary, label, margin, tickDensity, rotateLabels,
+      secondary, label, margin, tickDensity, rotateLabels, position,
       showGridLines, gridLineOpacity, axisColor, axisOpacity,
       tickFontSize, tickFontFamily, tickFontWeight, tickColor,
       labelFontSize, labelFontFamily, labelFontWeight, labelColor]
@@ -46,7 +46,7 @@ export const AxisBottom = props => {
 const renderAxisBottom = ({ ref, showAnimations, rotateLabels,
                     adjustedWidth, adjustedHeight, type, showAxis,
                     domain, scale, format, ticks, tickValues,
-                    secondary, label, margin, tickDensity,
+                    secondary, label, margin, tickDensity, position = "bottom",
                     showGridLines, gridLineOpacity, renderAxisBottom,
                     axisColor, axisOpacity, hasData,
                     tickFontSize, tickFontFamily, tickFontWeight, tickColor,
@@ -89,7 +89,10 @@ const renderAxisBottom = ({ ref, showAnimations, rotateLabels,
     }
   }
 
-  const axisBottom = d3AxisBottom(scale)
+  // position 'top': d3's axisTop draws ticks/labels ABOVE the line; the group
+  // translates to the top margin instead of below the plot. Axis `label` text
+  // placement is untouched (sparks using 'top' don't set one).
+  const axisBottom = (position === "top" ? d3AxisTop(scale) : d3AxisBottom(scale))
     .tickFormat(format);
 
   if (tickValues) {
@@ -112,12 +115,12 @@ const renderAxisBottom = ({ ref, showAnimations, rotateLabels,
       enter => enter.append("g")
         .attr("class", "animated-group")
         .call(enter =>
-          enter.style("transform", `translate(${ left }px, ${ adjustedHeight + top }px)`)
+          enter.style("transform", `translate(${ left }px, ${ position === "top" ? top : adjustedHeight + top }px)`)
         ),
       update => update
         .call(
           update => transitionWrapper(update)
-            .style("transform", `translate(${ left }px, ${ adjustedHeight + top }px)`)
+            .style("transform", `translate(${ left }px, ${ position === "top" ? top : adjustedHeight + top }px)`)
         ),
       exit => exit
         .call(exit =>
