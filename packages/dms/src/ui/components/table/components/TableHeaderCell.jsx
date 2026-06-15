@@ -95,7 +95,7 @@ const ServerFilterControl = ({ attribute, className }) => {
     const { options, loading } = useColumnOptions(
         attribute.name, cols, op, search, selectedValues, siblingConditions, attribute.source_id,
         isSelectType, // withCounts — only meaningful for multiselect UI
-        metaOptions
+        []
     );
 
     // Sync text input when the filter value is changed externally (e.g. cleared elsewhere)
