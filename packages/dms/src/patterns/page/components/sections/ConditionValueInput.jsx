@@ -117,22 +117,14 @@ export const useColumnOptions = (columnName, columns, operation, search, selecte
                     ? { ...siblingFilterBy, like: { ...(siblingFilterBy.like || {}), [refName]: `%${search}%` } }
                     : siblingFilterBy;
 
-                const dataPromise = getData({
-                  format: sourceInfo,
-                  apiLoad,
-                  reqName,
-                  refName,
-                  rawName: columnName,
-                  allAttributes: columns,
-                  filterBy,
-                  limit: OPTIONS_LIMIT,
-                });
-
-                // Parallel grouped count query — same filterBy so counts match current filter state
-                let countPromise = Promise.resolve([]);
+                let allOptions;
                 if (withCounts) {
+                    // GROUP BY already produces unique values + counts in one query — no need
+                    // for a separate DISTINCT fetch or a getLength preflight.
                     const countAttrs = [reqName, OPTIONS_COUNT_ATTR];
-                    countPromise = apiLoad({
+                    const {name: metaName, display, meta_lookup} = columns.find(a => a.name === reqName || a.name === columnName) || {};
+                    const meta = ['meta-variable', 'geoid-variable', 'meta'].includes(display) && meta_lookup ? {[metaName]: meta_lookup} : {};
+                    const countData = await apiLoad({
                         app: sourceInfo.app,
                         type: sourceInfo.type,
                         format: sourceInfo,
@@ -146,6 +138,7 @@ export const useColumnOptions = (columnName, columns, operation, search, selecte
                                 toIndex: OPTIONS_LIMIT - 1,
                                 options: JSON.stringify({
                                     ...filterBy,
+                                    meta,
                                     groupBy: [refName],
                                     keepOriginalValues: true,
                                 }),
@@ -157,41 +150,47 @@ export const useColumnOptions = (columnName, columns, operation, search, selecte
                         console.warn('useColumnOptions: count query failed', e);
                         return [];
                     });
-                }
+                    if (cancelled) return;
 
-                const [data, countData] = await Promise.all([dataPromise, countPromise]);
-                if (cancelled) return;
-
-                // Build value→count map from grouped count rows
-                const countMap = new Map();
-                if (withCounts && countData?.length) {
-                    countData.forEach(row => {
+                    // Build countMap and raw options from the same result set
+                    const countMap = new Map();
+                    const rawOptions = [];
+                    (countData || []).forEach(row => {
                         const parsed = parseDataOptions([row], reqName);
                         const count = parseInt(row[OPTIONS_COUNT_ATTR] ?? '0', 10) || 0;
                         parsed.forEach(opt => {
-                            if (opt.value != null) countMap.set(String(opt.value), (countMap.get(String(opt.value)) || 0) + count);
+                            if (opt.value != null) {
+                                countMap.set(String(opt.value), (countMap.get(String(opt.value)) || 0) + count);
+                                rawOptions.push(opt);
+                            }
                         });
                     });
-                }
 
-                const fetched = uniqBy(parseDataOptions(data, reqName), d => d.value);
-
-                let allOptions;
-                if (withCounts) {
+                    const fetched = uniqBy(rawOptions, d => d.value);
                     const withCountLabels = fetched.map(opt => ({
                         ...opt,
                         label: countMap.has(String(opt.value))
                             ? `${opt.label} (${countMap.get(String(opt.value))})`
                             : opt.label,
                     }));
-                    // Predefined options not returned by server get count 0
                     const fetchedValueSet = new Set(fetched.map(o => String(o.value)));
                     const missingMeta = (metaOptions || [])
                         .filter(o => o.value != null && !fetchedValueSet.has(String(o.value)))
                         .map(o => ({ ...o, label: `${o.label} (0)` }));
                     allOptions = [...withCountLabels, ...missingMeta];
                 } else {
-                    allOptions = fetched;
+                    const data = await getData({
+                        format: sourceInfo,
+                        apiLoad,
+                        reqName,
+                        refName,
+                        rawName: columnName,
+                        allAttributes: columns,
+                        filterBy,
+                        limit: OPTIONS_LIMIT,
+                    });
+                    if (cancelled) return;
+                    allOptions = uniqBy(parseDataOptions(data, reqName), d => d.value);
                 }
 
                 // merge selected values so they stay visible in the list
