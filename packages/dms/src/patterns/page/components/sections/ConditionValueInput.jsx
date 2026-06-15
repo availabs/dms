@@ -40,8 +40,12 @@ const sortOptions = (options) =>
             : b?.label - a?.label
     );
 
-// Fetches unique values for a column (for filter/exclude multiselect)
-export const useColumnOptions = (columnName, columns, operation, search, selectedValues, siblingConditions = [], col_source_id = null) => {
+const OPTIONS_COUNT_ATTR = 'count(1) as _count';
+
+// Fetches unique values for a column (for filter/exclude multiselect).
+// When withCounts=true, also fetches per-value row counts via a grouped query.
+// metaOptions: predefined {label,value} pairs — those missing from server results appear with count 0.
+export const useColumnOptions = (columnName, columns, operation, search, selectedValues, siblingConditions = [], col_source_id = null, withCounts = false, metaOptions = []) => {
     const {apiLoad, state} = useContext(ComponentContext) || {};
     const [options, setOptions] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -61,6 +65,8 @@ export const useColumnOptions = (columnName, columns, operation, search, selecte
             .filter(s => s.col && s.value != null && (Array.isArray(s.value) ? s.value.length > 0 : s.value !== ''))
             .map(s => ({ col: s.col, op: s.op, value: s.value }))
     ), [siblingConditions]);
+
+    const metaOptionsKey = useMemo(() => JSON.stringify((metaOptions || []).map(o => o.value)), [metaOptions]);
 
     useEffect(() => {
         if (!['filter', 'exclude'].includes(operation)) {
@@ -104,7 +110,7 @@ export const useColumnOptions = (columnName, columns, operation, search, selecte
                     ? { ...siblingFilterBy, like: { ...(siblingFilterBy.like || {}), [refName]: `%${search}%` } }
                     : siblingFilterBy;
 
-                const data = await getData({
+                const dataPromise = getData({
                   format: sourceInfo,
                   apiLoad,
                   reqName,
@@ -115,19 +121,81 @@ export const useColumnOptions = (columnName, columns, operation, search, selecte
                   limit: OPTIONS_LIMIT,
                 });
 
+                // Parallel grouped count query — same filterBy so counts match current filter state
+                let countPromise = Promise.resolve([]);
+                if (withCounts) {
+                    const countAttrs = [reqName, OPTIONS_COUNT_ATTR];
+                    countPromise = apiLoad({
+                        app: sourceInfo.app,
+                        type: sourceInfo.type,
+                        format: sourceInfo,
+                        attributes: countAttrs,
+                        children: [{
+                            type: () => {},
+                            action: 'uda',
+                            path: '/',
+                            filter: {
+                                fromIndex: 0,
+                                toIndex: OPTIONS_LIMIT - 1,
+                                options: JSON.stringify({
+                                    ...filterBy,
+                                    groupBy: [refName],
+                                    keepOriginalValues: true,
+                                }),
+                                attributes: countAttrs,
+                                stopFullDataLoad: true,
+                            },
+                        }],
+                    }).catch(e => {
+                        console.warn('useColumnOptions: count query failed', e);
+                        return [];
+                    });
+                }
+
+                const [data, countData] = await Promise.all([dataPromise, countPromise]);
                 if (cancelled) return;
 
+                // Build value→count map from grouped count rows
+                const countMap = new Map();
+                if (withCounts && countData?.length) {
+                    countData.forEach(row => {
+                        const parsed = parseDataOptions([row], reqName);
+                        const count = parseInt(row[OPTIONS_COUNT_ATTR] ?? '0', 10) || 0;
+                        parsed.forEach(opt => {
+                            if (opt.value != null) countMap.set(String(opt.value), count);
+                        });
+                    });
+                }
+
                 const fetched = uniqBy(parseDataOptions(data, reqName), d => d.value);
+
+                let allOptions;
+                if (withCounts) {
+                    const withCountLabels = fetched.map(opt => ({
+                        ...opt,
+                        label: countMap.has(String(opt.value))
+                            ? `${opt.label} (${countMap.get(String(opt.value))})`
+                            : opt.label,
+                    }));
+                    // Predefined options not returned by server get count 0
+                    const fetchedValueSet = new Set(fetched.map(o => String(o.value)));
+                    const missingMeta = (metaOptions || [])
+                        .filter(o => o.value != null && !fetchedValueSet.has(String(o.value)))
+                        .map(o => ({ ...o, label: `${o.label} (0)` }));
+                    allOptions = [...withCountLabels, ...missingMeta];
+                } else {
+                    allOptions = fetched;
+                }
 
                 // merge selected values so they stay visible in the list
                 const selectedSet = new Set((selectedValues || []).map(v => v?.value ?? v));
                 if (search && selectedSet.size) {
                     setOptions(prev => {
                         const selectedFromPrev = prev.filter(o => selectedSet.has(o.value));
-                        return sortOptions(uniqBy([...selectedFromPrev, ...fetched], d => d.value));
+                        return sortOptions(uniqBy([...selectedFromPrev, ...allOptions], d => d.value));
                     });
                 } else {
-                    setOptions(sortOptions(fetched));
+                    setOptions(sortOptions(allOptions));
                 }
             } catch (e) {
                 console.error('ConditionValueInput: failed to load options', e);
@@ -139,7 +207,7 @@ export const useColumnOptions = (columnName, columns, operation, search, selecte
         load();
         prevSearchRef.current = search;
         return () => { cancelled = true; };
-    }, [columnName, operation, search, apiLoad, sourceInfo, isDms, columns, siblingFilterByKey]);
+    }, [columnName, operation, search, apiLoad, sourceInfo, isDms, columns, siblingFilterByKey, withCounts, metaOptionsKey]);
 
     return {options, loading};
 };
