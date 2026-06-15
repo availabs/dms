@@ -100,6 +100,13 @@ export const useColumnOptions = (columnName, columns, operation, search, selecte
                         const arrayOp = sibling.op === 'exclude' ? 'array_not_contains' : 'array_contains';
                         if (!acc.filterGroups) acc.filterGroups = { op: 'AND', groups: [] };
                         acc.filterGroups.groups.push({ col: sibRef, op: arrayOp, value: values });
+                    } else if (sibling.op === 'like') {
+                        // flat filterBy.like expects a scalar string with % wildcards already embedded,
+                        // not an array — same format the search path uses: `%${search}%`
+                        const raw = Array.isArray(val) ? val[0] : val;
+                        if (raw != null && raw !== '') {
+                            acc.like = { ...(acc.like || {}), [sibRef]: `%${raw}%` };
+                        }
                     } else {
                         acc[sibling.op] = { ...(acc[sibling.op] || {}), [sibRef]: values };
                     }

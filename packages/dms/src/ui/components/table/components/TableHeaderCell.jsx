@@ -85,8 +85,15 @@ const ServerFilterControl = ({ attribute, className }) => {
     const colDef = cols.find(c => c.name === attribute.name);
     const metaOptions = isSelectType ? (colDef?.options || []) : [];
 
+    // Cascade: when top-level filters are ANDed, narrow this column's options
+    // based on selections already made in other server-filter columns.
+    const topLevelOp = state?.filters?.op ?? 'AND';
+    const siblingConditions = topLevelOp === 'AND'
+        ? (state?.tableFilters || []).filter(f => f.col !== attribute.name)
+        : [];
+
     const { options, loading } = useColumnOptions(
-        attribute.name, cols, op, search, selectedValues, [], attribute.source_id,
+        attribute.name, cols, op, search, selectedValues, siblingConditions, attribute.source_id,
         isSelectType, // withCounts — only meaningful for multiselect UI
         metaOptions
     );

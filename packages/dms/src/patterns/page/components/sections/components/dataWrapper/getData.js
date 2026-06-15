@@ -153,7 +153,7 @@ export const getData = async ({
         builderInput = {
             ...builderInput,
             filters: {
-                op: 'AND',
+                op: builderInput.filters?.op || 'AND',
                 groups: [
                     ...(builderInput.filters?.groups || []),
                     ...state.tableFilters,
