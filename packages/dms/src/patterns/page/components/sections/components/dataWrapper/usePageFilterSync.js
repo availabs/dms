@@ -18,6 +18,7 @@ import { useEffect, useContext } from "react";
 import { isEqual, get } from "lodash-es";
 import { PageContext } from "../../../../context";
 import { isGroup } from "../../ComplexFilters";
+import { resolveComparisonVariants } from "./buildUdaConfig";
 
 export function usePageFilterSync({ state, setState, setReadyOnChange = false }) {
     const { pageState } = useContext(PageContext) || {};
@@ -90,6 +91,47 @@ export function usePageFilterSync({ state, setState, setReadyOnChange = false })
             })
         }
     }, [pageState?.filters, state?.customBuckets]);
+
+    // ── Comparison series — dynamic binding (Piece 3) ──
+    // The dynamic counterpart of the static comparisonSeries.variants JSON. A
+    // "comparison_series" componentFunctions subscriber (configured in the Actions
+    // menu → stored in display._functions.subscribers) names the action param whose
+    // published list becomes the variants. This is the subscriber's runtime
+    // implementation — and a *reload-driving* one: it resolves the list into
+    // comparisonSeries.config, a useDataLoader fetchKey input, so a new publish
+    // refetches with the new fan-out (the custom-buckets "config field → fetchKey"
+    // pattern, NOT the inert visual hover_highlight path).
+    //
+    // config's *presence* marks dynamic mode for buildUdaConfig (config wins over the
+    // static variants; an unresolved binding → config:[] → inactive). So when the
+    // subscriber is absent/disabled we must DELETE config to hand control back to the
+    // static list.
+    useEffect(() => {
+        const cs = state?.comparisonSeries;
+        if (!cs) return;
+        const sub = (state?.display?._functions?.subscribers || []).find(
+            (s) => s.functionId === "comparison_series" && s.enabled
+        );
+
+        if (!sub?.paramKey) {
+            if (cs.config !== undefined) {
+                setState((draft) => { delete draft.comparisonSeries.config; });
+            }
+            return;
+        }
+
+        const pageFilters = (pageState?.filters || []).reduce(
+            (acc, curr) => ({ ...acc, [curr.searchKey]: curr.values }), {}
+        );
+        const resolved = resolveComparisonVariants(sub.args, pageFilters[sub.paramKey]);
+
+        // isEqual guard is load-bearing: this effect depends on state.comparisonSeries
+        // and writes to it, so it re-runs — the guard stops the cycle once stable.
+        // resolveComparisonVariants must stay deterministic for a given input.
+        if (!isEqual(cs.config, resolved)) {
+            setState((draft) => { draft.comparisonSeries.config = resolved; });
+        }
+    }, [pageState?.filters, state?.comparisonSeries, state?.display?._functions]);
 }
 
 function resolveAliasGroups(uiConfig, pageFilters) {

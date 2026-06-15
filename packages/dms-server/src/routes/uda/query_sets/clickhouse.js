@@ -13,7 +13,7 @@
  * by getEssentials, so SQL references ${table_schema}.${table_name} directly.
  */
 
-const { sanitizeName, getResponseColumnName, getEssentials, buildJoin } = require('../utils');
+const { sanitizeName, getResponseColumnName, getEssentials, buildJoin, restoreLongColumnNames } = require('../utils');
 const {
   handleFiltersCH,
   handleFilterGroupsCH,
@@ -42,7 +42,9 @@ async function simpleFilterLength(ctx, options) {
     groupBy = [], having = [],
     normalFilter = [],
     join = {},
-    aliasGroups = {}
+    aliasGroups = {},
+    // Comparison series: total length = sum of each variant arm's count.
+    seriesVariants = [], seriesKey = '__series'
   } = JSON.parse(options);
 
   // Detect whether the request includes a real join so the WHERE builder can
@@ -86,6 +88,28 @@ async function simpleFilterLength(ctx, options) {
     //default case for no merge
     //could have 1 or more joins
     fromClause = `${table_schema}.${table_name} ${hasJoin ? ' as ds ' : ''} ${joins}`;
+  }
+  console.log("ch length seriesVariants::", seriesVariants)
+  // ── Comparison-series fan-out length ────────────────────────────────────────
+  // Sum each arm's count as a scalar subquery. The series discriminator is constant
+  // per arm and not a real column here, so it's dropped from the count's groupBy.
+  if (seriesVariants.length) {
+    const countGroupBy = groupBy.filter((g) => g !== seriesKey);
+    const armCountExpr = countGroupBy.length
+      ? `count(DISTINCT concat(${countGroupBy.map((g) => activeAliasGroups[g] || sanitizeName(g)).filter(Boolean).map((c) => `toString(${c})`).join(", '-' ,")}))`
+      : `count(*)`;
+    const armCountSqls = seriesVariants.map((variant) => {
+      const armWhere = buildCombinedWhereCH({
+        filter, exclude, gt, gte, lt, lte, like,
+        filterGroups: variant.filterGroups || {}, joinPresent,
+      });
+      return `(SELECT ${armCountExpr} FROM ${fromClause} ${armWhere} ${handleHavingCH(having)})`;
+    });
+    const fanoutSql = `SELECT ${armCountSqls.join(' + ')} AS numRows`;
+    console.log({fanoutSql})
+    const fanoutResult = await db.query({ query: fanoutSql, format: 'JSON' });
+    const fanoutRows = await fanoutResult.json();
+    return fanoutRows?.data?.[0]?.numRows != null ? Number(fanoutRows.data[0].numRows) : 0;
   }
 
   // Grouped length = number of GROUP BY buckets. Count rows of a subquery that
@@ -139,7 +163,11 @@ async function simpleFilter(ctx, options, attributes, indices) {
     filterGroups = {},
     groupBy = [], having = [], orderBy = {},
     normalFilter = [], join = {},
-    aliasGroups = {}
+    aliasGroups = {},
+    // Comparison series (query fan-out): one UNION ALL arm per variant. CH inlines
+    // filter values (no $N placeholders), so arms compose directly. Empty → single
+    // arm, unchanged.
+    seriesVariants = [], seriesKey = '__series'
   } = JSON.parse(options);
 
   const activeAliasGroups = {};
@@ -222,6 +250,46 @@ async function simpleFilter(ctx, options, attributes, indices) {
   // per-entry instead — mirrors simpleFilterLength.
   const groupByExprs = groupBy.map(g => activeAliasGroups[g] || sanitizeName(g)).filter(Boolean);
 
+  // ── Comparison-series fan-out ───────────────────────────────────────────────
+  // One UNION ALL arm per variant: shared SELECT/FROM/GROUP BY with each arm's own
+  // (inlined) WHERE and a constant `'<label>' as <seriesKey>` discriminator. CH
+  // preserves identifier case, so the alias stays bare (unlike the PG path's quoting).
+  // The label literal is single-quote-escaped; the discriminator is dropped from the
+  // base SELECT (the client requests it, but the literal is its sole source) and from
+  // the arm GROUP BY (constant per arm). ORDER BY omitted across the union for v1.
+  if (seriesVariants.length) {
+    const armGroupByExprs = groupByExprs.filter((g) => g !== seriesKey);
+    const baseArmAttrs = sanitizedAttrs.filter((c) => getResponseColumnName(c) !== seriesKey);
+    const armSqls = seriesVariants.map((variant) => {
+      const armWhere = buildCombinedWhereCH({
+        filter, exclude, gt, gte, lt, lte, like,
+        filterGroups: variant.filterGroups || {}, joinPresent,
+      });
+      const safeLabel = `'${String(variant.label ?? '').replace(/'/g, "''")}'`;
+      const armSelect = [
+        ...baseArmAttrs.map((c) => columnNameMap[c] || c),
+        `${safeLabel} as ${seriesKey}`,
+      ].join(', ');
+      return `
+        SELECT ${armSelect}
+        FROM ${fromClause}
+        ${armWhere}
+        ${armGroupByExprs.length ? `GROUP BY ${armGroupByExprs.join(', ')}` : ''}
+        ${handleHavingCH(having)}`;
+    });
+    const fanoutSql = `
+      SELECT * FROM (
+        ${armSqls.join('\n        UNION ALL\n')}
+      ) AS fanout
+      LIMIT ${+num}
+      OFFSET ${indices.from}
+    `;
+    console.log("fan sql",fanoutSql)
+    const fanoutResult = await db.query({ query: fanoutSql, format: 'JSON' });
+    const fanoutJson = await fanoutResult.json();
+    return restoreLongColumnNames(fanoutJson.data || [], columnNameMap);
+  }
+
   const sql = `
     SELECT ${sanitizedAttrs.map((c) => columnNameMap[c] || c).join(', ')}
     FROM ${fromClause}
@@ -235,19 +303,7 @@ async function simpleFilter(ctx, options, attributes, indices) {
 
   const result = await db.query({ query: sql, format: 'JSON' });
   const json = await result.json();
-  const rawRows = json.data || [];
-
-  const rows = Object.keys(columnNameMap).length
-    ? rawRows.map((row) => {
-        const restored = Object.keys(columnNameMap).reduce((acc, originalName) => ({
-          ...acc,
-          [getResponseColumnName(originalName)]: row[getResponseColumnName(columnNameMap[originalName])],
-        }), {});
-        return { ...row, ...restored };
-      })
-    : rawRows;
-
-  return rows;
+  return restoreLongColumnNames(json.data || [], columnNameMap);
 }
 
 async function dataById(ctx, ids, attributes) {

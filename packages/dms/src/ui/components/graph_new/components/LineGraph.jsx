@@ -14,11 +14,11 @@ const LineGraphWrapper = props => {
 
 // console.log("LineGraphWrapper::viewData", props.viewData);
 // console.log("LineGraphWrapper::columns", props.columns);
-	const [xColumn, yColumns, idColumn] = React.useMemo(() => {
+	const [xColumn, yColumns, idColumns] = React.useMemo(() => {
 		return [
 			props.columns.find(c => c.target === "xAxis"),
 			props.columns.filter(c => c.target === "yAxis"),
-			props.columns.find(c => c.target === "categorize")
+			props.columns.filter(c => c.target === "categorize")
 		]
 	}, [props.columns])
 
@@ -32,12 +32,25 @@ const LineGraphWrapper = props => {
 		// on — so reading `row[name]` returns undefined and the series renders empty.
 		// Resolve every series/axis value by `normalName || name`, matching Card.jsx.
 		const xKey = xColumn.normalName || xColumn.name;
-		const idKey = idColumn ? (idColumn.normalName || idColumn.name) : undefined;
+
+		// Compose the series id from EVERY categorize column. Combining e.g. a
+		// custom-bucket dimension (route) with the comparison-series discriminator
+		// (__series) must yield one line per (route × variant), not just per route —
+		// a single `find` collapsed all but the first categorize column. With one
+		// categorize column the id is just that column's value (back-compat); empty
+		// parts are dropped so a row missing a value still groups on what it has.
+		const idKeys = idColumns.map(c => c.normalName || c.name);
+		const idAccessor = d => {
+			const parts = idKeys
+				.map(k => d[k])
+				.filter(v => v !== undefined && v !== null && v !== "");
+			return parts.length ? parts.join(" - ") : undefined;
+		};
 
 		const data = [];
 
-		if (idColumn) {
-			const dataGroups = d3groups(props.viewData, d => d[idKey], d => d[xKey]);
+		if (idColumns.length) {
+			const dataGroups = d3groups(props.viewData, idAccessor, d => d[xKey]);
 
 			for (const [id, iGroup] of dataGroups) {
 
@@ -112,8 +125,8 @@ const LineGraphWrapper = props => {
 			})
     })
 
-    if (idColumn?.sort) {
-      const sortDir = idColumn.sort === "desc" ? -1 : 1;
+    if (idColumns[0]?.sort) {
+      const sortDir = idColumns[0].sort === "desc" ? -1 : 1;
 			(data || []).sort((a, b) => {
 	      const aNaN = strictNaN(+a.index);
 	      const bNaN = strictNaN(+b.index);
@@ -125,7 +138,7 @@ const LineGraphWrapper = props => {
 		}
 
 		return data;
-	}, [props.viewData, xColumn, yColumns, idColumn]);
+	}, [props.viewData, xColumn, yColumns, idColumns]);
 
   const colors = React.useMemo(() => {
     let colors = [];
@@ -161,10 +174,16 @@ const LineGraphWrapper = props => {
 
     const hhlActions = actions.filter(a => a.action === "hover_highlight");
 
-		const idKey = idColumn ? (idColumn.normalName || idColumn.name) : undefined;
+		// hover_highlight addresses a series by a single categorize column's value.
+		// With one categorize column the series id IS that value, so highlighting
+		// works as before. With a composite id (multiple categorize columns) a single
+		// column's value can't address a composite series, so id-highlights no-op.
+		const idKey = idColumns.length === 1
+			? (idColumns[0].normalName || idColumns[0].name)
+			: undefined;
 
-    if (idColumn) {
-      return hhlActions.reduce((a, c) => {
+    if (idColumns.length) {
+      return idKey ? hhlActions.reduce((a, c) => {
         if (c.column === idKey) {
           for (const v of c.value) {
             a.push({
@@ -174,7 +193,7 @@ const LineGraphWrapper = props => {
           }
         }
         return a;
-      }, [])
+      }, []) : [];
     }
     else if (yColumns.length) {
       return hhlActions.reduce((a, c) => {
@@ -194,7 +213,7 @@ const LineGraphWrapper = props => {
     }
     return [];
 
-  }, [actions, xColumn, yColumns, idColumn]);
+  }, [actions, xColumn, yColumns, idColumns]);
 
 // console.log("LineGraphWrapper::highlights", highlights); 
 

@@ -51,8 +51,13 @@ const emptyCondition = (columns) => ({
     source_id: columns?.[0]?.source_id ?? null
 });
 
-// only in edit mode
-export const ComplexFilters = ({ state, setState }) => {
+// only in edit mode.
+// `value` / `onSave` are optional overrides: when provided, the editor seeds from
+// and commits to that tree instead of `state.filters` — used by the comparison-
+// series menu to edit a variant's filter delta with the same builder. Columns /
+// join still come from `state` (variants filter the same dataset). When omitted,
+// behavior is identical to the original `state.filters` read/write.
+export const ComplexFilters = ({ state, setState, value, onSave }) => {
     const { UI, theme: themeFromContext = {} } = useContext(ThemeContext) || {};
     const { Pill, Icon, Popup, Switch, MultiSelect, Input, ColumnTypes: {select} } = UI;
     const t = { ...complexFiltersTheme, ...getComponentTheme(themeFromContext, 'complexFilters') };
@@ -69,9 +74,9 @@ export const ComplexFilters = ({ state, setState }) => {
     ];
     const isGrouping = (state.columns || []).some(c => c.group);
 
+    const seed = value ?? state?.filters;
     const [filterGroups, updateFilterGroups] = useImmer(
-        Object.entries(state?.filters || {}).length ?
-            state?.filters || {} : { op: 'AND', groups: [] }
+        Object.entries(seed || {}).length ? seed : { op: 'AND', groups: [] }
     );
 
     // Cheap dirty check: structural changes always count; value changes only for
@@ -144,6 +149,10 @@ export const ComplexFilters = ({ state, setState }) => {
 
     // sync upward if needed
     const save = () => {
+        if (onSave) {
+            onSave(filterGroups);
+            return;
+        }
         setState(draft => {
             draft.filters = filterGroups;
         });

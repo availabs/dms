@@ -23,6 +23,8 @@ import {
   getColumnsToFetch,
   buildUdaConfig,
   buildCustomBucketFilters,
+  mergeVariantFilters,
+  resolveComparisonVariants,
   legacyStateToBuildInput,
   computeOutputSourceInfo,
   buildJoin,
@@ -1582,5 +1584,328 @@ describe("isJoinComplete", () => {
 
   it("returns false for join missing type", () => {
     expect(isJoinComplete({ source: 1, view: 101, mergeStrategy: 'join' })).toBe(false);
+  });
+});
+
+// ─── mergeVariantFilters (comparison series patch rule) ──────────────────────
+
+describe("mergeVariantFilters", () => {
+  const leaf = (col, value, op = "filter") => ({ col, op, value });
+
+  it("appends the patch when it touches a different column", () => {
+    const base = { op: "AND", groups: [leaf("tmc", ["A"])] };
+    const patch = { op: "AND", groups: [leaf("date", ["2026-06-01"])] };
+    expect(mergeVariantFilters(base, patch)).toEqual({
+      op: "AND",
+      groups: [base, patch],
+    });
+  });
+
+  it("replaces base leaves on a column the patch also constrains", () => {
+    const base = { op: "AND", groups: [leaf("tmc", ["A"])] };
+    const patch = { op: "AND", groups: [leaf("tmc", ["B"])] };
+    // base tmc pruned (group emptied) → result is just the patch
+    expect(mergeVariantFilters(base, patch)).toEqual(patch);
+  });
+
+  it("keeps untouched base leaves, replaces touched ones", () => {
+    const base = { op: "AND", groups: [leaf("tmc", ["A"]), leaf("date", ["2026-06-01"])] };
+    const patch = { op: "AND", groups: [leaf("date", ["2026-06-02"])] };
+    expect(mergeVariantFilters(base, patch)).toEqual({
+      op: "AND",
+      groups: [{ op: "AND", groups: [leaf("tmc", ["A"])] }, patch],
+    });
+  });
+
+  it("empty patch returns the base unchanged", () => {
+    const base = { op: "AND", groups: [leaf("tmc", ["A"])] };
+    expect(mergeVariantFilters(base, {})).toEqual(base);
+    expect(mergeVariantFilters(base, null)).toEqual(base);
+  });
+
+  it("empty base returns the patch", () => {
+    const patch = { op: "AND", groups: [leaf("date", ["2026-06-01"])] };
+    expect(mergeVariantFilters({}, patch)).toEqual(patch);
+    expect(mergeVariantFilters(null, patch)).toEqual(patch);
+  });
+});
+
+// ─── buildUdaConfig — comparison series fan-out ──────────────────────────────
+
+describe("buildUdaConfig — comparison series", () => {
+  const seriesInput = () => ({
+    externalSource: {
+      source_id: 100,
+      view_id: 200,
+      isDms: true,
+      columns: [
+        srcCol("speed", "integer", "number"),
+        srcCol("tmc", "text", "text"),
+        srcCol("date", "text", "text"),
+      ],
+    },
+    columns: [
+      col("speed"),
+      col("tmc"),
+      { name: "__series", origin: "comparison-series", show: true, group: true },
+    ],
+    filters: { op: "AND", groups: [{ col: "tmc", op: "filter", value: ["A"] }] },
+    pageFilters: null,
+    comparisonSeries: {
+      enabled: true,
+      seriesKey: "__series",
+      variants: [
+        { label: "June 1", filters: { op: "AND", groups: [{ col: "date", op: "filter", value: ["2026-06-01"] }] } },
+        { label: "June 2", filters: { op: "AND", groups: [{ col: "date", op: "filter", value: ["2026-06-02"] }] } },
+      ],
+    },
+  });
+
+  it("enabled: one resolved arm per variant + seriesKey", () => {
+    const { options } = buildUdaConfig(seriesInput());
+    expect(options.seriesKey).toBe("__series");
+    expect(options.seriesVariants).toHaveLength(2);
+    expect(options.seriesVariants.map((v) => v.label)).toEqual(["June 1", "June 2"]);
+  });
+
+  it("arm filterGroups = base patched with variant, resolved to DMS data->> refs", () => {
+    const { options } = buildUdaConfig(seriesInput());
+    const arm0 = JSON.stringify(options.seriesVariants[0].filterGroups);
+    // base tmc leaf inherited + variant date leaf appended, both col-mapped for DMS
+    expect(arm0).toContain("data->>'tmc'");
+    expect(arm0).toContain("data->>'date'");
+    expect(arm0).toContain("2026-06-01");
+    expect(JSON.stringify(options.seriesVariants[1].filterGroups)).toContain("2026-06-02");
+  });
+
+  it("synthetic __series column is fetched verbatim (round-trips by bare key)", () => {
+    const { attributes } = buildUdaConfig(seriesInput());
+    expect(attributes).toContain("__series");
+  });
+
+  it("__series in groupBy resolves to the bare alias (not data->>)", () => {
+    const { options } = buildUdaConfig(seriesInput());
+    expect(options.groupBy).toContain("__series");
+  });
+
+  it("disabled: no seriesVariants, synthetic column dropped (BC)", () => {
+    const input = seriesInput();
+    input.comparisonSeries.enabled = false;
+    const { options, attributes } = buildUdaConfig(input);
+    expect(options.seriesVariants).toBeUndefined();
+    expect(options.seriesKey).toBeUndefined();
+    expect(attributes).not.toContain("__series");
+  });
+
+  it("no labeled variants: treated as inactive (BC)", () => {
+    const input = seriesInput();
+    input.comparisonSeries.variants = [];
+    expect(buildUdaConfig(input).options.seriesVariants).toBeUndefined();
+  });
+
+  // Regression: with a join present, real base columns get table-aliased (ds.epoch),
+  // but the synthetic `__series` discriminator must stay BARE. Prefixing it to
+  // `ds.__series` made it both a phantom GROUP BY column and broke the server fan-out's
+  // `g !== seriesKey` drop, surfacing as "Identifier 'ds.__series' cannot be resolved".
+  it("join present: real columns aliased but __series stays bare (not ds.__series)", () => {
+    const input = seriesInput();
+    input.externalSource.source_id = 1;
+    input.externalSource.columns = [
+      srcCol("epoch", "integer", "number", { source_id: 1 }),
+      srcCol("tmc", "text", "text", { source_id: 1 }),
+      srcCol("date", "text", "text", { source_id: 1 }),
+    ];
+    input.columns = [
+      col("epoch", { source_id: 1, group: true }),
+      col("tmc", { source_id: 1 }),
+      { name: "__series", origin: "comparison-series", show: true, group: true },
+    ];
+    input.join = {
+      sources: {
+        ds: {},
+        table1: {
+          source: 2,
+          view: 3464,
+          mergeStrategy: "join",
+          type: "left",
+          joinColumns: [{ dsColumn: "tmc", joinSourceColumn: "tmc" }],
+          sourceInfo: {
+            env: "npmrds2",
+            columns: [srcCol("tmc", "text", "text")],
+          },
+        },
+      },
+      type: "left",
+      operator: "=",
+    };
+
+    const { options, attributes } = buildUdaConfig(input);
+    expect(options.groupBy).toContain("__series");
+    expect(options.groupBy).not.toContain("ds.__series");
+    // real base column is still aliased — the join still needs the disambiguation
+    expect(options.groupBy).toContain("ds.data->>'epoch'");
+    // the synthetic discriminator round-trips by its bare key as a fetched attribute
+    expect(attributes).toContain("__series");
+    expect(attributes).not.toContain("ds.__series");
+  });
+
+  // Regression: comparison-series fan-out + custom-bucket "filter to buckets".
+  // The server builds each arm's WHERE from that arm's own filterGroups and ignores
+  // the single-arm options.filterGroups (where buildCustomBucketFilters' row-restricting
+  // leaf normally lands). So the bucket leaf must be injected into the base tree EVERY
+  // arm patches. Without this, fan-out returns all rows and the bucket's fallback label
+  // ("Other") leaks into every series — the exact symptom that surfaced live.
+  it("filter-to-buckets + fan-out: bucket leaf injected into every arm", () => {
+    const input = seriesInput();
+    input.filters = null; // route restriction comes solely from the bucket
+    input.columns = [
+      col("speed"),
+      col("tmc"),
+      { name: "route_name", origin: "custom-bucket", show: true, group: true },
+      { name: "__series", origin: "comparison-series", show: true, group: true },
+    ];
+    input.customBuckets = {
+      alias: "route_name",
+      sourceField: "tmc",
+      enabled: true, // filterToBuckets defaults ON
+      config: {
+        route_name: {
+          column: "tmc",
+          fallback: "Other",
+          groups: { my_route: ["120-50371", "120P05935"] },
+        },
+      },
+    };
+
+    const { options } = buildUdaConfig(input);
+    expect(options.seriesVariants).toHaveLength(2);
+    options.seriesVariants.forEach((variant, i) => {
+      const arm = JSON.stringify(variant.filterGroups);
+      // the bucket's row-restriction is present in this arm (mapped to the DMS accessor)
+      expect(arm).toContain("data->>'tmc'");
+      expect(arm).toContain("120-50371");
+      expect(arm).toContain("120P05935");
+      // alongside the variant's own date delta
+      expect(arm).toContain(i === 0 ? "2026-06-01" : "2026-06-02");
+    });
+  });
+
+  // BC: with filter-to-buckets explicitly OFF (label-only buckets) the arms must NOT
+  // gain a tmc restriction — buckets only relabel, they don't filter.
+  it("filter-to-buckets OFF + fan-out: no bucket leaf added to arms", () => {
+    const input = seriesInput();
+    input.filters = null;
+    input.customBuckets = {
+      alias: "route_name",
+      sourceField: "tmc",
+      enabled: true,
+      filterToBuckets: false,
+      config: {
+        route_name: {
+          column: "tmc",
+          fallback: "Other",
+          groups: { my_route: ["120-50371"] },
+        },
+      },
+    };
+
+    const { options } = buildUdaConfig(input);
+    options.seriesVariants.forEach((variant) => {
+      expect(JSON.stringify(variant.filterGroups)).not.toContain("120-50371");
+    });
+  });
+
+  // ── Dynamic binding (Piece 3): comparisonSeries.config drives the fan-out ──
+  // usePageFilterSync resolves a page-state list into config; buildUdaConfig treats
+  // config's presence as dynamic mode (config wins over static variants; config:[]
+  // reads as inactive instead of falling back).
+
+  it("dynamic: config (resolved variants) drives the fan-out over static variants", () => {
+    const input = seriesInput();
+    // static variants present but config (dynamic) should win
+    input.comparisonSeries.config = [
+      { label: "Q1", filters: { op: "AND", groups: [{ col: "date", op: "filter", value: ["2026-03-01"] }] } },
+      { label: "Q2", filters: { op: "AND", groups: [{ col: "date", op: "filter", value: ["2026-06-01"] }] } },
+      { label: "Q3", filters: { op: "AND", groups: [{ col: "date", op: "filter", value: ["2026-09-01"] }] } },
+    ];
+    const { options } = buildUdaConfig(input);
+    expect(options.seriesVariants).toHaveLength(3);
+    expect(options.seriesVariants.map((v) => v.label)).toEqual(["Q1", "Q2", "Q3"]);
+    expect(JSON.stringify(options.seriesVariants[0].filterGroups)).toContain("2026-03-01");
+    // the static "June 1"/"June 2" variants are ignored while config is present
+    expect(options.seriesVariants.map((v) => v.label)).not.toContain("June 1");
+  });
+
+  it("dynamic unresolved: config:[] reads as inactive (no fan-out, no static fallback)", () => {
+    const input = seriesInput();
+    input.comparisonSeries.config = []; // binding active but no page value yet
+    const { options, attributes } = buildUdaConfig(input);
+    expect(options.seriesVariants).toBeUndefined();
+    expect(options.seriesKey).toBeUndefined();
+    // synthetic column dropped from the fetch while inactive (does NOT fall back to
+    // the static "June 1"/"June 2" variants — config presence pins dynamic mode)
+    expect(attributes).not.toContain("__series");
+  });
+
+  it("static BC: no config key → static variants still drive the fan-out", () => {
+    const input = seriesInput();
+    expect(input.comparisonSeries.config).toBeUndefined();
+    const { options } = buildUdaConfig(input);
+    expect(options.seriesVariants.map((v) => v.label)).toEqual(["June 1", "June 2"]);
+  });
+});
+
+// ─── resolveComparisonVariants (dynamic-binding page-state → variants) ────────
+
+describe("resolveComparisonVariants", () => {
+  it("column mode: scalar values become {col, filter} leaves", () => {
+    const args = { labelKey: "label", valueKey: "value", column: "date" };
+    const list = [
+      { label: "June 1", value: "2026-06-01" },
+      { label: "June 2", value: "2026-06-02" },
+    ];
+    expect(resolveComparisonVariants(args, list)).toEqual([
+      { label: "June 1", filters: { op: "AND", groups: [{ col: "date", op: "filter", value: ["2026-06-01"] }] } },
+      { label: "June 2", filters: { op: "AND", groups: [{ col: "date", op: "filter", value: ["2026-06-02"] }] } },
+    ]);
+  });
+
+  it("column mode: an array value is used verbatim as the leaf's value list", () => {
+    const args = { labelKey: "label", valueKey: "value", column: "tmc" };
+    const list = [{ label: "Route A", value: ["120-1", "120-2"] }];
+    expect(resolveComparisonVariants(args, list)[0].filters.groups[0].value).toEqual(["120-1", "120-2"]);
+  });
+
+  it("filter-tree mode: a value that is already a filter tree is used as-is (no column needed)", () => {
+    const args = { labelKey: "label", valueKey: "filters" };
+    const tree = { op: "AND", groups: [{ col: "date", op: "between", value: ["2026-06-01", "2026-06-30"] }] };
+    const list = [{ label: "June", filters: tree }];
+    expect(resolveComparisonVariants(args, list)).toEqual([{ label: "June", filters: tree }]);
+  });
+
+  it("unwraps composite {id, value} payloads (spreadsheet click_publish identity)", () => {
+    const args = { labelKey: "label", valueKey: "value", column: "tmc" };
+    const list = [{ id: "row7", value: { label: "Route A", value: "120-1" } }];
+    expect(resolveComparisonVariants(args, list)).toEqual([
+      { label: "Route A", filters: { op: "AND", groups: [{ col: "tmc", op: "filter", value: ["120-1"] }] } },
+    ]);
+  });
+
+  it("drops entries missing a label or an unresolvable filter; empty/absent list → []", () => {
+    const args = { labelKey: "label", valueKey: "value", column: "date" };
+    expect(resolveComparisonVariants(args, [
+      { label: "ok", value: "2026-06-01" },
+      { value: "2026-06-02" },          // no label → dropped
+      { label: "no value" },             // no value → no filter → dropped
+    ])).toEqual([
+      { label: "ok", filters: { op: "AND", groups: [{ col: "date", op: "filter", value: ["2026-06-01"] }] } },
+    ]);
+    expect(resolveComparisonVariants(args, [])).toEqual([]);
+    expect(resolveComparisonVariants(args, undefined)).toEqual([]);
+  });
+
+  it("without a column and without a filter-tree value, a scalar can't form a filter → dropped", () => {
+    const args = { labelKey: "label", valueKey: "value" }; // no column
+    expect(resolveComparisonVariants(args, [{ label: "x", value: "2026-06-01" }])).toEqual([]);
   });
 });

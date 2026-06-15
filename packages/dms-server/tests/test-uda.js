@@ -484,6 +484,132 @@ async function testBuildAliasGroupCaseDmsNumericQuoting() {
   pass('buildAliasGroupCase text-quotes numeric values for DMS data->> columns');
 }
 
+// ============================================= Comparison Series (fan-out) Tests ==============================================
+
+/**
+ * Unit: offsetPlaceholders shifts every $N by the given offset in one atomic pass
+ * (no double-substitution — $1→$11 must not then re-match as $11).
+ */
+async function testOffsetPlaceholders() {
+  console.log('\n--- Unit: offsetPlaceholders ---');
+  const { offsetPlaceholders } = require('../src/routes/uda/utils');
+
+  assert(offsetPlaceholders('a $1 b $2', 3) === 'a $4 b $5', 'simple shift by 3');
+  assert(offsetPlaceholders('x $1', 0) === 'x $1', 'offset 0 is a no-op');
+  // Atomic: $1..$10 shifted by 5 → $6..$15 (the new $11 must not be re-shifted).
+  assert(offsetPlaceholders('$1 $2 $10', 5) === '$6 $7 $15', 'no double-substitution');
+  // ANY($N) array placeholders are renumbered too (the SQLite adapter expands them).
+  assert(offsetPlaceholders('app = ANY($1) AND x = $2', 4) === 'app = ANY($5) AND x = $6', 'ANY() placeholders shift');
+  pass('offsetPlaceholders shifts $N atomically');
+}
+
+/**
+ * Integration: comparison-series fan-out. Two variants over disjoint category
+ * filters produce one UNION ALL arm each, every row stamped with a constant
+ * `__series` label the chart categorizes on. Also covers the groupBy:['__series']
+ * path (the discriminator is dropped from the arm GROUP BY) and an injection-safe
+ * label containing a single quote.
+ */
+async function testSeriesFanout() {
+  console.log('\n--- Comparison Series: basic fan-out + tagged rows ---');
+
+  const items = [];
+  for (const category of ['alpha', 'alpha', 'beta']) {
+    const result = await graph.callAsync(
+      ['dms', 'data', 'create'],
+      [TEST_APP, 'fanout', { name: `n-${category}`, category }]
+    );
+    items.push(Object.keys(result.jsonGraph.dms.data.byId)[0]);
+  }
+
+  const env = `${TEST_APP}+fanout`;
+  const viewId = items[0];
+
+  // Group B's label carries an apostrophe to prove the literal is single-quote-escaped.
+  const LABEL_A = 'Group A';
+  const LABEL_B = "O'Brien";
+  const options = JSON.stringify({
+    seriesKey: '__series',
+    groupBy: ['__series'],
+    seriesVariants: [
+      { label: LABEL_A, filterGroups: { op: 'and', groups: [{ col: "data->>'category'", op: 'filter', value: ['alpha'] }] } },
+      { label: LABEL_B, filterGroups: { op: 'and', groups: [{ col: "data->>'category'", op: 'filter', value: ['beta'] }] } },
+    ],
+  });
+
+  // length = sum of arm counts (2 alpha + 1 beta)
+  const lenResult = await graph.getAsync([
+    ['uda', env, 'viewsById', viewId, 'options', options, 'length']
+  ]);
+  const len = lenResult.jsonGraph.uda[env].viewsById[viewId].options[options].length;
+  assert(+len === 3, `Expected fan-out length 3 (2 + 1), got ${len}`);
+  pass('fan-out length sums per-arm counts');
+
+  // dataByIndex: rows tagged by series. Request __series so the route projects it.
+  const dataResult = await graph.getAsync([
+    ['uda', env, 'viewsById', viewId, 'options', options, 'dataByIndex', { from: 0, to: 9 }, ["data->>'name' as name", '__series']]
+  ]);
+  const byIndex = dataResult.jsonGraph.uda[env].viewsById[viewId].options[options].dataByIndex;
+  const series = Object.values(byIndex).map((r) => r?.['__series']).filter((v) => typeof v === 'string');
+
+  assert(series.length === 3, `Expected 3 tagged rows, got ${series.length}: ${JSON.stringify(series)}`);
+  assert(series.filter((s) => s === LABEL_A).length === 2, `Expected 2 '${LABEL_A}' rows, got ${JSON.stringify(series)}`);
+  assert(series.filter((s) => s === LABEL_B).length === 1, `Expected 1 "${LABEL_B}" row (apostrophe label round-trips), got ${JSON.stringify(series)}`);
+  pass('fan-out rows carry the right __series label (incl. single-quote-escaped label)');
+
+  await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, 'fanout', ...items]);
+  pass('Comparison series fan-out cleanup complete');
+}
+
+/**
+ * Integration: overlapping variants duplicate the shared base rows — the capability
+ * that categorize / custom buckets cannot express (a row can't carry two labels).
+ * 'Recent' = {2023,2024}, 'All' = {2022,2023,2024}; the 2023/2024 rows must appear
+ * under BOTH series, so total rows = 2 + 3 = 5.
+ */
+async function testSeriesFanoutOverlap() {
+  console.log('\n--- Comparison Series: overlapping variants duplicate base rows ---');
+
+  const items = [];
+  for (const year of ['2022', '2023', '2024']) {
+    const result = await graph.callAsync(
+      ['dms', 'data', 'create'],
+      [TEST_APP, 'fanoverlap', { name: `y-${year}`, year }]
+    );
+    items.push(Object.keys(result.jsonGraph.dms.data.byId)[0]);
+  }
+
+  const env = `${TEST_APP}+fanoverlap`;
+  const viewId = items[0];
+  const options = JSON.stringify({
+    seriesKey: '__series',
+    seriesVariants: [
+      { label: 'Recent', filterGroups: { op: 'and', groups: [{ col: "data->>'year'", op: 'filter', value: ['2023', '2024'] }] } },
+      { label: 'All',    filterGroups: { op: 'and', groups: [{ col: "data->>'year'", op: 'filter', value: ['2022', '2023', '2024'] }] } },
+    ],
+  });
+
+  const lenResult = await graph.getAsync([
+    ['uda', env, 'viewsById', viewId, 'options', options, 'length']
+  ]);
+  const len = lenResult.jsonGraph.uda[env].viewsById[viewId].options[options].length;
+  assert(+len === 5, `Expected 5 rows (2 Recent + 3 All, overlapping years duplicated), got ${len}`);
+  pass('overlapping variants duplicate shared base rows (length 5)');
+
+  const dataResult = await graph.getAsync([
+    ['uda', env, 'viewsById', viewId, 'options', options, 'dataByIndex', { from: 0, to: 9 }, ["data->>'year' as year", '__series']]
+  ]);
+  const byIndex = dataResult.jsonGraph.uda[env].viewsById[viewId].options[options].dataByIndex;
+  const rows = Object.values(byIndex).filter((r) => r && typeof r['__series'] === 'string');
+  const recent = rows.filter((r) => r['__series'] === 'Recent').length;
+  const all = rows.filter((r) => r['__series'] === 'All').length;
+  assert(recent === 2 && all === 3, `Expected Recent=2, All=3; got Recent=${recent}, All=${all}`);
+  pass('each year appears once per arm it matches (2023/2024 in both series)');
+
+  await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, 'fanoverlap', ...items]);
+  pass('Comparison series overlap cleanup complete');
+}
+
 // ============================================= filterGroups Tests ==============================================
 
 /**
@@ -1238,6 +1364,11 @@ async function run() {
     await testCustomBucketAliasCaseRoundTrip();
     await testCustomBucketKeywordValueGroupBy();
     await testBuildAliasGroupCaseDmsNumericQuoting();
+
+    // comparison-series fan-out tests
+    await testOffsetPlaceholders();
+    await testSeriesFanout();
+    await testSeriesFanoutOverlap();
 
     // filterGroups regression tests
     await testGetValuesFromGroupNullLeaves();

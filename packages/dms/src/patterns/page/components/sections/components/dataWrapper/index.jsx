@@ -255,6 +255,21 @@ const Edit = forwardRef((props, ref) => {
     const dataSourceInfo = useDataSource({ state, setState });
     const dwAPI = useDataWrapperAPI({ state, setState });
 
+    // ── Comparison-series dynamic binding: reconcile the synthetic column ──
+    // The master toggle / series-key commit fire reconcile from the menu, but a
+    // dynamic "comparison_series" subscriber can be enabled (Actions menu) or resolve
+    // its config (usePageFilterSync) AFTER the master is already on — orderings the
+    // menu reconcile misses. Re-reconcile when either the subscriber's enabled flag or
+    // config's presence flips (booleans, so no per-keystroke churn). reconcile is
+    // idempotent → immer no-ops when the column is already correct.
+    const csSubEnabled = (state?.display?._functions?.subscribers || []).some(
+        s => s.functionId === 'comparison_series' && s.enabled
+    );
+    const csConfigPresent = state?.comparisonSeries?.config !== undefined;
+    useEffect(() => {
+        dwAPI.reconcileComparisonSeriesColumn();
+    }, [csSubEnabled, csConfigPresent, state?.comparisonSeries?.enabled]);
+
     // ── Backfill externalSource.type if missing (older sections lack it) ──
     useEffect(() => {
         if (state?.externalSource?.name && !state?.externalSource?.type) {
@@ -282,6 +297,9 @@ const Edit = forwardRef((props, ref) => {
             const { distinctValues: _dv, distinctValuesByColumn: _dvbc, ...pivotConfig } = state.pivot;
             toSave.pivot = pivotConfig;
         }
+        // Persist comparison-series config when present, or the save effect round-trips
+        // a stripped state and the master toggle silently reverts (same trap as join).
+        if (state.comparisonSeries) toSave.comparisonSeries = state.comparisonSeries;
         RUNTIME_DISPLAY_FIELDS.forEach(f => delete toSave.display[f]);
         const serialized = JSON.stringify(toSave);
         if (isEqual(value, serialized)) return;
