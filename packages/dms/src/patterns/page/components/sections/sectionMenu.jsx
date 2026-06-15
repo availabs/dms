@@ -895,11 +895,150 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
         ].filter(item => !item.cdn || item.cdn())
     }
 
-    // Nest the data-shaping menus (join / custom buckets / pivot) under the
-    // Dataset menu so they no longer crowd the top level. Each keeps its own
-    // cdn; pre-filter here (matching their previous top-level visibility) since
-    // the menu renderer doesn't evaluate cdn on nested items.
-    const datasetSubMenus = [join, customBuckets, pivot].filter(item => !item.cdn || item.cdn());
+    // Comparison Series (query fan-out) — author defines N variants (each a
+    // label + filter delta over the base query); the chart overlays one series
+    // per variant. v0 authoring surface is a raw JSON array of {label, filters}.
+    // Master off / no labeled variants → no fan-out (buildUdaConfig gates on it).
+    const csConfig = {
+        enabled: false, seriesKey: '__series', seriesLabel: '', variants: [],
+        ...(state?.comparisonSeries || {})
+    };
+    const setCsConfig = (partial) => dwAPI.setComparisonSeries({ ...csConfig, ...partial });
+    const csEnabled = csConfig.enabled === true;
+
+    const comparisonSeries = {
+        name: 'Comparison Series', icon: 'Columns',
+        cdn: () => isEdit && currentComponent?.useDataSource && canEditSection,
+        value: csEnabled ? 'On' : 'Off', showValue: true,
+        items: [
+            {
+                // Master on/off. Off drops the synthetic discriminator column and
+                // stops fan-out in buildUdaConfig; the config is retained for re-enable.
+                name: 'Enabled', label: 'Enabled',
+                type: 'toggle', showLabel: true,
+                enabled: csEnabled,
+                setEnabled: v => {
+                    setCsConfig({ enabled: v });
+                    dwAPI.reconcileComparisonSeriesColumn();
+                }
+            },
+            { type: 'separator' },
+            ...(!csEnabled ? [] : [
+                {
+                    name: 'Series Key',
+                    value: csConfig.seriesKey, showValue: true,
+                    items: [{
+                        id: 'cs_serieskey_input', name: 'Series Key',
+                        type: () => (
+                            <CommitInput
+                                initialValue={csConfig.seriesKey}
+                                onCommit={(seriesKey) => {
+                                    setCsConfig({ seriesKey: seriesKey || '__series' });
+                                    dwAPI.reconcileComparisonSeriesColumn();
+                                }}
+                            />
+                        )
+                    }]
+                },
+                {
+                    name: 'Series Label',
+                    value: csConfig.seriesLabel, showValue: true,
+                    items: [{
+                        id: 'cs_serieslabel_input', name: 'Series Label',
+                        type: 'input', inputType: 'text', value: csConfig.seriesLabel,
+                        onChange: e => setCsConfig({ seriesLabel: e?.target?.value ?? e })
+                    }]
+                },
+                { type: 'separator' },
+                {
+                    // Per-variant editor. Each variant = { label, filters }; the
+                    // filter delta is authored with the same ComplexFilters builder
+                    // the section's main filters use (no hand-written JSON).
+                    // Stable `id` (NOT the count-bearing name) so committing
+                    // variants doesn't rename this menu level out from under
+                    // NavigableMenu's activeParent → blank page / broken back.
+                    id: 'cs_variants',
+                    name: `Variants (${(csConfig.variants || []).length})`,
+                    items: [
+                        // Each variant is its own nav level, keyed by a stable
+                        // index-based id (see the id-collision note below).
+                        ...(csConfig.variants || []).map((v, idx) => ({
+                            // Stable unique id on every navigable node — flattenConfig
+                            // keys the whole menu by `id || name` globally, so the
+                            // dynamic `Variant N: label` name AND the names repeated
+                            // across variants (`Label`, `Remove Variant`) would collide
+                            // and get random UUIDs each flatten → broken back-nav.
+                            id: `cs_variant_${idx}`,
+                            name: `Variant ${idx + 1}${v.label ? `: ${v.label}` : ''}`, icon: 'Columns',
+                            items: [
+                                {
+                                    id: `cs_variant_${idx}_label_nav`, name: 'Label',
+                                    value: v.label, showValue: true,
+                                    items: [{
+                                        id: `cs_variant_${idx}_label`, name: 'Label',
+                                        type: () => (
+                                            <CommitInput
+                                                initialValue={v.label || ''}
+                                                onCommit={(label) => {
+                                                    const variants = [...(csConfig.variants || [])];
+                                                    variants[idx] = { ...variants[idx], label };
+                                                    setCsConfig({ variants });
+                                                }}
+                                            />
+                                        )
+                                    }]
+                                },
+                                {
+                                    id: `cs_variant_${idx}_filters`, name: 'Filters',
+                                    // Reuse the section filter builder for the variant's
+                                    // delta. value/onSave redirect read+write to this
+                                    // variant; columns/join still come from dwAPI.state.
+                                    // `key` forces a fresh instance per variant (useImmer
+                                    // seeds on mount only).
+                                    type: () => (
+                                        <ComplexFilters
+                                            key={`cs_variant_${idx}`}
+                                            state={dwAPI.state}
+                                            setState={dwAPI.setState}
+                                            value={v.filters}
+                                            onSave={(tree) => {
+                                                const variants = [...(csConfig.variants || [])];
+                                                variants[idx] = { ...variants[idx], filters: tree };
+                                                setCsConfig({ variants });
+                                            }}
+                                        />
+                                    )
+                                },
+                                { type: 'separator' },
+                                {
+                                    id: `cs_variant_${idx}_remove`,
+                                    name: 'Remove Variant', icon: 'TrashCan', onClickGoBack: true,
+                                    onClick: () => {
+                                        const variants = [...(csConfig.variants || [])];
+                                        variants.splice(idx, 1);
+                                        setCsConfig({ variants });
+                                    }
+                                }
+                            ]
+                        })),
+                        {
+                            id: 'cs_add_variant',
+                            name: 'Add Variant', icon: 'Plus',
+                            onClick: () => setCsConfig({
+                                variants: [...(csConfig.variants || []), { label: '', filters: { op: 'AND', groups: [] } }]
+                            })
+                        }
+                    ]
+                }
+            ])
+        ]
+    };
+
+    // Nest the data-shaping menus (join / custom buckets / comparison series /
+    // pivot) under the Dataset menu so they no longer crowd the top level. Each
+    // keeps its own cdn; pre-filter here (matching their previous top-level
+    // visibility) since the menu renderer doesn't evaluate cdn on nested items.
+    const datasetSubMenus = [join, customBuckets, comparisonSeries, pivot].filter(item => !item.cdn || item.cdn());
     if (datasetSubMenus.length) {
         if (dataset.items.length) dataset.items.push({ type: 'separator' });
         dataset.items.push(...datasetSubMenus);

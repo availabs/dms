@@ -635,6 +635,38 @@ function buildAliasGroupCase(definition) {
   return caseStmt;
 }
 
+/**
+ * Shift every `$N` placeholder in a SQL fragment up by `offset`.
+ *
+ * Used by the comparison-series fan-out: each arm's WHERE is built independently
+ * starting at $1, then the arms are concatenated into one UNION ALL with a single
+ * shared `values` array. Renumbering each arm's placeholders by the running param
+ * count keeps the invariant `$K → values[K-1]` across the whole query (both the
+ * pg driver and the SQLite adapter look params up by index, so this is safe).
+ *
+ * The single regex pass substitutes all matches against their original numbers, so
+ * there is no double-substitution (e.g. $1→$11 won't then re-match as $11).
+ */
+function offsetPlaceholders(sql, offset) {
+  return offset ? sql.replace(/\$(\d+)/g, (_, n) => `$${Number(n) + offset}`) : sql;
+}
+
+/**
+ * Restore long column names that were aliased to short `col_N` placeholders for the
+ * query (see columnNameMap in simpleFilter — long response names are swapped for
+ * `col_N` so they fit identifier limits). No-op when the map is empty. Shared by the
+ * Postgres and ClickHouse query sets, single-arm and comparison-series fan-out paths.
+ */
+function restoreLongColumnNames(rows, columnNameMap) {
+  if (!Object.keys(columnNameMap).length) return rows;
+  return rows.map(row => {
+    const restored = Object.keys(columnNameMap).reduce((acc, originalName) => {
+      return { ...acc, [getResponseColumnName(originalName)]: row[getResponseColumnName(columnNameMap[originalName])] };
+    }, {});
+    return { ...row, ...restored };
+  });
+}
+
 module.exports = {
   sanitizeName,
   getResponseColumnName,
@@ -653,5 +685,7 @@ module.exports = {
   handleOrderBy,
   buildCombinedWhere,
   buildJoin,
-  buildAliasGroupCase
+  buildAliasGroupCase,
+  offsetPlaceholders,
+  restoreLongColumnNames
 };

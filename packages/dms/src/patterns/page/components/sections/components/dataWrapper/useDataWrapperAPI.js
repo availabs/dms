@@ -161,6 +161,65 @@ export function useDataWrapperAPI({ state, setState }) {
         [setState]
     );
 
+    // ── Comparison Series operations ──
+    const setComparisonSeries = useCallback(
+        (value) => setState(draft => {
+            draft.comparisonSeries = value;
+        }),
+        [setState]
+    );
+
+    // Reconcile the synthetic comparison-series discriminator column in
+    // state.columns. Like the custom-bucket reconcile, this is an explicit action
+    // (fired when the master toggle / series-key field commits) rather than a
+    // reactive effect. The column is identified by origin; a seriesKey change
+    // renames it. Master-off / no labeled variants → the column shouldn't exist
+    // (config stays on draft.comparisonSeries for clean re-enable). It defaults to
+    // a categorize dimension so a graph renders one series per variant out of the box.
+    const reconcileComparisonSeriesColumn = useCallback(
+        () => setState(draft => {
+            if (!draft) return;
+            const cs = draft.comparisonSeries;
+            const seriesKey = cs?.seriesKey || '__series';
+            const enabled = cs?.enabled === true;
+            // Variants come from either binding mode: static (cs.variants) OR a
+            // dynamic "comparison_series" subscriber (Piece 3). For dynamic the list
+            // resolves asynchronously into cs.config from page state — its presence
+            // (even an empty []) means dynamic binding is active, as does an enabled
+            // subscriber whose page value hasn't arrived yet. Either keeps the
+            // synthetic categorize column so the chart is ready when data loads.
+            const dynamicSubscriber = (draft.display?._functions?.subscribers || []).some(
+                s => s.functionId === 'comparison_series' && s.enabled
+            );
+            const hasVariants =
+                (Array.isArray(cs?.variants) && cs.variants.some(v => v && v.label)) ||
+                Array.isArray(cs?.config) ||
+                dynamicSubscriber;
+            const idx = (draft.columns || []).findIndex(c => c.origin === 'comparison-series');
+
+            if (!enabled || !hasVariants) {
+                if (idx !== -1) draft.columns.splice(idx, 1);
+                return;
+            }
+            if (idx === -1) {
+                draft.columns.push({
+                    name: seriesKey,
+                    alias: seriesKey,
+                    type: 'text',
+                    show: true,
+                    group: true,
+                    target: 'categorize',
+                    isCalculatedColumn: false,
+                    origin: 'comparison-series',
+                });
+            } else {
+                draft.columns[idx].name = seriesKey;
+                draft.columns[idx].alias = seriesKey;
+            }
+        }),
+        [setState]
+    );
+
     return useMemo(() => ({
         // ── Read access (getters — always read live state via ref) ──
         get config() {
@@ -173,6 +232,7 @@ export function useDataWrapperAPI({ state, setState }) {
                 join: s?.join,
                 pivot: s?.pivot,
                 customBuckets: s?.customBuckets,
+                comparisonSeries: s?.comparisonSeries,
             };
         },
         get runtime() {
@@ -211,6 +271,10 @@ export function useDataWrapperAPI({ state, setState }) {
         setCustomBuckets,
         reconcileCustomBucketColumn,
 
+        // ── Comparison Series operations ──
+        setComparisonSeries,
+        reconcileComparisonSeriesColumn,
+
         // ── Raw access (escape hatch) ──
         // Needed for: ComplexFilters, custom control types, handlePaste.
         // Phase 5 must close these — see handoff notes in task file.
@@ -226,5 +290,7 @@ export function useDataWrapperAPI({ state, setState }) {
         setPivot,
         setCustomBuckets,
         reconcileCustomBucketColumn,
+        setComparisonSeries,
+        reconcileComparisonSeriesColumn,
     ]);
 }

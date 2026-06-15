@@ -78,7 +78,8 @@ export function cleanStateForTemplate(state, { includeSource = true, includeLayo
   }
 
   // The whole data config rides with the source toggle: the binding
-  // (externalSource/join) and its shape (columns/filters/customBuckets/pivot).
+  // (externalSource/join) and its shape (columns/filters/customBuckets/pivot/
+  // comparisonSeries).
   if (!includeSource) {
     delete s.externalSource;
     delete s.join;
@@ -86,6 +87,7 @@ export function cleanStateForTemplate(state, { includeSource = true, includeLayo
     delete s.filters;
     delete s.customBuckets;
     delete s.pivot;
+    delete s.comparisonSeries;
   }
 
   // The "Spreadsheet Settings" (and any component's display settings) ride with
