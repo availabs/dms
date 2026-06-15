@@ -169,7 +169,7 @@ export const useColumnOptions = (columnName, columns, operation, search, selecte
                         const parsed = parseDataOptions([row], reqName);
                         const count = parseInt(row[OPTIONS_COUNT_ATTR] ?? '0', 10) || 0;
                         parsed.forEach(opt => {
-                            if (opt.value != null) countMap.set(String(opt.value), count);
+                            if (opt.value != null) countMap.set(String(opt.value), (countMap.get(String(opt.value)) || 0) + count);
                         });
                     });
                 }
