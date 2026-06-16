@@ -219,22 +219,33 @@ function PatternEdit({
 	const duplicate = async({oldInstance, newInstance}, item) => {
 		setIsDuplicating(true);
 		try {
-			// call server to copy over pages and sections (the new instance's content)
-			const res = await fetch(`${dmsServerPath}/dms/${app}+${oldInstance}/duplicate`,
-				{
-					method: "POST",
-					body: JSON.stringify({newApp: app, newType: newInstance}),
-					headers: {
-						"Content-Type": "application/json",
-					},
-				});
-			// Surface a failed copy instead of silently creating an empty pattern.
+			// Queue the duplicate task — returns immediately with { task_id }.
+			const res = await fetch(`${dmsServerPath}/dms/${app}+${oldInstance}/duplicate`, {
+				method: "POST",
+				body: JSON.stringify({newApp: app, newType: newInstance}),
+				headers: { "Content-Type": "application/json" },
+			});
 			const body = await res.json().catch(() => ({}));
 			if (!res.ok || body?.err) {
-				console.error('[duplicate] page/section copy failed:', body?.err || res.status);
+				console.error('[duplicate] failed to queue task:', body?.err || res.status);
 				window.alert(`Pattern duplicate failed: ${body?.err || `HTTP ${res.status}`}. Pattern not created.`);
 				return;
 			}
+
+			// Poll until the task finishes.
+			const { task_id } = body;
+			for (;;) {
+				await new Promise(r => setTimeout(r, 3000));
+				const statusRes = await fetch(`${dmsServerPath}/dms/tasks/${task_id}`);
+				const task = await statusRes.json().catch(() => ({}));
+				if (task.status === 'done') break;
+				if (task.status === 'error') {
+					console.error('[duplicate] task failed:', task.error);
+					window.alert(`Pattern duplicate failed: ${task.error}. Pattern not created.`);
+					return;
+				}
+			}
+
 			// Pages/sections cloned server-side; now create the pattern row for the new instance.
 			await addNewValue(item);
 		} catch (err) {
