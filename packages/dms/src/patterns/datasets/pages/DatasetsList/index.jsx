@@ -227,7 +227,7 @@ export default function DatasetsList ({attributes, item, dataItems, apiLoad, api
                         title={'Toggle Sort'}
                         onClick={() => setSort(sort === 'asc' ? 'desc' : 'asc')}
                     >
-                        <Icon icon={sort === 'asc' ? 'SortDesc' : 'SortAsc'} className="size-5"/>
+                        <Icon icon={sort === 'asc' ? 'SortDesc' : 'SortAsc'} className={t.iconMd}/>
                     </Button>
 
                     {filteredCategories.length > 0 &&
@@ -236,21 +236,21 @@ export default function DatasetsList ({attributes, item, dataItems, apiLoad, api
                             title={isListAll ? 'Show filtered' : 'Show all'}
                             onClick={() => setIsListAll(!isListAll)}
                         >
-                            <Icon icon={isListAll ? 'FilterX' : 'Filter'} className="size-5"/>
+                            <Icon icon={isListAll ? 'FilterX' : 'Filter'} className={t.iconMd}/>
                         </Button>
                     }
 
                     {
                         user?.authed &&
                         <Link to={`${baseUrl}/settings`} title={'Settings'}>
-                            <Icon icon="Settings" className="size-5"/>
+                            <Icon icon="Settings" className={t.iconMd}/>
                         </Link>
                     }
 
                     {
                         user?.authed &&
                         <Link to={`${baseUrl}/create`} title={'Add'}>
-                            <Icon icon="CirclePlus" className="size-5"/>
+                            <Icon icon="CirclePlus" className={t.iconMd}/>
                         </Link>
                     }
 

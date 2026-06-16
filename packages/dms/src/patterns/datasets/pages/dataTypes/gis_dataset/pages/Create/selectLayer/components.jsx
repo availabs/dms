@@ -1,5 +1,10 @@
+import { useContext } from 'react'
+import { ThemeContext } from '../../../../../../../../ui/useTheme'
+import { gisCreateTheme } from '../gisCreate.theme'
 
 export const LayerAnalysisSection = ({state}) => {
+  const { theme } = useContext(ThemeContext) || {};
+  const t = { ...gisCreateTheme, ...(theme?.datasets?.gisCreate || {}) };
   
   const { 
     etlContextId, 
@@ -36,34 +41,34 @@ export const LayerAnalysisSection = ({state}) => {
 
   return (
     <div>
-      <span className='py-4 font-bold'> Layer Analysis </span>
-      <div className='w-full'>
+      <span className={t.layerAnalysisTitle}> Layer Analysis </span>
+      <div className={t.layerAnalysisOuter}>
         <div style={{ width: "50%", margin: "10px auto" }}>
-          <table className='pt-10 mx-auto border'>
+          <table className={t.layerAnalysisTable}>
             <thead style={{ backgroundColor: "black", color: "white" }}>
               <tr>
                 <th
-                  className="text-center"
+                  className={t.layerAnalysisThCenter}
                   style={{ padding: "10px", borderRight: "1px solid white" }}
                 >
                   Geometry Type
                 </th>
-                <th className="text-center" style={{ padding: "10px" }}>
+                <th className={t.layerAnalysisThCenter} style={{ padding: "10px" }}>
                   Feature Count
                 </th>
               </tr>
             </thead>
             <tbody>
               {geomTypes.map((type,i) => (
-                <tr className="border-b" key={i}>
+                <tr className={t.layerAnalysisRowBorder} key={i}>
                   <td
-                    className="py-4 text-center"
+                    className={t.layerAnalysisTdType}
                     style={{ padding: "10px", border: "1px solid" }}
                   >
                     {type}
                   </td>
                   <td
-                    className="text-center  p-2"
+                    className={t.layerAnalysisTdCount}
                     style={{ padding: "10px", border: "1px solid" }}
                   >
                     {countsByPostGisType[type]}
@@ -82,27 +87,31 @@ export const LayerAnalysisSection = ({state}) => {
 
 
 
-export const ErrorMessage = ({etlContextId, errorMsg}) => (
-  <table className="w-2/3 mx-auto mt-10 text-center border border-gray-300">
-    <thead className='bg-red-500 font-bold text-lg'>
-      <tr>
-        <th>
-          Layer Analysis Error
-        </th>
-        <th>
-          ETL Context ID
-        </th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td className='text-red-800 p-4'>
-          {errorMsg}
-        </td>
-        <td>
-          {etlContextId}
-        </td>
-      </tr>
-    </tbody>
-  </table>
-)
+export const ErrorMessage = ({etlContextId, errorMsg}) => {
+  const { theme } = useContext(ThemeContext) || {};
+  const t = { ...gisCreateTheme, ...(theme?.datasets?.gisCreate || {}) };
+  return (
+    <table className={t.errorTable}>
+      <thead className={t.errorThead}>
+        <tr>
+          <th>
+            Layer Analysis Error
+          </th>
+          <th>
+            ETL Context ID
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td className={t.errorTdMsg}>
+            {errorMsg}
+          </td>
+          <td>
+            {etlContextId}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  )
+}

@@ -53,41 +53,53 @@ function remapParentRef(parent, pageIdMap, newApp, newInstance) {
 
 function createDuplicateHandler(controller) {
   return async function duplicate(req, res) {
+    // Duplicating large patterns can take well over 30 s (many sequential DB
+    // transactions — one per page, two per section). Override the global 30s
+    // request timeout so the operation isn't killed mid-flight.
+    req.setTimeout(300_000); // 5 minutes
     const [app, oldInstance] = (req.params.appType || '').split('+');
     const { newApp = app, newType: newInstance } = req.body || {};
     const user = { id: req.user?.id ?? null };
-
     if (!app || !oldInstance || !newInstance) {
       return res.status(400).json({ err: 'appType ("app+oldInstance") and newType are required' });
     }
-
+    console.log('entering try')
     try {
       // 1) clone pages (defer section-ref remap until the sections exist)
       const pages = await controller.getRowsByTypes(app, [buildType({ parent: oldInstance, kind: 'page' })]);
       const newPageType = buildType({ parent: newInstance, kind: 'page' });
       const pageIdMap = {};
+      let pageI = 0;
       for (const p of pages) {
+        console.log(`page ${++pageI} of ${pages.length}`)
         const data = asObj(p.data);
         delete data.history;
         const [np] = await controller.createData([newApp, newPageType, data], user);
         pageIdMap[String(p.id)] = np.id;
       }
 
-      // 2) clone components, remapping each section's parent → its new page
+      // 2) clone components in parallel batches — each component is independent
+      //    (pageIdMap is fully built above; secIdMap keys are disjoint per component)
       const comps = await controller.getRowsByTypes(app, [buildType({ parent: oldInstance, kind: 'component' })]);
       const newCompType = buildType({ parent: newInstance, kind: 'component' });
       const secIdMap = {};
-      for (const c of comps) {
-        const data = asObj(c.data);
-        delete data.history;
-        data.parent = remapParentRef(data.parent, pageIdMap, newApp, newInstance);
-        const [nc] = await controller.createData([newApp, newCompType, data], user);
-        secIdMap[String(c.id)] = nc.id;
-        await controller.setDataById(nc.id, { id: nc.id }, user, newApp); // mirror data.id → new row id
+      const COMP_BATCH = 50;
+      let compDone = 0;
+      for (let i = 0; i < comps.length; i += COMP_BATCH) {
+        await Promise.all(comps.slice(i, i + COMP_BATCH).map(async (c) => {
+          const data = asObj(c.data);
+          delete data.history;
+          data.parent = remapParentRef(data.parent, pageIdMap, newApp, newInstance);
+          const [nc] = await controller.createData([newApp, newCompType, data], user);
+          secIdMap[String(c.id)] = nc.id;
+          await controller.setDataById(nc.id, { id: nc.id }, user, newApp);
+          console.log(`[dms-duplicate] component ${++compDone}/${comps.length}`);
+        }));
       }
 
       // 3) fix up cloned pages: section lists → new section ids/refs, page-tree parent, id mirror
-      for (const p of pages) {
+      //    All page updates are independent once secIdMap is complete, so run in parallel.
+      await Promise.all(pages.map(async (p) => {
         const newPageId = pageIdMap[String(p.id)];
         const d = asObj(p.data);
         const patch = {
@@ -98,12 +110,14 @@ function createDuplicateHandler(controller) {
         // section_groups / draft_section_groups are band UUIDs already on the cloned page — left as-is.
         if (d.parent && pageIdMap[String(d.parent)]) patch.parent = pageIdMap[String(d.parent)];
         await controller.setDataById(newPageId, patch, user, newApp);
-      }
+      }));
 
       return res.json({ data: 'success', newInstance, pages: pages.length, components: comps.length });
     } catch (err) {
       console.error('[dms-duplicate] error:', err.message);
-      return res.status(500).json({ err: err.message });
+      if (!res.headersSent) {
+        return res.status(500).json({ err: err.message });
+      }
     }
   };
 }

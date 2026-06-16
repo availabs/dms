@@ -8,11 +8,13 @@ import {cloneDeep, isEqual, uniqBy} from "lodash-es";
 import {useImmer} from "use-immer";
 import {ThemeContext} from "../../../../../../ui/useTheme";
 import { nameToSlug } from "../../../../../../utils/type-utils";
+import { gisPagesTheme } from "./gisPages.theme";
 
 export default function Table ({apiUpdate, apiLoad, format, source, params, isDms}) {
     const {id, view_id} = params;
     const navigate = useNavigate();
     const {theme} = useContext(ThemeContext) || {};
+    const t = { ...gisPagesTheme, ...(theme?.datasets?.gisPages || {}) };
     const { falcor, baseUrl, pageBaseUrl, user, isUserAuthed, datasources} = useContext(DatasetsContext) || {};
     const pgEnv = getExternalEnv(datasources);
 
@@ -197,7 +199,7 @@ export default function Table ({apiUpdate, apiLoad, format, source, params, isDm
                             theme={theme}
                         />
                     ) : (
-                        <div className="p-4 text-gray-400">Loading columns...</div>
+                        <div className={t.tableLoadingMsg}>Loading columns...</div>
                     )}
                 </div>
     )

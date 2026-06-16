@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useContext} from 'react'
 import {InfoCircle} from "../../admin/ui/icons";
 import { getExternalEnv } from "../utils/datasources";
+import { ThemeContext } from "../../../ui/useTheme";
+import { uploadTheme } from "./upload.theme";
 
 const preventDefaults = e => {
     e.preventDefault();
@@ -121,6 +123,8 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate,
     // 5. choose an id column to update data if there's id match.
 
     const {API_HOST, user, datasources} = useContext(context);
+    const { theme } = useContext(ThemeContext) || {};
+    const t = { ...uploadTheme, ...(theme?.datasets?.upload || {}) };
     const pgEnv = getExternalEnv(datasources) || 'hazmit_dama';
     const damaServerPath = `${API_HOST}/dama-admin/${pgEnv}`;
     const dmsServerPath = `${API_HOST}/dama-admin`;
@@ -132,7 +136,7 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate,
     const [gisUploadId, setGisUploadId] = useState();
     const [layers, setLayers] =useState([]);
     const [layerName, setLayerName] = useState('');
-    const inputClass = `p-1.5 hover:bg-blue-100 rounded-sm`;
+    const inputClass = t.columnDisplayName;
     const existingAttributes = JSON.parse(format.config || '{}')?.attributes || [];
     const [columns, setColumns] = useState([]);
     const [primaryColName, setPrimaryColName] = useState('id');
@@ -168,16 +172,16 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate,
 
     if(!view_id) return 'No version selected.'
     if(publishStatus){
-        return <div className={'flex items-center justify-center w-full h-[150px] border rounded-md'}>
+        return <div className={t.publishStatus}>
             {publishStatus}
         </div>
     }
     return !gisUploadId ?
     // file uploader UI
     (
-        <div className={'w-full h-[300px]'}>
+        <div className={t.uploaderOuter}>
 
-            <div className="flex items-center justify-center w-full"
+            <div className={t.uploaderDropzone}
                  onDragOver={preventDefaults}
                  onDragEnter={preventDefaults}
                  onDragLeave={preventDefaults}
@@ -196,24 +200,24 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate,
                  }}
             >
                 <label htmlFor="dropzone-file"
-                       className="flex flex-col items-center justify-center w-full h-96 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-white hover:bg-gray-50">
-                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                        <svg className="w-8 h-8 mb-4 text-gray-500 " aria-hidden="true"
+                       className={t.uploaderLabel}>
+                    <div className={t.uploaderLabelInner}>
+                        <svg className={t.uploaderSvg} aria-hidden="true"
                              xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
                             <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
                                   d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"/>
                         </svg>
                         {
-                            loading ? <p className="text-xs text-gray-500 ">Uploading...</p> : (
+                            loading ? <p className={t.uploaderLoadingText}>Uploading...</p> : (
                                 <>
-                                    <p className="mb-2 text-sm text-gray-500 ">
-                                        <span className="font-semibold">Click to upload</span> or drag and drop</p>
-                                    <p className="text-xs text-gray-500">a zipped CSV or Excel</p>
+                                    <p className={t.uploaderClickText}>
+                                        <span className={t.uploaderClickBold}>Click to upload</span> or drag and drop</p>
+                                    <p className={t.uploaderTypeText}>a zipped CSV or Excel</p>
                                 </>
                             )
                         }
                     </div>
-                    <input disabled={loading} id="dropzone-file" type="file" className="hidden"
+                    <input disabled={loading} id="dropzone-file" type="file" className={t.uploaderInput}
                            onChange={(e) =>
                         uploadGisDataset({file: e.target.files[0], user, damaServerPath, setGisUploadId, setLoading, setLayers, setLayerName})}/>
                 </label>
@@ -225,12 +229,12 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate,
         // post upload UI
         // after a file has been uploaded to the server, make required selection. then publish.
         (
-            <div className={'w-full border p-2 rounded-md'}>
-                <div className={'w-full pb-4'}>
+            <div className={t.postUploadOuter}>
+                <div className={t.postUploadLayerRow}>
                     <label htmlFor={'layer-selector'}>Sheet to upload:</label>
                     <select
                         id={'layer-selector'}
-                        className={'p-2 ml-4 bg-transparent border rounded-md hover:cursor-pointer'}
+                        className={t.postUploadLayerSelect}
                         value={layerName}
                         onChange={e => setLayerName(e.target.value)}
                     >
@@ -244,13 +248,13 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate,
                 {/*display pivot columns*/}
                 {
                     pivotColumns.length ?
-                        <div className={'p-2 border border-blue-300 rounded-md'}>
-                            <div className={'flex items-center text-blue-500 font-semibold'}>Pivot Columns
+                        <div className={t.pivotColumnsWrapper}>
+                            <div className={t.pivotColumnsTitle}>Pivot Columns
                                 <InfoCircle className={'ml-1 text-blue-500 hover:text-blue-300 cursor-pointer'}
                                             height={18} width={18}
                                             title={'These column headers will become values for the Destination column if there exists a value for a given row in the data.'}/>
                             </div>
-                            <div className={'grid grid-cols-2'}
+                            <div className={t.pivotColumnsGrid}
                                  style={{gridTemplateColumns: '1fr 2fr'}}>
                                 <div>Destination Column</div>
                                 <div>Source Columns</div>
@@ -258,7 +262,7 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate,
                             {
 
                                 pivotColumns.map(existingCol => (
-                                    <div key={existingCol.name} className={'grid grid-cols-2'}
+                                    <div key={existingCol.name} className={t.pivotColumnsGrid}
                                          style={{gridTemplateColumns: '1fr 2fr'}}>
                                         <div>{existingCol.display_name || existingCol.name}</div>
                                         <div>{columns.filter(c => c.existingColumnMatch === existingCol.name).map(c => c.display_name || c.name).join(', ')}</div>
@@ -270,11 +274,11 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate,
                 }
 
                 {/*Render primary column selector*/}
-                <div className={'w-full pb-4 text-red-500'}>
+                <div className={t.primaryColRow}>
                     <label htmlFor={'primary-col-selector'}>Primary Column <span className={'text-xs italic'}>(Existing records will be updated when the primary column value matches)</span>:</label>
                     <select
                         id={'primary-col-selector'}
-                        className={'p-2 ml-4 bg-transparent border rounded-md hover:cursor-pointer border-red-500'}
+                        className={t.primaryColSelect}
                         value={primaryColName}
                         onChange={e => setPrimaryColName(e.target.value)}
                     >
@@ -290,7 +294,7 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate,
                 {
                     columns?.length ?
                         <>
-                            <div className={'p-1 hover:bg-blue-50 rounded-md grid grid-cols-3 font-semibold border-b'}
+                            <div className={t.columnsHeader}
                                  style={{gridTemplateColumns: "1fr 1fr 100px"}}>
                                 <label className={'flex flex-wrap items-center'}>
                                     Display Name
@@ -299,7 +303,7 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate,
                                 <label>Existing Column Match</label>
                                 <label>GEO Column</label>
                             </div>
-                            <div className={'flex flex-col max-h-[700px] overflow-auto scrollbar-sm'}>
+                            <div className={t.columnsBody}>
                                 {
                                     columns
                                         .filter(({
@@ -308,13 +312,13 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate,
                                                  }) => !search || (display_name || name).toLowerCase().includes(search.toLowerCase()))
                                         .map(({name, display_name, existingColumnMatch, geo_col}) => (
                                             <div key={name}
-                                                 className={'p-0.5 hover:bg-blue-50 rounded-md grid grid-cols-3'}
+                                                 className={t.columnRow}
                                                  style={{gridTemplateColumns: "1fr 1fr 100px"}}>
                                                 {/*<input disabled className={inputClass} value={name}/>*/}
                                                 <div key={`${name}_display_name`}
-                                                     className={inputClass}>{display_name}</div>
+                                                     className={t.columnDisplayName}>{display_name}</div>
                                                 <select key={`${name}_select_existing_col`}
-                                                        className={existingColumnMatch ? inputClass : `${inputClass} bg-red-50`}
+                                                        className={existingColumnMatch ? t.columnSelectMatch : t.columnSelectNoMatch}
                                                         value={existingColumnMatch}
                                                         onChange={e =>
                                                             setColumns(columns.map(c => c.name === name ? ({
@@ -333,7 +337,7 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate,
                                                     }
                                                 </select>
                                                 <div key={`${name}_geo_col_div`}
-                                                     className={'flex items-center justify-center'}>
+                                                     className={t.columnGeoCell}>
                                                     <input className={''} type={"checkbox"} checked={geo_col || false}
                                                            onChange={() => {
                                                            }}
@@ -348,8 +352,8 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate,
                                         ))
                                 }
                             </div>
-                            <div className={'mt-1 flex justify-end'}>
-                                <button className={'p-1 bg-blue-300 hover:bg-blue-600 text-white rounded-md'}
+                            <div className={t.publishRow}>
+                                <button className={t.publishBtn}
                                         disabled={publishing}
                                         onClick={() => publish({
                                             ...user,

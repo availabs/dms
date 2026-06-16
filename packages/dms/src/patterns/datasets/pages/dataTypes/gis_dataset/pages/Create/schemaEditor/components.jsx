@@ -1,13 +1,17 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useContext } from "react";
 
 import { mapValues } from "lodash-es"
+import { ThemeContext } from '../../../../../../../../ui/useTheme'
+import { gisCreateTheme } from '../gisCreate.theme'
 // import Dropdown from "react-dropdown";
 // import "react-dropdown/style.css";
 
 const FreeFormColumnNameInput = ({ publishStatus, field, col, onChange }) => {
+  const { theme } = useContext(ThemeContext) || {};
+  const t = { ...gisCreateTheme, ...(theme?.datasets?.gisCreate || {}) };
   return (
     <input
-      className="w-full p-2 flex-1 shadow bg-grey-50 focus:bg-blue-100 border-gray-300"
+      className={t.freeFormInput}
       disabled={publishStatus !== "AWAITING"}
       id={field}
       defaultValue={col || ""}
@@ -41,14 +45,17 @@ const ConstrainedColumnNameInput = ({
     );
   }
 
+  const { theme } = useContext(ThemeContext) || {};
+  const t = { ...gisCreateTheme, ...(theme?.datasets?.gisCreate || {}) };
+
   if (matches && availableDbColNames.length === 1) {
-    return <span className="text-center">{col}</span>;
+    return <span className={t.constrainedText}>{col}</span>;
   }
 
   return (
     <select
       key={key}
-      className="w-full p-2 flex-1 shadow bg-grey-50 focus:bg-blue-100 border-gray-300"
+      className={t.constrainedSelect}
       onChange={(e) => onChange(e.target.value)}
       value={matches ? col : ""}
       placeholder="Select the db column name"
@@ -65,10 +72,12 @@ const ConstrainedColumnNameInput = ({
 };
 
 export const GisDatasetLayerDatabaseDbSchemaForm = ({ state, dispatch }) => {
-  const { 
-    layerName, 
-    tableDescriptor, 
-    publishStatus, 
+  const { theme } = useContext(ThemeContext) || {};
+  const t = { ...gisCreateTheme, ...(theme?.datasets?.gisCreate || {}) };
+  const {
+    layerName,
+    tableDescriptor,
+    publishStatus,
     databaseColumnNames,
     mbtilesOptions
     } = state;
@@ -125,7 +134,7 @@ export const GisDatasetLayerDatabaseDbSchemaForm = ({ state, dispatch }) => {
 
   if (!gisDatasetFieldNamesToDbColumns) {
     return (
-      <span className="w-full p-10 text-center">
+      <span className={t.schemaFormWaitMsg}>
         Please wait... the server is analyzing the {layerName} layer. This may
         take a few moments.
       </span>
@@ -170,28 +179,28 @@ export const GisDatasetLayerDatabaseDbSchemaForm = ({ state, dispatch }) => {
 
   return (
     <div>
-      <span className="text-lg font-bold">Field Names Mappings</span>
+      <span className={t.schemaFormTitle}>Field Names Mappings</span>
       <div>
-        <table className="w-full">
+        <table className={t.schemaFormTable}>
           <thead>
             <tr>
-              <th className="text-center" style={{ paddingRight: "40px" }}>
+              <th className={t.schemaFormThCenter} style={{ paddingRight: "40px" }}>
                 Upload File Columns
               </th>
-              <th className="text-center">Database Column Name</th>
-              <th className="text-center">
+              <th className={t.schemaFormThCenter}>Database Column Name</th>
+              <th className={t.schemaFormThCenter}>
                 Omit
                 <input
-                  className="ml-2"
+                  className={t.schemaFormCheckboxMl}
                   type="checkbox"
                   checked={!allChecked}
                   onChange={onChangeAllOmit}
                 />
               </th>
-              <th className="text-center">
+              <th className={t.schemaFormThCenter}>
                 Mbtile
                 <input
-                  className="ml-2"
+                  className={t.schemaFormCheckboxMl}
                   type="checkbox"
                   checked={!allPreserveColumnsChecked}
                   onChange={onChangeAllPreserveColumns}
@@ -229,10 +238,10 @@ export const GisDatasetLayerDatabaseDbSchemaForm = ({ state, dispatch }) => {
               );
 
               return (
-                <tr key={key} className="border-b">
-                  <td className="py-4 text-left">{key}</td>
-                  <td className="text-center  p-2">{ColNameCell}</td>
-                  <td className="text-center">
+                <tr key={key} className={t.schemaFormRow}>
+                  <td className={t.schemaFormTdKey}>{key}</td>
+                  <td className={t.schemaFormTdVal}>{ColNameCell}</td>
+                  <td className={t.schemaFormTdCheck}>
                     <input
                       type="checkbox"
                       checked={omittedFields[key]}
@@ -268,7 +277,7 @@ export const GisDatasetLayerDatabaseDbSchemaForm = ({ state, dispatch }) => {
                       }}
                     />
                   </td>
-                  <td className="text-center">
+                  <td className={t.schemaFormTdCheck}>
                     <input
                       type="checkbox"
                       checked={preserveColumns[col]}
