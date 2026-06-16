@@ -43,6 +43,7 @@ export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest})
   const [tmpValue, setTmpValue] = useImmer(value);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [isDuplicating, setIsDuplicating] = useState(false);
+  const [duplicateProgress, setDuplicateProgress] = useState(0);
 
   const showDmsEnvConfig = ['datasets', 'forms', 'page', 'mapeditor'].includes(value.pattern_type);
 
@@ -66,29 +67,43 @@ export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest})
 
   const handleDuplicate = async () => {
       setIsDuplicating(true);
+      setDuplicateProgress(0);
       try {
           const siteInstance = getInstance(siteType) || type;
           const oldInstance = getInstance(value.type) || value?.base_url?.replace(/\//g, '');
           const newName = `${value.name}_copy`;
           const newSlug = nameToSlug(newName);
 
-          // 1. Copy pages/sections on the server
+          // 1. Queue the duplicate task — returns { task_id } immediately.
           const dmsServerPath = `${API_HOST}/dama-admin`;
           const dupRes = await fetch(`${dmsServerPath}/dms/${app}+${oldInstance}/duplicate`, {
               method: "POST",
               body: JSON.stringify({ newApp: app, newType: newSlug }),
               headers: { "Content-Type": "application/json" },
           });
-          // Surface a failed copy (e.g. server without the /duplicate route) instead of
-          // silently creating an empty pattern.
           const dupBody = await dupRes.json().catch(() => ({}));
           if (!dupRes.ok || dupBody?.err) {
-              console.error('[duplicate] page/section copy failed:', dupBody?.err || dupRes.status);
+              console.error('[duplicate] failed to queue task:', dupBody?.err || dupRes.status);
               window.alert(`Pattern duplicate failed: ${dupBody?.err || `HTTP ${dupRes.status}`} (server: ${API_HOST}). Pattern not created.`);
               return;
           }
 
-          // 2. Create new pattern record
+          // 2. Poll until pages/sections are fully cloned.
+          const { task_id } = dupBody;
+          for (;;) {
+              await new Promise(r => setTimeout(r, 3000));
+              const statusRes = await fetch(`${dmsServerPath}/dms/tasks/${task_id}`);
+              const task = await statusRes.json().catch(() => ({}));
+              if (task.progress != null) setDuplicateProgress(task.progress);
+              if (task.status === 'done') break;
+              if (task.status === 'error') {
+                  console.error('[duplicate] task failed:', task.error);
+                  window.alert(`Pattern duplicate failed: ${task.error}. Pattern not created.`);
+                  return;
+              }
+          }
+
+          // 3. Create new pattern record
           const dataToCopy = {
               app: value.app,
               base_url: `${value.base_url}_copy`,
@@ -254,7 +269,7 @@ export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest})
               onClick={handleDuplicate}
             >
               <Icon icon='Copy' className={t.iconSm}/>
-              {isDuplicating ? 'Duplicating...' : 'Duplicate'}
+              {isDuplicating ? `Duplicating... ${Math.round(duplicateProgress * 100)}%` : 'Duplicate'}
             </button>
 
             {!confirmDelete ? (

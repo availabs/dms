@@ -153,6 +153,7 @@ function PatternEdit({
 	const [addingNew, setAddingNew] = useState(false);
 	const [editingItem, setEditingItem] = useState(undefined);
 	const [isDuplicating, setIsDuplicating] = useState(false);
+	const [duplicateProgress, setDuplicateProgress] = useState(0);
 	const siteInstance = getInstance(siteType) || siteType;
 	const tenantSub = (() => {
 		if (!isMultiTenant) return '';
@@ -218,6 +219,7 @@ function PatternEdit({
 
 	const duplicate = async({oldInstance, newInstance}, item) => {
 		setIsDuplicating(true);
+		setDuplicateProgress(0);
 		try {
 			// Queue the duplicate task — returns immediately with { task_id }.
 			const res = await fetch(`${dmsServerPath}/dms/${app}+${oldInstance}/duplicate`, {
@@ -238,6 +240,7 @@ function PatternEdit({
 				await new Promise(r => setTimeout(r, 3000));
 				const statusRes = await fetch(`${dmsServerPath}/dms/tasks/${task_id}`);
 				const task = await statusRes.json().catch(() => ({}));
+				if (task.progress != null) setDuplicateProgress(task.progress);
 				if (task.status === 'done') break;
 				if (task.status === 'error') {
 					console.error('[duplicate] task failed:', task.error);
@@ -394,7 +397,7 @@ function PatternEdit({
 									await duplicate({oldInstance, newInstance: nameToSlug(newName)}, dataToCopy)
 									setEditingItem(undefined)
 								}}
-							> {isDuplicating ? 'duplicating...' : 'duplicate'}
+							> {isDuplicating ? `duplicating... ${Math.round(duplicateProgress * 100)}%` : 'duplicate'}
 							</Button>
 							<Button
 								className={t.btnRemove}
