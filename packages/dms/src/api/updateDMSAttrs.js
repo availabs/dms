@@ -15,7 +15,7 @@ export 	async function updateDMSAttrs(data, configs, falcor) {
         // console.log('to Update', toUpdate)
         for (const dU of toUpdate) {
             let d = cloneDeep(dU)
-            let id = d?.id || false
+            let id = Number.isFinite(+d?.id) && +d?.id > 0 ? d?.id : false
             let dirty = d?._dirty || false
 
             for(const key of ['id', 'ref', 'created_at', 'updated_at', 'created_by', 'updated_by', '_dirty']) {

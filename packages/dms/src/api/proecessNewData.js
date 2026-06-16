@@ -174,7 +174,7 @@ async function loadDmsFormats (item,dmsAttrsConfigs, format, falcor, isDataByApp
                         if(Object.keys(dmsSubAttrsConfigs).length > 0){
                             await loadDmsFormats(value, dmsSubAttrsConfigs, dmsSubFormats[key], falcor)
                         }
-                        item[key][index]= {...ref,...value, ...meta}
+                        item[key][index]= {...ref,...value, ...meta, id: ref.id}
                         index += 1
                     }
                 }
