@@ -9,6 +9,7 @@ const { downloadGuard, createDownload, deleteDownload } = require('./download-ro
 const { fileUpload } = require('./file-upload-route');
 const { createFileUploadDmsHandler } = require('./file-upload-dms-route');
 const { createDuplicateHandler } = require('./dms-duplicate');
+const dmsTasks = require('../../dms/tasks');
 const { serveTile } = require('../tiles/tiles.rest');
 const { createController } = require('../../routes/dms/dms.controller');
 
@@ -35,8 +36,19 @@ function registerUploadRoutes(app) {
   // Phase 3: Validate
   app.post('/dama-admin/dms/:appType/validate', createValidateHandler(controller));
 
-  // Pattern duplicate — deep-clones a pattern + its pages + sections under a new instance.
+  // Pattern duplicate — queues a background task; client polls /dms/tasks/:taskId for status.
   app.post('/dama-admin/dms/:appType/duplicate', createDuplicateHandler(controller));
+
+  // Task status — used by the client to poll for duplicate (and future long-running) tasks.
+  app.get('/dama-admin/dms/tasks/:taskId', async (req, res) => {
+    try {
+      const task = await dmsTasks.getTaskStatus(Number(req.params.taskId));
+      if (!task) return res.status(404).json({ err: 'Task not found' });
+      return res.json(task);
+    } catch (err) {
+      return res.status(500).json({ err: err.message });
+    }
+  });
 
   // GIS analysis + publish routes (some require GDAL)
   app.get('/dama-admin/:pgEnv/gis-dataset/:fileId/layerNames', layerNames);
@@ -63,7 +75,7 @@ function registerUploadRoutes(app) {
   // Event polling compat shim (legacy clients poll this for task progress)
   app.get('/dama-admin/:pgEnv/events/query', eventsQuery);
 
-  console.log('Upload: registered 17 routes at /dama-admin/ and /dms-admin/');
+  console.log('Upload: registered 18 routes at /dama-admin/ and /dms-admin/');
 }
 
 module.exports = { registerUploadRoutes };

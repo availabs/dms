@@ -401,8 +401,8 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
         const subdomain = this.subdomain;
         const results = await Promise.all(
           apps.map(app =>
-            controller.getDataById(ids, atts, app)
-              .then(rows => dataByIdResponse(rows, ids, atts, app, user, subdomain))
+            controller.getDataById(ids.filter(i => i !== 'no-access'), atts, app)
+              .then(rows => dataByIdResponse(rows, ids.filter(i => i !== 'no-access'), atts, app, user, subdomain))
           )
         );
         return [].concat(...results);

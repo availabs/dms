@@ -1,13 +1,17 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useContext } from "react";
 
 
 import {
   GisDatasetUploadErrorMessage,
   GisDatasetFileMeta,
 } from "./components";
+import { ThemeContext } from '../../../../../../../../ui/useTheme'
+import { gisCreateTheme } from '../gisCreate.theme'
 
 
 export default function UploadGisDataset({ state, dispatch }) {
+  const { theme } = useContext(ThemeContext) || {};
+  const t = { ...gisCreateTheme, ...(theme?.datasets?.gisCreate || {}) };
   const {
     etlContextId,
     userId,
@@ -92,8 +96,8 @@ export default function UploadGisDataset({ state, dispatch }) {
   if (!uploadedFile) {
     return (
       <>
-      <div className="w-full border border-dashed border-gray-300 bg-gray-100">
-        <div className="p-4">
+      <div className={t.uploadFileWrapper}>
+        <div className={t.uploadFileInner}>
           <button>
             <input
               type="file"

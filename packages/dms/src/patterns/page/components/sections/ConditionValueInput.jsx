@@ -40,8 +40,12 @@ const sortOptions = (options) =>
             : b?.label - a?.label
     );
 
-// Fetches unique values for a column (for filter/exclude multiselect)
-export const useColumnOptions = (columnName, columns, operation, search, selectedValues, siblingConditions = [], col_source_id = null) => {
+const OPTIONS_COUNT_ATTR = 'count(1) as _count';
+
+// Fetches unique values for a column (for filter/exclude multiselect).
+// When withCounts=true, also fetches per-value row counts via a grouped query.
+// metaOptions: predefined {label,value} pairs — those missing from server results appear with count 0.
+export const useColumnOptions = (columnName, columns, operation, search, selectedValues, siblingConditions = [], col_source_id = null, withCounts = false, metaOptions = []) => {
     const {apiLoad, state} = useContext(ComponentContext) || {};
     const [options, setOptions] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -61,6 +65,8 @@ export const useColumnOptions = (columnName, columns, operation, search, selecte
             .filter(s => s.col && s.value != null && (Array.isArray(s.value) ? s.value.length > 0 : s.value !== ''))
             .map(s => ({ col: s.col, op: s.op, value: s.value }))
     ), [siblingConditions]);
+
+    const metaOptionsKey = useMemo(() => JSON.stringify((metaOptions || []).map(o => o.value)), [metaOptions]);
 
     useEffect(() => {
         if (!['filter', 'exclude'].includes(operation)) {
@@ -94,6 +100,13 @@ export const useColumnOptions = (columnName, columns, operation, search, selecte
                         const arrayOp = sibling.op === 'exclude' ? 'array_not_contains' : 'array_contains';
                         if (!acc.filterGroups) acc.filterGroups = { op: 'AND', groups: [] };
                         acc.filterGroups.groups.push({ col: sibRef, op: arrayOp, value: values });
+                    } else if (sibling.op === 'like') {
+                        // flat filterBy.like expects a scalar string with % wildcards already embedded,
+                        // not an array — same format the search path uses: `%${search}%`
+                        const raw = Array.isArray(val) ? val[0] : val;
+                        if (raw != null && raw !== '') {
+                            acc.like = { ...(acc.like || {}), [sibRef]: `%${raw}%` };
+                        }
                     } else {
                         acc[sibling.op] = { ...(acc[sibling.op] || {}), [sibRef]: values };
                     }
@@ -104,30 +117,91 @@ export const useColumnOptions = (columnName, columns, operation, search, selecte
                     ? { ...siblingFilterBy, like: { ...(siblingFilterBy.like || {}), [refName]: `%${search}%` } }
                     : siblingFilterBy;
 
-                const data = await getData({
-                  format: sourceInfo,
-                  apiLoad,
-                  reqName,
-                  refName,
-                  rawName: columnName,
-                  allAttributes: columns,
-                  filterBy,
-                  limit: OPTIONS_LIMIT,
-                });
+                let allOptions;
+                if (withCounts) {
+                    // GROUP BY already produces unique values + counts in one query — no need
+                    // for a separate DISTINCT fetch or a getLength preflight.
+                    const countAttrs = [reqName, OPTIONS_COUNT_ATTR];
+                    const {name: metaName, display, meta_lookup} = columns.find(a => a.name === reqName || a.name === columnName) || {};
+                    const meta = ['meta-variable', 'geoid-variable', 'meta'].includes(display) && meta_lookup ? {[metaName]: meta_lookup} : {};
+                    const countData = await apiLoad({
+                        app: sourceInfo.app,
+                        type: sourceInfo.type,
+                        format: sourceInfo,
+                        attributes: countAttrs,
+                        children: [{
+                            type: () => {},
+                            action: 'uda',
+                            path: '/',
+                            filter: {
+                                fromIndex: 0,
+                                toIndex: OPTIONS_LIMIT - 1,
+                                options: JSON.stringify({
+                                    ...filterBy,
+                                    meta,
+                                    groupBy: [refName],
+                                    keepOriginalValues: true,
+                                }),
+                                attributes: countAttrs,
+                                stopFullDataLoad: true,
+                            },
+                        }],
+                    }).catch(e => {
+                        console.warn('useColumnOptions: count query failed', e);
+                        return [];
+                    });
+                    if (cancelled) return;
 
-                if (cancelled) return;
+                    // Build countMap and raw options from the same result set
+                    const countMap = new Map();
+                    const rawOptions = [];
+                    (countData || []).forEach(row => {
+                        const parsed = parseDataOptions([row], reqName);
+                        const count = parseInt(row[OPTIONS_COUNT_ATTR] ?? '0', 10) || 0;
+                        parsed.forEach(opt => {
+                            if (opt.value != null) {
+                                countMap.set(String(opt.value), (countMap.get(String(opt.value)) || 0) + count);
+                                rawOptions.push(opt);
+                            }
+                        });
+                    });
 
-                const fetched = uniqBy(parseDataOptions(data, reqName), d => d.value);
+                    const fetched = uniqBy(rawOptions, d => d.value);
+                    const withCountLabels = fetched.map(opt => ({
+                        ...opt,
+                        label: countMap.has(String(opt.value))
+                            ? `${opt.label} (${countMap.get(String(opt.value))})`
+                            : opt.label,
+                    }));
+                    const fetchedValueSet = new Set(fetched.map(o => String(o.value)));
+                    const missingMeta = (metaOptions || [])
+                        .filter(o => o.value != null && !fetchedValueSet.has(String(o.value)))
+                        .map(o => ({ ...o, label: `${o.label} (0)` }));
+                    allOptions = [...withCountLabels, ...missingMeta];
+                } else {
+                    const data = await getData({
+                        format: sourceInfo,
+                        apiLoad,
+                        reqName,
+                        refName,
+                        rawName: columnName,
+                        allAttributes: columns,
+                        filterBy,
+                        limit: OPTIONS_LIMIT,
+                    });
+                    if (cancelled) return;
+                    allOptions = uniqBy(parseDataOptions(data, reqName), d => d.value);
+                }
 
                 // merge selected values so they stay visible in the list
                 const selectedSet = new Set((selectedValues || []).map(v => v?.value ?? v));
                 if (search && selectedSet.size) {
                     setOptions(prev => {
                         const selectedFromPrev = prev.filter(o => selectedSet.has(o.value));
-                        return sortOptions(uniqBy([...selectedFromPrev, ...fetched], d => d.value));
+                        return sortOptions(uniqBy([...selectedFromPrev, ...allOptions], d => d.value));
                     });
                 } else {
-                    setOptions(sortOptions(fetched));
+                    setOptions(sortOptions(allOptions));
                 }
             } catch (e) {
                 console.error('ConditionValueInput: failed to load options', e);
@@ -139,7 +213,7 @@ export const useColumnOptions = (columnName, columns, operation, search, selecte
         load();
         prevSearchRef.current = search;
         return () => { cancelled = true; };
-    }, [columnName, operation, search, apiLoad, sourceInfo, isDms, columns, siblingFilterByKey]);
+    }, [columnName, operation, search, apiLoad, sourceInfo, isDms, columns, siblingFilterByKey, withCounts, metaOptionsKey]);
 
     return {options, loading};
 };

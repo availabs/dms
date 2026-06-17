@@ -1,8 +1,12 @@
-import React, {useEffect} from "react";
+import React, {useEffect, useContext} from "react";
 import { LayerAnalysisSection } from './components'
 import { useLocation } from "react-router";
+import { ThemeContext } from '../../../../../../../../ui/useTheme'
+import { gisCreateTheme } from '../gisCreate.theme'
 
 export default function SelectLayer({state, dispatch}) {
+  const { theme } = useContext(ThemeContext) || {};
+  const t = { ...gisCreateTheme, ...(theme?.datasets?.gisCreate || {}) };
   const location = useLocation();
   const { 
     damaServerPath,
@@ -178,14 +182,14 @@ export default function SelectLayer({state, dispatch}) {
   }  
 
   return (
-    <div className='border-t border-gray-200 w-full'>
-      <table className="w-full ">
+    <div className={t.selectLayerWrapper}>
+      <table className={t.selectLayerTable}>
         <tbody>
           <tr>
-            <td className="py-4 text-left">Select Layer</td>
-            <td className="py-4 text-center">
+            <td className={t.selectLayerTdLabel}>Select Layer</td>
+            <td className={t.selectLayerTdSelect}>
               <select
-                className="text-center w-1/2 bg-white p-2 shadow bg-grey-50 focus:bg-blue-100 border-gray-300"
+                className={t.selectLayerSelect}
                 value={layerName || ""}
                 onChange={(e) => dispatch({type:'update', payload: {layerName: e.target.value}})}
               >

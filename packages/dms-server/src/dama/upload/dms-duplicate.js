@@ -6,14 +6,14 @@
  * page↔section cross-references. The pattern ROW itself is created by the client
  * (`patternList.jsx` calls `addNewValue` after this), so we don't touch it here.
  *
- * Replaces the legacy avail-falcor `cloneType`, which was written for the old
- * doc_type/ref-array model and was never ported — so the Duplicate button
- * (POST /dama-admin/dms/:appType/duplicate) used to 404 silently and the copy
- * landed with no pages.
+ * The operation is handed off to the DMS task queue so the HTTP request returns
+ * immediately with `{ task_id }`. The client polls
+ * `GET /dama-admin/dms/tasks/:taskId` until status is `done` or `error`, then
+ * calls `addNewValue` to create the pattern row.
  *
  *   POST /dama-admin/dms/:appType/duplicate     (:appType = "<app>+<oldInstance>")
  *   body: { newApp?, newType (= new instance slug) }
- *   → { data:'success', newInstance, pages, components }
+ *   → { task_id }
  *
  * Notes:
  * - Pages/components are located by type (`<instance>|page` / `<instance>|component`),
@@ -21,6 +21,7 @@
  * - `history` is not cloned (its refs would dangle); the copy starts with fresh history.
  */
 const { buildType } = require('../../db/type-utils');
+const { registerHandler, queueTask } = require('../../dms/tasks');
 
 const asObj = (d) => (typeof d === 'string'
   ? (() => { try { return JSON.parse(d); } catch { return {}; } })()
@@ -52,57 +53,85 @@ function remapParentRef(parent, pageIdMap, newApp, newInstance) {
 }
 
 function createDuplicateHandler(controller) {
+  // Register the worker once — controller is captured in closure.
+  // The polling loop picks this up and runs it in-process.
+  registerHandler('dms/pattern_duplicate', async (ctx) => {
+    const { app, oldInstance, newInstance, newApp, userId } = ctx.task.descriptor;
+    const user = { id: userId ?? null };
+    const tag = `[dms-duplicate task=${ctx.task.task_id}]`;
+
+    // 1) clone pages (defer section-ref remap until the sections exist)
+    const pages = await controller.getRowsByTypes(app, [buildType({ parent: oldInstance, kind: 'page' })]);
+    const newPageType = buildType({ parent: newInstance, kind: 'page' });
+    const pageIdMap = {};
+    let pageI = 0;
+    for (const p of pages) {
+      const data = asObj(p.data);
+      delete data.history;
+      const [np] = await controller.createData([newApp, newPageType, data], user);
+      pageIdMap[String(p.id)] = np.id;
+      console.log(`${tag} page ${++pageI}/${pages.length}`);
+      await ctx.updateProgress(pageI / pages.length * 0.3);
+    }
+
+    // 2) clone components in parallel batches — each component is independent
+    const comps = await controller.getRowsByTypes(app, [buildType({ parent: oldInstance, kind: 'component' })]);
+    const newCompType = buildType({ parent: newInstance, kind: 'component' });
+    const secIdMap = {};
+    const COMP_BATCH = 50;
+    let compDone = 0;
+    for (let i = 0; i < comps.length; i += COMP_BATCH) {
+      await Promise.all(comps.slice(i, i + COMP_BATCH).map(async (c) => {
+        const data = asObj(c.data);
+        delete data.history;
+        data.parent = remapParentRef(data.parent, pageIdMap, newApp, newInstance);
+        const [nc] = await controller.createData([newApp, newCompType, data], user);
+        secIdMap[String(c.id)] = nc.id;
+        await controller.setDataById(nc.id, { id: nc.id }, user, newApp);
+        const done = ++compDone;
+        console.log(`${tag} component ${done}/${comps.length}`);
+      }));
+      await ctx.updateProgress(0.3 + compDone / comps.length * 0.6);
+    }
+
+    // 3) fix up cloned pages: section lists → new section ids/refs, page-tree parent, id mirror
+    await Promise.all(pages.map(async (p) => {
+      const newPageId = pageIdMap[String(p.id)];
+      const d = asObj(p.data);
+      const patch = {
+        id: newPageId,
+        sections: remapSectionRefs(d.sections, secIdMap, newApp, newInstance),
+        draft_sections: remapSectionRefs(d.draft_sections, secIdMap, newApp, newInstance),
+      };
+      if (d.parent && pageIdMap[String(d.parent)]) patch.parent = pageIdMap[String(d.parent)];
+      await controller.setDataById(newPageId, patch, user, newApp);
+    }));
+
+    console.log(`${tag} done — ${pages.length} pages, ${comps.length} components`);
+    return { newInstance, pages: pages.length, components: comps.length };
+  });
+
   return async function duplicate(req, res) {
     const [app, oldInstance] = (req.params.appType || '').split('+');
     const { newApp = app, newType: newInstance } = req.body || {};
-    const user = { id: req.user?.id ?? null };
+    const userId = req.user?.id ?? null;
 
     if (!app || !oldInstance || !newInstance) {
       return res.status(400).json({ err: 'appType ("app+oldInstance") and newType are required' });
     }
 
     try {
-      // 1) clone pages (defer section-ref remap until the sections exist)
-      const pages = await controller.getRowsByTypes(app, [buildType({ parent: oldInstance, kind: 'page' })]);
-      const newPageType = buildType({ parent: newInstance, kind: 'page' });
-      const pageIdMap = {};
-      for (const p of pages) {
-        const data = asObj(p.data);
-        delete data.history;
-        const [np] = await controller.createData([newApp, newPageType, data], user);
-        pageIdMap[String(p.id)] = np.id;
-      }
-
-      // 2) clone components, remapping each section's parent → its new page
-      const comps = await controller.getRowsByTypes(app, [buildType({ parent: oldInstance, kind: 'component' })]);
-      const newCompType = buildType({ parent: newInstance, kind: 'component' });
-      const secIdMap = {};
-      for (const c of comps) {
-        const data = asObj(c.data);
-        delete data.history;
-        data.parent = remapParentRef(data.parent, pageIdMap, newApp, newInstance);
-        const [nc] = await controller.createData([newApp, newCompType, data], user);
-        secIdMap[String(c.id)] = nc.id;
-        await controller.setDataById(nc.id, { id: nc.id }, user, newApp); // mirror data.id → new row id
-      }
-
-      // 3) fix up cloned pages: section lists → new section ids/refs, page-tree parent, id mirror
-      for (const p of pages) {
-        const newPageId = pageIdMap[String(p.id)];
-        const d = asObj(p.data);
-        const patch = {
-          id: newPageId,
-          sections: remapSectionRefs(d.sections, secIdMap, newApp, newInstance),
-          draft_sections: remapSectionRefs(d.draft_sections, secIdMap, newApp, newInstance),
-        };
-        // section_groups / draft_section_groups are band UUIDs already on the cloned page — left as-is.
-        if (d.parent && pageIdMap[String(d.parent)]) patch.parent = pageIdMap[String(d.parent)];
-        await controller.setDataById(newPageId, patch, user, newApp);
-      }
-
-      return res.json({ data: 'success', newInstance, pages: pages.length, components: comps.length });
+      const taskId = await queueTask({
+        workerPath: 'dms/pattern_duplicate',
+        app,
+        oldInstance,
+        newInstance,
+        newApp,
+        userId,
+      });
+      return res.json({ task_id: taskId });
     } catch (err) {
-      console.error('[dms-duplicate] error:', err.message);
+      console.error('[dms-duplicate] failed to queue task:', err.message);
       return res.status(500).json({ err: err.message });
     }
   };

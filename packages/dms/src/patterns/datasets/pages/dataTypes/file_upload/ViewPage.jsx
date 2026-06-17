@@ -4,8 +4,12 @@ import { get } from "lodash-es"
 
 import { DatasetsContext } from "../../../context";
 import { getExternalEnv } from "../../../utils/datasources";
+import { ThemeContext } from "../../../../../ui/useTheme";
+import { viewPageTheme } from "./ViewPage.theme";
 
 const ViewPage = ({ source, isDms }) => {
+	const { theme } = React.useContext(ThemeContext) || {};
+	const t = { ...viewPageTheme, ...(theme?.datasets?.fileUploadViewPage || {}) };
 
 	const {
 		app,
@@ -20,7 +24,7 @@ const ViewPage = ({ source, isDms }) => {
 	}, [source]);
 
 	return (
-		<div className="w-fit grid grid-cols-1 gap-2">
+		<div className={t.viewPageWrapper}>
 			{ views.map(view => (
 					isDms
 						? <DmsView key={ view.view_id }
@@ -48,6 +52,8 @@ const OPS = JSON.stringify({});
 // DMS-backed view — file metadata lives in the view row's `data.file` object.
 // Read via the app-namespaced byId falcor route.
 const DmsView = ({ app, view, useFalcor }) => {
+	const { theme } = React.useContext(ThemeContext) || {};
+	const t = { ...viewPageTheme, ...(theme?.datasets?.fileUploadViewPage || {}) };
 	const { falcor, falcorCache } = useFalcor();
 
 	const viewId = React.useMemo(() => +view.view_id, [view]);
@@ -66,13 +72,13 @@ const DmsView = ({ app, view, useFalcor }) => {
 	const file = data?.file;
 
 	return (
-		<div className="p-2 rounded-lg bg-gray-100">
-			<div className="border-b-2 mb-2">
+		<div className={t.viewCard}>
+			<div className={t.viewCardHeader}>
 				{ view.name || `View ${ viewId }` }
 			</div>
-			<div className="grid grid-cols-1 gap-2">
+			<div className={t.viewCardGrid}>
 				{ file ? <ViewItem { ...file }/> : (
-					<div className="text-sm text-gray-500">No file attached.</div>
+					<div className={t.viewCardEmpty}>No file attached.</div>
 				) }
 			</div>
 		</div>
@@ -82,6 +88,8 @@ const DmsView = ({ app, view, useFalcor }) => {
 // Legacy pgEnv-backed view — file metadata lives in data_manager.views.metadata
 // and is surfaced via UDA dataByIndex.
 const LegacyView = ({ view, useFalcor, pgEnv }) => {
+	const { theme } = React.useContext(ThemeContext) || {};
+	const t = { ...viewPageTheme, ...(theme?.datasets?.fileUploadViewPage || {}) };
 
 	const lengthPath = React.useMemo(() => {
 		return ["uda", pgEnv, "viewsById", view.view_id, "options", OPS, "length"];
@@ -126,11 +134,11 @@ const LegacyView = ({ view, useFalcor, pgEnv }) => {
 	}, [falcorCache, view.view_id, pgEnv, dataLength]);
 
 	return (
-		<div className="p-2 rounded-lg bg-gray-100">
-			<div className="border-b-2 mb-2">
+		<div className={t.viewCard}>
+			<div className={t.viewCardHeader}>
 				{ view.name || `View ${ view.view_id }` }
 			</div>
-			<div className="grid grid-cols-1 gap-2">
+			<div className={t.viewCardGrid}>
 				{ data.map((d, i) => (
 						<ViewItem key={ `${ view.view_id }-${ i }` } { ...d }/>
 					))
@@ -141,6 +149,8 @@ const LegacyView = ({ view, useFalcor, pgEnv }) => {
 }
 
 const ViewItem = ({ file_type, dl_url }) => {
+	const { theme } = React.useContext(ThemeContext) || {};
+	const t = { ...viewPageTheme, ...(theme?.datasets?.fileUploadViewPage || {}) };
 
 	const isImage = React.useMemo(() => {
 		return IMAGE_TYPES.includes(file_type);
@@ -173,42 +183,25 @@ const ViewItem = ({ file_type, dl_url }) => {
 	}, []);
 
 	return (
-		<div className="bg-gray-200 p-2 rounded-lg w-fit">
+		<div className={t.viewItemWrapper}>
 			<div>File Type: { file_type }</div>
 			<a download
-				className={ `
-					block w-fit
-					${ isImage ?
-						 "px-2 pt-2 rounded hover:font-bold bg-gray-300 hover:bg-gray-400" :
-						 ""
-					}
-				` }
+				className={ isImage ? t.viewItemLinkImage : t.viewItemLink }
 				href={ dl_url }
 			>
 				{ !isImage ? null :
 					<img src={ dl_url }/>
 				}
-				<div className={ `
-					  flex justify-center
-							${ isImage ? "" :
-								`w-100 py-2 rounded flex justify-center
-								 bg-gray-300 hover:bg-gray-400 hover:font-bold
-								`
-							}
-					` }
-				>
+				<div className={ isImage ? t.viewItemDownloadLabelImage : t.viewItemDownloadLabel }>
 					click to download
 				</div>
 			</a>
-			<div className={ `mt-2 relative` }
+			<div className={t.viewItemCopyRow}
 				onMouseEnter={ onMouseEnter }
 				onMouseLeave={ onMouseLeave }
 			>
 				{ !(hovering && hasClipboard) || copied ? null :
-					<div className={ `
-							absolute inset-0 rounded text-white cursor-pointer
-							flex items-center justify-center font-bold
-						` }
+					<div className={t.viewItemCopyOverlay}
 						onClick={ copyToClipboard }
 						style={ {
 							background: "radial-gradient(rgba(0, 0, 0, 1.0), rgba(0, 0, 0, 0.2))"
@@ -218,7 +211,7 @@ const ViewItem = ({ file_type, dl_url }) => {
 					</div>
 				}
 				<input type="text" readOnly ref={ setRef }
-					className="block w-full p-2 focus:outline-2 hover:outline-2 rounded cursor-pointer text-center"
+					className={t.viewItemUrlInput}
 					value={ dl_url }
 					onClick={ selectUrlInput }/>
 			</div>

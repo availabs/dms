@@ -4,6 +4,7 @@ import React from "react";
 import { cloneDeep } from "lodash-es";
 import { ThemeContext, mergeTheme, getPatternTheme } from "../../ui/useTheme";
 import { AdminContext } from "./context";
+import { sectionGroupTheme } from './siteConfig.theme';
 import UI from "../../ui";
 import defaultTheme from "../../ui/defaultTheme";
 import { initializePatternFormat } from "../../dms-manager/_utils";
@@ -22,20 +23,22 @@ import PatternEditor from "./pages/patternEditor";
 
 const SectionGroup = ({
   children,
-  maxWidth = "max-w-7xl",
-  padding = "p-4",
+  maxWidth,
+  padding,
   ...props
-}) => (
-  <div className={`h-full flex flex-1 p-1.5 `}>
-    <div
-      className={`flex flex-1 w-full flex-col shadow-md bg-white rounded-lg relative text-md font-light leading-7 ${padding} h-full min-h-[calc(100vh_-_102px)]`}
-    >
-      <div className={`h-full flex flex-col w-full ${maxWidth}`}>
-        {children}
+}) => {
+  const { theme } = React.useContext(ThemeContext) || {}
+  const t = { ...sectionGroupTheme, ...(theme?.admin?.sectionGroup || {}) }
+  return (
+    <div className={t.outer}>
+      <div className={`${t.inner} ${padding || t.defaultPadding}`}>
+        <div className={`${t.content} ${maxWidth || t.defaultMaxWidth}`}>
+          {children}
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 const adminConfig = ({
   app = "default-app",

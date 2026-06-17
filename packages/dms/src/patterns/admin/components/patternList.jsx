@@ -5,6 +5,7 @@ import { useFalcor } from "@availabs/avl-falcor";
 import {AdminContext} from "../context";
 import { ThemeContext } from '../../../ui/useTheme';
 import { nameToSlug, getInstance } from '../../../utils/type-utils';
+import { patternListTheme } from './patternList.theme'
 
 const parseIfJSON = strValue => {
     if (typeof strValue !== 'string' && Array.isArray(strValue)) return strValue;
@@ -17,10 +18,11 @@ const parseIfJSON = strValue => {
 }
 
 const RenderFilters = ({value=[], onChange, ...rest}) => {
-    const {UI} = useContext(ThemeContext);
+    const {UI, theme} = useContext(ThemeContext);
     const [tmpValue, setTmpValue] = useState(parseIfJSON(value));
     const [newFilter, setNewFilter] = useState({});
     const {FieldSet, Button} = UI;
+    const t = { ...patternListTheme, ...(theme?.admin?.patternList || {}) }
     const customTheme = {
         field: 'pb-2 flex flex-col'
     }
@@ -34,12 +36,12 @@ const RenderFilters = ({value=[], onChange, ...rest}) => {
     }
 
     return (
-        <div className={'flex flex-col gap-1 p-1 border rounded-md'}>
-            <label className={'text-sm'}>Filters</label>
+        <div className={t.filtersWrapper}>
+            <label className={t.filtersLabel}>Filters</label>
             {
                 tmpValue.map((filter, i) => (
                     <FieldSet
-                        className={'grid grid-cols-3 gap-1'}
+                        className={t.filterRow}
                         components={[
                             {label: 'Search Key', type: 'Input', placeholder: 'search key', value: filter.searchKey,
                                 onChange: e => updateFilters(i, 'searchKey', e.target.value),
@@ -60,7 +62,7 @@ const RenderFilters = ({value=[], onChange, ...rest}) => {
                 ))
             }
             <FieldSet
-                className={'grid grid-cols-3 gap-1'}
+                className={t.filterRow}
                 components={[
                     {label: 'Search Key', type: 'Input', placeholder: 'search key', value: newFilter.searchKey,
                         onChange: e => setNewFilter({...newFilter, searchKey: e.target.value}),
@@ -89,24 +91,25 @@ const RenderFilters = ({value=[], onChange, ...rest}) => {
     )
 }
 function PatternList (props) {
-
+	const {UI, theme} = useContext(ThemeContext);
+	const t = { ...patternListTheme, ...(theme?.admin?.patternList || {}) }
 	const data = props?.dataItems[0] || {};
 	const siteId = data?.id;
 
 	return (
-		<div className={'p-10 max-w-5xl h-dvh'}>
-			<div className={'w-full flex justify-between border-b-2 border-blue-400'}>
-				<div className={'text-2xl font-semibold text-gray-700'}>Patterns Hola</div>
+		<div className={t.listWrapper}>
+			<div className={t.listHeader}>
+				<div className={t.listTitle}>Patterns Hola</div>
 				<Link to={`edit/${siteId}`}>Edit Site</Link>
 			</div>
-			<div key={data?.site_name} className={'font-semibold'}>
+			<div key={data?.site_name} className={t.listSiteRow}>
 				Site Name: {data?.site_name || 'No Site Name'}
 			</div>
 
-		<div className={'py-5'}>
-			<div className={'py-2 font-semibold text-l'}>Current Patterns</div>
-			<div className={'font-light divide-y-2'}>
-				<div className={'font-semibold grid grid-cols-4 '}>
+		<div className={t.listSection}>
+			<div className={t.listSectionTitle}>Current Patterns</div>
+			<div className={t.listGrid}>
+				<div className={t.listGridHeader}>
 					<div>Pattern Type</div>
 					<div>Doc Type</div>
 					<div>Base Url</div>
@@ -114,7 +117,7 @@ function PatternList (props) {
 				</div>
 				{
 					(data?.patterns || []).map(pattern => (
-						<div key={pattern.id} className={'grid grid-cols-4 '}>
+						<div key={pattern.id} className={t.listGridRow}>
 							<div>{pattern.pattern_type}</div>
 							<div>{pattern.name}</div>
 							<Link to={pattern.base_url}>{pattern.base_url} ok?</Link>
@@ -140,7 +143,8 @@ function PatternEdit({
 	 ...rest
 }) {
 	const {app, type: siteType, API_HOST, baseUrl, isMultiTenant} = useContext(AdminContext);
-	const {UI} = useContext(ThemeContext)
+	const {UI, theme} = useContext(ThemeContext)
+	const t = { ...patternListTheme, ...(theme?.admin?.patternList || {}) }
 	const { falcor } = useFalcor();
 	const {Table, Input, Button, Modal} = UI;
 	const gridRef = useRef(null);
@@ -149,6 +153,7 @@ function PatternEdit({
 	const [addingNew, setAddingNew] = useState(false);
 	const [editingItem, setEditingItem] = useState(undefined);
 	const [isDuplicating, setIsDuplicating] = useState(false);
+	const [duplicateProgress, setDuplicateProgress] = useState(0);
 	const siteInstance = getInstance(siteType) || siteType;
 	const tenantSub = (() => {
 		if (!isMultiTenant) return '';
@@ -214,23 +219,36 @@ function PatternEdit({
 
 	const duplicate = async({oldInstance, newInstance}, item) => {
 		setIsDuplicating(true);
+		setDuplicateProgress(0);
 		try {
-			// call server to copy over pages and sections (the new instance's content)
-			const res = await fetch(`${dmsServerPath}/dms/${app}+${oldInstance}/duplicate`,
-				{
-					method: "POST",
-					body: JSON.stringify({newApp: app, newType: newInstance}),
-					headers: {
-						"Content-Type": "application/json",
-					},
-				});
-			// Surface a failed copy instead of silently creating an empty pattern.
+			// Queue the duplicate task — returns immediately with { task_id }.
+			const res = await fetch(`${dmsServerPath}/dms/${app}+${oldInstance}/duplicate`, {
+				method: "POST",
+				body: JSON.stringify({newApp: app, newType: newInstance}),
+				headers: { "Content-Type": "application/json" },
+			});
 			const body = await res.json().catch(() => ({}));
 			if (!res.ok || body?.err) {
-				console.error('[duplicate] page/section copy failed:', body?.err || res.status);
+				console.error('[duplicate] failed to queue task:', body?.err || res.status);
 				window.alert(`Pattern duplicate failed: ${body?.err || `HTTP ${res.status}`}. Pattern not created.`);
 				return;
 			}
+
+			// Poll until the task finishes.
+			const { task_id } = body;
+			for (;;) {
+				await new Promise(r => setTimeout(r, 3000));
+				const statusRes = await fetch(`${dmsServerPath}/dms/tasks/${task_id}`);
+				const task = await statusRes.json().catch(() => ({}));
+				if (task.progress != null) setDuplicateProgress(task.progress);
+				if (task.status === 'done') break;
+				if (task.status === 'error') {
+					console.error('[duplicate] task failed:', task.error);
+					window.alert(`Pattern duplicate failed: ${task.error}. Pattern not created.`);
+					return;
+				}
+			}
+
 			// Pages/sections cloned server-side; now create the pattern row for the new instance.
 			await addNewValue(item);
 		} catch (err) {
@@ -252,9 +270,9 @@ function PatternEdit({
 	const authExists = data.some(d => d.pattern_type === 'auth')
 
 	return (
-			<div className={'flex flex-col w-full overflow-auto'}>
-				<div className={'w-full flex justify-between border-b-2 border-blue-400'}>
-					<div className={'text-2xl font-semibold text-gray-700'}>Sites</div>
+			<div className={t.editWrapper}>
+				<div className={t.editHeader}>
+					<div className={t.editTitle}>Sites</div>
 				</div>
 				<div className={'w-full flex'}>
 					<Input type={'text'} value={search} onChange={e => setSearch(e.target.value)} placeholder={'Filter sites'} />
@@ -267,7 +285,7 @@ function PatternEdit({
 				/>
 
 				<Modal open={addingNew} setOpen={setAddingNew}>
-					<div className={`flex flex-col`}>
+					<div className={t.modalForm}>
 						{
 							attrToAddNew
 								.map((attrKey, i) => {
@@ -292,11 +310,11 @@ function PatternEdit({
 									)
 								})
 						}
-						<div className={'w-full flex items-center justify-start'}>
+						<div className={t.modalActions}>
 							<Button
                                 type={'plain'}
                                 title={'Add Site'}
-								className={'bg-blue-100 hover:bg-blue-300 text-sm text-blue-800 px-2 py-0.5 m-1 rounded-lg w-fit h-fit'}
+								className={t.btnSave}
 								onClick={() => addNewValue({...newItem})}
 							>
 								add
@@ -306,7 +324,7 @@ function PatternEdit({
 				</Modal>
 
 				<Modal open={Boolean(editingItem)} setOpen={setEditingItem}>
-					<div className={`flex flex-col`}>
+					<div className={t.modalForm}>
 						{
 							attrToAddNew
 								.map((attrKey, i) => {
@@ -332,9 +350,9 @@ function PatternEdit({
 									)
 								})
 						}
-						<div className={'w-full flex items-center justify-start gap-0.5'}>
+						<div className={t.modalEditActions}>
 							<Button
-								className={'bg-blue-100 hover:bg-blue-300 text-sm text-blue-800 px-2 py-0.5 m-1 rounded-lg w-fit h-fit'}
+								className={t.btnSave}
 								type={'plain'}
 								title={'save item'}
 								onClick={() => {
@@ -348,7 +366,7 @@ function PatternEdit({
 							</Button>
 
 							<Button
-								className={'bg-red-100 hover:bg-red-300 text-sm text-red-800 px-2 py-0.5 m-1 rounded-lg w-fit h-fit'}
+								className={t.btnCancel}
 								type={'plain'}
 								title={'cancel item'}
 								onClick={() => {
@@ -359,7 +377,7 @@ function PatternEdit({
 							</Button>
 
 							<Button
-								className={'bg-green-100 hover:bg-green-300 text-green-800 px-2 py-0.5 m-1 rounded-lg w-fit h-fit'}
+								className={t.btnDuplicate}
 								type={'plain'}
 								title={'duplicate item'}
 								onClick={async () => {
@@ -379,10 +397,10 @@ function PatternEdit({
 									await duplicate({oldInstance, newInstance: nameToSlug(newName)}, dataToCopy)
 									setEditingItem(undefined)
 								}}
-							> {isDuplicating ? 'duplicating...' : 'duplicate'}
+							> {isDuplicating ? `duplicating... ${Math.round(duplicateProgress * 100)}%` : 'duplicate'}
 							</Button>
 							<Button
-								className={'bg-red-100 hover:bg-red-300 text-red-800 px-2 py-0.5 m-1 rounded-lg w-fit h-fit'}
+								className={t.btnRemove}
 								type={'plain'}
 								title={'remove item'}
 								onClick={() => {

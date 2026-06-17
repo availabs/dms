@@ -4,6 +4,8 @@ import { getExternalEnv } from '../../../../utils/datasources'
 // import SourcesLayout from "../../../layout";
 import MetadataComp from "../../../../components/MetadataComp";
 import {updateSourceData} from "../../default/utils";
+import { ThemeContext } from "../../../../../../ui/useTheme";
+import { gisPagesTheme } from "./gisPages.theme";
 
 export default function ManageForm ({
     status,
@@ -15,15 +17,17 @@ export default function ManageForm ({
     isDms,
 }) {
     const {id} = params;
-    const { baseUrl, pageBaseUrl, theme, falcor, datasources } = React.useContext(DatasetsContext) || {}
+    const { baseUrl, pageBaseUrl, theme: pageTheme, falcor, datasources } = React.useContext(DatasetsContext) || {}
+    const { theme } = React.useContext(ThemeContext) || {};
+    const t = { ...gisPagesTheme, ...(theme?.datasets?.gisPages || {}) };
     const pgEnv = getExternalEnv(datasources);
     const env = isDms ? `${format?.app}+${source?.type}` : pgEnv;
 
     return (
-      <div className={`${theme?.page?.wrapper1}`}>
-        <div className={'overflow-auto flex flex-1 w-full flex-col shadow bg-white relative text-md font-light leading-7 p-4'}>
+      <div className={`${pageTheme?.page?.wrapper1}`}>
+        <div className={t.metaOuter}>
             {status ? <div>{JSON.stringify(status)}</div> : ''}
-            <div className='w-full'>
+            <div className={t.metaInner}>
                 <MetadataComp
                     isDms={isDms}
                     value={isDms ? source?.config : source?.metadata}

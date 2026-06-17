@@ -25,7 +25,8 @@ const componentFunctions = {
       description: 'Highlights graph parts represented by received column.',
       trigger: 'action_param',
       args: [
-        { key: 'column', label: 'Column to highlight', type: 'column-select' }
+        { key: 'column', label: 'Column to highlight', type: 'column-select' },
+        { key: "hhl_color", label: "Highlight color", type: "colorpicker", defaultValue: "#ff0000" }
       ],
     }
   ]

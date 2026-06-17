@@ -35,12 +35,12 @@ export default function Breadcrumbs({items}) {
             <ol className={t.ol}>
                 {items.map((item, i) => (
                     <li key={i} className={t.li}>
-                        <div className="flex items-center">
+                        <div className={t.itemInner}>
                             {i > 0 && <Separator className={t.separator}/>}
                             {item.icon ? (
                                 <Link to={item.href || '/'} className={t.homeLink}>
                                     <Icon icon={item.icon} className={t.homeIcon}/>
-                                    <span className="sr-only">Data Sources</span>
+                                    <span className={t.homeLabel}>Data Sources</span>
                                 </Link>
                             ) : item.href ? (
                                 <Link to={item.href} className={t.link}>

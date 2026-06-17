@@ -1,44 +1,47 @@
 import React from "react"
+import { ThemeContext } from "../../../../ui/useTheme"
+import { categoriesTheme } from "./categories.theme"
 
 
 
 const CategoryItem = ({ children, remove, indices, editing, className="" }) => {
+    const { theme } = React.useContext(ThemeContext) || {};
+    const t = { ...categoriesTheme, ...(theme?.datasets?.categories || {}) };
     const doRemove = React.useCallback(e => {
         remove(...indices);
     }, [remove, indices]);
     return (
-        <div className={ `
-        overflow-hidden text-ellipsis whitespace-nowrap ${ className }
-        flex-1 flex items-center py-1 pl-2 pr-4 bg-blue-200 text-blue-600 font-light hover:bg-blue-50 mr-2 rounded-md my-1
-      ` }
-        >
-            <div className="flex-1">
+        <div className={ `${ t.categoryItem } ${ className }` }>
+            <div className={t.categoryItemInner}>
                 { children }
             </div>
             { !editing ? null :
-                <button onClick={ doRemove } className="hover:text-red-500 pl-2">
-                    <span className="fas fa-remove"/>
+                <button onClick={ doRemove } className={t.categoryItemRemoveBtn}>
+                    <span className={t.removeIcon}/>
                 </button>
             }
         </div>
     )
 }
 const Spanner = () => {
+    const { theme } = React.useContext(ThemeContext) || {};
+    const t = { ...categoriesTheme, ...(theme?.datasets?.categories || {}) };
     return (
-        <span className="fas fa-caret-right mx-1"/>
+        <span className={t.spanner}/>
     )
 }
 const Plus = props => {
+    const { theme } = React.useContext(ThemeContext) || {};
+    const t = { ...categoriesTheme, ...(theme?.datasets?.categories || {}) };
     return (
         <span { ...props }
-              className={ `
-        fas fa-plus p-1 rounded cursor-pointer
-        text-blue-500 hover:bg-blue-500 hover:text-white
-      ` }/>
+              className={t.plus}/>
     )
 }
 
 const CategoryList = props => {
+    const { theme } = React.useContext(ThemeContext) || {};
+    const t = { ...categoriesTheme, ...(theme?.datasets?.categories || {}) };
 
     const {
         categories,
@@ -67,9 +70,9 @@ const CategoryList = props => {
     }, [addNewCategory, parent, stopEditing]);
 
     return (
-        <div className={ `flex flex-col border-current ${ eCats ? "border-b" : "" }`}>
-            <div className={ `flex ${ eCats ? "border-b" : "" }` }>
-                <CategoryItem className="font-bold flex-1"
+        <div className={ eCats ? t.categoryListWrapperEditing : t.categoryListWrapper }>
+            <div className={ eCats ? t.categoryListRowEditing : t.categoryListRow }>
+                <CategoryItem className={t.categoryItemBold}
                               remove={ removeCategory }
                               indices={ [parent, 0] }
                               editing={ editing || eCats }
@@ -77,12 +80,12 @@ const CategoryList = props => {
                     { categories[0] }
                 </CategoryItem>
                 { !eCats || editing ? null :
-                    <div className="flex items-center justify-end">
+                    <div className={t.categoryListAddBtn}>
                         <Plus onClick={ startEditing }/>
                     </div>
                 }
             </div>
-            <div className="flex ml-4">
+            <div className={t.categoryListSubRow}>
                 { categories.slice(1).map((cat, i) => (
                     <CategoryItem key={ cat }
                                   remove={ removeCategory }
@@ -109,6 +112,8 @@ const SourceCategories = ({
                               editingCategories,
                               stopEditingCategories: stopAll,
                           }) => {
+    const { theme } = React.useContext(ThemeContext) || {};
+    const t = { ...categoriesTheme, ...(theme?.datasets?.categories || {}) };
     const addNewCategory = React.useCallback((cat, parent = -1) => {
         if (parent === -1) {
             setCategories([
@@ -156,7 +161,7 @@ const SourceCategories = ({
             ))
             }
             { !editingCategories ? null :
-                <div className="grid grid-cols-1 gap-1">
+                <div className={t.sourceCategoriesNewWrapper}>
                     <CategoryAdder
                         addNewCategory={ addNewCategory }/>
                     <button onClick={ stopAll }
@@ -172,6 +177,8 @@ const SourceCategories = ({
 export default SourceCategories;
 
 const Input = ({ onChange, ...props }) => {
+    const { theme } = React.useContext(ThemeContext) || {};
+    const t = { ...categoriesTheme, ...(theme?.datasets?.categories || {}) };
     const doOnChange = React.useCallback(e => {
         onChange(e.target.value);
     }, [onChange]);
@@ -183,12 +190,14 @@ const Input = ({ onChange, ...props }) => {
     }, [ref]);
     return (
         <input type="text" ref={ setRef } { ...props }
-               className="px-2 w-full"
+               className={t.input}
                onChange={ doOnChange }/>
     )
 }
 
 const CategoryAdder = ({ addNewCategory, stopEditing, isSub = false }) => {
+    const { theme } = React.useContext(ThemeContext) || {};
+    const t = { ...categoriesTheme, ...(theme?.datasets?.categories || {}) };
     const [cat, setCat] = React.useState("");
     const doAdd = React.useCallback(e => {
         e.stopPropagation();
@@ -213,15 +222,15 @@ const CategoryAdder = ({ addNewCategory, stopEditing, isSub = false }) => {
     const [ref, setRef] = React.useState(null);
 
     return (
-        <div ref={ setRef } className="px-2 py-1 bg-gray-100 whitespace-nowrap">
-            <div className="flex flex-col">
-                <div className="mb-1">
+        <div ref={ setRef } className={t.categoryAdderWrapper}>
+            <div className={t.categoryAdderInner}>
+                <div className={t.categoryAdderInputRow}>
                     <Input type="text"
                            value={ cat }
                            onChange={ setCat }
                            onKeyDown={ onKeyDown }/>
                 </div>
-                <div className="px-2 rounded bg-gray-200 text-center">
+                <div className={t.categoryAdderHint}>
                     { !cat ? `Start typing to add new ${ isSub ? "subcategory" : "category" }` :
                         "Press Enter to save or Esc to cancel"
                     }

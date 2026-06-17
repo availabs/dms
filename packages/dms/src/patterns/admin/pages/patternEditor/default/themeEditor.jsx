@@ -8,6 +8,7 @@ import {ThemeContext, mergeTheme} from "../../../../../ui/useTheme";
 import {AdminContext} from "../../../context";
 import {parseIfJSON} from '../../../../page/pages/_utils';
 import defaultTheme from '../../../../../ui/defaultTheme'
+import { themeEditorTheme } from './themeEditor.theme'
 const DefaultComp = () => <div>Component not registered.</div>
 const ComponentRenderer = ({Component = DefaultComp, props}) => <Component {...props} />;
 
@@ -57,7 +58,8 @@ const initialFramContent = `
 						`
 
 function ControlRenderer({config, state, setState}) {
-    const {UI} = useContext(ThemeContext);
+    const {UI, theme} = useContext(ThemeContext);
+    const t = { ...themeEditorTheme, ...(theme?.admin?.themeEditor || {}) }
     const {FieldSet} = UI;
     const controls = (config?.controls || [])
         .filter(d => d) //implement conditionals
@@ -78,8 +80,8 @@ function ControlRenderer({config, state, setState}) {
         })
     //console.log('Fieldset controls', controls)
     return (
-        <div> {/* controlWrapper goes here */}
-            <div className='font-bold underline'>{config?.label || ''}</div>
+        <div>
+            <div className={t.controlLabel}>{config?.label || ''}</div>
             <FieldSet components={controls}/>
         </div>
     )
@@ -102,7 +104,8 @@ export function PatternThemeEditor({
 
     // themes is an array of {name, theme, id}
     const navigate = useNavigate();
-    const {themes, UI} = useContext(ThemeContext);
+    const {themes, UI, theme} = useContext(ThemeContext);
+    const t = { ...themeEditorTheme, ...(theme?.admin?.themeEditor || {}) }
     const {baseUrl, user, apiUpdate} = React.useContext(AdminContext) || {};
     const {MultiSelect, Button} = UI;
 
@@ -181,10 +184,10 @@ export function PatternThemeEditor({
 
     // console.log('testing',themeSettings, currentThemeSetting, themeSettings?.[currentThemeSetting])
     return (
-        <div className={'flex flex-col p-4 w-full divide-y-2'}>
-            <div className={'w-full flex justify-between border-b-2 border-blue-400'}>
-                <div className='flex'>
-                    <div className={'text-2xl font-semibold text-gray-700'}>
+        <div className={t.wrapper}>
+            <div className={t.header}>
+                <div className={t.headerLeft}>
+                    <div className={t.headerTitle}>
                         <MultiSelect
                             singleSelectOnly
                             searchable={false}
@@ -201,7 +204,7 @@ export function PatternThemeEditor({
                             })}
                         />
                     </div>
-                    <div className='px-4'>
+                    <div className={t.componentSelectorWrapper}>
                         <MultiSelect
                             singleSelectOnly
                             searchable={false}
@@ -227,9 +230,9 @@ export function PatternThemeEditor({
                 </div>
                 <button onClick={() => navigate(-1)}>back</button>
             </div>
-            <div className={'flex flex-col sm:flex-row divide-x relative'}>
-                <div className={'w-[250px] order-2 overflow-hidden'}>
-                    <div className={'pb-2'}>
+            <div className={t.body}>
+                <div className={t.sidebar}>
+                    <div className={t.sidebarSelectorWrapper}>
                         <MultiSelect
                             singleSelectOnly
                             searchable={false}
@@ -244,13 +247,13 @@ export function PatternThemeEditor({
                             }
                         />
                     </div>
-                    <div className={'w-full flex gap-0.5 justify-end'}>
+                    <div className={t.sidebarActions}>
                         <Button onClick={() => onSubmit(currentTheme)}>Save</Button>
                         <Button onClick={() => setPatternTheme(parseIfJSON(inputTheme))}>Reset</Button>
                         <Button onClick={() => setPatternTheme({layout: {options: baseTheme?.layout?.options}})}>Full
                             Reset</Button>
                     </div>
-                    <div className='h-[calc(100vh_-_11rem)] overflow-auto w-full scrollbar-sm p-2 '>
+                    <div className={t.sidebarControls}>
                         {
                             (themeSettings?.[currentThemeSetting] || [])
                                 .map(conf => <ControlRenderer
@@ -261,9 +264,9 @@ export function PatternThemeEditor({
                         }
                     </div>
                 </div>
-                <div className={'flex-1 h-[calc(100vh_-_6rem)]'}>
+                <div className={t.frameWrapper}>
                     <Frame
-                        className='w-full h-[calc(100vh_-_6rem)] border-1'
+                        className={t.frame}
                         initialContent={initialFramContent}
                     >
                         <ThemeContext.Provider value={{theme: currentTheme, UI}}>
@@ -285,8 +288,7 @@ export function PatternThemeEditor({
                 </div>
 
             </div>
-            <pre
-                className='rounded bg-slate-100 max-w-7xl my-2 overflow-x-scroll'>{JSON.stringify(patternTheme, null, 3)}</pre>
+            <pre className={t.debugPre}>{JSON.stringify(patternTheme, null, 3)}</pre>
         </div>
     )
 }
