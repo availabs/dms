@@ -35,6 +35,7 @@ const CommitInput = ({ initialValue = '', onCommit }) => {
         />
     );
 };
+const isEmpty = obj => Object.values(obj).every(v => !v || Object.keys(v).length === 0);
 
 export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSource={}, dwAPI, mapAPI, pageDataSources={}, ...rest }) => {
     const { isEdit, value, attributes, i, showDeleteModal, listAllColumns, state: rawState, setSectionState } = sectionState
@@ -45,7 +46,8 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
     const { activeSource, activeView, sources=[], views=[], onSourceChange, onViewChange, onJoinChange, activeJoinViewsByAlias={}, isJoinPresent } = dataSource;
 
     const sectionLink = window ? `${window.location.origin}${window.location.pathname}#${value.id}` : '';
-    const canEditSection = isUserAuthed(['edit', 'edit-section'], sectionAuthPermissions);
+    const sectionHasPermissions = sectionAuthPermissions && !isEmpty(sectionAuthPermissions)
+    const canEditSection = !sectionHasPermissions || isUserAuthed(['edit', 'edit-section'], sectionAuthPermissions);
     const canEditPageLayout = isUserAuthed(['edit-page', 'edit-page-layout'], pageAuthPermissions);
     const canEditSectionPermissions = isUserAuthed(['edit-page-permissions'], pageAuthPermissions);
     const currentComponent = RegisteredComponents[value?.element?.['element-type'] || 'lexical'];
