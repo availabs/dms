@@ -287,6 +287,10 @@ export const ConditionValueInput = ({node, path, columns, updateNodeAtPath, sibl
             placeholder={node.op === 'like' ? 'search...' : isMultiselect ? 'select...' : 'enter a number...'}
             options={isMultiselect ? options : undefined}
             singleSelectOnly={isMultiselect ? !node.isMulti : undefined}
+            // Single-select filter pickers stay clearable: an × deselects back to
+            // "no value" (emits []), so an unset page-filter widens (no constraint)
+            // instead of being stuck on the first picked value.
+            allowDeselect={isMultiselect && !node.isMulti}
             displayDetailedValues={!node.display}
             keepMenuOpen={node.display === 'expanded'}
             tabular={node.display === 'tabular'}
