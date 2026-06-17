@@ -1,2 +1,4 @@
-aws_info.*
+*.json
 *.log
+dms3-backup.sh
+auth-backup.sh

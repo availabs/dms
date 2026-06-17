@@ -1,0 +1,7 @@
+{
+  "AWS_ACCESS_KEY_ID": "BUCKET ACCESS KEY",
+  "AWS_SECRET_ACCESS_KEY": "BUCKET SECRET KEY",
+  "AWS_DEFAULT_REGION": "garage",
+  "AWS_ENDPOINT_URL": "https://s3.files.availabs.org",
+  "AWS_STORAGE_BUCKET": "your-backups-bucket"
+}
