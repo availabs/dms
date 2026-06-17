@@ -20,5 +20,8 @@
   "bugs": {
     "url": "https://github.com/availabs/dms/issues"
   },
-  "homepage": "https://github.com/availabs/dms#readme"
+  "homepage": "https://github.com/availabs/dms#readme",
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1070.0"
+  }
 }
