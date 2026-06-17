@@ -6,6 +6,8 @@ import { AvlMap } from "../../../../../../../ui/components/map"
 import { DatasetsContext } from "../../../../../context"
 import { getExternalEnv } from "../../../../../utils/datasources"
 import {Protocol, PMTiles} from './utils/pmtiles/index.ts'
+import { ThemeContext } from "../../../../../../../ui/useTheme"
+import { gisMapTheme } from "./gisMap.theme"
 
 const PIN_OUTLINE_LAYER_SUFFIX = '_pin_outline'
 
@@ -29,6 +31,8 @@ const MapPage = ({params, source,views, HoverComp, displayPinnedGeomBorder=false
 
   const {view_id: viewId } = params;
   const { datasources, user, DAMA_HOST } = React.useContext(DatasetsContext);
+  const { theme } = React.useContext(ThemeContext) || {};
+  const t = { ...gisMapTheme, ...(theme?.datasets?.gisMap || {}) };
   const pgEnv = getExternalEnv(datasources);
   const [ editing, setEditing ] = React.useState(null)
   const coalescedViewId = urlVariable && !viewId ? urlVariable : viewId; //TODO ryan this  could ahve some breaking changes elsewhere
@@ -119,7 +123,7 @@ const MapPage = ({params, source,views, HoverComp, displayPinnedGeomBorder=false
 
   return (
     <div>
-      <div className='w-full h-[900px]'>
+      <div className={t.mapHeightWrapper}>
         <Map
           key={ viewId }
           layers={ [layer] }
@@ -131,18 +135,18 @@ const MapPage = ({params, source,views, HoverComp, displayPinnedGeomBorder=false
       </div>
 
       {user.authLevel >= 5 ?
-      <div className="border-t border-gray-200 px-4 py-5 sm:p-0">
-        <dl className="sm:divide-y sm:divide-gray-200">
+      <div className={t.mapAttrsWrapper}>
+        <dl className={t.mapAttrsDl}>
           {['sources','layers']
             .map((attr,i) => {
               let val = JSON.stringify(get(layer,attr,[]),null,3)
               return (
-                <div key={i} className='flex justify-between group'>
-                  <div  className="flex-1 sm:grid sm:grid-cols-5 sm:gap-4 sm:px-6">
-                    <dt className="text-sm font-medium text-gray-500 py-5">{attr}</dt>
-                    <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-4">
+                <div key={i} className={t.mapAttrsRow}>
+                  <div className={t.mapAttrsGridRow}>
+                    <dt className={t.mapAttrsDt}>{attr}</dt>
+                    <dd className={t.mapAttrsDd}>
                       {editing === attr ?
-                        <div className='pt-3 pr-8'>
+                        <div className={t.mapAttrsEditWrapper}>
                           <Edit
                             startValue={val}
                             attr={attr}
@@ -151,8 +155,8 @@ const MapPage = ({params, source,views, HoverComp, displayPinnedGeomBorder=false
                             cancel={() => setEditing(null)}
                           />
                         </div> :
-                        <div className='py-3 pl-2 pr-8'>
-                          <pre className='bg-gray-100 tracking-tighter overflow-auto scrollbar-xs'>
+                        <div className={t.mapAttrsViewWrapper}>
+                          <pre className={t.mapAttrsPre}>
                             {val}
                           </pre>
                         </div>
@@ -160,8 +164,8 @@ const MapPage = ({params, source,views, HoverComp, displayPinnedGeomBorder=false
                     </dd>
                   </div>
 
-                  <div className='hidden group-hover:block text-blue-500 cursor-pointer' onClick={e => editing === attr ? setEditing(null): setEditing(attr)}>
-                    <i className="fad fa-pencil absolute -ml-12 mt-3 p-2.5 rounded hover:bg-blue-500 hover:text-white "/>
+                  <div className={t.mapAttrsEditHoverCol} onClick={e => editing === attr ? setEditing(null): setEditing(attr)}>
+                    <i className={t.mapAttrsEditIcon}/>
                   </div>
                 </div>
               )
@@ -189,6 +193,8 @@ const PMTilesProtocol = {
 }
 
 const Map = ({ layers, layer, tempSymbology, setTempSymbology, source,  mapStyles }) => {
+  const { theme } = React.useContext(ThemeContext) || {};
+  const t = { ...gisMapTheme, ...(theme?.datasets?.gisMap || {}) };
   const [mounted, setMounted] = React.useState(false);
   React.useEffect(() => {
     setMounted(true);
@@ -262,7 +268,7 @@ const Map = ({ layers, layer, tempSymbology, setTempSymbology, source,  mapStyle
   //console.log('mapTheme',mapTheme)
   return (
 
-      <div className='w-full h-full'>
+      <div className={t.mapInnerWrapper}>
           <AvlMap
             mapOptions={{
               protocols: [PMTilesProtocol],
@@ -288,6 +294,8 @@ const Map = ({ layers, layer, tempSymbology, setTempSymbology, source,  mapStyle
 const Edit = ({startValue, attr, viewId, parentData, cancel=()=>{}}) => {
   const [value, setValue] = useState('')
   const { datasources, baseUrl, falcor, UI} = React.useContext(DatasetsContext);
+  const { theme } = React.useContext(ThemeContext) || {};
+  const t = { ...gisMapTheme, ...(theme?.datasets?.gisMap || {}) };
   const pgEnv = getExternalEnv(datasources);
   const {Button} = UI;
   const inputEl = useRef(null);
@@ -344,11 +352,11 @@ const Edit = ({startValue, attr, viewId, parentData, cancel=()=>{}}) => {
   }
 
   return (
-    <div className='w-full'>
-      <div className='w-full flex'>
+    <div className={t.editWrapper}>
+      <div className={t.editRow}>
         <textarea
           ref={inputEl}
-          className='flex-1 px-2 shadow text-base bg-blue-100 focus:ring-blue-700 focus:border-blue-500  border-gray-300 rounded-none rounded-l-md'
+          className={t.editTextarea}
           value={value}
           onChange={e => setValue(e.target.value)}
         />

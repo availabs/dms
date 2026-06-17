@@ -1,38 +1,20 @@
 import React from "react";
-//import { useTheme} from "~/modules/avl-components/src/index.js";
 import { AdminContext } from '../context'
+import { ThemeContext } from '../../../ui/useTheme'
+import { adminLayoutTheme } from './avail-layout.theme'
 
 import TopNav from './nav/Top'
 import SideNav from './nav/Side'
-// import Menu from '../components/menu'
-// import { Search } from '../components/search'
 
 import { Link, Outlet } from "react-router";
-
-let marginSizes = {
-	none: '',
-	micro: 'mr-14',
-	mini: 'mr-20',
-	miniPad: 'mr-0',	
-	compact: 'mr-44',
-	full: 'mr-64'
-}
-
-let fixedSizes = {
-	none: '',
-	micro: 'w-14',
-	mini: 'w-20',
-	miniPad: 'w-0',
-	compact: 'w-44',
-	full: 'w-64'
-}
 
 const Logos = () => <div className='h-12'/>
 const Menu = () => <div className='h-12'/>
 
 
 const Layout = ({ children, navItems=[], title }) => {
-	//const theme = useTheme()
+	const { theme: themeFromContext } = React.useContext(ThemeContext) || {}
+	const tl = { ...adminLayoutTheme, ...(themeFromContext?.admin?.adminLayout || {}) }
 
 	const { theme, app, type } = React.useContext(AdminContext) || {}
 	const { sideNav={}, topNav={}, logo=Logos } = theme?.navOptions || {}
@@ -42,13 +24,13 @@ const Layout = ({ children, navItems=[], title }) => {
 		color: sideNav.color || 'white',
 		menuItems: (sideNav?.nav === 'main' ? navItems : []).filter(page => !page.hideInNav),
 		topMenu: (
-			<div className={'flex flex-row md:flex-col'}>
+			<div className={tl.topMenuWrapper}>
 	      		{sideNav?.logo === 'top' && logo}
 	        	{sideNav?.dropdown === 'top' && <Menu />}
 	        	{/*{sideNav?.search === 'top' && <Search app={app} type={type}/>}*/}
 	      	</div>),
 		bottomMenu:  (
-	      	<div className={'flex flex-row md:flex-col'}>
+	      	<div className={tl.bottomMenuWrapper}>
 	      		{/*{sideNav?.search === 'bottom' && <Search app={app} type={type}/>}*/}
 	        	{sideNav?.dropdown === 'bottom' && <Menu />}
 	      	</div>
@@ -63,29 +45,29 @@ const Layout = ({ children, navItems=[], title }) => {
 		subMenuStyle: topNav.subMenuStyle || 'row',
 		menuItems: (topNav?.nav === 'main' ? navItems : []).filter(page => !page.hideInNav),
 		leftMenu: (
-			<div className={'flex flex-col md:flex-row'}>
+			<div className={tl.leftMenuWrapper}>
 	      		{topNav?.logo === 'left' && logo}
 	        	{/*{topNav?.search === 'left' && <Search app={app} type={type}/>}*/}
 	        	{topNav?.dropdown === 'left' && <Menu />}
 	      	</div>),
 		rightMenu:  (
-	      	<div className={'flex flex-col md:flex-row'}>
+	      	<div className={tl.rightMenuWrapper}>
 	      		{topNav?.rightMenu}
 	        	{/*{topNav?.search === 'right' && <Search app={app} type={type}/>}*/}
 	        	{topNav?.dropdown === 'right' && <Menu />}
 	      	</div>
-	  	)	
+	  	)
 	}
 	const Logo = sideNavOptions.logo
 	// console.log('layout', topNav)
 	
 	return (
-		<div className='flex' >
+		<div className={tl.root}>
 			{
 				sideNavOptions.size === 'none' ? '' : (
-					<div className={`hidden md:block ${marginSizes[sideNavOptions.size]}`}>
-						<div className={`fixed h-screen ${fixedSizes[sideNavOptions.size]}`}>
-							<SideNav 
+					<div className={`${tl.sidebarContainer} ${tl.sidebarMargin[sideNavOptions.size]}`}>
+						<div className={`${tl.sidebarInner} ${tl.sidebarWidth[sideNavOptions.size]}`}>
+							<SideNav
 								topMenu={sideNavOptions.topMenu}
 								themeOptions={sideNavOptions}
 								menuItems={sideNavOptions.menuItems}
@@ -94,28 +76,22 @@ const Layout = ({ children, navItems=[], title }) => {
 					</div>
 				)
 			}
-			<div className={`flex-1 flex items-start flex-col items-stretch w-full min-h-screen `}>
+			<div className={tl.contentWrapper}>
 				{
 					topNavOptions.size === 'none' ? '' : (<>
-						<div className={`${
-							topNavOptions.position === 'fixed' ? 
-								`sticky top-0 z-20 w-full ` 
-								: 'z-10'
-							}`}>
-								<TopNav
-									themeOptions={topNavOptions}
-									// subMenuActivate={'onHover'}
-									leftMenu={topNavOptions.leftMenu}
-									menuItems={topNavOptions.menuItems}
-									rightMenu={topNavOptions.rightMenu}
-									
-								/>
+						<div className={topNavOptions.position === 'fixed' ? tl.topNavSticky : tl.topNavBlock}>
+							<TopNav
+								themeOptions={topNavOptions}
+								leftMenu={topNavOptions.leftMenu}
+								menuItems={topNavOptions.menuItems}
+								rightMenu={topNavOptions.rightMenu}
+							/>
 						</div>
 					</>)
 				}
-				<div id={'content'} className={`flex-1`}>
+				<div id={'content'} className={tl.contentInner}>
 					<div className={`${theme?.page?.wrapper1}`}>
-          				<div className={`${theme?.page?.wrapper2}`}>      
+          				<div className={`${theme?.page?.wrapper2}`}>
 	            			<div className={theme?.page?.wrapper3}>
 							{children}
 							</div>

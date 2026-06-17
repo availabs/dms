@@ -247,6 +247,82 @@ const initDamaTasks = async (dbConnection) => {
 };
 
 /**
+ * Initialize DAMA schedule tables (cron schedules + schedule-scoped events)
+ * and retrofit the retry/scheduling columns onto pre-existing tasks tables.
+ *
+ * Fresh databases get attempt/max_attempts/schedule_id from
+ * create_dama_task_tables.*; databases created before the scheduler existed
+ * get them here via idempotent ALTERs (checked column-by-column because
+ * SQLite has no ADD COLUMN IF NOT EXISTS).
+ *
+ * @param {Object} dbConnection - Database adapter instance
+ */
+const initDamaSchedules = async (dbConnection) => {
+  const db = dbConnection.getDb();
+  const dbType = dbConnection.type;
+
+  // 1. Retrofit tasks columns (no-op when already present).
+  const taskColumns = [
+    ["attempt", "INTEGER NOT NULL DEFAULT 1"],
+    ["max_attempts", "INTEGER NOT NULL DEFAULT 1"],
+    ["schedule_id", "INTEGER"],
+  ];
+  if (dbType === "sqlite") {
+    const { rows } = await dbConnection.query(`SELECT name FROM pragma_table_info('tasks')`);
+    const existing = new Set(rows.map((r) => r.name));
+    for (const [name, ddl] of taskColumns) {
+      if (!existing.has(name)) {
+        await dbConnection.query(`ALTER TABLE tasks ADD COLUMN ${name} ${ddl}`);
+      }
+    }
+  } else {
+    for (const [name, ddl] of taskColumns) {
+      await dbConnection.query(
+        `ALTER TABLE data_manager.tasks ADD COLUMN IF NOT EXISTS ${name} ${ddl}`
+      );
+    }
+  }
+
+  // 2. Create the schedules tables if missing.
+  let tablesExist;
+  if (dbType === "sqlite") {
+    tablesExist = await dbConnection.tableExists("main", "schedules");
+  } else {
+    tablesExist = await dbConnection.tableExists("data_manager", "schedules");
+  }
+
+  if (!tablesExist) {
+    console.time(`dama schedules init ${db}`);
+    await dbConnection.beginTransaction();
+
+    try {
+      const sqlFile = dbType === "sqlite"
+        ? "create_dama_schedule_tables.sqlite.sql"
+        : "create_dama_schedule_tables.sql";
+      const sqlPath = join(__dirname, "sql/dama", sqlFile);
+      const sql = await readFileAsync(sqlPath, { encoding: "utf8" });
+
+      if (dbType === "sqlite") {
+        const statements = sql.split(";").filter(s => s.trim());
+        for (const stmt of statements) {
+          if (stmt.trim()) {
+            await dbConnection.query(stmt + ";");
+          }
+        }
+      } else {
+        await dbConnection.query(sql);
+      }
+
+      await dbConnection.commitTransaction();
+      console.timeEnd(`dama schedules init ${db}`);
+    } catch (error) {
+      await dbConnection.rollbackTransaction();
+      throw error;
+    }
+  }
+};
+
+/**
  * Initialize DMS task tables (task queue + event tracking + settings),
  * mirroring the DAMA task system but in the DMS database. Lets DMS-native
  * workers (e.g. internal_table publish) record progress without depending
@@ -344,6 +420,12 @@ function getDb(pgEnv) {
         console.log("dama tasks init", pgEnv);
       } catch (err) {
         console.error("dama tasks init failed:", err.message);
+      }
+      try {
+        await initDamaSchedules(databases[pgEnv]);
+        console.log("dama schedules init", pgEnv);
+      } catch (err) {
+        console.error("dama schedules init failed:", err.message);
       }
     }
 

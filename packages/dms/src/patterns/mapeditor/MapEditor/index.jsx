@@ -35,6 +35,139 @@ export const SymbologyContext = React.createContext(undefined);
 export const PLUGIN_TYPE = 'plugin'
 
 /**
+ * Returns the join-authored tile columns that should be treated as runtime
+ * feature properties for the active MapEditor layer.
+ */
+const getJoinTileColumns = (layerConfig) =>
+  Array.isArray((layerConfig?.join || layerConfig?.["linked-data"])?.tileColumns)
+    ? (layerConfig.join || layerConfig["linked-data"]).tileColumns.filter(Boolean)
+    : [];
+
+/**
+ * Normalizes the saved join config into one runtime shape so MapEditor can
+ * read current and legacy join keys through the same helper path.
+ */
+const normalizeJoinRuntimeConfig = (layerConfig = {}) => {
+  const joinConfig = layerConfig?.join || layerConfig?.["linked-data"] || null;
+  if (!joinConfig) return null;
+  return {
+    ...joinConfig,
+    source: joinConfig.source || joinConfig.linked || {},
+    joinColumn: joinConfig.joinColumn || joinConfig.linkedJoinColumn || "",
+    query: joinConfig.query || joinConfig.linkedQuery || {},
+  };
+};
+
+/**
+ * Converts the join query filter rows from editor state into the UDA filter
+ * payload needed by legend-domain and join-aware runtime fetches.
+ */
+const buildJoinFilterOptions = (joinQuery = {}) => {
+  const filterRows = Array.isArray(joinQuery?.filterRows) ? joinQuery.filterRows : [];
+  const filterMode = joinQuery?.filterMode === "any" ? "OR" : "AND";
+  const groups = filterRows.reduce((acc, row) => {
+    if (!row?.column) return acc;
+    const values = String(row.valuesText || "")
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean);
+
+    if (!values.length) return acc;
+    acc.push({
+      op: "filter",
+      col: row.column,
+      value: values,
+    });
+    return acc;
+  }, []);
+
+  if (groups.length) {
+    return {
+      filterGroups: {
+        op: filterMode,
+        groups,
+      },
+    };
+  }
+
+  return joinQuery?.filters && Object.keys(joinQuery.filters).length
+    ? joinQuery.filters
+    : {};
+};
+
+/**
+ * Finds the SQL select expression that produces a given join output name so
+ * runtime requests can fetch the expression rather than assuming the alias is
+ * a physical source-table column.
+ */
+const getJoinQueryAttributeByOutputName = (layerConfig, outputName) => {
+  const joinConfig = normalizeJoinRuntimeConfig(layerConfig);
+  const joinAttributes = Array.isArray(joinConfig?.query?.columns)
+    ? joinConfig.query.columns
+    : [];
+
+  return joinAttributes.find((attribute) => {
+    const aliasMatch = String(attribute).match(/\s+as\s+("?)([^"]+)\1\s*$/i);
+    const resolvedName = aliasMatch?.[2] || String(attribute).trim();
+    return resolvedName === outputName;
+  }) || null;
+};
+
+/**
+ * Builds the join payload used by MapEditor legend-domain requests.
+ *
+ * Besides the currently styled join column, this includes join-backed filter
+ * and dynamic-filter columns so the editor legend stays aligned with the full
+ * filtered join dataset.
+ */
+const buildJoinOptions = (layerConfig, targetColumn = null) => {
+  const joinConfig = normalizeJoinRuntimeConfig(layerConfig);
+  if (
+    !joinConfig?.enabled ||
+    !joinConfig?.source?.viewId ||
+    !joinConfig?.featureKeyColumn ||
+    !joinConfig?.joinColumn
+  ) {
+    return null;
+  }
+
+  const queryConfig = joinConfig.query || {};
+  const joinViewId = joinConfig.source.viewId;
+  const joinColumn = joinConfig.joinColumn;
+  const groupBy = Array.isArray(queryConfig?.groupBy) ? queryConfig.groupBy : [];
+  const columns = Array.isArray(queryConfig?.columns) ? queryConfig.columns : [];
+  let attributes = columns;
+  let tileCols = getJoinTileColumns(layerConfig);
+  const joinOutputColumns = new Set(tileCols);
+  const joinFilterColumns = Object.keys(layerConfig?.filter || {}).filter((columnName) =>
+    joinOutputColumns.has(columnName)
+  );
+  const dynamicJoinColumns = (layerConfig?.["dynamic-filters"] || [])
+    .filter((filterConfig) => filterConfig?.values?.length > 0 && joinOutputColumns.has(filterConfig.column_name))
+    .map((filterConfig) => filterConfig.column_name);
+  const requiredJoinColumns = Array.from(
+    new Set([targetColumn, joinColumn, ...joinFilterColumns, ...dynamicJoinColumns].filter(Boolean))
+  );
+
+  if (requiredJoinColumns.length) {
+    const requiredAttributes = requiredJoinColumns
+      .map((columnName) => getJoinQueryAttributeByOutputName(layerConfig, columnName))
+      .filter(Boolean);
+    attributes = Array.from(new Set(requiredAttributes));
+    tileCols = Array.from(new Set(requiredJoinColumns.filter((columnName) => joinOutputColumns.has(columnName))));
+  }
+
+  return {
+    viewId: joinViewId,
+    localKey: joinConfig.featureKeyColumn,
+    joinKey: joinColumn,
+    options: { ...buildJoinFilterOptions(queryConfig), groupBy },
+    attributes,
+    tileCols,
+  };
+};
+
+/**
  * PLUGIN STRUCTURE:
  * {
  *    id: "pluginid",
@@ -232,6 +365,12 @@ const MapEditor = props => {
 // console.log("MapEditor::state", state);
 
   // Resets state if URL param does not match symbology currently in state
+  /**
+   * Keeps the live legend/color-break state in sync with the active layer's
+   * filter envelope. When the styled column comes from a join, this effect
+   * sends the join payload into `colorDomain` so the editor legend reflects
+   * the same joined dataset being drawn on the map.
+   */
   React.useEffect(() => {
     // console.log('load', +symbologyId, symbologyId, symbologies)
     if (!!state.id && (+symbologyId !== +state.id)) {
@@ -597,6 +736,8 @@ const MapEditor = props => {
           numbins,
           method
         }
+        const joinedTileColumns = new Set(getJoinTileColumns(activeLayer));
+        const isJoinedDataColumn = joinedTileColumns.has(baseDataColumn);
 
         let colorBreaks;
         let targetViewId = viewId;
@@ -617,6 +758,7 @@ const MapEditor = props => {
           filters: activeLegendFilters || null,
           targetViewId: viewGroupEnabled ? viewGroupId : viewId,
           targetColumn: filterGroupEnabled ? filterGroupLegendColumn || baseDataColumn : baseDataColumn,
+          join: isJoinedDataColumn ? buildJoinOptions(activeLayer, baseDataColumn) : null,
         });
 
         let regenerateLegend = false;
@@ -639,11 +781,28 @@ const MapEditor = props => {
           if (activeLegendFilters) {
             Object.assign(domainOptions, activeLegendFilters);
           }
-
-          setState(draft => {
-            set(draft, `${pathBase}['is-loading-colorbreaks']`, true);
-          });
+          if (isJoinedDataColumn) {
+            const joinOptions = buildJoinOptions(activeLayer, baseDataColumn);
+            if (joinOptions) {
+              domainOptions.join = joinOptions;
+            }
+          }
           const optsKey = JSON.stringify(domainOptions);
+          const cachedColorDomain = get(
+            falcorCache,
+            ["uda", pgEnv, "viewsById", +targetViewId, "colorDomain", optsKey, "value"],
+            null
+          ) || get(
+            falcorCache,
+            ["uda", pgEnv, "viewsById", +targetViewId, "colorDomain", optsKey],
+            null
+          );
+
+          if (!cachedColorDomain) {
+            setState(draft => {
+              set(draft, `${pathBase}['is-loading-colorbreaks']`, true);
+            });
+          }
           const res = await falcor.get([
             "uda", pgEnv, "viewsById", +targetViewId, "colorDomain", optsKey
           ]);

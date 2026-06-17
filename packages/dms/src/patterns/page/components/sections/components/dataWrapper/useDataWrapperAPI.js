@@ -113,6 +113,54 @@ export function useDataWrapperAPI({ state, setState }) {
         }),
         [setState]
     );
+
+    //setCustomBuckets
+    const setCustomBuckets = useCallback(
+        (value) => setState(draft => {
+            draft.customBuckets = value;
+        }),
+        [setState]
+    );
+
+    // Reconcile the synthetic custom-bucket column in state.columns to match the
+    // committed alias. This is an explicit action (fired when the alias field is
+    // committed — see sectionMenu) rather than a reactive effect, so typing the
+    // alias no longer churns columns on every keystroke.
+    //
+    // Single-bucket model: the column is identified by origin alone, so an alias
+    // change RENAMES the existing column instead of adding a duplicate. The
+    // customBuckets config stays multi-capable (keyed by alias) for the future.
+    const reconcileCustomBucketColumn = useCallback(
+        () => setState(draft => {
+            if (!draft) return;
+            const alias = draft.customBuckets?.alias;
+            const enabled = draft.customBuckets?.enabled === true;
+            const idx = (draft.columns || []).findIndex(c => c.origin === 'custom-bucket');
+
+            // No alias or master-off → the synthetic column shouldn't exist.
+            // (Config stays on draft.customBuckets so re-enabling restores it.)
+            if (!alias || !enabled) {
+                if (idx !== -1) draft.columns.splice(idx, 1);
+                return;
+            }
+            if (idx === -1) {
+                draft.columns.push({
+                    name: alias,
+                    alias,
+                    type: 'text',
+                    show: true,
+                    group: true,
+                    isCalculatedColumn: false,
+                    origin: 'custom-bucket',
+                });
+            } else {
+                draft.columns[idx].name = alias;
+                draft.columns[idx].alias = alias;
+            }
+        }),
+        [setState]
+    );
+
     return useMemo(() => ({
         // ── Read access (getters — always read live state via ref) ──
         get config() {
@@ -124,6 +172,7 @@ export function useDataWrapperAPI({ state, setState }) {
                 filters: s?.filters,
                 join: s?.join,
                 pivot: s?.pivot,
+                customBuckets: s?.customBuckets,
             };
         },
         get runtime() {
@@ -158,6 +207,10 @@ export function useDataWrapperAPI({ state, setState }) {
         // ── Pivot operations ──
         setPivot,
 
+        // ── Custom Buckets operations ──
+        setCustomBuckets,
+        reconcileCustomBucketColumn,
+
         // ── Raw access (escape hatch) ──
         // Needed for: ComplexFilters, custom control types, handlePaste.
         // Phase 5 must close these — see handoff notes in task file.
@@ -171,5 +224,7 @@ export function useDataWrapperAPI({ state, setState }) {
         toggleIdFilter, toggleGlobalVisibility,
         addFormulaColumn, addCalculatedColumn, reorderColumns,
         setPivot,
+        setCustomBuckets,
+        reconcileCustomBucketColumn,
     ]);
 }

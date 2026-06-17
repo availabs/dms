@@ -1,6 +1,8 @@
 import React from "react"
 import { extent as d3extent } from "d3-array"
 import { format as d3format } from "d3-format"
+import { ThemeContext } from "../../../../../../../ui/useTheme"
+import { gisMapTheme } from "./gisMap.theme"
 import {
   scaleQuantize,
   scaleQuantile,
@@ -30,6 +32,8 @@ export const getScale = (type, domain, range) => {
 }
 
 const Color = ({ color, hoveringParent, onMouseEnter, onMouseLeave, isFirst, isLast }) => {
+  const { theme } = React.useContext(ThemeContext) || {};
+  const t = { ...gisMapTheme, ...(theme?.datasets?.gisMap || {}) };
   const [hovering, setHovering] = React.useState(false);
 
   const doOnMouseEnter = React.useMemo(() => {
@@ -47,11 +51,7 @@ const Color = ({ color, hoveringParent, onMouseEnter, onMouseLeave, isFirst, isL
     }
   }, [color, onMouseLeave]);
   return (
-    <div className={ `
-        flex-1 relative
-        ${ Boolean(onMouseEnter) ? "hover:outline hover:outline-1 outline-current" : "" }
-        ${ isFirst && isLast ? "rounded" : isFirst ? "rounded-l" : isLast ? "rounded-r" : "" }
-      ` }
+    <div className={ `${t.colorItemBase} ${Boolean(onMouseEnter) ? t.colorItemHoverable : ''} ${isFirst && isLast ? t.colorItemRounded : isFirst ? t.colorItemRoundedL : isLast ? t.colorItemRoundedR : ''}` }
       onMouseEnter={ doOnMouseEnter }
       onMouseLeave={ doOnMouseLeave }
       style={ {
@@ -63,6 +63,8 @@ const Color = ({ color, hoveringParent, onMouseEnter, onMouseLeave, isFirst, isL
 }
 
 export const ColorBar = ({ colors, onMouseEnter, onMouseLeave, height = 4 }) => {
+  const { theme } = React.useContext(ThemeContext) || {};
+  const t = { ...gisMapTheme, ...(theme?.datasets?.gisMap || {}) };
   const [hovering, setHovering] = React.useState(false);
   const mouseEnter = React.useCallback(e => {
     setHovering(Boolean(onMouseEnter));
@@ -71,7 +73,7 @@ export const ColorBar = ({ colors, onMouseEnter, onMouseLeave, height = 4 }) => 
     setHovering(false);
   }, []);
   return (
-    <div className="flex rounded w-full"
+    <div className={t.colorBarWrapper}
       style={ { height: `${ height * 0.25 }rem`} }
       onMouseEnter={ mouseEnter }
       onMouseLeave={ mouseLeave }
@@ -90,12 +92,14 @@ export const ColorBar = ({ colors, onMouseEnter, onMouseLeave, height = 4 }) => 
 }
 
 const OrdinalLegend = ({ domain, range, format }) => {
+  const { theme } = React.useContext(ThemeContext) || {};
+  const t = { ...gisMapTheme, ...(theme?.datasets?.gisMap || {}) };
   const Scale = React.useMemo(() => {
     return getScale("ordinal", domain, range);
   }, [domain, range]);
   return (
     <div>
-      <div className="grid gap-1"
+      <div className={t.ordinalLegendGrid}
         style={ {
           gridTemplateColumns: `repeat(${ domain.length }, minmax(0, 1fr))`
         } }
@@ -105,12 +109,12 @@ const OrdinalLegend = ({ domain, range, format }) => {
           ))
         }
       </div>
-      <div className="grid gap-1 text-right"
+      <div className={t.ordinalLegendLabelsGrid}
         style={ {
           gridTemplateColumns: `repeat(${ domain.length }, minmax(0, 1fr))`
         } }
       >
-        { domain.map(d => <div key={ d } className="pr-1">{ d }</div>) }
+        { domain.map(d => <div key={ d } className={t.ordinalLegendLabel}>{ d }</div>) }
       </div>
     </div>
   )
@@ -141,6 +145,8 @@ const RangeValues = ({ range: [min, max], color, format, isFirst, isLast }) => {
 }
 
 const NonOrdinalLegend = ({ type, domain, range, showHover = true, format = ",d" }) => {
+  const { theme } = React.useContext(ThemeContext) || {};
+  const t = { ...gisMapTheme, ...(theme?.datasets?.gisMap || {}) };
   const Scale = React.useMemo(() => {
     return getScale(type, domain, range);
   }, [type, domain, range]);
@@ -169,10 +175,10 @@ const NonOrdinalLegend = ({ type, domain, range, showHover = true, format = ",d"
         scale={ Scale }
         format={ Format }/>
 
-      <div className="w-full relative">
+      <div className={t.nonOrdinalWrapper}>
         { !showRange || !showHover ? null :
-          <div className="absolute w-full left-0 top-0">
-            <div className="bg-white border border-b border-x rounded-b px-1">
+          <div className={t.nonOrdinalRangeWrapper}>
+            <div className={t.nonOrdinalRangeBorder}>
               <RangeValues
                 color={ showRange }
                 range={ Scale.invertExtent(showRange) }
@@ -196,13 +202,15 @@ export const Legend = ({ type, ...props }) => {
 }
 
 const LegendTicks = ({ type, scale, format }) => {
+  const { theme } = React.useContext(ThemeContext) || {};
+  const t = { ...gisMapTheme, ...(theme?.datasets?.gisMap || {}) };
   const size = scale.range().length;
   return type === "threshold" ? (
-    <div className="flex text-left">
+    <div className={t.legendTicksThreshold}>
       <div style={ { width: `${ 100 / size }%` } }/>
       { scale.domain().map((d, i) => (
           <div key={ d }
-            className="pl-1"
+            className={t.legendTicksThresholdPad}
             style={ { width: `${ 100 / size }%` } }
           >
             { format(d) }
@@ -211,10 +219,10 @@ const LegendTicks = ({ type, scale, format }) => {
       }
     </div>
   ) : (
-    <div className="flex text-right">
+    <div className={t.legendTicksDefault}>
       { scale.range().map((r, i) => (
           <div key={ r }
-            className="pr-1"
+            className={t.legendTicksDefaultPad}
             style={ { width: `${ 100 / size }%` } }
           >
             { format(scale.invertExtent(r)[1]) }

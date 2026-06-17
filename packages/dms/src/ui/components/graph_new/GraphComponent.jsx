@@ -20,20 +20,31 @@ const axisFontProps = (graphFormat, axis) => ({
   labelColor: get(graphFormat, [axis, "labelColor"]),
 });
 
-const GraphTitle = ({ title, ...props }) => {
+const GraphTitle = ({ title, description, theme = {}, ...props }) => {
 
-  const className = React.useMemo(() => {
+  // Explicit per-section font settings (fontSize/fontWeight on display.title) win;
+  // otherwise the avlGraph theme's header tokens style the title/description so every
+  // graph header is on-brand without per-section config. The generic theme carries no
+  // `title`/`subtitle` tokens, so non-branded sites keep the historical look.
+  const explicit = props.fontSize || props.fontWeight;
+
+  const titleClassName = React.useMemo(() => {
+    if (!explicit && theme.title) return theme.title;
     const {
       fontSize = "text-2xl",
-      fontWeight = "font-normal",
-      justify = "justify-start"
+      fontWeight = "font-normal"
     } = props;
-    return `${ fontSize } ${ fontWeight } ${ justify }`;
-  }, [props]);
+    return `${ fontSize } ${ fontWeight }`;
+  }, [props, explicit, theme.title]);
 
-  return !title ? null : (
-    <div className={ `w-full flex ${ className }` }>
-      { title }
+  const justify = props.justify || "justify-start";
+
+  return !title && !description ? null : (
+    <div className={ theme.headerWrapper || `w-full flex ${ justify }` }>
+      <div className={ titleClassName }>{ title }</div>
+      { !description ? null :
+        <div className={ theme.subtitle || "" }>{ description }</div>
+      }
     </div>
   )
 }
@@ -88,12 +99,15 @@ export const GraphComponent = props => {
   return (
     <div
       className={ `
-        w-full h-fit ${ theme.bgColor }
-        ${ theme.text } ${ theme.textColor }
+        w-full h-fit ${ theme.bgColor || "" }
+        ${ theme.text || "" } ${ theme.textColor || "" }
+        ${ theme.padding || "" }
       ` }
     >
 
-      <GraphTitle { ...(graphFormat.title || {}) }/>
+      <GraphTitle { ...(graphFormat.title || {}) }
+        description={ graphFormat.description }
+        theme={ theme }/>
 
       <GraphComponent
         viewData={ viewData }
@@ -126,6 +140,16 @@ export const GraphComponent = props => {
           gridLineOpacity: get(graphFormat, ["xAxis", "gridLineOpacity"], 0.25),
           axisColor: get(graphFormat, ["xAxis", "axisColor"], "currentColor"),
           show: get(graphFormat, ["xAxis", "show"], true),
+          // 'bottom' (default) | 'top' — where the category axis renders (sparks
+          // with labels above the bars set 'top'). See AxisBottom position prop.
+          position: get(graphFormat, ["xAxis", "position"], "bottom"),
+          // Optional value→label map for category ticks (e.g. month number →
+          // letter: {"1":"J","2":"F",…}). Keeps the DOMAIN on the real values —
+          // mapping labels in data collapses duplicate categories (J/J/J).
+          format: (() => {
+            const tl = get(graphFormat, ["xAxis", "tickLabels"]);
+            return tl ? (v => tl[v] ?? v) : undefined;
+          })(),
           // Axis typography — unset keys leave the axis renderer's BC defaults.
           ...axisFontProps(graphFormat, "xAxis")
         } }

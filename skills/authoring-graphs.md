@@ -94,12 +94,104 @@ target lives in a real table, **join** it (`using-a-datawrapper-card.md`) and po
 second series at the joined column instead of a constant. **Confirm target values/source
 with the user before binding — don't fabricate regulatory targets.**
 
+## Pattern: BarGraph — rotation, grouped bars, hidden axes, bar spacing ✅
+
+All of these are **section `display` keys** (author-editable in the graph controls; theme
+`chartDefaults` can set brand defaults the same way). Worked example: the Freight Atlas
+Home mode-share (2175321) + growth (2175322) charts, matched to design panels that use
+horizontal bars with no axes.
+
+- **`groupMode: "grouped" | "stacked"`** — ⚠ default is **`stacked`**: two `yAxis` series
+  silently stack (sums on one bar) unless you set `"grouped"` for side-by-side bars.
+- **`orientation: "vertical" | "horizontal"`** — rotates the chart (config control
+  "Orientation", BarGraph settings). **Axis configs swap with it**: in `horizontal`, the
+  section's `xAxis` config (the category axis) renders as the **left** axis and `yAxis`
+  (values) renders as the **bottom**. Two gotchas:
+  1. the first data row lands at the **bottom** — to put the biggest category on top,
+     `sort: "asc"` on the measure column (not desc);
+  2. long category labels clip — give them room with `margin: { left: 64 }`.
+- **Hiding axes/ticks/gridlines** (design panels often want none):
+  `xAxis: { show: false }` / `yAxis: { show: false }` kill the whole axis;
+  `yAxis.showGridLines: false` (⚠ y default is **true**; x default false) kills the grid.
+  To keep **category labels but no axis line**, leave `show: true` and set
+  `axisColor: "transparent"` (+ `tickColor` for the label color).
+- **Axis labels ON TOP (spark pattern)** — `xAxis: { position: "top" }` renders the
+  category axis above the plot (d3 axisTop; default `"bottom"`). Pair with
+  `axisColor: "transparent"` + `tickColor`/`tickFontSize`/`tickFontFamily` for the
+  design-system spark look (letters above bars, no line), and give the plot head-room
+  with `margin.top` ≈ 16.
+- **Category tick labels that differ from the data** — `xAxis.tickLabels` is a
+  value→label map (e.g. `{"1":"J","2":"F",…}` for month letters, `{"2017":"'17"}`
+  for short years). ⚠ Do NOT bake display labels into the data/SQL instead: the
+  band-scale domain dedupes, so repeated letters (J/J/J) collapse to one bar.
+- **Bar spacing** — `paddingInner: 0..1` (d3 band-scale inner padding; ~`0.3` reads like
+  the design-system bars; default 0 = bars touch). `paddingOuter` exists too (edge gap;
+  no config control yet, but the display key works).
+- **Series colors** — `colors: { type: "palette", value: ["#1F3F8F", "#E5A646"] }` maps
+  palette entries to series in column order (per-column `color` is honored by LineGraph
+  series, not BarGraph bars — use the palette for bars).
+- **Legend** — `legend: { show: true, position: "right" }`. ⚠ BarGraph only renders the
+  legend at `position: "left" | "right"` — `{ show: true }` with no position renders
+  **nothing**. Series-mode legend labels show the column's `customName`/`display_name`
+  (the wrapper translates the alias keys — raw `tons_share`-style aliases used to leak
+  through; fixed in `components/BarGraph.jsx`). Categorize-mode keys are data values and
+  pass through as-is.
+- **Height** — `height` (px) is a **graph display setting, not a layout concern**: the
+  section/card stretches with the band, the plot does not. Two graphs side by side must
+  set the **same `height`** or their baselines misalign.
+- **Built-in padding** — the chart's outer div takes a `padding` class token from the
+  **avlGraph theme** (`theme.js` styles + brand overrides, e.g. transportny's `p-4`), so
+  plots don't sit flush against the section edge. Brand-level, not per-section.
+- **Margins** — `margin.{top,right,bottom,left}` merge theme
+  `avlGraph.chartDefaults.margin` UNDER the section's display (GraphComponent falls back
+  to 20/20/50/100 when neither sets a side). The Margins settings rows show the
+  **effective theme default** even when the section hasn't set one (`graph_new/config.jsx`
+  resolves `controls` as a function of the live theme and supplies `defaultValue` —
+  shown by the navigable settings rows — plus a `placeHolder` for the MoreControls
+  inputs), so an empty setting isn't a mystery value. **Prefer leaving section margins
+  unset** and fixing label-fit issues at the brand level (e.g. transportny `left: 64`
+  fits horizontal-bar category labels like "Pipeline").
+- **Title/description theming** — `GraphTitle` styles the header from the avlGraph
+  theme's `headerWrapper` / `title` / `subtitle` tokens (transportny: title =
+  font-display uppercase + `shrink-0`, description = right-aligned mono subtitle on the
+  same baseline row). Per-section `title.fontSize`/`fontWeight` still override when
+  explicitly set; with no theme tokens (generic theme) the historical `text-2xl` look
+  is unchanged. So: set `title.title` + `description` as plain strings and let the
+  brand style them — don't hand-set fonts per section.
+
 ## Pattern: chart header + hero stat
 The design's trend cards carry a header (kicker + title) and a right-aligned **hero
 stat** (the current-year value + a meets/below pill). Build it as a small **`Card`**
 placed above the graph in the same band — reuse the **`status_pill`** column type for
 the pill and a big value cell for the number. (Not a chart feature — it's a sibling
 section, so it stays author-editable.)
+
+## Pattern: heat grid (GridGraph) — month × category with within-row shading
+
+`graphType: "GridGraph"` renders the design-system heat grid. Column targets
+differ from Bar/Line: **`xAxis`** = grid columns (e.g. `month`, group:true),
+**`yAxis`** = row index (e.g. `region_name`, group:true), **`target: "color"`**
+= the cell value (aggregated; `fn:'exempt'` for calc columns). Colors:
+`{type:'palette', value:[lo, mid, hi]}` — exactly **3 stops** (linear scale
+domain is [min, mid, max]).
+
+- **Within-row normalization** (the "share of each row's total" design): make
+  the color column a window-over-aggregate calc —
+  `sum(x) * 100.0 / nullif(sum(sum(x)) over (partition by row_col), 0)`.
+- **Row order = data order** (no built-in sort-by-value): prepend a hidden
+  window calc `sum(sum(x)) over (partition by row_col) as row_total` with
+  `sort:'desc'` as the FIRST column — ORDER BY makes rows arrive
+  biggest-first and d3groups preserves it.
+- Exclude null categories with an explicit IN-list filter leaf (a null row
+  renders as a blank band).
+- Top month letters: same `xAxis.position:'top'` + `tickLabels` recipe as
+  sparks.
+- ⚠ Fixed in `components/GridGraph.jsx`: the chart slot only had `flex-1`
+  when a left/right legend was set — with `legend.show:false` the grid
+  shrink-wrapped to ~its height. The slot now always fills (`flex-1 min-w-0`).
+
+Worked example: congestion_v2 seasonality (section 2175689) — month × region,
+% of region's annual delay, 3-stop amber palette.
 
 ## Worked example
 MAP-21 §02 — three trend charts (Interstate / Non-Interstate / Truck TTTR) over

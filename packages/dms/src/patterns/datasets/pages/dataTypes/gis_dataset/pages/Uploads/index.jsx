@@ -4,12 +4,16 @@ import { get } from "lodash-es"
 
 import { DatasetsContext } from "../../../../../context";
 import { getExternalEnv } from "../../../../../utils/datasources";
+import { ThemeContext } from "../../../../../../../ui/useTheme";
+import { uploadsTheme } from "./uploads.theme";
 
 import ListUploads from "./list";
 import Upload from "./view";
 
 const UploadsPage = ({ source }) => {
   const { datasources, falcor, falcorCache, user } = React.useContext(DatasetsContext);
+  const { theme } = React.useContext(ThemeContext) || {};
+  const t = { ...uploadsTheme, ...(theme?.datasets?.uploads || {}) };
   const pgEnv = getExternalEnv(datasources);
   const { viewId, page } = useParams();
 
@@ -70,8 +74,8 @@ const UploadsPage = ({ source }) => {
 
   return (
     <>
-      <div className="flex">
-        <div className="flex-1 pl-3 pr-4 py-2">Upload Views</div>
+      <div className={t.indexHeader}>
+        <div className={t.indexHeaderLabel}>Upload Views</div>
       </div>
       <ListUploads uploads={ctxs} sourceId={sourceId}/>
     </>

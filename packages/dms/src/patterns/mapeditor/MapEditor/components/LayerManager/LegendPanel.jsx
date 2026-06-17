@@ -2,6 +2,8 @@ import React, { useMemo, useContext, Fragment } from 'react'
 import { SymbologyContext } from '../../'
 import { MapEditorContext } from "../../../context"
 import { ThemeContext } from "../../../../../ui/themeContext"
+import useMapLegendTheme from "../../../../../ui/components/map/useMapLegendTheme"
+import useMapTheme from "../../../../../ui/components/map/useMapTheme"
 import { Fill, Line, Eye, EyeClosed, MenuDots , CaretDown, CaretDownSolid, CaretUpSolid, CircleInfoI } from '../icons'
 import { get, set } from 'lodash-es'
 import { LayerMenu, LayerInfo } from './LayerPanel'
@@ -13,7 +15,11 @@ const STOP_THE_PROP = e => e.stopPropagation();
 
 export function VisibilityButton ({layer}) {
   const { state, setState  } = React.useContext(SymbologyContext);
+  const legendTheme = useMapLegendTheme();
   const { activeLayer } = state.symbology;
+  const controlButtonStateClass = activeLayer == layer.id
+    ? legendTheme.controlButtonActive
+    : legendTheme.controlButtonInactive;
   const visible = layer.isVisible;
   const onClick = React.useCallback(e => {
     e.stopPropagation();
@@ -31,11 +37,11 @@ export function VisibilityButton ({layer}) {
       { visible ?
         <Eye
           onClick={onClick}
-          className={` ${activeLayer == layer.id ? 'fill-pink-100' : 'fill-white'} pt-[2px] cursor-pointer group-hover:fill-gray-400 group-hover:hover:fill-pink-700`}
+          className={`${controlButtonStateClass} pt-[2px] ${legendTheme.controlButton}`}
         /> :
         <EyeClosed
           onClick={onClick}
-          className={` ${activeLayer == layer.id ? 'fill-pink-100' : 'fill-white'} pt-[2px] cursor-pointer group-hover:fill-gray-400 group-hover:hover:fill-pink-700`}
+          className={`${controlButtonStateClass} pt-[2px] ${legendTheme.controlButton}`}
         />
       }
     </>
@@ -92,12 +98,12 @@ export const useHeatmapRadialGradient = colors => {
   }, [stops]);
 }
 
-const HeatmapLegendSymbol = ({ colors }) => {
+const HeatmapLegendSymbol = ({ colors, legendTheme }) => {
 
   const gradient = useHeatmapRadialGradient(colors);
 
   return (
-    <div className='pr-2'>
+    <div className={legendTheme.symbolWrapper}>
       <div className="w-4 h-4 rounded-full"
         style={ {
           background: Array.isArray(colors) ? gradient : null,
@@ -108,12 +114,12 @@ const HeatmapLegendSymbol = ({ colors }) => {
   )
 }
 
-const LegendSymbol = ({ layer, color }) => {
+const LegendSymbol = ({ layer, color, legendTheme }) => {
 
 // console.log("LegendSymbol::color", color)
 
   return layer?.type === "circle" ? (
-    <div className='pl-0.5 pr-2'>
+    <div className={legendTheme.symbolWrapper}>
       <div className="w-3 h-3 rounded-full"
         style={ {
           backgroundColor: color,
@@ -122,7 +128,7 @@ const LegendSymbol = ({ layer, color }) => {
       />
     </div>
   ) : layer?.type === "line" ? (
-    <div className='pr-2'>
+    <div className={legendTheme.symbolWrapper}>
       <div className="w-4 h-1"
         style={ {
           backgroundColor: color
@@ -130,9 +136,9 @@ const LegendSymbol = ({ layer, color }) => {
       />
     </div>
   ) : layer?.type === "heatmap" ? (
-    <HeatmapLegendSymbol colors={ color }/>
+    <HeatmapLegendSymbol colors={ color } legendTheme={legendTheme}/>
   ) : (
-    <div className='pr-2'>
+    <div className={legendTheme.symbolWrapper}>
       <div className="w-4 h-4 rounded"
         style={ {
           backgroundColor: color
@@ -143,6 +149,7 @@ const LegendSymbol = ({ layer, color }) => {
 }
 
 function CategoryLegend({ layer, toggleSymbology }) {
+  const legendTheme = useMapLegendTheme();
 
   // const Symbol = React.useMemo(() => {
   //   return typeSymbols[layer.type] || typeSymbols['fill'];
@@ -162,11 +169,9 @@ function CategoryLegend({ layer, toggleSymbology }) {
       onClick={toggleSymbology}
     >
       { legenddata.map((d, i) => (
-          <div key={ i } className='w-full flex items-center hover:bg-pink-50'>
-            <div className='flex items-center h-6 w-10 justify-center  '>
-              <LegendSymbol layer={ layer } color={ d.color }/>
-            </div>
-            <div className='flex items-center text-center flex-1 px-4 text-slate-500 h-6 text-sm truncate'>{d.label}</div>
+          <div key={ i } className={`w-full flex items-center border-0 ${legendTheme.rowHover}`}>
+            <LegendSymbol layer={ layer } color={ d.color } legendTheme={legendTheme}/>
+            <div className={legendTheme.label}>{d.label}</div>
           </div>
         ))
       }
@@ -175,6 +180,7 @@ function CategoryLegend({ layer, toggleSymbology }) {
 }
 
 function InteractiveLegend({ layer, toggleSymbology }) {
+  const legendTheme = useMapLegendTheme();
   const { state, setState } = React.useContext(SymbologyContext);
 
   let { interactiveFilters } = useMemo(() => {
@@ -187,7 +193,7 @@ function InteractiveLegend({ layer, toggleSymbology }) {
   const activeFilterLayerType = layer?.['interactive-filters']?.[selectedInteractiveFilterIndex]?.['layer-type'];
   return (
     <div
-      className="w-full max-h-[350px] overflow-x-auto scrollbar-sm"
+      className={legendTheme.horizontalPanel}
     >
       {activeFilterLayerType === 'categories' && <CategoryLegend layer={layer} toggleSymbology={toggleSymbology}/>}
       {activeFilterLayerType === 'choropleth' && <StepLegend layer={layer} toggleSymbology={toggleSymbology}/>}
@@ -197,6 +203,7 @@ function InteractiveLegend({ layer, toggleSymbology }) {
 }
 
 function CircleLegend({ layer, toggleSymbology }) {
+  const legendTheme = useMapLegendTheme();
  // console.log("CircleLegend", layer);
   let { minRadius, maxRadius, lowerBound, upperBound, isLoadingColorbreaks, dataColumn } = useMemo(() => {
     return {
@@ -211,7 +218,7 @@ function CircleLegend({ layer, toggleSymbology }) {
   if (isLoadingColorbreaks) {
     return (
       <div className="w-full max-h-[250px] overflow-x-auto scrollbar-sm">
-        <div className="flex w-full justify-center overflow-hidden pb-2">
+        <div className={legendTheme.loading}>
           Creating legend...
           <span
             style={{ fontSize: "1.5rem" }}
@@ -248,6 +255,7 @@ function CircleLegend({ layer, toggleSymbology }) {
 }
 
 function StepLegend({ layer, toggleSymbology }) {
+  const legendTheme = useMapLegendTheme();
   //console.log('StepLegend', layer)
   const { state, setState  } = React.useContext(SymbologyContext);
   let { legenddata, isLoadingColorbreaks } = useMemo(() => {
@@ -261,7 +269,7 @@ function StepLegend({ layer, toggleSymbology }) {
   if(isLoadingColorbreaks){
     return (
       <div className='w-full max-h-[250px] overflow-x-auto scrollbar-sm'>
-        <div className="flex w-full justify-center overflow-hidden pb-2" >
+        <div className={legendTheme.loading} >
           Creating legend...
           <span style={ { fontSize: "1.5rem" } } className={ `ml-2 fa-solid fa-spinner fa-spin` }/>
         </div>
@@ -275,11 +283,9 @@ function StepLegend({ layer, toggleSymbology }) {
       onClick={toggleSymbology}
     >
       {legenddata.map((d,i) => (
-        <div key={i} className='w-full flex items-center hover:bg-pink-50'>
-          <div className='flex items-center h-6 w-10 justify-center  '>
-            <LegendSymbol layer={ layer } color={ d.color }/>
-          </div>
-          <div className='flex items-center text-center flex-1 px-4 text-slate-500 h-6 text-sm truncate'>{d.label}</div>
+        <div key={i} className={`w-full flex items-center border-0 ${legendTheme.rowHover}`}>
+          <LegendSymbol layer={ layer } color={ d.color } legendTheme={legendTheme}/>
+          <div className={legendTheme.label}>{d.label}</div>
         </div>
       ))}
     </div>
@@ -287,6 +293,7 @@ function StepLegend({ layer, toggleSymbology }) {
 }
 
 function HorizontalLegend({ layer, toggleSymbology }) {
+  const legendTheme = useMapLegendTheme();
   const { state, setState  } = React.useContext(SymbologyContext);
   let { legenddata, isLoadingColorbreaks, showOther } = useMemo(() => {
     return {
@@ -300,7 +307,7 @@ function HorizontalLegend({ layer, toggleSymbology }) {
   if(isLoadingColorbreaks){
     return (
       <div className='w-full max-h-[250px] overflow-x-auto scrollbar-sm'>
-        <div className="flex w-full justify-center overflow-hidden pb-2" >
+        <div className={legendTheme.loading} >
           Creating legend...
           <span style={ { fontSize: "1.5rem" } } className={ `ml-2 fa-solid fa-spinner fa-spin` }/>
         </div>
@@ -310,15 +317,13 @@ function HorizontalLegend({ layer, toggleSymbology }) {
 
   return (
     <div
-      className="w-full max-h-[350px] overflow-x-auto scrollbar-sm"
+      className={legendTheme.horizontalPanel}
       onClick={toggleSymbology}
     >
-      <div
-        className={`flex-1 flex w-full p-2`}
-      >
+      <div className={legendTheme.horizontalTrack}>
         {legenddata.map((d, i) => (
           <div className="flex-1 h-6" key={`horizontal_legend_item_${i}`}>
-            <div className='flex justify-self-end text-xs h-4'>
+            <div className={`flex justify-self-end h-4 ${legendTheme.secondaryLabel}`}>
               { isShowOtherEnabled && i === legenddata.length-1 ? 'N/A' : legenddata[i].label}
             </div>
 
@@ -425,6 +430,7 @@ export const GET_PAINT_VALUE = {
 
 function LegendRow ({ layer, i, numLayers, onRowMove }) {
   const { state, setState  } = React.useContext(SymbologyContext);
+  const legendTheme = useMapLegendTheme();
   const { useFalcor, pgEnv, baseUrl } = useContext(MapEditorContext);
   const { falcor, falcorCache } = useFalcor();
   const { activeLayer } = state.symbology;
@@ -495,13 +501,20 @@ function LegendRow ({ layer, i, numLayers, onRowMove }) {
     <div className='flex justify-between items-center justify w-full' onClick={toggleSymbology} >
       { shouldDisplayColorSquare && (
           <div className='pl-1 flex'>
-            <LegendSymbol layer={ layer } color={ paintValue }/>
+            <LegendSymbol layer={ layer } color={ paintValue } legendTheme={legendTheme}/>
             { layerTitle }
           </div>
         )
       }
       { !shouldDisplayColorSquare && layerTitle }
       <div className='flex'>
+        {(() => {
+          const controlButtonStateClass = activeLayer == layer.id
+            ? legendTheme.controlButtonActive
+            : legendTheme.controlButtonInactive;
+
+          return (
+            <>
         <div className='text-sm pt-1  flex items-center'
           onClick={ STOP_THE_PROP }
         >
@@ -509,7 +522,7 @@ function LegendRow ({ layer, i, numLayers, onRowMove }) {
             source={layerSource}
             layer={layer}
             baseUrl={baseUrl}
-            button={<CircleInfoI size={16} className={` ${activeLayer == layer.id ? 'fill-pink-100' : 'fill-white'} collapse group-hover:visible pb-[2px] cursor-pointer group-hover:fill-gray-400 group-hover:hover:fill-pink-700`}/>}
+            button={<CircleInfoI size={16} className={`${controlButtonStateClass} ${legendTheme.controlButtonReveal} pb-[2px] ${legendTheme.controlButton}`}/>}
           />
         </div>
         <div className='text-sm pt-1  flex items-center'
@@ -517,7 +530,7 @@ function LegendRow ({ layer, i, numLayers, onRowMove }) {
         >
           <LayerMenu
             layer={layer}
-            button={<MenuDots className={` ${activeLayer == layer.id ? 'fill-pink-100' : 'fill-white'} pb-[2px] cursor-pointer group-hover:fill-gray-400 group-hover:hover:fill-pink-700`}/>}
+            button={<MenuDots className={`${controlButtonStateClass} pb-[2px] ${legendTheme.controlButton}`}/>}
           />
         </div>
         <CaretUpSolid
@@ -525,16 +538,19 @@ function LegendRow ({ layer, i, numLayers, onRowMove }) {
             onRowMove(i, i-1)
           }}
           size={24}
-          className={`${i === 0 ? 'pointer-events-none' : ''} mr-[-6px] ${activeLayer == layer.id ? 'fill-pink-100' : 'fill-white'}  pt-[2px] cursor-pointer group-hover:fill-gray-400 group-hover:hover:fill-pink-700`}
+          className={`${i === 0 ? 'pointer-events-none' : ''} mr-[-6px] ${controlButtonStateClass} pt-[2px] ${legendTheme.controlButton}`}
         />
         <CaretDownSolid
           onClick={ () => {
             onRowMove(i, i+1)
           }}
           size={24}
-          className={`${i === numLayers-1 ? 'pointer-events-none' : ''} mr-[-3px] ${activeLayer == layer.id ? 'fill-pink-100' : 'fill-white'} pb-[2px] cursor-pointer group-hover:fill-gray-400 group-hover:hover:fill-pink-700`}
+          className={`${i === numLayers-1 ? 'pointer-events-none' : ''} mr-[-3px] ${controlButtonStateClass} pb-[2px] ${legendTheme.controlButton}`}
         />
         <VisibilityButton layer={layer}/>
+            </>
+          );
+        })()}
       </div>
     </div>
   );
@@ -569,10 +585,10 @@ function LegendRow ({ layer, i, numLayers, onRowMove }) {
     groupSelectorElements.push(
       <div
         key={`symbrow_${layer.id}_interactive`}
-        className="text-slate-600 font-medium truncate flex-1"
+        className={legendTheme.groupLabel}
       >
-        <div className='text-xs text-black'>Filters:</div>
-        <div className="rounded-md h-[36px] pl-0 flex w-full w-[216px] items-center border border-transparent cursor-pointer hover:border-slate-300">
+        <div className={legendTheme.groupMetaLabel}>Filters:</div>
+        <div className={legendTheme.selectorBox}>
           <select
             className="w-full bg-transparent"
             value={selectedInteractiveFilterIndex}
@@ -600,10 +616,10 @@ function LegendRow ({ layer, i, numLayers, onRowMove }) {
     groupSelectorElements.push(
       <div
         key={`symbrow_${layer.id}_filtergroup`}
-        className="text-slate-600 font-medium truncate flex-1 items-center"
+        className={`${legendTheme.groupLabel} items-center`}
       >
-        <div className='text-xs text-black'>{filterGroupName}:</div>
-        <div className="rounded-md h-[36px] pl-0 flex w-full w-[216px] items-center border border-transparent cursor-pointer hover:border-slate-300">
+        <div className={legendTheme.groupMetaLabel}>{filterGroupName}:</div>
+        <div className={legendTheme.selectorBox}>
           <select
             className="w-full bg-transparent"
             value={dataColumn}
@@ -647,10 +663,10 @@ function LegendRow ({ layer, i, numLayers, onRowMove }) {
     groupSelectorElements.push(
       <div
         key={`symbrow_${layer.id}_viewgroup`}
-        className="text-slate-600 font-medium truncate flex-1 items-center"
+        className={`${legendTheme.groupLabel} items-center`}
       >
-        <div className='text-xs text-black'>{viewGroupName}: </div>
-        <div className="rounded-md h-[36px] pl-0 flex w-full w-[216px] items-center border border-transparent cursor-pointer hover:border-slate-300">
+        <div className={legendTheme.groupMetaLabel}>{viewGroupName}: </div>
+        <div className={legendTheme.selectorBox}>
           <select
             className="w-full bg-transparent"
             value={layer.view_id}
@@ -700,8 +716,8 @@ function LegendRow ({ layer, i, numLayers, onRowMove }) {
   return (
     <div
       className={`${
-        activeLayer == layer.id ? "bg-pink-100" : ""
-      } hover:border-pink-500 group border border-transparent`}
+        activeLayer == layer.id ? legendTheme.rowActive : ""
+      } ${legendTheme.row} ${legendTheme.rowHover} group`}
     >
       <div
         className={`w-full pl-2 pt-1 pb-0 flex border-blue-50/50 border justify-between items-center ${
@@ -761,6 +777,7 @@ function LegendRow ({ layer, i, numLayers, onRowMove }) {
 
 function LegendPanel (props) {
   const { state, setState  } = React.useContext(SymbologyContext);
+  const legendTheme = useMapLegendTheme();
   //console.log('layers', layers)
   const { allPluginActiveLayerIds, layers } = useMemo(() => {
     return extractState(state)
@@ -788,7 +805,7 @@ function LegendPanel (props) {
   return (
     <>
       {/* ------ Legend Pane ----------- */}
-      <div className='min-h-20 relative max-h-[calc(100vh_-_220px)] scrollbar-sm '>
+      <div className={`min-h-20 relative max-h-[calc(100vh_-_220px)] scrollbar-sm ${legendTheme.panelInner}`}>
         {Object.values(layers)
           .sort((a,b) => b.order - a.order)
           .filter((layer, i) => {
@@ -886,6 +903,7 @@ function DynamicFilterControl({button, layer, sampleData, filterIndex}) {
   const { state, setState  } = React.useContext(SymbologyContext);
   const { UI } = React.useContext(ThemeContext) || {};
   const { Popup } = UI || {};
+  const mapTheme = useMapTheme();
 
   const {filterValues} = useMemo(() => {
     return {
@@ -894,11 +912,11 @@ function DynamicFilterControl({button, layer, sampleData, filterIndex}) {
   }, [state, filterIndex])
   return (
     <Popup button={button} preventCloseOnClickOutside={false}>
-      <div className="w-48 rounded-md bg-white shadow-lg ring-1 ring-black/5 p-2 max-h-[250px] overflow-auto">
+      <div className={mapTheme.popup.listPanel}>
         {sampleData.map((datum) => (
           <div
             key={`menu_item_${datum}`}
-            className="group flex w-full items-center rounded-md px-1 py-1 text-sm hover:bg-pink-50"
+            className={mapTheme.popup.listItem}
           >
             <input
               type="checkbox"
@@ -917,7 +935,7 @@ function DynamicFilterControl({button, layer, sampleData, filterIndex}) {
                 }
               }}
             />
-            <div className="truncate flex items-center text-[15px] px-4 py-1">
+            <div className={mapTheme.popup.listItemText}>
               {datum}
             </div>
           </div>

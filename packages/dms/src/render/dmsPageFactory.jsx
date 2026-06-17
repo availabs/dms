@@ -30,6 +30,12 @@ export default function dmsPageFactory({
     // if (import.meta.env.DEV) console.log(`[dms loader] ${path} — start`)
     const t0 = import.meta.env.DEV ? performance.now() : 0;
     let data = await dmsDataLoader(falcor, dmsConfig, `/${params["*"] || ""}`);
+    // If any item came back as 'no-access', the falcor cache may be holding a
+    // pre-auth response. Clear it and retry so a newly logged-in user gets real data.
+    if (data.some(d => d.id === 'no-access')) {
+      falcor.setCache({});
+      data = await dmsDataLoader(falcor, dmsConfig, `/${params["*"] || ""}`);
+    }
     const t1 = import.meta.env.DEV ? performance.now() : 0;
     // Pre-load dataWrapper section data if the pattern supports it
     if (dmsConfig.preload) {

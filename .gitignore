@@ -22,3 +22,4 @@ migrate-progress-*.json
 
 # Task system host ID and runtime data
 **/var/
+src/db/configs/npmrds2.config.json

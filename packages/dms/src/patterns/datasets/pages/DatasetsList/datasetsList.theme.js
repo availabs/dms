@@ -1,6 +1,7 @@
 export const datasetsListTheme = {
     // Page layout
     pageWrapper: 'max-w-6xl mx-auto w-full',
+    iconMd: 'size-5',
     header: 'sticky top-0 z-10 bg-zinc-100 flex flex-col gap-3 pb-3',
     toolbar: 'flex flex-row items-center gap-1 px-4',
     toolbarSearch: 'flex-1',

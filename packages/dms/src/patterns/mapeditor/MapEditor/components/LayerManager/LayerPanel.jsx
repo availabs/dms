@@ -1,6 +1,7 @@
 import React, { useContext , useMemo, useCallback, useRef} from 'react'
 import { SymbologyContext } from '../../'
 import { ThemeContext } from "../../../../../ui/themeContext"
+import useMapTheme from "../../../../../ui/components/map/useMapTheme"
 import SourceSelector from './SourceSelector'
 import { useParams, useNavigate, Link } from 'react-router'
 import { Fill, Line, Circle, Eye, EyeClosed, MenuDots , CaretDown} from '../icons'
@@ -46,9 +47,10 @@ export function LayerMenu({layer, button}) {
 export function LayerInfo({ layer, button, source, baseUrl }) {
   const { UI } = React.useContext(ThemeContext) || {};
   const { Popup, Button } = UI || {};
+  const mapTheme = useMapTheme();
   return (
     <Popup button={<Button type="plain" className="p-0">{button}</Button>}>
-      <div className="w-64 rounded-md bg-white shadow-lg ring-1 ring-black/5 px-2 py-2 flex gap-2 flex-col">
+      <div className={mapTheme.popup.infoPanel}>
         <div><b>Source Name:</b> {source?.name}</div>
         <div><b>Source Id:</b> {source?.source_id}</div>
       </div>

@@ -3,6 +3,7 @@ import { get, set, isEqual } from "lodash-es"
 
 import { AvlLayer } from "../../../../../../../ui/components/map";
 import { ThemeContext } from "../../../../../../../ui/themeContext";
+import { gisMapTheme } from "./gisMap.theme";
 import { Legend, ColorBar, getScale } from "./legend-components";
 import { ColorRanges, getColorRange } from "./utils/color-ranges";
 import ckmeans from "./utils/ckmeans";
@@ -21,6 +22,8 @@ const NO_FILTER_LAYER_SUFFIX = 'static'
 const HoverComp = ({ data, layer }) => {
   const { attributes, activeViewId, filters } = layer;
   const { datasources, falcor, falcorCache } = React.useContext(DatasetsContext);
+  const { theme } = React.useContext(ThemeContext) || {};
+  const t = { ...gisMapTheme, ...(theme?.datasets?.gisMap || {}) };
   const pgEnv = getExternalEnv(datasources);
   const id = React.useMemo(() => get(data, "[0]", null), [data]);
 
@@ -50,17 +53,17 @@ const HoverComp = ({ data, layer }) => {
 
   
   return (
-    <div className="bg-white p-4 max-h-64 max-w-lg scrollbar-xs overflow-y-scroll">
-      <div className="font-medium pb-1 w-full border-b ">
+    <div className={t.hoverCompWrapper}>
+      <div className={t.hoverCompTitle}>
         {layer.source.display_name}
       </div>
       {Object.keys(attrInfo).length === 0 ? `Fetching Attributes ${id}` : ""}
       {Object.keys(attrInfo)
         .filter((k) => typeof attrInfo[k] !== "object")
         .map((k, i) => (
-          <div className="flex border-b pt-1" key={i}>
-            <div className="flex-1 font-medium text-sm pl-1">{k}</div>
-            <div className="flex-1 text-right font-thin pl-4 pr-1">
+          <div className={t.hoverCompRow} key={i}>
+            <div className={t.hoverCompKey}>{k}</div>
+            <div className={t.hoverCompVal}>
               {attrInfo?.[k]}
             </div>
           </div>
@@ -70,6 +73,8 @@ const HoverComp = ({ data, layer }) => {
 };
 
 const LegendCmp = ({ domain, range, title }) => {
+  const { theme } = React.useContext(ThemeContext) || {};
+  const t = { ...gisMapTheme, ...(theme?.datasets?.gisMap || {}) };
   const getDomainRanges = (domain) => {
     const ranges = [];
     if (!(domain && domain.length)) return range;
@@ -87,20 +92,20 @@ const LegendCmp = ({ domain, range, title }) => {
 
   return (
     <>
-      <div className="shadow-lg box-content min-h-32 min-w-48 w-fit p-1 border-2 bg-slate-50 bg-opacity-55">
-        <div className="flex mb-1"><div className="flex-1 font-medium">{title}</div></div>
+      <div className={t.legendCmpWrapper}>
+        <div className={t.legendCmpTitleRow}><div className={t.legendCmpTitle}>{title}</div></div>
         {Array.from({ length: smallLen }).map((_, i) =>
           <>
-            <div className="flex m-2">
-              <div className="flex-none w-16">
-                <div className="h-8 w-[2px] rounded dark:ring-1 dark:ring-inset dark:ring-white/10 sm:w-full" style={{
+            <div className={t.legendCmpItemRow}>
+              <div className={t.legendCmpColorCol}>
+                <div className={t.legendCmpColorBar} style={{
                   backgroundColor: range[i],
                   transition: "background-color 0.5s"
                 }} />
               </div>
-              <div className="flex-initial ml-6 w-32">
+              <div className={t.legendCmpLabelCol}>
                 {
-                  <div className="h-6 w-2 ml-1 p-[2px] sm:w-full text-left">
+                  <div className={t.legendCmpLabel}>
                     {newRanges[i]}</div>
                 }
               </div>
@@ -114,11 +119,13 @@ const LegendCmp = ({ domain, range, title }) => {
 }
 
 export const LegendContainer = ({ name, title, toggle, isOpen, children }) => {
+  const { theme } = React.useContext(ThemeContext) || {};
+  const t = { ...gisMapTheme, ...(theme?.datasets?.gisMap || {}) };
   return (
-    <div className="p-1 rounded bg-white">
-      <div className="p-1 relative rounded border pointer-events-auto">
-        <div className="flex mb-1">
-          <div className="flex-1 font-medium">{ name || title }</div>
+    <div className={t.legendContainerOuter}>
+      <div className={t.legendContainerInner}>
+        <div className={t.legendContainerTitleRow}>
+          <div className={t.legendContainerTitle}>{ name || title }</div>
         </div>
         <div>{ children }</div>
       </div>
@@ -179,6 +186,8 @@ const GISDatasetRenderComponent = props => {
   const [layerData, setLayerData] = React.useState(null);
 
   const { datasources, falcor, falcorCache, ...rest } = React.useContext(DatasetsContext);
+  const { theme } = React.useContext(ThemeContext) || {};
+  const t = { ...gisMapTheme, ...(theme?.datasets?.gisMap || {}) };
   const pgEnv = getExternalEnv(datasources);
 
   const createLegend = React.useCallback((settings = {}) => {
@@ -546,10 +555,10 @@ const GISDatasetRenderComponent = props => {
   }, [ref, close]);
 
   return !legend ? null : (
-    <div ref={ setRef } className="absolute top-0 left-0 w-96 grid grid-cols-1 gap-4">
-      <div className="z-10">
+    <div ref={ setRef } className={t.renderComponentWrapper}>
+      <div className={t.renderComponentLegendCol}>
         {
-          legend?.type === 'custom' ? 
+          legend?.type === 'custom' ?
             (
               <LegendContainer { ...legend }
                 toggle={ toggle }
@@ -557,11 +566,11 @@ const GISDatasetRenderComponent = props => {
               >
                 <Legend { ...legend }/>
               </LegendContainer>
-            ) : 
+            ) :
               <LegendCmp {...legend} />
         }
       </div>
-      <div className="z-0">
+      <div className={t.renderComponentControlsCol}>
         <LegendControls legend={ legend }
           updateLegend={ updateLegend }
           isOpen={ isOpen }
@@ -572,19 +581,23 @@ const GISDatasetRenderComponent = props => {
 }
 
 const RemoveDomainItem = ({ value, remove }) => {
+  const { theme } = React.useContext(ThemeContext) || {};
+  const t = { ...gisMapTheme, ...(theme?.datasets?.gisMap || {}) };
   const doRemove = React.useCallback(e => {
     e.stopPropagation();
     remove(value);
   }, [value, remove]);
   return (
     <span onClick={ doRemove }
-      className="px-2 flex items-center hover:bg-gray-200 rounded cursor-pointer text-red-500"
+      className={t.removeDomainItem}
     >
       &times;
     </span>
   )
 }
 const DomainItem = ({ domain, index, disabled, remove, edit }) => {
+  const { theme } = React.useContext(ThemeContext) || {};
+  const t = { ...gisMapTheme, ...(theme?.datasets?.gisMap || {}) };
   const [editing, setEditing] = React.useState(false);
   const [value, setValue] = React.useState("");
 
@@ -626,31 +639,31 @@ const DomainItem = ({ domain, index, disabled, remove, edit }) => {
 
   return (
     <div ref={ setOutter }
-      className="flex px-2 py-1 rounded cursor-pointer hover:bg-gray-100"
+      className={t.domainItemOuter}
       onClick={ startEditing }
     >
-      <div className="w-8 mr-1 py-1">({ index + 1 })</div>
-      <div className="flex-1 mr-1">
+      <div className={t.domainItemIndex}>({ index + 1 })</div>
+      <div className={t.domainItemContent}>
         { editing ?
-          <div className="flex">
-            <div className="flex-1 mr-1">
+          <div className={t.domainItemEditRow}>
+            <div className={t.domainItemEditInput}>
               <input ref={ setRef }
-                className="w-full px-2 py-1 border rounded text-sm"
+                className={t.domainItemEditInputEl}
                 value={ value }
                 onChange={ e => setValue(e.target.value) }/>
             </div>
             <button onClick={ doEdit }
-              className="px-3 py-1 text-sm rounded bg-blue-500 hover:bg-blue-600 text-white">
+              className={t.domainItemEditBtn}>
               Edit
             </button>
           </div> :
-          <div className="px-2 py-1">{ domain }</div>
+          <div className={t.domainItemStaticVal}>{ domain }</div>
         }
       </div>
       { disabled ? null :
         editing ?
         <button onClick={ stopEditing }
-          className="px-3 py-1 text-sm rounded bg-red-500 hover:bg-red-600 text-white">
+          className={t.domainItemStopBtn}>
           Stop
         </button> :
         <RemoveDomainItem remove={ remove } value={ domain }/>
@@ -660,6 +673,8 @@ const DomainItem = ({ domain, index, disabled, remove, edit }) => {
 }
 
 const ThresholdEditor = ({ domain, range, updateLegend }) => {
+  const { theme } = React.useContext(ThemeContext) || {};
+  const t = { ...gisMapTheme, ...(theme?.datasets?.gisMap || {}) };
 
   const removeDomain = React.useCallback(v => {
     updateLegend(domain.filter(d => d !== v));
@@ -688,16 +703,16 @@ const ThresholdEditor = ({ domain, range, updateLegend }) => {
   }, [domain.length]);
 
   return (
-    <div className="absolute left-full top-0"
+    <div className={t.thresholdEditorWrapper}
       style={ { left: "CALC(100% + 1rem)" } }
     >
-      <div className="bg-white p-1 pointer-events-auto rounded w-96">
-        <div className="border rounded border-current relative">
-          <div className="p-1 border-b border-current rounded-t flex font-bold bg-gray-100">
+      <div className={t.thresholdEditorInner}>
+        <div className={t.thresholdEditorBorder}>
+          <div className={t.thresholdEditorHeader}>
             Threshold Editor
           </div>
-          <div className="p-1">
-            <div className="grid grid-cols-1 gap-1">
+          <div className={t.thresholdEditorBody}>
+            <div className={t.thresholdEditorGrid}>
               <div>Current Thresholds:</div>
               { domain.map((d, i) => (
                   <DomainItem key={ d }
@@ -707,15 +722,15 @@ const ThresholdEditor = ({ domain, range, updateLegend }) => {
                     edit={ editDomain }/>
                 ))
               }
-              <div className="flex border-t pt-1">
-                <div className="mr-1 flex-1">
+              <div className={t.thresholdEditorAddRow}>
+                <div className={t.thresholdEditorAddInputWrapper}>
                   <input type="number" placeholder="enter a threshold value..."
-                    className="w-full px-2 py-1 border rounded text-sm"
+                    className={t.thresholdEditorAddInput}
                     onChange={ e => setValue(e.target.value) }
                     value={ value }/>
                 </div>
                 <button onClick={ addDomain } disabled={ !value }
-                  className="px-3 py-1 text-sm rounded bg-blue-500 hover:bg-blue-600 text-white disabled:opacity-50"
+                  className={t.thresholdEditorAddBtn}
                 >
                   Add
                 </button>
@@ -723,7 +738,7 @@ const ThresholdEditor = ({ domain, range, updateLegend }) => {
               <div>
                 <button
                   onClick={ useCKMeans }
-                  className="w-full px-3 py-1 text-sm rounded bg-blue-500 hover:bg-blue-600 text-white"
+                  className={t.thresholdEditorResetBtn}
                 >
                   Reset with 6 bins
                 </button>
@@ -737,15 +752,17 @@ const ThresholdEditor = ({ domain, range, updateLegend }) => {
 }
 
 const BooleanSlider = ({ value, onChange }) => {
+  const { theme } = React.useContext(ThemeContext) || {};
+  const t = { ...gisMapTheme, ...(theme?.datasets?.gisMap || {}) };
   const toggle = React.useCallback(e => {
     onChange(!value);
   }, [onChange, value]);
   return (
     <div onClick={ toggle }
-      className="px-4 py-1 h-8 rounded flex items-center w-full cursor-pointer"
+      className={t.booleanSliderWrapper}
     >
-      <div className="rounded flex-1 h-2 relative flex items-center bg-blue-100">
-        <div className={ `w-4 h-4 rounded absolute ${ Boolean(value) ? "bg-blue-500" : "bg-gray-500" }` }
+      <div className={t.booleanSliderTrack}>
+        <div className={ Boolean(value) ? t.booleanSliderThumbOn : t.booleanSliderThumbOff }
           style={ {
             left: Boolean(value) ? "100%" : "0%",
             transform: "translateX(-50%)",
@@ -757,6 +774,8 @@ const BooleanSlider = ({ value, onChange }) => {
 }
 
 const LegendColorBar = ({ colors, name, reverse, range, updateLegend, test }) => {
+  const { theme } = React.useContext(ThemeContext) || {};
+  const t = { ...gisMapTheme, ...(theme?.datasets?.gisMap || {}) };
   const isActive = React.useMemo(() => {
     return isEqual(colors, range);
   }, [colors, range]);
@@ -768,10 +787,7 @@ const LegendColorBar = ({ colors, name, reverse, range, updateLegend, test }) =>
   return (
     <div key={ name }
       onClick={ isActive ? null : onClick }
-      className={ `
-        outline outline-2 rounded-lg my-2
-        ${ isActive ? "outline-black" : "outline-transparent cursor-pointer" }
-      ` }
+      className={ isActive ? t.legendColorBarActive : t.legendColorBarInactive }
     >
       <ColorBar
         colors={ colors }
@@ -808,54 +824,57 @@ const LegendControls = ({ legend, updateLegend, isOpen, close }) => {
       }))
   }, [rangeSize, reverseColors]);
 
+  const { theme } = React.useContext(ThemeContext) || {};
+  const t = { ...gisMapTheme, ...(theme?.datasets?.gisMap || {}) };
+
   return !isOpen ? null : (
-    <div className="bg-white p-1 pointer-events-auto rounded w-96 relative">
-      <div className="border rounded border-current relative">
-        <div className="p-1 border-b border-current rounded-t flex font-bold bg-gray-100">
-          <div className="flex-1">
+    <div className={t.legendControlsWrapper}>
+      <div className={t.legendControlsBorder}>
+        <div className={t.legendControlsHeader}>
+          <div className={t.legendControlsTitle}>
             Legend Controls
           </div>
-          <div className="flex-0">
+          <div className={t.legendControlsCloseCol}>
             <span onClick={ close }
-              className="px-2 py-1 rounded cursor-pointer hover:bg-gray-200"
+              className={t.legendControlsCloseBtn}
             >
               &times;
             </span>
           </div>
         </div>
-        <div className="p-1 grid grid-cols-1 gap-1">
+        <div className={t.legendControlsBody}>
 
-          <div className="flex items-center px-1">
-            <div className="w-40 text-right">Scale Type:</div>
-            <div className="flex-1 ml-1">
+          <div className={t.legendControlsRow}>
+            <div className={t.legendControlsRowLabel}>Scale Type:</div>
+            <div className={t.legendControlsRowValue}>
               <TypeSelector { ...legend }
                 updateLegend={ updateLegendType }/>
             </div>
           </div>
 
-          <div className="flex items-center px-1">
-            <div className="w-40 text-right">Number of Colors:</div>
-            <div className="flex-1 ml-1">
+          <div className={t.legendControlsRow}>
+            <div className={t.legendControlsRowLabel}>Number of Colors:</div>
+            <div className={t.legendControlsRowValue}>
               <RangeSizeSelector
                 size={ rangeSize }
                 onChange={ setRangeSize }/>
             </div>
           </div>
 
-          <div className="flex items-center px-1">
-            <div className="w-40 text-right">Reverse Colors:</div>
-            <div className="flex-1">
+          <div className={t.legendControlsRow}>
+            <div className={t.legendControlsRowLabel}>Reverse Colors:</div>
+            <div className={t.legendControlsRowValueSlider}>
               <BooleanSlider
                 value={ reverseColors }
                 onChange={ setReverseColors }/>
             </div>
           </div>
 
-          <div className="border-b-2 border-current">
+          <div className={t.legendControlsDivider}>
             Available Legend Colors:
           </div>
 
-          <div className="overflow-auto px-2 rounded bg-gray-100 scrollbar-sm scrollbar-blue"
+          <div className={t.legendControlsScrollArea}
             style={ { height: "30rem" } }
           >
             { Colors.map(color => (

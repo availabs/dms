@@ -315,8 +315,7 @@ const GridGraphWrapper = props => {
       }
       <div
         className={ `
-          bg-inherit
-          ${ LeftOrRightRegex.test(legend.position) ? "flex-1" : "" }
+          bg-inherit flex-1 min-w-0
         ` }
         style={ {
           height: `${ props.height }px`

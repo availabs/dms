@@ -5,6 +5,7 @@ import { AuthContext } from "../../../../auth/context";
 import { AdminContext } from "../../../context";
 import { parseIfJSON } from "../../../../page/pages/_utils";
 import { ThemeContext } from "../../../../../ui/useTheme";
+import { permissionsEditorTheme } from './permissionsEditor.theme';
 
 const DEFAULT_PERMISSIONS = { groups: { public: ['view-page'] }, users: {} };
 
@@ -28,7 +29,8 @@ export const PatternPermissionsEditor = ({
     defaultPermission = []
 }) => {
     const { AuthAPI } = React.useContext(AuthContext) || {};
-    const { UI } = React.useContext(ThemeContext);
+    const { UI, theme } = React.useContext(ThemeContext);
+    const t = { ...permissionsEditorTheme, ...(theme?.admin?.permissionsEditor || {}) }
     const { user, apiUpdate } = React.useContext(AdminContext) || {};
     const { FieldSet, Permissions } = UI;
     const permissionDomain = attributes?.authPermissions?.permissionDomain;
@@ -59,16 +61,16 @@ export const PatternPermissionsEditor = ({
     };
 
     return (
-        <div className="max-w-5xl flex flex-col gap-2">
+        <div className={t.wrapper}>
             {Object.entries(tmpAuthPermissions).map(([subdomain, perms]) => (
-                <div key={subdomain} className="flex flex-col gap-1 border rounded p-2">
-                    <div className="flex items-center gap-2">
-                        <span className="text-xs font-semibold bg-gray-100 px-2 py-0.5 rounded">
+                <div key={subdomain} className={t.subdomainSection}>
+                    <div className={t.subdomainHeader}>
+                        <span className={t.subdomainBadge}>
                             subdomain: {subdomain === '*' ? 'none' : subdomain}
                         </span>
                         {subdomain !== '*' && (
                             <button
-                                className="text-xs text-red-500 hover:text-red-700"
+                                className={t.subdomainRemoveBtn}
                                 onClick={() => removeSubdomain(subdomain)}
                             >
                                 remove subdomain
@@ -87,16 +89,16 @@ export const PatternPermissionsEditor = ({
                 </div>
             ))}
 
-            <div className="flex gap-2 items-center mt-1">
+            <div className={t.addSubdomainRow}>
                 <input
-                    className="border rounded px-2 py-1 text-sm"
+                    className={t.subdomainInput}
                     placeholder="subdomain name"
                     value={newSubdomain}
                     onChange={e => setNewSubdomain(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && addSubdomain()}
                 />
                 <button
-                    className="border rounded px-3 py-1 text-sm hover:bg-gray-50"
+                    className={t.addSubdomainBtn}
                     onClick={addSubdomain}
                 >
                     Add subdomain
@@ -104,7 +106,7 @@ export const PatternPermissionsEditor = ({
             </div>
 
             <FieldSet
-                className={'grid grid-cols-12 gap-1 border rounded p-4'}
+                className={t.saveGrid}
                 components={[
                     {
                         type: 'Spacer',

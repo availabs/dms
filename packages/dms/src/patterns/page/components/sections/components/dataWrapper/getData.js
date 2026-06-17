@@ -146,7 +146,21 @@ export const getData = async ({
 
     // ─── Build UDA config via the pure builder ────────────────────────────────
     debugTime && console.time('buildUdaConfig')
-    const builderInput = state.externalSource ? state : legacyStateToBuildInput(state);
+    let builderInput = state.externalSource ? state : legacyStateToBuildInput(state);
+    // Inject ephemeral table-header filters (state.tableFilters) without touching state.filters.
+    // They are ANDed with the persisted filter tree but never saved or shown in the filter editor.
+    if (state.tableFilters?.length) {
+        builderInput = {
+            ...builderInput,
+            filters: {
+                op: builderInput.filters?.op || 'AND',
+                groups: [
+                    ...(builderInput.filters?.groups || []),
+                    ...state.tableFilters,
+                ],
+            },
+        };
+    }
     const isDms = sourceInfo.isDms;
 
     // Normalize to array format; support legacy single-column saved configs.
@@ -165,7 +179,7 @@ export const getData = async ({
         pivotColumns.every(col => distinctValuesByColumn[col]?.length)
     );
 
-    let options, columnsToFetch, columnsWithSettings, outputSourceInfo;
+    let options, columnsToFetch, columnsWithSettings, outputSourceInfo, skipFetch;
 
     if (isPivotMode) {
         const { rowColumn, valueColumn, aggregateFn = 'count' } = state.pivot;
@@ -177,7 +191,7 @@ export const getData = async ({
             ? [{ name: rowColumn, group: true, show: true }]
             : [];
         const pivotBuilderInput = { ...builderInput, columns: pivotBuilderColumns };
-        ({ options, columnsToFetch, columnsWithSettings, outputSourceInfo } = buildUdaConfig(pivotBuilderInput));
+        ({ options, columnsToFetch, columnsWithSettings, outputSourceInfo, skipFetch } = buildUdaConfig(pivotBuilderInput));
 
         const valueRef = valueColumn ? attributeAccessorStr(valueColumn, isDms, false, false) : null;
 
@@ -205,7 +219,7 @@ export const getData = async ({
             options.groupBy = [];
         }
     } else {
-        ({ options, columnsToFetch, columnsWithSettings, outputSourceInfo } = buildUdaConfig(builderInput));
+        ({ options, columnsToFetch, columnsWithSettings, outputSourceInfo, skipFetch } = buildUdaConfig(builderInput));
     }
 
     if (keepOriginalValues) options.keepOriginalValues = keepOriginalValues;
@@ -213,6 +227,15 @@ export const getData = async ({
     debugTime && console.timeEnd('buildUdaConfig')
 
     debug && console.log("debug getdata: options", options, state);
+
+    // Custom buckets with a dynamic page-filter binding haven't resolved their
+    // values yet — firing now would scan the entire unfiltered table (see the
+    // skipFetch derivation in buildUdaConfig). Bail with an empty result; the
+    // section refetches automatically once usePageFilterSync resolves the config.
+    if (skipFetch) {
+        debugTime && console.timeEnd('getData fn')
+        return { length: 0, data: [], outputSourceInfo };
+    }
 
     // ─── Check indices ────────────────────────────────────────────────────────
     debugTime && console.time('check indices')

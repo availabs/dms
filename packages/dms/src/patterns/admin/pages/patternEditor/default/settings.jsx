@@ -5,6 +5,7 @@ import { useNavigate } from "react-router";
 import { AdminContext } from "../../../context";
 import { ThemeContext } from "../../../../../ui/useTheme";
 import { nameToSlug, getInstance } from "../../../../../utils/type-utils";
+import { settingsEditorTheme } from './settings.theme'
 
 
 const customTheme = {
@@ -26,7 +27,8 @@ async function loadSiteData(apiLoad, app, siteType) {
 
 export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest}) => {
   const { apiUpdate, app, type, siteType, API_HOST, parentBaseUrl, dmsEnvs = [], dmsEnvById = {}, isMultiTenant } = useContext(AdminContext);
-  const { UI } = useContext(ThemeContext)
+  const { UI, theme } = useContext(ThemeContext)
+  const t = { ...settingsEditorTheme, ...(theme?.admin?.settingsEditor || {}) }
   const tenantSub = (() => {
     if (!isMultiTenant) return '';
     const hostname = window.location.hostname;
@@ -41,6 +43,7 @@ export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest})
   const [tmpValue, setTmpValue] = useImmer(value);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [isDuplicating, setIsDuplicating] = useState(false);
+  const [duplicateProgress, setDuplicateProgress] = useState(0);
 
   const showDmsEnvConfig = ['datasets', 'forms', 'page', 'mapeditor'].includes(value.pattern_type);
 
@@ -64,21 +67,43 @@ export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest})
 
   const handleDuplicate = async () => {
       setIsDuplicating(true);
+      setDuplicateProgress(0);
       try {
           const siteInstance = getInstance(siteType) || type;
           const oldInstance = getInstance(value.type) || value?.base_url?.replace(/\//g, '');
           const newName = `${value.name}_copy`;
           const newSlug = nameToSlug(newName);
 
-          // 1. Copy pages/sections on the server
+          // 1. Queue the duplicate task — returns { task_id } immediately.
           const dmsServerPath = `${API_HOST}/dama-admin`;
-          await fetch(`${dmsServerPath}/dms/${app}+${oldInstance}/duplicate`, {
+          const dupRes = await fetch(`${dmsServerPath}/dms/${app}+${oldInstance}/duplicate`, {
               method: "POST",
               body: JSON.stringify({ newApp: app, newType: newSlug }),
               headers: { "Content-Type": "application/json" },
           });
+          const dupBody = await dupRes.json().catch(() => ({}));
+          if (!dupRes.ok || dupBody?.err) {
+              console.error('[duplicate] failed to queue task:', dupBody?.err || dupRes.status);
+              window.alert(`Pattern duplicate failed: ${dupBody?.err || `HTTP ${dupRes.status}`} (server: ${API_HOST}). Pattern not created.`);
+              return;
+          }
 
-          // 2. Create new pattern record
+          // 2. Poll until pages/sections are fully cloned.
+          const { task_id } = dupBody;
+          for (;;) {
+              await new Promise(r => setTimeout(r, 3000));
+              const statusRes = await fetch(`${dmsServerPath}/dms/tasks/${task_id}`);
+              const task = await statusRes.json().catch(() => ({}));
+              if (task.progress != null) setDuplicateProgress(task.progress);
+              if (task.status === 'done') break;
+              if (task.status === 'error') {
+                  console.error('[duplicate] task failed:', task.error);
+                  window.alert(`Pattern duplicate failed: ${task.error}. Pattern not created.`);
+                  return;
+              }
+          }
+
+          // 3. Create new pattern record
           const dataToCopy = {
               app: value.app,
               base_url: `${value.base_url}_copy`,
@@ -121,11 +146,11 @@ export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest})
   };
 
     return (
-      <div className='flex flex-col gap-4 max-w-5xl'>
-        <div className={'flex flex-col gap-1 p-4 border rounded-md'}>
-          <span className='font-semibold text-lg'>Pattern Settings</span>
+      <div className={t.wrapper}>
+        <div className={t.section}>
+          <span className={t.sectionTitle}>Pattern Settings</span>
             <FieldSet
-                className={'grid grid-cols-12 gap-1 border rounded p-4'}
+                className={t.fieldGrid}
                 components={[
                     {
                       label: 'Type',
@@ -235,37 +260,37 @@ export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest})
           <AuthPatternSettings value={tmpValue} onChange={setTmpValue} />
         )}
 
-        <div className='flex flex-col gap-2 p-4 border border-red-200 rounded-md'>
-          <span className='font-semibold text-sm text-red-600'>Danger Zone</span>
-          <div className='flex items-center gap-2'>
+        <div className={t.dangerSection}>
+          <span className={t.dangerLabel}>Danger Zone</span>
+          <div className={t.dangerActions}>
             <button
-              className='flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg disabled:opacity-50'
+              className={t.btnDuplicate}
               disabled={isDuplicating}
               onClick={handleDuplicate}
             >
-              <Icon icon='Copy' className='size-4'/>
-              {isDuplicating ? 'Duplicating...' : 'Duplicate'}
+              <Icon icon='Copy' className={t.iconSm}/>
+              {isDuplicating ? `Duplicating... ${Math.round(duplicateProgress * 100)}%` : 'Duplicate'}
             </button>
 
             {!confirmDelete ? (
               <button
-                className='flex items-center gap-1.5 px-3 py-1.5 text-sm text-red-600 bg-red-50 hover:bg-red-100 rounded-lg'
+                className={t.btnDelete}
                 onClick={() => setConfirmDelete(true)}
               >
-                <Icon icon='TrashCan' className='size-4'/>
+                <Icon icon='TrashCan' className={t.iconSm}/>
                 Delete
               </button>
             ) : (
-              <div className='flex items-center gap-2'>
-                <span className='text-sm text-red-600'>Are you sure?</span>
+              <div className={t.confirmRow}>
+                <span className={t.confirmText}>Are you sure?</span>
                 <button
-                  className='px-3 py-1.5 text-sm text-white bg-red-500 hover:bg-red-600 rounded-lg'
+                  className={t.btnConfirmDelete}
                   onClick={handleDelete}
                 >
                   Confirm Delete
                 </button>
                 <button
-                  className='px-3 py-1.5 text-sm text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg'
+                  className={t.btnCancelDelete}
                   onClick={() => setConfirmDelete(false)}
                 >
                   Cancel
@@ -282,7 +307,8 @@ function DmsEnvConfig({ value, onChange, dmsEnvs: initialDmsEnvs, apiLoad, app, 
   const [newEnvName, setNewEnvName] = useState('');
   const [creating, setCreating] = useState(false);
   const [localEnvs, setLocalEnvs] = useState(initialDmsEnvs);
-  const { UI } = useContext(ThemeContext);
+  const { UI, theme } = useContext(ThemeContext);
+  const t = { ...settingsEditorTheme, ...(theme?.admin?.settingsEditor || {}) }
   const { MultiSelect, Input, Button } = UI;
 
   const envOptions = [
@@ -334,14 +360,14 @@ function DmsEnvConfig({ value, onChange, dmsEnvs: initialDmsEnvs, apiLoad, app, 
   };
 
   return (
-    <div className='flex flex-col gap-1 p-4 border rounded-md'>
-      <span className='font-semibold text-lg'>Data Environment</span>
-      <p className='text-sm text-gray-500 mb-2'>
+    <div className={t.section}>
+      <span className={t.sectionTitle}>Data Environment</span>
+      <p className={t.sectionDesc}>
         Select which data environment this pattern uses for internal sources.
       </p>
-      <div className='grid grid-cols-12 gap-2'>
-        <div className='col-span-6'>
-          <label className='text-sm font-medium text-gray-700'>DMS Environment</label>
+      <div className={t.envGrid}>
+        <div className={t.envColWide}>
+          <label className={t.envLabel}>DMS Environment</label>
           <MultiSelect
             singleSelectOnly
             searchable={false}
@@ -350,9 +376,9 @@ function DmsEnvConfig({ value, onChange, dmsEnvs: initialDmsEnvs, apiLoad, app, 
             onChange={handleEnvChange}
           />
         </div>
-        <div className='col-span-4'>
-          <label className='text-sm font-medium text-gray-700'>Create New Environment</label>
-          <div className='flex gap-2'>
+        <div className={t.envColMid}>
+          <label className={t.envLabel}>Create New Environment</label>
+          <div className={t.envInputRow}>
             <Input
               value={newEnvName}
               placeholder='Environment name'
@@ -370,18 +396,19 @@ function DmsEnvConfig({ value, onChange, dmsEnvs: initialDmsEnvs, apiLoad, app, 
 }
 
 function PagePatternSettings({ value, onChange }) {
-  const { UI } = useContext(ThemeContext);
+  const { UI, theme } = useContext(ThemeContext);
+  const t = { ...settingsEditorTheme, ...(theme?.admin?.settingsEditor || {}) }
   const { FieldSet } = UI;
 
   return (
-    <div className='flex flex-col gap-1 p-4 border rounded-md'>
-      <span className='font-semibold text-lg'>Page Pattern Settings</span>
-      <p className='text-sm text-gray-500 mb-2'>
+    <div className={t.section}>
+      <span className={t.sectionTitle}>Page Pattern Settings</span>
+      <p className={t.sectionDesc}>
         Pre-load section data on page navigation (router loader phase). When off,
         sections fetch their data after mount.
       </p>
       <FieldSet
-        className='grid grid-cols-12 gap-1 border rounded p-4'
+        className={t.fieldGrid}
         components={[
           {
             label: 'Preload Data',
@@ -399,14 +426,15 @@ function PagePatternSettings({ value, onChange }) {
 }
 
 function AuthPatternSettings({ value, onChange }) {
-  const { UI } = useContext(ThemeContext);
+  const { UI, theme } = useContext(ThemeContext);
+  const t = { ...settingsEditorTheme, ...(theme?.admin?.settingsEditor || {}) }
   const { FieldSet } = UI;
 
   return (
-    <div className='flex flex-col gap-1 p-4 border rounded-md'>
-      <span className='font-semibold text-lg'>Auth Pattern Settings</span>
+    <div className={t.section}>
+      <span className={t.sectionTitle}>Auth Pattern Settings</span>
       <FieldSet
-        className='grid grid-cols-12 gap-1 border rounded p-4'
+        className={t.fieldGrid}
         components={[
           {
             label: 'Disable Signup',

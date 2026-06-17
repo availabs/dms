@@ -7,6 +7,7 @@ import { Link, useLocation, useNavigate, useNavigation } from 'react-router'
 import { parseIfJSON } from '../../page/pages/_utils';
 import { nameToSlug, getInstance } from '../../../utils/type-utils';
 import { isUserAuthed } from '../utils';
+import { editSiteTheme } from './editSite.theme'
 
 function getSubdomainFromHost(host) {
   const hostname = (host || window.location.host).split(':')[0];
@@ -120,7 +121,8 @@ function PatternList({
 	 ...rest
 }) {
 	const {app, type: siteType, API_HOST, baseUrl, isMultiTenant} = React.useContext(AdminContext);
-	const {UI} = React.useContext(ThemeContext)
+	const {UI, theme} = React.useContext(ThemeContext)
+	const t = { ...editSiteTheme, ...(theme?.admin?.editSite || {}) }
 	const { falcor } = useFalcor();
 	const location = useLocation()
 	const {Table, Input, Button, Modal, Icon} = UI;
@@ -151,12 +153,12 @@ function PatternList({
         const baseDomain = hasSubdomain ? parts.slice(1).join('.') : host
         const targetHost = needsSub ? `${sub}.${baseDomain}` : host
         const baseUrl = d.row.base_url
-        if (!baseUrl) return <span className='p-2 text-[14px] text-slate-400'>—</span>
+        if (!baseUrl) return <span className={t.emptyValue}>—</span>
         const normalizedUrl = baseUrl.startsWith('/') ? baseUrl : `/${baseUrl}`
         return (
           <Link
             to={`${protocol}://${targetHost}${normalizedUrl}`}
-            className='flex items-center p-2 w-full h-full py-1 font-[400] text-[14px]  leading-[18px] text-slate-600'
+            className={t.baseUrlLink}
           >
             {baseUrl}
           </Link>
@@ -171,12 +173,12 @@ function PatternList({
 		{name: 'edit', display_name: 'Edit', show: true, type: 'ui',
       Comp: (d) => {
         return (
-          <div className='flex items-center justify-center gap-1 w-full h-full py-1'>
-            <Link to={d?.row?.edit_url || ''} className='flex items-center px-2 py-1 text-sm text-slate-700 bg-slate-200 hover:bg-slate-300 rounded-full'>
-              <Icon icon='PencilEditSquare' className='size-4'/><span className='pl-1'>Edit</span>
+          <div className={t.cellActions}>
+            <Link to={d?.row?.edit_url || ''} className={t.editLink}>
+              <Icon icon='PencilEditSquare' className={t.iconSm}/><span className={t.iconLabel}>Edit</span>
             </Link>
             <button
-              className='p-1.5 text-slate-400 hover:text-blue-600 rounded-full hover:bg-blue-50'
+              className={t.duplicateBtn}
               title='Duplicate'
               disabled={isDuplicating}
               onClick={async () => {
@@ -196,14 +198,14 @@ function PatternList({
                 await duplicate({oldInstance, newInstance: nameToSlug(newName)}, dataToCopy);
               }}
             >
-              <Icon icon='Copy' className='size-4'/>
+              <Icon icon='Copy' className={t.iconSm}/>
             </button>
             <button
-              className='p-1.5 text-slate-400 hover:text-red-600 rounded-full hover:bg-red-50'
+              className={t.deleteBtn}
               title='Delete'
               onClick={() => setDeletingItem(d.row)}
             >
-              <Icon icon='TrashCan' className='size-4'/>
+              <Icon icon='TrashCan' className={t.iconSm}/>
             </button>
           </div>
         )
@@ -248,19 +250,29 @@ function PatternList({
 
 	const duplicate = async({oldInstance, newInstance}, item) => {
 		setIsDuplicating(true);
-		// call server to copy over pages and sections
-		const res = await fetch(`${dmsServerPath}/dms/${app}+${oldInstance}/duplicate`,
-			{
-				method: "POST",
-				body: JSON.stringify({newApp: app, newType: newInstance}),
-				headers: {
-					"Content-Type": "application/json",
-				},
-			});
-
-		const publishFinalEvent = await res.json();
-		await addNewValue(item);
-		setIsDuplicating(false);
+		try {
+			// call server to copy over pages and sections
+			const res = await fetch(`${dmsServerPath}/dms/${app}+${oldInstance}/duplicate`,
+				{
+					method: "POST",
+					body: JSON.stringify({newApp: app, newType: newInstance}),
+					headers: {
+						"Content-Type": "application/json",
+					},
+				});
+			const body = await res.json().catch(() => ({}));
+			if (!res.ok || body?.err) {
+				console.error('[duplicate] page/section copy failed:', body?.err || res.status);
+				window.alert(`Pattern duplicate failed: ${body?.err || `HTTP ${res.status}`}. Pattern not created.`);
+				return;
+			}
+			await addNewValue(item);
+		} catch (err) {
+			console.error('[duplicate] error:', err);
+			window.alert(`Pattern duplicate failed: ${err.message}`);
+		} finally {
+			setIsDuplicating(false);
+		}
 	}
 
 	const data = value
@@ -273,12 +285,12 @@ function PatternList({
 	const authExists = data.some(d => d.pattern_type === 'auth')
 
 	return (
-			<div className={'flex flex-1 flex-col w-full overflow-auto'}>
-				<div className={'w-full flex items-center justify-between border-b-2 border-blue-400 pb-2'}>
-					<div className={'text-2xl font-semibold text-gray-700'}>Sites</div>
+			<div className={t.wrapper}>
+				<div className={t.header}>
+					<div className={t.headerTitle}>Sites</div>
 					<Button className={'shrink-0'} onClick={() => setAddingNew(true)}> Add site </Button>
 				</div>
-				<div className={'w-full flex'}>
+				<div className={t.searchBar}>
 					<Input type={'text'} value={search} onChange={e => setSearch(e.target.value)} placeholder={'Filter sites'} />
 				</div>
 				<Table
@@ -289,7 +301,7 @@ function PatternList({
 				/>
 
 				<Modal open={Boolean(editingItem)} setOpen={setEditingItem}>
-					<div className={`flex flex-col`}>
+					<div className={t.modalForm}>
 						{
 							attrToAddNew
 								.map((attrKey, i) => {
@@ -315,9 +327,9 @@ function PatternList({
 									)
 								})
 						}
-						<div className={'w-full flex items-center justify-start gap-0.5'}>
+						<div className={t.modalEditActions}>
 							<Button
-								className={'bg-blue-100 hover:bg-blue-300 text-sm text-blue-800 px-2 py-0.5 m-1 rounded-lg w-fit h-fit'}
+								className={t.btnSave}
 								type={'plain'}
 								title={'save item'}
 								onClick={() => {
@@ -331,7 +343,7 @@ function PatternList({
 							</Button>
 
 							<Button
-								className={'bg-red-100 hover:bg-red-300 text-sm text-red-800 px-2 py-0.5 m-1 rounded-lg w-fit h-fit'}
+								className={t.btnCancel}
 								type={'plain'}
 								title={'cancel item'}
 								onClick={() => {
@@ -342,7 +354,7 @@ function PatternList({
 							</Button>
 
 							<Button
-								className={'bg-green-100 hover:bg-green-300 text-green-800 px-2 py-0.5 m-1 rounded-lg w-fit h-fit'}
+								className={t.btnDuplicate}
 								type={'plain'}
 								title={'duplicate item'}
 								onClick={async () => {
@@ -365,7 +377,7 @@ function PatternList({
 							> {isDuplicating ? 'duplicating...' : 'duplicate'}
 							</Button>
 							<Button
-								className={'bg-red-100 hover:bg-red-300 text-red-800 px-2 py-0.5 m-1 rounded-lg w-fit h-fit'}
+								className={t.btnRemove}
 								type={'plain'}
 								title={'remove item'}
 								onClick={() => {
@@ -381,7 +393,7 @@ function PatternList({
 				</Modal>
 
 				<Modal open={addingNew} setOpen={setAddingNew}>
-					<div className={`flex flex-col`}>
+					<div className={t.modalForm}>
 						{
 							attrToAddNew
 								.map((attrKey, i) => {
@@ -406,11 +418,11 @@ function PatternList({
 									)
 								})
 						}
-						<div className={'w-full flex items-center justify-start'}>
+						<div className={t.modalAddActions}>
 							<Button
                                 type={'plain'}
                                 title={'Add Site'}
-								className={'bg-blue-100 hover:bg-blue-300 text-sm text-blue-800 px-2 py-0.5 m-1 rounded-lg w-fit h-fit'}
+								className={t.btnAdd}
 								onClick={() => addNewValue({...newItem})}
 							>
 								add
@@ -420,23 +432,23 @@ function PatternList({
 				</Modal>
 
 				<Modal open={Boolean(deletingItem)} setOpen={setDeletingItem}>
-					<div className='flex flex-col gap-4 p-2'>
-						<div className='text-lg font-semibold text-slate-700'>Delete Pattern</div>
-						<div className='text-sm text-slate-500'>
-							Are you sure you want to delete <span className='font-medium text-slate-700'>{deletingItem?.name}</span>?
+					<div className={t.deleteModal}>
+						<div className={t.deleteModalTitle}>Delete Pattern</div>
+						<div className={t.deleteModalDesc}>
+							Are you sure you want to delete <span className={t.deleteModalHighlight}>{deletingItem?.name}</span>?
 							This will remove the pattern from the site. This action cannot be undone.
 						</div>
-						<div className='flex items-center justify-end gap-2'>
+						<div className={t.deleteModalFooter}>
 							<Button
 								type='plain'
-								className='px-3 py-1.5 text-sm text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg'
+								className={t.btnSecondary}
 								onClick={() => setDeletingItem(undefined)}
 							>
 								Cancel
 							</Button>
 							<Button
 								type='plain'
-								className='px-3 py-1.5 text-sm text-white bg-red-500 hover:bg-red-600 rounded-lg'
+								className={t.btnDanger}
 								onClick={() => {
 									const newData = value.filter(v => v.id !== deletingItem.id);
 									onChange(newData);
@@ -461,7 +473,8 @@ function TenantList({
 	onChange,
 }) {
 	const { app, type: siteType, baseUrl } = React.useContext(AdminContext);
-	const { UI } = React.useContext(ThemeContext);
+	const { UI, theme } = React.useContext(ThemeContext);
+	const t = { ...editSiteTheme, ...(theme?.admin?.editSite || {}) }
 	const { falcor } = useFalcor();
 	const { Table, Input, Button, Modal, Icon } = UI;
 	const siteInstance = getInstance(siteType) || siteType;
@@ -486,7 +499,7 @@ function TenantList({
 				return (
 					<a
 						href={url}
-						className='flex items-center p-2 w-full h-full py-1 font-[400] text-[14px] leading-[18px] text-blue-600 hover:underline'
+						className={t.tenantLink}
 					>
 						{d.row.subdomain}.{baseDomain}
 					</a>
@@ -496,13 +509,13 @@ function TenantList({
 		{
 			name: 'actions', display_name: '', show: true, type: 'ui',
 			Comp: (d) => (
-				<div className='flex items-center justify-center gap-1 w-full h-full py-1'>
+				<div className={t.cellActions}>
 					<button
-						className='p-1.5 text-slate-400 hover:text-red-600 rounded-full hover:bg-red-50'
+						className={t.deleteBtn}
 						title='Remove tenant'
 						onClick={() => setDeletingItem(d.row)}
 					>
-						<Icon icon='TrashCan' className='size-4' />
+						<Icon icon='TrashCan' className={t.iconSm} />
 					</button>
 				</div>
 			)
@@ -538,36 +551,36 @@ function TenantList({
 	};
 
 	return (
-		<div className='flex flex-1 flex-col w-full overflow-auto'>
-			<div className='w-full flex items-center justify-between border-b-2 border-blue-400 pb-2'>
-				<div className='text-2xl font-semibold text-gray-700'>Tenants</div>
-				<Button className='shrink-0' onClick={() => { setAddingNew(true); setError(''); }}>
+		<div className={t.wrapper}>
+			<div className={t.header}>
+				<div className={t.headerTitle}>Tenants</div>
+				<Button className={t.btnNoShrink} onClick={() => { setAddingNew(true); setError(''); }}>
 					Add tenant
 				</Button>
 			</div>
 			<Table columns={columns} data={value} isEdit={false} />
 
 			<Modal open={addingNew} setOpen={setAddingNew}>
-				<div className='flex flex-col gap-3 p-1'>
-					<div className='text-lg font-semibold text-slate-700'>New Tenant</div>
-					<div className='flex flex-col gap-1'>
-						<label className='text-sm text-slate-600'>Name</label>
+				<div className={t.tenantModalForm}>
+					<div className={t.tenantModalTitle}>New Tenant</div>
+					<div className={t.fieldGroup}>
+						<label className={t.fieldLabel}>Name</label>
 						<Input
 							value={newItem.name}
 							onChange={e => setNewItem({ ...newItem, name: e.target.value })}
 							placeholder='Acme Corp'
 						/>
 					</div>
-					<div className='flex flex-col gap-1'>
-						<label className='text-sm text-slate-600'>Subdomain</label>
+					<div className={t.fieldGroup}>
+						<label className={t.fieldLabel}>Subdomain</label>
 						<Input
 							value={newItem.subdomain}
 							onChange={e => setNewItem({ ...newItem, subdomain: e.target.value })}
 							placeholder='acme'
 						/>
 					</div>
-					{error && <div className='text-sm text-red-600'>{error}</div>}
-					<div className='flex items-center gap-2 pt-1'>
+					{error && <div className={t.errorText}>{error}</div>}
+					<div className={t.tenantModalActions}>
 						<Button type='plain' onClick={addTenant}>Add</Button>
 						<Button type='plain' onClick={() => setAddingNew(false)}>Cancel</Button>
 					</div>
@@ -575,23 +588,23 @@ function TenantList({
 			</Modal>
 
 			<Modal open={Boolean(deletingItem)} setOpen={setDeletingItem}>
-				<div className='flex flex-col gap-4 p-2'>
-					<div className='text-lg font-semibold text-slate-700'>Remove Tenant</div>
-					<div className='text-sm text-slate-500'>
-						Remove <span className='font-medium text-slate-700'>{deletingItem?.name}</span> from this
+				<div className={t.deleteModal}>
+					<div className={t.deleteModalTitle}>Remove Tenant</div>
+					<div className={t.deleteModalDesc}>
+						Remove <span className={t.deleteModalHighlight}>{deletingItem?.name}</span> from this
 						site? The tenant's data is not deleted.
 					</div>
-					<div className='flex items-center justify-end gap-2'>
+					<div className={t.deleteModalFooter}>
 						<Button
 							type='plain'
-							className='px-3 py-1.5 text-sm text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg'
+							className={t.btnSecondary}
 							onClick={() => setDeletingItem(undefined)}
 						>
 							Cancel
 						</Button>
 						<Button
 							type='plain'
-							className='px-3 py-1.5 text-sm text-white bg-red-500 hover:bg-red-600 rounded-lg'
+							className={t.btnDanger}
 							onClick={() => {
 								const newData = value.filter(v => v.id !== deletingItem.id);
 								onChange(newData);
@@ -609,7 +622,8 @@ function TenantList({
 }
 
 const RenderFilters = ({value=[], onChange, ...rest}) => {
-    const {UI} = React.useContext(ThemeContext);
+    const {UI, theme} = React.useContext(ThemeContext);
+    const t = { ...editSiteTheme, ...(theme?.admin?.editSite || {}) }
     const [tmpValue, setTmpValue] = React.useState(parseIfJSON(value));
     const [newFilter, setNewFilter] = React.useState({});
     const {FieldSet, Button} = UI;
@@ -626,12 +640,12 @@ const RenderFilters = ({value=[], onChange, ...rest}) => {
     }
 
     return (
-        <div className={'flex flex-col gap-1 p-1 border rounded-md'}>
-            <label className={'text-sm'}>Filters</label>
+        <div className={t.filtersWrapper}>
+            <label className={t.filtersLabel}>Filters</label>
             {
                 tmpValue.map((filter, i) => (
                     <FieldSet
-                        className={'grid grid-cols-3 gap-1'}
+                        className={t.filterRow}
                         components={[
                             {label: 'Search Key', type: 'Input', placeholder: 'search key', value: filter.searchKey,
                                 onChange: e => updateFilters(i, 'searchKey', e.target.value),
@@ -652,7 +666,7 @@ const RenderFilters = ({value=[], onChange, ...rest}) => {
                 ))
             }
             <FieldSet
-                className={'grid grid-cols-3 gap-1'}
+                className={t.filterRow}
                 components={[
                     {label: 'Search Key', type: 'Input', placeholder: 'search key', value: newFilter.searchKey,
                         onChange: e => setNewFilter({...newFilter, searchKey: e.target.value}),

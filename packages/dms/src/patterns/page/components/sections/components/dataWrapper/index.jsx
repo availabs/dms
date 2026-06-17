@@ -1,6 +1,7 @@
 import React, {useState, useEffect, useMemo, useRef, useCallback, useContext, useImperativeHandle, forwardRef} from 'react'
 import {useNavigate} from "react-router";
-import writeXlsxFile from 'write-excel-file';
+import ExcelJS from 'exceljs';
+import JSZip from 'jszip';
 import { isEqual } from "lodash-es";
 import {useImmer} from "use-immer";
 import {CMSContext, ComponentContext, PageContext} from "../../../../context";
@@ -86,20 +87,61 @@ const triggerDownload = async ({state, apiLoad, loadAllColumns, withId, setLoadi
         page++;
     }
 
-    const schema = tmpState?.columns
-        .filter(({show}) => show)
-        .map(({name, display_name, customName}) => ({
-            column: customName || display_name || name,
-            value: data => !Array.isArray(data?.[name]) && typeof data?.[name] === 'object' ? JSON.stringify(data?.[name]) : data?.[name],
-        }));
+    const visibleCols = tmpState?.columns.filter(({show}) => show);
+
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Sheet1');
+
+    worksheet.columns = visibleCols.map(({name, display_name, customName}) => ({
+        header: customName || display_name || name,
+        key: name,
+    }));
+
+    allData.forEach(rowData => {
+        const row = {};
+        visibleCols.forEach(({name}) => {
+            const val = rowData[name];
+            row[name] = !Array.isArray(val) && typeof val === 'object' && val !== null ? JSON.stringify(val) : val;
+        });
+        worksheet.addRow(row);
+    });
+
+    const hasSystemCol = visibleCols.some(c => c.systemCol);
+
+    if (hasSystemCol) {
+        worksheet.eachRow(row => {
+            row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+                cell.protection = { locked: visibleCols[colNumber - 1]?.systemCol === true };
+            });
+        });
+        // protect() with no password so ExcelJS emits <sheetProtection sheet="1"/>
+        // without the SHA-512 hash that LibreOffice/Google Sheets don't honour.
+        // We then inject the legacy OOXML XOR hash for "0000" via JSZip post-processing.
+        await worksheet.protect('');
+    }
 
     const filterStr = Object.keys(state?.filters?.groups || {}).length ? JSON.stringify(state?.filters) : '';
     const fileName = `${state?.externalSource.view_name} - ${filterStr} - ${getCurrDate()}`;
 
-    await writeXlsxFile(allData, {
-        schema,
-        fileName: `${fileName}.xlsx`,
-    });
+    let buffer = await workbook.xlsx.writeBuffer();
+
+    if (hasSystemCol) {
+        const zip = await JSZip.loadAsync(buffer);
+        const sheetXml = await zip.file('xl/worksheets/sheet1.xml').async('string');
+        // CC6F is the legacy OOXML XOR hash for the password "0000"
+        zip.file('xl/worksheets/sheet1.xml',
+            sheetXml.replace('<sheetProtection sheet="1"/>', '<sheetProtection sheet="1" password="CC6F"/>'));
+        buffer = await zip.generateAsync({ type: 'arraybuffer', compression: 'DEFLATE' });
+    }
+
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${fileName}.xlsx`;
+    a.click();
+    URL.revokeObjectURL(url);
+
     setLoading(false);
 }
 const RenderDownload = ({state, apiLoad, cms_context}) => {
@@ -233,6 +275,7 @@ const Edit = forwardRef((props, ref) => {
             display: { ...(state.display || {}) },
             data: state.data || [],
             join: state.join || { sources: {} },
+            customBuckets: state.customBuckets || {},
         };
         if (state.dataSourceId) toSave.dataSourceId = state.dataSourceId;
         if (state.pivot?.enabled) {

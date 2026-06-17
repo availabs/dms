@@ -4,7 +4,7 @@ import {get, isEqual} from "lodash-es"
 import {getComponentTheme, ThemeContext} from "../../../../ui/useTheme";
 import {AuthContext} from "../../../auth/context";
 import {CMSContext, PageContext, ComponentContext, DataSourceContext} from '../../context'
-import {getPageAuthPermissions} from "../../pages/_utils";
+import {getPageAuthPermissions, slugifyAnchor} from "../../pages/_utils";
 import {getSectionMenuItems} from './sectionMenu'
 import {
     getHelpTextArray,
@@ -235,8 +235,15 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
 
     const { wrapperStyle, contentWrapperStyle } = resolveSectionHeightStyles(value?.['height'], theme);
 
+    // Clean in-page-nav anchor id (Phase 3). Emitted on the section wrapper so the
+    // rail can scroll to it; decoupled from title/level. The legacy `#Title` id on
+    // the header row below is kept as a back-compat alias.
+    const anchorId = value?.anchorId || (value?.navLabel ? slugifyAnchor(value.navLabel) : undefined);
+
     return (
-        <div className={theme.wrapper} style={Object.keys(wrapperStyle).length ? wrapperStyle : undefined}>
+        <div id={anchorId}
+             className={`${theme.wrapper}${anchorId ? ' scroll-mt-36' : ''}`}
+             style={Object.keys(wrapperStyle).length ? wrapperStyle : undefined}>
             {/* -------------------top line buttons ----------------------*/}
             <div id={`#${value?.title?.replace(/ /g, '_')}`}
                  className={`flex flex-row font-display font-medium uppercase scroll-mt-36 items-center`}>
@@ -431,8 +438,12 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
         ? { minHeight: theme.editMinHeight }
         : null;
 
+    // Clean in-page-nav anchor id (Phase 3) — see SectionEdit for rationale.
+    const anchorId = value?.anchorId || (value?.navLabel ? slugifyAnchor(value.navLabel) : undefined);
+
     return (
-        <div className={editPageMode && hideSection && !editPageMode ? theme.wrapperHidden : theme.wrapper}
+        <div id={anchorId}
+             className={`${editPageMode && hideSection && !editPageMode ? theme.wrapperHidden : theme.wrapper}${anchorId ? ' scroll-mt-36' : ''}`}
              style={{ pageBreakInside: 'avoid', ...heightWrapperStyle, ...(editMinHeightStyle || {}) }}>
 
             {/* -------------------top line buttons ----------------------*/}

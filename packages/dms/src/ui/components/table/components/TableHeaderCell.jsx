@@ -1,9 +1,11 @@
-import React, {memo, useCallback, useEffect, useMemo, useRef, useState} from "react";
+import React, {memo, useCallback, useContext, useEffect, useMemo, useRef, useState} from "react";
 import Icon from "../../Icon";
 import Switch from "../../Switch";
 import Popup from "../../Popup";
 import { MultiSelectEdit as MultiselectEdit } from "../../MultiSelect"
 import {getComponentTheme, ThemeContext} from "../../../../ui/useTheme";
+import {ComponentContext} from "../../../../patterns/page/context";
+import {useColumnOptions} from "../../../../patterns/page/components/sections/ConditionValueInput";
 
 const getColIdName = col => col.normalName || col.name;
 const Noop = () => {};
@@ -61,40 +63,107 @@ const TextAreaControl = ({updateColumns, value='', attributeKey, onChange, dataF
 }
 
 
-const FilterControl = ({updateColumns, type, value, attributeKey, onChange, dataFetch, localFilterData, className}) => {
-    const [tmpValue, setTmpValue] = useState(value);
 
+// Server-backed column filter — writes to state.tableFilters (a runtime-only array, never
+// persisted and never shown in the section menu's filter editor). Cleaned up on unmount.
+const ServerFilterControl = ({ attribute, className }) => {
+    const { state, setState: setCtxState } = useContext(ComponentContext) || {};
+    const [search, setSearch] = useState('');
+    const [textValue, setTextValue] = useState('');
+
+    const cols = state?.columns || [];
+    const isSelectType = ['select', 'multiselect', 'radio', 'checkbox'].includes(attribute.type);
+    const op = isSelectType ? 'filter' : 'like';
+
+    const existing = (state?.tableFilters || []).find(f => f.col === attribute.name);
+    const currentValue = existing?.value;
+    const selectedValues = isSelectType
+        ? (Array.isArray(currentValue) ? currentValue : (currentValue ? [currentValue] : []))
+        : [];
+
+    // Pre-seeded options from column config (mapped_options or static options array)
+    const colDef = cols.find(c => c.name === attribute.name);
+    const metaOptions = isSelectType ? (colDef?.options || []) : [];
+
+    // Cascade: when top-level filters are ANDed, narrow this column's options
+    // based on selections already made in other server-filter columns.
+    const topLevelOp = state?.filters?.op ?? 'AND';
+    const siblingConditions = topLevelOp === 'AND'
+        ? (state?.tableFilters || []).filter(f => f.col !== attribute.name)
+        : [];
+
+    const { options, loading } = useColumnOptions(
+        attribute.name, cols, op, search, selectedValues, siblingConditions, attribute.source_id,
+        isSelectType, // withCounts — only meaningful for multiselect UI
+        []
+    );
+
+    // Sync text input when the filter value is changed externally (e.g. cleared elsewhere)
     useEffect(() => {
-        const timeOutId = setTimeout(() => {
-            if(value !== tmpValue) updateColumns(attributeKey, tmpValue, onChange, dataFetch)
-        }, 300);
+        if (!isSelectType) {
+            const next = typeof currentValue === 'string' ? currentValue : '';
+            setTextValue(prev => prev !== next ? next : prev);
+        }
+    }, [currentValue, isSelectType]);
 
-        return () => clearTimeout(timeOutId);
-    }, [tmpValue]);
+    const updateFilter = useCallback((val) => {
+        if (!setCtxState) return;
+        setCtxState(draft => {
+            if (!Array.isArray(draft.tableFilters)) draft.tableFilters = [];
+            const idx = draft.tableFilters.findIndex(f => f.col === attribute.name);
+            const hasValue = Array.isArray(val) ? val.length > 0 : (val !== '' && val != null);
+            if (hasValue) {
+                const node = { col: attribute.name, op, value: val };
+                if (attribute.source_id) node.source_id = attribute.source_id;
+                if (idx >= 0) draft.tableFilters[idx] = node;
+                else draft.tableFilters.push(node);
+            } else if (idx >= 0) {
+                draft.tableFilters.splice(idx, 1);
+            }
+        });
+    }, [setCtxState, attribute.name, attribute.source_id, op]);
 
-    const options = useMemo(() => {
-        if(!['select', 'multiselect', 'radio'].includes(type) || !localFilterData) return undefined;
-        return Array.from(localFilterData.values()).map(v => ({label: v.value ?? v, value: v.originalValue ?? v}))
-        }, [type, localFilterData]);
+    // Debounce text (like) filter updates
+    useEffect(() => {
+        if (isSelectType) return;
+        const cur = typeof currentValue === 'string' ? currentValue : '';
+        if (textValue === cur) return;
+        const id = setTimeout(() => updateFilter(textValue || null), 300);
+        return () => clearTimeout(id);
+    }, [textValue, isSelectType]);
 
-    return ['select', 'multiselect', 'radio'].includes(type) ?
-        <MultiselectEdit className={className}
-                              value={value}
-                              options={options}
-                              onChange={setTmpValue}
-                              singleSelectOnly={false}
-                              displayDetailedValues={false}
-        /> : (
+    if (isSelectType) {
+        return (
+            <MultiselectEdit
+                className={className}
+                value={selectedValues}
+                options={options}
+                loading={loading}
+                onChange={(selected) => {
+                    const values = (Array.isArray(selected) ? selected : [selected])
+                        .map(item => item?.value ?? item);
+                    updateFilter(values.length ? values : null);
+                }}
+                singleSelectOnly={false}
+                displayDetailedValues={false}
+                onSearch={setSearch}
+            />
+        );
+    }
+
+    return (
         <input
             className={className}
-            type={'text'}
-            value={tmpValue}
-            onChange={e => setTmpValue(e.target.value)}
+            type="text"
+            value={textValue}
+            onChange={e => setTextValue(e.target.value)}
+            placeholder="search..."
         />
-    )
-}
+    );
+};
+
 // in header menu for each column
-export default memo(function TableHeaderCell({isEdit, attribute, columns, localFilterData, display, controls, activeStyle, setState=Noop}) {
+export default memo(function TableHeaderCell({isEdit, attribute, columns, display, controls, activeStyle, setState=Noop}) {
     const { theme: themeFromContext = {table: {}}} = React.useContext(ThemeContext) || {};
     const theme = getComponentTheme(themeFromContext,'table', activeStyle);
 
@@ -124,6 +193,17 @@ export default memo(function TableHeaderCell({isEdit, attribute, columns, localF
 
     }), [columns, attribute]);
 
+    // When serverFilter is toggled off, clear this column's entry from state.tableFilters
+    useEffect(() => {
+        if (!attribute.serverFilter) {
+            setState(draft => {
+                if (!Array.isArray(draft?.tableFilters)) return;
+                const idx = draft.tableFilters.findIndex(f => f.col === colIdName);
+                if (idx >= 0) draft.tableFilters.splice(idx, 1);
+            });
+        }
+    }, [attribute.serverFilter]);
+
     const iconSizes = {width: 14 , height: 14}
     const fnIcons = {
         count: <Icon icon={theme.headerCellCountIcon} key={'count-icon'} className={theme.headerCellFnIconClass} {...iconSizes} />,
@@ -134,7 +214,7 @@ export default memo(function TableHeaderCell({isEdit, attribute, columns, localF
 
     return (
         <div key={colIdName} className={theme.headerCellWrapper}>
-            <Popup button={
+            <Popup preventCloseOnClickOutside={Boolean(attribute.serverFilter)} button={
                 <div key={'menu-btn'}
                      className={`${theme.headerCellBtn} ${display.columnSelection?.includes(colIdName) ? theme.headerCellBtnActive : ``}`}
                      onClick={e => {
@@ -232,14 +312,9 @@ export default memo(function TableHeaderCell({isEdit, attribute, columns, localF
                                                                             dataFetch={dataFetch}
                                                                         /> :
                                                                         type === 'filter' ?
-                                                                            <FilterControl
+                                                                            <ServerFilterControl
                                                                                 className={theme.headerCellControl}
-                                                                                type={attribute.type}
-                                                                                localFilterData={localFilterData?.[attribute.name]}
-                                                                                value={attribute[key]}
-                                                                                updateColumns={updateColumns}
-                                                                                attributeKey={key}
-                                                                                dataFetch={dataFetch}
+                                                                                attribute={attribute}
                                                                             /> :
                                                                             `${type} not available`
                                                         }

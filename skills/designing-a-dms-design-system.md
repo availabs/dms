@@ -163,7 +163,15 @@ Two cross-cutting concerns:
   on `theme.html`.
 - **Icons** — a name → SVG-component map. Components reference icons
   by name, never by import. The brand ships an icon set and its
-  registry of names; document on `theme.html`.
+  registry of names; document on `theme.html` (the `#icons` catalog).
+  **The icon set is a first-class deliverable: every `<svg>` in a design
+  page must be a *named* registry icon**, tagged `<!-- icon: Name -->`
+  (or `<!-- decorative -->` for inline art that isn't an icon). The set
+  must cover every icon the pages use, or those glyphs can't be
+  referenced when the design becomes live DMS pages (an unregistered
+  name renders nothing). Keep it honest with `scripts/icons-audit.mjs`,
+  and generate the runtime registry with `scripts/icons-sync.mjs` — full
+  lifecycle in [`managing-design-system-icons.md`](./managing-design-system-icons.md).
 
 ---
 

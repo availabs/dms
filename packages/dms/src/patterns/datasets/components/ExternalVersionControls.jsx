@@ -3,6 +3,8 @@ import React, {useContext, useEffect, useMemo, useState} from "react";
 import {DatasetsContext} from "../context";
 import {get} from "lodash-es";
 import { getExternalEnv } from "../utils/datasources";
+import { ThemeContext } from "../../../ui/useTheme";
+import { externalVersionControlsTheme } from "./ExternalVersionControls.theme";
 
 const isCalculatedCol = (attr={}) => {
     return attr.display === 'calculated' || attr.type === 'calculated' || attr.origin === 'calculated-column';
@@ -36,18 +38,20 @@ const INITIAL_DELETE_MODAL_STATE = {
 }
 
 const DownloadModalCheckbox = ({ inputName, checked, onChange, disabled=false }) => {
+    const { theme } = useContext(ThemeContext) || {};
+    const t = { ...externalVersionControlsTheme, ...(theme?.datasets?.externalVersionControls || {}) };
     return (
-        <div className="mt-2 flex items-center">
+        <div className={t.checkboxRow}>
             <input
                 id={inputName}
                 disabled={disabled}
                 name={inputName}
                 type="checkbox"
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                className={t.checkboxInput}
                 checked={checked}
                 onChange={() => onChange(inputName)}
             />
-            <label htmlFor={inputName} className="ml-2 text-sm text-gray-900">
+            <label htmlFor={inputName} className={t.checkboxLabel}>
                 {inputName}
             </label>
         </div>
@@ -55,12 +59,14 @@ const DownloadModalCheckbox = ({ inputName, checked, onChange, disabled=false })
 };
 
 const DownloadModalGroupedBy = ({ children }) => {
+    const { theme } = useContext(ThemeContext) || {};
+    const t = { ...externalVersionControlsTheme, ...(theme?.datasets?.externalVersionControls || {}) };
     return (
-        <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left">
-            <div className="flex justify-between items-center w-1/2 text-md leading-6 text-gray-900">
-                <div className="text-center h-fit">Split data files</div>
+        <div className={t.groupedByWrapper}>
+            <div className={t.groupedByTitle}>
+                <div className={t.checkboxGroupTitleText}>Split data files</div>
             </div>
-            <div className="flex mt-2 text-sm items-center">
+            <div className={t.groupedBySubTitle}>
                 Split up data based on a specified column
             </div>
             {children}
@@ -69,18 +75,20 @@ const DownloadModalGroupedBy = ({ children }) => {
 };
 
 const DownloadModalGroupColumnSelect = ({ options, modalState, onChange }) => {
+    const { theme } = useContext(ThemeContext) || {};
+    const t = { ...externalVersionControlsTheme, ...(theme?.datasets?.externalVersionControls || {}) };
     return (
-        <div className="mt-2 flex items-center">
-            <div className="flex mt-2 text-sm items-center">
+        <div className={t.groupColumnSelectRow}>
+            <div className={t.groupColumnSelectLabel}>
                 Output will have 1 file per distinct value in:
             </div>
             <select
-                className="w-full bg-blue-100 rounded mr-2 px-1 flex text-sm"
+                className={t.groupColumnSelect}
                 value={modalState}
                 onChange={(e) => onChange(e.target.value)}
             >
                 {options.map((option, i) => (
-                    <option key={i} className="ml-2 truncate " value={option}>
+                    <option key={i} className={t.selectOption} value={option}>
                         {option}
                     </option>
                 ))}
@@ -90,21 +98,23 @@ const DownloadModalGroupColumnSelect = ({ options, modalState, onChange }) => {
 };
 
 const DownloadModalGroupByToggle = ({ onChange, modalState }) => {
+    const { theme } = useContext(ThemeContext) || {};
+    const t = { ...externalVersionControlsTheme, ...(theme?.datasets?.externalVersionControls || {}) };
     return (
-        <div className="mt-3 text-center sm:mt-0 sm:text-left">
-            <div className="mt-2 flex items-center">
+        <div className={t.groupByToggleWrapper}>
+            <div className={t.groupByToggleRow}>
                 <input
                     id={"enableGroupedBy"}
                     name={"enableGroupedBy"}
                     value={true}
                     type="radio"
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    className={t.groupByToggleInput}
                     checked={modalState}
                     onChange={() => onChange(true)}
                 />
                 <label
                     htmlFor={"enableGroupedBy"}
-                    className="ml-2 text-sm text-gray-900"
+                    className={t.groupByToggleLabel}
                 >
                     Yes
                 </label>
@@ -113,13 +123,13 @@ const DownloadModalGroupByToggle = ({ onChange, modalState }) => {
                     name={"disableGroupedBy"}
                     value={true}
                     type="radio"
-                    className="h-4 w-4 ml-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    className={t.groupByToggleInputNo}
                     checked={!modalState}
                     onChange={() => onChange(false)}
                 />
                 <label
                     htmlFor={"enableGroupedBy"}
-                    className="ml-2 text-sm text-gray-900"
+                    className={t.groupByToggleLabel}
                 >
                     No
                 </label>
@@ -136,11 +146,13 @@ const DownloadModalCheckboxGroup = ({
                                     }) => {
     const {UI} = useContext(DatasetsContext);
     const {Button, Icon} = UI;
+    const { theme: themeCtx } = useContext(ThemeContext) || {};
+    const t = { ...externalVersionControlsTheme, ...(themeCtx?.datasets?.externalVersionControls || {}) };
     const hasCalcColumn = options.some(opt => isCalculatedCol(opt) ) && title === "Columns"
     return (
-        <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left max-h-[700px] overflow-y-auto">
-            <div className="flex w-full justify-between items-center w-1/2 text-md leading-6 text-gray-900">
-                <div className="text-center h-fit">{title}:</div>
+        <div className={t.checkboxGroupWrapper}>
+            <div className={t.checkboxGroupTitleRow}>
+                <div className={t.checkboxGroupTitleText}>{title}:</div>
                 <div>
                     <Button
                         themeOptions={{ size: "sm" }}
@@ -156,15 +168,15 @@ const DownloadModalCheckboxGroup = ({
                     </Button>
                 </div>
             </div>
-            <div className="flex mt-2 text-sm items-center">
+            <div className={t.checkboxGroupValidRow}>
                 One or more must be selected
                 {modalState.length > 0 ? (
-                    <Icon icon={'CheckCircleIcon'} className="ml-2 text-green-700 h-4 w-4" />
+                    <Icon icon={'CheckCircleIcon'} className={t.iconSuccess} />
                 ) : (
-                    <Icon icon={'XCircleIcon'} className="ml-2 text-red-700 h-4 w-4" />
+                    <Icon icon={'XCircleIcon'} className={t.iconError} />
                 )}
             </div>
-            {hasCalcColumn ? <div className="flex mt-1 text-xs items-center">(cannot include "Calculated Columns")</div>: ""}
+            {hasCalcColumn ? <div className={t.calcColumnWarning}>(cannot include "Calculated Columns")</div>: ""}
             {options?.map((option) => (
                 <DownloadModalCheckbox
                     key={`${option?.name || option}_checkbox`}
@@ -180,6 +192,8 @@ const DownloadModalCheckboxGroup = ({
 
 export default function ExternalVersionControls({isDms, source, view, sourceId, viewId}) {
     const { datasources, baseUrl, user, falcor, falcorCache, UI, API_HOST } = useContext(DatasetsContext);
+    const { theme } = useContext(ThemeContext) || {};
+    const t = { ...externalVersionControlsTheme, ...(theme?.datasets?.externalVersionControls || {}) };
     const pgEnv = getExternalEnv(datasources);
     // dms-server hosts the DAMA upload/download REST endpoints under
     // `/dama-admin/` on the main API host. No separate DAMA_HOST anymore.
@@ -389,15 +403,14 @@ export default function ExternalVersionControls({isDms, source, view, sourceId, 
         setPmTilesModalState(prev => ({ ...prev, progress }));
     }, []);
 
-    const linkClass = 'w-full flex-1 text-center border shadow p-2 font-medium rounded-md hover:text-white'
     const doesViewHaveDownload = view?.metadata?.value?.download && Object.keys(view?.metadata?.value?.download).length > 0;
     //console.log('do i get here?', user, sourceDataColumns)
     return (
-        <div className="w-72 px-5">
+        <div className={t.wrapper}>
             {user.authLevel >= SOURCE_AUTH_CONFIG['SUPER'] ? (
-                <div className="w-full flex flex-col p-1">
+                <div className={t.adminControls}>
                     <Button
-                        className={`${linkClass} bg-blue-300 hover:bg-blue-600 mb-1`}
+                        className={t.createDownloadBtn}
                         onClick={() => {
                             setModalState({...modalState, open: true});
                         }}
@@ -405,24 +418,24 @@ export default function ExternalVersionControls({isDms, source, view, sourceId, 
                         <i className={'fa fa-download'}/> Create Download
                     </Button>
                     {doesViewHaveDownload && <Button
-                        className={`${linkClass}  bg-red-300 border-red-200 hover:bg-red-600 mb-1`}
+                        className={t.deleteDownloadBtn}
                         onClick={() => {
                             setDeleteModalState({...deleteModalState, open: true});
                         }}
                     >
-                        <i className="fad fa-trash"/> Delete Download
+                        <i className={t.trashIcon}/> Delete Download
                     </Button>}
                     <Button
-                        className={`${linkClass} bg-green-300 hover:bg-green-600 mb-1`}
+                        className={t.cachePmTilesBtn}
                         onClick={ openPmTilesModal }
                     >
                         <i className={'fa fa-download'}/> Cache PM Tiles
                     </Button>
                     <Link
-                        className={`${linkClass} bg-red-300 border-red-200 hover:bg-red-600`}
+                        className={t.deleteViewLink}
                         to={`${baseUrl}/source/${sourceId}/versions/${viewId}/delete`}
                     >
-                        <i className="fad fa-trash"/> Delete View
+                        <i className={t.trashIcon}/> Delete View
                     </Link>
                 </div>
             ) : (
@@ -443,21 +456,20 @@ export default function ExternalVersionControls({isDms, source, view, sourceId, 
                 setOpen={setModalOpen}
                 themeOptions={{size:"large"}}
             >
-                <div className="flex items-center m-1">
-                    <div
-                        className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 sm:mx-0 sm:h-10 sm:w-10">
+                <div className={t.createModalHeader}>
+                    <div className={t.createModalIconWrapper}>
                         <i
-                            className="fad fa-layer-group text-blue-600"
+                            className={t.layerGroupIcon}
                             aria-hidden="true"
                         />
                     </div>
-                    <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left w-full">
-                        <div className="text-lg align-center font-semibold leading-6 text-gray-900">
+                    <div className={t.createModalTitleWrapper}>
+                        <div className={t.createModalTitle}>
                             Create Data Download
                         </div>
                     </div>
                 </div>
-                <div className={"pl-10 grid grid-cols-3"}>
+                <div className={t.createModalBody}>
                     <DownloadModalCheckboxGroup
                         title={"File Types"}
                         options={OUTPUT_FILE_TYPES}
@@ -484,7 +496,7 @@ export default function ExternalVersionControls({isDms, source, view, sourceId, 
                         )}
                     </DownloadModalGroupedBy>
                 </div>
-                <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
+                <div className={t.createModalFooter}>
                     <Button
                         type="button"
                         disabled={
@@ -493,7 +505,7 @@ export default function ExternalVersionControls({isDms, source, view, sourceId, 
                             modalState.columns.length === 0 ||
                             modalState.columns.some(colName => isCalculatedCol(sourceDataColumns.find(c => c.name === colName)))
                         }
-                        className="disabled:bg-slate-300 disabled:cursor-warning inline-flex w-full justify-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 sm:ml-3 sm:w-auto m-1"
+                        className={t.createModalConfirmBtn}
                         onClick={createDownload}
                     >
                         {modalState.loading
@@ -502,7 +514,7 @@ export default function ExternalVersionControls({isDms, source, view, sourceId, 
                     </Button>
                     <Button
                         type="button"
-                        className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto m-1"
+                        className={t.createModalCancelBtn}
                         onClick={() => setModalOpen(false)}
                     >
                         Cancel
@@ -515,31 +527,30 @@ export default function ExternalVersionControls({isDms, source, view, sourceId, 
                 open={deleteModalState.open}
                 setOpen={setDeleteModalOpen}
             >
-                <div className="flex items-center m-1">
-                    <div
-                        className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 sm:mx-0 sm:h-10 sm:w-10">
+                <div className={t.deleteModalHeader}>
+                    <div className={t.deleteModalIconWrapper}>
                         <i
-                            className="fad fa-layer-group text-blue-600"
+                            className={t.layerGroupIcon}
                             aria-hidden="true"
                         />
                     </div>
-                    <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left w-full">
-                        <div className="text-lg align-center font-semibold leading-6 text-gray-900">
+                    <div className={t.deleteModalTitleWrapper}>
+                        <div className={t.deleteModalTitle}>
                             Delete Data Download
                         </div>
                     </div>
                 </div>
                 <div></div>
-                <div className={"flex m-2"}>
+                <div className={t.deleteModalMessage}>
                     Are you sure you want to delete the downloadable file for this view? The underlying source and view will NOT be affected.
                 </div>
-                <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
+                <div className={t.deleteModalFooter}>
                     <Button
                         type="button"
                         disabled={
                             deleteModalState.loading
                         }
-                        className="disabled:bg-slate-300 disabled:cursor-warning inline-flex w-full justify-center rounded-md  px-3 py-2 text-sm font-semibold text-white shadow-sm bg-red-300 border-red-200 hover:bg-red-600 mb-1 sm:ml-3 sm:w-auto mr-1"
+                        className={t.deleteModalConfirmBtn}
                         onClick={deleteDownload}
                     >
                         {deleteModalState.loading
@@ -548,7 +559,7 @@ export default function ExternalVersionControls({isDms, source, view, sourceId, 
                     </Button>
                     <Button
                         type="button"
-                        className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 mb-1 sm:w-auto"
+                        className={t.deleteModalCancelBtn}
                         onClick={() => setDeleteModalOpen(false)}
                     >
                         Cancel
@@ -572,22 +583,21 @@ const PmTilesModal = props => {
         ...modalState
     } = props;
     const {UI} = useContext(DatasetsContext);
+    const { theme: pmTheme } = useContext(ThemeContext) || {};
+    const t = { ...externalVersionControlsTheme, ...(pmTheme?.datasets?.externalVersionControls || {}) };
     const {Modal} = UI;
     return (
         <Modal { ...modalState }>
-            <div className="p-2">
+            <div className={t.pmTilesModalWrapper}>
 
-                <div className={ `
-            pb-2 border-b-2 border-black
-          ` }
-                >
-                    <div className="grid grid-cols-3 gap-2">
+                <div className={t.pmTilesModalContent}>
+                    <div className={t.pmTilesModalGrid}>
                         <DownloadModalCheckboxGroup
                             title={ "Columns" }
                             options={ columns }
                             modalState={ selectedColumns }
                             onChange={ setSelectedColumns }/>
-                        <div className="col-span-2">
+                        <div className={t.colSpan2}>
                             { !etl_context_id ? null :
                                 <PmTilesProgressWindow
                                     etl_context_id={ etl_context_id }
@@ -597,8 +607,8 @@ const PmTilesModal = props => {
                     </div>
                 </div>
 
-                <div className="pt-2 grid grid-cols-12 gap-2">
-                    <div className="col-start-7 col-span-3">
+                <div className={t.pmTilesModalFooter}>
+                    <div className={t.pmTilesModalCloseCol}>
                         <SlatePmTilesModalButton
                             onClick={ close }
                             disabled={ progress === "started" }
@@ -607,7 +617,7 @@ const PmTilesModal = props => {
                         </SlatePmTilesModalButton>
                     </div>
 
-                    <div className="col-span-3">
+                    <div className={t.pmTilesModalCacheCol}>
                         <GreenPmTilesModalButton
                             onClick={ cachePmTiles }
                             disabled={ !selectedColumns.length || (progress !== "not-started") }
@@ -626,6 +636,8 @@ const PmTilesModal = props => {
 const PmTilesProgressWindow = ({ etl_context_id }) => {
 
     const { datasources, falcor, falcorCache, updateProgress } = useContext(DatasetsContext);
+    const { theme: pwTheme } = useContext(ThemeContext) || {};
+    const t = { ...externalVersionControlsTheme, ...(pwTheme?.datasets?.externalVersionControls || {}) };
     const pgEnv = getExternalEnv(datasources);
 
     const [now, setNow] = React.useState(0);
@@ -687,11 +699,11 @@ const PmTilesProgressWindow = ({ etl_context_id }) => {
     }, [falcorCache, pgEnv, etl_context_id]);
 
     return (
-        <div className="py-1 px-2 grid grid-cols-1"
+        <div className={t.progressWindowWrapper}
              style={ { fontSize: "0.8rem" } }
         >
-            <div className="border-b-2 border-current flex">
-                <div className="font-medium text-sm flex-1">Progress Window</div>
+            <div className={t.progressWindowHeader}>
+                <div className={t.progressWindowTitle}>Progress Window</div>
                 <div>etl context id: { etl_context_id }</div>
             </div>
             { events.map(e => (
@@ -703,12 +715,14 @@ const PmTilesProgressWindow = ({ etl_context_id }) => {
 }
 
 const EventItem = ({ damaEvent }) => {
+    const { theme: evTheme } = useContext(ThemeContext) || {};
+    const t = { ...externalVersionControlsTheme, ...(evTheme?.datasets?.externalVersionControls || {}) };
     const data = React.useMemo(() => {
         return get(damaEvent, ["payload", "data"], null);
     }, [damaEvent]);
 
     return (
-        <div className="flex">
+        <div className={t.eventItemWrapper}>
             { damaEvent.type }{ data ? "==>" : "" } { data }
         </div>
     )
@@ -716,6 +730,8 @@ const EventItem = ({ damaEvent }) => {
 
 const PmTilesModalButton = ({ className = "", onClick, disabled = false, children }) => {
     const {UI} = useContext(DatasetsContext);
+    const { theme: btnTheme } = useContext(ThemeContext) || {};
+    const t = { ...externalVersionControlsTheme, ...(btnTheme?.datasets?.externalVersionControls || {}) };
     const {Button} = UI;
 
     const doOnClick = React.useCallback(e => {
@@ -725,12 +741,7 @@ const PmTilesModalButton = ({ className = "", onClick, disabled = false, childre
     return (
         <Button disabled={ disabled }
                 onClick={ doOnClick }
-                className={ `
-        w-full py-2 rounded cursor-pointer
-        disabled:opacity-50 disabled:cursor-not-allowed
-        text-sm text-black hover:text-white hover:disabled:text-black
-        ${ className }
-      ` }
+                className={ `${ t.pmTilesModalBtnBase } ${ className }` }
         >
             { children }
         </Button>
@@ -738,14 +749,18 @@ const PmTilesModalButton = ({ className = "", onClick, disabled = false, childre
 }
 
 const GreenPmTilesModalButton = props => {
+    const { theme: gTheme } = useContext(ThemeContext) || {};
+    const t = { ...externalVersionControlsTheme, ...(gTheme?.datasets?.externalVersionControls || {}) };
     return (
         <PmTilesModalButton { ...props }
-                            className="bg-green-300 hover:bg-green-600 hover:disabled:bg-green-300"/>
+                            className={t.pmTilesModalBtnGreen}/>
     )
 }
 const SlatePmTilesModalButton = props => {
+    const { theme: sTheme } = useContext(ThemeContext) || {};
+    const t = { ...externalVersionControlsTheme, ...(sTheme?.datasets?.externalVersionControls || {}) };
     return (
         <PmTilesModalButton { ...props }
-                            className="bg-slate-300 hover:bg-slate-600 hover:disabled:bg-slate-300"/>
+                            className={t.pmTilesModalBtnSlate}/>
     )
 }
