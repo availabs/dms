@@ -20,6 +20,8 @@ export default function LinkPlugin(): JSX.Element {
                 TOGGLE_LINK_COMMAND,
                 (payload) => {
                     const { url, target = '_self' } = payload;
+                    // New-tab links must not leak window.opener (reverse tabnabbing).
+                    const rel = target === '_blank' ? 'noopener noreferrer' : null;
 
                     editor.update(() => {
                         const selection = $getSelection();
@@ -43,7 +45,7 @@ export default function LinkPlugin(): JSX.Element {
                             return;
                         }else{
                             // Create a new link node with the selected text inside
-                            const linkNode = $createLinkNode(url, { target });
+                            const linkNode = $createLinkNode(url, { target, rel });
                             linkNode.append($createTextNode(selectedText));
 
                             // Replace selection with the new link node
@@ -55,11 +57,13 @@ export default function LinkPlugin(): JSX.Element {
                                 if ($isLinkNode(parent)) {
                                     parent.setURL(url);
                                     parent.setTarget(target);
+                                    parent.setRel(rel);
                                     return;
                                 }
                                 if ($isLinkNode(node)) {
                                     node.setURL(url);
                                     node.setTarget(target);
+                                    node.setRel(rel);
                                     return;
                                 }
                             }
