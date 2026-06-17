@@ -48,6 +48,9 @@ const SourceNav = ({theme = {}, navItems, page, pageBaseUrl, id, view_id, isDms,
 )
 
 export default function SourcePage ({ apiLoad, apiUpdate, format, item, params, isDms }) {
+
+console.log("SourcePage::item, isDms", item, isDms);
+
     const ctx = useContext(DatasetsContext);
     const {baseUrl, user, isUserAuthed, UI, datasources, falcor, damaDataTypes} = ctx;
     const { theme: fullTheme } = useContext(ThemeContext) || {};
@@ -58,6 +61,10 @@ export default function SourcePage ({ apiLoad, apiUpdate, format, item, params, 
     const [source, setSource] = useState(isDms ? item : {});
     const [loading, setLoading] = useState(false);
     const {id, view_id, page} = params;
+
+console.log("SourcePage::damaDataTypes", damaDataTypes)
+
+console.log("SourcePage::pgEnv", pgEnv);
 
     // Derive source-specific format from registerFormats (has views as dms-format attribute).
     // Falling back to shallow spread preserves existing behavior for non-standard formats.
@@ -78,10 +85,13 @@ export default function SourcePage ({ apiLoad, apiUpdate, format, item, params, 
             setLoading(false)
         }
 
-        if(((!isDms && pgEnv) || isDms) && id){
+        if (((!isDms && pgEnv) || (isDms && !item)) && id) {
+
+console.log("LOADING??????????????????")
+
             load()
         }
-    }, [isDms, id])
+    }, [isDms, id, pgEnv, falcor, item])
 
     const sourceLoaded = !!(source.id || source.source_id);
 
@@ -89,7 +99,7 @@ export default function SourcePage ({ apiLoad, apiUpdate, format, item, params, 
     const sourceDataType = isDms ? 'internal_table' : source?.type; // csv / gis / internal
     const sourcePages = sourceLoaded ? { ...(damaDataTypes[sourceType] || {}), ...(damaDataTypes[sourceDataType] || {}) } : {};
 
-// console.log('SourcePage::source', sourceType, damaDataTypes);
+console.log('SourcePage::sourceType', sourceType, sourceDataType);
 
     const sourcePagesNavItems =
         (Object.values(sourcePages) || [])
@@ -127,6 +137,8 @@ export default function SourcePage ({ apiLoad, apiUpdate, format, item, params, 
         {name: source?.name || '...', href: `${pageBaseUrl}/${id}`},
         ...(page ? [{name: page}] : []),
     ];
+
+console.log("SourcePage::source", source);
 
     return (
         <Layout navItems={[]}>

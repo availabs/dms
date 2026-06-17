@@ -83,7 +83,8 @@ const File = ({ file, sourceId, sourceName, okToUpload }) => {
 		user,
 		dmsEnv,
 		parent,
-		DAMA_HOST,
+		// DAMA_HOST,
+		API_HOST
 	} = React.useContext(DatasetsContext);
 
 	// Owner row that holds the `sources` ref list. dmsEnv is the canonical
@@ -149,10 +150,13 @@ const File = ({ file, sourceId, sourceName, okToUpload }) => {
     formData.append("file", file);
 
     fetch(
-      `${ DAMA_HOST }/dms-admin/${ app }/file_upload`,
+      `${ API_HOST }/dms-admin/${ app }/file_upload`,
       { method: "POST", body: formData }
     ).then(res => res.json())
       .then(json => {
+
+console.log("uploadFile::response", json);
+
         if (json.ok) {
         	// Invalidate the owner row so its updated sources list is refetched,
         	// and the new source/view rows so the detail page renders the file.
@@ -172,7 +176,7 @@ const File = ({ file, sourceId, sourceName, okToUpload }) => {
       .catch(err => setError(err.message))
       .finally(e => setUploading(false));
 
-  }, [DAMA_HOST, app, owner, ownerInstance, baseUrl, file, sourceName,
+  }, [API_HOST, app, owner, ownerInstance, baseUrl, file, sourceName,
   		description, user, navigate, sourceId, directory, falcor
   	]);
 
