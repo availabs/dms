@@ -6,7 +6,8 @@ const {
 } = require("./S3client-actions.js");
 
 (async () => {
-	const awsInfo = await getAwsInfo("./aws_info.json");
+	const awsInfoFile = process.argv.at(2);
+	const awsInfo = await getAwsInfo(awsInfoFile);
 	const s3client = await getS3Client(awsInfo);
 
 console.log("got S3 client for:", awsInfo);
