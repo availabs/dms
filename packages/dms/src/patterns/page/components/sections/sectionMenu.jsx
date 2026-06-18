@@ -1234,7 +1234,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                     )
                 },
                 {
-                    icon: 'Padding', name: 'Sticky Top', value: value?.['stickyTop'] || 0, showValue: true,
+                    icon: 'Padding', name: 'Float Padding Top', value: value?.['stickyTop'] || 0, showValue: true,
                     cdn: () => canEditSection && value?.rowspan > 1 && value?.sticky,
                     items: [
                         {
