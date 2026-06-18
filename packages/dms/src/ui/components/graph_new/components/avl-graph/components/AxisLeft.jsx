@@ -9,7 +9,7 @@ export const AxisLeft = props => {
     adjustedWidth, adjustedHeight, showGridLines = true, showAnimations = true,
     gridLineOpacity = 0.25, axisColor = "currentColor", axisOpacity = 1,
     domain, scale, format, type = "linear", hasData = true, rotateLabels = false,
-    secondary, label, margin, ticks = 10, tickValues, tickDensity = 8, show = true,
+    secondary, label, margin, ticks = 10, tickValues, tickSpacing, tickDensity = 8, show = true,
     // Axis typography (theme/per-section). Tick keys unset → inherit the CSS default
     // (`.tick text { font-size: 0.75rem }`, currentColor) so the render is BC. Label
     // keys default to the historical literals.
@@ -26,7 +26,7 @@ export const AxisLeft = props => {
         adjustedWidth, adjustedHeight,
         domain, scale, type, format, showAxis: show,
         secondary, label, margin, rotateLabels,
-        ticks, tickValues, showGridLines, gridLineOpacity,
+        ticks, tickValues, tickSpacing, showGridLines, gridLineOpacity,
         axisColor, axisOpacity, tickDensity, hasData,
         tickFontSize, tickFontFamily, tickFontWeight, tickColor,
         labelFontSize, labelFontFamily, labelFontWeight, labelColor
@@ -34,7 +34,7 @@ export const AxisLeft = props => {
     }
   }, [adjustedWidth, adjustedHeight, showGridLines, hasData,
       domain, scale, type, format, showAnimations, rotateLabels,
-      secondary, label, margin, ticks, tickValues, show,
+      secondary, label, margin, ticks, tickValues, tickSpacing, show,
       gridLineOpacity, axisColor, axisOpacity, tickDensity,
       tickFontSize, tickFontFamily, tickFontWeight, tickColor,
       labelFontSize, labelFontFamily, labelFontWeight, labelColor]
@@ -47,7 +47,7 @@ const renderAxisLeft = ({ ref, showAnimations, rotateLabels,
                         adjustedWidth, adjustedHeight,
                         domain, scale, type, format,
                         secondary, label, margin, showAxis,
-                        ticks, tickValues, showGridLines, gridLineOpacity,
+                        ticks, tickValues, tickSpacing, showGridLines, gridLineOpacity,
                         axisColor, axisOpacity, tickDensity, hasData,
                         tickFontSize, tickFontFamily, tickFontWeight, tickColor,
                         labelFontSize, labelFontFamily, labelFontWeight, labelColor }) => {
@@ -90,6 +90,20 @@ const renderAxisLeft = ({ ref, showAnimations, rotateLabels,
   }
 
 // console.log("renderAxisLeft::format", format);
+
+  // Explicit tick STEP (e.g. a tick every 50 units) — for a numeric value axis,
+  // overrides the approximate `ticks` count so an author can thin a busy axis to
+  // exactly the rounds they want. Reads the live scale domain so it tracks the data.
+  if (!tickValues && tickSpacing && type !== "band" && type !== "ordinal" && typeof scale?.domain === "function") {
+    const dom = scale.domain();
+    const lo = Math.min(dom[0], dom[dom.length - 1]);
+    const hi = Math.max(dom[0], dom[dom.length - 1]);
+    const step = Math.abs(+tickSpacing);
+    if (step > 0 && isFinite(lo) && isFinite(hi)) {
+      tickValues = [];
+      for (let v = Math.ceil(lo / step) * step; v <= hi + step * 1e-9; v += step) tickValues.push(v);
+    }
+  }
 
   const axisLeft = d3AxisLeft(scale)
     .tickFormat(format);
@@ -209,9 +223,13 @@ const renderAxisLeft = ({ ref, showAnimations, rotateLabels,
               Boolean(domain.length);
 
   if (type === "linear") {
+    // Gridlines follow the same positions as the tick labels — when tickValues are
+    // set (e.g. via tickSpacing) the grid thins with the labels instead of staying
+    // at the default ~`ticks` density.
+    const gridTicks = tickValues || scale.ticks(ticks);
     const gridLines = group.selectAll("line.grid-line"),
       numGridLines = gridLines.size(),
-      numTicks = show ? scale.ticks(ticks).length : 0,
+      numTicks = show ? gridTicks.length : 0,
 
       gridEnter = (numGridLines > 1) && (numGridLines < numTicks) ?
         scale(domain[1] * 1.5) : adjustedHeight,
@@ -219,7 +237,7 @@ const renderAxisLeft = ({ ref, showAnimations, rotateLabels,
       gridExit = show ? scale(domain[1] * 1.5) : adjustedHeight;
 
       gridLines
-        .data(show ? scale.ticks(ticks) : [])
+        .data(show ? gridTicks : [])
         .join(
           enter => enter.append("line")
             .attr("class", "grid-line")

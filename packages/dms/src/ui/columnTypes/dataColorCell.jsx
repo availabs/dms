@@ -16,7 +16,8 @@ import { ThemeContext, getComponentTheme } from "../useTheme";
 //   colors         : palette override (array of colour stops); default theme palette.
 //   showValue      : render the value text over the colour (default false).
 const dataColorCellDefault = {
-  wrapper: "w-full h-5 rounded-[2px] flex items-center justify-center",
+  wrapper: "w-full h-5 flex items-center justify-center px-[3px]", // outer: transparent, gives the swatch horizontal breathing room
+  cell:    "w-full h-full rounded-[2px] flex items-center justify-center", // inner: the colour swatch (carries the bg)
   value:   "text-[10px] tabular-nums leading-none",
   palette: ["#f1f5f9", "#94a3b8", "#1e293b"], // generic light → dark fallback
 };
@@ -54,8 +55,10 @@ export const DataColorCellView = ({ value, row, domainColumns, colorMin, colorMa
   const bg = Number.isNaN(v) ? "transparent" : scale(v);
 
   return (
-    <div className={t.wrapper} style={{ backgroundColor: bg }}>
-      {showValue && !Number.isNaN(v) ? <span className={t.value}>{value?.value ?? value}</span> : null}
+    <div className={t.wrapper}>
+      <div className={t.cell} style={{ backgroundColor: bg }}>
+        {showValue && !Number.isNaN(v) ? <span className={t.value}>{value?.value ?? value}</span> : null}
+      </div>
     </div>
   );
 };

@@ -26,9 +26,12 @@ const minColSize = 120;
 // augmented with `_hasFixedSize` (tells the cell whether to pin its width) and
 // `_track` (the grid-template token). `size` stays defaulted for existing consumers.
 const augmentColSizing = (c, defaultColumnSize, forceFixed = false) => {
-    const hasFixed = forceFixed ||
-        (c.size !== undefined && c.size !== null && c.size !== '' && !isNaN(+c.size));
-    const size = hasFixed ? +c.size : defaultColumnSize;
+    const sizeSet = c.size !== undefined && c.size !== null && c.size !== '' && !isNaN(+c.size);
+    // `stretch:true` keeps the column's size as a *minimum* but lets it grow to
+    // share leftover width (`minmax(size, 1fr)`) — e.g. the 12 month cells of a
+    // heat grid filling the card. Without it a sized column is a rigid `${size}px`.
+    const hasFixed = forceFixed || (sizeSet && !c.stretch);
+    const size = sizeSet ? +c.size : defaultColumnSize;
     return {
         ...c,
         size,
