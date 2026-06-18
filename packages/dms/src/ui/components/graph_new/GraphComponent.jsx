@@ -126,6 +126,10 @@ export const GraphComponent = props => {
         strokeWidth={ get(graphFormat, "strokeWidth", 1) }
         area={ get(graphFormat, "area", false) }
         areaOpacity={ get(graphFormat, "areaOpacity", 0.15) }
+        // Bar fill-opacity. Unset → the avl-graph CSS default (0.75, :hover → 1)
+        // governs, preserving the historical translucent look + hover feedback.
+        // Set to 1 for solid, design-matching bars (inline style wins over the CSS).
+        barOpacity={ get(graphFormat, "barOpacity") }
         showMarks={ get(graphFormat, "showMarks", false) }
 
         tileMethod={ get(graphFormat, "tileMethod", "treemapSquarify") }
@@ -161,6 +165,11 @@ export const GraphComponent = props => {
           axisColor: get(graphFormat, ["yAxis", "axisColor"], "currentColor"),
           show: get(graphFormat, ["yAxis", "show"], true),
           format: getFormatFunc(get(graphFormat, ["yAxis", "format"]), get(graphFormat, ["yAxis", "isDollars"])),
+          // Tick thinning for the numeric value axis. `tickSpacing` = an explicit
+          // step (a tick every N units); `ticks` = an approximate count. Unset →
+          // the renderer's ~10-tick default (BC). The editor exposes "Tick Spacing".
+          tickSpacing: get(graphFormat, ["yAxis", "tickSpacing"]),
+          ticks: get(graphFormat, ["yAxis", "ticks"]),
           // Custom y-domain (unset → auto-scale). Read by the avl-graph LineGraph.
           domainMin: get(graphFormat, ["yAxis", "domainMin"]),
           domainMax: get(graphFormat, ["yAxis", "domainMax"]),

@@ -41,6 +41,27 @@ FILTER (WHERE month=N)`, `domainColumns:[jan…dec]`, headers `J…D`) · delay_
 - [x] reacts to year filter (smart fetch, seed cleared).
 - [x] BC: additive registry entry; uses d3 scaleLinear (already a dep).
 
+## Follow-up — tile spacing (2026-06-18)
+The swatch was a single `w-full` div, so adjacent tiles touched horizontally
+(the table cell's `cellInner` className is passed to the ViewComp but the
+component ignores it). Split into an **outer transparent wrapper** (provides the
+horizontal breathing room via `px`) + an **inner colour swatch** (`cell`, carries
+the bg). Component default `wrapper: "... px-[3px]"`, `cell: "w-full h-full
+rounded-[2px] ..."`; transportnyv2 override `wrapper: "... px-[2px]"` → a 4px gap
+between adjacent month tiles (verified: 132 swatches, adjacentGapPx 4). Vertical
+breathing room was already there (swatch `h-5` inside the `min-h-[26px]` heat
+cell). BC — existing consumers get the same look plus the small inset.
+
+## Follow-up — chrome-less heat table (2026-06-18)
+Per design, the heat grid lost its own table chrome (the section compound card is
+the only frame). themev2 `table.styles[].heat`:
+- `headerCellContainerBg`: `bg-slate-50/60 … border-b border-zinc-950/10` →
+  `bg-white text-slate-400` (white column-header row, no divider).
+- added `tableContainer`: dropped the default's `rounded-[8px] border
+  border-zinc-950/10 … shadow-sm` (kept `bg-white` + the overflow/scroll + max-h).
+Scoped to the `heat` style only (seasonality 2175689); `report`-style tables keep
+their bordered container + tinted headers.
+
 ## Outcome
 `data_color_cell` shipped (dms submodule). transportnyv2 amber palette in
 themev2.js (dms-template repo). Section 2175689 converted GridGraph → Spreadsheet;
