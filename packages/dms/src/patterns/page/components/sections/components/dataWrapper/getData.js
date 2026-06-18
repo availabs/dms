@@ -13,6 +13,7 @@ import {
     isCalculatedCol,
     legacyStateToBuildInput,
     attributeAccessorStr,
+    isJoinComplete,
 } from "./buildUdaConfig";
 import { calculateIsJoinPresent } from "./utils/joinUtils";
 
@@ -328,7 +329,7 @@ export const getData = async ({
     }
     // When a join is present, every base-table column reference must be
     // alias-qualified to avoid Postgres "column ambiguous" errors. Use ds.id.
-    const joinPresent = isJoinPresent;
+    const joinPresent = isJoinPresent && isJoinComplete(join);
     const idCol = joinPresent ? "ds.id" : "id";
     const idReq = joinPresent ? "ds.id as id" : "id";
     if (isDms && !isPivotMode && !options.groupBy.length && !fnColumnsExists) {

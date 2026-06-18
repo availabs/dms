@@ -401,7 +401,7 @@ const Edit = forwardRef((props, ref) => {
     }
 
     const componentProps = useMemo(() => {
-        return ['Spreadsheet', 'Card'].includes(component.name) ? {
+        return ['Spreadsheet', 'Card', 'ReportRouteList'].includes(component.name) ? {
             newItem, setNewItem,
             updateItem, removeItem, addItem,
             currentPage, infiniteScrollFetchData: onPageChange,
@@ -650,7 +650,7 @@ const View = forwardRef(({cms_context, value, onChange, component, editPageMode,
     }, [state?.data, state?.display?.hideIfNull])
 
     const componentProps = useMemo(() => {
-        return ['Spreadsheet', 'Card'].includes(component.name) ? {
+        return ['Spreadsheet', 'Card', 'ReportRouteList'].includes(component.name) ? {
             newItem, setNewItem,
             updateItem, removeItem, addItem,
             currentPage, infiniteScrollFetchData: onPageChange,
