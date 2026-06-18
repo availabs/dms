@@ -1220,6 +1220,33 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                     })
                 },
                 {
+                    name: 'Float',
+                    cdn: () => canEditSection && value?.rowspan > 1,
+                    type: () => (
+                        <div className={'self-start w-full flex justify-between pl-2'}>
+                            <label>Float</label>
+                            <Switch
+                                size={'small'}
+                                enabled={value?.['sticky']}
+                                setEnabled={v => updateAttribute('sticky', v)}
+                            />
+                        </div>
+                    )
+                },
+                {
+                    icon: 'Padding', name: 'Float Padding Top', value: value?.['stickyTop'] || 0, showValue: true,
+                    cdn: () => canEditSection && value?.rowspan > 1 && value?.sticky,
+                    items: [
+                        {
+                            type: 'input',
+                            inputType: 'number',
+                            min: 0, max: 500,
+                            value: value?.['stickyTop'] || 0,
+                            onChange: (v) => updateAttribute('stickyTop', +v.target.value)
+                        }
+                    ],
+                },
+                {
                     icon: 'Padding', name: 'Offset', value: value?.['offset'] || 16, showValue: true,
                     cdn: () => canEditSection,
                     items: [
