@@ -225,7 +225,10 @@ export default function Table ({
 
     const actionsColSize = 50;
     const structureValues = useMemo(() => {
-        const visibleAttributes = columns.filter(c => c.show && !c.actionType).map(c => augmentColSizing(c, defaultColumnSize));
+        // selectOnly columns participate in the query (fetched into the row) but
+        // render no cell — so a column type can read them off `row` (e.g. a data_bar
+        // scaling to a sibling `max() over ()` column) without showing a column.
+        const visibleAttributes = columns.filter(c => c.show && !c.selectOnly && !c.actionType).map(c => augmentColSizing(c, defaultColumnSize));
         const actionColumns = columns.filter(c => c.show && c.actionType && (c.display === 'both' || isEdit)).map(c => augmentColSizing(c, defaultColumnSize));
         const regularAttrsWithoutOpenOut = visibleAttributes.filter(c => !c.openOut);
         // The actions column is always a fixed, narrow utility column.
