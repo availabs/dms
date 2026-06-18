@@ -18,9 +18,10 @@ import { ThemeContext, getComponentTheme } from "../useTheme";
 //   barColorColumn : sibling column holding the fills key per row (e.g. 'primary'
 //                    for the top N, 'muted' otherwise).
 const dataBarDefault = {
-  wrapper: "w-full flex items-center",
-  track:   "relative w-full h-3 rounded bg-slate-100 overflow-hidden",
+  wrapper: "w-full flex items-center gap-2",
+  track:   "relative flex-1 min-w-0 h-3 rounded bg-slate-100 overflow-hidden",
   fill:    "absolute inset-y-0 left-0 rounded transition-[width] duration-300",
+  value:   "shrink-0 font-mono text-[10.5px] tabular-nums text-slate-500",
   // key → fill colour class. Site themes override these (and may add keys).
   fills:   { primary: "bg-blue-700", muted: "bg-slate-400" },
 };
@@ -28,7 +29,7 @@ const dataBarDefault = {
 const clampPct = (n) => Math.max(0, Math.min(100, n));
 const num = (x) => parseFloat(x?.value ?? x);
 
-export const DataBarView = ({ value, row, barMin = 0, barMax, barMaxColumn, barColorKey = "primary", barColorColumn }) => {
+export const DataBarView = ({ value, row, barMin = 0, barMax, barMaxColumn, barColorKey = "primary", barColorColumn, barShowValue, barUnit = "" }) => {
   const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
   const t = { ...dataBarDefault, ...getComponentTheme(themeFromContext, "dataBar") };
 
@@ -49,6 +50,7 @@ export const DataBarView = ({ value, row, barMin = 0, barMax, barMaxColumn, barC
       <div className={t.track}>
         <div className={`${t.fill} ${fillClass}`} style={{ width: `${fillPct}%` }} />
       </div>
+      {barShowValue ? <span className={t.value}>{value?.value ?? value}{barUnit}</span> : null}
     </div>
   );
 };

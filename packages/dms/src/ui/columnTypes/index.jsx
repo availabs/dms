@@ -12,6 +12,7 @@ import { StatusPillEdit, StatusPillView } from './statusPill'
 import { DeltaEdit, DeltaView } from './delta'
 import { TargetBarEdit, TargetBarView } from './targetBar'
 import { DataBarEdit, DataBarView } from './dataBar'
+import { DataColorCellEdit, DataColorCellView } from './dataColorCell'
 import { VerdictDotEdit, VerdictDotView } from './verdictDot'
 import { StatValueEdit, StatValueView } from './statValue'
 import { CodeWithSubEdit, CodeWithSubView } from './codeWithSub'
@@ -31,6 +32,7 @@ const statusPill = { EditComp: StatusPillEdit, ViewComp: StatusPillView }
 const delta = { EditComp: DeltaEdit, ViewComp: DeltaView }
 const targetBar = { EditComp: TargetBarEdit, ViewComp: TargetBarView }
 const dataBar = { EditComp: DataBarEdit, ViewComp: DataBarView }
+const dataColorCell = { EditComp: DataColorCellEdit, ViewComp: DataColorCellView }
 const verdictDot = { EditComp: VerdictDotEdit, ViewComp: VerdictDotView }
 const statValue = { EditComp: StatValueEdit, ViewComp: StatValueView }
 const codeWithSub = { EditComp: CodeWithSubEdit, ViewComp: CodeWithSubView }
@@ -71,6 +73,7 @@ const columnTypes = {
   'delta': delta,
   'target_bar': targetBar,
   'data_bar': dataBar,
+  'data_color_cell': dataColorCell,
   'verdict_dot': verdictDot,
   'stat_value': statValue,
   'code_with_sub': codeWithSub,

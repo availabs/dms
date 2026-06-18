@@ -46,7 +46,28 @@ sum, type `data_bar`) · col_max (`max(sum(total)) over ()`, selectOnly) · bar_
 'muted' END`, selectOnly). GROUP BY region_name, order delay desc. Keeps the same
 year+region page filters.
 
-## Testing
-- [ ] columnType renders a scaled, themed bar in the section.
-- [ ] two-tone (top-3 brand) + data-driven scale (col_max) verified vs mockup.
-- [ ] BC: additive registry entry; no existing column type touched.
+## Testing — DONE (verified live on congestion_v2 2175690)
+- [x] columnType renders a scaled, themed bar in the section.
+- [x] two-tone (top-3 brand #1F3F8F / rest #37576B) + data-driven scale (col_max
+      window) verified vs mockup — bars proportional, R11 full width.
+- [x] reacts to the year filter (2025: R11 219.5 → 2024: R11 201.7, rescales).
+- [x] selectOnly columns (col_max, bar_tone) fetched but not rendered — required
+      adding `selectOnly` support to the table render filter + spreadsheet visible
+      sets (Card already honored it). BC (additive).
+- [x] BC: additive registry entry; no existing column type touched.
+
+## Follow-up — inline value + corridor WZ column (2026-06-17)
+Enhanced `data_bar` with `barShowValue` + `barUnit` (renders the value inline
+after the bar) and switched the track to `flex-1` so a value fits alongside (BC —
+bar-only cells still fill the cell). Used it for the **corridor "WZ share of
+non-rec"** column (2175692): converted the text `%` column to a `data_bar`
+(barMax 100, inline `%`, two-tone via a `wz_tone` CASE column → theme fills
+`warn` #E8843F < 50% / `alert` #D6453B ≥ 50%). Matches the mockup; corridor seed
+cleared so it fetches live. transportnyv2 `dataBar.fills` gained `warn`/`alert`.
+
+## Outcome
+`data_bar` columnType shipped (dms submodule). transportnyv2 brand override lives
+in `src/themes/transportny/themev2.js` (dms-template repo — uncommitted there
+pending that repo's in-progress merge, same as the other themev2 work). Section
+2175690 converted avlGraph → Spreadsheet; backup of the old graph config at
+`scratchpad/npmrdsv5-dev2/backups/section_2175690.region_rank_graph.json`.
