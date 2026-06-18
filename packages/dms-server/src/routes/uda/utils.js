@@ -521,7 +521,15 @@ function handleOrderBy(orders, dmsAttributes) {
     // unambiguous when a join puts the same column name in two tables. Without
     // an alias, fall back to getResponseColumnName (extracts the AS alias or
     // splits on `.`).
-    const expr = aliasedDmsCol.test(col) || aliasedDamaCol.test(col)
+    // A bare SQL expression (function call / cast / window function — contains
+    // parens, carries no `as <alias>`, and isn't a simple `table.column`) must be
+    // ordered by verbatim. The client strips the `as <alias>` off calc-column
+    // orderBy keys (splitColNameOnAS), so getResponseColumnName's
+    // `.split(".").pop()` fallback would mangle any expression containing a
+    // decimal — e.g. `… / 1000000.0)::numeric, 1)` → `0)::numeric, 1)` →
+    // "syntax error at or near )". Window-over-aggregate seasonality cards hit this.
+    const isBareExpression = col.includes("(") && !/\s+as\s+/i.test(col);
+    const expr = aliasedDmsCol.test(col) || aliasedDamaCol.test(col) || isBareExpression
       ? col
       : getResponseColumnName(col);
     return dataType
