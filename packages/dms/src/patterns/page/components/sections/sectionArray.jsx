@@ -258,6 +258,8 @@ const Edit = ({ value, onChange, attr, group, siteType }) => {
                     const defaultSize = theme?.defaultSize || "1";
                     const size = (edit.index === i ? edit?.value?.size : v?.size) || defaultSize;
                     const rowspan = (edit.index === i ? edit?.value?.rowspan : v?.rowspan) || "1";
+                    const isSticky = (edit.index === i ? edit?.value?.sticky : v?.sticky) || false;
+                    const stickyTop = (edit.index === i ? edit?.value?.stickyTop : v?.stickyTop ) || 0;
                     const colspanClass = (theme?.sizes?.[size] || theme?.sizes?.[defaultSize])?.className;
                     const rowspanClass = (theme?.rowspans?.[rowspan] || theme?.rowspans?.["1"])?.className
 
@@ -301,7 +303,10 @@ const Edit = ({ value, onChange, attr, group, siteType }) => {
                                 radius / bg) inside the gutter padding, so the gutter
                                 separates bordered cards and a zeroed shared edge fuses
                                 two sections into one card. */}
-                            <div className={`${sectionChrome(v, theme)} ${resolveHeight(v, theme)}`.trim()}>
+                            <div
+                                className={`${sectionChrome(v, theme)} ${resolveHeight(v, theme)}`.trim()}
+                                style={rowspan > 1 && isSticky ? { position: 'sticky', top: stickyTop } : undefined}
+                            >
                             {/* edit new or existing section */}
                             {edit.index === i
                                 ? <SectionEdit
@@ -385,6 +390,7 @@ const View = ({value, attr, group, siteType}) => {
                         const defaultSize = theme?.defaultSize || "1";
                         const size = v?.size || defaultSize;
                         const rowspan = v?.rowspan || "1";
+                        const isSticky = v?.sticky || false;
                         const colspanClass = (theme?.sizes?.[size] || theme?.sizes?.[defaultSize])?.className;
                         const rowspanClass = (theme?.rowspans?.[rowspan] || theme?.rowspans?.["1"])?.className;
 
@@ -409,7 +415,10 @@ const View = ({value, attr, group, siteType}) => {
                             >
                                 {/* Inner card box — section chrome (border/radius/bg)
                                     inside the gutter padding. */}
-                                <div className={`${sectionChrome(v, theme)} ${resolveHeight(v, theme)}`.trim()}>
+                                <div
+                                    className={`${sectionChrome(v, theme)} ${resolveHeight(v, theme)}`.trim()}
+                                    style={rowspan > 1 && isSticky ? { position: 'sticky', top: v?.stickyTop || 0 } : undefined}
+                                >
                                 <SectionView
                                     key={v?.id || i}
                                     i={i}
