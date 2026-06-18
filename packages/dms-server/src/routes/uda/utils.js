@@ -331,6 +331,16 @@ function handleFiltersType(id_col, id_vals, index, type, isDms) {
     like: { symbol: 'LIKE' }
   };
 
+  // `neq` (not-equal) is array-exclude semantics ("value not in this set") — map it
+  // onto the exclude branch so it reuses the robust ANY()/NULL handling. A leaf can
+  // carry `neq` (e.g. roadname neq '' to drop blank groups) without it being a
+  // first-class client op.
+  if (type === 'neq') type = 'exclude';
+  // Unknown op → emit no condition instead of crashing on `typeMap[type].symbol`
+  // (an unrecognised op used to throw "Cannot read properties of undefined", which
+  // failed the entire WHERE build — and with it the length request → empty table).
+  if (!typeMap[type]) return '';
+
   const conditions = [];
 
   if (['filter'].includes(type)) {
