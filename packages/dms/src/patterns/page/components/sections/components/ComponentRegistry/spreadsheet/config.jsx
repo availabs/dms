@@ -223,6 +223,7 @@ const buildControls = (theme) => ({
                     { label: '0 = N/A', value: 'zero_to_na' },
                 ], displayCdn: ({ isEdit }) => isEdit
             },
+            { type: 'input', inputType: 'text', label: 'Default Value', key: 'defaultValue', displayCdn: ({ isEdit }) => isEdit },
             { type: 'toggle', label: 'Wrap Text', key: 'wrapText', displayCdn: ({ isEdit }) => isEdit },
             { type: 'toggle', label: 'Wrap Header', key: 'wrapHeader', displayCdn: ({ isEdit }) => isEdit },
             { type: 'toggle', label: 'Show Total', key: 'showTotal', displayCdn: ({ isEdit }) => isEdit },
