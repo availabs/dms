@@ -44,6 +44,7 @@ const RenderMenu = ({
     value,
     onChange,
     singleSelectOnly,
+    allowDeselect,
     displayDetailedValues,
     searchable,
     keepMenuOpen,
@@ -122,9 +123,12 @@ const RenderMenu = ({
                                         key={`option-${i}`}
                                         className={t.menuItem}
                                         onClick={e => {
-                                            // newValue should return .value if available instead of full options mapped obj
+                                            // newValue should return .value if available instead of full options mapped obj.
+                                            // singleSelectOnly + allowDeselect: clicking the already-selected
+                                            // option clears it (emits [] so consumers see an empty value),
+                                            // mirroring the toggle-off behaviour of multiselect.
                                             const newValue =
-                                                singleSelectOnly ? (o?.value ?? o) :
+                                                singleSelectOnly ? (allowDeselect && isOptionSelected ? [] : (o?.value ?? o)) :
                                                     isOptionSelected ? mappedValue.filter(v => (v?.value ?? v) !== (o?.value ?? o)) :
                                                         [...value, o].map(o => o?.value ?? o)
                                             onChange(newValue);
@@ -223,6 +227,7 @@ export const MultiSelectEdit = ({value = [], loading, onChange, className, place
                   displayInvalidMsg=false,
                   menuPosition='bottom',
                   singleSelectOnly=false,
+                  allowDeselect=false,
                   displayDetailedValues=true,
                   searchable=true,
                   display,
@@ -344,6 +349,19 @@ export const MultiSelectEdit = ({value = [], loading, onChange, className, place
                                     {typeSafeValue.length} selected
                                 </div>
                         }
+                        {
+                            // Single-select clear affordance: the selected option is hidden from the
+                            // menu (displayDetailedValues), so deselect lives here as an × next to
+                            // the caret. Emits [] so consumers treat it as an empty value.
+                            singleSelectOnly && allowDeselect && typeSafeValue.filter(d => d).length ? (
+                                <span
+                                    className={t.singleClearWrapper}
+                                    onClick={e => { e.stopPropagation(); onChange([]); }}
+                                >
+                                    <Icon icon={t.removeIconName || 'XMark'} className={t.removeIconClass} />
+                                </span>
+                            ) : null
+                        }
                         <span className={t.caretWrapper}>
                             <Icon icon={'ArrowDown'} className={t.caretIcon} />
                         </span>
@@ -364,6 +382,7 @@ export const MultiSelectEdit = ({value = [], loading, onChange, className, place
                         options={options}
                         meta={meta}
                         singleSelectOnly={singleSelectOnly}
+                        allowDeselect={allowDeselect}
                         displayDetailedValues={displayDetailedValues}
                         searchable={searchable}
                         keepMenuOpen={isExpanded}

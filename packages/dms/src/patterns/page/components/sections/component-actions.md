@@ -17,12 +17,32 @@ connects them by giving both the same `paramKey`. No custom glue code needed.
 ### 1. Action Params Live in `pageState.filters`
 
 Action params are stored directly in `pageState.filters` using a `type: 'action'` discriminator,
-alongside regular filter entries. Because no column is configured to use these searchKeys for
-filtering, they will never trigger a data reload — they simply travel through the existing shared
-filter state as inert passengers that subscribers can read.
+alongside regular filter entries. They travel through the existing shared filter state and
+subscribers can read them.
 
 **No URL sync.** All action params have `useSearchParams: false` always. They are transient
 in-memory state only.
+
+#### Two classes of action param: inert vs. reload-driving
+
+By default an action param is an **inert passenger**: no column is configured to use its
+searchKey for filtering, so it never triggers a data reload. The canonical case is a visual
+subscriber (`row_highlight`) reading the value to highlight a matching row. Hover providers
+publish into this class.
+
+But an action param becomes **reload-driving** the moment a data-side consumer is configured to
+read its searchKey. The concrete case in this codebase is a **dynamic custom bucket**
+(`usePageFilterSync` / `resolveAliasGroups`): its `binding.statePath` can point at an action
+param's key, so publishing a new value recomputes `customBuckets.config` — a `useDataLoader`
+dependency — and reloads data. This is intentional: it is the only in-memory (non-URL) way to
+let a row click drive a page-level data filter. The two classes share one namespace
+(`pageState.filters`); consumers, not the param itself, decide which class it is.
+
+**Constraint — trigger frequency must match the consumer.** Because a reload-driving param
+issues a query on every publish, only **discrete, user-initiated triggers** (`click`) may feed a
+reload-driving consumer. **Never wire a `hover` provider's key into a custom bucket** (or any
+other reload consumer): hover fires on every `mouseenter` (the map layer publishes on
+mouse-move), so it would reload data continuously. Hover providers must stay visual-only.
 
 **Filter entry shape for an action param:**
 ```js
@@ -33,6 +53,25 @@ in-memory state only.
   type: 'action',                  // discriminator — never present on regular filters
 }
 ```
+
+`values` is always an array. Most providers publish a single value and subscribers read
+`values?.[0]`. An **append-mode** provider (e.g. the spreadsheet `click_publish` with
+`append_params: true`) instead accumulates multiple values into the array so a downstream
+consumer can read the whole list. Append mode is a **click-toggle**: clicking a value that is
+already published removes it; clicking a new one adds it. De-duplicate and compare by value with
+`isEqual` (not `Set` — values may be objects or stringified JSON). When the last value is toggled
+off, **clear the param** (`clearActionParam`) rather than publishing an empty array, so
+downstream consumers see "no filter" instead of an empty-array filter.
+
+**Per-row identity (composite payload).** When the published payload isn't unique per row — two
+rows share the same `value` but should toggle independently — the provider publishes a composite
+`{ id, value }` element instead of a bare value: `id` is the toggle identity (from a configured
+row-id column), `value` is the payload the consumer reads. The toggle compares by `id` only; the
+payload is opaque to it. Consumers must **unwrap `.value`**: `resolveAliasGroups`
+(`usePageFilterSync.js`) reads the route from `entry.value` when the route fields aren't on the
+entry itself, falling back to the bare entry for direct-route bindings from other page-filter
+sources. The spreadsheet `click_publish` provider exposes this via an optional `id_column` arg —
+empty means bare-value toggling (no composite).
 
 Two helper functions are added to `PageContext` so components don't have to write raw Immer
 mutations:

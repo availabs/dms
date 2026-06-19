@@ -278,6 +278,47 @@ Open the page in edit mode, locate the new section, and click
 "Apply" on the toolbar to trigger a data refresh. If the table
 renders with values, the binding is healthy.
 
+> **One-shot tip — clone a whole working card, then re-filter.** For a section
+> that mirrors a proven binding (e.g. cloning a MAP-21 KPI card onto a new page),
+> don't re-derive its SQL — `raw get <section_id>`, take its `element-data`
+> verbatim (source, columns, **join**, the 1.5 KB CASE expressions), then change
+> only `filters.groups` (swap in your page-variable leaves) and clear `data: []`.
+> Reliability §01 cloned cards 2173919/20/21 this way.
+
+---
+
+## 2.6 Joining a second source (targets / crosswalk / labels)
+
+The `join` slot is empty by default; populate it to pull columns from a second
+source (a targets table, a label crosswalk) onto each row. The main source is
+aliased **`ds`**; each joined source gets its own alias. Worked example — the
+MAP-21 KPI cards join the reliability view to a small FHWA-targets `csv_dataset`
+on `year_record`:
+
+```jsonc
+"join": {
+  "operator": "=",
+  "sources": {
+    "t": {                                   // alias used in SQL as t.<col>
+      "source": 2027, "view": 3460, "env": "npmrds2", "srcEnv": "npmrds2",
+      "type": "left", "mergeStrategy": "join",
+      "joinColumns": [ { "dsColumn": "year_record", "joinSourceColumn": "year_record" } ],
+      "sourceInfo": { /* the joined source's full {source_id, view_id, env, type, name, columns[]} */ }
+    }
+  }
+}
+```
+
+- In `columns`/`filters`, reference the joined table's fields with the alias
+  (`max(t.lottr_interstate_applicable_target)`); bare names resolve to `ds`.
+- Under a join, qualify ambiguous base columns explicitly (`ds.year_record`,
+  `ds."county_code"` inside a CASE). See `creating-interactive-pages.md` Gotcha 1.
+- The join is 1:1 per row when the join key is unique on the joined side (a
+  per-year targets table, a county→region crosswalk) — it won't multiply rows.
+  This is the clean way to add a **region/label column a view lacks** (an
+  alternative to the pass-through-leaf "option A") *if* you have/upload a crosswalk
+  source.
+
 ---
 
 ## 3. Recipe B — bind to a Source from scratch (no reference card)

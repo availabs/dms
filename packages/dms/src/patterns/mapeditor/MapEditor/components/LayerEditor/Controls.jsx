@@ -18,6 +18,29 @@ import {
   defaultHeatmapNumbins,
   generateHeatmapPaintColor
 } from "../LayerManager/utils"
+import { formatJoinOptionLabel, getJoinOutputKey, getJoinOutputLabel } from "./LinkedDataControl/constants";
+
+const getJoinedColumnOptions = (state, activeLayerId) => {
+  const joinConfig =
+    get(state, `symbology.layers[${activeLayerId}].join`) ??
+    get(state, `symbology.layers[${activeLayerId}]['linked-data']`, {});
+  const tileColumns = Array.isArray(joinConfig?.tileColumns) ? joinConfig.tileColumns : [];
+  const columnConfigs = Array.isArray(joinConfig?.query?.columnConfigs) ? joinConfig.query.columnConfigs : [];
+  const displayNameByKey = columnConfigs.reduce((acc, columnConfig) => {
+    const key = getJoinOutputKey(columnConfig);
+    if (key) acc[key] = getJoinOutputLabel(columnConfig);
+    return acc;
+  }, {});
+
+  return tileColumns
+    .filter(Boolean)
+    .map((columnName) => ({
+      name: columnName,
+      display_name: displayNameByKey[columnName] || columnName,
+      type: "number",
+      _joined: true,
+    }));
+};
 
 function ControlMenu({ button, children}) {
   const { UI } = React.useContext(ThemeContext) || {};
@@ -274,18 +297,19 @@ function SelectViewColumnControl({path, datapath, params={}}) {
   const { state, setState } = React.useContext(SymbologyContext);
   const { useFalcor, pgEnv } = React.useContext(MapEditorContext);
   const { falcor, falcorCache } = useFalcor();
+  const activeLayerId = state.symbology.activeLayer;
 
   const pathBase =
     params?.version === "interactive"
-      ? `symbology.layers[${state.symbology.activeLayer}]${params.pathPrefix}`
-      : `symbology.layers[${state.symbology.activeLayer}]`;
+      ? `symbology.layers[${activeLayerId}]${params.pathPrefix}`
+      : `symbology.layers[${activeLayerId}]`;
 
   const { layerType, viewId, sourceId, method } = useMemo(() => ({
     layerType: get(state,`${pathBase}['layer-type']`),
-    viewId: get(state,`symbology.layers[${state.symbology.activeLayer}].view_id`),
-    sourceId: get(state,`symbology.layers[${state.symbology.activeLayer}].source_id`),
+    viewId: get(state,`symbology.layers[${activeLayerId}].view_id`),
+    sourceId: get(state,`symbology.layers[${activeLayerId}].source_id`),
     method: get(state, `${pathBase}['bin-method']`, 'ckmeans'),
-  }),[state])
+  }),[state, activeLayerId, pathBase])
 
   const column = useMemo(() => {
     return get(state, `${pathBase}.${path}`, null )
@@ -308,8 +332,10 @@ function SelectViewColumnControl({path, datapath, params={}}) {
           "uda", pgEnv, "sources", "byId", sourceId, "metadata", "value"
         ], [])
       }
-    return out
-  }, [pgEnv, sourceId, falcorCache]);
+    const joinedColumns = getJoinedColumnOptions(state, activeLayerId);
+    const existingNames = new Set((out || []).map((column) => column?.name));
+    return [...out, ...joinedColumns.filter((column) => !existingNames.has(column.name))]
+  }, [pgEnv, sourceId, falcorCache, state, activeLayerId]);
 
   return (
     <label className='flex w-full'>
@@ -318,11 +344,6 @@ function SelectViewColumnControl({path, datapath, params={}}) {
           className='w-full p-2 bg-transparent'
           value={column}
           onChange={(e) => setState(draft => {
-            let sourceTiles = get(state, `${pathBase}.sources[0].source.tiles[0]`, 'no source tiles').split('?')[0]
-            
-            if(sourceTiles !== 'no source tiles') {
-              set(draft, `${pathBase}.sources[0].source.tiles[0]`, sourceTiles+`?cols=${e.target.value}`)
-            }
             if(layerType === 'circles') {
               set(draft, `${pathBase}['lower-bound']`, null);
               set(draft, `${pathBase}['upper-bound']`, null);
@@ -359,7 +380,7 @@ function SelectViewColumnControl({path, datapath, params={}}) {
             })
             .map((col,i) => {
             return (
-              <option key={i} value={col.name}>{col.display_name || col.name}</option>
+              <option key={i} value={col.name}>{formatJoinOptionLabel(col.display_name || col.name, col._joined)}</option>
             )
           })}
         </select>
@@ -915,8 +936,12 @@ function ChoroplethControl({path, params={}}) {
 }
 
 export const AddColumnSelectControl = ({setState, availableColumnNames, selectedColumns, label="Add Column"}) => {
-  //IDK why but I can't get the array of objects to sort. So we make a sorted array of labels and then look stuff up later
-  const sortedColNames = availableColumnNames.map(d => d.label).sort();
+  const sortedColumnOptions = [...availableColumnNames]
+    .map((option) => ({
+      ...option,
+      formattedLabel: formatJoinOptionLabel(option.label, option._joined),
+    }))
+    .sort((a, b) => a.formattedLabel.localeCompare(b.formattedLabel));
   return (
     <>
       <div className='text-slate-500 text-[14px] tracking-wide min-h-[32px] flex items-center ml-4'>
@@ -934,9 +959,9 @@ export const AddColumnSelectControl = ({setState, availableColumnNames, selected
                 }
               >
                 <option key={-1} value={""}></option>
-                {(sortedColNames || []).map((opt, i) => (
-                  <option key={i} value={availableColumnNames.find(col => col.label === opt)?.value}>
-                    {opt}
+                {(sortedColumnOptions || []).map((opt, i) => (
+                  <option key={i} value={opt.value}>
+                    {opt.formattedLabel}
                   </option>
                 ))}
               </select>

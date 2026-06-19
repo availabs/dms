@@ -8,11 +8,34 @@ import { Close, StarSolid } from '../../icons'
 import {AddColumnSelectControl} from "../Controls"
 import { get, set } from 'lodash-es'
 import { isNumericColumnType } from '../../../../utils'
+import { getJoinOutputKey, getJoinOutputLabel } from "../LinkedDataControl/constants";
 function onlyUnique(value, index, array) {
   return array.indexOf(value) === index;
 }
 const getDiffColumns = (baseArray, subArray) => {
   return baseArray.filter(baseItem => !subArray.includes(baseItem))
+}
+
+const getJoinedColumnOptions = (state, activeLayerId) => {
+  const joinConfig =
+    get(state, `symbology.layers[${activeLayerId}].join`) ??
+    get(state, `symbology.layers[${activeLayerId}]['linked-data']`, {});
+  const columnConfigs = Array.isArray(joinConfig?.query?.columnConfigs)
+    ? joinConfig.query.columnConfigs
+    : [];
+
+  return columnConfigs
+    .map((columnConfig) => {
+      const name = getJoinOutputKey(columnConfig);
+      if (!name) return null;
+      return {
+        name,
+        display_name: getJoinOutputLabel(columnConfig),
+        type: columnConfig?.fn ? "number" : "string",
+        _joined: true,
+      };
+    })
+    .filter(Boolean);
 }
 
 export function ColumnSelectControl({path, params={}, setFilterGroupLegendColumn}) {
@@ -65,8 +88,20 @@ export function ColumnSelectControl({path, params={}, setFilterGroupLegendColumn
       })
     }
 
-    return columns;
-  }, [sourceId, falcorCache]); 
+    const sourceColumns = Array.isArray(columns) ? columns : [];
+    const joinedColumns = getJoinedColumnOptions(state, state.symbology.activeLayer).filter((column) => {
+      if(layerType === 'choropleth' && params.onlyTypedAttributes && !isNumericColumnType(column.type)){
+        return false;
+      }
+      return true;
+    });
+    const existingNames = new Set(sourceColumns.map((column) => column?.name));
+
+    return [
+      ...sourceColumns,
+      ...joinedColumns.filter((column) => !existingNames.has(column.name)),
+    ];
+  }, [sourceId, falcorCache, state, layerType, params.onlyTypedAttributes]);
   
   const attributeNames = useMemo(
     () =>
@@ -154,7 +189,7 @@ export function ColumnSelectControl({path, params={}, setFilterGroupLegendColumn
           availableColumnNames = { 
             availableColumnNames.map(colName => {
               const newAttr = attributes.find(attr => attr.name === colName);
-              return { value: colName, label: newAttr?.display_name || colName };
+              return { value: colName, label: newAttr?.display_name || colName, _joined: newAttr?._joined };
             }) 
           }
         />
@@ -263,7 +298,6 @@ const ExistingColumnList = ({selectedColumns, sampleData, path, reorderAttrs, re
             <div
               className="flex items-center border-slate-200 cursor-pointer fill-white group-hover/title:fill-slate-300 hover:bg-slate-100 rounded group/icon col-span-1 p-0.5"
               onClick={() => {
-                console.log("legend prop change::",selectedCol.column_name)
                 setFilterGroupLegendColumn(selectedCol.column_name)
               }}
             >

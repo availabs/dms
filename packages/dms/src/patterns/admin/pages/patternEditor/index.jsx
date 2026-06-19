@@ -2,6 +2,7 @@ import React from 'react';
 import {Link} from 'react-router'
 import {AdminContext} from "../../context";
 import { ThemeContext } from '../../../../ui/useTheme';
+import { patternEditorTheme } from './patternEditor.theme'
 
 import { PatternSettingsEditor } from "./default/settings";
 import { PatternThemeEditor } from "./default/themeEditor";
@@ -37,6 +38,8 @@ const navPages = [
 
 const PatternEditor = ({params, dataItems, item, format, attributes, apiUpdate, apiLoad, ...rest}) => {
   const { baseUrl, parentBaseUrl } = React.useContext(AdminContext);
+  const { theme } = React.useContext(ThemeContext);
+  const t = { ...patternEditorTheme, ...(theme?.admin?.patternEditor || {}) }
   const [tmpItem, setTmpItem] = React.useState(item);
   const {id, page='overview'} = params;
 
@@ -49,9 +52,9 @@ const PatternEditor = ({params, dataItems, item, format, attributes, apiUpdate, 
   ];
   const PageComp = pages.find(d => d.path === page)?.component || pages[0].component
     return (
-      <div className={`h-full flex flex-col w-full`}>
+      <div className={t.wrapper}>
         <Breadcrumbs baseUrl={baseUrl} parentBaseUrl={parentBaseUrl} pattern={item} page={page}/>
-          <div className={'w-full flex justify-between'}>
+          <div className={t.navRow}>
             <Nav
               navPages={pages}
               page={page}
@@ -59,7 +62,7 @@ const PatternEditor = ({params, dataItems, item, format, attributes, apiUpdate, 
               id={id}
             />
           </div>
-          <div className='flex-1 flex flex-col bg-white'>
+          <div className={t.content}>
             <PageComp
                 app={item.app}
                 type={item.type}
@@ -76,47 +79,49 @@ const PatternEditor = ({params, dataItems, item, format, attributes, apiUpdate, 
 
 export default PatternEditor
 
-const Nav = ({baseUrl, navPages, page, id}) =>  (
-    <nav className={'w-full flex'}>
+const Nav = ({baseUrl, navPages, page, id}) => {
+  const { theme } = React.useContext(ThemeContext);
+  const t = { ...patternEditorTheme, ...(theme?.admin?.patternEditor || {}) }
+  return (
+    <nav className={t.nav}>
     {
       navPages
         .map(p => (
-          <Link key={p.name} className={
-                  `p-2 mx-1 font-display font-medium text-l text-slate-700
-                  ${p.path.toLowerCase() === page ?
-                      `border-b-2 border-blue-600` :
-                      `hover:border-b-2 hover:border-gray-300`}`
-              }
+          <Link key={p.name}
+                className={p.path.toLowerCase() === page ? t.navItemActive : t.navItemInactive}
                 to={`${baseUrl}/${id}/${p?.path}`}
               >
-            <div className={'flex items-center'}>
-              <span className={'pr-0.5'}>{p.name}</span>
-              {/* {page.warn && p.name === page.name ? <Alert /> : ''}*/}
+            <div className={t.navItemInner}>
+              <span className={t.navItemText}>{p.name}</span>
             </div>
           </Link>))
     }
     </nav>
-)
+  )
+}
+
 const Breadcrumbs = ({baseUrl, parentBaseUrl, pattern, page}) => {
     const {UI} = React.useContext(AdminContext);
+    const { theme } = React.useContext(ThemeContext);
+    const t = { ...patternEditorTheme, ...(theme?.admin?.patternEditor || {}) }
     const {Icon} = UI;
 
   return (
-      <nav className="border-b border-gray-200 flex " aria-label="Breadcrumb">
-        <ol className={`w-full px-4 flex space-x-4 sm:px-6 lg:px-8`}>
-          <li className="flex">
-            <div className="flex items-center">
-              <Link to={`${parentBaseUrl || '/'}`} className={"hover:text-[#bbd4cb] text-[#679d89]"}>
-                  <Icon icon={'Database'} className={"text-slate-400 hover:text-slate-500 size-4"} />
+      <nav className={t.breadcrumbNav} aria-label="Breadcrumb">
+        <ol className={t.breadcrumbOl}>
+          <li className={t.breadcrumbLi}>
+            <div className={t.breadcrumbLiInner}>
+              <Link to={`${parentBaseUrl || '/'}`} className={t.breadcrumbHomeLink}>
+                  <Icon icon={'Database'} className={t.breadcrumbHomeIcon} />
                   <span className="sr-only">Data Sources</span>
             </Link>
           </div>
         </li>
         {[pattern, page].filter(p => p).map((page,i) => (
-          <li key={i} className="flex">
-            <div className="flex items-center">
+          <li key={i} className={t.breadcrumbLi}>
+            <div className={t.breadcrumbLiInner}>
               <svg
-                className="flex-shrink-0 w-6 h-full text-gray-300"
+                className={t.breadcrumbSeparator}
                 viewBox="0 0 30 44"
                 preserveAspectRatio="none"
                 fill="currentColor"
@@ -128,13 +133,13 @@ const Breadcrumbs = ({baseUrl, parentBaseUrl, pattern, page}) => {
               {page.path ?
                 <Link
                   to={page.path}
-                  className="ml-4 text-sm font-medium text-gray-500 hover:text-gray-700"
+                  className={t.breadcrumbLink}
                   aria-current={page.current ? 'page' : undefined}
                 >
                   {page.name}
                 </Link> :
                 <div
-                  className="ml-4 text-sm font-medium text-gray-500 hover:text-gray-700"
+                  className={t.breadcrumbLink}
                   aria-current={page.current ? 'page' : undefined}
                 >
                   {page.name}

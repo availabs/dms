@@ -370,9 +370,80 @@ const ViewLayerRender = ({
   }, [maplibreMap, allLayerProps]);
 }
 
+const getJoinTileColumns = (layerProps) =>
+  Array.isArray((layerProps?.join || layerProps?.["linked-data"])?.tileColumns)
+    ? (layerProps.join || layerProps["linked-data"]).tileColumns.filter(Boolean)
+    : [];
+
+const normalizeJoinRuntimeConfig = (layerProps = {}) => {
+  const joinConfig = layerProps?.join || layerProps?.["linked-data"] || null;
+  if (!joinConfig) return null;
+  return {
+    ...joinConfig,
+    source: joinConfig.source || joinConfig.linked || {},
+    joinColumn: joinConfig.joinColumn || joinConfig.linkedJoinColumn || "",
+    query: joinConfig.query || joinConfig.linkedQuery || {},
+  };
+};
+
+const buildJoinFilterOptions = (joinQuery = {}) => {
+  const filterRows = Array.isArray(joinQuery?.filterRows) ? joinQuery.filterRows : [];
+  const filterMode = joinQuery?.filterMode === "any" ? "OR" : "AND";
+  const groups = filterRows.reduce((acc, row) => {
+    if (!row?.column) return acc;
+    const values = String(row.valuesText || "")
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean);
+
+    if (!values.length) return acc;
+    acc.push({
+      op: "filter",
+      col: row.column,
+      value: values,
+    });
+    return acc;
+  }, []);
+
+  if (groups.length) {
+    return {
+      filterGroups: {
+        op: filterMode,
+        groups,
+      },
+    };
+  }
+
+  return joinQuery?.filters && Object.keys(joinQuery.filters).length
+    ? joinQuery.filters
+    : {};
+};
+
+const buildJoinParam = (layerProps) => {
+  const joinConfig = normalizeJoinRuntimeConfig(layerProps);
+  if (!joinConfig?.enabled || !joinConfig?.source?.viewId || !joinConfig?.featureKeyColumn || !joinConfig?.joinColumn) {
+    return "";
+  }
+
+  const queryConfig = joinConfig.query || {};
+  const { groupBy = [], columns = [] } = queryConfig;
+  return encodeURIComponent(JSON.stringify({
+    viewId: joinConfig.source.viewId,
+    localKey: joinConfig.featureKeyColumn,
+    joinKey: joinConfig.joinColumn,
+    options: { ...buildJoinFilterOptions(queryConfig), groupBy },
+    attributes: columns,
+    tileCols: getJoinTileColumns(layerProps),
+  }));
+};
+
 const getLayerTileUrl = (tileBase, layerProps) => {
   let newTileUrl = `${tileBase}`;
-
+  if (typeof newTileUrl === "string") {
+    newTileUrl = newTileUrl.split("?")[0];
+  }
+  const joinTileColumns = getJoinTileColumns(layerProps);
+  const joinTileColumnSet = new Set(joinTileColumns);
 
   const layerHasFilter = (layerProps?.filter && Object.keys(layerProps?.filter)?.length > 0) 
 
@@ -385,7 +456,11 @@ const getLayerTileUrl = (tileBase, layerProps) => {
   const dynamicCols = layerProps?.["dynamic-filters"]
     ?.filter((dFilter) => dFilter?.values?.length > 0)
     .map((dFilter) => dFilter.column_name); 
-  const colsToAppend = dataFilterCols.concat(dynamicCols).filter(onlyUnique).filter(col => !!col).join(",")
+  const colsToAppend = dataFilterCols
+    .concat(dynamicCols)
+    .filter(onlyUnique)
+    .filter((col) => !!col && !joinTileColumnSet.has(col))
+    .join(",")
 
   if (newTileUrl && (colsToAppend || layerHasFilter)) {
     if (!newTileUrl?.includes("?cols=")) {
@@ -404,11 +479,12 @@ const getLayerTileUrl = (tileBase, layerProps) => {
     }
 
     if (layerHasFilter) {
+      const filterColumns = Object.keys(layerProps.filter).filter((filterCol) => !joinTileColumnSet.has(filterCol));
       const splitUrl = newTileUrl.split("?cols=");
-      if (splitUrl[1].length !== 0) {
+      if (splitUrl[1].length !== 0 && filterColumns.length) {
         newTileUrl += ",";
       }
-      Object.keys(layerProps.filter).forEach((filterCol, i) => {
+      filterColumns.forEach((filterCol, i) => {
         //TODO actually handle calculated columns
         if(filterCol.includes("rpad(substring(prop_class, 1, 1), 3, '0')")){
           newTileUrl += `prop_class`;
@@ -417,11 +493,16 @@ const getLayerTileUrl = (tileBase, layerProps) => {
           newTileUrl += `${filterCol}`;
         }
 
-        if (i < Object.keys(layerProps.filter).length - 1) {
+        if (i < filterColumns.length - 1) {
           newTileUrl += ",";
         }
       });
     }
+  }
+
+  const joinParam = buildJoinParam(layerProps);
+  if (joinParam) {
+    newTileUrl += `${newTileUrl.includes("?") ? "&" : "?"}join=${joinParam}`;
   }
 
   // if(newTileUrl && newTileUrl?.includes('.pmtiles')){
@@ -510,6 +591,20 @@ const HoverComp = ({ data, layer }) => {
     return layer.props['hover-columns'];
   }, [layer]);
 
+  const joinedColumns = React.useMemo(() => {
+    const joinConfig = layer?.props?.join || layer?.props?.["linked-data"];
+    const tileColumns = Array.isArray(joinConfig?.tileColumns)
+      ? joinConfig.tileColumns.filter(Boolean)
+      : [];
+    const queryColumns = Array.isArray(joinConfig?.query?.columns)
+      ? joinConfig.query.columns.map((expr) => {
+          const aliasMatch = String(expr).match(/\s+as\s+("?)([^"]+)\1\s*$/i);
+          return aliasMatch?.[2] || String(expr).trim();
+        }).filter(Boolean)
+      : [];
+    return Array.from(new Set([...tileColumns, ...queryColumns]));
+  }, [layer]);
+
   useEffect(() => {
     if(source_id) {
       falcor.get([
@@ -547,10 +642,42 @@ const HoverComp = ({ data, layer }) => {
     return Array.isArray(out) ? out : []
   }, [source_id, falcorCache]);
 
-  let getAttributes = (typeof attributes?.[0] === 'string' ?
-    attributes : attributes.map(d => d.name || d.column_name)).filter(d => !['wkb_geometry'].includes(d))
+  const requestedAttributes = React.useMemo(() => (
+    (typeof attributes?.[0] === 'string'
+      ? attributes
+      : attributes.map(d => d.name || d.column_name))
+      .filter(d => !['wkb_geometry'].includes(d))
+  ), [attributes]);
+
+  const featureProps = React.useMemo(() => get(data, "[2]", {}), [data]);
+  const featureBackedAttributes = React.useMemo(
+    () => requestedAttributes.filter(
+      (attribute) =>
+        joinedColumns.includes(attribute) ||
+        Object.prototype.hasOwnProperty.call(featureProps, attribute)
+    ),
+    [requestedAttributes, joinedColumns, featureProps]
+  );
+  const baseAttributes = React.useMemo(
+    () => requestedAttributes.filter((attribute) => !featureBackedAttributes.includes(attribute)),
+    [requestedAttributes, featureBackedAttributes]
+  );
+
+  const joinedAttrInfo = React.useMemo(() => {
+    return featureBackedAttributes.reduce((acc, attribute) => {
+      if (Object.prototype.hasOwnProperty.call(featureProps, attribute)) {
+        acc[attribute] = featureProps[attribute];
+      }
+      return acc;
+    }, {});
+  }, [featureBackedAttributes, featureProps]);
 
   React.useEffect(() => {
+    if (!id) return;
+    if (!baseAttributes.length) {
+      setAttrInfo(joinedAttrInfo);
+      return;
+    }
     falcor.get([
       "uda",
       pgEnv,
@@ -558,16 +685,19 @@ const HoverComp = ({ data, layer }) => {
       view_id,
       "dataById",
       id,
-      getAttributes
+      baseAttributes
     ]).then(d => {
       let out = get(
           d,
           ["json", "uda", pgEnv, "viewsById", view_id, "dataById", ''+id],
           []
         );
-      setAttrInfo(out)
+      setAttrInfo({
+        ...out,
+        ...joinedAttrInfo,
+      })
     });
-  }, [falcor, pgEnv, view_id, id, attributes]);
+  }, [falcor, pgEnv, view_id, id, baseAttributes, joinedAttrInfo]);
 
   return (
     <div className="bg-white p-4 max-h-64 max-w-lg min-w-[300px] scrollbar-xs overflow-y-scroll">

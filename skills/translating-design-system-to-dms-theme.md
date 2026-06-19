@@ -1333,6 +1333,31 @@ owns the gutter + the inner card's border/radius/bg. A component that renders in
 (lexical, graph, …) is responsible for its own sensible internal padding (the lexical component
 ships a fixed `p-4`). Don't add an "inner content padding" to the sectionArray theme.
 
+4. **Border + radius are the section's ALONE — and there is ONE radius.** No component default may
+   impose its own border-radius or border; `radiusCorners` / `borderSides` on the section are the
+   single source, so a Card and a Lexical section side-by-side round identically. Pick **one** radius
+   value and express it only in `radiusCorners` (transportnyv2 = **8px**). When porting/auditing a
+   theme, strip component self-chrome that fights this:
+   - **Lexical** — the default `editorViewContainer` / `editorContainer` (in
+     `ui/components/lexical/theme.js`) must NOT carry `rounded-*`; it shipped `rounded-[10px]`, which
+     clashed with the section's 8px. (Removed.)
+   - **Card** — `dataCard.subWrapperCompactView` must carry no `rounded-*` / `bg-*`; it shipped
+     `rounded-[8px] bg-white`, which painted over the section's per-corner radius. (Removed.)
+   - **`cardBorder`** — this is the **per-card** border for **multi-card grids** (a section is one
+     box *around* the grid, so it can't draw the lines *between* cards). For a **single-card**
+     section it's redundant with the section border and draws a **square** box on the card's inner
+     wrapper — disable it there (at the card call-site; emptying `theme.cardBorder` triggers
+     `Card.jsx`'s `'border shadow'` fallback) and use the section `Border`.
+
+   **The single- vs multi-card rule.** "Border/radius via section" holds when the section renders
+   **one** card (section = card). A **multi-card grid** needs **per-card** chrome — border
+   (`cardBorder`) *and* rounding/fill. Note the trap this creates: emptying `subWrapperCompactView`
+   (above) also stripped multi-card grids' per-card rounding/fill, so they'd render square +
+   transparent. The robust shape is for `Card.jsx` to apply its per-card chrome
+   (`subWrapperCompactView` + `cardBorder`) **only when it renders >1 card**, and defer to the
+   section for a single card. This is a hard rule for design pages too — see
+   [`creating-pages-from-a-design-pattern.md` §5.6.10](./creating-pages-from-a-design-pattern.md).
+
 **Composing a flush compound card** (e.g. a header/hero card + a chart as one card): two adjacent
 full-width sections, the upper with `border` top+left+right + `radius` tl+tr + `padding.bottom=0`,
 the lower with `border` left+right+bottom + `radius` bl+br + `padding.top=0`. Their inner boxes

@@ -3,6 +3,8 @@ import { get } from "lodash-es"
 import { DatasetsContext } from "../../context";
 import { getExternalEnv } from "../../utils/datasources";
 import Breadcrumbs from "../../components/Breadcrumbs";
+import { ThemeContext } from "../../../../ui/useTheme";
+import { udaTaskPageTheme } from "./UdaTaskPage.theme";
 
 const EVENT_ATTRS = ["event_id", "task_id", "type", "message", "payload", "created_at"];
 
@@ -24,11 +26,13 @@ const COLUMNS = [
         size: 450,
         type: 'ui',
         Comp: ({ value, className = '', ...rest }) => {
+            const { theme: colTheme } = React.useContext(ThemeContext) || {};
+            const ct = { ...udaTaskPageTheme, ...(colTheme?.datasets?.udaTaskPage || {}) };
             if (!value) return <div {...rest}>—</div>;
             const parsed = typeof value === 'string' ? (() => { try { return JSON.parse(value); } catch { return value; } })() : value;
             const strValue = JSON.stringify(parsed, null, 2);
             return <textarea disabled
-                className={`w-full max-h-[150px] overflow-auto text-wrap scrollbar-sm text-xs ${className}`}
+                className={`${ct.payloadTextarea} ${className}`}
                 {...rest}
                 value={strValue}
             />;
@@ -37,13 +41,15 @@ const COLUMNS = [
 ];
 
 const StatusBadge = ({status}) => {
+    const { theme } = React.useContext(ThemeContext) || {};
+    const t = { ...udaTaskPageTheme, ...(theme?.datasets?.udaTaskPage || {}) };
     const colors = {
-        done: 'bg-green-100 text-green-800',
-        error: 'bg-red-100 text-red-800',
-        running: 'bg-blue-100 text-blue-800',
-        queued: 'bg-gray-100 text-gray-600',
+        done: t.statusDone,
+        error: t.statusError,
+        running: t.statusRunning,
+        queued: t.statusQueued,
     };
-    return <span className={`px-2 py-0.5 rounded text-xs font-medium ${colors[status] || 'bg-gray-100'}`}>{status}</span>;
+    return <span className={`${t.statusBadge} ${colors[status] || t.statusDefault}`}>{status}</span>;
 };
 
 const UdaTaskPage = ({params, pageSize = 20}) => {
@@ -145,6 +151,9 @@ const UdaTaskPage = ({params, pageSize = 20}) => {
         load();
     }, [falcor, pgEnv, taskId, currentPage]);
 
+    const { theme } = React.useContext(ThemeContext) || {};
+    const t = { ...udaTaskPageTheme, ...(theme?.datasets?.udaTaskPage || {}) };
+
     return (
         <Layout navItems={[]}>
             <Breadcrumbs items={[
@@ -154,22 +163,22 @@ const UdaTaskPage = ({params, pageSize = 20}) => {
             ]} />
             <LayoutGroup>
                 {taskInfo && (
-                    <div className="flex flex-wrap gap-4 mb-4 text-sm">
-                        <div><span className="text-gray-500">Task:</span> {taskInfo.task_id}</div>
-                        <div><span className="text-gray-500">Status:</span> <StatusBadge status={taskInfo.status} /></div>
-                        <div><span className="text-gray-500">Worker:</span> <span className="capitalize">{(taskInfo.worker_path || '').replace(/\//g, ' ')}</span></div>
-                        {taskInfo.source_name && <div><span className="text-gray-500">Source:</span> {taskInfo.source_name}</div>}
-                        {taskInfo.error && <div className="text-red-600 w-full"><span className="text-gray-500">Error:</span> {taskInfo.error}</div>}
+                    <div className={t.taskInfoRow}>
+                        <div><span className={t.taskInfoLabel}>Task:</span> {taskInfo.task_id}</div>
+                        <div><span className={t.taskInfoLabel}>Status:</span> <StatusBadge status={taskInfo.status} /></div>
+                        <div><span className={t.taskInfoLabel}>Worker:</span> <span className={t.taskInfoWorker}>{(taskInfo.worker_path || '').replace(/\//g, ' ')}</span></div>
+                        {taskInfo.source_name && <div><span className={t.taskInfoLabel}>Source:</span> {taskInfo.source_name}</div>}
+                        {taskInfo.error && <div className={t.taskInfoError}><span className={t.taskInfoLabel}>Error:</span> {taskInfo.error}</div>}
                         {taskInfo.progress > 0 && taskInfo.progress < 1 && (
-                            <div><span className="text-gray-500">Progress:</span> {Math.round(taskInfo.progress * 100)}%</div>
+                            <div><span className={t.taskInfoLabel}>Progress:</span> {Math.round(taskInfo.progress * 100)}%</div>
                         )}
                     </div>
                 )}
-                <div className={'w-full'}>
+                <div className={t.contentWrapper}>
                     {pgEnv === null ? (
-                        <div className="text-gray-400 text-sm py-4">Looking up task…</div>
+                        <div className={t.lookupMsg}>Looking up task…</div>
                     ) : pgEnv === '' ? (
-                        <div className="text-gray-400 text-sm py-4">Task {taskId} was not found in any configured environment ({envCandidates.join(', ')}).</div>
+                        <div className={t.notFoundMsg}>Task {taskId} was not found in any configured environment ({envCandidates.join(', ')}).</div>
                     ) : data.length > 0 ? (
                         <>
                             <Table data={data.data} columns={COLUMNS} gridRef={ref} display={{striped: true}}/>
@@ -177,7 +186,7 @@ const UdaTaskPage = ({params, pageSize = 20}) => {
                                 totalLength={data.length}/>
                         </>
                     ) : (
-                        <div className="text-gray-400 text-sm py-4">No events for this task.</div>
+                        <div className={t.noEventsMsg}>No events for this task.</div>
                     )}
                 </div>
             </LayoutGroup>

@@ -122,6 +122,7 @@ export const BarGraph = props => {
     theme = EmptyObject,
     addons = EmptyArray,
     highlights = EmptyArray,
+    barOpacity = null,
     onBarEnter = null,
     onBarLeave = null,
     onStackEnter = null,
@@ -464,6 +465,7 @@ export const BarGraph = props => {
                 svgHeight={ state.adjustedHeight }
                 onMouseMove={ onMouseMove }
                 showAnimations={ showAnimations }
+                barOpacity={ barOpacity }
                 highlights={ highlights }
                 onBarEnter={ onBarEnter }
                 onBarLeave={ onBarLeave }
@@ -515,6 +517,7 @@ const Stack = React.memo(props => {
     Key, index, value, data, barValues,
     showAnimations,
     highlight,
+    barOpacity,
     onStackEnter,
     onStackLeave
   } = props;
@@ -584,7 +587,9 @@ const Stack = React.memo(props => {
     <rect className="avl-stack" ref={ ref }
       style={ {
         fill: highlight ? "red" : null,
-        fillOpacity: highlight ? 1.0 : null
+        // highlight always wins (full opacity); otherwise an explicit barOpacity
+        // sets the fill inline (overriding the CSS 0.75). null → CSS governs (BC).
+        fillOpacity: highlight ? 1.0 : (barOpacity ?? null)
       } }
       onMouseMove={ _onMouseMove }
       onMouseEnter={ doOnStackEnter }

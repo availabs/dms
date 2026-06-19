@@ -81,7 +81,7 @@ export const buttonSettings = (theme) => [
     label: "LayoutGroup",
     type: 'inline',
     controls: [
-      ...Object.keys(theme?.button?.styles?.[theme?.button?.options?.activeStyle || 0] )
+      ...Object.keys(theme?.button?.styles?.[theme?.button?.options?.activeStyle || 0] || {} )
         .map(k => {
           return {
             label: k,

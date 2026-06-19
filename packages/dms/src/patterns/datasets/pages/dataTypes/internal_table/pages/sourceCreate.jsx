@@ -5,6 +5,7 @@ import { ThemeContext } from "../../../../../../ui/themeContext";
 import Upload from "../../../../components/upload";
 import { nameToSlug, getInstance } from "../../../../../../utils/type-utils";
 import { clearDatasetsListCache } from "../../../../utils/datasetsListCache";
+import { createPageTheme } from "../../file_upload/CreatePage.theme";
 
 function getNewId(falcorRes) {
     return Object.keys(falcorRes?.json?.dms?.data?.byId || {})
@@ -13,7 +14,8 @@ function getNewId(falcorRes) {
 
 export default function SourceCreate({ context, source }) {
     const ctx = useContext(DatasetsContext);
-    const { UI } = useContext(ThemeContext);
+    const { UI, theme } = useContext(ThemeContext);
+    const t = { ...createPageTheme, ...(theme?.datasets?.fileUploadCreatePage || {}) };
     const { falcor, parent, user, type, app, baseUrl, dmsEnv } = ctx;
     const navigate = useNavigate();
     const { Button } = UI;
@@ -114,7 +116,7 @@ export default function SourceCreate({ context, source }) {
 
     if (stage === 'uploading' && createdSource && viewId) {
         return (
-            <div className="flex flex-col gap-4">
+            <div className={t.sourceCreateUploading}>
                 <Upload.EditComp
                     onChange={() => {}}
                     size={1}
@@ -142,8 +144,8 @@ export default function SourceCreate({ context, source }) {
     }
 
     return (
-        <div className="flex flex-col gap-2">
-            {error && <div className="text-red-500 text-sm">{error}</div>}
+        <div className={t.sourceCreateIdle}>
+            {error && <div className={t.sourceCreateError}>{error}</div>}
             <Button
                 disabled={!source.name?.trim() || stage === 'creating'}
                 onClick={handleCreate}

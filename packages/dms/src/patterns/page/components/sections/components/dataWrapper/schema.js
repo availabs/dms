@@ -38,6 +38,7 @@ export const RUNTIME_FIELDS = [
     'outputSourceInfo',
     'dataRequest',      // legacy — derived by buildUdaConfig from columns + filters
     'sourceInfo',       // legacy alias — replaced by externalSource
+    'tableFilters',     // ephemeral table-header server filters — not persisted, not shown in filter editor
 ];
 
 /** Fields within display that are runtime-only and stripped before persistence. */

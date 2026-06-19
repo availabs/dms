@@ -4,6 +4,7 @@ import { ThemeContext } from '../../../../ui/useTheme';
 import { Link, useLocation } from 'react-router'
 import { cloneDeep } from 'lodash-es';
 import { nameToSlug } from '../../../../utils/type-utils';
+import { themeListTheme } from './list.theme';
 
 function ThemeList ({
    item={},
@@ -16,7 +17,8 @@ function ThemeList ({
 	// themes is an array of {name, theme, id}
 	const location = useLocation()
 	const { baseUrl, authPath, user, } = React.useContext(AdminContext) || {};
-  const { UI } = React.useContext(ThemeContext) || {};
+  const { UI, theme } = React.useContext(ThemeContext) || {};
+  const t = { ...themeListTheme, ...(theme?.admin?.themeList || {}) }
 	const [addingNew, setAddingNew] = useState(false);
 	const [newItem, setNewItem] = useState({});
 	const [editingItem, setEditingItem] = useState();
@@ -32,14 +34,14 @@ function ThemeList ({
     {
       name: 'edit', display_name: 'Edit', show: true, type: 'ui',
       Comp: (d) => (
-        <div className='flex items-center justify-center w-full h-full py-1'>
-          <Link to={d?.row?.manage_url || ''} className='flex items-center px-2 py-1 text-sm text-slate-700 bg-slate-200 rounded-full'>
-            <Icon icon='PencilEditSquare' className='size-5' /><span className='pl-1'>Edit</span>
+        <div className={t.cellActions}>
+          <Link to={d?.row?.manage_url || ''} className={t.editLink}>
+            <Icon icon='PencilEditSquare' className={t.iconMd} /><span className={t.iconLabel}>Edit</span>
           </Link>
           <div
             onClick={async () => { setEditingItem(d.row)}}
-            className='flex mx-1 items-center px-2 py-1 text-sm text-slate-700 bg-slate-200 rounded-full cursor-pointer'>
-            <Icon icon='' className='size-5' /><span className='pl-1'>Settings</span>
+            className={t.settingsLink}>
+            <Icon icon='' className={t.iconMd} /><span className={t.iconLabel}>Settings</span>
           </div>
 
         </div>
@@ -69,12 +71,12 @@ function ThemeList ({
   // if(!user?.authed) return <div>To access this page, you need to: <Link to={`${authPath}/login`} state={{ from: location.pathname }}>login</Link></div>
 	// render a list of themes. render an add new form
 	return (
-		<div className={'flex flex-col w-full'}>
-			<div className={'w-full items-center flex justify-between border-b-2 border-blue-400 pb-2'}>
-				<div className={'text-2xl font-semibold text-gray-700'}>Themes</div>
+		<div className={t.wrapper}>
+			<div className={t.header}>
+				<div className={t.headerTitle}>Themes</div>
 				<Button className={'shrink-0'} onClick={() => setAddingNew(true)}> Add theme </Button>
 			</div>
-			<div className={'w-full flex'}>
+			<div className={t.searchBar}>
 				<Input type={'text'} value={search} onChange={e => setSearch(e.target.value)} placeHolder={'Filter themes'} />
 
 				{/*<Button className={'shrink-0'} onClick={() => onSubmit([])}> Clear themes </Button>*/}
@@ -86,7 +88,7 @@ function ThemeList ({
 			/>
 
 			<Modal open={addingNew} setOpen={setAddingNew}>
-				<div className={`flex flex-col`}>
+				<div className={t.modalForm}>
 					{
 						attrToAddNew
 							.map((attrKey, i) => {
@@ -101,9 +103,9 @@ function ThemeList ({
 								)
 							})
 					}
-					<div className={'w-full flex items-center justify-start'}>
+					<div className={t.modalActions}>
 						<button
-							className={'bg-blue-100 hover:bg-blue-300 text-sm text-blue-800 px-2 py-0.5 m-1 rounded-lg w-fit h-fit'}
+							className={t.btnAdd}
 							onClick={() => addNewValue({...newItem, theme_id: nameToSlug(newItem.name || '')})}
 						>
 							Add
@@ -113,7 +115,7 @@ function ThemeList ({
 			</Modal>
 
 			<Modal open={Boolean(editingItem)} setOpen={setEditingItem}>
-				<div className={`flex flex-col`}>
+				<div className={t.modalForm}>
 					{
 						attrToAddNew
 							.map((attrKey, i) => {
@@ -127,9 +129,9 @@ function ThemeList ({
 								)
 							})
 					}
-					<div className={'w-full flex items-center justify-start gap-0.5'}>
+					<div className={t.modalEditActions}>
 						<Button
-							className={'bg-blue-100 hover:bg-blue-300 text-sm text-blue-800 px-2 py-0.5 m-1 rounded-lg w-fit h-fit'}
+							className={t.btnSave}
 							type={'plain'}
 							title={'save item'}
 							onClick={() => {
@@ -142,7 +144,7 @@ function ThemeList ({
 						</Button>
 
 						<Button
-							className={'bg-red-100 hover:bg-red-300 text-sm text-red-800 px-2 py-0.5 m-1 rounded-lg w-fit h-fit'}
+							className={t.btnCancel}
 							type={'plain'}
 							title={'cancel item'}
 							onClick={() => {
@@ -153,7 +155,7 @@ function ThemeList ({
 						</Button>
 
 						<Button
-							className={'bg-green-100 hover:bg-green-300 text-green-800 px-2 py-0.5 m-1 rounded-lg w-fit h-fit'}
+							className={t.btnDuplicate}
 							type={'plain'}
 							title={'duplicate item'}
 							onClick={async () => {
@@ -168,7 +170,7 @@ function ThemeList ({
 						> duplicate
 						</Button>
 						<Button
-							className={'bg-red-100 hover:bg-red-300 text-red-800 px-2 py-0.5 m-1 rounded-lg w-fit h-fit'}
+							className={t.btnRemove}
 							type={'plain'}
 							title={'remove item'}
 							onClick={() => {

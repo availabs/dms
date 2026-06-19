@@ -9,6 +9,7 @@ import { cloneDeep, get, set } from "lodash-es";
 import { ThemeContext, mergeTheme } from "../../../../ui/useTheme";
 import { AdminContext } from "../../context";
 import { parseIfJSON } from '../../../page/pages/_utils';
+import { editThemeTheme } from './editTheme.theme';
 const DefaultComp = () => <div>Component not registered.</div>
 const ComponentRenderer = ({Component=DefaultComp, props}) => <Component {...props} />;
 
@@ -38,7 +39,8 @@ const compOptions = [
 
 
 function ControlRenderer({ config, state, setState }) {
-  const { UI } = useContext(ThemeContext);
+  const { UI, theme } = useContext(ThemeContext);
+  const t = { ...editThemeTheme, ...(theme?.admin?.editTheme || {}) }
   const { FieldSet } = UI;
   const controls = (config?.controls || [])
     .filter(d => d) //implement conditionals
@@ -58,8 +60,8 @@ function ControlRenderer({ config, state, setState }) {
     })
   //console.log('Fieldset controls', controls)
   return (
-    <div> {/* controlWrapper goes here */ }
-      <div className='font-bold underline'>{ config?.label || ''}</div>
+    <div>
+      <div className={t.controlLabel}>{ config?.label || ''}</div>
       <FieldSet components={controls} />
     </div>
   )
@@ -83,7 +85,8 @@ function ComponentList ({
 
   // themes is an array of {name, theme, id}
 	const navigate = useNavigate();
-	const { UI } = useContext(ThemeContext);
+	const { UI, theme: themeFromContext } = useContext(ThemeContext);
+	const t = { ...editThemeTheme, ...(themeFromContext?.admin?.editTheme || {}) }
 	const { baseUrl, user } = React.useContext(AdminContext) || {};
 	const { MultiSelect, Button } = UI;
 	const theme = defaultTheme
@@ -124,11 +127,11 @@ function ComponentList ({
 
 	// console.log('testing',themeSettings, currentThemeSetting, themeSettings?.[currentThemeSetting])
 	return (
-		<div className={'flex flex-col p-4 w-full divide-y-2'}>
-			<div className={'w-full flex justify-between border-b-2 border-blue-400'}>
-				<div className='flex'>
-          <div className={'text-2xl font-semibold text-gray-700'}>{themeObj?.name}</div>
-					<div className='px-4'>
+		<div className={t.wrapper}>
+			<div className={t.header}>
+				<div className={t.headerLeft}>
+          <div className={t.headerThemeName}>{themeObj?.name}</div>
+					<div className={t.componentSelectorWrapper}>
 						<MultiSelect
   					  singleSelectOnly
   					  searchable={false}
@@ -152,9 +155,9 @@ function ComponentList ({
 				</div>
 				<button onClick={() => navigate(-1)}>back</button>
 			</div>
-			<div className={'flex flex-col sm:flex-row divide-x relative'}>
-				<div className={'w-[250px] order-2 overflow-hidden'}>
-    		  <div className={'pb-2'}>
+			<div className={t.body}>
+				<div className={t.sidebar}>
+    		  <div className={t.sidebarSelectorWrapper}>
    					<MultiSelect singleSelectOnly searchable={false} value={currentThemeSetting}
               onChange={value => {
   						  setCurrentThemeSetting(value)
@@ -166,11 +169,11 @@ function ComponentList ({
               }
    					/>
       		</div>
- 					<div className={'w-full flex gap-0.5 justify-end'}>
+ 					<div className={t.sidebarActions}>
 						<Button className={'w-fit'} onClick={() => onSubmit(currentTheme)}>Save</Button>
 						<Button className={'w-fit'} onClick={() => setCurrentTheme(mergeTheme(theme, parseIfJSON(themeObj?.theme)))}>Reset</Button>
  					</div>
-  				<div className='h-[calc(100vh_-_11rem)] overflow-auto w-full scrollbar-sm p-2 '>
+  				<div className={t.sidebarControls}>
             { currentThemeSetting }
             {
               (themeSettings?.[currentThemeSetting] || [])
@@ -182,9 +185,9 @@ function ComponentList ({
             }
   				</div>
 				</div>
-				<div className={'flex-1 h-[calc(100vh_-_6rem)]'}>
+				<div className={t.frameWrapper}>
 					<Frame
-						className='w-full h-[calc(100vh_-_6rem)] border-1'
+						className={t.frame}
 						initialContent={`
               <!DOCTYPE html>
               <html>

@@ -20,20 +20,31 @@ const axisFontProps = (graphFormat, axis) => ({
   labelColor: get(graphFormat, [axis, "labelColor"]),
 });
 
-const GraphTitle = ({ title, ...props }) => {
+const GraphTitle = ({ title, description, theme = {}, ...props }) => {
 
-  const className = React.useMemo(() => {
+  // Explicit per-section font settings (fontSize/fontWeight on display.title) win;
+  // otherwise the avlGraph theme's header tokens style the title/description so every
+  // graph header is on-brand without per-section config. The generic theme carries no
+  // `title`/`subtitle` tokens, so non-branded sites keep the historical look.
+  const explicit = props.fontSize || props.fontWeight;
+
+  const titleClassName = React.useMemo(() => {
+    if (!explicit && theme.title) return theme.title;
     const {
       fontSize = "text-2xl",
-      fontWeight = "font-normal",
-      justify = "justify-start"
+      fontWeight = "font-normal"
     } = props;
-    return `${ fontSize } ${ fontWeight } ${ justify }`;
-  }, [props]);
+    return `${ fontSize } ${ fontWeight }`;
+  }, [props, explicit, theme.title]);
 
-  return !title ? null : (
-    <div className={ `w-full flex ${ className }` }>
-      { title }
+  const justify = props.justify || "justify-start";
+
+  return !title && !description ? null : (
+    <div className={ theme.headerWrapper || `w-full flex ${ justify }` }>
+      <div className={ titleClassName }>{ title }</div>
+      { !description ? null :
+        <div className={ theme.subtitle || "" }>{ description }</div>
+      }
     </div>
   )
 }
@@ -88,12 +99,15 @@ export const GraphComponent = props => {
   return (
     <div
       className={ `
-        w-full h-fit ${ theme.bgColor }
-        ${ theme.text } ${ theme.textColor }
+        w-full h-fit ${ theme.bgColor || "" }
+        ${ theme.text || "" } ${ theme.textColor || "" }
+        ${ theme.padding || "" }
       ` }
     >
 
-      <GraphTitle { ...(graphFormat.title || {}) }/>
+      <GraphTitle { ...(graphFormat.title || {}) }
+        description={ graphFormat.description }
+        theme={ theme }/>
 
       <GraphComponent
         viewData={ viewData }
@@ -112,6 +126,10 @@ export const GraphComponent = props => {
         strokeWidth={ get(graphFormat, "strokeWidth", 1) }
         area={ get(graphFormat, "area", false) }
         areaOpacity={ get(graphFormat, "areaOpacity", 0.15) }
+        // Bar fill-opacity. Unset → the avl-graph CSS default (0.75, :hover → 1)
+        // governs, preserving the historical translucent look + hover feedback.
+        // Set to 1 for solid, design-matching bars (inline style wins over the CSS).
+        barOpacity={ get(graphFormat, "barOpacity") }
         showMarks={ get(graphFormat, "showMarks", false) }
 
         tileMethod={ get(graphFormat, "tileMethod", "treemapSquarify") }
@@ -147,6 +165,11 @@ export const GraphComponent = props => {
           axisColor: get(graphFormat, ["yAxis", "axisColor"], "currentColor"),
           show: get(graphFormat, ["yAxis", "show"], true),
           format: getFormatFunc(get(graphFormat, ["yAxis", "format"]), get(graphFormat, ["yAxis", "isDollars"])),
+          // Tick thinning for the numeric value axis. `tickSpacing` = an explicit
+          // step (a tick every N units); `ticks` = an approximate count. Unset →
+          // the renderer's ~10-tick default (BC). The editor exposes "Tick Spacing".
+          tickSpacing: get(graphFormat, ["yAxis", "tickSpacing"]),
+          ticks: get(graphFormat, ["yAxis", "ticks"]),
           // Custom y-domain (unset → auto-scale). Read by the avl-graph LineGraph.
           domainMin: get(graphFormat, ["yAxis", "domainMin"]),
           domainMax: get(graphFormat, ["yAxis", "domainMax"]),

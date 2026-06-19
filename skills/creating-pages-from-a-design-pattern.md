@@ -947,6 +947,19 @@ node). So don't try to produce a circular "A"/"B" badge from inside Lexical. Ins
   by setting its section's border/radius/bg — no lexical "card style" needed. See the
   section layout model in
   [`translating-design-system-to-dms-theme.md` §3.1.58](./translating-design-system-to-dms-theme.md#3158-the-section-layout-model--gap-0-padding-gutters-inner-box-chrome).
+- **RULE — border + radius come from the SECTION, and there is ONE radius.** Every card-like unit
+  (Card, lexical, graph) takes its border and corner radius from its **section** chrome, at the
+  theme's single radius value — transportnyv2's `radiusCorners` is **8px**. Never hardcode a
+  different radius on a component: a mockup drawn at `rounded-[10px]` must be brought to **8px** to
+  match the theme, and you never add `rounded-*`/`border` inside a section's content to fake a card.
+  (The lexical component used to ship its own `rounded-[10px]` view container and the Card its own
+  `rounded-[8px] bg-white` shell — both were removed so the section is the single source.)
+  **Single- vs multi-card:** the section owns the chrome only when it renders **one** card (the
+  section *is* the card). A **multi-card grid** (one section, many cards via data rows /
+  `cardsGridSize`) needs **per-card** chrome — the section is a single box *around* the grid and
+  can't draw the borders *between* cards. There the per-card border is the Card's `cardBorder`
+  flag and the per-card rounding/fill is the Card's too. So: single-card → section `Border`/
+  `Radius`/`Background`, no `cardBorder`; multi-card → `cardBorder` + per-card rounding/fill.
 - **A lexical card has NO per-cell padding — that's a `Card`-section feature.** Inside a
   lexical card, the *inner* padding is the global `theme.richtext.contentPadding` (default
   `p-4`, not per-section), and the *vertical spacing between text lines* is the global lexical

@@ -52,11 +52,16 @@ function sanitizeName(name) {
  * "ds.geoid" → "geoid" 
  */
 function getResponseColumnName(nameWithAccessors, part = 1) {
-  const columnRenameRegex = /\s+as\s+/i;
-  if (columnRenameRegex.test(nameWithAccessors)) {
-    const name = nameWithAccessors.split(columnRenameRegex)[part];
+  // The SQL alias is the TRAILING `as <identifier>`. Match it from the end so an
+  // " as " sitting *inside* a string literal or expression — e.g.
+  // `'data as of … ' || … as asof` — isn't mistaken for the alias. Splitting on the
+  // FIRST " as " corrupted such columns: a bogus 60+ char "alias" tripped the
+  // columnNameMap long-name rename, unterminating the literal and exposing its
+  // `·` unquoted ("syntax error at or near ·"). `part` 0 = expression, 1 = alias.
+  const aliasMatch = nameWithAccessors.match(/^([\s\S]+)\s+as\s+("[^"]+"|\w+)\s*$/i);
+  if (aliasMatch) {
     // Strip double quotes added by quoteAlias for digit-prefixed identifiers
-    return name ? name.replace(/^"|"$/g, '') : name;
+    return part === 0 ? aliasMatch[1] : aliasMatch[2].replace(/^"|"$/g, '');
   }
   return nameWithAccessors.split(".").pop();
 }
@@ -326,6 +331,16 @@ function handleFiltersType(id_col, id_vals, index, type, isDms) {
     like: { symbol: 'LIKE' }
   };
 
+  // `neq` (not-equal) is array-exclude semantics ("value not in this set") — map it
+  // onto the exclude branch so it reuses the robust ANY()/NULL handling. A leaf can
+  // carry `neq` (e.g. roadname neq '' to drop blank groups) without it being a
+  // first-class client op.
+  if (type === 'neq') type = 'exclude';
+  // Unknown op → emit no condition instead of crashing on `typeMap[type].symbol`
+  // (an unrecognised op used to throw "Cannot read properties of undefined", which
+  // failed the entire WHERE build — and with it the length request → empty table).
+  if (!typeMap[type]) return '';
+
   const conditions = [];
 
   if (['filter'].includes(type)) {
@@ -521,7 +536,15 @@ function handleOrderBy(orders, dmsAttributes) {
     // unambiguous when a join puts the same column name in two tables. Without
     // an alias, fall back to getResponseColumnName (extracts the AS alias or
     // splits on `.`).
-    const expr = aliasedDmsCol.test(col) || aliasedDamaCol.test(col)
+    // A bare SQL expression (function call / cast / window function — contains
+    // parens, carries no `as <alias>`, and isn't a simple `table.column`) must be
+    // ordered by verbatim. The client strips the `as <alias>` off calc-column
+    // orderBy keys (splitColNameOnAS), so getResponseColumnName's
+    // `.split(".").pop()` fallback would mangle any expression containing a
+    // decimal — e.g. `… / 1000000.0)::numeric, 1)` → `0)::numeric, 1)` →
+    // "syntax error at or near )". Window-over-aggregate seasonality cards hit this.
+    const isBareExpression = col.includes("(") && !/\s+as\s+/i.test(col);
+    const expr = aliasedDmsCol.test(col) || aliasedDamaCol.test(col) || isBareExpression
       ? col
       : getResponseColumnName(col);
     return dataType
@@ -575,6 +598,43 @@ const buildJoin = async ({ join }) => {
   return { joins: joins.join('\n'), merges: merges.join('\n') }
 }
 
+/**
+ * Compile one custom-bucket (alias group) definition into a CASE expression.
+ *
+ * A definition is `{ column, fallback, groups: { [label]: [values] } }` and maps
+ * the values of `column` into the author-defined labels:
+ *   CASE WHEN <column> IN (...) THEN '<label>' … ELSE '<fallback>' END
+ *
+ * The standard CASE/IN syntax works identically on PostgreSQL and SQLite, so the
+ * same builder serves both. Only `column` is a raw identifier (groupBy bypasses
+ * the sanitizeName() path for these CASE expressions), so it is sanitizeName()-
+ * guarded here; labels, values and fallback are single-quote-escaped literals. A
+ * group's `values` may arrive JSON-stringified (dynamic page-filter bindings
+ * store the list as a string) — tolerated via the JSON.parse fallback.
+ */
+function buildAliasGroupCase(definition) {
+  const { column, fallback, groups } = definition;
+  const safeColumn = sanitizeName(column);
+  if (!safeColumn) return null;
+  // DMS internal sources read column values out of a JSONB `data` column via
+  // `data->>'col'`, which always yields TEXT. Force every comparison value to a
+  // quoted string literal in that case, so a numeric bucket value doesn't compile
+  // to `data->>'col' IN (5)` — a text/integer mismatch Postgres rejects. DAMA
+  // physical columns keep native typing (numbers stay unquoted).
+  const isJsonText = safeColumn.includes("data->>");
+  let caseStmt = `CASE `;
+  for (const [label, values] of Object.entries(groups)) {
+    const valArray = typeof values === 'string' ? JSON.parse(values) : values;
+    const escapedValues = valArray.map(v => (typeof v === 'string' || isJsonText) ? `'${String(v).replace(/'/g, "''")}'` : v).join(', ');
+    caseStmt += `WHEN ${safeColumn} IN (${escapedValues}) THEN '${label.replace(/'/g, "''")}' `;
+  }
+  if (fallback) {
+    caseStmt += `ELSE '${fallback.replace(/'/g, "''")}' `;
+  }
+  caseStmt += `END`;
+  return caseStmt;
+}
+
 module.exports = {
   sanitizeName,
   getResponseColumnName,
@@ -592,5 +652,6 @@ module.exports = {
   handleHaving,
   handleOrderBy,
   buildCombinedWhere,
-  buildJoin
+  buildJoin,
+  buildAliasGroupCase
 };

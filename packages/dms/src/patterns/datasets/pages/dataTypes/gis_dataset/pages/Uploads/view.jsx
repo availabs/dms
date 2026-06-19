@@ -2,9 +2,13 @@ import React, { useEffect, useMemo } from "react";
 import { get } from "lodash-es"
 import { DatasetsContext } from "../../../../../context";
 import { getExternalEnv } from "../../../../../utils/datasources";
+import { ThemeContext } from "../../../../../../../ui/useTheme";
+import { uploadsTheme } from "./uploads.theme";
 
 export default function Upload({ ctxId }) {
   const { datasources, falcor, falcorCache } = React.useContext(DatasetsContext);
+  const { theme } = React.useContext(ThemeContext) || {};
+  const t = { ...uploadsTheme, ...(theme?.datasets?.uploads || {}) };
   const pgEnv = getExternalEnv(datasources);
 
   useEffect(() => {
@@ -26,47 +30,31 @@ export default function Upload({ ctxId }) {
   }, [falcorCache]);
 
   return (
-    <div className="w-full p-4 bg-white shadow mb-4">
+    <div className={t.tableWrapper}>
       {ctx && ctx?.events && ctx?.events?.length ? (
         <>
-          <div className="py-4 sm:py-2 mt-2 sm:grid sm:grid-cols-5 sm:gap-4 sm:px-6 border-b-2">
+          <div className={t.tableHeaderRow}>
             {["Id", "Event Type", "Timestamp"].map((key) => (
-              <dt key={key} className="text-sm font-medium text-gray-600">
+              <dt key={key} className={t.tableHeaderCell}>
                 {key}
               </dt>
             ))}
           </div>
-          <dl className="sm:divide-y sm:divide-gray-200 odd:bg-white even:bg-slate-50">
+          <dl className={t.tableList}>
             {(ctx?.events || []).map((d, i) => (
               <div
                 key={`${i}_0`}
-                className="py-4 sm:py-5 sm:grid sm:grid-cols-5 sm:gap-4 sm:px-6 cursor-pointer hover:bg-slate-200"
+                className={t.tableRow}
               >
-                <dd
-                  key={`${i}_1`}
-                  className="mt-1 text-sm text-gray-900 sm:mt-0 align-middle"
-                >
-                  {d?.event_id}
-                </dd>
-                <dd
-                  key={`${i}_2`}
-                  className="mt-1 text-sm text-gray-900 sm:mt-0 align-middle"
-                >
-                  {d?.type?.split(":").pop()}
-                </dd>
-
-                <dd
-                  key={`${i}_3`}
-                  className="mt-1 text-sm text-gray-900 sm:mt-0 align-middle"
-                >
-                  {d._created_timestamp}
-                </dd>
+                <dd key={`${i}_1`} className={t.tableCell}>{d?.event_id}</dd>
+                <dd key={`${i}_2`} className={t.tableCell}>{d?.type?.split(":").pop()}</dd>
+                <dd key={`${i}_3`} className={t.tableCell}>{d._created_timestamp}</dd>
               </div>
             ))}
           </dl>
         </>
       ) : (
-        <div className="text-center">{"No Events found"}</div>
+        <div className={t.noDataMsg}>{"No Events found"}</div>
       )}
     </div>
   );

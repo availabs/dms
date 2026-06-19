@@ -77,6 +77,26 @@ config. A section author overrides any key in the **X/Y-Axis** control group.
 *number format* (`yAxis.format`, e.g. `fnum` vs `fnum2`) is a separate concern from the
 font — decimals/abbreviation live in `utils.js ValueFormats`.
 
+### Axis range, tick thinning, bar opacity (per-section `display`)
+
+- **`yAxis.domainMin` / `yAxis.domainMax`** — pin the value-axis range instead of
+  auto-scaling from the data. Unset → auto. Use it to keep a metric legible
+  (reliability % pinned to `domainMin: 65, domainMax: 100` so 79–86% isn't a flat
+  band at the top). Read by the avl LineGraph (`LineGraph.jsx` — `aLeft.domainMin`
+  overrides the 0 floor, `aLeft.domainMax` pins the top).
+- **`yAxis.tickSpacing`** (an explicit step — a tick every N units) **or
+  `yAxis.ticks`** (an approximate count) — thin the numeric axis; unset → the
+  renderer's ~10-tick default. Gridlines follow the chosen ticks.
+- **`barOpacity`** (BarGraph) — solid bars. The translucent default washes bars
+  out; transportnyv2 sets `barOpacity: 1` brand-wide in `chartDefaults`, and it's a
+  per-section "Bar Opacity" control too.
+
+> **⚠ A `show:false` calculated column breaks the graph's UDA fetch** the same way
+> it breaks any data section (null branch key → empty graph). Don't add a
+> filter-only derived column to a graph; filter a derived value via the
+> pass-through-leaf "option A" in `creating-interactive-pages.md` (the leaf, no
+> column).
+
 ## Pattern: a target/reference line is just a styled second series ✅
 **Don't build a bespoke "reference line" feature** — it's a second `yAxis` series, styled.
 Add a target column (a constant `75.0 as lottr_interstate_target`, or a stepped

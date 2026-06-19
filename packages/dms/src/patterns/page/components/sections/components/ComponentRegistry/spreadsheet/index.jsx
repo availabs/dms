@@ -1,4 +1,5 @@
 import React, {useCallback, useContext, useEffect, useMemo, useRef, useState} from "react";
+import {computeRowPublish} from "./rowPublish";
 import {
     actionsColSize,
     gutterColSize as gutterColSizeDf,
@@ -20,10 +21,10 @@ export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addIte
                                 currentPage, infiniteScrollFetchData}) => {
     const { UI, theme} = React.useContext(ThemeContext) || {}
     const {Table} = UI;
-    const {state:{columns=[], externalSource: sourceInfo={}, display={}, data=[], localFilteredData, fullData}, setState, controls={}, isActive, activeStyle} = useContext(ComponentContext);
-    const { pageState, setActionParam, clearActionParam } = useContext(PageContext) || {};
-
+    const {state, state:{filters, columns=[], externalSource: sourceInfo={}, display={}, data=[], localFilteredData, fullData}, setState, controls={}, isActive, activeStyle} = useContext(ComponentContext);
+    const { pageState, setPageState, setActionParam, clearActionParam } = useContext(PageContext) || {};
     const providerCfg = display._functions?.providers?.find(p => p.functionId === 'hover_highlight' && p.enabled);
+    const clickPublishCfg = display._functions?.providers?.find(p => p.functionId === 'click_publish' && p.enabled);
 
     const onRowMouseEnter = useCallback((rowData) => {
         if (!providerCfg || !setActionParam) return;
@@ -36,6 +37,14 @@ export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addIte
         clearActionParam(providerCfg.paramKey);
     }, [providerCfg, clearActionParam]);
 
+    const onRowMouseClick = useCallback((rowData) => {
+        if (!clickPublishCfg || !setActionParam) return;
+        const curValues = pageState?.filters?.find(f => f.searchKey === clickPublishCfg.paramKey && f.type === 'action')?.values || [];
+        const { op, values } = computeRowPublish(rowData, clickPublishCfg.args || {}, curValues);
+        if (op === 'clear') clearActionParam(clickPublishCfg.paramKey);
+        else if (op === 'set') setActionParam(clickPublishCfg.paramKey, values);
+    }, [clickPublishCfg, setActionParam, clearActionParam, pageState]);
+
     const subCfg = display._functions?.subscribers?.find(s => s.functionId === 'row_highlight' && s.enabled);
     const highlightedRow = subCfg && pageState
         ? (() => {
@@ -47,10 +56,12 @@ export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addIte
 
     const gridRef = useRef(null);
 
-    const visibleAttributes = useMemo(() => columns.filter(({show}) => show), [columns]);
-    const visibleAttributesLen = useMemo(() => columns.filter(({show}) => show).length, [columns]);
-    const visibleAttrsWithoutOpenOut = useMemo(() => columns.filter(({show, openOut}) => show && !openOut), [columns]);
-    const visibleAttrsWithoutOpenOutLen = useMemo(() => columns.filter(({show, openOut}) => show && !openOut).length, [columns]);
+    // selectOnly columns are fetched (query/SELECT) but render no cell — exclude
+    // them from the visible/layout sets so a column type can read them off `row`.
+    const visibleAttributes = useMemo(() => columns.filter(({show, selectOnly}) => show && !selectOnly), [columns]);
+    const visibleAttributesLen = useMemo(() => columns.filter(({show, selectOnly}) => show && !selectOnly).length, [columns]);
+    const visibleAttrsWithoutOpenOut = useMemo(() => columns.filter(({show, selectOnly, openOut}) => show && !selectOnly && !openOut), [columns]);
+    const visibleAttrsWithoutOpenOutLen = useMemo(() => columns.filter(({show, selectOnly, openOut}) => show && !selectOnly && !openOut).length, [columns]);
     const actionColumns = useMemo(() => columns.filter(({actionType}) => actionType), [columns]);
 
     const paginationActive = display.usePagination && Math.ceil(display.totalLength / display.pageSize) > 1;
@@ -84,7 +95,6 @@ export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addIte
         }
     }, [visibleAttributesLen, visibleAttrsWithoutOpenOutLen, sourceInfo.columns, display.autoResize]);
     // ============================================ auto resize end ====================================================
-
     //console.log('render table')
     if(!visibleAttributes.length) return <div className={'p-2'}>No columns selected.</div>;
     return <Table columns={columns} data={data} localFilteredData={localFilteredData} fullData={fullData}
@@ -95,6 +105,7 @@ export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addIte
                       sourceColumns: sourceInfo.columns || [],
                   }} setState={setState}
                   highlightedRow={highlightedRow}
+                  onRowMouseClick={clickPublishCfg ? onRowMouseClick : undefined}
                   onRowMouseEnter={providerCfg ? onRowMouseEnter : undefined}
                   onRowMouseLeave={providerCfg ? onRowMouseLeave : undefined}
                   allowEdit={allowEdit} isEdit={isEdit} loading={loading}

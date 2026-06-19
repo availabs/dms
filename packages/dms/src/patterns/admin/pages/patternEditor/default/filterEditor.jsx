@@ -3,6 +3,7 @@ import { AdminContext } from "../../../context";
 import { ThemeContext } from "../../../../../ui/useTheme";
 import { isEqual } from "lodash-es";
 import { parseIfJSON } from "../../../../page/pages/_utils";
+import { filterEditorTheme } from './filterEditor.theme';
 
 // Normalise raw filters value (flat array or subdomain-keyed object) → subdomain-keyed object
 function normaliseFilters(raw) {
@@ -14,18 +15,19 @@ function normaliseFilters(raw) {
 
 // Renders the filter rows (searchKey / values / remove) for a single subdomain
 function FilterRows({ filters = [], onChange }) {
-    const { UI } = useContext(ThemeContext);
+    const { UI, theme } = useContext(ThemeContext);
+    const t = { ...filterEditorTheme, ...(theme?.admin?.filterEditor || {}) }
     const { FieldSet, Button } = UI;
     const [newFilter, setNewFilter] = useState({});
     const customTheme = { field: 'pb-2 flex flex-col' };
     const customThemeButton = { field: 'pb-2 place-content-end' };
 
     return (
-        <div className="flex flex-col gap-1">
+        <div className={t.filterRowsWrapper}>
             {filters.map((filter, i) => (
                 <FieldSet
                     key={filter.id || i}
-                    className={'grid grid-cols-3 gap-1'}
+                    className={t.filterRow}
                     components={[
                         {
                             label: 'Search Key',
@@ -53,7 +55,7 @@ function FilterRows({ filters = [], onChange }) {
                 />
             ))}
             <FieldSet
-                className={'grid grid-cols-3 gap-1'}
+                className={t.filterRow}
                 components={[
                     {
                         label: 'Search Key',
@@ -89,7 +91,8 @@ function FilterRows({ filters = [], onChange }) {
 }
 
 export const PatternFilterEditor = ({ value = {}, onChange, ...rest }) => {
-    const { UI } = useContext(ThemeContext);
+    const { UI, theme } = useContext(ThemeContext);
+    const t = { ...filterEditorTheme, ...(theme?.admin?.filterEditor || {}) }
     const { apiUpdate } = useContext(AdminContext);
     const { FieldSet } = UI;
 
@@ -117,18 +120,18 @@ export const PatternFilterEditor = ({ value = {}, onChange, ...rest }) => {
     };
 
     return (
-        <div className={'flex flex-col gap-2 p-1 border rounded-md max-w-5xl'}>
-            <label className={'text-sm font-medium'}>Filters</label>
+        <div className={t.wrapper}>
+            <label className={t.label}>Filters</label>
 
             {Object.entries(tmpFilters).map(([subdomain, filters]) => (
-                <div key={subdomain} className="flex flex-col gap-1 border rounded p-2">
-                    <div className="flex items-center gap-2">
-                        <span className="text-xs font-semibold bg-gray-100 px-2 py-0.5 rounded">
+                <div key={subdomain} className={t.subdomainSection}>
+                    <div className={t.subdomainHeader}>
+                        <span className={t.subdomainBadge}>
                             subdomain: {subdomain === '*' ? 'none' : subdomain}
                         </span>
                         {subdomain !== '*' && (
                             <button
-                                className="text-xs text-red-500 hover:text-red-700"
+                                className={t.subdomainRemoveBtn}
                                 onClick={() => removeSubdomain(subdomain)}
                             >
                                 remove subdomain
@@ -142,16 +145,16 @@ export const PatternFilterEditor = ({ value = {}, onChange, ...rest }) => {
                 </div>
             ))}
 
-            <div className="flex gap-2 items-center mt-1">
+            <div className={t.addSubdomainRow}>
                 <input
-                    className="border rounded px-2 py-1 text-sm"
+                    className={t.subdomainInput}
                     placeholder="subdomain name"
                     value={newSubdomain}
                     onChange={e => setNewSubdomain(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && addSubdomain()}
                 />
                 <button
-                    className="border rounded px-3 py-1 text-sm hover:bg-gray-50"
+                    className={t.addSubdomainBtn}
                     onClick={addSubdomain}
                 >
                     Add subdomain
@@ -159,7 +162,7 @@ export const PatternFilterEditor = ({ value = {}, onChange, ...rest }) => {
             </div>
 
             <FieldSet
-                className={'grid grid-cols-12 gap-1 border rounded p-4'}
+                className={t.saveGrid}
                 components={[
                     {
                         type: 'Spacer',

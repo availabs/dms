@@ -34,6 +34,10 @@ function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdat
     if( !isUserAuthed(reqPermissions || []) ||
         (pageState?.authPermissions && !isUserAuthed(reqPermissions, pageState.authPermissions))
     ){
+        if (user?.isAuthenticating) return null;
+        if (!user?.authed) {
+            return <Navigate to={`${authBaseUrl}/login`} state={{ from: pathname + search }} replace />;
+        }
         return <div>You do not have permission to view this page. <Link to={baseUrl}>Click here to visit Home</Link></div>
     }
 
@@ -71,10 +75,11 @@ function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdat
     const setActionParam = React.useCallback((key, value) => {
         setPageState(draft => {
             const existing = draft.filters.find(f => f.searchKey === key && f.type === 'action');
+            const arrayValue  = Array.isArray(value) ? value : [value];
             if (existing) {
-                existing.values = [value];
+                existing.values = arrayValue;
             } else {
-                draft.filters.push({ searchKey: key, values: [value], useSearchParams: false, type: 'action' });
+                draft.filters.push({ searchKey: key, values: arrayValue, useSearchParams: false, type: 'action' });
             }
         });
     }, [setPageState]);

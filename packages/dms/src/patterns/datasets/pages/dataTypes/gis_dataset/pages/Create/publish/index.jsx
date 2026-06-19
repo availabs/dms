@@ -1,5 +1,7 @@
-import React, {useMemo} from 'react'
+import React, {useMemo, useContext} from 'react'
 import { get } from 'lodash-es'
+import { ThemeContext } from '../../../../../../../../ui/useTheme'
+import { gisCreateTheme } from '../gisCreate.theme'
 
 const buttonStates = {
     AWAITING: {
@@ -21,6 +23,8 @@ const buttonStates = {
 }
 
 export default function PublishButton({ state, dispatch }) {
+  const { theme } = useContext(ThemeContext) || {};
+  const t = { ...gisCreateTheme, ...(theme?.datasets?.gisCreate || {}) };
 
   const {
     layerName,
@@ -117,7 +121,7 @@ export default function PublishButton({ state, dispatch }) {
     <div>
       <div>
         <button
-          className={`cursor-pointer py-4 px-8 ${publishButtonBgColor} border-none my-2`}
+          className={`${t.publishBtn} ${publishButtonBgColor}`}
           //disabled={publishStatus'AWAITING'}
           onClick={() => {
             console.log('onClick publush', publishStatus)
@@ -148,7 +152,7 @@ function PublishErrorMessage({state}) {
 
   return (
     <table
-      className="w-2/3"
+      className={t.publishErrorTable}
       style={{
         margin: "40px auto",
         textAlign: "center",

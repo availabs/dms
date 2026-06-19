@@ -15,7 +15,7 @@
  */
 
 import { useEffect, useContext } from "react";
-import { isEqual } from "lodash-es";
+import { isEqual, get } from "lodash-es";
 import { PageContext } from "../../../../context";
 import { isGroup } from "../../ComplexFilters";
 
@@ -63,4 +63,69 @@ export function usePageFilterSync({ state, setState, setReadyOnChange = false })
             update(draft.filters);
         });
     }, [pageState?.filters]);
+
+    // The synthetic custom-bucket column is reconciled explicitly on alias commit
+    // (dwAPI.reconcileCustomBucketColumn — see sectionMenu), and customBuckets.config
+    // is recomputed reactively in usePageFilterSync. Nothing custom-bucket-related
+    // belongs in a reactive effect here. the synthetic column is persisted in state.columns
+    useEffect(() => {
+        const pageFilters = (pageState?.filters || []).reduce(
+            (acc, curr) => ({ ...acc, [curr.searchKey]: curr.values }), {}
+        );
+
+        // Static buckets resolve from staticGroups and don't need page filters;
+        // dynamic buckets read values out of the page filters, so skip when none.
+        if (!Object.keys(state?.customBuckets || {}).length) return;
+        const isStatic = state.customBuckets.type === 'static';
+        if (!isStatic && !Object.keys(pageFilters).length) return;
+        const newCustomBucketConfig = resolveAliasGroups(state?.customBuckets, pageFilters);
+
+        // The setState below mutates state.customBuckets, which is a dependency of
+        // this effect — so it re-runs. The isEqual guard is load-bearing: it stops
+        // the cycle once the resolved config is stable. resolveAliasGroups must stay
+        // deterministic for a given (customBuckets, pageFilters) or this would loop.
+        if(!isEqual(state.customBuckets.config, newCustomBucketConfig)){
+            setState(draft => {
+                draft.customBuckets.config = newCustomBucketConfig
+            })
+        }
+    }, [pageState?.filters, state?.customBuckets]);
+}
+
+function resolveAliasGroups(uiConfig, pageFilters) {
+  if (uiConfig.type === 'static') {
+    const groups = {};
+    (uiConfig.staticGroups || []).forEach(group => {
+      if (group.label && group.values) {
+        groups[group.label] = group.values.split(',').map(v => v.trim());
+      }
+    });
+    return { [uiConfig.alias]: { column: uiConfig.sourceField, fallback: uiConfig.fallback, groups: groups } };
+  }
+
+  const rawPageFilterValue = get(pageFilters, uiConfig?.binding?.statePath) || [];
+  const { labelKey, valueKey } = uiConfig.binding;
+
+  // Transform it into the exact Label -> Array shape the server wants
+  const groups = {};
+  rawPageFilterValue.forEach(entry => {
+    // A provider may publish a per-row composite { id, value } so distinct
+    // rows toggle independently (spreadsheet click_publish with an id column). When
+    // the row fields aren't on the entry itself but it carries a `.value`, unwrap
+    // it. A direct entry (any other page-filter source) is used as-is.
+    const entryVal = (entry && typeof entry === 'object' && entry[labelKey] === undefined && entry.value !== undefined)
+      ? entry.value
+      : entry;
+    const label = entryVal?.[labelKey];
+    const values = entryVal?.[valueKey];
+    if (label && values) groups[label] = values;
+  });
+
+  return {
+    [uiConfig.alias]: {
+      column: uiConfig.sourceField,
+      fallback: uiConfig.fallback,
+      groups: groups
+    }
+  };
 }

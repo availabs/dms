@@ -6,7 +6,7 @@
  *
  */
 
-import type {Klass, LexicalNode} from 'lexical';
+import type {Klass, LexicalNode, LexicalNodeReplacement} from 'lexical';
 
 import {CodeHighlightNode, CodeNode} from '@lexical/code';
 import {HashtagNode} from '@lexical/hashtag';
@@ -50,8 +50,9 @@ import {PageBreakNode} from './PageBreakNode';
 import { ButtonNode } from './ButtonNode'
 import { IconNode } from "./IconNode";
 import { StyledParagraphNode } from "./StyledParagraphNode";
+import { SafeLinkNode } from './SafeLinkNode';
 
-const PlaygroundNodes: Array<Klass<LexicalNode>> = [
+const PlaygroundNodes: Array<Klass<LexicalNode> | LexicalNodeReplacement> = [
   HeadingNode,
   ListNode,
   ListItemNode,
@@ -97,6 +98,24 @@ const PlaygroundNodes: Array<Klass<LexicalNode>> = [
   ButtonNode,
   IconNode,
   StyledParagraphNode,
+
+  // Force rel="noopener noreferrer" on target="_blank" links (reverse-tabnabbing).
+  // SafeLinkNode (type 'safe-link') is registered as its own klass AND as the replacement
+  // for LinkNode, so every link — newly authored or loaded from existing 'link' content —
+  // becomes a SafeLinkNode (via $createLinkNode / LinkNode.importJSON → $applyNodeReplacement)
+  // and gets the safe rel injected in createDOM. Existing stored 'link' content needs no
+  // migration; only newly authored/re-saved links serialize as 'safe-link'.
+  SafeLinkNode,
+  {
+    replace: LinkNode,
+    with: (node: LinkNode) =>
+      new SafeLinkNode(node.getURL(), {
+        rel: node.getRel(),
+        target: node.getTarget(),
+        title: node.getTitle(),
+      }),
+    withKlass: SafeLinkNode,
+  },
 ];
 
 export default PlaygroundNodes;

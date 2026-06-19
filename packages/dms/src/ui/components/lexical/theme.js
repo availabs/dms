@@ -19,7 +19,7 @@ export const lexicalTheme = {
     // Top-level editor styles
     editorScroller: "min-h-[150px] border-0 flex relative outline-0 z-0 resize-y",
     viewScroller: "border-0 flex relative outline-0 z-0 resize-none",
-    editorContainer: "relative block rounded-[10px] min-h-[50px]",
+    editorContainer: "relative block min-h-[50px]",
     editorShell: "font-['Proxima_Nova'] font-[400] text-[1rem] text-slate-700 leading-[22.4px]",
     card: 'overflow-hidden p-[12px] shadow-[0px_0px_6px_0px_rgba(0,0,0,0.02),0px_2px_4px_0px_rgba(0,0,0,0.08)]',
     paragraph: "-ml-8 pl-8 relative",
@@ -148,7 +148,7 @@ export const lexicalTheme = {
 
     // Editor section styles
     editorEditTreeView: "rounded-none",
-    editorViewContainer: "relative block rounded-[10px]",
+    editorViewContainer: "relative block",
     editorViewTreeView: "rounded-none",
     editorPlanText: "rounded-t-[10px]",
     testRecorderOutput: "my-5 mx-auto w-full",
@@ -532,7 +532,7 @@ export const lexicalTheme = {
     contentEditable: 'border-none relative [tab-size:1] outline-none',
     editorScroller: "min-h-[150px] border-0 flex relative outline-0 z-0 resize-y",
     viewScroller: "border-0 flex relative outline-0 z-0 resize-none",
-    editorContainer: "relative block rounded-[10px] min-h-[50px]",
+    editorContainer: "relative block min-h-[50px]",
     editorShell: "font-['Proxima_Nova'] font-[400] text-[16px] text-white leading-[22.4px]",
     heading_h1: "pt-[8px] font-[500] text-[64px] text-white leading-[40px] uppercase font-['Oswald'] pb-[12px]",
     heading_h2: "pt-[8px] font-[500] text-[24px] text-white leading-[24px] scroll-mt-36 font-['Oswald']",

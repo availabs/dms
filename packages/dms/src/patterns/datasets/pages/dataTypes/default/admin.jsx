@@ -7,10 +7,12 @@ import {updateSourceData, parseIfJson} from "./utils";
 import { getExternalEnv } from "../../../utils/datasources";
 import { clearDatasetsListCache } from "../../../utils/datasetsListCache";
 import UdaTaskList from "../../Tasks/UdaTaskList";
-const buttonRedClass = 'p-2 mx-1 bg-red-500 hover:bg-red-700 text-white rounded-md';
-const buttonGreenClass = 'p-2 mx-1 bg-green-500 hover:bg-green-700 text-white rounded-md';
+import { ThemeContext } from "../../../../../ui/useTheme";
+import { adminTheme } from "./admin.theme";
 
 const DeleteSourceBtn = ({parent, source, apiUpdate, baseUrl}) => {
+    const { theme } = useContext(ThemeContext) || {};
+    const t = { ...adminTheme, ...(theme?.datasets?.admin || {}) };
     const {UI, app, type, falcor} = useContext(DatasetsContext);
     const {DeleteModal} = UI;
     const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -35,7 +37,7 @@ const DeleteSourceBtn = ({parent, source, apiUpdate, baseUrl}) => {
     }
     return (
         <>
-            <button className={buttonRedClass} onClick={() => setShowDeleteModal(true)}>Delete Source</button>
+            <button className={t.buttonRed} onClick={() => setShowDeleteModal(true)}>Delete Source</button>
 
             <DeleteModal
                 title={`Delete Source`} open={showDeleteModal}
@@ -57,6 +59,8 @@ const DeleteSourceBtn = ({parent, source, apiUpdate, baseUrl}) => {
 
 const AddViewBtn = ({source, format, apiLoad, apiUpdate}) => {
     // update parent to exclude source. the source still stays in the DB.
+    const { theme } = useContext(ThemeContext) || {};
+    const t = { ...adminTheme, ...(theme?.datasets?.admin || {}) };
     const {UI} = useContext(DatasetsContext);
     const {Modal} = UI;
     const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -75,11 +79,11 @@ const AddViewBtn = ({source, format, apiLoad, apiUpdate}) => {
     }
     return (
         <>
-            <button disabled={!source.id} className={buttonGreenClass} onClick={() => setShowDeleteModal(true)}>Add Version</button>
+            <button disabled={!source.id} className={t.buttonGreen} onClick={() => setShowDeleteModal(true)}>Add Version</button>
 
             <Modal open={showDeleteModal} setOpen={(v) => setShowDeleteModal(v)}>
                 <input key={'view-name'} placeholder={defaultViewName} value={name} onChange={e => setName(e.target.value)}/>
-                <button className={buttonGreenClass} onClick={() => {
+                <button className={t.buttonGreen} onClick={() => {
                     async function add() {
                         await addView()
                         setShowDeleteModal(false)
@@ -99,6 +103,8 @@ const AddViewBtn = ({source, format, apiLoad, apiUpdate}) => {
  * user to type the source name to confirm.
  */
 const DeleteDamaSourceBtn = ({source, baseUrl, pgEnv}) => {
+    const { theme } = useContext(ThemeContext) || {};
+    const t = { ...adminTheme, ...(theme?.datasets?.admin || {}) };
     const {UI, falcor} = useContext(DatasetsContext);
     const {Modal} = UI;
     const [open, setOpen] = useState(false);
@@ -135,25 +141,25 @@ const DeleteDamaSourceBtn = ({source, baseUrl, pgEnv}) => {
 
     return (
         <>
-            <button className={buttonRedClass} onClick={() => setOpen(true)}>Delete Source</button>
+            <button className={t.buttonRed} onClick={() => setOpen(true)}>Delete Source</button>
 
             <Modal open={open} setOpen={(v) => (v ? setOpen(true) : close())}>
                 {/* Stop click propagation so the shared Modal's outer onClick doesn't close on interior clicks (which would steal focus from the input) */}
                 <div onClick={e => e.stopPropagation()}>
-                    <div className="text-base font-semibold text-gray-900">Delete source #{sourceId}</div>
-                    <div className="mt-2 text-sm text-gray-600">
+                    <div className={t.deleteModalTitle}>Delete source #{sourceId}</div>
+                    <div className={t.deleteModalDesc}>
                         <p>
-                            <span className="font-semibold">Delete</span> removes the source and view rows from <code>data_manager</code>.
+                            <span className={t.emphasisBold}>Delete</span> removes the source and view rows from <code>data_manager</code>.
                             Per-view data tables and files remain and could be recovered by an admin.
                         </p>
-                        <p className="mt-2">
-                            <span className="font-semibold text-red-700">Hard Delete</span> additionally drops each view's data table,
+                        <p className={t.deleteModalDescHard}>
+                            <span className={t.emphasisBoldDanger}>Hard Delete</span> additionally drops each view's data table,
                             removes download files from storage, and deletes task history. This cannot be undone.
                         </p>
                     </div>
-                    <div className="mt-3 text-sm text-gray-700">
-                        To confirm a <span className="font-semibold text-red-700">Hard Delete</span>, type the source name
-                        <code className="ml-1">{sourceName || '(unnamed)'}</code>:
+                    <div className={t.deleteModalConfirmLabel}>
+                        To confirm a <span className={t.emphasisBoldDanger}>Hard Delete</span>, type the source name
+                        <code className={t.codeInline}>{sourceName || '(unnamed)'}</code>:
                     </div>
                     <input
                         type="text"
@@ -161,14 +167,14 @@ const DeleteDamaSourceBtn = ({source, baseUrl, pgEnv}) => {
                         onChange={e => setTypedName(e.target.value)}
                         placeholder={sourceName}
                         autoFocus
-                        className="mt-1 w-full border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+                        className={t.deleteModalInput}
                     />
-                    {err ? <div className="mt-2 text-sm text-red-700">Error: {err}</div> : null}
-                    <div className="mt-5 flex flex-row-reverse gap-2">
+                    {err ? <div className={t.errorText}>Error: {err}</div> : null}
+                    <div className={t.deleteModalFooter}>
                         <button
                             type="button"
                             disabled={busy || !nameMatches}
-                            className="inline-flex justify-center rounded-md bg-red-700 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-800 disabled:opacity-40"
+                            className={t.deleteModalHardBtn}
                             onClick={() => runDelete(true)}
                         >
                             {busy ? 'Working…' : 'Hard Delete'}
@@ -176,7 +182,7 @@ const DeleteDamaSourceBtn = ({source, baseUrl, pgEnv}) => {
                         <button
                             type="button"
                             disabled={busy}
-                            className="inline-flex justify-center rounded-md bg-yellow-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-yellow-700 disabled:opacity-40"
+                            className={t.deleteModalSoftBtn}
                             onClick={() => runDelete(false)}
                         >
                             {busy ? 'Working…' : 'Delete'}
@@ -184,7 +190,7 @@ const DeleteDamaSourceBtn = ({source, baseUrl, pgEnv}) => {
                         <button
                             type="button"
                             disabled={busy}
-                            className="inline-flex justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+                            className={t.deleteModalCancelBtn}
                             onClick={close}
                         >
                             Cancel
@@ -223,6 +229,8 @@ const AddExternalVersionBtn = ({source}) => {
 }
 const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params, isDms }) => {
     const {id} = params;
+    const { theme } = React.useContext(ThemeContext) || {};
+    const t = { ...adminTheme, ...(theme?.datasets?.admin || {}) };
     const {app, API_HOST, baseUrl, pageBaseUrl, user, parent, UI, falcor, damaDataTypes, datasources} = React.useContext(DatasetsContext) || {};
     const pgEnv = getExternalEnv(datasources);
     const {AuthAPI, ...restAuth} = React.useContext(AuthContext) || {};
@@ -249,12 +257,12 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params, isDms })
     // todo add setAuth feature for internal and external sources.
     // use statistics column. make a route to update sources.
     return (
-            <div className={'p-2'}>
-                <div className={'flex gap-12'}>
-                    <div className={'w-3/4'}>
-                        <div className={'shadow-md rounded-md place-content-center p-4 w-full'}>
-                            <label className={'text-xl text-gray-900 font-semibold'}>User Access Controls</label>
-                            <MultiSelect className={'w-1/2'}
+            <div className={t.adminWrapper}>
+                <div className={t.adminRow}>
+                    <div className={t.adminMain}>
+                        <div className={t.uacPanel}>
+                            <label className={t.uacPanelLabel}>User Access Controls</label>
+                            <MultiSelect className={t.uacMultiSelect}
                                     singleSelectOnly
                                     searchable={false}
                                     options={[{label: 'Add user access', value: undefined}, ...users.map(u => ({label: u.email, value: u.id}))]}
@@ -271,13 +279,13 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params, isDms })
                             />
 
                             <div>
-                                <div className={'grid grid-cols-3'}>
+                                <div className={t.uacGrid}>
                                     <div>User</div>
                                     <div>Auth</div>
                                 </div>
                                 {
                                     Object.entries(parseIfJson(source?.statistics, {})?.auth?.users || {})
-                                        .map(([userId, authLevel]) => <div className={'grid grid-cols-3'}>
+                                        .map(([userId, authLevel]) => <div className={t.uacGrid}>
                                             <div>{users.find(user => +user.id === +userId)?.email}</div>
                                             <Input type={'text'} value={authLevel} onChange={e => {
                                                 const newAuth = {
@@ -304,9 +312,9 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params, isDms })
                             </div>
                         </div>
 
-                        <div className={'shadow-lg rounded-md place-content-center p-4 w-full'}>
-                            <label className={'text-xl text-gray-900 font-semibold'}>Group Access Controls</label>
-                            <MultiSelect className={'w-1/2'}
+                        <div className={t.uacGroupPanel}>
+                            <label className={t.uacPanelLabel}>Group Access Controls</label>
+                            <MultiSelect className={t.uacMultiSelect}
                                     singleSelectOnly
                                     searchable={false}
                                     options={[{label: 'Add group access', value: undefined}, ...groups.map(u => ({label: u.name, value: u.name}))]}
@@ -323,13 +331,13 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params, isDms })
                             />
 
                             <div>
-                                <div className={'grid grid-cols-3'}>
+                                <div className={t.uacGrid}>
                                     <div>Group</div>
                                     <div>Auth</div>
                                 </div>
                                 {
                                     Object.entries(parseIfJson(source?.statistics, {})?.auth?.groups || {})
-                                        .map(([groupName, authLevel]) => <div className={'grid grid-cols-3'}>
+                                        .map(([groupName, authLevel]) => <div className={t.uacGrid}>
                                             <div>{groupName}</div>
                                             <Input type={'text'} value={authLevel} onChange={e => {
                                                 const newAuth = {
@@ -357,8 +365,8 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params, isDms })
                         </div>
                     </div>
 
-                    <div className={'w-1/4'}>
-                        <div className={'flex flex-col gap-4 shadow-lg rounded-md place-content-center p-4'}>
+                    <div className={t.adminSidebar}>
+                        <div className={t.sidebarActionsPanel}>
                             <Button><Link to={`${pageBaseUrl}/${id}/metadata`}>Advanced Metadata</Link></Button>
                             {
                                 isDms ? (
@@ -380,8 +388,8 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params, isDms })
                 </div>
                 {
                     isDms ? null : (
-                        <div className={'w-full pt-12'}>
-                            <div className={'text-sm font-medium text-gray-500 pb-2'}>Tasks</div>
+                        <div className={t.tasksWrapper}>
+                            <div className={t.tasksLabel}>Tasks</div>
                             <UdaTaskList sourceId={source.source_id} />
                         </div>
                     )

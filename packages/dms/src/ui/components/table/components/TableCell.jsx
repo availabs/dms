@@ -278,11 +278,15 @@ export const TableCell = memo(function TableCell ({
                     (DataTypes[compType]?.[compMode] || DisplayCalculatedCell),
         [compType, compMode, renderTextBox, attribute, newItem, rawValue]);
 
-    const value = isTotalCell && !(attribute.showTotal || display.showTotal) ? null :
+    const formattedValue = isTotalCell && !(attribute.showTotal || display.showTotal) ? null :
         compMode === 'EditComp' ? rawValue : // edit mode should always show raw value
             attribute.formatFn && formatFunctions[attribute.formatFn.toLowerCase()] ?
                 formatFunctions[attribute.formatFn.toLowerCase()](rawValue, attribute.isDollar) :
                 rawValue;
+    const value = compMode !== 'EditComp' && (formattedValue == null || formattedValue === '' ||
+        (Array.isArray(formattedValue) && !formattedValue.length)) && attribute.defaultValue
+        ? attribute.defaultValue
+        : formattedValue;
 
     const selectionColor = '#2100f8'
     const selectionEdgeClassNames = {

@@ -1,5 +1,5 @@
 import React, {useState, useContext} from "react";
-import {ComponentContext,PageContext} from "../../../../../context";
+import {ComponentContext, PageContext} from "../../../../../context";
 import { ThemeContext } from "../../../../../../../ui/useTheme";
 import {InputControl} from "../../dataWrapper/components/InputControl";
 

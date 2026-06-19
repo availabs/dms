@@ -91,7 +91,7 @@ export default function Graph (props) {
 
   const keyedColumns = React.useMemo(() => {
     return columns.map(c => ({ ...c, key: c.normalName || c.name }));
-  }, []);
+  }, [columns]);
 
   return (
     <GraphComponent

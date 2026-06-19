@@ -58,6 +58,31 @@ export const componentFunctions = {
                 { key: 'column', label: 'Column to publish', type: 'column-select' },
             ],
         },
+        {
+            id: 'click_publish',
+            label: 'Click: Publish Row',
+            description: 'On click, publishes a the column value to a page action param.',
+            trigger: 'click',
+            paramKey: "",
+            args: [
+                { key: 'column', label: 'Column to publish', type: 'column-select' },
+                {
+                    key: 'id_column',
+                    label: 'Row identity column (optional)',
+                    description: 'When set, publishes a { id, value } composite so rows sharing the same published value toggle independently. Leave empty to toggle by value.',
+                    type: 'column-select',
+                },
+                {
+                    key: 'append_params',
+                    label: 'Append Params',
+                    type: 'select',
+                    options: [
+                        { label: 'Append', value: true },
+                        { label: 'Replace', value: false },
+                    ],
+                }
+            ],
+        },
     ],
     subscribers: [
         {
@@ -169,7 +194,8 @@ const buildControls = (theme) => ({
                 },
                 label: 'format controls', key: '', displayCdn: ({ isEdit }) => isEdit
             },
-            { type: 'filter', label: 'filter', placeHolder: 'search...', key: 'localFilter' },
+            { type: 'toggle', label: 'Server Filter', key: 'serverFilter', displayCdn: ({ isEdit }) => isEdit },
+            { type: 'filter', label: 'Filter', key: 'serverFilterValue', displayCdn: ({ attribute }) => attribute.serverFilter },
             { type: 'select', label: 'Sort', key: 'sort', dataFetch: true,
                 options: [
                     { label: 'Not Sorted', value: '' }, { label: 'A->Z', value: 'asc nulls last' }, { label: 'Z->A', value: 'desc nulls last' }
@@ -197,6 +223,7 @@ const buildControls = (theme) => ({
                     { label: '0 = N/A', value: 'zero_to_na' },
                 ], displayCdn: ({ isEdit }) => isEdit
             },
+            { type: 'input', inputType: 'text', label: 'Default Value', key: 'defaultValue', displayCdn: ({ isEdit }) => isEdit },
             { type: 'toggle', label: 'Wrap Text', key: 'wrapText', displayCdn: ({ isEdit }) => isEdit },
             { type: 'toggle', label: 'Wrap Header', key: 'wrapHeader', displayCdn: ({ isEdit }) => isEdit },
             { type: 'toggle', label: 'Show Total', key: 'showTotal', displayCdn: ({ isEdit }) => isEdit },
@@ -227,6 +254,7 @@ export default {
     showPagination: true,
     keepOriginalValues: true,
     showAllColumnsControl: false,
+    supportsTemplates: true,
     themeKey: 'table',
     defaultState: {
         filters: { op: 'AND', groups: [] },

@@ -189,14 +189,14 @@ const RenderAddForm = ({editing, newOption, setNewOption, addNewValue, value}) =
                 onKeyDown={e => {
                     if (e.key === 'Enter') {
                         e.preventDefault();
-                        addNewValue(value, newOption)
+                        newOption?.length && addNewValue(value, newOption) // only add if not blank
                     }
                 }}
                 placeHolder={'Add new option...'}
             />
             <Button
                 activeStyle={'active'}
-                onClick={e => addNewValue(value, newOption)}>
+                onClick={e => newOption?.length && addNewValue(value, newOption)}>
                 add
             </Button>
         </div>
@@ -251,7 +251,9 @@ const RenderOptions = ({attributeList, col, drivingAttribute, attr, value=[], de
     const options = useMemo(() => (value || [])?.map(v => v.label ? v : ({label: v, value: v})), [value]);
     if(!['select', 'multiselect', 'radio'].includes(drivingAttribute)) return null;
     const addNewValue = (oldValue, newItem) => {
-        const newValue = newItem?.label ? [...(oldValue || []), newItem] : [...(oldValue || []), {label: newItem, value: newItem}]
+        const newValue =
+            newItem?.label?.length ? [...(oldValue || []), newItem] :
+                newItem?.length ? [...(oldValue || []), {label: newItem, value: newItem}] : oldValue;
         updateAttribute(col, {[attr]: newValue})
         setNewOption('')
     }

@@ -26,9 +26,12 @@ const minColSize = 120;
 // augmented with `_hasFixedSize` (tells the cell whether to pin its width) and
 // `_track` (the grid-template token). `size` stays defaulted for existing consumers.
 const augmentColSizing = (c, defaultColumnSize, forceFixed = false) => {
-    const hasFixed = forceFixed ||
-        (c.size !== undefined && c.size !== null && c.size !== '' && !isNaN(+c.size));
-    const size = hasFixed ? +c.size : defaultColumnSize;
+    const sizeSet = c.size !== undefined && c.size !== null && c.size !== '' && !isNaN(+c.size);
+    // `stretch:true` keeps the column's size as a *minimum* but lets it grow to
+    // share leftover width (`minmax(size, 1fr)`) — e.g. the 12 month cells of a
+    // heat grid filling the card. Without it a sized column is a rigid `${size}px`.
+    const hasFixed = forceFixed || (sizeSet && !c.stretch);
+    const size = sizeSet ? +c.size : defaultColumnSize;
     return {
         ...c,
         size,
@@ -209,6 +212,7 @@ export default function Table ({
     columns=[], data: unFilteredData=[], localFilteredData, fullData, display={}, controls={}, setState, isActive,
     addItem, newItem={}, setNewItem, infiniteScrollFetchData, currentPage, activeStyle,
     highlightedRow,
+    onRowMouseClick,
     onRowMouseEnter,
     onRowMouseLeave,
 }) {
@@ -224,7 +228,10 @@ export default function Table ({
 
     const actionsColSize = 50;
     const structureValues = useMemo(() => {
-        const visibleAttributes = columns.filter(c => c.show && !c.actionType).map(c => augmentColSizing(c, defaultColumnSize));
+        // selectOnly columns participate in the query (fetched into the row) but
+        // render no cell — so a column type can read them off `row` (e.g. a data_bar
+        // scaling to a sibling `max() over ()` column) without showing a column.
+        const visibleAttributes = columns.filter(c => c.show && !c.selectOnly && !c.actionType).map(c => augmentColSizing(c, defaultColumnSize));
         const actionColumns = columns.filter(c => c.show && c.actionType && (c.display === 'both' || isEdit)).map(c => augmentColSizing(c, defaultColumnSize));
         const regularAttrsWithoutOpenOut = visibleAttributes.filter(c => !c.openOut);
         // The actions column is always a fixed, narrow utility column.
@@ -572,7 +579,7 @@ export default function Table ({
              onMouseLeave={e => handleMouseUp({setIsDragging})}
              style={{maxHeight: !paginationActive && display.maxHeight ? `${display.maxHeight}px` : undefined}}
         >
-                <TableStructureContext.Provider value={{...structureValues, highlightedRow, onRowMouseEnter, onRowMouseLeave}}>
+                <TableStructureContext.Provider value={{...structureValues, highlightedRow, onRowMouseClick, onRowMouseEnter, onRowMouseLeave}}>
                     <TableCellContext.Provider value={{
                         frozenCols, allowEdit, editing, setEditing, isDragging, isSelecting,
                         setSelection, setIsDragging, startCellCol, startCellRow, selection, selectionRange,
