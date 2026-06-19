@@ -358,6 +358,38 @@ authors to remember the flag every time they add a band.
 
 ---
 
+## 4.5 Copy and tokens are part of the design contract
+
+The most common fidelity failure isn't layout — it's **text the design never
+shows**. Three rules, learned from the TSMO-home hero (which shipped with ~3×
+the design's text before review):
+
+1. **The mockup's copy is the copy.** Transcribe headings, notes, badges, and
+   meta lines *verbatim*. Do not invent explanatory text, expand abbreviations,
+   add disclaimers, or append "helpful" qualifiers ("· selected year",
+   methodology caveats, …). If a clarification feels necessary, it belongs on a
+   methodology/about page — flag it in the task doc instead of writing it in.
+2. **Strongly prefer existing tokens — match by inspection, not vibes.** For
+   every text atom, find the token whose case/size/family matches the mockup
+   (e.g. transportny: lowercase mono substat = `metaAccent`/`metaMD`, NOT the
+   uppercase `metaSM`; bordered as-of badge = `chip`). Read the brand's
+   `textSettings` FIRST and keep the list at hand while transcribing. Only when
+   no token matches case+size+family is there a real token gap — add ONE token
+   to the theme (with a comment naming the design role) rather than improvising
+   with inline styles or the nearest-looking token.
+3. **Component chrome must not add text the design doesn't show.** Filter
+   attribution (`showAttribution`), column headers (`hideHeader`), section
+   `title` labels, pagination info — every component emits optional text;
+   default them OFF and enable only what the mockup shows. A data section that
+   renders more words than its mockup counterpart is misconfigured, not
+   "informative."
+
+Also: **title + description blocks want `size` 6–8, not 12** (the measure
+pattern, §5.6.7) — the designs cap ledes at ~640–760px; full-width prose reads
+off-brand even with the right tokens.
+
+---
+
 ## 5. Creating sections (draft only)
 
 A section is a single editable block; it points at a component

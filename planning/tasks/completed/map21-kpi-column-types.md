@@ -121,3 +121,17 @@ transportny.
 - [ ] Existing cards unaffected (additive — no column sets these types unless wired).
 - [ ] `npm run lint` clean; Fast-Refresh-safe file split (.jsx components only).
 - [ ] Back up page 2173915 before any edit-mode screenshot session (page-nuke rule).
+
+---
+
+## Addendum — `stat_value` (2026-06-13, TSMO home build)
+
+Fourth member of the KPI family: `stat_value` renders a figure with an inline
+figure-size `prefix` and a smaller muted `unit` suffix on one baseline
+("$6.2 billion", "310.9 M veh-hrs", "80 %") — the design system's universal
+stat pattern, inexpressible by one `valueFontStyle` (one token = one size) or a
+`formatFn` (strings can't change size mid-cell). Files:
+`ui/columnTypes/statValue.{jsx,theme.js}`, registered in
+`ui/columnTypes/index.jsx`; themeable via `theme.statValue`; documented in
+`skills/card-layout.md`. BC: purely additive. First consumer: tsmo2 Home hero
+KPIs + doorway stats (page 1431215).

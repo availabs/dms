@@ -229,6 +229,7 @@ const buildInHeader = (fontStyleOptions) => [
     { type: 'input', inputType: 'number', label: 'Padding Left', key: 'cellPaddingLeft', isBatchUpdatable: true },
     { type: 'toggle', label: 'Hide Header', key: 'hideHeader', isBatchUpdatable: true },
     { type: 'toggle', label: 'Hide Value', key: 'hideValue', isBatchUpdatable: true },
+    { type: 'toggle', label: 'Select Only (no cell)', key: 'selectOnly', isBatchUpdatable: true },
     { type: 'input', inputType: 'number', label: 'Col Span', key: 'cellSpan' },
     { type: 'input', inputType: 'number', label: 'Row Span', key: 'cellRowSpan' },
     // Cell Width — per-column grid track size. Accepts:

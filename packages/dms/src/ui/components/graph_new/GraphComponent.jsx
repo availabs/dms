@@ -126,6 +126,16 @@ export const GraphComponent = props => {
           gridLineOpacity: get(graphFormat, ["xAxis", "gridLineOpacity"], 0.25),
           axisColor: get(graphFormat, ["xAxis", "axisColor"], "currentColor"),
           show: get(graphFormat, ["xAxis", "show"], true),
+          // 'bottom' (default) | 'top' — where the category axis renders (sparks
+          // with labels above the bars set 'top'). See AxisBottom position prop.
+          position: get(graphFormat, ["xAxis", "position"], "bottom"),
+          // Optional value→label map for category ticks (e.g. month number →
+          // letter: {"1":"J","2":"F",…}). Keeps the DOMAIN on the real values —
+          // mapping labels in data collapses duplicate categories (J/J/J).
+          format: (() => {
+            const tl = get(graphFormat, ["xAxis", "tickLabels"]);
+            return tl ? (v => tl[v] ?? v) : undefined;
+          })(),
           // Axis typography — unset keys leave the axis renderer's BC defaults.
           ...axisFontProps(graphFormat, "xAxis")
         } }
