@@ -53,6 +53,8 @@ export const tableTheme = {
             openOutCloseIcon: 'XMark',
             openOutContainerWrapperBgColor: '#00000066',
             openOutIconWrapper: 'px-2 cursor-pointer bg-transparent text-gray-500 hover:text-gray-600',
+            openOutBelowRow: false,
+            openOutHideTitle: false,
 
             pivotGroupHeader: 'bg-gray-100 text-gray-700 text-center border-b border-r border-gray-200',
 
@@ -76,6 +78,21 @@ export const tableTheme = {
             headerCellControlWrapper: 'w-full group px-2 py-1 flex justify-between items-center rounded-md hover:bg-gray-100',
             headerCellControlLabel: 'w-fit font-regular text-gray-500 cursor-default',
             headerCellControl: 'p-0.5 w-full rounded-md bg-white group-hover:bg-gray-100 cursor-pointer'
+        },
+        {
+            name: 'below-row',
+            // openOut opens inline below the row instead of a fixed right-side drawer.
+            // All other keys inherit from styles[0].
+            openOutContainer: 'w-full flex flex-col bg-white',
+            openOutContainerWrapper: 'w-full',
+            openOutContainerWrapperBgColor: 'transparent',
+            openOutHeader: 'font-semibold text-gray-600',
+            openOutCloseIconContainer: 'hidden',
+            openOutCloseIconWrapper: '',
+            openOutCloseIcon: 'XMark',
+            openOutIconWrapper: 'hidden',
+            openOutBelowRow: true,
+            openOutHideTitle: true,
         }
     ]
 }

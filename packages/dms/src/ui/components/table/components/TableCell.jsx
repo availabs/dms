@@ -310,7 +310,8 @@ export const TableCell = memo(function TableCell ({
     useEffect(() => setNewItem(item), [item])
 
     useEffect(() => {
-        if (!(isCellEditing && allowEdit)) return;
+        if (!allowEdit) return;
+        if (!isCellEditing && !attribute.allowEditInView) return;
 
         const original = newItem[attribute.name]?.originalValue ?? newItem[attribute.name];
         const newVal = item[attribute.name]?.originalValue ?? item[attribute.name];
@@ -497,13 +498,20 @@ export const TableCell = memo(function TableCell ({
         return value;
     }, [value]);
 
+    // When the column declares itself an openOut trigger (e.g. sectionsChip), the
+    // entire cell is the toggle surface — no separate InfoCircle icon is shown.
+    const isTriggerCol = showOpenOutCaret && attribute.openOutTrigger;
+    const cellEventsWithTrigger = isTriggerCol
+        ? { ...cellEvents, onClick: toggleOpenOut }
+        : cellEvents;
+
     return (
         <div ref={cellRef}
              className={cellClassName}
              style={cellStyle}
-             {...cellEvents}
+             {...cellEventsWithTrigger}
         >
-            {showOpenOutCaret ?
+            {showOpenOutCaret && !isTriggerCol ?
                 <div className={theme.openOutIconWrapper}
                      onClick={toggleOpenOut}
                 >

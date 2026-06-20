@@ -1,4 +1,7 @@
 import React from 'react'
+import { TreeNodeView } from './treeNode'
+import { PublishStateView } from './publishState'
+import { SectionsChipView } from './sectionsChip'
 import { TextEdit, TextView } from './text'
 import { TextareaEdit, TextareaView } from './textarea'
 import { BooleanEdit, BooleanView } from './boolean'
@@ -79,14 +82,25 @@ const columnTypes = {
   'code_with_sub': codeWithSub,
   'download_button': downloadButton,
   'switch': {
-        EditComp: ({trueValue=true, value, onChange, ...props}) =>
-            <Switch {...props} enabled={value === trueValue}
-                    setEnabled={e => onChange(e ? trueValue : false)}
-                    size={'small'}
-            />,
-        ViewComp: ({trueValue=true, onChange, value, ...props}) =>
-            <Switch {...props} enabled={value === trueValue} disabled={true} size={'small'}/>
+        EditComp: ({trueValue=true, value, onChange, ...props}) => {
+            const offValue = typeof trueValue === 'boolean' ? !trueValue : null;
+            const isEnabled = trueValue === false ? value !== true : value === trueValue;
+            return <Switch {...props} enabled={isEnabled}
+                    setEnabled={e => onChange(e ? trueValue : offValue)}
+                    size={'small'} />;
+        },
+        ViewComp: ({trueValue=true, onChange, value, allowEditInView, ...props}) => {
+            const offValue = typeof trueValue === 'boolean' ? !trueValue : null;
+            const isEnabled = trueValue === false ? value !== true : value === trueValue;
+            return <Switch {...props} enabled={isEnabled}
+                    disabled={!allowEditInView}
+                    setEnabled={allowEditInView ? (e => onChange(e ? trueValue : offValue)) : undefined}
+                    size={'small'} />;
+        },
     },
+  'tree_node': { ViewComp: TreeNodeView },
+  'publish_state': { ViewComp: PublishStateView },
+  'sections_chip': { ViewComp: SectionsChipView },
 	'default': text
 }
 

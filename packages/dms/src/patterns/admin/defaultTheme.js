@@ -1,3 +1,4 @@
+import { pagesEditorTheme } from './pages/patternEditor/pages/pagesEditor.theme'
 import { menuTheme } from './components/menu.theme'
 import { errorPageTheme } from './components/errorPage.theme'
 import { patternListTheme } from './components/patternList.theme'
@@ -30,4 +31,5 @@ export default {
     adminLayout: adminLayoutTheme,
     adminUi: adminUiTheme,
     sectionGroup: sectionGroupTheme,
+    pagesEditor: pagesEditorTheme,
 }

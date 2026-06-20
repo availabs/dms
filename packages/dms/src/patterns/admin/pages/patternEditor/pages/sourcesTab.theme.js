@@ -1,0 +1,16 @@
+export const sourcesTabTheme = {
+    orphanBanner: 'px-4 py-2 bg-amber-50 border-b border-amber-200 text-[11px] text-amber-700 flex items-center gap-2',
+    orphanBannerStrong: 'font-semibold',
+    orphanBannerNote: 'text-amber-500',
+    theadRow: 'bg-gray-50 border-b-2 border-gray-200',
+    th: 'text-left px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-gray-400',
+    tbodyRow: 'border-b border-gray-100 hover:bg-gray-50',
+    tdBase: 'px-4 py-2.5',
+    emptyCell: 'px-4 py-8 text-center text-gray-400 text-sm',
+    nameText: 'font-mono text-[11px] bg-gray-50 border border-gray-200 px-1.5 py-0.5 rounded text-gray-600 truncate',
+    usedByText: 'text-xs font-semibold text-gray-700',
+    viewCountText: 'text-xs text-gray-600 font-semibold',
+    nullDash: 'text-gray-300 text-xs',
+    updatedAtText: 'text-xs text-gray-500',
+    statusActive: 'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 border border-emerald-200 text-emerald-700',
+};
