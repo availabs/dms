@@ -8,7 +8,7 @@ import { ThemeContext } from "../../../../../ui/useTheme";
 const SECTION_TARGETS = ["top", "content", "bottom"];
 function SectionGroupControl({
   group,
-  fullGroupData,
+  fullGroupData={},
   onDelete,
   onUpdateAttribute,
   onAdd,
@@ -99,7 +99,7 @@ function SectionGroupControl({
     { type: "separator" },
     { icon: "TrashCan", name: "Delete", onClick: onDelete },
   ];
-  const isPageSection = !!fullGroupData.url_slug;
+  const isPageSection = !!fullGroupData?.url_slug;
   const isSectionActive = hash === `#${group.id}`;
 
   return (

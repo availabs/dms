@@ -140,17 +140,192 @@ function SectionLabel({ section, t }) {
     return <span className={t.sectionEmpty}>(untitled)</span>;
 }
 
-function SectionsPanel({ value: sections = [], page = {}, baseUrl = '', navigate, setPreviewSection, t }) {
+function renderSectionRow(s, i, { viewUrl, setPreviewSection, isPublished, t }) {
+    const elementType = s.element?.['element-type'] || s['element-type'] || '';
+    const typeKey = TYPE_BADGE_CLASS[elementType] || 'badgeLexical';
+    const levelNum = s.level != null ? +s.level : null;
+    return (
+        <div
+            key={i}
+            className={t.sectionRow}
+            style={{ gridTemplateColumns: t.sectionRowCols || '1fr 90px 200px 80px 60px 60px' }}
+        >
+            <span className="min-w-0 overflow-hidden flex items-center">
+                <SectionLabel section={s} t={t} />
+                {/*{isPublished*/}
+                {/*    ? <span className={t.sectionBadgePublished}>pub</span>*/}
+                {/*    : <span className={t.sectionBadgeDraft}>draft</span>*/}
+                {/*}*/}
+            </span>
+            <span>
+                <span className={`${t.badgeBase} ${t[typeKey]}`}>
+                    {elementType || 'Lexical'}
+                </span>
+            </span>
+            <span className="truncate">
+                {s._sourceName
+                    ? <span className={t.srcLabel}>{s._sourceName}</span>
+                    : <span className="text-gray-300 text-xs">—</span>}
+            </span>
+            <span>
+                {s._viewChip
+                    ? <span className={s._viewChip.stale ? t.viewChipStale : s._viewChip.fresh ? t.viewChipFresh : t.viewChipOk}>
+                        v{s._viewChip.view}{s._viewChip.fresh ? ' ✓' : ''}
+                      </span>
+                    : <span className="text-gray-300 text-xs">—</span>}
+            </span>
+            <span>
+                {levelNum != null
+                    ? <span className={`${t.levelPill} ${levelNum === 0 ? t.levelHidden : t.levelHeading}`}>
+                        {levelNum === 0 ? 'hidden' : `H${levelNum}`}
+                      </span>
+                    : <span className="text-gray-300 text-xs">—</span>}
+            </span>
+            <span className="flex justify-end">
+                <button
+                    className={t.ghostBtn || 'text-[10px] border border-gray-200 rounded px-2 py-0.5 bg-white text-gray-500 cursor-pointer'}
+                    onClick={setPreviewSection ? () => setPreviewSection({ ...s, _pageViewUrl: viewUrl }) : undefined}
+                >
+                    Preview
+                </button>
+            </span>
+        </div>
+    );
+}
+
+function SectionsPanel({ value: sections = [], page = {}, baseUrl = '', navigate, setPreviewSection, apiUpdate, app, patternInstance, onRefresh, t }) {
+    const { UI } = useContext(ThemeContext) || {};
     const [mode, setMode] = useState('all'); // 'outline' | 'all'
+    const [processingGroup, setProcessingGroup] = useState(null);
+    const [confirmDeleteGroup, setConfirmDeleteGroup] = useState(null); // { groupName, sections }
 
     const hasMeaningfulTitle = s => s.title && s.title !== 'Untitled Section' && s.title !== '(untitled)';
-    const shown = mode === 'outline' ? sections.filter(hasMeaningfulTitle) : sections;
     const titledCount = sections.filter(hasMeaningfulTitle).length;
     const emptyCount = sections.filter(s => s._summary?.kind === 'empty').length;
 
     const pageSlug = page.url_slug || '';
     const editUrl = baseUrl && pageSlug ? `${baseUrl}/edit/${pageSlug}` : null;
     const viewUrl = baseUrl && pageSlug ? `${baseUrl}/${pageSlug}` : null;
+
+    // Use draft groups if any, else fall back to published groups.
+    const activeGroups = useMemo(
+        () => page.draft_section_groups?.length ? page.draft_section_groups : (page.section_groups || []),
+        [page.draft_section_groups, page.section_groups]
+    );
+    const publishedGroupNames = useMemo(
+        () => new Set((page.section_groups || []).map(g => g.name).filter(Boolean)),
+        [page.section_groups]
+    );
+    const activeGroupNames = useMemo(
+        () => new Set(activeGroups.map(g => g.name).filter(Boolean)),
+        [activeGroups]
+    );
+    // IDs of sections that have been published (exist in page.sections).
+    const publishedSectionIds = useMemo(
+        () => new Set((page.sections || []).map(s => s?.id).filter(Boolean)),
+        [page.sections]
+    );
+
+    // Restore: add the deleted group back to draft_section_groups with default properties.
+    const restoreGroup = useCallback(async (groupName) => {
+        if (!apiUpdate || !page.id) return;
+        setProcessingGroup(groupName);
+        try {
+            const newGroup = { name: groupName, position: 'content', index: activeGroups.length };
+            await apiUpdate({
+                data: { id: page.id, draft_section_groups: [...activeGroups, newGroup] },
+                config: { format: { app, type: `${patternInstance}|page`, attributes: [] } },
+            });
+            await onRefresh?.();
+        } finally {
+            setProcessingGroup(null);
+        }
+    }, [apiUpdate, page.id, activeGroups, app, patternInstance, onRefresh]);
+
+    // Delete: remove sections from the page and delete their component rows from the DB.
+    const deleteGroup = useCallback(async (groupName, groupSections) => {
+        if (!apiUpdate || !page.id) return;
+        setProcessingGroup(groupName);
+        try {
+            const sectionIds = groupSections.map(s => s.id).filter(Boolean);
+
+            for (const id of sectionIds) {
+                await apiUpdate({
+                    data: { id },
+                    config: { format: { app, type: `${patternInstance}|component`, attributes: [] } },
+                    requestType: 'delete',
+                });
+            }
+
+            // Remove the deleted IDs from both sections arrays (stored as refs {id, ref}).
+            // Not passed as dms-format so updateDMSAttrs doesn't re-process them.
+            const idsToRemove = new Set(sectionIds.map(id => +id));
+            const filterRefs = refs => (refs || []).filter(ref => !idsToRemove.has(+ref?.id));
+            await apiUpdate({
+                data: { id: page.id, draft_sections: filterRefs(page.draft_sections), sections: filterRefs(page.sections) },
+                config: { format: { app, type: `${patternInstance}|page`, attributes: [] } },
+            });
+
+            await onRefresh?.();
+        } finally {
+            setProcessingGroup(null);
+        }
+    }, [apiUpdate, page.id, page.draft_sections, page.sections, app, patternInstance, onRefresh]);
+
+    const modeToggle = (
+        <div className="inline-flex bg-white border border-gray-200 rounded-full p-0.5">
+            <button
+                className={`border-none rounded-full px-2.5 py-0.5 text-[10px] uppercase tracking-wide cursor-pointer ${mode === 'outline' ? 'bg-gray-100 text-gray-800' : 'bg-transparent text-gray-400'}`}
+                onClick={() => setMode('outline')}
+            >Outline</button>
+            <button
+                className={`border-none rounded-full px-2.5 py-0.5 text-[10px] uppercase tracking-wide cursor-pointer ${mode === 'all' ? 'bg-gray-100 text-gray-800' : 'bg-transparent text-gray-400'}`}
+                onClick={() => setMode('all')}
+            >All</button>
+        </div>
+    );
+
+    const rowCtx = { viewUrl, setPreviewSection, t };
+
+    // No group data: render flat list (pages without section groups, or legacy).
+    if (!activeGroups.length) {
+        const shown = mode === 'outline' ? sections.filter(hasMeaningfulTitle) : sections;
+        return (
+            <div className={t.sectionsPanel}>
+                <div className={t.sectionsPanelInner}>
+                    <div className={t.sectionsMeta}>
+                        <span>Sections</span>
+                        <span className={t.sectionsMetaCount}>
+                            {sections.length}
+                            {titledCount > 0 && ` · ${titledCount} titled`}
+                            {emptyCount > 0 && <strong className="text-amber-600 ml-1"> · {emptyCount} empty</strong>}
+                        </span>
+                        {modeToggle}
+                        <div className="flex-1" />
+                        <button className={t.ghostBtn} onClick={editUrl && navigate ? () => navigate(editUrl) : undefined}>
+                            + New Section
+                        </button>
+                    </div>
+                    <div className={t.sectionsScroll}>
+                        {shown.map((s, i) => renderSectionRow(s, i, { ...rowCtx, isPublished: publishedSectionIds.has(s.id) }))}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // Group-based rendering.
+    // Sections whose group field doesn't match any active group are grouped by their
+    // deleted group name and shown with Restore / Delete controls.
+    const orphanedByGroup = {};
+    sections.forEach(s => {
+        const grp = s.group || 'default';
+        if (!activeGroupNames.has(grp)) {
+            if (!orphanedByGroup[grp]) orphanedByGroup[grp] = [];
+            orphanedByGroup[grp].push(s);
+        }
+    });
+    const orphanedGroupNames = Object.keys(orphanedByGroup);
 
     return (
         <div className={t.sectionsPanel}>
@@ -162,77 +337,99 @@ function SectionsPanel({ value: sections = [], page = {}, baseUrl = '', navigate
                         {titledCount > 0 && ` · ${titledCount} titled`}
                         {emptyCount > 0 && <strong className="text-amber-600 ml-1"> · {emptyCount} empty</strong>}
                     </span>
-                    <div className="inline-flex bg-white border border-gray-200 rounded-full p-0.5">
-                        <button
-                            className={`border-none rounded-full px-2.5 py-0.5 text-[10px] uppercase tracking-wide cursor-pointer ${mode === 'outline' ? 'bg-gray-100 text-gray-800' : 'bg-transparent text-gray-400'}`}
-                            onClick={() => setMode('outline')}
-                        >Outline</button>
-                        <button
-                            className={`border-none rounded-full px-2.5 py-0.5 text-[10px] uppercase tracking-wide cursor-pointer ${mode === 'all' ? 'bg-gray-100 text-gray-800' : 'bg-transparent text-gray-400'}`}
-                            onClick={() => setMode('all')}
-                        >All</button>
-                    </div>
+                    {modeToggle}
                     <div className="flex-1" />
-                    <button
-                        className={t.ghostBtn || 'text-[10px] border border-gray-200 rounded px-2 py-0.5 bg-white text-gray-500 cursor-pointer'}
-                        onClick={editUrl && navigate ? () => navigate(editUrl) : undefined}
-                        title={editUrl ? `Edit page: ${editUrl}` : 'No URL available'}
-                    >
+                    <button className={t.ghostBtn} onClick={editUrl && navigate ? () => navigate(editUrl) : undefined}>
                         + New Section
                     </button>
                 </div>
-                <div className={t.sectionsScroll}>
-                    {shown.map((s, i) => {
-                        const elementType = s.element?.['element-type'] || s['element-type'] || '';
-                        const typeKey = TYPE_BADGE_CLASS[elementType] || 'badgeLexical';
-                        const levelNum = s.level != null ? +s.level : null;
-                        const indent = '' //levelNum >= 3 ? 'pl-8' : levelNum >= 2 ? 'pl-4' : '';
-                        return (
-                            <div
-                                key={i}
-                                className={t.sectionRow}
-                                style={{ gridTemplateColumns: t.sectionRowCols || '1fr 90px 200px 80px 60px 60px' }}
-                            >
-                                <span className={`${indent} min-w-0 overflow-hidden`}>
-                                    <SectionLabel section={s} t={t} />
-                                </span>
-                                <span>
-                                    <span className={`${t.badgeBase} ${t[typeKey]}`}>
-                                        {elementType || 'Lexical'}
-                                    </span>
-                                </span>
-                                <span className="truncate">
-                                    {s._sourceName
-                                        ? <span className={t.srcLabel}>{s._sourceName}</span>
-                                        : <span className="text-gray-300 text-xs">—</span>}
-                                </span>
-                                <span>
-                                    {s._viewChip
-                                        ? <span className={s._viewChip.stale ? t.viewChipStale : s._viewChip.fresh ? t.viewChipFresh : t.viewChipOk}>
-                                            v{s._viewChip.view}{s._viewChip.fresh ? ' ✓' : ''}
-                                          </span>
-                                        : <span className="text-gray-300 text-xs">—</span>}
-                                </span>
-                                <span>
-                                    {levelNum != null
-                                        ? <span className={`${t.levelPill} ${levelNum === 0 ? t.levelHidden : t.levelHeading}`}>
-                                            {levelNum === 0 ? 'hidden' : `H${levelNum}`}
-                                          </span>
-                                        : <span className="text-gray-300 text-xs">—</span>}
-                                </span>
-                                <span className="flex justify-end">
-                                    <button
-                                        className={t.ghostBtn || 'text-[10px] border border-gray-200 rounded px-2 py-0.5 bg-white text-gray-500 cursor-pointer'}
-                                        onClick={setPreviewSection ? () => setPreviewSection({ ...s, _pageViewUrl: viewUrl }) : undefined}
-                                    >
-                                        Preview
-                                    </button>
+
+                {activeGroups.map(group => {
+                    const isDraftGroup = !publishedGroupNames.has(group.name);
+                    const groupSections = sections.filter(s =>
+                        s.group === group.name || (!s.group && group.name === 'default')
+                    );
+                    const shown = mode === 'outline' ? groupSections.filter(hasMeaningfulTitle) : groupSections;
+                    return (
+                        <div key={group.name} className={t.sectionGroupBlock}>
+                            <div className={isDraftGroup ? t.sectionGroupHeaderDraft : t.sectionGroupHeaderPublished}>
+                                <span>{group.name}</span>
+                                {group.position && (
+                                    <span className={t.sectionGroupPosition}>{group.position}</span>
+                                )}
+                                {/*{isDraftGroup*/}
+                                {/*    ? <span className={t.groupBadgeDraft}>draft</span>*/}
+                                {/*    : <span className={t.groupBadgePublished}>published</span>*/}
+                                {/*}*/}
+                                <span className={t.sectionGroupCount}>
+                                    {groupSections.length} section{groupSections.length !== 1 ? 's' : ''}
                                 </span>
                             </div>
-                        );
-                    })}
-                </div>
+                            {shown.length > 0
+                                ? shown.map((s, i) => renderSectionRow(s, i, { ...rowCtx, isPublished: publishedSectionIds.has(s.id) }))
+                                : <div className={t.sectionGroupEmpty}>No sections in this group</div>
+                            }
+                        </div>
+                    );
+                })}
+
+                {orphanedGroupNames.map(groupName => {
+                    const groupSections = orphanedByGroup[groupName];
+                    const shown = mode === 'outline' ? groupSections.filter(hasMeaningfulTitle) : groupSections;
+                    const isProcessing = processingGroup === groupName;
+                    return (
+                        <div key={`orphan-${groupName}`} className={t.sectionGroupBlock}>
+                            <div className={t.sectionGroupOrphanHeader}>
+                                <span>{groupName}</span>
+                                <span className={t.sectionGroupPosition}>group deleted</span>
+                                <div style={{ flex: 1 }} />
+                                <span className={t.sectionGroupCount}>
+                                    {groupSections.length} section{groupSections.length !== 1 ? 's' : ''}
+                                </span>
+                                {isProcessing
+                                    ? <span className={t.groupProcessing}>working…</span>
+                                    : <>
+                                        <button className={t.groupRestoreBtn} onClick={() => restoreGroup(groupName)}>Restore</button>
+                                        <button className={t.groupDeleteBtn} onClick={() => setConfirmDeleteGroup({ groupName, sections: groupSections })}>Delete</button>
+                                      </>
+                                }
+                            </div>
+                            {shown.map((s, i) => renderSectionRow(s, i, { ...rowCtx, isPublished: publishedSectionIds.has(s.id) }))}
+                        </div>
+                    );
+                })}
             </div>
+
+            {UI?.Modal && confirmDeleteGroup && (
+                <UI.Modal
+                    open={true}
+                    setOpen={(open) => { if (!open) setConfirmDeleteGroup(null); }}
+                >
+                    <div className={t.deleteModal}>
+                        <div className={t.deleteModalTitle}>Delete Group</div>
+                        <div className={t.deleteModalDesc}>
+                            Delete group <span className={t.deleteModalHighlight}>{confirmDeleteGroup.groupName}</span> and its{' '}
+                            <span className={t.deleteModalHighlight}>{confirmDeleteGroup.sections.length} section{confirmDeleteGroup.sections.length !== 1 ? 's' : ''}</span>?
+                        </div>
+                        <div className={t.deleteModalInfo}>
+                            This cannot be undone. The sections will be permanently removed from this page and deleted from the database.
+                        </div>
+                        <div className={t.deleteModalFooter}>
+                            <button className={t.deleteModalCancelBtn} onClick={() => setConfirmDeleteGroup(null)}>Cancel</button>
+                            <button
+                                className={t.deleteModalConfirmBtn}
+                                onClick={() => {
+                                    const { groupName, sections } = confirmDeleteGroup;
+                                    setConfirmDeleteGroup(null);
+                                    deleteGroup(groupName, sections);
+                                }}
+                            >
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                </UI.Modal>
+            )}
         </div>
     );
 }
@@ -729,8 +926,19 @@ export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate }) {
 
     // SectionsPanel bound to theme, page context, navigate, and preview
     const SectionsPanelComp = useCallback(({ value: sections, row: page }) => (
-        <SectionsPanel value={sections} page={page} baseUrl={value.base_url} navigate={navigate} setPreviewSection={setPreviewSection} t={t} />
-    ), [t, value.base_url, navigate, setPreviewSection]);
+        <SectionsPanel
+            value={sections}
+            page={page}
+            baseUrl={value.base_url}
+            navigate={navigate}
+            setPreviewSection={setPreviewSection}
+            apiUpdate={apiUpdate}
+            app={value.app}
+            patternInstance={patternInstance}
+            onRefresh={loadAll}
+            t={t}
+        />
+    ), [t, value.base_url, value.app, navigate, setPreviewSection, apiUpdate, patternInstance, loadAll]);
 
     // Page-level action buttons (Publish / Discard / Duplicate / Edit / Delete) in each row
     const PageActionsComp = useCallback(({ row: page }) => {
