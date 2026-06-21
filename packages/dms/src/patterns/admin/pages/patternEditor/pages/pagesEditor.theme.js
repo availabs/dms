@@ -17,7 +17,7 @@ export const pagesEditorTheme = {
     scopeSeg: 'inline-flex bg-gray-50 border border-gray-200 rounded-full p-0.5',
     scopeBtn: 'border-none bg-transparent rounded-full px-3 py-0.5 text-[11px] tracking-wide uppercase text-gray-400 cursor-pointer',
     scopeBtnActive: 'border-none bg-white rounded-full px-3 py-0.5 text-[11px] tracking-wide uppercase text-gray-800 shadow-sm cursor-pointer',
-    ghostBtn: 'text-[11px] font-semibold px-2.5 py-1 rounded border border-gray-200 bg-white text-gray-600 cursor-pointer hover:bg-gray-50 hover:border-gray-400',
+    ghostBtn: 'text-[11px] font-semibold px-2.5 py-1 rounded-full border border-gray-200 bg-white text-gray-600 cursor-pointer hover:bg-gray-50 hover:border-gray-400',
     addBtn: 'text-[11px] font-semibold px-3 py-1 rounded-full bg-gray-800 text-white cursor-pointer hover:bg-gray-700 border-none',
     tableWrap: 'flex-1 min-h-0 overflow-hidden',
     loadingWrap: 'flex items-center justify-center h-32 text-gray-400 text-sm',

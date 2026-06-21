@@ -186,14 +186,14 @@ function SectionsPanel({ value: sections = [], page = {}, baseUrl = '', navigate
                         const elementType = s.element?.['element-type'] || s['element-type'] || '';
                         const typeKey = TYPE_BADGE_CLASS[elementType] || 'badgeLexical';
                         const levelNum = s.level != null ? +s.level : null;
-                        const indent = levelNum >= 3 ? 'pl-8' : levelNum >= 2 ? 'pl-4' : '';
+                        const indent = '' //levelNum >= 3 ? 'pl-8' : levelNum >= 2 ? 'pl-4' : '';
                         return (
                             <div
                                 key={i}
                                 className={t.sectionRow}
                                 style={{ gridTemplateColumns: t.sectionRowCols || '1fr 90px 200px 80px 60px 60px' }}
                             >
-                                <span className={`${indent} min-w-0`}>
+                                <span className={`${indent} min-w-0 overflow-hidden`}>
                                     <SectionLabel section={s} t={t} />
                                 </span>
                                 <span>
@@ -220,14 +220,14 @@ function SectionsPanel({ value: sections = [], page = {}, baseUrl = '', navigate
                                           </span>
                                         : <span className="text-gray-300 text-xs">—</span>}
                                 </span>
-                                {/*<span className="flex justify-end">*/}
-                                {/*    <button*/}
-                                {/*        className={t.ghostBtn || 'text-[10px] border border-gray-200 rounded px-2 py-0.5 bg-white text-gray-500 cursor-pointer'}*/}
-                                {/*        onClick={setPreviewSection ? () => setPreviewSection({ ...s, _pageViewUrl: viewUrl }) : undefined}*/}
-                                {/*    >*/}
-                                {/*        Preview*/}
-                                {/*    </button>*/}
-                                {/*</span>*/}
+                                <span className="flex justify-end">
+                                    <button
+                                        className={t.ghostBtn || 'text-[10px] border border-gray-200 rounded px-2 py-0.5 bg-white text-gray-500 cursor-pointer'}
+                                        onClick={setPreviewSection ? () => setPreviewSection({ ...s, _pageViewUrl: viewUrl }) : undefined}
+                                    >
+                                        Preview
+                                    </button>
+                                </span>
                             </div>
                         );
                     })}
@@ -741,14 +741,14 @@ export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate }) {
 
         return (
             <div className={t.rowActions}>
-                {editUrl && (
-                    <button className={t.ghostBtn} onClick={() => navigate(editUrl)}>Edit</button>
-                )}
                 {hasChanges && (
                     <>
                         <button className={t.publishBtn} onClick={() => publishPage(page)}>Publish</button>
                         <button className={t.discardBtn} onClick={() => discardPage(page)}>Discard</button>
                     </>
+                )}
+                {editUrl && (
+                    <button className={t.ghostBtn} onClick={() => navigate(editUrl)}>Edit</button>
                 )}
                 <button className={t.ghostBtn} onClick={() => duplicatePage(page)}>Duplicate</button>
                 <button className={t.deleteBtn} onClick={() => setDeletingPage(page)}>Delete</button>
@@ -760,9 +760,9 @@ export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate }) {
         { name: 'title',           display_name: 'Page',      show: true, type: 'tree_node',     size: 360 },
         { name: '_publishState',   display_name: 'State',     show: true, type: 'publish_state', size: 110 },
         { name: '_updatedAt',      display_name: 'Updated At', show: true, type: 'text',           size: 110 },
-        { name: 'hide_in_nav',     display_name: 'In Nav',    show: true, type: 'switch',         size: 72,
+        { name: 'hide_in_nav',     display_name: 'In Nav',    show: true, type: 'switch',         size: 80,
           allowEditInView: true, trueValue: false },
-        { name: '_actions',        display_name: '',          show: true, type: 'ui',             size: 270,
+        { name: '_actions',        display_name: '',          show: true, type: 'ui',             size: 350,
           Comp: PageActionsComp },
         { name: '_sectionCount',   display_name: 'Sections',  show: true, type: 'sections_chip',  size: 90,
           openOutTrigger: true },
@@ -976,12 +976,12 @@ export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate }) {
                         <div className={t.previewFooter}>
                             {previewSection._pageViewUrl && (
                                 <a
-                                    href={previewSection._pageViewUrl}
+                                    href={`${previewSection._pageViewUrl}#${previewSection.id}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className={t.previewLink}
                                 >
-                                    View page ↗
+                                    View ↗
                                 </a>
                             )}
                             <button className={t.ghostBtn} onClick={() => setPreviewSection(null)}>
