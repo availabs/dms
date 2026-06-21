@@ -27,6 +27,8 @@ export function enrichSection(comp) {
     const _sourceName = sourceInfo.name || externalSource.name || null;
     const _sourceId = sourceInfo.source_id != null ? +sourceInfo.source_id : (externalSource.source_id != null ? +externalSource.source_id : null);
     const _viewId = sourceInfo.view_id != null ? +sourceInfo.view_id : (externalSource.view_id != null ? +externalSource.view_id : null);
+    // srcEnv: the UDA env key used to list sources for this source's pattern
+    const _srcEnv = sourceInfo.srcEnv || externalSource.srcEnv || null;
     const _viewChip = _viewId != null
         ? { view: _viewId, stale: false, fresh: false }
         : null;
@@ -52,5 +54,5 @@ export function enrichSection(comp) {
         }
     }
 
-    return { ...comp, _sourceName, _sourceId, _viewId, _viewChip, _summary };
+    return { ...comp, _sourceName, _sourceId, _viewId, _srcEnv, _viewChip, _summary };
 }

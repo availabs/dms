@@ -50,7 +50,7 @@ const sourcesTab = {
   component: SourcesTab
 }
 
-const PatternEditor = ({params, dataItems, item, format, attributes, apiUpdate, apiLoad, ...rest}) => {
+const PatternEditor = ({params, dataItems, item, format, attributes, apiUpdate, apiLoad, falcor, ...rest}) => {
   const { baseUrl, parentBaseUrl } = React.useContext(AdminContext);
   const { theme } = React.useContext(ThemeContext);
   const t = { ...patternEditorTheme, ...(theme?.admin?.patternEditor || {}) }
@@ -86,6 +86,7 @@ const PatternEditor = ({params, dataItems, item, format, attributes, apiUpdate, 
               attributes={attributes}
                 apiUpdate={apiUpdate}
                 apiLoad={apiLoad}
+                falcor={falcor}
             />
           </div>
       </div>

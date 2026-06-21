@@ -1,9 +1,12 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { get } from 'lodash-es';
 import { getInstance } from '../../../../../utils/type-utils';
 import { AdminContext } from '../../../context';
 import { enrichSection } from './pagesEditor.utils';
 import { pagesEditorTheme } from './pagesEditor.theme';
 import { sourcesTabTheme } from './sourcesTab.theme';
+
+const range = (start, end) => Array.from({ length: end + 1 - start }, (_, k) => k + start);
 
 function formatDate(iso) {
     if (!iso) return null;
@@ -12,84 +15,134 @@ function formatDate(iso) {
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-export function SourcesTab({ value, apiLoad }) {
-    const { dmsEnvById } = useContext(AdminContext) || {};
+// Mirror of getSources in DatasetsList/useDataSource — loads all sources for
+// each env key via ['uda', env, 'sources', 'byIndex', ...].
+// For DMS envs the server resolves sources through the pattern's dmsEnvId.
+async function getSources(falcor, envs) {
+    if (!Object.keys(envs).length) return [];
+    const lenRes = await falcor.get(['uda', Object.keys(envs), 'sources', 'length']);
+
+    const results = await Promise.all(
+        Object.keys(envs).map(async e => {
+            const len = get(lenRes, ['json', 'uda', e, 'sources', 'length']);
+            if (!len) return [];
+            const r = await falcor.get(['uda', e, 'sources', 'byIndex', { from: 0, to: len - 1 }, envs[e].srcAttributes]);
+            return range(0, len - 1).map(i => {
+                const source_id = get(r, ['json', 'uda', e, 'sources', 'byIndex', i, '$__path', 4]);
+                return {
+                    ...envs[e].srcAttributes.reduce((acc, a) => ({
+                        ...acc,
+                        [a]: get(r, ['json', 'uda', e, 'sources', 'byIndex', i, a]),
+                    }), {}),
+                    source_id,
+                    srcEnv: e,
+                    isDms: envs[e].isDms,
+                };
+            });
+        })
+    );
+    return results.flat();
+}
+
+export function SourcesTab({ value, apiLoad, falcor }) {
+    const { dmsEnvById, pgEnv } = useContext(AdminContext) || {};
 
     const patternInstance = useMemo(() => getInstance(value.type), [value.type]);
-    const dmsEnv = useMemo(() => dmsEnvById?.[value.dmsEnvId], [dmsEnvById, value.dmsEnvId]);
 
+    const [allSources, setAllSources] = useState([]);
     const [sections, setSections] = useState([]);
     const [loading, setLoading] = useState(true);
     const [statusFilter, setStatusFilter] = useState('');
+    const [originFilter, setOriginFilter] = useState('');
     const [search, setSearch] = useState('');
 
-    const loadSections = useCallback(async () => {
-        if (!apiLoad || !value.app || !patternInstance) return;
+    const loadAll = useCallback(async () => {
+        if (!falcor || !apiLoad || !value.app || !patternInstance) return;
         setLoading(true);
         try {
-            const items = await apiLoad({
+            // Load sections first — their sourceInfo.srcEnv carries the exact
+            // datasets-pattern env key the UDA server expects for internal sources.
+            // This is the same key DatasetsList derives from format.type.
+            const rawSections = await apiLoad({
                 format: { app: value.app, type: `${patternInstance}|component`, attributes: [] },
                 children: [{ action: 'list', path: '/*' }]
             }, '/').catch(() => []);
-            setSections((items || []).map(enrichSection));
+
+            const enrichedSections = (rawSections || []).map(enrichSection);
+            setSections(enrichedSections);
+
+            // Collect unique internal env keys from sections (contains '+').
+            // Fall back to page pattern instance if no sections have _srcEnv yet.
+            const internalEnvKeys = new Set(
+                enrichedSections.map(s => s._srcEnv).filter(e => e && e.includes('+'))
+            );
+            if (!internalEnvKeys.size) internalEnvKeys.add(`${value.app}+${patternInstance}`);
+
+            const envs = {};
+            for (const e of internalEnvKeys) {
+                envs[e] = { isDms: true, srcAttributes: ['name', 'type'] };
+            }
+            if (pgEnv) {
+                envs[pgEnv] = { isDms: false, srcAttributes: ['name', 'type'] };
+            }
+
+            const sources = await getSources(falcor, envs);
+            setAllSources(sources);
         } finally {
             setLoading(false);
         }
-    }, [apiLoad, value.app, patternInstance]);
+    }, [falcor, apiLoad, value.app, patternInstance, pgEnv]);
 
-    useEffect(() => { loadSections(); }, [loadSections]);
+    useEffect(() => { loadAll(); }, [loadAll]);
 
-    const envSourceIds = useMemo(() => {
-        return new Set((dmsEnv?.sources || []).map(s => s.id != null ? String(s.id) : null).filter(Boolean));
-    }, [dmsEnv]);
-
-    const { sourceRows, orphanedCount } = useMemo(() => {
-        const byName = {};
-
+    const sectionCountById = useMemo(() => {
+        const map = {};
         sections.forEach(s => {
-            const name = s._sourceName;
-            if (!name) return;
-            if (!byName[name]) {
-                byName[name] = {
-                    name,
-                    sectionCount: 0,
-                    viewIds: new Set(),
-                    sourceId: s._sourceId || null,
-                    updatedAt: s.updated_at || null,
-                };
-            }
-            byName[name].sectionCount++;
-            if (s._viewId != null) byName[name].viewIds.add(s._viewId);
-            if (!byName[name].sourceId && s._sourceId) byName[name].sourceId = s._sourceId;
-            if (s.updated_at && (!byName[name].updatedAt || s.updated_at > byName[name].updatedAt)) {
-                byName[name].updatedAt = s.updated_at;
-            }
+            if (s._sourceId == null) return;
+            map[s._sourceId] = (map[s._sourceId] || 0) + 1;
         });
+        return map;
+    }, [sections]);
 
-        const activeSourceIds = new Set(
-            Object.values(byName).map(r => r.sourceId).filter(Boolean).map(String)
-        );
-        const orphanCount = [...envSourceIds].filter(id => !activeSourceIds.has(String(id))).length;
+    const viewIdsBySourceId = useMemo(() => {
+        const map = {};
+        sections.forEach(s => {
+            if (s._sourceId == null || s._viewId == null) return;
+            if (!map[s._sourceId]) map[s._sourceId] = new Set();
+            map[s._sourceId].add(s._viewId);
+        });
+        return map;
+    }, [sections]);
 
-        const rows = Object.values(byName).map(r => ({
-            name: r.name,
-            sectionCount: r.sectionCount,
-            viewCount: r.viewIds.size,
-            viewIds: [...r.viewIds].sort((a, b) => b - a),
-            sourceId: r.sourceId,
-            updatedAt: formatDate(r.updatedAt),
-        })).sort((a, b) => b.sectionCount - a.sectionCount);
-
-        return { sourceRows: rows, orphanedCount: orphanCount };
-    }, [sections, envSourceIds]);
+    const sourceRows = useMemo(() => {
+        return allSources
+            .filter(s => s.name)
+            .map(s => {
+                const id = s.source_id != null ? +s.source_id : null;
+                const sectionCount = id != null ? (sectionCountById[id] || 0) : 0;
+                const viewCount = id != null ? (viewIdsBySourceId[id]?.size || 0) : 0;
+                return {
+                    name: s.name,
+                    sourceType: s.type || null,
+                    sourceId: id,
+                    isDms: s.isDms,
+                    sectionCount,
+                    viewCount,
+                    status: sectionCount > 0 ? 'active' : 'orphaned',
+                };
+            })
+            .sort((a, b) => b.sectionCount - a.sectionCount || (a.name || '').localeCompare(b.name || ''));
+    }, [allSources, sectionCountById, viewIdsBySourceId]);
 
     const filteredRows = useMemo(() => {
         return sourceRows.filter(row => {
-            if (statusFilter === 'orphaned') return false;
+            if (statusFilter && row.status !== statusFilter) return false;
+            if (originFilter === 'internal' && !row.isDms) return false;
+            if (originFilter === 'external' && row.isDms) return false;
             if (search && !row.name.toLowerCase().includes(search.toLowerCase())) return false;
             return true;
         });
-    }, [sourceRows, statusFilter, search]);
+    }, [sourceRows, statusFilter, originFilter, search]);
 
     const p = pagesEditorTheme;
     const s = sourcesTabTheme;
@@ -98,8 +151,10 @@ export function SourcesTab({ value, apiLoad }) {
         return <div className={p.loadingWrap}>Loading sources…</div>;
     }
 
-    const totalSections = sourceRows.reduce((a, r) => a + r.sectionCount, 0);
-    const showOrphanNote = orphanedCount > 0 && !statusFilter;
+    const activeCount = sourceRows.filter(r => r.status === 'active').length;
+    const orphanedCount = sourceRows.filter(r => r.status === 'orphaned').length;
+    const internalCount = sourceRows.filter(r => r.isDms).length;
+    const externalCount = sourceRows.filter(r => !r.isDms).length;
 
     return (
         <div className={p.wrapper}>
@@ -110,11 +165,22 @@ export function SourcesTab({ value, apiLoad }) {
                         value={statusFilter}
                         onChange={e => setStatusFilter(e.target.value)}
                     >
-                        <option value="">All status</option>
-                        <option value="active">Active ({sourceRows.length})</option>
-                        {orphanedCount > 0 && (
-                            <option value="orphaned" disabled>Orphaned ({orphanedCount}) — load in Datasets</option>
-                        )}
+                        <option value="">All status ({sourceRows.length})</option>
+                        <option value="active">Active ({activeCount})</option>
+                        <option value="orphaned">Orphaned ({orphanedCount})</option>
+                    </select>
+                    <span className={p.filterCaret}>▾</span>
+                </div>
+
+                <div className={p.filterWrap}>
+                    <select
+                        className={originFilter ? p.filterSelectActive : p.filterSelect}
+                        value={originFilter}
+                        onChange={e => setOriginFilter(e.target.value)}
+                    >
+                        <option value="">All origins ({sourceRows.length})</option>
+                        <option value="internal">Internal ({internalCount})</option>
+                        <option value="external">External ({externalCount})</option>
                     </select>
                     <span className={p.filterCaret}>▾</span>
                 </div>
@@ -133,34 +199,33 @@ export function SourcesTab({ value, apiLoad }) {
                 </div>
 
                 <div style={{ flex: 1 }} />
-
-                <button className={p.ghostBtn} onClick={loadSections}>Refresh</button>
+                <button className={p.ghostBtn} onClick={loadAll}>Refresh</button>
             </div>
 
-            {showOrphanNote && (
+            {orphanedCount > 0 && !statusFilter && (
                 <div className={s.orphanBanner}>
                     <span className={s.orphanBannerStrong}>
-                        ⚠ {orphanedCount} source{orphanedCount !== 1 ? 's' : ''} registered in this pattern's dmsEnv but not referenced by any section.
+                        ⚠ {orphanedCount} source{orphanedCount !== 1 ? 's' : ''} registered but not used by any section.
                     </span>
-                    <span className={s.orphanBannerNote}>Open the Datasets admin to review or delete orphaned sources.</span>
+                    <span className={s.orphanBannerNote}>Open the Datasets admin to review or delete them.</span>
                 </div>
             )}
 
             <div className={p.tableWrap} style={{ overflow: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
                     <colgroup>
-                        <col style={{ width: '220px' }} />
+                        <col style={{ width: '200px' }} />
+                        <col style={{ width: '90px' }} />
                         <col style={{ width: '110px' }} />
-                        <col style={{ width: '60px' }} />
-                        <col style={{ width: '130px' }} />
-                        <col style={{ width: '110px' }} />
+                        <col style={{ width: '55px' }} />
+                        <col style={{ width: '100px' }} />
                     </colgroup>
                     <thead>
                         <tr className={s.theadRow}>
                             <th className={s.th}>Name</th>
+                            <th className={s.th}>Origin</th>
                             <th className={s.th}>Used By</th>
                             <th className={s.th}>Views</th>
-                            <th className={s.th}>Last Updated</th>
                             <th className={s.th}>Status</th>
                         </tr>
                     </thead>
@@ -168,18 +233,24 @@ export function SourcesTab({ value, apiLoad }) {
                         {filteredRows.length === 0 ? (
                             <tr>
                                 <td colSpan={5} className={s.emptyCell}>
-                                    {search ? `No sources matching "${search}"` : 'No data sources found'}
+                                    {search ? `No sources matching "${search}"` : 'No sources found'}
                                 </td>
                             </tr>
                         ) : filteredRows.map(row => (
-                            <tr key={row.name} className={s.tbodyRow}>
+                            <tr key={`${row.isDms ? 'dms' : 'ext'}-${row.sourceId}`} className={row.status === 'orphaned' ? s.tbodyRowOrphaned : s.tbodyRow}>
                                 <td className={s.tdBase}>
                                     <span className={s.nameText}>{row.name}</span>
                                 </td>
                                 <td className={s.tdBase}>
-                                    <span className={s.usedByText}>
-                                        {row.sectionCount} section{row.sectionCount !== 1 ? 's' : ''}
+                                    <span className={row.isDms ? s.originDms : s.originExt}>
+                                        {row.isDms ? 'Internal' : 'External'}
                                     </span>
+                                </td>
+                                <td className={s.tdBase}>
+                                    {row.sectionCount > 0
+                                        ? <span className={s.usedByText}>{row.sectionCount} section{row.sectionCount !== 1 ? 's' : ''}</span>
+                                        : <span className={s.nullDash}>—</span>
+                                    }
                                 </td>
                                 <td className={s.tdBase}>
                                     {row.viewCount > 0
@@ -188,13 +259,10 @@ export function SourcesTab({ value, apiLoad }) {
                                     }
                                 </td>
                                 <td className={s.tdBase}>
-                                    {row.updatedAt
-                                        ? <span className={s.updatedAtText}>{row.updatedAt}</span>
-                                        : <span className={s.nullDash}>—</span>
+                                    {row.status === 'orphaned'
+                                        ? <span className={s.statusOrphaned}>Orphaned</span>
+                                        : <span className={s.statusActive}>Active</span>
                                     }
-                                </td>
-                                <td className={s.tdBase}>
-                                    <span className={s.statusActive}>Active</span>
                                 </td>
                             </tr>
                         ))}
@@ -203,9 +271,11 @@ export function SourcesTab({ value, apiLoad }) {
             </div>
 
             <div className={p.footer}>
-                {sourceRows.length} source{sourceRows.length !== 1 ? 's' : ''} · {totalSections} section bindings
-                {orphanedCount > 0 && ` · ${orphanedCount} orphaned in dmsEnv`}
-                {search && ` · ${filteredRows.length} matching`}
+                {sourceRows.length} source{sourceRows.length !== 1 ? 's' : ''}
+                {internalCount > 0 && ` · ${internalCount} internal`}
+                {externalCount > 0 && ` · ${externalCount} external`}
+                {orphanedCount > 0 && ` · ${orphanedCount} orphaned`}
+                {(search || statusFilter || originFilter) && ` · ${filteredRows.length} matching`}
             </div>
         </div>
     );
