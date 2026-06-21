@@ -2,6 +2,8 @@ import React from 'react'
 import { TreeNodeView } from './treeNode'
 import { PublishStateView } from './publishState'
 import { SectionsChipView } from './sectionsChip'
+import { LastPublishedView } from './last_published'
+import { ActivityActionBadgeView } from './activity_action_badge'
 import { TextEdit, TextView } from './text'
 import { TextareaEdit, TextareaView } from './textarea'
 import { BooleanEdit, BooleanView } from './boolean'
@@ -101,6 +103,8 @@ const columnTypes = {
   'tree_node': { ViewComp: TreeNodeView },
   'publish_state': { ViewComp: PublishStateView },
   'sections_chip': { ViewComp: SectionsChipView },
+  'last_published': { ViewComp: LastPublishedView },
+  'activity_action_badge': { ViewComp: ActivityActionBadgeView },
 	'default': text
 }
 

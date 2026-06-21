@@ -4,17 +4,20 @@
 
 A **Pages** tab inside the pattern editor (`/admin/manage/pattern/:id/pages`) that gives admins a full tree view of all pages in a pattern — publish state, nav visibility, section breakdown — with functional controls for adding pages, reordering, toggling nav visibility, and page-level actions.
 
-## Status
+## Status — updated 2026-06-21
 
 **Infrastructure + data loading: DONE**
 **Tree rendering, drag-to-reorder, lenses, search: DONE**
 **Sections panel (openOut): DONE**
+**Section groups rendering (grouped + draft/published badges): DONE**
+**Orphaned group controls (Restore/Delete with modal confirmation): DONE**
+**Draft/Published mode filters in SectionsPanel: DONE**
 **Page actions (Publish / Discard / Duplicate / Edit): DONE**
-**In-nav toggle: DONE (wired, needs live verification)**
+**In-nav toggle: DONE (live verified)**
 **Add Page (with url_slug + navigate): DONE**
-**Sections panel page row duplication fix: DONE (ThemeContext.Provider wrapping Table)**
-**Preview modal: pending (section metadata panel only; iframe upgrade deferred)**
-**Site health lenses (Dupe Slugs + Stale Drafts): DONE**
+**Site health lenses (Empty / Orphans / Dupe Slugs / Stale Drafts / Off Nav / To Publish): DONE — all 6 in the lens bar, supersedes the separate site-health-audit task**
+**Internal sources count bug fix in SourcesTab: DONE**
+**Preview modal: pending (section metadata panel only; component-render upgrade deferred)**
 
 ---
 
@@ -73,13 +76,40 @@ A **Pages** tab inside the pattern editor (`/admin/manage/pattern/:id/pages`) th
 
 ---
 
+## Work Added (sessions 2026-06-20 / 2026-06-21)
+
+### Internal sources count fix (sourcesTab.jsx)
+
+`SourcesTab` was loading internal sources using the page-pattern instance as the UDA env key, but the server only resolves sources via a datasets-pattern's `dmsEnvId`. Fix: load sections first, extract `_srcEnv` (set by `enrichSection` from `sourceInfo.srcEnv`) from each enriched section, use those as the internal env keys for `getSources`. Falls back to `{app}+{patternInstance}` if no sections have `_srcEnv` yet.
+
+### Section groups in SectionsPanel
+
+Sections are now rendered grouped by their section group (`page.draft_section_groups` / `page.section_groups`). Each group header shows draft/published badge. Each section row shows draft/published badge. Group membership uses `v.group === group.name || (!v.group && group.name === 'default')` (same as `sectionArray.jsx`).
+
+### Orphaned section groups
+
+Sections whose `group` field doesn't match any active group are collected under "orphaned" group headers (one per orphaned group name). Each orphaned header has:
+- **Restore**: adds the group back to `draft_section_groups` via `apiUpdate`
+- **Delete**: opens a `UI.Modal` confirmation, then deletes component rows via `requestType: 'delete'`, then filters both `draft_sections` and `sections` refs on the page
+
+### Draft / Published mode filters
+
+The SectionsPanel mode toggle now has four buttons: **All** / **Outline** / **Draft** / **Published**.
+
+- **Draft**: resolves `page.draft_sections` refs through `compById`, uses `page.draft_section_groups` (or fallback to `section_groups`)
+- **Published**: resolves `page.sections` refs through `compById`, uses `page.section_groups` only
+- **All**: pre-resolved active sections (draft-preferring) — unchanged behavior
+- **Outline**: same as All, filtered to `hasMeaningfulTitle`
+
+`compById` is passed from `PatternPagesEditor` → `SectionsPanelComp` → `SectionsPanel`. Per-section pub/draft badge is mode-aware: 'published' mode → always "published", 'draft' mode → always "draft", 'all'/'outline' → ID-based check against `publishedSectionIds`.
+
+No `hideSectionCondition` filtering applied (admin panel shows all sections regardless of `hideSection`/`hideInView` flags that sectionArray.jsx uses in View mode).
+
+---
+
 ## Pending Work
 
-### 1. Live verification of in-nav toggle
-
-The switch mechanism should work (TableCell:168 `allowEdit = allowEditComp || attribute.allowEditInView`), but hasn't been verified on a real site. Test: toggle a page's nav visibility and confirm `apiUpdate` fires and the change persists on reload.
-
-### 2. Section preview — render actual component
+### 1. Section preview — render actual component
 
 The Preview button currently shows a metadata panel (source, view, lexical text excerpt, columns). The intended behavior is to render the actual section component using `ComponentRegistry[elementType].ViewComp` mounted inside a `ComponentContext.Provider` with `state` = parsed element-data.
 

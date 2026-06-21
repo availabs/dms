@@ -11,14 +11,15 @@ import { json2DmsForm, getUrlSlug, toSnakeCase, parseJSON } from '../_utils'
  */
 export function appendHistoryEntry(existingHistory, action, user) {
   const entry = { action, user: user?.email, time: new Date().toString() }
-  const entries = Array.isArray(existingHistory?.entries)
-    ? [...existingHistory.entries, entry]
-    : [entry]
-  // Include id if editing an existing page-edit row
-  if (existingHistory?.id) {
-    return { id: existingHistory.id, entries }
+  const existingEntries = Array.isArray(existingHistory?.entries) ? existingHistory.entries : [];
+  const entries = [...existingEntries, entry];
+  // Only reuse existing row ID when entries are present — proof the DB row actually exists.
+  // If id is set but entries is missing, the row is likely orphaned; create a fresh one so
+  // updateDMSAttrs doesn't silently edit a non-existent row.
+  if (existingHistory?.id && existingEntries.length > 0) {
+    return { id: existingHistory.id, entries, _dirty: true }
   }
-  return { entries }
+  return { entries, _dirty: true }
 }
 
 

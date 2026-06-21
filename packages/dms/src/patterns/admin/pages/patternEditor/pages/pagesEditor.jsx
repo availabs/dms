@@ -6,7 +6,7 @@ import { getInstance } from '../../../../../utils/type-utils';
 import Table from '../../../../../ui/components/table';
 import { tableTheme } from '../../../../../ui/components/table/table.theme';
 import { pagesEditorTheme } from './pagesEditor.theme';
-import { enrichSection } from './pagesEditor.utils';
+import { enrichSection, loadPageHistory } from './pagesEditor.utils';
 import { AdminContext } from '../../../context';
 import { appendHistoryEntry } from '../../../../page/pages/edit/editFunctions';
 
@@ -560,7 +560,7 @@ function buildFlatTree({ pages, byId, expandedIds, sectionsByPageId, lens, searc
 
 // ─── PatternPagesEditor ───────────────────────────────────────────────────────
 
-export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate }) {
+export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate, falcor }) {
     const navigate = useNavigate();
     const { UI, theme: themeFromContext = {} } = useContext(ThemeContext) || {};
     const { user } = useContext(AdminContext) || {};
@@ -628,10 +628,17 @@ export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate }) {
             (componentItems || []).forEach(comp => { compByIdMap[String(comp.id)] = comp; });
             setCompById(compByIdMap);
 
-            const enrichedPages = (pageItems || []).map(p => ({
-                ...p,
-                _updatedAt: formatUpdatedAt(p.updated_at),
-            }));
+            const historyByPageId = await loadPageHistory(pageItems, falcor);
+
+            const enrichedPages = (pageItems || []).map(p => {
+                const hist = historyByPageId[String(p.id)];
+                return {
+                    ...p,
+                    _updatedAt: formatUpdatedAt(p.updated_at),
+                    _lastPublished: hist?.lastPublished ?? null,
+                    _lastPublishedBy: hist?.lastPublishedBy ?? null,
+                };
+            });
             setPages(enrichedPages);
 
             // Use draft_sections if available, fall back to published sections.
@@ -1002,12 +1009,13 @@ export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate }) {
     }, [t, value.base_url, navigate, publishPage, discardPage, duplicatePage, setDeletingPage]);
 
     const columns = useMemo(() => [
-        { name: 'title',           display_name: 'Page',      show: true, type: 'tree_node',     size: 360 },
-        { name: '_publishState',   display_name: 'State',     show: true, type: 'publish_state', size: 110 },
-        { name: '_updatedAt',      display_name: 'Updated At', show: true, type: 'text',           size: 110 },
+        { name: 'title',           display_name: 'Page',           show: true, type: 'tree_node',      size: 360 },
+        { name: '_publishState',   display_name: 'State',          show: true, type: 'publish_state',  size: 110 },
+        { name: '_lastPublished',  display_name: 'Last Published', show: true, type: 'last_published',  size: 120 },
+        { name: '_updatedAt',      display_name: 'Modified',       show: true, type: 'text',            size: 100 },
         { name: 'hide_in_nav',     display_name: 'In Nav',    show: true, type: 'switch',         size: 80,
           allowEditInView: true, trueValue: false },
-        { name: '_actions',        display_name: '',          show: true, type: 'ui',             size: 350,
+        { name: '_actions',        display_name: 'Actions',          show: true, type: 'ui',             size: 350,
           Comp: PageActionsComp },
         { name: '_sectionCount',   display_name: 'Sections',  show: true, type: 'sections_chip',  size: 90,
           openOutTrigger: true },
