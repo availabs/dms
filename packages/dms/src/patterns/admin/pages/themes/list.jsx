@@ -5,6 +5,7 @@ import { Link, useLocation } from 'react-router'
 import { cloneDeep } from 'lodash-es';
 import { nameToSlug } from '../../../../utils/type-utils';
 import { themeListTheme } from './list.theme';
+import { isUserAuthed } from '../../utils';
 
 function ThemeList ({
    item={},
@@ -16,15 +17,21 @@ function ThemeList ({
 }) {
 	// themes is an array of {name, theme, id}
 	const location = useLocation()
-	const { baseUrl, authPath, user, } = React.useContext(AdminContext) || {};
+	const { baseUrl, authPath, app, user, authPermissions } = React.useContext(AdminContext) || {};
   const { UI, theme } = React.useContext(ThemeContext) || {};
   const t = { ...themeListTheme, ...(theme?.admin?.themeList || {}) }
+
 	const [addingNew, setAddingNew] = useState(false);
 	const [newItem, setNewItem] = useState({});
 	const [editingItem, setEditingItem] = useState();
 	const [search, setSearch] = useState('');
 	const gridRef = useRef(null);
 	const {Modal, Input, Button, Table, Icon} = UI;
+
+  const isAdmin = (user?.groups || []).some(g => g === `${app} Admin`);
+  if (!isAdmin && !isUserAuthed(user, authPermissions)) {
+    return <div className={t.noAccess || 'flex items-center justify-center h-48 text-sm text-gray-400'}>You do not have permission to manage themes.</div>;
+  }
 
 
 	const attrToAddNew = ['name', 'theme'];

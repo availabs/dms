@@ -1036,7 +1036,7 @@ export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate, falcor }) {
     }, [t, UI, value.base_url, navigate, publishPage, discardPage, duplicatePage, setDeletingPage]);
 
     const columns = useMemo(() => [
-        { name: 'title',           display_name: 'Page',           show: true, type: 'tree_node',      size: 360 },
+        { name: 'title',           display_name: 'Page',           show: true, type: 'tree_node'},
         { name: '_publishState',   display_name: 'State',          show: true, type: 'publish_state',  size: 110 },
         { name: '_lastPublished',  display_name: 'Last Published', show: true, type: 'last_published',  size: 120 },
         { name: '_updatedAt',      display_name: 'Modified',       show: true, type: 'text',            size: 100 },
@@ -1044,7 +1044,7 @@ export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate, falcor }) {
           allowEditInView: true, trueValue: false },
         { name: '_sectionCount',   display_name: 'Sections',  show: true, type: 'sections_chip',  size: 90,
           openOutTrigger: true },
-        { name: '_actions',        display_name: 'Actions',                 show: true, type: 'ui',             size: 40,
+        { name: '_actions',        display_name: ' ',                 show: true, type: 'ui',             size: 40,
             Comp: PageActionsComp },
         { name: '_sections',       display_name: 'Sections',  show: true, type: 'ui',
           Comp: SectionsPanelComp, openOut: true },
@@ -1118,32 +1118,26 @@ export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate, falcor }) {
 
                 {scope === 'sections' && (
                     <>
-                        <div className={t.filterWrap}>
-                            <select
-                                className={typeFilter ? t.filterSelectActive : t.filterSelect}
+                        <div className="w-36">
+                            <UI.Select
                                 value={typeFilter}
-                                onChange={e => setTypeFilter(e.target.value)}
-                            >
-                                <option value="">All types</option>
-                                {sectionFilterOptions.types.map(type => (
-                                    <option key={type} value={type}>{type}</option>
-                                ))}
-                            </select>
-                            <span className={t.filterCaret}>▾</span>
+                                onChange={val => setTypeFilter(val ?? '')}
+                                placeholder="All types"
+                                options={sectionFilterOptions.types.map(type => ({ label: type, value: type }))}
+                                allowDeselect
+                            />
                         </div>
-                        <div className={t.filterWrap}>
-                            <select
-                                className={srcFilter ? t.filterSelectActive : t.filterSelect}
+                        <div className="w-52">
+                            <UI.Select
                                 value={srcFilter}
-                                onChange={e => setSrcFilter(e.target.value)}
-                            >
-                                <option value="">All sections</option>
-                                <option value="__any__">Any data source ({sectionFilterOptions.anySourceCount})</option>
-                                {sectionFilterOptions.sources.map(([name, count]) => (
-                                    <option key={name} value={name}>{name} ({count})</option>
-                                ))}
-                            </select>
-                            <span className={t.filterCaret}>▾</span>
+                                onChange={val => setSrcFilter(val ?? '')}
+                                placeholder="All sections"
+                                options={[
+                                    { label: `Any data source (${sectionFilterOptions.anySourceCount})`, value: '__any__' },
+                                    ...sectionFilterOptions.sources.map(([name, count]) => ({ label: `${name} (${count})`, value: name })),
+                                ]}
+                                allowDeselect
+                            />
                         </div>
                     </>
                 )}

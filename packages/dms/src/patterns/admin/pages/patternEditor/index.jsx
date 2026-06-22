@@ -3,6 +3,7 @@ import {Link} from 'react-router'
 import {AdminContext} from "../../context";
 import { ThemeContext } from '../../../../ui/useTheme';
 import { patternEditorTheme } from './patternEditor.theme'
+import { isUserAuthed } from '../../utils';
 
 import { PatternSettingsEditor } from "./default/settings";
 import { PatternThemeEditor } from "./default/themeEditor";
@@ -58,11 +59,17 @@ const activityTab = {
 }
 
 const PatternEditor = ({params, dataItems, item, format, attributes, apiUpdate, apiLoad, falcor, ...rest}) => {
-  const { baseUrl, parentBaseUrl } = React.useContext(AdminContext);
+  const { baseUrl, parentBaseUrl, app, user, authPermissions } = React.useContext(AdminContext);
   const { theme } = React.useContext(ThemeContext);
   const t = { ...patternEditorTheme, ...(theme?.admin?.patternEditor || {}) }
   const [tmpItem, setTmpItem] = React.useState(item);
   const {id, page='overview'} = params;
+
+  const isAdmin = (user?.groups || []).some(g => g === `${app} Admin`);
+  const hasAccess = isAdmin || isUserAuthed(user, authPermissions);
+  if (!hasAccess) {
+    return <div className={t.noAccess}>You do not have permission to manage this pattern.</div>;
+  }
 
   console.log('patternEditor index -item', item, dataItems)
 
