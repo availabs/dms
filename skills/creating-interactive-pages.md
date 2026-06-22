@@ -158,6 +158,45 @@ search param it writes:
 
 (Live: section **2173917** on page 2173915 is exactly this — the Year selector.)
 
+### Cascading / dependent controls (RenderFilters keys off `state.columns`, not `filters.groups`)
+
+The simple shape above renders, but for **dependent** pickers (a Corridor list narrowed
+by County; a Direction list narrowed by Corridor) you must know: **RenderFilters derives
+rendering, option-narrowing AND reactivity entirely from `state.columns[].filters`** — leaves
+placed only in `filters.groups` are ignored for the option list. So author the control as columns:
+
+```jsonc
+{ "externalSource": { /* source */ },
+  "columns": [
+    // the rendered dropdown — external filter; label = customName
+    { "name": "road", "customName": "Corridor", "show": true,
+      "optionOrderBy": { "sum(aadt)": "desc" },           // ← order options by an aggregate (busiest first), not A-Z
+      "filters": [{ "type": "external", "operation": "filter", "values": ["I-495"],
+                    "usePageFilters": true, "searchParamKey": "road" }] },
+    // narrowing/scoping columns — INTERNAL filters: they scope the option list + drive reactivity
+    // (reload when their value changes) but render NO dropdown. searchParamKey ones sync from page vars.
+    { "name": "county",   "show": false, "filters": [{ "type": "internal", "operation": "filter", "values": [], "usePageFilters": true, "searchParamKey": "county" }] },
+    { "name": "f_system", "show": false, "filters": [{ "type": "internal", "operation": "filter", "values": ["1","2","3"] }] }
+  ],
+  "filters": { "op": "AND", "groups": [] },
+  "display": { "filterStyle": "chip", "placement": "inline", "autoSelectFirstWhenInvalid": true } }
+```
+
+Two **opt-in** knobs added for cascading controls (both default-off → BC-safe):
+- **`display.autoSelectFirstWhenInvalid`** — when a parent changes and this control's reloaded
+  options no longer contain its selected value (e.g. switch to a N/S road while `direction=WESTBOUND`
+  → empty viz), it auto-corrects the page var to the **first valid option** (via `updatePageStateFilters`).
+- **`column.optionOrderBy`** (e.g. `{ "sum(aadt)": "desc" }`) — order the option list by an aggregate
+  instead of the default alphabetical sort.
+
+Implemented in `…/dataWrapper/components/filters/RenderFilters.jsx` + `filters/utils.js`. Worked
+example: the TSMO Corridor View picker (County · Corridor · Direction) —
+`scratchpad/npmrdsv5-tsmo2/build_tsmo_corridor_view.mjs` (`filterControl()`).
+
+**Gotcha:** a Filter column's `name` is used as its own SQL **alias**, so a filter column must be a
+**real column**, never an expression (`road || direction`, `concat(...)`) → "Syntax error". Split
+composite keys into separate real-column controls.
+
 ## Step 2 — make sections react (consume the variable)
 
 On each data section that should respond, add a filter leaf for the same column

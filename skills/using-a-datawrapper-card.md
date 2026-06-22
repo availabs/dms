@@ -149,7 +149,18 @@ Three details that trip up new authors:
 3. **`externalSource.columns` is the full source schema** (every
    column available to select), while the top-level `columns` is
    the *selected* projection with per-cell layout. Don't conflate
-   them.
+   them. An **empty** `externalSource.columns` → the renderer can't
+   resolve field names → **blank card**; copy the real source schema.
+4. **A column's `name` is a raw SQL expression — two silent NULL-ers.**
+   (a) **`round(double precision, int)` does not exist in Postgres** —
+   only `round(numeric, int)`. Any double-producing expression
+   (`percentile_cont(...)`, `… / 1e6`, `… / 1440.0`, divisions) must be
+   cast **`::numeric` before `round(...,n)`**, e.g.
+   `round((percentile_cont(0.5) within group (order by x))::numeric/1440.0, 1)`.
+   An un-cast `round(double,int)` errors and the whole row comes back
+   as an error object. (b) **A `;` inside a SQL string literal silently
+   NULLs the cell** — write `'a · b'`, never `'a; b'`, in a calculated
+   column's literal text.
 
 Field-by-field reference: the
 [schema.js header doc](../packages/dms/src/patterns/page/components/sections/components/dataWrapper/schema.js).
@@ -444,6 +455,17 @@ populate `element-data.data` with the query's current rows (keyed by
 runs each card's own SQL against the source pgEnv, writes rows + mode back).
 Bonus: seeded `smart` cards paint instantly even when their query is slow —
 the fetch cost is only paid when a user actually changes a param.
+
+**Seeding also fixes the cold-load same-view race.** When many sections on one
+page bind the **same view** and all fire their first (cold, uncached) fetch
+simultaneously, the concurrent requests contend and invalidate each other's
+dedup keys → sections render **blank-until-warm** on first paint, inconsistently.
+Pre-seeding `element-data.data` (so each card already has rows) means there's no
+cold fetch on load — the page paints deterministically, and `smart` still
+refetches when a filter actually changes. For a data-dense page (a dozen+ cards
+on the same view), treat seeding as **required**, not an optimization. Pair the
+build script with a seed script that runs each card's own query at the default
+page-filter values and writes the rows back (keyed by `normalName || name`).
 
 ---
 

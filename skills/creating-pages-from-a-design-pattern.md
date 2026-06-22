@@ -511,6 +511,17 @@ dms page update <page-id> --data '{"draft_sections":[
 preserves every other page key. (Group/band order is separate — that's
 `index`/`position` on `draft_section_groups`, §4.2.)
 
+> ⚠️ **Write `draft_sections` (and `draft_section_groups`) with `page update
+> --data`, NEVER `--set`.** `--set` does a lodash deep-merge, which merges
+> **arrays by index** rather than replacing them — so re-running a build script
+> *accumulates* entries (duplicate or stale section refs) instead of replacing
+> the list. Duplicate refs → duplicate React keys → the page churns/re-renders →
+> a section's UDA data request is invalidated before it resolves → **the cards
+> render blank**. This presents *identically* to a data-binding failure and is
+> brutal to diagnose. `--data` replaces the whole array cleanly while preserving
+> the page's other keys. Idempotent builders should always full-replace
+> `draft_sections` (clear → create sections → write the new id list with `--data`).
+
 **Removing a section's rendered title.** A section renders its `title` as
 a heading above the component (`section.jsx` `showHeader`). To drop that
 heading — e.g. to convert a bare data Spreadsheet into a mockup-faithful
@@ -521,6 +532,15 @@ their own `lexical` sections (§5.6.6) ordered around it via the reorder
 above. This "clear title + frame with lexicals" pattern is how the
 MAP-21 §04/§05 data tables got their `// 04 · Regional` kicker + question
 heading + scoring footnote without baking chrome into the table.
+
+**Removing a section: `section delete` is broken — orphan it instead.**
+`dms section delete <id>` currently 500s server-side (`change_log.app`
+not-null). You don't need it: a section renders **only** because its id is in
+the page's `draft_sections`, so to remove one, **drop its id from
+`draft_sections`** (full-replace with `--data`, as above). The orphaned row
+stays in the DB but no longer renders — harmless for a draft dev page. This is
+also how idempotent builders "wipe": clear `draft_sections` to `[]`, then
+recreate. (Don't try to clean up the orphans; there's no working delete.)
 
 ### 5.3 Common element types
 
@@ -838,6 +858,61 @@ This is the "enrich the platform" move from
 one new token in the theme, every future page benefits. The
 alternative (a custom React component for the eyebrow) would lock
 the treatment behind code.
+
+### 5.6.6b Compound band headers — the FLAT shadow-root rule (get it right on the first pass)
+
+Most dashboard pages open each band with a **compound numbered header**: a gold
+`// 0N` kicker eyebrow ROW (kicker | descriptor | optional right-aligned link)
+stacked **above** a `displaySM`-sized title and a `proseSM` subtitle. The correct
+structure is **flat** — one `layout-container` holding the eyebrow's column items,
+then the title and subtitle as **root siblings** of that container (NOT inside it):
+
+```js
+function numberedHeader(num, descriptor, heading, prose, link) {
+  const cols = link ? 'items-center grid-cols-[auto_1fr_auto] gap-x-3'
+                    : 'items-center grid-cols-[auto_1fr] gap-x-2';
+  const items = [litem(styled('kicker', `// ${num}`)), litem(styled('metaSM', descriptor))];
+  if (link) items.push(litem(para(button(link.text, link.path))));
+  const kids = [lcontainer(cols, ...items), styled('displaySM', heading)]; // ← container + title are SIBLINGS
+  if (prose) kids.push(styled('proseSM', prose));
+  return lexEl(...kids);
+}
+```
+
+**The trap (why this fails on the first pass, every time):** both
+`LayoutContainerNode` and `LayoutItemNode` return `isShadowRoot() → true`. If you
+**nest** a container inside an item (e.g. an eyebrow row *inside* a column of an
+outer container), Lexical's normalization hoists/mangles the nested shadow root at
+**render time** — the header paints empty or scrambled, even though the JSON
+serialized fine and the build logged success. The bug is invisible until you look at
+the live page. Keep the nesting depth at exactly one: **one container, whose items
+are leaf `styled(...)`/`para(...)` nodes** — never a container within an item.
+
+The common first-pass mistakes (all observed, all required a redo): kicker placed to
+the *right* of the title instead of above it; `head('h2')` (28px) instead of
+`styled('displaySM')` (the 22px house band-title); and the nested-shadow-root form
+above. Match the verified house convention: **eyebrow row → `displaySM` title →
+`proseSM`**, flat.
+
+**Don't re-derive this per build — share it.** This header recipe was rebuilt from
+scratch on every dashboard and got it wrong on the first pass each time, because the
+corrected helper lived only in one page's build script. Extract `numberedHeader` (and
+the `styled`/`litem`/`lcontainer`/`lexEl` primitives, plus any `graphHeader`/footer
+helpers) into a **shared module that every page builder imports** — identical code
+yields identical, correct output, and the fix lands once for all future pages. A cheap
+offline guard catches a regression before it reaches the page:
+
+```js
+// throw if any layout-container sits inside another shadow root (the render-time trap)
+function assertFlatHeader(el) {
+  const SHADOW = new Set(['layout-container', 'layout-item']);
+  (function walk(n, underShadow) {
+    if (n.type === 'layout-container' && underShadow)
+      throw new Error('nested layout-container inside a shadow root — Lexical will mangle it');
+    for (const c of (n.children || [])) walk(c, underShadow || SHADOW.has(n.type));
+  })(JSON.parse(JSON.stringify(el)).text.root, false);
+}
+```
 
 ### 5.6.7 Narrower-than-full intro sections (the "measure" pattern)
 

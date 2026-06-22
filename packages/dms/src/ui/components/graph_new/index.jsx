@@ -89,6 +89,17 @@ export default function Graph (props) {
     }
   }, [setActionParam, clearActionParam, hoverProvider]);
 
+  // click_publish: a cell click writes its value to the provider's page var (e.g. click a day on a
+  // month strip → set `date`). Mirrors hover_publish but is sticky (no clear-on-leave).
+  const clickProvider = React.useMemo(() => {
+    return display?._functions?.providers.find(p => p.functionId === 'click_publish' && p.enabled);
+  }, [display]);
+
+  const publishClickData = React.useCallback(action => {
+    if (!clickProvider || !action) return;
+    setActionParam(clickProvider.paramKey, action.value);
+  }, [setActionParam, clickProvider]);
+
   const keyedColumns = React.useMemo(() => {
     return columns.map(c => ({ ...c, key: c.normalName || c.name }));
   }, [columns]);
@@ -102,6 +113,8 @@ export default function Graph (props) {
         theme={ theme }
         actions={ useGetActions(pageState, display) }
         publishHoverData={ publishHoverData }
-        hoverProvider={ hoverProvider }/>
+        hoverProvider={ hoverProvider }
+        publishClickData={ publishClickData }
+        clickProvider={ clickProvider }/>
   )
 }

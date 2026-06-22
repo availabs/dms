@@ -27,7 +27,9 @@ const dataBarDefault = {
 };
 
 const clampPct = (n) => Math.max(0, Math.min(100, n));
-const num = (x) => parseFloat(x?.value ?? x);
+// Strip thousands separators before parsing: a column with formatFn:'comma' hands us
+// "31,677", and bare parseFloat stops at the comma (→ 31), collapsing the bar scale.
+const num = (x) => parseFloat(String(x?.value ?? x ?? "").replace(/,/g, ""));
 
 export const DataBarView = ({ value, row, barMin = 0, barMax, barMaxColumn, barColorKey = "primary", barColorColumn, barShowValue, barUnit = "" }) => {
   const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};

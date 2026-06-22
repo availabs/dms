@@ -61,7 +61,9 @@ export const GraphComponent = props => {
     theme,
     actions = [],
     publishHoverData = noOp,
-    hoverProvider = null
+    hoverProvider = null,
+    publishClickData = noOp,
+    clickProvider = null
   } = props;
 
   const GraphComponent = React.useMemo(() => {
@@ -189,7 +191,9 @@ export const GraphComponent = props => {
 
         actions={ actions }
         publishHoverData={ publishHoverData }
-        hoverProvider={ hoverProvider }/>
+        hoverProvider={ hoverProvider }
+        publishClickData={ publishClickData }
+        clickProvider={ clickProvider }/>
 
     </div>
   )

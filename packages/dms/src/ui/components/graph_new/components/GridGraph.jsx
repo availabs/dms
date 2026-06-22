@@ -33,11 +33,17 @@ const GridGraphWrapper = props => {
     return props.colors?.reverse ? colors.reverse() : colors;
   }, [props.colors]);
 
-  const [xColumn, yColumn, colorColumns] = React.useMemo(() => {
+  const [xColumn, yColumn, colorColumns, widthColumn, heightColumn] = React.useMemo(() => {
     return [
       props.columns.find(c => c.target === "xAxis"),
       props.columns.find(c => c.target === "yAxis"),
-      props.columns.filter(c => c.target === "color")
+      props.columns.filter(c => c.target === "color"),
+      // optional: a column whose (per-xAxis-key) value sizes the grid COLUMN width
+      // (e.g. TMC length on a space-time grid) — fed to the avl GridGraph's keyWidths.
+      props.columns.find(c => c.target === "width" || c.target === "size"),
+      // optional: a column whose (per-yAxis-row) value sizes the grid ROW height
+      // (e.g. TMC miles on a space-time grid) — set as each row's `height` (avl GridGraph hScale).
+      props.columns.find(c => c.target === "height")
     ]
   }, [props.columns]);
 
@@ -63,6 +69,13 @@ const GridGraphWrapper = props => {
         if (index === undefined) continue;
 
         const grid = { index };
+
+        // per-row height (e.g. ∝ TMC miles): constant per yAxis row, read off any row in the group →
+        // becomes the row's `height` which the avl GridGraph scales via hScale. Uniform (1) if absent.
+        if (heightColumn) {
+          const sample = iGroup?.[0]?.[1]?.[0];
+          grid.height = Math.max(0.0001, +(sample?.[heightColumn.key]) || 1);
+        }
 
         for (const [key, kGroup] of iGroup) {
 
@@ -121,6 +134,17 @@ const GridGraphWrapper = props => {
 
     const keys = [...keySet];
 
+    // per-column widths (e.g. ∝ TMC length) → avl GridGraph keyWidths; uniform if no width column
+    const keyWidths = {};
+    if (widthColumn) {
+      for (const d of props.viewData) {
+        const k = d[xColumn.key];
+        if (k !== undefined && keySet.has(k) && keyWidths[k] === undefined) {
+          keyWidths[k] = Math.max(0.0001, +d[widthColumn.key] || 1);
+        }
+      }
+    }
+
     if (xColumn.sort) {
       const sortDir = xColumn.sort === "desc" ? -1 : 1;
       keys.sort((a, b) => {
@@ -144,8 +168,8 @@ const GridGraphWrapper = props => {
       }).reverse()
     }
 
-    return { data, keys, colors: colorFunc };
-  }, [props.viewData, xColumn, yColumn, colorColumns, colors]);
+    return { data, keys, colors: colorFunc, keyWidths };
+  }, [props.viewData, xColumn, yColumn, colorColumns, widthColumn, heightColumn, colors]);
 
 // console.log("GridGraphWrapper::dataFromProps", dataFromProps);
 
@@ -172,8 +196,19 @@ const GridGraphWrapper = props => {
   const {
     publishHoverData: publish,
     hoverProvider: provider,
+    publishClickData: publishClick,
+    clickProvider,
     actions
   } = props;
+
+  // click a cell → publish its xAxis key (e.g. a date) to the provider's page var (click_publish).
+  const onGridClick = React.useMemo(() => {
+    if (!publishClick || !clickProvider) return null;
+    return (e, data) => {
+      const value = data?.key;
+      if (value !== undefined && value !== null) publishClick({ value });
+    };
+  }, [publishClick, clickProvider]);
 
   const highlights = React.useMemo(() => {
 
@@ -329,7 +364,8 @@ const GridGraphWrapper = props => {
           onHorizontalEnter={ onHorizontalEnter }
           onHorizontalLeave={ onHorizontalLeave }
           onGridEnter={ onGridEnter }
-          onGridLeave={ onGridLeave }/>
+          onGridLeave={ onGridLeave }
+          onGridClick={ onGridClick }/>
       </div>
       { !legend.show || !legend.position.includes("bottom") ? null :
         <div
