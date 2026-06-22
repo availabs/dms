@@ -28,7 +28,13 @@ import {
 
 import "./avl-graph.css"
 
-const DefaultHoverComp = ({ data, indexFormat, keyFormat, valueFormat, valueLabel, bgColor, showTotals }) => {
+const DefaultHoverComp = ({ data, indexFormat, keyFormat, valueFormat, valueLabel, bgColor, showTotals, singleCell }) => {
+
+  // singleCell: show ONLY the hovered cell (data.index) instead of every row in the
+  // hovered column. Off by default → unchanged whole-column tooltip (BC).
+  const indexes = singleCell
+    ? get(data, "indexes", []).filter(i => i === data.index)
+    : get(data, "indexes", []);
 
   return (
     <div className={ `
@@ -37,7 +43,7 @@ const DefaultHoverComp = ({ data, indexFormat, keyFormat, valueFormat, valueLabe
       <div className="font-bold text-lg leading-6 border-b-2 border-current pl-2">
         { keyFormat(get(data, "key", null)) }
       </div>
-      { get(data, "indexes", []).map(i => (
+      { indexes.map(i => (
           <div key={ i }
             className={ `
               flex items-center px-2 rounded transition relative
@@ -67,7 +73,7 @@ const DefaultHoverComp = ({ data, indexFormat, keyFormat, valueFormat, valueLabe
           </div>
         ))
       }
-      { !showTotals ? null :
+      { (!showTotals || singleCell) ? null :
         <div className="flex items-center px-2 border-t-2">
           <div className="mr-4">
             Total:
