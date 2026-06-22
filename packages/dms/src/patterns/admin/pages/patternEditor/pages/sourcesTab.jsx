@@ -1,17 +1,29 @@
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router';
 import { get } from 'lodash-es';
 import { getInstance } from '../../../../../utils/type-utils';
 import { AdminContext } from '../../../context';
 import { ThemeContext } from '../../../../../ui/useTheme';
 import { tableTheme } from '../../../../../ui/components/table/table.theme';
 import Table from '../../../../../ui/components/table';
-import { enrichSection } from './pagesEditor.utils';
+import { enrichSection, loadSectionsByRefs } from './pagesEditor.utils';
 import { pagesEditorTheme } from './pagesEditor.theme';
 import { sourcesTabTheme } from './sourcesTab.theme';
 
 function OriginCell({ value }) {
     const s = sourcesTabTheme;
     return <span className={value === 'Internal' ? s.originDms : s.originExt}>{value}</span>;
+}
+
+function UsedByCell({ value }) {
+    const s = sourcesTabTheme;
+    if (!value?.count) return <span className={s.usedByEmpty}>—</span>;
+    if (!value.href) return <span>{value.count} section{value.count !== 1 ? 's' : ''}</span>;
+    return (
+        <Link to={value.href} className={s.usedByLink} onClick={e => e.stopPropagation()}>
+            {value.count} section{value.count !== 1 ? 's' : ''}
+        </Link>
+    );
 }
 
 function StatusCell({ value }) {
@@ -50,7 +62,7 @@ async function getSources(falcor, envs) {
 }
 
 export function SourcesTab({ value, apiLoad, falcor }) {
-    const { pgEnv } = useContext(AdminContext) || {};
+    const { pgEnv, datasources = [], baseUrl } = useContext(AdminContext) || {};
     const { UI, theme: themeFromContext = {} } = useContext(ThemeContext) || {};
 
     const patternInstance = useMemo(() => getInstance(value.type), [value.type]);
@@ -71,6 +83,21 @@ export function SourcesTab({ value, apiLoad, falcor }) {
         theme: { ...themeFromContext, table: tableTheme },
     }), [UI, themeFromContext]);
 
+    // Build the envs map from datasources (same pattern as DatasetsList/buildEnvsForListing).
+    // Falls back to the pattern's own env + pgEnv when no datasources have been configured.
+    const envs = useMemo(() => {
+        if (datasources.length) {
+            return Object.fromEntries(
+                datasources
+                    .filter(ds => ds.env)
+                    .map(ds => [ds.env, { isDms: ds.type === 'internal', srcAttributes: ['name', 'type'] }])
+            );
+        }
+        const fallback = { [`${value.app}+${patternInstance}`]: { isDms: true, srcAttributes: ['name', 'type'] } };
+        if (pgEnv) fallback[pgEnv] = { isDms: false, srcAttributes: ['name', 'type'] };
+        return fallback;
+    }, [datasources, value.app, patternInstance, pgEnv]);
+
     const loadAll = useCallback(async () => {
         if (!falcor || !apiLoad || !value.app || !patternInstance) return;
         const myId = ++loadIdRef.current;
@@ -78,47 +105,36 @@ export function SourcesTab({ value, apiLoad, falcor }) {
         setSectionsLoading(true);
         setSections([]);
 
-        // We know the primary env from the pattern — no need to wait for sections first.
-        // Start both fetches in parallel, then show the sources table as soon as sources
-        // arrive; section counts fill in afterwards once component rows finish loading.
-        const primaryEnv = `${value.app}+${patternInstance}`;
-        const primaryEnvs = {
-            [primaryEnv]: { isDms: true, srcAttributes: ['name', 'type'] },
-            ...(pgEnv ? { [pgEnv]: { isDms: false, srcAttributes: ['name', 'type'] } } : {}),
-        };
-
-        const sectionsPromise = apiLoad({
-            format: { app: value.app, type: `${patternInstance}|component`, attributes: [] },
-            children: [{ action: 'list', path: '/*' }],
-        }, '/').catch(() => []);
-
-        // Show sources table as soon as sources land
-        const sources = await getSources(falcor, primaryEnvs);
+        // Fetch sources and pages in parallel; sources can render immediately.
+        const [sources, pageItems] = await Promise.all([
+            getSources(falcor, envs),
+            apiLoad({
+                format: { app: value.app, type: `${patternInstance}|page`, attributes: [] },
+                children: [{ action: 'list', path: '/*' }],
+            }, '/').catch(() => []),
+        ]);
         if (loadIdRef.current !== myId) return;
         setAllSources(sources);
         setLoading(false);
 
-        // Section counts arrive later — update quietly in the background
-        const rawSections = await sectionsPromise;
-        if (loadIdRef.current !== myId) return;
-        const enrichedSections = rawSections.map(enrichSection);
-        setSections(enrichedSections);
-        setSectionsLoading(false);
-
-        // If any section references a non-primary env, fetch those sources too
-        const extraEnvs = {};
-        enrichedSections.forEach(s => {
-            if (s._srcEnv && s._srcEnv.includes('+') && !primaryEnvs[s._srcEnv]) {
-                extraEnvs[s._srcEnv] = { isDms: true, srcAttributes: ['name', 'type'] };
-            }
+        // Mirror pagesEditor: collect unique active section refs (draft_sections if
+        // present, else published sections) so orphaned component rows are excluded.
+        const allRefs = [];
+        const seenIds = new Set();
+        (pageItems || []).forEach(page => {
+            const activeRefs = page.draft_sections?.length ? page.draft_sections : (page.sections || []);
+            activeRefs.forEach(ref => {
+                if (ref == null) return;
+                const id = typeof ref === 'object' ? String(ref.id) : String(ref);
+                if (!seenIds.has(id)) { seenIds.add(id); allRefs.push(ref); }
+            });
         });
-        if (Object.keys(extraEnvs).length) {
-            const extraSources = await getSources(falcor, extraEnvs);
-            if (loadIdRef.current === myId) {
-                setAllSources(prev => [...prev, ...extraSources]);
-            }
-        }
-    }, [falcor, apiLoad, value.app, patternInstance, pgEnv]);
+
+        const compById = await loadSectionsByRefs(allRefs, value.app, falcor);
+        if (loadIdRef.current !== myId) return;
+        setSections(Object.values(compById).map(enrichSection));
+        setSectionsLoading(false);
+    }, [falcor, apiLoad, value.app, patternInstance, envs]);
 
     useEffect(() => { loadAll(); }, [loadAll]);
 
@@ -175,10 +191,12 @@ export function SourcesTab({ value, apiLoad, falcor }) {
     const internalCount = sourceRows.filter(r => r.isDms).length;
     const externalCount = sourceRows.filter(r => !r.isDms).length;
 
+    const pagesHref = baseUrl && value.id ? `${baseUrl}/${value.id}/pages` : null;
+
     const columns = useMemo(() => [
         { name: 'name',    display_name: 'Name',    show: true, type: 'text' },
         { name: 'origin',  display_name: 'Origin',  show: true, type: 'ui',   size: 90,  Comp: OriginCell },
-        { name: 'usedBy',  display_name: 'Used By', show: true, type: 'text', size: 120 },
+        { name: 'usedBy',  display_name: 'Used By', show: true, type: 'ui',   size: 120, Comp: UsedByCell },
         { name: 'views',   display_name: 'Views',   show: true, type: 'text', size: 80 },
         { name: 'status',  display_name: 'Status',  show: true, type: 'ui',   size: 100, Comp: StatusCell },
     ], []);
@@ -186,10 +204,15 @@ export function SourcesTab({ value, apiLoad, falcor }) {
     const tableData = useMemo(() => filteredRows.map(row => ({
         name: row.name,
         origin: row.origin,
-        usedBy: row.sectionCount > 0 ? `${row.sectionCount} section${row.sectionCount !== 1 ? 's' : ''}` : '—',
+        usedBy: {
+            count: row.sectionCount,
+            href: row.sectionCount > 0 && pagesHref
+                ? `${pagesHref}?src=${encodeURIComponent(row.name)}&scope=sections`
+                : null,
+        },
         views: row.viewCount > 0 ? String(row.viewCount) : '—',
         status: row.status,
-    })), [filteredRows]);
+    })), [filteredRows, pagesHref]);
 
     const p = pagesEditorTheme;
     const s = sourcesTabTheme;

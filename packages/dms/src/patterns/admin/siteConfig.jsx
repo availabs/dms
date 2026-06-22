@@ -181,6 +181,7 @@ const patternConfig = ({
   dmsEnvById = {},
   isMultiTenant = false,
   pgEnv = '',
+  datasources = [],
 }) => {
   const format = cloneDeep(pattern);
   format.app = app;
@@ -234,6 +235,7 @@ const patternConfig = ({
                 dmsEnvById,
                 isMultiTenant,
                 pgEnv,
+                datasources,
               }}
             >
               <ThemeContext.Provider value={{ theme, themes, UI }}>

@@ -1,5 +1,5 @@
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import { cloneDeep } from 'lodash-es';
 import { ThemeContext, getComponentTheme } from '../../../../../ui/useTheme';
 import { getInstance } from '../../../../../utils/type-utils';
@@ -521,7 +521,7 @@ function buildFlatTree({ pages, byId, expandedIds, sectionsByPageId, lens, searc
         const pendingBelow = allDescendants.filter(needsPublish).length;
         const allSections = sectionsByPageId[String(p.id)] || [];
         const sections = isFiltering ? allSections.filter(matchSection) : allSections;
-        const sectionCount = allSections.length;
+        const sectionCount = sections.length;
 
         rows.push({
             ...p,
@@ -561,6 +561,7 @@ function buildFlatTree({ pages, byId, expandedIds, sectionsByPageId, lens, searc
 
 export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate, falcor }) {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const { UI, theme: themeFromContext = {} } = useContext(ThemeContext) || {};
     const { user } = useContext(AdminContext) || {};
     const t = { ...pagesEditorTheme, ...(getComponentTheme(themeFromContext, 'admin.pagesEditor')) };
@@ -580,9 +581,9 @@ export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate, falcor }) {
     const [expandedIds, setExpandedIds] = useState(new Set());
     const [search, setSearch] = useState('');
     const [lens, setLens] = useState('all');
-    const [scope, setScope] = useState('pages');
+    const [scope, setScope] = useState(() => searchParams.get('scope') || 'pages');
     const [typeFilter, setTypeFilter] = useState('');
-    const [srcFilter, setSrcFilter] = useState('');
+    const [srcFilter, setSrcFilter] = useState(() => searchParams.get('src') || '');
     const [dragId, setDragId] = useState(null);
     const [dropTargetId, setDropTargetId] = useState(null);
     const [previewSection, setPreviewSection] = useState(null);
