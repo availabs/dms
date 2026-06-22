@@ -1,23 +1,28 @@
-import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { get } from 'lodash-es';
 import { getInstance } from '../../../../../utils/type-utils';
 import { AdminContext } from '../../../context';
+import { ThemeContext } from '../../../../../ui/useTheme';
+import { tableTheme } from '../../../../../ui/components/table/table.theme';
+import Table from '../../../../../ui/components/table';
 import { enrichSection } from './pagesEditor.utils';
 import { pagesEditorTheme } from './pagesEditor.theme';
 import { sourcesTabTheme } from './sourcesTab.theme';
 
-const range = (start, end) => Array.from({ length: end + 1 - start }, (_, k) => k + start);
-
-function formatDate(iso) {
-    if (!iso) return null;
-    const d = new Date(iso);
-    if (isNaN(d.getTime())) return null;
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+function OriginCell({ value }) {
+    const s = sourcesTabTheme;
+    return <span className={value === 'Internal' ? s.originDms : s.originExt}>{value}</span>;
 }
 
-// Mirror of getSources in DatasetsList/useDataSource — loads all sources for
-// each env key via ['uda', env, 'sources', 'byIndex', ...].
-// For DMS envs the server resolves sources through the pattern's dmsEnvId.
+function StatusCell({ value }) {
+    const s = sourcesTabTheme;
+    return value === 'Orphaned'
+        ? <span className={s.statusOrphaned}>Orphaned</span>
+        : <span className={s.statusActive}>Active</span>;
+}
+
+const range = (start, end) => Array.from({ length: end + 1 - start }, (_, k) => k + start);
+
 async function getSources(falcor, envs) {
     if (!Object.keys(envs).length) return [];
     const lenRes = await falcor.get(['uda', Object.keys(envs), 'sources', 'length']);
@@ -45,7 +50,8 @@ async function getSources(falcor, envs) {
 }
 
 export function SourcesTab({ value, apiLoad, falcor }) {
-    const { dmsEnvById, pgEnv } = useContext(AdminContext) || {};
+    const { pgEnv } = useContext(AdminContext) || {};
+    const { UI, theme: themeFromContext = {} } = useContext(ThemeContext) || {};
 
     const patternInstance = useMemo(() => getInstance(value.type), [value.type]);
 
@@ -56,13 +62,17 @@ export function SourcesTab({ value, apiLoad, falcor }) {
     const [originFilter, setOriginFilter] = useState('');
     const [search, setSearch] = useState('');
 
+    const gridRef = useRef(null);
+
+    const tableCtxValue = useMemo(() => ({
+        UI,
+        theme: { ...themeFromContext, table: tableTheme },
+    }), [UI, themeFromContext]);
+
     const loadAll = useCallback(async () => {
         if (!falcor || !apiLoad || !value.app || !patternInstance) return;
         setLoading(true);
         try {
-            // Load sections first — their sourceInfo.srcEnv carries the exact
-            // datasets-pattern env key the UDA server expects for internal sources.
-            // This is the same key DatasetsList derives from format.type.
             const rawSections = await apiLoad({
                 format: { app: value.app, type: `${patternInstance}|component`, attributes: [] },
                 children: [{ action: 'list', path: '/*' }]
@@ -71,8 +81,6 @@ export function SourcesTab({ value, apiLoad, falcor }) {
             const enrichedSections = (rawSections || []).map(enrichSection);
             setSections(enrichedSections);
 
-            // Collect unique internal env keys from sections (contains '+').
-            // Fall back to page pattern instance if no sections have _srcEnv yet.
             const internalEnvKeys = new Set(
                 enrichedSections.map(s => s._srcEnv).filter(e => e && e.includes('+'))
             );
@@ -123,12 +131,11 @@ export function SourcesTab({ value, apiLoad, falcor }) {
                 const viewCount = id != null ? (viewIdsBySourceId[id]?.size || 0) : 0;
                 return {
                     name: s.name,
-                    sourceType: s.type || null,
-                    sourceId: id,
                     isDms: s.isDms,
                     sectionCount,
                     viewCount,
-                    status: sectionCount > 0 ? 'active' : 'orphaned',
+                    status: sectionCount > 0 ? 'Active' : 'Orphaned',
+                    origin: s.isDms ? 'Internal' : 'External',
                 };
             })
             .sort((a, b) => b.sectionCount - a.sectionCount || (a.name || '').localeCompare(b.name || ''));
@@ -137,24 +144,36 @@ export function SourcesTab({ value, apiLoad, falcor }) {
     const filteredRows = useMemo(() => {
         return sourceRows.filter(row => {
             if (statusFilter && row.status !== statusFilter) return false;
-            if (originFilter === 'internal' && !row.isDms) return false;
-            if (originFilter === 'external' && row.isDms) return false;
+            if (originFilter === 'Internal' && !row.isDms) return false;
+            if (originFilter === 'External' && row.isDms) return false;
             if (search && !row.name.toLowerCase().includes(search.toLowerCase())) return false;
             return true;
         });
     }, [sourceRows, statusFilter, originFilter, search]);
 
-    const p = pagesEditorTheme;
-    const s = sourcesTabTheme;
-
-    if (loading) {
-        return <div className={p.loadingWrap}>Loading sources…</div>;
-    }
-
-    const activeCount = sourceRows.filter(r => r.status === 'active').length;
-    const orphanedCount = sourceRows.filter(r => r.status === 'orphaned').length;
+    const activeCount = sourceRows.filter(r => r.status === 'Active').length;
+    const orphanedCount = sourceRows.filter(r => r.status === 'Orphaned').length;
     const internalCount = sourceRows.filter(r => r.isDms).length;
     const externalCount = sourceRows.filter(r => !r.isDms).length;
+
+    const columns = useMemo(() => [
+        { name: 'name',    display_name: 'Name',    show: true, type: 'text' },
+        { name: 'origin',  display_name: 'Origin',  show: true, type: 'ui',   size: 90,  Comp: OriginCell },
+        { name: 'usedBy',  display_name: 'Used By', show: true, type: 'text', size: 120 },
+        { name: 'views',   display_name: 'Views',   show: true, type: 'text', size: 60 },
+        { name: 'status',  display_name: 'Status',  show: true, type: 'ui',   size: 100, Comp: StatusCell },
+    ], []);
+
+    const tableData = useMemo(() => filteredRows.map(row => ({
+        name: row.name,
+        origin: row.origin,
+        usedBy: row.sectionCount > 0 ? `${row.sectionCount} section${row.sectionCount !== 1 ? 's' : ''}` : '—',
+        views: row.viewCount > 0 ? String(row.viewCount) : '—',
+        status: row.status,
+    })), [filteredRows]);
+
+    const p = pagesEditorTheme;
+    const s = sourcesTabTheme;
 
     return (
         <div className={p.wrapper}>
@@ -166,8 +185,8 @@ export function SourcesTab({ value, apiLoad, falcor }) {
                         onChange={e => setStatusFilter(e.target.value)}
                     >
                         <option value="">All status ({sourceRows.length})</option>
-                        <option value="active">Active ({activeCount})</option>
-                        <option value="orphaned">Orphaned ({orphanedCount})</option>
+                        <option value="Active">Active ({activeCount})</option>
+                        <option value="Orphaned">Orphaned ({orphanedCount})</option>
                     </select>
                     <span className={p.filterCaret}>▾</span>
                 </div>
@@ -179,8 +198,8 @@ export function SourcesTab({ value, apiLoad, falcor }) {
                         onChange={e => setOriginFilter(e.target.value)}
                     >
                         <option value="">All origins ({sourceRows.length})</option>
-                        <option value="internal">Internal ({internalCount})</option>
-                        <option value="external">External ({externalCount})</option>
+                        <option value="Internal">Internal ({internalCount})</option>
+                        <option value="External">External ({externalCount})</option>
                     </select>
                     <span className={p.filterCaret}>▾</span>
                 </div>
@@ -211,63 +230,21 @@ export function SourcesTab({ value, apiLoad, falcor }) {
                 </div>
             )}
 
-            <div className={p.tableWrap} style={{ overflow: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-                    <colgroup>
-                        <col style={{ width: '200px' }} />
-                        <col style={{ width: '90px' }} />
-                        <col style={{ width: '110px' }} />
-                        <col style={{ width: '55px' }} />
-                        <col style={{ width: '100px' }} />
-                    </colgroup>
-                    <thead>
-                        <tr className={s.theadRow}>
-                            <th className={s.th}>Name</th>
-                            <th className={s.th}>Origin</th>
-                            <th className={s.th}>Used By</th>
-                            <th className={s.th}>Views</th>
-                            <th className={s.th}>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {filteredRows.length === 0 ? (
-                            <tr>
-                                <td colSpan={5} className={s.emptyCell}>
-                                    {search ? `No sources matching "${search}"` : 'No sources found'}
-                                </td>
-                            </tr>
-                        ) : filteredRows.map(row => (
-                            <tr key={`${row.isDms ? 'dms' : 'ext'}-${row.sourceId}`} className={row.status === 'orphaned' ? s.tbodyRowOrphaned : s.tbodyRow}>
-                                <td className={s.tdBase}>
-                                    <span className={s.nameText}>{row.name}</span>
-                                </td>
-                                <td className={s.tdBase}>
-                                    <span className={row.isDms ? s.originDms : s.originExt}>
-                                        {row.isDms ? 'Internal' : 'External'}
-                                    </span>
-                                </td>
-                                <td className={s.tdBase}>
-                                    {row.sectionCount > 0
-                                        ? <span className={s.usedByText}>{row.sectionCount} section{row.sectionCount !== 1 ? 's' : ''}</span>
-                                        : <span className={s.nullDash}>—</span>
-                                    }
-                                </td>
-                                <td className={s.tdBase}>
-                                    {row.viewCount > 0
-                                        ? <span className={s.viewCountText}>{row.viewCount}</span>
-                                        : <span className={s.nullDash}>—</span>
-                                    }
-                                </td>
-                                <td className={s.tdBase}>
-                                    {row.status === 'orphaned'
-                                        ? <span className={s.statusOrphaned}>Orphaned</span>
-                                        : <span className={s.statusActive}>Active</span>
-                                    }
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+            <div className={p.tableWrap} ref={gridRef}>
+                {loading ? (
+                    <div className={p.loadingWrap}>Loading sources…</div>
+                ) : (
+                    <ThemeContext.Provider value={tableCtxValue}>
+                        <Table
+                            gridRef={gridRef}
+                            columns={columns}
+                            data={tableData}
+                            display={{ showGutters: false, virtualizeColumns: false }}
+                            allowEdit={false}
+                            isActive={true}
+                        />
+                    </ThemeContext.Provider>
+                )}
             </div>
 
             <div className={p.footer}>
