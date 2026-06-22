@@ -4,6 +4,7 @@ const statusDotClass = {
     draft: 'bg-amber-400',
     published: 'bg-emerald-400',
     ghost: 'bg-gray-300',
+    orphan: 'bg-red-500',
 };
 
 export function TreeNodeView({ value, row = {}, className = '' }) {
@@ -23,7 +24,7 @@ export function TreeNodeView({ value, row = {}, className = '' }) {
 
     const title = _isGhost ? '(untitled)' : (value || 'New Page');
 
-    const dotVariant = _isGhost ? 'ghost' : published === 'draft' ? 'draft' : 'published';
+    const dotVariant = _isOrphan ? 'orphan' : _isGhost ? 'ghost' : published === 'draft' ? 'draft' : 'published';
 
     const handleCaretClick = (e) => {
         e.stopPropagation();
@@ -83,13 +84,6 @@ export function TreeNodeView({ value, row = {}, className = '' }) {
                     title={`${_pendingBelow} pages below need publishing — click to expand`}
                 >
                     ▾ {_pendingBelow} to publish
-                </span>
-            )}
-
-            {/* orphan chip */}
-            {_isOrphan && (
-                <span className="ml-1.5 text-[10px] text-red-600 bg-red-50 border border-red-200 rounded-full px-1.5 font-semibold flex-shrink-0">
-                    orphan
                 </span>
             )}
 

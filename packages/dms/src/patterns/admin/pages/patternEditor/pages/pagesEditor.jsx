@@ -6,7 +6,7 @@ import { getInstance } from '../../../../../utils/type-utils';
 import Table from '../../../../../ui/components/table';
 import { tableTheme } from '../../../../../ui/components/table/table.theme';
 import { pagesEditorTheme } from './pagesEditor.theme';
-import { enrichSection, loadPageHistory } from './pagesEditor.utils';
+import { enrichSection, loadPageHistory, loadSectionsByRefs } from './pagesEditor.utils';
 import { AdminContext } from '../../../context';
 import { appendHistoryEntry } from '../../../../page/pages/edit/editFunctions';
 
@@ -473,7 +473,7 @@ function SectionsPanel({ value: sections = [], page = {}, baseUrl = '', navigate
 // ─── tree flattening ──────────────────────────────────────────────────────────
 
 function buildFlatTree({ pages, byId, expandedIds, sectionsByPageId, lens, search, scope, toggleExpandRef, typeFilter = '', srcFilter = '', slugFreq = {} }) {
-    const roots = pages.filter(p => !p.parent || p.parent === '' || !byId[String(p.parent)]).sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
+    const roots = pages.filter(p => !p.parent || p.parent === '').sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
     const orphans = pages.filter(p => isOrphan(p, byId)).sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
 
     const isFiltering = scope === 'sections' && (search || typeFilter || srcFilter);
@@ -511,7 +511,7 @@ function buildFlatTree({ pages, byId, expandedIds, sectionsByPageId, lens, searc
 
     const rows = [];
 
-    function walk(p, depth) {
+    function walk(p, depth, isOrphan = false) {
         if (!showsBranch(p)) return;
         const isMatch = pageMatch(p);
         const kids = childrenOf(p, byId, pages);
@@ -528,14 +528,14 @@ function buildFlatTree({ pages, byId, expandedIds, sectionsByPageId, lens, searc
             _depth: depth,
             _hasChildren: kids.length > 0,
             _isExpanded: isExpanded,
-            _isOrphan: false,
+            _isOrphan: isOrphan,
             _isGhost: isGhost,
             _childCount: kids.length,
             _slug: slugOf(p, byId),
             _pendingBelow: pendingBelow,
             _sectionCount: { count: sectionCount },
             _sections: sections,
-            _publishState: { published: p.published || '', hasChanges: !!p.has_changes },
+            _publishState: { published: p.published || '', hasChanges: !!p.has_changes, isOrphan },
             _dimmed: !isMatch,
             _onToggleExpand: toggleExpandRef.current
                 ? () => toggleExpandRef.current(String(p.id))
@@ -551,8 +551,7 @@ function buildFlatTree({ pages, byId, expandedIds, sectionsByPageId, lens, searc
     roots.forEach(p => walk(p, 0));
 
     if (orphans.length) {
-        rows.push({ _isGroupBand: true, _bandLabel: '⚠ Orphaned — parent id not found', id: '__orphan_band__' });
-        orphans.forEach(p => walk(p, 0));
+        orphans.forEach(p => walk(p, 0, true));
     }
 
     return rows;
@@ -609,26 +608,34 @@ export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate, falcor }) {
     }, [toggleExpand]);
 
     const loadAll = useCallback(async () => {
-        if (!apiLoad || !value.app || !patternInstance) return;
+        if (!apiLoad || !falcor || !value.app || !patternInstance) return;
         setLoading(true);
         try {
-            const [pageItems, componentItems] = await Promise.all([
-                apiLoad({
-                    format: { app: value.app, type: `${patternInstance}|page`, attributes: [] },
-                    children: [{ action: 'list', path: '/*' }]
-                }, '/').catch(() => []),
-                apiLoad({
-                    format: { app: value.app, type: `${patternInstance}|component`, attributes: [] },
-                    children: [{ action: 'list', path: '/*' }]
-                }, '/').catch(() => []),
+            // Step 1: fetch pages
+            const pageItems = await apiLoad({
+                format: { app: value.app, type: `${patternInstance}|page`, attributes: [] },
+                children: [{ action: 'list', path: '/*' }]
+            }, '/').catch(() => []);
+            console.log('pages', pageItems)
+            // Step 2: collect every unique section ID referenced by any page
+            // (union of draft_sections and sections so we cover both sets)
+            const allRefs = [];
+            const seenIds = new Set();
+            (pageItems || []).forEach(page => {
+                const combined = [...(page.draft_sections || []), ...(page.sections || [])];
+                combined.forEach(ref => {
+                    if (ref == null) return;
+                    const id = typeof ref === 'object' ? String(ref.id) : String(ref);
+                    if (!seenIds.has(id)) { seenIds.add(id); allRefs.push(ref); }
+                });
+            });
+
+            // Step 3: fetch exactly those sections by ID + history in parallel
+            const [compByIdMap, historyByPageId] = await Promise.all([
+                loadSectionsByRefs(allRefs, value.app, falcor),
+                loadPageHistory(pageItems, falcor),
             ]);
-
-            // Build a lookup of component ID → component
-            const compByIdMap = {};
-            (componentItems || []).forEach(comp => { compByIdMap[String(comp.id)] = comp; });
             setCompById(compByIdMap);
-
-            const historyByPageId = await loadPageHistory(pageItems, falcor);
 
             const enrichedPages = (pageItems || []).map(p => {
                 const hist = historyByPageId[String(p.id)];
@@ -642,7 +649,6 @@ export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate, falcor }) {
             setPages(enrichedPages);
 
             // Use draft_sections if available, fall back to published sections.
-            // Pages that have never been published only have draft_sections.
             const grouped = {};
             enrichedPages.forEach(page => {
                 const sectionRefs = (page.draft_sections?.length ? page.draft_sections : page.sections) || [];
@@ -656,7 +662,7 @@ export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate, falcor }) {
         } finally {
             setLoading(false);
         }
-    }, [apiLoad, value.app, patternInstance]);
+    }, [falcor, apiLoad, value.app, patternInstance]);
 
     useEffect(() => {
         loadAll();
@@ -677,7 +683,7 @@ export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate, falcor }) {
     const tableData = useMemo(() => buildFlatTree({
         pages, byId, expandedIds, sectionsByPageId, lens, search, scope, toggleExpandRef, typeFilter, srcFilter, slugFreq
     }), [pages, byId, expandedIds, sectionsByPageId, lens, search, scope, typeFilter, srcFilter, slugFreq]);
-
+    console.log('table data', tableData)
     // Available types and sources for section-scope filter dropdowns
     const sectionFilterOptions = useMemo(() => {
         const types = new Set();

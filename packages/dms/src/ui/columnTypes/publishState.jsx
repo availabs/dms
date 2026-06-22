@@ -1,9 +1,19 @@
 import React from 'react';
 
-// value: { published: '' | 'draft', hasChanges: boolean }
+// value: { published: '' | 'draft', hasChanges: boolean, isOrphan?: boolean }
 export function PublishStateView({ value, className = '' }) {
     if (!value || typeof value !== 'object') return null;
-    const { published, hasChanges } = value;
+    const { published, hasChanges, isOrphan } = value;
+
+    if (isOrphan) {
+        return (
+            <span className={`inline-flex items-center gap-1 ${className}`}>
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-red-50 text-red-700 border border-red-200">
+                    Orphan
+                </span>
+            </span>
+        );
+    }
 
     const isDraft = published === 'draft';
 
