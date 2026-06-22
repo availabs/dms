@@ -210,57 +210,53 @@ const GridGraphWrapper = props => {
     };
   }, [publishClick, clickProvider]);
 
+  // Build highlight directives for the avl GridGraph from two action streams:
+  //   • hover_highlight  → transient highlight, legacy SOLID fill (no style)
+  //   • select_highlight → persistent selection, drawn as an OUTLINE border that
+  //                        keeps the cell's data color (e.g. the active day on a
+  //                        month strip, fed by the `date` page var via a subscriber).
+  // Each maps a matched column to { type:'key' } (xAxis) or { type:'index' }
+  // (yAxis / color series). Adding select_highlight is BC-safe: hover_highlight
+  // output is unchanged (style omitted → solid fill).
   const highlights = React.useMemo(() => {
 
-    const hhlActions = actions.filter(a => a.action === "hover_highlight");
+    const buildFor = (matchAction, style) => {
+      const acts = actions.filter(a => a.action === matchAction);
+      const styleProp = style ? { style } : {};
 
-    if (xColumn && yColumn) {
-      return hhlActions.reduce((a, c) => {
-        if (c.column === xColumn.key) {
-          for (const v of c.value) {
-            a.push({
-              type: "key",
-              value: v
-            })
+      if (xColumn && yColumn) {
+        return acts.reduce((a, c) => {
+          if (c.column === xColumn.key) {
+            for (const v of c.value) a.push({ type: "key", value: v, ...styleProp })
           }
-        }
-        else if (c.column === yColumn.key) {
-          for (const v of c.value) {
-            a.push({
-              type: "index",
-              value: v
-            })
+          else if (c.column === yColumn.key) {
+            for (const v of c.value) a.push({ type: "index", value: v, ...styleProp })
           }
-        }
-        return a;
-      }, [])
-    }
-    else if (xColumn && colorColumns.length) {
-      return hhlActions.reduce((a, c) => {
-        if (c.column === xColumn.key) {
-          for (const v of c.value) {
-            a.push({
-              type: "key",
-              value: v
-            })
+          return a;
+        }, [])
+      }
+      else if (xColumn && colorColumns.length) {
+        return acts.reduce((a, c) => {
+          if (c.column === xColumn.key) {
+            for (const v of c.value) a.push({ type: "key", value: v, ...styleProp })
           }
-        }
-        else {
-          for (const cc of colorColumns) {
-            for (const v of c.value) {
-              if (cc.key === c.column) {
-                a.push({
-                  type: "index",
-                  value: cc.key
-                })
+          else {
+            for (const cc of colorColumns) {
+              for (const v of c.value) {
+                if (cc.key === c.column) a.push({ type: "index", value: cc.key, ...styleProp })
               }
             }
           }
-        }
-        return a;
-      }, [])
-    }
-    return [];
+          return a;
+        }, [])
+      }
+      return [];
+    };
+
+    return [
+      ...buildFor("hover_highlight", null),
+      ...buildFor("select_highlight", "outline")
+    ];
 
   }, [actions, xColumn, yColumn, colorColumns]);
 

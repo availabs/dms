@@ -35,25 +35,31 @@ const useGetActions = (pageState, display) => {
 // console.log("graph_new.index::useGetActions::providers", providers);
 // console.log("graph_new.index::useGetActions::subscribers", subscribers);
 
-  const paramKeys = enabledSubscribers.reduce((a, c) => {
-    a.add(c.paramKey);
-    return a;
-  }, new Set());
-
-  return pageState.filters
-    .filter(f =>
-      f.type === "action" ? paramKeys.has(f.searchKey) : false
-    ).reduce((a, c) => {
-      const subscribers = enabledSubscribers.filter(s => s.paramKey === c.searchKey);
-      for (const sub of subscribers) {
-        a.push({
-          action: sub.functionId,
-          column: sub.args?.column,
-          value: [...c.values]
-        })
-      }
-      return a;
-    }, []);
+  const acts = [];
+  for (const sub of enabledSubscribers) {
+    const matches = pageState.filters.filter(f => f.searchKey === sub.paramKey);
+    if (!matches.length) continue;
+    // hover_highlight is a transient interaction → react ONLY to an action-type
+    // filter (the live hover param set by hover_publish). Other subscribers — e.g.
+    // select_highlight, which marks the active selection — must also reflect the
+    // current page-var on first load, so they fall back to any matching filter,
+    // still preferring an action-type one (a click) when present. This keeps
+    // hover_highlight byte-for-byte BC while letting the selection paint pre-click.
+    const actionMatch = matches.find(f => f.type === "action");
+    const src = sub.functionId === "hover_highlight" ? actionMatch : (actionMatch || matches[0]);
+    if (!src) continue;
+    // Action filters carry `values` as an array; page-var (searchParam) filters carry
+    // it as a bare string (e.g. "2026-06-07"). Normalize so a single value isn't
+    // spread into characters.
+    const raw = src.values;
+    const value = Array.isArray(raw) ? [...raw] : (raw == null || raw === "" ? [] : [raw]);
+    acts.push({
+      action: sub.functionId,
+      column: sub.args?.column,
+      value
+    });
+  }
+  return acts;
 }
 
 export default function Graph (props) {
