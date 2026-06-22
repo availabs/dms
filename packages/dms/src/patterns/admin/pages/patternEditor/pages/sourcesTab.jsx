@@ -58,11 +58,13 @@ export function SourcesTab({ value, apiLoad, falcor }) {
     const [allSources, setAllSources] = useState([]);
     const [sections, setSections] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [sectionsLoading, setSectionsLoading] = useState(false);
     const [statusFilter, setStatusFilter] = useState('');
     const [originFilter, setOriginFilter] = useState('');
     const [search, setSearch] = useState('');
 
     const gridRef = useRef(null);
+    const loadIdRef = useRef(0);
 
     const tableCtxValue = useMemo(() => ({
         UI,
@@ -71,33 +73,50 @@ export function SourcesTab({ value, apiLoad, falcor }) {
 
     const loadAll = useCallback(async () => {
         if (!falcor || !apiLoad || !value.app || !patternInstance) return;
+        const myId = ++loadIdRef.current;
         setLoading(true);
-        try {
-            const rawSections = await apiLoad({
-                format: { app: value.app, type: `${patternInstance}|component`, attributes: [] },
-                children: [{ action: 'list', path: '/*' }]
-            }, '/').catch(() => []);
+        setSectionsLoading(true);
+        setSections([]);
 
-            const enrichedSections = (rawSections || []).map(enrichSection);
-            setSections(enrichedSections);
+        // We know the primary env from the pattern — no need to wait for sections first.
+        // Start both fetches in parallel, then show the sources table as soon as sources
+        // arrive; section counts fill in afterwards once component rows finish loading.
+        const primaryEnv = `${value.app}+${patternInstance}`;
+        const primaryEnvs = {
+            [primaryEnv]: { isDms: true, srcAttributes: ['name', 'type'] },
+            ...(pgEnv ? { [pgEnv]: { isDms: false, srcAttributes: ['name', 'type'] } } : {}),
+        };
 
-            const internalEnvKeys = new Set(
-                enrichedSections.map(s => s._srcEnv).filter(e => e && e.includes('+'))
-            );
-            if (!internalEnvKeys.size) internalEnvKeys.add(`${value.app}+${patternInstance}`);
+        const sectionsPromise = apiLoad({
+            format: { app: value.app, type: `${patternInstance}|component`, attributes: [] },
+            children: [{ action: 'list', path: '/*' }],
+        }, '/').catch(() => []);
 
-            const envs = {};
-            for (const e of internalEnvKeys) {
-                envs[e] = { isDms: true, srcAttributes: ['name', 'type'] };
+        // Show sources table as soon as sources land
+        const sources = await getSources(falcor, primaryEnvs);
+        if (loadIdRef.current !== myId) return;
+        setAllSources(sources);
+        setLoading(false);
+
+        // Section counts arrive later — update quietly in the background
+        const rawSections = await sectionsPromise;
+        if (loadIdRef.current !== myId) return;
+        const enrichedSections = rawSections.map(enrichSection);
+        setSections(enrichedSections);
+        setSectionsLoading(false);
+
+        // If any section references a non-primary env, fetch those sources too
+        const extraEnvs = {};
+        enrichedSections.forEach(s => {
+            if (s._srcEnv && s._srcEnv.includes('+') && !primaryEnvs[s._srcEnv]) {
+                extraEnvs[s._srcEnv] = { isDms: true, srcAttributes: ['name', 'type'] };
             }
-            if (pgEnv) {
-                envs[pgEnv] = { isDms: false, srcAttributes: ['name', 'type'] };
+        });
+        if (Object.keys(extraEnvs).length) {
+            const extraSources = await getSources(falcor, extraEnvs);
+            if (loadIdRef.current === myId) {
+                setAllSources(prev => [...prev, ...extraSources]);
             }
-
-            const sources = await getSources(falcor, envs);
-            setAllSources(sources);
-        } finally {
-            setLoading(false);
         }
     }, [falcor, apiLoad, value.app, patternInstance, pgEnv]);
 
@@ -124,7 +143,7 @@ export function SourcesTab({ value, apiLoad, falcor }) {
 
     const sourceRows = useMemo(() => {
         return allSources
-            .filter(s => s.name)
+            .filter(s => s.name && s.type !== 'file_upload')
             .map(s => {
                 const id = s.source_id != null ? +s.source_id : null;
                 const sectionCount = id != null ? (sectionCountById[id] || 0) : 0;
@@ -160,7 +179,7 @@ export function SourcesTab({ value, apiLoad, falcor }) {
         { name: 'name',    display_name: 'Name',    show: true, type: 'text' },
         { name: 'origin',  display_name: 'Origin',  show: true, type: 'ui',   size: 90,  Comp: OriginCell },
         { name: 'usedBy',  display_name: 'Used By', show: true, type: 'text', size: 120 },
-        { name: 'views',   display_name: 'Views',   show: true, type: 'text', size: 60 },
+        { name: 'views',   display_name: 'Views',   show: true, type: 'text', size: 80 },
         { name: 'status',  display_name: 'Status',  show: true, type: 'ui',   size: 100, Comp: StatusCell },
     ], []);
 
@@ -218,6 +237,21 @@ export function SourcesTab({ value, apiLoad, falcor }) {
                 </div>
 
                 <div style={{ flex: 1 }} />
+
+                <span className={p.footerInline}>
+                    {sourceRows.length} source{sourceRows.length !== 1 ? 's' : ''}
+                    {internalCount > 0 && ` · ${internalCount} internal`}
+                    {externalCount > 0 && ` · ${externalCount} external`}
+                    {orphanedCount > 0 && ` · ${orphanedCount} orphaned`}
+                    {(search || statusFilter || originFilter) && ` · ${filteredRows.length} matching`}
+                    {sectionsLoading && (
+                        <span className={s.sectionsLoadingBadge}>
+                            <span className={s.sectionsLoadingDot} />
+                            loading section counts…
+                        </span>
+                    )}
+                </span>
+
                 <button className={p.ghostBtn} onClick={loadAll}>Refresh</button>
             </div>
 
@@ -247,13 +281,6 @@ export function SourcesTab({ value, apiLoad, falcor }) {
                 )}
             </div>
 
-            <div className={p.footer}>
-                {sourceRows.length} source{sourceRows.length !== 1 ? 's' : ''}
-                {internalCount > 0 && ` · ${internalCount} internal`}
-                {externalCount > 0 && ` · ${externalCount} external`}
-                {orphanedCount > 0 && ` · ${orphanedCount} orphaned`}
-                {(search || statusFilter || originFilter) && ` · ${filteredRows.length} matching`}
-            </div>
         </div>
     );
 }

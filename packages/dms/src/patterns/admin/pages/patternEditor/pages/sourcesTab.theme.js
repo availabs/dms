@@ -6,4 +6,6 @@ export const sourcesTabTheme = {
     orphanBanner: 'px-4 py-2 bg-amber-50 border-b border-amber-200 text-[11px] text-amber-700 flex items-center gap-2 flex-shrink-0',
     orphanBannerStrong: 'font-semibold',
     orphanBannerNote: 'text-amber-500',
+    sectionsLoadingBadge: 'ml-3 inline-flex items-center gap-1.5 text-gray-400',
+    sectionsLoadingDot: 'inline-block w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse',
 };
