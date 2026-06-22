@@ -1,5 +1,64 @@
 import { get } from 'lodash-es';
 
+// ─── Section loading ──────────────────────────────────────────────────────────
+
+/**
+ * Batch-load component rows for the given section refs.
+ * Refs come from page.draft_sections / page.sections and have the shape
+ *   { id, ref: "app+type" }  — object form
+ *   "{\"id\":N,\"ref\":\"...\"}"  — JSON-string form (legacy)
+ *   N  — bare numeric id (very old)
+ *
+ * Groups by app (the part before '+' in ref.ref) and batch-fetches each group
+ * in a single falcor.get call, mirroring loadPageHistory.
+ * Returns a map of String(id) → component object.
+ */
+export async function loadSectionsByRefs(refs, defaultApp, falcor) {
+    if (!falcor || !refs?.length) return {};
+
+    const toFetch = [];
+    refs.forEach(ref => {
+        if (ref == null) return;
+        let id, app;
+        if (typeof ref === 'object') {
+            id = String(ref.id);
+            app = ref.ref?.includes('+') ? ref.ref.split('+')[0] : defaultApp;
+        } else if (typeof ref === 'string' && ref.startsWith('{')) {
+            try {
+                const parsed = JSON.parse(ref);
+                id = String(parsed.id);
+                app = parsed.ref?.includes('+') ? parsed.ref.split('+')[0] : defaultApp;
+            } catch (_) { return; }
+        } else {
+            id = String(ref);
+            app = defaultApp;
+        }
+        if (id && id !== 'undefined') toFetch.push({ id, app });
+    });
+
+    if (!toFetch.length) return {};
+
+    const byApp = {};
+    toFetch.forEach(({ id, app }) => {
+        if (!byApp[app]) byApp[app] = new Set();
+        byApp[app].add(id);
+    });
+
+    const compById = {};
+    await Promise.all(Object.entries(byApp).map(async ([app, idSet]) => {
+        const ids = [...idSet];
+        try {
+            const res = await falcor.get(['dms', 'data', app, 'byId', ids, ['data']]);
+            ids.forEach(id => {
+                const data = get(res, ['json', 'dms', 'data', app, 'byId', id, 'data'], null);
+                if (data) compById[id] = { id, ...data };
+            });
+        } catch (_) {}
+    }));
+
+    return compById;
+}
+
 // ─── History loading ──────────────────────────────────────────────────────────
 
 // Both old entries (type field) and new entries (action field) are in use.

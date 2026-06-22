@@ -8,4 +8,6 @@ export const sourcesTabTheme = {
     orphanBannerNote: 'text-amber-500',
     sectionsLoadingBadge: 'ml-3 inline-flex items-center gap-1.5 text-gray-400',
     sectionsLoadingDot: 'inline-block w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse',
+    usedByLink: 'text-blue-600 hover:text-blue-800 hover:underline text-xs font-medium',
+    usedByEmpty: 'text-gray-300 text-xs',
 };
