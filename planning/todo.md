@@ -34,6 +34,12 @@
 - [x] DataWrapper skip fetch when cached — Graph + other non-paginated components honor the "Always Fetch Data" toggle; Pagination's auto-set of `readyToLoad` no longer leaks into persisted state.
 - [x] Falcor loader parallel requests — combine sequential `length` + data `falcor.get()` calls into a single call using a ceiling value for `toIndex`, eliminating one HTTP round-trip (~50ms) from first page load
 - [x] [Time filters in dataWrapper](./tasks/completed/datawrapper-time-filters.md) — `op: 'time'` filter leaf shipped end-to-end. Phase 1: server Postgres predicates (`time-filter.js` + UDA wiring). Phase 2: client primitive — TimePicker, `useNowTick` boundary-aware refetch, URL token roundtrip. Phase 3: compositions — DOW + time-of-day rows, multi-range OR. Phase 4: instant + compareEnd. Phase 5: author/viewer axis exposure (`exposedAxes`, picker `mode` prop). Phase 6: ClickHouse predicate emitters (CH dispatch wiring deferred to broader CH-tree-based-filter migration). TimePicker subtree pulled into `timePicker.theme.js` per the new theming guidance. All 58 UDA tests still pass; ~115 client-side URL/merge/SQL-shape assertions across phases.
+- [ ] [First-class multi-column search filter](./tasks/current/multi-column-search-filter.md) — collapse the
+      hand-authored "OR group of one `like` leaf per column, replicated on every section" pattern (today's only
+      way to do a search box over several columns — see [skills/full-text-search-filter.md](../skills/full-text-search-filter.md))
+      into a single declarative search leaf (`searchColumns: [...]` / `op:'search'`) that `buildUdaConfig`
+      expands; standardize case-insensitive (`ILIKE`) matching; document/scale for large tables (pairs with the
+      dms-server composite-index item below + `pg_trgm`). First consumer: TSMO Incident Search (transcom, millions of rows).
 
 ## ssr
 
