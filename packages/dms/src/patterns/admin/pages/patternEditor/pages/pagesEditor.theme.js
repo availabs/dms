@@ -22,6 +22,7 @@ export const pagesEditorTheme = {
     tableWrap: 'flex-1 min-h-0 overflow-hidden',
     loadingWrap: 'flex items-center justify-center h-32 text-gray-400 text-sm',
     footer: 'px-4 py-2 border-t border-gray-100 bg-gray-50 text-[10px] text-gray-400 font-semibold tracking-widest uppercase flex-shrink-0',
+    footerInline: 'text-[10px] text-gray-400 font-semibold tracking-widest uppercase',
 
     // sections panel (openOut below row)
     sectionsPanel: 'w-full',
