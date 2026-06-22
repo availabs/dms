@@ -8,6 +8,7 @@ import { cloneDeep, get, set } from "lodash-es";
 
 import { ThemeContext, mergeTheme } from "../../../../ui/useTheme";
 import { AdminContext } from "../../context";
+import { isUserAuthed } from '../../utils';
 import { parseIfJSON } from '../../../page/pages/_utils';
 import { editThemeTheme } from './editTheme.theme';
 const DefaultComp = () => <div>Component not registered.</div>
@@ -87,7 +88,8 @@ function ComponentList ({
 	const navigate = useNavigate();
 	const { UI, theme: themeFromContext } = useContext(ThemeContext);
 	const t = { ...editThemeTheme, ...(themeFromContext?.admin?.editTheme || {}) }
-	const { baseUrl, user } = React.useContext(AdminContext) || {};
+	const { baseUrl, app, user, authPermissions } = React.useContext(AdminContext) || {};
+
 	const { MultiSelect, Button } = UI;
 	const theme = defaultTheme
 
@@ -114,6 +116,11 @@ function ComponentList ({
 		// console.log('settting comp', compFromProps)
 		setCurrentComponent(compFromProps || 'PageView')
 	}, [compFromProps])
+
+  const isAdmin = (user?.groups || []).some(g => g === `${app} Admin`);
+  if (!isAdmin && !isUserAuthed(user, authPermissions)) {
+    return <div className={t.noAccess || 'flex items-center justify-center h-48 text-sm text-gray-400'}>You do not have permission to manage themes.</div>;
+  }
 
 	const onSubmit = (updateCurrentTheme) => {
 		const value = item.theme_refs.map(t => t.theme_id === theme_id ? {...t, theme: JSON.stringify(updateCurrentTheme)} : t);

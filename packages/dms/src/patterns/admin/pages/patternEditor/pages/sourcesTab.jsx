@@ -220,30 +220,30 @@ export function SourcesTab({ value, apiLoad, falcor }) {
     return (
         <div className={p.wrapper}>
             <div className={p.toolbar}>
-                <div className={p.filterWrap}>
-                    <select
-                        className={statusFilter ? p.filterSelectActive : p.filterSelect}
+                <div className="w-44">
+                    <UI.Select
                         value={statusFilter}
-                        onChange={e => setStatusFilter(e.target.value)}
-                    >
-                        <option value="">All status ({sourceRows.length})</option>
-                        <option value="Active">Active ({activeCount})</option>
-                        <option value="Orphaned">Orphaned ({orphanedCount})</option>
-                    </select>
-                    <span className={p.filterCaret}>▾</span>
+                        onChange={val => setStatusFilter(val ?? '')}
+                        placeholder={`All status (${sourceRows.length})`}
+                        options={[
+                            { label: `Active (${activeCount})`, value: 'Active' },
+                            { label: `Orphaned (${orphanedCount})`, value: 'Orphaned' },
+                        ]}
+                        allowDeselect
+                    />
                 </div>
 
-                <div className={p.filterWrap}>
-                    <select
-                        className={originFilter ? p.filterSelectActive : p.filterSelect}
+                <div className="w-44">
+                    <UI.Select
                         value={originFilter}
-                        onChange={e => setOriginFilter(e.target.value)}
-                    >
-                        <option value="">All origins ({sourceRows.length})</option>
-                        <option value="Internal">Internal ({internalCount})</option>
-                        <option value="External">External ({externalCount})</option>
-                    </select>
-                    <span className={p.filterCaret}>▾</span>
+                        onChange={val => setOriginFilter(val ?? '')}
+                        placeholder={`All origins (${sourceRows.length})`}
+                        options={[
+                            { label: `Internal (${internalCount})`, value: 'Internal' },
+                            { label: `External (${externalCount})`, value: 'External' },
+                        ]}
+                        allowDeselect
+                    />
                 </div>
 
                 <div className={p.searchWrap}>
