@@ -256,6 +256,7 @@ export default function Table ({
             showGutters: display.showGutters,
             striped: display.striped,
             hideIfNullOpenouts: display.hideIfNullOpenouts,
+            openOutDefaultOpen: display.openOutDefaultOpen,
         };
     }, [columns, defaultColumnSize, display]);
     const {

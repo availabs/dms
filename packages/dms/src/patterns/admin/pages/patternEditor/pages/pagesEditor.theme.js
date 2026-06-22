@@ -18,6 +18,7 @@ export const pagesEditorTheme = {
     scopeBtn: 'border-none bg-transparent rounded-full px-3 py-0.5 text-[11px] tracking-wide uppercase text-gray-400 cursor-pointer',
     scopeBtnActive: 'border-none bg-white rounded-full px-3 py-0.5 text-[11px] tracking-wide uppercase text-gray-800 shadow-sm cursor-pointer',
     ghostBtn: 'text-[11px] font-semibold px-2.5 py-1 rounded-full border border-gray-200 bg-white text-gray-600 cursor-pointer hover:bg-gray-50 hover:border-gray-400',
+    clearFiltersBtn: 'text-[11px] font-semibold px-2.5 py-1 rounded-full border border-indigo-200 bg-indigo-50 text-indigo-700 cursor-pointer hover:bg-indigo-100',
     addBtn: 'text-[11px] font-semibold px-3 py-1 rounded-full bg-gray-800 text-white cursor-pointer hover:bg-gray-700 border-none',
     tableWrap: 'flex-1 min-h-0 overflow-hidden',
     loadingWrap: 'flex items-center justify-center h-32 text-gray-400 text-sm',
@@ -71,6 +72,12 @@ export const pagesEditorTheme = {
     discardBtn: 'text-[11px] font-semibold px-2.5 py-1 rounded-full bg-white text-amber-700 border border-amber-300 cursor-pointer hover:bg-amber-50',
     deleteBtn: 'text-[11px] font-semibold px-2.5 py-1 rounded-full bg-white text-red-600 border border-red-200 cursor-pointer hover:bg-red-50',
     rowActions: 'flex items-center gap-1 justify-end flex-wrap',
+    actionsMenuBtn: 'text-[15px] font-bold text-gray-400 px-2 py-0.5 rounded hover:bg-gray-100 hover:text-gray-600 cursor-pointer border-none bg-transparent leading-none select-none',
+    actionsMenu: 'bg-white rounded-lg shadow-lg border border-gray-200 py-1 min-w-[140px] text-[12px] z-50',
+    actionsMenuItem: 'block w-full text-left px-3 py-1.5 text-gray-700 hover:bg-gray-50 cursor-pointer border-none bg-transparent',
+    actionsMenuItemDiscard: 'text-amber-700 hover:bg-amber-50',
+    actionsMenuItemDelete: 'text-red-600 hover:bg-red-50',
+    actionsMenuSep: 'my-1 border-t border-gray-100',
 
     // delete confirmation modal
     deleteModal: 'p-6 max-w-sm w-full',

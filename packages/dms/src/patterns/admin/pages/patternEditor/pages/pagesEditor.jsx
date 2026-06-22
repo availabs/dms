@@ -561,7 +561,7 @@ function buildFlatTree({ pages, byId, expandedIds, sectionsByPageId, lens, searc
 
 export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate, falcor }) {
     const navigate = useNavigate();
-    const [searchParams] = useSearchParams();
+    const [searchParams, setSearchParams] = useSearchParams();
     const { UI, theme: themeFromContext = {} } = useContext(ThemeContext) || {};
     const { user } = useContext(AdminContext) || {};
     const t = { ...pagesEditorTheme, ...(getComponentTheme(themeFromContext, 'admin.pagesEditor')) };
@@ -584,6 +584,7 @@ export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate, falcor }) {
     const [scope, setScope] = useState(() => searchParams.get('scope') || 'pages');
     const [typeFilter, setTypeFilter] = useState('');
     const [srcFilter, setSrcFilter] = useState(() => searchParams.get('src') || '');
+    const [sectionsExpanded, setSectionsExpanded] = useState(null);
     const [dragId, setDragId] = useState(null);
     const [dropTargetId, setDropTargetId] = useState(null);
     const [previewSection, setPreviewSection] = useState(null);
@@ -970,6 +971,17 @@ export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate, falcor }) {
         setExpandedIds(new Set(pages.filter(p => pages.some(c => String(c.parent) === String(p.id))).map(p => String(p.id))));
     }, [pages]);
 
+    const hasActiveFilters = lens !== 'all' || scope !== 'pages' || search || typeFilter || srcFilter || searchParams.size > 0;
+
+    const clearFilters = useCallback(() => {
+        setLens('all');
+        setScope('pages');
+        setSearch('');
+        setTypeFilter('');
+        setSrcFilter('');
+        if (searchParams.size > 0) setSearchParams({}, { replace: true });
+    }, [searchParams, setSearchParams]);
+
     const collapseAll = useCallback(() => setExpandedIds(new Set()), []);
 
     const gridRef = useRef(null);
@@ -991,7 +1003,7 @@ export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate, falcor }) {
         />
     ), [t, value.base_url, value.app, navigate, setPreviewSection, apiUpdate, patternInstance, loadAll, compById]);
 
-    // Page-level action buttons (Publish / Discard / Duplicate / Edit / Delete) in each row
+    // Page-level action buttons (Publish / Discard / Duplicate / Edit / Delete) in a popup menu
     const PageActionsComp = useCallback(({ row: page }) => {
         if (!page || page._isGroupBand) return null;
         const hasChanges = needsPublish(page);
@@ -999,21 +1011,29 @@ export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate, falcor }) {
         const editUrl = value.base_url && pageSlug ? `${value.base_url}/edit/${pageSlug}` : null;
 
         return (
-            <div className={t.rowActions}>
-                {hasChanges && (
-                    <>
-                        <button className={t.publishBtn} onClick={() => publishPage(page)}>Publish</button>
-                        <button className={t.discardBtn} onClick={() => discardPage(page)}>Discard</button>
-                    </>
+            <UI.Popup
+                button={<button className={t.actionsMenuBtn}>⋯</button>}
+                preferredPosition="bottom"
+            >
+                {({ setOpen }) => (
+                    <div className={t.actionsMenu}>
+                        {hasChanges && (
+                            <>
+                                <button className={t.actionsMenuItem} onClick={() => { publishPage(page); setOpen(false); }}>Publish</button>
+                                <button className={`${t.actionsMenuItem} ${t.actionsMenuItemDiscard}`} onClick={() => { discardPage(page); setOpen(false); }}>Discard</button>
+                            </>
+                        )}
+                        {editUrl && (
+                            <button className={t.actionsMenuItem} onClick={() => { navigate(editUrl); setOpen(false); }}>Edit</button>
+                        )}
+                        <button className={t.actionsMenuItem} onClick={() => { duplicatePage(page); setOpen(false); }}>Duplicate</button>
+                        <div className={t.actionsMenuSep} />
+                        <button className={`${t.actionsMenuItem} ${t.actionsMenuItemDelete}`} onClick={() => { setDeletingPage(page); setOpen(false); }}>Delete</button>
+                    </div>
                 )}
-                {editUrl && (
-                    <button className={t.ghostBtn} onClick={() => navigate(editUrl)}>Edit</button>
-                )}
-                <button className={t.ghostBtn} onClick={() => duplicatePage(page)}>Duplicate</button>
-                <button className={t.deleteBtn} onClick={() => setDeletingPage(page)}>Delete</button>
-            </div>
+            </UI.Popup>
         );
-    }, [t, value.base_url, navigate, publishPage, discardPage, duplicatePage, setDeletingPage]);
+    }, [t, UI, value.base_url, navigate, publishPage, discardPage, duplicatePage, setDeletingPage]);
 
     const columns = useMemo(() => [
         { name: 'title',           display_name: 'Page',           show: true, type: 'tree_node',      size: 360 },
@@ -1022,10 +1042,10 @@ export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate, falcor }) {
         { name: '_updatedAt',      display_name: 'Modified',       show: true, type: 'text',            size: 100 },
         { name: 'hide_in_nav',     display_name: 'In Nav',    show: true, type: 'switch',         size: 80,
           allowEditInView: true, trueValue: false },
-        { name: '_actions',        display_name: 'Actions',          show: true, type: 'ui',             size: 350,
-          Comp: PageActionsComp },
         { name: '_sectionCount',   display_name: 'Sections',  show: true, type: 'sections_chip',  size: 90,
           openOutTrigger: true },
+        { name: '_actions',        display_name: 'Actions',                 show: true, type: 'ui',             size: 40,
+            Comp: PageActionsComp },
         { name: '_sections',       display_name: 'Sections',  show: true, type: 'ui',
           Comp: SectionsPanelComp, openOut: true },
     ], [SectionsPanelComp, PageActionsComp]);
@@ -1128,10 +1148,16 @@ export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate, falcor }) {
                     </>
                 )}
 
+                {hasActiveFilters && (
+                    <button className={t.clearFiltersBtn} onClick={clearFilters}>✕ Clear Filters</button>
+                )}
+
                 <div className="flex-1" />
 
                 <button className={t.ghostBtn} onClick={expandAll}>Expand All</button>
                 <button className={t.ghostBtn} onClick={collapseAll}>Collapse All</button>
+                <button className={t.ghostBtn} onClick={() => setSectionsExpanded(true)}>Expand Sections</button>
+                <button className={t.ghostBtn} onClick={() => setSectionsExpanded(false)}>Collapse Sections</button>
                 <button
                     className={t.addBtn}
                     onClick={handleAddPage}
@@ -1152,7 +1178,7 @@ export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate, falcor }) {
                             columns={columns}
                             data={tableData}
                             activeStyle="below-row"
-                            display={{ showGutters: false, virtualizeColumns: false }}
+                            display={{ showGutters: false, virtualizeColumns: false, ...(sectionsExpanded !== null && { openOutDefaultOpen: sectionsExpanded }) }}
                             allowEdit={false}
                             isActive={true}
                             updateItem={handleUpdateItem}

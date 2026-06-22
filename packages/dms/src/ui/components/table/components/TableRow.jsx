@@ -1,4 +1,4 @@
-import React, {memo, useContext, useMemo, useState} from "react";
+import React, {memo, useContext, useEffect, useMemo, useState} from "react";
 import {numColSize as numColSizeDf } from "../../../../patterns/page/components/sections/components/ComponentRegistry/spreadsheet/constants"
 import {TableCell} from "./TableCell";
 import Icon from "../../Icon"
@@ -16,8 +16,12 @@ export const TableRow = memo(function TableRow ({
         openOutAttributes, showGutters, striped, hideIfNullOpenouts,
         onRowMouseEnter, onRowMouseLeave, onRowMouseClick,
         onRowDragStart, onRowDragOver, onRowDrop, onRowDragEnd,
+        openOutDefaultOpen,
     } = useContext(TableStructureContext);
-    const [showOpenOut, setShowOpenOut] = useState(false);
+    const [showOpenOut, setShowOpenOut] = useState(!!openOutDefaultOpen);
+    useEffect(() => {
+        if (openOutDefaultOpen != null) setShowOpenOut(openOutDefaultOpen);
+    }, [openOutDefaultOpen]);
     const numColSize = showGutters ? numColSizeDf : 0;
 
     const attrsToRender = visibleAttrsWithoutOpenOut
