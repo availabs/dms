@@ -30,6 +30,16 @@ export const dataCardTheme = {
             headerValueWrapperFullBleed: 'w-full relative overflow-hidden',
             componentWrapper: 'w-full',
             headerValueWrapperBorderBelow: 'border-b rounded-none',
+            // Per-side cell border classes (mirrors sectionArray's `borderSides`).
+            // Side-specific width + side-specific color so one side never bleeds to
+            // the others. Composed by `cellBorderSides()` in Card.jsx from the
+            // per-column cellBorderTop/Right/Bottom/Left (cellBorderBelow = bottom).
+            cellBorderSides: {
+                top:    'border-t border-t-zinc-950/15',
+                right:  'border-r border-r-zinc-950/15',
+                bottom: 'border-b border-b-zinc-950/15',
+                left:   'border-l border-l-zinc-950/15',
+            },
 
             itemBorder: 'border shadow',
             cardBorder: 'border shadow',

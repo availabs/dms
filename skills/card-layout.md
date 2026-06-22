@@ -285,6 +285,18 @@ failing-by-period and §04 corridors use `data_bar`. Use `data_color_cell` for a
 spreadsheet that's a heat grid (pair it with the `"heat"` table style —
 `display.tableStyle: "heat"` — for the white-header, border-less treatment).
 
+> ⚠️ **`barMaxColumn` / `barColorColumn` (and `data_color_cell`'s
+> `domainColumns`/`*Column` props) must reference a sibling column by its FULL
+> SQL `name`, not its alias.** The row handed to the column type is keyed by each
+> column's full `name` (the server strips `normalName`), so a prop pointing at
+> the bare alias misses the lookup → `barMax` resolves to `NaN` → `fillPct`
+> clamps every bar to 100% (bars show *no variation*, the classic symptom).
+> Define the max/tone expressions once and reuse the exact string in both the
+> column and the `*Column` prop. Also: `data_bar` parses the cell value with
+> `parseFloat`, which stops at a comma — a `formatFn: 'comma'` value like
+> `"31,677"` parses as `31` and collapses the scale; the built-in `data_bar`
+> strips commas before parsing, so keep that behavior if you fork it.
+
 > **Compound single-line header** (a `cardTitleSM` title on the left + a `kicker`
 > descriptor pushed right on ONE line) is authored in a **lexical** section, not a
 > Card: a `layout-container` node (`templateColumns: "items-center

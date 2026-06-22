@@ -11,15 +11,16 @@ import { ThemeContext, getComponentTheme } from "../useTheme";
 //   deltaYearField     : name of a row column holding the current period's year;
 //                        the suffix becomes "vs <year-1>". Falls back to deltaSuffix.
 //   deltaSuffix        : static muted suffix text (used when deltaYearField is unset).
+//   deltaUnit          : optional unit appended to the value (e.g. '%', ' min', ' pp').
 const deltaDefault = {
-    wrapper: "inline-flex items-center gap-1 font-mono text-[12px] tabular-nums font-medium",
+    wrapper: "inline-flex items-center gap-1 font-mono text-[12px] tabular-nums font-medium whitespace-nowrap",
     good:    "text-emerald-700",
     bad:     "text-rose-700",
     neutral: "text-slate-500",
     suffix:  "text-slate-400 font-normal normal-case",
 };
 
-export const DeltaView = ({ value, row, deltaGoodDirection = "up", deltaYearField, deltaSuffix }) => {
+export const DeltaView = ({ value, row, deltaGoodDirection = "up", deltaYearField, deltaSuffix, deltaUnit = "" }) => {
     const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
     const t = { ...deltaDefault, ...getComponentTheme(themeFromContext, "delta") };
 
@@ -41,7 +42,7 @@ export const DeltaView = ({ value, row, deltaGoodDirection = "up", deltaYearFiel
 
     return (
         <span className={`${t.wrapper} ${toneClass}`}>
-            {arrow} {sign}{n}
+            {arrow} {sign}{n}{deltaUnit}
             {suffix ? <span className={t.suffix}>{suffix}</span> : null}
         </span>
     );
