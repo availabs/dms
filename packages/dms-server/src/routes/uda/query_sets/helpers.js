@@ -164,10 +164,13 @@ function handleFilterGroupsCH(node, hasExistingFilters = false) {
         conds.push(...nulls.map(toNotCondition));
         return conds.length > 1 ? `(${conds.join(' AND ')})` : (conds[0] || '');
       }
-      case 'gt': return `${col} > ${escapeValue(value)}`;
-      case 'gte': return `${col} >= ${escapeValue(value)}`;
-      case 'lt': return `${col} < ${escapeValue(value)}`;
-      case 'lte': return `${col} <= ${escapeValue(value)}`;
+      // comparison ops take a SCALAR — use vals[0], not the raw `value` (a filterGroups leaf value is
+      // an array, e.g. ['2026-06-01']; passing the array to escapeValue stringifies it UNQUOTED →
+      // `date >= 2026-06-01` parsed as Int64 arithmetic → type error on Date/String columns).
+      case 'gt': return `${col} > ${escapeValue(vals[0])}`;
+      case 'gte': return `${col} >= ${escapeValue(vals[0])}`;
+      case 'lt': return `${col} < ${escapeValue(vals[0])}`;
+      case 'lte': return `${col} <= ${escapeValue(vals[0])}`;
       case 'like': {
         const likeStr = Array.isArray(value)
           ? value.map((v) => `toString(${col}) LIKE '%${v}%'`).join(' OR ')
