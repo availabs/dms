@@ -215,6 +215,10 @@ export default function Table ({
     onRowMouseClick,
     onRowMouseEnter,
     onRowMouseLeave,
+    onRowDragStart,
+    onRowDragOver,
+    onRowDrop,
+    onRowDragEnd,
 }) {
     const data = localFilteredData || unFilteredData;
 
@@ -477,7 +481,9 @@ export default function Table ({
         openOutCloseIconContainer: theme?.openOutCloseIconContainer,
         openOutCloseIconWrapper: theme?.openOutCloseIconWrapper,
         openOutCloseIcon: theme?.openOutCloseIcon,
-        openOutContainerWrapperBgColor: theme?.openOutContainerWrapperBgColor
+        openOutContainerWrapperBgColor: theme?.openOutContainerWrapperBgColor,
+        openOutHideTitle: theme?.openOutHideTitle,
+        openOutBelowRow: theme?.openOutBelowRow,
     }), [theme]);
 
     const itemContent = useCallback(
@@ -579,7 +585,7 @@ export default function Table ({
              onMouseLeave={e => handleMouseUp({setIsDragging})}
              style={{maxHeight: !paginationActive && display.maxHeight ? `${display.maxHeight}px` : undefined}}
         >
-                <TableStructureContext.Provider value={{...structureValues, highlightedRow, onRowMouseClick, onRowMouseEnter, onRowMouseLeave}}>
+                <TableStructureContext.Provider value={{...structureValues, highlightedRow, onRowMouseClick, onRowMouseEnter, onRowMouseLeave, onRowDragStart, onRowDragOver, onRowDrop, onRowDragEnd}}>
                     <TableCellContext.Provider value={{
                         frozenCols, allowEdit, editing, setEditing, isDragging, isSelecting,
                         setSelection, setIsDragging, startCellCol, startCellRow, selection, selectionRange,

@@ -39,7 +39,7 @@ export const createRequest = (wrapperConfig,format, path, length) => {
 				 options !== '{}' ? 'opts' : false,
 				 options !== '{}' ? options : false,
 				'byIndex', {from: fromIndex, to: toIndex },
-				[ "id", "app", "type",...dataAttrs]
+				[ "id", "updated_at", "app", "type",...dataAttrs]
 			].filter(d => d)
 		}
 		case 'view':

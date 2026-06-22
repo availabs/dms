@@ -8,6 +8,9 @@ import { PatternSettingsEditor } from "./default/settings";
 import { PatternThemeEditor } from "./default/themeEditor";
 import { PatternFilterEditor } from "./default/filterEditor";
 import { PatternPermissionsEditor } from "./default/permissionsEditor";
+import { PatternPagesEditor } from "./pages/pagesEditor";
+import { SourcesTab } from "./pages/sourcesTab";
+import { ActivityTab } from "./pages/activityTab";
 // probably want to change this to register function for non default pages
 import FormatManager from '../../../page/pages/formatManager';
 
@@ -36,7 +39,25 @@ const navPages = [
   }
 ]
 
-const PatternEditor = ({params, dataItems, item, format, attributes, apiUpdate, apiLoad, ...rest}) => {
+const pagesTab = {
+  name: 'Pages',
+  path: 'pages',
+  component: PatternPagesEditor
+}
+
+const sourcesTab = {
+  name: 'Data Sources',
+  path: 'sources',
+  component: SourcesTab
+}
+
+const activityTab = {
+  name: 'Activity',
+  path: 'activity',
+  component: ActivityTab
+}
+
+const PatternEditor = ({params, dataItems, item, format, attributes, apiUpdate, apiLoad, falcor, ...rest}) => {
   const { baseUrl, parentBaseUrl } = React.useContext(AdminContext);
   const { theme } = React.useContext(ThemeContext);
   const t = { ...patternEditorTheme, ...(theme?.admin?.patternEditor || {}) }
@@ -47,6 +68,7 @@ const PatternEditor = ({params, dataItems, item, format, attributes, apiUpdate, 
 
   const pages = [
     ...navPages,
+    ...(item.pattern_type === 'page' ? [pagesTab, sourcesTab, activityTab] : []),
     ...(item.pages || []),
     ...(item.pattern_type === 'page' ? [{ path: 'edit_pattern', name: 'Format Manager', component: FormatManager }] : [])
   ];
@@ -71,6 +93,7 @@ const PatternEditor = ({params, dataItems, item, format, attributes, apiUpdate, 
               attributes={attributes}
                 apiUpdate={apiUpdate}
                 apiLoad={apiLoad}
+                falcor={falcor}
             />
           </div>
       </div>

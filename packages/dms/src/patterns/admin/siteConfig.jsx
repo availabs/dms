@@ -52,6 +52,7 @@ const adminConfig = ({
   pattern: patternData,
   authPermissions = {},
   isMultiTenant = false,
+  pgEnv = '',
 }) => {
   const format = cloneDeep(adminFormat);
   format.app = app;
@@ -104,6 +105,7 @@ const adminConfig = ({
                 dmsEnvById,
                 authPermissions,
                 isMultiTenant,
+                pgEnv,
               }}
             >
               <ThemeContext.Provider value={{ theme, themes, UI }}>
@@ -178,6 +180,7 @@ const patternConfig = ({
   dmsEnvs = [],
   dmsEnvById = {},
   isMultiTenant = false,
+  pgEnv = '',
 }) => {
   const format = cloneDeep(pattern);
   format.app = app;
@@ -230,6 +233,7 @@ const patternConfig = ({
                 dmsEnvs,
                 dmsEnvById,
                 isMultiTenant,
+                pgEnv,
               }}
             >
               <ThemeContext.Provider value={{ theme, themes, UI }}>
