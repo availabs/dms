@@ -214,10 +214,10 @@ const PlaceholderRow = ({ rowRef }) => (
 
 // Shown when emptyRowMode === 'inline_add'. Looks like a normal data row but
 // cells are editable inputs bound to newItem. Enter commits via addItem().
-// Only columns where allowEdit or column.allowEditInView are interactive; the
-// rest show a muted dash. Paste is handled at the cell level so the global
-// usePaste handler does not also fire (see inlineAddRef guard below).
-const InlineAddRow = ({ rowRef, containerRef, numColSize, defaultColumnSize, visibleAttrsWithoutOpenOut, startCol, endCol, allowEdit, newItem, setNewItem, addItem, theme }) => {
+// All columns get EditComp (same as AddNew) — allowEditInView only governs
+// editing existing rows, not entering a new one. Paste is handled at the cell
+// level so the global usePaste handler does not double-fire (see inlineAddRef).
+const InlineAddRow = ({ rowRef, containerRef, numColSize, defaultColumnSize, visibleAttrsWithoutOpenOut, startCol, endCol, newItem, setNewItem, addItem, theme }) => {
     const attrsToRender = visibleAttrsWithoutOpenOut
         .slice(startCol, endCol + 1)
         .filter(attr => !attr._isActionsColumn);
@@ -257,58 +257,51 @@ const InlineAddRow = ({ rowRef, containerRef, numColSize, defaultColumnSize, vis
                     )}
                 </div>
                 {attrsToRender.map((attribute, i) => {
-                    const canEdit = allowEdit || attribute.allowEditInView;
                     let lexicalTheme = null;
-                    if (canEdit && attribute.type === 'lexical') {
+                    if (attribute.type === 'lexical') {
                         lexicalTheme = cloneDeep(theme || {});
                         if (!lexicalTheme.lexical) lexicalTheme.lexical = {};
                         lexicalTheme.lexical.editorScroller = "border-0 flex relative outline-0 z-0 resize-y";
                         lexicalTheme.lexical.editorShell = "w-full h-full font-['Proxima_Nova'] font-[400] text-[1rem] text-slate-700 leading-[22.4px]";
                         lexicalTheme.lexical.editorContainer = "relative block rounded-[10px]";
                     }
-                    const Comp = canEdit
-                        ? (DataTypes[attribute.type || 'text']?.EditComp || (() => <div />))
-                        : null;
+                    const Comp = DataTypes[attribute.type || 'text']?.EditComp || (() => <div />);
                     return (
                         <div
                             key={`inline-add-${i}`}
-                            className={`flex border border-slate-50 p-1 w-full h-full ${canEdit ? 'bg-white hover:bg-blue-50' : 'bg-gray-50'}`}
+                            className="flex border border-slate-50 p-1 w-full h-full bg-white hover:bg-blue-50"
                             style={{ width: attribute._hasFixedSize ? attribute.size : undefined }}
                         >
-                            {canEdit ? (
-                                <Comp
-                                    key={attribute.name}
-                                    menuPosition="top"
-                                    className="p-1 bg-white hover:bg-blue-50 w-full h-full"
-                                    {...attribute}
-                                    size={attribute.size || defaultColumnSize}
-                                    value={newItem[attribute.name]}
-                                    placeholder="+ add new"
-                                    onChange={v => setNewItem(prev => ({ ...prev, [attribute.name]: v }))}
-                                    onPaste={e => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        const paste = (e.clipboardData || window.clipboardData)
-                                            .getData('text')
-                                            ?.split('\n')
-                                            .filter(row => row.length)
-                                            .map(row => row.split('\t'));
-                                        if (!paste?.length) return;
-                                        const pastedCols = [...new Array(paste[0].length).keys()]
-                                            .map(j => attrsToRender[i + j])
-                                            .filter(Boolean);
-                                        const updates = pastedCols.reduce((acc, c, j) => ({
-                                            ...acc,
-                                            [c.name]: paste[0][j]
-                                        }), {});
-                                        setNewItem(prev => ({ ...prev, ...updates }));
-                                    }}
-                                    hideControls={attribute.type === 'lexical'}
-                                    theme={lexicalTheme || undefined}
-                                />
-                            ) : (
-                                <div className="text-gray-300 w-full p-1 text-sm">—</div>
-                            )}
+                            <Comp
+                                key={attribute.name}
+                                menuPosition="top"
+                                className="p-1 bg-white hover:bg-blue-50 w-full h-full"
+                                {...attribute}
+                                size={attribute.size || defaultColumnSize}
+                                value={newItem[attribute.name]}
+                                placeholder="+ add new"
+                                onChange={v => setNewItem(prev => ({ ...prev, [attribute.name]: v }))}
+                                onPaste={e => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    const paste = (e.clipboardData || window.clipboardData)
+                                        .getData('text')
+                                        ?.split('\n')
+                                        .filter(row => row.length)
+                                        .map(row => row.split('\t'));
+                                    if (!paste?.length) return;
+                                    const pastedCols = [...new Array(paste[0].length).keys()]
+                                        .map(j => attrsToRender[i + j])
+                                        .filter(Boolean);
+                                    const updates = pastedCols.reduce((acc, c, j) => ({
+                                        ...acc,
+                                        [c.name]: paste[0][j]
+                                    }), {});
+                                    setNewItem(prev => ({ ...prev, ...updates }));
+                                }}
+                                hideControls={attribute.type === 'lexical'}
+                                theme={lexicalTheme || undefined}
+                            />
                         </div>
                     );
                 })}
@@ -632,7 +625,6 @@ export default function Table ({
                         numColSize={numColSize}
                         defaultColumnSize={defaultColumnSize}
                         visibleAttrsWithoutOpenOut={visibleAttrsWithoutOpenOut}
-                        allowEdit={allowEdit}
                         newItem={newItem}
                         setNewItem={setNewItem}
                         addItem={addItem}
@@ -652,7 +644,7 @@ export default function Table ({
             );
         },
         [rows, rowTheme, showPlaceholder, showInlineAdd, numColSize, defaultColumnSize,
-         visibleAttrsWithoutOpenOut, allowEdit, newItem, setNewItem, addItem, theme]
+         visibleAttrsWithoutOpenOut, newItem, setNewItem, addItem, theme]
     );
     const localFilterData = useMemo(() => {
         const dataToReturn = {};
