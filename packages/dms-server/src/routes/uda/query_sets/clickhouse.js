@@ -281,6 +281,7 @@ async function simpleFilter(ctx, options, attributes, indices) {
       SELECT * FROM (
         ${armSqls.join('\n        UNION ALL\n')}
       ) AS fanout
+      ${handleOrderByCH(orderBy)}
       LIMIT ${+num}
       OFFSET ${indices.from}
     `;

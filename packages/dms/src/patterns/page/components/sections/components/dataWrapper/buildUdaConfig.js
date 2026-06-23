@@ -1603,12 +1603,21 @@ export const buildUdaConfig = ({
       : filters || {};
 
     options.seriesKey = comparisonSeries.seriesKey || "__series";
-    options.seriesVariants = effectiveVariants
-      .filter((v) => v && v.label)
-      .map((v) => ({
+    const activeVariants = effectiveVariants.filter((v) => v && v.label);
+    options.seriesVariants = activeVariants.map((v) => ({
         label: v.label,
         filterGroups: resolveArmTree(mergeVariantFilters(baseForArms, v.filters || {})),
-      }));
+    }));
+  }
+
+  if (activeComparisonSeries) {
+    const seriesKey = comparisonSeries.seriesKey || "__series";
+    const caseExpr = `CASE ${seriesKey} ${effectiveVariants
+        .filter((v) => v && v.label)
+        .map((v, i) => `WHEN '${v.label}' THEN ${i + 1}`)
+        .join(' ')} ELSE ${effectiveVariants.filter((v) => v && v.label).length + 1} END`;
+    
+    options.orderBy[caseExpr] = 'desc';
   }
 
   // 9. Build attributes list
