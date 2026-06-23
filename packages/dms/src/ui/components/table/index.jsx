@@ -204,6 +204,127 @@ const getKey = v => {
     }
     return v;
 };
+
+// Shown when emptyRowMode === 'placeholder' and data is empty.
+const PlaceholderRow = ({ rowRef }) => (
+    <div ref={rowRef} className="border-b border-slate-100 p-2 text-sm text-gray-400 italic">
+        No data
+    </div>
+);
+
+// Shown when emptyRowMode === 'inline_add'. Looks like a normal data row but
+// cells are editable inputs bound to newItem. Enter commits via addItem().
+// Only columns where allowEdit or column.allowEditInView are interactive; the
+// rest show a muted dash. Paste is handled at the cell level so the global
+// usePaste handler does not also fire (see inlineAddRef guard below).
+const InlineAddRow = ({ rowRef, containerRef, numColSize, defaultColumnSize, visibleAttrsWithoutOpenOut, startCol, endCol, allowEdit, newItem, setNewItem, addItem, theme }) => {
+    const attrsToRender = visibleAttrsWithoutOpenOut
+        .slice(startCol, endCol + 1)
+        .filter(attr => !attr._isActionsColumn);
+
+    const gridTemplateColumns = useMemo(() => {
+        const cols = attrsToRender.map(c => c._track || `${c.size || defaultColumnSize}px`).join(' ');
+        return `${numColSize}px ${cols}`;
+    }, [startCol, endCol, visibleAttrsWithoutOpenOut, numColSize, defaultColumnSize]);
+
+    const handleKeyDown = (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            addItem?.();
+        }
+    };
+
+    return (
+        <div ref={rowRef} className="relative">
+            <div
+                ref={containerRef}
+                className="grid divide-x divide-y border-slate-50"
+                style={{ gridTemplateColumns, gridColumn: `span ${attrsToRender.length + 2} / ${attrsToRender.length + 2}` }}
+                onKeyDown={handleKeyDown}
+            >
+                <div
+                    className="bg-gray-50 border border-slate-50 flex items-center justify-center"
+                    style={{ width: numColSize }}
+                >
+                    {numColSize > 0 && (
+                        <button
+                            className="flex items-center justify-center text-green-500 hover:text-green-700"
+                            onClick={() => addItem?.()}
+                            title="Save row (or press Enter)"
+                        >
+                            <Icon icon="Check" height={14} width={14} />
+                        </button>
+                    )}
+                </div>
+                {attrsToRender.map((attribute, i) => {
+                    const canEdit = allowEdit || attribute.allowEditInView;
+                    let lexicalTheme = null;
+                    if (canEdit && attribute.type === 'lexical') {
+                        lexicalTheme = cloneDeep(theme || {});
+                        if (!lexicalTheme.lexical) lexicalTheme.lexical = {};
+                        lexicalTheme.lexical.editorScroller = "border-0 flex relative outline-0 z-0 resize-y";
+                        lexicalTheme.lexical.editorShell = "w-full h-full font-['Proxima_Nova'] font-[400] text-[1rem] text-slate-700 leading-[22.4px]";
+                        lexicalTheme.lexical.editorContainer = "relative block rounded-[10px]";
+                    }
+                    const Comp = canEdit
+                        ? (DataTypes[attribute.type || 'text']?.EditComp || (() => <div />))
+                        : null;
+                    return (
+                        <div
+                            key={`inline-add-${i}`}
+                            className={`flex border border-slate-50 p-1 w-full h-full ${canEdit ? 'bg-white hover:bg-blue-50' : 'bg-gray-50'}`}
+                            style={{ width: attribute._hasFixedSize ? attribute.size : undefined }}
+                        >
+                            {canEdit ? (
+                                <Comp
+                                    key={attribute.name}
+                                    menuPosition="top"
+                                    className="p-1 bg-white hover:bg-blue-50 w-full h-full"
+                                    {...attribute}
+                                    size={attribute.size || defaultColumnSize}
+                                    value={newItem[attribute.name]}
+                                    placeholder="+ add new"
+                                    onChange={v => setNewItem(prev => ({ ...prev, [attribute.name]: v }))}
+                                    onPaste={e => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        const paste = (e.clipboardData || window.clipboardData)
+                                            .getData('text')
+                                            ?.split('\n')
+                                            .filter(row => row.length)
+                                            .map(row => row.split('\t'));
+                                        if (!paste?.length) return;
+                                        const pastedCols = [...new Array(paste[0].length).keys()]
+                                            .map(j => attrsToRender[i + j])
+                                            .filter(Boolean);
+                                        const updates = pastedCols.reduce((acc, c, j) => ({
+                                            ...acc,
+                                            [c.name]: paste[0][j]
+                                        }), {});
+                                        setNewItem(prev => ({ ...prev, ...updates }));
+                                    }}
+                                    hideControls={attribute.type === 'lexical'}
+                                    theme={lexicalTheme || undefined}
+                                />
+                            ) : (
+                                <div className="text-gray-300 w-full p-1 text-sm">—</div>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+            {numColSize === 0 && (
+                <button
+                    className="absolute top-1/2 right-2 -translate-y-1/2 z-10 bg-green-500 hover:bg-green-600 text-white rounded text-xs px-1.5 py-0.5 shadow"
+                    onClick={() => addItem?.()}
+                    title="Save row"
+                >
+                    ✓
+                </button>
+            )}
+        </div>
+    );
+};
 export default function Table ({
     paginationActive, gridRef,
     allowEdit,
@@ -278,6 +399,7 @@ export default function Table ({
     const [triggerSelectionDelete, setTriggerSelectionDelete] = useState(false);
     const startCellRow = useRef(null);
     const startCellCol = useRef(null);
+    const inlineAddRef = useRef(null);
     const selectionRange = useMemo(() => {
         const rows = [...new Set(selection.map(s => s?.index !== undefined ? s.index : s))].sort((a, b) => a - b);
         const cols = [...new Set(selection.map(s => s.attrI).sort((a, b) => a - b) || columns.filter(({show}) => show).map((v, i) => i))];
@@ -295,7 +417,10 @@ export default function Table ({
     // =========================================== copy/paste begin ====================================================
     // =================================================================================================================
     usePaste((pastedContent, e) => {
+        // Let the inline-add row's own onPaste handler take over when focused there.
+        if (inlineAddRef.current?.contains(document.activeElement)) return;
         if(!allowEdit && !columns.some(c => c.allowEditInView)) return;
+        if(!selection.length) return;
         // first cell of selection
         let {index, attrI} = typeof selection[0] === 'number' ? {index: selection[0], attrI: undefined} : selection[0];
         updateItemsOnPaste({pastedContent, e, index, attrI, data, visibleAttributes, allowEdit, selection, updateItem})
@@ -487,18 +612,47 @@ export default function Table ({
         openOutBelowRow: theme?.openOutBelowRow,
     }), [theme]);
 
+    const showInlineAdd = display.emptyRowMode === 'inline_add'
+        && (allowEdit || columns.some(c => c.allowEditInView));
+    const showPlaceholder = display.emptyRowMode === 'placeholder' && rows.length === 0;
+    const effectiveRowCount = showPlaceholder ? 1 : showInlineAdd ? rows.length + 1 : rows.length;
+
     const itemContent = useCallback(
-        (index, startCol, endCol, ref) => (
-            <TableRow
-                rowRef={ref}
-                index={index}
-                rowData={rows[index]}
-                startCol={startCol}
-                endCol={endCol}
-                theme={rowTheme}
-            />
-        ),
-        [rows, rowTheme]
+        (index, startCol, endCol, ref) => {
+            if (showPlaceholder && index === 0) {
+                return <PlaceholderRow rowRef={ref} />;
+            }
+            if (showInlineAdd && index === rows.length) {
+                return (
+                    <InlineAddRow
+                        rowRef={ref}
+                        containerRef={inlineAddRef}
+                        startCol={startCol}
+                        endCol={endCol}
+                        numColSize={numColSize}
+                        defaultColumnSize={defaultColumnSize}
+                        visibleAttrsWithoutOpenOut={visibleAttrsWithoutOpenOut}
+                        allowEdit={allowEdit}
+                        newItem={newItem}
+                        setNewItem={setNewItem}
+                        addItem={addItem}
+                        theme={theme}
+                    />
+                );
+            }
+            return (
+                <TableRow
+                    rowRef={ref}
+                    index={index}
+                    rowData={rows[index]}
+                    startCol={startCol}
+                    endCol={endCol}
+                    theme={rowTheme}
+                />
+            );
+        },
+        [rows, rowTheme, showPlaceholder, showInlineAdd, numColSize, defaultColumnSize,
+         visibleAttrsWithoutOpenOut, allowEdit, newItem, setNewItem, addItem, theme]
     );
     const localFilterData = useMemo(() => {
         const dataToReturn = {};
@@ -593,7 +747,7 @@ export default function Table ({
                         updateItem, removeItem, theme, columns, display
                     }}>
                         <VirtualList
-                            rowCount={rows.length}
+                            rowCount={effectiveRowCount}
                             columnCount={visibleAttrsWithoutOpenOutLength}
                             columnSizes={columnSizes}
                             increaseViewportBy={VIRTUAL_VIEWPORT_INCREASE}

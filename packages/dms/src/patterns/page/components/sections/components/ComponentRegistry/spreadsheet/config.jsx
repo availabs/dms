@@ -166,6 +166,13 @@ const buildControls = (theme) => ({
             },
             { type: 'input', inputType: 'text', label: 'Navigate to', key: 'navigateUrlOnAdd',
                 displayCdn: ({ display }) => display.allowAdddNew && display.addNewBehaviour === 'navigate' },
+            { type: 'select', label: 'Empty Row Mode', key: 'emptyRowMode',
+                options: [
+                    { label: 'None', value: '' },
+                    { label: 'Show placeholder', value: 'placeholder' },
+                    { label: 'Show inline add row', value: 'inline_add' },
+                ]
+            },
             { type: 'toggle', label: 'Show Total', key: 'showTotal' },
             { type: 'select', label: 'Data Fetch Mode', key: 'fetchMode',
                 options: [

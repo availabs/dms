@@ -570,14 +570,16 @@ const View = forwardRef(({cms_context, value, onChange, component, editPageMode,
         const sourceType = state?.externalSource?.type || (state?.externalSource?.name ? nameToSlug(state.externalSource.name) : undefined);
         const config = {format: {...state?.externalSource, type: `${sourceType}|${state?.externalSource?.view_id}:data`}}
 
-        if(allowAdddNew){
+        const emptyRowMode = state?.display?.emptyRowMode;
+        if(allowAdddNew || emptyRowMode === 'inline_add'){
             const res = await apiUpdate({data: newItem, config});
+            const effectiveBehaviour = addNewBehaviour || (emptyRowMode === 'inline_add' ? 'append' : '');
 
-            if(res?.id && addNewBehaviour === 'append'){
+            if(res?.id && effectiveBehaviour === 'append'){
                 setState(draft => {
                     draft.data.push({...newItem, id: res.id})
                 })
-            }else if(res?.id && addNewBehaviour === 'navigate' && navigateUrlOnAdd){
+            }else if(res?.id && effectiveBehaviour === 'navigate' && navigateUrlOnAdd){
                 navigate(`${baseUrl}${navigateUrlOnAdd}${res.id}`)
             }
 
