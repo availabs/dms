@@ -563,7 +563,20 @@ const extractLegacyColumnFilters = (columns) => {
       )
         continue;
 
-      const { operation, values, fn } = f;
+      const { operation, fn } = f;
+      let { values } = f;
+
+      // For filter/exclude, drop empty-string/null values before they reach the
+      // server. An unset page-filter leaf (e.g. a blank `?system=` driving an
+      // `is_interstate` control, or a blank `?region=`) resolves to [""], which
+      // compiles to `col IN ('')` and errors on numeric columns ("Error getting
+      // length"). Null sentinels ('null'/'not null') survive (String length > 0)
+      // for IS NULL handling. Mirrors the filterGroups guard in mapColumnFilters.
+      // Skip the leaf entirely when no real value remains.
+      if (operation === "filter" || operation === "exclude") {
+        values = values.filter((v) => v != null && String(v).length);
+        if (!values.length) continue;
+      }
 
       if (
         operation === "like" &&

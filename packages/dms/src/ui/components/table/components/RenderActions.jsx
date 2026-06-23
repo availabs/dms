@@ -41,9 +41,13 @@ const DeleteBtn = ({removeItem, newItem}) => {
 }
 
 export const RenderAction = ({ newItem={}, removeItem=() => {}, columns=[], action={}}) => {
+    // Key off the row's display alias (normalName) when present, falling back to `name`.
+    // Joined/aggregated group columns store their value under normalName (e.g. `meta.county as county`
+    // → row key `county`), so reading `newItem[name]` alone would miss them and drop the param.
+    // BC: simple columns have normalName === name (or undefined), so this is identical for them.
     const groupBy = columns
-        .filter(({name, group}) => group && newItem[name])
-        .map(({name}) => ({column: name, values: [newItem[name]]}));
+        .filter(({name, normalName, group}) => group && newItem[normalName || name])
+        .map(({name, normalName}) => ({column: normalName || name, values: [newItem[normalName || name]]}));
 
     const filters = columns
         .filter(({internalFilter, externalFilter}) => Array.isArray(internalFilter) || Array.isArray(externalFilter))
@@ -67,9 +71,13 @@ export const RenderAction = ({ newItem={}, removeItem=() => {}, columns=[], acti
 }
 
 const getSearchParams = ({newItem, columns}) => {
+    // Key off the row's display alias (normalName) when present, falling back to `name`.
+    // Joined/aggregated group columns store their value under normalName (e.g. `meta.county as county`
+    // → row key `county`), so reading `newItem[name]` alone would miss them and drop the param.
+    // BC: simple columns have normalName === name (or undefined), so this is identical for them.
     const groupBy = columns
-        .filter(({name, group}) => group && newItem[name])
-        .map(({name}) => ({column: name, values: [newItem[name]]}));
+        .filter(({name, normalName, group}) => group && newItem[normalName || name])
+        .map(({name, normalName}) => ({column: normalName || name, values: [newItem[normalName || name]]}));
 
     const filters = columns
         .filter(({internalFilter, externalFilter}) => Array.isArray(internalFilter) || Array.isArray(externalFilter))
