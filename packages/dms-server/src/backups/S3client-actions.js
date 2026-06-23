@@ -1,9 +1,14 @@
 const { extname } = require("node:path");
-const { createReadStream } = require("node:fs");
+const { pipeline } = require('node:stream/promises');
+const {
+	createReadStream,
+	createWriteStream
+} = require("node:fs");
 
 const {
 	S3Client,
 	PutObjectCommand,
+	GetObjectCommand,
 	ListObjectsV2Command,
 	DeleteObjectsCommand
 } = require("@aws-sdk/client-s3");
@@ -48,7 +53,28 @@ const putObject = async (s3client, awsInfo, filepath, filename) => {
 		return filename;
 	}
 	catch (e) {
-		console.error(`There was an error uploading pg dump file "${ filepath }":`, e);
+		console.error(`There was an error uploading file "${ filepath }":`, e);
+		return null;
+	}
+}
+
+const getObject = async (s3client, awsInfo, filename, filepath) => {
+
+	const getObjectParams = {
+	  Bucket: awsInfo["AWS_STORAGE_BUCKET"],
+	  Key: filename
+	};
+
+	try {
+		const command = new GetObjectCommand(getObjectParams);
+		const response = await s3client.send(command);
+		await pipeline(
+			response.Body,
+			createWriteStream(filepath)
+		)
+	}
+	catch (e) {
+		console.error(`There was an error getting object "${ filename }":`, e);
 		return null;
 	}
 }
@@ -89,6 +115,7 @@ module.exports = {
 	getAwsInfo,
 	getS3Client,
 	putObject,
+	getObject,
 	getBucketContents,
 	deleteObjects
 }

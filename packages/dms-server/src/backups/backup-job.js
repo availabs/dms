@@ -56,4 +56,4 @@ if (require.main === module) {
 	})();
 }
 
-module.exports = { BackupRegex }
+module.exports = { BackupRegex, backupSorter }
