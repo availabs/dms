@@ -52,11 +52,16 @@ function sanitizeName(name) {
  * "ds.geoid" → "geoid" 
  */
 function getResponseColumnName(nameWithAccessors, part = 1) {
-  const columnRenameRegex = /\s+as\s+/i;
-  if (columnRenameRegex.test(nameWithAccessors)) {
-    const name = nameWithAccessors.split(columnRenameRegex)[part];
+  // The SQL alias is the TRAILING `as <identifier>`. Match it from the end so an
+  // " as " sitting *inside* a string literal or expression — e.g.
+  // `'data as of … ' || … as asof` — isn't mistaken for the alias. Splitting on the
+  // FIRST " as " corrupted such columns: a bogus 60+ char "alias" tripped the
+  // columnNameMap long-name rename, unterminating the literal and exposing its
+  // `·` unquoted ("syntax error at or near ·"). `part` 0 = expression, 1 = alias.
+  const aliasMatch = nameWithAccessors.match(/^([\s\S]+)\s+as\s+("[^"]+"|\w+)\s*$/i);
+  if (aliasMatch) {
     // Strip double quotes added by quoteAlias for digit-prefixed identifiers
-    return name ? name.replace(/^"|"$/g, '') : name;
+    return part === 0 ? aliasMatch[1] : aliasMatch[2].replace(/^"|"$/g, '');
   }
   return nameWithAccessors.split(".").pop();
 }
@@ -326,6 +331,16 @@ function handleFiltersType(id_col, id_vals, index, type, isDms) {
     like: { symbol: 'LIKE' }
   };
 
+  // `neq` (not-equal) is array-exclude semantics ("value not in this set") — map it
+  // onto the exclude branch so it reuses the robust ANY()/NULL handling. A leaf can
+  // carry `neq` (e.g. roadname neq '' to drop blank groups) without it being a
+  // first-class client op.
+  if (type === 'neq') type = 'exclude';
+  // Unknown op → emit no condition instead of crashing on `typeMap[type].symbol`
+  // (an unrecognised op used to throw "Cannot read properties of undefined", which
+  // failed the entire WHERE build — and with it the length request → empty table).
+  if (!typeMap[type]) return '';
+
   const conditions = [];
 
   if (['filter'].includes(type)) {
@@ -521,7 +536,15 @@ function handleOrderBy(orders, dmsAttributes) {
     // unambiguous when a join puts the same column name in two tables. Without
     // an alias, fall back to getResponseColumnName (extracts the AS alias or
     // splits on `.`).
-    const expr = aliasedDmsCol.test(col) || aliasedDamaCol.test(col)
+    // A bare SQL expression (function call / cast / window function — contains
+    // parens, carries no `as <alias>`, and isn't a simple `table.column`) must be
+    // ordered by verbatim. The client strips the `as <alias>` off calc-column
+    // orderBy keys (splitColNameOnAS), so getResponseColumnName's
+    // `.split(".").pop()` fallback would mangle any expression containing a
+    // decimal — e.g. `… / 1000000.0)::numeric, 1)` → `0)::numeric, 1)` →
+    // "syntax error at or near )". Window-over-aggregate seasonality cards hit this.
+    const isBareExpression = col.includes("(") && !/\s+as\s+/i.test(col);
+    const expr = aliasedDmsCol.test(col) || aliasedDamaCol.test(col) || isBareExpression
       ? col
       : getResponseColumnName(col);
     return dataType

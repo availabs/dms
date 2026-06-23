@@ -12,7 +12,7 @@ export const formattedAttributeStr = (col, isDms, isCalculatedCol) => isCalculat
 
 export const getData = async ({format, apiLoad,
                                   // length,
-                                  reqName, refName, rawName, allAttributes, filterBy={}, limit}) =>{
+                                  reqName, refName, rawName, allAttributes, filterBy={}, limit, orderBy}) =>{
     const prependWithDistinct = !reqName.toLowerCase().startsWith('distinct');
     const appendWithAS = !reqName.toLowerCase().includes(' as ');
     const mappedAttributeName = `${prependWithDistinct ? `distinct ` : ``}${reqName}${appendWithAS ? ` as ${reqName}` : ``}` // to get uniq values
@@ -38,7 +38,11 @@ export const getData = async ({format, apiLoad,
             options: JSON.stringify({
                 ...filterBy,
                 // exclude: {[attribute]: ['null']},
-                // orderBy: {1: 'asc nulls last'},
+                // optional: order options by an aggregate (e.g. {'sum(aadt)':'desc'}) instead of the
+                // default client-side alphabetical sort — set per-column via column.optionOrderBy.
+                // Needs an explicit GROUP BY (the default option query is SELECT DISTINCT, under which
+                // an aggregate ORDER BY is invalid → "not under aggregate function / not in GROUP BY").
+                ...(orderBy && Object.keys(orderBy).length ? { orderBy, groupBy: [refName] } : {}),
                 meta,
                 keepOriginalValues: true
             }),

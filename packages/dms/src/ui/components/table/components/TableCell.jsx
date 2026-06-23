@@ -278,11 +278,15 @@ export const TableCell = memo(function TableCell ({
                     (DataTypes[compType]?.[compMode] || DisplayCalculatedCell),
         [compType, compMode, renderTextBox, attribute, newItem, rawValue]);
 
-    const value = isTotalCell && !(attribute.showTotal || display.showTotal) ? null :
+    const formattedValue = isTotalCell && !(attribute.showTotal || display.showTotal) ? null :
         compMode === 'EditComp' ? rawValue : // edit mode should always show raw value
             attribute.formatFn && formatFunctions[attribute.formatFn.toLowerCase()] ?
                 formatFunctions[attribute.formatFn.toLowerCase()](rawValue, attribute.isDollar) :
                 rawValue;
+    const value = compMode !== 'EditComp' && (formattedValue == null || formattedValue === '' ||
+        (Array.isArray(formattedValue) && !formattedValue.length)) && attribute.defaultValue
+        ? attribute.defaultValue
+        : formattedValue;
 
     const selectionColor = '#2100f8'
     const selectionEdgeClassNames = {
@@ -306,7 +310,8 @@ export const TableCell = memo(function TableCell ({
     useEffect(() => setNewItem(item), [item])
 
     useEffect(() => {
-        if (!(isCellEditing && allowEdit)) return;
+        if (!allowEdit) return;
+        if (!isCellEditing && !attribute.allowEditInView) return;
 
         const original = newItem[attribute.name]?.originalValue ?? newItem[attribute.name];
         const newVal = item[attribute.name]?.originalValue ?? item[attribute.name];
@@ -493,13 +498,20 @@ export const TableCell = memo(function TableCell ({
         return value;
     }, [value]);
 
+    // When the column declares itself an openOut trigger (e.g. sectionsChip), the
+    // entire cell is the toggle surface — no separate InfoCircle icon is shown.
+    const isTriggerCol = showOpenOutCaret && attribute.openOutTrigger;
+    const cellEventsWithTrigger = isTriggerCol
+        ? { ...cellEvents, onClick: toggleOpenOut }
+        : cellEvents;
+
     return (
         <div ref={cellRef}
              className={cellClassName}
              style={cellStyle}
-             {...cellEvents}
+             {...cellEventsWithTrigger}
         >
-            {showOpenOutCaret ?
+            {showOpenOutCaret && !isTriggerCol ?
                 <div className={theme.openOutIconWrapper}
                      onClick={toggleOpenOut}
                 >

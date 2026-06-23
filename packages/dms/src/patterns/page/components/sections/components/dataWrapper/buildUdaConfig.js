@@ -183,6 +183,20 @@ export const mapFilterGroupCols = (node, getColumn, isDms) => {
     if (!vals.length || !vals.every((v) => String(v).length)) return null;
   }
 
+  // For filter/exclude ops, skip the node entirely when no real value remains
+  // (empty array, or all-empty-string/null). An empty IN-list compiles to either
+  // `col IN ()` — a Postgres syntax error that fails the whole query — or
+  // `col IN ('')`, which silently matches nothing. Neither is ever the author's
+  // intent: an unset page-filter leaf (e.g. a `usePageFilters` region control with
+  // no selection) should WIDEN the query to "no constraint", not blank it. This
+  // mirrors the `like` guard above and the multiselect empty-strip below; null
+  // sentinels ('null'/'not null') survive (String length > 0) for IS NULL handling.
+  if (node.op === "filter" || node.op === "exclude") {
+    const vals = (Array.isArray(node.value) ? node.value : (node.value != null ? [node.value] : []))
+      .filter((v) => v != null && String(v).length);
+    if (!vals.length) return null;
+  }
+
   const ref = attributeAccessorStr(
     col.name,
     isDms,

@@ -182,8 +182,8 @@ function SettingsPane () {
               {
                   type:'Switch',
                   label: 'Hide in Nav',
-                  enabled: item.hide_in_nav === 'hide', size: 'small',
-                  setEnabled: e => togglePageSetting(item, 'hide_in_nav', e ? 'hide' : false, apiUpdate),
+                  enabled: !!(item.hide_in_nav), size: 'small',
+                  setEnabled: e => togglePageSetting(item, 'hide_in_nav', e ? 'hide' : null, apiUpdate),
                   customTheme:{
                       field: 'pb-2 flex flex-row gap-2'
                   }

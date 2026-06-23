@@ -149,7 +149,18 @@ Three details that trip up new authors:
 3. **`externalSource.columns` is the full source schema** (every
    column available to select), while the top-level `columns` is
    the *selected* projection with per-cell layout. Don't conflate
-   them.
+   them. An **empty** `externalSource.columns` → the renderer can't
+   resolve field names → **blank card**; copy the real source schema.
+4. **A column's `name` is a raw SQL expression — two silent NULL-ers.**
+   (a) **`round(double precision, int)` does not exist in Postgres** —
+   only `round(numeric, int)`. Any double-producing expression
+   (`percentile_cont(...)`, `… / 1e6`, `… / 1440.0`, divisions) must be
+   cast **`::numeric` before `round(...,n)`**, e.g.
+   `round((percentile_cont(0.5) within group (order by x))::numeric/1440.0, 1)`.
+   An un-cast `round(double,int)` errors and the whole row comes back
+   as an error object. (b) **A `;` inside a SQL string literal silently
+   NULLs the cell** — write `'a · b'`, never `'a; b'`, in a calculated
+   column's literal text.
 
 Field-by-field reference: the
 [schema.js header doc](../packages/dms/src/patterns/page/components/sections/components/dataWrapper/schema.js).
@@ -278,6 +289,47 @@ Open the page in edit mode, locate the new section, and click
 "Apply" on the toolbar to trigger a data refresh. If the table
 renders with values, the binding is healthy.
 
+> **One-shot tip — clone a whole working card, then re-filter.** For a section
+> that mirrors a proven binding (e.g. cloning a MAP-21 KPI card onto a new page),
+> don't re-derive its SQL — `raw get <section_id>`, take its `element-data`
+> verbatim (source, columns, **join**, the 1.5 KB CASE expressions), then change
+> only `filters.groups` (swap in your page-variable leaves) and clear `data: []`.
+> Reliability §01 cloned cards 2173919/20/21 this way.
+
+---
+
+## 2.6 Joining a second source (targets / crosswalk / labels)
+
+The `join` slot is empty by default; populate it to pull columns from a second
+source (a targets table, a label crosswalk) onto each row. The main source is
+aliased **`ds`**; each joined source gets its own alias. Worked example — the
+MAP-21 KPI cards join the reliability view to a small FHWA-targets `csv_dataset`
+on `year_record`:
+
+```jsonc
+"join": {
+  "operator": "=",
+  "sources": {
+    "t": {                                   // alias used in SQL as t.<col>
+      "source": 2027, "view": 3460, "env": "npmrds2", "srcEnv": "npmrds2",
+      "type": "left", "mergeStrategy": "join",
+      "joinColumns": [ { "dsColumn": "year_record", "joinSourceColumn": "year_record" } ],
+      "sourceInfo": { /* the joined source's full {source_id, view_id, env, type, name, columns[]} */ }
+    }
+  }
+}
+```
+
+- In `columns`/`filters`, reference the joined table's fields with the alias
+  (`max(t.lottr_interstate_applicable_target)`); bare names resolve to `ds`.
+- Under a join, qualify ambiguous base columns explicitly (`ds.year_record`,
+  `ds."county_code"` inside a CASE). See `creating-interactive-pages.md` Gotcha 1.
+- The join is 1:1 per row when the join key is unique on the joined side (a
+  per-year targets table, a county→region crosswalk) — it won't multiply rows.
+  This is the clean way to add a **region/label column a view lacks** (an
+  alternative to the pass-through-leaf "option A") *if* you have/upload a crosswalk
+  source.
+
 ---
 
 ## 3. Recipe B — bind to a Source from scratch (no reference card)
@@ -403,6 +455,17 @@ populate `element-data.data` with the query's current rows (keyed by
 runs each card's own SQL against the source pgEnv, writes rows + mode back).
 Bonus: seeded `smart` cards paint instantly even when their query is slow —
 the fetch cost is only paid when a user actually changes a param.
+
+**Seeding also fixes the cold-load same-view race.** When many sections on one
+page bind the **same view** and all fire their first (cold, uncached) fetch
+simultaneously, the concurrent requests contend and invalidate each other's
+dedup keys → sections render **blank-until-warm** on first paint, inconsistently.
+Pre-seeding `element-data.data` (so each card already has rows) means there's no
+cold fetch on load — the page paints deterministically, and `smart` still
+refetches when a filter actually changes. For a data-dense page (a dozen+ cards
+on the same view), treat seeding as **required**, not an optimization. Pair the
+build script with a seed script that runs each card's own query at the default
+page-filter values and writes the rows back (keyed by `normalName || name`).
 
 ---
 

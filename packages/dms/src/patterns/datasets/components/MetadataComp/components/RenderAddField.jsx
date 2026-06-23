@@ -34,7 +34,7 @@ export const RenderAddField = ({placeHolder, attributes=[], className, addAttrib
                         setError(null)
                     }
 
-                    setNewValue(e.target.value.toLowerCase().replaceAll(/\s+/g, ' '));
+                    setNewValue(e.target.value.replaceAll(/\s+/g, ' '));
                 }}
                 onBlur={e => {
                     if(e.target.value !== '' && !error){

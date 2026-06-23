@@ -158,6 +158,45 @@ search param it writes:
 
 (Live: section **2173917** on page 2173915 is exactly this — the Year selector.)
 
+### Cascading / dependent controls (RenderFilters keys off `state.columns`, not `filters.groups`)
+
+The simple shape above renders, but for **dependent** pickers (a Corridor list narrowed
+by County; a Direction list narrowed by Corridor) you must know: **RenderFilters derives
+rendering, option-narrowing AND reactivity entirely from `state.columns[].filters`** — leaves
+placed only in `filters.groups` are ignored for the option list. So author the control as columns:
+
+```jsonc
+{ "externalSource": { /* source */ },
+  "columns": [
+    // the rendered dropdown — external filter; label = customName
+    { "name": "road", "customName": "Corridor", "show": true,
+      "optionOrderBy": { "sum(aadt)": "desc" },           // ← order options by an aggregate (busiest first), not A-Z
+      "filters": [{ "type": "external", "operation": "filter", "values": ["I-495"],
+                    "usePageFilters": true, "searchParamKey": "road" }] },
+    // narrowing/scoping columns — INTERNAL filters: they scope the option list + drive reactivity
+    // (reload when their value changes) but render NO dropdown. searchParamKey ones sync from page vars.
+    { "name": "county",   "show": false, "filters": [{ "type": "internal", "operation": "filter", "values": [], "usePageFilters": true, "searchParamKey": "county" }] },
+    { "name": "f_system", "show": false, "filters": [{ "type": "internal", "operation": "filter", "values": ["1","2","3"] }] }
+  ],
+  "filters": { "op": "AND", "groups": [] },
+  "display": { "filterStyle": "chip", "placement": "inline", "autoSelectFirstWhenInvalid": true } }
+```
+
+Two **opt-in** knobs added for cascading controls (both default-off → BC-safe):
+- **`display.autoSelectFirstWhenInvalid`** — when a parent changes and this control's reloaded
+  options no longer contain its selected value (e.g. switch to a N/S road while `direction=WESTBOUND`
+  → empty viz), it auto-corrects the page var to the **first valid option** (via `updatePageStateFilters`).
+- **`column.optionOrderBy`** (e.g. `{ "sum(aadt)": "desc" }`) — order the option list by an aggregate
+  instead of the default alphabetical sort.
+
+Implemented in `…/dataWrapper/components/filters/RenderFilters.jsx` + `filters/utils.js`. Worked
+example: the TSMO Corridor View picker (County · Corridor · Direction) —
+`scratchpad/npmrdsv5-tsmo2/build_tsmo_corridor_view.mjs` (`filterControl()`).
+
+**Gotcha:** a Filter column's `name` is used as its own SQL **alias**, so a filter column must be a
+**real column**, never an expression (`road || direction`, `concat(...)`) → "Syntax error". Split
+composite keys into separate real-column controls.
+
 ## Step 2 — make sections react (consume the variable)
 
 On each data section that should respond, add a filter leaf for the same column
@@ -179,6 +218,44 @@ Just omit the leaf. A section with no `year_record` leaf never reacts — it sho
 whatever its own filters/grouping produce. On the MAP-21 page the **trend charts**
 do this: they `GROUP BY year_record` and show all years regardless of the Year
 selector.
+
+---
+
+## Step 2b — filter on a value the source has NO column for ("option A")
+
+Sometimes the page variable doesn't map to any real column on the bound view. The
+reliability page needs a **Region** filter, but view 3394 only has `county_code`
+(no region); and a **System** filter over `f_system`. The instinct — add a
+`show:false` *calculated* "filter-only" column (`CASE … as region`) and point the
+leaf at its alias — **does not work: a `show:false` calc column poisons the UDA
+data fetch** (see Gotcha 8). Use **option A instead: put the raw SQL expression
+directly in the leaf's `col`, and add NO column to the section.**
+
+```jsonc
+// data section leaf — col IS a CASE expression (NOT a column name / alias)
+{ "col": "case when \"county_code\" in ('36001','36083',…) then 'Region 1 - Capital District' when … end",
+  "op": "filter", "value": [], "usePageFilters": true, "searchParamKey": "region" }
+```
+
+`getColumn(leaf.col)` can't resolve an expression to a section column, so
+`mapFilterGroupCols` passes the leaf through to the server **verbatim** →
+`WHERE (case "county_code" … end) IN ('Region 1 - Capital District')`. An
+empty/default `value` is a safe server-side no-op (statewide). Under a join,
+qualify the base column inside the CASE (`ds."county_code"`).
+
+The **control** still needs a real column to populate its picker, so bind the
+tone-bar Filter to a *real* column on some source whose distinct values are the
+same labels the CASE emits, sharing one `searchParamKey`:
+
+- **Region** control → ED source 2039 `region_name` (real `Region N - …` labels);
+  data sections filter the county→region CASE (same labels). `searchParamKey: region`.
+- **System** control → the real `is_interstate` column (values `"1"`/`"0"`); data
+  sections filter `is_interstate` directly. `searchParamKey: system`.
+
+(Live: reliability_v2 / page 2180946. Region + System both work this way, incl.
+combined. Region scopes every segment-level section; System scopes only sections
+that show ONE system — a section showing BOTH Interstate and Non-Interstate as
+separate series must take Region only, or System empties one series.)
 
 ---
 
@@ -249,6 +326,29 @@ from the original cards on 2173049). The leaf option + expansion pass are the
    fallback before any page variable resolves. Once registered, `usePageFilterSync`
    overwrites the leaf `value` from `pageState.filters` on every change — so don't
    rely on the leaf's saved value for the live selection.
+8. **⚠ A `show:false` calculated column breaks the UDA *data* fetch.** It's
+   tempting to add a filter-only derived column (`{ name: "CASE … as region",
+   show: false }`) so a leaf can resolve `col: "region"`. Don't. `getColumnsToFetch`
+   drops it from the SELECT, but its mere presence in `state.columns` poisons the
+   row request: length/count succeed, then the data fetch throws Falcor
+   `null is not allowed in branch key positions` and **every cell renders blank**
+   (verified on a joined KPI AND a plain Spreadsheet — removing the column fixes
+   it). Filter on a derived value via **option A** (Step 2b) instead — the leaf, no
+   column.
+9. **⚠ `GROUP BY` a calculated CASE column breaks the fetch the same way.** A
+   Spreadsheet grouped by `{ name: "CASE … as bin", group: true }` hangs on
+   "loading…" (same null-branch class), while grouping by a *real* column is fine.
+   To bucket/bin, use conditional aggregates in a **single-row Card** —
+   `round(sum("len") FILTER (WHERE worst < 1.25))…` per bin — no `GROUP BY <case>`.
+   (Reliability §03 LOTTR bins do exactly this.)
+10. **⚠ The filter control drops falsy option values.** `RenderFilters.jsx`
+    (`…/dataWrapper/components/filters/RenderFilters.jsx`) filters its dropdown
+    options with `.filter(option => option)`, so a real value of **`0` / `false` /
+    `""`** never appears in the picker (e.g. `is_interstate` shows only `1`, never
+    `0`). The *filter itself* works (`?system=0` filters correctly) — only the
+    dropdown is missing the option. Until the platform guard is loosened to
+    `option != null && option !== ""`, prefer a control column whose values are all
+    truthy, or set the page-variable from the URL.
 
 ---
 

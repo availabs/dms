@@ -17,10 +17,33 @@ Out of scope:
 
 ## Current State
 
-- DMS pages have consolidated history at `data.history.entries[]` (each entry: `{ action, timestamp, user, ... }`)
-- Publish action in history entries uses `action = 'publish'` (verify the exact action name in the codebase)
-- `updated_at` exists but reflects any change, not just publish events
-- No `last_published_at` is surfaced as a queryable column
+- Each page has one history row in `data_items` (stored as a dms-format attribute). The page's `data.history = { ref, id }` points to this row. The history row's `data.entries[]` contains objects `{ action, user, time }`. Publish entries use `action = 'published changes.'` (from `appendHistoryEntry` in `editFunctions.jsx`).
+- `updated_at` exists but reflects any change, not just publish events.
+- No `last_published_at` is surfaced as a queryable column yet.
+- Confirmed approach: use the history rows to derive last publish time.
+
+## Implementation notes
+
+### SQL expression approach (preferred for Spreadsheet use)
+
+The page's data column contains `data->'history'->>'id'` — the integer ID of the history row. To get last publish timestamp via subquery:
+
+```sql
+(
+  SELECT (entry->>'time')::timestamptz
+  FROM data_items hist
+  CROSS JOIN LATERAL jsonb_array_elements(hist.data->'entries') AS entry
+  WHERE hist.app = data_items.app
+    AND hist.id = (data_items.data->'history'->>'id')::int
+    AND entry->>'action' ILIKE '%publish%'
+  ORDER BY (entry->>'time')::timestamptz DESC
+  LIMIT 1
+)
+```
+
+Add as `sqlExpression` on two virtual attributes in `cmsPage.attributes` in `page.format.js`:
+- `last_published_at` (type: `timestamp`)
+- `last_published_by` (use `entry->>'user'` in the same subquery pattern)
 
 ## Proposed Changes
 

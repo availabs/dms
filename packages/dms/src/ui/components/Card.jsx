@@ -204,6 +204,22 @@ const justifyClass = {
     full: {header: 'justifyTextLeft', value: 'justifyTextRight'}
 };
 
+// Per-side cell borders (mirrors sectionArray's `borderSides`). Composes
+// cellBorderTop/Right/Bottom/Left (cellBorderBelow = legacy alias for bottom)
+// from theme.cellBorderSides — side-specific so one side never bleeds to others.
+const cellBorderSides = (attr, theme) => {
+    const m = theme?.cellBorderSides || {};
+    const out = [];
+    if (attr.cellBorderTop) out.push(m.top);
+    if (attr.cellBorderRight) out.push(m.right);
+    if (attr.cellBorderBottom || attr.cellBorderBelow) out.push(m.bottom);
+    if (attr.cellBorderLeft) out.push(m.left);
+    return out.filter(Boolean).join(' ');
+};
+// Per-cell vertical alignment → CSS align-self on the cell (a grid item).
+// 'baseline' lines up text baselines across a row; 'center' vertically centers.
+const vAlignSelf = { top: 'start', center: 'center', bottom: 'end', baseline: 'baseline' };
+
 // Header text-transform. Default '' = as-authored (the Card no longer force-
 // capitalizes headers). Authors opt into a transform via the `headerCase` column control.
 const caseClass = {
@@ -439,15 +455,19 @@ const CardColumnField = ({
             headerValueLayout === 'col' && reverse ? theme.itemFlexColReverse :
                 headerValueLayout === 'row' && reverse ? theme.itemFlexRowReverse : ''
 
-    // Cell border: cellBorder=true puts chrome around each cell. Edit-mode
-    // hover always shows the blue editing outline. The transparent fallback
-    // border keeps layout stable when the visible border isn't shown.
+    // Per-side cell borders (cellBorderTop/Right/Bottom/Left; cellBorderBelow = bottom).
+    const sidedBorder = cellBorderSides(attr, theme);
+    // Cell border: cellBorder=true puts chrome around each cell. Edit-mode hover shows
+    // the blue editing outline. The transparent fallback keeps layout stable when no
+    // border is shown — but skip it when sided borders are present, otherwise
+    // `border-transparent` clobbers the per-side border color.
     let borderClass;
     if (isEdit && visible) borderClass = 'border border-blue-300';
     else if (cellBorder) borderClass = theme.itemBorder;
+    else if (sidedBorder) borderClass = '';
     else borderClass = 'border border-transparent';
 
-    const wrapperViewClass = `${theme.headerValueWrapperSimpleView || ''} ${attr.cellBorderBelow ? theme.headerValueWrapperBorderBelow : ''} ${borderClass}`;
+    const wrapperViewClass = `${theme.headerValueWrapperSimpleView || ''} ${sidedBorder} ${borderClass}`;
 
     // cardHints provide a column type's *default* positioning (e.g.,
     // portrait_banner sets `spanFullColumns: true` so it fills the card by
@@ -478,6 +498,20 @@ const CardColumnField = ({
         marginTop: `${imageMargin}px`,
         backgroundColor: attr.cellBgColor,
         ...(hints.height ? { height: `${hints.height}px` } : {}),
+        // Vertical alignment of the cell within its grid row (per-column
+        // cellVAlign wins; display-level cellsVAlign is the ambient default).
+        ...((attr.cellVAlign || display?.cellsVAlign)
+            ? { alignSelf: vAlignSelf[attr.cellVAlign || display.cellsVAlign] || (attr.cellVAlign || display.cellsVAlign) }
+            : {}),
+        // Cap the cell's width (the spanned tracks still reserve their share, but the
+        // cell content box is clamped to maxWidth and positioned within its grid area
+        // by its `justify` — so a right-justified narrow delta sits at the right edge,
+        // content ending at the edge, instead of overflowing it. Useful for a narrow
+        // value/delta cell that would otherwise stretch across its whole span.
+        ...((attr.cellMaxWidth != null && attr.cellMaxWidth !== '')
+            ? { maxWidth: typeof attr.cellMaxWidth === 'number' ? `${attr.cellMaxWidth}px` : attr.cellMaxWidth,
+                justifySelf: { left: 'start', right: 'end', center: 'center' }[attr.justify] || 'start' }
+            : {}),
     }
 
     const hasMenu = isEdit && controls?.inHeader?.length && setState;

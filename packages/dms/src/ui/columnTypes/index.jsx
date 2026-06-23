@@ -1,4 +1,9 @@
 import React from 'react'
+import { TreeNodeView } from './treeNode'
+import { PublishStateView } from './publishState'
+import { SectionsChipView } from './sectionsChip'
+import { LastPublishedView } from './last_published'
+import { ActivityActionBadgeView } from './activity_action_badge'
 import { TextEdit, TextView } from './text'
 import { TextareaEdit, TextareaView } from './textarea'
 import { BooleanEdit, BooleanView } from './boolean'
@@ -11,6 +16,8 @@ import { ImageEdit, ImageView } from './image'
 import { StatusPillEdit, StatusPillView } from './statusPill'
 import { DeltaEdit, DeltaView } from './delta'
 import { TargetBarEdit, TargetBarView } from './targetBar'
+import { DataBarEdit, DataBarView } from './dataBar'
+import { DataColorCellEdit, DataColorCellView } from './dataColorCell'
 import { VerdictDotEdit, VerdictDotView } from './verdictDot'
 import { StatValueEdit, StatValueView } from './statValue'
 import { CodeWithSubEdit, CodeWithSubView } from './codeWithSub'
@@ -29,6 +36,8 @@ const image = { EditComp: ImageEdit, ViewComp: ImageView }
 const statusPill = { EditComp: StatusPillEdit, ViewComp: StatusPillView }
 const delta = { EditComp: DeltaEdit, ViewComp: DeltaView }
 const targetBar = { EditComp: TargetBarEdit, ViewComp: TargetBarView }
+const dataBar = { EditComp: DataBarEdit, ViewComp: DataBarView }
+const dataColorCell = { EditComp: DataColorCellEdit, ViewComp: DataColorCellView }
 const verdictDot = { EditComp: VerdictDotEdit, ViewComp: VerdictDotView }
 const statValue = { EditComp: StatValueEdit, ViewComp: StatValueView }
 const codeWithSub = { EditComp: CodeWithSubEdit, ViewComp: CodeWithSubView }
@@ -68,19 +77,34 @@ const columnTypes = {
   'status_pill': statusPill,
   'delta': delta,
   'target_bar': targetBar,
+  'data_bar': dataBar,
+  'data_color_cell': dataColorCell,
   'verdict_dot': verdictDot,
   'stat_value': statValue,
   'code_with_sub': codeWithSub,
   'download_button': downloadButton,
   'switch': {
-        EditComp: ({trueValue=true, value, onChange, ...props}) =>
-            <Switch {...props} enabled={value === trueValue}
-                    setEnabled={e => onChange(e ? trueValue : false)}
-                    size={'small'}
-            />,
-        ViewComp: ({trueValue=true, onChange, value, ...props}) =>
-            <Switch {...props} enabled={value === trueValue} disabled={true} size={'small'}/>
+        EditComp: ({trueValue=true, value, onChange, ...props}) => {
+            const offValue = typeof trueValue === 'boolean' ? !trueValue : null;
+            const isEnabled = trueValue === false ? value !== true : value === trueValue;
+            return <Switch {...props} enabled={isEnabled}
+                    setEnabled={e => onChange(e ? trueValue : offValue)}
+                    size={'small'} />;
+        },
+        ViewComp: ({trueValue=true, onChange, value, allowEditInView, ...props}) => {
+            const offValue = typeof trueValue === 'boolean' ? !trueValue : null;
+            const isEnabled = trueValue === false ? value !== true : value === trueValue;
+            return <Switch {...props} enabled={isEnabled}
+                    disabled={!allowEditInView}
+                    setEnabled={allowEditInView ? (e => onChange(e ? trueValue : offValue)) : undefined}
+                    size={'small'} />;
+        },
     },
+  'tree_node': { ViewComp: TreeNodeView },
+  'publish_state': { ViewComp: PublishStateView },
+  'sections_chip': { ViewComp: SectionsChipView },
+  'last_published': { ViewComp: LastPublishedView },
+  'activity_action_badge': { ViewComp: ActivityActionBadgeView },
 	'default': text
 }
 

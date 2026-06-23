@@ -1,4 +1,4 @@
-import React, {memo, useContext, useMemo, useState} from "react";
+import React, {memo, useContext, useEffect, useMemo, useState} from "react";
 import {numColSize as numColSizeDf } from "../../../../patterns/page/components/sections/components/ComponentRegistry/spreadsheet/constants"
 import {TableCell} from "./TableCell";
 import Icon from "../../Icon"
@@ -14,9 +14,14 @@ export const TableRow = memo(function TableRow ({
     const {
         visibleAttrsWithoutOpenOut=[], visibleAttrsWithoutOpenOutLength,
         openOutAttributes, showGutters, striped, hideIfNullOpenouts,
-        onRowMouseEnter, onRowMouseLeave, onRowMouseClick
+        onRowMouseEnter, onRowMouseLeave, onRowMouseClick,
+        onRowDragStart, onRowDragOver, onRowDrop, onRowDragEnd,
+        openOutDefaultOpen,
     } = useContext(TableStructureContext);
-    const [showOpenOut, setShowOpenOut] = useState(false);
+    const [showOpenOut, setShowOpenOut] = useState(!!openOutDefaultOpen);
+    useEffect(() => {
+        if (openOutDefaultOpen != null) setShowOpenOut(openOutDefaultOpen);
+    }, [openOutDefaultOpen]);
     const numColSize = showGutters ? numColSizeDf : 0;
 
     const attrsToRender = visibleAttrsWithoutOpenOut
@@ -39,10 +44,12 @@ export const TableRow = memo(function TableRow ({
     const isDragging = false;
     const rowClass = `${isTotalRow ? theme.totalRow : ``} ${isDragging ? `select-none` : ``} ${striped ? theme.stripedRow : ``}`;
     const actionsColExists = attrsToRender.find(a => a._isActionsColumn);
+    // Whether any column declares itself the openOut trigger (e.g. sectionsChip).
+    // Falls back to the legacy first-column behaviour when none does.
+    const hasDesignatedTrigger = visibleAttrsWithoutOpenOut.some(a => a.openOutTrigger);
     return (
-        <>
+        <div ref={rowRef}>
             <div
-                ref={rowRef}
                 key={`data-${index}`}
                 className={rowClass}
                 style={{
@@ -53,6 +60,11 @@ export const TableRow = memo(function TableRow ({
                 onClick={onRowMouseClick ? () => onRowMouseClick(rowData) : undefined}
                 onMouseEnter={onRowMouseEnter ? () => onRowMouseEnter(rowData) : undefined}
                 onMouseLeave={onRowMouseLeave || undefined}
+                draggable={!!onRowDragStart}
+                onDragStart={onRowDragStart ? e => onRowDragStart(e, rowData) : undefined}
+                onDragOver={onRowDragOver ? e => onRowDragOver(e, rowData) : undefined}
+                onDrop={onRowDrop ? e => onRowDrop(e, rowData) : undefined}
+                onDragEnd={onRowDragEnd ? e => onRowDragEnd(e, rowData) : undefined}
             >
                 <div key={'#'}
                      className={`${theme.gutterCellWrapper} ${isRowSelected ? theme.gutterCellWrapperSelected : theme.gutterCellWrapperNotSelected}`}
@@ -82,13 +94,20 @@ export const TableRow = memo(function TableRow ({
                 {attrsToRender
                     .map((attribute, i) => {
                         const attrI = startCol + i;
+                        // Designated trigger column (e.g. sectionsChip with openOutTrigger:true) takes
+                        // priority over the legacy first-column caret when hasDesignatedTrigger is true.
+                        const showCaret = openOutAttributes.length && (
+                            hasDesignatedTrigger
+                                ? !!attribute.openOutTrigger
+                                : (actionsColExists ? attrI === 1 : attrI === 0)
+                        );
                         return <TableCell
                             key={`cell-${index}-${attrI}`}
                             index={index} attrI={attrI}
                             item={rowData}
 
                             isTotalCell={isTotalRow}
-                            showOpenOutCaret={actionsColExists ? openOutAttributes.length && attrI === 1 : openOutAttributes.length && attrI === 0}
+                            showOpenOutCaret={showCaret}
                             showOpenOut={showOpenOut} setShowOpenOut={setShowOpenOut}
                             attribute={attribute}
                         />
@@ -99,7 +118,13 @@ export const TableRow = memo(function TableRow ({
             {/************************************************ open out row ******************************************/}
             {/********************************************************************************************************/}
             { showOpenOut ?
-                <div className={theme.openOutContainerWrapper} style={{backgroundColor: theme.openOutContainerWrapperBgColor}} onClick={() => setShowOpenOut(false)}>
+                <div
+                    className={theme.openOutContainerWrapper}
+                    style={theme.openOutContainerWrapperBgColor && theme.openOutContainerWrapperBgColor !== 'transparent'
+                        ? {backgroundColor: theme.openOutContainerWrapperBgColor}
+                        : undefined}
+                    onClick={theme.openOutBelowRow ? undefined : () => setShowOpenOut(false)}
+                >
                     <div className={theme.openOutContainer} onClick={e => e.stopPropagation()}>
 
                         <div className={theme.openOutCloseIconContainer}>
@@ -108,15 +133,17 @@ export const TableRow = memo(function TableRow ({
                             </div>
                         </div>
 
-                        {/* First column as title of the open out drawer*/}
-                        <TableCell
-                            key={`open-out-title`}
-                            attribute={actionsColExists ? visibleAttrsWithoutOpenOut[1] : visibleAttrsWithoutOpenOut[0]}
-                            openOut={true}
-                            index={index}
-                            item={rowData}
-                            openOutTitle={true}
-                        />
+                        {/* First column as title of the open out drawer — suppressed in below-row style */}
+                        {!theme.openOutHideTitle && (
+                            <TableCell
+                                key={`open-out-title`}
+                                attribute={actionsColExists ? visibleAttrsWithoutOpenOut[1] : visibleAttrsWithoutOpenOut[0]}
+                                openOut={true}
+                                index={index}
+                                item={rowData}
+                                openOutTitle={true}
+                            />
+                        )}
 
                         {/* Open out columns */}
                         {openOutAttributes
@@ -146,6 +173,6 @@ export const TableRow = memo(function TableRow ({
                     </div>
                 </div> : null
             }
-        </>
+        </div>
     )
 })

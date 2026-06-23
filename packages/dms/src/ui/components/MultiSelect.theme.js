@@ -72,6 +72,11 @@ export const multiselectTheme = {
             singleValue: 'truncate text-base/6 sm:text-sm/6 text-zinc-950 dark:text-white',
             singlePlaceholder: 'truncate text-base/6 sm:text-sm/6 text-zinc-500 dark:text-zinc-400',
 
+            // Clear × for single-select with allowDeselect — absolutely positioned
+            // just left of the caret (which sits at right-0). Glyph reuses
+            // removeIconName / removeIconClass.
+            singleClearWrapper: 'absolute inset-y-0 right-6 flex items-center cursor-pointer text-zinc-500 hover:text-red-600',
+
             // Selected-value chip. Catalyst Badge `zinc` color set.
             tokenWrapper: [
                 'inline-flex items-center gap-x-1 rounded-md px-1.5 py-0.5',

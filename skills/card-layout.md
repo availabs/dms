@@ -269,6 +269,40 @@ card: retyping a **formula** column to `delta` (its UUID `name` becomes invalid 
 `origin:'static'` columns ("Error getting length") — use SQL-literal calculated columns and
 **clone a working column** for the field shape.
 
+## In-cell bar / heat column types: `data_bar` + `data_color_cell`
+
+Two more value-driven built-ins render a magnitude *inside* the cell (work in Card
+cells and in Spreadsheet columns):
+
+| `type`            | Renders | Key attributes |
+|-------------------|---------|----------------|
+| `data_bar`        | a horizontal bar scaled to a max, optional value label | `barMax` (static scale top) **or** `barMaxColumn` (a sibling column name to scale against); `barColorColumn` (sibling whose value selects a fill from `theme.dataBar.fills`); `barShowValue` (print the value) + `barUnit` (suffix, e.g. `"%"`, `" mi"`). |
+| `data_color_cell` | the cell **background** colored on a palette scale (heat tile) | `domainColumns` (array of sibling column names → per-row min/max so each row shades within itself — the "shade within each region row" heat behaviour, no extra min/max SQL); fallbacks `colorMin`/`colorMax` (static) or `colorMinColumn`/`colorMaxColumn`; `colors` palette override (else `theme.dataColorCell.palette`); `showValue` (default false). |
+
+Worked examples (live, congestion_v2 page 2175676): the region-rank bars, the
+worst-corridor table, and the month×region seasonality heat grid; reliability §03
+failing-by-period and §04 corridors use `data_bar`. Use `data_color_cell` for a
+spreadsheet that's a heat grid (pair it with the `"heat"` table style —
+`display.tableStyle: "heat"` — for the white-header, border-less treatment).
+
+> ⚠️ **`barMaxColumn` / `barColorColumn` (and `data_color_cell`'s
+> `domainColumns`/`*Column` props) must reference a sibling column by its FULL
+> SQL `name`, not its alias.** The row handed to the column type is keyed by each
+> column's full `name` (the server strips `normalName`), so a prop pointing at
+> the bare alias misses the lookup → `barMax` resolves to `NaN` → `fillPct`
+> clamps every bar to 100% (bars show *no variation*, the classic symptom).
+> Define the max/tone expressions once and reuse the exact string in both the
+> column and the `*Column` prop. Also: `data_bar` parses the cell value with
+> `parseFloat`, which stops at a comma — a `formatFn: 'comma'` value like
+> `"31,677"` parses as `31` and collapses the scale; the built-in `data_bar`
+> strips commas before parsing, so keep that behavior if you fork it.
+
+> **Compound single-line header** (a `cardTitleSM` title on the left + a `kicker`
+> descriptor pushed right on ONE line) is authored in a **lexical** section, not a
+> Card: a `layout-container` node (`templateColumns: "items-center
+> grid-cols-[auto_1fr]"`) holding two `layout-item`s. Narrow cards need a short
+> kicker so it doesn't wrap. (Used on every §02–§05 reliability/congestion card top.)
+
 ## Data-only columns: `selectOnly` (the phantom-cell gotcha)
 
 **A `show:true` column ALWAYS occupies a grid cell — `hideHeader`+`hideValue`

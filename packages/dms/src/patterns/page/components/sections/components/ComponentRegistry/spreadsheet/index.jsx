@@ -56,10 +56,12 @@ export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addIte
 
     const gridRef = useRef(null);
 
-    const visibleAttributes = useMemo(() => columns.filter(({show}) => show), [columns]);
-    const visibleAttributesLen = useMemo(() => columns.filter(({show}) => show).length, [columns]);
-    const visibleAttrsWithoutOpenOut = useMemo(() => columns.filter(({show, openOut}) => show && !openOut), [columns]);
-    const visibleAttrsWithoutOpenOutLen = useMemo(() => columns.filter(({show, openOut}) => show && !openOut).length, [columns]);
+    // selectOnly columns are fetched (query/SELECT) but render no cell — exclude
+    // them from the visible/layout sets so a column type can read them off `row`.
+    const visibleAttributes = useMemo(() => columns.filter(({show, selectOnly}) => show && !selectOnly), [columns]);
+    const visibleAttributesLen = useMemo(() => columns.filter(({show, selectOnly}) => show && !selectOnly).length, [columns]);
+    const visibleAttrsWithoutOpenOut = useMemo(() => columns.filter(({show, selectOnly, openOut}) => show && !selectOnly && !openOut), [columns]);
+    const visibleAttrsWithoutOpenOutLen = useMemo(() => columns.filter(({show, selectOnly, openOut}) => show && !selectOnly && !openOut).length, [columns]);
     const actionColumns = useMemo(() => columns.filter(({actionType}) => actionType), [columns]);
 
     const paginationActive = display.usePagination && Math.ceil(display.totalLength / display.pageSize) > 1;

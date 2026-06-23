@@ -432,6 +432,9 @@ const graphConfig = {
                 },
                 { type: "toggle",
                     label: "Show Totals", key: "tooltip.showTotal", defaultValue: true
+                },
+                { type: "toggle",
+                    label: "Single cell (grid hover)", key: "tooltip.singleCell"
                 }
             ]
         },
@@ -506,6 +509,11 @@ const graphConfig = {
                     ]},
                 { type: "input", inputType: "number",
                     label: "Inner Padding", key: "paddingInner"
+                },
+                // Bar fill-opacity. Blank → the CSS default (0.75, :hover → 1).
+                // Set to 1 for solid, design-matching bars (0–1).
+                { type: "input", inputType: "number",
+                    label: "Bar Opacity", key: "barOpacity"
                 }
                 // {type: 'toggle', label: 'Log Scale', key: 'isLog'},
             ]

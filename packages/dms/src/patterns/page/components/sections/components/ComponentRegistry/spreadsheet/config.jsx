@@ -146,6 +146,7 @@ const buildControls = (theme) => ({
             { type: 'toggle', label: 'Striped', key: 'striped' },
             { type: 'toggle', label: 'Auto Resize Columns', key: 'autoResize' },
             { type: 'toggle', label: 'Hide Null Open out columns', key: 'hideIfNullOpenouts' },
+            { type: 'toggle', label: 'Open Out Default Open', key: 'openOutDefaultOpen' },
             { type: 'toggle', label: 'Virtualize Columns', key: 'virtualizeColumns' },
             { type: 'input', label: 'Max Height', key: 'maxHeight', displayCdn: ({ display }) => !display.usePagination },
             { type: 'toggle', label: 'Allow Download', key: 'allowDownload' },
@@ -223,6 +224,7 @@ const buildControls = (theme) => ({
                     { label: '0 = N/A', value: 'zero_to_na' },
                 ], displayCdn: ({ isEdit }) => isEdit
             },
+            { type: 'input', inputType: 'text', label: 'Default Value', key: 'defaultValue', displayCdn: ({ isEdit }) => isEdit },
             { type: 'toggle', label: 'Wrap Text', key: 'wrapText', displayCdn: ({ isEdit }) => isEdit },
             { type: 'toggle', label: 'Wrap Header', key: 'wrapHeader', displayCdn: ({ isEdit }) => isEdit },
             { type: 'toggle', label: 'Show Total', key: 'showTotal', displayCdn: ({ isEdit }) => isEdit },

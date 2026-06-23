@@ -28,7 +28,13 @@ import {
 
 import "./avl-graph.css"
 
-const DefaultHoverComp = ({ data, indexFormat, keyFormat, valueFormat, valueLabel, bgColor, showTotals }) => {
+const DefaultHoverComp = ({ data, indexFormat, keyFormat, valueFormat, valueLabel, bgColor, showTotals, singleCell }) => {
+
+  // singleCell: show ONLY the hovered cell (data.index) instead of every row in the
+  // hovered column. Off by default → unchanged whole-column tooltip (BC).
+  const indexes = singleCell
+    ? get(data, "indexes", []).filter(i => i === data.index)
+    : get(data, "indexes", []);
 
   return (
     <div className={ `
@@ -37,7 +43,7 @@ const DefaultHoverComp = ({ data, indexFormat, keyFormat, valueFormat, valueLabe
       <div className="font-bold text-lg leading-6 border-b-2 border-current pl-2">
         { keyFormat(get(data, "key", null)) }
       </div>
-      { get(data, "indexes", []).map(i => (
+      { indexes.map(i => (
           <div key={ i }
             className={ `
               flex items-center px-2 rounded transition relative
@@ -67,7 +73,7 @@ const DefaultHoverComp = ({ data, indexFormat, keyFormat, valueFormat, valueLabe
           </div>
         ))
       }
-      { !showTotals ? null :
+      { (!showTotals || singleCell) ? null :
         <div className="flex items-center px-2 border-t-2">
           <div className="mr-4">
             Total:
@@ -710,6 +716,13 @@ const Grid = React.memo(({ x, width, height, color,
     return e => onGridLeave(e, { key: Key, index, data, value })
   }, [onGridLeave, Key, index, data, value]);
 
+  // `highlight` is the matched highlight object (or a legacy truthy value). An
+  // `outline`-styled highlight draws a border and KEEPS the cell's data color; any
+  // other highlight keeps the legacy solid-red fill. (BC: pre-existing callers pass
+  // a plain object / boolean with no `style` → solid red, unchanged.)
+  const isOutline = Boolean(highlight) && highlight.style === "outline";
+  const isFill = Boolean(highlight) && !isOutline;
+
   return (
     <rect ref={ ref } className="avl-grid"
       onMouseMove={ _onMouseMove }
@@ -717,8 +730,11 @@ const Grid = React.memo(({ x, width, height, color,
       onMouseEnter={ onMouseEnter }
       onMouseLeave={ onMouseLeave }
       style={ {
-        fill: highlight ? "red" : null,
-        fillOpacity: highlight ? 1.0 : null
+        fill: isFill ? "red" : null,
+        fillOpacity: isFill ? 1.0 : null,
+        stroke: isOutline ? (highlight.color || "#111827") : null,
+        strokeWidth: isOutline ? (highlight.strokeWidth || 2) : null,
+        paintOrder: isOutline ? "stroke" : null
       } }/>
   )
 })
@@ -775,9 +791,11 @@ const Horizontal = React.memo(({ index, grid, top, state, showAnimations, svgHei
     return e => onHorizontalLeave(e, { index, grid });
   }, [onHorizontalLeave, index, grid]);
 
-  const highlight = React.useMemo(() => {
-    const filtered = highlights.filter(h => h.type === "index" && h.value == index);
-    return Boolean(filtered.length);
+  // Row-level highlight (matches the yAxis index). Return the matched highlight
+  // OBJECT (carries optional { style:'outline', color, strokeWidth }) or null, so the
+  // cell can pick its render — outline border vs legacy solid fill.
+  const rowHighlight = React.useMemo(() => {
+    return highlights.find(h => h.type === "index" && h.value == index) || null;
   }, [highlights, index]);
 
   return (
@@ -791,7 +809,7 @@ const Horizontal = React.memo(({ index, grid, top, state, showAnimations, svgHei
             { ...props } { ...rest }
             showAnimations={ showAnimations }
             highlight={
-              highlight || Boolean(highlights.find(h => h.type === "key" && h.value == key))
+              rowHighlight || highlights.find(h => h.type === "key" && h.value == key) || null
             }/>
         )
       }

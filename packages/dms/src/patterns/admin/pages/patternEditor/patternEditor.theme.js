@@ -1,6 +1,7 @@
 export const patternEditorTheme = {
     // PatternEditor layout
     wrapper: 'h-full flex flex-col w-full',
+    noAccess: 'flex items-center justify-center h-48 text-sm text-gray-400',
     navRow: 'w-full flex justify-between',
     content: 'flex-1 flex flex-col bg-white',
 

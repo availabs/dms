@@ -33,11 +33,17 @@ const GridGraphWrapper = props => {
     return props.colors?.reverse ? colors.reverse() : colors;
   }, [props.colors]);
 
-  const [xColumn, yColumn, colorColumns] = React.useMemo(() => {
+  const [xColumn, yColumn, colorColumns, widthColumn, heightColumn] = React.useMemo(() => {
     return [
       props.columns.find(c => c.target === "xAxis"),
       props.columns.find(c => c.target === "yAxis"),
-      props.columns.filter(c => c.target === "color")
+      props.columns.filter(c => c.target === "color"),
+      // optional: a column whose (per-xAxis-key) value sizes the grid COLUMN width
+      // (e.g. TMC length on a space-time grid) — fed to the avl GridGraph's keyWidths.
+      props.columns.find(c => c.target === "width" || c.target === "size"),
+      // optional: a column whose (per-yAxis-row) value sizes the grid ROW height
+      // (e.g. TMC miles on a space-time grid) — set as each row's `height` (avl GridGraph hScale).
+      props.columns.find(c => c.target === "height")
     ]
   }, [props.columns]);
 
@@ -63,6 +69,13 @@ const GridGraphWrapper = props => {
         if (index === undefined) continue;
 
         const grid = { index };
+
+        // per-row height (e.g. ∝ TMC miles): constant per yAxis row, read off any row in the group →
+        // becomes the row's `height` which the avl GridGraph scales via hScale. Uniform (1) if absent.
+        if (heightColumn) {
+          const sample = iGroup?.[0]?.[1]?.[0];
+          grid.height = Math.max(0.0001, +(sample?.[heightColumn.key]) || 1);
+        }
 
         for (const [key, kGroup] of iGroup) {
 
@@ -121,6 +134,17 @@ const GridGraphWrapper = props => {
 
     const keys = [...keySet];
 
+    // per-column widths (e.g. ∝ TMC length) → avl GridGraph keyWidths; uniform if no width column
+    const keyWidths = {};
+    if (widthColumn) {
+      for (const d of props.viewData) {
+        const k = d[xColumn.key];
+        if (k !== undefined && keySet.has(k) && keyWidths[k] === undefined) {
+          keyWidths[k] = Math.max(0.0001, +d[widthColumn.key] || 1);
+        }
+      }
+    }
+
     if (xColumn.sort) {
       const sortDir = xColumn.sort === "desc" ? -1 : 1;
       keys.sort((a, b) => {
@@ -144,8 +168,8 @@ const GridGraphWrapper = props => {
       }).reverse()
     }
 
-    return { data, keys, colors: colorFunc };
-  }, [props.viewData, xColumn, yColumn, colorColumns, colors]);
+    return { data, keys, colors: colorFunc, keyWidths };
+  }, [props.viewData, xColumn, yColumn, colorColumns, widthColumn, heightColumn, colors]);
 
 // console.log("GridGraphWrapper::dataFromProps", dataFromProps);
 
@@ -172,60 +196,67 @@ const GridGraphWrapper = props => {
   const {
     publishHoverData: publish,
     hoverProvider: provider,
+    publishClickData: publishClick,
+    clickProvider,
     actions
   } = props;
 
+  // click a cell → publish its xAxis key (e.g. a date) to the provider's page var (click_publish).
+  const onGridClick = React.useMemo(() => {
+    if (!publishClick || !clickProvider) return null;
+    return (e, data) => {
+      const value = data?.key;
+      if (value !== undefined && value !== null) publishClick({ value });
+    };
+  }, [publishClick, clickProvider]);
+
+  // Build highlight directives for the avl GridGraph from two action streams:
+  //   • hover_highlight  → transient highlight, legacy SOLID fill (no style)
+  //   • select_highlight → persistent selection, drawn as an OUTLINE border that
+  //                        keeps the cell's data color (e.g. the active day on a
+  //                        month strip, fed by the `date` page var via a subscriber).
+  // Each maps a matched column to { type:'key' } (xAxis) or { type:'index' }
+  // (yAxis / color series). Adding select_highlight is BC-safe: hover_highlight
+  // output is unchanged (style omitted → solid fill).
   const highlights = React.useMemo(() => {
 
-    const hhlActions = actions.filter(a => a.action === "hover_highlight");
+    const buildFor = (matchAction, style) => {
+      const acts = actions.filter(a => a.action === matchAction);
+      const styleProp = style ? { style } : {};
 
-    if (xColumn && yColumn) {
-      return hhlActions.reduce((a, c) => {
-        if (c.column === xColumn.key) {
-          for (const v of c.value) {
-            a.push({
-              type: "key",
-              value: v
-            })
+      if (xColumn && yColumn) {
+        return acts.reduce((a, c) => {
+          if (c.column === xColumn.key) {
+            for (const v of c.value) a.push({ type: "key", value: v, ...styleProp })
           }
-        }
-        else if (c.column === yColumn.key) {
-          for (const v of c.value) {
-            a.push({
-              type: "index",
-              value: v
-            })
+          else if (c.column === yColumn.key) {
+            for (const v of c.value) a.push({ type: "index", value: v, ...styleProp })
           }
-        }
-        return a;
-      }, [])
-    }
-    else if (xColumn && colorColumns.length) {
-      return hhlActions.reduce((a, c) => {
-        if (c.column === xColumn.key) {
-          for (const v of c.value) {
-            a.push({
-              type: "key",
-              value: v
-            })
+          return a;
+        }, [])
+      }
+      else if (xColumn && colorColumns.length) {
+        return acts.reduce((a, c) => {
+          if (c.column === xColumn.key) {
+            for (const v of c.value) a.push({ type: "key", value: v, ...styleProp })
           }
-        }
-        else {
-          for (const cc of colorColumns) {
-            for (const v of c.value) {
-              if (cc.key === c.column) {
-                a.push({
-                  type: "index",
-                  value: cc.key
-                })
+          else {
+            for (const cc of colorColumns) {
+              for (const v of c.value) {
+                if (cc.key === c.column) a.push({ type: "index", value: cc.key, ...styleProp })
               }
             }
           }
-        }
-        return a;
-      }, [])
-    }
-    return [];
+          return a;
+        }, [])
+      }
+      return [];
+    };
+
+    return [
+      ...buildFor("hover_highlight", null),
+      ...buildFor("select_highlight", "outline")
+    ];
 
   }, [actions, xColumn, yColumn, colorColumns]);
 
@@ -329,7 +360,8 @@ const GridGraphWrapper = props => {
           onHorizontalEnter={ onHorizontalEnter }
           onHorizontalLeave={ onHorizontalLeave }
           onGridEnter={ onGridEnter }
-          onGridLeave={ onGridLeave }/>
+          onGridLeave={ onGridLeave }
+          onGridClick={ onGridClick }/>
       </div>
       { !legend.show || !legend.position.includes("bottom") ? null :
         <div

@@ -28,7 +28,7 @@ export const RenderFilters = ({ isEdit, defaultOpen = true }) => {
     const { theme: themeFromContext = {}, UI } = React.useContext(ThemeContext) || {};
     const theme = {...themeFromContext, filters: {...filterTheme, ...getComponentTheme(themeFromContext, 'filters', state?.display?.filterStyle)}}
     const { Icon, Button } = UI;
-    const { pageState } = React.useContext(PageContext) || {}; // page to extract page filters
+    const { pageState, updatePageStateFilters } = React.useContext(PageContext) || {}; // page to extract page filters
     const [open, setOpen] = useState(defaultOpen);
     const [filterOptions, setFilterOptions] = useState([]); // [{column, uniqValues}]
     const [loading, setLoading] = useState(false);
@@ -114,6 +114,13 @@ export const RenderFilters = ({ isEdit, defaultOpen = true }) => {
                         if (filter?.type === 'external') return true;
                     })
                     .map(async columnName => {
+                        // STATIC options: a column may carry an author-provided `options`
+                        // [{value,label}] list (e.g. months with no real DB column) — use it
+                        // directly and skip the DB query. Opt-in; no impact on data-driven filters.
+                        const staticCol = (state.columns || []).find(c => c.name === columnName);
+                        if (Array.isArray(staticCol?.options) && staticCol.options.length) {
+                            return { column: columnName, uniqValues: staticCol.options.map(o => ({ label: o.label ?? o.value, value: o.value })) };
+                        }
                         // other filter values to filter by
 
                         const filterBy = await Object.keys(filters)
@@ -169,6 +176,9 @@ export const RenderFilters = ({ isEdit, defaultOpen = true }) => {
                         // get all the filters with value
                         // build a filterOptions object including each filter type (filter, exclude, gt, gte...),
                         // for filter and exclude types, and multiselect column combination, pull value sets for
+                        // optional per-column option ordering by an aggregate (e.g. busiest-first by
+                        // sum(aadt)); when set, the query orders the options and we keep that order.
+                        const optionOrderBy = (state.columns || []).find(c => c.name === columnName)?.optionOrderBy;
                         let data = await getData({
                             format: state.externalSource,
                             apiLoad,
@@ -177,7 +187,8 @@ export const RenderFilters = ({ isEdit, defaultOpen = true }) => {
                             refName: getAttributeAccessorStr(columnName), // column name without as
                             rawName: columnName, // column name without accessor (response name)
                             allAttributes: state.columns,
-                            filterBy
+                            filterBy,
+                            orderBy: optionOrderBy
                         })
 
                         // console.log('fo data?', columnName, data)
@@ -201,14 +212,16 @@ export const RenderFilters = ({ isEdit, defaultOpen = true }) => {
                             return acc;
                         }, []);
                         debug && console.log('debug filters: data', data)
+                        const uniq = uniqBy(Array.isArray(metaOptions) ? [...metaOptions, ...dataOptions] : dataOptions, d => d.value);
                         return {
                             column: columnName,
-                            uniqValues: uniqBy(Array.isArray(metaOptions) ? [...metaOptions, ...dataOptions] : dataOptions, d => d.value)
-                                .sort((a, b) =>
-                                    typeof a?.label === 'string' && typeof b?.label === 'string' ?
-                                        a.label.localeCompare(b.label) :
-                                        b?.label - a?.label
-                                ),
+                            // optionOrderBy → preserve the query's aggregate order (uniqBy keeps first-seen
+                            // order); otherwise the default alphabetical/numeric sort.
+                            uniqValues: optionOrderBy ? uniq : uniq.sort((a, b) =>
+                                typeof a?.label === 'string' && typeof b?.label === 'string' ?
+                                    a.label.localeCompare(b.label) :
+                                    b?.label - a?.label
+                            ),
                         }
                     }));
 
@@ -227,6 +240,28 @@ export const RenderFilters = ({ isEdit, defaultOpen = true }) => {
             setLoading(false);
         }
     }, [filterColumnsToTrack, filterValuesToTrack]);
+
+    // OPT-IN (display.autoSelectFirstWhenInvalid): for a CASCADING filter — one whose options are
+    // narrowed by another filter (e.g. Direction narrowed by Corridor) — when the parent changes and
+    // the reloaded options no longer contain this filter's selected value, the selection goes stale
+    // and the dependent viz breaks (empty). This auto-corrects the page var to the first valid option.
+    // Off by default → no behavior change for existing filters. Uses updatePageStateFilters (the same
+    // search-param path a manual pick takes), so the chip + all subscribing sections update together.
+    useEffect(() => {
+        if (!state?.display?.autoSelectFirstWhenInvalid || typeof updatePageStateFilters !== 'function') return;
+        for (const fo of (filterOptions || [])) {
+            const column = (state.columns || []).find(c => c.name === fo.column);
+            const filter = (column?.filters || []).find(f => f.type === 'external' && f.usePageFilters && f.searchParamKey);
+            if (!filter) continue;
+            const opts = (fo.uniqValues || []).map(o => String(o?.value ?? o));
+            if (!opts.length) continue; // no options loaded yet — don't touch the value
+            const cur = (filter.values || []).map(v => String(v?.value ?? v)).filter(Boolean);
+            if (cur.length && !cur.some(v => opts.includes(v))) {
+                const first = fo.uniqValues[0]?.value ?? fo.uniqValues[0];
+                updatePageStateFilters([{ searchKey: filter.searchParamKey, values: [first] }]);
+            }
+        }
+    }, [filterOptions]);
 
     const filterColumnsToRender = (state.columns || []).filter(column => isEdit ? column.filters?.length : (column.filters || []).find(c => c.type === 'external'));
     if (!filterColumnsToRender.length) return null;

@@ -3,11 +3,15 @@ import {Link} from 'react-router'
 import {AdminContext} from "../../context";
 import { ThemeContext } from '../../../../ui/useTheme';
 import { patternEditorTheme } from './patternEditor.theme'
+import { isUserAuthed } from '../../utils';
 
 import { PatternSettingsEditor } from "./default/settings";
 import { PatternThemeEditor } from "./default/themeEditor";
 import { PatternFilterEditor } from "./default/filterEditor";
 import { PatternPermissionsEditor } from "./default/permissionsEditor";
+import { PatternPagesEditor } from "./pages/pagesEditor";
+import { SourcesTab } from "./pages/sourcesTab";
+import { ActivityTab } from "./pages/activityTab";
 // probably want to change this to register function for non default pages
 import FormatManager from '../../../page/pages/formatManager';
 
@@ -36,17 +40,42 @@ const navPages = [
   }
 ]
 
-const PatternEditor = ({params, dataItems, item, format, attributes, apiUpdate, apiLoad, ...rest}) => {
-  const { baseUrl, parentBaseUrl } = React.useContext(AdminContext);
+const pagesTab = {
+  name: 'Pages',
+  path: 'pages',
+  component: PatternPagesEditor
+}
+
+const sourcesTab = {
+  name: 'Data Sources',
+  path: 'sources',
+  component: SourcesTab
+}
+
+const activityTab = {
+  name: 'Activity',
+  path: 'activity',
+  component: ActivityTab
+}
+
+const PatternEditor = ({params, dataItems, item, format, attributes, apiUpdate, apiLoad, falcor, ...rest}) => {
+  const { baseUrl, parentBaseUrl, app, user, authPermissions } = React.useContext(AdminContext);
   const { theme } = React.useContext(ThemeContext);
   const t = { ...patternEditorTheme, ...(theme?.admin?.patternEditor || {}) }
   const [tmpItem, setTmpItem] = React.useState(item);
   const {id, page='overview'} = params;
 
+  const isAdmin = (user?.groups || []).some(g => g === `${app} Admin`);
+  const hasAccess = isAdmin || isUserAuthed(user, authPermissions);
+  if (!hasAccess) {
+    return <div className={t.noAccess}>You do not have permission to manage this pattern.</div>;
+  }
+
   console.log('patternEditor index -item', item, dataItems)
 
   const pages = [
     ...navPages,
+    ...(item.pattern_type === 'page' ? [pagesTab, sourcesTab, activityTab] : []),
     ...(item.pages || []),
     ...(item.pattern_type === 'page' ? [{ path: 'edit_pattern', name: 'Format Manager', component: FormatManager }] : [])
   ];
@@ -71,6 +100,7 @@ const PatternEditor = ({params, dataItems, item, format, attributes, apiUpdate, 
               attributes={attributes}
                 apiUpdate={apiUpdate}
                 apiLoad={apiLoad}
+                falcor={falcor}
             />
           </div>
       </div>
