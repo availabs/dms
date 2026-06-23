@@ -92,6 +92,20 @@ export function dataItemsNav(dataItems, baseUrl = '', edit = false, level=1) {
         .filter(d => !d.parent)
         .filter(d => (edit || d.published !== 'draft' ))
         .map((d, i) => {
+            // Author-shaped label / section-divider row (e.g. a secondary-nav
+            // section header): rendered with a custom className and NO link.
+            // Carries no url_slug/path, so don't synthesize a navigable path.
+            if (d.noLink || d.type === 'label') {
+                const label = {
+                    id: d.id,
+                    name: `${d.title || d.name || ''}`.trim(),
+                    className: d.className,
+                    sectionClass: d.sectionClass,
+                    hideInNav: d.hide_in_nav,
+                }
+                if (d?.icon && d?.icon !== 'none') label.icon = d.icon
+                return label
+            }
             const url = `${d.url_slug || d.path || d.id}`;
             let item = {
                 id: d.id,
@@ -103,6 +117,10 @@ export function dataItemsNav(dataItems, baseUrl = '', edit = false, level=1) {
             if(d?.icon && d?.icon !== 'none') {
                 item.icon = d.icon
             }
+            // BC passthrough: author-supplied styling for a link row (the design's
+            // icon+label rows). Standard page dataItems set neither, so unaffected.
+            if (d.className) item.className = d.className
+            if (d.sectionClass) item.sectionClass = d.sectionClass
 
             if (getChildNav(item, dataItems, baseUrl, edit)) {
                 item.subMenus = getChildNav(d, dataItems, baseUrl, edit).filter(d => d.name)

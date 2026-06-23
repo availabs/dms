@@ -432,6 +432,9 @@ const graphConfig = {
                 },
                 { type: "toggle",
                     label: "Show Totals", key: "tooltip.showTotal", defaultValue: true
+                },
+                { type: "toggle",
+                    label: "Single cell (grid hover)", key: "tooltip.singleCell"
                 }
             ]
         },
