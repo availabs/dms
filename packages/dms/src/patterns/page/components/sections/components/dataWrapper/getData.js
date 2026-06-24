@@ -132,7 +132,8 @@ export const getData = async ({
     keepOriginalValues,
     currentPage = 0,
     debugCall,
-    debugTime
+    debugTime,
+    optionsOnly = false
 }) => {
     debugTime && console.time('getData fn')
     const debug = debugCall || false;
@@ -242,22 +243,37 @@ export const getData = async ({
     const isRequestingSingleRow =
         !options.groupBy.length &&
         columnsToFetch.filter((col) => col.fn).length === columnsToFetch.length;
+
+    // Option-list loads (Filter controls) only enumerate a column's distinct
+    // values — no pagination, nothing displays a total — so the length
+    // round-trip (a grouped count over the whole table) is pure waste. Skip it:
+    // fetch up to a ceiling and recover the real length from data.length below.
+    // Hard-guard on !usePagination so a paginated grouped section never loses
+    // its real count even if it opts in.
+    const isOptionsLoad =
+        optionsOnly && options.groupBy.length > 0 && !state.display?.usePagination;
+    const OPTIONS_LIMIT = state.display?.optionsLimit ?? 1000;
+
     let length;
     try {
         debugTime && console.time('length')
         length = isRequestingSingleRow
             ? 1
-            : await getLength({ options, state, apiLoad });
+            : isOptionsLoad
+                ? OPTIONS_LIMIT
+                : await getLength({ options, state, apiLoad });
         debugTime && console.timeEnd('length')
     } catch (e) {
         console.error("Error:", e);
         return { length: 0, data: [], invalidState: "An Error occurred while fetching data." };
     }
     const actionType = "uda";
-    const fromIndex = fullDataLoad ? 0 : currentPage * state.display.pageSize;
-    const toIndex = fullDataLoad
-        ? length
-        : Math.min(length, currentPage * state.display.pageSize + state.display.pageSize) - 1;
+    const fromIndex = isOptionsLoad || fullDataLoad ? 0 : currentPage * state.display.pageSize;
+    const toIndex = isOptionsLoad
+        ? OPTIONS_LIMIT - 1
+        : fullDataLoad
+            ? length
+            : Math.min(length, currentPage * state.display.pageSize + state.display.pageSize) - 1;
     if (fromIndex >= length) {
         // Empty-result fallback. Opt-in via `display.useBlankRowFallback`.
         // When the real query returned 0 rows AND the section has opted in,
@@ -386,6 +402,19 @@ export const getData = async ({
     } catch (e) {
         if (process.env.NODE_ENV === "development") console.error(e);
         return { length, data: [], invalidState: "An Error occurred while fetching data." };
+    }
+
+    // Option lists carry no length query, so the true count is whatever came
+    // back. Filling the ceiling means the column has more distinct values than a
+    // multiselect should enumerate (it wants a search box) — flag it, don't fail.
+    if (isOptionsLoad) {
+        if (data.length >= OPTIONS_LIMIT && process.env.NODE_ENV === "development") {
+            console.warn(
+                `getData: option list hit the ${OPTIONS_LIMIT}-row ceiling for groupBy ` +
+                `${JSON.stringify(options.groupBy)} — values may be truncated; consider a search filter.`
+            );
+        }
+        length = data.length;
     }
 
     // ─── Fetch total row ──────────────────────────────────────────────────────

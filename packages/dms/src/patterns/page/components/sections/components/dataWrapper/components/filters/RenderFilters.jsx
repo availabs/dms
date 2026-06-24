@@ -309,7 +309,9 @@ export const RenderFilters = ({ isEdit, defaultOpen = true }) => {
                     <div key={i} className={rowClass}>
                         <div className={labelWrapperClass[placement]}>
                             <span className={theme.filters.filterLabel}>{filterColumn.customName || filterColumn.display_name || filterColumn.name}</span>
-                            <span className={theme.filters.loadingText}>{loading ? 'loading...' : ''}</span>
+                            {/* fixed-size CSS spinner (inherits text color via border-current) instead of
+                                the variable-width word "loading…", which shifted layout / jittered. */}
+                            <span className={loading ? (theme.filters.loadingSpinner || 'inline-block shrink-0 size-3 ml-1 rounded-full border-2 border-current border-t-transparent animate-spin opacity-50') : 'hidden'} aria-label="loading" role="status" />
                         </div>
                         <div className={placementClass[placement]}>
                             <RenderFilterValueSelector key={`${filterColumn.name}-filter`}

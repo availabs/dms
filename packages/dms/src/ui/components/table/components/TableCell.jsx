@@ -77,9 +77,14 @@ const LinkComp = ({attribute, columns, newItem, removeItem, value}) => {
         } else {
             url = `${location || valueFormattedForDisplay}${searchParams}`;
         }
+        // The cell renderer spreads the WHOLE column object (attributeProps) in, so `props` carries
+        // column-config keys (activeStyle, customName, linkText, normalName, formatFn, …). Forward
+        // ONLY DOM-safe props to the <a>/<Link>; spreading the rest leaks invalid attributes and
+        // triggers "React does not recognize the `X` prop on a DOM element" warnings.
+        const domProps = ({ className, style, onClick, title }) => ({ className, style, onClick, title });
         return isLinkExternal
-            ? ({show, isLink, searchParams: _sp, hideControls, ...props}) => <a {...props} href={url} target="_blank" rel="noopener noreferrer">{linkText || valueFormattedForDisplay}</a>
-            : ({show, isLink, searchParams: _sp, hideControls, ...props}) => <Link {...props} to={url}>{linkText || valueFormattedForDisplay}</Link>
+            ? (props) => <a {...domProps(props)} href={url} target="_blank" rel="noopener noreferrer">{linkText || valueFormattedForDisplay}</a>
+            : (props) => <Link {...domProps(props)} to={url}>{linkText || valueFormattedForDisplay}</Link>
     }
 
     if(actionType){

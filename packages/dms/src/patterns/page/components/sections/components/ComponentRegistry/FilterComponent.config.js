@@ -31,6 +31,10 @@ export default {
     "variables": [],
     useDataSource: true,
     useDataWrapper: true,
+    // A Filter control only enumerates its column's distinct values — no
+    // pagination, no displayed total — so getData skips the length round-trip and
+    // fetches up to display.optionsLimit (default 1000). See getData.js.
+    optionsOnly: true,
     defaultState: {
         filters: { op: 'AND', groups: [] },
         columns: [],

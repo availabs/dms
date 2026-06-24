@@ -12,6 +12,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { isEqual } from "lodash-es";
 import { getData } from "./getData";
+import { hasUnresolvedRequiredLeaf } from "./buildUdaConfig";
 import { useNowTick } from "./hooks/useNowTick";
 import { walkTreeForTickGranularity } from "./utils/timeFilter";
 
@@ -178,6 +179,13 @@ export function useDataLoader({ state, setState, apiLoad, component, isEditMode 
   // to that boundary — no polling — and returns a counter we mix into the
   // fetchKey so the existing dedup naturally allows a refetch each tick.
   const tickGranularity = useMemo(() => walkTreeForTickGranularity(state.filters), [state.filters]);
+
+  // A section whose scope arrives from a published action param (requireResolved
+  // leaf — e.g. a load_publish driver) must not paint with its saved default and
+  // then re-query when the param lands (the "flash"). Hold it in its loading state
+  // until usePageFilterSync writes the value; the change to state.filters reopens
+  // the gate and the section fetches once with the resolved scope.
+  const gatedOnRequiredFilter = useMemo(() => hasUnresolvedRequiredLeaf(state?.filters), [state?.filters]);
   const tickTz = RESOLVED_TZ;
   const nowTick = useNowTick({ granularity: tickGranularity, tz: tickTz });
 
@@ -214,6 +222,8 @@ export function useDataLoader({ state, setState, apiLoad, component, isEditMode 
 
   useEffect(() => {
     if (!isValidState || !readyToLoad) return;
+    // Hold in loading until a requireResolved leaf gets its action-param value.
+    if (gatedOnRequiredFilter) { setLoading(true); return; }
 
     const timeoutId = setTimeout(() => {
       if (hasLocalFilters) {
@@ -232,6 +242,7 @@ export function useDataLoader({ state, setState, apiLoad, component, isEditMode 
             apiLoad,
             fullDataLoad: component.fullDataLoad,
             keepOriginalValues: component.keepOriginalValues,
+            optionsOnly: component.optionsOnly,
           });
 
           lastFetchKeyRef.current = fetchKey;
@@ -256,7 +267,7 @@ export function useDataLoader({ state, setState, apiLoad, component, isEditMode 
     }, DEBOUNCE_MS);
 
     return () => clearTimeout(timeoutId);
-  }, [fetchKey, readyToLoad, bypassDedup, isValidState, hasLocalFilters, localFilters]);
+  }, [fetchKey, readyToLoad, bypassDedup, isValidState, hasLocalFilters, localFilters, gatedOnRequiredFilter]);
 
   // ─── Page change handler ───────────────────────────────────────────────────
 
@@ -280,6 +291,7 @@ export function useDataLoader({ state, setState, apiLoad, component, isEditMode 
           currentPage: page,
           apiLoad,
           keepOriginalValues: component.keepOriginalValues,
+          optionsOnly: component.optionsOnly,
         });
 
         setCurrentPage(page);

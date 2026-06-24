@@ -68,10 +68,6 @@ async function simpleFilterLength(ctx, options) {
 
   const sanitizedGroupBy = groupBy.map(g => activeAliasGroups[g] || sanitizeName(g)).filter(Boolean);
 
-  const countExpr = sanitizedGroupBy.length
-    ? `count(DISTINCT concat(${sanitizedGroupBy.map((c) => `toString(${c})`).join(", '-' ,")}))`
-    : `count(*)`;
-
   const combinedWhere = buildCombinedWhereCH({
     filter, exclude, gt, gte, lt, lte, like, filterGroups,
   });
@@ -92,12 +88,29 @@ async function simpleFilterLength(ctx, options) {
     fromClause = `${table_schema}.${table_name} ${hasJoin ? ' as ds ' : ''} ${joins}`;
   }
 
-  const sql = `
-    SELECT ${countExpr} AS numRows
-    FROM ${fromClause}
-    ${combinedWhere}
-    ${handleHavingCH(having)}
-  `;
+  // Grouped length = number of GROUP BY buckets. Count rows of a subquery that
+  // groups by the same keys, instead of count(DISTINCT concat(a,'-',b)): the
+  // concat collides on ambiguous '-' boundaries (('x-','y') vs ('x','-y') both →
+  // 'x--y') and the per-row toString + distinct-aggregate is far slower than
+  // letting ClickHouse drive the GROUP BY. Mirrors the Postgres path
+  // (query_sets/postgres.js). GROUP BY folds NULLs into one bucket (the old
+  // count(DISTINCT concat(toString(NULL),…)) dropped them).
+  const sql = sanitizedGroupBy.length
+    ? `
+      SELECT count(*) AS numRows FROM (
+        SELECT 1
+        FROM ${fromClause}
+        ${combinedWhere}
+        GROUP BY ${sanitizedGroupBy.join(', ')}
+        ${handleHavingCH(having)}
+      )
+    `
+    : `
+      SELECT count(*) AS numRows
+      FROM ${fromClause}
+      ${combinedWhere}
+      ${handleHavingCH(having)}
+    `;
 
   const result = await db.query({ query: sql, format: 'JSON' });
   const rows = await result.json();

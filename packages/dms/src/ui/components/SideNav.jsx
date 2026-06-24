@@ -192,7 +192,19 @@ export const SideNavItem = ({
 
   const [showSubMenu, setShowSubMenu] = React.useState(routeMatch && subMenuActivate !== 'onHover' );
 
-
+	// Label / section-divider row: an item with no navigable target and no
+	// onClick renders as plain styled text via its custom className — no Link, no
+	// hover chrome (the design sidenav's "Dashboards"/"Explorers"/"Program"
+	// headers). BC: every real nav item carries a path, so existing items never
+	// reach this branch.
+	if (!To[0] && !navItem?.onClick) {
+		return (
+			<div className={className || theme?.navLabel || theme?.navItemContent}>
+				{!icon ? null : <Icon icon={icon} className={theme?.menuIconSide} />}
+				{navItem?.name}
+			</div>
+		);
+	}
 
 	return (
 			<div className={theme?.subMenuParentWrapper}

@@ -45,6 +45,52 @@ export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addIte
         else if (op === 'set') setActionParam(clickPublishCfg.paramKey, values);
     }, [clickPublishCfg, setActionParam, clearActionParam, pageState]);
 
+    // load_publish: when the table's data arrives (or changes — e.g. a new event),
+    // derive a row (first/max/min over a metric) and publish one or more of its column
+    // values to page action params. Subscribers (sections with a matching
+    // `usePageFilters`+`searchParamKey` leaf) then re-query against the published value.
+    // publishedRef de-dupes so we publish only on a real value change (no reload loop).
+    const loadPublishCfg = display._functions?.providers?.find(p => p.functionId === 'load_publish' && p.enabled);
+    const publishedRef = useRef({});
+    useEffect(() => {
+        if (!loadPublishCfg || !setActionParam) return;
+        const rows = state.data || [];
+        // A completed fetch sets display.totalLength (0 for an empty result); it is
+        // undefined before the first fetch. `loading` isn't passed in every render
+        // context, so totalLength is the reliable "the query has run" signal — used
+        // to distinguish a genuine empty result from the pre-fetch empty state.
+        const loaded = state.display?.totalLength !== undefined;
+        const a = loadPublishCfg.args || {};
+        const pubs = Array.isArray(a.publishes) ? a.publishes
+            : (a.column ? [{ column: a.column, paramKey: loadPublishCfg.paramKey }] : []);
+        const publish = (paramKey, value) => {
+            if (!paramKey || value === undefined || value === null || value === '') return;
+            if (String(publishedRef.current[paramKey]) === String(value)) return;
+            publishedRef.current[paramKey] = value;
+            setActionParam(paramKey, value);
+        };
+        // No rows after a completed load (e.g. an event with no corridor data): resolve
+        // any subscriber `requireResolved` gate with each entry's `emptyValue` (a no-match
+        // sentinel) so a gated section renders empty instead of spinning forever.
+        if (!rows.length) {
+            if (loaded) pubs.forEach(({ paramKey, emptyValue }) => publish(paramKey, emptyValue));
+            return;
+        }
+        const der = a.derivation || 'first';
+        let row;
+        if (der === 'first') row = rows[0];
+        else {
+            const num = v => { const n = parseFloat(String(v ?? '').replace(/[^0-9.\-]/g, '')); return isNaN(n) ? -Infinity : n; };
+            row = rows.reduce((best, r) => {
+                if (!best) return r;
+                const cmp = num(r[a.metric]) - num(best[a.metric]);
+                return (der === 'max' ? cmp > 0 : cmp < 0) ? r : best;
+            }, null);
+        }
+        if (!row) return;
+        pubs.forEach(({ column, paramKey }) => publish(paramKey, row[column]));
+    }, [state.data, state.display?.totalLength, loadPublishCfg, setActionParam]);
+
     const subCfg = display._functions?.subscribers?.find(s => s.functionId === 'row_highlight' && s.enabled);
     const highlightedRow = subCfg && pageState
         ? (() => {

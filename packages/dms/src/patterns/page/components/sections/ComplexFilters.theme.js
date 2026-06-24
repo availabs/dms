@@ -39,4 +39,7 @@ export const complexFiltersTheme = {
 
     // value editor (used by ConditionValueInput's scalar/multiselect Comp)
     valueComp: 'w-full max-h-[150px] flex text-xs overflow-auto scrollbar-sm border rounded-md bg-white p-2',
+
+    // bottom action bar
+    filterActions: 'flex gap-1 items-center pt-1',
 };
