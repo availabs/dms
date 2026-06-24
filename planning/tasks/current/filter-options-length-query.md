@@ -1,9 +1,21 @@
 # Stop the length query from dominating filter-option loads
 
 **Topic:** api (dataWrapper data loading / UDA query sets)
-**Status:** Change **B — DONE** (Postgres/SQLite, 2026-06-23, TDD). Change **A — DONE** (client length-skip, 2026-06-24, TDD). ClickHouse mirror of B — NOT STARTED. Written up 2026-06-23 from the TSMO congestion filter-perf investigation.
+**Status:** Change **B — DONE** (Postgres/SQLite, 2026-06-23, TDD). Change **A — DONE** (client length-skip, 2026-06-24, TDD). ClickHouse mirror of B — **DONE** (2026-06-24). Written up 2026-06-23 from the TSMO congestion filter-perf investigation.
 
 ## Progress log
+
+- 2026-06-24 — **ClickHouse mirror of Change B done.** `query_sets/clickhouse.js`
+  `simpleFilterLength` grouped branch: `count(DISTINCT concat(toString(a),'-',…))`
+  → `count(*) FROM (SELECT 1 … GROUP BY a, b …)`, matching the Postgres rewrite.
+  Verified against a real CH table (`npmrds_raw_tmc_identification` s455/v3515,
+  52,474 rows): single-key `county` (73 = 73), `county,direction` (1610 = 1610),
+  `county,direction,road` (8986 = 8986) — **parity** on all. Collision fix proven
+  with synthetic values (`('x-','y')` vs `('x','-y')`): old = 2, new = 3. CH has no
+  test harness, so verified by real-DB parity (server suite still 65/65 — confirms
+  the file loads/parses, since the controller requires it). NULL note: the old CH
+  form dropped NULL groups (`count(DISTINCT)` ignores NULL); GROUP BY folds them in
+  — the columns here are non-nullable `String`, so no observed difference.
 
 - 2026-06-24 — **Live-confirmed in the browser (Alex): "huge improvement"** on the
   congestion page with Changes A + B + the Tier-1 indexes stacked. Region/year
