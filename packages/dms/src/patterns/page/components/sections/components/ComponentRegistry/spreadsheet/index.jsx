@@ -55,8 +55,27 @@ export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addIte
     useEffect(() => {
         if (!loadPublishCfg || !setActionParam) return;
         const rows = state.data || [];
-        if (!rows.length) return;
+        // A completed fetch sets display.totalLength (0 for an empty result); it is
+        // undefined before the first fetch. `loading` isn't passed in every render
+        // context, so totalLength is the reliable "the query has run" signal — used
+        // to distinguish a genuine empty result from the pre-fetch empty state.
+        const loaded = state.display?.totalLength !== undefined;
         const a = loadPublishCfg.args || {};
+        const pubs = Array.isArray(a.publishes) ? a.publishes
+            : (a.column ? [{ column: a.column, paramKey: loadPublishCfg.paramKey }] : []);
+        const publish = (paramKey, value) => {
+            if (!paramKey || value === undefined || value === null || value === '') return;
+            if (String(publishedRef.current[paramKey]) === String(value)) return;
+            publishedRef.current[paramKey] = value;
+            setActionParam(paramKey, value);
+        };
+        // No rows after a completed load (e.g. an event with no corridor data): resolve
+        // any subscriber `requireResolved` gate with each entry's `emptyValue` (a no-match
+        // sentinel) so a gated section renders empty instead of spinning forever.
+        if (!rows.length) {
+            if (loaded) pubs.forEach(({ paramKey, emptyValue }) => publish(paramKey, emptyValue));
+            return;
+        }
         const der = a.derivation || 'first';
         let row;
         if (der === 'first') row = rows[0];
@@ -69,17 +88,8 @@ export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addIte
             }, null);
         }
         if (!row) return;
-        const pubs = Array.isArray(a.publishes) ? a.publishes
-            : (a.column ? [{ column: a.column, paramKey: loadPublishCfg.paramKey }] : []);
-        for (const { column, paramKey } of pubs) {
-            if (!paramKey) continue;
-            const value = row[column];
-            if (value === undefined || value === null || value === '') continue;
-            if (String(publishedRef.current[paramKey]) === String(value)) continue;
-            publishedRef.current[paramKey] = value;
-            setActionParam(paramKey, value);
-        }
-    }, [state.data, loadPublishCfg, setActionParam]);
+        pubs.forEach(({ column, paramKey }) => publish(paramKey, row[column]));
+    }, [state.data, state.display?.totalLength, loadPublishCfg, setActionParam]);
 
     const subCfg = display._functions?.subscribers?.find(s => s.functionId === 'row_highlight' && s.enabled);
     const highlightedRow = subCfg && pageState
