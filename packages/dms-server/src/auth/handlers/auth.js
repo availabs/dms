@@ -5,7 +5,14 @@
  * The route layer catches errors and formats { error: message } responses.
  */
 
-const { verifyToken, comparePassword, hashPassword, createUserToken, signToken, passwordGen } = require('../utils/crypto');
+const {
+  verifyToken,
+  comparePassword,
+  hashPassword,
+  createUserToken,
+  signToken,
+  passwordGen
+} = require('../utils/crypto');
 const q = require('../utils/queries');
 const { sendEmail, buildEmailHtml } = require('../utils/email');
 
@@ -50,13 +57,21 @@ async function buildUserObject(db, email, passwordHash, project, id) {
 // ---------------------------------------------------------------------------
 
 /** POST /login — verify credentials, check project access, return user object */
-async function login(db, { email, password, project }) {
+async function login(db, { email, password, project, clientIp }) {
   if (!email || !password || !project) throw new Error('Email, password, and project are required.');
   email = email.toLowerCase();
+
+// console.log("dms-server/auth/handlers/auth::login::clientIp", clientIp);
+
+  const isLocked = await q.checkIfIpIsLocked(db, clientIp);
+  if (isLocked) {
+    throw new Error('You have been locked out.');
+  }
 
   const { rows } = await q.getUserByEmail(db, email);
   const userData = rows[0];
   if (!userData || !comparePassword(password, userData.password)) {
+    await q.insertFailedLoginAttempt(db, clientIp);
     throw new Error('Incorrect email or password.');
   }
 
