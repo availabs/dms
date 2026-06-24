@@ -1,4 +1,4 @@
-import React, {useContext, useEffect, Fragment} from "react";
+import React, {useContext, useEffect, Fragment, useMemo, useState} from "react";
 import {useImmer} from "use-immer";
 import {isEqual, uniqWith} from "lodash-es";
 import {ThemeContext, getComponentTheme} from "../../../../ui/useTheme";
@@ -30,6 +30,14 @@ const complexFilterStructure = {
 }
 
 export const isGroup = node => node?.groups && Array.isArray(node.groups);
+
+// Strip values from page-filter conditions so those changes don't count as dirty.
+// Structural changes (add/remove nodes) still trigger dirty regardless.
+const stripPageFilterValues = (node) => {
+    if (isGroup(node)) return { ...node, groups: node.groups.map(stripPageFilterValues) };
+    if (node?.usePageFilters) { const { value, ...rest } = node; return rest; }
+    return node;
+};
 
 const emptyGroup = () => ({
     op: 'AND',
@@ -65,6 +73,32 @@ export const ComplexFilters = ({ state, setState }) => {
         Object.entries(state?.filters || {}).length ?
             state?.filters || {} : { op: 'AND', groups: [] }
     );
+
+    // Cheap dirty check: structural changes always count; value changes only for
+    // conditions that don't use page filters (their values are runtime-driven).
+    const isDirty = useMemo(() => {
+        const saved = state?.filters || { op: 'AND', groups: [] };
+        return !isEqual(stripPageFilterValues(filterGroups), stripPageFilterValues(saved));
+    }, [filterGroups, state?.filters]);
+
+    const [copied, setCopied] = useState(false);
+
+    const handleCopyFilters = () => {
+        navigator.clipboard.writeText(JSON.stringify(filterGroups));
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
+
+    const handlePasteFilters = async () => {
+        try {
+            const text = await navigator.clipboard.readText();
+            const parsed = JSON.parse(text);
+            if (!parsed || typeof parsed.op !== 'string' || !Array.isArray(parsed.groups)) return;
+            updateFilterGroups(() => parsed);
+        } catch {
+            // clipboard empty, not JSON, or permission denied — no-op
+        }
+    };
 
     // sync inbound: page filters → condition values
     const { pageState } = useContext(PageContext) || {};
@@ -481,7 +515,26 @@ export const ComplexFilters = ({ state, setState }) => {
         <ComponentContext.Provider value={ctxValue}>
             <div className={t.root}>
                 {renderNode(filterGroups)}
-                <Pill color={'blue'} text={'save'} onClick={save} />
+                <div className={t.filterActions}>
+                    <Pill
+                        color={isDirty ? 'green' : 'blue'}
+                        text={<Icon icon={'FloppyDisk'} className={'size-4'} />}
+                        title={isDirty ? 'Save (unsaved changes)' : 'Save'}
+                        onClick={save}
+                    />
+                    <Pill
+                        color={copied ? 'green' : 'blue'}
+                        text={<Icon icon={'Copy'} className={'size-4'} />}
+                        title={'Copy filters'}
+                        onClick={handleCopyFilters}
+                    />
+                    <Pill
+                        color={'blue'}
+                        text={<Icon icon={'Paste'} className={'size-4'} />}
+                        title={'Paste filters (replaces current)'}
+                        onClick={handlePasteFilters}
+                    />
+                </div>
             </div>
         </ComponentContext.Provider>
     );
