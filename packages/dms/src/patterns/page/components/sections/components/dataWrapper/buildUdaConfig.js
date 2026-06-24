@@ -481,6 +481,26 @@ export const applyPageFilters = (filterTree, pageFilters) => {
 };
 
 /**
+ * A filter leaf can opt into `requireResolved: true` — its value must be supplied
+ * by a page/action param (resolved via usePageFilterSync) before the section is
+ * allowed to query. Until then the leaf value is empty, and firing the query would
+ * (after the empty-IN strip in mapFilterGroupCols) drop the only intended constraint
+ * and scan the whole table — the same trap the custom-bucket skipFetch guards. It
+ * also avoids the "flash": a section that resolves its scope from a published action
+ * param (e.g. a load_publish driver) would otherwise paint its saved default first,
+ * then re-query once the param lands. Returns true while ANY requireResolved leaf is
+ * still unresolved (empty value); callers defer the fetch. usePageFilterSync writes
+ * the value once the param publishes → fetchKey changes → the section fetches once.
+ */
+export const hasUnresolvedRequiredLeaf = (node) => {
+  if (!node) return false;
+  if (isGroup(node)) return node.groups.some(hasUnresolvedRequiredLeaf);
+  if (!node.requireResolved) return false;
+  const vals = Array.isArray(node.value) ? node.value : node.value == null ? [] : [node.value];
+  return !vals.some((v) => v != null && String(v).length);
+};
+
+/**
  * "Include prior period" expansion. For any leaf flagged
  * `includePriorPeriod`, expand each NUMERIC value `v` to also include
  * `v - step`, `v - 2*step`, … (`priorPeriodCount` steps) so the prior
@@ -1026,10 +1046,13 @@ export const buildUdaConfig = ({
   // Static buckets are excluded: an empty static config is an intentional no-op
   // ("filter to buckets on, nothing configured" returns all rows by design).
   const skipFetch =
-    customBuckets?.enabled === true &&
-    customBuckets?.filterToBuckets !== false &&
-    customBuckets?.type !== "static" &&
-    !activeCustomBuckets;
+    (customBuckets?.enabled === true &&
+      customBuckets?.filterToBuckets !== false &&
+      customBuckets?.type !== "static" &&
+      !activeCustomBuckets) ||
+    // A leaf flagged requireResolved hasn't received its page/action-param value yet —
+    // firing now would scan the whole table (see hasUnresolvedRequiredLeaf).
+    hasUnresolvedRequiredLeaf(filters);
 
   const join = { sources:{} };
 

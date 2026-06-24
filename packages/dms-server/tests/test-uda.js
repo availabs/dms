@@ -288,6 +288,46 @@ async function testDmsModeDataQueries() {
   pass('Data query cleanup complete');
 }
 
+/**
+ * Regression (perf refactor): grouped length must count TRUE distinct groups.
+ *
+ * The old grouped-length SQL was `count(DISTINCT <keyA> || '-' || <keyB>)`, which
+ * collides whenever the '-' join is ambiguous: ('x-','y') and ('x','-y') both
+ * concatenate to 'x--y' and are counted once. The worst-corridors table groups by
+ * road/direction/county, so its pagination count was undercounted on such data.
+ * The fix builds `count(*) FROM (SELECT 1 ... GROUP BY <keys>)`, counting
+ * (keyA,keyB) tuples correctly. Fails on the old concatenation shape (returns 2),
+ * passes on the subquery-count shape (returns 3).
+ */
+async function testMultiKeyGroupedLengthNoCollision() {
+  console.log('\n--- Grouped length: multi-key tuples are not collision-merged ---');
+
+  const rows = [
+    { name: 'A', cat1: 'x-', cat2: 'y' },   // 'x-' || '-' || 'y'  = 'x--y'
+    { name: 'B', cat1: 'x',  cat2: '-y' },  // 'x'  || '-' || '-y' = 'x--y'  (collides with A)
+    { name: 'C', cat1: 'z',  cat2: 'w' },
+  ];
+  const items = [];
+  for (const r of rows) {
+    const result = await graph.callAsync(['dms', 'data', 'create'], [TEST_APP, 'grouplen', r]);
+    items.push(Object.keys(result.jsonGraph.dms.data.byId)[0]);
+  }
+
+  const env = `${TEST_APP}+grouplen`;
+  const viewId = items[0];
+  const options = JSON.stringify({ groupBy: ["data->>'cat1'", "data->>'cat2'"] });
+
+  const lenResult = await graph.getAsync([
+    ['uda', env, 'viewsById', viewId, 'options', options, 'length'],
+  ]);
+  const len = lenResult.jsonGraph.uda[env].viewsById[viewId].options[options].length;
+  assert(len === 3, `Expected 3 distinct (cat1,cat2) groups, got ${len}`);
+  pass('grouped length counts true distinct tuples (no "-" concatenation collision)');
+
+  await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, 'grouplen', ...items]);
+  pass('Grouped-length test cleanup complete');
+}
+
 // ============================================= Custom Bucket (aliasGroups) Tests ==============================================
 
 /**
@@ -1194,6 +1234,7 @@ async function run() {
     await testDmsModeRealWorldPatternType();
     await testDmsModeViews();
     await testDmsModeDataQueries();
+    await testMultiKeyGroupedLengthNoCollision();
     await testCustomBucketAliasCaseRoundTrip();
     await testCustomBucketKeywordValueGroupBy();
     await testBuildAliasGroupCaseDmsNumericQuoting();
