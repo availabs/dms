@@ -103,7 +103,10 @@ function resolveAliasGroups(uiConfig, pageFilters) {
     return { [uiConfig.alias]: { column: uiConfig.sourceField, fallback: uiConfig.fallback, groups: groups } };
   }
 
-  const rawPageFilterValue = get(pageFilters, uiConfig?.binding?.statePath) || [];
+  if (!uiConfig.binding?.statePath || !uiConfig.binding?.labelKey || !uiConfig.binding?.valueKey) {
+    return {};
+  }
+  const rawPageFilterValue = get(pageFilters, uiConfig.binding.statePath) || [];
   const { labelKey, valueKey } = uiConfig.binding;
 
   // Transform it into the exact Label -> Array shape the server wants
