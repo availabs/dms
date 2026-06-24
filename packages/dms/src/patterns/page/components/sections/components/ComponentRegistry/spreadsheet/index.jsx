@@ -45,6 +45,42 @@ export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addIte
         else if (op === 'set') setActionParam(clickPublishCfg.paramKey, values);
     }, [clickPublishCfg, setActionParam, clearActionParam, pageState]);
 
+    // load_publish: when the table's data arrives (or changes — e.g. a new event),
+    // derive a row (first/max/min over a metric) and publish one or more of its column
+    // values to page action params. Subscribers (sections with a matching
+    // `usePageFilters`+`searchParamKey` leaf) then re-query against the published value.
+    // publishedRef de-dupes so we publish only on a real value change (no reload loop).
+    const loadPublishCfg = display._functions?.providers?.find(p => p.functionId === 'load_publish' && p.enabled);
+    const publishedRef = useRef({});
+    useEffect(() => {
+        if (!loadPublishCfg || !setActionParam) return;
+        const rows = state.data || [];
+        if (!rows.length) return;
+        const a = loadPublishCfg.args || {};
+        const der = a.derivation || 'first';
+        let row;
+        if (der === 'first') row = rows[0];
+        else {
+            const num = v => { const n = parseFloat(String(v ?? '').replace(/[^0-9.\-]/g, '')); return isNaN(n) ? -Infinity : n; };
+            row = rows.reduce((best, r) => {
+                if (!best) return r;
+                const cmp = num(r[a.metric]) - num(best[a.metric]);
+                return (der === 'max' ? cmp > 0 : cmp < 0) ? r : best;
+            }, null);
+        }
+        if (!row) return;
+        const pubs = Array.isArray(a.publishes) ? a.publishes
+            : (a.column ? [{ column: a.column, paramKey: loadPublishCfg.paramKey }] : []);
+        for (const { column, paramKey } of pubs) {
+            if (!paramKey) continue;
+            const value = row[column];
+            if (value === undefined || value === null || value === '') continue;
+            if (String(publishedRef.current[paramKey]) === String(value)) continue;
+            publishedRef.current[paramKey] = value;
+            setActionParam(paramKey, value);
+        }
+    }, [state.data, loadPublishCfg, setActionParam]);
+
     const subCfg = display._functions?.subscribers?.find(s => s.functionId === 'row_highlight' && s.enabled);
     const highlightedRow = subCfg && pageState
         ? (() => {

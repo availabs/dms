@@ -83,6 +83,25 @@ export const componentFunctions = {
                 }
             ],
         },
+        {
+            id: 'load_publish',
+            label: 'On Load: Publish Derived Row',
+            description: 'When data loads, derive a row (first/max/min over a metric) and publish one or more of its column values to page action params — drives master-detail (e.g. a Delay-by-corridor table publishes its top corridor as `activeTmcLinear`). Re-publishes whenever the data changes (e.g. a new event).',
+            trigger: 'load',
+            paramKey: "",
+            args: [
+                { key: 'derivation', label: 'Row to publish', type: 'select',
+                    options: [
+                        { label: 'First (top row)', value: 'first' },
+                        { label: 'Max of metric',   value: 'max' },
+                        { label: 'Min of metric',   value: 'min' },
+                    ] },
+                { key: 'metric', label: 'Metric column (for max/min)', type: 'column-select' },
+                { key: 'column', label: 'Column to publish', type: 'column-select' },
+                // programmatic builds may instead set args.publishes = [{ column, paramKey }, …]
+                // to publish several params from the one derived row.
+            ],
+        },
     ],
     subscribers: [
         {

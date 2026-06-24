@@ -1,5 +1,22 @@
 # Section "active selection" interaction — load-publish a derived value → page state → filter
 
+## Status — load_publish DONE 2026-06-23; useActionParam NOT needed
+Addition **1 (the `load_publish` provider)** is implemented in the Spreadsheet
+(`spreadsheet/config.jsx` provider registry + `spreadsheet/index.jsx` `useEffect` on `state.data`).
+Args support a single `{ column, paramKey }` or a `publishes: [{ column, paramKey }]` array (publish
+several params from one derived row), with `{ derivation: 'first'|'max'|'min', metric }`; a `useRef`
+de-dupes so it publishes only on a real value change.
+Addition **2 (`useActionParam` leaf resolution) turned out unnecessary**: `usePageFilterSync`'s reduce
+keys **every** `pageState.filters` entry by `searchKey` — including `type:'action'` entries — so a
+normal leaf with `usePageFilters`+`searchParamKey` already resolves from an action param. Subscribers
+just use the existing search-param leaf form; no schema change.
+**Load-bearing gotcha:** a `useSearchParams:true` registry default with the **same `searchKey`** as a
+published action param can win in that reduce and pin the leaf — don't register both; let the
+publisher be the sole source (give consuming leaves a saved default for the pre-publish paint).
+First live consumer: TSMO incident_view (Delay-by-corridor → `activeTmcLinear`/`activeDate`/`metaYear`;
+grid + delay-by-TMC follow per event). Remaining (optional): expose the provider/leaf in the section
+menu UI (today wired programmatically); a `graph_new` equivalent if a graph ever needs to publish.
+
 ## Objective
 Let one section **publish a derived value on data load** to a persistent page state var
 (an "action param"), and let **other sections FILTER their data** on that value — a reusable
