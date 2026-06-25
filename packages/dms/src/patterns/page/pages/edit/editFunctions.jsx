@@ -2,25 +2,7 @@ import { cloneDeep } from "lodash-es"
 import { json2DmsForm, getUrlSlug, toSnakeCase, parseJSON } from '../_utils'
 // import { ButtonSelector,SidebarSwitch } from '../../ui'
 
-/**
- * Build a history object by appending a new entry to existing entries.
- * Returns only { id?, entries } — id tells updateDMSAttrs to edit the
- * existing page-edit row; entries is the data to store.
- * Resolved ref metadata (ref, created_at, etc.) is NOT included —
- * updateDMSAttrs rebuilds the ref from the format config.
- */
-export function appendHistoryEntry(existingHistory, action, user) {
-  const entry = { action, user: user?.email, time: new Date().toString() }
-  const existingEntries = Array.isArray(existingHistory?.entries) ? existingHistory.entries : [];
-  const entries = [...existingEntries, entry];
-  // Only reuse existing row ID when entries are present — proof the DB row actually exists.
-  // If id is set but entries is missing, the row is likely orphaned; create a fresh one so
-  // updateDMSAttrs doesn't silently edit a non-existent row.
-  if (existingHistory?.id && existingEntries.length > 0) {
-    return { id: existingHistory.id, entries, _dirty: true }
-  }
-  return { entries, _dirty: true }
-}
+export { appendHistoryEntry } from '../../../utils';
 
 
 export const insertSubPage = async (item, dataItems, user, apiUpdate) => {
@@ -68,7 +50,7 @@ export const duplicateItem = (item, dataItems, user, apiUpdate) => {
     apiUpdate({data:newItem})
 }
 
-export const newPage = async (item, dataItems, user, apiUpdate) => {
+export const newPage = async (item, dataItems, user, apiUpdate, template) => {
     const highestIndex = dataItems
     .filter(d => !d.parent)
     .reduce((out,d) => {
@@ -83,6 +65,11 @@ export const newPage = async (item, dataItems, user, apiUpdate) => {
       history: appendHistoryEntry(null, ' created Page.', user)
     }
     newItem.url_slug = `${getUrlSlug(newItem,dataItems)}`
+
+    if (template) {
+      if (template.draft_sections !== undefined) newItem.draft_sections = template.draft_sections;
+      if (template.draft_section_groups !== undefined) newItem.draft_section_groups = template.draft_section_groups;
+    }
 
     await apiUpdate({data:newItem})
   }

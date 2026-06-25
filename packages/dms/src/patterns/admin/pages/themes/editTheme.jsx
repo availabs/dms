@@ -9,7 +9,7 @@ import { cloneDeep, get, set } from "lodash-es";
 import { ThemeContext, mergeTheme } from "../../../../ui/useTheme";
 import { AdminContext } from "../../context";
 import { isUserAuthed } from '../../utils';
-import { parseIfJSON } from '../../../page/pages/_utils';
+const parseIfJSON = (text, fallback = {}) => { try { if (text && typeof text === 'object') return text; if (typeof text !== 'string' || !text) return fallback; return JSON.parse(text); } catch { return fallback; } };
 import { editThemeTheme } from './editTheme.theme';
 const DefaultComp = () => <div>Component not registered.</div>
 const ComponentRenderer = ({Component=DefaultComp, props}) => <Component {...props} />;

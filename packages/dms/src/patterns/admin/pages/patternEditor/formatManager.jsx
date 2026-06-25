@@ -1,7 +1,6 @@
 import React, {useEffect} from 'react'
 import { isEqual } from "lodash-es"
-//import { CMSContext } from '../../context'
-import {ThemeContext} from "../../../ui/useTheme";
+import {ThemeContext} from "../../../../ui/useTheme";
 
 function MenuItemsEditor({onSave, onCancel, items}) {
     let [newItems, setNewItems] = React.useState(JSON.stringify( (items || []), null , 3 ));

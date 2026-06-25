@@ -29,6 +29,7 @@ import icons from './icons'
 import { textSettingsTheme } from "./themes/textSettings";
 import { lexicalTheme } from './components/lexical/theme';
 import { nestableInHouseTheme } from "./components/nestableInHouse";
+import { defaultPageTemplates } from './pageTemplates';
 // =========================================
 // Pattern Themes, maybe move registration of these to DMS Site ??
 // =========================================
@@ -124,7 +125,8 @@ const theme = {
 
     "Icons":icons,
     settings,
-    widgets: defaultWidgets
+    widgets: defaultWidgets,
+    page_templates: defaultPageTemplates
 }
 
 export default theme

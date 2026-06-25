@@ -8,7 +8,7 @@ import { tableTheme } from '../../../../../ui/components/table/table.theme';
 import { pagesEditorTheme } from './pagesEditor.theme';
 import { enrichSection, loadPageHistory, loadSectionsByRefs } from './pagesEditor.utils';
 import { AdminContext } from '../../../context';
-import { appendHistoryEntry } from '../../../../page/pages/edit/editFunctions';
+import { appendHistoryEntry } from '../../../../utils';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 

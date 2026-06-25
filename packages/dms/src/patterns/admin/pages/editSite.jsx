@@ -4,7 +4,7 @@ import { useFalcor } from "@availabs/avl-falcor";
 import {AdminContext} from "../context";
 import { ThemeContext } from '../../../ui/useTheme';
 import { Link, useLocation, useNavigate, useNavigation } from 'react-router'
-import { parseIfJSON } from '../../page/pages/_utils';
+const parseIfJSON = (text, fallback = {}) => { try { if (text && typeof text === 'object') return text; if (typeof text !== 'string' || !text) return fallback; return JSON.parse(text); } catch { return fallback; } };
 import { nameToSlug, getInstance } from '../../../utils/type-utils';
 import { isUserAuthed } from '../utils';
 import { editSiteTheme } from './editSite.theme'

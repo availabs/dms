@@ -4,10 +4,11 @@ import { ThemeContext } from '../../../../../ui/useTheme';
 import { tableTheme } from '../../../../../ui/components/table/table.theme';
 import Table from '../../../../../ui/components/table';
 import { getInstance } from '../../../../../utils/type-utils';
-import { timeAgo } from '../../../../page/pages/_utils';
 import { loadPageHistory } from './pagesEditor.utils';
 import { pagesEditorTheme } from './pagesEditor.theme';
 import { activityTabTheme } from './activityTab.theme';
+
+function timeAgo(input) { const date = input instanceof Date ? input : new Date(input); const fmt = new Intl.RelativeTimeFormat('en'); const ranges = { years: 3600*24*365, months: 3600*24*30, weeks: 3600*24*7, days: 3600*24, hours: 3600, minutes: 60, seconds: 1 }; const s = (date.getTime() - Date.now()) / 1000; for (const k in ranges) { if (ranges[k] < Math.abs(s)) return fmt.format(Math.round(s / ranges[k]), k); } }
 
 function actionLabel(action) {
     if (!action) return 'edited';

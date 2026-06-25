@@ -3,11 +3,11 @@ import { isEqual, set, cloneDeep } from "lodash-es";
 
 import { AuthContext } from "../../../../auth/context";
 import { AdminContext } from "../../../context";
-import { parseIfJSON } from "../../../../page/pages/_utils";
 import { ThemeContext } from "../../../../../ui/useTheme";
 import { permissionsEditorTheme } from './permissionsEditor.theme';
 
 const DEFAULT_PERMISSIONS = { groups: { public: ['view-page'] }, users: {} };
+const parseIfJSON = (text, fallback = {}) => { try { if (text && typeof text === 'object') return text; if (typeof text !== 'string' || !text) return fallback; return JSON.parse(text); } catch { return fallback; } };
 
 // Normalise raw authPermissions (flat {groups,users} or subdomain-keyed object) → subdomain-keyed object
 function normaliseAuthPermissions(raw) {

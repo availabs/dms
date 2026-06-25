@@ -12,8 +12,8 @@ import { PatternPermissionsEditor } from "./default/permissionsEditor";
 import { PatternPagesEditor } from "./pages/pagesEditor";
 import { SourcesTab } from "./pages/sourcesTab";
 import { ActivityTab } from "./pages/activityTab";
-// probably want to change this to register function for non default pages
-import FormatManager from '../../../page/pages/formatManager';
+import FormatManager from './formatManager';
+import PageTemplateManagerPane from './pageTemplateManagerPane';
 
 const Alert = () => <div>A</div>
 
@@ -77,7 +77,10 @@ const PatternEditor = ({params, dataItems, item, format, attributes, apiUpdate, 
     ...navPages,
     ...(item.pattern_type === 'page' ? [pagesTab, sourcesTab, activityTab] : []),
     ...(item.pages || []),
-    ...(item.pattern_type === 'page' ? [{ path: 'edit_pattern', name: 'Format Manager', component: FormatManager }] : [])
+    ...(item.pattern_type === 'page' ? [
+      { path: 'page_templates', name: 'Page Templates', component: PageTemplateManagerPane },
+      { path: 'edit_pattern', name: 'Format Manager', component: FormatManager }
+    ] : [])
   ];
   const PageComp = pages.find(d => d.path === page)?.component || pages[0].component
     return (
