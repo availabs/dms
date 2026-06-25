@@ -13,6 +13,7 @@ import SearchButton from '../../components/search'
 import PageControls from './editPane'
 
 function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attributes, apiLoad, apiUpdate, reqPermissions, busy}) {
+	console.log("PageEdit render: item id", item?.id, "draft sections count", item?.draft_sections?.length);
 	const navigate = useNavigate();
 	const [searchParams] = useSearchParams();
 	const { pathname = '/edit', search } = useLocation();
@@ -22,9 +23,19 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
 	const dataItems = allDataItems.filter(d => !d.authPermissions || isUserAuthed(reqPermissions, d.authPermissions));
 
 	const [ pageState, setPageState ] = useImmer({ ...item, filters: mergeFilters(item.filters, patternFilters) });
+	const [ newItem, setNewItem ] = useImmer({ ...item});
 	const [ editPane, setEditPane ] = React.useState({ open: false, index: 1, showGrid: false });
 	const [ draftDataSources, setDraftDataSources ] = useImmer(item.draft_dataSources || {});
 
+	useEffect(() => {
+
+		setNewItem(draft => {
+			console.log("RESETTING ITEM, existing newItem::", JSON.parse(JSON.stringify(draft)))
+			draft = ({ ...draft, ...item })
+		});
+	}, [item])
+
+console.log({item, newItem})
 	const dataSourceActions = React.useMemo(() => ({
 		dataSources: draftDataSources,
 
@@ -201,7 +212,7 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
 
 
 	const getSectionGroups =  ( sectionName ) => {
-		return (item?.draft_section_groups || [])
+		return (newItem?.draft_section_groups || [])
 			.filter((g,i) => g.position === sectionName)
 			.sort((a,b) => a?.index - b?.index)
 			.map((group,i) => (
@@ -229,11 +240,13 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
 		}
 		return <div>You do not have permission to view this page. <Link to={baseUrl}>Click here to visit Home</Link></div>
 	}
-
+	console.log("-----",getSectionGroups('content'),[item?.draft_section_groups])
 	return (
 		<DataSourceContext.Provider value={dataSourceActions}>
 		<PageContext.Provider value={{
-			item,
+			//item,
+			item: newItem,
+			setItem: setNewItem,
 			pageState,
 			setPageState,
 			updatePageStateFilters,
@@ -253,10 +266,10 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
               navItems={menuItems}
               resolveNav={resolveNav}
               secondNav={menuItemsSecondNav}
-              headerChildren={React.useMemo(() => getSectionGroups('top'),[item?.draft_section_groups])}
-              footerChildren={React.useMemo(() => getSectionGroups('bottom'),[item?.draft_section_groups])}
+              headerChildren={React.useMemo(() => getSectionGroups('top'),[newItem?.draft_section_groups])}
+              footerChildren={React.useMemo(() => getSectionGroups('bottom'),[newItem?.draft_section_groups])}
           >
-            {React.useMemo(() => getSectionGroups('content'),[item?.draft_section_groups])}
+            {React.useMemo(() => getSectionGroups('content'),[newItem?.draft_section_groups])}
         </Layout>
 			</ThemeContext.Provider>
 		</PageContext.Provider>
