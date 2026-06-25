@@ -134,7 +134,7 @@ const graphConfig = {
 
     useDataSource: true,
     useDataWrapper: true,
-
+    supportsTemplates: true,
     fullDataLoad: true,
     useGetDataOnPageChange: false,
     showPagination: false,

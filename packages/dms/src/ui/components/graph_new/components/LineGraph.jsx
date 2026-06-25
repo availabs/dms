@@ -49,6 +49,7 @@ const LineGraphWrapper = props => {
 
 		const data = [];
 
+		if(!props.viewData) return;
 		if (idColumns.length) {
 			const dataGroups = d3groups(props.viewData, idAccessor, d => d[xKey]);
 
@@ -222,7 +223,7 @@ const LineGraphWrapper = props => {
       ...props.legend,
       type: "categorical",
       colors: colors,
-      categories: dataFromProps.map(l => l.id)
+      categories: dataFromProps?.map(l => l.id)
     };
   }, [props.legend, colors, dataFromProps]);
 
