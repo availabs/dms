@@ -309,10 +309,7 @@ const isPublicGroup = async (db, groupName, project) => {
   return +(rows[0]?.count || 0) === 1;
 };
 
-const LOCKOUT_INTERVAL = "30 minutes";
-const MAXIMUM_LOGIN_ATTEMPTS = 5;
-
-const checkIfIpIsLocked = async (db, ip) => {
+const checkIfIpIsLocked = async (db, ip, LOCKOUT_INTERVAL, MAXIMUM_LOGIN_ATTEMPTS) => {
   const sql = `
     SELECT COUNT(1) AS num_failed_attempts
       FROM failed_logins
@@ -378,8 +375,8 @@ module.exports = {
   getLogins,
 
   // failed logins
-  insertFailedLoginAttempt,
   checkIfIpIsLocked,
+  insertFailedLoginAttempt,
 
   // Messages
   getMessages,

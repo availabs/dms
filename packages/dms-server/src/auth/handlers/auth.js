@@ -56,6 +56,9 @@ async function buildUserObject(db, email, passwordHash, project, id) {
 // Handlers
 // ---------------------------------------------------------------------------
 
+const LOCKOUT_INTERVAL = "30 minutes";
+const MAXIMUM_LOGIN_ATTEMPTS = 5;
+
 /** POST /login — verify credentials, check project access, return user object */
 async function login(db, { email, password, project, clientIp }) {
   if (!email || !password || !project) throw new Error('Email, password, and project are required.');
@@ -63,9 +66,10 @@ async function login(db, { email, password, project, clientIp }) {
 
 // console.log("dms-server/auth/handlers/auth::login::clientIp", clientIp);
 
-  const isLocked = await q.checkIfIpIsLocked(db, clientIp);
+  const isLocked = await q.checkIfIpIsLocked(db, clientIp, LOCKOUT_INTERVAL, MAXIMUM_LOGIN_ATTEMPTS);
   if (isLocked) {
-    throw new Error('You have been locked out.');
+    await q.insertFailedLoginAttempt(db, clientIp);
+    throw new Error(`You have failed to login after ${ MAXIMUM_LOGIN_ATTEMPTS } or more attempts and have been locked out for ${ LOCKOUT_INTERVAL }.`);
   }
 
   const { rows } = await q.getUserByEmail(db, email);
