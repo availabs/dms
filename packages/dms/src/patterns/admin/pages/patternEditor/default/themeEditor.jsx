@@ -8,9 +8,9 @@ import {ThemeContext, mergeTheme} from "../../../../../ui/useTheme";
 import {AdminContext} from "../../../context";
 import defaultTheme from '../../../../../ui/defaultTheme'
 import { themeEditorTheme } from './themeEditor.theme'
+import { parseIfJSON } from '../../../utils';
 const DefaultComp = () => <div>Component not registered.</div>
 const ComponentRenderer = ({Component = DefaultComp, props}) => <Component {...props} />;
-const parseIfJSON = (text, fallback = {}) => { try { if (text && typeof text === 'object') return text; if (typeof text !== 'string' || !text) return fallback; return JSON.parse(text); } catch { return fallback; } };
 
 const compOptions = [
     {label: 'PageView', value: 'PageView'},

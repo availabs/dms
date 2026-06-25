@@ -3,8 +3,7 @@ import { AdminContext } from "../../../context";
 import { ThemeContext } from "../../../../../ui/useTheme";
 import { isEqual } from "lodash-es";
 import { filterEditorTheme } from './filterEditor.theme';
-
-const parseIfJSON = (text, fallback = {}) => { try { if (text && typeof text === 'object') return text; if (typeof text !== 'string' || !text) return fallback; return JSON.parse(text); } catch { return fallback; } };
+import { parseIfJSON } from '../../../utils';
 
 // Normalise raw filters value (flat array or subdomain-keyed object) → subdomain-keyed object
 function normaliseFilters(raw) {
