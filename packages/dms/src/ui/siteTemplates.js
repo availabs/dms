@@ -1,11 +1,5 @@
 export const defaultSiteTemplates = [
   {
-    id: 'blank',
-    name: 'Blank',
-    description: 'Auth only — add patterns and pages yourself',
-    patterns: []
-  },
-  {
     id: 'simple_site',
     name: 'Simple Site',
     description: 'One page pattern with a blank page — the minimum working content site',
@@ -66,8 +60,14 @@ export const defaultSiteTemplates = [
         pattern_type: 'page',
         name: 'Dashboard',
         base_url: 'dashboard',
-        pages: [{ template: 'dashboard', title: 'Dashboard' }]
+        pages: [{ template: 'dashboard', title: 'Dashboard', wireSource: true }]
       }
     ]
+  },
+  {
+    id: 'blank',
+    name: 'Blank',
+    description: 'Auth only — add patterns and pages yourself',
+    patterns: []
   }
 ]

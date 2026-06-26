@@ -26,7 +26,7 @@ const {
   ensureTable,
   allocateId
 } = require('#db/table-resolver.js');
-const { parseSplitDataType } = require('#db/type-utils.js');
+const { parseSplitDataType, getKind, getInstance } = require('#db/type-utils.js');
 const { logEntry } = require('../../middleware/request-logger');
 
 const DATA_ATTRIBUTES = [
@@ -864,6 +864,12 @@ function createController(dbName = 'dms-sqlite', options = {}) {
         await appendChangeLog(item.id, item.app, item.type, 'I', item.data, userId);
         await dms_db.commitTransaction();
         _tagsCache.clear();
+        // When a new source is created, evict any stale cache entry so the next
+        // data-row write looks up the correct (newest) source ID from the DB.
+        if (getKind(type) === 'source') {
+          const slug = getInstance(type);
+          if (slug) _sourceIdCache.delete(`${app}:${slug}`);
+        }
         return rows;
       } catch (err) {
         await dms_db.rollbackTransaction();
