@@ -7,6 +7,7 @@ import { Link, useLocation, useNavigate, useNavigation } from 'react-router'
 import { nameToSlug, getInstance } from '../../../utils/type-utils';
 import { isUserAuthed, parseIfJSON } from '../utils';
 import { editSiteTheme } from './editSite.theme'
+import { AddPatternPicker } from '../components/AddPatternPicker'
 
 function getSubdomainFromHost(host) {
   const hostname = (host || window.location.host).split(':')[0];
@@ -128,7 +129,6 @@ function PatternList({
 	const siteInstance = getInstance(siteType) || siteType;
 	const gridRef = React.useRef(null);
 	const [search, setSearch] = React.useState('');
-	const [newItem, setNewItem] = React.useState({app: format?.app});
 	const [addingNew, setAddingNew] = React.useState(false);
 	const [editingItem, setEditingItem] = React.useState(undefined);
 	const [isDuplicating, setIsDuplicating] = React.useState(false);
@@ -214,8 +214,8 @@ function PatternList({
 
 	const dmsServerPath = `${API_HOST}/dama-admin`;
 
-	const addNewValue = async (patternData) => {
-		const data = patternData || newItem;
+	const addNewValue = async (patternData, templateId = null) => {
+		const data = patternData;
 		const slug = nameToSlug(data.name);
 		if (!slug) return;
 
@@ -244,7 +244,19 @@ function PatternList({
 			onChange(newData);
 			onSubmit(newData);
 		}
-		setNewItem({app: format?.app});
+
+		if (newId && templateId) {
+			const pageTemplates = theme?.page_templates ?? [];
+			const tmpl = pageTemplates.find(pt => pt.id === templateId);
+			const pageType = `${slug}|page`;
+			await falcor.call(['dms', 'data', 'create'], [app, pageType, {
+				title: tmpl?.name ?? data.name,
+				index: 0,
+				published: 'draft',
+				...(tmpl?.draft_sections !== undefined          ? { draft_sections: tmpl.draft_sections }             : {}),
+				...(tmpl?.draft_section_groups !== undefined    ? { draft_section_groups: tmpl.draft_section_groups } : {}),
+			}]);
+		}
 	}
 
 	const duplicate = async({oldInstance, newInstance}, item) => {
@@ -392,42 +404,13 @@ function PatternList({
 				</Modal>
 
 				<Modal open={addingNew} setOpen={setAddingNew}>
-					<div className={t.modalForm}>
-						{
-							attrToAddNew
-								.map((attrKey, i) => {
-									let {EditComp, ViewComp, ...props} = attributes[attrKey]
-                                    if(attrKey === 'filters'){
-                                        EditComp = RenderFilters
-                                    }
-									const options =
-										attrKey === 'pattern_type' && authExists && props.options?.length ?
-											props.options.filter(o => o.value !== 'auth') :
-											props.options;
-									return (
-										<EditComp
-											value={newItem?.[attrKey]}
-											onChange={(v) => setNewItem({...newItem, [attrKey]: v})}
-											{...props}
-											options={options}
-											placeHolder={attrKey}
-											key={`${attrKey}-${i}`}
-										/>
-
-									)
-								})
-						}
-						<div className={t.modalAddActions}>
-							<Button
-                                type={'plain'}
-                                title={'Add Site'}
-								className={t.btnAdd}
-								onClick={() => addNewValue({...newItem})}
-							>
-								add
-							</Button>
-						</div>
-					</div>
+					<AddPatternPicker
+						authExists={authExists}
+						onAdd={async ({ pattern_type, name, base_url, templateId }) => {
+							await addNewValue({ pattern_type, name, base_url }, templateId)
+							setAddingNew(false)
+						}}
+					/>
 				</Modal>
 
 				<Modal open={Boolean(deletingItem)} setOpen={setDeletingItem}>

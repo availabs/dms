@@ -2,6 +2,7 @@ import { pagesEditorTheme } from './pages/patternEditor/pages/pagesEditor.theme'
 import { menuTheme } from './components/menu.theme'
 import { errorPageTheme } from './components/errorPage.theme'
 import { patternListTheme } from './components/patternList.theme'
+import { patternPickerTheme } from './components/AddPatternPicker.theme'
 import { createSiteTheme } from './pages/createSite.theme'
 import { editSiteTheme } from './pages/editSite.theme'
 import { patternEditorTheme } from './pages/patternEditor/patternEditor.theme'
@@ -19,6 +20,7 @@ export default {
     menu: menuTheme,
     errorPage: errorPageTheme,
     patternList: patternListTheme,
+    patternPicker: patternPickerTheme,
     createSite: createSiteTheme,
     editSite: editSiteTheme,
     patternEditor: patternEditorTheme,
