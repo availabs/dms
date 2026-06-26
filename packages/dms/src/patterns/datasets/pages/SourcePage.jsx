@@ -85,7 +85,7 @@ console.log("SourcePage::pgEnv", pgEnv);
             setLoading(false)
         }
 
-        if (((!isDms && pgEnv) || (isDms && !item)) && id) {
+        if (((!isDms && pgEnv) || isDms) && id) {
 
 console.log("LOADING??????????????????")
 
