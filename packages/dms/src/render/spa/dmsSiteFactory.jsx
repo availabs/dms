@@ -9,6 +9,10 @@ import { updateAttributes, updateRegisteredFormats } from "../../dms-manager/_ut
 import { pattern2routes, getSubdomain } from './utils'
 import RootErrorBoundary from './utils/RootErrorBoundary.jsx';
 
+// Stable reference for the default empty routes array — avoids re-creating the
+// router on every DmsSite render when no extra routes are passed as a prop.
+const EMPTY_ROUTES = [];
+
 const DMS_SYNC_ENABLED = typeof import.meta !== 'undefined'
   && import.meta.env?.VITE_DMS_SYNC === '1';
 
@@ -28,7 +32,7 @@ export function DmsSite (config) {
         DAMA_HOST= 'https://graph.availabs.org',
         damaBaseUrl,
         PROJECT_NAME,
-        routes = [],
+        routes = EMPTY_ROUTES,
         damaDataTypes = {},
         damaMapPlugins = {},
         isMultiTenant = false,
@@ -59,21 +63,6 @@ export function DmsSite (config) {
         }
         return []
     });
-
-    const routePropsRef = React.useRef(routeProps);
-    useEffect(() => { routePropsRef.current = routeProps; });
-    // When the user logs in, authed patterns that were blocked by server-side auth
-    // on initial load need to be fetched now so their routes exist for navigation.
-    useEffect(() => {
-        const handleLogin = async () => {
-            setLoading(true)
-            const routes = await dmsSiteFactory(routePropsRef.current);
-            setDynamicRoutes(routes);
-            setLoading(false)
-        };
-        window.addEventListener('dms-user-login', handleLogin);
-        return () => window.removeEventListener('dms-user-login', handleLogin);
-    }, []);
 
     useEffect(() => {
         let isStale = false;

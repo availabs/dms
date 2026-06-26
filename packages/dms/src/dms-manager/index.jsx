@@ -76,7 +76,7 @@ const DmsManager = (props) => {
 
 	const RenderView = React.useMemo(() => {
 		return getActiveView(config.children, path, config.format, user)
-	}, [path])
+	}, [path, user])
 
 	if(!RenderView) {
 		return <div>No Route Match {path}</div>
