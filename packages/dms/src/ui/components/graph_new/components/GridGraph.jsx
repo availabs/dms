@@ -104,7 +104,7 @@ const GridGraphWrapper = props => {
 
     }
     else {
-      const keyGroups = d3groups(props.viewData, d => d[xColumn.key]);
+      const keyGroups = d3groups((props?.viewData || []), d => d[xColumn.key]);
 
       for (const cc of colorColumns) {
         const aggFunc = getAggFunc(cc);
@@ -145,7 +145,7 @@ const GridGraphWrapper = props => {
       }
     }
 
-    if (xColumn.sort) {
+    if (xColumn?.sort) {
       const sortDir = xColumn.sort === "desc" ? -1 : 1;
       keys.sort((a, b) => {
         const aNaN = strictNaN(+a);
@@ -156,7 +156,7 @@ const GridGraphWrapper = props => {
         return (+a - +b) * sortDir;
       })
     }
-    if (yColumn.sort) {
+    if (yColumn?.sort) {
       const sortDir = xColumn.sort === "desc" ? -1 : 1;
       data.sort((a, b) => {
         const aNaN = strictNaN(+a.index);
@@ -184,6 +184,7 @@ const GridGraphWrapper = props => {
   }, [props.yAxis]);
 
   const legend = React.useMemo(() => {
+    console.log("grid legend::dataFromProps::", dataFromProps)
     return {
       ...props.legend,
       type: "linear",

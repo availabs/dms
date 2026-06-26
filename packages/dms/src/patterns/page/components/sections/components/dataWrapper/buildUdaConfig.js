@@ -1430,7 +1430,12 @@ export const buildUdaConfig = ({
     )
     .reduce((acc, columnName) => {
       const col = getColumn(columnName);
-      const [reqNameWithoutAS] = splitColNameOnAS(col?.reqName || columnName);
+      let [reqNameWithoutAS] = splitColNameOnAS(col?.reqName || columnName);
+
+      if (activeComparisonSeries && reqNameWithoutAS.includes('.')) {
+        reqNameWithoutAS = reqNameWithoutAS.split('.').slice(1).join('.');
+      }
+
       acc[reqNameWithoutAS] = orderBy[columnName];
       return acc;
     }, {});
