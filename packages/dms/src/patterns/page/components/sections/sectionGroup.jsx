@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router'
 import { ThemeContext, getComponentTheme } from "../../../../ui/useTheme";
 import { PageContext, CMSContext } from '../../context'
 import { getInPageNav } from '../../pages/_utils'
-import { appendHistoryEntry } from '../../pages/edit/editFunctions'
+import { appendHistoryEntry } from '../../../utils'
 
 import SectionArray from './sectionArray'
 import InPageNav from './InPageNav'

@@ -182,6 +182,56 @@ function ProfilePreview({ t }) {
   );
 }
 
+// ── Actions Dashboard: dark header + bar chart + table rows ──────────────────
+function ActionsDashboardPreview({ t }) {
+  const bars = [65, 88, 52, 22, 38];
+  return (
+    <div className={t.cardPreview} style={{ gap: '3px' }}>
+      <div className={t.cardPreviewBlock} style={{ height: '20%', width: '100%', opacity: 0.85 }} />
+      <div style={{ flex: '0 0 42%', width: '100%', display: 'flex', alignItems: 'flex-end', gap: '4px', paddingBottom: '2px', paddingTop: '2px' }}>
+        {bars.map((h, i) => (
+          <div key={i} className={t.cardPreviewBlock} style={{ flex: 1, height: `${h}%` }} />
+        ))}
+      </div>
+      <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+        {[1, 2, 3, 4].map(i => (
+          <div key={i} className={t.cardPreviewBlock} style={{ height: '9%', width: '100%', opacity: 0.6 }} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Hazard Event Analysis: text + half/half row + full table ─────────────────
+function HazardEventPreview({ t }) {
+  const hbars = [88, 72, 52, 42, 30, 22];
+  return (
+    <div className={t.cardPreview} style={{ gap: '3px' }}>
+      <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+        <div className={t.cardPreviewBlock} style={{ height: '7px', width: '60%' }} />
+        <div className={t.cardPreviewBlock} style={{ height: '4px', width: '85%', opacity: 0.5 }} />
+      </div>
+      <div style={{ display: 'flex', flex: 1, gap: '3px' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '2px', justifyContent: 'center' }}>
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className={t.cardPreviewBlock} style={{ height: '14%', width: '100%', opacity: 0.65 }} />
+          ))}
+        </div>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '3px', justifyContent: 'center' }}>
+          {hbars.map((w, i) => (
+            <div key={i} className={t.cardPreviewBlock} style={{ height: '8px', width: `${w}%` }} />
+          ))}
+        </div>
+      </div>
+      <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+        {[1, 2, 3].map(i => (
+          <div key={i} className={t.cardPreviewBlock} style={{ height: '8%', width: '100%', opacity: 0.6 }} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 const PREVIEW_COMPONENTS = {
   blank: BlankPreview,
   article: ArticlePreview,
@@ -194,6 +244,8 @@ const PREVIEW_COMPONENTS = {
   overview: OverviewPreview,
   profile: ProfilePreview,
   dashboard: DashboardPreview,
+  actions_dashboard: ActionsDashboardPreview,
+  hazard_event_analysis: HazardEventPreview,
 };
 
 function TemplateCard({ template, selected, onSelect, t }) {

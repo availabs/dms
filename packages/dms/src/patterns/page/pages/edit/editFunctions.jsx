@@ -2,8 +2,7 @@ import { cloneDeep } from "lodash-es"
 import { json2DmsForm, getUrlSlug, toSnakeCase, parseJSON } from '../_utils'
 // import { ButtonSelector,SidebarSwitch } from '../../ui'
 
-export { appendHistoryEntry } from '../../../utils';
-
+import { appendHistoryEntry } from '../../../utils';
 
 export const insertSubPage = async (item, dataItems, user, apiUpdate) => {
     if(!item?.id) return;
