@@ -40,7 +40,27 @@ export const defaultSiteTemplates = [
         pattern_type: 'datasets',
         name: 'Data',
         base_url: 'data',
-        sources: [{ name: 'dataset', source_type: 'internal_table' }]
+        sources: [{
+          name: 'dataset',
+          source_type: 'internal_table',
+          config: {
+            attributes: [
+              { name: 'label',    display_name: 'Label',    type: 'text',   required: true,  options: null },
+              { name: 'value',    display_name: 'Value',    type: 'number', required: false, options: null },
+              { name: 'category', display_name: 'Category', type: 'text',   required: false, options: null },
+            ]
+          },
+          views: [{
+            name: 'version 1',
+            rows: [
+              { label: 'Category A', value: 120, category: 'Group 1' },
+              { label: 'Category B', value: 85,  category: 'Group 1' },
+              { label: 'Category C', value: 200, category: 'Group 2' },
+              { label: 'Category D', value: 60,  category: 'Group 2' },
+              { label: 'Category E', value: 145, category: 'Group 3' },
+            ]
+          }]
+        }]
       },
       {
         pattern_type: 'page',

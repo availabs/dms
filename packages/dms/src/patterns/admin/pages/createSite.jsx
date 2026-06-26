@@ -4,7 +4,7 @@ import { useFalcor } from "@availabs/avl-falcor";
 import { useNavigate, useNavigation } from "react-router";
 import { AuthContext } from '../../auth/context';
 import { ThemeContext } from '../../../ui/useTheme';
-import { getInstance } from '../../../utils/type-utils';
+import { getInstance, nameToSlug } from '../../../utils/type-utils';
 import { createSiteTheme } from './createSite.theme'
 
 
@@ -26,9 +26,9 @@ export default function NewSite ({ apiUpdate, dataItems }) {
 	const {Input, Button} = UI;
 	const [newUser, setNewUser] = React.useState({email: '', password: '', verify: ''});
 	const [status, setStatus] = React.useState('');
-	const [newSite, setNewSite] = React.useState({
-		site_name: '',
-	})
+	const [newSite, setNewSite] = React.useState({ site_name: '' });
+	const [selectedTemplateId, setSelectedTemplateId] = React.useState('blank');
+	const siteTemplates = theme?.site_templates ?? [];
 
 	async function createSite () {
 		if(newSite?.site_name?.length > 3 && newUser.email ) {
@@ -43,10 +43,10 @@ export default function NewSite ({ apiUpdate, dataItems }) {
 					return;
 				}
 
-				// 1. Create the site (without patterns — skipNavigate so we can add auth pattern first)
+				// 1. Create the site
 				const siteResult = await apiUpdate({data: newSite, skipNavigate: true});
 
-				// 2. Create the auth pattern with proper type
+				// 2. Create the auth pattern
 				const siteInstance = getInstance(siteType) || siteType;
 				const authPatternType = `${siteInstance}|auth:pattern`;
 				const authData = {
@@ -62,14 +62,111 @@ export default function NewSite ({ apiUpdate, dataItems }) {
 				const newPatternId = Object.keys(patternRes?.json?.dms?.data?.byId || {})
 					.find(k => k !== '$__path');
 
-				// 3. Add pattern ref to the site
-				if (newPatternId && siteResult?.id) {
-					await falcor.call(["dms", "data", "edit"], [app, +siteResult.id, {
-						patterns: [{ ref: `${app}+${siteInstance}|pattern`, id: +newPatternId }]
+				// 3. Create template patterns (page, datasets, etc.)
+				let allPatternRefs = newPatternId
+					? [{ ref: `${app}+${siteInstance}|pattern`, id: +newPatternId }]
+					: [];
+				let allEnvRefs = [];
+
+				const selectedTemplate = siteTemplates.find(tmpl => tmpl.id === selectedTemplateId) ?? { patterns: [] };
+				const pageTemplates = theme?.page_templates ?? [];
+
+				for (const patternSpec of selectedTemplate.patterns) {
+					const patternSlug = nameToSlug(patternSpec.name);
+					const patternType = `${siteInstance}|${patternSlug}:pattern`;
+					const templatePatternRes = await falcor.call(["dms", "data", "create"], [app, patternType, {
+						pattern_type: patternSpec.pattern_type,
+						name: patternSpec.name,
+						base_url: patternSpec.base_url,
+						authPermissions: JSON.stringify({ groups: { [`${PROJECT_NAME} Admin`]: ['*'], public: [] }, users: {} }),
 					}]);
+					const templatePatternId = Object.keys(templatePatternRes?.json?.dms?.data?.byId || {})
+						.find(k => k !== '$__path');
+					if (!templatePatternId) continue;
+
+					allPatternRefs = [...allPatternRefs, { ref: `${app}+${siteInstance}|pattern`, id: +templatePatternId }];
+
+					if (patternSpec.pattern_type === 'page' && patternSpec.pages?.length) {
+						for (const pageSpec of patternSpec.pages) {
+							const tmpl = pageTemplates.find(pt => pt.id === pageSpec.template);
+							await falcor.call(["dms", "data", "create"], [app, `${patternSlug}|page`, {
+								title: pageSpec.title,
+								index: 0,
+								published: 'draft',
+								draft_sections: tmpl?.draft_sections ?? [],
+								draft_section_groups: tmpl?.draft_section_groups ?? [],
+							}]);
+						}
+					}
+
+					if (patternSpec.pattern_type === 'datasets' && patternSpec.sources?.length) {
+						const envSlug = nameToSlug('default');
+						const envType = `${siteInstance}|${envSlug}:dmsenv`;
+						const envRes = await falcor.call(["dms", "data", "create"], [app, envType, { name: 'default', sources: [] }]);
+						const envId = Object.keys(envRes?.json?.dms?.data?.byId || {})
+							.find(k => k !== '$__path');
+
+						if (envId) {
+							allEnvRefs = [...allEnvRefs, { ref: `${app}+${siteInstance}|dmsenv`, id: +envId }];
+							await falcor.call(["dms", "data", "edit"], [app, +templatePatternId, { dmsEnvId: +envId }]);
+
+							let sourceRefs = [];
+							for (const sourceSpec of patternSpec.sources) {
+								const sourceSlug = nameToSlug(sourceSpec.name);
+								const sourceRes = await falcor.call(["dms", "data", "create"], [app, `${envSlug}|${sourceSlug}:source`, {
+									name: sourceSpec.name,
+									type: sourceSpec.source_type,
+									...(sourceSpec.config ? { config: JSON.stringify(sourceSpec.config) } : {}),
+								}]);
+								const sourceId = Object.keys(sourceRes?.json?.dms?.data?.byId || {})
+									.find(k => k !== '$__path');
+								if (!sourceId) continue;
+
+								sourceRefs = [...sourceRefs, { ref: `${app}+${envSlug}|source`, id: +sourceId }];
+
+								// Create initial views and attach refs to the source
+								if (sourceSpec.views?.length) {
+									let viewRefs = [];
+									for (let vi = 0; vi < sourceSpec.views.length; vi++) {
+										const viewSpec = sourceSpec.views[vi];
+										const viewType = `${sourceSlug}|v${vi + 1}:view`;
+										const viewRes = await falcor.call(["dms", "data", "create"], [app, viewType, {
+											name: viewSpec.name,
+										}]);
+										const viewId = Object.keys(viewRes?.json?.dms?.data?.byId || {})
+											.find(k => k !== '$__path');
+										if (viewId) {
+											viewRefs = [...viewRefs, { ref: `${app}+${sourceSlug}|view`, id: +viewId }];
+
+											if (viewSpec.rows?.length) {
+												const dataType = `${sourceSlug}|${viewId}:data`;
+												for (const row of viewSpec.rows) {
+													await falcor.call(["dms", "data", "create"], [app, dataType, row]);
+												}
+											}
+										}
+									}
+									if (viewRefs.length) {
+										await falcor.call(["dms", "data", "edit"], [app, +sourceId, { views: viewRefs }]);
+									}
+								}
+							}
+
+							if (sourceRefs.length) {
+								await falcor.call(["dms", "data", "edit"], [app, +envId, { sources: sourceRefs }]);
+							}
+						}
+					}
 				}
 
-				// 4. Auto-login so the user lands directly on the admin edit page
+				// 4. Update site with all pattern refs (and env refs if any)
+				if (siteResult?.id && allPatternRefs.length) {
+					const siteUpdate = { patterns: allPatternRefs };
+					if (allEnvRefs.length) siteUpdate.dms_envs = allEnvRefs;
+					await falcor.call(["dms", "data", "edit"], [app, +siteResult.id, siteUpdate]);
+				}
+
+				// 5. Auto-login so the user lands directly on the admin edit page
 				const loginRes = await AuthAPI.callAuthServer(`/login`, {
 					email: newUser.email,
 					password: newUser.password,
@@ -133,6 +230,24 @@ export default function NewSite ({ apiUpdate, dataItems }) {
 					value={newUser.verify}
 					onChange={(e) => setNewUser({...newUser, ['verify']: e.target.value})}
 				/>
+
+				{siteTemplates.length > 0 && (
+					<div className={t.templateSection}>
+						<label className={t.templateLabel}>Site Template</label>
+						<div className={t.templateGrid}>
+							{siteTemplates.map(tmpl => (
+								<div
+									key={tmpl.id}
+									className={selectedTemplateId === tmpl.id ? t.templateCardSelected : t.templateCard}
+									onClick={() => setSelectedTemplateId(tmpl.id)}
+								>
+									<div className={t.templateCardName}>{tmpl.name}</div>
+									<div className={t.templateCardDesc}>{tmpl.description}</div>
+								</div>
+							))}
+						</div>
+					</div>
+				)}
 
 				<div>
 					<Button disabled={ (newUser.password !== newUser.verify) || !newSite.site_name } onClick={createSite}>

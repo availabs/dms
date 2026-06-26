@@ -1,6 +1,6 @@
 # Site Templates
 
-## Status: NOT STARTED
+## Status: DONE
 
 ## Objective
 
