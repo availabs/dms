@@ -192,12 +192,10 @@ export const SideNavItem = ({
 
   const [showSubMenu, setShowSubMenu] = React.useState(routeMatch && subMenuActivate !== 'onHover' );
 
-	// Label / section-divider row: an item with no navigable target and no
-	// onClick renders as plain styled text via its custom className — no Link, no
-	// hover chrome (the design sidenav's "Dashboards"/"Explorers"/"Program"
-	// headers). BC: every real nav item carries a path, so existing items never
-	// reach this branch.
-	if (!To[0] && !navItem?.onClick) {
+	// Label / section-divider row: an item with no navigable target, no onClick,
+	// and no subMenus renders as plain styled text — no Link, no hover chrome.
+	// Items with subMenus fall through so the submenu toggle still works.
+	if (!To[0] && !navItem?.onClick && !subMenus.length) {
 		return (
 			<div className={className || theme?.navLabel || theme?.navItemContent}>
 				{!icon ? null : <Icon icon={icon} className={theme?.menuIconSide} />}
@@ -234,7 +232,7 @@ export const SideNavItem = ({
 								/>
               )
             }
-							{navItem?.onClick ?
+							{navItem?.onClick || !To[0] ?
               (<div className={`${theme?.navItemContent} ${theme?.[`navItemContent_level_${depth+1}`]}`}
 									onClick={(e) => {
 										e.stopPropagation();
