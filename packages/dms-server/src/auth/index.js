@@ -31,8 +31,11 @@ function registerAuthRoutes(app, db, basePath = '') {
     const fullRoute = basePath + route;
 
     app[method](fullRoute, async (req, res) => {
+
+// console.log("dms-server/auth::req.clientIp", req.clientIp);
+
       try {
-        const result = await handler(db, req.body);
+        const result = await handler(db, { ...req.body, clientIp: req.clientIp });
         res.json(typeof result === 'string' ? { message: result } : result);
       } catch (e) {
         res.json({ error: e.message || String(e) });

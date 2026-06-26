@@ -6,6 +6,7 @@ const { createRequestLogger } = require('./middleware/request-logger');
 const { createJwtMiddleware } = require('./auth/jwt');
 const { registerAuthRoutes } = require('./auth');
 const { registerUploadRoutes } = require('./dama/upload');
+const requestIp = require('request-ip');
 
 // Heap snapshot for OOM diagnosis — writes a .heapsnapshot file when heap exceeds threshold.
 // Run with: node --max-old-space-size=8192 src/index.js
@@ -57,6 +58,24 @@ app.use(function (req, res, next) {
 
   return next();
 });
+
+// #################################################################
+// #################################################################
+// #################################################################
+// #################################################################
+
+// THIS SETTING ALLOWS EXPRESS TO CORRECTLY IDENTIFY IP ADDRESSES
+// WHILE SITTING BEHIND A REVERSE-PROXY (NGINX)
+app.set('trust proxy', true);
+
+// THIS MIDDLEWARE WILL DETECT THE IP ADDRESS OF REQUESTS
+// AND SET IT ON THE REQUEST OBJECT AS: req.clientIp
+app.use(requestIp.mw());
+
+// #################################################################
+// #################################################################
+// #################################################################
+// #################################################################
 
 // When SSR is not enabled, show a simple status page at /
 if (!process.env.DMS_SSR) {

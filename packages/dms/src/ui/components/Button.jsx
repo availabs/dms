@@ -14,7 +14,7 @@ const themeOptionSizes = {
   base: "px-4 py-2 text-sm",
 }
 
-export default function ButtonComp ({ children, disabled, onClick=()=>{}, type='default', buttonType, padding, rounded, className, activeStyle, themeOptions,...props}) {
+export default function ButtonComp ({ children, disabled, onClick=()=>{}, type='button', buttonType, padding, rounded, className, activeStyle, themeOptions,...props}) {
   const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
   const theme = getComponentTheme(themeFromContext,'button', activeStyle)//{...themeFromContext, button: {...buttonTheme, ...(themeFromContext.button || {})}};
 
@@ -26,7 +26,7 @@ export default function ButtonComp ({ children, disabled, onClick=()=>{}, type='
 
   return (
     <button
-      type="button"
+      type={ buttonType || type }
       disabled={disabled}
       className={buttonClass}
       onClick={onClick}

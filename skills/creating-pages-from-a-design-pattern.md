@@ -1047,14 +1047,24 @@ node). So don't try to produce a circular "A"/"B" badge from inside Lexical. Ins
   see [`card-layout.md`](./card-layout.md) — which needs a data source (or the blank-row
   fallback for static values); for static marketing stats a lexical card + an exclusive
   token is usually the lighter call.
-- **Two sections fused into ONE card (compound visual unit).** Put the sections adjacent
-  in the band, then **zero the shared-edge padding** and coordinate the borders/corners:
-  upper section = border top+left+right, radius tl+tr, `padding.bottom = 0`; lower section =
-  border left+right+bottom, radius bl+br, `padding.top = 0`. Their inner boxes touch → one
-  continuous card. (Worked example: MAP-21 §02 — a header/hero lexical **Card** + the
-  interstate **Graph**, composed into one card; the header carries the kicker/title/hero,
-  the graph is the tinted chart footer.) Set the upper section's `title` to `""` if it would
-  render a label band between the two.
+- **N sections fused into ONE "compact card" (the workhorse compound unit).** This is *the*
+  pattern for building a rich card out of heterogeneous parts — a lexical title/hero + a
+  **Spreadsheet** of rows + a **Card** stat strip + a **Graph** footer all reading as a single
+  bordered card. It's used all over the TSMO pages. Stack the sections adjacent in the band, give
+  them all `bg:"white"`, and coordinate the **object-shaped** `border` / `radius` / `padding`
+  fields so the inner boxes touch into one continuous card:
+  - **Top** section: `border:{top:true,left:true,right:true}`, `radius:{tl:true,tr:true}`, `padding:{bottom:"0"}`.
+  - **Middle** section(s): `border:{left:true,right:true}`, `padding:{top:"0",bottom:"0"}` — verticals only, no shared-edge gutters. Repeat for as many middle parts as the card has.
+  - **Bottom** section: `border:{left:true,right:true,bottom:true}`, `radius:{bl:true,br:true}`, `padding:{top:"0"}`.
+
+  These are the same `border`/`radius`/`padding`/`bg` keys the §4.2.5 seed-loop already passes
+  through (`for (const k of ["border","radius","padding","height","bg"]) …`) — note `border`/
+  `radius`/`padding` here are **objects** (per-side / per-corner flags + per-side padding
+  overrides), not the string `border:"full"` form. Set any internal section's `title` to `""` so
+  no label band breaks the card. Worked examples: TSMO congestion §… (lexical header → Graph →
+  lexical footnote, fused); the site-management control room's per-pattern cards (a lexical
+  identity header fused to a `Spreadsheet` of that pattern's pages). The earlier two-section
+  lexical-`Card`+`Graph` (MAP-21 §02) is just the N=2 case of this.
 - **Colored dots / simple inline marks** → a Lexical text run with an inline `style`
   (`color:#10B981`) on a `●`, or the `icon` node — inline before a label.
 - **Icon *chip* (a colored/tinted square holding an SVG, e.g. a product-card icon)** → the

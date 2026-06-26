@@ -309,6 +309,26 @@ const isPublicGroup = async (db, groupName, project) => {
   return +(rows[0]?.count || 0) === 1;
 };
 
+const checkIfIpIsLocked = async (db, ip, LOCKOUT_INTERVAL, MAXIMUM_LOGIN_ATTEMPTS) => {
+  const sql = `
+    SELECT COUNT(1) AS num_failed_attempts
+      FROM failed_logins
+      WHERE ip = $1
+        AND attempted_at >= NOW() - INTERVAL '${ LOCKOUT_INTERVAL }';
+  `;
+  const { rows } = await db.query(sql, [ip]);
+  const [{ num_failed_attempts }] = rows;
+  return +num_failed_attempts >= MAXIMUM_LOGIN_ATTEMPTS;
+}
+
+const insertFailedLoginAttempt = async (db, ip) => {
+  const sql = `
+    INSERT INTO failed_logins(ip)
+      VALUES($1);
+  `;
+  await db.query(sql, [ip]);
+}
+
 module.exports = {
   // Users
   getUserByEmail,
@@ -353,6 +373,10 @@ module.exports = {
   // Logins
   logLogin,
   getLogins,
+
+  // failed logins
+  checkIfIpIsLocked,
+  insertFailedLoginAttempt,
 
   // Messages
   getMessages,

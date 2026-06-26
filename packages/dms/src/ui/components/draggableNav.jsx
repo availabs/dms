@@ -319,8 +319,14 @@ function updateNav(items, parentId = '', dataItemsHash) {
 
 
 function getChildNav(item, dataItems, baseUrl, edit = true, matches=[]) {
+    // A row with no id can't be a parent. Guard against this so that corrupt/empty
+    // rows (e.g. ghost pages left behind by a pattern duplicate, where data.id and
+    // data.parent are both undefined) don't match each other via `undefined === undefined`
+    // below — which makes them their own children and recurses until the stack blows.
+    if (item.id == null) return []
+
     let children = dataItems
-        .filter(d => d.parent === item.id)
+        .filter(d => d.parent != null && d.parent === item.id)
         .sort((a, b) => a.index - b.index)
 
     return children.map((d, i) => {

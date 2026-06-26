@@ -34,14 +34,12 @@
 - [x] DataWrapper skip fetch when cached — Graph + other non-paginated components honor the "Always Fetch Data" toggle; Pagination's auto-set of `readyToLoad` no longer leaks into persisted state.
 - [x] Falcor loader parallel requests — combine sequential `length` + data `falcor.get()` calls into a single call using a ceiling value for `toIndex`, eliminating one HTTP round-trip (~50ms) from first page load
 - [x] [Time filters in dataWrapper](./tasks/completed/datawrapper-time-filters.md) — `op: 'time'` filter leaf shipped end-to-end. Phase 1: server Postgres predicates (`time-filter.js` + UDA wiring). Phase 2: client primitive — TimePicker, `useNowTick` boundary-aware refetch, URL token roundtrip. Phase 3: compositions — DOW + time-of-day rows, multi-range OR. Phase 4: instant + compareEnd. Phase 5: author/viewer axis exposure (`exposedAxes`, picker `mode` prop). Phase 6: ClickHouse predicate emitters (CH dispatch wiring deferred to broader CH-tree-based-filter migration). TimePicker subtree pulled into `timePicker.theme.js` per the new theming guidance. All 58 UDA tests still pass; ~115 client-side URL/merge/SQL-shape assertions across phases.
-- [ ] [Stop the length query from dominating filter-option loads](./tasks/current/filter-options-length-query.md) —
-      a Filter/multiselect control issued a `getLength()` → `count(DISTINCT …::TEXT)` over the whole table
-      it never displays (15 s on the 4.87 M-row TSMO ED table; ~5 s even after a narrow index — the
-      distinct-aggregate, not I/O). **Change B DONE** (server): grouped `simpleFilterLength` →
-      `count(*) FROM (… GROUP BY …)` — 13.2× on real data, also fixes a multi-key count collision.
-      **Change A DONE** (client): Filter controls skip the length round-trip (`optionsOnly` →
-      `getData.js`, fetch to a 1000-row ceiling). Remaining: ClickHouse mirror of B; live verify.
-      Helps every filter on every page. Motivated by TSMO congestion filter perf.
+- [x] [Stop the length query from dominating filter-option loads](./tasks/completed/filter-options-length-query.md) —
+      DONE 2026-06-24. **B** (server): grouped `simpleFilterLength` → `count(*) FROM (… GROUP BY …)`
+      (Postgres/SQLite + ClickHouse mirror) — 13.2× on real data, also fixes a multi-key count
+      collision. **A** (client): Filter controls skip the length round-trip (`optionsOnly` →
+      `getData.js`, fetch to a 1000-row ceiling). Live-confirmed on the TSMO congestion page
+      ("huge improvement"). 143/143 client + 65/65 server tests.
 - [ ] [First-class multi-column search filter](./tasks/current/multi-column-search-filter.md) — collapse the
       hand-authored "OR group of one `like` leaf per column, replicated on every section" pattern (today's only
       way to do a search box over several columns — see [skills/full-text-search-filter.md](../skills/full-text-search-filter.md))
