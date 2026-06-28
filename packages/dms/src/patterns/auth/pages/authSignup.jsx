@@ -6,13 +6,15 @@ import { ThemeContext } from "../../../ui/useTheme";
 import { AuthContext } from "../context";
 import { callAuthServer } from "../api";
 import { nameToSlug, getInstance } from "../../../utils/type-utils";
+import { provisionTemplatePatterns } from "../../../utils/tenantProvisioning";
+import SiteTemplatePicker from "../../admin/pages/SiteTemplatePicker";
 
 const RESERVED_SUBDOMAINS = ['www', 'api', 'admin', 'mail', 'smtp', 'ftp', 'dev', 'staging', 'test', 'app', 'portal'];
-const SUBDOMAIN_RE = /^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/;
+const SUBDOMAIN_RE = /^[a-z0-9][a-z0-9_-]{1,61}[a-z0-9]$/;
 
 function validateSubdomain(slug) {
     if (!slug) return 'Subdomain is required';
-    if (!SUBDOMAIN_RE.test(slug)) return 'Subdomain must be 3–63 characters: lowercase letters, digits, or hyphens';
+    if (!SUBDOMAIN_RE.test(slug)) return 'Subdomain must be 3–63 characters: lowercase letters, digits, hyphens, or underscores';
     if (RESERVED_SUBDOMAINS.includes(slug)) return `"${slug}" is a reserved subdomain`;
     return null;
 }
@@ -20,10 +22,13 @@ function validateSubdomain(slug) {
 export default function AuthSignup({ disableSignup }) {
     const [credentials, setCredentials] = React.useState({ email: '', password: '', verifyPassword: '' });
     const [tenantForm, setTenantForm] = React.useState({ name: '', subdomain: '' });
+    const [selectedTemplateId, setSelectedTemplateId] = React.useState('simple_site');
     const [status, setStatus] = React.useState('');
     const [submitting, setSubmitting] = React.useState(false);
     const { theme, UI } = React.useContext(ThemeContext);
     const { AUTH_HOST, PROJECT_NAME, baseUrl, isMultiTenant, siteType } = React.useContext(AuthContext);
+    const siteTemplates = theme?.site_templates ?? [];
+    const pageTemplates = theme?.page_templates ?? [];
     const { FieldSet, Button } = UI;
     const navigate = useNavigate();
     const { falcor } = useFalcor();
@@ -120,10 +125,20 @@ export default function AuthSignup({ disableSignup }) {
                 const authPatternId = Object.keys(authPatternRes?.json?.dms?.data?.byId || {}).find(k => k !== '$__path');
                 if (!authPatternId) throw new Error('Failed to create auth pattern');
 
-                // 6. Add auth pattern ref to tenant site's patterns array
-                await falcor.call(['dms', 'data', 'edit'], [slug, +tenantSiteId, {
-                    patterns: [{ ref: `${slug}+${siteInstance}|pattern`, id: +authPatternId }]
-                }]);
+                // 6. Create template patterns then update tenant site with all refs
+                const { allPatternRefs: templateRefs, allEnvRefs } = await provisionTemplatePatterns(falcor, {
+                    app: slug,
+                    siteInstance,
+                    selectedTemplateId,
+                    siteTemplates,
+                    pageTemplates,
+                    adminGroupName: slug,
+                    subdomain: slug,
+                });
+                const allPatternRefs = [{ ref: `${slug}+${siteInstance}|pattern`, id: +authPatternId }, ...templateRefs];
+                const siteUpdate = { patterns: allPatternRefs };
+                if (allEnvRefs.length) siteUpdate.dms_envs = allEnvRefs;
+                await falcor.call(['dms', 'data', 'edit'], [slug, +tenantSiteId, siteUpdate]);
 
                 // 7. Full-page redirect to subdomain login (different origin — can't use navigate)
                 const { protocol, host } = window.location;
@@ -173,6 +188,12 @@ export default function AuthSignup({ disableSignup }) {
                             onChange: (e) => setCredentials({ ...credentials, verifyPassword: e.target.value }),
                         },
                     ]}
+                />
+
+                <SiteTemplatePicker
+                    siteTemplates={siteTemplates}
+                    selectedTemplateId={selectedTemplateId}
+                    onSelect={setSelectedTemplateId}
                 />
 
                 {status && <div className='text-sm text-red-600 mt-2'>{status}</div>}

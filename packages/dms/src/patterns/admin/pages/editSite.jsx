@@ -2,12 +2,15 @@ import React from 'react'
 import {v4 as uuidv4} from "uuid";
 import { useFalcor } from "@availabs/avl-falcor";
 import {AdminContext} from "../context";
+import { AuthContext } from '../../auth/context';
 import { ThemeContext } from '../../../ui/useTheme';
 import { Link, useLocation, useNavigate, useNavigation } from 'react-router'
 import { nameToSlug, getInstance } from '../../../utils/type-utils';
+import { provisionTemplatePatterns } from '../../../utils/tenantProvisioning';
 import { isUserAuthed, parseIfJSON } from '../utils';
 import { editSiteTheme } from './editSite.theme'
 import { AddPatternPicker } from '../components/AddPatternPicker'
+import SiteTemplatePicker from './SiteTemplatePicker'
 
 function getSubdomainFromHost(host) {
   const hostname = (host || window.location.host).split(':')[0];
@@ -455,14 +458,19 @@ function TenantList({
 	onChange,
 }) {
 	const { app, type: siteType, baseUrl } = React.useContext(AdminContext);
+	const { AuthAPI } = React.useContext(AuthContext);
 	const { UI, theme } = React.useContext(ThemeContext);
 	const t = { ...editSiteTheme, ...(theme?.admin?.editSite || {}) }
 	const { falcor } = useFalcor();
 	const { Table, Input, Button, Modal, Icon } = UI;
 	const siteInstance = getInstance(siteType) || siteType;
+	const siteTemplates = theme?.site_templates ?? [];
+	const pageTemplates = theme?.page_templates ?? [];
 
 	const [addingNew, setAddingNew] = React.useState(false);
-	const [newItem, setNewItem] = React.useState({ name: '', subdomain: '' });
+	const [newItem, setNewItem] = React.useState({ name: '', subdomain: '', email: '', password: '' });
+	const [selectedTemplateId, setSelectedTemplateId] = React.useState('simple_site');
+	const [submitting, setSubmitting] = React.useState(false);
 	const [deletingItem, setDeletingItem] = React.useState(undefined);
 	const [error, setError] = React.useState('');
 
@@ -508,6 +516,7 @@ function TenantList({
 		setError('');
 		const slug = nameToSlug(newItem.subdomain || newItem.name);
 		if (!slug) { setError('Subdomain is required'); return; }
+		if (!newItem.email) { setError('Admin email is required'); return; }
 
 		const existingSlugs = value.map(v => v.subdomain).filter(Boolean);
 		if (existingSlugs.includes(slug)) {
@@ -515,28 +524,89 @@ function TenantList({
 			return;
 		}
 
-		const tenantType = `${siteInstance}|${slug}:tenant`;
-		const res = await falcor.call(
-			['dms', 'data', 'create'],
-			[app, tenantType, { name: newItem.name || slug, subdomain: slug, app: slug }]
-		);
-		const newId = Object.keys(res?.json?.dms?.data?.byId || {})
-			.filter(d => d !== '$__path')?.[0];
+		setSubmitting(true);
+		try {
+			const tenantName = newItem.name || slug;
 
-		if (newId) {
+			// 1. Create auth project + admin/public groups + first user for tenant
+			const setupRes = await AuthAPI.callAuthServer('/init/setup', {
+				email: newItem.email,
+				password: newItem.password || undefined,
+				project: slug,
+			});
+			if (setupRes.error && setupRes.error !== 'duplicate key value violates unique constraint "groups_pkey"') {
+				throw new Error(setupRes.error);
+			}
+
+			// 2. Create tenant row in master app
+			const tenantType = `${siteInstance}|${slug}:tenant`;
+			const res = await falcor.call(
+				['dms', 'data', 'create'],
+				[app, tenantType, { name: tenantName, subdomain: slug, app: slug }]
+			);
+			const newId = Object.keys(res?.json?.dms?.data?.byId || {}).filter(d => d !== '$__path')?.[0];
+			if (!newId) throw new Error('Failed to create tenant row');
+
+			// 3. Append tenant ref to master site
 			const newData = [...value, { ref: `${app}+${siteInstance}|tenant`, id: +newId }];
 			onChange(newData);
 			onSubmit(newData);
+
+			// 4. Create tenant site row in tenant app
+			const tenantSiteRes = await falcor.call(
+				['dms', 'data', 'create'],
+				[slug, `${siteInstance}:site`, { site_name: tenantName }]
+			);
+			const tenantSiteId = Object.keys(tenantSiteRes?.json?.dms?.data?.byId || {}).find(k => k !== '$__path');
+			if (!tenantSiteId) throw new Error('Failed to create tenant site');
+
+			// 5. Create tenant's auth pattern
+			const authPatternRes = await falcor.call(
+				['dms', 'data', 'create'],
+				[slug, `${siteInstance}|auth:pattern`, {
+					pattern_type: 'auth',
+					name: 'Auth',
+					base_url: 'auth',
+					subdomain: slug,
+					authPermissions: JSON.stringify({
+						groups: { [`${slug} Admin`]: ['*'], public: [] },
+						users: {}
+					}),
+				}]
+			);
+			const authPatternId = Object.keys(authPatternRes?.json?.dms?.data?.byId || {}).find(k => k !== '$__path');
+			if (!authPatternId) throw new Error('Failed to create auth pattern');
+
+			// 6. Create template patterns then update tenant site with all refs
+			const { allPatternRefs: templateRefs, allEnvRefs } = await provisionTemplatePatterns(falcor, {
+				app: slug,
+				siteInstance,
+				selectedTemplateId,
+				siteTemplates,
+				pageTemplates,
+				adminGroupName: slug,
+				subdomain: slug,
+			});
+			const allPatternRefs = [{ ref: `${slug}+${siteInstance}|pattern`, id: +authPatternId }, ...templateRefs];
+			const siteUpdate = { patterns: allPatternRefs };
+			if (allEnvRefs.length) siteUpdate.dms_envs = allEnvRefs;
+			await falcor.call(['dms', 'data', 'edit'], [slug, +tenantSiteId, siteUpdate]);
+
+			setNewItem({ name: '', subdomain: '', email: '', password: '' });
+			setSelectedTemplateId('simple_site');
+			setAddingNew(false);
+		} catch (err) {
+			setError(err.message || 'Something went wrong. Please try again.');
+		} finally {
+			setSubmitting(false);
 		}
-		setNewItem({ name: '', subdomain: '' });
-		setAddingNew(false);
 	};
 
 	return (
 		<div className={t.wrapper}>
 			<div className={t.header}>
 				<div className={t.headerTitle}>Tenants</div>
-				<Button className={t.btnNoShrink} onClick={() => { setAddingNew(true); setError(''); }}>
+				<Button className={t.btnNoShrink} onClick={() => { setAddingNew(true); setError(''); setNewItem({ name: '', subdomain: '', email: '', password: '' }); setSelectedTemplateId('simple_site'); }}>
 					Add tenant
 				</Button>
 			</div>
@@ -546,7 +616,7 @@ function TenantList({
 				<div className={t.tenantModalForm}>
 					<div className={t.tenantModalTitle}>New Tenant</div>
 					<div className={t.fieldGroup}>
-						<label className={t.fieldLabel}>Name</label>
+						<label className={t.fieldLabel}>Organization Name</label>
 						<Input
 							value={newItem.name}
 							onChange={e => setNewItem({ ...newItem, name: e.target.value })}
@@ -561,10 +631,34 @@ function TenantList({
 							placeholder='acme'
 						/>
 					</div>
+					<div className={t.fieldGroup}>
+						<label className={t.fieldLabel}>Admin Email</label>
+						<Input
+							value={newItem.email}
+							onChange={e => setNewItem({ ...newItem, email: e.target.value })}
+							placeholder='admin@acme.com'
+						/>
+					</div>
+					<div className={t.fieldGroup}>
+						<label className={t.fieldLabel}>Admin Password</label>
+						<Input
+							type='password'
+							value={newItem.password}
+							onChange={e => setNewItem({ ...newItem, password: e.target.value })}
+							placeholder='password'
+						/>
+					</div>
+					<SiteTemplatePicker
+						siteTemplates={siteTemplates}
+						selectedTemplateId={selectedTemplateId}
+						onSelect={setSelectedTemplateId}
+					/>
 					{error && <div className={t.errorText}>{error}</div>}
 					<div className={t.tenantModalActions}>
-						<Button type='plain' onClick={addTenant}>Add</Button>
-						<Button type='plain' onClick={() => setAddingNew(false)}>Cancel</Button>
+						<Button type='plain' disabled={submitting} onClick={addTenant}>
+							{submitting ? 'Creating…' : 'Add'}
+						</Button>
+						<Button type='plain' onClick={() => { setAddingNew(false); setError(''); }}>Cancel</Button>
 					</div>
 				</div>
 			</Modal>

@@ -17,6 +17,7 @@
 ## patterns/admin
 
 - [site-templates.md](./tasks/completed/site-templates.md) - Site template picker on site creation: 4 templates (Simple Site default / Report / Dashboard / Blank last) defined in `ui/siteTemplates.js`. Dashboard template creates a datasets pattern (dmsEnv + internal_table source + view + 5 seed rows) then a page pattern with `wireSource: true`; `wireSection()` rewrites Graph and Spreadsheet element-data with full column objects (`show: true` required by `getColumnsToFetch`; `group: true` on x/categorize for valid GROUP BY; `fn: 'count'` on y-axis; `app`/`type`/`srcEnv` in externalSource to match production shape). Server-side `_sourceIdCache` evicted on `:source` row creation to prevent stale-cache split-table mismatch during repeated test-site creation. (2026-06-26)
+- [site-templates-tenant-support.md](./tasks/completed/site-templates-tenant-support.md) - Extend site template picker to both tenant-creation flows. `wireSection` + provisioning loop extracted to `utils/tenantProvisioning.js`; `SiteTemplatePicker` extracted as a shared component. `TenantList.addTenant` in `editSite.jsx` upgraded from tenant-row-only to full provisioning (auth project + site + auth pattern + template patterns) with email/password fields for the initial admin. `authSignup.jsx` tenant flow now shows template picker and calls `provisionTemplatePatterns` before updating the tenant site. (2026-06-28)
 
 ## dms-manager
 
