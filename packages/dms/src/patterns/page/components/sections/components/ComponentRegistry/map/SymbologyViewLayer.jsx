@@ -3,6 +3,7 @@ import { get, isEqual, cloneDeep } from "lodash-es"
 import { AvlLayer } from "../../../../../../../ui/components/map"
 import useMapTheme from "../../../../../../../ui/components/map/useMapTheme"
 import { ThemeContext, getComponentTheme } from "../../../../../../../ui/useTheme"
+import { useNavigate } from "react-router"
 import { usePrevious } from './utils.js'
 import { MapContext } from "./"
 import { CMSContext } from '../../../../../context'
@@ -41,6 +42,28 @@ const getLayerInteractionIds = (candidateLayerProps = {}) =>
  */
 const hasInteractionValue = (value) =>
   value !== undefined && value !== null && value !== "";
+
+const getRedirectTarget = (value) => {
+  if (typeof value !== "string") return null;
+
+  const trimmedValue = value.trim();
+  if (!trimmedValue) return null;
+
+  if (/^https?:\/\//i.test(trimmedValue) || /^\/\//.test(trimmedValue)) {
+    return { type: "external", url: trimmedValue };
+  }
+
+  if (/^(\/|[?#])/.test(trimmedValue)) {
+    return { type: "internal", url: trimmedValue };
+  }
+
+  // bare domain like "oneida.mitigateny.org" — no protocol, no spaces, has a dot
+  if (!trimmedValue.includes(" ") && trimmedValue.includes(".")) {
+    return { type: "external", url: `https://${trimmedValue}` };
+  }
+
+  return null;
+};
 
 /**
  * Provider config is stored with the map section's other display settings under
@@ -214,6 +237,7 @@ const ViewLayerRender = ({
   const { state, setState } = mctx ? mctx : {state: {}, setState:() => {}};
   const { pageState, setPageState, updatePageStateFilters, setActionParam, clearActionParam } = useContext(PageContext) || {};
   const { falcor, pgEnv } = mctx || {};
+  const navigate = useNavigate();
 
   const [sourceReady, setSourceReady] = React.useState(false);
   const cachedFilterPropsRef = useRef(null);
@@ -920,8 +944,7 @@ const ViewLayerRender = ({
           (mapping) =>
             isClickFilterEnabled &&
             mapping?.variable &&
-            mapping?.field &&
-            mapping?.useSearchParams === true
+            mapping?.field
         );
         const clickableLayerIds = (candidateLayerProps?.layers || [])
           .map((layer) => layer?.id)
@@ -1060,35 +1083,49 @@ const ViewLayerRender = ({
         layers: clickableLayerIds,
       });
 
-      const nextFilterEntries = (
-        await Promise.all(
-          clickableLayerConfigs.map(async (clickableLayerConfig) => {
-            const feature = features.find((candidateFeature) =>
-              clickableLayerConfig.clickableLayerIds.includes(candidateFeature?.layer?.id)
-            );
+      let redirectTarget = null;
+      const nextFilterEntries = [];
 
-            if (!feature) return [];
+      for (const clickableLayerConfig of clickableLayerConfigs) {
+        const feature = features.find((candidateFeature) =>
+          clickableLayerConfig.clickableLayerIds.includes(candidateFeature?.layer?.id)
+        );
 
-            const resolvedProperties = await resolveFeatureProperties({
-              feature,
-              candidateLayerProps: clickableLayerConfig.layerProps,
-              fieldNames: clickableLayerConfig.activeMappings.map((mapping) => mapping.field)
+        if (!feature) continue;
+
+        const resolvedProperties = await resolveFeatureProperties({
+          feature,
+          candidateLayerProps: clickableLayerConfig.layerProps,
+          fieldNames: clickableLayerConfig.activeMappings.map((mapping) => mapping.field)
+        });
+
+        for (const mapping of clickableLayerConfig.activeMappings) {
+          const value = resolvedProperties?.[mapping.field];
+          if (!hasInteractionValue(value)) continue;
+
+          if (mapping?.redirectOnClick) {
+            if (!redirectTarget) {
+              redirectTarget = getRedirectTarget(value);
+            }
+            if (mapping?.useSearchParams) {
+              nextFilterEntries.push({
+                searchKey: mapping.variable,
+                value,
+                useSearchParams: true,
+              });
+            }
+            continue;
+          }
+
+          if (mapping?.useSearchParams) {
+            nextFilterEntries.push({
+              searchKey: mapping.variable,
+              value,
+              useSearchParams: true,
             });
-
-            return clickableLayerConfig.activeMappings.reduce((acc, mapping) => {
-              const value = resolvedProperties?.[mapping.field];
-              if (value !== undefined && value !== null && value !== "") {
-                acc.push({
-                  searchKey: mapping.variable,
-                  value,
-                  useSearchParams: mapping.useSearchParams,
-                });
-              }
-              return acc;
-            }, []);
-          })
-        )
-      ).flat();
+          }
+        }
+      }
 
       if (typeof setActionParam === "function") {
         for (const feature of features || []) {
@@ -1119,8 +1156,17 @@ const ViewLayerRender = ({
       }
 
       if (!features?.length) return;
-      if (!nextFilterEntries.length) return;
-      updateFilterValues(nextFilterEntries);
+      if (nextFilterEntries.length) {
+        updateFilterValues(nextFilterEntries);
+      }
+      if (redirectTarget?.type === "external") {
+        window.open(redirectTarget.url, "_blank", "noopener,noreferrer");
+        return;
+      }
+      if (redirectTarget?.type === "internal") {
+        navigate(redirectTarget.url);
+        return;
+      }
     };
 
     maplibreMap.on("click", handleMapClick);
@@ -1139,6 +1185,7 @@ const ViewLayerRender = ({
     setActionParam,
     resolveFeatureProperties,
     state?.display?._functions,
+    navigate,
   ]);
 
   useEffect(() => {
