@@ -832,6 +832,24 @@ function createController(dbName = 'dms-sqlite', options = {}) {
       const resolved = await ensureForWrite(app, type);
       const userId = get(user, "id", null);
 
+      if (getKind(type) === 'tenant') {
+        const slug = data?.subdomain || getInstance(type) || '';
+        if (!slug) {
+          throw new Error('Tenant subdomain is required');
+        }
+        if (!/^[a-z0-9][a-z0-9_-]{1,61}[a-z0-9]$/.test(slug)) {
+          throw new Error(`Invalid subdomain format: "${slug}"`);
+        }
+        const existing = await dms_db.promise(
+          `SELECT COUNT(*) AS cnt FROM ${resolved.fullName}
+           WHERE app = $1 AND type LIKE $2 AND ${jsonField('data', 'subdomain')} = $3`,
+          [app, '%:tenant', slug]
+        );
+        if (Number(existing[0]?.cnt) > 0) {
+          throw new Error(`Subdomain "${slug}" is already in use by another tenant`);
+        }
+      }
+
       await dms_db.beginTransaction();
       try {
         let rows;
