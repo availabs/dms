@@ -218,7 +218,7 @@
 ### patterns/admin
 
 - [ ] [Multi-tenant support](./tasks/current/multi-tenant.md) — new `tenant` row kind; master site refs tenants like it refs patterns; each tenant has its own app+schema; `dmsSiteFactory` two-step load (master→tenant by subdomain); platform admin sees tenant list; opt-in via `isMultiTenant` flag; single-tenant deployments unaffected
-- [ ] [Tenant subdomain uniqueness](./tasks/current/tenant-subdomain-uniqueness.md) — signup path has no existence check; TenantList checks stale in-memory data; server has no validation at all (no auth gate on create, data={} accepted); three-layer fix: server guard (required+format+unique), signup pre-flight, TenantList re-fetch
+- [ ] [Tenant subdomain uniqueness](./tasks/current/tenant-subdomain-uniqueness.md) — server guard (required+format+unique) shipped; client-side pre-flight removed (Falcor cache unreliable); open issue: server error message shows as `[object Object]` due to avl-falcor XHR error wrapping
 - [x] Update admin theme merges to use `mergeTheme` (siteConfig.jsx, editTheme.jsx, themeEditor.jsx)
 - [x] Add delete & duplicate buttons to admin pattern overview — port actions from old `PatternEdit` modal to pattern editor Overview tab + list table
 - [ ] [Site management pages editor](./tasks/current/site-mgmt-pages-editor.md) — tree/lenses/search, section groups + orphan controls + draft/published filters, all page actions (Publish/Discard/Duplicate/Edit/in-nav toggle), health lenses (Empty/Orphans/DupeSlugs/StaleDrafts), data sources tab — all done; pending: section component preview modal
