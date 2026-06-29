@@ -57,7 +57,6 @@ function computeFetchKey(state) {
       pageSize: state.display?.pageSize,
       showTotal: state.display?.showTotal,
       join: state.join,
-      customBuckets: state.customBuckets,
       comparisonSeries: state.comparisonSeries,
       pivot: state.pivot?.enabled ? {
         rowColumn: state.pivot.rowColumn,
@@ -204,7 +203,6 @@ export function useDataLoader({ state, setState, apiLoad, component, isEditMode 
     state.display?.showTotal,
     state.join,
     state.pivot,
-    state.customBuckets,
     state.comparisonSeries,
     tickGranularity,
     nowTick,

@@ -19,7 +19,6 @@ const {
   handleFilterGroupsCH,
   handleHavingCH,
   handleOrderByCH,
-  buildAliasGroupCaseCH,
 } = require('./helpers');
 
 
@@ -42,7 +41,6 @@ async function simpleFilterLength(ctx, options) {
     groupBy = [], having = [],
     normalFilter = [],
     join = {},
-    aliasGroups = {},
     // Comparison series: total length = sum of each variant arm's count.
     seriesVariants = [], seriesKey = '__series'
   } = JSON.parse(options);
@@ -59,16 +57,7 @@ async function simpleFilterLength(ctx, options) {
     });
   }
 
-  const activeAliasGroups = {};
-  if (aliasGroups) {
-    for (const [alias, definition] of Object.entries(aliasGroups)) {
-      if (groupBy.includes(alias)) {
-        activeAliasGroups[alias] = buildAliasGroupCaseCH(definition);
-      }
-    }
-  }
-
-  const sanitizedGroupBy = groupBy.map(g => activeAliasGroups[g] || sanitizeName(g)).filter(Boolean);
+  const sanitizedGroupBy = groupBy.map(g => sanitizeName(g)).filter(Boolean);
 
   const combinedWhere = buildCombinedWhereCH({
     filter, exclude, gt, gte, lt, lte, like, filterGroups,
@@ -96,7 +85,7 @@ async function simpleFilterLength(ctx, options) {
   if (seriesVariants.length) {
     const countGroupBy = groupBy.filter((g) => g !== seriesKey);
     const armCountExpr = countGroupBy.length
-      ? `count(DISTINCT concat(${countGroupBy.map((g) => activeAliasGroups[g] || sanitizeName(g)).filter(Boolean).map((c) => `toString(${c})`).join(", '-' ,")}))`
+      ? `count(DISTINCT concat(${countGroupBy.map((g) => sanitizeName(g)).filter(Boolean).map((c) => `toString(${c})`).join(", '-' ,")}))`
       : `count(*)`;
     const armCountSqls = seriesVariants.map((variant) => {
       const armWhere = buildCombinedWhereCH({
@@ -170,35 +159,9 @@ async function simpleFilter(ctx, options, attributes, indices) {
     seriesVariants = [], seriesKey = '__series'
   } = JSON.parse(options);
 
-  const activeAliasGroups = {};
-  if (aliasGroups) {
-    for (const [alias, definition] of Object.entries(aliasGroups)) {
-      if (groupBy.includes(alias)) {
-        activeAliasGroups[alias] = buildAliasGroupCaseCH(definition);
-      }
-    }
-  }
-
   const transformedAttributes = transformAttributesForClickHouse(attributes);
 
-  const sanitizedAttrs = sanitizeName(transformedAttributes).filter((f) => f)
-    .map(attr => {
-      const respName = getResponseColumnName(attr);
-      if (activeAliasGroups[respName]) {
-        return `${activeAliasGroups[respName]} as ${respName}`;
-      }
-      return attr;
-    });
-
-  // Ensure grouped alias groups are in the SELECT clause
-  groupBy.forEach(g => {
-    if (activeAliasGroups[g]) {
-      const alreadyIn = sanitizedAttrs.some(attr => getResponseColumnName(attr) === g);
-      if (!alreadyIn) {
-        sanitizedAttrs.push(`${activeAliasGroups[g]} as ${g}`);
-      }
-    }
-  });
+  const sanitizedAttrs = sanitizeName(transformedAttributes).filter((f) => f);
 
   if (!sanitizedAttrs.length) return [];
 
@@ -248,7 +211,7 @@ async function simpleFilter(ctx, options, attributes, indices) {
   // whenever a label/value/fallback contains a SQL keyword token (e.g. a "Union"
   // county value), dropping the SELECT's CASE column out of GROUP BY. Sanitize
   // per-entry instead — mirrors simpleFilterLength.
-  const groupByExprs = groupBy.map(g => activeAliasGroups[g] || sanitizeName(g)).filter(Boolean);
+  const groupByExprs = groupBy.map(g => sanitizeName(g)).filter(Boolean);
 
   // ── Comparison-series fan-out ───────────────────────────────────────────────
   // One UNION ALL arm per variant: shared SELECT/FROM/GROUP BY with each arm's own

@@ -165,7 +165,6 @@ export default function TemplateManager({ componentType, sectionValue, dwState, 
         appliedState.columns = dwState?.columns || [];
         appliedState.filters = dwState?.filters || { op: 'AND', groups: [] };
         if (dwState?.join) appliedState.join = dwState.join;
-        if (dwState?.customBuckets) appliedState.customBuckets = dwState.customBuckets;
         if (dwState?.pivot) appliedState.pivot = dwState.pivot;
       }
 
