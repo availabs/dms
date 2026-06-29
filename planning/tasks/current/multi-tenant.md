@@ -126,6 +126,7 @@ No changes to: `createSite.jsx`, `dmsDataLoader`, `dmsDataEditor`, `dms.route.js
 
 *Platform admin `/list` page*
 - `editSite.jsx` `SiteEdit`: when `isPlatformAdmin`, now renders both `TenantList` and `PatternList` in a fragment (previously only showed TenantList, hiding master site patterns)
+- `editSite.jsx` `TenantList`: upgraded from tenant-row-only to full provisioning (auth project + site + auth pattern + template patterns); modal now collects email + password for the initial admin; shows site template picker — see `tasks/completed/site-templates-tenant-support.md`
 
 *Create site redirect*
 - `siteConfig.jsx`: added `action: "list"` to the `create` route so the DMS framework loads site data before rendering `NewSite`

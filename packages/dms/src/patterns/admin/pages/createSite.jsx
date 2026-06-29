@@ -5,7 +5,9 @@ import { useNavigate, useNavigation } from "react-router";
 import { AuthContext } from '../../auth/context';
 import { ThemeContext } from '../../../ui/useTheme';
 import { getInstance } from '../../../utils/type-utils';
+import { provisionTemplatePatterns } from '../../../utils/tenantProvisioning';
 import { createSiteTheme } from './createSite.theme'
+import SiteTemplatePicker from './SiteTemplatePicker'
 
 
 export default function NewSite ({ apiUpdate, dataItems }) {
@@ -26,9 +28,9 @@ export default function NewSite ({ apiUpdate, dataItems }) {
 	const {Input, Button} = UI;
 	const [newUser, setNewUser] = React.useState({email: '', password: '', verify: ''});
 	const [status, setStatus] = React.useState('');
-	const [newSite, setNewSite] = React.useState({
-		site_name: '',
-	})
+	const [newSite, setNewSite] = React.useState({ site_name: '' });
+	const [selectedTemplateId, setSelectedTemplateId] = React.useState('simple_site');
+	const siteTemplates = theme?.site_templates ?? [];
 
 	async function createSite () {
 		if(newSite?.site_name?.length > 3 && newUser.email ) {
@@ -43,10 +45,10 @@ export default function NewSite ({ apiUpdate, dataItems }) {
 					return;
 				}
 
-				// 1. Create the site (without patterns — skipNavigate so we can add auth pattern first)
+				// 1. Create the site
 				const siteResult = await apiUpdate({data: newSite, skipNavigate: true});
 
-				// 2. Create the auth pattern with proper type
+				// 2. Create the auth pattern
 				const siteInstance = getInstance(siteType) || siteType;
 				const authPatternType = `${siteInstance}|auth:pattern`;
 				const authData = {
@@ -62,14 +64,28 @@ export default function NewSite ({ apiUpdate, dataItems }) {
 				const newPatternId = Object.keys(patternRes?.json?.dms?.data?.byId || {})
 					.find(k => k !== '$__path');
 
-				// 3. Add pattern ref to the site
-				if (newPatternId && siteResult?.id) {
-					await falcor.call(["dms", "data", "edit"], [app, +siteResult.id, {
-						patterns: [{ ref: `${app}+${siteInstance}|pattern`, id: +newPatternId }]
-					}]);
+				// 3. Create template patterns (page, datasets, etc.)
+				const pageTemplates = theme?.page_templates ?? [];
+				const { allPatternRefs: templatePatternRefs, allEnvRefs } = await provisionTemplatePatterns(falcor, {
+					app,
+					siteInstance,
+					selectedTemplateId,
+					siteTemplates,
+					pageTemplates,
+					adminGroupName: PROJECT_NAME,
+				});
+				const allPatternRefs = newPatternId
+					? [{ ref: `${app}+${siteInstance}|pattern`, id: +newPatternId }, ...templatePatternRefs]
+					: templatePatternRefs;
+
+				// 4. Update site with all pattern refs (and env refs if any)
+				if (siteResult?.id && allPatternRefs.length) {
+					const siteUpdate = { patterns: allPatternRefs };
+					if (allEnvRefs.length) siteUpdate.dms_envs = allEnvRefs;
+					await falcor.call(["dms", "data", "edit"], [app, +siteResult.id, siteUpdate]);
 				}
 
-				// 4. Auto-login so the user lands directly on the admin edit page
+				// 5. Auto-login so the user lands directly on the admin edit page
 				const loginRes = await AuthAPI.callAuthServer(`/login`, {
 					email: newUser.email,
 					password: newUser.password,
@@ -132,6 +148,12 @@ export default function NewSite ({ apiUpdate, dataItems }) {
 					placeholder='verify password'
 					value={newUser.verify}
 					onChange={(e) => setNewUser({...newUser, ['verify']: e.target.value})}
+				/>
+
+				<SiteTemplatePicker
+					siteTemplates={siteTemplates}
+					selectedTemplateId={selectedTemplateId}
+					onSelect={setSelectedTemplateId}
 				/>
 
 				<div>

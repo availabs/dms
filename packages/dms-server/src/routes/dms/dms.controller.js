@@ -26,7 +26,7 @@ const {
   ensureTable,
   allocateId
 } = require('#db/table-resolver.js');
-const { parseSplitDataType } = require('#db/type-utils.js');
+const { parseSplitDataType, getKind, getInstance } = require('#db/type-utils.js');
 const { logEntry } = require('../../middleware/request-logger');
 
 const DATA_ATTRIBUTES = [
@@ -832,6 +832,24 @@ function createController(dbName = 'dms-sqlite', options = {}) {
       const resolved = await ensureForWrite(app, type);
       const userId = get(user, "id", null);
 
+      if (getKind(type) === 'tenant') {
+        const slug = data?.subdomain || getInstance(type) || '';
+        if (!slug) {
+          throw new Error('Tenant subdomain is required');
+        }
+        if (!/^[a-z0-9][a-z0-9_-]{1,61}[a-z0-9]$/.test(slug)) {
+          throw new Error(`Invalid subdomain format: "${slug}"`);
+        }
+        const existing = await dms_db.promise(
+          `SELECT COUNT(*) AS cnt FROM ${resolved.fullName}
+           WHERE app = $1 AND type LIKE $2 AND ${jsonField('data', 'subdomain')} = $3`,
+          [app, '%:tenant', slug]
+        );
+        if (Number(existing[0]?.cnt) > 0) {
+          throw new Error(`Subdomain "${slug}" is already in use by another tenant`);
+        }
+      }
+
       await dms_db.beginTransaction();
       try {
         let rows;
@@ -864,6 +882,12 @@ function createController(dbName = 'dms-sqlite', options = {}) {
         await appendChangeLog(item.id, item.app, item.type, 'I', item.data, userId);
         await dms_db.commitTransaction();
         _tagsCache.clear();
+        // When a new source is created, evict any stale cache entry so the next
+        // data-row write looks up the correct (newest) source ID from the DB.
+        if (getKind(type) === 'source') {
+          const slug = getInstance(type);
+          if (slug) _sourceIdCache.delete(`${app}:${slug}`);
+        }
         return rows;
       } catch (err) {
         await dms_db.rollbackTransaction();
