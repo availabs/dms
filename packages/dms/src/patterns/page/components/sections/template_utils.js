@@ -85,7 +85,6 @@ export function cleanStateForTemplate(state, { includeSource = true, includeLayo
     delete s.join;
     delete s.columns;
     delete s.filters;
-    delete s.customBuckets;
     delete s.pivot;
     delete s.comparisonSeries;
   }

@@ -267,10 +267,6 @@ export function useDataWrapperAPI({ state, setState }) {
         // ── Pivot operations ──
         setPivot,
 
-        // ── Custom Buckets operations ──
-        setCustomBuckets,
-        reconcileCustomBucketColumn,
-
         // ── Comparison Series operations ──
         setComparisonSeries,
         reconcileComparisonSeriesColumn,
@@ -288,8 +284,6 @@ export function useDataWrapperAPI({ state, setState }) {
         toggleIdFilter, toggleGlobalVisibility,
         addFormulaColumn, addCalculatedColumn, reorderColumns,
         setPivot,
-        setCustomBuckets,
-        reconcileCustomBucketColumn,
         setComparisonSeries,
         reconcileComparisonSeriesColumn,
     ]);

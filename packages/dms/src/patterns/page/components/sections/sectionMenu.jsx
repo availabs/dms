@@ -624,175 +624,6 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
         },
     ]
 
-    // Merge defaults UNDER the stored config so a partially-populated
-    // customBuckets (e.g. just `{ enabled: true }` after the master toggle on a
-    // fresh component) still resolves `type`/`fallback`/etc. Replacing wholesale
-    // left `type` undefined, which displayed as "Static" while resolving as
-    // dynamic.
-    const cbConfig = {
-        alias: '', sourceField: '', type: 'dynamic',
-        binding: { statePath: '', labelKey: '', valueKey: '' }, fallback: 'Other',
-        ...(state?.customBuckets || {})
-    };
-    const setCbConfig = (partial) => dwAPI.setCustomBuckets({ ...cbConfig, ...partial });
-    const setCbBinding = (partial) => setCbConfig({ binding: { ...cbConfig.binding, ...partial } });
-
-    const cbEnabled = cbConfig.enabled === true;
-
-    const customBuckets = {
-        name: 'Custom Buckets', icon: 'ColorSwatch',
-        cdn: () => isEdit && currentComponent?.useDataSource && canEditSection,
-        value: cbEnabled ? 'On' : 'Off', showValue: true,
-        items: [
-            {
-                // Master on/off. "Off" drops the synthetic bucket column and
-                // stops applying buckets in buildUdaConfig, but the customBuckets
-                // config is retained so it can be re-enabled.
-                name: 'Enabled', label: 'Enabled',
-                type: 'toggle', showLabel: true,
-                enabled: cbEnabled,
-                setEnabled: v => {
-                    setCbConfig({ enabled: v });
-                    dwAPI.reconcileCustomBucketColumn();
-                }
-            },
-            { type: 'separator' },
-            ...(!cbEnabled ? [] : [
-            {
-                name: 'Type',
-                value: cbConfig.type === 'dynamic' ? 'Dynamic' : 'Static', showValue: true,
-                items: [
-                    { icon: cbConfig.type === 'dynamic' ? 'CircleCheck' : 'Blank', name: 'Dynamic', onClickGoBack: true, onClick: () => setCbConfig({ type: 'dynamic' }) },
-                    { icon: cbConfig.type === 'static'  ? 'CircleCheck' : 'Blank', name: 'Static',  onClickGoBack: true, onClick: () => setCbConfig({ type: 'static', staticGroups: (cbConfig.staticGroups || []).length ? cbConfig.staticGroups : [{ label: '', values: '' }] }) },
-                ]
-            },
-            {
-                name: 'Filter rows to buckets', label: 'Filter rows to buckets',
-                type: 'toggle', showLabel: true,
-                enabled: cbConfig.filterToBuckets !== false,
-                setEnabled: v => setCbConfig({ filterToBuckets: v })
-            },
-            { type: 'separator' },
-            {
-                name: 'Dimension Alias',
-                value: cbConfig.alias, showValue: true,
-                items: [{
-                    id: 'cb_alias_input', name: 'Dimension Alias',
-                    type: () => (
-                        <CommitInput
-                            initialValue={cbConfig.alias}
-                            onCommit={(alias) => {
-                                setCbConfig({ alias });
-                                dwAPI.reconcileCustomBucketColumn();
-                            }}
-                        />
-                    )
-                }]
-            },
-            {
-                name: 'Source Column',
-                value: cbConfig.sourceField, showValue: true,
-                showSearch: (state.externalSource?.columns || []).length > 5,
-                items: (state.externalSource?.columns || []).map(col => ({
-                    icon: col.name === cbConfig.sourceField ? 'CircleCheck' : 'Blank',
-                    name: col.name, onClickGoBack: true,
-                    onClick: () => setCbConfig({ sourceField: col.name })
-                }))
-            },
-            {
-                name: 'Fallback Label',
-                value: cbConfig.fallback, showValue: true,
-                items: [{
-                    id: 'cb_fallback_input', name: 'Fallback Label',
-                    type: 'input', inputType: 'text', value: cbConfig.fallback,
-                    onChange: e => setCbConfig({ fallback: e?.target?.value ?? e })
-                }]
-            },
-            { type: 'separator' },
-            {
-                name: 'State Path', cdn: () => cbConfig.type === 'dynamic',
-                value: cbConfig.binding?.statePath, showValue: true,
-                items: [{
-                    id: 'cb_statepath_input', name: 'State Path',
-                    type: 'input', inputType: 'text', value: cbConfig.binding?.statePath,
-                    onChange: e => setCbBinding({ statePath: e?.target?.value ?? e })
-                }]
-            },
-            {
-                name: 'Label Property', cdn: () => cbConfig.type === 'dynamic',
-                value: cbConfig.binding?.labelKey, showValue: true,
-                items: [{
-                    id: 'cb_labelkey_input', name: 'Label Property',
-                    type: 'input', inputType: 'text', value: cbConfig.binding?.labelKey,
-                    onChange: e => setCbBinding({ labelKey: e?.target?.value ?? e })
-                }]
-            },
-            {
-                name: 'Value Property', cdn: () => cbConfig.type === 'dynamic',
-                value: cbConfig.binding?.valueKey, showValue: true,
-                items: [{
-                    id: 'cb_valuekey_input', name: 'Value Property',
-                    type: 'input', inputType: 'text', value: cbConfig.binding?.valueKey,
-                    onChange: e => setCbBinding({ valueKey: e?.target?.value ?? e })
-                }]
-            },
-            ...(cbConfig.type === 'static' ? (cbConfig.staticGroups || []).map((group, idx) => ({
-                name: `Group ${idx + 1}`, icon: 'Group',
-                items: [
-                    {
-                        name: 'Group Label',
-                        value: group.label, showValue: true,
-                        items: [{
-                            id: `cb_group_${idx}_label`, name: 'Group Label',
-                            type: () => (
-                                <CommitInput
-                                    initialValue={group.label}
-                                    onCommit={(label) => {
-                                        const groups = [...(cbConfig.staticGroups || [])];
-                                        groups[idx] = { ...groups[idx], label };
-                                        setCbConfig({ staticGroups: groups });
-                                    }}
-                                />
-                            )
-                        }]
-                    },
-                    {
-                        name: 'Values (CSV)',
-                        value: group.values, showValue: true,
-                        items: [{
-                            id: `cb_group_${idx}_values`, name: 'Values (CSV)',
-                            type: () => (
-                                <CommitInput
-                                    initialValue={group.values}
-                                    onCommit={(values) => {
-                                        const groups = [...(cbConfig.staticGroups || [])];
-                                        groups[idx] = { ...groups[idx], values };
-                                        setCbConfig({ staticGroups: groups });
-                                    }}
-                                />
-                            )
-                        }]
-                    },
-                    { type: 'separator' },
-                    {
-                        name: 'Remove Group', icon: 'TrashCan', onClickGoBack: true,
-                        onClick: () => {
-                            const groups = [...(cbConfig.staticGroups || [])];
-                            groups.splice(idx, 1);
-                            setCbConfig({ staticGroups: groups });
-                        }
-                    }
-                ]
-            })) : []),
-            {
-                name: 'Add Group', icon: 'Plus',
-                cdn: () => cbConfig.type === 'static',
-                onClick: () => setCbConfig({ staticGroups: [...(cbConfig.staticGroups || []), { label: '', values: '' }] })
-            },
-            ]),
-        ].filter(item => !item.cdn || item.cdn())
-    };
-
     const pivot = {
         name: 'Pivot', icon: 'ListView',
         cdn: () => isEdit && ['Spreadsheet', 'Graph'].includes(currentComponent?.name) && currentComponent?.useDataSource && canEditSection,
@@ -1034,11 +865,11 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
         ]
     };
 
-    // Nest the data-shaping menus (join / custom buckets / comparison series /
+    // Nest the data-shaping menus (join / comparison series /
     // pivot) under the Dataset menu so they no longer crowd the top level. Each
     // keeps its own cdn; pre-filter here (matching their previous top-level
     // visibility) since the menu renderer doesn't evaluate cdn on nested items.
-    const datasetSubMenus = [join, customBuckets, comparisonSeries, pivot].filter(item => !item.cdn || item.cdn());
+    const datasetSubMenus = [join, comparisonSeries, pivot].filter(item => !item.cdn || item.cdn());
     if (datasetSubMenus.length) {
         if (dataset.items.length) dataset.items.push({ type: 'separator' });
         dataset.items.push(...datasetSubMenus);

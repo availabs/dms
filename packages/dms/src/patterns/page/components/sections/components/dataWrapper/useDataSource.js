@@ -292,20 +292,6 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
                     const sourceType = match.name ? nameToSlug(match.name) : draft[EXTERNAL_SOURCE_KEY]?.type;
                     draft[EXTERNAL_SOURCE_KEY] = { ...match, baseUrl, type: sourceType };
                 }
-
-                // Reset the custom-bucket fields bound to the previous source. The
-                // source column and any static group values reference data that no
-                // longer exists after a source swap, so null them; the resolved
-                // `config` is cleared so no stale aliasGroups / bucket filter is
-                // applied before usePageFilterSync re-resolves. Source-independent
-                // author config (alias, type, fallback, dynamic binding, the
-                // enabled/filterToBuckets toggles, and the synthetic column kept
-                // above) is preserved so the bucket can be rebound to the new source.
-                if (draft.customBuckets) {
-                    draft.customBuckets.sourceField = '';
-                    draft.customBuckets.staticGroups = [];
-                    draft.customBuckets.config = {};
-                }
             });
         },
         [sources, app, type, pageColumns, sectionColumns, setState, datasources, envs]
