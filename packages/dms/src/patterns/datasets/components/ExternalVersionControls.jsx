@@ -10,13 +10,7 @@ const isCalculatedCol = (attr={}) => {
     return attr.display === 'calculated' || attr.type === 'calculated' || attr.origin === 'calculated-column';
 }
 
-const SOURCE_AUTH_CONFIG = {
-    "VIEW": 1,
-    "DOWNLOAD": 2,
-    "EDIT": 3,
-    "ADMIN" : 5,
-    "SUPER": 10
-};
+// legacy numeric SOURCE_AUTH_CONFIG removed — gating now via isUserAuthed string permissions
 
 export const OUTPUT_FILE_TYPES = [
     "CSV",
@@ -191,7 +185,7 @@ const DownloadModalCheckboxGroup = ({
 };
 
 export default function ExternalVersionControls({isDms, source, view, sourceId, viewId}) {
-    const { datasources, baseUrl, user, falcor, falcorCache, UI, API_HOST } = useContext(DatasetsContext);
+    const { datasources, baseUrl, user, isUserAuthed, falcor, falcorCache, UI, API_HOST } = useContext(DatasetsContext);
     const { theme } = useContext(ThemeContext) || {};
     const t = { ...externalVersionControlsTheme, ...(theme?.datasets?.externalVersionControls || {}) };
     const pgEnv = getExternalEnv(datasources);
@@ -407,7 +401,7 @@ export default function ExternalVersionControls({isDms, source, view, sourceId, 
     //console.log('do i get here?', user, sourceDataColumns)
     return (
         <div className={t.wrapper}>
-            {user.authLevel >= SOURCE_AUTH_CONFIG['SUPER'] ? (
+            {isUserAuthed(['manage-downloads']) ? (
                 <div className={t.adminControls}>
                     <Button
                         className={t.createDownloadBtn}

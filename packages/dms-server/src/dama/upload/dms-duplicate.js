@@ -61,7 +61,16 @@ function createDuplicateHandler(controller) {
     const tag = `[dms-duplicate task=${ctx.task.task_id}]`;
 
     // 1) clone pages (defer section-ref remap until the sections exist)
-    const pages = await controller.getRowsByTypes(app, [buildType({ parent: oldInstance, kind: 'page' })]);
+    const allPages = await controller.getRowsByTypes(app, [buildType({ parent: oldInstance, kind: 'page' })]);
+    // Skip ghost/empty rows: a page whose data has no usable fields (e.g. a blank row left
+    // behind by an earlier duplicate) would otherwise be cloned as yet another empty row.
+    // Empty rows surface in the editor as { id: undefined, parent: undefined }, which makes
+    // the page-tree nav's getChildNav match `undefined === undefined`, treat them as their
+    // own children, and recurse until the stack overflows. Dropping them here stops the
+    // corruption from propagating into every copy.
+    const pages = allPages.filter(p => Object.keys(asObj(p.data)).length > 0);
+    const skippedPages = allPages.length - pages.length;
+    if (skippedPages) console.log(`${tag} skipped ${skippedPages} empty/ghost page row(s)`);
     const newPageType = buildType({ parent: newInstance, kind: 'page' });
     const pageIdMap = {};
     let pageI = 0;
@@ -75,7 +84,10 @@ function createDuplicateHandler(controller) {
     }
 
     // 2) clone components in parallel batches — each component is independent
-    const comps = await controller.getRowsByTypes(app, [buildType({ parent: oldInstance, kind: 'component' })]);
+    const allComps = await controller.getRowsByTypes(app, [buildType({ parent: oldInstance, kind: 'component' })]);
+    const comps = allComps.filter(c => Object.keys(asObj(c.data)).length > 0);
+    const skippedComps = allComps.length - comps.length;
+    if (skippedComps) console.log(`${tag} skipped ${skippedComps} empty/ghost component row(s)`);
     const newCompType = buildType({ parent: newInstance, kind: 'component' });
     const secIdMap = {};
     const COMP_BATCH = 50;

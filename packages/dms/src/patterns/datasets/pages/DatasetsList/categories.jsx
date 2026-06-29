@@ -5,7 +5,8 @@ import { categoriesTheme } from "./categories.theme"
 
 
 const CategoryItem = ({ children, remove, indices, editing, className="" }) => {
-    const { theme } = React.useContext(ThemeContext) || {};
+    const { theme, UI } = React.useContext(ThemeContext) || {};
+    const { Icon } = UI || {};
     const t = { ...categoriesTheme, ...(theme?.datasets?.categories || {}) };
     const doRemove = React.useCallback(e => {
         remove(...indices);
@@ -17,7 +18,7 @@ const CategoryItem = ({ children, remove, indices, editing, className="" }) => {
             </div>
             { !editing ? null :
                 <button onClick={ doRemove } className={t.categoryItemRemoveBtn}>
-                    <span className={t.removeIcon}/>
+                    <Icon icon="XMark" className={t.removeIcon}/>
                 </button>
             }
         </div>
@@ -31,11 +32,13 @@ const Spanner = () => {
     )
 }
 const Plus = props => {
-    const { theme } = React.useContext(ThemeContext) || {};
+    const { theme, UI } = React.useContext(ThemeContext) || {};
+    const { Icon } = UI || {};
     const t = { ...categoriesTheme, ...(theme?.datasets?.categories || {}) };
     return (
-        <span { ...props }
-              className={t.plus}/>
+        <span { ...props } className={t.plus}>
+            <Icon icon="Plus" className={t.plusIcon}/>
+        </span>
     )
 }
 
@@ -164,9 +167,7 @@ const SourceCategories = ({
                 <div className={t.sourceCategoriesNewWrapper}>
                     <CategoryAdder
                         addNewCategory={ addNewCategory }/>
-                    <button onClick={ stopAll }
-                            themeOptions={ { size:'sm', color: 'cancel' } }
-                    >
+                    <button onClick={ stopAll } className={t.stopBtn}>
                         Stop editing categories
                     </button>
                 </div>

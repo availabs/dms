@@ -204,6 +204,28 @@ const buildControls = (theme) => ({
         inHeader: [
             { type: 'input', inputType: 'text', label: 'Display Name', key: 'display_name', displayCdn: ({ attribute }) => attribute.origin === 'static' },
             { type: 'input', inputType: 'text', label: 'Static Value', key: 'staticValue', displayCdn: ({ attribute }) => attribute.origin === 'static' },
+            // Column type — picks the view/edit cell renderer (TableCell reads `attribute.type`
+            // → columnTypes[type].ViewComp/EditComp). Curated to the author-facing data-entry
+            // types; the value-shaping types (select/multiselect/status_pill/…) still need their
+            // own companion config (options, mapped_options, value→style) to be useful.
+            { type: 'select', label: 'Column Type', key: 'type', displayCdn: ({ isEdit }) => isEdit,
+                options: [
+                    { label: 'Text', value: 'text' },
+                    { label: 'Number', value: 'number' },
+                    { label: 'Date', value: 'date' },
+                    { label: 'Timestamp', value: 'timestamp' },
+                    { label: 'Boolean', value: 'boolean' },
+                    { label: 'Switch', value: 'switch' },
+                    { label: 'Select (single)', value: 'select' },
+                    { label: 'Multiselect', value: 'multiselect' },
+                    { label: 'Radio', value: 'radio' },
+                    { label: 'Checkbox', value: 'checkbox' },
+                    { label: 'Status Pill', value: 'status_pill' },
+                    { label: 'Textarea', value: 'textarea' },
+                    { label: 'Lexical (rich text)', value: 'lexical' },
+                    { label: 'Image', value: 'image' },
+                ]
+            },
             { type: ({ attribute, setAttribute }) => {
                     const { UI } = useContext(ThemeContext);
                     const { Button } = UI;

@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS data_manager.sources (
     statistics      JSONB,
     metadata        JSONB,
     categories      JSONB,
+    auth_permissions JSONB DEFAULT '{}'::jsonb,  -- string-permission access control (datasets-permissions-model)
     source_dependencies INTEGER[],
     user_id         INTEGER,
     _created_timestamp  TIMESTAMP NOT NULL DEFAULT NOW(),

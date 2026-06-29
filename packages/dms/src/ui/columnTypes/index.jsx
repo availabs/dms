@@ -22,6 +22,7 @@ import { VerdictDotEdit, VerdictDotView } from './verdictDot'
 import { StatValueEdit, StatValueView } from './statValue'
 import { CodeWithSubEdit, CodeWithSubView } from './codeWithSub'
 import { DownloadButtonEdit, DownloadButtonView } from './downloadButton'
+import { DesignFrameEdit, DesignFrameView } from './design_frame'
 import Switch from '../components/Switch'
 
 const text = { EditComp: TextEdit, ViewComp: TextView }

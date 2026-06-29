@@ -1,12 +1,12 @@
-import React, {useContext, useEffect, useState} from "react";
+import React, {useContext, useState} from "react";
 import { DatasetsContext } from "../../../../context";
-import { AuthContext } from "../../../../../auth/context"
 import { cloneDeep } from "lodash-es";
 import {Link, useNavigate} from "react-router";
-import {updateSourceData, parseIfJson, getSourceData} from "../../default/utils";
+import {getSourceData} from "../../default/utils";
 import { getInstance } from "../../../../../../utils/type-utils";
 import { clearDatasetsListCache } from "../../../../utils/datasetsListCache";
 import UdaTaskList from "../../../Tasks/UdaTaskList";
+import SourceAccessEditor from "../../../../components/SourceAccessEditor";
 
 const buttonRedClass = 'p-2 mx-1 bg-red-500 hover:bg-red-700 text-white rounded-md';
 const buttonGreenClass = 'p-2 mx-1 bg-green-500 hover:bg-green-700 text-white rounded-md';
@@ -216,30 +216,13 @@ const AddViewBtn = ({source, setSource}) => {
 
 const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params }) => {
     const {id} = params;
-    const {app, type, baseUrl, pageBaseUrl, user, parent, UI, falcor, datasources} = React.useContext(DatasetsContext) || {};
+    const {app, type, baseUrl, pageBaseUrl, user, parent, UI} = React.useContext(DatasetsContext) || {};
     // Tasks for internal_table sources live in the DMS task tables
     // (`dms.tasks` / `dms_tasks`), not in any DAMA pgEnv. The UDA route
     // layer routes to DMS when the env contains '+', so we build the
     // DMS env from the pattern's app + instance.
     const taskEnv = app && type ? `${app}+${type}` : null;
-    const {AuthAPI} = React.useContext(AuthContext) || {};
-    const [users, setUsers] = React.useState([]);
-    const [groups, setGroups] = React.useState([]);
-    const {MultiSelect, Input, Button} = UI;
-
-    useEffect(() => {
-        async function load () {
-            if(!user?.token) return;
-
-            const users = await AuthAPI.getUsers({user});
-            const groups = await AuthAPI.getGroups({user});
-
-            setUsers(users?.users || []);
-            setGroups(groups?.groups || [])
-        }
-
-        load();
-    }, []);
+    const {Button} = UI;
 
     if(!user || !user.token) return <></>
 
@@ -247,109 +230,10 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params }) => {
             <div className={'p-2'}>
                 <div className={'flex gap-12'}>
                     <div className={'w-3/4'}>
-                        <div className={'shadow-md rounded-md place-content-center p-4 w-full'}>
-                            <label className={'text-xl text-gray-900 font-semibold'}>User Access Controls</label>
-                            <MultiSelect className={'w-1/2'}
-                                    singleSelectOnly
-                                    searchable={false}
-                                    options={[{label: 'Add user access', value: undefined}, ...users.map(u => ({label: u.email, value: u.id}))]}
-                                    onChange={v => {
-                                        const newAuth = {
-                                            ...parseIfJson(source?.statistics, {})?.auth,
-                                            users: {
-                                                ...(parseIfJson(source?.statistics, {})?.auth?.users || {}),
-                                                [v]: "1",
-                                            },
-                                        };
-                                        updateSourceData({data: ({auth: newAuth}), attrKey: 'statistics', isDms: true, apiUpdate, setSource, format, source, falcor, id})
-                                    }}
-                            />
-
-                            <div>
-                                <div className={'grid grid-cols-3'}>
-                                    <div>User</div>
-                                    <div>Auth</div>
-                                </div>
-                                {
-                                    Object.entries(parseIfJson(source?.statistics, {})?.auth?.users || {})
-                                        .map(([userId, authLevel]) => <div key={userId} className={'grid grid-cols-3'}>
-                                            <div>{users.find(user => +user.id === +userId)?.email}</div>
-                                            <Input type={'text'} value={authLevel} onChange={e => {
-                                                const newAuth = {
-                                                    ...parseIfJson(source?.statistics, {})?.auth,
-                                                    users: {
-                                                        ...(parseIfJson(source?.statistics, {})?.auth?.users || {}),
-                                                        [userId]: e.target.value,
-                                                    },
-                                                };
-                                                updateSourceData({data: ({auth: newAuth}), attrKey: 'statistics', isDms: true, apiUpdate, setSource, format, source, falcor, id})
-                                            }} />
-                                            <Button className={'w-fit'}
-                                                    onClick={() => {
-                                                        const newAuth = {
-                                                            ...parseIfJson(source?.statistics, {})?.auth,
-                                                        };
-
-                                                        delete newAuth.users[userId];
-
-                                                        updateSourceData({data: ({auth: newAuth}), attrKey: 'statistics', isDms: true, apiUpdate, setSource, format, source, falcor, id})
-                                                    }}>remove</Button>
-                                        </div>)
-                                }
-                            </div>
-                        </div>
-
-                        <div className={'shadow-lg rounded-md place-content-center p-4 w-full'}>
-                            <label className={'text-xl text-gray-900 font-semibold'}>Group Access Controls</label>
-                            <MultiSelect className={'w-1/2'}
-                                    singleSelectOnly
-                                    searchable={false}
-                                    options={[{label: 'Add group access', value: undefined}, ...groups.map(u => ({label: u.name, value: u.name}))]}
-                                    onChange={v => {
-                                        const newAuth = {
-                                            ...parseIfJson(source?.statistics, {})?.auth,
-                                            groups: {
-                                                ...(parseIfJson(source?.statistics, {})?.auth?.groups || {}),
-                                                [v]: "1",
-                                            },
-                                        };
-                                        updateSourceData({data: ({auth: newAuth}), attrKey: 'statistics', isDms: true, apiUpdate, setSource, format, source, falcor, id})
-                                    }}
-                            />
-
-                            <div>
-                                <div className={'grid grid-cols-3'}>
-                                    <div>Group</div>
-                                    <div>Auth</div>
-                                </div>
-                                {
-                                    Object.entries(parseIfJson(source?.statistics, {})?.auth?.groups || {})
-                                        .map(([groupName, authLevel]) => <div key={groupName} className={'grid grid-cols-3'}>
-                                            <div>{groupName}</div>
-                                            <Input type={'text'} value={authLevel} onChange={e => {
-                                                const newAuth = {
-                                                    ...parseIfJson(source?.statistics, {})?.auth,
-                                                    groups: {
-                                                        ...(parseIfJson(source?.statistics, {})?.auth?.groups || {}),
-                                                        [groupName]: e.target.value,
-                                                    },
-                                                };
-                                                updateSourceData({data: ({auth: newAuth}), attrKey: 'statistics', isDms: true, apiUpdate, setSource, format, source, falcor, id})
-                                            }} />
-                                            <Button className={'w-fit'}
-                                                    onClick={() => {
-                                                        const newAuth = {
-                                                            ...parseIfJson(source?.statistics, {})?.auth,
-                                                        };
-
-                                                        delete newAuth.groups[groupName];
-
-                                                        updateSourceData({data: ({auth: newAuth}), attrKey: 'statistics', isDms: true, apiUpdate, setSource, format, source, falcor, id})
-                                                    }}>remove</Button>
-                                        </div>)
-                                }
-                            </div>
-                        </div>
+                        {/* New string-permission Access editor (pattern ⊕ source) — replaces the
+                            legacy numeric statistics.auth UAC; gated by edit-source-permissions. */}
+                        <SourceAccessEditor source={source} setSource={setSource} format={format}
+                                            apiUpdate={apiUpdate} isDms={true} id={id}/>
                     </div>
 
                     <div className={'w-1/4'}>

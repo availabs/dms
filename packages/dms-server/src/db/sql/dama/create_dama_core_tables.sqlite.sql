@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS sources (
     statistics      TEXT,
     metadata        TEXT,
     categories      TEXT,
+    auth_permissions TEXT DEFAULT '{}',  -- string-permission access control (datasets-permissions-model)
     source_dependencies TEXT,
     user_id         INTEGER,
     _created_timestamp  TEXT DEFAULT (datetime('now')),
