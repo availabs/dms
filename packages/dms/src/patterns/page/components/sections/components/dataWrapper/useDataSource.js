@@ -250,12 +250,7 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
             const match = sources.find((s) => +s.source_id === +sourceId);
             setState((draft) => {
                 if (!match && typeof sourceId === "string" && sourceId.includes("+")) {
-                    // Preserve the synthetic custom-bucket dimension column across the
-                    // source swap — the dimension (alias) is still valid; only its
-                    // source binding is reset below. Everything else is replaced by
-                    // the new source's columns.
-                    const bucketCol = (draft.columns || []).find(c => c.origin === 'custom-bucket');
-                    draft.columns = bucketCol ? [bucketCol] : [];
+                    draft.columns = [];
                     const sourceType = sourceId.endsWith("|component")
                         ? "sections"
                         : "pages";
@@ -281,13 +276,10 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
                     // Get baseUrl from the matched source's environment
                     const newColumns = match.columns;
                     const newColumnsNames = newColumns.map(c => c.name);
-                    // Keep columns that exist in the new source, plus the synthetic
-                    // custom-bucket dimension column (its name is the author's alias,
-                    // which won't appear in newColumnsNames — but the dimension is
-                    // still valid; only its source binding is reset below).
+                    // Keep only columns that exist in the new source.
                     draft.columns = (draft.columns || [])
-                        .filter(c => c.origin === 'custom-bucket' || newColumnsNames.includes(c.name))
-                        .map(c => c.origin === 'custom-bucket' ? c : ({...c, ...newColumns.find(newC => newC.name === c.name)}));
+                        .filter(c => newColumnsNames.includes(c.name))
+                        .map(c => ({...c, ...newColumns.find(newC => newC.name === c.name)}));
                     const baseUrl = envs[match.srcEnv]?.baseUrl || '';
                     const sourceType = match.name ? nameToSlug(match.name) : draft[EXTERNAL_SOURCE_KEY]?.type;
                     draft[EXTERNAL_SOURCE_KEY] = { ...match, baseUrl, type: sourceType };

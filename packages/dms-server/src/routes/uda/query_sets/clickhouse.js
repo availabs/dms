@@ -152,7 +152,6 @@ async function simpleFilter(ctx, options, attributes, indices) {
     filterGroups = {},
     groupBy = [], having = [], orderBy = {},
     normalFilter = [], join = {},
-    aliasGroups = {},
     // Comparison series (query fan-out): one UNION ALL arm per variant. CH inlines
     // filter values (no $N placeholders), so arms compose directly. Empty → single
     // arm, unchanged.
@@ -205,12 +204,7 @@ async function simpleFilter(ctx, options, attributes, indices) {
     fromClause = `${table_schema}.${table_name} ${hasJoin ? ' as ds ' : ''} ${joins}`;
   }
 
-  // Bucket aliases are already compiled into a vetted CASE expression
-  // (activeAliasGroups); only the bare column entries still need sanitizing.
-  // Passing the CASE through handleGroupByCH()'s sanitizeName() would discard it
-  // whenever a label/value/fallback contains a SQL keyword token (e.g. a "Union"
-  // county value), dropping the SELECT's CASE column out of GROUP BY. Sanitize
-  // per-entry instead — mirrors simpleFilterLength.
+  // Sanitize each groupBy entry individually (mirrors simpleFilterLength).
   const groupByExprs = groupBy.map(g => sanitizeName(g)).filter(Boolean);
 
   // ── Comparison-series fan-out ───────────────────────────────────────────────

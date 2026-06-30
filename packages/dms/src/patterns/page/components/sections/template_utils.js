@@ -37,7 +37,7 @@ export function buildTemplateType({ pattern, componentType }) {
  *
  *   - `includeSource` → the whole data config: the source binding
  *     (`externalSource` + any `join`) AND its shape (`columns` / `filters` /
- *     `customBuckets` / `pivot`).
+ *     `pivot` / `comparisonSeries`).
  *   - `includeLayout` → the presentation/settings: `state.display`, which is
  *     where the "Spreadsheet Settings" menu (tableStyle, striped, pagination,
  *     pageSize, maxHeight, …) writes via `dwAPI.setDisplay`. This pairs with the
@@ -78,8 +78,7 @@ export function cleanStateForTemplate(state, { includeSource = true, includeLayo
   }
 
   // The whole data config rides with the source toggle: the binding
-  // (externalSource/join) and its shape (columns/filters/customBuckets/pivot/
-  // comparisonSeries).
+  // (externalSource/join) and its shape (columns/filters/pivot/comparisonSeries).
   if (!includeSource) {
     delete s.externalSource;
     delete s.join;

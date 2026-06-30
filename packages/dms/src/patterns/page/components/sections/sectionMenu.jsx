@@ -13,8 +13,8 @@ import { getColumnLabel } from "./controls_utils";
  * Draft text input that holds a local draft so typing doesn't churn section
  * state on every keystroke, committing (via onCommit) only on blur or Enter —
  * i.e. when the author leaves the field / navigates back out of the sub-menu.
- * Used across the custom-bucket menu: the Dimension Alias (whose commit also
- * reconciles the synthetic column) and each static group's Label / Values list.
+ * Used across the section menus (e.g. the Comparison Series variant fields) where a
+ * commit should fire only when the author leaves the field, not per keystroke.
  */
 const CommitInput = ({ initialValue = '', onCommit }) => {
     const { UI } = React.useContext(ThemeContext) || {};
