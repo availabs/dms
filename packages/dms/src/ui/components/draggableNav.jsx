@@ -222,8 +222,9 @@ function DraggableNav({
     let matchId = matchRoutes(matchItems, {pathname: pathname.replace(baseUrl, '').replace('edit/', '')})?.[0]?.route?.id || -1
     let matches = findParents(localData, matchId)
 
-    const dataItemsObj = (localData || dataItemsProp).reduce((out, curr) => {
-        out[curr.id] = { ...curr, children: getChildNav(curr, (localData || dataItemsProp), baseUrl, edit, matches) };
+    const validData = (localData || dataItemsProp).filter(d => d.id !== 'no-access');
+    const dataItemsObj = validData.reduce((out, curr) => {
+        out[curr.id] = { ...curr, children: getChildNav(curr, validData, baseUrl, edit, matches) };
         return out;
     }, {});
 
