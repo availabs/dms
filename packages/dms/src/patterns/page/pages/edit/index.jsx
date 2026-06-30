@@ -32,6 +32,7 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
 		setNewItem(draft => {
 			console.log("RESETTING ITEM, existing newItem::", JSON.parse(JSON.stringify(draft)))
 			draft = ({ ...draft, ...item })
+			return draft;
 		});
 	}, [item])
 
@@ -241,6 +242,7 @@ console.log({item, newItem})
 		return <div>You do not have permission to view this page. <Link to={baseUrl}>Click here to visit Home</Link></div>
 	}
 	console.log("-----",getSectionGroups('content'),[item?.draft_section_groups])
+	console.log("pagesatte", pageState)
 	return (
 		<DataSourceContext.Provider value={dataSourceActions}>
 		<PageContext.Provider value={{
