@@ -35,20 +35,27 @@ async function createDamaSource(values, pgEnv) {
   // JSONB columns need explicit JSON.stringify — node-postgres serializes JS arrays
   // as PostgreSQL array literals ('{{"x"}}'), which isn't valid JSON and fails the
   // jsonb cast. Applies to nested categories like [['Uploaded File']].
+  // New-source default: PRIVATE + creator-owned (authPermissions string-permission model). The
+  // creator gets full access; public is revoked (`public: []`) so the pattern's public:[view-source]
+  // baseline can't expose a fresh upload — others are granted intentionally. (datasets-permissions-model)
+  const authPermissions = values.authPermissions ||
+    { users: user_id ? { [user_id]: ['*'] } : {}, groups: { public: [] } };
+
   const statisticsJson = statistics ? JSON.stringify(statistics) : null;
   const metadataJson = metadata ? JSON.stringify(metadata) : null;
   const categoriesJson = categories ? JSON.stringify(categories) : null;
+  const authPermissionsJson = JSON.stringify(authPermissions);
 
   // Try insert, on duplicate name append _N suffix
   let sourceName = name;
   for (let attempt = 0; attempt < 10; attempt++) {
     try {
       const { rows } = await db.query(`
-        INSERT INTO ${table} (name, display_name, type, description, user_id, statistics, metadata, categories)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        INSERT INTO ${table} (name, display_name, type, description, user_id, statistics, metadata, categories, auth_permissions)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING *
       `, [sourceName, display_name || null, type || null, description || null, user_id || null,
-          statisticsJson, metadataJson, categoriesJson]);
+          statisticsJson, metadataJson, categoriesJson, authPermissionsJson]);
 
       return rows[0];
     } catch (err) {

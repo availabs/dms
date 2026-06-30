@@ -19,6 +19,8 @@ const {
   dataById,
   clearViewData
 } = require("./uda.controller");
+const { getDb } = require("#db/index.js");
+const { isUserAuthedForSource } = require("./sourceAuth");
 
 // ================================================= UDA Source Routes =================================================
 
@@ -111,8 +113,20 @@ module.exports = [
         for (const pgEnv of pgEnvs) {
           const sourcesById = jsonGraph.uda[pgEnv].sources.byId;
           const ids = Object.keys(sourcesById);
+          const db = getDb(pgEnv);
 
           for (const sourceId of ids) {
+            // Per-source enforcement (pattern ⊕ source). Editing authPermissions itself needs
+            // `edit-source-permissions`; other writes need `update-source`. Un-migrated envs (no
+            // authPermissions column) are allowed (no prior enforcement to regress).
+            const requiresPermEdit = JSON.stringify(sourcesById[sourceId] || {}).includes('auth_permissions');
+            const reqPermissions = requiresPermEdit ? ['edit-source-permissions'] : ['update-source'];
+            const authed = await isUserAuthedForSource({ db, sourceId: +sourceId, reqPermissions, user: this.user });
+            if (!authed) {
+              console.log("uda: UNAUTHORIZED source modify", sourceId, this.user && this.user.email);
+              throw new Error(`User not authorized to modify source id(s): ${sourceId}`);
+            }
+
             const rows = await updateSource(pgEnv, sourceId, sourcesById[sourceId]);
             const row = rows.find(r => +r.source_id === +sourceId || +r.id === +sourceId);
 

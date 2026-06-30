@@ -4,7 +4,7 @@ import datasetsFormat from "./datasets.format";
 import { DatasetsContext } from "./context";
 import { ThemeContext, getPatternTheme } from "../../ui/useTheme";
 import { initializePatternFormat } from "../../dms-manager/_utils";
-import { isUserAuthed } from "./auth";
+import { isUserAuthed, mergeAuthPermissions } from "../../utils/auth";
 import UI from "../../ui"
 
 // pages
@@ -89,7 +89,10 @@ const datasetsConfig = ({
                             file_upload,
                             ...damaDataTypes
                           }),
-                          isUserAuthed: (reqPermissions, customAuthPermissions) => isUserAuthed({ user, authPermissions: customAuthPermissions || authPermissions, reqPermissions }),
+                          // Pattern-level check, with optional per-SOURCE override merged on top
+                          // (pattern ⊕ source). Same merge the server uses for data enforcement.
+                          isUserAuthed: (reqPermissions, customAuthPermissions) =>
+                            isUserAuthed({ user, authPermissions: mergeAuthPermissions(authPermissions, customAuthPermissions), reqPermissions }),
                       }}>
                           <ThemeContext.Provider value={{ theme, UI }}>
                               {props.children}

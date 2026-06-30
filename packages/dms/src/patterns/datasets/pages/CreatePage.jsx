@@ -73,6 +73,14 @@ export default function CreatePage({apiUpdate, format}) {
             if (!sourceSlug) throw new Error('Name must contain at least one letter or number.');
             if (!newData.type) newData.type = 'internal_table';
 
+            // New sources are PRIVATE by default — the creator gets full access; everyone else (and
+            // the pattern's public:[view-source] baseline) must be granted intentionally. The empty
+            // public:[] revokes the inherited baseline. See datasets-permissions-model.
+            newData.auth_permissions = {
+                users: user?.id ? { [user.id]: ['*'] } : {},
+                groups: { public: [] },
+            };
+
             if (dmsEnv) {
                 // New path: create source then add ref to dmsEnv
                 const dmsEnvInstance = getInstance(dmsEnv.type);

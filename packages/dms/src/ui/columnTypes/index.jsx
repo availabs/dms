@@ -22,6 +22,7 @@ import { VerdictDotEdit, VerdictDotView } from './verdictDot'
 import { StatValueEdit, StatValueView } from './statValue'
 import { CodeWithSubEdit, CodeWithSubView } from './codeWithSub'
 import { DownloadButtonEdit, DownloadButtonView } from './downloadButton'
+import { DesignFrameEdit, DesignFrameView } from './design_frame'
 import Switch from '../components/Switch'
 
 const text = { EditComp: TextEdit, ViewComp: TextView }
@@ -42,6 +43,7 @@ const verdictDot = { EditComp: VerdictDotEdit, ViewComp: VerdictDotView }
 const statValue = { EditComp: StatValueEdit, ViewComp: StatValueView }
 const codeWithSub = { EditComp: CodeWithSubEdit, ViewComp: CodeWithSubView }
 const downloadButton = { EditComp: DownloadButtonEdit, ViewComp: DownloadButtonView }
+const designFrame = { EditComp: DesignFrameEdit, ViewComp: DesignFrameView }
 
 // console.log('in column types', Lexical)
 // columnTypes is a mutable registry: themes can extend it via theme.columnTypes
@@ -83,6 +85,7 @@ const columnTypes = {
   'stat_value': statValue,
   'code_with_sub': codeWithSub,
   'download_button': downloadButton,
+  'design_frame': designFrame,
   'switch': {
         EditComp: ({trueValue=true, value, onChange, ...props}) => {
             const offValue = typeof trueValue === 'boolean' ? !trueValue : null;

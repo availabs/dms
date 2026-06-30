@@ -103,9 +103,9 @@ export const gisMapTheme = {
     legendTicksDefault: 'flex text-right',
     legendTicksDefaultPad: 'pr-1',
 
-    // Map.jsx
-    mapPageWrapper: '',
-    mapHeightWrapper: 'w-full h-[900px]',
+    // Map.jsx — full-width map that fills (almost) the whole page height below the source-page header
+    mapPageWrapper: 'w-full',
+    mapHeightWrapper: 'w-full h-[calc(100svh-150px)] min-h-[460px]',
     mapAttrsWrapper: 'border-t border-gray-200 px-4 py-5 sm:p-0',
     mapAttrsDl: 'sm:divide-y sm:divide-gray-200',
     mapAttrsRow: 'flex justify-between group',

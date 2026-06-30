@@ -2,10 +2,12 @@ import React, {useState, useEffect, useContext, useMemo} from 'react'
 import {get} from "lodash-es";
 import {Link, useSearchParams} from "react-router";
 import {DatasetsContext} from "../../context";
-import {ThemeContext} from "../../../../ui/useTheme";
+import {ThemeContext, getComponentTheme} from "../../../../ui/useTheme";
 import { buildEnvsForListing, getExternalEnv } from "../../utils/datasources";
 import { getCachedSources, setCachedSources, hasCachedSources } from "../../utils/datasetsListCache";
+import { datasetsListTheme } from "./datasetsList.theme";
 import Breadcrumbs from "../../components/Breadcrumbs";
+import { FALLBACK_SWATCHES, catColor, splitCategories } from "../../utils/categoryColors";
 
 export const isJson = (str)  => {
     try {
@@ -43,6 +45,17 @@ function extractLexicalText(value) {
     return out.join(' ').replace(/\s+/g, ' ').trim();
 }
 
+// Source-type → badge (icon + label). Drives the card/table type chip. Sources
+// only carry `type` + `isDms` at list level, so we classify off those.
+const typeBadge = (source = {}) => {
+    const ty = (source.type || '').toLowerCase();
+    if (ty.includes('gis')) return { label: 'GIS', icon: 'MapLayers' };
+    if (ty.includes('csv')) return { label: 'CSV', icon: 'Columns' };
+    if (source.isDms)       return { label: 'Internal', icon: 'Database' };
+    return { label: 'External', icon: 'Link' };
+};
+
+
 const getSources = async ({envs, falcor, parent, user}) => {
     if(!envs || !Object.keys(envs)) return [];
     console.log('[getSources] querying UDA for envs:', Object.keys(envs));
@@ -77,37 +90,62 @@ const getSources = async ({envs, falcor, parent, user}) => {
     return sources.reduce((acc, curr) => [...acc, ...curr], []);
 }
 
+// ── card / row pieces (shared across grid + full-width + table views) ──────────
+const TypeChip = ({ source, t, Icon }) => {
+    const { label, icon } = typeBadge(source);
+    return <span className={t.typeBadge}><Icon icon={icon} className={t.typeBadgeIcon}/>{label}</span>;
+};
 
-const SourceThumb = React.memo(({ source={}, format }) => {
-    const {theme} = useContext(ThemeContext) || {};
-    const t = theme?.datasets?.datasetsList || {};
-    const source_id = source.id || source.source_id;
-    const {isDms} = source;
-    const icon = isDms ? (format.registerFormats || []).find(f => f?.type?.includes('|source'))?.type === source.type ? 'Datasets' : 'Forms' : 'External';
-
-    // Plain-text description for the list view. The full Lexical renderer
-    // mounts an Editor instance per source, which is heavy at 50+ rows.
-    // Detail pages still use the rich Lexical view.
-    const descriptionText = useMemo(() => extractLexicalText(source?.description), [source?.description]);
-
+// card category badges: top-level = colored pill, secondary = light chip
+const CategoryPills = ({ source, t, swatches }) => {
+    const { tops, subs } = splitCategories(source);
     return (
-        <div className={t.sourceCard}>
-            <div>
-                <Link to={`${isDms ? 'internal_source' : 'source'}/${source_id}`} className={t.sourceTitle}>
-                    <span>{source?.name}</span> <span className={t.sourceTypeLabel}>{icon}</span>
+        <>
+            {tops.map(area => (
+                <Link key={area} to={`?cat=${area}`} className={t.categoryPill} style={{ '--cat': catColor(area, swatches) }}>
+                    <span className={t.categoryDot} style={{ backgroundColor: catColor(area, swatches) }}/>{area}
                 </Link>
-                <div>
-                    {(Array.isArray(source?.categories) ? source?.categories : [])
-                        .map(cat => (typeof cat === 'string' ? [cat] : cat).map((s, i) => (
-                            <Link key={i} to={`?cat=${i > 0 ? cat[i - 1] + "/" : ""}${s}`}
-                                  className={t.sourceCategoryBadge}>{s}</Link>
-                        )))
-                    }
+            ))}
+            {subs.map(s => (
+                <Link key={s.path} to={`?cat=${s.path}`} className={t.subCategoryPill}>{s.label}</Link>
+            ))}
+        </>
+    );
+};
+
+// table category cell: compact dot + label for top-level, light chip for secondary
+const TableCategory = ({ source, t, swatches }) => {
+    const { tops, subs } = splitCategories(source);
+    return (
+        <div className={t.tableCatWrap}>
+            {tops.map(area => (
+                <Link key={area} to={`?cat=${area}`} className={t.tableCatItem}>
+                    <span className={t.tableCatDot} style={{ backgroundColor: catColor(area, swatches) }}/>{area}
+                </Link>
+            ))}
+            {subs.map(s => (
+                <Link key={s.path} to={`?cat=${s.path}`} className={t.subCategoryPill}>{s.label}</Link>
+            ))}
+        </div>
+    );
+};
+
+const SourceCard = React.memo(({ source = {}, t, Icon, swatches, full }) => {
+    const source_id = source.id || source.source_id;
+    const { isDms } = source;
+    const href = `${isDms ? 'internal_source' : 'source'}/${source_id}`;
+    const descriptionText = useMemo(() => extractLexicalText(source?.description), [source?.description]);
+    return (
+        <div className={full ? t.cardFull : t.card}>
+            <div className={full ? t.cardFullMain : undefined}>
+                <div className={t.cardBadges}>
+                    <TypeChip source={source} t={t} Icon={Icon} />
+                    <CategoryPills source={source} t={t} swatches={swatches} />
                 </div>
-                {descriptionText && (
-                    <div className={t.sourceDescription}>{descriptionText}</div>
-                )}
+                <Link to={href} className={t.cardTitle}>{source?.name}</Link>
+                {descriptionText && <div className={t.cardDescription}>{descriptionText}</div>}
             </div>
+            <Link to={href} className={t.cardView}>view →</Link>
         </div>
     );
 });
@@ -115,13 +153,18 @@ const SourceThumb = React.memo(({ source={}, format }) => {
 export default function DatasetsList ({attributes, item, dataItems, apiLoad, apiUpdate, updateAttribute, format, submit, ...r}) {
     const {baseUrl, user, falcor, siteType, type, datasources, dmsEnv, UI} = useContext(DatasetsContext);
     const {theme} = useContext(ThemeContext) || {};
-    const t = theme?.datasets?.datasetsList || {};
+    const t = {...datasetsListTheme, ...getComponentTheme(theme, 'datasets.datasetsList')};
     const {Layout, Icon, Button, Input} = UI;
+    const swatches = t.categorySwatches || FALLBACK_SWATCHES;
     const cacheKey = `${format?.app}-${siteType}`;
     const [sources, setSources] = useState(() => getCachedSources(cacheKey) || []);
     const [layerSearch, setLayerSearch] = useState("");
     const [searchParams] = useSearchParams();
     const [sort, setSort] = useState('asc');
+    const [view, setView] = useState(() => {
+        try { return localStorage.getItem(`${cacheKey}-view`) || 'grid'; } catch { return 'grid'; }
+    });
+    const setViewPersist = (v) => { setView(v); try { localStorage.setItem(`${cacheKey}-view`, v); } catch {} };
     const cat1 = searchParams.get('cat');
     const envs = useMemo(() => buildEnvsForListing(datasources, format, dmsEnv), [datasources, format, dmsEnv]);
     const pgEnv = getExternalEnv(datasources);
@@ -208,11 +251,34 @@ export default function DatasetsList ({attributes, item, dataItems, apiLoad, api
         return items;
     }, [cat1, catParts, baseUrl]);
 
+    // sources after category-path + search + sort (the rendered set)
+    const shownSources = useMemo(() => (visibleSources || [])
+        .filter(source => {
+            if (!cat1) return true;
+            return (Array.isArray(source?.categories) ? source?.categories : [])
+                .some(cat => catParts.every((p, i) => cat[i] === p));
+        })
+        .filter(source => {
+            const searchTerm = ((source?.name || '') + " " + (
+                (Array.isArray(source?.categories) ? source?.categories : [source?.categories]) || [])
+                .reduce((out, cat) => out + (Array.isArray(cat) ? cat.join(' ') : typeof cat === 'string' ? cat : ''), ''));
+            return !(layerSearch.length > 2) || searchTerm.toLowerCase().includes(layerSearch.toLowerCase());
+        })
+        .sort((a, b) => (sort === 'asc' ? 1 : -1) * (a?.name || '').localeCompare(b?.name || '')),
+    [visibleSources, cat1, catParts, layerSearch, sort]);
+
+    const VIEWS = [
+        { key: 'grid',  d: 'M3.5 3.5h7v7h-7zM13.5 3.5h7v7h-7zM3.5 13.5h7v7h-7zM13.5 13.5h7v7h-7z' },
+        { key: 'cards', d: 'M3 4.5h18v6H3zM3 13.5h18v6H3z' },
+        { key: 'table', d: 'M3 6h18M3 12h18M3 18h18' },
+    ];
+
     return (
         <Layout navItems={[]}>
           <div className={t.pageWrapper}>
+            <Breadcrumbs items={breadcrumbItems} />
             <div className={t.header}>
-                <Breadcrumbs items={breadcrumbItems} />
+                <div className={t.count}>{shownSources.length} datasets · {categories.length} categories</div>
                 <div className={t.toolbar}>
                     <div className={t.toolbarSearch}>
                         <Input
@@ -222,61 +288,54 @@ export default function DatasetsList ({attributes, item, dataItems, apiLoad, api
                         />
                     </div>
 
-                    <Button
-                        type="plain"
-                        title={'Toggle Sort'}
-                        onClick={() => setSort(sort === 'asc' ? 'desc' : 'asc')}
-                    >
+                    <div className={t.viewSwitcher}>
+                        {VIEWS.map(v => (
+                            <button key={v.key} title={v.key} onClick={() => setViewPersist(v.key)}
+                                    className={view === v.key ? t.viewBtnActive : t.viewBtn}>
+                                <svg className={t.viewBtnIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+                                    <path d={v.d}/>
+                                </svg>
+                            </button>
+                        ))}
+                    </div>
+
+                    <Button type="plain" title={'Toggle Sort'} onClick={() => setSort(sort === 'asc' ? 'desc' : 'asc')}>
                         <Icon icon={sort === 'asc' ? 'SortDesc' : 'SortAsc'} className={t.iconMd}/>
                     </Button>
 
                     {filteredCategories.length > 0 &&
-                        <Button
-                            type="plain"
-                            title={isListAll ? 'Show filtered' : 'Show all'}
-                            onClick={() => setIsListAll(!isListAll)}
-                        >
+                        <Button type="plain" title={isListAll ? 'Show filtered' : 'Show all'} onClick={() => setIsListAll(!isListAll)}>
                             <Icon icon={isListAll ? 'FilterX' : 'Filter'} className={t.iconMd}/>
                         </Button>
                     }
 
-                    {
-                        user?.authed &&
-                        <Link to={`${baseUrl}/settings`} title={'Settings'}>
-                            <Icon icon="Settings" className={t.iconMd}/>
-                        </Link>
-                    }
+                    {user?.authed &&
+                        <Link to={`${baseUrl}/settings`} title={'Settings'}><Icon icon="Settings" className={t.iconMd}/></Link>}
 
-                    {
-                        user?.authed &&
-                        <Link to={`${baseUrl}/create`} title={'Add'}>
-                            <Icon icon="CirclePlus" className={t.iconMd}/>
-                        </Link>
-                    }
-
+                    {user?.authed &&
+                        <Link to={`${baseUrl}/create`} title={'Add'} className={t.newBtn}><Icon icon="CirclePlus" className={t.iconMd}/></Link>}
                 </div>
             </div>
             <div className={t.body}>
                 <div className={t.sidebar}>
+                    <Link to={'?'} className={!cat1 ? t.sidebarItemActive : t.sidebarItem}>
+                        <span className={t.sidebarItemText}>All datasets</span>
+                        <div className={t.sidebarBadge}>{(visibleSources || []).length}</div>
+                    </Link>
                     {(categories || [])
                         .sort((a,b) => a.localeCompare(b))
                         .map(cat => (
                             <React.Fragment key={cat}>
-                                <Link
-                                    className={activeTopCat === cat ? t.sidebarItemActive : t.sidebarItem}
-                                    to={`?cat=${cat}`}
-                                >
-                                    <span className={t.sidebarItemText}>{cat}</span>
+                                <Link className={activeTopCat === cat ? t.sidebarItemActive : t.sidebarItem} to={`?cat=${cat}`}>
+                                    <span className={t.sidebarItemText}>
+                                        <span className={t.sidebarDot} style={{ backgroundColor: catColor(cat, swatches) }}/>{cat}
+                                    </span>
                                     <div className={t.sidebarBadge}>{categoriesCount[cat]}</div>
                                 </Link>
                                 {activeTopCat === cat && subCategories.map(sub => {
                                     const subPath = `${cat}/${sub}`;
                                     return (
-                                        <Link
-                                            key={sub}
-                                            className={cat1 === subPath ? t.sidebarSubItemActive : t.sidebarSubItem}
-                                            to={`?cat=${subPath}`}
-                                        >
+                                        <Link key={sub} className={cat1 === subPath ? t.sidebarSubItemActive : t.sidebarSubItem} to={`?cat=${subPath}`}>
                                             <span className={t.sidebarItemText}>{sub}</span>
                                         </Link>
                                     );
@@ -285,30 +344,40 @@ export default function DatasetsList ({attributes, item, dataItems, apiLoad, api
                         ))
                     }
                 </div>
-                <div className={t.sourceList}>
-                    {
-                        (visibleSources || [])
-                            .filter(source => {
-                                if (!cat1) return true;
-                                return (Array.isArray(source?.categories) ? source?.categories : [])
-                                    .some(cat => catParts.every((p, i) => cat[i] === p));
-                            })
-                            .filter(source => {
-                                let searchTerm = ((source?.name || '') + " " + (
-                                    (Array.isArray(source?.categories) ? source?.categories : [source?.categories]) || [])
-                                    .reduce((out,cat) => {
-                                        out += Array.isArray(cat) ? cat.join(' ') : typeof cat === 'string' ? cat : '';
-                                        return out
-                                    },''));
-                                return !layerSearch.length > 2 || searchTerm.toLowerCase().includes(layerSearch.toLowerCase());
-                            })
-                            .sort((a,b) => {
-                                const m = sort === 'asc' ? 1 : -1;
-                                return m * (a?.name || '').localeCompare(b?.name || '')
-                            })
-                            .map((s, i) => <SourceThumb key={s.source_id || s.id || i} source={s} baseUrl={baseUrl} format={format} />)
-                    }
-                </div>
+
+                {view === 'table' ? (
+                    <div className={t.tableWrap}>
+                        <table className={t.table}>
+                            <thead><tr className={t.theadRow}>
+                                <th className={t.th}>Name</th>
+                                <th className={t.th}>Type</th>
+                                <th className={t.th}>Category</th>
+                                <th className={t.th}>Description</th>
+                            </tr></thead>
+                            <tbody>
+                                {shownSources.map((s, i) => {
+                                    const sid = s.id || s.source_id;
+                                    return (
+                                        <tr key={sid || i} className={t.tr}>
+                                            <td className={t.td}>
+                                                <Link to={`${s.isDms ? 'internal_source' : 'source'}/${sid}`} className={t.tdName}>{s?.name}</Link>
+                                            </td>
+                                            <td className={t.td}><TypeChip source={s} t={t} Icon={Icon} /></td>
+                                            <td className={t.td}><TableCategory source={s} t={t} swatches={swatches} /></td>
+                                            <td className={t.tdMuted}>{extractLexicalText(s?.description)}</td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                ) : (
+                    <div className={view === 'cards' ? t.sourceStack : t.sourceGrid}>
+                        {shownSources.map((s, i) =>
+                            <SourceCard key={s.source_id || s.id || i} source={s} t={t} Icon={Icon} swatches={swatches} full={view === 'cards'} />
+                        )}
+                    </div>
+                )}
             </div>
           </div>
         </Layout>

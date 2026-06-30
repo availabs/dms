@@ -46,6 +46,9 @@ export default function SourceCreate({ context, source }) {
                 [app, sourceType, {
                     name: source.name.trim(),
                     type: 'internal_table',
+                    // private by default — creator owns it; others (and the pattern public baseline)
+                    // are granted intentionally. See datasets-permissions-model.
+                    auth_permissions: { users: user?.id ? { [user.id]: ['*'] } : {}, groups: { public: [] } },
                 }]
             );
             const sourceId = getNewId(sourceRes);

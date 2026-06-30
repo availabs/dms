@@ -438,7 +438,7 @@ dms section create marketing-homepage --data '{
 
 | Field | Type | What it is |
 |---|---|---|
-| `title` | string | **Leave empty (`""`) by default.** Although described as "section toolbar / page tree" metadata, some themes render the section's `title` as a visible label *above the section content on the live page*. The section's own heading/h1 lives inside `element-data` (e.g. the Lexical state), so a non-empty `title` produces a duplicate label. Set `title: ""` unless the section is genuinely a labelled container the user wants to see chrome for. |
+| `title` | string | **DEPRECATED — always set `""`. Never use the section `title` to label a card.** When non-empty it renders `ViewSectionHeader` (`section_components.jsx`), a **hardcoded ≥50px uppercase `font-display` band** whose text style comes from `theme.heading[level]` — a map most themes (incl. transportny) don't define, so you get an unstyled label in a bulky fixed band that lays out badly and can't be themed. **To title a card, compose a fused lexical title section instead — see [§5.6.10](#5610-card-chrome-is-a-section-setting-gap-0--inner-box-not-lexical-content).** |
 | `type` | string | The component type — usually `{patternInstance}\|component` (e.g. `main\|component`) |
 | `group` | string | UUID matching a `name` in the page's `draft_section_groups` |
 | `parent` | JSON string | Stringified `{ id, ref }` pointing at the parent page |
@@ -1065,6 +1065,16 @@ node). So don't try to produce a circular "A"/"B" badge from inside Lexical. Ins
   lexical footnote, fused); the site-management control room's per-pattern cards (a lexical
   identity header fused to a `Spreadsheet` of that pattern's pages). The earlier two-section
   lexical-`Card`+`Graph` (MAP-21 §02) is just the N=2 case of this.
+- **Card titles come from a fused lexical title section — NEVER the section `title` field.** The section
+  `title` is deprecated (see §5.2: it renders a bulky, unthemeable ≥50px uppercase band). To give a
+  card a title ("Gates", "Work completed"), make it the **top** section of a compound card: a tiny
+  `lexical` section holding a `styled('kicker'|'displaySM', …)` title, with `title:""`, `border:{top,
+  left,right}`, `radius:{tl,tr}`, `padding:{bottom:"0"}`, `bg:"white"`; then the data section (Card/
+  Spreadsheet) below it gets `border:{left,right,bottom}`, `radius:{bl,br}`, `padding:{top:"0"}`,
+  `bg:"white"`. Because the band grid is **gap-0**, this also works for **side-by-side** titled cards
+  (e.g. an 8-col and a 4-col card in the same row each as a title+body pair) — emit them in row order
+  (`titleA8, titleB4, bodyA8, bodyB4`) so each body lands directly under its title. Give the bodies
+  `height:"fill"` so paired cards' bottoms align.
 - **Colored dots / simple inline marks** → a Lexical text run with an inline `style`
   (`color:#10B981`) on a `●`, or the `icon` node — inline before a label.
 - **Icon *chip* (a colored/tinted square holding an SVG, e.g. a product-card icon)** → the
