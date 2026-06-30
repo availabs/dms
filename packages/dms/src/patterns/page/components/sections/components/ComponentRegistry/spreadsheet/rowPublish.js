@@ -11,8 +11,8 @@ import { isEqual } from "lodash-es";
  * { id, value } composite so two rows that share the same payload (`value`)
  * still toggle independently — identity is the row id, not the payload. Without
  * an id column, identity is the payload itself (Case A). Consumers that read the
- * payload (e.g. a dynamic custom bucket via resolveAliasGroups) unwrap `.value`;
- * see component-actions.md.
+ * payload (e.g. dynamic comparison-series variants via resolveComparisonVariants)
+ * unwrap `.value`; see component-actions.md.
  *
  * Append mode is a click-toggle: clicking an already-published row removes it,
  * clicking a new one adds it. Identity is compared with isEqual (not a Set)

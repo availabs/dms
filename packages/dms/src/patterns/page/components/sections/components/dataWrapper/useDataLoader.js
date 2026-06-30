@@ -154,7 +154,7 @@ export function useDataLoader({ state, setState, apiLoad, component, isEditMode 
         draft.display.filteredLength = filteredData.length;
       });
     },
-    [localFilters, hasLocalFilters, state.columns, state.display?.pageSize, setState, state.data, state.fullData, state?.customBuckets],
+    [localFilters, hasLocalFilters, state.columns, state.display?.pageSize, setState, state.data, state.fullData],
   );
 
   // ─── Reset local filter data when filters are cleared ──────────────────────

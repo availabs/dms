@@ -35,7 +35,6 @@ export function wireSection(section, sourceId, viewId, attrs, env, app, sourceSl
           display: { usePagination: false, pageSize: 10, hideExternalToggle: false, readyToLoad: true },
           data: [],
           join: { sources: {} },
-          customBuckets: {},
         }),
       },
     };
@@ -84,7 +83,6 @@ export function wireSection(section, sourceId, viewId, attrs, env, app, sourceSl
           },
           data: [],
           join: { sources: {} },
-          customBuckets: {},
         }),
       },
     };

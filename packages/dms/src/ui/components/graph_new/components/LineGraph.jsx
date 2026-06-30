@@ -33,12 +33,13 @@ const LineGraphWrapper = props => {
 		// Resolve every series/axis value by `normalName || name`, matching Card.jsx.
 		const xKey = xColumn.normalName || xColumn.name;
 
-		// Compose the series id from EVERY categorize column. Combining e.g. a
-		// custom-bucket dimension (route) with the comparison-series discriminator
-		// (__series) must yield one line per (route × variant), not just per route —
-		// a single `find` collapsed all but the first categorize column. With one
-		// categorize column the id is just that column's value (back-compat); empty
-		// parts are dropped so a row missing a value still groups on what it has.
+		// Compose the series id from EVERY categorize column. Combining two
+		// categorize dimensions (e.g. a grouping column with the comparison-series
+		// `__series` discriminator) must yield one line per combination, not just per
+		// first column — a single `find` collapsed all but the first categorize
+		// column. With one categorize column the id is just that column's value
+		// (back-compat); empty parts are dropped so a row missing a value still
+		// groups on what it has.
 		const idKeys = idColumns.map(c => c.normalName || c.name);
 		const idAccessor = d => {
 			const parts = idKeys

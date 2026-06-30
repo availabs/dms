@@ -413,7 +413,7 @@ export const applyPageFilters = (filterTree, pageFilters) => {
  * by a page/action param (resolved via usePageFilterSync) before the section is
  * allowed to query. Until then the leaf value is empty, and firing the query would
  * (after the empty-IN strip in mapFilterGroupCols) drop the only intended constraint
- * and scan the whole table — the same trap the custom-bucket skipFetch guards. It
+ * and scan the whole table — exactly the unfiltered scan this guard prevents. It
  * also avoids the "flash": a section that resolves its scope from a published action
  * param (e.g. a load_publish driver) would otherwise paint its saved default first,
  * then re-query once the param lands. Returns true while ANY requireResolved leaf is
@@ -554,7 +554,7 @@ export const mergeVariantFilters = (baseTree, patchTree) => {
  *                 `mergeVariantFilters` + `resolveArmTree` consume it unchanged.
  *
  * Composite `{ id, value }` payloads (spreadsheet click_publish per-row identity) are
- * unwrapped to `.value` first — same rule as resolveAliasGroups in usePageFilterSync.
+ * unwrapped to `.value` first — the same `{id,value}` unwrap usePageFilterSync applies.
  */
 export const resolveComparisonVariants = (subArgs, rawList) => {
   const { labelKey, valueKey, column } = subArgs || {};
@@ -688,17 +688,14 @@ export const buildColumnsWithSettings = (columns, sourceColumns, isDms) => {
       const isCalculated = isCalculatedCol(column);
       const isCopiedColumn =
         !column.isDuplicate && duplicatedColumnNames.has(column.name);
-      // Synthetic server-side aliases (the custom-bucket dimension and the
-      // comparison-series discriminator) are not real columns: their ref/req must
-      // stay the bare alias (verbatim). If they went through attributeAccessorStr
-      // they'd become `data->>'<alias>'` for DMS sources — a phantom JSON key. For
-      // custom buckets the server's `groupBy.includes(alias)` match would miss
-      // (silently disabling the dimension); for comparison series the discriminator
-      // is provided by the fan-out's `'<label>' as <seriesKey>` literal, so the
-      // attribute must round-trip by the bare seriesKey. (DAMA returns the bare name
-      // anyway, so this only changes the DMS path.)
-      const isSyntheticAlias =
-        column.origin === "custom-bucket" || column.origin === "comparison-series";
+      // The comparison-series discriminator is a synthetic server-side alias, not a
+      // real column: its ref/req must stay the bare alias (verbatim). If it went
+      // through attributeAccessorStr it'd become `data->>'<alias>'` for DMS sources
+      // — a phantom JSON key. The discriminator is provided by the fan-out's
+      // `'<label>' as <seriesKey>` literal, so the attribute must round-trip by the
+      // bare seriesKey. (DAMA returns the bare name anyway, so this only changes the
+      // DMS path.)
+      const isSyntheticAlias = column.origin === "comparison-series";
       const colReqName = isSyntheticAlias ? column.name : reqName(fullColumn, isDms);
       const colRefName = isSyntheticAlias
         ? column.name
@@ -1034,7 +1031,7 @@ export const computeOutputSourceInfo = ({
  * @param {Object} input.filters - Top-level filter tree {op, groups} (promoted from dataRequest.filterGroups)
  * @param {Object} [input.join] - Optional join config (Phase 6)
  * @param {Object} [input.pageFilters] - Runtime URL search params for usePageFilters conditions
- * @param {Object} [input.customBuckets] - Configuration for custom bucket columns
+ * @param {Object} [input.comparisonSeries] - Comparison-series fan-out config (variants/seriesKey)
  * @returns {{ options: Object, attributes: string[], columnsToFetch: Array, columnsWithSettings: Array, outputSourceInfo: Object }}
  */
 export const buildUdaConfig = ({
@@ -1059,9 +1056,9 @@ export const buildUdaConfig = ({
       : comparisonSeries?.variants || [];
 
   // Comparison series is "active" only when enabled AND at least one labeled
-  // variant exists. Inactive → drop the synthetic discriminator column (like the
-  // inactive-custom-bucket case) so we never fetch a phantom alias the fan-out
-  // isn't producing; the config stays on state for clean re-enable.
+  // variant exists. Inactive → drop the synthetic discriminator column so we never
+  // fetch a phantom alias the fan-out isn't producing; the config stays on state for
+  // clean re-enable.
   const activeComparisonSeries =
     comparisonSeries?.enabled === true &&
     Array.isArray(effectiveVariants) &&
@@ -1156,15 +1153,13 @@ export const buildUdaConfig = ({
     }
     return {
       ...col,
-      // Synthetic discriminator columns (custom-bucket alias, comparison-series
-      // `__series`) are literal SELECT aliases, not real base-table columns — never
-      // table-prefix them. Prefixing `__series` → `ds.__series` would make it both a
-      // phantom GROUP BY column AND break the server fan-out's `g !== seriesKey` drop
-      // (seriesKey is the bare name), yielding "Identifier 'ds.__series' cannot be resolved".
+      // The comparison-series `__series` discriminator is a literal SELECT alias,
+      // not a real base-table column — never table-prefix it. Prefixing `__series`
+      // → `ds.__series` would make it both a phantom GROUP BY column AND break the
+      // server fan-out's `g !== seriesKey` drop (seriesKey is the bare name),
+      // yielding "Identifier 'ds.__series' cannot be resolved".
       name:
-        isJoin &&
-        col.origin !== 'custom-bucket' &&
-        col.origin !== 'comparison-series'
+        isJoin && col.origin !== 'comparison-series'
           ? `${alias}.${col.name}`
           : col.name,
     };
@@ -1420,16 +1415,10 @@ export const buildUdaConfig = ({
       return extractHavingFromFilterGroups(mapped).filterGroups;
     };
 
-    // The server fan-out builds each arm's WHERE solely from that arm's filterGroups
-    // and ignores the single-arm `options.filterGroups` — where the custom-bucket
-    // "filter to buckets" leaf normally lives (injected at step 5 above). So inject
-    // the same bucketLeaves into the base tree each arm patches, mirroring the
-    // single-arm injection (lines ~1238). mergeVariantFilters only prunes base leaves
-    // on columns the variant *touches*, so a bucket leaf (e.g. tmc IN(route)) survives
-    // into every arm whenever the variant constrains a different column (e.g. date),
-    // and resolveArmTree maps/aliases it exactly as the single-arm path does. Without
-    // this, fan-out + filter-to-buckets returns every row and the fallback label
-    // ("Other") leaks into the series.
+    // Each arm's WHERE is built solely from that arm's own filterGroups; the server
+    // fan-out ignores the single-arm `options.filterGroups`. So each variant patches
+    // over the section's base filter tree, and resolveArmTree maps/aliases the result
+    // exactly as the single-arm path does.
     const baseForArms = filters || {};
 
     options.seriesKey = comparisonSeries.seriesKey || "__series";

@@ -715,22 +715,7 @@ describe("buildUdaConfig", () => {
     expect(options.filterGroups).toEqual({});
   });
 
-  // ─── custom bucket master enable/disable ──────────────────────────────────
-
-  // ─── custom bucket DMS-source compatibility ───────────────────────────────
-  //
-  // DMS internal sources store column values inside a JSONB `data` column, so
-  // every column ref is `data->>'col'`. The bucket dimension has two distinct
-  // accessor requirements the rest of the pipeline doesn't handle by default:
-  //   (a) the synthetic alias column must stay the BARE alias in groupBy/SELECT
-  //       so the server's `groupBy.includes(alias)` match fires (a data->>'alias'
-  //       ref would be a phantom JSON key and silently disable bucketing);
-  //   (b) the CASE's source column must be resolved to `data->>'col'` so the
-  //       server compares the JSONB value, not a nonexistent physical column.
-  
-  // ─── skipFetch: unresolved dynamic binding must not fire an unfiltered query ──
-
-  // ─── buildCustomBucketFilters ────────────────────────────────────────────────
+});
 
 describe("legacyStateToBuildInput", () => {
   it("maps sourceInfo to externalSource", () => {
@@ -1357,72 +1342,6 @@ describe("buildUdaConfig — comparison series", () => {
     // the synthetic discriminator round-trips by its bare key as a fetched attribute
     expect(attributes).toContain("__series");
     expect(attributes).not.toContain("ds.__series");
-  });
-
-  // Regression: comparison-series fan-out + custom-bucket "filter to buckets".
-  // The server builds each arm's WHERE from that arm's own filterGroups and ignores
-  // the single-arm options.filterGroups (where buildCustomBucketFilters' row-restricting
-  // leaf normally lands). So the bucket leaf must be injected into the base tree EVERY
-  // arm patches. Without this, fan-out returns all rows and the bucket's fallback label
-  // ("Other") leaks into every series — the exact symptom that surfaced live.
-  it("filter-to-buckets + fan-out: bucket leaf injected into every arm", () => {
-    const input = seriesInput();
-    input.filters = null; // route restriction comes solely from the bucket
-    input.columns = [
-      col("speed"),
-      col("tmc"),
-      { name: "route_name", origin: "custom-bucket", show: true, group: true },
-      { name: "__series", origin: "comparison-series", show: true, group: true },
-    ];
-    input.customBuckets = {
-      alias: "route_name",
-      sourceField: "tmc",
-      enabled: true, // filterToBuckets defaults ON
-      config: {
-        route_name: {
-          column: "tmc",
-          fallback: "Other",
-          groups: { my_route: ["120-50371", "120P05935"] },
-        },
-      },
-    };
-
-    const { options } = buildUdaConfig(input);
-    expect(options.seriesVariants).toHaveLength(2);
-    options.seriesVariants.forEach((variant, i) => {
-      const arm = JSON.stringify(variant.filterGroups);
-      // the bucket's row-restriction is present in this arm (mapped to the DMS accessor)
-      expect(arm).toContain("data->>'tmc'");
-      expect(arm).toContain("120-50371");
-      expect(arm).toContain("120P05935");
-      // alongside the variant's own date delta
-      expect(arm).toContain(i === 0 ? "2026-06-01" : "2026-06-02");
-    });
-  });
-
-  // BC: with filter-to-buckets explicitly OFF (label-only buckets) the arms must NOT
-  // gain a tmc restriction — buckets only relabel, they don't filter.
-  it("filter-to-buckets OFF + fan-out: no bucket leaf added to arms", () => {
-    const input = seriesInput();
-    input.filters = null;
-    input.customBuckets = {
-      alias: "route_name",
-      sourceField: "tmc",
-      enabled: true,
-      filterToBuckets: false,
-      config: {
-        route_name: {
-          column: "tmc",
-          fallback: "Other",
-          groups: { my_route: ["120-50371"] },
-        },
-      },
-    };
-
-    const { options } = buildUdaConfig(input);
-    options.seriesVariants.forEach((variant) => {
-      expect(JSON.stringify(variant.filterGroups)).not.toContain("120-50371");
-    });
   });
 
   // ── Dynamic binding (Piece 3): comparisonSeries.config drives the fan-out ──

@@ -363,20 +363,15 @@ async function simpleFilter(ctx, options, attributes, indices) {
     fromClause = `${table_schema}.${table_name} ${hasJoin ? ' as ds ' : ''} ${joins}`;
   }
 
-  // Bucket aliases are already compiled into a vetted CASE expression
-  // (activeAliasGroups); only the bare column entries still need sanitizing.
-  // Passing the CASE through handleGroupBy()'s sanitizeName() would discard it
-  // whenever a label/value/fallback contains a SQL keyword token (e.g. a "Union"
-  // county value), dropping the SELECT's CASE column out of GROUP BY. Sanitize
-  // per-entry instead — mirrors simpleFilterLength.
+  // Sanitize each groupBy entry individually (mirrors simpleFilterLength).
   const groupByExprs = groupBy.map(g => sanitizeName(g)).filter(Boolean);
 
   // ── Comparison-series fan-out ───────────────────────────────────────────────
   // One UNION ALL arm per variant: the shared SELECT/FROM/GROUP BY built above,
   // but with each arm's own WHERE (from the variant's resolved filterGroups) and a
   // constant `'<label>' as "<seriesKey>"` discriminator column. The label is a
-  // string literal (single-quote-escaped, like custom-bucket labels) rather than a
-  // bind param so it needs no placeholder slot; it is constant per arm, so it never
+  // single-quote-escaped string literal rather than a bind param so it needs no
+  // placeholder slot; it is constant per arm, so it never
   // needs to appear in GROUP BY. Placeholders are renumbered per arm by the running
   // param count and all arms share one flat `values` array. ORDER BY is intentionally
   // omitted across the union for v1 (charts sort client-side); LIMIT/OFFSET page the

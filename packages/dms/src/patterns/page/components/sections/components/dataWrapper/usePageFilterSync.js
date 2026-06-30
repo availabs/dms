@@ -72,8 +72,8 @@ export function usePageFilterSync({ state, setState, setReadyOnChange = false })
     // published list becomes the variants. This is the subscriber's runtime
     // implementation — and a *reload-driving* one: it resolves the list into
     // comparisonSeries.config, a useDataLoader fetchKey input, so a new publish
-    // refetches with the new fan-out (the custom-buckets "config field → fetchKey"
-    // pattern, NOT the inert visual hover_highlight path).
+    // refetches with the new fan-out (the "config field → fetchKey" pattern, NOT the
+    // inert visual hover_highlight path).
     //
     // config's *presence* marks dynamic mode for buildUdaConfig (config wins over the
     // static variants; an unresolved binding → config:[] → inactive). So when the
