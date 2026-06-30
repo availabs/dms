@@ -123,31 +123,38 @@ registerUploadRoutes(app);
 const { registerScheduleRoutes } = require('./dama/tasks/schedule-routes');
 registerScheduleRoutes(app);
 
-// Always log graph requests to console (summary line)
+// Log graph requests to console. Uses res.on('finish') so the parsed Falcor
+// context (set by falcor-express on req._falcorContext) is always available,
+// avoiding body-parser timing issues with URL-encoded POST bodies.
 app.use('/graph', (req, res, next) => {
-  const params = req.method === 'POST' ? req.body : req.query;
-  const method = (params?.method || 'unknown').toUpperCase();
-  let detail = '';
-  try {
-    if (params?.callPath) {
-      const cp = typeof params.callPath === 'string' ? JSON.parse(params.callPath) : params.callPath;
-      detail = Array.isArray(cp) ? cp.join('.') : String(cp);
-      if (params.arguments) {
-        const args = typeof params.arguments === 'string' ? JSON.parse(params.arguments) : params.arguments;
-        if (Array.isArray(args)) {
-          const preview = args.map(a => typeof a === 'string' ? a : typeof a === 'object' ? `{${Object.keys(a).slice(0,3).join(',')}}` : String(a));
-          detail += ` [${preview.join(', ')}]`;
+  res.on('finish', () => {
+    const ctx = req._falcorContext;
+    let method, detail = '';
+    try {
+      if (ctx?.method) {
+        method = ctx.method.toUpperCase();
+        if (ctx.callPath) {
+          const cp = Array.isArray(ctx.callPath) ? ctx.callPath : JSON.parse(ctx.callPath);
+          detail = cp.join('.');
+          if (ctx.arguments) {
+            const args = Array.isArray(ctx.arguments) ? ctx.arguments : JSON.parse(ctx.arguments);
+            const preview = args.map(a => typeof a === 'string' ? a : Array.isArray(a) ? `[${a.length}]` : typeof a === 'object' ? `{${Object.keys(a || {}).slice(0,3).join(',')}}` : String(a));
+            detail += ` [${preview.join(', ')}]`;
+          }
+        } else if (ctx.paths) {
+          const paths = Array.isArray(ctx.paths) ? ctx.paths : JSON.parse(ctx.paths);
+          detail = paths.slice(0, 3).map(p => Array.isArray(p) ? p.slice(0, 4).join('.') : String(p)).join(' | ');
+          if (paths.length > 3) detail += ` (+${paths.length - 3} more)`;
         }
+      } else {
+        // Fallback: falcor-express didn't parse the request (bad payload, preflight, etc.)
+        // Log HTTP method so GET vs POST unknowns are distinguishable.
+        const params = req.method === 'POST' ? req.body : req.query;
+        method = `${req.method}:${(params?.method || 'unknown').toUpperCase()}`;
       }
-    } else if (params?.paths) {
-      const paths = typeof params.paths === 'string' ? JSON.parse(params.paths) : params.paths;
-      if (Array.isArray(paths)) {
-        detail = paths.slice(0, 3).map(p => Array.isArray(p) ? p.slice(0, 4).join('.') : String(p)).join(' | ');
-        if (paths.length > 3) detail += ` (+${paths.length - 3} more)`;
-      }
-    }
-  } catch {}
-  console.log(`[graph] ${method} ${detail || '(no path info)'}`);
+    } catch {}
+    console.log(`[graph] ${method || 'UNKNOWN'} ${detail || '(no path info)'}`);
+  });
   next();
 });
 
