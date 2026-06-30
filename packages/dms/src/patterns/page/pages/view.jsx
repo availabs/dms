@@ -37,6 +37,7 @@ function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdat
 		setNewItem(draft => {
 			console.log("RESETTING ITEM, existing newItem::", JSON.parse(JSON.stringify(draft)))
 			draft = ({ ...draft, ...item })
+            return draft;
 		});
 
 
