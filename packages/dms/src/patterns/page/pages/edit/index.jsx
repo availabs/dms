@@ -1,4 +1,4 @@
-import React, {useEffect} from 'react';
+import React, {useEffect, useRef} from 'react';
 import { Link, Navigate, useNavigate, useLocation, useSearchParams} from "react-router";
 import {cloneDeep} from "lodash-es";
 import {useImmer} from "use-immer";
@@ -18,7 +18,7 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
 	const { pathname = '/edit', search } = useLocation();
 
 	const { theme: fullTheme, UI, getComponentTheme } = React.useContext(ThemeContext);
-	const {  Menu, baseUrl, user, patternFilters=[], isUserAuthed, authBaseUrl } = React.useContext(CMSContext) || {};
+	const {  Menu, baseUrl, user, patternFilters=[], isUserAuthed, authBaseUrl, API_HOST, app } = React.useContext(CMSContext) || {};
 	const dataItems = allDataItems.filter(d => !d.authPermissions || isUserAuthed(reqPermissions, d.authPermissions));
 
 	const [ pageState, setPageState ] = useImmer({ ...item, filters: mergeFilters(item.filters, patternFilters) });
@@ -122,6 +122,26 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
 		initNavigateUsingSearchParams({pageState, search, navigate, baseUrl, item})
 	}, [])
 
+	const pageAuthPermissions = getPageAuthPermissions(pageState?.authPermissions);
+	const isEditDenied = item?.id === 'no-access' ||
+		!isUserAuthed(reqPermissions) ||
+		(pageAuthPermissions && !isUserAuthed(reqPermissions, pageAuthPermissions));
+
+	const hasTrackedVisitRef = useRef(null);
+	useEffect(() => {
+		if (!item?.id || !app || !API_HOST || user?.isAuthenticating) return;
+		if (hasTrackedVisitRef.current === item.id) return;
+		const urlFilters = (pageState?.filters || []).filter(f => f.useSearchParams);
+		if (urlFilters.length && !search) return;
+		const action = isEditDenied ? 'denied' : 'edit';
+		fetch(`${API_HOST}/track/visit`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', Authorization: user?.token },
+			body: JSON.stringify({ app, pageId: item.id === 'no-access' ? null : item.id, url: window.location.href, action }),
+		}).catch(() => {});
+		hasTrackedVisitRef.current = item.id;
+	}, [item?.id, user?.isAuthenticating, search]);
+
 	const setActionParam = React.useCallback((key, value) => {
 		setPageState(draft => {
 			const existing = draft.filters.find(f => f.searchKey === key && f.type === 'action');
@@ -203,7 +223,6 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
 	}
 	if(!item) return <div>page does not exist.</div>;
 
-    const pageAuthPermissions = getPageAuthPermissions(pageState?.authPermissions);
 	if( !isUserAuthed(reqPermissions) || !isUserAuthed(reqPermissions, pageAuthPermissions) ){
 		if (user?.authed) {
 			return <Navigate to={`${baseUrl}/${item.url_slug}${search}`} />;

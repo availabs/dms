@@ -111,7 +111,12 @@ function ClickFilterControl() {
 
   const addMapping = () => {
     setClickFilterConfig((nextConfig) => {
-      nextConfig.mappings.push({ variable: "", field: "" });
+      nextConfig.mappings.push({
+        variable: "",
+        field: "",
+        useSearchParams: false,
+        redirectOnClick: false,
+      });
     });
   };
 
@@ -220,6 +225,15 @@ function ClickFilterControl() {
                       </div>
                     </label>
                   </FieldShell>
+                </div>
+
+                <div className="mt-3 flex items-center justify-between gap-3">
+                  <div className="text-sm text-slate-700">Redirect on click</div>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(mapping.redirectOnClick)}
+                    onChange={(e) => updateMapping(index, "redirectOnClick", e.target.checked)}
+                  />
                 </div>
               </div>
             );

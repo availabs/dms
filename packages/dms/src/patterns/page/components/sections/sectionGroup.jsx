@@ -85,7 +85,7 @@ export default function SectionGroup ({group, attributes, edit}) {
           onClick={e => e.stopPropagation()}
         >
           <button
-            className="absolute top-3 right-3 text-gray-400 hover:text-gray-700 z-10 text-xl leading-none"
+            className="sticky float-right top-3 right-3 text-gray-400 hover:text-gray-700 z-10 text-xl leading-none"
             onClick={() => clearActionParam(modalParamKey)}
           >✕</button>
           <SectionArrayComp

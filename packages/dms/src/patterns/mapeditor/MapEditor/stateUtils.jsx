@@ -349,6 +349,7 @@ const normalizeLayerClickFilterConfig = (config = {}) => {
       variable: mapping?.variable || "",
       field: mapping?.field || "",
       useSearchParams: Boolean(mapping?.useSearchParams),
+      redirectOnClick: Boolean(mapping?.redirectOnClick),
     })),
   };
 };

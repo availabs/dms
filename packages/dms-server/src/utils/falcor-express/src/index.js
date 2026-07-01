@@ -24,6 +24,7 @@ FalcorEndpoint.dataSourceRoute = function(getDataSource) {
             return res.status(500).json({ error: 'No data source available' });
         }
         var context = requestToContext(req);
+        req._falcorContext = context; // for request logger
         // probably this should be sanity check function?
         if (Object.keys(context).length === 0) {
             return res.status(500).json({ error: "Request not supported" });

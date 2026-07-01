@@ -25,11 +25,16 @@ const { createController } = require('../src/routes/dms/dms.controller');
 const udaRoutes = require('../src/routes/uda/uda.route');
 const { awaitReady } = require('../src/db/index');
 
+// Default mock user for tests — prevents auth guards from blocking test operations.
+// Pass { user: null } explicitly to createTestGraph to test unauthenticated behavior.
+const DEFAULT_TEST_USER = { id: 1, email: 'test@test.com', groups: ['admin'] };
+
 /**
  * Create a test graph with configurable database
  * @param {string} dbName - Database config name (e.g., 'dms-sqlite')
  * @param {Object} options - Router options
- * @param {Object} options.user - User object for authenticated routes
+ * @param {Object} options.user - User object for authenticated routes (defaults to mock admin)
+ * @param {Object} options.reqMeta - Request metadata for audit log (defaults to test values)
  * @returns {Object} Test graph with get, set, call methods
  */
 function createTestGraph(dbName = 'dms-sqlite', options = {}) {
@@ -41,10 +46,18 @@ function createTestGraph(dbName = 'dms-sqlite', options = {}) {
 
   const BaseRouter = Router.createClass(routes);
 
+  // Use the provided user if explicitly set (even if null); otherwise default to mock admin.
+  const user = options.hasOwnProperty('user') ? options.user : DEFAULT_TEST_USER;
+
   class TestRouter extends BaseRouter {
     constructor(config) {
       super({ maxPaths: 4000000 });
-      this.user = config.user || null;
+      this.user = user;
+      this.reqMeta = config.reqMeta || {
+        ip: '127.0.0.1',
+        userAgent: 'test-harness',
+        authState: user ? 'authenticated' : 'unauthenticated',
+      };
     }
   }
 

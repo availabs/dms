@@ -21,7 +21,7 @@ function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdat
     const { search, pathname } = useLocation()
     const pdfRef = useRef(); // To capture the section of the page to be converted to PDF
     const {theme: fullTheme, UI, getComponentTheme} = useContext(ThemeContext);
-    const { Menu, baseUrl, patternFilters = [], isUserAuthed = () => true, authPermissions, user, authBaseUrl } = React.useContext(CMSContext) || {};
+    const { Menu, baseUrl, patternFilters = [], isUserAuthed = () => true, authPermissions, user, authBaseUrl, API_HOST, app } = React.useContext(CMSContext) || {};
     const dataItems = allDataItems.filter(d => !d.authPermissions || isUserAuthed(reqPermissions, d.authPermissions));
 
     const [pageState, setPageState] = useImmer({
@@ -31,9 +31,28 @@ function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdat
     const {Layout} = UI;
     let theme = mergeTheme(fullTheme, item?.theme || {})
 
-    if( !isUserAuthed(reqPermissions || []) ||
-        (pageState?.authPermissions && !isUserAuthed(reqPermissions, pageState.authPermissions))
-    ){
+    const isViewDenied = !isUserAuthed(reqPermissions || []) ||
+        (pageState?.authPermissions && !isUserAuthed(reqPermissions, pageState.authPermissions));
+
+    const hasTrackedVisitRef = useRef(null);
+    useEffect(() => {
+      if (!item?.id || !app || !API_HOST || user?.isAuthenticating) return;
+      if (hasTrackedVisitRef.current === item.id) return;
+      // If this page has URL-bound filters and search params haven't been set yet,
+      // initNavigateUsingSearchParams will navigate() on this same render cycle.
+      // Skip and wait for the re-render after the URL is updated.
+      const urlFilters = (pageState?.filters || []).filter(f => f.useSearchParams);
+      if (urlFilters.length && !search) return;
+      const action = item.id === 'no-access' || isViewDenied ? 'denied' : 'view';
+      fetch(`${API_HOST}/track/visit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: user?.token },
+        body: JSON.stringify({ app, pageId: item.id === 'no-access' ? null : item.id, url: window.location.href, action }),
+      }).catch(() => {});
+      hasTrackedVisitRef.current = item.id;
+    }, [item?.id, user?.isAuthenticating, search]);
+
+    if(isViewDenied){
         if (user?.isAuthenticating) return null;
         if (!user?.authed) {
             return <Navigate to={`${authBaseUrl}/login`} state={{ from: pathname + search }} replace />;
