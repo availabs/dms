@@ -37,7 +37,13 @@ export default function SectionGroup ({group, attributes, edit}) {
   const contentBands = groupSource
       .filter(g => (g?.position || 'content') === 'content')
       .sort((a, b) => (a?.index ?? 0) - (b?.index ?? 0))
-  const railGroupName = sectionSource.find(s => s?.navLabel)?.group || contentBands[0]?.name || 'default'
+  // A band may opt in explicitly as the rail host (`railHost: true`) — this wins over
+  // the navLabel/first-content-band heuristics, letting pages whose first content band
+  // is a header/breadcrumb (not the main content) anchor the rail on the right band.
+  const railGroupName = groupSource.find(g => g?.railHost)?.name
+      || sectionSource.find(s => s?.navLabel)?.group
+      || contentBands[0]?.name
+      || 'default'
   const showRail = Boolean(item?.sidebar && group.name === railGroupName)
   // The sidebar group (rail content): its sections render in the rail below the nav.
   // position:'sidebar' keeps it out of the top/content/bottom band renders. New pages

@@ -557,6 +557,13 @@ recreate. (Don't try to clean up the orphans; there's no working delete.)
 For new section types, see [`creating-page-section-components.md`](./creating-page-section-components.md).
 For Card configuration depth, see [`card-layout.md`](./card-layout.md).
 
+**Matching a design's spacing.** A Card's default grid spreads cells across equal fractions, so a
+transcribed header/meta row reads far airier than the mockup. To reproduce a design's tight spacing,
+drive `cellsTracksTemplate` (content-width `max-content` tracks + a trailing `1fr`), `cellsPadding: 0`,
+and a small `cellsGridGap` — see the **"Tight inline meta / header row"** recipe in
+[`card-layout.md`](./card-layout.md#recipes). When the layoutGroup band already provides the surface
+(e.g. a `header` band), give the section a bare extra (`{}`, no `bg`/`border`) so you don't double-box.
+
 ### 5.4 Lexical content — the minimum viable JSON
 
 The Lexical editor stores its state as a node tree under

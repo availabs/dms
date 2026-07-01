@@ -273,7 +273,10 @@ const CompWrapper = ({
                       updateItem, liveEdit, tmpItem, setTmpItem, allowEdit, formatFunctions,
                       isNewItem, newItem, setNewItem, // when allowAddNewItem is on
                   }) => {
-    const editMode = allowEdit || (isNewItem && setNewItem && !tmpItem.id);
+    // `static` columns are chrome (a fixed staticValue, e.g. an eyebrow/label) with nothing to
+    // edit — never put them in edit mode, so they don't render an EditComp or the edit-mode
+    // `border` outline inside an allowEditInView card.
+    const editMode = (allowEdit || (isNewItem && setNewItem && !tmpItem.id)) && attribute.origin !== 'static';
     const compIdEdit = `${attribute.name}-${id}`;
     const Comp = ColumnTypes[attribute.type]?.[editMode ? 'EditComp' : 'ViewComp'] || DefaultComp;
     // Strip the column's data `key` field before spreading — otherwise React reads
@@ -876,7 +879,7 @@ export default function Card ({
 
     const {
         cardsGridSize, cardsGridGap, cardsPadding, cardsBgColor,
-        cellsGridSize, cellsGridGap, cellsRowHeight, cellsPadding,
+        cellsGridSize, cellsGridGap, cellsRowGap, cellsColumnGap, cellsRowHeight, cellsPadding,
         cellsTracksTemplate,
         cardBorder, cellBorder,
         allowAdddNew,
@@ -969,6 +972,11 @@ export default function Card ({
         display: 'grid',
         gridTemplateColumns,
         gap: cellsGridGap,
+        // `gap` sets row + column gap together; cellsRowGap / cellsColumnGap override one axis
+        // independently (e.g. tighten the vertical rhythm without squishing a packed meta row). BC:
+        // unset → fall through to the single `gap`.
+        ...(cellsRowGap != null && cellsRowGap !== '' ? { rowGap: cellsRowGap } : {}),
+        ...(cellsColumnGap != null && cellsColumnGap !== '' ? { columnGap: cellsColumnGap } : {}),
         backgroundColor: cardsBgColor,
         padding: cardsPadding,
         // Pack cells to the top. When the card box is taller than its cells (a
@@ -979,7 +987,7 @@ export default function Card ({
         alignContent: 'start',
         ...(cellsRowHeight ? { gridAutoRows: `${cellsRowHeight}px` } :
             hasRowSpan ? { gridAutoRows: 'minmax(0, auto)' } : {}),
-    }), [gridTemplateColumns, cellsGridGap, cardsBgColor, cardsPadding, cellsRowHeight, hasRowSpan]);
+    }), [gridTemplateColumns, cellsGridGap, cellsRowGap, cellsColumnGap, cardsBgColor, cardsPadding, cellsRowHeight, hasRowSpan]);
 
     // Reordering function
     function handleDrop(targetCol) {

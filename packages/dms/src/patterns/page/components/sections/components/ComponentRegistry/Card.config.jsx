@@ -158,6 +158,12 @@ const buildInHeader = (fontStyleOptions) => [
             .map(name => ({ label: name, value: name })),
         displayCdn: ({ isEdit }) => isEdit
     },
+    // Column-type style: forwarded to the columnType as its `activeStyle`, selecting a
+    // named style from that type's theme (e.g. a `multiselect` "field" / "compact" style
+    // for a select cell). Free text so any theme style name works; blank = the type's
+    // default style. Flows via `{...attributeProps}` in Card.jsx / TableCell.jsx.
+    { type: 'input', label: 'Column Type Style', key: 'activeStyle', isBatchUpdatable: true,
+        displayCdn: ({ isEdit }) => isEdit },
 
     // display
     { type: 'select', label: 'Justify', key: 'justify', isBatchUpdatable: true,
@@ -444,6 +450,10 @@ const buildControls = (theme) => ({
             { label: 'Cells Grid', items: [
                     { type: 'input', inputType: 'number', label: 'Cells Across', key: 'cellsGridSize' },
                     { type: 'input', inputType: 'number', label: 'Gap', key: 'cellsGridGap' },
+                    // Per-axis gap overrides (win over the single Gap) — tighten the vertical rhythm
+                    // without squishing a packed row, or vice-versa.
+                    { type: 'input', inputType: 'number', label: 'Row Gap', key: 'cellsRowGap' },
+                    { type: 'input', inputType: 'number', label: 'Col Gap', key: 'cellsColumnGap' },
                     { type: 'input', inputType: 'number', label: 'Row Height', key: 'cellsRowHeight' },
                     { type: 'input', inputType: 'number', label: 'Cell Padding', key: 'cellsPadding' },
                     { type: 'toggle', label: 'Cell Border', key: 'cellBorder' },
