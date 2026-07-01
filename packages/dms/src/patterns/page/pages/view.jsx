@@ -47,7 +47,7 @@ function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdat
       fetch(`${API_HOST}/track/visit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: user?.token },
-        body: JSON.stringify({ app, pageId: item.id === 'no-access' ? null : item.id, url: pathname + search, action }),
+        body: JSON.stringify({ app, pageId: item.id === 'no-access' ? null : item.id, url: window.location.href, action }),
       }).catch(() => {});
       hasTrackedVisitRef.current = item.id;
     }, [item?.id, user?.isAuthenticating, search]);
