@@ -263,6 +263,18 @@ const cmsPageFormat = {
       type: "json",
       hidden: true
     },
+    // report routes (a "report" is a page created from the Report Page template;
+    // the report's routes live here instead of a separate report data row)
+    {
+      key: 'routes',
+      type: 'json',
+      hidden: true
+    },
+    {
+      key: 'draft_routes',
+      type: 'json',
+      hidden: true
+    },
     // status
     {
       key: 'published',

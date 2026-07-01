@@ -156,6 +156,7 @@ export const publish = async (user, item, apiUpdate) => {
 
   newItem.section_groups = cloneDeep(item.draft_section_groups)
   newItem.dataSources = cloneDeep(item.draft_dataSources)
+  newItem.routes = cloneDeep(item.draft_routes)
   console.log('publishing item', newItem)
   apiUpdate({data:newItem})
 
@@ -177,6 +178,7 @@ export const discardChanges = async (user,item, apiUpdate) => {
       return sectionCopy;
   });
   newItem.draft_section_groups = newItem.section_groups;
+  newItem.draft_routes = item.routes;
   apiUpdate({data:newItem})
 
 }

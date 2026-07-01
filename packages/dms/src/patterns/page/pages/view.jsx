@@ -28,20 +28,6 @@ function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdat
       ...item,
       filters: mergeFilters(item?.filters, patternFilters)
     });
-    const [ newItem, setNewItem ] = useImmer({ ...item});
-
-    useEffect(() => {
-        // console.log("RESETTING ITEM")
-        // setNewItem(draft => ({ ...draft, ...item }));
-
-		setNewItem(draft => {
-			console.log("RESETTING ITEM, existing newItem::", JSON.parse(JSON.stringify(draft)))
-			draft = ({ ...draft, ...item })
-            return draft;
-		});
-
-
-    }, [item])
     const {Layout} = UI;
     let theme = mergeTheme(fullTheme, item?.theme || {})
 
@@ -163,7 +149,7 @@ function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdat
     }
 
   const getSectionGroups =  ( sectionName ) => {
-    return (newItem?.section_groups || [])
+    return (item?.section_groups || [])
       .filter((g,i) => g.position === sectionName)
       .sort((a,b) => a?.index - b?.index)
       .map((group,i) => (
@@ -193,7 +179,7 @@ function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdat
   return (
       <DataSourceContext.Provider value={dataSourceActions}>
       <PageContext.Provider
-        value={{ item: newItem, setItem: setNewItem, pageState, setPageState, updatePageStateFilters, setActionParam, clearActionParam, dataItems, apiLoad, apiUpdate, format, busy, baseUrl }}
+        value={{ item, pageState, setPageState, updatePageStateFilters, setActionParam, clearActionParam, dataItems, apiLoad, apiUpdate, format, busy, baseUrl }}
       >
         <ThemeContext.Provider value={{theme, UI, getComponentTheme}}>
           <Layout

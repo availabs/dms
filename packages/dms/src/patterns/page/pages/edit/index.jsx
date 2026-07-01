@@ -23,20 +23,9 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
 	const dataItems = allDataItems.filter(d => !d.authPermissions || isUserAuthed(reqPermissions, d.authPermissions));
 
 	const [ pageState, setPageState ] = useImmer({ ...item, filters: mergeFilters(item.filters, patternFilters) });
-	const [ newItem, setNewItem ] = useImmer({ ...item});
 	const [ editPane, setEditPane ] = React.useState({ open: false, index: 1, showGrid: false });
 	const [ draftDataSources, setDraftDataSources ] = useImmer(item.draft_dataSources || {});
 
-	useEffect(() => {
-
-		setNewItem(draft => {
-			console.log("RESETTING ITEM, existing newItem::", JSON.parse(JSON.stringify(draft)))
-			draft = ({ ...draft, ...item })
-			return draft;
-		});
-	}, [item])
-
-console.log({item, newItem})
 	const dataSourceActions = React.useMemo(() => ({
 		dataSources: draftDataSources,
 
@@ -213,7 +202,7 @@ console.log({item, newItem})
 
 
 	const getSectionGroups =  ( sectionName ) => {
-		return (newItem?.draft_section_groups || [])
+		return (item?.draft_section_groups || [])
 			.filter((g,i) => g.position === sectionName)
 			.sort((a,b) => a?.index - b?.index)
 			.map((group,i) => (
@@ -246,9 +235,7 @@ console.log({item, newItem})
 	return (
 		<DataSourceContext.Provider value={dataSourceActions}>
 		<PageContext.Provider value={{
-			//item,
-			item: newItem,
-			setItem: setNewItem,
+			item,
 			pageState,
 			setPageState,
 			updatePageStateFilters,
@@ -260,7 +247,15 @@ console.log({item, newItem})
 			editPane, setEditPane,
 			format,
 			busy,
-      baseUrl
+      baseUrl,
+      // Page-level edit mode — true for the whole /edit/... route, independent of any
+      // individual section's own `isEdit` prop (which only means "this section's own
+      // settings editor is open" — a per-component flag from dataWrapper's Edit/View,
+      // almost never true in normal interactive use). A component that needs to know
+      // whichever sections array (`draft_sections` vs `sections`) its siblings are
+      // actually rendering from right now must key off this, not its own `isEdit`
+      // prop. Absent (falsy) on view.jsx's PageContext.
+      editPageMode: true
 		}}>
 			<ThemeContext.Provider value={{theme, UI, getComponentTheme}}>
 				<PageControls />
@@ -268,10 +263,10 @@ console.log({item, newItem})
               navItems={menuItems}
               resolveNav={resolveNav}
               secondNav={menuItemsSecondNav}
-              headerChildren={React.useMemo(() => getSectionGroups('top'),[newItem?.draft_section_groups])}
-              footerChildren={React.useMemo(() => getSectionGroups('bottom'),[newItem?.draft_section_groups])}
+              headerChildren={React.useMemo(() => getSectionGroups('top'),[item?.draft_section_groups])}
+              footerChildren={React.useMemo(() => getSectionGroups('bottom'),[item?.draft_section_groups])}
           >
-            {React.useMemo(() => getSectionGroups('content'),[newItem?.draft_section_groups])}
+            {React.useMemo(() => getSectionGroups('content'),[item?.draft_section_groups])}
         </Layout>
 			</ThemeContext.Provider>
 		</PageContext.Provider>

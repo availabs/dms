@@ -18,9 +18,9 @@ import { useEffect, useContext } from "react";
 import { isEqual, get } from "lodash-es";
 import { PageContext } from "../../../../context";
 import { isGroup } from "../../ComplexFilters";
-import { resolveComparisonVariants } from "./buildUdaConfig";
+import { resolveComparisonVariants, SELF_PARAM_KEY_SENTINEL, selfParamKey } from "./buildUdaConfig";
 
-export function usePageFilterSync({ state, setState, setReadyOnChange = false }) {
+export function usePageFilterSync({ state, setState, setReadyOnChange = false, sectionId }) {
     const { pageState } = useContext(PageContext) || {};
 
     useEffect(() => {
@@ -86,7 +86,13 @@ export function usePageFilterSync({ state, setState, setReadyOnChange = false })
             (s) => s.functionId === "comparison_series" && s.enabled
         );
 
-        if (!sub?.paramKey) {
+        // A subscriber may carry the `$self` sentinel instead of an author-typed literal —
+        // it resolves to a key private to this section (derived from its own sectionId)
+        // rather than a page-wide key someone has to type/copy. See `selfParamKey`.
+        const effectiveParamKey =
+            sub?.paramKey === SELF_PARAM_KEY_SENTINEL ? selfParamKey(sectionId) : sub?.paramKey;
+
+        if (!effectiveParamKey) {
             if (cs.config !== undefined) {
                 setState((draft) => { delete draft.comparisonSeries.config; });
             }
@@ -96,7 +102,7 @@ export function usePageFilterSync({ state, setState, setReadyOnChange = false })
         const pageFilters = (pageState?.filters || []).reduce(
             (acc, curr) => ({ ...acc, [curr.searchKey]: curr.values }), {}
         );
-        const resolved = resolveComparisonVariants(sub.args, pageFilters[sub.paramKey]);
+        const resolved = resolveComparisonVariants(sub.args, pageFilters[effectiveParamKey]);
 
         // isEqual guard is load-bearing: this effect depends on state.comparisonSeries
         // and writes to it, so it re-runs — the guard stops the cycle once stable.
@@ -104,5 +110,5 @@ export function usePageFilterSync({ state, setState, setReadyOnChange = false })
         if (!isEqual(cs.config, resolved)) {
             setState((draft) => { draft.comparisonSeries.config = resolved; });
         }
-    }, [pageState?.filters, state?.comparisonSeries, state?.display?._functions]);
+    }, [pageState?.filters, state?.comparisonSeries, state?.display?._functions, sectionId]);
 }

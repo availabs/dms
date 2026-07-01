@@ -92,6 +92,14 @@ export function useDataLoader({ state, setState, apiLoad, component, isEditMode 
     state.data?.length && (state.externalSource?.source_id || state.externalSource?.isDms) ? computeFetchKey(state) : null
   );
   const outputSourceInfoRef = useRef(null);
+  // Generation counter shared by the main load effect and onPageChange — both
+  // write draft.data. Two fetches can be in flight at once (e.g. an unfiltered
+  // request fired before a page filter/comparison-series binding resolves,
+  // superseded moments later by the correctly-scoped request) and network
+  // responses can resolve out of order. Only the response matching the most
+  // recently issued request is ever applied; a stale, slower response is
+  // discarded instead of clobbering fresher data.
+  const requestIdRef = useRef(0);
 
   // ─── Local filters (client-side slicing) ───────────────────────────────────
 
@@ -235,6 +243,7 @@ export function useDataLoader({ state, setState, apiLoad, component, isEditMode 
       if (!bypassDedup && fetchKey === lastFetchKeyRef.current) return;
 
       async function load() {
+        const requestId = ++requestIdRef.current;
         setLoading(true);
         try {
           const { length, data, invalidState, outputSourceInfo } = await getData({
@@ -244,6 +253,9 @@ export function useDataLoader({ state, setState, apiLoad, component, isEditMode 
             keepOriginalValues: component.keepOriginalValues,
             optionsOnly: component.optionsOnly,
           });
+
+          // A newer request has since been issued — discard this stale response.
+          if (requestId !== requestIdRef.current) return;
 
           lastFetchKeyRef.current = fetchKey;
           setCurrentPage(0);
@@ -259,7 +271,7 @@ export function useDataLoader({ state, setState, apiLoad, component, isEditMode 
         } catch (e) {
           console.error("useDataLoader: fetch error", e);
         } finally {
-          setLoading(false);
+          if (requestId === requestIdRef.current) setLoading(false);
         }
       }
 
@@ -284,6 +296,7 @@ export function useDataLoader({ state, setState, apiLoad, component, isEditMode 
       const hasMore = page * state.display.pageSize - state.display.totalLength <= 0;
       if (!hasMore) return;
 
+      const requestId = ++requestIdRef.current;
       setLoading(true);
       try {
         const { length, data } = await getData({
@@ -294,6 +307,10 @@ export function useDataLoader({ state, setState, apiLoad, component, isEditMode 
           optionsOnly: component.optionsOnly,
         });
 
+        // A newer request (page change or filter-driven refetch) has since
+        // been issued — discard this stale response.
+        if (requestId !== requestIdRef.current) return;
+
         setCurrentPage(page);
         setState((draft) => {
           draft.data = state.display.usePagination
@@ -302,7 +319,7 @@ export function useDataLoader({ state, setState, apiLoad, component, isEditMode 
           draft.display.totalLength = length;
         });
       } finally {
-        setLoading(false);
+        if (requestId === requestIdRef.current) setLoading(false);
       }
     },
     [

@@ -287,6 +287,7 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
                     pageFormat={format}
                     compKey={key}
                     onHandle={setDwHandle}
+                    sectionId={value?.id}
                 />
             </div>
             {/* ------------------- Delete Modal ----------------------*/}
@@ -388,6 +389,7 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
                 component={component}
                 editPageMode={editPageMode}
                 onHandle={setDwHandle}
+                sectionId={value?.id}
             />
         )
     }, [value, resolvedElementData, hideSection, refreshDataBtnRef, component, value?.element?.['element-type']]);
