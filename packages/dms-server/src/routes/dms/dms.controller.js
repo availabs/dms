@@ -216,13 +216,14 @@ function createController(dbName = 'dms-sqlite', options = {}) {
    * Append to change_log and notify sync subscribers.
    * Called after each mutation (create/update/delete) to data_items.
    */
-  async function appendChangeLog(itemId, app, type, action, data, userId) {
+  async function appendChangeLog(itemId, app, type, action, data, userId, reqMeta) {
     const tbl = dbType === 'postgres' ? 'dms.change_log' : 'change_log';
     const rows = await dms_db.promise(
-      `INSERT INTO ${tbl} (item_id, app, type, action, data, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO ${tbl} (item_id, app, type, action, data, created_by, ip, user_agent, auth_state)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING revision;`,
-      [itemId, app, type, action, action === 'D' ? null : data, userId]
+      [itemId, app, type, action, action === 'D' ? null : data, userId,
+       reqMeta?.ip || null, reqMeta?.userAgent || null, reqMeta?.authState || null]
     );
     const revision = rows[0]?.revision;
     if (_notifyChange) {
@@ -685,7 +686,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
       return dms_db.promise(sql, arrayResult.values);
     },
 
-    setDataById: async (id, data, user, app = null, type = null) => {
+    setDataById: async (id, data, user, app = null, type = null, reqMeta = null) => {
       // When type is provided, resolve the split table (for dataset row updates).
       // Otherwise fall back to the main table.
       let table;
@@ -714,7 +715,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
         const rows = await dms_db.promise(sql, [data, userId, id]);
         if (rows[0]) {
           const item = rows[0];
-          await appendChangeLog(item.id, item.app, item.type, 'U', item.data, userId);
+          await appendChangeLog(item.id, item.app, item.type, 'U', item.data, userId, reqMeta);
         }
         await dms_db.commitTransaction();
         _tagsCache.clear();
@@ -763,7 +764,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
       )
     },
 
-    setTypeById: async (id, type, user, app = null) => {
+    setTypeById: async (id, type, user, app = null, reqMeta = null) => {
       // When app is provided, resolve per-app table; otherwise data_items (legacy)
       const table = app ? await mainTable(app) : tableName('data_items');
       const userId = get(user, "id", null);
@@ -783,7 +784,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
         const rows = await dms_db.promise(sql, [type, userId, id]);
         if (rows[0]) {
           const item = rows[0];
-          await appendChangeLog(item.id, item.app, item.type, 'U', item.data, userId);
+          await appendChangeLog(item.id, item.app, item.type, 'U', item.data, userId, reqMeta);
         }
         await dms_db.commitTransaction();
         return rows;
@@ -827,7 +828,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
           }, [])
       ).then(res => [].concat(...res)),
 
-    createData: async (args, user) => {
+    createData: async (args, user, reqMeta = null) => {
       const [app, type, data = {}] = args;
       const resolved = await ensureForWrite(app, type);
       const userId = get(user, "id", null);
@@ -879,7 +880,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
         }
 
         const item = rows[0];
-        await appendChangeLog(item.id, item.app, item.type, 'I', item.data, userId);
+        await appendChangeLog(item.id, item.app, item.type, 'I', item.data, userId, reqMeta);
         await dms_db.commitTransaction();
         _tagsCache.clear();
         // When a new source is created, evict any stale cache entry so the next
@@ -895,7 +896,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
       }
     },
 
-    deleteData: async (app, type, ids, user) => {
+    deleteData: async (app, type, ids, user, reqMeta = null) => {
       const resolved = await ensureForRead(app, type);
       const userId = get(user, "id", null);
 
@@ -910,7 +911,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
 
         // Log each deleted ID
         for (const id of ids) {
-          await appendChangeLog(id, app, type, 'D', null, userId);
+          await appendChangeLog(id, app, type, 'D', null, userId, reqMeta);
         }
 
         await dms_db.commitTransaction();

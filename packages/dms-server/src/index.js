@@ -123,6 +123,28 @@ registerUploadRoutes(app);
 const { registerScheduleRoutes } = require('./dama/tasks/schedule-routes');
 registerScheduleRoutes(app);
 
+// Page visit tracking — fire-and-forget from the client on every page navigation.
+// No auth required; user_id extracted from JWT if present.
+app.post('/track/visit', async (req, res) => {
+  try {
+    const { app: visitApp, pageId, url, action } = req.body || {};
+    if (!visitApp) return res.status(400).json({ error: 'app is required' });
+    const userId = req.availAuthContext?.user?.id || null;
+    const { getDb } = require('./db');
+    const db = getDb(process.env.DMS_DB_ENV || 'dms-sqlite');
+    const tbl = db.type === 'postgres' ? 'dms.page_visits' : 'page_visits';
+    await db.promise(
+      `INSERT INTO ${tbl} (app, page_id, url, action, ip, user_agent, user_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [visitApp, pageId || null, url || null, action || null, req.clientIp || null, req.headers['user-agent'] || null, userId]
+    );
+    res.status(204).end();
+  } catch (e) {
+    console.error('[track/visit]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // Log graph requests to console. Uses res.on('finish') so the parsed Falcor
 // context (set by falcor-express on req._falcorContext) is always available,
 // avoiding body-parser timing issues with URL-encoded POST bodies.
@@ -177,7 +199,12 @@ app.use(
     try {
       const { user = null } = req.availAuthContext || {};
       const subdomain = getSubdomain(req);
-      return falcorRoutes({ user, subdomain });
+      const reqMeta = {
+        ip: req.clientIp || null,
+        userAgent: req.headers['user-agent'] || null,
+        authState: user ? 'authenticated' : 'unauthenticated',
+      };
+      return falcorRoutes({ user, subdomain, reqMeta });
     } catch (e) {
       console.error('[graph] Error creating data source:', e);
       throw e;
