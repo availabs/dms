@@ -547,6 +547,7 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
                     }
 
                     if (layerType === "categories") {
+                        const effectiveViewId = joinOptions?.viewId ?? viewId;
                         const options = JSON.stringify({
                             groupBy: [dataColumn.split("AS ")[0]],
                             exclude: { [dataColumn.split("AS ")[0]]: ["null"] },
@@ -555,7 +556,7 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
                         });
 
                         const response = await falcor.get([
-                            "uda", pgEnv, "viewsById", viewId, "options", options,
+                            "uda", pgEnv, "viewsById", effectiveViewId, "options", options,
                             "dataByIndex", { from: 0, to: 100 }, [dataColumn, "count(1)::int as count"]
                         ]);
 
@@ -563,7 +564,7 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
 
                         const filteredData = get(
                             response,
-                            ["json", "uda", pgEnv, "viewsById", viewId, "options", options, "dataByIndex"],
+                            ["json", "uda", pgEnv, "viewsById", effectiveViewId, "options", options, "dataByIndex"],
                             []
                         );
                         const nextLegendData = getCategoryLegendFromFilteredData(layer, filteredData);

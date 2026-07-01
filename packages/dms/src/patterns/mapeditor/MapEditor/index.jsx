@@ -1104,9 +1104,15 @@ const MapEditor = props => {
 
   React.useEffect(() => {
     if(baseDataColumn && layerType === 'categories' && !isActiveLayerPlugin) {
+      const colKey = (baseDataColumn).split('AS ')[0].trim();
+      const joinConfig = activeLayer?.join ?? activeLayer?.['linked-data'] ?? null;
+      const joinViewId = joinConfig?.source?.viewId ?? null;
+      const joinTileColumns = new Set(Array.isArray(joinConfig?.tileColumns) ? joinConfig.tileColumns : []);
+      const effectiveViewId = joinViewId && joinTileColumns.has(colKey) ? joinViewId : viewId;
+
       const optionsObject = {
-        groupBy: [(baseDataColumn).split('AS ')[0]],
-        exclude: {[(baseDataColumn).split('AS ')[0]]: ['null']},
+        groupBy: [colKey],
+        exclude: {[colKey]: ['null']},
         orderBy: {"2": 'desc'}
       };
       /**
@@ -1123,16 +1129,22 @@ const MapEditor = props => {
       }
       const options = JSON.stringify(optionsObject)
       falcor.get([
-        'uda', pgEnv, 'viewsById', viewId, 'options', options, 'dataByIndex', { from: 0, to: 100 }, [baseDataColumn, 'count(1)::int as count']
+        'uda', pgEnv, 'viewsById', effectiveViewId, 'options', options, 'dataByIndex', { from: 0, to: 100 }, [baseDataColumn, 'count(1)::int as count']
       ])
     }
-  },[baseDataColumn, layerType, viewId, isActiveLayerPlugin, filter, existingDynamicFilter, filterMode])
+  },[baseDataColumn, layerType, viewId, activeLayer, isActiveLayerPlugin, filter, existingDynamicFilter, filterMode])
 
   React.useEffect(() => {
     if(baseDataColumn && layerType === 'categories' && !isActiveLayerPlugin) {
+      const colKey = (baseDataColumn).split('AS ')[0].trim();
+      const joinConfig = activeLayer?.join ?? activeLayer?.['linked-data'] ?? null;
+      const joinViewId = joinConfig?.source?.viewId ?? null;
+      const joinTileColumns = new Set(Array.isArray(joinConfig?.tileColumns) ? joinConfig.tileColumns : []);
+      const effectiveViewId = joinViewId && joinTileColumns.has(colKey) ? joinViewId : viewId;
+
       const optionsObject = {
-        groupBy: [(baseDataColumn).split('AS ')[0]],
-        exclude: {[(baseDataColumn).split('AS ')[0]]: ['null']},
+        groupBy: [colKey],
+        exclude: {[colKey]: ['null']},
         orderBy: {"2": 'desc'}
       };
       /**
@@ -1149,13 +1161,13 @@ const MapEditor = props => {
       }
       const options = JSON.stringify(optionsObject)
       let data = get(falcorCache, [
-        'uda', pgEnv, 'viewsById', viewId, 'options', options, 'dataByIndex'
+        'uda', pgEnv, 'viewsById', effectiveViewId, 'options', options, 'dataByIndex'
       ], {})
       setState(draft => {
         set(draft, `${pathBase}['category-data']`, data)
       })
     }
-  }, [baseDataColumn, layerType, viewId, falcorCache, isActiveLayerPlugin, filter, existingDynamicFilter, filterMode]);
+  }, [baseDataColumn, layerType, viewId, activeLayer, falcorCache, isActiveLayerPlugin, filter, existingDynamicFilter, filterMode]);
 
   const SymbologyContextValue = React.useMemo(() => {
     return { state, setState, symbologies, params: props.params };

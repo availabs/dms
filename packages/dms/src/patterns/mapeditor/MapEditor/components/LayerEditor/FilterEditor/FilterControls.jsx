@@ -433,18 +433,21 @@ function EqualityFilterValueList({params, path, filterSearchValue}) {
   const { falcor, falcorCache } = useFalcor();
   const { state, setState } = React.useContext(SymbologyContext);
   const {activeColumn: activeColumnName, setActiveColumn} = params;
-  const { viewId, sourceId } = useMemo(
-    () => ({
-      viewId: get(
-        state,
-        `symbology.layers[${state.symbology.activeLayer}].view_id`
-      ),
-      sourceId: get(
-        state,
-        `symbology.layers[${state.symbology.activeLayer}].source_id`
-      ),
-    }),
-    [state]
+  const { viewId, sourceId, effectiveViewId } = useMemo(
+    () => {
+      const layerBase = `symbology.layers[${state.symbology.activeLayer}]`;
+      const geoViewId = get(state, `${layerBase}.view_id`);
+      const joinConfig = get(state, `${layerBase}.join`) ?? get(state, `${layerBase}['linked-data']`, null);
+      const joinViewId = joinConfig?.source?.viewId ?? null;
+      const joinTileColumns = new Set(Array.isArray(joinConfig?.tileColumns) ? joinConfig.tileColumns : []);
+      const colKey = (activeColumnName || '').split('AS ')[0].trim();
+      return {
+        viewId: geoViewId,
+        sourceId: get(state, `${layerBase}.source_id`),
+        effectiveViewId: joinViewId && joinTileColumns.has(colKey) ? joinViewId : geoViewId,
+      };
+    },
+    [state, activeColumnName]
   );
 
   useEffect(() => {
@@ -464,24 +467,24 @@ function EqualityFilterValueList({params, path, filterSearchValue}) {
       "uda",
       pgEnv,
       "viewsById",
-      viewId,
+      effectiveViewId,
       "options",
       options,
       "dataByIndex",
       { from: 0, to: 500 },
       [activeColumnName, "count(1)::int as count"],
     ]);
-  }, [falcor, pgEnv, viewId, activeColumnName]);
+  }, [falcor, pgEnv, effectiveViewId, activeColumnName]);
 
   const sampleData = useMemo(() => {
     return Object.values(
       get(
         falcorCache,
-        ["uda", pgEnv, "viewsById", viewId, "options", options, "dataByIndex"],
+        ["uda", pgEnv, "viewsById", effectiveViewId, "options", options, "dataByIndex"],
         {}
       )
     );
-  }, [pgEnv, falcorCache]);
+  }, [pgEnv, falcorCache, effectiveViewId]);
 
   const sampleRows = useMemo(() => {
     return sampleData
