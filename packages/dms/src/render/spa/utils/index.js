@@ -23,6 +23,11 @@ export const getSubdomain = (host) => {
     const isLocalhost = hostname === 'localhost' || hostname.endsWith('.localhost')
     const minParts = isLocalhost || process.env.NODE_ENV === "development" ? 2 : 3
     const parts = hostname.split('.')
+    // A real domain's rightmost label (TLD) can never be all-digits (ICANN
+    // disallows fully-numeric TLDs for exactly this reason), but a bare
+    // IPv4 host's last octet always is — e.g. "74.50.76.166" would
+    // otherwise be misread as subdomain "74". Bail out before that happens.
+    if (/^\d+$/.test(parts[parts.length - 1])) return false
     return parts.length >= minParts ? parts[0].toLowerCase() : false
 }
 

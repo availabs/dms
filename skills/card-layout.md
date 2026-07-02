@@ -45,6 +45,13 @@ padding:             cardsPadding
 backgroundColor:     cardsBgColor
 ```
 
+**Per-axis gap overrides.** `gap: cellsGridGap` sets the row gap *and* column gap together — so you
+can't tighten the vertical rhythm (e.g. the space above/below a big title) without also squishing a
+packed meta row. Two optional keys decouple it: **`cellsRowGap`** sets only the row gap, **`cellsColumnGap`**
+only the column gap; each wins over `cellsGridGap` for its axis (BC: unset → fall through to `cellsGridGap`).
+Note this is *gap*, not padding — `cellsPadding: 0` removes inner cell padding but leaves the inter-row gap
+untouched, so "vertical padding 0" alone won't close the space between rows; lower `cellsRowGap` for that.
+
 Two things to internalize from those lines:
 
 1. **`cardsPadding` and `cardsBgColor` are applied to the *inner* (cells) wrapper**, not the outer. That's because each *record-card* needs the surface; the *cards grid* itself is just spacing between records.
@@ -167,10 +174,36 @@ The padding precedence is **side-specific > `cellPadding` > `cellsPadding`** —
 | `justify`            | `'left' | 'right' | 'center' | 'full'`. Maps to `theme.justifyText*` classes. `'full'` splits header to left, value to right. |
 | `headerFontStyle`    | Class lookup into `theme.textSettings.styles[0]`. Any key there is legal (`textXS`, `textMD`, `text3XL`, `h1`–`h6`, `body`, `caption`, …). |
 | `valueFontStyle`     | Same lookup, for the value. Defaults to `textXS` if unset. |
-| `headerValueLayout`  | (display-level, applies to all cells) `'row'` (default) or `'col'`. `row` = header inline left of value; `col` = stacked. |
+| `activeStyle`        | (toolbar: **Column Type Style**) Picks a *named style* from the **columnType's own theme** for this cell — forwarded as the columnType's `activeStyle`. E.g. a `select`/`status_pill` cell can use the `multiselect` theme's `"field"` (prominent control) or `"compact"` style. Blank = the type's default style. Flows via `{...attributeProps}` in both Card.jsx and TableCell.jsx, so it works in Card sections and Spreadsheets. (Note: `headerValueLayout`'s `row` needs the dataCard theme's `itemFlexRow` to carry a `flex-row` direction — transportny's bakes `flex-row!` so it wins over the wrapper's default `flex-col`.) |
+| `headerValueLayout`  | (display-level; toolbar: **Value Placement** under *Default Column Settings*) `'row'` (Inline, default) or `'col'` (Stacked). `row` = header inline left of value; `col` = stacked. **Two gotchas for `row`:** (1) it needs the `dataCard` theme's `itemFlexRow`/`itemFlexCol` — if a site's `dataCard` omits them (transportny did until 2026-06-30) `row` silently falls back to the wrapper's `flex-col` and everything stacks; the transportny fix uses `flex-row!`. (2) the default `dataCard` `header`/`value` classes carry **asymmetric vertical padding** (header `pt-3 pb-1`, value `pb-3`) tuned for *stacked* cells — in a `row` that offsets the label vs value text even with `items-center`. Fix by picking a `cardStyle` whose `header`/`value` use symmetric/horizontal-only padding (transportny's **`rowaligned`** style: `header:"px-3"`, `value:"px-3"`). |
 | `reverse`            | (display-level) When `headerValueLayout: 'col'`, swap order so value sits above header. |
 | `headerWidth`        | (display-level) Percentage of cell width used by header in `row` layout. Default 50. |
 | `valueWidth`         | (display-level) Percentage for value in `row` layout. Default 50. |
+| `cellVAlign` / `cellsVAlign` | **Vertical alignment of a cell within its grid row** → CSS `align-self` (`cellVAlign` per-column wins; `cellsVAlign` is the display-level default). Values: `'top'`\|`'center'`\|`'bottom'`\|`'baseline'`. Cells default to top, so when one cell in a row is **short** (a `data_bar`, a pill) and its neighbors are **tall** (a `col`-layout label-above-value stat), the short one floats at the top and looks misaligned. Put the short + tall cells on one row and set `cellsVAlign:'center'` to line them up. (This is the fix for "a bar/short cell sits above the values next to it".) |
+
+### Static columns (labels, eyebrows, chrome) — `origin: 'static'`
+
+A column with `origin: 'static'` reads no row data; it renders its `staticValue` as the cell value.
+Use it to place **static chrome inside the card** — an eyebrow (`// page qa`), a section label, a
+separator — so it shares the card's cell spacing (`cellsPadding`, `cellsGridGap`, `cellsTracksTemplate`,
+`cellSpan`) instead of living in a separate lexical section that sits in the band's own `gap` (which is
+why a lexical eyebrow above a card "takes up too much space"). Style it with `valueFontStyle` like any
+text cell:
+
+```js
+// a gold eyebrow as the card's first cell (full-width row, tight under the card's gap)
+{ name: 'eyebrow', origin: 'static', staticValue: '// page QA',
+  valueFontStyle: 'kicker', show: true, hideHeader: true, cellSpan: 6 },
+```
+
+Folding a label/eyebrow into the card this way puts it under the same spacing controls as the data cells
+(pair with the tight-meta recipe). A `static` column is **always read-only even inside an
+`allowEditInView` card** (it's chrome, not data — `Card.jsx` excludes `origin:'static'` from edit
+mode), so it won't render an EditComp or the edit-mode `border` outline (which is `currentColor` — it
+showed as a gold box on a `kicker` eyebrow before this fix). **Caveat:** in some configurations
+`origin:'static'` can trip the length query ("Error getting length") and blank the card — it's safe
+mixed with normal data columns (as in the header eyebrow above), but if a card blanks, swap the static
+cell for a **SQL-literal calculated column** instead (see the KPI traps under the value-driven column types).
 
 ### Image columns
 
@@ -255,7 +288,7 @@ reads only its own `value` and is configured via column attributes:
 
 | `type`        | Renders | Key attributes |
 |---------------|---------|----------------|
-| `status_pill` | the value as a colored `UI.Pill` (good/bad/warn/na) | `pillColors` (map `value → pill style`); else keyword heuristics (meets/above → good, below/miss/fail → bad). Themeable via `theme.pill`. |
+| `status_pill` | the value as a colored `UI.Pill` (good/bad/warn/na); **editable** — add `allowEditInView: true` and it stays a pill in view but becomes a single-select dropdown when the cell is edited (options come from an explicit `options` array, else the `pillColors` keys), persisting a clean string | `pillColors` (map `value → pill style`); else keyword heuristics (meets/above → good, below/miss/fail → bad). Themeable via `theme.pill`. |
 | `delta`       | signed arrow + value, colored, + "vs <year-1>" suffix | `deltaGoodDirection` (`up`\|`down` — which sign is green), `deltaYearField` (row col with the period year → "vs Y-1"), `deltaSuffix` (static). Theme key `delta`. |
 | `target_bar`  | progress bar + target marker + "≥/≤ target" caption | `targetValue` (or `targetColumn`), `barMin`/`barMax` (range scale — ratio metrics like TTTR use `1.0`/`2.2`), `barDirection`, `barUnit`. Theme key `targetBar`. |
 | `stat_value`  | KPI figure with inline prefix + smaller muted unit on one baseline ("$6.2 billion", "310.9 M veh-hrs", "80 %") | `prefix` (figure-size, e.g. `$`), `unit` (suffix), `valueFontStyle` (figure token, e.g. `statXL`), `unitFontStyle` (unit token; defaults to theme `statValue.unit`, ~40% size muted). Use this instead of jamming the unit into the column header/label. |
@@ -375,6 +408,99 @@ A column type's `ViewComp` receives (`CompWrapper` in `Card.jsx` ~318):
 If you're writing a card config by hand (e.g., via the CLI), **use the new keys**. The migration is one-way and runs once.
 
 ## Recipes
+
+### Tight inline meta / header row — pack cells to content (match a design's spacing)
+
+The default `repeat(N, minmax(0,1fr))` track makes every cell an equal fraction, so short values
+(a surface pill, a route, a date) float in wide cells and read as "airy" / "too many columns"
+versus a design's editorial header. To pack cells tight-left — `HOME` + `TSMO` + `/home` + badges +
+owner + date on one line, like the mockup — drive three knobs together:
+
+- **`cellsTracksTemplate`** = `(N−1) × max-content` + a trailing `minmax(0,1fr)` spacer. Cells size
+  to their content (not a fraction) and pack left; the 1fr spacer eats the slack and lets you
+  right-align the last cell with `justify: 'right'`.
+- **`cellsPadding: 0`** — kill the inner cell padding that creates the airy gaps.
+- small **`cellsGridGap`** (8–10) — the only inter-cell rhythm left.
+
+Each meta field gets `cellSpan: 1`, `hideHeader: true`, and a compact `valueFontStyle` (`metaMD`,
+pills). They flow onto one row, each content-width.
+
+```js
+columns: [
+  col('name', '',  { valueFontStyle: 'displayLG', hideHeader: true, cellSpan: 5 }),   // big title (cols 1-5)
+  pcol('stage','', STAGE_PILL, { hideHeader: true, cellSpan: 1, justify: 'right' }),  // right, in the 1fr track
+  col('description','', { valueFontStyle: 'prose', hideHeader: true, cellSpan: 6 }),  // full-width row 2
+  pcol('surface_label','', SURFACE_PILL, { hideHeader: true }),                       // meta row 3, packed left
+  col('route','',  { valueFontStyle: 'metaMD', hideHeader: true }),
+  pcol('build','', BUILD_PILL, { hideHeader: true }),
+  pcol('data','',  DATA_PILL,  { hideHeader: true }),
+  col('owner','',  { valueFontStyle: 'metaMD', hideHeader: true }),
+  col('updated','',{ valueFontStyle: 'metaMD', hideHeader: true }),
+],
+display: {
+  cellsGridSize: 6, cellsGridGap: 10, cellsPadding: 0,
+  cellsTracksTemplate: 'max-content max-content max-content max-content max-content minmax(0,1fr)',
+  cardBorder: false,
+}
+```
+
+Caveats: keep the big title cell **spanning most** of the max-content tracks (`cellSpan: N−1`) so its
+content-width distributes across them rather than fighting the meta (see "max-content + spanning steals
+width" above). When the layoutGroup band already provides the surface (e.g. a `header`/white band), give
+the section a bare extra (`{}` — no `bg`/`border`) so you don't double-box a card on the band. Per-edge
+nudges via `cellPadding*`. This is the canonical way to reproduce a design's spacing from these settings.
+
+### Composed card — fused header + flush table/body (mockup "panel" look)
+
+To make a section header + its data section read as ONE card (a title with a divider, then the
+table/rows below — the classic mockup panel), exploit the **`gap-0` band grid**: adjacent sections
+share an edge, so spacing/borders live on the sections, not a gutter. Stack two sections:
+
+- **Header section** (a `lexical` title, or a Card of static cells): all four borders + top radius.
+  Its **bottom border is the divider**.
+- **Body section** (`Card` or `Spreadsheet`): left/right/bottom borders + bottom radius, no top border,
+  so it butts flush under the divider.
+
+> ### ⚠ THE RULE FOR ANY MULTI-SECTION (fused) CARD — read this before building one
+> On a `gap-0` band, **each section's `defaultPaddingStep` gutter sits OUTSIDE its border**, so it
+> renders as a gray **gap between the boxes** — the sections do NOT fuse by default. To fuse N stacked
+> sections into one card you must **zero every _interior_ edge**:
+> - **First** section: keep its natural **top**, set `padding.bottom:'0'`.
+> - **Every MIDDLE** section: set `padding:{ top:'0', bottom:'0' }` — **BOTH**. (Forgetting `bottom` on
+>   a middle section is the #1 cause of "there's still a gap" — a 2-section recipe hides this because a
+>   2-stack has no middle.)
+> - **Last** section: set `padding.top:'0'` (add `bottom:'0'` too only if you want it flush at the very
+>   bottom; otherwise its natural bottom is the space to whatever follows).
+>
+> This applies to EVERY page — it is not per-page tuning. Copy the `cardTop/cardMid/cardBot` triplet
+> below verbatim and it's correct by construction; add a `bottom` border to each section that should
+> show a **divider** line before the next.
+
+```js
+// Canonical fused-stack section styles. Reuse these; do not re-derive per page.
+const cardTop = { bg:'white', border:{ top:true, left:true, right:true, bottom:true }, radius:{ tl:true, tr:true }, padding:{ bottom:'0' } };
+const cardMid = { bg:'white', border:{ left:true, right:true, bottom:true },                                        padding:{ top:'0', bottom:'0' } }; // ← BOTH edges 0
+const cardBot = { bg:'white', border:{ left:true, right:true, bottom:true }, radius:{ bl:true, br:true },           padding:{ top:'0' } };
+// stack: cardTop → cardMid (×N, one per middle section) → cardBot. Each section's bottom border = the
+// divider before the next. A 2-section card is just cardTop → cardBot (no cardMid).
+```
+
+For a **Spreadsheet** body, also set `display.tableStyle:'flush'` — the `flush` table style keeps the
+`report` cell/header treatment but drops the table's own container border/rounding/shadow, so the
+section's compound card is the only frame (otherwise you double-box: a card inside a card). For a
+**Card** body, set `cardBorder:false` so per-record cards don't add their own boxes.
+
+Spreadsheet column widths: give the fixed columns (ids, pills, dates) an explicit `size` (px) and
+the **one flexible text column `stretch: true`** (size becomes its *minimum* → `minmax(size,1fr)`) so
+the grid **fills the card** instead of leaving slack on the right; keep `autoResize:false` (auto-resize
+makes ALL columns *equal*, which you don't want). Add `wrapText:true` on long-text columns (titles,
+user stories) so they wrap instead of truncating. Lay out **text-left, pills-right** by ordering the
+text/stretch column first and the fixed pill columns last with `justify:'right'`.
+
+Editable status pills: a `status_pill` column with `allowEditInView:true` stays a pill in view and
+becomes a single-select **on click** that *also renders pills* (the trigger and every menu row) — so
+the pill look is preserved while editing. Scope editing per-column (don't set `display.allowEditInView`)
+so only the status is editable, not the text columns.
 
 ### "Now-playing" card on a 12-col grid (data cells + slim chrome column)
 
