@@ -161,6 +161,9 @@ function PatternEdit({
 		const isLocalhost = hostname === 'localhost' || hostname.endsWith('.localhost');
 		const minParts = isLocalhost ? 2 : 3;
 		const parts = hostname.split('.');
+		// Bare IPv4 host (e.g. 1.2.3.4) would otherwise misread its last octet
+		// as a subdomain; real TLDs are never all-digits.
+		if (/^\d+$/.test(parts[parts.length - 1])) return '';
 		return parts.length >= minParts ? parts[0] : '';
 	})();
 	const attrToAddNew = ['pattern_type', 'name', ...(tenantSub ? [] : ['subdomain']), 'base_url', 'filters', 'authPermissions'];
@@ -197,7 +200,9 @@ function PatternEdit({
 			const isLocalhost = hostname === 'localhost' || hostname.endsWith('.localhost');
 			const minParts = isLocalhost ? 2 : 3;
 			const parts = hostname.split('.');
-			const tenantSub = parts.length >= minParts ? parts[0] : '';
+			// Bare IPv4 host (e.g. 1.2.3.4) would otherwise misread its last octet
+			// as a subdomain; real TLDs are never all-digits.
+			const tenantSub = /^\d+$/.test(parts[parts.length - 1]) ? '' : (parts.length >= minParts ? parts[0] : '');
 			if (tenantSub && !data.subdomain) data.subdomain = tenantSub;
 		}
 
