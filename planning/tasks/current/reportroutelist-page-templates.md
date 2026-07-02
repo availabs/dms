@@ -1,6 +1,20 @@
 # ReportRouteList → Page Templates + native graph sections
 
-## Status: MOSTLY DONE (implemented 2026-06-30, infinite-render bug found+fixed same day) — one cleanup step deferred, live UI verify pending
+## Status: IN PROGRESS (2026-07-02) — round 4 storage rework implemented (code + Report Page template re-wired via CLI), NOT live-verified in a browser. See [Storage rework round 4](#storage-rework-round-4-2026-07-02-two-sectionmenu-bindings-via-the-incomplete-join-cheat-no-grain-change) for the design and what's still needed (live click-through — no browser/Playwright tool was available this session).
+
+## Status (historical, pre-2026-07-02): MOSTLY DONE (implemented 2026-06-30, infinite-render bug found+fixed same day) — one cleanup step deferred, live UI verify pending
+
+**2026-07-01 update — routes storage reworked twice, current state NOT live-verified.** The
+`routes`/`draft_routes` **page attribute** described below was removed from DMS-core (that part is
+solid — pure deletions, confirmed by syntax check). What replaced it went through two attempts:
+1. Storage inside `ReportRouteList`'s own section `element-data` — implemented, then a user live-test
+   found it broken (routes added then silently disappearing).
+2. Storage in a dedicated row of the existing `reports_snap_2` dataset (1:1 per report page) — the
+   current state. **This has not been exercised against a running app/browser.**
+
+See [Storage rework, round 2](#storage-rework-round-2-2026-07-01-element-data-was-broken-moved-to-a-reports_snap_2-row)
+for the bug, root cause, and current design. Step 3 below ("DMS-core: routes as a page attribute") is
+historical context, superseded.
 
 Code changes (ReportRouteList refactor, `routes`/`draft_routes` attribute, `newItem`/`setItem` fork
 removal) are complete. The "Report Page template" deliverable shipped as a **DB-backed page template**
@@ -163,7 +177,7 @@ Add a template object (mirror `src/dms/.../ui/pageTemplates.js` shape) and regis
 
 Group `name` must not be `top`/`content`/`bottom` (reserved — see page-templates.md).
 
-### 3. DMS-core: routes as a page attribute — DONE
+### 3. DMS-core: routes as a page attribute — DONE, then SUPERSEDED (see 2026-07-01 update above)
 
 - `src/dms/packages/dms/src/patterns/page/page.format.js` — add to `cmsPageFormat.attributes`,
   mirroring `sections`/`draft_sections`:
@@ -773,6 +787,231 @@ revert blindly.
   `usePageFilterSync` resolves at runtime (confirmed via a temporary debug log, since removed).
 - Zero console errors, zero infinite-loop symptoms across all of the above.
 
+## Storage rework: routes off the Page as a first-class attribute (2026-07-01)
+
+**Status: SUPERSEDED — the `element-data` approach below was found broken (routes silently
+disappearing) and replaced. See [Storage rework, round 2: `element-data` was broken, moved to a
+`reports_snap_2` row](#storage-rework-round-2-2026-07-01-element-data-was-broken-moved-to-a-reports_snap_2-row)
+for the bug and the current (also not yet live-verified) design.** The DMS-core deletions below
+(page.format.js/editFunctions.jsx/siteConfig.jsx) are still in effect and unaffected by round 2 — only
+the theme-side storage location changed again.
+
+The `routes`/`draft_routes` page attribute (added in the "3. DMS-core: routes as a
+page attribute" step above) was flagged by the user as a repo-convention violation: it's a property
+relevant to exactly one theme component (`ReportRouteList`), baked directly into DMS-core
+(`page.format.js`'s `cmsPageFormat.attributes`, `editFunctions.jsx`'s `publish()`/`discardChanges()`
+promotion, `siteConfig.jsx`'s view-route attribute filter) — not a generalizable concept any other
+pattern/theme needs. Asked to rework so `routes` is no longer first-class on `Page`, still DB-backed,
+**ideally with zero DMS-core code changes**.
+
+**Investigation (two research agents):** confirmed no existing generic "extra page attribute" or
+"draft-pair" registration mechanism exists in DMS-core today — every draft/publish-promoted page
+field (`sections`, `section_groups`, `dataSources`, and the now-removed `routes`) is hardcoded by name
+in `editFunctions.jsx`. Building one (a declarative `draftPairs` list) was considered and rejected —
+it would still be a DMS-core change to unlock a feature only one theme uses, just a more generic
+version of the same category of change.
+
+**What shipped instead:** routes now live inside **`ReportRouteList`'s own section row** —
+`element['element-data'].routes` — the same generic, schema-free per-component JSON blob every
+`dataWrapper` component already stores its own settings in (`join`, `externalSource`,
+`comparisonSeries`, ...). Reading it needs zero new code: `state` (`ComponentContext`) already *is*
+this section's own parsed `element-data`, and — because `ReportRouteList` is an ordinary page section
+— it already gets draft-vs-published separation for free from the page's existing generic
+`draft_sections`/`sections` mechanism, with no `isEdit`-driven key needed for *reading*.
+
+Persisting is the one genuinely new piece, but it reuses an existing pattern rather than inventing
+one: there is no write path from a `SectionView`-rendered component (what this panel always is in
+normal use) back to its own row — `dataWrapper`'s `onChange` save-effect only fires from the
+settings-editor `Edit` path, which this panel's interactive editing never goes through. So
+`persistRoutes` does exactly what page-level mutations already do elsewhere (reorder, add/remove
+component, a settings-editor save): clone the whole `sections`/`draft_sections` array, patch *this
+section's own entry* (matched by `sectionId`, threaded into `ComponentContext` by the earlier
+per-graph-routing work), and `apiUpdate` the page row with the patched array. `dmsDataEditor`'s
+`dms-format` array-upsert updates each entry by id, so only the one changed row is actually written.
+
+**DMS-core changes: deletions only, no new surface.**
+- `page.format.js` — removed the `routes`/`draft_routes` attribute pair.
+- `editFunctions.jsx` — removed `newItem.routes = cloneDeep(item.draft_routes)` from `publish()` and
+  `newItem.draft_routes = item.routes` from `discardChanges()`.
+- `siteConfig.jsx` — removed `'routes'` from the view-route's `filter.attributes` list.
+
+**Theme-side changes (all the new logic):** `ReportRouteList.jsx` — added `sectionId` to its
+`ComponentContext` destructure; `routes` now reads `state?.routes` instead of
+`item?.[routesKey]`; `routesKey` removed entirely; `persistRoutes` rewritten to patch-and-rewrite the
+`sections`/`draft_sections` array (keyed by the existing `sectionsKey`) instead of writing a page
+attribute. `README.md` and `src/themes/CLAUDE.md` updated to describe the new storage model.
+
+**Migration of existing dev-DB data:** `page_10` and `report_demo` still have populated
+`routes`/`draft_routes` page attributes from before this change — now unread, harmless orphaned JSON.
+User confirmed (2026-07-01) skipping migration is fine ("it doesnt harm anything... i can delete the
+pages later") — consistent with this branch's standing "nothing deployed, rough intermediate states
+are fine" policy. Not migrated.
+
+**Not yet live-verified:** this session made the change via static analysis + syntax checks
+(`esbuild` on all four touched files) only — no dev server / browser click-through. This turned out to
+matter: see round 2 below, where the user actually tried it and it was broken.
+
+## Storage rework, round 2 (2026-07-01): `element-data` was broken, moved to a `reports_snap_2` row
+
+**Status: implemented, NOT live-verified.** Don't trust this without confirming live first.
+
+**Bug report:** user created a new report page (`page_12`) from the template, added a route — it
+briefly appeared, then disappeared. Same symptom reproduced on the pre-existing `page_10`. No console
+error. User pointed at `components/dataWrapper/index.jsx`'s `toSave` object (~line 284, the settings-
+editor "Save effect") as a likely culprit.
+
+**Root cause, confirmed by direct code read (not just agent-reported):** `dataWrapper`'s `Edit`
+component's save effect rebuilds the whole `element-data` string from a **hardcoded allowlist**
+(`externalSource, columns, filters, display, data, join`, plus `dataSourceId`/`pivot`/
+`comparisonSeries` if present) every time `state` changes, whenever this section happens to render
+through its `Edit` (settings-editor) path rather than plain `SectionView`. `routes` was not in that
+allowlist, so any time the effect fired — including from causes unrelated to routes, e.g.
+`ReportRouteList`'s own pre-existing `routesViewId`-resolution effect calling `setState` — it silently
+serialized `element-data` **without** `routes`, overwriting the correct value moments after
+`persistRoutes` had written it. `schema.js`'s docstring already flags this exact class of bug once
+before (it happened to `join`). Two research agents were used to trace the exact trigger conditions
+(`sectionArray.jsx`'s `edit.index` default, `migrateToV2`'s key-preservation behavior) — their
+specific claims about *when* Edit-mode triggers were not fully consistent with each other and were not
+independently confirmed against a live page; the *mechanism* (the `toSave` allowlist drops unknown
+keys whenever it fires) was confirmed directly from the source, and is sufficient on its own to explain
+the symptom regardless of the exact trigger.
+
+**Options considered:**
+1. Generalize `dataWrapper`'s `toSave` to spread `state` and strip only known-runtime fields, instead
+   of allowlisting known-persisted fields. Fixes the bug class for everyone, but touches a shared file
+   every `dataWrapper` component on every site goes through — higher blast radius.
+2. Add a new generic free-form JSON attribute to `cmsSection` (`page.format.js`) for custom per-section
+   data. New DMS-core schema, doesn't fix the underlying save-effect gap for the next person who hits it.
+3. **(chosen, per user)** Store routes in a real DMS `:data` row instead of `element-data` — bypasses
+   the save effect entirely, since split-table rows don't go through it. User specifically suggested
+   reusing the existing `reports_snap_2` dataset (the one the pre-refactor model used) rather than
+   provisioning a new one.
+
+**What shipped:** `ReportRouteList.jsx` now manages its own load/persist against `reports_snap_2`,
+independent of `state`/`element-data`/the page's `routes` attribute (removed in round 1, still gone):
+- `REPORTS_SOURCE` — a hardcoded constant (app `npmrdsv5`, source id `2177438`, view id `2177440`,
+  columns from the dataset's real `config.attributes`, inspected live via the DMS CLI this session:
+  `dms raw get 2177438`, `dms dataset show/views reports_snap_2` — `dms dataset dump`/`query` are
+  broken by the pre-existing per-app-Postgres `raw list` bug documented in `cli/docs/TYPES.md`, so
+  sample row content could not be inspected, only the schema).
+- `loadReportRow()` — queries by `report_id = String(item.id)` using the same `buildUdaConfig`+
+  `apiLoad`+UDA-action pattern `fetchDynamicRoute` already uses for the route catalog, just against
+  `reports_snap_2` instead. Sets local `reportRow` state (`{id, routes}` or `{id:null, routes:[]}` if
+  none exists yet).
+- `persistRoutes()` — `apiUpdate`s that one row directly (`report_id`, `routes` as a JSON string,
+  matching the dataset's declared `text` column type), omitting `id` to create on first write,
+  including it to update thereafter. Local `reportRow` state updated optimistically after each write.
+- Every route-mutating handler (`addRoute`/`removeRoute`/`reorderRoutes`/`updateRoute`/
+  `toggleRouteGraph`/the orphan-cleanup effect) gated on `reportRow` being loaded, and the render shows
+  a loading state until it is.
+- `sectionId`/`element-data`-patching code from round 1 removed; `sectionsKey`/`sectionList`/
+  `findSelfBoundGraphs` (sibling-graph discovery, unrelated to routes storage) untouched.
+
+**Design note — `join` vs `externalSource`:** the original design considered reusing `join.sources` for
+this (since it looked unused), but inspecting a real section's captured `element-data` live
+(`dms section dump 2187289`) showed `externalSource` — not `join.sources` — is what
+`ReportRouteList` actually uses for the route-catalog binding (`join.sources` is empty; the README had
+this wrong from the original plan text and was corrected this session). `join` was ruled out anyway
+since it's specifically the SQL-join-with-primary-source mechanism (`mergeStrategy`/`joinColumns`) —
+using it as a bare independent lookup slot risked triggering an actual join query. `REPORTS_SOURCE` is
+therefore fully self-contained in `ReportRouteList.jsx`, touching neither `externalSource` nor `join`.
+
+**Verification status: NONE.** This was implemented via code reading + an `esbuild` syntax check only.
+Specifically NOT confirmed: that `buildUdaConfig`'s `data->>'report_id'` filter actually matches rows
+in `reports_snap_2` (the dataset's rows were never inspected — `dataset dump`/`query` returned
+`total:1530, items:[]` due to the known CLI bug, and no row id was found another way to spot-check
+directly via `raw get`); that `apiUpdate` with a hand-built `REPORTS_SOURCE`-derived format actually
+creates/updates rows correctly against the real server; and the full add/remove/reorder/toggle/publish
+flow, in a browser, on both a fresh and an existing report page. **Do the live click-through before
+trusting this.**
+
+**Migration:** `page_10`/`report_demo`'s old `routes`/`draft_routes` page-attribute data (from round 1,
+itself superseding pre-existing rows) is still sitting unread in those page rows — not migrated into
+`reports_snap_2`, per user ("it doesnt harm anything... i can delete the pages later").
+
+## Storage rework round 3 (2026-07-02): investigation only, PAUSED — user needs to rethink the design
+
+**Status: PAUSED, no code changed this round.** User live-tested round 2's `reports_snap_2`-row
+design on `page_12`: adding a route briefly appears then is gone after a refresh — same "flash and
+disappear" symptom class as round 1/2's bugs, root cause not yet isolated this round (see "Not yet
+diagnosed" below — investigation went straight to an architecture question the user flagged instead).
+
+**User's diagnosis (the actual trigger for this round):** `REPORTS_SOURCE` (the hardcoded
+`app:'npmrdsv5', source_id:2177438, view_id:2177440, columns:[...]` constant in `ReportRouteList.jsx`,
+introduced in round 2) is a repo-convention violation independent of whether it's the specific cause
+of the page_12 symptom: **the dataset a component reads/writes should be picked by the author via the
+section's settings-menu "Dataset" picker (`state.externalSource`, sectionMenu-driven) — "just like a
+spreadsheet" — not baked into component code.** This is the same principle `src/themes/CLAUDE.md` and
+root `CLAUDE.md` already state generally (author empowerment: config over code); the user is pointing
+out `ReportRouteList` violates it for its storage binding specifically. Per the user, this can then be
+**pre-wired via the Report Page template** so an author creating a new report never has to manually
+configure it — same as how the template already pre-wires the starter graph's subscriber.
+
+**The architectural conflict this surfaced:** `ReportRouteList` needs **two** independent dataset
+bindings today:
+1. **Route catalog** — the pool of candidate routes `fetchDynamicRoute()` resolves an `add_route_id`
+   against (README calls it the `npmrds_sub` "Routes Data" source). Currently bound to
+   `state.externalSource` (the one sectionMenu Dataset-picker slot every `useDataWrapper` component
+   gets).
+2. **Report storage** — where this report's own chosen routes persist (`reports_snap_2` today, via
+   the hardcoded `REPORTS_SOURCE`).
+
+A `useDataWrapper` component only has **one** primary sectionMenu-configurable dataset slot
+(`externalSource`). Making storage sectionMenu-configurable via that slot (as the user wants) means the
+route catalog binding needs a different home — and there is no clean second slot:
+
+- **`state.join.sources.table1`** (the other dataset-like slot dataWrapper exposes) was investigated
+  directly against the source (`buildUdaConfig.js`, `getData.js`, `sectionMenu.jsx`,
+  `useDataSource.js`). Findings, confirmed by direct code read, not inferred:
+  - The component's own automatic background fetch (`getData`, runs on mount/page-change regardless of
+    whether the component uses its result — `ReportRouteList` already ignores it) **always** reads
+    `state.join` and sends it to the server as a real SQL JOIN merged with `externalSource` whenever
+    `isJoinComplete()` says it's configured. There's no flag to opt a component out of this.
+  - `isJoinComplete()` (`buildUdaConfig.js`) requires **source + view + merge strategy**, and — for the
+    default `"join"` strategy — **explicit ON-column pairs** before the slot counts as configured at
+    all. `sectionMenu.jsx`'s "Add Join Source" UI (lines ~453–601) walks the author through all of
+    that; there's no way to use it as a bare "just pick a second dataset" slot.
+  - No component in `ComponentRegistry/` reads `join.sources.table1` for its own independent lookup
+    today — this would be new, untested-in-this-pattern machinery.
+  - Net: usable, but forces an author through irrelevant join-specific configuration (merge
+    strategy, join columns) to do something that isn't a join. Poor fit.
+
+**Options weighed with the user (none chosen yet):**
+1. *Swap roles, zero DMS-core changes* — `externalSource` becomes the **storage** binding (fixes the
+   reported violation directly); the route catalog binding becomes a new hardcoded constant (mirroring
+   today's `REPORTS_SOURCE` shape). Simplest, but the user did not sign off on re-hardcoding the catalog
+   binding — it swaps which one is inflexible rather than fixing the general problem.
+2. *Add a real second, non-join source slot to `sectionMenu.jsx`* (DMS-core enrichment) — keeps both
+   bindings independently sectionMenu-configurable at once. More correct per the author-empowerment
+   principle, reusable by future components, but a new shared-code surface, unvalidated.
+3. **User's actual direction (2026-07-02), superseding 1 and 2:** *"I want the route catalog and
+   storage for each report's routes to live in the same table."* This wasn't explored before the user
+   paused the session to rethink — it implies collapsing the two bindings into **one** sectionMenu
+   `externalSource`, with catalog = the dataset's full/unfiltered rows and storage = some report-scoped
+   subset/tag on rows in that *same* dataset. Concretely unresolved:
+   - Which table: `reports_snap_2` (today one row **per report**, a JSON blob `routes` column — would
+     need to change grain to one row **per route** tagged by `report_id` to work as a catalog) vs. the
+     existing "Routes Data" catalog source (abandon `reports_snap_2`, tag/write `report_id` directly
+     onto rows of the catalog dataset instead).
+   - If it's one-row-per-route: does a route belong to exactly one report, or can one catalog route be
+     reused across multiple reports (single `report_id` column vs. a multi-report membership list)?
+   - This is a **grain change**, not a rewiring — `reports_snap_2`'s current columns
+     (`report_id, name, description, route_comps, graph_comps, station_comps, color_range, ...`) look
+     like per-report metadata, not per-route rows, so if this table is the target, its usage pattern
+     changes materially, not just its access path.
+
+**Not yet diagnosed this round:** the actual page_12 "route flashes then disappears on refresh"
+mechanism under round 2's current code (hardcoded `REPORTS_SOURCE`, `loadReportRow`/`persistRoutes` as
+shipped). The session went straight to the architecture question above once the user flagged the
+hardcoding as wrong-on-principle; whether round 2's `reports_snap_2`-row approach also has an
+independent bug (bad filter match, id churn between load and persist, etc.) is still open and should be
+checked once the storage-model question above is resolved — don't assume fixing the hardcoding alone
+will fix the disappearing-route symptom.
+
+**Session paused here at the user's request** ("please document your analysis/finding and stop for
+now, i need to rethink a few things") — no code changed. Next session should start by reading this
+section, then get the storage-model question answered before writing any code.
+
 **New open item, not yet resolved:** while investigating, section row ids were observed to change
 across `apiUpdate` calls in ways not yet fully understood (e.g. `page_10`'s published graph section
 was `2187292` in one check, `2187388` shortly after, with no explicit publish action taken in
@@ -784,3 +1023,157 @@ protect against a section's id silently changing while remaining conceptually "t
 that's the same gap already flagged as deferred ("re-add reattachment... needing some stable
 identity"). Worth a focused investigation in its own right if per-graph routing sees real use;
 out of scope to chase further this session.
+
+## Storage rework round 4 (2026-07-02): two sectionMenu bindings via the "incomplete join" cheat, no grain change
+
+**Status: code changes implemented (`ReportRouteList.jsx`, README, `src/themes/CLAUDE.md`) AND the
+Report Page template row (`2187021`) re-wired to the new bindings via the DMS CLI, confirmed by
+read-back. NOT yet verified in a live browser** (no browser/Playwright tool was available this
+session — see "Still needed" below).
+
+Resumes directly from round 3's pause. The user's resolution to round 3's "two dataset bindings, one
+sectionMenu slot" conflict:
+
+**The mechanism (verified in code before implementing, not assumed):**
+- `useDataSource.js`'s `onJoinSourceChange` (~line 333) populates a join alias's `sourceInfo`
+  (source_id, view_id, columns, baseUrl) the instant an author picks a source — independent of merge
+  strategy or join columns being configured.
+- `buildUdaConfig.js`'s `isJoinComplete()` (~line 923) requires `source+view`, and for the default
+  `"join"` merge strategy also non-empty `joinColumns` pairs; `buildUdaConfig.js:1102-1107` filters
+  incomplete join aliases out entirely before any query is built — nothing is sent to the server for
+  them. `DEFAULT_SOURCE_JOIN` (`utils/utils.jsx:199`) ships `joinColumns: []` — incomplete by default,
+  no extra author effort needed to stay "cheated."
+- `ReportRouteList`'s registry entry (`index.jsx:45`) already has `useDataSource: true` — the
+  sectionMenu Dataset picker + "Add Join Source" UI already work for this component with zero code
+  change.
+
+**Design: swap which sectionMenu slot each binding uses, keep the storage shape unchanged.**
+- **Storage** (the report's own routes) now reads `state.externalSource` — the normal sectionMenu
+  "Dataset" pick. Previously this was a hardcoded `REPORTS_SOURCE` constant in `ReportRouteList.jsx`
+  (`app: 'npmrdsv5', source_id: 2177438, view_id: 2177440`), flagged by the user as a repo-convention
+  violation (dataset choice is an author decision, not code). **Still one row per report** — this is
+  a binding-source change, not a grain change. (An earlier draft of this session's plan proposed
+  changing to one row per route; the user corrected this explicitly — "reports_snap_2 continue to have
+  ONE ROW per REPORT... All data about a report lives in a single row." The `routes` JSON-array column
+  already holds independent value-copies of each route per report; no schema change was ever needed to
+  satisfy that requirement.)
+- **Route catalog** (addable routes, resolved via `add_route_id`) now reads
+  `Object.values(join?.sources || {})[0]?.sourceInfo` — the sectionMenu's "Add Join Source" slot, left
+  deliberately incomplete (source+view picked, no join columns). Previously this was
+  `state.externalSource` (the same slot storage now uses). Reading the first join-sources entry rather
+  than a hardcoded alias (`table1`) is deliberately robust to whatever alias the template/author ends
+  up with — there's only ever one join source for this component.
+- Both are meant to be pre-wired on the **Report Page** template (`npmrds_sub|page_template` row
+  `2187021`) so an author never configures either manually — **this CLI step has NOT been done yet**.
+  Until it is, a report page created from the template will have neither binding configured and
+  `ReportRouteList` will show nothing (both `externalSource` and `routeSourceInfo` undefined).
+
+**What shipped (code only), file by file:**
+- `ReportRouteList.jsx` — deleted the `REPORTS_SOURCE` constant entirely. `routeSourceInfo` changed
+  from `externalSource` to `Object.values(join?.sources||{})[0]?.sourceInfo`. Added a
+  `storageDataFormat` derived from `externalSource` (mirrors the exact `dataFormat` derivation pattern
+  used 4x in `dataWrapper/index.jsx`'s `updateItem`/`addItem`/`removeItem`, inlined per
+  `packages/dms/CLAUDE.md`'s "no 1-2 line convenience wrappers" rule rather than importing those
+  functions, since their shape — single `newItem`, attribute-at-a-time edits — doesn't fit this
+  component's multi-field-at-once route edits). `loadReportRow`/`persistRoutes` now use
+  `externalSource`/`storageDataFormat` instead of `REPORTS_SOURCE`. `fetchDynamicRoute`'s hardcoded
+  `app: "npmrdsv5", type: "routes_data"` override removed — it now spreads `routeSourceInfo` as-is
+  (its `.type`/`.app` are computed by the same `onJoinSourceChange`/`getSources` mechanism that
+  produced the identical hardcoded values, so this is a no-behavior-change removal of a redundant
+  literal). The `loadReportRow` effect's deps extended to `[item?.id, externalSource?.source_id,
+  externalSource?.view_id]` so it retries once the dataset binding resolves (previously `REPORTS_SOURCE`
+  was a static import-time constant, so this dependency didn't exist). Everything else — array-blob
+  load/persist shape, `addRoute`/`removeRoute`/`reorderRoutes`/`updateRoute`/`toggleRouteGraph`'s
+  mutate-then-`persistRoutes` pattern, `route_comp_id` synthetic ids, the `reportRow: {id, routes}`
+  state shape — **unchanged**.
+- `README.md` — "Storage" section rewritten (attempt 3 → attempt 4: same one-row-per-report shape,
+  binding source changed); "route catalog binding" section rewritten to explain the incomplete-join
+  mechanism; "Where the template lives" and "Gotchas" sections updated to match.
+- `src/themes/CLAUDE.md` — `ReportRouteList` bullet updated to describe the two-sectionMenu-binding
+  model.
+- Syntax-checked via `esbuild` (transpile-only, no bundling) — no errors. **Not** checked with
+  `npm run build` or a live browser this round.
+
+**Re-wiring the Report Page template — done this session, via the DMS CLI.** The dms-server was
+reachable this session (`http://localhost:3001`, confirmed via `App.jsx`'s `VITE_API_HOST` default);
+initial `dms raw get`/`dms raw update` calls hung indefinitely (not errored) rather than connecting —
+root cause was the user's VPN to the dev DB being down (the server's bare HTTP endpoint still responds
+fast without a DB round-trip, which is what made this confusing at first — see the "dev DB requires
+VPN" gotcha, worth adding to a skill). Once the VPN reconnected:
+1. Fetched template row `2187021`, backed the pre-change JSON up to
+   `scratchpad/npmrds-sub/page_template_2187021.pre-round4-backup.json` (restore via `dms raw update
+   2187021 --data <that file>` if this needs to be reverted).
+2. Confirmed `reports_snap_2` is source `2177438` / view `2177440` (matches `REPORTS_SOURCE` exactly)
+   and the routes catalog ("Routes Data") is source `2107426` / view `2107427`, by reading the
+   template's *existing* ReportRouteList panel section (which had the catalog on `externalSource`,
+   the pre-round-4 model) and the source row directly.
+3. Patched the panel's `element-data` with a small Node script (deeply-nested JSON-in-JSON-string, same
+   reason round 2 used script-based patches over hand-built `--data` strings): `externalSource` →
+   `reports_snap_2`'s full sourceInfo shape; `join.sources.table1` → the *old* `externalSource` value
+   (the routes_data catalog sourceInfo, unchanged), wrapped with `joinColumns: []`, `mergeStrategy:
+   "join"` (i.e. deliberately incomplete, per the `isJoinComplete()` mechanism above).
+4. Applied via `dms raw update 2187021 --data <patched-file>` and confirmed via the response body:
+   `externalSource.source_id: 2177438`, `join.sources.table1.source: 2107426`, `joinColumns: []`.
+   The template's other two sections (starter AVL Graph, "Add a Route to Your Report" Spreadsheet)
+   were left untouched — the Spreadsheet's own `externalSource` on `routes_data` is a *different*
+   component's binding (its own catalog browse/pick UI), not ReportRouteList's, and is unaffected by
+   this change.
+
+**Still needed:**
+1. **Live click-through** (real dev-login credentials, Playwright or equivalent, per this task's
+   established verification pattern) — **not done this session, no browser automation tool was
+   available**. Needed: create a report page from the re-wired template, add/edit/reorder/remove
+   routes, reload and confirm state persists (the exact failure class both round 1 and round 2 hit —
+   "looks right, then disappears"), confirm a route toggled onto a graph still renders series data, and
+   confirm the catalog binding never fires an actual SQL join (network tab / server logs on the
+   `fetchDynamicRoute` request — should look like a plain single-source query, not a join).
+   - A CLI-only structural check (round 1's approach: create a throwaway page, attach sections via `dms
+     section create`, verify materialization) was attempted this session as a partial substitute but
+     **abandoned** — `dms page create`/`dms section create` require a `--type`/`DMS_TYPE` (the site's
+     *type* identifier, e.g. `prod` in `prod:site`) that wasn't discoverable this session (`dms raw
+     list` is broken for this per-app-Postgres site per the existing documented CLI bug, and no
+     `.dmsrc`/prior session config was present to read it from). `dms raw create`/`dms raw delete`
+     don't need site resolution and worked fine — used to create-then-delete a bare throwaway page
+     (`2187500`) with no sections, which didn't exercise the new bindings. **Next session: either
+     supply `DMS_TYPE` for `npmrdsv5`, or just do the live browser check directly** — it's the more
+     valuable verification anyway (round 1's structural-only check gave false confidence once before,
+     see the per-graph-routes "isEdit means the wrong thing" bug).
+2. Round 2's original "flash and disappear" bug on `page_12` was never root-caused (round 3 went
+   straight to the architecture question instead). This rework replaces the binding source but not the
+   load/persist logic itself, so if that bug's root cause is in the load/persist logic (not the
+   hardcoded binding), it could still be present. Watch for it specifically during the live
+   verification above, don't assume it's fixed by construction.
+3. `page_10`/`report_demo`/`page_11`/`page_12` (round 1-3 test/demo pages) all still reference the
+   *old* hardcoded-binding model in their persisted `element-data` (no `externalSource`/`join` pointing
+   at the new bindings) — they will not work with the new code until manually re-wired the same way as
+   the template, or recreated fresh from the re-wired template. Not migrated, consistent with this
+   branch's standing "nothing deployed, rough intermediate states are fine" policy.
+
+**User live-verified round 4 end-to-end (2026-07-02)** by creating a new report page from the
+re-wired template — "everything seems to work." One gap found during that verification: **the Report
+Page template needs `sidebar: "left"` set** (a top-level page attribute, `page.format.js:201-203`,
+controlling whether/where the content sidebar renders, per `sectionGroup.jsx`) so a new report page
+shows its sidebar-grouped `ReportRouteList` panel correctly by default; it was previously
+null/unset. Fixed:
+- **DMS-core bug found and fixed:** `newPage()` (`patterns/page/pages/edit/editFunctions.jsx:52-71`)
+  only ever copied `template.draft_sections`/`template.draft_section_groups` onto a newly-created
+  page — it silently dropped every other field on the template, including `sidebar`. This meant
+  setting `sidebar` on the template row alone would have had **zero effect** on new pages; confirmed
+  by reading the function before touching data, not assumed. Added
+  `if (template.sidebar !== undefined) newItem.sidebar = template.sidebar;` — minimal, scoped to
+  exactly the field needed, not the note-to-self's `buildPageTemplatePayload` — a symmetric gap exists
+  there too (the "Save as Page Template" capture direction, `patterns/utils.js:46-63`, doesn't record
+  `sidebar` from the source page either) but wasn't fixed since round 4 already had a working template
+  row and the user didn't ask for the general Save-as-Template flow to be fixed.
+- Set `sidebar: "left"` on the Report Page template row (`2187021`) via `dms raw update 2187021 --set
+  sidebar=left`, confirmed via read-back.
+- Syntax-checked `editFunctions.jsx` with esbuild — clean. Not yet re-verified live (the fix landed
+  after the user's "everything seems to work" pass) — the next new report page created from the
+  template should be checked for the sidebar rendering on the left, but the code path is small and
+  directly mirrors the two pre-existing `draft_sections`/`draft_section_groups` copies right above it.
+- **The symmetric "Save as Page Template" gap fixed too (2026-07-02), per user request.**
+  `buildPageTemplatePayload` (`patterns/utils.js:46`) now accepts a `sidebar` param and includes
+  `sidebar: sidebar || ''` in the payload; its one call site (`settingsPane.jsx`'s `save()`, ~line
+  157) now passes `sidebar: item?.sidebar` alongside the existing `sections`/`sectionGroups`. So
+  saving any page as a template now preserves that page's sidebar choice, not just this one template.
+  Both files syntax-checked with esbuild — clean. Not live-verified.
