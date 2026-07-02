@@ -29,6 +29,20 @@ export async function getViews ({pgEnv, falcor, source_id, isDms}) {
     }
 }
 
+// Internal (DMS) source rows only store raw view refs [{ref, id}] under `views` —
+// no `name`. Fetch the view rows themselves to attach `name`/`view_id`.
+export async function resolveInternalViewNames ({pgEnv, falcor, rawViews}) {
+    const viewIds = rawViews.map(v => +v.id).filter(Boolean);
+    if (!viewIds.length) return rawViews;
+    const nameRes = await falcor.get(['uda', pgEnv, 'views', 'byId', viewIds, InternalViewAttributes]);
+    const viewsById = get(nameRes, ['json', 'uda', pgEnv, 'views', 'byId'], {});
+    return rawViews.map(v => ({
+        ...v,
+        view_id: +v.id,
+        name: viewsById[+v.id]?.name || v.name,
+    }));
+}
+
 export async function getSourceData ({pgEnv, falcor, source_id, setSource, isDms}) {
     //console.log('gettting data')
 
@@ -41,20 +55,8 @@ export async function getSourceData ({pgEnv, falcor, source_id, setSource, isDms
 
         let views;
         if (isDms) {
-            // res.views contains raw DMS refs [{ref, id}] — no name. Fetch names from the view rows.
             const rawViews = parseIfJson(res.views) || [];
-            const viewIds = rawViews.map(v => +v.id).filter(Boolean);
-            if (viewIds.length) {
-                const nameRes = await falcor.get(['uda', pgEnv, 'views', 'byId', viewIds, InternalViewAttributes]);
-                const viewsById = get(nameRes, ['json', 'uda', pgEnv, 'views', 'byId'], {});
-                views = rawViews.map(v => ({
-                    ...v,
-                    view_id: +v.id,
-                    name: viewsById[+v.id]?.name || v.name,
-                }));
-            } else {
-                views = rawViews;
-            }
+            views = await resolveInternalViewNames({ pgEnv, falcor, rawViews });
         } else {
             views = externalViews;
         }
