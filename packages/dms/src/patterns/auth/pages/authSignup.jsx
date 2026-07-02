@@ -38,7 +38,11 @@ export default function AuthSignup({ disableSignup }) {
     // Detect whether we are on root domain in multi-tenant mode
     const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
     const isLocalhost = hostname === 'localhost' || hostname.endsWith('.localhost');
-    const currentSubdomain = hostname.split('.').length >= (isLocalhost ? 2 : 3) ? hostname.split('.')[0] : '';
+    const hostnameParts = hostname.split('.');
+    // Bare IPv4 host (e.g. 1.2.3.4) would otherwise misread its last octet as
+    // a subdomain; real TLDs are never all-digits.
+    const isIPv4Host = /^\d+$/.test(hostnameParts[hostnameParts.length - 1]);
+    const currentSubdomain = !isIPv4Host && hostnameParts.length >= (isLocalhost ? 2 : 3) ? hostnameParts[0] : '';
     const isTenantSignup = isMultiTenant && !currentSubdomain;
 
     if (disableSignup) {

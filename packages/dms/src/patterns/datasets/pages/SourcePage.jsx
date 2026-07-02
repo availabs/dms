@@ -2,7 +2,7 @@ import React, {useContext, useEffect, useState} from "react";
 import {Link, useNavigate} from "react-router";
 import {DatasetsContext} from "../context";
 import {ThemeContext, getComponentTheme} from "../../../ui/useTheme";
-import {getSourceData, parseIfJson} from "./dataTypes/default/utils";
+import {getSourceData, resolveInternalViewNames, parseIfJson} from "./dataTypes/default/utils";
 import { getExternalEnv } from "../utils/datasources";
 import { sourcePageTheme } from "./sourcePage.theme";
 import Breadcrumbs from "../components/Breadcrumbs";
@@ -81,6 +81,20 @@ export default function SourcePage ({ apiLoad, apiUpdate, format, item, params, 
         }
     }, [isDms, id, pgEnv, falcor, item])
 
+    // Route-preloaded `item` (the normal internal_source/:id case) carries `views` as
+    // raw DMS refs [{ref, id}] — the dms-format resolver only expands nested formats
+    // discovered off the top-level pattern format, not off a source row loaded directly
+    // by id. Resolve the view names here so downstream pages/selectors show real names.
+    useEffect(() => {
+        if (!isDms || !item) return;
+        const rawViews = parseIfJson(item.views) || [];
+        if (!rawViews.length) return;
+        let cancelled = false;
+        resolveInternalViewNames({ pgEnv: `${sourceFormat.app}+${sourceFormat.type}`, falcor, rawViews })
+            .then(views => { if (!cancelled) setSource(s => ({...s, views})) });
+        return () => { cancelled = true };
+    }, [isDms, item, falcor, sourceFormat.app, sourceFormat.type])
+
     const sourceLoaded = !!(source.id || source.source_id);
 
     // Per-source access: pattern ⊕ this source's own authPermissions override (see datasets.format.js).
@@ -112,14 +126,11 @@ export default function SourcePage ({ apiLoad, apiUpdate, format, item, params, 
     const showVersionSelector = viewDependentPages.includes(page);
 
     // Auto-navigate to latest view when on a view-dependent page without a view_id
+    const latestViewId = views.length ? (isDms ? views[views.length - 1]?.id : views[views.length - 1]?.view_id) : null;
     useEffect(() => {
-        if (!showVersionSelector || view_id || !views.length) return;
-        const latest = views[views.length - 1];
-        const latestId = latest.view_id;
-        if (latestId) {
-            navigate(`${pageBaseUrl}/${id}/${page}/${latestId}`, {replace: true});
-        }
-    }, [showVersionSelector, view_id, views.length])
+        if (!showVersionSelector || view_id || !latestViewId) return;
+        navigate(`${pageBaseUrl}/${id}/${page}/${latestViewId}`, {replace: true});
+    }, [showVersionSelector, view_id, latestViewId])
 
     const Page = sourcePages[page]?.component || defaultPages[page] || Overview;
 
