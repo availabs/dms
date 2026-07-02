@@ -360,7 +360,14 @@ function handleFiltersType(id_col, id_vals, index, type, isDms) {
     const array_cdn = `${typeMap[type].array || ''} (CASE WHEN ${id_col} IS NULL THEN 'null' ELSE ${id_col} END) ${typeMap[type].symbol} ANY(${index})`;
     const null_cdn = `${id_col} ${typeMap[type].null} ${nullVals}`;
     if (arrayVals.length && nullVals) {
-      conditions.push(`(${array_cdn} OR ${null_cdn})`);
+      // AND, not OR: exclude semantics are "none of these values AND not null".
+      // With OR (mirroring the filter branch, where OR is correct for
+      // "IN list OR IS NULL") the predicate is a tautology — non-null rows
+      // satisfy `IS NOT NULL`, null rows satisfy `'null' != ANY(values)` —
+      // so an exclude leaf carrying the null sentinel (the client's
+      // `is_not_null` op emits `['null', '']` for text columns) silently
+      // matched every row.
+      conditions.push(`(${array_cdn} AND ${null_cdn})`);
     } else {
       arrayVals.length && conditions.push(array_cdn);
       nullVals && conditions.push(null_cdn);

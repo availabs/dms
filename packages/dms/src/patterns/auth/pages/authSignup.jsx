@@ -125,7 +125,10 @@ export default function AuthSignup({ disableSignup }) {
                 const authPatternId = Object.keys(authPatternRes?.json?.dms?.data?.byId || {}).find(k => k !== '$__path');
                 if (!authPatternId) throw new Error('Failed to create auth pattern');
 
-                // 6. Create template patterns then update tenant site with all refs
+                // 6. Create template patterns then update tenant site with all refs.
+                // siteId/initialPatternRefs make provisioning register each pattern
+                // on the tenant site as it's created (crash-safe).
+                const authPatternRef = { ref: `${slug}+${siteInstance}|pattern`, id: +authPatternId };
                 const { allPatternRefs: templateRefs, allEnvRefs } = await provisionTemplatePatterns(falcor, {
                     app: slug,
                     siteInstance,
@@ -134,8 +137,10 @@ export default function AuthSignup({ disableSignup }) {
                     pageTemplates,
                     adminGroupName: slug,
                     subdomain: slug,
+                    siteId: tenantSiteId,
+                    initialPatternRefs: [authPatternRef],
                 });
-                const allPatternRefs = [{ ref: `${slug}+${siteInstance}|pattern`, id: +authPatternId }, ...templateRefs];
+                const allPatternRefs = [authPatternRef, ...templateRefs];
                 const siteUpdate = { patterns: allPatternRefs };
                 if (allEnvRefs.length) siteUpdate.dms_envs = allEnvRefs;
                 await falcor.call(['dms', 'data', 'edit'], [slug, +tenantSiteId, siteUpdate]);

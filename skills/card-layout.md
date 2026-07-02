@@ -5,32 +5,66 @@ How the `Card` page-section component lays itself out and how every knob in `sta
 Worked end-to-end on real WCDB sections; references real file paths so you can verify each claim:
 
 - Renderer: `src/dms/packages/dms/src/ui/components/Card.jsx`
+- **Box model (pure resolvers + the authoritative model docs): `…/ui/components/Card.layout.js`**
 - Theme: `src/dms/packages/dms/src/ui/components/card.theme.jsx`
 - Section adapter: `src/dms/packages/dms/src/patterns/page/components/sections/components/ComponentRegistry/Card.jsx`
 - Config / controls / defaults: `…/ComponentRegistry/Card.config.jsx`
 - Legacy migration: `…/ui/components/Card.migrate.js`
+- Unit tests of the model: `src/dms/packages/dms/tests/cardLayout.test.js`
 
-## Two grids, both real
+## The box model — two grids, four knobs
 
-A Card always renders **two CSS grids**, one nested in the other:
+A Card renders **two nested CSS grids**. Four knobs own ALL spacing; everything
+else is content-sized:
 
 ```
-mainWrapperStyle  ← outer "cards grid" (records spread across the section)
-  └─ subWrapperStyle  ← inner "cells grid" (attribute cells inside one record)
-       └─ CardColumnField  ← one cell per visible column
+cards grid (outer — records across the section)
+  gap     = cardsGridGap
+  padding = cardsGridPadding        ← the whole list's inset from its box
+  └─ cells grid (inner, per record — attribute cells inside one card)
+       gap     = cellsGridGap       (cellsRowGap / cellsColumnGap per axis)
+       padding = cardsPadding       ← legacy name: pads the per-CARD surface
+       └─ cell (one per visible column)
+            padding = cellPadding (column) ?? cellsPadding (display)
+                      ?? theme cellGutter (v2 only)
 ```
 
-Both axes are unconditional grids — there is no "row mode" vs "cell mode" toggle anymore. The renderer pulls four grid dimensions from `state.display`:
+**Explicit values — including 0 — always win; nothing invisible adds or absorbs
+space.** An empty/cleared field falls through to the next level; a typed `0` is
+a value. Style emission includes only defined keys, so an explicit knob always
+reaches the DOM (this contract is unit-tested in `cardLayout.test.js`).
 
-| Outer (cards grid)  | Inner (cells grid)  |
-|---------------------|---------------------|
-| `cardsGridSize`     | `cellsGridSize`     |
-| `cardsGridGap`      | `cellsGridGap`      |
-| `cardsPadding`      | `cellsPadding`      |
-| `cardsBgColor`      | `cellsRowHeight`    |
-| `cardBorder` (bool) | `cellBorder` (bool) |
+### Two layout models — v1 (legacy default) and v2 (opt-in)
 
-`Card.jsx` builds them like this:
+The resolved `dataCard` theme style selects the model via `layoutModel: 'v2'`:
+
+| | v1 (default, BC) | v2 |
+|---|---|---|
+| Cards-grid rows | fill the box (`minmax(max-content,1fr)`) — slack is distributed BETWEEN card rows; `cardsVerticalAlign: 'top'` opts into packing | content-sized, packed to top — the gap between cards is EXACTLY `cardsGridGap`; `cardsVerticalAlign: 'stretch'` opts into fill |
+| Cell chrome | every cell carries `border border-transparent` (+2px, always) | none; edit-mode hover is an `outline` (`theme.itemEditOutline`) — no layout space |
+| Ambient cell gutter | whatever padding class the theme bakes into `headerValueWrapper` (e.g. `p-2`) | the theme's single `cellGutter` number, emitted INLINE — a theme class can never beat an explicit knob |
+| Theme structural keys | may carry fonts/min-heights (collisions possible) | `value`/`header`/`valueWrapper`/`headerValueWrapper` are layout-only; typography comes exclusively from `valueFontStyle`/`headerFontStyle` tokens |
+
+**Opting in:** per section — pick the `v2` entry in the toolbar's **Card
+style** control (the default theme ships one); site-wide — put
+`layoutModel: 'v2'` + `cellGutter` + layout-only structural keys on the brand
+theme's `dataCard.styles[0]` (landbank does this; see its theme.js for the
+worked example).
+
+### Introspection (edit mode)
+
+In edit mode the renderer stamps the answer to "where is this space coming
+from" onto the DOM — read these in devtools before touching any knob:
+
+- each cell wrapper: `data-cell="<column>"` and `data-pad="<resolved padding>"`
+  (`theme` means no knob applied and the theme class gutter is in effect)
+- the cards grid: `data-rhythm="<cardsGridGap>/<top|stretch>"` — the pack mode
+  tells you instantly whether inter-card space is your gap or distributed slack
+
+### Grid mechanics
+
+Both axes are unconditional grids — there is no "row mode" vs "cell mode"
+toggle anymore.
 
 ```js
 // outer
@@ -76,11 +110,15 @@ Each column entry in `state.columns` is the source of truth for one cell. The re
 
 ### Visibility
 
+**One visibility axis** — `show` decides fetch + render, `selectOnly` narrows
+to fetch-only, `hideHeader` trims the label (the header is real chrome):
+
 | Key            | Effect |
 |----------------|--------|
 | `show: true`   | Required for the cell to render *and* for the field to be SELECTed by the data loader. `show: false` removes the cell **and** drops the column from the query (`buildUdaConfig.js`, `getData.js`). |
+| `selectOnly`   | Fetch only — stays in the SELECT/GROUP BY but renders NO cell (no grid slot). The right tool for loader columns. |
 | `hideHeader`   | Suppresses the label line. The wrapper still occupies a grid slot. |
-| `hideValue`    | Suppresses the value block (and the `CompWrapper` that would otherwise render the column-type's `ViewComp`). The wrapper still occupies a grid slot. |
+| `hideValue`    | **DEPRECATED** — use `selectOnly` for loader columns. Still rendered for existing cards (suppresses the value block; the wrapper still occupies a grid slot), but the toolbar toggle only appears when it's already set. |
 | `hideIfNull`   | (display-level, not per-column) — hide the entire card when query returns no rows. |
 
 **Crucial subtlety: `hideHeader + hideValue` ≠ "column doesn't render".** The cell's outer `<div>` still renders, still consumes one grid slot, still has padding and border. Cells you only want loaded for the data fetch (so a composite column type can read them off the row) should keep `show: true` to stay in the query, but you need to *also* think about the grid slots they occupy. Two options:
@@ -370,6 +408,36 @@ figure distributes its width into a max-content track and starves the 1fr
 column. For a right-side chip/badge column, use a fixed track instead
 (`cellWidth: '110px'`).
 
+## Vertical rhythm (footnote)
+
+Covered by the box model at the top: on v2 the gap between cards IS
+`cardsGridGap`. On v1 the fill default distributes section slack between card
+rows — for list-style cards set `cardsVerticalAlign: 'top'` (toolbar: Cards
+Grid → Vertical Align), or move the theme/section to v2. Diagnose in edit mode
+via `data-rhythm` on the cards grid (`…/stretch` = fill mode is in play), or
+read the grid's computed `grid-template-rows` in devtools.
+
+**Uniform list recipe** (the design's "label · count over a bar" card):
+
+```js
+display: {
+  cardsGridSize: 1,
+  cardsGridGap: 16,            // the design's row spacing — the ONLY gap
+  cardsVerticalAlign: 'top',   // v1 only; v2 packs by default
+  cardsGridPadding: '0 0 16px',// list-level inset (breathing room under the
+                               // LAST row without touching the rhythm)
+  cellsGridSize: 2,
+  cellsPadding: 2, cellsRowGap: 2,  // tight label→bar stack inside each row
+}
+```
+
+Font trap that co-occurs with spacing bugs on v1 themes: a brand
+`theme.dataCard.value`/`header` class that bakes in font utilities collides
+with every `valueFontStyle`/`headerFontStyle` token on Tailwind's
+arbitrary-value order. v2 forbids fonts in structural keys; on v1, keep
+`theme.value` layout-only (`w-full`) or give the token copies `!` importance
+(the transportny approach, above).
+
 ## What a column type receives
 
 A column type's `ViewComp` receives (`CompWrapper` in `Card.jsx` ~318):
@@ -394,9 +462,10 @@ A column type's `ViewComp` receives (`CompWrapper` in `Card.jsx` ~318):
 
 - `cellsGridSize` is `undefined` → fallback `visibleColumnsWithoutSpan || 1`. Don't mix spans and unset `cellsGridSize`; the divisor lies.
 - `cardsGridSize` is `undefined` → 1 (records stacked vertically).
-- `cellsPadding` defaults to undefined → cells have no inner padding (just the cell-border buffer, see below).
-- Every cell renders `border border-transparent` when not hovered and not in `cellBorder` mode (`Card.jsx` ~404) — a transparent 1px outline that keeps layout stable when the visible border is toggled on/off in edit mode. **This adds 2px to every cell's bounding box.** Don't expect `cellsPadding: 0` to give you a flush layout if the cell content is short — there's always at least a couple of pixels of buffer.
-- `headerValueLayout: 'row'` is the default — header sits *inline left of* value. For a composite cell with `hideHeader: true`, this still affects width calculation (`headerWidth: 50` reserves 50% of cell width even for the hidden header). Set `headerValueLayout: 'col'` on the section when cells are hidden-header or composite.
+- `cellsPadding` defaults to undefined → v1: cells fall through to the theme's class gutter (`headerValueWrapper` `p-2`); v2: the theme's `cellGutter` is applied inline.
+- **(v1 only)** Every cell renders `border border-transparent` when not hovered and not in `cellBorder` mode — **+2px on every cell's bounding box**, so `cellsPadding: 0` never yields a fully flush layout. v2 drops this (edit hover is an outline).
+- **(v1 only) The cards grid fills its box by default** (`gridAutoRows: minmax(max-content, 1fr)`): any card that's shorter than its section box — `height:'fill'`, or a section stretched by a taller `rowspan` sibling — gets the slack distributed *between its rows*. Lists want `cardsVerticalAlign: 'top'`. v2 packs by default (`'stretch'` opts back in).
+- `headerValueLayout: 'row'` is the default — header sits *inline left of* value with a `headerWidth`/`valueWidth` split (default 50/50). The split applies only when BOTH header and value render; a `hideHeader` cell gives the value the full width (guarded by `resolveHeaderValueWidths` + tests). Set `headerValueLayout: 'col'` on the section when cells are hidden-header or composite.
 
 ## Legacy state — what migration handles
 
@@ -661,15 +730,20 @@ A new section type in `ComponentRegistry/` is justified only when the rendering 
 ## Quick-reference: what each key does at a glance
 
 ```
+theme.dataCard.layoutModel → 'v2' opts the style into the predictable box model
+theme.dataCard.cellGutter  → (v2) the ONE ambient cell gutter, inline, overridable
+
 display.cardsGridSize      → outer columns of records
-display.cardsGridGap       → outer gap
-display.cardsPadding       → padding *inside the per-card surface*
+display.cardsGridGap       → outer gap (v2 / pack-to-top: exactly the space between cards)
+display.cardsGridPadding   → padding on the OUTER cards grid (the list's inset)
+display.cardsVerticalAlign → 'top' | 'stretch' (unset = model default: v1 fill, v2 pack)
+display.cardsPadding       → padding *inside the per-card surface* (legacy name)
 display.cardsBgColor       → per-card background (overrides theme)
 display.cardBorder         → toggle theme.cardBorder
 display.cellsGridSize      → inner columns of cells inside one card
-display.cellsGridGap       → inner gap
+display.cellsGridGap       → inner gap (cellsRowGap / cellsColumnGap per axis)
 display.cellsRowHeight     → fixed pixel row height for cells
-display.cellsPadding       → padding on each cell wrapper
+display.cellsPadding       → padding on each cell wrapper (0 is a value and wins)
 display.cellBorder         → toggle theme.itemBorder on each cell
 display.cellsTracksTemplate → raw grid-template-columns string (wins over per-column cellWidth)
 
@@ -678,8 +752,9 @@ display.reverse           → swap header/value order in 'col' mode
 display.headerWidth/valueWidth → row-layout split percentages
 
 columns[i].show          → render *and* SELECT
+columns[i].selectOnly    → SELECT only, no cell (the loader-column tool)
 columns[i].hideHeader    → suppress label
-columns[i].hideValue     → suppress value (and CompWrapper)
+columns[i].hideValue     → DEPRECATED (BC-rendered; use selectOnly)
 columns[i].cellSpan      → CSS grid-column span
 columns[i].cellRowSpan   → CSS grid-row span
 columns[i].cellWidth     → '' (fluid) | 'auto' | '<N>px' / etc — track size at this column's starting position

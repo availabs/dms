@@ -98,6 +98,12 @@ const assignUserToGroup = (db, email, groupName, createdBy) =>
     [email.toLowerCase(), groupName, createdBy]
   );
 
+const ensureUserInGroup = (db, email, groupName, createdBy) =>
+  db.query(
+    'INSERT INTO users_in_groups (user_email, group_name, created_by) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
+    [email.toLowerCase(), groupName, createdBy]
+  );
+
 const removeUserFromGroup = (db, email, groupName) =>
   db.query(
     'DELETE FROM users_in_groups WHERE user_email = $1 AND group_name = $2',
@@ -125,6 +131,14 @@ const createGroup = (db, name, meta, createdBy) =>
     [name, meta ? JSON.stringify(meta) : null, createdBy]
   );
 
+// Idempotent variant — groups are global by name and may survive a deleted
+// project, so setup flows must be able to re-run without aborting.
+const ensureGroup = (db, name, meta, createdBy) =>
+  db.query(
+    'INSERT INTO groups (name, meta, created_by) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
+    [name, meta ? JSON.stringify(meta) : null, createdBy]
+  );
+
 const deleteGroup = async (db, name) => {
   await db.query('DELETE FROM users_in_groups WHERE group_name = $1', [name]);
   await db.query('DELETE FROM groups_in_projects WHERE group_name = $1', [name]);
@@ -137,6 +151,12 @@ const updateGroupMeta = (db, name, meta) =>
 const assignGroupToProject = (db, groupName, projectName, authLevel, createdBy) =>
   db.query(
     'INSERT INTO groups_in_projects (project_name, group_name, auth_level, created_by) VALUES ($1, $2, $3, $4)',
+    [projectName, groupName, authLevel || 0, createdBy]
+  );
+
+const ensureGroupInProject = (db, groupName, projectName, authLevel, createdBy) =>
+  db.query(
+    'INSERT INTO groups_in_projects (project_name, group_name, auth_level, created_by) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING',
     [projectName, groupName, authLevel || 0, createdBy]
   );
 
@@ -159,6 +179,9 @@ const getProjects = (db) =>
 
 const createProject = (db, name, createdBy) =>
   db.query('INSERT INTO projects (name, created_by) VALUES ($1, $2)', [name, createdBy]);
+
+const ensureProject = (db, name, createdBy) =>
+  db.query('INSERT INTO projects (name, created_by) VALUES ($1, $2) ON CONFLICT DO NOTHING', [name, createdBy]);
 
 const deleteProject = async (db, name) => {
   await db.query('DELETE FROM groups_in_projects WHERE project_name = $1', [name]);
@@ -344,21 +367,25 @@ module.exports = {
   getUsersByGroup,
   getUsersByProject,
   assignUserToGroup,
+  ensureUserInGroup,
   removeUserFromGroup,
 
   // Groups
   getGroups,
   getGroupsForProject,
   createGroup,
+  ensureGroup,
   deleteGroup,
   updateGroupMeta,
   assignGroupToProject,
+  ensureGroupInProject,
   removeGroupFromProject,
   adjustAuthLevel,
 
   // Projects
   getProjects,
   createProject,
+  ensureProject,
   deleteProject,
 
   // Signup Requests

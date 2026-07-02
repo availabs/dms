@@ -481,30 +481,39 @@ async function initSetup(db, { email, password, project }) {
 
   await db.beginTransaction();
   try {
+    // A project with groups already linked is fully initialized — refuse, so
+    // this endpoint can't be used to grab admin on an existing project.
+    const { rows: linkRows } = await db.query(
+      'SELECT count(1) AS count FROM groups_in_projects WHERE project_name = $1',
+      [project]
+    );
+    if (+(linkRows[0]?.count || 0) > 0) {
+      throw new Error(`Project "${project}" is already initialized.`);
+    }
+
     // Check if user already exists
     const { rows } = await q.getUserByEmail(db, email);
     let userEmail;
     if (rows[0] && comparePassword(password, rows[0].password)) {
       userEmail = rows[0].email;
+    } else if (rows[0]) {
+      throw new Error('A user with this email already exists. Please use the correct password.');
     } else {
       const passwordHash = hashPassword(password);
       await q.createUser(db, email, passwordHash);
       userEmail = email;
     }
 
-    // Create groups
-    await q.createGroup(db, groupAdmin, null, 'init_setup_script');
-    await q.createGroup(db, groupPublic, null, 'init_setup_script');
-
-    // Create project
-    await q.createProject(db, project, 'init_setup_script');
-
-    // Assign groups to project
-    await q.assignGroupToProject(db, groupAdmin, project, 10, 'init_setup_script');
-    await q.assignGroupToProject(db, groupPublic, project, 0, 'init_setup_script');
-
-    // Assign user to admin group
-    await q.assignUserToGroup(db, userEmail, groupAdmin, 'init_setup_script');
+    // Every step below is idempotent (ON CONFLICT DO NOTHING). Groups and the
+    // project row are global and can survive a deleted project or an earlier
+    // partial setup — this run completes whatever is missing instead of
+    // aborting the whole transaction on the first duplicate key.
+    await q.ensureGroup(db, groupAdmin, null, 'init_setup_script');
+    await q.ensureGroup(db, groupPublic, null, 'init_setup_script');
+    await q.ensureProject(db, project, 'init_setup_script');
+    await q.ensureGroupInProject(db, groupAdmin, project, 10, 'init_setup_script');
+    await q.ensureGroupInProject(db, groupPublic, project, 0, 'init_setup_script');
+    await q.ensureUserInGroup(db, userEmail, groupAdmin, 'init_setup_script');
 
     await db.commitTransaction();
     return { user: { email: userEmail } };
@@ -574,6 +583,11 @@ async function signupAssignGroup(db, { email, password, project, group, url, ema
     if (+(groupRows[0]?.count || 0) === 0) {
       await q.createGroup(db, groupName, null, 'signup_accept_script');
       await q.assignGroupToProject(db, groupName, project, 0, 'signup_accept_script');
+    } else if (groupName === `${project} Public`) {
+      // The default public group may exist globally (e.g. left over from a
+      // deleted project) without being linked to this project. Without the
+      // link, signup reports success but login fails with "no access".
+      await q.ensureGroupInProject(db, groupName, project, 0, 'signup_accept_script');
     }
 
     await q.assignUserToGroup(db, userEmail, groupName, 'signup_accept_script');
