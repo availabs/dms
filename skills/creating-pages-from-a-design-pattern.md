@@ -438,7 +438,7 @@ dms section create marketing-homepage --data '{
 
 | Field | Type | What it is |
 |---|---|---|
-| `title` | string | **DEPRECATED — always set `""`. Never use the section `title` to label a card.** When non-empty it renders `ViewSectionHeader` (`section_components.jsx`), a **hardcoded ≥50px uppercase `font-display` band** whose text style comes from `theme.heading[level]` — a map most themes (incl. transportny) don't define, so you get an unstyled label in a bulky fixed band that lays out badly and can't be themed. **To title a card, compose a fused lexical title section instead — see [§5.6.10](#5610-card-chrome-is-a-section-setting-gap-0--inner-box-not-lexical-content).** |
+| `title` | string | **NEVER use the section Title setting. Ever. Always `""`.** (Owner rule, 2026-07-02 — no exceptions.) When non-empty it renders `ViewSectionHeader` (`section_components.jsx`), a **hardcoded ≥50px uppercase `font-display` band** whose text style comes from `theme.heading[level]` — a map most themes don't define, so you get an unstyled label in a bulky fixed band that lays out badly and can't be themed. The same rule applies to **component-internal titles** (a Graph's `display.title`/`description`, a Card's header chrome): every heading/kicker/subtitle belongs in a **lexical section** — usually a fused header (§5.6.10) — where it stays author-editable text with brand tokens. Worked example: the landbank sold-by-year graphs ship a bare chart (`yAxis: {show: false}`, no `title`) under a fused `displaySM` + `proseXS` lexical header. |
 | `type` | string | The component type — usually `{patternInstance}\|component` (e.g. `main\|component`) |
 | `group` | string | UUID matching a `name` in the page's `draft_section_groups` |
 | `parent` | JSON string | Stringified `{ id, ref }` pointing at the parent page |
@@ -556,6 +556,13 @@ recreate. (Don't try to clean up the orphans; there's no working delete.)
 
 For new section types, see [`creating-page-section-components.md`](./creating-page-section-components.md).
 For Card configuration depth, see [`card-layout.md`](./card-layout.md).
+
+**Matching a design's spacing.** A Card's default grid spreads cells across equal fractions, so a
+transcribed header/meta row reads far airier than the mockup. To reproduce a design's tight spacing,
+drive `cellsTracksTemplate` (content-width `max-content` tracks + a trailing `1fr`), `cellsPadding: 0`,
+and a small `cellsGridGap` — see the **"Tight inline meta / header row"** recipe in
+[`card-layout.md`](./card-layout.md#recipes). When the layoutGroup band already provides the surface
+(e.g. a `header` band), give the section a bare extra (`{}`, no `bg`/`border`) so you don't double-box.
 
 ### 5.4 Lexical content — the minimum viable JSON
 

@@ -1,5 +1,6 @@
 import React from "react";
 import { ThemeContext } from "../useTheme";
+import { MultiSelectEdit } from "../components/MultiSelect";
 
 // status_pill column type — renders a column's value as a UI.Pill in a status
 // variant (green/amber/red/neutral) that signals state (e.g. a compliance
@@ -32,6 +33,24 @@ export const StatusPillView = ({ value, pillColors }) => {
     return <Pill activeStyle={activeStyle} text={value} />;
 };
 
-// Edit renders the same pill — there's nothing to edit on a derived status, and the
-// transcription/verify loop screenshots edit mode, so a no-op Edit would render blank.
-export const StatusPillEdit = (props) => <StatusPillView {...props} />;
+// Edit renders a single-select dropdown so an `allowEditInView` status_pill column is
+// EDITABLE while keeping its pill look in view mode (view = pill, click = dropdown, pick =
+// new pill). Dropdown options come from an explicit `options` array if present, else are
+// derived from the `pillColors` keys — so authors get an editable pill just by adding
+// `allowEditInView: true` to a pill column, no separate options list to maintain. The
+// reused MultiSelectEdit (singleSelectOnly) persists a clean scalar string, not an array.
+export const StatusPillEdit = (props) => {
+    const { options, pillColors } = props;
+    const opts = (options && options.length)
+        ? options
+        : Object.keys(pillColors || {}).map((v) => ({ label: v, value: v }));
+    // MultiSelect renders a React element supplied via `meta[label]` as-is, in BOTH the
+    // selected-value trigger and the menu rows — so map each option to its Pill and the
+    // editor keeps the pill look while editing (pill trigger, pill options), not plain text.
+    const meta = {};
+    for (const o of opts) {
+        const v = o.value ?? o;
+        meta[o.label ?? v] = <StatusPillView value={v} pillColors={pillColors} />;
+    }
+    return <MultiSelectEdit {...props} options={opts} meta={meta} singleSelectOnly={true} />;
+};

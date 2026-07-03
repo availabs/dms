@@ -206,6 +206,11 @@ module.exports = async function gisPublishWorker(ctx) {
     '--config', 'PG_USE_COPY', 'YES',
     ...(promoteToMulti ? ['-nlt', 'PROMOTE_TO_MULTI'] : []),
     '-lco', `SCHEMA=${table_schema}`,
+    // Keep source field names exactly as-is. The copy step matches temp
+    // columns against tableDescriptor.key (the original names); default
+    // laundering (lowercase, '#'/'-' → '_') breaks that match — e.g. a
+    // field named "Lockbox #" becomes "lockbox _" and the INSERT fails.
+    '-lco', 'LAUNDER=NO',
     '-nln', tempTable,
     '-sql', `@${sqlFile}`,
     filePath,
@@ -229,116 +234,147 @@ module.exports = async function gisPublishWorker(ctx) {
   await updateProgress(0.7);
   await dispatchEvent('gis-dataset:ogr2ogr_end', 'Data loaded, creating final table', null);
 
-  // -----------------------------------------------------------------------
-  // Step 3a: Discover temp table columns — must happen before final table creation
-  // so we can detect geometry even when tableDescriptor didn't declare it.
-  // -----------------------------------------------------------------------
-  let tempGeomCol = null;
-  let tempFidCol = null;
+  // Steps 3a–5 run with the temp table on disk. The finally block owns
+  // dropping it (success or failure); on failure the half-built final table
+  // is dropped too, so a failed task leaves nothing behind in gis_datasets.
+  try {
+    // ---------------------------------------------------------------------
+    // Step 3a: Discover temp table columns — must happen before final table
+    // creation so we can detect geometry even when tableDescriptor didn't
+    // declare it.
+    // ---------------------------------------------------------------------
+    let tempGeomCol = null;
+    let tempFidCol = null;
 
-  const { rows: tempCols } = await db.query(`
-    SELECT column_name, udt_name FROM information_schema.columns
-    WHERE table_schema = $1 AND table_name = $2
-    ORDER BY ordinal_position
-  `, [table_schema, tempTable]);
+    const { rows: tempCols } = await db.query(`
+      SELECT column_name, udt_name FROM information_schema.columns
+      WHERE table_schema = $1 AND table_name = $2
+      ORDER BY ordinal_position
+    `, [table_schema, tempTable]);
 
-  for (const c of tempCols) {
-    if (c.udt_name === 'geometry') tempGeomCol = c.column_name;
-    if (['ogc_fid', 'fid'].includes(c.column_name) && !tempFidCol) tempFidCol = c.column_name;
-  }
-  console.log(`[gis-publish] Temp table: fid="${tempFidCol}", geom="${tempGeomCol}"`);
-
-  // If the temp table has geometry but tableDescriptor didn't declare it,
-  // detect the geometry type and update hasGeom so the final table includes it.
-  if (tempGeomCol && !hasGeom) {
-    hasGeom = true;
-    try {
-      const { rows: gtRows } = await db.query(`
-        SELECT DISTINCT GeometryType("${tempGeomCol}") AS gt
-        FROM "${table_schema}"."${tempTable}" WHERE "${tempGeomCol}" IS NOT NULL LIMIT 1
-      `);
-      geomType = gtRows[0]?.gt || 'Geometry';
-    } catch (e) {
-      geomType = 'Geometry';
+    for (const c of tempCols) {
+      if (c.udt_name === 'geometry') tempGeomCol = c.column_name;
+      if (['ogc_fid', 'fid'].includes(c.column_name) && !tempFidCol) tempFidCol = c.column_name;
     }
-    console.log(`[gis-publish] Geometry found in temp table but not in tableDescriptor — detected type: ${geomType}`);
-  }
+    console.log(`[gis-publish] Temp table: fid="${tempFidCol}", geom="${tempGeomCol}"`);
 
-  // -----------------------------------------------------------------------
-  // Step 3b: Create final table with exact types from tableDescriptor
-  // -----------------------------------------------------------------------
-  const finalColDefs = (columnTypes || []).map(c => `"${c.col}" ${c.db_type}`).join(', ');
-  const finalGeomDef = hasGeom ? `, wkb_geometry public.geometry(${geomType}, 4326)` : '';
-
-  await db.query(`DROP TABLE IF EXISTS "${table_schema}"."${table_name}"`);
-  await db.query(`CREATE TABLE "${table_schema}"."${table_name}" (ogc_fid INTEGER PRIMARY KEY${finalColDefs ? ', ' + finalColDefs : ''}${finalGeomDef})`);
-
-  console.log(`[gis-publish] Final table created: ${table_schema}.${table_name} (hasGeom: ${hasGeom}, geomType: ${geomType || 'none'})`);
-
-  // -----------------------------------------------------------------------
-  // Step 4: Copy from temp to final with type casts.
-  // -----------------------------------------------------------------------
-
-  // Build a map of lowercased temp column names for matching.
-  // ogr2ogr lowercases all column names when creating the PG table,
-  // but tableDescriptor.key has the original mixed-case names.
-  const tempColNames = new Set(tempCols.map(c => c.column_name));
-  const findTempCol = (key) => {
-    // Try exact match first, then lowercase
-    if (tempColNames.has(key)) return key;
-    const lower = key.toLowerCase();
-    if (tempColNames.has(lower)) return lower;
-    return key; // fallback — will error if truly not found
-  };
-
-  // Temp table has lowercased column names. Cast and rename to final names.
-  // Handle boolean text values ('true'/'false') that need to become integers.
-  const castCols = (columnTypes || []).map(c => {
-    const tempName = findTempCol(c.key);
-    const src = `"${tempName}"`;
-    const dst = `"${c.col}"`;
-    if (c.db_type === 'TEXT' && tempName === c.col) return src;
-    if (c.db_type === 'TEXT') return `${src} AS ${dst}`;
-    // For integer types: handle boolean text values (true/false → 1/0)
-    if (['INTEGER', 'BIGINT', 'SMALLINT', 'INT'].includes(c.db_type.toUpperCase())) {
-      return `CASE
-        WHEN LOWER(TRIM(${src}::TEXT)) IN ('true','t','yes','y') THEN 1
-        WHEN LOWER(TRIM(${src}::TEXT)) IN ('false','f','no','n') THEN 0
-        WHEN NULLIF(TRIM(${src}::TEXT), '') IS NULL THEN NULL
-        ELSE CAST(TRIM(${src}::TEXT) AS ${c.db_type})
-      END AS ${dst}`;
+    // If the temp table has geometry but tableDescriptor didn't declare it,
+    // detect the geometry type and update hasGeom so the final table includes it.
+    if (tempGeomCol && !hasGeom) {
+      hasGeom = true;
+      try {
+        const { rows: gtRows } = await db.query(`
+          SELECT DISTINCT GeometryType("${tempGeomCol}") AS gt
+          FROM "${table_schema}"."${tempTable}" WHERE "${tempGeomCol}" IS NOT NULL LIMIT 1
+        `);
+        geomType = gtRows[0]?.gt || 'Geometry';
+      } catch (e) {
+        geomType = 'Geometry';
+      }
+      console.log(`[gis-publish] Geometry found in temp table but not in tableDescriptor — detected type: ${geomType}`);
     }
-    return `CAST(NULLIF(TRIM(${src}::TEXT), '') AS ${c.db_type}) AS ${dst}`;
-  });
-  // Map temp fid → ogc_fid, temp geometry → wkb_geometry
-  const fidExpr = tempFidCol ? `"${tempFidCol}" AS ogc_fid` : 'NULL::INTEGER AS ogc_fid';
-  const geomSelectExpr = tempGeomCol ? [`"${tempGeomCol}" AS wkb_geometry`] : [];
-  const selectCols = [fidExpr, ...castCols, ...geomSelectExpr].join(', ');
-  const insertCols = ['ogc_fid', ...(columnTypes || []).map(c => `"${c.col}"`), ...(tempGeomCol ? ['wkb_geometry'] : [])].join(', ');
 
-  await db.query(`INSERT INTO "${table_schema}"."${table_name}" (${insertCols}) SELECT ${selectCols} FROM "${table_schema}"."${tempTable}"`);
+    // ---------------------------------------------------------------------
+    // Step 3b: Create final table with exact types from tableDescriptor
+    // ---------------------------------------------------------------------
+    const finalColDefs = (columnTypes || []).map(c => `"${c.col}" ${c.db_type}`).join(', ');
+    const finalGeomDef = hasGeom ? `, wkb_geometry public.geometry(${geomType}, 4326)` : '';
 
-  const { rows: countRows } = await db.query(`SELECT COUNT(*) AS cnt FROM "${table_schema}"."${table_name}"`);
-  console.log(`[gis-publish] Copied ${countRows[0]?.cnt} rows to final table`);
+    await db.query(`DROP TABLE IF EXISTS "${table_schema}"."${table_name}"`);
+    await db.query(`CREATE TABLE "${table_schema}"."${table_name}" (ogc_fid INTEGER PRIMARY KEY${finalColDefs ? ', ' + finalColDefs : ''}${finalGeomDef})`);
 
-  await updateProgress(0.85);
+    console.log(`[gis-publish] Final table created: ${table_schema}.${table_name} (hasGeom: ${hasGeom}, geomType: ${geomType || 'none'})`);
 
-  // -----------------------------------------------------------------------
-  // Step 5: Cleanup temp, create spatial index, analyze
-  // -----------------------------------------------------------------------
-  await db.query(`DROP TABLE IF EXISTS "${table_schema}"."${tempTable}"`);
+    // ---------------------------------------------------------------------
+    // Step 4: Copy from temp to final with type casts.
+    // ---------------------------------------------------------------------
 
-  if (hasGeom) {
-    try {
-      await db.query(`CREATE INDEX "${table_name}_gix" ON "${table_schema}"."${table_name}" USING GIST(wkb_geometry)`);
-    } catch (e) {
-      console.log(`[gis-publish] Spatial index note: ${e.message}`);
+    // Match tableDescriptor.key (original source field names) to temp table
+    // columns. With LAUNDER=NO the exact match should always win; the fallbacks
+    // mirror ogr2ogr's laundering (lowercase, '#'/'-' → '_') and a last-resort
+    // normalized comparison, covering files loaded by older GDAL behavior.
+    const tempColNames = new Set(tempCols.map(c => c.column_name));
+    const launder = (name) => name.toLowerCase().replace(/[-#]/g, '_');
+    const normalize = (name) => name.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const normalizedTempCols = new Map();
+    for (const { column_name } of tempCols) {
+      const n = normalize(column_name);
+      // Ambiguous normalized names are unusable — null them out
+      normalizedTempCols.set(n, normalizedTempCols.has(n) ? null : column_name);
     }
-  }
+    const findTempCol = (key) => {
+      if (tempColNames.has(key)) return key;
+      const lower = key.toLowerCase();
+      if (tempColNames.has(lower)) return lower;
+      const laundered = launder(key);
+      if (tempColNames.has(laundered)) return laundered;
+      return normalizedTempCols.get(normalize(key)) || null;
+    };
 
-  await db.query(`ANALYZE "${table_schema}"."${table_name}"`);
-  console.log(`[gis-publish] Index + analyze complete`);
-  await updateProgress(0.9);
+    // Cast and rename temp columns to final names.
+    // Handle boolean text values ('true'/'false') that need to become integers.
+    const unmatchedKeys = [];
+    const castCols = (columnTypes || []).map(c => {
+      const tempName = findTempCol(c.key);
+      if (!tempName) {
+        unmatchedKeys.push(c.key);
+        return 'NULL';
+      }
+      const src = `"${tempName}"`;
+      const dst = `"${c.col}"`;
+      if (c.db_type === 'TEXT' && tempName === c.col) return src;
+      if (c.db_type === 'TEXT') return `${src} AS ${dst}`;
+      // For integer types: handle boolean text values (true/false → 1/0)
+      if (['INTEGER', 'BIGINT', 'SMALLINT', 'INT'].includes(c.db_type.toUpperCase())) {
+        return `CASE
+          WHEN LOWER(TRIM(${src}::TEXT)) IN ('true','t','yes','y') THEN 1
+          WHEN LOWER(TRIM(${src}::TEXT)) IN ('false','f','no','n') THEN 0
+          WHEN NULLIF(TRIM(${src}::TEXT), '') IS NULL THEN NULL
+          ELSE CAST(TRIM(${src}::TEXT) AS ${c.db_type})
+        END AS ${dst}`;
+      }
+      return `CAST(NULLIF(TRIM(${src}::TEXT), '') AS ${c.db_type}) AS ${dst}`;
+    });
+    if (unmatchedKeys.length) {
+      throw new Error(
+        `Could not match source column(s) ${unmatchedKeys.map(k => `"${k}"`).join(', ')} ` +
+        `to any temp table column. Temp table has: ${tempCols.map(c => c.column_name).join(', ')}`
+      );
+    }
+    // Map temp fid → ogc_fid, temp geometry → wkb_geometry
+    const fidExpr = tempFidCol ? `"${tempFidCol}" AS ogc_fid` : 'NULL::INTEGER AS ogc_fid';
+    const geomSelectExpr = tempGeomCol ? [`"${tempGeomCol}" AS wkb_geometry`] : [];
+    const selectCols = [fidExpr, ...castCols, ...geomSelectExpr].join(', ');
+    const insertCols = ['ogc_fid', ...(columnTypes || []).map(c => `"${c.col}"`), ...(tempGeomCol ? ['wkb_geometry'] : [])].join(', ');
+
+    await db.query(`INSERT INTO "${table_schema}"."${table_name}" (${insertCols}) SELECT ${selectCols} FROM "${table_schema}"."${tempTable}"`);
+
+    const { rows: countRows } = await db.query(`SELECT COUNT(*) AS cnt FROM "${table_schema}"."${table_name}"`);
+    console.log(`[gis-publish] Copied ${countRows[0]?.cnt} rows to final table`);
+
+    await updateProgress(0.85);
+
+    // ---------------------------------------------------------------------
+    // Step 5: Create spatial index, analyze
+    // ---------------------------------------------------------------------
+    if (hasGeom) {
+      try {
+        await db.query(`CREATE INDEX "${table_name}_gix" ON "${table_schema}"."${table_name}" USING GIST(wkb_geometry)`);
+      } catch (e) {
+        console.log(`[gis-publish] Spatial index note: ${e.message}`);
+      }
+    }
+
+    await db.query(`ANALYZE "${table_schema}"."${table_name}"`);
+    console.log(`[gis-publish] Index + analyze complete`);
+    await updateProgress(0.9);
+  } catch (err) {
+    // Don't leave a half-built final table behind a failed task
+    try { await db.query(`DROP TABLE IF EXISTS "${table_schema}"."${table_name}"`); } catch (e) {}
+    throw err;
+  } finally {
+    try { await db.query(`DROP TABLE IF EXISTS "${table_schema}"."${tempTable}"`); } catch (e) {}
+  }
 
   // -----------------------------------------------------------------------
   // Step 6: Source metadata (columns from tableDescriptor)

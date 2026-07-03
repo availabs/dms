@@ -38,7 +38,11 @@ export default function AuthSignup({ disableSignup }) {
     // Detect whether we are on root domain in multi-tenant mode
     const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
     const isLocalhost = hostname === 'localhost' || hostname.endsWith('.localhost');
-    const currentSubdomain = hostname.split('.').length >= (isLocalhost ? 2 : 3) ? hostname.split('.')[0] : '';
+    const hostnameParts = hostname.split('.');
+    // Bare IPv4 host (e.g. 1.2.3.4) would otherwise misread its last octet as
+    // a subdomain; real TLDs are never all-digits.
+    const isIPv4Host = /^\d+$/.test(hostnameParts[hostnameParts.length - 1]);
+    const currentSubdomain = !isIPv4Host && hostnameParts.length >= (isLocalhost ? 2 : 3) ? hostnameParts[0] : '';
     const isTenantSignup = isMultiTenant && !currentSubdomain;
 
     if (disableSignup) {
@@ -125,7 +129,10 @@ export default function AuthSignup({ disableSignup }) {
                 const authPatternId = Object.keys(authPatternRes?.json?.dms?.data?.byId || {}).find(k => k !== '$__path');
                 if (!authPatternId) throw new Error('Failed to create auth pattern');
 
-                // 6. Create template patterns then update tenant site with all refs
+                // 6. Create template patterns then update tenant site with all refs.
+                // siteId/initialPatternRefs make provisioning register each pattern
+                // on the tenant site as it's created (crash-safe).
+                const authPatternRef = { ref: `${slug}+${siteInstance}|pattern`, id: +authPatternId };
                 const { allPatternRefs: templateRefs, allEnvRefs } = await provisionTemplatePatterns(falcor, {
                     app: slug,
                     siteInstance,
@@ -134,8 +141,10 @@ export default function AuthSignup({ disableSignup }) {
                     pageTemplates,
                     adminGroupName: slug,
                     subdomain: slug,
+                    siteId: tenantSiteId,
+                    initialPatternRefs: [authPatternRef],
                 });
-                const allPatternRefs = [{ ref: `${slug}+${siteInstance}|pattern`, id: +authPatternId }, ...templateRefs];
+                const allPatternRefs = [authPatternRef, ...templateRefs];
                 const siteUpdate = { patterns: allPatternRefs };
                 if (allEnvRefs.length) siteUpdate.dms_envs = allEnvRefs;
                 await falcor.call(['dms', 'data', 'edit'], [slug, +tenantSiteId, siteUpdate]);

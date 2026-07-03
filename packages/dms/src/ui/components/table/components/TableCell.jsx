@@ -53,12 +53,21 @@ const LinkComp = ({attribute, columns, newItem, removeItem, value}) => {
             typeof value === 'object' && value?.hasOwnProperty('value') ?
                 value.value : value;
 
+        // searchParamsCol: source the link param from ANOTHER column's value on this row, so a column
+        // can DISPLAY one field while LINKING by another (e.g. show `name`, link to ?key=<page_key>).
+        // Backward-compatible: only engaged when the attribute sets `searchParamsCol`.
+        const colLinkVal = attribute.searchParamsCol != null
+            ? (() => { const cv = newItem[attribute.searchParamsCol]; return cv && typeof cv === 'object' ? (cv.originalValue ?? cv.value ?? '') : (cv ?? ''); })()
+            : null;
+
         const rawSearchParamValue =
             attribute.searchParams === 'id' ? newItem.id :
+            attribute.searchParamsCol != null ? colLinkVal :
             ['value', 'rawValue'].includes(attribute.searchParams) ? valueFormattedForSearchParams : null;
 
         const searchParams =
             attribute.searchParams === 'id' ? encodeURIComponent(newItem.id) :
+            attribute.searchParamsCol != null ? encodeURIComponent(colLinkVal) :
                 ['value', 'rawValue'].includes(attribute.searchParams) ? encodeURIComponent(valueFormattedForSearchParams) : ``;
 
         let url;

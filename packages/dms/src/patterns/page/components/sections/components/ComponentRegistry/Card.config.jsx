@@ -158,6 +158,12 @@ const buildInHeader = (fontStyleOptions) => [
             .map(name => ({ label: name, value: name })),
         displayCdn: ({ isEdit }) => isEdit
     },
+    // Column-type style: forwarded to the columnType as its `activeStyle`, selecting a
+    // named style from that type's theme (e.g. a `multiselect` "field" / "compact" style
+    // for a select cell). Free text so any theme style name works; blank = the type's
+    // default style. Flows via `{...attributeProps}` in Card.jsx / TableCell.jsx.
+    { type: 'input', label: 'Column Type Style', key: 'activeStyle', isBatchUpdatable: true,
+        displayCdn: ({ isEdit }) => isEdit },
 
     // display
     { type: 'select', label: 'Justify', key: 'justify', isBatchUpdatable: true,
@@ -228,7 +234,13 @@ const buildInHeader = (fontStyleOptions) => [
     { type: 'input', inputType: 'number', label: 'Padding Below', key: 'cellPaddingBottom', isBatchUpdatable: true },
     { type: 'input', inputType: 'number', label: 'Padding Left', key: 'cellPaddingLeft', isBatchUpdatable: true },
     { type: 'toggle', label: 'Hide Header', key: 'hideHeader', isBatchUpdatable: true },
-    { type: 'toggle', label: 'Hide Value', key: 'hideValue', isBatchUpdatable: true },
+    // hideValue is DEPRECATED as an authoring surface — one visibility axis:
+    // `show` (fetch + render), `selectOnly` (fetch only), `hideHeader`
+    // (header is real chrome). The renderer keeps honoring hideValue for
+    // existing cards; the toggle only appears when it's already set, so
+    // authors can turn it off but not adopt it.
+    { type: 'toggle', label: 'Hide Value (deprecated — use Select Only)', key: 'hideValue', isBatchUpdatable: true,
+        displayCdn: ({ attribute }) => !!attribute.hideValue },
     { type: 'toggle', label: 'Select Only (no cell)', key: 'selectOnly', isBatchUpdatable: true },
     { type: 'input', inputType: 'number', label: 'Col Span', key: 'cellSpan' },
     { type: 'input', inputType: 'number', label: 'Row Span', key: 'cellRowSpan' },
@@ -436,6 +448,21 @@ const buildControls = (theme) => ({
                     { type: 'input', inputType: 'number', label: 'Cards Across', key: 'cardsGridSize' },
                     { type: 'input', inputType: 'number', label: 'Gap', key: 'cardsGridGap' },
                     { type: 'input', inputType: 'number', label: 'Card Padding', key: 'cardsPadding' },
+                    // Padding on the whole cards grid (vs Card Padding = inside each
+                    // card). Number or CSS shorthand, e.g. '0 0 16px' for bottom-only.
+                    { type: 'input', label: 'Grid Padding', key: 'cardsGridPadding' },
+                    // 'Fill height' stretches card rows to the section box (gaps breathe
+                    // with the section height); 'Pack to top' keeps rows content-sized so
+                    // the vertical gap is exactly `cardsGridGap`. Model default: v1 themes
+                    // fill, `layoutModel: 'v2'` themes pack — set an explicit value to
+                    // override either way.
+                    { type: 'select', label: 'Vertical Align', key: 'cardsVerticalAlign',
+                        options: [
+                            { label: 'Model default (v1 fill / v2 pack)', value: undefined },
+                            { label: 'Pack to top', value: 'top' },
+                            { label: 'Fill height', value: 'stretch' },
+                        ],
+                    },
                     { type: ({ value, setValue }) => <ColorControls value={value} setValue={setValue} title={'Card Background'} />, key: 'cardsBgColor' },
                     { type: 'toggle', label: 'Card Border', key: 'cardBorder' },
                 ]
@@ -444,6 +471,10 @@ const buildControls = (theme) => ({
             { label: 'Cells Grid', items: [
                     { type: 'input', inputType: 'number', label: 'Cells Across', key: 'cellsGridSize' },
                     { type: 'input', inputType: 'number', label: 'Gap', key: 'cellsGridGap' },
+                    // Per-axis gap overrides (win over the single Gap) — tighten the vertical rhythm
+                    // without squishing a packed row, or vice-versa.
+                    { type: 'input', inputType: 'number', label: 'Row Gap', key: 'cellsRowGap' },
+                    { type: 'input', inputType: 'number', label: 'Col Gap', key: 'cellsColumnGap' },
                     { type: 'input', inputType: 'number', label: 'Row Height', key: 'cellsRowHeight' },
                     { type: 'input', inputType: 'number', label: 'Cell Padding', key: 'cellsPadding' },
                     { type: 'toggle', label: 'Cell Border', key: 'cellBorder' },

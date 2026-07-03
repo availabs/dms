@@ -77,6 +77,33 @@ export const dataCardTheme = {
             img7XL: "max-w-96 max-h-96",
             img8XL: "max-w-128 max-h-128",
             imgDefault: 'max-w-[50px] max-h-[50px]'
+        },
+        // v2 layout model — the predictable box model (opt-in). Pick per
+        // section via the "Card style" control, or site-wide by putting
+        // `layoutModel: 'v2'` (+ the invariants below) on a brand theme's
+        // styles[0]. Missing keys inherit from the default style above.
+        //
+        // v2 invariants a theme style must hold:
+        //   - structural keys (`value`, `header`, `valueWrapper`,
+        //     `headerValueWrapper`) are LAYOUT-ONLY: no font sizes/families/
+        //     colors (typography comes exclusively from valueFontStyle/
+        //     headerFontStyle tokens) and no min-heights.
+        //   - the ambient cell gutter is the single `cellGutter` value
+        //     (number → px), emitted INLINE by Card.jsx so `cellsPadding`/
+        //     `cellPadding` (including explicit 0) always win — never a
+        //     padding class on `headerValueWrapper`.
+        // Renderer behavior under v2 (see Card.layout.js): cards-grid rows
+        // are content-sized and packed to the top (`cardsVerticalAlign:
+        // 'stretch'` opts back into fill), and cells carry no transparent
+        // border — edit-mode hover uses `itemEditOutline` instead, so view-
+        // mode geometry has no +2px constant.
+        {
+            name: 'v2',
+            layoutModel: 'v2',
+            cellGutter: 8,
+            valueWrapper: '',
+            headerValueWrapper: 'w-full rounded-[12px] flex items-center justify-center',
+            itemEditOutline: 'outline outline-blue-300 -outline-offset-1',
         }
     ]
 }

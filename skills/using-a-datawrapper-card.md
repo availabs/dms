@@ -161,6 +161,36 @@ Three details that trip up new authors:
    as an error object. (b) **A `;` inside a SQL string literal silently
    NULLs the cell** — write `'a · b'`, never `'a; b'`, in a calculated
    column's literal text.
+5. **`display.pageSize` is REQUIRED, even with `usePagination: false`.**
+   getData computes the fetch range as
+   `toIndex = min(length, currentPage * pageSize + pageSize) − 1`
+   (`getData.js` ~271). An undefined `pageSize` → `NaN` range → the
+   **length query fires but the data request silently never does** —
+   the card renders blank with zero console errors. Every seeded
+   dataWrapper section (Card, Spreadsheet, Graph) must carry a
+   `pageSize`. Corollary for **whole-table aggregate cards** (a KPI
+   strip of `count(*) FILTER …` cells, no GROUP BY): the length query
+   still returns the raw row count (e.g. 1,314), so `pageSize: 10`
+   renders your one real aggregate row followed by 9 all-zero clones —
+   set **`pageSize: 1`** on aggregate-only cards.
+6. **A SQL-expression column must be *marked* calculated or it won't
+   fetch.** `isCalculatedCol` (`buildUdaConfig.js`) recognizes a column
+   as SQL only when `display === 'calculated'` || `type === 'calculated'`
+   || `origin === 'calculated-column'` || the name contains `" as "`.
+   The robust seed shape is both together:
+   `{ name: "count(*) FILTER (WHERE status = 'X') as x_total",
+   origin: 'calculated-column' }` — the ` as alias` also gives getData's
+   `colKey` a clean response-row key (and `normalName: '<alias>'` is what
+   avlGraph series read). A bare expression with neither marker is
+   treated as a (nonexistent) plain column and drops out of the fetch.
+   **In a GROUP BY card** (any column has `group: true`), a calculated
+   aggregate column additionally needs **`fn: 'exempt'`** ("already
+   aggregated server-side") or the data request silently never fires —
+   same rule as avlGraph calc series (`authoring-graphs.md`). Worked
+   example: a per-group share bar
+   `round(count(*) * 100.0 / max(count(*)) over (), 1) as bar_pct`
+   with `{ fn: 'exempt', type: 'data_bar', barMax: 100 }` — the
+   window-over-aggregate runs fine under UDA's GROUP BY.
 
 Field-by-field reference: the
 [schema.js header doc](../packages/dms/src/patterns/page/components/sections/components/dataWrapper/schema.js).
@@ -424,6 +454,50 @@ block:
 
 Then proceed with `columns` / `filters` / `display` / `data` as in
 Recipe A.
+
+---
+
+## 2.8 Grouped-list recipes: exclude-nulls + "All others" tail-collapse
+
+Two recurring needs when a grouped Card mirrors a design's ranked list:
+
+**Drop the null/unclassified group** — add an `is_not_null` leaf; the client
+maps it to an `exclude` op with the `'null'` sentinel (plus `''` for text
+columns), which the server compiles to `... AND col IS NOT NULL`:
+
+```js
+filters: [
+  { col: 'property_status', op: 'filter', value: [...] },
+  { col: 'property_class', op: 'is_not_null' },
+]
+```
+
+(Fixed 2026-07-02: the server's exclude branch joined the value condition and
+null condition with `OR` — a tautology that silently matched every row, so
+`is_not_null` leaves no-opped. `routes/uda/utils.js` now emits `AND`.)
+
+**Collapse the tail into one "All others" row** — group by a CASE label
+instead of the raw column, and pin the bucket last with a selectOnly sort
+driver (orderBy preserves column order → tail first, count second):
+
+```js
+const TOP = ['South End', 'Eagle Hill', /* … */];
+const LABEL = `CASE WHEN neighborhood IN (${TOP.map(h => `'${h}'`).join(', ')}) THEN neighborhood ELSE 'All others' END`;
+columns: [
+  { name: `${LABEL} as hood_label`, origin: 'calculated-column', show: true, group: true },
+  { name: `max(CASE WHEN neighborhood IN (…same list…) THEN 0 ELSE 1 END) as tail_rank`,
+    origin: 'calculated-column', fn: 'exempt', sort: 'asc', show: true, selectOnly: true },
+  { name: 'ogc_fid', fn: 'count', show: true, sort: 'desc' },
+]
+```
+
+⚠ **The membership list must be a static value list.** The UDA sanitizer
+(`sanitizeName`, `routes/uda/utils.js`) rejects any column/groupBy expression
+containing `select` (and other DML keywords, and `;`) as SQL-injection
+defense — a live top-N via subquery is not expressible, and a rejected
+expression is **silently dropped** from SELECT and GROUP BY (the card renders
+one ungrouped row and null labels — that's the symptom to recognize). Counts
+stay live; refresh the list when the ranking shifts.
 
 ---
 

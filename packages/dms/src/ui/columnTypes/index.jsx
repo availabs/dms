@@ -23,6 +23,7 @@ import { StatValueEdit, StatValueView } from './statValue'
 import { CodeWithSubEdit, CodeWithSubView } from './codeWithSub'
 import { DownloadButtonEdit, DownloadButtonView } from './downloadButton'
 import { DesignFrameEdit, DesignFrameView } from './design_frame'
+import { StageProgressEdit, StageProgressView } from './stage_progress'
 import Switch from '../components/Switch'
 
 const text = { EditComp: TextEdit, ViewComp: TextView }
@@ -44,6 +45,7 @@ const statValue = { EditComp: StatValueEdit, ViewComp: StatValueView }
 const codeWithSub = { EditComp: CodeWithSubEdit, ViewComp: CodeWithSubView }
 const downloadButton = { EditComp: DownloadButtonEdit, ViewComp: DownloadButtonView }
 const designFrame = { EditComp: DesignFrameEdit, ViewComp: DesignFrameView }
+const stageProgress = { EditComp: StageProgressEdit, ViewComp: StageProgressView }
 
 // console.log('in column types', Lexical)
 // columnTypes is a mutable registry: themes can extend it via theme.columnTypes
@@ -86,6 +88,7 @@ const columnTypes = {
   'code_with_sub': codeWithSub,
   'download_button': downloadButton,
   'design_frame': designFrame,
+  'stage_progress': stageProgress,
   'switch': {
         EditComp: ({trueValue=true, value, onChange, ...props}) => {
             const offValue = typeof trueValue === 'boolean' ? !trueValue : null;

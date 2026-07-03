@@ -84,6 +84,10 @@ const getSubdomain = (host) => {
     // only works with single depth subdomains
     // ---
     //console.log('host', host,  host.split('.'));
+    // Bare IPv4 host (e.g. 1.2.3.4) would otherwise misread its last octet as
+    // a subdomain; real TLDs are never all-digits.
+    const hostParts = host ? host.split('.') : []
+    if (hostParts.length && /^\d+$/.test(hostParts[hostParts.length - 1])) return false
     // eslint-disable-next-line no-undef
     if (process.env.NODE_ENV === "development") {
         return host && host.split('.').length >= 2 ?

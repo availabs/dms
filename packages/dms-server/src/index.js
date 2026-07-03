@@ -190,6 +190,9 @@ function getSubdomain(req) {
   const isLocalhost = hostname === 'localhost' || hostname.endsWith('.localhost');
   const minParts = isLocalhost || process.env.NODE_ENV === 'development' ? 2 : 3;
   const parts = hostname.split('.');
+  // Bare IPv4 host (e.g. 1.2.3.4) would otherwise misread its last octet as
+  // a subdomain; real TLDs are never all-digits.
+  if (/^\d+$/.test(parts[parts.length - 1])) return '';
   return parts.length >= minParts ? parts[0].toLowerCase() : '';
 }
 

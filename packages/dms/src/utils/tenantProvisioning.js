@@ -104,16 +104,30 @@ export function wireSection(section, sourceId, viewId, attrs, env, app, sourceSl
  * @param {Array}  opts.siteTemplates    - theme.site_templates
  * @param {Array}  opts.pageTemplates    - theme.page_templates
  * @param {string} opts.adminGroupName   - Used for authPermissions group key (e.g. "acme")
+ * @param {string|number} [opts.siteId]  - When set, the site row is updated with the
+ *   refs accumulated so far after each pattern/env create. This makes provisioning
+ *   crash-safe: an interrupted flow (reload, lost response) leaves a site that
+ *   references every pattern created up to that point, instead of stranding
+ *   fully-created patterns invisible behind a single final write.
+ * @param {Array} [opts.initialPatternRefs] - Refs to prepend to every site update
+ *   (e.g. the auth pattern the caller created before provisioning).
  *
  * @returns {{ allPatternRefs: Array, allEnvRefs: Array }}
  *   allPatternRefs — refs for created patterns (auth pattern NOT included; caller prepends it)
  *   allEnvRefs     — refs for created dmsEnv rows
  */
-export async function provisionTemplatePatterns(falcor, { app, siteInstance, selectedTemplateId, siteTemplates, pageTemplates, adminGroupName, subdomain }) {
+export async function provisionTemplatePatterns(falcor, { app, siteInstance, selectedTemplateId, siteTemplates, pageTemplates, adminGroupName, subdomain, siteId, initialPatternRefs = [] }) {
   const selectedTemplate = (siteTemplates || []).find(t => t.id === selectedTemplateId) ?? { patterns: [] };
   let allPatternRefs = [];
   let allEnvRefs = [];
   let wiredContext = null;
+
+  const syncSiteRefs = async () => {
+    if (!siteId) return;
+    const siteUpdate = { patterns: [...initialPatternRefs, ...allPatternRefs] };
+    if (allEnvRefs.length) siteUpdate.dms_envs = allEnvRefs;
+    await falcor.call(['dms', 'data', 'edit'], [app, +siteId, siteUpdate]);
+  };
 
   for (const patternSpec of selectedTemplate.patterns) {
     const patternSlug = nameToSlug(patternSpec.name);
@@ -130,6 +144,7 @@ export async function provisionTemplatePatterns(falcor, { app, siteInstance, sel
     if (!templatePatternId) continue;
 
     allPatternRefs = [...allPatternRefs, { ref: `${app}+${siteInstance}|pattern`, id: +templatePatternId }];
+    await syncSiteRefs();
 
     if (patternSpec.pattern_type === 'page' && patternSpec.pages?.length) {
       for (const pageSpec of patternSpec.pages) {
@@ -156,6 +171,7 @@ export async function provisionTemplatePatterns(falcor, { app, siteInstance, sel
 
       if (envId) {
         allEnvRefs = [...allEnvRefs, { ref: `${app}+${siteInstance}|dmsenv`, id: +envId }];
+        await syncSiteRefs();
         await falcor.call(['dms', 'data', 'edit'], [app, +templatePatternId, { dmsEnvId: +envId }]);
 
         let sourceRefs = [];

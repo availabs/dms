@@ -17,6 +17,9 @@ function getSubdomainFromHost(host) {
   const isLocalhost = hostname === 'localhost' || hostname.endsWith('.localhost');
   const minParts = isLocalhost ? 2 : 3;
   const parts = hostname.split('.');
+  // Bare IPv4 host (e.g. 1.2.3.4) would otherwise misread its last octet as
+  // a subdomain; real TLDs are never all-digits.
+  if (/^\d+$/.test(parts[parts.length - 1])) return '';
   return parts.length >= minParts ? parts[0] : '';
 }
 
@@ -151,7 +154,10 @@ function PatternList({
         // but only if the current host actually has a subdomain.
         const parts = host.split('.')
         const isLocalhost = host.includes('localhost')
-        const hasSubdomain = isLocalhost ? parts.length >= 2 : parts.length > 2
+        // Bare IPv4 host (e.g. 1.2.3.4) would otherwise misread its last octet
+        // as a subdomain; real TLDs are never all-digits.
+        const isIPv4Host = /^\d+$/.test(parts[parts.length - 1])
+        const hasSubdomain = !isIPv4Host && (isLocalhost ? parts.length >= 2 : parts.length > 2)
         const baseDomain = hasSubdomain ? parts.slice(1).join('.') : host
         const targetHost = needsSub ? `${sub}.${baseDomain}` : host
         const baseUrl = d.row.base_url

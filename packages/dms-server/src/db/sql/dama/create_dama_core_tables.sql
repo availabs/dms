@@ -1,6 +1,19 @@
 -- DAMA Core Tables for PostgreSQL
 -- Data Manager schema: sources and views for external dataset management
 
+-- PostGIS is required for GIS dataset publishing (geometry columns, GiST
+-- indexes) and tile serving (ST_AsMVT). Installing it needs elevated
+-- privileges, so failure is downgraded to a warning rather than aborting
+-- init — non-GIS DAMA features work without it.
+-- (This file is executed as a single query on postgres, so the DO block is
+-- safe; the sqlite variant of this file has no equivalent.)
+DO $$
+BEGIN
+  CREATE EXTENSION IF NOT EXISTS postgis;
+EXCEPTION WHEN OTHERS THEN
+  RAISE WARNING 'Could not install postgis extension (%). GIS dataset uploads and vector tiles will not work until it is installed manually: CREATE EXTENSION postgis;', SQLERRM;
+END $$;
+
 CREATE SCHEMA IF NOT EXISTS data_manager;
 
 -- Sources table: dataset metadata
