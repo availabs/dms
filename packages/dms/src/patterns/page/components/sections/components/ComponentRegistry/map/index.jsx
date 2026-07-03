@@ -65,6 +65,45 @@ const getJoinTileColumns = (layerConfig) =>
         : [];
 
 /**
+ * Pulls the ordered color ramp out of a saved choropleth `fill-color` paint
+ * expression. The map's paint is the real source of truth for a layer's colors,
+ * so when a layer has no explicit `color-range` (older saves store the ramp only
+ * in the paint), we recover the author's colors from here instead of falling
+ * back to an empty ramp — which would render a colorless legend that overwrites
+ * the good saved legend-data.
+ *
+ * Handles both a bare step expression and one wrapped in a `case` null-guard:
+ *   ["step", input, color0, break1, color1, break2, ...]  → colors at even idx ≥ 2
+ */
+const extractStepColors = (fillColor) => {
+    if (!Array.isArray(fillColor)) return [];
+    let step = fillColor;
+    if (fillColor[0] === "case") {
+        step = fillColor.find((el) => Array.isArray(el) && el[0] === "step") || [];
+    }
+    if (step[0] !== "step") return [];
+    const colors = [];
+    for (let i = 2; i < step.length; i += 2) colors.push(step[i]);
+    return colors;
+};
+
+/**
+ * Resolves the saved paint expression that holds a layer's color ramp, by layer
+ * type. The sub-layer index is canonical (getFillLayer/getCircleLayer in the
+ * editor): fill = layers[1].fill-color, line = layers[1].line-color, circle =
+ * layers[0].circle-color. Mirrors LegendPanel's `typePaint` so the ramp is read
+ * from the right slot regardless of geometry type.
+ */
+const getSavedRampPaint = (layer) => {
+    switch (layer?.type) {
+        case "circle": return get(layer, `layers[0].paint['circle-color']`);
+        case "line":   return get(layer, `layers[1].paint['line-color']`);
+        case "fill":
+        default:       return get(layer, `layers[1].paint['fill-color']`);
+    }
+};
+
+/**
  * Normalizes the saved join config so the runtime can read one consistent
  * shape even while older saved symbologies still use legacy nested keys.
  */
@@ -141,7 +180,7 @@ const getJoinQueryAttributeByOutputName = (layerConfig, outputName) => {
  * attributes down to the join key plus the requested output expression so
  * legend refresh only pulls the join-side fields it actually needs.
  */
-const buildJoinOptions = (layerConfig, targetColumn = null) => {
+const buildJoinOptions = (layerConfig, dataColumn = null) => {
     const joinConfig = normalizeJoinRuntimeConfig(layerConfig);
     if (
         !joinConfig?.enabled ||
@@ -154,24 +193,51 @@ const buildJoinOptions = (layerConfig, targetColumn = null) => {
 
     const queryConfig = joinConfig.query || {};
     const groupBy = Array.isArray(queryConfig?.groupBy) ? queryConfig.groupBy : [];
-    const columns = Array.isArray(queryConfig?.columns) ? queryConfig.columns : [];
-    let attributes = columns;
-    let tileCols = getJoinTileColumns(layerConfig);
+    const tileColumns = getJoinTileColumns(layerConfig);
+    const groupBySet = new Set(groupBy);
 
-    if (targetColumn) {
-        const targetAttribute = getJoinQueryAttributeByOutputName(layerConfig, targetColumn);
-        const joinAttribute = getJoinQueryAttributeByOutputName(layerConfig, joinConfig.joinColumn);
-        attributes = [joinAttribute, targetAttribute].filter(Boolean);
-        tileCols = targetAttribute ? [targetColumn] : [];
+    // Resolve a join output column to its SELECT expression: prefer the join
+    // query's own column expression, else fall back to the bare column name for
+    // a GROUP BY key (valid to select alongside the aggregate). Returns null for
+    // anything the join can't produce (e.g. a base-table column).
+    const resolveAttr = (col) =>
+        getJoinQueryAttributeByOutputName(layerConfig, col) || (groupBySet.has(col) ? col : null);
+    const isJoinColumn = (col) => Boolean(col) && (Boolean(resolveAttr(col)) || tileColumns.includes(col));
+
+    // Every column the query needs the join to supply: the colored column when
+    // it's joined, plus any static or dynamic filter column that targets a
+    // joined column. Base-table columns are excluded — the geometry side
+    // supplies those — so a filter on a base column doesn't force a join.
+    const filterColumns = Object.keys(layerConfig?.filter || {});
+    const dynamicFilterColumns = (layerConfig?.["dynamic-filters"] || [])
+        .filter((dynamicFilter) => Array.isArray(dynamicFilter?.values) && dynamicFilter.values.length > 0)
+        .map((dynamicFilter) => dynamicFilter.column_name);
+    const joinedFilterColumns = [...filterColumns, ...dynamicFilterColumns].filter(isJoinColumn);
+    const coloredColumnIsJoined = isJoinColumn(dataColumn);
+
+    // No join needed unless the colored column or a filter targets the join.
+    if (!coloredColumnIsJoined && joinedFilterColumns.length === 0) {
+        return null;
     }
+
+    const requiredColumns = Array.from(new Set([
+        joinConfig.joinColumn,
+        ...(coloredColumnIsJoined ? [dataColumn] : []),
+        ...joinedFilterColumns,
+    ].filter(Boolean)));
+    const resolved = requiredColumns
+        .map((col) => ({ col, attr: resolveAttr(col) }))
+        .filter((entry) => entry.attr);
 
     return {
         viewId: joinConfig.source.viewId,
         localKey: joinConfig.featureKeyColumn,
         joinKey: joinConfig.joinColumn,
         options: { ...buildJoinFilterOptions(queryConfig), groupBy },
-        attributes,
-        tileCols,
+        attributes: resolved.map((entry) => entry.attr),
+        // Expose everything except the join key as tile/feature columns so tile
+        // rendering and client-side map filters can read the joined values too.
+        tileCols: resolved.filter((entry) => entry.col !== joinConfig.joinColumn).map((entry) => entry.col),
     };
 };
 
@@ -499,9 +565,10 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
                         : layer?.["layer-type"];
                     const dataColumn = layer?.["data-column"];
                     const viewId = layer?.view_id;
-                    const joinedTileColumns = new Set(getJoinTileColumns(layer));
-                    const isJoinedDataColumn = joinedTileColumns.has(dataColumn);
-                    const joinOptions = isJoinedDataColumn ? buildJoinOptions(layer, dataColumn) : null;
+                    // buildJoinOptions decides whether a join is actually needed
+                    // (colored column joined, or a filter targets a joined column)
+                    // and returns null otherwise.
+                    const joinOptions = buildJoinOptions(layer, dataColumn);
                     const activeLegendFilters = buildLayerUdaFilterOptions({
                         layerFilter: layer?.filter,
                         dynamicFilters: layer?.["dynamic-filters"],
@@ -608,10 +675,20 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
                             {}
                         );
 
+                        // The color ramp doesn't change with filters. Prefer the
+                        // layer's explicit `color-range`, but fall back to the ramp
+                        // already baked into the saved paint when it's absent —
+                        // otherwise the recomputed legend comes out colorless and
+                        // overwrites the good saved legend-data.
+                        const effectiveColorRange =
+                            (Array.isArray(layer?.["color-range"]) && layer["color-range"].length)
+                                ? layer["color-range"]
+                                : extractStepColors(getSavedRampPaint(layer));
+
                         const paintResult = choroplethPaint(
                             dataColumn,
                             domainResult?.max,
-                            layer?.["color-range"] || [],
+                            effectiveColorRange,
                             layer?.["num-bins"] || 9,
                             layer?.["bin-method"] || "ckmeans",
                             domainResult?.breaks || [],

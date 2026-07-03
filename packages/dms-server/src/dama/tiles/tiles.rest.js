@@ -121,11 +121,13 @@ async function getJoinedTileData(pgEnv, viewId, z, x, y, columns, filter, join) 
 
   if (joinCtx.dbType !== 'pg') return null;
 
+  // No row cap — the join is narrowed to just this tile's keys by
+  // `injectTileKeyFilter` below, so the CTE only needs the matching rows; a
+  // fixed LIMIT here could truncate them before that narrowing runs.
   const { sql: joinSql, values: joinValues } = await buildSimpleFilterSql(
     joinCtx,
     JSON.stringify(join.options || {}),
-    join.attributes || [],
-    { from: 0, to: 1_000_000 - 1 }
+    join.attributes || []
   );
 
   if (!joinSql) return null;

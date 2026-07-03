@@ -190,7 +190,18 @@ export const ExistingFilterList = ({removeFilter, activeColumn, setActiveColumn}
 export function FilterBuilder({ path, params = {} }) {
   const { state, setState } = React.useContext(SymbologyContext);
   const [filterSearchValue, setFilterSearchValue] = React.useState("");
+  const [debouncedFilterSearchValue, setDebouncedFilterSearchValue] = React.useState("");
   const { activeColumn: activeColumnName, setActiveColumn } = params;
+
+  // Debounced deliberately high (600ms) — the debounced value drives a real DB
+  // query (server-side `like` filter), so we only re-fetch once the user pauses
+  // typing rather than on every keystroke. The raw input stays responsive.
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setDebouncedFilterSearchValue(filterSearchValue);
+    }, 600);
+    return () => clearTimeout(timeoutId);
+  }, [filterSearchValue]);
   const { sourceId } = useMemo(
     () => ({
       sourceId: get(
@@ -318,8 +329,8 @@ export function FilterBuilder({ path, params = {} }) {
             }
           </div>
           {
-            isEqualityOperator && 
-              <EqualityFilterValueList params={params} path={valuePath} filterSearchValue={filterSearchValue}/>
+            isEqualityOperator &&
+              <EqualityFilterValueList params={params} path={valuePath} filterSearchValue={debouncedFilterSearchValue}/>
           }
         </>  
       )}
@@ -336,6 +347,16 @@ function AddFilterColumn({ path, params = {}, setActiveColumn }) {
   );
 
   const existingFilterColumns = Object.keys(existingFilter);
+
+  // A column already driven by a Dynamic Filter (Legend panel checkboxes) can't
+  // also take a static filter — the two get ANDed server-side and, unless their
+  // values happen to match, produce an always-empty result. Keep them mutually
+  // exclusive per column by hiding dynamic-filter columns from this dropdown.
+  const existingDynamicFilterColumns = get(
+    state,
+    `symbology.layers[${state.symbology.activeLayer}]['dynamic-filters']`,
+    []
+  ).map((dynamicFilter) => dynamicFilter.column_name);
 
   const sourceId = get(
     state,
@@ -380,7 +401,7 @@ function AddFilterColumn({ path, params = {}, setActiveColumn }) {
 
   const availableFilterColumns = getDiffColumns(
     attributeNames,
-    existingFilterColumns
+    existingFilterColumns.concat(existingDynamicFilterColumns)
   ).map((colName) => {
     const newAttr = attributes.find((attr) => attr.name === colName);
     return { value: colName, label: newAttr?.display_name || colName, _joined: newAttr?._joined };
@@ -458,11 +479,24 @@ function EqualityFilterValueList({params, path, filterSearchValue}) {
     }
   }, [sourceId]);
 
+  const columnKey = (activeColumnName).split('AS ')[0];
+  const trimmedSearch = (filterSearchValue || "").trim();
   const options = JSON.stringify({
-    groupBy: [(activeColumnName).split('AS ')[0]],
-    exclude: {[(activeColumnName).split('AS ')[0]]: ['null']}
+    groupBy: [columnKey],
+    exclude: { [columnKey]: ['null'] },
+    // Deterministic ordering so the LIMIT 500 below returns a stable,
+    // alphabetical slice instead of an arbitrary set of rows.
+    orderBy: { [columnKey]: 'asc' },
+    // When the user searches, filter server-side so matches beyond the first
+    // 500 distinct values are found — the list no longer post-filters a fixed
+    // local batch. The LIMIT 500 stays as the base cap either way.
+    ...(trimmedSearch ? { like: { [columnKey]: `%${trimmedSearch}%` } } : {}),
   })
+
+  const [isLoading, setIsLoading] = React.useState(false);
   useEffect(() => {
+    let cancelled = false;
+    setIsLoading(true);
     falcor.get([
       "uda",
       pgEnv,
@@ -473,8 +507,11 @@ function EqualityFilterValueList({params, path, filterSearchValue}) {
       "dataByIndex",
       { from: 0, to: 500 },
       [activeColumnName, "count(1)::int as count"],
-    ]);
-  }, [falcor, pgEnv, effectiveViewId, activeColumnName]);
+    ]).then(() => {
+      if (!cancelled) setIsLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [falcor, pgEnv, effectiveViewId, activeColumnName, options]);
 
   const sampleData = useMemo(() => {
     return Object.values(
@@ -484,7 +521,7 @@ function EqualityFilterValueList({params, path, filterSearchValue}) {
         {}
       )
     );
-  }, [pgEnv, falcorCache, effectiveViewId]);
+  }, [pgEnv, falcorCache, effectiveViewId, options]);
 
   const sampleRows = useMemo(() => {
     return sampleData
@@ -499,13 +536,19 @@ function EqualityFilterValueList({params, path, filterSearchValue}) {
     `symbology.layers[${state.symbology.activeLayer}].${path}`,
     params.default || params?.options?.[0]?.value
   );
+
+  if (isLoading) {
+    return (
+      <div className="px-4 py-2 flex items-center text-sm text-slate-400">
+        <i className="fa-solid fa-spinner fa-spin mr-2" />
+        Loading...
+      </div>
+    );
+  }
+
+  // Filtering is done server-side via the `like` option above, so the list
+  // renders the fetched rows directly (no client-side substring filter).
   return sampleRows
-    ?.filter((sampleValue) =>
-      sampleValue
-        ?.toString()
-        ?.toLowerCase()
-        ?.includes(filterSearchValue.toString().toLowerCase())
-    )
     .map((sampleValue, i) => {
       const isValueSelected = currentFilterValue?.includes(sampleValue)
       const selectedClass = isValueSelected ? "bg-pink-100" : "";

@@ -120,7 +120,7 @@ const getJoinQueryAttributeByOutputName = (layerConfig, outputName) => {
  * and dynamic-filter columns so the editor legend stays aligned with the full
  * filtered join dataset.
  */
-const buildJoinOptions = (layerConfig, targetColumn = null) => {
+const buildJoinOptions = (layerConfig, dataColumn = null) => {
   const joinConfig = normalizeJoinRuntimeConfig(layerConfig);
   if (
     !joinConfig?.enabled ||
@@ -132,38 +132,52 @@ const buildJoinOptions = (layerConfig, targetColumn = null) => {
   }
 
   const queryConfig = joinConfig.query || {};
-  const joinViewId = joinConfig.source.viewId;
-  const joinColumn = joinConfig.joinColumn;
   const groupBy = Array.isArray(queryConfig?.groupBy) ? queryConfig.groupBy : [];
-  const columns = Array.isArray(queryConfig?.columns) ? queryConfig.columns : [];
-  let attributes = columns;
-  let tileCols = getJoinTileColumns(layerConfig);
-  const joinOutputColumns = new Set(tileCols);
-  const joinFilterColumns = Object.keys(layerConfig?.filter || {}).filter((columnName) =>
-    joinOutputColumns.has(columnName)
-  );
-  const dynamicJoinColumns = (layerConfig?.["dynamic-filters"] || [])
-    .filter((filterConfig) => filterConfig?.values?.length > 0 && joinOutputColumns.has(filterConfig.column_name))
-    .map((filterConfig) => filterConfig.column_name);
-  const requiredJoinColumns = Array.from(
-    new Set([targetColumn, joinColumn, ...joinFilterColumns, ...dynamicJoinColumns].filter(Boolean))
-  );
+  const tileColumns = getJoinTileColumns(layerConfig);
+  const groupBySet = new Set(groupBy);
 
-  if (requiredJoinColumns.length) {
-    const requiredAttributes = requiredJoinColumns
-      .map((columnName) => getJoinQueryAttributeByOutputName(layerConfig, columnName))
-      .filter(Boolean);
-    attributes = Array.from(new Set(requiredAttributes));
-    tileCols = Array.from(new Set(requiredJoinColumns.filter((columnName) => joinOutputColumns.has(columnName))));
+  // Resolve a join output column to its SELECT expression: prefer the join
+  // query's own column expression, else fall back to the bare column name for
+  // a GROUP BY key (valid to select alongside the aggregate). Returns null for
+  // anything the join can't produce (e.g. a base-table column).
+  const resolveAttr = (col) =>
+    getJoinQueryAttributeByOutputName(layerConfig, col) || (groupBySet.has(col) ? col : null);
+  const isJoinColumn = (col) => Boolean(col) && (Boolean(resolveAttr(col)) || tileColumns.includes(col));
+
+  // Every column the query needs the join to supply: the colored column when
+  // it's joined, plus any static or dynamic filter column that targets a
+  // joined column. Base-table columns are excluded — the geometry side
+  // supplies those — so a filter on a base column doesn't force a join.
+  const filterColumns = Object.keys(layerConfig?.filter || {});
+  const dynamicFilterColumns = (layerConfig?.["dynamic-filters"] || [])
+    .filter((dynamicFilter) => Array.isArray(dynamicFilter?.values) && dynamicFilter.values.length > 0)
+    .map((dynamicFilter) => dynamicFilter.column_name);
+  const joinedFilterColumns = [...filterColumns, ...dynamicFilterColumns].filter(isJoinColumn);
+  const coloredColumnIsJoined = isJoinColumn(dataColumn);
+
+  // No join needed unless the colored column or a filter targets the join.
+  if (!coloredColumnIsJoined && joinedFilterColumns.length === 0) {
+    return null;
   }
 
+  const requiredColumns = Array.from(new Set([
+    joinConfig.joinColumn,
+    ...(coloredColumnIsJoined ? [dataColumn] : []),
+    ...joinedFilterColumns,
+  ].filter(Boolean)));
+  const resolved = requiredColumns
+    .map((col) => ({ col, attr: resolveAttr(col) }))
+    .filter((entry) => entry.attr);
+
   return {
-    viewId: joinViewId,
+    viewId: joinConfig.source.viewId,
     localKey: joinConfig.featureKeyColumn,
-    joinKey: joinColumn,
+    joinKey: joinConfig.joinColumn,
     options: { ...buildJoinFilterOptions(queryConfig), groupBy },
-    attributes,
-    tileCols,
+    attributes: resolved.map((entry) => entry.attr),
+    // Expose everything except the join key as tile/feature columns so tile
+    // rendering and client-side map filters can read the joined values too.
+    tileCols: resolved.filter((entry) => entry.col !== joinConfig.joinColumn).map((entry) => entry.col),
   };
 };
 
@@ -736,9 +750,6 @@ const MapEditor = props => {
           numbins,
           method
         }
-        const joinedTileColumns = new Set(getJoinTileColumns(activeLayer));
-        const isJoinedDataColumn = joinedTileColumns.has(baseDataColumn);
-
         let colorBreaks;
         let targetViewId = viewId;
         /**
@@ -758,7 +769,7 @@ const MapEditor = props => {
           filters: activeLegendFilters || null,
           targetViewId: viewGroupEnabled ? viewGroupId : viewId,
           targetColumn: filterGroupEnabled ? filterGroupLegendColumn || baseDataColumn : baseDataColumn,
-          join: isJoinedDataColumn ? buildJoinOptions(activeLayer, baseDataColumn) : null,
+          join: buildJoinOptions(activeLayer, baseDataColumn),
         });
 
         let regenerateLegend = false;
@@ -781,11 +792,9 @@ const MapEditor = props => {
           if (activeLegendFilters) {
             Object.assign(domainOptions, activeLegendFilters);
           }
-          if (isJoinedDataColumn) {
-            const joinOptions = buildJoinOptions(activeLayer, baseDataColumn);
-            if (joinOptions) {
-              domainOptions.join = joinOptions;
-            }
+          const joinOptions = buildJoinOptions(activeLayer, baseDataColumn);
+          if (joinOptions) {
+            domainOptions.join = joinOptions;
           }
           const optsKey = JSON.stringify(domainOptions);
           const cachedColorDomain = get(
