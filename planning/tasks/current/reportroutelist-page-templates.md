@@ -1177,3 +1177,64 @@ null/unset. Fixed:
   157) now passes `sidebar: item?.sidebar` alongside the existing `sections`/`sectionGroups`. So
   saving any page as a template now preserves that page's sidebar choice, not just this one template.
   Both files syntax-checked with esbuild — clean. Not live-verified.
+
+### Bug found post-implementation (2026-07-02): every route past the first created a new dataset row
+
+User live-testing on a fresh `page_10` (created from the template) found: route 1 persists across a
+refresh; every route added after that — plus any per-route edit (graph membership toggle, date
+edit) — is lost on refresh. Confirmed via the DMS CLI (`dms dataset query 2177438 --filter
+report_id=<page_10's report_id>`) that this was **not** data loss — it was **row proliferation**: 9
+separate `reports_snap_2` rows had accumulated for the one report, each holding a different partial
+snapshot of the routes list. `loadReportRow()`'s `report_id`-filtered read has no way to know which of
+several matching rows is "the" one, so a refresh could land on any of them.
+
+**Root cause:** `ReportRouteList.jsx` doesn't use the `addItem`/`updateItem` helpers `dataWrapper`
+already provides for exactly this case (`dataWrapper/index.jsx:375-388`, allow-listed for
+`ReportRouteList` at line 403, same pattern Card/Spreadsheet use safely) — it reimplemented dataset-row
+create/update itself (`persistRoutes`), tracking the created row's id in a plain `useState`
+(`reportRow`). Once `persistRoutes` includes an `id` in its payload the write is an UPDATE; without one
+it's a CREATE. The reimplementation had two compounding problems:
+1. `persistRoutes` read the id via closure over `reportRow` state — vulnerable to any staleness between
+   renders.
+2. `apiUpdate`'s `isDatasetRowEdit` short-circuit (`dms-manager/wrapper.jsx:89`, added to skip a
+   page-wide `revalidate()` after dataset-row writes) required `data.id` to be truthy — so a brand-new
+   row's *create* call (no id yet) always fell through to `revalidate()`, forcing a full page-loader
+   refetch after every single first-time row creation, for any component using this pattern.
+
+Ruled out before landing on this: sync/local-first system (confirmed inactive — `VITE_DMS_SYNC` unset
+in this site's `.env`), and a cross-database mismatch between the UDA read path and the `dms.data.edit`
+write path (initially suspected and reported by a sub-agent, but disproven by tracing this site's
+actual `datasources` config: `reports_snap_2` sits under the `datasets` pattern's dmsEnv, which
+`render/spa/utils/index.js`'s `buildDatasources()` registers as `type:'internal', isDms:true, env:
+'npmrdsv5+datasets'` — both the UDA read and the `dms.data.edit` write resolve to the same
+`DMS_DB_ENV` database for an `isDms:true` source). Lesson: don't trust a sub-agent's datastore-topology
+conclusion without tracing the specific site's actual config — the general mechanism it described
+(DAMA pgEnv sources are genuinely separate databases) is real, just not what this particular source is.
+
+**Fix (2026-07-02):**
+- `ReportRouteList.jsx` — added `reportRowIdRef` (a `useRef`), read/written synchronously in
+  `persistRoutes` and `loadReportRow` instead of relying on the `reportRow` state closure for the id.
+  This alone is sufficient: a ref survives re-renders regardless of what triggers them, so it doesn't
+  matter whether a revalidate/re-render happens in between two `persistRoutes` calls — only an actual
+  unmount+remount would wipe it, which was never confirmed to be happening.
+- Also tried, then **reverted**: `dms-manager/wrapper.jsx:89`'s `isDatasetRowEdit` guard no longer
+  requiring `data.id` (so dataset-row *creates*, not just updates, would skip the post-write
+  `revalidate()`/`navigate()`). User correctly flagged this as too risky to keep without proof it was
+  necessary — `apiUpdate` in `wrapper.jsx` is the single mutation path for every page in the app, and
+  skipping revalidate on every dataset-row create anywhere means sibling sections that depend on a
+  freshly-created row wouldn't see it until the next real navigation. It was bundled into the same
+  verification pass as the ref fix, so "user confirmed the pair works" didn't prove this half was
+  needed. Reverted back to requiring `data.id`; `wrapper.jsx` is back to its original, unmodified
+  behavior.
+- **User live-verified twice (2026-07-02):** once with both changes present, then again with
+  `wrapper.jsx` fully reverted to stock — confirmed fixed both times. The `ReportRouteList.jsx` ref
+  fix alone is sufficient; `wrapper.jsx` needed no change. Final diff for this bug touches only
+  `ReportRouteList.jsx`.
+
+**Not done:** the 9 leaked/orphaned `reports_snap_2` rows already created for `page_10`'s report_id
+during this bug's reproduction were not cleaned up (same category as the earlier-deferred
+`createdBy:'reports'` leak on `2180280` — mechanical, low-risk, not blocking). Whoever picks this up:
+`dms dataset query 2177438 --filter report_id=<id>` to enumerate candidates (note: `raw list`/generic
+`byIndex` responses come back with null fields against this per-app-Postgres site — a pre-existing,
+separately-documented CLI bug, so resolve actual row ids via the browser network tab or `raw get once
+you have an id from elsewhere, per `TYPES.md`'s "Raw Access" section).
