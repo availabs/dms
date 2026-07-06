@@ -304,6 +304,7 @@ export default {
     keepOriginalValues: true,
     showAllColumnsControl: false,
     supportsTemplates: true,
+    usesItemMutationProps: true,
     themeKey: 'table',
     defaultState: {
         filters: { op: 'AND', groups: [] },

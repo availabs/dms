@@ -400,13 +400,13 @@ const Edit = forwardRef((props, ref) => {
     }
 
     const componentProps = useMemo(() => {
-        return ['Spreadsheet', 'Card'].includes(component.name) ? {
+        return component?.usesItemMutationProps ? {
             newItem, setNewItem,
             updateItem, removeItem, addItem,
             currentPage, infiniteScrollFetchData: onPageChange,
             allowEdit: state?.externalSource?.isDms && !groupByColumnsLength
         } : {}
-    }, [component.name, newItem, setNewItem, updateItem, removeItem, addItem, currentPage, onPageChange, state?.externalSource?.isDms, groupByColumnsLength])
+    }, [component?.usesItemMutationProps, newItem, setNewItem, updateItem, removeItem, addItem, currentPage, onPageChange, state?.externalSource?.isDms, groupByColumnsLength])
 
     return (
         <ComponentContext.Provider value={{state, setState, apiLoad, apiUpdate, controls: resolvedControls,
@@ -649,13 +649,13 @@ const View = forwardRef(({cms_context, value, onChange, component, editPageMode,
     }, [state?.data, state?.display?.hideIfNull])
 
     const componentProps = useMemo(() => {
-        return ['Spreadsheet', 'Card'].includes(component.name) ? {
+        return component?.usesItemMutationProps ? {
             newItem, setNewItem,
             updateItem, removeItem, addItem,
             currentPage, infiniteScrollFetchData: onPageChange,
             allowEdit
         } : {}
-    }, [component.name, allowEdit, newItem, setNewItem, updateItem, removeItem, addItem, currentPage, onPageChange])
+    }, [component?.usesItemMutationProps, allowEdit, newItem, setNewItem, updateItem, removeItem, addItem, currentPage, onPageChange])
 
     return (
         <ComponentContext.Provider value={{state, setState, apiLoad, apiUpdate, controls: resolvedControls, activeStyle: undefined}}>
