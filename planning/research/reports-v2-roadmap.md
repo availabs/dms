@@ -2,6 +2,12 @@
 
 **Status:** exploratory — informs future task creation, not itself a task. 2026-07-02.
 
+**2026-07-06 — HIGH PRIORITY, blocking:** the `fan_out` feature branch this roadmap's work has been
+landing on (both `dms-template` and the `dms` submodule) has grown well past its original scope and
+needs to be cleaned up before merging to master. See
+[fan-out-branch-cleanup.md](../tasks/current/fan-out-branch-cleanup.md). Do that before scoping/starting
+any more of the categories below.
+
 ## Origin
 
 Side-by-side comparison of screenshots of the legacy ("V1") NPMRDS report builder
