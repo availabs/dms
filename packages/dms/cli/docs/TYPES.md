@@ -294,6 +294,23 @@ dms raw list 'asm+nhomb:site'
 dms raw get <id> --attrs id,type,data
 ```
 
+**Known bug — `dms raw list` returns `{items:[],total:0}` against per-app
+PostgreSQL databases (`splitMode: "per-app"`), even for types with confirmed
+rows.** Verified against a `dms-mercury-3`-backed site: `raw list` returned
+`total:0` for `npmrds_sub|page` (15 real pages), `npmrds_sub|component`, and
+`npmrds_sub|avl_graph_template`, while `raw get <id>` and `raw create`
+against the exact same type/id worked correctly, and `dms page list` (a
+different code path — resolves refs via the pattern's `data.patterns`, not
+the generic `dms.data[...].length`/`byIndex` route `raw list`/`fetchAll` use)
+returned the pages fine. Root cause not fully isolated — the per-row lookup
+and the length/index route diverge somewhere for per-app-mode Postgres — but
+it reproduces for ordinary types (`|page`, `|component`), not just
+`_template` rows, so don't trust `raw list`'s `{items,total}` on such a site.
+**Workaround:** use `dms page list` / `dms section list` / `dms dataset list`
+(the type-specific commands) where available, or `raw get <id>` once you
+know the id (e.g. from a browser network tab, as done to find
+`npmrds_sub|avl_graph_template` rows for this task).
+
 ## The `data` Column
 
 All app-level fields live inside a JSON `data` column. The server's
