@@ -10,7 +10,7 @@ import { initialState } from "../section_utils";
  * Non-data component wrapper — creates state + ComponentContext for components
  * that don't use the dataWrapper (lexical, Filter, Upload, Validate, etc.)
  */
-function NonDataEditComp({ value, onChange, component, siteType, pageFormat, onHandle: parentOnHandle }) {
+function NonDataEditComp({ value, onChange, component, siteType, pageFormat, onHandle: parentOnHandle, sectionId, trackingId }) {
     // Track the last element-data we emitted so we can tell external changes (paste)
     // from our own onChange round-trips.
     const lastEmitted = useRef(value?.['element-data']);
@@ -80,7 +80,7 @@ function NonDataEditComp({ value, onChange, component, siteType, pageFormat, onH
     }, []);
 
     return (
-        <ComponentContext.Provider value={{state, setState, apiLoad, apiUpdate}}>
+        <ComponentContext.Provider value={{state, setState, apiLoad, apiUpdate, sectionId, trackingId}}>
             <component.EditComp
                 key={childKey}
                 value={elementData || ''}
@@ -93,7 +93,7 @@ function NonDataEditComp({ value, onChange, component, siteType, pageFormat, onH
     )
 }
 
-function NonDataViewComp({ value, onChange, component, siteType, pageFormat, editPageMode }) {
+function NonDataViewComp({ value, onChange, component, siteType, pageFormat, editPageMode, sectionId, trackingId }) {
     const updateAttribute = (k, v) => {
         if (!isEqual(value, {...value, [k]: v})) {
             onChange({...value, [k]: v})
@@ -107,7 +107,7 @@ function NonDataViewComp({ value, onChange, component, siteType, pageFormat, edi
     const { apiLoad, apiUpdate } = React.useContext(PageContext) || {};
 
     return (
-        <ComponentContext.Provider value={{state, setState, apiLoad, apiUpdate}}>
+        <ComponentContext.Provider value={{state, setState, apiLoad, apiUpdate, sectionId, trackingId}}>
             <Comp
                 value={value?.['element-data'] || ''}
                 onChange={v => updateAttribute('element-data', v)}
@@ -123,7 +123,7 @@ function NonDataViewComp({ value, onChange, component, siteType, pageFormat, edi
  * EditComp — dispatches to DataWrapper (data components) or NonDataEditComp (everything else).
  * No hooks in this component — the conditional is safe because each branch is a separate component.
  */
-const EditComp = forwardRef(({value, onChange, compKey, component, siteType, pageFormat, onHandle}, ref) => {
+const EditComp = forwardRef(({value, onChange, compKey, component, siteType, pageFormat, onHandle, sectionId, trackingId}, ref) => {
     const updateAttribute = (k, v) => {
         if (!isEqual(value, {...value, [k]: v})) {
             onChange({...value, [k]: v})
@@ -141,6 +141,8 @@ const EditComp = forwardRef(({value, onChange, compKey, component, siteType, pag
                 siteType={siteType}
                 pageFormat={pageFormat}
                 onHandle={onHandle}
+                sectionId={sectionId}
+                trackingId={trackingId}
             />
         )
     }
@@ -154,11 +156,13 @@ const EditComp = forwardRef(({value, onChange, compKey, component, siteType, pag
             siteType={siteType}
             pageFormat={pageFormat}
             onHandle={onHandle}
+            sectionId={sectionId}
+            trackingId={trackingId}
         />
     )
 })
 
-const ViewComp = forwardRef(({value, onChange, siteType, pageFormat, refreshDataBtnRef, component, editPageMode, onHandle}, ref) => {
+const ViewComp = forwardRef(({value, onChange, siteType, pageFormat, refreshDataBtnRef, component, editPageMode, onHandle, sectionId, trackingId}, ref) => {
     const { apiLoad } = React.useContext(PageContext) || {}
 
     const updateAttribute = (k, v) => {
@@ -207,6 +211,8 @@ const ViewComp = forwardRef(({value, onChange, siteType, pageFormat, refreshData
                 pageFormat={pageFormat}
                 editPageMode={editPageMode}
                 onHandle={onHandle}
+                sectionId={sectionId}
+                trackingId={trackingId}
             />
         )
     }
@@ -219,6 +225,8 @@ const ViewComp = forwardRef(({value, onChange, siteType, pageFormat, refreshData
             siteType={siteType}
             pageFormat={pageFormat}
             editPageMode={editPageMode}
+            sectionId={sectionId}
+            trackingId={trackingId}
         />
     )
 })

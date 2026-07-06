@@ -18,9 +18,9 @@ import { useEffect, useContext } from "react";
 import { isEqual, get } from "lodash-es";
 import { PageContext } from "../../../../context";
 import { isGroup } from "../../ComplexFilters";
-import { resolveComparisonVariants } from "./buildUdaConfig";
+import { resolveComparisonVariants, SELF_PARAM_KEY_SENTINEL, selfParamKey } from "./buildUdaConfig";
 
-export function usePageFilterSync({ state, setState, setReadyOnChange = false }) {
+export function usePageFilterSync({ state, setState, setReadyOnChange = false, sectionId, trackingId }) {
     const { pageState } = useContext(PageContext) || {};
 
     useEffect(() => {
@@ -86,7 +86,16 @@ export function usePageFilterSync({ state, setState, setReadyOnChange = false })
             (s) => s.functionId === "comparison_series" && s.enabled
         );
 
-        const effectiveParamKey = sub?.paramKey;
+        // A subscriber may carry the `$self` sentinel instead of an author-typed literal —
+        // it resolves to a key private to this section (derived from its own stable identity)
+        // rather than a page-wide key someone has to type/copy. See `selfParamKey`.
+        // Prefer `trackingId` (assigned once at section creation, survives publish's
+        // delete-and-recreate of the row id) over `sectionId` (the DB row id, which is
+        // NOT stable across publish — see the draft/published section-identity task
+        // notes). Fall back to `sectionId` for sections that predate `trackingId` or were
+        // authored outside the interactive Add-Component flow.
+        const effectiveParamKey =
+            sub?.paramKey === SELF_PARAM_KEY_SENTINEL ? selfParamKey(trackingId || sectionId) : sub?.paramKey;
 
         if (!effectiveParamKey) {
             if (cs.config !== undefined) {
@@ -106,5 +115,5 @@ export function usePageFilterSync({ state, setState, setReadyOnChange = false })
         if (!isEqual(cs.config, resolved)) {
             setState((draft) => { draft.comparisonSeries.config = resolved; });
         }
-    }, [pageState?.filters, state?.comparisonSeries, state?.display?._functions]);
+    }, [pageState?.filters, state?.comparisonSeries, state?.display?._functions, sectionId, trackingId]);
 }

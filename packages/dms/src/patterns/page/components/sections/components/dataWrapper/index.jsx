@@ -193,7 +193,7 @@ const RenderDownload = ({state, apiLoad, cms_context}) => {
 
 
 const Edit = forwardRef((props, ref) => {
-    let {cms_context, value, onChange, component, siteType, pageFormat, onHandle} = props
+    let {cms_context, value, onChange, component, siteType, pageFormat, onHandle, sectionId, trackingId} = props
     const isEdit = Boolean(onChange);
     const { UI, theme: fullTheme } = useContext(ThemeContext)
     const _pageCtx = useContext(PageContext) || {};
@@ -226,7 +226,7 @@ const Edit = forwardRef((props, ref) => {
         }
     }, [outputSourceInfo]);
 
-    usePageFilterSync({ state, setState });
+    usePageFilterSync({ state, setState, sectionId, trackingId });
 
     // ── Sync newItem from page params for columns with usePageParams ──
     useEffect(() => {
@@ -410,7 +410,7 @@ const Edit = forwardRef((props, ref) => {
 
     return (
         <ComponentContext.Provider value={{state, setState, apiLoad, apiUpdate, controls: resolvedControls,
-            isActive: true, activeStyle: undefined, sectionId: undefined}}>
+            isActive: true, activeStyle: undefined, sectionId, trackingId}}>
             <RenderFilters isEdit={true} defaultOpen={true} />
             <ExternalFilters defaultOpen={true} />
             <div className={'w-full h-full flex flex-col'}>
@@ -437,7 +437,7 @@ const Edit = forwardRef((props, ref) => {
     )
 })
 
-const View = forwardRef(({cms_context, value, onChange, component, editPageMode, onHandle}, ref) => {
+const View = forwardRef(({cms_context, value, onChange, component, editPageMode, onHandle, sectionId, trackingId}, ref) => {
     const isEdit = false;
     const navigate = useNavigate();
     const _pageCtx = useContext(PageContext) || {};
@@ -484,7 +484,7 @@ const View = forwardRef(({cms_context, value, onChange, component, editPageMode,
         }
     }, [outputSourceInfo]);
 
-    usePageFilterSync({ state, setState, setReadyOnChange: true });
+    usePageFilterSync({ state, setState, setReadyOnChange: true, sectionId, trackingId });
 
     // ── Sync newItem from page params for columns with usePageParams ──
     useEffect(() => {
@@ -658,7 +658,7 @@ const View = forwardRef(({cms_context, value, onChange, component, editPageMode,
     }, [component?.usesItemMutationProps, allowEdit, newItem, setNewItem, updateItem, removeItem, addItem, currentPage, onPageChange])
 
     return (
-        <ComponentContext.Provider value={{state, setState, apiLoad, apiUpdate, controls: resolvedControls, activeStyle: undefined}}>
+        <ComponentContext.Provider value={{state, setState, apiLoad, apiUpdate, controls: resolvedControls, activeStyle: undefined, sectionId, trackingId}}>
             <RenderFilters isEdit={false} defaultOpen={true} />
             <ExternalFilters defaultOpen={true} />
             <div className={'w-full h-full'}>

@@ -589,6 +589,28 @@ export const resolveComparisonVariants = (subArgs, rawList) => {
     .filter(Boolean);
 };
 
+/**
+ * Reserved `paramKey` sentinel a `comparison_series` subscriber can carry instead of an
+ * author-typed literal. A subscriber configured with this sentinel resolves its own,
+ * private action-param key from its own section id via `selfParamKey` (see
+ * `usePageFilterSync.js`) rather than a page-wide key someone has to type/copy. Lets a
+ * component template ship pre-wired to "give me my own slot" with no per-instance
+ * authoring step — any future subscriber-driven feature can reuse the same sentinel.
+ */
+export const SELF_PARAM_KEY_SENTINEL = '$self';
+
+/**
+ * Derives a section's private action-param key from its own section id. Pure + exported
+ * so both the resolver (`usePageFilterSync.js`, reading the published value) and a
+ * publisher (e.g. `ReportRouteList`, writing it via `setActionParam`) compute the
+ * identical key from the same id with no coordination needed.
+ *
+ * @param {string} sectionId
+ * @returns {string|undefined} the derived key, or `undefined` when `sectionId` isn't known yet.
+ */
+export const selfParamKey = (sectionId) =>
+  sectionId ? `__self__${sectionId}` : undefined;
+
 // ─── Legacy column filter extraction ────────────────────────────────────────
 
 /**

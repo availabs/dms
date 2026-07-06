@@ -13,6 +13,7 @@ import {
     isCalculatedCol,
     legacyStateToBuildInput,
     attributeAccessorStr,
+    isJoinComplete,
 } from "./buildUdaConfig";
 import { calculateIsJoinPresent } from "./utils/joinUtils";
 
@@ -328,7 +329,10 @@ export const getData = async ({
     }
     // When a join is present, every base-table column reference must be
     // alias-qualified to avoid Postgres "column ambiguous" errors. Use ds.id.
-    const joinPresent = isJoinPresent;
+    // isJoinComplete expects a single join-source object (source/view/mergeStrategy/
+    // joinColumns), not the {sources:{...}} container — check each alias individually,
+    // mirroring the per-alias filtering buildUdaConfig does before it builds the query.
+    const joinPresent = isJoinPresent && Object.values(join.sources || {}).some(isJoinComplete);
     const idCol = joinPresent ? "ds.id" : "id";
     const idReq = joinPresent ? "ds.id as id" : "id";
     if (isDms && !isPivotMode && !options.groupBy.length && !fnColumnsExists) {
