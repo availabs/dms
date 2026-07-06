@@ -331,78 +331,6 @@ export const extractNormalFiltersFromGroups = (node) => {
 
 // ─── Custom bucket filtering ────────────────────────────────────────────────
 
-/**
- * Build filter leaves that restrict fetched rows to those that fall into at
- * least one defined custom bucket.
- *
- * Reads the RESOLVED `customBuckets.config` (built by resolveAliasGroups —
- * works for both static groups and dynamic page-filter-bound groups). Produces
- * one `IN (...)` leaf per alias: `col` is that alias's source column, `value`
- * is the union of all its group value-arrays (deduped). Fallback labels are
- * intentionally excluded — fallback rows are exactly the ones "filter to
- * buckets" mode is meant to drop.
- *
- * Gating:
- * - Master switch: bucket behavior is OFF unless `customBuckets.enabled === true`.
- * - When enabled, "filter to buckets" defaults ON; `filterToBuckets === false`
- *   disables just the row-filtering while keeping the bucket column/aliasGroups.
- * - Empty/missing groups → no leaf for that alias (toggle-on with nothing
- *   configured is a safe no-op that returns all rows).
- *
- * `source_id` is stamped on the leaf so applyTableAliasToJoin aliases the
- * column to `ds.` under a join (avoids ambiguous `data->>` in DMS-on-DMS joins).
- *
- * `isDms` text-coerces the leaf values: DMS columns resolve to `data->>'col'`
- * (always TEXT), so a numeric bucket value left native would compile to
- * `data->>'col' IN (2022)` — a text/integer mismatch Postgres rejects. DAMA
- * physical columns keep native typing. Mirrors the server's `isJsonText`
- * handling in buildAliasGroupCase.
- */
-export const buildCustomBucketFilters = (customBuckets, baseSourceId, isDms = false) => {
-  if (
-    !customBuckets ||
-    customBuckets.enabled !== true ||
-    customBuckets.filterToBuckets === false
-  )
-    return [];
-  const cfg = customBuckets.config || {};
-
-  // A group's values may be a real array (static groups, split from CSV) OR a
-  // JSON-stringified array (dynamic page-filter bindings whose value field holds
-  // a stringified list). Normalize both — mirrors the server's CASE builder,
-  // which does `typeof values === 'string' ? JSON.parse(values) : values`.
-  // Without this, a stringified array survives as a single scalar and the leaf
-  // compiles to `col = '["a","b"]'` instead of `col IN ('a','b')`.
-  const coerceGroupValues = (values) => {
-    if (Array.isArray(values)) return values;
-    if (typeof values === "string") {
-      try {
-        const parsed = JSON.parse(values);
-        return Array.isArray(parsed) ? parsed : [parsed];
-      } catch {
-        return [values];
-      }
-    }
-    return values == null ? [] : [values];
-  };
-
-  return Object.values(cfg)
-    .map(({ column, groups } = {}) => {
-      const values = [
-        ...new Set(
-          Object.values(groups || {})
-            .flatMap(coerceGroupValues)
-            .filter((v) => v != null && v !== "")
-            // DMS columns are JSON text (`data->>`), so values must be text too.
-            .map((v) => (isDms ? String(v) : v)),
-        ),
-      ];
-      return column && values.length
-        ? { col: column, op: "filter", value: values, source_id: baseSourceId }
-        : null;
-    })
-    .filter(Boolean);
-};
 
 // ─── Page filter application ────────────────────────────────────────────────
 
@@ -485,7 +413,7 @@ export const applyPageFilters = (filterTree, pageFilters) => {
  * by a page/action param (resolved via usePageFilterSync) before the section is
  * allowed to query. Until then the leaf value is empty, and firing the query would
  * (after the empty-IN strip in mapFilterGroupCols) drop the only intended constraint
- * and scan the whole table — the same trap the custom-bucket skipFetch guards. It
+ * and scan the whole table — exactly the unfiltered scan this guard prevents. It
  * also avoids the "flash": a section that resolves its scope from a published action
  * param (e.g. a load_publish driver) would otherwise paint its saved default first,
  * then re-query once the param lands. Returns true while ANY requireResolved leaf is
@@ -559,6 +487,107 @@ export const flattenFilterValues = filterTree => {
 
   return applyToNode(filterTree);
 }
+
+/**
+ * Comparison-series filter patch: merge a variant's filter tree over the base.
+ *
+ * A variant is a *patch*, not a blind AND. On any column the patch constrains it
+ * **replaces** the base's leaf for that column; columns the patch doesn't touch are
+ * inherited; the patch's own leaves are AND-appended. This one rule covers every
+ * combination an author needs:
+ *   • base `tmc IN(route)` + patch `date BETWEEN …` → AND (period appended)
+ *   • base `date …`        + patch `tmc IN(route)`  → base date kept, route replaces
+ *   • base (metric/axis only) + patch `tmc + date`  → patch is the whole tree
+ *
+ * Both trees are the standard `{ op, groups:[…leaf{col,op,value}] }` shape (raw
+ * column names, pre-resolution). Returns a new tree; never mutates the inputs.
+ */
+export const mergeVariantFilters = (baseTree, patchTree) => {
+  const patch = patchTree && patchTree.groups?.length ? patchTree : null;
+
+  // Columns the patch constrains (any depth) → these base leaves get pruned.
+  const touched = new Set();
+  const collect = (node) => {
+    if (!node) return;
+    if (node.groups) { node.groups.forEach(collect); return; }
+    if (node.col) touched.add(node.col);
+  };
+  if (patch) collect(patch);
+
+  const prune = (node) => {
+    if (!node) return null;
+    if (node.groups) {
+      const groups = node.groups.map(prune).filter(Boolean);
+      return groups.length ? { ...node, groups } : null;
+    }
+    return touched.has(node.col) ? null : node;
+  };
+  const prunedBase = baseTree && baseTree.groups?.length ? prune(baseTree) : null;
+
+  const groups = [];
+  if (prunedBase) groups.push(prunedBase);
+  if (patch) groups.push(patch);
+
+  if (!groups.length) return { op: 'AND', groups: [] };
+  if (groups.length === 1) return groups[0];
+  return { op: 'AND', groups };
+};
+
+/**
+ * Comparison-series dynamic binding: resolve a published page-state list into the
+ * engine's `[{ label, filters }]` variant shape (Piece 3).
+ *
+ * This is the dynamic counterpart of the static `comparisonSeries.variants` JSON.
+ * The list comes from a `pageState.filters` action param (a "comparison_series"
+ * componentFunctions subscriber publishes/binds it); `subArgs` carries the keys the
+ * subscriber was configured with. Pure + exported so it unit-tests without React.
+ *
+ * @param {Object} subArgs - { labelKey, valueKey, column } from the subscriber config.
+ * @param {Array}  rawList - the action param's `values` array (one entry per variant).
+ * @returns {Array<{label, filters}>} resolved variants (entries missing label/filters dropped).
+ *
+ * Each entry becomes one variant:
+ *   • `label`   = entry[labelKey]  (or the bare entry when it's a string and no labelKey).
+ *   • `filters` = entry[valueKey] when that is already a filter tree (`op`/`col`/`groups`);
+ *                 otherwise, when `column` is set, a leaf `{ col, op:'filter', value:[…] }`
+ *                 built from the value(s). Mirrors the base/variant filter-tree shape so
+ *                 `mergeVariantFilters` + `resolveArmTree` consume it unchanged.
+ *
+ * Composite `{ id, value }` payloads (spreadsheet click_publish per-row identity) are
+ * unwrapped to `.value` first — the same `{id,value}` unwrap usePageFilterSync applies.
+ */
+export const resolveComparisonVariants = (subArgs, rawList) => {
+  const { labelKey, valueKey, column } = subArgs || {};
+  return (rawList || [])
+    .map((entry) => {
+      const entryVal =
+        entry && typeof entry === 'object' &&
+        labelKey && entry[labelKey] === undefined && entry.value !== undefined
+          ? entry.value
+          : entry;
+
+      const label = labelKey
+        ? entryVal?.[labelKey]
+        : typeof entryVal === 'string'
+          ? entryVal
+          : undefined;
+
+      const rawVal = valueKey ? entryVal?.[valueKey] : entryVal;
+
+      let filters;
+      if (rawVal && typeof rawVal === 'object' && (rawVal.op || rawVal.col || rawVal.groups)) {
+        filters = rawVal; // already a filter tree
+      } else if (column && rawVal !== undefined && rawVal !== null && rawVal !== '') {
+        filters = {
+          op: 'AND',
+          groups: [{ col: column, op: 'filter', value: Array.isArray(rawVal) ? rawVal : [rawVal] }],
+        };
+      }
+
+      return label && filters ? { label, filters } : null;
+    })
+    .filter(Boolean);
+};
 
 // ─── Legacy column filter extraction ────────────────────────────────────────
 
@@ -659,16 +688,16 @@ export const buildColumnsWithSettings = (columns, sourceColumns, isDms) => {
       const isCalculated = isCalculatedCol(column);
       const isCopiedColumn =
         !column.isDuplicate && duplicatedColumnNames.has(column.name);
-      // The synthetic custom-bucket dimension is a server-side alias, not a real
-      // column: its ref/req must stay the bare alias (verbatim) so it matches the
-      // `aliasGroups` key the server groups by and substitutes the CASE into. If
-      // it went through attributeAccessorStr it would become `data->>'<alias>'`
-      // for DMS sources — a phantom JSON key the server's `groupBy.includes(alias)`
-      // match would miss, silently disabling the whole bucket dimension. (DAMA
-      // returns the bare name anyway, so this only changes the DMS path.)
-      const isCustomBucket = column.origin === "custom-bucket";
-      const colReqName = isCustomBucket ? column.name : reqName(fullColumn, isDms);
-      const colRefName = isCustomBucket
+      // The comparison-series discriminator is a synthetic server-side alias, not a
+      // real column: its ref/req must stay the bare alias (verbatim). If it went
+      // through attributeAccessorStr it'd become `data->>'<alias>'` for DMS sources
+      // — a phantom JSON key. The discriminator is provided by the fan-out's
+      // `'<label>' as <seriesKey>` literal, so the attribute must round-trip by the
+      // bare seriesKey. (DAMA returns the bare name anyway, so this only changes the
+      // DMS path.)
+      const isSyntheticAlias = column.origin === "comparison-series";
+      const colReqName = isSyntheticAlias ? column.name : reqName(fullColumn, isDms);
+      const colRefName = isSyntheticAlias
         ? column.name
         : attributeAccessorStr(column.name, isDms, isCalculated, column.systemCol);
       const [colNameBeforeAS, colNameAfterAS] = splitColNameOnAS(column.name);
@@ -1002,7 +1031,7 @@ export const computeOutputSourceInfo = ({
  * @param {Object} input.filters - Top-level filter tree {op, groups} (promoted from dataRequest.filterGroups)
  * @param {Object} [input.join] - Optional join config (Phase 6)
  * @param {Object} [input.pageFilters] - Runtime URL search params for usePageFilters conditions
- * @param {Object} [input.customBuckets] - Configuration for custom bucket columns
+ * @param {Object} [input.comparisonSeries] - Comparison-series fan-out config (variants/seriesKey)
  * @returns {{ options: Object, attributes: string[], columnsToFetch: Array, columnsWithSettings: Array, outputSourceInfo: Object }}
  */
 export const buildUdaConfig = ({
@@ -1011,47 +1040,39 @@ export const buildUdaConfig = ({
   filters,
   join: rawJoin,
   pageFilters,
-  customBuckets,
+  comparisonSeries,
 }) => {
+  // Effective variants — the single list buildUdaConfig fans out over. Two binding
+  // modes feed it (Piece 2 static, Piece 3 dynamic):
+  //   • dynamic: a "comparison_series" subscriber resolves a page-state list into
+  //     `comparisonSeries.config` (usePageFilterSync). Its *presence* (even `[]`)
+  //     marks dynamic mode, so `config` wins over static `variants` and an unresolved
+  //     dynamic binding (`config: []`) correctly reads as inactive instead of falling
+  //     back to the static list.
+  //   • static (Piece 2): no `config` → the author-authored `variants` JSON.
+  const effectiveVariants =
+    comparisonSeries?.config !== undefined
+      ? comparisonSeries.config
+      : comparisonSeries?.variants || [];
 
-  // Custom buckets are "active" only when enabled AND the resolved config has at
-  // least one alias whose groups actually carry values. A dynamic binding stays
-  // unresolved until usePageFilterSync runs (e.g. no page filters present yet),
-  // leaving config empty — in that state we must NOT group/select the synthetic
-  // bucket column, or the server would reference a phantom alias column that
-  // doesn't exist in the table. Inactive → drop the column entirely (safe no-op
-  // matching "buckets off"); the config stays on state so it can resolve later.
-  const activeCustomBuckets =
-    customBuckets?.enabled === true &&
-    Object.values(customBuckets.config || {}).some(
-      // `def.column` (the source column) is required: after a source swap the
-      // sourceField is cleared but a dynamic binding may still resolve groups
-      // from page filters — without this guard that would emit a CASE on an
-      // empty column and break the server query.
-      (def) => def && def.column && Object.keys(def.groups || {}).length > 0,
-    );
-  const rawUserColumns = activeCustomBuckets
-    ? rawUserColumnsInput
-    : rawUserColumnsInput.filter((c) => c.origin !== "custom-bucket");
+  // Comparison series is "active" only when enabled AND at least one labeled
+  // variant exists. Inactive → drop the synthetic discriminator column so we never
+  // fetch a phantom alias the fan-out isn't producing; the config stays on state for
+  // clean re-enable.
+  const activeComparisonSeries =
+    comparisonSeries?.enabled === true &&
+    Array.isArray(effectiveVariants) &&
+    effectiveVariants.some((v) => v && v.label);
 
-  // Guard against the "unfiltered full-table scan" trap. When custom buckets are
-  // enabled with "filter to buckets" active AND the binding is dynamic (its group
-  // values come from page filters), an unresolved config — no page params present
-  // yet — drops BOTH the bucket column AND the row-restricting bucket filter
-  // (buildCustomBucketFilters returns [] for an empty config). That leaves a query
-  // whose only intended constraint has vanished, so it scans the whole table
-  // (millions of rows → multi-minute hang). Signal the caller to skip the fetch
-  // entirely; once usePageFilterSync resolves config from the page filters, the
-  // fetchKey changes and the section refetches with the proper bucket constraint.
-  // Static buckets are excluded: an empty static config is an intentional no-op
-  // ("filter to buckets on, nothing configured" returns all rows by design).
+  const rawUserColumns = rawUserColumnsInput.filter(
+    (c) =>
+      (activeComparisonSeries || c.origin !== "comparison-series"),
+  );
+
+  // Guard against the "unfiltered full-table scan" trap. 
+  // A leaf flagged requireResolved hasn't received its page/action-param value yet —
+  // firing now would scan the whole table (see hasUnresolvedRequiredLeaf).
   const skipFetch =
-    (customBuckets?.enabled === true &&
-      customBuckets?.filterToBuckets !== false &&
-      customBuckets?.type !== "static" &&
-      !activeCustomBuckets) ||
-    // A leaf flagged requireResolved hasn't received its page/action-param value yet —
-    // firing now would scan the whole table (see hasUnresolvedRequiredLeaf).
     hasUnresolvedRequiredLeaf(filters);
 
   const join = { sources:{} };
@@ -1132,7 +1153,15 @@ export const buildUdaConfig = ({
     }
     return {
       ...col,
-      name: isJoin && col.origin !== 'custom-bucket' ? `${alias}.${col.name}` : col.name,
+      // The comparison-series `__series` discriminator is a literal SELECT alias,
+      // not a real base-table column — never table-prefix it. Prefixing `__series`
+      // → `ds.__series` would make it both a phantom GROUP BY column AND break the
+      // server fan-out's `g !== seriesKey` drop (seriesKey is the bare name),
+      // yielding "Identifier 'ds.__series' cannot be resolved".
+      name:
+        isJoin && col.origin !== 'comparison-series'
+          ? `${alias}.${col.name}`
+          : col.name,
     };
   });
 
@@ -1206,21 +1235,6 @@ export const buildUdaConfig = ({
 
   // 5. Process top-level filter tree
   let filterTree = filters || {};
-
-  // "Filter to buckets" — when enabled, restrict rows to those that fall into a
-  // defined custom bucket. AND-restrict at the top level regardless of the
-  // user's filter relation so the bucket constraint can't be folded into an OR.
-  const bucketLeaves = buildCustomBucketFilters(
-    customBuckets,
-    externalSource?.source_id,
-    isDms,
-  );
-  if (bucketLeaves.length) {
-    filterTree = {
-      op: "AND",
-      groups: [...(filterTree.groups ? [filterTree] : []), ...bucketLeaves],
-    };
-  }
   
   // If join is present, append table alias to filter columns
   if (isJoinPresent) {    
@@ -1247,16 +1261,18 @@ export const buildUdaConfig = ({
       .map((col) => [col.name, col]),
     ...sourceColumns.map((col) => [col.name, col]),
   ]);
+  // Resolve a filter leaf's column name to its source ref. Calc columns: their
+  // `name` field is `<sql> as <alias>`, but filter leaves reference them by alias
+  // (the user-visible name). Fall through to the alias index so getColumn finds
+  // them. Without this, time-filter compareEnd resolution silently no-ops for calc
+  // columns. Reused by the comparison-series arm resolution below.
+  const getFilterColumn = (name) =>
+    columnsWithSettingsByName.get(name) ||
+    sourceColumnsByName.get(name) ||
+    columnsByAlias.get(name);
   const mappedFilterGroups = mapFilterGroupCols(
     nonNormalFilterGroups,
-    (name) =>
-      columnsWithSettingsByName.get(name) ||
-      sourceColumnsByName.get(name) ||
-      // Calc columns: their `name` field is `<sql> as <alias>`, but filter
-      // leaves reference them by alias (the user-visible name). Fall through
-      // to the alias index so getColumn finds them. Without this, time-filter
-      // compareEnd resolution silently no-ops for calc columns.
-      columnsByAlias.get(name),
+    getFilterColumn,
     isDms,
   );
 
@@ -1289,7 +1305,12 @@ export const buildUdaConfig = ({
     )
     .reduce((acc, columnName) => {
       const col = getColumn(columnName);
-      const [reqNameWithoutAS] = splitColNameOnAS(col?.reqName || columnName);
+      let [reqNameWithoutAS] = splitColNameOnAS(col?.reqName || columnName);
+
+      if (activeComparisonSeries && reqNameWithoutAS.includes('.')) {
+        reqNameWithoutAS = reqNameWithoutAS.split('.').slice(1).join('.');
+      }
+
       acc[reqNameWithoutAS] = orderBy[columnName];
       return acc;
     }, {});
@@ -1370,54 +1391,52 @@ export const buildUdaConfig = ({
     ...(allHaving.length > 0 && { having: allHaving }),
   };
 
-  if (activeCustomBuckets) {
-    // Pass the detailed grouping configuration to the backend via aliasGroups.
-    // The backend builds a CASE per alias from `config` (column + groups).
-    //
-    // Resolve each definition's `column` to its SQL accessor the same way every
-    // other column ref is built: DMS internal sources read values out of a JSONB
-    // `data` column, so the CASE must compare `data->>'col'`, not a bare physical
-    // `col` that doesn't exist on the split table. DAMA columns are physical, so
-    // attributeAccessorStr returns them unchanged (isDms=false). The raw column
-    // name stays on customBuckets.config (state) for buildCustomBucketFilters,
-    // which maps it through its own mapFilterGroupCols accessor path.
-    options.aliasGroups = Object.fromEntries(
-      Object.entries(customBuckets.config).map(([alias, def]) => {
-        // Resolve the bucket's source column to its SQL accessor exactly as a
-        // display column would be (mirroring mapFilterGroupCols). Two cases that
-        // a naive `data->>'<col>'` gets wrong, both of which the Source Column
-        // picker can feed in (it offers every externalSource column, including
-        // synthetic ones, and stores the column's full `name` as sourceField):
-        //
-        //   • `id` — the DMS system column is a physical top-level column, not a
-        //     key in the JSONB `data` blob, so it must resolve to a bare `id`.
-        //   • A calculated/renamed column whose `name` is `<expr> as <alias>`
-        //     (e.g. `id as id`) — the accessor is the `<expr>` half, never
-        //     `data->>'id as id'` (a phantom JSON key → CASE matches nothing).
-        //
-        // The source column is usually NOT one of the section's display columns,
-        // so getColumn(def.column) misses. Detect calc form from the raw name the
-        // same way isCalculatedCol does (the `" as "` heuristic), and fall back to
-        // the codebase-wide `id` system-column convention — don't rely on colInfo.
-        const colInfo = getColumn(def.column);
-        const isCalculated = colInfo
-          ? isCalculatedCol(colInfo)
-          : isCalculatedCol({ name: def.column });
-        const isSystem = colInfo?.systemCol || def.column === "id";
-        return [
-          alias,
-          {
-            ...def,
-            column: attributeAccessorStr(
-              def.column,
-              isDms,
-              isCalculated,
-              isSystem,
-            ),
-          },
-        ];
-      }),
-    );
+  // 8b. Comparison series — fan out the base query into one arm per variant.
+  // Each arm's filterGroups = the base filter tree patched with the variant's delta
+  // (mergeVariantFilters: replace-on-column, else append), then run through the same
+  // resolution the base tree gets (join alias → page filters → prior-period expand →
+  // flatten → col-ref mapping → strip HAVING). The server unions the arms and stamps
+  // `'<label>' as <seriesKey>`. The synthetic discriminator column (origin
+  // 'comparison-series', kept in rawUserColumns above) lands in `attributes` so the
+  // route projects it. Variant normal-filters/having are not extracted (v1: variants
+  // are simple value/range/time leaves).
+  if (activeComparisonSeries) {
+    const resolveArmTree = (rawTree) => {
+      let tree = rawTree || {};
+      if (isJoinPresent) {
+        tree = applyTableAliasToJoin(tree, sourceIdToTableAlias, externalSource.source_id);
+      }
+      if (pageFilters && Object.keys(pageFilters).length) {
+        tree = applyPageFilters(tree, pageFilters);
+      }
+      tree = applyPriorPeriodExpansion(tree);
+      tree = flattenFilterValues(tree);
+      const mapped = mapFilterGroupCols(tree, getFilterColumn, isDms);
+      return extractHavingFromFilterGroups(mapped).filterGroups;
+    };
+
+    // Each arm's WHERE is built solely from that arm's own filterGroups; the server
+    // fan-out ignores the single-arm `options.filterGroups`. So each variant patches
+    // over the section's base filter tree, and resolveArmTree maps/aliases the result
+    // exactly as the single-arm path does.
+    const baseForArms = filters || {};
+
+    options.seriesKey = comparisonSeries.seriesKey || "__series";
+    const activeVariants = effectiveVariants.filter((v) => v && v.label);
+    options.seriesVariants = activeVariants.map((v) => ({
+        label: v.label,
+        filterGroups: resolveArmTree(mergeVariantFilters(baseForArms, v.filters || {})),
+    }));
+  }
+
+  if (activeComparisonSeries) {
+    const seriesKey = comparisonSeries.seriesKey || "__series";
+    const caseExpr = `CASE ${seriesKey} ${effectiveVariants
+        .filter((v) => v && v.label)
+        .map((v, i) => `WHEN '${v.label}' THEN ${i + 1}`)
+        .join(' ')} ELSE ${effectiveVariants.filter((v) => v && v.label).length + 1} END`;
+    
+    options.orderBy[caseExpr] = 'desc';
   }
 
   // 9. Build attributes list

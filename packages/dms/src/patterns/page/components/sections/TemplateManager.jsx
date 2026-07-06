@@ -150,7 +150,7 @@ export default function TemplateManager({ componentType, sectionValue, dwState, 
       const elementType = tpl.elementType || componentType;
 
       // The template carries the whole data config (source + columns / filters /
-      // customBuckets / pivot) only when `includesSource`, and `display` only when
+      // pivot / comparisonSeries) only when `includesSource`, and `display` only when
       // `includesLayout`. For a bucket it excluded, fall back to the section's
       // CURRENT live state — so we keep the user's existing data config / display
       // instead of wiping them. The `externalSource` fallback is also load-bearing:
@@ -165,7 +165,6 @@ export default function TemplateManager({ componentType, sectionValue, dwState, 
         appliedState.columns = dwState?.columns || [];
         appliedState.filters = dwState?.filters || { op: 'AND', groups: [] };
         if (dwState?.join) appliedState.join = dwState.join;
-        if (dwState?.customBuckets) appliedState.customBuckets = dwState.customBuckets;
         if (dwState?.pivot) appliedState.pivot = dwState.pivot;
       }
 

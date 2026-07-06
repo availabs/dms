@@ -28,6 +28,24 @@ const componentFunctions = {
         { key: 'column', label: 'Column to highlight', type: 'column-select' },
         { key: "hhl_color", label: "Highlight color", type: "colorpicker", defaultValue: "#ff0000" }
       ],
+    },
+    // Comparison Series — dynamic binding (Piece 3). Reads a list of variants from a
+    // page action param (the `paramKey`) and overlays one chart series per variant.
+    // This is a RELOAD-DRIVING subscriber: usePageFilterSync resolves the list into
+    // comparisonSeries.config (a fetchKey input), so each publish refetches the
+    // fan-out. Pair with a discrete (click) provider only — never a hover provider.
+    // labelKey/valueKey name the fields on each published entry; `column` (optional)
+    // turns a scalar value into a filter leaf when the value isn't itself a filter tree.
+    // Requires the Comparison Series master switch (Dataset menu) to be ON.
+    { id: 'comparison_series',
+      label: 'Comparison Series: Bind Variants',
+      description: 'Overlays one series per variant read from a page action param (reload-driving). Needs the Comparison Series master switch ON.',
+      trigger: 'action_param',
+      args: [
+        { key: 'labelKey', label: 'Label property', type: 'input' },
+        { key: 'valueKey', label: 'Value / filter property', type: 'input' },
+        { key: 'column', label: 'Filter column (optional)', type: 'input' },
+      ],
     }
   ]
 };
