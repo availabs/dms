@@ -13,8 +13,8 @@ import { getColumnLabel } from "./controls_utils";
  * Draft text input that holds a local draft so typing doesn't churn section
  * state on every keystroke, committing (via onCommit) only on blur or Enter —
  * i.e. when the author leaves the field / navigates back out of the sub-menu.
- * Used across the custom-bucket menu: the Dimension Alias (whose commit also
- * reconciles the synthetic column) and each static group's Label / Values list.
+ * Used across the section menus (e.g. the Comparison Series variant fields) where a
+ * commit should fire only when the author leaves the field, not per keystroke.
  */
 const CommitInput = ({ initialValue = '', onCommit }) => {
     const { UI } = React.useContext(ThemeContext) || {};
@@ -624,175 +624,6 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
         },
     ]
 
-    // Merge defaults UNDER the stored config so a partially-populated
-    // customBuckets (e.g. just `{ enabled: true }` after the master toggle on a
-    // fresh component) still resolves `type`/`fallback`/etc. Replacing wholesale
-    // left `type` undefined, which displayed as "Static" while resolving as
-    // dynamic.
-    const cbConfig = {
-        alias: '', sourceField: '', type: 'dynamic',
-        binding: { statePath: '', labelKey: '', valueKey: '' }, fallback: 'Other',
-        ...(state?.customBuckets || {})
-    };
-    const setCbConfig = (partial) => dwAPI.setCustomBuckets({ ...cbConfig, ...partial });
-    const setCbBinding = (partial) => setCbConfig({ binding: { ...cbConfig.binding, ...partial } });
-
-    const cbEnabled = cbConfig.enabled === true;
-
-    const customBuckets = {
-        name: 'Custom Buckets', icon: 'ColorSwatch',
-        cdn: () => isEdit && currentComponent?.useDataSource && canEditSection,
-        value: cbEnabled ? 'On' : 'Off', showValue: true,
-        items: [
-            {
-                // Master on/off. "Off" drops the synthetic bucket column and
-                // stops applying buckets in buildUdaConfig, but the customBuckets
-                // config is retained so it can be re-enabled.
-                name: 'Enabled', label: 'Enabled',
-                type: 'toggle', showLabel: true,
-                enabled: cbEnabled,
-                setEnabled: v => {
-                    setCbConfig({ enabled: v });
-                    dwAPI.reconcileCustomBucketColumn();
-                }
-            },
-            { type: 'separator' },
-            ...(!cbEnabled ? [] : [
-            {
-                name: 'Type',
-                value: cbConfig.type === 'dynamic' ? 'Dynamic' : 'Static', showValue: true,
-                items: [
-                    { icon: cbConfig.type === 'dynamic' ? 'CircleCheck' : 'Blank', name: 'Dynamic', onClickGoBack: true, onClick: () => setCbConfig({ type: 'dynamic' }) },
-                    { icon: cbConfig.type === 'static'  ? 'CircleCheck' : 'Blank', name: 'Static',  onClickGoBack: true, onClick: () => setCbConfig({ type: 'static', staticGroups: (cbConfig.staticGroups || []).length ? cbConfig.staticGroups : [{ label: '', values: '' }] }) },
-                ]
-            },
-            {
-                name: 'Filter rows to buckets', label: 'Filter rows to buckets',
-                type: 'toggle', showLabel: true,
-                enabled: cbConfig.filterToBuckets !== false,
-                setEnabled: v => setCbConfig({ filterToBuckets: v })
-            },
-            { type: 'separator' },
-            {
-                name: 'Dimension Alias',
-                value: cbConfig.alias, showValue: true,
-                items: [{
-                    id: 'cb_alias_input', name: 'Dimension Alias',
-                    type: () => (
-                        <CommitInput
-                            initialValue={cbConfig.alias}
-                            onCommit={(alias) => {
-                                setCbConfig({ alias });
-                                dwAPI.reconcileCustomBucketColumn();
-                            }}
-                        />
-                    )
-                }]
-            },
-            {
-                name: 'Source Column',
-                value: cbConfig.sourceField, showValue: true,
-                showSearch: (state.externalSource?.columns || []).length > 5,
-                items: (state.externalSource?.columns || []).map(col => ({
-                    icon: col.name === cbConfig.sourceField ? 'CircleCheck' : 'Blank',
-                    name: col.name, onClickGoBack: true,
-                    onClick: () => setCbConfig({ sourceField: col.name })
-                }))
-            },
-            {
-                name: 'Fallback Label',
-                value: cbConfig.fallback, showValue: true,
-                items: [{
-                    id: 'cb_fallback_input', name: 'Fallback Label',
-                    type: 'input', inputType: 'text', value: cbConfig.fallback,
-                    onChange: e => setCbConfig({ fallback: e?.target?.value ?? e })
-                }]
-            },
-            { type: 'separator' },
-            {
-                name: 'State Path', cdn: () => cbConfig.type === 'dynamic',
-                value: cbConfig.binding?.statePath, showValue: true,
-                items: [{
-                    id: 'cb_statepath_input', name: 'State Path',
-                    type: 'input', inputType: 'text', value: cbConfig.binding?.statePath,
-                    onChange: e => setCbBinding({ statePath: e?.target?.value ?? e })
-                }]
-            },
-            {
-                name: 'Label Property', cdn: () => cbConfig.type === 'dynamic',
-                value: cbConfig.binding?.labelKey, showValue: true,
-                items: [{
-                    id: 'cb_labelkey_input', name: 'Label Property',
-                    type: 'input', inputType: 'text', value: cbConfig.binding?.labelKey,
-                    onChange: e => setCbBinding({ labelKey: e?.target?.value ?? e })
-                }]
-            },
-            {
-                name: 'Value Property', cdn: () => cbConfig.type === 'dynamic',
-                value: cbConfig.binding?.valueKey, showValue: true,
-                items: [{
-                    id: 'cb_valuekey_input', name: 'Value Property',
-                    type: 'input', inputType: 'text', value: cbConfig.binding?.valueKey,
-                    onChange: e => setCbBinding({ valueKey: e?.target?.value ?? e })
-                }]
-            },
-            ...(cbConfig.type === 'static' ? (cbConfig.staticGroups || []).map((group, idx) => ({
-                name: `Group ${idx + 1}`, icon: 'Group',
-                items: [
-                    {
-                        name: 'Group Label',
-                        value: group.label, showValue: true,
-                        items: [{
-                            id: `cb_group_${idx}_label`, name: 'Group Label',
-                            type: () => (
-                                <CommitInput
-                                    initialValue={group.label}
-                                    onCommit={(label) => {
-                                        const groups = [...(cbConfig.staticGroups || [])];
-                                        groups[idx] = { ...groups[idx], label };
-                                        setCbConfig({ staticGroups: groups });
-                                    }}
-                                />
-                            )
-                        }]
-                    },
-                    {
-                        name: 'Values (CSV)',
-                        value: group.values, showValue: true,
-                        items: [{
-                            id: `cb_group_${idx}_values`, name: 'Values (CSV)',
-                            type: () => (
-                                <CommitInput
-                                    initialValue={group.values}
-                                    onCommit={(values) => {
-                                        const groups = [...(cbConfig.staticGroups || [])];
-                                        groups[idx] = { ...groups[idx], values };
-                                        setCbConfig({ staticGroups: groups });
-                                    }}
-                                />
-                            )
-                        }]
-                    },
-                    { type: 'separator' },
-                    {
-                        name: 'Remove Group', icon: 'TrashCan', onClickGoBack: true,
-                        onClick: () => {
-                            const groups = [...(cbConfig.staticGroups || [])];
-                            groups.splice(idx, 1);
-                            setCbConfig({ staticGroups: groups });
-                        }
-                    }
-                ]
-            })) : []),
-            {
-                name: 'Add Group', icon: 'Plus',
-                cdn: () => cbConfig.type === 'static',
-                onClick: () => setCbConfig({ staticGroups: [...(cbConfig.staticGroups || []), { label: '', values: '' }] })
-            },
-            ]),
-        ].filter(item => !item.cdn || item.cdn())
-    };
-
     const pivot = {
         name: 'Pivot', icon: 'ListView',
         cdn: () => isEdit && ['Spreadsheet', 'Graph'].includes(currentComponent?.name) && currentComponent?.useDataSource && canEditSection,
@@ -895,11 +726,150 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
         ].filter(item => !item.cdn || item.cdn())
     }
 
-    // Nest the data-shaping menus (join / custom buckets / pivot) under the
-    // Dataset menu so they no longer crowd the top level. Each keeps its own
-    // cdn; pre-filter here (matching their previous top-level visibility) since
-    // the menu renderer doesn't evaluate cdn on nested items.
-    const datasetSubMenus = [join, customBuckets, pivot].filter(item => !item.cdn || item.cdn());
+    // Comparison Series (query fan-out) — author defines N variants (each a
+    // label + filter delta over the base query); the chart overlays one series
+    // per variant. v0 authoring surface is a raw JSON array of {label, filters}.
+    // Master off / no labeled variants → no fan-out (buildUdaConfig gates on it).
+    const csConfig = {
+        enabled: false, seriesKey: '__series', seriesLabel: '', variants: [],
+        ...(state?.comparisonSeries || {})
+    };
+    const setCsConfig = (partial) => dwAPI.setComparisonSeries({ ...csConfig, ...partial });
+    const csEnabled = csConfig.enabled === true;
+
+    const comparisonSeries = {
+        name: 'Comparison Series', icon: 'Columns',
+        cdn: () => isEdit && currentComponent?.useDataSource && canEditSection,
+        value: csEnabled ? 'On' : 'Off', showValue: true,
+        items: [
+            {
+                // Master on/off. Off drops the synthetic discriminator column and
+                // stops fan-out in buildUdaConfig; the config is retained for re-enable.
+                name: 'Enabled', label: 'Enabled',
+                type: 'toggle', showLabel: true,
+                enabled: csEnabled,
+                setEnabled: v => {
+                    setCsConfig({ enabled: v });
+                    dwAPI.reconcileComparisonSeriesColumn();
+                }
+            },
+            { type: 'separator' },
+            ...(!csEnabled ? [] : [
+                {
+                    name: 'Series Key',
+                    value: csConfig.seriesKey, showValue: true,
+                    items: [{
+                        id: 'cs_serieskey_input', name: 'Series Key',
+                        type: () => (
+                            <CommitInput
+                                initialValue={csConfig.seriesKey}
+                                onCommit={(seriesKey) => {
+                                    setCsConfig({ seriesKey: seriesKey || '__series' });
+                                    dwAPI.reconcileComparisonSeriesColumn();
+                                }}
+                            />
+                        )
+                    }]
+                },
+                {
+                    name: 'Series Label',
+                    value: csConfig.seriesLabel, showValue: true,
+                    items: [{
+                        id: 'cs_serieslabel_input', name: 'Series Label',
+                        type: 'input', inputType: 'text', value: csConfig.seriesLabel,
+                        onChange: e => setCsConfig({ seriesLabel: e?.target?.value ?? e })
+                    }]
+                },
+                { type: 'separator' },
+                {
+                    // Per-variant editor. Each variant = { label, filters }; the
+                    // filter delta is authored with the same ComplexFilters builder
+                    // the section's main filters use (no hand-written JSON).
+                    // Stable `id` (NOT the count-bearing name) so committing
+                    // variants doesn't rename this menu level out from under
+                    // NavigableMenu's activeParent → blank page / broken back.
+                    id: 'cs_variants',
+                    name: `Variants (${(csConfig.variants || []).length})`,
+                    items: [
+                        // Each variant is its own nav level, keyed by a stable
+                        // index-based id (see the id-collision note below).
+                        ...(csConfig.variants || []).map((v, idx) => ({
+                            // Stable unique id on every navigable node — flattenConfig
+                            // keys the whole menu by `id || name` globally, so the
+                            // dynamic `Variant N: label` name AND the names repeated
+                            // across variants (`Label`, `Remove Variant`) would collide
+                            // and get random UUIDs each flatten → broken back-nav.
+                            id: `cs_variant_${idx}`,
+                            name: `Variant ${idx + 1}${v.label ? `: ${v.label}` : ''}`, icon: 'Columns',
+                            items: [
+                                {
+                                    id: `cs_variant_${idx}_label_nav`, name: 'Label',
+                                    value: v.label, showValue: true,
+                                    items: [{
+                                        id: `cs_variant_${idx}_label`, name: 'Label',
+                                        type: () => (
+                                            <CommitInput
+                                                initialValue={v.label || ''}
+                                                onCommit={(label) => {
+                                                    const variants = [...(csConfig.variants || [])];
+                                                    variants[idx] = { ...variants[idx], label };
+                                                    setCsConfig({ variants });
+                                                }}
+                                            />
+                                        )
+                                    }]
+                                },
+                                {
+                                    id: `cs_variant_${idx}_filters`, name: 'Filters',
+                                    // Reuse the section filter builder for the variant's
+                                    // delta. value/onSave redirect read+write to this
+                                    // variant; columns/join still come from dwAPI.state.
+                                    // `key` forces a fresh instance per variant (useImmer
+                                    // seeds on mount only).
+                                    type: () => (
+                                        <ComplexFilters
+                                            key={`cs_variant_${idx}`}
+                                            state={dwAPI.state}
+                                            setState={dwAPI.setState}
+                                            value={v.filters}
+                                            onSave={(tree) => {
+                                                const variants = [...(csConfig.variants || [])];
+                                                variants[idx] = { ...variants[idx], filters: tree };
+                                                setCsConfig({ variants });
+                                            }}
+                                        />
+                                    )
+                                },
+                                { type: 'separator' },
+                                {
+                                    id: `cs_variant_${idx}_remove`,
+                                    name: 'Remove Variant', icon: 'TrashCan', onClickGoBack: true,
+                                    onClick: () => {
+                                        const variants = [...(csConfig.variants || [])];
+                                        variants.splice(idx, 1);
+                                        setCsConfig({ variants });
+                                    }
+                                }
+                            ]
+                        })),
+                        {
+                            id: 'cs_add_variant',
+                            name: 'Add Variant', icon: 'Plus',
+                            onClick: () => setCsConfig({
+                                variants: [...(csConfig.variants || []), { label: '', filters: { op: 'AND', groups: [] } }]
+                            })
+                        }
+                    ]
+                }
+            ])
+        ]
+    };
+
+    // Nest the data-shaping menus (join / comparison series /
+    // pivot) under the Dataset menu so they no longer crowd the top level. Each
+    // keeps its own cdn; pre-filter here (matching their previous top-level
+    // visibility) since the menu renderer doesn't evaluate cdn on nested items.
+    const datasetSubMenus = [join, comparisonSeries, pivot].filter(item => !item.cdn || item.cdn());
     if (datasetSubMenus.length) {
         if (dataset.items.length) dataset.items.push({ type: 'separator' });
         dataset.items.push(...datasetSubMenus);

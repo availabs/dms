@@ -540,6 +540,7 @@ export default {
     showPagination: true,
     keepOriginalValues: true,
     showAllColumnsControl: false,
+    usesItemMutationProps: true,
     themeKey: 'dataCard',
     defaultState: {
         filters: { op: 'AND', groups: [] },
