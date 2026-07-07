@@ -1,5 +1,9 @@
 # DMS Todo
 
+## themes
+
+- [x] [Merge mny and mny_admin themes](./tasks/completed/mny-theme-merge.md) — eliminated duplication between `src/themes/mny/theme.js` and `admin.theme.js`. Deleted ~1005 lines of dead orphaned `docs` sample data plus dead `menu`/`select`/`listbox`/`popover` keys (no consumer read them); consolidated `icon` and `tabs` into `mny` only (mny_admin's `tabs.styles[]` was silently missing an entry mny had, a real index-resolution landmine — confirmed unused, merged); confirmed `layout`/`sidenav`/`topnav`/`layoutGroup`/`logo`/`dataCard`/`input`/`field`/`dialog`/`nestable`/`pages.sectionGroup`/`pages.userMenu` are genuine admin-only or public-only customizations that must stay separate. File shrank from 1631 → 597 lines. List of default-matching-but-not-deleted keys recorded in the task file's Final Report.
+
 ## type system
 
 - [x] Type system refactor — uniform `{parent}:{instance}|{rowKind}` scheme replacing inconsistent type encoding; remove UUIDs in favor of human-readable slugs; eliminate `data.doc_type`; sources scoped to dmsEnv; `:data` suffix replaces split type regex; migration script for existing data

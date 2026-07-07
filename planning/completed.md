@@ -1,5 +1,9 @@
 # DMS Completed Tasks
 
+## themes
+
+- [mny-theme-merge.md](./tasks/completed/mny-theme-merge.md) - Merged `src/themes/mny/theme.js` and `admin.theme.js` to eliminate duplication, checking every differing key against the component's shipped `defaultTheme` before deciding placement. Deleted dead orphaned keys (`docs` — ~1005 lines of unused sample data; `menu`/`select`/`listbox`/`popover` — no consumer reads these bare top-level paths); consolidated `icon` into `mny` only (mny_admin's copy was functionally identical) and `tabs` into `mny` only (mny_admin's `styles[]` was silently missing an entry mny had — since `getComponentTheme` resolves styles by raw array index before name, this was a real landmine for any future numeric `activeStyle` reference; confirmed nothing uses one today, merged); confirmed `layout`/`sidenav`/`topnav`/`layoutGroup`/`logo`/`dataCard`/`input`/`field`/`dialog`/`nestable`/`pages.sectionGroup`/`pages.userMenu` are genuine, deliberate admin-only or public-only customizations that must stay separate (differ from each other and from their component defaults). `admin.theme.js` shrank from 1631 → 597 lines. Task file's Final Report lists sub-keys that match the shipped default exactly but were deliberately left in place (not deleted) per the "no deletion spree" rule (2026-07-06)
+
 ## cli
 
 - [cli-refresh-type-refactor.md](./tasks/completed/cli-refresh-type-refactor.md) - DMS CLI refresh for the modern type scheme + per-app tables + dmsEnv ownership: new `cli/src/utils/types.js`; every `byId` path app-namespaced; `dataset list` walks `pattern.dmsEnvId → dmsEnv.sources`; `dataset dump`/`query` go through the hydrating `options` Falcor route for split tables; `cms-section` → `component`; docs (TYPES, CLAUDE) rewritten; seed + 21/21 integration tests on the modern shape; live-verified against `asm+nhomb` (2026-05-01)
