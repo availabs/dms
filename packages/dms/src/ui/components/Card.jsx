@@ -398,7 +398,10 @@ const CardColumnField = ({
     const source = isNewItem ? newItem : tmpItem;
     const rawValue = attr.origin === 'static'
         ? attr.staticValue
-        : source?.[attr.normalName] || source?.[attr.name];
+        // ?? not ||: a calculated column's data is keyed under normalName only (getData keys each
+        // row by normalName || name), so a falsy value there (count of 0) must not fall through to
+        // the absent name key — that rendered aggregate zeros as blank cells.
+        : source?.[attr.normalName] ?? source?.[attr.name];
     const id = tmpItem?.id;
     const value =
         isImg ?
@@ -435,8 +438,15 @@ const CardColumnField = ({
 
     if(isLink){
         valueFormattedForSearchParams = normalizeValueForSearchParams(value, attr.searchParams);
+        // searchParamsCol: source the link param from ANOTHER column's value on this row — display
+        // one field, link by another (ported from TableCell; BC: only engaged when the attribute
+        // sets `searchParamsCol`).
+        const colLinkVal = attr.searchParamsCol != null
+            ? (() => { const cv = source?.[attr.searchParamsCol]; return cv && typeof cv === 'object' ? (cv.originalValue ?? cv.value ?? '') : (cv ?? ''); })()
+            : null;
         searchParams =
             attr.searchParams === 'id' ? encodeURIComponent(id) :
+                attr.searchParamsCol != null ? encodeURIComponent(colLinkVal) :
                 ['value', 'rawValue'].includes(attr.searchParams) ?
                     encodeURIComponent(valueFormattedForSearchParams) : ``;
         if (attr.persistSearchParams && location) {
@@ -552,7 +562,10 @@ const CardColumnField = ({
             {
                 attr.hideValue ? null :
                     <div className={
-                        `${theme.value} ${theme[valueTextJustifyClass]} ${theme[(attr.valueFontStyle && attr.valueFontStyle !== 'button') ? attr.valueFontStyle : 'textXS']} ${formatClass}
+                        // A styled link cell puts valueFontStyle on the <a>/<Link> below — repeating
+                        // it here doubled box-shaped tokens (chip, btnPrimary) into a phantom second
+                        // box. Text tokens nested harmlessly, which hid this until a box token hit it.
+                        `${theme.value} ${theme[valueTextJustifyClass]} ${(isLink && !(allowEdit || attr.allowEditInView)) ? '' : theme[(attr.valueFontStyle && attr.valueFontStyle !== 'button') ? attr.valueFontStyle : 'textXS']} ${formatClass}
                         `} style={{maxWidth: valueMaxWidth}}>
                         {
                             isLink && !(allowEdit || attr.allowEditInView) ?
@@ -792,7 +805,10 @@ const RenderItem = memo(function RenderItem ({
                             cellBorder={cellBorder}
                             cellsPadding={cellsPadding}
                             reverse={reverse}
-                            headerValueLayout={headerValueLayout}
+                            // per-column override (additive): lets one cell deviate from the card's
+                            // ambient layout — e.g. a full-width data_bar (needs `col`; `row` collapses
+                            // it to content width) inside an otherwise row-aligned stats card.
+                            headerValueLayout={attr.headerValueLayout || headerValueLayout}
                             headerWidth={headerWidth}
                             valueWidth={valueWidth}
                             allowAdddNew={allowAdddNew}

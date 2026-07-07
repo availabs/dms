@@ -150,7 +150,7 @@ function SourceSelector () {
     setSource({ add: false, sourceId: null, viewId: null})
   }
 
-  const canAddLayer = (source?.sourceId && source?.viewId);
+  const canAddLayer = (source?.sourceId && source?.viewId && selectedViewLayerType);
   return (
     <div className='relative'>
       <div
@@ -188,6 +188,12 @@ function SourceSelector () {
 
         <div className='mt-5 sm:mt-4 grid grid-cols-12'>
           <div className="col-span-10 grid grid-cols-10">
+
+            { source?.viewId && !selectedViewLayerType ? (
+              <div className="col-span-10 text-right text-red-500">
+                This view has no tile layers and can&apos;t be added to the map.
+              </div>
+            ) : null }
 
             { selectedViewLayerType !== "circle" ? null :
               <>

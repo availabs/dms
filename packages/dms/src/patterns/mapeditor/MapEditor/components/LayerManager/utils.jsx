@@ -191,6 +191,9 @@ function getHeatmapLayer(layer_id, viewLayer) {
 
 export const getLayer = (layer_id, viewLayer, layerType) => {
 
+	// views that were never tiled have no metadata.tiles.layers
+	if (!viewLayer) return [];
+
 	const viewLayerType = layerType || viewLayer.type;
 	
 	const layerByType = {
