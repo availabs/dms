@@ -55,20 +55,29 @@ the scripts in `scratchpad/*/` rely on exactly this (they set `DMS_HOST/APP/TYPE
 explicitly and inherit the token). **Don't bake the token or the credentials into
 the script source.**
 
-## B. Token for Playwright (`scripts/mint-token.mjs`)
+## B. Token for Playwright (`mint-token.mjs`, ships with the CLI)
 
 The screenshot/diag scripts (`card-shot.mjs`, the `diag_*.mjs` scratchpad scripts)
 read auth from a Playwright `storageState` JSON that seeds the app's
-`userToken` localStorage key. [`scripts/mint-token.mjs`](../../../../scripts/mint-token.mjs)
+`userToken` localStorage key.
+[`packages/dms/cli/bin/mint-token.mjs`](../packages/dms/cli/bin/mint-token.mjs)
 does the same `/login` call and writes that file — no browser, no manual login:
 
 ```bash
-node scripts/mint-token.mjs \
+node src/dms/packages/dms/cli/bin/mint-token.mjs \
   --host http://localhost:3001 \
   --email availabs@gmail.com --password test123 \
   --project npmrdsv5 \
   --origin http://npmrds.localhost:5173 \
   --out scratchpad/npmrdsv5-dev2/auth.json
+```
+
+Without `--out` it prints the raw JWT to stdout, so §A's inline mint can also be:
+
+```bash
+export DMS_AUTH_TOKEN=$(node src/dms/packages/dms/cli/bin/mint-token.mjs \
+  --host http://localhost:3001 --project npmrdsv5 \
+  --email availabs@gmail.com --password test123)
 ```
 
 Then point the screenshot script at it: `card-shot.mjs --storage scratchpad/npmrdsv5-dev2/auth.json …`.
