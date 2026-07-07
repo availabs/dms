@@ -219,6 +219,47 @@ through the Falcor `options` route (with `{}` filter for dump) so the
 server inlines the row attributes — the bare `byIndex → ref → byId`
 path doesn't hydrate split-table rows.
 
+### Component Templates
+
+A "copy/paste from the DB" mechanism for section components that opt in via
+the ComponentRegistry's `supportsTemplates: true` flag (currently
+`Spreadsheet` and `graph_new`/`AVL Graph`). Saved from the section menu's
+**Templates** panel (`TemplateManager.jsx`); the template `name` lives in
+`data`, not the type string, so listing is a single exact-type query.
+
+**Type column:** `` `{patternInstance}|{componentTypeSlug}_template` ``
+— e.g. `npmrds_sub|avl_graph_template` for the "AVL Graph" component on the
+`npmrds_sub` pattern. `componentTypeSlug` is `nameToSlug(registryEntry.name)`
+(the registry's `name` field, e.g. `"AVL Graph"` → `avl_graph`, **not** its
+`type` field, e.g. `avlGraph`).
+
+**Key fields (all in `data`):**
+
+| Field | Type | Description |
+|-------|------|--------------|
+| `name` | string | Display name; also the row's dedupe key |
+| `slug` | string | `nameToSlug(name)` — save-with-same-name overwrites the existing row |
+| `componentType` / `elementType` | string | Registry name, e.g. `"AVL Graph"` |
+| `includesSource` / `includesLayout` | boolean | Which parts of the config were captured |
+| `stateJson` | string (JSON) | The cleaned dataWrapper state (source/columns/filters/display, per the two toggles above) — **a JSON string, parse before reading** |
+| `layoutJson` | string (JSON) | Section-level layout attrs (title, size, group, …) — also a JSON string |
+| `createdAt`/`createdBy`/`updatedAt`/`updatedBy` | string | Self-contained provenance (not the row's own `created_at`/`updated_at` columns) |
+
+Implementation: `patterns/page/components/sections/template_utils.js`
+(`buildTemplateType`, `buildTemplatePayload`, `cleanStateForTemplate`) and
+`TemplateManager.jsx` (save/list/apply UI, reads/writes via
+`apiLoad`/`apiUpdate`).
+
+**Creating one via the CLI** (no `page update`-style gotcha here — templates
+aren't sections, so a single `raw create` is enough):
+
+```bash
+dms raw create <app> "<pattern>|avl_graph_template" --data "$(cat payload.json)"
+```
+
+where `payload.json` has the shape above, with `stateJson`/`layoutJson` as
+**stringified** JSON (`JSON.stringify(...)`, not nested objects).
+
 ## Type Resolution
 
 The CLI builds type strings by:
@@ -252,6 +293,23 @@ dms raw list 'asm+nhomb:site'
 # Single row
 dms raw get <id> --attrs id,type,data
 ```
+
+**Known bug — `dms raw list` returns `{items:[],total:0}` against per-app
+PostgreSQL databases (`splitMode: "per-app"`), even for types with confirmed
+rows.** Verified against a `dms-mercury-3`-backed site: `raw list` returned
+`total:0` for `npmrds_sub|page` (15 real pages), `npmrds_sub|component`, and
+`npmrds_sub|avl_graph_template`, while `raw get <id>` and `raw create`
+against the exact same type/id worked correctly, and `dms page list` (a
+different code path — resolves refs via the pattern's `data.patterns`, not
+the generic `dms.data[...].length`/`byIndex` route `raw list`/`fetchAll` use)
+returned the pages fine. Root cause not fully isolated — the per-row lookup
+and the length/index route diverge somewhere for per-app-mode Postgres — but
+it reproduces for ordinary types (`|page`, `|component`), not just
+`_template` rows, so don't trust `raw list`'s `{items,total}` on such a site.
+**Workaround:** use `dms page list` / `dms section list` / `dms dataset list`
+(the type-specific commands) where available, or `raw get <id>` once you
+know the id (e.g. from a browser network tab, as done to find
+`npmrds_sub|avl_graph_template` rows for this task).
 
 ## The `data` Column
 

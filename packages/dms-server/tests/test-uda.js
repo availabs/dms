@@ -328,160 +328,130 @@ async function testMultiKeyGroupedLengthNoCollision() {
   pass('Grouped-length test cleanup complete');
 }
 
-// ============================================= Custom Bucket (aliasGroups) Tests ==============================================
+// ============================================= Comparison Series (fan-out) Tests ==============================================
 
 /**
- * Regression: custom-bucket (aliasGroups) values must survive the round-trip
- * when the bucket alias contains uppercase letters.
- *
- * The bucket column's alias is sent verbatim (not lowercased like ordinary
- * columns). simpleFilter builds `CASE … END as <alias>` and the route reads the
- * value back via rows[ii][getResponseColumnName(attribute)] — i.e. by the
- * original-case alias. PostgreSQL folds an UNquoted output identifier to
- * lowercase, so `as RoadType` returns a row keyed `roadtype` while the route
- * looks up `RoadType` → undefined → null cell. ClickHouse preserves case, so
- * the bug only appeared on the PG/SQLite port. The fix double-quotes the alias
- * in the SELECT so the response key matches. SQLite likewise preserves a quoted
- * alias, so this test guards both backends.
+ * Unit: offsetPlaceholders shifts every $N by the given offset in one atomic pass
+ * (no double-substitution — $1→$11 must not then re-match as $11).
  */
-async function testCustomBucketAliasCaseRoundTrip() {
-  console.log('\n--- Custom Buckets: mixed-case alias round-trip ---');
+async function testOffsetPlaceholders() {
+  console.log('\n--- Unit: offsetPlaceholders ---');
+  const { offsetPlaceholders } = require('../src/routes/uda/utils');
+
+  assert(offsetPlaceholders('a $1 b $2', 3) === 'a $4 b $5', 'simple shift by 3');
+  assert(offsetPlaceholders('x $1', 0) === 'x $1', 'offset 0 is a no-op');
+  // Atomic: $1..$10 shifted by 5 → $6..$15 (the new $11 must not be re-shifted).
+  assert(offsetPlaceholders('$1 $2 $10', 5) === '$6 $7 $15', 'no double-substitution');
+  // ANY($N) array placeholders are renumbered too (the SQLite adapter expands them).
+  assert(offsetPlaceholders('app = ANY($1) AND x = $2', 4) === 'app = ANY($5) AND x = $6', 'ANY() placeholders shift');
+  pass('offsetPlaceholders shifts $N atomically');
+}
+
+/**
+ * Integration: comparison-series fan-out. Two variants over disjoint category
+ * filters produce one UNION ALL arm each, every row stamped with a constant
+ * `__series` label the chart categorizes on. Also covers the groupBy:['__series']
+ * path (the discriminator is dropped from the arm GROUP BY) and an injection-safe
+ * label containing a single quote.
+ */
+async function testSeriesFanout() {
+  console.log('\n--- Comparison Series: basic fan-out + tagged rows ---');
 
   const items = [];
   for (const category of ['alpha', 'alpha', 'beta']) {
     const result = await graph.callAsync(
       ['dms', 'data', 'create'],
-      [TEST_APP, 'buckettest', { name: `n-${category}`, category }]
+      [TEST_APP, 'fanout', { name: `n-${category}`, category }]
     );
     items.push(Object.keys(result.jsonGraph.dms.data.byId)[0]);
   }
 
-  const env = `${TEST_APP}+buckettest`;
+  const env = `${TEST_APP}+fanout`;
   const viewId = items[0];
 
-  // Mirror the client: groupBy + attribute carry the bare mixed-case alias,
-  // aliasGroups carries the CASE definition. The source column is referenced
-  // through its DMS JSON accessor (data->>'category').
-  const ALIAS = 'RoadType';
+  // Group B's label carries an apostrophe to prove the literal is single-quote-escaped.
+  const LABEL_A = 'Group A';
+  const LABEL_B = "O'Brien";
   const options = JSON.stringify({
-    groupBy: [ALIAS],
-    aliasGroups: {
-      [ALIAS]: {
-        column: "data->>'category'",
-        fallback: 'Other',
-        groups: { Interstate: ['alpha'] },
-      },
-    },
+    seriesKey: '__series',
+    groupBy: ['__series'],
+    seriesVariants: [
+      { label: LABEL_A, filterGroups: { op: 'and', groups: [{ col: "data->>'category'", op: 'filter', value: ['alpha'] }] } },
+      { label: LABEL_B, filterGroups: { op: 'and', groups: [{ col: "data->>'category'", op: 'filter', value: ['beta'] }] } },
+    ],
   });
 
-  const dataResult = await graph.getAsync([
-    ['uda', env, 'viewsById', viewId, 'options', options, 'dataByIndex', { from: 0, to: 9 }, [ALIAS]],
+  // length = sum of arm counts (2 alpha + 1 beta)
+  const lenResult = await graph.getAsync([
+    ['uda', env, 'viewsById', viewId, 'options', options, 'length']
   ]);
+  const len = lenResult.jsonGraph.uda[env].viewsById[viewId].options[options].length;
+  assert(+len === 3, `Expected fan-out length 3 (2 + 1), got ${len}`);
+  pass('fan-out length sums per-arm counts');
 
+  // dataByIndex: rows tagged by series. Request __series so the route projects it.
+  const dataResult = await graph.getAsync([
+    ['uda', env, 'viewsById', viewId, 'options', options, 'dataByIndex', { from: 0, to: 9 }, ["data->>'name' as name", '__series']]
+  ]);
   const byIndex = dataResult.jsonGraph.uda[env].viewsById[viewId].options[options].dataByIndex;
-  const bucketValues = Object.values(byIndex)
-    .map((row) => row?.[ALIAS])
-    .filter((v) => v !== undefined && v !== null);
+  const series = Object.values(byIndex).map((r) => r?.['__series']).filter((v) => typeof v === 'string');
 
-  // Two distinct buckets ('Interstate' for alpha, 'Other' for beta) must come
-  // back under the mixed-case alias key — not null.
-  assert(bucketValues.length >= 2, `Expected ≥2 non-null bucket values, got ${JSON.stringify(bucketValues)}`);
-  assert(bucketValues.includes('Interstate'), `Expected an 'Interstate' bucket, got ${JSON.stringify(bucketValues)}`);
-  assert(bucketValues.includes('Other'), `Expected an 'Other' (fallback) bucket, got ${JSON.stringify(bucketValues)}`);
-  pass('custom-bucket mixed-case alias values round-trip (not null)');
+  assert(series.length === 3, `Expected 3 tagged rows, got ${series.length}: ${JSON.stringify(series)}`);
+  assert(series.filter((s) => s === LABEL_A).length === 2, `Expected 2 '${LABEL_A}' rows, got ${JSON.stringify(series)}`);
+  assert(series.filter((s) => s === LABEL_B).length === 1, `Expected 1 "${LABEL_B}" row (apostrophe label round-trips), got ${JSON.stringify(series)}`);
+  pass('fan-out rows carry the right __series label (incl. single-quote-escaped label)');
 
-  await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, 'buckettest', ...items]);
-  pass('Custom bucket test cleanup complete');
+  await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, 'fanout', ...items]);
+  pass('Comparison series fan-out cleanup complete');
 }
 
 /**
- * Regression: a custom-bucket whose values/labels contain a SQL keyword token
- * (e.g. the value "Union" — Union County is real data) must still group.
- *
- * simpleFilter substitutes the bucket CASE into GROUP BY. The bug passed that
- * CASE back through handleGroupBy()'s sanitizeName(), which rejects any string
- * containing a disallowed keyword (`union`, `cast`, `select`, …) as a whole-word
- * token. `... IN ('Union') ...` matches `\bunion\b`, so sanitizeName dropped the
- * whole CASE from GROUP BY while it stayed in the SELECT → Postgres errors
- * ("must appear in GROUP BY"); SQLite/ClickHouse silently collapse every row
- * into a single group. simpleFilterLength bypasses sanitizeName for the CASE, so
- * the two diverged. The fix sanitizes only the bare column entries and leaves the
- * already-vetted CASE verbatim. Two distinct buckets must come back.
+ * Integration: overlapping variants duplicate the shared base rows — the capability
+ * that categorize / custom buckets cannot express (a row can't carry two labels).
+ * 'Recent' = {2023,2024}, 'All' = {2022,2023,2024}; the 2023/2024 rows must appear
+ * under BOTH series, so total rows = 2 + 3 = 5.
  */
-async function testCustomBucketKeywordValueGroupBy() {
-  console.log('\n--- Custom Buckets: SQL-keyword bucket value still groups ---');
+async function testSeriesFanoutOverlap() {
+  console.log('\n--- Comparison Series: overlapping variants duplicate base rows ---');
 
   const items = [];
-  for (const category of ['Union', 'Union', 'County']) {
+  for (const year of ['2022', '2023', '2024']) {
     const result = await graph.callAsync(
       ['dms', 'data', 'create'],
-      [TEST_APP, 'bucketkw', { name: `n-${category}`, category }]
+      [TEST_APP, 'fanoverlap', { name: `y-${year}`, year }]
     );
     items.push(Object.keys(result.jsonGraph.dms.data.byId)[0]);
   }
 
-  const env = `${TEST_APP}+bucketkw`;
+  const env = `${TEST_APP}+fanoverlap`;
   const viewId = items[0];
-  const ALIAS = 'region';
   const options = JSON.stringify({
-    groupBy: [ALIAS],
-    aliasGroups: {
-      [ALIAS]: {
-        column: "data->>'category'",
-        fallback: 'Other',
-        groups: { Matched: ['Union'] },   // 'union' would trip sanitizeName
-      },
-    },
+    seriesKey: '__series',
+    seriesVariants: [
+      { label: 'Recent', filterGroups: { op: 'and', groups: [{ col: "data->>'year'", op: 'filter', value: ['2023', '2024'] }] } },
+      { label: 'All',    filterGroups: { op: 'and', groups: [{ col: "data->>'year'", op: 'filter', value: ['2022', '2023', '2024'] }] } },
+    ],
   });
 
-  const dataResult = await graph.getAsync([
-    ['uda', env, 'viewsById', viewId, 'options', options, 'dataByIndex', { from: 0, to: 9 }, [ALIAS]],
+  const lenResult = await graph.getAsync([
+    ['uda', env, 'viewsById', viewId, 'options', options, 'length']
   ]);
+  const len = lenResult.jsonGraph.uda[env].viewsById[viewId].options[options].length;
+  assert(+len === 5, `Expected 5 rows (2 Recent + 3 All, overlapping years duplicated), got ${len}`);
+  pass('overlapping variants duplicate shared base rows (length 5)');
 
+  const dataResult = await graph.getAsync([
+    ['uda', env, 'viewsById', viewId, 'options', options, 'dataByIndex', { from: 0, to: 9 }, ["data->>'year' as year", '__series']]
+  ]);
   const byIndex = dataResult.jsonGraph.uda[env].viewsById[viewId].options[options].dataByIndex;
-  const buckets = Object.values(byIndex)
-    .map((row) => row?.[ALIAS])
-    .filter((v) => typeof v === 'string'); // drop Falcor {$type:'atom'} empty-slot placeholders
+  const rows = Object.values(byIndex).filter((r) => r && typeof r['__series'] === 'string');
+  const recent = rows.filter((r) => r['__series'] === 'Recent').length;
+  const all = rows.filter((r) => r['__series'] === 'All').length;
+  assert(recent === 2 && all === 3, `Expected Recent=2, All=3; got Recent=${recent}, All=${all}`);
+  pass('each year appears once per arm it matches (2023/2024 in both series)');
 
-  // The two 'Union' rows must collapse into ONE 'Matched' group → exactly 2 rows.
-  // Under the bug the CASE was dropped from GROUP BY, so the rows came back
-  // ungrouped (Matched, Matched, Other) — 'Matched' appearing twice.
-  assert(buckets.length === 2, `Expected exactly 2 grouped buckets, got ${JSON.stringify(buckets)}`);
-  assert(buckets.filter((b) => b === 'Matched').length === 1, `'Matched' should be grouped to one row, got ${JSON.stringify(buckets)}`);
-  assert(buckets.includes('Other'), `Expected an 'Other' (fallback) bucket, got ${JSON.stringify(buckets)}`);
-  pass('SQL-keyword bucket value ("Union") still groups via the CASE');
-
-  await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, 'bucketkw', ...items]);
-  pass('Custom bucket keyword test cleanup complete');
-}
-
-/**
- * Unit: buildAliasGroupCase must text-quote numeric group values when the bucket
- * column is a DMS JSON accessor (`data->>'col'`).
- *
- * DMS internal sources read column values out of a JSONB `data` column, and
- * `data->>` always yields TEXT. A numeric bucket value left unquoted compiles to
- * `data->>'col' IN (2022)` — a text/integer mismatch Postgres rejects. DAMA
- * physical columns keep native typing, so their numeric values stay unquoted.
- */
-async function testBuildAliasGroupCaseDmsNumericQuoting() {
-  console.log('\n--- Unit: buildAliasGroupCase text-quotes numeric DMS (data->>) values ---');
-  const { buildAliasGroupCase } = require('../src/routes/uda/utils');
-
-  // DAMA physical column: numeric values stay unquoted (native typing).
-  const dama = buildAliasGroupCase({ column: 'year_record', groups: { Recent: [2022, 2023] }, fallback: 'Old' });
-  assert(/IN \(2022, 2023\)/.test(dama), `DAMA numeric should be unquoted: ${dama}`);
-
-  // DMS JSON text accessor: numeric values must be quoted as text.
-  const dms = buildAliasGroupCase({ column: "data->>'year_record'", groups: { Recent: [2022, 2023] }, fallback: 'Old' });
-  assert(/IN \('2022', '2023'\)/.test(dms), `DMS numeric should be text-quoted: ${dms}`);
-  assert(dms.includes("CASE WHEN data->>'year_record' IN"), `DMS CASE should reference the JSON accessor: ${dms}`);
-
-  // String values are quoted in both shapes (unchanged behavior).
-  const str = buildAliasGroupCase({ column: 'cat', groups: { A: ['x'] } });
-  assert(str.includes("IN ('x')"), `string values should be quoted: ${str}`);
-
-  pass('buildAliasGroupCase text-quotes numeric values for DMS data->> columns');
+  await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, 'fanoverlap', ...items]);
+  pass('Comparison series overlap cleanup complete');
 }
 
 // ============================================= filterGroups Tests ==============================================
@@ -1235,9 +1205,11 @@ async function run() {
     await testDmsModeViews();
     await testDmsModeDataQueries();
     await testMultiKeyGroupedLengthNoCollision();
-    await testCustomBucketAliasCaseRoundTrip();
-    await testCustomBucketKeywordValueGroupBy();
-    await testBuildAliasGroupCaseDmsNumericQuoting();
+
+    // comparison-series fan-out tests
+    await testOffsetPlaceholders();
+    await testSeriesFanout();
+    await testSeriesFanoutOverlap();
 
     // filterGroups regression tests
     await testGetValuesFromGroupNullLeaves();

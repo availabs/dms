@@ -193,7 +193,7 @@ const RenderDownload = ({state, apiLoad, cms_context}) => {
 
 
 const Edit = forwardRef((props, ref) => {
-    let {cms_context, value, onChange, component, siteType, pageFormat, onHandle} = props
+    let {cms_context, value, onChange, component, siteType, pageFormat, onHandle, sectionId, trackingId} = props
     const isEdit = Boolean(onChange);
     const { UI, theme: fullTheme } = useContext(ThemeContext)
     const _pageCtx = useContext(PageContext) || {};
@@ -226,7 +226,7 @@ const Edit = forwardRef((props, ref) => {
         }
     }, [outputSourceInfo]);
 
-    usePageFilterSync({ state, setState });
+    usePageFilterSync({ state, setState, sectionId, trackingId });
 
     // ── Sync newItem from page params for columns with usePageParams ──
     useEffect(() => {
@@ -255,6 +255,21 @@ const Edit = forwardRef((props, ref) => {
     const dataSourceInfo = useDataSource({ state, setState });
     const dwAPI = useDataWrapperAPI({ state, setState });
 
+    // ── Comparison-series dynamic binding: reconcile the synthetic column ──
+    // The master toggle / series-key commit fire reconcile from the menu, but a
+    // dynamic "comparison_series" subscriber can be enabled (Actions menu) or resolve
+    // its config (usePageFilterSync) AFTER the master is already on — orderings the
+    // menu reconcile misses. Re-reconcile when either the subscriber's enabled flag or
+    // config's presence flips (booleans, so no per-keystroke churn). reconcile is
+    // idempotent → immer no-ops when the column is already correct.
+    const csSubEnabled = (state?.display?._functions?.subscribers || []).some(
+        s => s.functionId === 'comparison_series' && s.enabled
+    );
+    const csConfigPresent = state?.comparisonSeries?.config !== undefined;
+    useEffect(() => {
+        dwAPI.reconcileComparisonSeriesColumn();
+    }, [csSubEnabled, csConfigPresent, state?.comparisonSeries?.enabled]);
+
     // ── Backfill externalSource.type if missing (older sections lack it) ──
     useEffect(() => {
         if (state?.externalSource?.name && !state?.externalSource?.type) {
@@ -275,13 +290,15 @@ const Edit = forwardRef((props, ref) => {
             display: { ...(state.display || {}) },
             data: state.data || [],
             join: state.join || { sources: {} },
-            customBuckets: state.customBuckets || {},
         };
         if (state.dataSourceId) toSave.dataSourceId = state.dataSourceId;
         if (state.pivot?.enabled) {
             const { distinctValues: _dv, distinctValuesByColumn: _dvbc, ...pivotConfig } = state.pivot;
             toSave.pivot = pivotConfig;
         }
+        // Persist comparison-series config when present, or the save effect round-trips
+        // a stripped state and the master toggle silently reverts (same trap as join).
+        if (state.comparisonSeries) toSave.comparisonSeries = state.comparisonSeries;
         RUNTIME_DISPLAY_FIELDS.forEach(f => delete toSave.display[f]);
         const serialized = JSON.stringify(toSave);
         if (isEqual(value, serialized)) return;
@@ -383,17 +400,17 @@ const Edit = forwardRef((props, ref) => {
     }
 
     const componentProps = useMemo(() => {
-        return ['Spreadsheet', 'Card'].includes(component.name) ? {
+        return component?.usesItemMutationProps ? {
             newItem, setNewItem,
             updateItem, removeItem, addItem,
             currentPage, infiniteScrollFetchData: onPageChange,
             allowEdit: state?.externalSource?.isDms && !groupByColumnsLength
         } : {}
-    }, [component.name, newItem, setNewItem, updateItem, removeItem, addItem, currentPage, onPageChange, state?.externalSource?.isDms, groupByColumnsLength])
+    }, [component?.usesItemMutationProps, newItem, setNewItem, updateItem, removeItem, addItem, currentPage, onPageChange, state?.externalSource?.isDms, groupByColumnsLength])
 
     return (
         <ComponentContext.Provider value={{state, setState, apiLoad, apiUpdate, controls: resolvedControls,
-            isActive: true, activeStyle: undefined, sectionId: undefined}}>
+            isActive: true, activeStyle: undefined, sectionId, trackingId}}>
             <RenderFilters isEdit={true} defaultOpen={true} />
             <ExternalFilters defaultOpen={true} />
             <div className={'w-full h-full flex flex-col'}>
@@ -420,7 +437,7 @@ const Edit = forwardRef((props, ref) => {
     )
 })
 
-const View = forwardRef(({cms_context, value, onChange, component, editPageMode, onHandle}, ref) => {
+const View = forwardRef(({cms_context, value, onChange, component, editPageMode, onHandle, sectionId, trackingId}, ref) => {
     const isEdit = false;
     const navigate = useNavigate();
     const _pageCtx = useContext(PageContext) || {};
@@ -467,7 +484,7 @@ const View = forwardRef(({cms_context, value, onChange, component, editPageMode,
         }
     }, [outputSourceInfo]);
 
-    usePageFilterSync({ state, setState, setReadyOnChange: true });
+    usePageFilterSync({ state, setState, setReadyOnChange: true, sectionId, trackingId });
 
     // ── Sync newItem from page params for columns with usePageParams ──
     useEffect(() => {
@@ -632,16 +649,16 @@ const View = forwardRef(({cms_context, value, onChange, component, editPageMode,
     }, [state?.data, state?.display?.hideIfNull])
 
     const componentProps = useMemo(() => {
-        return ['Spreadsheet', 'Card'].includes(component.name) ? {
+        return component?.usesItemMutationProps ? {
             newItem, setNewItem,
             updateItem, removeItem, addItem,
             currentPage, infiniteScrollFetchData: onPageChange,
             allowEdit
         } : {}
-    }, [component.name, allowEdit, newItem, setNewItem, updateItem, removeItem, addItem, currentPage, onPageChange])
+    }, [component?.usesItemMutationProps, allowEdit, newItem, setNewItem, updateItem, removeItem, addItem, currentPage, onPageChange])
 
     return (
-        <ComponentContext.Provider value={{state, setState, apiLoad, apiUpdate, controls: resolvedControls, activeStyle: undefined}}>
+        <ComponentContext.Provider value={{state, setState, apiLoad, apiUpdate, controls: resolvedControls, activeStyle: undefined, sectionId, trackingId}}>
             <RenderFilters isEdit={false} defaultOpen={true} />
             <ExternalFilters defaultOpen={true} />
             <div className={'w-full h-full'}>

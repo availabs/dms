@@ -114,48 +114,60 @@ export function useDataWrapperAPI({ state, setState }) {
         [setState]
     );
 
-    //setCustomBuckets
-    const setCustomBuckets = useCallback(
+    // ── Comparison Series operations ──
+    const setComparisonSeries = useCallback(
         (value) => setState(draft => {
-            draft.customBuckets = value;
+            draft.comparisonSeries = value;
         }),
         [setState]
     );
 
-    // Reconcile the synthetic custom-bucket column in state.columns to match the
-    // committed alias. This is an explicit action (fired when the alias field is
-    // committed — see sectionMenu) rather than a reactive effect, so typing the
-    // alias no longer churns columns on every keystroke.
-    //
-    // Single-bucket model: the column is identified by origin alone, so an alias
-    // change RENAMES the existing column instead of adding a duplicate. The
-    // customBuckets config stays multi-capable (keyed by alias) for the future.
-    const reconcileCustomBucketColumn = useCallback(
+    // Reconcile the synthetic comparison-series discriminator column in
+    // state.columns. This is an explicit action (fired when the master toggle /
+    // series-key field commits) rather than a
+    // reactive effect. The column is identified by origin; a seriesKey change
+    // renames it. Master-off / no labeled variants → the column shouldn't exist
+    // (config stays on draft.comparisonSeries for clean re-enable). It defaults to
+    // a categorize dimension so a graph renders one series per variant out of the box.
+    const reconcileComparisonSeriesColumn = useCallback(
         () => setState(draft => {
             if (!draft) return;
-            const alias = draft.customBuckets?.alias;
-            const enabled = draft.customBuckets?.enabled === true;
-            const idx = (draft.columns || []).findIndex(c => c.origin === 'custom-bucket');
+            const cs = draft.comparisonSeries;
+            const seriesKey = cs?.seriesKey || '__series';
+            const enabled = cs?.enabled === true;
+            // Variants come from either binding mode: static (cs.variants) OR a
+            // dynamic "comparison_series" subscriber (Piece 3). For dynamic the list
+            // resolves asynchronously into cs.config from page state — its presence
+            // (even an empty []) means dynamic binding is active, as does an enabled
+            // subscriber whose page value hasn't arrived yet. Either keeps the
+            // synthetic categorize column so the chart is ready when data loads.
+            const dynamicSubscriber = (draft.display?._functions?.subscribers || []).some(
+                s => s.functionId === 'comparison_series' && s.enabled
+            );
+            const hasVariants =
+                (Array.isArray(cs?.variants) && cs.variants.some(v => v && v.label)) ||
+                Array.isArray(cs?.config) ||
+                dynamicSubscriber;
+            const idx = (draft.columns || []).findIndex(c => c.origin === 'comparison-series');
 
-            // No alias or master-off → the synthetic column shouldn't exist.
-            // (Config stays on draft.customBuckets so re-enabling restores it.)
-            if (!alias || !enabled) {
+            if (!enabled || !hasVariants) {
                 if (idx !== -1) draft.columns.splice(idx, 1);
                 return;
             }
             if (idx === -1) {
                 draft.columns.push({
-                    name: alias,
-                    alias,
+                    name: seriesKey,
+                    alias: seriesKey,
                     type: 'text',
                     show: true,
                     group: true,
+                    target: 'categorize',
                     isCalculatedColumn: false,
-                    origin: 'custom-bucket',
+                    origin: 'comparison-series',
                 });
             } else {
-                draft.columns[idx].name = alias;
-                draft.columns[idx].alias = alias;
+                draft.columns[idx].name = seriesKey;
+                draft.columns[idx].alias = seriesKey;
             }
         }),
         [setState]
@@ -172,7 +184,7 @@ export function useDataWrapperAPI({ state, setState }) {
                 filters: s?.filters,
                 join: s?.join,
                 pivot: s?.pivot,
-                customBuckets: s?.customBuckets,
+                comparisonSeries: s?.comparisonSeries,
             };
         },
         get runtime() {
@@ -207,9 +219,9 @@ export function useDataWrapperAPI({ state, setState }) {
         // ── Pivot operations ──
         setPivot,
 
-        // ── Custom Buckets operations ──
-        setCustomBuckets,
-        reconcileCustomBucketColumn,
+        // ── Comparison Series operations ──
+        setComparisonSeries,
+        reconcileComparisonSeriesColumn,
 
         // ── Raw access (escape hatch) ──
         // Needed for: ComplexFilters, custom control types, handlePaste.
@@ -224,7 +236,7 @@ export function useDataWrapperAPI({ state, setState }) {
         toggleIdFilter, toggleGlobalVisibility,
         addFormulaColumn, addCalculatedColumn, reorderColumns,
         setPivot,
-        setCustomBuckets,
-        reconcileCustomBucketColumn,
+        setComparisonSeries,
+        reconcileComparisonSeriesColumn,
     ]);
 }

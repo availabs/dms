@@ -159,6 +159,7 @@ function SaveAsTemplateSection() {
         description: description.trim(),
         sections: item?.draft_sections || [],
         sectionGroups: item?.draft_section_groups || [],
+        sidebar: item?.sidebar,
         user,
         existing: overwriteTarget,
       });

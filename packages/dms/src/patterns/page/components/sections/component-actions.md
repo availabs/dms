@@ -31,17 +31,17 @@ subscriber (`row_highlight`) reading the value to highlight a matching row. Hove
 publish into this class.
 
 But an action param becomes **reload-driving** the moment a data-side consumer is configured to
-read its searchKey. The concrete case in this codebase is a **dynamic custom bucket**
-(`usePageFilterSync` / `resolveAliasGroups`): its `binding.statePath` can point at an action
-param's key, so publishing a new value recomputes `customBuckets.config` — a `useDataLoader`
-dependency — and reloads data. This is intentional: it is the only in-memory (non-URL) way to
-let a row click drive a page-level data filter. The two classes share one namespace
-(`pageState.filters`); consumers, not the param itself, decide which class it is.
+read its searchKey. The concrete case in this codebase is **dynamic comparison series**
+(`usePageFilterSync` / `resolveComparisonVariants`): a `comparison_series` subscriber's `paramKey`
+can point at an action param's key, so publishing a new value recomputes `comparisonSeries.config`
+— a `useDataLoader` dependency — and reloads data. This is intentional: it is the only in-memory
+(non-URL) way to let a row click drive a page-level data filter. The two classes share one
+namespace (`pageState.filters`); consumers, not the param itself, decide which class it is.
 
 **Constraint — trigger frequency must match the consumer.** Because a reload-driving param
 issues a query on every publish, only **discrete, user-initiated triggers** (`click`) may feed a
-reload-driving consumer. **Never wire a `hover` provider's key into a custom bucket** (or any
-other reload consumer): hover fires on every `mouseenter` (the map layer publishes on
+reload-driving consumer. **Never wire a `hover` provider's key into a reload-driving consumer**
+(e.g. comparison series): hover fires on every `mouseenter` (the map layer publishes on
 mouse-move), so it would reload data continuously. Hover providers must stay visual-only.
 
 **Filter entry shape for an action param:**
@@ -67,11 +67,11 @@ downstream consumers see "no filter" instead of an empty-array filter.
 rows share the same `value` but should toggle independently — the provider publishes a composite
 `{ id, value }` element instead of a bare value: `id` is the toggle identity (from a configured
 row-id column), `value` is the payload the consumer reads. The toggle compares by `id` only; the
-payload is opaque to it. Consumers must **unwrap `.value`**: `resolveAliasGroups`
-(`usePageFilterSync.js`) reads the route from `entry.value` when the route fields aren't on the
-entry itself, falling back to the bare entry for direct-route bindings from other page-filter
-sources. The spreadsheet `click_publish` provider exposes this via an optional `id_column` arg —
-empty means bare-value toggling (no composite).
+payload is opaque to it. Consumers must **unwrap `.value`**: `resolveComparisonVariants`
+(`usePageFilterSync.js` / `buildUdaConfig.js`) reads the variant from `entry.value` when the
+variant fields aren't on the entry itself, falling back to the bare entry for direct bindings from
+other page-filter sources. The spreadsheet `click_publish` provider exposes this via an optional
+`id_column` arg — empty means bare-value toggling (no composite).
 
 Two helper functions are added to `PageContext` so components don't have to write raw Immer
 mutations:

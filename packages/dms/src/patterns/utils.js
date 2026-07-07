@@ -43,7 +43,7 @@ export function sanitizeSectionsForTemplate(sections) {
 }
 
 // used in admin, and page patterns
-export function buildPageTemplatePayload({name, description, sections, sectionGroups, user, existing}) {
+export function buildPageTemplatePayload({name, description, sections, sectionGroups, sidebar, user, existing}) {
   const now = new Date().toISOString();
   const slug = nameToSlug(name);
   const payload = {
@@ -52,6 +52,7 @@ export function buildPageTemplatePayload({name, description, sections, sectionGr
     description: description || '',
     draft_sections: sanitizeSectionsForTemplate(sections),
     draft_section_groups: sectionGroups || [],
+    sidebar: sidebar || '',
     updatedAt: now,
     updatedBy: user?.email || '',
   };
