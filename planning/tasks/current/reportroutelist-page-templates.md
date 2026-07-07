@@ -122,7 +122,7 @@ author creating a new report never has to configure either manually. Authors cre
 | `src/themes/transportny/components/ReportRouteList/ReportRouteList.jsx` | The component: route storage/CRUD, sibling-graph discovery, per-graph publish, edit-mode gating |
 | `src/themes/transportny/components/ReportRouteList/README.md` | Full current-state writeup (storage, catalog binding, per-graph routing, gotchas) |
 | `src/themes/CLAUDE.md` | Pointer entry under "Custom theme components worth knowing about" |
-| `packages/dms/src/patterns/page/pages/view.jsx`, `pages/edit/index.jsx` | `editPageMode` on `PageContext`; removed the old `newItem`/`setItem` fork |
+| `packages/dms/src/patterns/page/pages/edit/index.jsx` | `editPageMode: true` on `PageContext`; removed the old `newItem`/`setItem` fork. `view.jsx` needed no change — it gets a falsy `editPageMode` by omission, which is the correct value there |
 | `packages/dms/src/patterns/page/components/sections/section.jsx`, `.../components/index.jsx`, `.../dataWrapper/index.jsx` | Thread `sectionId` and `trackingId` into `ComponentContext` |
 | `packages/dms/src/patterns/page/components/sections/components/dataWrapper/usePageFilterSync.js`, `buildUdaConfig.js` | `$self` sentinel resolution, `selfParamKey()` |
 | `packages/dms/src/patterns/page/pages/edit/editFunctions.jsx` | `newPage()`/`duplicateItem()` mint a fresh `trackingId` per copied section; `sidebar` now copied from page templates |

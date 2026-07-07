@@ -1451,15 +1451,18 @@ export const buildUdaConfig = ({
     }));
   }
 
-  if (activeComparisonSeries) {
-    const seriesKey = comparisonSeries.seriesKey || "__series";
-    const caseExpr = `CASE ${seriesKey} ${effectiveVariants
-        .filter((v) => v && v.label)
-        .map((v, i) => `WHEN '${v.label}' THEN ${i + 1}`)
-        .join(' ')} ELSE ${effectiveVariants.filter((v) => v && v.label).length + 1} END`;
-    
-    options.orderBy[caseExpr] = 'desc';
-  }
+  // No ORDER BY across the union in v1 — see "No ORDER BY across the union (v1)" in
+  // comparison-series-query-fanout.md and the matching comment in
+  // query_sets/postgres.js. An earlier attempt at deterministic per-series ordering
+  // here (a client-built `CASE seriesKey WHEN '<label>' THEN <n> …` in `options.orderBy`)
+  // was removed: the label wasn't single-quote-escaped (breaks on labels like
+  // `O'Brien`) and the alias-less CASE expression got mangled by the server's
+  // `handleOrderBy` → `getResponseColumnName` column-name extraction for any label
+  // containing a `.` (route/TMC names, decimals — the feature's own motivating case).
+  // Deterministic series ordering is deferred to v1.1 — see
+  // comparison-series-query-fanout.md's "Deferred phases" for what a real
+  // implementation needs (escaped label, parenthesized+aliased expression that
+  // survives `handleOrderBy`, and a server round-trip test).
 
   // 9. Build attributes list
   const attributes = columnsToFetch.map((a) => a.reqName).filter((a) => a);

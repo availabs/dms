@@ -256,9 +256,12 @@ multiple series. Confirm live.
       arms (DMS `data->>` refs) + `seriesKey`; `__series` in groupBy + attributes verbatim;
       disabled / no labeled variants → no `seriesVariants`, synthetic column dropped (BC);
       **join present → `__series` stays bare while real columns alias to `ds.…` (regression).** (7 tests)
-- [x] `buildUdaConfig`: **comparison-series + custom-buckets compose** — filter-to-buckets ON →
-      the bucket row-restriction leaf is injected into *every* fan-out arm (mapped to the DMS
-      accessor); filter-to-buckets OFF → no leaf added (BC). (2 tests, 2026-06-12 live-fix)
+- [x] ~~`buildUdaConfig`: comparison-series + custom-buckets compose~~ — **removed, N/A**:
+      custom buckets were a separate, previously-shipped feature (see Cross-links) that this
+      branch deleted entirely (the disjoint-partition case it covered is subsumed by comparison
+      series' general fan-out engine — see "Why fan-out" above). This item and its 2 tests
+      documented a composition that no longer exists in the code; kept here only as a historical
+      note in case anyone finds the old commit and wonders where the tests went.
 - [x] Server: 2-variant fan-out → `UNION ALL`, labels under `seriesKey`, correct rows. *(`testSeriesFanout`, SQLite)*
 - [x] Server: overlapping variants duplicate shared base rows. *(`testSeriesFanoutOverlap`)*
 - [x] Server: label injection-safe (`'`-containing label round-trips). *(inline escape, `testSeriesFanout` uses `O'Brien`)*
@@ -285,6 +288,26 @@ multiple series. Confirm live.
 
 ## Deferred phases (specs to expand when picked up)
 
+- **Piece 6 — Deterministic series ordering across the union (v1.1).** v1 ships with
+  **no ORDER BY across the union** — charts sort client-side, per the "No ORDER BY
+  across the union (v1)" design decision below. A first attempt at server-side
+  ordering (a client-built `CASE seriesKey WHEN '<label>' THEN <n> … END` written into
+  `options.orderBy` in `buildUdaConfig.js`) was implemented, found broken in the merge
+  review that landed Pieces 1–3, and removed rather than fixed, since it was never part
+  of the original spec. Two independent bugs, either of which is disqualifying on its
+  own:
+  - The label was interpolated unescaped (every other label site — the arm SELECT in
+    both postgres.js and clickhouse.js — escapes single quotes; this one didn't), so a
+    label containing `'` (e.g. `O'Brien`) produced invalid SQL.
+  - The CASE expression had no parens and no alias, so the server's `handleOrderBy` →
+    `getResponseColumnName` column-name extraction (`utils.js`, `key.split(".").pop()`)
+    truncated it to garbage for any label containing a `.` — which routinely happens
+    for route/TMC names and decimals, i.e. the feature's own motivating use case.
+  - If picked up: escape the label like the SELECT paths do, wrap the expression so it
+    survives `handleOrderBy` (parenthesize + alias — `utils.js`'s `isBareExpression`
+    check passes paren-bearing, alias-less keys through verbatim, so either approach
+    needs verifying against that function), and land a server test that round-trips a
+    quote-and-dot-bearing label through the ordered query before relying on it.
 - **Piece 3 — Dynamic binding. ✅ DONE 2026-06-12** (see Status → Piece 3 above). The
   binding is the `comparison_series` componentFunctions subscriber's instance config
   (`paramKey`/`args` = the planned `statePath`/label/value keys); `usePageFilterSync`
@@ -302,9 +325,12 @@ multiple series. Confirm live.
 
 ## Cross-links
 
-- Precedent (architecture to mirror): [custom-buckets.md](../completed/custom-buckets.md)
-  — synthetic column lifecycle, `enabled` master gate, `usePageFilterSync` resolution,
-  server CASE compile, DMS `data->>` accessor gotchas.
+- Precedent (architecture mirrored, then superseded): custom buckets — synthetic column
+  lifecycle, `enabled` master gate, `usePageFilterSync` resolution, server CASE compile, DMS
+  `data->>` accessor gotchas. Custom buckets themselves were removed from the codebase by this
+  branch (`planning/tasks/completed/custom-buckets.md` deleted) — the disjoint-partition case
+  they covered is subsumed by comparison series' general fan-out engine (see "Why fan-out"
+  above), so there is no longer a doc to link to; this note stands in its place.
 - Subscriber / reload-driving action-param semantics:
   `packages/dms/src/patterns/page/components/sections/component-actions.md`.
 - Related-but-different existing step: `applyPriorPeriodExpansion`
@@ -336,14 +362,10 @@ during this work) — see the Testing checklist above for the exact unchecked it
 - **The variant label is an inline, single-quote-escaped SQL literal, not a bound param** —
   matches `buildAliasGroupCase`'s existing convention and avoids a GROUP-BY-on-a-parameter
   problem. The alias is double-quoted (`as "<seriesKey>"`) to survive PG's case-folding.
-- **Synthetic SELECT-alias columns (`origin: 'comparison-series'`, same as `custom-bucket`)
-  must never be table-prefixed when a join is present** — `buildUdaConfig.js`'s join-alias
-  column-prefixing step needs an explicit exclusion for these, or the discriminator becomes a
-  phantom `ds.__series` column that breaks both the query and the server's `groupBy` filtering.
-- **The custom-bucket "filter to buckets" row-restriction leaf must be folded into the base
-  tree before each variant patches it** — otherwise comparison series + custom buckets combine
-  incorrectly (rows fall through to the bucket fallback label instead of being restricted
-  per-arm).
+- **Synthetic SELECT-alias columns (`origin: 'comparison-series'`) must never be table-prefixed
+  when a join is present** — `buildUdaConfig.js`'s join-alias column-prefixing step needs an
+  explicit exclusion for these, or the discriminator becomes a phantom `ds.__series` column that
+  breaks both the query and the server's `groupBy` filtering.
 - **Any `NavigableMenu` item whose displayed `name` is dynamic (e.g. includes a count) needs a
   stable explicit `id`** — `flattenConfig` keys menu levels by `item.id || item.name`, so a
   name that changes on commit orphans the menu's back-navigation.
