@@ -245,7 +245,15 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
 			editPane, setEditPane,
 			format,
 			busy,
-      baseUrl
+      baseUrl,
+      // Page-level edit mode — true for the whole /edit/... route, independent of any
+      // individual section's own `isEdit` prop (which only means "this section's own
+      // settings editor is open" — a per-component flag from dataWrapper's Edit/View,
+      // almost never true in normal interactive use). A component that needs to know
+      // whichever sections array (`draft_sections` vs `sections`) its siblings are
+      // actually rendering from right now must key off this, not its own `isEdit`
+      // prop. Absent (falsy) on view.jsx's PageContext.
+      editPageMode: true
 		}}>
 			<ThemeContext.Provider value={{theme, UI, getComponentTheme}}>
 				<PageControls />

@@ -13,13 +13,12 @@
  * by getEssentials, so SQL references ${table_schema}.${table_name} directly.
  */
 
-const { sanitizeName, getResponseColumnName, getEssentials, buildJoin } = require('../utils');
+const { sanitizeName, getResponseColumnName, getEssentials, buildJoin, restoreLongColumnNames } = require('../utils');
 const {
   handleFiltersCH,
   handleFilterGroupsCH,
   handleHavingCH,
   handleOrderByCH,
-  buildAliasGroupCaseCH,
 } = require('./helpers');
 
 
@@ -42,7 +41,8 @@ async function simpleFilterLength(ctx, options) {
     groupBy = [], having = [],
     normalFilter = [],
     join = {},
-    aliasGroups = {}
+    // Comparison series: total length = sum of each variant arm's count.
+    seriesVariants = [], seriesKey = '__series'
   } = JSON.parse(options);
 
   // Detect whether the request includes a real join so the WHERE builder can
@@ -57,16 +57,7 @@ async function simpleFilterLength(ctx, options) {
     });
   }
 
-  const activeAliasGroups = {};
-  if (aliasGroups) {
-    for (const [alias, definition] of Object.entries(aliasGroups)) {
-      if (groupBy.includes(alias)) {
-        activeAliasGroups[alias] = buildAliasGroupCaseCH(definition);
-      }
-    }
-  }
-
-  const sanitizedGroupBy = groupBy.map(g => activeAliasGroups[g] || sanitizeName(g)).filter(Boolean);
+  const sanitizedGroupBy = groupBy.map(g => sanitizeName(g)).filter(Boolean);
 
   const combinedWhere = buildCombinedWhereCH({
     filter, exclude, gt, gte, lt, lte, like, filterGroups,
@@ -86,6 +77,26 @@ async function simpleFilterLength(ctx, options) {
     //default case for no merge
     //could have 1 or more joins
     fromClause = `${table_schema}.${table_name} ${hasJoin ? ' as ds ' : ''} ${joins}`;
+  }
+  // ── Comparison-series fan-out length ────────────────────────────────────────
+  // Sum each arm's count as a scalar subquery. The series discriminator is constant
+  // per arm and not a real column here, so it's dropped from the count's groupBy.
+  if (seriesVariants.length) {
+    const countGroupBy = groupBy.filter((g) => g !== seriesKey);
+    const armCountExpr = countGroupBy.length
+      ? `count(DISTINCT concat(${countGroupBy.map((g) => sanitizeName(g)).filter(Boolean).map((c) => `toString(${c})`).join(", '-' ,")}))`
+      : `count(*)`;
+    const armCountSqls = seriesVariants.map((variant) => {
+      const armWhere = buildCombinedWhereCH({
+        filter, exclude, gt, gte, lt, lte, like,
+        filterGroups: variant.filterGroups || {}, joinPresent,
+      });
+      return `(SELECT ${armCountExpr} FROM ${fromClause} ${armWhere} ${handleHavingCH(having)})`;
+    });
+    const fanoutSql = `SELECT ${armCountSqls.join(' + ')} AS numRows`;
+    const fanoutResult = await db.query({ query: fanoutSql, format: 'JSON' });
+    const fanoutRows = await fanoutResult.json();
+    return fanoutRows?.data?.[0]?.numRows != null ? Number(fanoutRows.data[0].numRows) : 0;
   }
 
   // Grouped length = number of GROUP BY buckets. Count rows of a subquery that
@@ -139,38 +150,15 @@ async function simpleFilter(ctx, options, attributes, indices) {
     filterGroups = {},
     groupBy = [], having = [], orderBy = {},
     normalFilter = [], join = {},
-    aliasGroups = {}
+    // Comparison series (query fan-out): one UNION ALL arm per variant. CH inlines
+    // filter values (no $N placeholders), so arms compose directly. Empty → single
+    // arm, unchanged.
+    seriesVariants = [], seriesKey = '__series'
   } = JSON.parse(options);
-
-  const activeAliasGroups = {};
-  if (aliasGroups) {
-    for (const [alias, definition] of Object.entries(aliasGroups)) {
-      if (groupBy.includes(alias)) {
-        activeAliasGroups[alias] = buildAliasGroupCaseCH(definition);
-      }
-    }
-  }
 
   const transformedAttributes = transformAttributesForClickHouse(attributes);
 
-  const sanitizedAttrs = sanitizeName(transformedAttributes).filter((f) => f)
-    .map(attr => {
-      const respName = getResponseColumnName(attr);
-      if (activeAliasGroups[respName]) {
-        return `${activeAliasGroups[respName]} as ${respName}`;
-      }
-      return attr;
-    });
-
-  // Ensure grouped alias groups are in the SELECT clause
-  groupBy.forEach(g => {
-    if (activeAliasGroups[g]) {
-      const alreadyIn = sanitizedAttrs.some(attr => getResponseColumnName(attr) === g);
-      if (!alreadyIn) {
-        sanitizedAttrs.push(`${activeAliasGroups[g]} as ${g}`);
-      }
-    }
-  });
+  const sanitizedAttrs = sanitizeName(transformedAttributes).filter((f) => f);
 
   if (!sanitizedAttrs.length) return [];
 
@@ -214,13 +202,48 @@ async function simpleFilter(ctx, options, attributes, indices) {
     fromClause = `${table_schema}.${table_name} ${hasJoin ? ' as ds ' : ''} ${joins}`;
   }
 
-  // Bucket aliases are already compiled into a vetted CASE expression
-  // (activeAliasGroups); only the bare column entries still need sanitizing.
-  // Passing the CASE through handleGroupByCH()'s sanitizeName() would discard it
-  // whenever a label/value/fallback contains a SQL keyword token (e.g. a "Union"
-  // county value), dropping the SELECT's CASE column out of GROUP BY. Sanitize
-  // per-entry instead — mirrors simpleFilterLength.
-  const groupByExprs = groupBy.map(g => activeAliasGroups[g] || sanitizeName(g)).filter(Boolean);
+  // Sanitize each groupBy entry individually (mirrors simpleFilterLength).
+  const groupByExprs = groupBy.map(g => sanitizeName(g)).filter(Boolean);
+
+  // ── Comparison-series fan-out ───────────────────────────────────────────────
+  // One UNION ALL arm per variant: shared SELECT/FROM/GROUP BY with each arm's own
+  // (inlined) WHERE and a constant `'<label>' as <seriesKey>` discriminator. CH
+  // preserves identifier case, so the alias stays bare (unlike the PG path's quoting).
+  // The label literal is single-quote-escaped; the discriminator is dropped from the
+  // base SELECT (the client requests it, but the literal is its sole source) and from
+  // the arm GROUP BY (constant per arm). ORDER BY omitted across the union for v1.
+  if (seriesVariants.length) {
+    const armGroupByExprs = groupByExprs.filter((g) => g !== seriesKey);
+    const baseArmAttrs = sanitizedAttrs.filter((c) => getResponseColumnName(c) !== seriesKey);
+    const armSqls = seriesVariants.map((variant) => {
+      const armWhere = buildCombinedWhereCH({
+        filter, exclude, gt, gte, lt, lte, like,
+        filterGroups: variant.filterGroups || {}, joinPresent,
+      });
+      const safeLabel = `'${String(variant.label ?? '').replace(/'/g, "''")}'`;
+      const armSelect = [
+        ...baseArmAttrs.map((c) => columnNameMap[c] || c),
+        `${safeLabel} as ${seriesKey}`,
+      ].join(', ');
+      return `
+        SELECT ${armSelect}
+        FROM ${fromClause}
+        ${armWhere}
+        ${armGroupByExprs.length ? `GROUP BY ${armGroupByExprs.join(', ')}` : ''}
+        ${handleHavingCH(having)}`;
+    });
+    const fanoutSql = `
+      SELECT * FROM (
+        ${armSqls.join('\n        UNION ALL\n')}
+      ) AS fanout
+      ${handleOrderByCH(orderBy)}
+      LIMIT ${+num}
+      OFFSET ${indices.from}
+    `;
+    const fanoutResult = await db.query({ query: fanoutSql, format: 'JSON' });
+    const fanoutJson = await fanoutResult.json();
+    return restoreLongColumnNames(fanoutJson.data || [], columnNameMap);
+  }
 
   const sql = `
     SELECT ${sanitizedAttrs.map((c) => columnNameMap[c] || c).join(', ')}
@@ -235,19 +258,7 @@ async function simpleFilter(ctx, options, attributes, indices) {
 
   const result = await db.query({ query: sql, format: 'JSON' });
   const json = await result.json();
-  const rawRows = json.data || [];
-
-  const rows = Object.keys(columnNameMap).length
-    ? rawRows.map((row) => {
-        const restored = Object.keys(columnNameMap).reduce((acc, originalName) => ({
-          ...acc,
-          [getResponseColumnName(originalName)]: row[getResponseColumnName(columnNameMap[originalName])],
-        }), {});
-        return { ...row, ...restored };
-      })
-    : rawRows;
-
-  return rows;
+  return restoreLongColumnNames(json.data || [], columnNameMap);
 }
 
 async function dataById(ctx, ids, attributes) {

@@ -40,10 +40,15 @@ export const duplicateItem = (item, dataItems, user, apiUpdate) => {
         // delete s.parent; // todo update this with the new parent id
         delete s.ref
         delete s.id
+        // Fresh identity per duplicated section — sharing the source page's trackingId
+        // would make two independent pages' sections collide on the `$self` stable-id
+        // mechanism (see the draft/published section-identity task notes).
+        s.trackingId = crypto.randomUUID()
     })
     newItem.draft_sections.forEach(s => {
         delete s.ref
         delete s.id
+        s.trackingId = crypto.randomUUID()
     })
     newItem.history = appendHistoryEntry(null, 'Created Duplicate Page.', user)
     apiUpdate({data:newItem})
@@ -66,8 +71,15 @@ export const newPage = async (item, dataItems, user, apiUpdate, template) => {
     newItem.url_slug = `${getUrlSlug(newItem,dataItems)}`
 
     if (template) {
-      if (template.draft_sections !== undefined) newItem.draft_sections = template.draft_sections;
+      if (template.draft_sections !== undefined) {
+        // Fresh identity per section materialized from the template — sharing the
+        // template's own trackingId would make every page spawned from it collide on
+        // the `$self` stable-id mechanism (see the draft/published section-identity
+        // task notes).
+        newItem.draft_sections = cloneDeep(template.draft_sections).map(s => ({ ...s, trackingId: crypto.randomUUID() }));
+      }
       if (template.draft_section_groups !== undefined) newItem.draft_section_groups = template.draft_section_groups;
+      if (template.sidebar !== undefined) newItem.sidebar = template.sidebar;
     }
 
     await apiUpdate({data:newItem})
