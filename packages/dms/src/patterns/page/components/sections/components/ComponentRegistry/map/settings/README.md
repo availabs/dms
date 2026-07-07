@@ -876,3 +876,51 @@ MapEditor now treats join outputs as first-class selectable columns across the e
 - Style selectors, popup selectors, click-filter mappings, normal filters, and dynamic filters can all include join outputs.
 - Join-backed options keep their technical saved key, but use the configured display label in the UI when available.
 - Selectors mark join-backed options with a lightweight `(join)` suffix so authors can tell them apart from base-table columns.
+
+## Runtime Legend & Dynamic Filters
+
+The page-level DMS `map` component keeps each layer's legend and dynamic filters in sync with the live page state at runtime. The guiding invariant is that the **view legend is derived the same way the editor derives it**, for every bin-method, layer type, and filter state — so what an author sees while editing matches what a viewer sees.
+
+### The binning method decides the legend's source of truth
+
+A choropleth/circle layer's `bin-method` determines how its legend range is produced:
+
+- **`custom`** — the author set the range by hand. There is **no server method** for custom, and filtering never changes author-fixed breaks, so the runtime **never recomputes** a custom layer's legend. It always renders the layer's saved custom range as-is. This is authoritative and must be preserved in both edit and view.
+- **`ckmeans` / `quantile` / `standardDeviation` / `equalInterval`** — the runtime recomputes the range from a `colorDomain` request built from the layer's **current filter envelope** (static filters + active dynamic filters + any join payload).
+
+### Legend recompute is envelope-driven
+
+The runtime recomputes a computed-method layer's legend from its current filter envelope **on mount and whenever the envelope changes** — not only when a dynamic filter is active. A layer classified by a static filter therefore shows the correct recomputed legend rather than a possibly-stale saved one. Recompute is deduplicated by a per-layer key that fingerprints the full envelope (layer type, view, data column, bin-method, bin-count, interactive-variant, filters, join), so at most one request runs per unique envelope.
+
+Persisted `legend-data` is treated as a first-paint placeholder, not the source of truth, for computed methods.
+
+### Empty vs. errored results
+
+`colorDomain` responses are handled distinctly:
+
+- **Genuine/transient error** (server failure) → the last-good legend is kept. A failure never wipes a good legend.
+- **Legitimate empty result** (`count === 0` — the filter matched nothing) → the legend shows an explicit **"No data"** entry rather than retaining a stale range. `count` is the authoritative empty signal; a bound value such as `0` is never treated as "empty" (an all-zeros column with rows is a real single-band legend).
+
+The category-legend path follows the same empty/error handling.
+
+### No open-ended `-Infinity` band
+
+When the legend falls back to reading breaks from the paint expression, an empty break set no longer produces an `-Infinity` upper bound. An open-ended top band renders as `X+` instead of `X - -Infinity`.
+
+### Dynamic filters track the page bus
+
+Each layer dynamic filter's value is a **pure function of the current page filters**:
+
+- It binds by key: the filter's `searchParamKey` (falling back to `column_name`) is matched against a page filter's `searchKey`.
+- On mount, page filters already present at load (e.g. from the URL) are applied — the sync does not wait for a change after mount.
+- Present → the page value is used (numeric-coerced when the filter's `dataType` is numeric); absent → the filter's `defaultValue`; otherwise → empty (no predicate). Clearing a page filter therefore **resets** the dynamic filter instead of leaving a stale value.
+- The sync applies across **all visible symbologies**, not just the active one.
+- Transient interaction filters (`type: "action"` from hover/click) are excluded from this sync, so hovering/clicking does not retrigger dynamic-filter/legend work.
+
+### Edit and view render identically
+
+The legend refresh runs in **both** edit and view so the two modes look the same. Edit-mode persistence strips the transient filtered legend back to the layer's base legend before saving, so a filtered runtime legend is never written into the saved symbology.
+
+### Server note (numeric `exclude`)
+
+An `exclude` filter on a **numeric** column can currently error server-side (the null-guard `CASE` unifies both branches to the numeric type and fails casting the `'null'` literal). The client is resilient to this — an errored `colorDomain` keeps the last-good legend — but the affected layer will not recompute its range until the server casts the non-null branch to text. Tracked separately as a small dms-server fix.
