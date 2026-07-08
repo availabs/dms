@@ -11,7 +11,7 @@ const { jsonMerge } = require('#db/query-utils.js');
 const { resolveTable, sanitize } = require('#db/table-resolver.js');
 const { getInstance } = require('#db/type-utils.js');
 const querySets = require('./query_sets');
-const { translatePgToSqlite } = require('./query_sets/postgres');
+const { translatePgToSqlite, detectRealPrimaryKey } = require('./query_sets/postgres');
 
 const pgIdent = n => (n.length <= 63 ? n : n.slice(0, 63));
 
@@ -540,6 +540,127 @@ async function setIndexColumn(env, sourceId, columnName, enable) {
   }
 }
 
+// External (DAMA) sources only — internal_table sources already have a synthetic
+// integer `id` PRIMARY KEY on their split tables (see table-resolver.js) and never
+// reach this function.
+//
+// enable=true: validate (no NULLs/duplicates) then ADD the constraint. enable=false:
+// DROP whatever the table's real PRIMARY KEY constraint actually is (looked up via
+// pg_constraint, not assumed to be the name this function would have generated —
+// the PK may predate this feature, e.g. `ogc_fid` from the GIS/CSV upload pipeline).
+// Removing a primary key also clears isEditable — a source can't stay editable
+// without a resolvable PK to key writes off of.
+async function setPrimaryKeyColumn(env, sourceId, columnName, enable = true) {
+  const { isDms, db } = await getEssentials({ env });
+  if (isDms) throw new Error('setPrimaryKeyColumn is only supported for external (DAMA) sources');
+  if (db.type !== 'postgres') throw new Error('Primary key constraints are only supported on PostgreSQL sources');
+
+  const srcTbl = 'data_manager.sources';
+  const { rows } = await db.query(
+    `SELECT metadata FROM ${srcTbl} WHERE source_id = $1`,
+    [Number(sourceId)]
+  );
+  if (!rows.length) throw new Error(`Source ${sourceId} not found`);
+
+  const metadata = parseIfJSON(rows[0].metadata);
+  const cols = metadata.columns || [];
+  const safeCol = sanitizeName(columnName);
+  if (!safeCol) throw new Error(`Invalid column name: ${columnName}`);
+  if (!cols.some(c => c.name === columnName)) throw new Error(`Column "${columnName}" not found on source ${sourceId}`);
+
+  const { rows: viewRows } = await db.query(
+    `SELECT table_schema, table_name FROM data_manager.views WHERE source_id = $1 AND table_name IS NOT NULL`,
+    [Number(sourceId)]
+  );
+
+  if (enable) {
+    // Validate every physical table backing this source before altering any of them —
+    // a partial primary key across a source's tables would be worse than none.
+    for (const { table_schema, table_name } of viewRows) {
+      if (!table_schema || !table_name) continue;
+      const fqt = `"${table_schema}"."${table_name}"`;
+      const { rows: [{ total, distinct_count, non_null_count }] } = await db.query(
+        `SELECT count(*) AS total, count(distinct "${safeCol}") AS distinct_count, count("${safeCol}") AS non_null_count
+         FROM ${fqt}`
+      );
+      const nullCount = total - non_null_count;
+      const dupCount = total - distinct_count;
+      if (nullCount > 0 || dupCount > 0) {
+        throw new Error(
+          `Column "${columnName}" cannot be a primary key on ${table_schema}.${table_name}: ` +
+          `${nullCount} row(s) with NULL, ${dupCount} duplicate value(s)`
+        );
+      }
+    }
+
+    for (const { table_schema, table_name } of viewRows) {
+      if (!table_schema || !table_name) continue;
+      const constraintName = pgIdent(`pk_${sanitize(table_name)}`);
+      await db.query(
+        `ALTER TABLE "${table_schema}"."${table_name}" ADD CONSTRAINT "${constraintName}" PRIMARY KEY ("${safeCol}")`
+      );
+    }
+  } else {
+    for (const { table_schema, table_name } of viewRows) {
+      if (!table_schema || !table_name) continue;
+      const { rows: conRows } = await db.query(
+        `SELECT conname FROM pg_constraint WHERE conrelid = $1::regclass AND contype = 'p'`,
+        [`${table_schema}.${table_name}`]
+      );
+      const conname = conRows[0]?.conname;
+      if (!conname) continue; // nothing to drop on this table
+      await db.query(`ALTER TABLE "${table_schema}"."${table_name}" DROP CONSTRAINT "${conname}"`);
+    }
+  }
+
+  // Strict mutual exclusion — a table has at most one primary key.
+  const updatedCols = cols.map(c => {
+    if (c.name === columnName) {
+      if (enable) return { ...c, isPrimaryKey: true };
+      const { isPrimaryKey: _, ...rest } = c;
+      return rest;
+    }
+    if (enable && c.isPrimaryKey) { const { isPrimaryKey: _, ...rest } = c; return rest; }
+    return c;
+  });
+  const metadataPatch = { ...metadata, columns: updatedCols };
+  if (!enable) metadataPatch.isEditable = false;
+  await updateSource(env, sourceId, { metadata: metadataPatch });
+}
+
+// Detects whether the source's underlying table(s) already have a real PRIMARY KEY,
+// either declared outside of DMS (e.g. `ogc_fid` from the GIS/CSV upload pipeline) or
+// set via setPrimaryKeyColumn above. Returns null-column info if no view/table exists yet.
+async function getSourcePrimaryKeyInfo(env, sourceId) {
+  const { isDms, db } = await getEssentials({ env });
+  if (isDms) return { hasPkey: true, pkeyColumn: 'id', isDetectedExisting: true };
+
+  const { rows } = await db.query(
+    `SELECT metadata FROM data_manager.sources WHERE source_id = $1`,
+    [Number(sourceId)]
+  );
+  if (!rows.length) throw new Error(`Source ${sourceId} not found`);
+  const metadata = parseIfJSON(rows[0].metadata);
+  const storedPkCol = (metadata.columns || []).find(c => c.isPrimaryKey)?.name || null;
+
+  const { rows: viewRows } = await db.query(
+    `SELECT table_schema, table_name FROM data_manager.views WHERE source_id = $1 AND table_name IS NOT NULL`,
+    [Number(sourceId)]
+  );
+  if (!viewRows.length) return { hasPkey: false, pkeyColumn: null, isDetectedExisting: false };
+
+  // A source can back more than one physical table (one per view) — only report a
+  // real PK if every table backing it actually has one, on the same column.
+  let detected = null;
+  for (const { table_schema, table_name } of viewRows) {
+    const pk = await detectRealPrimaryKey(db, table_schema, table_name);
+    if (!pk) return { hasPkey: false, pkeyColumn: storedPkCol, isDetectedExisting: false };
+    if (detected === null) detected = pk;
+  }
+
+  return { hasPkey: true, pkeyColumn: detected, isDetectedExisting: !storedPkCol || storedPkCol !== detected };
+}
+
 async function clearViewData(env, view_id) {
   const { isDms, db, table_schema, table_name } = await getEssentials({ env, view_id: +view_id });
   if (!isDms) throw new Error('clearViewData only supported for DMS internal_table sources');
@@ -573,6 +694,8 @@ module.exports = {
   getSourceById,
   updateSource,
   setIndexColumn,
+  setPrimaryKeyColumn,
+  getSourcePrimaryKeyInfo,
   clearViewData,
 
   // Views
