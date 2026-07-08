@@ -23,6 +23,7 @@ import {nestableTheme} from "./components/draggableNav"
 import {dataCardTheme} from "./components/card.theme";
 import {graphTheme} from "./components/graph/theme";
 import {logoTheme} from "./components/Logo.theme";
+import {themeToggleTheme} from "./components/ThemeToggle.theme";
 import navigableMenuTheme from "./components/navigableMenu/theme";
 import {mapTheme} from "./components/map/map.theme";
 import icons from './icons'
@@ -72,6 +73,7 @@ const components = {
     sidenav: sideNavTheme,
     topnav: topNavTheme,
     logo: logoTheme,
+    themeToggle: themeToggleTheme,
     tabs: tabsTheme,
     button: buttonTheme,
     input: inputTheme,
