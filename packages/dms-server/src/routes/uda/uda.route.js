@@ -7,6 +7,8 @@ const {
   getSourceById,
   updateSource,
   setIndexColumn,
+  setPrimaryKeyColumn,
+  getSourcePrimaryKeyInfo,
 
   getViewLengthBySourceId,
   getViewsByIndexBySourceId,
@@ -143,6 +145,32 @@ module.exports = [
                 });
               }
             }
+          }
+        }
+        return result;
+      } catch (err) {
+        console.error(err);
+        throw err;
+      }
+    },
+  },
+
+  // --------------------------------- sources.byId.pkeyInfo ---------------------------------
+  // Reports { hasPkey, pkeyColumn, isDetectedExisting } for a source's underlying table(s).
+  {
+    route: `uda[{keys:envs}].sources.byId[{integers:ids}].pkeyInfo`,
+    get: async function(pathSet) {
+      try {
+        const { envs, ids } = pathSet;
+        const result = [];
+
+        for (const env of envs) {
+          for (const id of ids) {
+            const info = await getSourcePrimaryKeyInfo(env, id);
+            result.push({
+              path: ["uda", env, "sources", "byId", id, "pkeyInfo"],
+              value: $atom(info),
+            });
           }
         }
         return result;
@@ -413,6 +441,30 @@ module.exports = [
         ];
       } catch (err) {
         console.error('[uda] sources.setIndex error:', err.message);
+        throw err;
+      }
+    },
+  },
+
+  // --------------------------------- sources.setPrimaryKey (call) ---------------------------------
+  // Args: [env, sourceId, columnName, enable]
+  // External (DAMA) sources only. enable=true (default) validates the column (no NULLs, no
+  // duplicates) across every physical table backing the source, then runs
+  // ALTER TABLE ... ADD CONSTRAINT ... PRIMARY KEY. Throws (no partial DDL) if any table fails
+  // validation. enable=false drops whatever the table's real PK constraint actually is and
+  // clears isEditable (a source can't stay editable without a resolvable PK).
+  {
+    route: `uda.sources.setPrimaryKey`,
+    call: async function(callPath, args) {
+      try {
+        const [env, sourceId, columnName, enable = true] = args;
+        await setPrimaryKeyColumn(env, sourceId, columnName, enable);
+        return [
+          { path: ["uda", env, "sources", "byId", +sourceId], invalidated: true },
+          { path: ["uda", env, "sources", "byId", +sourceId, "pkeyInfo"], invalidated: true },
+        ];
+      } catch (err) {
+        console.error('[uda] sources.setPrimaryKey error:', err.message);
         throw err;
       }
     },

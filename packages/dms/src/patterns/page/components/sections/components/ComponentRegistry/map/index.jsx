@@ -65,6 +65,45 @@ const getJoinTileColumns = (layerConfig) =>
         : [];
 
 /**
+ * Pulls the ordered color ramp out of a saved choropleth `fill-color` paint
+ * expression. The map's paint is the real source of truth for a layer's colors,
+ * so when a layer has no explicit `color-range` (older saves store the ramp only
+ * in the paint), we recover the author's colors from here instead of falling
+ * back to an empty ramp — which would render a colorless legend that overwrites
+ * the good saved legend-data.
+ *
+ * Handles both a bare step expression and one wrapped in a `case` null-guard:
+ *   ["step", input, color0, break1, color1, break2, ...]  → colors at even idx ≥ 2
+ */
+const extractStepColors = (fillColor) => {
+    if (!Array.isArray(fillColor)) return [];
+    let step = fillColor;
+    if (fillColor[0] === "case") {
+        step = fillColor.find((el) => Array.isArray(el) && el[0] === "step") || [];
+    }
+    if (step[0] !== "step") return [];
+    const colors = [];
+    for (let i = 2; i < step.length; i += 2) colors.push(step[i]);
+    return colors;
+};
+
+/**
+ * Resolves the saved paint expression that holds a layer's color ramp, by layer
+ * type. The sub-layer index is canonical (getFillLayer/getCircleLayer in the
+ * editor): fill = layers[1].fill-color, line = layers[1].line-color, circle =
+ * layers[0].circle-color. Mirrors LegendPanel's `typePaint` so the ramp is read
+ * from the right slot regardless of geometry type.
+ */
+const getSavedRampPaint = (layer) => {
+    switch (layer?.type) {
+        case "circle": return get(layer, `layers[0].paint['circle-color']`);
+        case "line":   return get(layer, `layers[1].paint['line-color']`);
+        case "fill":
+        default:       return get(layer, `layers[1].paint['fill-color']`);
+    }
+};
+
+/**
  * Normalizes the saved join config so the runtime can read one consistent
  * shape even while older saved symbologies still use legacy nested keys.
  */
@@ -141,7 +180,7 @@ const getJoinQueryAttributeByOutputName = (layerConfig, outputName) => {
  * attributes down to the join key plus the requested output expression so
  * legend refresh only pulls the join-side fields it actually needs.
  */
-const buildJoinOptions = (layerConfig, targetColumn = null) => {
+const buildJoinOptions = (layerConfig, dataColumn = null) => {
     const joinConfig = normalizeJoinRuntimeConfig(layerConfig);
     if (
         !joinConfig?.enabled ||
@@ -154,24 +193,51 @@ const buildJoinOptions = (layerConfig, targetColumn = null) => {
 
     const queryConfig = joinConfig.query || {};
     const groupBy = Array.isArray(queryConfig?.groupBy) ? queryConfig.groupBy : [];
-    const columns = Array.isArray(queryConfig?.columns) ? queryConfig.columns : [];
-    let attributes = columns;
-    let tileCols = getJoinTileColumns(layerConfig);
+    const tileColumns = getJoinTileColumns(layerConfig);
+    const groupBySet = new Set(groupBy);
 
-    if (targetColumn) {
-        const targetAttribute = getJoinQueryAttributeByOutputName(layerConfig, targetColumn);
-        const joinAttribute = getJoinQueryAttributeByOutputName(layerConfig, joinConfig.joinColumn);
-        attributes = [joinAttribute, targetAttribute].filter(Boolean);
-        tileCols = targetAttribute ? [targetColumn] : [];
+    // Resolve a join output column to its SELECT expression: prefer the join
+    // query's own column expression, else fall back to the bare column name for
+    // a GROUP BY key (valid to select alongside the aggregate). Returns null for
+    // anything the join can't produce (e.g. a base-table column).
+    const resolveAttr = (col) =>
+        getJoinQueryAttributeByOutputName(layerConfig, col) || (groupBySet.has(col) ? col : null);
+    const isJoinColumn = (col) => Boolean(col) && (Boolean(resolveAttr(col)) || tileColumns.includes(col));
+
+    // Every column the query needs the join to supply: the colored column when
+    // it's joined, plus any static or dynamic filter column that targets a
+    // joined column. Base-table columns are excluded — the geometry side
+    // supplies those — so a filter on a base column doesn't force a join.
+    const filterColumns = Object.keys(layerConfig?.filter || {});
+    const dynamicFilterColumns = (layerConfig?.["dynamic-filters"] || [])
+        .filter((dynamicFilter) => Array.isArray(dynamicFilter?.values) && dynamicFilter.values.length > 0)
+        .map((dynamicFilter) => dynamicFilter.column_name);
+    const joinedFilterColumns = [...filterColumns, ...dynamicFilterColumns].filter(isJoinColumn);
+    const coloredColumnIsJoined = isJoinColumn(dataColumn);
+
+    // No join needed unless the colored column or a filter targets the join.
+    if (!coloredColumnIsJoined && joinedFilterColumns.length === 0) {
+        return null;
     }
+
+    const requiredColumns = Array.from(new Set([
+        joinConfig.joinColumn,
+        ...(coloredColumnIsJoined ? [dataColumn] : []),
+        ...joinedFilterColumns,
+    ].filter(Boolean)));
+    const resolved = requiredColumns
+        .map((col) => ({ col, attr: resolveAttr(col) }))
+        .filter((entry) => entry.attr);
 
     return {
         viewId: joinConfig.source.viewId,
         localKey: joinConfig.featureKeyColumn,
         joinKey: joinConfig.joinColumn,
         options: { ...buildJoinFilterOptions(queryConfig), groupBy },
-        attributes,
-        tileCols,
+        attributes: resolved.map((entry) => entry.attr),
+        // Expose everything except the join key as tile/feature columns so tile
+        // rendering and client-side map filters can read the joined values too.
+        tileCols: resolved.filter((entry) => entry.col !== joinConfig.joinColumn).map((entry) => entry.col),
     };
 };
 
@@ -206,6 +272,49 @@ const getCategoryLegendFromFilteredData = (layer, filteredData = []) => {
         .filter(Boolean);
 };
 
+/**
+ * Produces a persist-safe copy of map state by restoring each layer's base
+ * (unfiltered) legend/category data and dropping the runtime-only scratch
+ * fields. The runtime legend refresh rewrites `legend-data`/`category-data`
+ * in place to reflect active filters, stashing the originals under
+ * `__runtimeBase*`. That filtered legend is a live-display concern only and
+ * must never be written back into the saved symbology — so edit-mode
+ * persistence saves this sanitized copy instead of raw state. Returns the input
+ * untouched when there's nothing to strip (the common case), so the normal save
+ * path pays no cloning cost.
+ */
+const stripRuntimeLegendState = (state) => {
+    const hasRuntimeState = state?.__symbologyRefreshAt !== undefined || Object.values(state?.symbologies || {}).some((symb) =>
+        Object.values(symb?.symbology?.layers || {}).some(
+            (layer) =>
+                layer &&
+                (layer.__runtimeBaseLegendData ||
+                    layer.__runtimeBaseCategoryData ||
+                    layer.__runtimeLegendFilterKey)
+        )
+    );
+    if (!hasRuntimeState) return state;
+
+    const clean = cloneDeep(state);
+    // Runtime-only refresh signal — never persist it into the saved config.
+    delete clean.__symbologyRefreshAt;
+    Object.values(clean.symbologies || {}).forEach((symb) => {
+        Object.values(symb?.symbology?.layers || {}).forEach((layer) => {
+            if (!layer) return;
+            if (layer.__runtimeBaseLegendData) {
+                layer["legend-data"] = layer.__runtimeBaseLegendData;
+            }
+            if (layer.__runtimeBaseCategoryData) {
+                layer["category-data"] = layer.__runtimeBaseCategoryData;
+            }
+            delete layer.__runtimeBaseLegendData;
+            delete layer.__runtimeBaseCategoryData;
+            delete layer.__runtimeLegendFilterKey;
+        });
+    });
+    return clean;
+};
+
 export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
     // const {falcor, falcorCache} = useFalcor();
     // controls: symbology, more, filters: lists all interactive and dynamic filters and allows for searchParams match.
@@ -228,7 +337,7 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
         setInitialBounds: cachedData.setInitialBounds || false,
         initialBounds: cachedData.initialBounds || null,
         hideControls: cachedData.hideControls || false,
-        //blankBaseMap: cachedData.blankBaseMap || false,
+        blankBaseMap: cachedData.blankBaseMap || false,
         height: cachedData.height || "full",
         zoomPan: typeof cachedData.zoomPan === 'boolean' ? cachedData.zoomPan : true,
         zoomToFitBounds: cachedData.zoomToFitBounds || false,
@@ -237,7 +346,19 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
         basemapStyle: cachedData.basemapStyle || "Default"
     });
 
-    const doApiLoad = React.useCallback(() => {
+    const doApiLoad = React.useCallback((opts) => {
+        // On an explicit Refresh, invalidate the selected symbology's cached row
+        // so the re-fetch pulls the latest saved config from the source instead
+        // of falcor's client cache. Ordinary (initial) loads pass nothing and
+        // stay cache-friendly. Cover string + numeric id forms.
+        if (opts?.invalidateId != null && typeof falcor?.invalidate === "function") {
+            const ids = [...new Set([opts.invalidateId, +opts.invalidateId])]
+                .filter((v) => v != null && !(typeof v === "number" && Number.isNaN(v)));
+            mapeditorKeys.forEach((c) => {
+                const [app] = c.split("+");
+                ids.forEach((id) => falcor.invalidate(["dms", "data", app, "byId", id]));
+            });
+        }
         return mapeditorKeys.reduce((a, c) => {
             // `mapeditorKeys` entries are `{app}+{patternInstance}` (e.g.
             // 'mitigat-ny-prod+map_editor_test'). Symbology rows live at type
@@ -262,7 +383,7 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
                 }).then(cc => [...aa, ...cc]);
             })
         }, Promise.resolve([]));
-    }, [apiLoad, mapeditorKeys]);
+    }, [apiLoad, mapeditorKeys, falcor]);
 
     const interactionOptions = useMemo(() => {
         const mapLayers = Object.values(state.symbologies || {}).flatMap((symbology) =>
@@ -303,6 +424,11 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
 // console.log("Map::pageState", pageState);
 
     const [mapLayers, setMapLayers] = useImmer([]);
+
+    // Tracks the last-seen symbology-refresh signal (bumped by the settings
+    // "Refresh" action). When it changes, the layer-build effect below rebuilds
+    // every layer instance from fresh state instead of keeping the old ones by id.
+    const symbologyRefreshRef = useRef(state.__symbologyRefreshAt);
 
     const isReady = useMemo(() => {
         return Object.values(state.symbologies || {}).some(symb => Object.keys(symb?.symbology?.layers || {}).length > 0);
@@ -357,14 +483,22 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
      * expensive map sync work and causing the layer refresh behavior we saw
      * earlier.
      */
-    const prevDataPageFiltersRef = useRef(dataPageFilters);
+    // Seed with `null` (not the mount-time value) so the FIRST run counts as a
+    // change and applies page filters already present at load (e.g. from the
+    // URL) into the layer dynamic-filters. Seeding with the current value made
+    // the first isEqual() true, so load-time page filters were never synced and
+    // only a per-filter defaultValue would show.
+    const prevDataPageFiltersRef = useRef(null);
     useEffect(() => {
         if (isEqual(prevDataPageFiltersRef.current, dataPageFilters)) {
             return;
         }
         prevDataPageFiltersRef.current = dataPageFilters;
 
-        const usePageFilters = Object.values(activeSymSymbology.layers || {}).some(layer => layer['dynamic-filters']?.length);
+        // Any visible symbology (not just the active one) may carry dynamic
+        // filters that must track the page bus, so check them all.
+        const usePageFilters = Object.values(state.symbologies || {}).some(symb =>
+            Object.values(symb?.symbology?.layers || {}).some(layer => layer['dynamic-filters']?.length));
 
         if(!usePageFilters) return;
 
@@ -387,34 +521,40 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
 
 // console.log("fI", fI)
 
-        // dynamic filters update for all layers
+        // A dynamic filter binds to a page filter by key: its `searchParamKey`
+        // (falling back to `column_name`) matched against a page filter's
+        // `searchKey`.
         const getSearchParamKey = f => f.searchParamKey || f.column_name;
-        const searchParamValues = dynamicFilterOptions =>
-            dynamicFilterOptions.reduce((acc, curr) => ({...acc, [getSearchParamKey(curr)]: (dataPageFilters || []).find(f => f.searchKey === getSearchParamKey(curr))?.values}), {});
 
         setState(draft => {
             if(fI !== -1){
                 draft.symbologies[activeSym].symbology.layers[activeSymSymbology?.activeLayer].selectedInteractiveFilterIndex = fI;
             }
 
-            Object.values(draft.symbologies[activeSym].symbology.layers)
-                .filter(l => l['dynamic-filters'])
-                .forEach(layer => {
-                    layer['dynamic-filters']
-                        .filter(dynamicFilterOptions => {
-                            return searchParamValues([dynamicFilterOptions])[getSearchParamKey(dynamicFilterOptions)]
-                        })
-                        .forEach(filter => {
+            // Sync EVERY symbology's dynamic filters to the page bus, not just the
+            // active one — all visible symbologies render and query, so all must
+            // track the page filters. Each filter's value is a pure function of
+            // the current page filters: the page value if present, else the
+            // filter's `defaultValue`, else empty. Resetting absent filters
+            // (rather than skipping them, as the old positive-only `.filter` did)
+            // is what makes clearing a page filter clear the map filter instead
+            // of leaving a stale value behind.
+            Object.values(draft.symbologies || {})
+                .forEach(symb => {
+                    Object.values(symb?.symbology?.layers || {})
+                        .filter(l => l['dynamic-filters']?.length)
+                        .forEach(layer => {
+                            layer['dynamic-filters'].forEach(filter => {
+                                const isNumeric = filter.dataType === 'numeric';
+                                const pageValues = (dataPageFilters || [])
+                                    .find(f => f.searchKey === getSearchParamKey(filter))?.values;
 
-// console.log("filter:", filter)
-
-                            const isNumeric = filter.dataType === 'numeric';
-                            const newValues = searchParamValues(layer['dynamic-filters'])[getSearchParamKey(filter)];
-
-                            filter.values =
-                                Array.isArray(newValues) && newValues?.length ? newValues.map(v => isNumeric ? +v : v) :
-                                    typeof newValues === 'string' ? [isNumeric ? +newValues : newValues] :
-                                        filter.defaultValue?.length ? [isNumeric ? +filter.defaultValue : filter.defaultValue] : []
+                                filter.values =
+                                    Array.isArray(pageValues) && pageValues.length ? pageValues.map(v => isNumeric ? +v : v) :
+                                        (typeof pageValues === 'string' && pageValues !== '') ? [isNumeric ? +pageValues : pageValues] :
+                                            (typeof pageValues === 'number') ? [pageValues] :
+                                                filter.defaultValue?.length ? [isNumeric ? +filter.defaultValue : filter.defaultValue] : [];
+                            })
                         })
                 })
         })
@@ -474,7 +614,11 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
      * restore the layer's original saved legend values.
      */
     useEffect(() => {
-        if (isEdit || !activeSym || !isReady) return;
+        // Runs in BOTH edit and view so the legend looks the same in both modes.
+        // Edit-mode persistence strips the transient filtered legend back to the
+        // base (see stripRuntimeLegendState in the onChange effect), so running
+        // the refresh here never bakes a filtered legend into the saved config.
+        if (!activeSym || !isReady) return;
 
         let cancelled = false;
 
@@ -499,46 +643,46 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
                         : layer?.["layer-type"];
                     const dataColumn = layer?.["data-column"];
                     const viewId = layer?.view_id;
-                    const joinedTileColumns = new Set(getJoinTileColumns(layer));
-                    const isJoinedDataColumn = joinedTileColumns.has(dataColumn);
-                    const joinOptions = isJoinedDataColumn ? buildJoinOptions(layer, dataColumn) : null;
+                    // buildJoinOptions decides whether a join is actually needed
+                    // (colored column joined, or a filter targets a joined column)
+                    // and returns null otherwise.
+                    const joinOptions = buildJoinOptions(layer, dataColumn);
                     const activeLegendFilters = buildLayerUdaFilterOptions({
                         layerFilter: layer?.filter,
                         dynamicFilters: layer?.["dynamic-filters"],
                         filterMode: layer?.filterMode,
                     });
 
-                    const hasActiveDynamicFilters = (layer?.["dynamic-filters"] || []).some(
-                        (dynamicFilter) => Array.isArray(dynamicFilter?.values) && dynamicFilter.values.length > 0
-                    );
-
                     /**
-                     * Prevent repeated runtime legend fetches when the live
-                     * filter envelope for this layer has not changed.
+                     * Recompute the legend from the layer's CURRENT filter
+                     * envelope (static + dynamic) on mount and whenever it
+                     * changes — NOT only when a dynamic filter is active. This is
+                     * the invariant: the component derives legends the same way
+                     * the editor does, so a layer classified by a static filter
+                     * (e.g. a selected hazard + an exclude) shows the correct
+                     * recomputed legend instead of a possibly-stale saved one.
+                     * `custom` bins are exempted in the choropleth branch.
+                     *
+                     * `runtimeLegendKey` fingerprints the full envelope so we
+                     * fetch once per unique envelope (dedup below) — it includes
+                     * bin method / bin count / interactive variant so a change to
+                     * any of them recomputes.
                      */
                     const runtimeLegendKey = JSON.stringify({
                         layerType,
                         viewId,
                         dataColumn,
+                        binMethod: layer?.["bin-method"] || null,
+                        numBins: layer?.["num-bins"] || null,
+                        variant: selectedInteractiveFilterIndex ?? null,
                         filterMode: layer?.filterMode || "all",
                         filters: activeLegendFilters || null,
                         join: joinOptions,
                     });
 
-                    if (!hasActiveDynamicFilters || !activeLegendFilters || !dataColumn || !viewId) {
-                        if (layer?.__runtimeLegendFilterKey) {
-                            setState((draft) => {
-                                const draftLayer = draft.symbologies?.[symbologyId]?.symbology?.layers?.[layer.id];
-                                if (!draftLayer) return;
-                                if (draftLayer.__runtimeBaseLegendData) {
-                                    draftLayer["legend-data"] = cloneDeep(draftLayer.__runtimeBaseLegendData);
-                                }
-                                if (draftLayer.__runtimeBaseCategoryData) {
-                                    draftLayer["category-data"] = cloneDeep(draftLayer.__runtimeBaseCategoryData);
-                                }
-                                delete draftLayer.__runtimeLegendFilterKey;
-                            });
-                        }
+                    // Can't compute a legend without a data column + view.
+                    // (custom bins are handled in the choropleth branch.)
+                    if (!dataColumn || !viewId) {
                         continue;
                     }
 
@@ -547,6 +691,7 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
                     }
 
                     if (layerType === "categories") {
+                        const effectiveViewId = joinOptions?.viewId ?? viewId;
                         const options = JSON.stringify({
                             groupBy: [dataColumn.split("AS ")[0]],
                             exclude: { [dataColumn.split("AS ")[0]]: ["null"] },
@@ -555,7 +700,7 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
                         });
 
                         const response = await falcor.get([
-                            "uda", pgEnv, "viewsById", viewId, "options", options,
+                            "uda", pgEnv, "viewsById", effectiveViewId, "options", options,
                             "dataByIndex", { from: 0, to: 100 }, [dataColumn, "count(1)::int as count"]
                         ]);
 
@@ -563,10 +708,15 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
 
                         const filteredData = get(
                             response,
-                            ["json", "uda", pgEnv, "viewsById", viewId, "options", options, "dataByIndex"],
+                            ["json", "uda", pgEnv, "viewsById", effectiveViewId, "options", options, "dataByIndex"],
                             []
                         );
-                        const nextLegendData = getCategoryLegendFromFilteredData(layer, filteredData);
+                        // Empty filtered set → explicit "No data" (parity with
+                        // the choropleth branch); otherwise narrow the saved
+                        // category legend to the categories still present.
+                        const nextLegendData = filteredData?.length
+                            ? getCategoryLegendFromFilteredData(layer, filteredData)
+                            : [{ label: "No data" }];
 
                         setState((draft) => {
                             const draftLayer = draft.symbologies?.[symbologyId]?.symbology?.layers?.[layer.id];
@@ -587,10 +737,20 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
                         });
                     }
                     else if (layerType === "choropleth" || layerType === "circles") {
+                        const binMethod = layer?.["bin-method"] || "ckmeans";
+
+                        // Custom bins are author-defined and fixed. The server
+                        // colorDomain endpoint has no "custom" method (it errors
+                        // with empty breaks), and filtering never changes custom
+                        // breaks. Never recompute — leave the saved legend as-is.
+                        if (binMethod === "custom") {
+                            continue;
+                        }
+
                         const domainOptions = JSON.stringify({
                             column: dataColumn,
                             numbins: layer?.["num-bins"] || 9,
-                            method: layer?.["bin-method"] || "ckmeans",
+                            method: binMethod,
                             ...activeLegendFilters,
                             ...(joinOptions ? { join: joinOptions } : {}),
                         });
@@ -607,12 +767,49 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
                             {}
                         );
 
+                        // A genuine/transient server error (e.g. the numeric
+                        // `exclude` cast crash) → keep the last-good legend; never
+                        // wipe on a failure.
+                        if (domainResult?.error) {
+                            continue;
+                        }
+
+                        // Empty filtered set (count:0, no error → no breaks): a
+                        // legitimate "nothing matched" result. Show an explicit
+                        // "No data" legend instead of retaining a stale range.
+                        // (count is the empty signal, not the bounds.)
+                        if (!(domainResult?.breaks?.length)) {
+                            setState((draft) => {
+                                const draftLayer = draft.symbologies?.[symbologyId]?.symbology?.layers?.[layer.id];
+                                if (!draftLayer) return;
+                                if (!draftLayer.__runtimeBaseLegendData) {
+                                    draftLayer.__runtimeBaseLegendData = cloneDeep(draftLayer["legend-data"] || []);
+                                }
+                                const noData = [{ label: "No data" }];
+                                if (!isEqual(draftLayer["legend-data"], noData)) {
+                                    draftLayer["legend-data"] = noData;
+                                }
+                                draftLayer.__runtimeLegendFilterKey = runtimeLegendKey;
+                            });
+                            continue;
+                        }
+
+                        // The color ramp doesn't change with filters. Prefer the
+                        // layer's explicit `color-range`, but fall back to the ramp
+                        // already baked into the saved paint when it's absent —
+                        // otherwise the recomputed legend comes out colorless and
+                        // overwrites the good saved legend-data.
+                        const effectiveColorRange =
+                            (Array.isArray(layer?.["color-range"]) && layer["color-range"].length)
+                                ? layer["color-range"]
+                                : extractStepColors(getSavedRampPaint(layer));
+
                         const paintResult = choroplethPaint(
                             dataColumn,
                             domainResult?.max,
-                            layer?.["color-range"] || [],
+                            effectiveColorRange,
                             layer?.["num-bins"] || 9,
-                            layer?.["bin-method"] || "ckmeans",
+                            binMethod,
                             domainResult?.breaks || [],
                             layer?.["category-show-other"] || "#ccc",
                             layer?.["legend-orientation"] || "vertical"
@@ -651,6 +848,13 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
         // when state.symbology.layers update
         // -----------------------
 
+        // A symbology "Refresh" bumps `__symbologyRefreshAt`. On that signal we
+        // must rebuild the layer instances from fresh config (they're kept by id
+        // otherwise), so all their data/tile/legend fetches re-run. Ordinary
+        // symbology changes (filters, etc.) keep the existing instances.
+        const forceRebuild = symbologyRefreshRef.current !== state.__symbologyRefreshAt;
+        symbologyRefreshRef.current = state.__symbologyRefreshAt;
+
         // console.log('symbology layers effect')
         const updateLayers = async () => {
             if(isReady) {
@@ -677,7 +881,11 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
                 },[]))
 
                 setMapLayers(draftMapLayers => {
-                    let currentLayerIds = draftMapLayers.map(d => d.id).filter(d => !!d)
+                    // On a refresh, start from an empty set so every layer is
+                    // recreated (new SymbologyViewLayer/PluginLayer) → all their
+                    // effects re-run and re-hit the APIs with the fresh config.
+                    const baseLayers = forceRebuild ? [] : draftMapLayers;
+                    let currentLayerIds = baseLayers.map(d => d.id).filter(d => !!d)
                     let newLayers = allLayers
                       .filter(d => d)
                       .filter(d => !currentLayerIds.includes(d.id))
@@ -692,7 +900,7 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
                       })
 
                     const oldIds = allLayers.map(d => d.id)
-                    let oldLayers = draftMapLayers.filter(d => {
+                    let oldLayers = baseLayers.filter(d => {
                         return oldIds.includes(d.id)
                     })
 
@@ -707,7 +915,7 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
             }
         }
         updateLayers()
-    }, [state.symbologies, isReady])
+    }, [state.symbologies, isReady, state.__symbologyRefreshAt])
 
     //I want to check to see if the data-column is being updated in the symbology
     //Basically, the data-column update is not making it to the map layer. We need to know why
@@ -789,8 +997,15 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
     }
 
     useEffect(() => {
-        if (isEdit && onChange && !isEqual(value, state)) {
-            onChange(state)
+        if (!isEdit || !onChange) return;
+        // Persist the base legend, never the transient filtered legend the
+        // runtime refresh writes into state. Comparing/saving the sanitized copy
+        // keeps this stable — a pure runtime-legend change strips back to the
+        // base, so it won't trigger a spurious save or bake a filtered legend
+        // into the saved symbology.
+        const persistState = stripRuntimeLegendState(state);
+        if (!isEqual(value, persistState)) {
+            onChange(persistState)
         }
     }, [onChange, value, state, isEdit]);
 
@@ -822,6 +1037,12 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
             } */}
             <div id='dama_map_edit' className="w-full relative" style={{height: heightStyle}}>
                 <AvlMap
+                  // AvlMap reads mapOptions.styles only once at mount (into a ref),
+                  // so toggling blankBaseMap can't swap the live style in place.
+                  // Key the map on the blank/default choice so the toggle remounts
+                  // it with the correct basemap. (Basemap-selector changes still go
+                  // through the in-place setMapStyle path and don't remount.)
+                  key={ state.blankBaseMap ? "basemap-blank" : "basemap-default" }
                   layers={ mapLayers }
                   layerProps = { layerProps }
                   hideLoading={true}

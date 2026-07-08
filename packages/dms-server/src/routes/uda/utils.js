@@ -436,6 +436,13 @@ function handleFilters({ filter, exclude, gt, gte, lt, lte, like, filterRelation
 
 // ============================================= Complex Filter Groups ==============================================
 
+/** Recursively collects every `col` referenced by a filterGroups tree. */
+function getColumnsFromGroup(node) {
+  if (!node) return [];
+  if (node.groups) return node.groups.flatMap(getColumnsFromGroup);
+  return node.col ? [node.col] : [];
+}
+
 function getValuesFromGroup(node) {
   if (!node) return [];
   if (node.groups) return node.groups.flatMap(getValuesFromGroup);
@@ -648,6 +655,7 @@ module.exports = {
   getSiteSources,
   getValuesExceptNulls,
   getValuesFromGroup,
+  getColumnsFromGroup,
   handleFilters,
   handleFilterGroups,
   handleHaving,

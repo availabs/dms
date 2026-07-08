@@ -185,8 +185,16 @@ async function simpleFilterLength(ctx, options) {
   return rows?.[0]?.numrows ?? 0;
 }
 
-async function buildSimpleFilterSql(ctx, options, attributes, indices) {
-  const num = indices.to - indices.from + 1;
+async function buildSimpleFilterSql(ctx, options, attributes, indices = null) {
+  // `indices` is optional. Omit it (or pass null) to fetch the full result with
+  // NO LIMIT/OFFSET. Callers that build a join subquery to filter/aggregate
+  // against (colorDomain, tiles) need every matching row — a LIMIT here would
+  // truncate the CTE *before* the outer WHERE/aggregate runs against it. The
+  // paginated client-facing callers (simpleFilter / simpleFilterLength) always
+  // pass indices and keep their LIMIT; this only changes behavior when it's
+  // absent.
+  const hasLimit = indices && Number.isFinite(indices.from) && Number.isFinite(indices.to);
+  const num = hasLimit ? indices.to - indices.from + 1 : null;
   const { isDms, db, app, type, table_schema, table_name, dmsAttributes } = ctx;
 
   let sanitizedAttrs = sanitizeName(attributes).filter((f) => f);
@@ -273,8 +281,7 @@ async function buildSimpleFilterSql(ctx, options, attributes, indices) {
     ${handleGroupBy(groupBy)}
     ${handleHaving(having)}
     ${handleOrderBy(orderBy, dmsAttributes)}
-    LIMIT ${+num}
-    OFFSET ${indices.from}
+    ${hasLimit ? `LIMIT ${+num} OFFSET ${indices.from}` : ''}
   `;
   return {
     sql,
@@ -478,6 +485,27 @@ async function resolvePrimaryKey(db, schema, table, storedIdx = null) {
   return pk;
 }
 
+// Unlike resolvePrimaryKey(), this never guesses 'id' — it returns the real
+// declared PRIMARY KEY column name, or null if the table has none. Used to
+// gate PK creation/detection on the metadata page, where a wrong guess would
+// be unsafe (it must never look like a PK exists when it doesn't).
+async function detectRealPrimaryKey(db, schema, table) {
+  if (db.type !== 'postgres') return null;
+  try {
+    const { rows } = await db.query(
+      `SELECT a.attname AS pk
+       FROM pg_index i
+       JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = ANY(i.indkey)
+       WHERE i.indrelid = $1::regclass AND i.indisprimary
+       LIMIT 1`,
+      [`${schema}.${table}`]
+    );
+    return rows[0]?.pk || null;
+  } catch (e) {
+    return null;
+  }
+}
+
 async function dataById(ctx, ids, attributes) {
   const { db, table_schema, table_name, isDms, idxColumn } = ctx;
 
@@ -497,6 +525,7 @@ module.exports = {
   simpleFilter,
   dataById,
   buildSimpleFilterSql,
+  detectRealPrimaryKey,
   // Exported for testing
   translatePgToSqlite,
 };

@@ -22,6 +22,14 @@ export default function ManageForm ({
     const t = { ...gisPagesTheme, ...(theme?.datasets?.gisPages || {}) };
     const pgEnv = getExternalEnv(datasources);
     const env = isDms ? `${format?.app}+${source?.type}` : pgEnv;
+    const [pkeyInfo, setPkeyInfo] = React.useState(null);
+
+    useEffect(() => {
+        if (isDms || !falcor || !id) return;
+        falcor.get(['uda', env, 'sources', 'byId', +id, 'pkeyInfo']).then(res => {
+            setPkeyInfo(res?.json?.uda?.[env]?.sources?.byId?.[id]?.pkeyInfo || null);
+        });
+    }, [isDms, falcor, env, id]);
 
     return (
       <div className={`${pageTheme?.page?.wrapper1}`}>
@@ -38,6 +46,12 @@ export default function ManageForm ({
                     onIndexChange={async (columnName, enable) => {
                         await falcor.call(['uda', 'sources', 'setIndex'], [env, id, columnName, enable]);
                     }}
+                    onSetPrimaryKey={isDms ? undefined : async (columnName, enable = true) => {
+                        await falcor.call(['uda', 'sources', 'setPrimaryKey'], [env, id, columnName, enable]);
+                        const res = await falcor.get(['uda', env, 'sources', 'byId', +id, 'pkeyInfo']);
+                        setPkeyInfo(res?.json?.uda?.[env]?.sources?.byId?.[id]?.pkeyInfo || null);
+                    }}
+                    pkeyInfo={pkeyInfo}
                     apiLoad={apiLoad}
                     format={format}
                 />

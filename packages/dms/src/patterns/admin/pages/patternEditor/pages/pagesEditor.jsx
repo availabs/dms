@@ -643,6 +643,7 @@ export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate, falcor }) {
                 const hist = historyByPageId[String(p.id)];
                 return {
                     ...p,
+                    hide_in_nav: !!p.hide_in_nav,
                     _updatedAt: formatUpdatedAt(p.updated_at),
                     _lastPublished: hist?.lastPublished ?? null,
                     _lastPublishedBy: hist?.lastPublishedBy ?? null,
