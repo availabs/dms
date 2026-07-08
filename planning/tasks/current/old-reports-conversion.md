@@ -1,34 +1,170 @@
 # Old NPMRDS reports → new DMS report pages (automated conversion)
 
-## Status: REPORTS 1070, 1071, 1061 CONVERTED (2026-07-08); calculated-join-key platform fix DONE + verified; one live page needs a re-run (blocked on fresh auth token)
+## Status: REPORTS 1070, 1071, 1061, 751 CONVERTED (2026-07-08); CO₂ emissions calculated column DONE + verified live; a third platform bug (Falcor sibling-query cache collision) found and split into its own tracked task
 
 ### Next session — pick up here, in order
 
-1. **Mint a fresh `DMS_AUTH_TOKEN`** (see `reference_dms_dev_creds.md` in memory — `POST /login`,
-   NOT `/auth/login`, on the local dms-server at `http://localhost:3001`). Write the token to
-   `scratchpad/npmrds-sub/.dms-auth-token`, then re-run
-   `python3 scripts/convert_old_reports.py --report-id 1061 --replace` to drop report 1061's
-   known-bad `graph-comp-60` section (see the nondeterminism bugfix below — the fix is already in
-   the script, the LIVE page just predates it).
-2. **Build the weighted Hours-of-Delay calculated column** — upgrade `tmc_delay_bar_graph_day`
-   (2188429) to join `aadt_distributions` (source 2056/view 3524, already registered) the same way
-   the CO₂ formula will need to. The join mechanism is fixed and verified (see "calculated join
-   keys" below) — this is now pure SQL-writing, no remaining unknowns. Formula reference:
-   `avail-falcor/services/routeDataRetrievers/getHoursOfDelay.js`'s `calcEmissions`-sibling logic
-   (per-epoch AADT × distribution share × threshold-delay). Verify by re-checking report 1071's
-   delay bar graph live (it currently shows unweighted values).
-3. **Build the CO₂ emissions calculated column** for report 751 — formula in
-   `avail-falcor/services/routeDataRetrievers/getCo2Emissions.js` (see round-3 notes below for the
-   exact breakdown: AADT split car/truck, distribution-weighted VMT, 15-bucket piecewise
-   speed→emission-factor regression). Same join mechanism as #2.
-4. **Get user input on two open design questions before continuing report 751**: (a) how to
-   represent `RouteDifferenceGraph`/`RouteCompareComponent` (compare/diff two series — no template
-   equivalent exists), (b) how to represent `overrides.baseSpeed` synthetic per-epoch data (no
-   real-fact-table-backed primitive exists). Both are genuine new-capability questions, not
-   research gaps — see the detailed round-3 notes below before proposing anything.
-5. Continue down the approved picks list after 751: **1045** ("Rochester Inner Loop" —
-   month+weekday resolutions, dataQuality) → **874** ("Zizhao_119EB_Delay_AADT" — AADT from the
-   join table, mixed dataColumns).
+1. Continue down the approved picks list: **1045** ("Rochester Inner Loop" — month+weekday
+   resolutions, dataQuality) → **874** ("Zizhao_119EB_Delay_AADT" — AADT from the join table, mixed
+   dataColumns).
+2. **Optional/low-priority**: implement `overrides.aadt` on the weighted-delay/CO₂ calculated
+   columns — real `ny_2025_tmc_meta.aadt` is `0`/unreliable for some TMCs (confirmed for
+   `120-11332`, report 1071's route — the old report used `overrides.aadt: '20000'` for exactly this
+   reason), so those specific routes will show a real (correct) `0` weighted delay until the
+   override is wired in. Not a correctness bug in the join/formula itself — see round-4 notes.
+3. **Optional/non-blocking**: root-cause the Falcor sibling-query cache collision — see
+   `planning/tasks/current/falcor-sibling-query-cache-collision.md` (split out 2026-07-08, round 5).
+   Affects report 751's two truck CO₂ grid sections (both render empty); does not block further
+   report conversion.
+
+**Round 5 (2026-07-08) — CO₂ emissions calculated column built + verified live; report 751
+converted; a third platform bug found (query cache collision, not a defect in the CO₂ column):**
+
+- **CO₂ emissions calculated column — DONE.** Ported `avail-falcor`'s `getCo2Emissions.js`
+  (`calcEmissions`/`getCo2`/`forCars`/`forTrucks`) into ClickHouse SQL: `CO2_EXPR_PASSENGER` /
+  `CO2_EXPR_TRUCK` in `scripts/convert_old_reports.py`, using the same `META_1946_JOIN` +
+  `AADT_DIST_JOIN` mechanism as the weighted-delay column — AADT split car/truck
+  (`aadt - (aadt_singl+aadt_combi)` vs `aadt_singl+aadt_combi`), weighted by the same per-epoch
+  AADT-distribution share, converted to VMT, run through a 15-bucket piecewise-linear
+  speed→emission-factor regression (`multiIf`, separate car/truck coefficient tables) and divided
+  by 1e6. Only the `travel_time_truck`/`travel_time_passenger` variants were built (report 751's 4
+  route comps are 2 passenger + 2 truck, no `travel_time_all` comps) — a summed all-vehicles
+  variant isn't built since nothing needs it yet. Two new `TEMPLATE_SPECS` entries
+  (`tmc_co2_grid_graph_passenger`/`_truck`, GridGraph shape mirroring `tmc_speed_grid_graph`:
+  xAxis=epoch, color=calculated CO₂ column, fn=avg) and two `GRAPH_TEMPLATE_MAP` entries for
+  `("TMC Grid Graph", "avgCo2Emissions", "5-minutes", <dataColumn>)`.
+  **Verified two ways**: (a) offline — a direct ClickHouse query against real data (TMC
+  `120+24685`, 2022-01-05, epoch 119: real passenger tt=27.02, truck tt=49.88) matched a
+  by-hand recomputation of the exact JS formula to 5 significant figures for both the car and
+  truck branches; (b) live — report 751's "CO2 50 MPH" section (comp-1, passenger) renders a real
+  heatmap (221 cells, smooth color gradient, legend scale 0.006–0.185), zero console errors.
+- **Design decisions RESOLVED (2026-07-08, user)**: both open questions from round 3/4 —
+  `RouteDifferenceGraph`/`RouteCompareComponent` (compare/diff two series) and synthetic
+  `overrides.baseSpeed` data — settled as **gap-log only, no new platform capability**. Already the
+  default behavior (no `GRAPH_TEMPLATE_MAP` entry exists for those graph types; `overrides` are
+  gap-logged, not applied) — no code change needed, just confirms round 3/4's provisional handling
+  is the final answer for this task.
+- **Report 751 "Van Wyck CO2 Test Single TMC" — CONVERTED.** Page `2188662` (`/report_751`), 3 of
+  13 old graphs convert (all "TMC Grid Graph" + `avgCo2Emissions`): comp-1 (passenger, `overrides.
+  baseSpeed` ignored — shows real data, not the hypothetical 50mph scenario), comp-2 (truck,
+  real), comp-3 (truck, `overrides.baseSpeed` ignored). 10 gap-logged: `Route Map`, 2×`Route Line
+  Graph` (one mixed-dataColumn, one plain), `Traffic Volume Graph`, 2×`Route Difference Graph`,
+  `Route Compare Component`, `TMC Grid Graph` (mixed-dataColumn, all-4-comps variant), 2×`TMC
+  Difference Grid` — all correctly unmapped (no template exists for these graph types, or
+  dataColumn is ambiguous across assigned comps). Plus `color_range` and 2×`overrides.baseSpeed`
+  gaps.
+- **New platform bug found: unfiltered ClickHouse probe queries have no execution/memory cap —
+  root-caused, NOT newly introduced by this work.** Repeated report-page reloads while verifying
+  CO₂ piled up 40 concurrent stray queries on the shared dev ClickHouse server (elapsed 4–78 min,
+  up to ~14B rows read each) — all traced to the already-diagnosed
+  `dataWrapper-stale-fetch-race` (`planning/tasks/completed/dataWrapper-stale-fetch-race.md`,
+  2026-07-01): a Graph/Spreadsheet section can briefly fire an unfiltered `simpleFilterLength`
+  probe before `comparisonSeries`/page filters resolve. That fix only stops the stale response
+  from *overwriting* a later correct one — it doesn't cancel or prevent the query, and the
+  ClickHouse adapter's `max_execution_time: 0`/`max_memory_usage: 0` (no caps) means a stray probe
+  can run for over an hour. Confirmed general (hit the *pre-existing* speed grid template too, not
+  just the new CO₂ one). Killed all 40 with the user's explicit confirmation. Full mechanism +
+  live-incident writeup + safe check/kill procedure now documented in
+  `documentation/npmrds-data-sources.md` ("Known operational hazard") and
+  `packages/dms-server/CLAUDE.md`. **Practical takeaway**: don't do repeated full-page browser
+  reloads while debugging a report page — prefer a single load or a narrowly-filtered direct query.
+- **New platform bug found: Falcor sibling-query cache collision — split into its own task,
+  `planning/tasks/current/falcor-sibling-query-cache-collision.md`.** Report 751's two truck CO₂
+  grid sections (comp-2 real, comp-3 `overrides.baseSpeed` ignored) have a byte-for-byte identical
+  query (same join/filters/groupBy/calculated column, since the override isn't implemented) and
+  both render completely empty — no error. The one sibling section with a genuinely different
+  query (comp-1, passenger) rendered correctly. This is the same general bug class as round 2's
+  "Falcor cache-dedup shrinks attributes when sections share an identical options string" (which
+  had a partial ClickHouse-only fix, Postgres parity never tracked) — likely related, possibly the
+  same root cause, not yet fully pinned down. **User confirmed (2026-07-08): non-blocking, log as
+  a gap for this report, don't let it block further conversion work.**
+
+**Open design questions RESOLVED (2026-07-08) — user decided gap-log only for both, do not build
+new platform capability for report 751:**
+- `RouteDifferenceGraph`/`RouteCompareComponent` (compare/diff two independently-resolved series):
+  keep gap-logging as `unmapped_graph` (as round 3 already does). No new template/graph-shape work.
+- `overrides.baseSpeed` synthetic per-epoch data (fabricated `length/baseSpeed*3600`, no real
+  NPMRDS row): keep gap-logging as unconverted, same treatment as `overrides.aadt`. No synthetic-
+  series primitive to build.
+
+**Round 4 (2026-07-08) — weighted Hours-of-Delay built, verified, plus a real platform bug found
+along the way:**
+
+- **Weighted Hours-of-Delay calculated column — DONE.** `scripts/convert_old_reports.py`'s
+  `DELAY_EXPR`/`TEMPLATE_SPECS["tmc_delay_bar_graph_day"]` now joins `aadt_distributions`
+  (source 2056/view 3524) via the calculated-join-key mechanism (round-3), computing
+  `raw_delay_hours * (aadt/facil) * epoch_dist_share` — matches `getHoursOfDelay.js`'s
+  `calcDelay`/`getAADT` exactly for the `travel_time_all` dataColumn (no `overrides.aadt` support
+  yet — logged as a gap, see item 4 above). `ensure_graph_templates` generalized from a
+  single-hardcoded-`table1` join to an arbitrary `{table1: ..., table2: ...}` sources dict (spec's
+  `"join"` key is now the sources dict directly, not one source). Applied directly to the
+  **already-existing** live template row (id `2188429`) via a one-off `dms raw update` (template
+  rows are cloned into each section's `element-data` at creation time — editing the template alone
+  does NOT retroactively update sections created before the edit, so reports 1071 **and** 1061 both
+  needed a `--replace` re-run to pick it up).
+- **Second platform bug found + fixed: ClickHouse "ambiguous identifier" on 3-way joins.**
+  Re-running 1071 surfaced every graph on the page hanging (not erroring) — a red herring caused by
+  the user's VPN dropping mid-session; a dms-server restart cleared a ClickHouse connection pool
+  left holding dead connections from the outage. Once connectivity was back, the delay graphs
+  specifically still failed (silently — zero console/server errors) while restarting revealed the
+  real cause during a length-query capture: `ClickHouseError ... ambiguous identifier 'tmc' ...
+  AMBIGUOUS_IDENTIFIER`. Root cause: comparison-series route filters (`ReportRouteList.jsx`'s
+  per-route `filters: {AND: [tmc IN ..., date IN ..., epoch IN ...]}`) emit **bare** column names
+  (no table alias), and `handleFilterGroupsCH`
+  (`dms-server/src/routes/uda/query_sets/helpers.js`) never qualified them — harmless with one
+  join (`ds` + `table1`, both exposing `tmc`, apparently tolerated by CH's join-column resolution
+  for 2-way joins) but CH's stricter resolver rejects the same bare reference once a **second**
+  joined table is added (`table2` = `aadt_distributions`), even though `table2` itself has no
+  `tmc` column at all — this is exactly the gap already flagged as "NOT fixed (pre-existing)" in
+  the round-3 notes below, just triggered for real by adding a second join source for the first
+  time. **Fixed**: `handleFilterGroupsCH` now takes a `joinPresent` flag and qualifies bare
+  (no-dot, no-paren) filter columns with `ds.` when true; `clickhouse.js`'s `buildCombinedWhereCH`
+  now threads `joinPresent` through to it (previously only reached the separate, still-dead-code
+  `handleFiltersCH` param). Also fixed a second, adjacent omission: `simpleFilterLength`'s
+  non-comparison-series `combinedWhere` call was missing `joinPresent` entirely. **NOT touched**
+  (still open, pre-existing, unverified by this fix): the equivalent gap in `handleFiltersCH`'s own
+  dead `joinPresent` param, and the parallel gap in the Postgres path's `handleFilterGroups`/
+  `buildLeafSQL` (`dms-server/src/routes/uda/utils.js`) — scoped out per
+  `[[isolate-shared-code-changes]]`, fix+verify those separately when/if a Postgres 3-way join
+  actually needs it. **Verified**: new unit test
+  `testFilterGroupsCHJoinQualification` in `dms-server/tests/test-uda.js` (joinPresent
+  true/false, plus already-qualified/calculated columns not double-prefixed) — full `test:uda`
+  suite green (70/70, no regressions). Live-verified via direct `/graph` calls (bypassing the
+  browser to avoid re-triggering ClickHouse pool exhaustion from repeated full-page loads): the
+  delay graph's length query, which previously 500'd with the ambiguous-identifier error, now
+  returns real counts.
+- **Report 1071's delay graphs still show `0` after the fix — confirmed NOT a bug.** Queried
+  `ny_2025_tmc_meta` directly for TMC `120-11332` (report 1071's route): `aadt = "0"`. This matches
+  the old report's own data — its `route_comps` settings carry `overrides.aadt: '20000'` for every
+  route on this TMC, i.e. the *old* tool needed the same override because the real table value has
+  always been unusable here. The formula multiplies by `aadt/facil`, so `aadt=0` correctly yields
+  `0` — this is real, correct output, not a join/formula defect. Confirmed the join/formula
+  mechanism itself is sound with a direct (non-browser) query against a TMC with a real AADT
+  (`120+24685`, `aadt=6141`, from report 1061's unused "Albany Shaker Road" route): weighted-vs-
+  unweighted daily sums came back at a consistent ~15–17× ratio across 5 different days (2022-01-03
+  through 2022-01-07) — exactly the AADT/facil-driven scaling the formula should produce, not noise.
+  `overrides.aadt` support remains a real, still-open gap (item 4 above) — it just isn't what's
+  wrong with the join mechanism.
+- **Operational note for future sessions**: repeated rapid full-page browser reloads against a
+  report with many graph sections can exhaust/wedge the dms-server's ClickHouse connection pool
+  (each reload fires ~10-13 concurrent queries; the user separately confirmed the UI itself can
+  sometimes fire an unfiltered query against the multi-billion-row NPMRDS fact table that hangs for
+  a long time before timing out) — symptom is EVERY graph on the page hanging with no response and
+  no server-side error, including ones unrelated to whatever you just changed. Fix is a
+  `touch src/dms/packages/dms-server/src/index.js` to force a nodemon restart (clears the pool).
+  Prefer direct `/graph` calls with narrow, explicit filters (tmc + a handful of dates/epochs) over
+  repeated full-page loads when debugging a single calculated column.
+  **Root-caused (2026-07-08, round 5)**: this isn't just pool exhaustion — the actual mechanism is
+  the already-diagnosed `dataWrapper-stale-fetch-race` (see
+  `planning/tasks/completed/dataWrapper-stale-fetch-race.md`), which the ClickHouse adapter's
+  `max_execution_time: 0`/`max_memory_usage: 0` turns from "wasteful" into "can run for over an
+  hour." Full mechanism, live-incident evidence, and how to safely check/kill stray queries now
+  documented in `documentation/npmrds-data-sources.md`'s "Known operational hazard" section and
+  `packages/dms-server/CLAUDE.md`. **This is a known, pre-existing, general platform behavior — not
+  something to re-diagnose as a new bug each time a graph hangs.** Don't do repeated full-page
+  reloads while debugging; a single stray unfiltered probe surviving a closed browser tab and
+  running for an hour+ on the shared dev server is a real, recurring risk, not a hypothetical one
+  (40 such queries piled up during this round's verification, killed with the user's confirmation).
 
 **Destructive-action scope, clarified by the user (2026-07-08):** the "no destructive actions"
 rule is about the OLD `admin2.*`/`data_manager.*` source tables (mercury/neptune, read-only,
@@ -460,6 +596,10 @@ convert from `admin2.reports` directly (dedupe/cleanup of that dataset is separa
 - Old per-graph `layout` (grid x/y/w/h) has no obvious new-side target (sections stack linearly).
 - Old `color_range` / per-route `color` not yet mapped (new palette lives in template display).
 - Relative-date reports (`settings.relativeDate`) and route groups need design.
+- `overrides.aadt` not implemented on the weighted Hours-of-Delay calculated column (round 4) — the
+  real `ny_2025_tmc_meta.aadt` is `0`/unusable for at least one confirmed TMC (`120-11332`), which
+  is why the old report overrode it. Affected routes correctly compute `0` weighted delay until
+  this is wired in — not a defect in the join/formula itself.
 
 ## NPMRDS data-source bank
 
@@ -497,3 +637,10 @@ Other files this task has produced, outside that scratchpad folder:
 - `src/dms/packages/dms/src/patterns/page/components/sections/components/dataWrapper/buildUdaConfig.js`
   — the calculated-join-key fix (small diff, `accessor()` inside `buildJoinOnClause`).
 - `src/dms/packages/dms/tests/buildUdaConfig.test.js` — regression test for that fix.
+- `src/dms/packages/dms-server/src/routes/uda/query_sets/helpers.js` — round-4 fix:
+  `handleFilterGroupsCH` join-aware `ds.` qualification for bare filter columns.
+- `src/dms/packages/dms-server/src/routes/uda/query_sets/clickhouse.js` — round-4 fix: threads
+  `joinPresent` into `handleFilterGroupsCH`; fixed a second missing-`joinPresent` spot in
+  `simpleFilterLength`.
+- `src/dms/packages/dms-server/tests/test-uda.js` — `testFilterGroupsCHJoinQualification`
+  regression test for the round-4 ambiguous-identifier fix.

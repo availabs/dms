@@ -148,3 +148,50 @@ live read over either doc when precision matters.
 CH database ≠ CH table name — don't conflate: `clickhouse.npmrds`, `clickhouse.npmrds_meta`, and
 `clickhouse.avail` are three different ClickHouse databases on the same server
 (`neptune.availabs.org:8123`), all joinable together in one query since they share one connection.
+
+## Known operational hazard: unfiltered probe queries can run indefinitely
+
+**Any AVL Graph (or other dataWrapper-based) section can briefly fire a `simpleFilterLength`
+request with completely empty `filter`/`filterGroups` before its real scoping is ready** — and
+because the ClickHouse adapter (`dms-server/src/db/adapters/clickhouse.js`) sets
+`max_execution_time: 0` and `max_memory_usage: 0` (no server-side caps), that "probe" becomes a
+full unfiltered join across the entire multi-billion-row fact table (`s583_v982_NPMRDS_V6`) that
+can run for **over an hour**, reading tens of billions of rows, with no error and no timeout.
+
+**Root cause (already diagnosed and partially fixed, 2026-07-01)**: see
+`planning/tasks/completed/dataWrapper-stale-fetch-race.md`. On mount, `state.comparisonSeries.config`
+(Graph's dynamic route binding) and plain `state.filters` both start "unresolved" and only get
+corrected by a `useEffect` in `usePageFilterSync.js` that runs *after* first render. Before that
+correction lands, `buildUdaConfig.js`'s `activeComparisonSeries` check (~line 1084) treats
+comparison series as inactive, so the *first* fetch has no route scoping at all. The 2026-07-01 fix
+(`useDataLoader.js`'s `requestIdRef` generation counter) only prevents this stale unfiltered
+response from **overwriting** a later correctly-scoped one once both resolve — it does **not**
+cancel the query or stop it from being sent. A true preventive fix (extend the
+`hasUnresolvedRequiredLeaf`/`requireResolved` gating already used for plain filter leaves,
+`buildUdaConfig.js:411-429`, to also cover an unresolved comparison-series subscriber) was proposed
+in that task and **explicitly declined by the user**, who chose to scope down to just the
+correctness fix. True request cancellation was also investigated and not pursued — it would
+require changes to the external `@availabs/avl-falcor` package (see that task file for the full
+trace).
+
+**What's new here (2026-07-08)**: repeated report-page reloads during old-reports-conversion
+verification piled up **40 concurrent stray unfiltered queries** on the shared dev ClickHouse
+server — elapsed times from 4 minutes to 78 minutes, up to ~14 billion rows read each. This hit
+both a *new* CO₂ grid template and the *pre-existing* speed grid template identically, confirming
+it's a general platform behavior, not specific to any one template. Closing the browser tab does
+**not** cancel the server-side ClickHouse query (see "no request cancellation" above) — it keeps
+running until it completes or is killed.
+
+**If a report page hangs or a graph renders empty with no console error**: before assuming a
+defect in whatever you just changed, check for stray long-running queries (read-only):
+```sql
+SELECT query_id, elapsed, read_rows, memory_usage, substring(query, 1, 80) AS query_snippet
+FROM system.processes ORDER BY elapsed DESC
+```
+Queries with `filter: {}`/empty `filterGroups` in their generated SQL and multi-minute `elapsed`
+are almost certainly stray probes, safe to `KILL QUERY WHERE query_id = '<id>'` — but always list
+candidates and get explicit confirmation before killing anything on this shared server.
+
+**Practical mitigation while debugging**: avoid repeated full-page browser reloads against report
+pages (each fires a dozen+ concurrent queries); prefer a single load, or a narrowly-filtered direct
+query (single TMC + a few dates/epochs) to verify a calculated column or template change.

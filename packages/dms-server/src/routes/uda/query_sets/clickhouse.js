@@ -26,7 +26,7 @@ const {
 function buildCombinedWhereCH({ filter, exclude, gt, gte, lt, lte, like, filterGroups, joinPresent }) {
   const filterClause = handleFiltersCH({ filter, exclude, gt, gte, lt, lte, like, joinPresent });
   const hasExisting = !!filterClause;
-  const filterGroupsClause = handleFilterGroupsCH(filterGroups, hasExisting);
+  const filterGroupsClause = handleFilterGroupsCH(filterGroups, hasExisting, joinPresent);
 
   if (!filterClause && !filterGroupsClause) return '';
   return `${filterClause} ${filterGroupsClause}`.trim();
@@ -60,7 +60,7 @@ async function simpleFilterLength(ctx, options) {
   const sanitizedGroupBy = groupBy.map(g => sanitizeName(g)).filter(Boolean);
 
   const combinedWhere = buildCombinedWhereCH({
-    filter, exclude, gt, gte, lt, lte, like, filterGroups,
+    filter, exclude, gt, gte, lt, lte, like, filterGroups, joinPresent,
   });
 
   const { joins, merges } = await buildJoin({join});

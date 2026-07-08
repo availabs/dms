@@ -117,11 +117,19 @@ function handleFiltersCH({
   return clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
 }
 
-function handleFilterGroupsCH(node, hasExistingFilters = false) {
+function handleFilterGroupsCH(node, hasExistingFilters = false, joinPresent = false) {
   if (!node || !node.groups?.length) return '';
 
   const escapeValue = (v) =>
     typeof v === 'string' ? `'${v.replace(/'/g, "''")}'` : v;
+
+  // A bare column (no alias/dot, not a function-call expression) is ambiguous
+  // once a join puts a same-named column in scope on another table — comparison-
+  // series route filters (tmc/date/epoch) always target the base fact table, so
+  // qualify them with its `ds` alias. Already-qualified refs and calculated
+  // expressions are left untouched.
+  const qualifyCol = (col) =>
+    joinPresent && !col.includes('.') && !col.includes('(') ? `ds.${col}` : col;
 
   const buildLeafSQL = (node) => {
     const { col, op, value } = node;
@@ -132,6 +140,7 @@ function handleFilterGroupsCH(node, hasExistingFilters = false) {
     if (op === 'empty') return `(${col} IS NULL OR ${col} = '')`;
     if (op === 'notempty') return `(${col} IS NOT NULL AND ${col} <> '')`;
 
+    const col = qualifyCol(node.col);
     if (value == null) return '';
 
     if (op === 'time') {

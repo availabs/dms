@@ -1252,6 +1252,54 @@ async function testTimeFilter() {
   pass('builder enforces validator');
 }
 
+// ======================================= ClickHouse filterGroups join-qualification ================================
+
+/**
+ * Regression test for: comparison-series route filters (bare `tmc`/`date`/`epoch`
+ * columns from filterGroups) throwing ClickHouse "ambiguous identifier" once a
+ * second joined table put a same-named column in scope — e.g. joining both
+ * ny_2025_tmc_meta (has `tmc`) and aadt_distributions for weighted-delay
+ * calculated columns. handleFilterGroupsCH must qualify bare columns with the
+ * base `ds` alias when a join is present, and leave already-qualified refs and
+ * calculated expressions untouched. No database required — pure SQL-string test.
+ */
+async function testFilterGroupsCHJoinQualification() {
+  console.log('\n--- Unit: ClickHouse filterGroups join-qualification ---');
+  const { handleFilterGroupsCH } = require('../src/routes/uda/query_sets/helpers');
+
+  const filterGroups = {
+    op: 'AND',
+    groups: [
+      { op: 'filter', col: 'tmc', value: ['120-11332'] },
+      { op: 'filter', col: 'date', value: ['2026-04-20', '2026-04-21'] },
+    ],
+  };
+
+  const withoutJoin = handleFilterGroupsCH(filterGroups, false, false);
+  assert(withoutJoin.includes("tmc = '120-11332'"), 'no join: bare column left unqualified');
+  assert(!withoutJoin.includes('ds.tmc'), 'no join: no ds. prefix added');
+  pass('joinPresent=false leaves bare columns unqualified');
+
+  const withJoin = handleFilterGroupsCH(filterGroups, false, true);
+  assert(withJoin.includes("ds.tmc = '120-11332'"), 'join present: tmc qualified with ds.');
+  assert(withJoin.includes("ds.date IN"), 'join present: date qualified with ds.');
+  pass('joinPresent=true qualifies bare columns with ds.');
+
+  // Already-qualified refs and calculated expressions must not get double-prefixed.
+  const mixedGroups = {
+    op: 'AND',
+    groups: [
+      { op: 'filter', col: 'table1.tmc', value: ['120-11332'] },
+      { op: 'gt', col: 'toYear(ds.date)', value: [2025] },
+    ],
+  };
+  const mixed = handleFilterGroupsCH(mixedGroups, false, true);
+  assert(mixed.includes('table1.tmc ='), 'already-qualified column left as-is');
+  assert(!mixed.includes('ds.table1.tmc'), 'already-qualified column not double-prefixed');
+  assert(mixed.includes('toYear(ds.date) >'), 'function-call expression left as-is');
+  pass('already-qualified refs and expressions are not re-qualified');
+}
+
 // ================================================= Test Runner ===================================================
 
 async function run() {
@@ -1288,6 +1336,9 @@ async function run() {
 
     // time-filter unit tests (Phase 1: PostgreSQL SQL generation, no DB calls)
     await testTimeFilter();
+
+    // ClickHouse filterGroups join-qualification (ambiguous identifier regression)
+    await testFilterGroupsCHJoinQualification();
 
     // DAMA mode tests
     await testDamaModeSourcesCrud();
