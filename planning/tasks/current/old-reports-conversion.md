@@ -1,5 +1,85 @@
 # Old NPMRDS reports → new DMS report pages (automated conversion)
 
+**Round 9 (2026-07-08): report 751's truck CO₂ NULL — root-caused and FIXED.** The round-8 suspect
+(`coalesce(ds.travel_time_freight_trucks, ds.travel_time_all_vehicles)`) was close but the real
+mechanism is a representation mismatch: the CH fact table's travel-time columns are plain
+`Float64`, **NOT Nullable** — missing readings are stored as `0`, not NULL (old Postgres `npmrds`
+stored real NULLs, which the old tool's `COALESCE(truck, all_vehicles)` handled; the converter
+copied that coalesce faithfully but it can never fire against 0s). `3600/0 = inf`, and one `inf`
+in an epoch's year-long `avg` makes the whole epoch `inf`, which ClickHouse serializes as JSON
+`null`. Diagnostic (TMC `120P05153`, 2019): truck tt = 0 on **71,009 of 103,856 rows touching all
+288 epochs** → all-NULL truck response; passenger tt = 0 on only 328 rows across 88 epochs →
+exactly the partial (220/289) passenger nulls. **Fix**: `_SPEED_CAR_EXPR`/`_SPEED_TRUCK_EXPR` in
+`scripts/convert_old_reports.py` now use `coalesce(nullIf(col, 0), nullIf(fallback, 0))` — 0 →
+NULL restores the old semantic (avg skips the row; per-row fallback to all-vehicles works again).
+**Verified**: (a) offline — the full 3-way-join query with the fixed expressions returns 288/288
+clean epochs for BOTH variants (truck 0.0011–0.0387, passenger 0.0037–0.1464, zero NULL/NaN/inf);
+(b) live — patched both template rows (`2188660` truck / `2188661` passenger, 29 occurrences
+each), `--replace` re-ran 751 (new page `2188894`), single Playwright load: all three CO₂
+sections render real heatmaps (truck legend 0.0009–0.049; passenger 0.0031–0.185 with the
+overnight gaps now filled), zero console errors. The two truck sections render identical data —
+correct/expected, `overrides.baseSpeed` is still deliberately ignored. Gap report unchanged (23
+items, same classes).
+**Noticed, NOT fixed (same 0-as-missing class, pre-existing, shared templates)**: `SPEED_EXPR`
+(`miles*3600/tt_all`) has the same latent inf-poisoning wherever `travel_time_all_vehicles = 0`
+rows exist (none on 120P05153, but possible on low-traffic TMCs overnight → silently null
+days/epochs on speed graphs), and `tmc_travel_time_bar_graph_day` averages raw
+`travel_time_all_vehicles` including 0-rows (drags the avg down vs. the old NULL-skipping
+behavior). Left alone per isolate-shared-code-changes — the speed/travel-time templates are
+live-verified on 3 reports; fix+verify separately if it surfaces.
+
+**Round 9 (continued): `overrides.aadt` — DONE + live-verified.** Old semantics confirmed
+against the actual old source before implementing:
+- delay (`getHoursOfDelay.js` `getAADT`): a truthy override **replaces the AADT wholesale**
+  (before facil/distribution weighting); falsy (`'0'`, `''`, null) falls through to the real
+  column — i.e. report 1061 comp-7's `aadt: '0'` is query-inert, same class as the peak flags,
+  and is no longer gap-logged.
+- CO₂ (`getCo2Emissions.js` `calcEmissions`): the override is a TOTAL AADT redistributed by the
+  real car/truck proportions — `(override * (aadt_car / aadt_total)) || aadt_car`, the JS `||`
+  falling back on 0/NaN (aadt_total = table1.aadt, so the SQL guard is `if(table1.aadt > 0, …)`).
+Implementation (all in `scripts/convert_old_reports.py`, conversion-time — templates stay
+override-free): the override lives per route comp but the calculated column is shared by every
+comparison-series arm, so it's applied per GRAPH via substitution on the section's CLONED
+template stateJson (same place color_range is wired), and only when every assigned comp agrees
+on one truthy value. New constants `_AADT_DELAY_FRAGMENT`/`_AADT_DELAY_OVERRIDE`/
+`_AADT_CAR_OVERRIDE`/`_AADT_TRUCK_OVERRIDE` + `AADT_OVERRIDE_SUBS`; `aadt_override_of()`
+normalizer; per-graph decision loop in `convert_report`; `aadt_override` param on
+`build_graph_section_data`. New gap kinds: `aadt_override_mixed` (comps disagree — can't express
+per-arm), `aadt_override_not_applied` (drift guard: template row no longer contains a known AADT
+fragment — loud, never silently converts without the override). Per-comp `overrides` gap now
+excludes `aadt` (other keys — baseSpeed, thresholdSpeed — still log). Overrides on comps feeding
+skipped graphs are subsumed by those graphs' `unmapped_graph` entries.
+**Verified 4 ways**: (a) standalone — 6-case test of normalization + substitution + drift-gap +
+passthrough, all passing; (b) fragment byte-match confirmed against all 4 live AADT-consuming
+template rows (2188429 day-delay, 2188680 weekday-delay, 2188660/2188661 CO₂); (c) offline CH —
+delay expr on TMC `120-11332` (real `aadt=0`): unmodified expr returns 0/day (matches live pages
+pre-fix), override-substituted expr returns real 15–34 h/day across 5 days; (d) live —
+`--replace` re-ran 1071 (**new page `2188906`**): gap report dropped from 18→16 items losing
+exactly the per-comp `overrides {aadt: '20000'}` entries, no `aadt_override_mixed`/
+`not_applied` fired, and the full-width "Hours of Delay Weekdays 2026-2024" graph now renders
+real, non-zero, spiky delay data (peaks ~150h) where it was invisible/all-zero before. By-day
+delay sections show real value ranges in their legends (e.g. 0.39–21.0 h).
+
+**Known platform issue, logged NOT fixed (user direction 2026-07-08: "don't get caught up on
+the width thing — mark it as a gap"): bar graphs draw squeezed into the left edge of narrow
+sections.** Found while live-verifying 1071's aadt work. Facts established: the server responses
+are complete and correct (all 9 dates, distinct values, verified via captured bodies); the
+chart's `flex-1` container really is tiny (~50px in a w=4 section, DOM-measured svg widths
+57/56/49/52/29px), while the section box is ~293px; the adjacent byValue linear legend renders
+full-precision float tick labels ("20.919005675724687") whose max-content width is plausibly
+what eats the row; EVERY BarGraph on the page is squeezed to a degree (w=6 → 182px chart,
+w=12 weekdays → 564px in a ~1050px section) — the wide ones just look OK-ish. Two candidate
+fixes were attempted and **REVERTED** (kept out of the tree per isolate-shared-code-changes):
+(1) a ResizeObserver in `useSetSize` (avl-graph/utils/index.js — hook only re-measures on
+window resize); (2) default/compiled tick formatting in `Legend.jsx`'s linear legends (also
+fixes a latent crash: section-config `valueFormat` is a d3-format STRING but the wrappers pass
+it raw to `format(value)`). **Neither changed the rendered geometry on a fresh load even though
+Vite verifiably served the edited modules** — so the real mechanism is NOT yet pinned down
+(maybe the rendered legend isn't Legend.jsx's linear variant, maybe the constraint isn't the
+legend at all). Follow-up should start from that unexplained fact. Affects visual QA of any
+converted report with non-full-width bar graphs (1071 w=4/w=6 sections); data underneath is
+correct.
+
 ## Status: All 6 reports CONVERTED and gap-audited current as of round 7 (1070, 1071, 1061, 751, 1045, 874 — 2026-07-08); CO₂ emissions column + weekday-resolution bar graphs DONE + verified live; five platform bugs found this session, four fixed (comparison-series ORDER BY on calculated columns; ClickHouse ambiguous-identifier on 3-way joins; GridGraph color-scale domain/range truncation — round 7; Falcor sibling-query cache collision — round 8, previously split into its own task and now fixed there). **Round 7 (2026-07-08): user visual QA on round 6's color wiring caught two real defects the standalone/JSON-level verification missed — bar graphs rendered as one solid color, GridGraph heatmaps never showed the far end of a >3-color palette. Root-caused as two independent, unrelated issues (see below), both fixed, unit-tested (182/182 passing, +7 new), and live-verified across 1061/1045/1071/751. New BarGraph capability built (`colors.byValue`, plus a "Color by Value" SectionMenu toggle) rather than working around the gap.**
 
 **Round 8 (2026-07-08): the Falcor sibling-cache-collision task is FIXED** — see
@@ -969,10 +1049,12 @@ convert from `admin2.reports` directly (dedupe/cleanup of that dataset is separa
   rendered as one solid color) — see round-7 notes above for the full root-cause + fix. **Now
   live-verified as actually correct** on 751/1061/1045/1071.
 - Relative-date reports (`settings.relativeDate`) and route groups need design.
-- `overrides.aadt` not implemented on the weighted Hours-of-Delay calculated column (round 4) — the
-  real `ny_2025_tmc_meta.aadt` is `0`/unusable for at least one confirmed TMC (`120-11332`), which
-  is why the old report overrode it. Affected routes correctly compute `0` weighted delay until
-  this is wired in — not a defect in the join/formula itself.
+- ~~`overrides.aadt`~~ **DONE (round 9, 2026-07-08)** — baked into the cloned calculated column
+  per graph when every assigned comp agrees on one truthy value (wholesale replace for delay,
+  proportional car/truck redistribution for CO₂, matching the old source exactly); falsy `'0'`
+  is query-inert (old `getAADT` truthiness) and no longer logged. Disagreeing comps →
+  `aadt_override_mixed` gap; template-drift → `aadt_override_not_applied` gap. Live-verified on
+  1071 (page `2188906`).
 
 ## NPMRDS data-source bank
 
@@ -1009,7 +1091,8 @@ dry-run overwrote them, see round-3 notes if this looks odd).
 **Current live page ids as of round 7 completion (2026-07-08)** — 1061/1045/1071 superseded again
 in round 7 to pick up `colors.byValue`; 1070/751/874 unchanged since round 6 (751/1070 needed no
 DB change for the round-7 GridGraph fix — it's frontend-only; 874 has no converted graphs at all):
-1070→`2188718`, 1071→`2188824`, 751→`2188754`, 1061→`2188800`, 1045→`2188812`, 874→`2188794`.
+1070→`2188718`, 1071→`2188906` (round 9, aadt override), 751→`2188894` (round 9, truck-CO₂ fix),
+1061→`2188800`, 1045→`2188812`, 874→`2188794`.
 
 Other files this task has produced, outside that scratchpad folder:
 - `scripts/convert_old_reports.py` — the converter itself.
