@@ -524,10 +524,6 @@ const getLayerTileUrl = (tileBase, layerProps) => {
   let newTileUrl = tileBase;
   if (typeof newTileUrl === "string") {
     newTileUrl = newTileUrl.split("?")[0];
-    newTileUrl = newTileUrl.replace(
-      /^https?:\/\/dmsserver\.availabs\.org(?=\/dama-admin\/.*\/t\.pbf)/i,
-      "http://localhost:3001"
-    );
   }
   const joinTileColumns = getJoinTileColumns(layerProps);
   const joinTileColumnSet = new Set(joinTileColumns);
