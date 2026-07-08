@@ -100,7 +100,11 @@ function StepLegend({ layer, legendTheme }) {
   },[state])
 
   let paintValue = typeof typePaint[layer.type](layer) === 'object' ? typePaint[layer.type](layer) : []
-  const max = Math.max(...choroplethdata)
+  // Guard against an empty `choroplethdata`: `Math.max(...[])` is `-Infinity`,
+  // which would render as the top band's upper bound (`… - -Infinity`). Only
+  // take a max when there are real values; otherwise leave it undefined so the
+  // open-ended top band renders as `X+` instead of a bogus `-Infinity`.
+  const max = Array.isArray(choroplethdata) && choroplethdata.length ? Math.max(...choroplethdata) : undefined
   // console.log('StepLegend', paintValue, choroplethdata, Math.min(...choroplethdata), )
   /**
    * Choropleth legends use the same empty-array fallback so ranges still show
@@ -109,10 +113,14 @@ function StepLegend({ layer, legendTheme }) {
   const categories = legenddata?.length ? legenddata : [
     ...(paintValue || []).filter((d,i) => i > 2 )
     .map((d,i) => {
-    
+
       if(i%2 === 1) {
         //console.log('test 123', d, i)
-        return {color: paintValue[i+1], label: `${paintValue[i+2]} - ${paintValue[i+4] || max}`}
+        const upper = paintValue[i + 4] ?? max;
+        return {
+          color: paintValue[i + 1],
+          label: Number.isFinite(upper) ? `${paintValue[i + 2]} - ${upper}` : `${paintValue[i + 2]}+`,
+        }
       }
       return null
     })

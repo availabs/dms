@@ -1,6 +1,7 @@
 import Logo from '../components/Logo'
 import { HorizontalMenu } from '../components/TopNav'
 import { VerticalMenu } from '../components/SideNav'
+import ThemeToggle from '../components/ThemeToggle'
 
 const NoComp = () => <div className='h-12'/>
 
@@ -8,6 +9,10 @@ const defaultWidgets = {
   Logo: {
     label: 'Logo',
     component: Logo,
+  },
+  ThemeToggle: {
+    label: 'Theme Toggle',
+    component: ThemeToggle,
   },
   // internal widgets — not shown in theme editor listbox
   NoComp: {

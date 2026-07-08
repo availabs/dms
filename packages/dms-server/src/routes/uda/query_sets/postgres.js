@@ -185,8 +185,16 @@ async function simpleFilterLength(ctx, options) {
   return rows?.[0]?.numrows ?? 0;
 }
 
-async function buildSimpleFilterSql(ctx, options, attributes, indices) {
-  const num = indices.to - indices.from + 1;
+async function buildSimpleFilterSql(ctx, options, attributes, indices = null) {
+  // `indices` is optional. Omit it (or pass null) to fetch the full result with
+  // NO LIMIT/OFFSET. Callers that build a join subquery to filter/aggregate
+  // against (colorDomain, tiles) need every matching row — a LIMIT here would
+  // truncate the CTE *before* the outer WHERE/aggregate runs against it. The
+  // paginated client-facing callers (simpleFilter / simpleFilterLength) always
+  // pass indices and keep their LIMIT; this only changes behavior when it's
+  // absent.
+  const hasLimit = indices && Number.isFinite(indices.from) && Number.isFinite(indices.to);
+  const num = hasLimit ? indices.to - indices.from + 1 : null;
   const { isDms, db, app, type, table_schema, table_name, dmsAttributes } = ctx;
 
   let sanitizedAttrs = sanitizeName(attributes).filter((f) => f);
@@ -273,8 +281,7 @@ async function buildSimpleFilterSql(ctx, options, attributes, indices) {
     ${handleGroupBy(groupBy)}
     ${handleHaving(having)}
     ${handleOrderBy(orderBy, dmsAttributes)}
-    LIMIT ${+num}
-    OFFSET ${indices.from}
+    ${hasLimit ? `LIMIT ${+num} OFFSET ${indices.from}` : ''}
   `;
   return {
     sql,

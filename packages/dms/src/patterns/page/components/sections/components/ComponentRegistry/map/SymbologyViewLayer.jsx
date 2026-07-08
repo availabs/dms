@@ -533,14 +533,18 @@ const ViewLayerRender = ({
             }
           );
         }
+        // A column already covered by a static filter above must not also get a
+        // dynamic-filter clause — ANDing both together (via `all` below) is
+        // almost always an impossible condition, hiding every feature. Static wins.
+        const staticFilterColumnNames = new Set(Object.keys(layerFilter || {}));
         const layerHasDynamicFilter =
           dynamicFilter &&
           dynamicFilter?.length > 0 &&
-          dynamicFilter.some((dFilter) => dFilter?.values?.length > 0);
+          dynamicFilter.some((dFilter) => dFilter?.values?.length > 0 && !staticFilterColumnNames.has(dFilter.column_name));
         let dynamicMapLayerFilters = [];
         if (layerHasDynamicFilter) {
           dynamicMapLayerFilters = dynamicFilter
-            ?.filter((dFilter) => dFilter?.values?.length > 0)
+            ?.filter((dFilter) => dFilter?.values?.length > 0 && !staticFilterColumnNames.has(dFilter.column_name))
             .map((dFilter) => {
               let mapFilter = [];
 
@@ -1404,6 +1408,37 @@ const buildJoinFilterOptions = (joinQuery = {}) => {
  * Serializes the layer join config into the encoded `join` param appended to
  * tile URLs for the DMS runtime map.
  */
+const JOIN_FILTER_OP_BY_OPERATOR = { '==': 'filter', '!=': 'exclude', '>': 'gt', '>=': 'gte', '<': 'lt', '<=': 'lte' };
+
+/**
+ * Collects the layer's active filters (static `filter` + `dynamic-filters`) that
+ * target a *joined* column, as filterGroups leaves. Pushing these into the tile
+ * join subquery makes the CTE filter by the selection BEFORE aggregating — so a
+ * selected workplace yields ~one row per feature instead of a full (home ×
+ * workplace) fan-out that the LEFT JOIN multiplies into millions of MVT rows.
+ * Static wins over dynamic on the same column (mirrors buildLayerUdaFilterOptions).
+ */
+const collectActiveJoinFilterGroups = (layerProps, joinOutputNames) => {
+  const groups = [];
+  const staticCols = new Set();
+  Object.entries(layerProps?.filter || {}).forEach(([col, f]) => {
+    if (!joinOutputNames.has(col)) return;
+    if (!f || f.value === undefined || f.value === null || f.value === '') return;
+    const op = JOIN_FILTER_OP_BY_OPERATOR[f.operator ?? '=='];
+    if (!op) return; // between/unknown ops aren't pushed (rare for a join filter)
+    staticCols.add(col);
+    const scalar = ['gt', 'gte', 'lt', 'lte'].includes(op);
+    groups.push({ op, col, value: scalar ? (Array.isArray(f.value) ? f.value[0] : f.value) : (Array.isArray(f.value) ? f.value : [f.value]) });
+  });
+  (layerProps?.["dynamic-filters"] || []).forEach((df) => {
+    if (!df?.column_name || !joinOutputNames.has(df.column_name)) return;
+    if (!Array.isArray(df.values) || !df.values.length) return;
+    if (staticCols.has(df.column_name)) return; // static filter already covers it
+    groups.push({ op: 'filter', col: df.column_name, value: df.values });
+  });
+  return groups;
+};
+
 const buildJoinParam = (layerProps) => {
   const joinConfig = normalizeJoinRuntimeConfig(layerProps);
   if (!joinConfig?.enabled || !joinConfig?.source?.viewId || !joinConfig?.featureKeyColumn || !joinConfig?.joinColumn) {
@@ -1413,13 +1448,32 @@ const buildJoinParam = (layerProps) => {
   const queryConfig = joinConfig.query || {};
   const groupBy = Array.isArray(queryConfig?.groupBy) ? queryConfig.groupBy : [];
   const columns = Array.isArray(queryConfig?.columns) ? queryConfig.columns : [];
+  const tileColumns = getJoinTileColumns(layerProps);
+
+  // Only join-produced columns may be pushed into the join subquery (base-table
+  // filters belong to the geo side). Output names come from the tile columns and
+  // the join's SELECT expressions (`... as <name>`).
+  const outputName = (expr) => {
+    const m = String(expr).match(/\s+as\s+("?)([^"]+)\1\s*$/i);
+    return m?.[2] || String(expr).trim();
+  };
+  const joinOutputNames = new Set([...tileColumns, ...columns.map(outputName)]);
+
+  const options = { ...buildJoinFilterOptions(queryConfig), groupBy };
+  const activeJoinFilters = collectActiveJoinFilterGroups(layerProps, joinOutputNames);
+  if (activeJoinFilters.length) {
+    const existing = options.filterGroups?.groups
+      || (options.filterGroups ? [options.filterGroups] : []);
+    options.filterGroups = { op: 'and', groups: [...existing, ...activeJoinFilters] };
+  }
+
   return encodeURIComponent(JSON.stringify({
     viewId: joinConfig.source.viewId,
     localKey: joinConfig.featureKeyColumn,
     joinKey: joinConfig.joinColumn,
-    options: { ...buildJoinFilterOptions(queryConfig), groupBy },
+    options,
     attributes: columns,
-    tileCols: getJoinTileColumns(layerProps),
+    tileCols: tileColumns,
   }));
 };
 
@@ -1512,6 +1566,10 @@ const getLayerTileUrl = (tileBase, layerProps) => {
   let newTileUrl = `${tileBase}`;
   if (typeof newTileUrl === "string") {
     newTileUrl = newTileUrl.split("?")[0];
+    newTileUrl = newTileUrl.replace(
+      /^https?:\/\/dmsserver\.availabs\.org(?=\/dama-admin\/.*\/t\.pbf)/i,
+      "http://localhost:3001"
+    );
   }
   const joinTileColumns = getJoinTileColumns(layerProps);
   const joinTileColumnSet = new Set(joinTileColumns);

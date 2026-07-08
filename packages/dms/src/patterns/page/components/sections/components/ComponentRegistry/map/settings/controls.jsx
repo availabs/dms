@@ -137,11 +137,46 @@ const renderMenuField = (render) => (props) => (
 );
 
 const MapSymbologyControl = ({ mapAPI }) => {
-  const { selectedSymbology, symbologyOptions, onSymbologyChange, Select, labelClassName, sectionClassName } = useMapSettingsUI(mapAPI);
+  const {
+    selectedSymbology,
+    symbologyOptions,
+    onSymbologyChange,
+    onUpdateSymbology,
+    isUpdatingSymbology,
+    Select,
+    UI,
+    labelClassName,
+    sectionClassName,
+  } = useMapSettingsUI(mapAPI);
+
+  const RefreshIcon = UI?.Icon;
 
   return (
     <div className={`${sectionClassName} w-full min-w-0`}>
-      <Field label="Symbology" labelClassName={labelClassName}>
+      <div className="pb-2 w-full min-w-0">
+        {/* Label row + Refresh: re-fetch the selected symbology from the source
+            (new/removed dynamic variables, restyling flow in) while preserving
+            the author's DMS Map settings. Merge, not replace — see
+            symbologySelector.mergeSymbologyPreservingUserConfig. */}
+        <div className="flex items-center justify-between">
+          <label className={labelClassName}>Symbology</label>
+          {selectedSymbology && onUpdateSymbology ? (
+            <button
+              type="button"
+              onClick={onUpdateSymbology}
+              disabled={isUpdatingSymbology}
+              aria-label="Refresh symbology"
+              title="Sync this map with the latest editor changes"
+              className="p-0.5 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 disabled:opacity-50 disabled:cursor-default cursor-pointer"
+            >
+              {RefreshIcon ? (
+                <RefreshIcon icon="Refresh" className={`size-4 ${isUpdatingSymbology ? "animate-spin" : ""}`} />
+              ) : (
+                <span className="text-xs">{isUpdatingSymbology ? "…" : "↻"}</span>
+              )}
+            </button>
+          ) : null}
+        </div>
         <FullWidthSelectField
           Select={Select}
           className="mt-1"
@@ -151,7 +186,7 @@ const MapSymbologyControl = ({ mapAPI }) => {
           placeholder="Search..."
           singleSelectOnly={true}
         />
-      </Field>
+      </div>
     </div>
   );
 };

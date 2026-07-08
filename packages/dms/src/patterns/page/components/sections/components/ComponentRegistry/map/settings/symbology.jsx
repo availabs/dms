@@ -5,11 +5,12 @@ import useSymbologySelectorState from "./symbologySelector.jsx";
  * This reuses the same selection behavior already used by the map toolbar flow.
  */
 export default function useMapSettingsSymbology({ state = {}, setState, doApiLoad } = {}) {
-  const { selectedSymbology, symbologyOptions, onSymbologyChange } = useSymbologySelectorState({
-    state,
-    setState,
-    doApiLoad,
-  });
+  const { selectedSymbology, symbologyOptions, onSymbologyChange, onUpdateSymbology, isUpdatingSymbology } =
+    useSymbologySelectorState({
+      state,
+      setState,
+      doApiLoad,
+    });
 
-  return { selectedSymbology, symbologyOptions, onSymbologyChange };
+  return { selectedSymbology, symbologyOptions, onSymbologyChange, onUpdateSymbology, isUpdatingSymbology };
 }
