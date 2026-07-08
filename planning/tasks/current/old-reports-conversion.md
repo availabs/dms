@@ -1,20 +1,82 @@
 # Old NPMRDS reports → new DMS report pages (automated conversion)
 
-## Status: All 5 approved-picks reports CONVERTED (1070, 1071, 1061, 751, 1045, 874 — 2026-07-08); CO₂ emissions column + weekday-resolution bar graphs DONE + verified live; three platform bugs found this session, two fixed (comparison-series ORDER BY on calculated columns; ClickHouse ambiguous-identifier on 3-way joins), one split into its own tracked task (Falcor sibling-query cache collision). **Round 6 (2026-07-08): iterating on already-converted reports, starting with 1070 per user direction — `color_range` false-positive gap fixed + real wiring built (both verified), `graph_layout` width now wired to section `size` (theme confirmed as `transportnyv2` by the user, verified live on 1070). Stopped after 1070 per user direction; next is walking the fixes forward through 1071/751/1061/1045/874.**
+## Status: All 5 approved-picks reports CONVERTED (1070, 1071, 1061, 751, 1045, 874 — 2026-07-08); CO₂ emissions column + weekday-resolution bar graphs DONE + verified live; three platform bugs found this session, two fixed (comparison-series ORDER BY on calculated columns; ClickHouse ambiguous-identifier on 3-way joins), one split into its own tracked task (Falcor sibling-query cache collision). **Round 6 (2026-07-08): iterating on already-converted reports, starting with 1070 per user direction — `color_range` false-positive gap fixed + real wiring built (both verified), `graph_layout` width now wired to section `size` (theme confirmed as `transportnyv2` by the user, verified live on 1070). Report 1071 re-run + live-verified next — both fixes confirmed working on real colorful/non-12-width graphs; also caught a fresh, more general instance of the tracked Falcor sibling-cache-collision bug (see below). Report 751 re-run + live-verified — first visual confirmation of color wiring on a real rendered heatmap. Also fixed a real BarGraph rendering bug (all-zero series rendered completely blank, see below) and diagnosed a client-side ClickHouse unfiltered-probe-query bug badly enough this session that it's been split into its own HIGH PRIORITY task — see "Paused" note below. Next when resumed: 1061 → 1045 → 874.**
+
+**PAUSED (2026-07-08) — user redirected priority to the ClickHouse unfiltered-probe-query hazard.**
+That issue kept recurring throughout this round's live-verification work (four separate
+check-and-kill cycles in ~1.5 hours) and has been elevated to its own high-priority task:
+`planning/tasks/current/clickhouse-unfiltered-probe-hazard.md`. Resume this conversion task
+(1061 → 1045 → 874) after that's addressed, or sooner at the user's direction.
+
+**Real BarGraph rendering bug found + fixed (2026-07-08, round 6, surfaced while live-verifying
+1071).** Report 1071's "Hours of Delay Weekdays 2026-2024" section (and other standalone
+Hours-of-Delay bars) rendered **completely blank — no legend, no axis, nothing** — despite the
+server returning correct, real (if all-zero, due to the known `aadt=0` gap) data, confirmed via
+raw network capture. Root cause: `packages/dms/src/ui/components/graph_new/components/
+BarGraph.jsx`'s `dataFromProps` computation used `if (value)`/`if (v)` truthy checks when
+aggregating bar values — since `0` is a legitimate real measurement but also falsy in JS, every
+row got silently dropped whenever its true value was exactly `0`, leaving `data`/`keys` empty,
+which cascades through to suppress the legend, axes, and bars all at once (not just an invisible
+zero-height bar). **Fixed**: replaced the truthy checks with the file's existing `strictNaN()`
+helper (already used elsewhere in the same file for sort comparisons) so a real `0` is kept and
+only genuinely missing/NaN values are dropped. **Verified live**: re-loaded `/report_1071` after
+the fix — the previously-blank standalone Hours-of-Delay sections now show a real legend and a
+correct x-axis with real date labels (bars themselves are still invisible, which is *correct*
+given the real value is genuinely `0` — not a rendering bug). The Speed/TravelTime "By Day"
+sibling pairs remain blank, unaffected by this fix — that's the separate, already-tracked Falcor
+sibling-cache-collision bug (see above), a different root cause. **Not fixed, left as a follow-up
+(subjective/design call, not an obvious bug)**: `avl-graph/BarGraph.jsx` lines 243-249 still
+clears the Y-axis domain entirely when min/max are both exactly `0` — after the primary fix,
+delay graphs show legend + x-axis but no Y-axis. User was asked whether to also fix this; deferred
+pending direction.
 
 ### Next session — pick up here, in order
 
-**Round 6 in progress — stopped after report 1070 per user direction ("iterate on
-already-converted reports, starting with the first one").** All three fixes for 1070 are done and
-verified (color_range gap-condition + wiring, title-template staleness via re-run, graph_layout
-width via `size`). Next: continue the same gap-audit forward through 1071 → 751 → 1061 → 1045 →
-874 in order, `--replace`-rerunning each to pick up all of the above (751/1061/1045 will be the
-first live exercise of the color_range wiring since they have real grid/difference graphs; 1071/
-1045/1061 will be the first live exercise of the width wiring since they have graphs with
-`w` != 12) — plus revisit each report's own previously-logged report-specific gaps
-(1071/1061's `overrides.aadt`, 751's tracked Falcor cache-collision). Below that, the remaining
-items are optional follow-ups from before round 6 — see the "Approved gap-coverage picks" note
-below for the original list.
+**Round 6 in progress — 1070, 1071, 751 done, next is 1061.** All three fixes (color_range
+gap-condition + wiring, title-template staleness via re-run, graph_layout width via `size`) are
+done and live-verified on three reports now, including a real colorful heatmap render. Continue
+the gap-audit forward through 1061 → 1045 → 874 in order, `--replace`-rerunning each to pick up all
+of the above (1061/1045 will be the first live exercise of the color_range wiring on a Route Bar
+Graph *day*-resolution report, and of the width wiring on more `w` values) — plus revisit each
+report's own previously-logged report-specific gaps (1061's `overrides.aadt`). The Falcor
+sibling-cache-collision gap is now a *known-recurring* issue, not a one-off — expect to see it
+again on 1061/1045 wherever two sibling bar/grid sections share a route and differ only in measure;
+no need to re-investigate root cause, just gap-log per report and move on (per user precedent).
+Below that, the remaining items are optional follow-ups from before round 6 — see the "Approved
+gap-coverage picks" note below for the original list.
+
+**Report 751 — round 6 re-run, live-verified (2026-07-08).** `--replace`-converted (new page id
+`2188754`). `color_range` wiring confirmed **visually** for the first time (previously only
+checked via raw JSON): "CO2 50 MPH" (comp-1, passenger) renders a real heatmap using the report's
+exact diverging red→yellow→green palette (`#d7191c`…`#1a9641`), not the template's default. "CO2
+Trucks Actual"/"CO2 Trucks 50 MPH" (comp-2/comp-3, truck) render empty axes only — this is the
+already-known, already-logged Falcor sibling-cache-collision (Manifestation 2: identical query
+since `overrides.baseSpeed` isn't implemented), exactly matching round 5's original finding, not a
+new issue. `graph_layout` gap now correctly shows only `h`/`x`/`y` (no `w` gap, sections use
+`size:"12"` — all 3 converted graphs are full-width in the old layout too, so no visible width
+change here, but the code path is exercised). Zero console errors.
+
+**Report 1071 — round 6 re-run, both fixes confirmed live (2026-07-08).** `--replace`-converted
+(new page id `2188726`). Verified directly against real section rows + a live page load
+(Playwright, headless Chromium, `http://npmrds.localhost:5173/report_1071`, zero console errors):
+(a) **`size` width fix**: sections got `size: "4"`/`"6"`/`"12"` matching old `layout.w` — visually
+confirmed in the screenshot (3 narrow bar graphs side-by-side under one full-width line graph,
+matching a 4+4+4=12 row). (b) **`color_range` wiring**: the report's real 5-color diverging palette
+(`#d7191c…#1a9641`) is on every converted Route-Bar-Graph section's `display.colors.value`; the two
+Route-Line-Graph sections (not a colorful type) correctly kept the template's default 20-color
+palette untouched — first live confirmation that the gating logic picks the right graphs, not just
+a blanket rule. `overrides.aadt` still gap-logged (route uses TMC `120-11332`, the same
+known-`aadt=0` TMC from round 4 — real, correct `0` delay output, not a defect).
+**New finding**: several bar graphs render completely blank in the browser despite the server
+returning correct non-empty data for each individually (confirmed via raw network capture, not
+just console-log absence) — root-caused as the *same* Falcor sibling-cache-collision bug already
+tracked in `falcor-sibling-query-cache-collision.md`, but a **more general instance** than
+previously seen: this one hits plain single-series BarGraph pairs (no comparison-series fan-out/
+UNION at all), disproving that file's "fixed for ClickHouse only" note — that fix only covered the
+fan-out `ORDER BY` symptom, not this plain options-string-collision case. Full details + evidence
+in that task file's new "Manifestation 1 re-confirmed" section. Per the existing user precedent on
+751 (non-blocking, gap-log and move on), not fixed here — logged as a gap for 1071 and left for
+that task.
 
 1. **Optional/low-priority**: implement `overrides.aadt` on the weighted-delay/CO₂ calculated
    columns — real `ny_2025_tmc_meta.aadt` is `0`/unreliable for some TMCs (confirmed for

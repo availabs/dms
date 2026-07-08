@@ -58,6 +58,29 @@ the symptom from scratch.
   Falcor cache updates; whether two sections with identical query state end up reading the same
   cache node but neither actually triggers (or receives) the real fetch.
 
+## Manifestation 1 re-confirmed, round-2 "fix" is narrower than it looked (2026-07-08, report 1071)
+
+Re-running report 1071 (round 6, live-verifying the color_range/graph_layout fixes) surfaced this
+again on plain **single-series** BarGraph pairs — no comparison-series fan-out/UNION involved at
+all. "Speed AM Peak By Day" and "Travel Time AM Peak By Day" (same route, same filters/groupBy,
+differ only in the projected calculated column — `speed_avg` vs `ds_travel_time_all_vehicles_avg`)
+share a byte-for-byte identical `uda.npmrds2.viewsById.982.options.<KEY>` Falcor path; same for the
+PM Peak pair. Captured both requests' actual HTTP responses directly (bypassing the browser
+console): the **server** returned correct, different, non-empty data for each of the two requests
+individually — real `speed_avg`/`travel_time_avg` values, no ClickHouse error, no ORDER BY issue.
+Both graphs still rendered **completely blank** in the browser (no legend, no bars, no console
+error). This means the round-2 "fixed for ClickHouse only" note is misleading: that fix addressed
+one specific *symptom* (fan-out `ORDER BY` on an unprojected GROUP BY column, which only occurs
+with multiple `seriesVariants`/a UNION). This new instance has exactly one `seriesVariants` entry
+per request — no fan-out, no union, no ORDER BY-across-arms — yet the same collision shape (same
+options-string key, different requested attribute) still causes both siblings to fail client-side.
+**Conclusion**: the real root cause is client-side (Falcor path-cache keyed on the options string,
+not on the requested attributes), independent of the ClickHouse fan-out code entirely. The
+`postgres.js`-parity framing in "Still open" below undersells the scope — this needs the
+client-side investigation (see "Investigation starting points") regardless of backend.
+**Not fixed** — logged as a gap for report 1071 (per the same non-blocking precedent set on 751)
+and left for this task, not re-litigated inline in the conversion script.
+
 ## Impact / when it bites
 
 Any two dataWrapper sections on the same page whose query-affecting state matches closely enough

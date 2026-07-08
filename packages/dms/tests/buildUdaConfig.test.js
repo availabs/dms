@@ -1431,6 +1431,65 @@ describe("buildUdaConfig — comparison series", () => {
     const { options } = buildUdaConfig(input);
     expect(options.seriesVariants.map((v) => v.label)).toEqual(["June 1", "June 2"]);
   });
+
+  // ── skipFetch: comparison series enabled but inactive with no base-filter fallback ──
+  // A section can rely on comparisonSeries entirely for its scoping (no base filter
+  // leaves at all — e.g. a "compare selected routes" Graph fed only by fan-out
+  // variants). Whenever activeComparisonSeries reads false — pre-effect race
+  // (config still undefined) OR a legitimately-resolved-empty/stale config (no live
+  // page-state backing it right now) — and there's no base filter to fall back on,
+  // the query that would fire is a fully unscoped scan. Reproduced live against
+  // report_1070 (2026-07-08): a persisted comparisonSeries.config with real variants
+  // got overwritten to [] by usePageFilterSync's live-resolve effect on mount (no
+  // page-session publish yet), and the section's own `filters` was `{groups: []}` —
+  // the resulting request had no seriesKey/seriesVariants AND no WHERE constraint at
+  // all, straight at the multi-billion-row NPMRDS table.
+
+  const emptyFilters = () => ({ op: "AND", groups: [] });
+
+  it("enabled, config unresolved (undefined), no base filter → skipFetch true", () => {
+    const input = seriesInput();
+    input.filters = emptyFilters();
+    delete input.comparisonSeries.config;
+    input.comparisonSeries.variants = []; // no static fallback either
+    expect(buildUdaConfig(input).skipFetch).toBe(true);
+  });
+
+  it("enabled, config resolved to [] (no live selection), no base filter → skipFetch true (the live report_1070 shape)", () => {
+    const input = seriesInput();
+    input.filters = emptyFilters();
+    input.comparisonSeries.config = [];
+    expect(buildUdaConfig(input).skipFetch).toBe(true);
+  });
+
+  it("enabled, config resolved WITH variants, no base filter → skipFetch false (active fan-out scopes it)", () => {
+    const input = seriesInput();
+    input.filters = emptyFilters();
+    input.comparisonSeries.config = [
+      { label: "Q1", filters: { op: "AND", groups: [{ col: "date", op: "filter", value: ["2026-03-01"] }] } },
+    ];
+    expect(buildUdaConfig(input).skipFetch).toBe(false);
+  });
+
+  it("enabled, config resolved to [], but a real base filter leaf exists → skipFetch false (legitimate base-only fetch)", () => {
+    const input = seriesInput(); // seriesInput()'s filters already carries a real tmc leaf
+    input.comparisonSeries.config = [];
+    expect(buildUdaConfig(input).skipFetch).toBe(false);
+  });
+
+  it("comparisonSeries not enabled at all, no base filter → skipFetch false (out of scope for this guard)", () => {
+    const input = seriesInput();
+    input.filters = emptyFilters();
+    input.comparisonSeries.enabled = false;
+    expect(buildUdaConfig(input).skipFetch).toBe(false);
+  });
+
+  it("static BC: labeled static variants, no config key, no base filter → skipFetch false (active via static list)", () => {
+    const input = seriesInput();
+    input.filters = emptyFilters();
+    expect(input.comparisonSeries.config).toBeUndefined();
+    expect(buildUdaConfig(input).skipFetch).toBe(false);
+  });
 });
 
 // ─── resolveComparisonVariants (dynamic-binding page-state → variants) ────────

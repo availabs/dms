@@ -65,6 +65,14 @@
 - [x] [Filter op `empty` / `notempty` (is-null / has-a-value)](./tasks/current/filter-op-empty.md) — client editor + buildUdaConfig + server UDA SQL; enables "Needs priority" filter; MNY Phase 3 #4.
 
 - [ ] **colorDomain `exclude` on numeric columns crashes (`-9999`)** — `WHERE (CASE WHEN col IS NULL THEN 'null' ELSE col END) = ANY($1)` on a numeric column (e.g. `avln_ealt` excluding `-9999`) unifies both CASE branches to `double precision` → Postgres fails casting the literal `'null'` → `invalid input syntax for type double precision: "null"`. Small fix: cast the non-null branch `::text` in [utils.js:360](../packages/dms-server/src/routes/uda/utils.js) (`ELSE (col)::text`) so both branches are text; exclude values arrive as strings and the param is text[]. Client already survives the error (keeps last-good legend), so the colorDomain just won't recompute for that layer until this lands. (Part of the map legend/filter work logged in completed.md, 2026-07-07.) **Kept as-is for now per user; verify then apply.**
+- [ ] **HIGH PRIORITY — ClickHouse unfiltered probe queries have no execution/memory cap** —
+      a known client-side race (dataWrapper comparison-series fetch before scoping resolves) fires
+      unfiltered full-table-scan queries against ClickHouse; the adapter's `max_execution_time: 0`/
+      `max_memory_usage: 0` lets them run for over an hour reading tens of billions of rows.
+      Previously accepted as occasional/manageable; escalated 2026-07-08 after routine dev work
+      required four separate check-and-kill cycles in ~1.5 hours (~10 stray queries per report
+      page load). Root cause fully diagnosed, candidate fixes identified, none implemented yet.
+      Task: [clickhouse-unfiltered-probe-hazard.md](./tasks/current/clickhouse-unfiltered-probe-hazard.md)
 
 - [ ] **Scheduled data-loader runs** — cron scheduling for datatype workers (data_manager.schedules +
       due-sweep + plugin `schedulables` contract) + datasets-pattern UI: authorable cron creation per

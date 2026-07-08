@@ -1156,11 +1156,33 @@ export const buildUdaConfig = ({
       (activeComparisonSeries || c.origin !== "comparison-series"),
   );
 
-  // Guard against the "unfiltered full-table scan" trap. 
+  // Guard against the "unfiltered full-table scan" trap.
   // A leaf flagged requireResolved hasn't received its page/action-param value yet —
   // firing now would scan the whole table (see hasUnresolvedRequiredLeaf).
+  //
+  // Same trap, comparison-series shape: a section can turn comparisonSeries.enabled
+  // on and rely on it as its ONLY scoping (no base filter leaves at all — e.g. a
+  // "compare selected routes" Graph whose data comes entirely from the fan-out
+  // variants). Whenever activeComparisonSeries reads false — whether because a
+  // dynamic subscriber's config hasn't resolved yet post-mount, or because it HAS
+  // resolved and there's genuinely no variant selected right now (config: [], or a
+  // stale persisted static/dynamic list that this render's live page state no longer
+  // backs) — the query that would fire has no comparison-series constraint AND no
+  // base filter to fall back on: a fully unscoped scan. If a base filter tree exists
+  // (any real leaf), skip this guard — that's a legitimate "comparison overlay just
+  // isn't active, fetch the base-filtered data" case, not a hazard.
+  const hasAnyFilterLeaf = (node) => {
+    if (!node) return false;
+    if (isGroup(node)) return node.groups.some(hasAnyFilterLeaf);
+    return true;
+  };
+  const hasUnscopedComparisonSeries =
+    comparisonSeries?.enabled === true &&
+    !activeComparisonSeries &&
+    !hasAnyFilterLeaf(filters);
+
   const skipFetch =
-    hasUnresolvedRequiredLeaf(filters);
+    hasUnresolvedRequiredLeaf(filters) || hasUnscopedComparisonSeries;
 
   const join = { sources:{} };
 
