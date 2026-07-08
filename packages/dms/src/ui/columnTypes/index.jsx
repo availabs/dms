@@ -56,6 +56,11 @@ const flowStep = { EditComp: FlowStepEdit, ViewComp: FlowStepView }
 // (e.g. UI.ColumnTypes via ui/index.js) immediately see new entries.
 const columnTypes = {
 	'text': text,
+  // 'string' is a selectable type in MetadataComp/RenderField's fieldTypes dropdown
+  // (labeled "string (text)") but was never registered here — columns typed 'string'
+  // (common for external/DAMA columns) silently fell back to the static DefaultComp
+  // in Card/Table, rendering no edit control at all regardless of allowEditInView.
+  'string': text,
   'textarea': textarea,
   'lexical': lexical,
   'number': {

@@ -526,6 +526,7 @@ module.exports = {
   dataById,
   buildSimpleFilterSql,
   detectRealPrimaryKey,
+  resolvePrimaryKey,
   // Exported for testing
   translatePgToSqlite,
 };

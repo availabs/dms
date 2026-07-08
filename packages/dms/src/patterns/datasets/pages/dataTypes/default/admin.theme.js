@@ -22,6 +22,7 @@ export const adminTheme = {
     // EditableToggle
     editableToggleRow: 'flex flex-row items-center justify-between gap-2 shadow-lg rounded-md p-4',
     editableToggleLabel: 'text-sm font-medium text-gray-700',
+    editableToggleSavingIcon: 'text-slate-400 size-4 animate-spin',
 
     // Tasks
     tasksWrapper: 'w-full pt-12',

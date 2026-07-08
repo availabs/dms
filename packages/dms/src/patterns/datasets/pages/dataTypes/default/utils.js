@@ -71,29 +71,53 @@ export async function getSourceData ({pgEnv, falcor, source_id, setSource, isDms
 
 }
 
+// Falcor's wire protocol has no way to carry a plain object/array as a leaf graph value —
+// this server's falcor-router only accepts a leaf if it's a primitive or already carries a
+// `$type` sentinel (see jsongMerge.js); a bare object at the requested path's exact depth is
+// treated as a branch to descend into, but the router has nowhere further to walk (the
+// object's own keys were never part of the requested PathSet), so the value is silently
+// dropped and the response backfills a bare `{$type:'atom'}` (i.e. `atom(undefined)`) —
+// this is how "toggle allow editing" wiped a source's whole metadata blob. Stringify any
+// non-primitive `data` for the wire; keep the ORIGINAL shape for the local optimistic
+// update below so `source[attrKey]` matches what a GET response would parse it into.
+const toWireValue = (data) => (data !== null && typeof data === 'object') ? JSON.stringify(data) : data;
+
 export const updateSourceData = ({data, attrKey, isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id}) => {
-    console.log('updating', data)
         if(isDms && (!format?.app || !source?.type)) {
             throw new Error("Update Error. Source invalid.")
         }
 
-        falcor.set({
+        const envKey = isDms ? `${format.app}+${source.type}` : pgEnv;
+
+        return falcor.set({
             paths: [
-                ['uda', isDms ? `${format.app}+${source.type}` : pgEnv, 'sources', 'byId', id, attrKey]
+                ['uda', envKey, 'sources', 'byId', id, attrKey]
             ],
             jsonGraph: {
                 uda: {
-                    [isDms ? `${format.app}+${source.type}` : pgEnv]: {
+                    [envKey]: {
                         sources: {
                             byId: {
-                                [id]: {[attrKey]: attrKey === 'description' || attrKey === 'categories'  || attrKey === 'statistics' ? JSON.stringify(data) : data}
+                                [id]: {[attrKey]: toWireValue(data)}
                             }
                         }
                     }
                 }
             }
         }).then(d => {
-            setSource({...source, [attrKey]: data})
+            // The server is authoritative — use whatever it actually confirms for this
+            // attrKey when the response includes it (the sources.byId set route echoes
+            // back every column of the updated row, so for external sources — where
+            // attrKey is a real column like `metadata` — this is always present).
+            // Fall back to the locally-known `data` only if it genuinely isn't there
+            // (e.g. an isDms attrKey nested inside `data` rather than a literal column).
+            // Resolving to this confirmed value (not just "the promise didn't reject")
+            // lets callers verify the write actually landed instead of trusting a
+            // round trip that could silently no-op.
+            const confirmed = d?.json?.uda?.[envKey]?.sources?.byId?.[id]?.[attrKey];
+            const resolved = confirmed !== undefined ? confirmed : data;
+            setSource({...source, [attrKey]: resolved})
+            return resolved;
         })
 }
 
@@ -102,23 +126,30 @@ export const updateVersionData = ({data, attrKey, isDms, apiUpdate, setView, for
             throw new Error("Update Error. Source invalid.")
         }
 
-        falcor.set({
+        const envKey = isDms ? `${format.app}+${source.type}` : pgEnv;
+
+        return falcor.set({
             paths: [
-                ['uda', isDms ? `${format.app}+${source.type}` : pgEnv, 'views', 'byId', id, attrKey]
+                ['uda', envKey, 'views', 'byId', id, attrKey]
             ],
             jsonGraph: {
                 uda: {
-                    [isDms ? `${format.app}+${source.type}` : pgEnv]: {
+                    [envKey]: {
                         views: {
                             byId: {
-                                [id]: {[attrKey]: attrKey === 'description' || attrKey === 'categories'  || attrKey === 'statistics' ? JSON.stringify(data) : data}
+                                [id]: {[attrKey]: toWireValue(data)}
                             }
                         }
                     }
                 }
             }
         }).then(d => {
-            setView({...view, [attrKey]: data})
+            // See updateSourceData's identical comment — verify against the server's own
+            // echoed value rather than trusting the locally-known one.
+            const confirmed = d?.json?.uda?.[envKey]?.views?.byId?.[id]?.[attrKey];
+            const resolved = confirmed !== undefined ? confirmed : data;
+            setView({...view, [attrKey]: resolved})
+            return resolved;
         })
 }
 

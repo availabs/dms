@@ -38,7 +38,14 @@ const getSources = async ({ envs, falcor }) => {
                         let value = valueGetter(i, attr);
 
                         if (attr === "metadata") {
-                            return { ...acc, columns: value?.columns || [] };
+                            // Row-identity (real PK column, which can be any name) is resolved
+                            // server-side per-request (uda.controller.js's resolveIdAttribute),
+                            // not tracked here — the persisted metadata.columns[].isPrimaryKey
+                            // flag is only set when a PK is set *through the metadata UI*, so
+                            // an auto-detected pre-existing PK (e.g. a GIS source's ogc_fid)
+                            // would leave a client-cached column name null forever even on a
+                            // genuinely editable source (see external-source-editable-crud.md).
+                            return { ...acc, columns: value?.columns || [], isEditable: !!value?.isEditable };
                         }
                         if (attr === "config") {
                             return {

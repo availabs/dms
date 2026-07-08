@@ -234,8 +234,10 @@ const EditableToggle = ({source, setSource, format, pgEnv, id}) => {
     const { theme } = useContext(ThemeContext) || {};
     const t = { ...adminTheme, ...(theme?.datasets?.admin || {}) };
     const {UI, falcor} = useContext(DatasetsContext);
-    const {Switch} = UI;
+    const {Switch, Icon} = UI;
     const [pkeyInfo, setPkeyInfo] = useState(null);
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState(null);
 
     useEffect(() => {
         if (!falcor || !id) return;
@@ -246,18 +248,40 @@ const EditableToggle = ({source, setSource, format, pgEnv, id}) => {
 
     const isEditable = !!source?.metadata?.isEditable;
 
+    // Pessimistic on purpose: the switch's visible state is driven entirely by
+    // `source.metadata.isEditable` (no separate local optimistic flag), so it only
+    // moves once `updateSourceData` has confirmed the write against the server's own
+    // echoed response — see updateSourceData's comment on why blindly trusting a
+    // resolved promise isn't enough (a request could "succeed" while silently
+    // no-op'ing the actual write). `saving` disables the switch and shows a spinner
+    // for the round trip instead of leaving the user with no feedback.
+    const handleToggle = async (e) => {
+        setError(null);
+        setSaving(true);
+        try {
+            const data = {...(source?.metadata || {}), isEditable: e};
+            const confirmed = await updateSourceData({data, attrKey: 'metadata', isDms: false, setSource, format, source, pgEnv, falcor, id});
+            if (!!confirmed?.isEditable !== e) {
+                setError('The change did not save — please try again.');
+            }
+        } catch (err) {
+            setError(err?.message || 'Failed to update.');
+        } finally {
+            setSaving(false);
+        }
+    };
+
     return (
         <div className={t.editableToggleRow}
              title={pkeyInfo?.hasPkey ? undefined : 'Requires a primary key — set one on the Advanced Metadata page'}
         >
             <label className={t.editableToggleLabel}>Allow editing</label>
+            {saving ? <Icon icon={'LoadingHourGlass'} className={t.editableToggleSavingIcon} /> : null}
+            {error ? <span className={t.errorText}>{error}</span> : null}
             <Switch
                 enabled={isEditable}
-                disabled={!pkeyInfo?.hasPkey && !isEditable}
-                setEnabled={e => {
-                    const data = JSON.stringify({...(source?.metadata || {}), isEditable: e});
-                    updateSourceData({data, attrKey: 'metadata', isDms: false, setSource, format, source, pgEnv, falcor, id});
-                }}
+                disabled={saving || (!pkeyInfo?.hasPkey && !isEditable)}
+                setEnabled={handleToggle}
                 size={'small'}
             />
         </div>

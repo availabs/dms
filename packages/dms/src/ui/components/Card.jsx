@@ -982,7 +982,7 @@ export default function Card ({
                             theme={theme}
                             {...display}
                             display={display}
-                            isDms={sourceInfo.isDms}
+                            isDms={sourceInfo.isDms || sourceInfo.isEditable}
                             item={item} newItem={newItem} setNewItem={setNewItem}
                             addItem={addItem} updateItem={updateItem} allowEdit={allowEdit}
                             subWrapperStyle={subWrapperStyle}

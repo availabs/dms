@@ -19,7 +19,10 @@ const {
   simpleFilterLength,
   simpleFilter,
   dataById,
-  clearViewData
+  clearViewData,
+  createExternalRow,
+  updateExternalRow,
+  deleteExternalRow
 } = require("./uda.controller");
 const { getDb } = require("#db/index.js");
 const { isUserAuthedForSource } = require("./sourceAuth");
@@ -484,6 +487,70 @@ module.exports = [
         ];
       } catch (err) {
         console.error('[uda] viewsById.clearData error:', err.message);
+        throw err;
+      }
+    },
+  },
+
+  // --------------------------------- data.create (call) ---------------------------------
+  // Args: [env, view_id, row]
+  // External (DAMA) sources only. Re-validates metadata.isEditable + a resolvable real PK
+  // server-side (uda.controller.js#resolveEditableTable) — the client's isEditable flag is a
+  // UX convenience, not a trust boundary. Writes the row's attributes at the same dataById
+  // path the GET route uses, so the response carries a real `id` (the DB-assigned/real PK
+  // value) the client can read the same way dms.data.create's response does.
+  {
+    route: `uda.data.create`,
+    call: async function(callPath, args) {
+      try {
+        if (!this.user) throw new Error('Authentication required to create rows');
+        const [env, view_id, row] = args;
+        const created = await createExternalRow(env, view_id, row);
+        return Object.keys(created).map(attribute => ({
+          path: ["uda", env, "viewsById", +view_id, "dataById", created.id, attribute],
+          value: typeof created[attribute] === 'object' ? $atom(created[attribute]) : created[attribute],
+        }));
+      } catch (err) {
+        console.error('[uda] data.create error:', err.message);
+        throw err;
+      }
+    },
+  },
+
+  // --------------------------------- data.edit (call) ---------------------------------
+  // Args: [env, view_id, id, row]
+  {
+    route: `uda.data.edit`,
+    call: async function(callPath, args) {
+      try {
+        if (!this.user) throw new Error('Authentication required to edit rows');
+        const [env, view_id, id, row] = args;
+        const updated = await updateExternalRow(env, view_id, id, row);
+        return Object.keys(updated).map(attribute => ({
+          path: ["uda", env, "viewsById", +view_id, "dataById", updated.id, attribute],
+          value: typeof updated[attribute] === 'object' ? $atom(updated[attribute]) : updated[attribute],
+        }));
+      } catch (err) {
+        console.error('[uda] data.edit error:', err.message);
+        throw err;
+      }
+    },
+  },
+
+  // --------------------------------- data.delete (call) ---------------------------------
+  // Args: [env, view_id, id]
+  {
+    route: `uda.data.delete`,
+    call: async function(callPath, args) {
+      try {
+        if (!this.user) throw new Error('Authentication required to delete rows');
+        const [env, view_id, id] = args;
+        await deleteExternalRow(env, view_id, id);
+        return [
+          { path: ["uda", env, "viewsById", +view_id, "dataById", id], invalidated: true },
+        ];
+      } catch (err) {
+        console.error('[uda] data.delete error:', err.message);
         throw err;
       }
     },
