@@ -166,7 +166,7 @@ const MapSymbologyControl = ({ mapAPI }) => {
               onClick={onUpdateSymbology}
               disabled={isUpdatingSymbology}
               aria-label="Refresh symbology"
-              title="Refresh — pull the latest saved symbology (new/removed dynamic variables, restyling) while keeping your map settings"
+              title="Sync this map with the latest editor changes"
               className="p-0.5 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 disabled:opacity-50 disabled:cursor-default cursor-pointer"
             >
               {RefreshIcon ? (
