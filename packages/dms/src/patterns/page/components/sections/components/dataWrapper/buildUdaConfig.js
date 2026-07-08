@@ -1392,10 +1392,25 @@ export const buildUdaConfig = ({
     )
     .reduce((acc, columnName) => {
       const col = getColumn(columnName);
-      let [reqNameWithoutAS] = splitColNameOnAS(col?.reqName || columnName);
+      const [beforeAS, afterAS] = splitColNameOnAS(col?.reqName || columnName);
+      let reqNameWithoutAS = beforeAS;
 
-      if (activeComparisonSeries && reqNameWithoutAS.includes('.')) {
-        reqNameWithoutAS = reqNameWithoutAS.split('.').slice(1).join('.');
+      if (activeComparisonSeries) {
+        if (isCalculatedCol(col)) {
+          // The fan-out wraps each arm as `SELECT * FROM (<arm>) AS fanout`
+          // and applies ORDER BY on that outer query — only the arm's
+          // SELECT-level alias is addressable there, not any table alias
+          // (ds/table1/...) the calculated expression references internally.
+          // Using the raw expression (e.g. "toDayOfWeek(ds.date, 1)") fails
+          // with "Unknown expression or function identifier 'ds.date'" since
+          // `ds` is out of scope outside the arm subquery.
+          reqNameWithoutAS = (afterAS || beforeAS).trim();
+        } else if (reqNameWithoutAS.includes('.')) {
+          // Strip a bare column's table-alias prefix (e.g. "ds.tmc" -> "tmc")
+          // — its arm SELECT has no explicit "AS", so the bare name already
+          // equals the arm's natural output column name.
+          reqNameWithoutAS = reqNameWithoutAS.split('.').slice(1).join('.');
+        }
       }
 
       acc[reqNameWithoutAS] = orderBy[columnName];

@@ -1,13 +1,16 @@
 # Old NPMRDS reports → new DMS report pages (automated conversion)
 
-## Status: REPORTS 1070, 1071, 1061, 751 CONVERTED (2026-07-08); CO₂ emissions calculated column DONE + verified live; a third platform bug (Falcor sibling-query cache collision) found and split into its own tracked task
+## Status: All 5 approved-picks reports CONVERTED (1070, 1071, 1061, 751, 1045, 874 — 2026-07-08); CO₂ emissions column + weekday-resolution bar graphs DONE + verified live; three platform bugs found this session, two fixed (comparison-series ORDER BY on calculated columns; ClickHouse ambiguous-identifier on 3-way joins), one split into its own tracked task (Falcor sibling-query cache collision)
 
 ### Next session — pick up here, in order
 
-1. Continue down the approved picks list: **1045** ("Rochester Inner Loop" — month+weekday
-   resolutions, dataQuality) → **874** ("Zizhao_119EB_Delay_AADT" — AADT from the join table, mixed
-   dataColumns).
-2. **Optional/low-priority**: implement `overrides.aadt` on the weighted-delay/CO₂ calculated
+**All 5 approved-picks reports are now converted.** The remaining items are optional follow-ups,
+not required to continue the core conversion work — see the "Approved gap-coverage picks" note
+below for the original list. If picking this task back up, the natural next step is either (a)
+choosing a new batch of reports to convert for further gap coverage (bulk conversion is still
+explicitly NOT the goal — pick by what's genuinely new), or (b) one of the optional items below.
+
+1. **Optional/low-priority**: implement `overrides.aadt` on the weighted-delay/CO₂ calculated
    columns — real `ny_2025_tmc_meta.aadt` is `0`/unreliable for some TMCs (confirmed for
    `120-11332`, report 1071's route — the old report used `overrides.aadt: '20000'` for exactly this
    reason), so those specific routes will show a real (correct) `0` weighted delay until the
@@ -16,6 +19,83 @@
    `planning/tasks/current/falcor-sibling-query-cache-collision.md` (split out 2026-07-08, round 5).
    Affects report 751's two truck CO₂ grid sections (both render empty); does not block further
    report conversion.
+4. **`dataQuality` measure and "TMC Info Box"/"Route Info Box" graph types remain unmapped** — these
+   are stat-panel component types with no chart equivalent in the current AVL Graph model (same
+   treatment as `Route Map`/`Bar Graph Summary`), not attempted. Report 1045's `month`-resolution
+   route comp (`comp-1`) also turned out to be orphaned — not assigned to any graph — so month
+   resolution still has no exercised/converted example; not a blocker, just noting it's untested.
+
+**Report 874 "Zizhao_119EB_Delay_AADT" — CONVERTED (round 5, last of the approved picks).** Page
+`2188696` (`/report_874`), 0 of 2 old graphs convert — both are `Route Map`/`Route Info Box`, the
+same never-built stat-panel/map types gap-logged consistently since round 1 (no new template gap
+here; genuinely nothing to build). 9 routes preserved (RRL + Add-a-Route only, no AVL Graph
+sections). Gap-logged: `color_range`, 2×`mixed_data_columns_on_graph` (both graphs assigned all 9
+routes, cycling `travel_time_all`/`_truck`/`_passenger`), `aadt` measure dropped (only the first
+displayData measure converts), and `route_missing_everywhere` for route_id `5445` (all 9 route
+comps reference this one route id, which doesn't exist in old `admin2.routes` **or** the new
+catalog — genuinely gone in the old system too, not a conversion defect; preserved as a broken
+reference, matching "preserve old data as-is" over inventing a fix). Live-verified: page loads,
+zero console errors (no chart data to render, so nothing to visually check beyond that).
+
+**Report 1045 "Rochester Inner Loop" — CONVERTED (round 5, continued).** Page `2188684`
+(`/report_1045`), 3 of 17 old graphs convert: `graph-comp-6` (Route Line Graph, travelTime,
+5-minutes), `graph-comp-7` (TMC Grid Graph, speed, 5-minutes), and **`graph-comp-10`** (Route Bar
+Graph, hoursOfDelay, **weekday resolution** — new capability, see below). 14 gap-logged
+(`Route Map`×2, `TMC Info Box`×4, `Route Bar Graph`×6 at 5-minute resolution — the weighted-delay/
+speed templates only exist at day/weekday resolution, not 5-minutes — `Route Compare Component`,
+`Bar Graph Summary`×2), plus `color_range` and 5×`relative_date` (`startDate: '=>yearof'`, a new
+old-settings shape not seen before, correctly gap-logged by the existing `relativeDate` check —
+no new code needed). All 3 converted graphs verified live rendering real data (user-confirmed,
+single page load).
+
+- **New capability: "weekday" resolution bar graphs.** Old `getResolution()`'s `'weekday'` case
+  (`trim(to_char(date, 'day'))` in Postgres) groups rows by day-of-week name instead of calendar
+  date — e.g. "Total Hours of Delay by day of week" sums delay across every Monday in the range
+  into one bar, every Tuesday into another, etc. (same `fn: "sum"`/`DELAY_EXPR`/join as the
+  existing day-resolution template — only the grouping column differs). Added `WEEKDAY_EXPR =
+  "toDayOfWeek(ds.date, 1) as weekday"` (ISO Monday=1..Sunday=7, a plain sortable integer rather
+  than a name string — a future author-facing 1-7→day-name label lookup is a display refinement,
+  not attempted). New template `tmc_delay_bar_graph_weekday` + `GRAPH_TEMPLATE_MAP` entry for
+  `("Route Bar Graph", "hoursOfDelay", "weekday", "travel_time_all")`.
+  `ensure_graph_templates` extended (small, backward-compatible change) to accept a full column
+  dict for `TEMPLATE_SPECS[...]["xAxis"]` (not just a plain-column-name string to look up) — needed
+  because this is the **first calculated x-axis/groupBy column** in the converter; the existing
+  code only supported swapping in an existing externalSource column by name.
+- **Real platform bug found + fixed: comparison-series fan-out ORDER BY breaks on calculated
+  groupBy/orderBy columns.** Building the weekday bar graph surfaced two related bugs in
+  `buildUdaConfig.js`'s `mappedOrderBy` construction (client-side, shared code — this is the
+  **first** calculated column ever used with `sort` set, so the bug was latent until now):
+  1. A comparison-series arm's table-alias-stripping heuristic (`reqNameWithoutAS.split('.').
+     slice(1).join('.')`, meant to turn a bare ref like `"ds.tmc"` into `"tmc"`) naively split on
+     *every* `.` in the string — for a calculated expression like `"toDayOfWeek(ds.date, 1)"` this
+     produced the nonsense key `"date, 1)"` (splits on the one `.` inside `ds.date`, keeping
+     everything after it), which ClickHouse then rejected with a syntax error
+     (`Unmatched parentheses`).
+  2. Fixed that by skipping the strip for calculated columns (`isCalculatedCol(col)`, the same
+     detection already used by `refName`/`attributeAccessorStr`/`accessor()` for this exact class
+     of problem) — but the *raw expression* itself (`"toDayOfWeek(ds.date, 1)"`) still isn't valid
+     in the outer position: the fan-out wraps each arm as `SELECT * FROM (<arm SELECT ... FROM ds
+     LEFT JOIN ...>) AS fanout ORDER BY ...`, and the **outer** `ORDER BY` can only address the
+     arm's SELECT-level output alias (`weekday`) — `ds` (and any other inner table alias) is out of
+     scope there. Using the raw expression failed with `Unknown expression or function identifier
+     'ds.date'` (confirmed via the exact ClickHouse error, pasted from the server log by the user —
+     **lesson: check the server log for the real error before reconstructing it from browser
+     console captures**, see `[[feedback_check_server_logs_first]]`). **Final fix**: for a
+     calculated column in a comparison-series context, use the alias (the part after `" as "`,
+     e.g. `"weekday"`) instead of the raw expression.
+  **Verified two ways**: (a) new unit test in `packages/dms/tests/buildUdaConfig.test.js`
+  ("calculated column with sort: orderBy uses the alias, not the mangled raw expression"), full
+  suite green (130/130, no regressions); (b) live — user confirmed all graphs on `/report_1045`
+  render data after the fix, including the new weekday bar graph.
+  **Separately noticed while debugging, NOT fixed**: the fan-out's `unprojectedGroupBys` logic
+  (`dms-server/.../query_sets/clickhouse.js`, the round-2 fix) still double-projects a calculated
+  groupBy column — the arm SELECT ended up with both `toDayOfWeek(ds.date, 1) AS weekday` (the
+  real projected attribute) *and* a second bare, unaliased `toDayOfWeek(ds.date, 1)` (from
+  `unprojectedGroupBys` failing to recognize the calculated groupBy expression as already
+  projected, presumably because `getResponseColumnName` has the same naive-dot-split issue
+  server-side that the client fix addressed). Harmless — just a redundant SELECT column, no error —
+  so not fixed here; worth folding into `falcor-sibling-query-cache-collision.md` or its own
+  follow-up if a future calculated-groupBy case actually breaks on it.
 
 **Round 5 (2026-07-08) — CO₂ emissions calculated column built + verified live; report 751
 converted; a third platform bug found (query cache collision, not a defect in the CO₂ column):**
@@ -635,8 +715,10 @@ Other files this task has produced, outside that scratchpad folder:
   `aadt_distributions` (already run; keep for reference/idempotent re-registration elsewhere).
 - `src/dms/documentation/npmrds-data-sources.md` — the living data-source reference (see below).
 - `src/dms/packages/dms/src/patterns/page/components/sections/components/dataWrapper/buildUdaConfig.js`
-  — the calculated-join-key fix (small diff, `accessor()` inside `buildJoinOnClause`).
-- `src/dms/packages/dms/tests/buildUdaConfig.test.js` — regression test for that fix.
+  — round-3 calculated-join-key fix (`accessor()` inside `buildJoinOnClause`); round-5 fix
+  (`mappedOrderBy`, comparison-series fan-out ORDER BY on a calculated groupBy column uses the
+  alias, not the raw expression).
+- `src/dms/packages/dms/tests/buildUdaConfig.test.js` — regression tests for both fixes above.
 - `src/dms/packages/dms-server/src/routes/uda/query_sets/helpers.js` — round-4 fix:
   `handleFilterGroupsCH` join-aware `ds.` qualification for bare filter columns.
 - `src/dms/packages/dms-server/src/routes/uda/query_sets/clickhouse.js` — round-4 fix: threads
@@ -644,3 +726,7 @@ Other files this task has produced, outside that scratchpad folder:
   `simpleFilterLength`.
 - `src/dms/packages/dms-server/tests/test-uda.js` — `testFilterGroupsCHJoinQualification`
   regression test for the round-4 ambiguous-identifier fix.
+- `scratchpad/npmrds-sub/dms-server.log` — dms-server's live stdout, piped via `tee` (user-run,
+  2026-07-08) so errors can be read directly instead of reconstructed from browser console
+  captures; per `[[feedback_check_server_logs_first]]`, check this file first when a graph/page
+  shows a fetch error.

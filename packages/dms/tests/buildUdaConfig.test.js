@@ -1371,6 +1371,28 @@ describe("buildUdaConfig — comparison series", () => {
     expect(attributes).not.toContain("ds.__series");
   });
 
+  // Regression: a calculated column used as a groupBy/orderBy target (e.g. a
+  // "weekday" x-axis bucketing rows by day-of-week) has a reqName that is an
+  // arbitrary SQL expression, not a plain "table.column" ref. The fan-out's
+  // outer query (`SELECT * FROM (<arm>) AS fanout ORDER BY ...`) can only
+  // address the arm's SELECT-level alias — using the raw expression fails
+  // with "Unknown expression or function identifier" since any table alias
+  // it references (e.g. `ds`) is out of scope outside the arm subquery.
+  it("calculated column with sort: orderBy uses the alias, not the mangled raw expression", () => {
+    const input = seriesInput();
+    input.columns.push({
+      name: "toDayOfWeek(ds.date, 1) as weekday",
+      type: "calculated",
+      show: true,
+      group: true,
+      sort: "asc",
+    });
+    const { options } = buildUdaConfig(input);
+    expect(options.orderBy).toEqual({ weekday: "asc" });
+    expect(options.orderBy).not.toHaveProperty("date, 1)");
+    expect(options.orderBy).not.toHaveProperty("toDayOfWeek(ds.date, 1)");
+  });
+
   // ── Dynamic binding (Piece 3): comparisonSeries.config drives the fan-out ──
   // usePageFilterSync resolves a page-state list into config; buildUdaConfig treats
   // config's presence as dynamic mode (config wins over static variants; config:[]
