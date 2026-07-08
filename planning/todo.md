@@ -119,6 +119,16 @@
 
 ## ui
 
+- [ ] [`flow_step` columnType — lifecycle flow-strip boxes](./tasks/current/flow-step-column-type.md) —
+      dot·label·count step boxes with optional `›` connector + terminal tint (control-room tickets
+      summary). Additive; themed via `flowStep`; pending transportNY sync.
+- [ ] [Card: link-cell style doubling fix + per-column headerValueLayout](./tasks/current/card-link-style-doubling-and-layout-override.md) —
+      valueFontStyle applied on both wrapper and anchor doubled box tokens (btnPrimary "double
+      button"); wrapper now defers to the anchor. Plus additive per-column `headerValueLayout`
+      (full-width data_bar inside a row-aligned card). Pending transportNY sync.
+- [ ] [Card: numeric 0 / falsy cell values render blank](./tasks/current/card-zero-value-renders-blank.md) —
+      `rawValue` resolution uses `||`, swallowing calculated-column `0`s (aggregate count boxes render
+      empty). One-line `??` fix; BC-audited against getData's single-key row shape.
 - [ ] [Card layout model — simplify to a predictable box model](./tasks/current/card-layout-model-simplification.md) —
       four-knob spacing contract (explicit 0 wins), content-sized cards default, layout-only structural
       theme keys, drop the always-on transparent cell border, edit-mode introspection data-attrs.
