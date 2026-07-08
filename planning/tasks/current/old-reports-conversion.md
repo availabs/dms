@@ -1,14 +1,20 @@
 # Old NPMRDS reports → new DMS report pages (automated conversion)
 
-## Status: All 5 approved-picks reports CONVERTED (1070, 1071, 1061, 751, 1045, 874 — 2026-07-08); CO₂ emissions column + weekday-resolution bar graphs DONE + verified live; three platform bugs found this session, two fixed (comparison-series ORDER BY on calculated columns; ClickHouse ambiguous-identifier on 3-way joins), one split into its own tracked task (Falcor sibling-query cache collision)
+## Status: All 5 approved-picks reports CONVERTED (1070, 1071, 1061, 751, 1045, 874 — 2026-07-08); CO₂ emissions column + weekday-resolution bar graphs DONE + verified live; three platform bugs found this session, two fixed (comparison-series ORDER BY on calculated columns; ClickHouse ambiguous-identifier on 3-way joins), one split into its own tracked task (Falcor sibling-query cache collision). **Round 6 (2026-07-08): iterating on already-converted reports, starting with 1070 per user direction — `color_range` false-positive gap fixed + real wiring built (both verified), `graph_layout` width now wired to section `size` (theme confirmed as `transportnyv2` by the user, verified live on 1070). Stopped after 1070 per user direction; next is walking the fixes forward through 1071/751/1061/1045/874.**
 
 ### Next session — pick up here, in order
 
-**All 5 approved-picks reports are now converted.** The remaining items are optional follow-ups,
-not required to continue the core conversion work — see the "Approved gap-coverage picks" note
-below for the original list. If picking this task back up, the natural next step is either (a)
-choosing a new batch of reports to convert for further gap coverage (bulk conversion is still
-explicitly NOT the goal — pick by what's genuinely new), or (b) one of the optional items below.
+**Round 6 in progress — stopped after report 1070 per user direction ("iterate on
+already-converted reports, starting with the first one").** All three fixes for 1070 are done and
+verified (color_range gap-condition + wiring, title-template staleness via re-run, graph_layout
+width via `size`). Next: continue the same gap-audit forward through 1071 → 751 → 1061 → 1045 →
+874 in order, `--replace`-rerunning each to pick up all of the above (751/1061/1045 will be the
+first live exercise of the color_range wiring since they have real grid/difference graphs; 1071/
+1045/1061 will be the first live exercise of the width wiring since they have graphs with
+`w` != 12) — plus revisit each report's own previously-logged report-specific gaps
+(1071/1061's `overrides.aadt`, 751's tracked Falcor cache-collision). Below that, the remaining
+items are optional follow-ups from before round 6 — see the "Approved gap-coverage picks" note
+below for the original list.
 
 1. **Optional/low-priority**: implement `overrides.aadt` on the weighted-delay/CO₂ calculated
    columns — real `ny_2025_tmc_meta.aadt` is `0`/unreliable for some TMCs (confirmed for
@@ -96,6 +102,78 @@ single page load).
   server-side that the client fix addressed). Harmless — just a redundant SELECT column, no error —
   so not fixed here; worth folding into `falcor-sibling-query-cache-collision.md` or its own
   follow-up if a future calculated-groupBy case actually breaks on it.
+
+**Round 6 (2026-07-08) — iterating on already-converted reports (user direction: address gaps in
+already-converted reports, starting with the first one, 1070; explicitly stopped after 1070 to
+check in):**
+
+- **`color_range` false-positive gap — fixed + verified.** Same bug class as round 3's
+  `peak_flags`/`month_setting` false-alarm: `convert_report()` gap-logged `color_range`
+  unconditionally whenever the old report had a non-empty `color_range` array, regardless of
+  whether any of the report's graphs actually read it. Traced the old client
+  (`transportNY/.../tmc_graphs/index.jsx`'s `GRAPH_TYPES` registry, `isColorfull: true` flag) and
+  confirmed against each component's own source (`RouteBarGraph.jsx`, `RouteMap.jsx`,
+  `TmcGridGraph.jsx`, `RouteDifferenceGraph.jsx`, `TmcDifferenceGrid.jsx` all build a d3
+  `.range(colorRange)` color scale from it) that only **5 of the 23 old graph types** ever consume
+  `colorRange`: Route Bar Graph, Route Map, TMC Grid Graph, Route Difference Graph, TMC Difference
+  Grid. Report 1070's only graph is a **Route Line Graph** — not in that set — so its `color_range`
+  gap was a false positive, identical in kind to round 3's finding. **Fixed**: added
+  `COLOR_RANGE_GRAPH_TYPES` constant + gated the gap on `old_graph_types & COLOR_RANGE_GRAPH_TYPES`
+  in `scripts/convert_old_reports.py`. **Verified**: (a) standalone check against real report JSON
+  — 1070's graph types don't intersect the set (gap correctly suppressed), 751's do (has TMC Grid
+  Graph/Route Difference Graph/TMC Difference Grid — gap correctly still fires, confirming the fix
+  doesn't just blanket-disable the check); (b) live re-run — `--replace`-converted 1070 (new page id
+  `2188702`), gap report shrank from 3 items to 1 (`graph_layout` only, see below).
+  **Wiring DONE (same session, after the width fix below).** `color_range` → the new template's
+  `display.colors` (`{type: "palette", value: <old color_range>}`, replacing the template's default
+  palette wholesale — mirrors how the old report actually used it) for any **converted** graph whose
+  old type is in `COLOR_RANGE_GRAPH_TYPES`, via a new `color_range` param on
+  `build_graph_section_data()`. The top-level `color_range` gap now only fires when a *skipped*
+  (unconverted) graph is a colorful type — i.e. only when the capability is actually lost, not
+  whenever a converted colorful graph already carries the real color forward. **Verified
+  standalone** (no live report actually exercises this yet — 1070's only graph isn't a colorful
+  type): constructed a fake template + old_graph and confirmed (a) a "TMC Grid Graph" old_graph gets
+  `colors.value` replaced with the real `color_range`, (b) a "Route Line Graph" old_graph is left on
+  the template's default palette (untouched), (c) the gap fires when a skipped graph is colorful
+  (e.g. "Route Map"), (d) it does not fire when skipped graphs are all non-colorful (e.g. "Route
+  Info Box"). **Re-ran 1070 twice more after this change (ids `2188718`)** as a regression check —
+  gap report unchanged (still just `{h, x, y}`), confirming the new code path is a true no-op for
+  non-colorful reports. **Not yet live-verified end-to-end** on an actual colorful-type report
+  (751/1061/1045) — that happens naturally when the round-6 walk reaches one of them.
+- **Stale generic fixes — 1070 re-run picked them up for free.** 1070 was converted in round 1,
+  before round 2 added title-template translation (`{data}`/`{type}`/`{name}` → literal text). A
+  plain `--replace` re-run (no code change needed) fixed it: the graph's title is now literally
+  "Route Line Graph, Speed" (was `"{type}, {data}"`), confirmed by reading the new section row
+  (`dms raw get 2188704`) directly — `"title":"Route Line Graph, Speed"`. **General takeaway for
+  the rest of this round-6 pass**: every report converted before a later round's generic fix needs
+  a `--replace` re-run to actually pick it up; the fix landing in the script doesn't retroactively
+  touch already-created pages.
+- **`graph_layout` width — DONE.** Investigated whether old `layout.{x,y,w,h}`
+  (react-grid-layout, 12-col) has *any* current-side target, per the user's steer that section
+  width is a real, UI-exposed author control today. Confirmed via
+  `src/dms/skills/creating-pages-from-a-design-pattern.md` §4.2.5 and direct code
+  (`patterns/page/components/sections/sectionArray.jsx`, `sectionMenu.jsx`): every section
+  (including AVL Graph, no type-based opt-out) has a top-level `size` field (sibling to
+  `element`/`rowspan`/`padding`/`height` on the section's `data`, set via `updateAttribute('size',
+  ...)`), read by `sectionArray.jsx` to pick a `theme.sizes[size].className` (colspan) — a real,
+  existing, unconditional primitive, not a new-capability build. `theme.sizes` is theme-specific
+  though (codebase-default/catalyst/avail: 6-col fractional `"1/3"|"1/2"|"2/3"|"1"`; transportNY's
+  `themev2.js`: 12-col numeric `"1".."12"`) — the CLI couldn't confirm which theme `npmrds_sub` runs
+  (`dms site tree` hit a stale-auth-token `"no-access"` stub), so the user found it directly: the
+  pattern row itself (`dms raw get 2100394`, `npmrds_sub`'s pattern) carries
+  `data.theme.selectedTheme: "transportnyv2"` — confirmed against `transportNY/src/dms_themes/
+  transportny/themev2.js`'s `sectionArray.styles[0].sizes`: exactly `"1".."12"` string keys,
+  `defaultSize: "12"`, same numbering as the old react-grid-layout `w` — a direct `size: String(w)`
+  copy, no bucketing needed. **Fixed**: `build_graph_section_data()` now sets `size` from
+  `old_graph.layout.w` (guarded to ints 1-12) on the new section row; `graph_layout` gap-detail now
+  omits `w` once handled, keeping `h`/`x`/`y` (still no target — sections stack linearly; the
+  theme's `rowspan` is a compound-card span-behind-a-sibling concept, not a pixel/row height, so
+  it's not a faithful target for old `h`). **Verified live**: re-ran 1070 with `--replace` (new page
+  id `2188710`), confirmed `size:"12"` written to the graph section row (`dms raw get 2188712`) —
+  a visual no-op for 1070 itself (w:12 = full width = the pre-existing default either way) but a
+  real, exercised code path. **Relevant for reports already converted**: 1071/1045/1061 all have
+  graphs with `w` values other than 12 (`{4, 6, 8}` seen in their old dumps) — re-running those with
+  `--replace` will pick up an actual visible width change, not yet done (round 6 stopped at 1070).
 
 **Round 5 (2026-07-08) — CO₂ emissions calculated column built + verified live; report 751
 converted; a third platform bug found (query cache collision, not a defect in the CO₂ column):**
@@ -673,8 +751,16 @@ convert from `admin2.reports` directly (dedupe/cleanup of that dataset is separa
 - Only 3 graph templates exist (2 line + 1 grid, 5-min, all-vehicles) vs 23 old graph types ×
   8 resolutions × 3 data columns actually used. Route Map, Route Info Box, Bar Graph Summary and
   other non-line/grid types have no new-side equivalent component/template at all yet.
-- Old per-graph `layout` (grid x/y/w/h) has no obvious new-side target (sections stack linearly).
-- Old `color_range` / per-route `color` not yet mapped (new palette lives in template display).
+- Old per-graph `layout` — **width (`w`) DONE as of round 6**: maps directly to the section's
+  `size` field (colspan; `npmrds_sub` runs the `transportnyv2` theme, 12-col numeric scale, same
+  numbering as old `w`). `h`/`x`/`y` still have no obvious new-side target (sections stack
+  linearly; the theme's `rowspan` is a compound-card concept, not a pixel height, so not a fit).
+- Old `color_range` — **DONE as of round 6**: gap-logging now only fires when a report has a
+  colorful-type graph (Route Bar Graph/Route Map/TMC Grid Graph/Route Difference Graph/TMC
+  Difference Grid, confirmed against old client source) that fails to convert; for ones that do
+  convert, the real `color_range` is wired into the new template's `display.colors.value`. Not yet
+  live-verified end-to-end (only standalone-tested) — will be naturally exercised when the round-6
+  walk reaches 751/1061/1045.
 - Relative-date reports (`settings.relativeDate`) and route groups need design.
 - `overrides.aadt` not implemented on the weighted Hours-of-Delay calculated column (round 4) — the
   real `ny_2025_tmc_meta.aadt` is `0`/unusable for at least one confirmed TMC (`120-11332`), which
@@ -698,6 +784,9 @@ file (not this section) as more sources get investigated.
 - Auth token for CLI deletes/updates (needed for idempotent re-runs / rollback) — user offered
   creds; mint token via `POST /auth/login`.
 - Confirm slug scheme `report_<old_id>` and that converted pages start unpublished (draft).
+- ~~Which theme does `npmrds_sub` actually run~~ **RESOLVED (round 6, user)**: `transportnyv2` —
+  found via the pattern row's `data.theme.selectedTheme` (`dms raw get 2100394`), not discoverable
+  through `dms site tree` (stale auth token). See `graph_layout` width note above.
 
 ## Artifacts (scratchpad/npmrds-sub/old-reports/)
 
