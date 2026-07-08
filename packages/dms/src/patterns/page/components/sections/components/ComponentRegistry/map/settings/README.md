@@ -924,3 +924,43 @@ The legend refresh runs in **both** edit and view so the two modes look the same
 ### Server note (numeric `exclude`)
 
 An `exclude` filter on a **numeric** column can currently error server-side (the null-guard `CASE` unifies both branches to the numeric type and fails casting the `'null'` literal). The client is resilient to this — an errored `colorDomain` keeps the last-good legend — but the affected layer will not recompute its range until the server casts the non-null branch to text. Tracked separately as a small dms-server fix.
+
+## Refreshing A Symbology (pull the latest from the map editor)
+
+An embedded map holds a **copy** of the symbology it was configured with, plus the settings you layered on top of it in the Map Settings panel (filter params, visibility, active layer, etc.). If someone later changes that symbology in the **map editor** — adds/removes a dynamic-filter variable, restyles a layer, adds or removes a layer, adds a join — those changes do **not** flow into an already-configured map automatically.
+
+**Refresh** pulls them in. It's the small refresh (↻) button next to the **Symbology** label in Map Settings.
+
+### What Refresh does
+
+- **Re-fetches** the selected symbology fresh from the source (it invalidates the client cache first, so you get the map editor's latest, not a stale copy).
+- **Merges** it into your map. This is a **merge, not a replace**:
+  - **From the fresh copy (the map editor is the source of truth):** new dynamic-filter variables are **added**, removed ones are **dropped**, and restyling / added-or-removed layers / joins / popup config / the styled column all **flow in**.
+  - **Preserved from your Map Settings (never reset), for anything that still exists:** dynamic-filter values and their param keys / default values / data types, per-layer page-filter binding and search-param key, the selected interactive-filter, layer visibility toggles, click-filter search-param options, and the active layer.
+- **Never touches** map-level settings — height, legend position, zoom/pan, and basemap stay exactly as you set them.
+
+After a Refresh the map layers are rebuilt, so tiles, the legend/color scale, and category data all re-fetch with the fresh configuration.
+
+### What survives, and what doesn't
+
+Your per-layer settings survive **as long as the thing they attach to still exists** with the same identity:
+
+- Settings are matched to layers **by layer id**, and dynamic-filter values are matched **by column name**. Each layer keeps its own settings — they don't cross between layers.
+- If a layer was deleted and re-created in the editor (so its id changed), it comes in as a brand-new layer and your old settings for it are not carried over.
+- If a dynamic filter's underlying column was renamed, it's treated as a new filter and takes the fresh default.
+
+In the common case — you configured filters/visibility on stable layers and the editor just added/removed/restyled things (including adding a join) — **all your settings stay put** and the new structure appears.
+
+### Cost
+
+Refresh only runs when you click it. Ordinary use (panning, filtering, toggling) is unaffected and still served from cache. A single Refresh is roughly one map-reload's worth of work: one lightweight symbology-definition fetch, plus the current viewport's tiles and one color-scale/category request per layer re-fetching.
+
+## Blank Basemap
+
+The **Use blank basemap** toggle (Map Settings) swaps the street/terrain basemap for a transparent blank background, so only your data layers show.
+
+- Toggling it takes effect **immediately** (the map re-renders with the blank/normal basemap).
+- The choice is **saved with the map** and restored when you re-open or re-edit it.
+- It's a page-level (whole-map) setting, independent of symbology and unaffected by symbology Refresh.
+
+Note: the separate **basemap selector** (choosing a specific street/terrain style) is a different control and switches in place without a re-render.

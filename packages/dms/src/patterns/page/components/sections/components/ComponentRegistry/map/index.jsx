@@ -284,7 +284,7 @@ const getCategoryLegendFromFilteredData = (layer, filteredData = []) => {
  * path pays no cloning cost.
  */
 const stripRuntimeLegendState = (state) => {
-    const hasRuntimeState = Object.values(state?.symbologies || {}).some((symb) =>
+    const hasRuntimeState = state?.__symbologyRefreshAt !== undefined || Object.values(state?.symbologies || {}).some((symb) =>
         Object.values(symb?.symbology?.layers || {}).some(
             (layer) =>
                 layer &&
@@ -296,6 +296,8 @@ const stripRuntimeLegendState = (state) => {
     if (!hasRuntimeState) return state;
 
     const clean = cloneDeep(state);
+    // Runtime-only refresh signal — never persist it into the saved config.
+    delete clean.__symbologyRefreshAt;
     Object.values(clean.symbologies || {}).forEach((symb) => {
         Object.values(symb?.symbology?.layers || {}).forEach((layer) => {
             if (!layer) return;
@@ -335,7 +337,7 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
         setInitialBounds: cachedData.setInitialBounds || false,
         initialBounds: cachedData.initialBounds || null,
         hideControls: cachedData.hideControls || false,
-        //blankBaseMap: cachedData.blankBaseMap || false,
+        blankBaseMap: cachedData.blankBaseMap || false,
         height: cachedData.height || "full",
         zoomPan: typeof cachedData.zoomPan === 'boolean' ? cachedData.zoomPan : true,
         zoomToFitBounds: cachedData.zoomToFitBounds || false,
@@ -344,7 +346,19 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
         basemapStyle: cachedData.basemapStyle || "Default"
     });
 
-    const doApiLoad = React.useCallback(() => {
+    const doApiLoad = React.useCallback((opts) => {
+        // On an explicit Refresh, invalidate the selected symbology's cached row
+        // so the re-fetch pulls the latest saved config from the source instead
+        // of falcor's client cache. Ordinary (initial) loads pass nothing and
+        // stay cache-friendly. Cover string + numeric id forms.
+        if (opts?.invalidateId != null && typeof falcor?.invalidate === "function") {
+            const ids = [...new Set([opts.invalidateId, +opts.invalidateId])]
+                .filter((v) => v != null && !(typeof v === "number" && Number.isNaN(v)));
+            mapeditorKeys.forEach((c) => {
+                const [app] = c.split("+");
+                ids.forEach((id) => falcor.invalidate(["dms", "data", app, "byId", id]));
+            });
+        }
         return mapeditorKeys.reduce((a, c) => {
             // `mapeditorKeys` entries are `{app}+{patternInstance}` (e.g.
             // 'mitigat-ny-prod+map_editor_test'). Symbology rows live at type
@@ -369,7 +383,7 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
                 }).then(cc => [...aa, ...cc]);
             })
         }, Promise.resolve([]));
-    }, [apiLoad, mapeditorKeys]);
+    }, [apiLoad, mapeditorKeys, falcor]);
 
     const interactionOptions = useMemo(() => {
         const mapLayers = Object.values(state.symbologies || {}).flatMap((symbology) =>
@@ -410,6 +424,11 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
 // console.log("Map::pageState", pageState);
 
     const [mapLayers, setMapLayers] = useImmer([]);
+
+    // Tracks the last-seen symbology-refresh signal (bumped by the settings
+    // "Refresh" action). When it changes, the layer-build effect below rebuilds
+    // every layer instance from fresh state instead of keeping the old ones by id.
+    const symbologyRefreshRef = useRef(state.__symbologyRefreshAt);
 
     const isReady = useMemo(() => {
         return Object.values(state.symbologies || {}).some(symb => Object.keys(symb?.symbology?.layers || {}).length > 0);
@@ -829,6 +848,13 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
         // when state.symbology.layers update
         // -----------------------
 
+        // A symbology "Refresh" bumps `__symbologyRefreshAt`. On that signal we
+        // must rebuild the layer instances from fresh config (they're kept by id
+        // otherwise), so all their data/tile/legend fetches re-run. Ordinary
+        // symbology changes (filters, etc.) keep the existing instances.
+        const forceRebuild = symbologyRefreshRef.current !== state.__symbologyRefreshAt;
+        symbologyRefreshRef.current = state.__symbologyRefreshAt;
+
         // console.log('symbology layers effect')
         const updateLayers = async () => {
             if(isReady) {
@@ -855,7 +881,11 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
                 },[]))
 
                 setMapLayers(draftMapLayers => {
-                    let currentLayerIds = draftMapLayers.map(d => d.id).filter(d => !!d)
+                    // On a refresh, start from an empty set so every layer is
+                    // recreated (new SymbologyViewLayer/PluginLayer) → all their
+                    // effects re-run and re-hit the APIs with the fresh config.
+                    const baseLayers = forceRebuild ? [] : draftMapLayers;
+                    let currentLayerIds = baseLayers.map(d => d.id).filter(d => !!d)
                     let newLayers = allLayers
                       .filter(d => d)
                       .filter(d => !currentLayerIds.includes(d.id))
@@ -870,7 +900,7 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
                       })
 
                     const oldIds = allLayers.map(d => d.id)
-                    let oldLayers = draftMapLayers.filter(d => {
+                    let oldLayers = baseLayers.filter(d => {
                         return oldIds.includes(d.id)
                     })
 
@@ -885,7 +915,7 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
             }
         }
         updateLayers()
-    }, [state.symbologies, isReady])
+    }, [state.symbologies, isReady, state.__symbologyRefreshAt])
 
     //I want to check to see if the data-column is being updated in the symbology
     //Basically, the data-column update is not making it to the map layer. We need to know why
@@ -1007,6 +1037,12 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
             } */}
             <div id='dama_map_edit' className="w-full relative" style={{height: heightStyle}}>
                 <AvlMap
+                  // AvlMap reads mapOptions.styles only once at mount (into a ref),
+                  // so toggling blankBaseMap can't swap the live style in place.
+                  // Key the map on the blank/default choice so the toggle remounts
+                  // it with the correct basemap. (Basemap-selector changes still go
+                  // through the in-place setMapStyle path and don't remount.)
+                  key={ state.blankBaseMap ? "basemap-blank" : "basemap-default" }
                   layers={ mapLayers }
                   layerProps = { layerProps }
                   hideLoading={true}
