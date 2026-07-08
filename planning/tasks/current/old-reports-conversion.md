@@ -1,6 +1,26 @@
 # Old NPMRDS reports → new DMS report pages (automated conversion)
 
-## Status: All 6 reports CONVERTED and gap-audited current as of round 7 (1070, 1071, 1061, 751, 1045, 874 — 2026-07-08); CO₂ emissions column + weekday-resolution bar graphs DONE + verified live; four platform bugs found this session, three fixed (comparison-series ORDER BY on calculated columns; ClickHouse ambiguous-identifier on 3-way joins; GridGraph color-scale domain/range truncation — round 7), one split into its own tracked task (Falcor sibling-query cache collision). **Round 7 (2026-07-08): user visual QA on round 6's color wiring caught two real defects the standalone/JSON-level verification missed — bar graphs rendered as one solid color, GridGraph heatmaps never showed the far end of a >3-color palette. Root-caused as two independent, unrelated issues (see below), both fixed, unit-tested (182/182 passing, +7 new), and live-verified across 1061/1045/1071/751. New BarGraph capability built (`colors.byValue`, plus a "Color by Value" SectionMenu toggle) rather than working around the gap.**
+## Status: All 6 reports CONVERTED and gap-audited current as of round 7 (1070, 1071, 1061, 751, 1045, 874 — 2026-07-08); CO₂ emissions column + weekday-resolution bar graphs DONE + verified live; five platform bugs found this session, four fixed (comparison-series ORDER BY on calculated columns; ClickHouse ambiguous-identifier on 3-way joins; GridGraph color-scale domain/range truncation — round 7; Falcor sibling-query cache collision — round 8, previously split into its own task and now fixed there). **Round 7 (2026-07-08): user visual QA on round 6's color wiring caught two real defects the standalone/JSON-level verification missed — bar graphs rendered as one solid color, GridGraph heatmaps never showed the far end of a >3-color palette. Root-caused as two independent, unrelated issues (see below), both fixed, unit-tested (182/182 passing, +7 new), and live-verified across 1061/1045/1071/751. New BarGraph capability built (`colors.byValue`, plus a "Color by Value" SectionMenu toggle) rather than working around the gap.**
+
+**Round 8 (2026-07-08): the Falcor sibling-cache-collision task is FIXED** — see
+`planning/tasks/completed/falcor-sibling-query-cache-collision.md`. Root-caused as a client-side
+cache-key gap (nothing in the Falcor path identified which section issued a request) and fixed by
+folding a per-section discriminator into the UDA `options` before it's stringified into the path.
+Live-verified on report 1071: both previously-blank sibling pairs (Speed/Travel Time AM Peak By
+Day, and the PM Peak pair) now render real, distinct data. Verifying report 751 surfaced a second,
+previously-masked, unrelated bug:
+**New gap — report 751's truck CO₂ sections return real-but-NULL data, not the Falcor bug.** With
+the Falcor collision fixed, "CO2 Trucks Actual" and "CO2 Trucks 50 MPH" now issue genuinely
+separate requests and the server returns a distinct, complete response to each (confirmed via
+network capture — 289 rows each) — but `avg_co2_emissions_avg` is NULL for all 289 rows in both
+truck responses, while the sibling passenger CO₂ section (same report) correctly resolves 220/289
+non-null values. Suspect: `coalesce(ds.travel_time_freight_trucks, ds.travel_time_all_vehicles)` in
+`scripts/convert_old_reports.py`'s truck `CO2_EXPR_TRUCK` — either `travel_time_freight_trucks`
+isn't the real column name on view 982, or it's null for a reason the passenger variant's parallel
+`travel_time_passenger_vehicles` isn't. Previously indistinguishable from the Falcor collision since
+both produce the same "silently blank, no error" symptom. Not investigated further this session —
+logged as a follow-up, non-blocking (same precedent as report 751's other known issues: gap-log and
+don't block further conversion work).
 
 **Round 6 (2026-07-08) COMPLETE: iterating on already-converted reports to pick up two generic fixes — `color_range` false-positive gap fixed + real wiring built, `graph_layout` width now wired to section `size` (theme `transportnyv2`). All 6 reports `--replace`-re-run and live-verified with both fixes in place: 1070, 1071, 751 (done earlier this round), then 1061, 1045, 874 (completed after the ClickHouse unfiltered-probe-query hazard — see below — was fixed and the pause lifted). Color wiring now visually confirmed across every colorful graph type that has a template (Route Bar Graph day + weekday resolution, TMC Grid Graph) and correctly left untouched on Route Line Graph. Width wiring confirmed on `w` values of 4, 6, 8, and 12. Zero console errors on any of the 6 live pages. No new gaps found — 874 and 1045/1061's non-color/layout gaps are unchanged from their prior conversions (route-type/measure gaps, `overrides.aadt`, `relative_date`, mixed-resolution/mixed-dataColumn — all previously known, not regressions).**
 
@@ -202,10 +222,10 @@ that task.
    `120-11332`, report 1071's route — the old report used `overrides.aadt: '20000'` for exactly this
    reason), so those specific routes will show a real (correct) `0` weighted delay until the
    override is wired in. Not a correctness bug in the join/formula itself — see round-4 notes.
-3. **Optional/non-blocking**: root-cause the Falcor sibling-query cache collision — see
-   `planning/tasks/current/falcor-sibling-query-cache-collision.md` (split out 2026-07-08, round 5).
-   Affects report 751's two truck CO₂ grid sections (both render empty); does not block further
-   report conversion.
+3. **DONE (round 8)**: the Falcor sibling-query cache collision is fixed — see
+   `planning/tasks/completed/falcor-sibling-query-cache-collision.md`. Report 751's two truck CO₂
+   grid sections still render empty, but now for a different, unrelated reason (a genuine NULL in
+   the truck CO₂ formula — see the new round-8 gap above), not the cache collision.
 4. **`dataQuality` measure and "TMC Info Box"/"Route Info Box" graph types remain unmapped** — these
    are stat-panel component types with no chart equivalent in the current AVL Graph model (same
    treatment as `Route Map`/`Bar Graph Summary`), not attempted. Report 1045's `month`-resolution

@@ -44,7 +44,7 @@ function computePivotFetchKey(state) {
  * Uses the same fetchKey dedup pattern as useDataLoader: only re-fetches when
  * the relevant state actually changes, not on every mount/render.
  */
-export function usePivotDistinctValues({ state, setState, apiLoad }) {
+export function usePivotDistinctValues({ state, setState, apiLoad, sectionId, trackingId }) {
     const pivot = state.pivot;
     const pivotEnabled = pivot?.enabled;
     const singleHeader = !!pivot?.singleHeader;
@@ -91,6 +91,7 @@ export function usePivotDistinctValues({ state, setState, apiLoad }) {
                             join: {},
                         },
                         apiLoad,
+                        sectionId: trackingId || sectionId,
                     }))
                 );
 

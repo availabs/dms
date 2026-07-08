@@ -1,6 +1,84 @@
 # Falcor/UDA query cache collision across sibling sections sharing query state
 
-## Status: OPEN, not yet root-caused — non-blocking, tracked as a gap where hit
+## Status: FIXED (2026-07-08) — live-verified on report 1071; see "Fix" section below
+
+## Fix (2026-07-08)
+
+**Root cause, pinned down**: the Falcor path for a UDA request is built purely from `options`
+(filter/groupBy/join/orderBy JSON, via `createRequest.js`'s `'uda'` case) plus the attributes array
+and index range — nothing in that path ties a request back to *which section on the page* issued
+it. Two sibling sections whose filter/groupBy/join happen to match (different attributes, same
+filter — Manifestation 1; or a byte-identical query — Manifestation 2) compute the same Falcor
+cache key and collide. Server-side query building was independently confirmed correct both times
+(round 6/7 network captures showed the server returning correct, distinct data per request) — this
+is a client-side cache-key problem, not a SQL/ClickHouse-fan-out problem. (The round-2 ClickHouse
+GROUP BY projection fix was real but only covered one narrow fan-out symptom, not the general
+cache-key collision.)
+
+**Fix**: `getData()` (`packages/dms/src/patterns/page/components/sections/components/dataWrapper/getData.js`)
+now takes an optional `sectionId` and folds `trackingId || sectionId` into the `options` object
+*before* it's `JSON.stringify()`'d into the Falcor path — for the main data fetch, the length fetch
+(`getLength`'s `optionsForLen`, which already strips `orderBy`/`meta` but inherits everything else),
+and the total-row fetch. This mirrors an existing precedent in the same file
+(`options.keepOriginalValues = keepOriginalValues`, a client-only flag folded into `options` and
+never read server-side) and the existing `selfParamKey(trackingId || sectionId)` idiom in
+`buildUdaConfig.js`. Confirmed safe: every server query_set (`clickhouse.js`, `postgres.js`)
+destructures only known fields out of `JSON.parse(options)` — an unrecognized extra key is silently
+ignored, so this only changes the cache key, never the SQL.
+
+`sectionId`/`trackingId` were already flowing through `dataWrapper/index.jsx` (via
+`usePageFilterSync`) from `section.jsx`/`SectionView` (`value?.id`/`value?.trackingId`) — just not
+into `useDataLoader`/`getData`. Threaded through:
+- `useDataLoader.js` (both the main load effect and `onPageChange`)
+- `useColumnOptions.js` and `usePivotDistinctValues.js` (same collision precondition — two columns/
+  sections with matching `mapped_options` or pivot config could hit the same bug)
+- `api/preloadSectionData.js` (server/router-loader preload path, concurrent `Promise.all` over
+  sibling sections — same shared-cache mechanism, same risk)
+- `index.jsx`'s Edit/View call sites for all of the above
+
+**Trade-off, accepted deliberately**: two sections with a genuinely byte-identical query no longer
+coalesce into one shared Falcor fetch — each now gets its own. Given that "sharing" was the thing
+silently returning empty data for both, correctness wins over the minor duplicated-query cost
+(only matters in the rare byte-identical case, e.g. 751's `overrides.baseSpeed` situation below).
+
+**Verified**:
+- Unit: `packages/dms/tests/getData.sectionCacheKey.test.js` (new) — two calls with identical
+  filter/groupBy/attributes but different `sectionId` produce different `options` strings (both
+  main and length fetch); same `sectionId` reproduces the identical string (caching still works);
+  omitting `sectionId` leaves `options` unchanged (no regression); `sectionId` never leaks into the
+  requested attributes list. Full `packages/dms` suite green (187/187, +5, no regressions).
+  `dms-server`'s `test:uda` also green (70/70) — confirms the extra `options` field is inert
+  server-side, as expected.
+- Live, Playwright against the local dev stack, **Manifestation 1 (report 1071) — confirmed fully
+  fixed**: "Speed AM Peak By Day"/"Travel Time AM Peak By Day" and the PM Peak pair (same
+  route+filter, different attribute — previously both rendered completely blank) now both render
+  real, distinct bar graphs with real legends and real (different) values. Zero console errors.
+  Confirmed via network capture that each sibling's Falcor `options` string now carries a distinct
+  `sectionId` and the two no longer share a cache path.
+- Live, **Manifestation 2 (report 751) — the Falcor collision itself is fixed, but a second,
+  previously-masked bug surfaced**: the two truck CO₂ sections ("CO2 Trucks Actual"/"CO2 Trucks 50
+  MPH") now issue genuinely separate requests (distinct `sectionId` confirmed in both the request
+  and the response's cache key) and the server returns a full, distinct response to each — but
+  **both truck responses have `avg_co2_emissions_avg = NULL` for all 289 rows**, while the sibling
+  passenger CO₂ section (same report, same shape) correctly resolves 220/289 non-null values. This
+  is NOT the Falcor collision (that mechanism is provably no longer in play — separate requests,
+  separate responses) — it's a distinct, pre-existing bug in the truck CO₂ SQL expression's
+  `coalesce(ds.travel_time_freight_trucks, ds.travel_time_all_vehicles)` (passenger's parallel
+  `coalesce(ds.travel_time_passenger_vehicles, ds.travel_time_all_vehicles)` works, so either
+  `travel_time_freight_trucks` isn't the real column name on this view or it's null for a
+  different reason). Previously indistinguishable from the Falcor collision because both bugs
+  produce the same "silently blank, no error" symptom. **Not fixed here — logged as a new,
+  separate follow-up** in `old-reports-conversion.md`; out of scope for this task (SQL/column
+  correctness, not caching).
+
+**Files changed**: `packages/dms/src/patterns/page/components/sections/components/dataWrapper/
+getData.js`, `useDataLoader.js`, `useColumnOptions.js`, `usePivotDistinctValues.js`, `index.jsx`;
+`packages/dms/src/api/preloadSectionData.js`; `packages/dms/tests/getData.sectionCacheKey.test.js`
+(new).
+
+## Original investigation (rounds 2, 5, 6 — kept for context)
+
+## Status (superseded): OPEN, not yet root-caused — non-blocking, tracked as a gap where hit
 
 ## Objective
 
@@ -113,13 +191,17 @@ working calculated column, not a defect in the column itself.
 
 ## Testing checklist
 
-- [ ] Root-cause manifestation 2 (why do BOTH identical-query sections fail, rather than both
-      succeeding off a shared cached response, or one succeeding twice).
-- [ ] Postgres parity fix for manifestation 1 (`postgres.js` GROUP BY projection, mirroring
-      `clickhouse.js`).
-- [ ] Regression test(s) covering both manifestations once fixed.
-- [ ] Live verification: two sibling AVL Graph sections with identical query state both render
-      correctly.
+- [x] Root-cause the collision (client-side Falcor cache key, not the ClickHouse fan-out — see
+      "Fix" section at the top).
+- [x] ~~Postgres parity fix for manifestation 1 (`postgres.js` GROUP BY projection)~~ — superseded:
+      the `sectionId` cache-key fix is backend-agnostic, so the Postgres-specific parity fix is no
+      longer needed for this bug (Postgres may still independently want the GROUP BY projection fix
+      for other reasons, but not to close this task).
+- [x] Regression test(s) covering the fix — `getData.sectionCacheKey.test.js`.
+- [x] Live verification: report 1071's two previously-blank sibling pairs (Manifestation 1) both
+      render correctly.
+- [ ] New follow-up (not this task): root-cause report 751's truck CO₂ formula returning NULL for
+      all rows — see "Fix" section above and the new gap logged in `old-reports-conversion.md`.
 
 ## Cross-links
 
