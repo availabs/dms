@@ -150,12 +150,12 @@ const VerticalLinearLegend = ({ size, scale = scaleLinear(), format = identity }
 
 			<div className="grid grid-cols-1">
 				{ ticks.slice(0, -1).map((t, i) =>
-						<div key={ t }
+						<div key={ i }
 							style={ {
 								height: `${ height * 0.25 }px`
 							} }
 						>
-							<VerticalLinearLegendTick key={ t }
+							<VerticalLinearLegendTick key={ i }
 								value={ t }
 								format={ format }
 								width={ width }/>
@@ -240,7 +240,7 @@ const HorizontalLinearLegend = ({ size, scale = scaleLinear(), format = identity
 					height: `${ height * 0.5 }px`
 				} }/>
 			{ ticks.map((t, i) =>
-					<HorizontalLinearLegendTick key={ t }
+					<HorizontalLinearLegendTick key={ i }
 						below={ i % 2 === 0}
 						scale={ wScale }
 						value={ t }

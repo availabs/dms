@@ -532,6 +532,14 @@ const graphConfig = {
                 // Set to 1 for solid, design-matching bars (0–1).
                 { type: "input", inputType: "number",
                     label: "Bar Opacity", key: "barOpacity"
+                },
+                // Off (default) → one color per series (route/comparison), the
+                // usual multi-series legend. On → one scale across the whole
+                // chart, each bar colored by its own value (e.g. "more delay =
+                // darker") — only makes sense for a single-series magnitude
+                // chart, mirrors GridGraph's value-scaled coloring.
+                { type: "toggle",
+                    label: "Color by Value", key: "colors.byValue"
                 }
                 // {type: 'toggle', label: 'Log Scale', key: 'isLog'},
             ]

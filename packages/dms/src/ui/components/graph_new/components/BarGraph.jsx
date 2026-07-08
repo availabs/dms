@@ -7,7 +7,7 @@ import {
 } from "d3-array"
 
 import { strictNaN } from "../utils"
-import { getAggFunc } from "./utils"
+import { getAggFunc, buildValueColorScale } from "./utils"
 import { getColorRange } from "../colorSchemeUnifier"
 
 const BarGraphWrapper = props => {
@@ -27,7 +27,7 @@ const BarGraphWrapper = props => {
 
 	const dataFromProps = React.useMemo(() => {
 
-		if (!indexColumn || !dataColumns.length) return { data: [], keys: [] };
+		if (!indexColumn || !dataColumns.length) return { data: [], keys: [], min: Infinity, max: -Infinity };
 
 // console.log("BarGraphWrapper::indexColumn", indexColumn)
 // console.log("BarGraphWrapper::dataColumns", dataColumns)
@@ -42,6 +42,8 @@ const BarGraphWrapper = props => {
 
 		const data = [];
 		const keySet = new Set();
+		let min = Infinity;
+		let max = -Infinity;
 
 		for (const [index, iGroup] of dataGroups) {
 
@@ -67,6 +69,8 @@ const BarGraphWrapper = props => {
 					if (hasValue) {
 						keySet.add(type);
 						bar[type] = value;
+						min = Math.min(min, value);
+						max = Math.max(max, value);
 					}
 				}
 			}
@@ -78,6 +82,8 @@ const BarGraphWrapper = props => {
 					if (!strictNaN(value)) {
 						keySet.add(dcn);
 						bar[dcn] = value;
+						min = Math.min(min, value);
+						max = Math.max(max, value);
 					}
 				}
 			}
@@ -111,7 +117,7 @@ const BarGraphWrapper = props => {
       })
     }
 
-		return { data, keys };
+		return { data, keys, min, max };
 	}, [props.viewData, indexColumn, dataColumns, categoryColumn]);
 
 // console.log("BarGraphWrapper::highlights", highlights);
@@ -125,8 +131,21 @@ const BarGraphWrapper = props => {
     else if (props.colors?.type === "scheme") {
       colors = getColorRange(props.colors.scheme, dataFromProps.keys?.length);
     }
-    return props.colors?.reverse ? colors.reverse() : colors;
-  }, [props.colors, dataFromProps.keys?.length]);
+    if (props.colors?.reverse) {
+      colors = [...colors].reverse();
+    }
+    // Default coloring is per-series (one color per key/route) — the common
+    // case for a multi-series comparison bar graph. `byValue` opts a
+    // single-series magnitude chart (e.g. "more delay = darker") into a
+    // per-bar scale instead, mirroring GridGraph's value-scaled coloring.
+    // Deliberately no array fallback here: the Legend's linear renderer calls
+    // `scale.domain()` on whatever this returns, so before data loads (when
+    // min/max aren't finite yet) this must stay undefined, not a plain array.
+    if (props.colors?.byValue) {
+      return buildValueColorScale(dataFromProps.min, dataFromProps.max, colors);
+    }
+    return colors;
+  }, [props.colors, dataFromProps.keys?.length, dataFromProps.min, dataFromProps.max]);
 
 // console.log("BarGraphWrapper::dataFromProps", dataFromProps);
 
@@ -155,6 +174,17 @@ const BarGraphWrapper = props => {
 // console.log("BarGraphWrapper::axisLeft", axisLeft);
 
   const legend = React.useMemo(() => {
+    if (props.colors?.byValue) {
+      // `colors` is the scaleLinear built above, not a plain array — same
+      // shape GridGraph's linear legend already consumes.
+      return {
+        ...props.legend,
+        type: "linear",
+        orientation: ["right", "left"].includes(props.legend.position || "right") ? "vertical" : "horizontal",
+        scale: colors,
+        format: props.hoverComp?.valueFormat
+      };
+    }
     // Series-mode keys are column aliases (normalName — often a raw SQL alias like
     // "tons_share"), which read terribly in a legend. Show the column's custom/display
     // name instead. Categorize-mode keys are data VALUES and pass through unchanged.
@@ -168,7 +198,7 @@ const BarGraphWrapper = props => {
       colors: colors,
       categories: dataFromProps.keys.map(labelForKey)
     };
-  }, [props.legend, colors, dataFromProps.keys, dataColumns]);
+  }, [props.legend, colors, dataFromProps.keys, dataColumns, props.colors?.byValue, props.hoverComp?.valueFormat]);
 
 // console.log("BarGraphWrapper::legend", legend);
 

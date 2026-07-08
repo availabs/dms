@@ -1,12 +1,98 @@
 # Old NPMRDS reports → new DMS report pages (automated conversion)
 
-## Status: All 5 approved-picks reports CONVERTED (1070, 1071, 1061, 751, 1045, 874 — 2026-07-08); CO₂ emissions column + weekday-resolution bar graphs DONE + verified live; three platform bugs found this session, two fixed (comparison-series ORDER BY on calculated columns; ClickHouse ambiguous-identifier on 3-way joins), one split into its own tracked task (Falcor sibling-query cache collision). **Round 6 (2026-07-08): iterating on already-converted reports, starting with 1070 per user direction — `color_range` false-positive gap fixed + real wiring built (both verified), `graph_layout` width now wired to section `size` (theme confirmed as `transportnyv2` by the user, verified live on 1070). Report 1071 re-run + live-verified next — both fixes confirmed working on real colorful/non-12-width graphs; also caught a fresh, more general instance of the tracked Falcor sibling-cache-collision bug (see below). Report 751 re-run + live-verified — first visual confirmation of color wiring on a real rendered heatmap. Also fixed a real BarGraph rendering bug (all-zero series rendered completely blank, see below) and diagnosed a client-side ClickHouse unfiltered-probe-query bug badly enough this session that it's been split into its own HIGH PRIORITY task — see "Paused" note below. Next when resumed: 1061 → 1045 → 874.**
+## Status: All 6 reports CONVERTED and gap-audited current as of round 7 (1070, 1071, 1061, 751, 1045, 874 — 2026-07-08); CO₂ emissions column + weekday-resolution bar graphs DONE + verified live; four platform bugs found this session, three fixed (comparison-series ORDER BY on calculated columns; ClickHouse ambiguous-identifier on 3-way joins; GridGraph color-scale domain/range truncation — round 7), one split into its own tracked task (Falcor sibling-query cache collision). **Round 7 (2026-07-08): user visual QA on round 6's color wiring caught two real defects the standalone/JSON-level verification missed — bar graphs rendered as one solid color, GridGraph heatmaps never showed the far end of a >3-color palette. Root-caused as two independent, unrelated issues (see below), both fixed, unit-tested (182/182 passing, +7 new), and live-verified across 1061/1045/1071/751. New BarGraph capability built (`colors.byValue`, plus a "Color by Value" SectionMenu toggle) rather than working around the gap.**
 
-**PAUSED (2026-07-08) — user redirected priority to the ClickHouse unfiltered-probe-query hazard.**
-That issue kept recurring throughout this round's live-verification work (four separate
-check-and-kill cycles in ~1.5 hours) and has been elevated to its own high-priority task:
-`planning/tasks/current/clickhouse-unfiltered-probe-hazard.md`. Resume this conversion task
-(1061 → 1045 → 874) after that's addressed, or sooner at the user's direction.
+**Round 6 (2026-07-08) COMPLETE: iterating on already-converted reports to pick up two generic fixes — `color_range` false-positive gap fixed + real wiring built, `graph_layout` width now wired to section `size` (theme `transportnyv2`). All 6 reports `--replace`-re-run and live-verified with both fixes in place: 1070, 1071, 751 (done earlier this round), then 1061, 1045, 874 (completed after the ClickHouse unfiltered-probe-query hazard — see below — was fixed and the pause lifted). Color wiring now visually confirmed across every colorful graph type that has a template (Route Bar Graph day + weekday resolution, TMC Grid Graph) and correctly left untouched on Route Line Graph. Width wiring confirmed on `w` values of 4, 6, 8, and 12. Zero console errors on any of the 6 live pages. No new gaps found — 874 and 1045/1061's non-color/layout gaps are unchanged from their prior conversions (route-type/measure gaps, `overrides.aadt`, `relative_date`, mixed-resolution/mixed-dataColumn — all previously known, not regressions).**
+
+**Round 7 — color rendering, root cause + fixes (2026-07-08).** The user looked at round 6's
+"working" color wiring on real pages and flagged it as suspicious: bar graphs "appear to be solid
+purple," and a grid graph showed "shades of purple but no green." Both turned out to be real,
+independent defects — not a data-range coincidence — found by reading the actual rendering code in
+`packages/dms/src/ui/components/graph_new/`, not by re-inspecting JSON:
+
+1. **GridGraph bug**: the wrapper (`components/GridGraph.jsx`) built its value→color scale as
+   `scaleLinear().domain([min, mid, max]).range(colors)` — a fixed 3-point domain zipped against
+   whatever length the palette array happens to be. d3 truncates a mismatched domain/range pair to
+   the shorter side, so any palette longer than 3 colors (5-color and 9-color diverging palettes,
+   exactly what this converter wires in) silently only ever used its **first 3 entries** — the far
+   end of the palette (orange in 1061's 9-color purple→orange scale, green in 1045's 5-color
+   purple→white→green scale) was unreachable regardless of actual data spread. **Fixed**: extracted
+   a shared `buildValueColorScale(min, max, colors)` helper (new file location:
+   `components/utils.js`) that spreads one domain stop per color instead of hardcoding 3, so the
+   whole palette is reachable. GridGraph now calls this helper instead of building the scale inline.
+2. **BarGraph — missing capability, not a bug**: `avl-graph/utils/index.js`'s `getColorFunc`
+   colors *by series index* (`colorRange[i % colorRange.length]`), never by value — confirmed the
+   same holds for every other graph_new type except GridGraph (checked ScatterPlot, TreemapGraph,
+   PieGraph, SunburstGraph, LineGraph — all categorical-only; GridGraph is the *only* existing
+   value-scaled type, and it's a heatmap, not a bar chart, so it doesn't cover this case). Each of
+   these converted reports has exactly one series (one route) per bar graph, so every bar got
+   `colorRange[0]` — the palette's first color, constant. The old client's actual semantic ("purple
+   = more delay, orange = less") colors each bar by its own magnitude, which no current avl_graph
+   type supports. **User chose to build this as new capability** (not document as a limitation, not
+   drop the wiring) after confirming no existing type/config already covers it.
+   - Added `colors.byValue` (boolean, default off — off preserves today's categorical per-series
+     behavior for every other BarGraph in the platform) to `components/BarGraph.jsx`: when set,
+     builds a value scale via the same `buildValueColorScale` helper (min/max now tracked across
+     all bars while building `dataFromProps`) and passes it as the `colors` prop — `getColorFunc`
+     already special-cased `typeof colors === "function"` to pass a scale through unchanged, so no
+     changes needed on the `avl-graph/BarGraph.jsx` render side. Legend switches from the
+     categorical per-series swatches to a linear gradient (mirrors GridGraph's legend) when
+     `byValue` is set.
+   - New author-facing control: "Color by Value" toggle in the "Bar Graph Layout" SectionMenu group
+     (`ComponentRegistry/graph_new/config.jsx`) — `colors.byValue`, alongside the existing
+     Scheme/Reverse controls. Any future author can opt a single-series magnitude bar chart into
+     this, not just converted reports.
+   - Converter (`scripts/convert_old_reports.py`) now sets `colors.byValue: true` whenever it wires
+     `color_range` into a `BarGraph`-shaped template (Route Bar Graph old type), matching the old
+     semantic; GridGraph-shaped templates (TMC Grid Graph) get no such flag since GridGraph's
+     value-scaling is unconditional.
+3. **Two more bugs found and fixed while live-verifying the above** (both would have shipped
+   silently without a real Playwright reload — standalone/JSON checks can't catch either):
+   - First live pass crashed every page with a `byValue` bar graph: `TypeError: scale.domain is not
+     a function` in `Legend.jsx`. Root cause: `buildValueColorScale`'s degenerate-input branches
+     (a single-color palette; a perfectly constant series, `min === max`) returned bare arrow
+     functions instead of real d3 scales — fine for `colorFunc(value)` calls, but the Legend's
+     linear renderer calls `.domain()`/`.range()` on whatever it's given, unconditionally. **Fixed**:
+     both branches now return a real `scaleLinear()` with identical range endpoints instead of a
+     plain function, so `.domain()`/`.range()` always exist.
+   - Second pass (after that fix) surfaced a *pre-existing, latent* bug in `avl-graph/components/
+     Legend.jsx`, exposed for the first time by a real constant-value series (1071's several
+     all-zero Hours-of-Delay bar graphs, gap-logged `overrides.aadt` — real, correct `0` output):
+     `VerticalLinearLegend`/`HorizontalLinearLegend` keyed their 5 rendered tick elements by tick
+     *value*, not position — with a degenerate (min===max) domain all 5 ticks share one value,
+     producing React's "two children with the same key" console errors. **Fixed**: both legends now
+     key by index (`i`) instead of value — ticks are a fixed-order, fixed-length list, so index is
+     the correct key regardless. This is a shared-component fix (also used by GridGraph's legend)
+     but only fires on a degenerate domain, which nothing had exercised before BarGraph's new mode.
+   **Verified**: (a) `tests/graphColorScale.test.js` (new, 7 cases) — covers the full-palette-reach
+   fix, the single-color/constant-series degenerate cases, and a direct regression test asserting
+   the returned scale always has working `.domain()`/`.range()`; full package suite green (182/182,
+   +7, no regressions). (b) Live, via headless Playwright against the local dev stack: re-ran 1061 →
+   1045 → 1071 with `--replace` to pick up `byValue`, screenshotted each. 1061: Hours-of-Delay bars
+   show orange (routine) with purple spikes on the actual high-delay days; Speed bars transition
+   purple (slower, older years) → orange (faster, newer years) — both exactly match the old
+   semantic. 1045: the TMC Grid Graph now shows real green columns alongside purple ones (previously
+   zero green); the weekday bar graph shows genuinely distinct per-bar colors instead of solid
+   purple. 1071 (13 sections, the most complex converted report, including several genuinely
+   all-zero delay graphs from the known `aadt=0` gap): zero console errors, every bar graph
+   correctly value-colored, all-zero graphs correctly render as one uniform neutral color (the
+   palette's middle stop) rather than crashing or misleading. 751 (GridGraph-only, not reconverted —
+   the domain fix is a pure frontend change) re-verified as a regression check: CO2 heatmap
+   unchanged/still correct, zero console errors, the two known-blank sibling-cache-collision
+   sections still blank (unrelated, already tracked).
+   **Files changed**: `packages/dms/src/ui/components/graph_new/components/utils.js` (new
+   `buildValueColorScale`), `GridGraph.jsx` (use the helper), `BarGraph.jsx` (`byValue` mode + min/
+   max tracking + linear legend branch), `avl-graph/components/Legend.jsx` (tick key fix),
+   `patterns/page/components/sections/components/ComponentRegistry/graph_new/config.jsx` ("Color by
+   Value" toggle), `scripts/convert_old_reports.py` (sets `byValue` for BarGraph color wiring),
+   `packages/dms/tests/graphColorScale.test.js` (new).
+
+**RESOLVED (2026-07-08) — the ClickHouse unfiltered-probe-query hazard that paused this task is fixed.**
+Client-side preventive gating (Option B, `buildUdaConfig.js`'s `skipFetch`) implemented and
+live-verified in `planning/tasks/current/clickhouse-unfiltered-probe-hazard.md` — stray unscoped
+queries no longer fire at all. Routine Playwright-driven page loads for round 6's 1061/1045/874
+verification produced zero stray `system.processes` entries (not re-checked exhaustively, but no
+hang/timeout symptoms observed across 3 report loads + 5 raw `dms raw get` calls each).
 
 **Real BarGraph rendering bug found + fixed (2026-07-08, round 6, surfaced while live-verifying
 1071).** Report 1071's "Hours of Delay Weekdays 2026-2024" section (and other standalone
@@ -32,18 +118,51 @@ pending direction.
 
 ### Next session — pick up here, in order
 
-**Round 6 in progress — 1070, 1071, 751 done, next is 1061.** All three fixes (color_range
-gap-condition + wiring, title-template staleness via re-run, graph_layout width via `size`) are
-done and live-verified on three reports now, including a real colorful heatmap render. Continue
-the gap-audit forward through 1061 → 1045 → 874 in order, `--replace`-rerunning each to pick up all
-of the above (1061/1045 will be the first live exercise of the color_range wiring on a Route Bar
-Graph *day*-resolution report, and of the width wiring on more `w` values) — plus revisit each
-report's own previously-logged report-specific gaps (1061's `overrides.aadt`). The Falcor
-sibling-cache-collision gap is now a *known-recurring* issue, not a one-off — expect to see it
-again on 1061/1045 wherever two sibling bar/grid sections share a route and differ only in measure;
-no need to re-investigate root cause, just gap-log per report and move on (per user precedent).
-Below that, the remaining items are optional follow-ups from before round 6 — see the "Approved
-gap-coverage picks" note below for the original list.
+**Round 6 COMPLETE — all 6 reports re-run and gap-audited current.** Nothing left to re-run for
+this pass. Below are optional follow-ups from before round 6 — see the "Approved gap-coverage
+picks" note below for the original report list. No open re-run work remains on 1070/1071/751/
+1061/1045/874; any future work here is either a genuinely new gap-coverage report, or one of the
+still-open design questions (Route Difference/Compare graph shape, synthetic `overrides.baseSpeed`
+data, `overrides.aadt`, `dataQuality`/stat-panel graph types).
+
+**Reports 1061, 1045, 874 — round 6 re-run, live-verified (2026-07-08), resumed after the
+ClickHouse hazard fix.** All three re-converted with `--replace` to pick up the color_range +
+graph_layout fixes that had only been exercised on 1070/1071/751 so far:
+- **1061** (new page `2188770`): 3 graphs convert (`graph-comp-57` Route Bar Graph/hoursOfDelay/day,
+  `graph-comp-58` Route Bar Graph/speed/day, `graph-comp-62` TMC Grid Graph/speed/5-minutes). This
+  is the **first live confirmation of color_range wiring on a Route Bar Graph *day*-resolution
+  report**, and the first report where the wiring is visually confirmed on two different graph
+  types (Route Bar Graph + TMC Grid Graph) at once — both render the report's real 9-color
+  purple/orange diverging palette (`#542788`…`#b35806`), confirmed both in the raw section JSON
+  (`display.colors.value`) and visually in a live screenshot. `graph_layout`: `size:"12"` (×2,
+  full-width bars) and `size:"4"` (grid) written correctly from old `w`, gap now omits `w` (only
+  `h`/`x`/`y` remain, as expected). The previously-nondeterministic `graph-comp-60` (mixed
+  5-minutes/day/hour resolution TMC Grid Graph) now deterministically gaps every run (the round-3
+  fix holding up under a fresh run, not just the original bugfix run). Zero console errors, all 3
+  graphs show real non-zero data. `overrides.aadt` gap still present (`I-787 Exit 2 Southbound`,
+  same known class as before). **No Falcor sibling-cache-collision observed** — the two Route Bar
+  Graph sections share a route but have genuinely different calculated columns (delay formula vs.
+  speed formula), so their options strings aren't identical and the collision precondition doesn't
+  fire here; worth noting as a data point that the bug needs identical queries, not just a shared
+  route, to trigger.
+- **1045** (new page `2188782`): same 3 graphs convert as round 5 (`graph-comp-6` Route Line
+  Graph/travelTime, `graph-comp-7` TMC Grid Graph/speed/5-minutes, `graph-comp-10` Route Bar
+  Graph/hoursOfDelay/**weekday**). **First live confirmation of color_range wiring on the weekday
+  bar graph** and **first live exercise of the width fix on non-12 `w` values** (`size:"6"`,
+  `"8"`, `"6"` from old `w` values 6/8/6, previously only `w:12` had been exercised). Visually
+  confirmed: the Route Line Graph correctly keeps the template's default 20-color palette
+  (untouched, not a colorful type); the TMC Grid Graph and the weekday Bar Graph both render the
+  report's real 5-color purple→white→green diverging palette (`#7b3294`…`#008837`). Zero console
+  errors, all 3 graphs show real data (weekday bar graph shows 3 nonzero bars — a real data-range
+  artifact, not a rendering bug). Gap count/content otherwise unchanged from round 5 (29 items:
+  unmapped 5-minute-resolution Route Bar Graphs/TMC Info Box/Route Map/Bar Graph Summary/Route
+  Compare Component, `relative_date` ×5, `extra_measures_dropped` ×5).
+- **874** (new page `2188794`): unchanged from round 5 — 0 of 2 old graphs convert (both
+  `Route Map`/`Route Info Box`, no template exists for either), so there's nothing for the
+  color_range/graph_layout fixes to exercise on this report; re-run is a clean no-op regression
+  check. `color_range` gap still correctly fires (skipped `Route Map` is a colorful type). Gap
+  report unchanged (7 items). Live-verified: page loads, zero console errors, no chart data (as
+  expected — matches round 5 exactly).
 
 **Report 751 — round 6 re-run, live-verified (2026-07-08).** `--replace`-converted (new page id
 `2188754`). `color_range` wiring confirmed **visually** for the first time (previously only
@@ -200,8 +319,11 @@ check in):**
   (e.g. "Route Map"), (d) it does not fire when skipped graphs are all non-colorful (e.g. "Route
   Info Box"). **Re-ran 1070 twice more after this change (ids `2188718`)** as a regression check —
   gap report unchanged (still just `{h, x, y}`), confirming the new code path is a true no-op for
-  non-colorful reports. **Not yet live-verified end-to-end** on an actual colorful-type report
-  (751/1061/1045) — that happens naturally when the round-6 walk reaches one of them.
+  non-colorful reports. **Live-verified end-to-end (2026-07-08, round 6 complete)** on 751 (TMC
+  Grid Graph heatmap), 1061 (Route Bar Graph + TMC Grid Graph together), and 1045 (TMC Grid Graph +
+  weekday Route Bar Graph) — real diverging palettes rendering correctly on every colorful
+  converted graph across all three reports, default palette correctly untouched on non-colorful
+  types (Route Line Graph).
 - **Stale generic fixes — 1070 re-run picked them up for free.** 1070 was converted in round 1,
   before round 2 added title-template translation (`{data}`/`{type}`/`{name}` → literal text). A
   plain `--replace` re-run (no code change needed) fixed it: the graph's title is now literally
@@ -817,12 +939,15 @@ convert from `admin2.reports` directly (dedupe/cleanup of that dataset is separa
   `size` field (colspan; `npmrds_sub` runs the `transportnyv2` theme, 12-col numeric scale, same
   numbering as old `w`). `h`/`x`/`y` still have no obvious new-side target (sections stack
   linearly; the theme's `rowspan` is a compound-card concept, not a pixel height, so not a fit).
-- Old `color_range` — **DONE as of round 6**: gap-logging now only fires when a report has a
-  colorful-type graph (Route Bar Graph/Route Map/TMC Grid Graph/Route Difference Graph/TMC
-  Difference Grid, confirmed against old client source) that fails to convert; for ones that do
-  convert, the real `color_range` is wired into the new template's `display.colors.value`. Not yet
-  live-verified end-to-end (only standalone-tested) — will be naturally exercised when the round-6
-  walk reaches 751/1061/1045.
+- Old `color_range` — **DONE as of round 6, correctness fixed in round 7**: gap-logging only fires
+  when a report has a colorful-type graph (Route Bar Graph/Route Map/TMC Grid Graph/Route
+  Difference Graph/TMC Difference Grid, confirmed against old client source) that fails to convert;
+  for ones that do convert, the real `color_range` is wired into the new template's
+  `display.colors.value`. Round 6's wiring was live-verified but not actually rendering correctly —
+  round 7 found and fixed two real rendering bugs (GridGraph's color scale silently truncated to a
+  palette's first 3 colors; BarGraph had no per-value coloring mode at all, so single-series bars
+  rendered as one solid color) — see round-7 notes above for the full root-cause + fix. **Now
+  live-verified as actually correct** on 751/1061/1045/1071.
 - Relative-date reports (`settings.relativeDate`) and route groups need design.
 - `overrides.aadt` not implemented on the weighted Hours-of-Delay calculated column (round 4) — the
   real `ny_2025_tmc_meta.aadt` is `0`/unusable for at least one confirmed TMC (`120-11332`), which
@@ -856,9 +981,15 @@ file (not this section) as more sources get investigated.
 `new_page_2187523_sections.json`, `new_report_row_page2187523.json`,
 `avl_graph_templates.json`, `page_template_2187021_current.json` (new side).
 `report_1071.json`, `report_751.json`, `report_1061.json` (old-side dumps for those reports).
-`gaps/report_1070.json`, `gaps/report_1071.json`, `gaps/report_1061.json` (per-report gap reports,
-regenerated on every conversion run — `report_1071.json`'s `new_page_id`/`dry_run` fields were
-manually restored after a dry-run overwrote them, see round-3 notes if this looks odd).
+`gaps/report_1070.json`, `gaps/report_1071.json`, `gaps/report_1061.json`, `gaps/report_751.json`,
+`gaps/report_1045.json`, `gaps/report_874.json` (per-report gap reports, regenerated on every
+conversion run — `report_1071.json`'s `new_page_id`/`dry_run` fields were manually restored after a
+dry-run overwrote them, see round-3 notes if this looks odd).
+
+**Current live page ids as of round 7 completion (2026-07-08)** — 1061/1045/1071 superseded again
+in round 7 to pick up `colors.byValue`; 1070/751/874 unchanged since round 6 (751/1070 needed no
+DB change for the round-7 GridGraph fix — it's frontend-only; 874 has no converted graphs at all):
+1070→`2188718`, 1071→`2188824`, 751→`2188754`, 1061→`2188800`, 1045→`2188812`, 874→`2188794`.
 
 Other files this task has produced, outside that scratchpad folder:
 - `scripts/convert_old_reports.py` — the converter itself.
@@ -877,6 +1008,21 @@ Other files this task has produced, outside that scratchpad folder:
   `simpleFilterLength`.
 - `src/dms/packages/dms-server/tests/test-uda.js` — `testFilterGroupsCHJoinQualification`
   regression test for the round-4 ambiguous-identifier fix.
+- `src/dms/packages/dms/src/ui/components/graph_new/components/utils.js` — round-7: new
+  `buildValueColorScale` shared helper (fixes GridGraph's truncation bug, powers BarGraph's new
+  `byValue` mode).
+- `src/dms/packages/dms/src/ui/components/graph_new/components/GridGraph.jsx` — round-7: uses the
+  new helper instead of a hardcoded 3-point domain.
+- `src/dms/packages/dms/src/ui/components/graph_new/components/BarGraph.jsx` — round-7: new
+  `colors.byValue` mode (min/max tracking + value-scaled colors + linear legend).
+- `src/dms/packages/dms/src/ui/components/graph_new/components/avl-graph/components/Legend.jsx` —
+  round-7: fixed a latent duplicate-React-key bug in both linear legend variants (tick elements
+  keyed by value instead of index — only manifests on a degenerate/constant-value domain).
+- `src/dms/packages/dms/src/patterns/page/components/sections/components/ComponentRegistry/
+  graph_new/config.jsx` — round-7: new "Color by Value" author-facing toggle in the Bar Graph
+  Layout SectionMenu group.
+- `src/dms/packages/dms/tests/graphColorScale.test.js` — round-7: regression tests for
+  `buildValueColorScale` (full-palette reach, degenerate-input scale shape).
 - `scratchpad/npmrds-sub/dms-server.log` — dms-server's live stdout, piped via `tee` (user-run,
   2026-07-08) so errors can be read directly instead of reconstructed from browser console
   captures; per `[[feedback_check_server_logs_first]]`, check this file first when a graph/page

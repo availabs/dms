@@ -4,10 +4,8 @@ import { GridGraph, Legend } from "./avl-graph"
 
 import { groups as d3groups } from "d3-array"
 
-import { scaleLinear } from "d3-scale"
-
 import { strictNaN } from "../utils"
-import { getAggFunc } from "./utils"
+import { getAggFunc, buildValueColorScale } from "./utils"
 import { getColorRange } from "../colorSchemeUnifier"
   
 const TopOrBottomRegex = /^top|bottom/;
@@ -125,12 +123,7 @@ const GridGraphWrapper = props => {
     }
 
 
-    let colorFunc;
-
-    if ((min < Infinity) && (max > -Infinity)) {
-      const mid = min + (max - min) * 0.5;
-      colorFunc = scaleLinear().domain([min, mid, max]).range(colors);
-    }
+    const colorFunc = buildValueColorScale(min, max, colors);
 
     const keys = [...keySet];
 
