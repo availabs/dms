@@ -1,4 +1,4 @@
-import React, {useContext, useState} from "react";
+import React, {useContext, useEffect, useState} from "react";
 import { DatasetsContext } from "../../../context";
 import { cloneDeep } from "lodash-es";
 import {useNavigate, Link} from "react-router";
@@ -8,6 +8,7 @@ import UdaTaskList from "../../Tasks/UdaTaskList";
 import SourceAccessEditor from "../../../components/SourceAccessEditor";
 import { ThemeContext } from "../../../../../ui/useTheme";
 import { adminTheme } from "./admin.theme";
+import { updateSourceData } from "./utils";
 
 const DeleteSourceBtn = ({parent, source, apiUpdate, baseUrl}) => {
     const { theme } = useContext(ThemeContext) || {};
@@ -226,6 +227,43 @@ const AddExternalVersionBtn = ({source}) => {
         </>
     )
 }
+// External sources only — becomes enabled once the source has a real primary key
+// (set/detected via the Advanced Metadata page, see set_primary_col_from_meta.md).
+// This is a deliberate admin action, not automatic just because a pkey exists.
+const EditableToggle = ({source, setSource, format, pgEnv, id}) => {
+    const { theme } = useContext(ThemeContext) || {};
+    const t = { ...adminTheme, ...(theme?.datasets?.admin || {}) };
+    const {UI, falcor} = useContext(DatasetsContext);
+    const {Switch} = UI;
+    const [pkeyInfo, setPkeyInfo] = useState(null);
+
+    useEffect(() => {
+        if (!falcor || !id) return;
+        falcor.get(['uda', pgEnv, 'sources', 'byId', +id, 'pkeyInfo']).then(res => {
+            setPkeyInfo(res?.json?.uda?.[pgEnv]?.sources?.byId?.[id]?.pkeyInfo || null);
+        });
+    }, [falcor, pgEnv, id]);
+
+    const isEditable = !!source?.metadata?.isEditable;
+
+    return (
+        <div className={t.editableToggleRow}
+             title={pkeyInfo?.hasPkey ? undefined : 'Requires a primary key — set one on the Advanced Metadata page'}
+        >
+            <label className={t.editableToggleLabel}>Allow editing</label>
+            <Switch
+                enabled={isEditable}
+                disabled={!pkeyInfo?.hasPkey && !isEditable}
+                setEnabled={e => {
+                    const data = JSON.stringify({...(source?.metadata || {}), isEditable: e});
+                    updateSourceData({data, attrKey: 'metadata', isDms: false, setSource, format, source, pgEnv, falcor, id});
+                }}
+                size={'small'}
+            />
+        </div>
+    );
+};
+
 const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params, isDms }) => {
     const {id} = params;
     const { theme } = React.useContext(ThemeContext) || {};
@@ -261,6 +299,7 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params, isDms })
                                 ) : (
                                     <>
                                         <AddExternalVersionBtn source={source} />
+                                        <EditableToggle source={source} setSource={setSource} format={format} pgEnv={pgEnv} id={id} />
                                         <DeleteDamaSourceBtn source={source} baseUrl={baseUrl} pgEnv={pgEnv} />
                                     </>
                                 )

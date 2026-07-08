@@ -478,6 +478,27 @@ async function resolvePrimaryKey(db, schema, table, storedIdx = null) {
   return pk;
 }
 
+// Unlike resolvePrimaryKey(), this never guesses 'id' — it returns the real
+// declared PRIMARY KEY column name, or null if the table has none. Used to
+// gate PK creation/detection on the metadata page, where a wrong guess would
+// be unsafe (it must never look like a PK exists when it doesn't).
+async function detectRealPrimaryKey(db, schema, table) {
+  if (db.type !== 'postgres') return null;
+  try {
+    const { rows } = await db.query(
+      `SELECT a.attname AS pk
+       FROM pg_index i
+       JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = ANY(i.indkey)
+       WHERE i.indrelid = $1::regclass AND i.indisprimary
+       LIMIT 1`,
+      [`${schema}.${table}`]
+    );
+    return rows[0]?.pk || null;
+  } catch (e) {
+    return null;
+  }
+}
+
 async function dataById(ctx, ids, attributes) {
   const { db, table_schema, table_name, isDms, idxColumn } = ctx;
 
@@ -497,6 +518,7 @@ module.exports = {
   simpleFilter,
   dataById,
   buildSimpleFilterSql,
+  detectRealPrimaryKey,
   // Exported for testing
   translatePgToSqlite,
 };

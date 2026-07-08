@@ -228,7 +228,8 @@
 - [ ] [Datasets design updates (DataManager redesign)](./tasks/current/datasets-design-updates.md) — port the converged TransportNY mockup (`datasets-catalog.html` / `datasets-source.html`) into `patterns/datasets`: functional changes land in the pattern (catalog view-switcher, per-view download dropdown, Admin Tasks panel, Metadata-as-admin nav, full-bleed spreadsheet + editable persistence fix), themed fully in transportny2 + baseline in the default theme, all surfaces moved onto `getComponentTheme`. 9 phases (Foundations → Catalog → Source shell → Overview → Table → Map → Metadata → Admin → Theme/sync); Create flow deferred pending a mockup. Non-BC items (Metadata admin-only, download UX, Map symbology) flagged for confirmation.
 - [x] [Datasets permissions model (pattern → source)](./tasks/completed/datasets-permissions-model.md) — DONE (migration committed + verified on prod npmrds2). Per-source `auth_permissions` (pattern ⊕ source), shared merge util + `SourceAccessEditor`, new sources private+creator-owned; strict server enforcement in **dms-server** (`routes/uda/sourceAuth.js` + `uda.route.js` gate, 16 tests); migration script in `dms-server/src/scripts`. Column is snake_case.
 - [ ] Datasets permissions — deferred hardening (post-soak): internal-source modify gate (`dms.data.edit`), listing/read enforcement in the dms-server UDA controller, then drop legacy `statistics.auth`. (Details in the completed `datasets-permissions-model.md`.)
-- [ ] [Set primary column from metadata UI](./tasks/current/set_primary_col_from_meta.md) — PK toggle in MetadataComp (RenderField) for internal_table + external sources, mutual exclusivity, UDA `setPrimaryKey` CALL route
+- [ ] [Set primary column from metadata UI](./tasks/current/set_primary_col_from_meta.md) — PK detect/create + `isEditable` toggle in MetadataComp for external sources, mutual exclusivity, UDA `setPrimaryKey` CALL route. Internal sources out of scope (already have a synthetic PK).
+- [ ] [External source editable CRUD](./tasks/current/external-source-editable-crud.md) — depends on the task above. New `uda.data.create/edit/delete` CALL routes + relaxed `dataWrapper`/`Card.jsx`/`apiUpdate` gates so add/edit/delete work for external sources with `isEditable: true`.
 - [x] Fix dataset creation → listing bug — getSitePatterns LIKE query, dmsSiteFactory siteType, DatasetsList category filter, UDA cache invalidation
 - [x] Modernize datasets pattern — own defaultTheme, context-only siteConfig wrapper, per-page Layout, UI components throughout
 - [x] DatasetsList style cleanup — transparent container, card/sidebar backgrounds, spacing, full-height, design pass, performance
@@ -267,6 +268,10 @@
 - [x] Fix `/groups/byproject` response shape — dms-server returns plain array, client expects `{ groups: [...] }` wrapper with synthetic "public" group
 - [ ] [Email redesign](./tasks/current/email-redesign.md) — redesign transactional emails (signup welcome, forgot password, password-changed confirmation) to match auth page visual identity; wire up email sending in 3 handler stubs
 - [x] [View As](./tasks/completed/view-as.md) — admin can impersonate any project user client-side; all permission checks use the viewAs user's groups; mutations blocked via globalThis flag; fixed banner with exit; works in single-tenant + multi-tenant
+
+## site-compliance
+
+- [ ] [Site completeness & legal/compliance gaps](./tasks/current/site-completeness-legal-gaps.md) — SEO meta/sitemap/manifest/favicon wiring, a11y fixes (nav landmarks, skip link, missing/empty `alt`), dead `analytics.js`, plus Privacy Policy/Terms/Accessibility Statement + signup consent checkbox for the live tessera.so/tributarylab.com multi-tenant deployment. Several items blocked on owner decisions (who writes legal text, real manifest branding, whether any tenant embeds trackers).
 
 ## config
 
