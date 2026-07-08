@@ -1022,6 +1022,33 @@ describe("buildJoinOnClause", () => {
       on: "ds.id = table2.foreign_id",
     }]);
   });
+
+  it("uses a calculated dsColumn's raw expression as-is, without an alias prefix", () => {
+    const join = {
+      sources: {
+        ds: {},
+        table2: {
+          source: 2,
+          type: "left",
+          joinColumns: [{
+            dsColumn: "if(table1.f_system < 3, 'FREEWAY', 'NONFREEWAY') as road_type",
+            joinSourceColumn: "key",
+          }],
+        },
+      },
+    };
+    const result = buildJoinOnClause({ join, externalSource });
+    // No "ds." prefix (which would corrupt the expression), and the expression
+    // can reference an already-joined alias (table1) directly in its own body —
+    // this is what makes a computed join key against a previously-joined table's
+    // columns possible without the join engine supporting multi-hop joins itself.
+    expect(result).toEqual([{
+      type: "left",
+      mergeStrategy: "join",
+      table: "table2",
+      on: "if(table1.f_system < 3, 'FREEWAY', 'NONFREEWAY') = table2.key",
+    }]);
+  });
 });
 
 // ─── buildJoin ───────────────────────────────────────────────────────────────

@@ -935,12 +935,24 @@ export const buildJoinSources = ({ join, externalSource }) => {
  * Each side is JSONB-unwrapped when its source is DMS-internal (`alias.data->>'col'`)
  * vs accessed directly when DAMA-backed (`alias.col`). Without this, joining two
  * DMS sources produces SQL referencing physical columns that don't exist.
+ *
+ * A join column may also be a calculated expression (same " as <alias>" convention
+ * used elsewhere for calculated columns, e.g. an externalSource column's own `name`)
+ * rather than a plain column name — detected via the same `isCalculatedCol` heuristic
+ * `refName`/`attributeAccessorStr` already use. In that case the raw expression is
+ * used as-is (no `${alias}.` prefix, which would corrupt it), letting a calculated
+ * join key reference already-joined aliases directly in its own expression body
+ * (e.g. `if(table1.f_system < 3, ...) as dist_key`) — this is how a computed join
+ * key against a value that only exists on a previously-joined table becomes
+ * possible without the join engine itself supporting multi-hop joins.
  */
 export const buildJoinOnClause = ({ join, externalSource }) => {
   const { sources, operator = "=" } = join;
   const baseIsDms = !!externalSource?.isDms;
-  const accessor = (alias, col, isDmsSide) =>
-    isDmsSide ? `${alias}.data->>'${col}'` : `${alias}.${col}`;
+  const accessor = (alias, col, isDmsSide) => {
+    if (isCalculatedCol({ name: col })) return splitColNameOnAS(col)[0];
+    return isDmsSide ? `${alias}.data->>'${col}'` : `${alias}.${col}`;
+  };
 
   // The 'ds' is our base table. We join every other source onto it.
   return Object.keys(sources)

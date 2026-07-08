@@ -215,6 +215,17 @@ async function simpleFilter(ctx, options, attributes, indices) {
   if (seriesVariants.length) {
     const armGroupByExprs = groupByExprs.filter((g) => g !== seriesKey);
     const baseArmAttrs = sanitizedAttrs.filter((c) => getResponseColumnName(c) !== seriesKey);
+    // The arm SELECT must project every GROUP BY column even when the request's
+    // attribute list omits it. The falcor client cache-dedupes attributes: a
+    // section whose options string matches an earlier query's (two graphs over
+    // the same routes differing only in their measure column) re-requests only
+    // its own uncached measure — and the cross-union ORDER BY below references
+    // response-column names, which must exist in the fanout's scope or CH
+    // raises "Unknown expression identifier '<col>'".
+    const projectedNames = new Set(
+      baseArmAttrs.map((c) => getResponseColumnName(columnNameMap[c] || c)));
+    const unprojectedGroupBys = armGroupByExprs.filter(
+      (g) => !projectedNames.has(getResponseColumnName(g)));
     const armSqls = seriesVariants.map((variant) => {
       const armWhere = buildCombinedWhereCH({
         filter, exclude, gt, gte, lt, lte, like,
@@ -223,6 +234,7 @@ async function simpleFilter(ctx, options, attributes, indices) {
       const safeLabel = `'${String(variant.label ?? '').replace(/'/g, "''")}'`;
       const armSelect = [
         ...baseArmAttrs.map((c) => columnNameMap[c] || c),
+        ...unprojectedGroupBys,
         `${safeLabel} as ${seriesKey}`,
       ].join(', ');
       return `
