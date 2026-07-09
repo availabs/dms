@@ -991,6 +991,21 @@ describe("buildJoinSources", () => {
       table2: { view_id: 202, env: "dama_other" },
     });
   });
+
+  it("passes a pgFederated source through as-is, without extracting view_id/env", () => {
+    const join = {
+      sources: {
+        ds: {},
+        pm3: {
+          pgFederated: { pgEnv: "npmrds2", table: "s2001_v3490_map_21_extended", schema: "gis_datasets" },
+        },
+      },
+    };
+    const result = buildJoinSources({ join, externalSource });
+    expect(result).toEqual({
+      pm3: { pgFederated: { pgEnv: "npmrds2", table: "s2001_v3490_map_21_extended", schema: "gis_datasets" } },
+    });
+  });
 });
 
 // ─── buildJoinOnClause ───────────────────────────────────────────────────────
@@ -1206,6 +1221,32 @@ describe("isJoinComplete", () => {
 
   it("returns false for join missing type", () => {
     expect(isJoinComplete({ source: 1, view: 101, mergeStrategy: 'join' })).toBe(false);
+  });
+
+  it("returns true for a complete pgFederated join", () => {
+    expect(isJoinComplete({
+      pgFederated: { pgEnv: 'npmrds2', table: 's2001_v3490_map_21_extended', schema: 'gis_datasets' },
+      mergeStrategy: 'join',
+      type: 'inner',
+      joinColumns: [{ dsColumn: 'tmc', joinSourceColumn: 'travel_time_code' }],
+    })).toBe(true);
+  });
+
+  it("returns false if pgFederated is missing pgEnv/table/schema", () => {
+    expect(isJoinComplete({
+      pgFederated: { pgEnv: 'npmrds2', table: 's2001_v3490_map_21_extended' },
+      mergeStrategy: 'join',
+      type: 'inner',
+      joinColumns: [{ dsColumn: 'tmc', joinSourceColumn: 'travel_time_code' }],
+    })).toBe(false);
+  });
+
+  it("returns false for a pgFederated join missing joinColumns", () => {
+    expect(isJoinComplete({
+      pgFederated: { pgEnv: 'npmrds2', table: 's2001_v3490_map_21_extended', schema: 'gis_datasets' },
+      mergeStrategy: 'join',
+      type: 'inner',
+    })).toBe(false);
   });
 });
 

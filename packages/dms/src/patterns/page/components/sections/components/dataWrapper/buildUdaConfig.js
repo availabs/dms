@@ -918,6 +918,13 @@ export const buildJoinSources = ({ join, externalSource }) => {
     // If curKey is 'ds', this is our primary/base source.
     if (curKey === 'ds') return acc;
 
+    // A pgFederated source has no DAMA view_id/env to resolve — it's passed
+    // through as-is, resolved server-side (see buildJoin in dms-server).
+    if (sources[curKey].pgFederated) {
+      acc[curKey] = { pgFederated: sources[curKey].pgFederated };
+      return acc;
+    }
+
     const curSource = sources[curKey].source ? sources[curKey] : externalSource;
     acc[curKey] = {
       view_id: curSource.view || curSource.view_id,
@@ -987,10 +994,19 @@ export const buildJoinOnClause = ({ join, externalSource }) => {
 
 export const isJoinComplete = (joinSource) => {
   const strategy = joinSource.mergeStrategy || 'join';
-  if(!joinSource.source || !joinSource.view) {
+
+  if (joinSource.pgFederated) {
+    const { pgEnv, table, schema } = joinSource.pgFederated;
+    if (!pgEnv || !table || !schema) {
+      console.log("pgFederated join is missing pgEnv/table/schema::", joinSource);
+      return false;
+    }
+  } else if (!joinSource.source || !joinSource.view) {
     console.log("join is missing source or view::", joinSource);
     return false
-  } else if (strategy === "union" || strategy === "except") {
+  }
+
+  if (strategy === "union" || strategy === "except") {
     return true;
   } else if (strategy === "join") {
     if (!joinSource.type) {
@@ -1199,7 +1215,12 @@ export const buildUdaConfig = ({
 
   const sourceIdToTableAlias = isJoinPresent ? Object.keys(join.sources).reduce((acc, alias) => {
     const curJoinSource = join.sources[alias];
-    const source_id = curJoinSource.source || externalSource.source_id;
+    // A pgFederated source has no DAMA source_id — give it a synthetic key so
+    // it can't collide with (and be silently overwritten by) the base 'ds'
+    // mapping set below.
+    const source_id = curJoinSource.pgFederated
+      ? `pgFederated:${alias}`
+      : curJoinSource.source || externalSource.source_id;
     acc[source_id] = alias;
     return acc;
   },{}) : {};

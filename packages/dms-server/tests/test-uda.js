@@ -1334,6 +1334,65 @@ async function testClickHouseExplicitAliasing() {
   pass('already-aliased expressions are not re-aliased');
 }
 
+// ============================================ buildJoin pgFederated branch =========================================
+
+/**
+ * buildJoin's `pgFederated` join-source branch: joins a live Postgres table
+ * into a ClickHouse query via the `postgresql()` table function instead of a
+ * registered DAMA view (view_id/env). Lets a join reach data that hasn't
+ * been (and may never be) mirrored into ClickHouse, with credentials
+ * resolved server-side from the same pgEnv config every DAMA join already
+ * uses — never sent by/to the client. Pure SQL-string test: loadConfig()
+ * just reads the existing dms-postgres-test config file, no live connection
+ * needed to build/verify the generated SQL.
+ */
+async function testBuildJoinPgFederated() {
+  console.log('\n--- Unit: buildJoin pgFederated branch ---');
+  const { buildJoin } = require('../src/routes/uda/utils');
+
+  const join = {
+    sources: {
+      ds: {},
+      pm3: {
+        pgFederated: { pgEnv: 'dms-postgres-test', table: 's2001_v3490_map_21_extended', schema: 'gis_datasets' },
+      },
+    },
+    on: [{
+      table: 'pm3',
+      type: 'inner',
+      mergeStrategy: 'join',
+      on: 'ds.tmc = pm3.travel_time_code',
+    }],
+  };
+
+  const { joins, merges } = await buildJoin({ join });
+  assert(merges === '', 'no merges generated for a plain join');
+  assert(
+    joins === "inner JOIN (SELECT * FROM postgresql('localhost:5499', 'dms_test', 's2001_v3490_map_21_extended', 'dms_test', 'dms_test', 'gis_datasets')) as pm3 ON ds.tmc = pm3.travel_time_code",
+    `unexpected pgFederated JOIN SQL: ${joins}`
+  );
+  pass('pgFederated join source resolves connection details via loadConfig, not getEssentials');
+
+  // Sanitization: a malicious table/schema name must not reach the generated SQL.
+  const maliciousJoin = {
+    sources: {
+      ds: {},
+      pm3: {
+        pgFederated: { pgEnv: 'dms-postgres-test', table: 'x; DROP TABLE foo', schema: 'gis_datasets' },
+      },
+    },
+    on: [{ table: 'pm3', type: 'inner', mergeStrategy: 'join', on: 'ds.tmc = pm3.travel_time_code' }],
+  };
+  let threw = false;
+  try {
+    await buildJoin({ join: maliciousJoin });
+  } catch (e) {
+    threw = true;
+  }
+  assert(threw, 'buildJoin rejects an unsanitizable pgFederated table/schema name instead of splicing it into SQL');
+  pass('pgFederated table/schema names are sanitized before use');
+}
+
 // ================================================= Test Runner ===================================================
 
 async function run() {
@@ -1376,6 +1435,9 @@ async function run() {
 
     // ClickHouse output-column aliasing (collision-with-joined-table regression)
     await testClickHouseExplicitAliasing();
+
+    // buildJoin pgFederated branch (live Postgres join via ClickHouse postgresql())
+    await testBuildJoinPgFederated();
 
     // DAMA mode tests
     await testDamaModeSourcesCrud();

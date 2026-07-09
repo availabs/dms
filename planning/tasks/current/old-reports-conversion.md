@@ -1,5 +1,326 @@
 # Old NPMRDS reports → new DMS report pages (automated conversion)
 
+**Round 17 (2026-07-09): 1410's TMC-id column confirmed + PRODUCT DECISION on the round-13
+LOTTR/TTTR question — "surface current/correct," not a faithful old-math replica.**
+
+- **1410's TMC-id column CONFIRMED**: `tmc` (row shape starts `ogc_fid, tmc, urban_code,
+  region_code, county, ...`, from a direct `SELECT * FROM gis_datasets.s1410_v2575_pm_3`) — closes
+  the last queued item from round 15/16. **Different from 2001's id column** (`travel_time_code`) —
+  each source has its own naming, don't assume they match when wiring a `pgFederated` join to
+  either. `npmrds-data-sources.md`'s 1410 row updated.
+- **Product decision (answers round 13's "replicate old ad hoc math 1:1 vs. surface current
+  LOTTR/TTTR" question, left open since 2026-07-08): surface current/correct LOTTR/TTTR.** Not a
+  faithful reproduction of the old InfoBox's ad hoc percentile math (round 14's
+  bin-average-then-percentile finding, and the whole "can ClickHouse express a two-stage
+  aggregation live" investigation) — pull the real, federally-current LOTTR/TTTR values directly
+  from a real source via the round-16 `pgFederated` join, same as the round-15/16 proof-of-concept
+  already did against source 2001. **This significantly de-scopes the LOTTR/TTTR half of the
+  InfoBox work**: no calculated-column quantile math needed for these two measures at all — just a
+  plain joined column read (`pm3.lottr_amp`/`pm3.tttr_amp` etc.) through the now-built join
+  mechanism. Round 14's quantile/bin-averaging investigation remains relevant only for
+  **freeflow** specifically (1410's `speed_pctl_85`, or a live recompute) — that product question
+  (does "current/correct" extend to freeflow too, or does freeflow still want a faithful replica?)
+  was NOT addressed by this decision and remains open.
+- **Still open, for whenever InfoBox work resumes**: which source to join for LOTTR/TTTR — 2001
+  (best/current year coverage 2016-2025, periodically re-published — arguably the more literal
+  reading of "current") vs. 1410 (narrower 2021-2025, but also carries `speed_pctl_85` if freeflow
+  ever gets folded into the same join). Not decided; both are proven-real and both work through the
+  same `pgFederated` mechanism, so this is a pick, not a blocker.
+- **Not done**: no InfoBox template/section built yet. This round only closed two open questions
+  (schema + product decision) — still purely investigation/decision-making, no new code.
+
+**Round 16 (2026-07-09): `pgFederated` join source — BUILT, tested, no template wired to it yet.**
+User pushed further on round 15's Reading C (the live `postgresql()` join) with a better question:
+why does it need a persistent ClickHouse VIEW or DAMA source/view registration at all, when the
+whole point is a "custom column" — could `buildJoin` itself just recognize a join source shaped as
+a `postgresql()` call and build it inline, with credentials living server-side exactly as they do
+today? Traced the real code before answering (not guessed): `getEssentials`/`getDb(pgEnv)`/
+`getChDb(pgEnv)` (`dms-server/src/routes/uda/utils.js`, `src/db/index.js`) all resolve a `pgEnv`
+name via the identical `loadConfig(pgEnv)` — the SAME config file already backs both a pgEnv's
+Postgres connection (top-level `host`/`port`/`user`/`password`/`database`) and its ClickHouse
+sub-connection (`.clickhouse`). Nothing new to store — this is genuinely the lowest-impact option
+of the three considered (VIEW+registration / CH Dictionary / this).
+
+- **Server** (`dms-server/src/routes/uda/utils.js`, `buildJoin`, the single join-builder shared by
+  both `clickhouse.js` and `postgres.js` query sets): a join source shaped
+  `{pgFederated: {pgEnv, table, schema}}` (instead of `{view_id, env}`) skips `getEssentials()`
+  entirely — `loadConfig(pgEnv)` resolves the connection, `sanitizeName()` (already imported in
+  this file) guards `table`/`schema` against injection, and the FROM-clause expression becomes
+  `(SELECT * FROM postgresql('host:port', 'database', 'table', 'user', 'password', 'schema'))`
+  instead of `table_schema.table_name`. Throws if `table`/`schema` fail sanitization — never
+  splices an unvalidated name into SQL. Deliberately NOT engine-guarded (no new `dbType` parameter
+  threaded through all 5 call sites) — `postgresql()` is ClickHouse-only SQL, so a `pgFederated`
+  source used against a Postgres-dispatched base query fails naturally and loudly (`function
+  postgresql does not exist`) rather than needing a bespoke check; kept the diff small per the
+  dms-server CLAUDE.md's "don't create wrapper functions without genuine value" guidance.
+- **Client** (`buildUdaConfig.js`): three touchpoints, all found by tracing what actually gates a
+  join source from reaching the server, not assumed:
+  1. `isJoinComplete` unconditionally required `joinSource.source`/`.view` as its FIRST check,
+     before the merge-strategy/joinColumns validation — a `pgFederated` source has neither, so
+     without a fix it would be silently filtered out of `join.sources` before `buildJoinSources`
+     ever ran (this gate is real, not cosmetic — `buildUdaConfig`'s main body drops any join source
+     that fails it). Added a parallel branch checking `pgFederated.{pgEnv,table,schema}` instead,
+     falling through to the same shared strategy/type/joinColumns checks either way.
+  2. `buildJoinSources` always built `{view_id, env}` regardless of input shape — added an early
+     branch passing `{pgFederated: {...}}` through as-is.
+  3. Found while reading, not asked for: `sourceIdToTableAlias`'s per-alias `source_id` fallback
+     (`curJoinSource.source || externalSource.source_id`) would give a `pgFederated` source (no
+     real DAMA `source_id`) the SAME key as the base `ds` source — inert for a single `pgFederated`
+     source today (the explicit `sourceIdToTableAlias[externalSource.source_id] = 'ds'` line right
+     after the reduce always wins), but would silently collide two DIFFERENT `pgFederated` sources
+     used in the same join (e.g. both 2001 and 1410 joined into one InfoBox query at once) before
+     that override line even runs. Gave it a synthetic `` `pgFederated:${alias}` `` key instead —
+     cheap insurance for a scenario not built yet but plausible (LOTTR/TTTR from 2001 + freeflow
+     from 1410 in one query).
+- **No new authoring UI** — matches how every other join in this task has been wired
+  (`META_1946_JOIN`/`AADT_DIST_JOIN`): a `pgFederated`-shaped join source gets hand-written directly
+  into a template's `stateJson` by `convert_old_reports.py`, same as any other join. An
+  author-facing UI toggle would be a reasonable follow-up, not required to ship InfoBox measures.
+- **Architecture check**: still exactly one query to one ClickHouse connection from the platform's
+  perspective — ClickHouse does the Postgres federation internally via its own `postgresql()` table
+  function. Does not reopen round 13's "no bespoke multi-query components" correction.
+- **Tested** (both suites green, no regressions): server — new `testBuildJoinPgFederated` in
+  `dms-server/tests/test-uda.js` (pure SQL-string test, no live DB needed — `loadConfig` just reads
+  the existing `dms-postgres-test` config file; asserts the exact generated JOIN SQL, and that a
+  malicious table/schema name throws instead of reaching the query), full UDA suite 74/74 (+2, no
+  regressions). Client — 5 new cases across `buildJoinSources`/`isJoinComplete` in
+  `dms/tests/buildUdaConfig.test.js` (pass-through shape, complete/incomplete pgFederated configs),
+  full client suite 191/191 (+5, no regressions). The `sourceIdToTableAlias` collision fix has no
+  direct test — internal, currently unreachable with a single `pgFederated` source, and not
+  observably returned by `buildUdaConfig`; documented via code comment instead of test scaffolding.
+- **Not done**: no template/section actually uses `pgFederated` yet — this round built and tested
+  the platform mechanism only, on the strength of round 15's live-query proof (real LOTTR/TTTR/PHED
+  data, 0.75s, via the ad hoc `postgresql()` query). Next step is wiring an actual InfoBox
+  calculated-column/join config that uses it — still blocked on the earlier-queued schema peeks
+  (1410's TMC-id column name unconfirmed) and the still-undecided product question (replicate old
+  ad hoc math 1:1 vs. surface current LOTTR/TTTR).
+
+**Round 15 (2026-07-09): user proposed reusing the existing PM3/MAP21 sources instead of round
+14's "compute fresh from the raw fact table" plan — investigated, and there are two different
+ways to read "port/duplicate the sources," with very different outcomes.** Question was: "can we
+get the data we need by just porting/duplicating the pm3/map21 sources we scoped out earlier"
+(referring to sources 1722/2001/1410, `npmrds-data-sources.md`'s "Other active old-DAMA NPMRDS
+sources" table — the already-computed Postgres LOTTR/TTTR/PHED/freeflow-equivalent tables).
+
+- **Reading A — re-run the live map21/pm3 DAMA pipeline against source 583 to compute FRESH
+  results.** Traced the real trigger mechanism in `avail-falcor` (not guessed): `dama/routes/
+  index.js` mounts every `dama/routes/**/*routes?.js` file under `/dama-admin`; `map21/
+  publish.routes.js` and `pm3/publish.routes.js` expose `POST /dama-admin/:pgEnv/map21/publish`
+  and `.../pm3/publish` — each creates/reuses a `data_manager.sources` row (`type` is 100%
+  caller-supplied, no enum, confirmed no hardcoded `'map21'`/`'pm3'` type check anywhere) and
+  queues an async worker (`map21/publish.worker.mjs`/`pm3/publish.worker.mjs`) that runs
+  `calcTtrMeasure`/`calcPhed` per TMC. No admin-UI caller of these routes exists in this repo — the
+  UI (if any) is in a separate frontend repo not present locally.
+  - **The raw-travel-time half needs NO new mechanism** — `getBinnedYearNpmrdsDataForTmc`
+    (`calcTtrMeasure.js:192-247`) already branches to `chQuery` for any `schema_name !== "public"`
+    (code's own comment: "THIS IS NEW STUFF IN CLICKHOUSE"), and `NPMRDS_CH_SCHEMA_NAME='npmrds'`
+    is already source 583's real CH database. Pointing a fresh publish run at
+    `npmrdsSourceId: 583` should just work for the data-fetch side.
+  - **The metadata half is a real, live-DB-dependent blocker**: `tmcMeta` is fetched via Postgres
+    `query()` (never `chQuery`) against a table resolved from
+    `data_manager.sources.metadata.npmrds_meta_layer_view_id[year]` **on source 583's own metadata
+    row** (`map21/publish.worker.mjs:185-206`). `ny_2025_tmc_meta` (1946/3298, the meta view every
+    other template in this task already joins) is ClickHouse-backed — a Postgres `query()` call
+    can't read it, so it's definitely not the answer here. `npmrds-data-sources.md` separately
+    notes 583's metadata cross-references `npmrds_tmc_meta_source_id: 582` (a *different* key name
+    than what the code reads) and that 582 is "partially duplicated across ClickHouse + Postgres."
+    Whether 582 already has a Postgres view with the exact columns this pipeline needs
+    (`avg_speedlimit, miles, functionalclass, congestion_level, directionality, nhs_pct,
+    avg_vehicle_occupancy, directionalaadt`), and whether 583's metadata blob already has
+    `npmrds_meta_layer_view_id` populated in the shape the worker expects, is **undeterminable from
+    code alone** — needs a live `SELECT metadata FROM data_manager.sources WHERE source_id IN
+    (583, 582)` (queued, see below).
+  - **Even if unblocked, this reading doesn't avoid the original problem**: every real write path
+    (`pm3Config.METRIC_WRITES_DB` in `pm3/publish.worker.mjs`, `getDataInsertSqlForMap21`/
+    `getUpdateColumnsSqlForMap21` in `map21/publish.worker.mjs`) is confirmed plain Postgres
+    (`query()`, never `chQuery`; `createAnalysisTableSql` in `map21/helpers.js` is Postgres DDL —
+    `SERIAL`/`TEXT`/`NUMERIC`/`JSONB`) into a **fresh per-run `gis_datasets` table** (`createView`
+    with `setDefaultTable: true`, `dama/admin/metadata.js`). So a brand-new publish run against 583
+    would produce a **4th Postgres PM3 table** — same cross-engine join wall as 1722/2001/1410,
+    solving nothing architecturally on its own.
+- **Reading B — mirror the ALREADY-COMPUTED 1722/2001/1410 Postgres tables into ClickHouse.**
+  This is the one that actually resolves the architecture problem: no DAMA task queue, no worker,
+  no `tmcMeta`/metadata blocker, no live aggregation over the fact table — just copy rows that
+  already exist and are already verified real/non-null (round 13). ClickHouse's native
+  `postgresql(host:port, database, table, user, password, schema)` table function can read
+  directly from the same Postgres server in one `INSERT INTO ... SELECT * FROM postgresql(...)`
+  query, landing the mirrored table in `clickhouse.avail` (the same CH database
+  `aadt_distributions` already lives in) — then register + join it exactly like
+  `aadt_distributions` (source_id 2056/view 3524 precedent). No new platform capability needed at
+  all, and no expensive fresh aggregation over the multi-billion-row fact table (round 14's
+  fallback) — this is strictly cheaper and lower-risk than round 14's plan where it applies.
+  - **Candidates to mirror**: 1410 (`s1410_v3425_pm_3` for 2025; other 4 years' table names not
+    yet confirmed — queued below) — the only source with a freeflow-equivalent column
+    (`speed_pctl_85`), plus LOTTR/TTTR, but **only 2021-2025**. 2001 (`s2001_v3490_map_21_extended`,
+    one all-years view, 2016-2025) — LOTTR/TTTR/PHED, no freeflow, better year coverage. 1722 —
+    strict column subset of 1410, skip (per existing note).
+  - **Residual gap, unresolved by mirroring**: reports whose date range falls entirely in
+    2017-2020 still get no freeflow value even after mirroring 1410 (1410 starts 2021). Closing
+    that gap would need Reading A's live pipeline re-run (for those years specifically), which is
+    still blocked on the metadata question above — parked, not urgent unless the corpus actually
+    has reports in that window that need freeflow specifically (not yet checked).
+- **Table names for 1410/2001/1722 CONFIRMED (2026-07-09)** via `data_manager.views`: 1410 — 2587
+  (2021), 2575 (2022), 2567 (2023), 2568 (2024), 3425 (2025), all `s1410_v{id}_pm_3`. 2001 turned
+  out to have **21 views, not 2** — 10 single-year (3396-3405, 2016-2025) + one `all_years` view
+  (3394) + **4 separate `map_21_extended` re-publishes over time** (3440 "2025 v052126", 3489
+  "2025 v061126", 3490 "all years v61126", 3511 "2025 v061526" — the most recent by version-string
+  date). **2001 is a periodically re-run/re-published source, not a static one-time table** — and
+  3490 (the "all years" one, still the right pick for full 2016-2025 coverage) may already be one
+  re-run behind the latest 2025-only republish (3511). Both docs (`npmrds-data-sources.md`) updated
+  with the full list. `start_date`/`end_date` are empty on every 1410/2001/1722 view row (metadata
+  field not populated for this source — informational only).
+- **Reading C, found via a follow-up user question, supersedes both A and B — a LIVE cross-engine
+  join via ClickHouse's `postgresql()` table function, CONFIRMED WORKING end-to-end
+  (2026-07-09).** User asked whether `postgresql()` could be used to query the existing Postgres
+  tables live, in-place, as a real join — not a one-time mirror. Tested directly: `SELECT ...
+  FROM npmrds.s583_v982_NPMRDS_V6 AS ds INNER JOIN (SELECT * FROM postgresql('neptune.availabs.org
+  :5758', 'npmrds2', 's2001_v3490_map_21_extended', 'npmrds_admin', '<pw>', 'gis_datasets')) AS pm3
+  ON ds.tmc = pm3.travel_time_code WHERE ds.tmc IN (the 3 known-good TMCs)` — **real,
+  sane, non-null `lottr_amp`/`tttr_amp`/`phed` values for both TMCs across every available year
+  (2016-2025, gaps only where the source itself has none), returned in 0.75s total wall time**
+  (HTTP round-trip + Postgres connect + full ~199,165-row remote pull + join + response). This
+  settles the performance worry from round 15's first pass: whether or not ClickHouse pushes the
+  `tmc IN (...)` filter down into the `postgresql()` call, a full pull of this table is cheap —
+  it's a per-TMC-per-year dimension table (thousands of rows), nothing like the multi-billion-row
+  raw fact table that the known unfiltered-scan hazard applies to.
+  - **Why this beats both A and B**: no DAMA task/worker/tmcMeta blocker (Reading A's problem —
+    irrelevant here, we're not running the pipeline, just reading its past output); no one-time
+    ETL/mirror step and no staleness risk if the source gets re-published again (Reading B's
+    tradeoff — and 2001 evidently DOES get re-published, per the 4-versions finding above, so
+    staleness is a real, not hypothetical, concern for a mirror). The mechanism is: wrap the
+    `postgresql()` call in a plain ClickHouse `VIEW` (e.g. `CREATE VIEW avail.pm3_map21_live AS
+    SELECT * FROM postgresql(...)`), then register that view as a completely normal DAMA
+    source/view — **zero platform code changes**, identical registration recipe to
+    `aadt_distributions` (`scripts/register_aadt_distributions.sql` is the exact template to copy).
+    `buildJoin`/`getEssentials` never need to know the underlying view is secretly backed by a live
+    Postgres query — from their perspective it's just another ClickHouse table.
+  - **Caveat, not yet resolved**: the Postgres credential would live inside the ClickHouse view's
+    definition (stored server-side in CH's own system tables, not exposed via
+    `data_manager`/DMS metadata) — a similar exposure level to every other CH credential already
+    used in this stack, not a new category of risk, but worth being deliberate about who has
+    `SHOW CREATE VIEW`/`system.tables` access on the CH server.
+- **Queued, not yet run**: (1) a 1-row schema peek on both 2001 (`s2001_v3490_map_21_extended`)
+  and 1410 (`s1410_v3425_pm_3`) via the same `postgresql()` table function, to nail exact column
+  names before writing the `CREATE VIEW` + DAMA-registration SQL (2001's columns are well
+  characterized already from round 13's verification; 1410's TMC-id column name specifically has
+  never been directly confirmed — needed before wiring a join to it). (2) `metadata` column for
+  source_id 583/582 (Reading A's blocker check) — lower priority now that Reading C works, but
+  still worth resolving to know if the 2017-2020 freeflow gap (1410 starts 2021) could ever be
+  closed by a fresh publish run.
+- **Not done**: no persistent `CREATE VIEW` created yet, no DAMA source/view registered yet — the
+  ad hoc `postgresql()` query above proved the mechanism but was not saved as a reusable object.
+  This is the concrete next step once the schema peeks come back.
+
+**Round 14 (2026-07-09): freeflow `quantile()` prototype — DONE, and it surfaced a real
+platform-architecture gap that changes the recommendation from round 13.** Picked up round 13's
+"recommended next step" (prototype a quantile-based freeflow calculated column; check whether
+spreadsheet/Table can render a tmc-grouped result). Both sub-questions are now answered — and the
+first one's answer is more consequential than round 13 assumed.
+
+- **Spreadsheet/Table CAN render a one-row-per-TMC result with no new capability** (verified by
+  reading `spreadsheet/index.jsx`/`config.jsx`/`constants.js`, `dataWrapper/getData.js`, and
+  `buildUdaConfig.js` end-to-end, not assumed): `groupBy` is driven by an explicit per-column
+  `.group` boolean (`buildUdaConfig.js:1253-1255`, the "Group" toggle in the column config UI) —
+  **correction to round 13's phrasing**, which said "any column without `fn`" becomes a group-by
+  key; that's not what the code does, `.group` is its own explicit flag. `GROUP BY tmc` alone
+  (no date/xAxis column at all) is issued exactly the same way as every other grouped query
+  (`clickhouse.js:276`, pure passthrough of whatever refs `groupBy` contains — nothing date- or
+  graph-specific anywhere in that file). Calculated measure columns with self-contained
+  aggregation (e.g. `quantile(0.15)(...) as p15_tt`) need `fn: 'exempt'` set (an existing dropdown
+  option, `spreadsheet/config.jsx:144-148`) so they pass `getData.js`'s "every non-grouped visible
+  column needs a truthy `.fn` once anything is grouped" validity check — already-shipped UI, not a
+  gap. Calculated-column authoring itself is wired into spreadsheet/Card (`AddCalculatedColumn`)
+  but **not** into graph_new at all (zero hits for `CalculatedColumn`/`calculated` in
+  `ComponentRegistry/graph_new/{index,config}.jsx` — every graph_new calculated column in this
+  whole task was written as raw JSON by the Python converter, bypassing the UI). Spreadsheet is
+  confirmed the right component for InfoBox — closer to the old plain `<table>` than Card's
+  grid-of-cards layout.
+- **The freeflow calculated column itself is a genuine problem — round 13's "one-line, no new
+  mechanism needed" claim is WRONG, not just imprecise.** Traced the old Node computation
+  precisely (`avail-falcor/dama/routes/data_types/map21/calcPhed.js`'s
+  `calcFreeflowBaseThresholdSpeed` + `calcTtrMeasure.js`'s `getBinnedYearNpmrdsDataForTmc`, both on
+  disk at `/home/ryan/code/avail-falcor/`): the old semantic is **NOT** a plain 15th-percentile of
+  raw epoch travel times. It's two aggregation levels — (1) `AVG(CASE WHEN tt > 0 THEN tt ELSE
+  NULL END)` **per 15-minute bin per date** (`intDiv(epoch, 3)`, 0-as-missing nullification, same
+  as the round-9 fix elsewhere), THEN (2) the 15th percentile (`simple-statistics.quantile()`,
+  linear interpolation) **across those bin-level averages** for the whole year, all hours/all
+  days-of-week. Round 13's proposed one-liner skips step 1 entirely.
+- **Quantified the gap directly against ClickHouse** (user ran both variants live, `database=avail`
+  HTTP endpoint, full year 2019, the 3 TMCs already verified elsewhere in this task —
+  `120-04426`/`120-04427` from report 315, `120P05153` from report 751):
+
+  | tmc | raw one-liner (p15 tt) | faithful binned (p15 tt) | relative diff |
+  |---|---|---|---|
+  | 120-04426 | 3.02 | 3.107 | −2.8% (one-liner reads *faster*) |
+  | 120-04427 | 38.66 | 39.15 | −1.3% (one-liner reads *faster*) |
+  | 120P05153 | 30.28 | 30.09 | +0.6% (one-liner reads *slower*) |
+
+  Small in absolute terms but **the direction flips between TMCs** — not a fixed bias correctable
+  with a constant factor — so the one-liner isn't just "slightly off," it's a different, cheaper
+  statistic that happens to be close. Since freeflow speed is `miles / p15_tt * 3600`, these tt
+  deltas translate to comparably-sized freeflow-speed deltas.
+  Also checked which ClickHouse quantile function best matches the old Node code's
+  `simple-statistics.quantile()` (linear interpolation): `quantileExactInterpolated` doesn't exist
+  on this server's version (24.5.3.5); `quantileInterpolatedWeighted(p)(x, 1)` (unit-weighted) is
+  the real equivalent. On the already-bin-averaged data, `quantile`/`quantileExact`/
+  `quantileInterpolatedWeighted` all agree to within noise (bin-averaging already smooths away the
+  raw data's discreteness) — so once the binning step is done right, the choice of quantile
+  function barely matters. On raw unbinned data the three diverge more (up to ~1.1% between
+  `quantileExact` and `quantileInterpolatedWeighted` on `120P05153`), another symptom of skipping
+  the bin-averaging step.
+- **New, more important finding: the faithful two-stage formula cannot be expressed in the
+  platform's current single-query UDA pipeline at all — not a tuning problem, a structural one.**
+  Traced the full path, both sides: client `buildUdaConfig.js`'s `buildJoinSources`/
+  `buildJoinOnClause` (~850-933) only ever emit `{view_id, env}` per join source, never an inline
+  query/subquery; server `dms-server/src/routes/uda/utils.js`'s `buildJoin` (579-606) resolves each
+  join source through `getEssentials({view_id, env})` → `{table_schema, table_name}` → a plain
+  `JOIN table_schema.table_name AS alias ON ...` — always a real registered physical table, never a
+  derived/aggregated subquery or CTE. Calculated columns (the mechanism used for every measure in
+  this task so far) are raw SQL strings spliced into the SELECT list of that one flat
+  `ds JOIN table1 JOIN table2 ... GROUP BY <cols>` query — they can contain arbitrarily complex SQL
+  *expressions*, but they can't introduce a second, independent GROUP BY stage ahead of the outer
+  one, because there's no second FROM/subquery level for them to group within. There IS
+  forward-looking metadata for this (`computeOutputSourceInfo`'s `asUdaConfig`,
+  `buildUdaConfig.js:1039-1052`, labeled "Phase 4/6 chainability" in comments — meant to let one
+  component's aggregated output be joined into another's query as a WITH-clause subquery) but
+  **grep-confirmed it is pure output metadata with zero consumers** — nothing in either
+  `buildJoinSources` or the server's `buildJoin` reads or compiles it. It's a documented future
+  direction, not a built capability.
+- **Why this matters beyond freeflow**: LOTTR/TTTR (`calcTtrMeasure.js`) are built on the exact same
+  `getBinnedYearNpmrdsDataForTmc` two-stage shape (bin-average, then percentile-of-bin-averages
+  over an FHWA reporting-bin window instead of the whole year) — so this isn't a freeflow-specific
+  wrinkle, it blocks *every* percentile-based InfoBox measure the same way, independent of the
+  still-unanswered round-13 product question (replicate old ad hoc math 1:1 vs. surface current
+  LOTTR/TTTR) — both options need a nested aggregation the platform can't do live, in one query,
+  today.
+- **This retroactively explains something that was previously just noted as a fact, not
+  understood as necessary**: the old tool's own `pm3.authoritative_freeflow` precomputed Postgres
+  table (round 13's original, later-dissolved "blocker") wasn't legacy cruft or a missed
+  optimization — a live per-request nested-aggregation query is a real constraint the old system
+  faced too, and precomputing was its answer. The new system is about to need the same answer for
+  the same structural reason, not because ClickHouse can't do percentiles (it can, trivially — the
+  test above proves that) but because *this specific pipeline's query shape* only supports one
+  flat aggregation stage per component request.
+- **Recommended path (not yet built, not yet decided by the user)**: precompute freeflow (and
+  later LOTTR/TTTR/PHED if the product question resolves that way) into a small ClickHouse
+  lookup table — one row per `(tmc, year)`, populated by a batch query using the exact faithful
+  two-stage SQL already proven above — then register and join it **exactly like
+  `aadt_distributions`** (source_id 2056/view_id 3524, `table_schema: 'clickhouse.avail'`,
+  `type: 'gis_dataset'`, registered via a SQL script the user runs directly against `npmrds2`/
+  `neptune:5758` — see `documentation/npmrds-data-sources.md` for the established registration
+  recipe). This keeps every request-time query flat/single-stage (no new capability needed in
+  `buildUdaConfig.js`/`buildJoin` at all) and mirrors the platform's own existing precedent for
+  "value that needs its own aggregation pass, precomputed once, joined like meta" (`table1`/
+  `table2` are exactly this pattern already). **Caveat, not yet resolved**: the batch query that
+  *populates* the lookup table would need to run over the whole fact table grouped by
+  `tmc, date, bin` — per [[feedback_ch_unfiltered_query_awareness]] / the CH unfiltered-scan hazard
+  (no server-side `max_execution_time`/`max_memory_usage` cap), this must be scoped to the actual
+  corpus's TMCs/years (not an unfiltered full-table pass) and run once by the user, not repeated.
+  Scoping that batch query hasn't been attempted yet.
+- **Not done**: no lookup table built or registered, no template/column shipped, no user decision
+  on which path (approximate one-liner now vs. precompute-and-join later) to take. This round was
+  prototype + architecture investigation only, matching the pattern of round 13.
+
 **Round 13 (2026-07-09): Info Box family (Route Info Box / TMC Info Box / Route Compare
 Component) — SCOPED, nothing built yet.** User picked this as the next "big missing graph
 type" to investigate (the top-3 `no_equivalent` types the 2026-07-08 user decision said "we
@@ -743,9 +1064,13 @@ is exhausted — remaining work is capability selection, not a queue. Recommende
       (`intDiv(ds.epoch, 12)`, month from date, etc.) — mechanical, the weekday template is
       the precedent.
    d. **Reliability measures** (planningTime 144/40 day-resolution bar graphs is the only
-      sizable key; travelTimeIndex 51, avgTT 20, rest ≤6): `quantile()`-style calculated
-      columns; user direction 2026-07-07 stands — freeflow etc. supposedly already live in a
-      joinable table, find it or ask.
+      sizable key; travelTimeIndex 51, avgTT 20, rest ≤6): **superseded by round 14's finding —
+      NOT a plain `quantile()`-style calculated column.** These (and freeflow/InfoBox's
+      percentile measures) need a two-stage aggregation (bin-average, then percentile-of-bin-
+      averages) that the platform's single-flat-query UDA pipeline structurally can't express
+      live; round 14 recommends precomputing into a small per-tmc-year ClickHouse lookup table
+      joined like `aadt_distributions`, pending a user decision. See round 14's block at the top
+      of this file before starting this.
    **User decisions on the census findings (2026-07-08):**
    - **Top-3 multi-measure types WILL be converted eventually** — Route Info Box, TMC Info
      Box, Route Compare Component are no longer indefinitely ruled out ("we 100% are going

@@ -612,16 +612,36 @@ const buildJoin = async ({ join }) => {
   
   for(let i=0; i< join.on.length; i++) {
     const singleJoinOnConfig = join.on[i];
-    const {view_id, env: sourceEnv} = join.sources[singleJoinOnConfig.table];
-    const {table_schema, table_name} = await getEssentials({view_id, env: sourceEnv});
-    
+    const joinSource = join.sources[singleJoinOnConfig.table];
+
+    let fromExpr;
+    if (joinSource.pgFederated) {
+      // ClickHouse-only: reads a live Postgres table via the `postgresql()`
+      // table function instead of a registered DAMA view, so a join can reach
+      // data that hasn't been (and may never be) mirrored into ClickHouse.
+      // Credentials are resolved server-side from the same pgEnv config every
+      // DAMA join already uses (loadConfig) — never sent by/to the client.
+      const { pgEnv, table: pgTable, schema: pgSchema } = joinSource.pgFederated;
+      const { host, port, user, password, database } = loadConfig(pgEnv);
+      const sanitizedTable = sanitizeName(pgTable);
+      const sanitizedSchema = sanitizeName(pgSchema);
+      if (!sanitizedTable || !sanitizedSchema) {
+        throw new Error(`pgFederated join source has an invalid table/schema name: ${pgTable}/${pgSchema}`);
+      }
+      fromExpr = `(SELECT * FROM postgresql('${host}:${port}', '${database}', '${sanitizedTable}', '${user}', '${password}', '${sanitizedSchema}'))`;
+    } else {
+      const { view_id, env: sourceEnv } = joinSource;
+      const { table_schema, table_name } = await getEssentials({ view_id, env: sourceEnv });
+      fromExpr = `${table_schema}.${table_name}`;
+    }
+
     if (singleJoinOnConfig.mergeStrategy === 'union') {
       const all = singleJoinOnConfig.type === 'all' ? ' ALL' : '';
-      merges.push(`UNION${all} SELECT * FROM ${table_schema}.${table_name} as ${singleJoinOnConfig.table}`);
+      merges.push(`UNION${all} SELECT * FROM ${fromExpr} as ${singleJoinOnConfig.table}`);
     } else if (singleJoinOnConfig.mergeStrategy === 'except') {
-      merges.push(`EXCEPT SELECT * FROM ${table_schema}.${table_name} as ${singleJoinOnConfig.table}`);
+      merges.push(`EXCEPT SELECT * FROM ${fromExpr} as ${singleJoinOnConfig.table}`);
     } else {
-      joins.push(`${ singleJoinOnConfig.type } JOIN ${table_schema}.${table_name} as ${singleJoinOnConfig.table} ON ${singleJoinOnConfig.on}`);
+      joins.push(`${ singleJoinOnConfig.type } JOIN ${fromExpr} as ${singleJoinOnConfig.table} ON ${singleJoinOnConfig.on}`);
     }
   }
 
