@@ -1300,6 +1300,40 @@ async function testFilterGroupsCHJoinQualification() {
   pass('already-qualified refs and expressions are not re-qualified');
 }
 
+// ======================================= ClickHouse output-column aliasing =========================================
+
+/**
+ * Regression test for: a plain joined column (e.g. `ds.tmc`) coming back
+ * `undefined` in the response row whenever the bare name collides with a
+ * same-named column on a *joined* table (e.g. ny_2025_tmc_meta also has
+ * `tmc`, used as the join key). Confirmed live against ClickHouse: it keeps
+ * the table qualifier in the query's default output-column name only when
+ * that bare name is ambiguous across the joined tables — `ds.epoch` (no
+ * collision) comes back keyed "epoch", `ds.tmc` (collides with table1.tmc)
+ * comes back keyed "ds.tmc" — but getResponseColumnName() always looks up
+ * the bare name. withExplicitAlias forces every unaliased attribute to carry
+ * its own explicit `AS <bare_name>`, so the output key never depends on
+ * ClickHouse's collision-dependent default. No database required — pure
+ * SQL-string test.
+ */
+async function testClickHouseExplicitAliasing() {
+  console.log('\n--- Unit: ClickHouse output-column aliasing ---');
+  const { withExplicitAlias } = require('../src/routes/uda/query_sets/clickhouse');
+
+  assert(withExplicitAlias('ds.tmc') === 'ds.tmc as tmc',
+    'qualified column with no collision risk gets an explicit bare alias');
+  assert(withExplicitAlias('ds.epoch') === 'ds.epoch as epoch',
+    'qualified column gets an explicit bare alias even with no known collision');
+  assert(withExplicitAlias('tmc') === 'tmc as tmc',
+    'bare unqualified column gets an explicit self-alias');
+  pass('unaliased plain columns get an explicit bare-name alias');
+
+  const calc = '(greatest(0, ds.travel_time_all_vehicles - 1) / 3600) as hours_of_delay_sum';
+  assert(withExplicitAlias(calc) === calc,
+    'already-aliased calculated column is left untouched');
+  pass('already-aliased expressions are not re-aliased');
+}
+
 // ================================================= Test Runner ===================================================
 
 async function run() {
@@ -1339,6 +1373,9 @@ async function run() {
 
     // ClickHouse filterGroups join-qualification (ambiguous identifier regression)
     await testFilterGroupsCHJoinQualification();
+
+    // ClickHouse output-column aliasing (collision-with-joined-table regression)
+    await testClickHouseExplicitAliasing();
 
     // DAMA mode tests
     await testDamaModeSourcesCrud();

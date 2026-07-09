@@ -13,7 +13,7 @@
  * by getEssentials, so SQL references ${table_schema}.${table_name} directly.
  */
 
-const { sanitizeName, getResponseColumnName, getEssentials, buildJoin, restoreLongColumnNames } = require('../utils');
+const { sanitizeName, getResponseColumnName, quoteAlias, getEssentials, buildJoin, restoreLongColumnNames } = require('../utils');
 const {
   handleFiltersCH,
   handleFilterGroupsCH,
@@ -21,7 +21,19 @@ const {
   handleOrderByCH,
 } = require('./helpers');
 
-
+// ClickHouse only drops a selected column's table qualifier from its default
+// output name when that bare name is unambiguous across the query's joined
+// tables. When it collides with a same-named column elsewhere (e.g. `ds.tmc`
+// selected while joined against `ny_2025_tmc_meta`, which also has a `tmc`
+// column — the join key itself), CH keeps the qualifier and names the output
+// column `"ds.tmc"` instead of `"tmc"` — confirmed live against the actual
+// production query (pulled from `system.query_log`). getResponseColumnName()
+// always assumes the bare name, so an unaliased colliding column comes back
+// `undefined` downstream. Force every attribute to carry an explicit alias so
+// the output key is never left to ClickHouse's collision-dependent default.
+const ALIAS_RE = /\s+as\s+("[^"]+"|\w+)\s*$/i;
+const withExplicitAlias = (attr) =>
+  ALIAS_RE.test(attr) ? attr : `${attr} as ${quoteAlias(getResponseColumnName(attr))}`;
 
 function buildCombinedWhereCH({ filter, exclude, gt, gte, lt, lte, like, filterGroups, joinPresent }) {
   const filterClause = handleFiltersCH({ filter, exclude, gt, gte, lt, lte, like, joinPresent });
@@ -233,7 +245,7 @@ async function simpleFilter(ctx, options, attributes, indices) {
       });
       const safeLabel = `'${String(variant.label ?? '').replace(/'/g, "''")}'`;
       const armSelect = [
-        ...baseArmAttrs.map((c) => columnNameMap[c] || c),
+        ...baseArmAttrs.map((c) => withExplicitAlias(columnNameMap[c] || c)),
         ...unprojectedGroupBys,
         `${safeLabel} as ${seriesKey}`,
       ].join(', ');
@@ -258,7 +270,7 @@ async function simpleFilter(ctx, options, attributes, indices) {
   }
 
   const sql = `
-    SELECT ${sanitizedAttrs.map((c) => columnNameMap[c] || c).join(', ')}
+    SELECT ${sanitizedAttrs.map((c) => withExplicitAlias(columnNameMap[c] || c)).join(', ')}
     FROM ${fromClause}
     ${combinedWhere}
     ${groupByExprs.length ? `GROUP BY ${groupByExprs.join(', ')}` : ''}
@@ -298,4 +310,5 @@ module.exports = {
   simpleFilterLength,
   simpleFilter,
   dataById,
+  withExplicitAlias,
 };

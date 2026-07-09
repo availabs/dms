@@ -1,5 +1,136 @@
 # Old NPMRDS reports → new DMS report pages (automated conversion)
 
+**Round 11 (2026-07-09): "Hours of Delay Graph" (5-minutes) — BUILT + live-verified, plus a
+real platform bug found and fixed.** Picked up census item 3b. Traced the old component
+(`HoursOfDelayGraph.jsx`, confirmed against `GeneralGraphComp.jsx` and avail-falcor's
+`getHoursOfDelay.js`) before building anything, per the standing plan:
+- **Not the same shape as the existing delay templates.** `RouteBarGraph` (already converted)
+  sums delay across every TMC in the route into one bar per date/weekday.
+  `HoursOfDelayGraph.generateGraphData([route], ...)` destructures only `routeComps[0]`
+  (`getActiveRouteComponents()` defaults to `[routes[0].compId]`, never "every comp" — same
+  single-route default already flagged, unresolved, in the a-bis item below) and renders
+  **one bar-series per TMC** in that one route (`keys: route.tmcArray`), not a route-wide sum.
+- **Measure is hardcoded, not mislabeled-as-speed by omission**: `getDisplayData()` always
+  returns `hoursOfDelay`, fully ignoring `state.displayData` — worse than the generic
+  DEFAULT_DISPLAY_DATA fallback the census flagged, since there's no user-choosable measure
+  for this graph type at all.
+- **Corpus check (correct `activeRouteComponents`/single-route resolution, not the converter's
+  existing all-comps fallback)**: 138 instances / 98 reports. Resolution: 131 five-minutes, 3
+  day, 1 each of hour/15-minutes/an ambiguous case. `dataColumn`: 131 `travel_time_all` (0
+  missing/needing a default). `costPerHour` (optional $/hour multiplier): set on only 1/138.
+- **Implemented** (`scripts/convert_old_reports.py`): `analyze_graph` special-cases
+  `"Hours of Delay Graph"` — measure forced to `hoursOfDelay` (skips the displayData/
+  extra_measures_dropped logic entirely, since the old component never reads it); `assigned`
+  resolves to exactly one comp (first `activeRouteComponents` match in report order, else the
+  report's first route comp) instead of the general all-comps-when-absent fallback — so no
+  `mixed_resolutions_on_graph` gap is possible for this type. New gap kind
+  `cost_per_hour_not_applied` (fires once, on the one real instance) — not built, v1 scope.
+  New template `tmc_delay_bar_graph_5min`: same `DELAY_EXPR`/AADT-distribution join as the
+  day/weekday delay templates, xAxis=`epoch` (reuses the base template's existing column,
+  0-287 aggregated across the date range — bounded, not per-timestamp), and a **real `tmc`
+  categorize column** in place of the synthetic comparison-series `__series` discriminator
+  every other template carries (this graph type never fans out across routes, so `tmc` is the
+  actual per-series dimension) — `ensure_graph_templates` extended with a `categorize` spec
+  field, same plain-name-or-full-dict shape `xAxis` already has. `overrides.aadt` and
+  `color_range` wiring both fall out for free (unchanged mechanisms — `DELAY_EXPR` still
+  contains the AADT fragment; "Hours of Delay Graph" was never in `COLOR_RANGE_GRAPH_TYPES`,
+  confirmed against the old component, which never reads `colorRange`).
+- **Platform bug found + fixed while live-verifying** (`dms-server/src/routes/uda/query_sets/
+  clickhouse.js`): a plain joined column selected without an explicit alias (here, `ds.tmc`)
+  came back **`undefined` in every row** — root-caused by pulling the exact production query
+  from ClickHouse's own `system.query_log` and reproducing it directly against the live DB
+  (VPN/CH reachable, confirmed via `/ping`): CH only drops a selected column's table qualifier
+  from its default output name when that bare name is unambiguous across the query's joined
+  tables. `ds.epoch` (no collision) comes back keyed `"epoch"`; `ds.tmc` (collides with
+  `ny_2025_tmc_meta`'s own `tmc`, the join key) comes back keyed **`"ds.tmc"`** — but
+  `getResponseColumnName()` always strips to the bare name and looks up `row["tmc"]`, which is
+  always `undefined`. Not a template-specific bug: no earlier template had ever selected a
+  real (non-calculated) column with a same-named join partner as an actual output attribute —
+  they only ever used `tmc` as a join key, never as a projected/categorize column. **Fixed**:
+  new `withExplicitAlias()` helper forces every unaliased attribute to carry its own explicit
+  `AS <bare_name>` in both the plain and comparison-series-fan-out SELECT lists, so the output
+  key never depends on ClickHouse's collision-dependent default. Symptom before the fix: bars
+  rendered but as one flat aggregated series (all 13 bars identical color `#D72638`), plus two
+  React "duplicate key" console warnings from the legend/series code keying off the same
+  `undefined` value for every row.
+- **Verified 4 ways**: (a) direct ClickHouse repro — ran the real production SQL (pulled
+  verbatim from `system.query_log`) both before the fix (`ds.tmc` comes back as literal key
+  `"ds.tmc"`) and after (adding `AS tmc` explicitly comes back keyed `"tmc"`, real distinct TMC
+  values, real non-zero delay sums); (b) 2 new unit tests in `tests/test-uda.js`
+  (`testClickHouseExplicitAliasing`), full UDA suite green (72/72, +2, no regressions);
+  (c) live — converted report 11 ("West Shore Highway Northbound 8 to 9 am", new page `2188935`,
+  a genuinely multi-TMC point-drawn route resolved to 14 TMCs, a good stress test), Playwright
+  before-fix: 13 bars, 1 legend entry, 1 uniform color, 2 console warnings; after the
+  server auto-restarted (nodemon) with the fix: 14 legend entries / 14 distinct swatch colors /
+  each x-axis bar correctly stacked into 14 colored segments, zero related console warnings;
+  (d) dry-run + real conversion both clean, gap report is just the known non-target
+  `graph_layout {h,x,y}` entry (no `w` — `size:"12"`).
+- **Not yet done**: the 5 stragglers (day×3, hour×1, 15-minutes×1, 1 ambiguous/ill-formed
+  resolution) and bulk-converting the other ~130 five-minutes instances beyond report 11 —
+  both pending user direction, same "capability built and proven on one example, scale is a
+  separate decision" pattern as every other round.
+
+**Round 10 (2026-07-08): full-corpus gap census — DONE (user-picked next step; awaiting user
+direction before building anything).** New `scripts/census_old_reports.py` runs ALL 868
+`admin2.reports` through the converter's own analyze path (imports `analyze_graph`/
+`flatten_route_comps`/`route_settings_gaps` from `convert_old_reports.py` so it can't drift;
+analysis-only — no writes, no falcor point-route resolution, bulk SQL reads only, ~40s).
+Outputs: `scratchpad/npmrds-sub/old-reports/census/census.json` (per-report detail) +
+`census_summary.md` (ranked tables). Headline numbers:
+- **Convertibility today**: 16 full / 527 partial / 311 none / 14 no-graphs; 1,626 of 7,098
+  graph instances (23%) map to a template.
+- **Unmapped bucket split**: no_equivalent 2,742 (50% — Route Map 849, Bar Graph Summary 649,
+  Route/TMC Info Box 676, Compare/Difference 568; ALL ruled gap-log-only by the 2026-07-08
+  decisions), buildable 2,450 (45%), tail 280 (5%). I.e. **half of all unconverted graph
+  content sits behind the deliberate no-build decisions**, not missing measures — the biggest
+  strategic lever if bulk conversion ever becomes the goal.
+- **Within buildable, the pre-census prediction (reliability measures) was WRONG**: all
+  reliability measures combined ≈ 365 instances (planningTime 144, travelTimeIndex 51, avgTT
+  20, bufferTime/percentile97 ≤1 each). The real mass is **existing measures at missing
+  resolutions**: speed 1,105 + travelTime 502 unmapped instances, by resolution 5-minutes
+  1,051 / hour 341 / None 321 / day 214 / weekday 191 / month 187 / 15-minutes 132.
+  Top single keys: Route Bar Graph×speed×5-minutes (290 inst/123 reports), ×speed×hour
+  (261/23), ×travelTime×5-minutes (245/57), Route Line×avgHoursOfDelay×5-minutes (152/80).
+- **Two cheap, high-leverage census finds**: (a) resolution `None` (~321 buildable instances,
+  e.g. TMC Grid×speed×None 95/89 and Route Line×speed×None 84/81) — comps with NO resolution
+  setting at all; if the old client defaulted absent resolution to `5-minutes`, these map to
+  **already-existing** templates with a one-line converter default (verify old
+  `getResolution()`/component defaults first). (b) **"Hours of Delay Graph"** (tail type,
+  138 inst/91 reports) has the 2nd-highest single-key full-report flip count of the whole
+  corpus (28 reports become fully convertible from this one type — census labels its measure
+  "speed" only via the DEFAULT_DISPLAY_DATA fallback, same mislabel class as the round-3
+  Traffic Volume fix; its real semantics are unexamined and likely map onto the existing
+  weighted-delay infra).
+- **Gap kinds corpus-wide**: unmapped_graph 5,472/838 reports; extra_measures_dropped
+  865/522 — **decomposed post-census against the old client source (2026-07-08)**: 809 of
+  865 (94%) sit on no_equivalent types (Route Info Box 386, Route Compare Component 212,
+  TMC Info Box 211 — genuinely multi-measure stat panels, e.g. the 8-measure reliability
+  panel, but the whole graph is already skipped/unmapped so the extra-measures gap is
+  subsumed and moot there); only **52 instances are on a convertible type — Route Line
+  Graph — and those are real fidelity loss**: its two displayData slots are LEFT/RIGHT
+  y-axes (`RouteLineGraph.jsx:80` default `['speed','none']`, `setDisplayData1/2`,
+  `yAxis: i===0 ? "left" : "right"` — a dual-axis chart; the converted page keeps only the
+  left-axis measure). Bar/summary/map/grid components destructure `[displayData]` and only
+  ever read the FIRST entry (and the corpus has zero multi-measure instances on them
+  anyway). Fix options for the 52: emit a second AVL Graph section for the right-axis
+  measure (converter-only), or a real dual-axis AVL Graph capability (platform).
+  mixed_resolutions_on_graph 638/244 (comps genuinely disagree — per-arm resolution would
+  need platform design); color_range 400; relative_date 49/9; mixed_data_columns 44/14;
+  route groups 13/11; station_comps 2.
+- **Route-level work quantified**: 797 distinct routes referenced; 518 point-drawn (need
+  old-falcor TMC resolution at convert time — mechanism exists, just slow); 31 need catalog
+  inserts; **231 missing everywhere** (deleted from old `admin2.routes` and never imported —
+  broken in the old system too; preserve-as-broken per the 874 precedent). Also found: the
+  Routes Data catalog is ~2× duplicated (64,790 rows, only 32,563 distinct route_ids, +33
+  rows with NULL route_id) — pre-existing import debt, harmless to the converter (it checks
+  before insert), noted for whoever owns catalog cleanup.
+- **Converter crash fixed while running the census**: reports ~211–271 (an ancient
+  `"version": 2` client shape) store a whole route-comp OBJECT under `state.resolution`
+  where later reports store a string — `analyze_graph` crashed on the unhashable dict (would
+  have crashed real conversion too). Fixed in `convert_old_reports.py`: non-string
+  `state.resolution` is ignored (falls back to the comps' own resolution) + gap-logged as new
+  kind `malformed_state_resolution` (14 instances/12 reports corpus-wide).
+
 **Round 9 (2026-07-08): report 751's truck CO₂ NULL — root-caused and FIXED.** The round-8 suspect
 (`coalesce(ds.travel_time_freight_trucks, ds.travel_time_all_vehicles)`) was close but the real
 mechanism is a representation mismatch: the CH fact table's travel-time columns are plain
@@ -216,14 +347,113 @@ clears the Y-axis domain entirely when min/max are both exactly `0` — after th
 delay graphs show legend + x-axis but no Y-axis. User was asked whether to also fix this; deferred
 pending direction.
 
-### Next session — pick up here, in order
+### Next steps — standing recommendations (2026-07-08, post-round-9 diagnostic)
 
-**Round 6 COMPLETE — all 6 reports re-run and gap-audited current.** Nothing left to re-run for
-this pass. Below are optional follow-ups from before round 6 — see the "Approved gap-coverage
-picks" note below for the original report list. No open re-run work remains on 1070/1071/751/
-1061/1045/874; any future work here is either a genuinely new gap-coverage report, or one of the
-still-open design questions (Route Difference/Compare graph shape, synthetic `overrides.baseSpeed`
-data, `overrides.aadt`, `dataQuality`/stat-panel graph types).
+**This section is the answer to "what's next" — do not re-derive it.** State: rounds 1–9
+finished all 6 approved gap-coverage picks (1070/1071/751/1061/1045/874, all live-verified),
+plus `overrides.aadt`, the truck-CO₂ 0-as-missing fix, the Falcor sibling collision (own task,
+completed), and the CH unfiltered-probe hazard (own task, completed). The approved report list
+is exhausted — remaining work is capability selection, not a queue. Recommended order:
+
+1. **0-as-missing sweep on the shared speed/travel-time templates** (data-quality class; user
+   2026-07-08: "definitely need to diagnose at SOME POINT" — deliberately deferred, NOT started).
+   Round 9 proved the mechanism (CH fact-table travel-time columns are plain Float64, `0` where
+   old Postgres had NULL → `3600/0 = inf` → one inf poisons the epoch's year-long avg → CH
+   serializes JSON null → blank/missing epochs) but fixed only the two CO₂ expressions. The
+   identical latent defect remains in `SPEED_EXPR` (`miles*3600/tt_all`, inf wherever
+   `travel_time_all_vehicles = 0`) and in `tmc_travel_time_bar_graph_day` (avg over raw 0-rows
+   silently drags the mean down vs. the old NULL-skipping behavior). Recipe already proven in
+   round 9: offline CH query to find a TMC/year with `travel_time_all_vehicles = 0` rows
+   (120P05153 had none — try low-traffic TMCs; if none exist anywhere relevant, downgrade
+   urgency but still fix the exprs for future conversions) → `nullIf(col, 0)` the expressions →
+   patch the live template rows → `--replace` affected reports → one Playwright load each.
+   Isolated change per `[[feedback_isolate_shared_code_changes]]`.
+2. ~~**Full-corpus gap census**~~ **DONE (round 10, 2026-07-08)** — see the round-10 block at
+   the top of this file and `scratchpad/npmrds-sub/old-reports/census/census_summary.md`
+   (regenerate any time with `python3 scripts/census_old_reports.py`, ~40s, read-only).
+3. **Build what the census ranked top among buildable gaps — pending user's pick.** The
+   pre-census prediction (reliability measures) was wrong: they total only ~365 instances.
+   Census-informed candidate order (all numbers = unmapped instances / reports touched):
+   a. ~~**Absent-resolution default**~~ **DONE but VACUOUS (round 10 cont., 2026-07-09)** —
+      the one-line default (absent comp resolution → `'5-minutes'`) is implemented in
+      `analyze_graph` and unit-verified, but only **13 comps in the entire corpus** lack a
+      resolution setting (the old store always writes one at creation), so it mapped zero new
+      instances. **The census's "None"-resolution keys were misread**: `None` is the
+      converter's round-3 ambiguity sentinel for MIXED-resolution graphs, not absent data.
+      The real unlock for those instances is (a-bis) below — a user decision, since it
+      revisits round 3's deliberate ambiguous→skip rule.
+   a-bis. **Old-client-faithful mixed-resolution semantics — QUANTIFIED, awaiting user
+      decision (2026-07-09).** The old client resolved every graph's resolution as the FIRST
+      active comp's setting (`GeneralGraphComp.getResolution()` reads
+      `[0].settings.resolution`, fallback '5-minutes') — deterministic, never a consensus.
+      Corpus simulation of that rule: **+193 mapped instances (1,626 → 1,819) across 132
+      reports**, top keys all on already-existing templates (TMC Grid×speed×5-min +89,
+      Route Line×speed×5-min +80, Route Line×travelTime×5-min +10); fully-convertible
+      reports 16→17. Faithful implementation must ALSO mirror the old comp-assignment
+      semantics, which are component-dependent: RouteLineGraph (no explicit
+      `activeRouteComponents`) shows all comps *matching* the picked resolution;
+      plain GeneralGraphComp-derived components default to **the first comp only** (NOT
+      "every comp" as the converter's round-2 assumption says); TmcGridGraph renders only
+      ONE route regardless (`generateGraphData([route], ...)`). **Checked all 6 converted
+      reports: no already-converted graph is affected by the assignment-default discrepancy**
+      (their keyless graphs are all unconverted types — e.g. 1071's is the Route Map — or on
+      single-comp reports), so nothing live is wrong today; this only gates NEW conversions
+      of mixed/keyless graphs. Before implementing: verify per-component
+      `getActiveRouteComponents`/`getResolution` overrides for each convertible type
+      (RouteLineGraph's mutual recursion with the base getResolution suggests an override
+      grep missed — read the whole file, not grep excerpts).
+   b. ~~**"Hours of Delay Graph" graph type**~~ **BUILT + live-verified for the 5-minutes
+      case (round 11, 2026-07-09)** — see the round-11 block at the top of this file. Real
+      semantics were NOT the weighted-delay infra as-is (per-TMC bars, not a route-wide sum)
+      and surfaced a real ClickHouse output-column-aliasing bug, now fixed. 131 of 138
+      instances match (5-minutes resolution); 1 converted + verified (report 11), bulk-
+      converting the rest is pending direction. 5 stragglers (day/hour/15-minutes/1 ambiguous)
+      not yet built.
+   c. **Missing-resolution variants of already-built measures** (the bulk: speed 1,105 +
+      travelTime 502 inst): Route Bar Graph at 5-minutes (290/123, epoch-grouped bars — same
+      query shape as the grid graph), hour (261/23), month (99/45), 15-minutes (115/11),
+      weekday speed/travelTime (78+36); hour/month/15-min need calculated bucketing columns
+      (`intDiv(ds.epoch, 12)`, month from date, etc.) — mechanical, the weekday template is
+      the precedent.
+   d. **Reliability measures** (planningTime 144/40 day-resolution bar graphs is the only
+      sizable key; travelTimeIndex 51, avgTT 20, rest ≤6): `quantile()`-style calculated
+      columns; user direction 2026-07-07 stands — freeflow etc. supposedly already live in a
+      joinable table, find it or ask.
+   **User decisions on the census findings (2026-07-08):**
+   - **Top-3 multi-measure types WILL be converted eventually** — Route Info Box, TMC Info
+     Box, Route Compare Component are no longer indefinitely ruled out ("we 100% are going
+     to want to convert those top 3 graph types eventually"). Not next, but the
+     no_equivalent bucket's biggest chunk is now future work, not permanent gap-log.
+   - **Dual-axis Route Line Graphs (52 instances): implement REAL dual-axis** when that work
+     is tackled — do NOT use the two-stacked-sections workaround. User thinks a dual-axis
+     capability may already exist somewhere in the platform ("i kinda thought that feature
+     already existed") — **investigate whether AVL Graph/avl-graph already supports a right
+     y-axis before building anything**.
+   - **Absent-resolution default = 5-minutes, CONFIRMED against old source** (user believed
+     5 minutes; verified two ways: comps are created with `resolution: '5-minutes'`,
+     transportNY `analysis/reports/store/index.js:1887`, and the graph layer's
+     `getResolution()` falls back to `'5-minutes'` when absent,
+     `graphClasses/GeneralGraphComp.jsx:306`). Item 3a proceeding on this basis.
+   Also noted while verifying (for the mixed_resolutions follow-up, NOT implemented): the
+   old client resolved a graph's resolution as **the FIRST active comp's** setting
+   (`getResolution()` reads `[0].settings.resolution`), and e.g. RouteLineGraph then
+   filters the displayed comps to those *matching* that resolution — i.e. mixed-resolution
+   graphs deterministically showed only the first comp's resolution cohort. A faithful,
+   deterministic conversion of the 638 mixed_resolutions instances could copy that (pick
+   comp[0]'s resolution + drop non-matching comps from the graph's assignment) instead of
+   today's skip-and-gap-log; needs its own verification pass against more old components
+   before trusting it generally.
+
+Parked / pending user decisions (unchanged, do not silently resurrect):
+- Y-axis on all-zero bar graphs (`avl-graph/BarGraph.jsx:243-249` clears the domain when
+  min===max===0; legend + x-axis render, y-axis blank) — user direction still pending.
+- Bar-graph width squeeze — parked per user ("don't get caught up on the width thing"); the
+  real mechanism is still unpinned (two candidate fixes reverted — see round-9 notes).
+- Difference/Compare graph shapes, synthetic `overrides.baseSpeed` data, stat-panel/map graph
+  types — all ruled gap-log-only (2026-07-08 user decisions).
+- Submodule sits on two `wip`-titled commits (`901d9d53`, `3e80a9b` outer) — reword + bump the
+  outer pointer when the user wants a checkpoint; git push is user-only per
+  `[[feedback_never_push_to_git]]`.
 
 **Reports 1061, 1045, 874 — round 6 re-run, live-verified (2026-07-08), resumed after the
 ClickHouse hazard fix.** All three re-converted with `--replace` to pick up the color_range +
