@@ -1,5 +1,180 @@
 # Old NPMRDS reports → new DMS report pages (automated conversion)
 
+**Round 18 continued (2026-07-09): correction — round 18's build was mislabeled. It's Route Info
+Box, not TMC Info Box; re-mapped, re-verified with a genuine multi-route example.** User caught
+this by inspecting the old tool directly: TMC Info Box = one row per TMC within the assigned
+route; what round 18 built groups by `__series` alone, which the dynamic per-route fan-out
+populates as **one arm per selected route** (all of that route's TMCs bundled into one arm's
+filter) — so it produces one row per ROUTE, i.e. Route Info Box's real grain, not TMC Info Box's.
+A true TMC Info Box needs an additional real `tmc` groupBy column *within* each arm (e.g.
+`groupBy: ["ds.tmc as tmc" (calculated), "__series"]`, keeping the arm's real per-route
+tmc+date filter for safe scoping while splitting each arm into one row per distinct TMC) — not
+attempted this round, per user direction to relabel rather than rebuild.
+- **Relabeled, not rebuilt**: renamed the template `tmc_info_box_reliability_2024` →
+  `route_info_box_reliability_2021` (repointed its `pgFederated.table` to `s1410_v2587_pm_3`, the
+  2021 view, to match the new example report's year). `GRAPH_TEMPLATE_MAP` key changed from
+  `("TMC Info Box", ...)` to `("Route Info Box", ...)`. Report 1045 re-converted — its 4 `TMC Info
+  Box` graphs now correctly gap-log as unmapped (no template claims to be TMC Info Box anymore)
+  instead of silently rendering the wrong grain.
+- **New example, chosen specifically to show >1 route in one section** (report 1045's `TMC Info
+  Box` graphs were each assigned to exactly one route comp, so never exercised the multi-row
+  case): **report 796, "Bus Lane Feasibility Albany Broadway"** — a real `Route Info Box` graph
+  with `activeRouteComponents: null` (defaults to ALL comps), 2 route comps (Broadway
+  NB/SB, both real, both already in the new route catalog, both point-drawn → resolved via the
+  existing `resolve_tmc_array` falcor mechanism), both dated 2021 (matches 1410's 2021 view,
+  genuinely period-matched, not reusing 2024 by coincidence). Converted (page `2189135`),
+  live-verified (Playwright + screenshot, zero console errors): **2 real rows, one per route,
+  with genuinely different LOTTR values (1.56 SB vs. 1.63 NB)** — this is the first live proof
+  that different routes actually produce different real numbers through the join, not just that
+  the mechanism doesn't crash on one route.
+- **Built and live-verified: true TMC Info Box (per-TMC-within-route grain).** Key realization
+  (user): TMC Info Box only ever renders **one route at a time** in the old tool — same "first
+  assigned comp only" semantics as "Hours of Delay Graph" (round 12's special case). Once that's
+  true, `comparisonSeries`'s multi-route fan-out isn't needed for *producing rows* at all — it's
+  still kept enabled purely for its real per-route filter scoping (one arm, one route, real
+  tmc+date WHERE), and the actual per-row split comes from a plain, direct `tmc` groupBy column —
+  exactly `tmc_delay_bar_graph_5min`'s shape (`categorize: "tmc"`, no `__series` column in the
+  SELECT list at all). Added `"TMC Info Box"` to `analyze_graph`'s single-comp-default branch
+  (alongside `"Hours of Delay Graph"`, docstring updated) — measure resolution stays normal
+  (`displayData[0]`), only the comp-selection behavior is shared. New template
+  `tmc_info_box_reliability_2023` (joined to `s1410_v2567_pm_3` = 2023, matching report 1045's
+  comp-28/comp-6/comp-5 — comp-8's "All-time Average" is a known minor year mismatch, same
+  tradeoff class as Route Info Box's period-matching). **Correction to the earlier
+  record**: a bare (non-calculated) `"tmc"` groupBy column works FINE here, no ambiguity error —
+  the earlier `GROUP BY ds.ds.tmc` double-qualification only happened when `tmc` was *manually
+  pre-qualified* to `"ds.tmc"`; leaving it bare (same as `tmc_delay_bar_graph_5min`'s own `tmc`
+  column) was never actually the problem. Live-verified (report 1045, page `2189148`,
+  Playwright + screenshot, zero console errors): the first TMC Info Box section renders **12
+  distinct TMC rows with genuinely different values** (e.g. `104N04286`: LOTTR 1.06/TTTR 1.27 vs.
+  `104-04286`: LOTTR 1.09/TTTR 1.31); the other 3 sections (comp-6/comp-5/comp-8) each show their
+  own route's real TMC breakdown too. No regression on the report's other 3 graphs.
+- **Not done**: freeflow, the pagination-length cosmetic bug (Route Info Box's
+  `seriesVariants`-branch `count(*)` issue — TMC Info Box doesn't use `seriesVariants`-driven
+  length at all now that it's a plain groupBy, so it may not share this bug, but that hasn't been
+  checked), a Route Compare Component variant, and per-report/per-comp year auto-selection
+  (both Route and TMC Info Box still hardcode one year per template) are all still open.
+
+**Round 18 (2026-07-09): first real use of the `pgFederated` join — LOTTR/TTTR live on report
+1045, BUILT and live-verified. Also found and fixed a real platform bug (`Attribution.jsx`), and
+caught/avoided a real unfiltered-CH-query near-miss along the way.** User wanted to actually see a
+report using the round-16 cross-engine join, not just have the mechanism proven in isolation.
+
+- **Report pick — reversed twice, both times for good reasons (see
+  [[feedback_pivot_report_pick_to_data_coverage]]).** First picked report 40 (single small route,
+  literally requests `'LOTTR'`/`'TTTR'` by name in its old InfoBox displayData — a genuine, real
+  old-tool measure name, not an inference) — user caught that its route_comps are entirely inside
+  2016, before the raw fact table's 2017 start, so avgTT/etc. would be blank for reasons unrelated
+  to the join. Broadened the search: **only 10 reports in the whole corpus ever request literal
+  `LOTTR`/`TTTR`, all 2014-2018** — none overlap 1410's real 2021-2025 coverage. Rather than convert
+  one of those 10 and get correctly-wired-but-blank cells, pivoted to **report 1045 "Rochester Inner
+  Loop"** (already converted/live-verified in earlier rounds, date range through 2024) and added a
+  *new* Info Box section not tied to what that report's old InfoBox originally asked for. User
+  approved this as a general pattern for future picks.
+- **Product clarification (reverses part of round 17's wording): "current" was a bad word choice —
+  the user does NOT want a year mismatch between a report's own period and the join's year.** The
+  join must be **period-matched** (pick the 1410 view for the report's own max year), not "always
+  the latest year regardless of report period." For 1045 (max year 2024, per its comp-8 "All-time
+  Average" comp's `endDate: 20241231`), that's `s1410_v2568_pm_3`. This means any report whose own
+  date range falls outside 1410's 2021-2025 coverage will correctly show **blank** LOTTR/TTTR cells
+  (a real gap, gap-logged like every other date-coverage gap in this task), not a substituted
+  current-year value — no report has been converted yet that hits this case.
+- **1410 confirmed over 2001** (user decision, see
+  [[project_npmrds_1410_vs_2001_backfill]]): 1410's 2021-2025 years are already complete on every
+  measure; 2001 is missing measures across all years and would need a full pipeline re-run to fix.
+  Backfilling 1410 back to 2017-2020 is the planned path for older reports, not falling back to
+  2001.
+- **Built**: one new `avl_graph_template` row, `tmc_info_box_reliability_2024` (hand-created via a
+  one-off script, NOT through `ensure_graph_templates`/`TEMPLATE_SPECS` — that function is
+  graph_new-specific (`xAxis`/`graphType`), and this is the first-ever `Spreadsheet`-element-type
+  template in this pipeline). `join.sources.pm3 = {pgFederated: {pgEnv: "npmrds2", table:
+  "s1410_v2568_pm_3", schema: "gis_datasets"}, joinColumns: [{dsColumn: "tmc", joinSourceColumn:
+  "tmc"}], mergeStrategy: "join", type: "left"}` — exactly round 16's shape, first time it's
+  actually loaded into a real section. One new `GRAPH_TEMPLATE_MAP` entry (`scripts/
+  convert_old_reports.py`): `("TMC Info Box", "speed", "5-minutes", "travel_time_all") →
+  "tmc_info_box_reliability_2024"`. Converted via the ordinary `--replace` pipeline — no changes to
+  `convert_report`/`build_graph_section_data` needed, both are already generic enough.
+- **Real bug found and fixed: `Attribution.jsx` crashed the whole page render on a `pgFederated`
+  join source.** `packages/dms/src/patterns/page/components/sections/components/dataWrapper/
+  components/Attribution.jsx` destructured `curJoinSource.sourceInfo` unconditionally for every
+  join source — a `pgFederated` source has no `sourceInfo` by design (round 16), so this threw
+  `Cannot destructure property 'source_id' of 'attribSource' as it is undefined` and React Router's
+  error boundary ate the whole page. This is a 4th touchpoint beyond round 16's three
+  (`isJoinComplete`/`buildJoinSources`/`sourceIdToTableAlias`) that assumed every join source has
+  `sourceInfo` — round 16 didn't catch it because nothing had actually loaded a `pgFederated`
+  section into a live page yet. Fixed with a parallel branch (mirrors the round-16 pattern exactly):
+  renders `(mergeStrategy) schema.table (pgEnv)` as a plain `<span>` instead of a `<Link>` (no
+  DAMA `source_id` to link to). No test added — this file has no existing test coverage to extend
+  and the fix is a straightforward one-branch mirror of an established pattern.
+- **Three self-inflicted template-config bugs found and fixed, all via live reproduction, not
+  guessing:**
+  1. **`GROUP BY ds.ds.tmc`** — first attempt named the group column `"ds.tmc"` (manually
+     pre-qualified, reasoning that `tmc` is ambiguous once `pm3` is joined in). Something upstream
+     of `refName` already qualifies bare join-scoped column names, so the pre-qualification doubled
+     up. Fixed by using the bare name and, more fundamentally, by switching to the `__series`
+     pattern below instead of a raw `tmc` groupBy column at all.
+  2. **Stuck on "loading..." forever, no request ever sent.** Root cause: the template's `display`
+     block never set `fetchMode: "force"` (every working template has it) — default `fetchMode`
+     is `"cache"`, which never auto-fetches in view mode. `getData.js`'s `readyToLoad` derivation
+     is `isEditMode || (isValidState && (fetchMode !== 'cache' || allowEditInView))` — silent, no
+     console signal at all when this is missing.
+  3. **The real one, see below — disabling `comparisonSeries` removed the platform's own
+     unfiltered-query safeguard, not just cosmetic graph-comparison config.**
+- **Near-miss: almost re-triggered [[project_npmrds_unfiltered_ch_query_risk]] on the shared dev CH
+  server.** After fixing (2), the query fired but crashed client-side (`GROUP BY ds.ds.tmc` SQL
+  error, caught and shown as a console error — safe). After fixing that, it fired again — this
+  time with **zero base filters and `comparisonSeries.enabled: false`** (an earlier "cleanup" step
+  had disabled `comparisonSeries` on the theory that it was inert graph-comparison decoration the
+  new section didn't need). `buildUdaConfig.js`'s `hasUnscopedComparisonSeries` guard — the exact
+  fix from the completed `clickhouse-unfiltered-probe-hazard` task — only fires when
+  `comparisonSeries.enabled === true`; with it explicitly `false`, that guard is bypassed entirely,
+  and with an empty `filters` tree there was no fallback scoping either. `page.goto({waitUntil:
+  'networkidle'})` hung for 60s+ in the Playwright repro — consistent with a real unfiltered query,
+  not a client-side hang. **User independently hit the same hang in a real browser tab.** Checked
+  `system.processes` on the CH server (user-run, read-only) before doing anything else — **nothing
+  stray was running**, so no query actually got far enough to become a real incident this time
+  (probably erroring or getting cut off before real execution — not fully diagnosed, and not worth
+  chasing further now that the fix is in). Root cause understood and fixed (see below) rather than
+  just avoided.
+  - **Real mechanism, traced properly this time**: every working template's actual TMC/date
+    scoping comes entirely from `comparisonSeries`'s dynamic fan-out (`usePageFilterSync.js`
+    resolves `comparisonSeries.config` from the page's route selection into one real
+    `filterGroups` arm per TMC — e.g. `tmc_speed_grid_graph` groups by `[epoch, __series]`, not by
+    a raw `tmc` column at all). The `__series` "categorize" column isn't graph-specific
+    decoration — it's the load-bearing scoping primitive every dataWrapper section relies on for
+    real filtering. `state.filters` is empty on every template, working or not; the real filter
+    lives inside `comparisonSeries`'s resolved config. Fixed the template to match:
+    `columns = [__series (group, categorize), lottr_amp (calc, fn avg), tttr_amp (calc, fn avg)]`,
+    `comparisonSeries` copied verbatim from `tmc_speed_grid_graph` (`enabled: true`), and —
+    the piece that was still missing after re-enabling `comparisonSeries` — `display._functions.
+    subscribers` needs the `{functionId: "comparison_series", enabled: true, paramKey: "$self",
+    args: {labelKey: "label", valueKey: "filters"}}` entry, or `usePageFilterSync` never resolves
+    `comparisonSeries.config` at all (silently — `effectiveParamKey` is `undefined`, effect
+    no-ops) and the safeguard correctly holds the fetch back forever.
+- **Live-verified (2026-07-09, Playwright + screenshot, `page id 2189103`)**: real, non-null,
+  plausible LOTTR/TTTR values render for comp-28's route ("I-490 EB AM Peak Child St to Culver
+  Rd/Ped Bridge") — **LOTTR (AM peak) 1.0477684017792284, TTTR (AM peak) 1.1813796980884241** —
+  pulled live via `ClickHouse postgresql() → gis_datasets.s1410_v2568_pm_3` for that route's real
+  TMCs, period-matched to 2024. All 4 of report 1045's `TMC Info Box` graph_comps converted (one
+  per route comp: comp-28/comp-6/comp-5/comp-8) using the same template. Zero console errors
+  (only the pre-existing harmless `HydrateFallback` warning). No regression on the report's 3
+  pre-existing graphs (Route Line Graph/TMC Grid Graph/weekday delay bar all still render real
+  data unchanged).
+- **Known follow-up, not fixed this round (cosmetic, not a correctness or safety issue)**: the
+  section's reported pagination length (`"Rows 1 to 50 of 100493"`) is wrong — with `seriesKey`
+  filtered out of `groupBy` and no other groupBy dimension, `simpleFilterLength`'s
+  `seriesVariants.length` branch falls back to `armCountExpr = "count(*)"` (raw filtered epoch-row
+  count) instead of counting the single aggregated row each arm actually produces. The one real
+  row still renders correctly; only the pagination chrome is misleading. Worth fixing before this
+  becomes a general InfoBox capability rather than a one-report demo.
+- **Not done / scope of this round**: this is one hardcoded-to-2024 template wired to exactly one
+  old `(type, measure, resolution, dataColumn)` key, applied to one report. Not a general
+  "InfoBox family" capability yet — no author-facing UI for the `pgFederated` join (per round 16,
+  still hand-authored), no per-report year selection (a report whose max year isn't 2024 needs its
+  own template pointed at the matching `s1410_v{view_id}_pm_3`), no Route Info Box (route-wide
+  aggregate across TMCs) or Route Compare Component variants, and the pagination-length bug above
+  is unfixed. Freeflow (`speed_pctl_85`) untouched — still gated on round 14's separate two-stage-
+  aggregation structural blocker, unrelated to this round's join work.
+
 **Round 17 (2026-07-09): 1410's TMC-id column confirmed + PRODUCT DECISION on the round-13
 LOTTR/TTTR question — "surface current/correct," not a faithful old-math replica.**
 
@@ -972,9 +1147,30 @@ pending direction.
 
 ### Next steps — standing recommendations (2026-07-08, post-round-9 diagnostic)
 
-**This section is the answer to "what's next" — do not re-derive it.** State: rounds 1–9
-finished all 6 approved gap-coverage picks (1070/1071/751/1061/1045/874, all live-verified),
-plus `overrides.aadt`, the truck-CO₂ 0-as-missing fix, the Falcor sibling collision (own task,
+**SUPERSEDED for the immediate next step by round 18 (2026-07-09) — read that block at the top
+of this file first.** Round 18 proved the `pgFederated` join live (Route Info Box + TMC Info Box
+both built and verified, on reports 796/1045) but hardcoded ONE template per year
+(`route_info_box_reliability_2021`, `tmc_info_box_reliability_2023`) picked by hand per report.
+**Recommended next task: generalize per-report/per-year template selection** so Info Box
+conversion can scale past one-off demos — a small helper (`ensure_pm3_join_template(year, grain)`
+in `scripts/convert_old_reports.py`) that computes the right `s1410_v{view_id}_pm_3` for a given
+year (map already in `documentation/npmrds-data-sources.md`: 2021→2587, 2022→2575, 2023→2567,
+2024→2568, 2025→3425), creates-or-reuses a `route_info_box_reliability_{year}` /
+`tmc_info_box_reliability_{year}` template on demand, and wires `convert_report` to compute each
+Route/TMC Info Box graph's real max year (same `getMaxYear`-style logic already used for the
+join's period-matching) and pick the matching template dynamically instead of one static
+`GRAPH_TEMPLATE_MAP` key per grain. Without this, every new report needing an Info Box still
+needs a human to notice its year and hand-build a template first. Secondary, smaller candidates
+if that's not the priority: the Route Info Box pagination-length bug (`clickhouse.js`
+`simpleFilterLength`, see the "Parked" list below) — small, contained, server-side only; or the
+Hours-of-Delay-Graph stacked-vs-single-color product question (round 18) — a decision, not
+engineering work.
+
+**Below this point is pre-round-18 context** — still valid for capability areas Info Box work
+hasn't touched (reliability-measure bulk conversion, mixed-resolution semantics, etc.), but no
+longer the first thing to read for "what's next." State as of round 9: rounds 1–9 finished all 6
+approved gap-coverage picks (1070/1071/751/1061/1045/874, all live-verified), plus
+`overrides.aadt`, the truck-CO₂ 0-as-missing fix, the Falcor sibling collision (own task,
 completed), and the CH unfiltered-probe hazard (own task, completed). The approved report list
 is exhausted — remaining work is capability selection, not a queue. Recommended order:
 
@@ -1106,6 +1302,14 @@ Parked / pending user decisions (unchanged, do not silently resurrect):
 - Submodule sits on two `wip`-titled commits (`901d9d53`, `3e80a9b` outer) — reword + bump the
   outer pointer when the user wants a checkpoint; git push is user-only per
   `[[feedback_never_push_to_git]]`.
+- **Route Info Box pagination length is wrong** (round 18): reports `"Rows 1 to 50 of 100493"`
+  when only 1 real row exists. Root cause: `simpleFilterLength`'s `seriesVariants.length` branch
+  computes `armCountExpr = "count(*)"` (raw filtered epoch-row count) whenever `countGroupBy`
+  (groupBy minus the seriesKey) is empty — which it always is for `route_info_box_reliability_2021`
+  (its only groupBy column IS the seriesKey, `__series`). Fix belongs in
+  `dms-server/src/routes/uda/query_sets/clickhouse.js`'s `simpleFilterLength`, not in this script.
+  Not yet fixed. TMC Info Box doesn't use the `seriesVariants` length path at all (plain `tmc`
+  groupBy, no fan-out) so it likely doesn't share this bug — not directly checked.
 
 **Reports 1061, 1045, 874 — round 6 re-run, live-verified (2026-07-08), resumed after the
 ClickHouse hazard fix.** All three re-converted with `--replace` to pick up the color_range +
