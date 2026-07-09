@@ -1,5 +1,205 @@
 # Old NPMRDS reports → new DMS report pages (automated conversion)
 
+**Round 13 (2026-07-09): Info Box family (Route Info Box / TMC Info Box / Route Compare
+Component) — SCOPED, nothing built yet.** User picked this as the next "big missing graph
+type" to investigate (the top-3 `no_equivalent` types the 2026-07-08 user decision said "we
+100% are going to want to convert eventually"). Read all three old components plus their
+shared base class and server-side data retrievers before writing anything down, per the
+standing plan.
+
+- **All three are literally the same rendering primitive, confirmed by direct comparison of
+  `RouteInfoBox.jsx`/`TmcInfoBox.jsx`/`RouteCompareComponent.jsx`** (all in transportNY's
+  `pages/analysis/components/tmc_graphs/`): a plain `<table>` (`TableContainer`) with **one row
+  per entity, one column per author-selected measure, one scalar value per cell** — no chart at
+  all. They differ only in what the row is: Route Info Box = one row per route; TMC Info Box =
+  one row per TMC *within a single selected route* (`generateGraphData([route], ...)` — same
+  "first-route-only" default already flagged in the a-bis item); Route Compare Component = a
+  base row + N compare rows with a %-difference/arrow-colored cell instead of a plain value.
+  Census size (all buckets, corpus-wide): Route Info Box 412, TMC Info Box 264, Route Compare
+  Component 226 — Route Info Box is the largest of the three, matches the user's "info box"
+  example.
+- **No existing DMS section type covers this.** `graph_new` has no scalar/stat-table
+  component (checked all of `graph_new/components/`: BarGraph, LineGraph, GridGraph, PieGraph,
+  ScatterPlot, SunburstGraph, TreemapGraph — all chart types, none render N-measures-as-columns
+  scalars). The platform's generic `spreadsheet`/`Table` section
+  (`ComponentRegistry/spreadsheet/`) is row-per-dataset-record with author-configured columns —
+  built for browsing a real dataset, not for binding to a UDA aggregate query that collapses a
+  whole date range into one scalar per route/TMC. **Not fully ruled out as a reusable primitive
+  it wasn't investigated deeply enough to say whether the UDA layer could feed it a
+  one-row-per-route aggregate result** — worth a closer look before building a bespoke
+  component, per the author-empowerment principle, but on first read it looks like a genuinely
+  new query *shape* is needed regardless of which component renders it: every existing
+  `TEMPLATE_SPECS` entry requires an `xAxis` grouping column (time-series bars/heatmap cells);
+  an info-box query has no time axis at all — it's a pure aggregate GROUP BY tmc/route only.
+- **Data-source audit, per `DATA_TYPES` group (`utils/dataTypes.js` + `GeneralGraphComp.jsx`'s
+  `doFetchFalcorDeps`, which special-cases each group's server response shape):**
+  - **`speed`/`travelTime` (BASE_DATA_TYPES, ungrouped)** — already have ClickHouse
+    equivalents from prior rounds' work (`SPEED_EXPR`/travel-time templates). Reducers just need
+    a Python port (weighted-by-miles average across TMCs, e.g. `speedAllReducer`/`indexReducer`
+    in `dataTypes.js`) — no new data dependency.
+  - **`hoursOfDelay`/`avgHoursOfDelay`, `co2Emissions`/`avgCo2Emissions`** — same, already built
+    (`DELAY_EXPR`, `CO2_EXPR_*` from rounds 9/11/12).
+  - **`tmcAttribute` (length, avg_speedlimit, aadt, vmt)** — **low risk, likely already
+    available.** Server-side `getTmcAttributes.js` pulls `miles`/`avg_speedlimit`/`aadt`/
+    `aadt_combi`/`aadt_singl` from the same per-TMC-per-year metadata (`tmcMeta`/
+    `npmrds2.meta.{year}`) that the delay/CO2 templates already join against for AADT and
+    length (round 9's `_AADT_*` fragments). Should be a thin wrapper over an existing join, not
+    new data engineering.
+  - **`dataQuality` ("Percent of Epochs Reporting")** — buildable but **blocked on the
+    still-outstanding 0-as-missing sweep** (next-steps item 1, already parked). Old semantic
+    (`getDataQuality.js`): `countIf(non-null) / total-possible-epochs-in-the-filtered-calendar *
+    100` — Postgres `COUNT(col)` skips real NULLs. The new CH fact table stores `0` for missing
+    readings (round 9's finding), so the direct port would need `countIf(col != 0) / count() *
+    100` per bucket — mechanically fine, but shares the same latent conflation of "genuinely 0"
+    vs "missing" as everything else in that parked item. Do them together.
+  - **`indices`/`indices-byDateRange` (avgTT, freeflow, percentile95, percentile97,
+    bufferTime, planningTime, miseryIndex, travelTimeIndex) — THE BLOCKER.** Traced to
+    `avail-falcor/services/routeDataRetrievers/getIndices.js`: every one of these (except
+    `avgTT`, plain `AVG(tt)`) is computed from `PERCENTILE_DISC(array[0.3, 0.95, 0.97])` over
+    raw travel times **joined against a Postgres table `pm3.authoritative_freeflow` (columns:
+    `tmc`, `year`, `tt_15_pct`)** — an external, precomputed freeflow-speed reference table, not
+    something derived from the NPMRDS travel-time distribution itself. `grep`-confirmed **zero
+    references to `freeflow`/`authoritative_freeflow` anywhere in `convert_old_reports.py` or
+    `dms-server`** — this table has never been touched by the conversion effort and there is no
+    known ClickHouse equivalent yet. The percentile math itself is a trivial CH port
+    (`quantiles(0.3, 0.95, 0.97)(tt)` vs Postgres's `PERCENTILE_DISC`), but it's gated entirely
+    on whether `pm3.authoritative_freeflow` (or an equivalent per-TMC-per-year freeflow value)
+    is reachable from the new stack. **Superseded, see round 13's DAMA/pm3 follow-up below** —
+    turns out no import is needed at all: `calcPhed.js`'s `calcFreeflowBaseThresholdSpeed`
+    already recomputes freeflow live from the real fact table (`npmrds.s583_v982_NPMRDS_V6`) via
+    a ClickHouse `quantile()` call, no external Postgres table involved. Also noticed a real
+    discrepancy in
+    the old SQL worth replicating faithfully rather than "fixing": the resolution-grouped query
+    divides planningTime/miseryIndex/travelTimeIndex by `percentiles[1]` (the 30th-percentile
+    travel time), while the by-date-range variant divides the same-named measures by `freeflow`
+    (the authoritative table's value) instead — two different denominators for the same index
+    name depending on which of the two InfoBox-family queries is asking.
+- **Not started**: no template, no query builder changes, no new section/component type. This
+  round is read-only investigation, matching the pattern of round 10's census.
+
+**Round 13 continued (2026-07-09): the `authoritative_freeflow` blocker is DISSOLVED — freeflow
+is computable directly from the live fact table, no external table needed.** User pointed at
+the DAMA pm3/map21 pipeline (`avail-falcor/dama/routes/data_types/{map21,pm3}`) as a likely
+current source; traced it before concluding anything:
+- `pm3_calculator_2` (a separate top-level repo) is confirmed OLD/offline per the user — its
+  `FreeflowCalculator.js` computes `fifteenthPctlTravelTime`, which matches `tt_15_pct`'s naming
+  in the old `pm3.authoritative_freeflow` table closely enough that it was very likely what
+  originally populated it, but it's disconnected from anything current.
+- The live pipeline is `avail-falcor/dama/routes/data_types/map21/calcPhed.js`. Its
+  `calcFreeflowBaseThresholdSpeed()` computes freeflow **live**: 15th-percentile travel time
+  across the whole year, all hours/all days-of-week, converted to speed
+  (`miles / p15_tt * 3600`) — queried directly against ClickHouse (`chQuery`) against
+  `${schema_name}.${dataTableName}`, where `schema_name` is the hardcoded constant
+  `NPMRDS_CH_SCHEMA_NAME = 'npmrds'` (`map21/constants.js`). **Now that the table-identity mixup
+  above is resolved, this constant is confirmed correct** — `npmrds` is genuinely the same
+  ClickHouse database as source 583's real fact table (`npmrds.s583_v982_NPMRDS_V6`), so this
+  pipeline (when pointed at a view whose `dataTableName` resolves to `s583_v982_NPMRDS_V6`) reads
+  the exact same data the converter's own templates do. **Practical upshot**: freeflow is a
+  one-line ClickHouse calculated column (`quantile(0.15)(nullIf(tt, 0))` over the whole year, no
+  hour/dow filter), same style as the existing `DELAY_EXPR`/`SPEED_EXPR` fragments — no Postgres
+  import, no external reference table, no backfill question. This single fact unblocks the
+  `freeflow` measure specifically.
+- `calcTtrMeasure.js` computes the OTHER reliability measures — **LOTTR** (80th/50th percentile
+  travel-time ratio) and **TTTR** (95th/50th, trucks) — over specific FHWA reporting-bin windows
+  (`REPORTING_BINS`/`BIN_NAMES`: `AMP`=AM peak, `MIDD`=midday, `PMP`=PM peak, `WE`=weekend,
+  `OVN`=overnight). **This is NOT the same formula as the old InfoBox's `percentile95`/
+  `percentile97`/`bufferTime`/`planningTime`/`miseryIndex`/`travelTimeIndex`** (old tool: 95th/
+  97th percentile of the raw resolution bucket, normalized by either the 30th percentile or the
+  stored freeflow value) — LOTTR/TTTR are the current, federally-mandated, actually-maintained
+  reliability metrics, but a faithful old-report conversion and a "use what's current" approach
+  would produce different numbers. **Product question already asked, user said they'll answer
+  later**: replicate the old ad hoc math 1:1, or surface real LOTTR/TTTR/PHED instead?
+- Bonus corroboration, unprompted: `calcTtrMeasure.js`'s underlying data fetch
+  (`getBinnedYearNpmrdsDataForTmc`) uses `AVG(CASE WHEN col > 0 THEN col ELSE NULL END)` — the
+  exact same 0-as-missing nullification the round-9 fix (`nullIf(col, 0)`) already applies in
+  `convert_old_reports.py`, independently validating that fix from a second, separately-written,
+  currently-maintained system.
+- **RESOLVED (2026-07-09): sources 1722/2001/1410 checked — real, usable, precomputed data
+  exists, verified two ways per the user's method (metadata column check, then real-data check
+  against known TMCs), not just schema.** All three confirmed Postgres-backed (`gis_datasets`
+  schema, `npmrds2` pgEnv) — user-confirmed directly, matching the same cross-engine constraint
+  that gated the AADT-distribution work (ClickHouse ↔ Postgres joins are impossible; these would
+  need a **separate query**, not a `join.sources` entry — see full detail and exact column names
+  in `npmrds-data-sources.md`'s updated 1722/2001/1410 rows). Headline results:
+  - **1410** (5 single-year views, 2021-2025 only) has `speed_pctl_85` — **the only one of the
+    three with a usable freeflow-equivalent column** (85th-percentile speed, exactly matching the
+    old `pm3_calculator_2`'s speed-based freeflow definition) — plus `lottr_*`/`tttr_*`, all
+    100% non-null across 52,127 TMC rows in the 2025 view. Richest measure set, narrowest year
+    range.
+  - **2001** ("Map 21 Extended," has a real all-years view, `view_id` 3490, 2016-2025) has
+    `lottr_*`/`tttr_*`/`phed` (no freeflow/speed-percentile column) — 100% non-null across
+    199,165 rows, real per-year counts every year including 2016 (i.e. covers years the new
+    ClickHouse fact table itself can never reach). Best year coverage, no freeflow value.
+  - **1722** (one experimental-looking view) is a strict column subset of 1410 with no
+    freeflow/speed-percentile columns — lowest priority.
+  - Both 1410 and 2001 spot-checked directly against 3 TMCs already used in converted reports
+    (`120-04426`/`120-04427` from report 315, `120P05153` from report 751) — real, sane,
+    non-null values every time, confirming this isn't just populated schema but genuinely
+    computed data for TMCs this task already cares about.
+  - Grain match is exact: the old InfoBox already reduced everything to **one value per TMC per
+    year** (`getMaxYear(route)`), and these tables are already one-row-per-TMC-per-year — a
+    direct join/lookup, no aggregation needed, once the cross-engine query is issued separately.
+
+**Architecture correction (2026-07-09) — the "separate query" recommendation above is WRONG,
+retracted.** User pushed back: every data-backed component in DMS today is built around issuing
+exactly **one** query per instance, and that should stay true for InfoBox too — pointing at the
+old tool's own multi-query-per-component behavior as justification for breaking that was the
+wrong argument. Had an agent verify this directly against the actual code (not assumed) before
+accepting the pushback:
+- **Confirmed, structural, not incidental**: Card, the spreadsheet/Table component, and AVL
+  Graph/`graph_new` all set `useDataSource: true, useDataWrapper: true` and route through the
+  *identical* shared pipeline (`dataWrapper/useDataLoader.js` → `getData.js` →
+  `buildUdaConfig.js`) — one `fetchKey`-driven effect, one `sourceInfo`/`externalSource`, one
+  connection/engine per instance. `buildJoin`/`buildJoinSources` (`buildUdaConfig.js:850-933`) is
+  the *only* mechanism these use to combine tables, and it's genuinely single-engine (confirmed
+  server-side in `dms-server/src/routes/uda/query_sets/{postgres,clickhouse}.js`). Card's cells
+  (`Card.jsx:76`) all read off one shared `state.data` array — no per-cell fetch.
+- **One real exception exists platform-wide, and it's instructive**: the Map section
+  (`ComponentRegistry/map/SymbologyViewLayer.jsx`'s `resolveFeatureProperties`) does its own raw
+  `falcor.get()` against a layer's `view_id`, and — only when an author configures a "Linked
+  Data/Join" — a **second**, independent `falcor.get()` against a different view, merged
+  client-side per feature. This is bespoke, non-dataWrapper code, not a generic capability any
+  other component can reach for. Exactly the "developer answers with a custom mechanism" pattern
+  `CLAUDE.md`'s author-empowerment principle says to avoid defaulting to — confirms the *right*
+  reaction to a cross-engine need is not "build a Map-style bespoke two-query component" but to
+  find a same-engine way to get the value.
+- **The Postgres PM3 tables (1722/2001/1410) are the wrong path for InfoBox, given this** — not
+  because the data isn't real (it is, verified above), but because using it would require exactly
+  the kind of bespoke multi-query composition the platform deliberately doesn't offer to authors.
+  **Correction: we don't need them at all.** `calcFreeflowBaseThresholdSpeed`/`calcTtrMeasure`
+  (traced above) compute their percentiles in **Node** (`simple-statistics`'s `quantile()`, after
+  fetching raw rows) — but that's an implementation choice of that particular worker, not a
+  ceiling on what ClickHouse itself can do: ClickHouse has native `quantile()`/`quantileExact()`/
+  `quantiles()` aggregate SQL functions, so the identical freeflow/LOTTR/TTTR values are
+  expressible as **calculated columns evaluated server-side inside ClickHouse**, in the exact
+  same single query as every other measure — e.g. `quantile(0.15)(nullIf(ds.travel_time_all_vehicles,
+  0))` for freeflow, same style as the existing `DELAY_EXPR`/`SPEED_EXPR` fragments, no join, no
+  second connection, no Postgres involved.
+- **The "no-xAxis aggregate" query shape is also not new platform capability, on closer look**:
+  `buildUdaConfig.js` derives `groupBy` **generically from columns** (any column without an `fn`
+  becomes a group-by key, line ~1253) and `fn` is a generic per-column property already used
+  identically by Table/spreadsheet and `graph_new` (`.filter(c => c.show && c.fn)`, line
+  ~1262) — `xAxis`/`categorize` are `graph_new`'s own vocabulary for calling out which grouped
+  column is "the axis," not a separate platform mechanism. A query grouped by `tmc` (or route)
+  alone, with calculated-column measures, is already expressible through the same generic
+  mechanism every other template uses — just an unusual-for-this-codebase column configuration,
+  not new capability. (The `fn` map itself only has `sum`/`avg`/`count`/`max`/`list` — no
+  `quantile` preset — but calculated columns are already raw opaque SQL per the round-3
+  join-key precedent, so the aggregation can live inside the calculated column's own expression
+  without needing a new `fn` entry.)
+- **Follow-on implication, not yet checked**: since the generic Table/spreadsheet component
+  already renders arbitrary column-configured UDA rows, it may be able to render InfoBox's
+  one-row-per-TMC/route shape directly with **no new component at all** — worth checking before
+  assuming a bespoke stat-table component is needed.
+- **Not done**: no calculated-column SQL written yet for freeflow/LOTTR/TTTR-equivalent values,
+  no prototype template, no check of whether Table can actually consume a tmc-grouped (not
+  time-grouped) UDA result as-is.
+- **Recommended next step (pending the product-question answer — replicate old ad hoc math 1:1
+  vs. surface current LOTTR/TTTR-style measures computed fresh)**: prototype a `quantile()`-based
+  freeflow calculated column against source 583/982 directly (cheap, no new mechanism needed to
+  test), and check whether the existing Table/spreadsheet component accepts a tmc-grouped result
+  set without modification.
+
 **Round 12 (2026-07-09): "Hours of Delay Graph" stragglers (day/hour/15-minutes/month) — BUILT,
 plus a major corpus-wide data-coverage finding.** Picked up round 11's "not yet done" item —
 the non-5-minutes resolutions of the per-TMC delay graph. Re-ran the census fresh (round 11's
@@ -41,11 +241,18 @@ and 5× a literal `resolution: 'NONE'` string (reports 269/270/271, the same anc
     ("Aviation-Quaker Delay 2018", hour + month) both converted cleanly (gap reports show no
     `unmapped_graph` for the Hours-of-Delay-Graph type) but render **zero bars live** — root-caused
     to two *pre-existing, unrelated* gaps, not the new templates:
-    - Report 54's 6 TMCs (all rural, Hamilton County) only have data from **2018-01-01 onward**
-      in the ClickHouse `avail.npmrds` fact table (confirmed via direct query), but the report's
-      date range is 2016 — a real 0-row result, correctly propagated as "no data" (length 0, no
-      follow-up fetch, no bars). See the corpus-wide finding below — this is that gap's first
-      concretely-hit instance.
+    - Report 54's route comps are both `20160101`-`20161231` (confirmed directly against
+      `admin2.reports.route_comps`) — entirely inside 2016. **CORRECTED 2026-07-09** (see the
+      corpus-wide finding below, which had the same error): the original mechanism given here
+      ("these 6 rural TMCs specifically lack coverage," checked against a table called
+      `avail.npmrds`) was checked against the wrong ClickHouse table — `avail.npmrds` is an
+      unidentified, unrelated table (user-confirmed 2026-07-09: "IDK wtf it is... assume we
+      should never query this table for anything in life"), not source 583's real fact table
+      (`npmrds.s583_v982_NPMRDS_V6`). The corrected mechanism is simpler and still fully
+      unfixable: the real fact table's data starts in 2017 (user-confirmed), and 2016 data can
+      never be added to the new system at all — so report 54 is blank because **the whole new
+      system has zero rows for any TMC in 2016**, not because of anything specific to these 6
+      TMCs. Same practical outcome (permanently blank, not a defect), corrected reasoning.
     - Report 392's all 3 route comps reference route_id 1440, which is missing from **both** old
       `admin2.routes` and the new catalog (the pre-existing `route_missing_everywhere` gap class,
       same as report 874's route 5445) — every route entry gets an empty `tmc_array`, which
@@ -60,22 +267,37 @@ and 5× a literal `resolution: 'NONE'` string (reports 269/270/271, the same anc
       expected 96 distinct buckets (0-95), month produced one row per calendar month Jan-Jul 2018
       with real varying totals. Confirms the template mechanism is correct; reports 54/392 are
       genuinely blank for reasons unrelated to this round's work.
-- **New corpus-wide finding (2026-07-09, found while root-causing report 54's blank graph) —
-  needs its own decision, NOT limited to Hours of Delay Graph:** the ClickHouse `avail.npmrds`
-  fact table (source 583/view 982 — the table every converted speed/travelTime/delay/CO₂ graph
-  queries) has **zero rows before 2018-01-01, globally** (`SELECT count() FROM avail.npmrds WHERE
-  date < '2018-01-01'` → 0; `SELECT min(date) FROM avail.npmrds` → `2018-01-01`), while the OLD
-  Postgres `npmrds` table (the one these reports were actually built against) goes back to at
-  least **2016-01-01** for the same TMCs (confirmed on report 54's exact 6 TMCs: real old-side
-  data from 2016-01-01, zero new-side data before 2018-01-01 — a real gap, not a per-TMC
-  sparsity artifact). **Quantified corpus-wide**: 437 of 868 reports (50%) have at least one
-  route comp with `settings.endDate` before 2018-01-01 — i.e. roughly half the corpus will show
-  partial-to-total blank graphs after conversion **regardless of how complete the template
-  library gets**, purely because the underlying new-side data doesn't exist yet for those date
-  ranges. This is a data-ingestion/backfill question (does a 2016-2017 ClickHouse backfill exist
-  or is one feasible?), not something this converter can work around — flagged as a new,
-  high-priority standing item below, pending user direction. Not investigated further this
-  round (out of scope for "fix the stragglers"), but too large to leave as a buried aside.
+- **New corpus-wide finding (2026-07-09, found while root-causing report 54's blank graph),
+  CORRECTED 2026-07-09 (round 13 follow-up) after a wrong-table mixup — see below.** Original
+  claim used a table called `avail.npmrds`, checked via raw ClickHouse queries
+  (`SELECT count() FROM avail.npmrds WHERE date < '2018-01-01'` → 0;
+  `SELECT min(date) FROM avail.npmrds` → `2018-01-01`) and concluded the new fact table starts
+  2018-01-01, 437/868 reports (50%) affected. **User confirmed (2026-07-09): `avail.npmrds` is
+  not the real fact table — "IDK wtf it is... assume we should never query this table for
+  anything in life."** The real, current, actually-queried-by-every-template fact table is
+  **`npmrds.s583_v982_NPMRDS_V6`** (source 583/view 982 — confirmed by direct user query,
+  `SELECT distinct(date) FROM npmrds.s583_v982_NPMRDS_V6 order by date asc`), which has data
+  from **2017 through present** (June 30 2026 at last check) — **2016 is the only year that can
+  never be recovered**, not 2016-2017. **Scope of the mixup, checked and narrow**: neither
+  `convert_old_reports.py` nor `census_old_reports.py` ever contains a literal `avail.` SQL
+  reference (grep-confirmed) — both resolve the fact table via `source_id: 583` through the DMS
+  platform's own source/view registration, never via raw SQL. **No converted/live-verified
+  report page and no round-10 census number used the wrong table** — this was confined to a
+  handful of standalone diagnostic ClickHouse queries in this round (this finding + report 54's
+  mechanism above) plus one mischaracterization in the earlier (2026-07-08) AADT-distribution
+  work (see that section below — wording-only, no implementation impact).
+  **Corrected quantification** (recomputed directly against `admin2.reports`, same query
+  shape as the original 437 figure — reproduced that exact number with a `< 20180101` cutoff
+  before switching to the corrected boundary): **265 of 868 reports (31%)** have a route comp
+  with `settings.endDate` before **2017-01-01** (down from the previously-reported 437/50% —
+  172 reports that were wrongly written off now have at least partial real 2017+ coverage).
+  Pending confirmation of the *exact* earliest date on `npmrds.s583_v982_NPMRDS_V6` (user
+  confirmed "back thru 2017" but not the precise day) — the 265 figure uses `2017-01-01` as the
+  boundary and may shift slightly once that's pinned down. This remains a real, standing
+  data-availability gap (~31% of the corpus permanently affected for any report whose entire
+  range predates 2017), just smaller than originally reported (437/50%), and per
+  the user's 2026-07-09 direction (see next-steps item 0) it's not worth chasing a backfill —
+  treat pre-2017 report date ranges as a standing "old data, not available" gap-log case.
 - **Not done**: bulk-converting the ~130 five-minutes Hours-of-Delay-Graph instances beyond
   report 11 (round 11's other "not yet done" item) — still untouched, still pending user
   direction; unrelated to this round's day/hour/15-minutes/month work.
@@ -435,19 +657,25 @@ plus `overrides.aadt`, the truck-CO₂ 0-as-missing fix, the Falcor sibling coll
 completed), and the CH unfiltered-probe hazard (own task, completed). The approved report list
 is exhausted — remaining work is capability selection, not a queue. Recommended order:
 
-0. **NEW, HIGH PRIORITY (round 12, 2026-07-09): ClickHouse `avail.npmrds` has zero rows before
-   2018-01-01, globally — affects ~half the corpus, independent of template completeness.**
-   `SELECT min(date) FROM avail.npmrds` → `2018-01-01`; the old Postgres `npmrds` table (what
-   these reports were actually built against) goes back to at least 2016-01-01 for the same
-   TMCs. **437 of 868 reports (50%) have a route comp with `endDate` before 2018-01-01** — every
-   one of them will show partial-to-total blank graphs after conversion no matter how complete
-   the template library gets, because the new-side source data for that period doesn't exist.
-   Found while root-causing report 54's (round 12) blank 15-minutes graph — not investigated
-   further (no attempt made at a fix; this may be a data-ingestion/backfill question entirely
-   outside the converter's scope). **Needs a user decision**: is a 2016-2017 ClickHouse backfill
-   planned/feasible, or do pre-2018 reports get a permanent "old data, not available" gap-log
-   treatment? This should probably be answered before investing more effort in template
-   coverage, since half the remaining corpus is gated on it regardless.
+0. **RESOLVED (round 12 → corrected round 13, 2026-07-09): pre-2017 data gap, ~31% of the
+   corpus, independent of template completeness — NOT worth chasing a fix.** Round 12 originally
+   checked this against a table called `avail.npmrds` and concluded a 2018-01-01 cutoff affecting
+   437/868 reports (50%). **User confirmed 2026-07-09 that `avail.npmrds` is not the real fact
+   table** ("IDK wtf it is... assume we should never query this table for anything in life") —
+   the real, currently-queried-by-every-template fact table is `npmrds.s583_v982_NPMRDS_V6`
+   (source 583/view 982), confirmed by the user to hold data from **2017 through present**; only
+   **2016 is permanently unrecoverable** ("we can never get 2016 year data into the new
+   system"). Corrected corpus quantification (recomputed directly against `admin2.reports`):
+   **265 of 868 reports (31%)** have a route comp with `settings.endDate` before 2017-01-01 (down
+   from the previously-reported 437/50%) — exact boundary pending confirmation of
+   `npmrds.s583_v982_NPMRDS_V6`'s precise earliest date, may shift slightly. Scope of the mixup
+   was checked and is narrow: `convert_old_reports.py`/`census_old_reports.py` never reference
+   `avail.` literally (grep-confirmed) — every converted/live-verified report page and every
+   round-10 census number already used the correct table via `source_id: 583`, unaffected. See
+   the round-13 entry at the top of this file for the full trace. **User direction (2026-07-09):
+   not worth chasing further** — a 2017 backfill "may be possible" but 2016 never will be, and
+   "it isn't a huge deal." Treat any report whose entire date range predates 2017 as a standing
+   "old data, not available" gap-log case; no further investigation planned.
 1. **0-as-missing sweep on the shared speed/travel-time templates** (data-quality class; user
    2026-07-08: "definitely need to diagnose at SOME POINT" — deliberately deferred, NOT started).
    Round 9 proved the mechanism (CH fact-table travel-time columns are plain Float64, `0` where
@@ -1058,9 +1286,17 @@ overwriting them freely is expected normal workflow, not something to hesitate o
     request). Per the "don't tunnel around a denial" instruction, this was not forced through —
     it needs either the user running the lookup themselves, or an explicit permission grant.
     **RESOLVED (2026-07-08)**: user ran `SHOW TABLES FROM avail` — table `aadt_distributions`
-    already exists (alongside `npmrds`, `avg_monthly_tt`, `mpo_boundaries`, `tmc_avg_speedlimit`,
-    all in the SAME ClickHouse `avail` database as the main NPMRDS fact table, so a same-engine
-    join is possible). Schema: `key String, distributions Array(Float64)`. Verified byte-for-byte
+    already exists (alongside `npmrds`, `avg_monthly_tt`, `mpo_boundaries`, `tmc_avg_speedlimit`).
+    **Correction (2026-07-09, round 13): the phrase "same database as the main NPMRDS fact
+    table" above was wrong** — the main fact table (source 583/982) actually lives in a
+    *different* ClickHouse database, `npmrds` (table `s583_v982_NPMRDS_V6`), not `avail`; the
+    `avail` database's own `npmrds` table is a separate, unrelated, do-not-use table (user-
+    confirmed 2026-07-09). This doesn't change the practical conclusion, though: ClickHouse
+    supports cross-database joins on one connection (`db1.table1 JOIN db2.table2`), and the
+    registered `aadt_distributions` source already hardcodes `table_schema: 'clickhouse.avail'`
+    as literal SQL text regardless of which database the fact table sits in — so the same-engine
+    join this section set out to confirm is still real; only the database attribution was wrong.
+    Schema: `key String, distributions Array(Float64)`. Verified byte-for-byte
     match against `aadtDistributions.js`: same 20 keys, each a 288-length array. The CH array
     values are the raw JS literals **÷100** (CH sums to 1.0 per key; the raw JS literals alone sum
     to 100.0) — traced this to `aadtDistributions.js`'s own tail: `DISTS[dist] =
