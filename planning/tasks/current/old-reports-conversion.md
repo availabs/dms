@@ -1,5 +1,85 @@
 # Old NPMRDS reports → new DMS report pages (automated conversion)
 
+**Round 12 (2026-07-09): "Hours of Delay Graph" stragglers (day/hour/15-minutes/month) — BUILT,
+plus a major corpus-wide data-coverage finding.** Picked up round 11's "not yet done" item —
+the non-5-minutes resolutions of the per-TMC delay graph. Re-ran the census fresh (round 11's
+own bugfixes weren't reflected in the stale round-10 census) to get an accurate straggler list:
+**11 real instances across 8 reports**, not the 5-6 round 11 guessed from the stale data —
+day×3 (reports 228/229/315), hour×1 + month×1 (both on report 392), 15-minutes×1 (report 54),
+and 5× a literal `resolution: 'NONE'` string (reports 269/270/271, the same ancient
+"version 2" id range as the round-10 `malformed_state_resolution` fix).
+- **`resolution: 'NONE'` is NOT a bug — confirmed intentional, left unmapped.** Traced
+  `transportNY`'s `utils/resolutionFormats.js`: `RESOLUTIONS['NONE'] = {name: 'None (data
+  download only)', ...}`, and `'NONE'` is explicitly filtered out of the real UI dropdown's
+  `resolutions` export (`.filter(r => r !== "NONE")`). It's a genuine old-tool sentinel for
+  "no chart, raw data export only" — same "no chart equivalent" class as Route Map/Bar Graph
+  Summary, not an ambiguous/malformed value to fix. Documented in a new code comment (`scripts/
+  convert_old_reports.py`, above `TEMPLATE_SPECS`) so a future session doesn't re-diagnose it.
+- **Built**: 4 new `TEMPLATE_SPECS` entries, same per-TMC/`categorize:"tmc"` shape as round 11's
+  `tmc_delay_bar_graph_5min` — only the xAxis grouping expression differs, mirroring the
+  weekday-template precedent (`ensure_graph_templates`'s calculated-xAxis-dict path, unchanged):
+  `tmc_delay_bar_graph_day_tmc` (xAxis=plain `date` column — named `_tmc` to avoid colliding with
+  the existing route-wide-sum `tmc_delay_bar_graph_day`), `tmc_delay_bar_graph_hour_tmc`
+  (`intDiv(ds.epoch, 12) as hour`, matching avail-falcor's `queryHelpers.js` `getResolution()`
+  hour case exactly), `tmc_delay_bar_graph_15min_tmc` (`intDiv(ds.epoch, 3) as quarter_hour`),
+  `tmc_delay_bar_graph_month_tmc` (`toStartOfMonth(ds.date) as month`). 4 new `GRAPH_TEMPLATE_MAP`
+  entries. No changes needed to `analyze_graph`'s single-comp resolution logic (already generic
+  across resolution values) or `ensure_graph_templates` (the calculated-xAxis-dict path already
+  existed for the weekday template).
+- **Verified 2 ways, split by resolution because 2 of the 3 new resolutions have no live example
+  with real underlying data (both pre-existing, unrelated gaps — see below):**
+  - **day (real instances, all 3 reports converted + live-verified, Playwright)**: 228 ("E Shore
+    to Round Pond", new page `2188944`) and 229 ("north- south exit 20", new page `2188967`) both
+    render real multi-TMC stacked-by-date bars, distinct per-TMC legend colors, zero console
+    errors. 315 ("July 7, 2018 Suspected Bridge Hit Hutch SB at Westchester Ave", new page
+    `2188979`) is the best confirmation: a single ~1400-hour delay spike on 2018-07-08 (the day
+    after the incident date in the report's own title) against a near-zero baseline on every
+    other date — exactly the old tool's real-world use case (spot the incident-driven delay
+    spike per TMC), not a coincidence.
+  - **hour/15-minutes/month (mechanism verified directly against ClickHouse, not through the
+    two target reports)**: reports 54 ("Hamilton County", 15-minutes) and 392
+    ("Aviation-Quaker Delay 2018", hour + month) both converted cleanly (gap reports show no
+    `unmapped_graph` for the Hours-of-Delay-Graph type) but render **zero bars live** — root-caused
+    to two *pre-existing, unrelated* gaps, not the new templates:
+    - Report 54's 6 TMCs (all rural, Hamilton County) only have data from **2018-01-01 onward**
+      in the ClickHouse `avail.npmrds` fact table (confirmed via direct query), but the report's
+      date range is 2016 — a real 0-row result, correctly propagated as "no data" (length 0, no
+      follow-up fetch, no bars). See the corpus-wide finding below — this is that gap's first
+      concretely-hit instance.
+    - Report 392's all 3 route comps reference route_id 1440, which is missing from **both** old
+      `admin2.routes` and the new catalog (the pre-existing `route_missing_everywhere` gap class,
+      same as report 874's route 5445) — every route entry gets an empty `tmc_array`, which
+      throws client-side in `ReportRouteList.jsx` (`JSON.parse` on an empty string) and blocks
+      the whole page's comparisonSeries wiring, so no AVL Graph on the page ever fires a query
+      (hour AND month graphs both affected identically — confirmed not template-specific).
+    - To positively verify the hour/15-minutes/month SQL shape itself (independent of these two
+      reports' data issues), ran the exact `DELAY_EXPR` + each new xAxis expression directly
+      against ClickHouse using report 315's TMCs (`120-04426`/`120-04427`, real 2018 coverage):
+      all three produced real, non-zero, sanely-varying values — hour-bucketed delay peaks at
+      16:00-18:00 (afternoon rush, matches real-world traffic patterns), 15-minutes produced the
+      expected 96 distinct buckets (0-95), month produced one row per calendar month Jan-Jul 2018
+      with real varying totals. Confirms the template mechanism is correct; reports 54/392 are
+      genuinely blank for reasons unrelated to this round's work.
+- **New corpus-wide finding (2026-07-09, found while root-causing report 54's blank graph) —
+  needs its own decision, NOT limited to Hours of Delay Graph:** the ClickHouse `avail.npmrds`
+  fact table (source 583/view 982 — the table every converted speed/travelTime/delay/CO₂ graph
+  queries) has **zero rows before 2018-01-01, globally** (`SELECT count() FROM avail.npmrds WHERE
+  date < '2018-01-01'` → 0; `SELECT min(date) FROM avail.npmrds` → `2018-01-01`), while the OLD
+  Postgres `npmrds` table (the one these reports were actually built against) goes back to at
+  least **2016-01-01** for the same TMCs (confirmed on report 54's exact 6 TMCs: real old-side
+  data from 2016-01-01, zero new-side data before 2018-01-01 — a real gap, not a per-TMC
+  sparsity artifact). **Quantified corpus-wide**: 437 of 868 reports (50%) have at least one
+  route comp with `settings.endDate` before 2018-01-01 — i.e. roughly half the corpus will show
+  partial-to-total blank graphs after conversion **regardless of how complete the template
+  library gets**, purely because the underlying new-side data doesn't exist yet for those date
+  ranges. This is a data-ingestion/backfill question (does a 2016-2017 ClickHouse backfill exist
+  or is one feasible?), not something this converter can work around — flagged as a new,
+  high-priority standing item below, pending user direction. Not investigated further this
+  round (out of scope for "fix the stragglers"), but too large to leave as a buried aside.
+- **Not done**: bulk-converting the ~130 five-minutes Hours-of-Delay-Graph instances beyond
+  report 11 (round 11's other "not yet done" item) — still untouched, still pending user
+  direction; unrelated to this round's day/hour/15-minutes/month work.
+
 **Round 11 (2026-07-09): "Hours of Delay Graph" (5-minutes) — BUILT + live-verified, plus a
 real platform bug found and fixed.** Picked up census item 3b. Traced the old component
 (`HoursOfDelayGraph.jsx`, confirmed against `GeneralGraphComp.jsx` and avail-falcor's
@@ -355,6 +435,19 @@ plus `overrides.aadt`, the truck-CO₂ 0-as-missing fix, the Falcor sibling coll
 completed), and the CH unfiltered-probe hazard (own task, completed). The approved report list
 is exhausted — remaining work is capability selection, not a queue. Recommended order:
 
+0. **NEW, HIGH PRIORITY (round 12, 2026-07-09): ClickHouse `avail.npmrds` has zero rows before
+   2018-01-01, globally — affects ~half the corpus, independent of template completeness.**
+   `SELECT min(date) FROM avail.npmrds` → `2018-01-01`; the old Postgres `npmrds` table (what
+   these reports were actually built against) goes back to at least 2016-01-01 for the same
+   TMCs. **437 of 868 reports (50%) have a route comp with `endDate` before 2018-01-01** — every
+   one of them will show partial-to-total blank graphs after conversion no matter how complete
+   the template library gets, because the new-side source data for that period doesn't exist.
+   Found while root-causing report 54's (round 12) blank 15-minutes graph — not investigated
+   further (no attempt made at a fix; this may be a data-ingestion/backfill question entirely
+   outside the converter's scope). **Needs a user decision**: is a 2016-2017 ClickHouse backfill
+   planned/feasible, or do pre-2018 reports get a permanent "old data, not available" gap-log
+   treatment? This should probably be answered before investing more effort in template
+   coverage, since half the remaining corpus is gated on it regardless.
 1. **0-as-missing sweep on the shared speed/travel-time templates** (data-quality class; user
    2026-07-08: "definitely need to diagnose at SOME POINT" — deliberately deferred, NOT started).
    Round 9 proved the mechanism (CH fact-table travel-time columns are plain Float64, `0` where
@@ -402,13 +495,19 @@ is exhausted — remaining work is capability selection, not a queue. Recommende
       `getActiveRouteComponents`/`getResolution` overrides for each convertible type
       (RouteLineGraph's mutual recursion with the base getResolution suggests an override
       grep missed — read the whole file, not grep excerpts).
-   b. ~~**"Hours of Delay Graph" graph type**~~ **BUILT + live-verified for the 5-minutes
-      case (round 11, 2026-07-09)** — see the round-11 block at the top of this file. Real
-      semantics were NOT the weighted-delay infra as-is (per-TMC bars, not a route-wide sum)
-      and surfaced a real ClickHouse output-column-aliasing bug, now fixed. 131 of 138
-      instances match (5-minutes resolution); 1 converted + verified (report 11), bulk-
-      converting the rest is pending direction. 5 stragglers (day/hour/15-minutes/1 ambiguous)
-      not yet built.
+   b. ~~**"Hours of Delay Graph" graph type**~~ **BUILT for every real resolution the corpus
+      uses (5-minutes round 11, day/hour/15-minutes/month round 12, both 2026-07-09)** — see
+      the round-11/round-12 blocks at the top of this file. Real semantics were NOT the
+      weighted-delay infra as-is (per-TMC bars, not a route-wide sum) and surfaced a real
+      ClickHouse output-column-aliasing bug, now fixed. `resolution: 'NONE'` (5 instances, 3
+      reports) is a deliberate old-tool "no chart, data download only" sentinel, confirmed
+      against source — correctly stays unmapped, not a gap to close. **Not done**: bulk-
+      converting the ~130 remaining 5-minutes instances beyond report 11, and the day/hour/
+      15-minutes/month stragglers beyond the 5 reports converted in round 12 — both still
+      pending direction (this was always about proving the capability on one example per
+      shape, not a bulk-conversion pass). Two of round 12's 5 target reports (54, 392) convert
+      cleanly but render blank live for reasons unrelated to the new templates — see item 0
+      above (54, pre-2018 date range) and the round-12 `route_missing_everywhere` note (392).
    c. **Missing-resolution variants of already-built measures** (the bulk: speed 1,105 +
       travelTime 502 inst): Route Bar Graph at 5-minutes (290/123, epoch-grouped bars — same
       query shape as the grid graph), hour (261/23), month (99/45), 15-minutes (115/11),
