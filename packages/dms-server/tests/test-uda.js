@@ -1455,6 +1455,78 @@ async function testClickHouseUngroupedAggregateFanoutLength() {
   pass('plain passthrough arms (no ungroupedAggregate flag) keep the raw count(*) behavior');
 }
 
+// ======================================= ClickHouse __ANCHOR__(...) substitution ====================================
+
+/**
+ * Regression/feature test for old-reports-conversion.md round 24's Route Compare
+ * Component delta column. Each comparison-series arm runs as a fully independent
+ * query (arms are UNION ALL'd together only after each has already executed), so a
+ * window function embedded in one arm's SELECT can never see another arm's row —
+ * confirmed live: an earlier attempt using `first_value(...) OVER (ORDER BY
+ * (__series != 'anchor label'))` always returned the arm's own value, so every
+ * row's delta came back as exactly 0. `__ANCHOR__(<expr>)` fixes this by asking
+ * for `<expr>` evaluated against the FIRST series variant's own filter specifically
+ * (dms-server's own convention for "the anchor/main row", mirroring the old NPMRDS
+ * tool's own "first selected route is Main"), spliced in as a self-contained scalar
+ * subquery — no cross-arm visibility needed. Stubs ctx.db.query to capture the
+ * generated SQL; no live ClickHouse connection needed.
+ */
+async function testClickHouseAnchorSubstitution() {
+  console.log('\n--- Unit: ClickHouse __ANCHOR__(...) substitution (Route Compare Component delta) ---');
+  const { simpleFilter } = require('../src/routes/uda/query_sets/clickhouse');
+
+  let capturedSql = null;
+  const fakeDb = {
+    query: async ({ query }) => {
+      capturedSql = query;
+      return { json: async () => ({ data: [] }) };
+    },
+  };
+  const ctx = { db: fakeDb, table_schema: 'avail', table_name: 'npmrds' };
+
+  const options = JSON.stringify({
+    groupBy: ['__series'],
+    seriesVariants: [
+      { label: 'Route A', filterGroups: { op: 'AND', groups: [{ col: 'tmc', op: 'filter', value: ['route-a'] }] } },
+      { label: 'Route B', filterGroups: { op: 'AND', groups: [{ col: 'tmc', op: 'filter', value: ['route-b'] }] } },
+    ],
+  });
+  const attributes = [
+    'avg(speed) as speed',
+    '(avg(speed) - __ANCHOR__(avg(speed))) / __ANCHOR__(avg(speed)) * 100 as speed_delta',
+    '__series',
+  ];
+  await simpleFilter(ctx, options, attributes, { from: 0, to: 9 });
+
+  assert(!capturedSql.includes('__ANCHOR__'),
+    `Expected every __ANCHOR__(...) marker to be substituted away, got: ${capturedSql}`);
+
+  const armSqls = capturedSql.split('UNION ALL');
+  assert(armSqls.length === 2, `Expected 2 UNION ALL arms, got ${armSqls.length}: ${capturedSql}`);
+  const [armA, armB] = armSqls;
+  assert(armA.includes(`'route-a'`) && !armA.includes(`'route-b'`),
+    `Route A IS the anchor — its arm should only ever reference 'route-a' (its own filter and the anchor's, since they're the same row), got: ${armA}`);
+  pass('the anchor arm compares against itself only — no reference to any other arm\'s filter');
+
+  assert(armB.includes(`'route-b'`) && armB.includes(`'route-a'`),
+    `Route B's arm should keep its OWN filter ('route-b') for its own row while the __ANCHOR__ subqueries use the FIRST variant's filter ('route-a'), got: ${armB}`);
+  const armBAnchorRefs = (armB.match(/'route-a'/g) || []).length;
+  assert(armBAnchorRefs === 2,
+    `Expected exactly 2 references to the anchor's filter in Route B's arm (one per __ANCHOR__ call — numerator and denominator), got ${armBAnchorRefs}: ${armB}`);
+  const armBOwnFilterRefs = (armB.match(/'route-b'/g) || []).length;
+  assert(armBOwnFilterRefs === 1,
+    `Expected exactly 1 reference to Route B's own filter (its arm WHERE, untouched by the anchor substitution), got ${armBOwnFilterRefs}: ${armB}`);
+  pass('a non-anchor arm keeps its own filter for its own row, but resolves __ANCHOR__(...) against the FIRST variant\'s filter — the actual bug this fixes');
+
+  // No __ANCHOR__ marker anywhere → no anchor WHERE is even built (buildCombinedWhereCH
+  // isn't called an extra time) and the SQL is the same shape as any ordinary fan-out.
+  capturedSql = null;
+  await simpleFilter(ctx, options, ['avg(speed) as speed', '__series'], { from: 0, to: 9 });
+  assert(!capturedSql.includes('SELECT avg(speed) FROM') || capturedSql.match(/SELECT avg\(speed\)/g).length === 2,
+    `Expected exactly one top-level "SELECT avg(speed)" per arm (2 total) with no extra anchor subqueries when no column uses __ANCHOR__, got: ${capturedSql}`);
+  pass('queries with no __ANCHOR__ marker are unaffected — no anchor subquery is built or spliced in');
+}
+
 // ============================================ buildJoin pgFederated branch =========================================
 
 /**
@@ -1560,6 +1632,9 @@ async function run() {
 
     // ClickHouse ungrouped-aggregate fan-out length (Route Info Box pagination regression)
     await testClickHouseUngroupedAggregateFanoutLength();
+
+    // ClickHouse __ANCHOR__(...) substitution (Route Compare Component delta column)
+    await testClickHouseAnchorSubstitution();
 
     // buildJoin pgFederated branch (live Postgres join via ClickHouse postgresql())
     await testBuildJoinPgFederated();

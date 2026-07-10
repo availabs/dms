@@ -1,5 +1,216 @@
 # Old NPMRDS reports → new DMS report pages (automated conversion)
 
+**Round 26 (2026-07-10): user browser-testing of round 25's Route Compare Component
+found the anchor row itself was still broken (the specific thing round 25's own
+Playwright pass missed) — FIXED. Two other observations flagged but NOT chased
+further this round.**
+
+- **Bug 3 (confirmed by direct user browser testing, not another automated pass):
+  the anchor row's own delta wasn't landing on exact 0.** ClickHouse evaluates
+  `avg(speed)` twice for the anchor row — once inline, once inside the `__ANCHOR__`
+  subquery — and the two evaluations aren't bit-identical, leaving a residual around
+  `1e-14`. `DeltaView`'s neutral/gray "no change" state (`ui/columnTypes/delta.jsx`)
+  is a strict `n === 0` check, so that residual fell through to the colored-arrow
+  branch instead — flipping red/green at random depending on the sign of the noise,
+  on every page load. This is exactly why the user couldn't tell which row was the
+  anchor: round 25's own Playwright verification happened to land on a moment where
+  it rendered plausibly (or wasn't checked closely enough), and never caught this.
+  **Fixed** in `ensure_route_compare_template` (`scripts/convert_old_reports.py`):
+  wrapped the whole delta expression in `round(..., 2)` — far coarser than the noise
+  floor, so the anchor always comes back as a clean, exact `0`. Applied via `dms raw
+  update` to the existing shared `route_compare_speed` template (id 2189364, no new
+  template needed — this is exactly the "shared, generic template" round 25 already
+  set up to make this a one-row fix, not a re-conversion of every report). No
+  platform/dms-server code touched — SQL-only fix.
+- **Live-verified (2026-07-10, page 2189383 after `--replace`)**: anchor row's
+  `speed_delta` is now the exact integer `0`, rendering `→ 0` in neutral gray
+  (`text-slate-500`); the 3 compare rows are unaffected and now show cleanly rounded
+  `-3.12` / `-7.72` / `-12.96` instead of 14-decimal-digit raw floats — a readability
+  improvement beyond just fixing the anchor.
+- **Defect logged, NOT fixed this round (user direction — moving on): the anchor
+  row is not reliably rendered as the TOP row.** The delta-value fix above makes
+  the anchor correctly *identifiable* (exact 0, neutral gray, wherever it lands),
+  but user confirmed via repeated browser testing that its ROW POSITION still
+  isn't stable/first the way the old tool's own Main row always rendered on top
+  (`RouteCompareComponent.jsx`'s `renderGraph`: `graphData.slice(0,1)` unconditionally
+  first, compare rows after). Likely cause, not yet confirmed: the comparison-series
+  fan-out's `UNION ALL` (`query_sets/clickhouse.js`'s `simpleFilter`) has no `ORDER
+  BY` across arms by design ("v1... charts sort client-side" per its own comment) —
+  fine for a chart, but a Spreadsheet/table has no such client-side "keep
+  seriesVariants order" sort applied, so ClickHouse is free to return the 4 arms in
+  any order. A real fix would need either an `ORDER BY` the server can apply across
+  the union (e.g. sort by whether `__series` matches the anchor label first) or a
+  client-side stable-sort keyed on comparisonSeries variant order for Spreadsheet
+  sections specifically. **Not scoped or attempted this round** — logged as an open
+  gap for whenever this resumes.
+- **Two things flagged, NOT fixed this round — both explicitly deferred by user
+  direction, not overlooked:**
+  1. **Pagination footer transiently shows garbled text ("PAGE 1 OF NAN", fake page
+     buttons) for ~1.5-3s right after page load**, before the route list resolves
+     and the section settles to its correct 4-row, no-pagination state. Root cause
+     traced (not fixed): `Pagination.jsx`'s footer-suppression guard only
+     special-cases exactly 1 page, not 0 or NaN pages, during the window where
+     `hasUnscopedComparisonSeries` (the anti-unfiltered-scan guard, working as
+     intended) holds the fetch back. Confirmed this is NOT specific to Route
+     Compare Component — it reproduces identically on the pre-existing Reliability/
+     Info Box sections on the same page. **User direction: pagination is fine,
+     leave it.**
+  2. **A one-off, not-reliably-reproducible observation of a section showing "Rows 1
+     to 50 of 413467"** — a number far too large to be this section's real ~4-row
+     result, and shaped like the known unfiltered-CH-scan hazard class (see
+     [[project_npmrds_unfiltered_ch_query_risk]]) rather than an ordinary off-by-one.
+     User could not reliably reproduce it on request, and root-causing it further
+     would mean more live poking at the exact code path that guards against
+     unfiltered scans on the shared dev ClickHouse server — deliberately NOT chased
+     this round per that risk. Left as an open, unconfirmed lead: if this recurs and
+     is reproducible, check whether `activeComparisonSeries`/`hasUnscopedComparisonSeries`
+     (`buildUdaConfig.js`) is somehow evaluating true when it shouldn't (e.g. a
+     transiently-empty-but-non-empty `comparisonSeries.config`), letting an
+     unscoped query through instead of the safe `{length:0}` short-circuit.
+
+**Round 25 (2026-07-10): Route Compare Component — BUILT, live-verified, closes
+round 24's #1 priority. Found and fixed one platform bug (missing `fn` silently
+blocking a section's fetch) and one platform GAP (no way for one comparison-series
+arm's query to see another arm's row) — the second one via a new, generic,
+author-facing-compatible mechanism rather than a one-off conversion-script hack,
+per user direction partway through the round.**
+
+- **Old semantics reconciled directly against the real component** (transportNY's
+  `RouteCompareComponent.jsx`), not just inferred: `getActiveRouteComponents()`
+  reads `state.activeRouteComponents` as `[main, ...rest]` — first entry is the
+  base/"Main" row, everything else is a compare row. User caught two things this
+  round that a code-only read got subtly wrong or under-explained: (1) each compare
+  row's cell is visually a value line + an arrow/%-diff line stacked in ONE `<td>`
+  (`CompareTD`, confirmed against both the source and the rendered HTML) — not two
+  separate table rows, though it reads that way visually; (2) the comparison is
+  **route/comp vs. route/comp**, which can legitimately mean the SAME TMCs at
+  different time windows (report 1045's demo graph — comp-28 "AM Peak" and comp-29
+  "PM Peak" share routeId 180958, same road, different `startTime`/`endTime`) — not
+  a comparison keyed on distinct physical roads. `analyze_graph`'s existing
+  general-case branch already preserves `activeRouteComponents`' order untouched, so
+  `info["assigned"][0]` = base needed no new special-casing.
+- **Scope this round**: `ROUTE_COMPARE_BUCKET = ("speed", "5-minutes",
+  "travel_time_all")` only — 178 of the corpus's 226 Route Compare Component
+  instances (95 reports), the dominant bucket per the census. Grain: same `__series`
+  comparison-series fan-out Route Info Box already uses (round 18) — one row per
+  assigned comp, reusing the exact `comparisonSeries`/`display._functions.
+  subscribers` wiring already proven live, no new per-report route-catalog work
+  needed (`reports_snap_2`/`build_route_entry` already builds one entry PER COMP,
+  not deduped by routeId — confirmed by reading it directly — so comp-28/comp-29
+  sharing a routeId was never actually a problem).
+- **Bug 1 (found live-verifying, fixed): a `delta`-typed calculated column with no
+  `.fn` silently blocked the whole section's data fetch.** `dataWrapper/getData.js`'s
+  `groupNoFnCondition` invalid-state heuristic requires every non-grouped column to
+  have a truthy `.fn`; the delta column's aggregation was baked directly into its raw
+  SQL (no `.fn` needed for correctness), so it tripped `isInvalidState` and the
+  row-data request never even fired — no console error, section just showed
+  `loading...` forever. **Fixed**: `"fn": "exempt"` — a real, pre-existing,
+  documented author-facing option (`ui/components/graph_new/components/utils.js`'s
+  `AggFuncs` comment: "already aggregated server-side"; exposed in the Spreadsheet/
+  graph/graph_new/Card column-fn dropdowns) whose SQL-passthrough behavior in
+  `buildUdaConfig.js`'s `applyFn` is byte-identical to leaving `.fn` unset — it only
+  changes this one count. Zero core-platform changes needed for this bug.
+- **Bug 2, the real one: a window-function-based delta always returned exactly 0
+  for every row.** First attempt computed the delta as `first_value(avg(expr)) OVER
+  (ORDER BY (__series != '<base label>'))` minus the row's own value. Live-verified
+  result: every row's delta was exactly `0`, including rows whose real speed
+  differed from the base by double digits. **Root cause, confirmed by reading
+  `query_sets/clickhouse.js`'s `simpleFilter` directly**: each comparison-series arm
+  is built as a fully independent, isolated `SELECT ... FROM ... WHERE <that arm's
+  own filter>` — arms are `UNION ALL`'d together only AFTER each has already
+  executed. A window function embedded in one arm's SELECT can never see another
+  arm's row; for a single-row (no-GROUP-BY, pure-aggregate) arm, the window's
+  entire partition IS that one row, so `first_value` trivially returns the row's own
+  value every time.
+- **User correction, mid-round: the obvious quick fix (a scalar subquery with the
+  base comp's TMC/date/time filter baked in as a literal) was rejected as
+  bespoke/non-reusable.** Framing (user, 2026-07-10): this whole conversion task is
+  a means to an end — proving the new DMS platform can represent everything the old
+  tool could, ultimately so a REAL AUTHOR can eventually pick a template and add
+  their own routes through a UI, the same way the old tool's own "Main"/"Compare"
+  selectors worked. A per-report template with a hardcoded base-route literal baked
+  into its SQL would NOT survive that: changing the anchor or the compare set would
+  need a developer to re-run conversion code, not a dropdown click. Correctly
+  identified before any of that got built, not after.
+- **Real fix — a new, generic dms-server mechanism: `__ANCHOR__(<expr>)`.** A
+  calculated column's raw SQL can ask for `<expr>` evaluated against the FIRST
+  comparison-series variant's own filter specifically — the "anchor"/"Main" row,
+  mirroring the old tool's own "first selected route is Main" convention exactly —
+  spliced in as a self-contained scalar subquery rather than relying on any
+  cross-arm visibility. Resolved fresh from whatever `comparisonSeries.config` the
+  page currently has (the SAME dynamic per-route resolution Route/TMC Info Box
+  already use), so changing which route is the anchor, or which routes are being
+  compared, needs zero template changes — no re-conversion, ever. This is what
+  makes the template usable from a future self-service "pick a template, add your
+  routes" authoring UI instead of being a conversion-pipeline-only artifact.
+  - `substituteAnchorMarkers(sql, anchorFromWhere)` (`dms-server/src/routes/uda/
+    utils.js`): a balanced-paren scanner (a plain regex can't extract `<expr>`
+    correctly since it contains its own nested parens) that replaces every
+    `__ANCHOR__(<expr>)` with `(SELECT <expr> FROM <anchorFromWhere>)`.
+  - Wired into `query_sets/clickhouse.js`'s `simpleFilter` `seriesVariants` branch:
+    `anchorFromWhere` (the FIRST variant's own `buildCombinedWhereCH` WHERE clause)
+    is built once per query, only when some attribute actually contains the marker,
+    and substituted into every arm's SQL (including the anchor's own arm, where it
+    trivially evaluates the delta to 0). ClickHouse inlines filter values directly
+    (no placeholders), so this is a plain string substitution — no renumbering
+    concerns.
+  - **Deliberately NOT implemented for `postgres.js`/SQLite this round** — that path
+    uses `$N` placeholders renumbered per arm via `offsetPlaceholders`, so splicing
+    in the anchor's own WHERE would need its placeholders renumbered relative to
+    each arm's own value count first — real, separate work, not a one-line port
+    (unlike round 20's `ungroupedAggregate` fix, which really was symmetric across
+    both engines). Since this task's data lives on ClickHouse only, `postgres.js`
+    instead throws a clear error if any attribute contains `__ANCHOR__(` against a
+    Postgres/SQLite-backed comparison-series fan-out, rather than silently emitting
+    a query with a literal, unresolved `__ANCHOR__(...)` in it.
+  - Because the anchor is now resolved dynamically, `ensure_route_compare_template`
+    no longer needs a per-report base label at all — reverted from "mint one
+    template per graph" (this round's first attempt) to a single SHARED, generic
+    `route_compare_{measure}` template, matching how every other bucket in this
+    pipeline works and directly serving the reusability goal above.
+- **Tested**: 3 new `dms-server` unit tests (`testClickHouseAnchorSubstitution`,
+  stub `ctx.db`, no live ClickHouse needed — mirrors round 20's
+  `testClickHouseUngroupedAggregateFanoutLength` convention) — confirm (1) the
+  anchor arm's own SQL only ever references its own filter; (2) a NON-anchor arm's
+  SQL keeps its own filter for its own row (1 reference) while its two `__ANCHOR__`
+  calls both resolve to the FIRST variant's filter (2 references) — the exact
+  property that was broken before; (3) a query with no `__ANCHOR__` marker anywhere
+  is completely unaffected (no extra `buildCombinedWhereCH` call, no spliced
+  subquery). Full UDA suite 82/82 (+3), no regressions.
+- **Live-verified (2026-07-10, Playwright, report 1045 reconverted via `--replace`,
+  page id 2189365, section id 2189377)**: 4 real rows — base "I-490 EB AM Peak..."
+  (58.81 mph, delta 0) and 3 compare rows, "EB PM Peak" (56.97 mph, **-3.123%**),
+  "WB AM Peak" (54.27 mph, **-7.720%**), "WB PM Peak" (51.19 mph, **-12.964%**).
+  Hand-checked every non-anchor delta against `(row_speed - anchor_speed) /
+  anchor_speed * 100` to full floating-point precision — all four match exactly (no
+  more all-zero deltas). Delta column renders via the existing `delta` UI column
+  type (`ui/columnTypes/delta.jsx`, `DeltaView`) as a colored arrow+value — red
+  down-arrow for the 3 slower-than-anchor rows, neutral gray "→ 0" for the anchor
+  itself. Zero console errors (only the pre-existing benign `HydrateFallback`
+  warning); no lingering `loading...` footer.
+- **Relationship to the MAP-21 KPI card work (user asked directly)**: this reuses
+  the `delta` **rendering** column type MAP-21 built (`DeltaView`'s arrow/sign/color,
+  unchanged) — this is its first-ever live use on a real column since MAP-21
+  invented it. It does NOT reuse MAP-21's own delta **computation** — that used
+  `lag() OVER (ORDER BY <period>)` to diff a row against the row immediately
+  before it in a time series (a same-row-family, adjacent-in-time comparison).
+  `__ANCHOR__(...)` is a different, new mechanism for a different shape: diffing
+  against one fixed OTHER arm/row in a comparison-series fan-out, not an adjacent
+  row in one ordered series.
+- **Not done**: green-up-arrow case unexercised (all 3 real compare routes in this
+  demo are slower than the AM-peak anchor — the sign/direction logic itself is
+  generic and untouched, just not hit by this report's real data); bulk-applying to
+  the corpus's other ~94 reports with a Route Compare Component in this bucket
+  (same "capability proven, scale is a separate decision" pattern as every other
+  round); the ~48 instances outside `ROUTE_COMPARE_BUCKET` stay gap-logged;
+  `__ANCHOR__` support for Postgres/SQLite (guarded against silent breakage, not
+  built); friendly column headers (raw SQL shown verbatim) — same pre-existing
+  cosmetic gap as every other Spreadsheet template in this task, not newly
+  introduced. **Next, per round 24's plan**: run a fresh corpus-wide census now
+  that this capability is proven, to see where overall conversion coverage stands
+  before picking up the 5 reopened report types (Route Map, Bar Graph Summary,
+  Route Difference Graph, TMC Difference Grid, `overrides.baseSpeed`).
+
 **Round 24 (2026-07-10): user reprioritization — reopens 5 previously "permanent
 gap-log only" report types as future conversion targets; sets the next build target
 (Route Compare Component) and next milestone (a fresh corpus-wide census); sets a

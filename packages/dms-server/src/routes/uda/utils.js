@@ -665,6 +665,56 @@ function offsetPlaceholders(sql, offset) {
 }
 
 /**
+ * Substitute `__ANCHOR__(<expr>)` markers in a comparison-series arm's SQL with a
+ * scalar subquery scoped to the FIRST series variant's own filter (the "anchor"/
+ * "main" row — mirrors the old NPMRDS reports tool's own convention: its Route
+ * Compare Component always treats whichever route is first in the list as the one
+ * everything else compares against).
+ *
+ * Why this exists: each comparison-series arm (see the seriesVariants branch in
+ * query_sets/clickhouse.js) runs as its own fully independent query — arms are
+ * UNION ALL'd together only after each has already executed. A calculated column
+ * can't compare its own aggregate against "the anchor row's" value via a window
+ * function or a second GROUP BY, because no arm's query ever sees another arm's
+ * rows. `__ANCHOR__(<expr>)` lets a column's own SQL ask for `<expr>` evaluated
+ * against the anchor's filter specifically, regardless of which arm it's embedded
+ * in — e.g. `(avg(speed) - __ANCHOR__(avg(speed))) / __ANCHOR__(avg(speed)) * 100`
+ * computes "how far this arm's speed is from the anchor's speed" correctly in
+ * every arm, including the anchor's own arm (where it trivially evaluates to 0).
+ *
+ * A plain regex can't extract `<expr>` because it may itself contain parens (e.g.
+ * `avg(((table1.miles...)))`) — this scans for the balanced closing paren instead.
+ * Multiple `__ANCHOR__(...)` occurrences in one SQL string are all substituted.
+ */
+function substituteAnchorMarkers(sql, anchorFromWhere) {
+  const marker = '__ANCHOR__(';
+  let result = '';
+  let i = 0;
+  while (i < sql.length) {
+    const idx = sql.indexOf(marker, i);
+    if (idx === -1) {
+      result += sql.slice(i);
+      break;
+    }
+    result += sql.slice(i, idx);
+    let depth = 1;
+    let j = idx + marker.length;
+    while (j < sql.length && depth > 0) {
+      if (sql[j] === '(') depth++;
+      else if (sql[j] === ')') depth--;
+      j++;
+    }
+    if (depth !== 0) {
+      throw new Error(`Unbalanced parens in __ANCHOR__(...) marker: ${sql.slice(idx)}`);
+    }
+    const inner = sql.slice(idx + marker.length, j - 1);
+    result += `(SELECT ${inner} FROM ${anchorFromWhere})`;
+    i = j;
+  }
+  return result;
+}
+
+/**
  * Restore long column names that were aliased to short `col_N` placeholders for the
  * query (see columnNameMap in simpleFilter — long response names are swapped for
  * `col_N` so they fit identifier limits). No-op when the map is empty. Shared by the
@@ -700,6 +750,7 @@ module.exports = {
   buildCombinedWhere,
   buildJoin,
   offsetPlaceholders,
-  restoreLongColumnNames
+  restoreLongColumnNames,
+  substituteAnchorMarkers
   };
 

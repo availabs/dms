@@ -13,7 +13,7 @@
  * by getEssentials, so SQL references ${table_schema}.${table_name} directly.
  */
 
-const { sanitizeName, getResponseColumnName, quoteAlias, getEssentials, buildJoin, restoreLongColumnNames } = require('../utils');
+const { sanitizeName, getResponseColumnName, quoteAlias, getEssentials, buildJoin, restoreLongColumnNames, substituteAnchorMarkers } = require('../utils');
 const {
   handleFiltersCH,
   handleFilterGroupsCH,
@@ -257,6 +257,18 @@ async function simpleFilter(ctx, options, attributes, indices) {
       baseArmAttrs.map((c) => getResponseColumnName(columnNameMap[c] || c)));
     const unprojectedGroupBys = armGroupByExprs.filter(
       (g) => !projectedNames.has(getResponseColumnName(g)));
+    // __ANCHOR__(<expr>) support (see substituteAnchorMarkers) — a column can ask
+    // for <expr> evaluated against the FIRST variant's own filter specifically,
+    // e.g. a "% different from the anchor route" delta column. Built once (every
+    // arm anchors to the same first variant) and only when actually referenced —
+    // buildCombinedWhereCH runs once more per query, not once more per arm.
+    const usesAnchor = baseArmAttrs.some((c) => c.includes('__ANCHOR__('));
+    const anchorFromWhere = usesAnchor
+      ? `${fromClause} ${buildCombinedWhereCH({
+          filter, exclude, gt, gte, lt, lte, like,
+          filterGroups: seriesVariants[0].filterGroups || {}, joinPresent,
+        })}`
+      : null;
     const armSqls = seriesVariants.map((variant) => {
       const armWhere = buildCombinedWhereCH({
         filter, exclude, gt, gte, lt, lte, like,
@@ -268,12 +280,13 @@ async function simpleFilter(ctx, options, attributes, indices) {
         ...unprojectedGroupBys,
         `${safeLabel} as ${seriesKey}`,
       ].join(', ');
-      return `
+      const armSql = `
         SELECT ${armSelect}
         FROM ${fromClause}
         ${armWhere}
         ${armGroupByExprs.length ? `GROUP BY ${armGroupByExprs.join(', ')}` : ''}
         ${handleHavingCH(having)}`;
+      return usesAnchor ? substituteAnchorMarkers(armSql, anchorFromWhere) : armSql;
     });
     const fanoutSql = `
       SELECT * FROM (

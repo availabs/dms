@@ -405,6 +405,20 @@ async function simpleFilter(ctx, options, attributes, indices) {
   // omitted across the union for v1 (charts sort client-side); LIMIT/OFFSET page the
   // combined set. Empty seriesVariants → falls through to the single-arm path.
   if (seriesVariants.length) {
+    // __ANCHOR__(<expr>) (see substituteAnchorMarkers in ../utils, and its
+    // ClickHouse-side use in query_sets/clickhouse.js) is NOT implemented for
+    // Postgres/SQLite yet — CH inlines filter values directly, so splicing an
+    // anchor subquery into an arm's SQL is a plain string substitution; here
+    // every arm's WHERE uses $N placeholders renumbered per arm via
+    // offsetPlaceholders, so the anchor subquery's own placeholders would need
+    // renumbering relative to THAT arm's value count (not just spliced in as
+    // text) — real, unbuilt work, not a one-line port. Fail loudly rather than
+    // silently emit a query with a literal, unresolved "__ANCHOR__(...)" in it.
+    if (sanitizedAttrs.some((c) => c.includes('__ANCHOR__('))) {
+      throw new Error(
+        '__ANCHOR__(...) calculated columns are not yet supported against a ' +
+        'Postgres/SQLite-backed comparison-series fan-out (ClickHouse only).');
+    }
     // The series discriminator is a constant literal per arm — always valid in the
     // SELECT without a GROUP BY entry — so drop it from the arm GROUP BY (it carries
     // no `data->>`/alias the base table actually has).
