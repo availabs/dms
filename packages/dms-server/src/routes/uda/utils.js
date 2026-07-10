@@ -490,10 +490,13 @@ function buildLeafSQL(node, ctx, isDms, dbType) {
       // json_each returns rows with a .value column
       return `${not}EXISTS (SELECT 1 FROM json_each(${col}) _ac WHERE _ac.value = ANY(${index}))`;
     }
-    // PostgreSQL: use jsonb_typeof to branch on whether the value is a JSON array.
-    // If it is, unnest with jsonb_array_elements_text; if not, wrap the scalar in a
-    // single-element array first so the same EXISTS pattern works for both cases.
-    return `${not}EXISTS (SELECT 1 FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof((${col})::jsonb) = 'array' THEN (${col})::jsonb ELSE jsonb_build_array((${col})::text) END) _ac WHERE _ac = ANY(${index}))`;
+    // PostgreSQL: real column values aren't guaranteed to be valid JSON (empty
+    // strings, legacy plain-text values, truncated/malformed array-looking text
+    // like '[' or '[abc]') — casting straight to jsonb would throw "invalid
+    // input syntax for type json" on those instead of treating them as a
+    // scalar. pg_input_is_valid checks JSON validity without throwing, so only
+    // genuinely well-formed values reach the ::jsonb cast.
+    return `${not}EXISTS (SELECT 1 FROM jsonb_array_elements_text(CASE WHEN pg_input_is_valid((${col}), 'jsonb') AND jsonb_typeof((${col})::jsonb) = 'array' THEN (${col})::jsonb ELSE jsonb_build_array((${col})::text) END) _ac WHERE _ac = ANY(${index}))`;
   }
 
   const vals = Array.isArray(value) ? value : [value];
