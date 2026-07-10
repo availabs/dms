@@ -1,5 +1,46 @@
 # Old NPMRDS reports → new DMS report pages (automated conversion)
 
+**Round 24 (2026-07-10): user reprioritization — reopens 5 previously "permanent
+gap-log only" report types as future conversion targets; sets the next build target
+(Route Compare Component) and next milestone (a fresh corpus-wide census); sets a
+process rule for all future rounds. No code changed this round.**
+
+- **Reverses part of round 5's (2026-07-08) "gap-log only, no new platform capability"
+  decision, and the broader 2026-07-08 "no_equivalent" ruling** that together covered
+  Route Map (849 instances, corpus-wide), Bar Graph Summary (649), Route Difference
+  Graph, TMC Difference Grid (part of the 568-instance "Compare/Difference" bucket),
+  and synthetic `overrides.baseSpeed` data. **User direction (2026-07-10): move all
+  five from "permanently gap-log only" into "need to convert."** They are no longer
+  considered out of scope for this task. This round only reclassifies them as future
+  work — none of the five has been scoped or built yet.
+- **Route Map flagged by the user as likely a larger task than the other four.**
+  Consistent with every prior mention in this file (round 1 through the round-10
+  census) — Route Map has only ever been referenced as a "no chart equivalent" stat
+  type alongside Bar Graph Summary/Route Info Box, and separately for the `colorRange`
+  d3-scale gate check against `RouteMap.jsx`. Nobody has yet read `RouteMap.jsx`'s
+  actual rendering logic to confirm whether it needs real geospatial/MapLibre map-tile
+  rendering (a genuine new capability, likely a real map component, not a data table)
+  versus something cheaper. Reading `RouteMap.jsx` for real and scoping it properly
+  should happen before estimating or picking it up — it should not be assumed to be
+  the same size as Bar Graph Summary/Route Difference Graph/TMC Difference Grid.
+- **Priority order set by user**: (1) build the **Route Compare Component** next —
+  round 13 already scoped it (same base `<table>` rendering primitive as the already-
+  built Route/TMC Info Box, but a base row + N compare rows with a %-difference/
+  arrow-colored cell instead of a plain value; 226 instances corpus-wide, the largest
+  of the two Info-Box-family members not yet built); (2) once it's built and
+  live-verified, run a **fresh corpus-wide census** (the last one was round 10 and is
+  now stale against every template built in rounds 11-23) to see where overall
+  conversion coverage actually stands. The five reopened items above (Route Map, Bar
+  Graph Summary, Route Difference Graph, TMC Difference Grid, `overrides.baseSpeed`)
+  are queued after that census, not before it.
+- **Process rule, applies to all future rounds in this task (and beyond it)**: show
+  the plan and get explicit confirmation before starting a large chunk of
+  implementation work — don't proceed straight into code on the strength of a
+  request/discussion alone. This reinforces `planning-rules.md`'s existing "Plans Must
+  Be Written Into the Task File" rule: the plan for the Route Compare Component will
+  be written into this file and reviewed with the user before any code is written for
+  it.
+
 **Round 23 (2026-07-10): the 0-as-missing sweep on `SPEED_EXPR`/`tmc_travel_time_bar_graph_day` —
 BUILT, live-verified. Closes next-steps item 1, deferred since round 9.** User asked to circle back
 to this specifically, citing the pm3/map21 DAMA code's own `AVG(CASE WHEN col > 0 THEN col ELSE
