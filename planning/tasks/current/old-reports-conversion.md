@@ -1,5 +1,65 @@
 # Old NPMRDS reports → new DMS report pages (automated conversion)
 
+**Round 22 (2026-07-10): freeflow (`speed_pctl_85`) wired into the Info Box templates — BUILT,
+live-verified. Closes round 21's next-step priority (a).**
+
+- `ensure_pm3_join_template` now adds a third calculated column, `pm3.speed_pctl_85 as freeflow`
+  (`avg` aggregate, same shape as `lottr_col`/`tttr_col`), to both grains' column lists. Unlike
+  LOTTR/TTTR, 1410's speed percentiles carry no bin dimension at all (round 21's schema check: 121
+  columns, 52,127 rows = 52,127 distinct TMCs, one row per TMC) — freeflow rides along on the
+  identical join regardless of which `bin_` the report resolved to; no new year/bin resolution, no
+  new gap kind, no new gating logic needed. Exactly the "same class of small, mechanical change as
+  adding another column to an existing join" round 21 already characterized it as.
+- The two templates round 21 already minted (`tmc_info_box_reliability_2023_amp`/`_pmp`, live on
+  report 1045) predate this column. Rather than mint new, differently-named rows and orphan the
+  live ones (the "flat pile of templates" pattern used everywhere else in this task — appropriate
+  when nothing still points at the old name, wrong here since report 1045's page still references
+  these exact names), `ensure_pm3_join_template` now checks whether an existing template's cached
+  columns already include the freeflow expression and, if not, updates the row in place via `dms
+  raw update <id>` (a full-replacement `--data` call built by spreading the cached `data` dict so
+  every other field — name/slug/layoutJson/elementType/etc. — survives untouched). Confirmed via
+  direct `dms raw list` before/after: the two live templates gained the column; the three
+  already-orphaned round-18/19 templates (`tmc_info_box_reliability_2023`,
+  `tmc_info_box_reliability_2024`, `route_info_box_reliability_2021`) were untouched, since nothing
+  calls `ensure_pm3_join_template` with their old un-suffixed names anymore.
+- `INFO_BOX_TITLES` updated to read "LOTTR / TTTR / Freeflow" (cosmetic-accuracy only — round 21
+  already established this exact string never reaches the rendered page; `convert_report`'s own
+  bin/year title-suffix logic, not this constant, drives the live title).
+- **Live-verified (2026-07-10, Playwright, report 1045 reconverted via `--replace`, page id
+  2189245)**: zero console errors (only the pre-existing benign `HydrateFallback` warning), all 81
+  `/graph` requests 200. Both sections' `/graph` requests now select `avg(pm3.speed_pctl_85) as
+  freeflow_avg` alongside the existing lottr/tttr aggregates. Real, non-null, plausible freeflow
+  (85th-percentile speed, mph) values returned: TMC `104N04284` 56.52, `104P04369` 50.05,
+  `104-04284` 54.99, `104+04369` 50.99 — identical between the AM and PM sections for the same TMC,
+  exactly as expected since `speed_pctl_85` is a single per-TMC value with no period split (unlike
+  LOTTR/TTTR, which correctly differ AM vs. PM for the same TMC). One TMC (`104P11997`) returns
+  null across all three columns together in both sections — a pre-existing join-coverage gap for
+  that segment, not something freeflow introduced (lottr/tttr were already null there too).
+- **Correction to the live-verification agent's own note**: it flagged the freeflow column's
+  header rendering as a truncated raw expression (`PM3.SPEED_PCT…`) as a possible regression from
+  this round. Checked the screenshot directly — the LOTTR and TTTR column headers render the exact
+  same way (`PM3.LOTTR_PMP…`, `PM3.TTTR_PMP…`, truncated raw column names, no friendly label) — this
+  is pre-existing Spreadsheet-template header behavior, not something this round introduced. Not
+  fixed, not newly gap-logged — same class of pre-existing cosmetic rough edge as round 18's
+  title-concatenation note.
+- **User direction (2026-07-10), relaxes the orphaning-avoidance above**: don't spend engineering
+  effort avoiding orphaned templates/pages in this task — none of this new DMS content is active in
+  prod and no one outside this task even knows the converted reports exist yet. Mint new names
+  freely going forward; only clean up orphans opportunistically when it's cheap (see
+  [[feedback_dont_over_engineer_against_orphaning]]). Acted on immediately: confirmed (via a direct
+  `data::text LIKE '%"templateId":"..."%'`  check against every `npmrds_sub|component` row) that the
+  three pre-round-21 templates were referenced by zero live sections, then deleted them —
+  `tmc_info_box_reliability_2023` (id 2189147), `tmc_info_box_reliability_2024` (id 2189180),
+  `route_info_box_reliability_2021` (id 2189022). The update-in-place mechanism built earlier this
+  round for the two still-live templates is unaffected by this direction (those two aren't
+  orphans — report 1045's page actively references them) and was left as-is rather than reworked,
+  since it's already built, tested, and live-verified working.
+- **Not done**: bulk-applying this to the rest of the corpus's Info Box reports (same
+  "capability proven, scale is a separate decision" pattern as every other round); `avgTT` (round
+  21's next-candidate (b), a plain `AVG(tt)` with no percentile math) and a Route Compare Component
+  variant (candidate (c)) remain open. Friendly column headers (LOTTR/TTTR/Freeflow all show raw
+  expressions today) is a pre-existing rough edge, not scoped to this round.
+
 **Round 21 (2026-07-10): two round-20 next-candidates closed by user review — one noop, one
 correction to a stale blocker.**
 
