@@ -1,5 +1,291 @@
 # Old NPMRDS reports → new DMS report pages (automated conversion)
 
+**Round 31 (2026-07-10): Route/TMC Info Box resolution-ambiguity false positive — FIXED,
+dry-run-verified + regression-checked. User asked directly why report 630's Info Box was
+unmapped, questioned whether resolution should even matter for a "flat spreadsheet," and was
+right — a real converter bug, not a design tradeoff.**
+
+- **Confirmed against the real old source, not inferred**: read `transportNY/src/sites/npmrds/
+  pages/analysis/components/tmc_graphs/RouteInfoBox.jsx` and `TmcInfoBox.jsx` directly —
+  `generateGraphData` takes `resolution` as a parameter but never reads it in either file; each
+  row's value comes from `reducer(data, tmcGraph, year)`/`allReducer(...)`/`tmcReducer(...)`,
+  keyed only on route/tmc + year. Unlike a real chart (Route Line/Bar Graph, TMC Grid Graph),
+  Info Box has no shared x-axis to reconcile, so old-tool comps disagreeing on `resolution` was
+  never a real ambiguity for these two graph types.
+- **Bug**: `analyze_graph`'s mixed-resolution ambiguity guard (2026-07-08 fix, for genuine
+  chart-axis conflicts) applied uniformly to every graph type, including Route/TMC Info Box.
+  Report 630's Info Box has no `activeRouteComponents` override, so it defaults to all 10 route
+  comps — some `"5-minutes"`, some `"hour"` — correctly triggering the ambiguity guard for a real
+  chart, but incorrectly returning `resolution: null` for Info Box too, which then failed
+  `INFO_BOX_BUCKET`'s exact `("speed", "5-minutes", "travel_time_all")` match before ever reaching
+  the year/bin resolution logic — a false-positive gap, same class as round 3's peak_flags fix and
+  round 10's color_range-false-positive fix.
+- **Fixed** (`scripts/convert_old_reports.py`, mirrored in `census_old_reports.py`):
+  `INFO_BOX_BUCKET` dropped from a 3-tuple to `("speed", "travel_time_all")` (measure + dataColumn
+  only, resolution removed); both bucket-match sites updated to compare only those two fields.
+  `analyze_graph`'s `mixed_resolutions_on_graph` gap now only fires when `gtype not in
+  INFO_BOX_GRAIN` — real charts still correctly flag it, Info Box no longer gets a spurious,
+  misleading gap entry.
+- **Dry-run-verified (report 630)**: Info Box no longer stuck at generic "no template mapping" —
+  now correctly reaches the year/bin check and gap-logs as `info_box_year_outside_pm3_coverage`
+  (real max year 2019, outside 1410's 2021-2025 coverage) — the TRUE limiting factor, not a false
+  resolution conflict. `mixed_resolutions_on_graph` gap count dropped from 3 (Route Map/Route Bar
+  Graph/Route Info Box) to 2 (Route Map/Route Bar Graph only) — confirms the fix is scoped
+  correctly, not over-broad.
+- **Regression-checked**: dry-ran reports 796 and 1045 (the two reports with already-live,
+  already-working Info Box sections) — both show the exact same gap classes as before
+  (`info_box_bin_undetermined` for 796, no Info Box gap at all for 1045) — no regression.
+- **Quantified against round 27's census**: 24 reports corpus-wide have a Route/TMC Info Box graph
+  that was previously misclassified as resolution-ambiguous. Checked all 24 directly — **none
+  would newly render end-to-end today**: all are still blocked by the real, separate,
+  already-known limiters (pre-2021 date range outside 1410 coverage for the vast majority; a
+  couple resolve to 2021-2022 but then hit `bin` undetermined). The fix's practical value right
+  now is correct gap ATTRIBUTION (a future session reading these gap reports won't be misled into
+  thinking a resolution-consensus fix would help), not new working pages — the same distinction
+  as round 23's nullIf fix being non-regressive-but-not-provably-repairing-anything-visible-yet.
+- **NOT applied live to report 630** (dry-run only) — the real `--replace` reconversion hit a `dms
+  raw delete` failure on the existing page's old sections, most likely a stale auth token
+  (`scratchpad/npmrds-sub/.dms-auth-token`, last minted 2026-07-10 07:00 per [[dms-dev-creds]]).
+  Not chased further this round per user direction (wrapping up the session) — re-running
+  `python3 scripts/convert_old_reports.py --report-id 630 --replace` after minting a fresh token
+  (`bash scratchpad/npmrds-sub/mint_token.sh`) should apply cleanly next time; the source fix
+  itself is verified correct independent of this.
+
+**Round 30 (2026-07-10): user browser-testing of round 29's new templates (report 630) found a
+real `byValue` color-scale gap — ROOT-CAUSED, NOT FIXED (investigation only, per user direction).
+Not a Phase 1 regression: this is a pre-existing property of the `color_range`/`byValue`
+mechanism every template in this whole pipeline has used since round 1.**
+
+- **Symptom, caught by direct user comparison, not automated testing**: report 630's old tool
+  page shows the 9/10/2019 4-8pm "I-87 SB Yankee Stadium" bar graph in "only green"/"3 shades of
+  green"; the new DMS page shows the same real date with oranges/reds. (First flagged as a bigger
+  discrepancy on the WRONG date pair — old tool's 9/9 screenshot vs. new tool's 9/10 screenshot —
+  user caught that mismatch themselves once report 630's `admin2.reports` route_comps were listed;
+  9/9-vs-9/9 showed the real congestion dip correctly on both sides.)
+- **Root cause, confirmed by reading both sides' actual source, not inferred**:
+  - **Old tool** (`transportNY/src/sites/npmrds/pages/analysis/components/tmc_graphs/
+    RouteBarGraph.jsx:126-136` + `utils/DomainManager.js`): the color scale's `[min, max]` domain
+    comes from `register(graphType, displayData, resolution, graphId, data)`, which accumulates
+    min/max **across every sibling graph sharing the same `{graphType}-{measure}-{resolution}` key**
+    on the page (report 630's four "I-87 SB Yankee Stadium" bar graphs — 9/9/9/10/9/11/9/18 — all
+    share one key). Since 9/9 has a real dip to ~9 mph, EVERY sibling graph's scale is calibrated
+    against that shared ~9-66 mph range — so 9/10's real 40-66 mph values land safely in the green
+    end of that shared, wide domain.
+  - **New platform** (`packages/dms/src/ui/components/graph_new/components/BarGraph.jsx:125-148`,
+    `buildValueColorScale(dataFromProps.min, dataFromProps.max, colors)`): the domain is computed
+    **locally, per graph, from only that graph's own displayed data** — no cross-graph registry.
+    Confirmed exactly via live-captured data: 9/10's own section returns real values 39.9-66.2 mph,
+    and the live legend's threshold labels (39.9/46.5/53.1/59.6/66.2) are precisely an even 5-way
+    split of that ONE graph's own local min/max — so 39.9 mph (genuinely fine) gets stretched to
+    the bottom of its own narrow local scale and painted red/orange, purely from being relatively
+    low WITHIN that one day, not because anything is actually wrong.
+- **Scope**: NOT specific to round 29's new templates or this report — it's a property of the
+  `byValue` coloring path (`display.colors.byValue`, wired in `build_graph_section_data`) used by
+  EVERY `color_range`-consuming template in this whole pipeline since round 1. Will show up on any
+  report where several sibling graphs of the same measure/resolution have genuinely different
+  ranges (multiple dates, multiple routes, etc.) — not unique to report 630.
+- **Not fixed — real platform work, not a quick patch**: a proper fix means porting
+  `DomainManager`'s cross-graph domain-sharing registry into the platform's coloring pipeline (some
+  mechanism tracking all currently-rendered sibling graphs sharing a key, recomputing a shared
+  domain as each registers/unregisters) — a genuine platform feature, not a per-report or
+  per-template tweak. **Explicitly deferred per user direction** ("just note this someplace") —
+  logged here as a found-and-root-caused gap for whenever this priority comes up, not scoped or
+  estimated further.
+
+**Round 29 (2026-07-10): Route Bar Graph speed/travelTime at every missing resolution (Phase 1
+of round 27's census-ranked "buildable" lever) — BUILT, live-verified. Plan shown and confirmed
+with the user before implementation, per round 24's process rule.**
+
+- **User confirmed, before building, that this satisfies the "future author picks a template +
+  assigns own routes" goal** — same answer as round 25's `__ANCHOR__` reasoning: none of these
+  templates hardcode a route/TMC/date; that scoping lives entirely in the section's own
+  `comparisonSeries` config (`__series` categorize), a per-section setting independent of the
+  template row. Unlike Route Compare Component, this phase needs **zero new platform mechanism**
+  — a plain per-arm aggregate, no cross-arm visibility required — so it's a strictly simpler case
+  of the same reusability property.
+- **Built** (`scripts/convert_old_reports.py`): 10 new `TEMPLATE_SPECS` entries — Route Bar Graph
+  `speed`/`travelTime` at `5-minutes`/`hour`/`15-minutes`/`month`/`weekday` (9 entries; `day`
+  already existed) + TMC Grid Graph `travelTime`/`5-minutes` (1 entry, the other proven measure at
+  its one existing resolution) — plus matching `GRAPH_TEMPLATE_MAP` entries. Zero new SQL: every
+  xAxis bucketing expression (`HOUR_EXPR`/`QUARTER_HOUR_EXPR`/`MONTH_EXPR`/`WEEKDAY_EXPR`) already
+  existed from round 12's Hours-of-Delay-Graph work and is reused verbatim; yAxis reuses
+  `SPEED_EXPR`/`TRAVEL_TIME_EXPR` unchanged (so these templates automatically inherit round 23's
+  `nullIf` 0-as-missing fix with no extra work). Same route-wide (no `categorize`, defaults to
+  `__series`) shape as the existing day-resolution Route Bar Graph templates — a pure recombination
+  of already-proven pieces, no new measure semantics to verify.
+- **Explicitly excluded from this phase, and why** (so this doesn't silently expand scope):
+  `avgHoursOfDelay` (~293 instances, a different, unverified measure); Route Line Graph's
+  `hoursOfDelay`/`travelTime`-at-day (~68 instances, a genuinely different dual-axis chart shape,
+  round 10's still-open dual-axis question — needs `RouteLineGraph.jsx` read first); reliability-
+  index measures (`planningTime`/`travelTimeIndex`/etc., ~138+ instances — structurally blocked per
+  round 14 despite being lexically in the "buildable" bucket by graph type); any `resolution: None`
+  key (the mixed-resolution ambiguity sentinel, a policy decision per item 3a-bis, not a missing
+  template).
+- **Demo reports chosen via a greedy set-cover over round 27's census** (`census.json`), picking
+  the minimum report set touching all 10 new keys rather than one report per key: **5 reports** —
+  142 (`speed`/`travelTime`/TMC-Grid at `5-minutes`), 471 (`travelTime` at `hour`/`month`/`weekday`
+  — literally titled "Route Bar Graph tests - different temporal resolutions" in the old system,
+  a fortunate find), 740 (`speed` at `month`/`weekday`), 16 (`speed` at `15-minutes`), 630 (`speed`
+  at `hour`). None had an existing converted page (fresh converts, no `--replace` needed).
+  Dry-ran all 5 first — each resolved its target key(s) cleanly, with only pre-existing/
+  out-of-scope gaps remaining (`route_missing_everywhere`, `mixed_resolutions_on_graph`,
+  `info_box_year_outside_pm3_coverage`, Route Line Graph/Route Map instances correctly still
+  unmapped) — then converted all 5 for real.
+- **Confirmed template reuse across reports, not per-report duplication** — directly checked via
+  `dms_npmrdsv5.data_items`: e.g. `tmc_speed_bar_graph_5min` (id 2189533) is applied by BOTH report
+  740's and report 630's sections, not re-minted per report. This is the concrete evidence for the
+  "shared, generic template" property the dropdown-picker question above depends on.
+- **Live-verified (2026-07-10, Playwright, same no-MCP-browser-tool setup as round 28)**: all 5
+  pages load with **zero non-200 `/graph` responses** (76/67/75/68/87 requests). Two pages (471,
+  16) show client-side console errors, but both are the **exact pre-existing `route_missing_
+  everywhere`/`tmc_resolution_empty` bug round 12 already documented** (`ReportRouteList.jsx`
+  throws `JSON.parse` on an empty/malformed `tmc_array` for routes 1649/14 respectively) — not a
+  regression from this round's templates, and the new AVL Graph sections' own `/graph` fetches on
+  those same pages are unaffected (all 200s). Captured real response data from report 630's new
+  `tmc_speed_bar_graph_hour` sections: plausible, sane mph values across multiple hour-of-day
+  buckets (15.9-58.8 mph range across 6 sections), confirming the mechanism produces real data,
+  not just non-erroring requests.
+- **Not done**: bulk-applying to the rest of the corpus's ~1,269 instances beyond these 5 demo
+  reports (same "capability proven, scale is a separate decision" pattern as every other round);
+  the 4 explicitly-excluded groups above remain open, gap-logged, not attempted.
+
+**Round 28 (2026-07-10): `DELAY_EXPR` 0-as-missing fix — BUILT, live-verified. Closes round 23's
+own "noticed, NOT fixed" follow-up (`greatest(0, ...)` floors negatives but doesn't null out a
+0-valued `travel_time_all_vehicles`).**
+
+- **Fix** (`scripts/convert_old_reports.py`): same `nullIf(col, 0)` treatment round 23 applied to
+  `SPEED_EXPR`/`TRAVEL_TIME_EXPR`, applied to `DELAY_EXPR`'s own
+  `ds.travel_time_all_vehicles` reference — `greatest(0, ds.travel_time_all_vehicles - ...)`
+  becomes `greatest(0, nullIf(ds.travel_time_all_vehicles, 0) - ...)`. A missing-reading epoch
+  (CH's 0 sentinel) now makes the WHOLE `hours_of_delay` expression NULL (arithmetic/`greatest`
+  propagate NULL in ClickHouse) instead of silently computing a real, non-null "0 hours of
+  delay" for an epoch with no data — the downstream `sum()` correctly skips NULLs, same
+  NULL-skipping semantic as the old Postgres-backed tool.
+- **Propagated to all 7 live templates via the existing round-23 drift-detection mechanism, no
+  new code needed**: `ensure_graph_templates`'s yAxis-expression-drift check compares each
+  template's stored `columns[yAxis].name` (the FULL expression string, not just the alias) against
+  the current `TEMPLATE_SPECS` entry — confirmed directly (`dms raw list`) that all 7 DELAY_EXPR-
+  based templates (`tmc_delay_bar_graph_day`/`_weekday`/`_5min`/`_day_tmc`/`_hour_tmc`/
+  `_15min_tmc`/`_month_tmc`) still lacked the fix before this round, then updated in place
+  (same ids preserved, e.g. `tmc_delay_bar_graph_day_tmc` stayed id 2188943) after reconversion.
+- **Found and fixed the complete corpus-wide reference set first** (same discipline as round 23):
+  grepping every live `npmrds_sub|component` row's data for the 7 template ids (bare numeric
+  substring, not `"templateId":"N"` — the field lives inside a doubly-escaped nested
+  `element-data` JSON string, so the outer `data::text` has backslash-escaped quotes; matching
+  the bare id and then verifying via real JSON parsing avoided both the escaping trap and false
+  positives) found exactly **10 live reports**, one per template with no gaps: 11 (`tmc_delay_
+  bar_graph_5min`), 54 (`_15min_tmc`), 315/228/229 (`_day_tmc`), 392 (`_hour_tmc` + `_month_tmc`),
+  796 (`_5min`), 1071/1061 (`_day`, route-wide), 1045 (`_weekday`).
+- **Reconverted all 10 with `--replace`**; hit one operational snag, not a code bug: the first
+  attempt looped all 10 conversions in one shell call and the harness's own 2-minute default
+  command timeout killed it mid-way through report 229, leaving a half-written page live
+  (created, un-published, only 1 of its real 5 sections written). Caught by checking DB state
+  before trusting the loop's "done" output rather than assuming success; re-running `--replace`
+  for 229 alone cleanly deleted the broken page and rebuilt all 5 sections correctly. 1045 (never
+  reached before the kill) converted separately, cleanly. All 10 reports' post-conversion gap
+  reports show the same pre-existing gap classes as before (route_missing_everywhere for 392,
+  mixed_resolutions for 1061/392/1071, info_box_bin_undetermined for 796/1045, etc.) — no new or
+  regressed gap kind introduced by this fix.
+- **Live-verified (2026-07-10, Playwright, no MCP browser tool available in this session — used
+  the repo's own `playwright` node_modules dependency per [[reference_local_report_page_repro]],
+  script run from `scratchpad/npmrds-sub/tmp/` so the `node_modules` resolution works)**:
+  reports 315/229 (`_day_tmc`) and 1045 (`_weekday`) all show zero console errors and 100% `200`
+  `/graph` responses (71/77/83 requests respectively). Captured report 315's real response body
+  directly: the live ClickHouse query's select-list now reads `sum((greatest(0, nullIf(ds.
+  travel_time_all_vehicles, 0) - ...)) ... as hours_of_delay_sum` verbatim (the fix reaching
+  production, not just the template row), and the incident-day spike value is **1424.01 hours** —
+  matching round 12's original live-verification of this exact report ("~1400-hour delay spike on
+  2018-07-08") almost exactly, confirming the fix is non-regressive at the VALUE level, not just
+  structurally.
+- **Not done, same as round 23**: still no live TMC/date range found with an actual
+  `travel_time_all_vehicles = 0` row across any of the 10 reconverted reports (so the fix remains
+  proven non-regressive, not proven to have silently repaired a previously-wrong-but-plausible
+  delay number) — consistent with round 9/23's finding that this corpus's real, queried TMC/date
+  combinations haven't hit the 0-sentinel case yet. Per [[feedback_ch_unfiltered_query_awareness]],
+  did not run a broader unscoped scan to go looking for one.
+
+**Round 27 (2026-07-10): fresh corpus-wide census — the round 24/25 milestone, run now that
+Route Compare Component is built. Found `census_old_reports.py` itself was stale in two
+directions (would have both over- and under-counted); fixed it to mirror the real converter,
+then ran it fresh. Analysis-only, no writes.**
+
+- **Census script staleness, found before trusting any output**: `census_old_reports.py` only
+  mirrors `convert_report`'s dynamic (non-`GRAPH_TEMPLATE_MAP`) branches by hand — it can't just
+  call `convert_report` itself (no writes/DB mutations allowed) — and it had fallen behind twice
+  since round 19 last synced it:
+  1. **Round 21's per-comp reliability BIN gate was never added to the census.** It still treated
+     any Route/TMC Info Box graph in `INFO_BOX_BUCKET` with a resolvable year as mapped, without
+     checking `graph_reliability_bin` — silently over-counting the `info_box_bin_undetermined`
+     cases (e.g. report 796, all-three-peaks-true) as convertible.
+  2. **Route Compare Component (rounds 24-26) had no branch at all** — it isn't in
+     `GRAPH_TEMPLATE_MAP` (same reason Info Box isn't, see that constant's own comment), so every
+     instance still fell through to "unmapped," undercounting the 176 real corpus-wide instances
+     the new `ensure_route_compare_template`/`__ANCHOR__` mechanism now actually converts.
+  - **Fixed** (`scripts/census_old_reports.py`): imports `ROUTE_COMPARE_BUCKET`, `MEASURE_EXPR`,
+    `graph_reliability_bin` from `convert_old_reports.py` (alongside the existing shared-code
+    imports); `analyze_report`'s per-graph loop now branches the same three ways
+    `convert_report` does — Info Box (grain + bucket + year + **bin**, mirroring round 21),
+    Route Compare Component (measure in `MEASURE_EXPR` + `ROUTE_COMPARE_BUCKET` + `>=2` assigned
+    comps), else the static `GRAPH_TEMPLATE_MAP` lookup — falling through to the same generic
+    `unmapped_graph` gap otherwise. Kept the census's existing convention of NOT breaking out
+    Info Box's/Route Compare's specific gap-kind names (`info_box_bin_undetermined`,
+    `route_compare_insufficient_comps`) the way `convert_report` does — round 19 already made
+    that same simplification, this just extends it consistently rather than introducing a new
+    inconsistency.
+- **Ran fresh** (`python3 scripts/census_old_reports.py`, ~40s, read-only, all 868
+  `admin2.reports`, 0 analysis errors) — first full re-run since round 10
+  (2026-07-08); rounds 11-26 all built against that now-stale baseline.
+- **Headline, vs. the round-10 baseline**:
+  | | round 10 | round 27 (now) | Δ |
+  |---|---|---|---|
+  | full | 16 | 46 | +30 |
+  | partial | 527 | 559 | +32 |
+  | none | 311 | 249 | -62 |
+  | no_graphs | 14 | 14 | 0 |
+  | graph instances mapped | 1,626 / 7,098 (23%) | 1,937 / 7,098 (27.3%) | +311 |
+  | unmapped: buildable | 2,450 | 2,450 | **0** |
+  | unmapped: no_equivalent | 2,742 | 2,564 | -178 |
+  | unmapped: tail | 280 | 147 | -133 |
+- **The buildable bucket is EXACTLY unchanged (2,450 = 2,450)** — confirms, numerically, that
+  nothing built in rounds 11-26 (Info Box, Route Compare, the 0-as-missing fixes, the pagination
+  fix) touched any of the three "buildable" graph types (Route Line/Bar Graph, TMC Grid Graph).
+  All of it landed in `no_equivalent` (Info Box, Route Compare) or `tail` (Hours of Delay Graph).
+  Practically: **item 3c from the pre-round-10 "next steps" list (missing-resolution variants of
+  already-built measures — Route Bar Graph speed/5-minutes 290/123, speed/hour 261/23,
+  travelTime/5-minutes 245/57, etc.) is exactly as fresh and unaddressed today as it was at round
+  10** — the single biggest still-open "buildable" lever in the corpus, untouched this entire task
+  so far.
+- **no_equivalent -178 = the Route Compare Component win, decomposed exactly**: corpus-wide
+  instances of the type dropped from 226 (round 25's count) to 50 unmapped now — **176 now
+  convert**, not the "~48 stay gap-logged" round 25 estimated (226-48=178) — the extra 2 are
+  newly-visible `route_compare_insufficient_comps` cases (a graph with only 1 assigned comp — no
+  base to compare against) that round 25's single-report live-verification never surfaced. Round
+  25's own estimate holds up almost exactly.
+- **tail -133 ≈ Hours of Delay Graph (138 instances at round 10)** moving into `GRAPH_TEMPLATE_MAP`
+  across rounds 11-12, well before this census — first time that's been confirmed against a
+  fresh corpus run rather than the two demo reports' live-verification.
+- **The 5 report types round 24 reopened (no longer "permanent gap-log only") are the current
+  no_equivalent ranking, unchanged in absolute count from round 10 (nothing built for them yet)**:
+  Route Map 849 instances (481 in the dominant speed/5-min/travel_time_all bucket, 366 reports,
+  **41 single-key report-flips** — the single biggest lever in the whole unmapped ranking), Bar
+  Graph Summary 649 (158 in its top bucket/142 reports/5 flips), Route Difference Graph 199 (106
+  top-bucket/84 reports/4 flips), TMC Difference Grid 143 (94/52/0 flips). Route/TMC Info Box's
+  remaining no_equivalent instances (268 Route / 166 TMC, both in the pm3 bucket) are now
+  specifically the ones `graph_reliability_bin`/`PM3_VIEW_BY_YEAR` can't resolve — real gaps
+  (undetermined bin, e.g. all-three-peaks-true; year outside 2021-2025), not un-built capability.
+- **Route-level stats unchanged from round 10** (797 routes referenced, 31 need catalog insert,
+  518 point-drawn, 231 missing everywhere) — expected, since no route-catalog work has happened
+  since round 10.
+- **Outputs**: `scratchpad/npmrds-sub/old-reports/census/census.json` (per-report detail,
+  regenerated in place) + `census_summary.md` (ranked tables, full top-40 unmapped-key list,
+  greedy cumulative-coverage table). Regenerate any time with `python3
+  scripts/census_old_reports.py`.
+- **Not done**: no build work this round — purely measurement, per round 24's plan ("run a
+  fresh census, THEN pick up the 5 reopened types"). The user's pick among Route Map / Bar Graph
+  Summary / Route Difference Graph / TMC Difference Grid / the missing-resolution buildable bulk
+  (item 3c) / `overrides.baseSpeed` is still open. Route Map was already flagged (round 24) as
+  needing its own real read of `RouteMap.jsx` before scoping — not done this round either.
+
 **Round 26 (2026-07-10): user browser-testing of round 25's Route Compare Component
 found the anchor row itself was still broken (the specific thing round 25's own
 Playwright pass missed) — FIXED. Two other observations flagged but NOT chased
