@@ -1,5 +1,108 @@
 # Old NPMRDS reports → new DMS report pages (automated conversion)
 
+**Round 21 (2026-07-10): two round-20 next-candidates closed by user review — one noop, one
+correction to a stale blocker.**
+
+- **Hours-of-Delay-Graph stacked-vs-single-color "product question" (round 18) — RESOLVED, noop.**
+  User reviewed the current rendering (per-TMC stacked bars, distinct legend colors — e.g. round
+  12's report 315/228/229 live-verifications) and confirmed it's already correct as-is. No decision
+  needed, no engineering work follows. Closed.
+- **Freeflow — CORRECTION: not actually gated on round 14's two-stage-aggregation blocker.** Round
+  18's "not done" note ("Freeflow (`speed_pctl_85`) untouched — still gated on round 14's separate
+  two-stage-aggregation structural blocker") conflated two different paths and is stale. Round 14's
+  blocker applies only to computing freeflow **live** from the raw ClickHouse fact table (real,
+  unfixed limitation for that path). But round 13's data-source audit already found 1410
+  (`gis_datasets.s1410_v{year}_pm_3`, the exact same table LOTTR/TTTR now read from) **also carries
+  `speed_pctl_85`** (85th-percentile speed, 100% non-null, checked in the same pass as `lottr_*`/
+  `tttr_*`) — so freeflow is reachable through the identical `pgFederated` join already proven live
+  on 70 reports (rounds 16-20), a plain column read, no live aggregation, no new lookup table. This
+  was never re-evaluated after round 16 invented the `pgFederated` mechanism — round 18 built LOTTR/
+  TTTR on this table but never went back to also wire `speed_pctl_85`. **Not yet done, but
+  unblocked**: wiring freeflow into the Info Box templates is now the same class of small, mechanical
+  change as adding another column to an existing join — not an architecture decision.
+  - **Still genuinely open, NOT resolved by this correction**: the *other* old reliability indices
+    (percentile95, percentile97, bufferTime, planningTime, miseryIndex, travelTimeIndex) —
+    nobody has confirmed whether 1410/2001/1722 carry precomputed columns for these too (round 13's
+    audit only went looking for LOTTR/TTTR/freeflow specifically, not the full column list on those
+    tables). These remain blocked on round 14's two-stage-aggregation finding unless a full column
+    audit of 1410/2001 turns up an equivalent precomputed value — worth doing before assuming a new
+    ClickHouse lookup table (round 14's original recommendation, written before the `pgFederated`
+    join existed) is actually necessary. **User direction (2026-07-10): gap-log all of these, low
+    priority** — except **`avgTT`**, which the user flagged as likely already accessible: it's a
+    plain `AVG(tt)` with no percentile math at all (round 13's own finding — it's the one old
+    "indices" measure that was never gated on the two-stage-aggregation problem in the first
+    place), so it's the same shape of work as the existing avg-travel-time templates, not a new
+    capability. Not yet built — flagged as a cheap follow-up, not attempted this round.
+
+**Round 21 continued (2026-07-10): per-report/per-comp reliability BIN selection — BUILT, tested,
+live-verified. Closes round 20's #1 next-step priority.** Every Info Box template had the
+reliability bin hardcoded to `amp` (AM peak) regardless of what the report's own comps actually
+configured; this resolves it per graph from the comps' own peak flags/weekdays.
+
+- **Schema ground-truth established first** (direct `information_schema.columns` read against
+  `gis_datasets.s1410_v3425_pm_3` via the `npmrds2` pgEnv config, same credential file dms-server
+  itself already uses — no new exposure): 1410 carries exactly **four** usable LOTTR bins —
+  `amp`/`midd`/`pmp`/`we` (`lottr_{bin}_lottr` columns) — plus a fifth, `ovn`, for **TTTR only**
+  (`tttr_ovn_tttr` exists; **no `lottr_ovn_lottr` column at all**, confirmed empty). No "all
+  hours"/unrestricted-time column and no `alt_pmp` column exist either (both confirmed empty).
+  `ovn` is therefore excluded from the resolvable set entirely — the template always shows LOTTR
+  and TTTR together, and there's no LOTTR value to pair with an OVN TTTR value.
+- **User-confirmed product framing (2026-07-10), this decision's actual foundation**: "all day"/
+  "no time filter" and any custom/arbitrary time window are the SAME underlying problem, not two
+  different ones — 1410 only has precomputed values for the four named FHWA periods, and (per
+  round 14) the platform can't compute LOTTR/TTTR live for an arbitrary window either (the same
+  two-stage bin-average-then-percentile limitation). So there is no fallback path for anything
+  outside amp/midd/pmp/we — never curve-fit an approximate/nearest bin, since that would silently
+  show one time period's real number as if it were computed for a different one.
+- **Built** (`scripts/convert_old_reports.py`): `comp_reliability_bin(settings)` — weekend-only
+  `weekdays` (no weekday day true) → `we`; a mixed weekday+weekend selection → `None` (spans a
+  weekday-scoped bin and WE, neither fits); exactly one of `amPeak`/`offPeak`/`pmPeak` true →
+  `amp`/`midd`/`pmp`; anything else (0 or 2-3 peak flags true) → `None`. `graph_reliability_bin`
+  — same consensus-set idiom as `analyze_graph`'s resolution/dataColumn checks: the single bin
+  every one of a graph's assigned comps agrees on, or `None` if mixed. `ensure_pm3_join_template`
+  now takes a `bin_` parameter; template name is `{grain}_info_box_reliability_{year}_{bin_}`
+  (was `..._{year}`, no bin — old un-suffixed templates are now orphaned, harmless per the
+  "flat pile of templates is fine" convention); calculated columns are
+  `pm3.lottr_{bin_}_lottr`/`pm3.tttr_{bin_}_tttr`. New gap kind `info_box_bin_undetermined`.
+- **Real consequence, confirmed against live data before building anything**: pulled reports
+  796/1045's actual comp settings directly. **Report 796 (the Route Info Box demo since round 18)
+  has both comps with all three peak flags true** — no single bin fits, so its Info Box section
+  now correctly gap-logs instead of rendering (an accepted, deliberate regression from "arbitrary
+  AM-peak number" to "correctly blank" — user confirmed this tradeoff before implementation).
+  Report 1045 has a mix: 2 of 4 original demo comps resolve cleanly (`amp`, `pmp`), 1 is
+  all-three-true (undetermined), 1 has no peak flag and a custom window (undetermined, per the
+  "no curve-fitting" rule above).
+- **Bonus fix found while live-verifying**: `build_graph_section_data` always overwrites a
+  section's title with `info["title"]` (the OLD report's own title, translated via
+  `analyze_graph`'s `{type}`/`{data}`/`{name}` substitution) — `ensure_pm3_join_template`'s own
+  bin-aware `display.title.title` (both before and after this round) was dead code, never reaching
+  the page. This was harmless when every Info Box section showed the same hardcoded bin, but now
+  that sibling sections can show DIFFERENT bins with an otherwise-identical title
+  ("TMC Info Box, Speed" on both), it needed fixing. **Fixed**: `convert_report` now appends
+  `" ({bin label}, {year})"` to the Info Box section's title right before building the section —
+  e.g. `"TMC Info Box, Speed (PM Peak, 2023)"` / `"...( AM Peak, 2023)"`. **Separately noticed,
+  NOT fixed (pre-existing, unrelated to this round)**: one section's title has the route/series
+  label concatenated directly onto the type with no separator
+  (`"2023 - PM - Inner Loop 2TMC Info Box, Speed"`) — confirmed via direct DB read that this
+  concatenation exists in `info["title"]` itself (i.e. in the old report's own title template, or
+  in `analyze_graph`'s substitution), not introduced by this round's title-suffix fix. Cosmetic,
+  scoped out — worth its own look if title fidelity becomes a priority.
+- **Live-verified (2026-07-10, Playwright, report 1045 / page `2189203` then `2189219` after the
+  title fix)**: zero console errors, all 81 `/graph` requests returned 200. The two resolved
+  sections' actual response bodies confirmed distinct bins and distinct real values — e.g. TMC
+  `104N04284`: LOTTR 1.07/TTTR 1.23 (PM Peak section) vs. LOTTR 1.05/TTTR 1.14 (AM Peak section);
+  `104P04369`: 1.18/1.65 (PM) vs. 1.10/1.30 (AM) — every non-null TMC differs between the two,
+  proving the mechanism pulls genuinely different data per bin, not coincidentally-identical or
+  both-broken output. Captured request select-lists directly:
+  `avg(pm3.lottr_pmp_lottr) as lottr_pmp_avg, avg(pm3.tttr_pmp_tttr) as tttr_pmp_avg` vs. the
+  `_amp_` equivalent — confirmed bin selection is a column choice against one shared
+  `pgFederated` table, not a table swap. Report 796 re-converted live (page `2189235`) and
+  confirmed via gap report: `info_box_bin_undetermined` fires, Info Box section correctly absent.
+- **Not done**: `ovn` bin support (excluded — asymmetric schema, no LOTTR column); bulk-applying
+  this to the rest of the corpus's 70 Info Box reports (this round proved the mechanism on the
+  same two demo reports, same "capability built and proven, scale is a separate decision" pattern
+  as every other round in this task).
+
 **Round 20 (2026-07-10): Route Info Box pagination-length bug — FIXED, live-verified.** Round
 19's #1 next-step priority ("small, contained, server-side only, unblocks a cosmetic issue on
 every one of those 70 reports").
@@ -62,11 +165,20 @@ every one of those 70 reports").
   directly re-verified this round, though by construction the new branches never engage for it
   (`countGroupBy` stays non-empty once a real `tmc` column is grouped, so the existing
   `count(DISTINCT ...)` path — already correct — is untouched). Round 19's remaining next
-  candidates are still open, in order: (1) the reliability bin hardcoded to `amp` (AM peak) — a
-  per-report/per-comp bin selection matching the old tool's peak-button semantics; (2) the
-  Hours-of-Delay-Graph stacked-vs-single-color product question (round 18) — a decision, not
-  engineering work; (3) a Route Compare Component variant (round 13's third Info Box family
-  member, still unbuilt).
+  candidates, updated per round 21: **(1) DONE, round 21** — per-report/per-comp reliability bin
+  selection (`comp_reliability_bin`/`graph_reliability_bin`), live-verified on 1045 (two sibling
+  sections now show genuinely different real AM/PM Peak values) and 796 (correctly gap-logs
+  instead of showing an arbitrary AM-peak number, per user decision). Next candidates, in order:
+  (a) wire freeflow (`speed_pctl_85`) into the Info Box templates via the same `pgFederated`/1410
+  join already used for LOTTR/TTTR — needs no new mechanism, just hasn't been done; (b) `avgTT` —
+  same story, a plain `AVG(tt)` with no percentile math, likely a small addition once someone
+  confirms which existing avg-travel-time template shape to mirror; (c) a Route Compare Component
+  variant (round 13's third Info Box family member, still unbuilt). The other old reliability
+  indices (percentile95/97, bufferTime, planningTime, miseryIndex, travelTimeIndex) are gap-logged,
+  low priority, per user direction (2026-07-10) — no known precomputed source, still blocked on
+  round 14's two-stage-aggregation finding.
+  (The Hours-of-Delay-Graph stacked-vs-single-color item is closed, round 21 — current rendering is
+  correct, no action needed.)
 
 **Round 19 (2026-07-09): generalized per-report/per-year Info Box template selection — the
 round-18 standing recommendation. No more hand-built-per-report templates.** Round 18 proved the
