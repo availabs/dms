@@ -54,7 +54,13 @@ async function simpleFilterLength(ctx, options) {
     normalFilter = [],
     join = {},
     // Comparison series: total length = sum of each variant arm's count.
-    seriesVariants = [], seriesKey = '__series'
+    seriesVariants = [], seriesKey = '__series',
+    // Set by buildUdaConfig.js when every shown column is a real aggregate
+    // (fn: avg/sum/...) and there's no real groupBy dimension besides the
+    // series discriminator. Lets the branches below tell an aggregate-only
+    // query (always exactly 1 output row, even over 0 matching rows) apart
+    // from a plain passthrough (raw row count).
+    ungroupedAggregate = false,
   } = JSON.parse(options);
 
   // Detect whether the request includes a real join so the WHERE builder can
@@ -95,10 +101,17 @@ async function simpleFilterLength(ctx, options) {
   // per arm and not a real column here, so it's dropped from the count's groupBy.
   if (seriesVariants.length) {
     const countGroupBy = groupBy.filter((g) => g !== seriesKey);
+    // No real per-arm groupBy dimension. The matching simpleFilter arm SELECT
+    // (armGroupByExprs also empty there) has no GROUP BY either — for an
+    // ungrouped-aggregate arm (every shown column wrapped in fn: avg/sum/...)
+    // SQL always collapses that to exactly one row, even over zero matching
+    // source rows, so the count is always 1, not a raw row count. A plain
+    // passthrough arm (no aggregate fn) still needs the raw count(*) below.
     const armCountExpr = countGroupBy.length
       ? `count(DISTINCT concat(${countGroupBy.map((g) => sanitizeName(g)).filter(Boolean).map((c) => `toString(${c})`).join(", '-' ,")}))`
-      : `count(*)`;
+      : ungroupedAggregate ? null : `count(*)`;
     const armCountSqls = seriesVariants.map((variant) => {
+      if (armCountExpr === null) return '1';
       const armWhere = buildCombinedWhereCH({
         filter, exclude, gt, gte, lt, lte, like,
         filterGroups: variant.filterGroups || {}, joinPresent,
@@ -110,6 +123,12 @@ async function simpleFilterLength(ctx, options) {
     const fanoutRows = await fanoutResult.json();
     return fanoutRows?.data?.[0]?.numRows != null ? Number(fanoutRows.data[0].numRows) : 0;
   }
+
+  // No groupBy at all, and every shown column is a real aggregate (fn: avg/
+  // sum/...) — simpleFilter's matching query has no GROUP BY either, so it's an
+  // ungrouped aggregate: always exactly one output row, even over zero matching
+  // rows. Same reasoning as the seriesVariants branch above.
+  if (!sanitizedGroupBy.length && ungroupedAggregate) return 1;
 
   // Grouped length = number of GROUP BY buckets. Count rows of a subquery that
   // groups by the same keys, instead of count(DISTINCT concat(a,'-',b)): the

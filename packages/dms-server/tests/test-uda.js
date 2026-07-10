@@ -454,6 +454,72 @@ async function testSeriesFanoutOverlap() {
   pass('Comparison series overlap cleanup complete');
 }
 
+/**
+ * Integration: ungrouped-aggregate fan-out — every arm's shown column is a real
+ * aggregate (avg), no other groupBy dimension besides '__series'. Regression test
+ * for old-reports-conversion.md round 18/19's Route Info Box pagination bug: each
+ * arm's real query (no GROUP BY at all once '__series' is dropped) always yields
+ * exactly one aggregated row, even though the underlying rows it aggregates over
+ * differ in count per arm — the two alpha rows collapse to one avg row, same as
+ * the one beta row. Length must report 2 (one row per arm), not 3 (the raw
+ * matching-row count testSeriesFanout expects for a non-aggregate passthrough).
+ * `ungroupedAggregate: true` is what buildUdaConfig.js sets to tell the server
+ * which behavior applies.
+ */
+async function testUngroupedAggregateFanoutLength() {
+  console.log('\n--- Comparison Series: ungrouped-aggregate arms report 1 row per arm ---');
+
+  const items = [];
+  for (const [category, amount] of [['alpha', '10'], ['alpha', '20'], ['beta', '5']]) {
+    const result = await graph.callAsync(
+      ['dms', 'data', 'create'],
+      [TEST_APP, 'agfanout', { name: `n-${category}`, category, amount }]
+    );
+    items.push(Object.keys(result.jsonGraph.dms.data.byId)[0]);
+  }
+
+  const env = `${TEST_APP}+agfanout`;
+  const viewId = items[0];
+  // sanitizeName disallows the bare word "cast", so Postgres uses the `::` cast
+  // operator instead; SQLite's avg() already coerces a numeric-looking TEXT value
+  // extracted via ->>, so no cast is needed there.
+  const avgExpr = graph.dbType === 'postgres'
+    ? `avg((data->>'amount')::numeric) as avg_amount`
+    : `avg(data->>'amount') as avg_amount`;
+
+  const options = JSON.stringify({
+    seriesKey: '__series',
+    groupBy: ['__series'],
+    ungroupedAggregate: true,
+    seriesVariants: [
+      { label: 'Alpha', filterGroups: { op: 'and', groups: [{ col: "data->>'category'", op: 'filter', value: ['alpha'] }] } },
+      { label: 'Beta', filterGroups: { op: 'and', groups: [{ col: "data->>'category'", op: 'filter', value: ['beta'] }] } },
+    ],
+  });
+
+  const lenResult = await graph.getAsync([
+    ['uda', env, 'viewsById', viewId, 'options', options, 'length']
+  ]);
+  const len = lenResult.jsonGraph.uda[env].viewsById[viewId].options[options].length;
+  assert(+len === 2, `Expected fan-out length 2 (one aggregated row per arm), got ${len}`);
+  pass('ungrouped-aggregate fan-out length counts one row per arm, not raw matching rows');
+
+  const dataResult = await graph.getAsync([
+    ['uda', env, 'viewsById', viewId, 'options', options, 'dataByIndex', { from: 0, to: 9 }, [avgExpr, '__series']]
+  ]);
+  const byIndex = dataResult.jsonGraph.uda[env].viewsById[viewId].options[options].dataByIndex;
+  const rows = Object.values(byIndex).filter((r) => r && typeof r['__series'] === 'string');
+  assert(rows.length === 2, `Expected 2 aggregated rows (one per arm), got ${rows.length}: ${JSON.stringify(rows)}`);
+  const alphaRow = rows.find((r) => r['__series'] === 'Alpha');
+  const betaRow = rows.find((r) => r['__series'] === 'Beta');
+  assert(alphaRow && Math.abs(+alphaRow[avgExpr] - 15) < 1e-6, `Expected Alpha avg_amount 15, got ${JSON.stringify(alphaRow)}`);
+  assert(betaRow && Math.abs(+betaRow[avgExpr] - 5) < 1e-6, `Expected Beta avg_amount 5, got ${JSON.stringify(betaRow)}`);
+  pass('the real query really does yield exactly one aggregated row per arm — length now matches it');
+
+  await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, 'agfanout', ...items]);
+  pass('Ungrouped-aggregate fan-out cleanup complete');
+}
+
 // ============================================= filterGroups Tests ==============================================
 
 /**
@@ -1334,6 +1400,61 @@ async function testClickHouseExplicitAliasing() {
   pass('already-aliased expressions are not re-aliased');
 }
 
+// ======================================= ClickHouse ungrouped-aggregate fan-out length =============================
+
+/**
+ * Regression test for old-reports-conversion.md round 18/19's Route Info Box
+ * pagination bug: with '__series' dropped from groupBy and no other groupBy
+ * dimension, simpleFilterLength's seriesVariants branch always fell back to
+ * `count(*)` (the raw filtered epoch-row count, e.g. "Rows 1 to 50 of 100493")
+ * instead of the single aggregated row each arm's real query (avg(...), no GROUP
+ * BY at all) actually produces. `ungroupedAggregate: true` (set by
+ * buildUdaConfig.js when every shown column is a real aggregate fn) now makes
+ * each arm contribute a literal 1 instead of scanning the table. Stubs
+ * ctx.db.query to capture the generated SQL — no live ClickHouse connection
+ * needed; buildJoin({join: {}}) is a pure no-op with an empty join.
+ */
+async function testClickHouseUngroupedAggregateFanoutLength() {
+  console.log('\n--- Unit: ClickHouse ungrouped-aggregate fan-out length ---');
+  const { simpleFilterLength } = require('../src/routes/uda/query_sets/clickhouse');
+
+  let capturedSql = null;
+  const fakeDb = {
+    query: async ({ query }) => {
+      capturedSql = query;
+      return { json: async () => ({ data: [{ numRows: 999 }] }) };
+    },
+  };
+  const ctx = { db: fakeDb, table_schema: 'avail', table_name: 'npmrds' };
+
+  const aggOptions = JSON.stringify({
+    groupBy: ['__series'],
+    ungroupedAggregate: true,
+    seriesVariants: [
+      { label: 'Route A', filterGroups: { op: 'AND', groups: [{ col: 'tmc', op: 'filter', value: ['120-11332'] }] } },
+      { label: 'Route B', filterGroups: { op: 'AND', groups: [{ col: 'tmc', op: 'filter', value: ['120-11333'] }] } },
+    ],
+  });
+  const numRows = await simpleFilterLength(ctx, aggOptions);
+  assert(numRows === 999, `Expected the stub's canned count to pass through untouched, got ${numRows}`);
+  assert(capturedSql === 'SELECT 1 + 1 AS numRows',
+    `Expected each ungrouped-aggregate arm to contribute a literal 1 (no table scan), got: ${capturedSql}`);
+  pass('ungroupedAggregate arms contribute a literal 1 each, not a raw filtered-row count(*)');
+
+  // Without the flag (a plain passthrough arm — testSeriesFanout's real-world case),
+  // the pre-fix count(*) behavior must be unchanged.
+  const passthroughOptions = JSON.stringify({
+    groupBy: ['__series'],
+    seriesVariants: [
+      { label: 'Route A', filterGroups: { op: 'AND', groups: [{ col: 'tmc', op: 'filter', value: ['120-11332'] }] } },
+    ],
+  });
+  await simpleFilterLength(ctx, passthroughOptions);
+  assert(capturedSql.includes('count(*)'),
+    `Expected count(*) fallback preserved when ungroupedAggregate is absent, got: ${capturedSql}`);
+  pass('plain passthrough arms (no ungroupedAggregate flag) keep the raw count(*) behavior');
+}
+
 // ============================================ buildJoin pgFederated branch =========================================
 
 /**
@@ -1416,6 +1537,7 @@ async function run() {
     await testOffsetPlaceholders();
     await testSeriesFanout();
     await testSeriesFanoutOverlap();
+    await testUngroupedAggregateFanoutLength();
 
     // filterGroups regression tests
     await testGetValuesFromGroupNullLeaves();
@@ -1435,6 +1557,9 @@ async function run() {
 
     // ClickHouse output-column aliasing (collision-with-joined-table regression)
     await testClickHouseExplicitAliasing();
+
+    // ClickHouse ungrouped-aggregate fan-out length (Route Info Box pagination regression)
+    await testClickHouseUngroupedAggregateFanoutLength();
 
     // buildJoin pgFederated branch (live Postgres join via ClickHouse postgresql())
     await testBuildJoinPgFederated();

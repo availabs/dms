@@ -1351,6 +1351,40 @@ describe("buildUdaConfig — comparison series", () => {
     expect(options.groupBy).toContain("__series");
   });
 
+  // Regression coverage for old-reports-conversion.md round 18/19's Route Info Box
+  // pagination bug: simpleFilterLength's fan-out branch used to always fall back to
+  // a raw count(*) whenever '__series' was the only groupBy column, even when every
+  // shown column was really an ungrouped aggregate (fn: avg/sum/...) that collapses
+  // to exactly one row per arm. options.ungroupedAggregate is the flag this test
+  // covers — the server-side fix (query_sets/clickhouse.js + postgres.js) has its
+  // own regression tests in dms-server/tests/test-uda.js.
+  it("ungroupedAggregate: unset when no shown column has a real aggregate fn", () => {
+    const { options } = buildUdaConfig(seriesInput());
+    expect(options.ungroupedAggregate).toBeUndefined();
+  });
+
+  it("ungroupedAggregate: true when every real groupBy dimension is just the series discriminator and a shown column has an aggregate fn", () => {
+    const input = seriesInput();
+    input.columns = [
+      { ...col("speed"), fn: "avg" },
+      col("tmc"),
+      { name: "__series", origin: "comparison-series", show: true, group: true },
+    ];
+    const { options } = buildUdaConfig(input);
+    expect(options.ungroupedAggregate).toBe(true);
+  });
+
+  it("ungroupedAggregate: unset when a real (non-series) column is also grouped", () => {
+    const input = seriesInput();
+    input.columns = [
+      { ...col("speed"), fn: "avg" },
+      { ...col("tmc"), group: true },
+      { name: "__series", origin: "comparison-series", show: true, group: true },
+    ];
+    const { options } = buildUdaConfig(input);
+    expect(options.ungroupedAggregate).toBeUndefined();
+  });
+
   it("disabled: no seriesVariants, synthetic column dropped (BC)", () => {
     const input = seriesInput();
     input.comparisonSeries.enabled = false;

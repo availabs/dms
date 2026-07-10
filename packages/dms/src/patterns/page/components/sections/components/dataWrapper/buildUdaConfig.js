@@ -1336,6 +1336,18 @@ export const buildUdaConfig = ({
     .filter((column) => column.show && column.fn)
     .reduce((acc, column) => ({ ...acc, [column.name]: column.fn }), {});
 
+  // Whether this query has no real groupBy dimension (besides the comparison-series
+  // discriminator, which is a constant per arm, not a real column) AND every shown
+  // column is a real SQL aggregate (fn: avg/sum/count/max/list). Threaded to the
+  // server so simpleFilterLength's arm/row count matches simpleFilter's actual
+  // output: an ungrouped aggregate query always yields exactly one row — even over
+  // zero matching source rows — never a raw per-row count.
+  const AGGREGATE_FNS = new Set(["sum", "avg", "count", "max", "list"]);
+  const seriesKeyName = comparisonSeries?.seriesKey || "__series";
+  const ungroupedAggregate =
+    groupBy.filter((name) => name !== seriesKeyName).length === 0 &&
+    Object.values(fn).some((f) => AGGREGATE_FNS.has(f));
+
   const serverFn = columns
     .filter((column) => column.show && column.serverFn)
     .reduce(
@@ -1534,6 +1546,7 @@ export const buildUdaConfig = ({
     serverFn,
     ...(Object.keys(comparisonFilters).length > 0 && comparisonFilters),
     ...(allHaving.length > 0 && { having: allHaving }),
+    ...(ungroupedAggregate && { ungroupedAggregate: true }),
   };
 
   // 8b. Comparison series — fan out the base query into one arm per variant.

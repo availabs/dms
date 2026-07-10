@@ -1,5 +1,134 @@
 # Old NPMRDS reports → new DMS report pages (automated conversion)
 
+**Round 20 (2026-07-10): Route Info Box pagination-length bug — FIXED, live-verified.** Round
+19's #1 next-step priority ("small, contained, server-side only, unblocks a cosmetic issue on
+every one of those 70 reports").
+
+- **Root cause, confirmed by direct reproduction (not just re-stated from round 18's note):**
+  `simpleFilterLength`'s `seriesVariants` branch — in **both** `query_sets/clickhouse.js` and
+  `query_sets/postgres.js` (postgres.js has the identical latent bug, widening round 18/19's
+  clickhouse.js-only scoping) — has no visibility into whether the matching `simpleFilter` arm
+  query is a raw passthrough (N real rows) or an **ungrouped aggregate**: once `__series` is
+  dropped, if there's no other real groupBy dimension, `simpleFilter`'s arm SELECT has no GROUP BY
+  clause at all. When every shown column is a real aggregate (`fn: avg/sum/...`), SQL collapses
+  that to **exactly one row per arm, even over zero matching source rows** — but
+  `simpleFilterLength` always assumed the passthrough case, falling back to a raw
+  `count(*)`/`count(1)` (the filtered epoch-row count) regardless. For Route Info Box's
+  `__series`-only groupBy this miscounted the true 2-row result as ~100k.
+- **Fix**: a new boolean `ungroupedAggregate`, threaded client → server. `buildUdaConfig.js`
+  computes it (true when every real non-series groupBy dimension is absent AND at least one shown
+  column has a real aggregate `fn` — `sum`/`avg`/`count`/`max`/`list`) and adds it to `options`
+  only when true (keeps the payload/test footprint minimal, same pattern as `having`/
+  `comparisonFilters`). Both query sets' `simpleFilterLength` check it in two places: the
+  `seriesVariants` branch (each arm contributes a literal `1` instead of a `count(*)`/`count(1)`
+  subquery) **and** the plain non-fan-out branch (`return 1` immediately when there's no groupBy
+  at all) — the plain branch matters too, since a non-comparisonSeries ungrouped-aggregate
+  Spreadsheet (a "grand total" row with no route fan-out) has the identical defect, not just the
+  Info Box's fan-out case.
+- **Known, deliberate simplification**: when `ungroupedAggregate` is true the arm/query
+  short-circuits to a literal `1` without even querying the DB — correct for every InfoBox
+  template actually shipped (none use `having`), but not proven correct if a future template
+  combines `ungroupedAggregate` with a non-empty `having` (a HAVING clause could in principle
+  filter the single aggregate row down to 0). Documented in code comments rather than engineered
+  for a combination nothing currently uses.
+- **Tested**: 2 new `dms-server` tests — `testUngroupedAggregateFanoutLength` (real SQLite
+  integration via the Falcor route harness: creates 3 rows across 2 categories, proves the real
+  per-arm query genuinely collapses to 1 aggregated row per arm — `avg_amount` 15 for the 2-row
+  Alpha arm, 5 for the 1-row Beta arm — and that `.length` now reports 2, matching it) and
+  `testClickHouseUngroupedAggregateFanoutLength` (pure stub-`ctx.db` unit test asserting the exact
+  generated ClickHouse SQL — `SELECT 1 + 1 AS numRows` for two `ungroupedAggregate` arms, no live
+  ClickHouse connection needed; also confirms the pre-fix `count(*)` fallback is unchanged when
+  the flag is absent). Full UDA suite 79/79 (+2, no regressions); full `dms-server` `npm test`
+  unaffected. 3 new client tests in `buildUdaConfig.test.js` covering the flag's three states
+  (unset with no aggregate `fn`; true with `__series`-only groupBy + an aggregate `fn`; unset when
+  a real non-series column is also grouped) — full client suite 194/194 (+3, no regressions).
+- **Live-verified (2026-07-10, Playwright, report 796 / page `2189168` — the same Route Info Box
+  demo rounds 18/19 already established)**: the section's real `/graph` response now reads
+  `options[...].length: 2` (captured directly from the response body, not inferred) — matching
+  its 2 real rows (Albany Downtown-Broadway NB 1.56 LOTTR/2.18 TTTR, SB 1.63/2.6). The misleading
+  pagination footer (round 18's "Rows 1 to 50 of 100493" on an analogous section) no longer
+  renders for this section at all — expected, since 2 rows fit on one page (pageSize 50) once the
+  count is correct. Confirmed the client request itself carries `"ungroupedAggregate":true`
+  verbatim in the captured request URL. Zero console errors (only the pre-existing benign
+  `HydrateFallback` warning). The unrelated "Add a Route" route-catalog section on the same page
+  still correctly shows its own real pagination ("Rows 1 to 5 of 5884"), confirming the fix is
+  scoped correctly and doesn't touch genuine passthrough sections.
+- **Files changed**: `packages/dms/src/patterns/page/components/sections/components/dataWrapper/
+  buildUdaConfig.js` (client flag), `packages/dms-server/src/routes/uda/query_sets/clickhouse.js`
+  + `postgres.js` (server, both branches each), `packages/dms-server/tests/test-uda.js` (2 new
+  tests), `packages/dms/tests/buildUdaConfig.test.js` (3 new tests).
+- **Not done**: TMC Info Box's pagination (a plain real `tmc` groupBy, not `__series`-only) was
+  flagged in round 18 as possibly not sharing this bug at all ("hasn't been checked") — still not
+  directly re-verified this round, though by construction the new branches never engage for it
+  (`countGroupBy` stays non-empty once a real `tmc` column is grouped, so the existing
+  `count(DISTINCT ...)` path — already correct — is untouched). Round 19's remaining next
+  candidates are still open, in order: (1) the reliability bin hardcoded to `amp` (AM peak) — a
+  per-report/per-comp bin selection matching the old tool's peak-button semantics; (2) the
+  Hours-of-Delay-Graph stacked-vs-single-color product question (round 18) — a decision, not
+  engineering work; (3) a Route Compare Component variant (round 13's third Info Box family
+  member, still unbuilt).
+
+**Round 19 (2026-07-09): generalized per-report/per-year Info Box template selection — the
+round-18 standing recommendation. No more hand-built-per-report templates.** Round 18 proved the
+`pgFederated` join live but hardcoded one template per grain
+(`route_info_box_reliability_2021`/`tmc_info_box_reliability_2023`), picked by hand for exactly
+reports 796/1045. This generalizes it so any report's Route/TMC Info Box graph resolves its own
+join year automatically.
+
+- **Built** (`scripts/convert_old_reports.py`): `graph_max_year(info, comps_by_id)` — latest
+  calendar year touched by a graph's assigned comps' `startDate`/`endDate` (same yyyymmdd
+  validation as `to_datetime_str`; skips the ancient ~211-271 "version 2" comps that carry a whole
+  object under `settings.startDate` instead of an 8-digit int, rather than crashing — caught live
+  during the corpus-wide tally below, not by inspection). `ensure_pm3_join_template(grain, year,
+  templates, dry_run)` — mints (or reuses) `{grain}_info_box_reliability_{year}`, built on
+  `TEMPLATE_BASE_NAME`'s stateJson exactly like `ensure_graph_templates()` does for
+  `TEMPLATE_SPECS` entries (same dry-run stub behavior, same base-template-not-found guard).
+  `PM3_VIEW_BY_YEAR` (2021→2587, 2022→2575, 2023→2567, 2024→2568, 2025→3425, from
+  `documentation/npmrds-data-sources.md`) and `INFO_BOX_BUCKET` (`speed`/`5-minutes`/
+  `travel_time_all`, the one bucket the join supports, matching round 18's two demo reports)
+  gate whether a graph is eligible at all — a graph outside the bucket or outside 1410's
+  2021-2025 coverage still gap-logs as unmapped (`info_box_year_undetermined`/
+  `info_box_year_outside_pm3_coverage`), never guesses a substitute year (round 17's product
+  decision, now enforced in code instead of by hand-picking which reports to convert).
+  `GRAPH_TEMPLATE_MAP`'s two round-18 static entries for Route/TMC Info Box are removed —
+  `convert_report`'s mapping pass now branches on `INFO_BOX_GRAIN` to resolve+mint dynamically
+  instead of a static dict lookup.
+- **`census_old_reports.py` updated to match** — it was checking `GRAPH_TEMPLATE_MAP.get(key)`
+  directly, which (before this round) counted every Route/TMC Info Box graph in the bucket as
+  "mapped" with NO year check at all (an existing latent over-count: it would have called a
+  report "fully convertible" even when converting it would join to the wrong year). Now mirrors
+  the same `graph_max_year`/`PM3_VIEW_BY_YEAR` check, so the census's mapped/unmapped counts are
+  actually accurate per report, not just per bucket key.
+- **Live-verified, zero regressions**: dry-run against 796/1045 first confirmed the dynamic path
+  picks the exact same template names the hand-built ones already used
+  (`route_info_box_reliability_2021` for 796's 2 comps, both 2021;
+  `tmc_info_box_reliability_2023` for 1045's comp-28/comp-6/comp-5, all 2023) — both templates
+  already existed in the DB so `ensure_pm3_join_template` just reused them, no new rows. Then
+  `--replace`-converted both live (new page ids 2189168/2189181) and Playwright-verified
+  (zero console errors, real distinct LOTTR/TTTR values, correct attribution rows showing the
+  right `s1410_v{view_id}_pm_3` table per section).
+- **Bonus correctness fix, found by the dynamic resolution itself**: 1045's comp-8 (`"All-time
+  Average"`, own range 2017-2024) previously got forced onto the 2023 template — round 18
+  explicitly logged this as a "known minor year mismatch." The dynamic path now computes its real
+  max year (2024) and mints a brand-new `tmc_info_box_reliability_2024` template (id 2189180,
+  joined to `s1410_v2568_pm_3`) automatically — live-verified: its section's attribution reads
+  `GIS_DATASETS.S1410_V2568_PM_3` and its values genuinely differ from the other three
+  2023-joined sections on the same page. The round-18 tradeoff is fully closed, not just
+  documented.
+- **Corpus-wide impact, measured directly (not estimated)**: of the corpus's 268 Route Info Box +
+  168 TMC Info Box graph instances in the supported bucket, **70 Route Info Box instances (51
+  distinct reports) + 30 TMC Info Box instances (25 distinct reports) — 70 distinct reports total
+  — now resolve automatically** to a correctly period-matched template (years 2021/2022/2024/2025
+  touched for Route Info Box, 2021-2024 for TMC Info Box), with zero hand-authored templates
+  beyond the two round-18 already had. The remainder genuinely falls outside 1410's 2021-2025
+  coverage and correctly stays gap-logged, per the round-17 decision.
+- **Not done**: this round only generalizes the YEAR axis. The reliability bin is still hardcoded
+  to `amp` (AM peak) in both templates' calculated-column expressions
+  (`pm3.lottr_amp_lottr`/`pm3.tttr_amp_tttr`) — a per-report/per-comp bin selection (matching the
+  old tool's peak-button semantics) is unaddressed. The Route Info Box pagination-length bug
+  (`simpleFilterLength`, unchanged from round 18) and a Route Compare Component variant remain
+  open, same as before this round.
+
 **Round 18 continued (2026-07-09): correction — round 18's build was mislabeled. It's Route Info
 Box, not TMC Info Box; re-mapped, re-verified with a genuine multi-route example.** User caught
 this by inspecting the old tool directly: TMC Info Box = one row per TMC within the assigned
@@ -1147,24 +1276,21 @@ pending direction.
 
 ### Next steps — standing recommendations (2026-07-08, post-round-9 diagnostic)
 
-**SUPERSEDED for the immediate next step by round 18 (2026-07-09) — read that block at the top
-of this file first.** Round 18 proved the `pgFederated` join live (Route Info Box + TMC Info Box
-both built and verified, on reports 796/1045) but hardcoded ONE template per year
-(`route_info_box_reliability_2021`, `tmc_info_box_reliability_2023`) picked by hand per report.
-**Recommended next task: generalize per-report/per-year template selection** so Info Box
-conversion can scale past one-off demos — a small helper (`ensure_pm3_join_template(year, grain)`
-in `scripts/convert_old_reports.py`) that computes the right `s1410_v{view_id}_pm_3` for a given
-year (map already in `documentation/npmrds-data-sources.md`: 2021→2587, 2022→2575, 2023→2567,
-2024→2568, 2025→3425), creates-or-reuses a `route_info_box_reliability_{year}` /
-`tmc_info_box_reliability_{year}` template on demand, and wires `convert_report` to compute each
-Route/TMC Info Box graph's real max year (same `getMaxYear`-style logic already used for the
-join's period-matching) and pick the matching template dynamically instead of one static
-`GRAPH_TEMPLATE_MAP` key per grain. Without this, every new report needing an Info Box still
-needs a human to notice its year and hand-build a template first. Secondary, smaller candidates
-if that's not the priority: the Route Info Box pagination-length bug (`clickhouse.js`
-`simpleFilterLength`, see the "Parked" list below) — small, contained, server-side only; or the
-Hours-of-Delay-Graph stacked-vs-single-color product question (round 18) — a decision, not
-engineering work.
+**DONE, round 19 (2026-07-09) — see that block at the top of this file.** Per-report/per-year Info
+Box template selection is now generalized (`graph_max_year`/`ensure_pm3_join_template`), closing
+this recommendation. 70 distinct reports (51 via Route Info Box, 25 via TMC Info Box) now resolve
+their pm3 join year automatically instead of needing a hand-built template per report/year.
+
+**DONE, round 20 (2026-07-10) — see that block at the top of this file.** The Route Info Box
+pagination-length bug (`simpleFilterLength`'s ungrouped-aggregate fan-out miscount, in both
+`clickhouse.js` and `postgres.js`) is fixed, tested, and live-verified against report 796 — closes
+round 19's #1 next-step priority. **Next candidates, in rough priority order**: (1) the
+reliability bin is still hardcoded to `amp` (AM peak) in both templates — a per-report/per-comp
+bin selection (matching the old tool's peak-button semantics) would unlock more of the 268/168-
+instance bucket precisely rather than defaulting every converted report to AM peak regardless of
+its own peak/off-peak/weekend settings; (2) the Hours-of-Delay-Graph stacked-vs-single-color
+product question (round 18) — a decision, not engineering work; (3) a Route Compare Component
+variant (round 13's third Info Box family member, still unbuilt).
 
 **Below this point is pre-round-18 context** — still valid for capability areas Info Box work
 hasn't touched (reliability-measure bulk conversion, mixed-resolution semantics, etc.), but no

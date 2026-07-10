@@ -59,7 +59,11 @@ async function simpleFilterLength(ctx, options) {
     join = {},
     // Comparison series: total length is the sum of each variant arm's count
     // (each arm has a distinct series label, so the grouped counts don't overlap).
-    seriesVariants = [], seriesKey = '__series'
+    seriesVariants = [], seriesKey = '__series',
+    // Set by buildUdaConfig.js when every shown column is a real aggregate
+    // (fn: avg/sum/...) and there's no real groupBy dimension besides the
+    // series discriminator — see the matching comment in query_sets/clickhouse.js.
+    ungroupedAggregate = false,
   } = JSON.parse(options);
 
   // Translate PG-specific SQL in groupBy expressions for SQLite
@@ -135,14 +139,24 @@ async function simpleFilterLength(ctx, options) {
     // there). Drop it from the count's groupBy; the per-arm counts still sum to the
     // total fan-out row count.
     const countGroupBy = groupBy.filter((g) => g !== seriesKey);
-    const countExpr = `count(${countGroupBy.length
-      ? `DISTINCT ${countGroupBy.map((g) => sanitizeName(g)).filter((g) => g)
+    // No real per-arm groupBy dimension. The matching simpleFilter arm SELECT
+    // (armGroupByExprs also empty there) has no GROUP BY either — for an
+    // ungrouped-aggregate arm (every shown column wrapped in fn: avg/sum/...)
+    // SQL always collapses that to exactly one row, even over zero matching
+    // source rows, so the count is always 1, not a raw row count (count(1)
+    // below). A plain passthrough arm (no aggregate fn) still needs count(1).
+    const countExpr = countGroupBy.length
+      ? `count(DISTINCT ${countGroupBy.map((g) => sanitizeName(g)).filter((g) => g)
           .map((c) => `CASE WHEN ${c} IS NULL THEN '__NULL__VAL__' ELSE ${typeCast(c, 'TEXT', db.type)} END`)
-          .join(`|| '-' ||`)}`
-      : 1})`;
+          .join(`|| '-' ||`)})`
+      : ungroupedAggregate ? null : `count(1)`;
     const armCountSqls = [];
     const fanoutValues = [];
     for (const variant of seriesVariants) {
+      if (countExpr === null) {
+        armCountSqls.push('1');
+        continue;
+      }
       const armFilterGroups = variant.filterGroups || {};
       const armValues = [...oldValues, ...getValuesFromGroup(armFilterGroups)];
       const armWhere = buildCombinedWhere({
@@ -157,6 +171,13 @@ async function simpleFilterLength(ctx, options) {
     const { rows } = await db.query(sql, fanoutValues);
     return rows?.[0]?.numrows ?? 0;
   }
+
+  // No groupBy at all (and not the jsonb_array_elements_text special case below),
+  // and every shown column is a real aggregate (fn: avg/sum/...) — simpleFilter's
+  // matching query has no GROUP BY either, so it's an ungrouped aggregate: always
+  // exactly one output row, even over zero matching rows. Same reasoning as the
+  // seriesVariants branch above.
+  if (!hasArrayElements && !groupByExprs.length && ungroupedAggregate) return 1;
 
   const sql =
     hasArrayElements && sanitizeName(groupBy?.[0])
