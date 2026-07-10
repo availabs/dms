@@ -24,7 +24,7 @@ const {
   updateExternalRow,
   deleteExternalRow
 } = require("./uda.controller");
-const { getDb } = require("#db/index.js");
+const { getEssentials } = require("./utils");
 const { isUserAuthedForSource } = require("./sourceAuth");
 
 // ================================================= UDA Source Routes =================================================
@@ -118,7 +118,7 @@ module.exports = [
         for (const pgEnv of pgEnvs) {
           const sourcesById = jsonGraph.uda[pgEnv].sources.byId;
           const ids = Object.keys(sourcesById);
-          const db = getDb(pgEnv);
+          const { db } = await getEssentials({ env: pgEnv });
 
           for (const sourceId of ids) {
             // Per-source enforcement (pattern ⊕ source). Editing authPermissions itself needs
