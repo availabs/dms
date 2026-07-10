@@ -1,5 +1,65 @@
 # Old NPMRDS reports → new DMS report pages (automated conversion)
 
+**Round 23 (2026-07-10): the 0-as-missing sweep on `SPEED_EXPR`/`tmc_travel_time_bar_graph_day` —
+BUILT, live-verified. Closes next-steps item 1, deferred since round 9.** User asked to circle back
+to this specifically, citing the pm3/map21 DAMA code's own `AVG(CASE WHEN col > 0 THEN col ELSE
+NULL END)` (round 13's corroboration) as independent confirmation of the mechanism.
+
+- **Same fix as round 9's CO₂ exprs, applied to the two exprs round 9 flagged but left alone**
+  (`scripts/convert_old_reports.py`): `SPEED_EXPR` (`((table1.miles * 3600) / ds.travel_time_all_
+  vehicles) as speed`) divides by the CH fact table's `travel_time_all_vehicles` — a plain Float64,
+  0 (not NULL) where old Postgres had a real NULL — so `3600/0 = inf` poisons the epoch's year-long
+  `avg`, and ClickHouse serializes the resulting `inf` as JSON `null`. `tmc_travel_time_bar_graph_
+  day` had a subtler variant with no inf/null symptom: it averages the same raw column directly
+  (no division), so 0-rows just silently drag the mean down instead of being skipped, vs. the old
+  NULL-skipping Postgres semantic. Fixed both the same way round 9 fixed the CO₂ exprs:
+  `SPEED_EXPR` now reads `((table1.miles * 3600) / nullIf(ds.travel_time_all_vehicles, 0)) as
+  speed` (no car/truck fallback column to coalesce into here, unlike `_SPEED_CAR_EXPR`/`_SPEED_
+  TRUCK_EXPR` — this expr's own source *is* `travel_time_all_vehicles`, so a bare `nullIf` is the
+  whole fix); `tmc_travel_time_bar_graph_day`'s plain `travel_time_all_vehicles` column is recast as
+  a new calculated-column constant, `TRAVEL_TIME_EXPR = "nullIf(ds.travel_time_all_vehicles, 0) as
+  travel_time_all_vehicles"`, so `nullIf` can apply to it at all.
+- **New mechanism: `ensure_graph_templates` now detects yAxis-expression drift on already-existing
+  TEMPLATE_SPECS rows and updates them in place**, rather than only minting missing ones — the same
+  update-in-place idiom round 22's `ensure_pm3_join_template` already established for the freeflow
+  column, generalized here to the plain `TEMPLATE_SPECS` minting path so a live template can never
+  silently go stale against its own spec after a future expression edit. Compares each existing
+  template's yAxis column `name` against the current spec's; on a mismatch, replaces the whole
+  column dict and `dms raw update`s the row. Fires automatically as part of any ordinary `--replace`
+  conversion run that needs the drifted template — no separate one-off patch script needed.
+- **Live-verified (2026-07-10, Playwright, all 4 corpus-wide live reports that reference either
+  template, `--replace`-reconverted)**: `tmc_travel_time_bar_graph_day` (id 2188427) and
+  `tmc_speed_bar_graph_day` (id 2188428) both confirmed patched in place (drift-check log line
+  fired on the first reconversion that touched each). Reports 1071 (new page 2189261, both
+  templates), 228 (2189289, travel-time only), 1061 (2189303, speed only), 229 (2189315,
+  travel-time only) — found by grepping every live `npmrds_sub|component` row's `_appliedTemplate.
+  fields.*.templateId` for these two ids, confirming these 4 are the complete, current set (no
+  orphaned/superseded duplicate pages under the same url_slug). All 4 pages: zero console errors,
+  every `/graph` request 200 (93/79/77/77 requests respectively, 326 total), captured response
+  bodies show the new `nullIf(...)` expression verbatim in the select list and **zero null values**
+  across every returned row (e.g. 1071's AM/PM speed sections: 20.9–27.8 mph; travel-time sections:
+  156–210s; 1061's speed section: 2,557 values, all real, 32–39 mph sample). Gap reports for all 4
+  reports show the same gap classes as their pre-fix dry-runs — no new gap kind, no regression.
+- **Did not find a live TMC/date range that actually exhibits a 0-row** (the thing that would prove
+  the bug manifesting, not just prove the fix is non-regressive) — none of the 4 reports' TMCs
+  (120-11332, the 922/914-route TMCs, 1061's several route comps) hit a 0-valued
+  `travel_time_all_vehicles` row in their queried ranges, same as round 9's finding for 120P05153.
+  Per the next-steps item's own contingency ("if none exist anywhere relevant, downgrade urgency
+  but still fix the exprs for future conversions") — the fix is applied and live-verified
+  non-regressive corpus-wide, just not proven to have silently repaired any *currently-visible*
+  blank cell. Did not run a broader scan for a 0-row example — would need an unscoped-ish
+  cross-TMC query, and per [[feedback_ch_unfiltered_query_awareness]] that class of query is
+  exactly the one to avoid running speculatively on the shared dev ClickHouse server.
+- **Not done**: the same latent class was never audited beyond these two named exprs — no sweep of
+  every other `TEMPLATE_SPECS`/`_EXPR` constant for a similar bare (non-nullIf'd) division or avg
+  over a raw travel-time-family column. `DELAY_EXPR`'s own `ds.travel_time_all_vehicles` reference
+  (inside `greatest(0, ...)`) was not touched this round — greatest(0, x) already floors a negative
+  result but does NOT null out `x=0` itself, so if `travel_time_all_vehicles` is ever legitimately
+  0-as-missing on a delay graph's TMC, delay would silently compute as `greatest(0, 0 - threshold)`
+  = 0 (a real, non-null value, wrongly indistinguishable from "genuinely zero delay") rather than
+  null — a different failure shape (wrong number, not blank) than the speed/travel-time case, not
+  scoped or fixed this round.
+
 **Round 22 (2026-07-10): freeflow (`speed_pctl_85`) wired into the Info Box templates — BUILT,
 live-verified. Closes round 21's next-step priority (a).**
 
@@ -1491,19 +1551,17 @@ is exhausted — remaining work is capability selection, not a queue. Recommende
    not worth chasing further** — a 2017 backfill "may be possible" but 2016 never will be, and
    "it isn't a huge deal." Treat any report whose entire date range predates 2017 as a standing
    "old data, not available" gap-log case; no further investigation planned.
-1. **0-as-missing sweep on the shared speed/travel-time templates** (data-quality class; user
-   2026-07-08: "definitely need to diagnose at SOME POINT" — deliberately deferred, NOT started).
-   Round 9 proved the mechanism (CH fact-table travel-time columns are plain Float64, `0` where
-   old Postgres had NULL → `3600/0 = inf` → one inf poisons the epoch's year-long avg → CH
-   serializes JSON null → blank/missing epochs) but fixed only the two CO₂ expressions. The
-   identical latent defect remains in `SPEED_EXPR` (`miles*3600/tt_all`, inf wherever
-   `travel_time_all_vehicles = 0`) and in `tmc_travel_time_bar_graph_day` (avg over raw 0-rows
-   silently drags the mean down vs. the old NULL-skipping behavior). Recipe already proven in
-   round 9: offline CH query to find a TMC/year with `travel_time_all_vehicles = 0` rows
-   (120P05153 had none — try low-traffic TMCs; if none exist anywhere relevant, downgrade
-   urgency but still fix the exprs for future conversions) → `nullIf(col, 0)` the expressions →
-   patch the live template rows → `--replace` affected reports → one Playwright load each.
-   Isolated change per `[[feedback_isolate_shared_code_changes]]`.
+1. ~~**0-as-missing sweep on the shared speed/travel-time templates**~~ **DONE, round 23
+   (2026-07-10)** — see that block at the top of this file. `SPEED_EXPR` and
+   `tmc_travel_time_bar_graph_day` both now `nullIf(col, 0)`; `ensure_graph_templates` gained
+   generalized drift-detection/update-in-place so the live template rows never go stale against
+   the script again. All 4 corpus-wide live reports referencing either template
+   (1071/228/1061/229) reconverted and Playwright-verified, zero regressions. **Still open,
+   deliberately not done this round**: no live TMC/date range was found that actually has a
+   `travel_time_all_vehicles = 0` row (so the fix is proven non-regressive, not proven to have
+   repaired a previously-blank cell); `DELAY_EXPR`'s own `travel_time_all_vehicles` reference
+   inside `greatest(0, ...)` was NOT audited (different failure shape — silently reads as a real
+   0 instead of null, not yet swept).
 2. ~~**Full-corpus gap census**~~ **DONE (round 10, 2026-07-08)** — see the round-10 block at
    the top of this file and `scratchpad/npmrds-sub/old-reports/census/census_summary.md`
    (regenerate any time with `python3 scripts/census_old_reports.py`, ~40s, read-only).
