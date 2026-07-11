@@ -42,7 +42,7 @@ const ComponentRegistry = {
     Map,
     "Map: Dama Map": MapDama, //MapDama,
 
-    "AVL Graph": GraphNew
+    "AVL Graph": GraphNew,
 }
 
 

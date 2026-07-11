@@ -134,6 +134,59 @@ const RenderIndexSwitch = ({value, col, onSetIndex}) => {
     );
 };
 
+// External sources only — internal_table sources already have a synthetic PK and never
+// render this. A column's own switch stays clickable both ways: turning it on sets the
+// primary key (server-validated), turning it off drops the constraint (confirmed via
+// modal — it's a destructive DDL operation and also disables editing for this source).
+// Other columns' switches disable while any column already holds the primary key.
+//
+// State comes entirely from `pkeyInfo` (live pg_index detection, refetched on load and
+// after every successful set) — never from `item.isPrimaryKey` (the stored metadata
+// flag). The stored flag is written for server-side bookkeeping but can drift out of
+// sync with the real DB (e.g. someone drops the constraint directly in Postgres), and
+// trusting it here would leave the badge stuck showing a PK that no longer exists, with
+// no way to re-trigger a set on that column.
+const RenderPrimaryKeySwitch = ({item, col, pkeyInfo, onSetPrimaryKey}) => {
+    const {UI} = React.useContext(DatasetsContext);
+    const {theme} = React.useContext(ThemeContext) || {};
+    const t = theme?.datasets?.metadataComp || metadataCompTheme;
+    const {Switch, Modal, Button} = UI;
+    const [showRemoveModal, setShowRemoveModal] = useState(false);
+    const isThisColumnPk = !!(pkeyInfo?.hasPkey && pkeyInfo?.pkeyColumn === col);
+    const anotherColumnIsPk = pkeyInfo?.hasPkey && pkeyInfo?.pkeyColumn && pkeyInfo.pkeyColumn !== col;
+    const disabled = anotherColumnIsPk;
+    const title = isThisColumnPk
+        ? (pkeyInfo?.isDetectedExisting ? 'Detected as the existing primary key — click to remove' : 'Primary key — click to remove')
+        : anotherColumnIsPk
+            ? `Column "${pkeyInfo.pkeyColumn}" is already the primary key`
+            : 'Set as primary key — requires unique, non-null values';
+    return (
+        <div className={t.inputWrapper} title={title}>
+            <label className={t.label}>Primary Key</label>
+            <Switch
+                enabled={isThisColumnPk}
+                disabled={disabled}
+                setEnabled={e => e ? onSetPrimaryKey(col, true) : setShowRemoveModal(true)}
+                size={'small'}
+            />
+            <Modal open={showRemoveModal} setOpen={setShowRemoveModal} className={t.deleteModalBorder}>
+                <div className={t.deleteTitle}>Remove Primary Key</div>
+                <div className={t.deleteMessage}>
+                    This drops the PRIMARY KEY constraint on column <span className={'font-semibold'}>{col}</span> from
+                    the underlying table, and disables editing for this source until a new primary key is set.
+                    <div>This action can not be undone from here.</div>
+                </div>
+                <Button
+                    activeStyle={'danger'}
+                    onClick={() => { onSetPrimaryKey(col, false); setShowRemoveModal(false); }}
+                >
+                    remove primary key
+                </Button>
+            </Modal>
+        </div>
+    );
+};
+
 const RenderInputButtonSelect = ({label, value='', col, attr, updateAttribute, options}) => {
     const {UI} = React.useContext(DatasetsContext);
     const {theme} = React.useContext(ThemeContext) || {};
@@ -393,7 +446,7 @@ const RenderRemoveBtn = ({col, removeAttribute}) => {
     )
 }
 
-export const RenderField = ({isDms, i, item, attribute, attributeList=[], updateAttribute, removeAttribute, onSetIndex, apiLoad, format, dragStart, dragEnter, dragOver, drop}) => {
+export const RenderField = ({isDms, i, item, attribute, attributeList=[], updateAttribute, removeAttribute, onSetIndex, pkeyInfo, onSetPrimaryKey, apiLoad, format, dragStart, dragEnter, dragOver, drop}) => {
     const {theme} = useContext(ThemeContext) || {};
     const t = theme?.datasets?.metadataComp || metadataCompTheme;
     const [showAdvanced, setShowAdvanced] = useState(false);
@@ -410,6 +463,7 @@ export const RenderField = ({isDms, i, item, attribute, attributeList=[], update
             >
                 <div className={showAdvanced ? `${t.fieldHeader} bg-blue-50` : t.fieldHeader}>
                     {item.isIndex && <span className={t.pkBadge}>IDX</span>}
+                    {!isDms && pkeyInfo?.hasPkey && pkeyInfo?.pkeyColumn === item.name && <span className={t.pkBadge}>PK</span>}
                     <div className={t.dragHandle}>
                         <svg data-v-4e778f45=""
                              className={t.dragHandleSvg}
@@ -465,6 +519,15 @@ export const RenderField = ({isDms, i, item, attribute, attributeList=[], update
                             col={item.name}
                             onSetIndex={onSetIndex}
                         />
+                        {!isDms && onSetPrimaryKey &&
+                            <RenderPrimaryKeySwitch
+                                key={`${item.name}-primary-key`}
+                                item={item}
+                                col={item.name}
+                                pkeyInfo={pkeyInfo}
+                                onSetPrimaryKey={onSetPrimaryKey}
+                            />
+                        }
                         <RenderInputSwitch
                             key={`${item.name}-required`}
                             label={'Required'}

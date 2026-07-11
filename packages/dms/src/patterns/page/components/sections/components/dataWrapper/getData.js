@@ -378,15 +378,30 @@ export const getData = async ({
     // joinColumns), not the {sources:{...}} container — check each alias individually,
     // mirroring the per-alias filtering buildUdaConfig does before it builds the query.
     const joinPresent = isJoinPresent && Object.values(join.sources || {}).some(isJoinComplete);
-    const idCol = joinPresent ? "ds.id" : "id";
+    // DMS split tables always have a real `id` column. External sources can have a
+    // primary key on any column (see set_primary_col_from_meta.md) — for an editable
+    // one, request a literal "id" attribute anyway (mirroring the isDms convention
+    // below) and let the SERVER resolve it to the real PK column, aliased AS id
+    // (uda.controller.js's resolveIdAttribute, the single live-authoritative place
+    // this is already resolved for the write path too). This deliberately does NOT
+    // have the client track the PK column name itself — an earlier version of this
+    // fix did, and broke silently: the persisted metadata.columns[].isPrimaryKey flag
+    // is only set when a PK is set *through the metadata UI*, so an auto-detected
+    // pre-existing PK (e.g. a GIS source's ogc_fid) never gets it, leaving the
+    // client's cached column name null forever even on a genuinely editable source
+    // (see external-source-editable-crud.md). Join support for editable-external
+    // sources is a follow-on — not handled here, falls through to "no id requested"
+    // exactly like the pre-feature external behavior.
+    const isEditableExternal = !isDms && Boolean(sourceInfo?.isEditable) && !joinPresent;
+    const idRefCol = joinPresent ? "ds.id" : "id";
     const idReq = joinPresent ? "ds.id as id" : "id";
-    if (isDms && !isPivotMode && !options.groupBy.length && !fnColumnsExists) {
-        columnsToFetch.push({ name: idCol, reqName: idReq });
-        options.orderBy[idCol] = Object.values(options.orderBy || {})?.[0] || "asc";
+    if ((isDms || isEditableExternal) && !isPivotMode && !options.groupBy.length && !fnColumnsExists) {
+        columnsToFetch.push({ name: "id", reqName: idReq });
+        options.orderBy[idRefCol] = Object.values(options.orderBy || {})?.[0] || "asc";
     } else {
-        const idx = columnsToFetch.findIndex((column) => column.name === idCol || column.name === "id");
+        const idx = columnsToFetch.findIndex((column) => column.name === "id");
         if (idx !== -1) columnsToFetch.splice(idx, 1);
-        delete options.orderBy[idCol];
+        delete options.orderBy[idRefCol];
         delete options.orderBy.id;
     }
     debugTime && console.timeEnd('check columns')

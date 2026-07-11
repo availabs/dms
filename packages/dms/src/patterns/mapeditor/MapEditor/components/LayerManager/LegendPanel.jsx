@@ -835,44 +835,51 @@ const DynamicFilter = ({layer}) => {
   const { state, setState  } = React.useContext(SymbologyContext);
   const { useFalcor, pgEnv } = useContext(MapEditorContext);
   const { falcor, falcorCache } = useFalcor();
-  let { layerType, dynamicFilters, viewId } = useMemo(() => {
+  let { layerType, dynamicFilters, viewId, joinViewId, joinTileColumnSet } = useMemo(() => {
+    const joinConfig = layer?.join ?? layer?.['linked-data'] ?? null;
     return {
-      viewId:get(layer,`view_id`),
-      layerType : get(layer, `['layer-type']`),
-      dynamicFilters:get(layer, `['dynamic-filters']`, [])?.filter(dynamicF => !!dynamicF.column_name),
-    }
-  },[state, layer]);
+      viewId: get(layer, `view_id`),
+      layerType: get(layer, `['layer-type']`),
+      dynamicFilters: get(layer, `['dynamic-filters']`, [])?.filter(dynamicF => !!dynamicF.column_name),
+      joinViewId: joinConfig?.source?.viewId ?? null,
+      joinTileColumnSet: new Set(Array.isArray(joinConfig?.tileColumns) ? joinConfig.tileColumns : []),
+    };
+  }, [state, layer]);
 
   const selectedColumnNames = dynamicFilters?.map(dynamicF => dynamicF.column_name);
 
   React.useEffect(() => {
     if (selectedColumnNames.length > 0) {
       selectedColumnNames.forEach(colName => {
+        const colKey = (colName).split('AS ')[0].trim();
+        const effectiveViewId = joinViewId && joinTileColumnSet.has(colKey) ? joinViewId : viewId;
         const options = JSON.stringify({
-          groupBy: [(colName).split('AS ')[0]],
-          exclude: { [(colName).split('AS ')[0]]: ['null'] },
+          groupBy: [colKey],
+          exclude: { [colKey]: ['null'] },
           orderBy: { "2": 'desc' }
         });
         falcor.get([
-          'uda', pgEnv, 'viewsById', viewId, 'options', options, 'dataByIndex', { from: 0, to: 200 }, [colName, 'count(1)::int as count']
+          'uda', pgEnv, 'viewsById', effectiveViewId, 'options', options, 'dataByIndex', { from: 0, to: 200 }, [colName, 'count(1)::int as count']
         ]);
       });
     }
-  }, [selectedColumnNames, viewId]);
+  }, [selectedColumnNames, viewId, joinViewId]);
 
   return (
     <div className="flex my-2 flex-col">
       <b>Dynamic Filters:</b>
       { dynamicFilters.map((dFilter, i) => {
           const colName  = dFilter.column_name;
+          const colKey = (colName).split('AS ')[0].trim();
+          const effectiveViewId = joinViewId && joinTileColumnSet.has(colKey) ? joinViewId : viewId;
           const options = JSON.stringify({
-            groupBy: [(colName).split('AS ')[0]],
-            exclude: { [(colName).split('AS ')[0]]: ['null'] },
+            groupBy: [colKey],
+            exclude: { [colKey]: ['null'] },
             orderBy: { "2": 'desc' }
           })
           const sampleData =  Object.values(
             get(falcorCache,
-              ['uda', pgEnv, 'viewsById', viewId, 'options', options, 'dataByIndex'],
+              ['uda', pgEnv, 'viewsById', effectiveViewId, 'options', options, 'dataByIndex'],
               []
               )
           ).map(v =>  v?.[colName]).filter(val => typeof val !== "object");

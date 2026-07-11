@@ -831,6 +831,71 @@ async function testArrayContainsIntegration() {
   pass('array_contains test cleanup complete');
 }
 
+/**
+ * Regression test: array_contains must not crash on a column value that isn't
+ * valid JSON. PostgreSQL's array_contains SQL used to determine "is this an
+ * array?" via jsonb_typeof((col)::jsonb), which casts the raw text to jsonb
+ * unconditionally — a plain-text value (e.g. an empty string, or free text
+ * typed into a field that's usually JSON-array-encoded) throws
+ * "invalid input syntax for type json" and takes down the whole query, not
+ * just that row. An earlier fix only checked for a leading '[', which still
+ * crashed on truncated/malformed array-looking text ('[', '[abc', '[abc]') —
+ * fixed for real by using pg_input_is_valid() to check JSON validity without
+ * throwing, before ever casting to jsonb.
+ */
+async function testArrayContainsMalformedJson() {
+  console.log('\n--- Regression: array_contains with non-JSON column value ---');
+
+  const items = [];
+  for (const data of [
+    { name: 'Good A', county: '["Albany"]' },
+    { name: 'Bad Empty', county: '' },                     // empty string — not valid JSON
+    { name: 'Bad Plain Text', county: 'Sullivan County' }, // unquoted text — not valid JSON
+    { name: 'Bad Open Bracket', county: '[' },             // truncated — not valid JSON
+    { name: 'Bad Unterminated', county: '[abc' },          // truncated — not valid JSON
+    { name: 'Bad Bracketed Garbage', county: '[abc]' },    // looks array-shaped, invalid content
+  ]) {
+    const result = await graph.callAsync(
+      ['dms', 'data', 'create'],
+      [TEST_APP, 'actest2', data]
+    );
+    items.push(Object.keys(result.jsonGraph.dms.data.byId)[0]);
+  }
+
+  const env = `${TEST_APP}+actest2`;
+  const viewId = items[0];
+
+  const options = JSON.stringify({
+    filterGroups: {
+      op: 'and',
+      groups: [
+        { col: "data->>'county'", op: 'array_contains', value: ['Albany'] }
+      ]
+    }
+  });
+
+  if (graph.dbType === 'postgres') {
+    // Before the fix, this threw "invalid input syntax for type json" because
+    // of the malformed rows above — it must now resolve cleanly and exclude them.
+    const len = await graph.getAsync([
+      ['uda', env, 'viewsById', viewId, 'options', options, 'length']
+    ]);
+    const count = len.jsonGraph.uda[env].viewsById[viewId].options[options].length;
+    assert(count === 1, `Expected 1 match (malformed rows must not match, and must not throw), got ${count}`);
+    pass('array_contains does not throw on non-JSON column values (PostgreSQL)');
+  } else {
+    // SQLite's json_each() has the same "malformed JSON" failure mode on
+    // non-JSON text; that's a separate, pre-existing bug in the sqlite branch
+    // (not touched by this fix), so skip the assertion here rather than
+    // claim coverage this test doesn't provide.
+    console.log('  (skipped on sqlite — json_each() has an equivalent unfixed gap)');
+  }
+
+  // Cleanup
+  await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, 'actest2', ...items]);
+  pass('array_contains malformed-json test cleanup complete');
+}
+
 // ================================================= DAMA Mode Tests ===============================================
 
 async function testDamaModeSourcesCrud() {
@@ -1219,6 +1284,7 @@ async function run() {
     await testGetValuesFromGroupArrayContains();
     await testBuildLeafSQLArrayContains();
     await testArrayContainsIntegration();
+    await testArrayContainsMalformedJson();
 
     // time-filter unit tests (Phase 1: PostgreSQL SQL generation, no DB calls)
     await testTimeFilter();

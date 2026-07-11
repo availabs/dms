@@ -126,18 +126,38 @@ export default function Permissions ({
                     {
                         Object.entries(inheritedUsers)
                             .map(([userId, permissions]) => {
-                                const isDisabled = userId in (tmpValue?.users || {}) && (tmpValue.users[userId] || []).length === 0;
+                                const hasOverride = userId in (tmpValue?.users || {});
+                                const isDisabled = hasOverride && (tmpValue.users[userId] || []).length === 0;
+                                const effectivePermissions = hasOverride ? (tmpValue.users[userId] || []) : permissions;
                                 return (
                                     <div className={permissionsTheme.valueSubWrapperInherited} key={`permissions_user_${userId}`}>
                                         <div className='flex items-center gap-2'>
                                             <div className={permissionsTheme.title}>{users.find(u => +u.id === +userId)?.email}</div>
                                             {isDisabled && <span className='text-xs text-red-600 font-semibold'>Disabled</span>}
-                                            {isDisabled
-                                                ? <Pill color={'orange'} text={'Undo'} onClick={() => undoDisableUser(userId)} />
-                                                : <Pill color={'orange'} text={'Disable'} onClick={() => disableInheritedUser(userId)} />
+                                            {!isDisabled &&
+                                                <Pill color={'orange'} text={'Disable'} onClick={() => disableInheritedUser(userId)} />
+                                            }
+                                            {hasOverride &&
+                                                <Pill color={'orange'} text={isDisabled ? 'Undo' : 'Reset'} onClick={() => undoDisableUser(userId)} />
                                             }
                                         </div>
-                                        {!isDisabled && <div>{permissions.join(', ')}</div>}
+                                        {!isDisabled &&
+                                            <ColumnTypes.multiselect.EditComp
+                                                value={effectivePermissions}
+                                                multiple={true}
+                                                options={permissionDomain}
+                                                onChange={e => {
+                                                    const clonedValue = cloneDeep(tmpValue);
+                                                    const newAuth = {
+                                                        ...clonedValue,
+                                                        users: {
+                                                            ...(clonedValue?.users || {}),
+                                                            [userId]: e
+                                                        },
+                                                    };
+                                                    applyChanges(newAuth)
+                                                }}/>
+                                        }
                                     </div>
                                 );
                             })
@@ -207,18 +227,38 @@ export default function Permissions ({
                     {
                         Object.entries(inheritedGroups)
                             .map(([groupName, permissions]) => {
-                                const isDisabled = groupName in (tmpValue?.groups || {}) && (tmpValue.groups[groupName] || []).length === 0;
+                                const hasOverride = groupName in (tmpValue?.groups || {});
+                                const isDisabled = hasOverride && (tmpValue.groups[groupName] || []).length === 0;
+                                const effectivePermissions = hasOverride ? (tmpValue.groups[groupName] || []) : permissions;
                                 return (
                                     <div className={permissionsTheme.valueSubWrapperInherited} key={`permissions_group_${groupName}`}>
                                         <div className='flex items-center gap-2'>
                                             <div className={permissionsTheme.title}>{groupName}</div>
                                             {isDisabled && <span className='text-xs text-red-600 font-semibold'>Disabled</span>}
-                                            {isDisabled
-                                                ? <Pill color={'orange'} text={'Undo'} onClick={() => undoDisableGroup(groupName)} />
-                                                : <Pill color={'orange'} text={'Disable'} onClick={() => disableInheritedGroup(groupName)} />
+                                            {!isDisabled &&
+                                                <Pill color={'orange'} text={'Disable'} onClick={() => disableInheritedGroup(groupName)} />
+                                            }
+                                            {hasOverride &&
+                                                <Pill color={'orange'} text={isDisabled ? 'Undo' : 'Reset'} onClick={() => undoDisableGroup(groupName)} />
                                             }
                                         </div>
-                                        {!isDisabled && <div>{permissions.join(', ')}</div>}
+                                        {!isDisabled &&
+                                            <ColumnTypes.multiselect.EditComp
+                                                value={effectivePermissions}
+                                                multiple={true}
+                                                options={permissionDomain}
+                                                onChange={e => {
+                                                    const clonedValue = cloneDeep(tmpValue);
+                                                    const newAuth = {
+                                                        ...clonedValue,
+                                                        groups: {
+                                                            ...(clonedValue?.groups || {}),
+                                                            [groupName]: e
+                                                        },
+                                                    };
+                                                    applyChanges(newAuth)
+                                                }}/>
+                                        }
                                     </div>
                                 );
                             })

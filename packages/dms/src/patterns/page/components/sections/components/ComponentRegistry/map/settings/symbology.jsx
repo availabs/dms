@@ -14,7 +14,14 @@ import useSymbologySelectorState from "./symbologySelector.jsx";
  * is unchanged.
  */
 export default function useMapSettingsSymbology({ state = {}, setState, doApiLoad } = {}) {
-  const { symbologies, selectedSymbology, symbologyOptions, onSymbologyChange } = useSymbologySelectorState({
+  const {
+    symbologies,
+    selectedSymbology,
+    symbologyOptions,
+    onSymbologyChange,
+    onUpdateSymbology,
+    isUpdatingSymbology,
+  } = useSymbologySelectorState({
     state,
     setState,
     doApiLoad,
@@ -77,6 +84,8 @@ export default function useMapSettingsSymbology({ state = {}, setState, doApiLoa
     selectedSymbology,
     symbologyOptions,
     onSymbologyChange,
+    onUpdateSymbology,
+    isUpdatingSymbology,
     libraryEntries,
     libraryCategories,
     addSymbologyToLibrary,

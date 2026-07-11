@@ -193,10 +193,13 @@ function renderSectionRow(s, i, { viewUrl, setPreviewSection, isPublished, t }) 
     );
 }
 
-function SectionsPanel({ value: sections = [], page = {}, baseUrl = '', navigate, setPreviewSection, apiUpdate, app, patternInstance, onRefresh, compById, t }) {
+function SectionsPanel({ page = {}, baseUrl = '', navigate, setPreviewSection, apiUpdate, app, patternInstance, onRefresh, compById, t }) {
     const { UI } = useContext(ThemeContext) || {};
-    // 'all' | 'outline' | 'draft' | 'published'
-    const [mode, setMode] = useState('all');
+    // 'draft' | 'published'. Default to published (the settled state); fall back to
+    // draft only for pages that have never been published yet.
+    const [mode, setMode] = useState(() => (
+        (page.section_groups?.length > 0 || page.sections?.length > 0) ? 'published' : 'draft'
+    ));
     const [processingGroup, setProcessingGroup] = useState(null);
     const [confirmDeleteGroup, setConfirmDeleteGroup] = useState(null); // { groupName, sections }
 
@@ -206,62 +209,32 @@ function SectionsPanel({ value: sections = [], page = {}, baseUrl = '', navigate
     const editUrl = baseUrl && pageSlug ? `${baseUrl}/edit/${pageSlug}` : null;
     const viewUrl = baseUrl && pageSlug ? `${baseUrl}/${pageSlug}` : null;
 
-    // 'draft'/'all'/'outline': draft_section_groups if any, else section_groups.
-    // Also used by restoreGroup to compute the new group index.
-    const activeGroups = useMemo(
-        () => page.draft_section_groups?.length ? page.draft_section_groups : (page.section_groups || []),
-        [page.draft_section_groups, page.section_groups]
-    );
-
     // Mode-specific section list.
-    // 'draft'    → resolve page.draft_sections through compById
-    // 'published'→ resolve page.sections through compById
-    // 'outline'  → active sections filtered to titled-only
-    // 'all'      → active sections (draft-preferring, pre-resolved in value prop)
+    // 'draft'     → resolve page.draft_sections through compById
+    // 'published' → resolve page.sections through compById
     const sectionsForMode = useMemo(() => {
-        if (mode === 'draft' && compById) {
-            return (page.draft_sections || [])
-                .map(ref => resolveCompRef(ref, compById))
-                .filter(Boolean)
-                .map(enrichSection);
-        }
-        if (mode === 'published' && compById) {
-            return (page.sections || [])
-                .map(ref => resolveCompRef(ref, compById))
-                .filter(Boolean)
-                .map(enrichSection);
-        }
-        if (mode === 'outline') return sections.filter(hasMeaningfulTitle);
-        return sections; // 'all'
-    }, [mode, page.draft_sections, page.sections, compById, sections]);
+        const refs = mode === 'draft' ? (page.draft_sections || []) : (page.sections || []);
+        return refs
+            .map(ref => resolveCompRef(ref, compById))
+            .filter(Boolean)
+            .map(enrichSection);
+    }, [mode, page.draft_sections, page.sections, compById]);
 
-    // Mode-specific group list.
-    // 'published' → section_groups only; others → activeGroups (draft-preferring).
+    // Mode-specific group list: section_groups when published, draft_section_groups when draft.
     const groupsForMode = useMemo(
-        () => mode === 'published' ? (page.section_groups || []) : activeGroups,
-        [mode, page.section_groups, activeGroups]
+        () => mode === 'published' ? (page.section_groups || []) : (page.draft_section_groups || []),
+        [mode, page.section_groups, page.draft_section_groups]
     );
 
-    const publishedGroupNames = useMemo(
-        () => new Set((page.section_groups || []).map(g => g.name).filter(Boolean)),
-        [page.section_groups]
-    );
     const groupNamesForMode = useMemo(
         () => new Set(groupsForMode.map(g => g.name).filter(Boolean)),
         [groupsForMode]
     );
-    // IDs in the published sections array — used for the pub/draft badge in 'all'/'outline' mode.
-    const publishedSectionIds = useMemo(
-        () => new Set((page.sections || []).map(s => s?.id).filter(Boolean)),
-        [page.sections]
-    );
 
-    // Per-section published flag, accounting for which dataset is shown.
-    const isSectionPublished = (s) => {
-        if (mode === 'published') return true;
-        if (mode === 'draft') return false;
-        return publishedSectionIds.has(s.id);
-    };
+    // groupsForMode/sectionsForMode are already sourced per-mode (published-only or
+    // draft-only), so every row shown shares the same published state as the mode itself.
+    const sectionsArePublished = mode === 'published';
+    const groupsArePublished = mode === 'published';
 
     const titledCount = sectionsForMode.filter(hasMeaningfulTitle).length;
     const emptyCount  = sectionsForMode.filter(s => s._summary?.kind === 'empty').length;
@@ -271,16 +244,17 @@ function SectionsPanel({ value: sections = [], page = {}, baseUrl = '', navigate
         if (!apiUpdate || !page.id) return;
         setProcessingGroup(groupName);
         try {
-            const newGroup = { name: groupName, position: 'content', index: activeGroups.length };
+            const draftGroups = page.draft_section_groups || [];
+            const newGroup = { name: groupName, position: 'content', index: draftGroups.length };
             await apiUpdate({
-                data: { id: page.id, draft_section_groups: [...activeGroups, newGroup] },
+                data: { id: page.id, draft_section_groups: [...draftGroups, newGroup] },
                 config: { format: { app, type: `${patternInstance}|page`, attributes: [] } },
             });
             await onRefresh?.();
         } finally {
             setProcessingGroup(null);
         }
-    }, [apiUpdate, page.id, activeGroups, app, patternInstance, onRefresh]);
+    }, [apiUpdate, page.id, page.draft_section_groups, app, patternInstance, onRefresh]);
 
     // Delete: remove sections from the page and delete their component rows from the DB.
     const deleteGroup = useCallback(async (groupName, groupSections) => {
@@ -319,8 +293,6 @@ function SectionsPanel({ value: sections = [], page = {}, baseUrl = '', navigate
 
     const modeToggle = (
         <div className="inline-flex bg-white border border-gray-200 rounded-full p-0.5">
-            {modeBtn('all',       'All')}
-            {modeBtn('outline',   'Outline')}
             {modeBtn('draft',     'Draft')}
             {modeBtn('published', 'Published')}
         </div>
@@ -347,7 +319,7 @@ function SectionsPanel({ value: sections = [], page = {}, baseUrl = '', navigate
                         </button>
                     </div>
                     <div className={t.sectionsScroll}>
-                        {sectionsForMode.map((s, i) => renderSectionRow(s, i, { ...rowCtx, isPublished: isSectionPublished(s) }))}
+                        {sectionsForMode.map((s, i) => renderSectionRow(s, i, { ...rowCtx, isPublished: sectionsArePublished }))}
                     </div>
                 </div>
             </div>
@@ -385,25 +357,24 @@ function SectionsPanel({ value: sections = [], page = {}, baseUrl = '', navigate
                 </div>
 
                 {groupsForMode.map(group => {
-                    const isDraftGroup = !publishedGroupNames.has(group.name);
                     const groupSections = sectionsForMode.filter(s =>
                         s.group === group.name || (!s.group && group.name === 'default')
                     );
                     return (
                         <div key={group.name} className={t.sectionGroupBlock}>
-                            <div className={isDraftGroup ? t.sectionGroupHeaderDraft : t.sectionGroupHeaderPublished}>
-                                <span>{group.name}</span>
+                            <div className={groupsArePublished ? t.sectionGroupHeaderPublished : t.sectionGroupHeaderDraft}>
+                                <span>{group.displayName || group.name}</span>
                                 {group.position && <span className={t.sectionGroupPosition}>{group.position}</span>}
-                                {isDraftGroup
-                                    ? <span className={t.groupBadgeDraft}>draft</span>
-                                    : <span className={t.groupBadgePublished}>published</span>
+                                {groupsArePublished
+                                    ? <span className={t.groupBadgePublished}>published</span>
+                                    : <span className={t.groupBadgeDraft}>draft</span>
                                 }
                                 <span className={t.sectionGroupCount}>
                                     {groupSections.length} section{groupSections.length !== 1 ? 's' : ''}
                                 </span>
                             </div>
                             {groupSections.length > 0
-                                ? groupSections.map((s, i) => renderSectionRow(s, i, { ...rowCtx, isPublished: isSectionPublished(s) }))
+                                ? groupSections.map((s, i) => renderSectionRow(s, i, { ...rowCtx, isPublished: sectionsArePublished }))
                                 : <div className={t.sectionGroupEmpty}>No sections in this group</div>
                             }
                         </div>
@@ -430,7 +401,7 @@ function SectionsPanel({ value: sections = [], page = {}, baseUrl = '', navigate
                                       </>
                                 }
                             </div>
-                            {groupSections.map((s, i) => renderSectionRow(s, i, { ...rowCtx, isPublished: isSectionPublished(s) }))}
+                            {groupSections.map((s, i) => renderSectionRow(s, i, { ...rowCtx, isPublished: sectionsArePublished }))}
                         </div>
                     );
                 })}
@@ -643,6 +614,7 @@ export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate, falcor }) {
                 const hist = historyByPageId[String(p.id)];
                 return {
                     ...p,
+                    hide_in_nav: !!p.hide_in_nav,
                     _updatedAt: formatUpdatedAt(p.updated_at),
                     _lastPublished: hist?.lastPublished ?? null,
                     _lastPublishedBy: hist?.lastPublishedBy ?? null,
@@ -987,9 +959,8 @@ export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate, falcor }) {
     const gridRef = useRef(null);
 
     // SectionsPanel bound to theme, page context, navigate, and preview
-    const SectionsPanelComp = useCallback(({ value: sections, row: page }) => (
+    const SectionsPanelComp = useCallback(({ row: page }) => (
         <SectionsPanel
-            value={sections}
             page={page}
             baseUrl={value.base_url}
             navigate={navigate}

@@ -15,13 +15,14 @@ const parseJson = value => {
     }
 }
 
-export default function MetadataComp ({isDms, value = '{}', accessKey, onChange, onIndexChange, className, apiLoad, format}) {
+export default function MetadataComp ({isDms, value = '{}', accessKey, onChange, onIndexChange, onSetPrimaryKey, pkeyInfo, className, apiLoad, format}) {
     const {UI} = useContext(DatasetsContext)
     const {Input, Icon} = UI;
     const {theme} = useContext(ThemeContext) || {};
     const t = theme?.datasets?.metadataComp || metadataCompTheme;
     const [item, setItem] = useState(parseJson(value || {}) || {})
     const [search, setSearch] = useState('');
+    const [pkeyError, setPkeyError] = useState(null);
     const dragItem = useRef();
     const dragOverItem = useRef();
 
@@ -91,6 +92,30 @@ export default function MetadataComp ({isDms, value = '{}', accessKey, onChange,
         }
     };
 
+    // Unlike setIndex, this is not optimistic — the server validates the column has no
+    // NULLs/duplicates before running ALTER TABLE (when enabling), so we only update local
+    // state on success and surface the error otherwise (see set_primary_col_from_meta.md).
+    const setPrimaryKey = async (colName, enable = true) => {
+        if (!onSetPrimaryKey) return;
+        setPkeyError(null);
+        try {
+            await onSetPrimaryKey(colName, enable);
+            const allCols = item[accessKey] || [];
+            const updated = allCols.map(c => {
+                if (c.name === colName) {
+                    if (enable) return { ...c, isPrimaryKey: true };
+                    const { isPrimaryKey: _, ...rest } = c;
+                    return rest;
+                }
+                if (enable && c.isPrimaryKey) { const { isPrimaryKey: _, ...rest } = c; return rest; }
+                return c;
+            });
+            setItem({ ...item, [accessKey]: updated });
+        } catch (e) {
+            setPkeyError(e?.message || `Failed to ${enable ? 'set' : 'remove'} primary key`);
+        }
+    };
+
     const removeAttribute = (col) => {
         const newItem = {...item, [accessKey]: item[accessKey].filter(attr => attr.name !== col), is_dirty: true}
         setItem(newItem)
@@ -106,6 +131,13 @@ export default function MetadataComp ({isDms, value = '{}', accessKey, onChange,
                         <div className={t.dirtyWarning}>
                             <Icon icon={'Alert'} className={t.dirtyWarningIcon}/>
                             <span>Metadata has changed since last data validation. Please re-run validate to ensure accuracy.</span>
+                        </div> : null
+                }
+                {
+                    pkeyError ?
+                        <div className={t.dirtyWarning}>
+                            <Icon icon={'Alert'} className={t.dirtyWarningIcon}/>
+                            <span>{pkeyError}</span>
                         </div> : null
                 }
             </div>
@@ -127,6 +159,8 @@ export default function MetadataComp ({isDms, value = '{}', accessKey, onChange,
                                              dragStart={dragStart} dragEnter={dragEnter} dragOver={dragOver} drop={drop}
                                              isDms={isDms}
                                              onSetIndex={setIndex}
+                                             onSetPrimaryKey={onSetPrimaryKey ? setPrimaryKey : undefined}
+                                             pkeyInfo={pkeyInfo}
                                 />
                             )
                         })

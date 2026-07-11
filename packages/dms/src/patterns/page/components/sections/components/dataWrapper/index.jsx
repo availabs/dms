@@ -334,7 +334,7 @@ const Edit = forwardRef((props, ref) => {
     const groupByColumnsLength = useMemo(() => state?.columns?.filter(({group}) => group).length, [state?.columns]);
 
     const updateItem = (value, attribute, d) => {
-        if(!state?.externalSource?.isDms || !apiUpdate || groupByColumnsLength) return;
+        if(!(state?.externalSource?.isDms || state?.externalSource?.isEditable) || !apiUpdate || groupByColumnsLength) return;
         const sourceType = state?.externalSource?.type || (state?.externalSource?.name ? nameToSlug(state.externalSource.name) : undefined);
         const dataFormat = state?.externalSource?.view_id && sourceType
             ? {...state?.externalSource, type: `${sourceType}|${state?.externalSource.view_id}:data`}
@@ -378,7 +378,7 @@ const Edit = forwardRef((props, ref) => {
     }
 
     const addItem = async () => {
-        if(!state?.externalSource?.isDms || !apiUpdate || groupByColumnsLength) return;
+        if(!(state?.externalSource?.isDms || state?.externalSource?.isEditable) || !apiUpdate || groupByColumnsLength) return;
         const sourceType = state?.externalSource?.type || (state?.externalSource?.name ? nameToSlug(state.externalSource.name) : undefined);
         // create-time column defaults: `defaultValue` (static fill) + `autoNumber` (next
         // sequential number across the whole source) — see applyCreateDefaults in getData.js
@@ -396,7 +396,7 @@ const Edit = forwardRef((props, ref) => {
     }
 
     const removeItem = item => {
-        if(!state?.externalSource?.isDms || groupByColumnsLength) return;
+        if(!(state?.externalSource?.isDms || state?.externalSource?.isEditable) || groupByColumnsLength) return;
         const sourceType = state?.externalSource?.type || (state?.externalSource?.name ? nameToSlug(state.externalSource.name) : undefined);
         const dataFormat = state?.externalSource?.view_id && sourceType
             ? {...state?.externalSource, type: `${sourceType}|${state?.externalSource.view_id}:data`}
@@ -412,9 +412,9 @@ const Edit = forwardRef((props, ref) => {
             newItem, setNewItem,
             updateItem, removeItem, addItem,
             currentPage, infiniteScrollFetchData: onPageChange,
-            allowEdit: state?.externalSource?.isDms && !groupByColumnsLength
+            allowEdit: (state?.externalSource?.isDms || state?.externalSource?.isEditable) && !groupByColumnsLength
         } : {}
-    }, [component?.usesItemMutationProps, newItem, setNewItem, updateItem, removeItem, addItem, currentPage, onPageChange, state?.externalSource?.isDms, groupByColumnsLength])
+    }, [component?.usesItemMutationProps, newItem, setNewItem, updateItem, removeItem, addItem, currentPage, onPageChange, state?.externalSource?.isDms, state?.externalSource?.isEditable, groupByColumnsLength])
 
     return (
         <ComponentContext.Provider value={{state, setState, apiLoad, apiUpdate, controls: resolvedControls,
@@ -468,7 +468,7 @@ const View = forwardRef(({cms_context, value, onChange, component, editPageMode,
     const isValidState = Boolean(state?.externalSource?.source_id || state?.externalSource?.isDms);
     const Comp = useMemo(() => state?.display?.hideSection && !editPageMode ? () => <></> : component.ViewComp, [component, state?.display?.hideSection]);
     const setReadyToLoad = useCallback(() => setState(draft => {if (!draft) return; if (!draft.display) draft.display = {}; draft.display.readyToLoad = true}), [setState]);
-    const allowEdit = groupByColumnsLength ? false : state?.externalSource?.isDms && state?.display?.allowEditInView && Boolean(apiUpdate);
+    const allowEdit = groupByColumnsLength ? false : (state?.externalSource?.isDms || state?.externalSource?.isEditable) && state?.display?.allowEditInView && Boolean(apiUpdate);
 
     // Flush pending live edit on unmount
     useEffect(() => () => clearTimeout(liveEditTimerRef.current), []);
@@ -548,7 +548,7 @@ const View = forwardRef(({cms_context, value, onChange, component, editPageMode,
     // ── CRUD ──
     const editableColumns = useMemo(() => state?.columns?.filter(c => !(c.serverFn && c.joinKey) && c.editable !== false), [state?.columns])
     const updateItem = useCallback((value, attribute, d) => {
-        if(!state?.externalSource?.isDms || !apiUpdate || groupByColumnsLength) return;
+        if(!(state?.externalSource?.isDms || state?.externalSource?.isEditable) || !apiUpdate || groupByColumnsLength) return;
         const sourceType = state?.externalSource?.type || (state?.externalSource?.name ? nameToSlug(state.externalSource.name) : undefined);
         const dataFormat = state?.externalSource?.view_id && sourceType
             ? {...state?.externalSource, type: `${sourceType}|${state?.externalSource.view_id}:data`}
@@ -592,10 +592,10 @@ const View = forwardRef(({cms_context, value, onChange, component, editPageMode,
 
             return Promise.all(dataToUpdateDB.map(dtu => apiUpdate({data: dtu, config: {format: dataFormat}})));
         }
-    }, [state?.externalSource?.isDms, editableColumns, groupByColumnsLength, setState, apiUpdate])
+    }, [state?.externalSource?.isDms, state?.externalSource?.isEditable, editableColumns, groupByColumnsLength, setState, apiUpdate])
 
     const addItem = useCallback(async () => {
-        if(!state?.externalSource?.isDms || !apiUpdate || groupByColumnsLength) return;
+        if(!(state?.externalSource?.isDms || state?.externalSource?.isEditable) || !apiUpdate || groupByColumnsLength) return;
         const {allowAdddNew, addNewBehaviour, navigateUrlOnAdd} = state?.display || {};
         const sourceType = state?.externalSource?.type || (state?.externalSource?.name ? nameToSlug(state.externalSource.name) : undefined);
         const config = {format: {...state?.externalSource, type: `${sourceType}|${state?.externalSource?.view_id}:data`}}
@@ -622,7 +622,7 @@ const View = forwardRef(({cms_context, value, onChange, component, editPageMode,
     }, [state?.externalSource, state?.columns, apiLoad, apiUpdate, setState, groupByColumnsLength, state?.display, newItem, baseUrl])
 
     const removeItem = useCallback(item => {
-        if (!state?.externalSource?.isDms || !apiUpdate || groupByColumnsLength) return;
+        if (!(state?.externalSource?.isDms || state?.externalSource?.isEditable) || !apiUpdate || groupByColumnsLength) return;
         const sourceType = state?.externalSource?.type || (state?.externalSource?.name ? nameToSlug(state.externalSource.name) : undefined);
         const dataFormat = state?.externalSource?.view_id && sourceType
             ? {...state?.externalSource, type: `${sourceType}|${state?.externalSource.view_id}:data`}
