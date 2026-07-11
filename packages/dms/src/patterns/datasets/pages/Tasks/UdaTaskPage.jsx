@@ -4,6 +4,7 @@ import { DatasetsContext } from "../../context";
 import { getExternalEnv } from "../../utils/datasources";
 import Breadcrumbs from "../../components/Breadcrumbs";
 import { ThemeContext } from "../../../../ui/useTheme";
+import { dataItemsNav } from "../../../../utils/nav";
 import { udaTaskPageTheme } from "./UdaTaskPage.theme";
 
 const EVENT_ATTRS = ["event_id", "task_id", "type", "message", "payload", "created_at"];
@@ -153,9 +154,14 @@ const UdaTaskPage = ({params, pageSize = 20}) => {
 
     const { theme } = React.useContext(ThemeContext) || {};
     const t = { ...udaTaskPageTheme, ...(theme?.datasets?.udaTaskPage || {}) };
+    // Shared secondary nav — site-absolute items, so baseUrl '' (see DatasetsList).
+    const menuItemsSecondNav = React.useMemo(
+        () => dataItemsNav(theme?.navOptions?.secondaryNav?.navItems || [], '', false),
+        [theme?.navOptions?.secondaryNav?.navItems]
+    );
 
     return (
-        <Layout navItems={[]}>
+        <Layout navItems={[]} secondNav={menuItemsSecondNav}>
             <Breadcrumbs items={[
                 {icon: 'Database', href: baseUrl},
                 {name: 'Tasks', href: `${baseUrl}/tasks-new`},

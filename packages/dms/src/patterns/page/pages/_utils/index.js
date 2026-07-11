@@ -1,6 +1,10 @@
 import { v4 as uuidv4 } from 'uuid';
 import { isEqual, reduce, map, cloneDeep} from "lodash-es"
 import { matchRoutes } from 'react-router'
+import {
+    dataItemsNav as dataItemsNavCore,
+    getChildNav as getChildNavCore
+} from '../../../../utils/nav'
 export const convertToUrlParams = (obj, delimiter='|||') => {
     const params = new URLSearchParams();
 
@@ -34,37 +38,13 @@ export function timeAgo(input) {
   }
 }
 
-export function getChildNav(item, dataItems, baseUrl='', edit) {
-    let children = dataItems
-        .filter(d => item.id && d.parent === item.id)
-        .sort((a, b) => a.index - b.index)
+// Nav shaping lives in utils/nav (shared with other patterns); the page
+// pattern binds its section-aware in-page rail (getInPageNav) as the
+// child-resolver so page nav keeps its in-page anchor children.
+const inPageMenuItems = (item) => getInPageNav(item)?.menuItems || [];
 
-    let inPageChildren =  getInPageNav(item)?.menuItems || [];
-    if (children.length === 0 && inPageChildren?.length === 0) return false
-    if (children.length === 0 && inPageChildren?.length !== 0) return inPageChildren;
-
-    const childrenToReturn = children
-        .filter(d => !d?.hide_in_nav)
-        .map((d, i) => {
-        let item = {
-            id: d.id,
-            path: `${edit ? `${baseUrl}/edit` : baseUrl}/${d.url_slug || d.id}`,
-            name: d.title,
-            description: d.description,
-            hideInNav: d.hide_in_nav
-        }
-        if(d?.icon && d?.icon !== 'none') {
-                item.icon = d.icon
-        }
-        const inPageChildrenForD =  getInPageNav(d)?.menuItems || [];
-        const childrenForD = getChildNav(d, dataItems, baseUrl, edit) || [];
-        item.subMenus = childrenForD.filter(d => d.name)
-
-        return item
-    })
-
-    return childrenToReturn?.length ? childrenToReturn : inPageChildren;
-}
+export const getChildNav = (item, dataItems, baseUrl = '', edit) =>
+    getChildNavCore(item, dataItems, baseUrl, edit, inPageMenuItems);
 
 export function getCurrentDataItem(dataItems, baseUrl) {
     const location =''
@@ -85,51 +65,8 @@ export function detectNavLevel(dataItems, baseUrl) {
     return level + (isParent ? 1 : 0);
 }
 
-export function dataItemsNav(dataItems, baseUrl = '', edit = false, level=1) {
-    // console.log('dataItemsnav', dataItems)
-    return dataItems
-        .sort((a, b) => a.index - b.index)
-        .filter(d => !d.parent)
-        .filter(d => (edit || d.published !== 'draft' ))
-        .map((d, i) => {
-            // Author-shaped label / section-divider row (e.g. a secondary-nav
-            // section header): rendered with a custom className and NO link.
-            // Carries no url_slug/path, so don't synthesize a navigable path.
-            if (d.noLink || d.type === 'label') {
-                const label = {
-                    id: d.id,
-                    name: `${d.title || d.name || ''}`.trim(),
-                    className: d.className,
-                    sectionClass: d.sectionClass,
-                    hideInNav: d.hide_in_nav,
-                }
-                if (d?.icon && d?.icon !== 'none') label.icon = d.icon
-                return label
-            }
-            const url = `${d.url_slug || d.path || d.id}`;
-            let item = {
-                id: d.id,
-                path: `${edit ? `${baseUrl}/edit` : baseUrl}${url?.startsWith('/') ? `` : `/`}${url}`,
-                name: `${d.title || d.name} ${d.published === 'draft' ? '*' : ''}`,
-                description: d.description,
-                hideInNav: d.hide_in_nav
-            }
-            if(d?.icon && d?.icon !== 'none') {
-                item.icon = d.icon
-            }
-            // BC passthrough: author-supplied styling for a link row (the design's
-            // icon+label rows). Standard page dataItems set neither, so unaffected.
-            if (d.className) item.className = d.className
-            if (d.sectionClass) item.sectionClass = d.sectionClass
-
-            if (getChildNav(item, dataItems, baseUrl, edit)) {
-                item.subMenus = getChildNav(d, dataItems, baseUrl, edit).filter(d => d.name)
-            }
-
-            return item
-        })
-    //return dataItems
-}
+export const dataItemsNav = (dataItems, baseUrl = '', edit = false) =>
+    dataItemsNavCore(dataItems, baseUrl, edit, inPageMenuItems);
 
 export function nav2Level(items, level = 1, path, baseUrl = '', navTitle = '') {
   let output = null

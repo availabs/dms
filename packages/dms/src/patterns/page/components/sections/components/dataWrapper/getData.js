@@ -104,6 +104,51 @@ const evaluateAST = (node, values) => {
     }
 };
 
+// ─── Create-time column defaults (addItem — both wrappers) ──────────────────
+// BC: only engaged when a column sets the attr, and only for fields the author
+// left blank. `defaultValue` is a static fill (a new ticket's status "Triage");
+// `autoNumber` assigns the next sequential number for the column across the
+// WHOLE source (max+1, floored by autoNumberStart-1) — queried through the same
+// uda path the section reads, deliberately WITHOUT the section's filters (an
+// add-new form Card often carries a never-match filter so only the form
+// renders). Non-numeric stored values are ignored by the max rather than fatal.
+// On fetch failure the create proceeds without the number — sync-side healing
+// (e.g. cr_sync ticket hygiene) remains the backstop.
+export const applyCreateDefaults = async ({ columns, newItem, apiLoad, externalSource }) => {
+    const data = { ...newItem };
+    // For DMS sources the uda env is `${app}+${instance}` and externalSource.type IS the
+    // instance slug. Do NOT trust externalSource.env here: the runtime source-list reconcile
+    // (useDataSource getSources) re-derives env from the DISPLAY name's slug, which drifts
+    // from the instance whenever they differ ("Site Management — Tickets" →
+    // site_management__tickets vs instance sitemgmt_tickets) and the route then resolves no
+    // source → aggregate comes back null.
+    const src = externalSource || {};
+    const format = src.app && src.type ? { ...src, env: `${src.app}+${src.type}` } : src;
+    for (const c of (columns || [])) {
+        if (data[c.name] != null && data[c.name] !== "") continue;
+        if (c.defaultValue != null) { data[c.name] = c.defaultValue; continue; }
+        if (!c.autoNumber) continue;
+        const attr = `max(nullif(regexp_replace((data->>'${c.name}'), '[^0-9]', '', 'g'), '')::bigint) as _autonum`;
+        try {
+            const rows = await apiLoad({
+                format,
+                children: [{
+                    type: () => {},
+                    action: "uda",
+                    path: "/",
+                    filter: { fromIndex: 0, toIndex: 0, options: JSON.stringify({}), attributes: [attr], stopFullDataLoad: true },
+                }],
+            }, "/");
+            const raw = rows?.[0]?.[attr];
+            const mx = +(raw?.value ?? raw) || 0;
+            data[c.name] = String(Math.max(mx, (+c.autoNumberStart || 1) - 1) + 1);
+        } catch (e) {
+            if (process.env.NODE_ENV === "development") console.error("autoNumber fetch failed", e);
+        }
+    }
+    return data;
+};
+
 // ─── getLength ──────────────────────────────────────────────────────────────
 
 export const getLength = async ({ options, state, apiLoad }) => {

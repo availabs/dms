@@ -420,6 +420,107 @@ const MapDynamicFiltersControl = ({ mapAPI }) => {
   );
 };
 
+const MapLayerLibraryControl = ({ mapAPI }) => {
+  const {
+    state,
+    setLayerPanel,
+    setShareableState,
+    symbologyOptions,
+    libraryEntries,
+    libraryCategories,
+    addSymbologyToLibrary,
+    removeSymbologyFromLibrary,
+    UI,
+    Select,
+    labelClassName,
+    descriptionClassName,
+    sectionClassName,
+    dividerClassName,
+    fieldPanelClassName,
+  } = useMapSettingsUI(mapAPI);
+  const { Switch, Input } = UI;
+  const [pendingSymbology, setPendingSymbology] = React.useState(null);
+  const [pendingCategory, setPendingCategory] = React.useState("");
+  const isLibrary = state.display?.layerPanel === "library";
+
+  return (
+    <div className={`${sectionClassName} w-full min-w-0`}>
+      <ToggleRow
+        label="Layer Library Panel"
+        border={false}
+        value={isLibrary}
+        onChange={(enabled) => setLayerPanel(enabled ? "library" : "none")}
+        SwitchComp={Switch}
+        labelClassName={labelClassName}
+        dividerClassName={dividerClassName}
+      />
+      <ToggleRow
+        label="Shareable URL State"
+        value={Boolean(state.display?.shareableState)}
+        onChange={setShareableState}
+        SwitchComp={Switch}
+        labelClassName={labelClassName}
+        dividerClassName={dividerClassName}
+      />
+      {isLibrary ? (
+        <>
+          <Field label="Add symbology" labelClassName={labelClassName}>
+            <FullWidthSelectField
+              Select={Select}
+              className="mt-1"
+              value={pendingSymbology || ""}
+              options={symbologyOptions.map((option) => ({ label: option.label, value: option.key }))}
+              onChange={(value) => setPendingSymbology(value?.value ?? value)}
+              placeholder="Search..."
+              singleSelectOnly={true}
+            />
+          </Field>
+          <Field label={`Category${libraryCategories.length ? ` (${libraryCategories.join(" · ")})` : ""}`} compact labelClassName={labelClassName}>
+            <Input
+              type="text"
+              value={pendingCategory}
+              placeholder="Layers"
+              onChange={(event) => setPendingCategory(event.target.value)}
+            />
+          </Field>
+          <button
+            type="button"
+            disabled={!pendingSymbology}
+            className={`mt-1 w-full rounded-md border px-3 py-1.5 text-sm ${fieldPanelClassName} ${pendingSymbology ? "cursor-pointer hover:border-zinc-400" : "opacity-50"}`}
+            onClick={() => {
+              if (!pendingSymbology) return;
+              addSymbologyToLibrary(pendingSymbology, pendingCategory);
+              setPendingSymbology(null);
+            }}
+          >
+            Add to library
+          </button>
+          {libraryEntries.length ? (
+            <div className="pt-2">
+              {libraryEntries.map((entry) => (
+                <div key={entry.symbologyId} className={`border-t ${dividerClassName} flex w-full items-center gap-2 py-1.5`}>
+                  <span className={`${labelClassName} min-w-0 flex-1 truncate`}>{entry.name}</span>
+                  <span className={descriptionClassName}>{entry.tabName}</span>
+                  <button
+                    type="button"
+                    title="Remove from library"
+                    className="shrink-0 cursor-pointer text-xs text-zinc-400 hover:text-red-600"
+                    onClick={() => removeSymbologyFromLibrary(entry.symbologyId)}
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className={descriptionClassName}>No symbologies in the library yet.</div>
+          )}
+        </>
+      ) : null}
+    </div>
+  );
+};
+
 const MapLayerClickFiltersControl = ({ mapAPI }) => {
   const {
     activeLayer,
@@ -476,6 +577,13 @@ export const MapControls = () => ({
   default: [
     { key: "map_symbology", label: "Symbology", type: renderMenuField(({ mapAPI }) => <MapSymbologyControl mapAPI={mapAPI} />) },
     { key: "map_layer", label: "Layer", type: renderMenuField(({ mapAPI }) => <MapLayerControl mapAPI={mapAPI} />) },
+    {
+      key: "map_layer_library_nav",
+      label: "Layer Library",
+      items: [
+        { key: "map_layer_library", label: "Layer Library", type: renderMenuField(({ mapAPI }) => <MapLayerLibraryControl mapAPI={mapAPI} />) },
+      ],
+    },
     {
       key: "map_filters_nav",
       label: "Filters",

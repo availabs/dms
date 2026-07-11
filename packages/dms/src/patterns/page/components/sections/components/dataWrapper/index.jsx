@@ -9,7 +9,7 @@ import { ThemeContext } from '../../../../../../ui/useTheme';
 import { migrateToV2 } from "./migrateToV2";
 import { nameToSlug } from "../../../../../../utils/type-utils";
 import {useHandleClickOutside, isCalculatedCol} from "./utils/utils";
-import { getData } from "./getData";
+import { getData, applyCreateDefaults } from "./getData";
 import { useDataLoader } from "./useDataLoader";
 import { usePageFilterSync } from "./usePageFilterSync";
 import { useColumnOptions } from "./useColumnOptions";
@@ -239,13 +239,18 @@ const Edit = forwardRef((props, ref) => {
         pageParamColumns.forEach(col => {
             const paramValues = pageFilters[col.pageParamKey];
             if (paramValues !== undefined) {
-                updates[col.name] = Array.isArray(paramValues) ? paramValues[0] : paramValues;
+                const v = Array.isArray(paramValues) ? paramValues[0] : paramValues;
+                // Re-sync when newItem doesn't already carry the value — addItem() clears
+                // newItem, and without the newItem dep the NEXT add in the same session
+                // would save without the pre-filled fields. The equality guard keeps the
+                // set-inside-effect from looping (identical updates are skipped).
+                if (newItem?.[col.name] !== v) updates[col.name] = v;
             }
         });
         if (Object.keys(updates).length) {
             setNewItem(prev => ({ ...prev, ...updates }));
         }
-    }, [editPageState?.filters, state?.columns]);
+    }, [editPageState?.filters, state?.columns, newItem]);
 
     useColumnOptions({ state, setState, apiLoad, component, pgEnv, enabled: !!cms_context });
 
@@ -375,11 +380,14 @@ const Edit = forwardRef((props, ref) => {
     const addItem = async () => {
         if(!state?.externalSource?.isDms || !apiUpdate || groupByColumnsLength) return;
         const sourceType = state?.externalSource?.type || (state?.externalSource?.name ? nameToSlug(state.externalSource.name) : undefined);
-        const res = await apiUpdate({data: newItem, config: {format: {...state?.externalSource, type: `${sourceType}|${state?.externalSource.view_id}:data`}}});
+        // create-time column defaults: `defaultValue` (static fill) + `autoNumber` (next
+        // sequential number across the whole source) — see applyCreateDefaults in getData.js
+        const data = await applyCreateDefaults({ columns: state?.columns, newItem, apiLoad, externalSource: state?.externalSource });
+        const res = await apiUpdate({data, config: {format: {...state?.externalSource, type: `${sourceType}|${state?.externalSource.view_id}:data`}}});
 
         if(res?.id){
             setState(draft => {
-                draft.data.push({...newItem, id: res.id})
+                draft.data.push({...data, id: res.id})
             })
         }
 
@@ -497,13 +505,18 @@ const View = forwardRef(({cms_context, value, onChange, component, editPageMode,
         pageParamColumns.forEach(col => {
             const paramValues = pageFilters[col.pageParamKey];
             if (paramValues !== undefined) {
-                updates[col.name] = Array.isArray(paramValues) ? paramValues[0] : paramValues;
+                const v = Array.isArray(paramValues) ? paramValues[0] : paramValues;
+                // Re-sync when newItem doesn't already carry the value — addItem() clears
+                // newItem, and without the newItem dep the NEXT add in the same session
+                // would save without the pre-filled fields. The equality guard keeps the
+                // set-inside-effect from looping (identical updates are skipped).
+                if (newItem?.[col.name] !== v) updates[col.name] = v;
             }
         });
         if (Object.keys(updates).length) {
             setNewItem(prev => ({ ...prev, ...updates }));
         }
-    }, [viewPageState?.filters, state?.columns]);
+    }, [viewPageState?.filters, state?.columns, newItem]);
 
     useColumnOptions({
         state, setState, apiLoad, component, pgEnv,
@@ -589,12 +602,15 @@ const View = forwardRef(({cms_context, value, onChange, component, editPageMode,
 
         const emptyRowMode = state?.display?.emptyRowMode;
         if(allowAdddNew || emptyRowMode === 'inline_add'){
-            const res = await apiUpdate({data: newItem, config});
+            // create-time column defaults: `defaultValue` (static fill) + `autoNumber` (next
+            // sequential number across the whole source) — see applyCreateDefaults in getData.js
+            const data = await applyCreateDefaults({ columns: state?.columns, newItem, apiLoad, externalSource: state?.externalSource });
+            const res = await apiUpdate({data, config});
             const effectiveBehaviour = addNewBehaviour || (emptyRowMode === 'inline_add' ? 'append' : '');
 
             if(res?.id && effectiveBehaviour === 'append'){
                 setState(draft => {
-                    draft.data.push({...newItem, id: res.id})
+                    draft.data.push({...data, id: res.id})
                 })
             }else if(res?.id && effectiveBehaviour === 'navigate' && navigateUrlOnAdd){
                 navigate(`${baseUrl}${navigateUrlOnAdd}${res.id}`)
@@ -603,7 +619,7 @@ const View = forwardRef(({cms_context, value, onChange, component, editPageMode,
             setNewItem({})
             return res;
         }
-    }, [state?.externalSource, apiUpdate, setState, groupByColumnsLength, state?.display, newItem, baseUrl])
+    }, [state?.externalSource, state?.columns, apiLoad, apiUpdate, setState, groupByColumnsLength, state?.display, newItem, baseUrl])
 
     const removeItem = useCallback(item => {
         if (!state?.externalSource?.isDms || !apiUpdate || groupByColumnsLength) return;

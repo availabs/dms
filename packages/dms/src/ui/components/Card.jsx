@@ -282,8 +282,12 @@ const CompWrapper = ({
                   }) => {
     // `static` columns are chrome (a fixed staticValue, e.g. an eyebrow/label) with nothing to
     // edit — never put them in edit mode, so they don't render an EditComp or the edit-mode
-    // `border` outline inside an allowEditInView card.
-    const editMode = (allowEdit || (isNewItem && setNewItem && !tmpItem.id)) && attribute.origin !== 'static';
+    // `border` outline inside an allowEditInView card. `editable: false` opts a DATA column out
+    // the same way (it was already excluded from save payloads — dataWrapper's editableColumns —
+    // but still rendered pointless edit chrome; e.g. a pre-filled read-only field on an
+    // allowAdddNew form card).
+    const editMode = (allowEdit || (isNewItem && setNewItem && !tmpItem.id))
+        && attribute.origin !== 'static' && attribute.editable !== false;
     const compIdEdit = `${attribute.name}-${id}`;
     const Comp = ColumnTypes[attribute.type]?.[editMode ? 'EditComp' : 'ViewComp'] || DefaultComp;
     // Strip the column's data `key` field before spreading — otherwise React reads

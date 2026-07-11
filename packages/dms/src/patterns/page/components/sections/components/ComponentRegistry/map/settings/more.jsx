@@ -45,5 +45,17 @@ export default function useMapSettingsMore({ state = {}, setState } = {}) {
       setState?.((draft) => {
         draft.zoomToFitBounds = value;
       }),
+    // Layer Library mode ('none' = classic single-symbology map, today's default)
+    setLayerPanel: (value) =>
+      setState?.((draft) => {
+        if (!draft.display) draft.display = {};
+        draft.display.layerPanel = value === "library" ? "library" : "none";
+      }),
+    // Opt-in shareable URL state (?layers= / f_<id>=), view mode only
+    setShareableState: (value) =>
+      setState?.((draft) => {
+        if (!draft.display) draft.display = {};
+        draft.display.shareableState = Boolean(value);
+      }),
   };
 }

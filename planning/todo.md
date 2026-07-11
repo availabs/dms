@@ -117,15 +117,43 @@
 - [ ] [CSV upload parser respects quoted-field newlines](./tasks/current/csv-upload-quoted-newlines.md) — `dama/upload/workers/csv-publish.js` currently splits the CSV stream with `split2('\n')`, which breaks records mid-field whenever a description (or any quoted cell) contains a newline. RFC-4180 explicitly allows quoted-field newlines and real exports use them. Replace `split2` with `csv-parse` in streaming mode so the parser tracks quote state; re-emit each parsed record as a single-line CSV row before the existing `pg-copy-streams` consumer. Surfaced by the WCDB schedule export — current workaround strips embedded newlines at CSV-prep time (`references/wcdb/clean-schedule.cjs`).
 - [x] [GIS publish worker — async progress + child-death detection + public-URL fix](./tasks/completed/gis-publish-worker-async-progress.md) — ported `dama/upload/workers/gis-publish.js` from `execFileSync` to async `spawn` so the worker event loop stays alive; streams stderr line-by-line into `gis-dataset:ogr2ogr_progress` events, parses `-progress` percent markers to drive `tasks.progress` from 0.10 → 0.70, emits a `gis-dataset:ogr2ogr_heartbeat` every 15s while the child is alive, and surfaces non-zero exit / signal as a rejected promise (replaces the indefinite `running` state the two `npmrds2` stuck tasks demonstrated). **Bundled in the same file**: `DAMA_SERVER_URL` → `DMS_PUBLIC_URL` rename with back-compat + deprecation warning; hardcoded fallback to `https://dmsserver.availabs.org` when neither is set, with a `gis-dataset:public_url_missing` event (`fallback_url` payload) + console warning so non-AVAIL deploys can discover and override the default. Unit-verified: 12 assertions on `resolvePublicUrl` (all branches) + 8 assertions on `runOgr2OgrAsync` (success / non-zero exit / SIGKILL) all pass. Live testing checklist (large GIS upload, mid-load heartbeat, kill-mid-load) deferred to a real PostgreSQL deploy.
 
+- [x] CLI: `section create --data` now accepts a file path / `-` (stdin) via `readFileOrJson`,
+      matching `section update` — inline JSON for large section payloads (e.g. a 460KB map
+      symbology config) hit the OS argv limit (E2BIG). BC: inline JSON still works (2026-07-07,
+      surfaced by the transportny build-script custody task).
+
 ## ui
+
+- [ ] [Input/Textarea: activeStyle leaked onto the DOM element](./tasks/current/input-activestyle-dom-leak.md) —
+      themed callers pass the named-style selector; Input spread it onto <input> (React unknown-prop
+      warning on incident_search). Destructured out; BC. Pending transportNY sync.
 
 - [ ] [`flow_step` columnType — lifecycle flow-strip boxes](./tasks/current/flow-step-column-type.md) —
       dot·label·count step boxes with optional `›` connector + terminal tint (control-room tickets
       summary). Additive; themed via `flowStep`; pending transportNY sync.
+- [ ] [addItem create-time defaults: `autoNumber` + `defaultValue` column attrs](./tasks/current/add-item-create-defaults.md) —
+      add-new form Cards can fill sequential ids (ticket #s: max+1, floor autoNumberStart) and
+      static defaults (status "Triage") at create instead of waiting for a sync heal. Additive;
+      pending transportNY sync.
+- [ ] **BUG: `getSources` derives source `env` from the display-name slug** (useDataSource.js:32-34,
+      `${app}+${nameToSlug(name)}`) — drifts from the real instance whenever display name ≠
+      instance slug ("Site Management — Tickets" → `site_management__tickets` vs
+      `sitemgmt_tickets`); the runtime source-list reconcile then writes the bad env into section
+      state and any subsequent uda fetch resolves NO source (nulls/empty, no error). Found via
+      autoNumber (see add-item-create-defaults.md, worked around there by rebuilding env from
+      `app+type`). Fix = carry the instance on source rows through getSources instead of
+      re-slugging the name; audit `onSourceChange` (same file) which spreads `{...match}`.
+- [ ] [`stacked_bar` columnType — segmented distribution bar + count legend](./tasks/current/stacked-bar-column-type.md) —
+      one-track proportional segments from sibling `count(*) filter` calc columns (the data_bar
+      `row` convention); powers the control-room overview's live stage/tickets bars. Additive;
+      themed via `stackedBar`; pending transportNY sync.
 - [ ] [Card: link-cell style doubling fix + per-column headerValueLayout](./tasks/current/card-link-style-doubling-and-layout-override.md) —
       valueFontStyle applied on both wrapper and anchor doubled box tokens (btnPrimary "double
       button"); wrapper now defers to the anchor. Plus additive per-column `headerValueLayout`
       (full-width data_bar inside a row-aligned card). Pending transportNY sync.
+- [ ] [allowAdddNew form fixes: editable:false honor + page-param re-sync](./tasks/current/allow-add-new-form-fixes.md) —
+      read-only columns no longer get edit chrome on new-item cards; pre-filled page-param fields
+      survive consecutive adds (newItem dep + equality guard). Pending transportNY sync.
 - [ ] [Card: numeric 0 / falsy cell values render blank](./tasks/current/card-zero-value-renders-blank.md) —
       `rawValue` resolution uses `||`, swallowing calculated-column `0`s (aggregate count boxes render
       empty). One-line `??` fix; BC-audited against getData's single-key row shape.
@@ -235,6 +263,12 @@
 
 ### patterns/datasets
 
+- [x] [Datasets pattern — consume `theme.navOptions.secondaryNav`](./tasks/current/datasets-pattern-secondary-nav.md) —
+      BUILT 2026-07-10 (uncommitted, pending review): nav shaping promoted to shared `utils/nav.js`
+      (page `_utils` binds its in-page rail via injectable resolver, existing imports unchanged); all 7
+      datasets pages pass `secondNav` to `<Layout>` with baseUrl `''` (site-absolute items) so a datasets
+      pattern can share a secondary sidenav with sibling patterns. First consumer: Freight Atlas
+      `freight_data` 2186526 ↔ `freightatlas2_copy` 2175436. BC; tsmo2/npmrds/`/datasources` regression-checked.
 - [ ] [Datasets design updates (DataManager redesign)](./tasks/current/datasets-design-updates.md) — port the converged TransportNY mockup (`datasets-catalog.html` / `datasets-source.html`) into `patterns/datasets`: functional changes land in the pattern (catalog view-switcher, per-view download dropdown, Admin Tasks panel, Metadata-as-admin nav, full-bleed spreadsheet + editable persistence fix), themed fully in transportny2 + baseline in the default theme, all surfaces moved onto `getComponentTheme`. 9 phases (Foundations → Catalog → Source shell → Overview → Table → Map → Metadata → Admin → Theme/sync); Create flow deferred pending a mockup. Non-BC items (Metadata admin-only, download UX, Map symbology) flagged for confirmation.
 - [x] [Datasets permissions model (pattern → source)](./tasks/completed/datasets-permissions-model.md) — DONE (migration committed + verified on prod npmrds2). Per-source `auth_permissions` (pattern ⊕ source), shared merge util + `SourceAccessEditor`, new sources private+creator-owned; strict server enforcement in **dms-server** (`routes/uda/sourceAuth.js` + `uda.route.js` gate, 16 tests); migration script in `dms-server/src/scripts`. Column is snake_case.
 - [ ] Datasets permissions — deferred hardening (post-soak): internal-source modify gate (`dms.data.edit`), listing/read enforcement in the dms-server UDA controller, then drop legacy `statistics.auth`. (Details in the completed `datasets-permissions-model.md`.)

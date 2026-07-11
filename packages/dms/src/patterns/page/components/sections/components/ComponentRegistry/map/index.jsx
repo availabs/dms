@@ -5,10 +5,11 @@ import { AvlMap } from "../../../../../../../ui/components/map"
 // import { PMTilesProtocol } from './pmtiles/index'
 import { useImmer } from 'use-immer';
 import LegendPanel from './LegendPanel/LegendPanel.jsx'
+import LayerLibraryPanel from './LayerLibraryPanel/LayerLibraryPanel.jsx'
 import SymbologyViewLayer from './SymbologyViewLayer.jsx'
 import { PageContext, CMSContext } from "../../../../../context.js";
 // import {SymbologySelector} from "./SymbologySelector.jsx";
-// import {useSearchParams} from "react-router";
+import { useSearchParams } from "react-router";
 // import FilterControls from "./controls/FilterControls.jsx";
 import {defaultStyles, blankStyles} from "./styles.js";
 // import MoreControls from "./controls/MoreControls.jsx";
@@ -17,6 +18,8 @@ import { PluginLibrary, PLUGIN_TYPE } from "../../../../../../mapeditor/MapEdito
 import ExternalPluginPanel from "../../../../../../mapeditor/MapEditor/components/ExternalPluginPanel";
 import { buildLayerUdaFilterOptions, fetchBoundsForFilter } from '../../../../../../mapeditor/MapEditor/stateUtils';
 import { choroplethPaint } from "./utils.js";
+import { ThemeContext, getComponentTheme } from "../../../../../../../ui/useTheme";
+import { damaMapTheme } from "./map.theme";
 
 import mapeditorFormat from "../../../../../../mapeditor/mapeditor.format"
 
@@ -24,6 +27,9 @@ import mapeditorFormat from "../../../../../../mapeditor/mapeditor.format"
 
 export const HEIGHT_OPTIONS = {
     "full": 'calc(95vh)',
+    // True viewport height for full-screen workbench pages (pair with the
+    // `workbench` sectionGroup style + a p-0 section).
+    "screen": '100vh',
     1: "900px",
     "2/3": "600px",
     "1/3": "300px",
@@ -215,6 +221,8 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
 
     const { falcor, falcorCache, pgEnv, apiLoad, mapeditorKeys } = React.useContext(CMSContext);
     const { pageState, setPageState } =  React.useContext(PageContext) || {}
+    const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
+    const damaMapT = { ...damaMapTheme, ...getComponentTheme(themeFromContext, 'damaMap') };
     const cachedData = typeof value === 'object' ? value : value && isJson(value) ? JSON.parse(value) : {};
     const cachedDisplay = cachedData.display || {};
     const [state, setState] = useImmer({
@@ -303,6 +311,90 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
 // console.log("Map::pageState", pageState);
 
     const [mapLayers, setMapLayers] = useImmer([]);
+
+    // Symbologies that have been visible at least once — used by the Layer
+    // Library mode to defer layer construction (see the updateLayers effect).
+    const everVisibleRef = useRef(new Set());
+
+    /**
+     * Shareable URL state (opt-in via display.shareableState, view mode only):
+     * `?layers=<symbologyId>,…` = the visible set; `f_<symbologyId>=<idx>` =
+     * that symbology's selectedInteractiveFilterIndex. Unknown ids are ignored
+     * so links survive symbology removal. Read once on mount; written on
+     * change (replace, no history spam). Design note: v1 syncs searchParams
+     * directly rather than through pageState.filters — page-level filters
+     * need page authoring, while this state is owned by the map section.
+     */
+    const [searchParams, setSearchParams] = useSearchParams();
+    const shareEnabled = !isEdit && Boolean(state.display?.shareableState);
+    const urlReadDoneRef = useRef(false);
+    const urlWritePrimedRef = useRef(null);
+
+    useEffect(() => {
+        if (!shareEnabled || urlReadDoneRef.current) return;
+        urlReadDoneRef.current = true;
+        const layersParam = searchParams.get('layers');
+        const filterEntries = [...searchParams.entries()].filter(([key]) => key.startsWith('f_'));
+        if (layersParam === null && !filterEntries.length) return;
+        const visibleIds = (layersParam || '').split(',').map(s => s.trim()).filter(Boolean);
+        setState(draft => {
+            if (layersParam !== null) {
+                Object.keys(draft.symbologies || {}).forEach(symId => {
+                    const entry = draft.symbologies[symId];
+                    const nextVisible = visibleIds.includes(String(symId));
+                    entry.isVisible = nextVisible;
+                    Object.values(entry.symbology?.layers || {}).forEach(layer => {
+                        (layer.layers || []).forEach(mlLayer => {
+                            mlLayer.layout = { ...(mlLayer.layout || {}), visibility: nextVisible ? 'visible' : 'none' };
+                        });
+                    });
+                });
+            }
+            filterEntries.forEach(([key, value]) => {
+                const symId = key.slice(2);
+                const index = parseInt(value, 10);
+                const entry = draft.symbologies?.[symId];
+                if (Number.isNaN(index) || index < 0 || !entry) return;
+                Object.values(entry.symbology?.layers || {}).forEach(layer => {
+                    if ((layer['interactive-filters'] || []).length > index) {
+                        layer.selectedInteractiveFilterIndex = index;
+                    }
+                });
+            });
+        });
+    }, [shareEnabled]);
+
+    useEffect(() => {
+        if (!shareEnabled) return;
+        // Serialize the DESIRED share params from state and only navigate when
+        // that serialization changes between runs. Comparing against the URL is
+        // race-prone (setSearchParams flushes async, and dev double-invoked
+        // effects can schedule a stale write that lands after a fresher
+        // comparison) — the ref makes state the single source of truth. The
+        // first run primes the ref without writing, so a shared URL is never
+        // clobbered by the saved default state and a paramless load stays
+        // clean until the user actually changes the map.
+        const visibleIds = Object.keys(state.symbologies || {}).filter(id => state.symbologies[id]?.isVisible);
+        const desired = new URLSearchParams();
+        desired.set('layers', visibleIds.join(','));
+        visibleIds.forEach(id => {
+            const layerWithFilters = Object.values(state.symbologies[id]?.symbology?.layers || {})
+                .find(layer => (layer['interactive-filters'] || []).length);
+            const index = layerWithFilters?.selectedInteractiveFilterIndex;
+            if (index !== undefined && index !== null) desired.set(`f_${id}`, String(index));
+        });
+        const serialized = desired.toString();
+        if (urlWritePrimedRef.current === serialized) return;
+        const isFirstRun = urlWritePrimedRef.current === null;
+        urlWritePrimedRef.current = serialized;
+        if (isFirstRun) return;
+        setSearchParams(prev => {
+            const next = new URLSearchParams(prev);
+            [...next.keys()].filter(key => key.startsWith('f_')).forEach(key => next.delete(key));
+            desired.forEach((value, key) => next.set(key, value));
+            return next;
+        }, { replace: true });
+    }, [shareEnabled, state.symbologies]);
 
     const isReady = useMemo(() => {
         return Object.values(state.symbologies || {}).some(symb => Object.keys(symb?.symbology?.layers || {}).length > 0);
@@ -654,7 +746,19 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
         // console.log('symbology layers effect')
         const updateLayers = async () => {
             if(isReady) {
-                let allLayers = (Object.values(state.symbologies).reduce((out,curr) => {
+                // Layer Library mode defers layer construction: with many
+                // symbologies embedded (Freight Atlas ships 31) only the ones
+                // that have been visible get SymbologyViewLayer instances +
+                // style registration. Once created they stay (toggling off
+                // flips layout.visibility — no source teardown). Sections
+                // without the library panel keep today's eager behavior.
+                const isLibraryPanel = state.display?.layerPanel === 'library';
+                Object.values(state.symbologies || {}).forEach(symb => {
+                    if (symb?.isVisible && symb?.id !== undefined) everVisibleRef.current.add(String(symb.id));
+                });
+                let allLayers = (Object.values(state.symbologies)
+                    .filter(symb => !isLibraryPanel || symb?.isVisible || everVisibleRef.current.has(String(symb?.id)))
+                    .reduce((out,curr) => {
                     let ids = out.map(d => d.id)
                         let newSymbLayers = Object.keys(curr?.symbology?.layers)
                         .reduce((layerOut, layerKey) => {
@@ -739,9 +843,21 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
 
 
     const interactiveFilterIndicies = useMemo(() => {
-        const activeSym = Object.keys(state.symbologies || {}).find(sym => state.symbologies[sym].isVisible);
-        const activeSymSymbology = state.symbologies[activeSym]?.symbology;
-        return state.symbologies[activeSym]?.symbology.layers[activeSymSymbology?.activeLayer]?.selectedInteractiveFilterIndex
+        // Track every symbology's visibility + every layer's selected
+        // interactive filter, so the flatten effect below re-runs for
+        // non-active symbologies too (Layer Library mode). Single-symbology
+        // sections change this value exactly when they did before.
+        return JSON.stringify(
+            Object.keys(state.symbologies || {}).map(symId => {
+                const symb = state.symbologies[symId];
+                return [
+                    symId,
+                    symb?.isVisible ? 1 : 0,
+                    ...Object.values(symb?.symbology?.layers || {})
+                        .map(layer => layer?.selectedInteractiveFilterIndex ?? null)
+                ];
+            })
+        );
     }, [state.symbologies]);
 
     useEffect(() => {
@@ -820,7 +936,7 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
                     </>
                 ) : null
             } */}
-            <div id='dama_map_edit' className="w-full relative" style={{height: heightStyle}}>
+            <div id='dama_map_edit' className={damaMapT.container} style={{height: heightStyle}}>
                 <AvlMap
                   layers={ mapLayers }
                   layerProps = { layerProps }
@@ -843,10 +959,15 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
                   leftSidebar={ false }
                   rightSidebar={ false }
                 />
-                <div className={`absolute ${legendPositionStyle} flex pointer-events-none`}>
-                    <div className={isHorizontalLegendActive ? 'max-w-[350px]' : 'max-w-[300px]'}><LegendPanel position={state.legendPosition}/></div>
+                {state.display?.layerPanel === 'library' && !state.hideControls ? (
+                    <div className={damaMapT.layerLibraryWrapper}>
+                        <LayerLibraryPanel />
+                    </div>
+                ) : null}
+                <div className={`absolute ${legendPositionStyle} ${damaMapT.legendWrapper}`}>
+                    <div className={isHorizontalLegendActive ? damaMapT.legendInnerHorizontal : damaMapT.legendInner}><LegendPanel position={state.legendPosition}/></div>
                 </div>
-                <div className={`absolute ${pluginPositionStyle} flex pointer-events-none`}>
+                <div className={`absolute ${pluginPositionStyle} ${damaMapT.pluginWrapper}`}>
                     {arePluginsLoaded && <ExternalPluginPanel />}
                 </div>
             </div>

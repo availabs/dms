@@ -23,6 +23,16 @@ export const layoutGroupTheme = {
       wrapper2: 'flex flex-1 w-full  flex-col  shadow-md bg-white rounded-lg relative text-md font-light leading-7 p-4 place-content-center', // content wrapper
       wrapper3: ''
     },
+    {
+      // workbench — full-screen tool surface (maps, explorers): no max-width,
+      // no card chrome, no band padding. Pair with a p-0 section and a
+      // viewport-height element (e.g. the Map component's `screen` height) so
+      // the section fills everything beside the sidenav.
+      name: "workbench",
+      wrapper1: 'w-full',
+      wrapper2: 'w-full',
+      wrapper3: ''
+    },
   ]
 }
 

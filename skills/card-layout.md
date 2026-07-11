@@ -340,21 +340,29 @@ card: retyping a **formula** column to `delta` (its UUID `name` becomes invalid 
 `origin:'static'` columns ("Error getting length") — use SQL-literal calculated columns and
 **clone a working column** for the field shape.
 
-## In-cell bar / heat column types: `data_bar` + `data_color_cell`
+## In-cell bar / heat column types: `data_bar` + `data_color_cell` + `stacked_bar`
 
-Two more value-driven built-ins render a magnitude *inside* the cell (work in Card
+Value-driven built-ins that render a magnitude *inside* the cell (work in Card
 cells and in Spreadsheet columns):
 
 | `type`            | Renders | Key attributes |
 |-------------------|---------|----------------|
 | `data_bar`        | a horizontal bar scaled to a max, optional value label | `barMax` (static scale top) **or** `barMaxColumn` (a sibling column name to scale against); `barColorColumn` (sibling whose value selects a fill from `theme.dataBar.fills`); `barShowValue` (print the value) + `barUnit` (suffix, e.g. `"%"`, `" mi"`). |
 | `data_color_cell` | the cell **background** colored on a palette scale (heat tile) | `domainColumns` (array of sibling column names → per-row min/max so each row shades within itself — the "shade within each region row" heat behaviour, no extra min/max SQL); fallbacks `colorMin`/`colorMax` (static) or `colorMinColumn`/`colorMaxColumn`; `colors` palette override (else `theme.dataColorCell.palette`); `showValue` (default false). |
+| `stacked_bar`     | ONE track split into proportional segments + an optional counts legend (a distribution bar: stage mix, open/done split) | `segments: [{col, label?, color?}]` — each segment's count comes from a **sibling column on the same row** (put per-category `count(*) filter (where …)` calcs on the row as `selectOnly` columns, `fn:"exempt"`); `color` = literal `#hex`/`rgb`/`hsl` inline or a `theme.stackedBar.fills` key; array order = bar+legend order. `showLegend:false` for bar-only; `emptyText` replaces the all-zero legend ("no tickets yet") over a bare track. Zero segments drop from the bar but stay in the legend. The host column's own value is unused — any calc (e.g. `count(*)`) works. |
 
 Worked examples (live, congestion_v2 page 2175676): the region-rank bars, the
 worst-corridor table, and the month×region seasonality heat grid; reliability §03
 failing-by-period and §04 corridors use `data_bar`. Use `data_color_cell` for a
 spreadsheet that's a heat grid (pair it with the `"heat"` table style —
 `display.tableStyle: "heat"` — for the white-header, border-less treatment).
+`stacked_bar` worked example: the control-room overview's per-pattern stage
+distribution + tickets open/done bars (`build_cr_overview.mjs`) — a one-row
+aggregate Card whose columns are six `count(*) filter (where stage=…)` selectOnly
+calcs plus one `stacked_bar` host cell; the legend doubles as the "3 proposed ·
+0 design · …" breakdown line. `segments[].col` must match the sibling's **row
+key** — set `normalName` explicitly on the seg calcs and reference that (with no
+`normalName` the row is keyed by the full SQL `name`, per the warning below).
 
 > ⚠️ **`barMaxColumn` / `barColorColumn` (and `data_color_cell`'s
 > `domainColumns`/`*Column` props) must reference a sibling column by its FULL

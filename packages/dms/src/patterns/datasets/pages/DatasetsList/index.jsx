@@ -3,6 +3,7 @@ import {get} from "lodash-es";
 import {Link, useSearchParams} from "react-router";
 import {DatasetsContext} from "../../context";
 import {ThemeContext, getComponentTheme} from "../../../../ui/useTheme";
+import {dataItemsNav} from "../../../../utils/nav";
 import { buildEnvsForListing, getExternalEnv } from "../../utils/datasources";
 import { getCachedSources, setCachedSources, hasCachedSources } from "../../utils/datasetsListCache";
 import { datasetsListTheme } from "./datasetsList.theme";
@@ -154,6 +155,13 @@ export default function DatasetsList ({attributes, item, dataItems, apiLoad, api
     const {baseUrl, user, falcor, siteType, type, datasources, dmsEnv, UI} = useContext(DatasetsContext);
     const {theme} = useContext(ThemeContext) || {};
     const t = {...datasetsListTheme, ...getComponentTheme(theme, 'datasets.datasetsList')};
+    // Secondary nav shared across the subdomain's patterns — items are authored
+    // site-absolute in the pattern theme, so baseUrl is '' (not this pattern's
+    // mount path, which would break links into sibling patterns).
+    const menuItemsSecondNav = useMemo(
+        () => dataItemsNav(theme?.navOptions?.secondaryNav?.navItems || [], '', false),
+        [theme?.navOptions?.secondaryNav?.navItems]
+    );
     const {Layout, Icon, Button, Input} = UI;
     const swatches = t.categorySwatches || FALLBACK_SWATCHES;
     const cacheKey = `${format?.app}-${siteType}`;
@@ -274,7 +282,7 @@ export default function DatasetsList ({attributes, item, dataItems, apiLoad, api
     ];
 
     return (
-        <Layout navItems={[]}>
+        <Layout navItems={[]} secondNav={menuItemsSecondNav}>
           <div className={t.pageWrapper}>
             <Breadcrumbs items={breadcrumbItems} />
             <div className={t.header}>

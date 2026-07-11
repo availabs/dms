@@ -3,6 +3,7 @@ import {get, cloneDeep} from "lodash-es";
 import {useNavigate} from "react-router";
 import {DatasetsContext} from "../context";
 import {ThemeContext} from "../../../ui/useTheme";
+import {dataItemsNav} from "../../../utils/nav";
 import {buildEnvsForListing} from "../utils/datasources";
 import { clearDatasetsListCache } from "../utils/datasetsListCache";
 import { nameToSlug, getInstance } from "../../../utils/type-utils";
@@ -35,6 +36,11 @@ export default function CreatePage({apiUpdate, format}) {
     const {theme: fullTheme} = useContext(ThemeContext) || {};
     const theme = fullTheme?.datasets?.createPage || {};
     const {Layout, LayoutGroup, MultiSelect, Input, Button} = UI;
+    // Shared secondary nav — site-absolute items, so baseUrl '' (see DatasetsList).
+    const menuItemsSecondNav = useMemo(
+        () => dataItemsNav(fullTheme?.navOptions?.secondaryNav?.navItems || [], '', false),
+        [fullTheme?.navOptions?.secondaryNav?.navItems]
+    );
     const navigate = useNavigate();
 
     const [data, setData] = useState({name: ''});
@@ -128,7 +134,7 @@ export default function CreatePage({apiUpdate, format}) {
     ];
 
     return (
-        <Layout navItems={[]}>
+        <Layout navItems={[]} secondNav={menuItemsSecondNav}>
             <div className={theme.pageWrapper || 'max-w-4xl mx-auto w-full'}>
                 <Breadcrumbs items={breadcrumbItems}/>
                 <LayoutGroup>

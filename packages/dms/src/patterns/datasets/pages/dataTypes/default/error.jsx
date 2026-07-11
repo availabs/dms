@@ -2,17 +2,24 @@ import React, {useContext} from 'react'
 import {cloneDeep, merge} from "lodash-es"
 import {DatasetsContext} from "../../../context";
 import {ThemeContext} from "../../../../../ui/useTheme";
+import {dataItemsNav} from "../../../../../utils/nav";
 
 function ErrorPage({}) {
     const {theme: fullTheme, UI} = useContext(ThemeContext);
     const {Layout} = UI;
     let theme = merge(cloneDeep(fullTheme), {})
     const sectionTheme = theme?.sectionGroup?.['default'] || {};
+    // Shared secondary nav — site-absolute items, so baseUrl '' (see DatasetsList).
+    const menuItemsSecondNav = React.useMemo(
+        () => dataItemsNav(fullTheme?.navOptions?.secondaryNav?.navItems || [], '', false),
+        [fullTheme?.navOptions?.secondaryNav?.navItems]
+    );
 
     return (
         <div className={`${theme?.page?.container}`}>
             <Layout
                 navItems={[]}
+                secondNav={menuItemsSecondNav}
                 pageTheme={{navOptions: {sideNav: {size: 'none'}, topNav: {size: 'none'}}}}
                 // Menu={Menu} needs user
             >

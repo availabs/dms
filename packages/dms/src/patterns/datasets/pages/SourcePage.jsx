@@ -2,6 +2,7 @@ import React, {useContext, useEffect, useState} from "react";
 import {Link, useNavigate} from "react-router";
 import {DatasetsContext} from "../context";
 import {ThemeContext, getComponentTheme} from "../../../ui/useTheme";
+import {dataItemsNav} from "../../../utils/nav";
 import {getSourceData, resolveInternalViewNames, parseIfJson} from "./dataTypes/default/utils";
 import { getExternalEnv } from "../utils/datasources";
 import { sourcePageTheme } from "./sourcePage.theme";
@@ -48,6 +49,11 @@ export default function SourcePage ({ apiLoad, apiUpdate, format, item, params, 
     const { theme: fullTheme } = useContext(ThemeContext) || {};
     const t = {...sourcePageTheme, ...getComponentTheme(fullTheme, 'datasets.sourcePage')};
     const {Layout} = UI;
+    // Shared secondary nav — site-absolute items, so baseUrl '' (see DatasetsList).
+    const menuItemsSecondNav = React.useMemo(
+        () => dataItemsNav(fullTheme?.navOptions?.secondaryNav?.navItems || [], '', false),
+        [fullTheme?.navOptions?.secondaryNav?.navItems]
+    );
     const navigate = useNavigate();
     const pgEnv = getExternalEnv(datasources);
     const [source, setSource] = useState(isDms ? item : {});
@@ -141,7 +147,7 @@ export default function SourcePage ({ apiLoad, apiUpdate, format, item, params, 
     ];
 
     return (
-        <Layout navItems={[]}>
+        <Layout navItems={[]} secondNav={menuItemsSecondNav}>
             <DatasetsContext.Provider value={{...ctx, pageBaseUrl, isUserAuthed, setHeaderActions}}>
                 <div className={t.pageWrapper}>
                     <Breadcrumbs items={breadcrumbItems} />

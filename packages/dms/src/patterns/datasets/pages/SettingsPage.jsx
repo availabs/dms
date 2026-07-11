@@ -2,6 +2,7 @@ import React, {useState, useEffect, useContext, useMemo, useCallback} from 'reac
 import {get} from "lodash-es";
 import {DatasetsContext} from "../context";
 import {ThemeContext, getComponentTheme} from "../../../ui/useTheme";
+import {dataItemsNav} from "../../../utils/nav";
 import {buildEnvsForListing, getExternalEnv} from "../utils/datasources";
 import Breadcrumbs from "../components/Breadcrumbs";
 import {settingsPageTheme} from "./settingsPage.theme";
@@ -35,6 +36,11 @@ export default function SettingsPage({format}) {
     const {theme: fullTheme} = useContext(ThemeContext) || {};
     const theme = { ...settingsPageTheme, ...getComponentTheme(fullTheme, 'datasets.settingsPage') };
     const {Layout, LayoutGroup, Input, Button} = UI;
+    // Shared secondary nav — site-absolute items, so baseUrl '' (see DatasetsList).
+    const menuItemsSecondNav = useMemo(
+        () => dataItemsNav(fullTheme?.navOptions?.secondaryNav?.navItems || [], '', false),
+        [fullTheme?.navOptions?.secondaryNav?.navItems]
+    );
 
     const [sources, setSources] = useState([]);
     const [filteredCategories, setFilteredCategories] = useState([]);
@@ -107,7 +113,7 @@ export default function SettingsPage({format}) {
         search ? cats.filter(c => c.toLowerCase().includes(search.toLowerCase())) : cats;
 
     return (
-        <Layout navItems={[]}>
+        <Layout navItems={[]} secondNav={menuItemsSecondNav}>
             <div className={theme.pageWrapper}>
                 <Breadcrumbs items={[
                     {icon: 'Database', href: baseUrl},

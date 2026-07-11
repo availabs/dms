@@ -97,6 +97,7 @@ export default function useSymbologySelectorState({ state = {}, setState, doApiL
   };
 
   return {
+    symbologies,
     selectedSymbology,
     symbologyOptions,
     onSymbologyChange,
