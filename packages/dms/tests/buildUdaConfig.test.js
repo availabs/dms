@@ -1374,6 +1374,20 @@ describe("buildUdaConfig — comparison series", () => {
     expect(options.ungroupedAggregate).toBe(true);
   });
 
+  it("ungroupedAggregate: true for a self-aggregating (fn: exempt) column grouped only by the series discriminator", () => {
+    // Bar Graph Summary shape: one exempt calculated column (its SQL contains
+    // its own sum()/avg() aggregates), groupBy __series only — collapses to
+    // exactly one row per arm just like a wrapped avg/sum column does.
+    const input = seriesInput();
+    input.columns = [
+      { ...col("speed"), type: "calculated", fn: "exempt" },
+      col("tmc"),
+      { name: "__series", origin: "comparison-series", show: true, group: true },
+    ];
+    const { options } = buildUdaConfig(input);
+    expect(options.ungroupedAggregate).toBe(true);
+  });
+
   it("ungroupedAggregate: unset when a real (non-series) column is also grouped", () => {
     const input = seriesInput();
     input.columns = [

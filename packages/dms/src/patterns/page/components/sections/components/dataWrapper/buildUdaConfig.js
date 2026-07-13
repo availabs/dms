@@ -1338,11 +1338,18 @@ export const buildUdaConfig = ({
 
   // Whether this query has no real groupBy dimension (besides the comparison-series
   // discriminator, which is a constant per arm, not a real column) AND every shown
-  // column is a real SQL aggregate (fn: avg/sum/count/max/list). Threaded to the
-  // server so simpleFilterLength's arm/row count matches simpleFilter's actual
-  // output: an ungrouped aggregate query always yields exactly one row — even over
-  // zero matching source rows — never a raw per-row count.
-  const AGGREGATE_FNS = new Set(["sum", "avg", "count", "max", "list"]);
+  // column is a real SQL aggregate (fn: avg/sum/count/max/list, or "exempt" — a
+  // calculated column whose expression is already self-aggregating server-side,
+  // e.g. `sum(...)/count(...)`; it collapses to one row exactly like the wrapped
+  // fns do). Threaded to the server so simpleFilterLength's arm/row count matches
+  // simpleFilter's actual output: an ungrouped aggregate query always yields
+  // exactly one row — even over zero matching source rows — never a raw per-row
+  // count. Without "exempt" here, an exempt-only column set (e.g. the Bar Graph
+  // Summary template: one exempt yAxis, groupBy __series only) falls back to the
+  // raw count(*) length, and the resulting dataByIndex over-fetch can blow
+  // falcor-router's MAX_PATHS cap — same failure shape as the round-33
+  // unfiltered-scan crash.
+  const AGGREGATE_FNS = new Set(["sum", "avg", "count", "max", "list", "exempt"]);
   const seriesKeyName = comparisonSeries?.seriesKey || "__series";
   const ungroupedAggregate =
     groupBy.filter((name) => name !== seriesKeyName).length === 0 &&

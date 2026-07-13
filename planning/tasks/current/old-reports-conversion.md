@@ -1,5 +1,141 @@
 # Old NPMRDS reports → new DMS report pages (automated conversion)
 
+**Round 34 (2026-07-13): Bar Graph Summary — SCOPED ONLY (no build). User direction this round:
+ALL data issues (pre-2017, pm3 backfill, route catalog) are out of scope until functionality is
+much further along — gap-log for attribution only, never prioritize fixes.**
+
+- **Old semantics (read `BarGraphSummary.jsx` + `utils/dataTypes.js` directly)**: one bar per
+  active route comp; each bar = ONE whole-date-range aggregate of the comp's data (`allReducer`
+  for base measures, `reducer` for `-byDateRange` indices). No time axis at all. Resolution never
+  affects the output except for `avgHoursOfDelay` (bucket-grain-dependent mean) — same
+  resolution-irrelevance class as Info Box (round 31), so the conversion branch should key on
+  measure only and bypass the mixed-resolution ambiguity guard (the ~49 None-resolution instances
+  convert too). `getActiveRouteComponents` defaults to ALL comps (not first-comp).
+- **Census breakdown of the 649 instances**: speed 187, hoursOfDelay 140, travelTime 114,
+  avgHoursOfDelay 94, freeflow-byDateRange 62, avgTT-byDateRange 26, travelTimeIndex-byDateRange
+  16, dataQuality 5, co2 2, planningTime/bufferTime/travelTimeIndex 1 each. All travel_time_all
+  except one truck instance.
+- **Proposed mapping**: new AVL Graph BarGraph template shape with **xAxis = `__series`** and no
+  time bucketing — groupBy `__series` only, one row per arm (the exact `ungroupedAggregate` query
+  shape Info Box already proved live, `buildUdaConfig.js:1286-1296`). Renderer needs NO platform
+  change: `BarGraph.jsx` indexes bars by the `target:"xAxis"` column via d3groups, and `__series`
+  is a real column in the unioned rows. `ensure_graph_templates` needs a small extension (allow
+  `xAxis: "__series"` → pull base's `__series` col, retarget xAxis; today it only looks the xAxis
+  name up in externalSource columns, `convert_old_reports.py:1068`).
+- **Per-measure SQL**: hoursOfDelay = `sum(DELAY_EXPR)` fn:sum — EXACT match (sum composes),
+  reuses joins verbatim. co2 = same shape (needs the travel_time_all car+truck variant, not yet
+  built). speed/travelTime: old allReducer is a TWO-LEVEL aggregate within one arm (mean per tmc,
+  then sum across tmcs; speed also ÷ total miles) — candidate flat CH expression via map
+  combinators `arraySum(mapValues(avgMap(map(ds.tmc, tt))))` + `fn:"exempt"`; needs a live CH
+  check that avgMap works on the server version; fallback = the per-row approximation
+  (`avg(SPEED_EXPR)`) every converted graph already accepted since round 1 — a user decision on
+  faithful-vs-consistent. avgTT-byDateRange = travelTime's formula exactly (free rider).
+  avgHoursOfDelay: the one resolution-dependent measure — needs a round-32-style derivation
+  against getHoursOfDelay bucket semantics per resolution (dominant 5-min key likely reduces to
+  `avg(DELAY_EXPR)` if 5-min buckets are per (date,epoch) — verify against source, don't assume).
+  freeflow-byDateRange: substitute pm3 1410 `speed_pctl_85` per-tmc-year (round 22's exact
+  precedent + round 19's graph_max_year machinery), compose per-tmc speeds→route speed via miles;
+  year-coverage misses gap-log (data issue, out of scope). Percentile indices (19 inst:
+  travelTimeIndex-byDateRange 16 etc.) = round-14 two-stage blocker, gap-log. dataQuality (5) =
+  cheap flat count expression, optional.
+- **Coverage math**: Phase A (speed/travelTime/hoursOfDelay/avgHoursOfDelay/co2) = 537 inst, 267
+  reports touched, 10 reports flip to FULL (502, 520, 521, 546, 547, 548, 553, 554, 678, 1010).
+  Phase B (avgTT alias + freeflow-pm3) = +88 inst, +1 flip (191). Total 625/649 = 96%; 24 gap-log.
+- **Bar colors, open question**: old tool colored each bar by its route color. With xAxis=__series
+  and no categorize, all bars are one color. Candidate zero-platform trick: include `__series`
+  TWICE (xAxis + categorize) → each bar becomes its own key → per-key palette colors + legend;
+  needs a live render check (and dedupe of the doubled groupBy entry). Alternatives: single color,
+  or `colors.byValue` toggle (round 7). Decide after seeing it live / user look at old UI.
+- **Round 34 continued (2026-07-13): the two-level speed/TT expression LIVE-CONFIRMED against
+  the real old UI value — and it exposes that every live speed/travelTime template diverges from
+  old-tool semantics.** User supplied a screenshot of report 520's old-UI Bar Graph Summary
+  (comp-1 "WB Arterial Weave 2018", route 1758 → TMCs 120-10157/120-11332/120N10157, 2018
+  Mon-Fri epochs 84-227, hover value **23.05 mph**). Ran all formulas directly against
+  `npmrds.s583_v982_NPMRDS_V6` (CH HTTP, creds from `npmrds2.config.json`'s clickhouse block,
+  2018 meta miles fetched from old falcor `['tmc',tmcs,'npmrds2','meta',2018,'miles']`,
+  L=1.758132):
+  - **Old-faithful two-step SQL (ground truth): 23.0307 mph** — matches old UI's 23.05 to 0.09%
+    (residual not the epoch boundary — tested 84-227/84-228/85-228, all ≈23.03; likely holidays
+    or minor data revision).
+  - **Current-platform semantics (`avg` of per-row `SPEED_EXPR`): 26.0199 mph — +13% off.** Real,
+    visible divergence in every live speed template.
+  - **Flat single-aggregate candidates**: `avgMap(map(tmc, nullIf(tt,0)))` FAILS (CH Map can't
+    hold Nullable); **`avgMapIf(map(ds.tmc, toFloat64(tt)), tt != 0)` and the sumMap/sumMap
+    element-wise fallback both return exactly 23.0307** — the old semantics ARE flat-expressible,
+    `fn:"exempt"`, no platform change. Speed shape:
+    `arraySum(mapValues(maxMap(map(ds.tmc, table1.miles)))) * 3600 /
+     arraySum(mapValues(avgMapIf(map(ds.tmc, toFloat64(ds.travel_time_all_vehicles)),
+     ds.travel_time_all_vehicles != 0)))`.
+  - **Travel time diverges worse**: old = 4.58 min (route traversal, Σ per-TMC means /60);
+    current templates = avg(tt) = 103.5 s (mean single-segment time, wrong quantity AND scale).
+  - **The same expression is correct at every grouping** — per x-bucket group it equals the old
+    per-bin speedReducer; within a `categorize:"tmc"` group the map has one key so it degrades to
+    per-TMC speed = miles*3600/avg(tt) = old speedTmcReducer. One backport fixes summary + all
+    bar/line/grid speed/TT templates uniformly. DELAY/AVG_DELAY/CO2 are sum-based — composition-
+    safe, no change needed.
+  - **User endorses back-porting to the live templates if confirmed** (this round) — it is now
+    confirmed. Backport = round 23/28 pattern: update SPEED_EXPR/TRAVEL_TIME_EXPR in
+    TEMPLATE_SPECS (fn avg → exempt; drift-detection replaces the whole yAxis dict incl. fn),
+    reconvert the corpus-wide reference set, live-verify. Ship SEPARATELY from the Bar Graph
+    Summary build per [[feedback_isolate_shared_code_changes]].
+  - **Implementation checkpoint found while scoping, NOT yet hit live**: `buildUdaConfig.js`'s
+    `AGGREGATE_FNS` (sum/avg/count/max/list) does NOT include "exempt" — an exempt-only column
+    set makes `ungroupedAggregate` false, potentially resurrecting round 20's pagination-length
+    fan-out miscount for the summary template (groupBy __series only). Check/fix when building.
+  - Test artifact: `scratchpad/ch_speed_test.py` (session scratchpad; rewrite under
+    `scratchpad/npmrds-sub/` if it needs to persist).
+- **Round 34 continued (2026-07-13): Bar Graph Summary SPEED variant — BUILT, live-verified on
+  report 520 (new page `2189837`), values ground-truthed against CH to <0.2% per arm. Three real
+  bugs found and fixed along the way, all caught by the user's live verification or by
+  Playwright+DOM probing, not assumed:**
+  1. **Comp display names (conversion defect, user-caught: "line graph has 1 line").** Arms were
+     named `rc.name || route.name`, but the old client displays
+     `getRouteCompName(name, settings)` = `settings.compTitle` with `{name}/{year}/{month}/{date}`
+     substituted (reports/store/index.js:2703) — report 520's five same-route comps all collapsed
+     to one "WB Arterial Weave" `__series` label and every graph merged them into one series.
+     Ported the substitution helpers verbatim (including getYearString's quirky `end-start`
+     order), stamped in `convert_report` before `comps_by_id` (so graph-title `{name}` templates
+     get them too), plus a compId-suffix dedupe + `route_name_deduped` gap for residual literal
+     collisions (old client keyed rows by compId; new platform's label IS the series key).
+  2. **`AGGREGATE_FNS` missing "exempt" (`buildUdaConfig.js`) — the round-34 scoping checkpoint,
+     confirmed real and fixed.** An exempt-only column set grouped by `__series` alone left
+     `ungroupedAggregate` unset → round 20's raw-count length fan-out → dataByIndex over-fetch
+     (round-33 path-explosion shape). One-word platform fix + new regression test
+     (buildUdaConfig.test.js, 144/144 passing). Live response confirmed
+     `ungroupedAggregate: true` threads through.
+  3. **Legend flex squeeze → 0-width chart (LIKELY THE PARKED ROUND-9 "WIDTH SQUEEZE" MECHANISM,
+     now pinned).** First render: 3 bars present in the SVG, axis labels correct, container 0px
+     wide. `BarGraph.jsx:344-372` lays the legend out as an unconstrained flex sibling of the
+     `flex-1` chart; the legend key falls back to the column's full `name` (no normalName on
+     converter-built calc columns), i.e. the entire 200-char map-combinator SQL string —
+     flex min-width:auto gives the label the whole row. Fixed template-side (old-faithful: the
+     old summary has NO legend, x labels name the bars): `display.legend.show=False` patch +
+     `customName` on the yAxis column. NOT fixed platform-wide (width squeeze stays parked per
+     user), but the mechanism note is now here for whenever that's picked up.
+  - **Build details**: `SPEED_SUMMARY_EXPR` + `tmc_speed_summary_bar_graph` (BarGraph,
+    xAxis=`__series`, `categorize: False` sentinel = omit the base categorize column entirely;
+    display-patch support added to TEMPLATE_SPECS/ensure_graph_templates, and the yAxis drift
+    check widened from name-only to whole-dict + display-patch comparison). GRAPH_TEMPLATE_MAP:
+    speed × 5-minutes/day/15-minutes → the one template (resolution-agnostic by construction;
+    None-resolution bypass still a follow-up).
+  - **Live verification (Playwright, networkidle)**: 30 graph requests all 200, zero console
+    errors. Values: AM arm 25.6417 (CH ground truth 25.6388), PM 21.0582 (21.0216), 2018
+    23.2578 (23.2582). Old UI showed 23.05 for the 2018 arm — the new 23.26 is EXACTLY the
+    2025-vs-2018 meta-miles ratio (1.775499/1.758132 = 1.0099), i.e. the platform-standard
+    2025 meta snapshot, not a formula error.
+  - **Known cosmetic deltas, deliberately not chased this round**: bars render in one palette
+    color (old = per-route colors; same treatment as converted line graphs — the double-__series
+    color idea from scoping remains untried); bar order differs from the old tool's comp order;
+    bar padding narrower than old (paddingInner default). Auth-token staleness hit mid---replace
+    (page 2189797's sections were deleted before the failure — recovered by mint_token.sh +
+    rerun; final page is `2189837`, intermediate `2189827` was cleanly replaced).
+- **Not done / next**: (a) the SPEED_EXPR/TRAVEL_TIME_EXPR backport to all live speed/TT
+  templates (user green-light in principle; ship isolated per
+  [[feedback_isolate_shared_code_changes]]), (b) remaining Phase A summary measures
+  (travelTime/hoursOfDelay/avgHoursOfDelay — avgHoursOfDelay needs its per-resolution
+  derivation first), (c) Phase B (avgTT alias + freeflow via pm3), (d) per-route bar colors
+  decision, (e) round 33's corpus-wide safety re-scan still outstanding.
+
 **Round 33 (2026-07-10): `route_missing_everywhere` + a `categorize:"tmc"` template = a live,
 already-published unfiltered-nationwide-TMC-scan hazard — ROOT-CAUSED WITH CERTAINTY (real failing
 request captured, not inferred), FIXED, live-verified, and a follow-on policy fix applied (reports
