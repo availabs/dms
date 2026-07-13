@@ -364,6 +364,19 @@ calcs plus one `stacked_bar` host cell; the legend doubles as the "3 proposed ·
 key** — set `normalName` explicitly on the seg calcs and reference that (with no
 `normalName` the row is keyed by the full SQL `name`, per the warning below).
 
+> ⚠️ **`pageSize` is required even with `usePagination: false`.** Without it the
+> fetch range never resolves and the section silently renders nothing — the
+> length query goes out, no data request follows, no error anywhere. Set
+> `pageSize` ≥ the expected row count (found via the freight-atlas gallery tiles,
+> 2026-07-13).
+
+> ⚠️ **No literal `" as "` inside calculated-column string literals.** The
+> column-name parser (`splitColNameOnAS`) splits on the FIRST ` as ` anywhere in
+> `name` — `'... more as their data lands'` truncates the SQL mid-literal and
+> that attribute silently returns null. Assemble the text so the word "as" never
+> has spaces around it in the raw string, e.g.
+> `|| ' more' || chr(32) || 'as their data lands'`.
+
 > ⚠️ **`barMaxColumn` / `barColorColumn` (and `data_color_cell`'s
 > `domainColumns`/`*Column` props) must reference a sibling column by its FULL
 > SQL `name`, not its alias.** The row handed to the column type is keyed by each

@@ -1,4 +1,5 @@
 import React, {useEffect, useMemo, useRef, createContext} from "react";
+import { useSearchParams } from "react-router";
 import { get, isEqual, cloneDeep } from "lodash-es";
 import { AvlMap } from "../../../../../../../ui/components/map"
 // import { PMTilesProtocol } from '~/pages/DataManager/utils/pmtiles/index.ts'
@@ -288,10 +289,65 @@ MapDamaEdit.settings = {
     name: 'ElementEdit'
 }
 
+// Shareable-link READ (opt-in via element-data `shareableState`; VIEW only — the edit
+// component must not absorb URL state an author could then save into the section):
+// `?layers=<symbologyId>,…` = the visible symbology set; `f_<symbologyId>=<idx>` = that
+// symbology's selectedInteractiveFilterIndex. Ported from the Map component's read side
+// (map/index.jsx) so gallery deep-links (`/freight_atlas?layers=…`) work on map_dama
+// sections. Applied to the section config BEFORE state initialization — an effect-based
+// read races the map's layer construction (instances snapshot visibility at build; the
+// panel updates but the map doesn't). Unknown ids are ignored (links survive symbology
+// removal); a bare `?layers=` means "default state". map_dama does NOT write the URL
+// back — the share-state serializer stays with the unified-component work.
+const applyShareParamsToConfig = (config, searchParams) => {
+    if (!config?.shareableState) return config;
+    const rawLayersParam = searchParams.get('layers');
+    const layersParam = rawLayersParam && rawLayersParam.trim() ? rawLayersParam : null;
+    const filterEntries = [...searchParams.entries()].filter(([key]) => key.startsWith('f_'));
+    if (layersParam === null && !filterEntries.length) return config;
+    const next = cloneDeep(config);
+    const visibleIds = (layersParam || '').split(',').map(s => s.trim()).filter(Boolean);
+    Object.keys(next.symbologies || {}).forEach(symId => {
+        const entry = next.symbologies[symId];
+        if (layersParam !== null) {
+            const nextVisible = visibleIds.includes(String(symId));
+            entry.isVisible = nextVisible;
+            Object.values(entry.symbology?.layers || {}).forEach(layer => {
+                (layer.layers || []).forEach(mlLayer => {
+                    mlLayer.layout = { ...(mlLayer.layout || {}), visibility: nextVisible ? 'visible' : 'none' };
+                });
+                // hiding must reach interactive-filter variant layers too (the
+                // addSymbologyToLibrary hide semantics) or a variant-active
+                // symbology keeps rendering
+                if (!nextVisible) (layer['interactive-filters'] || []).forEach(variant => {
+                    (variant.layers || []).forEach(mlLayer => {
+                        mlLayer.layout = { ...(mlLayer.layout || {}), visibility: 'none' };
+                    });
+                });
+            });
+        }
+    });
+    filterEntries.forEach(([key, value]) => {
+        const symId = key.slice(2);
+        const index = parseInt(value, 10);
+        const entry = next.symbologies?.[symId];
+        if (Number.isNaN(index) || index < 0 || !entry) return;
+        Object.values(entry.symbology?.layers || {}).forEach(layer => {
+            if ((layer['interactive-filters'] || []).length > index) {
+                layer.selectedInteractiveFilterIndex = index;
+            }
+        });
+    });
+    return next;
+};
+
 export const MapDamaView = ({value, size}) => {
     const { falcor, falcorCache, pgEnv } = React.useContext(CMSContext)
     const mounted = useRef(false);
-    const cachedData = typeof value === 'object' ? value : value && isJson(value) ? JSON.parse(value) : {};
+    const rawCachedData = typeof value === 'object' ? value : value && isJson(value) ? JSON.parse(value) : {};
+    const [searchParams] = useSearchParams();
+    // read once at mount — the memo freezes the URL-adjusted config the map initializes from
+    const cachedData = useMemo(() => applyShareParamsToConfig(rawCachedData, searchParams), []);
     //console.log('cachedData', cachedData, value)
     const [state,setState] = useImmer({
         tabs: cachedData.tabs || [{"name": "Layers", rows: []}],

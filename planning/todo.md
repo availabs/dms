@@ -137,6 +137,10 @@
       add-new form Cards can fill sequential ids (ticket #s: max+1, floor autoNumberStart) and
       static defaults (status "Triage") at create instead of waiting for a sync heal. Additive;
       pending transportNY sync.
+- [ ] [map_dama shareable-link read (`?layers=`/`f_<id>`)](./tasks/current/map-dama-shareable-layers-read.md) —
+      opt-in (`shareableState` element-data key), view-only port of the Map component's URL read
+      so gallery deep-links preset map_dama layers (freight atlas #106). No write-back — the
+      serializer waits for the unified component. Pending transportNY sync.
 - [ ] **BUG: `getSources` derives source `env` from the display-name slug** (useDataSource.js:32-34,
       `${app}+${nameToSlug(name)}`) — drifts from the real instance whenever display name ≠
       instance slug ("Site Management — Tickets" → `site_management__tickets` vs
@@ -275,6 +279,10 @@
       a pattern at more than one {subdomain, baseUrl} location (e.g. freightatlas2 at
       `freightatlas2:/` AND `www:/freightatlas`); additive `locations` json attr, per-mount route
       expansion in pattern2routes, Locations editor in the pattern edit modal; fully BC.
+
+- [x] [Lexical sub:// links + IconNode chip fix](./tasks/completed/lexical-subdomain-links-and-icon-chips.md) —
+      DONE 2026-07-13 (uncommitted): environment-portable cross-subdomain buttons (`sub://npmrds/x`)
+      + iconStyles passthrough so lexical icon chips actually render their themed boxes.
 
 ### patterns/datasets
 

@@ -571,6 +571,7 @@ export function buildLexicalInternalTheme(flatTheme) {
     'cellActionButtonContainer', 'cellActionButton', 'debugTimetravelButton',
     'debugTreetypeButton', 'connecting', 'spacer', 'buttonItemIcon',
     'dropdownItemActive', 'dropdownItemActiveIcon', 'tableNodeContentEditable',
+    'iconStyles',
     'imageControlWrapperResizing'
   ];
 
