@@ -28,6 +28,16 @@ regression shots of the old map_dama page + tsmo2/npmrds — all unchanged):
   the write effect serializes desired params into a ref and only navigates when that serialization
   changes (URL comparisons are race-prone: setSearchParams flushes async, so a stale scheduled
   write can land after a fresher compare).
+- **Share-URL empty-param fix 2026-07-12** (owner report: `?layers=` on prod wedged the FA map in
+  a perpetual-loading/blank state): a bare `?layers=` was parsed as "param present, zero ids" →
+  every symbology forced hidden. Now (a) read treats an empty/whitespace `layers` value exactly
+  like an absent param (default saved state), (b) write drops the `layers` key when nothing is
+  visible instead of emitting `layers=` (the writer path that produced such URLs when a user
+  unchecked the last layer — `next.delete('layers')` before applying desired). Consequence: an
+  all-off map is intentionally not shareable — it round-trips to the default state. Verified on
+  freightatlas2.localhost: no-param ≡ `?layers=` (both "1 on"), `?layers=9001050` still restores
+  the DAC layer, uncheck-all yields a paramless URL. **Prod needs a redeploy of the bundle to pick
+  this up** (repro'd live on freightatlas2.devtny.org before the fix).
 - **Full-screen support** (FA v2 request): `HEIGHT_OPTIONS.screen = 100vh` (additive; `full` stays
   95vh) + a neutral `workbench` style in the default LayoutGroup theme (full-bleed, no padding);
   transportnyv2 ships its own branded `workbench` band. Recipe: workbench band +

@@ -49,10 +49,10 @@ export default function SourcePage ({ apiLoad, apiUpdate, format, item, params, 
     const { theme: fullTheme } = useContext(ThemeContext) || {};
     const t = {...sourcePageTheme, ...getComponentTheme(fullTheme, 'datasets.sourcePage')};
     const {Layout} = UI;
-    // Shared secondary nav — site-absolute items, so baseUrl '' (see DatasetsList).
+    // Shared secondary nav — mount-aware base (pattern.navPrefix; '' on primary mounts) (see DatasetsList).
     const menuItemsSecondNav = React.useMemo(
-        () => dataItemsNav(fullTheme?.navOptions?.secondaryNav?.navItems || [], '', false),
-        [fullTheme?.navOptions?.secondaryNav?.navItems]
+        () => dataItemsNav(fullTheme?.navOptions?.secondaryNav?.navItems || [], ctx?.parent?.navPrefix || '', false),
+        [fullTheme?.navOptions?.secondaryNav?.navItems, ctx?.parent?.navPrefix]
     );
     const navigate = useNavigate();
     const pgEnv = getExternalEnv(datasources);

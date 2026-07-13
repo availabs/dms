@@ -269,6 +269,13 @@
 
 - [ ] [MapEditor joins (tile-level linked-data join)](./tasks/current/mapeditor-joins.md) — new per-layer `Linked Data` tab to join a second analytical view into a rendered geometry layer **by key, server-side at tile-request time**, so joined columns become MVT feature properties that the existing choropleth/categories/hover machinery renders unchanged. The linked side is a dataWrapper-style query (filter + groupBy + aggregate) whose output is 1:1-per-key, wrapped in a `WITH` CTE that `tiles.rest.js` `LEFT JOIN`s the geometry against (reusing an extracted `buildSimpleFilterSql` from the UDA query set). The 1:many→1:1 collapse lives in the UDA config; the tile API is agnostic and assumes 1:1. Config saved under layer key `'linked-data'`. V1 optimizes for correct configuration (minimal guardrails); request-time only (materialization rejected under the 1:1 model); same-pgEnv/PG-only. Editor query UI informed by dataWrapper but re-implemented per the no-cross-pattern-code rule; `getLayerTileUrl` edited in all three copies. See [`references/map-joins.md`].
 
+### dms-manager
+
+- [x] [Pattern multi-location mounts](./tasks/completed/pattern-multi-location-mounts.md) — DONE 2026-07-13 (uncommitted) — register
+      a pattern at more than one {subdomain, baseUrl} location (e.g. freightatlas2 at
+      `freightatlas2:/` AND `www:/freightatlas`); additive `locations` json attr, per-mount route
+      expansion in pattern2routes, Locations editor in the pattern edit modal; fully BC.
+
 ### patterns/datasets
 
 - [x] [Datasets pattern — consume `theme.navOptions.secondaryNav`](./tasks/current/datasets-pattern-secondary-nav.md) —
@@ -277,6 +284,11 @@
       datasets pages pass `secondNav` to `<Layout>` with baseUrl `''` (site-absolute items) so a datasets
       pattern can share a secondary sidenav with sibling patterns. First consumer: Freight Atlas
       `freight_data` 2186526 ↔ `freightatlas2_copy` 2175436. BC; tsmo2/npmrds/`/datasources` regression-checked.
+- [x] [Metadata page — re-enable per-column description field](./tasks/completed/metadata-page-column-description-field.md) —
+      DONE 2026-07-12 (uncommitted): un-commented the scaffolded `RenderInputLexical` description
+      editor in RenderField's advanced panel; displays `desc || description`, writes BOTH keys so
+      the dama `desc` and datasets `description` conventions stay in sync. Verified on
+      `/datasources/source/1465/metadata`.
 - [ ] [Datasets design updates (DataManager redesign)](./tasks/current/datasets-design-updates.md) — port the converged TransportNY mockup (`datasets-catalog.html` / `datasets-source.html`) into `patterns/datasets`: functional changes land in the pattern (catalog view-switcher, per-view download dropdown, Admin Tasks panel, Metadata-as-admin nav, full-bleed spreadsheet + editable persistence fix), themed fully in transportny2 + baseline in the default theme, all surfaces moved onto `getComponentTheme`. 9 phases (Foundations → Catalog → Source shell → Overview → Table → Map → Metadata → Admin → Theme/sync); Create flow deferred pending a mockup. Non-BC items (Metadata admin-only, download UX, Map symbology) flagged for confirmation.
 - [x] [Datasets permissions model (pattern → source)](./tasks/completed/datasets-permissions-model.md) — DONE (migration committed + verified on prod npmrds2). Per-source `auth_permissions` (pattern ⊕ source), shared merge util + `SourceAccessEditor`, new sources private+creator-owned; strict server enforcement in **dms-server** (`routes/uda/sourceAuth.js` + `uda.route.js` gate, 16 tests); migration script in `dms-server/src/scripts`. Column is snake_case.
 - [ ] Datasets permissions — deferred hardening (post-soak): internal-source modify gate (`dms.data.edit`), listing/read enforcement in the dms-server UDA controller, then drop legacy `statistics.auth`. (Details in the completed `datasets-permissions-model.md`.)

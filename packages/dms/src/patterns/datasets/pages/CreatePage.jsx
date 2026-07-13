@@ -36,10 +36,10 @@ export default function CreatePage({apiUpdate, format}) {
     const {theme: fullTheme} = useContext(ThemeContext) || {};
     const theme = fullTheme?.datasets?.createPage || {};
     const {Layout, LayoutGroup, MultiSelect, Input, Button} = UI;
-    // Shared secondary nav — site-absolute items, so baseUrl '' (see DatasetsList).
+    // Shared secondary nav — mount-aware base (pattern.navPrefix; '' on primary mounts) (see DatasetsList).
     const menuItemsSecondNav = useMemo(
-        () => dataItemsNav(fullTheme?.navOptions?.secondaryNav?.navItems || [], '', false),
-        [fullTheme?.navOptions?.secondaryNav?.navItems]
+        () => dataItemsNav(fullTheme?.navOptions?.secondaryNav?.navItems || [], ctx?.parent?.navPrefix || '', false),
+        [fullTheme?.navOptions?.secondaryNav?.navItems, ctx?.parent?.navPrefix]
     );
     const navigate = useNavigate();
 

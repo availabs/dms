@@ -152,15 +152,15 @@ const SourceCard = React.memo(({ source = {}, t, Icon, swatches, full }) => {
 });
 
 export default function DatasetsList ({attributes, item, dataItems, apiLoad, apiUpdate, updateAttribute, format, submit, ...r}) {
-    const {baseUrl, user, falcor, siteType, type, datasources, dmsEnv, UI} = useContext(DatasetsContext);
+    const {baseUrl, user, falcor, siteType, type, datasources, dmsEnv, UI, parent} = useContext(DatasetsContext);
     const {theme} = useContext(ThemeContext) || {};
     const t = {...datasetsListTheme, ...getComponentTheme(theme, 'datasets.datasetsList')};
     // Secondary nav shared across the subdomain's patterns — items are authored
     // site-absolute in the pattern theme, so baseUrl is '' (not this pattern's
     // mount path, which would break links into sibling patterns).
     const menuItemsSecondNav = useMemo(
-        () => dataItemsNav(theme?.navOptions?.secondaryNav?.navItems || [], '', false),
-        [theme?.navOptions?.secondaryNav?.navItems]
+        () => dataItemsNav(theme?.navOptions?.secondaryNav?.navItems || [], parent?.navPrefix || '', false),
+        [theme?.navOptions?.secondaryNav?.navItems, parent?.navPrefix]
     );
     const {Layout, Icon, Button, Input} = UI;
     const swatches = t.categorySwatches || FALLBACK_SWATCHES;

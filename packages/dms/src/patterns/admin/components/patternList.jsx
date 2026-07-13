@@ -18,6 +18,42 @@ const parseIfJSON = strValue => {
     }
 }
 
+// Additional {subdomain, base_url} mounts for a pattern — the same pattern
+// served at more than one location (multi-location mounts; see
+// planning/tasks/current/pattern-multi-location-mounts.md). The primary
+// subdomain/base_url fields above stay the canonical mount; rows here are
+// extra registrations.
+const RenderLocations = ({value, onChange}) => {
+    const {UI} = useContext(ThemeContext);
+    const {Input, Button} = UI;
+    const rows = Array.isArray(value) ? value : parseIfJSON(value);
+    const update = (i, key, v) => onChange(rows.map((r, ri) => ri === i ? { ...r, [key]: v } : r));
+    return (
+        <div className={'w-full flex flex-col gap-1 py-1'}>
+            <div className={'text-xs font-semibold text-slate-500 uppercase tracking-wider'}>
+                Additional locations
+            </div>
+            <div className={'text-xs text-slate-400'}>
+                Serve this pattern at more locations than its primary subdomain + base URL.
+            </div>
+            {rows.map((loc, i) => (
+                <div key={i} className={'w-full flex items-center gap-1'}>
+                    <Input value={loc?.subdomain || ''} placeHolder={'subdomain (e.g. www)'}
+                           onChange={e => update(i, 'subdomain', e.target.value)} />
+                    <Input value={loc?.base_url || ''} placeHolder={'base URL (e.g. /freightatlas)'}
+                           onChange={e => update(i, 'base_url', e.target.value)} />
+                    <Button type={'plain'} title={'remove location'}
+                            onClick={() => onChange(rows.filter((_, ri) => ri !== i))}>✕</Button>
+                </div>
+            ))}
+            <Button type={'plain'} className={'w-fit'} title={'add location'}
+                    onClick={() => onChange([...rows, { subdomain: '', base_url: '' }])}>
+                + add location
+            </Button>
+        </div>
+    );
+};
+
 const RenderFilters = ({value=[], onChange, ...rest}) => {
     const {UI, theme} = useContext(ThemeContext);
     const [tmpValue, setTmpValue] = useState(parseIfJSON(value));
@@ -166,7 +202,7 @@ function PatternEdit({
 		if (/^\d+$/.test(parts[parts.length - 1])) return '';
 		return parts.length >= minParts ? parts[0] : '';
 	})();
-	const attrToAddNew = ['pattern_type', 'name', ...(tenantSub ? [] : ['subdomain']), 'base_url', 'filters', 'authPermissions'];
+	const attrToAddNew = ['pattern_type', 'name', ...(tenantSub ? [] : ['subdomain']), 'base_url', ...(tenantSub ? [] : ['locations']), 'filters', 'authPermissions'];
 	const columns = [
 		{name: 'name', display_name: 'Name', show: true, type: 'text'},
 		{name: 'subdomain', display_name: 'Subdomain', show: true, type: 'text'},
@@ -316,10 +352,14 @@ function PatternEdit({
 						{
 							attrToAddNew
 								.map((attrKey, i) => {
-									let {EditComp, ViewComp, ...props} = attributes[attrKey]
+									let {EditComp, ViewComp, ...props} = attributes[attrKey] || {}
                                     if(attrKey === 'filters'){
                                         EditComp = RenderFilters
                                     }
+                                    if(attrKey === 'locations'){
+                                        EditComp = RenderLocations
+                                    }
+                                    if(!EditComp) return null;
                                     const options =
                                         attrKey === 'pattern_type' && authExists && props.options?.length ?
                                             props.options.filter(o => o.value !== 'auth') :

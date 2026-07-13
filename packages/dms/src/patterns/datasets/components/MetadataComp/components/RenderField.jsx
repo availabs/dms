@@ -577,19 +577,18 @@ export const RenderField = ({isDms, i, item, attribute, attributeList=[], update
                             hidden={!['checkbox', 'switch'].includes(item.type)}
                         />
                     </div>
-                    {/*<div className={t.advancedDescRow}>*/}
-                    {/*    <RenderInputLexical*/}
-                    {/*        key={`${item.name}-description`}*/}
-                    {/*        label={'description'}*/}
-                    {/*        attr={'description'}*/}
-                    {/*        value={item.description || item.desc}*/}
-                    {/*        col={item.name}*/}
-                    {/*        updateAttribute={updateAttribute}*/}
-                    {/*    />*/}
-                    {/*    <div className={'flex flex-col'}>*/}
-
-                    {/*    </div>*/}
-                    {/*</div>*/}
+                    <div className={t.advancedDescRow}>
+                        <RenderInputLexical
+                            key={`${item.name}-description`}
+                            label={'description'}
+                            attr={'desc'}
+                            value={item.desc || item.description}
+                            col={item.name}
+                            // readers are split between `desc` (dama convention) and
+                            // `description` — keep both keys in sync on write
+                            updateAttribute={(col, val) => updateAttribute(col, { desc: val.desc, description: val.desc })}
+                        />
+                    </div>
                     {/*<RenderInputText*/}
                     {/*    key={`${item.name}-prompt`}*/}
                     {/*    label={'prompt'}*/}

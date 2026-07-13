@@ -84,6 +84,15 @@ export const pattern = {
       type: "text",
       required: true
     },
+    // Additional {subdomain, base_url} mounts beyond the primary pair above —
+    // the same pattern served at more than one location (see
+    // planning/tasks/current/pattern-multi-location-mounts.md). Optional and
+    // additive: absent/empty keeps single-mount behavior.
+    { key: "locations",
+      type: "json",
+      required: false,
+      default: [],
+    },
     { key: "html_title",
       placeholder: 'Browser tab title (defaults to pattern name)',
       type: "text",

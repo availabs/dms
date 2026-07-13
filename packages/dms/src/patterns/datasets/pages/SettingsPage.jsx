@@ -32,14 +32,14 @@ const getSources = async ({envs, falcor}) => {
 }
 
 export default function SettingsPage({format}) {
-    const {baseUrl, falcor, datasources, dmsEnv, UI} = useContext(DatasetsContext);
+    const {baseUrl, falcor, datasources, dmsEnv, UI, parent} = useContext(DatasetsContext);
     const {theme: fullTheme} = useContext(ThemeContext) || {};
     const theme = { ...settingsPageTheme, ...getComponentTheme(fullTheme, 'datasets.settingsPage') };
     const {Layout, LayoutGroup, Input, Button} = UI;
-    // Shared secondary nav — site-absolute items, so baseUrl '' (see DatasetsList).
+    // Shared secondary nav — mount-aware base (pattern.navPrefix; '' on primary mounts) (see DatasetsList).
     const menuItemsSecondNav = useMemo(
-        () => dataItemsNav(fullTheme?.navOptions?.secondaryNav?.navItems || [], '', false),
-        [fullTheme?.navOptions?.secondaryNav?.navItems]
+        () => dataItemsNav(fullTheme?.navOptions?.secondaryNav?.navItems || [], parent?.navPrefix || '', false),
+        [fullTheme?.navOptions?.secondaryNav?.navItems, parent?.navPrefix]
     );
 
     const [sources, setSources] = useState([]);

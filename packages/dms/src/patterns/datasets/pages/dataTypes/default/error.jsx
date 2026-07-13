@@ -6,13 +6,14 @@ import {dataItemsNav} from "../../../../../utils/nav";
 
 function ErrorPage({}) {
     const {theme: fullTheme, UI} = useContext(ThemeContext);
+    const {parent} = useContext(DatasetsContext) || {};
     const {Layout} = UI;
     let theme = merge(cloneDeep(fullTheme), {})
     const sectionTheme = theme?.sectionGroup?.['default'] || {};
-    // Shared secondary nav — site-absolute items, so baseUrl '' (see DatasetsList).
+    // Shared secondary nav — mount-aware base (navPrefix; see DatasetsList).
     const menuItemsSecondNav = React.useMemo(
-        () => dataItemsNav(fullTheme?.navOptions?.secondaryNav?.navItems || [], '', false),
-        [fullTheme?.navOptions?.secondaryNav?.navItems]
+        () => dataItemsNav(fullTheme?.navOptions?.secondaryNav?.navItems || [], parent?.navPrefix || '', false),
+        [fullTheme?.navOptions?.secondaryNav?.navItems, parent?.navPrefix]
     );
 
     return (

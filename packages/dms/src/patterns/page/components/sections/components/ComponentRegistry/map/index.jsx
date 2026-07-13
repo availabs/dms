@@ -459,7 +459,11 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
     useEffect(() => {
         if (!shareEnabled || urlReadDoneRef.current) return;
         urlReadDoneRef.current = true;
-        const layersParam = searchParams.get('layers');
+        // A bare `?layers=` (no ids) means "default state", not "hide every
+        // layer" — treat it exactly like an absent param so stale/truncated
+        // share links don't load an all-off map.
+        const rawLayersParam = searchParams.get('layers');
+        const layersParam = rawLayersParam && rawLayersParam.trim() ? rawLayersParam : null;
         const filterEntries = [...searchParams.entries()].filter(([key]) => key.startsWith('f_'));
         if (layersParam === null && !filterEntries.length) return;
         const visibleIds = (layersParam || '').split(',').map(s => s.trim()).filter(Boolean);
@@ -502,7 +506,10 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
         // clean until the user actually changes the map.
         const visibleIds = Object.keys(state.symbologies || {}).filter(id => state.symbologies[id]?.isVisible);
         const desired = new URLSearchParams();
-        desired.set('layers', visibleIds.join(','));
+        // With nothing visible the param is dropped entirely (a bare
+        // `?layers=` reads as "default state" above, so writing it would
+        // round-trip an all-off map into the defaults on reload anyway).
+        if (visibleIds.length) desired.set('layers', visibleIds.join(','));
         visibleIds.forEach(id => {
             const layerWithFilters = Object.values(state.symbologies[id]?.symbology?.layers || {})
                 .find(layer => (layer['interactive-filters'] || []).length);
@@ -517,6 +524,7 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
         setSearchParams(prev => {
             const next = new URLSearchParams(prev);
             [...next.keys()].filter(key => key.startsWith('f_')).forEach(key => next.delete(key));
+            next.delete('layers');
             desired.forEach((value, key) => next.set(key, value));
             return next;
         }, { replace: true });
@@ -798,15 +806,50 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
 
                         if (cancelled) return;
 
-                        const filteredData = get(
+                        // The falcor range materializes as an OBJECT keyed by index
+                        // ("0","1",…), not an array — checking `.length` on it reads
+                        // undefined and every populated category legend collapsed to
+                        // "No data". Normalize to ordered rows (unboxing atoms) first.
+                        const dataByIndexObj = get(
                             response,
                             ["json", "uda", pgEnv, "viewsById", effectiveViewId, "options", options, "dataByIndex"],
-                            []
+                            {}
                         );
+                        if (dataByIndexObj?.$__status === "error") {
+                            // parity with the choropleth branch: keep the last-good
+                            // legend on a server error, never wipe it
+                            continue;
+                        }
+                        const filteredData = Object.keys(dataByIndexObj || {})
+                            .filter((key) => /^\d+$/.test(key))
+                            .sort((a, b) => +a - +b)
+                            .map((key) => {
+                                const row = dataByIndexObj[key];
+                                if (!row || typeof row !== "object") return null;
+                                return Object.fromEntries(Object.entries(row).map(([col, v]) => [
+                                    col,
+                                    v && typeof v === "object" && "value" in v ? v.value : v,
+                                ]));
+                            })
+                            .filter(Boolean);
+
+                        // Layers authored without `category-data` (section-embedded
+                        // symbologies) have no value→saved-row mapping — narrowing
+                        // would replace the authored labels/colors with raw values on
+                        // a fallback palette. Keep the authored legend instead.
+                        const baseCategoryData = layer?.__runtimeBaseCategoryData || layer?.["category-data"] || [];
+                        if (filteredData.length && !baseCategoryData.length) {
+                            setState((draft) => {
+                                const draftLayer = draft.symbologies?.[symbologyId]?.symbology?.layers?.[layer.id];
+                                if (draftLayer) draftLayer.__runtimeLegendFilterKey = runtimeLegendKey;
+                            });
+                            continue;
+                        }
+
                         // Empty filtered set → explicit "No data" (parity with
                         // the choropleth branch); otherwise narrow the saved
                         // category legend to the categories still present.
-                        const nextLegendData = filteredData?.length
+                        const nextLegendData = filteredData.length
                             ? getCategoryLegendFromFilteredData(layer, filteredData)
                             : [{ label: "No data" }];
 

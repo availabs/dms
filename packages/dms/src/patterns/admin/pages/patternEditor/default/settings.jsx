@@ -7,6 +7,40 @@ import { ThemeContext } from "../../../../../ui/useTheme";
 import { nameToSlug, getInstance } from "../../../../../utils/type-utils";
 import { settingsEditorTheme } from './settings.theme'
 
+// Additional {subdomain, base_url} mounts — the same pattern served at more
+// locations than its primary subdomain + base URL (e.g. freightatlas2:/ AND
+// www:/freightatlas). Saved through the section's normal Save button as
+// `locations`. "www" counts as the root domain, matching site routing.
+// See planning/tasks/current/pattern-multi-location-mounts.md.
+function LocationsEditor({ value, onChange }) {
+  const { UI } = useContext(ThemeContext);
+  const { Input, Button } = UI;
+  const rows = Array.isArray(value) ? value : [];
+  const update = (i, key, v) => onChange(rows.map((r, ri) => ri === i ? { ...r, [key]: v } : r));
+  return (
+    <div className={'w-full flex flex-col gap-1 pt-2'}>
+      <span className={'text-sm font-medium text-slate-700'}>Additional Locations</span>
+      <span className={'text-xs text-slate-400'}>
+        Also serve this pattern at these subdomain + base URL pairs ("www" = the root domain).
+      </span>
+      {rows.map((loc, i) => (
+        <div key={i} className={'w-full flex items-center gap-2'}>
+          <Input value={loc?.subdomain || ''} placeholder={'subdomain (e.g. www)'}
+                 onChange={e => update(i, 'subdomain', e.target.value)} />
+          <Input value={loc?.base_url || ''} placeholder={'base URL (e.g. /freightatlas)'}
+                 onChange={e => update(i, 'base_url', e.target.value)} />
+          <Button type={'plain'} title={'remove location'}
+                  onClick={() => onChange(rows.filter((_, ri) => ri !== i))}>✕</Button>
+        </div>
+      ))}
+      <Button type={'plain'} className={'w-fit'} title={'add location'}
+              onClick={() => onChange([...rows, { subdomain: '', base_url: '' }])}>
+        + add location
+      </Button>
+    </div>
+  );
+}
+
 
 const customTheme = {
     field: 'pb-2 flex flex-col col-span-9'
@@ -239,6 +273,10 @@ export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest})
                       customTheme: { field: 'pb-2 col-span-1 flex justify-end' }
                     },
                 ]}
+            />
+            <LocationsEditor
+              value={tmpValue.locations}
+              onChange={(locations) => setTmpValue(draft => { draft.locations = locations; })}
             />
         </div>
 
