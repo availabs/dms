@@ -18,6 +18,106 @@ and leave only its ledger line in the live file.
 
 ---
 
+**Round 35 (2026-07-13): the speed/travelTime backport — DONE.**
+
+**Objective (round 34's item (a), user-named this session's work item)**: replace the per-row-
+average semantics in every live speed/travelTime template with the old-faithful two-level
+aggregate (per-TMC mean travel time, composed across TMCs by miles) via the map-combinator
+expressions round 34 live-confirmed. Ships isolated per [[feedback_isolate_shared_code_changes]]
+(no Bar Graph Summary Phase A work mixed in).
+
+**Offline validation — DONE (this round, `ch_backport_validate.py`, session scratchpad)**:
+- 455/3464 TMC-identification CH table
+  (`npmrds_raw_tmc_identification.s455_v3464_NPMRDS_TMC_Identification_V5_V6`): `miles` is plain
+  `Float64`, NOT Nullable — safe inside `map()` for the base join every bar/line/grid template
+  uses (round 34 only proved the 1946 meta join).
+- On the round-34 report-520 fixture (real `LEFT JOIN ... table1` shape, not a miles CASE): flat
+  expressions == two-step ground truth EXACTLY — whole-range (23.2582 mph / 4.5803 min), per-date
+  GROUP BY (6/6 buckets), per-epoch GROUP BY (5/5 epochs). One expression, correct at every
+  grouping the templates use.
+
+**Code changes (`scripts/convert_old_reports.py`) — ALL DONE**:
+- [x] `SPEED_EXPR` := the SPEED_SUMMARY_EXPR text (they unify; the already-live-verified summary
+  template therefore does NOT drift — confirmed byte-identical, no drift line fired for it):
+  `(arraySum(mapValues(maxMap(map(ds.tmc, table1.miles)))) * 3600) /
+  arraySum(mapValues(avgMapIf(map(ds.tmc, toFloat64(ds.travel_time_all_vehicles)),
+  ds.travel_time_all_vehicles != 0))) as speed`. `SPEED_SUMMARY_EXPR = SPEED_EXPR` alias kept for
+  the summary spec.
+- [x] `TRAVEL_TIME_EXPR` := `arraySum(mapValues(avgMapIf(map(ds.tmc,
+  toFloat64(ds.travel_time_all_vehicles)), ds.travel_time_all_vehicles != 0))) / 60 as
+  travel_time_all_vehicles`. **SCALE + QUANTITY CHANGE**: route traversal time in MINUTES
+  (old-faithful), replacing mean single-segment SECONDS.
+- [x] All 12 existing speed/TT spec entries: `fn: "avg"` → `"exempt"`, add `customName`
+  ("Speed (mph)" / "Travel Time (min)" — same label-fallback protection as round 34's summary;
+  these expressions are ~200-char SQL strings; customName consumption confirmed in
+  LineGraph/BarGraph/TableHeaderCell).
+- [x] NEW TEMPLATE_SPECS entries for the 3 hand-built templates so drift-detection governs them
+  (they were live and stale: both speed ones still carried the PRE-round-23 bare division, no
+  nullIf — confirmed by dumping the rows this round): `tmc_speed_line_graph` (2187296),
+  `tmc_travel_time_line_graph` (2187310, = TEMPLATE_BASE_NAME; yAxis was a plain non-calculated
+  column), `tmc_speed_grid_graph` (2187311).
+- [x] `ensure_route_compare_template`: value column `fn` → "exempt" + customName, anchor/delta
+  use the raw self-aggregating expression directly (no `avg()` wrapping), delta gets
+  `customName: "% vs Main"`. ADDED drift detection (was mint-once/return-early, so the live
+  `route_compare_speed` row 2189364 would have silently stayed stale).
+- [x] **New converter bug found by the dry-run and fixed**: `ensure_graph_templates` drift
+  detection located the value column by hardcoded `target == "yAxis"` — every GridGraph template
+  (target `"color"`) was silently INVISIBLE to drift detection (a latent round-23 mechanism gap;
+  explains why the CO₂ grids needed round 9's direct row patches). Now matches by the spec's own
+  target. Re-checked the CO₂ grid specs vs live rows: byte-equal, no spurious drift introduced.
+
+**Verification**:
+- [x] Dry-run all 16 affected reports: all 16 templates fire drift exactly once each
+  (incl. both grids after the fix; summary correctly silent), no new gap kinds, no errors.
+- [x] Enumerate ALL live pages carrying the affected templates (scanned all 1,536 live
+  `npmrds_sub|component` rows' `_appliedTemplate.fields.*.templateId` → owning pages): 16
+  converted reports (1045, 1061, 1070, 1071, 142, 16, 228, 229, 471, 520, 630, 740, 914, 960,
+  987, 994) + the 2 hand-built demo pages `page_10`/`page_11` (2187523/2187532 — NOT
+  converter-produced; their sections keep the old copied state; noted as follow-up, not touched)
+  + 10 orphan components from superseded pages (inert).
+- [x] **Report 471 will be DELETED without recreation** — every route resolves to
+  `route_missing_everywhere` route 1649 (`no_valid_routes`), i.e. round 33's policy applying to a
+  pre-round-33 page that was always a permanently-empty shell. Also partially resolves
+  next-step (e)'s re-scan for exactly this shape. Expected, correct.
+- [x] `--replace` reconverted all 16 (every run exit 0; all 16 templates drift-updated exactly
+  once). New page ids: 1045→`2189915`, 1061→`2189943`, 1070→`2189957`, 1071→`2189965`,
+  142→`2189993`, 16→`2190009`, 228→`2190017`, 229→`2190031`, 520→`2190043`, 630→`2190053`,
+  740→`2190079`, 914→`2190097`, 960→`2190125`, 987→`2190137`, 994→`2190169`; 471 deleted
+  without recreation (`no_valid_routes`).
+- [x] Playwright live-verified all 15 pages (networkidle + settle): **zero console errors, zero
+  non-200 falcor responses** (25-54 real `localhost:3001/graph` requests per page — an earlier
+  pass had inflated counts by matching Vite module URLs containing "/graph"; re-run with correct
+  origin filtering). 13/15 pages return new-expression data with sane ranges (speeds 4-66 mph;
+  travel times now in MINUTES — e.g. 1071's 2.6-3.5 min = exactly its round-23 156-210s ÷ 60;
+  987's 4.2-8.8 min; 228/229's multi-TMC routes 10-27 min).
+- [x] **Reports 142 and 16 fire length probes but no data fetches — NOT a backport regression**:
+  their arms filter on 2016 dates (May 2016 / Jan 2016), before view 982's coverage, so every
+  length probe returns 0 and the graphs legitimately render empty — the pre-2017 data-coverage
+  class the user ruled out of scope in round 34. Proven not-backport-caused two ways: the
+  UNTOUCHED delay template (fn sum) on 142 shows the identical no-fetch behavior, and both
+  pages' sections carry the correct new expressions in the DB (dumped and checked).
+- [x] **Ground truth, end-to-end**: took the real captured dataByIndex responses from the live
+  report_1071 page (speed line 5-min ×2 arms, speed bar day AM+PM, TT bar day AM+PM) and
+  recomputed every returned bucket with independent two-step SQL — **184/184 live values match
+  with worst relative error 0.00e+00**. Also: report_520's summary bars still return round 34's
+  ground-truthed 21.058/25.642 byte-identically, confirming the summary template correctly did
+  not drift.
+- [x] Expected render-state changes (recap): speed graphs keep magnitude but shift toward the
+  composed route speed (whole-range fixture: 26.0 → 23.3; per-bucket deltas smaller); travel-time
+  graphs change quantity AND scale (mean segment seconds → route traversal minutes — a
+  single-TMC route's values divide by exactly 60; multi-TMC routes also grow by the
+  sum-across-TMCs semantics). DELAY/AVG_DELAY/CO2/summary templates: unchanged, as verified.
+
+**Round 35 — DONE. Follow-ups logged, not done**: (1) hand-built demo pages `page_10` (2187523)
+and `page_11` (2187532) still carry the OLD copied expressions in their sections (they are not
+converter-produced, so `--replace` doesn't reach them; re-apply templates by hand or leave — they
+are demos); (2) 10 orphan components from superseded pages also carry old state (inert, no owning
+page); (3) round 33's corpus-wide re-scan item (e) is PARTIALLY resolved — 471 (one of the 4
+flagged route entries) is now correctly deleted; the systematic re-scan over future bulk
+conversions still stands.
+
+---
+
 **Round 34 (2026-07-13): Bar Graph Summary — SCOPED ONLY (no build). User direction this round:
 ALL data issues (pre-2017, pm3 backfill, route catalog) are out of scope until functionality is
 much further along — gap-log for attribution only, never prioritize fixes.**
