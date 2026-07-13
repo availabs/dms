@@ -25,6 +25,44 @@ and how it was verified. **Lesson for next time:** reproduce and capture the act
 traffic before trusting a plausible-sounding pre-existing signal (`config === undefined`) —
 the real defect was one step removed from where the original hazard doc's analysis pointed.
 
+## New confirmed trigger (2026-07-10, old-reports-conversion round 33) — a DIFFERENT mechanism from the one fixed above, not a regression
+
+Found live on two published `old-reports-conversion` pages (`report_1032`, `report_392`), root-caused
+with certainty via a real captured failing request (not inferred). **Distinct from the
+`hasUnscopedComparisonSeries`/empty-filter-TREE case fixed above** — this is a filter LEAF that
+exists (a real `{op:"filter", col:"tmc", value:[]}` node) but whose value array is empty.
+
+- **Mechanism**: `buildUdaConfig.js:186-198` intentionally DROPS a `filter`/`exclude` node entirely
+  when its cleaned value array ends up empty, rather than compiling it to `col IN ()` — correct and
+  deliberate for its intended case (an unset `usePageFilters` region control should widen to "show
+  everything," not "show nothing"). But this same code path fires for ANY empty-valued filter leaf,
+  regardless of source — including a converter-generated route with no resolvable `tmc_array`.
+- **Why it's only a crash on SOME templates, not all**: the dropped TMC filter only becomes
+  catastrophic on a template whose `groupBy` includes the real `tmc` column (e.g.
+  `old-reports-conversion`'s "Hours of Delay Graph" shape, `groupBy: ["ds.epoch","ds.tmc"]`) — TMC
+  cardinality is unbounded (not capped like `epoch`'s 288), so `count(DISTINCT epoch,tmc)` over an
+  unfiltered-by-TMC table can be millions of rows. Templates that only group by `__series` (every
+  other template in that task) are still unfiltered/wasteful but bounded, since `tmc` never enters
+  `groupBy` at all.
+- **Real captured evidence**: a `dataByIndex` request with `{"from":0,"to":4407473}` × 3 attributes
+  ≈ 13.2M requested falcor paths — tripped `falcor-router`'s `MAX_PATHS=9000` cap
+  (`MaxPathsExceededError`) before ever reaching ClickHouse. `4407473/288 ≈ 15,303` — roughly the
+  TMC count for the whole NPMRDS TMC-identification table, confirming a nationwide, unfiltered-by-
+  TMC scan for what should have been one route's data.
+- **Fix applied at the source** (`scripts/convert_old_reports.py`'s `build_route_entry`): a route
+  with no resolvable TMC array now gets `graphIds: []` unconditionally — it's never wired into any
+  graph's comparison-series fan-out, so this specific empty-filter-leaf path can't be reached via
+  the converter anymore. This is a point fix in the converter, not a platform-level fix — the
+  underlying `buildUdaConfig.js` widening behavior is untouched (it's correct for its real use
+  case) and could in principle still be reached by some other future path that produces a
+  real-but-empty filter leaf on a `tmc`-grouped (or any high-cardinality-grouped) template.
+- **Full writeup**: `src/dms/planning/tasks/current/old-reports-conversion.md`, "Round 33."
+- **Not done**: no platform-level guard was added for empty-valued filter leaves on
+  high-cardinality-`groupBy` templates in general — only the one converter-side reachability path
+  was closed. If this resurfaces via a different path (author-built filter, different converter,
+  etc.), the same class of fix (or a platform-level `col IN () `→ correctly-matches-nothing compile,
+  scoped to NOT affect the legitimate unset-page-filter-widening case) would need real design work.
+
 ## Objective
 
 Stop stray unfiltered ClickHouse queries (fired by a known client-side race, see below) from

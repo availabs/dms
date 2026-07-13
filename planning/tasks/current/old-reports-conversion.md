@@ -1,5 +1,209 @@
 # Old NPMRDS reports → new DMS report pages (automated conversion)
 
+**Round 33 (2026-07-10): `route_missing_everywhere` + a `categorize:"tmc"` template = a live,
+already-published unfiltered-nationwide-TMC-scan hazard — ROOT-CAUSED WITH CERTAINTY (real failing
+request captured, not inferred), FIXED, live-verified, and a follow-on policy fix applied (reports
+with zero valid routes now correctly produce no page at all, not an empty shell). Found via the
+user's own live browser-testing of round 32's report 1032, then traced end-to-end with the user
+pushing back three times on an incomplete diagnosis/fix until it was fully correct.**
+
+- **Symptom**: opening `report_1032` in a real browser threw `[falcor-express] Route error:
+  Maximum number of paths exceeded` (`MaxPathsExceededError`, `falcor-router`'s `MAX_PATHS = 9000`
+  hard cap, `router/get.js`). Page hung/errored, "made the browser very angry."
+- **First (incomplete) theory — the empty-filter-widens-to-unfiltered mechanism.** Traced
+  `buildUdaConfig.js:186-198`: a filter leaf whose value array ends up empty (any column, any
+  cause) is **dropped entirely**, not compiled to `col IN ()` — a deliberate, documented choice so
+  an unset `usePageFilters` control widens to "show everything" rather than "show nothing." Report
+  1032's route 29381 ("BIN7715570 WB Avg Day of 2023") is a `route_missing_everywhere` route (empty
+  `tmc_array`, one of 231 corpus-wide) — its dropped TMC filter looked like the culprit. Proposed
+  fix (too narrow, corrected below after user pushback): only clear `startDate`/`endDate` when
+  `relativeDate` is set.
+- **User's first correction (correct, in hindsight)**: pointed out a real route with valid TMCs and
+  a manually-typed full-year date range would hit the same thing — the relativeDate-only fix was
+  patching one symptom, not the mechanism. Reconsidered: proposed excluding
+  `route_missing_everywhere` routes from `graphIds` entirely instead of patching the date field.
+- **User's second correction, with concrete evidence**: pasted the actual captured request and
+  argued the crash comes from stuffing a full year of dates + all 288 epochs into one request
+  path/body — **this specific claim was checked against `falcor-path-utils`' real `pathCount`
+  source and found NOT to be the mechanism**: a plain string segment (however long, however much
+  JSON it contains) counts as exactly 1 path — `getRangeOrKeySize` returns 1 for anything that
+  isn't an `Array` or a range/keys object. The captured request the user first pasted was the
+  `.length` check (`["uda","npmrds2","viewsById",982,"options","<string>","length"]`) — every
+  segment there is a scalar, so it counts as 1 path regardless of the string's size. This was
+  correctly pushed back on using the library's own source, not asserted.
+- **The user then pulled the actual failing request (the one that got the 500), which settled it
+  precisely**: `["uda","npmrds2","viewsById",982,"options","<...>","dataByIndex",
+  {"from":0,"to":4407473},["sum(...) as hours_of_delay_sum","ds.epoch","ds.tmc"]]`.
+  `{from:0,to:4407473}` × 3 attributes ≈ **13.2 million paths**. Critically, this arm's OWN date
+  filter is `["2023-06-21"]` — **one single day**, not a wide range — and its `filterGroups` has
+  **no `tmc` filter at all**. `4407473 / 288 ≈ 15,303` — roughly the TMC count for the whole
+  NPMRDS TMC-identification table. This is component 2189680 ("Hours of Delay Graph, Hours of
+  Delay - WB"), one of round 11/12's pre-existing per-TMC templates (`groupBy: ["ds.epoch",
+  "ds.tmc"]`, NOT `__series`) — confirming the exact, sufficient, necessary mechanism: a
+  `route_missing_everywhere` route's dropped TMC filter, assigned to a real `categorize:"tmc"`
+  template, produces a literal unfiltered-by-TMC scan whose result set is (TMC count × epoch
+  count) — unbounded, unlike every `__series`-categorized template in this pipeline where TMC never
+  enters `groupBy` at all (bounded to ≤288 regardless of how wide the date range or how broken the
+  TMC filter is). **Not a date-width issue — an empty/dropped TMC filter on a TMC-grouped template,
+  specifically.**
+- **Corpus-wide check (read-only, `reports_snap_2` split table, 1569 rows scanned): 4 route entries
+  across 4 reports have an empty `tmc_array` with non-empty `graphIds`.** Cross-referenced each
+  `graphIds` entry's actual section: **2 are genuinely dangerous (`categorize: tmc`)** — report 1032
+  (this round, component 2189680, confirmed crashing) and **`report_392`** ("Aviation-Quaker Delay
+  2018", route 1440, components 2189427/2189428, hour+month resolution) — **live and unfiltered
+  since Round 12 (2026-07-09), never revisited.** Round 12's own notes misdiagnosed this exact
+  report at the time: it observed "renders zero bars live" and concluded the route's
+  `ReportRouteList.jsx` `JSON.parse` crash "blocks the whole page's comparisonSeries wiring, so no
+  AVL Graph ever fires a query" — **incomplete**: the `JSON.parse` is wrapped in try/catch (confirmed
+  by reading the current source), so the query still fires; the empty result silently widens to
+  unfiltered instead of not firing at all. Round 12 had no reason to suspect this since
+  `MaxPathsExceededError` wasn't the symptom they were checking for. The other 2 affected route
+  entries (`report_11`/Delaware Avenue route 14, `report_471`/"Route Bar Graph tests" route 1649)
+  only touch `__series`-categorized sections — wasteful (unfiltered-by-TMC scan cost) but not the
+  crash-inducing shape, consistent with round 12's original, narrower finding for those two.
+- **Timeline**: the *possibility* existed since Round 11 (2026-07-09, first `categorize:"tmc"`
+  template minted); it went *live* the same day in Round 12 when report 392 was converted onto it.
+  Sat unnoticed for the time since because nobody reloaded that specific page with request-level
+  monitoring until this round.
+- **Fix designed, NOT YET APPLIED**: in `build_route_entry` (`scripts/convert_old_reports.py`),
+  compute the resolved `tmc_array` once and force `graphIds` to `[]` whenever it's empty —
+  a route with no real TMC identity should never be wired into any graph's comparison-series
+  fan-out (every measure in this whole pipeline is TMC-scoped; per the user's own framing,
+  "everything we do is based on 1 or more TMC"). This closes the mechanism directly (no arm ever
+  gets built from a tmc-less route) rather than patching the date field or relying on
+  `buildUdaConfig.js`'s widening behavior being safe.
+- **Fix applied, both live exposures closed, live-verified.** `build_route_entry` now computes
+  the resolved `tmc_array` once and forces `graphIds: []` whenever it's empty, logging a new
+  `route_excluded_from_graphs_no_tmc` gap instead of silently wiring a tmc-less route into any
+  graph's comparison-series fan-out.
+- **Second, unrelated, equally urgent bug found while verifying the fix**: `load_graph_templates()`
+  called `dms raw list` with no `--limit`, which defaults to **20** — the type had grown to **37**
+  rows (round 32 pushed it over), so the two oldest, most heavily-used base templates
+  (`tmc_speed_line_graph` id `2187296`, `tmc_travel_time_line_graph` id `2187310` — the ones every
+  other template in this whole task is minted FROM) silently fell off the default page. Every
+  report using either template started spuriously gap-logging `"template '...' not found in DB"`
+  — caught immediately (report 1032's dry-run regressed from 5 convertible graphs to 3 right after
+  the `graphIds` fix, which should have been unrelated) rather than shipped unnoticed. **Fixed**:
+  added `--limit 1000` to that one `dms raw list` call (confirmed it's the only unbounded `raw
+  list` call in the script). Re-verified `load_graph_templates()` finds both base templates again.
+- **Reconverted both exposed reports with both fixes applied**: `report_1032` → new page `2189770`,
+  `report_392` → new page `2189786`. Both dry-run gap reports show clean
+  `route_excluded_from_graphs_no_tmc` entries for the missing routes, no new/unexpected gaps.
+- **Live-verified (2026-07-10, Playwright, `waitUntil: 'networkidle'`)** — deliberately used the
+  same wait condition that previously **timed out** for report 1032 (a real symptom of the hang,
+  not just a short observation window), not the shorter `'load'`-based checks used earlier in this
+  round that missed the crash entirely. Both pages now settle cleanly: zero console errors, zero
+  non-200 `/graph` responses (71 and 69 requests respectively).
+- **`clickhouse-unfiltered-probe-hazard.md` updated** with this as a new, distinct confirmed
+  trigger (own section, cross-linked both directions) — done, not outstanding.
+- **User's third catch, after the fix landed: "should 1032 or 392 have any valid graphs? should
+  these reports exist at all?"** Checked `reports_snap_2` directly: **every single route in both
+  reports** resolves to an empty `tmc_array` (1032: all 6 routes are route_id `29380`/`29381`;
+  392: all 3 are route_id `1440`) — confirmed via direct query, not assumed. The `graphIds`
+  exclusion fix above is necessarily correct per-route, but its correct side effect here is that
+  **every** route on both pages now has `graphIds: 0` — meaning both "successfully converted"
+  pages were actually permanently-empty shells (real sections, zero data, forever), not partially
+  gappy reports. Nothing in either report was ever convertible.
+- **Second fix, a report-level policy gap**: `convert_report` (`scripts/convert_old_reports.py`)
+  now checks, right after `route_entries` are built: if `route_entries` is non-empty and **not one**
+  of them has a real `tmc_array`, skip page creation entirely — gap-log `no_valid_routes` at the
+  report level instead of creating a page with graphs that can never render. Applies uniformly to
+  `--dry-run` and real runs, and to `--replace` (deletes the old page, does not recreate it).
+- **Applied for real**: reconverted both reports a second time with this check in place — both
+  correctly deleted their existing (now-known-empty) pages and created nothing. **Confirmed via
+  direct DB query**: neither `report_1032` nor `report_392` exists as a page anymore.
+- **Not done**: a corpus-wide re-scan for (a) any other `route_missing_everywhere` +
+  `categorize:"tmc"` combination, and (b) any other already-converted report that is, like these
+  two, 100% `route_missing_everywhere` and should likewise be deleted rather than left as an empty
+  shell. The earlier read-only scan only checked `reports_snap_2` rows already converted at the
+  time it ran — a future bulk-conversion pass should re-run that same check as a matter of course
+  now that both fixes are in place.
+
+**Round 32 (2026-07-10): `avgHoursOfDelay` — BUILT, live-verified. Item 3c phase 2
+(round 27's buildable lever), picked with the user over the other two phase-2
+candidates (Route Line Graph dual-axis, reliability-index measures) after
+scoping showed this one needed no new platform capability.**
+
+- **Formula traced to the real source, not guessed**: avail-falcor's
+  `routes/data_manager/data_type/npmrds/route_data/routeDataRetrievers/getHoursOfDelay.js:70-103`.
+  `avgHoursOfDelay` is NOT a different per-epoch value from the already-built
+  `hoursOfDelay` — both start from the identical per-(tmc,resolution-bucket) SUM
+  of the same weighted per-epoch delay; `avgHoursOfDelay` then divides by
+  `getAvgHoursOfDelay(sum, numEpochs, epochsInTimeRange, resolution)`, a
+  resolution-specific normalization that in every one of its 5 branches
+  reduces to "the count of DISTINCT CALENDAR DATES that contributed rows to
+  this bucket" (day trivially divides by 1, since a day-bucket already IS one
+  date — matching the old code's own `case "day": return sum` for free, no
+  special-casing needed). Collapses to one formula, no per-resolution SQL
+  branching: `AVG_DELAY_EXPR = sum(<same per-row expr as DELAY_EXPR>) /
+  count(DISTINCT ds.date)`, `fn: "exempt"` (round 25's Route Compare delta
+  column already established this as the real "already aggregated
+  server-side" option — the expression is self-aggregating).
+- **Corrected a scoping assumption from round 29's own exclusion list**: round
+  29 excluded "Route Line Graph's hoursOfDelay/travelTime-at-day" as needing a
+  dual-axis read first. Checked directly against `analyze_graph`
+  (`scripts/convert_old_reports.py`): it already reduces EVERY graph type's
+  `displayData` to `measures[0]`, gap-logging the rest as
+  `extra_measures_dropped` — dual-axis was never actually required for
+  conversion, regardless of graph type. The census's dominant
+  `avgHoursOfDelay` bucket (Route Line Graph, 5-minutes, 152 instances) is
+  therefore a plain single-measure LineGraph template, same as
+  `tmc_speed_line_graph`/`tmc_travel_time_line_graph` — round 29's dual-axis
+  concern is a separate, still-open question about a *different* measure
+  (hoursOfDelay/travelTime at day resolution for Route Line Graph), not a
+  blocker here.
+- **Built** (`scripts/convert_old_reports.py`): `AVG_DELAY_EXPR` constant +
+  7 new `TEMPLATE_SPECS`/`GRAPH_TEMPLATE_MAP` entries — `tmc_avg_delay_line_graph`
+  (Route Line Graph, 5-minutes), `tmc_avg_delay_bar_graph_{day,weekday,5min,hour,month}`
+  (Route Bar Graph, route-wide/`__series`, reusing `WEEKDAY_EXPR`/`HOUR_EXPR`/
+  `MONTH_EXPR` verbatim from round 12), `tmc_avg_delay_grid_graph` (TMC Grid
+  Graph — confirmed against the existing `tmc_travel_time_grid_graph`/
+  `tmc_co2_grid_graph_*` entries that "TMC Grid Graph" has no literal `tmc`
+  categorize column, it relies on each assigned route-comp being its own
+  comparison-series arm, same as every other route-wide template — an initial
+  draft of this entry incorrectly added `"categorize": "tmc"` by conflating it
+  with "Hours of Delay Graph"'s distinct per-TMC shape, caught and fixed before
+  running). `resolution: None` (~9 instances) stays gap-logged, same
+  ambiguity-sentinel treatment as everywhere else. No census script changes
+  needed — `census_old_reports.py` imports `GRAPH_TEMPLATE_MAP` directly, so
+  static entries are picked up automatically on the next run.
+- **Demo reports chosen via greedy set-cover** over the round-27 census's
+  `unmapped_keys`: 5 reports covering all 7 new keys — 914 (Route Line 5min +
+  Bar weekday), 1032 (Bar 5min + Grid 5min), 960 (Bar day), 987 (Bar hour), 994
+  (Bar month). Dry-ran all 5 first (clean, only pre-existing/out-of-scope gaps
+  remained), then converted all 5 for real: 914→`2189648`, 1032→`2189678`
+  (**superseded, then deleted entirely — see round 33: 1032 is 100%
+  `route_missing_everywhere`, no page exists for it anymore**),
+  960→`2189695`, 987→`2189709`, 994→`2189742`.
+- **Live-verified (2026-07-10, Playwright, repo's own `playwright` dep per
+  [[reference_local_report_page_repro]])**: zero non-200 `/graph` responses
+  across all 5 pages (93/75/77/97/85 requests). Console errors are zero except
+  on 1032, where the only errors are the pre-existing, already-documented
+  `route_missing_everywhere` bug (`ReportRouteList.jsx` JSON.parse on route
+  29381's empty `tmc_array` — round 12's known bug, this report's own gap
+  report already flags 29380/29381 as `route_missing_everywhere`), unrelated
+  to this round's templates. **Captured real response values directly** for 4
+  of the 7 new templates: day resolution (960) 1074.74/2374.03 hours (same
+  order of magnitude as round 28's independently-verified 1424.01-hour
+  hoursOfDelay spike on a comparable report — sane); month (994) 94.69; weekday
+  (914) 314.86; hour (987) 115 of 240 sampled values non-zero, range
+  0.0006–0.487 (plausible for a short 2-3 TMC route, zeros expected during
+  uncongested hours). **Not captured directly**: raw numeric values for
+  1032's `tmc_avg_delay_bar_graph_5min`/`tmc_avg_delay_grid_graph` — a
+  Falcor response-shape/capture-script limitation (couldn't locate the
+  specific `byIndex`-equivalent row-data response within the capture window),
+  not an app error: that page still shows zero non-200s/zero real console
+  errors, and the section's own `.length` prefetch resolved to the correct
+  288-row (full day of 5-min epochs) count. Confidence in these two rests on
+  the identical, already-proven `AVG_DELAY_EXPR`/join/`fn: "exempt"` mechanism
+  verified directly on the other 5 templates, not independent confirmation of
+  1032 itself — flagged here rather than silently claimed as fully verified.
+- **Not done**: bulk-applying to the corpus's other ~300 instances beyond these
+  5 demo reports (same "capability proven, scale is a separate decision"
+  pattern as every other round); Route Line Graph dual-axis (hoursOfDelay/
+  travelTime-at-day) and the reliability-index two-stage-aggregation gap
+  remain separately scoped, not attempted this round.
+
 **Round 31 (2026-07-10): Route/TMC Info Box resolution-ambiguity false positive — FIXED,
 dry-run-verified + regression-checked. User asked directly why report 630's Info Box was
 unmapped, questioned whether resolution should even matter for a "flat spreadsheet," and was
@@ -43,13 +247,14 @@ right — a real converter bug, not a design tradeoff.**
   now is correct gap ATTRIBUTION (a future session reading these gap reports won't be misled into
   thinking a resolution-consensus fix would help), not new working pages — the same distinction
   as round 23's nullIf fix being non-regressive-but-not-provably-repairing-anything-visible-yet.
-- **NOT applied live to report 630** (dry-run only) — the real `--replace` reconversion hit a `dms
-  raw delete` failure on the existing page's old sections, most likely a stale auth token
-  (`scratchpad/npmrds-sub/.dms-auth-token`, last minted 2026-07-10 07:00 per [[dms-dev-creds]]).
-  Not chased further this round per user direction (wrapping up the session) — re-running
-  `python3 scripts/convert_old_reports.py --report-id 630 --replace` after minting a fresh token
-  (`bash scratchpad/npmrds-sub/mint_token.sh`) should apply cleanly next time; the source fix
-  itself is verified correct independent of this.
+- **Applied live to report 630** (confirmed after this round was first drafted — the auth token was
+  refreshed and `--replace` re-run for real, just not recorded here at the time). New page id
+  `2189620`, gap report `scratchpad/npmrds-sub/old-reports/gaps/report_630.json` shows `"dry_run":
+  false`, `"converted_at": "2026-07-10T17:58:24.000Z"`, and the Info Box gap now correctly reads
+  `info_box_year_outside_pm3_coverage` (max year 2019, outside 1410's 2021-2025 coverage) instead of
+  a generic unmapped gap — matches the dry-run prediction exactly. `mixed_resolutions_on_graph` still
+  fires twice for Route Map/Route Bar Graph (unaffected, as intended), confirming the fix is live and
+  correctly scoped.
 
 **Round 30 (2026-07-10): user browser-testing of round 29's new templates (report 630) found a
 real `byValue` color-scale gap — ROOT-CAUSED, NOT FIXED (investigation only, per user direction).
