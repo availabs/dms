@@ -27,6 +27,7 @@ dataset.
 | 583 | 982 | NPMRDS Production V6 | `clickhouse.npmrds` / `s583_v982_NPMRDS_V6` | Epoch-level travel times per TMC (all/passenger/truck combined into one row). Updated weekly, ACTIVE. | Main fact table every AVL Graph template's `externalSource` binds to. `metadata.columns` includes calculated columns (`MAX(date) AS latest_date` etc.). |
 | 1946 | 3298 | ny_2025_tmc_meta | `clickhouse.npmrds_meta` / `s1946_v3298_ny_2025_tmc_meta` | TMC identification/attributes: miles, avg_speedlimit, aadt, aadt_singl, aadt_combi, congestion_level, directionality, f_system, faciltype, avg_vehicle_occupancy, geometry, etc. | Already joined by the existing `tmc_delay_bar_graph_day`/`tmc_speed_grid_graph` templates on `tmc`. `categories: [["Inactive","archive"]]` despite being actively used — categorization is stale/not a reliability signal. |
 | **2056** | **3524** | aadt_distributions | `clickhouse.avail` / `aadt_distributions` | AADT epoch-distribution weighting: `key` (20 profile names, e.g. `WEEKDAY_NO2LOW_CONGESTION_AM_PEAK_FREEWAY`) → `distributions` (`Array(Float64)`, 288 values, one per 5-min epoch, sums to 1.0 per key). | **Verified byte-for-byte match** against `avail-falcor`'s `aadtDistributions.js` — CH values equal that file's raw literals × 0.01, which is exactly what its own `module.exports = DISTS` (`DISTS[dist] = distributions[dist].map(d => d*0.01)`) actually exports and what `getCo2Emissions.js`/`getHoursOfDelay.js` consume. **No further scaling needed when joining.** Unblocks weighted Hours-of-Delay (round-2 gap) and the CO₂ formula (report 751). Join key is a *computed* string (see below), not a plain column match. Registered as a `gis_dataset`-typed source (per user direction — no real "register an existing external table" flow exists in avail-falcor, so this mirrors the closest generic convention) pointing at the pre-existing table (not a new upload). |
+| 455 | 3464 | NPMRDS TMC Identification V5/V6 | `clickhouse.npmrds_raw_tmc_identification` / `s455_v3464_NPMRDS_TMC_Identification_V5_V6` | Per-TMC static attributes (44 cols): `tmc, road, direction, intersection, miles, f_system, faciltype, structype, thrulanes, route_numb, aadt, aadt_singl, aadt_combi, nhs, nhs_pct, truck, wkb_geometry` (GeoJSON MultiLineString despite the name), etc. **No `avg_speedlimit`/`congestion_level`/`directionality`** (that's what forces the 1946 override below). | **The default join every `avl_graph_template` row carries, not an opt-in one** — inherited automatically whenever a template row is deep-copied from `tmc_travel_time_line_graph`'s live `base_state` (round-38 "carry the join forward" fact in the task file). Not previously listed in this doc even though it's the single most-used join in the whole catalog. 62 versioned views exist (`data_manager.views WHERE source_id=455`); 3464 is simply whichever one the original hand-built template happened to bind — never re-picked per report or per conversion. Backs `table1.miles` in `SPEED_EXPR`/`TRAVEL_TIME_EXPR` and `table1.miles`/`table1.aadt` in the Info Box length/aadt measures, and is the reachable source of per-TMC geometry for the scoped-but-unbuilt Route Map work (round 41). |
 
 ### Registering `aadt_distributions` — DONE (2026-07-08), source_id 2056 / view_id 3524
 
@@ -100,6 +101,33 @@ generated SQL with no alias-qualification — a plain `tmc` filter errors as "am
 if a joined table also has a `tmc` column. Hasn't surfaced in production because report-page route
 filtering goes through the `comparisonSeries` mechanism, not top-level static filters. Pre-qualify
 (`ds.tmc` instead of `tmc`) if writing a top-level filter alongside a join.
+
+## Which measures use which source — swap-reference (2026-07-14)
+
+Every `avl_graph_template` row's `externalSource` binds to source 583 (the fact table) — that's
+universal and only changes if NPMRDS itself moves to a different fact table. What varies is which
+*join* source backs a given **measure's** calculated column. Templates aren't hand-authored one at
+a time — they're minted by `ensure_graph_templates()`/`ensure_pm3_join_template()`/the
+`ensure_info_box_*_template()` family in `scripts/convert_old_reports.py` from a small set of shared
+constants, and every already-minted template row of a given name is kept in sync by
+`ensure_graph_templates`'s drift detection. So swapping a source for a whole measure family is a
+**single-constant edit + a reconvert**, not a per-template hunt — this table is the map from
+"I want to change where X comes from" to "here's the one constant to edit."
+
+| Measure family | Source(s) used | Why | Constant(s) to edit for a swap |
+|---|---|---|---|
+| speed, travelTime (every graph type + Route Compare + Bar Graph Summary + Info Box `travelTime`/`avgTT-byDateRange`) | 583 (fact) + 455/3464 (TMC Identification — the *default* join, never overridden for these) | `SPEED_EXPR`/`TRAVEL_TIME_EXPR` need `table1.miles` for the two-level per-TMC→route composition (round 34/35 backport) | `SPEED_EXPR`, `TRAVEL_TIME_EXPR` (`scripts/convert_old_reports.py:389-408`) — and the base template row's own join if `miles` itself moved to a different source |
+| hoursOfDelay, avgHoursOfDelay | 583 + 1946/3298 (ny_2025_tmc_meta) + 2056/3524 (aadt_distributions) | `DELAY_EXPR` needs `avg_speedlimit`/`faciltype` (delay threshold) from 1946, plus epoch-level AADT weighting from 2056 | `META_1946_JOIN`, `AADT_DIST_JOIN`, `DELAY_EXPR`, `DIST_KEY_EXPR` (`:409-529`) |
+| co2Emissions, avgCo2Emissions | 583 + 1946 + 2056 (same pair as delay) | `CO2_EXPR_PASSENGER`/`CO2_EXPR_TRUCK` reuse the same AADT/facility-type/threshold inputs as delay, plus a hardcoded speed→emission-factor regression (no external source — literal piecewise coefficients) | `META_1946_JOIN`, `AADT_DIST_JOIN`, `CO2_EXPR_PASSENGER`, `CO2_EXPR_TRUCK` (`:530-602`) |
+| length, aadt (Info Box TMC-attribute measures) | 583 (WHERE-scoping only) + 455/3464 (default join, unmodified) | `LENGTH_EXPR`/`AADT_EXPR`/their `_TMC_EXPR` variants read `table1.miles`/`table1.aadt` straight off the default join — no override needed | `LENGTH_EXPR`, `LENGTH_TMC_EXPR`, `AADT_EXPR`, `AADT_TMC_EXPR` (`:232-254`) |
+| LOTTR, TTTR, freeflow (`speed_pctl_85`) — Route/TMC Info Box reliability only | 583 (WHERE-scoping only) + **1410 PM3** (Postgres, `pgFederated`, one view per year) | The only cross-engine (CH↔PG) join in the catalog; year-matched to the report's own max year, never substituted for a different year's data (round 17 product decision) | `PM3_VIEW_BY_YEAR`, `ensure_pm3_join_template()` (`:201`, `:1633-1720`) — see [[project_npmrds_1410_vs_2001_backfill]] for why 1410 was picked over 2001/1722 |
+| dataQuality | 583 only | Reads `data_density_*` straight off the fact table row | n/a — plain column pick, no join or calc constant |
+
+**Not currently used by any live template** (bank only, documented below): 582, 1722, 2001,
+`tmc_avg_speedlimit`, `avg_monthly_tt`, `mpo_boundaries`. Swapping *into* one of these would be new
+wiring work (new join config + calc rewrite), not an edit to an existing constant — 2001/1722 in
+particular were evaluated as LOTTR/TTTR alternatives to 1410 and passed over (narrower schema, see
+their rows below).
 
 ## Other active old-DAMA NPMRDS sources (user-provided 2026-07-08, bank for future joins — NOT yet
 individually investigated beyond what's below)
