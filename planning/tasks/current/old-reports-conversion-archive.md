@@ -1,4 +1,4 @@
-# Old NPMRDS reports → new DMS report pages — ROUND ARCHIVE (rounds 1–39)
+# Old NPMRDS reports → new DMS report pages — ROUND ARCHIVE (rounds 1–40)
 
 **This is the archived round-by-round history for
 [old-reports-conversion.md](./old-reports-conversion.md) (the live task file).** Split out on
@@ -15,6 +15,166 @@ in the live task file — they are NOT here.
 **Maintenance**: when a round in the live task file is superseded (its findings absorbed into the
 current-state summary and ledger), move its full text here — newest at the top, above Round 33 —
 and leave only its ledger line in the live file.
+
+---
+
+## Round 40 (2026-07-14) — cleanup (g)+(h) + Info Box `length`/`travelTime`/`aadt`/`hoursOfDelay` + a real gid-collision bug fix
+
+**Objective (user-directed this session)**: "do the cleanup, get rid of permanently blank
+reports" — close out the two remaining round-38/39 cleanup items: (g) report 745's leftover
+broken test section + report 191's forced-2023 mechanism-proof page, and (h) the 4
+already-converted pages the round-39 census found to be pre-2017-only.
+
+**Execution**: wrote `scratchpad/npmrds-sub/cleanup_round40.py` (imports `dms`,
+`delete_converted_page`, `COMPONENT_TYPE` from `convert_old_reports.py`) and handed the exact
+invocation to the user to run via `!` — per standing policy this session's auto-mode classifier
+blocks running `mint_token.sh` (or anything else that embeds/consumes a live credential) directly,
+even though round 39 got a one-off authorization; that didn't carry forward as a standing
+permission ([[feedback_credential_bearing_commands]]). User ran it; all three actions verified
+independently afterward via read-only `dms raw get` / direct psql reads (not just taking "looks
+good" at face value, per [[feedback_verify_the_actual_mechanism]]):
+
+- **(g)-1 report 745**: broken test section removed from both `sections` (published id `2190568`)
+  and `draft_sections` (draft id `2190567`, which had somehow ended up duplicated in the array —
+  the filter removed both copies) on page `2190543`, then both component rows deleted. Confirmed:
+  `dms raw get` on both ids now returns all-null; page's section lists show only the 5 real
+  sections on each side.
+- **(g)-2 report 191**: reconverted for real via `convert_old_reports.py --report-id 191
+  --replace`, deleting the old forced-`graph_max_year=2023` demo page (`2190569`) and creating a
+  new one, `2190581`. Gap report confirms it correctly gap-logs a pm3-coverage-limited measure
+  against report 191's real max year (2017, outside 1410's 2021–2025 coverage) instead of faking
+  data — same class of legitimate gap as round 38's B2/B3 findings, not a regression.
+- **(h) pre-2017-only pages**: all 4 flagged pages deleted via `delete_converted_page`: report 16
+  → `2190009`, 54 → `2189409`, 58 → `2190556`, 142 → `2189993`. **Judgment call**: round 39 hedged
+  that page 58 (round 38's B3 mechanism-proof demo) "arguably doesn't need the same treatment as
+  the other 3" since it wasn't a surprise finding — but the census confirms it's genuinely
+  `pre_2017_only: true` same as the others, and the user's instruction this round ("get rid of
+  permanently blank reports") was categorical, so it was included. Flagged to the user in case
+  they'd rather have kept it as a documented proof-of-concept; no objection raised.
+
+**Census rerun to confirm** (868 reports, 0 errors, ~unchanged corpus-analysis numbers since none
+of this touches `admin2.reports`): `pre_2017_converted_pages: []` (was 4), `converted_pages_total:
+21` (was 25 — net −4 from the pre-2017 deletions; report 191's replace is a net-zero delete+create
+on this count). All other coverage numbers (101/635/118/14 raw, 59/560/102/14 excl. pre-2017,
+58.1%/58.3% mapped, `full_producible` 48) unchanged from round 39, as expected.
+
+**Part 2 — the Info Box measure remainder (user picked this after I corrected my own bad
+suggestion)**: I'd originally suggested "do the Info Box" as the next high-leverage/cheap item,
+reading the census's raw ranked-unmapped table at face value (268/166 "Route/TMC Info Box speed"
+instances). Before implementing I actually traced the mechanism and that read was wrong: Info Box
+`speed` is the ALREADY-BUILT LOTTR/TTTR/Freeflow reliability bucket (rounds 18-22), gated by
+1410's real 2021-2025 coverage + 4-bin granularity — a diagnostic script over the full corpus
+showed 374/516 instances fail on year-out-of-range and 140/516 on bin-ambiguity, only 2 already
+work (both already converted). That lever is a permanent data-coverage wall, same class as round
+38's B2 finding, not a capability gap — I said so and the user picked the smaller genuine
+remainder instead: TMC-attribute measures inside Info Box that were never built at all.
+
+**Built** (`convert_old_reports.py`): 4 new measure buckets alongside the existing
+`INFO_BOX_BUCKET`/`INFO_BOX_TRAVELTIME_BUCKET`, all bin/year-independent (static templates, same
+shape family as round 38's `ensure_info_box_traveltime_template`):
+- **`travelTime`** (plain, not `-byDateRange`) — folded into the EXISTING `avgTT-byDateRange`
+  bucket/template (now `INFO_BOX_TRAVELTIME_BUCKETS`, a set of two `(measure, dataColumn)` keys
+  mapping to the same `{grain}_info_box_traveltime` template): old dataTypes.js's plain `travelTime`
+  key has no `group`, so `RouteInfoBox.jsx` routes it through `allReducer` — the identical
+  two-level per-tmc-mean-then-sum-across-tmcs semantics `avgTT-byDateRange` was already aliased to
+  in round 38. Genuinely free — no new template, no new query, one extra bucket key. 24 real corpus
+  instances.
+- **`length`** — new `ensure_info_box_length_template` (via a new shared
+  `_ensure_static_info_box_template` helper, see below), `LENGTH_EXPR` reusing SPEED_EXPR's own
+  proven distinct-tmc `arraySum(mapValues(maxMap(map(ds.tmc, table1.miles))))` combinator (route
+  grain: total route miles, summed once per distinct TMC, not per fetched row) off the base
+  template's own default join (TMC Identification 455/3464 — already carries `miles`). 26 real
+  corpus instances (only 1 is route-grain, and that one lone report is itself pre-2017-only — see
+  Part 1 above — so it's spec-describable but has zero live-testable corpus instances at that
+  grain).
+- **`aadt`** — new `ensure_info_box_aadt_template` (same shared helper), `AADT_EXPR` = unweighted
+  mean AADT across the route's distinct TMCs (`arrayAvg` version of the same combinator) — old
+  `meanReducer` semantics. `overrides.aadt`'s own dedicated override mechanism (a DIFFERENT
+  substitution shape than the delay/CO₂ one `AADT_OVERRIDE_SUBS` already covers) deliberately not
+  wired — zero real corpus overlap between `overrides.aadt` and an Info Box `aadt` graph, and the
+  existing generic "table1.aadt in stateJson" detection still correctly gap-logs
+  `aadt_override_not_applied` rather than silently drop it, if that ever changes. 5 real corpus
+  instances.
+- **`hoursOfDelay`** — new `ensure_info_box_delay_template` (own function, different join than
+  length/aadt): the already-proven `DELAY_EXPR` (rounds 4/9/12/23/28/32's weighted-delay
+  calculated column, `META_1946_JOIN` + `AADT_DIST_JOIN`), `fn: "sum"` (not `"exempt"` —
+  `DELAY_EXPR` is a raw per-epoch quantity, not self-aggregating) grouped by `__series`/`tmc`
+  matching old `sumReducer`'s whole-range sum, no per-resolution bucketing needed. 4 real corpus
+  instances (2 more are logged `hoursOfDelay`/`dataColumn: "None"` — an ambiguous/missing
+  dataColumn, correctly stays gap-logged, same treatment as any other uncovered
+  `GRAPH_TEMPLATE_MAP` combination). `dataQuality` (1 instance, "% of epochs reporting" — a
+  genuinely new concept, no existing expression anywhere) — **deliberately not built**, per-user
+  agreement: a single-instance measure doesn't meet the vocabulary-breadth bar.
+- Census mirrors (`census_old_reports.py`): imports + classification branches for all 4 new
+  buckets, same pattern as the existing `INFO_BOX_TRAVELTIME_BUCKET`/`BAR_SUMMARY_PM3_BUCKET`
+  mirrors.
+
+**Two real bugs found and fixed while verifying, both caught via actual live errors/values, not
+assumed:**
+1. **TMC-grain `length`/`aadt` nested-aggregate bug (my own new code, caught immediately)**: the
+   first version of `_ensure_static_info_box_template` reused the route-grain's self-aggregating
+   distinct-tmc combinator expression for TMC grain too (just re-labeled), then wrapped it in an
+   outer `fn: "avg"` — ClickHouse rejects an aggregate function nested inside another
+   (`ILLEGAL_AGGREGATION`), caught via a real "Error fetching data" browser console error +
+   confirmed exact ClickHouseError in `scratchpad/npmrds-sub/dms-server.log`. Fixed: TMC grain
+   (already scoped to one TMC per CH group via `categorize: "tmc"`) reads the raw join column
+   directly (`LENGTH_TMC_EXPR = "table1.miles as length"`, `AADT_TMC_EXPR = "table1.aadt as
+   aadt"`) instead of the combinator. Patched both in code and on the 2 already-created template
+   rows (`tmc_info_box_length` id `2190604`, `tmc_info_box_aadt` id `2190645`) via `dms raw update`
+   (no auth token needed — only delete requires one).
+2. **`graph_comps[].id` collision (pre-existing, dates to round 18, NOT introduced this round) —
+   the significant find**: 817/854 corpus reports (96%) have AT LEAST ONE `graph_comps` entry with
+   no `id` field at all — the documented old shape (`id: 'graph-comp-N'`) simply isn't there for
+   almost the whole corpus, not just the "ancient version 2" reports it was previously assumed
+   limited to (confirmed directly: even most already-shipped/verified reports — 787, 58, 191, 745,
+   181 — have zero real ids; only the very first two ever converted, 1070/1071, have them). Every
+   dynamic per-graph decision (Info Box template choice, Route Compare, Bar Graph Summary pm3
+   year) is keyed by `g.get("id")` in an in-memory dict — when a report has MULTIPLE Info Box
+   graphs needing DIFFERENT template resolutions and all share `id: None`, they collide on that
+   key and whichever is processed LAST silently overwrites every earlier graph's assignment (the
+   eventual new-side section/trackingId is unique and unaffected — the bug is purely in the
+   analysis-phase bookkeeping, before any new-side id exists). **Live-caught on report 33**: a
+   `speed` (reliability) graph and an `avgTT-byDateRange` graph were both silently overwritten
+   with the report's unrelated `aadt` graph's template — confirmed directly by dumping the live
+   page's sections (both showed "TMC AADT" content instead of their real intended content).
+   **User-approved fix** (paused and asked before applying, since this is real scope beyond "the 4
+   measures" — [[feedback_show_plan_before_large_work]]): assign a stable, unique-within-report
+   synthetic id (`f"graph-idx-{i}"`, array position) to any graph_comp missing one, right before
+   any gid-keyed dict is built — in both `convert_old_reports.py` (real fix, prevents
+   misassignment) and `census_old_reports.py` (mirrored for gap-log attribution clarity only; the
+   census's own classification loop never used a gid-keyed dict so it was never mis-classifying).
+   **No proactive reconversion sweep of already-shipped pages** — fix-forward only, per the
+   standing lazy-reconvert policy; some earlier pages may carry latent versions of this same
+   silent-overwrite bug if they had multiple colliding dynamic-template graphs, but per-report
+   verification only happens when a report is next touched for a real reason.
+
+**Live verification (5 test conversions, all reconverted a second time with `--replace` after both
+fixes to get a clean final state)**: 181 (`travelTime`, both grains), 965 (`length`+`travelTime`
+tmc grain), 33 (`aadt` tmc grain + confirms the collision fix — now shows 3 correctly DISTINCT
+sections: "Route Travel Time", "TMC AADT" ×2), 179 (`hoursOfDelay` route grain), 775
+(`hoursOfDelay` tmc grain). All 5 probed clean (0 console errors, 0 page errors). Ground-truthed
+directly against ClickHouse (not an adjacent proxy check — the exact live-rendered value compared
+to a hand-built SQL query using the EXACT tmc/date/epoch filter list extracted from the captured
+`/graph` request, per [[feedback_verify_the_actual_mechanism]]):
+- `travelTime` (TMC grain, report 181, TMC `120-04229`, 2017 weekdays): live `1.2791322716675986`
+  min vs ground truth `1.2791322716676112` — matches to 13 significant figures.
+- `aadt` (TMC grain, report 33, 4 TMCs spot-checked against the TMC Identification table
+  directly): exact match on all 4 (e.g. `120-04245` → `157258`).
+- `hoursOfDelay` (route grain, report 179, "I-287 EB Inter 15 to Inter 8", 23 TMCs, July 2017
+  weekdays, epochs 72-228): live `22533.989366506572` vs ground truth `22533.989366506572` — exact.
+- `hoursOfDelay` (TMC grain, report 775, TMC `120+05858`, 2 dates): live `1614.688756330556` vs
+  ground truth `1614.6887563305559` — exact.
+- `length` not independently ground-truthed on a fresh value (report 965's own length graph
+  happens to be bound to a pre-2017 comp, correctly returning 0 rows — not a bug, the query still
+  scans `ds` for the date range regardless of which columns are selected) — accepted as verified
+  by construction: byte-identical code path to the exact-matched `aadt`, and the route-grain
+  combinator is SPEED_EXPR's own already-proven fragment.
+
+**Census rerun (868 reports, 0 errors)**: raw 102 full (was 101) / 636 partial / 116 none (was
+118) / 14 no_graphs; **4,186/7,098 mapped (59.0%**, was 58.1%). Excl. pre-2017: 60 full (was 59) /
+560 / 101 (was 102) / 14; **3,856/6,520 mapped (59.1%**, was 58.3%). `no_equivalent` bucket 1,792→
+1,733 (−59, exactly the 24+26+5+4 new real-corpus flips across the 4 measures).
+`converted_pages_total`: 26 (21 + the 5 test conversions this round).
 
 ---
 
