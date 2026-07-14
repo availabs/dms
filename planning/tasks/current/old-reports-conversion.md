@@ -350,13 +350,32 @@ page edit/publish/layout).
 - **DMS CLI**: `DMS_HOST=http://localhost:3001 DMS_APP=npmrdsv5 DMS_TYPE=dev2 dms ...`.
   Reads and **creates work unauthenticated**; `delete` (and possibly some updates) require an auth
   token (`DMS_AUTH_TOKEN`, mint via `POST /auth/login` on the local server with real creds).
+  For inspecting/patching pages don't hand-roll scripts: `dms page dump <id> --sections` resolves
+  section states in one call; `dms raw update <id> --set nested.key=value` does dot-notation deep
+  patches. (Deep edits inside *stringified* element-data still need a read-modify-write, but
+  prefer reconverting the page via the converter over hand-patching.)
+- **Stack preflight**: `python3 scripts/preflight.py` — one command checks vite, dms-server
+  (/graph roundtrip), all three Postgres targets, ClickHouse, stray CH queries >60s (the
+  unfiltered-scan hazard), and recent dms-server log errors. ~1s when healthy; fails fast with a
+  VPN diagnosis instead of hanging. Run at session start or whenever anything hangs.
+  `python3 scripts/dbq.py chprocs` runs just the stray-CH-query check (use before/after live
+  report-page loads).
+- **Ad-hoc queries / data validation**: `python3 scripts/dbq.py <old|new|dama|ch|graph|oldgraph> "<sql-or-paths>"`
+  — one read-only runner for all backends (old/new/dama Postgres, ClickHouse HTTP, local +
+  prod falcor). Creds read at runtime from the config files above; pg forced
+  `default_transaction_read_only=on`, CH `readonly=2`, no write flag exists; 5s connect
+  timeout with VPN hint instead of hanging. Bespoke validation scripts should `import dbq`
+  (from `scripts/`) instead of re-implementing psql/CH/falcor boilerplate. Writes still go
+  only through `convert_old_reports.py`, the dms CLI, or the user.
 - **Live page verification**: `node scripts/report_probe.mjs <slug>` (repo root of dms-template) —
   single parameterized Playwright harness replacing the old one-off scratchpad scripts. One load
   collects console/page errors, non-200s, pending-at-close requests (hung/unbounded-query
   tripwire), decoded `/graph` traffic (`--grep` to filter), per-section SVG census, full-page +
   `--section` screenshots, JSON dump to `scratchpad/npmrds-sub/tmp/probe_<slug>.{png,json}`.
   Custom probes via `--eval file.mjs` (`export default async (page) => ...`); if the same eval
-  probe is needed twice, promote it to a flag in the harness instead of forking.
+  probe is needed twice, promote it to a flag in the harness instead of forking. `--auth`
+  injects the minted token (`scratchpad/npmrds-sub/.dms-auth-token`, refresh via user-run
+  `mint_token.sh`) into `localStorage.userToken` for logged-in/edit-mode probes.
 
 ## Old shape (`admin2.*`, source of truth — convert from here, NOT from `routes_snapshot`)
 
