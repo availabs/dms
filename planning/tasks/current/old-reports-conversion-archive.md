@@ -1,4 +1,4 @@
-# Old NPMRDS reports → new DMS report pages — ROUND ARCHIVE (rounds 1–36)
+# Old NPMRDS reports → new DMS report pages — ROUND ARCHIVE (rounds 1–38)
 
 **This is the archived round-by-round history for
 [old-reports-conversion.md](./old-reports-conversion.md) (the live task file).** Split out on
@@ -15,6 +15,173 @@ in the live task file — they are NOT here.
 **Maintenance**: when a round in the live task file is superseded (its findings absorbed into the
 current-state summary and ledger), move its full text here — newest at the top, above Round 33 —
 and leave only its ledger line in the live file.
+
+---
+
+## Round 38 (2026-07-14) — Phase B (avgTT-byDateRange alias + freeflow-byDateRange via pm3)
+
+**Objective (item (c) from round 34/37's "Not done / next")**: close the three remaining Phase B
+keys — Bar Graph Summary `avgTT-byDateRange` (B1), Route Info Box `avgTT-byDateRange` (B3, the
+biggest flip lever after Route Map), Bar Graph Summary `freeflow-byDateRange` (B2). All three are
+single-resolution/single-dataColumn in the corpus (5-minutes / travel_time_all only).
+
+**B1 — Bar Graph Summary `avgTT-byDateRange` (DONE, live-verified on report 745 → page
+`2190543`)**: one new `GRAPH_TEMPLATE_MAP` entry aliasing to the already-live
+`tmc_travel_time_summary_bar_graph` (round 34/35's two-level TRAVEL_TIME_EXPR). Old
+`BarGraphSummary.jsx`'s `indices-byDateRange` group calls the plain flat `reducer`
+(`travelTimeReducer`, sum of raw rows) not `allReducer` — a genuinely cruder number than the
+template it's now aliased to. Aliased anyway per round 34/35's "surface current/correct, not
+old-math replicas" precedent (user-endorsed this round). Live value: 13.63/13.31 min for the
+report's two comps, matching the pre-existing two-level formula exactly (it's the same template).
+
+**B3 — Route Info Box `avgTT-byDateRange` (DONE, 68 instances, 38 flips — all 38 materialized:
+full-report count 63→101 this round)**: checked 1410's live schema directly
+(`s1410_v3425_pm_3`, 121 columns) — **no avg-travel-time column exists there at all** (only speed
+percentiles, LOTTR/TTTR ratios, PHED/TED), so despite the "rides the pm3 mechanism" framing in
+round 37's notes, this measure has nothing to do with the reliability join. Built a wholly
+separate, **static** (no year/bin parameterization) Spreadsheet template,
+`ensure_info_box_traveltime_template` (`{grain}_info_box_traveltime`, grain "route"/"tmc" split
+mirroring `ensure_pm3_join_template`'s but bin/year-independent since old `RouteInfoBox.jsx` never
+gated travel time on a bin either) — new `INFO_BOX_TRAVELTIME_BUCKET` constant, new pre-pass
+branch in `convert_report` ahead of the existing `INFO_BOX_BUCKET` check. Reuses the already-live
+`TRAVEL_TIME_EXPR`.
+- **Real bug caught + fixed during live verification**: the function built `state` from scratch
+  and omitted the base template's own default join (TMC Identification, 455/3464) that every
+  OTHER template gets for free via a full deep-copy of `base_state`. A query with NO join at all
+  never aliases the base table as `ds` at all (`dms-server` `clickhouse.js`:
+  `` `${table_schema}.${table_name} ${hasJoin ? ' as ds ' : ''}` `` — the `ds` alias is
+  join-gated), so every `ds.`-qualified expression 500'd with `Unknown expression identifier
+  'ds.tmc'` on the very first live test (report 58). Fixed by copying `base_state.get("join")`
+  into the new template's own `state["join"]` (harmless — the expression never references
+  `table1.*`, only needed for the alias). **Not a platform bug** — every other template already
+  carries this join forward via deep-copy; this function built state manually and had to be
+  taught to do the same.
+- Live-verified on report 58 → page `2190556` (template id `2190555`) after patching both the
+  template and the already-cloned section rows in place (draft `2190559`/published `2190563`) to
+  pick up the join fix. Query now succeeds and correctly returns `0` — independently confirmed via
+  direct ClickHouse count that this report's TMC set + 2016 date range has ZERO matching fact-table
+  rows (the pre-2017-coverage gap, already out of scope). Every one of the 68 real corpus
+  instances is similarly pre-2019-dated (checked directly against `admin2.reports`), so this
+  measure's real-world numeric output is currently coverage-limited corpus-wide — a data issue,
+  not a mechanism defect.
+
+**B2 — Bar Graph Summary `freeflow-byDateRange` (DONE as a mechanism; 0 real corpus flips this
+round — see below)**: new `ensure_bar_graph_summary_pm3_template(year, ...)`, same per-report/year
+pm3-join idiom as `ensure_pm3_join_template` but Bar-Graph-shaped (`xAxis: "__series"`, one
+calculated yAxis column, `pm3.speed_pctl_85`, `fn: "avg"`) instead of a Spreadsheet — reuses the
+SAME already-proven `pm3`-keyed pgFederated join (rounds 16–22). Bin-independent (1410's speed
+percentiles have no time-of-day dimension), so only `year` needs resolving. Extends round 17's
+"current/correct pm3 value, not old-math replica" precedent to this measure too, even though old
+`BarGraphSummary.jsx`'s own reducer for this key was a plain per-TMC speed mean, not a percentile
+(user-endorsed this round).
+- **Corpus reality check**: checked every one of the 62 real corpus instances' dates directly
+  against `admin2.reports` — the newest is 2018, and 1410 only covers 2021–2025. **None of the 62
+  real instances can produce a page today** — a pre-existing, out-of-scope data-coverage gap (same
+  class as B3's), not a defect in the new mechanism. Confirmed via the rerun census: the
+  freeflow-byDateRange row stays at 62 instances/1 flip, unchanged.
+- **Verification method**: an initial attempt to splice a test section onto an already-published
+  page (report 745) post-hoc and hand-patch the `reports_snap_2` row never fired its query at all
+  (0 SVG content, no console error, no captured UDA request) — some caching/registration quirk of
+  that ad hoc splice methodology, not investigated further since it doesn't match how the real
+  pipeline works (whole page+snap+sections created atomically). Verified properly instead by
+  running the REAL `convert_report(191)` pipeline end-to-end with `graph_max_year` temporarily
+  monkey-patched to return 2023 for this one measure (report 191's real dates are 2016/2017,
+  outside pm3 coverage — this is a deliberate, clearly-labeled mechanism proof, same class as
+  round 18's hand-built demo reports, not a faithful conversion). Live result: real, sane
+  `speed_pctl_85` values (54.51 mph for the comp whose TMCs + date range have real 2017 CH
+  coverage; a correctly-rendered zero-height bar for the sibling comp whose 2016 window has none) —
+  page `2190569`, template `tmc_freeflow_summary_bar_graph_2023` (id `2190566`).
+
+**Census (`scripts/census_old_reports.py`) updated to mirror all three** — new
+`INFO_BOX_TRAVELTIME_BUCKET` check (bin/year-independent) ahead of the existing `INFO_BOX_BUCKET`
+branch, new `BAR_SUMMARY_PM3_BUCKET` branch (year-gated only); B1 needed no census change at all
+(a plain `GRAPH_TEMPLATE_MAP` entry is picked up generically). Rerun clean (868 reports, 0 errors):
+- **Classes**: 63→**101 full** / 669→635 partial / 122→118 none / 14 no_graphs unchanged — exactly
+  the 38 flips B3 predicted, all materialized.
+- **Instances**: 4,029→**4,127/7,098 mapped (58.1%)**. Unmapped 3,069→2,971 = buildable 1,057→1,032
+  (−25, B1) / no_equivalent 1,865→1,792 (−73, B3's 68 Route Info Box + 5 TMC Info Box instances —
+  the `grain: "tmc"` split paid for itself even though no top-30 TMC Info Box row showed it) / tail
+  147 unchanged.
+- Bar Graph Summary `freeflow-byDateRange` unchanged at 62 instances/1 flip (see B2 note above —
+  real corpus dates block it, not the mechanism).
+- **New single biggest lever**: Route Map speed×5-min, now 481 instances/**55 flips** (was 53) —
+  several reports that had both a Route Map gap AND a now-fixed Phase B gap dropped to their last
+  blocker. Route Difference Graph speed×5-min flips also jumped 6→22 for the same knock-on reason.
+
+**Cleanup pending (permission-gated, user to run)**:
+- Report 745's page (`2190543`) carries one leftover BROKEN test section from the B2 investigation
+  ("B2 TEST Freeflow Summary", draft id `2190567` / published id `2190568`) that never fired its
+  query (the ad hoc splice quirk above) — safe to delete, never worked, superseded by report 191's
+  clean proof.
+- Report 191's page (`2190569`) was converted with `graph_max_year` forced to 2023 for the
+  freeflow-byDateRange mechanism proof — its real dates are 2016/2017. Either delete it or
+  reconvert for real (`--replace`), which will correctly gap-log the freeflow-byDateRange graph
+  again (outside pm3 coverage) and leave the report at 2/3 mapped, not full.
+- Shell page `2188794` deletion (item (e), still pending from round 37) — command unchanged, see
+  the archive's Round 37 entry.
+- All three deletes need `DMS_AUTH_TOKEN` (delete requires auth; confirmed live: reads/updates on
+  both regular and split-table (`:data`) rows work unauthenticated via `dms raw update <id>`, only
+  delete 500s with "Authentication required to delete items". Mint via
+  `scratchpad/npmrds-sub/mint_token.sh`.
+
+---
+
+## Round 37 (2026-07-13): census refresh + round-33 report-level mirror (census upkeep + item (e))
+
+**Objective (user-requested this session)**: an updated census/corpus survey. The graph-mapping
+mirror was verified current against `convert_report` (Info Box dynamic branch, Route Compare
+branch, `GRAPH_TEMPLATE_MAP` lookup — rounds 29–36's new keys flow through automatically), but
+the census needed real extensions before rerunning:
+
+**Census maintenance (`scripts/census_old_reports.py`, this round)**:
+- [x] **Round-33 report-level `no_valid_routes` mirror**: the census now classifies each report's
+  route validity the way `convert_report` decides page creation (tmc from admin2.routes'
+  tmc_array or convert-time falcor point-resolution; the new catalog is NEVER consulted for tmc
+  data — `build_route_entry`): `ok` / `hinges_on_point_resolution` (only point-drawn routes —
+  statically unknowable, converts fine in practice: 787's routes 5418/5419 are this kind) /
+  `no_valid_routes` (definite shell, converter skips the page) / `no_route_comps`. Also
+  cross-references already-converted `report_<id>` pages (new `fetch_converted_pages()`).
+- [x] **Bucket recomposition**: Bar Graph Summary (shape proven rounds 34–36) and Route Compare
+  Component (round 25) moved NO_EQUIVALENT_TYPES → BUILDABLE_TYPES; no_equivalent now means
+  "needs shape work before spec work" (Route Map, Route Difference, TMC Difference Grid, Info
+  Boxes outside the reliability bucket), reflecting round 24's reopening.
+- [x] **Flips/greedy exclude shells**: single-blocker flips and greedy coverage no longer count
+  `no_valid_routes` shells (round-36 finding: shell report 678 falsely inflated round 34's flip
+  count). Greedy baseline = 52 page-producing full reports (11 of the 63 "full" are shells).
+
+**Census results (2026-07-13 run, 868 reports, 0 errors)** — full detail in
+`scratchpad/npmrds-sub/old-reports/census/census{.json,_summary.md}`:
+- **Classes**: 63 full / 669 partial / 122 none / 14 no_graphs (round 27: 46/559/249/14).
+- **Instances**: **4,029/7,098 mapped (56.8%**; round 27: 27.3%). Unmapped 3,069 = buildable
+  1,057 (in 395 reports) / no_equivalent 1,865 (756) / tail 147 (90).
+- **NEW headline — route validity**: ok 32 / hinges_on_point_resolution 612 / **no_valid_routes
+  213** / no_route_comps 11. A quarter of the corpus references ONLY routes deleted from
+  admin2.routes and absent from the new catalog (spot-verified directly: 5445/5152/89/29380 in
+  neither DB; the missing ids cluster in sequential blocks — bulk route deletions). These
+  reports were broken in the OLD tool too and can never produce pages. Their graph instances
+  still count in the vocabulary matrix (real author-selection evidence, per the strategic
+  frame); they're only excluded from page-production levers.
+- **Top unmapped keys** (instances/flips): Route Map speed×5-min 481/53; Route Info Box
+  speed×5-min 268/8; TMC Info Box speed×5-min 166/7; Route Map speed×None 138/3; Route Bar Graph
+  planningTime×day 138/0 (buildable, 40 reports); **Route Info Box avgTT-byDateRange 68/38 —
+  the biggest single-key flip lever after Route Map**, same pm3-join family as Phase B; Bar
+  Graph Summary freeflow-byDateRange 62/1 (item (c)'s target, now buildable-bucket).
+- **Greedy**: top-11 keys → 290 page-producing full reports; top-30 → 434.
+
+**Item (e) — ANSWERED via the census cross-reference + a snap-row hazard sweep**:
+- [x] Corpus-wide shell enumeration: the 213 `no_valid_routes` report ids are listed (with
+  graph-class) in census_summary.md.
+- [x] Converted-page audit: 23 numeric `report_<id>` pages live (+`report_demo`). Exactly ONE is
+  a shell — **874 → page `2188794`** (round-9 conversion, predates the round-33 skip; its gap
+  report already logged route_missing_everywhere for its lone route 5445, so its graphs have
+  been empty since round 9). Its snap row has `graphIds: []` on every route entry, so it is NOT
+  a scan hazard — just a permanently-empty shell.
+- [x] Scan-hazard sweep: all 6 pre-round-35 pages' snap rows (751/874/11/54/315/796) checked for
+  the round-33 hazard combo (empty-tmc route entry with non-empty graphIds) — ZERO found;
+  round-35/36 pages are safe by construction.
+- [ ] **Pending (permission-gated this session, user to run)**: delete shell page `2188794`:
+  `python3 -c "import sys; sys.path.insert(0,'scripts'); from convert_old_reports import delete_converted_page; delete_converted_page(2188794)"`
+  (mint a fresh token first via `scratchpad/npmrds-sub/mint_token.sh` if deletes 401).
 
 ---
 

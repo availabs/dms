@@ -2,31 +2,36 @@
 
 > **File structure (since 2026-07-13)**: this file holds (1) the current-state summary, (2) a
 > one-line-per-round ledger, (3) the CURRENT round's full detail, and (4) the durable reference
-> sections at the bottom. Full round-by-round history for rounds 1–36 lives verbatim in
+> sections at the bottom. Full round-by-round history for rounds 1–37 lives verbatim in
 > [old-reports-conversion-archive.md](./old-reports-conversion-archive.md) — grep it for
 > `**Round N` when you need a specific round's detail. **Keep this file lean**: when a new round
 > starts, move the previous round's full text to the top of the archive, leave a ledger line here,
 > and fold anything durable into the summary or reference sections.
 
-## Current state (2026-07-13, end of round 37)
+## Current state (2026-07-14, end of round 39)
 
 **What this is**: `scripts/convert_old_reports.py` converts old `admin2.reports` (868 total) into
 new DMS report pages (pattern `npmrds_sub`), template-driven and repeatable. Goal = conversion
 *capability*, not bulk conversion; reports are picked by gap coverage. `scripts/census_old_reports.py`
 measures corpus-wide coverage by importing the converter's own analyze branches (it must be
-extended whenever the converter grows a new branch — it went stale twice by round 27; round 37
-added the round-33 report-level `no_valid_routes` mirror + a converted-page cross-reference and
-recomposed the buildable/no_equivalent buckets).
+extended whenever the converter grows a new branch — it went stale twice by round 27; round 38
+added the `INFO_BOX_TRAVELTIME_BUCKET` and `BAR_SUMMARY_PM3_BUCKET` mirrors for Phase B; round 39
+added the `pre_2017_only` report-level exclusion, see below).
 
-**Coverage** (round-37 census, 2026-07-13, CURRENT): 63 full / 669 partial / 122 none / 14
-no_graphs; **4,029/7,098 graph instances mapped (56.8%**, up from round 27's 27.3%). Unmapped
-3,069 = buildable 1,057 / no_equivalent 1,865 / tail 147 (buckets recomposed round 37: Bar Graph
-Summary + Route Compare now count as buildable). NEW report-level dimension: only 32 reports have
-a route with a ready tmc_array; 612 hinge on convert-time falcor point-resolution (fine in
-practice — 787's routes were this kind); **213 are `no_valid_routes` shells** (every referenced
-route deleted from admin2.routes AND absent from the catalog — broken in the OLD tool too, can
-never produce pages); 11 have no routes at all. Rerun: `python3 scripts/census_old_reports.py`
-(~40s, read-only).
+**Coverage** (round-39 census, 2026-07-14, CURRENT): raw (unfiltered) 101 full / 635 partial / 118
+none / 14 no_graphs; 4,127/7,098 graph instances mapped (58.1%, up from round 27's 27.3%). Unmapped
+2,971 = buildable 1,032 / no_equivalent 1,792 / tail 147. **These raw numbers overstate what's
+achievable — round 39 found 133/868 reports (15.3%) are `pre_2017_only` (every route_comp's date
+range predates 2017-01-01, `npmrds.s583_v982_NPMRDS_V6`'s real coverage start — never getting that
+data back). Excluding them: only 59 full (not 101 — 42 "full" reports were always going to render
+permanently blank), 560 partial, 102 none, 14 no_graphs; 3,801/6,520 mapped (58.3%,
+essentially the same instance-level ratio — the inflation is almost entirely in the report-level
+"full" count, not the mapped %).** NEW report-level dimension (round 37): only 32 reports have a
+route with a ready tmc_array; 612 hinge on convert-time falcor point-resolution (fine in practice —
+787's routes were this kind); **213 are `no_valid_routes` shells** (every referenced route deleted
+from admin2.routes AND absent from the catalog — broken in the OLD tool too, can never produce
+pages); 11 have no routes at all. `full_producible` (full AND not a shell AND not pre-2017-only):
+**48**. Rerun: `python3 scripts/census_old_reports.py` (~40s, read-only).
 
 **Standing user directives (all still in force)**:
 - **Strategic frame (2026-07-13 — read this first, it overrides "fidelity first" instincts)**: the
@@ -55,6 +60,15 @@ never produce pages); 11 have no routes at all. Rerun: `python3 scripts/census_o
 - **ALL data issues are out of scope** (pre-2017 coverage, pm3 backfill, route catalog) until
   functionality is much further along — gap-log for attribution only, never prioritize fixes
   (round 34).
+- **Pre-2017 data is a permanent exclusion, not just a gap-log note (2026-07-14, round 39)**:
+  never spend conversion/template effort on routes whose data predates 2017
+  (`npmrds.s583_v982_NPMRDS_V6` starts 2017 — that data is never coming back). A report where
+  EVERY route_comp is pre-2017-only is refused a page outright
+  (`report_is_pre_2017_only`/`pre_2017_only` gap kind, mirrors `no_valid_routes`). Coverage/flip/
+  greedy metrics in the census exclude these reports from the achievable-target denominators (or
+  show a parallel set that does) — see the Coverage line above and `census_summary.md`'s
+  "Pre-2017-only reports" section. Mixed reports (some pre-2017 comps, some not) still convert;
+  only the fully-blocked case is skipped.
 - **Show the plan and get explicit confirmation before any large implementation chunk** (round 24
   process rule).
 - **Ship shared-platform changes isolated** from conversion-script work
@@ -99,6 +113,23 @@ never produce pages); 11 have no routes at all. Rerun: `python3 scripts/census_o
   live speed/TT template in round 35** (the pre-backport `avg(SPEED_EXPR)` was +13% off; TT was
   wrong quantity AND scale). Travel time now renders route traversal MINUTES, not per-segment
   seconds.
+- **A joinless query never aliases the base table as `ds` at all** (round 38: `dms-server`
+  `routes/uda/query_sets/clickhouse.js`'s `` `${table_schema}.${table_name} ${hasJoin ? ' as ds '
+  : ''}` `` — the alias itself is join-gated, not just qualification of ambiguous columns). Any
+  bespoke template-minting function that builds `state` from scratch (rather than deep-copying
+  `base_state`, which carries the base's own default TMC-Identification join forward for free)
+  MUST explicitly carry a join forward — even a harmless, unused one — or every `ds.`-qualified
+  calculated column 500s with "Unknown expression identifier". Caught live building
+  `ensure_info_box_traveltime_template`; not a platform bug, a construction bug in that one
+  function.
+- 1410 (pm3) has **no avg-travel-time column of any kind** (round 38, confirmed directly against
+  `s1410_v3425_pm_3`'s 121 columns — only speed percentiles, LOTTR/TTTR, PHED/TED). Any measure
+  resembling "average/plain travel time" is CH-only (`TRAVEL_TIME_EXPR`), never a pm3 join,
+  regardless of how "reliability-adjacent" it sounds.
+- Reads and updates work unauthenticated on split (`:data`) rows too via `dms raw update <id>`
+  (confirmed live, round 38) — only `dms raw get <id>` fails to resolve them (returns all-null;
+  use direct `psql_new` reads or `dms raw update <id> --set k=v` instead) and only `delete` needs
+  `DMS_AUTH_TOKEN` (500s "Authentication required to delete items" otherwise).
 
 **Immediate next steps** (round 34 "Not done / next", order user-endorsed):
 - [x] **(a) DONE (round 35): the SPEED_EXPR/TRAVEL_TIME_EXPR backport** to all live
@@ -109,19 +140,43 @@ never produce pages); 11 have no routes at all. Rerun: `python3 scripts/census_o
   hoursOfDelay / avgHoursOfDelay incl. its per-resolution derivation) — built; 787/320 converted
   + 1061 reconverted; 15/15 live values ground-truthed exactly; weekday variant spec-only
   (validated offline, lone instance = report 1028).
-- [ ] (c) Phase B (avgTT-byDateRange alias + freeflow-byDateRange via pm3 1410) — round-37 census
-  sizing: Bar Graph Summary freeflow-byDateRange 62 instances + avgTT-byDateRange 25 (both now
-  buildable-bucket); the adjacent Route Info Box avgTT-byDateRange key (68 instances, **38
-  single-key flips — the biggest flip lever after Route Map**) rides the same pm3 mechanism.
+- [x] (c) DONE (round 38): Phase B — avgTT-byDateRange alias (B1) + Route Info Box
+  avgTT-byDateRange static template (B3, all 38 predicted flips materialized) + Bar Graph Summary
+  freeflow-byDateRange pm3 template (B2, mechanism proven, but the real corpus's 62 instances are
+  all pre-2019-dated — outside 1410's 2021-2025 coverage, so 0 real flips today). See Round 38.
 - [ ] (d) Per-route bar colors decision (double-`__series` trick untried) — deprioritized
   2026-07-13 (cosmetic parity; ranks below any vocabulary-breadth work).
-- [x] (e) DONE (round 37): census now mirrors the round-33 report-level rule corpus-wide — 213
-  `no_valid_routes` shells enumerated; scan-hazard sweep of all pre-round-35 pages found ZERO
-  empty-tmc routes wired to graphs; the only converted shell page is 874 → `2188794` (no hazard,
-  graphIds all empty). Its deletion is permission-gated → user to run (see Round 37).
+- [x] (e) DONE (round 37, deletion executed round 39): census now mirrors the round-33
+  report-level rule corpus-wide — 213 `no_valid_routes` shells enumerated; scan-hazard sweep of
+  all pre-round-35 pages found ZERO empty-tmc routes wired to graphs; the only converted shell
+  page was 874 → `2188794` (no hazard, graphIds all empty) — **deleted round 39** (minted the auth
+  token myself, user-authorized; `converted_pages_total` 26→25).
+- [ ] (f) NEW (round 38) — highest remaining lever per the fresh census: **Route Map speed×5-min**
+  (481 instances, **55 flips** — by far the single biggest lever in the corpus). Not scoped yet;
+  read `RouteMap.jsx` for real before sizing it (round 24's standing caution: likely much bigger
+  than any Phase A/B measure).
+- [ ] (g) two permission-gated cleanup items remain from round 38 (need `DMS_AUTH_TOKEN` — can
+  now be minted directly via `scratchpad/npmrds-sub/mint_token.sh` without a handoff, per round
+  39's authorization): delete the broken leftover test section on report 745's page (draft
+  `2190567`/published `2190568`), delete-or-reconvert report 191's forced-year test page
+  (`2190569`). Exact context in the archive's Round 38 entry.
+- [ ] (h) NEW (round 39) — decide on 4 already-converted pages that turn out to be pre-2017-only
+  (permanently blank, discovered by the new census check): report 16 "Delaware Avenue" →
+  `2190009`, report 54 "Hamilton County" → `2189409`, report 142 "WB LIE Mainline V3" →
+  `2189993` (all 3 genuine conversions predating this rule, never show data), and report 58 →
+  `2190556` (round 38's B3 mechanism-proof page — already known/documented as deliberately
+  pre-2017, not a surprise, arguably doesn't need the same treatment as the other 3). Not deleted
+  — surfaced only, per the no-proactive-sweeps policy; full list in `census_summary.md`.
 
-## Round ledger (rounds 1–36 archived — full detail in [the archive](./old-reports-conversion-archive.md))
+## Round ledger (rounds 1–38 archived — full detail in [the archive](./old-reports-conversion-archive.md))
 
+- **R38** (07-14): Phase B — avgTT-byDateRange alias (B1) + Route Info Box avgTT-byDateRange
+  static template (B3, 38 flips materialized) + Bar Graph Summary freeflow-byDateRange pm3
+  template (B2, mechanism proven, 0 real corpus flips — pre-2019 corpus dates outside 1410's
+  coverage). 63→101 full, 58.1% mapped.
+- **R37** (07-13): census refresh + round-33 report-level mirror; 63/669/122/14, 56.8% mapped;
+  213 `no_valid_routes` shells enumerated corpus-wide; only converted shell is 874→`2188794`
+  (deletion pending, user to run).
 - **R36** (07-13): Bar Graph Summary Phase A completed (travelTime / hoursOfDelay /
   avgHoursOfDelay incl. per-resolution composite-map-key expression — first lambda-bearing
   calculated column); 787→`2190210`, 320→`2190225`, 1061 reconverted →`2190527`; 15/15 live
@@ -203,62 +258,66 @@ never produce pages); 11 have no routes at all. Rerun: `python3 scripts/census_o
 - **R2** (07-08): report 1071 converted — 11/13 graphs live.
 - **R1** (07-08): report 1070 converted end-to-end — first proof of the whole pipeline.
 
-## Round 37 (2026-07-13) — CURRENT ROUND: census refresh + round-33 report-level mirror (census upkeep + item (e))
+## Round 39 (2026-07-14) — CURRENT ROUND: pre-2017-only report-level skip + shell page cleanup
 
-**Objective (user-requested this session)**: an updated census/corpus survey. The graph-mapping
-mirror was verified current against `convert_report` (Info Box dynamic branch, Route Compare
-branch, `GRAPH_TEMPLATE_MAP` lookup — rounds 29–36's new keys flow through automatically), but
-the census needed real extensions before rerunning:
+**Objective (user-directed this session)**: two asks. (1) Never spend further conversion effort
+on routes whose data predates 2017 (permanently unrecoverable, round 13); if EVERY route_comp in
+a report is pre-2017-only, refuse to port that report at all (mirrors the existing
+`no_valid_routes` report-level skip). Coverage numbers must either exclude these reports or show
+a parallel set that does. (2) Delete the pending shell page (item (e), `2188794`) — user granted
+permission to mint the auth token myself going forward rather than handing off the command.
 
-**Census maintenance (`scripts/census_old_reports.py`, this round)**:
-- [x] **Round-33 report-level `no_valid_routes` mirror**: the census now classifies each report's
-  route validity the way `convert_report` decides page creation (tmc from admin2.routes'
-  tmc_array or convert-time falcor point-resolution; the new catalog is NEVER consulted for tmc
-  data — `build_route_entry`): `ok` / `hinges_on_point_resolution` (only point-drawn routes —
-  statically unknowable, converts fine in practice: 787's routes 5418/5419 are this kind) /
-  `no_valid_routes` (definite shell, converter skips the page) / `no_route_comps`. Also
-  cross-references already-converted `report_<id>` pages (new `fetch_converted_pages()`).
-- [x] **Bucket recomposition**: Bar Graph Summary (shape proven rounds 34–36) and Route Compare
-  Component (round 25) moved NO_EQUIVALENT_TYPES → BUILDABLE_TYPES; no_equivalent now means
-  "needs shape work before spec work" (Route Map, Route Difference, TMC Difference Grid, Info
-  Boxes outside the reliability bucket), reflecting round 24's reopening.
-- [x] **Flips/greedy exclude shells**: single-blocker flips and greedy coverage no longer count
-  `no_valid_routes` shells (round-36 finding: shell report 678 falsely inflated round 34's flip
-  count). Greedy baseline = 52 page-producing full reports (11 of the 63 "full" are shells).
+**(2) done first — shell page cleanup + token minting**: ran
+`scratchpad/npmrds-sub/mint_token.sh` directly (user-authorized this round, no more handoff needed
+for this specific script) then `delete_converted_page(2188794)` — deleted the page, 4 section
+rows, 1 snap row. `converted_pages_total` 26→25 confirms it. The other two round-38 cleanup items
+(report 745's leftover broken test section, report 191's forced-2023 mechanism-proof page) were
+**not** touched — the user's ask this round named one shell page specifically, not those two; both
+still pending, see the "Immediate next steps" list below.
 
-**Census results (2026-07-13 run, 868 reports, 0 errors)** — full detail in
-`scratchpad/npmrds-sub/old-reports/census/census{.json,_summary.md}`:
-- **Classes**: 63 full / 669 partial / 122 none / 14 no_graphs (round 27: 46/559/249/14).
-- **Instances**: **4,029/7,098 mapped (56.8%**; round 27: 27.3%). Unmapped 3,069 = buildable
-  1,057 (in 395 reports) / no_equivalent 1,865 (756) / tail 147 (90).
-- **NEW headline — route validity**: ok 32 / hinges_on_point_resolution 612 / **no_valid_routes
-  213** / no_route_comps 11. A quarter of the corpus references ONLY routes deleted from
-  admin2.routes and absent from the new catalog (spot-verified directly: 5445/5152/89/29380 in
-  neither DB; the missing ids cluster in sequential blocks — bulk route deletions). These
-  reports were broken in the OLD tool too and can never produce pages. Their graph instances
-  still count in the vocabulary matrix (real author-selection evidence, per the strategic
-  frame); they're only excluded from page-production levers.
-- **Top unmapped keys** (instances/flips): Route Map speed×5-min 481/53; Route Info Box
-  speed×5-min 268/8; TMC Info Box speed×5-min 166/7; Route Map speed×None 138/3; Route Bar Graph
-  planningTime×day 138/0 (buildable, 40 reports); **Route Info Box avgTT-byDateRange 68/38 —
-  the biggest single-key flip lever after Route Map**, same pm3-join family as Phase B; Bar
-  Graph Summary freeflow-byDateRange 62/1 (item (c)'s target, now buildable-bucket).
-- **Greedy**: top-11 keys → 290 page-producing full reports; top-30 → 434.
+**(1) — pre-2017-only report-level skip**:
+- `convert_old_reports.py`: new `PRE_2017_CUTOFF = 20170101` + `route_comp_is_pre_2017(settings)`
+  (true only when BOTH `startDate`/`endDate` are present and fall entirely before the cutoff — the
+  14/5154 corpus route_comps missing dates are left as "unknown, not pre-2017" rather than assumed
+  broken) + `report_is_pre_2017_only(route_comps)` (true iff every comp is pre-2017). Wired into
+  `convert_report()` right after `flatten_route_comps` — before any old-route fetch or graph
+  analysis, since the check needs nothing else — as an early report-level skip: gap-logs kind
+  `pre_2017_only` and returns via `finish(..., None, ...)` with no page created, same shape as the
+  existing `no_valid_routes` skip.
+- `census_old_reports.py`: imports `report_is_pre_2017_only`; each report record gets a
+  `pre_2017_only` bool. New `page_producible(r)` predicate
+  (`route_validity != no_valid_routes AND not pre_2017_only`) now gates `full_producible`,
+  `single_blocker_flips`, and the `greedy` cumulative-coverage calc — pre-2017-only reports were
+  added to the same exclusion no_valid_routes shells already got (round-36's shell-678 lesson
+  applies identically here: counting a permanently-blank report toward "flippable" inflates the
+  number). New parallel headline: `class_counts_excl_pre_2017` /
+  `graph_instances_excl_pre_2017`, plus `pre_2017_converted_pages` — already-converted pages that
+  turn out to be pre-2017-only, surfaced (not auto-deleted, per the no-proactive-sweeps policy).
+  `census_summary.md` gained a "Pre-2017-only reports" section presenting both the raw and
+  excluding-pre-2017 numbers side by side.
 
-**Item (e) — ANSWERED via the census cross-reference + a snap-row hazard sweep**:
-- [x] Corpus-wide shell enumeration: the 213 `no_valid_routes` report ids are listed (with
-  graph-class) in census_summary.md.
-- [x] Converted-page audit: 23 numeric `report_<id>` pages live (+`report_demo`). Exactly ONE is
-  a shell — **874 → page `2188794`** (round-9 conversion, predates the round-33 skip; its gap
-  report already logged route_missing_everywhere for its lone route 5445, so its graphs have
-  been empty since round 9). Its snap row has `graphIds: []` on every route entry, so it is NOT
-  a scan hazard — just a permanently-empty shell.
-- [x] Scan-hazard sweep: all 6 pre-round-35 pages' snap rows (751/874/11/54/315/796) checked for
-  the round-33 hazard combo (empty-tmc route entry with non-empty graphIds) — ZERO found;
-  round-35/36 pages are safe by construction.
-- [ ] **Pending (permission-gated this session, user to run)**: delete shell page `2188794`:
-  `python3 -c "import sys; sys.path.insert(0,'scripts'); from convert_old_reports import delete_converted_page; delete_converted_page(2188794)"`
-  (mint a fresh token first via `scratchpad/npmrds-sub/mint_token.sh` if deletes 401).
+**Census rerun (868 reports, 0 errors) — key finding: the raw "full" count was significantly
+inflated by permanently-blank reports**:
+- **133/868 reports (15.3%) are pre-2017-only** — will never render real data regardless of
+  template completeness.
+- Raw (unfiltered, unchanged from round 38): 101 full / 635 partial / 118 none / 14 no_graphs;
+  4,127/7,098 graph instances mapped (58.1%).
+- **Excluding pre-2017-only reports (the real achievable target)**: only **59 full** (not
+  101 — 42 of the "full" reports are pre-2017-only and were always going to render blank forever)
+  / 560 partial / 102 none / 14 no_graphs; **3,801/6,520 mapped (58.3%**, essentially unchanged
+  from the raw instance-level %, since unmapped-key density is similar in both populations — the
+  gap is almost entirely in the report-level "full" count, not the instance-level ratio).
+  `full_producible` (full AND page-producible, i.e. also excluding `no_valid_routes`): **48**.
+- **4 already-converted pages turn out to be pre-2017-only** (converted before this rule existed
+  — surfaced for a cleanup decision, not auto-deleted): report 16 "Delaware Avenue" → page
+  `2190009`; report 54 "Hamilton County" → page `2189409` (round 13 already flagged this one's
+  dates as "entirely inside 2016"); report 58 "Rt13 SB CIthaca" → page `2190556` (this is round
+  38's B3 mechanism-proof page — already documented there as deliberately pre-2017, not a
+  surprise); report 142 "WB LIE Mainline V3" → page `2189993`. 16/54/142 are genuine conversions
+  (not mechanism proofs) that will never show data — worth a decision on whether to delete.
+
+**Standing directive added**: pre-2017 data (routes and reports) is a permanent, first-class
+report-level exclusion now, not just a gap-log note — see the summary's standing directives.
 
 ## Objective
 
@@ -504,7 +563,13 @@ Round 36 additions: 787→`2190210`, 320→`2190225`, and 1061 reconverted `2189
 Round 37 (census cross-reference, 2026-07-13): 23 numeric `report_<id>` pages live in total —
 the earlier-round pages also include 11→`2189401`, 54→`2189409`, 315→`2189417`, 796→`2189435`.
 874's page `2188794` is a permanently-empty shell (route 5445 missing everywhere since before
-its round-9 conversion) — **deletion pending, user to run** (see Round 37).
+its round-9 conversion) — **deletion pending, user to run** (see the archive's Round 37).
+Round 38 (Phase B, 2026-07-14): 745→`2190543` (B1; carries one leftover BROKEN test section,
+draft `2190567`/published `2190568`, **deletion pending, user to run**), 58→`2190556` (B3),
+191→`2190569` (B2 — **converted with `graph_max_year` forced to 2023**, a deliberate mechanism
+proof, not a faithful conversion of its real 2016/2017 dates — delete-or-reconvert, user to run).
+New templates: `route_info_box_traveltime` (`2190555`), `tmc_freeflow_summary_bar_graph_2023`
+(`2190566`).
 
 Other files this task has produced, outside that scratchpad folder:
 - `scripts/convert_old_reports.py` — the converter itself.
