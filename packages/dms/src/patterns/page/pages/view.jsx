@@ -7,6 +7,7 @@ import {
     nav2Level,
     convertToUrlParams,
     mergeFilters,
+    getPageVariableRegistry,
     initNavigateUsingSearchParams,
     updatePageStateFiltersOnSearchParamChange
 } from './_utils'
@@ -26,7 +27,7 @@ function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdat
 
     const [pageState, setPageState] = useImmer({
       ...item,
-      filters: mergeFilters(item?.filters, patternFilters)
+      filters: getPageVariableRegistry(item, patternFilters)
     });
     const {Layout} = UI;
     let theme = mergeTheme(fullTheme, item?.theme || {})
@@ -85,7 +86,13 @@ function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdat
 
     useEffect(() => {
         updatePageStateFiltersOnSearchParamChange({searchParams, item, patternFilters, setPageState})
-    }, [searchParams, item?.filters]);
+        // Depend on item?.id, not just item?.filters: a page's DERIVED page vars
+        // (e.g. a map section's `layers`) come from item.sections, and item.filters
+        // is usually undefined — so on SPA navigation to such a page this URL→state
+        // mapping must re-run when the item itself resolves, or the params never
+        // register (they only worked on a full reload, where the item is present at
+        // mount). item?.sections?.length also covers sections arriving after the id.
+    }, [searchParams, item?.id, item?.filters, item?.sections?.length]);
 
     useEffect(() => {
         initNavigateUsingSearchParams({pageState, search, navigate, baseUrl, item, isView: true})

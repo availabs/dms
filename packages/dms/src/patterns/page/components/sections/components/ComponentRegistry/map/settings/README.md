@@ -39,13 +39,17 @@ What did **not** change:
 - `symbologySelector.jsx`
   Loads available symbologies and derives the selected symbology/layer state.
 - `symbology.jsx`
-  Exposes symbology picker values and handlers.
-- `layers.jsx`
-  Exposes layer picker values and handlers.
+  Exposes the symbology-management handlers used by the unified "Symbologies" manager
+  (available options, Refresh, add/remove/visibility/active-layer for the library).
 - `filters.jsx`
-  Exposes active-layer filter data and update handlers.
+  Exposes the per-symbology page-bridge helpers `getSymbologyBridge` / `listBridgeSymbologies`
+  used by the "Filters" screen (`MapFilterBridgeList`).
 - `more.jsx`
   Exposes display and map-behavior settings shown on the main settings screen.
+
+(Removed in the 2026-07 cleanup: the per-active-symbology `useMapSettingsFilters` hook, the
+`layers.jsx` layer-picker hook, and the 8 legacy single-symbology filter/symbology/library
+controls — superseded by the unified Symbologies manager + per-symbology Filters bridge.)
 
 ## Shared UI Components
 

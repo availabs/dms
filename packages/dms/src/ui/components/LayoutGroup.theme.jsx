@@ -1,5 +1,11 @@
 import React from 'react'
 
+// Style keys beyond wrapper1/2/3:
+//   decorations: [classString] — empty spans rendered inside wrapper1 (chrome).
+//   Background: React component — a live backdrop (canvas, texture) rendered
+//     inside wrapper1 before the content wrappers. The component positions
+//     itself (absolute inset-0, aria-hidden); wrapper1 supplies
+//     relative/overflow-hidden. Site themes supply this from their own code.
 export const layoutGroupTheme = {
   options: {
     activeStyle: 0

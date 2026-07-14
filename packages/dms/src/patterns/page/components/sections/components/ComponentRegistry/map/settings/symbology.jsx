@@ -2,23 +2,20 @@ import { cloneDeep } from "lodash-es";
 import useSymbologySelectorState from "./symbologySelector.jsx";
 
 /**
- * Exposes the active symbology and symbology picker handler for Map Settings.
- * This reuses the same selection behavior already used by the map toolbar flow.
- *
- * Also exposes the Layer Library management handlers (multi-symbology mode):
- * add-with-category / remove, mirroring map_dama's SelectSymbology.addLayer
- * semantics — added symbologies come in hidden (isVisible:false, every maplibre
- * sub-layer layout.visibility 'none', including interactive-filter variants)
- * and get a `{name, type:'symbology', symbologyId}` row in the chosen category
- * tab. The classic single-symbology picker (onSymbologyChange, replace-on-pick)
- * is unchanged.
+ * Symbology-management handlers for the unified Map Settings "Symbologies" manager.
+ * Exposes the available-symbology options + selected symbology (from the shared
+ * selector state), the merge-preserving Refresh (`onUpdateSymbology`), and the
+ * multi-symbology library handlers: add-with-category / remove / per-symbology
+ * visibility / active-layer — added symbologies come in hidden (isVisible:false,
+ * every maplibre sub-layer layout.visibility 'none', including interactive-filter
+ * variants) and get a `{name, type:'symbology', symbologyId}` row in the chosen
+ * category tab.
  */
 export default function useMapSettingsSymbology({ state = {}, setState, doApiLoad } = {}) {
   const {
     symbologies,
     selectedSymbology,
     symbologyOptions,
-    onSymbologyChange,
     onUpdateSymbology,
     isUpdatingSymbology,
   } = useSymbologySelectorState({
@@ -80,15 +77,50 @@ export default function useMapSettingsSymbology({ state = {}, setState, doApiLoa
     });
   };
 
+  // Toggle a symbology's on-map visibility from the settings manager. Mirrors the
+  // add-to-library hide logic (both the layer sub-layers AND interactive-filter
+  // variant sub-layers) so the maplibre layout.visibility stays in lockstep with
+  // `isVisible` — the runtime interactive-filter effect then selects the variant.
+  const setSymbologyVisible = (symbologyId, visible) => {
+    if (!setState) return;
+    setState((draft) => {
+      const entry = draft.symbologies?.[symbologyId];
+      if (!entry) return;
+      entry.isVisible = Boolean(visible);
+      const vis = visible ? "visible" : "none";
+      Object.values(entry.symbology?.layers || {}).forEach((layer) => {
+        (layer.layers || []).forEach((mlLayer) => {
+          mlLayer.layout = { ...(mlLayer.layout || {}), visibility: vis };
+        });
+        (layer["interactive-filters"] || []).forEach((variant) => {
+          (variant.layers || []).forEach((mlLayer) => {
+            mlLayer.layout = { ...(mlLayer.layout || {}), visibility: vis };
+          });
+        });
+      });
+    });
+  };
+
+  // Pick which layer inside a symbology is active (settings/filters edit it).
+  const setActiveLayer = (symbologyId, layerKey) => {
+    if (!setState) return;
+    setState((draft) => {
+      if (draft.symbologies?.[symbologyId]?.symbology) {
+        draft.symbologies[symbologyId].symbology.activeLayer = layerKey;
+      }
+    });
+  };
+
   return {
     selectedSymbology,
     symbologyOptions,
-    onSymbologyChange,
     onUpdateSymbology,
     isUpdatingSymbology,
     libraryEntries,
     libraryCategories,
     addSymbologyToLibrary,
     removeSymbologyFromLibrary,
+    setSymbologyVisible,
+    setActiveLayer,
   };
 }

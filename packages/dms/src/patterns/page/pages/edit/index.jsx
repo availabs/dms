@@ -5,7 +5,7 @@ import {useImmer} from "use-immer";
 import { ThemeContext, mergeTheme } from "../../../../ui/useTheme";
 import { CMSContext, PageContext, DataSourceContext } from '../../context';
 import {
-    sectionsEditBackill, dataItemsNav, nav2Level, mergeFilters, detectNavLevel, getInPageNav,
+    sectionsEditBackill, dataItemsNav, nav2Level, mergeFilters, getPageVariableRegistry, detectNavLevel, getInPageNav,
     convertToUrlParams, updatePageStateFiltersOnSearchParamChange, initNavigateUsingSearchParams, getPageAuthPermissions
 } from '../_utils'
 import SectionGroup from '../../components/sections/sectionGroup'
@@ -21,7 +21,7 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
 	const {  Menu, baseUrl, user, patternFilters=[], isUserAuthed, authBaseUrl, API_HOST, app } = React.useContext(CMSContext) || {};
 	const dataItems = allDataItems.filter(d => !d.authPermissions || isUserAuthed(reqPermissions, d.authPermissions));
 
-	const [ pageState, setPageState ] = useImmer({ ...item, filters: mergeFilters(item.filters, patternFilters) });
+	const [ pageState, setPageState ] = useImmer({ ...item, filters: getPageVariableRegistry(item, patternFilters) });
 	const [ editPane, setEditPane ] = React.useState({ open: false, index: 1, showGrid: false });
 	const [ draftDataSources, setDraftDataSources ] = useImmer(item.draft_dataSources || {});
 
@@ -116,7 +116,12 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
 
 	useEffect(() => {
 		updatePageStateFiltersOnSearchParamChange({searchParams, item, patternFilters, setPageState})
-	}, [searchParams, item?.filters]);
+		// Depend on item?.id (+ sections length), not just item?.filters: a page's
+		// DERIVED page vars (e.g. a map's `layers`) come from item.sections and
+		// item.filters is usually undefined, so on SPA navigation this URL→state
+		// mapping must re-run when the item resolves — else params only register on
+		// a full reload. See view.jsx for the matching fix.
+	}, [searchParams, item?.id, item?.filters, item?.sections?.length]);
 
 	useEffect(() => {
 		initNavigateUsingSearchParams({pageState, search, navigate, baseUrl, item})

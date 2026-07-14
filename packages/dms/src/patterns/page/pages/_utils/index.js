@@ -436,6 +436,69 @@ export const mergeFilters = (pageFilters=[], patternFilters=[]) => {
     return [...patternFiltersFormatted, ...pageOnlyFilters]
 }
 
+// ── Auto-registered page variables from a map's "share state" (?layers= / f_<symId>) ──
+// A map section with display.shareableState owns URL params for which symbologies are
+// visible (`layers`, held as ONE comma-joined value so the existing `?layers=a,b` URL
+// shape is preserved — the map splits it) and each symbology's selected interactive-filter
+// index (`f_<symId>`). The map used to write these to the URL itself (useSearchParams),
+// which fought the page's URL ownership and — under React Compiler — looped. We instead
+// AUTO-REGISTER them as page variables so the page owns the URL and the map reads/writes
+// them through pageState like every other component. `values` are managed by the map; the
+// page-variable system just round-trips searchKey ⇄ URL and surfaces them in the Settings tab.
+export const deriveMapShareVariables = (item) => {
+    // Read both published + draft sections so the auto-registered variables surface in
+    // view mode (`sections`) AND the edit-mode Settings tab (`draft_sections`).
+    const sections = [...(item?.sections || []), ...(item?.draft_sections || [])];
+    const vars = [];
+    const seen = new Set();
+    let hasShareableMap = false;
+    sections.forEach(section => {
+        const el = section?.element || section?.data?.element || {};
+        // element-type is registered as "Map" (capital); match case-insensitively.
+        if (String(el['element-type'] || '').toLowerCase() !== 'map') return;
+        const cfg = parseIfJSON(el['element-data'], {});
+        if (!cfg?.display?.shareableState) return;
+        hasShareableMap = true;
+        // UNIFY: an interactive symbology shares its SELECTED variant through the
+        // interactive layer's own `searchParamKey` page variable (the same binding a
+        // county-template map uses to select a variant), NOT a separate `f_<symId>`
+        // URL param. Register each interactive layer's `searchParamKey`. (A shareable
+        // interactive symbology with no `searchParamKey` authored simply isn't shared.)
+        Object.values(cfg.symbologies || {}).forEach(symb => {
+            Object.values(symb?.symbology?.layers || {}).forEach(layer => {
+                const hasInteractive = (layer['interactive-filters'] || []).length;
+                const key = layer.searchParamKey;
+                if (!hasInteractive || !key || seen.has(key)) return;
+                seen.add(key);
+                vars.push({ id: `map_share_${key}`, searchKey: key, values: [],
+                            useSearchParams: true, type: 'map_share', auto: true });
+            });
+        });
+    });
+    if (hasShareableMap) {
+        // `layers` is registered once even if a page has >1 shareable map. Dedup by
+        // searchKey (above + here) prevents duplicate registry entries, but it also
+        // means multiple shareable maps on ONE page would SHARE the `layers` var (and
+        // any colliding `searchParamKey`s) and fight over it. Multi-shareable-map per
+        // page is unsupported for now; namespacing per map (e.g. `layers`/`layers_2`)
+        // is a future enhancement. Single shareable map per page is the intended use.
+        vars.unshift({ id: 'map_share_layers', searchKey: 'layers', values: [],
+                       useSearchParams: true, type: 'map_share', auto: true });
+    }
+    return vars;
+};
+
+// The full page-variable registry: authored page.filters (+ pattern filters) plus any
+// component-auto-registered variables (currently map share-state). Deduped by searchKey so
+// an author-declared entry always wins over an auto one. Used by BOTH the pageState seed
+// (view.jsx) AND the URL→pageState sync (below) so the two sides agree on what's registered.
+export const getPageVariableRegistry = (item, patternFilters=[]) => {
+    const authored = mergeFilters(item?.filters, patternFilters);
+    const authoredKeys = new Set(authored.map(f => f.searchKey));
+    const derived = deriveMapShareVariables(item).filter(v => !authoredKeys.has(v.searchKey));
+    return [...authored, ...derived];
+}
+
 
 export const updatePageStateFiltersOnSearchParamChange = ({searchParams, item, patternFilters, setPageState}) => {
     // Extract filters from the URL
@@ -446,7 +509,7 @@ export const updatePageStateFiltersOnSearchParamChange = ({searchParams, item, p
 
     // If searchParams have changed, they should take priority and update the state
     //if (Object.keys(urlFilters).length ) { // || true // was eslint issue
-        const existingFilters = mergeFilters(item.filters, patternFilters);
+        const existingFilters = getPageVariableRegistry(item, patternFilters);
         const newFilters = (existingFilters || []).map(filter => {
             if(filter.useSearchParams && urlFilters[filter.searchKey]){
                 return {...filter, values: urlFilters[filter.searchKey]}
@@ -457,8 +520,16 @@ export const updatePageStateFiltersOnSearchParamChange = ({searchParams, item, p
 
         if(newFilters?.length){
             setPageState(page => {
-                // updates from searchParams are temporary
-                page.filters = newFilters
+                // updates from searchParams are temporary.
+                // Idempotency guard: only write when the filters actually changed.
+                // An unconditional `page.filters = newFilters` makes a brand-new array
+                // (and thus a new pageState) on every fire of the searchParams effect;
+                // under React Compiler that feeds an infinite re-render loop (sections
+                // re-read the new `filters` identity → re-render → cascade). No-op when
+                // unchanged so immer returns the same state and React bails out.
+                if (!isEqual(page.filters, newFilters)) {
+                    page.filters = newFilters
+                }
             })
         }
     //}

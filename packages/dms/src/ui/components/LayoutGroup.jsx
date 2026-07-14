@@ -11,9 +11,16 @@ export default function LayoutGroup ({children, outerChildren, activeStyle}) {
   // real elements once wrapper1's ::before/::after are already in use.
   const decorations = Array.isArray(layoutGrouptheme?.decorations) ? layoutGrouptheme.decorations : []
 
+  // Background: optional component on the style, rendered inside wrapper1 before
+  // the content wrappers — a live backdrop (canvas, texture) behind the whole
+  // group. The component owns its own positioning (absolute inset-0, aria-hidden);
+  // the style's wrapper1 supplies relative/overflow-hidden.
+  const Background = layoutGrouptheme?.Background
+
   return (
     <div className={`${layoutGrouptheme?.wrapper1}`}>
       {outerChildren}
+      {Background ? <Background /> : null}
       {decorations.map((cls, i) => (
         <span key={i} aria-hidden="true" className={cls} />
       ))}

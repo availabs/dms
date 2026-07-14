@@ -2,6 +2,7 @@ import React, { useContext } from "react";
 
 import { ThemeContext, getComponentTheme } from "../../../../../../../../ui/useTheme";
 import useMapSettingsControls from "./state.jsx";
+import { getSymbologyBridge, listBridgeSymbologies } from "./filters.jsx";
 
 const Field = ({ label, children, compact = false, labelClassName }) => (
   <div className={`${compact ? "pb-1.5" : "pb-2"} w-full min-w-0`}>
@@ -136,79 +137,6 @@ const renderMenuField = (render) => (props) => (
   </div>
 );
 
-const MapSymbologyControl = ({ mapAPI }) => {
-  const {
-    selectedSymbology,
-    symbologyOptions,
-    onSymbologyChange,
-    onUpdateSymbology,
-    isUpdatingSymbology,
-    Select,
-    UI,
-    labelClassName,
-    sectionClassName,
-  } = useMapSettingsUI(mapAPI);
-
-  const RefreshIcon = UI?.Icon;
-
-  return (
-    <div className={`${sectionClassName} w-full min-w-0`}>
-      <div className="pb-2 w-full min-w-0">
-        {/* Label row + Refresh: re-fetch the selected symbology from the source
-            (new/removed dynamic variables, restyling flow in) while preserving
-            the author's DMS Map settings. Merge, not replace — see
-            symbologySelector.mergeSymbologyPreservingUserConfig. */}
-        <div className="flex items-center justify-between">
-          <label className={labelClassName}>Symbology</label>
-          {selectedSymbology && onUpdateSymbology ? (
-            <button
-              type="button"
-              onClick={onUpdateSymbology}
-              disabled={isUpdatingSymbology}
-              aria-label="Refresh symbology"
-              title="Sync this map with the latest editor changes"
-              className="p-0.5 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 disabled:opacity-50 disabled:cursor-default cursor-pointer"
-            >
-              {RefreshIcon ? (
-                <RefreshIcon icon="Refresh" className={`size-4 ${isUpdatingSymbology ? "animate-spin" : ""}`} />
-              ) : (
-                <span className="text-xs">{isUpdatingSymbology ? "…" : "↻"}</span>
-              )}
-            </button>
-          ) : null}
-        </div>
-        <FullWidthSelectField
-          Select={Select}
-          className="mt-1"
-          value={selectedSymbology || ""}
-          options={symbologyOptions.map((option) => ({ label: option.label, value: option.key }))}
-          onChange={onSymbologyChange}
-          placeholder="Search..."
-          singleSelectOnly={true}
-        />
-      </div>
-    </div>
-  );
-};
-
-const MapLayerControl = ({ mapAPI }) => {
-  const { selectedSymbology, selectedLayer, layerOptions, onLayerChange, Select, labelClassName } = useMapSettingsUI(mapAPI);
-
-  return (
-    <Field label="Layer" labelClassName={labelClassName}>
-      <FullWidthSelectField
-        Select={Select}
-        className="mt-1"
-        value={selectedLayer}
-        options={layerOptions.map((option) => ({ label: option.label, value: option.key }))}
-        onChange={onLayerChange}
-        placeholder="Search..."
-        singleSelectOnly={true}
-      />
-    </Field>
-  );
-};
-
 const MapHeightControl = ({ mapAPI }) => {
   const { state, heightOptions, setHeight, Select, labelClassName, dividerClassName } = useMapSettingsUI(mapAPI);
 
@@ -296,190 +224,56 @@ const MapZoomToFitControl = ({ mapAPI }) => {
   return <ToggleRow label="Zoom to Fit" value={state?.zoomToFitBounds} onChange={setZoomToFitBounds} SwitchComp={Switch} labelClassName={labelClassName} dividerClassName={dividerClassName} />;
 };
 
-const MapUsePageFiltersControl = ({ mapAPI, border = false }) => {
-  const { activeLayer, setUsePageFilters, UI, labelClassName, descriptionClassName, dividerClassName } = useMapSettingsUI(mapAPI);
-  const { Switch } = UI;
-
-  if (!activeLayer) return <div className={descriptionClassName}>Select a layer first.</div>;
-
-  return <ToggleRow label="Use Page Filters" border={border} value={activeLayer?.usePageFilters} onChange={setUsePageFilters} SwitchComp={Switch} labelClassName={labelClassName} dividerClassName={dividerClassName} />;
-};
-
-const MapKeySearchParamControl = ({ mapAPI, border = true }) => {
-  const { activeLayer, setSearchParamKey, UI, labelClassName, dividerClassName } = useMapSettingsUI(mapAPI);
-  const { Input } = UI;
-
-  if (!activeLayer) return null;
-
-  return (
-    <InlineField label="Key Search Param" border={border} labelClassName={labelClassName} dividerClassName={dividerClassName}>
-      <div className={inlineSelectWrapperClassName}>
-        <DebouncedTextInput
-          Input={Input}
-          value={activeLayer?.searchParamKey || ""}
-          delay={750}
-          onCommit={setSearchParamKey}
-        />
-      </div>
-    </InlineField>
-  );
-};
-
-const MapInteractiveFiltersControl = ({ mapAPI }) => {
-  const {
-    activeLayer,
-    interactiveFilterOptions,
-    activeFilter,
-    setInteractiveSearchParamValue,
-    activateInteractiveFilter,
-    UI,
-    labelClassName,
-    descriptionClassName,
-    sectionClassName,
-    dividerClassName,
-    fieldPanelClassName,
-    highlightedPanelClassName,
-  } = useMapSettingsUI(mapAPI);
-  const { Input, Switch } = UI;
-  const filters = interactiveFilterOptions || [];
-
-  if (!activeLayer || !filters.length) return <div className={descriptionClassName}>No interactive filters configured</div>;
-
-  return (
-    <div className={`${sectionClassName} w-full min-w-0`}>
-      {filters.map((filter, index) => (
-        <div key={`${filter.label || "interactive"}_${index}`} className={`${index === 0 ? "" : "mt-3"} w-full min-w-0`}>
-          <FilterGroup
-            title={filter.label || `Interactive Filter ${index + 1}`}
-            highlighted={index > 0}
-            titleClassName={labelClassName}
-            fieldPanelClassName={fieldPanelClassName}
-            highlightedPanelClassName={highlightedPanelClassName}
-          >
-            <Field label="Search Param Value" compact labelClassName={labelClassName}>
-              <div className="w-full">
-                <DebouncedTextInput
-                  Input={Input}
-                  value={filter.searchParamValue || filter.label || ""}
-                  delay={500}
-                  onCommit={(value) => setInteractiveSearchParamValue(index, value)}
-                />
-              </div>
-            </Field>
-            <ToggleRow
-              label="Active"
-              border={false}
-              value={activeFilter === index}
-              SwitchComp={Switch}
-              labelClassName={labelClassName}
-              dividerClassName={dividerClassName}
-              onChange={(enabled) => {
-                if (!enabled) return;
-                activateInteractiveFilter(index);
-            }}
-          />
-          </FilterGroup>
-        </div>
-      ))}
-    </div>
-  );
-};
-
-const MapDynamicFiltersControl = ({ mapAPI }) => {
-  const {
-    activeLayer,
-    dynamicFilterOptions,
-    setDynamicSearchParamKey,
-    setDynamicDefaultValue,
-    setDynamicDataType,
-    UI,
-    Select,
-    labelClassName,
-    descriptionClassName,
-    sectionClassName,
-    fieldPanelClassName,
-    highlightedPanelClassName,
-  } = useMapSettingsUI(mapAPI);
-  const { Input } = UI;
-  const filters = dynamicFilterOptions || [];
-
-  if (!activeLayer || !filters.length) return <div className={descriptionClassName}>No dynamic filters configured</div>;
-
-  return (
-    <div className={`${sectionClassName} w-full min-w-0`}>
-      {filters.map((filter, index) => (
-        <div key={`${filter.column_name || "dynamic"}_${index}`} className={`${index === 0 ? "" : "mt-3"} w-full min-w-0`}>
-          <FilterGroup
-            title={filter.display_name || filter.column_name || `Dynamic Filter ${index + 1}`}
-            highlighted={index > 0}
-            titleClassName={labelClassName}
-            fieldPanelClassName={fieldPanelClassName}
-            highlightedPanelClassName={highlightedPanelClassName}
-          >
-            <Field label="Search Param Value" compact labelClassName={labelClassName}>
-              <DebouncedTextInput
-                Input={Input}
-                value={filter.searchParamKey || filter.column_name || ""}
-                delay={500}
-                onCommit={(value) => setDynamicSearchParamKey(index, value)}
-              />
-            </Field>
-            <Field label="Default Value" compact labelClassName={labelClassName}>
-              <DebouncedTextInput
-                Input={Input}
-                value={filter.defaultValue ?? ""}
-                delay={500}
-                onCommit={(value) => setDynamicDefaultValue(index, value)}
-              />
-            </Field>
-            <Field label="Type" compact={false} labelClassName={labelClassName}>
-              {/**
-                * Store an explicit string value for the select so the "String"
-                * label renders correctly and the handler accepts either a raw
-                * value or the full option object returned by MultiSelect.
-                */}
-              <Select
-                value={filter.dataType || "string"}
-                options={[
-                  { label: "String", value: "string" },
-                  { label: "Numeric", value: "numeric" },
-                ]}
-                onChange={(value) => setDynamicDataType(index, value?.value ?? value ?? "string")}
-                singleSelectOnly={true}
-              />
-            </Field>
-          </FilterGroup>
-        </div>
-      ))}
-    </div>
-  );
-};
-
-const MapLayerLibraryControl = ({ mapAPI }) => {
+/**
+ * Unified Symbologies manager (the whole "Symbologies" screen) — replaces the
+ * legacy single-symbology picker (which destructively replaced the whole map)
+ * AND the separate Layer Library control. One additive place to see and manage
+ * what's on the map:
+ *   - a mode/panel section (Layer Library Panel, Shareable URL State),
+ *   - an "On this map" list: every symbology with a visibility toggle, an
+ *     "active" marker (the first-visible one the map treats as primary), its
+ *     library category, per-symbology Refresh, active-layer picker (>1 layer),
+ *     and Remove,
+ *   - an additive "Add symbology" (never wipes the others).
+ * Single vs multi is self-evident: one row = single-symbology; adding a second
+ * is multi. No destructive "replace all" anywhere.
+ */
+const MapSymbologyManager = ({ mapAPI }) => {
   const {
     state,
-    setLayerPanel,
-    setShareableState,
     symbologyOptions,
     libraryEntries,
     libraryCategories,
     addSymbologyToLibrary,
     removeSymbologyFromLibrary,
+    setSymbologyVisible,
+    setActiveLayer,
+    onUpdateSymbology,
+    isUpdatingSymbology,
+    setLayerPanel,
+    setShareableState,
     UI,
     Select,
     labelClassName,
     descriptionClassName,
-    sectionClassName,
-    dividerClassName,
-    fieldPanelClassName,
+    dividerClassName: divCls,
+    sectionClassName: secCls,
+    fieldPanelClassName: panelCls,
   } = useMapSettingsUI(mapAPI);
-  const { Switch, Input } = UI;
+  const { Switch, Input, Icon } = UI;
   const [pendingSymbology, setPendingSymbology] = React.useState(null);
   const [pendingCategory, setPendingCategory] = React.useState("");
-  const isLibrary = state.display?.layerPanel === "library";
+
+  const symbologies = state?.symbologies || {};
+  const symIds = Object.keys(symbologies);
+  const activeSymId = symIds.find((id) => symbologies[id]?.isVisible);
+  const isLibrary = state?.display?.layerPanel === "library";
+  const categoryBySym = {};
+  (libraryEntries || []).forEach((e) => { categoryBySym[String(e.symbologyId)] = e.tabName; });
 
   return (
-    <div className={`${sectionClassName} w-full min-w-0`}>
+    <div className={`${secCls} w-full min-w-0`}>
+      {/* Mode / panel settings */}
       <ToggleRow
         label="Layer Library Panel"
         border={false}
@@ -487,173 +281,361 @@ const MapLayerLibraryControl = ({ mapAPI }) => {
         onChange={(enabled) => setLayerPanel(enabled ? "library" : "none")}
         SwitchComp={Switch}
         labelClassName={labelClassName}
-        dividerClassName={dividerClassName}
+        dividerClassName={divCls}
       />
+      <div className={`${descriptionClassName} pb-1`}>
+        {isLibrary
+          ? "Viewers get an on-map panel to toggle these symbologies."
+          : "Symbologies render as configured; viewers get no toggle panel."}
+      </div>
       <ToggleRow
         label="Shareable URL State"
-        value={Boolean(state.display?.shareableState)}
+        value={Boolean(state?.display?.shareableState)}
         onChange={setShareableState}
         SwitchComp={Switch}
         labelClassName={labelClassName}
-        dividerClassName={dividerClassName}
+        dividerClassName={divCls}
+      />
+
+      {/* On this map */}
+      <div className={`${labelClassName} pt-3 pb-1`}>On this map</div>
+      {symIds.length === 0 ? (
+        <div className={descriptionClassName}>No symbologies yet — add one below.</div>
+      ) : (
+        symIds.map((id) => {
+          const entry = symbologies[id];
+          const sym = entry?.symbology || {};
+          const layers = sym.layers || {};
+          const layerKeys = Object.keys(layers);
+          const visible = Boolean(entry?.isVisible);
+          const name = entry?.name || `Symbology ${id}`;
+          return (
+            <div key={id} className={`border-t ${divCls} py-2 w-full min-w-0`}>
+              <div className="flex items-center gap-2 w-full min-w-0">
+                <span className="shrink-0">
+                  <Switch enabled={visible} setEnabled={(v) => setSymbologyVisible(id, v)} size="small" />
+                </span>
+                <span className={`${labelClassName} min-w-0 flex-1 truncate`}>{name}</span>
+                {id === activeSymId ? <span className={`${descriptionClassName} shrink-0`}>active</span> : null}
+                {categoryBySym[id] ? <span className={`${descriptionClassName} shrink-0 truncate max-w-[6rem]`}>{categoryBySym[id]}</span> : null}
+                <button
+                  type="button"
+                  title="Sync this symbology with the latest editor changes"
+                  disabled={isUpdatingSymbology}
+                  onClick={() => onUpdateSymbology(id)}
+                  className="shrink-0 p-0.5 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 disabled:opacity-50 disabled:cursor-default cursor-pointer"
+                >
+                  {Icon
+                    ? <Icon icon="Refresh" className={`size-4 ${isUpdatingSymbology ? "animate-spin" : ""}`} />
+                    : <span className="text-xs">↻</span>}
+                </button>
+                <button
+                  type="button"
+                  title="Remove from map"
+                  onClick={() => removeSymbologyFromLibrary(id)}
+                  className="shrink-0 cursor-pointer text-xs text-zinc-400 hover:text-red-600"
+                >
+                  ✕
+                </button>
+              </div>
+              {layerKeys.length > 1 ? (
+                <div className="pl-9 pt-1 w-full min-w-0">
+                  <FullWidthSelectField
+                    Select={Select}
+                    value={sym.activeLayer || ""}
+                    options={layerKeys.map((k, i) => ({ label: layers[k]?.name?.trim() || `layer - ${i + 1}`, value: k }))}
+                    onChange={(value) => setActiveLayer(id, value?.value ?? value)}
+                    placeholder="Active layer…"
+                    singleSelectOnly={true}
+                  />
+                </div>
+              ) : null}
+            </div>
+          );
+        })
+      )}
+
+      {/* Add symbology (additive) */}
+      <div className={`${labelClassName} pt-3 pb-1`}>Add symbology</div>
+      <FullWidthSelectField
+        Select={Select}
+        value={pendingSymbology || ""}
+        options={symbologyOptions.map((option) => ({ label: option.label, value: option.key }))}
+        onChange={(value) => setPendingSymbology(value?.value ?? value)}
+        placeholder="Search available symbologies…"
+        singleSelectOnly={true}
       />
       {isLibrary ? (
-        <>
-          <Field label="Add symbology" labelClassName={labelClassName}>
-            <FullWidthSelectField
-              Select={Select}
-              className="mt-1"
-              value={pendingSymbology || ""}
-              options={symbologyOptions.map((option) => ({ label: option.label, value: option.key }))}
-              onChange={(value) => setPendingSymbology(value?.value ?? value)}
-              placeholder="Search..."
-              singleSelectOnly={true}
-            />
-          </Field>
-          <Field label={`Category${libraryCategories.length ? ` (${libraryCategories.join(" · ")})` : ""}`} compact labelClassName={labelClassName}>
-            <Input
-              type="text"
-              value={pendingCategory}
-              placeholder="Layers"
-              onChange={(event) => setPendingCategory(event.target.value)}
-            />
-          </Field>
-          <button
-            type="button"
-            disabled={!pendingSymbology}
-            className={`mt-1 w-full rounded-md border px-3 py-1.5 text-sm ${fieldPanelClassName} ${pendingSymbology ? "cursor-pointer hover:border-zinc-400" : "opacity-50"}`}
-            onClick={() => {
-              if (!pendingSymbology) return;
-              addSymbologyToLibrary(pendingSymbology, pendingCategory);
-              setPendingSymbology(null);
-            }}
-          >
-            Add to library
-          </button>
-          {libraryEntries.length ? (
-            <div className="pt-2">
-              {libraryEntries.map((entry) => (
-                <div key={entry.symbologyId} className={`border-t ${dividerClassName} flex w-full items-center gap-2 py-1.5`}>
-                  <span className={`${labelClassName} min-w-0 flex-1 truncate`}>{entry.name}</span>
-                  <span className={descriptionClassName}>{entry.tabName}</span>
-                  <button
-                    type="button"
-                    title="Remove from library"
-                    className="shrink-0 cursor-pointer text-xs text-zinc-400 hover:text-red-600"
-                    onClick={() => removeSymbologyFromLibrary(entry.symbologyId)}
-                  >
-                    ✕
-                  </button>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className={descriptionClassName}>No symbologies in the library yet.</div>
-          )}
-        </>
+        <Field label={`Category${libraryCategories.length ? ` (${libraryCategories.join(" · ")})` : ""}`} compact labelClassName={labelClassName}>
+          <Input type="text" value={pendingCategory} placeholder="Layers" onChange={(event) => setPendingCategory(event.target.value)} />
+        </Field>
       ) : null}
+      <button
+        type="button"
+        disabled={!pendingSymbology}
+        className={`mt-1 w-full rounded-md border px-3 py-1.5 text-sm ${panelCls} ${pendingSymbology ? "cursor-pointer hover:border-zinc-400" : "opacity-50"}`}
+        onClick={() => {
+          if (!pendingSymbology) return;
+          addSymbologyToLibrary(pendingSymbology, pendingCategory);
+          setPendingSymbology(null);
+          setPendingCategory("");
+        }}
+      >
+        Add to map
+      </button>
+      <div className={`${descriptionClassName} pt-1`}>
+        Added hidden — toggle it on above. A second symbology puts the map in multi-symbology mode.
+      </div>
     </div>
   );
 };
 
-const MapLayerClickFiltersControl = ({ mapAPI }) => {
+/**
+ * Multi-symbology page-bridge authoring UI (the whole "Filters" screen).
+ *
+ * The framework resolves `controls(theme)` without map state, so the per-symbology
+ * list can't be native drill-in nodes — it lives here, in one leaf that receives
+ * `mapAPI` (state + setState) and renders its own list → detail drill-in. Each
+ * symbology is one row (name + the page variable it drives + filter counts); the
+ * list makes the multi-symbology binding explicit, and the detail view configures
+ * that symbology's own layer (unify: its `searchParamKey` page var), never just the
+ * single first-visible one the legacy controls were bound to.
+ */
+const MapFilterBridgeList = ({ mapAPI }) => {
   const {
-    activeLayer,
-    isSelectedVariableMappingsEnabled,
-    selectedVariableMappings,
-    setClickFilterUseSearchParam,
     UI,
+    Select,
     labelClassName,
     descriptionClassName,
-    sectionClassName,
-    dividerClassName,
-    fieldPanelClassName,
-    highlightedPanelClassName,
+    dividerClassName: divCls,
+    sectionClassName: secCls,
+    fieldPanelClassName: panelCls,
+    highlightedPanelClassName: hiPanelCls,
   } = useMapSettingsUI(mapAPI);
-  const { Switch, Input } = UI;
-  const mappings = isSelectedVariableMappingsEnabled ? selectedVariableMappings || [] : [];
+  const { Input, Switch } = UI;
+  const state = mapAPI?.state;
+  const setState = mapAPI?.setState;
+  const [selectedSymId, setSelectedSymId] = React.useState(null);
 
-  if (!activeLayer || !mappings.length) return <div className={descriptionClassName}>No layer click filters configured</div>;
+  const symbologies = listBridgeSymbologies(state);
+  if (!symbologies.length) {
+    return <div className={descriptionClassName}>No symbologies to configure yet.</div>;
+  }
 
-  return (
-    <div className={`${sectionClassName} w-full min-w-0`}>
-      {mappings.map((mapping, index) => (
-        <div key={`${mapping.variable || "mapping"}_${index}`} className={`${index === 0 ? "" : "mt-3"} w-full min-w-0`}>
-          <FilterGroup
-            title={null}
-            highlighted={index > 0}
-            titleClassName={labelClassName}
-            fieldPanelClassName={fieldPanelClassName}
-            highlightedPanelClassName={highlightedPanelClassName}
-          >
-          <Field label="Selected Variable" compact labelClassName={labelClassName}>
-            <StaticFieldValue value={mapping.variable || "Untitled variable"} valueClassName={labelClassName} fieldPanelClassName={fieldPanelClassName} />
-          </Field>
-            <ToggleRow
-              label="Use URL Param"
-              border={false}
-              value={Boolean(mapping.useSearchParams)}
-              onChange={(enabled) => setClickFilterUseSearchParam(index, enabled)}
-              SwitchComp={Switch}
-              labelClassName={labelClassName}
-              dividerClassName={dividerClassName}
-            />
-          <Field label="Layer Field" compact={false} labelClassName={labelClassName}>
-            <StaticFieldValue value={mapping.field || "-"} valueClassName={labelClassName} fieldPanelClassName={fieldPanelClassName} />
-          </Field>
-          </FilterGroup>
+  // ---------- List view: one row per symbology ----------
+  if (selectedSymId == null || !state?.symbologies?.[selectedSymId]) {
+    return (
+      <div className={`${secCls} w-full min-w-0`}>
+        <div className={`${descriptionClassName} pb-2`}>
+          Each symbology binds its selected variant to a page variable (a URL param).
+          Pick one to configure how it connects to the page.
         </div>
-      ))}
+        {symbologies.map((s) => (
+          <button
+            key={s.symId}
+            type="button"
+            onClick={() => setSelectedSymId(s.symId)}
+            className={`w-full min-w-0 text-left border-t ${divCls} py-2 flex items-center justify-between gap-3 cursor-pointer hover:opacity-80`}
+          >
+            <span className="min-w-0">
+              <span className={`${labelClassName} block truncate`}>{s.name}</span>
+              <span className={`${descriptionClassName} block`}>
+                {[
+                  s.interactiveCount ? `${s.interactiveCount} interactive` : null,
+                  s.dynamicCount ? `${s.dynamicCount} dynamic` : null,
+                ].filter(Boolean).join(" · ") || "no filters"}
+              </span>
+            </span>
+            <span className={`${descriptionClassName} flex-shrink-0 flex items-center gap-1`}>
+              {s.searchParamKey
+                ? <span className="font-mono">{`?${s.searchParamKey}=`}</span>
+                : <span className="italic">no page var</span>}
+              <span aria-hidden="true">›</span>
+            </span>
+          </button>
+        ))}
+      </div>
+    );
+  }
+
+  // ---------- Detail view: configure the selected symbology's bridge ----------
+  const b = getSymbologyBridge(state, setState, selectedSymId);
+  return (
+    <div className={`${secCls} w-full min-w-0`}>
+      <button
+        type="button"
+        onClick={() => setSelectedSymId(null)}
+        className={`${descriptionClassName} pb-1 cursor-pointer hover:opacity-80`}
+      >
+        ‹ All symbologies
+      </button>
+      <div className={`${labelClassName} pb-1`}>{b.name}</div>
+
+      {!b.hasLayer ? (
+        <div className={descriptionClassName}>This symbology has no active layer to configure.</div>
+      ) : (
+        <React.Fragment>
+          <ToggleRow
+            label="Use Page Filters"
+            border={false}
+            value={b.usePageFilters}
+            onChange={b.setUsePageFilters}
+            SwitchComp={Switch}
+            labelClassName={labelClassName}
+            dividerClassName={divCls}
+          />
+          <InlineField label="Page Variable Key" labelClassName={labelClassName} dividerClassName={divCls}>
+            <div className={inlineSelectWrapperClassName}>
+              <DebouncedTextInput Input={Input} value={b.searchParamKey} delay={750} onCommit={b.setSearchParamKey} />
+            </div>
+          </InlineField>
+          <div className={`${descriptionClassName} pb-2`}>
+            {b.searchParamKey
+              ? <React.Fragment>Shares as <span className="font-mono">{`?${b.searchParamKey}=<value>`}</span> in the page URL.</React.Fragment>
+              : "Set a key to share this symbology's selected variant in the URL."}
+          </div>
+
+          {b.interactiveFilterOptions.length ? (
+            <div className={`${secCls} w-full min-w-0`}>
+              <div className={labelClassName}>Interactive Filter</div>
+              {b.interactiveFilterOptions.map((filter, index) => (
+                <div key={`${filter.label || "interactive"}_${index}`} className={`${index === 0 ? "" : "mt-3"} w-full min-w-0`}>
+                  <FilterGroup
+                    title={filter.label || `Interactive Filter ${index + 1}`}
+                    highlighted={index > 0}
+                    titleClassName={labelClassName}
+                    fieldPanelClassName={panelCls}
+                    highlightedPanelClassName={hiPanelCls}
+                  >
+                    <Field label="Search Param Value" compact labelClassName={labelClassName}>
+                      <div className="w-full">
+                        <DebouncedTextInput Input={Input} value={filter.searchParamValue || filter.label || ""} delay={500} onCommit={(value) => b.setInteractiveSearchParamValue(index, value)} />
+                      </div>
+                    </Field>
+                    <ToggleRow
+                      label="Active"
+                      border={false}
+                      value={b.activeFilter === index}
+                      SwitchComp={Switch}
+                      labelClassName={labelClassName}
+                      dividerClassName={divCls}
+                      onChange={(enabled) => { if (enabled) b.activateInteractiveFilter(index); }}
+                    />
+                  </FilterGroup>
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          {b.dynamicFilterOptions.length ? (
+            <div className={`${secCls} w-full min-w-0`}>
+              <div className={labelClassName}>Dynamic Filter</div>
+              {b.dynamicFilterOptions.map((filter, index) => (
+                <div key={`${filter.column_name || "dynamic"}_${index}`} className={`${index === 0 ? "" : "mt-3"} w-full min-w-0`}>
+                  <FilterGroup
+                    title={filter.display_name || filter.column_name || `Dynamic Filter ${index + 1}`}
+                    highlighted={index > 0}
+                    titleClassName={labelClassName}
+                    fieldPanelClassName={panelCls}
+                    highlightedPanelClassName={hiPanelCls}
+                  >
+                    <Field label="Search Param Key" compact labelClassName={labelClassName}>
+                      <DebouncedTextInput Input={Input} value={filter.searchParamKey || filter.column_name || ""} delay={500} onCommit={(value) => b.setDynamicSearchParamKey(index, value)} />
+                    </Field>
+                    <Field label="Default Value" compact labelClassName={labelClassName}>
+                      <DebouncedTextInput Input={Input} value={filter.defaultValue ?? ""} delay={500} onCommit={(value) => b.setDynamicDefaultValue(index, value)} />
+                    </Field>
+                    <Field label="Type" compact={false} labelClassName={labelClassName}>
+                      <Select
+                        value={filter.dataType || "string"}
+                        options={[
+                          { label: "String", value: "string" },
+                          { label: "Numeric", value: "numeric" },
+                        ]}
+                        onChange={(value) => b.setDynamicDataType(index, value?.value ?? value ?? "string")}
+                        singleSelectOnly={true}
+                      />
+                    </Field>
+                  </FilterGroup>
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          {b.clickFilterEnabled && b.clickFilterMappings.length ? (
+            <div className={`${secCls} w-full min-w-0`}>
+              <div className={labelClassName}>Layer Click Filter</div>
+              {b.clickFilterMappings.map((mapping, mI) => (
+                <div key={`${mapping.variable || "click"}_${mI}`} className={`${mI === 0 ? "" : "mt-3"} w-full min-w-0`}>
+                  <FilterGroup
+                    title={mapping.variable || "Untitled variable"}
+                    highlighted={mI > 0}
+                    titleClassName={labelClassName}
+                    fieldPanelClassName={panelCls}
+                    highlightedPanelClassName={hiPanelCls}
+                  >
+                    <ToggleRow
+                      label="Use URL Param"
+                      border={false}
+                      value={Boolean(mapping.useSearchParams)}
+                      SwitchComp={Switch}
+                      labelClassName={labelClassName}
+                      dividerClassName={divCls}
+                      onChange={(value) => b.setClickFilterUseSearchParam(mI, value)}
+                    />
+                    <Field label="Layer Field" compact labelClassName={labelClassName}>
+                      <StaticFieldValue value={mapping.field || "-"} valueClassName={labelClassName} fieldPanelClassName={panelCls} />
+                    </Field>
+                  </FilterGroup>
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          {!b.interactiveFilterOptions.length && !b.dynamicFilterOptions.length && !(b.clickFilterEnabled && b.clickFilterMappings.length) ? (
+            <div className={descriptionClassName}>No interactive, dynamic, or click filters on this symbology's layer.</div>
+          ) : null}
+        </React.Fragment>
+      )}
     </div>
   );
 };
 
 export const MapControls = () => ({
   default: [
-    { key: "map_symbology", label: "Symbology", type: renderMenuField(({ mapAPI }) => <MapSymbologyControl mapAPI={mapAPI} />) },
-    { key: "map_layer", label: "Layer", type: renderMenuField(({ mapAPI }) => <MapLayerControl mapAPI={mapAPI} />) },
     {
-      key: "map_layer_library_nav",
-      label: "Layer Library",
+      key: "map_symbologies_nav",
+      label: "Symbologies",
       items: [
-        { key: "map_layer_library", label: "Layer Library", type: renderMenuField(({ mapAPI }) => <MapLayerLibraryControl mapAPI={mapAPI} />) },
+        // Unified additive manager: what's on the map (visibility + active),
+        // add/remove, categories, per-symbology refresh + active layer, and the
+        // Layer Library Panel / Shareable URL State mode toggles. Replaces the old
+        // destructive single-symbology picker + separate Layer Library control.
+        { key: "map_symbologies", label: "Symbologies", type: renderMenuField(({ mapAPI }) => <MapSymbologyManager mapAPI={mapAPI} />) },
       ],
     },
     {
       key: "map_filters_nav",
       label: "Filters",
       items: [
-        { key: "map_use_page_filters", label: "Use Page Filters", type: renderMenuField(({ mapAPI }) => <MapUsePageFiltersControl mapAPI={mapAPI} border={false} />) },
-        { key: "map_key_search_param", label: "Key Search Param", type: renderMenuField(({ mapAPI }) => <MapKeySearchParamControl mapAPI={mapAPI} border={true} />) },
-        {
-          key: "map_interactive_filters_nav",
-          label: "Interactive Filter",
-          items: [
-            { key: "map_interactive_filters", label: "Interactive Filter Details", type: renderMenuField(({ mapAPI }) => <MapInteractiveFiltersControl mapAPI={mapAPI} />) },
-          ],
-        },
-        {
-          key: "map_dynamic_filters_nav",
-          label: "Dynamic Filter",
-          items: [
-            { key: "map_dynamic_filters", label: "Dynamic Filter Details", type: renderMenuField(({ mapAPI }) => <MapDynamicFiltersControl mapAPI={mapAPI} />) },
-          ],
-        },
-        {
-          key: "map_click_filters_nav",
-          label: "Layer Click Filter",
-          items: [
-            { key: "map_click_filters", label: "Layer Click Filter Details", type: renderMenuField(({ mapAPI }) => <MapLayerClickFiltersControl mapAPI={mapAPI} />) },
-          ],
-        },
+        // Per-symbology page-variable bridge (multi-symbology). One leaf renders the
+        // whole Filters screen from map state — list of symbologies → drill into one
+        // to wire its page var, interactive variant, dynamic + click filters.
+        { key: "map_filter_bridge", label: "Page Variable Bridge", type: renderMenuField(({ mapAPI }) => <MapFilterBridgeList mapAPI={mapAPI} />) },
       ],
     },
-    { key: "map_height", label: "Height", type: renderMenuField(({ mapAPI }) => <MapHeightControl mapAPI={mapAPI} />) },
-    { key: "map_legend_position", label: "Legend Position", type: renderMenuField(({ mapAPI }) => <MapLegendPositionControl mapAPI={mapAPI} />) },
-    { key: "map_plugin_control_position", label: "Plugin Control Position", type: renderMenuField(({ mapAPI }) => <MapPluginControlPositionControl mapAPI={mapAPI} />) },
-    { key: "map_zoom_pan", label: "Zoom/pan", type: renderMenuField(({ mapAPI }) => <MapZoomPanControl mapAPI={mapAPI} />) },
-    { key: "map_initial_viewport", label: "Set initial viewport", type: renderMenuField(({ mapAPI }) => <MapInitialViewportControl mapAPI={mapAPI} />) },
-    { key: "map_blank_basemap", label: "Use blank basemap", type: renderMenuField(({ mapAPI }) => <MapBlankBasemapControl mapAPI={mapAPI} />) },
-    { key: "map_zoom_to_fit", label: "Zoom to Fit", type: renderMenuField(({ mapAPI }) => <MapZoomToFitControl mapAPI={mapAPI} />) },
+    {
+      key: "map_display_nav",
+      label: "Display",
+      items: [
+        { key: "map_height", label: "Height", type: renderMenuField(({ mapAPI }) => <MapHeightControl mapAPI={mapAPI} />) },
+        { key: "map_legend_position", label: "Legend Position", type: renderMenuField(({ mapAPI }) => <MapLegendPositionControl mapAPI={mapAPI} />) },
+        { key: "map_plugin_control_position", label: "Plugin Control Position", type: renderMenuField(({ mapAPI }) => <MapPluginControlPositionControl mapAPI={mapAPI} />) },
+        { key: "map_zoom_pan", label: "Zoom/pan", type: renderMenuField(({ mapAPI }) => <MapZoomPanControl mapAPI={mapAPI} />) },
+        { key: "map_initial_viewport", label: "Set initial viewport", type: renderMenuField(({ mapAPI }) => <MapInitialViewportControl mapAPI={mapAPI} />) },
+        { key: "map_blank_basemap", label: "Use blank basemap", type: renderMenuField(({ mapAPI }) => <MapBlankBasemapControl mapAPI={mapAPI} />) },
+        { key: "map_zoom_to_fit", label: "Zoom to Fit", type: renderMenuField(({ mapAPI }) => <MapZoomToFitControl mapAPI={mapAPI} />) },
+      ],
+    },
   ],
 });

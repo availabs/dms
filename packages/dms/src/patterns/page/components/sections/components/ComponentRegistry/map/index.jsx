@@ -9,7 +9,6 @@ import LayerLibraryPanel from './LayerLibraryPanel/LayerLibraryPanel.jsx'
 import SymbologyViewLayer from './SymbologyViewLayer.jsx'
 import { PageContext, CMSContext } from "../../../../../context.js";
 // import {SymbologySelector} from "./SymbologySelector.jsx";
-import { useSearchParams } from "react-router";
 // import FilterControls from "./controls/FilterControls.jsx";
 import {defaultStyles, blankStyles} from "./styles.js";
 // import MoreControls from "./controls/MoreControls.jsx";
@@ -329,7 +328,7 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
 // console.log("Map::isEdit", isEdit);
 
     const { falcor, falcorCache, pgEnv, apiLoad, mapeditorKeys } = React.useContext(CMSContext);
-    const { pageState, setPageState } =  React.useContext(PageContext) || {}
+    const { pageState, setPageState, updatePageStateFilters } =  React.useContext(PageContext) || {}
     const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
     const damaMapT = { ...damaMapTheme, ...getComponentTheme(themeFromContext, 'damaMap') };
     const cachedData = typeof value === 'object' ? value : value && isJson(value) ? JSON.parse(value) : {};
@@ -443,92 +442,63 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
     const everVisibleRef = useRef(new Set());
 
     /**
-     * Shareable URL state (opt-in via display.shareableState, view mode only):
-     * `?layers=<symbologyId>,…` = the visible set; `f_<symbologyId>=<idx>` =
-     * that symbology's selectedInteractiveFilterIndex. Unknown ids are ignored
-     * so links survive symbology removal. Read once on mount; written on
-     * change (replace, no history spam). Design note: v1 syncs searchParams
-     * directly rather than through pageState.filters — page-level filters
-     * need page authoring, while this state is owned by the map section.
+     * Shareable map state (opt-in via display.shareableState, view mode only)
+     * expressed as PAGE VARIABLES — the page owns the URL. Two vars, auto-
+     * registered by the platform (deriveMapShareVariables in pages/_utils) when
+     * a section has shareableState:
+     *   - `layers` = the visible symbology-id set (comma-joined).
+     *   - `<layer.searchParamKey>` = an interactive symbology's selected variant,
+     *     UNIFIED onto the interactive-filter's own page-variable binding (the
+     *     same key a county-template map consumes) instead of a map-only `f_<id>`.
+     *
+     * READ is folded into the `dataPageFilters` effect below — both vars arrive
+     * through `pageState.filters`, so visibility + the multi-symbology interactive
+     * binding + dynamic-filters are applied together in one ordered setState.
+     * This effect is the WRITE side, routed through `updatePageStateFilters` (the
+     * page's URL owner — the same producer path click-filters use). We do NOT
+     * touch `useSearchParams` here: writing the URL from the map fights the page's
+     * URL ownership and, under React Compiler, ping-pongs into a reload loop.
      */
-    const [searchParams, setSearchParams] = useSearchParams();
     const shareEnabled = !isEdit && Boolean(state.display?.shareableState);
-    const urlReadDoneRef = useRef(false);
-    const urlWritePrimedRef = useRef(null);
+    const shareWritePrimedRef = useRef(null);
+    // Share-state visibility comes from the PAGE (source of truth). The WRITE
+    // (state→page) must not fire until the first READ (page→state) has reconciled
+    // THIS mount — otherwise a remount (which reseeds visibility from the saved
+    // default) writes that default back over the page's selection, bouncing
+    // navigate↔remount. It's state (not a ref) so a remount re-defers, and it's a
+    // WRITE-effect dependency so the write re-primes once reconciliation happens.
+    const [shareReadReconciled, setShareReadReconciled] = React.useState(false);
 
     useEffect(() => {
-        if (!shareEnabled || urlReadDoneRef.current) return;
-        urlReadDoneRef.current = true;
-        // A bare `?layers=` (no ids) means "default state", not "hide every
-        // layer" — treat it exactly like an absent param so stale/truncated
-        // share links don't load an all-off map.
-        const rawLayersParam = searchParams.get('layers');
-        const layersParam = rawLayersParam && rawLayersParam.trim() ? rawLayersParam : null;
-        const filterEntries = [...searchParams.entries()].filter(([key]) => key.startsWith('f_'));
-        if (layersParam === null && !filterEntries.length) return;
-        const visibleIds = (layersParam || '').split(',').map(s => s.trim()).filter(Boolean);
-        setState(draft => {
-            if (layersParam !== null) {
-                Object.keys(draft.symbologies || {}).forEach(symId => {
-                    const entry = draft.symbologies[symId];
-                    const nextVisible = visibleIds.includes(String(symId));
-                    entry.isVisible = nextVisible;
-                    Object.values(entry.symbology?.layers || {}).forEach(layer => {
-                        (layer.layers || []).forEach(mlLayer => {
-                            mlLayer.layout = { ...(mlLayer.layout || {}), visibility: nextVisible ? 'visible' : 'none' };
-                        });
-                    });
-                });
-            }
-            filterEntries.forEach(([key, value]) => {
-                const symId = key.slice(2);
-                const index = parseInt(value, 10);
-                const entry = draft.symbologies?.[symId];
-                if (Number.isNaN(index) || index < 0 || !entry) return;
-                Object.values(entry.symbology?.layers || {}).forEach(layer => {
-                    if ((layer['interactive-filters'] || []).length > index) {
-                        layer.selectedInteractiveFilterIndex = index;
-                    }
-                });
+        if (!shareEnabled || typeof updatePageStateFilters !== 'function') return;
+        if (!shareReadReconciled) return;
+        const visibleIds = Object.keys(state.symbologies || {}).filter(id => state.symbologies[id]?.isVisible);
+        const nextFilters = [{ searchKey: 'layers', values: visibleIds }];
+        visibleIds.forEach(id => {
+            Object.values(state.symbologies[id]?.symbology?.layers || {}).forEach(layer => {
+                const options = layer['interactive-filters'] || [];
+                const key = layer.searchParamKey;
+                const index = layer.selectedInteractiveFilterIndex;
+                if (!options.length || !key || index === undefined || index === null) return;
+                const variant = options[index];
+                const value = variant?.searchParamValue ?? variant?.label;
+                if (value !== undefined && value !== null) nextFilters.push({ searchKey: key, values: [String(value)] });
             });
         });
-    }, [shareEnabled]);
-
-    useEffect(() => {
-        if (!shareEnabled) return;
-        // Serialize the DESIRED share params from state and only navigate when
-        // that serialization changes between runs. Comparing against the URL is
-        // race-prone (setSearchParams flushes async, and dev double-invoked
-        // effects can schedule a stale write that lands after a fresher
-        // comparison) — the ref makes state the single source of truth. The
-        // first run primes the ref without writing, so a shared URL is never
-        // clobbered by the saved default state and a paramless load stays
-        // clean until the user actually changes the map.
-        const visibleIds = Object.keys(state.symbologies || {}).filter(id => state.symbologies[id]?.isVisible);
-        const desired = new URLSearchParams();
-        // With nothing visible the param is dropped entirely (a bare
-        // `?layers=` reads as "default state" above, so writing it would
-        // round-trip an all-off map into the defaults on reload anyway).
-        if (visibleIds.length) desired.set('layers', visibleIds.join(','));
-        visibleIds.forEach(id => {
-            const layerWithFilters = Object.values(state.symbologies[id]?.symbology?.layers || {})
-                .find(layer => (layer['interactive-filters'] || []).length);
-            const index = layerWithFilters?.selectedInteractiveFilterIndex;
-            if (index !== undefined && index !== null) desired.set(`f_${id}`, String(index));
+        const serialized = JSON.stringify(nextFilters);
+        // First run after reconciliation: prime the page-synced baseline, no write.
+        if (shareWritePrimedRef.current === null) { shareWritePrimedRef.current = serialized; return; }
+        if (shareWritePrimedRef.current === serialized) return;
+        shareWritePrimedRef.current = serialized;
+        // Idempotency vs the PAGE: never write what the page already holds.
+        const pageAlreadyMatches = nextFilters.every(nf => {
+            const cur = (pageState?.filters || []).find(f => f.searchKey === nf.searchKey);
+            const curVals = Array.isArray(cur?.values) ? cur.values : (cur?.values == null ? [] : [cur.values]);
+            return isEqual(curVals.map(String), nf.values.map(String));
         });
-        const serialized = desired.toString();
-        if (urlWritePrimedRef.current === serialized) return;
-        const isFirstRun = urlWritePrimedRef.current === null;
-        urlWritePrimedRef.current = serialized;
-        if (isFirstRun) return;
-        setSearchParams(prev => {
-            const next = new URLSearchParams(prev);
-            [...next.keys()].filter(key => key.startsWith('f_')).forEach(key => next.delete(key));
-            next.delete('layers');
-            desired.forEach((value, key) => next.set(key, value));
-            return next;
-        }, { replace: true });
-    }, [shareEnabled, state.symbologies]);
+        if (pageAlreadyMatches) return;
+        updatePageStateFilters(nextFilters);
+    }, [shareEnabled, state.symbologies, pageState.filters, shareReadReconciled]);
 
     const isReady = useMemo(() => {
         return Object.values(state.symbologies || {}).some(symb => Object.keys(symb?.symbology?.layers || {}).length > 0);
@@ -595,50 +565,82 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
         }
         prevDataPageFiltersRef.current = dataPageFilters;
 
-        // Any visible symbology (not just the active one) may carry dynamic
-        // filters that must track the page bus, so check them all.
-        const usePageFilters = Object.values(state.symbologies || {}).some(symb =>
-            Object.values(symb?.symbology?.layers || {}).some(layer => layer['dynamic-filters']?.length));
+        // Proceed if ANY symbology participates in the page-variable system:
+        // a dynamic-filter, an interactive-filter UNIFIED onto a `searchParamKey`
+        // (the multi-symbology variant binding), or — in view mode — the `layers`
+        // visibility share var. (`activeLayer`/`activeSym` are no longer read here;
+        // every symbology binds its own page vars independently.)
+        const usePageFilters = shareEnabled || Object.values(state.symbologies || {}).some(symb =>
+            Object.values(symb?.symbology?.layers || {}).some(layer =>
+                layer['dynamic-filters']?.length ||
+                ((layer['interactive-filters'] || []).length && layer.searchParamKey)));
 
         if(!usePageFilters) return;
 
-        // get interactive filters for active layer
-        const interactiveFilterOptions = (activeLayer?.['interactive-filters'] || []);
-
-// console.log("interactiveFilterOptions", interactiveFilterOptions)
-
-        const searchParamKey = activeLayer?.searchParamKey;
-        const searchParamFilterKey = (dataPageFilters || []).find(f => f.searchKey === searchParamKey)?.values;
-
-// console.log("searchParamFilterKey", searchParamFilterKey)
-
-        const fI = interactiveFilterOptions.findIndex((f) => {
-            const filterValues = Array.isArray(searchParamFilterKey) ? searchParamFilterKey : [searchParamFilterKey];
-            return filterValues.some(
-                value => String(f.searchParamValue) === String(value) || String(f.label) === String(value)
-            );
-        })
-
-// console.log("fI", fI)
-
-        // A dynamic filter binds to a page filter by key: its `searchParamKey`
-        // (falling back to `column_name`) matched against a page filter's
-        // `searchKey`.
+        // A dynamic/interactive filter binds to a page filter by key: its
+        // `searchParamKey` (falling back to `column_name`) matched against a page
+        // filter's `searchKey`.
         const getSearchParamKey = f => f.searchParamKey || f.column_name;
 
+        // `layers` visibility share var (view mode only, gated by shareEnabled).
+        // A present-but-empty `layers` means "default state" — treat as no
+        // override so a bare/stale share link doesn't load an all-off map.
+        const layersFilter = shareEnabled ? (dataPageFilters || []).find(f => f.searchKey === 'layers') : null;
+        const rawLayers = layersFilter?.values;
+        // `layers` arrives already split on the page-var delimiter (`|||`). Also
+        // split each element on comma so LEGACY `?layers=a,b` links (the pre-unify
+        // shape) still resolve — new writes use the page-var `|||` convention.
+        const toIds = v => String(v).split(',').map(s => s.trim()).filter(Boolean);
+        const wantedIds = Array.isArray(rawLayers) ? rawLayers.flatMap(toIds)
+            : (typeof rawLayers === 'string' ? toIds(rawLayers) : []);
+        const applyVisibility = Boolean(layersFilter) && wantedIds.length > 0;
+        // The page→state reconciliation has now run this mount — release the WRITE
+        // effect (bails if already true, so no extra renders on later runs).
+        setShareReadReconciled(true);
+
         setState(draft => {
-            if(fI !== -1){
-                draft.symbologies[activeSym].symbology.layers[activeSymSymbology?.activeLayer].selectedInteractiveFilterIndex = fI;
+            // 1. Visibility from `layers`. Mutations are guarded on an ACTUAL
+            //    change — otherwise the mlLayer.layout spread churns a new immer
+            //    reference every run and the WRITE effect ping-pongs.
+            if (applyVisibility) {
+                Object.keys(draft.symbologies || {}).forEach(symId => {
+                    const entry = draft.symbologies[symId];
+                    const nextVisible = wantedIds.includes(String(symId));
+                    if (entry.isVisible === nextVisible) return;
+                    entry.isVisible = nextVisible;
+                    Object.values(entry.symbology?.layers || {}).forEach(layer => {
+                        (layer.layers || []).forEach(mlLayer => {
+                            mlLayer.layout = { ...(mlLayer.layout || {}), visibility: nextVisible ? 'visible' : 'none' };
+                        });
+                    });
+                });
             }
 
-            // Sync EVERY symbology's dynamic filters to the page bus, not just the
-            // active one — all visible symbologies render and query, so all must
-            // track the page filters. Each filter's value is a pure function of
-            // the current page filters: the page value if present, else the
-            // filter's `defaultValue`, else empty. Resetting absent filters
-            // (rather than skipping them, as the old positive-only `.filter` did)
-            // is what makes clearing a page filter clear the map filter instead
-            // of leaving a stale value behind.
+            // 2. Interactive-filter variant per symbology — the UNIFIED
+            //    multi-symbology bridge: every symbology's interactive layer picks
+            //    its variant from its OWN `searchParamKey` page var (was single
+            //    `activeSym`/`activeLayer`). Idempotent: only set when it changes.
+            Object.values(draft.symbologies || {}).forEach(symb => {
+                Object.values(symb?.symbology?.layers || {}).forEach(layer => {
+                    const options = layer['interactive-filters'] || [];
+                    const key = layer.searchParamKey;
+                    if (!options.length || !key) return;
+                    const pageValue = (dataPageFilters || []).find(f => f.searchKey === key)?.values;
+                    const values = Array.isArray(pageValue) ? pageValue : [pageValue];
+                    const idx = options.findIndex(f =>
+                        values.some(v => String(f.searchParamValue) === String(v) || String(f.label) === String(v)));
+                    if (idx !== -1 && layer.selectedInteractiveFilterIndex !== idx) {
+                        layer.selectedInteractiveFilterIndex = idx;
+                    }
+                });
+            });
+
+            // 3. Sync EVERY symbology's dynamic filters to the page bus. Each
+            //    filter's value is a pure function of the current page filters:
+            //    the page value if present, else the filter's `defaultValue`, else
+            //    empty. Resetting absent filters (rather than skipping them) is
+            //    what makes clearing a page filter clear the map filter instead of
+            //    leaving a stale value behind.
             Object.values(draft.symbologies || {})
                 .forEach(symb => {
                     Object.values(symb?.symbology?.layers || {})

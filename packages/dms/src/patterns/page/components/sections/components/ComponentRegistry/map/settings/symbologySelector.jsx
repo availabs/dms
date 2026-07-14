@@ -177,39 +177,6 @@ export default function useSymbologySelectorState({ state = {}, setState, doApiL
     [symbologies]
   );
 
-  const selectedLayer = state.symbologies?.[selectedSymbology]?.symbology?.activeLayer;
-
-  const layerOptions = useMemo(
-    () =>
-      Object.values(state.symbologies?.[selectedSymbology]?.symbology?.layers || {}).map((layer, index) => ({
-        label: layer.name?.length && layer.name !== " " ? layer.name : `layer - ${index + 1}`,
-        key: layer.id,
-      })),
-    [selectedSymbology, state.symbologies]
-  );
-
-  const onSymbologyChange = (nextSymbology) => {
-    if (!setState) return;
-
-    const sym = symbologies.find((entry) => +entry.id === +nextSymbology) || {};
-    if (!sym?.id) return;
-
-    setState((draft) => {
-      draft.symbologies = { [nextSymbology]: { ...sym, isVisible: true } };
-    });
-  };
-
-  const onLayerChange = (nextLayer) => {
-    if (!setState || !selectedSymbology) return;
-
-    const currLayer = state.symbologies?.[selectedSymbology]?.symbology?.[nextLayer] || {};
-    if (currLayer) {
-      setState((draft) => {
-        draft.symbologies[selectedSymbology].symbology.activeLayer = nextLayer;
-      });
-    }
-  };
-
   const [isUpdatingSymbology, setIsUpdatingSymbology] = useState(false);
 
   /**
@@ -219,25 +186,34 @@ export default function useSymbologySelectorState({ state = {}, setState, doApiL
    * This is a merge, not a replace — and it never touches component/page-level
    * settings (height, legend position, zoom/pan, basemap).
    */
-  const onUpdateSymbology = async () => {
-    if (!setState || !doApiLoad || !selectedSymbology) return;
+  const onUpdateSymbology = async (symIdArg) => {
+    // Accept an explicit symbology id (multi-symbology manager); fall back to the
+    // first symbology for the legacy single caller. Guard against being wired
+    // directly as an onClick handler (which would pass an event, not an id).
+    const targetSym = (typeof symIdArg === "string" || typeof symIdArg === "number")
+      ? symIdArg
+      : selectedSymbology;
+    if (!setState || !doApiLoad || !targetSym) return;
 
     setIsUpdatingSymbology(true);
     try {
       // Invalidate the selected symbology's falcor cache so this pulls the
       // latest saved config from the source, not the stale client cache.
-      const fresh = normalizeSymbologies(await doApiLoad({ invalidateId: selectedSymbology }));
+      const fresh = normalizeSymbologies(await doApiLoad({ invalidateId: targetSym }));
       if (fresh?.length) setDmsSymbologies(fresh);
 
-      const freshSym = fresh.find((entry) => +entry.id === +selectedSymbology);
+      const freshSym = fresh.find((entry) => +entry.id === +targetSym);
       if (!freshSym) return;
 
       // Merge on a plain object BEFORE setState (immer would freeze it).
-      const prevSym = state.symbologies?.[selectedSymbology];
+      const prevSym = state.symbologies?.[targetSym];
       const merged = mergeSymbologyPreservingUserConfig(freshSym, prevSym);
 
       setState((draft) => {
-        draft.symbologies = { [selectedSymbology]: merged };
+        // Merge just THIS symbology in place — do NOT collapse the map to a
+        // single symbology (that replace was the bug that wiped multi-symbology
+        // maps assembled via the Layer Library).
+        draft.symbologies[targetSym] = merged;
         // Bump a refresh signal so MapSection tears down and rebuilds the layer
         // instances. They're otherwise kept by id, which would strand the map on
         // the pre-refresh config and skip every layer data/tile/legend fetch —
@@ -253,10 +229,6 @@ export default function useSymbologySelectorState({ state = {}, setState, doApiL
     symbologies,
     selectedSymbology,
     symbologyOptions,
-    onSymbologyChange,
-    selectedLayer,
-    layerOptions,
-    onLayerChange,
     onUpdateSymbology,
     isUpdatingSymbology,
   };

@@ -93,6 +93,30 @@ const FilterSettings = ({label, type, value, stateValue, onChange}) => {
           setTmpValue([])
           setNewFilter({});
         }} > clear all </Button>
+        {
+          // Auto-registered page variables — derived by the platform from a section
+          // on this page (e.g. a shareable map's `layers` + interactive `searchParamKey`s
+          // via deriveMapShareVariables). They live in pageState.filters (not item.filters)
+          // so they can't be hand-edited here; surfaced read-only so the author can see
+          // which URL params the page owns and their current values.
+          (() => {
+            const autoVars = (pageState?.filters || []).filter(f => f.auto);
+            if (!autoVars.length) return null;
+            return (
+              <div className={'mt-3 border-t border-gray-200 pt-2 flex flex-col gap-1'}>
+                <div className={'text-xs font-semibold text-gray-500'}>Auto-registered variables</div>
+                <div className={'text-xs text-gray-400 pb-1'}>Owned by a section on this page (e.g. a shareable map). Read-only.</div>
+                {autoVars.map((f, i) => (
+                  <div key={`auto_var_${f.searchKey || i}`} className={'grid grid-cols-3 gap-1 text-sm'}>
+                    <div className={'font-mono truncate'}>{f.searchKey}</div>
+                    <div className={'text-gray-500 truncate'}>{Array.isArray(f.values) ? f.values.join(', ') : String(f.values ?? '')}</div>
+                    <div className={'text-gray-400 text-xs self-center'}>{f.useSearchParams ? 'URL' : ''}</div>
+                  </div>
+                ))}
+              </div>
+            );
+          })()
+        }
       </div>
   )
 };
