@@ -2,25 +2,30 @@
 
 > **File structure (since 2026-07-13)**: this file holds (1) the current-state summary, (2) a
 > one-line-per-round ledger, (3) the CURRENT round's full detail, and (4) the durable reference
-> sections at the bottom. Full round-by-round history for rounds 1–33 lives verbatim in
+> sections at the bottom. Full round-by-round history for rounds 1–36 lives verbatim in
 > [old-reports-conversion-archive.md](./old-reports-conversion-archive.md) — grep it for
 > `**Round N` when you need a specific round's detail. **Keep this file lean**: when a new round
 > starts, move the previous round's full text to the top of the archive, leave a ledger line here,
 > and fold anything durable into the summary or reference sections.
 
-## Current state (2026-07-13, end of round 34)
+## Current state (2026-07-13, end of round 37)
 
 **What this is**: `scripts/convert_old_reports.py` converts old `admin2.reports` (868 total) into
 new DMS report pages (pattern `npmrds_sub`), template-driven and repeatable. Goal = conversion
 *capability*, not bulk conversion; reports are picked by gap coverage. `scripts/census_old_reports.py`
 measures corpus-wide coverage by importing the converter's own analyze branches (it must be
-extended whenever the converter grows a new branch — it went stale twice by round 27).
+extended whenever the converter grows a new branch — it went stale twice by round 27; round 37
+added the round-33 report-level `no_valid_routes` mirror + a converted-page cross-reference and
+recomposed the buildable/no_equivalent buckets).
 
-**Coverage** (round-27 census, 2026-07-10, the latest full run): 46 full / 559 partial / 249 none /
-14 no_graphs; 1,937/7,098 graph instances mapped (27.3%). Stale again — rounds 29 (Route Bar Graph
-missing resolutions), 31 (Info Box resolution false positive), 32 (avgHoursOfDelay), 34 (Bar
-Graph Summary speed), and 36 (Bar Graph Summary travelTime/hoursOfDelay/avgHoursOfDelay, ~307
-instances) all added coverage since. Rerun: `python3 scripts/census_old_reports.py`
+**Coverage** (round-37 census, 2026-07-13, CURRENT): 63 full / 669 partial / 122 none / 14
+no_graphs; **4,029/7,098 graph instances mapped (56.8%**, up from round 27's 27.3%). Unmapped
+3,069 = buildable 1,057 / no_equivalent 1,865 / tail 147 (buckets recomposed round 37: Bar Graph
+Summary + Route Compare now count as buildable). NEW report-level dimension: only 32 reports have
+a route with a ready tmc_array; 612 hinge on convert-time falcor point-resolution (fine in
+practice — 787's routes were this kind); **213 are `no_valid_routes` shells** (every referenced
+route deleted from admin2.routes AND absent from the catalog — broken in the OLD tool too, can
+never produce pages); 11 have no routes at all. Rerun: `python3 scripts/census_old_reports.py`
 (~40s, read-only).
 
 **Standing user directives (all still in force)**:
@@ -104,15 +109,24 @@ instances) all added coverage since. Rerun: `python3 scripts/census_old_reports.
   hoursOfDelay / avgHoursOfDelay incl. its per-resolution derivation) — built; 787/320 converted
   + 1061 reconverted; 15/15 live values ground-truthed exactly; weekday variant spec-only
   (validated offline, lone instance = report 1028).
-- [ ] (c) Phase B (avgTT-byDateRange alias + freeflow-byDateRange via pm3 1410).
+- [ ] (c) Phase B (avgTT-byDateRange alias + freeflow-byDateRange via pm3 1410) — round-37 census
+  sizing: Bar Graph Summary freeflow-byDateRange 62 instances + avgTT-byDateRange 25 (both now
+  buildable-bucket); the adjacent Route Info Box avgTT-byDateRange key (68 instances, **38
+  single-key flips — the biggest flip lever after Route Map**) rides the same pm3 mechanism.
 - [ ] (d) Per-route bar colors decision (double-`__series` trick untried) — deprioritized
   2026-07-13 (cosmetic parity; ranks below any vocabulary-breadth work).
-- [ ] (e) Round 33's corpus-wide safety re-scan: any other `route_missing_everywhere` ×
-  `categorize:"tmc"` combos; any other already-converted report that is 100%
-  route_missing_everywhere and should be deleted.
+- [x] (e) DONE (round 37): census now mirrors the round-33 report-level rule corpus-wide — 213
+  `no_valid_routes` shells enumerated; scan-hazard sweep of all pre-round-35 pages found ZERO
+  empty-tmc routes wired to graphs; the only converted shell page is 874 → `2188794` (no hazard,
+  graphIds all empty). Its deletion is permission-gated → user to run (see Round 37).
 
-## Round ledger (rounds 1–35 archived — full detail in [the archive](./old-reports-conversion-archive.md))
+## Round ledger (rounds 1–36 archived — full detail in [the archive](./old-reports-conversion-archive.md))
 
+- **R36** (07-13): Bar Graph Summary Phase A completed (travelTime / hoursOfDelay /
+  avgHoursOfDelay incl. per-resolution composite-map-key expression — first lambda-bearing
+  calculated column); 787→`2190210`, 320→`2190225`, 1061 reconverted →`2190527`; 15/15 live
+  values ground-truthed exactly; weekday variant spec-only (lone instance = report 1028);
+  width-squeeze diagnosed page-wide (stays PARKED); report 678 found route_missing_everywhere.
 - **R35** (07-13): SPEED_EXPR/TRAVEL_TIME_EXPR two-level backport to all 16 live speed/TT
   templates (fn "exempt" + customName; grid templates were invisible to drift detection —
   fixed); 15 reports reconverted + Playwright-verified, 184/184 live values match two-step
@@ -189,143 +203,62 @@ instances) all added coverage since. Rerun: `python3 scripts/census_old_reports.
 - **R2** (07-08): report 1071 converted — 11/13 graphs live.
 - **R1** (07-08): report 1070 converted end-to-end — first proof of the whole pipeline.
 
-## Round 36 (2026-07-13) — CURRENT ROUND, IN PROGRESS: Bar Graph Summary Phase A completion (item (b))
+## Round 37 (2026-07-13) — CURRENT ROUND: census refresh + round-33 report-level mirror (census upkeep + item (e))
 
-**Objective (round 34's item (b), user-directed this session)**: the remaining Phase A Bar Graph
-Summary measures — travelTime / hoursOfDelay / avgHoursOfDelay — including avgHoursOfDelay's
-per-resolution derivation. Same one-bar-per-arm summary shape round 34 proved for speed
-(xAxis `__series`, `categorize: False`, `legend.show=False`).
+**Objective (user-requested this session)**: an updated census/corpus survey. The graph-mapping
+mirror was verified current against `convert_report` (Info Box dynamic branch, Route Compare
+branch, `GRAPH_TEMPLATE_MAP` lookup — rounds 29–36's new keys flow through automatically), but
+the census needed real extensions before rerunning:
 
-**Derivation (old sources read directly: `BarGraphSummary.jsx` + `utils/dataTypes.js` +
-avail-falcor `getHoursOfDelay.js`/`queryHelpers.js`)**:
-- Summary value per arm = the measure's `allReducer` over the per-(tmc, resolution-bucket) rows
-  the old server returned (`route.data[key]`).
-- **travelTime**: `allReducer = travelTimeAllReducer` = per-TMC mean of bucket values → sum
-  across TMCs → minutes — the EXACT two-level fold `TRAVEL_TIME_EXPR` already implements
-  (same unification argument as round 34/35's speed summary; equal-bucket-weights approximation
-  identical to the one round 35 ground-truthed). Template = TRAVEL_TIME_EXPR verbatim, fn
-  "exempt". Resolution-irrelevant.
-- **hoursOfDelay**: `allReducer = sumReducer` — sum over buckets of bucket sums = plain
-  `sum(DELAY_EXPR)`, fn "sum"; bucket structure cancels, resolution-irrelevant (round 34's
-  scoping already called this the EXACT-match case).
-- **avgHoursOfDelay**: `allReducer = meanReducer` — plain mean over the per-(tmc,bucket) rows of
-  `avgHoursOfDelay` = bucket delay sum ÷ resolution-specific divisor (getAvgHoursOfDelay's 5
-  branches ≈ "# dates contributing rows to the bucket", round 32's derivation). The summary is
-  therefore a TWO-LEVEL fold whose inner grouping key is resolution-dependent — the bucket key
-  per resolution (queryHelpers.getResolution): 5-minutes → epoch (across dates), day → date,
-  weekday → day-of-week. Flat CH expression via a composite (tmc|bucket) map key:
-  `arrayAvg(arrayMap((s, d) -> s / d,
-    mapValues(sumMap(map(concat(ds.tmc, '|', toString(<bucket>)), coalesce(<DELAY inner>, 0)))),
-    mapValues(uniqExactMap(map(concat(ds.tmc, '|', toString(<bucket>)), ds.date)))))`
-  — ONE parameterized expression for every resolution (bucket expr is the only parameter),
-  fn "exempt". `coalesce(...,0)` is load-bearing twice: (1) sumMap/uniqExactMap key sets stay
-  aligned even for all-missing buckets (Map values can't be Nullable; a dropped key would
-  misalign the element-wise division), and (2) it reproduces the OLD tool's semantics exactly —
-  missing-reading rows (tt=0) contributed delay 0 AND counted toward the bucket's divisor there
-  too.
-- **Offline validation — DONE (`validate_avg_delay_summary.py`, session scratchpad)**: on report
-  787's three real arms (routes 5419/5418 × 2020/2021, epochs 84-228): flat == two-step GROUP BY
-  ground truth at machine precision (worst rel 1.6e-15) for ALL of 5min/day/weekday; mapKeys
-  alignment 1 everywhere; `uniqExactMap`/`sumMap(map(String,Float64))` confirmed available on
-  the live server.
-- **Deliberate divergence from the old tool at weekday grain (documented, not a bug)**: the old
-  divisor is `numEpochs/epochsInTimeRange` (raw ROWCOUNT-based) — on sparse data it counts
-  missing rows' epochs and OVERSTATES the per-date average (measured on the 787 fixture: old
-  +283%/+67%/+8.8% vs distinct-dates, per arm). We use `count of DISTINCT dates` — the divisor
-  round 32 already canonicalized for every bucket-grain avg-delay template, and the
-  "surface correct, not old-math replicas" round-17 precedent. At 5-minutes and day grain the
-  two are IDENTICAL (0.00% drift, proven on all fixture arms) — which covers 75 of the 76
-  convertible real instances.
+**Census maintenance (`scripts/census_old_reports.py`, this round)**:
+- [x] **Round-33 report-level `no_valid_routes` mirror**: the census now classifies each report's
+  route validity the way `convert_report` decides page creation (tmc from admin2.routes'
+  tmc_array or convert-time falcor point-resolution; the new catalog is NEVER consulted for tmc
+  data — `build_route_entry`): `ok` / `hinges_on_point_resolution` (only point-drawn routes —
+  statically unknowable, converts fine in practice: 787's routes 5418/5419 are this kind) /
+  `no_valid_routes` (definite shell, converter skips the page) / `no_route_comps`. Also
+  cross-references already-converted `report_<id>` pages (new `fetch_converted_pages()`).
+- [x] **Bucket recomposition**: Bar Graph Summary (shape proven rounds 34–36) and Route Compare
+  Component (round 25) moved NO_EQUIVALENT_TYPES → BUILDABLE_TYPES; no_equivalent now means
+  "needs shape work before spec work" (Route Map, Route Difference, TMC Difference Grid, Info
+  Boxes outside the reliability bucket), reflecting round 24's reopening.
+- [x] **Flips/greedy exclude shells**: single-blocker flips and greedy coverage no longer count
+  `no_valid_routes` shells (round-36 finding: shell report 678 falsely inflated round 34's flip
+  count). Greedy baseline = 52 page-producing full reports (11 of the 63 "full" are shells).
 
-**Corpus survey (this round, converter's own analyze_graph over all 868 reports)** — Bar Graph
-Summary instances for the three measures, by resolution:
-- travelTime: 104 × 5-minutes, 1 × 15-minutes, 1 × day, 1 × weekday (+7 mixed-resolution → None,
-  stay gap-logged). All → ONE template (resolution-irrelevant).
-- hoursOfDelay: 126 × 5-minutes, 6 × day (+8 None). All → ONE template.
-- avgHoursOfDelay: 63 × 5-minutes, 12 × day, 1 × weekday (+18 None — resolution genuinely
-  changes this measure, so mixed-resolution ambiguity stays a REAL gap, unlike the
-  resolution-irrelevant measures).
-- **Report 678 ("Avg Hours of Delay Test", round 34's flip list) is a `no_valid_routes` shell**:
-  its only route 5152 is missing from BOTH admin2.routes and the new catalog
-  (route_missing_everywhere) — it can never produce a page; feeds next-step (e)'s re-scan.
-  Round 34's "10 reports flip to FULL" count is off by at least this one.
+**Census results (2026-07-13 run, 868 reports, 0 errors)** — full detail in
+`scratchpad/npmrds-sub/old-reports/census/census{.json,_summary.md}`:
+- **Classes**: 63 full / 669 partial / 122 none / 14 no_graphs (round 27: 46/559/249/14).
+- **Instances**: **4,029/7,098 mapped (56.8%**; round 27: 27.3%). Unmapped 3,069 = buildable
+  1,057 (in 395 reports) / no_equivalent 1,865 (756) / tail 147 (90).
+- **NEW headline — route validity**: ok 32 / hinges_on_point_resolution 612 / **no_valid_routes
+  213** / no_route_comps 11. A quarter of the corpus references ONLY routes deleted from
+  admin2.routes and absent from the new catalog (spot-verified directly: 5445/5152/89/29380 in
+  neither DB; the missing ids cluster in sequential blocks — bulk route deletions). These
+  reports were broken in the OLD tool too and can never produce pages. Their graph instances
+  still count in the vocabulary matrix (real author-selection evidence, per the strategic
+  frame); they're only excluded from page-production levers.
+- **Top unmapped keys** (instances/flips): Route Map speed×5-min 481/53; Route Info Box
+  speed×5-min 268/8; TMC Info Box speed×5-min 166/7; Route Map speed×None 138/3; Route Bar Graph
+  planningTime×day 138/0 (buildable, 40 reports); **Route Info Box avgTT-byDateRange 68/38 —
+  the biggest single-key flip lever after Route Map**, same pm3-join family as Phase B; Bar
+  Graph Summary freeflow-byDateRange 62/1 (item (c)'s target, now buildable-bucket).
+- **Greedy**: top-11 keys → 290 page-producing full reports; top-30 → 434.
 
-**Plan (code, `scripts/convert_old_reports.py`)**:
-- [x] New expression builder `_avg_delay_summary_expr(bucket_expr)` + three constants
-  (5min/day/weekday variants).
-- [x] TEMPLATE_SPECS: `tmc_travel_time_summary_bar_graph` (TRAVEL_TIME_EXPR, no join override),
-  `tmc_delay_summary_bar_graph` (DELAY_EXPR fn "sum", 1946+aadt_dist join),
-  `tmc_avg_delay_summary_bar_graph_{5min,day,weekday}` (new exprs, fn "exempt", same join) —
-  all in the round-34 summary shape, customName on every one.
-- [x] GRAPH_TEMPLATE_MAP: 9 new ("Bar Graph Summary", measure, resolution, "travel_time_all")
-  keys per the survey above.
-- [x] Demo conversions: **787 → page `2190210`** (minted tmc_travel_time_summary_bar_graph +
-  tmc_avg_delay_summary_bar_graph_5min), **320 → page `2190225`** (minted
-  tmc_delay_summary_bar_graph; TT summary reused). **1061 reconvert BLOCKED on a stale auth
-  token** — `dms raw delete` fails with "Authentication required to delete items" (log-confirmed;
-  the delete aborted BEFORE removing anything, page 2189943 fully intact). Fix: user runs
-  `scratchpad/npmrds-sub/mint_token.sh`, then rerun
-  `python3 scripts/convert_old_reports.py --report-id 1061 --replace` (dry-run already clean:
-  would mint tmc_avg_delay_summary_bar_graph_day, 5 graphs, known gaps only). Weekday variant
-  ships spec-only (validated offline; report 1028 is its lone instance, left for a later
-  conversion).
-- [x] Live verification (787 + 320, Playwright networkidle + settle):
-  - Zero console errors; only non-200 is the benign `/track/visit` 204. All summary fetches 200 —
-    the lambda `(s, d) -> s / d` + `uniqExactMap` expression survives the whole platform SQL path
-    (first lambda-bearing calculated column in the catalog).
-  - **Ground truth 12/12 EXACT** (independent two-step SQL per arm using each arm's captured
-    filterGroups — tmc/date/epoch lists): 787 avg-delay summary ×4 arms + TT summary ×4; 320
-    delay summary ×2 + TT summary ×2. Worst relative error 2.49e-15. (One initial "FAIL" was a
-    script artifact — the day-bucketed Route Bar Graph shares the delay expression and got
-    misclassified as a summary; filtered on `ungroupedAggregate` + groupBy `__series`.)
-  - Screenshots: all three new summary graph types render correct bars (320's delay summary shows
-    the Rexford bridge 4× delay drop 2017→2018; TT 8.8→6.5 min; sane magnitudes everywhere).
-- [x] **Pre-existing width-squeeze CONFIRMED page-wide, not a round-36 regression**: 787's two
-  avg-delay LINE graphs (round-32 template, untouched) render squeezed — SVG w=21-35px with the
-  full plot inside (145 rects/151 texts); control probe on report_1071 (round-35-verified) shows
-  the SAME squeeze TODAY (line/grid SVGs at w=0-4px). Data layer fine (fetches 200, values
-  verified). This is the PARKED round-34 legend/flex mechanism — every squeezed SVG sits next to
-  a VISIBLE legend, and the new summary templates escape it precisely because their specs set
-  `legend.show=False`; wide (size-12) sections with legends render fine (320's day bar graph).
-  Strong evidence this is also the user's logged "axis labels not visible on any report" issue
-  (Known functionality gaps) — the axis text is rendered but squeezed to invisibility. Stays
-  PARKED per standing directive; logged here as diagnosis, not fixed.
-- [x] Census: no new analyze branch (map/spec additions only), so census_old_reports.py picks the
-  new keys up automatically — no extension needed this round.
-- [x] AFTER TOKEN REFRESH (user minted it): 1061 `--replace` reran clean → **new page `2190527`**
-  (old 2189943 deleted; gap report identical to the dry-run, 18 known items). Playwright: zero
-  console errors, all fetches 200. **Day-variant ground truth 3/3 EXACT** (worst rel 8.15e-16):
-  2018-day 5.221 / 2023-day 8.713 / all-time 8.706 (the 2016 slice of the all-time arm is
-  pre-coverage and contributes nothing, as expected — 2017-2023 dominates). Screenshot: both new
-  summary sections render full-width bars; day bar graphs fine; TMC grid body squeezed (the same
-  parked legend/flex issue). **Round-36 verification total: 15/15 live summary values match
-  independent two-step SQL at machine precision.**
-
-**Round 36 — DONE.** Loose ends folded forward: weekday avg-delay summary variant is spec-only
-(offline-validated, no live report yet — report 1028 is its lone instance); report 678 confirmed
-route_missing_everywhere (feeds item (e)); the width-squeeze diagnosis is recorded in Known
-functionality gaps via the round-36 notes (platform fix stays PARKED).
-
-**Expected render state (for user verification)**:
-- **report_787 (page 2190210, http://npmrds.localhost:5173/report_787 on the npmrds subdomain)**:
-  4 sections. "R5 HELP ROUTES Y2Y DELAY ANALYSIS" (avg-delay summary, 4 bars ~0.008/0.010/0.076/
-  0.027) and "R5 Y2Y TRAVEL TIME ANALYSIS" (TT summary, 4 bars 0.83/2.05/10.37/10.69 min) render
-  fully. The two per-route "Y2Y DELAY ANALYSIS" LINE sections have verified data but render
-  squeezed to ~30px (pre-existing parked flex issue above) — they look blank-with-legend. Old
-  Route Map + Route Info Box sections intentionally absent (unmapped / reliability-bin
-  undetermined gaps).
-- **report_320 (page 2190225)**: 5 sections. "HOURS OF DELAY" (delay summary: 44,600 vs 11,296),
-  "AVG SPEED" (18.8 vs 26.0 mph), "TRAVEL TIME" (8.8 vs 6.5 min), "2017-2018 HOURS OF DELAY BY
-  DAY OF YEAR" (day bar, full-width, renders fine) all good; "2018 - DIRECTION OF TIME..." (TMC
-  grid) shows its color legend with the grid body squeezed (same parked issue). Route Line/Map/
-  second grid/freeflow summary/Info Box intentionally absent (mixed-resolution, unmapped,
-  Phase B, pm3-coverage gaps).
-- **report_1061 (page `2190527`, reconverted)**: "BAR GRAPH SUMMARY, AVG. HOURS OF DELAY" (3 bars
-  5.22/8.71/8.71 — the 2023 and all-time arms are legitimately near-equal) and "BAR GRAPH
-  SUMMARY, SPEED" (3 bars ~32-34) render; both day-resolution Route Bar Graphs render full-width;
-  the TMC Grid section shows only its color legend (parked squeeze); Route Line/Maps/TMC
-  Difference Grid/Info Box intentionally absent (mixed-resolution, unmapped, bin-undetermined
-  gaps, same as round 35).
+**Item (e) — ANSWERED via the census cross-reference + a snap-row hazard sweep**:
+- [x] Corpus-wide shell enumeration: the 213 `no_valid_routes` report ids are listed (with
+  graph-class) in census_summary.md.
+- [x] Converted-page audit: 23 numeric `report_<id>` pages live (+`report_demo`). Exactly ONE is
+  a shell — **874 → page `2188794`** (round-9 conversion, predates the round-33 skip; its gap
+  report already logged route_missing_everywhere for its lone route 5445, so its graphs have
+  been empty since round 9). Its snap row has `graphIds: []` on every route entry, so it is NOT
+  a scan hazard — just a permanently-empty shell.
+- [x] Scan-hazard sweep: all 6 pre-round-35 pages' snap rows (751/874/11/54/315/796) checked for
+  the round-33 hazard combo (empty-tmc route entry with non-empty graphIds) — ZERO found;
+  round-35/36 pages are safe by construction.
+- [ ] **Pending (permission-gated this session, user to run)**: delete shell page `2188794`:
+  `python3 -c "import sys; sys.path.insert(0,'scripts'); from convert_old_reports import delete_converted_page; delete_converted_page(2188794)"`
+  (mint a fresh token first via `scratchpad/npmrds-sub/mint_token.sh` if deletes 401).
 
 ## Objective
 
@@ -568,6 +501,10 @@ speed/TT templates keep their earlier pages (e.g. 751→`2188894`, 874→`218879
 Round 36 additions: 787→`2190210`, 320→`2190225`, and 1061 reconverted `2189943`→`2190527`
 (gap reports regenerated under `gaps/report_787.json`/`gaps/report_320.json`/
 `gaps/report_1061.json`).
+Round 37 (census cross-reference, 2026-07-13): 23 numeric `report_<id>` pages live in total —
+the earlier-round pages also include 11→`2189401`, 54→`2189409`, 315→`2189417`, 796→`2189435`.
+874's page `2188794` is a permanently-empty shell (route 5445 missing everywhere since before
+its round-9 conversion) — **deletion pending, user to run** (see Round 37).
 
 Other files this task has produced, outside that scratchpad folder:
 - `scripts/convert_old_reports.py` — the converter itself.
