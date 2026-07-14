@@ -178,7 +178,9 @@ read-only).
 - [ ] (f) NEW (round 38) — highest remaining lever per the fresh census: **Route Map speed×5-min**
   (481 instances, **55 flips** — by far the single biggest lever in the corpus). Not scoped yet;
   read `RouteMap.jsx` for real before sizing it (round 24's standing caution: likely much bigger
-  than any Phase A/B measure).
+  than any Phase A/B measure). **SCOPED round 41 (2026-07-14)** — see
+  `scratchpad/npmrds-sub/old-reports/route_map_scope.md`; awaiting endorsement to start
+  Phase 1 (`MapGraph`).
 - [x] **(g) DONE (round 40)**: report 745's leftover broken test section deleted (draft
   `2190567`/published `2190568`); report 191 reconverted for real via `--replace` (new page
   `2190581`, dropping the forced-`graph_max_year=2023` demo — see Round 40 below).
@@ -190,6 +192,20 @@ read-only).
 
 ## Round ledger (rounds 1–39 archived — full detail in [the archive](./old-reports-conversion-archive.md))
 
+- **R41** (07-14): Route Map SCOPED, no code (read old `RouteMap.jsx` for real + corpus
+  survey: 849 instances/636 reports; measures speed 655 / none 97 / travelTime 44 / delay 35 /
+  pm3-gated 17; resolution query-irrelevant except avgHoursOfDelay). Key find: per-TMC geometry
+  is ALREADY reachable as a column through the default 455/3464 join (`wkb_geometry` — misnamed,
+  actually GeoJSON MultiLineString text), so rows arrive `{__series, tmc, value, geometry}`
+  through the existing pipeline — no tiles/new fetch layer. Plan: new `MapGraph` AVL Graph type
+  (Phase 1, platform, ship isolated) reusing Map-section internals (choroplethPaint/LegendPanel/
+  AvlMap, client-side breaks), then converter speed+none (78 achievable full flips), then
+  remaining measures (90 flips total; full_producible 48→~130). Existing "Map"/"Map: Dama"
+  sections vetted and ruled out as host: tile-server `join=` param unimplemented
+  (avail-falcor tiles route reads only cols/filter), `colorDomain` PG-only vs CH data, filter
+  sync ignores action-type filters (no ReportRouteList binding), tiles year-pinned to
+  2024/2025 networks. Full scope + vetting detail:
+  `scratchpad/npmrds-sub/old-reports/route_map_scope.md`. Awaiting endorsement before Phase 1.
 - **R39** (07-14): pre-2017-only report-level skip built (`PRE_2017_CUTOFF`,
   `report_is_pre_2017_only`) + census mirror; 133/868 reports (15.3%) are pre-2017-only —
   excluding them, only 59 full (not 101) / 3,801/6,520 mapped (58.3%); shell page
