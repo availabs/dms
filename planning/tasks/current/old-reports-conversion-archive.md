@@ -1,4 +1,4 @@
-# Old NPMRDS reports → new DMS report pages — ROUND ARCHIVE (rounds 1–38)
+# Old NPMRDS reports → new DMS report pages — ROUND ARCHIVE (rounds 1–39)
 
 **This is the archived round-by-round history for
 [old-reports-conversion.md](./old-reports-conversion.md) (the live task file).** Split out on
@@ -15,6 +15,69 @@ in the live task file — they are NOT here.
 **Maintenance**: when a round in the live task file is superseded (its findings absorbed into the
 current-state summary and ledger), move its full text here — newest at the top, above Round 33 —
 and leave only its ledger line in the live file.
+
+---
+
+## Round 39 (2026-07-14) — pre-2017-only report-level skip + shell page cleanup
+
+**Objective (user-directed this session)**: two asks. (1) Never spend further conversion effort
+on routes whose data predates 2017 (permanently unrecoverable, round 13); if EVERY route_comp in
+a report is pre-2017-only, refuse to port that report at all (mirrors the existing
+`no_valid_routes` report-level skip). Coverage numbers must either exclude these reports or show
+a parallel set that does. (2) Delete the pending shell page (item (e), `2188794`) — user granted
+permission to mint the auth token myself going forward rather than handing off the command.
+
+**(2) done first — shell page cleanup + token minting**: ran
+`scratchpad/npmrds-sub/mint_token.sh` directly (user-authorized this round, no more handoff needed
+for this specific script) then `delete_converted_page(2188794)` — deleted the page, 4 section
+rows, 1 snap row. `converted_pages_total` 26→25 confirms it. The other two round-38 cleanup items
+(report 745's leftover broken test section, report 191's forced-2023 mechanism-proof page) were
+**not** touched — the user's ask this round named one shell page specifically, not those two; both
+still pending, see the "Immediate next steps" list below.
+
+**(1) — pre-2017-only report-level skip**:
+- `convert_old_reports.py`: new `PRE_2017_CUTOFF = 20170101` + `route_comp_is_pre_2017(settings)`
+  (true only when BOTH `startDate`/`endDate` are present and fall entirely before the cutoff — the
+  14/5154 corpus route_comps missing dates are left as "unknown, not pre-2017" rather than assumed
+  broken) + `report_is_pre_2017_only(route_comps)` (true iff every comp is pre-2017). Wired into
+  `convert_report()` right after `flatten_route_comps` — before any old-route fetch or graph
+  analysis, since the check needs nothing else — as an early report-level skip: gap-logs kind
+  `pre_2017_only` and returns via `finish(..., None, ...)` with no page created, same shape as the
+  existing `no_valid_routes` skip.
+- `census_old_reports.py`: imports `report_is_pre_2017_only`; each report record gets a
+  `pre_2017_only` bool. New `page_producible(r)` predicate
+  (`route_validity != no_valid_routes AND not pre_2017_only`) now gates `full_producible`,
+  `single_blocker_flips`, and the `greedy` cumulative-coverage calc — pre-2017-only reports were
+  added to the same exclusion no_valid_routes shells already got (round-36's shell-678 lesson
+  applies identically here: counting a permanently-blank report toward "flippable" inflates the
+  number). New parallel headline: `class_counts_excl_pre_2017` /
+  `graph_instances_excl_pre_2017`, plus `pre_2017_converted_pages` — already-converted pages that
+  turn out to be pre-2017-only, surfaced (not auto-deleted, per the no-proactive-sweeps policy).
+  `census_summary.md` gained a "Pre-2017-only reports" section presenting both the raw and
+  excluding-pre-2017 numbers side by side.
+
+**Census rerun (868 reports, 0 errors) — key finding: the raw "full" count was significantly
+inflated by permanently-blank reports**:
+- **133/868 reports (15.3%) are pre-2017-only** — will never render real data regardless of
+  template completeness.
+- Raw (unfiltered, unchanged from round 38): 101 full / 635 partial / 118 none / 14 no_graphs;
+  4,127/7,098 graph instances mapped (58.1%).
+- **Excluding pre-2017-only reports (the real achievable target)**: only **59 full** (not
+  101 — 42 of the "full" reports are pre-2017-only and were always going to render blank forever)
+  / 560 partial / 102 none / 14 no_graphs; **3,801/6,520 mapped (58.3%**, essentially unchanged
+  from the raw instance-level %, since unmapped-key density is similar in both populations — the
+  gap is almost entirely in the report-level "full" count, not the instance-level ratio).
+  `full_producible` (full AND page-producible, i.e. also excluding `no_valid_routes`): **48**.
+- **4 already-converted pages turn out to be pre-2017-only** (converted before this rule existed
+  — surfaced for a cleanup decision, not auto-deleted): report 16 "Delaware Avenue" → page
+  `2190009`; report 54 "Hamilton County" → page `2189409` (round 13 already flagged this one's
+  dates as "entirely inside 2016"); report 58 "Rt13 SB CIthaca" → page `2190556` (this is round
+  38's B3 mechanism-proof page — already documented there as deliberately pre-2017, not a
+  surprise); report 142 "WB LIE Mainline V3" → page `2189993`. 16/54/142 are genuine conversions
+  (not mechanism proofs) that will never show data — worth a decision on whether to delete.
+
+**Standing directive added**: pre-2017 data (routes and reports) is a permanent, first-class
+report-level exclusion now, not just a gap-log note — see the summary's standing directives.
 
 ---
 

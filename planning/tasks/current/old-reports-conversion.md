@@ -8,7 +8,7 @@
 > starts, move the previous round's full text to the top of the archive, leave a ledger line here,
 > and fold anything durable into the summary or reference sections.
 
-## Current state (2026-07-14, end of round 39)
+## Current state (2026-07-14, end of round 40)
 
 **What this is**: `scripts/convert_old_reports.py` converts old `admin2.reports` (868 total) into
 new DMS report pages (pattern `npmrds_sub`), template-driven and repeatable. Goal = conversion
@@ -16,22 +16,27 @@ new DMS report pages (pattern `npmrds_sub`), template-driven and repeatable. Goa
 measures corpus-wide coverage by importing the converter's own analyze branches (it must be
 extended whenever the converter grows a new branch — it went stale twice by round 27; round 38
 added the `INFO_BOX_TRAVELTIME_BUCKET` and `BAR_SUMMARY_PM3_BUCKET` mirrors for Phase B; round 39
-added the `pre_2017_only` report-level exclusion, see below).
+added the `pre_2017_only` report-level exclusion; round 40 added `INFO_BOX_LENGTH_BUCKET`/
+`INFO_BOX_AADT_BUCKET`/`INFO_BOX_DELAY_BUCKET` mirrors and a `graph_comps[].id` synthetic-fallback
+fix, see below).
 
-**Coverage** (round-39 census, 2026-07-14, CURRENT): raw (unfiltered) 101 full / 635 partial / 118
-none / 14 no_graphs; 4,127/7,098 graph instances mapped (58.1%, up from round 27's 27.3%). Unmapped
-2,971 = buildable 1,032 / no_equivalent 1,792 / tail 147. **These raw numbers overstate what's
-achievable — round 39 found 133/868 reports (15.3%) are `pre_2017_only` (every route_comp's date
-range predates 2017-01-01, `npmrds.s583_v982_NPMRDS_V6`'s real coverage start — never getting that
-data back). Excluding them: only 59 full (not 101 — 42 "full" reports were always going to render
-permanently blank), 560 partial, 102 none, 14 no_graphs; 3,801/6,520 mapped (58.3%,
-essentially the same instance-level ratio — the inflation is almost entirely in the report-level
-"full" count, not the mapped %).** NEW report-level dimension (round 37): only 32 reports have a
-route with a ready tmc_array; 612 hinge on convert-time falcor point-resolution (fine in practice —
-787's routes were this kind); **213 are `no_valid_routes` shells** (every referenced route deleted
-from admin2.routes AND absent from the catalog — broken in the OLD tool too, can never produce
-pages); 11 have no routes at all. `full_producible` (full AND not a shell AND not pre-2017-only):
-**48**. Rerun: `python3 scripts/census_old_reports.py` (~40s, read-only).
+**Coverage** (round-40 census rerun, 2026-07-14, CURRENT): raw (unfiltered) 102 full / 636 partial
+/ 116 none / 14 no_graphs; 4,186/7,098 graph instances mapped (59.0%, up from round 27's 27.3%).
+Unmapped 2,912 = buildable 1,032 / no_equivalent 1,733 / tail 147. **These raw numbers overstate
+what's achievable — 133/868 reports (15.3%) are `pre_2017_only` (every route_comp's date range
+predates 2017-01-01, `npmrds.s583_v982_NPMRDS_V6`'s real coverage start — never getting that data
+back). Excluding them: only 60 full (not 102), 560 partial, 101 none, 14 no_graphs; 3,856/6,520
+mapped (59.1%, essentially the same instance-level ratio — the inflation is almost entirely in the
+report-level "full" count, not the mapped %).** NEW report-level dimension (round 37): only 32
+reports have a route with a ready tmc_array; 612 hinge on convert-time falcor point-resolution
+(fine in practice — 787's routes were this kind); **213 are `no_valid_routes` shells** (every
+referenced route deleted from admin2.routes AND absent from the catalog — broken in the OLD tool
+too, can never produce pages); 11 have no routes at all. `full_producible` (full AND not a shell
+AND not pre-2017-only): **48** (unchanged from round 39 — round 40's new mapped instances didn't
+happen to flip any report all the way to full). `converted_pages_total`: **26** (21 after round
+40's cleanup + 5 live-verification test conversions this round: 181/965/33/179/775).
+`pre_2017_converted_pages`: **[]** (empty). Rerun: `python3 scripts/census_old_reports.py` (~40s,
+read-only).
 
 **Standing user directives (all still in force)**:
 - **Strategic frame (2026-07-13 — read this first, it overrides "fidelity first" instincts)**: the
@@ -130,6 +135,25 @@ pages); 11 have no routes at all. `full_producible` (full AND not a shell AND no
   (confirmed live, round 38) — only `dms raw get <id>` fails to resolve them (returns all-null;
   use direct `psql_new` reads or `dms raw update <id> --set k=v` instead) and only `delete` needs
   `DMS_AUTH_TOKEN` (500s "Authentication required to delete items" otherwise).
+- **`admin2.reports.graph_comps[].id` is missing for 96% of the corpus (round 40)** — the
+  documented old shape (`id: 'graph-comp-N'`) is real for only the first two ever-converted
+  reports (1070/1071); everything else, including most already-shipped pages, has `id: None` on
+  most/all of its graph_comps. `convert_report` now assigns a synthetic `graph-idx-{i}` (array
+  position) fallback right before any gid-keyed dict is built, fixing a real silent
+  template-misassignment bug this caused whenever a report had multiple Info Box/Route
+  Compare/Bar Graph Summary pm3 graphs needing different dynamic resolutions (they collided on
+  `id: None` and the last-processed one silently overwrote the rest — new-side section/trackingIds
+  were always fine, the bug was purely in the old-side analysis-phase bookkeeping). Fix is
+  fix-forward only per the lazy-reconvert policy — no proactive resweep of old pages, though some
+  may carry a latent version of this same bug undiscovered.
+- **A CH query still scans the full FROM/JOIN chain even when the SELECTed calculated column
+  never touches a fact-table value** (round 40, observed on `length`/`aadt`'s TMC-attribute-only
+  expressions): a route/comp whose date range predates 2017 still returns zero rows for a `length`
+  or `aadt` query, exactly like any other measure, even though `table1.miles`/`table1.aadt` are
+  static per-TMC join columns with no date dependency at all — because the query is still
+  fundamentally `FROM ds JOIN table1 WHERE ds.date IN (...)`, and `ds` (the 583/982 fact table)
+  has no rows in that range. Not a bug — a real, load-bearing consequence of every AVL Graph query
+  sharing the same date-filtered-fact-table shape regardless of which columns it ultimately reads.
 
 **Immediate next steps** (round 34 "Not done / next", order user-endorsed):
 - [x] **(a) DONE (round 35): the SPEED_EXPR/TRAVEL_TIME_EXPR backport** to all live
@@ -155,21 +179,22 @@ pages); 11 have no routes at all. `full_producible` (full AND not a shell AND no
   (481 instances, **55 flips** — by far the single biggest lever in the corpus). Not scoped yet;
   read `RouteMap.jsx` for real before sizing it (round 24's standing caution: likely much bigger
   than any Phase A/B measure).
-- [ ] (g) two permission-gated cleanup items remain from round 38 (need `DMS_AUTH_TOKEN` — can
-  now be minted directly via `scratchpad/npmrds-sub/mint_token.sh` without a handoff, per round
-  39's authorization): delete the broken leftover test section on report 745's page (draft
-  `2190567`/published `2190568`), delete-or-reconvert report 191's forced-year test page
-  (`2190569`). Exact context in the archive's Round 38 entry.
-- [ ] (h) NEW (round 39) — decide on 4 already-converted pages that turn out to be pre-2017-only
-  (permanently blank, discovered by the new census check): report 16 "Delaware Avenue" →
-  `2190009`, report 54 "Hamilton County" → `2189409`, report 142 "WB LIE Mainline V3" →
-  `2189993` (all 3 genuine conversions predating this rule, never show data), and report 58 →
-  `2190556` (round 38's B3 mechanism-proof page — already known/documented as deliberately
-  pre-2017, not a surprise, arguably doesn't need the same treatment as the other 3). Not deleted
-  — surfaced only, per the no-proactive-sweeps policy; full list in `census_summary.md`.
+- [x] **(g) DONE (round 40)**: report 745's leftover broken test section deleted (draft
+  `2190567`/published `2190568`); report 191 reconverted for real via `--replace` (new page
+  `2190581`, dropping the forced-`graph_max_year=2023` demo — see Round 40 below).
+- [x] **(h) DONE (round 40)**: all 4 pre-2017-only converted pages deleted (user: "get rid of
+  permanently blank reports," applied uniformly — including report 58's page, despite round 39's
+  hedge that it "arguably doesn't need the same treatment," since it's genuinely `pre_2017_only`
+  same as the other 3): 16 → `2190009`, 54 → `2189409`, 58 → `2190556`, 142 → `2189993`. Census
+  confirms `pre_2017_converted_pages: []`, `converted_pages_total: 21`.
 
-## Round ledger (rounds 1–38 archived — full detail in [the archive](./old-reports-conversion-archive.md))
+## Round ledger (rounds 1–39 archived — full detail in [the archive](./old-reports-conversion-archive.md))
 
+- **R39** (07-14): pre-2017-only report-level skip built (`PRE_2017_CUTOFF`,
+  `report_is_pre_2017_only`) + census mirror; 133/868 reports (15.3%) are pre-2017-only —
+  excluding them, only 59 full (not 101) / 3,801/6,520 mapped (58.3%); shell page
+  874→`2188794` deleted (`converted_pages_total` 26→25); 4 already-converted pages found to be
+  pre-2017-only (16/54/58/142), surfaced not deleted.
 - **R38** (07-14): Phase B — avgTT-byDateRange alias (B1) + Route Info Box avgTT-byDateRange
   static template (B3, 38 flips materialized) + Bar Graph Summary freeflow-byDateRange pm3
   template (B2, mechanism proven, 0 real corpus flips — pre-2019 corpus dates outside 1410's
@@ -258,66 +283,163 @@ pages); 11 have no routes at all. `full_producible` (full AND not a shell AND no
 - **R2** (07-08): report 1071 converted — 11/13 graphs live.
 - **R1** (07-08): report 1070 converted end-to-end — first proof of the whole pipeline.
 
-## Round 39 (2026-07-14) — CURRENT ROUND: pre-2017-only report-level skip + shell page cleanup
+## Round 40 (2026-07-14) — CURRENT ROUND: cleanup (g)+(h) + Info Box `length`/`travelTime`/`aadt`/`hoursOfDelay` + a real gid-collision bug fix
 
-**Objective (user-directed this session)**: two asks. (1) Never spend further conversion effort
-on routes whose data predates 2017 (permanently unrecoverable, round 13); if EVERY route_comp in
-a report is pre-2017-only, refuse to port that report at all (mirrors the existing
-`no_valid_routes` report-level skip). Coverage numbers must either exclude these reports or show
-a parallel set that does. (2) Delete the pending shell page (item (e), `2188794`) — user granted
-permission to mint the auth token myself going forward rather than handing off the command.
+**Objective (user-directed this session)**: "do the cleanup, get rid of permanently blank
+reports" — close out the two remaining round-38/39 cleanup items: (g) report 745's leftover
+broken test section + report 191's forced-2023 mechanism-proof page, and (h) the 4
+already-converted pages the round-39 census found to be pre-2017-only.
 
-**(2) done first — shell page cleanup + token minting**: ran
-`scratchpad/npmrds-sub/mint_token.sh` directly (user-authorized this round, no more handoff needed
-for this specific script) then `delete_converted_page(2188794)` — deleted the page, 4 section
-rows, 1 snap row. `converted_pages_total` 26→25 confirms it. The other two round-38 cleanup items
-(report 745's leftover broken test section, report 191's forced-2023 mechanism-proof page) were
-**not** touched — the user's ask this round named one shell page specifically, not those two; both
-still pending, see the "Immediate next steps" list below.
+**Execution**: wrote `scratchpad/npmrds-sub/cleanup_round40.py` (imports `dms`,
+`delete_converted_page`, `COMPONENT_TYPE` from `convert_old_reports.py`) and handed the exact
+invocation to the user to run via `!` — per standing policy this session's auto-mode classifier
+blocks running `mint_token.sh` (or anything else that embeds/consumes a live credential) directly,
+even though round 39 got a one-off authorization; that didn't carry forward as a standing
+permission ([[feedback_credential_bearing_commands]]). User ran it; all three actions verified
+independently afterward via read-only `dms raw get` / direct psql reads (not just taking "looks
+good" at face value, per [[feedback_verify_the_actual_mechanism]]):
 
-**(1) — pre-2017-only report-level skip**:
-- `convert_old_reports.py`: new `PRE_2017_CUTOFF = 20170101` + `route_comp_is_pre_2017(settings)`
-  (true only when BOTH `startDate`/`endDate` are present and fall entirely before the cutoff — the
-  14/5154 corpus route_comps missing dates are left as "unknown, not pre-2017" rather than assumed
-  broken) + `report_is_pre_2017_only(route_comps)` (true iff every comp is pre-2017). Wired into
-  `convert_report()` right after `flatten_route_comps` — before any old-route fetch or graph
-  analysis, since the check needs nothing else — as an early report-level skip: gap-logs kind
-  `pre_2017_only` and returns via `finish(..., None, ...)` with no page created, same shape as the
-  existing `no_valid_routes` skip.
-- `census_old_reports.py`: imports `report_is_pre_2017_only`; each report record gets a
-  `pre_2017_only` bool. New `page_producible(r)` predicate
-  (`route_validity != no_valid_routes AND not pre_2017_only`) now gates `full_producible`,
-  `single_blocker_flips`, and the `greedy` cumulative-coverage calc — pre-2017-only reports were
-  added to the same exclusion no_valid_routes shells already got (round-36's shell-678 lesson
-  applies identically here: counting a permanently-blank report toward "flippable" inflates the
-  number). New parallel headline: `class_counts_excl_pre_2017` /
-  `graph_instances_excl_pre_2017`, plus `pre_2017_converted_pages` — already-converted pages that
-  turn out to be pre-2017-only, surfaced (not auto-deleted, per the no-proactive-sweeps policy).
-  `census_summary.md` gained a "Pre-2017-only reports" section presenting both the raw and
-  excluding-pre-2017 numbers side by side.
+- **(g)-1 report 745**: broken test section removed from both `sections` (published id `2190568`)
+  and `draft_sections` (draft id `2190567`, which had somehow ended up duplicated in the array —
+  the filter removed both copies) on page `2190543`, then both component rows deleted. Confirmed:
+  `dms raw get` on both ids now returns all-null; page's section lists show only the 5 real
+  sections on each side.
+- **(g)-2 report 191**: reconverted for real via `convert_old_reports.py --report-id 191
+  --replace`, deleting the old forced-`graph_max_year=2023` demo page (`2190569`) and creating a
+  new one, `2190581`. Gap report confirms it correctly gap-logs a pm3-coverage-limited measure
+  against report 191's real max year (2017, outside 1410's 2021–2025 coverage) instead of faking
+  data — same class of legitimate gap as round 38's B2/B3 findings, not a regression.
+- **(h) pre-2017-only pages**: all 4 flagged pages deleted via `delete_converted_page`: report 16
+  → `2190009`, 54 → `2189409`, 58 → `2190556`, 142 → `2189993`. **Judgment call**: round 39 hedged
+  that page 58 (round 38's B3 mechanism-proof demo) "arguably doesn't need the same treatment as
+  the other 3" since it wasn't a surprise finding — but the census confirms it's genuinely
+  `pre_2017_only: true` same as the others, and the user's instruction this round ("get rid of
+  permanently blank reports") was categorical, so it was included. Flagged to the user in case
+  they'd rather have kept it as a documented proof-of-concept; no objection raised.
 
-**Census rerun (868 reports, 0 errors) — key finding: the raw "full" count was significantly
-inflated by permanently-blank reports**:
-- **133/868 reports (15.3%) are pre-2017-only** — will never render real data regardless of
-  template completeness.
-- Raw (unfiltered, unchanged from round 38): 101 full / 635 partial / 118 none / 14 no_graphs;
-  4,127/7,098 graph instances mapped (58.1%).
-- **Excluding pre-2017-only reports (the real achievable target)**: only **59 full** (not
-  101 — 42 of the "full" reports are pre-2017-only and were always going to render blank forever)
-  / 560 partial / 102 none / 14 no_graphs; **3,801/6,520 mapped (58.3%**, essentially unchanged
-  from the raw instance-level %, since unmapped-key density is similar in both populations — the
-  gap is almost entirely in the report-level "full" count, not the instance-level ratio).
-  `full_producible` (full AND page-producible, i.e. also excluding `no_valid_routes`): **48**.
-- **4 already-converted pages turn out to be pre-2017-only** (converted before this rule existed
-  — surfaced for a cleanup decision, not auto-deleted): report 16 "Delaware Avenue" → page
-  `2190009`; report 54 "Hamilton County" → page `2189409` (round 13 already flagged this one's
-  dates as "entirely inside 2016"); report 58 "Rt13 SB CIthaca" → page `2190556` (this is round
-  38's B3 mechanism-proof page — already documented there as deliberately pre-2017, not a
-  surprise); report 142 "WB LIE Mainline V3" → page `2189993`. 16/54/142 are genuine conversions
-  (not mechanism proofs) that will never show data — worth a decision on whether to delete.
+**Census rerun to confirm** (868 reports, 0 errors, ~unchanged corpus-analysis numbers since none
+of this touches `admin2.reports`): `pre_2017_converted_pages: []` (was 4), `converted_pages_total:
+21` (was 25 — net −4 from the pre-2017 deletions; report 191's replace is a net-zero delete+create
+on this count). All other coverage numbers (101/635/118/14 raw, 59/560/102/14 excl. pre-2017,
+58.1%/58.3% mapped, `full_producible` 48) unchanged from round 39, as expected.
 
-**Standing directive added**: pre-2017 data (routes and reports) is a permanent, first-class
-report-level exclusion now, not just a gap-log note — see the summary's standing directives.
+**Part 2 — the Info Box measure remainder (user picked this after I corrected my own bad
+suggestion)**: I'd originally suggested "do the Info Box" as the next high-leverage/cheap item,
+reading the census's raw ranked-unmapped table at face value (268/166 "Route/TMC Info Box speed"
+instances). Before implementing I actually traced the mechanism and that read was wrong: Info Box
+`speed` is the ALREADY-BUILT LOTTR/TTTR/Freeflow reliability bucket (rounds 18-22), gated by
+1410's real 2021-2025 coverage + 4-bin granularity — a diagnostic script over the full corpus
+showed 374/516 instances fail on year-out-of-range and 140/516 on bin-ambiguity, only 2 already
+work (both already converted). That lever is a permanent data-coverage wall, same class as round
+38's B2 finding, not a capability gap — I said so and the user picked the smaller genuine
+remainder instead: TMC-attribute measures inside Info Box that were never built at all.
+
+**Built** (`convert_old_reports.py`): 4 new measure buckets alongside the existing
+`INFO_BOX_BUCKET`/`INFO_BOX_TRAVELTIME_BUCKET`, all bin/year-independent (static templates, same
+shape family as round 38's `ensure_info_box_traveltime_template`):
+- **`travelTime`** (plain, not `-byDateRange`) — folded into the EXISTING `avgTT-byDateRange`
+  bucket/template (now `INFO_BOX_TRAVELTIME_BUCKETS`, a set of two `(measure, dataColumn)` keys
+  mapping to the same `{grain}_info_box_traveltime` template): old dataTypes.js's plain `travelTime`
+  key has no `group`, so `RouteInfoBox.jsx` routes it through `allReducer` — the identical
+  two-level per-tmc-mean-then-sum-across-tmcs semantics `avgTT-byDateRange` was already aliased to
+  in round 38. Genuinely free — no new template, no new query, one extra bucket key. 24 real corpus
+  instances.
+- **`length`** — new `ensure_info_box_length_template` (via a new shared
+  `_ensure_static_info_box_template` helper, see below), `LENGTH_EXPR` reusing SPEED_EXPR's own
+  proven distinct-tmc `arraySum(mapValues(maxMap(map(ds.tmc, table1.miles))))` combinator (route
+  grain: total route miles, summed once per distinct TMC, not per fetched row) off the base
+  template's own default join (TMC Identification 455/3464 — already carries `miles`). 26 real
+  corpus instances (only 1 is route-grain, and that one lone report is itself pre-2017-only — see
+  Part 1 above — so it's spec-describable but has zero live-testable corpus instances at that
+  grain).
+- **`aadt`** — new `ensure_info_box_aadt_template` (same shared helper), `AADT_EXPR` = unweighted
+  mean AADT across the route's distinct TMCs (`arrayAvg` version of the same combinator) — old
+  `meanReducer` semantics. `overrides.aadt`'s own dedicated override mechanism (a DIFFERENT
+  substitution shape than the delay/CO₂ one `AADT_OVERRIDE_SUBS` already covers) deliberately not
+  wired — zero real corpus overlap between `overrides.aadt` and an Info Box `aadt` graph, and the
+  existing generic "table1.aadt in stateJson" detection still correctly gap-logs
+  `aadt_override_not_applied` rather than silently drop it, if that ever changes. 5 real corpus
+  instances.
+- **`hoursOfDelay`** — new `ensure_info_box_delay_template` (own function, different join than
+  length/aadt): the already-proven `DELAY_EXPR` (rounds 4/9/12/23/28/32's weighted-delay
+  calculated column, `META_1946_JOIN` + `AADT_DIST_JOIN`), `fn: "sum"` (not `"exempt"` —
+  `DELAY_EXPR` is a raw per-epoch quantity, not self-aggregating) grouped by `__series`/`tmc`
+  matching old `sumReducer`'s whole-range sum, no per-resolution bucketing needed. 4 real corpus
+  instances (2 more are logged `hoursOfDelay`/`dataColumn: "None"` — an ambiguous/missing
+  dataColumn, correctly stays gap-logged, same treatment as any other uncovered
+  `GRAPH_TEMPLATE_MAP` combination). `dataQuality` (1 instance, "% of epochs reporting" — a
+  genuinely new concept, no existing expression anywhere) — **deliberately not built**, per-user
+  agreement: a single-instance measure doesn't meet the vocabulary-breadth bar.
+- Census mirrors (`census_old_reports.py`): imports + classification branches for all 4 new
+  buckets, same pattern as the existing `INFO_BOX_TRAVELTIME_BUCKET`/`BAR_SUMMARY_PM3_BUCKET`
+  mirrors.
+
+**Two real bugs found and fixed while verifying, both caught via actual live errors/values, not
+assumed:**
+1. **TMC-grain `length`/`aadt` nested-aggregate bug (my own new code, caught immediately)**: the
+   first version of `_ensure_static_info_box_template` reused the route-grain's self-aggregating
+   distinct-tmc combinator expression for TMC grain too (just re-labeled), then wrapped it in an
+   outer `fn: "avg"` — ClickHouse rejects an aggregate function nested inside another
+   (`ILLEGAL_AGGREGATION`), caught via a real "Error fetching data" browser console error +
+   confirmed exact ClickHouseError in `scratchpad/npmrds-sub/dms-server.log`. Fixed: TMC grain
+   (already scoped to one TMC per CH group via `categorize: "tmc"`) reads the raw join column
+   directly (`LENGTH_TMC_EXPR = "table1.miles as length"`, `AADT_TMC_EXPR = "table1.aadt as
+   aadt"`) instead of the combinator. Patched both in code and on the 2 already-created template
+   rows (`tmc_info_box_length` id `2190604`, `tmc_info_box_aadt` id `2190645`) via `dms raw update`
+   (no auth token needed — only delete requires one).
+2. **`graph_comps[].id` collision (pre-existing, dates to round 18, NOT introduced this round) —
+   the significant find**: 817/854 corpus reports (96%) have AT LEAST ONE `graph_comps` entry with
+   no `id` field at all — the documented old shape (`id: 'graph-comp-N'`) simply isn't there for
+   almost the whole corpus, not just the "ancient version 2" reports it was previously assumed
+   limited to (confirmed directly: even most already-shipped/verified reports — 787, 58, 191, 745,
+   181 — have zero real ids; only the very first two ever converted, 1070/1071, have them). Every
+   dynamic per-graph decision (Info Box template choice, Route Compare, Bar Graph Summary pm3
+   year) is keyed by `g.get("id")` in an in-memory dict — when a report has MULTIPLE Info Box
+   graphs needing DIFFERENT template resolutions and all share `id: None`, they collide on that
+   key and whichever is processed LAST silently overwrites every earlier graph's assignment (the
+   eventual new-side section/trackingId is unique and unaffected — the bug is purely in the
+   analysis-phase bookkeeping, before any new-side id exists). **Live-caught on report 33**: a
+   `speed` (reliability) graph and an `avgTT-byDateRange` graph were both silently overwritten
+   with the report's unrelated `aadt` graph's template — confirmed directly by dumping the live
+   page's sections (both showed "TMC AADT" content instead of their real intended content).
+   **User-approved fix** (paused and asked before applying, since this is real scope beyond "the 4
+   measures" — [[feedback_show_plan_before_large_work]]): assign a stable, unique-within-report
+   synthetic id (`f"graph-idx-{i}"`, array position) to any graph_comp missing one, right before
+   any gid-keyed dict is built — in both `convert_old_reports.py` (real fix, prevents
+   misassignment) and `census_old_reports.py` (mirrored for gap-log attribution clarity only; the
+   census's own classification loop never used a gid-keyed dict so it was never mis-classifying).
+   **No proactive reconversion sweep of already-shipped pages** — fix-forward only, per the
+   standing lazy-reconvert policy; some earlier pages may carry latent versions of this same
+   silent-overwrite bug if they had multiple colliding dynamic-template graphs, but per-report
+   verification only happens when a report is next touched for a real reason.
+
+**Live verification (5 test conversions, all reconverted a second time with `--replace` after both
+fixes to get a clean final state)**: 181 (`travelTime`, both grains), 965 (`length`+`travelTime`
+tmc grain), 33 (`aadt` tmc grain + confirms the collision fix — now shows 3 correctly DISTINCT
+sections: "Route Travel Time", "TMC AADT" ×2), 179 (`hoursOfDelay` route grain), 775
+(`hoursOfDelay` tmc grain). All 5 probed clean (0 console errors, 0 page errors). Ground-truthed
+directly against ClickHouse (not an adjacent proxy check — the exact live-rendered value compared
+to a hand-built SQL query using the EXACT tmc/date/epoch filter list extracted from the captured
+`/graph` request, per [[feedback_verify_the_actual_mechanism]]):
+- `travelTime` (TMC grain, report 181, TMC `120-04229`, 2017 weekdays): live `1.2791322716675986`
+  min vs ground truth `1.2791322716676112` — matches to 13 significant figures.
+- `aadt` (TMC grain, report 33, 4 TMCs spot-checked against the TMC Identification table
+  directly): exact match on all 4 (e.g. `120-04245` → `157258`).
+- `hoursOfDelay` (route grain, report 179, "I-287 EB Inter 15 to Inter 8", 23 TMCs, July 2017
+  weekdays, epochs 72-228): live `22533.989366506572` vs ground truth `22533.989366506572` — exact.
+- `hoursOfDelay` (TMC grain, report 775, TMC `120+05858`, 2 dates): live `1614.688756330556` vs
+  ground truth `1614.6887563305559` — exact.
+- `length` not independently ground-truthed on a fresh value (report 965's own length graph
+  happens to be bound to a pre-2017 comp, correctly returning 0 rows — not a bug, the query still
+  scans `ds` for the date range regardless of which columns are selected) — accepted as verified
+  by construction: byte-identical code path to the exact-matched `aadt`, and the route-grain
+  combinator is SPEED_EXPR's own already-proven fragment.
+
+**Census rerun (868 reports, 0 errors)**: raw 102 full (was 101) / 636 partial / 116 none (was
+118) / 14 no_graphs; **4,186/7,098 mapped (59.0%**, was 58.1%). Excl. pre-2017: 60 full (was 59) /
+560 / 101 (was 102) / 14; **3,856/6,520 mapped (59.1%**, was 58.3%). `no_equivalent` bucket 1,792→
+1,733 (−59, exactly the 24+26+5+4 new real-corpus flips across the 4 measures).
+`converted_pages_total`: 26 (21 + the 5 test conversions this round).
 
 ## Objective
 
@@ -564,12 +686,32 @@ Round 37 (census cross-reference, 2026-07-13): 23 numeric `report_<id>` pages li
 the earlier-round pages also include 11→`2189401`, 54→`2189409`, 315→`2189417`, 796→`2189435`.
 874's page `2188794` is a permanently-empty shell (route 5445 missing everywhere since before
 its round-9 conversion) — **deletion pending, user to run** (see the archive's Round 37).
-Round 38 (Phase B, 2026-07-14): 745→`2190543` (B1; carries one leftover BROKEN test section,
-draft `2190567`/published `2190568`, **deletion pending, user to run**), 58→`2190556` (B3),
-191→`2190569` (B2 — **converted with `graph_max_year` forced to 2023**, a deliberate mechanism
-proof, not a faithful conversion of its real 2016/2017 dates — delete-or-reconvert, user to run).
-New templates: `route_info_box_traveltime` (`2190555`), `tmc_freeflow_summary_bar_graph_2023`
-(`2190566`).
+Round 38 (Phase B, 2026-07-14): 745→`2190543` (B1; carried one leftover BROKEN test section,
+draft `2190567`/published `2190568`, since deleted — see round 40 below), 58→`2190556` (B3, since
+deleted — see round 40), 191→`2190569` (B2 — converted with `graph_max_year` forced to 2023, a
+deliberate mechanism proof, since replaced — see round 40). New templates:
+`route_info_box_traveltime` (`2190555`), `tmc_freeflow_summary_bar_graph_2023` (`2190566`).
+
+**Round 39 (2026-07-14)**: shell page 874→`2188794` deleted (`no_valid_routes`, deletion pending
+since round 37, executed this round).
+
+**Round 40 (2026-07-14)**: closed both remaining cleanup items. Report 745's page (`2190543`)
+kept, its broken test section removed (component rows `2190567`/`2190568` deleted). Report 191
+reconverted for real: old mechanism-proof page `2190569` deleted, new page `2190581` created
+(2/3 mapped — the pm3-coverage-limited measure correctly gap-logs against its real 2016/2017
+dates). 4 pre-2017-only pages deleted outright (no replacement — the converter now refuses to
+page them): 16→`2190009` gone, 54→`2189409` gone, 58→`2190556` gone, 142→`2189993` gone.
+`converted_pages_total`: 21.
+
+Round 40 Part 2 (Info Box `length`/`travelTime`/`aadt`/`hoursOfDelay` + the gid-collision fix) —
+5 live-verification test conversions, each reconverted a second time with `--replace` after both
+bugs were fixed to reach a clean final state: 181→`2190688` (`travelTime` both grains), 965→
+`2190700` (`length`+`travelTime` tmc grain), 33→`2190736` (`aadt` tmc grain; also the page that
+caught the gid-collision bug — its 4 Info Box graphs now correctly show 3 distinct sections
+instead of 4 identical ones), 179→`2190755` (`hoursOfDelay` route grain), 775→`2190767`
+(`hoursOfDelay` tmc grain). New templates: `tmc_info_box_traveltime` (`2190591`),
+`tmc_info_box_length` (`2190604`), `tmc_info_box_aadt` (`2190645`), `route_info_box_delay`
+(`2190664`), `tmc_info_box_delay` (`2190677`).
 
 Other files this task has produced, outside that scratchpad folder:
 - `scripts/convert_old_reports.py` — the converter itself.
@@ -607,3 +749,6 @@ Other files this task has produced, outside that scratchpad folder:
   2026-07-08) so errors can be read directly instead of reconstructed from browser console
   captures; per `[[feedback_check_server_logs_first]]`, check this file first when a graph/page
   shows a fetch error.
+- `scratchpad/npmrds-sub/cleanup_round40.py` — round-40 one-off cleanup script (report 745's
+  broken test section, report 191's `--replace` reconversion, the 4 pre-2017-only page deletes);
+  user-run via `!` since it needs `DMS_AUTH_TOKEN`. Kept for reference, not meant to be re-run.
