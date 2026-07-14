@@ -174,8 +174,18 @@ Rerun: `python3 scripts/census_old_reports.py` (~40s, read-only).
   (481 instances, **55 flips** — by far the single biggest lever in the corpus). Not scoped yet;
   read `RouteMap.jsx` for real before sizing it (round 24's standing caution: likely much bigger
   than any Phase A/B measure). **SCOPED round 41 (2026-07-14)** — see
-  `scratchpad/npmrds-sub/old-reports/route_map_scope.md`; awaiting endorsement to start
-  Phase 1 (`MapGraph`).
+  `scratchpad/npmrds-sub/old-reports/route_map_scope.md`. **R43: recommendation REVISED** —
+  host on the existing Map/symbology stack via the dms-server tile join (R41's "ruled out"
+  vetting hit the wrong tile server; scope doc Addendum v2 has the correction); `MapGraph`
+  demoted to fallback. **R44: Work plan v2 SCOPED** (phases M0 none-maps converter-only /
+  M1 dms-server CH-join-source / M2 speed 78 flips / M3 remaining measures; per-year geometry
+  tile views 2016-2026 already exist so year-pinning dissolved; LEFT-JOIN tiles restore the old
+  tool's gray no-data TMCs). **v2.1 amendment: live interactivity required (user) — new plan
+  is series-driven symbology layers**: the Map section gets a `comparison_series` subscriber
+  runtime (RRL discovery is element-type-agnostic → publishes to maps with zero RRL changes);
+  per-variant layer materialization from a `series-template` layer; colorDomain CH branch
+  promoted into M1 for live re-breaks. Phases M0a platform subscriber / M0b none-maps live /
+  M1 server / M2 speed / M3 rest; ~4.5-6 rounds. Awaiting endorsement + the 07-14 map update.
 - [x] **(g) DONE (round 40)**: report 745's leftover broken test section deleted (draft
   `2190567`/published `2190568`); report 191 reconverted for real via `--replace` (new page
   `2190581`, dropping the forced-`graph_max_year=2023` demo — see Round 40 below).
@@ -187,6 +197,44 @@ Rerun: `python3 scripts/census_old_reports.py` (~40s, read-only).
 
 ## Round ledger (rounds 1–40 archived — full detail in [the archive](./old-reports-conversion-archive.md))
 
+- **R45** (07-14): Work plan **v2.1 amendment** — user rejected static interactivity; traced
+  the real mechanism: graphs get route/date edits via the `comparison_series` subscriber
+  (`display._functions.subscribers` + RRL `findSelfBoundGraphs` publish of
+  `{label, filters:{tmc/date/epoch leaves}}` per assigned comp to `selfParamKey(trackingId)`),
+  NOT via the page-filter sync the Map excludes (`dataPageFilters` drops action filters only
+  to avoid hover/click layer thrash — rationale doesn't apply to a named-param subscriber).
+  Bridge = series-driven symbology layers (Map-side subscriber runtime + per-variant layer
+  materialization from a template layer + colorDomain re-breaks + fetchBoundsForFilter);
+  RRL discovery is element-type-agnostic so maps are published to for free. colorDomain CH
+  moved M4→M1. Full design: scope doc v2.1. No code.
+- **R44** (07-14): Route Map **Work plan v2 scoped** on the Map/symbology path, no code
+  (user: scope now, updates pending). Verified: CH query set builds full SQL (joins/
+  filterGroups) but is execute-only → M1 = factor a build-only `buildSimpleFilterSqlCH` +
+  tile-keys-as-filterGroups-leaf + `jsonb_to_recordset` merge into the PG MVT query; per-year
+  TMC geometry tile views ALREADY EXIST (source 582: 2017-2026, source 215: 2016-2024) so the
+  year-pinning objection dissolves (overlap spot-check 95.6-100%); LEFT-JOIN tiles render
+  no-data TMCs gray like the old tool (fidelity WIN over MapGraph); tile host is baked
+  per-view metadata → converter rewrites origin (graph.availabs.org lacks join=); Map
+  section = `element-type: "Map"`, converter emission is element-type-driven so a Map recipe
+  kind keeps TEMPLATE_SPECS describability. Phases: M0 none-maps (converter only) → M1 server
+  CH join source (isolated library task, incl. key-count guard decision) → M2 speed (78
+  flips, verify 1071/641/895) → M3 TT/delay/avgDelay (+4) → M4 gap-log (colorDomain CH,
+  action-filter bridge, pm3/stations/circles). v1 delta: static interactivity (baked
+  route/date filters). ~3.5-4.5 rounds. Full plan: scope doc "Work plan v2". Awaiting
+  endorsement + the 07-14 map update.
+- **R43** (07-14): Route Map recommendation REVISED (user-prompted second look), no code.
+  R41's Map-section vetting checked the WRONG tile server (graph.availabs.org/avail-falcor) —
+  the dev stack's tiles come from dms-server itself (`dmsserver.availabs.org`), whose
+  `dama/tiles/tiles.rest.js` FULLY implements the symbology `join=` param (UDA-built join CTE
+  narrowed to tile keys, aggregation included; live proof = symbology 2186994, LODES OD sums
+  joined onto census-block tiles). `colorDomain` has join support too. Real remaining gaps:
+  (a) join source must be PG — CH views rejected (`tiles.rest.js:122`,
+  `uda.colorDomain.controller.js:177`) — the one server extension needed; (b) Map section still
+  drops action-type page filters (`map/index.jsx:559-571`), so ReportRouteList binding needs a
+  small bridge or baked static join filters; (c) geometry tiles year-pinned (unchanged; data
+  provisioning, not code). Revised lean: converter emits per-report Map-section symbologies with
+  a CH join instead of new `MapGraph` (now fallback). HELD pending the small map/mapeditor
+  update the user expects to land 07-14. Detail: scope doc Addendum v2.
 - **R42** (07-14): TMC Grid Graph per-TMC breakdown bug fixed (user-caught on report 914's
   "Winter Average Day" — was rendering one aggregate strip instead of per-TMC rows) + corpus
   sweep (320/751/315/1045 reconverted, all clean); ground-truthed exactly against ClickHouse.
@@ -202,7 +250,8 @@ Rerun: `python3 scripts/census_old_reports.py` (~40s, read-only).
   sections vetted and ruled out as host: tile-server `join=` param unimplemented
   (avail-falcor tiles route reads only cols/filter), `colorDomain` PG-only vs CH data, filter
   sync ignores action-type filters (no ReportRouteList binding), tiles year-pinned to
-  2024/2025 networks. Full scope + vetting detail:
+  2024/2025 networks. **[Vetting claims 1/2/5 CORRECTED in R43 — wrong tile server checked;
+  see scope doc Addendum v2.]** Full scope + vetting detail:
   `scratchpad/npmrds-sub/old-reports/route_map_scope.md`. Awaiting endorsement before Phase 1.
 - **R40** (07-14): cleanup (g)+(h) closed (report 745/191/pre-2017 pages); Info Box
   `length`/`travelTime`/`aadt`/`hoursOfDelay` measures built (4 new buckets); a real

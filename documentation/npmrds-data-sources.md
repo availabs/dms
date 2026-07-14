@@ -158,6 +158,40 @@ occupancy and directional AADT. PHED is a **single aggregate annual number per T
 (`all_xdelay_phrs` etc.), not a time series — cannot substitute for a "Hours of Delay by day" bar
 graph or per-period CO₂ line graph.
 
+## Per-year TMC geometry tile views (confirmed 2026-07-14 against `npmrds2`)
+
+PostGIS tile-servable TMC network geometry exists for EVERY report year — no provisioning
+needed for year-matched maps. All tables live in `npmrds_geometry.*` with a `tmc` column and a
+`year` column; each view's tile URL bakes `?cols=tmc&filter=year=<Y>`. ~52k rows per year
+(NY network).
+
+| Year | Source 582 (npmrds_v6 / shapefile-enhanced, current gen) | Source 215 (production_NY, older gen) |
+|---|---|---|
+| 2016 | — | v456 |
+| 2017 | v985 | v457 |
+| 2018 | v1015 | v455 |
+| 2019 | v1027 | v453 |
+| 2020 | v1033 | v452 |
+| 2021 | v1035 | v454 |
+| 2022 | v1041 | v458 |
+| 2023 | v1052 | v459 |
+| 2024 | v1232 | v460 |
+| 2025 | v1312 | — |
+| 2026 | v3058 | — |
+
+Also: source 913 (v1899=2024, v2047=2025 `npmrds_prod_*_tmc_meta_geometry`) and source 1946
+(v3300=2025 `ny_2025_tmc_meta_geometry`) — the ones mapeditor symbologies commonly reference.
+
+**Coverage spot-check** (60 old-report routes, 822 distinct TMCs, 2026-07-14): 2017 table
+95.6% present, 2019 99.5%, 2025 100% — year-matched selection makes old-network TMC loss
+negligible; gap-log per-map misses at conversion time.
+
+**Host caveat**: tile URLs are baked per-view in `metadata.tiles` and most say
+`graph.availabs.org` — whose tile route does NOT implement the symbology `join=` param. The
+dms-server tile route (`dmsserver.availabs.org`, `dms-server/src/dama/tiles/tiles.rest.js`)
+DOES. Rewrite the origin when emitting joined layers. Full join mechanics:
+`planning/research/references/map-joins.md`.
+
 ## DAMA schema reference (live, confirmed 2026-07-08 against `npmrds2`)
 
 `data_manager.sources` columns: `source_id, name, update_interval, category, description,
