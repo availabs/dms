@@ -185,7 +185,8 @@ Rerun: `python3 scripts/census_old_reports.py` (~40s, read-only).
   runtime (RRL discovery is element-type-agnostic → publishes to maps with zero RRL changes);
   per-variant layer materialization from a `series-template` layer; colorDomain CH branch
   promoted into M1 for live re-breaks. Phases M0a platform subscriber / M0b none-maps live /
-  M1 server / M2 speed / M3 rest; ~4.5-6 rounds. Awaiting endorsement + the 07-14 map update.
+  M1 server / M2 speed / M3 rest. **R47: M0a+M0b DONE & live-verified (report 641, +25
+  full flips, census mirrored). Next: M1 server CH join source.**
 - [x] **(g) DONE (round 40)**: report 745's leftover broken test section deleted (draft
   `2190567`/published `2190568`); report 191 reconverted for real via `--replace` (new page
   `2190581`, dropping the forced-`graph_max_year=2023` demo — see Round 40 below).
@@ -197,6 +198,32 @@ Rerun: `python3 scripts/census_old_reports.py` (~40s, read-only).
 
 ## Round ledger (rounds 1–40 archived — full detail in [the archive](./old-reports-conversion-archive.md))
 
+- **R47** (07-14): **Route Map M0a + M0b BUILT & LIVE-VERIFIED** (user endorsed: palette
+  colors option A, loud key-count guard for M1). M0a (library task
+  `map-comparison-series-layers.md`): `comparison_series` subscriber runtime for the Map
+  section — declaration in map/config.jsx, `useComparisonSeriesLayers.js` hook (per-variant
+  layer materialization from a `series-template` layer, deterministic `__series_` ids,
+  fingerprint loop guard, fit-bounds via fetchBoundsForFilter, runtime-only via
+  stripRuntimeLegendState extension). One real bug: Map renders via the NON-data wrapper →
+  section identity arrives through ComponentContext, not props (fixed; dataWrapper comps get
+  props). M0b (converter): `ensure_route_map_none_template(year)` mints per-year Map-section
+  templates (elementType "Map" — first non-AVL template) over GEOMETRY_TILE_VIEWS (582 family,
+  2017-2026, dmsserver host); analyze_graph distinguishes explicit displayData ["none"];
+  route_map pre-pass mirrors the route-compare idiom. Verified end-to-end on report 641
+  (page 2190998): 15/15 graphs convert, 13 comps → 13 colored line layers + legend + Buffalo
+  fit, 0 console/page errors view+edit, edit-mode persistence clean (element-data md5
+  unchanged). Census mirrored + rerun: **full 101→126 (+25 flips from none-maps alone)**,
+  61.9% instances mapped, full_producible 122; top unmapped is now M2's bucket (Route Map
+  speed×5-min: 256 instances / 214 reports / 45 single-blocker flips). NEXT: M1 (dms-server
+  CH join source + colorDomain CH + loud key-count guard, isolated library task).
+- **R46** (07-14): map update landed (= map-component-unification P1-P4; branch rebased onto
+  master) — plan RE-VERIFIED, v2.2: PG join gates + join param + dataPageFilters exclusion +
+  RRL/comparisonSeries mechanism all unchanged; Map now ships `display._functions`
+  storage/runtime (interaction pub/sub) + Actions-menu declarations + settings page-bridge,
+  so **M0a shrinks to ~1 round** (comparison_series declaration + reload-driving layer
+  materialization on existing rails; BC invariants freeze the `_functions` channel).
+  map_dama retirement (P5) aligns. Watch: dataWrapper changed (external-source editing) —
+  probe smoke pass with M0b. Total ~4-5.5 rounds. Awaiting endorsement to start M0a.
 - **R45** (07-14): Work plan **v2.1 amendment** — user rejected static interactivity; traced
   the real mechanism: graphs get route/date edits via the `comparison_series` subscriber
   (`display._functions.subscribers` + RRL `findSelfBoundGraphs` publish of
