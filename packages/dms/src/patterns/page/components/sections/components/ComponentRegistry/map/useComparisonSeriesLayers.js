@@ -85,6 +85,17 @@ export const materializeSeriesLayer = (template, variant, index, color) => {
     // (`legend-orientation: "none"` — it renders nothing itself); materialized
     // layers are the real, viewer-facing series and always get their row.
     delete layer["legend-orientation"];
+    // Choropleth templates (data-column set) bake ONE pooled color scale for
+    // the whole graph, not per-variant (see the "Choropleth templates keep
+    // their paint/legend" comment below) — every materialized clone of the
+    // SAME template therefore carries byte-identical legend-data. Showing
+    // that same 4-5-row scale once per assigned route comp reads as a UI bug
+    // (user-reported: "a bunch of legend entries ... exact same legend
+    // values"). Only the first variant's clone keeps its legend row; the
+    // rest re-suppress it exactly like the template itself does.
+    if (template["data-column"] && index > 0) {
+        layer["legend-orientation"] = "none";
+    }
     layer[SERIES_GENERATED_KEY] = true;
     layer.id = newId;
     layer.name = variant.label || `Series ${index + 1}`;

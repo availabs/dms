@@ -83,7 +83,7 @@ const TreemapGraphWrapper = props => {
     else if (props.colors?.type === "scheme") {
       colors = getColorRange(props.colors.scheme, dataFromProps.length);
     }
-    return props.colors?.reverse ? colors.reverse() : colors;
+    return props.colors?.reverse ? [...colors].reverse() : colors;
   }, [props.colors, dataFromProps]);
 
 // console.log("TreemapGraphWrapper::colors", colors);

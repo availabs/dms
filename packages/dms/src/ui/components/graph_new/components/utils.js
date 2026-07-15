@@ -39,6 +39,19 @@ export const getColumnName = column => column.normalName || column.name;
 // the Legend's linear renderer call `.domain()`/`.range()` on this
 // unconditionally, so degenerate cases (one color, or a constant series)
 // still need a genuine scale, just with identical range endpoints.
+// Per-graph minutes/seconds auto-switch (user-reported: sub-70-second travel-
+// time-in-minutes values render as unreadable decimals like "0.045"). The
+// unit decision is made ONCE from the graph's own domain max — not per value
+// — so a single legend never mixes units; values stay expressed as minutes
+// internally (the proven SPEED_EXPR/TRAVEL_TIME_EXPR two-level semantics are
+// unchanged), this only affects display.
+export const formatMinutesAuto = (maxMinutes) => {
+	if (Number.isFinite(maxMinutes) && maxMinutes * 60 < 70) {
+		return d => `${ (d * 60).toFixed(1) } sec`;
+	}
+	return d => `${ d.toFixed(2) } min`;
+}
+
 export const buildValueColorScale = (min, max, colors) => {
 	if (!Number.isFinite(min) || !Number.isFinite(max) || !colors?.length) return undefined;
 	if (colors.length === 1) {

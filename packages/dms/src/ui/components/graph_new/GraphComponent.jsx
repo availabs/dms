@@ -91,10 +91,13 @@ export const GraphComponent = props => {
       ...graphFormat.tooltip,
       // map config `showTotal` → avl-graph DefaultHoverComp `showTotals` (default true = BC)
       showTotals: get(graphFormat, ["tooltip", "showTotal"], true),
-      // tooltip-only resolver: unset/identity → 1-decimal rounded display, so
-      // client-side-summed totals never show floating-point artifacts
-      valueFormat: getTooltipFormatFunc(get(graphFormat, ["tooltip", "valueFormat"]), isDollars),
-      yFormat: getTooltipFormatFunc(get(graphFormat, ["tooltip", "yFormat"]), isDollars)
+      valueFormat: getFormatFunc(get(graphFormat, ["tooltip", "valueFormat"]), isDollars),
+      yFormat: getFormatFunc(get(graphFormat, ["tooltip", "yFormat"]), isDollars),
+      // Per-graph minutes/seconds auto-switch (GridGraph's legend only, see
+      // formatMinutesAuto) — a raw boolean, not resolved through
+      // getFormatFunc, since the actual formatter needs this graph's own
+      // domain max, unknown at this point.
+      minutesAutoSeconds: Boolean(get(graphFormat, ["tooltip", "minutesAutoSeconds"], false))
     };
   }, [graphFormat.tooltip]);
 

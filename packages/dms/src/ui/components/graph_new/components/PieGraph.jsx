@@ -164,7 +164,7 @@ const PieGraphWrapper = props => {
     else if (props.colors?.type === "scheme") {
       colors = getColorRange(props.colors.scheme, dataFromProps.keys?.length);
     }
-    return props.colors?.reverse ? colors.reverse() : colors;
+    return props.colors?.reverse ? [...colors].reverse() : colors;
   }, [props.colors, dataFromProps.keys?.length]);
 
 // console.log("PieGraphWrapper::dataFromProps", dataFromProps)

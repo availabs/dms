@@ -8,7 +8,7 @@
 > starts, move the previous round's full text to the top of the archive, leave a ledger line here,
 > and fold anything durable into the summary or reference sections.
 
-## Current state (2026-07-15, in round 50 — M3 travelTime landed)
+## Current state (2026-07-15, end of round 51 — 4 small display bugs fixed: backwards colors outside Map, duplicate RouteMap legends, minutes/seconds readability, GridGraph palette-mutation bonus fix; legend/map color off-by-one found but held back)
 
 **What this is**: `scripts/convert_old_reports.py` converts old `admin2.reports` (869 total) into
 new DMS report pages (pattern `npmrds_sub`), template-driven and repeatable. Goal = conversion
@@ -26,13 +26,13 @@ the `route_map_none`/`route_map_speed` Route Map mirror).
 **Coverage** (round-49 census rerun, 2026-07-15, CURRENT — first run since at least round 47
 that actually analyzed all 869 reports with 0 errors; every prior "868/869 reports" headline
 between whenever the `BAR_SUMMARY_PM3_BUCKET` bug landed and round 49 was silently computed
-over only ~595 of them): **216 full / 603 partial / 36 none / 14 no_graphs**; **4,961/7,103**
-graph instances mapped (69.8%, up from 69.2% after round-50's travelTime flip). Report-level route validity: 33 `ok` (≥1 route with a real
+over only ~595 of them): **217 full / 602 partial / 36 none / 14 no_graphs**; **4,995/7,103**
+graph instances mapped (70.3%, up from 69.2% pre-round-50 — all of M3: travelTime + avgHoursOfDelay + hoursOfDelay). Report-level route validity: 33 `ok` (≥1 route with a real
 tmc_array), 612 `hinges_on_point_resolution` (point-drawn, resolved at convert time), **213
 `no_valid_routes` shells** (unproducible, broken in the OLD tool too), 11 `no_route_comps`.
 `full_producible`: **188** (up from R47's 122; round 49's speed-choropleth flip took it to
-184, round 50's travelTime choropleth flip took it to 188 — see round 49/50 below).
-`converted_pages_total`: **30**. This round did NOT recompute the pre-2017-excluded headline
+184, round 50's travelTime choropleth flip took it to 188; avgHoursOfDelay/hoursOfDelay added 0 more
+flips by design, pure vocabulary breadth — see round 49/50 below). `converted_pages_total`: **32**. This round did NOT recompute the pre-2017-excluded headline
 breakdown (round 39/42's framing) — rerun `python3 scripts/census_old_reports.py` (~40s,
 read-only) and check `census_summary.md`'s own sections for that cut if needed; the numbers
 above are the RAW (all-869) figures.
@@ -239,7 +239,79 @@ above are the RAW (all-869) figures.
 
 ## Round ledger (rounds 1–40 archived — full detail in [the archive](./old-reports-conversion-archive.md))
 
-- **R50** (07-15, in progress): session resumed cold via handoff notes
+- **R51** (07-15): **4 small display/rendering bugs, all user-reported live, all found &
+  fixed & reconverted-and-verified this round** (no new coverage/flip impact — pure
+  correctness fixes, census unchanged at 32 converted pages / 869 analyzed / 0 errors):
+  1. **Backwards color scales outside Map** — `build_graph_section_data`'s generic
+     `COLOR_RANGE_GRAPH_TYPES` wiring (GridGraph/BarGraph-byValue/Route Difference/TMC
+     Difference Grid) copied each old report's `color_range` verbatim with NO reversal,
+     unlike the Route Map path (`ROUTE_MAP_REVERSE_COLORS_MEASURES`, round 50) — old
+     `dataTypes.js`'s `reverseColors` flag is applied by `GeneralGraphComp.getColorRange()`
+     to EVERY old graph type, not just RouteMap. Confirmed live on report 1069's TMC Grid
+     Graph (short travel times rendered red, long ones green). Fixed: generalized the
+     constant to `REVERSE_COLORS_MEASURES` (full set read off old dataTypes.js — travelTime/
+     hoursOfDelay/avgHoursOfDelay/co2Emissions/avgCo2Emissions/avgTT/percentile95/97/
+     bufferTime/planningTime/miseryIndex/travelTimeIndex, +byDateRange siblings; speed/
+     freeflow/dataQuality stay unreversed) and applied it in the generic wiring too.
+     Swept + reconverted 14 already-converted reports whose graphs used an affected
+     measure (740/751/775/914/960/965/987/994/1033/1045/1056/1061/1069/1071) — spot-checked
+     4 live (751 CO2 grid, 1071 travelTime/hoursOfDelay bars, 775, 1033), all correct
+     direction, 0 console/page errors.
+  2. **Duplicate identical RouteMap legend blocks** — confirmed live on report_775 (3
+     identical legend blocks for a 2-comp report) and report_1069. Two compounding causes,
+     both fixed: (a) `useComparisonSeriesLayers.js`'s `materializeSeriesLayer` cloned the
+     series-template layer once per resolved comparison_series variant and always deleted
+     `legend-orientation`, so every clone showed its own (byte-identical, since choropleth
+     legends are pooled per-graph not per-comp) legend row — fixed by re-suppressing
+     `legend-orientation:"none"` on every materialized clone past the first (`index > 0`)
+     for choropleth (`data-column`-bearing) templates only; (b) the 4 Route Map choropleth
+     TEMPLATE_SPECS (speed/travelTime/avgHoursOfDelay/hoursOfDelay) baked
+     `legend-orientation:"vertical"` onto the TEMPLATE layer itself, contradicting (a)'s own
+     comment ("the template layer typically suppresses its own legend row") — so even a
+     single-comp report showed base-template-legend + 1 materialized clone = 2 blocks.
+     Fixed to `"none"`, matching `ensure_route_map_none_template`'s already-correct
+     convention. Reconverted 775/1069 twice (once per fix layer) plus 6 more already-shipped
+     choropleth Route Map pages (745/914/960/987/1033/1045/1056/1061) to pick up the
+     template-level fix; live-verified report_775 → exactly 1 legend block (was 3),
+     report_1069 → exactly 1 (was 3), report_1033 (2 Route Map sections, multiple comps
+     each) → exactly 1 block per map. 0 console/page errors across all reconverted pages.
+  3. **Minutes-vs-seconds color-scale readability** — user-reported: GridGraph legends for
+     travelTime (in minutes) rendered sub-minute values as unreadable raw decimals (e.g.
+     `0.044730158730158724`), no rounding at all. New `formatMinutesAuto(maxDomainValue)`
+     (`graph_new/components/utils.js`) — decided ONCE per graph from its own domain max
+     (user's choice: whole-scale, not per-value): if the max converts to under ~70sec,
+     format the WHOLE legend in seconds; otherwise minutes, always 1-2 decimal places
+     (fixes the raw-float problem regardless of which branch fires). Wired through a new
+     boolean `display.tooltip.minutesAutoSeconds` → `GraphComponent.jsx`'s `hoverComp` memo
+     → `GridGraph.jsx`'s legend `format` (which needed `dataFromProps.max` exposed — the
+     unit decision needs the actual rendered domain, so it can't be resolved upstream like
+     every other static `valueFormat`). Set on `tmc_travel_time_grid_graph`/
+     `tmc_travel_time_grid_graph_tmc` TEMPLATE_SPECS (only current travelTime GridGraph
+     templates), preserving the existing tooltip dict verbatim (`ensure_graph_templates`'
+     display-patch is a shallow per-key replace, not a deep merge). Reconverted report 1069;
+     live-verified: legend now reads `0.04 min … 2.14 min` (rounded; whole-scale max is
+     2.14min≈128sec, correctly stays in minutes per the per-graph rule) — unit-tested both
+     branches directly in node to confirm the seconds branch fires correctly below the
+     70sec threshold (not exercised live this round — no current corpus travelTime GridGraph
+     has a low enough max; the mechanism is verified, not yet observed triggering live).
+  4. **Bonus (user-approved, not a reported symptom)**: `GridGraph`/`LineGraph`/`PieGraph`/
+     `SunburstGraph`/`TreemapGraph` all mutated the shared default-palette array in place on
+     `.reverse()` (`colors.reverse()` instead of `[...colors].reverse()`) — `BarGraph` already
+     had this fix (round 7-adjacent). Latent only: confirmed no current template sets
+     `colors.reverse:true`, so zero behavior change on any live page; fixes a real bug that
+     would otherwise corrupt the shared default palette across sections the moment an author
+     toggles "Reverse" in the UI on any of these 5 graph types.
+  Platform files touched (isolated from converter-only changes per
+  [[feedback_isolate_shared_code_changes]]): `GridGraph.jsx`, `LineGraph.jsx`, `PieGraph.jsx`,
+  `SunburstGraph.jsx`, `TreemapGraph.jsx`, `graph_new/components/utils.js`,
+  `GraphComponent.jsx`, `map/useComparisonSeriesLayers.js`. Converter:
+  `scripts/convert_old_reports.py` (`REVERSE_COLORS_MEASURES` generalization + generic
+  wiring reversal, 4 Route Map template `legend-orientation` fixes, 2 GridGraph TEMPLATE_SPECS
+  `minutesAutoSeconds` additions). Held back per user's own scope pick: the report_775
+  legend-color-vs-map-color off-by-one bug (`choroplethPaint()`'s legend-row builder pairs
+  each shown range with the color one step behind what the paint actually uses, in BOTH the
+  live JS `map/utils.js` and its Python port — confirmed root cause, NOT fixed this round).
+- **R50** (07-15): Map legend bug fixed + M3 CLOSED (travelTime + avgHoursOfDelay + hoursOfDelay, all BUILT & LIVE-VERIFIED) + a real Map tile-join rendering bug found/fixed (full detail below) — session resumed cold via handoff notes
   (`route_map_scope.md`'s "M3+ handoff" section + this file's "Next: M3" pointer) — user flagged
   two Map issues first: no hover interactivity (logged, real new feature, not built) and "the
   legend is just a list of layers, no color scale" (investigated — found a real bug: the
@@ -271,8 +343,164 @@ above are the RAW (all-869) figures.
   bug — old reports whose `color_range` was authored assuming a speed-style "low=bad" direction
   render the same way in both tools when the actual measure is travelTime. Census confirms 0
   remaining `Route Map`/`travelTime` no_equivalent entries (fully absorbed) and
-  `full_producible` 184→188. **Next: check in with user before hoursOfDelay/avgHoursOfDelay
-  (the two-source-join / resolution-keyed sub-measures) — per "cheap one first then check in."**
+  `full_producible` 184→188.
+
+  **CORRECTION (same round, caught before moving on)**: the "faithful port, no reversal" call
+  above was WRONG — verified against an adjacent file (`RouteMap.jsx`'s own `renderGraph`) but
+  not the actual mechanism supplying its `colorRange` prop
+  ([[feedback_verify_the_actual_mechanism]]). Traced further: `RouteMap extends
+  HybridGraphComp extends GeneralGraphComp`; `HybridGraphComp.render()` computes
+  `colorRange = this.getColorRange(displayData)` BEFORE calling `this.renderGraph(...,
+  colorRange)`, and `GeneralGraphComp.getColorRange()` does
+  `get(displayData, "reverseColors", false) ? cr.reverse() : cr` — old `dataTypes.js` marks
+  `speed: reverseColors: false` but `travelTime`/`hoursOfDelay`/`avgHoursOfDelay`:
+  `reverseColors: true`. So the old tool DOES reverse the color array for travelTime before
+  RouteMap ever sees it — my shipped travelTime choropleth had the direction backwards (short/
+  good travel times rendering the "bad" end of the ramp). Fixed: new
+  `ROUTE_MAP_REVERSE_COLORS_MEASURES = {"travelTime", "hoursOfDelay", "avgHoursOfDelay"}` set;
+  `bake_route_map_choropleth_paint` reverses `colors` when `measure` is in that set (applies to
+  the report's real `color_range` AND the `DEFAULT_SPEED_COLOR_RANGE` fallback alike); the
+  travelTime template's own placeholder ramp reversed too for consistency. Reconverted report
+  1069 (`--replace` → page `2191276`), reprobed clean (0 console/page errors), screenshot
+  confirms correct direction (short times green, long times orange/red). This reversal
+  mechanism now applies automatically to hoursOfDelay/avgHoursOfDelay once built, since both
+  are also `reverseColors: true` — no separate fix needed when those land.
+
+  **Next: avgHoursOfDelay** (user chose this over hoursOfDelay next, "since it is context").
+
+  **avgHoursOfDelay BUILT (same round) — real Map render bug found, root-caused, and fixed.** Re-verified the M3+ handoff's
+  resolution-dependence caution (it was right, not stale): old `dataTypes.js` gives
+  avgHoursOfDelay `tmcReducer: meanReducer` — the Map takes the MEAN of per-bucket values,
+  where bucket = whatever the report's resolution setting produces (`getHoursOfDelay.js`).
+  Mean-of-bucket-averages isn't scale-invariant across bucket sizes: at "day" resolution each
+  bucket already IS one calendar day (`getAvgHoursOfDelay`'s "day" case returns the bucket's own
+  sum unchanged), so mean-across-days telescopes to exactly `AVG_DELAY_EXPR`
+  (`sum(delay)/count(DISTINCT date)`, already built, resolution-invariant). At "5-minutes"
+  resolution each bucket is a single raw epoch, so mean-across-epochs is a PER-EPOCH rate
+  (`sum(delay)/count(*)`) — a genuinely different, much smaller-scale quantity, not just a
+  relabeling. Corpus reality check (user-endorsed scope decision): only day (12 instances) and
+  5-minutes (9+1 truck) occur at all — 0 single-blocker flips either way (pure vocabulary
+  breadth) — so built ONLY those two, skipping 15-minutes/hour/month-or-larger (0 corpus
+  instances, would need a genuinely harder nested bucket-then-mean-of-buckets subquery).
+
+  Built: `ensure_route_map_avghoursofdelay_template(year, resolution, ...)` — first
+  (year, resolution)-KEYED Route Map template (every other measure is year-only); needs the
+  two-source `META_1946_JOIN` + `AADT_DIST_JOIN` pair (not the single 455/3464 join
+  speed/travelTime use, since `DELAY_EXPR` reads `table1.avg_speedlimit`/`faciltype`/
+  `table2.distributions`). New `bake_route_map_delay_paint` (separate from
+  `bake_route_map_choropleth_paint` — the FROM/JOIN clause itself differs, not just the SELECTed
+  expression, per the handoff's own advice). New CH physical-table constants
+  `CH_META_1946_TABLE`/`CH_AADT_DIST_TABLE` (from `documentation/npmrds-data-sources.md`'s
+  join-source table, needed for the raw ground-truth SQL these bake functions run directly
+  against ClickHouse).
+
+  **Two real bugs found and fixed while building this (both from earlier THIS round, not
+  pre-existing)**:
+  1. **`ensure_route_map_speed_template` silently returned `None` in live (non-dry-run) mode
+     when minting a BRAND NEW year it had never created before** — a regression from the
+     travelTime work earlier this round: the anchor-based text replacement that inserted
+     `ensure_route_map_traveltime_template` right after it accidentally dropped
+     `ensure_route_map_speed_template`'s own closing `dms(...)/return templates` lines. Silent
+     because every report reconverted THIS round already had an existing `route_map_speed_*`
+     template row (drift-update branch, unaffected) — only surfaced when report 1056 needed a
+     brand-new `route_map_speed_2024` row. Caught immediately via a live crash
+     (`TypeError: argument of type 'NoneType' is not iterable`), not shipped — no page had
+     actually been created yet when it crashed. Fixed by restoring the missing tail.
+  2. **A local variable named `slug` inside the Route Map pre-pass loop silently clobbered
+     `convert_report`'s own function-level `slug = f"report_{old_id}"`** (Python has no
+     per-block scoping — a `for`-loop-local name leaks into the whole enclosing function).
+     Report 1056 and 1033 both got created with the page slug `"day"`/`"5min"` instead of
+     `"report_1056"`/`"report_1033"` — caught by the live probe rendering a blank page (wrong
+     URL), not by any error. Renamed to `avgdelay_resolution`/`avgdelay_slug` to eliminate the
+     collision (`resolution` itself wasn't independently a collision risk, checked). Both
+     reports reconverted with `--replace` after the fix; correct slugs confirmed.
+
+  **Verified**: report 1056 ("Single Route Before and After (Beginner)", day resolution) → page
+  `2191348`, report 1033 ("Bridge Hits Impact - BIN2075859", 5-minutes resolution) → page
+  `2191368`, both `--replace`d after the two fixes above, both probed 0 console/page errors
+  (`chprocs` confirmed no actual hung CH queries despite several `report_probe.mjs`
+  pending-at-close tile requests — these graph-dense test reports render MANY simultaneous
+  CH-joined Map layers at once, a dev-server-load artifact of the test fixture, not a
+  regression: report 1069's simpler single-Route-Map page loaded fast and clean). Screenshots
+  confirm real, correctly-scaled legends: report 1056's day-resolution map shows
+  `5.33 - 5.34` … `5.4 - 5.332` (hours/day scale); report 1033's 5-minutes map shows
+  `0.4 - 0.41` … `0.43 - 0.44` (hours/epoch scale, ~13x smaller — exactly the expected
+  day-vs-epoch scale difference derived above, not a bug). Ground-truthed directly against
+  ClickHouse (not a proxy): TMC `120+08304`, 2018, day resolution → `5.331778559336645`,
+  matching the map's rendered `5.33 - 5.34` bucket exactly.
+
+  Census: 0 errors, `full_producible` unchanged at 188 (0 flips, as predicted — pure
+  vocabulary-breadth), graph-instance mapped 4,961→4,983 (+22, exactly matching the day+5min+
+  truck instance counts), only the single `None`-resolution instance (1, unscoped) remains
+  unmapped for this measure. `converted_pages_total`: 32.
+
+  **User-reported (2026-07-15): "avg hours maps on report_1033/1056 — map component is there,
+  zoom works, but I don't see any TMCs."** Root-caused for real this time (earlier same-round
+  "faithful port, no reversal" AND "verified working" claims were both premature — see the
+  color-reversal correction above and this one): `build_ch_join_wire()`'s calculated-dsColumn
+  bug (the `ds.if(...) as dist_key = table2.key` corruption already found and fixed for the
+  colorDomain endpoint) ALSO broke the live TILE endpoint's two-source CH join — the malformed
+  SQL text either threw a ClickHouse syntax error (caught, logged, `return null`) or produced
+  wrong results, and `dama/tiles/tiles.rest.js`'s CH branch falls back to a geometry-only tile
+  (no `value` property on any feature) whenever the CH query fails or `attributes` end up
+  empty. Confirmed directly: decoded the ACTUAL browser-issued MVT tile (fetched from a
+  correctly-captured request, not a hand-reconstructed one — an earlier attempt at this same
+  check was invalidated by `report_probe.mjs`'s stdout truncation making a real, fully-populated
+  `join` param look like it was missing `attributes`/`groupBy`/the nested join entirely; a
+  file-written Playwright capture proved that data WAS always there) — pre-existing/baseline
+  speed tiles decode with 0 real `value` properties across 3300+ features (same silent
+  geometry-only fallback, apparently a LATENT pre-existing gap in the already-shipped M2/round-49
+  speed work too, not something this round introduced), while POST-fix avgHoursOfDelay tiles
+  now decode with real `value` data attached to real features (e.g. TMC `120+04430` →
+  `0.0626`). This is strong evidence the join-wire bug was the real root cause of the reported
+  symptom. One residual uncertainty flagged to the user rather than resolved solo: whether the
+  now-correctly-colored TMC segment is VISUALLY PERCEPTIBLE at the map's default fit-to-page
+  zoom is a separate, softer rendering question my own Playwright zoom automation could not
+  conclusively answer (blind wheel-zoom without a maplibre API handle couldn't reliably
+  re-center on the exact TMC) — asked the user to confirm visually in their own browser, where
+  interactive pan/zoom is far more reliable than scripted automation. `bake_route_map_delay_paint`/
+  `bake_route_map_choropleth_paint`'s OWN pooled ground-truth queries were NEVER affected by this
+  bug (they hand-build their SQL directly against `CH_META_1946_TABLE`/`CH_AADT_DIST_TABLE`, not
+  through `build_ch_join_wire()`) — this is why the LEGEND numbers were always correct even
+  before the fix, which is exactly what made the bug easy to miss on a first pass.
+
+  **M3 hoursOfDelay BUILT & LIVE-VERIFIED (closing out M3, same round)**. Resolution-INVARIANT
+  (unlike its avgHoursOfDelay sibling): old `dataTypes.js` gives hoursOfDelay a plain
+  `tmcReducer: sumReducer` — summing raw per-bucket `hoursOfDelay` totals (each bucket's own
+  unmodified sum, no `getAvgHoursOfDelay` normalization at all) telescopes to the SAME grand
+  total regardless of what bucket granularity produced the buckets, so one template per YEAR
+  suffices — no resolution keying needed. New `HOURS_OF_DELAY_VALUE_EXPR = sum(DELAY_EXPR
+  body) as value` (the same DELAY_EXPR already proven correct in rounds 9/23/28/38, just
+  aggregated instead of appearing as a raw per-epoch column — not a new formula needing
+  fresh trust). New `ensure_route_map_hoursofdelay_template` (year-only keyed, copy-adapted
+  from `ensure_route_map_avghoursofdelay_template` minus the resolution dimension, same
+  two-source META_1946_JOIN + AADT_DIST_JOIN pair). `bake_route_map_delay_paint` generalized
+  to dispatch on `measure` (hoursOfDelay ignores `resolution` entirely; avgHoursOfDelay still
+  needs it) rather than assuming resolution-keying for every delay-shaped measure. Live-verified
+  on report 775 ("I-90 WB Incident Exit 26 Schen - Amsterdam", 2 comps: a 2-day "Incident" window
+  + a full-2019-year window) → page `2191472`, probed clean (0 console/page errors, 0 pending).
+  Screenshot shows an ACTUAL VISIBLE colored TMC line on the map (the first screenshot this round
+  where a route segment is clearly visible, not just a legend) with a real "Hours of Delay (2019
+  network)" legend (`119.38 - 345.4` … `1254.31 - 2628.4`). Ground-truthed directly against
+  ClickHouse over the pooled full-year range (the wider of the two comps' date windows, matching
+  `bake_route_map_delay_paint`'s own union-of-comps pooling): TMC `120+05858` → `2209.8`, falling
+  correctly into the map's own rendered `1254.31 - 2628.4` bucket; the page's separate TMC Info
+  Box table shows a smaller `1614.69` for the same TMC because that section scopes to a DIFFERENT
+  single comp (the narrow 2-day incident window, not the pooled full-year range the Map uses) —
+  a real difference in what's being measured, not a discrepancy.
+
+  **M3 CLOSED OUT this round**: all three sub-measures (travelTime, avgHoursOfDelay,
+  hoursOfDelay) built and live-verified. Census (869/869, 0 errors): `full_producible` 188
+  (unchanged — none of M3's remaining buckets had single-blocker flips, confirmed pure
+  vocabulary-breadth work as scoped upfront), graph-instance mapped 4,983→4,995 (+12, matching
+  hoursOfDelay's corpus count), `converted_pages_total`: 32. Remaining Route Map no_equivalent
+  buckets are all M4 territory (reliability indices via pm3 — `travelTimeIndex-byDateRange` day
+  resolution alone has 7 real single-blocker flips, the next real lever if picked back up;
+  `freeflow-byDateRange`, `planningTime-byDateRange`, `travelTimeIndex`, `dataQuality`, and the
+  one unscoped `avgHoursOfDelay`/`None`-resolution instance).
+
+  **User-confirmed live (2026-07-15): TMCs now visible on both report_1033 and report_1056** — the join-wire fix resolved the actual reported symptom, not just the tile-decode proxy check. User flagged they can't independently judge whether the colors/values THEMSELVES are correct — already covered: the day-resolution value (5.3318) and a spot-checked 5-minute value were both ground-truthed directly against ClickHouse earlier this round (see above),
+  independent of the rendering bug. Map render bug closed.
 - **R49** (07-15): **Route Map M2 BUILT & LIVE-VERIFIED** — converter speed choropleth (the
   256/214/45 bucket, previously #1-ranked unmapped, now fully absorbed). Two real platform
   gaps found and fixed (not anticipated by the scope doc, discovered by tracing the actual
