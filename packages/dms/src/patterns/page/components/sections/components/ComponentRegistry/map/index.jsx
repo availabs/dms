@@ -239,7 +239,13 @@ const buildJoinOptions = (layerConfig, dataColumn = null) => {
         viewId: joinConfig.source.viewId,
         localKey: joinConfig.featureKeyColumn,
         joinKey: joinConfig.joinColumn,
-        options: { ...buildJoinFilterOptions(queryConfig), groupBy },
+        // Forward a nested secondary join (e.g. a static per-TMC join needed by
+        // a calculated column) the same way buildJoinParam does — see that
+        // function's comment for why the CH query builder already expects this.
+        options: {
+            ...buildJoinFilterOptions(queryConfig), groupBy,
+            ...(queryConfig.join ? { join: queryConfig.join } : {}),
+        },
         attributes: resolved.map((entry) => entry.attr),
         // Expose everything except the join key as tile/feature columns so tile
         // rendering and client-side map filters can read the joined values too.
@@ -983,6 +989,17 @@ export const MapSection = ({ value, onChange, isEdit, onHandle, sectionId: secti
                         );
 
                         const nextLegendData = paintResult?.legend || [];
+                        // getSavedRampPaint's own layer-type → sub-layer/paint-key mapping — the
+                        // freshly computed paint must land back on the exact slot the legend was
+                        // just derived from, or colors and legend text drift out of sync on every
+                        // filter/publish change. (This write was missing entirely before: the
+                        // legend refreshed on every filter change but the rendered map colors
+                        // stayed frozen at whatever was last saved/baked.)
+                        const paintTarget = layer?.type === "circle"
+                            ? { index: 0, key: "circle-color" }
+                            : layer?.type === "line"
+                                ? { index: 1, key: "line-color" }
+                                : { index: 1, key: "fill-color" };
 
                         setState((draft) => {
                             const draftLayer = draft.symbologies?.[symbologyId]?.symbology?.layers?.[layer.id];
@@ -992,6 +1009,12 @@ export const MapSection = ({ value, onChange, isEdit, onHandle, sectionId: secti
                             }
                             if (!isEqual(draftLayer["legend-data"], nextLegendData)) {
                                 draftLayer["legend-data"] = nextLegendData;
+                            }
+                            if (paintResult?.paint) {
+                                const subLayer = draftLayer.layers?.[paintTarget.index];
+                                if (subLayer && !isEqual(subLayer.paint?.[paintTarget.key], paintResult.paint)) {
+                                    subLayer.paint = { ...(subLayer.paint || {}), [paintTarget.key]: paintResult.paint };
+                                }
                             }
                             draftLayer.__runtimeLegendFilterKey = runtimeLegendKey;
                         });

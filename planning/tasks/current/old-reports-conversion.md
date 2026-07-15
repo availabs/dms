@@ -170,7 +170,7 @@ Rerun: `python3 scripts/census_old_reports.py` (~40s, read-only).
   all pre-round-35 pages found ZERO empty-tmc routes wired to graphs; the only converted shell
   page was 874 → `2188794` (no hazard, graphIds all empty) — **deleted round 39** (minted the auth
   token myself, user-authorized; `converted_pages_total` 26→25).
-- [ ] (f) NEW (round 38) — highest remaining lever per the fresh census: **Route Map speed×5-min**
+- [x] (f) NEW (round 38) — highest remaining lever per the fresh census: **Route Map speed×5-min**
   (481 instances, **55 flips** — by far the single biggest lever in the corpus). Not scoped yet;
   read `RouteMap.jsx` for real before sizing it (round 24's standing caution: likely much bigger
   than any Phase A/B measure). **SCOPED round 41 (2026-07-14)** — see
@@ -188,7 +188,14 @@ Rerun: `python3 scripts/census_old_reports.py` (~40s, read-only).
   M1 server / M2 speed / M3 rest. **R47: M0a+M0b DONE & live-verified (report 641, +25
   full flips, census mirrored).** **R48: M1 DONE & live-verified** — dms-server CH join
   sources live on tiles AND colorDomain (20k key cap + unfiltered-refusal, both loud); library
-  task `tile-join-clickhouse-source.md`. **Next: M2 converter speed choropleth (256/214/45).**
+  task `tile-join-clickhouse-source.md`. **R49: M2 DONE & LIVE-VERIFIED** — converter speed
+  choropleth built (`ensure_route_map_speed_template` + per-report quantile-break baking over
+  a pooled CH query); two real platform gaps found and fixed along the way (client-side
+  nested-join forwarding + a maplibre-crashing missing `join.on` wire-shape bug in the
+  converter's own join construction) — see round 49 below and
+  `map-join-nested-join-forward-and-live-repaint.md`. Census confirms the bucket (previously
+  #1-ranked, 256/214/45) is fully absorbed: `full_producible` 122→184. **Next: M3
+  (travelTime/hoursOfDelay/avgHoursOfDelay, +4 flips) or M4 gap-log items.**
 - [x] **(g) DONE (round 40)**: report 745's leftover broken test section deleted (draft
   `2190567`/published `2190568`); report 191 reconverted for real via `--replace` (new page
   `2190581`, dropping the forced-`graph_max_year=2023` demo — see Round 40 below).
@@ -200,6 +207,54 @@ Rerun: `python3 scripts/census_old_reports.py` (~40s, read-only).
 
 ## Round ledger (rounds 1–40 archived — full detail in [the archive](./old-reports-conversion-archive.md))
 
+- **R49** (07-15): **Route Map M2 BUILT & LIVE-VERIFIED** — converter speed choropleth (the
+  256/214/45 bucket, previously #1-ranked unmapped, now fully absorbed). Two real platform
+  gaps found and fixed (not anticipated by the scope doc, discovered by tracing the actual
+  shipped code rather than trusting its "rides inside options.join exactly as templates do"
+  assumption): (1) `buildJoinParam`/`buildJoinOptions` (4 call sites: both tile-request
+  builders + both colorDomain-request builders, page-section + mapeditor copies) silently
+  dropped a layer's `query.join` (a nested secondary join, e.g. the 455/3464 TMC-identification
+  join `SPEED_EXPR` needs for `table1.miles`) instead of forwarding it into `options.join` —
+  the server's CH query builder already supported it (`buildJoin({join})`,
+  `query_sets/clickhouse.js`), only the client never sent it; (2) the Map section's live
+  re-break effect (`refreshLegendData`) computed a fresh `step` paint expression on every
+  filter change but only ever wrote the recomputed legend text, never the paint itself — so
+  today ANY choropleth Map (PG or CH) only relabels its legend on a filter change while the
+  rendered colors stay frozen. Both fixed, isolated in
+  `map-join-nested-join-forward-and-live-repaint.md`. A THIRD bug surfaced live (not a platform
+  gap — a converter authoring mistake): the Map-layer join's nested `query.join` needs the
+  SAME `{sources, on}` wire shape ordinary AVL-Graph queries get via `buildUdaConfig.js`'s own
+  client-side `buildJoin` transform — a step the Map-layer join pipeline bypasses entirely.
+  Sending the bare `{sources: {table1: {...}}}` shape (no `on` array) crashed the ENTIRE
+  dms-server process outright (uncaught `TypeError` in `routes/uda/utils.js#buildJoin`,
+  `join.on.length` with `on` undefined) — not a request-scoped error, the whole nodemon
+  process died for every user. Fixed with a new `build_ch_join_wire()` Python helper that
+  performs the same transform `buildJoinOnClause`/`buildJoinSources` do client-side. Also
+  found and fixed live: (a) maplibre's `step` paint expression requires STRICTLY ascending
+  stops — a degenerate/low-variance report (e.g. report 1071, a single-TMC route where every
+  quantile position collapses to one value) produced tied breaks that maplibre flatly rejects
+  ("must be arranged with input values in strictly ascending order") — `quantile_breaks()` now
+  nudges ties up by the rounding granularity; (b) a genuinely pre-existing, unrelated
+  `NameError` in `census_old_reports.py` (dead code referencing a never-defined
+  `BAR_SUMMARY_PM3_BUCKET`, left over from an abandoned round-38 Bar-Graph-Summary attempt
+  that was never wired into `convert_report`) was silently dropping 274/869 reports from every
+  census run — found only because a from-scratch full-corpus census was needed to validate
+  this round's impact; removed (confirmed dead: referenced nowhere after assignment). Added
+  `DMS_TILE_HOST` env override (mirrors the existing `DMS_HOST` pattern) so local verification
+  can point converted pages' tile requests at the local dev server instead of the baked
+  production default (`https://dmsserver.availabs.org`) — needed because the M1 CH-join server
+  code isn't deployed there yet; the production default itself is unchanged. Live-verified via
+  direct network capture (Playwright listeners attached before a forced `page.reload()` — the
+  `--eval` hook alone runs too late, after initial-load traffic has already fired) on report
+  1071 (single-TMC, degenerate breaks, uniform red render — correct) and report 168 (5 real
+  TMCs, real 17-50mph speed variance, real multi-color render), both 0 console/page errors,
+  `chprocs` clean throughout. Full census rerun (869/869 reports, 0 errors post-fix):
+  `full_producible` 122→184, graph-instance mapped % 61.9%→69.2%. Files:
+  `scripts/convert_old_reports.py`, `scripts/census_old_reports.py`, 4 files under
+  `src/dms/packages/dms/src/patterns/{page/components/sections/components/ComponentRegistry/
+  map,mapeditor/MapEditor}/`. NEXT: M3 (travelTime/hoursOfDelay/avgHoursOfDelay, +4 flips) or
+  M4 gap-log items (pm3 measures, stations, colorDomain live-author parity, the found-but-
+  unfixed dms-server crash-robustness gap).
 - **R48** (07-15): **Route Map M1 BUILT & LIVE-VERIFIED** — dms-server ClickHouse join
   sources (library task `tile-join-clickhouse-source.md`). `buildSimpleFilterSqlCH` factored
   out of `query_sets/clickhouse.js#simpleFilter` (build-only, no LIMIT; single-arm simpleFilter

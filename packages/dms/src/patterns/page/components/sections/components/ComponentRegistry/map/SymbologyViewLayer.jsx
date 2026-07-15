@@ -1476,7 +1476,17 @@ const buildJoinParam = (layerProps) => {
   };
   const joinOutputNames = new Set([...tileColumns, ...columns.map(outputName)]);
 
-  const options = { ...buildJoinFilterOptions(queryConfig), groupBy };
+  const options = {
+    ...buildJoinFilterOptions(queryConfig), groupBy,
+    // A second join nested inside this join's own query (e.g. a CH fact-table
+    // join needing a TMC-identification join for a static per-TMC column like
+    // `miles`) — same `{sources: {...}}` shape AVL-Graph templates already
+    // send as `state.join`, and the CH query builder already destructures a
+    // top-level `join` off this exact options bag (query_sets/clickhouse.js
+    // `simpleFilter`/`simpleFilterLength`'s `buildJoin({join})`). Without this
+    // forward, a template author's `query.join` was silently dropped here.
+    ...(queryConfig.join ? { join: queryConfig.join } : {}),
+  };
   const activeJoinFilters = collectActiveJoinFilterGroups(layerProps, joinOutputNames);
   if (activeJoinFilters.length) {
     const existing = options.filterGroups?.groups
