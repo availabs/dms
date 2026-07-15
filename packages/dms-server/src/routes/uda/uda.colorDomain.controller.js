@@ -2,9 +2,13 @@
  * Color-domain computation for choropleth/circle map layers.
  *
  * Given a view, a numeric column, a bin count, and a binning method, returns
- * the break values needed to render a color scale. PostgreSQL only — spatial
- * datasets aren't on SQLite, and each method leans on PG-specific aggregates
- * (`percentile_cont`, `stddev_samp`, `width_bucket`).
+ * the break values needed to render a color scale. The BASE view is PostgreSQL
+ * only — spatial datasets aren't on SQLite, and each method leans on
+ * PG-specific aggregates (`percentile_cont`, `stddev_samp`, `width_bucket`).
+ * A JOINED view may also be ClickHouse: its subquery runs on CH first and the
+ * result merges back in as a jsonb_to_recordset relation (same mechanism as
+ * the tile join in dama/tiles/tiles.rest.js), so every method below still runs
+ * unchanged in PG against `joined_data`.
  *
  * Methods:
  *   - equalInterval      — single min/max scan; breaks at (max-min)/k
@@ -27,6 +31,7 @@
 
 const { getEssentials, sanitizeName, buildCombinedWhere, getValuesExceptNulls, getValuesFromGroup, getColumnsFromGroup } = require('./utils');
 const { buildSimpleFilterSql } = require('./query_sets/postgres');
+const { buildSimpleFilterSqlCH, chResultToRecordset } = require('./query_sets/clickhouse');
 const { ckmeans } = require('./colorDomain/ckmeans');
 
 const DEFAULTS = {
@@ -174,21 +179,66 @@ async function buildColorDomainTarget({ env, view_id, options, safeColumn, where
   }
 
   const joinCtx = await getEssentials({ env, view_id: join.viewId, options: joinRuntimeOptions });
-  if (joinCtx.dbType !== 'pg') {
-    throw new Error('colorDomain: join view must be PostgreSQL');
-  }
 
-  // 5c — No row cap: the pushed-down filter (5a) already bounds the join result,
-  // and the CTE is reduced to aggregates (breaks/min/max/count), never returned
-  // as raw rows — so there's no unbounded-response risk to guard against here.
-  const { sql: joinSql, values: joinValues } = await buildSimpleFilterSql(
-    joinCtx,
-    JSON.stringify(joinRuntimeOptions),
-    join.attributes || []
-  );
+  // Per-dbType construction of the joined_cte body; the LEFT JOIN shell below
+  // is shared. A ClickHouse join subquery runs on CH first and merges back as
+  // a jsonb_to_recordset relation typed from the CH result meta (same
+  // mechanism as the tile join in dama/tiles/tiles.rest.js).
+  let joinCteSql = null;
+  let joinCteValues = [];
 
-  if (!joinSql) {
-    return { db, tableRef, whereClause, values };
+  if (joinCtx.dbType === 'pg') {
+    // 5c — No row cap: the pushed-down filter (5a) already bounds the join result,
+    // and the CTE is reduced to aggregates (breaks/min/max/count), never returned
+    // as raw rows — so there's no unbounded-response risk to guard against here.
+    const { sql: joinSql, values: joinValues } = await buildSimpleFilterSql(
+      joinCtx,
+      JSON.stringify(joinRuntimeOptions),
+      join.attributes || []
+    );
+
+    if (!joinSql) {
+      return { db, tableRef, whereClause, values };
+    }
+    joinCteSql = shiftParams(joinSql, values.length);
+    joinCteValues = joinValues;
+  } else if (joinCtx.dbType === 'ch') {
+    // Unlike the tile path there is no tile-keys narrowing here — the CH
+    // subquery is bounded ONLY by the filters pushed down in 5a. With no
+    // filters at all that is exactly the known unfiltered-scan hazard
+    // (dms-server/CLAUDE.md "Known hazard"), so refuse loudly instead of
+    // running it. A layer wanting a truly unfiltered statewide domain should
+    // bake its breaks instead.
+    const hasFlatFilters = JOIN_FILTER_KEYS.some((key) => Object.keys(joinRuntimeOptions[key] || {}).length);
+    const hasGroupFilters = !!joinRuntimeOptions.filterGroups?.groups?.length;
+    if (!hasFlatFilters && !hasGroupFilters) {
+      console.error(
+        `[colorDomain] ⚠️⚠️⚠️ REFUSING UNFILTERED ClickHouse join subquery (view ${view_id} ⋈ ` +
+        `${join.viewId}): this colorDomain request reached the CH join path with no filters ` +
+        `pushed into the join — that is a full-fact-table scan. Add a filter to the layer (or ` +
+        `its page bindings), or bake the breaks instead.`
+      );
+      throw new Error('colorDomain: refusing unfiltered ClickHouse join subquery (scan hazard) — add a filter to the layer or bake breaks');
+    }
+
+    const { sql: chSql, columnNameMap } = await buildSimpleFilterSqlCH(
+      joinCtx,
+      JSON.stringify(joinRuntimeOptions),
+      join.attributes || []
+    );
+    if (!chSql) {
+      return { db, tableRef, whereClause, values };
+    }
+    const chResult = await joinCtx.db.query({ query: chSql, format: 'JSON' });
+    const chJson = await chResult.json();
+    const { columnDefs, rowsJson } = chResultToRecordset(chJson, columnNameMap);
+    if (!columnDefs) {
+      return { db, tableRef, whereClause, values };
+    }
+    joinCteSql = `SELECT * FROM jsonb_to_recordset($${values.length + 1}::jsonb) AS x(${columnDefs})`;
+    joinCteValues = [rowsJson];
+  } else {
+    throw new Error('colorDomain: join view must be PostgreSQL or ClickHouse');
   }
 
   // Select the tile-authored columns plus any joined attribute referenced by a
@@ -215,7 +265,7 @@ async function buildColorDomainTarget({ env, view_id, options, safeColumn, where
     .join(', ');
 
   const joinedTableRef = `(
-    WITH joined_cte AS (${shiftParams(joinSql, values.length)})
+    WITH joined_cte AS (${joinCteSql})
     SELECT
       ${geoSelect}
       ${joinedSelect ? `, ${joinedSelect}` : ''}
@@ -228,7 +278,7 @@ async function buildColorDomainTarget({ env, view_id, options, safeColumn, where
     db,
     tableRef: joinedTableRef,
     whereClause,
-    values: [...values, ...joinValues],
+    values: [...values, ...joinCteValues],
   };
 }
 

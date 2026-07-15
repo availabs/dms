@@ -74,6 +74,15 @@
       page load). Root cause fully diagnosed, candidate fixes identified, none implemented yet.
       Task: [clickhouse-unfiltered-probe-hazard.md](./tasks/current/clickhouse-unfiltered-probe-hazard.md)
 
+- [ ] **Tile/colorDomain joins: ClickHouse join sources** — lift the PG-only gates in
+      `tiles.rest.js#getJoinedTileData` and `uda.colorDomain.controller.js` so a symbology layer
+      can join a ClickHouse view into a PG geometry tile: CH join subquery runs first (narrowed
+      to the tile's keys via an options-level filterGroups leaf; 20k key cap with a loud skip
+      log), result merged into the MVT/breaks query via `jsonb_to_recordset` typed from CH meta.
+      Old-reports Route Map M1; consumer is the converter speed choropleth (M2).
+      **BUILT & LIVE-VERIFIED 2026-07-15** — pending first real consumer (M2) before completion.
+      Task: [tile-join-clickhouse-source.md](./tasks/current/tile-join-clickhouse-source.md)
+
 - [ ] **Scheduled data-loader runs** — cron scheduling for datatype workers (data_manager.schedules +
       due-sweep + plugin `schedulables` contract) + datasets-pattern UI: authorable cron creation per
       source + run-history/interrogation pages. Ports the legacy pg-boss npmrds/transcom cadences with

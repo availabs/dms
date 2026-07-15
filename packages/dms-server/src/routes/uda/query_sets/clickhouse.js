@@ -171,7 +171,144 @@ function transformAttributesForClickHouse(attrs) {
   });
 }
 
+/**
+ * Build-only twin of postgres.js#buildSimpleFilterSql for the ClickHouse
+ * dialect. Returns the full single-arm SELECT for the given options WITHOUT
+ * executing it — callers that splice the query into a larger plan (the tile
+ * join in dama/tiles/tiles.rest.js, colorDomain's joined breaks) need the
+ * text, and omit `indices` to get every matching row with NO LIMIT/OFFSET.
+ * ClickHouse inlines filter values into the SQL (no $N placeholders), so
+ * unlike the PG builder there is no `values` array — the returned `sql` is
+ * self-contained. simpleFilter's single-arm path delegates here, so the built
+ * text is exactly what live client queries run.
+ */
+async function buildSimpleFilterSqlCH(ctx, options, attributes, indices = null) {
+  const hasLimit = indices && Number.isFinite(indices.from) && Number.isFinite(indices.to);
+  const num = hasLimit ? indices.to - indices.from + 1 : null;
+  const { table_schema, table_name } = ctx;
+
+  const {
+    filter = {}, exclude = {},
+    gt = {}, gte = {}, lt = {}, lte = {}, like = {},
+    filterGroups = {},
+    groupBy = [], having = [], orderBy = {},
+    normalFilter = [], join = {},
+  } = JSON.parse(options);
+
+  const transformedAttributes = transformAttributesForClickHouse(attributes);
+  const sanitizedAttrs = sanitizeName(transformedAttributes).filter((f) => f);
+  if (!sanitizedAttrs.length) return { sql: null, columnNameMap: {} };
+
+  const columnNameMap = sanitizedAttrs.reduce((acc, attrName, i) => {
+    const responseName = getResponseColumnName(attrName);
+    if (attrName.toLowerCase().includes(' as ') && responseName.length > 60) {
+      acc[attrName] = attrName.replace(` ${responseName}`, ` col_${i}`);
+    }
+    return acc;
+  }, {});
+
+  if (normalFilter.length) {
+    normalFilter.forEach(({ column, values }) => {
+      (filter[column] ??= []).push(...values);
+    });
+  }
+
+  // Detect whether the request includes a real join (server-side mirror of
+  // calculateIsJoinPresent) so the WHERE builder can disambiguate base-table
+  // columns like app/type with a `ds.` prefix.
+  const joinPresent = !!join &&
+    (Object.keys(join.sources || {}).length > 1 ||
+      (Object.keys(join.sources || {}).length === 1 && Object.keys(join.sources || {})[0] !== 'ds'));
+
+  const combinedWhere = buildCombinedWhereCH({
+    filter, exclude, gt, gte, lt, lte, like, filterGroups, joinPresent,
+  });
+
+  const { joins, merges } = await buildJoin({ join });
+  const hasMerge = merges.length > 0;
+  const hasJoin = joins.length > 0;
+  let fromClause;
+  if (hasMerge) {
+    fromClause = `(SELECT * FROM ${table_schema}.${table_name} ${merges}) AS ds`;
+    if (hasJoin) {
+      fromClause += ` ${joins}`;
+    }
+  } else {
+    //default case for no merge
+    //could have 1 or more joins
+    fromClause = `${table_schema}.${table_name} ${hasJoin ? ' as ds ' : ''} ${joins}`;
+  }
+
+  const groupByExprs = groupBy.map(g => sanitizeName(g)).filter(Boolean);
+
+  const sql = `
+    SELECT ${sanitizedAttrs.map((c) => withExplicitAlias(columnNameMap[c] || c)).join(', ')}
+    FROM ${fromClause}
+    ${combinedWhere}
+    ${groupByExprs.length ? `GROUP BY ${groupByExprs.join(', ')}` : ''}
+    ${handleHavingCH(having)}
+    ${handleOrderByCH(orderBy)}
+    ${hasLimit ? `LIMIT ${+num}
+    OFFSET ${indices.from}` : ''}
+  `;
+  return { sql, columnNameMap };
+}
+
+/**
+ * Map a ClickHouse result-meta type to the Postgres column type used when CH
+ * rows are merged into a PG query via jsonb_to_recordset (tile joins,
+ * colorDomain). Numeric fidelity is load-bearing — MVT feature properties and
+ * break computations must see numbers, not text. CH quotes 64-bit ints as
+ * JSON strings; the bigint cast parses them.
+ */
+function chTypeToPg(chType) {
+  let t = String(chType || '').trim();
+  let m;
+  while ((m = /^(?:Nullable|LowCardinality)\((.*)\)$/.exec(t))) t = m[1];
+  if (/^U?Int\d+$/.test(t)) return 'bigint';
+  if (/^Float(32|64)$/.test(t)) return 'double precision';
+  if (/^Decimal/.test(t)) return 'numeric';
+  if (/^Bool$/i.test(t)) return 'boolean';
+  // String/FixedString/Enum/UUID/Date/DateTime/... — text is always a safe
+  // jsonb_to_recordset target.
+  return 'text';
+}
+
+/**
+ * Convert a CH JSON result ({meta, data}) into the pieces a Postgres
+ * jsonb_to_recordset() merge needs: a typed column-definition list and the
+ * rows as a JSON string. Any col_N-shortened aliases (see columnNameMap in
+ * buildSimpleFilterSqlCH) are restored in both the column names and the rows
+ * so downstream SQL can reference the real response names.
+ */
+function chResultToRecordset(chJson, columnNameMap = {}) {
+  const shortToLong = Object.entries(columnNameMap).reduce((acc, [originalName, shortened]) => {
+    acc[getResponseColumnName(shortened)] = getResponseColumnName(originalName);
+    return acc;
+  }, {});
+  const columnDefs = (chJson?.meta || [])
+    .map((m) => {
+      const name = shortToLong[m.name] || m.name;
+      return `"${String(name).replace(/"/g, '')}" ${chTypeToPg(m.type)}`;
+    })
+    .join(', ');
+  const rows = restoreLongColumnNames(chJson?.data || [], columnNameMap);
+  return { columnDefs, rowsJson: JSON.stringify(rows) };
+}
+
 async function simpleFilter(ctx, options, attributes, indices) {
+  // Single-arm queries delegate to the shared build-only twin above — one
+  // source of truth for the query shape with the tile-join / colorDomain
+  // merge callers. The comparison-series fan-out below builds its own
+  // per-arm SQL.
+  if (!(JSON.parse(options).seriesVariants || []).length) {
+    const { sql, columnNameMap } = await buildSimpleFilterSqlCH(ctx, options, attributes, indices);
+    if (!sql) return [];
+    const result = await ctx.db.query({ query: sql, format: 'JSON' });
+    const json = await result.json();
+    return restoreLongColumnNames(json.data || [], columnNameMap);
+  }
+
   const num = indices.to - indices.from + 1;
   const { db, table_schema, table_name } = ctx;
 
@@ -213,10 +350,6 @@ async function simpleFilter(ctx, options, attributes, indices) {
   const joinPresent = !!join &&
     (Object.keys(join.sources || {}).length > 1 ||
       (Object.keys(join.sources || {}).length === 1 && Object.keys(join.sources || {})[0] !== 'ds'));
-
-  const combinedWhere = buildCombinedWhereCH({
-    filter, exclude, gt, gte, lt, lte, like, filterGroups, joinPresent
-  });
 
   const { joins, merges } = await buildJoin({join});
   const hasMerge = merges.length > 0;
@@ -301,20 +434,6 @@ async function simpleFilter(ctx, options, attributes, indices) {
     return restoreLongColumnNames(fanoutJson.data || [], columnNameMap);
   }
 
-  const sql = `
-    SELECT ${sanitizedAttrs.map((c) => withExplicitAlias(columnNameMap[c] || c)).join(', ')}
-    FROM ${fromClause}
-    ${combinedWhere}
-    ${groupByExprs.length ? `GROUP BY ${groupByExprs.join(', ')}` : ''}
-    ${handleHavingCH(having)}
-    ${handleOrderByCH(orderBy)}
-    LIMIT ${+num}
-    OFFSET ${indices.from}
-  `;
-
-  const result = await db.query({ query: sql, format: 'JSON' });
-  const json = await result.json();
-  return restoreLongColumnNames(json.data || [], columnNameMap);
 }
 
 async function dataById(ctx, ids, attributes) {
@@ -343,4 +462,7 @@ module.exports = {
   simpleFilter,
   dataById,
   withExplicitAlias,
+  buildSimpleFilterSqlCH,
+  chTypeToPg,
+  chResultToRecordset,
 };

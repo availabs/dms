@@ -186,7 +186,9 @@ Rerun: `python3 scripts/census_old_reports.py` (~40s, read-only).
   per-variant layer materialization from a `series-template` layer; colorDomain CH branch
   promoted into M1 for live re-breaks. Phases M0a platform subscriber / M0b none-maps live /
   M1 server / M2 speed / M3 rest. **R47: M0a+M0b DONE & live-verified (report 641, +25
-  full flips, census mirrored). Next: M1 server CH join source.**
+  full flips, census mirrored).** **R48: M1 DONE & live-verified** — dms-server CH join
+  sources live on tiles AND colorDomain (20k key cap + unfiltered-refusal, both loud); library
+  task `tile-join-clickhouse-source.md`. **Next: M2 converter speed choropleth (256/214/45).**
 - [x] **(g) DONE (round 40)**: report 745's leftover broken test section deleted (draft
   `2190567`/published `2190568`); report 191 reconverted for real via `--replace` (new page
   `2190581`, dropping the forced-`graph_max_year=2023` demo — see Round 40 below).
@@ -198,6 +200,23 @@ Rerun: `python3 scripts/census_old_reports.py` (~40s, read-only).
 
 ## Round ledger (rounds 1–40 archived — full detail in [the archive](./old-reports-conversion-archive.md))
 
+- **R48** (07-15): **Route Map M1 BUILT & LIVE-VERIFIED** — dms-server ClickHouse join
+  sources (library task `tile-join-clickhouse-source.md`). `buildSimpleFilterSqlCH` factored
+  out of `query_sets/clickhouse.js#simpleFilter` (build-only, no LIMIT; single-arm simpleFilter
+  now DELEGATES to it so live queries run the exact built text); `tiles.rest.js` CH branch —
+  PG keys pass → keys injected as a filterGroups leaf (options-level, pre-aggregation) → CH
+  executes → rows merged into the shared MVT shell via `jsonb_to_recordset` typed from CH
+  result meta (`chTypeToPg`/`chResultToRecordset`); empty keys → geometry-only; >20k keys →
+  geometry-only + LOUD `CH JOIN SKIPPED` log (user directive). colorDomain CH branch uses the
+  same recordset merge so all four break methods run unchanged in PG; unfiltered CH join →
+  loud refusal (scan-hazard guard). Verified: 14/14 new unit tests + uda 83/83 + core suites
+  green; live Buffalo tile 1027⋈982 (1374/1477 features with numeric avg-tt, no-data TMCs
+  property-less = gray LEFT-JOIN semantics), meta join 1027⋈3464 (bigint+float), cap trip at
+  z0 (49,068 keys, loud log), ckmeans/quantile breaks sane (count 45691), live single-arm
+  delegation row, chprocs clean throughout. MVT-decode verify harness saved:
+  `scratchpad/npmrds-sub/old-reports/verify_ch_tile_join.cjs`. NEXT: M2 (converter speed
+  choropleth over the 982 join at tmc grain, baked initial breaks + live re-breaks; verify
+  on 1071/641/895).
 - **R47** (07-14): **Route Map M0a + M0b BUILT & LIVE-VERIFIED** (user endorsed: palette
   colors option A, loud key-count guard for M1). M0a (library task
   `map-comparison-series-layers.md`): `comparison_series` subscriber runtime for the Map
