@@ -9,8 +9,9 @@
  *   mapped_options loading, CRUD, save/onChange, page filter sync.
  */
 
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, useContext } from "react";
 import { isEqual } from "lodash-es";
+import { PageContext } from "../../../../context";
 import { getData } from "./getData";
 import { hasUnresolvedRequiredLeaf } from "./buildUdaConfig";
 import { useNowTick } from "./hooks/useNowTick";
@@ -197,9 +198,27 @@ export function useDataLoader({ state, setState, apiLoad, component, isEditMode 
   const tickTz = RESOLVED_TZ;
   const nowTick = useNowTick({ granularity: tickGranularity, tz: tickTz });
 
+  // ─── data_refresh subscriber ───────────────────────────────────────────────
+  // A section subscribed to an action param refetches whenever that param's
+  // published value changes: the value is mixed into the fetchKey (same pattern
+  // as nowTick), so the dedup naturally allows exactly one refetch per publish.
+  // Providers publish a fresh value per event (e.g. the Card add_publish
+  // provider publishes the created row id), which is what lets a create in one
+  // section refresh another section's data without a reload. Inert while the
+  // param is unset. Note: fetchMode 'cache' sections never fetch (readyToLoad
+  // gate) — subscribers should be 'smart'/'force'.
+  const { pageState } = useContext(PageContext) || {};
+  const refreshSub = state?.display?._functions?.subscribers?.find(
+    (s) => s.functionId === 'data_refresh' && s.enabled,
+  );
+  const dataRefreshToken = refreshSub
+    ? pageState?.filters?.find((f) => f.searchKey === refreshSub.paramKey && f.type === 'action')?.values?.[0]
+    : undefined;
+
   const fetchKey = useMemo(() => {
     const base = computeFetchKey(state);
-    return tickGranularity ? `${base}|tick:${nowTick}` : base;
+    const withTick = tickGranularity ? `${base}|tick:${nowTick}` : base;
+    return dataRefreshToken !== undefined ? `${withTick}|refresh:${dataRefreshToken}` : withTick;
   }, [
     state.columns,
     state.filters,
@@ -214,6 +233,7 @@ export function useDataLoader({ state, setState, apiLoad, component, isEditMode 
     state.comparisonSeries,
     tickGranularity,
     nowTick,
+    dataRefreshToken,
   ]);
 
   const isValidState = Boolean(state?.externalSource?.source_id || state?.externalSource?.isDms);
@@ -252,6 +272,7 @@ export function useDataLoader({ state, setState, apiLoad, component, isEditMode 
             fullDataLoad: component.fullDataLoad,
             keepOriginalValues: component.keepOriginalValues,
             optionsOnly: component.optionsOnly,
+            refreshToken: dataRefreshToken,
           });
 
           // A newer request has since been issued — discard this stale response.
@@ -305,6 +326,7 @@ export function useDataLoader({ state, setState, apiLoad, component, isEditMode 
           apiLoad,
           keepOriginalValues: component.keepOriginalValues,
           optionsOnly: component.optionsOnly,
+          refreshToken: dataRefreshToken,
         });
 
         // A newer request (page change or filter-driven refetch) has since
@@ -331,6 +353,7 @@ export function useDataLoader({ state, setState, apiLoad, component, isEditMode 
       state,
       apiLoad,
       setState,
+      dataRefreshToken,
     ],
   );
 

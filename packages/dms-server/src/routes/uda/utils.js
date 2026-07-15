@@ -446,6 +446,10 @@ function getColumnsFromGroup(node) {
 function getValuesFromGroup(node) {
   if (!node) return [];
   if (node.groups) return node.groups.flatMap(getValuesFromGroup);
+  // `empty` / `notempty` are unary — buildLeafSQL emits no placeholder for them,
+  // so emit no bind value here regardless of any stray `value` left on the leaf,
+  // keeping the values array in lockstep with the emitted $N placeholders.
+  if (node.op === 'empty' || node.op === 'notempty') return [];
   // `time` op carries a structured value object — extract its bind values in
   // the same canonical order buildTimeFilterSQL mints placeholders.
   if (node.op === 'time') {
@@ -467,6 +471,15 @@ function getValuesFromGroup(node) {
 
 function buildLeafSQL(node, ctx, isDms, dbType) {
   const { col, op, value, isExternal } = node;
+
+  // `empty` / `notempty` are UNARY: match rows with no value (NULL or '') or its
+  // inverse. They consume NO bind placeholder (getValuesFromGroup emits none for
+  // them), so they must stay ahead of both the `value == null` guard and the
+  // placeholder allocation below. `col` is already the fully-qualified accessor
+  // (data->>'x', or ds.data->>'x' under a join) — used verbatim like the sibling ops.
+  if (op === 'empty') return `(${col} IS NULL OR ${col} = '')`;
+  if (op === 'notempty') return `(${col} IS NOT NULL AND ${col} <> '')`;
+
   // External filters are already applied via old-style filter/like/etc. objects —
   // they exist in filterGroups only for UI tracking, not SQL generation.
   // Also skip nodes with no value (would generate a placeholder with no matching param).

@@ -165,7 +165,7 @@ const getEdge = (
 export const TableCell = memo(function TableCell ({
     index, attrI, item, isTotalCell,
     showOpenOutCaret, setShowOpenOut,
-    attribute, openOutTitle
+    attribute, openOutTitle, openOutInline
 }) {
     const {
         frozenCols, allowEdit: allowEditComp, editing, setEditing, isDragging, isSelecting,
@@ -443,7 +443,9 @@ export const TableCell = memo(function TableCell ({
         // (e.g. `numDiag` for diagnostic / no-verdict numbers) and have it
         // win over the table's default `cellInner` styling.
         const valueStyleClass = attribute.valueFontStyle ? (theme?.[attribute.valueFontStyle] || '') : '';
-        return `${ openOutTitle ? theme?.openOutTitle : attribute.openOut ? theme?.openOutValue : theme?.cellInner }
+        // openOut value uses the inline panel's value style when in inline mode, else the drawer's.
+        const openOutValueClass = openOutInline ? theme?.openOutInlineValue : theme?.openOutValue;
+        return `${ openOutTitle ? theme?.openOutTitle : attribute.openOut ? openOutValueClass : theme?.cellInner }
                 ${justifyClass[attribute.justify] || ''} ${bgColor} ${attribute.formatFn === 'title' ? 'capitalize' : ''}
                 ${attribute.wrapText ? theme.wrapText : ''}
                 ${renderTextBox ? theme.cellEditableTextBox : ''}
@@ -451,13 +453,15 @@ export const TableCell = memo(function TableCell ({
                 ${valueStyleClass}`;
     }, [
         attribute.openOut, attribute.justify, attribute.wrapText, attribute.formatFn, attribute.valueFontStyle,
-        openOutTitle, renderTextBox, theme, bgColor, isHighlighted, highlightedRow?.style
+        openOutTitle, openOutInline, renderTextBox, theme, bgColor, isHighlighted, highlightedRow?.style
     ]);
 
     const cellClassName = useMemo(() => {
-        if (attribute.openOut || openOutTitle) return '';
+        if (openOutTitle) return '';
+        // inline openOut cell = the field wrapper (label + value stacked); drawer cell stays bare.
+        if (attribute.openOut) return openOutInline ? (theme?.openOutInlineField || '') : '';
         return `${theme.cell} ${bgColor} ${isSelecting || isDragging ? 'select-none' : ''}`;
-    }, [ attribute.openOut, openOutTitle, theme.cell, bgColor, isSelecting, isDragging ]);
+    }, [ attribute.openOut, openOutTitle, openOutInline, theme?.openOutInlineField, theme.cell, bgColor, isSelecting, isDragging ]);
 
     const cellStyle = useMemo(() => {
         if (attribute.openOut || openOutTitle) return undefined;
@@ -536,7 +540,7 @@ export const TableCell = memo(function TableCell ({
                 </div> : null}
 
             {attribute.openOut ?
-                <span className={theme?.openOutHeader}>
+                <span className={openOutInline ? theme?.openOutInlineLabel : theme?.openOutHeader}>
                     {attribute.customName || attribute.display_name || attribute.name}
                 </span> : null}
 

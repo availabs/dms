@@ -171,6 +171,14 @@ export const mapFilterGroupCols = (node, getColumn, isDms) => {
     };
   }
 
+  // A leaf flagged `disabled` is suppressed — emit nothing. This is how the
+  // viewer-facing "needs-value" TOGGLE (ExternalFilters) turns a unary
+  // `empty`/`notempty` leaf OFF: the leaf stays in the tree (so the toggle keeps
+  // rendering) but is dropped from the emitted query, so servers without the op
+  // — and normal queries — are unaffected. Additive/BC: no pre-existing leaf
+  // carries `disabled`.
+  if (node.disabled) return null;
+
   // Leaf condition: map col name to refName
   const col = getColumn(node.col);
   if (!col) return node;
@@ -203,6 +211,17 @@ export const mapFilterGroupCols = (node, getColumn, isDms) => {
     isCalculatedCol(col),
     col.systemCol,
   );
+
+  // `empty` / `notempty` are UNARY ops (col IS NULL OR col = '' / its negation).
+  // They carry NO value, so the blank-value drop-outs above (like/filter/exclude)
+  // must never discard them — those guards are op-scoped and already skip this op,
+  // but we short-circuit here explicitly so the leaf is always emitted with just
+  // the mapped col ref. `value` is irrelevant and dropped, so the server never
+  // mints a bind placeholder for it (see getValuesFromGroup / buildLeafSQL in
+  // dms-server uda/utils.js).
+  if (node.op === "empty" || node.op === "notempty") {
+    return { ...node, col: ref || node.col, value: undefined };
+  }
 
   const mapped = {
     ...node,
@@ -385,6 +404,20 @@ export const applyPageFilters = (filterTree, pageFilters) => {
 
     const key = node.searchParamKey || node.col;
     const pageValues = pageFilters[key];
+
+    // Unary `empty`/`notempty` leaves carry no value — the page filter's mere
+    // PRESENCE toggles inclusion. Absent → `disabled` (mapFilterGroupCols drops
+    // it → no clause); present → enabled. This is what lets the ExternalFilters
+    // needs-value toggle round-trip through pageState/URL and drive OTHER
+    // reacting sections that hold the same `empty` leaf. Additive/BC: only
+    // `empty`/`notempty` + usePageFilters leaves are affected (both brand new).
+    if (node.op === 'empty' || node.op === 'notempty') {
+      const active = Array.isArray(pageValues)
+        ? pageValues.some((v) => v != null && String(v).length)
+        : pageValues != null && pageValues !== '';
+      return { ...node, disabled: !active };
+    }
+
     if (!pageValues) return node;
 
     // Time filters carry a structured value object — pageState stores a

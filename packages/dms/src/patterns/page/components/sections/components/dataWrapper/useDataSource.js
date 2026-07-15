@@ -1,6 +1,6 @@
 import { useContext, useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { get, isEqual, set } from "lodash-es";
-import { nameToSlug } from "../../../../../../utils/type-utils";
+import { nameToSlug, getInstance } from "../../../../../../utils/type-utils";
 import { CMSContext, PageContext } from "../../../../context";
 import { EXTERNAL_SOURCE_KEY } from "./schema";
 import { DEFAULT_SOURCE_JOIN } from "./utils/utils";
@@ -21,7 +21,16 @@ const getSources = async ({ envs, falcor }) => {
             const len = get(lenRes, ["json", "uda", e, "sources", "length"]);
             if (!len) return [];
 
-            const r = await falcor.get(["uda", e, "sources", "byIndex", { from: 0, to: len - 1 }, envs[e].srcAttributes]);
+            // For DMS sources also fetch `row_type` (the row's type string; the plain `type`
+            // attribute serves data->>'type', the source KIND) — its instance segment is the
+            // canonical env/type slug. The display name is NOT reliable: nameToSlug(name)
+            // drifts from the instance whenever they differ ("Site Management — Tickets" →
+            // site_management__tickets vs instance sitemgmt_tickets), and a drifted env
+            // resolves NO source server-side (silent nulls on every later fetch).
+            const fetchAttributes = envs[e].isDms
+                ? [...new Set([...envs[e].srcAttributes, "row_type"])]
+                : envs[e].srcAttributes;
+            const r = await falcor.get(["uda", e, "sources", "byIndex", { from: 0, to: len - 1 }, fetchAttributes]);
 
             const valueGetter = (i, attr) =>
                 get(r, ["json", "uda", e, "sources", "byIndex", i, attr]);
@@ -29,11 +38,16 @@ const getSources = async ({ envs, falcor }) => {
             return range(0, len - 1).map((i) => {
                 const app = valueGetter(i, "app");
                 const name = valueGetter(i, "name");
-                // For DMS sources, build env from source name slug (matches how data types are stored)
-                const sourceSlug = name ? nameToSlug(name) : null;
+                // instance from the row type when available (needs a server with the
+                // row_type attribute); display-name slug as the legacy fallback
+                const instance = envs[e].isDms ? getInstance(valueGetter(i, "row_type") || "") : null;
+                const sourceSlug = instance || (name ? nameToSlug(name) : null);
                 const env = sourceSlug && app ? `${app}+${sourceSlug}` : e;
 
                 return {
+                    // externalSource.type for internal tables = the instance slug (addItem
+                    // composes the split data type from it; applyCreateDefaults rebuilds env)
+                    ...(instance ? { type: instance } : {}),
                     ...envs[e].srcAttributes.reduce((acc, attr) => {
                         let value = valueGetter(i, attr);
 
@@ -288,7 +302,10 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
                         .filter(c => newColumnsNames.includes(c.name))
                         .map(c => ({...c, ...newColumns.find(newC => newC.name === c.name)}));
                     const baseUrl = envs[match.srcEnv]?.baseUrl || '';
-                    const sourceType = match.name ? nameToSlug(match.name) : draft[EXTERNAL_SOURCE_KEY]?.type;
+                    // isDms match.type is already the instance slug (getSources); the
+                    // display-name slug is a drift-prone legacy fallback only
+                    const sourceType = (match.isDms && match.type) ? match.type
+                        : match.name ? nameToSlug(match.name) : draft[EXTERNAL_SOURCE_KEY]?.type;
                     draft[EXTERNAL_SOURCE_KEY] = { ...match, baseUrl, type: sourceType };
                 }
             });
@@ -335,7 +352,8 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
             if (newJoinMatch) {
                 setState((draft) => {
                     const baseUrl = envs[newJoinMatch.srcEnv]?.baseUrl || "";
-                    const sourceType = newJoinMatch.name ? nameToSlug(newJoinMatch.name) : draft.join.sources[alias].sourceInfo?.type;
+                    const sourceType = (newJoinMatch.isDms && newJoinMatch.type) ? newJoinMatch.type
+                        : newJoinMatch.name ? nameToSlug(newJoinMatch.name) : draft.join.sources[alias].sourceInfo?.type;
 
                     draft.join.sources[alias].sourceInfo = { ...newJoinMatch, baseUrl, type: sourceType };
                     draft.join.sources[alias].source = newJoinSourceId;

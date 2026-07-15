@@ -10,6 +10,9 @@ right after creation.
 Let an add-new form Card fill derived fields at create instead of waiting for a sync heal:
 
 - `defaultValue` — static fill for a blank field (`status: "Triage"`).
+- `defaultFn` (added 2026-07-15, see modal-form-polish-enrichments.md §6) — dynamic fill:
+  `'today'` / `'now'` / `'user'` (logged-in email via CMSContext, threaded through both
+  addItems). Control room: reporter + opened/updated at create.
 - `autoNumber` (+ `autoNumberStart`) — next sequential number across the WHOLE source:
   `max+1`, floored by `autoNumberStart - 1` (tickets: start 101 → identical rule to
   `cr_sync`'s `max(100, …) + 1` healing).

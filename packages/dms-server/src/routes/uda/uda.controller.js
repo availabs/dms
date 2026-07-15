@@ -71,6 +71,10 @@ async function getSourceById(env, ids, attributes) {
     const formattedAttrs = ['id', ...sanitizedAttrs].map(a =>
       // 'type' must read from data JSON (e.g. 'internal_table'), not the row column (e.g. 'doc_type|source')
       a === 'type' ? `data->>'type' AS type`
+        // 'row_type' exposes the ROW's type string ('{dmsenv}|{instance}:source') — its
+        // instance segment is the canonical env/type slug for uda reads (the display-name
+        // slug drifts whenever name ≠ instance)
+        : a === 'row_type' ? `type AS row_type`
         : dbCols.includes(a) ? a
         // DMS source rows don't store source_id in data — fall back to the row id
         : a === 'source_id' ? `COALESCE(data->>'source_id', CAST(id AS TEXT)) AS source_id`
@@ -91,7 +95,8 @@ async function getSourceById(env, ids, attributes) {
   // Falcor request that includes 'id' in attributes would emit a duplicate
   // SELECT entry referencing a column that doesn't exist.
   const tbl = db.type === 'postgres' ? 'data_manager.sources' : 'sources';
-  const dataAttrs = sanitizedAttrs.filter(a => a !== 'id');
+  // 'row_type' is a DMS-only attribute (see above) — data_manager.sources has no such column
+  const dataAttrs = sanitizedAttrs.filter(a => a !== 'id' && a !== 'row_type');
   const colList = dataAttrs.length ? `, ${dataAttrs.map(a => `"${a}"`).join(', ')}` : '';
   const { rows } = await db.query(
     `SELECT source_id AS id${colList} FROM ${tbl} WHERE source_id = ANY($1::INT[])`,

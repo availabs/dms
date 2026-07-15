@@ -44,6 +44,10 @@ export const tableTheme = {
 
             totalRow: 'bg-gray-100 sticky bottom-0 z-[3]',
             stripedRow: 'even:bg-gray-50',
+            // Neutral default accent applied to a whole row by the `conditional_row_style`
+            // Spreadsheet provider (left edge + faint tint). A brand theme overrides this by
+            // defining its own `styleKey` (e.g. `rowAccentAmber`) and pointing the provider at it.
+            rowAccent: 'border-l-4 border-gray-400 bg-gray-50',
 
             openOutContainer: 'w-[330px] overflow-auto scrollbar-sm flex flex-col gap-[12px] p-[16px] bg-white h-full float-right',
             openOutContainerWrapper: 'fixed inset-0 right-0 h-full w-full z-[100]',
@@ -55,6 +59,17 @@ export const tableTheme = {
             openOutIconWrapper: 'px-2 cursor-pointer bg-transparent text-gray-500 hover:text-gray-600',
             openOutBelowRow: false,
             openOutHideTitle: false,
+
+            // Inline openOut (display.openOutMode === 'inline'): the detail renders as a
+            // full-width panel inserted directly beneath the clicked row (pushing rows down)
+            // instead of the floating right-side drawer. Neutral library defaults — a brand
+            // theme overrides these keys to restyle the panel. Same openOut fields as the
+            // drawer (label + value), reusing TableCell's extraction.
+            openOutInlineRow: 'w-full bg-gray-50 border-y border-gray-100',
+            openOutInlinePanel: 'grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 p-4',
+            openOutInlineField: 'flex flex-col gap-0.5',
+            openOutInlineLabel: 'text-xs font-semibold uppercase tracking-wide text-gray-500',
+            openOutInlineValue: 'text-sm text-gray-700',
 
             pivotGroupHeader: 'bg-gray-100 text-gray-700 text-center border-b border-r border-gray-200',
 

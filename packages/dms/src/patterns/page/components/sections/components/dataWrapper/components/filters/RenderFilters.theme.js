@@ -22,6 +22,26 @@ export const filterTheme = {
     conditionRowInline: 'w-full flex flex-row items-center gap-1',
     conditionRowStacked: 'w-full flex flex-col items-center gap-1',
 
+    // Needs-value TOGGLE chip — the viewer control for a unary `empty`/`notempty`
+    // external leaf (ExternalFilters). A unary op has no value input, so this
+    // switch's on/off IS the whole state: ON applies the clause, OFF suppresses
+    // the leaf. Neutral library defaults (grays only); a brand theme (mny)
+    // overrides these to the "Needs priority" pill look. The on-state is driven
+    // by a `data-on` attribute on the chip (`group`), so track/knob respond via
+    // `group-data-[on]:` variants — no hardcoded brand colour in the component.
+    toggleChip: 'group inline-flex items-center gap-2 cursor-pointer select-none',
+    toggleChipOn: '',
+    toggleTrack: 'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full bg-gray-200 transition-colors group-data-[on]:bg-gray-600',
+    toggleKnob: 'inline-block size-4 translate-x-0.5 rounded-full bg-white shadow transition-transform group-data-[on]:translate-x-4',
+
+    // Active-filter TOKENS + clear-all (ExternalFilters, opt-in via
+    // display.showActiveTokens / display.showClearAll). Removable chip per
+    // external filter that carries a selected value; ✕ clears that filter.
+    activeTokensWrapper: 'w-full flex flex-row flex-wrap items-center gap-1 pt-2',
+    activeToken: 'inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-700',
+    activeTokenRemove: 'cursor-pointer opacity-60 hover:opacity-100 size-3',
+    clearAll: 'text-xs text-gray-500 hover:text-gray-700 underline cursor-pointer ml-auto',
+
     // RenderFilterValueSelector — edit-mode value editor for each filter row.
     filterRowWrapper: 'p-1 relative text-xs',
     inlineSwitchRow: 'flex flex-wrap items-center gap-1',
