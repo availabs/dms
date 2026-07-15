@@ -311,6 +311,53 @@ above are the RAW (all-869) figures.
   legend-color-vs-map-color off-by-one bug (`choroplethPaint()`'s legend-row builder pairs
   each shown range with the color one step behind what the paint actually uses, in BOTH the
   live JS `map/utils.js` and its Python port — confirmed root cause, NOT fixed this round).
+- **R51 follow-up (same day)**: user caught two more real issues after the R51 fixes above
+  landed. (1) **`TILE_HOST` reliability, now durable**: every reconversion this round baked
+  the Map's tile requests to whatever `TILE_HOST` resolved to AT CONVERSION TIME (not probe
+  time) — `DMS_TILE_HOST=http://localhost:3001` has to be remembered on the CONVERT command,
+  not just the verify command, and got forgotten 3 times this session alone (every choropleth
+  Route Map reconverted earlier in R51 — 745/775/914/960/987/1033/1045/1056/1061/1069 — was
+  silently baked to production, `https://dmsserver.availabs.org`, which 204s empty tiles for
+  any measure whose server-side join code isn't deployed there yet). User: "this is not the
+  first time... think of a more durable solution... ok if eventually hardcoded to dmsserver,
+  but needs to be easy right now." Fixed: `TILE_HOST` now auto-detects — a quick TCP connect
+  to `localhost:3001` (300ms timeout) picks local if a dev server is actually up, else falls
+  back to production; `DMS_TILE_HOST` env var still wins if explicitly set (escape hatch for
+  CI/deliberate prod testing). Zero manual steps now; prints which host it picked. All 10
+  affected reports reconverted again under the new auto-detected local host; report_775 (the
+  page the user was looking at) went from ALL 8 tile requests 204ing (confirmed via full
+  network capture — `dmsserver.availabs.org`) to real 200s with populated MVT bodies
+  (200-770KB) once pointed at localhost:3001; screenshot confirms a real visible colored TMC
+  line (previously invisible — map+legend rendered, but the route itself never painted).
+  Report_960 (avgHoursOfDelay, 6 comps) re-verified too: visible TMCs, exactly 1 legend block.
+  Census clean (869/869, 0 errors) after the re-reconversion pass.
+  (2) **Real design question, NOT yet resolved — does RouteMap correctly support N
+  simultaneous comps?** User asked directly: "did you configure RouteMap to show multiple
+  routes? In the old UI it could only show 1 at a time." Investigated old `RouteMap.jsx`
+  directly (not assumed): the old tool's `setActiveRouteComponents` DOES allow multiple
+  simultaneously-active comps (`multi-select-route` header control) — but with a load-bearing
+  guard: activating a new comp auto-deactivates any other active comp whose `tmcArray` is
+  IDENTICAL to the new one (`!isEqual(newComp.tmcArray, comp.tmcArray)`), i.e. the old tool
+  explicitly refuses to show the SAME physical route twice — multi-comp display is only for
+  genuinely different routes/segments. Confirmed report_775's own 2 comps ("Incident" +
+  "2019-I-90 West Schen to Amsterdam") share `routeId=5375` — the literal same-route case old
+  RouteMap would never show simultaneously. The comparison_series Map pipeline (built rounds
+  45-47, M0a/M0b — NOT this session) materializes one layer per assigned comp unconditionally,
+  with no tmcArray-identity check at all, so same-route comps stack on the SAME geometry with
+  2 different colorings. Visually confirmed on report_775 post tile-host-fix: the route renders
+  mostly green (full-2019-year comp's low averages) with a red segment overlaid at the exact
+  incident location (the narrow 2-day comp's spike) — arguably a nice highlight in this one
+  case, but it is a real, confirmed behavior difference from the old tool, not something this
+  round decided on purpose. Separately, also confirmed via live network capture: the
+  un-cloned `series-template` layer itself is NEVER hidden/excluded from rendering by
+  `useComparisonSeriesLayers.js` (only legend visibility was addressed by R51's fix above) —
+  it stays `isVisible:true` with an empty/unfiltered join, and its own colorDomain re-break
+  call correctly gets refused by the scan-hazard guard (`"colorDomain: refusing unfiltered
+  ClickHouse join subquery"`) every page load. Harmless today (refused, not scanned) but
+  wasteful and a symptom of the same gap. NEITHER of these two mechanism findings has been
+  fixed yet — flagged to the user for a direction call (mirror old tool's tmcArray-identity
+  guard? hide the template layer from rendering entirely regardless?) rather than decided
+  solo, since it's a real product-behavior question, not a pure bug.
 - **R50** (07-15): Map legend bug fixed + M3 CLOSED (travelTime + avgHoursOfDelay + hoursOfDelay, all BUILT & LIVE-VERIFIED) + a real Map tile-join rendering bug found/fixed (full detail below) — session resumed cold via handoff notes
   (`route_map_scope.md`'s "M3+ handoff" section + this file's "Next: M3" pointer) — user flagged
   two Map issues first: no hover interactivity (logged, real new feature, not built) and "the
