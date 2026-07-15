@@ -160,6 +160,38 @@ export const materializeSeriesLayer = (template, variant, index, color) => {
     return layer;
 };
 
+/**
+ * Old RouteMap.jsx's `setActiveRouteComponents` explicitly refuses to keep two
+ * comps simultaneously active when they cover the SAME physical route
+ * (`!isEqual(newComp.tmcArray, comp.tmcArray)`) — multi-comp display there is
+ * for genuinely different routes/segments, never two views of one road.
+ * Materializing one layer per assigned comp unconditionally (as this hook did
+ * before round 51) loses that guard: two comps over the same TMCs stack two
+ * different colorings on the identical geometry (user-reported, report_775 —
+ * "same-route should be exclusive, like the old tool"). Mirror it here: within
+ * one template's own variants, keep only the FIRST variant per distinct
+ * geometry (the template's `series-feature-column`, e.g. "tmc") — later
+ * variants covering the exact same feature set are dropped, not materialized.
+ * Variants over genuinely different geometry (or where identity can't be
+ * determined at all) are never affected.
+ */
+const dedupeVariantsByGeometry = (variants, template) => {
+    const featureCol = getTemplateFeatureColumn(template);
+    if (!featureCol) return variants;
+    const seen = new Set();
+    return variants.filter((variant) => {
+        const leaves = collectFilterLeaves(variant.filters);
+        const leaf = leaves.find(
+            (l) => l.col === featureCol && Array.isArray(l.value)
+        );
+        if (!leaf) return true;
+        const key = [...leaf.value].sort().join(",");
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
+};
+
 export function useComparisonSeriesLayers({ state, setState, sectionId, trackingId }) {
     const { pageState } = useContext(PageContext) || {};
     const { falcor, pgEnv } = useContext(CMSContext) || {};
@@ -227,7 +259,7 @@ export function useComparisonSeriesLayers({ state, setState, sectionId, tracking
             if (entry?.symbology?.[SERIES_FINGERPRINT_KEY] === fingerprint) return;
 
             const generated = templates.flatMap((template) =>
-                variants.map((variant, i) =>
+                dedupeVariantsByGeometry(variants, template).map((variant, i) =>
                     materializeSeriesLayer(
                         template,
                         variant,

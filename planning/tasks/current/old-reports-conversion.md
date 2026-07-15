@@ -354,10 +354,30 @@ above are the RAW (all-869) figures.
   it stays `isVisible:true` with an empty/unfiltered join, and its own colorDomain re-break
   call correctly gets refused by the scan-hazard guard (`"colorDomain: refusing unfiltered
   ClickHouse join subquery"`) every page load. Harmless today (refused, not scanned) but
-  wasteful and a symptom of the same gap. NEITHER of these two mechanism findings has been
-  fixed yet — flagged to the user for a direction call (mirror old tool's tmcArray-identity
-  guard? hide the template layer from rendering entirely regardless?) rather than decided
-  solo, since it's a real product-behavior question, not a pure bug.
+  wasteful and a symptom of the same gap. User's call (2026-07-15): "same-route should be
+  exclusive, like the old tool." **BUILT & LIVE-VERIFIED same round**: new
+  `dedupeVariantsByGeometry(variants, template)` in `useComparisonSeriesLayers.js` — per
+  template, keeps only the FIRST resolved variant per distinct value of the template's
+  `series-feature-column` (e.g. "tmc"), mirroring old RouteMap's
+  `!isEqual(newComp.tmcArray, comp.tmcArray)` guard exactly; variants over genuinely
+  different geometry (or where identity can't be determined) are never affected — this only
+  collapses same-route duplicates, the M0b "show N different routes" capability is untouched.
+  Applied inside the `templates.flatMap` before `materializeSeriesLayer`, ahead of the
+  existing palette/materialization logic. Client-side/runtime-only fix — no reconversion
+  needed, applies to every already-converted page on next load. Verified on report_775 via
+  network capture (not just a screenshot, since a single-surviving-variant render can look
+  deceptively similar to a 2-variant overlay): dmsserver tile requests dropped from 4 (2 tile
+  coords x 2 variants) to 2 (2 tile coords x 1 variant), and the surviving requests' decoded
+  `join` filterGroups confirm the KEPT variant is "Incident" (date filter 2019-04-15), the
+  "2019-I-90 West Schen to Amsterdam" full-year variant is correctly dropped. Regression-
+  checked report_960 (6 year-comps on Line/Bar graphs, but its Map graph was only ever
+  assigned ONE combined "87 NB 2016-2021" comp to begin with) — unaffected either way, as
+  expected. Full census rerun clean (869/869, 0 errors) — this is a display-behavior fix, not
+  a coverage change, so no census delta expected or seen. The separate, smaller finding (the
+  un-cloned series-template layer itself is never excluded from rendering, only from the
+  legend) stays unfixed — it's harmless (its unfiltered join is scan-hazard-refused, not
+  scanned) and wasn't part of the user's ask this round; still logged for whenever it's worth
+  cleaning up.
 - **R50** (07-15): Map legend bug fixed + M3 CLOSED (travelTime + avgHoursOfDelay + hoursOfDelay, all BUILT & LIVE-VERIFIED) + a real Map tile-join rendering bug found/fixed (full detail below) — session resumed cold via handoff notes
   (`route_map_scope.md`'s "M3+ handoff" section + this file's "Next: M3" pointer) — user flagged
   two Map issues first: no hover interactivity (logged, real new feature, not built) and "the
