@@ -140,6 +140,9 @@ export const GraphComponent = props => {
         indexTextSize={ get(graphFormat, "indexTextSize", "medium") }
         valueTextSize={ get(graphFormat, "valueTextSize", "medium") }
 
+        // Opt-in continuous x-axis: "band" (default, categorical) | "time" | "linear".
+        // BarGraph positions bars at their real x-value with proportional gaps when non-band.
+        xScale={ { type: get(graphFormat, ["xAxis", "scaleType"], "band") } }
         xAxis={ {
           label: get(graphFormat, ["xAxis", "label"]),
           rotateLabels: get(graphFormat, ["xAxis", "rotateLabels"], false),
@@ -155,6 +158,11 @@ export const GraphComponent = props => {
           // letter: {"1":"J","2":"F",…}). Keeps the DOMAIN on the real values —
           // mapping labels in data collapses duplicate categories (J/J/J).
           format: (() => {
+            // Time axis ticks are Date values — format them "m/dd" (no d3-time-format dep, no
+            // day-of-week). Falls back to a tickLabels value→label map, then the scale default.
+            if (get(graphFormat, ["xAxis", "scaleType"]) === "time") {
+              return d => `${ d.getMonth() + 1 }/${ String(d.getDate()).padStart(2, "0") }`;
+            }
             const tl = get(graphFormat, ["xAxis", "tickLabels"]);
             return tl ? (v => tl[v] ?? v) : undefined;
           })(),

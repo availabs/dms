@@ -119,7 +119,9 @@ const evaluateAST = (node, values) => {
 // (e.g. cr_sync ticket hygiene) remains the backstop.
 const CREATE_DEFAULT_FNS = {
     today: () => new Date().toISOString().slice(0, 10),
-    now: () => new Date().toISOString(),
+    // "YYYY-MM-DD HH:MM:SS" (UTC) — not raw ISO: cells display the value verbatim, and the
+    // space format string-sorts correctly alongside date-only values in the same column.
+    now: () => new Date().toISOString().slice(0, 19).replace("T", " "),
     user: ({ user }) => user?.email || undefined,
 };
 
