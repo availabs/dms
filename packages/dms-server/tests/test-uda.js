@@ -1527,6 +1527,163 @@ async function testClickHouseAnchorSubstitution() {
   pass('queries with no __ANCHOR__ marker are unaffected — no anchor subquery is built or spliced in');
 }
 
+// ================================== ClickHouse comparison-series difference mode ===================================
+
+/**
+ * Feature tests for options.seriesCombine = { mode: 'difference', invert? } —
+ * the platform half of converting the old NPMRDS tool's Route Difference Graph
+ * and TMC Difference Grid (dms-template old-reports-conversion round 52;
+ * library task comparison-series-difference-mode.md). Instead of UNION ALL-ing
+ * the comparison-series arms, the FIRST variant (the anchor/"Main" — the same
+ * convention __ANCHOR__ uses) is INNER JOINed to every other arm on the
+ * group-by columns and each value column returns as `anchor - variant` ("Main
+ * minus Compare"; invert flips it). INNER JOIN = only buckets present in both
+ * arms, the old tool's exact alignment semantics — per x-bucket for bar
+ * graphs, per (tmc, bucket) for grids. Stubs ctx.db.query to capture the
+ * generated SQL; no live ClickHouse connection needed.
+ */
+async function testClickHouseSeriesCombineDifference() {
+  console.log('\n--- Unit: ClickHouse comparison-series difference combine mode ---');
+  const { simpleFilter } = require('../src/routes/uda/query_sets/clickhouse');
+
+  let capturedSql = null;
+  const fakeDb = {
+    query: async ({ query }) => {
+      capturedSql = query;
+      return { json: async () => ({ data: [] }) };
+    },
+  };
+  const ctx = { db: fakeDb, table_schema: 'avail', table_name: 'npmrds' };
+
+  const variants = (n) => [
+    { label: 'Route A', filterGroups: { op: 'AND', groups: [{ col: 'tmc', op: 'filter', value: ['route-a'] }] } },
+    { label: 'Route B', filterGroups: { op: 'AND', groups: [{ col: 'tmc', op: 'filter', value: ['route-b'] }] } },
+    { label: 'Route C', filterGroups: { op: 'AND', groups: [{ col: 'tmc', op: 'filter', value: ['route-c'] }] } },
+  ].slice(0, n);
+
+  const mkOptions = (extra = {}) => JSON.stringify({
+    groupBy: ['epoch', '__series'],
+    seriesVariants: variants(2),
+    seriesCombine: { mode: 'difference' },
+    ...extra,
+  });
+  const attrs = ['epoch', 'avg(speed) as speed', '__series'];
+
+  // 1. Basic 2-arm difference
+  await simpleFilter(ctx, mkOptions(), attrs, { from: 0, to: 9 });
+  assert(capturedSql.includes('INNER JOIN'), `expected INNER JOIN, got: ${capturedSql}`);
+  assert(capturedSql.includes('(anchor.speed - compare.speed) as speed'),
+    `expected anchor-minus-compare ("Main minus Compare") value column, got: ${capturedSql}`);
+  assert(capturedSql.includes('compare.epoch = anchor.epoch'),
+    `expected the join keyed on the group-by column, got: ${capturedSql}`);
+  assert(!capturedSql.includes('UNION ALL'),
+    `2 variants = a single joined SELECT, no UNION ALL, got: ${capturedSql}`);
+  assert(capturedSql.includes('compare.__series as __series'),
+    `expected the compare arm's own label to become the series, got: ${capturedSql}`);
+  assert(capturedSql.includes(`'route-a'`) && capturedSql.includes(`'route-b'`),
+    `expected both arms' own filters present (anchor + compare), got: ${capturedSql}`);
+  pass('difference mode joins the compare arm to the anchor arm on the group-by column and diffs the value column');
+
+  // 2. invert flips the subtraction direction (converted reports whose Main
+  // sits later in the page's route list than its Compare)
+  capturedSql = null;
+  await simpleFilter(ctx, mkOptions({ seriesCombine: { mode: 'difference', invert: true } }), attrs, { from: 0, to: 9 });
+  assert(capturedSql.includes('(compare.speed - anchor.speed) as speed'),
+    `expected the inverted subtraction, got: ${capturedSql}`);
+  pass('invert: true flips the subtraction direction');
+
+  // 3. 3 variants → one joined SELECT per non-anchor arm, UNION ALL'd
+  capturedSql = null;
+  await simpleFilter(ctx, mkOptions({ seriesVariants: variants(3) }), attrs, { from: 0, to: 9 });
+  const joined = capturedSql.split('UNION ALL');
+  assert(joined.length === 2, `expected 2 joined selects for 3 variants, got ${joined.length}: ${capturedSql}`);
+  assert(joined[0].includes(`'Route B'`) && joined[1].includes(`'Route C'`),
+    `expected one "vs Main" difference series per non-anchor arm, got: ${capturedSql}`);
+  const anchorFilterRefs = (capturedSql.match(/'route-a'/g) || []).length;
+  assert(anchorFilterRefs === 2,
+    `expected the anchor arm spliced into each of the 2 joined selects, got ${anchorFilterRefs} refs: ${capturedSql}`);
+  pass('3 variants produce one difference series per non-anchor arm, each joined to the same anchor');
+
+  // 4. Fewer than 2 resolved variants → no rows, no query (old tool renders
+  // empty below 2 routes)
+  capturedSql = null;
+  const single = await simpleFilter(ctx, mkOptions({ seriesVariants: variants(1) }), attrs, { from: 0, to: 9 });
+  assert(Array.isArray(single) && single.length === 0, `expected [], got ${JSON.stringify(single)}`);
+  assert(capturedSql === null, `expected no query at all for <2 variants, got: ${capturedSql}`);
+  pass('fewer than 2 resolved variants returns no rows without querying');
+
+  // 5. Grid shape: two group-by columns → both are join keys (per-(tmc,
+  // bucket) alignment, the TMC Difference Grid grain)
+  capturedSql = null;
+  await simpleFilter(ctx, mkOptions({ groupBy: ['tmc', 'epoch', '__series'] }),
+    ['tmc', 'epoch', 'avg(speed) as speed', '__series'], { from: 0, to: 9 });
+  assert(capturedSql.includes('compare.tmc = anchor.tmc') && capturedSql.includes('compare.epoch = anchor.epoch'),
+    `expected the join keyed on BOTH group-by columns, got: ${capturedSql}`);
+  pass('grid shape joins on every group-by column — per-(tmc, bucket) alignment');
+
+  // 6. Calculated group-by column: groupBy carries the raw expression (client
+  // refName), attributes carry `<expr> as <alias>` (client reqName) — the key
+  // is classified by expression match and joined by its alias, and only the
+  // measure is diffed.
+  capturedSql = null;
+  await simpleFilter(ctx, mkOptions({ groupBy: ['intDiv(epoch, 3)', '__series'] }),
+    ['intDiv(epoch, 3) as epoch_15', 'avg(speed) as speed', '__series'], { from: 0, to: 9 });
+  assert(capturedSql.includes('compare.epoch_15 = anchor.epoch_15'),
+    `expected the calculated group-by joined by its alias, got: ${capturedSql}`);
+  assert(capturedSql.includes('(anchor.speed - compare.speed) as speed')
+    && !capturedSql.includes('anchor.epoch_15 -'),
+    `expected only the measure diffed, never the key, got: ${capturedSql}`);
+  assert(!capturedSql.includes('__gb_0'),
+    `an expression-covered group-by must not ALSO get a synthetic __gb_N alias, got: ${capturedSql}`);
+  pass('a calculated group-by is a join key (matched by expression), not a diffed value');
+
+  // 7. Unprojected group-by → synthetic __gb_N alias keeps the join key
+  // deterministic (unaliased, the subquery output name would be whatever CH
+  // derives from the expression text)
+  capturedSql = null;
+  await simpleFilter(ctx, mkOptions(), ['avg(speed) as speed', '__series'], { from: 0, to: 9 });
+  assert(capturedSql.includes('epoch as __gb_0'),
+    `expected the unprojected group-by aliased __gb_0 inside the arms, got: ${capturedSql}`);
+  assert(capturedSql.includes('compare.__gb_0 = anchor.__gb_0'),
+    `expected the synthetic alias used as the join key, got: ${capturedSql}`);
+  pass('an unprojected group-by gets a synthetic __gb_N alias and joins on it');
+
+  // 8. Ungrouped aggregate arms (groupBy = the series discriminator only) →
+  // each arm is a single aggregate row; CROSS JOIN yields the scalar
+  // difference (CH's ON clause only accepts equi-conditions, so ON 1=1 is not
+  // an option)
+  capturedSql = null;
+  await simpleFilter(ctx, mkOptions({ groupBy: ['__series'] }), ['avg(speed) as speed', '__series'], { from: 0, to: 9 });
+  assert(capturedSql.includes('CROSS JOIN'),
+    `expected CROSS JOIN for single-row aggregate arms, got: ${capturedSql}`);
+  assert(capturedSql.includes('(anchor.speed - compare.speed) as speed'),
+    `expected the scalar difference, got: ${capturedSql}`);
+  pass('ungrouped aggregate arms cross-join into a scalar difference');
+
+  // 9. No combine key → the plain UNION ALL fan-out is byte-for-byte the same
+  // code path as before
+  capturedSql = null;
+  await simpleFilter(ctx, JSON.stringify({ groupBy: ['epoch', '__series'], seriesVariants: variants(2) }),
+    attrs, { from: 0, to: 9 });
+  assert(capturedSql.includes('UNION ALL') && !capturedSql.includes('INNER JOIN'),
+    `expected the plain fan-out untouched without seriesCombine, got: ${capturedSql}`);
+  pass('the plain UNION ALL fan-out is untouched when no combine mode is requested');
+
+  // 10. The Postgres/SQLite fan-out refuses loudly instead of silently
+  // UNION ALL-ing as if the mode wasn't requested (a difference chart
+  // rendering two stacked raw series looks plausible enough to ship unnoticed)
+  const pg = require('../src/routes/uda/query_sets/postgres');
+  let pgError = null;
+  try {
+    await pg.simpleFilter(
+      { db: { type: 'sqlite', query: async () => ({ rows: [] }) }, table_schema: 'main', table_name: 't', isDms: false },
+      mkOptions(), ['avg(speed) as speed', '__series'], { from: 0, to: 9 });
+  } catch (e) { pgError = e; }
+  assert(pgError && /difference mode.*ClickHouse only/.test(pgError.message),
+    `expected the PG fan-out to refuse difference mode loudly, got: ${pgError && pgError.message}`);
+  pass('the Postgres/SQLite fan-out refuses difference mode loudly');
+}
+
 // ============================================ buildJoin pgFederated branch =========================================
 
 /**
@@ -1635,6 +1792,9 @@ async function run() {
 
     // ClickHouse __ANCHOR__(...) substitution (Route Compare Component delta column)
     await testClickHouseAnchorSubstitution();
+
+    // ClickHouse comparison-series difference combine mode (Route Difference Graph / TMC Difference Grid)
+    await testClickHouseSeriesCombineDifference();
 
     // buildJoin pgFederated branch (live Postgres join via ClickHouse postgresql())
     await testBuildJoinPgFederated();

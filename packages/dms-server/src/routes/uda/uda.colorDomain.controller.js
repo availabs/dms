@@ -241,17 +241,6 @@ async function buildColorDomainTarget({ env, view_id, options, safeColumn, where
     throw new Error('colorDomain: join view must be PostgreSQL or ClickHouse');
   }
 
-  // Select the tile-authored columns plus any joined attribute referenced by a
-  // filter — a filter column doesn't have to be a tile column, but it still
-  // must be projected out of the join so the outer WHERE clause can resolve it.
-  const joinedSelectColumns = Array.from(new Set([
-    ...joinedColumns,
-    ...referencedColumns.filter((col) => joinAttributeColumns.includes(col)),
-  ]));
-  const joinedSelect = joinedSelectColumns
-    .map((column) => `joined_cte.${quoteIdentifier(column)} AS ${quoteIdentifier(column)}`)
-    .join(', ');
-
   // 5b — Never `SELECT geo.*` — that drags the base table's geometry blob
   // (wkb_geometry) through the join for a min/max/count/breaks computation that
   // only touches the numeric data column. Select just the join key plus any
@@ -262,6 +251,25 @@ async function buildColorDomainTarget({ env, view_id, options, safeColumn, where
   ].filter(Boolean)));
   const geoSelect = geoSelectColumns
     .map((column) => `geo.${quoteIdentifier(column)} AS ${quoteIdentifier(column)}`)
+    .join(', ');
+
+  // Select the tile-authored columns plus any joined attribute referenced by a
+  // filter — a filter column doesn't have to be a tile column, but it still
+  // must be projected out of the join so the outer WHERE clause can resolve it.
+  // Any joined column whose OUTPUT name the geo select above already claims is
+  // dropped — most importantly the join key itself when the CH/PG result
+  // carries it (e.g. `tmc`): projecting it from BOTH sides made every
+  // key-filtered break query fail with `column reference "tmc" is ambiguous`
+  // (caught live 2026-07-16 on a converted Route Map's comparison-series
+  // re-break — the first filtered re-break to exercise this path). Under the
+  // LEFT JOIN the geo side is the authoritative value anyway (the CTE side is
+  // NULL for no-data rows).
+  const joinedSelectColumns = Array.from(new Set([
+    ...joinedColumns,
+    ...referencedColumns.filter((col) => joinAttributeColumns.includes(col)),
+  ])).filter((column) => !geoSelectColumns.includes(column));
+  const joinedSelect = joinedSelectColumns
+    .map((column) => `joined_cte.${quoteIdentifier(column)} AS ${quoteIdentifier(column)}`)
     .join(', ');
 
   const joinedTableRef = `(

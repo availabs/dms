@@ -1592,6 +1592,14 @@ export const buildUdaConfig = ({
         label: v.label,
         filterGroups: resolveArmTree(mergeVariantFilters(baseForArms, v.filters || {})),
     }));
+    // Combine mode — { mode: 'difference', invert?: true } asks the server to
+    // join each non-anchor arm to the first (anchor/"Main") arm on the group-by
+    // columns and return `anchor - variant` value columns instead of the
+    // side-by-side UNION ALL. ClickHouse-backed sources only for now (the PG
+    // fan-out refuses loudly). Forwarded verbatim; the server validates mode.
+    if (comparisonSeries.combine && typeof comparisonSeries.combine === "object") {
+      options.seriesCombine = comparisonSeries.combine;
+    }
   }
 
   // No ORDER BY across the union in v1 — see "No ORDER BY across the union (v1)" in

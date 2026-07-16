@@ -540,8 +540,28 @@ const graphConfig = {
                 // chart, mirrors GridGraph's value-scaled coloring.
                 { type: "toggle",
                     label: "Color by Value", key: "colors.byValue"
+                },
+                // With "Color by Value" on, center the scale on zero
+                // (±max(|min|, |max|)): "no change" lands on the middle color
+                // and equal-magnitude positive/negative values get equal
+                // intensity — for difference/diverging charts.
+                { type: "toggle",
+                    label: "Zero-Centered Colors", key: "colors.byValueSymmetric"
                 }
                 // {type: 'toggle', label: 'Log Scale', key: 'isLog'},
+            ]
+        },
+        gridGraph: {
+            name: 'Grid Graph Layout',
+            displayCdn: ({ display }) => display.graphType === 'GridGraph',
+            items: [
+                // GridGraph always colors cells by value; this centers its
+                // scale on zero (±max(|min|, |max|)) so "no change" lands on
+                // the middle color — see the matching Bar Graph toggle. For
+                // difference/diverging grids.
+                { type: "toggle",
+                    label: "Zero-Centered Colors", key: "colors.byValueSymmetric"
+                }
             ]
         },
         pieGraph: {

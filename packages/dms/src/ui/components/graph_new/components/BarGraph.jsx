@@ -142,6 +142,14 @@ const BarGraphWrapper = props => {
     // `scale.domain()` on whatever this returns, so before data loads (when
     // min/max aren't finite yet) this must stay undefined, not a plain array.
     if (props.colors?.byValue) {
+      // byValueSymmetric centers the scale on zero (±max(|min|, |max|)), so
+      // "no change" lands on the middle color and equal-magnitude positive/
+      // negative values get equal intensity — for difference/diverging charts
+      // (the old NPMRDS Route Difference Graph's symmetric quantize ramp).
+      if (props.colors?.byValueSymmetric) {
+        const m = Math.max(Math.abs(dataFromProps.min), Math.abs(dataFromProps.max));
+        return buildValueColorScale(-m, m, colors);
+      }
       return buildValueColorScale(dataFromProps.min, dataFromProps.max, colors);
     }
     return colors;

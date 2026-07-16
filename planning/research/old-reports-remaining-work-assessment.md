@@ -98,6 +98,13 @@ The 2,108 unmapped instances are not one pile:
 
 ## Recommendation (as of 2026-07-15 — awaiting user pick)
 
+> **UPDATE 2026-07-16 (round 52): recommendation #1 EXECUTED.** Route Difference Graph +
+> TMC Difference Grid scoped, endorsed, built, live-verified in one day — the `__ANCHOR__`
+> alignment question resolved as a new comparisonSeries "difference" combine mode (pile 1
+> is now ~absorbed: `full_producible` 188→231, only 44 deferred instances remain). Pile
+> numbers and the pile-1 description below are STALE; the task file's R52 entries are
+> current. Item #2 (legend/paint off-by-one) still open.
+
 1. **Scope Route Difference Graph next** (read-and-scope round per the show-plan-first rule:
    read old `RouteDifferenceGraph.jsx` for real, size the `__ANCHOR__` alignment question,
    scope TMC Difference Grid alongside since they almost certainly share the design). It's

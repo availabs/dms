@@ -327,7 +327,9 @@ async function simpleFilter(ctx, options, attributes, indices) {
     // base query with `filterGroups` swapped for the variant's resolved tree, plus
     // a constant `'<label>' as <seriesKey>` column the chart categorizes on. Empty
     // → single-arm path below, byte-identical to before.
-    seriesVariants = [], seriesKey = '__series'
+    seriesVariants = [], seriesKey = '__series',
+    // Difference combine mode — ClickHouse only for now (see the refusal below).
+    seriesCombine = null
   } = JSON.parse(options);
 
   let sanitizedAttrs = sanitizeName(attributes).filter((f) => f);
@@ -418,6 +420,17 @@ async function simpleFilter(ctx, options, attributes, indices) {
       throw new Error(
         '__ANCHOR__(...) calculated columns are not yet supported against a ' +
         'Postgres/SQLite-backed comparison-series fan-out (ClickHouse only).');
+    }
+    // Same policy for the difference combine mode (see query_sets/clickhouse.js):
+    // every measure the mode currently serves is ClickHouse-backed, so the PG/
+    // SQLite port (arm-join + per-arm placeholder renumbering) is real, unbuilt
+    // work. Fail loudly rather than silently UNION ALL the arms as if the mode
+    // wasn't requested — a difference chart rendering two stacked raw series
+    // looks plausible enough to ship unnoticed.
+    if (seriesCombine) {
+      throw new Error(
+        'comparisonSeries.combine (difference mode) is not yet supported against ' +
+        'a Postgres/SQLite-backed comparison-series fan-out (ClickHouse only).');
     }
     // The series discriminator is a constant literal per arm — always valid in the
     // SELECT without a GROUP BY entry — so drop it from the arm GROUP BY (it carries

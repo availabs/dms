@@ -123,7 +123,12 @@ const GridGraphWrapper = props => {
     }
 
 
-    const colorFunc = buildValueColorScale(min, max, colors);
+    // byValueSymmetric centers the scale on zero (±max(|min|, |max|)) — see
+    // the matching option in BarGraph.jsx; used by difference/diverging grids.
+    const symMax = Math.max(Math.abs(min), Math.abs(max));
+    const colorFunc = props.colors?.byValueSymmetric
+      ? buildValueColorScale(-symMax, symMax, colors)
+      : buildValueColorScale(min, max, colors);
 
     const keys = [...keySet];
 
@@ -162,7 +167,8 @@ const GridGraphWrapper = props => {
     }
 
     return { data, keys, colors: colorFunc, keyWidths, max };
-  }, [props.viewData, xColumn, yColumn, colorColumns, widthColumn, heightColumn, colors]);
+  }, [props.viewData, xColumn, yColumn, colorColumns, widthColumn, heightColumn, colors,
+      props.colors?.byValueSymmetric]);
 
 // console.log("GridGraphWrapper::dataFromProps", dataFromProps);
 

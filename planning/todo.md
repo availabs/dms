@@ -62,6 +62,19 @@
 
 ## dms-server
 
+- [x] [Comparison-series "difference" combine mode](./tasks/completed/comparison-series-difference-mode.md)
+      — DONE 2026-07-16. `options.seriesCombine = {mode: "difference", invert?}`: the ClickHouse
+      fan-out joins each non-anchor arm to the anchor arm on the group-by columns and returns
+      `anchor − variant` value columns (old NPMRDS "Main minus Compare"); client forwards
+      `state.comparisonSeries.combine`; loud PG refusal. Companion: diverging BarGraph
+      (zero-spanning y-domain + zero-baseline geometry) + `colors.byValueSymmetric`
+      zero-centered value scale (Bar + Grid) with author-facing toggles. 10 new uda unit tests,
+      93/93 green; live end-to-end bit-exact vs hand-built CH arm subtractions on converted
+      Route Difference / TMC Difference Grid pages. Same-day bonus fix: colorDomain CH/PG-join
+      merge no longer projects the join key from both sides (`column reference "tmc" is
+      ambiguous` on every key-FILTERED break query — first exercised by a converted Route Map's
+      comparison-series re-break; `uda.colorDomain.controller.js`).
+
 - [x] [Filter op `empty` / `notempty` (is-null / has-a-value)](./tasks/current/filter-op-empty.md) — client editor + buildUdaConfig + server UDA SQL; enables "Needs priority" filter; MNY Phase 3 #4.
 
 - [ ] **colorDomain `exclude` on numeric columns crashes (`-9999`)** — `WHERE (CASE WHEN col IS NULL THEN 'null' ELSE col END) = ANY($1)` on a numeric column (e.g. `avln_ealt` excluding `-9999`) unifies both CASE branches to `double precision` → Postgres fails casting the literal `'null'` → `invalid input syntax for type double precision: "null"`. Small fix: cast the non-null branch `::text` in [utils.js:360](../packages/dms-server/src/routes/uda/utils.js) (`ELSE (col)::text`) so both branches are text; exclude values arrive as strings and the param is text[]. Client already survives the error (keeps last-good legend), so the colorDomain just won't recompute for that layer until this lands. (Part of the map legend/filter work logged in completed.md, 2026-07-07.) **Kept as-is for now per user; verify then apply.**

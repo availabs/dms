@@ -99,6 +99,10 @@ async function simpleFilterLength(ctx, options) {
   // ── Comparison-series fan-out length ────────────────────────────────────────
   // Sum each arm's count as a scalar subquery. The series discriminator is constant
   // per arm and not a real column here, so it's dropped from the count's groupBy.
+  // Difference combine mode (seriesCombine in simpleFilter) reuses this length
+  // unchanged: the sum of arm counts is a safe OVER-count of the joined result
+  // (the client may request more rows than come back; it never truncates), and
+  // counting the actual inner join here would run the join twice per request.
   if (seriesVariants.length) {
     const countGroupBy = groupBy.filter((g) => g !== seriesKey);
     // No real per-arm groupBy dimension. The matching simpleFilter arm SELECT
@@ -321,7 +325,12 @@ async function simpleFilter(ctx, options, attributes, indices) {
     // Comparison series (query fan-out): one UNION ALL arm per variant. CH inlines
     // filter values (no $N placeholders), so arms compose directly. Empty → single
     // arm, unchanged.
-    seriesVariants = [], seriesKey = '__series'
+    seriesVariants = [], seriesKey = '__series',
+    // Optional combine mode for the fan-out (from state.comparisonSeries.combine
+    // via buildUdaConfig.js): { mode: 'difference', invert?: true } joins each
+    // non-anchor arm to the anchor arm instead of UNION ALL-ing them — see the
+    // difference branch below.
+    seriesCombine = null
   } = JSON.parse(options);
 
   const transformedAttributes = transformAttributesForClickHouse(attributes);
@@ -402,6 +411,29 @@ async function simpleFilter(ctx, options, attributes, indices) {
           filterGroups: seriesVariants[0].filterGroups || {}, joinPresent,
         })}`
       : null;
+    const diffMode = !!seriesCombine && seriesCombine.mode === 'difference';
+    // Difference mode joins the arms on the group-by columns, so every
+    // group-by column needs a DETERMINISTIC output name to join on. A
+    // group-by whose EXPRESSION matches a projected attribute's expression is
+    // covered by that attribute's alias — a calculated group-by arrives in
+    // groupBy as its raw expression (client refName) but in attributes as
+    // `<expr> as <alias>` (client reqName), both built from the same accessor
+    // string, so exact expression match is reliable where response-name match
+    // is not. Any group-by no attribute covers gets a synthetic __gb_N alias
+    // (unaliased, its subquery output name would be whatever ClickHouse
+    // derives from the expression text). The plain UNION ALL fan-out keeps
+    // the verbatim projection it always had.
+    const exprOf = (attr) => {
+      const m = String(attr).match(ALIAS_RE);
+      return (m ? attr.slice(0, m.index) : attr).trim();
+    };
+    const attrExprSet = new Set(baseArmAttrs.map(exprOf));
+    const syntheticGroupBys = diffMode
+      ? armGroupByExprs.filter((g) => !attrExprSet.has(String(g).trim()))
+      : [];
+    const projectedGroupBys = diffMode
+      ? syntheticGroupBys.map((g, i) => `${g} as __gb_${i}`)
+      : unprojectedGroupBys;
     const armSqls = seriesVariants.map((variant) => {
       const armWhere = buildCombinedWhereCH({
         filter, exclude, gt, gte, lt, lte, like,
@@ -410,7 +442,7 @@ async function simpleFilter(ctx, options, attributes, indices) {
       const safeLabel = `'${String(variant.label ?? '').replace(/'/g, "''")}'`;
       const armSelect = [
         ...baseArmAttrs.map((c) => withExplicitAlias(columnNameMap[c] || c)),
-        ...unprojectedGroupBys,
+        ...projectedGroupBys,
         `${safeLabel} as ${seriesKey}`,
       ].join(', ');
       const armSql = `
@@ -421,6 +453,77 @@ async function simpleFilter(ctx, options, attributes, indices) {
         ${handleHavingCH(having)}`;
       return usesAnchor ? substituteAnchorMarkers(armSql, anchorFromWhere) : armSql;
     });
+
+    // ── Difference combine mode ────────────────────────────────────────────
+    // options.seriesCombine = { mode: 'difference', invert?: true } (from
+    // state.comparisonSeries.combine via buildUdaConfig.js). Instead of
+    // UNION ALL-ing the arms, the FIRST variant (the anchor/"Main" — the same
+    // convention __ANCHOR__ and the old NPMRDS tool use) is INNER JOINed to
+    // every other arm on the query's group-by columns, and every value column
+    // comes back as `anchor - variant` under its original alias (old tool:
+    // "Main minus Compare"; invert flips it, for converted reports whose Main
+    // sits later in the page's route list than its Compare). INNER JOIN =
+    // only buckets present in BOTH arms — exactly the old Route Difference
+    // Graph / TMC Difference Grid semantics, per x-bucket for bar graphs and
+    // per (tmc, bucket) for grids, with zero graph-type-specific code: the
+    // group-by columns ARE the alignment keys. N>2 variants → one difference
+    // series per non-anchor arm, labeled by that arm's own label. Fewer than
+    // 2 resolved variants → no rows (the old tool renders empty below 2
+    // routes). The response shape is identical to the plain fan-out (same
+    // aliases + seriesKey), so charts render it unchanged.
+    if (diffMode) {
+      if (seriesVariants.length < 2) return [];
+      // Classify projected attrs into join keys vs value columns by the same
+      // expression match used for syntheticGroupBys above: an attr whose
+      // expression is one of the group-by expressions is a join key (aligned
+      // across arms), everything else is a value column (diffed).
+      const keyExprSet = new Set(armGroupByExprs.map((g) => String(g).trim()));
+      const outName = (attr) => getResponseColumnName(columnNameMap[attr] || attr);
+      // Double-quote any output name that isn't a plain identifier (CH
+      // supports ANSI double-quoted identifiers; withExplicitAlias/quoteAlias
+      // already emit digit-prefixed aliases quoted this way).
+      const q = (n) => (/^\w+$/.test(n) ? n : `"${String(n).replace(/"/g, '')}"`);
+      const keyNames = [];
+      const valueNames = [];
+      for (const attr of baseArmAttrs) {
+        (keyExprSet.has(exprOf(attr)) ? keyNames : valueNames).push(outName(attr));
+      }
+      keyNames.push(...syntheticGroupBys.map((g, i) => `__gb_${i}`));
+      const invert = seriesCombine.invert === true;
+      const anchorSql = armSqls[0];
+      const joinedSqls = armSqls.slice(1).map((armSql) => {
+        const selectList = [
+          ...keyNames.map((k) => `compare.${q(k)} as ${q(k)}`),
+          ...valueNames.map((v) => invert
+            ? `(compare.${q(v)} - anchor.${q(v)}) as ${q(v)}`
+            : `(anchor.${q(v)} - compare.${q(v)}) as ${q(v)}`),
+          `compare.${seriesKey} as ${seriesKey}`,
+        ].join(', ');
+        // No group-by beyond the series discriminator = each arm is a single
+        // aggregate row; CROSS JOIN yields the scalar difference. (CH's ON
+        // clause only accepts equi-conditions, so ON 1=1 is not an option.)
+        const joinClause = keyNames.length
+          ? `INNER JOIN (${anchorSql}) AS anchor ON ${keyNames
+              .map((k) => `compare.${q(k)} = anchor.${q(k)}`).join(' AND ')}`
+          : `CROSS JOIN (${anchorSql}) AS anchor`;
+        return `
+        SELECT ${selectList}
+        FROM (${armSql}) AS compare
+        ${joinClause}`;
+      });
+      const diffSql = `
+      SELECT * FROM (
+        ${joinedSqls.join('\n        UNION ALL\n')}
+      ) AS fanout
+      ${handleOrderByCH(orderBy)}
+      LIMIT ${+num}
+      OFFSET ${indices.from}
+    `;
+      const diffResult = await db.query({ query: diffSql, format: 'JSON' });
+      const diffJson = await diffResult.json();
+      return restoreLongColumnNames(diffJson.data || [], columnNameMap);
+    }
+
     const fanoutSql = `
       SELECT * FROM (
         ${armSqls.join('\n        UNION ALL\n')}
