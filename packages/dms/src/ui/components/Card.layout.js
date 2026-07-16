@@ -179,6 +179,12 @@ export function resolveCellStyle({ attr = {}, hints = {}, display = {}, cellsPad
         ...definedStyle('paddingLeft', padOverride('cellPaddingLeft', undefined)),
         ...(imageMargin !== undefined && !isNaN(imageMargin) ? { marginTop: `${imageMargin}px` } : {}),
         ...definedStyle('backgroundColor', attr.cellBgColor),
+        // Per-cell accent border — a coloured LEFT rule (the stat-strip
+        // `border-l-4 border-<color>` look). Sibling of cellBgColor: an inline
+        // style from the author-supplied colour, applied right here where the
+        // background is. Unset/empty → no key → BC (every existing cell stays
+        // byte-identical). Default 4px solid; left accent only, kept minimal.
+        ...(attr.cellBorderColor ? { borderLeft: `4px solid ${attr.cellBorderColor}` } : {}),
         ...(hints.height ? { height: `${hints.height}px` } : {}),
         // Vertical alignment of the cell within its grid row (per-column
         // cellVAlign wins; display-level cellsVAlign is the ambient default).

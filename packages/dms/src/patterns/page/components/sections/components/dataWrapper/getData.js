@@ -107,6 +107,9 @@ const evaluateAST = (node, values) => {
 // ─── Create-time column defaults (addItem — both wrappers) ──────────────────
 // BC: only engaged when a column sets the attr, and only for fields the author
 // left blank. `defaultValue` is a static fill (a new ticket's status "Triage");
+// `defaultFn` is a DYNAMIC fill — 'today' (YYYY-MM-DD, the control-room date
+// format), 'now' (full ISO timestamp), 'user' (the logged-in user's email, from
+// CMSContext — skipped when anonymous so a later heal can still fill it);
 // `autoNumber` assigns the next sequential number for the column across the
 // WHOLE source (max+1, floored by autoNumberStart-1) — queried through the same
 // uda path the section reads, deliberately WITHOUT the section's filters (an
@@ -114,7 +117,13 @@ const evaluateAST = (node, values) => {
 // renders). Non-numeric stored values are ignored by the max rather than fatal.
 // On fetch failure the create proceeds without the number — sync-side healing
 // (e.g. cr_sync ticket hygiene) remains the backstop.
-export const applyCreateDefaults = async ({ columns, newItem, apiLoad, externalSource }) => {
+const CREATE_DEFAULT_FNS = {
+    today: () => new Date().toISOString().slice(0, 10),
+    now: () => new Date().toISOString(),
+    user: ({ user }) => user?.email || undefined,
+};
+
+export const applyCreateDefaults = async ({ columns, newItem, apiLoad, externalSource, user }) => {
     const data = { ...newItem };
     // For DMS sources the uda env is `${app}+${instance}` and externalSource.type IS the
     // instance slug. Do NOT trust externalSource.env here: the runtime source-list reconcile
@@ -127,6 +136,11 @@ export const applyCreateDefaults = async ({ columns, newItem, apiLoad, externalS
     for (const c of (columns || [])) {
         if (data[c.name] != null && data[c.name] !== "") continue;
         if (c.defaultValue != null) { data[c.name] = c.defaultValue; continue; }
+        if (c.defaultFn && CREATE_DEFAULT_FNS[c.defaultFn]) {
+            const v = CREATE_DEFAULT_FNS[c.defaultFn]({ user });
+            if (v !== undefined) data[c.name] = v;
+            continue;
+        }
         if (!c.autoNumber) continue;
         const attr = `max(nullif(regexp_replace((data->>'${c.name}'), '[^0-9]', '', 'g'), '')::bigint) as _autonum`;
         try {
@@ -179,7 +193,8 @@ export const getData = async ({
     currentPage = 0,
     debugCall,
     debugTime,
-    optionsOnly = false
+    optionsOnly = false,
+    refreshToken
 }) => {
     debugTime && console.time('getData fn')
     const debug = debugCall || false;
@@ -270,6 +285,11 @@ export const getData = async ({
     }
 
     if (keepOriginalValues) options.keepOriginalValues = keepOriginalValues;
+    // data_refresh subscriber token (useDataLoader): a no-op options key that makes the uda
+    // paths (length + rows) DISTINCT per published value, because the falcor cache serves
+    // repeat paths without a network trip — same-path "refetches" would return the stale
+    // pre-write rows. The server destructures known options keys and ignores `_r`.
+    if (refreshToken !== undefined) options._r = refreshToken;
 
     debugTime && console.timeEnd('buildUdaConfig')
 

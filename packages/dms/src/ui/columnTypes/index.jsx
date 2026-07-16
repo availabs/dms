@@ -14,6 +14,7 @@ import { RadioEdit, RadioView } from './radio'
 import { CheckboxEdit, CheckboxView } from './checkbox'
 import { ImageEdit, ImageView } from './image'
 import { StatusPillEdit, StatusPillView } from './statusPill'
+import { PriorityTierEdit, PriorityTierView } from './priorityTier'
 import { DeltaEdit, DeltaView } from './delta'
 import { TargetBarEdit, TargetBarView } from './targetBar'
 import { DataBarEdit, DataBarView } from './dataBar'
@@ -38,6 +39,7 @@ const checkbox = { EditComp: CheckboxEdit, ViewComp: CheckboxView }
 const lexical = { EditComp: LexicalEdit, ViewComp: LexicalView }
 const image = { EditComp: ImageEdit, ViewComp: ImageView }
 const statusPill = { EditComp: StatusPillEdit, ViewComp: StatusPillView }
+const priorityTier = { EditComp: PriorityTierEdit, ViewComp: PriorityTierView }
 const delta = { EditComp: DeltaEdit, ViewComp: DeltaView }
 const targetBar = { EditComp: TargetBarEdit, ViewComp: TargetBarView }
 const dataBar = { EditComp: DataBarEdit, ViewComp: DataBarView }
@@ -88,6 +90,7 @@ const columnTypes = {
   'checkbox': checkbox,
   'image': image,
   'status_pill': statusPill,
+  'priority_tier': priorityTier,
   'delta': delta,
   'target_bar': targetBar,
   'data_bar': dataBar,

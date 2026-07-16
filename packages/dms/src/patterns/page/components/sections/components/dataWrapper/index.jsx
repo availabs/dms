@@ -380,9 +380,9 @@ const Edit = forwardRef((props, ref) => {
     const addItem = async () => {
         if(!(state?.externalSource?.isDms || state?.externalSource?.isEditable) || !apiUpdate || groupByColumnsLength) return;
         const sourceType = state?.externalSource?.type || (state?.externalSource?.name ? nameToSlug(state.externalSource.name) : undefined);
-        // create-time column defaults: `defaultValue` (static fill) + `autoNumber` (next
-        // sequential number across the whole source) — see applyCreateDefaults in getData.js
-        const data = await applyCreateDefaults({ columns: state?.columns, newItem, apiLoad, externalSource: state?.externalSource });
+        // create-time column defaults: `defaultValue` (static) + `defaultFn` (dynamic:
+        // today/now/user) + `autoNumber` — see applyCreateDefaults in getData.js
+        const data = await applyCreateDefaults({ columns: state?.columns, newItem, apiLoad, externalSource: state?.externalSource, user: _cmsCtx.user });
         const res = await apiUpdate({data, config: {format: {...state?.externalSource, type: `${sourceType}|${state?.externalSource.view_id}:data`}}});
 
         if(res?.id){
@@ -602,9 +602,9 @@ const View = forwardRef(({cms_context, value, onChange, component, editPageMode,
 
         const emptyRowMode = state?.display?.emptyRowMode;
         if(allowAdddNew || emptyRowMode === 'inline_add'){
-            // create-time column defaults: `defaultValue` (static fill) + `autoNumber` (next
-            // sequential number across the whole source) — see applyCreateDefaults in getData.js
-            const data = await applyCreateDefaults({ columns: state?.columns, newItem, apiLoad, externalSource: state?.externalSource });
+            // create-time column defaults: `defaultValue` (static) + `defaultFn` (dynamic:
+            // today/now/user) + `autoNumber` — see applyCreateDefaults in getData.js
+            const data = await applyCreateDefaults({ columns: state?.columns, newItem, apiLoad, externalSource: state?.externalSource, user: _cmsCtx.user });
             const res = await apiUpdate({data, config});
             const effectiveBehaviour = addNewBehaviour || (emptyRowMode === 'inline_add' ? 'append' : '');
 
@@ -619,7 +619,7 @@ const View = forwardRef(({cms_context, value, onChange, component, editPageMode,
             setNewItem({})
             return res;
         }
-    }, [state?.externalSource, state?.columns, apiLoad, apiUpdate, setState, groupByColumnsLength, state?.display, newItem, baseUrl])
+    }, [state?.externalSource, state?.columns, apiLoad, apiUpdate, setState, groupByColumnsLength, state?.display, newItem, baseUrl, _cmsCtx.user])
 
     const removeItem = useCallback(item => {
         if (!(state?.externalSource?.isDms || state?.externalSource?.isEditable) || !apiUpdate || groupByColumnsLength) return;

@@ -17,12 +17,14 @@ A `draft_section_groups` entry (same shape as any band) plus two keys:
 
 ```js
 { name: "<uuid>", index: 9, theme: "content", position: "content",
-  displayName: "Add-ticket modal", isModal: true, modalParamKey: "addticket" }
+  displayName: "Add-ticket modal", isModal: true, modalParamKey: "addticket", modalSize: "xl" }
 ```
 
 `sectionGroup.jsx` behavior:
 - **View mode**: renders `null` while closed; when open, renders a fixed overlay
-  (`bg-black/50`) with a white `max-w-4xl` card containing the group's sections. Overlay click
+  (`bg-black/50`) with a white card containing the group's sections. `modalSize`
+  (sm…5xl, whitelist map; default `4xl`) picks the card's max-width — a short create form
+  reads better at `xl` than stretched across `4xl`. Overlay click
   and the ✕ button call `clearActionParam(modalParamKey)`.
 - **Edit mode** (`/edit/...`): `isModal` is ignored — the group renders as a normal inline band,
   which is how authors reach and edit the modal's sections.
@@ -76,8 +78,30 @@ A Card with `display.allowAdddNew: true` appends a **new-item form card** after 
   value div) even in new-item edit mode, and renders as an empty non-editable box.
 - **`addNewBehaviour`**: `'append'` pushes the created row into the section's local data;
   `'navigate'` + `navigateUrlOnAdd` jumps to `<baseUrl><navigateUrlOnAdd><newId>`. Default: stays
-  put with a cleared form. There is **no auto-close** of the modal after add (candidate
-  enrichment).
+  put with a cleared form.
+- **`display.closeModalOnAdd: '<paramKey>'`** (2026-07-15): after a **successful** create the
+  Card section clears that action param — set it to the group's `modalParamKey` and the modal
+  closes on add (form already cleared for the next open). A failed create leaves the modal open
+  with the form intact. Toolbar: "Close modal on add (param key)" under Allow Add New. Like the
+  trigger's `paramKey`, the author names the key explicitly — the Card doesn't know its group.
+- **Live refresh — `add_publish` provider + `data_refresh` subscriber** (2026-07-15): to make
+  the created row appear in the page's other sections WITHOUT a reload, give the form Card
+  `_functions.providers: [{ functionId: 'add_publish', enabled: true, paramKey: '<key>' }]`
+  (publishes the new ROW ID on each successful create) and give every section that should
+  update (tables, one-row counter Cards) `_functions.subscribers: [{ functionId:
+  'data_refresh', enabled: true, paramKey: '<key>' }]`. The subscriber lives in the shared
+  dataWrapper loader, so it works for any data section type with fetchMode smart/force.
+  Section-menu Actions: "Add: Publish Created Row" / "Refetch Data on Param Change".
+- **Form polish knobs** (all per-column / per-display, 2026-07-15):
+  - `placeholder` on a text/textarea column → the input's placeholder (Card spreads column
+    attrs after its hardcoded `'please enter value...'`, so the column key wins).
+  - `rows` on a textarea column → textarea height.
+  - `headerFontStyle` styles the field label like any Card header (e.g. a proper-case
+    `labelSM` reads friendlier than mono micro-caps on a form).
+  - `display.addItemLabel` renames the create button (default `add`).
+- **Keep create forms SHORT.** Ask only what the reporter actually knows (the control-room
+  ticket modal: title · severity · description); everything triage/deriving can fill later
+  goes in as `selectOnly` create defaults or heals via the dataset's sync script.
 
 ## 4. Pre-population from the page — `usePageParams`
 
@@ -123,4 +147,5 @@ sec(MODAL_GROUP, "12", "Card", JSON.stringify({
 | Existing rows render above the form | Add the never-match filter (§3). |
 | Pre-filled column is empty | The page filter with `searchKey === pageParamKey` has no value yet (e.g. missing `?key=`), or the page row lacks the `filters` entry. |
 | A form field renders as an empty box, not an input | The column has no `type` — `ColumnTypes[undefined]` → DefaultComp. Set `type: "text"`/`"textarea"`/`"select"`. |
-| New row missing derived fields (ids, denormalized columns) | For sequential ids and static fills, set them AT CREATE with column attrs (added 2026-07-09): `{ name: "ticket_id", show: true, selectOnly: true, autoNumber: true, autoNumberStart: 101 }` (max+1 across the whole source, ignoring the form's never-match filter) and `{ name: "status", show: true, selectOnly: true, defaultValue: "Triage" }` — both render no form field. Dynamic derived fields (dates, denormalized columns) still backfill via the dataset's sync script (control room: `cr_sync.mjs`). Both attrs only fill fields the author left blank; collisions are possible only with simultaneous creators. |
+| New row missing derived fields (ids, denormalized columns) | Set them AT CREATE with column attrs — all `selectOnly` (no form field renders) and all fill only blank fields: `autoNumber: true (+ autoNumberStart)` for sequential ids (max+1 across the whole source, ignoring the form's never-match filter); `defaultValue: "Triage"` for static fills; **`defaultFn` (2026-07-15) for dynamic fills** — `'today'` (YYYY-MM-DD), `'now'` (ISO timestamp), `'user'` (the logged-in user's email from CMSContext; skipped when anonymous). Control-room ticket form: `{ name: "reporter", selectOnly: true, defaultFn: "user" }`, `{ name: "opened"/"updated", selectOnly: true, defaultFn: "today" }`. Denormalized columns (page name/route/stage) still backfill via the dataset's sync script (control room: `cr_sync.mjs`). |
+| Created row needs to be immediately linkable/viewable | Don't rest identity on an application-numbered column — key detail links and filters on the **DMS row id**, which exists the instant the row does: link cells with `searchParams: "id"` (rows on non-grouped isDms sections always fetch `id`), detail-page filter leaf `{ col: "id", … }` (unknown col → passes through verbatim → `WHERE id = ANY(…)` on the split table's PK). Keep the friendly number display-only with a row-id fallback: `case when (data->>'ticket_id') is null … then (id)::text else … end` (comma-free — the SELECT list is comma-split). Control-room worked example, 2026-07-15. |

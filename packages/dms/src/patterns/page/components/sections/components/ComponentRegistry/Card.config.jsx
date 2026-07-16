@@ -67,11 +67,13 @@ const handlePaste = async (attribute, setAttribute) => {
             const cellSpan = parsedObj.cellSpan ?? parsedObj.cardSpan ?? '';
             const cellRowSpan = parsedObj.cellRowSpan ?? parsedObj.cardRowSpan ?? '';
             const cellBgColor = parsedObj.cellBgColor ?? parsedObj.bgColor ?? '';
+            // Accent (left) border colour — new-only key (no legacy predecessor).
+            const cellBorderColor = parsedObj.cellBorderColor ?? '';
 
             const newAttribute = {
                 ...attribute,
                 justify, headerJustify, headerCase, formatFn, headerFontStyle, valueFontStyle, hideHeader, hideValue,
-                cellSpan, cellRowSpan, cellBgColor, wrapText,
+                cellSpan, cellRowSpan, cellBgColor, cellBorderColor, wrapText,
             }
             return setAttribute(newAttribute)
         } else {
@@ -93,11 +95,11 @@ const buildInHeader = (fontStyleOptions) => [
             const [copied, setCopied] = useState(false);
             const {
                 justify, headerJustify, headerCase, formatFn, headerFontStyle, valueFontStyle, hideHeader, hideValue,
-                cellBgColor, cellSpan, cellRowSpan, wrapText
+                cellBgColor, cellBorderColor, cellSpan, cellRowSpan, wrapText
             } = attribute;
             const objToCopy = {
                 justify, headerJustify, headerCase, formatFn, headerFontStyle, valueFontStyle, hideHeader, hideValue,
-                cellBgColor, cellSpan, cellRowSpan, wrapText
+                cellBgColor, cellBorderColor, cellSpan, cellRowSpan, wrapText
             };
 
             return (
@@ -272,6 +274,11 @@ const buildInHeader = (fontStyleOptions) => [
         ]
     },
     { type: 'toggle', label: 'Persist Search Params', key: 'persistSearchParams', displayCdn: ({ attribute, isEdit }) => isEdit && attribute.isLink },
+    // Active on Search Param: when on, this link cell parses its own `location`
+    // query params and applies the theme's `cellActive` style whenever the page's
+    // live filters already match them (empty/`?` location = active when none of the
+    // sibling active cells' param keys are set — the "All" state). Default off → BC.
+    { type: 'toggle', label: 'Active on Search Param', key: 'activeOnSearchParam', displayCdn: ({ attribute, isEdit }) => isEdit && attribute.isLink },
 
     // The legacy `Is Image` / `Image Url` / `Image Location` / `Image Extension`
     // controls have been retired from the editor — new cards should use the
@@ -307,6 +314,10 @@ const buildInHeader = (fontStyleOptions) => [
     },
     { type: 'textarea', label: 'Description', key: 'description', displayCdn: ({ isEdit }) => isEdit },
     { type: ({ value, setValue }) => (<ColorControls value={value} setValue={setValue} title={'Background Color'} />), key: 'cellBgColor' },
+    // Sibling of Background Color — sets a coloured LEFT accent border on the cell
+    // (stat-strip look). Applied in resolveCellStyle (Card.layout.js) next to
+    // cellBgColor. Unset → no border → BC.
+    { type: ({ value, setValue }) => (<ColorControls value={value} setValue={setValue} title={'Accent Border Color'} />), key: 'cellBorderColor' },
 
     // Empty Default — per-column placeholder used by getData.js's blank-row
     // fallback (only when `display.useBlankRowFallback` is on for the section).
@@ -364,8 +375,22 @@ export const componentFunctions = {
                 { key: 'column', label: 'Column to publish on click', type: 'column-select' },
             ],
         },
+        {
+            id: 'add_publish',
+            label: 'Add: Publish Created Row',
+            description: 'After a successful Add New create, publishes the new row id to a page action param — pair with a Refetch Data subscriber so other sections over the same source update without a reload.',
+            trigger: 'add',
+            args: [],
+        },
     ],
     subscribers: [
+        {
+            id: 'data_refresh',
+            label: 'Refetch Data on Param Change',
+            description: 'Refetches this section\'s data whenever the subscribed action param\'s value changes (e.g. an Add: Publish Created Row provider fired). Requires fetch mode smart/force.',
+            trigger: 'action_param',
+            args: [],
+        },
         {
             id: 'row_highlight',
             label: 'Highlight Matching Card',
@@ -513,6 +538,10 @@ const buildControls = (theme) => ({
             },
             { type: 'input', inputType: 'text', label: 'Navigate to', key: 'navigateUrlOnAdd',
                 displayCdn: ({ display }) => display.allowAdddNew && display.addNewBehaviour === 'navigate' },
+            // for add-forms living in a modal section-group: name the group's modalParamKey and a
+            // successful add clears it, closing the modal (see skills/modal-section-group.md)
+            { type: 'input', inputType: 'text', label: 'Close modal on add (param key)', key: 'closeModalOnAdd',
+                displayCdn: ({ display }) => display.allowAdddNew },
             { type: 'select', label: 'Data Fetch Mode', key: 'fetchMode',
               options: [
                 { label: 'Cache (use preloaded data)', value: 'cache' },

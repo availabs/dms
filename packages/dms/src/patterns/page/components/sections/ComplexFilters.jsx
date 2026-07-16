@@ -260,7 +260,7 @@ export const ComplexFilters = ({ state, setState, value, onSave }) => {
         // condition (leaf)
         const isStale = node.col && !columns.find(c => c.name === node.col);
         const siblingConditions = parentOp === 'AND' ? parentLeafSiblings.filter(s => s !== node) : [];
-        const showValueEditor = !['is_null', 'is_not_null'].includes(node.op);
+        const showValueEditor = !['is_null', 'is_not_null', 'empty', 'notempty'].includes(node.op);
         return (
             <div
                 key={path.join('.')}
@@ -474,6 +474,9 @@ export const ComplexFilters = ({ state, setState, value, onSave }) => {
                             { label: ' <= ', value: 'lte' },
                             { label: 'exclude N/A', value: 'is_not_null' },
                             { label: 'show only N/As', value: 'is_null' },
+                            // `empty` / `notempty` are unary — no value input (see showValueEditor).
+                            { label: 'is empty', value: 'empty' },
+                            { label: 'is not empty', value: 'notempty' },
                             // `time` is a structured op — only meaningful for date/timestamp
                             // columns. Surface it only when the selected column qualifies so
                             // it can't be applied to text/number columns.
@@ -490,7 +493,7 @@ export const ComplexFilters = ({ state, setState, value, onSave }) => {
                                 n.op = newOp;
                                 // Reset the value shape when switching between fundamentally
                                 // different ops (multi vs scalar, time vs scalar, IS [NOT] NULL).
-                                if (isTime !== wasTime || wasMulti !== isMulti || ['is_null', 'is_not_null'].includes(newOp)) {
+                                if (isTime !== wasTime || wasMulti !== isMulti || ['is_null', 'is_not_null', 'empty', 'notempty'].includes(newOp)) {
                                     if (isTime) n.value = {};
                                     else if (isMulti) n.value = [];
                                     else n.value = '';

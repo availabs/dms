@@ -65,6 +65,11 @@ export const dataCardTheme = {
             // Override in the theme editor or set valueFontStyle to 'button' etc.
             linkColValue: 'text-blue-600 underline',
 
+            // Applied to a link cell whose `activeOnSearchParam` flag is on AND whose
+            // `location` params currently match the live page filters. Empty by default
+            // (no visual change — backward compatible); brand themes supply the highlight.
+            cellActive: '',
+
             imgXS: "max-w-16 max-h-16",
             imgSM: "max-w-24 max-h-24",
             imgMD: "max-w-32 max-h-32",

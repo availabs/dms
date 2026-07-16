@@ -59,6 +59,12 @@ export default function SectionGroup ({group, attributes, edit}) {
 
   const isModal = group.isModal && !edit;
   const modalParamKey = group.modalParamKey;
+  // group.modalSize picks the modal card's max-width (default: the historical max-w-4xl).
+  // Whitelist map, not `max-w-${size}` — Tailwind only generates classes it can see as literals.
+  const modalWidthClass = {
+    sm: 'max-w-sm', md: 'max-w-md', lg: 'max-w-lg', xl: 'max-w-xl',
+    '2xl': 'max-w-2xl', '3xl': 'max-w-3xl', '4xl': 'max-w-4xl', '5xl': 'max-w-5xl',
+  }[group.modalSize] || 'max-w-4xl';
   const isOpen = isModal
       ? (pageState?.filters?.some(f => f.searchKey === modalParamKey && f.type === 'action' && f.values?.[0] !== undefined))
       : true;
@@ -81,7 +87,7 @@ export default function SectionGroup ({group, attributes, edit}) {
         onClick={() => clearActionParam(modalParamKey)}
       >
         <div
-          className="relative bg-white rounded-lg shadow-xl w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto"
+          className={`relative bg-white rounded-lg shadow-xl w-full ${modalWidthClass} mx-4 max-h-[90vh] overflow-y-auto`}
           onClick={e => e.stopPropagation()}
         >
           <button

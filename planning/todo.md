@@ -62,6 +62,8 @@
 
 ## dms-server
 
+- [x] [Filter op `empty` / `notempty` (is-null / has-a-value)](./tasks/current/filter-op-empty.md) — client editor + buildUdaConfig + server UDA SQL; enables "Needs priority" filter; MNY Phase 3 #4.
+
 - [ ] **colorDomain `exclude` on numeric columns crashes (`-9999`)** — `WHERE (CASE WHEN col IS NULL THEN 'null' ELSE col END) = ANY($1)` on a numeric column (e.g. `avln_ealt` excluding `-9999`) unifies both CASE branches to `double precision` → Postgres fails casting the literal `'null'` → `invalid input syntax for type double precision: "null"`. Small fix: cast the non-null branch `::text` in [utils.js:360](../packages/dms-server/src/routes/uda/utils.js) (`ELSE (col)::text`) so both branches are text; exclude values arrive as strings and the param is text[]. Client already survives the error (keeps last-good legend), so the colorDomain just won't recompute for that layer until this lands. (Part of the map legend/filter work logged in completed.md, 2026-07-07.) **Kept as-is for now per user; verify then apply.**
 
 - [ ] **Scheduled data-loader runs** — cron scheduling for datatype workers (data_manager.schedules +
@@ -126,6 +128,12 @@
 
 ## ui
 
+- [x] [Filter section interactive chrome: needs-value toggle · active tokens · clear-all](./tasks/current/filter-interactive-chrome.md) — ExternalFilters/RenderFilters; renders an `empty`-op leaf as a toggle; MNY alignment.
+- [x] [Spreadsheet inline-expand row detail (`openOutMode:'inline'`)](./tasks/current/spreadsheet-inline-openout.md) — inline detail panel vs the side drawer; MNY alignment.
+- [x] [New columnType `priority_tier` — ranked, editable tier pill](./tasks/current/columntype-priority-tier.md) — numeral badge + short label + "Set priority" unset affordance; models statusPill.jsx; MNY Action Prioritize Phase 3 #1.
+- [x] [Card cell `activeOnSearchParam` — link cell active when its params match](./tasks/current/card-active-on-search-param.md) — real active state for `isLink` stat cells; MNY Phase 3 #2.
+- [x] [Card cell `cellBorderColor` — per-cell accent (left) border](./tasks/current/card-cell-border-color.md) — sibling of `cellBgColor`; stat-strip left rules; MNY Phase 3 #3.
+- [x] [Table provider `conditional_row_style` — accent a row by a column condition](./tasks/current/table-conditional-row-style.md) — amber edge on unset rows via the `_functions.providers` framework; MNY Phase 3 #5.
 - [ ] [LayoutGroup: optional `Background` component on a layoutGroup style](./tasks/current/layoutgroup-background-style-component.md) —
       additive style key rendering a theme-supplied backdrop component inside wrapper1
       (first use: transportny landing hero three.js OSM road animation). Pending transportNY sync.
@@ -141,18 +149,26 @@
       add-new form Cards can fill sequential ids (ticket #s: max+1, floor autoNumberStart) and
       static defaults (status "Triage") at create instead of waiting for a sync heal. Additive;
       pending transportNY sync.
+- [ ] [Modal/create-form polish + input placeholder BUG fix + live refresh](./tasks/current/modal-form-polish-enrichments.md) —
+      `group.modalSize` (sectionGroup whitelist map, default 4xl), `display.addItemLabel`
+      (create-button text), `display.closeModalOnAdd` (successful create clears the named
+      action param → the modal closes), `add_publish` provider + `data_refresh` subscriber
+      (create in one section → other sections refetch live; the token also rides the uda
+      options as `_r` because falcor serves same-path refetches from cache), `defaultFn`
+      dynamic create defaults (today/now/user — reporter + dates at create), and the fix for
+      Input/Textarea primitives destructuring `placeholder` and never applying it (every
+      placeholder app-wide was invisible). All BC; pending transportNY sync.
 - [ ] [map_dama shareable-link read (`?layers=`/`f_<id>`)](./tasks/current/map-dama-shareable-layers-read.md) —
       opt-in (`shareableState` element-data key), view-only port of the Map component's URL read
       so gallery deep-links preset map_dama layers (freight atlas #106). No write-back — the
       serializer waits for the unified component. Pending transportNY sync.
-- [ ] **BUG: `getSources` derives source `env` from the display-name slug** (useDataSource.js:32-34,
-      `${app}+${nameToSlug(name)}`) — drifts from the real instance whenever display name ≠
-      instance slug ("Site Management — Tickets" → `site_management__tickets` vs
-      `sitemgmt_tickets`); the runtime source-list reconcile then writes the bad env into section
-      state and any subsequent uda fetch resolves NO source (nulls/empty, no error). Found via
-      autoNumber (see add-item-create-defaults.md, worked around there by rebuilding env from
-      `app+type`). Fix = carry the instance on source rows through getSources instead of
-      re-slugging the name; audit `onSourceChange` (same file) which spreads `{...match}`.
+- [x] **BUG: `getSources` derives source `env` from the display-name slug** — FIXED 2026-07-15
+      (see modal-form-polish-enrichments.md §5): new dms-server `row_type` source attribute
+      (the row's type string; `type` serves data->>'type') + getSources derives env/type from
+      `getInstance(row_type)` with display-name slug as legacy fallback; onSourceChange /
+      onJoinSourceChange prefer the instance type. ⚠ server change — deployed dmsserver needs
+      a redeploy; old servers fall back to the old (drifty) behavior. The applyCreateDefaults
+      `app+type` env rebuild stays as belt-and-braces.
 - [ ] [`stacked_bar` columnType — segmented distribution bar + count legend](./tasks/current/stacked-bar-column-type.md) —
       one-track proportional segments from sibling `count(*) filter` calc columns (the data_bar
       `row` convention); powers the control-room overview's live stage/tickets bars. Additive;

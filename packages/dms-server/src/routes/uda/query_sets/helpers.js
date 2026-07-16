@@ -125,6 +125,13 @@ function handleFilterGroupsCH(node, hasExistingFilters = false) {
 
   const buildLeafSQL = (node) => {
     const { col, op, value } = node;
+
+    // `empty` / `notempty` are unary (is-null-or-blank and its inverse). They carry
+    // no value, so handle them before the `value == null` guard below. `col` is used
+    // verbatim, matching the sibling ops.
+    if (op === 'empty') return `(${col} IS NULL OR ${col} = '')`;
+    if (op === 'notempty') return `(${col} IS NOT NULL AND ${col} <> '')`;
+
     if (value == null) return '';
 
     if (op === 'time') {

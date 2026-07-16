@@ -25,6 +25,10 @@ export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addIte
     const { pageState, setPageState, setActionParam, clearActionParam } = useContext(PageContext) || {};
     const providerCfg = display._functions?.providers?.find(p => p.functionId === 'hover_highlight' && p.enabled);
     const clickPublishCfg = display._functions?.providers?.find(p => p.functionId === 'click_publish' && p.enabled);
+    // conditional_row_style: accent a whole row when one of its columns matches a condition
+    // (e.g. county_priority empty → amber left-edge + tint). The args descriptor is threaded to
+    // the Table, which resolves the styleKey against the live table theme and evaluates per row.
+    const rowStyleCfg = display._functions?.providers?.find(p => p.functionId === 'conditional_row_style' && p.enabled);
 
     const onRowMouseEnter = useCallback((rowData) => {
         if (!providerCfg || !setActionParam) return;
@@ -151,6 +155,7 @@ export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addIte
                       sourceColumns: sourceInfo.columns || [],
                   }} setState={setState}
                   highlightedRow={highlightedRow}
+                  conditionalRowStyle={rowStyleCfg?.args}
                   onRowMouseClick={clickPublishCfg ? onRowMouseClick : undefined}
                   onRowMouseEnter={providerCfg ? onRowMouseEnter : undefined}
                   onRowMouseLeave={providerCfg ? onRowMouseLeave : undefined}

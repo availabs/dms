@@ -519,6 +519,14 @@ const CardColumnField = ({
         </span>
     );
 
+    // activeOnSearchParam: CardSection (the page-pattern wrapper) resolved which
+    // link cells' `location` params match the live page filters and passed the
+    // per-column result here via controls. The active tint is a themed class
+    // (`theme.cellActive`) — empty by default so cards without an override render
+    // identically; brand themes supply the highlight.
+    const isActiveCell = !!controls?.activeColumns?.[attr?.normalName || attr?.name];
+    const activeClass = isActiveCell ? (theme.cellActive || '') : '';
+
     // fullBleed columns get a bare wrapper (no padding/border/rounded chrome)
     // and the field header is suppressed — they own their own visual surface.
     const wrapperClass = fullBleed
@@ -533,7 +541,7 @@ const CardColumnField = ({
 
     return (
         <div
-            className={`${wrapperClass}${onColumnClick ? ' cursor-pointer' : ''}`}
+            className={`${wrapperClass}${onColumnClick ? ' cursor-pointer' : ''}${activeClass ? ` ${activeClass}` : ''}`}
             style={style}
             // Introspection (edit mode only): one devtools glance answers
             // "which column is this cell and where does its padding come from".
@@ -852,7 +860,7 @@ const RenderItem = memo(function RenderItem ({
             {
                 isAddingNewItem ? (
                     <div className={theme.formAddNewItemWrapper}>
-                        <Button activeStyle="active" onClick={() => addItem()}>add</Button>
+                        <Button activeStyle="active" onClick={() => addItem()}>{display?.addItemLabel || 'add'}</Button>
                     </div>
                 ) : null
             }
