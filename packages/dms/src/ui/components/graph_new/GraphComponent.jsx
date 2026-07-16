@@ -2,7 +2,7 @@ import React from "react";
 
 import { get } from "lodash-es";
 import { getGraphComponent } from "./components";
-import { getFormatFunc } from "./utils";
+import { getFormatFunc, getTooltipFormatFunc } from "./utils";
 
 // Collect the axis-typography keys for one axis off `graphFormat` (which already has
 // theme `chartDefaults` merged under the section's `display`, so brand defaults and
@@ -91,8 +91,10 @@ export const GraphComponent = props => {
       ...graphFormat.tooltip,
       // map config `showTotal` → avl-graph DefaultHoverComp `showTotals` (default true = BC)
       showTotals: get(graphFormat, ["tooltip", "showTotal"], true),
-      valueFormat: getFormatFunc(get(graphFormat, ["tooltip", "valueFormat"]), isDollars),
-      yFormat: getFormatFunc(get(graphFormat, ["tooltip", "yFormat"]), isDollars)
+      // tooltip-only resolver: unset/identity → 1-decimal rounded display, so
+      // client-side-summed totals never show floating-point artifacts
+      valueFormat: getTooltipFormatFunc(get(graphFormat, ["tooltip", "valueFormat"]), isDollars),
+      yFormat: getTooltipFormatFunc(get(graphFormat, ["tooltip", "yFormat"]), isDollars)
     };
   }, [graphFormat.tooltip]);
 

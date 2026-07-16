@@ -401,3 +401,24 @@ export const getFormatFunc = (format, isDollars = false) => {
     }
     return func;
 }
+
+// Tooltip-only format resolver. With no explicit tooltip format configured, the raw
+// `identity` default leaks floating-point artifacts into hover tooltips — the hover
+// comps sum their Total client-side (keys.reduce((a, c) => a + data[c], 0)), so even
+// 1-decimal source data renders e.g. 220.70000000000002. Default the DISPLAY to
+// 1-decimal rounding instead (non-numbers pass through untouched). Axis and data
+// values are unaffected — this is only wired into the tooltip formatters.
+export const getTooltipFormatFunc = (format, isDollars = false) => {
+    if (format && format !== "identity") {
+        return getFormatFunc(format, isDollars);
+    }
+    const func = d => {
+        const n = typeof d === "number" ? d : (typeof d === "string" && d.trim() !== "" ? +d : NaN);
+        if (!Number.isFinite(n)) return d;
+        return `${ Math.round(n * 10) / 10 }`;
+    };
+    if (isDollars) {
+        return d => `$${ func(d) }`;
+    }
+    return func;
+}

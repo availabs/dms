@@ -17,7 +17,7 @@ export default function Textarea ({description, value, onChange=() => {}, placeh
 
   return (
     <span className={`${theme?.textarea?.textAreaContainer}`}>
-      <textarea className={`${theme?.textarea?.textarea}`} value={value} onChange={onChange} disabled={disabled} {...props}/>
+      <textarea className={`${theme?.textarea?.textarea}`} value={value} onChange={onChange} placeholder={placeholder} disabled={disabled} {...props}/>
     </span>
   )
 }

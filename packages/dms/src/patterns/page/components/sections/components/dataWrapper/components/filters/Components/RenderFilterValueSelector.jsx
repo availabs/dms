@@ -275,7 +275,16 @@ export const RenderFilterValueSelector = ({
                         className={theme.filters.input}
                         loading={loading}
                         value={value}
-                        placeholder={filter.operation === 'like' ? 'search...' : 'Please enter a number...'}
+                        placeholder={
+                            // gt/gte/lt/lte render a number input (see `type` below) — keep the
+                            // numeric hint there. filter/exclude are option searches — name the
+                            // column being searched. like keeps its generic text-search hint
+                            // (its column names often already read as search prompts).
+                            filter.operation === 'like' ? 'search...' :
+                                ['filter', 'exclude'].includes(filter.operation)
+                                    ? `Search ${filterColumn.customName || filterColumn.display_name || filterColumn.name}...`
+                                    : 'Please enter a number...'
+                        }
                         options={['filter', 'exclude'].includes(filter.operation) ? (options || []) : undefined}
                         singleSelectOnly={['filter', 'exclude'].includes(filter.operation) ? !filter.isMulti : undefined}
                         displayDetailedValues={!filter.display}

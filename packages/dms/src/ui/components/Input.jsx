@@ -12,7 +12,7 @@ export default function Input ({ type='text', label, description, value, onChang
   const theme = {...themeFromContext, input: {...inputTheme, ...(themeFromContext.input || {})}};
   return (
     <span className={`${theme?.input?.inputContainer}`}>
-      <input type={type} className={`${theme?.input?.input}`} value={value} onChange={onChange} disabled={disabled} {...props}/>
+      <input type={type} className={`${theme?.input?.input}`} value={value} onChange={onChange} placeholder={placeholder} disabled={disabled} {...props}/>
     </span>
   )
 }
@@ -22,7 +22,7 @@ export function Textarea ({ type='text', label, description, value, onChange=() 
   const theme = {...themeFromContext, input: {...inputTheme, ...(themeFromContext.input || {})}};
   return (
     <span className={`${theme?.input?.inputContainer}`}>
-      <textarea className={`${theme?.input?.textarea}`} value={value} onChange={onChange} disabled={disabled} {...props}/>
+      <textarea className={`${theme?.input?.textarea}`} value={value} onChange={onChange} placeholder={placeholder} disabled={disabled} {...props}/>
     </span>
   )
 }
