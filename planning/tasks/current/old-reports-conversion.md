@@ -181,6 +181,25 @@ above are the RAW (all-869) figures.
   rendering bug before this was understood. Attach listeners first, then force
   `page.reload({waitUntil:'networkidle'})`. Reusable script:
   `scratchpad/npmrds-sub/old-reports/verify_map_tile_network_capture.mjs`.
+- **The census greedy table OVERSTATES what template work can flip for its #1/#2 buckets
+  (Route/TMC Info Box × speed, 268+166 instances, 57+15 flips)** — decomposed 2026-07-15
+  (read-only, reusing the converter's own year/bin logic over all 514 Info Box × speed
+  unmapped instances across every resolution/dataColumn): **293 (57%) are year-gated on pm3
+  2017-2020** — exactly the 1410 backfill window already decided on
+  ([[project_npmrds_1410_vs_2001_backfill]]), i.e. data work, out of scope by standing
+  directive; **140 (27%) are `bin_undetermined`** (comps whose peak flags don't land on
+  exactly one of 1410's amp/midd/pmp/we bins — a mapping-policy decision, not data);
+  **80 (16%) pre-2017** (permanently excluded); 1 other (2026). Among flip-candidate reports
+  the same split holds (79/35/27 instances). So buckets #1/#2 mostly unlock via the backfill,
+  not converter work — the top genuinely *buildable* flip lever in the corpus is **Route
+  Difference Graph speed×5-min (#4: 106 instances / 84 reports / 29 flips)**, an unbuilt
+  shape (in-scope since round 24) whose cross-arm primitive (`__ANCHOR__`, round 25) already
+  exists, with TMC Difference Grid (#6, 94/52/3) as its mechanical sibling. Second-cheapest
+  breadth lever (instances, not flips): a mixed-resolution precedence policy — `resolution:
+  None` = assigned comps genuinely disagree (the missing-setting 5-minutes default already
+  exists, `analyze_graph` ~3384) — ~392 buildable instances refused today; needs the old
+  tool's actual precedence rule read off `GeneralGraphComp` + a user policy sign-off, then
+  it's converter logic over EXISTING templates, no new vocabulary.
 
 **Immediate next steps** (round 34 "Not done / next", order user-endorsed):
 - [x] **(a) DONE (round 35): the SPEED_EXPR/TRAVEL_TIME_EXPR backport** to all live
@@ -236,6 +255,15 @@ above are the RAW (all-869) figures.
   hedge that it "arguably doesn't need the same treatment," since it's genuinely `pre_2017_only`
   same as the other 3): 16 → `2190009`, 54 → `2189409`, 58 → `2190556`, 142 → `2189993`. Census
   confirms `pre_2017_converted_pages: []`, `converted_pages_total: 21`.
+- [ ] **(i) NEXT (post-R51, awaiting user pick)**: full remaining-work assessment written
+  2026-07-15 at user request —
+  [planning/research/old-reports-remaining-work-assessment.md](../../research/old-reports-remaining-work-assessment.md).
+  TL;DR: census buckets #1/#2 (Info Box × speed) are mostly 1410-backfill-gated, not template
+  work (see the durable fact above); recommended next = **scope Route Difference Graph**
+  (+TMC Difference Grid sibling, ~30 flips, last major unbuilt shape, `__ANCHOR__` alignment
+  is the open design question); companion = the R51 held-back legend/paint off-by-one fix;
+  alternative = mixed-resolution precedence policy (~400 instances, converter-only, needs
+  policy sign-off).
 
 ## Round ledger (rounds 1–40 archived — full detail in [the archive](./old-reports-conversion-archive.md))
 
