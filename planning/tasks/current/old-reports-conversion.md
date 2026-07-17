@@ -8,56 +8,39 @@
 > starts, move the previous round's full text to the top of the archive, leave a ledger line here,
 > and fold anything durable into the summary or reference sections.
 
-## Current state (2026-07-17, ROUND 55 COMPLETE: BarGraph tooltip customName fix shipped and live-verified on 2 reports (item 8's tooltip half, priority-list #3); report 7's pre-2017-only converted page (2191132, surfaced by round 54's restored census) deleted per user go-ahead. Round 53's 9-item triage + item 0 (stray `reports_snap_2` rows) and Round 54's pre-2017-only restoration remain DONE — full detail archived, see ledger below. Remaining open priority-list items: graph title default, GridGraph missing-data color, TMC meta join swap, Info Box travel-time formatter, epoch x-axis tick format, legend/flex width-squeeze.)
+## Current state (2026-07-17, ROUND 56 COMPLETE: graph title default fix shipped and live-verified (item 8's title half, priority-list #4) — empty/missing `state.title` now defaults to `"{type}, {data}"` instead of a blank section header. Rounds 53-55 (9-item triage, pre-2017-only restoration, BarGraph tooltip customName fix, report 7 cleanup) remain DONE — full detail archived, see ledger below. Remaining open priority-list items: GridGraph missing-data color, TMC meta join swap, Info Box travel-time formatter, epoch x-axis tick format, legend/flex width-squeeze.)
 
-## Round 55 (2026-07-17) — report 7 cleanup + BarGraph tooltip customName fix
+## Round 56 (2026-07-17) — graph title default fix
 
-**Objective**: user picked two items off the round-53/54 backlog: (1) delete report 7's
-pre-2017-only converted page (`2191132`, surfaced but left untouched by round 54's restored
-census), (2) start on the priority list with **#3, the BarGraph tooltip customName fix** (item
-8's tooltip half — `avl-graph/BarGraph.jsx`'s `DefaultHoverComp` renders the raw SQL `key` instead
-of the column's `customName`/`display_name`, while the wrapper's own Legend and LineGraph's
-tooltip already do the customName-aware thing correctly).
+**Objective**: user picked priority-list **#4, the graph title default** (item 8's title half —
+`analyze_graph()` in `scripts/convert_old_reports.py` passed an empty `state.title` straight
+through as a blank section title instead of applying the old client's own default template
+`"{type}, {data}"`, per round 53's finding).
 
-**(1) Report 7 cleanup**: minted a fresh auth token (`scratchpad/npmrds-sub/mint_token.sh`, run
-directly per the user's live reminder this round that I have standing permission to mint it
-myself rather than always handing off the command) and ran a new one-off script,
-`scratchpad/npmrds-sub/cleanup_round55_report7.py` (mirrors round 40's `cleanup_round40.py`
-pattern, calls the converter's own `delete_converted_page(2191132)`). Output: "deleted page
-2191132, 8 section row(s), 1 snap row(s)". Verified independently via direct `psql_new` reads
-(not just trusting the script's own print): `dms_npmrdsv5.data_items` has 0 rows with
-`id = 2191132`, and the reports_snap_2 split table has 0 rows with `data->>'report_id' = '2191132'`.
+**Fix** (`scripts/convert_old_reports.py`, `analyze_graph()`, ~line 3825): changed
+`title = (state.get("title") or "")` to `title = state.get("title") or "{type}, {data}"` before the
+existing `{data}`/`{type}`/`{name}` substitution — one-line change, same substitution mechanism
+already in place for explicit titles, no new code path.
 
-**(2) BarGraph tooltip fix** (`src/dms/packages/dms/src/ui/components/graph_new/components/BarGraph.jsx`):
-hoisted the existing `labelForKey` helper (previously inline inside the `legend` `useMemo`, used
-only for legend categories) out to its own `React.useCallback`, and added a new `hoverComp`
-`useMemo` that spreads `props.hoverComp` and sets `keyFormat: labelForKey` — mirroring exactly how
-`LineGraph.jsx` already resolves `displayName: yc.customName || yc.display_name || ycn` for its
-own tooltip. Wired `hoverComp={ hoverComp }` into the `<BarGraph>` call (avl-graph's low-level
-`DefaultHoverComp` calls `keyFormat(key)` per row; it previously defaulted to `Identity`, printing
-the raw column alias/SQL). No changes needed in `avl-graph/BarGraph.jsx` itself or in any
-converter/template code — pure client-side wiring gap, same diagnosis as item 8 concluded. Fixes
-every Bar Graph type across the whole corpus at once (Bar Graph Summary, Route Difference, etc. —
-anything using this shared tooltip), not just the one report that surfaced it.
+**Verified**:
+- Unit-level via direct calls into `analyze_graph()`: empty/missing title → `"Bar Graph Summary,
+  Speed"` / `"TMC Grid Graph, Speed"` (the new default path); explicit template title
+  (`"{data} AM Peak"`) → `"Speed AM Peak"` (unaffected); explicit literal title (no placeholders)
+  → passed through unchanged. Confirms the fix only engages on the empty/missing case.
+- **Live-verified** on report 520 (the exact report item 8 diagnosed, reconverted via `--replace`
+  → new page `2194026`): `report_probe.mjs` capture shows both sections now render real titles —
+  "Route Line Graph, Speed" and "Bar Graph Summary, Speed" — instead of blank headers (screenshot
+  confirms visually). 0 console/page errors.
+- **Full census rerun** (869/869 analyzed, 0 errors): coverage numbers unchanged (`full` 261,
+  `mapped` 5288/7103, 74.4% — identical to round 52's post-increment-B figures), as expected for a
+  pure title-string fix with no structural impact. `converted_pages_total: 35` (was 34; +1 net new
+  page from the report_520 `--replace` reconvert).
 
-**Live-verified** (`node scripts/report_probe.mjs <slug> --eval scratchpad/npmrds-sub/tmp/hover_bargraph_tooltip.mjs`,
-a new small eval script that hovers each `rect.avl-stack` and reads the rendered tooltip text —
-promoted candidate for the harness if reused again per [[reference_report_probe_harness]]):
-- **Report 520** (`tmc_speed_summary_bar_graph`, the exact report item 8 diagnosed): tooltip now
-  reads `"WB Arterial Weave PM\nSpeed (mph):\n21.058224309773827"` — previously the raw SQL
-  expression per round 53's finding. 0 console/page errors, no hung requests.
-- **Report 787** (a different Bar Graph Summary measure, avgHoursOfDelay): tooltip reads
-  `"R5 Route 33 HELP Beat - 2020\nAvg. Hours of Delay:\n0.0077952396949882265"` — confirms the
-  fix generalizes across measures/templates, not just the one diagnosed report. 0 console/page
-  errors.
-- Legend rendering unchanged (same `labelForKey` body, only hoisted/reused — no behavior change
-  there, confirmed by inspection, not just assumption).
+**Not done**: the remaining priority-list items (GridGraph missing-data color, TMC meta join swap,
+Info Box travel-time formatter, epoch x-axis tick format, legend/flex width-squeeze) are unchanged
+by this round.
 
-**Not done**: the remaining priority-list items (graph title default, GridGraph missing-data
-color, TMC meta join swap, Info Box travel-time formatter, epoch x-axis tick format, legend/flex
-width-squeeze) are unchanged by this round.
-
-**Ledger — rounds 53/54 (moved to archive 2026-07-17, round 55 start)**:
+**Ledger — rounds 53/54/55 (moved to archive 2026-07-17, round 56 start)**:
 - **R53** (07-16): user's 9-item triage punch list, all 9 items + 2 bonus findings root-caused
   (stray duplicate `reports_snap_2` rows on 6 pages — deleted same-day follow-up; the pre-2017-only
   report-level refusal found to have silently regressed; BarGraph tooltip/graph-title/GridGraph
@@ -68,6 +51,11 @@ width-squeeze) are unchanged by this round.
   reports it used to block + false-positive-checked against report 191 and 3 known-good pages;
   full census rerun (869/869, 0 errors) surfaced one more live pre-2017-only page (report 7,
   `2191132`) — deleted round 55. Full detail: [archive, "Round 54"](./old-reports-conversion-archive.md).
+- **R55** (07-17): report 7's pre-2017-only converted page (`2191132`, surfaced by round 54's
+  restored census) deleted per user go-ahead; BarGraph tooltip customName fix shipped
+  (`graph_new/components/BarGraph.jsx` — hoisted `labelForKey` into a new `hoverComp`, mirroring
+  `LineGraph`'s existing customName-aware tooltip), live-verified on reports 520 and 787. Full
+  detail: [archive, "Round 55"](./old-reports-conversion-archive.md).
 
 
 

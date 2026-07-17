@@ -18,6 +18,55 @@ and leave only its ledger line in the live file.
 
 ---
 
+## Round 55 (2026-07-17) — report 7 cleanup + BarGraph tooltip customName fix (moved verbatim from the live file on 2026-07-17, round 56 start)
+
+**Objective**: user picked two items off the round-53/54 backlog: (1) delete report 7's
+pre-2017-only converted page (`2191132`, surfaced but left untouched by round 54's restored
+census), (2) start on the priority list with **#3, the BarGraph tooltip customName fix** (item
+8's tooltip half — `avl-graph/BarGraph.jsx`'s `DefaultHoverComp` renders the raw SQL `key` instead
+of the column's `customName`/`display_name`, while the wrapper's own Legend and LineGraph's
+tooltip already do the customName-aware thing correctly).
+
+**(1) Report 7 cleanup**: minted a fresh auth token (`scratchpad/npmrds-sub/mint_token.sh`, run
+directly per the user's live reminder this round that I have standing permission to mint it
+myself rather than always handing off the command) and ran a new one-off script,
+`scratchpad/npmrds-sub/cleanup_round55_report7.py` (mirrors round 40's `cleanup_round40.py`
+pattern, calls the converter's own `delete_converted_page(2191132)`). Output: "deleted page
+2191132, 8 section row(s), 1 snap row(s)". Verified independently via direct `psql_new` reads
+(not just trusting the script's own print): `dms_npmrdsv5.data_items` has 0 rows with
+`id = 2191132`, and the reports_snap_2 split table has 0 rows with `data->>'report_id' = '2191132'`.
+
+**(2) BarGraph tooltip fix** (`src/dms/packages/dms/src/ui/components/graph_new/components/BarGraph.jsx`):
+hoisted the existing `labelForKey` helper (previously inline inside the `legend` `useMemo`, used
+only for legend categories) out to its own `React.useCallback`, and added a new `hoverComp`
+`useMemo` that spreads `props.hoverComp` and sets `keyFormat: labelForKey` — mirroring exactly how
+`LineGraph.jsx` already resolves `displayName: yc.customName || yc.display_name || ycn` for its
+own tooltip. Wired `hoverComp={ hoverComp }` into the `<BarGraph>` call (avl-graph's low-level
+`DefaultHoverComp` calls `keyFormat(key)` per row; it previously defaulted to `Identity`, printing
+the raw column alias/SQL). No changes needed in `avl-graph/BarGraph.jsx` itself or in any
+converter/template code — pure client-side wiring gap, same diagnosis as item 8 concluded. Fixes
+every Bar Graph type across the whole corpus at once (Bar Graph Summary, Route Difference, etc. —
+anything using this shared tooltip), not just the one report that surfaced it.
+
+**Live-verified** (`node scripts/report_probe.mjs <slug> --eval scratchpad/npmrds-sub/tmp/hover_bargraph_tooltip.mjs`,
+a new small eval script that hovers each `rect.avl-stack` and reads the rendered tooltip text —
+promoted candidate for the harness if reused again per [[reference_report_probe_harness]]):
+- **Report 520** (`tmc_speed_summary_bar_graph`, the exact report item 8 diagnosed): tooltip now
+  reads `"WB Arterial Weave PM\nSpeed (mph):\n21.058224309773827"` — previously the raw SQL
+  expression per round 53's finding. 0 console/page errors, no hung requests.
+- **Report 787** (a different Bar Graph Summary measure, avgHoursOfDelay): tooltip reads
+  `"R5 Route 33 HELP Beat - 2020\nAvg. Hours of Delay:\n0.0077952396949882265"` — confirms the
+  fix generalizes across measures/templates, not just the one diagnosed report. 0 console/page
+  errors.
+- Legend rendering unchanged (same `labelForKey` body, only hoisted/reused — no behavior change
+  there, confirmed by inspection, not just assumption).
+
+**Not done**: the remaining priority-list items (graph title default, GridGraph missing-data
+color, TMC meta join swap, Info Box travel-time formatter, epoch x-axis tick format, legend/flex
+width-squeeze) are unchanged by this round.
+
+---
+
 ## Round 54 (2026-07-16) — restore the pre-2017-only report-level refusal (regression fix) (moved verbatim from the live file on 2026-07-17, round 55 start)
 
 **Objective**: rebuild the `PRE_2017_CUTOFF`/`report_is_pre_2017_only`/`pre_2017_only` report-level
