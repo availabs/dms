@@ -605,13 +605,30 @@ const ViewLayerRender = ({
     }
   }, [maplibreMap, allLayerProps?.zoomToFit]);
 
+  // Tracks the last bounds this layer fit to, so unrelated re-renders (the dep is the whole
+  // allLayerProps object) don't re-run fitBounds with the SAME bounds — which both no-op
+  // animates and snaps the map back while the user is panning.
+  const lastFilterFitRef = useRef(null);
   useEffect(() => {
-    if (maplibreMap && layerProps && layerProps?.zoomToFilterBounds?.length > 0 &&  layerProps?.zoomToFilterBounds[0] !== null){
-      maplibreMap.fitBounds(layerProps.zoomToFilterBounds, {
-        padding: { top: 200, bottom: 200, left: 200, right: 200 },
+    const bounds = layerProps?.zoomToFilterBounds;
+    if (maplibreMap && bounds?.length > 0 && bounds[0] !== null){
+      const boundsKey = JSON.stringify(bounds);
+      if (lastFilterFitRef.current === boundsKey) return;
+      lastFilterFitRef.current = boundsKey;
+      // Padding proportional to the container: a fixed 200px was tuned for the full-screen
+      // mapeditor — inside a 600px-tall page section it left a ~200px content box, so
+      // "zoom to the filtered region" visibly zoomed OUT instead of framing the region.
+      const el = maplibreMap.getContainer?.();
+      const pad = Math.max(24, Math.min(200,
+        Math.floor(Math.min(el?.clientWidth ?? 1600, el?.clientHeight ?? 1600) * 0.12)));
+      maplibreMap.fitBounds(bounds, {
+        padding: { top: pad, bottom: pad, left: pad, right: pad },
         duration: 400
       });
     }
+    // An emptied zoomToFilterBounds (filter cleared) resets the guard so re-selecting
+    // the SAME region zooms again.
+    if (!(bounds?.length > 0)) lastFilterFitRef.current = null;
   }, [maplibreMap, allLayerProps]);
 
   /**

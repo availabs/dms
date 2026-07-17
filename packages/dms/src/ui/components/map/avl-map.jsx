@@ -48,7 +48,7 @@ export const DefaultStyles = [
     style: "https://api.maptiler.com/maps/dataviz-light/style.json?key=mU28JQ6HchrQdneiq6k9"
   },
   { name: "Streets",
-    style: "https://api.maptiler.com/maps/streets-v2/style.json?key=mU28JQ6HchrQdneiq6k9",
+    style: "https://api.maptiler.com/maps/streets-v4/style.json?key=mU28JQ6HchrQdneiq6k9",
   },
   { name: "Satellite Streets",
     style: "https://api.maptiler.com/maps/hybrid/style.json?key=mU28JQ6HchrQdneiq6k9",
