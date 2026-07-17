@@ -16,7 +16,7 @@ import { useEffect } from "react";
 import { isEqual } from "lodash-es";
 import { getData } from "./getData";
 
-export function useColumnOptions({ state, setState, apiLoad, component, pgEnv, enabled }) {
+export function useColumnOptions({ state, setState, apiLoad, component, pgEnv, enabled, sectionId, trackingId }) {
     useEffect(() => {
         if (!enabled) return;
         let isStale = false;
@@ -58,7 +58,8 @@ export function useColumnOptions({ state, setState, apiLoad, component, pgEnv, e
                                         : pgEnv
                                 },
                                 columns: columns.map(c => ({ name: c, show: true }))
-                            }
+                            },
+                            sectionId: trackingId || sectionId,
                         });
                         return [
                             column.name,

@@ -348,6 +348,9 @@ const graphConfig = {
                     label: 'Label', key: 'xAxis.label' },
                 { type: 'input', inputType: 'number',
                     label: 'Tick Density', key: 'xAxis.tickDensity' },
+                {type: 'select', label: 'Tick Format', key: 'xAxis.format', onClickGoBack: true,
+                    options: ValueFormats
+                },
                 { type: 'toggle',
                     label: 'Show Gridlines', key: 'xAxis.showGridLines' },
                 { type: 'toggle',
@@ -556,8 +559,41 @@ const graphConfig = {
                 // Set to 1 for solid, design-matching bars (0–1).
                 { type: "input", inputType: "number",
                     label: "Bar Opacity", key: "barOpacity"
+                },
+                // Off (default) → one color per series (route/comparison), the
+                // usual multi-series legend. On → one scale across the whole
+                // chart, each bar colored by its own value (e.g. "more delay =
+                // darker") — only makes sense for a single-series magnitude
+                // chart, mirrors GridGraph's value-scaled coloring.
+                { type: "toggle",
+                    label: "Color by Value", key: "colors.byValue"
+                },
+                // With "Color by Value" on, center the scale on zero
+                // (±max(|min|, |max|)): "no change" lands on the middle color
+                // and equal-magnitude positive/negative values get equal
+                // intensity — for difference/diverging charts.
+                { type: "toggle",
+                    label: "Zero-Centered Colors", key: "colors.byValueSymmetric"
                 }
                 // {type: 'toggle', label: 'Log Scale', key: 'isLog'},
+            ]
+        },
+        gridGraph: {
+            name: 'Grid Graph Layout',
+            displayCdn: ({ display }) => display.graphType === 'GridGraph',
+            items: [
+                // GridGraph always colors cells by value; this centers its
+                // scale on zero (±max(|min|, |max|)) so "no change" lands on
+                // the middle color — see the matching Bar Graph toggle. For
+                // difference/diverging grids.
+                { type: "toggle",
+                    label: "Zero-Centered Colors", key: "colors.byValueSymmetric"
+                },
+                // Color for cells with no data (null value). Defaults to black
+                // (matches the old NPMRDS tool) if left blank.
+                { type: "input", inputType: "text",
+                    label: "Missing Data Color", key: "colors.nullColor"
+                }
             ]
         },
         pieGraph: {

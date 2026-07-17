@@ -252,26 +252,44 @@ export const BarGraph = props => {
     // Bar cross-position: band → scale gives the slot's leading edge; continuous → center on the value.
     const barPos = d => isXBand ? XScale(get(d, indexBy)) : (XScale(coerceX(get(d, indexBy))) - bandwidth / 2);
 
+    // Value-axis domain. Always spans zero ([min(0, lo), max(0, hi)]) so
+    // negative values render as bars extending away from a zero baseline
+    // (difference/diverging charts) instead of clamping to zero-height —
+    // for all-positive data this is exactly the old [0, max] domain.
     const ydGetter = data => {
       if (xDomain.length) {
+        let lo = Infinity, hi = -Infinity;
         if (groupMode === "stacked") {
-          return data.reduce((a, c) => {
-            const y = keys.reduce((a, k) => a + get(c, k, 0), 0);
-            if (!strictNaN(y)) {
-              return [0, Math.max(y, get(a, 1, 0))];
+          // Positives and negatives stack away from zero separately, so a
+          // bar's extents are its positive sum and its negative sum — not
+          // one signed total (which mixed signs would understate).
+          data.forEach(c => {
+            let pos = 0, neg = 0, valid = false;
+            keys.forEach(k => {
+              const v = get(c, k, 0);
+              if (strictNaN(v)) return;
+              valid = true;
+              if (v >= 0) pos += v;
+              else neg += v;
+            });
+            if (valid) {
+              lo = Math.min(lo, neg);
+              hi = Math.max(hi, pos);
             }
-            return a;
-          }, []);
+          });
         }
         else if (groupMode === "grouped") {
-          return data.reduce((a, c) => {
-            const y = keys.reduce((a, k) => Math.max(a, get(c, k, 0)), 0);
-            if (!strictNaN(y)) {
-              return [0, Math.max(y, get(a, 1, 0))];
-            }
-            return a;
-          }, []);
+          data.forEach(c => {
+            keys.forEach(k => {
+              const v = get(c, k, 0);
+              if (strictNaN(v)) return;
+              lo = Math.min(lo, v);
+              hi = Math.max(hi, v);
+            });
+          });
         }
+        if (!Number.isFinite(lo) || !Number.isFinite(hi)) return [];
+        return [Math.min(0, lo), Math.max(0, hi)];
       }
       else {
         return [0, 0];
@@ -304,37 +322,45 @@ export const BarGraph = props => {
       const barValues = {};
 
       if (groupMode === "stacked") {
-        let current = isHorizontal ? 0 : adjustedHeight;
+        // Segments are measured from the zero baseline (YScale(0)) so
+        // negative values stack away from zero on their own side. With an
+        // all-positive [0, max] domain, zero sits at the axis (adjustedHeight
+        // vertical / 0 horizontal) and this is exactly the old geometry.
+        const zero = YScale(0);
+        let posCurrent = zero;
+        let negCurrent = zero;
 
         const stacks = keys.map((key, ii) => {
           const value = get(d, key, 0),
-            width = isHorizontal ? YScale(value) : bandwidth,
-            height = isHorizontal ? bandwidth : Math.max(0, adjustedHeight - YScale(value)),
+            segLen = Math.abs(YScale(value) - zero) || 0,
             color = colorFunc(value, ii, key, d);
 
-          if (!isHorizontal) {
-            current -= height;
+          let x, y;
+          if (isHorizontal) {
+            y = 0;
+            if (value >= 0) { x = posCurrent; posCurrent += segLen; }
+            else { negCurrent -= segLen; x = negCurrent; }
+          }
+          else {
+            x = 0;
+            if (value >= 0) { posCurrent -= segLen; y = posCurrent; }
+            else { y = negCurrent; negCurrent += segLen; }
           }
 
           barValues[key] = { value, color };
 
-          const stack = {
+          return {
             data: d,
             key,
-            width,
-            height,
+            width: isHorizontal ? segLen : bandwidth,
+            height: isHorizontal ? bandwidth : segLen,
             index: d[indexBy],
-            y: isHorizontal ? 0 : current,
-            x: isHorizontal ? current : 0,
+            y,
+            x,
             color,
             value,
             barValues
-          }
-
-          if (isHorizontal) {
-            current += width;
-          }
-          return stack;
+          };
         });
 
         stackData = {
@@ -348,9 +374,16 @@ export const BarGraph = props => {
         }
       }
       else if (groupMode === "grouped") {
+        // Same zero-baseline treatment as the stacked branch: each bar spans
+        // from YScale(0) to YScale(value), so negatives extend below/left of
+        // the baseline. All-positive [0, max] domain → old geometry exactly.
+        const zero = YScale(0);
         const stacks = keys.map((key, ii) => {
           const value = get(d, key, 0),
-            y = isHorizontal ? (bandwidth / keys.length) * ii : Math.min(adjustedHeight, YScale(value)),
+            segLen = Math.abs(YScale(value) - zero) || 0,
+            valuePos = isHorizontal
+              ? (value >= 0 ? zero : YScale(value))
+              : (value >= 0 ? YScale(value) : zero),
             color = colorFunc(value, ii, key, d);
 
           barValues[key] = { value, color };
@@ -358,11 +391,11 @@ export const BarGraph = props => {
           const stack = {
               data: d,
               key,
-              width: isHorizontal ? YScale(value) : bandwidth / keys.length,
-              height: isHorizontal ? bandwidth / keys.length : adjustedHeight - y,
+              width: isHorizontal ? segLen : bandwidth / keys.length,
+              height: isHorizontal ? bandwidth / keys.length : segLen,
               index: d[indexBy],
-              y,
-              x: isHorizontal ? 0 : (bandwidth / keys.length) * ii,
+              y: isHorizontal ? (bandwidth / keys.length) * ii : valuePos,
+              x: isHorizontal ? valuePos : (bandwidth / keys.length) * ii,
               color,
               value,
               barValues

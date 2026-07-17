@@ -991,6 +991,21 @@ describe("buildJoinSources", () => {
       table2: { view_id: 202, env: "dama_other" },
     });
   });
+
+  it("passes a pgFederated source through as-is, without extracting view_id/env", () => {
+    const join = {
+      sources: {
+        ds: {},
+        pm3: {
+          pgFederated: { pgEnv: "npmrds2", table: "s2001_v3490_map_21_extended", schema: "gis_datasets" },
+        },
+      },
+    };
+    const result = buildJoinSources({ join, externalSource });
+    expect(result).toEqual({
+      pm3: { pgFederated: { pgEnv: "npmrds2", table: "s2001_v3490_map_21_extended", schema: "gis_datasets" } },
+    });
+  });
 });
 
 // ─── buildJoinOnClause ───────────────────────────────────────────────────────
@@ -1020,6 +1035,33 @@ describe("buildJoinOnClause", () => {
       mergeStrategy: "join",
       table: "table2",
       on: "ds.id = table2.foreign_id",
+    }]);
+  });
+
+  it("uses a calculated dsColumn's raw expression as-is, without an alias prefix", () => {
+    const join = {
+      sources: {
+        ds: {},
+        table2: {
+          source: 2,
+          type: "left",
+          joinColumns: [{
+            dsColumn: "if(table1.f_system < 3, 'FREEWAY', 'NONFREEWAY') as road_type",
+            joinSourceColumn: "key",
+          }],
+        },
+      },
+    };
+    const result = buildJoinOnClause({ join, externalSource });
+    // No "ds." prefix (which would corrupt the expression), and the expression
+    // can reference an already-joined alias (table1) directly in its own body —
+    // this is what makes a computed join key against a previously-joined table's
+    // columns possible without the join engine supporting multi-hop joins itself.
+    expect(result).toEqual([{
+      type: "left",
+      mergeStrategy: "join",
+      table: "table2",
+      on: "if(table1.f_system < 3, 'FREEWAY', 'NONFREEWAY') = table2.key",
     }]);
   });
 });
@@ -1180,6 +1222,32 @@ describe("isJoinComplete", () => {
   it("returns false for join missing type", () => {
     expect(isJoinComplete({ source: 1, view: 101, mergeStrategy: 'join' })).toBe(false);
   });
+
+  it("returns true for a complete pgFederated join", () => {
+    expect(isJoinComplete({
+      pgFederated: { pgEnv: 'npmrds2', table: 's2001_v3490_map_21_extended', schema: 'gis_datasets' },
+      mergeStrategy: 'join',
+      type: 'inner',
+      joinColumns: [{ dsColumn: 'tmc', joinSourceColumn: 'travel_time_code' }],
+    })).toBe(true);
+  });
+
+  it("returns false if pgFederated is missing pgEnv/table/schema", () => {
+    expect(isJoinComplete({
+      pgFederated: { pgEnv: 'npmrds2', table: 's2001_v3490_map_21_extended' },
+      mergeStrategy: 'join',
+      type: 'inner',
+      joinColumns: [{ dsColumn: 'tmc', joinSourceColumn: 'travel_time_code' }],
+    })).toBe(false);
+  });
+
+  it("returns false for a pgFederated join missing joinColumns", () => {
+    expect(isJoinComplete({
+      pgFederated: { pgEnv: 'npmrds2', table: 's2001_v3490_map_21_extended', schema: 'gis_datasets' },
+      mergeStrategy: 'join',
+      type: 'inner',
+    })).toBe(false);
+  });
 });
 
 // ─── mergeVariantFilters (comparison series patch rule) ──────────────────────
@@ -1283,6 +1351,54 @@ describe("buildUdaConfig — comparison series", () => {
     expect(options.groupBy).toContain("__series");
   });
 
+  // Regression coverage for old-reports-conversion.md round 18/19's Route Info Box
+  // pagination bug: simpleFilterLength's fan-out branch used to always fall back to
+  // a raw count(*) whenever '__series' was the only groupBy column, even when every
+  // shown column was really an ungrouped aggregate (fn: avg/sum/...) that collapses
+  // to exactly one row per arm. options.ungroupedAggregate is the flag this test
+  // covers — the server-side fix (query_sets/clickhouse.js + postgres.js) has its
+  // own regression tests in dms-server/tests/test-uda.js.
+  it("ungroupedAggregate: unset when no shown column has a real aggregate fn", () => {
+    const { options } = buildUdaConfig(seriesInput());
+    expect(options.ungroupedAggregate).toBeUndefined();
+  });
+
+  it("ungroupedAggregate: true when every real groupBy dimension is just the series discriminator and a shown column has an aggregate fn", () => {
+    const input = seriesInput();
+    input.columns = [
+      { ...col("speed"), fn: "avg" },
+      col("tmc"),
+      { name: "__series", origin: "comparison-series", show: true, group: true },
+    ];
+    const { options } = buildUdaConfig(input);
+    expect(options.ungroupedAggregate).toBe(true);
+  });
+
+  it("ungroupedAggregate: true for a self-aggregating (fn: exempt) column grouped only by the series discriminator", () => {
+    // Bar Graph Summary shape: one exempt calculated column (its SQL contains
+    // its own sum()/avg() aggregates), groupBy __series only — collapses to
+    // exactly one row per arm just like a wrapped avg/sum column does.
+    const input = seriesInput();
+    input.columns = [
+      { ...col("speed"), type: "calculated", fn: "exempt" },
+      col("tmc"),
+      { name: "__series", origin: "comparison-series", show: true, group: true },
+    ];
+    const { options } = buildUdaConfig(input);
+    expect(options.ungroupedAggregate).toBe(true);
+  });
+
+  it("ungroupedAggregate: unset when a real (non-series) column is also grouped", () => {
+    const input = seriesInput();
+    input.columns = [
+      { ...col("speed"), fn: "avg" },
+      { ...col("tmc"), group: true },
+      { name: "__series", origin: "comparison-series", show: true, group: true },
+    ];
+    const { options } = buildUdaConfig(input);
+    expect(options.ungroupedAggregate).toBeUndefined();
+  });
+
   it("disabled: no seriesVariants, synthetic column dropped (BC)", () => {
     const input = seriesInput();
     input.comparisonSeries.enabled = false;
@@ -1344,6 +1460,28 @@ describe("buildUdaConfig — comparison series", () => {
     expect(attributes).not.toContain("ds.__series");
   });
 
+  // Regression: a calculated column used as a groupBy/orderBy target (e.g. a
+  // "weekday" x-axis bucketing rows by day-of-week) has a reqName that is an
+  // arbitrary SQL expression, not a plain "table.column" ref. The fan-out's
+  // outer query (`SELECT * FROM (<arm>) AS fanout ORDER BY ...`) can only
+  // address the arm's SELECT-level alias — using the raw expression fails
+  // with "Unknown expression or function identifier" since any table alias
+  // it references (e.g. `ds`) is out of scope outside the arm subquery.
+  it("calculated column with sort: orderBy uses the alias, not the mangled raw expression", () => {
+    const input = seriesInput();
+    input.columns.push({
+      name: "toDayOfWeek(ds.date, 1) as weekday",
+      type: "calculated",
+      show: true,
+      group: true,
+      sort: "asc",
+    });
+    const { options } = buildUdaConfig(input);
+    expect(options.orderBy).toEqual({ weekday: "asc" });
+    expect(options.orderBy).not.toHaveProperty("date, 1)");
+    expect(options.orderBy).not.toHaveProperty("toDayOfWeek(ds.date, 1)");
+  });
+
   // ── Dynamic binding (Piece 3): comparisonSeries.config drives the fan-out ──
   // usePageFilterSync resolves a page-state list into config; buildUdaConfig treats
   // config's presence as dynamic mode (config wins over static variants; config:[]
@@ -1381,6 +1519,65 @@ describe("buildUdaConfig — comparison series", () => {
     expect(input.comparisonSeries.config).toBeUndefined();
     const { options } = buildUdaConfig(input);
     expect(options.seriesVariants.map((v) => v.label)).toEqual(["June 1", "June 2"]);
+  });
+
+  // ── skipFetch: comparison series enabled but inactive with no base-filter fallback ──
+  // A section can rely on comparisonSeries entirely for its scoping (no base filter
+  // leaves at all — e.g. a "compare selected routes" Graph fed only by fan-out
+  // variants). Whenever activeComparisonSeries reads false — pre-effect race
+  // (config still undefined) OR a legitimately-resolved-empty/stale config (no live
+  // page-state backing it right now) — and there's no base filter to fall back on,
+  // the query that would fire is a fully unscoped scan. Reproduced live against
+  // report_1070 (2026-07-08): a persisted comparisonSeries.config with real variants
+  // got overwritten to [] by usePageFilterSync's live-resolve effect on mount (no
+  // page-session publish yet), and the section's own `filters` was `{groups: []}` —
+  // the resulting request had no seriesKey/seriesVariants AND no WHERE constraint at
+  // all, straight at the multi-billion-row NPMRDS table.
+
+  const emptyFilters = () => ({ op: "AND", groups: [] });
+
+  it("enabled, config unresolved (undefined), no base filter → skipFetch true", () => {
+    const input = seriesInput();
+    input.filters = emptyFilters();
+    delete input.comparisonSeries.config;
+    input.comparisonSeries.variants = []; // no static fallback either
+    expect(buildUdaConfig(input).skipFetch).toBe(true);
+  });
+
+  it("enabled, config resolved to [] (no live selection), no base filter → skipFetch true (the live report_1070 shape)", () => {
+    const input = seriesInput();
+    input.filters = emptyFilters();
+    input.comparisonSeries.config = [];
+    expect(buildUdaConfig(input).skipFetch).toBe(true);
+  });
+
+  it("enabled, config resolved WITH variants, no base filter → skipFetch false (active fan-out scopes it)", () => {
+    const input = seriesInput();
+    input.filters = emptyFilters();
+    input.comparisonSeries.config = [
+      { label: "Q1", filters: { op: "AND", groups: [{ col: "date", op: "filter", value: ["2026-03-01"] }] } },
+    ];
+    expect(buildUdaConfig(input).skipFetch).toBe(false);
+  });
+
+  it("enabled, config resolved to [], but a real base filter leaf exists → skipFetch false (legitimate base-only fetch)", () => {
+    const input = seriesInput(); // seriesInput()'s filters already carries a real tmc leaf
+    input.comparisonSeries.config = [];
+    expect(buildUdaConfig(input).skipFetch).toBe(false);
+  });
+
+  it("comparisonSeries not enabled at all, no base filter → skipFetch false (out of scope for this guard)", () => {
+    const input = seriesInput();
+    input.filters = emptyFilters();
+    input.comparisonSeries.enabled = false;
+    expect(buildUdaConfig(input).skipFetch).toBe(false);
+  });
+
+  it("static BC: labeled static variants, no config key, no base filter → skipFetch false (active via static list)", () => {
+    const input = seriesInput();
+    input.filters = emptyFilters();
+    expect(input.comparisonSeries.config).toBeUndefined();
+    expect(buildUdaConfig(input).skipFetch).toBe(false);
   });
 });
 

@@ -196,7 +196,11 @@ export const getData = async ({
     debugCall,
     debugTime,
     optionsOnly = false,
-    refreshToken
+    refreshToken,
+    // Cache-key discriminator only, folded into `options` below — prevents sibling
+    // sections with matching filter/groupBy/join from colliding on the same Falcor
+    // path. Never read server-side (see falcor-sibling-query-cache-collision.md).
+    sectionId,
 }) => {
     debugTime && console.time('getData fn')
     const debug = debugCall || false;
@@ -292,6 +296,9 @@ export const getData = async ({
     // repeat paths without a network trip — same-path "refetches" would return the stale
     // pre-write rows. The server destructures known options keys and ignores `_r`.
     if (refreshToken !== undefined) options._r = refreshToken;
+    // Cache-key discriminator (see the sectionId param note above) — set here so
+    // getLength's `optionsForLen` spread picks it up too.
+    if (sectionId) options.sectionId = sectionId;
 
     debugTime && console.timeEnd('buildUdaConfig')
 
@@ -518,6 +525,7 @@ export const getData = async ({
                         exclude: options.exclude,
                         filterGroups: options.filterGroups,
                         normalFilter: options.normalFilter,
+                        sectionId: options.sectionId,
                     }),
                     attributes: columnsToFetch
                         .filter((c) => c.showTotal || state.display.showTotal)

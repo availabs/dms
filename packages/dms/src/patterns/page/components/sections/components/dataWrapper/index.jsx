@@ -217,7 +217,7 @@ const Edit = forwardRef((props, ref) => {
 
     // ── Hooks that operate on state ──
     const { loading, currentPage, onPageChange, outputSourceInfo } = useDataLoader({
-        state, setState, apiLoad, component, isEditMode: true,
+        state, setState, apiLoad, component, isEditMode: true, sectionId, trackingId,
     });
 
     useEffect(() => {
@@ -252,9 +252,9 @@ const Edit = forwardRef((props, ref) => {
         }
     }, [editPageState?.filters, state?.columns, newItem]);
 
-    useColumnOptions({ state, setState, apiLoad, component, pgEnv, enabled: !!cms_context });
+    useColumnOptions({ state, setState, apiLoad, component, pgEnv, enabled: !!cms_context, sectionId, trackingId });
 
-    usePivotDistinctValues({ state, setState, apiLoad });
+    usePivotDistinctValues({ state, setState, apiLoad, sectionId, trackingId });
 
     // ── useDataSource + dwAPI (owned by dataWrapper) ──
     const dataSourceInfo = useDataSource({ state, setState });
@@ -491,7 +491,7 @@ const View = forwardRef(({cms_context, value, onChange, component, editPageMode,
 
     // ── Hooks ──
     const { loading, currentPage, onPageChange, outputSourceInfo } = useDataLoader({
-        state, setState, apiLoad, component,
+        state, setState, apiLoad, component, sectionId, trackingId,
     });
 
     useEffect(() => {
@@ -528,10 +528,11 @@ const View = forwardRef(({cms_context, value, onChange, component, editPageMode,
 
     useColumnOptions({
         state, setState, apiLoad, component, pgEnv,
-        enabled: allowEdit || state?.display?.allowAdddNew || state?.columns?.some(c => c.allowEditInView && c.mapped_options)
+        enabled: allowEdit || state?.display?.allowAdddNew || state?.columns?.some(c => c.allowEditInView && c.mapped_options),
+        sectionId, trackingId,
     });
 
-    usePivotDistinctValues({ state, setState, apiLoad });
+    usePivotDistinctValues({ state, setState, apiLoad, sectionId, trackingId });
 
     // ── useDataSource + dwAPI (owned by dataWrapper) ──
     const dataSourceInfo = useDataSource({ state, setState });

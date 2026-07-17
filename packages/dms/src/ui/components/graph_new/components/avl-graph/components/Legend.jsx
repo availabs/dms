@@ -34,17 +34,20 @@ const VerticalCategoricalLegendItem = props => {
 	return (
 		<div
 			className={ `
-				flex items-center px-1
+				flex items-center px-1 min-w-0
 				${ doHighlight ? "outline outline-2 outline-offset-1 rounded" : "" }
 			` }
 			onMouseEnter={ doOnEnter }
 			onMouseLeave={ doOnLeave }
 		>
-			<div className="w-4 h-4 rounded mr-1"
+			<div className="w-4 h-4 rounded mr-1 flex-shrink-0"
 				style={ {
 					backgroundColor: doHighlight ? "red" : color
 				} }/>
-			<div>
+			{ /* min-w-0 + truncate only ever clip anything once an ancestor
+			   actually constrains this item's width (see useLegendSqueezeGuard) —
+			   inert, and identical to today's render, otherwise. */ }
+			<div className="min-w-0 truncate" title={ label }>
 				{ label }
 			</div>
 		</div>
@@ -150,12 +153,12 @@ const VerticalLinearLegend = ({ size, scale = scaleLinear(), format = identity }
 
 			<div className="grid grid-cols-1">
 				{ ticks.slice(0, -1).map((t, i) =>
-						<div key={ t }
+						<div key={ i }
 							style={ {
 								height: `${ height * 0.25 }px`
 							} }
 						>
-							<VerticalLinearLegendTick key={ t }
+							<VerticalLinearLegendTick key={ i }
 								value={ t }
 								format={ format }
 								width={ width }/>
@@ -240,7 +243,7 @@ const HorizontalLinearLegend = ({ size, scale = scaleLinear(), format = identity
 					height: `${ height * 0.5 }px`
 				} }/>
 			{ ticks.map((t, i) =>
-					<HorizontalLinearLegendTick key={ t }
+					<HorizontalLinearLegendTick key={ i }
 						below={ i % 2 === 0}
 						scale={ wScale }
 						value={ t }

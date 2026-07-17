@@ -173,7 +173,13 @@ const buildJoinOptions = (layerConfig, dataColumn = null) => {
     viewId: joinConfig.source.viewId,
     localKey: joinConfig.featureKeyColumn,
     joinKey: joinConfig.joinColumn,
-    options: { ...buildJoinFilterOptions(queryConfig), groupBy },
+    // Forward a nested secondary join (e.g. a static per-TMC join needed by a
+    // calculated column) the same way buildJoinParam does — see that
+    // function's comment for why the CH query builder already expects this.
+    options: {
+      ...buildJoinFilterOptions(queryConfig), groupBy,
+      ...(queryConfig.join ? { join: queryConfig.join } : {}),
+    },
     attributes: resolved.map((entry) => entry.attr),
     // Expose everything except the join key as tile/feature columns so tile
     // rendering and client-side map filters can read the joined values too.

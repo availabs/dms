@@ -98,10 +98,13 @@ function injectPageFilters(node, filterMap) {
  * @param {string} elementData - Raw JSON string from section element['element-data']
  * @param {string} elementType - Section element['element-type'] (e.g., 'Spreadsheet')
  * @param {Object|null} pageFilterMap - Optional {searchKey: values[]} map for page filter injection
+ * @param {string} [sectionId] - Falcor cache-key discriminator (the section's own id/trackingId) —
+ *        prevents sibling sections with matching filter/groupBy from colliding on the same Falcor
+ *        path when preloaded concurrently. See falcor-sibling-query-cache-collision.md.
  * @returns {string|null} Updated element-data JSON string with pre-loaded data,
  *          or null if pre-loading was skipped
  */
-export async function preloadSectionData(falcor, elementData, elementType, pageFilterMap = null) {
+export async function preloadSectionData(falcor, elementData, elementType, pageFilterMap = null, sectionId = null) {
     if (!elementData || !isPreloadableType(elementType)) return null
 
     // Parse and migrate state (handles v0/v1/v2 formats)
@@ -131,7 +134,7 @@ export async function preloadSectionData(falcor, elementData, elementType, pageF
 
     try {
         const t0 = import.meta.env.DEV ? performance.now() : 0
-        const { length, data } = await getData({ state, apiLoad, fullDataLoad, keepOriginalValues })
+        const { length, data } = await getData({ state, apiLoad, fullDataLoad, keepOriginalValues, sectionId })
         if (import.meta.env.DEV) {
             const ms = (performance.now() - t0).toFixed(0)
             console.log(`[preload] ${elementType} — ${ms}ms, ${data?.length ?? 0} rows (${length} total)`)
@@ -186,7 +189,7 @@ async function preloadSectionsArray(falcor, sections, filterMap, label) {
             const elementData = section?.element?.['element-data']
             if (!isPreloadableType(elementType) || !elementData) return section
 
-            const preloaded = await preloadSectionData(falcor, elementData, elementType, filterMap)
+            const preloaded = await preloadSectionData(falcor, elementData, elementType, filterMap, section.trackingId || section.id)
             if (!preloaded) return section
 
             return {
