@@ -95,6 +95,7 @@ export const componentFunctions = {
                         { label: 'First (top row)', value: 'first' },
                         { label: 'Max of metric',   value: 'max' },
                         { label: 'Min of metric',   value: 'min' },
+                        { label: 'List (all rows)', value: 'list' },
                     ] },
                 { key: 'metric', label: 'Metric column (for max/min)', type: 'column-select' },
                 { key: 'column', label: 'Column to publish', type: 'column-select' },

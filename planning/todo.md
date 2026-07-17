@@ -245,6 +245,16 @@
 
 ### patterns/page
 
+- [x] [Card: `load_publish` provider](./tasks/current/card-load-publish-provider.md) — DONE
+      2026-07-17. Component-actions parity with the Spreadsheet: a Card publishes derived-row
+      column values to action params on load (first/max/min, multi-`publishes[]`), with a
+      Card-specific guard that never publishes from saved seed rows (identity-change gate).
+      Registered in the Card Actions panel (author-accessible). First consumer: incident_view
+      event-header Card publishes `activeDate`/`metaYear`. Core rides the owner git sync.
+- [x] [userMenu: per-item `groups` gating for authMenu items](./tasks/current/usermenu-authmenu-group-gating.md) —
+      DONE 2026-07-17. Additive/BC: an authMenu item with `groups: ["AVAIL", …]` renders only for
+      users in one of those groups (no key = unchanged). Consumer: transportny themev2 Site
+      Status → `/sitemgmt`, gated AVAIL/NYSDOT Admin. Core rides the owner git sync.
 - [x] [Unset page variables blanked every reacting section](./tasks/current/page-variable-empty-leaf-regression.md) —
       **FIXED 2026-07-16.** Unset URL-registered page variables flowed as `[""]` into
       `usePageFilters` leaves → `IN ('')` → 0 rows/length on EVERY reacting section (blank

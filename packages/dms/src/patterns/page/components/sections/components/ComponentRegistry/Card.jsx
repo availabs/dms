@@ -111,6 +111,67 @@ export const CardSection = ({
         if (value !== undefined) setActionParam(clickPublishCfg.paramKey, value);
     }, [clickPublishCfg, setActionParam]);
 
+    // load_publish: when the Card's data arrives (or changes), derive a row (first/max/min
+    // over a metric) and publish one or more of its column values to page action params —
+    // same provider shape as the Spreadsheet's. One Card-specific guard: Cards PERSIST their
+    // last-fetched rows in the saved config (`state.data` seeds the first paint), and
+    // publishing from that seed would broadcast stale values (e.g. last-authored event's
+    // date/year) before the live fetch lands. So we publish only once `state.data`'s
+    // identity has changed from its mount-time value — a completed fetch always produces a
+    // fresh array, even when the contents are identical. publishedRef then de-dupes so we
+    // only re-publish on a real value change (no reload loop).
+    const loadPublishCfg = state.display?._functions?.providers?.find(p => p.functionId === 'load_publish' && p.enabled);
+    const mountDataRef = useRef(state.data);
+    const publishedRef = useRef({});
+    useEffect(() => {
+        if (!loadPublishCfg || !setActionParam) return;
+        if (state.data === mountDataRef.current) return; // still the saved seed — wait for a live fetch
+        const rows = state.data || [];
+        const a = loadPublishCfg.args || {};
+        const pubs = Array.isArray(a.publishes) ? a.publishes
+            : (a.column ? [{ column: a.column, paramKey: loadPublishCfg.paramKey }] : []);
+        const publish = (paramKey, value) => {
+            if (!paramKey || value === undefined || value === null || value === '') return;
+            if (String(publishedRef.current[paramKey]) === String(value)) return;
+            publishedRef.current[paramKey] = value;
+            setActionParam(paramKey, value);
+        };
+        // Empty result after a live fetch: resolve any subscriber `requireResolved` gate with
+        // each entry's `emptyValue` sentinel so gated sections render empty instead of spinning.
+        if (!rows.length) {
+            pubs.forEach(({ paramKey, emptyValue }) => publish(paramKey, emptyValue));
+            return;
+        }
+        // 'list' derivation: publish EVERY loaded row's value for each entry's column —
+        // deduped, in row order — as the action param's value ARRAY. Same contract as the
+        // Spreadsheet's load_publish list mode.
+        if (a.derivation === 'list') {
+            pubs.forEach(({ column, paramKey }) => {
+                if (!paramKey || !column) return;
+                const values = [...new Set(rows.map(r => r[column]).filter(v => v !== undefined && v !== null && v !== ''))];
+                if (!values.length) return;
+                const dedupeKey = values.join('\u0001');
+                if (publishedRef.current[paramKey] === dedupeKey) return;
+                publishedRef.current[paramKey] = dedupeKey;
+                setActionParam(paramKey, values);
+            });
+            return;
+        }
+        const der = a.derivation || 'first';
+        let row;
+        if (der === 'first') row = rows[0];
+        else {
+            const num = v => { const n = parseFloat(String(v ?? '').replace(/[^0-9.\-]/g, '')); return isNaN(n) ? -Infinity : n; };
+            row = rows.reduce((best, r) => {
+                if (!best) return r;
+                const cmp = num(r[a.metric]) - num(best[a.metric]);
+                return (der === 'max' ? cmp > 0 : cmp < 0) ? r : best;
+            }, null);
+        }
+        if (!row) return;
+        pubs.forEach(({ column, paramKey }) => publish(paramKey, row[column]));
+    }, [state.data, loadPublishCfg, setActionParam]);
+
     // closeModalOnAdd: '<actionParamKey>' — after a successful add-new-item create, clear that
     // action param so the enclosing modal section-group (opened by the same key) closes. The
     // Card section doesn't know its group's modalParamKey, so the author names it explicitly —

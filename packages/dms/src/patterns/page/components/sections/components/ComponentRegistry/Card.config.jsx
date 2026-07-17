@@ -382,6 +382,26 @@ export const componentFunctions = {
             trigger: 'add',
             args: [],
         },
+        {
+            id: 'load_publish',
+            label: 'On Load: Publish Derived Row',
+            description: 'When data loads, derive a row (first/max/min over a metric) and publish one or more of its column values to page action params — e.g. an event-header Card publishes the event\'s date/year for downstream sections. Publishes only after a live fetch (never from the Card\'s saved seed rows); re-publishes when the data changes.',
+            trigger: 'load',
+            paramKey: "",
+            args: [
+                { key: 'derivation', label: 'Row to publish', type: 'select',
+                    options: [
+                        { label: 'First (top row)', value: 'first' },
+                        { label: 'Max of metric',   value: 'max' },
+                        { label: 'Min of metric',   value: 'min' },
+                        { label: 'List (all rows)', value: 'list' },
+                    ] },
+                { key: 'metric', label: 'Metric column (for max/min)', type: 'column-select' },
+                { key: 'column', label: 'Column to publish', type: 'column-select' },
+                // programmatic builds may instead set args.publishes = [{ column, paramKey }, …]
+                // to publish several params from the one derived row.
+            ],
+        },
     ],
     subscribers: [
         {

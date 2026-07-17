@@ -13,6 +13,9 @@ import { getColorRange } from "../colorSchemeUnifier"
 const TopOrBottomRegex = /^top|bottom/;
 const LeftOrRightRegex = /^(left|right)$/;
 
+// stable empty overlay list — keeps the avl GridGraph's pointsMap/boundsMap memos inert
+const EMPTY_OVERLAYS = [];
+
 const GridGraphWrapper = props => {
 
 // console.log("GridGraphWrapper::props", props);
@@ -262,6 +265,70 @@ const GridGraphWrapper = props => {
 
 // console.log("GridGraphWrapper::highlights", highlights);
 
+  // ── Grid overlays from subscriber actions (feed the avl GridGraph's existing
+  // `bounds` / `points` props — until now nothing upstream supplied them):
+  //   • grid_cell_bands — param entries "rowKey|xFrom|xTo" → ONE border rect per
+  //     matched row spanning the x keys from xFrom..xTo. X bounds are compared
+  //     LEXICOGRAPHICALLY against the x-axis category keys (inclusive), so the page
+  //     must publish bounds in the axis's own key vocabulary (e.g. zero-padded
+  //     "07:40" for a 5-min tod axis). E.g. an incident page publishes each delay
+  //     TMC's congestion window and the speed grid outlines those (TMC × epoch) cells.
+  //   • grid_point — param entries "rowKey|xKey" → a ring centered on that cell
+  //     (e.g. the incident-opened epoch × TMC).
+  // Both resolve rowKey → the y index through args.column: a fetched row-level column
+  // (constant per y row, like the height column — e.g. the bare tmc behind an
+  // "intersection · tmc" y label). Rows/keys that don't resolve are skipped.
+  const [overlayBounds, overlayPoints] = React.useMemo(() => {
+    if (!yColumn) return [EMPTY_OVERLAYS, EMPTY_OVERLAYS];
+    const bandActs = actions.filter(a => a.action === "grid_cell_bands" && a.column && a.value?.length);
+    const pointActs = actions.filter(a => a.action === "grid_point" && a.column && a.value?.length);
+    if (!bandActs.length && !pointActs.length) return [EMPTY_OVERLAYS, EMPTY_OVERLAYS];
+
+    // rowKey → y index, one map per distinct rowKey column
+    const maps = {};
+    for (const act of [...bandActs, ...pointActs]) maps[act.column] = maps[act.column] || {};
+    for (const d of (props.viewData || [])) {
+      const index = d[yColumn.key];
+      if (index === undefined) continue;
+      for (const col of Object.keys(maps)) {
+        const rk = d[col];
+        if (rk !== undefined && rk !== null && !(rk in maps[col])) maps[col][rk] = index;
+      }
+    }
+
+    const keys = dataFromProps.keys || [];
+    const bounds = [];
+    for (const act of bandActs) {
+      const stroke = act.args?.stroke || "#111827";
+      const strokeWidth = +(act.args?.strokeWidth) || 1.5;
+      // entries may arrive as an array of triplets OR comma-joined inside one value
+      for (const entry of act.value.flatMap(v => String(v).split(","))) {
+        const [rk, from, to] = String(entry).split("|");
+        const index = maps[act.column][rk];
+        if (index === undefined || !from || !to) continue;
+        const included = keys.filter(k => String(k) >= from && String(k) <= to);
+        if (!included.length) continue;
+        bounds.push({ index, bounds: included, stroke, strokeWidth, fill: "none", rx: 2 });
+      }
+    }
+    const points = [];
+    for (const act of pointActs) {
+      const style = {
+        r: +(act.args?.r) || 4.5,
+        fill: act.args?.fill || "#0F1722",
+        stroke: act.args?.stroke || "#ffffff",
+        strokeWidth: +(act.args?.strokeWidth) || 2,
+      };
+      for (const entry of act.value) {
+        const [rk, xKey] = String(entry).split("|");
+        const index = maps[act.column][rk];
+        if (index === undefined || !xKey) continue;
+        points.push({ index, key: xKey, ...style });
+      }
+    }
+    return [bounds, points];
+  }, [actions, props.viewData, yColumn, dataFromProps.keys]);
+
   const onLegendEnter = React.useMemo(() => {
     if (!publish || !provider) return null;
     return key => {
@@ -357,6 +424,8 @@ const GridGraphWrapper = props => {
           axisBottom={ axisBottom }
           axisLeft={ axisLeft }
           highlights={ highlights }
+          bounds={ overlayBounds }
+          points={ overlayPoints }
           onHorizontalEnter={ onHorizontalEnter }
           onHorizontalLeave={ onHorizontalLeave }
           onGridEnter={ onGridEnter }

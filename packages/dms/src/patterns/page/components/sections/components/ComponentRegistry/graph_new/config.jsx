@@ -46,6 +46,30 @@ const componentFunctions = {
         { key: 'valueKey', label: 'Value / filter property', type: 'input' },
         { key: 'column', label: 'Filter column (optional)', type: 'input' },
       ],
+    },
+    // Grid-graph overlays (GridGraph only). Both are pure overlays — no refetch: they
+    // redraw whenever the subscribed param's value changes. Entries are pipe-joined
+    // strings published by another section (typically a load_publish 'list').
+    { id: 'grid_cell_bands',
+      label: 'Grid: Cell Bands',
+      description: 'Draws a border rect over a run of cells per row. Param entries are "rowKey|xFrom|xTo"; x bounds compare lexicographically against the x-axis keys (publish them in the axis\'s own key format, e.g. "07:40"). Row Key Column names a fetched row-level column (e.g. the bare tmc) that identifies each y row.',
+      trigger: 'action_param',
+      args: [
+        { key: 'column', label: 'Row Key Column', type: 'column-select' },
+        { key: 'stroke', label: 'Border color', type: 'colorpicker', defaultValue: '#111827' },
+        { key: 'strokeWidth', label: 'Border width', type: 'input', inputType: 'number' },
+      ],
+    },
+    { id: 'grid_point',
+      label: 'Grid: Point Marker',
+      description: 'Draws a ring/dot centered on one cell per entry. Param entries are "rowKey|xKey" (xKey in the x-axis\'s own key format). Row Key Column names a fetched row-level column that identifies each y row.',
+      trigger: 'action_param',
+      args: [
+        { key: 'column', label: 'Row Key Column', type: 'column-select' },
+        { key: 'fill', label: 'Fill color', type: 'colorpicker', defaultValue: '#0F1722' },
+        { key: 'stroke', label: 'Ring color', type: 'colorpicker', defaultValue: '#ffffff' },
+        { key: 'r', label: 'Radius', type: 'input', inputType: 'number' },
+      ],
     }
   ]
 };
