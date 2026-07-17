@@ -4,10 +4,8 @@ import { GridGraph, Legend } from "./avl-graph"
 
 import { groups as d3groups } from "d3-array"
 
-import { scaleLinear } from "d3-scale"
-
 import { strictNaN } from "../utils"
-import { getAggFunc } from "./utils"
+import { getAggFunc, buildValueColorScale, formatMinutesAuto } from "./utils"
 import { getColorRange } from "../colorSchemeUnifier"
   
 const TopOrBottomRegex = /^top|bottom/;
@@ -30,7 +28,7 @@ const GridGraphWrapper = props => {
     else if (props.colors?.type === "scheme") {
       colors = getColorRange(props.colors.scheme, 3);
     }
-    return props.colors?.reverse ? colors.reverse() : colors;
+    return props.colors?.reverse ? [...colors].reverse() : colors;
   }, [props.colors]);
 
   const [xColumn, yColumn, colorColumns, widthColumn, heightColumn] = React.useMemo(() => {
@@ -125,12 +123,12 @@ const GridGraphWrapper = props => {
     }
 
 
-    let colorFunc;
-
-    if ((min < Infinity) && (max > -Infinity)) {
-      const mid = min + (max - min) * 0.5;
-      colorFunc = scaleLinear().domain([min, mid, max]).range(colors);
-    }
+    // byValueSymmetric centers the scale on zero (±max(|min|, |max|)) — see
+    // the matching option in BarGraph.jsx; used by difference/diverging grids.
+    const symMax = Math.max(Math.abs(min), Math.abs(max));
+    const colorFunc = props.colors?.byValueSymmetric
+      ? buildValueColorScale(-symMax, symMax, colors)
+      : buildValueColorScale(min, max, colors);
 
     const keys = [...keySet];
 
@@ -168,8 +166,9 @@ const GridGraphWrapper = props => {
       }).reverse()
     }
 
-    return { data, keys, colors: colorFunc, keyWidths };
-  }, [props.viewData, xColumn, yColumn, colorColumns, widthColumn, heightColumn, colors]);
+    return { data, keys, colors: colorFunc, keyWidths, max };
+  }, [props.viewData, xColumn, yColumn, colorColumns, widthColumn, heightColumn, colors,
+      props.colors?.byValueSymmetric]);
 
 // console.log("GridGraphWrapper::dataFromProps", dataFromProps);
 
@@ -184,14 +183,20 @@ const GridGraphWrapper = props => {
   }, [props.yAxis]);
 
   const legend = React.useMemo(() => {
+    // See formatMinutesAuto: the unit switch needs THIS graph's own domain
+    // max (dataFromProps.max), so it can't be resolved upstream in
+    // GraphComponent's hoverComp memo like every other valueFormat.
+    const format = props.hoverComp?.minutesAutoSeconds
+      ? formatMinutesAuto(dataFromProps.max)
+      : props.hoverComp?.valueFormat;
     return {
       ...props.legend,
       type: "linear",
       orientation: ["right", "left"].includes(props.legend.position || "right") ? "vertical" : "horizontal",
       scale: dataFromProps.colors,
-      format: props.hoverComp?.valueFormat
+      format
     };
-  }, [props.legend, props.colors, props.hoverComp?.valueFormat, dataFromProps]);
+  }, [props.legend, props.colors, props.hoverComp?.valueFormat, props.hoverComp?.minutesAutoSeconds, dataFromProps]);
 
   const {
     publishHoverData: publish,
@@ -361,7 +366,11 @@ const GridGraphWrapper = props => {
           onHorizontalLeave={ onHorizontalLeave }
           onGridEnter={ onGridEnter }
           onGridLeave={ onGridLeave }
-          onGridClick={ onGridClick }/>
+          onGridClick={ onGridClick }
+          // Missing-data cells (null value) resolve to this color. Default matches
+          // the old NPMRDS tool's black no-data cells; author-overridable, e.g. back
+          // to "transparent" for a report that wants missing data to disappear.
+          nullColor={ props.colors?.nullColor || "#000000" }/>
       </div>
       { !legend.show || !legend.position.includes("bottom") ? null :
         <div

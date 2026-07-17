@@ -358,6 +358,19 @@ const fnum2 = d => {
     return `${ float2Format(+d / 1000000000.0) }b`;
 }
 
+// NPMRDS-style raw x-axis "epoch" values are a 5-minute-of-day index (0-287,
+// e.g. `ds.epoch` — see convert_old_reports.py's HOUR_EXPR/QUARTER_HOUR_EXPR,
+// which divide the same column by 12/3 to get hour/15-min buckets). D3's
+// default axis tick formatter just stringifies that raw index (e.g. "80"),
+// not a time (e.g. "6:40") — this converts it for any xAxis whose ticks are
+// this raw index.
+const epochTimeFormat = d => {
+    const totalMinutes = Math.round(+d * 5);
+    const hour = Math.floor(totalMinutes / 60) % 24;
+    const minute = totalMinutes % 60;
+    return `${ hour }:${ String(minute).padStart(2, "0") }`;
+}
+
 export const ValueFormats = [
     { label: "Identity", value: "identity",
         func: d => d
@@ -388,6 +401,9 @@ export const ValueFormats = [
     },
     { label: "By Value (2 decimal)", value: "fnum2",
         func: fnum2
+    },
+    { label: "Epoch Time (HH:MM)", value: "epoch_time",
+        func: epochTimeFormat
     }
 ];
 const ValueFormatsFuncMap = ValueFormats.reduce((a, c) => {

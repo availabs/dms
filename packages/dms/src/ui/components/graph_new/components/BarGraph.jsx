@@ -7,7 +7,7 @@ import {
 } from "d3-array"
 
 import { strictNaN } from "../utils"
-import { getAggFunc } from "./utils"
+import { getAggFunc, buildValueColorScale, useLegendSqueezeGuard } from "./utils"
 import { getColorRange } from "../colorSchemeUnifier"
 
 const BarGraphWrapper = props => {
@@ -27,7 +27,7 @@ const BarGraphWrapper = props => {
 
 	const dataFromProps = React.useMemo(() => {
 
-		if (!indexColumn || !dataColumns.length) return { data: [], keys: [] };
+		if (!indexColumn || !dataColumns.length) return { data: [], keys: [], min: Infinity, max: -Infinity };
 
 // console.log("BarGraphWrapper::indexColumn", indexColumn)
 // console.log("BarGraphWrapper::dataColumns", dataColumns)
@@ -42,6 +42,8 @@ const BarGraphWrapper = props => {
 
 		const data = [];
 		const keySet = new Set();
+		let min = Infinity;
+		let max = -Infinity;
 
 		for (const [index, iGroup] of dataGroups) {
 
@@ -54,17 +56,21 @@ const BarGraphWrapper = props => {
 			if (categoryColumn) {
 				for (const [type, tGroup] of iGroup) {
 					let value = 0;
+					let hasValue = false;
 					for (const dc of dataColumns) {
 						const dcn = dc.key;
 						const aggFunc = getAggFunc(dc);
 						const v = aggFunc(tGroup, d => d[dcn]);
-						if (v) {
+						if (!strictNaN(v)) {
 							value += v;
+							hasValue = true;
 						}
 					}
-					if (value) {
+					if (hasValue) {
 						keySet.add(type);
 						bar[type] = value;
+						min = Math.min(min, value);
+						max = Math.max(max, value);
 					}
 				}
 			}
@@ -73,9 +79,11 @@ const BarGraphWrapper = props => {
 					const dcn = dc.key;
 					const aggFunc = getAggFunc(dc);
 					const value = aggFunc(iGroup, d => d[dcn]);
-					if (value) {
+					if (!strictNaN(value)) {
 						keySet.add(dcn);
 						bar[dcn] = value;
+						min = Math.min(min, value);
+						max = Math.max(max, value);
 					}
 				}
 			}
@@ -109,7 +117,7 @@ const BarGraphWrapper = props => {
       })
     }
 
-		return { data, keys };
+		return { data, keys, min, max };
 	}, [props.viewData, indexColumn, dataColumns, categoryColumn]);
 
 // console.log("BarGraphWrapper::highlights", highlights);
@@ -123,8 +131,29 @@ const BarGraphWrapper = props => {
     else if (props.colors?.type === "scheme") {
       colors = getColorRange(props.colors.scheme, dataFromProps.keys?.length);
     }
-    return props.colors?.reverse ? colors.reverse() : colors;
-  }, [props.colors, dataFromProps.keys?.length]);
+    if (props.colors?.reverse) {
+      colors = [...colors].reverse();
+    }
+    // Default coloring is per-series (one color per key/route) — the common
+    // case for a multi-series comparison bar graph. `byValue` opts a
+    // single-series magnitude chart (e.g. "more delay = darker") into a
+    // per-bar scale instead, mirroring GridGraph's value-scaled coloring.
+    // Deliberately no array fallback here: the Legend's linear renderer calls
+    // `scale.domain()` on whatever this returns, so before data loads (when
+    // min/max aren't finite yet) this must stay undefined, not a plain array.
+    if (props.colors?.byValue) {
+      // byValueSymmetric centers the scale on zero (±max(|min|, |max|)), so
+      // "no change" lands on the middle color and equal-magnitude positive/
+      // negative values get equal intensity — for difference/diverging charts
+      // (the old NPMRDS Route Difference Graph's symmetric quantize ramp).
+      if (props.colors?.byValueSymmetric) {
+        const m = Math.max(Math.abs(dataFromProps.min), Math.abs(dataFromProps.max));
+        return buildValueColorScale(-m, m, colors);
+      }
+      return buildValueColorScale(dataFromProps.min, dataFromProps.max, colors);
+    }
+    return colors;
+  }, [props.colors, dataFromProps.keys?.length, dataFromProps.min, dataFromProps.max]);
 
 // console.log("BarGraphWrapper::dataFromProps", dataFromProps);
 
@@ -152,21 +181,41 @@ const BarGraphWrapper = props => {
 
 // console.log("BarGraphWrapper::axisLeft", axisLeft);
 
+  // Series-mode keys are column aliases (normalName — often a raw SQL alias like
+  // "tons_share"), which read terribly in a legend or tooltip. Show the column's
+  // custom/display name instead. Categorize-mode keys are data VALUES and pass
+  // through unchanged. Shared by the legend and the hover tooltip below.
+  const labelForKey = React.useCallback(key => {
+    const dc = dataColumns.find(c => (c.normalName || c.key || c.name) === key || c.key === key);
+    return dc?.customName || dc?.display_name || key;
+  }, [dataColumns]);
+
   const legend = React.useMemo(() => {
-    // Series-mode keys are column aliases (normalName — often a raw SQL alias like
-    // "tons_share"), which read terribly in a legend. Show the column's custom/display
-    // name instead. Categorize-mode keys are data VALUES and pass through unchanged.
-    const labelForKey = key => {
-      const dc = dataColumns.find(c => (c.normalName || c.key || c.name) === key || c.key === key);
-      return dc?.customName || dc?.display_name || key;
-    };
+    if (props.colors?.byValue) {
+      // `colors` is the scaleLinear built above, not a plain array — same
+      // shape GridGraph's linear legend already consumes.
+      return {
+        ...props.legend,
+        type: "linear",
+        orientation: ["right", "left"].includes(props.legend.position || "right") ? "vertical" : "horizontal",
+        scale: colors,
+        format: props.hoverComp?.valueFormat
+      };
+    }
     return {
       ...props.legend,
       type: "categorical",
       colors: colors,
       categories: dataFromProps.keys.map(labelForKey)
     };
-  }, [props.legend, colors, dataFromProps.keys, dataColumns]);
+  }, [props.legend, colors, dataFromProps.keys, labelForKey, props.colors?.byValue, props.hoverComp?.valueFormat]);
+
+  // Mirror labelForKey into the tooltip's key column, same as LineGraph's
+  // displayName — otherwise DefaultHoverComp's keyFormat defaults to Identity
+  // and the tooltip shows the raw SQL alias the legend already fixed.
+  const hoverComp = React.useMemo(() => {
+    return { ...props.hoverComp, keyFormat: labelForKey };
+  }, [props.hoverComp, labelForKey]);
 
 // console.log("BarGraphWrapper::legend", legend);
 
@@ -259,6 +308,18 @@ const BarGraphWrapper = props => {
 		)
   }, [legend, actions, onLegendEnter, onLegendLeave]);
 
+  // Only the categorical legend (per-series names) is unbounded-width content
+  // that can squeeze the chart — the byValue linear legend is a fixed pixel
+  // width by design (see Legend.jsx's SizeMap), same shape GridGraph already
+  // ships safely. Scope the guard to the diagnosed case only.
+  const containerRef = React.useRef(null);
+  const legendRef = React.useRef(null);
+  const squeezed = useLegendSqueezeGuard(containerRef, legendRef, {
+  	resetKey: legend.categories?.join("|"),
+  	enabled: legend.show && legend.type === "categorical"
+  });
+  const legendWrapClass = squeezed ? "flex items-center max-w-[40%] min-w-0 overflow-hidden" : "flex items-center";
+
   const onBarEnter = React.useMemo(() => {
   	if (!publish || !provider) return null;
   	if (provider.args?.column !== indexColumn?.key) return null;
@@ -310,13 +371,13 @@ const BarGraphWrapper = props => {
   }, [publish, provider, categoryColumn]);
 
 	return (
-    <div className="w-full bg-inherit flex">
+    <div className="w-full bg-inherit flex" ref={ containerRef }>
       { !legend.show || legend.position !== "left" ? null :
-      	<div className="flex items-center">
+      	<div className={ legendWrapClass } ref={ legendRef }>
         	{ InstantiatedLegend }
         </div>
       }
-      <div className="bg-inherit flex-1"
+      <div className="bg-inherit flex-1 min-w-0"
         style={ {
           height: `${ props.height }px`
         } }
@@ -326,6 +387,7 @@ const BarGraphWrapper = props => {
 					colors={ colors }
 					axisBottom={ axisBottom }
 					axisLeft={ axisLeft }
+					hoverComp={ hoverComp }
 					highlights={ highlights }
 					onBarEnter={ onBarEnter }
 					onBarLeave={ onBarLeave }
@@ -333,7 +395,7 @@ const BarGraphWrapper = props => {
 					onStackLeave={ onStackLeave }/>
       </div>
       { !legend.show || legend.position !== "right" ? null :
-      	<div className="flex items-center">
+      	<div className={ legendWrapClass } ref={ legendRef }>
         	{ InstantiatedLegend }
         </div>
       }

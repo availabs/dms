@@ -256,6 +256,21 @@ export const formatFunctions = {
   date: (d) => formatDate(d),
   time: (d) => formatTime(d),
   datetime: (d) => formatDateTime(d),
+  // Decimal minutes (e.g. 4.2) -> clock format "M:SS" (e.g. "4:12"). Mirrors
+  // the old NPMRDS tool's toMinutesWithSeconds, which applies to every
+  // "Minutes"-labeled measure (travel time, avg travel time, percentile95/97
+  // — not just one report's column), so this lives in the shared registry
+  // rather than a one-off inline formatter.
+  minutes_clock: (d) => {
+    if (d === null || d === undefined || d === "") return "";
+    const n = Number(d);
+    if (Number.isNaN(n)) return "";
+    const isNegative = n < 0;
+    const totalSeconds = Math.round(Math.abs(n) * 60);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${isNegative ? "-" : ""}${minutes}:${String(seconds).padStart(2, "0")}`;
+  },
   icon: (strValue, props, Icon) => (
     <>
       <Icon icon={strValue} className={"size-8"} {...props} />{" "}

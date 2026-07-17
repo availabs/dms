@@ -612,16 +612,36 @@ const buildJoin = async ({ join }) => {
   
   for(let i=0; i< join.on.length; i++) {
     const singleJoinOnConfig = join.on[i];
-    const {view_id, env: sourceEnv} = join.sources[singleJoinOnConfig.table];
-    const {table_schema, table_name} = await getEssentials({view_id, env: sourceEnv});
-    
+    const joinSource = join.sources[singleJoinOnConfig.table];
+
+    let fromExpr;
+    if (joinSource.pgFederated) {
+      // ClickHouse-only: reads a live Postgres table via the `postgresql()`
+      // table function instead of a registered DAMA view, so a join can reach
+      // data that hasn't been (and may never be) mirrored into ClickHouse.
+      // Credentials are resolved server-side from the same pgEnv config every
+      // DAMA join already uses (loadConfig) — never sent by/to the client.
+      const { pgEnv, table: pgTable, schema: pgSchema } = joinSource.pgFederated;
+      const { host, port, user, password, database } = loadConfig(pgEnv);
+      const sanitizedTable = sanitizeName(pgTable);
+      const sanitizedSchema = sanitizeName(pgSchema);
+      if (!sanitizedTable || !sanitizedSchema) {
+        throw new Error(`pgFederated join source has an invalid table/schema name: ${pgTable}/${pgSchema}`);
+      }
+      fromExpr = `(SELECT * FROM postgresql('${host}:${port}', '${database}', '${sanitizedTable}', '${user}', '${password}', '${sanitizedSchema}'))`;
+    } else {
+      const { view_id, env: sourceEnv } = joinSource;
+      const { table_schema, table_name } = await getEssentials({ view_id, env: sourceEnv });
+      fromExpr = `${table_schema}.${table_name}`;
+    }
+
     if (singleJoinOnConfig.mergeStrategy === 'union') {
       const all = singleJoinOnConfig.type === 'all' ? ' ALL' : '';
-      merges.push(`UNION${all} SELECT * FROM ${table_schema}.${table_name} as ${singleJoinOnConfig.table}`);
+      merges.push(`UNION${all} SELECT * FROM ${fromExpr} as ${singleJoinOnConfig.table}`);
     } else if (singleJoinOnConfig.mergeStrategy === 'except') {
-      merges.push(`EXCEPT SELECT * FROM ${table_schema}.${table_name} as ${singleJoinOnConfig.table}`);
+      merges.push(`EXCEPT SELECT * FROM ${fromExpr} as ${singleJoinOnConfig.table}`);
     } else {
-      joins.push(`${ singleJoinOnConfig.type } JOIN ${table_schema}.${table_name} as ${singleJoinOnConfig.table} ON ${singleJoinOnConfig.on}`);
+      joins.push(`${ singleJoinOnConfig.type } JOIN ${fromExpr} as ${singleJoinOnConfig.table} ON ${singleJoinOnConfig.on}`);
     }
   }
 
@@ -642,6 +662,56 @@ const buildJoin = async ({ join }) => {
  */
 function offsetPlaceholders(sql, offset) {
   return offset ? sql.replace(/\$(\d+)/g, (_, n) => `$${Number(n) + offset}`) : sql;
+}
+
+/**
+ * Substitute `__ANCHOR__(<expr>)` markers in a comparison-series arm's SQL with a
+ * scalar subquery scoped to the FIRST series variant's own filter (the "anchor"/
+ * "main" row — mirrors the old NPMRDS reports tool's own convention: its Route
+ * Compare Component always treats whichever route is first in the list as the one
+ * everything else compares against).
+ *
+ * Why this exists: each comparison-series arm (see the seriesVariants branch in
+ * query_sets/clickhouse.js) runs as its own fully independent query — arms are
+ * UNION ALL'd together only after each has already executed. A calculated column
+ * can't compare its own aggregate against "the anchor row's" value via a window
+ * function or a second GROUP BY, because no arm's query ever sees another arm's
+ * rows. `__ANCHOR__(<expr>)` lets a column's own SQL ask for `<expr>` evaluated
+ * against the anchor's filter specifically, regardless of which arm it's embedded
+ * in — e.g. `(avg(speed) - __ANCHOR__(avg(speed))) / __ANCHOR__(avg(speed)) * 100`
+ * computes "how far this arm's speed is from the anchor's speed" correctly in
+ * every arm, including the anchor's own arm (where it trivially evaluates to 0).
+ *
+ * A plain regex can't extract `<expr>` because it may itself contain parens (e.g.
+ * `avg(((table1.miles...)))`) — this scans for the balanced closing paren instead.
+ * Multiple `__ANCHOR__(...)` occurrences in one SQL string are all substituted.
+ */
+function substituteAnchorMarkers(sql, anchorFromWhere) {
+  const marker = '__ANCHOR__(';
+  let result = '';
+  let i = 0;
+  while (i < sql.length) {
+    const idx = sql.indexOf(marker, i);
+    if (idx === -1) {
+      result += sql.slice(i);
+      break;
+    }
+    result += sql.slice(i, idx);
+    let depth = 1;
+    let j = idx + marker.length;
+    while (j < sql.length && depth > 0) {
+      if (sql[j] === '(') depth++;
+      else if (sql[j] === ')') depth--;
+      j++;
+    }
+    if (depth !== 0) {
+      throw new Error(`Unbalanced parens in __ANCHOR__(...) marker: ${sql.slice(idx)}`);
+    }
+    const inner = sql.slice(idx + marker.length, j - 1);
+    result += `(SELECT ${inner} FROM ${anchorFromWhere})`;
+    i = j;
+  }
+  return result;
 }
 
 /**
@@ -680,6 +750,7 @@ module.exports = {
   buildCombinedWhere,
   buildJoin,
   offsetPlaceholders,
-  restoreLongColumnNames
+  restoreLongColumnNames,
+  substituteAnchorMarkers
   };
 

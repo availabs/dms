@@ -918,6 +918,13 @@ export const buildJoinSources = ({ join, externalSource }) => {
     // If curKey is 'ds', this is our primary/base source.
     if (curKey === 'ds') return acc;
 
+    // A pgFederated source has no DAMA view_id/env to resolve — it's passed
+    // through as-is, resolved server-side (see buildJoin in dms-server).
+    if (sources[curKey].pgFederated) {
+      acc[curKey] = { pgFederated: sources[curKey].pgFederated };
+      return acc;
+    }
+
     const curSource = sources[curKey].source ? sources[curKey] : externalSource;
     acc[curKey] = {
       view_id: curSource.view || curSource.view_id,
@@ -935,12 +942,24 @@ export const buildJoinSources = ({ join, externalSource }) => {
  * Each side is JSONB-unwrapped when its source is DMS-internal (`alias.data->>'col'`)
  * vs accessed directly when DAMA-backed (`alias.col`). Without this, joining two
  * DMS sources produces SQL referencing physical columns that don't exist.
+ *
+ * A join column may also be a calculated expression (same " as <alias>" convention
+ * used elsewhere for calculated columns, e.g. an externalSource column's own `name`)
+ * rather than a plain column name — detected via the same `isCalculatedCol` heuristic
+ * `refName`/`attributeAccessorStr` already use. In that case the raw expression is
+ * used as-is (no `${alias}.` prefix, which would corrupt it), letting a calculated
+ * join key reference already-joined aliases directly in its own expression body
+ * (e.g. `if(table1.f_system < 3, ...) as dist_key`) — this is how a computed join
+ * key against a value that only exists on a previously-joined table becomes
+ * possible without the join engine itself supporting multi-hop joins.
  */
 export const buildJoinOnClause = ({ join, externalSource }) => {
   const { sources, operator = "=" } = join;
   const baseIsDms = !!externalSource?.isDms;
-  const accessor = (alias, col, isDmsSide) =>
-    isDmsSide ? `${alias}.data->>'${col}'` : `${alias}.${col}`;
+  const accessor = (alias, col, isDmsSide) => {
+    if (isCalculatedCol({ name: col })) return splitColNameOnAS(col)[0];
+    return isDmsSide ? `${alias}.data->>'${col}'` : `${alias}.${col}`;
+  };
 
   // The 'ds' is our base table. We join every other source onto it.
   return Object.keys(sources)
@@ -975,10 +994,19 @@ export const buildJoinOnClause = ({ join, externalSource }) => {
 
 export const isJoinComplete = (joinSource) => {
   const strategy = joinSource.mergeStrategy || 'join';
-  if(!joinSource.source || !joinSource.view) {
+
+  if (joinSource.pgFederated) {
+    const { pgEnv, table, schema } = joinSource.pgFederated;
+    if (!pgEnv || !table || !schema) {
+      console.log("pgFederated join is missing pgEnv/table/schema::", joinSource);
+      return false;
+    }
+  } else if (!joinSource.source || !joinSource.view) {
     console.log("join is missing source or view::", joinSource);
     return false
-  } else if (strategy === "union" || strategy === "except") {
+  }
+
+  if (strategy === "union" || strategy === "except") {
     return true;
   } else if (strategy === "join") {
     if (!joinSource.type) {
@@ -1144,11 +1172,33 @@ export const buildUdaConfig = ({
       (activeComparisonSeries || c.origin !== "comparison-series"),
   );
 
-  // Guard against the "unfiltered full-table scan" trap. 
+  // Guard against the "unfiltered full-table scan" trap.
   // A leaf flagged requireResolved hasn't received its page/action-param value yet —
   // firing now would scan the whole table (see hasUnresolvedRequiredLeaf).
+  //
+  // Same trap, comparison-series shape: a section can turn comparisonSeries.enabled
+  // on and rely on it as its ONLY scoping (no base filter leaves at all — e.g. a
+  // "compare selected routes" Graph whose data comes entirely from the fan-out
+  // variants). Whenever activeComparisonSeries reads false — whether because a
+  // dynamic subscriber's config hasn't resolved yet post-mount, or because it HAS
+  // resolved and there's genuinely no variant selected right now (config: [], or a
+  // stale persisted static/dynamic list that this render's live page state no longer
+  // backs) — the query that would fire has no comparison-series constraint AND no
+  // base filter to fall back on: a fully unscoped scan. If a base filter tree exists
+  // (any real leaf), skip this guard — that's a legitimate "comparison overlay just
+  // isn't active, fetch the base-filtered data" case, not a hazard.
+  const hasAnyFilterLeaf = (node) => {
+    if (!node) return false;
+    if (isGroup(node)) return node.groups.some(hasAnyFilterLeaf);
+    return true;
+  };
+  const hasUnscopedComparisonSeries =
+    comparisonSeries?.enabled === true &&
+    !activeComparisonSeries &&
+    !hasAnyFilterLeaf(filters);
+
   const skipFetch =
-    hasUnresolvedRequiredLeaf(filters);
+    hasUnresolvedRequiredLeaf(filters) || hasUnscopedComparisonSeries;
 
   const join = { sources:{} };
 
@@ -1165,7 +1215,12 @@ export const buildUdaConfig = ({
 
   const sourceIdToTableAlias = isJoinPresent ? Object.keys(join.sources).reduce((acc, alias) => {
     const curJoinSource = join.sources[alias];
-    const source_id = curJoinSource.source || externalSource.source_id;
+    // A pgFederated source has no DAMA source_id — give it a synthetic key so
+    // it can't collide with (and be silently overwritten by) the base 'ds'
+    // mapping set below.
+    const source_id = curJoinSource.pgFederated
+      ? `pgFederated:${alias}`
+      : curJoinSource.source || externalSource.source_id;
     acc[source_id] = alias;
     return acc;
   },{}) : {};
@@ -1281,6 +1336,25 @@ export const buildUdaConfig = ({
     .filter((column) => column.show && column.fn)
     .reduce((acc, column) => ({ ...acc, [column.name]: column.fn }), {});
 
+  // Whether this query has no real groupBy dimension (besides the comparison-series
+  // discriminator, which is a constant per arm, not a real column) AND every shown
+  // column is a real SQL aggregate (fn: avg/sum/count/max/list, or "exempt" — a
+  // calculated column whose expression is already self-aggregating server-side,
+  // e.g. `sum(...)/count(...)`; it collapses to one row exactly like the wrapped
+  // fns do). Threaded to the server so simpleFilterLength's arm/row count matches
+  // simpleFilter's actual output: an ungrouped aggregate query always yields
+  // exactly one row — even over zero matching source rows — never a raw per-row
+  // count. Without "exempt" here, an exempt-only column set (e.g. the Bar Graph
+  // Summary template: one exempt yAxis, groupBy __series only) falls back to the
+  // raw count(*) length, and the resulting dataByIndex over-fetch can blow
+  // falcor-router's MAX_PATHS cap — same failure shape as the round-33
+  // unfiltered-scan crash.
+  const AGGREGATE_FNS = new Set(["sum", "avg", "count", "max", "list", "exempt"]);
+  const seriesKeyName = comparisonSeries?.seriesKey || "__series";
+  const ungroupedAggregate =
+    groupBy.filter((name) => name !== seriesKeyName).length === 0 &&
+    Object.values(fn).some((f) => AGGREGATE_FNS.has(f));
+
   const serverFn = columns
     .filter((column) => column.show && column.serverFn)
     .reduce(
@@ -1380,10 +1454,25 @@ export const buildUdaConfig = ({
     )
     .reduce((acc, columnName) => {
       const col = getColumn(columnName);
-      let [reqNameWithoutAS] = splitColNameOnAS(col?.reqName || columnName);
+      const [beforeAS, afterAS] = splitColNameOnAS(col?.reqName || columnName);
+      let reqNameWithoutAS = beforeAS;
 
-      if (activeComparisonSeries && reqNameWithoutAS.includes('.')) {
-        reqNameWithoutAS = reqNameWithoutAS.split('.').slice(1).join('.');
+      if (activeComparisonSeries) {
+        if (isCalculatedCol(col)) {
+          // The fan-out wraps each arm as `SELECT * FROM (<arm>) AS fanout`
+          // and applies ORDER BY on that outer query — only the arm's
+          // SELECT-level alias is addressable there, not any table alias
+          // (ds/table1/...) the calculated expression references internally.
+          // Using the raw expression (e.g. "toDayOfWeek(ds.date, 1)") fails
+          // with "Unknown expression or function identifier 'ds.date'" since
+          // `ds` is out of scope outside the arm subquery.
+          reqNameWithoutAS = (afterAS || beforeAS).trim();
+        } else if (reqNameWithoutAS.includes('.')) {
+          // Strip a bare column's table-alias prefix (e.g. "ds.tmc" -> "tmc")
+          // — its arm SELECT has no explicit "AS", so the bare name already
+          // equals the arm's natural output column name.
+          reqNameWithoutAS = reqNameWithoutAS.split('.').slice(1).join('.');
+        }
       }
 
       acc[reqNameWithoutAS] = orderBy[columnName];
@@ -1464,6 +1553,7 @@ export const buildUdaConfig = ({
     serverFn,
     ...(Object.keys(comparisonFilters).length > 0 && comparisonFilters),
     ...(allHaving.length > 0 && { having: allHaving }),
+    ...(ungroupedAggregate && { ungroupedAggregate: true }),
   };
 
   // 8b. Comparison series — fan out the base query into one arm per variant.
@@ -1502,6 +1592,14 @@ export const buildUdaConfig = ({
         label: v.label,
         filterGroups: resolveArmTree(mergeVariantFilters(baseForArms, v.filters || {})),
     }));
+    // Combine mode — { mode: 'difference', invert?: true } asks the server to
+    // join each non-anchor arm to the first (anchor/"Main") arm on the group-by
+    // columns and return `anchor - variant` value columns instead of the
+    // side-by-side UNION ALL. ClickHouse-backed sources only for now (the PG
+    // fan-out refuses loudly). Forwarded verbatim; the server validates mode.
+    if (comparisonSeries.combine && typeof comparisonSeries.combine === "object") {
+      options.seriesCombine = comparisonSeries.combine;
+    }
   }
 
   // No ORDER BY across the union in v1 — see "No ORDER BY across the union (v1)" in

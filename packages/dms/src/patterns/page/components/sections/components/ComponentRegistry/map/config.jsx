@@ -50,6 +50,21 @@ export const componentFunctions = {
                 { key: 'field', label: 'Feature Field', type: 'input', inputType: 'text' },
             ],
         },
+        // Reload-driving (layer-materializing), unlike the visual highlight
+        // subscribers above: one symbology layer per published variant, built
+        // from any layer flagged `series-template`. Same published-entry shape
+        // and `$self` key semantics as the graph's comparison_series subscriber,
+        // so a publisher like ReportRouteList discovers/serves maps identically.
+        {
+            id: 'comparison_series',
+            label: 'Comparison Series: Layer Per Variant',
+            description: 'Materializes one map layer per variant read from a page action param, using the symbology layer marked "series-template".',
+            trigger: 'action_param',
+            args: [
+                { key: 'labelKey', label: 'Label property', type: 'input' },
+                { key: 'valueKey', label: 'Value / filter property', type: 'input' },
+            ],
+        },
     ],
 };
 

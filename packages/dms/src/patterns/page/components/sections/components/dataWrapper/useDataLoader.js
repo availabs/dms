@@ -81,9 +81,11 @@ function computeFetchKey(state) {
  * @param {Function} params.apiLoad    - DMS data loader function
  * @param {Object}   params.component  - Component config (fullDataLoad, keepOriginalValues, useGetDataOnPageChange)
  * @param {boolean}  params.isEditMode - True in Edit mode: always fetch with dedup, ignoring fetchMode
+ * @param {string}   [params.sectionId]  - DB row id of the hosting section (Falcor cache-key discriminator)
+ * @param {string}   [params.trackingId] - Stable-across-recreate id, preferred over sectionId when present
  * @returns {{ loading: boolean, currentPage: number, onPageChange: Function }}
  */
-export function useDataLoader({ state, setState, apiLoad, component, isEditMode = false }) {
+export function useDataLoader({ state, setState, apiLoad, component, isEditMode = false, sectionId, trackingId }) {
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
   // Seed the dedup ref when state already has data (e.g., from preloadSectionData).
@@ -273,6 +275,7 @@ export function useDataLoader({ state, setState, apiLoad, component, isEditMode 
             keepOriginalValues: component.keepOriginalValues,
             optionsOnly: component.optionsOnly,
             refreshToken: dataRefreshToken,
+            sectionId: trackingId || sectionId,
           });
 
           // A newer request has since been issued — discard this stale response.
@@ -327,6 +330,7 @@ export function useDataLoader({ state, setState, apiLoad, component, isEditMode 
           keepOriginalValues: component.keepOriginalValues,
           optionsOnly: component.optionsOnly,
           refreshToken: dataRefreshToken,
+          sectionId: trackingId || sectionId,
         });
 
         // A newer request (page change or filter-driven refetch) has since

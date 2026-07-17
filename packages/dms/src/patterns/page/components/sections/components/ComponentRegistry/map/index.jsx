@@ -7,7 +7,7 @@ import { useImmer } from 'use-immer';
 import LegendPanel from './LegendPanel/LegendPanel.jsx'
 import LayerLibraryPanel from './LayerLibraryPanel/LayerLibraryPanel.jsx'
 import SymbologyViewLayer from './SymbologyViewLayer.jsx'
-import { PageContext, CMSContext } from "../../../../../context.js";
+import { PageContext, CMSContext, ComponentContext } from "../../../../../context.js";
 // import {SymbologySelector} from "./SymbologySelector.jsx";
 // import FilterControls from "./controls/FilterControls.jsx";
 import {defaultStyles, blankStyles} from "./styles.js";
@@ -19,6 +19,7 @@ import { buildLayerUdaFilterOptions, fetchBoundsForFilter } from '../../../../..
 import { choroplethPaint } from "./utils.js";
 import { ThemeContext, getComponentTheme } from "../../../../../../../ui/useTheme";
 import { damaMapTheme } from "./map.theme";
+import { useComparisonSeriesLayers, isSeriesGeneratedLayer, SERIES_FINGERPRINT_KEY } from "./useComparisonSeriesLayers";
 
 import mapeditorFormat from "../../../../../../mapeditor/mapeditor.format"
 
@@ -238,7 +239,13 @@ const buildJoinOptions = (layerConfig, dataColumn = null) => {
         viewId: joinConfig.source.viewId,
         localKey: joinConfig.featureKeyColumn,
         joinKey: joinConfig.joinColumn,
-        options: { ...buildJoinFilterOptions(queryConfig), groupBy },
+        // Forward a nested secondary join (e.g. a static per-TMC join needed by
+        // a calculated column) the same way buildJoinParam does — see that
+        // function's comment for why the CH query builder already expects this.
+        options: {
+            ...buildJoinFilterOptions(queryConfig), groupBy,
+            ...(queryConfig.join ? { join: queryConfig.join } : {}),
+        },
         attributes: resolved.map((entry) => entry.attr),
         // Expose everything except the join key as tile/feature columns so tile
         // rendering and client-side map filters can read the joined values too.
@@ -290,12 +297,14 @@ const getCategoryLegendFromFilteredData = (layer, filteredData = []) => {
  */
 const stripRuntimeLegendState = (state) => {
     const hasRuntimeState = state?.__symbologyRefreshAt !== undefined || Object.values(state?.symbologies || {}).some((symb) =>
+        symb?.symbology?.[SERIES_FINGERPRINT_KEY] !== undefined ||
         Object.values(symb?.symbology?.layers || {}).some(
             (layer) =>
                 layer &&
                 (layer.__runtimeBaseLegendData ||
                     layer.__runtimeBaseCategoryData ||
-                    layer.__runtimeLegendFilterKey)
+                    layer.__runtimeLegendFilterKey ||
+                    isSeriesGeneratedLayer(layer))
         )
     );
     if (!hasRuntimeState) return state;
@@ -304,6 +313,15 @@ const stripRuntimeLegendState = (state) => {
     // Runtime-only refresh signal — never persist it into the saved config.
     delete clean.__symbologyRefreshAt;
     Object.values(clean.symbologies || {}).forEach((symb) => {
+        // comparison_series materialized layers are runtime-only — the saved
+        // config is the template + subscriber (see useComparisonSeriesLayers).
+        if (symb?.symbology) {
+            delete symb.symbology[SERIES_FINGERPRINT_KEY];
+            const layers = symb.symbology.layers || {};
+            Object.keys(layers)
+                .filter((id) => isSeriesGeneratedLayer(layers[id]))
+                .forEach((id) => delete layers[id]);
+        }
         Object.values(symb?.symbology?.layers || {}).forEach((layer) => {
             if (!layer) return;
             if (layer.__runtimeBaseLegendData) {
@@ -320,7 +338,7 @@ const stripRuntimeLegendState = (state) => {
     return clean;
 };
 
-export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
+export const MapSection = ({ value, onChange, isEdit, onHandle, sectionId: sectionIdProp, trackingId: trackingIdProp }) => {
     // const {falcor, falcorCache} = useFalcor();
     // controls: symbology, more, filters: lists all interactive and dynamic filters and allows for searchParams match.
 
@@ -329,6 +347,13 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
 
     const { falcor, falcorCache, pgEnv, apiLoad, mapeditorKeys } = React.useContext(CMSContext);
     const { pageState, setPageState, updatePageStateFilters } =  React.useContext(PageContext) || {}
+    // The Map renders through the non-data wrapper (components/index.jsx),
+    // which passes section identity via ComponentContext, not props — the
+    // dataWrapper passes it as props. Accept both so the comparison_series
+    // self-key resolves identically to usePageFilterSync/findSelfBoundGraphs.
+    const { sectionId: sectionIdCtx, trackingId: trackingIdCtx } = React.useContext(ComponentContext) || {};
+    const sectionId = sectionIdProp || sectionIdCtx;
+    const trackingId = trackingIdProp || trackingIdCtx;
     const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
     const damaMapT = { ...damaMapTheme, ...getComponentTheme(themeFromContext, 'damaMap') };
     const cachedData = typeof value === 'object' ? value : value && isJson(value) ? JSON.parse(value) : {};
@@ -352,6 +377,11 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
         pluginControlPosition: cachedData.pluginControlPosition || Object.keys(PANEL_POSITION_OPTIONS)[0], //defaults to `top-left`
         basemapStyle: cachedData.basemapStyle || "Default"
     });
+
+    // comparison_series subscriber runtime — materializes one layer per
+    // published route/series variant from any `series-template` layer. See
+    // useComparisonSeriesLayers.js; generated layers are stripped on persist.
+    useComparisonSeriesLayers({ state, setState, sectionId, trackingId });
 
     const doApiLoad = React.useCallback((opts) => {
         // On an explicit Refresh, invalidate the selected symbology's cached row
@@ -959,6 +989,17 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
                         );
 
                         const nextLegendData = paintResult?.legend || [];
+                        // getSavedRampPaint's own layer-type → sub-layer/paint-key mapping — the
+                        // freshly computed paint must land back on the exact slot the legend was
+                        // just derived from, or colors and legend text drift out of sync on every
+                        // filter/publish change. (This write was missing entirely before: the
+                        // legend refreshed on every filter change but the rendered map colors
+                        // stayed frozen at whatever was last saved/baked.)
+                        const paintTarget = layer?.type === "circle"
+                            ? { index: 0, key: "circle-color" }
+                            : layer?.type === "line"
+                                ? { index: 1, key: "line-color" }
+                                : { index: 1, key: "fill-color" };
 
                         setState((draft) => {
                             const draftLayer = draft.symbologies?.[symbologyId]?.symbology?.layers?.[layer.id];
@@ -968,6 +1009,12 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
                             }
                             if (!isEqual(draftLayer["legend-data"], nextLegendData)) {
                                 draftLayer["legend-data"] = nextLegendData;
+                            }
+                            if (paintResult?.paint) {
+                                const subLayer = draftLayer.layers?.[paintTarget.index];
+                                if (subLayer && !isEqual(subLayer.paint?.[paintTarget.key], paintResult.paint)) {
+                                    subLayer.paint = { ...(subLayer.paint || {}), [paintTarget.key]: paintResult.paint };
+                                }
                             }
                             draftLayer.__runtimeLegendFilterKey = runtimeLegendKey;
                         });
