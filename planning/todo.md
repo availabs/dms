@@ -318,6 +318,7 @@
 
 ### patterns/datasets
 
+- [ ] [Datasets — URL-encode category links (`&` in names → empty categories)](./tasks/current/datasets-category-link-encoding.md) — `?cat=` links were built by raw interpolation, so category names with `&` (Economy & Demand, Environment & Equity, Safety & Crossings) truncated the query param and rendered empty despite having data. Fixed with a `catHref` encoder over all 7 link sites in `DatasetsList/index.jsx`; verified in dev. BC. Pending submodule commit + deploy + re-verify. (Corrects control-room ticket #136.)
 - [x] [Datasets pattern — consume `theme.navOptions.secondaryNav`](./tasks/current/datasets-pattern-secondary-nav.md) —
       BUILT 2026-07-10 (uncommitted, pending review): nav shaping promoted to shared `utils/nav.js`
       (page `_utils` binds its in-page rail via injectable resolver, existing imports unchanged); all 7

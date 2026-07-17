@@ -8,7 +8,7 @@ import { buildEnvsForListing, getExternalEnv } from "../../utils/datasources";
 import { getCachedSources, setCachedSources, hasCachedSources } from "../../utils/datasetsListCache";
 import { datasetsListTheme } from "./datasetsList.theme";
 import Breadcrumbs from "../../components/Breadcrumbs";
-import { FALLBACK_SWATCHES, catColor, splitCategories } from "../../utils/categoryColors";
+import { FALLBACK_SWATCHES, catColor, splitCategories, catHref } from "../../utils/categoryColors";
 
 export const isJson = (str)  => {
     try {
@@ -103,12 +103,12 @@ const CategoryPills = ({ source, t, swatches }) => {
     return (
         <>
             {tops.map(area => (
-                <Link key={area} to={`?cat=${area}`} className={t.categoryPill} style={{ '--cat': catColor(area, swatches) }}>
+                <Link key={area} to={catHref(area)} className={t.categoryPill} style={{ '--cat': catColor(area, swatches) }}>
                     <span className={t.categoryDot} style={{ backgroundColor: catColor(area, swatches) }}/>{area}
                 </Link>
             ))}
             {subs.map(s => (
-                <Link key={s.path} to={`?cat=${s.path}`} className={t.subCategoryPill}>{s.label}</Link>
+                <Link key={s.path} to={catHref(s.path)} className={t.subCategoryPill}>{s.label}</Link>
             ))}
         </>
     );
@@ -120,12 +120,12 @@ const TableCategory = ({ source, t, swatches }) => {
     return (
         <div className={t.tableCatWrap}>
             {tops.map(area => (
-                <Link key={area} to={`?cat=${area}`} className={t.tableCatItem}>
+                <Link key={area} to={catHref(area)} className={t.tableCatItem}>
                     <span className={t.tableCatDot} style={{ backgroundColor: catColor(area, swatches) }}/>{area}
                 </Link>
             ))}
             {subs.map(s => (
-                <Link key={s.path} to={`?cat=${s.path}`} className={t.subCategoryPill}>{s.label}</Link>
+                <Link key={s.path} to={catHref(s.path)} className={t.subCategoryPill}>{s.label}</Link>
             ))}
         </div>
     );
@@ -252,7 +252,7 @@ export default function DatasetsList ({attributes, item, dataItems, apiLoad, api
             catParts.forEach((part, i) => {
                 items.push({
                     name: part,
-                    ...(i < catParts.length - 1 ? {href: `${baseUrl}?cat=${catParts.slice(0, i + 1).join('/')}`} : {}),
+                    ...(i < catParts.length - 1 ? {href: `${baseUrl}${catHref(catParts.slice(0, i + 1).join("/"))}`} : {}),
                 });
             });
         }
@@ -334,7 +334,7 @@ export default function DatasetsList ({attributes, item, dataItems, apiLoad, api
                         .sort((a,b) => a.localeCompare(b))
                         .map(cat => (
                             <React.Fragment key={cat}>
-                                <Link className={activeTopCat === cat ? t.sidebarItemActive : t.sidebarItem} to={`?cat=${cat}`}>
+                                <Link className={activeTopCat === cat ? t.sidebarItemActive : t.sidebarItem} to={catHref(cat)}>
                                     <span className={t.sidebarItemText}>
                                         <span className={t.sidebarDot} style={{ backgroundColor: catColor(cat, swatches) }}/>{cat}
                                     </span>
@@ -343,7 +343,7 @@ export default function DatasetsList ({attributes, item, dataItems, apiLoad, api
                                 {activeTopCat === cat && subCategories.map(sub => {
                                     const subPath = `${cat}/${sub}`;
                                     return (
-                                        <Link key={sub} className={cat1 === subPath ? t.sidebarSubItemActive : t.sidebarSubItem} to={`?cat=${subPath}`}>
+                                        <Link key={sub} className={cat1 === subPath ? t.sidebarSubItemActive : t.sidebarSubItem} to={catHref(subPath)}>
                                             <span className={t.sidebarItemText}>{sub}</span>
                                         </Link>
                                     );

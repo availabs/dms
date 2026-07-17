@@ -17,6 +17,16 @@ export const FALLBACK_SWATCHES = ['#1F3F8F', '#B45309', '#37576B', '#047857', '#
 export const catColor = (area, swatches) =>
     (swatches && swatches.length ? swatches : FALLBACK_SWATCHES)[hashIndex(area, (swatches && swatches.length) || FALLBACK_SWATCHES.length)];
 
+// Build a `?cat=` query string for a category path, URL-encoding EACH segment while keeping
+// the `/` level separator literal. Category names contain reserved chars — most importantly
+// `&` (e.g. "Economy & Demand"), also `#`/`?`/`+` — which, left raw, corrupt the query string
+// (`searchParams.get('cat')` truncates at the `&`), so the category path no longer matches any
+// source and the category renders empty. The reader (`searchParams.get('cat')`) auto-decodes,
+// so `cat.split('/')` still yields the correct parts. Encoding per-segment (not the whole path)
+// keeps the `/` readable and avoids `%2F`.
+export const catHref = (path) =>
+    '?cat=' + String(path ?? '').split('/').map(encodeURIComponent).join('/');
+
 // Split a source's `categories` 2-D array into unique top-level areas + secondary
 // (Top/Sub) categories. Accepts anything with a `categories` array.
 export const splitCategories = (source) => {
