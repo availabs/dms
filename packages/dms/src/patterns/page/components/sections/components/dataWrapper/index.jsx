@@ -340,10 +340,18 @@ const Edit = forwardRef((props, ref) => {
             ? {...state?.externalSource, type: `${sourceType}|${state?.externalSource.view_id}:data`}
             : state?.externalSource;
         if(attribute?.name){
+            // setDateOnValue (opt-in, backward-compatible): when this column is live-edited to a
+            // value in `values`, also stamp a companion `field` with the current datetime; clear
+            // it (empty string) when edited to any other value. Enables e.g. a status pill
+            // recording a `resolved_date` the moment status flips to Resolved/Closed.
+            const sdov = attribute.setDateOnValue;
+            const stamp = sdov?.field
+                ? { [sdov.field]: (sdov.values || []).includes(value) ? new Date().toISOString().slice(0, 19).replace('T', ' ') : '' }
+                : null;
             setState(draft => {
                 const idx = draft.data.findIndex(draftD => draftD.id === d.id);
                 if(idx !== -1){
-                    draft.data[idx] = {...(draft.data[idx] || {}), ...d, [attribute.name]: value}
+                    draft.data[idx] = {...(draft.data[idx] || {}), ...d, [attribute.name]: value, ...(stamp || {})}
                 }
             })
             const dataToUpdateDB = state?.columns.filter(c => !(c.serverFn && c.joinKey) && c.editable !== false)
@@ -351,7 +359,7 @@ const Edit = forwardRef((props, ref) => {
                     acc[col.name] = d[col.name]?.originalValue || d[col.name];
                     return acc;
                 }, {id: d.id})
-            return apiUpdate({data: {...dataToUpdateDB, [attribute.name]: value},  config: {format: dataFormat}})
+            return apiUpdate({data: {...dataToUpdateDB, [attribute.name]: value, ...(stamp || {})},  config: {format: dataFormat}})
         }else{
             const dataToUpdateState = Array.isArray(d) ? d : [d];
             const dataToUpdateDB = dataToUpdateState?.map(row => {

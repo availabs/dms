@@ -128,6 +128,7 @@
 
 ## ui
 
+- [x] [graph_new BarGraph: optional time/linear x-axis (proportional spacing)](./tasks/current/graph-bargraph-time-linear-xscale.md) — opt-in `xAxis.scaleType: time|linear` so bars sit at their real x-value with proportional gaps (default `band` unchanged, verified no regression). Non-band positioning (computed width + centered `barPos`) + date axis ticks; `GraphComponent` passes `xScale.type`. Live on the Control-Room per-day tickets charts. Not yet synced into transportNY's vendored dms.
 - [x] [Filter section interactive chrome: needs-value toggle · active tokens · clear-all](./tasks/current/filter-interactive-chrome.md) — ExternalFilters/RenderFilters; renders an `empty`-op leaf as a toggle; MNY alignment.
 - [x] [Spreadsheet inline-expand row detail (`openOutMode:'inline'`)](./tasks/current/spreadsheet-inline-openout.md) — inline detail panel vs the side drawer; MNY alignment.
 - [x] [New columnType `priority_tier` — ranked, editable tier pill](./tasks/current/columntype-priority-tier.md) — numeral badge + short label + "Set priority" unset affordance; models statusPill.jsx; MNY Action Prioritize Phase 3 #1.
@@ -244,6 +245,14 @@
 
 ### patterns/page
 
+- [x] [Unset page variables blanked every reacting section](./tasks/current/page-variable-empty-leaf-regression.md) —
+      **FIXED 2026-07-16.** Unset URL-registered page variables flowed as `[""]` into
+      `usePageFilters` leaves → `IN ('')` → 0 rows/length on EVERY reacting section (blank
+      reliability_v2/congestion_v2 locally + on devtny.org after the 07-16 deploy); clearing a
+      control couldn't recover (saved value clobbered). Fixed consumer-side: `applyPageFilters`
+      treats blank page values as unset; `mapFilterGroupCols` blank-value guards moved above the
+      `!col` pass-through so option-A (CASE-expr) leaves are covered. Plus LineGraph
+      `domainMin:"auto"` (data-min y floor). Synced to transportNY; **redeploy pending**.
 - [x] [Map share-state (`?layers=`) → page-variable system](./tasks/completed/map-share-state-via-page-variables.md) — DONE 2026-07-14, owner-verified. Migrated the map's `?layers=`/interactive-variant share-state off direct URL writes onto the page-variable system (page owns URL); unified the variant onto `searchParamKey`, made the interactive bridge + authoring UI multi-symbology, added a unified Symbologies manager, surfaced auto-vars in Settings, documented component↔page-variable wiring. Mirrored to transportNY. Follow-ups: [dead-code cleanup](./tasks/completed/map-settings-dead-code-cleanup.md) (done), [search-param remount refresh](./tasks/completed/page-remount-on-searchparam-navigate.md) (done).
 - [x] [Map settings — dead-code cleanup](./tasks/completed/map-settings-dead-code-cleanup.md) — DONE 2026-07-14. Removed the 8 legacy controls in `map/settings/controls.jsx` (1026→641 lines) + the cascade (`useMapSettingsFilters` hook, `layers.jsx`/`useMapSettingsLayers`, `onSymbologyChange`/`onLayerChange`/`selectedLayer`/`layerOptions`); kept `getSymbologyBridge`/`listBridgeSymbologies` + the manager handlers. Verified zero live refs + babel parse; mirrored to transportNY (incl. deleting its `layers.jsx`). `map_dama/` untouched.
 - [x] [Page/section remount on search-param navigation](./tasks/completed/page-remount-on-searchparam-navigate.md) — DONE 2026-07-14, owner-verified. Root cause (pinned via mount/unmount probes): the route loader keys on `request.url`, so a search-only navigate (map writing `?layers=`) revalidated and REMOUNTED the whole route tree. Fix: `shouldRevalidate` on the DMS page route (`render/dmsPageFactory.jsx`) returns false when only the search changed on the same path (page handles filters in-memory; sections refetch via dataWrapper); still revalidates on cross-page nav, mutations, and explicit `revalidate()`. Toggle no longer refreshes. Mirrored to transportNY. (Other candidates — memoize view sections, hoist inline route components — not needed.)

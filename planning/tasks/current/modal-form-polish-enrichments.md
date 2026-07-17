@@ -71,12 +71,20 @@ fallback display clipped to a misleading 5 digits.
 
 "Do these tickets have an updated date? Can the logged-in user be the reporter?" `defaultValue`
 was static-only; new per-column `defaultFn`: `'today'` (YYYY-MM-DD, the control-room format),
-`'now'` (ISO timestamp), `'user'` (logged-in user's email — from CMSContext, threaded through
+`'now'` (datetime), `'user'` (logged-in user's email — from CMSContext, threaded through
 both addItems; skipped when anonymous so sync healing can still fill it). Fill-only-blank like
-the other create defaults. Control-room modal: reporter=user, opened/updated=today — dates were
+the other create defaults. Control-room modal: reporter=user, opened/updated=now — dates were
 previously a cr_sync backfill (healing remains the backstop for CLI-created rows).
+2026-07-16: `'now'` format changed from raw ISO to **`YYYY-MM-DD HH:MM:SS` (UTC)** before it had
+any consumers — raw ISO (`T`/`Z`/ms) displays ugly in cells and string-sorts ABOVE space-format
+datetimes from the control-room report-issue widget within the same day; the space format matches
+the widget's rows exactly and sorts correctly against date-only values too.
 NB: `updated` is stamped at CREATE only — later edits (e.g. the detail page's liveEdit status
-pill) don't advance it; a `touchOnEdit` counterpart is a logged candidate enrichment.
+pill) don't advance it; a `touchOnEdit` counterpart is a logged candidate enrichment. Partial
+cousin already in core (added in a parallel session, dataWrapper `index.jsx` updateItem): per-column
+**`setDateOnValue: {field, values}`** — live-editing the column to a value in `values` stamps
+`field` with the datetime (same `YYYY-MM-DD HH:MM:SS` format), clears it otherwise (e.g. status
+pill → `resolved_date`).
 
 ## 7. BUG: Input/Textarea primitives dropped `placeholder`
 

@@ -179,9 +179,15 @@ export const mapFilterGroupCols = (node, getColumn, isDms) => {
   // carries `disabled`.
   if (node.disabled) return null;
 
-  // Leaf condition: map col name to refName
-  const col = getColumn(node.col);
-  if (!col) return node;
+  // ── Blank-value drop-outs ───────────────────────────────────────────────
+  // These guards are value-based and col-INDEPENDENT, so they run BEFORE the
+  // `if (!col) return node` pass-through below. They must also cover leaves
+  // whose `col` is not a section column — e.g. "option A" leaves where the col
+  // is a raw SQL CASE expression sent to the server verbatim (region controls
+  // on the tsmo2 reliability/congestion pages). Before this, such a leaf with
+  // an all-empty value ([""], from an unset page variable) sailed past the
+  // guard and compiled to `(CASE …) IN ('')` — silently blanking EVERY
+  // reacting section on the page (ticket 2191484's "empty and stays empty").
 
   // For like ops, skip the node entirely when value is empty (all-empty-string array
   // or empty array). This matches the guard in extractLegacyColumnFilters and prevents
@@ -204,6 +210,10 @@ export const mapFilterGroupCols = (node, getColumn, isDms) => {
       .filter((v) => v != null && String(v).length);
     if (!vals.length) return null;
   }
+
+  // Leaf condition: map col name to refName
+  const col = getColumn(node.col);
+  if (!col) return node;
 
   const ref = attributeAccessorStr(
     col.name,
@@ -434,7 +444,17 @@ export const applyPageFilters = (filterTree, pageFilters) => {
       return parsed ? { ...node, value: mergeUrlOntoExposedAxes(node.value, parsed) } : node;
     }
 
-    const normalized = Array.isArray(pageValues) ? pageValues : [pageValues];
+    // An UNSET page filter must behave like an absent one. pageState delivers
+    // unset variables as "" (registered default; caught by the falsy check
+    // above) or [""] (the same "" after a split(",")): both must keep the
+    // leaf's saved value, NOT substitute. Substituting [""] compiled to
+    // `col IN ('')` → 0 rows on every reacting section (ticket 2191484's
+    // "empty and stays empty"). A true [] is different — a deliberately
+    // cleared control — and keeps its long-standing meaning: substitute [],
+    // which the downstream empty-IN guard drops → the query WIDENS.
+    const arr = Array.isArray(pageValues) ? pageValues : [pageValues];
+    const normalized = arr.filter((v) => v != null && String(v).length);
+    if (arr.length && !normalized.length) return node;
     return { ...node, value: normalized };
   };
 

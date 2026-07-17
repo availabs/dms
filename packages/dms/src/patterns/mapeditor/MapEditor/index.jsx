@@ -261,7 +261,8 @@ export const MAP_STYLES = [
   },
   {
     name: "Default",
-    style: "https://api.maptiler.com/maps/dataviz/style.json?key=mU28JQ6HchrQdneiq6k9"
+    style: "https://api.maptiler.com/maps/019f6c92-c459-7ccd-8997-23eb4bdc381d/style.json?key=mU28JQ6HchrQdneiq6k9"
+    //"https://api.maptiler.com/maps/dataviz/style.json?key=mU28JQ6HchrQdneiq6k9"
   },
   { name: "Satellite",
     style: "https://api.maptiler.com/maps/hybrid/style.json?key=mU28JQ6HchrQdneiq6k9",

@@ -155,7 +155,28 @@ name simply doesn't render; the screenshot is the truth.
 - **Strings in tiles** — numeric columns often arrive as strings; keep `["to-number",["get",col]]`
   in step/interpolate inputs (the editor's emitted paint already does).
 - **`line-dasharray` is not data-driven** — per-class dashes need separate sub-layers or filters.
-- **Don't hand-edit `?cols=`/`join=`** on tile URLs — appended at runtime from layer config.
+- **`?cols=` is REBUILT at runtime, not appended** (`SymbologyViewLayer.getLayerTileUrl`): the
+  saved URL's `?cols=` is stripped and recomposed from `data-column` (or `filter-group` columns
+  when `filterGroupEnabled`) + ACTIVE dynamic-filter columns + static-filter columns. Every
+  column the paint reads must therefore be named in `data-column` — it's `join(",")`-composed,
+  so a comma-joined list works (`"lottr_amp,lottr_midd,lottr_pmp,lottr_we"`). A dynamic filter's
+  column is only present while that filter HAS values — never rely on it for paint. Symptom of
+  getting this wrong: tiles 200 but the layer paints nothing/fallback color.
+- **Tile server accepts plain column names only** in `?cols=` — SQL expressions
+  (`greatest(a,b) AS x`) return 204. Compute derived values client-side (`["max", …]` etc.).
+  A 204 on a bare tile URL means the view has NO geometry at all.
+- **Verify tile VALUES byte-for-byte** when they must match filter values: pbf strings are
+  length-prefixed — read the length byte (`data[i-1]`), don't trust a regex; trailing spaces
+  are invisible and break `["in", …]` matches.
+- **Directional line networks (TMC!)**: both directions overlap exactly — add a zoom-scaled
+  `line-offset` (~half the line-width ramp) so each direction renders beside the other.
+- **Legend rows are gated by `layer-type`**: only `"categories"`/`"choropleth"` render swatch
+  rows from `legend-data`; `""` gives a title-only row. `"legend-orientation": "none"` opts a
+  layer out of the legend entirely. Section-embedded layers without `category-data` keep their
+  authored `legend-data` (the runtime refresh's narrowing guard).
+- **Dynamic filters bind to PAGE VARIABLES** (`Map` sections only) via
+  `searchParamKey || column_name` ↔ the page filter's `searchKey`, with optional
+  `zoomToFilterBounds` (active-layer-scoped). Full wiring: `creating-a-map-section.md` §5.
 - **Embedded vs catalog** (§1) — know which you changed; sections show catalog changes only after
   Refresh/re-add. Keep both in sync for shared layers.
 - **jsonb writes** — when scripting SQL against `data_manager`, only `UPDATE data_manager.sources/views

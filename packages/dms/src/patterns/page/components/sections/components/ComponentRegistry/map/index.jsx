@@ -793,6 +793,25 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
                     }
 
                     if (layerType === "categories") {
+                        // Layers authored WITHOUT `category-data` (section-embedded symbologies)
+                        // keep their authored legend — narrowing would replace the authored
+                        // labels/colors with raw values on a fallback palette. Decide that
+                        // BEFORE fetching: the recompute query is useless for them, and it can
+                        // be actively harmful — such layers may carry a comma-joined
+                        // `data-column` (the tile `?cols=` carrier, e.g. the reliability LOTTR
+                        // layer's "lottr_amp,lottr_midd,lottr_pmp,lottr_we"), which this
+                        // single-column query template compiles into a row-constructor exclude
+                        // → Postgres "argument of AND must be type boolean, not type record",
+                        // and the failed request disrupts every path batched with it.
+                        const baseCategoryData = layer?.__runtimeBaseCategoryData || layer?.["category-data"] || [];
+                        if (!baseCategoryData.length) {
+                            setState((draft) => {
+                                const draftLayer = draft.symbologies?.[symbologyId]?.symbology?.layers?.[layer.id];
+                                if (draftLayer) draftLayer.__runtimeLegendFilterKey = runtimeLegendKey;
+                            });
+                            continue;
+                        }
+
                         const effectiveViewId = joinOptions?.viewId ?? viewId;
                         const options = JSON.stringify({
                             groupBy: [dataColumn.split("AS ")[0]],
@@ -834,19 +853,6 @@ export const MapSection = ({ value, onChange, isEdit, onHandle }) => {
                                 ]));
                             })
                             .filter(Boolean);
-
-                        // Layers authored without `category-data` (section-embedded
-                        // symbologies) have no value→saved-row mapping — narrowing
-                        // would replace the authored labels/colors with raw values on
-                        // a fallback palette. Keep the authored legend instead.
-                        const baseCategoryData = layer?.__runtimeBaseCategoryData || layer?.["category-data"] || [];
-                        if (filteredData.length && !baseCategoryData.length) {
-                            setState((draft) => {
-                                const draftLayer = draft.symbologies?.[symbologyId]?.symbology?.layers?.[layer.id];
-                                if (draftLayer) draftLayer.__runtimeLegendFilterKey = runtimeLegendKey;
-                            });
-                            continue;
-                        }
 
                         // Empty filtered set → explicit "No data" (parity with
                         // the choropleth branch); otherwise narrow the saved

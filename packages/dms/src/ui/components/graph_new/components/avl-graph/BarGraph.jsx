@@ -188,6 +188,15 @@ export const BarGraph = props => {
 
   const isHorizontal = orientation === "horizontal";
 
+  // Opt-in continuous x-axis: a non-"band" xScale.type (e.g. "time" / "linear") positions bars at
+  // their real x-value with proportional gaps instead of equal-width categories. Default is "band"
+  // (unchanged). coerceX maps the index value into the scale's domain type.
+  const xScaleType = (xScale && xScale.type) || DefaultXScale.type;
+  const isXBand = xScaleType === "band";
+  const coerceX = xScaleType === "time" ? (v => new Date(v))
+    : xScaleType === "linear" ? (v => +v)
+    : (v => v);
+
 // console.log("BarGraph::width, height", width, height);
 
   React.useEffect(() => {
@@ -197,17 +206,51 @@ export const BarGraph = props => {
     const adjustedWidth = Math.max(0, width - (Margin.left + Margin.right)),
       adjustedHeight = Math.max(0, height - (Margin.top + Margin.bottom));
 
-    const xdGetter = data => data.map(d => get(d, indexBy, null));
+    const xdGetter = data => data.map(d => coerceX(get(d, indexBy, null)));
+    // Non-band x-axis: build a [min,max] extent domain (band uses the full category list).
+    let xDomainOverride;
+    if (!isXBand) {
+      const nums = data.map(d => +coerceX(get(d, indexBy, null))).filter(n => isFinite(n));
+      if (nums.length) {
+        const lo = Math.min(...nums), hi = Math.max(...nums);
+        // Pad the domain by ~half the smallest gap between values, so the first/last bars (which
+        // are centered on their value) sit fully inside the plot instead of hanging half off the
+        // y-axis / right edge. Uses the data's own step, so it scales with the granularity.
+        const uniq = [...new Set(nums)].sort((a, b) => a - b);
+        let gap = Infinity;
+        for (let i = 1; i < uniq.length; i++) gap = Math.min(gap, uniq[i] - uniq[i - 1]);
+        if (!isFinite(gap) || gap <= 0) gap = (hi - lo) || 86400000; // 1-day fallback
+        const padD = gap / 2;
+        xDomainOverride = xScaleType === "time" ? [new Date(lo - padD), new Date(hi + padD)] : [lo - padD, hi + padD];
+      }
+    }
     const XScale = getScale({ ...DefaultXScale, ...xScale,
                               getter: xdGetter, data,
+                              ...(xDomainOverride ? { domain: xDomainOverride } : {}),
                               range: isHorizontal ? [adjustedHeight, 0] : [0, adjustedWidth],
                               padding, paddingInner, paddingOuter
                             });
     const xDomain = XScale.domain();
 
-    const bandwidth = XScale.bandwidth(),
-      step = XScale.step(),
+    // Bar cross-axis size: band scales expose bandwidth()/step(); a continuous scale doesn't, so
+    // derive a width from the smallest gap between adjacent bar positions (proportional spacing).
+    let bandwidth, step, outer;
+    if (isXBand) {
+      bandwidth = XScale.bandwidth();
+      step = XScale.step();
       outer = XScale.paddingOuter() * step;
+    } else {
+      const px = data.map(d => XScale(coerceX(get(d, indexBy, null)))).filter(n => isFinite(n)).sort((a, b) => a - b);
+      let minGap = Infinity;
+      for (let i = 1; i < px.length; i++) minGap = Math.min(minGap, px[i] - px[i - 1]);
+      if (!isFinite(minGap) || minGap <= 0) minGap = (isHorizontal ? adjustedHeight : adjustedWidth) * 0.06;
+      const inner = (padding != null ? padding : paddingInner) || 0;
+      bandwidth = Math.max(2, minGap * (1 - inner));
+      step = minGap;
+      outer = 0;
+    }
+    // Bar cross-position: band → scale gives the slot's leading edge; continuous → center on the value.
+    const barPos = d => isXBand ? XScale(get(d, indexBy)) : (XScale(coerceX(get(d, indexBy))) - bandwidth / 2);
 
     const ydGetter = data => {
       if (xDomain.length) {
@@ -297,8 +340,8 @@ export const BarGraph = props => {
         stackData = {
           stacks,
           barValues,
-          left: isHorizontal ? 0 : XScale(d[indexBy]),
-          top: isHorizontal ? XScale(d[indexBy]) : 0,
+          left: isHorizontal ? 0 : barPos(d),
+          top: isHorizontal ? barPos(d) : 0,
           data: d,
           state: PREVIOUS_BAR_DATA.current.delete(id) ? "updating" : "entering",
           id
@@ -330,8 +373,8 @@ export const BarGraph = props => {
         stackData = {
           stacks,
           barValues,
-          left: isHorizontal ? 0 : outer + i * step,
-          top: isHorizontal ? adjustedHeight - (outer + (i + 1) * step) : 0,
+          left: isHorizontal ? 0 : (isXBand ? outer + i * step : barPos(d)),
+          top: isHorizontal ? (isXBand ? adjustedHeight - (outer + (i + 1) * step) : barPos(d)) : 0,
           data: d,
           state: PREVIOUS_BAR_DATA.current.delete(id) ? "updating" : "entering",
           id
@@ -404,7 +447,7 @@ export const BarGraph = props => {
                 { ...AxisBottomData }/>
             }
             { !AxisLeftData ? null :
-              <AxisLeft type="band"
+              <AxisLeft type={ isXBand ? "band" : "linear" }
                 { ...restOfState }
                 margin={ Margin }
                 scale={ XScale }
@@ -426,7 +469,7 @@ export const BarGraph = props => {
           </g> :
           <g>
             { !AxisBottomData ? null :
-              <AxisBottom type="band"
+              <AxisBottom type={ isXBand ? "band" : "linear" }
                 { ...restOfState }
                 margin={ Margin }
                 scale={ XScale }

@@ -291,7 +291,7 @@ cell for a **SQL-literal calculated column** instead (see the KPI traps under th
 
 | Key                    | What it does |
 |------------------------|---|
-| `allowEditInView`      | Inline-edit this cell in view mode. |
+| `allowEditInView`      | Inline-edit this cell in view mode. **Requires an explicit editable `type`** — a column with no `type` silently can't be edited (falls to the read-only `DefaultComp`; see "Defaults that bite"). |
 | `staticValue`          | When `origin: 'static'`, the column has no row data — this is the cell's value. |
 | `usePageParams`        | The cell's value comes from page state (`pageParamKey`) rather than the row. |
 | `blankDefault`         | Synthetic value used when `display.useBlankRowFallback` is on and the query returns 0 rows. |
@@ -487,6 +487,7 @@ A column type's `ViewComp` receives (`CompWrapper` in `Card.jsx` ~318):
 - **(v1 only)** Every cell renders `border border-transparent` when not hovered and not in `cellBorder` mode — **+2px on every cell's bounding box**, so `cellsPadding: 0` never yields a fully flush layout. v2 drops this (edit hover is an outline).
 - **(v1 only) The cards grid fills its box by default** (`gridAutoRows: minmax(max-content, 1fr)`): any card that's shorter than its section box — `height:'fill'`, or a section stretched by a taller `rowspan` sibling — gets the slack distributed *between its rows*. Lists want `cardsVerticalAlign: 'top'`. v2 packs by default (`'stretch'` opts back in).
 - `headerValueLayout: 'row'` is the default — header sits *inline left of* value with a `headerWidth`/`valueWidth` split (default 50/50). The split applies only when BOTH header and value render; a `hideHeader` cell gives the value the full width (guarded by `resolveHeaderValueWidths` + tests). Set `headerValueLayout: 'col'` on the section when cells are hidden-header or composite.
+- **A column with no `type` is NOT editable — even with `allowEditInView`.** `Card.jsx` picks the cell renderer as `ColumnTypes[attribute.type]?.[editMode ? 'EditComp' : 'ViewComp'] || DefaultComp`. An undefined `type` misses the registry and falls to `DefaultComp` — a plain read-only `<div>` (`{value}`) with no edit branch — so it renders fine in view and silently refuses to edit. To make a cell editable, give it an explicit editable columnType: `text` (single-line `<input>`), `textarea` (multi-line box — use for prose/multi-paragraph), `status_pill`/`select` (dropdown), etc. `text` vs `textarea` differ *only* in the editor widget, so a "value shows but won't edit" bug is almost always a missing/wrong `type`, not an `allowEditInView` problem.
 
 ## Legacy state — what migration handles
 

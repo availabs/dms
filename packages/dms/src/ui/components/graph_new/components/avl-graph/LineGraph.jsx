@@ -335,10 +335,20 @@ export const LineGraph = props => {
     }
     // Author-set custom y-domain (unset → auto). `domainMin` overrides the default
     // bottom (aLeft.min = 0); `domainMax` pins the top instead of the data max.
+    // `domainMin: "auto"` floats the bottom to the data minimum (with a small pad,
+    // floored to an integer) — for series that live far from zero, where a 0-based
+    // or fixed floor either squishes or clips them.
     if (yDomain.length) {
       const dMin = aLeft.domainMin, dMax = aLeft.domainMax;
-      if (dMin != null && dMin !== "" && !strictNaN(+dMin)) yDomain[0] = +dMin;
       if (dMax != null && dMax !== "" && !strictNaN(+dMax)) yDomain[1] = +dMax;
+      if (dMin === "auto") {
+        const dataMin = data.reduce((min, s) =>
+          s.data.reduce((m, p) => (strictNaN(+p.y) ? m : Math.min(m, +p.y)), min), Infinity);
+        if (dataMin !== Infinity) {
+          const pad = Math.max(1, (yDomain[1] - dataMin) * 0.05);
+          yDomain[0] = Math.floor(Math.min(dataMin, yDomain[1]) - pad);
+        }
+      } else if (dMin != null && dMin !== "" && !strictNaN(+dMin)) yDomain[0] = +dMin;
     }
 
     const aRight = {
