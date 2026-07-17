@@ -8,54 +8,55 @@
 > starts, move the previous round's full text to the top of the archive, leave a ledger line here,
 > and fold anything durable into the summary or reference sections.
 
-## Current state (2026-07-17, ROUND 56 COMPLETE: graph title default fix shipped and live-verified (item 8's title half, priority-list #4) — empty/missing `state.title` now defaults to `"{type}, {data}"` instead of a blank section header. Rounds 53-55 (9-item triage, pre-2017-only restoration, BarGraph tooltip customName fix, report 7 cleanup) remain DONE — full detail archived, see ledger below. Remaining open priority-list items: GridGraph missing-data color, TMC meta join swap, Info Box travel-time formatter, epoch x-axis tick format, legend/flex width-squeeze.)
+## Current state (2026-07-17, ROUND 57 COMPLETE: GridGraph missing-data color fix shipped and live-verified — cells with no data now render black (author-overridable via a new "Missing Data Color" config field) instead of the wrapper's old hardcoded-transparent default; same-round follow-up (user-caught live) filters those same no-data cells out of the hover tooltip list entirely, user-confirmed live. Rounds 53-56 (9-item triage, pre-2017-only restoration, BarGraph tooltip customName fix, report 7 cleanup, graph title default fix) remain DONE — full detail archived, see ledger below. Remaining open priority-list items: TMC meta join swap, Info Box travel-time formatter, epoch x-axis tick format, legend/flex width-squeeze.)
 
-## Round 56 (2026-07-17) — graph title default fix
+## Round 57 (2026-07-17) — GridGraph missing-data color fix
 
-**Objective**: user picked priority-list **#4, the graph title default** (item 8's title half —
-`analyze_graph()` in `scripts/convert_old_reports.py` passed an empty `state.title` straight
-through as a blank section title instead of applying the old client's own default template
-`"{type}, {data}"`, per round 53's finding).
+**Objective**: user picked the smallest of the 4 remaining root-caused priority-list items — the
+**GridGraph missing-data color** (round 53 finding, item 3: TMC Grid/Difference Grid cells with no
+data correctly resolve to `null`, but render the wrapper's hardcoded `nullColor` default
+(`"transparent"`) instead of the old tool's black — missing cells are invisible instead of visibly
+marked).
 
-**Fix** (`scripts/convert_old_reports.py`, `analyze_graph()`, ~line 3825): changed
-`title = (state.get("title") or "")` to `title = state.get("title") or "{type}, {data}"` before the
-existing `{data}`/`{type}`/`{name}` substitution — one-line change, same substitution mechanism
-already in place for explicit titles, no new code path.
+**Fix** (library, 2 files, isolated per [[feedback_isolate_shared_code_changes]] — no converter/
+script changes):
+- `packages/dms/src/ui/components/graph_new/components/GridGraph.jsx` (the wrapper): now passes
+  `nullColor={props.colors?.nullColor || "#000000"}` explicitly to the inner avl-graph
+  `<GridGraph>`, which already supported the prop but was never wired — the lower-level renderer's
+  own `"transparent"` default was silently winning.
+- `patterns/page/components/sections/components/ComponentRegistry/graph_new/config.jsx`: added a
+  "Missing Data Color" text input (`colors.nullColor`) to the existing "Grid Graph Layout" config
+  group (next to round-52's "Zero-Centered Colors" toggle) — authors can override back to
+  transparent or any other color per report.
 
-**Verified**:
-- Unit-level via direct calls into `analyze_graph()`: empty/missing title → `"Bar Graph Summary,
-  Speed"` / `"TMC Grid Graph, Speed"` (the new default path); explicit template title
-  (`"{data} AM Peak"`) → `"Speed AM Peak"` (unaffected); explicit literal title (no placeholders)
-  → passed through unchanged. Confirms the fix only engages on the empty/missing case.
-- **Live-verified** on report 520 (the exact report item 8 diagnosed, reconverted via `--replace`
-  → new page `2194026`): `report_probe.mjs` capture shows both sections now render real titles —
-  "Route Line Graph, Speed" and "Bar Graph Summary, Speed" — instead of blank headers (screenshot
-  confirms visually). 0 console/page errors.
-- **Full census rerun** (869/869 analyzed, 0 errors): coverage numbers unchanged (`full` 261,
-  `mapped` 5288/7103, 74.4% — identical to round 52's post-increment-B figures), as expected for a
-  pure title-string fix with no structural impact. `converted_pages_total: 35` (was 34; +1 net new
-  page from the report_520 `--replace` reconvert).
+**Verified live** on report 584 (page `2193032`, the exact report item 3 diagnosed — a TMC
+Difference Grid whose own on-page caption reads "the black areas indicate TMC/time periods that
+have insufficient data"): before the fix (confirmed by temporarily `git stash`-ing the change and
+re-probing with `report_probe.mjs`), missing cells rendered as pale background blended into the
+value color scale — zero black cells anywhere, directly contradicting the report's own caption.
+After the fix (stash popped, re-probed), missing cells render solid black exactly as the caption
+describes (screenshots compared side-by-side). Both runs: 0 console/page errors. Since this is a
+client-side rendering default (not a converter template change), it takes effect immediately on
+every already-converted Grid/Difference-Grid page with missing data — no reconvert needed. Census
+untouched (pure rendering-default fix, no `admin2.reports` analysis logic changed).
 
-**Not done**: the remaining priority-list items (GridGraph missing-data color, TMC meta join swap,
-Info Box travel-time formatter, epoch x-axis tick format, legend/flex width-squeeze) are unchanged
-by this round.
+**Same-round follow-up (user-caught while reviewing the fix live)**: the user pointed out that
+missing-data TMCs shouldn't just be colored black — they shouldn't appear in the hover tooltip's
+per-row list at all. Root cause: `avl-graph/GridGraph.jsx`'s `DefaultHoverComp` iterates
+`data.indexes` (every row in the hovered column) unconditionally, rendering
+`get(data, ["indexData", i, "value"], 0)` for each — a `null` value (lodash `get`'s default only
+applies to `undefined`, not `null`) still got a row in the list. **Fix**: `indexes` now also
+filters out any `i` whose `indexData[i].value` is `null` before rendering, in both the default
+(whole-column) and `singleCell` tooltip modes — same one-line-conditional shape as the existing
+`singleCell` filter it sits next to. **Verified**: user confirmed live in the browser that no-data
+TMCs no longer appear in the tooltip. (An automated Playwright hover repro was attempted first but
+abandoned as unreliable — this TMC Difference Grid's cells are sub-3px in the rendered SVG, and
+headless synthetic hover/mouse-move couldn't reliably land on one; the user's direct live
+confirmation is the real verification here, not a probe artifact.)
 
-**Ledger — rounds 53/54/55 (moved to archive 2026-07-17, round 56 start)**:
-- **R53** (07-16): user's 9-item triage punch list, all 9 items + 2 bonus findings root-caused
-  (stray duplicate `reports_snap_2` rows on 6 pages — deleted same-day follow-up; the pre-2017-only
-  report-level refusal found to have silently regressed; BarGraph tooltip/graph-title/GridGraph
-  color/Info-Box formatter/epoch-axis/TMC-meta-join fixes all root-caused but not yet built).
-  Full detail: [archive, "Round 53 triage"](./old-reports-conversion-archive.md).
-- **R54** (07-16): rebuilt the pre-2017-only report-level refusal that R53 found had regressed
-  (`PRE_2017_CUTOFF`/`report_is_pre_2017_only`/`pre_2017_only`), live-verified against the 4
-  reports it used to block + false-positive-checked against report 191 and 3 known-good pages;
-  full census rerun (869/869, 0 errors) surfaced one more live pre-2017-only page (report 7,
-  `2191132`) — deleted round 55. Full detail: [archive, "Round 54"](./old-reports-conversion-archive.md).
-- **R55** (07-17): report 7's pre-2017-only converted page (`2191132`, surfaced by round 54's
-  restored census) deleted per user go-ahead; BarGraph tooltip customName fix shipped
-  (`graph_new/components/BarGraph.jsx` — hoisted `labelForKey` into a new `hoverComp`, mirroring
-  `LineGraph`'s existing customName-aware tooltip), live-verified on reports 520 and 787. Full
-  detail: [archive, "Round 55"](./old-reports-conversion-archive.md).
+**Not done**: the remaining 3 priority-list items (Info Box travel-time formatter, epoch x-axis
+tick format, TMC meta join swap) are unchanged by this round; legend/flex width-squeeze stays
+parked per round 34.
 
 
 
@@ -326,6 +327,27 @@ above are the RAW (all-869) figures.
 
 ## Round ledger (rounds 1–40 + 42/50/51 archived — full detail in [the archive](./old-reports-conversion-archive.md))
 
+- **R56** (07-17): graph title default fix shipped (item 8's title half, priority-list #4) — empty/
+  missing `state.title` in `analyze_graph()` now defaults to the old client's own template
+  `"{type}, {data}"` instead of a blank section header; live-verified on report 520 (reconverted
+  `--replace` → page `2194026`, both sections now show real titles); full census rerun (869/869, 0
+  errors) unchanged as expected for a pure title-string fix. Full detail: [archive, "Round
+  56"](./old-reports-conversion-archive.md).
+- **R55** (07-17): report 7's pre-2017-only converted page (`2191132`, surfaced by round 54's
+  restored census) deleted per user go-ahead; BarGraph tooltip customName fix shipped
+  (`graph_new/components/BarGraph.jsx` — hoisted `labelForKey` into a new `hoverComp`, mirroring
+  `LineGraph`'s existing customName-aware tooltip), live-verified on reports 520 and 787. Full
+  detail: [archive, "Round 55"](./old-reports-conversion-archive.md).
+- **R54** (07-16): rebuilt the pre-2017-only report-level refusal that R53 found had regressed
+  (`PRE_2017_CUTOFF`/`report_is_pre_2017_only`/`pre_2017_only`), live-verified against the 4
+  reports it used to block + false-positive-checked against report 191 and 3 known-good pages;
+  full census rerun (869/869, 0 errors) surfaced one more live pre-2017-only page (report 7,
+  `2191132`) — deleted round 55. Full detail: [archive, "Round 54"](./old-reports-conversion-archive.md).
+- **R53** (07-16): user's 9-item triage punch list, all 9 items + 2 bonus findings root-caused
+  (stray duplicate `reports_snap_2` rows on 6 pages — deleted same-day follow-up; the pre-2017-only
+  report-level refusal found to have silently regressed; BarGraph tooltip/graph-title/GridGraph
+  color/Info-Box formatter/epoch-axis/TMC-meta-join fixes all root-caused but not yet built).
+  Full detail: [archive, "Round 53 triage"](./old-reports-conversion-archive.md).
 - **R52 implementation (07-16, same day, all four scope questions endorsed — "go get it")**:
   **Phases 1-3 (increment A) BUILT & LIVE-VERIFIED.**
   **Phase 1 — dms-server difference mode** (library task

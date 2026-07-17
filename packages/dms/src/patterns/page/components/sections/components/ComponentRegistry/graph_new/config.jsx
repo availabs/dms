@@ -561,6 +561,11 @@ const graphConfig = {
                 // difference/diverging grids.
                 { type: "toggle",
                     label: "Zero-Centered Colors", key: "colors.byValueSymmetric"
+                },
+                // Color for cells with no data (null value). Defaults to black
+                // (matches the old NPMRDS tool) if left blank.
+                { type: "input", inputType: "text",
+                    label: "Missing Data Color", key: "colors.nullColor"
                 }
             ]
         },

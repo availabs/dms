@@ -32,9 +32,12 @@ const DefaultHoverComp = ({ data, indexFormat, keyFormat, valueFormat, valueLabe
 
   // singleCell: show ONLY the hovered cell (data.index) instead of every row in the
   // hovered column. Off by default → unchanged whole-column tooltip (BC).
-  const indexes = singleCell
+  // No-data rows (null value, the same cells that render nullColor) are dropped
+  // entirely rather than listed with a blank/zero value.
+  const indexes = (singleCell
     ? get(data, "indexes", []).filter(i => i === data.index)
-    : get(data, "indexes", []);
+    : get(data, "indexes", [])
+  ).filter(i => get(data, ["indexData", i, "value"], null) !== null);
 
   return (
     <div className={ `

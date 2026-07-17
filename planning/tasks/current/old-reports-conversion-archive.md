@@ -18,6 +18,55 @@ and leave only its ledger line in the live file.
 
 ---
 
+## Round 56 (2026-07-17) — graph title default fix (moved verbatim from the live file on 2026-07-17, round 57 start)
+
+**Objective**: user picked priority-list **#4, the graph title default** (item 8's title half —
+`analyze_graph()` in `scripts/convert_old_reports.py` passed an empty `state.title` straight
+through as a blank section title instead of applying the old client's own default template
+`"{type}, {data}"`, per round 53's finding).
+
+**Fix** (`scripts/convert_old_reports.py`, `analyze_graph()`, ~line 3825): changed
+`title = (state.get("title") or "")` to `title = state.get("title") or "{type}, {data}"` before the
+existing `{data}`/`{type}`/`{name}` substitution — one-line change, same substitution mechanism
+already in place for explicit titles, no new code path.
+
+**Verified**:
+- Unit-level via direct calls into `analyze_graph()`: empty/missing title → `"Bar Graph Summary,
+  Speed"` / `"TMC Grid Graph, Speed"` (the new default path); explicit template title
+  (`"{data} AM Peak"`) → `"Speed AM Peak"` (unaffected); explicit literal title (no placeholders)
+  → passed through unchanged. Confirms the fix only engages on the empty/missing case.
+- **Live-verified** on report 520 (the exact report item 8 diagnosed, reconverted via `--replace`
+  → new page `2194026`): `report_probe.mjs` capture shows both sections now render real titles —
+  "Route Line Graph, Speed" and "Bar Graph Summary, Speed" — instead of blank headers (screenshot
+  confirms visually). 0 console/page errors.
+- **Full census rerun** (869/869 analyzed, 0 errors): coverage numbers unchanged (`full` 261,
+  `mapped` 5288/7103, 74.4% — identical to round 52's post-increment-B figures), as expected for a
+  pure title-string fix with no structural impact. `converted_pages_total: 35` (was 34; +1 net new
+  page from the report_520 `--replace` reconvert).
+
+**Not done**: the remaining priority-list items (GridGraph missing-data color, TMC meta join swap,
+Info Box travel-time formatter, epoch x-axis tick format, legend/flex width-squeeze) are unchanged
+by this round.
+
+**Ledger — rounds 53/54/55 (moved to archive 2026-07-17, round 56 start)**:
+- **R53** (07-16): user's 9-item triage punch list, all 9 items + 2 bonus findings root-caused
+  (stray duplicate `reports_snap_2` rows on 6 pages — deleted same-day follow-up; the pre-2017-only
+  report-level refusal found to have silently regressed; BarGraph tooltip/graph-title/GridGraph
+  color/Info-Box formatter/epoch-axis/TMC-meta-join fixes all root-caused but not yet built).
+  Full detail: [archive, "Round 53 triage"](./old-reports-conversion-archive.md).
+- **R54** (07-16): rebuilt the pre-2017-only report-level refusal that R53 found had regressed
+  (`PRE_2017_CUTOFF`/`report_is_pre_2017_only`/`pre_2017_only`), live-verified against the 4
+  reports it used to block + false-positive-checked against report 191 and 3 known-good pages;
+  full census rerun (869/869, 0 errors) surfaced one more live pre-2017-only page (report 7,
+  `2191132`) — deleted round 55. Full detail: [archive, "Round 54"](./old-reports-conversion-archive.md).
+- **R55** (07-17): report 7's pre-2017-only converted page (`2191132`, surfaced by round 54's
+  restored census) deleted per user go-ahead; BarGraph tooltip customName fix shipped
+  (`graph_new/components/BarGraph.jsx` — hoisted `labelForKey` into a new `hoverComp`, mirroring
+  `LineGraph`'s existing customName-aware tooltip), live-verified on reports 520 and 787. Full
+  detail: [archive, "Round 55"](./old-reports-conversion-archive.md).
+
+---
+
 ## Round 55 (2026-07-17) — report 7 cleanup + BarGraph tooltip customName fix (moved verbatim from the live file on 2026-07-17, round 56 start)
 
 **Objective**: user picked two items off the round-53/54 backlog: (1) delete report 7's

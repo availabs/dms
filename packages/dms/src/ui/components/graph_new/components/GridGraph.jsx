@@ -366,7 +366,11 @@ const GridGraphWrapper = props => {
           onHorizontalLeave={ onHorizontalLeave }
           onGridEnter={ onGridEnter }
           onGridLeave={ onGridLeave }
-          onGridClick={ onGridClick }/>
+          onGridClick={ onGridClick }
+          // Missing-data cells (null value) resolve to this color. Default matches
+          // the old NPMRDS tool's black no-data cells; author-overridable, e.g. back
+          // to "transparent" for a report that wants missing data to disappear.
+          nullColor={ props.colors?.nullColor || "#000000" }/>
       </div>
       { !legend.show || !legend.position.includes("bottom") ? null :
         <div
