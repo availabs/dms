@@ -18,6 +18,64 @@ and leave only its ledger line in the live file.
 
 ---
 
+## Round 58 (2026-07-17) — Info Box travel-time mm:ss formatter (moved verbatim from the live file on 2026-07-17, round 59 start)
+
+**Objective**: user picked the next round-53 priority-list item — the **Info Box travel-time
+formatter** (item 7: the Route/TMC Info Box's travel-time column renders raw decimal minutes, e.g.
+`0.22558671110147546`, instead of the old tool's `M:SS` clock format).
+
+**User pushback mid-round, correctly caught a scoping risk**: before implementing, the user
+questioned whether the mm:ss need was really limited to the Info Box (it wasn't obviously safe to
+just hardcode a fix onto one template), and separately confirmed **avgHoursOfDelay/hoursOfDelay
+get NO special formatting in the old tool** — plain decimal hours (e.g. `.45 hours`), not
+`HH:MM:SS`. Both points were verified against the old client source directly (a local checkout at
+`/home/ryan/code/transportNY`, not assumed): `sites/npmrds/pages/analysis/components/tmc_graphs/
+utils/dataTypes.js` keys a `toMinutesWithSeconds` formatter to every measure whose `label ===
+'Minutes'` — `travelTime`, `avgTT`/`avgTT-byDateRange`, `percentile95`/`percentile95-byDateRange`,
+`percentile97`/`percentile97-byDateRange` — confirming the user's suspicion that this is a
+measure-class format, not a single-column special case. `hoursOfDelay`/`avgHoursOfDelay` (`label:
+'Hours'`) and the unitless index measures (`bufferTime`/`planningTime`/`miseryIndex`/
+`travelTimeIndex`, `label: ''`) use plain `format(",.2f")` — confirming the user's second point
+exactly, no mm:ss anywhere near them.
+Checked whether any OTHER already-built converter Spreadsheet column needed the same fix before
+scoping the implementation: `ensure_route_compare_template`'s `MEASURE_EXPR = {"speed": SPEED_EXPR}`
+— only `speed` (MPH) is wired for Route Compare today, no minutes-labeled measure — and
+`ensure_info_box_delay_template`'s `DELAY_EXPR` is genuinely hours (confirmed by the user's own
+point above), so **today, exactly one built Spreadsheet column needs it**: `avgtt_col` in
+`ensure_info_box_traveltime_template` (`route_info_box_traveltime`/`tmc_info_box_traveltime`).
+Percentile95/97/avgTT-non-byDateRange Info Box variants aren't built yet (gap-logged, future work)
+— but since the fix lives in the shared registry, they'll get the same formatting for free
+whenever they are built, with no separate round needed.
+
+**Fix**:
+- `packages/dms/src/patterns/page/components/sections/components/dataWrapper/utils/utils.jsx`: new
+  `minutes_clock` entry in the shared `formatFunctions` registry (consumed by `TableCell.jsx` and
+  `Card.jsx` — every Card/Table cell app-wide, not Info-Box-specific) — decimal minutes -> `M:SS`,
+  mirroring the old tool's `toMinutesWithSeconds` but carry-safe (rounds total seconds once instead
+  of truncating minutes then rounding the remainder, which could overflow to e.g. `4:60`).
+- `scripts/convert_old_reports.py`'s `ensure_info_box_traveltime_template`: `avgtt_col` now sets
+  `formatFn: "minutes_clock"` and simplifies `customName` from `"Travel Time (min)"` to `"Travel
+  Time"` (the M:SS shape self-documents). This function used to short-circuit on any existing
+  template ("static — nothing to drift-check") — since `formatFn`/`customName` can drift
+  independently of `TRAVEL_TIME_EXPR` itself (as they did this round), added real column-drift
+  detection (compares `avgtt_col` at its known index, updates in place if changed), matching the
+  idiom already used by `ensure_route_compare_template`/`ensure_graph_templates`.
+
+**Verified live** on report 181 (page `2190688` -> reconverted `--replace` -> `2194036`, the exact
+report item 7 diagnosed): dry-run confirmed both templates drift-detected
+(`route_info_box_traveltime` id `2190555`, `tmc_info_box_traveltime` id `2190591`) before the real
+run updated them in place. `report_probe.mjs report_181`: 0 console/page errors, 0 pending-at-close.
+Both tables now render `M:SS` — Route Info Box shows `0:00` / `10:51` (was raw `0` /
+`10.843528533560013`), TMC Info Box shows 21 rows all in `M:SS` (e.g. `0:14`, `0:46`, `0:20` — hand-
+checked against the raw CH values captured in the same network trace, e.g.
+`0.22558671110147754 min -> 0:14` exact). Column headers now read `TRAVEL TIME` (was `TRAVEL TIME
+(MIN)`). Both template updates applied via the new drift-check path, not a one-off manual edit.
+
+**Not done**: the remaining 2 priority-list items (TMC meta join swap, epoch x-axis tick format)
+are unchanged by this round; legend/flex width-squeeze stays parked per round 34.
+
+---
+
 ## Round 57 (2026-07-17) — GridGraph missing-data color fix (moved verbatim from the live file on 2026-07-17, round 58 start)
 
 **Objective**: user picked the smallest of the 4 remaining root-caused priority-list items — the

@@ -8,63 +8,106 @@
 > starts, move the previous round's full text to the top of the archive, leave a ledger line here,
 > and fold anything durable into the summary or reference sections.
 
-## Current state (2026-07-17, ROUND 58 COMPLETE: Info Box travel-time mm:ss formatter shipped and live-verified — the Route/TMC Info Box's travel-time Spreadsheet column now renders decimal minutes as clock-format `M:SS` (e.g. `10:51`) instead of a raw float, via a new generic `minutes_clock` entry in the shared `formatFunctions` registry (used by every Card/Table cell app-wide, not a one-off). Round 57 (GridGraph missing-data color) and rounds 53-56 (9-item triage, pre-2017-only restoration, BarGraph tooltip customName fix, report 7 cleanup, graph title default fix) remain DONE — full detail archived, see ledger below. Remaining open priority-list items: TMC meta join swap, epoch x-axis tick format, legend/flex width-squeeze.)
+## Current state (2026-07-17, ROUND 59 COMPLETE: TMC meta join swap shipped and live-verified — `META_JOIN` (hoursOfDelay/avgHoursOfDelay/co2Emissions/avgCo2Emissions) moved off the frozen 2025-only `ny_2025_tmc_meta` source onto a year-matched source, fixing a real correctness bug that silently ran every non-2025-dated report's delay/CO2 math against wrong-year TMC attributes since these measures were built (rounds 5-36). Round 58 (Info Box mm:ss formatter) and rounds 53-57 remain DONE — full detail archived, see ledger below. Remaining open priority-list item: epoch x-axis tick format; legend/flex width-squeeze stays parked.)
 
-## Round 58 (2026-07-17) — Info Box travel-time mm:ss formatter
+## Round 59 (2026-07-17) — TMC meta join swap (year-matched, off the frozen 2025 snapshot)
 
-**Objective**: user picked the next round-53 priority-list item — the **Info Box travel-time
-formatter** (item 7: the Route/TMC Info Box's travel-time column renders raw decimal minutes, e.g.
-`0.22558671110147546`, instead of the old tool's `M:SS` clock format).
+**Objective**: user picked the higher-ranked of the 2 remaining round-53 priority-list items — the
+**TMC meta join source swap** (item #6: `META_JOIN`, the source backing hoursOfDelay/
+avgHoursOfDelay/co2Emissions/avgCo2Emissions's `avg_speedlimit`/`aadt`/`congestion_level`/
+`directionality`/`faciltype` inputs, was pinned to source 1946/view 3298 — `ny_2025_tmc_meta` — a
+**frozen 2025-only snapshot joined identically for every report regardless of its own year**, with
+no year-matching mechanism at all, unlike the pm3/1410 reliability join which already resolves
+per-report year).
 
-**User pushback mid-round, correctly caught a scoping risk**: before implementing, the user
-questioned whether the mm:ss need was really limited to the Info Box (it wasn't obviously safe to
-just hardcode a fix onto one template), and separately confirmed **avgHoursOfDelay/hoursOfDelay
-get NO special formatting in the old tool** — plain decimal hours (e.g. `.45 hours`), not
-`HH:MM:SS`. Both points were verified against the old client source directly (a local checkout at
-`/home/ryan/code/transportNY`, not assumed): `sites/npmrds/pages/analysis/components/tmc_graphs/
-utils/dataTypes.js` keys a `toMinutesWithSeconds` formatter to every measure whose `label ===
-'Minutes'` — `travelTime`, `avgTT`/`avgTT-byDateRange`, `percentile95`/`percentile95-byDateRange`,
-`percentile97`/`percentile97-byDateRange` — confirming the user's suspicion that this is a
-measure-class format, not a single-column special case. `hoursOfDelay`/`avgHoursOfDelay` (`label:
-'Hours'`) and the unitless index measures (`bufferTime`/`planningTime`/`miseryIndex`/
-`travelTimeIndex`, `label: ''`) use plain `format(",.2f")` — confirming the user's second point
-exactly, no mm:ss anywhere near them.
-Checked whether any OTHER already-built converter Spreadsheet column needed the same fix before
-scoping the implementation: `ensure_route_compare_template`'s `MEASURE_EXPR = {"speed": SPEED_EXPR}`
-— only `speed` (MPH) is wired for Route Compare today, no minutes-labeled measure — and
-`ensure_info_box_delay_template`'s `DELAY_EXPR` is genuinely hours (confirmed by the user's own
-point above), so **today, exactly one built Spreadsheet column needs it**: `avgtt_col` in
-`ensure_info_box_traveltime_template` (`route_info_box_traveltime`/`tmc_info_box_traveltime`).
-Percentile95/97/avgTT-non-byDateRange Info Box variants aren't built yet (gap-logged, future work)
-— but since the fix lives in the shared registry, they'll get the same formatting for free
-whenever they are built, with no separate round needed.
+**Root cause confirmed live**: `npmrds_meta.s582_v983_NPMRDS_V6_tmc_meta` (source 582/view 983,
+already a registered DAMA view, previously undocumented as a live join target) is byte-identical in
+schema to 1946/3298 (same 58 columns) but carries one row per (tmc, year) for 2016, 2018-2026 (no
+2017 row) instead of one frozen 2025 slice. Quantified real impact on a genuine report year (2019,
+49,068 TMCs) vs. the old 2025-frozen values: **46.5% have a different `aadt`, 31% a different
+`congestion_level`** (which itself feeds `DIST_KEY_EXPR`'s AADT-distribution-weighting join key — a
+wrong congestion_level can pick the wrong distribution profile too), **146 TMCs entirely missing**
+from the 2025 snapshot. Every hoursOfDelay/avgHoursOfDelay/co2Emissions/avgCo2Emissions report whose
+dates aren't 2025 has been computing against wrong-year road attributes since these measures were
+built.
 
-**Fix**:
-- `packages/dms/src/patterns/page/components/sections/components/dataWrapper/utils/utils.jsx`: new
-  `minutes_clock` entry in the shared `formatFunctions` registry (consumed by `TableCell.jsx` and
-  `Card.jsx` — every Card/Table cell app-wide, not Info-Box-specific) — decimal minutes -> `M:SS`,
-  mirroring the old tool's `toMinutesWithSeconds` but carry-safe (rounds total seconds once instead
-  of truncating minutes then rounding the remainder, which could overflow to e.g. `4:60`).
-- `scripts/convert_old_reports.py`'s `ensure_info_box_traveltime_template`: `avgtt_col` now sets
-  `formatFn: "minutes_clock"` and simplifies `customName` from `"Travel Time (min)"` to `"Travel
-  Time"` (the M:SS shape self-documents). This function used to short-circuit on any existing
-  template ("static — nothing to drift-check") — since `formatFn`/`customName` can drift
-  independently of `TRAVEL_TIME_EXPR` itself (as they did this round), added real column-drift
-  detection (compares `avgtt_col` at its known index, updates in place if changed), matching the
-  idiom already used by `ensure_route_compare_template`/`ensure_graph_templates`.
+**Fix — compound year-matched join key, no per-year template proliferation needed**: unlike the
+pm3/1410 reliability join (Postgres, one view per year, so `ensure_pm3_join_template` mints a
+separate template per (grain, year, bin)), 582/983 is a plain ClickHouse table with a `year` column
+— same engine as the fact table — so `META_JOIN`'s `joinColumns` gained a second entry: a calculated
+dsColumn `toYear(ds.date) as meta_year` matched against `table1.year`, using the SAME calculated-
+dsColumn mechanism `DIST_KEY_EXPR` already proves in production (confirmed live both client-side,
+`buildJoinOnClause`'s `accessor()`/`isCalculatedCol()`, and this file's own `_ch_join_accessor` for
+Map-layer joins — both already AND-join multiple `joinColumns` entries per source, no platform
+change needed). Each fact row now resolves against **its own date's actual year**, not a single
+report-level "max year" pick — more correct than the pm3 pattern for a report whose date range spans
+a year boundary, verified live end-to-end (`toYear(ds.date) = table1.year` in the captured request,
+`table1.aadt` correctly resolving a different value per year for the same TMC).
 
-**Verified live** on report 181 (page `2190688` -> reconverted `--replace` -> `2194036`, the exact
-report item 7 diagnosed): dry-run confirmed both templates drift-detected
-(`route_info_box_traveltime` id `2190555`, `tmc_info_box_traveltime` id `2190591`) before the real
-run updated them in place. `report_probe.mjs report_181`: 0 console/page errors, 0 pending-at-close.
-Both tables now render `M:SS` — Route Info Box shows `0:00` / `10:51` (was raw `0` /
-`10.843528533560013`), TMC Info Box shows 21 rows all in `M:SS` (e.g. `0:14`, `0:46`, `0:20` — hand-
-checked against the raw CH values captured in the same network trace, e.g.
-`0.22558671110147754 min -> 0:14` exact). Column headers now read `TRAVEL TIME` (was `TRAVEL TIME
-(MIN)`). Both template updates applied via the new drift-check path, not a one-off manual edit.
+**Known gap, not fixed**: 582/983 has no 2017 row. A ClickHouse LEFT JOIN fills a non-matching row's
+columns with type defaults (0/`''`), not NULL — an unguarded 2017 date would have silently produced
+`hours_of_delay`/`avg_co2_emissions = 0` (indistinguishable from a genuinely congestion-free/
+emission-free reading), the exact same bug class round 9 found and fixed for the fact table's own
+0-as-missing sentinel. Guarded with `nullIf(table1.aadt, 0)` in `DELAY_EXPR` and
+`nullIf(table1.miles, 0)` in `CO2_EXPR_PASSENGER`/`CO2_EXPR_TRUCK` (each formula's last multiplicative
+use of a meta column, chosen because ClickHouse's `greatest()`/arithmetic all propagate NULL as
+verified empirically) — a 2017-dated row now nulls out cleanly instead of reading as a wrong zero.
+2017-dated hoursOfDelay/CO2 reports (report 179 among them) are gap-logged by this behavior, not
+unblocked — out of scope per the standing "data issues, not code" ruling. The `overrides.aadt`
+text-substitution mechanism (round 9) had its `_AADT_DELAY_FRAGMENT` updated to match `DELAY_EXPR`'s
+new guarded text (caught immediately by the file's own `assert _AADT_DELAY_FRAGMENT in DELAY_EXPR`
+sanity check — exactly the drift it exists to catch).
 
-**Not done**: the remaining 2 priority-list items (TMC meta join swap, epoch x-axis tick format)
-are unchanged by this round; legend/flex width-squeeze stays parked per round 34.
+**Two real pre-existing drift-detection gaps found and fixed, without which this round's fix would
+have been silently inert for every already-converted report**:
+1. `ensure_graph_templates`'s drift-update path (the generic TEMPLATE_SPECS-driven minter covering
+   every Bar/Line/Grid Graph hoursOfDelay/avgHoursOfDelay/co2Emissions/avgCo2Emissions template)
+   refreshed the yAxis expression text, `display` patches, and `comparisonSeries.combine` on drift —
+   but never compared or refreshed `join`. Since the mint branch only sets `state["join"]` for
+   brand-new rows, an already-existing row's stored join would have stayed pointed at source 1946
+   forever regardless of any future `META_JOIN` change. Added `join_drift` detection (full dict
+   compare against the spec's expected wire shape) alongside the existing checks.
+2. `ensure_info_box_delay_template` (Route/TMC Info Box's `hoursOfDelay` Spreadsheet column) had **no
+   drift detection of any kind** — `if templates.get(name) is not None: return templates`
+   unconditionally, a stale short-circuit round 38 already found and fixed once for
+   `ensure_info_box_traveltime_template` but never mirrored here. Added the same column + join
+   drift-check pattern.
+Both caught live: report 775's first real reconversion (before either drift-check fix) reported the
+yAxis expression as updated, but the network capture still showed `view_id: 3298` — the stored
+`join` hadn't moved at all. Fixed both gaps, reconverted again, and the same report then correctly
+showed `view_id: 983` with the compound `ON` clause.
+
+**Live-verified** (`DMS_TILE_HOST=http://localhost:3001`, `--replace`, `report_probe.mjs` after
+each): 775 (hoursOfDelay tmc/route grain + Route Map hoursOfDelay choropleth, 2019) — TMC
+`120P05858`'s live value (`56.74191724171299`) matches a hand-built CH query using the new
+year-matched join (`56.74191724171298`) to 13 significant digits; the pre-fix value
+(`61.26523097238413`) exactly matches what the stale 2025 metadata produces — root cause fully
+explained by this TMC's real `aadt` differing between 2019 (29,727) and the 2025 snapshot (32,511),
+9.4% apart, with every other meta column identical. 787 (Bar Graph Summary avgHoursOfDelay, 2020/
+2021), 751 (CO2 passenger/truck, 2019), 1033 (Route Map avgHoursOfDelay/hoursOfDelay choropleth,
+2019) — all 0 console/page errors, only benign artifacts (`/track/visit` 204, filtered-but-slow tile
+requests). 179 (entirely 2017-dated, the known gap) — page loads cleanly, 0 console/page errors, the
+delay measure correctly returns a proper Falcor `null` atom (no data) instead of a wrong zero, and
+its Map tile gracefully 204s instead of crashing. Full corpus census rerun: **869/869 reports, 0
+errors**, coverage counts unchanged (261 full / 563 partial / 31 none / 14 no_graphs) — expected,
+since this is a pure correctness fix, not a new template-mapping capability.
+
+**Incidental finding, not investigated further**: `tmc_speed_summary_bar_graph`'s TEMPLATE_SPECS
+entry wires `table1` to `META_JOIN` (not the usual 455/3464 default join) purely to read
+`table1.miles` for `SPEED_EXPR`/`SPEED_SUMMARY_EXPR` — this now rides the year-matched source too.
+Likely numerically inert (a TMC's physical `miles` is essentially year-invariant, confirmed
+byte-identical between sources on spot-checked rows) but technically now more correct in principle;
+not re-architected since it isn't this round's concern.
+
+**Files touched**: `scripts/convert_old_reports.py` (`META_JOIN` definition + rename from
+`META_1946_JOIN`, `CH_META_TABLE` rename + physical table swap, `DELAY_EXPR`/`CO2_EXPR_PASSENGER`/
+`CO2_EXPR_TRUCK` nullIf guards + `_AADT_DELAY_FRAGMENT` fragment fix, `bake_route_map_delay_paint`'s
+raw SQL year-filter, `ensure_graph_templates`'s join-drift detection, `ensure_info_box_delay_template`'s
+new drift detection); `src/dms/documentation/npmrds-data-sources.md` (582/983 registered-source row,
+1946/3298 marked superseded, swap-reference table + bank-list updates).
+
+**Not done**: the remaining priority-list item (epoch x-axis tick format) is unchanged by this
+round; legend/flex width-squeeze stays parked per round 34.
 
 
 
@@ -261,6 +304,20 @@ above are the RAW (all-869) figures.
   exists, `analyze_graph` ~3384) — ~392 buildable instances refused today; needs the old
   tool's actual precedence rule read off `GeneralGraphComp` + a user policy sign-off, then
   it's converter logic over EXISTING templates, no new vocabulary.
+- **`META_JOIN` (hoursOfDelay/avgHoursOfDelay/co2Emissions/avgCo2Emissions) is year-matched, not
+  frozen (round 59)**: source 582/view 983 (`NPMRDS_V6_tmc_meta`), joined via a COMPOUND key
+  (`tmc=tmc AND toYear(ds.date) as ... = table1.year`) so every fact row resolves its own date's
+  year — no per-year template proliferation needed (unlike the pm3/1410 pattern), since 582/983 is
+  same-engine (ClickHouse) with a `year` column, not a per-year Postgres view. No 2017 row exists in
+  582/983 (2016, then 2018-2026) — `DELAY_EXPR`/`CO2_EXPR_PASSENGER`/`CO2_EXPR_TRUCK` guard the
+  join-miss case with `nullIf(table1.aadt/miles, 0)`, so a 2017-dated row nulls out cleanly (gap-
+  logged) instead of reading as a wrong zero. `ensure_graph_templates`'s drift-update path did NOT
+  compare/refresh `join` at all before this round (only yAxis expr/display/comparisonSeries.combine)
+  — fixed; `ensure_info_box_delay_template` had NO drift detection whatsoever before this round
+  (same latent-shortcut class round 38 fixed for `ensure_info_box_traveltime_template`) — fixed.
+  Any FUTURE `META_JOIN`-consuming function should be checked for the same gap before assuming
+  drift detection "just works" — `ensure_route_map_hoursofdelay_template`/
+  `ensure_route_map_avghoursofdelay_template` were already safe (full-state `==` comparison).
 
 **Immediate next steps** (round 34 "Not done / next", order user-endorsed):
 - [x] **(a) DONE (round 35): the SPEED_EXPR/TRAVEL_TIME_EXPR backport** to all live
@@ -332,9 +389,20 @@ above are the RAW (all-869) figures.
   TMC Difference Grid — ~3-4 rounds. **Awaiting user endorsement of the 4 open questions at
   the bottom of the scope doc before phase 1 starts.** Companion candidate still open: the R51
   held-back legend/paint off-by-one fix.
+- [x] **(j) DONE (R59, 2026-07-17)**: round-53 priority-list item #6, the **TMC meta join source
+  swap** — `META_JOIN` moved off the frozen 2025-only `ny_2025_tmc_meta` (1946/3298) onto the
+  year-matched `NPMRDS_V6_tmc_meta` (582/983), fixing hoursOfDelay/avgHoursOfDelay/co2Emissions/
+  avgCo2Emissions for every non-2025-dated report. See Round 59 above for full detail (mechanism,
+  the 2017 gap-log, the two drift-detection gaps found and fixed, live verification). Only
+  remaining priority-list item: epoch x-axis tick format (#8).
 
 ## Round ledger (rounds 1–40 + 42/50/51 archived — full detail in [the archive](./old-reports-conversion-archive.md))
 
+- **R58** (07-17): Info Box travel-time mm:ss formatter shipped (item 7, priority-list #7) — new
+  generic `minutes_clock` formatFn entry (shared registry, every Card/Table cell app-wide);
+  `ensure_info_box_traveltime_template` gained real column-drift detection (was static); live-
+  verified on report 181 (page `2194036`), M:SS hand-checked exact against raw CH values. Full
+  detail: [archive, "Round 58"](./old-reports-conversion-archive.md).
 - **R57** (07-17): GridGraph missing-data color fix shipped (item 3, priority-list #5) — missing
   cells now render black (author-overridable via a new "Missing Data Color" config field) instead
   of transparent; live-verified on report 584 (page `2193032`) via a before/after stash comparison.
@@ -1082,6 +1150,13 @@ instead of 4 identical ones), 179→`2190755` (`hoursOfDelay` route grain), 775�
 (`hoursOfDelay` tmc grain). New templates: `tmc_info_box_traveltime` (`2190591`),
 `tmc_info_box_length` (`2190604`), `tmc_info_box_aadt` (`2190645`), `route_info_box_delay`
 (`2190664`), `tmc_info_box_delay` (`2190677`).
+
+Round 59 (TMC meta join swap, 2026-07-17) — reconverted (`--replace`) as the round's live
+verification, all superseding earlier-round page ids for the same reports: 775 → `2194062`
+(hoursOfDelay tmc/route grain + Route Map hoursOfDelay, exact-value ground-truthed), 787 →
+`2194074` (Bar Graph Summary avgHoursOfDelay/hoursOfDelay), 751 → `2194094` (CO2 passenger/truck),
+179 → `2194116` (entirely 2017-dated — the known meta-gap path, delay correctly renders `null`),
+1033 → `2194141` (Route Map avgHoursOfDelay/hoursOfDelay choropleth). All 0 console/page errors.
 
 Round 52 (Route Difference Graph / TMC Difference Grid, 2026-07-16) — live-verified pages:
 584 "I-190 NB COVID Comparison" → `2193032` (4/4 graphs; diverging speed diff bar with
