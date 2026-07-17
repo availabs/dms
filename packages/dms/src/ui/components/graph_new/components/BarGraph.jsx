@@ -7,7 +7,7 @@ import {
 } from "d3-array"
 
 import { strictNaN } from "../utils"
-import { getAggFunc, buildValueColorScale } from "./utils"
+import { getAggFunc, buildValueColorScale, useLegendSqueezeGuard } from "./utils"
 import { getColorRange } from "../colorSchemeUnifier"
 
 const BarGraphWrapper = props => {
@@ -308,6 +308,18 @@ const BarGraphWrapper = props => {
 		)
   }, [legend, actions, onLegendEnter, onLegendLeave]);
 
+  // Only the categorical legend (per-series names) is unbounded-width content
+  // that can squeeze the chart — the byValue linear legend is a fixed pixel
+  // width by design (see Legend.jsx's SizeMap), same shape GridGraph already
+  // ships safely. Scope the guard to the diagnosed case only.
+  const containerRef = React.useRef(null);
+  const legendRef = React.useRef(null);
+  const squeezed = useLegendSqueezeGuard(containerRef, legendRef, {
+  	resetKey: legend.categories?.join("|"),
+  	enabled: legend.show && legend.type === "categorical"
+  });
+  const legendWrapClass = squeezed ? "flex items-center max-w-[40%] min-w-0 overflow-hidden" : "flex items-center";
+
   const onBarEnter = React.useMemo(() => {
   	if (!publish || !provider) return null;
   	if (provider.args?.column !== indexColumn?.key) return null;
@@ -359,13 +371,13 @@ const BarGraphWrapper = props => {
   }, [publish, provider, categoryColumn]);
 
 	return (
-    <div className="w-full bg-inherit flex">
+    <div className="w-full bg-inherit flex" ref={ containerRef }>
       { !legend.show || legend.position !== "left" ? null :
-      	<div className="flex items-center">
+      	<div className={ legendWrapClass } ref={ legendRef }>
         	{ InstantiatedLegend }
         </div>
       }
-      <div className="bg-inherit flex-1"
+      <div className="bg-inherit flex-1 min-w-0"
         style={ {
           height: `${ props.height }px`
         } }
@@ -383,7 +395,7 @@ const BarGraphWrapper = props => {
 					onStackLeave={ onStackLeave }/>
       </div>
       { !legend.show || legend.position !== "right" ? null :
-      	<div className="flex items-center">
+      	<div className={ legendWrapClass } ref={ legendRef }>
         	{ InstantiatedLegend }
         </div>
       }

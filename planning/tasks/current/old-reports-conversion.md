@@ -8,7 +8,85 @@
 > starts, move the previous round's full text to the top of the archive, leave a ledger line here,
 > and fold anything durable into the summary or reference sections.
 
-## Current state (2026-07-17, ROUND 59 COMPLETE: TMC meta join swap shipped and live-verified — `META_JOIN` (hoursOfDelay/avgHoursOfDelay/co2Emissions/avgCo2Emissions) moved off the frozen 2025-only `ny_2025_tmc_meta` source onto a year-matched source, fixing a real correctness bug that silently ran every non-2025-dated report's delay/CO2 math against wrong-year TMC attributes since these measures were built (rounds 5-36). Round 58 (Info Box mm:ss formatter) and rounds 53-57 remain DONE — full detail archived, see ledger below. Remaining open priority-list item: epoch x-axis tick format; legend/flex width-squeeze stays parked.)
+## Current state (2026-07-17, ROUND 60 COMPLETE: legend/flex width-squeeze — PARKED since round 34 — un-parked and fixed platform-wide with a dynamically-measured guard (not a static CSS cap), live-verified: previously-squeezed sections improve, already-healthy legends render byte-identical. Round 59 (TMC meta join swap), round 58 (Info Box mm:ss formatter), and rounds 53-57 remain DONE — full detail archived, see ledger below. Remaining open priority-list item: epoch x-axis tick format.)
+
+## Round 60 (2026-07-17) — legend/flex width-squeeze: un-parked, fixed platform-wide (dynamic guard, not a static cap)
+
+**Objective**: revisit the round-34 "legend/flex width-squeeze" bug (a categorical legend with
+unbounded width can squeeze its sibling chart toward zero), parked ever since and re-flagged round
+53 as probably the actual root cause behind the user's "narrow, unreadable components" complaint.
+Live-reconfirmed still real before touching anything: `report_787`'s two Line Graph sections
+rendered their chart at 181-195px wide (of ~405-866px available) next to a fully-legible legend,
+while sibling Bar Graph sections (legend hidden) rendered full width.
+
+**User's stated concern, addressed before writing any code**: this is shared `@availabs/dms`
+code — 8 separate Netlify sites (`package.json`'s `deploy-*` scripts: weather-ent, b3nson, ctp,
+wcdb, devmny, dmsdocs, mnyprod, landbank) build from this same submodule, each a direct
+`--prod` deploy with no staging gate — so a naive fix risks visibly changing legends on pages
+that render fine today, on sites this session can't see into. Resolved by **not shipping a
+static CSS cap**: instead, a small hook (`useLegendSqueezeGuard`,
+`graph_new/components/utils.js`) measures the legend's own natural (unconstrained) width against
+its row at render time via `getBoundingClientRect`, and only applies a `max-w-[40%]` + truncate
+class if the legend actually exceeds that cap. A page whose legend already fits renders a
+byte-identical className to before — confirmed live, not just argued (see verification below).
+One-directional per pass (resets to unconstrained/remeasure on a real `window resize` or on the
+legend's own content changing, identified via a `resetKey`) so it can't oscillate: capping the
+legend shrinks it, which would make it "fit" and uncap, which would grow it back and re-trigger
+the squeeze — the hook only re-opens on an external signal, never on its own prior toggle.
+
+**Why the dynamic approach was tractable, not just safer**: `avl-graph/*.jsx`'s chart renderers
+already self-measure via `useSetSize` (`avl-graph/utils/index.js:256`, `getBoundingClientRect` +
+a resize listener) and already redraw whenever their own measured box changes — this is standard,
+already-shipping behavior (how they react to an ordinary browser resize today), so the guard
+didn't need to teach the chart anything new about handling a runtime width change.
+
+**Scope**: `GridGraph.jsx` already had half of this fix (`flex-1 min-w-0`, added mid-June for an
+unrelated shrink-wrap bug, commit `66e5a3f7`) and its legend is always the fixed-width linear
+type (`SizeMap` 250/400px), not content-driven categorical — so it was never exposed to this bug
+class and was left untouched. The other 5 wrapper components (`BarGraph.jsx`, `LineGraph.jsx`,
+`PieGraph.jsx`, `SunburstGraph.jsx`, `TreemapGraph.jsx`) all had the identical unbounded-legend +
+missing-`min-w-0` pattern — fixed in all 5 uniformly rather than just the 2 (Bar/Line) this
+corpus has actually exercised, since Pie/Sunburst/Treemap share the exact same bug verbatim.
+`BarGraph.jsx`'s `byValue` linear-legend branch (fixed pixel width, same shape as GridGraph) is
+explicitly excluded from the guard (`enabled: legend.type === "categorical"`) — only the
+diagnosed unbounded-content case is touched.
+
+**Fix, concretely**:
+- `graph_new/components/utils.js`: new `useLegendSqueezeGuard(containerRef, legendRef, {
+  capFraction=0.4, resetKey, enabled })` hook (measure-then-flip via `useLayoutEffect`, so no
+  visible flash).
+- `avl-graph/components/Legend.jsx`'s `VerticalCategoricalLegendItem`: label gets
+  `min-w-0 truncate` + a `title` attribute (full text on hover); swatch gets `flex-shrink-0`.
+  These classes are unconditional but inert — truncation only ever engages once an ancestor
+  actually constrains the width, which today only the new guard ever does.
+- All 5 wrapper components: chart's `flex-1` div gets `min-w-0` unconditionally (matches
+  `GridGraph`, provably a no-op unless the row is already space-constrained); legend-holding div's
+  className is `"flex items-center"` (byte-identical to before) unless `squeezed`, in which case
+  `"flex items-center max-w-[40%] min-w-0 overflow-hidden"`.
+
+**Live-verified** (`report_probe.mjs`, DOM measurement via `--eval`, zero console/page errors on
+every run):
+- `report_787`'s two previously-squeezed Line Graph sections: chart width 195px→243px and
+  181px→243px (legend now correctly capped at exactly 162px = 40% of their 405px row; before, the
+  legend was consuming the row almost entirely). Screenshots confirm both charts render fully
+  legible with a clean, non-overlapping truncated legend.
+- `report_1033`, same page, three legend-bearing sections in one probe: a short single-TMC label
+  (natural width 117px, under the 162px/40% cap) rendered with className exactly `"flex
+  items-center"` — **not** touched by the guard, proving the "byte-identical when already
+  healthy" claim directly rather than by argument. Two sibling sections with long "HRP South of
+  Bartow Avenue..." labels correctly engaged the cap and truncated cleanly.
+- Bar Graph Summary sections (legend hidden, unaffected code path) stayed at their original
+  866px row width in both reports, confirming zero effect on sections outside the bug class.
+
+**Not done**: no changes to `GridGraph.jsx` (already safe, out of scope) or to
+`BarGraph.jsx`'s `byValue` linear legend path (different, fixed-width shape, not the diagnosed
+bug). The remaining open priority-list item (epoch x-axis tick format) is unchanged by this
+round.
+
+**Files touched** (all in `@availabs/dms`, isolated from any conversion-script work per
+[[feedback_isolate_shared_code_changes]]): `packages/dms/src/ui/components/graph_new/components/
+{BarGraph,LineGraph,PieGraph,SunburstGraph,TreemapGraph,utils}.js(x)`,
+`.../avl-graph/components/Legend.jsx`.
 
 ## Round 59 (2026-07-17) — TMC meta join swap (year-matched, off the frozen 2025 snapshot)
 
@@ -107,7 +185,7 @@ new drift detection); `src/dms/documentation/npmrds-data-sources.md` (582/983 re
 1946/3298 marked superseded, swap-reference table + bank-list updates).
 
 **Not done**: the remaining priority-list item (epoch x-axis tick format) is unchanged by this
-round; legend/flex width-squeeze stays parked per round 34.
+round.
 
 
 
@@ -184,8 +262,9 @@ above are the RAW (all-869) figures.
   Grid, `overrides.baseSpeed` — are in-scope targets (round 24 reversed the earlier "permanent
   gap-log" ruling). Route Map is likely much bigger than the others; read `RouteMap.jsx` for real
   before scoping it.
-- The legend/flex **width-squeeze platform fix stays PARKED** (mechanism pinned in round 34:
-  unconstrained flex legend sibling + full SQL string as fallback label).
+- The legend/flex **width-squeeze platform fix — FIXED round 60** (was parked since round 34;
+  mechanism was an unconstrained flex legend sibling + `min-width:auto`'s default content-based
+  floor — see round 60 above for the dynamically-measured, un-parked fix).
 
 **Key durable facts** (beyond the reference sections at the bottom of this file):
 - Fact table `npmrds.s583_v982_NPMRDS_V6` (src 583 / view 982, env npmrds2): travel-time columns

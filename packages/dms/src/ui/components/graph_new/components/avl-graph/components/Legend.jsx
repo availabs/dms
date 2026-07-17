@@ -34,17 +34,20 @@ const VerticalCategoricalLegendItem = props => {
 	return (
 		<div
 			className={ `
-				flex items-center px-1
+				flex items-center px-1 min-w-0
 				${ doHighlight ? "outline outline-2 outline-offset-1 rounded" : "" }
 			` }
 			onMouseEnter={ doOnEnter }
 			onMouseLeave={ doOnLeave }
 		>
-			<div className="w-4 h-4 rounded mr-1"
+			<div className="w-4 h-4 rounded mr-1 flex-shrink-0"
 				style={ {
 					backgroundColor: doHighlight ? "red" : color
 				} }/>
-			<div>
+			{ /* min-w-0 + truncate only ever clip anything once an ancestor
+			   actually constrains this item's width (see useLegendSqueezeGuard) —
+			   inert, and identical to today's render, otherwise. */ }
+			<div className="min-w-0 truncate" title={ label }>
 				{ label }
 			</div>
 		</div>

@@ -5,7 +5,7 @@ import { LineGraph, Legend } from "./avl-graph"
 import { groups as d3groups } from "d3-array"
 
 import { strictNaN } from "../utils"
-import { getAggFunc } from "./utils"
+import { getAggFunc, useLegendSqueezeGuard } from "./utils"
 import { getColorRange } from "../colorSchemeUnifier"
 
 const LineGraphWrapper = props => {
@@ -254,14 +254,23 @@ const LineGraphWrapper = props => {
 
 // console.log("LineGraphWrapper::legend", legend);
 
+  // See BarGraph.jsx's useLegendSqueezeGuard usage for the full mechanism note.
+  const containerRef = React.useRef(null);
+  const legendRef = React.useRef(null);
+  const squeezed = useLegendSqueezeGuard(containerRef, legendRef, {
+  	resetKey: legend.categories?.join("|"),
+  	enabled: legend.show && legend.type === "categorical"
+  });
+  const legendWrapClass = squeezed ? "flex items-center max-w-[40%] min-w-0 overflow-hidden" : "flex items-center";
+
 	return (
-    <div className="w-full bg-inherit flex">
+    <div className="w-full bg-inherit flex" ref={ containerRef }>
       { !legend.show || legend.position !== "left" ? null :
-      	<div className="flex items-center">
+      	<div className={ legendWrapClass } ref={ legendRef }>
         	{ InstantiatedLegend }
         </div>
       }
-      <div className="bg-inherit flex-1"
+      <div className="bg-inherit flex-1 min-w-0"
         style={ {
           height: `${ props.height }px`
         } }
@@ -275,7 +284,7 @@ const LineGraphWrapper = props => {
 					highlights={ highlights }/>
       </div>
       { !legend.show || legend.position !== "right" ? null :
-      	<div className="flex items-center">
+      	<div className={ legendWrapClass } ref={ legendRef }>
         	{ InstantiatedLegend }
         </div>
       }
