@@ -18,6 +18,89 @@ and leave only its ledger line in the live file.
 
 ---
 
+## Round 61 (2026-07-17) — epoch→HH:MM x-axis tick format (the last round-53 priority-list item) (moved verbatim from the live file on 2026-07-17, round 63 start)
+
+**Objective**: ship round-53 priority item #8 (`Epoch→HH:MM x-axis tick format`), root-caused in
+that round: old-report graphs whose x axis is the raw NPMRDS 5-minute-of-day index (`ds.epoch`,
+0-287 — confirmed off `HOUR_EXPR`/`QUARTER_HOUR_EXPR`'s `intDiv(ds.epoch, 12/3)`) render ticks as
+the bare integer ("80") instead of a clock time ("6:40"), because d3's default axis formatter just
+stringifies the raw domain value and no xAxis formatter of any kind existed client-side.
+
+**Root cause confirmed exactly as round 53 described, re-verified by reading the render pipeline
+directly rather than trusting the prior write-up**: `GraphComponent.jsx`'s `xAxis` prop already
+computed a `format` function for an explicit `tickLabels` value→label map, but had no equivalent
+for a *named* formatFn — unlike `yAxis`, which already resolves `graphFormat.yAxis.format` through
+the existing `ValueFormats`/`getFormatFunc` registry (`graph_new/utils.js`). Traced the full
+render path to confirm one fix point covers every chart type: `graph_new/components/{BarGraph,
+LineGraph,GridGraph}.jsx` all spread `props.xAxis` verbatim into their own `axisBottom` prop
+(`{...props.xAxis}`, no chart-type-specific handling); the lower-level `avl-graph/BarGraph.jsx`
+only string→function-converts `axisBottom.format` when it's a `typeof === "string"` (d3-format
+specifier), so a function (what `getFormatFunc` returns) already passes straight through
+unchanged into `avl-graph/components/AxisBottom.jsx`'s `d3AxisBottom(scale).tickFormat(format)`.
+So the fix belongs entirely in `GraphComponent.jsx`'s xAxis prop construction — no per-chart-type
+changes needed, exactly as round 53 predicted.
+
+**Fix, concretely**:
+- `graph_new/utils.js`: new `epoch_time` `ValueFormats` entry (`{label: "Epoch Time (HH:MM)",
+  value: "epoch_time", func: epochTimeFormat}`) — `totalMinutes = round(epoch * 5)`, `hour =
+  floor(totalMinutes/60) % 24`, `minute = totalMinutes % 60`, rendered `${hour}:${pad(minute)}`
+  (non-padded hour, padded minute, 24h — matches the old tool's own examples exactly).
+- `GraphComponent.jsx`: `xAxis.format` now checks `graphFormat.xAxis.format` (a named formatFn)
+  FIRST via `getFormatFunc`, falling back to the pre-existing `tickLabels` value→label map only
+  when no named format is set — the two mechanisms are for different use cases (a computed
+  transform of the raw value vs. an explicit lookup table) and don't collide.
+- `ComponentRegistry/graph_new/config.jsx`: added a "Tick Format" `<Select>` to the X Axis panel
+  (`key: 'xAxis.format'`, `options: ValueFormats`), mirroring the Y Axis panel's existing one —
+  a generic author-facing enrichment (any `ValueFormats` entry, not just `epoch_time`), matching
+  this repo's author-empowerment principle rather than a special-cased converter-only fix.
+- `scripts/convert_old_reports.py`'s `ensure_graph_templates`: rather than hand-editing the
+  ~40+ TEMPLATE_SPECS entries with `"xAxis": "epoch"`, the format is derived generically off that
+  existing shorthand in both the mint branch (`state["display"]["xAxis"]["format"] =
+  "epoch_time"` whenever `spec["xAxis"] == "epoch"`) and a new drift-check (`epoch_format_drift`,
+  alongside the existing yAxis/display/combine/join drift checks) so every ALREADY-MINTED template
+  using this shorthand picks up the fix the next time any report using it is reconverted — no
+  proactive resweep needed, same lazy-reconvert idiom this task already uses. Calculated-column
+  xAxis groupings (`HOUR_EXPR`/`QUARTER_HOUR_EXPR`/`WEEKDAY_EXPR`/`MONTH_EXPR` — day/hour/15-min/
+  month resolutions, a different TEMPLATE_SPECS shape) are untouched — out of scope, not what
+  round 53 diagnosed (their raw values are either already a real hour number or a different unit
+  entirely, not a bare 5-min index).
+
+**Live-verified** (`report_probe.mjs`, 0 console/page errors on every run):
+- Report 179 (the exact report round 53 investigated) reconverted `--replace` → page `2194183`.
+  Drift-fix fired on `tmc_delay_bar_graph_5min` (GridGraph). Before: x-axis ticks read
+  `78 90 102 114 126 138 150 162 174 186 198 210 222`. After: `6:30 7:30 8:30 ... 18:30` — exact
+  (`78*5=390min=6:30`, `222*5=1110min=18:30`).
+- Report 787 reconverted `--replace` → page `2194197`. Drift-fix fired on
+  `tmc_avg_delay_line_graph` (LineGraph). Before: two Line Graph sections showed
+  `102 139 176 213` and `120 193`. After: `8:30 11:35 14:40 17:45` and `10:00 16:05` — exact
+  (`102*5=510min=8:30`, `213*5=1065min=17:45`, `120*5=600min=10:00`, `193*5=965min=16:05`).
+- BarGraph not separately live-probed (no live report conveniently exercises an epoch-axis
+  BarGraph today) but covered by construction — identical `{...props.xAxis}` passthrough
+  confirmed by reading `graph_new/components/BarGraph.jsx` directly, same as Line/Grid.
+- Full census rerun after both reconverts: **869/869 reports, 0 errors**; `full` 261,
+  graph-instance mapped 5,288/7,103 (74.4%) — byte-identical to the pre-round baseline, as
+  expected for a pure display/formatting fix with zero effect on coverage/mapping logic.
+
+**Not done**: `HOUR_EXPR`/`QUARTER_HOUR_EXPR` calculated-column x-axis groupings were not
+investigated for a similar labeling gap (out of scope, not diagnosed by round 53). No proactive
+resweep of the ~40 other epoch-axis templates beyond the 2 reconverted for verification — they
+pick up the fix lazily whenever next reconverted, per standing policy.
+
+**All 9 round-53 triage items are now DONE** (see the round-53 close-out list in the archive):
+stray rows (round 53 same-day), pre-2017 refusal rebuild (round 54), BarGraph tooltip (round 55),
+graph title default (round 56), GridGraph missing-data color (round 57), Info Box mm:ss (round
+58), TMC meta join swap (round 59), legend/flex width-squeeze (round 60), epoch x-axis format
+(this round). No open priority-list items remain.
+
+**Files touched** (all in `@availabs/dms`, isolated from converter work per
+[[feedback_isolate_shared_code_changes]], except the converter default itself):
+`packages/dms/src/ui/components/graph_new/utils.js`,
+`packages/dms/src/ui/components/graph_new/GraphComponent.jsx`,
+`packages/dms/src/patterns/page/components/sections/components/ComponentRegistry/graph_new/config.jsx`;
+converter: `scripts/convert_old_reports.py` (`ensure_graph_templates` mint + drift branches).
+
+---
+
 ## Round 60 (2026-07-17) — legend/flex width-squeeze: un-parked, fixed platform-wide (dynamic guard, not a static cap) (moved verbatim from the live file on 2026-07-17, round 61 start)
 
 **Objective**: revisit the round-34 "legend/flex width-squeeze" bug (a categorical legend with
