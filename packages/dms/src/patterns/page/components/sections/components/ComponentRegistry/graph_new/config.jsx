@@ -324,6 +324,9 @@ const graphConfig = {
                     label: 'Label', key: 'xAxis.label' },
                 { type: 'input', inputType: 'number',
                     label: 'Tick Density', key: 'xAxis.tickDensity' },
+                {type: 'select', label: 'Tick Format', key: 'xAxis.format', onClickGoBack: true,
+                    options: ValueFormats
+                },
                 { type: 'toggle',
                     label: 'Show Gridlines', key: 'xAxis.showGridLines' },
                 { type: 'toggle',

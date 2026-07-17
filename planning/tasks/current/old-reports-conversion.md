@@ -8,85 +8,88 @@
 > starts, move the previous round's full text to the top of the archive, leave a ledger line here,
 > and fold anything durable into the summary or reference sections.
 
-## Current state (2026-07-17, ROUND 60 COMPLETE: legend/flex width-squeeze — PARKED since round 34 — un-parked and fixed platform-wide with a dynamically-measured guard (not a static CSS cap), live-verified: previously-squeezed sections improve, already-healthy legends render byte-identical. Round 59 (TMC meta join swap), round 58 (Info Box mm:ss formatter), and rounds 53-57 remain DONE — full detail archived, see ledger below. Remaining open priority-list item: epoch x-axis tick format.)
+## Current state (2026-07-17, ROUND 61 COMPLETE: epoch x-axis tick format — the LAST open item from the round-53 user priority list — shipped and live-verified on both a GridGraph and a LineGraph report (BarGraph shares the identical code path by construction). All 9 round-53 triage items are now DONE. Round 60 (legend/flex width-squeeze), round 59 (TMC meta join swap), round 58 (Info Box mm:ss formatter), and rounds 53-57 remain DONE — full detail archived, see ledger below. No open priority-list items remain; next work should come from the "Immediate next steps" backlog below (item (d), or a fresh vocabulary-breadth pass) or a new user ask.)
 
-## Round 60 (2026-07-17) — legend/flex width-squeeze: un-parked, fixed platform-wide (dynamic guard, not a static cap)
+## Round 61 (2026-07-17) — epoch→HH:MM x-axis tick format (the last round-53 priority-list item)
 
-**Objective**: revisit the round-34 "legend/flex width-squeeze" bug (a categorical legend with
-unbounded width can squeeze its sibling chart toward zero), parked ever since and re-flagged round
-53 as probably the actual root cause behind the user's "narrow, unreadable components" complaint.
-Live-reconfirmed still real before touching anything: `report_787`'s two Line Graph sections
-rendered their chart at 181-195px wide (of ~405-866px available) next to a fully-legible legend,
-while sibling Bar Graph sections (legend hidden) rendered full width.
+**Objective**: ship round-53 priority item #8 (`Epoch→HH:MM x-axis tick format`), root-caused in
+that round: old-report graphs whose x axis is the raw NPMRDS 5-minute-of-day index (`ds.epoch`,
+0-287 — confirmed off `HOUR_EXPR`/`QUARTER_HOUR_EXPR`'s `intDiv(ds.epoch, 12/3)`) render ticks as
+the bare integer ("80") instead of a clock time ("6:40"), because d3's default axis formatter just
+stringifies the raw domain value and no xAxis formatter of any kind existed client-side.
 
-**User's stated concern, addressed before writing any code**: this is shared `@availabs/dms`
-code — 8 separate Netlify sites (`package.json`'s `deploy-*` scripts: weather-ent, b3nson, ctp,
-wcdb, devmny, dmsdocs, mnyprod, landbank) build from this same submodule, each a direct
-`--prod` deploy with no staging gate — so a naive fix risks visibly changing legends on pages
-that render fine today, on sites this session can't see into. Resolved by **not shipping a
-static CSS cap**: instead, a small hook (`useLegendSqueezeGuard`,
-`graph_new/components/utils.js`) measures the legend's own natural (unconstrained) width against
-its row at render time via `getBoundingClientRect`, and only applies a `max-w-[40%]` + truncate
-class if the legend actually exceeds that cap. A page whose legend already fits renders a
-byte-identical className to before — confirmed live, not just argued (see verification below).
-One-directional per pass (resets to unconstrained/remeasure on a real `window resize` or on the
-legend's own content changing, identified via a `resetKey`) so it can't oscillate: capping the
-legend shrinks it, which would make it "fit" and uncap, which would grow it back and re-trigger
-the squeeze — the hook only re-opens on an external signal, never on its own prior toggle.
-
-**Why the dynamic approach was tractable, not just safer**: `avl-graph/*.jsx`'s chart renderers
-already self-measure via `useSetSize` (`avl-graph/utils/index.js:256`, `getBoundingClientRect` +
-a resize listener) and already redraw whenever their own measured box changes — this is standard,
-already-shipping behavior (how they react to an ordinary browser resize today), so the guard
-didn't need to teach the chart anything new about handling a runtime width change.
-
-**Scope**: `GridGraph.jsx` already had half of this fix (`flex-1 min-w-0`, added mid-June for an
-unrelated shrink-wrap bug, commit `66e5a3f7`) and its legend is always the fixed-width linear
-type (`SizeMap` 250/400px), not content-driven categorical — so it was never exposed to this bug
-class and was left untouched. The other 5 wrapper components (`BarGraph.jsx`, `LineGraph.jsx`,
-`PieGraph.jsx`, `SunburstGraph.jsx`, `TreemapGraph.jsx`) all had the identical unbounded-legend +
-missing-`min-w-0` pattern — fixed in all 5 uniformly rather than just the 2 (Bar/Line) this
-corpus has actually exercised, since Pie/Sunburst/Treemap share the exact same bug verbatim.
-`BarGraph.jsx`'s `byValue` linear-legend branch (fixed pixel width, same shape as GridGraph) is
-explicitly excluded from the guard (`enabled: legend.type === "categorical"`) — only the
-diagnosed unbounded-content case is touched.
+**Root cause confirmed exactly as round 53 described, re-verified by reading the render pipeline
+directly rather than trusting the prior write-up**: `GraphComponent.jsx`'s `xAxis` prop already
+computed a `format` function for an explicit `tickLabels` value→label map, but had no equivalent
+for a *named* formatFn — unlike `yAxis`, which already resolves `graphFormat.yAxis.format` through
+the existing `ValueFormats`/`getFormatFunc` registry (`graph_new/utils.js`). Traced the full
+render path to confirm one fix point covers every chart type: `graph_new/components/{BarGraph,
+LineGraph,GridGraph}.jsx` all spread `props.xAxis` verbatim into their own `axisBottom` prop
+(`{...props.xAxis}`, no chart-type-specific handling); the lower-level `avl-graph/BarGraph.jsx`
+only string→function-converts `axisBottom.format` when it's a `typeof === "string"` (d3-format
+specifier), so a function (what `getFormatFunc` returns) already passes straight through
+unchanged into `avl-graph/components/AxisBottom.jsx`'s `d3AxisBottom(scale).tickFormat(format)`.
+So the fix belongs entirely in `GraphComponent.jsx`'s xAxis prop construction — no per-chart-type
+changes needed, exactly as round 53 predicted.
 
 **Fix, concretely**:
-- `graph_new/components/utils.js`: new `useLegendSqueezeGuard(containerRef, legendRef, {
-  capFraction=0.4, resetKey, enabled })` hook (measure-then-flip via `useLayoutEffect`, so no
-  visible flash).
-- `avl-graph/components/Legend.jsx`'s `VerticalCategoricalLegendItem`: label gets
-  `min-w-0 truncate` + a `title` attribute (full text on hover); swatch gets `flex-shrink-0`.
-  These classes are unconditional but inert — truncation only ever engages once an ancestor
-  actually constrains the width, which today only the new guard ever does.
-- All 5 wrapper components: chart's `flex-1` div gets `min-w-0` unconditionally (matches
-  `GridGraph`, provably a no-op unless the row is already space-constrained); legend-holding div's
-  className is `"flex items-center"` (byte-identical to before) unless `squeezed`, in which case
-  `"flex items-center max-w-[40%] min-w-0 overflow-hidden"`.
+- `graph_new/utils.js`: new `epoch_time` `ValueFormats` entry (`{label: "Epoch Time (HH:MM)",
+  value: "epoch_time", func: epochTimeFormat}`) — `totalMinutes = round(epoch * 5)`, `hour =
+  floor(totalMinutes/60) % 24`, `minute = totalMinutes % 60`, rendered `${hour}:${pad(minute)}`
+  (non-padded hour, padded minute, 24h — matches the old tool's own examples exactly).
+- `GraphComponent.jsx`: `xAxis.format` now checks `graphFormat.xAxis.format` (a named formatFn)
+  FIRST via `getFormatFunc`, falling back to the pre-existing `tickLabels` value→label map only
+  when no named format is set — the two mechanisms are for different use cases (a computed
+  transform of the raw value vs. an explicit lookup table) and don't collide.
+- `ComponentRegistry/graph_new/config.jsx`: added a "Tick Format" `<Select>` to the X Axis panel
+  (`key: 'xAxis.format'`, `options: ValueFormats`), mirroring the Y Axis panel's existing one —
+  a generic author-facing enrichment (any `ValueFormats` entry, not just `epoch_time`), matching
+  this repo's author-empowerment principle rather than a special-cased converter-only fix.
+- `scripts/convert_old_reports.py`'s `ensure_graph_templates`: rather than hand-editing the
+  ~40+ TEMPLATE_SPECS entries with `"xAxis": "epoch"`, the format is derived generically off that
+  existing shorthand in both the mint branch (`state["display"]["xAxis"]["format"] =
+  "epoch_time"` whenever `spec["xAxis"] == "epoch"`) and a new drift-check (`epoch_format_drift`,
+  alongside the existing yAxis/display/combine/join drift checks) so every ALREADY-MINTED template
+  using this shorthand picks up the fix the next time any report using it is reconverted — no
+  proactive resweep needed, same lazy-reconvert idiom this task already uses. Calculated-column
+  xAxis groupings (`HOUR_EXPR`/`QUARTER_HOUR_EXPR`/`WEEKDAY_EXPR`/`MONTH_EXPR` — day/hour/15-min/
+  month resolutions, a different TEMPLATE_SPECS shape) are untouched — out of scope, not what
+  round 53 diagnosed (their raw values are either already a real hour number or a different unit
+  entirely, not a bare 5-min index).
 
-**Live-verified** (`report_probe.mjs`, DOM measurement via `--eval`, zero console/page errors on
-every run):
-- `report_787`'s two previously-squeezed Line Graph sections: chart width 195px→243px and
-  181px→243px (legend now correctly capped at exactly 162px = 40% of their 405px row; before, the
-  legend was consuming the row almost entirely). Screenshots confirm both charts render fully
-  legible with a clean, non-overlapping truncated legend.
-- `report_1033`, same page, three legend-bearing sections in one probe: a short single-TMC label
-  (natural width 117px, under the 162px/40% cap) rendered with className exactly `"flex
-  items-center"` — **not** touched by the guard, proving the "byte-identical when already
-  healthy" claim directly rather than by argument. Two sibling sections with long "HRP South of
-  Bartow Avenue..." labels correctly engaged the cap and truncated cleanly.
-- Bar Graph Summary sections (legend hidden, unaffected code path) stayed at their original
-  866px row width in both reports, confirming zero effect on sections outside the bug class.
+**Live-verified** (`report_probe.mjs`, 0 console/page errors on every run):
+- Report 179 (the exact report round 53 investigated) reconverted `--replace` → page `2194183`.
+  Drift-fix fired on `tmc_delay_bar_graph_5min` (GridGraph). Before: x-axis ticks read
+  `78 90 102 114 126 138 150 162 174 186 198 210 222`. After: `6:30 7:30 8:30 ... 18:30` — exact
+  (`78*5=390min=6:30`, `222*5=1110min=18:30`).
+- Report 787 reconverted `--replace` → page `2194197`. Drift-fix fired on
+  `tmc_avg_delay_line_graph` (LineGraph). Before: two Line Graph sections showed
+  `102 139 176 213` and `120 193`. After: `8:30 11:35 14:40 17:45` and `10:00 16:05` — exact
+  (`102*5=510min=8:30`, `213*5=1065min=17:45`, `120*5=600min=10:00`, `193*5=965min=16:05`).
+- BarGraph not separately live-probed (no live report conveniently exercises an epoch-axis
+  BarGraph today) but covered by construction — identical `{...props.xAxis}` passthrough
+  confirmed by reading `graph_new/components/BarGraph.jsx` directly, same as Line/Grid.
+- Full census rerun after both reconverts: **869/869 reports, 0 errors**; `full` 261,
+  graph-instance mapped 5,288/7,103 (74.4%) — byte-identical to the pre-round baseline, as
+  expected for a pure display/formatting fix with zero effect on coverage/mapping logic.
 
-**Not done**: no changes to `GridGraph.jsx` (already safe, out of scope) or to
-`BarGraph.jsx`'s `byValue` linear legend path (different, fixed-width shape, not the diagnosed
-bug). The remaining open priority-list item (epoch x-axis tick format) is unchanged by this
-round.
+**Not done**: `HOUR_EXPR`/`QUARTER_HOUR_EXPR` calculated-column x-axis groupings were not
+investigated for a similar labeling gap (out of scope, not diagnosed by round 53). No proactive
+resweep of the ~40 other epoch-axis templates beyond the 2 reconverted for verification — they
+pick up the fix lazily whenever next reconverted, per standing policy.
 
-**Files touched** (all in `@availabs/dms`, isolated from any conversion-script work per
-[[feedback_isolate_shared_code_changes]]): `packages/dms/src/ui/components/graph_new/components/
-{BarGraph,LineGraph,PieGraph,SunburstGraph,TreemapGraph,utils}.js(x)`,
-`.../avl-graph/components/Legend.jsx`.
+**All 9 round-53 triage items are now DONE** (see the round-53 close-out list in the archive):
+stray rows (round 53 same-day), pre-2017 refusal rebuild (round 54), BarGraph tooltip (round 55),
+graph title default (round 56), GridGraph missing-data color (round 57), Info Box mm:ss (round
+58), TMC meta join swap (round 59), legend/flex width-squeeze (round 60), epoch x-axis format
+(this round). No open priority-list items remain.
+
+**Files touched** (all in `@availabs/dms`, isolated from converter work per
+[[feedback_isolate_shared_code_changes]], except the converter default itself):
+`packages/dms/src/ui/components/graph_new/utils.js`,
+`packages/dms/src/ui/components/graph_new/GraphComponent.jsx`,
+`packages/dms/src/patterns/page/components/sections/components/ComponentRegistry/graph_new/config.jsx`;
+converter: `scripts/convert_old_reports.py` (`ensure_graph_templates` mint + drift branches).
 
 ## Round 59 (2026-07-17) — TMC meta join swap (year-matched, off the frozen 2025 snapshot)
 
@@ -264,7 +267,10 @@ above are the RAW (all-869) figures.
   before scoping it.
 - The legend/flex **width-squeeze platform fix — FIXED round 60** (was parked since round 34;
   mechanism was an unconstrained flex legend sibling + `min-width:auto`'s default content-based
-  floor — see round 60 above for the dynamically-measured, un-parked fix).
+  floor — see [archive, "Round 60"](./old-reports-conversion-archive.md) for the
+  dynamically-measured, un-parked fix).
+- The **epoch x-axis tick format — FIXED round 61** (the last open round-53 priority-list item;
+  see Round 61 above). All 9 round-53 triage items are now closed.
 
 **Key durable facts** (beyond the reference sections at the bottom of this file):
 - Fact table `npmrds.s583_v982_NPMRDS_V6` (src 583 / view 982, env npmrds2): travel-time columns
@@ -472,11 +478,25 @@ above are the RAW (all-869) figures.
   swap** — `META_JOIN` moved off the frozen 2025-only `ny_2025_tmc_meta` (1946/3298) onto the
   year-matched `NPMRDS_V6_tmc_meta` (582/983), fixing hoursOfDelay/avgHoursOfDelay/co2Emissions/
   avgCo2Emissions for every non-2025-dated report. See Round 59 above for full detail (mechanism,
-  the 2017 gap-log, the two drift-detection gaps found and fixed, live verification). Only
-  remaining priority-list item: epoch x-axis tick format (#8).
+  the 2017 gap-log, the two drift-detection gaps found and fixed, live verification).
+- [x] **(k) DONE (R60, 2026-07-17)**: legend/flex width-squeeze un-parked and fixed platform-wide.
+  See [archive, "Round 60"](./old-reports-conversion-archive.md).
+- [x] **(l) DONE (R61, 2026-07-17)**: round-53 priority-list item #8 (the last one), the **epoch
+  x-axis tick format** — new `epoch_time` ValueFormats entry + xAxis named-formatFn wiring
+  (client, generic/author-facing) + converter default-set across every `"xAxis": "epoch"`
+  TEMPLATE_SPECS entry via drift detection. See Round 61 above. **No round-53 priority-list items
+  remain open.**
 
 ## Round ledger (rounds 1–40 + 42/50/51 archived — full detail in [the archive](./old-reports-conversion-archive.md))
 
+- **R60** (07-17): legend/flex width-squeeze (parked since round 34) un-parked and fixed
+  platform-wide via a dynamically-measured guard (`useLegendSqueezeGuard`, `getBoundingClientRect`
+  at render time), not a static CSS cap — a page whose legend already fits renders a
+  byte-identical className to before, confirmed live (report_1033); previously-squeezed sections
+  (report_787) improved from ~181-195px to 243px chart width. Applied uniformly to all 5
+  content-driven-legend wrapper types (Bar/Line/Pie/Sunburst/Treemap Graph); GridGraph excluded
+  (already safe, fixed-width linear legend only). Full detail: [archive, "Round
+  60"](./old-reports-conversion-archive.md).
 - **R58** (07-17): Info Box travel-time mm:ss formatter shipped (item 7, priority-list #7) — new
   generic `minutes_clock` formatFn entry (shared registry, every Card/Table cell app-wide);
   `ensure_info_box_traveltime_template` gained real column-drift detection (was static); live-
