@@ -91,107 +91,6 @@ graph title default (round 56), GridGraph missing-data color (round 57), Info Bo
 `packages/dms/src/patterns/page/components/sections/components/ComponentRegistry/graph_new/config.jsx`;
 converter: `scripts/convert_old_reports.py` (`ensure_graph_templates` mint + drift branches).
 
-## Round 59 (2026-07-17) — TMC meta join swap (year-matched, off the frozen 2025 snapshot)
-
-**Objective**: user picked the higher-ranked of the 2 remaining round-53 priority-list items — the
-**TMC meta join source swap** (item #6: `META_JOIN`, the source backing hoursOfDelay/
-avgHoursOfDelay/co2Emissions/avgCo2Emissions's `avg_speedlimit`/`aadt`/`congestion_level`/
-`directionality`/`faciltype` inputs, was pinned to source 1946/view 3298 — `ny_2025_tmc_meta` — a
-**frozen 2025-only snapshot joined identically for every report regardless of its own year**, with
-no year-matching mechanism at all, unlike the pm3/1410 reliability join which already resolves
-per-report year).
-
-**Root cause confirmed live**: `npmrds_meta.s582_v983_NPMRDS_V6_tmc_meta` (source 582/view 983,
-already a registered DAMA view, previously undocumented as a live join target) is byte-identical in
-schema to 1946/3298 (same 58 columns) but carries one row per (tmc, year) for 2016, 2018-2026 (no
-2017 row) instead of one frozen 2025 slice. Quantified real impact on a genuine report year (2019,
-49,068 TMCs) vs. the old 2025-frozen values: **46.5% have a different `aadt`, 31% a different
-`congestion_level`** (which itself feeds `DIST_KEY_EXPR`'s AADT-distribution-weighting join key — a
-wrong congestion_level can pick the wrong distribution profile too), **146 TMCs entirely missing**
-from the 2025 snapshot. Every hoursOfDelay/avgHoursOfDelay/co2Emissions/avgCo2Emissions report whose
-dates aren't 2025 has been computing against wrong-year road attributes since these measures were
-built.
-
-**Fix — compound year-matched join key, no per-year template proliferation needed**: unlike the
-pm3/1410 reliability join (Postgres, one view per year, so `ensure_pm3_join_template` mints a
-separate template per (grain, year, bin)), 582/983 is a plain ClickHouse table with a `year` column
-— same engine as the fact table — so `META_JOIN`'s `joinColumns` gained a second entry: a calculated
-dsColumn `toYear(ds.date) as meta_year` matched against `table1.year`, using the SAME calculated-
-dsColumn mechanism `DIST_KEY_EXPR` already proves in production (confirmed live both client-side,
-`buildJoinOnClause`'s `accessor()`/`isCalculatedCol()`, and this file's own `_ch_join_accessor` for
-Map-layer joins — both already AND-join multiple `joinColumns` entries per source, no platform
-change needed). Each fact row now resolves against **its own date's actual year**, not a single
-report-level "max year" pick — more correct than the pm3 pattern for a report whose date range spans
-a year boundary, verified live end-to-end (`toYear(ds.date) = table1.year` in the captured request,
-`table1.aadt` correctly resolving a different value per year for the same TMC).
-
-**Known gap, not fixed**: 582/983 has no 2017 row. A ClickHouse LEFT JOIN fills a non-matching row's
-columns with type defaults (0/`''`), not NULL — an unguarded 2017 date would have silently produced
-`hours_of_delay`/`avg_co2_emissions = 0` (indistinguishable from a genuinely congestion-free/
-emission-free reading), the exact same bug class round 9 found and fixed for the fact table's own
-0-as-missing sentinel. Guarded with `nullIf(table1.aadt, 0)` in `DELAY_EXPR` and
-`nullIf(table1.miles, 0)` in `CO2_EXPR_PASSENGER`/`CO2_EXPR_TRUCK` (each formula's last multiplicative
-use of a meta column, chosen because ClickHouse's `greatest()`/arithmetic all propagate NULL as
-verified empirically) — a 2017-dated row now nulls out cleanly instead of reading as a wrong zero.
-2017-dated hoursOfDelay/CO2 reports (report 179 among them) are gap-logged by this behavior, not
-unblocked — out of scope per the standing "data issues, not code" ruling. The `overrides.aadt`
-text-substitution mechanism (round 9) had its `_AADT_DELAY_FRAGMENT` updated to match `DELAY_EXPR`'s
-new guarded text (caught immediately by the file's own `assert _AADT_DELAY_FRAGMENT in DELAY_EXPR`
-sanity check — exactly the drift it exists to catch).
-
-**Two real pre-existing drift-detection gaps found and fixed, without which this round's fix would
-have been silently inert for every already-converted report**:
-1. `ensure_graph_templates`'s drift-update path (the generic TEMPLATE_SPECS-driven minter covering
-   every Bar/Line/Grid Graph hoursOfDelay/avgHoursOfDelay/co2Emissions/avgCo2Emissions template)
-   refreshed the yAxis expression text, `display` patches, and `comparisonSeries.combine` on drift —
-   but never compared or refreshed `join`. Since the mint branch only sets `state["join"]` for
-   brand-new rows, an already-existing row's stored join would have stayed pointed at source 1946
-   forever regardless of any future `META_JOIN` change. Added `join_drift` detection (full dict
-   compare against the spec's expected wire shape) alongside the existing checks.
-2. `ensure_info_box_delay_template` (Route/TMC Info Box's `hoursOfDelay` Spreadsheet column) had **no
-   drift detection of any kind** — `if templates.get(name) is not None: return templates`
-   unconditionally, a stale short-circuit round 38 already found and fixed once for
-   `ensure_info_box_traveltime_template` but never mirrored here. Added the same column + join
-   drift-check pattern.
-Both caught live: report 775's first real reconversion (before either drift-check fix) reported the
-yAxis expression as updated, but the network capture still showed `view_id: 3298` — the stored
-`join` hadn't moved at all. Fixed both gaps, reconverted again, and the same report then correctly
-showed `view_id: 983` with the compound `ON` clause.
-
-**Live-verified** (`DMS_TILE_HOST=http://localhost:3001`, `--replace`, `report_probe.mjs` after
-each): 775 (hoursOfDelay tmc/route grain + Route Map hoursOfDelay choropleth, 2019) — TMC
-`120P05858`'s live value (`56.74191724171299`) matches a hand-built CH query using the new
-year-matched join (`56.74191724171298`) to 13 significant digits; the pre-fix value
-(`61.26523097238413`) exactly matches what the stale 2025 metadata produces — root cause fully
-explained by this TMC's real `aadt` differing between 2019 (29,727) and the 2025 snapshot (32,511),
-9.4% apart, with every other meta column identical. 787 (Bar Graph Summary avgHoursOfDelay, 2020/
-2021), 751 (CO2 passenger/truck, 2019), 1033 (Route Map avgHoursOfDelay/hoursOfDelay choropleth,
-2019) — all 0 console/page errors, only benign artifacts (`/track/visit` 204, filtered-but-slow tile
-requests). 179 (entirely 2017-dated, the known gap) — page loads cleanly, 0 console/page errors, the
-delay measure correctly returns a proper Falcor `null` atom (no data) instead of a wrong zero, and
-its Map tile gracefully 204s instead of crashing. Full corpus census rerun: **869/869 reports, 0
-errors**, coverage counts unchanged (261 full / 563 partial / 31 none / 14 no_graphs) — expected,
-since this is a pure correctness fix, not a new template-mapping capability.
-
-**Incidental finding, not investigated further**: `tmc_speed_summary_bar_graph`'s TEMPLATE_SPECS
-entry wires `table1` to `META_JOIN` (not the usual 455/3464 default join) purely to read
-`table1.miles` for `SPEED_EXPR`/`SPEED_SUMMARY_EXPR` — this now rides the year-matched source too.
-Likely numerically inert (a TMC's physical `miles` is essentially year-invariant, confirmed
-byte-identical between sources on spot-checked rows) but technically now more correct in principle;
-not re-architected since it isn't this round's concern.
-
-**Files touched**: `scripts/convert_old_reports.py` (`META_JOIN` definition + rename from
-`META_1946_JOIN`, `CH_META_TABLE` rename + physical table swap, `DELAY_EXPR`/`CO2_EXPR_PASSENGER`/
-`CO2_EXPR_TRUCK` nullIf guards + `_AADT_DELAY_FRAGMENT` fragment fix, `bake_route_map_delay_paint`'s
-raw SQL year-filter, `ensure_graph_templates`'s join-drift detection, `ensure_info_box_delay_template`'s
-new drift detection); `src/dms/documentation/npmrds-data-sources.md` (582/983 registered-source row,
-1946/3298 marked superseded, swap-reference table + bank-list updates).
-
-**Not done**: the remaining priority-list item (epoch x-axis tick format) is unchanged by this
-round.
-
-
-
 **What this is**: `scripts/convert_old_reports.py` converts old `admin2.reports` (869 total) into
 new DMS report pages (pattern `npmrds_sub`), template-driven and repeatable. Goal = conversion
 *capability*, not bulk conversion; reports are picked by gap coverage. `scripts/census_old_reports.py`
@@ -487,7 +386,7 @@ above are the RAW (all-869) figures.
   TEMPLATE_SPECS entry via drift detection. See Round 61 above. **No round-53 priority-list items
   remain open.**
 
-## Round ledger (rounds 1–40 + 42/50/51 archived — full detail in [the archive](./old-reports-conversion-archive.md))
+## Round ledger (rounds 1–60 archived — full detail in [the archive](./old-reports-conversion-archive.md); round 61 is current, full detail above)
 
 - **R60** (07-17): legend/flex width-squeeze (parked since round 34) un-parked and fixed
   platform-wide via a dynamically-measured guard (`useLegendSqueezeGuard`, `getBoundingClientRect`
@@ -497,6 +396,16 @@ above are the RAW (all-869) figures.
   content-driven-legend wrapper types (Bar/Line/Pie/Sunburst/Treemap Graph); GridGraph excluded
   (already safe, fixed-width linear legend only). Full detail: [archive, "Round
   60"](./old-reports-conversion-archive.md).
+- **R59** (07-17): TMC meta join source swapped off the frozen 2025-only snapshot (1946/3298)
+  onto the year-matched `NPMRDS_V6_tmc_meta` (582/983, compound `tmc + toYear(ds.date)=year` key)
+  — fixes hoursOfDelay/avgHoursOfDelay/co2Emissions/avgCo2Emissions for every non-2025-dated
+  report (a 2019 spot-check found 46.5% of TMCs had a different `aadt` under the old frozen
+  join). 2017 rows (missing from 582/983) now null out cleanly via `nullIf` guards instead of
+  reading as a wrong zero. Two pre-existing drift-detection gaps found & fixed along the way
+  (`ensure_graph_templates` never refreshed `join` on drift; `ensure_info_box_delay_template` had
+  no drift detection at all). Live-verified on 775/787/751/1033/179; census unchanged (869/869, 0
+  errors) as expected for a correctness-only fix. Full detail: [archive, "Round
+  59"](./old-reports-conversion-archive.md).
 - **R58** (07-17): Info Box travel-time mm:ss formatter shipped (item 7, priority-list #7) — new
   generic `minutes_clock` formatFn entry (shared registry, every Card/Table cell app-wide);
   `ensure_info_box_traveltime_template` gained real column-drift detection (was static); live-
@@ -528,144 +437,19 @@ above are the RAW (all-869) figures.
   report-level refusal found to have silently regressed; BarGraph tooltip/graph-title/GridGraph
   color/Info-Box formatter/epoch-axis/TMC-meta-join fixes all root-caused but not yet built).
   Full detail: [archive, "Round 53 triage"](./old-reports-conversion-archive.md).
-- **R52 implementation (07-16, same day, all four scope questions endorsed — "go get it")**:
-  **Phases 1-3 (increment A) BUILT & LIVE-VERIFIED.**
-  **Phase 1 — dms-server difference mode** (library task
-  `comparison-series-difference-mode.md`): `options.seriesCombine = {mode: "difference",
-  invert?}` in the CH fan-out — each non-anchor arm INNER JOINed to the anchor arm on the
-  group-by response columns, value columns returned as `anchor − variant` under their original
-  aliases (response shape identical to the plain fan-out, so charts render unchanged); join
-  keys classified by EXPRESSION match (client refName == expression part of reqName — a
-  calculated group-by defeats response-name matching); attribute-uncovered group-bys get
-  synthetic `__gb_N` aliases; zero group-bys → CROSS JOIN scalar diff; <2 resolved variants →
-  no rows, no query; PG/SQLite fan-out refuses loudly (mirrors `__ANCHOR__`);
-  `simpleFilterLength` deliberately left as the safe union over-count. Client:
-  `buildUdaConfig.js` forwards `state.comparisonSeries.combine`. 10 new unit tests
-  (`testClickHouseSeriesCombineDifference`), 93/93 uda + core suites green; live-smoked against
-  real CH via falcor (2 windows × epoch group-by), 2 values bit-exact vs hand-built arm
-  subtractions.
-  **Phase 2 — diverging bars + zero-centered colors** (library): `avl-graph/BarGraph.jsx`
-  y-domain now always spans zero (`[min(0,lo), max(0,hi)]`; per-bar positive/negative sums for
-  stacked) and both group modes measure segments from the `YScale(0)` baseline in both
-  orientations — byte-identical geometry for all-positive data (regression-probed on
-  report_1071's bar-heavy page, renders unchanged); `colors.byValueSymmetric` (zero-centered
-  value scale, ±max|domain|) in wrapper BarGraph + GridGraph + two author-facing
-  "Zero-Centered Colors" toggles in `graph_new/config.jsx` (Bar Graph Layout + new Grid Graph
-  Layout group). 151/151 client vitest green.
-  **Phase 3 increment A — converter, speed×5-min×all for BOTH types** (the 106+94-instance
-  headline buckets): new `resolve_difference_pair()` (exact port of the old shared
-  `getActiveRouteComponents` — explicit `activeRouteComponents` honored per-slot, fallback =
-  first other comp with equal raw `settings.resolution` AND same physical route
-  [same routeId, or equal non-empty raw `admin2.routes.tmc_array`; two point-drawn routes
-  under different ids → no_pair, documented deviation keeping census≡converter]); pair-FIRST
-  pre-pass in `convert_report` (before template minting — the graph renders at the PAIR's
-  settings, so resolution/dataColumn are re-derived from the pair; runs off raw arrays since
-  point-resolution happens later); per-section `invert` baked when Main sits after Compare in
-  the shared route list (RRL publishes variants in route-list order); pairless graphs
-  force-skipped (`route_difference_no_pair`); `analyze_graph` no longer logs
-  mixed-resolution/dataColumn gaps for diff types (superseded by the pair); TEMPLATE_SPECS
-  `route_diff_speed_5min` + `tmc_diff_grid_speed_5min` (byte-identical to their plain bar/grid
-  siblings + `comparisonSeriesCombine` spec key [minting + drift detection extended] +
-  zero-centered diverging default colors, `DEFAULT_DIFF_COLOR_RANGE` = old getColorRange(5,
-  RdYlGn)); generic color_range wiring now preserves a template's own `byValueSymmetric` flag.
-  **Census mirrored** (same shared `resolve_difference_pair`; `fetch_old_route_facts` grew a
-  null-safe `md5(tmc_array::text)` key — hash equality ≡ array equality — and is now fetched
-  BEFORE the analyze loop; pairless graphs stay OUT of the unmapped-keys matrix; both diff
-  types moved to BUILDABLE_TYPES).
-  **Live-verified on 2 in-coverage demo reports**: 584 "I-190 NB COVID Comparison" (2020,
-  page `2193032`, 4/4 graphs, was 2/4 — exercises invert=true [explicit ['comp-17'] pair,
-  Main later in list], the same-routeId matcher on 4 point-drawn comps, AND both new
-  templates; screenshot shows a real diverging bar chart matching the old report's own
-  caption ["speed increases of around 15 mph in the morning peak"] + a per-TMC grid with
-  zero-centered ±36.4/±60.4 legends) and 354 "Bridge Hit I-90 WB at RT 33 Buffalo" (2018,
-  page `2193066`, 5/6 — its travelTime Route Difference correctly gap-logs until increment B).
-  **Ground-truthed bit-exact** against hand-built two-arm ClickHouse subtractions
-  ([[feedback_verify_the_actual_mechanism]]): 3 Route Difference epochs (100/150/282,
-  including through invert) + 3 TMC grid cells — all exact; 268/288 epochs returned (inner
-  join drops either-side-missing buckets, the old tool's semantics). 0 console/page errors,
-  chprocs clean. **Census rerun: 869/869, 0 errors — `full` 217→254, `full_producible`
-  188→224 (+36, above the ~30 forecast: pair-first re-derivation also rescued multi-comp
-  reports previously classified mixed-resolution), instances mapped 4,995→5,194 (73.1%),
-  only 6 `route_difference_no_pair` corpus-wide, `converted_pages_total` 34.** Remaining
-  (increment B, in progress): travelTime/hoursOfDelay/avgHoursOfDelay/CO₂/truck/15-min/day
-  diff buckets (~125 instances, ~7 more flips).
-  **Increment B (same day): every remaining diff bucket with an EXISTING proven expression —
-  16 more templates** (Route Difference: travelTime / hoursOfDelay / avgHoursOfDelay [old
-  reducer is sumReducer at ROUTE level too — meanReducer is only its tmcReducer/Map grain,
-  read off dataTypes.js] / speed 15-min + day + truck [SPEED_EXPR_TRUCK = the canonical
-  column swap; the old server computed speed from the comp's own dataColumn directly] /
-  avgCO₂ passenger+truck (fn avg, meanReducer) + co2Emissions passenger (fn sum); TMC
-  Difference Grid: travelTime / hoursOfDelay / avgHoursOfDelay / avgCO₂ passenger+truck /
-  speed truck + 15-min), all via a shared `_diff_colors(bar, reverse)` display helper
-  (reverse mirrors old getColorRange()'s reverseColors on the DEFAULT ramp; per-report
-  color_range reversal was already generic since R51). **Deliberately NOT built (gap-log
-  stays, 44 instances)**: hoursOfDelay×truck (29 — the volume term, total-AADT distribution
-  vs truck share, needs the old server's delay route read before minting a formula),
-  avgCo2Emissions×travel_time_all (11, 2 flips — no combined-fleet CO₂ expression exists for
-  ANY graph type yet), the `SPEED`-typo instance (1) and 3 mixed-pair-dataColumn degenerates
-  (`route_difference_mixed_data_columns`). Verified live: 354 reconverted (`--replace`, fresh
-  user-minted token — the Jul-15 one had expired) → page `2193798`, 6/6 graphs, travelTime
-  diff ground-truthed exact at 3 epochs (invert path again); 1037 "Inc 3/1/2023 NY33 EB @
-  Dodge St" → `2193818` (avg-delay diff GRID renders semantically coherent — red hotspot
-  cells at exactly the incident window/TMCs its own speed line graph shows collapsing, with
-  the delay measure's REVERSED ramp correct: more delay = red); 1039 → `2193832`. Census
-  after increment B: 869/869, 0 errors, `full` 261, **`full_producible` 224→231 (arc total
-  188→231, +43)**, instances mapped 5,288/7,103 (74.4%), `converted_pages_total` 36.
-  **Bonus platform fix (user-caught live, same day)**: the colorDomain join merge
-  (`uda.colorDomain.controller.js`) projected the join key from BOTH the geometry and CTE
-  sides, so every key-FILTERED break query — the comparison-series live re-break my new Route
-  Map pages fire — died with `column reference "tmc" is ambiguous` (a latent R48-era gap;
-  unfiltered breaks never hit it). Fixed by dropping CTE columns whose output name the geo
-  select already claims; 12/12 colorDomain tests green; report_354's 3 live re-breaks now 200
-  with real filtered breaks.
-  **Session side-fixes**: `npm install` in the outer repo (user's committed HeroAtlas.jsx
-  needs `three`, was in package.json but not installed — blocked ALL vite page loads) — this
-  install reshuffled nested deps under the RUNNING dms-server (its body-parser's
-  `iconv-lite/../encodings` lazy-require broke → every CLI POST 500'd while page-load GETs
-  kept working); fixed by touching a watched file so nodemon restarted onto the new tree.
-  Library task `comparison-series-difference-mode.md` COMPLETED (moved to
-  `tasks/completed/`, todo/completed.md updated).
-  **All files touched this round (uncommitted, for the commit split — platform vs converter
-  per [[feedback_isolate_shared_code_changes]])**: LIBRARY (src/dms):
-  `packages/dms-server/src/routes/uda/query_sets/clickhouse.js` (difference branch),
-  `.../query_sets/postgres.js` (loud refusal), `.../uda.colorDomain.controller.js`
-  (join-key double-projection fix), `packages/dms-server/tests/test-uda.js` (+10 tests),
-  `packages/dms/src/patterns/.../dataWrapper/buildUdaConfig.js` (combine forwarding),
-  `packages/dms/src/ui/components/graph_new/components/avl-graph/BarGraph.jsx` (diverging),
-  `.../graph_new/components/BarGraph.jsx` + `GridGraph.jsx` (byValueSymmetric),
-  `packages/dms/src/patterns/.../ComponentRegistry/graph_new/config.jsx` (toggles), plus
-  planning files + `skills/difference-graphs.md`. NOTE: `query_sets/helpers.js` is the
-  USER's own same-day fix (the bad-merge `col` TDZ crash), not part of this round's work.
-  CONVERTER (dms-template root): `scripts/convert_old_reports.py`,
-  `scripts/census_old_reports.py`. New DMS rows: 18 `route_diff_*`/`tmc_diff_grid_*`
-  avl_graph_template rows + pages 2193032/2193798/2193818/2193832.
-- **R52** (07-16): **Route Difference Graph + TMC Difference Grid SCOPED, no code** (item (i);
-  user endorsed the assessment's recommendation). Old components read for real; both are
-  per-group cross-arm subtraction (exactly 2 comps — main + compare, same tmcArray + same
-  resolution — inner-joined per x-bucket, and per (tmc, bucket) for the grid; `diff = main -
-  compare`). `__ANCHOR__` vetted and REJECTED as the mechanism (scalar subquery only —
-  `utils.js:689` — and its anchor arm would render a junk zero series). Recommended: a
-  `comparisonSeries` **"difference" combine mode** (server-side INNER JOIN of each non-anchor
-  arm to the anchor arm on the group-by response columns in the CH fanout, with an `invert`
-  flag for reversed explicit pairs — real in corpus, e.g. report 12's `['comp-1','comp-0']`);
-  templates stay byte-identical to existing bar/grid siblings + one flag. Second required
-  enrichment: diverging BarGraph (y-domain floored at `[0, max]` today —
-  `avl-graph/BarGraph.jsx:214-227` — negative bars render zero-height) + a symmetric byValue
-  color option. Corpus sized live: 343 instances / 188 reports, ~30 flips, ALL measures
-  CH-only with proven expressions; 74% of instances carry explicit
-  `state.activeRouteComponents`; only 75/188 reports are trivially 2-comp. Plan = 4 phases:
-  (1) difference mode in dms-server + client forwarding (library, isolated) → (2) diverging
-  bar rendering + symmetric color scale (library) → (3) converter: Route Difference Graph +
-  census mirror → (4) converter: TMC Difference Grid; ~3-4 rounds. User follow-up answered
-  (2026-07-16): the existing Route Compare `__ANCHOR__` templates do NOT get backported to the
-  difference mode — different shapes (Route Compare needs every route as its own row incl. the
-  anchor's 0%-delta row; difference mode drops the anchor's rows and emits only differences);
-  the two primitives coexist. Full scope + 4 open questions:
-  `scratchpad/npmrds-sub/old-reports/route_difference_scope.md`. **ALL FOUR open questions
-  ENDORSED by the user 2026-07-16** (difference combine mode; Main-minus-Compare sign, old-tool
-  exact; build the diverging-bar + zero-centered-color chart work now; more-than-2-routes left
-  unrestricted). Implementation started same day — phase 1 (dms-server difference mode,
-  isolated library task) first.
+- **R52** (07-16): Route Difference Graph + TMC Difference Grid scoped (user endorsed all 4 open
+  questions same day) and BUILT same-day — a new `comparisonSeries` "difference" combine mode
+  (server-side INNER JOIN of each non-anchor arm to the anchor on group-by columns, dms-server +
+  client forwarding, library-isolated) + diverging BarGraph/GridGraph rendering (zero-centered
+  y-domain and `byValueSymmetric` colors) + converter templates for every buildable
+  measure×resolution bucket (speed/travelTime/hoursOfDelay/avgHoursOfDelay/CO2, 5-min/15-min/day,
+  truck+passenger). Live-verified on reports 584/354/1037/1039, ground-truthed bit-exact against
+  hand-built two-arm ClickHouse subtractions. Census: `full` 217→261, `full_producible` 188→231
+  (+43), `converted_pages_total` 36. Deliberately NOT built (44 instances, gap-logged):
+  hoursOfDelay×truck (volume term), combined-fleet CO2, a `SPEED` typo instance, 3
+  mixed-pair-dataColumn degenerates. Bonus platform fix: a colorDomain join-key double-projection
+  bug (ambiguous `tmc` column) found & fixed. Full detail: [archive, "Round
+  52"](./old-reports-conversion-archive.md).
 - **R51** (07-15): 4 user-reported display bugs fixed & live-verified (backwards color scales
   outside Map — `REVERSE_COLORS_MEASURES` generalization of the round-50 constant, applied in
   the generic `COLOR_RANGE_GRAPH_TYPES` wiring, 14 reports reconverted; duplicate identical
@@ -690,153 +474,46 @@ above are the RAW (all-869) figures.
   delay joins to geometry-only tiles → invisible TMCs on reports 1033/1056, user-confirmed
   fixed live); 2 same-round self-inflicted regressions caught before shipping (speed-template
   tail truncation, `slug` loop-variable clobber). Full detail in the archive.
-- **R49** (07-15): **Route Map M2 BUILT & LIVE-VERIFIED** — converter speed choropleth (the
-  256/214/45 bucket, previously #1-ranked unmapped, now fully absorbed). Two real platform
-  gaps found and fixed (not anticipated by the scope doc, discovered by tracing the actual
-  shipped code rather than trusting its "rides inside options.join exactly as templates do"
-  assumption): (1) `buildJoinParam`/`buildJoinOptions` (4 call sites: both tile-request
-  builders + both colorDomain-request builders, page-section + mapeditor copies) silently
-  dropped a layer's `query.join` (a nested secondary join, e.g. the 455/3464 TMC-identification
-  join `SPEED_EXPR` needs for `table1.miles`) instead of forwarding it into `options.join` —
-  the server's CH query builder already supported it (`buildJoin({join})`,
-  `query_sets/clickhouse.js`), only the client never sent it; (2) the Map section's live
-  re-break effect (`refreshLegendData`) computed a fresh `step` paint expression on every
-  filter change but only ever wrote the recomputed legend text, never the paint itself — so
-  today ANY choropleth Map (PG or CH) only relabels its legend on a filter change while the
-  rendered colors stay frozen. Both fixed, isolated in
-  `map-join-nested-join-forward-and-live-repaint.md`. A THIRD bug surfaced live (not a platform
-  gap — a converter authoring mistake): the Map-layer join's nested `query.join` needs the
-  SAME `{sources, on}` wire shape ordinary AVL-Graph queries get via `buildUdaConfig.js`'s own
-  client-side `buildJoin` transform — a step the Map-layer join pipeline bypasses entirely.
-  Sending the bare `{sources: {table1: {...}}}` shape (no `on` array) crashed the ENTIRE
-  dms-server process outright (uncaught `TypeError` in `routes/uda/utils.js#buildJoin`,
-  `join.on.length` with `on` undefined) — not a request-scoped error, the whole nodemon
-  process died for every user. Fixed with a new `build_ch_join_wire()` Python helper that
-  performs the same transform `buildJoinOnClause`/`buildJoinSources` do client-side. Also
-  found and fixed live: (a) maplibre's `step` paint expression requires STRICTLY ascending
-  stops — a degenerate/low-variance report (e.g. report 1071, a single-TMC route where every
-  quantile position collapses to one value) produced tied breaks that maplibre flatly rejects
-  ("must be arranged with input values in strictly ascending order") — `quantile_breaks()` now
-  nudges ties up by the rounding granularity; (b) a genuinely pre-existing, unrelated
-  `NameError` in `census_old_reports.py` (dead code referencing a never-defined
-  `BAR_SUMMARY_PM3_BUCKET`, left over from an abandoned round-38 Bar-Graph-Summary attempt
-  that was never wired into `convert_report`) was silently dropping 274/869 reports from every
-  census run — found only because a from-scratch full-corpus census was needed to validate
-  this round's impact; removed (confirmed dead: referenced nowhere after assignment). Added
-  `DMS_TILE_HOST` env override (mirrors the existing `DMS_HOST` pattern) so local verification
-  can point converted pages' tile requests at the local dev server instead of the baked
-  production default (`https://dmsserver.availabs.org`) — needed because the M1 CH-join server
-  code isn't deployed there yet; the production default itself is unchanged. Live-verified via
-  direct network capture (Playwright listeners attached before a forced `page.reload()` — the
-  `--eval` hook alone runs too late, after initial-load traffic has already fired) on report
-  1071 (single-TMC, degenerate breaks, uniform red render — correct) and report 168 (5 real
-  TMCs, real 17-50mph speed variance, real multi-color render), both 0 console/page errors,
-  `chprocs` clean throughout. Full census rerun (869/869 reports, 0 errors post-fix):
-  `full_producible` 122→184, graph-instance mapped % 61.9%→69.2%. Files:
-  `scripts/convert_old_reports.py`, `scripts/census_old_reports.py`, 4 files under
-  `src/dms/packages/dms/src/patterns/{page/components/sections/components/ComponentRegistry/
-  map,mapeditor/MapEditor}/`. NEXT: M3 (travelTime/hoursOfDelay/avgHoursOfDelay, +4 flips) or
-  M4 gap-log items (pm3 measures, stations, colorDomain live-author parity, the found-but-
-  unfixed dms-server crash-robustness gap).
-- **R48** (07-15): **Route Map M1 BUILT & LIVE-VERIFIED** — dms-server ClickHouse join
-  sources (library task `tile-join-clickhouse-source.md`). `buildSimpleFilterSqlCH` factored
-  out of `query_sets/clickhouse.js#simpleFilter` (build-only, no LIMIT; single-arm simpleFilter
-  now DELEGATES to it so live queries run the exact built text); `tiles.rest.js` CH branch —
-  PG keys pass → keys injected as a filterGroups leaf (options-level, pre-aggregation) → CH
-  executes → rows merged into the shared MVT shell via `jsonb_to_recordset` typed from CH
-  result meta (`chTypeToPg`/`chResultToRecordset`); empty keys → geometry-only; >20k keys →
-  geometry-only + LOUD `CH JOIN SKIPPED` log (user directive). colorDomain CH branch uses the
-  same recordset merge so all four break methods run unchanged in PG; unfiltered CH join →
-  loud refusal (scan-hazard guard). Verified: 14/14 new unit tests + uda 83/83 + core suites
-  green; live Buffalo tile 1027⋈982 (1374/1477 features with numeric avg-tt, no-data TMCs
-  property-less = gray LEFT-JOIN semantics), meta join 1027⋈3464 (bigint+float), cap trip at
-  z0 (49,068 keys, loud log), ckmeans/quantile breaks sane (count 45691), live single-arm
-  delegation row, chprocs clean throughout. MVT-decode verify harness saved:
-  `scratchpad/npmrds-sub/old-reports/verify_ch_tile_join.cjs`. NEXT: M2 (converter speed
-  choropleth over the 982 join at tmc grain, baked initial breaks + live re-breaks; verify
-  on 1071/641/895).
-- **R47** (07-14): **Route Map M0a + M0b BUILT & LIVE-VERIFIED** (user endorsed: palette
-  colors option A, loud key-count guard for M1). M0a (library task
-  `map-comparison-series-layers.md`): `comparison_series` subscriber runtime for the Map
-  section — declaration in map/config.jsx, `useComparisonSeriesLayers.js` hook (per-variant
-  layer materialization from a `series-template` layer, deterministic `__series_` ids,
-  fingerprint loop guard, fit-bounds via fetchBoundsForFilter, runtime-only via
-  stripRuntimeLegendState extension). One real bug: Map renders via the NON-data wrapper →
-  section identity arrives through ComponentContext, not props (fixed; dataWrapper comps get
-  props). M0b (converter): `ensure_route_map_none_template(year)` mints per-year Map-section
-  templates (elementType "Map" — first non-AVL template) over GEOMETRY_TILE_VIEWS (582 family,
-  2017-2026, dmsserver host); analyze_graph distinguishes explicit displayData ["none"];
-  route_map pre-pass mirrors the route-compare idiom. Verified end-to-end on report 641
-  (page 2190998): 15/15 graphs convert, 13 comps → 13 colored line layers + legend + Buffalo
-  fit, 0 console/page errors view+edit, edit-mode persistence clean (element-data md5
-  unchanged). Census mirrored + rerun: **full 101→126 (+25 flips from none-maps alone)**,
-  61.9% instances mapped, full_producible 122; top unmapped is now M2's bucket (Route Map
-  speed×5-min: 256 instances / 214 reports / 45 single-blocker flips). NEXT: M1 (dms-server
-  CH join source + colorDomain CH + loud key-count guard, isolated library task).
-- **R46** (07-14): map update landed (= map-component-unification P1-P4; branch rebased onto
-  master) — plan RE-VERIFIED, v2.2: PG join gates + join param + dataPageFilters exclusion +
-  RRL/comparisonSeries mechanism all unchanged; Map now ships `display._functions`
-  storage/runtime (interaction pub/sub) + Actions-menu declarations + settings page-bridge,
-  so **M0a shrinks to ~1 round** (comparison_series declaration + reload-driving layer
-  materialization on existing rails; BC invariants freeze the `_functions` channel).
-  map_dama retirement (P5) aligns. Watch: dataWrapper changed (external-source editing) —
-  probe smoke pass with M0b. Total ~4-5.5 rounds. Awaiting endorsement to start M0a.
-- **R45** (07-14): Work plan **v2.1 amendment** — user rejected static interactivity; traced
-  the real mechanism: graphs get route/date edits via the `comparison_series` subscriber
-  (`display._functions.subscribers` + RRL `findSelfBoundGraphs` publish of
-  `{label, filters:{tmc/date/epoch leaves}}` per assigned comp to `selfParamKey(trackingId)`),
-  NOT via the page-filter sync the Map excludes (`dataPageFilters` drops action filters only
-  to avoid hover/click layer thrash — rationale doesn't apply to a named-param subscriber).
-  Bridge = series-driven symbology layers (Map-side subscriber runtime + per-variant layer
-  materialization from a template layer + colorDomain re-breaks + fetchBoundsForFilter);
-  RRL discovery is element-type-agnostic so maps are published to for free. colorDomain CH
-  moved M4→M1. Full design: scope doc v2.1. No code.
-- **R44** (07-14): Route Map **Work plan v2 scoped** on the Map/symbology path, no code
-  (user: scope now, updates pending). Verified: CH query set builds full SQL (joins/
-  filterGroups) but is execute-only → M1 = factor a build-only `buildSimpleFilterSqlCH` +
-  tile-keys-as-filterGroups-leaf + `jsonb_to_recordset` merge into the PG MVT query; per-year
-  TMC geometry tile views ALREADY EXIST (source 582: 2017-2026, source 215: 2016-2024) so the
-  year-pinning objection dissolves (overlap spot-check 95.6-100%); LEFT-JOIN tiles render
-  no-data TMCs gray like the old tool (fidelity WIN over MapGraph); tile host is baked
-  per-view metadata → converter rewrites origin (graph.availabs.org lacks join=); Map
-  section = `element-type: "Map"`, converter emission is element-type-driven so a Map recipe
-  kind keeps TEMPLATE_SPECS describability. Phases: M0 none-maps (converter only) → M1 server
-  CH join source (isolated library task, incl. key-count guard decision) → M2 speed (78
-  flips, verify 1071/641/895) → M3 TT/delay/avgDelay (+4) → M4 gap-log (colorDomain CH,
-  action-filter bridge, pm3/stations/circles). v1 delta: static interactivity (baked
-  route/date filters). ~3.5-4.5 rounds. Full plan: scope doc "Work plan v2". Awaiting
-  endorsement + the 07-14 map update.
-- **R43** (07-14): Route Map recommendation REVISED (user-prompted second look), no code.
-  R41's Map-section vetting checked the WRONG tile server (graph.availabs.org/avail-falcor) —
-  the dev stack's tiles come from dms-server itself (`dmsserver.availabs.org`), whose
-  `dama/tiles/tiles.rest.js` FULLY implements the symbology `join=` param (UDA-built join CTE
-  narrowed to tile keys, aggregation included; live proof = symbology 2186994, LODES OD sums
-  joined onto census-block tiles). `colorDomain` has join support too. Real remaining gaps:
-  (a) join source must be PG — CH views rejected (`tiles.rest.js:122`,
-  `uda.colorDomain.controller.js:177`) — the one server extension needed; (b) Map section still
-  drops action-type page filters (`map/index.jsx:559-571`), so ReportRouteList binding needs a
-  small bridge or baked static join filters; (c) geometry tiles year-pinned (unchanged; data
-  provisioning, not code). Revised lean: converter emits per-report Map-section symbologies with
-  a CH join instead of new `MapGraph` (now fallback). HELD pending the small map/mapeditor
-  update the user expects to land 07-14. Detail: scope doc Addendum v2.
+- **R49** (07-15): Route Map M2 built & live-verified — converter speed choropleth (previously
+  #1-ranked unmapped bucket, 256/214/45, now fully absorbed). Two real platform gaps found &
+  fixed (nested-join forwarding silently dropped on tile/colorDomain requests; live re-break only
+  updated the legend text, never the paint itself) + a converter join-shape bug that crashed the
+  entire dms-server process outright (fixed via new `build_ch_join_wire()`). `DMS_TILE_HOST` env
+  override added for local tile verification. Census: `full_producible` 122→184, instances mapped
+  61.9%→69.2%. Full detail: [archive, "Round 49"](./old-reports-conversion-archive.md).
+- **R48** (07-15): Route Map M1 built & live-verified — dms-server ClickHouse join sources for
+  tiles + colorDomain (library task `tile-join-clickhouse-source.md`), unfiltered-CH-join
+  scan-hazard refusal, >20k-key geometry-only fallback with a loud log. Full detail: [archive,
+  "Round 48"](./old-reports-conversion-archive.md).
+- **R47** (07-14): Route Map M0a+M0b built & live-verified — `comparison_series` subscriber
+  runtime for the Map section (library) + per-year none-map converter templates. Census: full
+  101→126 (+25 flips from none-maps alone). Full detail: [archive, "Round
+  47"](./old-reports-conversion-archive.md).
+- **R46** (07-14): map-component-unification update landed upstream; Route Map plan re-verified
+  against it (v2.2) — no material change, M0a shrinks to ~1 round since the Map now ships
+  `display._functions` pub/sub natively. No code this round. Full detail: [archive, "Round
+  46"](./old-reports-conversion-archive.md).
+- **R45** (07-14): Route Map work plan v2.1 amendment — user rejected static interactivity; traced
+  the real mechanism (`comparison_series` subscriber via RRL, not the page-filter sync the Map
+  excludes) and redesigned the bridge as series-driven symbology layers. No code. Full detail:
+  [archive, "Round 45"](./old-reports-conversion-archive.md).
+- **R44** (07-14): Route Map work plan v2 scoped (no code) — phases M0 none-maps / M1 dms-server
+  CH-join source / M2 speed (78 flips) / M3 remaining measures (+4); per-year TMC geometry tile
+  views already exist so year-pinning dissolves. Full detail: [archive, "Round
+  44"](./old-reports-conversion-archive.md).
+- **R43** (07-14): Route Map recommendation revised (user-prompted second look) — round 41's
+  vetting had checked the wrong tile server; the dev stack's real tile server (dms-server itself)
+  already implements the symbology `join=` param. Real remaining gap: CH join sources aren't
+  supported server-side yet (became M1). No code. Full detail: [archive, "Round
+  43"](./old-reports-conversion-archive.md).
 - **R42** (07-14): TMC Grid Graph per-TMC breakdown bug fixed (user-caught on report 914's
   "Winter Average Day" — was rendering one aggregate strip instead of per-TMC rows) + corpus
   sweep (320/751/315/1045 reconverted, all clean); ground-truthed exactly against ClickHouse.
-- **R41** (07-14): Route Map SCOPED, no code (read old `RouteMap.jsx` for real + corpus
-  survey: 849 instances/636 reports; measures speed 655 / none 97 / travelTime 44 / delay 35 /
-  pm3-gated 17; resolution query-irrelevant except avgHoursOfDelay). Key find: per-TMC geometry
-  is ALREADY reachable as a column through the default 455/3464 join (`wkb_geometry` — misnamed,
-  actually GeoJSON MultiLineString text), so rows arrive `{__series, tmc, value, geometry}`
-  through the existing pipeline — no tiles/new fetch layer. Plan: new `MapGraph` AVL Graph type
-  (Phase 1, platform, ship isolated) reusing Map-section internals (choroplethPaint/LegendPanel/
-  AvlMap, client-side breaks), then converter speed+none (78 achievable full flips), then
-  remaining measures (90 flips total; full_producible 48→~130). Existing "Map"/"Map: Dama"
-  sections vetted and ruled out as host: tile-server `join=` param unimplemented
-  (avail-falcor tiles route reads only cols/filter), `colorDomain` PG-only vs CH data, filter
-  sync ignores action-type filters (no ReportRouteList binding), tiles year-pinned to
-  2024/2025 networks. **[Vetting claims 1/2/5 CORRECTED in R43 — wrong tile server checked;
-  see scope doc Addendum v2.]** Full scope + vetting detail:
-  `scratchpad/npmrds-sub/old-reports/route_map_scope.md`. Awaiting endorsement before Phase 1.
+- **R41** (07-14): Route Map scoped (no code) — read `RouteMap.jsx` for real + corpus survey (849
+  instances/636 reports; speed 655/none 97/travelTime 44/delay 35/pm3-gated 17); found per-TMC
+  geometry already reachable via the default 455/3464 join, no new tile/fetch layer needed.
+  Initial plan (later revised in R43): new `MapGraph` AVL Graph type. Full detail: [archive,
+  "Round 41"](./old-reports-conversion-archive.md).
 - **R40** (07-14): cleanup (g)+(h) closed (report 745/191/pre-2017 pages); Info Box
   `length`/`travelTime`/`aadt`/`hoursOfDelay` measures built (4 new buckets); a real
   `graph_comps[].id` gid-collision bug found + fixed (synthetic `graph-idx-{i}` fallback) — see
