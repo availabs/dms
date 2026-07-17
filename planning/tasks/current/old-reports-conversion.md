@@ -8,7 +8,7 @@
 > starts, move the previous round's full text to the top of the archive, leave a ledger line here,
 > and fold anything durable into the summary or reference sections.
 
-## Current state (2026-07-17, ROUND 61 COMPLETE: epoch x-axis tick format — the LAST open item from the round-53 user priority list — shipped and live-verified on both a GridGraph and a LineGraph report (BarGraph shares the identical code path by construction). All 9 round-53 triage items are now DONE. Round 60 (legend/flex width-squeeze), round 59 (TMC meta join swap), round 58 (Info Box mm:ss formatter), and rounds 53-57 remain DONE — full detail archived, see ledger below. No open priority-list items remain; next work should come from the "Immediate next steps" backlog below (item (d), or a fresh vocabulary-breadth pass) or a new user ask.)
+## Current state (2026-07-17, ROUND 62 COMPLETE: axis-label (title/caption, not tick-label) fix shipped and live-verified on report 787 — the user-reported 2026-07-13 "axis labels not visible" gap. Round 61 (epoch x-axis tick format, the last round-53 priority-list item), round 60 (legend/flex width-squeeze), round 59 (TMC meta join swap), round 58 (Info Box mm:ss formatter), and rounds 53-57 remain DONE — full detail archived, see ledger below. No open priority-list items remain; next work should come from the "Immediate next steps" backlog below (item (d), or a fresh vocabulary-breadth pass) or a new user ask.)
 
 ## Round 61 (2026-07-17) — epoch→HH:MM x-axis tick format (the last round-53 priority-list item)
 
@@ -386,8 +386,14 @@ above are the RAW (all-869) figures.
   TEMPLATE_SPECS entry via drift detection. See Round 61 above. **No round-53 priority-list items
   remain open.**
 
-## Round ledger (rounds 1–60 archived — full detail in [the archive](./old-reports-conversion-archive.md); round 61 is current, full detail above)
+## Round ledger (rounds 1–60 archived — full detail in [the archive](./old-reports-conversion-archive.md); rounds 61-62 are current, full detail above)
 
+- **R62** (07-17): axis-label (title/caption) fix — user-reported 2026-07-13 gap, root-caused as
+  a converter omission (the render path already worked) rather than the round-34/60 squeeze bug.
+  `display.yAxis.label` now set from the yAxis column's own `customName`; `display.xAxis.label =
+  "Time of Day"` for every epoch-axis spec; 6 `AVG_DELAY_EXPR` specs that had no `customName` at
+  all got one. Live-verified on report 787 (page `2194270`); full census rerun (869/869, 0
+  errors) byte-identical mapping stats. See "Known functionality gaps" above for full detail.
 - **R60** (07-17): legend/flex width-squeeze (parked since round 34) un-parked and fixed
   platform-wide via a dynamically-measured guard (`useLegendSqueezeGuard`, `getBoundingClientRect`
   at render time), not a static CSS cap — a page whose legend already fits renders a
@@ -799,11 +805,45 @@ convert from `admin2.reports` directly (dedupe/cleanup of that dataset is separa
   is query-inert (old `getAADT` truthiness) and no longer logged. Disagreeing comps →
   `aadt_override_mixed` gap; template-drift → `aadt_override_not_applied` gap. Live-verified on
   1071 (page `2188906`).
-- **Axis labels not visible on any report (user-reported 2026-07-13, NOT investigated — logged
-  only, per user)**: user cannot see an axis label at all, on any report. Not blocking. User
-  offered a screenshot if needed when this gets picked up. Possibly related to the PARKED
-  legend/flex width-squeeze platform issue (round 34), possibly independent — unverified either
-  way.
+- ~~Axis labels not visible on any report~~ **FIXED (round 62, 2026-07-17, user-reported
+  2026-07-13)**: NOT the round-34 legend/flex squeeze (round 60 already fixed that; user
+  screenshot confirmed tick values render fine, chart loaded in ~2s, no pending requests) — this
+  is the axis TITLE/caption (e.g. "Avg. Hours of Delay", "Time of Day"), a distinct feature from
+  tick labels. Root cause: the rendering path was never broken — `GraphComponent.jsx` already
+  reads `display.xAxis.label`/`display.yAxis.label` and `AxisLeft.jsx`/`AxisBottom.jsx` already
+  render a `text.axis-label` element whenever `label` is truthy (confirmed by reading the code,
+  not assuming) — the converter simply never populated those fields, on any template, ever. Old
+  client precedent found (`transportNY` src, `RouteLineGraph.jsx`): old tool set `axisLeft.label`/
+  `axisRight.label` from each measure's own `label` field (a unit string, e.g. "Hours"); old tool
+  did NOT label its time-of-day x-axis at all. Fix (converter-only, no library changes needed):
+  `ensure_graph_templates` now sets `display.yAxis.label` from the yAxis column's own `customName`
+  (already a human-readable measure description on ~40 TEMPLATE_SPECS entries, e.g. "Speed
+  (mph)") whenever the column actually targets a real y-axis (`target: "yAxis"` — GridGraph's
+  color-targeted value column is excluded, it has no literal y-axis), and sets
+  `display.xAxis.label = "Time of Day"` for every `"xAxis": "epoch"` spec (a strict readability
+  improvement over old-tool parity, since post-round-61 the ticks already read as real clock
+  times). Both wired into the same lazy mint/drift-detection idiom as round 61's `epoch_time`
+  format (`epoch_label_drift`/`yaxis_label_drift`) — every already-minted template picks up the
+  fix the next time any report using it is reconverted, no proactive resweep. Also found and
+  fixed a real pre-existing gap while at it: 6 `AVG_DELAY_EXPR`-based TEMPLATE_SPECS entries
+  (`tmc_avg_delay_{line_graph,bar_graph_day,bar_graph_weekday,bar_graph_5min,bar_graph_hour,
+  bar_graph_month}`) had no `customName` at all (unlike their "Difference" siblings and every
+  other measure), so they'd have silently kept rendering an unlabeled y-axis even after this fix
+  — added `"customName": "Avg. Hours of Delay"` to all 6. **Live-verified**: report 787
+  reconverted `--replace` (new page `2194270`); drift fired on all 3 templates it uses
+  (`tmc_avg_delay_line_graph`: yAxis expr + xAxis label + yAxis label; `tmc_travel_time_summary_
+  bar_graph` and `tmc_avg_delay_summary_bar_graph_5min`: yAxis label). `report_probe.mjs`
+  screenshot confirms both the "R5 I-290 Y2Y Delay Analysis" LineGraph (rotated "Avg. Hours of
+  Delay" y-label, "Time of Day" x-label) and the "R5 HELP Routes Y2Y Delay Analysis" Bar Graph
+  Summary (same y-label) now render real axis captions — exactly the two sections in the user's
+  screenshot that had none. 0 console/page errors. Full census rerun: 869/869 reports, 0 errors;
+  graph-instance mapping byte-identical to the pre-fix baseline (5,288/7,103), as expected for a
+  pure display-label addition with no effect on coverage/mapping logic. **Not done**: no
+  proactive resweep of other epoch-axis/yAxis-customName templates beyond report 787 (lazy-
+  reconvert policy, same as round 61); non-"epoch" xAxis groupings (date/day/weekday/month/hour)
+  get no x-axis label (matches old-tool parity — it never labeled those either); GridGraph's
+  color-targeted value axis and its `categorize` dimension are untouched (different axis
+  semantics, out of scope).
 - **Route Compare anchor row ordering still inconsistent (user-reported 2026-07-13, NOT
   investigated — logged only, per user)**: recurrence/incomplete fix of the round-26 user-caught
   anchor-row bug. User saw the anchor row render in the MIDDLE of the table once (anchor was
