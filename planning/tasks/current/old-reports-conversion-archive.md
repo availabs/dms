@@ -18,6 +18,56 @@ and leave only its ledger line in the live file.
 
 ---
 
+## Round 57 (2026-07-17) — GridGraph missing-data color fix (moved verbatim from the live file on 2026-07-17, round 58 start)
+
+**Objective**: user picked the smallest of the 4 remaining root-caused priority-list items — the
+**GridGraph missing-data color** (round 53 finding, item 3: TMC Grid/Difference Grid cells with no
+data correctly resolve to `null`, but render the wrapper's hardcoded `nullColor` default
+(`"transparent"`) instead of the old tool's black — missing cells are invisible instead of visibly
+marked).
+
+**Fix** (library, 2 files, isolated per [[feedback_isolate_shared_code_changes]] — no converter/
+script changes):
+- `packages/dms/src/ui/components/graph_new/components/GridGraph.jsx` (the wrapper): now passes
+  `nullColor={props.colors?.nullColor || "#000000"}` explicitly to the inner avl-graph
+  `<GridGraph>`, which already supported the prop but was never wired — the lower-level renderer's
+  own `"transparent"` default was silently winning.
+- `patterns/page/components/sections/components/ComponentRegistry/graph_new/config.jsx`: added a
+  "Missing Data Color" text input (`colors.nullColor`) to the existing "Grid Graph Layout" config
+  group (next to round-52's "Zero-Centered Colors" toggle) — authors can override back to
+  transparent or any other color per report.
+
+**Verified live** on report 584 (page `2193032`, the exact report item 3 diagnosed — a TMC
+Difference Grid whose own on-page caption reads "the black areas indicate TMC/time periods that
+have insufficient data"): before the fix (confirmed by temporarily `git stash`-ing the change and
+re-probing with `report_probe.mjs`), missing cells rendered as pale background blended into the
+value color scale — zero black cells anywhere, directly contradicting the report's own caption.
+After the fix (stash popped, re-probed), missing cells render solid black exactly as the caption
+describes (screenshots compared side-by-side). Both runs: 0 console/page errors. Since this is a
+client-side rendering default (not a converter template change), it takes effect immediately on
+every already-converted Grid/Difference-Grid page with missing data — no reconvert needed. Census
+untouched (pure rendering-default fix, no `admin2.reports` analysis logic changed).
+
+**Same-round follow-up (user-caught while reviewing the fix live)**: the user pointed out that
+missing-data TMCs shouldn't just be colored black — they shouldn't appear in the hover tooltip's
+per-row list at all. Root cause: `avl-graph/GridGraph.jsx`'s `DefaultHoverComp` iterates
+`data.indexes` (every row in the hovered column) unconditionally, rendering
+`get(data, ["indexData", i, "value"], 0)` for each — a `null` value (lodash `get`'s default only
+applies to `undefined`, not `null`) still got a row in the list. **Fix**: `indexes` now also
+filters out any `i` whose `indexData[i].value` is `null` before rendering, in both the default
+(whole-column) and `singleCell` tooltip modes — same one-line-conditional shape as the existing
+`singleCell` filter it sits next to. **Verified**: user confirmed live in the browser that no-data
+TMCs no longer appear in the tooltip. (An automated Playwright hover repro was attempted first but
+abandoned as unreliable — this TMC Difference Grid's cells are sub-3px in the rendered SVG, and
+headless synthetic hover/mouse-move couldn't reliably land on one; the user's direct live
+confirmation is the real verification here, not a probe artifact.)
+
+**Not done**: the remaining 3 priority-list items (Info Box travel-time formatter, epoch x-axis
+tick format, TMC meta join swap) are unchanged by this round; legend/flex width-squeeze stays
+parked per round 34.
+
+---
+
 ## Round 56 (2026-07-17) — graph title default fix (moved verbatim from the live file on 2026-07-17, round 57 start)
 
 **Objective**: user picked priority-list **#4, the graph title default** (item 8's title half —
@@ -209,10 +259,10 @@ Reports 229/630/33 are NOT on the user's list but are silently affected too (bon
 1. ~~Delete the 6 stray `reports_snap_2` rows~~ — **DONE** (2026-07-16), see item 0 above.
 2. ~~Rebuild the pre-2017-only report-level refusal~~ — **DONE (Round 54, 2026-07-16)**, see below.
 3. ~~BarGraph tooltip customName fix~~ (item 8, tooltip half) — **DONE (Round 55, 2026-07-17)**, see below.
-4. **Graph title default** (item 8, title half) — small, isolated converter fix (`describe_graph()`), one-line default + reconvert-on-next-touch per the lazy-reconvert policy.
-5. **GridGraph missing-data color** (item 3) — small, isolated platform fix, wires an already-existing `nullColor` prop through.
+4. ~~Graph title default~~ (item 8, title half) — **DONE (Round 56, 2026-07-17)**, see below.
+5. ~~GridGraph missing-data color~~ (item 3) — **DONE (Round 57, 2026-07-17)**, see above.
 6. **TMC meta join source swap** (item 9) — real correctness fix but bigger: ~30 TEMPLATE_SPECS usage sites, needs live re-verification of delay/CO2 numbers after the swap.
-7. **Info Box travel-time mm:ss formatter** (item 7) — small, isolated, new formatFunctions entry + one template tweak.
+7. ~~Info Box travel-time mm:ss formatter~~ (item 7) — **DONE (Round 58, 2026-07-17)**, see the live task file.
 8. **Epoch→HH:MM x-axis tick format** (item 4) — small platform addition (new `ValueFormats` entry + xAxis wiring) + a converter default-set across ~40 TEMPLATE_SPECS entries once the client option exists.
 9. **Legend/flex width-squeeze** (item 1's real culprit) — previously PARKED; this round's finding is that it's very likely the actual "narrow components" issue, so worth reconsidering un-parking it over the FullWidth toggle (which is real but doesn't reach this).
 Items 2 and 5 (reports 11/1070, both purely item-0 collateral, now fixed/verified) and 6 (report 191, no separate fix needed beyond item 0 + the still-open regression rebuild) require no further dedicated work beyond the above.

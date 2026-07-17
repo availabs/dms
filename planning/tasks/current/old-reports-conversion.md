@@ -8,55 +8,63 @@
 > starts, move the previous round's full text to the top of the archive, leave a ledger line here,
 > and fold anything durable into the summary or reference sections.
 
-## Current state (2026-07-17, ROUND 57 COMPLETE: GridGraph missing-data color fix shipped and live-verified — cells with no data now render black (author-overridable via a new "Missing Data Color" config field) instead of the wrapper's old hardcoded-transparent default; same-round follow-up (user-caught live) filters those same no-data cells out of the hover tooltip list entirely, user-confirmed live. Rounds 53-56 (9-item triage, pre-2017-only restoration, BarGraph tooltip customName fix, report 7 cleanup, graph title default fix) remain DONE — full detail archived, see ledger below. Remaining open priority-list items: TMC meta join swap, Info Box travel-time formatter, epoch x-axis tick format, legend/flex width-squeeze.)
+## Current state (2026-07-17, ROUND 58 COMPLETE: Info Box travel-time mm:ss formatter shipped and live-verified — the Route/TMC Info Box's travel-time Spreadsheet column now renders decimal minutes as clock-format `M:SS` (e.g. `10:51`) instead of a raw float, via a new generic `minutes_clock` entry in the shared `formatFunctions` registry (used by every Card/Table cell app-wide, not a one-off). Round 57 (GridGraph missing-data color) and rounds 53-56 (9-item triage, pre-2017-only restoration, BarGraph tooltip customName fix, report 7 cleanup, graph title default fix) remain DONE — full detail archived, see ledger below. Remaining open priority-list items: TMC meta join swap, epoch x-axis tick format, legend/flex width-squeeze.)
 
-## Round 57 (2026-07-17) — GridGraph missing-data color fix
+## Round 58 (2026-07-17) — Info Box travel-time mm:ss formatter
 
-**Objective**: user picked the smallest of the 4 remaining root-caused priority-list items — the
-**GridGraph missing-data color** (round 53 finding, item 3: TMC Grid/Difference Grid cells with no
-data correctly resolve to `null`, but render the wrapper's hardcoded `nullColor` default
-(`"transparent"`) instead of the old tool's black — missing cells are invisible instead of visibly
-marked).
+**Objective**: user picked the next round-53 priority-list item — the **Info Box travel-time
+formatter** (item 7: the Route/TMC Info Box's travel-time column renders raw decimal minutes, e.g.
+`0.22558671110147546`, instead of the old tool's `M:SS` clock format).
 
-**Fix** (library, 2 files, isolated per [[feedback_isolate_shared_code_changes]] — no converter/
-script changes):
-- `packages/dms/src/ui/components/graph_new/components/GridGraph.jsx` (the wrapper): now passes
-  `nullColor={props.colors?.nullColor || "#000000"}` explicitly to the inner avl-graph
-  `<GridGraph>`, which already supported the prop but was never wired — the lower-level renderer's
-  own `"transparent"` default was silently winning.
-- `patterns/page/components/sections/components/ComponentRegistry/graph_new/config.jsx`: added a
-  "Missing Data Color" text input (`colors.nullColor`) to the existing "Grid Graph Layout" config
-  group (next to round-52's "Zero-Centered Colors" toggle) — authors can override back to
-  transparent or any other color per report.
+**User pushback mid-round, correctly caught a scoping risk**: before implementing, the user
+questioned whether the mm:ss need was really limited to the Info Box (it wasn't obviously safe to
+just hardcode a fix onto one template), and separately confirmed **avgHoursOfDelay/hoursOfDelay
+get NO special formatting in the old tool** — plain decimal hours (e.g. `.45 hours`), not
+`HH:MM:SS`. Both points were verified against the old client source directly (a local checkout at
+`/home/ryan/code/transportNY`, not assumed): `sites/npmrds/pages/analysis/components/tmc_graphs/
+utils/dataTypes.js` keys a `toMinutesWithSeconds` formatter to every measure whose `label ===
+'Minutes'` — `travelTime`, `avgTT`/`avgTT-byDateRange`, `percentile95`/`percentile95-byDateRange`,
+`percentile97`/`percentile97-byDateRange` — confirming the user's suspicion that this is a
+measure-class format, not a single-column special case. `hoursOfDelay`/`avgHoursOfDelay` (`label:
+'Hours'`) and the unitless index measures (`bufferTime`/`planningTime`/`miseryIndex`/
+`travelTimeIndex`, `label: ''`) use plain `format(",.2f")` — confirming the user's second point
+exactly, no mm:ss anywhere near them.
+Checked whether any OTHER already-built converter Spreadsheet column needed the same fix before
+scoping the implementation: `ensure_route_compare_template`'s `MEASURE_EXPR = {"speed": SPEED_EXPR}`
+— only `speed` (MPH) is wired for Route Compare today, no minutes-labeled measure — and
+`ensure_info_box_delay_template`'s `DELAY_EXPR` is genuinely hours (confirmed by the user's own
+point above), so **today, exactly one built Spreadsheet column needs it**: `avgtt_col` in
+`ensure_info_box_traveltime_template` (`route_info_box_traveltime`/`tmc_info_box_traveltime`).
+Percentile95/97/avgTT-non-byDateRange Info Box variants aren't built yet (gap-logged, future work)
+— but since the fix lives in the shared registry, they'll get the same formatting for free
+whenever they are built, with no separate round needed.
 
-**Verified live** on report 584 (page `2193032`, the exact report item 3 diagnosed — a TMC
-Difference Grid whose own on-page caption reads "the black areas indicate TMC/time periods that
-have insufficient data"): before the fix (confirmed by temporarily `git stash`-ing the change and
-re-probing with `report_probe.mjs`), missing cells rendered as pale background blended into the
-value color scale — zero black cells anywhere, directly contradicting the report's own caption.
-After the fix (stash popped, re-probed), missing cells render solid black exactly as the caption
-describes (screenshots compared side-by-side). Both runs: 0 console/page errors. Since this is a
-client-side rendering default (not a converter template change), it takes effect immediately on
-every already-converted Grid/Difference-Grid page with missing data — no reconvert needed. Census
-untouched (pure rendering-default fix, no `admin2.reports` analysis logic changed).
+**Fix**:
+- `packages/dms/src/patterns/page/components/sections/components/dataWrapper/utils/utils.jsx`: new
+  `minutes_clock` entry in the shared `formatFunctions` registry (consumed by `TableCell.jsx` and
+  `Card.jsx` — every Card/Table cell app-wide, not Info-Box-specific) — decimal minutes -> `M:SS`,
+  mirroring the old tool's `toMinutesWithSeconds` but carry-safe (rounds total seconds once instead
+  of truncating minutes then rounding the remainder, which could overflow to e.g. `4:60`).
+- `scripts/convert_old_reports.py`'s `ensure_info_box_traveltime_template`: `avgtt_col` now sets
+  `formatFn: "minutes_clock"` and simplifies `customName` from `"Travel Time (min)"` to `"Travel
+  Time"` (the M:SS shape self-documents). This function used to short-circuit on any existing
+  template ("static — nothing to drift-check") — since `formatFn`/`customName` can drift
+  independently of `TRAVEL_TIME_EXPR` itself (as they did this round), added real column-drift
+  detection (compares `avgtt_col` at its known index, updates in place if changed), matching the
+  idiom already used by `ensure_route_compare_template`/`ensure_graph_templates`.
 
-**Same-round follow-up (user-caught while reviewing the fix live)**: the user pointed out that
-missing-data TMCs shouldn't just be colored black — they shouldn't appear in the hover tooltip's
-per-row list at all. Root cause: `avl-graph/GridGraph.jsx`'s `DefaultHoverComp` iterates
-`data.indexes` (every row in the hovered column) unconditionally, rendering
-`get(data, ["indexData", i, "value"], 0)` for each — a `null` value (lodash `get`'s default only
-applies to `undefined`, not `null`) still got a row in the list. **Fix**: `indexes` now also
-filters out any `i` whose `indexData[i].value` is `null` before rendering, in both the default
-(whole-column) and `singleCell` tooltip modes — same one-line-conditional shape as the existing
-`singleCell` filter it sits next to. **Verified**: user confirmed live in the browser that no-data
-TMCs no longer appear in the tooltip. (An automated Playwright hover repro was attempted first but
-abandoned as unreliable — this TMC Difference Grid's cells are sub-3px in the rendered SVG, and
-headless synthetic hover/mouse-move couldn't reliably land on one; the user's direct live
-confirmation is the real verification here, not a probe artifact.)
+**Verified live** on report 181 (page `2190688` -> reconverted `--replace` -> `2194036`, the exact
+report item 7 diagnosed): dry-run confirmed both templates drift-detected
+(`route_info_box_traveltime` id `2190555`, `tmc_info_box_traveltime` id `2190591`) before the real
+run updated them in place. `report_probe.mjs report_181`: 0 console/page errors, 0 pending-at-close.
+Both tables now render `M:SS` — Route Info Box shows `0:00` / `10:51` (was raw `0` /
+`10.843528533560013`), TMC Info Box shows 21 rows all in `M:SS` (e.g. `0:14`, `0:46`, `0:20` — hand-
+checked against the raw CH values captured in the same network trace, e.g.
+`0.22558671110147754 min -> 0:14` exact). Column headers now read `TRAVEL TIME` (was `TRAVEL TIME
+(MIN)`). Both template updates applied via the new drift-check path, not a one-off manual edit.
 
-**Not done**: the remaining 3 priority-list items (Info Box travel-time formatter, epoch x-axis
-tick format, TMC meta join swap) are unchanged by this round; legend/flex width-squeeze stays
-parked per round 34.
+**Not done**: the remaining 2 priority-list items (TMC meta join swap, epoch x-axis tick format)
+are unchanged by this round; legend/flex width-squeeze stays parked per round 34.
 
 
 
@@ -327,6 +335,11 @@ above are the RAW (all-869) figures.
 
 ## Round ledger (rounds 1–40 + 42/50/51 archived — full detail in [the archive](./old-reports-conversion-archive.md))
 
+- **R57** (07-17): GridGraph missing-data color fix shipped (item 3, priority-list #5) — missing
+  cells now render black (author-overridable via a new "Missing Data Color" config field) instead
+  of transparent; live-verified on report 584 (page `2193032`) via a before/after stash comparison.
+  Same-round follow-up: no-data TMCs also filtered out of the GridGraph hover tooltip list, user-
+  confirmed live. Full detail: [archive, "Round 57"](./old-reports-conversion-archive.md).
 - **R56** (07-17): graph title default fix shipped (item 8's title half, priority-list #4) — empty/
   missing `state.title` in `analyze_graph()` now defaults to the old client's own template
   `"{type}, {data}"` instead of a blank section header; live-verified on report 520 (reconverted
