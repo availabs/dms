@@ -844,6 +844,13 @@ convert from `admin2.reports` directly (dedupe/cleanup of that dataset is separa
   get no x-axis label (matches old-tool parity — it never labeled those either); GridGraph's
   color-targeted value axis and its `categorize` dimension are untouched (different axis
   semantics, out of scope).
+- **Epoch x-axis hover tooltip still shows the raw epoch integer, not a clock time
+  (user-reported 2026-07-17, NOT investigated — logged only, per user)**: round 61 fixed the
+  x-axis TICK labels (`epoch_time` format via `xAxis.format`/`getFormatFunc`) but apparently did
+  not reach the hover-tooltip value display, which still reads e.g. `186` instead of `15:30`.
+  Likely a separate formatting path from `GraphComponent.jsx`'s `xAxis.format` — same class of
+  gap as round 55's BarGraph tooltip customName fix (tooltip rendering is its own code path per
+  chart type, not automatically covered by axis-tick formatting). Unverified; not yet scoped.
 - **Route Compare anchor row ordering still inconsistent (user-reported 2026-07-13, NOT
   investigated — logged only, per user)**: recurrence/incomplete fix of the round-26 user-caught
   anchor-row bug. User saw the anchor row render in the MIDDLE of the table once (anchor was
