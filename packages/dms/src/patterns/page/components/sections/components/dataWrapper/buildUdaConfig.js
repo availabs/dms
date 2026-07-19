@@ -1244,10 +1244,13 @@ export const buildUdaConfig = ({
     const alias = sourceIdToTableAlias[colSourceId];
     const isJoin = isJoinPresent && alias && alias !== 'ds';
 
-    //If column is part of a join, and it isn't a calc column, prefix with table alias
+    //If column is part of a join, and it isn't a calc column, prefix with table alias.
+    // Skip names that are ALREADY alias-qualified (contain a `.`, e.g. `rt.route_id`,
+    // `ds.travel_time`) — the documented contract (live-cross-view-joined-section) is to
+    // write joined columns alias-prefixed, and re-prefixing them yields `ds.rt.route_id`.
     return {
       ...col,
-      name: isJoin && !isCalculatedCol(col) ? `${alias}.${col.name}` : col.name,
+      name: isJoin && !isCalculatedCol(col) && !col.name.includes('.') ? `${alias}.${col.name}` : col.name,
     };
   });
 
@@ -1288,8 +1291,10 @@ export const buildUdaConfig = ({
       // → `ds.__series` would make it both a phantom GROUP BY column AND break the
       // server fan-out's `g !== seriesKey` drop (seriesKey is the bare name),
       // yielding "Identifier 'ds.__series' cannot be resolved".
+      // Skip already alias-qualified names (contain a `.`) — see sourceColumns note above;
+      // re-prefixing `rt.route_id` → `ds.rt.route_id` (the pivot rowColumn/valueColumn case).
       name:
-        isJoin && col.origin !== 'comparison-series'
+        isJoin && col.origin !== 'comparison-series' && !col.name.includes('.')
           ? `${alias}.${col.name}`
           : col.name,
     };

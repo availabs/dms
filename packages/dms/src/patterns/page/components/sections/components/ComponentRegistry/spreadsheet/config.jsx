@@ -145,8 +145,12 @@ export const componentFunctions = {
                         { label: 'Background', value: 'bg' },
                         { label: 'Border', value: 'border' },
                         { label: 'Bold', value: 'bold' },
+                        { label: 'Accent (themed)', value: 'accent' },
                     ],
                 },
+                // Only used by the 'accent' style: names a `theme.table` style for the
+                // row-level tint + left edge; defaults to `rowHighlightAccent`.
+                { key: 'styleKey', label: 'Accent style key (theme.table)', type: 'input', inputType: 'text' },
             ],
         },
     ],

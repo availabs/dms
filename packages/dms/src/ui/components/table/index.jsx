@@ -353,6 +353,15 @@ export default function Table ({
         return { ...conditionalRowStyle, className: theme?.[styleKey] || theme?.rowAccent || '' };
     }, [conditionalRowStyle, theme]);
 
+    // row_highlight 'accent' style: resolve the themed row-level class here (TableRow's curated
+    // `rowTheme` doesn't carry it), same pattern as conditional_row_style. Non-accent styles
+    // (bg/bold/border) stay per-cell in TableCell and need no resolution — pass through as-is.
+    const resolvedHighlightedRow = useMemo(() => {
+        if (highlightedRow?.style !== 'accent') return highlightedRow;
+        const accentClass = theme?.[highlightedRow.styleKey] || theme?.rowHighlightAccent || theme?.rowAccent || '';
+        return { ...highlightedRow, accentClass };
+    }, [highlightedRow, theme]);
+
     const [defaultColumnSize, setDefaultColumnSize] = React.useState(defColSize);
 
     const actionsColSize = 50;
@@ -750,7 +759,7 @@ export default function Table ({
              onMouseLeave={e => handleMouseUp({setIsDragging})}
              style={{maxHeight: !paginationActive && display.maxHeight ? `${display.maxHeight}px` : undefined}}
         >
-                <TableStructureContext.Provider value={{...structureValues, highlightedRow, conditionalRowStyle: resolvedConditionalRowStyle, onRowMouseClick, onRowMouseEnter, onRowMouseLeave, onRowDragStart, onRowDragOver, onRowDrop, onRowDragEnd}}>
+                <TableStructureContext.Provider value={{...structureValues, highlightedRow: resolvedHighlightedRow, conditionalRowStyle: resolvedConditionalRowStyle, onRowMouseClick, onRowMouseEnter, onRowMouseLeave, onRowDragStart, onRowDragOver, onRowDrop, onRowDragEnd}}>
                     <TableCellContext.Provider value={{
                         frozenCols, allowEdit, editing, setEditing, isDragging, isSelecting,
                         setSelection, setIsDragging, startCellCol, startCellRow, selection, selectionRange,

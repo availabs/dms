@@ -75,8 +75,12 @@ export const RUNTIME_DISPLAY_FIELDS = [
  *                   // optional — only present when section joins additional sources.
  *                   // Persisted only when sources is non-empty (no `{ sources: {} }`
  *                   // placeholder on the wire).
- *   pivot:          { enabled, rowColumn, pivotColumn, valueColumn, aggregateFn, maxValues }
+ *   pivot:          { enabled, rowColumn, pivotColumns[], valueColumn, aggregateFn,
+ *                     valueColumns[]:{column,aggregateFn,label}, singleHeader, maxValues }
  *                   // optional — only present when pivot has been configured.
+ *                   // valueColumns[] spreads MULTIPLE metrics per pivot combo (each with
+ *                   // its own aggregateFn), rendered as a metric leaf under the combo
+ *                   // group headers; legacy single valueColumn+aggregateFn still works.
  *                   // pivot.distinctValues is runtime-only and stripped from the save payload.
  *                   // columns with origin='pivot_col' are also runtime-only and stripped.
  * }

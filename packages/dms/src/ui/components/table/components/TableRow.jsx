@@ -21,7 +21,7 @@ export const TableRow = memo(function TableRow ({
         openOutAttributes, showGutters, striped, hideIfNullOpenouts,
         onRowMouseEnter, onRowMouseLeave, onRowMouseClick,
         onRowDragStart, onRowDragOver, onRowDrop, onRowDragEnd,
-        openOutDefaultOpen, conditionalRowStyle, openOutMode,
+        openOutDefaultOpen, conditionalRowStyle, openOutMode, highlightedRow,
     } = useContext(TableStructureContext);
     const [showOpenOut, setShowOpenOut] = useState(!!openOutDefaultOpen);
     useEffect(() => {
@@ -68,7 +68,24 @@ export const TableRow = memo(function TableRow ({
         return match ? (conditionalRowStyle.className || '') : '';
     }, [conditionalRowStyle, rowData, isTotalRow]);
 
-    const rowClass = `${isTotalRow ? theme.totalRow : ``} ${isDragging ? `select-none` : ``} ${striped ? theme.stripedRow : ``} ${conditionalRowClass}`;
+    // row_highlight with style 'accent': paint a themed row-level tint + left edge (the matched
+    // row's cells go transparent in TableCell so this shows through). Themed like
+    // conditional_row_style — `styleKey` names a theme.table style, else `rowHighlightAccent`.
+    // 'bg'/'bold'/'border' styles stay per-cell in TableCell (unchanged); this is 'accent'-only.
+    const highlightAccentClass = useMemo(() => {
+        if (highlightedRow?.style !== 'accent' || !highlightedRow?.column || isTotalRow) return '';
+        const raw = rowData[highlightedRow.column];
+        const val = (raw !== null && raw !== undefined && typeof raw === 'object' && !Array.isArray(raw))
+            ? (raw.value ?? raw.originalValue) : raw;
+        if (String(val) !== String(highlightedRow.value)) return '';
+        // className was resolved from the full table theme in table/index.jsx (rowTheme is curated).
+        return highlightedRow.accentClass || '';
+    }, [highlightedRow, rowData, isTotalRow]);
+
+    // cursor-pointer signals a click_publish table (rows are clickable to switch a page param).
+    const clickableClass = onRowMouseClick && !isTotalRow ? 'cursor-pointer' : '';
+
+    const rowClass = `${isTotalRow ? theme.totalRow : ``} ${isDragging ? `select-none` : ``} ${striped ? theme.stripedRow : ``} ${conditionalRowClass} ${highlightAccentClass} ${clickableClass}`;
     const actionsColExists = attrsToRender.find(a => a._isActionsColumn);
     // Whether any column declares itself the openOut trigger (e.g. sectionsChip).
     // Falls back to the legacy first-column behaviour when none does.

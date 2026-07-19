@@ -16,17 +16,12 @@ import {
     isJoinComplete,
 } from "./buildUdaConfig";
 import { calculateIsJoinPresent } from "./utils/joinUtils";
+import { getPivotValues, isMultiValue, pivotColName } from "./pivotUtils";
 
 // ─── Private helpers ────────────────────────────────────────────────────────
 
-const slugForPivot = (v) =>
-    String(v).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
-
-// For calculated columns ("expr as alias"), return the alias; otherwise return the name as-is.
-const colKey = (name) => {
-    const parts = name.split(/\s+as\s+/i);
-    return (parts.length > 1 ? parts[parts.length - 1] : parts[0]).trim();
-};
+// slugForPivot / colKey / pivotColName / getPivotValues live in ./pivotUtils
+// (shared with usePivotDistinctValues so column naming matches exactly).
 
 // conditions: [{ ref, value }, ...] — ANDed together (one per pivot column)
 const buildPivotCaseExpr = ({ conditions, valueRef, fn, alias, isDms }) => {
@@ -250,7 +245,12 @@ export const getData = async ({
     let options, columnsToFetch, columnsWithSettings, outputSourceInfo, skipFetch;
 
     if (isPivotMode) {
-        const { rowColumn, valueColumn, aggregateFn = 'count' } = state.pivot;
+        const { rowColumn } = state.pivot;
+        // One or more value columns to spread. Legacy single `valueColumn` +
+        // `aggregateFn` still works via getPivotValues; `valueColumns[]` (each with
+        // its own aggregateFn) produces one column per (combo × value).
+        const values = getPivotValues(state.pivot);
+        const multiValue = isMultiValue(state.pivot);
 
         // Call buildUdaConfig with the row column (group: true) when set so filters are
         // resolved correctly. Without a row column, pass an empty columns array —
@@ -261,19 +261,20 @@ export const getData = async ({
         const pivotBuilderInput = { ...builderInput, columns: pivotBuilderColumns };
         ({ options, columnsToFetch, columnsWithSettings, outputSourceInfo, skipFetch } = buildUdaConfig(pivotBuilderInput));
 
-        const valueRef = valueColumn ? attributeAccessorStr(valueColumn, isDms, false, false) : null;
-
-        // Build CASE columns for every combination of distinct values (cartesian product).
+        // Build CASE columns for every (combo × value column). Combos are the outer
+        // loop so a period's metrics stay adjacent (period1_speed, period1_tt, …),
+        // matching the header grouping in usePivotDistinctValues.
         const combinations = cartesian(pivotColumns.map(col => distinctValuesByColumn[col] || []));
-        const caseColumns = combinations.map(combo => {
-            const alias = combo.map((v, i) => `${slugForPivot(colKey(pivotColumns[i]))}_${slugForPivot(v)}`).join('__');
+        const caseColumns = combinations.flatMap(combo => values.map(vc => {
+            const alias = pivotColName(combo, pivotColumns, vc, multiValue);
             const conditions = combo.map((v, i) => ({
                 ref: attributeAccessorStr(pivotColumns[i], isDms, isCalculatedCol({ name: pivotColumns[i] }), false),
                 value: v,
             }));
-            const expr = buildPivotCaseExpr({ conditions, valueRef, fn: aggregateFn, alias, isDms });
+            const valueRef = vc.column ? attributeAccessorStr(vc.column, isDms, false, false) : null;
+            const expr = buildPivotCaseExpr({ conditions, valueRef, fn: vc.aggregateFn, alias, isDms });
             return { name: alias, reqName: expr, normalName: alias, isPivotCol: true };
-        });
+        }));
 
         if (rowColumn) {
             const rowRef = attributeAccessorStr(rowColumn, isDms, false, false);
@@ -343,12 +344,22 @@ export const getData = async ({
         return { length: 0, data: [], invalidState: "An Error occurred while fetching data." };
     }
     const actionType = "uda";
-    const fromIndex = isOptionsLoad || fullDataLoad ? 0 : currentPage * state.display.pageSize;
+    // A pivot cross-tab returns one row per row-group (bounded by `length`) and has no
+    // pagination UI — always fetch the full set. Also coerce pageSize to a safe number:
+    // a `usePagination:false` section can omit pageSize, and `currentPage * undefined`
+    // is NaN, which serializes to a null `dataByIndex` range → the server returns 0 rows
+    // and the section hangs on "loading..." (route-comparison pivot page bug).
+    const loadAllRows = isPivotMode || fullDataLoad;
+    const safePageSize = Number(state.display?.pageSize) > 0 ? Number(state.display.pageSize) : 25;
+    const fromIndex = isOptionsLoad || loadAllRows ? 0 : currentPage * safePageSize;
+    // dataByIndex `to` is INCLUSIVE (a length-N result spans indices 0..N-1), so the
+    // full-load end index is length-1. Requesting `length` fetches one extra out-of-range
+    // slot that comes back as an empty Falcor atom and renders as a phantom "loading" row.
     const toIndex = isOptionsLoad
         ? OPTIONS_LIMIT - 1
-        : fullDataLoad
-            ? length
-            : Math.min(length, currentPage * state.display.pageSize + state.display.pageSize) - 1;
+        : loadAllRows
+            ? length - 1
+            : Math.min(length, currentPage * safePageSize + safePageSize) - 1;
     if (fromIndex >= length) {
         // Empty-result fallback. Opt-in via `display.useBlankRowFallback`.
         // When the real query returned 0 rows AND the section has opted in,
@@ -583,8 +594,21 @@ export const getData = async ({
 
         Object.keys(d).forEach(dKey => {
             const curCol = state.columns.find(c => c.name === dKey);
-            const formattedKey = dKey.split(".").length > 1 && !isCalculatedCol(curCol || {}) ? dKey.split(".")[1] : dKey;
-            newD[formattedKey] = d[dKey]
+            const isQualified = dKey.split(".").length > 1 && !isCalculatedCol(curCol || {});
+            if (isQualified) {
+                // Strip the join alias so an unqualified display column (rt.route_id → route_id)
+                // resolves — the long-standing behavior. ALSO keep the original alias-qualified
+                // key so a display column that references the column by its EXACT qualified name
+                // resolves too. A pivot row column keeps its qualified `name` (e.g. `rt.route_id`)
+                // as its display key and would otherwise render blank (the metric CASE aliases
+                // have no dot, so they were never affected). Additive/BC: the stripped key is
+                // unchanged; the xlsx download iterates column names, not raw data keys, so the
+                // extra qualified key is ignored there.
+                newD[dKey.split(".")[1]] = d[dKey];
+                newD[dKey] = d[dKey];
+            } else {
+                newD[dKey] = d[dKey];
+            }
         })
 
         return newD;

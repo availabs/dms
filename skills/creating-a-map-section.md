@@ -72,6 +72,30 @@ ACTIVE dynamic-filter columns + static-filter columns. Consequences:
 - Bake sensible `?cols=` into the saved URL anyway (documentation + editor parity), but know
   the runtime rebuilds it.
 
+### 4a. ⚠ Dynamic-filters are CLIENT-side; use `serverSide` for huge views
+
+A plain `dynamic-filter` compiles to a MapLibre `["in", …]` expression on the LIVE layer — it
+filters features AFTER the whole tile downloads. Fine for small/standard networks; **fatal for
+a per-row view** (e.g. `transcom_event_tmc` view 2799 = one row per event×TMC → **~64MB/tile**).
+For those, flag the filter `serverSide: true` — `getLayerTileUrl` then emits a
+`&filter=<col> = '<v>'` (or `IN (…)`) WHERE clause and the tile route filters rows in PostGIS
+`ST_AsMVT` BEFORE emitting (64MB → ~2KB for one event_id). Only on a BASE-view column; single-
+quoted/escaped; only emitted while the filter has values, so pair with a no-match `defaultValue`
+sentinel (`"__none__"`) so a missing value never yields the whole-network tile. Bake a real
+`?filter=` into a curl to pre-flight the reduction (§2). Worked example: incident_view map
+(2799, `event_id` serverSide) — added the capability 2026-07-17
+(`map-serverside-tile-filter.md`).
+
+### 4b. ⚠ The Map IGNORES `type:'action'` page params
+
+`map/index.jsx` builds `dataPageFilters = pageFilters.filter(f => f.type !== 'action')` — a
+deliberate exclusion so its own interaction filters don't feed back. So dynamic-filters can bind
+only to NON-action page vars: the page's `filters[]` defaults and URL `searchParam`s (Filter
+controls, `?event_id`, `?region`, `?year`). Params published by data-section `_functions`
+(`click_publish`/`load_publish` → `activeTmcLinear`, `activeCorridorTmcs`, …) are ACTION-type and
+invisible to the map. If a map must react to a derived/published value, bind it to a URL/page-
+filter var instead (e.g. incident_view drives the map off `?event_id`, not the active corridor).
+
 ## 5. Dynamic filters ↔ page variables (the interactive wiring)
 
 A layer's `dynamic-filters[]` entries bind to page variables by key

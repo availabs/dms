@@ -51,7 +51,15 @@ centered on a cell) and `bounds` ({index, bounds:[xKeys]} → one border rect sp
 
 Pure overlays — no refetch; they redraw on param change.
 
-## First consumer (tsmo2/incident_view, builder `build_tsmo2_incident_view.mjs`)
+## Consumers (tsmo2/incident_view, builder `build_tsmo2_incident_view.mjs`)
+
+`grid_point` now has a live consumer too (incident-view Phase 3): the event-header Card
+publishes `incidentCell` = `tmclist|HH:MM` and the speed grid's `grid_point` subscriber
+(column `rowtmc`) dots the incident's (TMC × open-epoch) cell — self-scoping so it only shows
+when the grid displays the incident's corridor. Verified: 1 dot on the incident corridor, 0
+after switching away.
+
+## First consumer (cell bands)
 
 - Delay-by-TMC spreadsheet (2799⋈984): selectOnly triplet column
   `ds.tmc || '|' || lpad((min(ds.bound_start_time)*5/60)::text, 2, '0') || … as band`
@@ -68,6 +76,20 @@ Pure overlays — no refetch; they redraw on param change.
   attribute path (returns undefined) — hence publishing from the per-TMC table instead.
 - Multi-day events: the HH:MM formatting wraps epochs within one day; bands on the grid's
   single activeDate day are correct, cross-midnight windows clamp visually (edge case, noted).
-- Pre-existing page bug surfaced (NOT from this change): `tmclinear` values repeat across TMC
-  regions (120-NYC vs 104-upstate), so the grid's `meta.tmclinear` filter can pull foreign
-  rows — corridor-identity fix tracked in the transportny task.
+- Pre-existing page bug surfaced (NOT from this change) and FIXED here: `tmclinear` values
+  repeat across TMC regions (corridor 159 = CROSS ISLAND PKY exists as 70 TMCs in region 120
+  **and** 26 TMCs in region 104 upstate), so the grid's `meta.tmclinear` filter alone pulled
+  ~274 foreign rows into the grid. Fix: the Delay-by-TMC table also list-publishes
+  `activeRegion` = `left(ds.tmc,3)` (the event's region prefix), and the speed grid gained a
+  gated leaf `toUInt16OrZero(substring(ds.tmc,1,3)) = activeRegion`. `toUInt16OrZero` (not
+  `toUInt16`) is required — some TMC prefixes are non-numeric (e.g. Canadian "C09") and the
+  strict cast throws in ClickHouse. Verified: grid now scopes to the event's region only
+  (I-495 → 88 delay TMCs banded; CROSS ISLAND PKY → 10).
+
+## Verified (final, 2026-07-17)
+
+Default event: chip "I-495", 88 band rects on the grid; click CROSS ISLAND PKY → chip +
+grid + bands all re-scope, 10 band rects. Band x-positions land in the event's evening window
+(startTime epoch 210 = 17:30) because both the published band times and the grid's tod axis
+derive HH:MM from `epoch*5` — same key vocabulary, which is what makes lexicographic x-bound
+matching land on the right cells.

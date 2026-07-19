@@ -1,5 +1,14 @@
 # csv_dataset publish → ClickHouse / Postgres / both target
 
+> **STATUS: SUPERSEDED / NOT BUILT — 2026-07-17.** Dropped from the Route Comparison critical
+> path: **pgFederated** (old-reports round 16 — a `{pgFederated:{pgEnv,table,schema}}` join
+> source that reads a live Postgres table from a ClickHouse base query via `postgresql()`)
+> makes CH↔PG joins work without materializing data into ClickHouse. So route_tmc stays a plain
+> Postgres source and joins the CH speed views live — no CH write path needed. This remains a
+> *possible* independent platform feature (author-facing "upload a dataset to ClickHouse"), but
+> it is not required by any current task. Kept as a scoped record if that feature is ever
+> prioritized on its own. Full scope below.
+
 **Library sub-task of** `planning/transportny/tasks/current/build-route-comparison-page.md`
 (Task 1a). Enhance the DMS dataset upload/publish pipeline so a `csv_dataset` can be
 materialized into **ClickHouse**, **Postgres**, or **both** on create — properly registered as

@@ -624,6 +624,19 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
         },
     ]
 
+    // Pivot value columns — the metric(s) spread across each pivot combo. Supports
+    // MULTIPLE metrics (each with its own aggregate); legacy single `valueColumn` +
+    // `aggregateFn` is migrated into this list for display/editing.
+    const pvSourceCols = state.externalSource?.columns || [];
+    const pvAggFns = ['count', 'sum', 'avg', 'max', 'min'];
+    const pvValueCols = state.pivot?.valueColumns?.length
+        ? state.pivot.valueColumns
+        : (state.pivot?.valueColumn
+            ? [{ column: state.pivot.valueColumn, aggregateFn: state.pivot?.aggregateFn || 'count' }]
+            : []);
+    const pvColLabel = (name) => getColumnLabel(pvSourceCols.find(c => c.name === name) || { name });
+    const setValueCols = (next) => dwAPI.setPivot('valueColumns', next);
+
     const pivot = {
         name: 'Pivot', icon: 'ListView',
         cdn: () => isEdit && ['Spreadsheet', 'Graph'].includes(currentComponent?.name) && currentComponent?.useDataSource && canEditSection,
@@ -681,28 +694,43 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                 })
             },
             {
-                name: 'Value Column', showValue: true, showSearch: true,
-                value: (state.externalSource?.columns || []).find(c => c.name === state.pivot?.valueColumn)
-                    ? getColumnLabel((state.externalSource.columns).find(c => c.name === state.pivot.valueColumn))
-                    : '',
+                // Multiple metrics can be spread per pivot combo — e.g. Speed · avg,
+                // Travel time · avg, Delay · sum, all side-by-side under each period.
+                name: 'Value Columns', showValue: true, showSearch: true,
+                value: pvValueCols.length
+                    ? pvValueCols.map(v => `${pvColLabel(v.column)} · ${(v.aggregateFn || 'count')}`).join(', ')
+                    : '(none)',
                 cdn: () => !!state.pivot?.enabled,
-                items: (state.externalSource?.columns || []).map(col => ({
-                    icon: col.name === state.pivot?.valueColumn ? 'CircleCheck' : 'Blank',
-                    name: getColumnLabel(col),
-                    onClickGoBack: true,
-                    onClick: () => dwAPI.setPivot('valueColumn', col.name)
-                }))
-            },
-            {
-                name: 'Aggregate', showValue: true,
-                value: (state.pivot?.aggregateFn || 'count').toUpperCase(),
-                cdn: () => !!state.pivot?.enabled,
-                items: ['count', 'sum', 'avg', 'max', 'min'].map(fn => ({
-                    icon: (state.pivot?.aggregateFn || 'count') === fn ? 'CircleCheck' : 'Blank',
-                    name: fn.toUpperCase(),
-                    onClickGoBack: true,
-                    onClick: () => dwAPI.setPivot('aggregateFn', fn)
-                }))
+                items: [
+                    // Each configured value column: drill in to change its aggregate or remove it.
+                    ...pvValueCols.map((v, idx) => ({
+                        name: pvColLabel(v.column),
+                        showValue: true,
+                        value: (v.aggregateFn || 'count').toUpperCase(),
+                        items: [
+                            ...pvAggFns.map(fn => ({
+                                icon: (v.aggregateFn || 'count') === fn ? 'CircleCheck' : 'Blank',
+                                name: fn.toUpperCase(),
+                                onClickGoBack: true,
+                                onClick: () => setValueCols(pvValueCols.map((x, i) => i === idx ? { ...x, aggregateFn: fn } : x)),
+                            })),
+                            { type: 'separator' },
+                            {
+                                icon: 'Trash', name: 'Remove', onClickGoBack: true,
+                                onClick: () => setValueCols(pvValueCols.filter((_, i) => i !== idx)),
+                            },
+                        ],
+                    })),
+                    ...(pvValueCols.length ? [{ type: 'separator' }] : []),
+                    // Add a metric: source columns not already selected.
+                    ...pvSourceCols
+                        .filter(col => !pvValueCols.some(v => v.column === col.name))
+                        .map(col => ({
+                            icon: 'Plus',
+                            name: getColumnLabel(col),
+                            onClick: () => setValueCols([...pvValueCols, { column: col.name, aggregateFn: pvValueCols[0]?.aggregateFn || 'avg' }]),
+                        })),
+                ],
             },
             {
                 name: 'Single Header', label: 'Single Header View', type: 'toggle', showLabel: true,

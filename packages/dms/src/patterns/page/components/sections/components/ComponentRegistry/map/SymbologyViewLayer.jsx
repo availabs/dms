@@ -1657,6 +1657,25 @@ const getLayerTileUrl = (tileBase, layerProps) => {
     newTileUrl += `${newTileUrl.includes("?") ? "&" : "?"}join=${joinParam}`;
   }
 
+  // Server-side tile filter: a dynamic-filter flagged `serverSide` on a BASE-view column
+  // (e.g. event_id) becomes a `&filter=<SQL WHERE>` param so the tile route filters rows
+  // in PostGIS (ST_AsMVT) BEFORE emitting the tile — vs the default client-side ["in"]
+  // expression, which needs the whole (unfiltered) tile downloaded first. Essential when
+  // the unfiltered view is huge (transcom_event_tmc: ~64MB/tile unfiltered → ~2KB filtered
+  // to one event_id). Equality for a single value, IN(...) for a list; values single-quoted
+  // and '-escaped. Only emitted while the filter HAS resolved values.
+  const serverFilters = (layerProps?.["dynamic-filters"] || [])
+    .filter((df) => df?.serverSide && df?.column_name && Array.isArray(df?.values) && df.values.length)
+    .map((df) => {
+      const q = (v) => `'${String(v).replace(/'/g, "''")}'`;
+      return df.values.length === 1
+        ? `${df.column_name} = ${q(df.values[0])}`
+        : `${df.column_name} IN (${df.values.map(q).join(",")})`;
+    });
+  if (serverFilters.length) {
+    newTileUrl += `${newTileUrl.includes("?") ? "&" : "?"}filter=${encodeURIComponent(serverFilters.join(" AND "))}`;
+  }
+
   // if(newTileUrl && newTileUrl?.includes('.pmtiles')){
   //   newTileUrl = newTileUrl
   //     .replace("$HOST", `${API_HOST}/tiles`)

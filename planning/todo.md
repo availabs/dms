@@ -158,6 +158,12 @@
 
 ## ui
 
+- [x] [Table: `row_highlight` themed 'accent' style + click-publish cursor](./tasks/current/table-row-highlight-accent-and-cursor.md) —
+      DONE 2026-07-17. New BC `row_highlight` style 'accent' paints a themed row-level tint + left
+      edge (resolved from `theme.table.rowHighlightAccent`/styleKey like conditional_row_style;
+      matched cells go transparent) instead of the hardcoded amber; rows in a click_publish table
+      get `cursor-pointer`. Author-registered. Consumer: incident_view Corridors selector (brand
+      blue). Core rides git sync; transportnyv2 `rowHighlightAccent` rides the theme-folder sync.
 - [x] [graph_new BarGraph: optional time/linear x-axis (proportional spacing)](./tasks/current/graph-bargraph-time-linear-xscale.md) — opt-in `xAxis.scaleType: time|linear` so bars sit at their real x-value with proportional gaps (default `band` unchanged, verified no regression). Non-band positioning (computed width + centered `barPos`) + date axis ticks; `GraphComponent` passes `xScale.type`. Live on the Control-Room per-day tickets charts. Not yet synced into transportNY's vendored dms.
 - [x] [Filter section interactive chrome: needs-value toggle · active tokens · clear-all](./tasks/current/filter-interactive-chrome.md) — ExternalFilters/RenderFilters; renders an `empty`-op leaf as a toggle; MNY alignment.
 - [x] [Spreadsheet inline-expand row detail (`openOutMode:'inline'`)](./tasks/current/spreadsheet-inline-openout.md) — inline detail panel vs the side drawer; MNY alignment.
@@ -275,6 +281,20 @@
 
 ### patterns/page
 
+- [x] [Map: server-side tile `filter=` from a `serverSide` dynamic-filter](./tasks/current/map-serverside-tile-filter.md) —
+      DONE 2026-07-17. A symbology dynamic-filter flagged `serverSide:true` makes `getLayerTileUrl`
+      emit `&filter=<col>='…'` so the tile route filters rows in PostGIS ST_AsMVT before emitting
+      (transcom_event_tmc: ~64MB→~2KB per event_id). BC (skipped without the flag). First consumer:
+      incident_view Location & affected-segment map. Also documented the Map's action-param
+      exclusion (map ignores `type:'action'` params → bind maps to URL/page-filter vars) in the
+      creating-a-map-section skill §4a/§4b. Core rides the owner git sync.
+- [x] [GridGraph overlays + `load_publish` 'list'](./tasks/current/gridgraph-overlays-and-list-publish.md) —
+      DONE 2026-07-17. `load_publish` `'list'` derivation (Spreadsheet + Card) publishes all
+      loaded rows' values for a column as the param array; GridGraph `grid_cell_bands` +
+      `grid_point` subscribers feed the avl GridGraph's dormant bounds/points props (border a
+      cell run / dot a cell, resolved by a Row Key Column). Author-registered. Also fixed a
+      latent `providers.find` crash in graph_new/index.jsx. First consumer: incident_view
+      speed-grid congestion-window bands. Core rides the owner git sync.
 - [x] [Card: `load_publish` provider](./tasks/current/card-load-publish-provider.md) — DONE
       2026-07-17. Component-actions parity with the Spreadsheet: a Card publishes derived-row
       column values to action params on load (first/max/min, multi-`publishes[]`), with a
@@ -328,6 +348,7 @@
 - [x] [dataWrapper blank-row fallback](./tasks/completed/datawrapper-blank-row-fallback.md) — SHIPPED 2026-05-18. Opt-in via `display.useBlankRowFallback`. When the section opts in and the query returns 0 rows, `getData.js` synthesizes a single placeholder row keyed `column.normalName || column.name` from each visible column's `blankDefault`, tagged `_isBlankFallback: true`. Per-column "Empty Default" toolbar entry mounts the column type's existing `EditComp`. Live test surfaced a bug: original synthesis sat at the function tail but was unreachable because `fromIndex >= length` (with `length === 0` → `0 >= 0`) exits earlier; moved the synthesis inside that guard, removed the dead tail block. WCDB show card 1964234 verified off-air. Error-fallback (network failures) deferred to a sibling task.
 - [x] [Pivot table support](./tasks/completed/pivot_table.md) — cross-tab pivot mode for DataWrapper/Spreadsheet: pivot config state, distinct-values fetch, CASE column generation in getData, SectionMenu pivot block, ColumnManager pivot columns block
 - [x] Pivot table grouped column headers — add multi-row `<thead>` to the Table component so multiple pivot columns render with a spanning parent header row per pivot column value (Option B follow-up to pivot table support)
+- [ ] [Pivot data-fetch range + join-key fixes](./tasks/current/pivot-data-fetch-fixes.md) — 3 getData.js bugs that stopped a pivot+join cross-tab from rendering (surfaced building the Route Comparison page): (1) `usePagination:false` sections omit `pageSize` → `NaN` → null `dataByIndex` range → 0 rows → "loading" hang; fixed by loading all rows in pivot/fullDataLoad + safe-pageSize coerce. (2) load-all `toIndex` off-by-one (`to` is inclusive) → phantom empty-atom "loading" row; fixed to `length-1`. (3) join alias-strip blanked the pivot row column (`rt.route_id` display key vs stripped `route_id` data key); fixed by keeping BOTH keys (additive/BC). Applied to working tree; needs commit + a non-pivot-join regression eyeball.
 - [x] [Filter component: hide external-filters toggle by default + adopt UI components](./tasks/completed/filter-external-toggle-and-ui-cleanup.md) — IMPLEMENTED 2026-05-13. `display.hideExternalToggle` added to `ExternalFilters.jsx` (strict `=== true`; absent on existing rows preserves the toggle pill); `Card.config.jsx` `defaultState.display.hideExternalToggle: true` so new sections default to hidden. Inline toggle-pill markup swapped for `UI.Button` + theme keys (`toggleButton`/`toggleIcon`) in both `ExternalFilters.jsx` and `RenderFilters.jsx`. `filterTheme` extended with consolidated keys (`conditionsGrid`, `conditionRow*`, `filterRowWrapper`, `inlineSwitchRow`, `searchKey*`) — defaults match original literals so existing themes are visually unchanged. `themeFromContext.filter` (singular) typo fixed in three files; transportny `filters:` theme block now actually applies (was a no-op copy of `filterTheme`).
 - [x] [Card cells grid: per-column cellWidth + section-level track template](./tasks/completed/card-cell-width-tracks.md) — IMPLEMENTED 2026-05-18. Per-column `cellWidth` knob in the section toolbar + section-level `cellsTracksTemplate` escape hatch + track-cursor walker in `Card.jsx` that composes `gridTemplateColumns` from each column's claim. WCDB now-playing card lays out album art at fixed width + fluid text stack + fixed play button. CSS Grid bakes `cellsGridGap` inside a span (documented limitation); for pixel-perfect widths, use `cellSpan: 1 + cellRowSpan`. Live-verified on https://www.wcdb.fm.
 - [x] [Card per-column padding overrides](./tasks/completed/card-cell-padding-overrides.md) — IMPLEMENTED 2026-05-18. Extended the existing `cellPaddingBottom` knob to `cellPadding` (all sides) + `cellPaddingTop` / `cellPaddingLeft` / `cellPaddingRight`. Side-specific wins over `cellPadding`, `cellPadding` wins over ambient `cellsPadding`; `!== '' && !== undefined` guard distinguishes "cleared field" from "author typed 0". Applied to WCDB section 1963473 title/artist/album cells. Skill `card-layout.md` extended.
