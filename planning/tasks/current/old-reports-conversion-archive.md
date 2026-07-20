@@ -18,6 +18,108 @@ and leave only its ledger line in the live file.
 
 ---
 
+## Round 63 (2026-07-17) — corrected the stale "392 mixed-resolution" figure + found/fixed a real duplicate-converted-page bug (url_slug is not a stable identifier) (moved verbatim from the live file on 2026-07-20, round 65 start)
+
+**Context**: session resumed after a `/clear`; user reported "we merged everything to master" and
+asked what's next. This round exists because verifying that "next step" against a fresh census
+surfaced two things the live task file didn't reflect: (1) the mixed-resolution false-positive fix
+the user remembered discussing had, in fact, already been built and committed (just never written
+up here), and (2) chasing down why the census still undercounted converted pages turned up a live,
+active duplicate-page bug.
+
+**Part 1 — the "392 buildable mixed-resolution instances" figure (round 50's census-greedy-table
+decomposition, cited throughout "Key durable facts" below) is STALE.** User correctly recalled that
+this had already been resolved as mostly false positives. Confirmed directly: `convert_old_reports.py`
+already carries (dated 2026-07-17 in its own comments, i.e. from the session before this one)
+`SINGLE_ACTIVE_COMP_TYPES` (`{"Hours of Delay Graph", "TMC Info Box", "Route Bar Graph", "TMC Grid
+Graph"}` — old `GeneralGraphComp.getActiveRouteComponents()`'s undocumented default is `[routes[0].
+compId]`, ONE comp, never "every comp"; confirmed by reading each component directly, not assumed)
+plus a `route_map_resolution_irrelevant` branch (Route Map's `resolution` param is read only by its
+avgHoursOfDelay measure — 145/146 of the corpus's Route-Map mixed-resolution instances are non-
+avgHoursOfDelay) plus a Bar Graph Summary tiebreak (`BarGraphSummary.jsx` never reads `resolution`
+at all for its own rendering; resolves to the first assigned comp's own resolution, matching old
+`GeneralGraphComp.getResolution()`'s real behavior, purely to give avgHoursOfDelay's per-resolution
+calculated column a concrete value). None of this was documented as a round in this task file. Fresh
+census rerun confirms the effect: **`mixed_resolutions_on_graph` is now 159 instances / 127 reports**
+(was 392). The remaining 159 are concentrated in graph types with a genuinely shared time axis where
+resolution actually matters (Route Line Graph is the dominant contributor — e.g. speed/None 84
+instances, avgHoursOfDelay/None 18, travelTime/None 12 — plus Route Compare Component); those are
+real ambiguities, not analyzer false positives, and would need the old tool's actual multi-comp
+resolution precedence rule (not yet investigated) if pursued further.
+
+**Part 2 — while re-running the census to get the corrected number, `converted_pages_total` came
+back as 0** (expected ~30+ per prior rounds). Root cause traced fully, NOT assumed:
+`census_old_reports.py`'s `fetch_converted_pages()` matched pages by `url_slug LIKE 'report\_%'`
+(the converter's OWN slug scheme, `slug = f"report_{old_id}"` in `convert_report()`), but a direct
+query of every live `npmrds_sub|page` row shows **zero** pages actually carry that slug — they're
+all `converted_reports/<human-readable-name-slug>` (e.g. `converted_reports/route_44_incident_
+analysis_april_2026`), confirmed by dumping all 59 page rows' `id`/`url_slug` directly from
+`dms_npmrdsv5.data_items`.
+
+**This is not a converter bug — the converter's own CLI call sets `url_slug` to `report_<old_id>`
+literally at creation** (confirmed by reading `dms/cli/src/commands/page.js`'s `create()`: `if
+(options.slug) data.url_slug = options.slug`, no server-side override). **The actual mechanism
+(confirmed by the user, from a separate concurrent session's investigation): the DMS page editor
+recomputes `url_slug` from the page's `title` on every title save, by design** —
+`updateTitle()` (`patterns/page/pages/edit/editFunctions.jsx:88-100`) calls `getUrlSlug(newItem,
+dataItems)` (`patterns/page/pages/_utils/index.js:107`), which always derives
+`${parentSlug}${toSnakeCase(title)}` fresh, with no "already has a slug, leave it" check — this is
+intentional platform behavior (URLs are meant to track page titles), confirmed with the user, NOT a
+bug to fix. But it means a converted page's slug can (and does) drift away from whatever
+`report_<old_id>` the converter set at creation, with zero warning, the first time anyone
+opens/saves that page in the admin UI.
+
+**Consequence — the converter's OWN idempotency check breaks as a result**: `convert_report()`'s
+existence check (`find_page_by_slug(f"report_{old_id}")`, used to decide whether `--replace` needs
+to delete an old page first) can never find a page whose slug has since drifted to the
+`converted_reports/<name>` scheme — so `--replace` silently fails to delete the old page and just
+creates a new one alongside it. **Confirmed two live duplicate pairs exist right now**, found via
+an independent full-corpus cross-check (every live `converted_reports/*` page's title vs.
+`admin2.reports.name`, not just eyeballing): old report **1033** has pages `2191292` (created
+2026-07-15 11:42, stale) and `2194141` (created 2026-07-17 12:32, current — round 59's TMC-meta-
+join-swap reconvert); old report **1056** has pages `2191328` (created 2026-07-15 11:46, stale) and
+`2192501` (created 2026-07-15 17:22, current). (A third title collision, "Single Route Before and
+After (Beginner)," is 8 *distinct* old report ids — 1055-1062 — sharing one generic name, not a
+duplicate; only 1056 among them has 2 live pages.) Same root cause explains Part 1's `converted_
+pages_total: 0` finding — this is the same class of "something outside the converter's own write
+path silently duplicates state" bug as round 53's stray `reports_snap_2` rows, but a different
+concrete mechanism.
+
+**Fix shipped** (`scripts/convert_old_reports.py`, `scripts/census_old_reports.py` — converter-only,
+no `@availabs/dms` changes, so no isolation concern per [[feedback_isolate_shared_code_changes]]):
+stopped keying "has old report `<old_id>` already been converted" off `url_slug` anywhere. Instead,
+use the one identifier that's actually durable: `_converted_from_old_report_id`, already written
+onto the `reports_snap_2` row at creation (`convert_report`'s `snap` dict, was already there,
+just never read back). New `find_page_by_old_report_id(old_id)` in `convert_old_reports.py`
+queries `REPORTS_SNAP_TABLE` for it and returns the linked page id; `convert_report()`'s existence
+check now calls this instead of `find_page_by_slug`. `census_old_reports.py`'s `fetch_converted_
+pages()` rewritten the same way (was matching the page table by slug pattern; now reads the
+`reports_snap_2` table's `_converted_from_old_report_id`/`report_id` pair directly — also needed
+importing `REPORTS_SNAP_TABLE` from `convert_old_reports`). Verified every one of the 37 currently-
+live `converted_reports/*` pages already carries this field (set on every real conversion since
+whenever the field was added — no backfill needed); census rerun with the fix now reports
+**`converted_pages_total: 35`** (37 live pages, 2 old-report ids with a still-undeleted duplicate
+pair each, collapsing correctly to 35 distinct converted reports).
+
+**Cleanup prepared, NOT YET RUN (needs the user's auth token, per [[feedback_credential_bearing_commands]]
+— never mint/embed live creds myself)**: `scratchpad/npmrds-sub/cleanup_duplicate_pages.py` deletes
+the 2 stale pages (`2191292`, `2191328`) via the existing `delete_converted_page()` helper (already
+slug-independent — matches snap rows by `report_id`, not slug, so no changes needed there). User to
+run via `python3 scratchpad/npmrds-sub/cleanup_duplicate_pages.py` (mint a fresh token first with
+`mint_token.sh` if any delete 401s).
+
+**Not done**: no sweep for OTHER possible slug-drift-caused duplicates beyond the title cross-check
+already run (which covers the full current corpus of 37 pages exhaustively — high confidence
+nothing else is hiding, but only as reliable as the assumption that a duplicate always shares the
+old report's exact title, which held for both known cases). Corrected census numbers not yet folded
+into every historical mention of the old "217 full / 602 partial / 36 none / 14 no_graphs" baseline
+in "Coverage" below beyond a fresh top-line refresh — see updated Coverage section. The 159 residual
+`mixed_resolutions_on_graph` instances (Part 1) were not investigated further this round (correcting
+the stale figure and the duplicate-page bug were the actual asks); a genuine old-tool precedence-
+rule investigation for Route Line Graph/Route Compare Component remains undone if picked up next.
+
+---
+
 ## Round 61 (2026-07-17) — epoch→HH:MM x-axis tick format (the last round-53 priority-list item) (moved verbatim from the live file on 2026-07-17, round 63 start)
 
 **Objective**: ship round-53 priority item #8 (`Epoch→HH:MM x-axis tick format`), root-caused in
