@@ -8,71 +8,71 @@
 > starts, move the previous round's full text to the top of the archive, leave a ledger line here,
 > and fold anything durable into the summary or reference sections.
 
-## Current state (2026-07-20, ROUND 65 COMPLETE: fixed a user-reported epoch-tick regression on a pre-round-61 page (old report 33) by reconverting it, then fixed a second, self-inflicted regression the user caught live — that reconversion's own `--replace` had reset the page's URL from the stable `converted_reports/<title>` scheme back to the converter's throwaway `report_<old_id>` scheme, breaking the bookmarked URL. Root-caused as the *write side* of the same `url_slug`-instability mechanism round 63 diagnosed (round 63 fixed only the *read side* — existence checks — leaving `convert_report()` still minting every new/reconverted page at `report_<old_id>`). Fixed for good: the converter now computes a page's slug the same way the admin UI's own `getUrlSlug()`/`toSnakeCase()` would (`compute_report_slug()`/`to_snake_case()`, exact ports, see Round 65 below) — a page's slug is now BORN on the stable, already-dominant `converted_reports/<title>` lane (34/37 live pages were already there) instead of drifting onto it later, so reconversion no longer changes a page's live URL at all. Round 63 (mixed-resolution figure correction + `_converted_from_old_report_id` idempotency fix), round 64 (duplicate-page cleanup executed), round 62 (axis-label fix), round 61 (epoch x-axis tick format), round 60 (legend/flex width-squeeze), round 59 (TMC meta join swap), and earlier rounds remain DONE — full detail archived, see ledger below. Next work should come from the "Immediate next steps" backlog below, a genuine Route Line Graph resolution-precedence investigation (159 residual `mixed_resolutions_on_graph` instances), or a new user ask.)
+## Current state (2026-07-20, ROUND 66 COMPLETE: user reported backfilling pm3 (source 1410) data for 2018-2020 — confirmed directly against `data_manager.views`/`gis_datasets`: views 3563 (2018, 36,095 rows), 3559 (2019, 46,619 rows), 3555 (2020, 48,700 rows) all carry the full 121-column schema byte-identical to the live 2021-2025 views (speed_pctl_85/lottr_*/tttr_* 100% non-null). Added all three to `PM3_VIEW_BY_YEAR` (`scripts/convert_old_reports.py`) — the single hardcoded dict gating both `ensure_pm3_join_template` (Route/TMC Info Box reliability) and the still-unwired `ensure_bar_graph_summary_pm3_template` — and reran the full census: `full` 194→218 (+24), mapped instances 5,027→5,056 excl. pre-2017-only (+29), `full_producible` 164→174 (+10). This closes essentially the entire real opportunity in the 2018-2020 window (0 "bin ok" Info Box × speed instances remain unmapped for those 3 years) — the previously-documented "293 year-gated" figure was for the FULL 2017-2020 window and is now split: 2018-2020's share is captured, only 2017 (3 report flips, 306/307/309) remains gated, and it's NOT a drop-in add — the 2017 view (3566, 32,915 rows) is missing all 8 `speed_pctl_*` columns (113 vs 121 columns), so it can't back the `freeflow` column the reliability template needs. Bonus finding: `ensure_bar_graph_summary_pm3_template` (Bar Graph Summary × freeflow-byDateRange, round 38) is dead code — built but never wired into the convert/analyze pass because it had 0 real corpus flips at the time; the 2018 backfill alone now makes 22 instances (22 reports) data-feasible, +1 for 2019 — wiring it in is a real, scoped follow-up, not done this round. Round 65 (epoch-tick regression + slug-stability write-side fix), round 63 (mixed-resolution figure correction + idempotency fix), round 64 (duplicate-page cleanup), round 62 (axis-label fix), round 61 (epoch x-axis tick format), round 60 (legend/flex width-squeeze), round 59 (TMC meta join swap), and earlier rounds remain DONE — full detail archived, see ledger below. Next work: decide whether to build the 24 newly-full reports into actual pages, wire `ensure_bar_graph_summary_pm3_template` for the newly-feasible 23 instances, resolve the 2017 freeflow-column gap, or pick from the "Immediate next steps" backlog below / a genuine Route Line Graph resolution-precedence investigation (159 residual `mixed_resolutions_on_graph` instances) / a new user ask.)
 
-## Round 65 (2026-07-20) — user-reported epoch x-axis regression on report 33 (a pre-round-61 page) + a real slug-stability regression this round's own reconversion caused
+## Round 66 (2026-07-20) — pm3 (1410) 2018-2020 backfill wired into `PM3_VIEW_BY_YEAR`; census rerun; 2017 and Bar Graph Summary freeflow scoped as follow-ups
 
-**Context**: user was looking at `converted_reports/tappan_zee_cashless_toll_version_2` and
-reported x-axis ticks were back to raw epoch integers in several graphs, asking whether a
-reconversion would fix it.
+**Context**: user reported backfilling "a ton of pm3 data" for 2020/2019/2018 and asked what it
+does for the census/todo. This bucket had a specific standing precedent: round 15's decomposition
+found 293 of the then-514 unmapped Route/TMC Info Box × speed instances (57%) were "year-gated on
+pm3 2017-2020" — exactly the backfill window [[project_npmrds_1410_vs_2001_backfill]] had already
+decided on, deferred as data work per the standing "ALL data issues are out of scope" directive.
+That data work is what just happened outside this session.
 
-**Root cause (the reported bug)**: confirmed directly against the DB, not assumed. Page `2190736`
-(old report 33, created 2026-07-14) predates round 61 (2026-07-17, the `epoch_time` tick-format fix)
-and round 62 (the xAxis label fix) by 3 days; its AVL Graph sections' `display.xAxis` carried no
-`format` key at all. Root mechanism, newly traced this round: `build_graph_section_data()`
-(`convert_old_reports.py:4100`) does `state = json.loads(tmpl["data"]["stateJson"])` — a full deep
-copy of the shared TEMPLATE row's state, baked into each page's own section at CONVERSION time, not
-a live reference. `ensure_graph_templates()`'s drift-detection loop only refreshes a template when
-SOME report's conversion run actually touches that template's `needed_names` — so shipping a
-template-level fix never retroactively reaches already-baked page sections; only a fresh
-(re)conversion picks it up. A `--replace --dry-run` for report 33 confirmed this exactly: 4 of its
-own shared templates (`tmc_diff_grid_speed_5min`, `tmc_speed_bar_graph_5min`,
-`tmc_speed_line_graph`, `route_diff_speed_5min`) still showed live `xAxis format`/`xAxis label`
-drift — meaning even the SHARED template rows hadn't been touched by any conversion since round
-61/62 shipped, not just this one page's copy.
+**Verification (not taken on the user's word alone)**: queried `data_manager.views` directly for
+`source_id = 1410` — found 6 new view ids beyond the original 5 (2587/2575/2567/2568/3425 for
+2021-2025): 3555 (2020), 3559 (2019), 3563 (2018), plus 3564/3565/3566 for 2017. 3564 (0 rows) and
+3565 (1 row) are stale/failed ETL attempts; 3566 (32,915 rows) is the real 2017 view. Checked
+`information_schema.columns` + row counts for all: **2018/2019/2020 (views 3563/3559/3555, 36,095/
+46,619/48,700 rows) carry the full 121-column schema, byte-identical to the live 2021-2025 views**
+— `speed_pctl_85`/`lottr_*`/`tttr_*` 100% non-null on every row, same shape `ensure_pm3_join_template`
+already builds SQL against. **2017 (view 3566, 32,915 rows) is only 113 columns — missing all 8
+`speed_pctl_*` columns entirely** (lottr/tttr/phed/ted are present). This exactly matches why the
+user said "2020, 2019, and 2018," not 2017 — the 2017 backfill is real but partial.
 
-**Fix (part 1) — reconverted report 33** (`--report-id 33 --replace`): drift-updated all 4 shared
-templates in the same run, then baked the current state into a fresh page. Live-verified via
-`report_probe.mjs` screenshot: every AVL Graph section (Route Bar Graph, Route Difference Graph,
-Route Line Graph, TMC Difference Grid) now ticks real clock times ("6:55", "10:45", ...) labeled
-"Time of Day" instead of raw epoch integers.
+**Fix shipped** (`scripts/convert_old_reports.py` only): added `2018: 3563, 2019: 3559, 2020: 3555`
+to `PM3_VIEW_BY_YEAR` (line 251) — the single hardcoded dict `ensure_pm3_join_template` (Route/TMC
+Info Box reliability) and `ensure_bar_graph_summary_pm3_template` (Bar Graph Summary freeflow, see
+below) both key off `PM3_VIEW_BY_YEAR[year]`, and `census_old_reports.py`'s gap-logging
+(`info_box_year_outside_pm3_coverage`) reads the same dict — a single edit fixes conversion-time
+behavior, the "outside pm3 coverage" gap message, and the census in one place. Deliberately did
+NOT add 2017 — `pm3.speed_pctl_85 as freeflow` would 500 against a view that doesn't have the
+column; needs a no-freeflow template variant or a product decision first, not a drop-in entry.
 
-**Fix (part 2) — a real regression this reconversion itself caused, user-caught**: the first
-`--replace` run minted the new page at the converter's own throwaway `report_33` slug, silently
-breaking the user's live URL (`.../edit/converted_reports/tappan_zee_cashless_toll_version_2`
-stopped resolving; only the new `.../report_33` URL worked). Same `url_slug`-instability class round
-63 diagnosed (the page editor's `updateTitle()`/`getUrlSlug()` recomputes `url_slug` from the title
-on every save — intentional platform behavior, not a bug), but round 63 only fixed the converter's
-*read side* (existence checks keyed off `_converted_from_old_report_id` instead of slug). The
-*write side* was untouched: `convert_report()` still minted every new/reconverted page at
-`report_<old_id>`, so every `--replace` flipped a page's live URL back to `report_<id>` — whatever
-`converted_reports/<title>` scheme it had drifted to (or been created with) — until someone next
-opened/saved it in the admin UI. Checked corpus-wide impact: **34/37 live pages already sit on the
-`converted_reports/<title>` scheme** (only 3 — including the one this round just re-broke — were
-still on the raw scheme), confirming `converted_reports/<title>` is the real, de facto stable lane,
-not `report_<old_id>`.
+**Census impact** (full rerun, `scripts/census_old_reports.py`, read-only, no page mutations):
+`full` 194→218 (+24), `partial` 502→478, mapped instances (excl. pre-2017-only) 5,027→5,056 (+29),
+`full_producible` 164→174 (+10), mapped % 77.0%→77.5%. Raw (incl. pre-2017-only, all 869):
+`full` 270→294, mapped instances 5,485→5,514, 77.2%→77.6%. `converted_pages_total` unchanged at 35
+— this is a pure data-coverage/census gain, no pages were built or reconverted this round.
 
-**Fix shipped** (`scripts/convert_old_reports.py` only): new `to_snake_case()` — an exact port of
-`patterns/page/pages/_utils/index.js`'s `toSnakeCase()` regex, verified byte-identical against the
-live corpus (`"Tappan Zee Cashless Toll Version 2"` → `"tappan_zee_cashless_toll_version_2"`,
-matching the slug segment that was actually live) — and `compute_report_slug(title, index,
-exclude_id)`, an exact port of the same file's `getUrlSlug()` including its collision suffix
-(`${slug}_${item.index}`, for the round-63-noted "Single Route Before and After (Beginner)" 8-way
-title-collision case). `convert_report()` now computes `slug = compute_report_slug(title,
-exclude_id=existing)` right after the `--replace` delete step (excluding a self-collision against
-the page being replaced) instead of `slug = f"report_{old_id}"`; the page-create call and the final
-"view it" URL print (threaded through `finish(..., slug=...)`) both use the real computed value. Net
-effect: a converted page's slug is now BORN equal to what the admin UI would independently derive
-from parent+title — the scheme the platform already converges to — so reconversion no longer
-changes a page's live URL at all. Re-ran `--replace` for report 33 a second time with the fix in
-place: minted directly at `converted_reports/tappan_zee_cashless_toll_version_2` (id `2194949`),
-live-verified both the public and `/edit/` URLs resolve, epoch fix intact.
+**Precise decomposition of what's left** (reused/reran the existing read-only
+`scratchpad/npmrds-sub/old-reports/pm3_backfill_year_breakdown.py`, which imports
+`PM3_VIEW_BY_YEAR` live and diffs against the fresh census): **0 "bin ok" Info Box × speed
+instances remain unmapped for 2018, 2019, or 2020** — the entire real opportunity in those 3 years
+is now captured. Of the 161 Info Box × speed instances still unmapped in the 2017-2020 window:
+**3 (3 reports: 306, 307, 309) are blocked purely on 2017 not being in `PM3_VIEW_BY_YEAR`** (the
+only near-term lever left, gated on the freeflow-column gap above); **the other 158 are
+`bin_undetermined`** (comps whose peak flags don't resolve to exactly one of 1410's amp/midd/pmp/we
+bins — the pre-existing mapping-policy question, untouched by this backfill, not a data gap).
+Outside that window: 76 instances are the permanent pre-2017 exclusion (unrelated fact-table gap,
+not this pm3 gap), 1 is a stray 2026-dated instance.
 
-**Not done**: no sweep of the 2 other currently-live pages still sitting on the raw `report_<id>`
-scheme — not what was asked, and they're not known-broken (lazy-reconvert policy applies; they'll
-converge the next time they're genuinely reconverted or title-saved). No change needed to
-`census_old_reports.py` (it keys off `_converted_from_old_report_id` only, never the create-time
-slug). The 159 residual `mixed_resolutions_on_graph` instances remain unpursued.
+**Bonus finding — a second bucket this backfill unlocks, not yet built**: grepped for
+`ensure_bar_graph_summary_pm3_template` (Bar Graph Summary × `freeflow-byDateRange`, built round 38)
+and found it's **dead code — defined but never called from the convert/analyze pass**, because
+round 38 found the real corpus's 62 instances were all pre-2019-dated, outside 1410's then-current
+2021-2025 coverage (0 real flips, not worth wiring). That reasoning is now stale for part of the
+bucket: the breakdown script shows **22 instances (22 reports) newly data-feasible at 2018, +1 at
+2019** (2020: 0; 2017: 30, but blocked on the same freeflow-column gap as the Info Box bucket).
+Wiring this in is real, scoped follow-up work — not done this round, flagging per
+[[feedback_show_plan_before_large_work]] rather than building it unasked.
+
+**Not done**: no reconversion of the 24 newly-full reports into actual pages (conversion is
+selective by design — becoming "full" in the census doesn't imply a page should be built; that's a
+separate decision). No 2017 freeflow-column workaround. No wiring of
+`ensure_bar_graph_summary_pm3_template`. No resweep of already-converted pages (none of them were
+affected — a report's `graph_max_year` doesn't change after conversion, and the 35 live pages'
+years were already resolvable before this backfill or they wouldn't have been converted).
 
 
 **What this is**: `scripts/convert_old_reports.py` converts old `admin2.reports` (869 total) into
@@ -88,15 +88,17 @@ report-level exclusion; round 40 added `INFO_BOX_LENGTH_BUCKET`/`INFO_BOX_AADT_B
 `INFO_BOX_DELAY_BUCKET` mirrors and a `graph_comps[].id` synthetic-fallback fix; round 49 added
 the `route_map_none`/`route_map_speed` Route Map mirror).
 
-**Coverage** (round-63 census rerun, 2026-07-17, CURRENT — supersedes every number below dated
-2026-07-15 or earlier): **270 full / 556 partial / 29 none / 14 no_graphs** (raw, all 869);
-**5,485/7,103** graph instances mapped (77.2%). Excluding the 133/869 (15.3%) pre-2017-only
-reports: **194 full / 502 partial / 26 none / 14 no_graphs**; **5,027/6,525** mapped (77.0%).
+**Coverage** (round-66 census rerun, 2026-07-20, CURRENT — supersedes every number below dated
+2026-07-17 or earlier): **294 full / 532 partial / 29 none / 14 no_graphs** (raw, all 869);
+**5,514/7,103** graph instances mapped (77.6%). Excluding the 133/869 (15.3%) pre-2017-only
+reports: **218 full / 478 partial / 26 none / 14 no_graphs**; **5,056/6,525** mapped (77.5%).
 Report-level route validity: 33 `ok`, 612 `hinges_on_point_resolution`, **213 `no_valid_routes`
 shells** (unproducible, broken in the OLD tool too), 11 `no_route_comps`. `full_producible`
-(full class, `ok`/`hinges_on_point_resolution` validity, excl. pre-2017-only): **164**.
+(full class, `ok`/`hinges_on_point_resolution` validity, excl. pre-2017-only): **174**.
 `converted_pages_total`: **35** (37 live pages; 2 old-report ids — 1033, 1056 — each still
-carry a stale duplicate page pending deletion, see Round 63 above).
+carry a stale duplicate page pending deletion, see Round 63 above). **Round 66's +24
+full/+10 full_producible is a pure data-coverage gain (pm3 2018-2020 backfill) — no new
+pages were built or converted this round, so `converted_pages_total` is unchanged.**
 
 **Reconciliation note (round 63)**: this `full_producible` (164) looks like a big drop from
 round 52's documented 231 — it is NOT a regression from this session's work. Recomputing
@@ -270,7 +272,10 @@ failed to maintain.
   directive; **140 (27%) are `bin_undetermined`** (comps whose peak flags don't land on
   exactly one of 1410's amp/midd/pmp/we bins — a mapping-policy decision, not data);
   **80 (16%) pre-2017** (permanently excluded); 1 other (2026). Among flip-candidate reports
-  the same split holds (79/35/27 instances). **Route Difference Graph speed×5-min (was #4
+  the same split holds (79/35/27 instances). **STALE as of round 66 (2026-07-20)**: the user
+  backfilled pm3 for 2018-2020 (not 2017), closing that share of the 293 — see Round 66 below.
+  The `bin_undetermined` and pre-2017 shares are UNCHANGED (neither is a data-coverage
+  question). **Route Difference Graph speed×5-min (was #4
   here) and its TMC Difference Grid sibling (was #6) were BUILT in round 52** — no longer an
   open lever, see round 52 below. **The "mixed-resolution precedence policy" lever below is
   STALE, corrected round 63 (2026-07-17)**: what looked like ~392 buildable instances
@@ -425,8 +430,16 @@ failed to maintain.
   landing directly on the stable `converted_reports/<title>` scheme instead of drifting onto it
   later). See Round 65 above.
 
-## Round ledger (rounds 1–63 archived — full detail in [the archive](./old-reports-conversion-archive.md); round 62 is ledger-only below (full detail lives in "Known functionality gaps"), round 65 is current, full detail above)
+## Round ledger (rounds 1–65 archived — full detail in [the archive](./old-reports-conversion-archive.md); round 62 is ledger-only below (full detail lives in "Known functionality gaps"), round 66 is current, full detail above)
 
+- **R65** (07-20): fixed a user-reported epoch-tick regression on old report 33 (a pre-round-61
+  page) by reconverting it, then found and fixed a second, self-inflicted URL-stability regression
+  that very reconversion caused — `convert_report()` was still minting every new/reconverted page
+  at the throwaway `report_<old_id>` slug scheme instead of the stable `converted_reports/<title>`
+  scheme 34/37 live pages already converge to; new `compute_report_slug()`/`to_snake_case()` (exact
+  ports of the admin UI's own `getUrlSlug()`/`toSnakeCase()`) fix it for good — a page's slug is now
+  BORN on the stable scheme. Closes the write-side half of round 63's `url_slug` gap. Full detail:
+  [archive, "Round 65"](./old-reports-conversion-archive.md).
 - **R63** (07-17): corrected the stale "392 mixed-resolution" figure (real remaining count: 159,
   concentrated in Route Line Graph) and fixed the `url_slug`-based idempotency/census bug that let
   2 duplicate converted pages accumulate — `find_page_by_old_report_id()`/`fetch_converted_pages()`

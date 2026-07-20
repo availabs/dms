@@ -18,6 +18,72 @@ and leave only its ledger line in the live file.
 
 ---
 
+## Round 65 (2026-07-20) — user-reported epoch x-axis regression on report 33 (a pre-round-61 page) + a real slug-stability regression this round's own reconversion caused (moved verbatim from the live file on 2026-07-20, round 66 start)
+
+**Context**: user was looking at `converted_reports/tappan_zee_cashless_toll_version_2` and
+reported x-axis ticks were back to raw epoch integers in several graphs, asking whether a
+reconversion would fix it.
+
+**Root cause (the reported bug)**: confirmed directly against the DB, not assumed. Page `2190736`
+(old report 33, created 2026-07-14) predates round 61 (2026-07-17, the `epoch_time` tick-format fix)
+and round 62 (the xAxis label fix) by 3 days; its AVL Graph sections' `display.xAxis` carried no
+`format` key at all. Root mechanism, newly traced this round: `build_graph_section_data()`
+(`convert_old_reports.py:4100`) does `state = json.loads(tmpl["data"]["stateJson"])` — a full deep
+copy of the shared TEMPLATE row's state, baked into each page's own section at CONVERSION time, not
+a live reference. `ensure_graph_templates()`'s drift-detection loop only refreshes a template when
+SOME report's conversion run actually touches that template's `needed_names` — so shipping a
+template-level fix never retroactively reaches already-baked page sections; only a fresh
+(re)conversion picks it up. A `--replace --dry-run` for report 33 confirmed this exactly: 4 of its
+own shared templates (`tmc_diff_grid_speed_5min`, `tmc_speed_bar_graph_5min`,
+`tmc_speed_line_graph`, `route_diff_speed_5min`) still showed live `xAxis format`/`xAxis label`
+drift — meaning even the SHARED template rows hadn't been touched by any conversion since round
+61/62 shipped, not just this one page's copy.
+
+**Fix (part 1) — reconverted report 33** (`--report-id 33 --replace`): drift-updated all 4 shared
+templates in the same run, then baked the current state into a fresh page. Live-verified via
+`report_probe.mjs` screenshot: every AVL Graph section (Route Bar Graph, Route Difference Graph,
+Route Line Graph, TMC Difference Grid) now ticks real clock times ("6:55", "10:45", ...) labeled
+"Time of Day" instead of raw epoch integers.
+
+**Fix (part 2) — a real regression this reconversion itself caused, user-caught**: the first
+`--replace` run minted the new page at the converter's own throwaway `report_33` slug, silently
+breaking the user's live URL (`.../edit/converted_reports/tappan_zee_cashless_toll_version_2`
+stopped resolving; only the new `.../report_33` URL worked). Same `url_slug`-instability class round
+63 diagnosed (the page editor's `updateTitle()`/`getUrlSlug()` recomputes `url_slug` from the title
+on every save — intentional platform behavior, not a bug), but round 63 only fixed the converter's
+*read side* (existence checks keyed off `_converted_from_old_report_id` instead of slug). The
+*write side* was untouched: `convert_report()` still minted every new/reconverted page at
+`report_<old_id>`, so every `--replace` flipped a page's live URL back to `report_<id>` — whatever
+`converted_reports/<title>` scheme it had drifted to (or been created with) — until someone next
+opened/saved it in the admin UI. Checked corpus-wide impact: **34/37 live pages already sit on the
+`converted_reports/<title>` scheme** (only 3 — including the one this round just re-broke — were
+still on the raw scheme), confirming `converted_reports/<title>` is the real, de facto stable lane,
+not `report_<old_id>`.
+
+**Fix shipped** (`scripts/convert_old_reports.py` only): new `to_snake_case()` — an exact port of
+`patterns/page/pages/_utils/index.js`'s `toSnakeCase()` regex, verified byte-identical against the
+live corpus (`"Tappan Zee Cashless Toll Version 2"` → `"tappan_zee_cashless_toll_version_2"`,
+matching the slug segment that was actually live) — and `compute_report_slug(title, index,
+exclude_id)`, an exact port of the same file's `getUrlSlug()` including its collision suffix
+(`${slug}_${item.index}`, for the round-63-noted "Single Route Before and After (Beginner)" 8-way
+title-collision case). `convert_report()` now computes `slug = compute_report_slug(title,
+exclude_id=existing)` right after the `--replace` delete step (excluding a self-collision against
+the page being replaced) instead of `slug = f"report_{old_id}"`; the page-create call and the final
+"view it" URL print (threaded through `finish(..., slug=...)`) both use the real computed value. Net
+effect: a converted page's slug is now BORN equal to what the admin UI would independently derive
+from parent+title — the scheme the platform already converges to — so reconversion no longer
+changes a page's live URL at all. Re-ran `--replace` for report 33 a second time with the fix in
+place: minted directly at `converted_reports/tappan_zee_cashless_toll_version_2` (id `2194949`),
+live-verified both the public and `/edit/` URLs resolve, epoch fix intact.
+
+**Not done**: no sweep of the 2 other currently-live pages still sitting on the raw `report_<id>`
+scheme — not what was asked, and they're not known-broken (lazy-reconvert policy applies; they'll
+converge the next time they're genuinely reconverted or title-saved). No change needed to
+`census_old_reports.py` (it keys off `_converted_from_old_report_id` only, never the create-time
+slug). The 159 residual `mixed_resolutions_on_graph` instances remain unpursued.
+
+---
+
 ## Round 63 (2026-07-17) — corrected the stale "392 mixed-resolution" figure + found/fixed a real duplicate-converted-page bug (url_slug is not a stable identifier) (moved verbatim from the live file on 2026-07-20, round 65 start)
 
 **Context**: session resumed after a `/clear`; user reported "we merged everything to master" and
