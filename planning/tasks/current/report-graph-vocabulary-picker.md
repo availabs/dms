@@ -1,6 +1,6 @@
 # Report Graph Vocabulary Picker — author-facing measure/resolution/comparison-mode config
 
-## Status: NOT STARTED — scoping + investigation complete, plan below, implementation not begun
+## Status: Workstream 1 DONE (2026-07-20). Workstream 2 (the Measure picker UI) NOT STARTED.
 
 ## Objective
 
@@ -225,11 +225,84 @@ generic hook in `src/dms/` plus the real implementation in `src/themes/transport
 
 ## Proposed design
 
-### Workstream 1 — shared vocabulary artifact (one implementation, not two hand-synced copies)
+### Workstream 1 — shared vocabulary artifact — DONE (2026-07-20)
 
 User's stated constraints (2026-07-20): one canonical implementation; minimize regression risk to
 the mature, 68-round-hardened `scripts/convert_old_reports.py`; don't burn effort/tokens iterating
 on this piece repeatedly.
+
+**Implementation summary**: `data-types/npmrds_graph_vocabulary/vocabulary.json` (+ a `README.md`
+in the same directory documenting the field reference, composition contract, and
+regeneration/verification procedure) now holds `measures`/`joins`/`resolutions`/`comparisonModes`.
+`scripts/convert_old_reports.py` sources `SPEED_EXPR`, `SPEED_EXPR_TRUCK`, `TRAVEL_TIME_EXPR`,
+`DELAY_EXPR`, `AVG_DELAY_EXPR`, `CO2_EXPR_PASSENGER`, `CO2_EXPR_TRUCK`, `META_JOIN`,
+`AADT_DIST_JOIN`, `DIST_KEY_EXPR` (derived off `AADT_DIST_JOIN` directly instead of duplicated),
+`WEEKDAY_EXPR`, `HOUR_EXPR`, `QUARTER_HOUR_EXPR`, `MONTH_EXPR`, and `DEFAULT_DIFF_COLOR_RANGE`
+from `GRAPH_VOCAB = json.load(open(VOCAB_PATH))` (loaded once near the top of the file) instead of
+hardcoding them.
+
+**Verification (done, not deferred to a live census rerun)**: the testing checklist below
+originally called for "full census rerun, 0 regressions" — that requires VPN access to the dev DB
+(see `[[reference_dev_db_requires_vpn]]`) and, more importantly, is the wrong tool for verifying a
+*pure constant-relocation* change (census re-exercises live conversion behavior against real data;
+it can't prove two Python literals are byte-identical any more precisely than a direct comparison
+can). Instead: captured every JSON-serializable module-level constant in
+`convert_old_reports.py` (via `dir(module)`, skipping callables/classes/modules, handling
+tuple-keyed dicts like `GRAPH_TEMPLATE_MAP`) both **before** and **after** the edit, and diffed.
+Result: all 88 pre-existing constants — including the full 60-entry `TEMPLATE_SPECS` dict and the
+61-entry `GRAPH_TEMPLATE_MAP` — are byte-for-byte identical; the only new top-level names are
+`VOCAB_PATH`/`GRAPH_VOCAB` themselves. This is a stronger guarantee for this specific change than a
+census run would have been (it catches drift anywhere in the derived constant tree, deterministically,
+with no live DB dependency). The procedure is documented in the vocabulary README's "Regenerating /
+verifying" section for reuse if the vocabulary or its Python consumer changes again.
+
+**Design deviations from the plan as originally written**:
+- The plan said Python would "swap hardcoded string constants for `json.load()` reads" — done
+  literally for most constants, **except** the AADT-override substring-swap machinery
+  (`_CO2_CAR_FACTOR`/`_CO2_TRUCK_FACTOR`/`_SPEED_CAR_EXPR`/`_SPEED_TRUCK_EXPR`/`_AADT_CAR_EXPR`/
+  `_AADT_TRUCK_EXPR`/`_AADT_DELAY_FRAGMENT`/`_AADT_DELAY_OVERRIDE`/`_AADT_CAR_OVERRIDE`/
+  `_AADT_TRUCK_OVERRIDE`/`AADT_OVERRIDE_SUBS`), which stays **entirely untouched, Python-private**.
+  This mechanism does a live string-replace against a report's cloned column expression at
+  substring granularity (`build_graph_section_data`, `overrides.aadt` handling) — refactoring it
+  into the vocabulary would risk breaking byte-identity between the fragment and the expression it
+  must be found inside, for zero benefit (the JS picker doesn't need this report-level override
+  substitution in v1 anyway — see scope). Added two new guard assertions
+  (`assert _AADT_CAR_EXPR in CO2_EXPR_PASSENGER`, `assert _AADT_TRUCK_EXPR in CO2_EXPR_TRUCK`,
+  alongside the pre-existing `assert _AADT_DELAY_FRAGMENT in DELAY_EXPR`) so any future edit that
+  breaks this substring relationship fails loudly at import time instead of silently.
+- **`AVG_DELAY_EXPR` and `CO2_EXPR_PASSENGER`/`CO2_EXPR_TRUCK` are stored as fully-composed final
+  strings in the JSON**, not re-derived at runtime from `DELAY_EXPR`/sub-fragments the way Python
+  used to compose them (an f-string wrapping `DELAY_EXPR` for the former; `.format()` calls over
+  `_CO2_CAR_FACTOR`/`_SPEED_CAR_EXPR`/`_AADT_CAR_EXPR` for the latter two). Reasoning: the JS
+  picker has no equivalent Python sub-fragments to derive from, and re-deriving in two languages
+  independently reintroduces exactly the drift risk this task exists to eliminate. The tradeoff:
+  if `DELAY_EXPR`/`hoursOfDelay` ever changes in the JSON, `avgHoursOfDelay`/CO2 must be
+  hand-updated to match rather than auto-following — mitigated by the documented
+  regenerate-and-byte-diff procedure (README.md), not by runtime coupling.
+- **A new join constant, `TMC_IDENTIFICATION_JOIN` (source 455/view 3464), had to be added** — see
+  the finding below. This was NOT anticipated by the original plan (which only named
+  `META_JOIN`/`AADT_DIST_JOIN`).
+
+**Non-obvious finding (load-bearing for Workstream 2, discovered 2026-07-20 while extracting
+ingredients)**: `speed`/`speedTruck`'s `TEMPLATE_SPECS` entries carry **no `"join"` key at all**,
+yet `SPEED_EXPR` references `table1.miles`. This is not an oversight — `ensure_graph_templates`
+mints new templates by deep-copying `TEMPLATE_BASE_NAME`'s (`tmc_travel_time_line_graph`) live
+`stateJson`, and only *overwrites* `state["join"]` when a spec's `"join"` key is truthy (a full
+replace, never a merge — confirmed at `ensure_graph_templates`'s mint branch,
+`state["join"] = {"sources": spec["join"]}`, and its drift-detection branch). So any spec that
+omits `"join"` silently **inherits whatever join the base template already has** — confirmed live
+by reading `scratchpad/npmrds-sub/old-reports/avl_graph_templates.json` (a dump of the 3
+hand-built pre-converter template rows): all three carry a join to **source 455/view 3464**
+("NPMRDS TMC Identification V5/V6"), a *different* source than `META_JOIN` (582/983) even though
+both happen to expose a `miles` column. This is also already documented (independently, before
+this task) in `src/dms/documentation/npmrds-data-sources.md`'s "Which measures use which source"
+table as "the default join every `avl_graph_template` row carries, not an opt-in one." **A
+from-scratch picker has no base template to clone from and therefore cannot rely on this
+inheritance** — it must wire `TMC_IDENTIFICATION_JOIN` explicitly for any `speed`/`speedTruck`
+measure, which is why this join is now a first-class entry in `vocabulary.json`'s `joins` object
+even though it was never an explicit Python constant before this task. `travelTime` needs no join
+at all (its expression only touches `ds.*` columns) — confirmed by reading `TRAVEL_TIME_EXPR`
+directly, it inherits the same base-template join but never actually uses it.
 
 **Proposed approach**: extract the vocabulary *ingredients* (not the full cartesian-expanded
 `TEMPLATE_SPECS` dict, which exists mainly for the Python tool's own drift-detection needs) into
@@ -257,12 +330,12 @@ themselves. Net effect: the Python-side change is small and mechanical (relocate
 values, low regression risk); the JS side is genuinely new code with no prior implementation to
 regress.
 
-**Where the JSON file lives**: needs to be readable by a Python script at repo-root `scripts/` AND
-importable by the theme-side JS bundle. Proposed: a new top-level location neutral to both, e.g.
-`data-types/npmrds_graph_vocabulary/vocabulary.json` or a new top-level `shared/` — needs a home
-that isn't inside the `src/dms/` submodule (per the library/theme boundary above) and isn't deep
-inside `src/themes/transportny/` if `scripts/convert_old_reports.py` is expected to reach it with a
-plain relative path. **Open decision, pick before implementing.**
+**Where the JSON file lives — DECIDED (2026-07-20, user-confirmed)**:
+`data-types/npmrds_graph_vocabulary/vocabulary.json` (+ sibling `README.md`). Not registered as a
+DMS dataType plugin (no server routes/worker, not in `register-datatypes.js`) — just a plain JSON
+file at a location reachable by `scripts/convert_old_reports.py` via `REPO`-relative path (see
+`VOCAB_PATH` near the top of that file) and importable by Vite's build-time JSON import for the
+theme-side JS bundle (Workstream 2, not yet built).
 
 ### Workstream 2 — the Measure picker UI
 
@@ -288,30 +361,40 @@ plain relative path. **Open decision, pick before implementing.**
 
 ## Open questions / design decisions still needed at implementation time
 
-- Exact shared-JSON-file location (Workstream 1) — needs a home reachable by both the Python
-  script and the theme's JS bundle, outside `src/dms/`.
+- ~~Exact shared-JSON-file location~~ — DECIDED, see Workstream 1 above.
 - Exact `sectionMenu.jsx` extension mechanism (registry flag vs. theme-supplied builder list vs.
   something else) — keep it small and generic; look at how `usesItemMutationProps` was wired for
-  precedent.
-- Full enumeration of which measures require a join vs. not, and which resolution options are
-  valid per graph type (some combinations in `TEMPLATE_SPECS` may not exist for every graph
-  type — don't assume the cartesian product is fully populated; check before building the picker's
-  option lists).
+  precedent. Still open — Workstream 2 not started.
+- Full enumeration of which resolution options are valid per graph type (some combinations in
+  `TEMPLATE_SPECS` may not exist for every graph type — don't assume the cartesian product is
+  fully populated; check before building the picker's option lists). **Partially resolved**: which
+  measures require a join is now settled (see `vocabulary.json`'s `requiresJoin` per measure, and
+  the `TMC_IDENTIFICATION_JOIN` finding above) — what's still open is graph-type × resolution
+  validity, not measure × join.
 - User's "SOME concerns" about `ReportRouteList` capabilities/regressions (raised 2026-07-20, not
   yet specified) — needs a follow-up conversation; may add scope to this task or spin out a
   sibling one.
 
 ## Files requiring changes (expected, not exhaustive — refine during implementation)
 
-| File | Change |
-|---|---|
-| New: shared vocabulary JSON (location TBD, see open questions) | Measure expressions, resolution/axis fragments, comparison-mode/display fragments — plain data, no logic |
-| `scripts/convert_old_reports.py` | `TEMPLATE_SPECS`'s hardcoded constants (`SPEED_EXPR` etc.) sourced from the shared JSON instead of inline Python strings; surrounding logic (gap detection, year/bin gating) untouched |
-| `src/dms/packages/dms/src/patterns/page/components/sections/sectionMenu.jsx` | Small, generic extension point for theme/component-supplied additional item-groups |
-| New, in `src/themes/transportny/`: a Measure picker component/config | Graph type + measure + resolution + comparison-mode controls; composition logic that reads the shared JSON and writes section state |
+| File | Change | Status |
+|---|---|---|
+| `data-types/npmrds_graph_vocabulary/vocabulary.json` (new) | Measure expressions, joins, resolution/axis fragments, comparison-mode fragments — plain data, no logic | DONE |
+| `data-types/npmrds_graph_vocabulary/README.md` (new, not originally planned) | Field reference, composition contract (target/fn/join-merge rules the composer must apply), explicitly-out-of-scope list, regeneration/verification procedure | DONE |
+| `scripts/convert_old_reports.py` | `TEMPLATE_SPECS`'s generative constants (`SPEED_EXPR`, `SPEED_EXPR_TRUCK`, `TRAVEL_TIME_EXPR`, `DELAY_EXPR`, `AVG_DELAY_EXPR`, `CO2_EXPR_PASSENGER`, `CO2_EXPR_TRUCK`, `META_JOIN`, `AADT_DIST_JOIN`, `DIST_KEY_EXPR`, `WEEKDAY_EXPR`, `HOUR_EXPR`, `QUARTER_HOUR_EXPR`, `MONTH_EXPR`, `DEFAULT_DIFF_COLOR_RANGE`) sourced from the shared JSON instead of inline Python strings; AADT-override substring-swap machinery and all surrounding gap-detection/year-bin-gating logic untouched; two new guard assertions added | DONE |
+| `src/dms/packages/dms/src/patterns/page/components/sections/sectionMenu.jsx` | Small, generic extension point for theme/component-supplied additional item-groups | NOT STARTED (Workstream 2) |
+| New, in `src/themes/transportny/`: a Measure picker component/config | Graph type + measure + resolution + comparison-mode controls; composition logic that reads the shared JSON and writes section state (must explicitly wire `TMC_IDENTIFICATION_JOIN` for speed measures — no base template to inherit it from, see finding above) | NOT STARTED (Workstream 2) |
 
 ## Testing checklist (draft — expand during implementation)
 
+- [x] `scripts/convert_old_reports.py`'s behavior is unchanged after switching its constants to
+      read from the shared JSON — verified 2026-07-20 via a full before/after byte-diff of every
+      JSON-serializable module-level constant (88/88 identical, including the full `TEMPLATE_SPECS`
+      and `GRAPH_TEMPLATE_MAP` dicts), not a live census rerun (see Workstream 1 "Verification"
+      note above for why the byte-diff is the more appropriate check for this specific change).
+      A live census rerun against the dev DB is still worth doing opportunistically next time VPN
+      access is available, as a second, independent confirmation — not required to consider this
+      item done.
 - [ ] Picking a measure/resolution/comparison combo on a blank AVL Graph section produces a
       working, live-rendering graph, matching what the equivalent `TEMPLATE_SPECS` entry produces
       via the Python converter today (spot-check at least one plain and one `difference` combo)
@@ -319,8 +402,5 @@ plain relative path. **Open decision, pick before implementing.**
       fields from the previous pick
 - [ ] Generated config remains editable via the existing generic `join`/`comparisonSeries`/pivot/
       Column Manager controls afterward
-- [ ] `scripts/convert_old_reports.py`'s existing test/census behavior is unchanged after switching
-      its constants to read from the shared JSON (full census rerun, 0 regressions vs. pre-change
-      baseline)
 - [ ] `ReportRouteList`'s existing route→graph assignment (`$self` binding) still works unchanged
       alongside a Measure-picker-generated graph section (no interaction assumed, but verify)
