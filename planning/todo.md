@@ -281,6 +281,10 @@
 
 ### patterns/page
 
+- [x] [Section border — per-side width + theme color](./tasks/current/section-border-width-color.md) —
+      let a section render a border with configurable width + a theme-palette color (inline style;
+      Tailwind can't JIT arbitrary values), applied at the section level. Replaces the per-cell
+      `cellBorderColor` hack for the mny Action Prioritize lede's amber left-accent panel. BC.
 - [x] [Map: server-side tile `filter=` from a `serverSide` dynamic-filter](./tasks/current/map-serverside-tile-filter.md) —
       DONE 2026-07-17. A symbology dynamic-filter flagged `serverSide:true` makes `getLayerTileUrl`
       emit `&filter=<col>='…'` so the tile route filters rows in PostGIS ST_AsMVT before emitting
