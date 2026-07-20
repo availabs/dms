@@ -18,6 +18,72 @@ and leave only its ledger line in the live file.
 
 ---
 
+## Round 66 (2026-07-20) — pm3 (1410) 2018-2020 backfill wired into `PM3_VIEW_BY_YEAR`; census rerun; 2017 and Bar Graph Summary freeflow scoped as follow-ups (moved verbatim from the live file on 2026-07-20, round 67 start)
+
+**Context**: user reported backfilling "a ton of pm3 data" for 2020/2019/2018 and asked what it
+does for the census/todo. This bucket had a specific standing precedent: round 15's decomposition
+found 293 of the then-514 unmapped Route/TMC Info Box × speed instances (57%) were "year-gated on
+pm3 2017-2020" — exactly the backfill window [[project_npmrds_1410_vs_2001_backfill]] had already
+decided on, deferred as data work per the standing "ALL data issues are out of scope" directive.
+That data work is what just happened outside this session.
+
+**Verification (not taken on the user's word alone)**: queried `data_manager.views` directly for
+`source_id = 1410` — found 6 new view ids beyond the original 5 (2587/2575/2567/2568/3425 for
+2021-2025): 3555 (2020), 3559 (2019), 3563 (2018), plus 3564/3565/3566 for 2017. 3564 (0 rows) and
+3565 (1 row) are stale/failed ETL attempts; 3566 (32,915 rows) is the real 2017 view. Checked
+`information_schema.columns` + row counts for all: **2018/2019/2020 (views 3563/3559/3555, 36,095/
+46,619/48,700 rows) carry the full 121-column schema, byte-identical to the live 2021-2025 views**
+— `speed_pctl_85`/`lottr_*`/`tttr_*` 100% non-null on every row, same shape `ensure_pm3_join_template`
+already builds SQL against. **2017 (view 3566, 32,915 rows) is only 113 columns — missing all 8
+`speed_pctl_*` columns entirely** (lottr/tttr/phed/ted are present). This exactly matches why the
+user said "2020, 2019, and 2018," not 2017 — the 2017 backfill is real but partial.
+
+**Fix shipped** (`scripts/convert_old_reports.py` only): added `2018: 3563, 2019: 3559, 2020: 3555`
+to `PM3_VIEW_BY_YEAR` (line 251) — the single hardcoded dict `ensure_pm3_join_template` (Route/TMC
+Info Box reliability) and `ensure_bar_graph_summary_pm3_template` (Bar Graph Summary freeflow, see
+below) both key off `PM3_VIEW_BY_YEAR[year]`, and `census_old_reports.py`'s gap-logging
+(`info_box_year_outside_pm3_coverage`) reads the same dict — a single edit fixes conversion-time
+behavior, the "outside pm3 coverage" gap message, and the census in one place. Deliberately did
+NOT add 2017 — `pm3.speed_pctl_85 as freeflow` would 500 against a view that doesn't have the
+column; needs a no-freeflow template variant or a product decision first, not a drop-in entry.
+
+**Census impact** (full rerun, `scripts/census_old_reports.py`, read-only, no page mutations):
+`full` 194→218 (+24), `partial` 502→478, mapped instances (excl. pre-2017-only) 5,027→5,056 (+29),
+`full_producible` 164→174 (+10), mapped % 77.0%→77.5%. Raw (incl. pre-2017-only, all 869):
+`full` 270→294, mapped instances 5,485→5,514, 77.2%→77.6%. `converted_pages_total` unchanged at 35
+— this is a pure data-coverage/census gain, no pages were built or reconverted this round.
+
+**Precise decomposition of what's left** (reused/reran the existing read-only
+`scratchpad/npmrds-sub/old-reports/pm3_backfill_year_breakdown.py`, which imports
+`PM3_VIEW_BY_YEAR` live and diffs against the fresh census): **0 "bin ok" Info Box × speed
+instances remain unmapped for 2018, 2019, or 2020** — the entire real opportunity in those 3 years
+is now captured. Of the 161 Info Box × speed instances still unmapped in the 2017-2020 window:
+**3 (3 reports: 306, 307, 309) are blocked purely on 2017 not being in `PM3_VIEW_BY_YEAR`** (the
+only near-term lever left, gated on the freeflow-column gap above); **the other 158 are
+`bin_undetermined`** (comps whose peak flags don't resolve to exactly one of 1410's amp/midd/pmp/we
+bins — the pre-existing mapping-policy question, untouched by this backfill, not a data gap).
+Outside that window: 76 instances are the permanent pre-2017 exclusion (unrelated fact-table gap,
+not this pm3 gap), 1 is a stray 2026-dated instance.
+
+**Bonus finding — a second bucket this backfill unlocks, not yet built**: grepped for
+`ensure_bar_graph_summary_pm3_template` (Bar Graph Summary × `freeflow-byDateRange`, built round 38)
+and found it's **dead code — defined but never called from the convert/analyze pass**, because
+round 38 found the real corpus's 62 instances were all pre-2019-dated, outside 1410's then-current
+2021-2025 coverage (0 real flips, not worth wiring). That reasoning is now stale for part of the
+bucket: the breakdown script shows **22 instances (22 reports) newly data-feasible at 2018, +1 at
+2019** (2020: 0; 2017: 30, but blocked on the same freeflow-column gap as the Info Box bucket).
+Wiring this in is real, scoped follow-up work — not done this round, flagging per
+[[feedback_show_plan_before_large_work]] rather than building it unasked.
+
+**Not done**: no reconversion of the 24 newly-full reports into actual pages (conversion is
+selective by design — becoming "full" in the census doesn't imply a page should be built; that's a
+separate decision). No 2017 freeflow-column workaround. No wiring of
+`ensure_bar_graph_summary_pm3_template`. No resweep of already-converted pages (none of them were
+affected — a report's `graph_max_year` doesn't change after conversion, and the 35 live pages'
+years were already resolvable before this backfill or they wouldn't have been converted).
+
+---
+
 ## Round 65 (2026-07-20) — user-reported epoch x-axis regression on report 33 (a pre-round-61 page) + a real slug-stability regression this round's own reconversion caused (moved verbatim from the live file on 2026-07-20, round 66 start)
 
 **Context**: user was looking at `converted_reports/tappan_zee_cashless_toll_version_2` and

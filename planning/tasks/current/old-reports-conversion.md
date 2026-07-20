@@ -8,71 +8,80 @@
 > starts, move the previous round's full text to the top of the archive, leave a ledger line here,
 > and fold anything durable into the summary or reference sections.
 
-## Current state (2026-07-20, ROUND 66 COMPLETE: user reported backfilling pm3 (source 1410) data for 2018-2020 — confirmed directly against `data_manager.views`/`gis_datasets`: views 3563 (2018, 36,095 rows), 3559 (2019, 46,619 rows), 3555 (2020, 48,700 rows) all carry the full 121-column schema byte-identical to the live 2021-2025 views (speed_pctl_85/lottr_*/tttr_* 100% non-null). Added all three to `PM3_VIEW_BY_YEAR` (`scripts/convert_old_reports.py`) — the single hardcoded dict gating both `ensure_pm3_join_template` (Route/TMC Info Box reliability) and the still-unwired `ensure_bar_graph_summary_pm3_template` — and reran the full census: `full` 194→218 (+24), mapped instances 5,027→5,056 excl. pre-2017-only (+29), `full_producible` 164→174 (+10). This closes essentially the entire real opportunity in the 2018-2020 window (0 "bin ok" Info Box × speed instances remain unmapped for those 3 years) — the previously-documented "293 year-gated" figure was for the FULL 2017-2020 window and is now split: 2018-2020's share is captured, only 2017 (3 report flips, 306/307/309) remains gated, and it's NOT a drop-in add — the 2017 view (3566, 32,915 rows) is missing all 8 `speed_pctl_*` columns (113 vs 121 columns), so it can't back the `freeflow` column the reliability template needs. Bonus finding: `ensure_bar_graph_summary_pm3_template` (Bar Graph Summary × freeflow-byDateRange, round 38) is dead code — built but never wired into the convert/analyze pass because it had 0 real corpus flips at the time; the 2018 backfill alone now makes 22 instances (22 reports) data-feasible, +1 for 2019 — wiring it in is a real, scoped follow-up, not done this round. Round 65 (epoch-tick regression + slug-stability write-side fix), round 63 (mixed-resolution figure correction + idempotency fix), round 64 (duplicate-page cleanup), round 62 (axis-label fix), round 61 (epoch x-axis tick format), round 60 (legend/flex width-squeeze), round 59 (TMC meta join swap), and earlier rounds remain DONE — full detail archived, see ledger below. Next work: decide whether to build the 24 newly-full reports into actual pages, wire `ensure_bar_graph_summary_pm3_template` for the newly-feasible 23 instances, resolve the 2017 freeflow-column gap, or pick from the "Immediate next steps" backlog below / a genuine Route Line Graph resolution-precedence investigation (159 residual `mixed_resolutions_on_graph` instances) / a new user ask.)
+## Current state (2026-07-20, ROUND 67 COMPLETE: read the old tool's actual multi-comp resolution-precedence code (`GeneralGraphComp.jsx`/`RouteLineGraph.jsx`/`RouteCompareComponent.jsx`, transportNY) to resolve the round-63 "159 mixed_resolutions_on_graph instances" open question — confirmed the user's hunch that no real policy decision was needed. Breakdown of the 159 by old graph type: 121 Route Line Graph, 21 Route Compare Component, 17 scattered tail types. **Route Compare Component (21) was a pure false positive**: `RouteCompareComponent.jsx` reduces each comp to one whole-date-range scalar independently (`allReducer`/`reducer`) and never actually reads its own `resolution` parameter — exactly like `ensure_route_compare_template`'s self-aggregating `MEASURE_EXPR`. Added it to the resolution-irrelevant exemption in `analyze_graph` (same idiom as the existing Route Map exemption) and dropped `info["resolution"]` from the `ROUTE_COMPARE_BUCKET` match entirely (it was never part of the real component's behavior) — this also incidentally unblocked same-measure/dataColumn instances that had a single non-"5-minutes" resolution (e.g. "day"), 36 total instances now newly matched, not just the 21 mixed ones. **Route Line Graph (121) had a real but fully deterministic old-tool rule, not an open design question**: `RouteLineGraph.jsx` overrides `getResolution()`/`getActiveRouteComponents()` to default to the FIRST comp's resolution (original report order, `state.resolution` can override it if some comp actually has that value) and filters the active comp set down to ONLY comps matching that resolution — comps in other groups are silently excluded by default (an author-facing "Resolution" dropdown lets a viewer manually switch groups; not replicated, conversion just lands on the default group same as an unopened report would render). Ported this exact rule into `analyze_graph` as a new branch (only fires when `state.activeRouteComponents` is absent, matching the old JS's own literal-override behavior). Full census rerun (869/869, 0 errors): `full` (excl. pre-2017) 218→229 (+11), `full_producible` 174→181 (+7), mapped instances (excl. pre-2017) 5,056→5,162 (+106). `mixed_resolutions_on_graph` dropped 159→20 (13 reports) — live-verified end-to-end via dry-run on reports 316 (Route Line Graph speed×5-min, previously-mixed comp now converts) and 323 (Route Compare Component "day"-resolution graph now converts). The residual 20 are genuine: 3 Route Line Graph instances (2 reports: 271, 793) where the OLD REPORT ITSELF explicitly set `state.activeRouteComponents` spanning mixed-resolution comps (a real old-tool ambiguity baked into that report's own configuration, not analyzer noise) + 17 already-out-of-scope tail-type instances (Route Map avgHoursOfDelay's 1 genuine case, Text Box, Traffic Volume Graph, Transcom Events Chart, Monthly Hours Graph, Distribution Graph, Stacked Transcom Graph, Experiential Travel Time, HDS Bar Graph, HDS Line Graph). `converted_pages_total` unchanged at 35 — pure data/logic-coverage gain, no pages built or reconverted this round (same pattern as round 66). Round 66 (pm3 2018-2020 backfill), round 65 (epoch-tick regression + slug-stability write-side fix), round 63 (mixed-resolution figure correction + idempotency fix), round 64 (duplicate-page cleanup), round 62 (axis-label fix), round 61 (epoch x-axis tick format), round 60 (legend/flex width-squeeze), round 59 (TMC meta join swap), and earlier rounds remain DONE — full detail archived, see ledger below. Next work: decide whether to build the newly-full reports (24 from round 66 + 11 from round 67) into actual pages, wire `ensure_bar_graph_summary_pm3_template` for the pm3-backfill-feasible 23 instances, resolve the 2017 freeflow-column gap, or pick from the "Immediate next steps" backlog below / a new user ask.)
 
-## Round 66 (2026-07-20) — pm3 (1410) 2018-2020 backfill wired into `PM3_VIEW_BY_YEAR`; census rerun; 2017 and Bar Graph Summary freeflow scoped as follow-ups
+## Round 67 (2026-07-20) — Route Line Graph/Route Compare Component resolution-precedence read from the old tool and ported; closes the round-63 mixed-resolution open question with no policy decision needed
 
-**Context**: user reported backfilling "a ton of pm3 data" for 2020/2019/2018 and asked what it
-does for the census/todo. This bucket had a specific standing precedent: round 15's decomposition
-found 293 of the then-514 unmapped Route/TMC Info Box × speed instances (57%) were "year-gated on
-pm3 2017-2020" — exactly the backfill window [[project_npmrds_1410_vs_2001_backfill]] had already
-decided on, deferred as data work per the standing "ALL data issues are out of scope" directive.
-That data work is what just happened outside this session.
+**Context**: round 63 had flagged a genuine (not analyzer-noise) residual of 159
+`mixed_resolutions_on_graph` instances / 127 reports, concentrated in Route Line Graph and Route
+Compare Component, and left it open pending "the old tool's actual multi-comp precedence rule
+(`GeneralGraphComp` — not yet read for this narrower case) + a user policy sign-off." User's own
+prediction going in: "my guess is that we dont really need to make much of a decision" — confirmed
+correct.
 
-**Verification (not taken on the user's word alone)**: queried `data_manager.views` directly for
-`source_id = 1410` — found 6 new view ids beyond the original 5 (2587/2575/2567/2568/3425 for
-2021-2025): 3555 (2020), 3559 (2019), 3563 (2018), plus 3564/3565/3566 for 2017. 3564 (0 rows) and
-3565 (1 row) are stale/failed ETL attempts; 3566 (32,915 rows) is the real 2017 view. Checked
-`information_schema.columns` + row counts for all: **2018/2019/2020 (views 3563/3559/3555, 36,095/
-46,619/48,700 rows) carry the full 121-column schema, byte-identical to the live 2021-2025 views**
-— `speed_pctl_85`/`lottr_*`/`tttr_*` 100% non-null on every row, same shape `ensure_pm3_join_template`
-already builds SQL against. **2017 (view 3566, 32,915 rows) is only 113 columns — missing all 8
-`speed_pctl_*` columns entirely** (lottr/tttr/phed/ted are present). This exactly matches why the
-user said "2020, 2019, and 2018," not 2017 — the 2017 backfill is real but partial.
+**What was read**: `GeneralGraphComp.jsx`, `RouteLineGraph.jsx`, `RouteCompareComponent.jsx`
+(transportNY, `pages/analysis/components/tmc_graphs/`) directly, not inferred from behavior.
 
-**Fix shipped** (`scripts/convert_old_reports.py` only): added `2018: 3563, 2019: 3559, 2020: 3555`
-to `PM3_VIEW_BY_YEAR` (line 251) — the single hardcoded dict `ensure_pm3_join_template` (Route/TMC
-Info Box reliability) and `ensure_bar_graph_summary_pm3_template` (Bar Graph Summary freeflow, see
-below) both key off `PM3_VIEW_BY_YEAR[year]`, and `census_old_reports.py`'s gap-logging
-(`info_box_year_outside_pm3_coverage`) reads the same dict — a single edit fixes conversion-time
-behavior, the "outside pm3 coverage" gap message, and the census in one place. Deliberately did
-NOT add 2017 — `pm3.speed_pctl_85 as freeflow` would 500 against a view that doesn't have the
-column; needs a no-freeflow template variant or a product decision first, not a drop-in entry.
+**Breakdown of the 159 by old graph type** (read-only script,
+`scratchpad/npmrds-sub/old-reports/mixed_resolution_breakdown.py`): **121 Route Line Graph, 21
+Route Compare Component, 17 scattered across already out-of-scope tail types** (Text Box, Traffic
+Volume Graph, Transcom Events Chart, Monthly Hours Graph, Distribution Graph, Stacked Transcom
+Graph, Route Map, Experiential Travel Time, HDS Bar Graph, HDS Line Graph).
 
-**Census impact** (full rerun, `scripts/census_old_reports.py`, read-only, no page mutations):
-`full` 194→218 (+24), `partial` 502→478, mapped instances (excl. pre-2017-only) 5,027→5,056 (+29),
-`full_producible` 164→174 (+10), mapped % 77.0%→77.5%. Raw (incl. pre-2017-only, all 869):
-`full` 270→294, mapped instances 5,485→5,514, 77.2%→77.6%. `converted_pages_total` unchanged at 35
-— this is a pure data-coverage/census gain, no pages were built or reconverted this round.
+**Route Compare Component (21) — pure false positive, same class as the existing Route Map
+exemption**: `RouteCompareComponent.jsx` is not a shared-axis chart at all — it's a base-vs-compare
+*table*; each assigned comp is independently reduced to one scalar via `allReducer`/`reducer` at
+its own configured resolution, and the `resolution` parameter threaded through
+`generateGraphData`/`generateTableData`/`renderGraph` is never actually referenced in the component
+body — mirrors `ensure_route_compare_template`'s own self-aggregating `MEASURE_EXPR` (no resolution
+dimension in the SQL either). Fix: added `"Route Compare Component"` to the resolution-irrelevant
+exemption in `analyze_graph` (mirrors the existing `route_map_resolution_irrelevant` check) and
+dropped `info["resolution"]` from the `ROUTE_COMPARE_BUCKET` match in the template-selection loop
+entirely (measure + dataColumn only). **Bonus effect**: since resolution was never actually part of
+the real behavior, this also unblocked same-measure/dataColumn instances that happened to have a
+single, consistent, non-"5-minutes" resolution (e.g. "day") — 36 instances newly match the bucket,
+not just the 21 that were flagged mixed. Live-verified via dry-run on report 323's `graph-idx-4`
+(resolution `"day"`) — converts cleanly, no gap logged.
 
-**Precise decomposition of what's left** (reused/reran the existing read-only
-`scratchpad/npmrds-sub/old-reports/pm3_backfill_year_breakdown.py`, which imports
-`PM3_VIEW_BY_YEAR` live and diffs against the fresh census): **0 "bin ok" Info Box × speed
-instances remain unmapped for 2018, 2019, or 2020** — the entire real opportunity in those 3 years
-is now captured. Of the 161 Info Box × speed instances still unmapped in the 2017-2020 window:
-**3 (3 reports: 306, 307, 309) are blocked purely on 2017 not being in `PM3_VIEW_BY_YEAR`** (the
-only near-term lever left, gated on the freeflow-column gap above); **the other 158 are
-`bin_undetermined`** (comps whose peak flags don't resolve to exactly one of 1410's amp/midd/pmp/we
-bins — the pre-existing mapping-policy question, untouched by this backfill, not a data gap).
-Outside that window: 76 instances are the permanent pre-2017 exclusion (unrelated fact-table gap,
-not this pm3 gap), 1 is a stray 2026-dated instance.
+**Route Line Graph (121, the real bulk) — a real but fully deterministic old-tool rule, not an
+open design question**: `RouteLineGraph.jsx` overrides both `GeneralGraphComp.getResolution()` and
+`getActiveRouteComponents()`. With no explicit `state.activeRouteComponents` (the common case —
+this is what the "no policy decision" hunch was right about): resolution defaults to the FIRST
+comp's own resolution in the report's original comp order (`routes[0].settings.resolution`),
+overridable only by an explicit `state.resolution` IF some comp in the report actually carries
+that value; then `getActiveRouteComponents()` filters the comp list down to ONLY the comps matching
+that winning resolution — comps in other resolution groups are silently excluded from the graph by
+default (real old-tool behavior: an author-facing "Resolution" dropdown lets a viewer manually
+switch which group is shown, whenever the report's comps span >1 resolution). Ported the exact
+default-group rule into `analyze_graph` (a new branch, only engaged when
+`state.activeRouteComponents` is absent, matching the JS's own literal-override precedence — an
+explicit `activeRouteComponents` selection in the old report bypasses resolution filtering
+entirely in the JS too, so those cases are correctly left as a genuine residual, not fixed). The
+selector-toggle UX itself was NOT replicated — conversion just lands on the default group, exactly
+what an unopened old report would render. Live-verified via dry-run on report 316's `graph-idx-0`
+(previously a 3-comp report with 2 resolutions; now resolves deterministically to `"5-minutes"`
+with 2/3 comps assigned) — converts cleanly, no gap logged.
 
-**Bonus finding — a second bucket this backfill unlocks, not yet built**: grepped for
-`ensure_bar_graph_summary_pm3_template` (Bar Graph Summary × `freeflow-byDateRange`, built round 38)
-and found it's **dead code — defined but never called from the convert/analyze pass**, because
-round 38 found the real corpus's 62 instances were all pre-2019-dated, outside 1410's then-current
-2021-2025 coverage (0 real flips, not worth wiring). That reasoning is now stale for part of the
-bucket: the breakdown script shows **22 instances (22 reports) newly data-feasible at 2018, +1 at
-2019** (2020: 0; 2017: 30, but blocked on the same freeflow-column gap as the Info Box bucket).
-Wiring this in is real, scoped follow-up work — not done this round, flagging per
-[[feedback_show_plan_before_large_work]] rather than building it unasked.
+**Census impact** (full rerun, `scripts/census_old_reports.py`, read-only, no page mutations, 0
+errors): `full` (excl. pre-2017) 218→229 (+11), `full_producible` 174→181 (+7), mapped instances
+(excl. pre-2017) 5,056→5,162 (+106). Raw (incl. pre-2017-only): `full` 294→305, mapped
+5,514→5,621. `mixed_resolutions_on_graph` gap count: 159→20 (13 reports). `converted_pages_total`
+unchanged at 35 — pure data/logic-coverage gain, no pages built or reconverted this round (same
+pattern as round 66's pm3 backfill).
 
-**Not done**: no reconversion of the 24 newly-full reports into actual pages (conversion is
-selective by design — becoming "full" in the census doesn't imply a page should be built; that's a
-separate decision). No 2017 freeflow-column workaround. No wiring of
-`ensure_bar_graph_summary_pm3_template`. No resweep of already-converted pages (none of them were
-affected — a report's `graph_max_year` doesn't change after conversion, and the 35 live pages'
-years were already resolvable before this backfill or they wouldn't have been converted).
+**Genuine residual (20 instances / 13 reports, not chased further)**: 3 Route Line Graph instances
+(reports 271, 793) where the OLD REPORT ITSELF explicitly set `state.activeRouteComponents`
+spanning comps of different resolutions — a real ambiguity baked into that report's own past
+authoring, not analyzer noise, and correctly left gap-logged (report 271 is also pre-2017-only
+regardless). The other 17 are the already out-of-scope tail types listed above (1 of which, Route
+Map, is a genuine avgHoursOfDelay case — the other 145 Route Map mixed-resolution instances were
+already exempted in round 63).
+
+**Not done**: no reconversion/resweep of already-converted pages (lazy-reconvert policy — none of
+the 35 live pages were affected, same reasoning as round 66). No building of the 11 newly-full
+reports into actual pages (separate decision, same as round 66's 24). No replication of
+`RouteLineGraph`'s author-facing "Resolution" selector UI (out of scope for this fix — the
+converter picks the same default a fresh report open would show).
 
 
 **What this is**: `scripts/convert_old_reports.py` converts old `admin2.reports` (869 total) into
@@ -88,17 +97,19 @@ report-level exclusion; round 40 added `INFO_BOX_LENGTH_BUCKET`/`INFO_BOX_AADT_B
 `INFO_BOX_DELAY_BUCKET` mirrors and a `graph_comps[].id` synthetic-fallback fix; round 49 added
 the `route_map_none`/`route_map_speed` Route Map mirror).
 
-**Coverage** (round-66 census rerun, 2026-07-20, CURRENT — supersedes every number below dated
-2026-07-17 or earlier): **294 full / 532 partial / 29 none / 14 no_graphs** (raw, all 869);
-**5,514/7,103** graph instances mapped (77.6%). Excluding the 133/869 (15.3%) pre-2017-only
-reports: **218 full / 478 partial / 26 none / 14 no_graphs**; **5,056/6,525** mapped (77.5%).
+**Coverage** (round-67 census rerun, 2026-07-20, CURRENT — supersedes every number below dated
+2026-07-17 or earlier): **305 full / 521 partial / 29 none / 14 no_graphs** (raw, all 869);
+**5,621/7,103** graph instances mapped (79.1%). Excluding the 133/869 (15.3%) pre-2017-only
+reports: **229 full / 467 partial / 26 none / 14 no_graphs**; **5,162/6,525** mapped (79.1%).
 Report-level route validity: 33 `ok`, 612 `hinges_on_point_resolution`, **213 `no_valid_routes`
 shells** (unproducible, broken in the OLD tool too), 11 `no_route_comps`. `full_producible`
-(full class, `ok`/`hinges_on_point_resolution` validity, excl. pre-2017-only): **174**.
+(full class, `ok`/`hinges_on_point_resolution` validity, excl. pre-2017-only): **181**.
 `converted_pages_total`: **35** (37 live pages; 2 old-report ids — 1033, 1056 — each still
 carry a stale duplicate page pending deletion, see Round 63 above). **Round 66's +24
-full/+10 full_producible is a pure data-coverage gain (pm3 2018-2020 backfill) — no new
-pages were built or converted this round, so `converted_pages_total` is unchanged.**
+full/+10 full_producible (pm3 2018-2020 backfill) and round 67's +11 full/+7 full_producible
+(Route Line Graph/Route Compare Component resolution-precedence fix) are both pure data/logic-
+coverage gains — no new pages were built or converted either round, so `converted_pages_total`
+is unchanged.**
 
 **Reconciliation note (round 63)**: this `full_producible` (164) looks like a big drop from
 round 52's documented 231 — it is NOT a regression from this session's work. Recomputing
@@ -284,12 +295,20 @@ failed to maintain.
   of Delay Graph/TMC Info Box only ever render their FIRST assigned comp, never "every comp",
   per old `GeneralGraphComp.getActiveRouteComponents()`'s real default) plus Route Map/Bar
   Graph Summary resolution-irrelevance (both confirmed by reading each old component
-  directly) closed most of it without needing any precedence-rule decision at all. Fresh
-  census: **159 instances / 127 reports** remain, concentrated in Route Line Graph (a
-  genuinely shared time axis across comps, so a real ambiguity) and Route Compare Component —
-  if pursued further, THIS is the narrower, real remaining question needing the old tool's
-  actual multi-comp precedence rule (`GeneralGraphComp` — not yet read for this narrower
-  case) + a user policy sign-off.
+  directly) closed most of it without needing any precedence-rule decision at all. **CLOSED
+  round 67 (2026-07-20)**: read `RouteLineGraph.jsx`/`RouteCompareComponent.jsx` directly for
+  the narrower 159-instance residual (121 Route Line Graph, 21 Route Compare Component, 17
+  tail types) — no policy sign-off was actually needed, confirming the user's own prediction.
+  Route Compare Component's 21 were a pure false positive (resolution is genuinely never read
+  by that component, same class as Route Map's exemption); Route Line Graph's 121 had one
+  fully deterministic old-tool default (first comp's resolution wins, non-matching comps
+  silently excluded — an author-facing selector exists in the old tool for switching groups,
+  not replicated here). Both ported into `analyze_graph`; census confirms `full` +11,
+  `full_producible` +7, mapped instances +106, `mixed_resolutions_on_graph` 159→20. See Round
+  67 above for full detail. Residual 20 (3 Route Line Graph + 17 tail-type) are genuine, not
+  worth chasing further — 3 come from reports whose OWN old `state.activeRouteComponents`
+  explicitly spans mixed resolutions, an ambiguity baked into that report's own past
+  authoring, not analyzer noise.
 - **`META_JOIN` (hoursOfDelay/avgHoursOfDelay/co2Emissions/avgCo2Emissions) is year-matched, not
   frozen (round 59)**: source 582/view 983 (`NPMRDS_V6_tmc_meta`), joined via a COMPOUND key
   (`tmc=tmc AND toYear(ds.date) as ... = table1.year`) so every fact row resolves its own date's
@@ -421,8 +440,10 @@ failed to maintain.
   only one live page + one snap row remains for each of old reports 1033 (`2194141`) and 1056
   (`2192501`), zero orphaned snap rows referencing the old stale page ids. Census confirms
   `converted_pages_total: 35`, matching R63's post-fix expectation exactly — no duplicates remain.
-  **Open**: a genuine Route Line Graph/Route Compare Component resolution-precedence investigation,
-  if the remaining 159 mixed-resolution instances are worth pursuing next.
+  **Follow-up DONE (R67, 2026-07-20)**: the Route Line Graph/Route Compare Component resolution-
+  precedence investigation — read the old tool directly, ported its real precedence rule, closed
+  159→20 mixed-resolution instances, `full` +11/`full_producible` +7/mapped +106. See Round 67
+  above; no remaining open question here.
 - [x] **(n) DONE (R65, 2026-07-20)**: user-reported epoch-tick regression on old report 33 (a
   pre-round-61 page) fixed by reconversion; found + fixed a second, self-inflicted URL-stability
   regression that reconversion caused (closes the write-side half of round 63's `url_slug` gap —
@@ -430,8 +451,17 @@ failed to maintain.
   landing directly on the stable `converted_reports/<title>` scheme instead of drifting onto it
   later). See Round 65 above.
 
-## Round ledger (rounds 1–65 archived — full detail in [the archive](./old-reports-conversion-archive.md); round 62 is ledger-only below (full detail lives in "Known functionality gaps"), round 66 is current, full detail above)
+## Round ledger (rounds 1–66 archived — full detail in [the archive](./old-reports-conversion-archive.md); round 62 is ledger-only below (full detail lives in "Known functionality gaps"), round 67 is current, full detail above)
 
+- **R66** (07-20): pm3 (source 1410) 2018-2020 backfill wired into `PM3_VIEW_BY_YEAR` (user
+  backfilled the underlying data outside this session) — `full` 194→218 (+24), `full_producible`
+  164→174 (+10), mapped instances (excl. pre-2017) 5,027→5,056 (+29). 2017 deliberately NOT added
+  (view is missing all 8 `speed_pctl_*` columns, can't back `freeflow`). Bonus finding:
+  `ensure_bar_graph_summary_pm3_template` (Bar Graph Summary × freeflow-byDateRange) is dead code,
+  never wired into the convert/analyze pass — the backfill makes 22+1 instances newly
+  data-feasible, scoped as a follow-up, not built this round. `converted_pages_total` unchanged
+  (35) — pure data-coverage gain, no pages built/reconverted. Full detail: [archive, "Round
+  66"](./old-reports-conversion-archive.md).
 - **R65** (07-20): fixed a user-reported epoch-tick regression on old report 33 (a pre-round-61
   page) by reconverting it, then found and fixed a second, self-inflicted URL-stability regression
   that very reconversion caused — `convert_report()` was still minting every new/reconverted page
