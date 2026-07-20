@@ -198,6 +198,7 @@ async function setupAndListen() {
   // Resolved against cwd so relative paths (e.g. `./server/register-datatypes.js`)
   // work in dev without depending on dms-server's own location.
   const extraDatatypes = process.env.DMS_EXTRA_DATATYPES;
+
   if (extraDatatypes) {
     try {
       const registerExtra = require(require('path').resolve(extraDatatypes));
