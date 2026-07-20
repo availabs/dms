@@ -144,6 +144,76 @@ const initSync = async (dbConnection) => {
       throw error;
     }
   }
+
+  // Migration: add audit columns to change_log for existing databases.
+  // Postgres: ADD COLUMN IF NOT EXISTS is idempotent.
+  // SQLite: try each ADD COLUMN and ignore "duplicate column name" errors.
+  const changeLogTbl = dbType === "postgres" ? "dms.change_log" : "change_log";
+  if (dbType === "postgres") {
+    await dbConnection.query(`
+      ALTER TABLE ${changeLogTbl}
+        ADD COLUMN IF NOT EXISTS ip         TEXT,
+        ADD COLUMN IF NOT EXISTS user_agent TEXT,
+        ADD COLUMN IF NOT EXISTS auth_state TEXT;
+    `);
+  } else {
+    for (const colDef of ["ip TEXT", "user_agent TEXT", "auth_state TEXT"]) {
+      try {
+        await dbConnection.query(`ALTER TABLE change_log ADD COLUMN ${colDef};`);
+      } catch (e) {
+        if (!e.message?.includes("duplicate column name")) throw e;
+      }
+    }
+  }
+
+  // Migration: create page_visits table for existing databases (idempotent via IF NOT EXISTS).
+  if (dbType === "postgres") {
+    await dbConnection.query(`
+      CREATE TABLE IF NOT EXISTS dms.page_visits (
+        id          BIGSERIAL PRIMARY KEY,
+        app         TEXT        NOT NULL,
+        page_id     BIGINT,
+        url         TEXT,
+        action      TEXT,
+        ip          TEXT,
+        user_agent  TEXT,
+        user_id     INTEGER,
+        created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_page_visits_app_created
+        ON dms.page_visits (app, created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_page_visits_page_id
+        ON dms.page_visits (page_id);
+    `);
+    await dbConnection.query(`
+      ALTER TABLE dms.page_visits ADD COLUMN IF NOT EXISTS action TEXT;
+    `);
+  } else {
+    await dbConnection.query(`
+      CREATE TABLE IF NOT EXISTS page_visits (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        app        TEXT    NOT NULL,
+        page_id    INTEGER,
+        url        TEXT,
+        action     TEXT,
+        ip         TEXT,
+        user_agent TEXT,
+        user_id    INTEGER,
+        created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+      );
+    `);
+    await dbConnection.query(`
+      CREATE INDEX IF NOT EXISTS idx_page_visits_app_created ON page_visits (app, created_at);
+    `);
+    await dbConnection.query(`
+      CREATE INDEX IF NOT EXISTS idx_page_visits_page_id ON page_visits (page_id);
+    `);
+    try {
+      await dbConnection.query(`ALTER TABLE page_visits ADD COLUMN action TEXT;`);
+    } catch (e) {
+      if (!e.message?.includes("duplicate column name")) throw e;
+    }
+  }
 };
 
 /**

@@ -1,5 +1,9 @@
 # DMS Todo
 
+## themes
+
+- [x] [Merge mny and mny_admin themes](./tasks/completed/mny-theme-merge.md) — eliminated duplication between `src/themes/mny/theme.js` and `admin.theme.js`. Deleted ~1005 lines of dead orphaned `docs` sample data plus dead `menu`/`select`/`listbox`/`popover` keys (no consumer read them); consolidated `icon` and `tabs` into `mny` only (mny_admin's `tabs.styles[]` was silently missing an entry mny had, a real index-resolution landmine — confirmed unused, merged); confirmed `layout`/`sidenav`/`topnav`/`layoutGroup`/`logo`/`dataCard`/`input`/`field`/`dialog`/`nestable`/`pages.sectionGroup`/`pages.userMenu` are genuine admin-only or public-only customizations that must stay separate. File shrank from 1631 → 597 lines. List of default-matching-but-not-deleted keys recorded in the task file's Final Report.
+
 ## type system
 
 - [x] Type system refactor — uniform `{parent}:{instance}|{rowKind}` scheme replacing inconsistent type encoding; remove UUIDs in favor of human-readable slugs; eliminate `data.doc_type`; sources scoped to dmsEnv; `:data` suffix replaces split type regex; migration script for existing data
@@ -34,14 +38,12 @@
 - [x] DataWrapper skip fetch when cached — Graph + other non-paginated components honor the "Always Fetch Data" toggle; Pagination's auto-set of `readyToLoad` no longer leaks into persisted state.
 - [x] Falcor loader parallel requests — combine sequential `length` + data `falcor.get()` calls into a single call using a ceiling value for `toIndex`, eliminating one HTTP round-trip (~50ms) from first page load
 - [x] [Time filters in dataWrapper](./tasks/completed/datawrapper-time-filters.md) — `op: 'time'` filter leaf shipped end-to-end. Phase 1: server Postgres predicates (`time-filter.js` + UDA wiring). Phase 2: client primitive — TimePicker, `useNowTick` boundary-aware refetch, URL token roundtrip. Phase 3: compositions — DOW + time-of-day rows, multi-range OR. Phase 4: instant + compareEnd. Phase 5: author/viewer axis exposure (`exposedAxes`, picker `mode` prop). Phase 6: ClickHouse predicate emitters (CH dispatch wiring deferred to broader CH-tree-based-filter migration). TimePicker subtree pulled into `timePicker.theme.js` per the new theming guidance. All 58 UDA tests still pass; ~115 client-side URL/merge/SQL-shape assertions across phases.
-- [ ] [Stop the length query from dominating filter-option loads](./tasks/current/filter-options-length-query.md) —
-      a Filter/multiselect control issued a `getLength()` → `count(DISTINCT …::TEXT)` over the whole table
-      it never displays (15 s on the 4.87 M-row TSMO ED table; ~5 s even after a narrow index — the
-      distinct-aggregate, not I/O). **Change B DONE** (server): grouped `simpleFilterLength` →
-      `count(*) FROM (… GROUP BY …)` — 13.2× on real data, also fixes a multi-key count collision.
-      **Change A DONE** (client): Filter controls skip the length round-trip (`optionsOnly` →
-      `getData.js`, fetch to a 1000-row ceiling). Remaining: ClickHouse mirror of B; live verify.
-      Helps every filter on every page. Motivated by TSMO congestion filter perf.
+- [x] [Stop the length query from dominating filter-option loads](./tasks/completed/filter-options-length-query.md) —
+      DONE 2026-06-24. **B** (server): grouped `simpleFilterLength` → `count(*) FROM (… GROUP BY …)`
+      (Postgres/SQLite + ClickHouse mirror) — 13.2× on real data, also fixes a multi-key count
+      collision. **A** (client): Filter controls skip the length round-trip (`optionsOnly` →
+      `getData.js`, fetch to a 1000-row ceiling). Live-confirmed on the TSMO congestion page
+      ("huge improvement"). 143/143 client + 65/65 server tests.
 - [ ] [First-class multi-column search filter](./tasks/current/multi-column-search-filter.md) — collapse the
       hand-authored "OR group of one `like` leaf per column, replicated on every section" pattern (today's only
       way to do a search box over several columns — see [skills/full-text-search-filter.md](../skills/full-text-search-filter.md))
@@ -59,6 +61,40 @@
 - [x] Centralize format initialization (`updateAttributes`/`updateRegisteredFormats`) — remove duplicated definitions from patterns, add `initializePatternFormat` helper
 
 ## dms-server
+
+- [x] [Comparison-series "difference" combine mode](./tasks/completed/comparison-series-difference-mode.md)
+      — DONE 2026-07-16. `options.seriesCombine = {mode: "difference", invert?}`: the ClickHouse
+      fan-out joins each non-anchor arm to the anchor arm on the group-by columns and returns
+      `anchor − variant` value columns (old NPMRDS "Main minus Compare"); client forwards
+      `state.comparisonSeries.combine`; loud PG refusal. Companion: diverging BarGraph
+      (zero-spanning y-domain + zero-baseline geometry) + `colors.byValueSymmetric`
+      zero-centered value scale (Bar + Grid) with author-facing toggles. 10 new uda unit tests,
+      93/93 green; live end-to-end bit-exact vs hand-built CH arm subtractions on converted
+      Route Difference / TMC Difference Grid pages. Same-day bonus fix: colorDomain CH/PG-join
+      merge no longer projects the join key from both sides (`column reference "tmc" is
+      ambiguous` on every key-FILTERED break query — first exercised by a converted Route Map's
+      comparison-series re-break; `uda.colorDomain.controller.js`).
+
+- [x] [Filter op `empty` / `notempty` (is-null / has-a-value)](./tasks/current/filter-op-empty.md) — client editor + buildUdaConfig + server UDA SQL; enables "Needs priority" filter; MNY Phase 3 #4.
+
+- [ ] **colorDomain `exclude` on numeric columns crashes (`-9999`)** — `WHERE (CASE WHEN col IS NULL THEN 'null' ELSE col END) = ANY($1)` on a numeric column (e.g. `avln_ealt` excluding `-9999`) unifies both CASE branches to `double precision` → Postgres fails casting the literal `'null'` → `invalid input syntax for type double precision: "null"`. Small fix: cast the non-null branch `::text` in [utils.js:360](../packages/dms-server/src/routes/uda/utils.js) (`ELSE (col)::text`) so both branches are text; exclude values arrive as strings and the param is text[]. Client already survives the error (keeps last-good legend), so the colorDomain just won't recompute for that layer until this lands. (Part of the map legend/filter work logged in completed.md, 2026-07-07.) **Kept as-is for now per user; verify then apply.**
+- [ ] **HIGH PRIORITY — ClickHouse unfiltered probe queries have no execution/memory cap** —
+      a known client-side race (dataWrapper comparison-series fetch before scoping resolves) fires
+      unfiltered full-table-scan queries against ClickHouse; the adapter's `max_execution_time: 0`/
+      `max_memory_usage: 0` lets them run for over an hour reading tens of billions of rows.
+      Previously accepted as occasional/manageable; escalated 2026-07-08 after routine dev work
+      required four separate check-and-kill cycles in ~1.5 hours (~10 stray queries per report
+      page load). Root cause fully diagnosed, candidate fixes identified, none implemented yet.
+      Task: [clickhouse-unfiltered-probe-hazard.md](./tasks/current/clickhouse-unfiltered-probe-hazard.md)
+
+- [ ] **Tile/colorDomain joins: ClickHouse join sources** — lift the PG-only gates in
+      `tiles.rest.js#getJoinedTileData` and `uda.colorDomain.controller.js` so a symbology layer
+      can join a ClickHouse view into a PG geometry tile: CH join subquery runs first (narrowed
+      to the tile's keys via an options-level filterGroups leaf; 20k key cap with a loud skip
+      log), result merged into the MVT/breaks query via `jsonb_to_recordset` typed from CH meta.
+      Old-reports Route Map M1; consumer is the converter speed choropleth (M2).
+      **BUILT & LIVE-VERIFIED 2026-07-15** — pending first real consumer (M2) before completion.
+      Task: [tile-join-clickhouse-source.md](./tasks/current/tile-join-clickhouse-source.md)
 
 - [ ] **Scheduled data-loader runs** — cron scheduling for datatype workers (data_manager.schedules +
       due-sweep + plugin `schedulables` contract) + datasets-pattern UI: authorable cron creation per
@@ -90,6 +126,9 @@
 - [x] Fix auth test PG socket hang up — `test-auth.js` test #14 (Falcor created_by/updated_by) fails on PostgreSQL with `ECONNRESET`; client disconnects before Falcor route response arrives
 - [x] [Server-side auth](./tasks/current/server-side-auth.md) — Phases 1+2 done: patterns/page listings gated + per-page authPermissions override in options.byIndex + dataByIdResponse + UDA clearData route replacing ClearDataBtn's options.byIndex usage; options.byIndex route commented out; load action removed from client API
 - [ ] Server-side auth Phase 3 — gate UDA listing routes (length/byIndex) by source/view authPermissions; deferred until Phase 2 verified in production
+- [ ] [Robust audit logging](./tasks/current/robust-audit-logging.md) — enrich `change_log` with IP, user agent, and auth state; add `page_visits` table; add auth guard on delete routes. Motivated by June 28 2026 incident: 9 pages deleted by unauthenticated caller with no trace.
+- [x] [Intermittent default theme — no-access pattern stub omits `theme`](./tasks/completed/no-access-stub-default-theme.md) — transient auth failures (silently-swallowed auth-DB errors in `jwt.js`, cold 5-min token cache, 6h JWT expiry) made the boot-time pattern byId return the minimal no-access stub, which lacked `theme` → page rendered fine but default-themed; `dmsSiteFactory` then cached the stub to localStorage, poisoning the next boot. Fixed 2026-07-02: `theme` in the stub, infra-failure warn logging in jwt.js, snapshot write guard — plus a bonus leak fix: `data`-only byId requests bypassed the auth check entirely (row.type not fetched). Pending: deploy to dmsserver.availabs.org.
+- [ ] `npm run test:auth` broken on SQLite — the "failed login lockout support" commit uses Postgres-only `NOW() - INTERVAL` SQL against `login_attempts`, so the login endpoint (and the test suite's login step) fails on SQLite. Needs a query-utils translation or dialect branch.
 - [ ] Server-side auth subdomain awareness — `resolveAuthPermissions` currently always uses the global `"*"` key; need to pass the requesting subdomain (from `Host` header or JWT claims) through the Falcor route context so the correct subdomain entry is used when `authPermissions` is in subdomain-aware format
 - [ ] Split table virtual columns — auto-generate SQLite virtual columns + indexes (and PG expression indexes) from source config attributes for B-tree query speed on dataset tables
 - [x] [UDA `getEssentials` source-id lookup is ambiguous](./tasks/completed/uda-source-lookup-ambiguity.md) — `ORDER BY id DESC LIMIT 1` in `routes/uda/utils.js:162-184` silently routed to the wrong source when two rows shared `(app, {instance}:source)`; fixed by resolving source via `view_id` ∈ source.data.views. Triggered the 2026-04-24 "Songs" incident (practice_recordings rename + 409 guard in file-upload route are band-aids).
@@ -112,7 +151,92 @@
 - [ ] [CSV upload parser respects quoted-field newlines](./tasks/current/csv-upload-quoted-newlines.md) — `dama/upload/workers/csv-publish.js` currently splits the CSV stream with `split2('\n')`, which breaks records mid-field whenever a description (or any quoted cell) contains a newline. RFC-4180 explicitly allows quoted-field newlines and real exports use them. Replace `split2` with `csv-parse` in streaming mode so the parser tracks quote state; re-emit each parsed record as a single-line CSV row before the existing `pg-copy-streams` consumer. Surfaced by the WCDB schedule export — current workaround strips embedded newlines at CSV-prep time (`references/wcdb/clean-schedule.cjs`).
 - [x] [GIS publish worker — async progress + child-death detection + public-URL fix](./tasks/completed/gis-publish-worker-async-progress.md) — ported `dama/upload/workers/gis-publish.js` from `execFileSync` to async `spawn` so the worker event loop stays alive; streams stderr line-by-line into `gis-dataset:ogr2ogr_progress` events, parses `-progress` percent markers to drive `tasks.progress` from 0.10 → 0.70, emits a `gis-dataset:ogr2ogr_heartbeat` every 15s while the child is alive, and surfaces non-zero exit / signal as a rejected promise (replaces the indefinite `running` state the two `npmrds2` stuck tasks demonstrated). **Bundled in the same file**: `DAMA_SERVER_URL` → `DMS_PUBLIC_URL` rename with back-compat + deprecation warning; hardcoded fallback to `https://dmsserver.availabs.org` when neither is set, with a `gis-dataset:public_url_missing` event (`fallback_url` payload) + console warning so non-AVAIL deploys can discover and override the default. Unit-verified: 12 assertions on `resolvePublicUrl` (all branches) + 8 assertions on `runOgr2OgrAsync` (success / non-zero exit / SIGKILL) all pass. Live testing checklist (large GIS upload, mid-load heartbeat, kill-mid-load) deferred to a real PostgreSQL deploy.
 
+- [x] CLI: `section create --data` now accepts a file path / `-` (stdin) via `readFileOrJson`,
+      matching `section update` — inline JSON for large section payloads (e.g. a 460KB map
+      symbology config) hit the OS argv limit (E2BIG). BC: inline JSON still works (2026-07-07,
+      surfaced by the transportny build-script custody task).
+
 ## ui
+
+- [x] [Table: `row_highlight` themed 'accent' style + click-publish cursor](./tasks/current/table-row-highlight-accent-and-cursor.md) —
+      DONE 2026-07-17. New BC `row_highlight` style 'accent' paints a themed row-level tint + left
+      edge (resolved from `theme.table.rowHighlightAccent`/styleKey like conditional_row_style;
+      matched cells go transparent) instead of the hardcoded amber; rows in a click_publish table
+      get `cursor-pointer`. Author-registered. Consumer: incident_view Corridors selector (brand
+      blue). Core rides git sync; transportnyv2 `rowHighlightAccent` rides the theme-folder sync.
+- [x] [graph_new BarGraph: optional time/linear x-axis (proportional spacing)](./tasks/current/graph-bargraph-time-linear-xscale.md) — opt-in `xAxis.scaleType: time|linear` so bars sit at their real x-value with proportional gaps (default `band` unchanged, verified no regression). Non-band positioning (computed width + centered `barPos`) + date axis ticks; `GraphComponent` passes `xScale.type`. Live on the Control-Room per-day tickets charts. Not yet synced into transportNY's vendored dms.
+- [x] [Filter section interactive chrome: needs-value toggle · active tokens · clear-all](./tasks/current/filter-interactive-chrome.md) — ExternalFilters/RenderFilters; renders an `empty`-op leaf as a toggle; MNY alignment.
+- [x] [Spreadsheet inline-expand row detail (`openOutMode:'inline'`)](./tasks/current/spreadsheet-inline-openout.md) — inline detail panel vs the side drawer; MNY alignment.
+- [x] [New columnType `priority_tier` — ranked, editable tier pill](./tasks/current/columntype-priority-tier.md) — numeral badge + short label + "Set priority" unset affordance; models statusPill.jsx; MNY Action Prioritize Phase 3 #1.
+- [x] [Card cell `activeOnSearchParam` — link cell active when its params match](./tasks/current/card-active-on-search-param.md) — real active state for `isLink` stat cells; MNY Phase 3 #2.
+- [x] [Card cell `cellBorderColor` — per-cell accent (left) border](./tasks/current/card-cell-border-color.md) — sibling of `cellBgColor`; stat-strip left rules; MNY Phase 3 #3.
+- [x] [Table provider `conditional_row_style` — accent a row by a column condition](./tasks/current/table-conditional-row-style.md) — amber edge on unset rows via the `_functions.providers` framework; MNY Phase 3 #5.
+- [ ] [LayoutGroup: optional `Background` component on a layoutGroup style](./tasks/current/layoutgroup-background-style-component.md) —
+      additive style key rendering a theme-supplied backdrop component inside wrapper1
+      (first use: transportny landing hero three.js OSM road animation). Pending transportNY sync.
+
+- [ ] [Input/Textarea: activeStyle leaked onto the DOM element](./tasks/current/input-activestyle-dom-leak.md) —
+      themed callers pass the named-style selector; Input spread it onto <input> (React unknown-prop
+      warning on incident_search). Destructured out; BC. Pending transportNY sync.
+
+- [ ] [`flow_step` columnType — lifecycle flow-strip boxes](./tasks/current/flow-step-column-type.md) —
+      dot·label·count step boxes with optional `›` connector + terminal tint (control-room tickets
+      summary). Additive; themed via `flowStep`; pending transportNY sync.
+- [ ] [addItem create-time defaults: `autoNumber` + `defaultValue` column attrs](./tasks/current/add-item-create-defaults.md) —
+      add-new form Cards can fill sequential ids (ticket #s: max+1, floor autoNumberStart) and
+      static defaults (status "Triage") at create instead of waiting for a sync heal. Additive;
+      pending transportNY sync.
+- [ ] [Modal/create-form polish + input placeholder BUG fix + live refresh](./tasks/current/modal-form-polish-enrichments.md) —
+      `group.modalSize` (sectionGroup whitelist map, default 4xl), `display.addItemLabel`
+      (create-button text), `display.closeModalOnAdd` (successful create clears the named
+      action param → the modal closes), `add_publish` provider + `data_refresh` subscriber
+      (create in one section → other sections refetch live; the token also rides the uda
+      options as `_r` because falcor serves same-path refetches from cache), `defaultFn`
+      dynamic create defaults (today/now/user — reporter + dates at create), and the fix for
+      Input/Textarea primitives destructuring `placeholder` and never applying it (every
+      placeholder app-wide was invisible). All BC; pending transportNY sync.
+- [ ] [map_dama shareable-link read (`?layers=`/`f_<id>`)](./tasks/current/map-dama-shareable-layers-read.md) —
+      opt-in (`shareableState` element-data key), view-only port of the Map component's URL read
+      so gallery deep-links preset map_dama layers (freight atlas #106). No write-back — the
+      serializer waits for the unified component. Pending transportNY sync.
+- [x] **BUG: `getSources` derives source `env` from the display-name slug** — FIXED 2026-07-15
+      (see modal-form-polish-enrichments.md §5): new dms-server `row_type` source attribute
+      (the row's type string; `type` serves data->>'type') + getSources derives env/type from
+      `getInstance(row_type)` with display-name slug as legacy fallback; onSourceChange /
+      onJoinSourceChange prefer the instance type. ⚠ server change — deployed dmsserver needs
+      a redeploy; old servers fall back to the old (drifty) behavior. The applyCreateDefaults
+      `app+type` env rebuild stays as belt-and-braces.
+- [ ] [`stacked_bar` columnType — segmented distribution bar + count legend](./tasks/current/stacked-bar-column-type.md) —
+      one-track proportional segments from sibling `count(*) filter` calc columns (the data_bar
+      `row` convention); powers the control-room overview's live stage/tickets bars. Additive;
+      themed via `stackedBar`; pending transportNY sync.
+- [ ] [Card: link-cell style doubling fix + per-column headerValueLayout](./tasks/current/card-link-style-doubling-and-layout-override.md) —
+      valueFontStyle applied on both wrapper and anchor doubled box tokens (btnPrimary "double
+      button"); wrapper now defers to the anchor. Plus additive per-column `headerValueLayout`
+      (full-width data_bar inside a row-aligned card). Pending transportNY sync.
+- [ ] [allowAdddNew form fixes: editable:false honor + page-param re-sync](./tasks/current/allow-add-new-form-fixes.md) —
+      read-only columns no longer get edit chrome on new-item cards; pre-filled page-param fields
+      survive consecutive adds (newItem dep + equality guard). Pending transportNY sync.
+- [ ] [Card: numeric 0 / falsy cell values render blank](./tasks/current/card-zero-value-renders-blank.md) —
+      `rawValue` resolution uses `||`, swallowing calculated-column `0`s (aggregate count boxes render
+      empty). One-line `??` fix; BC-audited against getData's single-key row shape.
+- [ ] [Card layout model — simplify to a predictable box model](./tasks/current/card-layout-model-simplification.md) —
+      four-knob spacing contract (explicit 0 wins), content-sized cards default, layout-only structural
+      theme keys, drop the always-on transparent cell border, edit-mode introspection data-attrs.
+      Motivated by the landbank design-alignment sessions (6 hidden spacing contributors per card).
+      **2026-07-02: core shipped** — `Card.layout.js` pure box model + 29 unit tests; v2 model behind
+      `layoutModel: 'v2'` theme opt-in (default theme ships a `v2` card style; landbank opted in);
+      hideValue deprecated in the picker; `data-cell`/`data-pad`/`data-rhythm` introspection; skill
+      rewritten around the model. Remaining: transportny v2 parity after a visual audit; Playwright
+      computed-style check on a live site.
+- [ ] [Card context menus — consolidate, organize, align vocabulary](./tasks/current/card-context-menu-consolidation.md) —
+      the section menu and the per-cell menu grew ad-hoc (one flat ~40-entry cell list; labels that
+      don't match keys — "Card Padding" sets `cardsPadding`, which pads the cells grid; `allowAdddNew`
+      typo). Inventory both menus, group entries by author intent, and make label ↔ key ↔ skill-doc
+      vocabulary one language so authors and agents talk about cards in the same terms.
+- [ ] getData fetch-trap cleanup (split from the card layout task): default `pageSize` (e.g. 10)
+      instead of the `NaN` fetch range that silently never fires; warn on unmarked SQL-looking
+      column names.
 
 - [x] [Lexical links: force `rel="noopener noreferrer"` on `target="_blank"`](./tasks/completed/lexical-link-rel-noopener.md) — reverse-tabnabbing fix (MitigateNY Qualys 150222) via `SafeLinkNode` node-replacement + `rel`-at-creation in `LinkPlugin`; covers existing content at render (verified headless + Playwright on localhost:5173). Companion clickjacking headers in `dms-template/netlify.toml`; malformed `ButtonNode` link on page 1130761 neutralized to `#` (live). **Owner still to `npm run deploy` + client re-scan.** (2026-06-17)
 - [x] [Design-system icon set — capture, audit, sync to live theme](./tasks/completed/design-system-icon-sync.md) — DONE 2026-06-09. Built generic `scripts/icons-audit.mjs` (`<!-- icon: Name -->`/`<!-- decorative -->` convention; non-zero on gaps) + `scripts/icons-sync.mjs` (design-system `theme/icons.js` → generated live `icons.jsx`, `--check` CI guard; **source of truth = design system**). Wrote skill `managing-design-system-icons.md` + integrated into `designing-a-dms-design-system.md` and `translating-design-system-to-dms-theme.md`. Captured **all 19 TransportNY design pages** (freight-atlas + legacy backfill); 18 new icons; registry 48→67; **full-repo `icons-audit` green** (255 refs, 50 decorative, 0 untagged). Optional follow-ups (`.svg` emit, CI hook, live-page icon wiring) noted in the task.
@@ -157,6 +281,47 @@
 
 ### patterns/page
 
+- [x] [Map: server-side tile `filter=` from a `serverSide` dynamic-filter](./tasks/current/map-serverside-tile-filter.md) —
+      DONE 2026-07-17. A symbology dynamic-filter flagged `serverSide:true` makes `getLayerTileUrl`
+      emit `&filter=<col>='…'` so the tile route filters rows in PostGIS ST_AsMVT before emitting
+      (transcom_event_tmc: ~64MB→~2KB per event_id). BC (skipped without the flag). First consumer:
+      incident_view Location & affected-segment map. Also documented the Map's action-param
+      exclusion (map ignores `type:'action'` params → bind maps to URL/page-filter vars) in the
+      creating-a-map-section skill §4a/§4b. Core rides the owner git sync.
+- [x] [GridGraph overlays + `load_publish` 'list'](./tasks/current/gridgraph-overlays-and-list-publish.md) —
+      DONE 2026-07-17. `load_publish` `'list'` derivation (Spreadsheet + Card) publishes all
+      loaded rows' values for a column as the param array; GridGraph `grid_cell_bands` +
+      `grid_point` subscribers feed the avl GridGraph's dormant bounds/points props (border a
+      cell run / dot a cell, resolved by a Row Key Column). Author-registered. Also fixed a
+      latent `providers.find` crash in graph_new/index.jsx. First consumer: incident_view
+      speed-grid congestion-window bands. Core rides the owner git sync.
+- [x] [Card: `load_publish` provider](./tasks/current/card-load-publish-provider.md) — DONE
+      2026-07-17. Component-actions parity with the Spreadsheet: a Card publishes derived-row
+      column values to action params on load (first/max/min, multi-`publishes[]`), with a
+      Card-specific guard that never publishes from saved seed rows (identity-change gate).
+      Registered in the Card Actions panel (author-accessible). First consumer: incident_view
+      event-header Card publishes `activeDate`/`metaYear`. Core rides the owner git sync.
+- [x] [userMenu: per-item `groups` gating for authMenu items](./tasks/current/usermenu-authmenu-group-gating.md) —
+      DONE 2026-07-17. Additive/BC: an authMenu item with `groups: ["AVAIL", …]` renders only for
+      users in one of those groups (no key = unchanged). Consumer: transportny themev2 Site
+      Status → `/sitemgmt`, gated AVAIL/NYSDOT Admin. Core rides the owner git sync.
+- [x] [Unset page variables blanked every reacting section](./tasks/current/page-variable-empty-leaf-regression.md) —
+      **FIXED 2026-07-16.** Unset URL-registered page variables flowed as `[""]` into
+      `usePageFilters` leaves → `IN ('')` → 0 rows/length on EVERY reacting section (blank
+      reliability_v2/congestion_v2 locally + on devtny.org after the 07-16 deploy); clearing a
+      control couldn't recover (saved value clobbered). Fixed consumer-side: `applyPageFilters`
+      treats blank page values as unset; `mapFilterGroupCols` blank-value guards moved above the
+      `!col` pass-through so option-A (CASE-expr) leaves are covered. Plus LineGraph
+      `domainMin:"auto"` (data-min y floor). Synced to transportNY; **redeploy pending**.
+- [ ] [Map: comparison-series-driven symbology layers](./tasks/current/map-comparison-series-layers.md) — give the Map section the graphs' `comparison_series` subscriber: materialize one layer per published route/series variant from a `series-template` layer (RRL discovers maps for free — `findSelfBoundGraphs` is element-type-agnostic). Platform half of the old-reports Route Map plan (M0a).
+- [x] [Map share-state (`?layers=`) → page-variable system](./tasks/completed/map-share-state-via-page-variables.md) — DONE 2026-07-14, owner-verified. Migrated the map's `?layers=`/interactive-variant share-state off direct URL writes onto the page-variable system (page owns URL); unified the variant onto `searchParamKey`, made the interactive bridge + authoring UI multi-symbology, added a unified Symbologies manager, surfaced auto-vars in Settings, documented component↔page-variable wiring. Mirrored to transportNY. Follow-ups: [dead-code cleanup](./tasks/completed/map-settings-dead-code-cleanup.md) (done), [search-param remount refresh](./tasks/completed/page-remount-on-searchparam-navigate.md) (done).
+- [x] [Map settings — dead-code cleanup](./tasks/completed/map-settings-dead-code-cleanup.md) — DONE 2026-07-14. Removed the 8 legacy controls in `map/settings/controls.jsx` (1026→641 lines) + the cascade (`useMapSettingsFilters` hook, `layers.jsx`/`useMapSettingsLayers`, `onSymbologyChange`/`onLayerChange`/`selectedLayer`/`layerOptions`); kept `getSymbologyBridge`/`listBridgeSymbologies` + the manager handlers. Verified zero live refs + babel parse; mirrored to transportNY (incl. deleting its `layers.jsx`). `map_dama/` untouched.
+- [x] [Page/section remount on search-param navigation](./tasks/completed/page-remount-on-searchparam-navigate.md) — DONE 2026-07-14, owner-verified. Root cause (pinned via mount/unmount probes): the route loader keys on `request.url`, so a search-only navigate (map writing `?layers=`) revalidated and REMOUNTED the whole route tree. Fix: `shouldRevalidate` on the DMS page route (`render/dmsPageFactory.jsx`) returns false when only the search changed on the same path (page handles filters in-memory; sections refetch via dataWrapper); still revalidates on cross-page nav, mutations, and explicit `revalidate()`. Toggle no longer refreshes. Mirrored to transportNY. (Other candidates — memoize view sections, hoist inline route components — not needed.)
+- [ ] [Spreadsheet: Column Type control](./tasks/current/spreadsheet-column-type-control.md) — expose `attribute.type` as a select in the Spreadsheet `inHeader` controls so an author can switch a column's type (drives the `TableCell` view/edit renderer via `columnTypes[type]`). Curated author-facing list (text/number/date/timestamp/boolean/switch/select/multiselect/radio/checkbox/status_pill/textarea/lexical/image). BC — only exposes the existing field; value-shaping types still need their companion config. Control added; live verify pending.
+- [ ] [Page templates](./tasks/current/page-templates.md) — template picker when adding a page (5 built-in theme templates + user-saved DB templates per-pattern); "Save as template" in settings pane + template manager tab in pattern editor
+- [ ] [ReportRouteList → page templates + native graph sections](./tasks/current/reportroutelist-page-templates.md) — retire the `graph_comps` + `setItem` graph **injection** in the transportny `ReportRouteList` (the one place that mutates `item.sections` outside the add-component flow; confirmed leak on page 2180280). A **report becomes its own page** created from a generic **Report Page** *page template* (panel + one starter graph), graphs become **ordinary page sections**, and ReportRouteList shrinks to a route editor that **publishes** `transformReportRoutes(routes)` to a `report_routes` page action param. Graphs bind **dynamically** via the existing `comparison_series` subscriber (`usePageFilterSync` → `comparisonSeries.config`, see [comparison-series-query-fanout.md](./tasks/current/comparison-series-query-fanout.md)) or keep a **static** baked-variants snapshot — both first-class. Moves `routes` onto the page (`routes`/`draft_routes` in `page.format.js` + publish promotion) and **deletes the `newItem`/`setItem` page-render fork** from `view.jsx`/`edit/index.jsx`. Plan written in plan mode 2026-06-30. **Follow-up (2026-07-06, done):** replaced the hardcoded `['Spreadsheet', 'Card', 'ReportRouteList'].includes(component.name)` allow-list in `dataWrapper/index.jsx` (both `Edit`/`View`) with a registry-driven `usesItemMutationProps` flag (mirroring `supportsTemplates`) — see task file for details. Not yet live-verified in a browser.
+- [ ] [Old NPMRDS reports → new DMS report pages (automated conversion)](./tasks/current/old-reports-conversion.md) — repeatable script(s) that pull the 868 old reports out of `npmrds_production` `admin2.reports` (+ their `admin2.routes`), transform them, and create equivalent `npmrds_sub` report pages (page + ReportRouteList/AVL Graph sections + `reports_snap_2` row) via the DMS CLI, generating `avl_graph_template` rows per (graph type × resolution × dataColumn) combination as needed. Preserving old data is the priority; authoring-UI ergonomics explicitly deferred. Investigation complete 2026-07-07 (both DB shapes mapped, both DBs reachable, surveys done — see task file); first target: old report 1070 (1 route, 1 line graph).
+- [x] [Falcor/UDA query cache collision across sibling sections sharing query state](./tasks/completed/falcor-sibling-query-cache-collision.md) — root-caused as a client-side Falcor cache-key collision (options JSON has no per-section discriminator). Fixed by folding `trackingId || sectionId` into `options` before it's stringified into the Falcor path, in `getData.js`/`useDataLoader.js`/`useColumnOptions.js`/`usePivotDistinctValues.js`/`preloadSectionData.js`. Live-verified on report 1071 (both previously-blank sibling pairs now render correctly). Uncovered a separate, unrelated bug while verifying report 751 (truck CO₂ formula returns NULL) — logged as a new gap in old-reports-conversion.md, not fixed here.
 - [ ] [Section "active selection" interaction](./tasks/current/section-active-selection-interaction.md) — let a section publish a derived value on data **load** to a persistent page action-param (`activeTmcLinear`), and let other sections **filter** on it. Two additive/BC pieces: a `load`-trigger publisher (`load_publish` in spreadsheet/graph config + a `useEffect` in their index that derives first/max/min row and calls `setActionParam`), and **action-param-aware filter leaves** (`{useActionParam, actionParamKey}`) in `usePageFilterSync.js` + `RenderFilters.jsx`. Substrate (action params on PageContext, click/hover providers, page-filter-sync) already exists. Motivated by the TSMO incident-view grid (master-detail by corridor).
 - [x] [Spreadsheet component templates ("copy/paste from the DB")](./tasks/completed/spreadsheet-component-templates.md) — save a configured Spreadsheet section as a named, reusable **Template** persisted as an ordinary `data_items` row (`app`=site app, `type`=`${pattern}|spreadsheet_template`; name is a data attribute so "list my component type's templates" is a clean exact-type query). `TemplateManager` menu component gated behind a registry `supportsTemplates` flag (Spreadsheet first; Card/Graph later = one line); **zero server changes** (generic create/list/edit/delete Falcor paths). Two author toggles fully partition the saved state: *Include data source* = the whole data config (`externalSource`/`join`/`columns`/`filters`/`customBuckets`/`pivot`), *Include layout* = section chrome + `state.display` (Spreadsheet Settings); apply falls back to the section's live state for any excluded bucket (and always keeps an `externalSource` so `migrateToV2` doesn't discard columns). Per-field provenance (`_appliedTemplate.fields[path] → {templateId, templateName, templateUpdatedAt, appliedAt}`, `templateUpdatedAt`=row's `data.updatedAt`) ships for the deferred drift phase. **v1 (Save+Load) + v1.1 (full CRUD: overwrite reuses the row id & preserves `createdAt`/`createdBy` while bumping `updatedAt`/`updatedBy`; delete via `requestType:'delete'`; inline two-step confirm guards) — ✅ verified in UI.** Phase 3 (drift detection) deferred → separate todo below.
 - [ ] **Spreadsheet templates — Phase 3: drift detection ("template updated, refresh?")** (deferred from [spreadsheet-component-templates.md](./tasks/completed/spreadsheet-component-templates.md) — see its "Phase 3" section for the full spec). On render, compare each `_appliedTemplate.fields[path].templateUpdatedAt` against the live template row's `data.updatedAt`; flag stale fields and offer "refresh from template" that re-applies only the still-owned stale fields (re-stamping provenance). Optional: store an applied-value hash per field so refresh skips fields the user hand-edited since apply. The provenance plumbing already ships; this is purely the detection/refresh UI.
@@ -166,6 +331,7 @@
 - [x] [Build the MAP-21 PM3 single-page report as a live DMS page](./tasks/completed/map21-single-page-dms-build.md) — phased build (one phase per mockup section) of `map-21-system-performance.html` into the `npmrdsv5+npmrds_sub` pattern, driven by a single `year_record` page variable. Phase 1 creates the page + a **new `creating-interactive-pages` skill** (page variables ↔ dataWrapper filter system, ref page 2173049). Each phase names components/datasets, plans UDA config, and logs DMS primitive gaps (status-pill / target-bar / delta column types, Graph reference-line + annotations, `Met X/N` roll-up, sortable matrix, group-by page variable, UZA-population join, multi-key DAMA join, sticky-TOC chrome). Living mandate: accumulate skill updates so design→DMS becomes one-shot.
 - [x] [Custom buckets](./tasks/completed/custom-buckets.md) — author-defined GROUP BY dimension that maps a source column's values into named groups (configured entirely from the section menu, bound to page filters or static). Server `buildAliasGroupCase` compiles `{column, fallback, groups}` into a ClickHouse `CASE … END` used in GROUP BY/SELECT; client passes resolved `customBuckets.config` as `options.aliasGroups`, owns a synthetic `origin:'custom-bucket'` column via an explicit `reconcileCustomBucketColumn()` action (committed on alias blur/Enter), and resolves config in `usePageFilterSync`. A "filter rows to buckets" toggle (default ON) injects an `IN (...)` leaf from the deduped union of group values; a master `enabled` switch (**default OFF**) gates the whole feature (no aliasGroups, no filter, no column) while retaining config for clean re-enable. 127/127 tests, live-verified.
 - [ ] [Author-editable tables in a section — inline data (A) + internal table (B)](./tasks/current/section-inline-and-internal-tables.md) — let a Spreadsheet render a table from data the author controls. **Phase A first:** inline/temporary rows stored in `element-data` (a dataWrapper "inline" mode — the multi-row sibling of the Card blank-row fallback; no dataset). **Phase B:** an "New internal table" create affordance in the section source picker (editing internal `isDms` rows already works via `allowEditInView`). Origin: the freight-atlas "What changed" 5×3 table (currently a lexical section). Assessment: [research/spreadsheet-inline-and-internal-table-authoring.md](./research/spreadsheet-inline-and-internal-table-authoring.md). BC-by-default; ask before non-BC.
+- [ ] [Comparison Series — query fan-out](./tasks/current/comparison-series-query-fanout.md) — render a chart's entities multiple times under different filter contexts, overlaid as series (route-vs-route, period-vs-period, region-vs-region — a "variant" is just `{label, filters}`). The **row-set sibling of custom buckets**: instead of relabeling rows via `CASE` (one dimension, no duplication), it `UNION ALL`s N copies of the base query under per-variant filter-patches, each stamping `'<label>' as __series` for the chart to categorize on — so it handles overlapping variants and arbitrary deltas that `categorize`/buckets can't. **This task = Pieces 1+2 only:** server fan-out primitive (`seriesVariants`/`seriesKey` in `simpleFilter`/`simpleFilterLength`, tests first) + static `comparisonSeries` config block (master switch default-OFF, synthetic `__series` column, fetchKey wiring, **raw-JSON-textarea v0 authoring**). **Status: Pieces 1+2+3 built & unit-tested (UDA 70/70 incl. ClickHouse port; buildUdaConfig 162/162); live-verify on a real chart pending. Scoped refinement: replace the v0 raw-JSON variant textarea with a per-variant editor reusing the `ComplexFilters` filter builder (add optional `value`/`onSave` props to ComplexFilters; no engine change) — see task file "Refinement" section.** Filter-patch merge rule = replace-on-column, else append (shared→base, differs→variant). **P3 dynamic page-state binding DONE (2026-06-12):** the `comparison_series` componentFunctions subscriber is the binding; `usePageFilterSync` resolves `pageState.filters` → `comparisonSeries.config` (a fetchKey input → reload-driving), and `buildUdaConfig` fans out over a single `effectiveVariants` list (config wins over static). Deferred to own phases: **P4** time-period preset + publishing control (all time-specificity quarantined here), **P5** axis normalization for same-axis overlay. Mirrors custom-buckets architecture; zero time-specific code in 1+2+3.
 - [ ] [Filter leaf "include prior period"](./tasks/current/filter-include-prior-period.md) — let a single-select page filter on a numeric/period column (e.g. `year_record`) expand to `[Y, Y-1]` at `applyPageFilters` time via a new leaf option `includePriorPeriod` (+ `priorPeriodStep`), so authors can build "vs prior period" deltas with calc + formula columns (GROUP BY period + `lag()` + formula) driven by ONE control. Motivating consumer: MAP-21 per-year KPI cards (page 2173049). ~10 lines in `buildUdaConfig.applyPageFilters` + a Switch in `ComplexFilters.jsx`.
 - [ ] [Empty `filter`/`exclude` leaf → no-op](./tasks/current/empty-filter-leaf-noop.md) — IMPLEMENTED (live-verify pending). `mapFilterGroupCols` (`buildUdaConfig.js`) now prunes `filter`/`exclude` leaves whose values are all empty/blank/null, mirroring the existing `like` guard. An unset `usePageFilters` leaf (e.g. a region control with no selection) now means "no constraint" instead of emitting `col IN ()` (Postgres syntax error) / `col IN ('')` (zero rows). Surfaced on tsmo `congestion_v2` (every card carried an empty `region_name` leaf → all but one broke on the first refetch when `year` changed). Null sentinels survive. BC bugfix; unit-checked via `test_guard.mjs`.
 - [x] [Permissions refinement](./tasks/completed/permissions-refinement.md) — consolidate `edit-page-layout`/`edit-page-params` into `edit-page`, remove `edit-section-permissions`, rename section `edit-section`→`edit`, gate Pages pane on `create-page`, show copy/link to anyone with `edit-page`, move/permissions require section `edit`, `PublishButton` respects page-level override, redirect logged-in non-editors to view page
@@ -182,6 +348,7 @@
 - [x] [dataWrapper blank-row fallback](./tasks/completed/datawrapper-blank-row-fallback.md) — SHIPPED 2026-05-18. Opt-in via `display.useBlankRowFallback`. When the section opts in and the query returns 0 rows, `getData.js` synthesizes a single placeholder row keyed `column.normalName || column.name` from each visible column's `blankDefault`, tagged `_isBlankFallback: true`. Per-column "Empty Default" toolbar entry mounts the column type's existing `EditComp`. Live test surfaced a bug: original synthesis sat at the function tail but was unreachable because `fromIndex >= length` (with `length === 0` → `0 >= 0`) exits earlier; moved the synthesis inside that guard, removed the dead tail block. WCDB show card 1964234 verified off-air. Error-fallback (network failures) deferred to a sibling task.
 - [x] [Pivot table support](./tasks/completed/pivot_table.md) — cross-tab pivot mode for DataWrapper/Spreadsheet: pivot config state, distinct-values fetch, CASE column generation in getData, SectionMenu pivot block, ColumnManager pivot columns block
 - [x] Pivot table grouped column headers — add multi-row `<thead>` to the Table component so multiple pivot columns render with a spanning parent header row per pivot column value (Option B follow-up to pivot table support)
+- [ ] [Pivot data-fetch range + join-key fixes](./tasks/current/pivot-data-fetch-fixes.md) — 3 getData.js bugs that stopped a pivot+join cross-tab from rendering (surfaced building the Route Comparison page): (1) `usePagination:false` sections omit `pageSize` → `NaN` → null `dataByIndex` range → 0 rows → "loading" hang; fixed by loading all rows in pivot/fullDataLoad + safe-pageSize coerce. (2) load-all `toIndex` off-by-one (`to` is inclusive) → phantom empty-atom "loading" row; fixed to `length-1`. (3) join alias-strip blanked the pivot row column (`rt.route_id` display key vs stripped `route_id` data key); fixed by keeping BOTH keys (additive/BC). Applied to working tree; needs commit + a non-pivot-join regression eyeball.
 - [x] [Filter component: hide external-filters toggle by default + adopt UI components](./tasks/completed/filter-external-toggle-and-ui-cleanup.md) — IMPLEMENTED 2026-05-13. `display.hideExternalToggle` added to `ExternalFilters.jsx` (strict `=== true`; absent on existing rows preserves the toggle pill); `Card.config.jsx` `defaultState.display.hideExternalToggle: true` so new sections default to hidden. Inline toggle-pill markup swapped for `UI.Button` + theme keys (`toggleButton`/`toggleIcon`) in both `ExternalFilters.jsx` and `RenderFilters.jsx`. `filterTheme` extended with consolidated keys (`conditionsGrid`, `conditionRow*`, `filterRowWrapper`, `inlineSwitchRow`, `searchKey*`) — defaults match original literals so existing themes are visually unchanged. `themeFromContext.filter` (singular) typo fixed in three files; transportny `filters:` theme block now actually applies (was a no-op copy of `filterTheme`).
 - [x] [Card cells grid: per-column cellWidth + section-level track template](./tasks/completed/card-cell-width-tracks.md) — IMPLEMENTED 2026-05-18. Per-column `cellWidth` knob in the section toolbar + section-level `cellsTracksTemplate` escape hatch + track-cursor walker in `Card.jsx` that composes `gridTemplateColumns` from each column's claim. WCDB now-playing card lays out album art at fixed width + fluid text stack + fixed play button. CSS Grid bakes `cellsGridGap` inside a span (documented limitation); for pixel-perfect widths, use `cellSpan: 1 + cellRowSpan`. Live-verified on https://www.wcdb.fm.
 - [x] [Card per-column padding overrides](./tasks/completed/card-cell-padding-overrides.md) — IMPLEMENTED 2026-05-18. Extended the existing `cellPaddingBottom` knob to `cellPadding` (all sides) + `cellPaddingTop` / `cellPaddingLeft` / `cellPaddingRight`. Side-specific wins over `cellPadding`, `cellPadding` wins over ambient `cellsPadding`; `!== '' && !== undefined` guard distinguishes "cleared field" from "author typed 0". Applied to WCDB section 1963473 title/artist/album cells. Skill `card-layout.md` extended.
@@ -191,14 +358,47 @@
 
 ### patterns/mapeditor
 
+- [x] [Map join / filter / legend fixes](./tasks/completed/mapeditor-join-filter-legend-fixes.md) — one body of work across the joined-choropleth map layer, in steps: (1) debounced server-side search in the filter value list (`like`+`orderBy`, base LIMIT 500); (2) colorDomain legend correct when filtering on a JOINED column (attach join for any referenced column + client `buildJoinOptions`); (3) static+dynamic filter on the same column no longer AND into zero rows (static wins); (4) runtime `buildJoinOptions` includes filter-only joined columns; (5) join query perf — push the joined-column filter into the CTE (~22s→~44ms), drop `geo.*`, make `buildSimpleFilterSql` `indices` optional / remove the 1M cap (paginated endpoints untouched), fold the active workplace filter into the tile `buildJoinParam`; (6) runtime legend color fallback recovering the ramp from the saved paint when `color-range` is absent (type-aware). Residuals: tile no-selection case (deferred), save-side `color-range` persistence. `map_dama` untouched.
 - [x] Convert MapEditor from datamanagerclient into standalone DMS pattern (symbology CRUD via DMS instead of DAMA)
 - [x] Migrate MapEditor from DAMA to UDA routes — MapEditor + page-pattern `map/` and `map_dama/` components ported off DAMA; server-side `colorDomain` UDA route added; DAMA symbology data migrated to DMS in mitigat-ny-prod (247 rows + 2,217 component rewrites); filter translator wired; numerous follow-on bugs fixed during Phase 5 (substring metadata, category paint, layer panel overflow, FilterableSearch→ComboBox, dataById PK lookup, list fetch payload size)
 - [ ] [Unify `map/` and `map_dama/` components](./tasks/current/map-component-unification.md) — two parallel implementations with distinct features: map_dama has multi-symbology + in-map filter controls; map has DataWrapper page-state filter binding + basemap selector + PMTiles infrastructure. Merge after UDA migration settles.
+- [x] DMS map component — runtime legend & filter correctness — DONE 2026-07-07, user-verified; full log in [completed.md](./completed.md) (patterns/mapeditor). Custom range authoritative, dynamic filters track the page bus, envelope-driven recompute, empty→"No data" vs error→keep-last-good, no `-Infinity`, edit==view. **Remaining follow-ups (optional):** server `colorDomain` `null` bounds (client already detects empty via `count`); refresh debounce + inline loader. Numeric `exclude` `::text` cast is tracked separately under dms-server. `map_dama` untouched.
+- [x] **DMS Map — symbology "Refresh" (merge-preserving re-fetch)** — DONE 2026-07-08, user-verified; full notes in [completed.md](./completed.md) (patterns/mapeditor). `onUpdateSymbology` in `map/settings/symbologySelector.jsx` re-fetches the selected symbology (cache-invalidated via `doApiLoad({invalidateId})`), merges preserving per-layer DMS config (fresh = structure/join/popup, author's filters/visibility/active-layer kept), forces a layer rebuild (`__symbologyRefreshAt`) so tiles/legend/colorDomain re-run, exposed via `symbology.jsx`, Refresh icon button enabled in `controls.jsx`. `map_dama` untouched.
+
+- [x] **DMS Map — "Use blank basemap" toggle (persist + live)** — DONE 2026-07-08, user-verified; full notes in [completed.md](./completed.md) (patterns/mapeditor). Persistence: restored the commented-out `blankBaseMap: cachedData.blankBaseMap || false` init in `map/index.jsx` (matches `map_dama`). Live: keyed `AvlMap` on the blank/default choice so toggling remounts with the correct basemap (basemap *selector* still uses the in-place `setMapStyle` path). Chose the remount approach over touching shared `AvlMap`. `map_dama` untouched.
+
 - [ ] [MapEditor joins (tile-level linked-data join)](./tasks/current/mapeditor-joins.md) — new per-layer `Linked Data` tab to join a second analytical view into a rendered geometry layer **by key, server-side at tile-request time**, so joined columns become MVT feature properties that the existing choropleth/categories/hover machinery renders unchanged. The linked side is a dataWrapper-style query (filter + groupBy + aggregate) whose output is 1:1-per-key, wrapped in a `WITH` CTE that `tiles.rest.js` `LEFT JOIN`s the geometry against (reusing an extracted `buildSimpleFilterSql` from the UDA query set). The 1:many→1:1 collapse lives in the UDA config; the tile API is agnostic and assumes 1:1. Config saved under layer key `'linked-data'`. V1 optimizes for correct configuration (minimal guardrails); request-time only (materialization rejected under the 1:1 model); same-pgEnv/PG-only. Editor query UI informed by dataWrapper but re-implemented per the no-cross-pattern-code rule; `getLayerTileUrl` edited in all three copies. See [`references/map-joins.md`].
+
+### dms-manager
+
+- [x] [Pattern multi-location mounts](./tasks/completed/pattern-multi-location-mounts.md) — DONE 2026-07-13 (uncommitted) — register
+      a pattern at more than one {subdomain, baseUrl} location (e.g. freightatlas2 at
+      `freightatlas2:/` AND `www:/freightatlas`); additive `locations` json attr, per-mount route
+      expansion in pattern2routes, Locations editor in the pattern edit modal; fully BC.
+
+- [x] [Lexical sub:// links + IconNode chip fix](./tasks/completed/lexical-subdomain-links-and-icon-chips.md) —
+      DONE 2026-07-13 (uncommitted): environment-portable cross-subdomain buttons (`sub://npmrds/x`)
+      + iconStyles passthrough so lexical icon chips actually render their themed boxes.
 
 ### patterns/datasets
 
-- [ ] [Set primary column from metadata UI](./tasks/current/set_primary_col_from_meta.md) — PK toggle in MetadataComp (RenderField) for internal_table + external sources, mutual exclusivity, UDA `setPrimaryKey` CALL route
+- [ ] [Datasets — URL-encode category links (`&` in names → empty categories)](./tasks/current/datasets-category-link-encoding.md) — `?cat=` links were built by raw interpolation, so category names with `&` (Economy & Demand, Environment & Equity, Safety & Crossings) truncated the query param and rendered empty despite having data. Fixed with a `catHref` encoder over all 7 link sites in `DatasetsList/index.jsx`; verified in dev. BC. Pending submodule commit + deploy + re-verify. (Corrects control-room ticket #136.)
+- [x] [Datasets pattern — consume `theme.navOptions.secondaryNav`](./tasks/current/datasets-pattern-secondary-nav.md) —
+      BUILT 2026-07-10 (uncommitted, pending review): nav shaping promoted to shared `utils/nav.js`
+      (page `_utils` binds its in-page rail via injectable resolver, existing imports unchanged); all 7
+      datasets pages pass `secondNav` to `<Layout>` with baseUrl `''` (site-absolute items) so a datasets
+      pattern can share a secondary sidenav with sibling patterns. First consumer: Freight Atlas
+      `freight_data` 2186526 ↔ `freightatlas2_copy` 2175436. BC; tsmo2/npmrds/`/datasources` regression-checked.
+- [x] [Metadata page — re-enable per-column description field](./tasks/completed/metadata-page-column-description-field.md) —
+      DONE 2026-07-12 (uncommitted): un-commented the scaffolded `RenderInputLexical` description
+      editor in RenderField's advanced panel; displays `desc || description`, writes BOTH keys so
+      the dama `desc` and datasets `description` conventions stay in sync. Verified on
+      `/datasources/source/1465/metadata`.
+- [ ] [Datasets design updates (DataManager redesign)](./tasks/current/datasets-design-updates.md) — port the converged TransportNY mockup (`datasets-catalog.html` / `datasets-source.html`) into `patterns/datasets`: functional changes land in the pattern (catalog view-switcher, per-view download dropdown, Admin Tasks panel, Metadata-as-admin nav, full-bleed spreadsheet + editable persistence fix), themed fully in transportny2 + baseline in the default theme, all surfaces moved onto `getComponentTheme`. 9 phases (Foundations → Catalog → Source shell → Overview → Table → Map → Metadata → Admin → Theme/sync); Create flow deferred pending a mockup. Non-BC items (Metadata admin-only, download UX, Map symbology) flagged for confirmation.
+- [x] [Datasets permissions model (pattern → source)](./tasks/completed/datasets-permissions-model.md) — DONE (migration committed + verified on prod npmrds2). Per-source `auth_permissions` (pattern ⊕ source), shared merge util + `SourceAccessEditor`, new sources private+creator-owned; strict server enforcement in **dms-server** (`routes/uda/sourceAuth.js` + `uda.route.js` gate, 16 tests); migration script in `dms-server/src/scripts`. Column is snake_case.
+- [ ] Datasets permissions — deferred hardening (post-soak): internal-source modify gate (`dms.data.edit`), listing/read enforcement in the dms-server UDA controller, then drop legacy `statistics.auth`. (Details in the completed `datasets-permissions-model.md`.)
+- [ ] [Set primary column from metadata UI](./tasks/current/set_primary_col_from_meta.md) — PK detect/create + `isEditable` toggle in MetadataComp for external sources, mutual exclusivity, UDA `setPrimaryKey` CALL route. Internal sources out of scope (already have a synthetic PK).
+- [ ] [External source editable CRUD](./tasks/current/external-source-editable-crud.md) — depends on the task above. New `uda.data.create/edit/delete` CALL routes + relaxed `dataWrapper`/`Card.jsx`/`apiUpdate` gates so add/edit/delete work for external sources with `isEditable: true`.
 - [x] Fix dataset creation → listing bug — getSitePatterns LIKE query, dmsSiteFactory siteType, DatasetsList category filter, UDA cache invalidation
 - [x] Modernize datasets pattern — own defaultTheme, context-only siteConfig wrapper, per-page Layout, UI components throughout
 - [x] DatasetsList style cleanup — transparent container, card/sidebar backgrounds, spacing, full-height, design pass, performance
@@ -219,11 +419,15 @@
 ### patterns/admin
 
 - [ ] [Multi-tenant support](./tasks/current/multi-tenant.md) — new `tenant` row kind; master site refs tenants like it refs patterns; each tenant has its own app+schema; `dmsSiteFactory` two-step load (master→tenant by subdomain); platform admin sees tenant list; opt-in via `isMultiTenant` flag; single-tenant deployments unaffected
+- [ ] [Tenant subdomain uniqueness](./tasks/current/tenant-subdomain-uniqueness.md) — server guard (required+format+unique) shipped; client-side pre-flight removed (Falcor cache unreliable); open issue: server error message shows as `[object Object]` due to avl-falcor XHR error wrapping
 - [x] Update admin theme merges to use `mergeTheme` (siteConfig.jsx, editTheme.jsx, themeEditor.jsx)
 - [x] Add delete & duplicate buttons to admin pattern overview — port actions from old `PatternEdit` modal to pattern editor Overview tab + list table
 - [ ] [Site management pages editor](./tasks/current/site-mgmt-pages-editor.md) — tree/lenses/search, section groups + orphan controls + draft/published filters, all page actions (Publish/Discard/Duplicate/Edit/in-nav toggle), health lenses (Empty/Orphans/DupeSlugs/StaleDrafts), data sources tab — all done; pending: section component preview modal
 - [ ] [Last Published column](./tasks/current/site-mgmt-last-published-column.md) — `last_published_at`/`last_published_by` virtual SQL columns via history-row subquery in `cmsPage.attributes`; `last_published` column type with relative time display
 - [ ] [Activity Log tab](./tasks/current/site-mgmt-activity-log.md) — expose `updated_at`/`updated_by`/`created_at`/`created_by` on page+section attributes; `activity_action_badge` column type; optional merged `{pattern} (activity)` source
+- [ ] [Pattern creation flow — page template picker](./tasks/current/pattern-creation-flow.md) — when adding a page pattern, show an inline template selector so the pattern is created with an initial page; non-page patterns unchanged; logic in `patternList.jsx` + `editSite.jsx`
+- [x] [Site templates](./tasks/completed/site-templates.md) — template picker on site creation (Simple Site default / Report / Dashboard / Blank last); Dashboard wires Graph+Spreadsheet sections to real source via wireSection() with full column objects + externalSource; server-side _sourceIdCache evicted on source creation to prevent split-table mismatch
+- [x] [Site templates — tenant support](./tasks/completed/site-templates-tenant-support.md) — extend site template picker to TenantList (admin /list add-tenant modal) and authSignup tenant flow; extract wireSection + provisionTemplatePatterns to shared utility; TenantList gets full provisioning (auth project + site + patterns)
 - [ ] Pattern creation refresh bug — new pattern row appears with blank data, requires page refresh; `dmsDataEditor` mutates input data (replaces dms-format attrs with refs), revalidation doesn't restore correct data
 - [x] [Pattern-configurable HTML page title](./tasks/completed/pattern-html-title.md) — add `html_title` attribute to pattern format, edit field in Overview pane of pattern editor, set `document.title` while pattern's routes are active; fall back to pattern `name` when unset
 - [x] [Admin site-edit auth + separate create route](./tasks/completed/admin-site-edit-auth.md) — split editSite into protected edit route (admin group only) + public create route; in-component auth guard handles no-site bootstrap case; auto-login after site creation; auth pattern permissions control who else can access the list page
@@ -233,6 +437,10 @@
 - [x] Fix `/groups/byproject` response shape — dms-server returns plain array, client expects `{ groups: [...] }` wrapper with synthetic "public" group
 - [ ] [Email redesign](./tasks/current/email-redesign.md) — redesign transactional emails (signup welcome, forgot password, password-changed confirmation) to match auth page visual identity; wire up email sending in 3 handler stubs
 - [x] [View As](./tasks/completed/view-as.md) — admin can impersonate any project user client-side; all permission checks use the viewAs user's groups; mutations blocked via globalThis flag; fixed banner with exit; works in single-tenant + multi-tenant
+
+## site-compliance
+
+- [ ] [Site completeness & legal/compliance gaps](./tasks/current/site-completeness-legal-gaps.md) — SEO meta/sitemap/manifest/favicon wiring, a11y fixes (nav landmarks, skip link, missing/empty `alt`), dead `analytics.js`, plus Privacy Policy/Terms/Accessibility Statement + signup consent checkbox for the live tessera.so/tributarylab.com multi-tenant deployment. Several items blocked on owner decisions (who writes legal text, real manifest branding, whether any tenant embeds trackers).
 
 ## config
 

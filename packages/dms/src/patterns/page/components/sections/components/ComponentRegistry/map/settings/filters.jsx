@@ -1,71 +1,81 @@
 import { normalizeLayerClickFilterConfig } from "../../../../../../../mapeditor/MapEditor/stateUtils";
 
 /**
- * Returns filter-related values and update handlers for the Map Settings filter screens.
- * All values come from the active layer config so the refactor does not create parallel state.
+ * Multi-symbology page-bridge accessor. Resolves the page-interaction bridge for
+ * a SPECIFIC symbology id (its active layer) — not just the single first-visible
+ * symbology — and returns scoped update handlers.
+ *
+ * This is what lets the author wire each symbology's page variable independently
+ * (the unify model: an interactive symbology shares its selected variant through
+ * this layer's own `searchParamKey` page var). All writes target that symbology's
+ * active layer, so no parallel state is created.
  */
-export default function useMapSettingsFilters({ state = {}, setState } = {}) {
+export function getSymbologyBridge(state, setState, symId) {
+  const entry = state?.symbologies?.[symId];
+  const symbology = entry?.symbology;
+  const layerKey = symbology?.activeLayer;
+  const layer = symbology?.layers?.[layerKey];
+  const interactiveFilterOptions = layer?.["interactive-filters"] || [];
+  const dynamicFilterOptions = layer?.["dynamic-filters"] || [];
+  const clickConfig = normalizeLayerClickFilterConfig(layer?.["click-filter"] || {});
 
-  const activeSym = Object.keys(state.symbologies || {}).find((sym) => state.symbologies[sym].isVisible);
-  const activeSymSymbology = state.symbologies?.[activeSym]?.symbology;
-  const activeLayer = activeSymSymbology?.layers?.[activeSymSymbology?.activeLayer];
-  const interactiveFilterOptions = activeLayer?.["interactive-filters"] || [];
-  const dynamicFilterOptions = activeLayer?.["dynamic-filters"] || [];
-  const clickFilterConfig = normalizeLayerClickFilterConfig(activeLayer?.["click-filter"] || {});
-  const selectedVariableMappings = clickFilterConfig.mappings || [];
-  const isSelectedVariableMappingsEnabled = clickFilterConfig.enabled || false;
-  const activeFilter = activeLayer?.selectedInteractiveFilterIndex;
+  // Every write resolves the layer fresh from the draft and no-ops if the
+  // symbology/layer went away (e.g. removed from the Layer Library mid-edit).
+  const update = (mutate) =>
+    setState?.((draft) => {
+      const draftLayer = draft.symbologies?.[symId]?.symbology?.layers?.[layerKey];
+      if (draftLayer) mutate(draftLayer);
+    });
 
   return {
-    activeSym,
-    activeSymSymbology,
-    activeLayer,
+    symId,
+    name: entry?.name || `Symbology ${symId}`,
+    layerKey,
+    layer,
+    hasLayer: Boolean(layer),
+    searchParamKey: layer?.searchParamKey || "",
+    usePageFilters: layer?.usePageFilters,
     interactiveFilterOptions,
     dynamicFilterOptions,
-    selectedVariableMappings,
-    isSelectedVariableMappingsEnabled,
-    activeFilter,
-    interactiveCount: interactiveFilterOptions.length,
-    dynamicCount: dynamicFilterOptions.length,
-    clickCount: isSelectedVariableMappingsEnabled ? selectedVariableMappings.length : 0,
-    totalFilterItems:
-      interactiveFilterOptions.length +
-      dynamicFilterOptions.length +
-      (isSelectedVariableMappingsEnabled ? selectedVariableMappings.length : 0) +
-      2,
-    setUsePageFilters: (value) =>
-      setState?.((draft) => {
-        draft.symbologies[activeSym].symbology.layers[activeSymSymbology?.activeLayer].usePageFilters = value;
-      }),
-    setSearchParamKey: (value) =>
-      setState?.((draft) => {
-        draft.symbologies[activeSym].symbology.layers[activeSymSymbology?.activeLayer].searchParamKey = value;
-      }),
-    setInteractiveSearchParamValue: (filterIndex, value) =>
-      setState?.((draft) => {
-        draft.symbologies[activeSym].symbology.layers[activeSymSymbology?.activeLayer]["interactive-filters"][filterIndex].searchParamValue = value;
-      }),
-    activateInteractiveFilter: (filterIndex) =>
-      setState?.((draft) => {
-        draft.symbologies[activeSym].symbology.layers[activeSymSymbology?.activeLayer].selectedInteractiveFilterIndex = filterIndex;
-      }),
-    setDynamicSearchParamKey: (filterIndex, value) =>
-      setState?.((draft) => {
-        draft.symbologies[activeSym].symbology.layers[activeSymSymbology?.activeLayer]["dynamic-filters"][filterIndex].searchParamKey = value;
-      }),
-    setDynamicDefaultValue: (filterIndex, nextValue) =>
-      setState?.((draft) => {
+    activeFilter: layer?.selectedInteractiveFilterIndex,
+    clickFilterEnabled: clickConfig.enabled || false,
+    clickFilterMappings: clickConfig.mappings || [],
+    setUsePageFilters: (value) => update((l) => { l.usePageFilters = value; }),
+    setSearchParamKey: (value) => update((l) => { l.searchParamKey = value; }),
+    setInteractiveSearchParamValue: (i, value) =>
+      update((l) => { l["interactive-filters"][i].searchParamValue = value; }),
+    activateInteractiveFilter: (i) =>
+      update((l) => { l.selectedInteractiveFilterIndex = i; }),
+    setDynamicSearchParamKey: (i, value) =>
+      update((l) => { l["dynamic-filters"][i].searchParamKey = value; }),
+    setDynamicDefaultValue: (i, nextValue) =>
+      update((l) => {
         const value = nextValue?.length ? nextValue : undefined;
-        draft.symbologies[activeSym].symbology.layers[activeSymSymbology?.activeLayer]["dynamic-filters"][filterIndex].defaultValue = value;
-        draft.symbologies[activeSym].symbology.layers[activeSymSymbology?.activeLayer]["dynamic-filters"][filterIndex].values = value ? [value] : [];
+        l["dynamic-filters"][i].defaultValue = value;
+        l["dynamic-filters"][i].values = value ? [value] : [];
       }),
-    setDynamicDataType: (filterIndex, value) =>
-      setState?.((draft) => {
-        draft.symbologies[activeSym].symbology.layers[activeSymSymbology?.activeLayer]["dynamic-filters"][filterIndex].dataType = value;
-      }),
-    setClickFilterUseSearchParam: (mappingIndex, value) =>
-      setState?.((draft) => {
-        draft.symbologies[activeSym].symbology.layers[activeSymSymbology?.activeLayer]["click-filter"].mappings[mappingIndex].useSearchParams = value;
-      }),
+    setDynamicDataType: (i, value) =>
+      update((l) => { l["dynamic-filters"][i].dataType = value; }),
+    setClickFilterUseSearchParam: (i, value) =>
+      update((l) => { l["click-filter"].mappings[i].useSearchParams = value; }),
   };
+}
+
+/**
+ * Summary of every symbology for the multi-symbology bridge drill-in list.
+ * Symbologies with no filters are still listed (so the author sees they exist);
+ * the `searchParamKey` badge shows whether a page var is wired.
+ */
+export function listBridgeSymbologies(state) {
+  return Object.keys(state?.symbologies || {}).map((symId) => {
+    const b = getSymbologyBridge(state, undefined, symId);
+    return {
+      symId,
+      name: b.name,
+      hasLayer: b.hasLayer,
+      searchParamKey: b.searchParamKey,
+      interactiveCount: b.interactiveFilterOptions.length,
+      dynamicCount: b.dynamicFilterOptions.length,
+    };
+  });
 }

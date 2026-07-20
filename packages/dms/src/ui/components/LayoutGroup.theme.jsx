@@ -1,5 +1,11 @@
 import React from 'react'
 
+// Style keys beyond wrapper1/2/3:
+//   decorations: [classString] — empty spans rendered inside wrapper1 (chrome).
+//   Background: React component — a live backdrop (canvas, texture) rendered
+//     inside wrapper1 before the content wrappers. The component positions
+//     itself (absolute inset-0, aria-hidden); wrapper1 supplies
+//     relative/overflow-hidden. Site themes supply this from their own code.
 export const layoutGroupTheme = {
   options: {
     activeStyle: 0
@@ -21,6 +27,16 @@ export const layoutGroupTheme = {
       name: "auth",
       wrapper1: 'w-full flex-1 flex flex-row p-2 ', // inside page header, wraps sidebar
       wrapper2: 'flex flex-1 w-full  flex-col  shadow-md bg-white rounded-lg relative text-md font-light leading-7 p-4 place-content-center', // content wrapper
+      wrapper3: ''
+    },
+    {
+      // workbench — full-screen tool surface (maps, explorers): no max-width,
+      // no card chrome, no band padding. Pair with a p-0 section and a
+      // viewport-height element (e.g. the Map component's `screen` height) so
+      // the section fills everything beside the sidenav.
+      name: "workbench",
+      wrapper1: 'w-full',
+      wrapper2: 'w-full',
       wrapper3: ''
     },
   ]

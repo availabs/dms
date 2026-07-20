@@ -9,7 +9,7 @@ import { ThemeContext } from '../../../../../../ui/useTheme';
 import { migrateToV2 } from "./migrateToV2";
 import { nameToSlug } from "../../../../../../utils/type-utils";
 import {useHandleClickOutside, isCalculatedCol} from "./utils/utils";
-import { getData } from "./getData";
+import { getData, applyCreateDefaults } from "./getData";
 import { useDataLoader } from "./useDataLoader";
 import { usePageFilterSync } from "./usePageFilterSync";
 import { useColumnOptions } from "./useColumnOptions";
@@ -193,7 +193,7 @@ const RenderDownload = ({state, apiLoad, cms_context}) => {
 
 
 const Edit = forwardRef((props, ref) => {
-    let {cms_context, value, onChange, component, siteType, pageFormat, onHandle} = props
+    let {cms_context, value, onChange, component, siteType, pageFormat, onHandle, sectionId, trackingId} = props
     const isEdit = Boolean(onChange);
     const { UI, theme: fullTheme } = useContext(ThemeContext)
     const _pageCtx = useContext(PageContext) || {};
@@ -217,7 +217,7 @@ const Edit = forwardRef((props, ref) => {
 
     // ── Hooks that operate on state ──
     const { loading, currentPage, onPageChange, outputSourceInfo } = useDataLoader({
-        state, setState, apiLoad, component, isEditMode: true,
+        state, setState, apiLoad, component, isEditMode: true, sectionId, trackingId,
     });
 
     useEffect(() => {
@@ -226,7 +226,7 @@ const Edit = forwardRef((props, ref) => {
         }
     }, [outputSourceInfo]);
 
-    usePageFilterSync({ state, setState });
+    usePageFilterSync({ state, setState, sectionId, trackingId });
 
     // ── Sync newItem from page params for columns with usePageParams ──
     useEffect(() => {
@@ -239,21 +239,41 @@ const Edit = forwardRef((props, ref) => {
         pageParamColumns.forEach(col => {
             const paramValues = pageFilters[col.pageParamKey];
             if (paramValues !== undefined) {
-                updates[col.name] = Array.isArray(paramValues) ? paramValues[0] : paramValues;
+                const v = Array.isArray(paramValues) ? paramValues[0] : paramValues;
+                // Re-sync when newItem doesn't already carry the value — addItem() clears
+                // newItem, and without the newItem dep the NEXT add in the same session
+                // would save without the pre-filled fields. The equality guard keeps the
+                // set-inside-effect from looping (identical updates are skipped).
+                if (newItem?.[col.name] !== v) updates[col.name] = v;
             }
         });
         if (Object.keys(updates).length) {
             setNewItem(prev => ({ ...prev, ...updates }));
         }
-    }, [editPageState?.filters, state?.columns]);
+    }, [editPageState?.filters, state?.columns, newItem]);
 
-    useColumnOptions({ state, setState, apiLoad, component, pgEnv, enabled: !!cms_context });
+    useColumnOptions({ state, setState, apiLoad, component, pgEnv, enabled: !!cms_context, sectionId, trackingId });
 
-    usePivotDistinctValues({ state, setState, apiLoad });
+    usePivotDistinctValues({ state, setState, apiLoad, sectionId, trackingId });
 
     // ── useDataSource + dwAPI (owned by dataWrapper) ──
     const dataSourceInfo = useDataSource({ state, setState });
     const dwAPI = useDataWrapperAPI({ state, setState });
+
+    // ── Comparison-series dynamic binding: reconcile the synthetic column ──
+    // The master toggle / series-key commit fire reconcile from the menu, but a
+    // dynamic "comparison_series" subscriber can be enabled (Actions menu) or resolve
+    // its config (usePageFilterSync) AFTER the master is already on — orderings the
+    // menu reconcile misses. Re-reconcile when either the subscriber's enabled flag or
+    // config's presence flips (booleans, so no per-keystroke churn). reconcile is
+    // idempotent → immer no-ops when the column is already correct.
+    const csSubEnabled = (state?.display?._functions?.subscribers || []).some(
+        s => s.functionId === 'comparison_series' && s.enabled
+    );
+    const csConfigPresent = state?.comparisonSeries?.config !== undefined;
+    useEffect(() => {
+        dwAPI.reconcileComparisonSeriesColumn();
+    }, [csSubEnabled, csConfigPresent, state?.comparisonSeries?.enabled]);
 
     // ── Backfill externalSource.type if missing (older sections lack it) ──
     useEffect(() => {
@@ -275,13 +295,15 @@ const Edit = forwardRef((props, ref) => {
             display: { ...(state.display || {}) },
             data: state.data || [],
             join: state.join || { sources: {} },
-            customBuckets: state.customBuckets || {},
         };
         if (state.dataSourceId) toSave.dataSourceId = state.dataSourceId;
         if (state.pivot?.enabled) {
             const { distinctValues: _dv, distinctValuesByColumn: _dvbc, ...pivotConfig } = state.pivot;
             toSave.pivot = pivotConfig;
         }
+        // Persist comparison-series config when present, or the save effect round-trips
+        // a stripped state and the master toggle silently reverts (same trap as join).
+        if (state.comparisonSeries) toSave.comparisonSeries = state.comparisonSeries;
         RUNTIME_DISPLAY_FIELDS.forEach(f => delete toSave.display[f]);
         const serialized = JSON.stringify(toSave);
         if (isEqual(value, serialized)) return;
@@ -312,16 +334,24 @@ const Edit = forwardRef((props, ref) => {
     const groupByColumnsLength = useMemo(() => state?.columns?.filter(({group}) => group).length, [state?.columns]);
 
     const updateItem = (value, attribute, d) => {
-        if(!state?.externalSource?.isDms || !apiUpdate || groupByColumnsLength) return;
+        if(!(state?.externalSource?.isDms || state?.externalSource?.isEditable) || !apiUpdate || groupByColumnsLength) return;
         const sourceType = state?.externalSource?.type || (state?.externalSource?.name ? nameToSlug(state.externalSource.name) : undefined);
         const dataFormat = state?.externalSource?.view_id && sourceType
             ? {...state?.externalSource, type: `${sourceType}|${state?.externalSource.view_id}:data`}
             : state?.externalSource;
         if(attribute?.name){
+            // setDateOnValue (opt-in, backward-compatible): when this column is live-edited to a
+            // value in `values`, also stamp a companion `field` with the current datetime; clear
+            // it (empty string) when edited to any other value. Enables e.g. a status pill
+            // recording a `resolved_date` the moment status flips to Resolved/Closed.
+            const sdov = attribute.setDateOnValue;
+            const stamp = sdov?.field
+                ? { [sdov.field]: (sdov.values || []).includes(value) ? new Date().toISOString().slice(0, 19).replace('T', ' ') : '' }
+                : null;
             setState(draft => {
                 const idx = draft.data.findIndex(draftD => draftD.id === d.id);
                 if(idx !== -1){
-                    draft.data[idx] = {...(draft.data[idx] || {}), ...d, [attribute.name]: value}
+                    draft.data[idx] = {...(draft.data[idx] || {}), ...d, [attribute.name]: value, ...(stamp || {})}
                 }
             })
             const dataToUpdateDB = state?.columns.filter(c => !(c.serverFn && c.joinKey) && c.editable !== false)
@@ -329,7 +359,7 @@ const Edit = forwardRef((props, ref) => {
                     acc[col.name] = d[col.name]?.originalValue || d[col.name];
                     return acc;
                 }, {id: d.id})
-            return apiUpdate({data: {...dataToUpdateDB, [attribute.name]: value},  config: {format: dataFormat}})
+            return apiUpdate({data: {...dataToUpdateDB, [attribute.name]: value, ...(stamp || {})},  config: {format: dataFormat}})
         }else{
             const dataToUpdateState = Array.isArray(d) ? d : [d];
             const dataToUpdateDB = dataToUpdateState?.map(row => {
@@ -356,13 +386,16 @@ const Edit = forwardRef((props, ref) => {
     }
 
     const addItem = async () => {
-        if(!state?.externalSource?.isDms || !apiUpdate || groupByColumnsLength) return;
+        if(!(state?.externalSource?.isDms || state?.externalSource?.isEditable) || !apiUpdate || groupByColumnsLength) return;
         const sourceType = state?.externalSource?.type || (state?.externalSource?.name ? nameToSlug(state.externalSource.name) : undefined);
-        const res = await apiUpdate({data: newItem, config: {format: {...state?.externalSource, type: `${sourceType}|${state?.externalSource.view_id}:data`}}});
+        // create-time column defaults: `defaultValue` (static) + `defaultFn` (dynamic:
+        // today/now/user) + `autoNumber` — see applyCreateDefaults in getData.js
+        const data = await applyCreateDefaults({ columns: state?.columns, newItem, apiLoad, externalSource: state?.externalSource, user: _cmsCtx.user });
+        const res = await apiUpdate({data, config: {format: {...state?.externalSource, type: `${sourceType}|${state?.externalSource.view_id}:data`}}});
 
         if(res?.id){
             setState(draft => {
-                draft.data.push({...newItem, id: res.id})
+                draft.data.push({...data, id: res.id})
             })
         }
 
@@ -371,7 +404,7 @@ const Edit = forwardRef((props, ref) => {
     }
 
     const removeItem = item => {
-        if(!state?.externalSource?.isDms || groupByColumnsLength) return;
+        if(!(state?.externalSource?.isDms || state?.externalSource?.isEditable) || groupByColumnsLength) return;
         const sourceType = state?.externalSource?.type || (state?.externalSource?.name ? nameToSlug(state.externalSource.name) : undefined);
         const dataFormat = state?.externalSource?.view_id && sourceType
             ? {...state?.externalSource, type: `${sourceType}|${state?.externalSource.view_id}:data`}
@@ -383,17 +416,17 @@ const Edit = forwardRef((props, ref) => {
     }
 
     const componentProps = useMemo(() => {
-        return ['Spreadsheet', 'Card'].includes(component.name) ? {
+        return component?.usesItemMutationProps ? {
             newItem, setNewItem,
             updateItem, removeItem, addItem,
             currentPage, infiniteScrollFetchData: onPageChange,
-            allowEdit: state?.externalSource?.isDms && !groupByColumnsLength
+            allowEdit: (state?.externalSource?.isDms || state?.externalSource?.isEditable) && !groupByColumnsLength
         } : {}
-    }, [component.name, newItem, setNewItem, updateItem, removeItem, addItem, currentPage, onPageChange, state?.externalSource?.isDms, groupByColumnsLength])
+    }, [component?.usesItemMutationProps, newItem, setNewItem, updateItem, removeItem, addItem, currentPage, onPageChange, state?.externalSource?.isDms, state?.externalSource?.isEditable, groupByColumnsLength])
 
     return (
         <ComponentContext.Provider value={{state, setState, apiLoad, apiUpdate, controls: resolvedControls,
-            isActive: true, activeStyle: undefined, sectionId: undefined}}>
+            isActive: true, activeStyle: undefined, sectionId, trackingId}}>
             <RenderFilters isEdit={true} defaultOpen={true} />
             <ExternalFilters defaultOpen={true} />
             <div className={'w-full h-full flex flex-col'}>
@@ -420,7 +453,7 @@ const Edit = forwardRef((props, ref) => {
     )
 })
 
-const View = forwardRef(({cms_context, value, onChange, component, editPageMode, onHandle}, ref) => {
+const View = forwardRef(({cms_context, value, onChange, component, editPageMode, onHandle, sectionId, trackingId}, ref) => {
     const isEdit = false;
     const navigate = useNavigate();
     const _pageCtx = useContext(PageContext) || {};
@@ -443,7 +476,7 @@ const View = forwardRef(({cms_context, value, onChange, component, editPageMode,
     const isValidState = Boolean(state?.externalSource?.source_id || state?.externalSource?.isDms);
     const Comp = useMemo(() => state?.display?.hideSection && !editPageMode ? () => <></> : component.ViewComp, [component, state?.display?.hideSection]);
     const setReadyToLoad = useCallback(() => setState(draft => {if (!draft) return; if (!draft.display) draft.display = {}; draft.display.readyToLoad = true}), [setState]);
-    const allowEdit = groupByColumnsLength ? false : state?.externalSource?.isDms && state?.display?.allowEditInView && Boolean(apiUpdate);
+    const allowEdit = groupByColumnsLength ? false : (state?.externalSource?.isDms || state?.externalSource?.isEditable) && state?.display?.allowEditInView && Boolean(apiUpdate);
 
     // Flush pending live edit on unmount
     useEffect(() => () => clearTimeout(liveEditTimerRef.current), []);
@@ -458,7 +491,7 @@ const View = forwardRef(({cms_context, value, onChange, component, editPageMode,
 
     // ── Hooks ──
     const { loading, currentPage, onPageChange, outputSourceInfo } = useDataLoader({
-        state, setState, apiLoad, component,
+        state, setState, apiLoad, component, sectionId, trackingId,
     });
 
     useEffect(() => {
@@ -467,7 +500,7 @@ const View = forwardRef(({cms_context, value, onChange, component, editPageMode,
         }
     }, [outputSourceInfo]);
 
-    usePageFilterSync({ state, setState, setReadyOnChange: true });
+    usePageFilterSync({ state, setState, setReadyOnChange: true, sectionId, trackingId });
 
     // ── Sync newItem from page params for columns with usePageParams ──
     useEffect(() => {
@@ -480,20 +513,26 @@ const View = forwardRef(({cms_context, value, onChange, component, editPageMode,
         pageParamColumns.forEach(col => {
             const paramValues = pageFilters[col.pageParamKey];
             if (paramValues !== undefined) {
-                updates[col.name] = Array.isArray(paramValues) ? paramValues[0] : paramValues;
+                const v = Array.isArray(paramValues) ? paramValues[0] : paramValues;
+                // Re-sync when newItem doesn't already carry the value — addItem() clears
+                // newItem, and without the newItem dep the NEXT add in the same session
+                // would save without the pre-filled fields. The equality guard keeps the
+                // set-inside-effect from looping (identical updates are skipped).
+                if (newItem?.[col.name] !== v) updates[col.name] = v;
             }
         });
         if (Object.keys(updates).length) {
             setNewItem(prev => ({ ...prev, ...updates }));
         }
-    }, [viewPageState?.filters, state?.columns]);
+    }, [viewPageState?.filters, state?.columns, newItem]);
 
     useColumnOptions({
         state, setState, apiLoad, component, pgEnv,
-        enabled: allowEdit || state?.display?.allowAdddNew || state?.columns?.some(c => c.allowEditInView && c.mapped_options)
+        enabled: allowEdit || state?.display?.allowAdddNew || state?.columns?.some(c => c.allowEditInView && c.mapped_options),
+        sectionId, trackingId,
     });
 
-    usePivotDistinctValues({ state, setState, apiLoad });
+    usePivotDistinctValues({ state, setState, apiLoad, sectionId, trackingId });
 
     // ── useDataSource + dwAPI (owned by dataWrapper) ──
     const dataSourceInfo = useDataSource({ state, setState });
@@ -518,7 +557,7 @@ const View = forwardRef(({cms_context, value, onChange, component, editPageMode,
     // ── CRUD ──
     const editableColumns = useMemo(() => state?.columns?.filter(c => !(c.serverFn && c.joinKey) && c.editable !== false), [state?.columns])
     const updateItem = useCallback((value, attribute, d) => {
-        if(!state?.externalSource?.isDms || !apiUpdate || groupByColumnsLength) return;
+        if(!(state?.externalSource?.isDms || state?.externalSource?.isEditable) || !apiUpdate || groupByColumnsLength) return;
         const sourceType = state?.externalSource?.type || (state?.externalSource?.name ? nameToSlug(state.externalSource.name) : undefined);
         const dataFormat = state?.externalSource?.view_id && sourceType
             ? {...state?.externalSource, type: `${sourceType}|${state?.externalSource.view_id}:data`}
@@ -562,22 +601,25 @@ const View = forwardRef(({cms_context, value, onChange, component, editPageMode,
 
             return Promise.all(dataToUpdateDB.map(dtu => apiUpdate({data: dtu, config: {format: dataFormat}})));
         }
-    }, [state?.externalSource?.isDms, editableColumns, groupByColumnsLength, setState, apiUpdate])
+    }, [state?.externalSource?.isDms, state?.externalSource?.isEditable, editableColumns, groupByColumnsLength, setState, apiUpdate])
 
     const addItem = useCallback(async () => {
-        if(!state?.externalSource?.isDms || !apiUpdate || groupByColumnsLength) return;
+        if(!(state?.externalSource?.isDms || state?.externalSource?.isEditable) || !apiUpdate || groupByColumnsLength) return;
         const {allowAdddNew, addNewBehaviour, navigateUrlOnAdd} = state?.display || {};
         const sourceType = state?.externalSource?.type || (state?.externalSource?.name ? nameToSlug(state.externalSource.name) : undefined);
         const config = {format: {...state?.externalSource, type: `${sourceType}|${state?.externalSource?.view_id}:data`}}
 
         const emptyRowMode = state?.display?.emptyRowMode;
         if(allowAdddNew || emptyRowMode === 'inline_add'){
-            const res = await apiUpdate({data: newItem, config});
+            // create-time column defaults: `defaultValue` (static) + `defaultFn` (dynamic:
+            // today/now/user) + `autoNumber` — see applyCreateDefaults in getData.js
+            const data = await applyCreateDefaults({ columns: state?.columns, newItem, apiLoad, externalSource: state?.externalSource, user: _cmsCtx.user });
+            const res = await apiUpdate({data, config});
             const effectiveBehaviour = addNewBehaviour || (emptyRowMode === 'inline_add' ? 'append' : '');
 
             if(res?.id && effectiveBehaviour === 'append'){
                 setState(draft => {
-                    draft.data.push({...newItem, id: res.id})
+                    draft.data.push({...data, id: res.id})
                 })
             }else if(res?.id && effectiveBehaviour === 'navigate' && navigateUrlOnAdd){
                 navigate(`${baseUrl}${navigateUrlOnAdd}${res.id}`)
@@ -586,10 +628,10 @@ const View = forwardRef(({cms_context, value, onChange, component, editPageMode,
             setNewItem({})
             return res;
         }
-    }, [state?.externalSource, apiUpdate, setState, groupByColumnsLength, state?.display, newItem, baseUrl])
+    }, [state?.externalSource, state?.columns, apiLoad, apiUpdate, setState, groupByColumnsLength, state?.display, newItem, baseUrl, _cmsCtx.user])
 
     const removeItem = useCallback(item => {
-        if (!state?.externalSource?.isDms || !apiUpdate || groupByColumnsLength) return;
+        if (!(state?.externalSource?.isDms || state?.externalSource?.isEditable) || !apiUpdate || groupByColumnsLength) return;
         const sourceType = state?.externalSource?.type || (state?.externalSource?.name ? nameToSlug(state.externalSource.name) : undefined);
         const dataFormat = state?.externalSource?.view_id && sourceType
             ? {...state?.externalSource, type: `${sourceType}|${state?.externalSource.view_id}:data`}
@@ -632,16 +674,16 @@ const View = forwardRef(({cms_context, value, onChange, component, editPageMode,
     }, [state?.data, state?.display?.hideIfNull])
 
     const componentProps = useMemo(() => {
-        return ['Spreadsheet', 'Card'].includes(component.name) ? {
+        return component?.usesItemMutationProps ? {
             newItem, setNewItem,
             updateItem, removeItem, addItem,
             currentPage, infiniteScrollFetchData: onPageChange,
             allowEdit
         } : {}
-    }, [component.name, allowEdit, newItem, setNewItem, updateItem, removeItem, addItem, currentPage, onPageChange])
+    }, [component?.usesItemMutationProps, allowEdit, newItem, setNewItem, updateItem, removeItem, addItem, currentPage, onPageChange])
 
     return (
-        <ComponentContext.Provider value={{state, setState, apiLoad, apiUpdate, controls: resolvedControls, activeStyle: undefined}}>
+        <ComponentContext.Provider value={{state, setState, apiLoad, apiUpdate, controls: resolvedControls, activeStyle: undefined, sectionId, trackingId}}>
             <RenderFilters isEdit={false} defaultOpen={true} />
             <ExternalFilters defaultOpen={true} />
             <div className={'w-full h-full'}>

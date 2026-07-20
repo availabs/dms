@@ -360,7 +360,14 @@ function handleFiltersType(id_col, id_vals, index, type, isDms) {
     const array_cdn = `${typeMap[type].array || ''} (CASE WHEN ${id_col} IS NULL THEN 'null' ELSE ${id_col} END) ${typeMap[type].symbol} ANY(${index})`;
     const null_cdn = `${id_col} ${typeMap[type].null} ${nullVals}`;
     if (arrayVals.length && nullVals) {
-      conditions.push(`(${array_cdn} OR ${null_cdn})`);
+      // AND, not OR: exclude semantics are "none of these values AND not null".
+      // With OR (mirroring the filter branch, where OR is correct for
+      // "IN list OR IS NULL") the predicate is a tautology — non-null rows
+      // satisfy `IS NOT NULL`, null rows satisfy `'null' != ANY(values)` —
+      // so an exclude leaf carrying the null sentinel (the client's
+      // `is_not_null` op emits `['null', '']` for text columns) silently
+      // matched every row.
+      conditions.push(`(${array_cdn} AND ${null_cdn})`);
     } else {
       arrayVals.length && conditions.push(array_cdn);
       nullVals && conditions.push(null_cdn);
@@ -429,9 +436,20 @@ function handleFilters({ filter, exclude, gt, gte, lt, lte, like, filterRelation
 
 // ============================================= Complex Filter Groups ==============================================
 
+/** Recursively collects every `col` referenced by a filterGroups tree. */
+function getColumnsFromGroup(node) {
+  if (!node) return [];
+  if (node.groups) return node.groups.flatMap(getColumnsFromGroup);
+  return node.col ? [node.col] : [];
+}
+
 function getValuesFromGroup(node) {
   if (!node) return [];
   if (node.groups) return node.groups.flatMap(getValuesFromGroup);
+  // `empty` / `notempty` are unary — buildLeafSQL emits no placeholder for them,
+  // so emit no bind value here regardless of any stray `value` left on the leaf,
+  // keeping the values array in lockstep with the emitted $N placeholders.
+  if (node.op === 'empty' || node.op === 'notempty') return [];
   // `time` op carries a structured value object — extract its bind values in
   // the same canonical order buildTimeFilterSQL mints placeholders.
   if (node.op === 'time') {
@@ -453,6 +471,15 @@ function getValuesFromGroup(node) {
 
 function buildLeafSQL(node, ctx, isDms, dbType) {
   const { col, op, value, isExternal } = node;
+
+  // `empty` / `notempty` are UNARY: match rows with no value (NULL or '') or its
+  // inverse. They consume NO bind placeholder (getValuesFromGroup emits none for
+  // them), so they must stay ahead of both the `value == null` guard and the
+  // placeholder allocation below. `col` is already the fully-qualified accessor
+  // (data->>'x', or ds.data->>'x' under a join) — used verbatim like the sibling ops.
+  if (op === 'empty') return `(${col} IS NULL OR ${col} = '')`;
+  if (op === 'notempty') return `(${col} IS NOT NULL AND ${col} <> '')`;
+
   // External filters are already applied via old-style filter/like/etc. objects —
   // they exist in filterGroups only for UI tracking, not SQL generation.
   // Also skip nodes with no value (would generate a placeholder with no matching param).
@@ -476,10 +503,13 @@ function buildLeafSQL(node, ctx, isDms, dbType) {
       // json_each returns rows with a .value column
       return `${not}EXISTS (SELECT 1 FROM json_each(${col}) _ac WHERE _ac.value = ANY(${index}))`;
     }
-    // PostgreSQL: use jsonb_typeof to branch on whether the value is a JSON array.
-    // If it is, unnest with jsonb_array_elements_text; if not, wrap the scalar in a
-    // single-element array first so the same EXISTS pattern works for both cases.
-    return `${not}EXISTS (SELECT 1 FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof((${col})::jsonb) = 'array' THEN (${col})::jsonb ELSE jsonb_build_array((${col})::text) END) _ac WHERE _ac = ANY(${index}))`;
+    // PostgreSQL: real column values aren't guaranteed to be valid JSON (empty
+    // strings, legacy plain-text values, truncated/malformed array-looking text
+    // like '[' or '[abc]') — casting straight to jsonb would throw "invalid
+    // input syntax for type json" on those instead of treating them as a
+    // scalar. pg_input_is_valid checks JSON validity without throwing, so only
+    // genuinely well-formed values reach the ::jsonb cast.
+    return `${not}EXISTS (SELECT 1 FROM jsonb_array_elements_text(CASE WHEN pg_input_is_valid((${col}), 'jsonb') AND jsonb_typeof((${col})::jsonb) = 'array' THEN (${col})::jsonb ELSE jsonb_build_array((${col})::text) END) _ac WHERE _ac = ANY(${index}))`;
   }
 
   const vals = Array.isArray(value) ? value : [value];
@@ -582,16 +612,36 @@ const buildJoin = async ({ join }) => {
   
   for(let i=0; i< join.on.length; i++) {
     const singleJoinOnConfig = join.on[i];
-    const {view_id, env: sourceEnv} = join.sources[singleJoinOnConfig.table];
-    const {table_schema, table_name} = await getEssentials({view_id, env: sourceEnv});
-    
+    const joinSource = join.sources[singleJoinOnConfig.table];
+
+    let fromExpr;
+    if (joinSource.pgFederated) {
+      // ClickHouse-only: reads a live Postgres table via the `postgresql()`
+      // table function instead of a registered DAMA view, so a join can reach
+      // data that hasn't been (and may never be) mirrored into ClickHouse.
+      // Credentials are resolved server-side from the same pgEnv config every
+      // DAMA join already uses (loadConfig) — never sent by/to the client.
+      const { pgEnv, table: pgTable, schema: pgSchema } = joinSource.pgFederated;
+      const { host, port, user, password, database } = loadConfig(pgEnv);
+      const sanitizedTable = sanitizeName(pgTable);
+      const sanitizedSchema = sanitizeName(pgSchema);
+      if (!sanitizedTable || !sanitizedSchema) {
+        throw new Error(`pgFederated join source has an invalid table/schema name: ${pgTable}/${pgSchema}`);
+      }
+      fromExpr = `(SELECT * FROM postgresql('${host}:${port}', '${database}', '${sanitizedTable}', '${user}', '${password}', '${sanitizedSchema}'))`;
+    } else {
+      const { view_id, env: sourceEnv } = joinSource;
+      const { table_schema, table_name } = await getEssentials({ view_id, env: sourceEnv });
+      fromExpr = `${table_schema}.${table_name}`;
+    }
+
     if (singleJoinOnConfig.mergeStrategy === 'union') {
       const all = singleJoinOnConfig.type === 'all' ? ' ALL' : '';
-      merges.push(`UNION${all} SELECT * FROM ${table_schema}.${table_name} as ${singleJoinOnConfig.table}`);
+      merges.push(`UNION${all} SELECT * FROM ${fromExpr} as ${singleJoinOnConfig.table}`);
     } else if (singleJoinOnConfig.mergeStrategy === 'except') {
-      merges.push(`EXCEPT SELECT * FROM ${table_schema}.${table_name} as ${singleJoinOnConfig.table}`);
+      merges.push(`EXCEPT SELECT * FROM ${fromExpr} as ${singleJoinOnConfig.table}`);
     } else {
-      joins.push(`${ singleJoinOnConfig.type } JOIN ${table_schema}.${table_name} as ${singleJoinOnConfig.table} ON ${singleJoinOnConfig.on}`);
+      joins.push(`${ singleJoinOnConfig.type } JOIN ${fromExpr} as ${singleJoinOnConfig.table} ON ${singleJoinOnConfig.on}`);
     }
   }
 
@@ -599,40 +649,85 @@ const buildJoin = async ({ join }) => {
 }
 
 /**
- * Compile one custom-bucket (alias group) definition into a CASE expression.
+ * Shift every `$N` placeholder in a SQL fragment up by `offset`.
  *
- * A definition is `{ column, fallback, groups: { [label]: [values] } }` and maps
- * the values of `column` into the author-defined labels:
- *   CASE WHEN <column> IN (...) THEN '<label>' … ELSE '<fallback>' END
+ * Used by the comparison-series fan-out: each arm's WHERE is built independently
+ * starting at $1, then the arms are concatenated into one UNION ALL with a single
+ * shared `values` array. Renumbering each arm's placeholders by the running param
+ * count keeps the invariant `$K → values[K-1]` across the whole query (both the
+ * pg driver and the SQLite adapter look params up by index, so this is safe).
  *
- * The standard CASE/IN syntax works identically on PostgreSQL and SQLite, so the
- * same builder serves both. Only `column` is a raw identifier (groupBy bypasses
- * the sanitizeName() path for these CASE expressions), so it is sanitizeName()-
- * guarded here; labels, values and fallback are single-quote-escaped literals. A
- * group's `values` may arrive JSON-stringified (dynamic page-filter bindings
- * store the list as a string) — tolerated via the JSON.parse fallback.
+ * The single regex pass substitutes all matches against their original numbers, so
+ * there is no double-substitution (e.g. $1→$11 won't then re-match as $11).
  */
-function buildAliasGroupCase(definition) {
-  const { column, fallback, groups } = definition;
-  const safeColumn = sanitizeName(column);
-  if (!safeColumn) return null;
-  // DMS internal sources read column values out of a JSONB `data` column via
-  // `data->>'col'`, which always yields TEXT. Force every comparison value to a
-  // quoted string literal in that case, so a numeric bucket value doesn't compile
-  // to `data->>'col' IN (5)` — a text/integer mismatch Postgres rejects. DAMA
-  // physical columns keep native typing (numbers stay unquoted).
-  const isJsonText = safeColumn.includes("data->>");
-  let caseStmt = `CASE `;
-  for (const [label, values] of Object.entries(groups)) {
-    const valArray = typeof values === 'string' ? JSON.parse(values) : values;
-    const escapedValues = valArray.map(v => (typeof v === 'string' || isJsonText) ? `'${String(v).replace(/'/g, "''")}'` : v).join(', ');
-    caseStmt += `WHEN ${safeColumn} IN (${escapedValues}) THEN '${label.replace(/'/g, "''")}' `;
+function offsetPlaceholders(sql, offset) {
+  return offset ? sql.replace(/\$(\d+)/g, (_, n) => `$${Number(n) + offset}`) : sql;
+}
+
+/**
+ * Substitute `__ANCHOR__(<expr>)` markers in a comparison-series arm's SQL with a
+ * scalar subquery scoped to the FIRST series variant's own filter (the "anchor"/
+ * "main" row — mirrors the old NPMRDS reports tool's own convention: its Route
+ * Compare Component always treats whichever route is first in the list as the one
+ * everything else compares against).
+ *
+ * Why this exists: each comparison-series arm (see the seriesVariants branch in
+ * query_sets/clickhouse.js) runs as its own fully independent query — arms are
+ * UNION ALL'd together only after each has already executed. A calculated column
+ * can't compare its own aggregate against "the anchor row's" value via a window
+ * function or a second GROUP BY, because no arm's query ever sees another arm's
+ * rows. `__ANCHOR__(<expr>)` lets a column's own SQL ask for `<expr>` evaluated
+ * against the anchor's filter specifically, regardless of which arm it's embedded
+ * in — e.g. `(avg(speed) - __ANCHOR__(avg(speed))) / __ANCHOR__(avg(speed)) * 100`
+ * computes "how far this arm's speed is from the anchor's speed" correctly in
+ * every arm, including the anchor's own arm (where it trivially evaluates to 0).
+ *
+ * A plain regex can't extract `<expr>` because it may itself contain parens (e.g.
+ * `avg(((table1.miles...)))`) — this scans for the balanced closing paren instead.
+ * Multiple `__ANCHOR__(...)` occurrences in one SQL string are all substituted.
+ */
+function substituteAnchorMarkers(sql, anchorFromWhere) {
+  const marker = '__ANCHOR__(';
+  let result = '';
+  let i = 0;
+  while (i < sql.length) {
+    const idx = sql.indexOf(marker, i);
+    if (idx === -1) {
+      result += sql.slice(i);
+      break;
+    }
+    result += sql.slice(i, idx);
+    let depth = 1;
+    let j = idx + marker.length;
+    while (j < sql.length && depth > 0) {
+      if (sql[j] === '(') depth++;
+      else if (sql[j] === ')') depth--;
+      j++;
+    }
+    if (depth !== 0) {
+      throw new Error(`Unbalanced parens in __ANCHOR__(...) marker: ${sql.slice(idx)}`);
+    }
+    const inner = sql.slice(idx + marker.length, j - 1);
+    result += `(SELECT ${inner} FROM ${anchorFromWhere})`;
+    i = j;
   }
-  if (fallback) {
-    caseStmt += `ELSE '${fallback.replace(/'/g, "''")}' `;
-  }
-  caseStmt += `END`;
-  return caseStmt;
+  return result;
+}
+
+/**
+ * Restore long column names that were aliased to short `col_N` placeholders for the
+ * query (see columnNameMap in simpleFilter — long response names are swapped for
+ * `col_N` so they fit identifier limits). No-op when the map is empty. Shared by the
+ * Postgres and ClickHouse query sets, single-arm and comparison-series fan-out paths.
+ */
+function restoreLongColumnNames(rows, columnNameMap) {
+  if (!Object.keys(columnNameMap).length) return rows;
+  return rows.map(row => {
+    const restored = Object.keys(columnNameMap).reduce((acc, originalName) => {
+      return { ...acc, [getResponseColumnName(originalName)]: row[getResponseColumnName(columnNameMap[originalName])] };
+    }, {});
+    return { ...row, ...restored };
+  });
 }
 
 module.exports = {
@@ -646,12 +741,16 @@ module.exports = {
   getSiteSources,
   getValuesExceptNulls,
   getValuesFromGroup,
+  getColumnsFromGroup,
   handleFilters,
   handleFilterGroups,
-  handleGroupBy,
   handleHaving,
+  handleGroupBy,
   handleOrderBy,
   buildCombinedWhere,
   buildJoin,
-  buildAliasGroupCase
-};
+  offsetPlaceholders,
+  restoreLongColumnNames,
+  substituteAnchorMarkers
+  };
+

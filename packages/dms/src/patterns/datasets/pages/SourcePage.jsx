@@ -1,9 +1,11 @@
 import React, {useContext, useEffect, useState} from "react";
 import {Link, useNavigate} from "react-router";
 import {DatasetsContext} from "../context";
-import {ThemeContext} from "../../../ui/useTheme";
-import {getSourceData} from "./dataTypes/default/utils";
+import {ThemeContext, getComponentTheme} from "../../../ui/useTheme";
+import {dataItemsNav} from "../../../utils/nav";
+import {getSourceData, resolveInternalViewNames, parseIfJson} from "./dataTypes/default/utils";
 import { getExternalEnv } from "../utils/datasources";
+import { sourcePageTheme } from "./sourcePage.theme";
 import Breadcrumbs from "../components/Breadcrumbs";
 import Overview from "./dataTypes/default/overview"
 import Admin from "./dataTypes/default/admin"
@@ -23,23 +25,17 @@ const defaultPages = {
     metadata: Metadata
 }
 
-const SourceNav = ({theme = {}, navItems, page, pageBaseUrl, id, view_id, isDms, sourceType}) => (
-    <nav className={theme.tabNav || 'w-full flex'}>
+const SourceNav = ({t, navItems, page, pageBaseUrl, id, view_id, isDms, sourceType}) => (
+    <nav className={t.tabNav} aria-label="Source tabs">
         {navItems
             .filter(p => !p.cdn || p.cdn({isDms, sourceType}))
             .map(p => {
                 const isActive = p.href === (page || '');
                 return (
-                    <Link key={p.name} className={
-                        `${theme.tab || 'p-2 mx-1 font-display font-medium text-l text-slate-700 border-b-2'} ${
-                            isActive
-                                ? (theme.tabActive || 'border-blue-600')
-                                : (theme.tabInactive || 'border-transparent hover:border-gray-300')
-                        }`
-                    }
-                          to={`${pageBaseUrl}/${id}/${p.viewDependentPage ? `${p.href}/${view_id || ''}` : p.href}`}
-                    >
-                        <div className={'flex items-center'}><span className={'pr-0.5'}>{p.name}</span></div>
+                    <Link key={p.name}
+                          className={`${t.tab} ${isActive ? t.tabActive : t.tabInactive}`}
+                          to={`${pageBaseUrl}/${id}/${p.viewDependentPage ? `${p.href}/${view_id || ''}` : p.href}`}>
+                        {p.name}
                     </Link>
                 )
             })
@@ -48,23 +44,24 @@ const SourceNav = ({theme = {}, navItems, page, pageBaseUrl, id, view_id, isDms,
 )
 
 export default function SourcePage ({ apiLoad, apiUpdate, format, item, params, isDms }) {
-
-console.log("SourcePage::item, isDms", item, isDms);
-
     const ctx = useContext(DatasetsContext);
-    const {baseUrl, user, isUserAuthed, UI, datasources, falcor, damaDataTypes} = ctx;
+    const {baseUrl, isUserAuthed: patternIsUserAuthed, UI, datasources, falcor, damaDataTypes} = ctx;
     const { theme: fullTheme } = useContext(ThemeContext) || {};
-    const theme = fullTheme?.datasets?.sourcePage || {};
-    const {Layout, LayoutGroup} = UI;
+    const t = {...sourcePageTheme, ...getComponentTheme(fullTheme, 'datasets.sourcePage')};
+    const {Layout} = UI;
+    // Shared secondary nav — mount-aware base (pattern.navPrefix; '' on primary mounts) (see DatasetsList).
+    const menuItemsSecondNav = React.useMemo(
+        () => dataItemsNav(fullTheme?.navOptions?.secondaryNav?.navItems || [], ctx?.parent?.navPrefix || '', false),
+        [fullTheme?.navOptions?.secondaryNav?.navItems, ctx?.parent?.navPrefix]
+    );
     const navigate = useNavigate();
     const pgEnv = getExternalEnv(datasources);
     const [source, setSource] = useState(isDms ? item : {});
     const [loading, setLoading] = useState(false);
+    // view-dependent pages (e.g. Table) can inject buttons into the header next to the version
+    // selector via setHeaderActions([{label, onClick}]) on the context. Cleared on page unmount.
+    const [headerActions, setHeaderActions] = useState([]);
     const {id, view_id, page} = params;
-
-console.log("SourcePage::damaDataTypes", damaDataTypes)
-
-console.log("SourcePage::pgEnv", pgEnv);
 
     // Derive source-specific format from registerFormats (has views as dms-format attribute).
     // Falling back to shallow spread preserves existing behavior for non-standard formats.
@@ -86,20 +83,36 @@ console.log("SourcePage::pgEnv", pgEnv);
         }
 
         if (((!isDms && pgEnv) || (isDms && !item)) && id) {
-
-console.log("LOADING??????????????????")
-
             load()
         }
     }, [isDms, id, pgEnv, falcor, item])
 
+    // Route-preloaded `item` (the normal internal_source/:id case) carries `views` as
+    // raw DMS refs [{ref, id}] — the dms-format resolver only expands nested formats
+    // discovered off the top-level pattern format, not off a source row loaded directly
+    // by id. Resolve the view names here so downstream pages/selectors show real names.
+    useEffect(() => {
+        if (!isDms || !item) return;
+        const rawViews = parseIfJson(item.views) || [];
+        if (!rawViews.length) return;
+        let cancelled = false;
+        resolveInternalViewNames({ pgEnv: `${sourceFormat.app}+${sourceFormat.type}`, falcor, rawViews })
+            .then(views => { if (!cancelled) setSource(s => ({...s, views})) });
+        return () => { cancelled = true };
+    }, [isDms, item, falcor, sourceFormat.app, sourceFormat.type])
+
     const sourceLoaded = !!(source.id || source.source_id);
 
-    const sourceType = isDms ? 'internal_table' : source?.categories?.[0]?.[0]; // source identifier. this is how the source is named in the script. this used to be type.
+    // Per-source access: pattern ⊕ this source's own authPermissions override (see datasets.format.js).
+    // Provided on the context below so every dataType page/component checks pattern⊕source uniformly.
+    const sourceAuthPermissions = source?.auth_permissions
+        ? (typeof source.auth_permissions === 'string' ? parseIfJson(source.auth_permissions, undefined) : source.auth_permissions)
+        : undefined;
+    const isUserAuthed = (reqPermissions) => patternIsUserAuthed(reqPermissions, sourceAuthPermissions);
+
+    const sourceType = isDms ? 'internal_table' : source?.categories?.[0]?.[0]; // source identifier (named in the script).
     const sourceDataType = isDms ? 'internal_table' : source?.type; // csv / gis / internal
     const sourcePages = sourceLoaded ? { ...(damaDataTypes[sourceType] || {}), ...(damaDataTypes[sourceDataType] || {}) } : {};
-
-console.log('SourcePage::sourceType', sourceType, sourceDataType);
 
     const sourcePagesNavItems =
         (Object.values(sourcePages) || [])
@@ -108,7 +121,7 @@ console.log('SourcePage::sourceType', sourceType, sourceDataType);
                 return {
                     name: p.name,
                     href,
-                    cdn: p.cdn, // condition fn with arguments ({isDms, sourceType}) to control visibility in nav
+                    cdn: p.cdn, // condition fn ({isDms, sourceType}) controlling nav visibility
                     viewDependentPage: viewDependentPages.includes(href),
                 };
             })
@@ -119,18 +132,13 @@ console.log('SourcePage::sourceType', sourceType, sourceDataType);
     const showVersionSelector = viewDependentPages.includes(page);
 
     // Auto-navigate to latest view when on a view-dependent page without a view_id
+    const latestViewId = views.length ? (isDms ? views[views.length - 1]?.id : views[views.length - 1]?.view_id) : null;
     useEffect(() => {
-        if (!showVersionSelector || view_id || !views.length) return;
-        const latest = views[views.length - 1];
-        const latestId = latest.view_id;
-        if (latestId) {
-            navigate(`${pageBaseUrl}/${id}/${page}/${latestId}`, {replace: true});
-        }
-    }, [showVersionSelector, view_id, views.length])
+        if (!showVersionSelector || view_id || !latestViewId) return;
+        navigate(`${pageBaseUrl}/${id}/${page}/${latestViewId}`, {replace: true});
+    }, [showVersionSelector, view_id, latestViewId])
 
     const Page = sourcePages[page]?.component || defaultPages[page] || Overview;
-
-// console.log("SourcePage::page", defaultPages);
 
     const breadcrumbItems = [
         {icon: 'Database', href: baseUrl},
@@ -138,39 +146,56 @@ console.log('SourcePage::sourceType', sourceType, sourceDataType);
         ...(page ? [{name: page}] : []),
     ];
 
-console.log("SourcePage::source", source);
-
     return (
-        <Layout navItems={[]}>
-            <DatasetsContext.Provider value={{...ctx, pageBaseUrl}}>
-                <div className={theme.pageWrapper || 'max-w-6xl mx-auto w-full'}>
+        <Layout navItems={[]} secondNav={menuItemsSecondNav}>
+            <DatasetsContext.Provider value={{...ctx, pageBaseUrl, isUserAuthed, setHeaderActions}}>
+                <div className={t.pageWrapper}>
                     <Breadcrumbs items={breadcrumbItems} />
-                    <div className={theme.tabBar || 'w-full flex justify-between items-end pl-2'}>
-                        <SourceNav
-                            theme={theme}
-                            navItems={allNavItems}
-                            page={page}
-                            pageBaseUrl={pageBaseUrl}
-                            id={id}
-                            view_id={view_id}
-                            isDms={isDms}
-                            sourceType={isDms ? 'internal' : source?.type}
-                        />
-                        {showVersionSelector && (
-                            <select id={'version-selector'}
-                                    onChange={e => {
-                                        const pageUrl = `${pageBaseUrl}/${id}${page ? `/${page}` : ''}`;
-                                        navigate(`${pageUrl}/${e.target.value}`)
-                                    }}
-                                    className={'w-fit p-1 rounded hover:bg-gray-100 bg-transparent'}
-                                    value={view_id}
-                            >
-                                <option key={'default'} value={undefined}>No version selected</option>
-                                {views.map(view => <option key={view.view_id} value={view.view_id}>{view.name || view.view_id}</option>)}
-                            </select>
-                        )}
+
+                    {/* header band: title + version selector, with the tab bar at its base */}
+                    <div className={t.header}>
+                        <div className={t.headerInner}>
+                            <h1 className={t.title}>{source?.name || '…'}</h1>
+                            {(showVersionSelector || headerActions.length > 0) && (
+                                <div className={t.headerRight}>
+                                    {headerActions.map((a, i) => (
+                                        <button key={i} type="button" className={t.headerActionBtn} onClick={a.onClick}>{a.label}</button>
+                                    ))}
+                                    {showVersionSelector && (
+                                        <>
+                                            <span className={t.versionLabel}>version</span>
+                                            <select id={'version-selector'}
+                                                    onChange={e => {
+                                                        const pageUrl = `${pageBaseUrl}/${id}${page ? `/${page}` : ''}`;
+                                                        navigate(`${pageUrl}/${e.target.value}`)
+                                                    }}
+                                                    className={t.versionSelect}
+                                                    value={view_id}>
+                                                <option key={'default'} value={undefined}>No version selected</option>
+                                                {views.map(view => <option key={view.view_id} value={view.view_id}>{view.name || view.view_id}</option>)}
+                                            </select>
+                                        </>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                        <div className={t.tabBarWrap}>
+                            <SourceNav
+                                t={t}
+                                navItems={allNavItems}
+                                page={page}
+                                pageBaseUrl={pageBaseUrl}
+                                id={id}
+                                view_id={view_id}
+                                isDms={isDms}
+                                sourceType={isDms ? 'internal' : source?.type}
+                            />
+                        </div>
                     </div>
-                    <LayoutGroup>
+
+                    {/* full-bleed content band — flex-1 fills to the page bottom regardless of
+                        content height; the page provides its own max-width/padding inner container */}
+                    <div className={t.body}>
                         {sourceLoaded ? (
                             <Page format={sourceFormat}
                                   source={source} setSource={setSource}
@@ -180,11 +205,11 @@ console.log("SourcePage::source", source);
                                   context={DatasetsContext}
                             />
                         ) : (
-                            <div className={'p-4 text-gray-400'}>
+                            <div className={t.loading}>
                                 {loading ? 'Loading...' : ''}
                             </div>
                         )}
-                    </LayoutGroup>
+                    </div>
                 </div>
             </DatasetsContext.Provider>
         </Layout>

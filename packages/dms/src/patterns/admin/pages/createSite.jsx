@@ -5,7 +5,9 @@ import { useNavigate, useNavigation } from "react-router";
 import { AuthContext } from '../../auth/context';
 import { ThemeContext } from '../../../ui/useTheme';
 import { getInstance } from '../../../utils/type-utils';
+import { provisionTemplatePatterns } from '../../../utils/tenantProvisioning';
 import { createSiteTheme } from './createSite.theme'
+import SiteTemplatePicker from './SiteTemplatePicker'
 
 
 export default function NewSite ({ apiUpdate, dataItems }) {
@@ -18,35 +20,50 @@ export default function NewSite ({ apiUpdate, dataItems }) {
 	const { state: navState } = useNavigation();
 	const isLoading = navState === 'loading';
 
-	React.useEffect(() => {
-		if (isLoading) return;
-		if (dataItems === undefined) return;
-		if (dataItems?.length > 0) navigate(baseUrl || '/');
-	}, [dataItems, isLoading]);
 	const {Input, Button} = UI;
 	const [newUser, setNewUser] = React.useState({email: '', password: '', verify: ''});
 	const [status, setStatus] = React.useState('');
-	const [newSite, setNewSite] = React.useState({
-		site_name: '',
-	})
+	const [newSite, setNewSite] = React.useState({ site_name: '' });
+	const [selectedTemplateId, setSelectedTemplateId] = React.useState('simple_site');
+	const [submitting, setSubmitting] = React.useState(false);
+	const siteTemplates = theme?.site_templates ?? [];
+
+	React.useEffect(() => {
+		if (isLoading) return;
+		if (dataItems === undefined) return;
+		// While createSite() is running, the site row already exists but the
+		// patterns aren't registered yet — navigating away here tears down the
+		// flow mid-provisioning and strands the site without patterns.
+		if (submitting) return;
+		if (dataItems?.length > 0) navigate(baseUrl || '/');
+	}, [dataItems, isLoading, submitting]);
 
 	async function createSite () {
 		if(newSite?.site_name?.length > 3 && newUser.email ) {
+			setSubmitting(true);
+			setStatus('Setting up authentication…');
 			try {
 				const res = await AuthAPI.callAuthServer(`/init/setup`, {
 					email: newUser.email,
 					password: newUser.password,
 					project: app,
 				});
-				if (res.error && res.error !== 'duplicate key value violates unique constraint "groups_pkey"') {
+				// "already initialized" means auth for this project is fully set
+				// up (groups linked) — safe to continue creating the site.
+				if (res.error
+					&& res.error !== 'duplicate key value violates unique constraint "groups_pkey"'
+					&& !/already initialized/.test(res.error)) {
 					setStatus(`Auth Init Data ${res.error}`);
+					setSubmitting(false);
 					return;
 				}
 
-				// 1. Create the site (without patterns — skipNavigate so we can add auth pattern first)
+				// 1. Create the site
+				setStatus('Creating site…');
 				const siteResult = await apiUpdate({data: newSite, skipNavigate: true});
+				if (!siteResult?.id) throw new Error('Site row was not created.');
 
-				// 2. Create the auth pattern with proper type
+				// 2. Create the auth pattern and register it on the site right away
 				const siteInstance = getInstance(siteType) || siteType;
 				const authPatternType = `${siteInstance}|auth:pattern`;
 				const authData = {
@@ -61,15 +78,40 @@ export default function NewSite ({ apiUpdate, dataItems }) {
 				);
 				const newPatternId = Object.keys(patternRes?.json?.dms?.data?.byId || {})
 					.find(k => k !== '$__path');
-
-				// 3. Add pattern ref to the site
-				if (newPatternId && siteResult?.id) {
-					await falcor.call(["dms", "data", "edit"], [app, +siteResult.id, {
-						patterns: [{ ref: `${app}+${siteInstance}|pattern`, id: +newPatternId }]
-					}]);
+				const authPatternRefs = newPatternId
+					? [{ ref: `${app}+${siteInstance}|pattern`, id: +newPatternId }]
+					: [];
+				if (authPatternRefs.length) {
+					await falcor.call(["dms", "data", "edit"], [app, +siteResult.id, { patterns: authPatternRefs }]);
 				}
 
-				// 4. Auto-login so the user lands directly on the admin edit page
+				// 3. Create template patterns (page, datasets, etc.). Passing
+				// siteId makes provisioning register each pattern on the site
+				// as it's created, so an interrupted flow still leaves a
+				// working (partial) site instead of orphaned patterns.
+				setStatus('Creating site content from template…');
+				const pageTemplates = theme?.page_templates ?? [];
+				const { allPatternRefs: templatePatternRefs, allEnvRefs } = await provisionTemplatePatterns(falcor, {
+					app,
+					siteInstance,
+					selectedTemplateId,
+					siteTemplates,
+					pageTemplates,
+					adminGroupName: PROJECT_NAME,
+					siteId: siteResult.id,
+					initialPatternRefs: authPatternRefs,
+				});
+				const allPatternRefs = [...authPatternRefs, ...templatePatternRefs];
+
+				// 4. Final consolidated write of all pattern refs (and env refs if any)
+				if (allPatternRefs.length) {
+					const siteUpdate = { patterns: allPatternRefs };
+					if (allEnvRefs.length) siteUpdate.dms_envs = allEnvRefs;
+					await falcor.call(["dms", "data", "edit"], [app, +siteResult.id, siteUpdate]);
+				}
+
+				// 5. Auto-login so the user lands directly on the admin edit page
+				setStatus('Signing you in…');
 				const loginRes = await AuthAPI.callAuthServer(`/login`, {
 					email: newUser.email,
 					password: newUser.password,
@@ -83,7 +125,8 @@ export default function NewSite ({ apiUpdate, dataItems }) {
 				navigate(baseUrl || '/');
 			} catch (error) {
 				console.error('Error creating site:', error);
-				setStatus('Error creating site');
+				setStatus(`Error creating site: ${error.message || error}`);
+				setSubmitting(false);
 			}
 		}
 	}
@@ -134,9 +177,15 @@ export default function NewSite ({ apiUpdate, dataItems }) {
 					onChange={(e) => setNewUser({...newUser, ['verify']: e.target.value})}
 				/>
 
+				<SiteTemplatePicker
+					siteTemplates={siteTemplates}
+					selectedTemplateId={selectedTemplateId}
+					onSelect={setSelectedTemplateId}
+				/>
+
 				<div>
-					<Button disabled={ (newUser.password !== newUser.verify) || !newSite.site_name } onClick={createSite}>
-						Create
+					<Button disabled={ submitting || (newUser.password !== newUser.verify) || !newSite.site_name } onClick={createSite}>
+						{submitting ? 'Creating…' : 'Create'}
 					</Button>
 				</div>
 				<div>

@@ -7,7 +7,12 @@ import { parseIfJSON } from '../../patterns/page/pages/_utils';
 import { getInstance } from '../../utils/type-utils';
 import { updateAttributes, updateRegisteredFormats } from "../../dms-manager/_utils";
 import { pattern2routes, getSubdomain } from './utils'
+import { persistSiteSnapshot } from './utils/snapshot.js'
 import RootErrorBoundary from './utils/RootErrorBoundary.jsx';
+
+// Stable reference for the default empty routes array — avoids re-creating the
+// router on every DmsSite render when no extra routes are passed as a prop.
+const EMPTY_ROUTES = [];
 
 const DMS_SYNC_ENABLED = typeof import.meta !== 'undefined'
   && import.meta.env?.VITE_DMS_SYNC === '1';
@@ -28,7 +33,7 @@ export function DmsSite (config) {
         DAMA_HOST= 'https://graph.availabs.org',
         damaBaseUrl,
         PROJECT_NAME,
-        routes = [],
+        routes = EMPTY_ROUTES,
         damaDataTypes = {},
         damaMapPlugins = {},
         isMultiTenant = false,
@@ -59,21 +64,6 @@ export function DmsSite (config) {
         }
         return []
     });
-
-    const routePropsRef = React.useRef(routeProps);
-    useEffect(() => { routePropsRef.current = routeProps; });
-    // When the user logs in, authed patterns that were blocked by server-side auth
-    // on initial load need to be fetched now so their routes exist for navigation.
-    useEffect(() => {
-        const handleLogin = async () => {
-            setLoading(true)
-            const routes = await dmsSiteFactory(routePropsRef.current);
-            setDynamicRoutes(routes);
-            setLoading(false)
-        };
-        window.addEventListener('dms-user-login', handleLogin);
-        return () => window.removeEventListener('dms-user-login', handleLogin);
-    }, []);
 
     useEffect(() => {
         let isStale = false;
@@ -208,9 +198,13 @@ export default async function dmsSiteFactory(config) {
 
     falcor = falcor || falcorGraph(API_HOST)
     let data = await dmsDataLoader(falcor, dmsConfigUpdated, `/`);
-    if (localStorage) {
-      localStorage.setItem(dmsConfigUpdated.app + '-' + dmsConfigUpdated.type, JSON.stringify(data))
-    }
+    // Skipped when patterns came back as no-access stubs (auth hiccup) —
+    // a poisoned snapshot would default-theme the next boot. See snapshot.js.
+    persistSiteSnapshot(
+      typeof localStorage !== 'undefined' ? localStorage : null,
+      dmsConfigUpdated.app + '-' + dmsConfigUpdated.type,
+      data
+    )
 
     if (!isMultiTenant) {
         return pattern2routes(data, config)
@@ -261,9 +255,11 @@ export default async function dmsSiteFactory(config) {
 
     // Step 4 — load the tenant's own site (lives in dms_<tenantApp> schema)
     const tenantData = await dmsDataLoader(falcor, tenantDmsConfigUpdated, '/');
-    if (localStorage) {
-        localStorage.setItem(tenantDmsConfigUpdated.app + '-' + tenantDmsConfigUpdated.type, JSON.stringify(tenantData))
-    }
+    persistSiteSnapshot(
+        typeof localStorage !== 'undefined' ? localStorage : null,
+        tenantDmsConfigUpdated.app + '-' + tenantDmsConfigUpdated.type,
+        tenantData
+    )
 
     // Step 5 — build routes scoped to the tenant
     return pattern2routes(tenantData, { ...config, dmsConfig: tenantDmsConfig })

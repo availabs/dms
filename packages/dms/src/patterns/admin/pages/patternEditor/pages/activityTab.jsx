@@ -4,10 +4,10 @@ import { ThemeContext } from '../../../../../ui/useTheme';
 import { tableTheme } from '../../../../../ui/components/table/table.theme';
 import Table from '../../../../../ui/components/table';
 import { getInstance } from '../../../../../utils/type-utils';
-import { timeAgo } from '../../../../page/pages/_utils';
 import { loadPageHistory } from './pagesEditor.utils';
 import { pagesEditorTheme } from './pagesEditor.theme';
 import { activityTabTheme } from './activityTab.theme';
+import { timeAgo } from '../../../utils';
 
 function actionLabel(action) {
     if (!action) return 'edited';

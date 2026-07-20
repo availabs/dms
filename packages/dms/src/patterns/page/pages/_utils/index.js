@@ -1,6 +1,10 @@
 import { v4 as uuidv4 } from 'uuid';
 import { isEqual, reduce, map, cloneDeep} from "lodash-es"
 import { matchRoutes } from 'react-router'
+import {
+    dataItemsNav as dataItemsNavCore,
+    getChildNav as getChildNavCore
+} from '../../../../utils/nav'
 export const convertToUrlParams = (obj, delimiter='|||') => {
     const params = new URLSearchParams();
 
@@ -34,37 +38,13 @@ export function timeAgo(input) {
   }
 }
 
-export function getChildNav(item, dataItems, baseUrl='', edit) {
-    let children = dataItems
-        .filter(d => item.id && d.parent === item.id)
-        .sort((a, b) => a.index - b.index)
+// Nav shaping lives in utils/nav (shared with other patterns); the page
+// pattern binds its section-aware in-page rail (getInPageNav) as the
+// child-resolver so page nav keeps its in-page anchor children.
+const inPageMenuItems = (item) => getInPageNav(item)?.menuItems || [];
 
-    let inPageChildren =  getInPageNav(item)?.menuItems || [];
-    if (children.length === 0 && inPageChildren?.length === 0) return false
-    if (children.length === 0 && inPageChildren?.length !== 0) return inPageChildren;
-
-    const childrenToReturn = children
-        .filter(d => !d?.hide_in_nav)
-        .map((d, i) => {
-        let item = {
-            id: d.id,
-            path: `${edit ? `${baseUrl}/edit` : baseUrl}/${d.url_slug || d.id}`,
-            name: d.title,
-            description: d.description,
-            hideInNav: d.hide_in_nav
-        }
-        if(d?.icon && d?.icon !== 'none') {
-                item.icon = d.icon
-        }
-        const inPageChildrenForD =  getInPageNav(d)?.menuItems || [];
-        const childrenForD = getChildNav(d, dataItems, baseUrl, edit) || [];
-        item.subMenus = childrenForD.filter(d => d.name)
-
-        return item
-    })
-
-    return childrenToReturn?.length ? childrenToReturn : inPageChildren;
-}
+export const getChildNav = (item, dataItems, baseUrl = '', edit) =>
+    getChildNavCore(item, dataItems, baseUrl, edit, inPageMenuItems);
 
 export function getCurrentDataItem(dataItems, baseUrl) {
     const location =''
@@ -85,51 +65,8 @@ export function detectNavLevel(dataItems, baseUrl) {
     return level + (isParent ? 1 : 0);
 }
 
-export function dataItemsNav(dataItems, baseUrl = '', edit = false, level=1) {
-    // console.log('dataItemsnav', dataItems)
-    return dataItems
-        .sort((a, b) => a.index - b.index)
-        .filter(d => !d.parent)
-        .filter(d => (edit || d.published !== 'draft' ))
-        .map((d, i) => {
-            // Author-shaped label / section-divider row (e.g. a secondary-nav
-            // section header): rendered with a custom className and NO link.
-            // Carries no url_slug/path, so don't synthesize a navigable path.
-            if (d.noLink || d.type === 'label') {
-                const label = {
-                    id: d.id,
-                    name: `${d.title || d.name || ''}`.trim(),
-                    className: d.className,
-                    sectionClass: d.sectionClass,
-                    hideInNav: d.hide_in_nav,
-                }
-                if (d?.icon && d?.icon !== 'none') label.icon = d.icon
-                return label
-            }
-            const url = `${d.url_slug || d.path || d.id}`;
-            let item = {
-                id: d.id,
-                path: `${edit ? `${baseUrl}/edit` : baseUrl}${url?.startsWith('/') ? `` : `/`}${url}`,
-                name: `${d.title || d.name} ${d.published === 'draft' ? '*' : ''}`,
-                description: d.description,
-                hideInNav: d.hide_in_nav
-            }
-            if(d?.icon && d?.icon !== 'none') {
-                item.icon = d.icon
-            }
-            // BC passthrough: author-supplied styling for a link row (the design's
-            // icon+label rows). Standard page dataItems set neither, so unaffected.
-            if (d.className) item.className = d.className
-            if (d.sectionClass) item.sectionClass = d.sectionClass
-
-            if (getChildNav(item, dataItems, baseUrl, edit)) {
-                item.subMenus = getChildNav(d, dataItems, baseUrl, edit).filter(d => d.name)
-            }
-
-            return item
-        })
-    //return dataItems
-}
+export const dataItemsNav = (dataItems, baseUrl = '', edit = false) =>
+    dataItemsNavCore(dataItems, baseUrl, edit, inPageMenuItems);
 
 export function nav2Level(items, level = 1, path, baseUrl = '', navTitle = '') {
   let output = null
@@ -499,6 +436,69 @@ export const mergeFilters = (pageFilters=[], patternFilters=[]) => {
     return [...patternFiltersFormatted, ...pageOnlyFilters]
 }
 
+// ── Auto-registered page variables from a map's "share state" (?layers= / f_<symId>) ──
+// A map section with display.shareableState owns URL params for which symbologies are
+// visible (`layers`, held as ONE comma-joined value so the existing `?layers=a,b` URL
+// shape is preserved — the map splits it) and each symbology's selected interactive-filter
+// index (`f_<symId>`). The map used to write these to the URL itself (useSearchParams),
+// which fought the page's URL ownership and — under React Compiler — looped. We instead
+// AUTO-REGISTER them as page variables so the page owns the URL and the map reads/writes
+// them through pageState like every other component. `values` are managed by the map; the
+// page-variable system just round-trips searchKey ⇄ URL and surfaces them in the Settings tab.
+export const deriveMapShareVariables = (item) => {
+    // Read both published + draft sections so the auto-registered variables surface in
+    // view mode (`sections`) AND the edit-mode Settings tab (`draft_sections`).
+    const sections = [...(item?.sections || []), ...(item?.draft_sections || [])];
+    const vars = [];
+    const seen = new Set();
+    let hasShareableMap = false;
+    sections.forEach(section => {
+        const el = section?.element || section?.data?.element || {};
+        // element-type is registered as "Map" (capital); match case-insensitively.
+        if (String(el['element-type'] || '').toLowerCase() !== 'map') return;
+        const cfg = parseIfJSON(el['element-data'], {});
+        if (!cfg?.display?.shareableState) return;
+        hasShareableMap = true;
+        // UNIFY: an interactive symbology shares its SELECTED variant through the
+        // interactive layer's own `searchParamKey` page variable (the same binding a
+        // county-template map uses to select a variant), NOT a separate `f_<symId>`
+        // URL param. Register each interactive layer's `searchParamKey`. (A shareable
+        // interactive symbology with no `searchParamKey` authored simply isn't shared.)
+        Object.values(cfg.symbologies || {}).forEach(symb => {
+            Object.values(symb?.symbology?.layers || {}).forEach(layer => {
+                const hasInteractive = (layer['interactive-filters'] || []).length;
+                const key = layer.searchParamKey;
+                if (!hasInteractive || !key || seen.has(key)) return;
+                seen.add(key);
+                vars.push({ id: `map_share_${key}`, searchKey: key, values: [],
+                            useSearchParams: true, type: 'map_share', auto: true });
+            });
+        });
+    });
+    if (hasShareableMap) {
+        // `layers` is registered once even if a page has >1 shareable map. Dedup by
+        // searchKey (above + here) prevents duplicate registry entries, but it also
+        // means multiple shareable maps on ONE page would SHARE the `layers` var (and
+        // any colliding `searchParamKey`s) and fight over it. Multi-shareable-map per
+        // page is unsupported for now; namespacing per map (e.g. `layers`/`layers_2`)
+        // is a future enhancement. Single shareable map per page is the intended use.
+        vars.unshift({ id: 'map_share_layers', searchKey: 'layers', values: [],
+                       useSearchParams: true, type: 'map_share', auto: true });
+    }
+    return vars;
+};
+
+// The full page-variable registry: authored page.filters (+ pattern filters) plus any
+// component-auto-registered variables (currently map share-state). Deduped by searchKey so
+// an author-declared entry always wins over an auto one. Used by BOTH the pageState seed
+// (view.jsx) AND the URL→pageState sync (below) so the two sides agree on what's registered.
+export const getPageVariableRegistry = (item, patternFilters=[]) => {
+    const authored = mergeFilters(item?.filters, patternFilters);
+    const authoredKeys = new Set(authored.map(f => f.searchKey));
+    const derived = deriveMapShareVariables(item).filter(v => !authoredKeys.has(v.searchKey));
+    return [...authored, ...derived];
+}
+
 
 export const updatePageStateFiltersOnSearchParamChange = ({searchParams, item, patternFilters, setPageState}) => {
     // Extract filters from the URL
@@ -509,7 +509,7 @@ export const updatePageStateFiltersOnSearchParamChange = ({searchParams, item, p
 
     // If searchParams have changed, they should take priority and update the state
     //if (Object.keys(urlFilters).length ) { // || true // was eslint issue
-        const existingFilters = mergeFilters(item.filters, patternFilters);
+        const existingFilters = getPageVariableRegistry(item, patternFilters);
         const newFilters = (existingFilters || []).map(filter => {
             if(filter.useSearchParams && urlFilters[filter.searchKey]){
                 return {...filter, values: urlFilters[filter.searchKey]}
@@ -520,8 +520,16 @@ export const updatePageStateFiltersOnSearchParamChange = ({searchParams, item, p
 
         if(newFilters?.length){
             setPageState(page => {
-                // updates from searchParams are temporary
-                page.filters = newFilters
+                // updates from searchParams are temporary.
+                // Idempotency guard: only write when the filters actually changed.
+                // An unconditional `page.filters = newFilters` makes a brand-new array
+                // (and thus a new pageState) on every fire of the searchParams effect;
+                // under React Compiler that feeds an infinite re-render loop (sections
+                // re-read the new `filters` identity → re-render → cascade). No-op when
+                // unchanged so immer returns the same state and React bails out.
+                if (!isEqual(page.filters, newFilters)) {
+                    page.filters = newFilters
+                }
             })
         }
     //}

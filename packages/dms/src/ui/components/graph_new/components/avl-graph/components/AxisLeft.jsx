@@ -218,6 +218,28 @@ const renderAxisLeft = ({ ref, showAnimations, rotateLabels,
     .style("font-weight", tickFontWeight || null)
     .style("fill", tickColor || null);
 
+  // Long categorical labels (band scales — e.g. TMC names on the corridor grid) extend
+  // LEFT past the SVG edge and clip from the START of the text. Truncate the END with an
+  // ellipsis to fit the left margin instead (measured, not char-counted), and keep the
+  // full text as a native <title> tooltip. Numeric/short labels are untouched (they fit).
+  if (!rotateLabels) {
+    const maxW = Math.max(24, left - 14);
+    group.selectAll(".tick text").each(function() {
+      const full = this.getAttribute("data-full-label") || this.textContent;
+      this.setAttribute("data-full-label", full);
+      if (this.textContent !== full) this.textContent = full;
+      if (this.getComputedTextLength() <= maxW) return;
+      let t = full;
+      while (t.length > 2 && this.getComputedTextLength() > maxW) {
+        t = t.slice(0, -1);
+        this.textContent = `${t.trimEnd()}…`;
+      }
+      const sel = d3select(this.parentNode);
+      sel.selectAll("title").remove();
+      sel.append("title").text(full);
+    });
+  }
+
   const show = showGridLines &&
               Boolean(scale) &&
               Boolean(domain.length);

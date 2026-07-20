@@ -156,6 +156,62 @@ Section state shape (canonical / v2):
 
 Computed columns and time filters are first-class: a column with `display: 'calculated'` and `name: '<sql> as alias'` participates in SQL emission as a calc column; a filter leaf with `op: 'time'` invokes the time-filter primitive (relative ranges, instant + compareEnd, DOW, time-of-day). See [`now-airing-card.md`](./now-airing-card.md) for a worked use of both together.
 
+## Connecting a component to page variables
+
+A **page variable** is a named piece of page state, usually mirrored to a URL search param, that sections
+share (`?geoid=36119`, `?layers=…`). The full authoring model — registering variables, adding Filter
+controls, cascading — is in [`creating-interactive-pages.md`](./creating-interactive-pages.md). This
+section is the **component-code** side: how your component reads and writes those variables.
+
+**The one rule: the page owns the URL. A component must never touch it directly.** No `useSearchParams`,
+`setSearchParams`, `navigate`, or `window.location` in a section component. Writing the URL from a section
+fights the page's URL ownership and — under the React Compiler (on in prod, and in transportNY dev) —
+ping-pongs into an infinite reload loop. Everything below goes through `PageContext` instead.
+
+Everything comes from `PageContext`:
+
+```js
+const { pageState, updatePageStateFilters, setActionParam, clearActionParam } = React.useContext(PageContext) || {};
+```
+
+**Consume (read a page variable).** Read `pageState.filters` — an array of `{ searchKey, values, useSearchParams, type }`. Match by `searchKey`:
+
+```js
+const geoid = (pageState?.filters || []).find(f => f.searchKey === 'geoid')?.values;
+```
+
+If you use the **dataWrapper**, you don't even do this by hand: a filter leaf with `usePageFilters: true` +
+`searchParamKey: 'geoid'` binds automatically (Card / Spreadsheet / the map's `dynamic-filters` all consume
+this way). Filter `type: 'action'` entries are transient hover/click params — exclude them from data/render
+sync (`pageFilters.filter(f => f.type !== 'action')`) so interaction churn doesn't retrigger fetches.
+
+**Produce (write a page variable).** Two write paths, both page-owned:
+
+- `updatePageStateFilters(nextFilters)` — **URL-synced.** Pass `[{ searchKey, values }, …]`; the page
+  updates its registered filters and navigates (only the keys you pass change; others are preserved). Use
+  for state worth sharing/bookmarking. This is what click-filters and the map's `layers`/variant writes use.
+- `setActionParam(key, value)` / `clearActionParam(key)` — **in-memory only, never the URL.** Use for
+  transient interaction state (hover highlight, click selection) that other sections read but nobody bookmarks.
+
+**Registration (required for URL-synced vars).** `updatePageStateFilters` only writes a `searchKey` that is
+a **registered page variable** — otherwise it's ignored. Either the author registers it (Step 0 of
+`creating-interactive-pages.md`), or the platform **auto-derives** it. The map does the latter:
+`deriveMapShareVariables` (in `pages/_utils`) scans for a `Map` section with `display.shareableState` and
+auto-registers `layers` + each interactive layer's `searchParamKey`; `getPageVariableRegistry` folds those
+into the registry seeded into `pageState.filters`. Auto-registered vars surface **read-only** in the page
+Settings tab so authors can see which URL params the page owns.
+
+**Idempotency (avoid write↔read loops).** When you both read and write a variable, a write round-trips
+(write → navigate → `pageState` updates → your read effect re-runs). Guard writes so you never re-emit what
+the page already holds, and never write un-reconciled state on mount — see the map's WRITE effect
+(`ComponentRegistry/map/index.jsx`) for the pattern (prime-on-first-run + page-idempotency guard + defer
+until the first read reconciles).
+
+**Worked example — the map.** Consumes `geoid`/dynamic filters and its interactive-filter variant via
+`searchParamKey` leaves; produces visibility (`layers`) and the selected variant via `updatePageStateFilters`;
+publishes hover/click via `setActionParam`. It used to write `?layers=` with `useSearchParams` directly —
+that was the reload-loop bug; migrating it onto `updatePageStateFilters` is what fixed it.
+
 ## Smoke-test checklist
 
 Before merging a new section component:
@@ -168,6 +224,7 @@ Before merging a new section component:
 - [ ] The component renders correctly in view mode (read-only).
 - [ ] Theme keys are looked up via `getComponentTheme`, with no inline Tailwind in the JSX.
 - [ ] If the component has filters, `state.filters` round-trips through save/reload (the filter-tree shape is the standard one — leaves don't grow surprise fields).
+- [ ] If the component reads/writes page variables, it goes through `PageContext` (`pageState.filters` / `updatePageStateFilters` / `setActionParam`) — **no `useSearchParams`, `setSearchParams`, `navigate`, or `window.location` anywhere in the component.** Toggle it in view mode (compiler on) and confirm no reload loop.
 
 ## Common pitfalls
 
@@ -175,6 +232,7 @@ Before merging a new section component:
 - **Mixing component + non-component exports in `.jsx`.** Move themes to `.theme.{js,jsx}`, registry metadata to `.config.{js,jsx}`. The split is mandatory, not stylistic.
 - **Hardcoding source-table aliases in calc-column SQL** when joins might apply. `buildUdaConfig` rewrites bare `data->>` to `${alias}.data->>` automatically — don't pre-prefix unless the column is from a joined source.
 - **Forgetting to register** in `ComponentRegistry/index.jsx`. The section file can be perfect; without the registry import, page authors won't see it.
+- **Touching the URL directly** (`useSearchParams`/`setSearchParams`/`navigate`/`window.location`) to share state. The page owns the URL; go through `updatePageStateFilters`/`setActionParam` (see "Connecting a component to page variables"). Direct URL writes reload-loop under the React Compiler.
 
 ## References
 
@@ -184,3 +242,6 @@ Before merging a new section component:
 - `patterns/page/components/sections/components/ComponentRegistry/index.jsx` — the registry itself.
 - `patterns/page/defaultTheme.js` — where pattern-tied themes get registered.
 - `ui/useTheme.js` — `getComponentTheme`, `mergeTheme`, the context surface.
+- [`creating-interactive-pages.md`](./creating-interactive-pages.md) — the page/author side of page variables (registering, Filter controls, cascading, gotchas).
+- `patterns/page/components/sections/components/ComponentRegistry/map/index.jsx` — worked example of consuming + producing page variables (and the `useSearchParams`→`updatePageStateFilters` migration that fixed the reload loop).
+- `patterns/page/pages/_utils/index.js` — `getPageVariableRegistry` / `deriveMapShareVariables` (auto-registering a component's page variables).

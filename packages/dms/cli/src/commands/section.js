@@ -148,7 +148,9 @@ export async function create(pageIdOrSlug, config, options = {}) {
     let data = {};
     if (options.data) {
       try {
-        data = JSON.parse(options.data);
+        // file path / '-' (stdin) / inline JSON — same as `section update`. Large section
+        // payloads (e.g. map symbology configs) exceed the OS argv limit as inline JSON.
+        data = await readFileOrJson(options.data);
       } catch (e) {
         outputError(`Invalid JSON data: ${e.message}`);
         return;

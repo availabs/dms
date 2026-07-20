@@ -5,32 +5,66 @@ How the `Card` page-section component lays itself out and how every knob in `sta
 Worked end-to-end on real WCDB sections; references real file paths so you can verify each claim:
 
 - Renderer: `src/dms/packages/dms/src/ui/components/Card.jsx`
+- **Box model (pure resolvers + the authoritative model docs): `…/ui/components/Card.layout.js`**
 - Theme: `src/dms/packages/dms/src/ui/components/card.theme.jsx`
 - Section adapter: `src/dms/packages/dms/src/patterns/page/components/sections/components/ComponentRegistry/Card.jsx`
 - Config / controls / defaults: `…/ComponentRegistry/Card.config.jsx`
 - Legacy migration: `…/ui/components/Card.migrate.js`
+- Unit tests of the model: `src/dms/packages/dms/tests/cardLayout.test.js`
 
-## Two grids, both real
+## The box model — two grids, four knobs
 
-A Card always renders **two CSS grids**, one nested in the other:
+A Card renders **two nested CSS grids**. Four knobs own ALL spacing; everything
+else is content-sized:
 
 ```
-mainWrapperStyle  ← outer "cards grid" (records spread across the section)
-  └─ subWrapperStyle  ← inner "cells grid" (attribute cells inside one record)
-       └─ CardColumnField  ← one cell per visible column
+cards grid (outer — records across the section)
+  gap     = cardsGridGap
+  padding = cardsGridPadding        ← the whole list's inset from its box
+  └─ cells grid (inner, per record — attribute cells inside one card)
+       gap     = cellsGridGap       (cellsRowGap / cellsColumnGap per axis)
+       padding = cardsPadding       ← legacy name: pads the per-CARD surface
+       └─ cell (one per visible column)
+            padding = cellPadding (column) ?? cellsPadding (display)
+                      ?? theme cellGutter (v2 only)
 ```
 
-Both axes are unconditional grids — there is no "row mode" vs "cell mode" toggle anymore. The renderer pulls four grid dimensions from `state.display`:
+**Explicit values — including 0 — always win; nothing invisible adds or absorbs
+space.** An empty/cleared field falls through to the next level; a typed `0` is
+a value. Style emission includes only defined keys, so an explicit knob always
+reaches the DOM (this contract is unit-tested in `cardLayout.test.js`).
 
-| Outer (cards grid)  | Inner (cells grid)  |
-|---------------------|---------------------|
-| `cardsGridSize`     | `cellsGridSize`     |
-| `cardsGridGap`      | `cellsGridGap`      |
-| `cardsPadding`      | `cellsPadding`      |
-| `cardsBgColor`      | `cellsRowHeight`    |
-| `cardBorder` (bool) | `cellBorder` (bool) |
+### Two layout models — v1 (legacy default) and v2 (opt-in)
 
-`Card.jsx` builds them like this:
+The resolved `dataCard` theme style selects the model via `layoutModel: 'v2'`:
+
+| | v1 (default, BC) | v2 |
+|---|---|---|
+| Cards-grid rows | fill the box (`minmax(max-content,1fr)`) — slack is distributed BETWEEN card rows; `cardsVerticalAlign: 'top'` opts into packing | content-sized, packed to top — the gap between cards is EXACTLY `cardsGridGap`; `cardsVerticalAlign: 'stretch'` opts into fill |
+| Cell chrome | every cell carries `border border-transparent` (+2px, always) | none; edit-mode hover is an `outline` (`theme.itemEditOutline`) — no layout space |
+| Ambient cell gutter | whatever padding class the theme bakes into `headerValueWrapper` (e.g. `p-2`) | the theme's single `cellGutter` number, emitted INLINE — a theme class can never beat an explicit knob |
+| Theme structural keys | may carry fonts/min-heights (collisions possible) | `value`/`header`/`valueWrapper`/`headerValueWrapper` are layout-only; typography comes exclusively from `valueFontStyle`/`headerFontStyle` tokens |
+
+**Opting in:** per section — pick the `v2` entry in the toolbar's **Card
+style** control (the default theme ships one); site-wide — put
+`layoutModel: 'v2'` + `cellGutter` + layout-only structural keys on the brand
+theme's `dataCard.styles[0]` (landbank does this; see its theme.js for the
+worked example).
+
+### Introspection (edit mode)
+
+In edit mode the renderer stamps the answer to "where is this space coming
+from" onto the DOM — read these in devtools before touching any knob:
+
+- each cell wrapper: `data-cell="<column>"` and `data-pad="<resolved padding>"`
+  (`theme` means no knob applied and the theme class gutter is in effect)
+- the cards grid: `data-rhythm="<cardsGridGap>/<top|stretch>"` — the pack mode
+  tells you instantly whether inter-card space is your gap or distributed slack
+
+### Grid mechanics
+
+Both axes are unconditional grids — there is no "row mode" vs "cell mode"
+toggle anymore.
 
 ```js
 // outer
@@ -44,6 +78,13 @@ gridAutoRows:        cellsRowHeight ? `${cellsRowHeight}px` : (anyRowSpan ? 'min
 padding:             cardsPadding
 backgroundColor:     cardsBgColor
 ```
+
+**Per-axis gap overrides.** `gap: cellsGridGap` sets the row gap *and* column gap together — so you
+can't tighten the vertical rhythm (e.g. the space above/below a big title) without also squishing a
+packed meta row. Two optional keys decouple it: **`cellsRowGap`** sets only the row gap, **`cellsColumnGap`**
+only the column gap; each wins over `cellsGridGap` for its axis (BC: unset → fall through to `cellsGridGap`).
+Note this is *gap*, not padding — `cellsPadding: 0` removes inner cell padding but leaves the inter-row gap
+untouched, so "vertical padding 0" alone won't close the space between rows; lower `cellsRowGap` for that.
 
 Two things to internalize from those lines:
 
@@ -69,11 +110,15 @@ Each column entry in `state.columns` is the source of truth for one cell. The re
 
 ### Visibility
 
+**One visibility axis** — `show` decides fetch + render, `selectOnly` narrows
+to fetch-only, `hideHeader` trims the label (the header is real chrome):
+
 | Key            | Effect |
 |----------------|--------|
 | `show: true`   | Required for the cell to render *and* for the field to be SELECTed by the data loader. `show: false` removes the cell **and** drops the column from the query (`buildUdaConfig.js`, `getData.js`). |
+| `selectOnly`   | Fetch only — stays in the SELECT/GROUP BY but renders NO cell (no grid slot). The right tool for loader columns. |
 | `hideHeader`   | Suppresses the label line. The wrapper still occupies a grid slot. |
-| `hideValue`    | Suppresses the value block (and the `CompWrapper` that would otherwise render the column-type's `ViewComp`). The wrapper still occupies a grid slot. |
+| `hideValue`    | **DEPRECATED** — use `selectOnly` for loader columns. Still rendered for existing cards (suppresses the value block; the wrapper still occupies a grid slot), but the toolbar toggle only appears when it's already set. |
 | `hideIfNull`   | (display-level, not per-column) — hide the entire card when query returns no rows. |
 
 **Crucial subtlety: `hideHeader + hideValue` ≠ "column doesn't render".** The cell's outer `<div>` still renders, still consumes one grid slot, still has padding and border. Cells you only want loaded for the data fetch (so a composite column type can read them off the row) should keep `show: true` to stay in the query, but you need to *also* think about the grid slots they occupy. Two options:
@@ -167,10 +212,36 @@ The padding precedence is **side-specific > `cellPadding` > `cellsPadding`** —
 | `justify`            | `'left' | 'right' | 'center' | 'full'`. Maps to `theme.justifyText*` classes. `'full'` splits header to left, value to right. |
 | `headerFontStyle`    | Class lookup into `theme.textSettings.styles[0]`. Any key there is legal (`textXS`, `textMD`, `text3XL`, `h1`–`h6`, `body`, `caption`, …). |
 | `valueFontStyle`     | Same lookup, for the value. Defaults to `textXS` if unset. |
-| `headerValueLayout`  | (display-level, applies to all cells) `'row'` (default) or `'col'`. `row` = header inline left of value; `col` = stacked. |
+| `activeStyle`        | (toolbar: **Column Type Style**) Picks a *named style* from the **columnType's own theme** for this cell — forwarded as the columnType's `activeStyle`. E.g. a `select`/`status_pill` cell can use the `multiselect` theme's `"field"` (prominent control) or `"compact"` style. Blank = the type's default style. Flows via `{...attributeProps}` in both Card.jsx and TableCell.jsx, so it works in Card sections and Spreadsheets. (Note: `headerValueLayout`'s `row` needs the dataCard theme's `itemFlexRow` to carry a `flex-row` direction — transportny's bakes `flex-row!` so it wins over the wrapper's default `flex-col`.) |
+| `headerValueLayout`  | (display-level; toolbar: **Value Placement** under *Default Column Settings*) `'row'` (Inline, default) or `'col'` (Stacked). `row` = header inline left of value; `col` = stacked. **Two gotchas for `row`:** (1) it needs the `dataCard` theme's `itemFlexRow`/`itemFlexCol` — if a site's `dataCard` omits them (transportny did until 2026-06-30) `row` silently falls back to the wrapper's `flex-col` and everything stacks; the transportny fix uses `flex-row!`. (2) the default `dataCard` `header`/`value` classes carry **asymmetric vertical padding** (header `pt-3 pb-1`, value `pb-3`) tuned for *stacked* cells — in a `row` that offsets the label vs value text even with `items-center`. Fix by picking a `cardStyle` whose `header`/`value` use symmetric/horizontal-only padding (transportny's **`rowaligned`** style: `header:"px-3"`, `value:"px-3"`). |
 | `reverse`            | (display-level) When `headerValueLayout: 'col'`, swap order so value sits above header. |
 | `headerWidth`        | (display-level) Percentage of cell width used by header in `row` layout. Default 50. |
 | `valueWidth`         | (display-level) Percentage for value in `row` layout. Default 50. |
+| `cellVAlign` / `cellsVAlign` | **Vertical alignment of a cell within its grid row** → CSS `align-self` (`cellVAlign` per-column wins; `cellsVAlign` is the display-level default). Values: `'top'`\|`'center'`\|`'bottom'`\|`'baseline'`. Cells default to top, so when one cell in a row is **short** (a `data_bar`, a pill) and its neighbors are **tall** (a `col`-layout label-above-value stat), the short one floats at the top and looks misaligned. Put the short + tall cells on one row and set `cellsVAlign:'center'` to line them up. (This is the fix for "a bar/short cell sits above the values next to it".) |
+
+### Static columns (labels, eyebrows, chrome) — `origin: 'static'`
+
+A column with `origin: 'static'` reads no row data; it renders its `staticValue` as the cell value.
+Use it to place **static chrome inside the card** — an eyebrow (`// page qa`), a section label, a
+separator — so it shares the card's cell spacing (`cellsPadding`, `cellsGridGap`, `cellsTracksTemplate`,
+`cellSpan`) instead of living in a separate lexical section that sits in the band's own `gap` (which is
+why a lexical eyebrow above a card "takes up too much space"). Style it with `valueFontStyle` like any
+text cell:
+
+```js
+// a gold eyebrow as the card's first cell (full-width row, tight under the card's gap)
+{ name: 'eyebrow', origin: 'static', staticValue: '// page QA',
+  valueFontStyle: 'kicker', show: true, hideHeader: true, cellSpan: 6 },
+```
+
+Folding a label/eyebrow into the card this way puts it under the same spacing controls as the data cells
+(pair with the tight-meta recipe). A `static` column is **always read-only even inside an
+`allowEditInView` card** (it's chrome, not data — `Card.jsx` excludes `origin:'static'` from edit
+mode), so it won't render an EditComp or the edit-mode `border` outline (which is `currentColor` — it
+showed as a gold box on a `kicker` eyebrow before this fix). **Caveat:** in some configurations
+`origin:'static'` can trip the length query ("Error getting length") and blank the card — it's safe
+mixed with normal data columns (as in the header eyebrow above), but if a card blanks, swap the static
+cell for a **SQL-literal calculated column** instead (see the KPI traps under the value-driven column types).
 
 ### Image columns
 
@@ -220,7 +291,7 @@ The padding precedence is **side-specific > `cellPadding` > `cellsPadding`** —
 
 | Key                    | What it does |
 |------------------------|---|
-| `allowEditInView`      | Inline-edit this cell in view mode. |
+| `allowEditInView`      | Inline-edit this cell in view mode. **Requires an explicit editable `type`** — a column with no `type` silently can't be edited (falls to the read-only `DefaultComp`; see "Defaults that bite"). |
 | `staticValue`          | When `origin: 'static'`, the column has no row data — this is the cell's value. |
 | `usePageParams`        | The cell's value comes from page state (`pageParamKey`) rather than the row. |
 | `blankDefault`         | Synthetic value used when `display.useBlankRowFallback` is on and the query returns 0 rows. |
@@ -255,7 +326,7 @@ reads only its own `value` and is configured via column attributes:
 
 | `type`        | Renders | Key attributes |
 |---------------|---------|----------------|
-| `status_pill` | the value as a colored `UI.Pill` (good/bad/warn/na) | `pillColors` (map `value → pill style`); else keyword heuristics (meets/above → good, below/miss/fail → bad). Themeable via `theme.pill`. |
+| `status_pill` | the value as a colored `UI.Pill` (good/bad/warn/na); **editable** — add `allowEditInView: true` and it stays a pill in view but becomes a single-select dropdown when the cell is edited (options come from an explicit `options` array, else the `pillColors` keys), persisting a clean string | `pillColors` (map `value → pill style`); else keyword heuristics (meets/above → good, below/miss/fail → bad). Themeable via `theme.pill`. |
 | `delta`       | signed arrow + value, colored, + "vs <year-1>" suffix | `deltaGoodDirection` (`up`\|`down` — which sign is green), `deltaYearField` (row col with the period year → "vs Y-1"), `deltaSuffix` (static). Theme key `delta`. |
 | `target_bar`  | progress bar + target marker + "≥/≤ target" caption | `targetValue` (or `targetColumn`), `barMin`/`barMax` (range scale — ratio metrics like TTTR use `1.0`/`2.2`), `barDirection`, `barUnit`. Theme key `targetBar`. |
 | `stat_value`  | KPI figure with inline prefix + smaller muted unit on one baseline ("$6.2 billion", "310.9 M veh-hrs", "80 %") | `prefix` (figure-size, e.g. `$`), `unit` (suffix), `valueFontStyle` (figure token, e.g. `statXL`), `unitFontStyle` (unit token; defaults to theme `statValue.unit`, ~40% size muted). Use this instead of jamming the unit into the column header/label. |
@@ -269,21 +340,42 @@ card: retyping a **formula** column to `delta` (its UUID `name` becomes invalid 
 `origin:'static'` columns ("Error getting length") — use SQL-literal calculated columns and
 **clone a working column** for the field shape.
 
-## In-cell bar / heat column types: `data_bar` + `data_color_cell`
+## In-cell bar / heat column types: `data_bar` + `data_color_cell` + `stacked_bar`
 
-Two more value-driven built-ins render a magnitude *inside* the cell (work in Card
+Value-driven built-ins that render a magnitude *inside* the cell (work in Card
 cells and in Spreadsheet columns):
 
 | `type`            | Renders | Key attributes |
 |-------------------|---------|----------------|
 | `data_bar`        | a horizontal bar scaled to a max, optional value label | `barMax` (static scale top) **or** `barMaxColumn` (a sibling column name to scale against); `barColorColumn` (sibling whose value selects a fill from `theme.dataBar.fills`); `barShowValue` (print the value) + `barUnit` (suffix, e.g. `"%"`, `" mi"`). |
 | `data_color_cell` | the cell **background** colored on a palette scale (heat tile) | `domainColumns` (array of sibling column names → per-row min/max so each row shades within itself — the "shade within each region row" heat behaviour, no extra min/max SQL); fallbacks `colorMin`/`colorMax` (static) or `colorMinColumn`/`colorMaxColumn`; `colors` palette override (else `theme.dataColorCell.palette`); `showValue` (default false). |
+| `stacked_bar`     | ONE track split into proportional segments + an optional counts legend (a distribution bar: stage mix, open/done split) | `segments: [{col, label?, color?}]` — each segment's count comes from a **sibling column on the same row** (put per-category `count(*) filter (where …)` calcs on the row as `selectOnly` columns, `fn:"exempt"`); `color` = literal `#hex`/`rgb`/`hsl` inline or a `theme.stackedBar.fills` key; array order = bar+legend order. `showLegend:false` for bar-only; `emptyText` replaces the all-zero legend ("no tickets yet") over a bare track. Zero segments drop from the bar but stay in the legend. The host column's own value is unused — any calc (e.g. `count(*)`) works. |
 
 Worked examples (live, congestion_v2 page 2175676): the region-rank bars, the
 worst-corridor table, and the month×region seasonality heat grid; reliability §03
 failing-by-period and §04 corridors use `data_bar`. Use `data_color_cell` for a
 spreadsheet that's a heat grid (pair it with the `"heat"` table style —
 `display.tableStyle: "heat"` — for the white-header, border-less treatment).
+`stacked_bar` worked example: the control-room overview's per-pattern stage
+distribution + tickets open/done bars (`build_cr_overview.mjs`) — a one-row
+aggregate Card whose columns are six `count(*) filter (where stage=…)` selectOnly
+calcs plus one `stacked_bar` host cell; the legend doubles as the "3 proposed ·
+0 design · …" breakdown line. `segments[].col` must match the sibling's **row
+key** — set `normalName` explicitly on the seg calcs and reference that (with no
+`normalName` the row is keyed by the full SQL `name`, per the warning below).
+
+> ⚠️ **`pageSize` is required even with `usePagination: false`.** Without it the
+> fetch range never resolves and the section silently renders nothing — the
+> length query goes out, no data request follows, no error anywhere. Set
+> `pageSize` ≥ the expected row count (found via the freight-atlas gallery tiles,
+> 2026-07-13).
+
+> ⚠️ **No literal `" as "` inside calculated-column string literals.** The
+> column-name parser (`splitColNameOnAS`) splits on the FIRST ` as ` anywhere in
+> `name` — `'... more as their data lands'` truncates the SQL mid-literal and
+> that attribute silently returns null. Assemble the text so the word "as" never
+> has spaces around it in the raw string, e.g.
+> `|| ' more' || chr(32) || 'as their data lands'`.
 
 > ⚠️ **`barMaxColumn` / `barColorColumn` (and `data_color_cell`'s
 > `domainColumns`/`*Column` props) must reference a sibling column by its FULL
@@ -337,6 +429,36 @@ figure distributes its width into a max-content track and starves the 1fr
 column. For a right-side chip/badge column, use a fixed track instead
 (`cellWidth: '110px'`).
 
+## Vertical rhythm (footnote)
+
+Covered by the box model at the top: on v2 the gap between cards IS
+`cardsGridGap`. On v1 the fill default distributes section slack between card
+rows — for list-style cards set `cardsVerticalAlign: 'top'` (toolbar: Cards
+Grid → Vertical Align), or move the theme/section to v2. Diagnose in edit mode
+via `data-rhythm` on the cards grid (`…/stretch` = fill mode is in play), or
+read the grid's computed `grid-template-rows` in devtools.
+
+**Uniform list recipe** (the design's "label · count over a bar" card):
+
+```js
+display: {
+  cardsGridSize: 1,
+  cardsGridGap: 16,            // the design's row spacing — the ONLY gap
+  cardsVerticalAlign: 'top',   // v1 only; v2 packs by default
+  cardsGridPadding: '0 0 16px',// list-level inset (breathing room under the
+                               // LAST row without touching the rhythm)
+  cellsGridSize: 2,
+  cellsPadding: 2, cellsRowGap: 2,  // tight label→bar stack inside each row
+}
+```
+
+Font trap that co-occurs with spacing bugs on v1 themes: a brand
+`theme.dataCard.value`/`header` class that bakes in font utilities collides
+with every `valueFontStyle`/`headerFontStyle` token on Tailwind's
+arbitrary-value order. v2 forbids fonts in structural keys; on v1, keep
+`theme.value` layout-only (`w-full`) or give the token copies `!` importance
+(the transportny approach, above).
+
 ## What a column type receives
 
 A column type's `ViewComp` receives (`CompWrapper` in `Card.jsx` ~318):
@@ -361,9 +483,11 @@ A column type's `ViewComp` receives (`CompWrapper` in `Card.jsx` ~318):
 
 - `cellsGridSize` is `undefined` → fallback `visibleColumnsWithoutSpan || 1`. Don't mix spans and unset `cellsGridSize`; the divisor lies.
 - `cardsGridSize` is `undefined` → 1 (records stacked vertically).
-- `cellsPadding` defaults to undefined → cells have no inner padding (just the cell-border buffer, see below).
-- Every cell renders `border border-transparent` when not hovered and not in `cellBorder` mode (`Card.jsx` ~404) — a transparent 1px outline that keeps layout stable when the visible border is toggled on/off in edit mode. **This adds 2px to every cell's bounding box.** Don't expect `cellsPadding: 0` to give you a flush layout if the cell content is short — there's always at least a couple of pixels of buffer.
-- `headerValueLayout: 'row'` is the default — header sits *inline left of* value. For a composite cell with `hideHeader: true`, this still affects width calculation (`headerWidth: 50` reserves 50% of cell width even for the hidden header). Set `headerValueLayout: 'col'` on the section when cells are hidden-header or composite.
+- `cellsPadding` defaults to undefined → v1: cells fall through to the theme's class gutter (`headerValueWrapper` `p-2`); v2: the theme's `cellGutter` is applied inline.
+- **(v1 only)** Every cell renders `border border-transparent` when not hovered and not in `cellBorder` mode — **+2px on every cell's bounding box**, so `cellsPadding: 0` never yields a fully flush layout. v2 drops this (edit hover is an outline).
+- **(v1 only) The cards grid fills its box by default** (`gridAutoRows: minmax(max-content, 1fr)`): any card that's shorter than its section box — `height:'fill'`, or a section stretched by a taller `rowspan` sibling — gets the slack distributed *between its rows*. Lists want `cardsVerticalAlign: 'top'`. v2 packs by default (`'stretch'` opts back in).
+- `headerValueLayout: 'row'` is the default — header sits *inline left of* value with a `headerWidth`/`valueWidth` split (default 50/50). The split applies only when BOTH header and value render; a `hideHeader` cell gives the value the full width (guarded by `resolveHeaderValueWidths` + tests). Set `headerValueLayout: 'col'` on the section when cells are hidden-header or composite.
+- **A column with no `type` is NOT editable — even with `allowEditInView`.** `Card.jsx` picks the cell renderer as `ColumnTypes[attribute.type]?.[editMode ? 'EditComp' : 'ViewComp'] || DefaultComp`. An undefined `type` misses the registry and falls to `DefaultComp` — a plain read-only `<div>` (`{value}`) with no edit branch — so it renders fine in view and silently refuses to edit. To make a cell editable, give it an explicit editable columnType: `text` (single-line `<input>`), `textarea` (multi-line box — use for prose/multi-paragraph), `status_pill`/`select` (dropdown), etc. `text` vs `textarea` differ *only* in the editor widget, so a "value shows but won't edit" bug is almost always a missing/wrong `type`, not an `allowEditInView` problem.
 
 ## Legacy state — what migration handles
 
@@ -375,6 +499,99 @@ A column type's `ViewComp` receives (`CompWrapper` in `Card.jsx` ~318):
 If you're writing a card config by hand (e.g., via the CLI), **use the new keys**. The migration is one-way and runs once.
 
 ## Recipes
+
+### Tight inline meta / header row — pack cells to content (match a design's spacing)
+
+The default `repeat(N, minmax(0,1fr))` track makes every cell an equal fraction, so short values
+(a surface pill, a route, a date) float in wide cells and read as "airy" / "too many columns"
+versus a design's editorial header. To pack cells tight-left — `HOME` + `TSMO` + `/home` + badges +
+owner + date on one line, like the mockup — drive three knobs together:
+
+- **`cellsTracksTemplate`** = `(N−1) × max-content` + a trailing `minmax(0,1fr)` spacer. Cells size
+  to their content (not a fraction) and pack left; the 1fr spacer eats the slack and lets you
+  right-align the last cell with `justify: 'right'`.
+- **`cellsPadding: 0`** — kill the inner cell padding that creates the airy gaps.
+- small **`cellsGridGap`** (8–10) — the only inter-cell rhythm left.
+
+Each meta field gets `cellSpan: 1`, `hideHeader: true`, and a compact `valueFontStyle` (`metaMD`,
+pills). They flow onto one row, each content-width.
+
+```js
+columns: [
+  col('name', '',  { valueFontStyle: 'displayLG', hideHeader: true, cellSpan: 5 }),   // big title (cols 1-5)
+  pcol('stage','', STAGE_PILL, { hideHeader: true, cellSpan: 1, justify: 'right' }),  // right, in the 1fr track
+  col('description','', { valueFontStyle: 'prose', hideHeader: true, cellSpan: 6 }),  // full-width row 2
+  pcol('surface_label','', SURFACE_PILL, { hideHeader: true }),                       // meta row 3, packed left
+  col('route','',  { valueFontStyle: 'metaMD', hideHeader: true }),
+  pcol('build','', BUILD_PILL, { hideHeader: true }),
+  pcol('data','',  DATA_PILL,  { hideHeader: true }),
+  col('owner','',  { valueFontStyle: 'metaMD', hideHeader: true }),
+  col('updated','',{ valueFontStyle: 'metaMD', hideHeader: true }),
+],
+display: {
+  cellsGridSize: 6, cellsGridGap: 10, cellsPadding: 0,
+  cellsTracksTemplate: 'max-content max-content max-content max-content max-content minmax(0,1fr)',
+  cardBorder: false,
+}
+```
+
+Caveats: keep the big title cell **spanning most** of the max-content tracks (`cellSpan: N−1`) so its
+content-width distributes across them rather than fighting the meta (see "max-content + spanning steals
+width" above). When the layoutGroup band already provides the surface (e.g. a `header`/white band), give
+the section a bare extra (`{}` — no `bg`/`border`) so you don't double-box a card on the band. Per-edge
+nudges via `cellPadding*`. This is the canonical way to reproduce a design's spacing from these settings.
+
+### Composed card — fused header + flush table/body (mockup "panel" look)
+
+To make a section header + its data section read as ONE card (a title with a divider, then the
+table/rows below — the classic mockup panel), exploit the **`gap-0` band grid**: adjacent sections
+share an edge, so spacing/borders live on the sections, not a gutter. Stack two sections:
+
+- **Header section** (a `lexical` title, or a Card of static cells): all four borders + top radius.
+  Its **bottom border is the divider**.
+- **Body section** (`Card` or `Spreadsheet`): left/right/bottom borders + bottom radius, no top border,
+  so it butts flush under the divider.
+
+> ### ⚠ THE RULE FOR ANY MULTI-SECTION (fused) CARD — read this before building one
+> On a `gap-0` band, **each section's `defaultPaddingStep` gutter sits OUTSIDE its border**, so it
+> renders as a gray **gap between the boxes** — the sections do NOT fuse by default. To fuse N stacked
+> sections into one card you must **zero every _interior_ edge**:
+> - **First** section: keep its natural **top**, set `padding.bottom:'0'`.
+> - **Every MIDDLE** section: set `padding:{ top:'0', bottom:'0' }` — **BOTH**. (Forgetting `bottom` on
+>   a middle section is the #1 cause of "there's still a gap" — a 2-section recipe hides this because a
+>   2-stack has no middle.)
+> - **Last** section: set `padding.top:'0'` (add `bottom:'0'` too only if you want it flush at the very
+>   bottom; otherwise its natural bottom is the space to whatever follows).
+>
+> This applies to EVERY page — it is not per-page tuning. Copy the `cardTop/cardMid/cardBot` triplet
+> below verbatim and it's correct by construction; add a `bottom` border to each section that should
+> show a **divider** line before the next.
+
+```js
+// Canonical fused-stack section styles. Reuse these; do not re-derive per page.
+const cardTop = { bg:'white', border:{ top:true, left:true, right:true, bottom:true }, radius:{ tl:true, tr:true }, padding:{ bottom:'0' } };
+const cardMid = { bg:'white', border:{ left:true, right:true, bottom:true },                                        padding:{ top:'0', bottom:'0' } }; // ← BOTH edges 0
+const cardBot = { bg:'white', border:{ left:true, right:true, bottom:true }, radius:{ bl:true, br:true },           padding:{ top:'0' } };
+// stack: cardTop → cardMid (×N, one per middle section) → cardBot. Each section's bottom border = the
+// divider before the next. A 2-section card is just cardTop → cardBot (no cardMid).
+```
+
+For a **Spreadsheet** body, also set `display.tableStyle:'flush'` — the `flush` table style keeps the
+`report` cell/header treatment but drops the table's own container border/rounding/shadow, so the
+section's compound card is the only frame (otherwise you double-box: a card inside a card). For a
+**Card** body, set `cardBorder:false` so per-record cards don't add their own boxes.
+
+Spreadsheet column widths: give the fixed columns (ids, pills, dates) an explicit `size` (px) and
+the **one flexible text column `stretch: true`** (size becomes its *minimum* → `minmax(size,1fr)`) so
+the grid **fills the card** instead of leaving slack on the right; keep `autoResize:false` (auto-resize
+makes ALL columns *equal*, which you don't want). Add `wrapText:true` on long-text columns (titles,
+user stories) so they wrap instead of truncating. Lay out **text-left, pills-right** by ordering the
+text/stretch column first and the fixed pill columns last with `justify:'right'`.
+
+Editable status pills: a `status_pill` column with `allowEditInView:true` stays a pill in view and
+becomes a single-select **on click** that *also renders pills* (the trigger and every menu row) — so
+the pill look is preserved while editing. Scope editing per-column (don't set `display.allowEditInView`)
+so only the status is editable, not the text columns.
 
 ### "Now-playing" card on a 12-col grid (data cells + slim chrome column)
 
@@ -535,15 +752,20 @@ A new section type in `ComponentRegistry/` is justified only when the rendering 
 ## Quick-reference: what each key does at a glance
 
 ```
+theme.dataCard.layoutModel → 'v2' opts the style into the predictable box model
+theme.dataCard.cellGutter  → (v2) the ONE ambient cell gutter, inline, overridable
+
 display.cardsGridSize      → outer columns of records
-display.cardsGridGap       → outer gap
-display.cardsPadding       → padding *inside the per-card surface*
+display.cardsGridGap       → outer gap (v2 / pack-to-top: exactly the space between cards)
+display.cardsGridPadding   → padding on the OUTER cards grid (the list's inset)
+display.cardsVerticalAlign → 'top' | 'stretch' (unset = model default: v1 fill, v2 pack)
+display.cardsPadding       → padding *inside the per-card surface* (legacy name)
 display.cardsBgColor       → per-card background (overrides theme)
 display.cardBorder         → toggle theme.cardBorder
 display.cellsGridSize      → inner columns of cells inside one card
-display.cellsGridGap       → inner gap
+display.cellsGridGap       → inner gap (cellsRowGap / cellsColumnGap per axis)
 display.cellsRowHeight     → fixed pixel row height for cells
-display.cellsPadding       → padding on each cell wrapper
+display.cellsPadding       → padding on each cell wrapper (0 is a value and wins)
 display.cellBorder         → toggle theme.itemBorder on each cell
 display.cellsTracksTemplate → raw grid-template-columns string (wins over per-column cellWidth)
 
@@ -552,8 +774,9 @@ display.reverse           → swap header/value order in 'col' mode
 display.headerWidth/valueWidth → row-layout split percentages
 
 columns[i].show          → render *and* SELECT
+columns[i].selectOnly    → SELECT only, no cell (the loader-column tool)
 columns[i].hideHeader    → suppress label
-columns[i].hideValue     → suppress value (and CompWrapper)
+columns[i].hideValue     → DEPRECATED (BC-rendered; use selectOnly)
 columns[i].cellSpan      → CSS grid-column span
 columns[i].cellRowSpan   → CSS grid-row span
 columns[i].cellWidth     → '' (fluid) | 'auto' | '<N>px' / etc — track size at this column's starting position

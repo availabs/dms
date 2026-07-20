@@ -14,6 +14,7 @@ import { RadioEdit, RadioView } from './radio'
 import { CheckboxEdit, CheckboxView } from './checkbox'
 import { ImageEdit, ImageView } from './image'
 import { StatusPillEdit, StatusPillView } from './statusPill'
+import { PriorityTierEdit, PriorityTierView } from './priorityTier'
 import { DeltaEdit, DeltaView } from './delta'
 import { TargetBarEdit, TargetBarView } from './targetBar'
 import { DataBarEdit, DataBarView } from './dataBar'
@@ -22,6 +23,10 @@ import { VerdictDotEdit, VerdictDotView } from './verdictDot'
 import { StatValueEdit, StatValueView } from './statValue'
 import { CodeWithSubEdit, CodeWithSubView } from './codeWithSub'
 import { DownloadButtonEdit, DownloadButtonView } from './downloadButton'
+import { DesignFrameEdit, DesignFrameView } from './design_frame'
+import { StageProgressEdit, StageProgressView } from './stage_progress'
+import { FlowStepEdit, FlowStepView } from './flow_step'
+import { StackedBarEdit, StackedBarView } from './stacked_bar'
 import Switch from '../components/Switch'
 
 const text = { EditComp: TextEdit, ViewComp: TextView }
@@ -34,6 +39,7 @@ const checkbox = { EditComp: CheckboxEdit, ViewComp: CheckboxView }
 const lexical = { EditComp: LexicalEdit, ViewComp: LexicalView }
 const image = { EditComp: ImageEdit, ViewComp: ImageView }
 const statusPill = { EditComp: StatusPillEdit, ViewComp: StatusPillView }
+const priorityTier = { EditComp: PriorityTierEdit, ViewComp: PriorityTierView }
 const delta = { EditComp: DeltaEdit, ViewComp: DeltaView }
 const targetBar = { EditComp: TargetBarEdit, ViewComp: TargetBarView }
 const dataBar = { EditComp: DataBarEdit, ViewComp: DataBarView }
@@ -42,6 +48,10 @@ const verdictDot = { EditComp: VerdictDotEdit, ViewComp: VerdictDotView }
 const statValue = { EditComp: StatValueEdit, ViewComp: StatValueView }
 const codeWithSub = { EditComp: CodeWithSubEdit, ViewComp: CodeWithSubView }
 const downloadButton = { EditComp: DownloadButtonEdit, ViewComp: DownloadButtonView }
+const designFrame = { EditComp: DesignFrameEdit, ViewComp: DesignFrameView }
+const stageProgress = { EditComp: StageProgressEdit, ViewComp: StageProgressView }
+const flowStep = { EditComp: FlowStepEdit, ViewComp: FlowStepView }
+const stackedBar = { EditComp: StackedBarEdit, ViewComp: StackedBarView }
 
 // console.log('in column types', Lexical)
 // columnTypes is a mutable registry: themes can extend it via theme.columnTypes
@@ -50,6 +60,11 @@ const downloadButton = { EditComp: DownloadButtonEdit, ViewComp: DownloadButtonV
 // (e.g. UI.ColumnTypes via ui/index.js) immediately see new entries.
 const columnTypes = {
 	'text': text,
+  // 'string' is a selectable type in MetadataComp/RenderField's fieldTypes dropdown
+  // (labeled "string (text)") but was never registered here — columns typed 'string'
+  // (common for external/DAMA columns) silently fell back to the static DefaultComp
+  // in Card/Table, rendering no edit control at all regardless of allowEditInView.
+  'string': text,
   'textarea': textarea,
   'lexical': lexical,
   'number': {
@@ -75,6 +90,7 @@ const columnTypes = {
   'checkbox': checkbox,
   'image': image,
   'status_pill': statusPill,
+  'priority_tier': priorityTier,
   'delta': delta,
   'target_bar': targetBar,
   'data_bar': dataBar,
@@ -83,6 +99,10 @@ const columnTypes = {
   'stat_value': statValue,
   'code_with_sub': codeWithSub,
   'download_button': downloadButton,
+  'design_frame': designFrame,
+  'stage_progress': stageProgress,
+  'flow_step': flowStep,
+  'stacked_bar': stackedBar,
   'switch': {
         EditComp: ({trueValue=true, value, onChange, ...props}) => {
             const offValue = typeof trueValue === 'boolean' ? !trueValue : null;

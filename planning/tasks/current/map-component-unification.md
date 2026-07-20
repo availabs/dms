@@ -1,6 +1,58 @@
 # Map Component Unification (`map/` + `map_dama/` → single component)
 
-## Status: NOT STARTED — follow-up to `mapeditor-uda-migration.md`
+## Status: P1–P4 BUILT & LIVE-VERIFIED 2026-07-10 (uncommitted; P5 migration/retirement pending) — follow-up to `mapeditor-uda-migration.md`
+
+**What shipped 2026-07-10** (verified live on the new Freight Atlas v2 page 2189762, plus
+regression shots of the old map_dama page + tsmo2/npmrds — all unchanged):
+- `map/LayerLibraryPanel/LayerLibraryPanel.jsx` — the approved workbench panel (header + on-count ·
+  search · ACTIVE MAP strip w/ inline interactive-filter select + remove · category accordion w/
+  checkboxes + on-badges). Gated by `display.layerPanel === 'library'` (default `'none'` = today).
+- `map/map.theme.js` — **`damaMap` theme object registered in `patterns/page/defaultTheme.js`**
+  (owner requirement 2026-07-10: the component must be fully themeable through the UI theme system
+  as its own object in pages). Panel + index wrappers read it via the canonical
+  `getComponentTheme(theme, 'damaMap'/'damaMap.layerLibrary')` + local-default spread.
+  **Remaining themeability scope**: LegendPanel/HoverComp still read the shared ui map theme
+  (`ui/components/map/map.theme.js` `legend`/`hover`) — migrate them into `damaMap`; the
+  `PANEL_POSITION_OPTIONS` position classes and settings-panel chrome are still inline.
+- `map/index.jsx` — multi-aware interactive-filter tracking (all symbologies, not just the first
+  visible); deferred `SymbologyViewLayer` construction in library mode (only ever-visible
+  symbologies get instances — 1 of 31 built at FA load); **shareable URL state**
+  (`display.shareableState`, view-only): `?layers=<ids>` + `f_<symId>=<idx>`, read-once/
+  write-on-change (replace), unknown ids ignored. Design note: v1 syncs react-router searchParams
+  directly (pageState.filters integration deferred — page filters need page-level authoring).
+- `map/settings/` — "Layer Library" settings screen (both display toggles; add-symbology from the
+  catalog with a category input, mirroring map_dama `addLayer` semantics: cloned hidden incl.
+  interactive-filter variants + a `tabs[]` row; list/remove). Classic replace-on-pick untouched.
+- **Share-URL E2E verified 2026-07-10** (sections render their view comp on the edit page):
+  read restores layers + filter index; toggles write back. Fixed a dev double-mount write race —
+  the write effect serializes desired params into a ref and only navigates when that serialization
+  changes (URL comparisons are race-prone: setSearchParams flushes async, so a stale scheduled
+  write can land after a fresher compare).
+- **Share-URL empty-param fix 2026-07-12** (owner report: `?layers=` on prod wedged the FA map in
+  a perpetual-loading/blank state): a bare `?layers=` was parsed as "param present, zero ids" →
+  every symbology forced hidden. Now (a) read treats an empty/whitespace `layers` value exactly
+  like an absent param (default saved state), (b) write drops the `layers` key when nothing is
+  visible instead of emitting `layers=` (the writer path that produced such URLs when a user
+  unchecked the last layer — `next.delete('layers')` before applying desired). Consequence: an
+  all-off map is intentionally not shareable — it round-trips to the default state. Verified on
+  freightatlas2.localhost: no-param ≡ `?layers=` (both "1 on"), `?layers=9001050` still restores
+  the DAC layer, uncheck-all yields a paramless URL. **Prod needs a redeploy of the bundle to pick
+  this up** (repro'd live on freightatlas2.devtny.org before the fix).
+- **Full-screen support** (FA v2 request): `HEIGHT_OPTIONS.screen = 100vh` (additive; `full` stays
+  95vh) + a neutral `workbench` style in the default LayoutGroup theme (full-bleed, no padding);
+  transportnyv2 ships its own branded `workbench` band. Recipe: workbench band +
+  `full_width:"show"` + section `padding:"p-0"` + element height `screen`.
+- **Deferred**: drag-reorder of active layers, zoom-to-layer, filter-group/view-group selects in
+  the panel (no current consumer — FA uses only interactive-filters), legend per-block eye toggle,
+  the SymbologiesList gallery modal (settings uses a compact select). Platform wart noted:
+  sectionGroup's rail gate treats `sidebar:"none"` as truthy (renders an empty rail column) —
+  add a defensive check when next in that code.
+
+> **2026-07-10:** a full architecture pass of mapeditor + map + map_dama (with refined,
+> BC-focused unification recommendations and a redesigned multi-symbology view panel) is in
+> [research/map-stack-architecture.md](../../research/map-stack-architecture.md) — read it before
+> starting this task. First consumer/driver: the Freight Atlas map redesign
+> (workspace `planning/transportny/tasks/current/freight-atlas-map-redesign.md`).
 
 ## Objective
 
@@ -37,46 +89,75 @@ Both trees have unique features that matter to live sites. A naive "rewrite `Map
 4. **Saved-data compatibility**: map_dama's `element-data` is a subset of map/'s. Upgrading map_dama components to the unified component requires defaults for missing fields (legendPosition, basemapStyle, etc.) — not a hard problem but needs migration.
 5. **PMTiles** is dead in both today (disabled). Deprioritize porting/rebuilding until someone actually needs it.
 
-## Recommended approach
+## DECIDED approach (owner decision 2026-07-10) — extend `map/`, new Layer Library panel, deprecate map_dama
 
-**Build a new unified `map/` by extending the existing `map/` with map_dama's missing features**, rather than forking a third thing. Rough plan:
+Owner (Alex) confirmed 2026-07-10: **implement the approved Freight Atlas workbench design inside/on
+top of the `map` component**, extending it beyond a single symbology while staying fully BC for
+existing single-symbology `map` sections; deprecate `map_dama`. Design + full architecture:
+[research/map-stack-architecture.md](../../research/map-stack-architecture.md); approved UI =
+`dms_design_system_v2/pages/freight-atlas-map.html` (checkboxes not toggles; tight row indent).
+First consumer: new Freight Atlas map page (workspace task `freight-atlas-map-v2-page.md`).
 
-### Phase U1 — Decision: which base?
+### BC invariants (must hold — regression surface #1)
+1. A saved `map` element-data renders **identically** with zero migration; every new field defaults
+   to today's behavior. Gate everything new behind `display.layerPanel: 'none' | 'library'`
+   (default `'none'` = no on-map panel, legend-only, exactly today).
+2. Single-symbology semantics preserved: the existing settings-tree symbology picker keeps its
+   replace-on-pick behavior; `_functions` providers/subscribers, click-filter, `searchParamKey`,
+   basemap persistence, legend/plugin positions untouched.
+3. The activeSym-assuming effects (page-filter sync `index.jsx:361-421`, runtime legend refresh
+   `:476-644`) become per-visible-symbology loops that are behavior-identical when exactly one
+   symbology is visible.
 
-`map/` is more modern (better state coverage, page-state binding, PMTiles infrastructure). Start from it. Port map_dama's features *into* it.
+### Phase P1 — Internal refactor, zero behavior change
+- activeSym → visibleSymbologies loops in the filter-sync + runtime-legend effects.
+- Verify against existing live `map` sections before proceeding.
 
-### Phase U2 — State shape upgrade
+### Phase P2 — State + authoring (the add-symbology controls, thought through)
+- Element-data additions: `tabs:[{name, icon?, rows:[{name, symbologyId}]}]` (categories) +
+  `display.layerPanel` ('none' default). Multi-entry `symbologies{}` (shape unchanged — map_dama's).
+- Settings-tree **"Symbologies" panel** (authoring stays in the settings tree — do NOT port
+  map_dama's on-map edit menus): list of added symbologies with rename / category assignment /
+  reorder / remove / "Update from source" (re-clone from catalog preserving visibility);
+  **"Add symbology"** opens the catalog browser (port map_dama `SymbologiesList` gallery as a
+  settings-launched modal); add = append `{[id]:{...sym, isVisible:false}}` + a row in the chosen
+  category (map_dama `addLayer` semantics). Categories created/renamed/reordered in the same panel.
+- Keep symbologies **embedded** in element-data (BC; no fetch fan-out). Follow-on (not now): trim
+  `interactive-filters[]` snapshot weight.
 
-- Support multi-visible symbologies: `symbologies: {[id]: {...sym, isVisible: boolean}}`
-- Keep single-select semantics as the default behavior when only one symbology is present (so `map/` components render identically to today)
-- Add `activeFilterMode: "pageState" | "local"` per layer with default `"local"` (matches map_dama legacy behavior); layers originally from `map/` get `"pageState"` on migration
+### Phase P3 — The Layer Library view panel (the approved design)
+- New `map/LayerLibraryPanel/` (+ `.theme.js` sibling per package theming rules) rendered when
+  `display.layerPanel==='library'`: header w/ on-count · search · **Active Map** strip (ordered
+  visible symbologies, remove, zoom-to-layer, inline interactive-filter select) · category
+  accordion with **checkboxes** + per-category on-badges. Filter-group / view-group selects render
+  for rows that have them (same rules as map_dama's `groupSelectorElements`).
+- Legend: per-symbology blocks with name headers + in-legend visibility (eye) toggle, behind the
+  same flag (existing `map` legend unchanged when flag off).
+- Perf (needed at Freight Atlas scale, 31 symbologies): defer `SymbologyViewLayer` construction /
+  style registration until a symbology is first visible; no per-row view-list fetches at panel
+  render (view-group dropdowns fetch lazily on open).
 
-### Phase U3 — Port map_dama's MapManager
+### Phase P4 — URL-shareable state (opt-in)
+- `display.shareableState: false` default. When on: `?layers=<symId>,…` (visible set) and
+  `f_<symId>=<idx>` (selectedInteractiveFilterIndex), read on mount / written on toggle through
+  the page pattern's existing `useSearchParams:true` filter channel (see research doc §6.3).
+  Unknown ids in the URL are ignored (links survive symbology removal).
 
-- Move the layer-management UI from the 42 KB `map_dama/MapManager/MapManager.jsx` into `map/controls/` as a new LayerManagerPanel component
-- Split into smaller files (SymbologyRow, InteractiveFilterSelector, FilterGroupSelector, ViewGroupSelector, DynamicFilterControls) — MapManager is monolithic today
-- Wire its interactive/filter-group/view-group dropdowns into the unified state
-
-### Phase U4 — Port in-legend visibility toggle
-
-- Move the VisibilityButton from `map_dama/LegendPanel/LegendPanel.jsx` to `map/LegendPanel/LegendPanel.jsx` behind a config flag (defaults off for existing `map/` components, on for ex-map_dama components)
-
-### Phase U5 — Data migration
-
-- One-shot script that finds components with `element-type: "Map: Dama Map"`, maps their `element-data` into the unified shape, and rewrites the element-type to `"Map"`
-- Fields added with defaults: `legendPosition`, `pluginControlPosition`, `basemapStyle`, `zoomToFitBounds`
-- Set a per-layer flag indicating origin so UI can default to map_dama's "interactive filter" behavior for these layers
-- Same dry-run + `--apply` pattern as the symbology migration script
-
-### Phase U6 — Retire map_dama
-
-- After all affected apps are migrated and verified, delete `map_dama/` directory, remove `"Map: Dama Map"` alias from `ComponentRegistry/index.jsx`, remove any remaining references.
+### Phase P5 — Consumer sweep, migration, deprecation
+- **Sweep all apps for `element-type:"Map: Dama Map"` first** — the ~171-components-in-
+  mitigat-ny-prod figure above predates the UDA migration and conflicts with "freight atlas is the
+  only consumer"; establish the true set before deprecating.
+- One-shot migration script (dry-run + `--apply`) mapping map_dama element-data into the unified
+  shape (defaults for `legendPosition`, `basemapStyle`, `pluginControlPosition`, `zoomToFitBounds`;
+  `display.layerPanel:'library'` so ex-map_dama sections keep their panel).
+- Then delete `map_dama/` + the `"Map: Dama Map"` registry alias.
 
 ## Scope caps
 
 - **Don't port** PMTiles unless a production need surfaces. The existing map/pmtiles/ is already dead code; unification doesn't need to revive it.
-- **Don't redesign** the filter UI. Just combine what's there from both.
-- **Don't change** the saved-element-data schema more than is required to add the new multi-symbology + filter-mode fields.
+- **Don't change** the saved-element-data schema more than is required to add the new multi-symbology + layer-panel/share fields.
+- Panel visual design is FIXED by the approved mockup — implement it themeable (default theme
+  neutral; transportnyv2 brand pass is a separate theme task).
 
 ## Out of scope for this task
 
@@ -93,8 +174,8 @@ Both trees have unique features that matter to live sites. A naive "rewrite `Map
 ### Target (accrete features here)
 - `patterns/page/components/sections/components/ComponentRegistry/map/index.jsx`
 - `patterns/page/components/sections/components/ComponentRegistry/map/LegendPanel/LegendPanel.jsx`
-- `patterns/page/components/sections/components/ComponentRegistry/map/controls/` (add LayerManagerPanel + subcomponents)
-- `patterns/page/components/sections/components/ComponentRegistry/map/SymbologySelector.jsx` — expand for multi-symbology
+- `patterns/page/components/sections/components/ComponentRegistry/map/LayerLibraryPanel/` (NEW — view panel + `.theme.js`)
+- `patterns/page/components/sections/components/ComponentRegistry/map/settings/` — "Symbologies" multi-add panel (catalog modal ported from map_dama `SymbologiesList`)
 - `patterns/page/components/sections/components/ComponentRegistry/map/SymbologyViewLayer.jsx` — pass-through; already migrated
 
 ### Source (port from)

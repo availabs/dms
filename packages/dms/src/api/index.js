@@ -389,6 +389,32 @@ export async function dmsDataEditor (falcor, config, data={}, requestType, /*pat
 
 	const updateRow = async (row) => {
 		const { id } = row
+
+		// External (DAMA) sources with metadata.isEditable: true write directly to the
+		// source's real Postgres table via the uda.data.* routes instead of dms.data.*
+		// (see external-source-editable-crud.md). This bypasses the dms-format/offline-sync
+		// machinery below entirely — both are DMS-internal concepts that don't apply to a
+		// plain typed-column external table.
+		if (!config?.format?.isDms && config?.format?.isEditable) {
+			const { srcEnv: env, view_id } = config.format;
+
+			if (requestType === 'delete' && id) {
+				await falcor.call(["uda", "data", "delete"], [env, view_id, id]);
+				await falcor.invalidate(['uda', env, 'viewsById', view_id]);
+				return { response: `Deleted item ${id}` };
+			}
+			if (id) {
+				console.log('editing', id, row);
+				await falcor.call(["uda", "data", "edit"], [env, view_id, id, row]);
+				await falcor.invalidate(['uda', env, 'viewsById', view_id]);
+				return { message: `Update successful: id ${id}.` };
+			}
+			const res = await falcor.call(["uda", "data", "create"], [env, view_id, row]);
+			await falcor.invalidate(['uda', env, 'viewsById', view_id]);
+			const newId = Object.keys(res?.json?.uda?.[env]?.viewsById?.[view_id]?.dataById || {})[0];
+			return { response: 'Item created.', id: newId };
+		}
+
 		const attributeKeys = Object.keys(row)
 			.filter(k => !['id', 'updated_at', 'created_at'].includes(k))
 

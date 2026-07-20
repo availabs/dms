@@ -328,160 +328,196 @@ async function testMultiKeyGroupedLengthNoCollision() {
   pass('Grouped-length test cleanup complete');
 }
 
-// ============================================= Custom Bucket (aliasGroups) Tests ==============================================
+// ============================================= Comparison Series (fan-out) Tests ==============================================
 
 /**
- * Regression: custom-bucket (aliasGroups) values must survive the round-trip
- * when the bucket alias contains uppercase letters.
- *
- * The bucket column's alias is sent verbatim (not lowercased like ordinary
- * columns). simpleFilter builds `CASE … END as <alias>` and the route reads the
- * value back via rows[ii][getResponseColumnName(attribute)] — i.e. by the
- * original-case alias. PostgreSQL folds an UNquoted output identifier to
- * lowercase, so `as RoadType` returns a row keyed `roadtype` while the route
- * looks up `RoadType` → undefined → null cell. ClickHouse preserves case, so
- * the bug only appeared on the PG/SQLite port. The fix double-quotes the alias
- * in the SELECT so the response key matches. SQLite likewise preserves a quoted
- * alias, so this test guards both backends.
+ * Unit: offsetPlaceholders shifts every $N by the given offset in one atomic pass
+ * (no double-substitution — $1→$11 must not then re-match as $11).
  */
-async function testCustomBucketAliasCaseRoundTrip() {
-  console.log('\n--- Custom Buckets: mixed-case alias round-trip ---');
+async function testOffsetPlaceholders() {
+  console.log('\n--- Unit: offsetPlaceholders ---');
+  const { offsetPlaceholders } = require('../src/routes/uda/utils');
+
+  assert(offsetPlaceholders('a $1 b $2', 3) === 'a $4 b $5', 'simple shift by 3');
+  assert(offsetPlaceholders('x $1', 0) === 'x $1', 'offset 0 is a no-op');
+  // Atomic: $1..$10 shifted by 5 → $6..$15 (the new $11 must not be re-shifted).
+  assert(offsetPlaceholders('$1 $2 $10', 5) === '$6 $7 $15', 'no double-substitution');
+  // ANY($N) array placeholders are renumbered too (the SQLite adapter expands them).
+  assert(offsetPlaceholders('app = ANY($1) AND x = $2', 4) === 'app = ANY($5) AND x = $6', 'ANY() placeholders shift');
+  pass('offsetPlaceholders shifts $N atomically');
+}
+
+/**
+ * Integration: comparison-series fan-out. Two variants over disjoint category
+ * filters produce one UNION ALL arm each, every row stamped with a constant
+ * `__series` label the chart categorizes on. Also covers the groupBy:['__series']
+ * path (the discriminator is dropped from the arm GROUP BY) and an injection-safe
+ * label containing a single quote.
+ */
+async function testSeriesFanout() {
+  console.log('\n--- Comparison Series: basic fan-out + tagged rows ---');
 
   const items = [];
   for (const category of ['alpha', 'alpha', 'beta']) {
     const result = await graph.callAsync(
       ['dms', 'data', 'create'],
-      [TEST_APP, 'buckettest', { name: `n-${category}`, category }]
+      [TEST_APP, 'fanout', { name: `n-${category}`, category }]
     );
     items.push(Object.keys(result.jsonGraph.dms.data.byId)[0]);
   }
 
-  const env = `${TEST_APP}+buckettest`;
+  const env = `${TEST_APP}+fanout`;
   const viewId = items[0];
 
-  // Mirror the client: groupBy + attribute carry the bare mixed-case alias,
-  // aliasGroups carries the CASE definition. The source column is referenced
-  // through its DMS JSON accessor (data->>'category').
-  const ALIAS = 'RoadType';
+  // Group B's label carries an apostrophe to prove the literal is single-quote-escaped.
+  const LABEL_A = 'Group A';
+  const LABEL_B = "O'Brien";
   const options = JSON.stringify({
-    groupBy: [ALIAS],
-    aliasGroups: {
-      [ALIAS]: {
-        column: "data->>'category'",
-        fallback: 'Other',
-        groups: { Interstate: ['alpha'] },
-      },
-    },
+    seriesKey: '__series',
+    groupBy: ['__series'],
+    seriesVariants: [
+      { label: LABEL_A, filterGroups: { op: 'and', groups: [{ col: "data->>'category'", op: 'filter', value: ['alpha'] }] } },
+      { label: LABEL_B, filterGroups: { op: 'and', groups: [{ col: "data->>'category'", op: 'filter', value: ['beta'] }] } },
+    ],
   });
 
-  const dataResult = await graph.getAsync([
-    ['uda', env, 'viewsById', viewId, 'options', options, 'dataByIndex', { from: 0, to: 9 }, [ALIAS]],
+  // length = sum of arm counts (2 alpha + 1 beta)
+  const lenResult = await graph.getAsync([
+    ['uda', env, 'viewsById', viewId, 'options', options, 'length']
   ]);
+  const len = lenResult.jsonGraph.uda[env].viewsById[viewId].options[options].length;
+  assert(+len === 3, `Expected fan-out length 3 (2 + 1), got ${len}`);
+  pass('fan-out length sums per-arm counts');
 
+  // dataByIndex: rows tagged by series. Request __series so the route projects it.
+  const dataResult = await graph.getAsync([
+    ['uda', env, 'viewsById', viewId, 'options', options, 'dataByIndex', { from: 0, to: 9 }, ["data->>'name' as name", '__series']]
+  ]);
   const byIndex = dataResult.jsonGraph.uda[env].viewsById[viewId].options[options].dataByIndex;
-  const bucketValues = Object.values(byIndex)
-    .map((row) => row?.[ALIAS])
-    .filter((v) => v !== undefined && v !== null);
+  const series = Object.values(byIndex).map((r) => r?.['__series']).filter((v) => typeof v === 'string');
 
-  // Two distinct buckets ('Interstate' for alpha, 'Other' for beta) must come
-  // back under the mixed-case alias key — not null.
-  assert(bucketValues.length >= 2, `Expected ≥2 non-null bucket values, got ${JSON.stringify(bucketValues)}`);
-  assert(bucketValues.includes('Interstate'), `Expected an 'Interstate' bucket, got ${JSON.stringify(bucketValues)}`);
-  assert(bucketValues.includes('Other'), `Expected an 'Other' (fallback) bucket, got ${JSON.stringify(bucketValues)}`);
-  pass('custom-bucket mixed-case alias values round-trip (not null)');
+  assert(series.length === 3, `Expected 3 tagged rows, got ${series.length}: ${JSON.stringify(series)}`);
+  assert(series.filter((s) => s === LABEL_A).length === 2, `Expected 2 '${LABEL_A}' rows, got ${JSON.stringify(series)}`);
+  assert(series.filter((s) => s === LABEL_B).length === 1, `Expected 1 "${LABEL_B}" row (apostrophe label round-trips), got ${JSON.stringify(series)}`);
+  pass('fan-out rows carry the right __series label (incl. single-quote-escaped label)');
 
-  await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, 'buckettest', ...items]);
-  pass('Custom bucket test cleanup complete');
+  await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, 'fanout', ...items]);
+  pass('Comparison series fan-out cleanup complete');
 }
 
 /**
- * Regression: a custom-bucket whose values/labels contain a SQL keyword token
- * (e.g. the value "Union" — Union County is real data) must still group.
- *
- * simpleFilter substitutes the bucket CASE into GROUP BY. The bug passed that
- * CASE back through handleGroupBy()'s sanitizeName(), which rejects any string
- * containing a disallowed keyword (`union`, `cast`, `select`, …) as a whole-word
- * token. `... IN ('Union') ...` matches `\bunion\b`, so sanitizeName dropped the
- * whole CASE from GROUP BY while it stayed in the SELECT → Postgres errors
- * ("must appear in GROUP BY"); SQLite/ClickHouse silently collapse every row
- * into a single group. simpleFilterLength bypasses sanitizeName for the CASE, so
- * the two diverged. The fix sanitizes only the bare column entries and leaves the
- * already-vetted CASE verbatim. Two distinct buckets must come back.
+ * Integration: overlapping variants duplicate the shared base rows — the capability
+ * that categorize / custom buckets cannot express (a row can't carry two labels).
+ * 'Recent' = {2023,2024}, 'All' = {2022,2023,2024}; the 2023/2024 rows must appear
+ * under BOTH series, so total rows = 2 + 3 = 5.
  */
-async function testCustomBucketKeywordValueGroupBy() {
-  console.log('\n--- Custom Buckets: SQL-keyword bucket value still groups ---');
+async function testSeriesFanoutOverlap() {
+  console.log('\n--- Comparison Series: overlapping variants duplicate base rows ---');
 
   const items = [];
-  for (const category of ['Union', 'Union', 'County']) {
+  for (const year of ['2022', '2023', '2024']) {
     const result = await graph.callAsync(
       ['dms', 'data', 'create'],
-      [TEST_APP, 'bucketkw', { name: `n-${category}`, category }]
+      [TEST_APP, 'fanoverlap', { name: `y-${year}`, year }]
     );
     items.push(Object.keys(result.jsonGraph.dms.data.byId)[0]);
   }
 
-  const env = `${TEST_APP}+bucketkw`;
+  const env = `${TEST_APP}+fanoverlap`;
   const viewId = items[0];
-  const ALIAS = 'region';
   const options = JSON.stringify({
-    groupBy: [ALIAS],
-    aliasGroups: {
-      [ALIAS]: {
-        column: "data->>'category'",
-        fallback: 'Other',
-        groups: { Matched: ['Union'] },   // 'union' would trip sanitizeName
-      },
-    },
+    seriesKey: '__series',
+    seriesVariants: [
+      { label: 'Recent', filterGroups: { op: 'and', groups: [{ col: "data->>'year'", op: 'filter', value: ['2023', '2024'] }] } },
+      { label: 'All',    filterGroups: { op: 'and', groups: [{ col: "data->>'year'", op: 'filter', value: ['2022', '2023', '2024'] }] } },
+    ],
   });
 
-  const dataResult = await graph.getAsync([
-    ['uda', env, 'viewsById', viewId, 'options', options, 'dataByIndex', { from: 0, to: 9 }, [ALIAS]],
+  const lenResult = await graph.getAsync([
+    ['uda', env, 'viewsById', viewId, 'options', options, 'length']
   ]);
+  const len = lenResult.jsonGraph.uda[env].viewsById[viewId].options[options].length;
+  assert(+len === 5, `Expected 5 rows (2 Recent + 3 All, overlapping years duplicated), got ${len}`);
+  pass('overlapping variants duplicate shared base rows (length 5)');
 
+  const dataResult = await graph.getAsync([
+    ['uda', env, 'viewsById', viewId, 'options', options, 'dataByIndex', { from: 0, to: 9 }, ["data->>'year' as year", '__series']]
+  ]);
   const byIndex = dataResult.jsonGraph.uda[env].viewsById[viewId].options[options].dataByIndex;
-  const buckets = Object.values(byIndex)
-    .map((row) => row?.[ALIAS])
-    .filter((v) => typeof v === 'string'); // drop Falcor {$type:'atom'} empty-slot placeholders
+  const rows = Object.values(byIndex).filter((r) => r && typeof r['__series'] === 'string');
+  const recent = rows.filter((r) => r['__series'] === 'Recent').length;
+  const all = rows.filter((r) => r['__series'] === 'All').length;
+  assert(recent === 2 && all === 3, `Expected Recent=2, All=3; got Recent=${recent}, All=${all}`);
+  pass('each year appears once per arm it matches (2023/2024 in both series)');
 
-  // The two 'Union' rows must collapse into ONE 'Matched' group → exactly 2 rows.
-  // Under the bug the CASE was dropped from GROUP BY, so the rows came back
-  // ungrouped (Matched, Matched, Other) — 'Matched' appearing twice.
-  assert(buckets.length === 2, `Expected exactly 2 grouped buckets, got ${JSON.stringify(buckets)}`);
-  assert(buckets.filter((b) => b === 'Matched').length === 1, `'Matched' should be grouped to one row, got ${JSON.stringify(buckets)}`);
-  assert(buckets.includes('Other'), `Expected an 'Other' (fallback) bucket, got ${JSON.stringify(buckets)}`);
-  pass('SQL-keyword bucket value ("Union") still groups via the CASE');
-
-  await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, 'bucketkw', ...items]);
-  pass('Custom bucket keyword test cleanup complete');
+  await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, 'fanoverlap', ...items]);
+  pass('Comparison series overlap cleanup complete');
 }
 
 /**
- * Unit: buildAliasGroupCase must text-quote numeric group values when the bucket
- * column is a DMS JSON accessor (`data->>'col'`).
- *
- * DMS internal sources read column values out of a JSONB `data` column, and
- * `data->>` always yields TEXT. A numeric bucket value left unquoted compiles to
- * `data->>'col' IN (2022)` — a text/integer mismatch Postgres rejects. DAMA
- * physical columns keep native typing, so their numeric values stay unquoted.
+ * Integration: ungrouped-aggregate fan-out — every arm's shown column is a real
+ * aggregate (avg), no other groupBy dimension besides '__series'. Regression test
+ * for old-reports-conversion.md round 18/19's Route Info Box pagination bug: each
+ * arm's real query (no GROUP BY at all once '__series' is dropped) always yields
+ * exactly one aggregated row, even though the underlying rows it aggregates over
+ * differ in count per arm — the two alpha rows collapse to one avg row, same as
+ * the one beta row. Length must report 2 (one row per arm), not 3 (the raw
+ * matching-row count testSeriesFanout expects for a non-aggregate passthrough).
+ * `ungroupedAggregate: true` is what buildUdaConfig.js sets to tell the server
+ * which behavior applies.
  */
-async function testBuildAliasGroupCaseDmsNumericQuoting() {
-  console.log('\n--- Unit: buildAliasGroupCase text-quotes numeric DMS (data->>) values ---');
-  const { buildAliasGroupCase } = require('../src/routes/uda/utils');
+async function testUngroupedAggregateFanoutLength() {
+  console.log('\n--- Comparison Series: ungrouped-aggregate arms report 1 row per arm ---');
 
-  // DAMA physical column: numeric values stay unquoted (native typing).
-  const dama = buildAliasGroupCase({ column: 'year_record', groups: { Recent: [2022, 2023] }, fallback: 'Old' });
-  assert(/IN \(2022, 2023\)/.test(dama), `DAMA numeric should be unquoted: ${dama}`);
+  const items = [];
+  for (const [category, amount] of [['alpha', '10'], ['alpha', '20'], ['beta', '5']]) {
+    const result = await graph.callAsync(
+      ['dms', 'data', 'create'],
+      [TEST_APP, 'agfanout', { name: `n-${category}`, category, amount }]
+    );
+    items.push(Object.keys(result.jsonGraph.dms.data.byId)[0]);
+  }
 
-  // DMS JSON text accessor: numeric values must be quoted as text.
-  const dms = buildAliasGroupCase({ column: "data->>'year_record'", groups: { Recent: [2022, 2023] }, fallback: 'Old' });
-  assert(/IN \('2022', '2023'\)/.test(dms), `DMS numeric should be text-quoted: ${dms}`);
-  assert(dms.includes("CASE WHEN data->>'year_record' IN"), `DMS CASE should reference the JSON accessor: ${dms}`);
+  const env = `${TEST_APP}+agfanout`;
+  const viewId = items[0];
+  // sanitizeName disallows the bare word "cast", so Postgres uses the `::` cast
+  // operator instead; SQLite's avg() already coerces a numeric-looking TEXT value
+  // extracted via ->>, so no cast is needed there.
+  const avgExpr = graph.dbType === 'postgres'
+    ? `avg((data->>'amount')::numeric) as avg_amount`
+    : `avg(data->>'amount') as avg_amount`;
 
-  // String values are quoted in both shapes (unchanged behavior).
-  const str = buildAliasGroupCase({ column: 'cat', groups: { A: ['x'] } });
-  assert(str.includes("IN ('x')"), `string values should be quoted: ${str}`);
+  const options = JSON.stringify({
+    seriesKey: '__series',
+    groupBy: ['__series'],
+    ungroupedAggregate: true,
+    seriesVariants: [
+      { label: 'Alpha', filterGroups: { op: 'and', groups: [{ col: "data->>'category'", op: 'filter', value: ['alpha'] }] } },
+      { label: 'Beta', filterGroups: { op: 'and', groups: [{ col: "data->>'category'", op: 'filter', value: ['beta'] }] } },
+    ],
+  });
 
-  pass('buildAliasGroupCase text-quotes numeric values for DMS data->> columns');
+  const lenResult = await graph.getAsync([
+    ['uda', env, 'viewsById', viewId, 'options', options, 'length']
+  ]);
+  const len = lenResult.jsonGraph.uda[env].viewsById[viewId].options[options].length;
+  assert(+len === 2, `Expected fan-out length 2 (one aggregated row per arm), got ${len}`);
+  pass('ungrouped-aggregate fan-out length counts one row per arm, not raw matching rows');
+
+  const dataResult = await graph.getAsync([
+    ['uda', env, 'viewsById', viewId, 'options', options, 'dataByIndex', { from: 0, to: 9 }, [avgExpr, '__series']]
+  ]);
+  const byIndex = dataResult.jsonGraph.uda[env].viewsById[viewId].options[options].dataByIndex;
+  const rows = Object.values(byIndex).filter((r) => r && typeof r['__series'] === 'string');
+  assert(rows.length === 2, `Expected 2 aggregated rows (one per arm), got ${rows.length}: ${JSON.stringify(rows)}`);
+  const alphaRow = rows.find((r) => r['__series'] === 'Alpha');
+  const betaRow = rows.find((r) => r['__series'] === 'Beta');
+  assert(alphaRow && Math.abs(+alphaRow[avgExpr] - 15) < 1e-6, `Expected Alpha avg_amount 15, got ${JSON.stringify(alphaRow)}`);
+  assert(betaRow && Math.abs(+betaRow[avgExpr] - 5) < 1e-6, `Expected Beta avg_amount 5, got ${JSON.stringify(betaRow)}`);
+  pass('the real query really does yield exactly one aggregated row per arm — length now matches it');
+
+  await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, 'agfanout', ...items]);
+  pass('Ungrouped-aggregate fan-out cleanup complete');
 }
 
 // ============================================= filterGroups Tests ==============================================
@@ -861,6 +897,71 @@ async function testArrayContainsIntegration() {
   pass('array_contains test cleanup complete');
 }
 
+/**
+ * Regression test: array_contains must not crash on a column value that isn't
+ * valid JSON. PostgreSQL's array_contains SQL used to determine "is this an
+ * array?" via jsonb_typeof((col)::jsonb), which casts the raw text to jsonb
+ * unconditionally — a plain-text value (e.g. an empty string, or free text
+ * typed into a field that's usually JSON-array-encoded) throws
+ * "invalid input syntax for type json" and takes down the whole query, not
+ * just that row. An earlier fix only checked for a leading '[', which still
+ * crashed on truncated/malformed array-looking text ('[', '[abc', '[abc]') —
+ * fixed for real by using pg_input_is_valid() to check JSON validity without
+ * throwing, before ever casting to jsonb.
+ */
+async function testArrayContainsMalformedJson() {
+  console.log('\n--- Regression: array_contains with non-JSON column value ---');
+
+  const items = [];
+  for (const data of [
+    { name: 'Good A', county: '["Albany"]' },
+    { name: 'Bad Empty', county: '' },                     // empty string — not valid JSON
+    { name: 'Bad Plain Text', county: 'Sullivan County' }, // unquoted text — not valid JSON
+    { name: 'Bad Open Bracket', county: '[' },             // truncated — not valid JSON
+    { name: 'Bad Unterminated', county: '[abc' },          // truncated — not valid JSON
+    { name: 'Bad Bracketed Garbage', county: '[abc]' },    // looks array-shaped, invalid content
+  ]) {
+    const result = await graph.callAsync(
+      ['dms', 'data', 'create'],
+      [TEST_APP, 'actest2', data]
+    );
+    items.push(Object.keys(result.jsonGraph.dms.data.byId)[0]);
+  }
+
+  const env = `${TEST_APP}+actest2`;
+  const viewId = items[0];
+
+  const options = JSON.stringify({
+    filterGroups: {
+      op: 'and',
+      groups: [
+        { col: "data->>'county'", op: 'array_contains', value: ['Albany'] }
+      ]
+    }
+  });
+
+  if (graph.dbType === 'postgres') {
+    // Before the fix, this threw "invalid input syntax for type json" because
+    // of the malformed rows above — it must now resolve cleanly and exclude them.
+    const len = await graph.getAsync([
+      ['uda', env, 'viewsById', viewId, 'options', options, 'length']
+    ]);
+    const count = len.jsonGraph.uda[env].viewsById[viewId].options[options].length;
+    assert(count === 1, `Expected 1 match (malformed rows must not match, and must not throw), got ${count}`);
+    pass('array_contains does not throw on non-JSON column values (PostgreSQL)');
+  } else {
+    // SQLite's json_each() has the same "malformed JSON" failure mode on
+    // non-JSON text; that's a separate, pre-existing bug in the sqlite branch
+    // (not touched by this fix), so skip the assertion here rather than
+    // claim coverage this test doesn't provide.
+    console.log('  (skipped on sqlite — json_each() has an equivalent unfixed gap)');
+  }
+
+  // Cleanup
+  await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, 'actest2', ...items]);
+  pass('array_contains malformed-json test cleanup complete');
+}
+
 // ================================================= DAMA Mode Tests ===============================================
 
 async function testDamaModeSourcesCrud() {
@@ -1217,6 +1318,431 @@ async function testTimeFilter() {
   pass('builder enforces validator');
 }
 
+// ======================================= ClickHouse filterGroups join-qualification ================================
+
+/**
+ * Regression test for: comparison-series route filters (bare `tmc`/`date`/`epoch`
+ * columns from filterGroups) throwing ClickHouse "ambiguous identifier" once a
+ * second joined table put a same-named column in scope — e.g. joining both
+ * ny_2025_tmc_meta (has `tmc`) and aadt_distributions for weighted-delay
+ * calculated columns. handleFilterGroupsCH must qualify bare columns with the
+ * base `ds` alias when a join is present, and leave already-qualified refs and
+ * calculated expressions untouched. No database required — pure SQL-string test.
+ */
+async function testFilterGroupsCHJoinQualification() {
+  console.log('\n--- Unit: ClickHouse filterGroups join-qualification ---');
+  const { handleFilterGroupsCH } = require('../src/routes/uda/query_sets/helpers');
+
+  const filterGroups = {
+    op: 'AND',
+    groups: [
+      { op: 'filter', col: 'tmc', value: ['120-11332'] },
+      { op: 'filter', col: 'date', value: ['2026-04-20', '2026-04-21'] },
+    ],
+  };
+
+  const withoutJoin = handleFilterGroupsCH(filterGroups, false, false);
+  assert(withoutJoin.includes("tmc = '120-11332'"), 'no join: bare column left unqualified');
+  assert(!withoutJoin.includes('ds.tmc'), 'no join: no ds. prefix added');
+  pass('joinPresent=false leaves bare columns unqualified');
+
+  const withJoin = handleFilterGroupsCH(filterGroups, false, true);
+  assert(withJoin.includes("ds.tmc = '120-11332'"), 'join present: tmc qualified with ds.');
+  assert(withJoin.includes("ds.date IN"), 'join present: date qualified with ds.');
+  pass('joinPresent=true qualifies bare columns with ds.');
+
+  // Already-qualified refs and calculated expressions must not get double-prefixed.
+  const mixedGroups = {
+    op: 'AND',
+    groups: [
+      { op: 'filter', col: 'table1.tmc', value: ['120-11332'] },
+      { op: 'gt', col: 'toYear(ds.date)', value: [2025] },
+    ],
+  };
+  const mixed = handleFilterGroupsCH(mixedGroups, false, true);
+  assert(mixed.includes('table1.tmc ='), 'already-qualified column left as-is');
+  assert(!mixed.includes('ds.table1.tmc'), 'already-qualified column not double-prefixed');
+  assert(mixed.includes('toYear(ds.date) >'), 'function-call expression left as-is');
+  pass('already-qualified refs and expressions are not re-qualified');
+}
+
+// ======================================= ClickHouse output-column aliasing =========================================
+
+/**
+ * Regression test for: a plain joined column (e.g. `ds.tmc`) coming back
+ * `undefined` in the response row whenever the bare name collides with a
+ * same-named column on a *joined* table (e.g. ny_2025_tmc_meta also has
+ * `tmc`, used as the join key). Confirmed live against ClickHouse: it keeps
+ * the table qualifier in the query's default output-column name only when
+ * that bare name is ambiguous across the joined tables — `ds.epoch` (no
+ * collision) comes back keyed "epoch", `ds.tmc` (collides with table1.tmc)
+ * comes back keyed "ds.tmc" — but getResponseColumnName() always looks up
+ * the bare name. withExplicitAlias forces every unaliased attribute to carry
+ * its own explicit `AS <bare_name>`, so the output key never depends on
+ * ClickHouse's collision-dependent default. No database required — pure
+ * SQL-string test.
+ */
+async function testClickHouseExplicitAliasing() {
+  console.log('\n--- Unit: ClickHouse output-column aliasing ---');
+  const { withExplicitAlias } = require('../src/routes/uda/query_sets/clickhouse');
+
+  assert(withExplicitAlias('ds.tmc') === 'ds.tmc as tmc',
+    'qualified column with no collision risk gets an explicit bare alias');
+  assert(withExplicitAlias('ds.epoch') === 'ds.epoch as epoch',
+    'qualified column gets an explicit bare alias even with no known collision');
+  assert(withExplicitAlias('tmc') === 'tmc as tmc',
+    'bare unqualified column gets an explicit self-alias');
+  pass('unaliased plain columns get an explicit bare-name alias');
+
+  const calc = '(greatest(0, ds.travel_time_all_vehicles - 1) / 3600) as hours_of_delay_sum';
+  assert(withExplicitAlias(calc) === calc,
+    'already-aliased calculated column is left untouched');
+  pass('already-aliased expressions are not re-aliased');
+}
+
+// ======================================= ClickHouse ungrouped-aggregate fan-out length =============================
+
+/**
+ * Regression test for old-reports-conversion.md round 18/19's Route Info Box
+ * pagination bug: with '__series' dropped from groupBy and no other groupBy
+ * dimension, simpleFilterLength's seriesVariants branch always fell back to
+ * `count(*)` (the raw filtered epoch-row count, e.g. "Rows 1 to 50 of 100493")
+ * instead of the single aggregated row each arm's real query (avg(...), no GROUP
+ * BY at all) actually produces. `ungroupedAggregate: true` (set by
+ * buildUdaConfig.js when every shown column is a real aggregate fn) now makes
+ * each arm contribute a literal 1 instead of scanning the table. Stubs
+ * ctx.db.query to capture the generated SQL — no live ClickHouse connection
+ * needed; buildJoin({join: {}}) is a pure no-op with an empty join.
+ */
+async function testClickHouseUngroupedAggregateFanoutLength() {
+  console.log('\n--- Unit: ClickHouse ungrouped-aggregate fan-out length ---');
+  const { simpleFilterLength } = require('../src/routes/uda/query_sets/clickhouse');
+
+  let capturedSql = null;
+  const fakeDb = {
+    query: async ({ query }) => {
+      capturedSql = query;
+      return { json: async () => ({ data: [{ numRows: 999 }] }) };
+    },
+  };
+  const ctx = { db: fakeDb, table_schema: 'avail', table_name: 'npmrds' };
+
+  const aggOptions = JSON.stringify({
+    groupBy: ['__series'],
+    ungroupedAggregate: true,
+    seriesVariants: [
+      { label: 'Route A', filterGroups: { op: 'AND', groups: [{ col: 'tmc', op: 'filter', value: ['120-11332'] }] } },
+      { label: 'Route B', filterGroups: { op: 'AND', groups: [{ col: 'tmc', op: 'filter', value: ['120-11333'] }] } },
+    ],
+  });
+  const numRows = await simpleFilterLength(ctx, aggOptions);
+  assert(numRows === 999, `Expected the stub's canned count to pass through untouched, got ${numRows}`);
+  assert(capturedSql === 'SELECT 1 + 1 AS numRows',
+    `Expected each ungrouped-aggregate arm to contribute a literal 1 (no table scan), got: ${capturedSql}`);
+  pass('ungroupedAggregate arms contribute a literal 1 each, not a raw filtered-row count(*)');
+
+  // Without the flag (a plain passthrough arm — testSeriesFanout's real-world case),
+  // the pre-fix count(*) behavior must be unchanged.
+  const passthroughOptions = JSON.stringify({
+    groupBy: ['__series'],
+    seriesVariants: [
+      { label: 'Route A', filterGroups: { op: 'AND', groups: [{ col: 'tmc', op: 'filter', value: ['120-11332'] }] } },
+    ],
+  });
+  await simpleFilterLength(ctx, passthroughOptions);
+  assert(capturedSql.includes('count(*)'),
+    `Expected count(*) fallback preserved when ungroupedAggregate is absent, got: ${capturedSql}`);
+  pass('plain passthrough arms (no ungroupedAggregate flag) keep the raw count(*) behavior');
+}
+
+// ======================================= ClickHouse __ANCHOR__(...) substitution ====================================
+
+/**
+ * Regression/feature test for old-reports-conversion.md round 24's Route Compare
+ * Component delta column. Each comparison-series arm runs as a fully independent
+ * query (arms are UNION ALL'd together only after each has already executed), so a
+ * window function embedded in one arm's SELECT can never see another arm's row —
+ * confirmed live: an earlier attempt using `first_value(...) OVER (ORDER BY
+ * (__series != 'anchor label'))` always returned the arm's own value, so every
+ * row's delta came back as exactly 0. `__ANCHOR__(<expr>)` fixes this by asking
+ * for `<expr>` evaluated against the FIRST series variant's own filter specifically
+ * (dms-server's own convention for "the anchor/main row", mirroring the old NPMRDS
+ * tool's own "first selected route is Main"), spliced in as a self-contained scalar
+ * subquery — no cross-arm visibility needed. Stubs ctx.db.query to capture the
+ * generated SQL; no live ClickHouse connection needed.
+ */
+async function testClickHouseAnchorSubstitution() {
+  console.log('\n--- Unit: ClickHouse __ANCHOR__(...) substitution (Route Compare Component delta) ---');
+  const { simpleFilter } = require('../src/routes/uda/query_sets/clickhouse');
+
+  let capturedSql = null;
+  const fakeDb = {
+    query: async ({ query }) => {
+      capturedSql = query;
+      return { json: async () => ({ data: [] }) };
+    },
+  };
+  const ctx = { db: fakeDb, table_schema: 'avail', table_name: 'npmrds' };
+
+  const options = JSON.stringify({
+    groupBy: ['__series'],
+    seriesVariants: [
+      { label: 'Route A', filterGroups: { op: 'AND', groups: [{ col: 'tmc', op: 'filter', value: ['route-a'] }] } },
+      { label: 'Route B', filterGroups: { op: 'AND', groups: [{ col: 'tmc', op: 'filter', value: ['route-b'] }] } },
+    ],
+  });
+  const attributes = [
+    'avg(speed) as speed',
+    '(avg(speed) - __ANCHOR__(avg(speed))) / __ANCHOR__(avg(speed)) * 100 as speed_delta',
+    '__series',
+  ];
+  await simpleFilter(ctx, options, attributes, { from: 0, to: 9 });
+
+  assert(!capturedSql.includes('__ANCHOR__'),
+    `Expected every __ANCHOR__(...) marker to be substituted away, got: ${capturedSql}`);
+
+  const armSqls = capturedSql.split('UNION ALL');
+  assert(armSqls.length === 2, `Expected 2 UNION ALL arms, got ${armSqls.length}: ${capturedSql}`);
+  const [armA, armB] = armSqls;
+  assert(armA.includes(`'route-a'`) && !armA.includes(`'route-b'`),
+    `Route A IS the anchor — its arm should only ever reference 'route-a' (its own filter and the anchor's, since they're the same row), got: ${armA}`);
+  pass('the anchor arm compares against itself only — no reference to any other arm\'s filter');
+
+  assert(armB.includes(`'route-b'`) && armB.includes(`'route-a'`),
+    `Route B's arm should keep its OWN filter ('route-b') for its own row while the __ANCHOR__ subqueries use the FIRST variant's filter ('route-a'), got: ${armB}`);
+  const armBAnchorRefs = (armB.match(/'route-a'/g) || []).length;
+  assert(armBAnchorRefs === 2,
+    `Expected exactly 2 references to the anchor's filter in Route B's arm (one per __ANCHOR__ call — numerator and denominator), got ${armBAnchorRefs}: ${armB}`);
+  const armBOwnFilterRefs = (armB.match(/'route-b'/g) || []).length;
+  assert(armBOwnFilterRefs === 1,
+    `Expected exactly 1 reference to Route B's own filter (its arm WHERE, untouched by the anchor substitution), got ${armBOwnFilterRefs}: ${armB}`);
+  pass('a non-anchor arm keeps its own filter for its own row, but resolves __ANCHOR__(...) against the FIRST variant\'s filter — the actual bug this fixes');
+
+  // No __ANCHOR__ marker anywhere → no anchor WHERE is even built (buildCombinedWhereCH
+  // isn't called an extra time) and the SQL is the same shape as any ordinary fan-out.
+  capturedSql = null;
+  await simpleFilter(ctx, options, ['avg(speed) as speed', '__series'], { from: 0, to: 9 });
+  assert(!capturedSql.includes('SELECT avg(speed) FROM') || capturedSql.match(/SELECT avg\(speed\)/g).length === 2,
+    `Expected exactly one top-level "SELECT avg(speed)" per arm (2 total) with no extra anchor subqueries when no column uses __ANCHOR__, got: ${capturedSql}`);
+  pass('queries with no __ANCHOR__ marker are unaffected — no anchor subquery is built or spliced in');
+}
+
+// ================================== ClickHouse comparison-series difference mode ===================================
+
+/**
+ * Feature tests for options.seriesCombine = { mode: 'difference', invert? } —
+ * the platform half of converting the old NPMRDS tool's Route Difference Graph
+ * and TMC Difference Grid (dms-template old-reports-conversion round 52;
+ * library task comparison-series-difference-mode.md). Instead of UNION ALL-ing
+ * the comparison-series arms, the FIRST variant (the anchor/"Main" — the same
+ * convention __ANCHOR__ uses) is INNER JOINed to every other arm on the
+ * group-by columns and each value column returns as `anchor - variant` ("Main
+ * minus Compare"; invert flips it). INNER JOIN = only buckets present in both
+ * arms, the old tool's exact alignment semantics — per x-bucket for bar
+ * graphs, per (tmc, bucket) for grids. Stubs ctx.db.query to capture the
+ * generated SQL; no live ClickHouse connection needed.
+ */
+async function testClickHouseSeriesCombineDifference() {
+  console.log('\n--- Unit: ClickHouse comparison-series difference combine mode ---');
+  const { simpleFilter } = require('../src/routes/uda/query_sets/clickhouse');
+
+  let capturedSql = null;
+  const fakeDb = {
+    query: async ({ query }) => {
+      capturedSql = query;
+      return { json: async () => ({ data: [] }) };
+    },
+  };
+  const ctx = { db: fakeDb, table_schema: 'avail', table_name: 'npmrds' };
+
+  const variants = (n) => [
+    { label: 'Route A', filterGroups: { op: 'AND', groups: [{ col: 'tmc', op: 'filter', value: ['route-a'] }] } },
+    { label: 'Route B', filterGroups: { op: 'AND', groups: [{ col: 'tmc', op: 'filter', value: ['route-b'] }] } },
+    { label: 'Route C', filterGroups: { op: 'AND', groups: [{ col: 'tmc', op: 'filter', value: ['route-c'] }] } },
+  ].slice(0, n);
+
+  const mkOptions = (extra = {}) => JSON.stringify({
+    groupBy: ['epoch', '__series'],
+    seriesVariants: variants(2),
+    seriesCombine: { mode: 'difference' },
+    ...extra,
+  });
+  const attrs = ['epoch', 'avg(speed) as speed', '__series'];
+
+  // 1. Basic 2-arm difference
+  await simpleFilter(ctx, mkOptions(), attrs, { from: 0, to: 9 });
+  assert(capturedSql.includes('INNER JOIN'), `expected INNER JOIN, got: ${capturedSql}`);
+  assert(capturedSql.includes('(anchor.speed - compare.speed) as speed'),
+    `expected anchor-minus-compare ("Main minus Compare") value column, got: ${capturedSql}`);
+  assert(capturedSql.includes('compare.epoch = anchor.epoch'),
+    `expected the join keyed on the group-by column, got: ${capturedSql}`);
+  assert(!capturedSql.includes('UNION ALL'),
+    `2 variants = a single joined SELECT, no UNION ALL, got: ${capturedSql}`);
+  assert(capturedSql.includes('compare.__series as __series'),
+    `expected the compare arm's own label to become the series, got: ${capturedSql}`);
+  assert(capturedSql.includes(`'route-a'`) && capturedSql.includes(`'route-b'`),
+    `expected both arms' own filters present (anchor + compare), got: ${capturedSql}`);
+  pass('difference mode joins the compare arm to the anchor arm on the group-by column and diffs the value column');
+
+  // 2. invert flips the subtraction direction (converted reports whose Main
+  // sits later in the page's route list than its Compare)
+  capturedSql = null;
+  await simpleFilter(ctx, mkOptions({ seriesCombine: { mode: 'difference', invert: true } }), attrs, { from: 0, to: 9 });
+  assert(capturedSql.includes('(compare.speed - anchor.speed) as speed'),
+    `expected the inverted subtraction, got: ${capturedSql}`);
+  pass('invert: true flips the subtraction direction');
+
+  // 3. 3 variants → one joined SELECT per non-anchor arm, UNION ALL'd
+  capturedSql = null;
+  await simpleFilter(ctx, mkOptions({ seriesVariants: variants(3) }), attrs, { from: 0, to: 9 });
+  const joined = capturedSql.split('UNION ALL');
+  assert(joined.length === 2, `expected 2 joined selects for 3 variants, got ${joined.length}: ${capturedSql}`);
+  assert(joined[0].includes(`'Route B'`) && joined[1].includes(`'Route C'`),
+    `expected one "vs Main" difference series per non-anchor arm, got: ${capturedSql}`);
+  const anchorFilterRefs = (capturedSql.match(/'route-a'/g) || []).length;
+  assert(anchorFilterRefs === 2,
+    `expected the anchor arm spliced into each of the 2 joined selects, got ${anchorFilterRefs} refs: ${capturedSql}`);
+  pass('3 variants produce one difference series per non-anchor arm, each joined to the same anchor');
+
+  // 4. Fewer than 2 resolved variants → no rows, no query (old tool renders
+  // empty below 2 routes)
+  capturedSql = null;
+  const single = await simpleFilter(ctx, mkOptions({ seriesVariants: variants(1) }), attrs, { from: 0, to: 9 });
+  assert(Array.isArray(single) && single.length === 0, `expected [], got ${JSON.stringify(single)}`);
+  assert(capturedSql === null, `expected no query at all for <2 variants, got: ${capturedSql}`);
+  pass('fewer than 2 resolved variants returns no rows without querying');
+
+  // 5. Grid shape: two group-by columns → both are join keys (per-(tmc,
+  // bucket) alignment, the TMC Difference Grid grain)
+  capturedSql = null;
+  await simpleFilter(ctx, mkOptions({ groupBy: ['tmc', 'epoch', '__series'] }),
+    ['tmc', 'epoch', 'avg(speed) as speed', '__series'], { from: 0, to: 9 });
+  assert(capturedSql.includes('compare.tmc = anchor.tmc') && capturedSql.includes('compare.epoch = anchor.epoch'),
+    `expected the join keyed on BOTH group-by columns, got: ${capturedSql}`);
+  pass('grid shape joins on every group-by column — per-(tmc, bucket) alignment');
+
+  // 6. Calculated group-by column: groupBy carries the raw expression (client
+  // refName), attributes carry `<expr> as <alias>` (client reqName) — the key
+  // is classified by expression match and joined by its alias, and only the
+  // measure is diffed.
+  capturedSql = null;
+  await simpleFilter(ctx, mkOptions({ groupBy: ['intDiv(epoch, 3)', '__series'] }),
+    ['intDiv(epoch, 3) as epoch_15', 'avg(speed) as speed', '__series'], { from: 0, to: 9 });
+  assert(capturedSql.includes('compare.epoch_15 = anchor.epoch_15'),
+    `expected the calculated group-by joined by its alias, got: ${capturedSql}`);
+  assert(capturedSql.includes('(anchor.speed - compare.speed) as speed')
+    && !capturedSql.includes('anchor.epoch_15 -'),
+    `expected only the measure diffed, never the key, got: ${capturedSql}`);
+  assert(!capturedSql.includes('__gb_0'),
+    `an expression-covered group-by must not ALSO get a synthetic __gb_N alias, got: ${capturedSql}`);
+  pass('a calculated group-by is a join key (matched by expression), not a diffed value');
+
+  // 7. Unprojected group-by → synthetic __gb_N alias keeps the join key
+  // deterministic (unaliased, the subquery output name would be whatever CH
+  // derives from the expression text)
+  capturedSql = null;
+  await simpleFilter(ctx, mkOptions(), ['avg(speed) as speed', '__series'], { from: 0, to: 9 });
+  assert(capturedSql.includes('epoch as __gb_0'),
+    `expected the unprojected group-by aliased __gb_0 inside the arms, got: ${capturedSql}`);
+  assert(capturedSql.includes('compare.__gb_0 = anchor.__gb_0'),
+    `expected the synthetic alias used as the join key, got: ${capturedSql}`);
+  pass('an unprojected group-by gets a synthetic __gb_N alias and joins on it');
+
+  // 8. Ungrouped aggregate arms (groupBy = the series discriminator only) →
+  // each arm is a single aggregate row; CROSS JOIN yields the scalar
+  // difference (CH's ON clause only accepts equi-conditions, so ON 1=1 is not
+  // an option)
+  capturedSql = null;
+  await simpleFilter(ctx, mkOptions({ groupBy: ['__series'] }), ['avg(speed) as speed', '__series'], { from: 0, to: 9 });
+  assert(capturedSql.includes('CROSS JOIN'),
+    `expected CROSS JOIN for single-row aggregate arms, got: ${capturedSql}`);
+  assert(capturedSql.includes('(anchor.speed - compare.speed) as speed'),
+    `expected the scalar difference, got: ${capturedSql}`);
+  pass('ungrouped aggregate arms cross-join into a scalar difference');
+
+  // 9. No combine key → the plain UNION ALL fan-out is byte-for-byte the same
+  // code path as before
+  capturedSql = null;
+  await simpleFilter(ctx, JSON.stringify({ groupBy: ['epoch', '__series'], seriesVariants: variants(2) }),
+    attrs, { from: 0, to: 9 });
+  assert(capturedSql.includes('UNION ALL') && !capturedSql.includes('INNER JOIN'),
+    `expected the plain fan-out untouched without seriesCombine, got: ${capturedSql}`);
+  pass('the plain UNION ALL fan-out is untouched when no combine mode is requested');
+
+  // 10. The Postgres/SQLite fan-out refuses loudly instead of silently
+  // UNION ALL-ing as if the mode wasn't requested (a difference chart
+  // rendering two stacked raw series looks plausible enough to ship unnoticed)
+  const pg = require('../src/routes/uda/query_sets/postgres');
+  let pgError = null;
+  try {
+    await pg.simpleFilter(
+      { db: { type: 'sqlite', query: async () => ({ rows: [] }) }, table_schema: 'main', table_name: 't', isDms: false },
+      mkOptions(), ['avg(speed) as speed', '__series'], { from: 0, to: 9 });
+  } catch (e) { pgError = e; }
+  assert(pgError && /difference mode.*ClickHouse only/.test(pgError.message),
+    `expected the PG fan-out to refuse difference mode loudly, got: ${pgError && pgError.message}`);
+  pass('the Postgres/SQLite fan-out refuses difference mode loudly');
+}
+
+// ============================================ buildJoin pgFederated branch =========================================
+
+/**
+ * buildJoin's `pgFederated` join-source branch: joins a live Postgres table
+ * into a ClickHouse query via the `postgresql()` table function instead of a
+ * registered DAMA view (view_id/env). Lets a join reach data that hasn't
+ * been (and may never be) mirrored into ClickHouse, with credentials
+ * resolved server-side from the same pgEnv config every DAMA join already
+ * uses — never sent by/to the client. Pure SQL-string test: loadConfig()
+ * just reads the existing dms-postgres-test config file, no live connection
+ * needed to build/verify the generated SQL.
+ */
+async function testBuildJoinPgFederated() {
+  console.log('\n--- Unit: buildJoin pgFederated branch ---');
+  const { buildJoin } = require('../src/routes/uda/utils');
+
+  const join = {
+    sources: {
+      ds: {},
+      pm3: {
+        pgFederated: { pgEnv: 'dms-postgres-test', table: 's2001_v3490_map_21_extended', schema: 'gis_datasets' },
+      },
+    },
+    on: [{
+      table: 'pm3',
+      type: 'inner',
+      mergeStrategy: 'join',
+      on: 'ds.tmc = pm3.travel_time_code',
+    }],
+  };
+
+  const { joins, merges } = await buildJoin({ join });
+  assert(merges === '', 'no merges generated for a plain join');
+  assert(
+    joins === "inner JOIN (SELECT * FROM postgresql('localhost:5499', 'dms_test', 's2001_v3490_map_21_extended', 'dms_test', 'dms_test', 'gis_datasets')) as pm3 ON ds.tmc = pm3.travel_time_code",
+    `unexpected pgFederated JOIN SQL: ${joins}`
+  );
+  pass('pgFederated join source resolves connection details via loadConfig, not getEssentials');
+
+  // Sanitization: a malicious table/schema name must not reach the generated SQL.
+  const maliciousJoin = {
+    sources: {
+      ds: {},
+      pm3: {
+        pgFederated: { pgEnv: 'dms-postgres-test', table: 'x; DROP TABLE foo', schema: 'gis_datasets' },
+      },
+    },
+    on: [{ table: 'pm3', type: 'inner', mergeStrategy: 'join', on: 'ds.tmc = pm3.travel_time_code' }],
+  };
+  let threw = false;
+  try {
+    await buildJoin({ join: maliciousJoin });
+  } catch (e) {
+    threw = true;
+  }
+  assert(threw, 'buildJoin rejects an unsanitizable pgFederated table/schema name instead of splicing it into SQL');
+  pass('pgFederated table/schema names are sanitized before use');
+}
+
 // ================================================= Test Runner ===================================================
 
 async function run() {
@@ -1235,9 +1761,12 @@ async function run() {
     await testDmsModeViews();
     await testDmsModeDataQueries();
     await testMultiKeyGroupedLengthNoCollision();
-    await testCustomBucketAliasCaseRoundTrip();
-    await testCustomBucketKeywordValueGroupBy();
-    await testBuildAliasGroupCaseDmsNumericQuoting();
+
+    // comparison-series fan-out tests
+    await testOffsetPlaceholders();
+    await testSeriesFanout();
+    await testSeriesFanoutOverlap();
+    await testUngroupedAggregateFanoutLength();
 
     // filterGroups regression tests
     await testGetValuesFromGroupNullLeaves();
@@ -1247,9 +1776,28 @@ async function run() {
     await testGetValuesFromGroupArrayContains();
     await testBuildLeafSQLArrayContains();
     await testArrayContainsIntegration();
+    await testArrayContainsMalformedJson();
 
     // time-filter unit tests (Phase 1: PostgreSQL SQL generation, no DB calls)
     await testTimeFilter();
+
+    // ClickHouse filterGroups join-qualification (ambiguous identifier regression)
+    await testFilterGroupsCHJoinQualification();
+
+    // ClickHouse output-column aliasing (collision-with-joined-table regression)
+    await testClickHouseExplicitAliasing();
+
+    // ClickHouse ungrouped-aggregate fan-out length (Route Info Box pagination regression)
+    await testClickHouseUngroupedAggregateFanoutLength();
+
+    // ClickHouse __ANCHOR__(...) substitution (Route Compare Component delta column)
+    await testClickHouseAnchorSubstitution();
+
+    // ClickHouse comparison-series difference combine mode (Route Difference Graph / TMC Difference Grid)
+    await testClickHouseSeriesCombineDifference();
+
+    // buildJoin pgFederated branch (live Postgres join via ClickHouse postgresql())
+    await testBuildJoinPgFederated();
 
     // DAMA mode tests
     await testDamaModeSourcesCrud();

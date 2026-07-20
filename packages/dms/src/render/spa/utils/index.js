@@ -23,6 +23,11 @@ export const getSubdomain = (host) => {
     const isLocalhost = hostname === 'localhost' || hostname.endsWith('.localhost')
     const minParts = isLocalhost || process.env.NODE_ENV === "development" ? 2 : 3
     const parts = hostname.split('.')
+    // A real domain's rightmost label (TLD) can never be all-digits (ICANN
+    // disallows fully-numeric TLDs for exactly this reason), but a bare
+    // IPv4 host's last octet always is — e.g. "74.50.76.166" would
+    // otherwise be misread as subdomain "74". Bail out before that happens.
+    if (/^\d+$/.test(parts[parts.length - 1])) return false
     return parts.length >= minParts ? parts[0].toLowerCase() : false
 }
 
@@ -37,6 +42,38 @@ function resolveSubdomainAuthPermissions(rawAuth, subdomain) {
     if (parsed['*'] !== undefined)                          // new format
         return parseIfJSON(parsed[subdomain] || parsed['*'] || {});
     return parseIfJSON(parsed);                                          // old format
+}
+
+/**
+ * A pattern's mount list: the primary {subdomain, base_url} pair plus any
+ * additional `locations` rows, so one pattern can be served at more than one
+ * location (e.g. freightatlas2:/ AND www:/freightatlas). Additive + BC — no
+ * `locations` → [primary] → identical single-mount behavior. Invalid rows are
+ * dropped and duplicates of an earlier mount (same subdomain + normalized
+ * base_url) are deduped so a location echoing the primary can't register the
+ * same routes twice. See planning/tasks/current/pattern-multi-location-mounts.md.
+ */
+// Hosts whose subdomain is treated as the ROOT domain (see the SUBDOMAIN
+// normalization in pattern2routes) — location rows use the same aliasing so
+// "www" means what authors expect.
+const ROOT_SUBDOMAIN_ALIASES = ['www', 'hazardmitigation'];
+
+function getPatternMounts(pattern) {
+    const normalize = (u) => `/${(u || '').replace(/^\/|\/$/g, '')}`;
+    const mounts = [{ subdomain: pattern.subdomain, base_url: pattern.base_url, isPrimary: true }];
+    const extra = parseIfJSON(pattern?.locations, []);
+    (Array.isArray(extra) ? extra : []).forEach(loc => {
+        if (!loc || typeof loc !== 'object') return;
+        if (loc.base_url === undefined && loc.subdomain === undefined) return;
+        mounts.push({ subdomain: loc.subdomain, base_url: loc.base_url });
+    });
+    const seen = new Set();
+    return mounts.filter(m => {
+        const key = `${m.subdomain ?? ''}|${normalize(m.base_url)}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
 }
 
 
@@ -185,15 +222,40 @@ export function pattern2routes (siteData, props) {
 
     return [
         ...patterns
-          .filter(pattern => (
-              pattern?.pattern_type &&
-              ((!SUBDOMAIN && !pattern.subdomain) || pattern.subdomain === SUBDOMAIN || pattern.subdomain === '*')
-          ))
+          .filter(pattern => pattern?.pattern_type)
           .reduce((acc, pattern) => {
 
             const c = patternTypes[pattern.pattern_type];
             if(!c) return acc;
-            //console.log('register pattern', pattern.id, pattern.subdomain, `/${pattern.base_url?.replace(/^\/|\/$/g, '')}`)
+            // One route set per matching MOUNT (primary + `locations`). The
+            // primary mount keeps the pre-existing matching byte-for-byte (BC);
+            // location mounts additionally alias root subdomains ("www" ≡ root,
+            // matching the SUBDOMAIN normalization above) so a location like
+            // {subdomain: "www", base_url: "/freightatlas"} works as authored.
+            const mounts = getPatternMounts(pattern).filter(mount => {
+                const mountSub = mount.isPrimary || !ROOT_SUBDOMAIN_ALIASES.includes(mount.subdomain)
+                    ? mount.subdomain
+                    : '';
+                return (!SUBDOMAIN && !mountSub) || mountSub === SUBDOMAIN || mountSub === '*';
+            }).map(mount => {
+                // navPrefix: the mount's extra path prefix vs the primary mount,
+                // for site-absolute link building (secondary navs that link into
+                // sibling patterns mirrored under the same prefix — e.g. primary
+                // /freight_data mounted at /fa/freight_data → prefix "/fa", so
+                // "/freight_data?cat=…" style links become "/fa/freight_data?…").
+                // Primary mounts and mounts that don't extend the primary base
+                // get '' — link building is unchanged for them.
+                const norm = (u) => `/${(u || '').replace(/^\/|\/$/g, '')}`;
+                const primaryBase = norm(pattern.base_url);
+                const mountBase = norm(mount.base_url);
+                let navPrefix = '';
+                if (!mount.isPrimary && mountBase !== primaryBase) {
+                    if (primaryBase === '/') navPrefix = mountBase === '/' ? '' : mountBase;
+                    else if (mountBase.endsWith(primaryBase)) navPrefix = mountBase.slice(0, mountBase.length - primaryBase.length);
+                }
+                return { ...mount, navPrefix };
+            });
+            for (const mount of mounts)
             acc.push(
               ...c.map(config => {
                   const authPermissions = resolveSubdomainAuthPermissions(pattern?.authPermissions, SUBDOMAIN || '');
@@ -211,12 +273,14 @@ export function pattern2routes (siteData, props) {
 
                 const configObj = config({
                     app: dmsConfigUpdated?.format?.app || dmsConfigUpdated.app,
+                    // content identity stays PRIMARY-derived — every mount serves the same pages
                     type: getInstance(pattern.type) || pattern.doc_type || pattern?.base_url?.replace(/\//g, ''),
                     siteType: siteInstance,
-                    baseUrl: `/${pattern.base_url?.replace(/^\/|\/$/g, '')}`, // only leading slash allowed
+                    baseUrl: `/${mount.base_url?.replace(/^\/|\/$/g, '')}`, // only leading slash allowed
                     adminPath,
                     format: pattern?.config,
-                    pattern: { ...pattern, filters: resolvedFilters },
+                    // downstream link-building reads pattern.base_url — give it this mount's
+                    pattern: { ...pattern, base_url: mount.base_url, navPrefix: mount.navPrefix || '', filters: resolvedFilters },
                     pattern_type: pattern?.pattern_type,
                     authPermissions,
                     authBaseUrl,

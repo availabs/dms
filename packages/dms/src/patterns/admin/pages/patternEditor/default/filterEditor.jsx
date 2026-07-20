@@ -2,8 +2,8 @@ import React, {useContext, useState} from "react";
 import { AdminContext } from "../../../context";
 import { ThemeContext } from "../../../../../ui/useTheme";
 import { isEqual } from "lodash-es";
-import { parseIfJSON } from "../../../../page/pages/_utils";
 import { filterEditorTheme } from './filterEditor.theme';
+import { parseIfJSON } from '../../../utils';
 
 // Normalise raw filters value (flat array or subdomain-keyed object) → subdomain-keyed object
 function normaliseFilters(raw) {

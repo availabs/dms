@@ -123,31 +123,60 @@ registerUploadRoutes(app);
 const { registerScheduleRoutes } = require('./dama/tasks/schedule-routes');
 registerScheduleRoutes(app);
 
-// Always log graph requests to console (summary line)
-app.use('/graph', (req, res, next) => {
-  const params = req.method === 'POST' ? req.body : req.query;
-  const method = (params?.method || 'unknown').toUpperCase();
-  let detail = '';
+// Page visit tracking — fire-and-forget from the client on every page navigation.
+// No auth required; user_id extracted from JWT if present.
+app.post('/track/visit', async (req, res) => {
   try {
-    if (params?.callPath) {
-      const cp = typeof params.callPath === 'string' ? JSON.parse(params.callPath) : params.callPath;
-      detail = Array.isArray(cp) ? cp.join('.') : String(cp);
-      if (params.arguments) {
-        const args = typeof params.arguments === 'string' ? JSON.parse(params.arguments) : params.arguments;
-        if (Array.isArray(args)) {
-          const preview = args.map(a => typeof a === 'string' ? a : typeof a === 'object' ? `{${Object.keys(a).slice(0,3).join(',')}}` : String(a));
-          detail += ` [${preview.join(', ')}]`;
+    const { app: visitApp, pageId, url, action } = req.body || {};
+    if (!visitApp) return res.status(400).json({ error: 'app is required' });
+    const userId = req.availAuthContext?.user?.id || null;
+    const { getDb } = require('./db');
+    const db = getDb(process.env.DMS_DB_ENV || 'dms-sqlite');
+    const tbl = db.type === 'postgres' ? 'dms.page_visits' : 'page_visits';
+    await db.promise(
+      `INSERT INTO ${tbl} (app, page_id, url, action, ip, user_agent, user_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [visitApp, pageId || null, url || null, action || null, req.clientIp || null, req.headers['user-agent'] || null, userId]
+    );
+    res.status(204).end();
+  } catch (e) {
+    console.error('[track/visit]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Log graph requests to console. Uses res.on('finish') so the parsed Falcor
+// context (set by falcor-express on req._falcorContext) is always available,
+// avoiding body-parser timing issues with URL-encoded POST bodies.
+app.use('/graph', (req, res, next) => {
+  res.on('finish', () => {
+    const ctx = req._falcorContext;
+    let method, detail = '';
+    try {
+      if (ctx?.method) {
+        method = ctx.method.toUpperCase();
+        if (ctx.callPath) {
+          const cp = Array.isArray(ctx.callPath) ? ctx.callPath : JSON.parse(ctx.callPath);
+          detail = cp.join('.');
+          if (ctx.arguments) {
+            const args = Array.isArray(ctx.arguments) ? ctx.arguments : JSON.parse(ctx.arguments);
+            const preview = args.map(a => typeof a === 'string' ? a : Array.isArray(a) ? `[${a.length}]` : typeof a === 'object' ? `{${Object.keys(a || {}).slice(0,3).join(',')}}` : String(a));
+            detail += ` [${preview.join(', ')}]`;
+          }
+        } else if (ctx.paths) {
+          const paths = Array.isArray(ctx.paths) ? ctx.paths : JSON.parse(ctx.paths);
+          detail = paths.slice(0, 3).map(p => Array.isArray(p) ? p.slice(0, 4).join('.') : String(p)).join(' | ');
+          if (paths.length > 3) detail += ` (+${paths.length - 3} more)`;
         }
+      } else {
+        // Fallback: falcor-express didn't parse the request (bad payload, preflight, etc.)
+        // Log HTTP method so GET vs POST unknowns are distinguishable.
+        const params = req.method === 'POST' ? req.body : req.query;
+        method = `${req.method}:${(params?.method || 'unknown').toUpperCase()}`;
       }
-    } else if (params?.paths) {
-      const paths = typeof params.paths === 'string' ? JSON.parse(params.paths) : params.paths;
-      if (Array.isArray(paths)) {
-        detail = paths.slice(0, 3).map(p => Array.isArray(p) ? p.slice(0, 4).join('.') : String(p)).join(' | ');
-        if (paths.length > 3) detail += ` (+${paths.length - 3} more)`;
-      }
-    }
-  } catch {}
-  console.log(`[graph] ${method} ${detail || '(no path info)'}`);
+    } catch {}
+    console.log(`[graph] ${method || 'UNKNOWN'} ${detail || '(no path info)'}`);
+  });
   next();
 });
 
@@ -161,6 +190,9 @@ function getSubdomain(req) {
   const isLocalhost = hostname === 'localhost' || hostname.endsWith('.localhost');
   const minParts = isLocalhost || process.env.NODE_ENV === 'development' ? 2 : 3;
   const parts = hostname.split('.');
+  // Bare IPv4 host (e.g. 1.2.3.4) would otherwise misread its last octet as
+  // a subdomain; real TLDs are never all-digits.
+  if (/^\d+$/.test(parts[parts.length - 1])) return '';
   return parts.length >= minParts ? parts[0].toLowerCase() : '';
 }
 
@@ -170,7 +202,12 @@ app.use(
     try {
       const { user = null } = req.availAuthContext || {};
       const subdomain = getSubdomain(req);
-      return falcorRoutes({ user, subdomain });
+      const reqMeta = {
+        ip: req.clientIp || null,
+        userAgent: req.headers['user-agent'] || null,
+        authState: user ? 'authenticated' : 'unauthenticated',
+      };
+      return falcorRoutes({ user, subdomain, reqMeta });
     } catch (e) {
       console.error('[graph] Error creating data source:', e);
       throw e;

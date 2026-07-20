@@ -1,8 +1,9 @@
 import React, { useRef, useState, useLayoutEffect, useCallback, useEffect } from "react";
 
 const theme = {
-    header: 'top-0 sticky z-[5]',
-    bottom: 'bottom-0 sticky z-[5]'
+    // bg-white so the sticky header is fully opaque — rows must not show through while scrolling
+    header: 'top-0 sticky z-[5] bg-white',
+    bottom: 'bottom-0 sticky z-[5] bg-white'
 }
 
 const DEFAULT_INCREASE_VIEWPORT = { top: 0, bottom: 0, left: 0, right: 0 };

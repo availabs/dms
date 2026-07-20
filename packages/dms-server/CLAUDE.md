@@ -168,6 +168,20 @@ A DAMA pgEnv can route individual views to ClickHouse for large static datasets 
 
 **Dependency**: `@clickhouse/client` is in `optionalDependencies`. Installs that don't need CH are not blocked if the module fails to install.
 
+**Known hazard: no query caps + a client race can fire unfiltered probes.** The `ClickHouseAdapter`
+(`src/db/adapters/clickhouse.js`) sets `max_execution_time: 0` and `max_memory_usage: 0` — no
+server-side limit. A known client-side race (see
+`planning/tasks/completed/dataWrapper-stale-fetch-race.md`) means a Graph/Spreadsheet section can
+briefly fire a `simpleFilterLength` request with completely empty filters before its real scoping
+resolves; against a small CH table this is harmless, but against a large fact table it becomes an
+unfiltered full-table-scan query that can run for over an hour with no error. That race's fix only
+stops the stale response from overwriting a later correct one — it does not cancel or prevent the
+query. If a report page hangs or renders empty with no console error, check
+`SELECT query_id, elapsed, read_rows, query FROM system.processes ORDER BY elapsed DESC` on the CH
+server for stray long-running queries before assuming a defect in whatever you just changed. See
+`documentation/npmrds-data-sources.md`'s "Known operational hazard" section for the full mechanism
+and a live incident writeup.
+
 ## Testing
 
 See `tests/CLAUDE.md` for detailed testing guidelines.

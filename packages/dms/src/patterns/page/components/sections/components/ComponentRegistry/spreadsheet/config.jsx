@@ -95,6 +95,7 @@ export const componentFunctions = {
                         { label: 'First (top row)', value: 'first' },
                         { label: 'Max of metric',   value: 'max' },
                         { label: 'Min of metric',   value: 'min' },
+                        { label: 'List (all rows)', value: 'list' },
                     ] },
                 { key: 'metric', label: 'Metric column (for max/min)', type: 'column-select' },
                 { key: 'column', label: 'Column to publish', type: 'column-select' },
@@ -102,8 +103,33 @@ export const componentFunctions = {
                 // to publish several params from the one derived row.
             ],
         },
+        {
+            id: 'conditional_row_style',
+            label: 'Conditional Row Style',
+            description: 'Accent a whole row when one of its columns matches a condition (e.g. county_priority empty → left-edge + tint). The Style Key names a `theme.table` style (e.g. `rowAccentAmber`); a neutral `rowAccent` default ships in the library.',
+            trigger: 'render',
+            args: [
+                { key: 'column', label: 'Column to test', type: 'column-select' },
+                { key: 'when', label: 'Condition', type: 'select',
+                    options: [
+                        { label: 'Is empty',      value: 'empty' },
+                        { label: 'Is not empty',  value: 'notempty' },
+                        { label: 'Equals value',  value: 'equals' },
+                        { label: 'Not equals value', value: 'notEquals' },
+                    ] },
+                { key: 'value', label: 'Value (for equals / not equals)', type: 'input', inputType: 'text' },
+                { key: 'styleKey', label: 'Style Key (theme.table)', type: 'input', inputType: 'text' },
+            ],
+        },
     ],
     subscribers: [
+        {
+            id: 'data_refresh',
+            label: 'Refetch Data on Param Change',
+            description: 'Refetches this section\'s data whenever the subscribed action param\'s value changes (e.g. an Add: Publish Created Row provider fired). Requires fetch mode smart/force.',
+            trigger: 'action_param',
+            args: [],
+        },
         {
             id: 'row_highlight',
             label: 'Highlight Matching Row',
@@ -119,8 +145,12 @@ export const componentFunctions = {
                         { label: 'Background', value: 'bg' },
                         { label: 'Border', value: 'border' },
                         { label: 'Bold', value: 'bold' },
+                        { label: 'Accent (themed)', value: 'accent' },
                     ],
                 },
+                // Only used by the 'accent' style: names a `theme.table` style for the
+                // row-level tint + left edge; defaults to `rowHighlightAccent`.
+                { key: 'styleKey', label: 'Accent style key (theme.table)', type: 'input', inputType: 'text' },
             ],
         },
     ],
@@ -166,6 +196,12 @@ const buildControls = (theme) => ({
             { type: 'toggle', label: 'Auto Resize Columns', key: 'autoResize' },
             { type: 'toggle', label: 'Hide Null Open out columns', key: 'hideIfNullOpenouts' },
             { type: 'toggle', label: 'Open Out Default Open', key: 'openOutDefaultOpen' },
+            { type: 'select', label: 'Open Out Mode', key: 'openOutMode',
+                options: [
+                    { label: 'Drawer (default)', value: 'drawer' },
+                    { label: 'Inline (expand below row)', value: 'inline' },
+                ]
+            },
             { type: 'toggle', label: 'Virtualize Columns', key: 'virtualizeColumns' },
             { type: 'input', label: 'Max Height', key: 'maxHeight', displayCdn: ({ display }) => !display.usePagination },
             { type: 'toggle', label: 'Allow Download', key: 'allowDownload' },
@@ -204,6 +240,29 @@ const buildControls = (theme) => ({
         inHeader: [
             { type: 'input', inputType: 'text', label: 'Display Name', key: 'display_name', displayCdn: ({ attribute }) => attribute.origin === 'static' },
             { type: 'input', inputType: 'text', label: 'Static Value', key: 'staticValue', displayCdn: ({ attribute }) => attribute.origin === 'static' },
+            // Column type — picks the view/edit cell renderer (TableCell reads `attribute.type`
+            // → columnTypes[type].ViewComp/EditComp). Curated to the author-facing data-entry
+            // types; the value-shaping types (select/multiselect/status_pill/…) still need their
+            // own companion config (options, mapped_options, value→style) to be useful.
+            { type: 'select', label: 'Column Type', key: 'type', displayCdn: ({ isEdit }) => isEdit,
+                options: [
+                    { label: 'Text', value: 'text' },
+                    { label: 'Number', value: 'number' },
+                    { label: 'Date', value: 'date' },
+                    { label: 'Timestamp', value: 'timestamp' },
+                    { label: 'Boolean', value: 'boolean' },
+                    { label: 'Switch', value: 'switch' },
+                    { label: 'Select (single)', value: 'select' },
+                    { label: 'Multiselect', value: 'multiselect' },
+                    { label: 'Radio', value: 'radio' },
+                    { label: 'Checkbox', value: 'checkbox' },
+                    { label: 'Status Pill', value: 'status_pill' },
+                    { label: 'Priority Tier', value: 'priority_tier' },
+                    { label: 'Textarea', value: 'textarea' },
+                    { label: 'Lexical (rich text)', value: 'lexical' },
+                    { label: 'Image', value: 'image' },
+                ]
+            },
             { type: ({ attribute, setAttribute }) => {
                     const { UI } = useContext(ThemeContext);
                     const { Button } = UI;
@@ -282,6 +341,7 @@ export default {
     keepOriginalValues: true,
     showAllColumnsControl: false,
     supportsTemplates: true,
+    usesItemMutationProps: true,
     themeKey: 'table',
     defaultState: {
         filters: { op: 'AND', groups: [] },

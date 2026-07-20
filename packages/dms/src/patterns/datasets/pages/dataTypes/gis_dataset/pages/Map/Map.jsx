@@ -30,11 +30,21 @@ const MapPage = ({params, source,views, HoverComp, displayPinnedGeomBorder=false
   const urlVariable = searchParams.get("variable")
 
   const {view_id: viewId } = params;
-  const { datasources, user, DAMA_HOST } = React.useContext(DatasetsContext);
+  const { datasources, isUserAuthed, DAMA_HOST, UI, setHeaderActions } = React.useContext(DatasetsContext);
   const { theme } = React.useContext(ThemeContext) || {};
   const t = { ...gisMapTheme, ...(theme?.datasets?.gisMap || {}) };
   const pgEnv = getExternalEnv(datasources);
   const [ editing, setEditing ] = React.useState(null)
+  const [ showSettings, setShowSettings ] = React.useState(false)
+  const { Modal } = UI || {};
+  // Edit-gated: a "Settings" widget injected into the source-page header (next to the version
+  // selector) that opens a modal with the layer's sources/layers config. Invisible to non-editors.
+  const canEditMap = isUserAuthed(['update-source']);
+  React.useEffect(() => {
+    if (!setHeaderActions) return;
+    setHeaderActions(canEditMap ? [{ label: 'Settings', onClick: () => setShowSettings(true) }] : []);
+    return () => setHeaderActions([]);
+  }, [setHeaderActions, canEditMap]);
   const coalescedViewId = urlVariable && !viewId ? urlVariable : viewId; //TODO ryan this  could ahve some breaking changes elsewhere
 
   const activeView = React.useMemo(() => {
@@ -122,7 +132,7 @@ const MapPage = ({params, source,views, HoverComp, displayPinnedGeomBorder=false
 
 
   return (
-    <div>
+    <div className={t.mapPageWrapper}>
       <div className={t.mapHeightWrapper}>
         <Map
           key={ viewId }
@@ -134,8 +144,9 @@ const MapPage = ({params, source,views, HoverComp, displayPinnedGeomBorder=false
           mapStyles={mapStyles}/>
       </div>
 
-      {user.authLevel >= 5 ?
-      <div className={t.mapAttrsWrapper}>
+      {Modal && canEditMap ? (
+      <Modal open={showSettings} setOpen={setShowSettings} title={'Sources & Layers'} activeStyle={'wide'}>
+        <div className={t.mapAttrsWrapper}>
         <dl className={t.mapAttrsDl}>
           {['sources','layers']
             .map((attr,i) => {
@@ -172,7 +183,8 @@ const MapPage = ({params, source,views, HoverComp, displayPinnedGeomBorder=false
             })
           }
         </dl>
-      </div> : ''}
+        </div>
+      </Modal> ) : null}
     </div>
   )
 }

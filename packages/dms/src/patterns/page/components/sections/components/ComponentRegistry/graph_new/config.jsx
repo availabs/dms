@@ -28,6 +28,48 @@ const componentFunctions = {
         { key: 'column', label: 'Column to highlight', type: 'column-select' },
         { key: "hhl_color", label: "Highlight color", type: "colorpicker", defaultValue: "#ff0000" }
       ],
+    },
+    // Comparison Series — dynamic binding (Piece 3). Reads a list of variants from a
+    // page action param (the `paramKey`) and overlays one chart series per variant.
+    // This is a RELOAD-DRIVING subscriber: usePageFilterSync resolves the list into
+    // comparisonSeries.config (a fetchKey input), so each publish refetches the
+    // fan-out. Pair with a discrete (click) provider only — never a hover provider.
+    // labelKey/valueKey name the fields on each published entry; `column` (optional)
+    // turns a scalar value into a filter leaf when the value isn't itself a filter tree.
+    // Requires the Comparison Series master switch (Dataset menu) to be ON.
+    { id: 'comparison_series',
+      label: 'Comparison Series: Bind Variants',
+      description: 'Overlays one series per variant read from a page action param (reload-driving). Needs the Comparison Series master switch ON.',
+      trigger: 'action_param',
+      args: [
+        { key: 'labelKey', label: 'Label property', type: 'input' },
+        { key: 'valueKey', label: 'Value / filter property', type: 'input' },
+        { key: 'column', label: 'Filter column (optional)', type: 'input' },
+      ],
+    },
+    // Grid-graph overlays (GridGraph only). Both are pure overlays — no refetch: they
+    // redraw whenever the subscribed param's value changes. Entries are pipe-joined
+    // strings published by another section (typically a load_publish 'list').
+    { id: 'grid_cell_bands',
+      label: 'Grid: Cell Bands',
+      description: 'Draws a border rect over a run of cells per row. Param entries are "rowKey|xFrom|xTo"; x bounds compare lexicographically against the x-axis keys (publish them in the axis\'s own key format, e.g. "07:40"). Row Key Column names a fetched row-level column (e.g. the bare tmc) that identifies each y row.',
+      trigger: 'action_param',
+      args: [
+        { key: 'column', label: 'Row Key Column', type: 'column-select' },
+        { key: 'stroke', label: 'Border color', type: 'colorpicker', defaultValue: '#111827' },
+        { key: 'strokeWidth', label: 'Border width', type: 'input', inputType: 'number' },
+      ],
+    },
+    { id: 'grid_point',
+      label: 'Grid: Point Marker',
+      description: 'Draws a ring/dot centered on one cell per entry. Param entries are "rowKey|xKey" (xKey in the x-axis\'s own key format). Row Key Column names a fetched row-level column that identifies each y row.',
+      trigger: 'action_param',
+      args: [
+        { key: 'column', label: 'Row Key Column', type: 'column-select' },
+        { key: 'fill', label: 'Fill color', type: 'colorpicker', defaultValue: '#0F1722' },
+        { key: 'stroke', label: 'Ring color', type: 'colorpicker', defaultValue: '#ffffff' },
+        { key: 'r', label: 'Radius', type: 'input', inputType: 'number' },
+      ],
     }
   ]
 };
@@ -116,7 +158,7 @@ const graphConfig = {
 
     useDataSource: true,
     useDataWrapper: true,
-
+    supportsTemplates: true,
     fullDataLoad: true,
     useGetDataOnPageChange: false,
     showPagination: false,
@@ -306,6 +348,9 @@ const graphConfig = {
                     label: 'Label', key: 'xAxis.label' },
                 { type: 'input', inputType: 'number',
                     label: 'Tick Density', key: 'xAxis.tickDensity' },
+                {type: 'select', label: 'Tick Format', key: 'xAxis.format', onClickGoBack: true,
+                    options: ValueFormats
+                },
                 { type: 'toggle',
                     label: 'Show Gridlines', key: 'xAxis.showGridLines' },
                 { type: 'toggle',
@@ -514,8 +559,41 @@ const graphConfig = {
                 // Set to 1 for solid, design-matching bars (0–1).
                 { type: "input", inputType: "number",
                     label: "Bar Opacity", key: "barOpacity"
+                },
+                // Off (default) → one color per series (route/comparison), the
+                // usual multi-series legend. On → one scale across the whole
+                // chart, each bar colored by its own value (e.g. "more delay =
+                // darker") — only makes sense for a single-series magnitude
+                // chart, mirrors GridGraph's value-scaled coloring.
+                { type: "toggle",
+                    label: "Color by Value", key: "colors.byValue"
+                },
+                // With "Color by Value" on, center the scale on zero
+                // (±max(|min|, |max|)): "no change" lands on the middle color
+                // and equal-magnitude positive/negative values get equal
+                // intensity — for difference/diverging charts.
+                { type: "toggle",
+                    label: "Zero-Centered Colors", key: "colors.byValueSymmetric"
                 }
                 // {type: 'toggle', label: 'Log Scale', key: 'isLog'},
+            ]
+        },
+        gridGraph: {
+            name: 'Grid Graph Layout',
+            displayCdn: ({ display }) => display.graphType === 'GridGraph',
+            items: [
+                // GridGraph always colors cells by value; this centers its
+                // scale on zero (±max(|min|, |max|)) so "no change" lands on
+                // the middle color — see the matching Bar Graph toggle. For
+                // difference/diverging grids.
+                { type: "toggle",
+                    label: "Zero-Centered Colors", key: "colors.byValueSymmetric"
+                },
+                // Color for cells with no data (null value). Defaults to black
+                // (matches the old NPMRDS tool) if left blank.
+                { type: "input", inputType: "text",
+                    label: "Missing Data Color", key: "colors.nullColor"
+                }
             ]
         },
         pieGraph: {

@@ -326,6 +326,7 @@ export default function Table ({
     columns=[], data: unFilteredData=[], localFilteredData, fullData, display={}, controls={}, setState, isActive,
     addItem, newItem={}, setNewItem, infiniteScrollFetchData, currentPage, activeStyle,
     highlightedRow,
+    conditionalRowStyle,
     onRowMouseClick,
     onRowMouseEnter,
     onRowMouseLeave,
@@ -341,6 +342,25 @@ export default function Table ({
     const textSettingsStyle = getComponentTheme(themeFromContext, 'textSettings', 0);
     // textSettings provides typography defaults; table style wins on key conflicts.
     const theme = { ...textSettingsStyle, ...tableStyle };
+
+    // conditional_row_style provider: resolve the accent class from the live table theme
+    // (styleKey → theme[styleKey], falling back to the neutral library `rowAccent`) once here,
+    // then thread the descriptor + resolved className to each TableRow via context. TableRow
+    // evaluates the per-row condition; no descriptor → rows render exactly as before.
+    const resolvedConditionalRowStyle = useMemo(() => {
+        const { column, styleKey } = conditionalRowStyle || {};
+        if (!column) return undefined;
+        return { ...conditionalRowStyle, className: theme?.[styleKey] || theme?.rowAccent || '' };
+    }, [conditionalRowStyle, theme]);
+
+    // row_highlight 'accent' style: resolve the themed row-level class here (TableRow's curated
+    // `rowTheme` doesn't carry it), same pattern as conditional_row_style. Non-accent styles
+    // (bg/bold/border) stay per-cell in TableCell and need no resolution — pass through as-is.
+    const resolvedHighlightedRow = useMemo(() => {
+        if (highlightedRow?.style !== 'accent') return highlightedRow;
+        const accentClass = theme?.[highlightedRow.styleKey] || theme?.rowHighlightAccent || theme?.rowAccent || '';
+        return { ...highlightedRow, accentClass };
+    }, [highlightedRow, theme]);
 
     const [defaultColumnSize, setDefaultColumnSize] = React.useState(defColSize);
 
@@ -371,6 +391,9 @@ export default function Table ({
             striped: display.striped,
             hideIfNullOpenouts: display.hideIfNullOpenouts,
             openOutDefaultOpen: display.openOutDefaultOpen,
+            // 'drawer' (default) → floating right-side drawer; 'inline' → panel inserted
+            // as a full-width row beneath the clicked row. Only 'inline' changes behaviour.
+            openOutMode: display.openOutMode,
         };
     }, [columns, defaultColumnSize, display]);
     const {
@@ -603,6 +626,10 @@ export default function Table ({
         openOutContainerWrapperBgColor: theme?.openOutContainerWrapperBgColor,
         openOutHideTitle: theme?.openOutHideTitle,
         openOutBelowRow: theme?.openOutBelowRow,
+        // inline openOut panel containers (openOutMode === 'inline'); the per-field
+        // label/value classes are read by TableCell off the full theme in TableCellContext.
+        openOutInlineRow: theme?.openOutInlineRow,
+        openOutInlinePanel: theme?.openOutInlinePanel,
     }), [theme]);
 
     const showInlineAdd = display.emptyRowMode === 'inline_add'
@@ -732,7 +759,7 @@ export default function Table ({
              onMouseLeave={e => handleMouseUp({setIsDragging})}
              style={{maxHeight: !paginationActive && display.maxHeight ? `${display.maxHeight}px` : undefined}}
         >
-                <TableStructureContext.Provider value={{...structureValues, highlightedRow, onRowMouseClick, onRowMouseEnter, onRowMouseLeave, onRowDragStart, onRowDragOver, onRowDrop, onRowDragEnd}}>
+                <TableStructureContext.Provider value={{...structureValues, highlightedRow: resolvedHighlightedRow, conditionalRowStyle: resolvedConditionalRowStyle, onRowMouseClick, onRowMouseEnter, onRowMouseLeave, onRowDragStart, onRowDragOver, onRowDrop, onRowDragEnd}}>
                     <TableCellContext.Provider value={{
                         frozenCols, allowEdit, editing, setEditing, isDragging, isSelecting,
                         setSelection, setIsDragging, startCellCol, startCellRow, selection, selectionRange,

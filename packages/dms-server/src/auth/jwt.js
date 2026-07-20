@@ -70,21 +70,38 @@ async function verifyAndGetUser(token, db) {
 }
 
 /**
+ * Expected auth failures — bad/expired token (verifyToken rejects with a
+ * string) or a user that no longer exists / changed password. These are the
+ * caller's problem and are served quietly as anonymous. Anything else is an
+ * auth INFRASTRUCTURE failure (DB/network) and must not be silent: swallowing
+ * those made every affected request anonymous with zero trace, which
+ * downstream turned into no-access stubs and default-themed sites.
+ */
+function isExpectedAuthFailure(e) {
+  if (typeof e === 'string') return true;           // verifyToken: 'Token cannot be verified'
+  return e?.message === 'Invalid user';             // verifyAndGetUser: lookup/password mismatch
+}
+
+/**
  * Create JWT auth middleware.
  * @param {string} authDbEnv - Database config name for the auth database
+ * @param {Object} [overrides] - Test injection: { db } bypasses getDb(authDbEnv)
  * @returns {Function} Express middleware
  */
-function createJwtMiddleware(authDbEnv) {
-  const db = getDb(authDbEnv);
+function createJwtMiddleware(authDbEnv, { db: dbOverride } = {}) {
+  const db = dbOverride || getDb(authDbEnv);
 
   return async function jwtAuth(req, res, next) {
     if (req.method === 'OPTIONS') return next();
 
-    const token = req.headers.authorization;
-    if (!token) {
+    // Accept both a bare token (app clients) and the standard
+    // "Bearer <token>" form (dms CLI, generic HTTP tooling).
+    const rawAuth = req.headers.authorization;
+    if (!rawAuth) {
       req.availAuthContext = { user: null };
       return next();
     }
+    const token = rawAuth.startsWith('Bearer ') ? rawAuth.slice(7) : rawAuth;
 
     let user = null;
     try {
@@ -94,6 +111,9 @@ function createJwtMiddleware(authDbEnv) {
         if (user) cacheUser(token, user);
       }
     } catch (e) {
+      if (!isExpectedAuthFailure(e)) {
+        console.warn('[auth] token verification failed (infrastructure):', e?.message || e);
+      }
       user = null;
     }
 

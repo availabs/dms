@@ -4,6 +4,11 @@ import {TableCell} from "./TableCell";
 import Icon from "../../Icon"
 import {TableStructureContext} from "../index";
 
+// A cell is "empty" when it has no meaningful value: null/undefined, empty string, or an
+// empty array (multiselect). Used by the conditional_row_style provider's empty/notempty checks.
+const isValueEmpty = (v) =>
+    v === undefined || v === null || v === '' || (Array.isArray(v) && v.length === 0);
+
 export const TableRow = memo(function TableRow ({
     index, rowData={},
     isRowSelected, // used only to set bg for row num
@@ -16,7 +21,7 @@ export const TableRow = memo(function TableRow ({
         openOutAttributes, showGutters, striped, hideIfNullOpenouts,
         onRowMouseEnter, onRowMouseLeave, onRowMouseClick,
         onRowDragStart, onRowDragOver, onRowDrop, onRowDragEnd,
-        openOutDefaultOpen,
+        openOutDefaultOpen, conditionalRowStyle, openOutMode, highlightedRow,
     } = useContext(TableStructureContext);
     const [showOpenOut, setShowOpenOut] = useState(!!openOutDefaultOpen);
     useEffect(() => {
@@ -42,7 +47,45 @@ export const TableRow = memo(function TableRow ({
         numColSize
     ]);
     const isDragging = false;
-    const rowClass = `${isTotalRow ? theme.totalRow : ``} ${isDragging ? `select-none` : ``} ${striped ? theme.stripedRow : ``}`;
+
+    // conditional_row_style provider: accent this row when its target column matches the
+    // configured condition. Descriptor (column/when/value + resolved className) comes from
+    // context; handles the {value, originalValue} meta/select cell shape. Total rows never match.
+    const conditionalRowClass = useMemo(() => {
+        if (!conditionalRowStyle?.column || isTotalRow) return '';
+        const raw = rowData[conditionalRowStyle.column];
+        const val = (raw !== null && raw !== undefined && typeof raw === 'object' && !Array.isArray(raw))
+            ? (raw.value ?? raw.originalValue)
+            : raw;
+        let match;
+        switch (conditionalRowStyle.when) {
+            case 'notempty':  match = !isValueEmpty(val); break;
+            case 'equals':    match = String(val) === String(conditionalRowStyle.value); break;
+            case 'notEquals': match = String(val) !== String(conditionalRowStyle.value); break;
+            case 'empty':
+            default:          match = isValueEmpty(val); break;
+        }
+        return match ? (conditionalRowStyle.className || '') : '';
+    }, [conditionalRowStyle, rowData, isTotalRow]);
+
+    // row_highlight with style 'accent': paint a themed row-level tint + left edge (the matched
+    // row's cells go transparent in TableCell so this shows through). Themed like
+    // conditional_row_style — `styleKey` names a theme.table style, else `rowHighlightAccent`.
+    // 'bg'/'bold'/'border' styles stay per-cell in TableCell (unchanged); this is 'accent'-only.
+    const highlightAccentClass = useMemo(() => {
+        if (highlightedRow?.style !== 'accent' || !highlightedRow?.column || isTotalRow) return '';
+        const raw = rowData[highlightedRow.column];
+        const val = (raw !== null && raw !== undefined && typeof raw === 'object' && !Array.isArray(raw))
+            ? (raw.value ?? raw.originalValue) : raw;
+        if (String(val) !== String(highlightedRow.value)) return '';
+        // className was resolved from the full table theme in table/index.jsx (rowTheme is curated).
+        return highlightedRow.accentClass || '';
+    }, [highlightedRow, rowData, isTotalRow]);
+
+    // cursor-pointer signals a click_publish table (rows are clickable to switch a page param).
+    const clickableClass = onRowMouseClick && !isTotalRow ? 'cursor-pointer' : '';
+
+    const rowClass = `${isTotalRow ? theme.totalRow : ``} ${isDragging ? `select-none` : ``} ${striped ? theme.stripedRow : ``} ${conditionalRowClass} ${highlightAccentClass} ${clickableClass}`;
     const actionsColExists = attrsToRender.find(a => a._isActionsColumn);
     // Whether any column declares itself the openOut trigger (e.g. sectionsChip).
     // Falls back to the legacy first-column behaviour when none does.
@@ -117,7 +160,34 @@ export const TableRow = memo(function TableRow ({
             {/********************************************************************************************************/}
             {/************************************************ open out row ******************************************/}
             {/********************************************************************************************************/}
-            { showOpenOut ?
+            { showOpenOut && openOutMode === 'inline' ?
+                // Inline mode: a full-width panel inserted beneath the row (pushes rows down).
+                // Reuses TableCell (openOut) for identical label/value extraction; the inline
+                // theme keys restyle it via `openOutInline`. Independent per row (own showOpenOut).
+                <div className={theme.openOutInlineRow}>
+                    <div className={theme.openOutInlinePanel}>
+                        {openOutAttributes
+                            .filter(attribute => {
+                                if(hideIfNullOpenouts){
+                                    let value = rowData[attribute.normalName] || rowData[attribute.name]
+                                    return Array.isArray(value) ? value.length : value;
+                                }
+                                return true;
+                            })
+                            .map((attribute, openOutAttrI) => (
+                                <TableCell
+                                    key={`cell-inline-${index}-${openOutAttrI}`}
+                                    isTotalCell={isTotalRow}
+                                    attribute={attribute}
+                                    openOut={true}
+                                    openOutInline={true}
+                                    index={index}
+                                    item={rowData}
+                                />
+                            ))}
+                    </div>
+                </div> :
+              showOpenOut ?
                 <div
                     className={theme.openOutContainerWrapper}
                     style={theme.openOutContainerWrapperBgColor && theme.openOutContainerWrapperBgColor !== 'transparent'

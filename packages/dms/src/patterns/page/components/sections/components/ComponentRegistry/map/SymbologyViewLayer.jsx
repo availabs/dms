@@ -3,6 +3,7 @@ import { get, isEqual, cloneDeep } from "lodash-es"
 import { AvlLayer } from "../../../../../../../ui/components/map"
 import useMapTheme from "../../../../../../../ui/components/map/useMapTheme"
 import { ThemeContext, getComponentTheme } from "../../../../../../../ui/useTheme"
+import { useNavigate } from "react-router"
 import { usePrevious } from './utils.js'
 import { MapContext } from "./"
 import { CMSContext } from '../../../../../context'
@@ -41,6 +42,28 @@ const getLayerInteractionIds = (candidateLayerProps = {}) =>
  */
 const hasInteractionValue = (value) =>
   value !== undefined && value !== null && value !== "";
+
+const getRedirectTarget = (value) => {
+  if (typeof value !== "string") return null;
+
+  const trimmedValue = value.trim();
+  if (!trimmedValue) return null;
+
+  if (/^https?:\/\//i.test(trimmedValue) || /^\/\//.test(trimmedValue)) {
+    return { type: "external", url: trimmedValue };
+  }
+
+  if (/^(\/|[?#])/.test(trimmedValue)) {
+    return { type: "internal", url: trimmedValue };
+  }
+
+  // bare domain like "oneida.mitigateny.org" — no protocol, no spaces, has a dot
+  if (!trimmedValue.includes(" ") && trimmedValue.includes(".")) {
+    return { type: "external", url: `https://${trimmedValue}` };
+  }
+
+  return null;
+};
 
 /**
  * Provider config is stored with the map section's other display settings under
@@ -214,6 +237,7 @@ const ViewLayerRender = ({
   const { state, setState } = mctx ? mctx : {state: {}, setState:() => {}};
   const { pageState, setPageState, updatePageStateFilters, setActionParam, clearActionParam } = useContext(PageContext) || {};
   const { falcor, pgEnv } = mctx || {};
+  const navigate = useNavigate();
 
   const [sourceReady, setSourceReady] = React.useState(false);
   const cachedFilterPropsRef = useRef(null);
@@ -509,14 +533,18 @@ const ViewLayerRender = ({
             }
           );
         }
+        // A column already covered by a static filter above must not also get a
+        // dynamic-filter clause — ANDing both together (via `all` below) is
+        // almost always an impossible condition, hiding every feature. Static wins.
+        const staticFilterColumnNames = new Set(Object.keys(layerFilter || {}));
         const layerHasDynamicFilter =
           dynamicFilter &&
           dynamicFilter?.length > 0 &&
-          dynamicFilter.some((dFilter) => dFilter?.values?.length > 0);
+          dynamicFilter.some((dFilter) => dFilter?.values?.length > 0 && !staticFilterColumnNames.has(dFilter.column_name));
         let dynamicMapLayerFilters = [];
         if (layerHasDynamicFilter) {
           dynamicMapLayerFilters = dynamicFilter
-            ?.filter((dFilter) => dFilter?.values?.length > 0)
+            ?.filter((dFilter) => dFilter?.values?.length > 0 && !staticFilterColumnNames.has(dFilter.column_name))
             .map((dFilter) => {
               let mapFilter = [];
 
@@ -577,13 +605,30 @@ const ViewLayerRender = ({
     }
   }, [maplibreMap, allLayerProps?.zoomToFit]);
 
+  // Tracks the last bounds this layer fit to, so unrelated re-renders (the dep is the whole
+  // allLayerProps object) don't re-run fitBounds with the SAME bounds — which both no-op
+  // animates and snaps the map back while the user is panning.
+  const lastFilterFitRef = useRef(null);
   useEffect(() => {
-    if (maplibreMap && layerProps && layerProps?.zoomToFilterBounds?.length > 0 &&  layerProps?.zoomToFilterBounds[0] !== null){
-      maplibreMap.fitBounds(layerProps.zoomToFilterBounds, {
-        padding: { top: 200, bottom: 200, left: 200, right: 200 },
+    const bounds = layerProps?.zoomToFilterBounds;
+    if (maplibreMap && bounds?.length > 0 && bounds[0] !== null){
+      const boundsKey = JSON.stringify(bounds);
+      if (lastFilterFitRef.current === boundsKey) return;
+      lastFilterFitRef.current = boundsKey;
+      // Padding proportional to the container: a fixed 200px was tuned for the full-screen
+      // mapeditor — inside a 600px-tall page section it left a ~200px content box, so
+      // "zoom to the filtered region" visibly zoomed OUT instead of framing the region.
+      const el = maplibreMap.getContainer?.();
+      const pad = Math.max(24, Math.min(200,
+        Math.floor(Math.min(el?.clientWidth ?? 1600, el?.clientHeight ?? 1600) * 0.12)));
+      maplibreMap.fitBounds(bounds, {
+        padding: { top: pad, bottom: pad, left: pad, right: pad },
         duration: 400
       });
     }
+    // An emptied zoomToFilterBounds (filter cleared) resets the guard so re-selecting
+    // the SAME region zooms again.
+    if (!(bounds?.length > 0)) lastFilterFitRef.current = null;
   }, [maplibreMap, allLayerProps]);
 
   /**
@@ -920,8 +965,7 @@ const ViewLayerRender = ({
           (mapping) =>
             isClickFilterEnabled &&
             mapping?.variable &&
-            mapping?.field &&
-            mapping?.useSearchParams === true
+            mapping?.field
         );
         const clickableLayerIds = (candidateLayerProps?.layers || [])
           .map((layer) => layer?.id)
@@ -1060,35 +1104,49 @@ const ViewLayerRender = ({
         layers: clickableLayerIds,
       });
 
-      const nextFilterEntries = (
-        await Promise.all(
-          clickableLayerConfigs.map(async (clickableLayerConfig) => {
-            const feature = features.find((candidateFeature) =>
-              clickableLayerConfig.clickableLayerIds.includes(candidateFeature?.layer?.id)
-            );
+      let redirectTarget = null;
+      const nextFilterEntries = [];
 
-            if (!feature) return [];
+      for (const clickableLayerConfig of clickableLayerConfigs) {
+        const feature = features.find((candidateFeature) =>
+          clickableLayerConfig.clickableLayerIds.includes(candidateFeature?.layer?.id)
+        );
 
-            const resolvedProperties = await resolveFeatureProperties({
-              feature,
-              candidateLayerProps: clickableLayerConfig.layerProps,
-              fieldNames: clickableLayerConfig.activeMappings.map((mapping) => mapping.field)
+        if (!feature) continue;
+
+        const resolvedProperties = await resolveFeatureProperties({
+          feature,
+          candidateLayerProps: clickableLayerConfig.layerProps,
+          fieldNames: clickableLayerConfig.activeMappings.map((mapping) => mapping.field)
+        });
+
+        for (const mapping of clickableLayerConfig.activeMappings) {
+          const value = resolvedProperties?.[mapping.field];
+          if (!hasInteractionValue(value)) continue;
+
+          if (mapping?.redirectOnClick) {
+            if (!redirectTarget) {
+              redirectTarget = getRedirectTarget(value);
+            }
+            if (mapping?.useSearchParams) {
+              nextFilterEntries.push({
+                searchKey: mapping.variable,
+                value,
+                useSearchParams: true,
+              });
+            }
+            continue;
+          }
+
+          if (mapping?.useSearchParams) {
+            nextFilterEntries.push({
+              searchKey: mapping.variable,
+              value,
+              useSearchParams: true,
             });
-
-            return clickableLayerConfig.activeMappings.reduce((acc, mapping) => {
-              const value = resolvedProperties?.[mapping.field];
-              if (value !== undefined && value !== null && value !== "") {
-                acc.push({
-                  searchKey: mapping.variable,
-                  value,
-                  useSearchParams: mapping.useSearchParams,
-                });
-              }
-              return acc;
-            }, []);
-          })
-        )
-      ).flat();
+          }
+        }
+      }
 
       if (typeof setActionParam === "function") {
         for (const feature of features || []) {
@@ -1119,8 +1177,17 @@ const ViewLayerRender = ({
       }
 
       if (!features?.length) return;
-      if (!nextFilterEntries.length) return;
-      updateFilterValues(nextFilterEntries);
+      if (nextFilterEntries.length) {
+        updateFilterValues(nextFilterEntries);
+      }
+      if (redirectTarget?.type === "external") {
+        window.open(redirectTarget.url, "_blank", "noopener,noreferrer");
+        return;
+      }
+      if (redirectTarget?.type === "internal") {
+        navigate(redirectTarget.url);
+        return;
+      }
     };
 
     maplibreMap.on("click", handleMapClick);
@@ -1139,6 +1206,7 @@ const ViewLayerRender = ({
     setActionParam,
     resolveFeatureProperties,
     state?.display?._functions,
+    navigate,
   ]);
 
   useEffect(() => {
@@ -1357,6 +1425,37 @@ const buildJoinFilterOptions = (joinQuery = {}) => {
  * Serializes the layer join config into the encoded `join` param appended to
  * tile URLs for the DMS runtime map.
  */
+const JOIN_FILTER_OP_BY_OPERATOR = { '==': 'filter', '!=': 'exclude', '>': 'gt', '>=': 'gte', '<': 'lt', '<=': 'lte' };
+
+/**
+ * Collects the layer's active filters (static `filter` + `dynamic-filters`) that
+ * target a *joined* column, as filterGroups leaves. Pushing these into the tile
+ * join subquery makes the CTE filter by the selection BEFORE aggregating — so a
+ * selected workplace yields ~one row per feature instead of a full (home ×
+ * workplace) fan-out that the LEFT JOIN multiplies into millions of MVT rows.
+ * Static wins over dynamic on the same column (mirrors buildLayerUdaFilterOptions).
+ */
+const collectActiveJoinFilterGroups = (layerProps, joinOutputNames) => {
+  const groups = [];
+  const staticCols = new Set();
+  Object.entries(layerProps?.filter || {}).forEach(([col, f]) => {
+    if (!joinOutputNames.has(col)) return;
+    if (!f || f.value === undefined || f.value === null || f.value === '') return;
+    const op = JOIN_FILTER_OP_BY_OPERATOR[f.operator ?? '=='];
+    if (!op) return; // between/unknown ops aren't pushed (rare for a join filter)
+    staticCols.add(col);
+    const scalar = ['gt', 'gte', 'lt', 'lte'].includes(op);
+    groups.push({ op, col, value: scalar ? (Array.isArray(f.value) ? f.value[0] : f.value) : (Array.isArray(f.value) ? f.value : [f.value]) });
+  });
+  (layerProps?.["dynamic-filters"] || []).forEach((df) => {
+    if (!df?.column_name || !joinOutputNames.has(df.column_name)) return;
+    if (!Array.isArray(df.values) || !df.values.length) return;
+    if (staticCols.has(df.column_name)) return; // static filter already covers it
+    groups.push({ op: 'filter', col: df.column_name, value: df.values });
+  });
+  return groups;
+};
+
 const buildJoinParam = (layerProps) => {
   const joinConfig = normalizeJoinRuntimeConfig(layerProps);
   if (!joinConfig?.enabled || !joinConfig?.source?.viewId || !joinConfig?.featureKeyColumn || !joinConfig?.joinColumn) {
@@ -1366,13 +1465,42 @@ const buildJoinParam = (layerProps) => {
   const queryConfig = joinConfig.query || {};
   const groupBy = Array.isArray(queryConfig?.groupBy) ? queryConfig.groupBy : [];
   const columns = Array.isArray(queryConfig?.columns) ? queryConfig.columns : [];
+  const tileColumns = getJoinTileColumns(layerProps);
+
+  // Only join-produced columns may be pushed into the join subquery (base-table
+  // filters belong to the geo side). Output names come from the tile columns and
+  // the join's SELECT expressions (`... as <name>`).
+  const outputName = (expr) => {
+    const m = String(expr).match(/\s+as\s+("?)([^"]+)\1\s*$/i);
+    return m?.[2] || String(expr).trim();
+  };
+  const joinOutputNames = new Set([...tileColumns, ...columns.map(outputName)]);
+
+  const options = {
+    ...buildJoinFilterOptions(queryConfig), groupBy,
+    // A second join nested inside this join's own query (e.g. a CH fact-table
+    // join needing a TMC-identification join for a static per-TMC column like
+    // `miles`) — same `{sources: {...}}` shape AVL-Graph templates already
+    // send as `state.join`, and the CH query builder already destructures a
+    // top-level `join` off this exact options bag (query_sets/clickhouse.js
+    // `simpleFilter`/`simpleFilterLength`'s `buildJoin({join})`). Without this
+    // forward, a template author's `query.join` was silently dropped here.
+    ...(queryConfig.join ? { join: queryConfig.join } : {}),
+  };
+  const activeJoinFilters = collectActiveJoinFilterGroups(layerProps, joinOutputNames);
+  if (activeJoinFilters.length) {
+    const existing = options.filterGroups?.groups
+      || (options.filterGroups ? [options.filterGroups] : []);
+    options.filterGroups = { op: 'and', groups: [...existing, ...activeJoinFilters] };
+  }
+
   return encodeURIComponent(JSON.stringify({
     viewId: joinConfig.source.viewId,
     localKey: joinConfig.featureKeyColumn,
     joinKey: joinConfig.joinColumn,
-    options: { ...buildJoinFilterOptions(queryConfig), groupBy },
+    options,
     attributes: columns,
-    tileCols: getJoinTileColumns(layerProps),
+    tileCols: tileColumns,
   }));
 };
 
@@ -1527,6 +1655,25 @@ const getLayerTileUrl = (tileBase, layerProps) => {
   const joinParam = buildJoinParam(layerProps);
   if (joinParam) {
     newTileUrl += `${newTileUrl.includes("?") ? "&" : "?"}join=${joinParam}`;
+  }
+
+  // Server-side tile filter: a dynamic-filter flagged `serverSide` on a BASE-view column
+  // (e.g. event_id) becomes a `&filter=<SQL WHERE>` param so the tile route filters rows
+  // in PostGIS (ST_AsMVT) BEFORE emitting the tile — vs the default client-side ["in"]
+  // expression, which needs the whole (unfiltered) tile downloaded first. Essential when
+  // the unfiltered view is huge (transcom_event_tmc: ~64MB/tile unfiltered → ~2KB filtered
+  // to one event_id). Equality for a single value, IN(...) for a list; values single-quoted
+  // and '-escaped. Only emitted while the filter HAS resolved values.
+  const serverFilters = (layerProps?.["dynamic-filters"] || [])
+    .filter((df) => df?.serverSide && df?.column_name && Array.isArray(df?.values) && df.values.length)
+    .map((df) => {
+      const q = (v) => `'${String(v).replace(/'/g, "''")}'`;
+      return df.values.length === 1
+        ? `${df.column_name} = ${q(df.values[0])}`
+        : `${df.column_name} IN (${df.values.map(q).join(",")})`;
+    });
+  if (serverFilters.length) {
+    newTileUrl += `${newTileUrl.includes("?") ? "&" : "?"}filter=${encodeURIComponent(serverFilters.join(" AND "))}`;
   }
 
   // if(newTileUrl && newTileUrl?.includes('.pmtiles')){

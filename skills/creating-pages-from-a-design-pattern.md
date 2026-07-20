@@ -438,7 +438,7 @@ dms section create marketing-homepage --data '{
 
 | Field | Type | What it is |
 |---|---|---|
-| `title` | string | **Leave empty (`""`) by default.** Although described as "section toolbar / page tree" metadata, some themes render the section's `title` as a visible label *above the section content on the live page*. The section's own heading/h1 lives inside `element-data` (e.g. the Lexical state), so a non-empty `title` produces a duplicate label. Set `title: ""` unless the section is genuinely a labelled container the user wants to see chrome for. |
+| `title` | string | **NEVER use the section Title setting. Ever. Always `""`.** (Owner rule, 2026-07-02 — no exceptions.) When non-empty it renders `ViewSectionHeader` (`section_components.jsx`), a **hardcoded ≥50px uppercase `font-display` band** whose text style comes from `theme.heading[level]` — a map most themes don't define, so you get an unstyled label in a bulky fixed band that lays out badly and can't be themed. The same rule applies to **component-internal titles** (a Graph's `display.title`/`description`, a Card's header chrome): every heading/kicker/subtitle belongs in a **lexical section** — usually a fused header (§5.6.10) — where it stays author-editable text with brand tokens. Worked example: the landbank sold-by-year graphs ship a bare chart (`yAxis: {show: false}`, no `title`) under a fused `displaySM` + `proseXS` lexical header. |
 | `type` | string | The component type — usually `{patternInstance}\|component` (e.g. `main\|component`) |
 | `group` | string | UUID matching a `name` in the page's `draft_section_groups` |
 | `parent` | JSON string | Stringified `{ id, ref }` pointing at the parent page |
@@ -556,6 +556,13 @@ recreate. (Don't try to clean up the orphans; there's no working delete.)
 
 For new section types, see [`creating-page-section-components.md`](./creating-page-section-components.md).
 For Card configuration depth, see [`card-layout.md`](./card-layout.md).
+
+**Matching a design's spacing.** A Card's default grid spreads cells across equal fractions, so a
+transcribed header/meta row reads far airier than the mockup. To reproduce a design's tight spacing,
+drive `cellsTracksTemplate` (content-width `max-content` tracks + a trailing `1fr`), `cellsPadding: 0`,
+and a small `cellsGridGap` — see the **"Tight inline meta / header row"** recipe in
+[`card-layout.md`](./card-layout.md#recipes). When the layoutGroup band already provides the surface
+(e.g. a `header` band), give the section a bare extra (`{}`, no `bg`/`border`) so you don't double-box.
 
 ### 5.4 Lexical content — the minimum viable JSON
 
@@ -1047,14 +1054,34 @@ node). So don't try to produce a circular "A"/"B" badge from inside Lexical. Ins
   see [`card-layout.md`](./card-layout.md) — which needs a data source (or the blank-row
   fallback for static values); for static marketing stats a lexical card + an exclusive
   token is usually the lighter call.
-- **Two sections fused into ONE card (compound visual unit).** Put the sections adjacent
-  in the band, then **zero the shared-edge padding** and coordinate the borders/corners:
-  upper section = border top+left+right, radius tl+tr, `padding.bottom = 0`; lower section =
-  border left+right+bottom, radius bl+br, `padding.top = 0`. Their inner boxes touch → one
-  continuous card. (Worked example: MAP-21 §02 — a header/hero lexical **Card** + the
-  interstate **Graph**, composed into one card; the header carries the kicker/title/hero,
-  the graph is the tinted chart footer.) Set the upper section's `title` to `""` if it would
-  render a label band between the two.
+- **N sections fused into ONE "compact card" (the workhorse compound unit).** This is *the*
+  pattern for building a rich card out of heterogeneous parts — a lexical title/hero + a
+  **Spreadsheet** of rows + a **Card** stat strip + a **Graph** footer all reading as a single
+  bordered card. It's used all over the TSMO pages. Stack the sections adjacent in the band, give
+  them all `bg:"white"`, and coordinate the **object-shaped** `border` / `radius` / `padding`
+  fields so the inner boxes touch into one continuous card:
+  - **Top** section: `border:{top:true,left:true,right:true}`, `radius:{tl:true,tr:true}`, `padding:{bottom:"0"}`.
+  - **Middle** section(s): `border:{left:true,right:true}`, `padding:{top:"0",bottom:"0"}` — verticals only, no shared-edge gutters. Repeat for as many middle parts as the card has.
+  - **Bottom** section: `border:{left:true,right:true,bottom:true}`, `radius:{bl:true,br:true}`, `padding:{top:"0"}`.
+
+  These are the same `border`/`radius`/`padding`/`bg` keys the §4.2.5 seed-loop already passes
+  through (`for (const k of ["border","radius","padding","height","bg"]) …`) — note `border`/
+  `radius`/`padding` here are **objects** (per-side / per-corner flags + per-side padding
+  overrides), not the string `border:"full"` form. Set any internal section's `title` to `""` so
+  no label band breaks the card. Worked examples: TSMO congestion §… (lexical header → Graph →
+  lexical footnote, fused); the site-management control room's per-pattern cards (a lexical
+  identity header fused to a `Spreadsheet` of that pattern's pages). The earlier two-section
+  lexical-`Card`+`Graph` (MAP-21 §02) is just the N=2 case of this.
+- **Card titles come from a fused lexical title section — NEVER the section `title` field.** The section
+  `title` is deprecated (see §5.2: it renders a bulky, unthemeable ≥50px uppercase band). To give a
+  card a title ("Gates", "Work completed"), make it the **top** section of a compound card: a tiny
+  `lexical` section holding a `styled('kicker'|'displaySM', …)` title, with `title:""`, `border:{top,
+  left,right}`, `radius:{tl,tr}`, `padding:{bottom:"0"}`, `bg:"white"`; then the data section (Card/
+  Spreadsheet) below it gets `border:{left,right,bottom}`, `radius:{bl,br}`, `padding:{top:"0"}`,
+  `bg:"white"`. Because the band grid is **gap-0**, this also works for **side-by-side** titled cards
+  (e.g. an 8-col and a 4-col card in the same row each as a title+body pair) — emit them in row order
+  (`titleA8, titleB4, bodyA8, bodyB4`) so each body lands directly under its title. Give the bodies
+  `height:"fill"` so paired cards' bottoms align.
 - **Colored dots / simple inline marks** → a Lexical text run with an inline `style`
   (`color:#10B981`) on a `●`, or the `icon` node — inline before a label.
 - **Icon *chip* (a colored/tinted square holding an SVG, e.g. a product-card icon)** → the

@@ -13,9 +13,10 @@ import { gisPagesTheme } from "./gisPages.theme";
 export default function Table ({apiUpdate, apiLoad, format, source, params, isDms}) {
     const {id, view_id} = params;
     const navigate = useNavigate();
-    const {theme} = useContext(ThemeContext) || {};
+    const themeCtx = useContext(ThemeContext) || {};
+    const {theme} = themeCtx;
     const t = { ...gisPagesTheme, ...(theme?.datasets?.gisPages || {}) };
-    const { falcor, baseUrl, pageBaseUrl, user, isUserAuthed, datasources} = useContext(DatasetsContext) || {};
+    const { falcor, baseUrl, pageBaseUrl, user, isUserAuthed, datasources, setHeaderActions} = useContext(DatasetsContext) || {};
     const pgEnv = getExternalEnv(datasources);
 
     let columns = useMemo(() => {
@@ -46,7 +47,7 @@ export default function Table ({apiUpdate, apiLoad, format, source, params, isDm
             pageSize: 1000,
             loadMoreId: `id-table-page`,
             usePageFilters: false,
-            allowDownload: true,
+            allowDownload: false,
             hideDatasourceSelector: true,
             // Enable the spreadsheet's auto-resize pass so columns get
             // sensible initial widths (Math.max(minInitColSize, gridWidth/n))
@@ -135,12 +136,44 @@ export default function Table ({apiUpdate, apiLoad, format, source, params, isDm
         apiUpdate({data: {...source, default_columns: columns}, config: {format}});
     }, [value]);
 
+    // Surface the admin "Set Default Columns" action in the source-page header (next to the version
+    // selector) instead of inline in the table. Cleared when leaving the Table tab.
+    // NB: depend on the boolean (not `isUserAuthed` itself) — the context's isUserAuthed is a fresh
+    // function each SourcePage render, so depending on it here would loop (effect → setHeaderActions
+    // → SourcePage re-render → new isUserAuthed → effect …). The boolean is stable across renders.
+    const canSetDefaultCols = isUserAuthed(['update-source']);
+    useEffect(() => {
+        if (!setHeaderActions) return;
+        setHeaderActions(canSetDefaultCols ? [{ label: 'Set Default Columns', onClick: saveSettings }] : []);
+        return () => setHeaderActions([]);
+    }, [setHeaderActions, saveSettings, canSetDefaultCols]);
+
     useEffect(() => {
         if(!params.view_id && source?.views?.length){
             const recentView = Math.max(...source.views.map(({id, view_id}) => view_id || id));
             navigate(`${pageBaseUrl}/${params.id}/table/${recentView}`)
         }
     }, [source.views]);
+
+    // The shared table caps its scroll area at max-h-[78vh] (right for page-embedded spreadsheets,
+    // wrong for a full-height tab). The table reads its style from ThemeContext (not a prop), and it's
+    // VIRTUALIZED — so it needs a *definite* bounded height (a flex-1 fill won't work: the DataWrapper's
+    // <Comp> wrapper isn't flex-1, and an unbounded virtual list can't size its scroll window). We
+    // re-provide ThemeContext below with ONLY `theme.table.tableContainer` overridden to a viewport-
+    // relative height that fills the page below the source-page header (matches the Map tab's offset).
+    const fillThemeCtx = useMemo(() => ({
+        ...themeCtx,
+        theme: {
+            ...theme,
+            table: {
+                options: theme?.table?.options || { activeStyle: 0 },
+                styles: (theme?.table?.styles?.length ? theme.table.styles : [{}]).map(s => ({
+                    ...s,
+                    tableContainer: 'flex flex-col overflow-x-auto overflow-y-auto h-[calc(100svh-150px)] min-h-[420px]',
+                })),
+            },
+        },
+    }), [themeCtx, theme]);
 
     const SpreadSheetCompWithControls = cloneDeep(Spreadsheet);
     SpreadSheetCompWithControls.controls = {};
@@ -178,26 +211,20 @@ export default function Table ({apiUpdate, apiLoad, format, source, params, isDm
     return (
         (isDms && !source.config) || !value?.sourceInfo?.columns?.length ? <div className={'p-1 text-center'}>Please setup metadata.</div> :
             !params.view_id || params.view_id === 'undefined' ? 'Please select a version' :
-                <div className={`${theme?.page?.wrapper1}`}>
-                    {
-                        isUserAuthed(['update-source']) ?
-                            <button className={'w-fit p-1 bg-blue-100 hover:bg-blue-200 text-blue-500 text-sm place-self-end rounded-md'}
-                                    onClick={saveSettings}>
-                                Set Default Columns
-                            </button> :
-                            null
-                    }
+                <div className={t.tableWrap}>
                     {dwInitialValue && snapshotMatchesUrl ? (
-                        <DataWrapper.EditComp
-                            cms_context={DatasetsContext}
-                            component={SpreadSheetCompWithControls}
-                            value={dwInitialValue}
-                            onChange={() => {}}
-                            key={dwKey}
-                            size={1}
-                            hideSourceSelector={true}
-                            theme={theme}
-                        />
+                        <ThemeContext.Provider value={fillThemeCtx}>
+                            <DataWrapper.EditComp
+                                cms_context={DatasetsContext}
+                                component={SpreadSheetCompWithControls}
+                                value={dwInitialValue}
+                                onChange={() => {}}
+                                key={dwKey}
+                                size={1}
+                                hideSourceSelector={true}
+                                theme={fillThemeCtx.theme}
+                            />
+                        </ThemeContext.Provider>
                     ) : (
                         <div className={t.tableLoadingMsg}>Loading columns...</div>
                     )}

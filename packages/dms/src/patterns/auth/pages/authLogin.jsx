@@ -6,13 +6,13 @@ import {callAuthServer} from "../api";
 
 
 export default function AuthLogin ({ disableSignup, ...props }) {
+    const navigate = useNavigate();
     const location = useLocation();
     const [credentials, setCredentials] = React.useState({email: '', password: ''});
     const [error, setError] = useState('');
     const { theme, UI } = React.useContext(ThemeContext);
     const { baseUrl, setUser, PROJECT_NAME, AuthAPI, defaultRedirectUrl } = React.useContext(AuthContext);
     const { FieldSet, Button } = UI;
-    const navigate = useNavigate();
     // console.log('auth context aapi', AuthAPI)
 
     const submit = React.useCallback(e => {
@@ -28,8 +28,7 @@ export default function AuthLogin ({ disableSignup, ...props }) {
                         window.localStorage.setItem('userToken', res?.user?.token);
                     }
                     setUser({ ...res.user, groups: [...(res.user.groups || []), 'public'], authed: true, isAuthenticating: false })
-                    window.dispatchEvent(new CustomEvent('dms-user-login'));
-                    navigate(location?.state?.from || defaultRedirectUrl);
+                    navigate(location?.state?.from || defaultRedirectUrl, { replace: true });
                 }
             })
             .catch(error => {
@@ -98,7 +97,7 @@ export default function AuthLogin ({ disableSignup, ...props }) {
                 <Button type='plain'
                     buttonType="submit"
                     className={sectionGroupTheme.actionButton}
-                > 
+                >
                     <span className={sectionGroupTheme.actionText}>Sign In</span>
                 </Button>
 

@@ -7,6 +7,8 @@ import { sectionGroupControlTheme } from "./pages/edit/editPane/sectionGroupsPan
 import { complexFiltersTheme } from './components/sections/ComplexFilters.theme'
 import { templateManagerTheme } from './components/sections/TemplateManager.theme'
 import { timePickerTheme } from './components/sections/components/dataWrapper/components/filters/TimePicker/timePicker.theme'
+import { pageTemplatePickerTheme } from './components/PageTemplatePicker.theme'
+import { damaMapTheme } from './components/sections/components/ComponentRegistry/map/map.theme'
 
 export default {
     sectionGroup: sectionGroupTheme,
@@ -19,6 +21,8 @@ export default {
     complexFilters: complexFiltersTheme,
     templateManager: templateManagerTheme,
     timePicker: timePickerTheme,
+    pageTemplatePicker: pageTemplatePickerTheme,
+    damaMap: damaMapTheme,
 }
 
 export const pagesThemeSettings = (theme) => {

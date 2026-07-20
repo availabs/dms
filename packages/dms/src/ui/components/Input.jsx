@@ -3,22 +3,26 @@ import Icon from './Icon'
 import {ThemeContext} from '../useTheme'
 import {inputTheme} from './Input.theme'
 
-export default function Input ({ type='text', label, description, value, onChange=() => {}, placeholder, disabled, onClick=()=>{}, rounded,...props}) {
+// `activeStyle` is a THEMING key (named-style selector) that themed callers (filter controls,
+// column types) pass alongside real input props — destructure it out so it never spreads onto
+// the DOM <input> (React unknown-prop warning). Input doesn't resolve styles[] today; if it
+// grows named styles, wire activeStyle into getComponentTheme here.
+export default function Input ({ type='text', label, description, value, onChange=() => {}, placeholder, disabled, onClick=()=>{}, rounded, activeStyle, ...props}) {
   const { theme: themeFromContext = {} } = React.useContext(ThemeContext);
   const theme = {...themeFromContext, input: {...inputTheme, ...(themeFromContext.input || {})}};
   return (
     <span className={`${theme?.input?.inputContainer}`}>
-      <input type={type} className={`${theme?.input?.input}`} value={value} onChange={onChange} disabled={disabled} {...props}/>
+      <input type={type} className={`${theme?.input?.input}`} value={value} onChange={onChange} placeholder={placeholder} disabled={disabled} {...props}/>
     </span>
   )
 }
 
-export function Textarea ({ type='text', label, description, value, onChange=() => {}, placeholder, disabled, onClick=()=>{}, rounded,...props}) {
+export function Textarea ({ type='text', label, description, value, onChange=() => {}, placeholder, disabled, onClick=()=>{}, rounded, activeStyle, ...props}) {
   const { theme: themeFromContext = {} } = React.useContext(ThemeContext);
   const theme = {...themeFromContext, input: {...inputTheme, ...(themeFromContext.input || {})}};
   return (
     <span className={`${theme?.input?.inputContainer}`}>
-      <textarea className={`${theme?.input?.textarea}`} value={value} onChange={onChange} disabled={disabled} {...props}/>
+      <textarea className={`${theme?.input?.textarea}`} value={value} onChange={onChange} placeholder={placeholder} disabled={disabled} {...props}/>
     </span>
   )
 }

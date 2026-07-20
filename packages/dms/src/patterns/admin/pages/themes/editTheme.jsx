@@ -8,8 +8,7 @@ import { cloneDeep, get, set } from "lodash-es";
 
 import { ThemeContext, mergeTheme } from "../../../../ui/useTheme";
 import { AdminContext } from "../../context";
-import { isUserAuthed } from '../../utils';
-import { parseIfJSON } from '../../../page/pages/_utils';
+import { isUserAuthed, parseIfJSON } from '../../utils';
 import { editThemeTheme } from './editTheme.theme';
 const DefaultComp = () => <div>Component not registered.</div>
 const ComponentRenderer = ({Component=DefaultComp, props}) => <Component {...props} />;

@@ -13,19 +13,15 @@ import {
     isCalculatedCol,
     legacyStateToBuildInput,
     attributeAccessorStr,
+    isJoinComplete,
 } from "./buildUdaConfig";
 import { calculateIsJoinPresent } from "./utils/joinUtils";
+import { getPivotValues, isMultiValue, pivotColName } from "./pivotUtils";
 
 // ─── Private helpers ────────────────────────────────────────────────────────
 
-const slugForPivot = (v) =>
-    String(v).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
-
-// For calculated columns ("expr as alias"), return the alias; otherwise return the name as-is.
-const colKey = (name) => {
-    const parts = name.split(/\s+as\s+/i);
-    return (parts.length > 1 ? parts[parts.length - 1] : parts[0]).trim();
-};
+// slugForPivot / colKey / pivotColName / getPivotValues live in ./pivotUtils
+// (shared with usePivotDistinctValues so column naming matches exactly).
 
 // conditions: [{ ref, value }, ...] — ANDed together (one per pivot column)
 const buildPivotCaseExpr = ({ conditions, valueRef, fn, alias, isDms }) => {
@@ -103,6 +99,67 @@ const evaluateAST = (node, values) => {
     }
 };
 
+// ─── Create-time column defaults (addItem — both wrappers) ──────────────────
+// BC: only engaged when a column sets the attr, and only for fields the author
+// left blank. `defaultValue` is a static fill (a new ticket's status "Triage");
+// `defaultFn` is a DYNAMIC fill — 'today' (YYYY-MM-DD, the control-room date
+// format), 'now' (full ISO timestamp), 'user' (the logged-in user's email, from
+// CMSContext — skipped when anonymous so a later heal can still fill it);
+// `autoNumber` assigns the next sequential number for the column across the
+// WHOLE source (max+1, floored by autoNumberStart-1) — queried through the same
+// uda path the section reads, deliberately WITHOUT the section's filters (an
+// add-new form Card often carries a never-match filter so only the form
+// renders). Non-numeric stored values are ignored by the max rather than fatal.
+// On fetch failure the create proceeds without the number — sync-side healing
+// (e.g. cr_sync ticket hygiene) remains the backstop.
+const CREATE_DEFAULT_FNS = {
+    today: () => new Date().toISOString().slice(0, 10),
+    // "YYYY-MM-DD HH:MM:SS" (UTC) — not raw ISO: cells display the value verbatim, and the
+    // space format string-sorts correctly alongside date-only values in the same column.
+    now: () => new Date().toISOString().slice(0, 19).replace("T", " "),
+    user: ({ user }) => user?.email || undefined,
+};
+
+export const applyCreateDefaults = async ({ columns, newItem, apiLoad, externalSource, user }) => {
+    const data = { ...newItem };
+    // For DMS sources the uda env is `${app}+${instance}` and externalSource.type IS the
+    // instance slug. Do NOT trust externalSource.env here: the runtime source-list reconcile
+    // (useDataSource getSources) re-derives env from the DISPLAY name's slug, which drifts
+    // from the instance whenever they differ ("Site Management — Tickets" →
+    // site_management__tickets vs instance sitemgmt_tickets) and the route then resolves no
+    // source → aggregate comes back null.
+    const src = externalSource || {};
+    const format = src.app && src.type ? { ...src, env: `${src.app}+${src.type}` } : src;
+    for (const c of (columns || [])) {
+        if (data[c.name] != null && data[c.name] !== "") continue;
+        if (c.defaultValue != null) { data[c.name] = c.defaultValue; continue; }
+        if (c.defaultFn && CREATE_DEFAULT_FNS[c.defaultFn]) {
+            const v = CREATE_DEFAULT_FNS[c.defaultFn]({ user });
+            if (v !== undefined) data[c.name] = v;
+            continue;
+        }
+        if (!c.autoNumber) continue;
+        const attr = `max(nullif(regexp_replace((data->>'${c.name}'), '[^0-9]', '', 'g'), '')::bigint) as _autonum`;
+        try {
+            const rows = await apiLoad({
+                format,
+                children: [{
+                    type: () => {},
+                    action: "uda",
+                    path: "/",
+                    filter: { fromIndex: 0, toIndex: 0, options: JSON.stringify({}), attributes: [attr], stopFullDataLoad: true },
+                }],
+            }, "/");
+            const raw = rows?.[0]?.[attr];
+            const mx = +(raw?.value ?? raw) || 0;
+            data[c.name] = String(Math.max(mx, (+c.autoNumberStart || 1) - 1) + 1);
+        } catch (e) {
+            if (process.env.NODE_ENV === "development") console.error("autoNumber fetch failed", e);
+        }
+    }
+    return data;
+};
+
 // ─── getLength ──────────────────────────────────────────────────────────────
 
 export const getLength = async ({ options, state, apiLoad }) => {
@@ -133,7 +190,12 @@ export const getData = async ({
     currentPage = 0,
     debugCall,
     debugTime,
-    optionsOnly = false
+    optionsOnly = false,
+    refreshToken,
+    // Cache-key discriminator only, folded into `options` below — prevents sibling
+    // sections with matching filter/groupBy/join from colliding on the same Falcor
+    // path. Never read server-side (see falcor-sibling-query-cache-collision.md).
+    sectionId,
 }) => {
     debugTime && console.time('getData fn')
     const debug = debugCall || false;
@@ -183,7 +245,12 @@ export const getData = async ({
     let options, columnsToFetch, columnsWithSettings, outputSourceInfo, skipFetch;
 
     if (isPivotMode) {
-        const { rowColumn, valueColumn, aggregateFn = 'count' } = state.pivot;
+        const { rowColumn } = state.pivot;
+        // One or more value columns to spread. Legacy single `valueColumn` +
+        // `aggregateFn` still works via getPivotValues; `valueColumns[]` (each with
+        // its own aggregateFn) produces one column per (combo × value).
+        const values = getPivotValues(state.pivot);
+        const multiValue = isMultiValue(state.pivot);
 
         // Call buildUdaConfig with the row column (group: true) when set so filters are
         // resolved correctly. Without a row column, pass an empty columns array —
@@ -194,19 +261,20 @@ export const getData = async ({
         const pivotBuilderInput = { ...builderInput, columns: pivotBuilderColumns };
         ({ options, columnsToFetch, columnsWithSettings, outputSourceInfo, skipFetch } = buildUdaConfig(pivotBuilderInput));
 
-        const valueRef = valueColumn ? attributeAccessorStr(valueColumn, isDms, false, false) : null;
-
-        // Build CASE columns for every combination of distinct values (cartesian product).
+        // Build CASE columns for every (combo × value column). Combos are the outer
+        // loop so a period's metrics stay adjacent (period1_speed, period1_tt, …),
+        // matching the header grouping in usePivotDistinctValues.
         const combinations = cartesian(pivotColumns.map(col => distinctValuesByColumn[col] || []));
-        const caseColumns = combinations.map(combo => {
-            const alias = combo.map((v, i) => `${slugForPivot(colKey(pivotColumns[i]))}_${slugForPivot(v)}`).join('__');
+        const caseColumns = combinations.flatMap(combo => values.map(vc => {
+            const alias = pivotColName(combo, pivotColumns, vc, multiValue);
             const conditions = combo.map((v, i) => ({
                 ref: attributeAccessorStr(pivotColumns[i], isDms, isCalculatedCol({ name: pivotColumns[i] }), false),
                 value: v,
             }));
-            const expr = buildPivotCaseExpr({ conditions, valueRef, fn: aggregateFn, alias, isDms });
+            const valueRef = vc.column ? attributeAccessorStr(vc.column, isDms, false, false) : null;
+            const expr = buildPivotCaseExpr({ conditions, valueRef, fn: vc.aggregateFn, alias, isDms });
             return { name: alias, reqName: expr, normalName: alias, isPivotCol: true };
-        });
+        }));
 
         if (rowColumn) {
             const rowRef = attributeAccessorStr(rowColumn, isDms, false, false);
@@ -224,6 +292,14 @@ export const getData = async ({
     }
 
     if (keepOriginalValues) options.keepOriginalValues = keepOriginalValues;
+    // data_refresh subscriber token (useDataLoader): a no-op options key that makes the uda
+    // paths (length + rows) DISTINCT per published value, because the falcor cache serves
+    // repeat paths without a network trip — same-path "refetches" would return the stale
+    // pre-write rows. The server destructures known options keys and ignores `_r`.
+    if (refreshToken !== undefined) options._r = refreshToken;
+    // Cache-key discriminator (see the sectionId param note above) — set here so
+    // getLength's `optionsForLen` spread picks it up too.
+    if (sectionId) options.sectionId = sectionId;
 
     debugTime && console.timeEnd('buildUdaConfig')
 
@@ -268,12 +344,22 @@ export const getData = async ({
         return { length: 0, data: [], invalidState: "An Error occurred while fetching data." };
     }
     const actionType = "uda";
-    const fromIndex = isOptionsLoad || fullDataLoad ? 0 : currentPage * state.display.pageSize;
+    // A pivot cross-tab returns one row per row-group (bounded by `length`) and has no
+    // pagination UI — always fetch the full set. Also coerce pageSize to a safe number:
+    // a `usePagination:false` section can omit pageSize, and `currentPage * undefined`
+    // is NaN, which serializes to a null `dataByIndex` range → the server returns 0 rows
+    // and the section hangs on "loading..." (route-comparison pivot page bug).
+    const loadAllRows = isPivotMode || fullDataLoad;
+    const safePageSize = Number(state.display?.pageSize) > 0 ? Number(state.display.pageSize) : 25;
+    const fromIndex = isOptionsLoad || loadAllRows ? 0 : currentPage * safePageSize;
+    // dataByIndex `to` is INCLUSIVE (a length-N result spans indices 0..N-1), so the
+    // full-load end index is length-1. Requesting `length` fetches one extra out-of-range
+    // slot that comes back as an empty Falcor atom and renders as a phantom "loading" row.
     const toIndex = isOptionsLoad
         ? OPTIONS_LIMIT - 1
-        : fullDataLoad
-            ? length
-            : Math.min(length, currentPage * state.display.pageSize + state.display.pageSize) - 1;
+        : loadAllRows
+            ? length - 1
+            : Math.min(length, currentPage * safePageSize + safePageSize) - 1;
     if (fromIndex >= length) {
         // Empty-result fallback. Opt-in via `display.useBlankRowFallback`.
         // When the real query returned 0 rows AND the section has opted in,
@@ -328,16 +414,34 @@ export const getData = async ({
     }
     // When a join is present, every base-table column reference must be
     // alias-qualified to avoid Postgres "column ambiguous" errors. Use ds.id.
-    const joinPresent = isJoinPresent;
-    const idCol = joinPresent ? "ds.id" : "id";
+    // isJoinComplete expects a single join-source object (source/view/mergeStrategy/
+    // joinColumns), not the {sources:{...}} container — check each alias individually,
+    // mirroring the per-alias filtering buildUdaConfig does before it builds the query.
+    const joinPresent = isJoinPresent && Object.values(join.sources || {}).some(isJoinComplete);
+    // DMS split tables always have a real `id` column. External sources can have a
+    // primary key on any column (see set_primary_col_from_meta.md) — for an editable
+    // one, request a literal "id" attribute anyway (mirroring the isDms convention
+    // below) and let the SERVER resolve it to the real PK column, aliased AS id
+    // (uda.controller.js's resolveIdAttribute, the single live-authoritative place
+    // this is already resolved for the write path too). This deliberately does NOT
+    // have the client track the PK column name itself — an earlier version of this
+    // fix did, and broke silently: the persisted metadata.columns[].isPrimaryKey flag
+    // is only set when a PK is set *through the metadata UI*, so an auto-detected
+    // pre-existing PK (e.g. a GIS source's ogc_fid) never gets it, leaving the
+    // client's cached column name null forever even on a genuinely editable source
+    // (see external-source-editable-crud.md). Join support for editable-external
+    // sources is a follow-on — not handled here, falls through to "no id requested"
+    // exactly like the pre-feature external behavior.
+    const isEditableExternal = !isDms && Boolean(sourceInfo?.isEditable) && !joinPresent;
+    const idRefCol = joinPresent ? "ds.id" : "id";
     const idReq = joinPresent ? "ds.id as id" : "id";
-    if (isDms && !isPivotMode && !options.groupBy.length && !fnColumnsExists) {
-        columnsToFetch.push({ name: idCol, reqName: idReq });
-        options.orderBy[idCol] = Object.values(options.orderBy || {})?.[0] || "asc";
+    if ((isDms || isEditableExternal) && !isPivotMode && !options.groupBy.length && !fnColumnsExists) {
+        columnsToFetch.push({ name: "id", reqName: idReq });
+        options.orderBy[idRefCol] = Object.values(options.orderBy || {})?.[0] || "asc";
     } else {
-        const idx = columnsToFetch.findIndex((column) => column.name === idCol || column.name === "id");
+        const idx = columnsToFetch.findIndex((column) => column.name === "id");
         if (idx !== -1) columnsToFetch.splice(idx, 1);
-        delete options.orderBy[idCol];
+        delete options.orderBy[idRefCol];
         delete options.orderBy.id;
     }
     debugTime && console.timeEnd('check columns')
@@ -432,6 +536,7 @@ export const getData = async ({
                         exclude: options.exclude,
                         filterGroups: options.filterGroups,
                         normalFilter: options.normalFilter,
+                        sectionId: options.sectionId,
                     }),
                     attributes: columnsToFetch
                         .filter((c) => c.showTotal || state.display.showTotal)
@@ -489,8 +594,21 @@ export const getData = async ({
 
         Object.keys(d).forEach(dKey => {
             const curCol = state.columns.find(c => c.name === dKey);
-            const formattedKey = dKey.split(".").length > 1 && !isCalculatedCol(curCol || {}) ? dKey.split(".")[1] : dKey;
-            newD[formattedKey] = d[dKey]
+            const isQualified = dKey.split(".").length > 1 && !isCalculatedCol(curCol || {});
+            if (isQualified) {
+                // Strip the join alias so an unqualified display column (rt.route_id → route_id)
+                // resolves — the long-standing behavior. ALSO keep the original alias-qualified
+                // key so a display column that references the column by its EXACT qualified name
+                // resolves too. A pivot row column keeps its qualified `name` (e.g. `rt.route_id`)
+                // as its display key and would otherwise render blank (the metric CASE aliases
+                // have no dot, so they were never affected). Additive/BC: the stripped key is
+                // unchanged; the xlsx download iterates column names, not raw data keys, so the
+                // extra qualified key is ignored there.
+                newD[dKey.split(".")[1]] = d[dKey];
+                newD[dKey] = d[dKey];
+            } else {
+                newD[dKey] = d[dKey];
+            }
         })
 
         return newD;

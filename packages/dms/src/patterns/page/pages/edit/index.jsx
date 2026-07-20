@@ -1,11 +1,11 @@
-import React, {useEffect} from 'react';
+import React, {useEffect, useRef} from 'react';
 import { Link, Navigate, useNavigate, useLocation, useSearchParams} from "react-router";
 import {cloneDeep} from "lodash-es";
 import {useImmer} from "use-immer";
 import { ThemeContext, mergeTheme } from "../../../../ui/useTheme";
 import { CMSContext, PageContext, DataSourceContext } from '../../context';
 import {
-    sectionsEditBackill, dataItemsNav, nav2Level, mergeFilters, detectNavLevel, getInPageNav,
+    sectionsEditBackill, dataItemsNav, nav2Level, mergeFilters, getPageVariableRegistry, detectNavLevel, getInPageNav,
     convertToUrlParams, updatePageStateFiltersOnSearchParamChange, initNavigateUsingSearchParams, getPageAuthPermissions
 } from '../_utils'
 import SectionGroup from '../../components/sections/sectionGroup'
@@ -18,10 +18,10 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
 	const { pathname = '/edit', search } = useLocation();
 
 	const { theme: fullTheme, UI, getComponentTheme } = React.useContext(ThemeContext);
-	const {  Menu, baseUrl, user, patternFilters=[], isUserAuthed, authBaseUrl } = React.useContext(CMSContext) || {};
+	const {  Menu, baseUrl, user, patternFilters=[], isUserAuthed, authBaseUrl, API_HOST, app } = React.useContext(CMSContext) || {};
 	const dataItems = allDataItems.filter(d => !d.authPermissions || isUserAuthed(reqPermissions, d.authPermissions));
 
-	const [ pageState, setPageState ] = useImmer({ ...item, filters: mergeFilters(item.filters, patternFilters) });
+	const [ pageState, setPageState ] = useImmer({ ...item, filters: getPageVariableRegistry(item, patternFilters) });
 	const [ editPane, setEditPane ] = React.useState({ open: false, index: 1, showGrid: false });
 	const [ draftDataSources, setDraftDataSources ] = useImmer(item.draft_dataSources || {});
 
@@ -116,11 +116,36 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
 
 	useEffect(() => {
 		updatePageStateFiltersOnSearchParamChange({searchParams, item, patternFilters, setPageState})
-	}, [searchParams, item?.filters]);
+		// Depend on item?.id (+ sections length), not just item?.filters: a page's
+		// DERIVED page vars (e.g. a map's `layers`) come from item.sections and
+		// item.filters is usually undefined, so on SPA navigation this URL→state
+		// mapping must re-run when the item resolves — else params only register on
+		// a full reload. See view.jsx for the matching fix.
+	}, [searchParams, item?.id, item?.filters, item?.sections?.length]);
 
 	useEffect(() => {
 		initNavigateUsingSearchParams({pageState, search, navigate, baseUrl, item})
 	}, [])
+
+	const pageAuthPermissions = getPageAuthPermissions(pageState?.authPermissions);
+	const isEditDenied = item?.id === 'no-access' ||
+		!isUserAuthed(reqPermissions) ||
+		(pageAuthPermissions && !isUserAuthed(reqPermissions, pageAuthPermissions));
+
+	const hasTrackedVisitRef = useRef(null);
+	useEffect(() => {
+		if (!item?.id || !app || !API_HOST || user?.isAuthenticating) return;
+		if (hasTrackedVisitRef.current === item.id) return;
+		const urlFilters = (pageState?.filters || []).filter(f => f.useSearchParams);
+		if (urlFilters.length && !search) return;
+		const action = isEditDenied ? 'denied' : 'edit';
+		fetch(`${API_HOST}/track/visit`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', Authorization: user?.token },
+			body: JSON.stringify({ app, pageId: item.id === 'no-access' ? null : item.id, url: window.location.href, action }),
+		}).catch(() => {});
+		hasTrackedVisitRef.current = item.id;
+	}, [item?.id, user?.isAuthenticating, search]);
 
 	const setActionParam = React.useCallback((key, value) => {
 		setPageState(draft => {
@@ -203,7 +228,6 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
 	}
 	if(!item) return <div>page does not exist.</div>;
 
-    const pageAuthPermissions = getPageAuthPermissions(pageState?.authPermissions);
 	if( !isUserAuthed(reqPermissions) || !isUserAuthed(reqPermissions, pageAuthPermissions) ){
 		if (user?.authed) {
 			return <Navigate to={`${baseUrl}/${item.url_slug}${search}`} />;
@@ -226,7 +250,15 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
 			editPane, setEditPane,
 			format,
 			busy,
-      baseUrl
+      baseUrl,
+      // Page-level edit mode — true for the whole /edit/... route, independent of any
+      // individual section's own `isEdit` prop (which only means "this section's own
+      // settings editor is open" — a per-component flag from dataWrapper's Edit/View,
+      // almost never true in normal interactive use). A component that needs to know
+      // whichever sections array (`draft_sections` vs `sections`) its siblings are
+      // actually rendering from right now must key off this, not its own `isEdit`
+      // prop. Absent (falsy) on view.jsx's PageContext.
+      editPageMode: true
 		}}>
 			<ThemeContext.Provider value={{theme, UI, getComponentTheme}}>
 				<PageControls />

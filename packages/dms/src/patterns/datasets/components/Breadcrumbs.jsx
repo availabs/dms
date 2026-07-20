@@ -1,59 +1,46 @@
 import React, {useContext} from 'react'
 import {Link} from 'react-router'
 import {DatasetsContext} from '../context'
-import {ThemeContext} from '../../../ui/useTheme'
+import {ThemeContext, getComponentTheme} from '../../../ui/useTheme'
 import {breadcrumbsTheme} from './Breadcrumbs.theme'
 
-const Separator = ({className}) => (
-    <svg
-        className={className}
-        viewBox="0 0 30 44"
-        preserveAspectRatio="none"
-        fill="currentColor"
-        xmlns="http://www.w3.org/2000/svg"
-        aria-hidden="true"
-    >
-        <path d="M.293 0l22 22-22 22h1.414l22-22-22-22H.293z"/>
-    </svg>
-)
-
 /**
- * Unified breadcrumb component for datasets pattern.
+ * Unified breadcrumb bar for the datasets pattern.
  *
  * @param {Array} items - [{name, href?, icon?}]
- *   First item typically has icon='Database' and href=baseUrl.
- *   Last item typically has no href (current page).
+ *   First item typically carries icon='Database' + href=baseUrl and renders the
+ *   "Data Sources" root (icon + label). The last item (no href) is the current page.
+ *
+ * Themed via `datasets.breadcrumbs` (getComponentTheme); a `/` separator sits
+ * between crumbs, and the current (last) crumb uses `t.current`.
  */
-export default function Breadcrumbs({items}) {
+export default function Breadcrumbs({items = []}) {
     const {UI} = useContext(DatasetsContext)
-    const {theme} = useContext(ThemeContext)
+    const {theme} = useContext(ThemeContext) || {}
     const {Icon} = UI
-    const t = theme?.datasets?.breadcrumbs || breadcrumbsTheme
+    const t = {...breadcrumbsTheme, ...getComponentTheme(theme, 'datasets.breadcrumbs')}
 
     return (
         <nav className={t.nav} aria-label="Breadcrumb">
             <ol className={t.ol}>
-                {items.map((item, i) => (
-                    <li key={i} className={t.li}>
-                        <div className={t.itemInner}>
-                            {i > 0 && <Separator className={t.separator}/>}
+                {items.map((item, i) => {
+                    const isLast = i === items.length - 1
+                    return (
+                        <li key={i} className={t.li}>
+                            {i > 0 && <span className={t.separator} aria-hidden="true">/</span>}
                             {item.icon ? (
                                 <Link to={item.href || '/'} className={t.homeLink}>
                                     <Icon icon={item.icon} className={t.homeIcon}/>
-                                    <span className={t.homeLabel}>Data Sources</span>
+                                    <span className={t.homeLabel}>{item.name || 'Data Sources'}</span>
                                 </Link>
-                            ) : item.href ? (
-                                <Link to={item.href} className={t.link}>
-                                    {item.name}
-                                </Link>
+                            ) : item.href && !isLast ? (
+                                <Link to={item.href} className={t.link}>{item.name}</Link>
                             ) : (
-                                <div className={t.link}>
-                                    {item.name}
-                                </div>
+                                <div className={t.current} aria-current="page">{item.name}</div>
                             )}
-                        </div>
-                    </li>
-                ))}
+                        </li>
+                    )
+                })}
             </ol>
         </nav>
     )

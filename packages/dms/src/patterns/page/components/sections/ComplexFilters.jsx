@@ -51,8 +51,13 @@ const emptyCondition = (columns) => ({
     source_id: columns?.[0]?.source_id ?? null
 });
 
-// only in edit mode
-export const ComplexFilters = ({ state, setState }) => {
+// only in edit mode.
+// `value` / `onSave` are optional overrides: when provided, the editor seeds from
+// and commits to that tree instead of `state.filters` — used by the comparison-
+// series menu to edit a variant's filter delta with the same builder. Columns /
+// join still come from `state` (variants filter the same dataset). When omitted,
+// behavior is identical to the original `state.filters` read/write.
+export const ComplexFilters = ({ state, setState, value, onSave }) => {
     const { UI, theme: themeFromContext = {} } = useContext(ThemeContext) || {};
     const { Pill, Icon, Popup, Switch, MultiSelect, Input, ColumnTypes: {select} } = UI;
     const t = { ...complexFiltersTheme, ...getComponentTheme(themeFromContext, 'complexFilters') };
@@ -69,9 +74,9 @@ export const ComplexFilters = ({ state, setState }) => {
     ];
     const isGrouping = (state.columns || []).some(c => c.group);
 
+    const seed = value ?? state?.filters;
     const [filterGroups, updateFilterGroups] = useImmer(
-        Object.entries(state?.filters || {}).length ?
-            state?.filters || {} : { op: 'AND', groups: [] }
+        Object.entries(seed || {}).length ? seed : { op: 'AND', groups: [] }
     );
 
     // Cheap dirty check: structural changes always count; value changes only for
@@ -144,6 +149,10 @@ export const ComplexFilters = ({ state, setState }) => {
 
     // sync upward if needed
     const save = () => {
+        if (onSave) {
+            onSave(filterGroups);
+            return;
+        }
         setState(draft => {
             draft.filters = filterGroups;
         });
@@ -251,7 +260,7 @@ export const ComplexFilters = ({ state, setState }) => {
         // condition (leaf)
         const isStale = node.col && !columns.find(c => c.name === node.col);
         const siblingConditions = parentOp === 'AND' ? parentLeafSiblings.filter(s => s !== node) : [];
-        const showValueEditor = !['is_null', 'is_not_null'].includes(node.op);
+        const showValueEditor = !['is_null', 'is_not_null', 'empty', 'notempty'].includes(node.op);
         return (
             <div
                 key={path.join('.')}
@@ -465,6 +474,9 @@ export const ComplexFilters = ({ state, setState }) => {
                             { label: ' <= ', value: 'lte' },
                             { label: 'exclude N/A', value: 'is_not_null' },
                             { label: 'show only N/As', value: 'is_null' },
+                            // `empty` / `notempty` are unary — no value input (see showValueEditor).
+                            { label: 'is empty', value: 'empty' },
+                            { label: 'is not empty', value: 'notempty' },
                             // `time` is a structured op — only meaningful for date/timestamp
                             // columns. Surface it only when the selected column qualifies so
                             // it can't be applied to text/number columns.
@@ -481,7 +493,7 @@ export const ComplexFilters = ({ state, setState }) => {
                                 n.op = newOp;
                                 // Reset the value shape when switching between fundamentally
                                 // different ops (multi vs scalar, time vs scalar, IS [NOT] NULL).
-                                if (isTime !== wasTime || wasMulti !== isMulti || ['is_null', 'is_not_null'].includes(newOp)) {
+                                if (isTime !== wasTime || wasMulti !== isMulti || ['is_null', 'is_not_null', 'empty', 'notempty'].includes(newOp)) {
                                     if (isTime) n.value = {};
                                     else if (isMulti) n.value = [];
                                     else n.value = '';

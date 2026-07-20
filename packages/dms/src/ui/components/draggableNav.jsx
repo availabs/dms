@@ -222,8 +222,9 @@ function DraggableNav({
     let matchId = matchRoutes(matchItems, {pathname: pathname.replace(baseUrl, '').replace('edit/', '')})?.[0]?.route?.id || -1
     let matches = findParents(localData, matchId)
 
-    const dataItemsObj = (localData || dataItemsProp).reduce((out, curr) => {
-        out[curr.id] = { ...curr, children: getChildNav(curr, (localData || dataItemsProp), baseUrl, edit, matches) };
+    const validData = (localData || dataItemsProp).filter(d => d.id !== 'no-access');
+    const dataItemsObj = validData.reduce((out, curr) => {
+        out[curr.id] = { ...curr, children: getChildNav(curr, validData, baseUrl, edit, matches) };
         return out;
     }, {});
 
@@ -319,8 +320,14 @@ function updateNav(items, parentId = '', dataItemsHash) {
 
 
 function getChildNav(item, dataItems, baseUrl, edit = true, matches=[]) {
+    // A row with no id can't be a parent. Guard against this so that corrupt/empty
+    // rows (e.g. ghost pages left behind by a pattern duplicate, where data.id and
+    // data.parent are both undefined) don't match each other via `undefined === undefined`
+    // below — which makes them their own children and recurses until the stack blows.
+    if (item.id == null) return []
+
     let children = dataItems
-        .filter(d => d.parent === item.id)
+        .filter(d => d.parent != null && d.parent === item.id)
         .sort((a, b) => a.index - b.index)
 
     return children.map((d, i) => {

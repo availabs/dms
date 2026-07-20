@@ -9,8 +9,9 @@
  *   mapped_options loading, CRUD, save/onChange, page filter sync.
  */
 
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, useContext } from "react";
 import { isEqual } from "lodash-es";
+import { PageContext } from "../../../../context";
 import { getData } from "./getData";
 import { hasUnresolvedRequiredLeaf } from "./buildUdaConfig";
 import { useNowTick } from "./hooks/useNowTick";
@@ -57,7 +58,7 @@ function computeFetchKey(state) {
       pageSize: state.display?.pageSize,
       showTotal: state.display?.showTotal,
       join: state.join,
-      customBuckets: state.customBuckets,
+      comparisonSeries: state.comparisonSeries,
       pivot: state.pivot?.enabled ? {
         rowColumn: state.pivot.rowColumn,
         pivotColumns: state.pivot.pivotColumns?.length ? state.pivot.pivotColumns
@@ -80,9 +81,11 @@ function computeFetchKey(state) {
  * @param {Function} params.apiLoad    - DMS data loader function
  * @param {Object}   params.component  - Component config (fullDataLoad, keepOriginalValues, useGetDataOnPageChange)
  * @param {boolean}  params.isEditMode - True in Edit mode: always fetch with dedup, ignoring fetchMode
+ * @param {string}   [params.sectionId]  - DB row id of the hosting section (Falcor cache-key discriminator)
+ * @param {string}   [params.trackingId] - Stable-across-recreate id, preferred over sectionId when present
  * @returns {{ loading: boolean, currentPage: number, onPageChange: Function }}
  */
-export function useDataLoader({ state, setState, apiLoad, component, isEditMode = false }) {
+export function useDataLoader({ state, setState, apiLoad, component, isEditMode = false, sectionId, trackingId }) {
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
   // Seed the dedup ref when state already has data (e.g., from preloadSectionData).
@@ -92,6 +95,14 @@ export function useDataLoader({ state, setState, apiLoad, component, isEditMode 
     state.data?.length && (state.externalSource?.source_id || state.externalSource?.isDms) ? computeFetchKey(state) : null
   );
   const outputSourceInfoRef = useRef(null);
+  // Generation counter shared by the main load effect and onPageChange — both
+  // write draft.data. Two fetches can be in flight at once (e.g. an unfiltered
+  // request fired before a page filter/comparison-series binding resolves,
+  // superseded moments later by the correctly-scoped request) and network
+  // responses can resolve out of order. Only the response matching the most
+  // recently issued request is ever applied; a stale, slower response is
+  // discarded instead of clobbering fresher data.
+  const requestIdRef = useRef(0);
 
   // ─── Local filters (client-side slicing) ───────────────────────────────────
 
@@ -154,7 +165,7 @@ export function useDataLoader({ state, setState, apiLoad, component, isEditMode 
         draft.display.filteredLength = filteredData.length;
       });
     },
-    [localFilters, hasLocalFilters, state.columns, state.display?.pageSize, setState, state.data, state.fullData, state?.customBuckets],
+    [localFilters, hasLocalFilters, state.columns, state.display?.pageSize, setState, state.data, state.fullData],
   );
 
   // ─── Reset local filter data when filters are cleared ──────────────────────
@@ -189,9 +200,27 @@ export function useDataLoader({ state, setState, apiLoad, component, isEditMode 
   const tickTz = RESOLVED_TZ;
   const nowTick = useNowTick({ granularity: tickGranularity, tz: tickTz });
 
+  // ─── data_refresh subscriber ───────────────────────────────────────────────
+  // A section subscribed to an action param refetches whenever that param's
+  // published value changes: the value is mixed into the fetchKey (same pattern
+  // as nowTick), so the dedup naturally allows exactly one refetch per publish.
+  // Providers publish a fresh value per event (e.g. the Card add_publish
+  // provider publishes the created row id), which is what lets a create in one
+  // section refresh another section's data without a reload. Inert while the
+  // param is unset. Note: fetchMode 'cache' sections never fetch (readyToLoad
+  // gate) — subscribers should be 'smart'/'force'.
+  const { pageState } = useContext(PageContext) || {};
+  const refreshSub = state?.display?._functions?.subscribers?.find(
+    (s) => s.functionId === 'data_refresh' && s.enabled,
+  );
+  const dataRefreshToken = refreshSub
+    ? pageState?.filters?.find((f) => f.searchKey === refreshSub.paramKey && f.type === 'action')?.values?.[0]
+    : undefined;
+
   const fetchKey = useMemo(() => {
     const base = computeFetchKey(state);
-    return tickGranularity ? `${base}|tick:${nowTick}` : base;
+    const withTick = tickGranularity ? `${base}|tick:${nowTick}` : base;
+    return dataRefreshToken !== undefined ? `${withTick}|refresh:${dataRefreshToken}` : withTick;
   }, [
     state.columns,
     state.filters,
@@ -203,9 +232,10 @@ export function useDataLoader({ state, setState, apiLoad, component, isEditMode 
     state.display?.showTotal,
     state.join,
     state.pivot,
-    state.customBuckets,
+    state.comparisonSeries,
     tickGranularity,
     nowTick,
+    dataRefreshToken,
   ]);
 
   const isValidState = Boolean(state?.externalSource?.source_id || state?.externalSource?.isDms);
@@ -235,6 +265,7 @@ export function useDataLoader({ state, setState, apiLoad, component, isEditMode 
       if (!bypassDedup && fetchKey === lastFetchKeyRef.current) return;
 
       async function load() {
+        const requestId = ++requestIdRef.current;
         setLoading(true);
         try {
           const { length, data, invalidState, outputSourceInfo } = await getData({
@@ -243,7 +274,12 @@ export function useDataLoader({ state, setState, apiLoad, component, isEditMode 
             fullDataLoad: component.fullDataLoad,
             keepOriginalValues: component.keepOriginalValues,
             optionsOnly: component.optionsOnly,
+            refreshToken: dataRefreshToken,
+            sectionId: trackingId || sectionId,
           });
+
+          // A newer request has since been issued — discard this stale response.
+          if (requestId !== requestIdRef.current) return;
 
           lastFetchKeyRef.current = fetchKey;
           setCurrentPage(0);
@@ -259,7 +295,7 @@ export function useDataLoader({ state, setState, apiLoad, component, isEditMode 
         } catch (e) {
           console.error("useDataLoader: fetch error", e);
         } finally {
-          setLoading(false);
+          if (requestId === requestIdRef.current) setLoading(false);
         }
       }
 
@@ -284,6 +320,7 @@ export function useDataLoader({ state, setState, apiLoad, component, isEditMode 
       const hasMore = page * state.display.pageSize - state.display.totalLength <= 0;
       if (!hasMore) return;
 
+      const requestId = ++requestIdRef.current;
       setLoading(true);
       try {
         const { length, data } = await getData({
@@ -292,7 +329,13 @@ export function useDataLoader({ state, setState, apiLoad, component, isEditMode 
           apiLoad,
           keepOriginalValues: component.keepOriginalValues,
           optionsOnly: component.optionsOnly,
+          refreshToken: dataRefreshToken,
+          sectionId: trackingId || sectionId,
         });
+
+        // A newer request (page change or filter-driven refetch) has since
+        // been issued — discard this stale response.
+        if (requestId !== requestIdRef.current) return;
 
         setCurrentPage(page);
         setState((draft) => {
@@ -302,7 +345,7 @@ export function useDataLoader({ state, setState, apiLoad, component, isEditMode 
           draft.display.totalLength = length;
         });
       } finally {
-        setLoading(false);
+        if (requestId === requestIdRef.current) setLoading(false);
       }
     },
     [
@@ -314,6 +357,7 @@ export function useDataLoader({ state, setState, apiLoad, component, isEditMode 
       state,
       apiLoad,
       setState,
+      dataRefreshToken,
     ],
   );
 

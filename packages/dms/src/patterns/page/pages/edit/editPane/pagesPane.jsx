@@ -5,6 +5,7 @@ import { CMSContext,PageContext } from '../../../context'
 import {json2DmsForm, getUrlSlug, getPageAuthPermissions} from '../../_utils'
 import {publish, discardChanges, insertSubPage, duplicateItem, newPage} from '../editFunctions'
 import {ThemeContext} from "../../../../../ui/useTheme";
+import PageTemplatePicker from '../../../components/PageTemplatePicker';
 
 
 function AddPageButton () {
@@ -13,21 +14,27 @@ function AddPageButton () {
     const { UI } = React.useContext(ThemeContext);
     const { Button } = UI;
     const [loading, setLoading] = useState(false);
+    const [pickerOpen, setPickerOpen] = useState(false);
 
-    const addPage = async () => {
+    const handleSelect = async (template) => {
         setLoading(true);
-        console.log('adding page')
-        await newPage(item, dataItems, user, apiUpdate);
+        await newPage(item, dataItems, user, apiUpdate, template);
         setLoading(false);
-        console.log('pageAdded')
-    }
+    };
 
     return (
-        <div className='border px-4 py-2 rounded '>
-          <Button onClick={addPage} className={'w-full'} disabled={loading}>
-            {loading ? 'Adding Page' : '+ Add Page'}
-          </Button>
-        </div>
+        <>
+          <div className='border px-4 py-2 rounded '>
+            <Button onClick={() => setPickerOpen(true)} className={'w-full'} disabled={loading}>
+              {loading ? 'Adding Page' : '+ Add Page'}
+            </Button>
+          </div>
+          <PageTemplatePicker
+            open={pickerOpen}
+            onClose={() => setPickerOpen(false)}
+            onSelect={handleSelect}
+          />
+        </>
     )
 }
 

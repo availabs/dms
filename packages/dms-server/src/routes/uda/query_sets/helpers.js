@@ -117,14 +117,30 @@ function handleFiltersCH({
   return clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
 }
 
-function handleFilterGroupsCH(node, hasExistingFilters = false) {
+function handleFilterGroupsCH(node, hasExistingFilters = false, joinPresent = false) {
   if (!node || !node.groups?.length) return '';
 
   const escapeValue = (v) =>
     typeof v === 'string' ? `'${v.replace(/'/g, "''")}'` : v;
 
+  // A bare column (no alias/dot, not a function-call expression) is ambiguous
+  // once a join puts a same-named column in scope on another table — comparison-
+  // series route filters (tmc/date/epoch) always target the base fact table, so
+  // qualify them with its `ds` alias. Already-qualified refs and calculated
+  // expressions are left untouched.
+  const qualifyCol = (col) =>
+    joinPresent && !col.includes('.') && !col.includes('(') ? `ds.${col}` : col;
+
   const buildLeafSQL = (node) => {
-    const { col, op, value } = node;
+    const { op, value } = node;
+    const col = qualifyCol(node.col);
+    // `empty` / `notempty` are unary (is-null-or-blank and its inverse). They carry
+    // no value, so handle them before the `value == null` guard below. `col` is used
+    // verbatim, matching the sibling ops.
+    if (op === 'empty') return `(${col} IS NULL OR ${col} = '')`;
+    if (op === 'notempty') return `(${col} IS NOT NULL AND ${col} <> '')`;
+
+    
     if (value == null) return '';
 
     if (op === 'time') {
@@ -251,26 +267,6 @@ function handleOrderByCH(orders) {
     : '';
 }
 
-function buildAliasGroupCaseCH(definition) {
-  const { column, fallback, groups } = definition;
-  // Column names bypass the groupBy sanitizeName() path (see sanitizedGroupBy
-  // below), so guard the only raw identifier interpolated into the CASE here.
-  // Values, labels and fallback are single-quote-escaped string literals.
-  const safeColumn = sanitizeName(column);
-  if (!safeColumn) return null;
-  let caseStmt = `CASE `;
-  for (const [label, values] of Object.entries(groups)) {
-    const valArray = typeof values === 'string' ? JSON.parse(values) : values;
-    const escapedValues = valArray.map(v => typeof v === 'string' ? `'${v.replace(/'/g, "''")}'` : v).join(', ');
-    caseStmt += `WHEN ${safeColumn} IN (${escapedValues}) THEN '${label.replace(/'/g, "''")}' `;
-  }
-  if (fallback) {
-    caseStmt += `ELSE '${fallback.replace(/'/g, "''")}' `;
-  }
-  caseStmt += `END`;
-  return caseStmt;
-}
-
 module.exports = {
   handleFiltersCH,
   handleFilterGroupsCH,
@@ -278,5 +274,4 @@ module.exports = {
   handleGroupByCH,
   handleHavingCH,
   handleOrderByCH,
-  buildAliasGroupCaseCH
 };

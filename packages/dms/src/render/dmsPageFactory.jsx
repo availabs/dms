@@ -98,6 +98,21 @@ export default function dmsPageFactory({
     ),
     loader: loader,
     action: action,
+    // Skip the loader re-run (and the tree remount it triggers) when ONLY the
+    // search params changed on the same path. Those are page-variable / filter
+    // navigations (e.g. a map writing `?layers=`) that the page already handles
+    // in-memory — `updatePageStateFiltersOnSearchParamChange` syncs search→filters
+    // and sections refetch client-side via the dataWrapper — so re-running the
+    // server preload just remounts PageView for nothing (the visible "refresh").
+    // Still revalidate on: cross-page navigation, mutations (non-GET), and
+    // explicit `revalidate()` calls (same URL → defer to the default).
+    shouldRevalidate: ({ currentUrl, nextUrl, formMethod, defaultShouldRevalidate }) => {
+      if (formMethod && formMethod !== "GET") return true;
+      if (!currentUrl || !nextUrl) return defaultShouldRevalidate;
+      if (currentUrl.pathname !== nextUrl.pathname) return true;
+      if (currentUrl.search === nextUrl.search) return defaultShouldRevalidate;
+      return false;
+    },
     errorElement: <ErrorBoundaryComp />,
   };
 }

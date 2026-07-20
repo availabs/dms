@@ -53,6 +53,11 @@ export const HoverCompContainer = ({ show, children, theme = {}, ...rest }) => {
       ` }
       style={ {
         display: show ? "inline-block" : "none",
+        // width: max-content — an inline-block shrink-to-fits at min(content, CONTAINING
+        // BLOCK), so a tooltip inside a narrow graph (the corridor-view 52px day-avg strip)
+        // was capped at the strip's width and clipped its text. max-content sizes to the
+        // content regardless of the host graph's width; wide graphs are unchanged.
+        width: "max-content",
         transform: getTranslate(rest),
         boxShadow: "2px 2px 8px 0px rgba(0, 0, 0, 0.75)",
         transition: "transform 0.15s ease-out"

@@ -19,6 +19,11 @@ export const adminTheme = {
     // Sidebar actions
     sidebarActionsPanel: 'flex flex-col gap-4 shadow-lg rounded-md place-content-center p-4',
 
+    // EditableToggle
+    editableToggleRow: 'flex flex-row items-center justify-between gap-2 shadow-lg rounded-md p-4',
+    editableToggleLabel: 'text-sm font-medium text-gray-700',
+    editableToggleSavingIcon: 'text-slate-400 size-4 animate-spin',
+
     // Tasks
     tasksWrapper: 'w-full pt-12',
     tasksLabel: 'text-sm font-medium text-gray-500 pb-2',

@@ -58,13 +58,36 @@ function resolveButtonStyleName(
   return fallback;
 }
 
+// Cross-subdomain link scheme: `sub://<subdomain>/<path>` resolves against the
+// CURRENT host's base domain at click time, so authored content works in every
+// environment (dev `sub://npmrds/x` → npmrds.localhost:5173/x, prod →
+// npmrds.devtny.org/x). The base domain is the host minus its subdomain label
+// (single-depth, mirroring getSubdomain: on `a.b.tld` the base is `b.tld`; on
+// `a.localhost`/2-part prod hosts the base is the whole host... minus `a` when
+// there are enough labels). BC: only paths starting `sub://` are affected.
+function resolveSubdomainPath(path: string): string {
+  if (!path?.startsWith('sub://') || typeof window === 'undefined') return path;
+  const rest = path.slice('sub://'.length);
+  const slash = rest.indexOf('/');
+  const sub = slash === -1 ? rest : rest.slice(0, slash);
+  const tail = slash === -1 ? '/' : rest.slice(slash);
+  const host = window.location.host; // includes port
+  const hostname = host.split(':')[0];
+  const isLocalhost = hostname === 'localhost' || hostname.endsWith('.localhost');
+  const minParts = isLocalhost ? 2 : 3;
+  const parts = hostname.split('.');
+  const baseHost = parts.length >= minParts ? host.slice(host.indexOf('.') + 1) : host;
+  return `${window.location.protocol}//${sub}.${baseHost}${tail}`;
+}
+
 function ButtonComponent({nodeKey, linkText, path, keepSearchParams, style}) {
   const isEditable = useLexicalEditable();
   const [editor] = useLexicalComposerContext();
   const [modal, showModal] = useModal();
   const location = useLocation();
   const navigate = useNavigate();
-  const linkPath = keepSearchParams ? `${path}${location.search}` : path;
+  const resolvedPath = resolveSubdomainPath(path);
+  const linkPath = keepSearchParams ? `${resolvedPath}${location.search}` : resolvedPath;
 
   const { theme: fullTheme = {}, UI } = React.useContext(ThemeContext) || {};
   const Button = UI?.Button;

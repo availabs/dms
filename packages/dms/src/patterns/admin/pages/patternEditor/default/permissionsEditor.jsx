@@ -3,9 +3,9 @@ import { isEqual, set, cloneDeep } from "lodash-es";
 
 import { AuthContext } from "../../../../auth/context";
 import { AdminContext } from "../../../context";
-import { parseIfJSON } from "../../../../page/pages/_utils";
 import { ThemeContext } from "../../../../../ui/useTheme";
 import { permissionsEditorTheme } from './permissionsEditor.theme';
+import { parseIfJSON } from '../../../utils';
 
 const DEFAULT_PERMISSIONS = { groups: { public: ['view-page'] }, users: {} };
 

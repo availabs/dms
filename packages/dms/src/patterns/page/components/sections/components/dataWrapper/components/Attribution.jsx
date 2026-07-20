@@ -30,6 +30,19 @@ export const Attribution = () => {
         Object.keys(join.sources).forEach((sourceAlias) => {
             const curJoinSource = join.sources[sourceAlias];
             const { mergeStrategy } = curJoinSource;
+            // A pgFederated source reads a live Postgres table via ClickHouse's
+            // postgresql() table function — it has no DAMA sourceInfo (no
+            // registered source/view to link to), so it gets its own row here
+            // instead of destructuring the (absent) sourceInfo below.
+            if (curJoinSource?.pgFederated) {
+                const { pgEnv, table, schema } = curJoinSource.pgFederated;
+                attribRows.push((
+                    <span key={`${sourceAlias}_attribution`} className={`${theme.attribution.link} border-r-1 last:border-r-0 px-1`}>
+                        <span className="capitalize">({mergeStrategy || "Join"})</span> {schema}.{table} ({pgEnv})
+                    </span>
+                ));
+                return;
+            }
             const attribSource = curJoinSource?.sourceInfo;
             const { source_id, name, view_name, updated_at, baseUrl } = attribSource;
 

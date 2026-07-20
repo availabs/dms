@@ -6,9 +6,9 @@ import {cloneDeep, get, set} from "lodash-es";
 
 import {ThemeContext, mergeTheme} from "../../../../../ui/useTheme";
 import {AdminContext} from "../../../context";
-import {parseIfJSON} from '../../../../page/pages/_utils';
 import defaultTheme from '../../../../../ui/defaultTheme'
 import { themeEditorTheme } from './themeEditor.theme'
+import { parseIfJSON } from '../../../utils';
 const DefaultComp = () => <div>Component not registered.</div>
 const ComponentRenderer = ({Component = DefaultComp, props}) => <Component {...props} />;
 

@@ -476,18 +476,25 @@ function LegendRow ({ layer, i, numLayers, onRowMove }) {
   const legendTitle = (
     <div className='flex justify-between items-center justify w-full' onClick={toggleSymbology} >
       { shouldDisplayColorSquare && (
-          <div className='pl-1 flex'>
+          <div className='pl-1 flex min-w-0'>
             <LegendSymbol layer={ layer } color={ paintValue } legendTheme={legendTheme}/>
-            { layerTitle }
+            <span className={legendTheme.title} title={layerTitle}>{ layerTitle }</span>
           </div>
         )
       }
-      {!shouldDisplayColorSquare && layerTitle}
+      {!shouldDisplayColorSquare && <span className={legendTheme.title} title={layerTitle}>{layerTitle}</span>}
       <div className='flex items-center' onClick={ stopTheProp }>
         {(() => {
           const controlButtonStateClass = activeLayer == layer.id
             ? legendTheme.controlButtonActive
             : legendTheme.controlButtonInactive;
+
+          // Design-pass themes set `infoButtonFill` — keep the info control
+          // always visible + brand-filled so the data page is discoverable;
+          // themes without it keep the reveal-on-hover treatment.
+          const infoButtonClass = legendTheme.infoButtonFill
+            ? `${legendTheme.infoButtonFill} cursor-pointer`
+            : `${controlButtonStateClass} ${legendTheme.controlButtonReveal}`;
 
           return (
             <>
@@ -499,8 +506,7 @@ function LegendRow ({ layer, i, numLayers, onRowMove }) {
                 button={
                   <CircleInfoI size={ 20 }
                     className={ `
-                      ${controlButtonStateClass}
-                      ${legendTheme.controlButtonReveal}
+                      ${infoButtonClass}
                       ${legendTheme.controlButton}
                     ` }
                   />

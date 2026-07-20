@@ -1,10 +1,12 @@
 
-import React, {Fragment, useContext, useState} from 'react'
+import React, {Fragment, useContext, useEffect, useState} from 'react'
 import { cloneDeep, set, get, isEqual } from 'lodash-es'
 import { updateTitle } from '../editFunctions'
 import { PageContext, CMSContext } from '../../../context'
 import { ThemeContext } from "../../../../../ui/useTheme";
 import { getPageAuthPermissions } from "../../../pages/_utils";
+import { nameToSlug } from '../../../../../utils/type-utils';
+import {buildPageTemplatePayload, buildPageTemplateType} from "../../../../utils";
 
 const FilterSettings = ({label, type, value, stateValue, onChange}) => {
   const { isUserAuthed } = useContext(CMSContext);
@@ -91,6 +93,30 @@ const FilterSettings = ({label, type, value, stateValue, onChange}) => {
           setTmpValue([])
           setNewFilter({});
         }} > clear all </Button>
+        {
+          // Auto-registered page variables — derived by the platform from a section
+          // on this page (e.g. a shareable map's `layers` + interactive `searchParamKey`s
+          // via deriveMapShareVariables). They live in pageState.filters (not item.filters)
+          // so they can't be hand-edited here; surfaced read-only so the author can see
+          // which URL params the page owns and their current values.
+          (() => {
+            const autoVars = (pageState?.filters || []).filter(f => f.auto);
+            if (!autoVars.length) return null;
+            return (
+              <div className={'mt-3 border-t border-gray-200 pt-2 flex flex-col gap-1'}>
+                <div className={'text-xs font-semibold text-gray-500'}>Auto-registered variables</div>
+                <div className={'text-xs text-gray-400 pb-1'}>Owned by a section on this page (e.g. a shareable map). Read-only.</div>
+                {autoVars.map((f, i) => (
+                  <div key={`auto_var_${f.searchKey || i}`} className={'grid grid-cols-3 gap-1 text-sm'}>
+                    <div className={'font-mono truncate'}>{f.searchKey}</div>
+                    <div className={'text-gray-500 truncate'}>{Array.isArray(f.values) ? f.values.join(', ') : String(f.values ?? '')}</div>
+                    <div className={'text-gray-400 text-xs self-center'}>{f.useSearchParams ? 'URL' : ''}</div>
+                  </div>
+                ))}
+              </div>
+            );
+          })()
+        }
       </div>
   )
 };
@@ -109,6 +135,121 @@ function DebouncedInput({value, onChange, Input, ...rest}) {
     }, [tmpValue, value]);
 
     return <Input value={tmpValue} onChange={e => setTmpValue(e.target.value)}/>
+}
+
+function SaveAsTemplateSection() {
+  const { item, apiLoad, apiUpdate, format } = useContext(PageContext) || {};
+  const { user } = useContext(CMSContext) || {};
+  const { UI } = useContext(ThemeContext) || {};
+  const { Input, Button } = UI;
+
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState('');
+  const [existing, setExisting] = useState(null);
+  const [pendingOverwrite, setPendingOverwrite] = useState(false);
+
+  const templateType = React.useMemo(() => buildPageTemplateType(format), [format]);
+  const trimmedName = name.trim();
+
+  useEffect(() => {
+    if (!trimmedName || !apiLoad || !format?.app) { setExisting(null); return; }
+    let cancelled = false;
+    const check = async () => {
+      try {
+        const rows = await apiLoad({
+          format: { app: format.app, type: templateType, attributes: ['id', 'app', 'type', 'data'] },
+          children: [{ type: () => {}, action: 'list', path: '/' }],
+        });
+        if (cancelled) return;
+        const slug = nameToSlug(trimmedName);
+        setExisting((rows || []).find(r => r?.slug === slug) || null);
+      } catch { /* ignore */ }
+    };
+    check();
+    return () => { cancelled = true; };
+  }, [trimmedName, apiLoad, format?.app, templateType]);
+
+  const save = async (overwriteTarget) => {
+    if (!trimmedName || saving) return;
+    setSaving(true);
+    setError('');
+    setSaved(false);
+    try {
+      const payload = buildPageTemplatePayload({
+        name: trimmedName,
+        description: description.trim(),
+        sections: item?.draft_sections || [],
+        sectionGroups: item?.draft_section_groups || [],
+        sidebar: item?.sidebar,
+        user,
+        existing: overwriteTarget,
+      });
+      await apiUpdate({
+        data: payload,
+        config: { format: { app: format.app, type: templateType } },
+      });
+      setName('');
+      setDescription('');
+      setExisting(null);
+      setPendingOverwrite(false);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (e) {
+      console.error('<SaveAsTemplate>', e);
+      setError('Could not save template.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className='flex flex-col gap-2 pt-4 border-t mt-4'>
+      <div className='text-xs font-medium text-gray-500 uppercase tracking-wider'>Save as Template</div>
+      <Input
+        placeholder='Template name…'
+        value={name}
+        onChange={e => { setName(e.target.value); setPendingOverwrite(false); setSaved(false); }}
+      />
+      <Input
+        placeholder='Description (optional)'
+        value={description}
+        onChange={e => setDescription(e.target.value)}
+      />
+      <div className='flex items-center gap-2'>
+        {existing && !pendingOverwrite && (
+          <span className='text-xs text-amber-600'>&quot;{existing.name}&quot; exists</span>
+        )}
+        {existing && pendingOverwrite && (
+          <span className='text-xs text-amber-600'>Replace &quot;{existing.name}&quot;?</span>
+        )}
+        {saved && <span className='text-xs text-green-600'>Saved!</span>}
+        {error && <span className='text-xs text-red-500'>{error}</span>}
+        <div className='flex gap-1 ml-auto'>
+          {!existing && (
+            <Button disabled={!trimmedName || saving} onClick={() => save(null)}>
+              {saving ? 'Saving…' : 'Save'}
+            </Button>
+          )}
+          {existing && !pendingOverwrite && (
+            <Button disabled={!trimmedName || saving} onClick={() => setPendingOverwrite(true)}>
+              Overwrite…
+            </Button>
+          )}
+          {existing && pendingOverwrite && (
+            <>
+              <Button type='plain' onClick={() => setPendingOverwrite(false)}>Cancel</Button>
+              <Button disabled={saving} onClick={() => save(existing)}>
+                {saving ? 'Saving…' : 'Overwrite'}
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function SettingsPane () {
@@ -130,7 +271,7 @@ function SettingsPane () {
 
   //console.log(themeSettings)
   return (
-      <div className="flex p-2 w-full h-full overflow-y-auto scrollbar-sm">
+      <div className="flex flex-col p-2 w-full h-full overflow-y-auto scrollbar-sm">
           <FieldSet components={[
               {
                   type:'ConfirmInput',
@@ -266,6 +407,7 @@ function SettingsPane () {
               },
           ].filter(f => !f.reqPermissions || isUserAuthed(f.reqPermissions, pageAuthPermissions))
           } />
+          <SaveAsTemplateSection />
       </div>
   )
 }

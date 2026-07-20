@@ -1,14 +1,6 @@
 import { useEffect, useRef } from "react";
 import { getData } from "./getData";
-
-const slug = (v) =>
-    String(v).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
-
-// For calculated columns ("expr as alias"), return the alias; otherwise the name as-is.
-const colKey = (name) => {
-    const parts = name.split(/\s+as\s+/i);
-    return (parts.length > 1 ? parts[parts.length - 1] : parts[0]).trim();
-};
+import { getPivotValues, isMultiValue, pivotColName, valueColLabel } from "./pivotUtils";
 
 const cartesian = (arrays) =>
     arrays.reduce((acc, arr) => acc.flatMap(combo => arr.map(val => [...combo, val])), [[]]);
@@ -24,9 +16,15 @@ function computePivotFetchKey(state) {
             pivotColumns,
             maxValues: pivot.maxValues || 10,
             singleHeader: !!pivot.singleHeader,
+            // value columns affect the injected column set (one col per combo×value)
+            valueColumns: pivot.valueColumns,
+            valueColumn: pivot.valueColumn,
+            aggregateFn: pivot.aggregateFn,
             view_id: state.externalSource?.view_id,
             source_id: state.externalSource?.source_id,
             filters: state.filters,
+            // a join change alters distinct-value SQL (aliases), so re-fetch on it
+            join: state.join,
         });
     } catch {
         return null;
@@ -44,7 +42,7 @@ function computePivotFetchKey(state) {
  * Uses the same fetchKey dedup pattern as useDataLoader: only re-fetches when
  * the relevant state actually changes, not on every mount/render.
  */
-export function usePivotDistinctValues({ state, setState, apiLoad }) {
+export function usePivotDistinctValues({ state, setState, apiLoad, sectionId, trackingId }) {
     const pivot = state.pivot;
     const pivotEnabled = pivot?.enabled;
     const singleHeader = !!pivot?.singleHeader;
@@ -88,9 +86,16 @@ export function usePivotDistinctValues({ state, setState, apiLoad }) {
                             columns: [{ name: col, group: true, show: true }],
                             filters: state.filters || { op: 'AND', groups: [] },
                             display: { pageSize: maxValues },
-                            join: {},
+                            // Thread the section's join through: a pivot column and/or its
+                            // filters can reference join aliases (ds./meta./a pgFederated
+                            // alias), so the distinct-values fetch must apply the same join
+                            // or the generated SQL references undefined aliases
+                            // ("Database <alias> does not exist"). Empty {} only worked for
+                            // single-source sections.
+                            join: state.join || {},
                         },
                         apiLoad,
+                        sectionId: trackingId || sectionId,
                     }))
                 );
 
@@ -105,6 +110,9 @@ export function usePivotDistinctValues({ state, setState, apiLoad }) {
 
                 // Cartesian product of all distinct value arrays.
                 const combinations = cartesian(pivotColumns.map(col => distinctValuesByColumn[col] || []));
+                // Value columns to spread per combo (legacy single or multi).
+                const values = getPivotValues(pivot);
+                const multiValue = isMultiValue(pivot);
 
                 lastFetchKeyRef.current = fetchKey;
 
@@ -122,8 +130,26 @@ export function usePivotDistinctValues({ state, setState, apiLoad }) {
                             .map(c => [c.name, c.size])
                     );
 
-                    const newPivotCols = combinations.map(combo => {
-                        const name = combo.map((v, i) => `${slug(colKey(pivotColumns[i]))}_${slug(v)}`).join('__');
+                    // One injected column per (combo × value). Combos are the outer
+                    // loop so a period's metrics stay adjacent — must match getData's
+                    // caseColumns order (also combos-outer, values-inner).
+                    const newPivotCols = combinations.flatMap(combo => values.map(vc => {
+                        const name = pivotColName(combo, pivotColumns, vc, multiValue);
+                        const size = existingSizes[name];
+                        if (multiValue) {
+                            // Metric is the leaf header; the pivot combo(s) become the
+                            // grouping levels above it (singleHeader collapses them to one).
+                            const comboGroup = singleHeader ? [combo.join(' / ')] : combo.map(String);
+                            const comboDims = singleHeader ? ['__pivotcombo'] : pivotColumns;
+                            return {
+                                name, show: true, origin: 'pivot_col',
+                                display_name: valueColLabel(vc),
+                                _pivotCombo: [...comboGroup, valueColLabel(vc)],
+                                _pivotColumns: [...comboDims, '__value'],
+                                ...(size && { size }),
+                            };
+                        }
+                        // Legacy single-value: exact prior behavior.
                         return {
                             name,
                             display_name: singleHeader || pivotColumns.length === 1
@@ -131,13 +157,13 @@ export function usePivotDistinctValues({ state, setState, apiLoad }) {
                                 : String(combo[combo.length - 1]),
                             show: true,
                             origin: 'pivot_col',
-                            ...(existingSizes[name] && { size: existingSizes[name] }),
+                            ...(size && { size }),
                             ...(!singleHeader && pivotColumns.length > 1 && {
                                 _pivotCombo: combo,
                                 _pivotColumns: pivotColumns,
                             }),
                         };
-                    });
+                    }));
 
                     // Preserve user-defined column order; new combinations go at end.
                     // Non-pivot columns (including row column) always precede pivot_col.

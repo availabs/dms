@@ -595,11 +595,11 @@ export default {
 
 ### Pattern C: Data-driven with CRUD
 
-If your component needs to create, update, or delete rows, it receives CRUD props from the DataWrapper. Currently this is enabled for components named `'Spreadsheet'` or `'Card'` via a check in the DataWrapper:
+If your component needs to create, update, or delete rows, it receives CRUD props from the DataWrapper. This is gated by a `usesItemMutationProps: true` flag on the component's registry entry (same shape as `useDataSource`/`supportsTemplates`), checked in the DataWrapper:
 
 ```js
 // dataWrapper/index.jsx
-const componentProps = ['Spreadsheet', 'Card'].includes(component.name) ? {
+const componentProps = component?.usesItemMutationProps ? {
     newItem, setNewItem,
     updateItem, removeItem, addItem,
     currentPage, infiniteScrollFetchData: onPageChange,
@@ -607,7 +607,7 @@ const componentProps = ['Spreadsheet', 'Card'].includes(component.name) ? {
 } : {}
 ```
 
-To receive these props for a custom component, your component `name` would need to be added to that check, or you can implement CRUD directly using `apiUpdate` from `ComponentContext`.
+To receive these props for a custom component, set `usesItemMutationProps: true` on its registry entry, or you can implement CRUD directly using `apiUpdate` from `ComponentContext`.
 
 ### Step 3: Register the component
 

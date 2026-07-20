@@ -11,7 +11,7 @@ const { jsonMerge } = require('#db/query-utils.js');
 const { resolveTable, sanitize } = require('#db/table-resolver.js');
 const { getInstance } = require('#db/type-utils.js');
 const querySets = require('./query_sets');
-const { translatePgToSqlite } = require('./query_sets/postgres');
+const { translatePgToSqlite, detectRealPrimaryKey, resolvePrimaryKey } = require('./query_sets/postgres');
 
 const pgIdent = n => (n.length <= 63 ? n : n.slice(0, 63));
 
@@ -71,6 +71,10 @@ async function getSourceById(env, ids, attributes) {
     const formattedAttrs = ['id', ...sanitizedAttrs].map(a =>
       // 'type' must read from data JSON (e.g. 'internal_table'), not the row column (e.g. 'doc_type|source')
       a === 'type' ? `data->>'type' AS type`
+        // 'row_type' exposes the ROW's type string ('{dmsenv}|{instance}:source') — its
+        // instance segment is the canonical env/type slug for uda reads (the display-name
+        // slug drifts whenever name ≠ instance)
+        : a === 'row_type' ? `type AS row_type`
         : dbCols.includes(a) ? a
         // DMS source rows don't store source_id in data — fall back to the row id
         : a === 'source_id' ? `COALESCE(data->>'source_id', CAST(id AS TEXT)) AS source_id`
@@ -91,7 +95,8 @@ async function getSourceById(env, ids, attributes) {
   // Falcor request that includes 'id' in attributes would emit a duplicate
   // SELECT entry referencing a column that doesn't exist.
   const tbl = db.type === 'postgres' ? 'data_manager.sources' : 'sources';
-  const dataAttrs = sanitizedAttrs.filter(a => a !== 'id');
+  // 'row_type' is a DMS-only attribute (see above) — data_manager.sources has no such column
+  const dataAttrs = sanitizedAttrs.filter(a => a !== 'id' && a !== 'row_type');
   const colList = dataAttrs.length ? `, ${dataAttrs.map(a => `"${a}"`).join(', ')}` : '';
   const { rows } = await db.query(
     `SELECT source_id AS id${colList} FROM ${tbl} WHERE source_id = ANY($1::INT[])`,
@@ -290,9 +295,37 @@ async function simpleFilterLength(env, view_id, options) {
   return querySets[ctx.dbType].simpleFilterLength(ctx, options);
 }
 
+// External (DAMA) sources can have a primary key on any column, not necessarily one
+// named "id" (see set_primary_col_from_meta.md) — and unlike DMS split tables, there's
+// no guarantee a physical column literally named "id" exists at all. The client still
+// requests a literal "id" attribute for row identity (mirroring the isDms convention —
+// see dataWrapper/getData.js), rather than tracking the real PK column name itself,
+// which risks going stale or never getting populated (the stored `metadata.columns[]
+// .isPrimaryKey` flag is only set when a PK is set *through the metadata UI* — an
+// auto-detected/pre-existing PK, e.g. a GIS source's `ogc_fid`, never gets that flag,
+// so a client-side cache of "the pk column name" can silently stay null forever even
+// on a genuinely editable source). Resolve it here instead, live, the same way the
+// write path (uda.controller.js's resolveEditableTable) and dataById already do —
+// this is the single authoritative place a source's real row-identity column is
+// determined, on both the read and write paths.
+async function resolveIdAttribute(ctx, attributes) {
+  if (ctx.isDms) return attributes;
+  const idx = attributes.indexOf('id');
+  if (idx === -1) return attributes;
+  if (ctx.db.type !== 'postgres') return attributes; // e.g. ClickHouse-backed views
+
+  const pkCol = await resolvePrimaryKey(ctx.db, ctx.table_schema, ctx.table_name);
+  if (!pkCol || pkCol === 'id') return attributes;
+
+  const resolved = [...attributes];
+  resolved[idx] = `${pkCol} as id`;
+  return resolved;
+}
+
 async function simpleFilter(env, view_id, options, attributes, indices) {
   const ctx = await getEssentials({ env, view_id, options });
-  const rows = await querySets[ctx.dbType].simpleFilter(ctx, options, attributes, indices);
+  const resolvedAttributes = await resolveIdAttribute(ctx, attributes);
+  const rows = await querySets[ctx.dbType].simpleFilter(ctx, options, resolvedAttributes, indices);
 
   // Meta lookups may target a different env/db than the main query, so we
   // re-enter simpleFilter (which will dispatch via its own getEssentials).
@@ -540,6 +573,255 @@ async function setIndexColumn(env, sourceId, columnName, enable) {
   }
 }
 
+// External (DAMA) sources only — internal_table sources already have a synthetic
+// integer `id` PRIMARY KEY on their split tables (see table-resolver.js) and never
+// reach this function.
+//
+// enable=true: validate (no NULLs/duplicates) then ADD the constraint. enable=false:
+// DROP whatever the table's real PRIMARY KEY constraint actually is (looked up via
+// pg_constraint, not assumed to be the name this function would have generated —
+// the PK may predate this feature, e.g. `ogc_fid` from the GIS/CSV upload pipeline).
+// Removing a primary key also clears isEditable — a source can't stay editable
+// without a resolvable PK to key writes off of.
+async function setPrimaryKeyColumn(env, sourceId, columnName, enable = true) {
+  const { isDms, db } = await getEssentials({ env });
+  if (isDms) throw new Error('setPrimaryKeyColumn is only supported for external (DAMA) sources');
+  if (db.type !== 'postgres') throw new Error('Primary key constraints are only supported on PostgreSQL sources');
+
+  const srcTbl = 'data_manager.sources';
+  const { rows } = await db.query(
+    `SELECT metadata FROM ${srcTbl} WHERE source_id = $1`,
+    [Number(sourceId)]
+  );
+  if (!rows.length) throw new Error(`Source ${sourceId} not found`);
+
+  const metadata = parseIfJSON(rows[0].metadata);
+  const cols = metadata.columns || [];
+  const safeCol = sanitizeName(columnName);
+  if (!safeCol) throw new Error(`Invalid column name: ${columnName}`);
+  if (!cols.some(c => c.name === columnName)) throw new Error(`Column "${columnName}" not found on source ${sourceId}`);
+
+  const { rows: viewRows } = await db.query(
+    `SELECT table_schema, table_name FROM data_manager.views WHERE source_id = $1 AND table_name IS NOT NULL`,
+    [Number(sourceId)]
+  );
+
+  if (enable) {
+    // Validate every physical table backing this source before altering any of them —
+    // a partial primary key across a source's tables would be worse than none.
+    for (const { table_schema, table_name } of viewRows) {
+      if (!table_schema || !table_name) continue;
+      const fqt = `"${table_schema}"."${table_name}"`;
+      const { rows: [{ total, distinct_count, non_null_count }] } = await db.query(
+        `SELECT count(*) AS total, count(distinct "${safeCol}") AS distinct_count, count("${safeCol}") AS non_null_count
+         FROM ${fqt}`
+      );
+      const nullCount = total - non_null_count;
+      const dupCount = total - distinct_count;
+      if (nullCount > 0 || dupCount > 0) {
+        throw new Error(
+          `Column "${columnName}" cannot be a primary key on ${table_schema}.${table_name}: ` +
+          `${nullCount} row(s) with NULL, ${dupCount} duplicate value(s)`
+        );
+      }
+    }
+
+    for (const { table_schema, table_name } of viewRows) {
+      if (!table_schema || !table_name) continue;
+      const constraintName = pgIdent(`pk_${sanitize(table_name)}`);
+      await db.query(
+        `ALTER TABLE "${table_schema}"."${table_name}" ADD CONSTRAINT "${constraintName}" PRIMARY KEY ("${safeCol}")`
+      );
+    }
+  } else {
+    for (const { table_schema, table_name } of viewRows) {
+      if (!table_schema || !table_name) continue;
+      const { rows: conRows } = await db.query(
+        `SELECT conname FROM pg_constraint WHERE conrelid = $1::regclass AND contype = 'p'`,
+        [`${table_schema}.${table_name}`]
+      );
+      const conname = conRows[0]?.conname;
+      if (!conname) continue; // nothing to drop on this table
+      await db.query(`ALTER TABLE "${table_schema}"."${table_name}" DROP CONSTRAINT "${conname}"`);
+    }
+  }
+
+  // Strict mutual exclusion — a table has at most one primary key.
+  const updatedCols = cols.map(c => {
+    if (c.name === columnName) {
+      if (enable) return { ...c, isPrimaryKey: true };
+      const { isPrimaryKey: _, ...rest } = c;
+      return rest;
+    }
+    if (enable && c.isPrimaryKey) { const { isPrimaryKey: _, ...rest } = c; return rest; }
+    return c;
+  });
+  const metadataPatch = { ...metadata, columns: updatedCols };
+  if (!enable) metadataPatch.isEditable = false;
+  await updateSource(env, sourceId, { metadata: metadataPatch });
+}
+
+// Detects whether the source's underlying table(s) already have a real PRIMARY KEY,
+// either declared outside of DMS (e.g. `ogc_fid` from the GIS/CSV upload pipeline) or
+// set via setPrimaryKeyColumn above. Returns null-column info if no view/table exists yet.
+async function getSourcePrimaryKeyInfo(env, sourceId) {
+  const { isDms, db } = await getEssentials({ env });
+  if (isDms) return { hasPkey: true, pkeyColumn: 'id', isDetectedExisting: true };
+
+  const { rows } = await db.query(
+    `SELECT metadata FROM data_manager.sources WHERE source_id = $1`,
+    [Number(sourceId)]
+  );
+  if (!rows.length) throw new Error(`Source ${sourceId} not found`);
+  const metadata = parseIfJSON(rows[0].metadata);
+  const storedPkCol = (metadata.columns || []).find(c => c.isPrimaryKey)?.name || null;
+
+  const { rows: viewRows } = await db.query(
+    `SELECT table_schema, table_name FROM data_manager.views WHERE source_id = $1 AND table_name IS NOT NULL`,
+    [Number(sourceId)]
+  );
+  if (!viewRows.length) return { hasPkey: false, pkeyColumn: null, isDetectedExisting: false };
+
+  // A source can back more than one physical table (one per view) — only report a
+  // real PK if every table backing it actually has one, on the same column.
+  let detected = null;
+  for (const { table_schema, table_name } of viewRows) {
+    const pk = await detectRealPrimaryKey(db, table_schema, table_name);
+    if (!pk) return { hasPkey: false, pkeyColumn: storedPkCol, isDetectedExisting: false };
+    if (detected === null) detected = pk;
+  }
+
+  return { hasPkey: true, pkeyColumn: detected, isDetectedExisting: !storedPkCol || storedPkCol !== detected };
+}
+
+// ============================================= External Row Write Functions ========================================
+// External (DAMA) sources only — internal_table sources continue to use dms.data.create/edit/delete
+// (dms.controller.js), which write to DMS's own data_items tables. These functions write directly
+// to a source's real Postgres table, independently re-validating metadata.isEditable and a real
+// resolvable PRIMARY KEY (see set_primary_col_from_meta.md) on every call — the client's isEditable
+// flag is a UX convenience, not a trust boundary.
+
+// Resolves the physical table + editability + real PK for a single view, or throws. Shared by
+// create/update/delete below so none of them can run DML against a non-editable or PK-less table.
+async function resolveEditableTable(env, view_id) {
+  const { isDms, db } = await getEssentials({ env });
+  if (isDms) throw new Error('External row writes are only supported for external (DAMA) sources');
+  if (db.type !== 'postgres') throw new Error('External row writes are only supported on PostgreSQL sources');
+
+  const { rows } = await db.query(
+    `SELECT v.table_schema, v.table_name, s.metadata
+     FROM data_manager.views v
+     LEFT JOIN data_manager.sources s ON s.source_id = v.source_id
+     WHERE v.view_id = $1`,
+    [Number(view_id)]
+  );
+  const view = rows[0];
+  if (!view || !view.table_name) throw new Error(`View ${view_id} not found or has no backing table`);
+
+  const metadata = parseIfJSON(view.metadata);
+  if (!metadata.isEditable) throw new Error(`Source for view ${view_id} is not editable`);
+
+  const pkCol = await detectRealPrimaryKey(db, view.table_schema, view.table_name);
+  if (!pkCol) throw new Error(`View ${view_id}'s table has no resolvable primary key`);
+
+  // Defense in depth: table_schema/table_name/pkCol are interpolated directly into DML
+  // below. They come from data_manager.views and a live pg_attribute lookup (not request
+  // input), so this should never fail in practice — but refusing anything that isn't a
+  // plain identifier costs nothing and closes the case of an unexpectedly-named table/column.
+  for (const ident of [view.table_schema, view.table_name, pkCol]) {
+    if (!SAFE_IDENTIFIER.test(ident)) throw new Error(`Unsupported identifier: ${ident}`);
+  }
+
+  return { db, table_schema: view.table_schema, table_name: view.table_name, columns: metadata.columns || [], pkCol };
+}
+
+// Coerce a value for a column of the given bare-Postgres type (metadata.columns[].type, e.g.
+// TEXT, INTEGER, NUMERIC, BOOLEAN, TIMESTAMPTZ, JSONB — see dama/CLAUDE.md "metadata.columns
+// contract"). Values arrive from a Card/Spreadsheet edit as JS strings/numbers/booleans, so this
+// only needs to handle those shapes, not general-purpose type casting.
+function coerceColumnValue(value, type) {
+  if (value === undefined || value === '' || value === null) return null;
+  const t = (type || '').toUpperCase();
+  if (['INTEGER', 'BIGINT', 'SMALLINT', 'INT', 'NUMERIC', 'REAL', 'DOUBLE PRECISION', 'DECIMAL'].includes(t)) {
+    const n = Number(value);
+    return Number.isNaN(n) ? null : n;
+  }
+  if (t === 'BOOLEAN') {
+    return typeof value === 'boolean' ? value : ['true', 't', 'yes', 'y', '1'].includes(String(value).toLowerCase());
+  }
+  if ((t === 'JSONB' || t === 'JSON') && typeof value !== 'string') {
+    return JSON.stringify(value);
+  }
+  return value;
+}
+
+// Column names are interpolated (quoted) directly into INSERT/UPDATE SQL text below — they
+// can never come from arbitrary request input. Require a plain identifier shape (stricter
+// than the generic sanitizeName() used elsewhere in this file, which only blocks a handful
+// of SQL keywords and ';') so that even a corrupted/unexpected metadata.columns[].name can't
+// break out of the surrounding double-quotes.
+const SAFE_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+// Whitelists the incoming row to known columns (dropping anything not declared on the source —
+// e.g. UI-only fields) and coerces each value per its declared type.
+function buildRowPayload(row, columns) {
+  const byName = new Map(columns.map(c => [c.name, c]).filter(([name]) => SAFE_IDENTIFIER.test(name)));
+  const payload = {};
+  for (const [key, value] of Object.entries(row || {})) {
+    if (!byName.has(key)) continue;
+    payload[key] = coerceColumnValue(value, byName.get(key).type);
+  }
+  return payload;
+}
+
+async function createExternalRow(env, view_id, row) {
+  const { db, table_schema, table_name, columns, pkCol } = await resolveEditableTable(env, view_id);
+  const payload = buildRowPayload(row, columns);
+
+  const cols = Object.keys(payload);
+  if (!cols.length) throw new Error('No editable columns in the provided row');
+
+  const colList = cols.map(c => `"${c}"`).join(', ');
+  const placeholders = cols.map((_, i) => `$${i + 1}`).join(', ');
+  const { rows } = await db.query(
+    `INSERT INTO "${table_schema}"."${table_name}" (${colList}) VALUES (${placeholders}) RETURNING *`,
+    cols.map(c => payload[c])
+  );
+  return { ...rows[0], id: rows[0][pkCol] };
+}
+
+// Reject a missing/blank id up front with a clear message, rather than letting it reach
+// the driver as an ambiguous bound parameter (`WHERE "pk" = $N` with $N unset).
+function requireRowId(id) {
+  if (id === undefined || id === null || id === '') throw new Error('A row id is required');
+}
+
+async function updateExternalRow(env, view_id, id, row) {
+  requireRowId(id);
+  const { db, table_schema, table_name, columns, pkCol } = await resolveEditableTable(env, view_id);
+  const payload = buildRowPayload(row, columns);
+  delete payload[pkCol]; // never let a row update overwrite the primary key
+
+  const cols = Object.keys(payload);
+  if (!cols.length) throw new Error('No editable columns in the provided row');
+
+  const setClauses = cols.map((c, i) => `"${c}" = $${i + 1}`).join(', ');
+  const { rows } = await db.query(
+    `UPDATE "${table_schema}"."${table_name}" SET ${setClauses} WHERE "${pkCol}" = $${cols.length + 1} RETURNING *`,
+    [...cols.map(c => payload[c]), id]
+  );
+  if (!rows.length) throw new Error(`Row ${id} not found`);
+  return { ...rows[0], id: rows[0][pkCol] };
+}
+
+async function deleteExternalRow(env, view_id, id) {
+  requireRowId(id);
+  const { db, table_schema, table_name, pkCol } = await resolveEditableTable(env, view_id);
+  const { rowCount } = await db.query(`DELETE FROM "${table_schema}"."${table_name}" WHERE "${pkCol}" = $1`, [id]);
+  if (!rowCount) throw new Error(`Row ${id} not found`);
+  return { deleted: true, id };
+}
+
 async function clearViewData(env, view_id) {
   const { isDms, db, table_schema, table_name } = await getEssentials({ env, view_id: +view_id });
   if (!isDms) throw new Error('clearViewData only supported for DMS internal_table sources');
@@ -573,7 +855,12 @@ module.exports = {
   getSourceById,
   updateSource,
   setIndexColumn,
+  setPrimaryKeyColumn,
+  getSourcePrimaryKeyInfo,
   clearViewData,
+  createExternalRow,
+  updateExternalRow,
+  deleteExternalRow,
 
   // Views
   getViewLengthBySourceId,
@@ -588,5 +875,6 @@ module.exports = {
   dataById,
 
   // Exported for testing
-  translatePgToSqlite
+  translatePgToSqlite,
+  resolveIdAttribute
 };

@@ -1,9 +1,31 @@
-import React, { useCallback, useContext, useEffect, useRef, useState } from "react";
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { ComponentContext, PageContext } from "../../../../context";
 import { ThemeContext } from "../../../../../../ui/useTheme";
 import { formatFunctions } from "../dataWrapper/utils/utils";
 import AddFormulaColumn from "../../AddFormulaColumn";
 import AddCalculatedColumn from "../../AddCalculatedColumn";
+
+// `activeOnSearchParam` support: decide whether a link cell's own `location` query
+// params match the live page filters, so the Card can apply a themed active style.
+//   - `pageFilterValues` maps searchKey → current value array (from PageContext).
+//   - `groupParamKeys` is the union of param keys across every activeOnSearchParam
+//     cell in the section (the "group"); an empty/`"?"` location is that group's
+//     "All" cell — active only when none of the group's keys is currently set.
+const isLocationActive = (location, pageFilterValues, groupParamKeys) => {
+    const qIdx = typeof location === 'string' ? location.indexOf('?') : -1;
+    const entries = qIdx !== -1 ? [...new URLSearchParams(location.slice(qIdx + 1)).entries()] : [];
+
+    // Empty / `?` location = the "All / no filter" cell.
+    if (entries.length === 0) return groupParamKeys.every(k => (pageFilterValues[k] || []).length === 0);
+
+    // Otherwise active only when EVERY param in the cell's location matches the page.
+    return entries.every(([key, value]) => {
+        const current = pageFilterValues[key] || [];
+        // `?key=` (empty value) = active when that key has no value set on the page.
+        if (value === '') return current.length === 0;
+        return current.map(v => String(v)).includes(value);
+    });
+};
 
 // Card section. Always renders both grids:
 //   cards grid (outer): record-cards laid out across the section
@@ -23,6 +45,41 @@ export const CardSection = ({
     const {Card} = UI;
     const {state, setState, controls={}, activeStyle} = useContext(ComponentContext);
     const { pageState, setActionParam, clearActionParam } = useContext(PageContext) || {};
+
+    // ── activeOnSearchParam: mark link cells whose own `location` params match the
+    // live page filters. Reads pageState.filters (the same source the page keeps in
+    // sync with the URL); the Card applies the themed `cellActive` class per column.
+    const pageFilterValues = useMemo(() => {
+        const out = {};
+        (pageState?.filters || []).forEach(f => {
+            if (!f?.searchKey) return;
+            out[f.searchKey] = Array.isArray(f.values)
+                ? f.values.filter(v => v != null && v !== '')
+                : (f.values != null && f.values !== '' ? [f.values] : []);
+        });
+        return out;
+    }, [pageState?.filters]);
+
+    const groupParamKeys = useMemo(() => {
+        const keys = new Set();
+        (state.columns || []).forEach(col => {
+            if (!(col.activeOnSearchParam && col.isLink) || typeof col.location !== 'string') return;
+            const qIdx = col.location.indexOf('?');
+            if (qIdx === -1) return;
+            new URLSearchParams(col.location.slice(qIdx + 1)).forEach((_v, k) => keys.add(k));
+        });
+        return [...keys];
+    }, [state.columns]);
+
+    const activeColumns = useMemo(() => {
+        const out = {};
+        (state.columns || []).forEach(col => {
+            if (col.activeOnSearchParam && col.isLink) {
+                out[col.normalName || col.name] = isLocationActive(col.location, pageFilterValues, groupParamKeys);
+            }
+        });
+        return out;
+    }, [state.columns, pageFilterValues, groupParamKeys]);
 
     const providerCfg = state.display?._functions?.providers?.find(p => p.functionId === 'hover_highlight' && p.enabled);
 
@@ -54,6 +111,91 @@ export const CardSection = ({
         if (value !== undefined) setActionParam(clickPublishCfg.paramKey, value);
     }, [clickPublishCfg, setActionParam]);
 
+    // load_publish: when the Card's data arrives (or changes), derive a row (first/max/min
+    // over a metric) and publish one or more of its column values to page action params —
+    // same provider shape as the Spreadsheet's. One Card-specific guard: Cards PERSIST their
+    // last-fetched rows in the saved config (`state.data` seeds the first paint), and
+    // publishing from that seed would broadcast stale values (e.g. last-authored event's
+    // date/year) before the live fetch lands. So we publish only once `state.data`'s
+    // identity has changed from its mount-time value — a completed fetch always produces a
+    // fresh array, even when the contents are identical. publishedRef then de-dupes so we
+    // only re-publish on a real value change (no reload loop).
+    const loadPublishCfg = state.display?._functions?.providers?.find(p => p.functionId === 'load_publish' && p.enabled);
+    const mountDataRef = useRef(state.data);
+    const publishedRef = useRef({});
+    useEffect(() => {
+        if (!loadPublishCfg || !setActionParam) return;
+        if (state.data === mountDataRef.current) return; // still the saved seed — wait for a live fetch
+        const rows = state.data || [];
+        const a = loadPublishCfg.args || {};
+        const pubs = Array.isArray(a.publishes) ? a.publishes
+            : (a.column ? [{ column: a.column, paramKey: loadPublishCfg.paramKey }] : []);
+        const publish = (paramKey, value) => {
+            if (!paramKey || value === undefined || value === null || value === '') return;
+            if (String(publishedRef.current[paramKey]) === String(value)) return;
+            publishedRef.current[paramKey] = value;
+            setActionParam(paramKey, value);
+        };
+        // Empty result after a live fetch: resolve any subscriber `requireResolved` gate with
+        // each entry's `emptyValue` sentinel so gated sections render empty instead of spinning.
+        if (!rows.length) {
+            pubs.forEach(({ paramKey, emptyValue }) => publish(paramKey, emptyValue));
+            return;
+        }
+        // 'list' derivation: publish EVERY loaded row's value for each entry's column —
+        // deduped, in row order — as the action param's value ARRAY. Same contract as the
+        // Spreadsheet's load_publish list mode.
+        if (a.derivation === 'list') {
+            pubs.forEach(({ column, paramKey }) => {
+                if (!paramKey || !column) return;
+                const values = [...new Set(rows.map(r => r[column]).filter(v => v !== undefined && v !== null && v !== ''))];
+                if (!values.length) return;
+                const dedupeKey = values.join('\u0001');
+                if (publishedRef.current[paramKey] === dedupeKey) return;
+                publishedRef.current[paramKey] = dedupeKey;
+                setActionParam(paramKey, values);
+            });
+            return;
+        }
+        const der = a.derivation || 'first';
+        let row;
+        if (der === 'first') row = rows[0];
+        else {
+            const num = v => { const n = parseFloat(String(v ?? '').replace(/[^0-9.\-]/g, '')); return isNaN(n) ? -Infinity : n; };
+            row = rows.reduce((best, r) => {
+                if (!best) return r;
+                const cmp = num(r[a.metric]) - num(best[a.metric]);
+                return (der === 'max' ? cmp > 0 : cmp < 0) ? r : best;
+            }, null);
+        }
+        if (!row) return;
+        pubs.forEach(({ column, paramKey }) => publish(paramKey, row[column]));
+    }, [state.data, loadPublishCfg, setActionParam]);
+
+    // closeModalOnAdd: '<actionParamKey>' — after a successful add-new-item create, clear that
+    // action param so the enclosing modal section-group (opened by the same key) closes. The
+    // Card section doesn't know its group's modalParamKey, so the author names it explicitly —
+    // same shape as the click_publish provider's paramKey. No-op outside a modal (clearing an
+    // unset action param does nothing) and in edit mode (the group renders inline).
+    // add_publish provider — on the same successful create, publishes the new row id to its
+    // paramKey; sections with a data_refresh subscriber on that key refetch (useDataLoader
+    // mixes the value into their fetchKey), so a modal-created row appears in the page's
+    // tables/counters without a reload. The row id is fresh per create, so consecutive adds
+    // each re-trigger. Discrete user-initiated trigger — safe for reload-driving consumers
+    // (component-actions.md).
+    const closeModalOnAddKey = state.display?.closeModalOnAdd;
+    const addPublishCfg = state.display?._functions?.providers?.find(p => p.functionId === 'add_publish' && p.enabled);
+    const addItemWrapped = useCallback(async (...args) => {
+        const res = await addItem?.(...args);
+        // only on a real create (dataWrapper addItem returns {id} on success; a failed
+        // apiUpdate throws past us and the modal stays open with the form intact)
+        if (res?.id) {
+            if (closeModalOnAddKey) clearActionParam?.(closeModalOnAddKey);
+            if (addPublishCfg?.paramKey) setActionParam?.(addPublishCfg.paramKey, res.id);
+        }
+        return res;
+    }, [addItem, closeModalOnAddKey, clearActionParam, addPublishCfg?.paramKey, setActionParam]);
+
     const clickSaveSubCfg = state.display?._functions?.subscribers?.find(s => s.functionId === 'click_save' && s.enabled);
     const clickSaveParam = clickSaveSubCfg && pageState
         ? pageState.filters.find(f => f.searchKey === clickSaveSubCfg.paramKey && f.type === 'action')
@@ -83,8 +225,9 @@ export const CardSection = ({
                      ...(clickPublishCfg ? { onCardColumnClick, clickPublishColumn: clickPublishCfg.args?.column } : {}),
                      ...(saveToken > 0 ? { triggerSaveToken: saveToken } : {}),
                      ...(clickSaveSubCfg ? { clickSaveActive: true } : {}),
+                     ...(Object.keys(activeColumns).length ? { activeColumns } : {}),
                  }}
-                 isEdit={isEdit} updateItem={updateItem} addItem={addItem} newItem={newItem} setNewItem={setNewItem} allowEdit={allowEdit}
+                 isEdit={isEdit} updateItem={updateItem} addItem={(closeModalOnAddKey || addPublishCfg) ? addItemWrapped : addItem} newItem={newItem} setNewItem={setNewItem} allowEdit={allowEdit}
                  activeStyle={state.display?.cardStyle || activeStyle}
                  formatFunctions={formatFunctions}
     />

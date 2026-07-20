@@ -340,6 +340,10 @@ function createSyncRoutes(dbName) {
         return res.status(401).json({ error: 'Authentication required' });
       }
       const { action, item } = req.body;
+      // Delete operations always require authentication regardless of DMS_SYNC_AUTH setting.
+      if (action === 'D' && !req.availAuthContext?.user) {
+        return res.status(401).json({ error: 'Authentication required to delete items' });
+      }
       if (!action || !item) return res.status(400).json({ error: 'action and item are required' });
 
       const { user = null } = req.availAuthContext || {};
@@ -413,11 +417,14 @@ function createSyncRoutes(dbName) {
         let revision = null;
         if (await hasChangeLog()) {
           const revRows = await dms_db.promise(
-            `INSERT INTO ${tbl('change_log')} (item_id, app, type, action, data, created_by)
-             VALUES ($1, $2, $3, $4, $5, $6)
+            `INSERT INTO ${tbl('change_log')} (item_id, app, type, action, data, created_by, ip, user_agent, auth_state)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
              RETURNING revision;`,
             [resultItem.id, resultItem.app, resultItem.type, action,
-             action === 'D' ? null : resultItem.data, userId]
+             action === 'D' ? null : resultItem.data, userId,
+             req.clientIp || null,
+             req.headers['user-agent'] || null,
+             userId ? 'authenticated' : 'sync']
           );
           revision = revRows[0]?.revision;
         }

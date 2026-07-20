@@ -20,7 +20,8 @@ const {
   handleOrderBy,
   buildCombinedWhere,
   buildJoin,
-  buildAliasGroupCase
+  offsetPlaceholders,
+  restoreLongColumnNames
 } = require('../utils');
 const { typeCast } = require('#db/query-utils.js');
 
@@ -56,7 +57,13 @@ async function simpleFilterLength(ctx, options) {
     groupBy = [], having = [],
     normalFilter = [],
     join = {},
-    aliasGroups = {}
+    // Comparison series: total length is the sum of each variant arm's count
+    // (each arm has a distinct series label, so the grouped counts don't overlap).
+    seriesVariants = [], seriesKey = '__series',
+    // Set by buildUdaConfig.js when every shown column is a real aggregate
+    // (fn: avg/sum/...) and there's no real groupBy dimension besides the
+    // series discriminator — see the matching comment in query_sets/clickhouse.js.
+    ungroupedAggregate = false,
   } = JSON.parse(options);
 
   // Translate PG-specific SQL in groupBy expressions for SQLite
@@ -68,17 +75,6 @@ async function simpleFilterLength(ctx, options) {
     normalFilter.forEach(({ column, values }) => {
       (filter[column] ??= []).push(...values);
     });
-  }
-
-  // Custom buckets: for any groupBy entry that names an alias group, compile its
-  // definition into a CASE expression to use in place of the bare column.
-  const activeAliasGroups = {};
-  if (aliasGroups) {
-    for (const [alias, definition] of Object.entries(aliasGroups)) {
-      if (groupBy.includes(alias)) {
-        activeAliasGroups[alias] = buildAliasGroupCase(definition);
-      }
-    }
   }
 
   const oldValues = [
@@ -123,10 +119,8 @@ async function simpleFilterLength(ctx, options) {
     fromClause = `${table_schema}.${table_name} ${hasJoin ? ' as ds ' : ''} ${joins}`;
   }
 
-  // Resolve groupBy entries to their SQL expressions exactly as the data query
-  // (simpleFilter) does — custom-bucket aliases compile to their CASE, plain
-  // columns pass through sanitizeName.
-  const groupByExprs = groupBy.map((g) => activeAliasGroups[g] || sanitizeName(g)).filter(Boolean);
+  // GroupBy entries.
+  const groupByExprs = groupBy.map((g) => sanitizeName(g)).filter(Boolean);
 
   // Grouped length = number of GROUP BY buckets. Count rows of a subquery that
   // groups by the same keys, rather than count(DISTINCT keyA || '-' || keyB):
@@ -135,6 +129,56 @@ async function simpleFilterLength(ctx, options) {
   // slower than letting the index drive the GROUP BY (15 s → ~0.5 s on the 4.87 M
   // -row congestion ED table). GROUP BY already folds NULLs into one bucket, so
   // the '__NULL__VAL__' guard is no longer needed.
+  // ── Comparison-series fan-out length ────────────────────────────────────────
+  // Sum each arm's count as a scalar subquery. The count expression mirrors the
+  // single-arm DISTINCT-groupBy / count(1) below; only each arm's WHERE differs.
+  // Placeholders are renumbered per arm against one shared values array.
+  if (seriesVariants.length) {
+    // The series discriminator is constant within an arm, so it can't add distinct
+    // groups — and it isn't a real column in the count subquery (no literal alias
+    // there). Drop it from the count's groupBy; the per-arm counts still sum to the
+    // total fan-out row count.
+    const countGroupBy = groupBy.filter((g) => g !== seriesKey);
+    // No real per-arm groupBy dimension. The matching simpleFilter arm SELECT
+    // (armGroupByExprs also empty there) has no GROUP BY either — for an
+    // ungrouped-aggregate arm (every shown column wrapped in fn: avg/sum/...)
+    // SQL always collapses that to exactly one row, even over zero matching
+    // source rows, so the count is always 1, not a raw row count (count(1)
+    // below). A plain passthrough arm (no aggregate fn) still needs count(1).
+    const countExpr = countGroupBy.length
+      ? `count(DISTINCT ${countGroupBy.map((g) => sanitizeName(g)).filter((g) => g)
+          .map((c) => `CASE WHEN ${c} IS NULL THEN '__NULL__VAL__' ELSE ${typeCast(c, 'TEXT', db.type)} END`)
+          .join(`|| '-' ||`)})`
+      : ungroupedAggregate ? null : `count(1)`;
+    const armCountSqls = [];
+    const fanoutValues = [];
+    for (const variant of seriesVariants) {
+      if (countExpr === null) {
+        armCountSqls.push('1');
+        continue;
+      }
+      const armFilterGroups = variant.filterGroups || {};
+      const armValues = [...oldValues, ...getValuesFromGroup(armFilterGroups)];
+      const armWhere = buildCombinedWhere({
+        filter, exclude, gt, gte, lt, lte, like,
+        filterGroups: armFilterGroups, isDms, app, type, oldValues, dbType: db.type, joinPresent,
+      });
+      const armCount = `SELECT ${countExpr} AS c FROM ${fromClause} ${armWhere} ${handleHaving(having)}`;
+      armCountSqls.push(`(${offsetPlaceholders(armCount, fanoutValues.length)})`);
+      fanoutValues.push(...armValues);
+    }
+    const sql = `SELECT ${armCountSqls.join(' + ')} AS numrows`;
+    const { rows } = await db.query(sql, fanoutValues);
+    return rows?.[0]?.numrows ?? 0;
+  }
+
+  // No groupBy at all (and not the jsonb_array_elements_text special case below),
+  // and every shown column is a real aggregate (fn: avg/sum/...) — simpleFilter's
+  // matching query has no GROUP BY either, so it's an ungrouped aggregate: always
+  // exactly one output row, even over zero matching rows. Same reasoning as the
+  // seriesVariants branch above.
+  if (!hasArrayElements && !groupByExprs.length && ungroupedAggregate) return 1;
+
   const sql =
     hasArrayElements && sanitizeName(groupBy?.[0])
       ? `WITH t AS (
@@ -162,8 +206,16 @@ async function simpleFilterLength(ctx, options) {
   return rows?.[0]?.numrows ?? 0;
 }
 
-async function buildSimpleFilterSql(ctx, options, attributes, indices) {
-  const num = indices.to - indices.from + 1;
+async function buildSimpleFilterSql(ctx, options, attributes, indices = null) {
+  // `indices` is optional. Omit it (or pass null) to fetch the full result with
+  // NO LIMIT/OFFSET. Callers that build a join subquery to filter/aggregate
+  // against (colorDomain, tiles) need every matching row — a LIMIT here would
+  // truncate the CTE *before* the outer WHERE/aggregate runs against it. The
+  // paginated client-facing callers (simpleFilter / simpleFilterLength) always
+  // pass indices and keep their LIMIT; this only changes behavior when it's
+  // absent.
+  const hasLimit = indices && Number.isFinite(indices.from) && Number.isFinite(indices.to);
+  const num = hasLimit ? indices.to - indices.from + 1 : null;
   const { isDms, db, app, type, table_schema, table_name, dmsAttributes } = ctx;
 
   let sanitizedAttrs = sanitizeName(attributes).filter((f) => f);
@@ -250,8 +302,7 @@ async function buildSimpleFilterSql(ctx, options, attributes, indices) {
     ${handleGroupBy(groupBy)}
     ${handleHaving(having)}
     ${handleOrderBy(orderBy, dmsAttributes)}
-    LIMIT ${+num}
-    OFFSET ${indices.from}
+    ${hasLimit ? `LIMIT ${+num} OFFSET ${indices.from}` : ''}
   `;
   return {
     sql,
@@ -272,19 +323,14 @@ async function simpleFilter(ctx, options, attributes, indices) {
     groupBy = [], having = [], orderBy = {},
     normalFilter = [], meta = {},
     join = {},
-    aliasGroups = {}
+    // Comparison series (query fan-out): each variant is one UNION ALL arm = the
+    // base query with `filterGroups` swapped for the variant's resolved tree, plus
+    // a constant `'<label>' as <seriesKey>` column the chart categorizes on. Empty
+    // → single-arm path below, byte-identical to before.
+    seriesVariants = [], seriesKey = '__series',
+    // Difference combine mode — ClickHouse only for now (see the refusal below).
+    seriesCombine = null
   } = JSON.parse(options);
-
-  // Custom buckets: compile the CASE expression for any alias group that the
-  // request groups by, so it can be substituted into the SELECT and GROUP BY.
-  const activeAliasGroups = {};
-  if (aliasGroups) {
-    for (const [alias, definition] of Object.entries(aliasGroups)) {
-      if (groupBy.includes(alias)) {
-        activeAliasGroups[alias] = buildAliasGroupCase(definition);
-      }
-    }
-  }
 
   let sanitizedAttrs = sanitizeName(attributes).filter((f) => f);
   if (!sanitizedAttrs.length) return [];
@@ -293,30 +339,6 @@ async function simpleFilter(ctx, options, attributes, indices) {
   if (db.type === 'sqlite') {
     sanitizedAttrs = sanitizedAttrs.map(translatePgToSqlite);
   }
-
-  // Substitute the alias-group CASE expression into any SELECT column whose
-  // response name matches an active alias group.
-  //
-  // The alias is double-quoted so PostgreSQL preserves its exact case. Unlike
-  // regular columns (whose client-side alias is already lowercased via
-  // colNameAfterAS), the custom-bucket alias must stay verbatim to match the
-  // aliasGroups key + groupBy. An UNquoted `as RoadClass` is folded to
-  // `roadclass` by PG, so the returned row is keyed lowercase while the route
-  // reads it back by the original-case attribute (rows[ii][getResponseColumnName
-  // (attr)]) → undefined → null cell. ClickHouse preserves case, which is why
-  // the bug only surfaced on the PG/SQLite port. getResponseColumnName strips
-  // the surrounding quotes, so the round-trip key stays consistent.
-  sanitizedAttrs = sanitizedAttrs.map(attr => {
-    const respName = getResponseColumnName(attr);
-    return activeAliasGroups[respName] ? `${activeAliasGroups[respName]} as "${respName}"` : attr;
-  });
-
-  // Ensure grouped alias groups are present in the SELECT clause.
-  groupBy.forEach(g => {
-    if (activeAliasGroups[g] && !sanitizedAttrs.some(attr => getResponseColumnName(attr) === g)) {
-      sanitizedAttrs.push(`${activeAliasGroups[g]} as "${g}"`);
-    }
-  });
 
   // Map long column names to short aliases
   const columnNameMap = sanitizedAttrs.reduce((acc, attr, i) => {
@@ -371,13 +393,90 @@ async function simpleFilter(ctx, options, attributes, indices) {
     fromClause = `${table_schema}.${table_name} ${hasJoin ? ' as ds ' : ''} ${joins}`;
   }
 
-  // Bucket aliases are already compiled into a vetted CASE expression
-  // (activeAliasGroups); only the bare column entries still need sanitizing.
-  // Passing the CASE through handleGroupBy()'s sanitizeName() would discard it
-  // whenever a label/value/fallback contains a SQL keyword token (e.g. a "Union"
-  // county value), dropping the SELECT's CASE column out of GROUP BY. Sanitize
-  // per-entry instead — mirrors simpleFilterLength.
-  const groupByExprs = groupBy.map(g => activeAliasGroups[g] || sanitizeName(g)).filter(Boolean);
+  // Sanitize each groupBy entry individually (mirrors simpleFilterLength).
+  const groupByExprs = groupBy.map(g => sanitizeName(g)).filter(Boolean);
+
+  // ── Comparison-series fan-out ───────────────────────────────────────────────
+  // One UNION ALL arm per variant: the shared SELECT/FROM/GROUP BY built above,
+  // but with each arm's own WHERE (from the variant's resolved filterGroups) and a
+  // constant `'<label>' as "<seriesKey>"` discriminator column. The label is a
+  // single-quote-escaped string literal rather than a bind param so it needs no
+  // placeholder slot; it is constant per arm, so it never
+  // needs to appear in GROUP BY. Placeholders are renumbered per arm by the running
+  // param count and all arms share one flat `values` array. ORDER BY is intentionally
+  // omitted across the union for v1 (charts sort client-side); LIMIT/OFFSET page the
+  // combined set. Empty seriesVariants → falls through to the single-arm path.
+  if (seriesVariants.length) {
+    // __ANCHOR__(<expr>) (see substituteAnchorMarkers in ../utils, and its
+    // ClickHouse-side use in query_sets/clickhouse.js) is NOT implemented for
+    // Postgres/SQLite yet — CH inlines filter values directly, so splicing an
+    // anchor subquery into an arm's SQL is a plain string substitution; here
+    // every arm's WHERE uses $N placeholders renumbered per arm via
+    // offsetPlaceholders, so the anchor subquery's own placeholders would need
+    // renumbering relative to THAT arm's value count (not just spliced in as
+    // text) — real, unbuilt work, not a one-line port. Fail loudly rather than
+    // silently emit a query with a literal, unresolved "__ANCHOR__(...)" in it.
+    if (sanitizedAttrs.some((c) => c.includes('__ANCHOR__('))) {
+      throw new Error(
+        '__ANCHOR__(...) calculated columns are not yet supported against a ' +
+        'Postgres/SQLite-backed comparison-series fan-out (ClickHouse only).');
+    }
+    // Same policy for the difference combine mode (see query_sets/clickhouse.js):
+    // every measure the mode currently serves is ClickHouse-backed, so the PG/
+    // SQLite port (arm-join + per-arm placeholder renumbering) is real, unbuilt
+    // work. Fail loudly rather than silently UNION ALL the arms as if the mode
+    // wasn't requested — a difference chart rendering two stacked raw series
+    // looks plausible enough to ship unnoticed.
+    if (seriesCombine) {
+      throw new Error(
+        'comparisonSeries.combine (difference mode) is not yet supported against ' +
+        'a Postgres/SQLite-backed comparison-series fan-out (ClickHouse only).');
+    }
+    // The series discriminator is a constant literal per arm — always valid in the
+    // SELECT without a GROUP BY entry — so drop it from the arm GROUP BY (it carries
+    // no `data->>`/alias the base table actually has).
+    const armGroupByExprs = groupByExprs.filter((g) => g !== seriesKey);
+    const armSqls = [];
+    const fanoutValues = [];
+    for (const variant of seriesVariants) {
+      const armFilterGroups = variant.filterGroups || {};
+      const armValues = [...oldValues, ...getValuesFromGroup(armFilterGroups)];
+      const armWhere = buildCombinedWhere({
+        filter, exclude, gt, gte, lt, lte, like,
+        filterGroups: armFilterGroups, isDms, app, type, oldValues, dbType: db.type, joinPresent,
+      });
+      const safeLabel = `'${String(variant.label ?? '').replace(/'/g, "''")}'`;
+      // The discriminator column is provided solely by the constant literal below.
+      // The client requests `seriesKey` as an attribute (so the route projects it),
+      // which would otherwise land in sanitizedAttrs as a bare — non-existent —
+      // base column; drop it and let the literal be its single source.
+      const armSelect = [
+        ...sanitizedAttrs
+          .filter((c) => getResponseColumnName(c) !== seriesKey)
+          .map((c) => quoteAlias(columnNameMap[c] || c)),
+        `${safeLabel} as "${seriesKey}"`,
+      ].join(', ');
+      const armSql = `
+        SELECT ${armSelect}
+        FROM ${fromClause}
+        ${armWhere}
+        ${armGroupByExprs.length ? `GROUP BY ${armGroupByExprs.join(', ')}` : ''}
+        ${handleHaving(having)}`;
+      armSqls.push(offsetPlaceholders(armSql, fanoutValues.length));
+      fanoutValues.push(...armValues);
+    }
+
+    const fanoutSql = `
+      SELECT * FROM (
+        ${armSqls.join('\n        UNION ALL\n')}
+      ) AS fanout
+      ${handleOrderBy(orderBy, dmsAttributes)}
+      LIMIT ${+num}
+      OFFSET ${indices.from}
+    `;
+    const fanoutRes = await db.query(fanoutSql, fanoutValues);
+    return restoreLongColumnNames(fanoutRes.rows, columnNameMap);
+  }
 
   const sql = `
     SELECT ${sanitizedAttrs.map((c) => quoteAlias(columnNameMap[c] || c)).join(', ')}
@@ -389,18 +488,10 @@ async function simpleFilter(ctx, options, attributes, indices) {
     LIMIT ${+num}
     OFFSET ${indices.from}
   `;
-
   const res = await db.query(sql, values);
 
   // Restore long column names from short aliases
-  let rows = Object.keys(columnNameMap).length
-    ? res.rows.map(row => {
-        const restored = Object.keys(columnNameMap).reduce((acc, originalName) => {
-          return { ...acc, [getResponseColumnName(originalName)]: row[getResponseColumnName(columnNameMap[originalName])] };
-        }, {});
-        return { ...row, ...restored };
-      })
-    : res.rows;
+  let rows = restoreLongColumnNames(res.rows, columnNameMap);
 
   // // Apply meta lookups
 
@@ -442,6 +533,27 @@ async function resolvePrimaryKey(db, schema, table, storedIdx = null) {
   return pk;
 }
 
+// Unlike resolvePrimaryKey(), this never guesses 'id' — it returns the real
+// declared PRIMARY KEY column name, or null if the table has none. Used to
+// gate PK creation/detection on the metadata page, where a wrong guess would
+// be unsafe (it must never look like a PK exists when it doesn't).
+async function detectRealPrimaryKey(db, schema, table) {
+  if (db.type !== 'postgres') return null;
+  try {
+    const { rows } = await db.query(
+      `SELECT a.attname AS pk
+       FROM pg_index i
+       JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = ANY(i.indkey)
+       WHERE i.indrelid = $1::regclass AND i.indisprimary
+       LIMIT 1`,
+      [`${schema}.${table}`]
+    );
+    return rows[0]?.pk || null;
+  } catch (e) {
+    return null;
+  }
+}
+
 async function dataById(ctx, ids, attributes) {
   const { db, table_schema, table_name, isDms, idxColumn } = ctx;
 
@@ -461,7 +573,8 @@ module.exports = {
   simpleFilter,
   dataById,
   buildSimpleFilterSql,
+  detectRealPrimaryKey,
+  resolvePrimaryKey,
   // Exported for testing
   translatePgToSqlite,
-  buildAliasGroupCase,
 };

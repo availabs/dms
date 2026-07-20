@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router'
 import { ThemeContext, getComponentTheme } from "../../../../ui/useTheme";
 import { PageContext, CMSContext } from '../../context'
 import { getInPageNav } from '../../pages/_utils'
-import { appendHistoryEntry } from '../../pages/edit/editFunctions'
+import { appendHistoryEntry } from '../../../utils'
 
 import SectionArray from './sectionArray'
 import InPageNav from './InPageNav'
@@ -37,7 +37,13 @@ export default function SectionGroup ({group, attributes, edit}) {
   const contentBands = groupSource
       .filter(g => (g?.position || 'content') === 'content')
       .sort((a, b) => (a?.index ?? 0) - (b?.index ?? 0))
-  const railGroupName = sectionSource.find(s => s?.navLabel)?.group || contentBands[0]?.name || 'default'
+  // A band may opt in explicitly as the rail host (`railHost: true`) — this wins over
+  // the navLabel/first-content-band heuristics, letting pages whose first content band
+  // is a header/breadcrumb (not the main content) anchor the rail on the right band.
+  const railGroupName = groupSource.find(g => g?.railHost)?.name
+      || sectionSource.find(s => s?.navLabel)?.group
+      || contentBands[0]?.name
+      || 'default'
   const showRail = Boolean(item?.sidebar && group.name === railGroupName)
   // The sidebar group (rail content): its sections render in the rail below the nav.
   // position:'sidebar' keeps it out of the top/content/bottom band renders. New pages
@@ -53,6 +59,12 @@ export default function SectionGroup ({group, attributes, edit}) {
 
   const isModal = group.isModal && !edit;
   const modalParamKey = group.modalParamKey;
+  // group.modalSize picks the modal card's max-width (default: the historical max-w-4xl).
+  // Whitelist map, not `max-w-${size}` — Tailwind only generates classes it can see as literals.
+  const modalWidthClass = {
+    sm: 'max-w-sm', md: 'max-w-md', lg: 'max-w-lg', xl: 'max-w-xl',
+    '2xl': 'max-w-2xl', '3xl': 'max-w-3xl', '4xl': 'max-w-4xl', '5xl': 'max-w-5xl',
+  }[group.modalSize] || 'max-w-4xl';
   const isOpen = isModal
       ? (pageState?.filters?.some(f => f.searchKey === modalParamKey && f.type === 'action' && f.values?.[0] !== undefined))
       : true;
@@ -75,11 +87,11 @@ export default function SectionGroup ({group, attributes, edit}) {
         onClick={() => clearActionParam(modalParamKey)}
       >
         <div
-          className="relative bg-white rounded-lg shadow-xl w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto"
+          className={`relative bg-white rounded-lg shadow-xl w-full ${modalWidthClass} mx-4 max-h-[90vh] overflow-y-auto`}
           onClick={e => e.stopPropagation()}
         >
           <button
-            className="absolute top-3 right-3 text-gray-400 hover:text-gray-700 z-10 text-xl leading-none"
+            className="sticky float-right top-3 right-3 text-gray-400 hover:text-gray-700 z-10 text-xl leading-none"
             onClick={() => clearActionParam(modalParamKey)}
           >✕</button>
           <SectionArrayComp

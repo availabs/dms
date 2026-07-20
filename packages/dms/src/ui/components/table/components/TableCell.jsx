@@ -53,12 +53,21 @@ const LinkComp = ({attribute, columns, newItem, removeItem, value}) => {
             typeof value === 'object' && value?.hasOwnProperty('value') ?
                 value.value : value;
 
+        // searchParamsCol: source the link param from ANOTHER column's value on this row, so a column
+        // can DISPLAY one field while LINKING by another (e.g. show `name`, link to ?key=<page_key>).
+        // Backward-compatible: only engaged when the attribute sets `searchParamsCol`.
+        const colLinkVal = attribute.searchParamsCol != null
+            ? (() => { const cv = newItem[attribute.searchParamsCol]; return cv && typeof cv === 'object' ? (cv.originalValue ?? cv.value ?? '') : (cv ?? ''); })()
+            : null;
+
         const rawSearchParamValue =
             attribute.searchParams === 'id' ? newItem.id :
+            attribute.searchParamsCol != null ? colLinkVal :
             ['value', 'rawValue'].includes(attribute.searchParams) ? valueFormattedForSearchParams : null;
 
         const searchParams =
             attribute.searchParams === 'id' ? encodeURIComponent(newItem.id) :
+            attribute.searchParamsCol != null ? encodeURIComponent(colLinkVal) :
                 ['value', 'rawValue'].includes(attribute.searchParams) ? encodeURIComponent(valueFormattedForSearchParams) : ``;
 
         let url;
@@ -156,7 +165,7 @@ const getEdge = (
 export const TableCell = memo(function TableCell ({
     index, attrI, item, isTotalCell,
     showOpenOutCaret, setShowOpenOut,
-    attribute, openOutTitle
+    attribute, openOutTitle, openOutInline
 }) {
     const {
         frozenCols, allowEdit: allowEditComp, editing, setEditing, isDragging, isSelecting,
@@ -416,6 +425,10 @@ export const TableCell = memo(function TableCell ({
                 isTotalCell ? theme.totalCell :
                     !isValid ? theme.cellInvalid : // invalid cells might want an indicator
                         isSelected ? theme.cellBgSelected : // selected cells color differently
+                            // 'accent' highlight paints at the ROW level (themed tint + left edge);
+                            // its cells go transparent so the row tint shows through. 'bg'/undefined
+                            // keep the legacy per-cell amber.
+                            isHighlighted && highlightedRow?.style === 'accent' ? 'bg-transparent' :
                             isHighlighted && (!highlightedRow?.style || highlightedRow.style === 'bg') ? 'bg-amber-100 hover:bg-amber-200' :
                                 display.striped && index % 2 === 0 ? theme.cellBgOdd : // if striped
                                     display.striped ? theme.cellBgEven :
@@ -434,7 +447,9 @@ export const TableCell = memo(function TableCell ({
         // (e.g. `numDiag` for diagnostic / no-verdict numbers) and have it
         // win over the table's default `cellInner` styling.
         const valueStyleClass = attribute.valueFontStyle ? (theme?.[attribute.valueFontStyle] || '') : '';
-        return `${ openOutTitle ? theme?.openOutTitle : attribute.openOut ? theme?.openOutValue : theme?.cellInner }
+        // openOut value uses the inline panel's value style when in inline mode, else the drawer's.
+        const openOutValueClass = openOutInline ? theme?.openOutInlineValue : theme?.openOutValue;
+        return `${ openOutTitle ? theme?.openOutTitle : attribute.openOut ? openOutValueClass : theme?.cellInner }
                 ${justifyClass[attribute.justify] || ''} ${bgColor} ${attribute.formatFn === 'title' ? 'capitalize' : ''}
                 ${attribute.wrapText ? theme.wrapText : ''}
                 ${renderTextBox ? theme.cellEditableTextBox : ''}
@@ -442,13 +457,15 @@ export const TableCell = memo(function TableCell ({
                 ${valueStyleClass}`;
     }, [
         attribute.openOut, attribute.justify, attribute.wrapText, attribute.formatFn, attribute.valueFontStyle,
-        openOutTitle, renderTextBox, theme, bgColor, isHighlighted, highlightedRow?.style
+        openOutTitle, openOutInline, renderTextBox, theme, bgColor, isHighlighted, highlightedRow?.style
     ]);
 
     const cellClassName = useMemo(() => {
-        if (attribute.openOut || openOutTitle) return '';
+        if (openOutTitle) return '';
+        // inline openOut cell = the field wrapper (label + value stacked); drawer cell stays bare.
+        if (attribute.openOut) return openOutInline ? (theme?.openOutInlineField || '') : '';
         return `${theme.cell} ${bgColor} ${isSelecting || isDragging ? 'select-none' : ''}`;
-    }, [ attribute.openOut, openOutTitle, theme.cell, bgColor, isSelecting, isDragging ]);
+    }, [ attribute.openOut, openOutTitle, openOutInline, theme?.openOutInlineField, theme.cell, bgColor, isSelecting, isDragging ]);
 
     const cellStyle = useMemo(() => {
         if (attribute.openOut || openOutTitle) return undefined;
@@ -527,7 +544,7 @@ export const TableCell = memo(function TableCell ({
                 </div> : null}
 
             {attribute.openOut ?
-                <span className={theme?.openOutHeader}>
+                <span className={openOutInline ? theme?.openOutInlineLabel : theme?.openOutHeader}>
                     {attribute.customName || attribute.display_name || attribute.name}
                 </span> : null}
 

@@ -53,10 +53,13 @@ const useGetActions = (pageState, display) => {
     // spread into characters.
     const raw = src.values;
     const value = Array.isArray(raw) ? [...raw] : (raw == null || raw === "" ? [] : [raw]);
+    // `args` rides along whole so overlay subscribers (grid_cell_bands / grid_point)
+    // can carry styling (stroke, r, …) — additive, existing consumers read column/value.
     acts.push({
       action: sub.functionId,
       column: sub.args?.column,
-      value
+      value,
+      args: sub.args
     });
   }
   return acts;
@@ -82,7 +85,7 @@ export default function Graph (props) {
   const theme = getComponentTheme(contextTheme, 'avlGraph', activeStyle);
 
   const hoverProvider = React.useMemo(() => {
-    return display?._functions?.providers.find(p => p.functionId === 'hover_publish' && p.enabled);
+    return display?._functions?.providers?.find(p => p.functionId === 'hover_publish' && p.enabled);
   }, [display]);
 
   const publishHoverData = React.useCallback(action => {
@@ -98,7 +101,7 @@ export default function Graph (props) {
   // click_publish: a cell click writes its value to the provider's page var (e.g. click a day on a
   // month strip → set `date`). Mirrors hover_publish but is sticky (no clear-on-leave).
   const clickProvider = React.useMemo(() => {
-    return display?._functions?.providers.find(p => p.functionId === 'click_publish' && p.enabled);
+    return display?._functions?.providers?.find(p => p.functionId === 'click_publish' && p.enabled);
   }, [display]);
 
   const publishClickData = React.useCallback(action => {

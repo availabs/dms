@@ -1,14 +1,14 @@
 import React, {useContext, useEffect, useState} from "react";
 import { DatasetsContext } from "../../../context";
-import { AuthContext } from "../../../../auth/context"
 import { cloneDeep } from "lodash-es";
 import {useNavigate, Link} from "react-router";
-import {updateSourceData, parseIfJson} from "./utils";
 import { getExternalEnv } from "../../../utils/datasources";
 import { clearDatasetsListCache } from "../../../utils/datasetsListCache";
 import UdaTaskList from "../../Tasks/UdaTaskList";
+import SourceAccessEditor from "../../../components/SourceAccessEditor";
 import { ThemeContext } from "../../../../../ui/useTheme";
 import { adminTheme } from "./admin.theme";
+import { updateSourceData } from "./utils";
 
 const DeleteSourceBtn = ({parent, source, apiUpdate, baseUrl}) => {
     const { theme } = useContext(ThemeContext) || {};
@@ -227,30 +227,74 @@ const AddExternalVersionBtn = ({source}) => {
         </>
     )
 }
+// External sources only — becomes enabled once the source has a real primary key
+// (set/detected via the Advanced Metadata page, see set_primary_col_from_meta.md).
+// This is a deliberate admin action, not automatic just because a pkey exists.
+const EditableToggle = ({source, setSource, format, pgEnv, id}) => {
+    const { theme } = useContext(ThemeContext) || {};
+    const t = { ...adminTheme, ...(theme?.datasets?.admin || {}) };
+    const {UI, falcor} = useContext(DatasetsContext);
+    const {Switch, Icon} = UI;
+    const [pkeyInfo, setPkeyInfo] = useState(null);
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState(null);
+
+    useEffect(() => {
+        if (!falcor || !id) return;
+        falcor.get(['uda', pgEnv, 'sources', 'byId', +id, 'pkeyInfo']).then(res => {
+            setPkeyInfo(res?.json?.uda?.[pgEnv]?.sources?.byId?.[id]?.pkeyInfo || null);
+        });
+    }, [falcor, pgEnv, id]);
+
+    const isEditable = !!source?.metadata?.isEditable;
+
+    // Pessimistic on purpose: the switch's visible state is driven entirely by
+    // `source.metadata.isEditable` (no separate local optimistic flag), so it only
+    // moves once `updateSourceData` has confirmed the write against the server's own
+    // echoed response — see updateSourceData's comment on why blindly trusting a
+    // resolved promise isn't enough (a request could "succeed" while silently
+    // no-op'ing the actual write). `saving` disables the switch and shows a spinner
+    // for the round trip instead of leaving the user with no feedback.
+    const handleToggle = async (e) => {
+        setError(null);
+        setSaving(true);
+        try {
+            const data = {...(source?.metadata || {}), isEditable: e};
+            const confirmed = await updateSourceData({data, attrKey: 'metadata', isDms: false, setSource, format, source, pgEnv, falcor, id});
+            if (!!confirmed?.isEditable !== e) {
+                setError('The change did not save — please try again.');
+            }
+        } catch (err) {
+            setError(err?.message || 'Failed to update.');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    return (
+        <div className={t.editableToggleRow}
+             title={pkeyInfo?.hasPkey ? undefined : 'Requires a primary key — set one on the Advanced Metadata page'}
+        >
+            <label className={t.editableToggleLabel}>Allow editing</label>
+            {saving ? <Icon icon={'LoadingHourGlass'} className={t.editableToggleSavingIcon} /> : null}
+            {error ? <span className={t.errorText}>{error}</span> : null}
+            <Switch
+                enabled={isEditable}
+                disabled={saving || (!pkeyInfo?.hasPkey && !isEditable)}
+                setEnabled={handleToggle}
+                size={'small'}
+            />
+        </div>
+    );
+};
+
 const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params, isDms }) => {
     const {id} = params;
     const { theme } = React.useContext(ThemeContext) || {};
     const t = { ...adminTheme, ...(theme?.datasets?.admin || {}) };
-    const {app, API_HOST, baseUrl, pageBaseUrl, user, parent, UI, falcor, damaDataTypes, datasources} = React.useContext(DatasetsContext) || {};
+    const {baseUrl, pageBaseUrl, user, parent, UI, datasources} = React.useContext(DatasetsContext) || {};
     const pgEnv = getExternalEnv(datasources);
-    const {AuthAPI, ...restAuth} = React.useContext(AuthContext) || {};
-    const [users, setUsers] = React.useState([]);
-    const [groups, setGroups] = React.useState([]);
-    const {MultiSelect, Input, Button} = UI;
-
-    useEffect(() => {
-        async function load () {
-            if(!user?.token) return;
-
-            const users = await AuthAPI.getUsers({user});
-            const groups = await AuthAPI.getGroups({user});
-
-            setUsers(users?.users || []);
-            setGroups(groups?.groups || [])
-        }
-
-        load();
-    }, []);
+    const {Button} = UI;
 
     if(!user || !user.token) return <></>
 
@@ -260,109 +304,10 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params, isDms })
             <div className={t.adminWrapper}>
                 <div className={t.adminRow}>
                     <div className={t.adminMain}>
-                        <div className={t.uacPanel}>
-                            <label className={t.uacPanelLabel}>User Access Controls</label>
-                            <MultiSelect className={t.uacMultiSelect}
-                                    singleSelectOnly
-                                    searchable={false}
-                                    options={[{label: 'Add user access', value: undefined}, ...users.map(u => ({label: u.email, value: u.id}))]}
-                                    onChange={v => {
-                                        const newAuth = {
-                                            ...parseIfJson(source?.statistics, {})?.auth,
-                                            users: {
-                                                ...(parseIfJson(source?.statistics, {})?.auth?.users || {}),
-                                                [v]: "1",
-                                            },
-                                        };
-                                        updateSourceData({data: ({auth: newAuth}), attrKey: 'statistics', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id})
-                                    }}
-                            />
-
-                            <div>
-                                <div className={t.uacGrid}>
-                                    <div>User</div>
-                                    <div>Auth</div>
-                                </div>
-                                {
-                                    Object.entries(parseIfJson(source?.statistics, {})?.auth?.users || {})
-                                        .map(([userId, authLevel]) => <div className={t.uacGrid}>
-                                            <div>{users.find(user => +user.id === +userId)?.email}</div>
-                                            <Input type={'text'} value={authLevel} onChange={e => {
-                                                const newAuth = {
-                                                    ...parseIfJson(source?.statistics, {})?.auth,
-                                                    users: {
-                                                        ...(parseIfJson(source?.statistics, {})?.auth?.users || {}),
-                                                        [userId]: e.target.value,
-                                                    },
-                                                };
-                                                updateSourceData({data: ({auth: newAuth}), attrKey: 'statistics', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id})
-                                            }} />
-                                            <Button className={'w-fit'}
-                                                    onClick={() => {
-                                                        const newAuth = {
-                                                            ...parseIfJson(source?.statistics, {})?.auth,
-                                                        };
-
-                                                        delete newAuth.users[userId];
-
-                                                        updateSourceData({data: ({auth: newAuth}), attrKey: 'statistics', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id})
-                                                    }}>remove</Button>
-                                        </div>)
-                                }
-                            </div>
-                        </div>
-
-                        <div className={t.uacGroupPanel}>
-                            <label className={t.uacPanelLabel}>Group Access Controls</label>
-                            <MultiSelect className={t.uacMultiSelect}
-                                    singleSelectOnly
-                                    searchable={false}
-                                    options={[{label: 'Add group access', value: undefined}, ...groups.map(u => ({label: u.name, value: u.name}))]}
-                                    onChange={v => {
-                                        const newAuth = {
-                                            ...parseIfJson(source?.statistics, {})?.auth,
-                                            groups: {
-                                                ...(parseIfJson(source?.statistics, {})?.auth?.groups || {}),
-                                                [v]: "1",
-                                            },
-                                        };
-                                        updateSourceData({data: ({auth: newAuth}), attrKey: 'statistics', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id})
-                                    }}
-                            />
-
-                            <div>
-                                <div className={t.uacGrid}>
-                                    <div>Group</div>
-                                    <div>Auth</div>
-                                </div>
-                                {
-                                    Object.entries(parseIfJson(source?.statistics, {})?.auth?.groups || {})
-                                        .map(([groupName, authLevel]) => <div className={t.uacGrid}>
-                                            <div>{groupName}</div>
-                                            <Input type={'text'} value={authLevel} onChange={e => {
-                                                const newAuth = {
-                                                    ...parseIfJson(source?.statistics, {})?.auth,
-                                                    groups: {
-                                                        ...(parseIfJson(source?.statistics, {})?.auth?.groups || {}),
-                                                        [groupName]: e.target.value,
-                                                    },
-                                                };
-                                                updateSourceData({data: ({auth: newAuth}), attrKey: 'statistics', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id})
-                                            }} />
-                                            <Button className={'w-fit'}
-                                                    onClick={() => {
-                                                        const newAuth = {
-                                                            ...parseIfJson(source?.statistics, {})?.auth,
-                                                        };
-
-                                                        delete newAuth.groups[groupName];
-
-                                                        updateSourceData({data: ({auth: newAuth}), attrKey: 'statistics', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id})
-                                                    }}>remove</Button>
-                                        </div>)
-                                }
-                            </div>
-                        </div>
+                        {/* New string-permission Access editor (pattern ⊕ source). Replaces the
+                            legacy numeric statistics.auth UAC panels; gated by edit-source-permissions. */}
+                        <SourceAccessEditor source={source} setSource={setSource} format={format}
+                                            apiUpdate={apiUpdate} isDms={isDms} id={id}/>
                     </div>
 
                     <div className={t.adminSidebar}>
@@ -378,6 +323,7 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params, isDms })
                                 ) : (
                                     <>
                                         <AddExternalVersionBtn source={source} />
+                                        <EditableToggle source={source} setSource={setSource} format={format} pgEnv={pgEnv} id={id} />
                                         <DeleteDamaSourceBtn source={source} baseUrl={baseUrl} pgEnv={pgEnv} />
                                     </>
                                 )

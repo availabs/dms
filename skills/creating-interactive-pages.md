@@ -212,6 +212,13 @@ with `usePageFilters: true` + the same `searchParamKey`:
   keep `searchParamKey` bare (`year_record`) so the page-filter lookup still
   matches. (See `using-a-datawrapper-card.md` — the join section.)
 
+**`Map` sections consume page variables too** — a map layer's
+`dynamic-filters: [{ column_name, searchParamKey, values, zoomToFilterBounds }]` binds the
+tile-layer filter to the same variable (and can zoom the map to the filtered features), and an
+interactive layer's `searchParamKey` binds its variant selection. Same key, same bus — a Region
+picker can drive Cards, Spreadsheets, graphs AND the map at once (worked example: the tsmo2
+reliability page). Full recipe: `creating-a-map-section.md` §5.
+
 ## Step 3 — make a section IGNORE the variable
 
 Just omit the leaf. A section with no `year_record` leaf never reacts — it shows

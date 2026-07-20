@@ -358,6 +358,19 @@ const fnum2 = d => {
     return `${ float2Format(+d / 1000000000.0) }b`;
 }
 
+// NPMRDS-style raw x-axis "epoch" values are a 5-minute-of-day index (0-287,
+// e.g. `ds.epoch` — see convert_old_reports.py's HOUR_EXPR/QUARTER_HOUR_EXPR,
+// which divide the same column by 12/3 to get hour/15-min buckets). D3's
+// default axis tick formatter just stringifies that raw index (e.g. "80"),
+// not a time (e.g. "6:40") — this converts it for any xAxis whose ticks are
+// this raw index.
+const epochTimeFormat = d => {
+    const totalMinutes = Math.round(+d * 5);
+    const hour = Math.floor(totalMinutes / 60) % 24;
+    const minute = totalMinutes % 60;
+    return `${ hour }:${ String(minute).padStart(2, "0") }`;
+}
+
 export const ValueFormats = [
     { label: "Identity", value: "identity",
         func: d => d
@@ -388,6 +401,9 @@ export const ValueFormats = [
     },
     { label: "By Value (2 decimal)", value: "fnum2",
         func: fnum2
+    },
+    { label: "Epoch Time (HH:MM)", value: "epoch_time",
+        func: epochTimeFormat
     }
 ];
 const ValueFormatsFuncMap = ValueFormats.reduce((a, c) => {
@@ -396,6 +412,27 @@ const ValueFormatsFuncMap = ValueFormats.reduce((a, c) => {
 }, {});
 export const getFormatFunc = (format, isDollars = false) => {
     const func = ValueFormatsFuncMap[format] || ValueFormatsFuncMap["identity"];
+    if (isDollars) {
+        return d => `$${ func(d) }`;
+    }
+    return func;
+}
+
+// Tooltip-only format resolver. With no explicit tooltip format configured, the raw
+// `identity` default leaks floating-point artifacts into hover tooltips — the hover
+// comps sum their Total client-side (keys.reduce((a, c) => a + data[c], 0)), so even
+// 1-decimal source data renders e.g. 220.70000000000002. Default the DISPLAY to
+// 1-decimal rounding instead (non-numbers pass through untouched). Axis and data
+// values are unaffected — this is only wired into the tooltip formatters.
+export const getTooltipFormatFunc = (format, isDollars = false) => {
+    if (format && format !== "identity") {
+        return getFormatFunc(format, isDollars);
+    }
+    const func = d => {
+        const n = typeof d === "number" ? d : (typeof d === "string" && d.trim() !== "" ? +d : NaN);
+        if (!Number.isFinite(n)) return d;
+        return `${ Math.round(n * 10) / 10 }`;
+    };
     if (isDollars) {
         return d => `$${ func(d) }`;
     }

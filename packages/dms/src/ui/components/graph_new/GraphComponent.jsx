@@ -2,7 +2,7 @@ import React from "react";
 
 import { get } from "lodash-es";
 import { getGraphComponent } from "./components";
-import { getFormatFunc } from "./utils";
+import { getFormatFunc, getTooltipFormatFunc } from "./utils";
 
 // Collect the axis-typography keys for one axis off `graphFormat` (which already has
 // theme `chartDefaults` merged under the section's `display`, so brand defaults and
@@ -92,7 +92,12 @@ export const GraphComponent = props => {
       // map config `showTotal` → avl-graph DefaultHoverComp `showTotals` (default true = BC)
       showTotals: get(graphFormat, ["tooltip", "showTotal"], true),
       valueFormat: getFormatFunc(get(graphFormat, ["tooltip", "valueFormat"]), isDollars),
-      yFormat: getFormatFunc(get(graphFormat, ["tooltip", "yFormat"]), isDollars)
+      yFormat: getFormatFunc(get(graphFormat, ["tooltip", "yFormat"]), isDollars),
+      // Per-graph minutes/seconds auto-switch (GridGraph's legend only, see
+      // formatMinutesAuto) — a raw boolean, not resolved through
+      // getFormatFunc, since the actual formatter needs this graph's own
+      // domain max, unknown at this point.
+      minutesAutoSeconds: Boolean(get(graphFormat, ["tooltip", "minutesAutoSeconds"], false))
     };
   }, [graphFormat.tooltip]);
 
@@ -138,6 +143,9 @@ export const GraphComponent = props => {
         indexTextSize={ get(graphFormat, "indexTextSize", "medium") }
         valueTextSize={ get(graphFormat, "valueTextSize", "medium") }
 
+        // Opt-in continuous x-axis: "band" (default, categorical) | "time" | "linear".
+        // BarGraph positions bars at their real x-value with proportional gaps when non-band.
+        xScale={ { type: get(graphFormat, ["xAxis", "scaleType"], "band") } }
         xAxis={ {
           label: get(graphFormat, ["xAxis", "label"]),
           rotateLabels: get(graphFormat, ["xAxis", "rotateLabels"], false),
@@ -149,10 +157,20 @@ export const GraphComponent = props => {
           // 'bottom' (default) | 'top' — where the category axis renders (sparks
           // with labels above the bars set 'top'). See AxisBottom position prop.
           position: get(graphFormat, ["xAxis", "position"], "bottom"),
-          // Optional value→label map for category ticks (e.g. month number →
-          // letter: {"1":"J","2":"F",…}). Keeps the DOMAIN on the real values —
-          // mapping labels in data collapses duplicate categories (J/J/J).
+          // A named formatFn (ValueFormats, e.g. "epoch_time" for a raw
+          // 5-min-of-day index → "6:40") wins when set; otherwise fall back to
+          // an explicit value→label map for category ticks (e.g. month number →
+          // letter: {"1":"J","2":"F",…}) — keeps the DOMAIN on the real values,
+          // since mapping labels in data would collapse duplicate categories
+          // (J/J/J).
           format: (() => {
+            // Time axis ticks are Date values — format them "m/dd" (no d3-time-format dep, no
+            // day-of-week). Falls back to a tickLabels value→label map, then the scale default.
+            if (get(graphFormat, ["xAxis", "scaleType"]) === "time") {
+              return d => `${ d.getMonth() + 1 }/${ String(d.getDate()).padStart(2, "0") }`;
+            }
+            const namedFormat = get(graphFormat, ["xAxis", "format"]);
+            if (namedFormat) return getFormatFunc(namedFormat);
             const tl = get(graphFormat, ["xAxis", "tickLabels"]);
             return tl ? (v => tl[v] ?? v) : undefined;
           })(),

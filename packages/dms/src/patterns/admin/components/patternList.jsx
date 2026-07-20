@@ -6,6 +6,7 @@ import {AdminContext} from "../context";
 import { ThemeContext } from '../../../ui/useTheme';
 import { nameToSlug, getInstance } from '../../../utils/type-utils';
 import { patternListTheme } from './patternList.theme'
+import { AddPatternPicker } from './AddPatternPicker'
 
 const parseIfJSON = strValue => {
     if (typeof strValue !== 'string' && Array.isArray(strValue)) return strValue;
@@ -16,6 +17,42 @@ const parseIfJSON = strValue => {
         return []
     }
 }
+
+// Additional {subdomain, base_url} mounts for a pattern — the same pattern
+// served at more than one location (multi-location mounts; see
+// planning/tasks/current/pattern-multi-location-mounts.md). The primary
+// subdomain/base_url fields above stay the canonical mount; rows here are
+// extra registrations.
+const RenderLocations = ({value, onChange}) => {
+    const {UI} = useContext(ThemeContext);
+    const {Input, Button} = UI;
+    const rows = Array.isArray(value) ? value : parseIfJSON(value);
+    const update = (i, key, v) => onChange(rows.map((r, ri) => ri === i ? { ...r, [key]: v } : r));
+    return (
+        <div className={'w-full flex flex-col gap-1 py-1'}>
+            <div className={'text-xs font-semibold text-slate-500 uppercase tracking-wider'}>
+                Additional locations
+            </div>
+            <div className={'text-xs text-slate-400'}>
+                Serve this pattern at more locations than its primary subdomain + base URL.
+            </div>
+            {rows.map((loc, i) => (
+                <div key={i} className={'w-full flex items-center gap-1'}>
+                    <Input value={loc?.subdomain || ''} placeHolder={'subdomain (e.g. www)'}
+                           onChange={e => update(i, 'subdomain', e.target.value)} />
+                    <Input value={loc?.base_url || ''} placeHolder={'base URL (e.g. /freightatlas)'}
+                           onChange={e => update(i, 'base_url', e.target.value)} />
+                    <Button type={'plain'} title={'remove location'}
+                            onClick={() => onChange(rows.filter((_, ri) => ri !== i))}>✕</Button>
+                </div>
+            ))}
+            <Button type={'plain'} className={'w-fit'} title={'add location'}
+                    onClick={() => onChange([...rows, { subdomain: '', base_url: '' }])}>
+                + add location
+            </Button>
+        </div>
+    );
+};
 
 const RenderFilters = ({value=[], onChange, ...rest}) => {
     const {UI, theme} = useContext(ThemeContext);
@@ -149,7 +186,6 @@ function PatternEdit({
 	const {Table, Input, Button, Modal} = UI;
 	const gridRef = useRef(null);
 	const [search, setSearch] = useState('');
-	const [newItem, setNewItem] = useState({app: format?.app});
 	const [addingNew, setAddingNew] = useState(false);
 	const [editingItem, setEditingItem] = useState(undefined);
 	const [isDuplicating, setIsDuplicating] = useState(false);
@@ -161,9 +197,12 @@ function PatternEdit({
 		const isLocalhost = hostname === 'localhost' || hostname.endsWith('.localhost');
 		const minParts = isLocalhost ? 2 : 3;
 		const parts = hostname.split('.');
+		// Bare IPv4 host (e.g. 1.2.3.4) would otherwise misread its last octet
+		// as a subdomain; real TLDs are never all-digits.
+		if (/^\d+$/.test(parts[parts.length - 1])) return '';
 		return parts.length >= minParts ? parts[0] : '';
 	})();
-	const attrToAddNew = ['pattern_type', 'name', ...(tenantSub ? [] : ['subdomain']), 'base_url', 'filters', 'authPermissions'];
+	const attrToAddNew = ['pattern_type', 'name', ...(tenantSub ? [] : ['subdomain']), 'base_url', ...(tenantSub ? [] : ['locations']), 'filters', 'authPermissions'];
 	const columns = [
 		{name: 'name', display_name: 'Name', show: true, type: 'text'},
 		{name: 'subdomain', display_name: 'Subdomain', show: true, type: 'text'},
@@ -178,8 +217,8 @@ function PatternEdit({
 
 	const dmsServerPath = `${API_HOST}/dama-admin`;
 
-	const addNewValue = async (patternData) => {
-		const data = patternData || newItem;
+	const addNewValue = async (patternData, templateId = null) => {
+		const data = patternData;
 		const slug = nameToSlug(data.name);
 		if (!slug) return;
 
@@ -197,7 +236,9 @@ function PatternEdit({
 			const isLocalhost = hostname === 'localhost' || hostname.endsWith('.localhost');
 			const minParts = isLocalhost ? 2 : 3;
 			const parts = hostname.split('.');
-			const tenantSub = parts.length >= minParts ? parts[0] : '';
+			// Bare IPv4 host (e.g. 1.2.3.4) would otherwise misread its last octet
+			// as a subdomain; real TLDs are never all-digits.
+			const tenantSub = /^\d+$/.test(parts[parts.length - 1]) ? '' : (parts.length >= minParts ? parts[0] : '');
 			if (tenantSub && !data.subdomain) data.subdomain = tenantSub;
 		}
 
@@ -214,7 +255,19 @@ function PatternEdit({
 			onChange(newData);
 			onSubmit(newData);
 		}
-		setNewItem({app: format?.app});
+
+		if (newId && templateId) {
+			const pageTemplates = theme?.page_templates ?? [];
+			const tmpl = pageTemplates.find(pt => pt.id === templateId);
+			const pageType = `${slug}|page`;
+			await falcor.call(['dms', 'data', 'create'], [app, pageType, {
+				title: tmpl?.name ?? data.name,
+				index: 0,
+				published: 'draft',
+				...(tmpl?.draft_sections !== undefined          ? { draft_sections: tmpl.draft_sections }                 : {}),
+				...(tmpl?.draft_section_groups !== undefined    ? { draft_section_groups: tmpl.draft_section_groups }     : {}),
+			}]);
+		}
 	}
 
 	const duplicate = async({oldInstance, newInstance}, item) => {
@@ -285,42 +338,13 @@ function PatternEdit({
 				/>
 
 				<Modal open={addingNew} setOpen={setAddingNew}>
-					<div className={t.modalForm}>
-						{
-							attrToAddNew
-								.map((attrKey, i) => {
-									let {EditComp, ViewComp, ...props} = attributes[attrKey]
-                                    if(attrKey === 'filters'){
-                                        EditComp = RenderFilters
-                                    }
-									const options =
-										attrKey === 'pattern_type' && authExists && props.options?.length ?
-											props.options.filter(o => o.value !== 'auth') :
-											props.options;
-									return (
-										<EditComp
-											value={newItem?.[attrKey]}
-											onChange={(v) => setNewItem({...newItem, [attrKey]: v})}
-											{...props}
-											options={options}
-											placeHolder={attrKey}
-											key={`${attrKey}-${i}`}
-										/>
-
-									)
-								})
-						}
-						<div className={t.modalActions}>
-							<Button
-                                type={'plain'}
-                                title={'Add Site'}
-								className={t.btnSave}
-								onClick={() => addNewValue({...newItem})}
-							>
-								add
-							</Button>
-						</div>
-					</div>
+					<AddPatternPicker
+						authExists={authExists}
+						onAdd={async ({ pattern_type, name, base_url, templateId }) => {
+							await addNewValue({ pattern_type, name, base_url }, templateId)
+							setAddingNew(false)
+						}}
+					/>
 				</Modal>
 
 				<Modal open={Boolean(editingItem)} setOpen={setEditingItem}>
@@ -328,10 +352,14 @@ function PatternEdit({
 						{
 							attrToAddNew
 								.map((attrKey, i) => {
-									let {EditComp, ViewComp, ...props} = attributes[attrKey]
+									let {EditComp, ViewComp, ...props} = attributes[attrKey] || {}
                                     if(attrKey === 'filters'){
                                         EditComp = RenderFilters
                                     }
+                                    if(attrKey === 'locations'){
+                                        EditComp = RenderLocations
+                                    }
+                                    if(!EditComp) return null;
                                     const options =
                                         attrKey === 'pattern_type' && authExists && props.options?.length ?
                                             props.options.filter(o => o.value !== 'auth') :

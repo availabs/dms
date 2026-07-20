@@ -15,7 +15,13 @@
  * Renamed from legacy "sourceInfo" to clarify this is the INPUT source identity,
  * not the output schema (which is outputSourceInfo from Phase 4).
  *
- * Shape: { source_id, view_id, isDms, env, srcEnv, app, type, columns, name, view_name, baseUrl }
+ * Shape: { source_id, view_id, isDms, isEditable, env, srcEnv, app, type, columns, name, view_name, baseUrl }
+ *
+ * isEditable: external (DAMA) sources only — mirrors the source's metadata.isEditable flag
+ * (see set_primary_col_from_meta.md). When true (and isDms is false), dataWrapper's add/edit/
+ * delete gates treat the source like an internal (isDms) one, and apiUpdate/dmsDataEditor
+ * routes writes to the uda.data.* CALL routes instead of dms.data.* — see
+ * external-source-editable-crud.md.
  */
 export const EXTERNAL_SOURCE_KEY = 'externalSource';
 
@@ -54,7 +60,7 @@ export const RUNTIME_DISPLAY_FIELDS = [
  * The complete set of persisted fields in a v2 data source config:
  *
  * {
- *   externalSource: { source_id, view_id, isDms, env, srcEnv, app, type,
+ *   externalSource: { source_id, view_id, isDms, isEditable, env, srcEnv, app, type,
  *                     columns: [{name, type, display}], name, view_name, baseUrl },
  *   columns:        [{ name, show, group, fn, sort, customName, meta_lookup,
  *                      display, type, origin, serverFn, mapped_options, ... }],
@@ -69,8 +75,12 @@ export const RUNTIME_DISPLAY_FIELDS = [
  *                   // optional — only present when section joins additional sources.
  *                   // Persisted only when sources is non-empty (no `{ sources: {} }`
  *                   // placeholder on the wire).
- *   pivot:          { enabled, rowColumn, pivotColumn, valueColumn, aggregateFn, maxValues }
+ *   pivot:          { enabled, rowColumn, pivotColumns[], valueColumn, aggregateFn,
+ *                     valueColumns[]:{column,aggregateFn,label}, singleHeader, maxValues }
  *                   // optional — only present when pivot has been configured.
+ *                   // valueColumns[] spreads MULTIPLE metrics per pivot combo (each with
+ *                   // its own aggregateFn), rendered as a metric leaf under the combo
+ *                   // group headers; legacy single valueColumn+aggregateFn still works.
  *                   // pivot.distinctValues is runtime-only and stripped from the save payload.
  *                   // columns with origin='pivot_col' are also runtime-only and stripped.
  * }

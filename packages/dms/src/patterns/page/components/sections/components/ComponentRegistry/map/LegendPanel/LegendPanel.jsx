@@ -22,6 +22,46 @@ export const fnumIndex = (d, fractions = 2, currency = false) => {
   }
 }
 
+/**
+ * Compact tick formatter for ramp-bar bounds: fnum-style magnitude suffixes
+ * above 1k, short trimmed decimals below (fnumIndex truncates 1.43 → "1").
+ */
+const fmtTick = (v) => {
+  if (v === null || v === undefined || Number.isNaN(+v)) return ''
+  const n = +v
+  if (Math.abs(n) >= 1000) return fnumIndex(n, 1).trim()
+  return String(+n.toFixed(2))
+}
+
+// Parses "12.5 - 300", "1.2K+", "$4 M - $9 M" style range labels; null when the
+// label is prose (authored bands like "1st–20th percentile" keep swatch rows).
+const parseRangeLabel = (label) => {
+  const matches = String(label ?? '').match(/-?\d[\d,]*\.?\d*\s*[KMBTQ]?/gi)
+  if (!matches?.length) return null
+  const mult = { K: 1e3, M: 1e6, B: 1e9, T: 1e12, Q: 1e15 }
+  const nums = matches.map(m => {
+    const suffix = m.trim().slice(-1).toUpperCase()
+    const num = parseFloat(m.replace(/[,\s]/g, ''))
+    return mult[suffix] ? num * mult[suffix] : num
+  }).filter(n => !Number.isNaN(n))
+  if (!nums.length) return null
+  const stripped = String(label).replace(/-?\d[\d,]*\.?\d*\s*[KMBTQ]?/gi, '').replace(/[\s\-–+]/g, '')
+  return stripped.length ? null : { lower: nums[0], upper: nums[nums.length - 1] }
+}
+
+// Inner legend list rows (category/step swatch lists). `listRow` is the
+// design-pass key; older themes without it keep the classic row+hover combo.
+const listRowClass = (legendTheme) =>
+  legendTheme.listRow ?? `${legendTheme.row} ${legendTheme.rowHover} flex w-full items-center border-0`
+
+const InfoGlyph = ({ className }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 11v5" strokeLinecap="round" />
+    <path d="M12 8h.01" strokeLinecap="round" strokeWidth="2.5" />
+  </svg>
+)
+
 const LegendSymbol = ({ layer, color, legendTheme }) => {
   if (layer?.type === 'circle') {
     const borderColor = get(layer, `layers[0].paint['circle-stroke-color']`, '#ccc')
@@ -80,10 +120,10 @@ function CategoryLegend({ layer, legendTheme }) {
   return (
     <div className='w-full max-h-[250px] overflow-auto'>
         {categories.map((d,i) => (
-          <div key={i} className={`${legendTheme.row} ${legendTheme.rowHover} flex w-full items-center border-0`}>
+          <div key={i} className={listRowClass(legendTheme)}>
             <LegendSymbol layer={layer} color={d.color} legendTheme={legendTheme} />
             <div className={legendTheme.label}>{d.label}</div>
-          </div> 
+          </div>
         ))}
     </div>
   )
@@ -100,7 +140,11 @@ function StepLegend({ layer, legendTheme }) {
   },[state])
 
   let paintValue = typeof typePaint[layer.type](layer) === 'object' ? typePaint[layer.type](layer) : []
-  const max = Math.max(...choroplethdata)
+  // Guard against an empty `choroplethdata`: `Math.max(...[])` is `-Infinity`,
+  // which would render as the top band's upper bound (`… - -Infinity`). Only
+  // take a max when there are real values; otherwise leave it undefined so the
+  // open-ended top band renders as `X+` instead of a bogus `-Infinity`.
+  const max = Array.isArray(choroplethdata) && choroplethdata.length ? Math.max(...choroplethdata) : undefined
   // console.log('StepLegend', paintValue, choroplethdata, Math.min(...choroplethdata), )
   /**
    * Choropleth legends use the same empty-array fallback so ranges still show
@@ -109,23 +153,65 @@ function StepLegend({ layer, legendTheme }) {
   const categories = legenddata?.length ? legenddata : [
     ...(paintValue || []).filter((d,i) => i > 2 )
     .map((d,i) => {
-    
+
       if(i%2 === 1) {
         //console.log('test 123', d, i)
-        return {color: paintValue[i+1], label: `${paintValue[i+2]} - ${paintValue[i+4] || max}`}
+        const upper = paintValue[i + 4] ?? max;
+        return {
+          color: paintValue[i + 1],
+          label: Number.isFinite(upper) ? `${paintValue[i + 2]} - ${upper}` : `${paintValue[i + 2]}+`,
+        }
       }
       return null
     })
     .filter(d => d)
   ]
 
+  /**
+   * Ramp variant (design legends): when the theme provides a ramp track and
+   * every band label is a plain numeric range, collapse the step rows into a
+   * continuous horizontal ramp with min / mid / max ticks. Authored prose
+   * labels (percentile bands, "No data") keep the classic swatch rows so the
+   * label text isn't lost.
+   */
+  const withColor = categories.filter(d => d?.color)
+  const bounds = legendTheme.rampTrack && withColor.length > 1
+    ? withColor.map(d => parseRangeLabel(d.label))
+    : null
+  if (bounds && bounds.every(Boolean)) {
+    const min = bounds[0].lower
+    const maxV = bounds[bounds.length - 1].upper
+    const mid = bounds[Math.floor(bounds.length / 2)].lower
+    const noData = categories.find(d => !d?.color || /no data/i.test(d?.label || ''))
+    return (
+      <div className='w-full'>
+        <div className={legendTheme.rampTrack}>
+          {withColor.map((d, i) => (
+            <span key={i} className='flex-1' style={{ background: d.color }} />
+          ))}
+        </div>
+        <div className={legendTheme.rampTicks}>
+          <span>{fmtTick(min)}</span>
+          <span>{fmtTick(mid)}</span>
+          <span>{fmtTick(maxV)}</span>
+        </div>
+        {noData ? (
+          <div className={`${listRowClass(legendTheme)} mt-1`}>
+            <LegendSymbol layer={layer} color={noData.color || '#ccc'} legendTheme={legendTheme} />
+            <div className={legendTheme.label}>{noData.label}</div>
+          </div>
+        ) : null}
+      </div>
+    )
+  }
+
   return (
     <div className='w-full max-h-[250px] overflow-auto'>
         {categories.map((d,i) => (
-          <div key={i} className={`${legendTheme.row} ${legendTheme.rowHover} flex w-full items-center border-0`}>
+          <div key={i} className={listRowClass(legendTheme)}>
             <LegendSymbol layer={layer} color={d.color} legendTheme={legendTheme} />
             <div className={legendTheme.label}>{d.label}</div>
-          </div> 
+          </div>
         ))}
     </div>
   )
@@ -198,9 +284,6 @@ const LegendRow = ({ index, layer, i, id, baseUrl }) => {
   const navigate = useNavigate();
   const  activeLayer  = null
   const legendTheme = useMapLegendTheme()
-  const infoButtonStateClass = activeLayer == layer.id
-    ? legendTheme.controlButtonActive
-    : legendTheme.controlButtonInactive
   let paintValue = (typePaint[layer.type] || typePaint.fill)(layer)
 
 
@@ -217,18 +300,29 @@ const LegendRow = ({ index, layer, i, id, baseUrl }) => {
 
   const layerName = type === 'interactive' ? layer.label : layer.name;
 
+  // interactive variants carry the styled column; fall through to the layer's own
+  const activeVariant = type === 'interactive'
+    ? get(layer, `['interactive-filters'][${selectedInteractiveFilterIndex}]`, {})
+    : layer;
+  const columnTag = legendTheme.columnTag
+    ? (activeVariant?.['data-column'] || layer?.['data-column'] || '').split('AS ').pop().replace(/_/g, ' ')
+    : '';
+
   type = type === 'interactive' ? get(layer, `['interactive-filters'][${selectedInteractiveFilterIndex}]['layer-type']`) : type;
 
   return (
     <div className={`${legendTheme.row} ${legendTheme.rowHover} ${activeLayer == layer.id ? legendTheme.rowActive : ''}`}>
       <div className={legendTheme.titleRow}>
         {(type === 'simple' || !type) && <LegendSymbol layer={layer} color={paintValue} legendTheme={legendTheme} />}
-        <div className={legendTheme.title}>
-          {layerName}
-          <div 
-            className="cursor-pointer group/icon"
+        <div className={legendTheme.title} title={layerName}>{layerName}</div>
+        {columnTag ? <span className={legendTheme.columnTag}>{columnTag}</span> : null}
+        {layer.source_id ? (
+          <button
+            type="button"
+            title="About this data — view the source page"
+            className={`group/icon ${legendTheme.infoButton || 'cursor-pointer'}`}
             onClick={(e) => {
-              if (e.ctrlKey) {
+              if (e.ctrlKey || e.metaKey) {
                 window.open(sourceUrl, "_blank");
               }
               else {
@@ -236,9 +330,9 @@ const LegendRow = ({ index, layer, i, id, baseUrl }) => {
               }
             }}
           >
-            <span className={`mx-2 text-md fa fa-info ${legendTheme.infoIcon} ${infoButtonStateClass}`}/>
-          </div>
-        </div>
+            <InfoGlyph className={`size-4 ${legendTheme.infoButton ? '' : legendTheme.infoIcon}`} />
+          </button>
+        ) : null}
       </div>
         {legendOrientation === "horizontal" ? (
           <HorizontalLegend layer={layer} legendTheme={legendTheme} />
@@ -259,6 +353,8 @@ const LegendRow = ({ index, layer, i, id, baseUrl }) => {
 const LegendPanel = (props) => {
   const { state, setState  } = React.useContext(MapContext);
   const { dataSourcesBaseUrl = '/cenrep' } = React.useContext(CMSContext);
+  // per-map override — sites mount their datasets pattern at different bases
+  const sourcesBaseUrl = state?.display?.dataSourcesBaseUrl || dataSourcesBaseUrl;
   const legendTheme = useMapLegendTheme()
   const layersBySymbology = useMemo(() => {
     return Object.values(state?.symbologies || {})
@@ -294,7 +390,7 @@ const LegendPanel = (props) => {
           .map((layer, i) => (
             <LegendRow
               key={layer.id}
-              baseUrl={dataSourcesBaseUrl}
+              baseUrl={sourcesBaseUrl}
               layer={layer}
               i={i}
               id={symb.id}
@@ -303,11 +399,21 @@ const LegendPanel = (props) => {
       </div>
     ));
 
-  return (legendRows.length > 0 && 
+  const visibleLayerCount = legendRows.length;
+
+  return (legendRows.length > 0 &&
     <>
       {/* ------Layer Pane ----------- */}
       <div className={legendTheme.panel}>
         <div className={legendTheme.panelInner}>
+          {legendTheme.header ? (
+            <div className={legendTheme.header}>
+              <span className={legendTheme.headerTitle}>Legend</span>
+              <span className={legendTheme.headerMeta}>
+                {visibleLayerCount} {visibleLayerCount === 1 ? 'layer' : 'layers'}
+              </span>
+            </div>
+          ) : null}
           {legendRows}
         </div>
       </div>

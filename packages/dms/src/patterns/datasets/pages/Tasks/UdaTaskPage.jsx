@@ -4,6 +4,7 @@ import { DatasetsContext } from "../../context";
 import { getExternalEnv } from "../../utils/datasources";
 import Breadcrumbs from "../../components/Breadcrumbs";
 import { ThemeContext } from "../../../../ui/useTheme";
+import { dataItemsNav } from "../../../../utils/nav";
 import { udaTaskPageTheme } from "./UdaTaskPage.theme";
 
 const EVENT_ATTRS = ["event_id", "task_id", "type", "message", "payload", "created_at"];
@@ -55,7 +56,7 @@ const StatusBadge = ({status}) => {
 const UdaTaskPage = ({params, pageSize = 20}) => {
     const taskId = params?.task_id || params?.etl_context_id;
     const ref = React.useRef();
-    const { app, type, datasources, falcor, UI, baseUrl } = React.useContext(DatasetsContext);
+    const { app, type, datasources, falcor, UI, baseUrl, parent } = React.useContext(DatasetsContext);
     // Tasks live in either DMS (`dms.tasks`) or DAMA (`data_manager.tasks`).
     // The server dispatches by env.includes('+'), and task_id sequences are
     // independent across backends — so task 6771 in DAMA is *not* the same
@@ -153,9 +154,14 @@ const UdaTaskPage = ({params, pageSize = 20}) => {
 
     const { theme } = React.useContext(ThemeContext) || {};
     const t = { ...udaTaskPageTheme, ...(theme?.datasets?.udaTaskPage || {}) };
+    // Shared secondary nav — mount-aware base (pattern.navPrefix; '' on primary mounts) (see DatasetsList).
+    const menuItemsSecondNav = React.useMemo(
+        () => dataItemsNav(theme?.navOptions?.secondaryNav?.navItems || [], parent?.navPrefix || '', false),
+        [theme?.navOptions?.secondaryNav?.navItems, parent?.navPrefix]
+    );
 
     return (
-        <Layout navItems={[]}>
+        <Layout navItems={[]} secondNav={menuItemsSecondNav}>
             <Breadcrumbs items={[
                 {icon: 'Database', href: baseUrl},
                 {name: 'Tasks', href: `${baseUrl}/tasks-new`},

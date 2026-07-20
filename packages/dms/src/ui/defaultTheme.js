@@ -23,12 +23,15 @@ import {nestableTheme} from "./components/draggableNav"
 import {dataCardTheme} from "./components/card.theme";
 import {graphTheme} from "./components/graph/theme";
 import {logoTheme} from "./components/Logo.theme";
+import {themeToggleTheme} from "./components/ThemeToggle.theme";
 import navigableMenuTheme from "./components/navigableMenu/theme";
 import {mapTheme} from "./components/map/map.theme";
 import icons from './icons'
 import { textSettingsTheme } from "./themes/textSettings";
 import { lexicalTheme } from './components/lexical/theme';
 import { nestableInHouseTheme } from "./components/nestableInHouse";
+import { defaultPageTemplates } from './pageTemplates';
+import { defaultSiteTemplates } from './siteTemplates';
 // =========================================
 // Pattern Themes, maybe move registration of these to DMS Site ??
 // =========================================
@@ -70,6 +73,7 @@ const components = {
     sidenav: sideNavTheme,
     topnav: topNavTheme,
     logo: logoTheme,
+    themeToggle: themeToggleTheme,
     tabs: tabsTheme,
     button: buttonTheme,
     input: inputTheme,
@@ -124,7 +128,9 @@ const theme = {
 
     "Icons":icons,
     settings,
-    widgets: defaultWidgets
+    widgets: defaultWidgets,
+    page_templates: defaultPageTemplates,
+    site_templates: defaultSiteTemplates
 }
 
 export default theme

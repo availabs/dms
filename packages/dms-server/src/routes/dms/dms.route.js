@@ -80,7 +80,10 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
             else if (att === 'type') value = row.type || null;
             else if (kind === 'pattern' && att === 'data') {
               // Return minimal routing info so the client builds the route and
-              // redirects to login instead of 404ing.
+              // redirects to login instead of 404ing. `theme` must be included:
+              // without it a transient auth failure renders the whole site with
+              // the default theme (and the login redirect unbranded). `config`
+              // stays out — schema info, not needed for routing/branding.
               value = $atom({
                 id: 'no-access',
                 base_url: row.data?.base_url,
@@ -88,6 +91,7 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
                 subdomain: row.data?.subdomain,
                 authPermissions: row.data?.authPermissions,
                 name: row.data?.name,
+                theme: row.data?.theme,
               });
             } else value = 'no-access';
             response.push({ path, value });
@@ -388,7 +392,10 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
         const [, , , ids, atts] = pathSet;
         const user = this.user;
         const subdomain = this.subdomain;
-        const rows = await controller.getDataById(ids, atts);
+        // The auth check keys off row.type — always fetch it. A `data`-only
+        // request otherwise skips the check and leaks restricted rows.
+        const fetchAtts = atts.includes('type') ? atts : [...atts, 'type'];
+        const rows = await controller.getDataById(ids, fetchAtts);
         return await dataByIdResponse(rows, ids, atts, null, user, subdomain);
       },
     },
@@ -399,9 +406,12 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
         const [, , apps, , ids, atts] = pathSet;
         const user = this.user;
         const subdomain = this.subdomain;
+        // The auth check keys off row.type — always fetch it. A `data`-only
+        // request otherwise skips the check and leaks restricted rows.
+        const fetchAtts = atts.includes('type') ? atts : [...atts, 'type'];
         const results = await Promise.all(
           apps.map(app =>
-            controller.getDataById(ids.filter(i => i !== 'no-access'), atts, app)
+            controller.getDataById(ids.filter(i => i !== 'no-access'), fetchAtts, app)
               .then(rows => dataByIdResponse(rows, ids.filter(i => i !== 'no-access'), atts, app, user, subdomain))
           )
         );
@@ -415,12 +425,12 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
           // New format: [app, id, data] or [app, id, data, type]
           // When type is provided, the controller resolves the split table for dataset rows.
           const [app, id, data, type] = args;
-          const rows = await controller.setDataById(id, data, this.user, app, type || null);
+          const rows = await controller.setDataById(id, data, this.user, app, type || null, this.reqMeta);
           return await dataByIdResponse(rows, [id], DATA_ATTRIBUTES, app);
         }
         // Legacy format: [id, data]
         const [id, data] = args;
-        const rows = await controller.setDataById(id, data, this.user);
+        const rows = await controller.setDataById(id, data, this.user, null, null, this.reqMeta);
         return await dataByIdResponse(rows, [id], DATA_ATTRIBUTES);
       },
     },
@@ -443,12 +453,12 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
         if (args.length >= 3) {
           // New format: [app, id, type]
           const [app, id, type] = args;
-          const rows = await controller.setTypeById(id, type, this.user, app);
+          const rows = await controller.setTypeById(id, type, this.user, app, this.reqMeta);
           return await dataByIdResponse(rows, [id], DATA_ATTRIBUTES, app);
         }
         // Legacy format: [id, type]
         const [id, type] = args;
-        const rows = await controller.setTypeById(id, type, this.user);
+        const rows = await controller.setTypeById(id, type, this.user, null, this.reqMeta);
         return await dataByIdResponse(rows, [id], DATA_ATTRIBUTES);
       },
     },
@@ -459,7 +469,7 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
         const t0 = Date.now();
         console.log('[dms.data.create] START app=%s type=%s user=%s t=%d', app, type, this.user?.id || 'anon', t0);
         try {
-          const rows = await controller.createData(args, this.user);
+          const rows = await controller.createData(args, this.user, this.reqMeta);
           console.log('[dms.data.create] OK rows=%d id=%s elapsed=%dms', rows.length, rows[0]?.id, Date.now() - t0);
           const ids = rows.map(({ id }) => String(id));
           return [
@@ -477,8 +487,11 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
     {
       route: "dms.data.delete",
       call: function(callPath, args) {
+        if (!this.user) {
+          throw new Error('Authentication required to delete items');
+        }
         const [app, type, ...ids] = args;
-        return controller.deleteData(app, type, ids, this.user).then((rows) => [
+        return controller.deleteData(app, type, ids, this.user, this.reqMeta).then((rows) => [
           // Invalidate both old and new paths
           ...ids.flatMap((id) => ([
             { path: ["dms", "data", "byId", id], invalidated: true },

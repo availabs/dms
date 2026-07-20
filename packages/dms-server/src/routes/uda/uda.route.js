@@ -7,6 +7,8 @@ const {
   getSourceById,
   updateSource,
   setIndexColumn,
+  setPrimaryKeyColumn,
+  getSourcePrimaryKeyInfo,
 
   getViewLengthBySourceId,
   getViewsByIndexBySourceId,
@@ -17,8 +19,13 @@ const {
   simpleFilterLength,
   simpleFilter,
   dataById,
-  clearViewData
+  clearViewData,
+  createExternalRow,
+  updateExternalRow,
+  deleteExternalRow
 } = require("./uda.controller");
+const { getEssentials } = require("./utils");
+const { isUserAuthedForSource } = require("./sourceAuth");
 
 // ================================================= UDA Source Routes =================================================
 
@@ -111,8 +118,20 @@ module.exports = [
         for (const pgEnv of pgEnvs) {
           const sourcesById = jsonGraph.uda[pgEnv].sources.byId;
           const ids = Object.keys(sourcesById);
+          const { db } = await getEssentials({ env: pgEnv });
 
           for (const sourceId of ids) {
+            // Per-source enforcement (pattern ⊕ source). Editing authPermissions itself needs
+            // `edit-source-permissions`; other writes need `update-source`. Un-migrated envs (no
+            // authPermissions column) are allowed (no prior enforcement to regress).
+            const requiresPermEdit = JSON.stringify(sourcesById[sourceId] || {}).includes('auth_permissions');
+            const reqPermissions = requiresPermEdit ? ['edit-source-permissions'] : ['update-source'];
+            const authed = await isUserAuthedForSource({ db, sourceId: +sourceId, reqPermissions, user: this.user });
+            if (!authed) {
+              console.log("uda: UNAUTHORIZED source modify", sourceId, this.user && this.user.email);
+              throw new Error(`User not authorized to modify source id(s): ${sourceId}`);
+            }
+
             const rows = await updateSource(pgEnv, sourceId, sourcesById[sourceId]);
             const row = rows.find(r => +r.source_id === +sourceId || +r.id === +sourceId);
 
@@ -129,6 +148,32 @@ module.exports = [
                 });
               }
             }
+          }
+        }
+        return result;
+      } catch (err) {
+        console.error(err);
+        throw err;
+      }
+    },
+  },
+
+  // --------------------------------- sources.byId.pkeyInfo ---------------------------------
+  // Reports { hasPkey, pkeyColumn, isDetectedExisting } for a source's underlying table(s).
+  {
+    route: `uda[{keys:envs}].sources.byId[{integers:ids}].pkeyInfo`,
+    get: async function(pathSet) {
+      try {
+        const { envs, ids } = pathSet;
+        const result = [];
+
+        for (const env of envs) {
+          for (const id of ids) {
+            const info = await getSourcePrimaryKeyInfo(env, id);
+            result.push({
+              path: ["uda", env, "sources", "byId", id, "pkeyInfo"],
+              value: $atom(info),
+            });
           }
         }
         return result;
@@ -404,6 +449,30 @@ module.exports = [
     },
   },
 
+  // --------------------------------- sources.setPrimaryKey (call) ---------------------------------
+  // Args: [env, sourceId, columnName, enable]
+  // External (DAMA) sources only. enable=true (default) validates the column (no NULLs, no
+  // duplicates) across every physical table backing the source, then runs
+  // ALTER TABLE ... ADD CONSTRAINT ... PRIMARY KEY. Throws (no partial DDL) if any table fails
+  // validation. enable=false drops whatever the table's real PK constraint actually is and
+  // clears isEditable (a source can't stay editable without a resolvable PK).
+  {
+    route: `uda.sources.setPrimaryKey`,
+    call: async function(callPath, args) {
+      try {
+        const [env, sourceId, columnName, enable = true] = args;
+        await setPrimaryKeyColumn(env, sourceId, columnName, enable);
+        return [
+          { path: ["uda", env, "sources", "byId", +sourceId], invalidated: true },
+          { path: ["uda", env, "sources", "byId", +sourceId, "pkeyInfo"], invalidated: true },
+        ];
+      } catch (err) {
+        console.error('[uda] sources.setPrimaryKey error:', err.message);
+        throw err;
+      }
+    },
+  },
+
   // --------------------------------- viewsById.clearData (call) ---------------------------------
   // Args: [env, view_id]
   // Truncates / deletes all rows in the split table for the given view.
@@ -418,6 +487,70 @@ module.exports = [
         ];
       } catch (err) {
         console.error('[uda] viewsById.clearData error:', err.message);
+        throw err;
+      }
+    },
+  },
+
+  // --------------------------------- data.create (call) ---------------------------------
+  // Args: [env, view_id, row]
+  // External (DAMA) sources only. Re-validates metadata.isEditable + a resolvable real PK
+  // server-side (uda.controller.js#resolveEditableTable) — the client's isEditable flag is a
+  // UX convenience, not a trust boundary. Writes the row's attributes at the same dataById
+  // path the GET route uses, so the response carries a real `id` (the DB-assigned/real PK
+  // value) the client can read the same way dms.data.create's response does.
+  {
+    route: `uda.data.create`,
+    call: async function(callPath, args) {
+      try {
+        if (!this.user) throw new Error('Authentication required to create rows');
+        const [env, view_id, row] = args;
+        const created = await createExternalRow(env, view_id, row);
+        return Object.keys(created).map(attribute => ({
+          path: ["uda", env, "viewsById", +view_id, "dataById", created.id, attribute],
+          value: typeof created[attribute] === 'object' ? $atom(created[attribute]) : created[attribute],
+        }));
+      } catch (err) {
+        console.error('[uda] data.create error:', err.message);
+        throw err;
+      }
+    },
+  },
+
+  // --------------------------------- data.edit (call) ---------------------------------
+  // Args: [env, view_id, id, row]
+  {
+    route: `uda.data.edit`,
+    call: async function(callPath, args) {
+      try {
+        if (!this.user) throw new Error('Authentication required to edit rows');
+        const [env, view_id, id, row] = args;
+        const updated = await updateExternalRow(env, view_id, id, row);
+        return Object.keys(updated).map(attribute => ({
+          path: ["uda", env, "viewsById", +view_id, "dataById", updated.id, attribute],
+          value: typeof updated[attribute] === 'object' ? $atom(updated[attribute]) : updated[attribute],
+        }));
+      } catch (err) {
+        console.error('[uda] data.edit error:', err.message);
+        throw err;
+      }
+    },
+  },
+
+  // --------------------------------- data.delete (call) ---------------------------------
+  // Args: [env, view_id, id]
+  {
+    route: `uda.data.delete`,
+    call: async function(callPath, args) {
+      try {
+        if (!this.user) throw new Error('Authentication required to delete rows');
+        const [env, view_id, id] = args;
+        await deleteExternalRow(env, view_id, id);
+        return [
+          { path: ["uda", env, "viewsById", +view_id, "dataById", id], invalidated: true },
+        ];
+      } catch (err) {
+        console.error('[uda] data.delete error:', err.message);
         throw err;
       }
     },

@@ -217,9 +217,12 @@ export const RenderFilters = ({ isEdit, defaultOpen = true }) => {
                             column: columnName,
                             // optionOrderBy → preserve the query's aggregate order (uniqBy keeps first-seen
                             // order); otherwise the default alphabetical/numeric sort.
+                            // numeric:true = NATURAL sort, so numbered labels order by value
+                            // ("Region 2" before "Region 10" — plain localeCompare put 10/11
+                            // between 1 and 2). Identical to alphabetical for unnumbered labels.
                             uniqValues: optionOrderBy ? uniq : uniq.sort((a, b) =>
                                 typeof a?.label === 'string' && typeof b?.label === 'string' ?
-                                    a.label.localeCompare(b.label) :
+                                    a.label.localeCompare(b.label, undefined, { numeric: true, sensitivity: 'base' }) :
                                     b?.label - a?.label
                             ),
                         }
@@ -310,8 +313,11 @@ export const RenderFilters = ({ isEdit, defaultOpen = true }) => {
                         <div className={labelWrapperClass[placement]}>
                             <span className={theme.filters.filterLabel}>{filterColumn.customName || filterColumn.display_name || filterColumn.name}</span>
                             {/* fixed-size CSS spinner (inherits text color via border-current) instead of
-                                the variable-width word "loading…", which shifted layout / jittered. */}
-                            <span className={loading ? (theme.filters.loadingSpinner || 'inline-block shrink-0 size-3 ml-1 rounded-full border-2 border-current border-t-transparent animate-spin opacity-50') : 'hidden'} aria-label="loading" role="status" />
+                                the variable-width word "loading…", which shifted layout / jittered.
+                                `invisible` (not `hidden`) when idle: the spinner's box stays in the
+                                layout permanently, so it appearing/disappearing never shifts the
+                                label or re-flows the bar. */}
+                            <span className={`${theme.filters.loadingSpinner || 'inline-block shrink-0 size-3 ml-1 rounded-full border-2 border-current border-t-transparent opacity-50'} ${loading ? 'animate-spin' : 'invisible'}`} aria-label="loading" role="status" />
                         </div>
                         <div className={placementClass[placement]}>
                             <RenderFilterValueSelector key={`${filterColumn.name}-filter`}

@@ -6,6 +6,17 @@ import NavigableMenu from "./navigableMenu";
 import CardColumnPicker from './CardColumnPicker';
 import Icon from "./Icon";
 import TableHeaderCell from "./table/components/TableHeaderCell";
+import {
+    isLayoutModelV2,
+    resolveCardsPackMode,
+    resolveCardsGridStyle,
+    resolveCellTracks,
+    resolveCellsGridStyle,
+    resolveCellStyle,
+    resolveHeaderValueWidths,
+    resolveCellBorderClass,
+    describeResolvedPadding,
+} from './Card.layout';
 
 
 
@@ -216,10 +227,6 @@ const cellBorderSides = (attr, theme) => {
     if (attr.cellBorderLeft) out.push(m.left);
     return out.filter(Boolean).join(' ');
 };
-// Per-cell vertical alignment → CSS align-self on the cell (a grid item).
-// 'baseline' lines up text baselines across a row; 'center' vertically centers.
-const vAlignSelf = { top: 'start', center: 'center', bottom: 'end', baseline: 'baseline' };
-
 // Header text-transform. Default '' = as-authored (the Card no longer force-
 // capitalizes headers). Authors opt into a transform via the `headerCase` column control.
 const caseClass = {
@@ -273,7 +280,14 @@ const CompWrapper = ({
                       updateItem, liveEdit, tmpItem, setTmpItem, allowEdit, formatFunctions,
                       isNewItem, newItem, setNewItem, // when allowAddNewItem is on
                   }) => {
-    const editMode = allowEdit || (isNewItem && setNewItem && !tmpItem.id);
+    // `static` columns are chrome (a fixed staticValue, e.g. an eyebrow/label) with nothing to
+    // edit — never put them in edit mode, so they don't render an EditComp or the edit-mode
+    // `border` outline inside an allowEditInView card. `editable: false` opts a DATA column out
+    // the same way (it was already excluded from save payloads — dataWrapper's editableColumns —
+    // but still rendered pointless edit chrome; e.g. a pre-filled read-only field on an
+    // allowAdddNew form card).
+    const editMode = (allowEdit || (isNewItem && setNewItem && !tmpItem.id))
+        && attribute.origin !== 'static' && attribute.editable !== false;
     const compIdEdit = `${attribute.name}-${id}`;
     const Comp = ColumnTypes[attribute.type]?.[editMode ? 'EditComp' : 'ViewComp'] || DefaultComp;
     // Strip the column's data `key` field before spreading — otherwise React reads
@@ -378,18 +392,20 @@ const CardColumnField = ({
     const [hovered, setHovered] = useState(false);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const visible = hovered || isMenuOpen;
-    const {isLink, isLinkExternal, location, linkText, isImg, imageSrc, imageLocation, imageExtension, imageSize, imageMargin} = attr || {};
+    const {isLink, isLinkExternal, location, linkText, isImg, imageSrc, imageLocation, imageExtension, imageSize} = attr || {};
     // cardHints: optional metadata declared by a column type (typically a
     // theme-registered one) that lets the type opt out of the field chrome.
     // Built-in types ship without hints, so the empty-object fallback is a
     // strict no-op for legacy columns.
     const hints = ColumnTypes[attr?.type]?.cardHints || {};
     const fullBleed = !!hints.fullBleed;
-    const span = `span ${attr.cellSpan || 1}`;
     const source = isNewItem ? newItem : tmpItem;
     const rawValue = attr.origin === 'static'
         ? attr.staticValue
-        : source?.[attr.normalName] || source?.[attr.name];
+        // ?? not ||: a calculated column's data is keyed under normalName only (getData keys each
+        // row by normalName || name), so a falsy value there (count of 0) must not fall through to
+        // the absent name key — that rendered aggregate zeros as blank cells.
+        : source?.[attr.normalName] ?? source?.[attr.name];
     const id = tmpItem?.id;
     const value =
         isImg ?
@@ -426,8 +442,15 @@ const CardColumnField = ({
 
     if(isLink){
         valueFormattedForSearchParams = normalizeValueForSearchParams(value, attr.searchParams);
+        // searchParamsCol: source the link param from ANOTHER column's value on this row — display
+        // one field, link by another (ported from TableCell; BC: only engaged when the attribute
+        // sets `searchParamsCol`).
+        const colLinkVal = attr.searchParamsCol != null
+            ? (() => { const cv = source?.[attr.searchParamsCol]; return cv && typeof cv === 'object' ? (cv.originalValue ?? cv.value ?? '') : (cv ?? ''); })()
+            : null;
         searchParams =
             attr.searchParams === 'id' ? encodeURIComponent(id) :
+                attr.searchParamsCol != null ? encodeURIComponent(colLinkVal) :
                 ['value', 'rawValue'].includes(attr.searchParams) ?
                     encodeURIComponent(valueFormattedForSearchParams) : ``;
         if (attr.persistSearchParams && location) {
@@ -457,62 +480,22 @@ const CardColumnField = ({
 
     // Per-side cell borders (cellBorderTop/Right/Bottom/Left; cellBorderBelow = bottom).
     const sidedBorder = cellBorderSides(attr, theme);
-    // Cell border: cellBorder=true puts chrome around each cell. Edit-mode hover shows
-    // the blue editing outline. The transparent fallback keeps layout stable when no
-    // border is shown — but skip it when sided borders are present, otherwise
-    // `border-transparent` clobbers the per-side border color.
-    let borderClass;
-    if (isEdit && visible) borderClass = 'border border-blue-300';
-    else if (cellBorder) borderClass = theme.itemBorder;
-    else if (sidedBorder) borderClass = '';
-    else borderClass = 'border border-transparent';
+    // Cell chrome: v1 ships an always-on transparent border fallback (+2px);
+    // v2 drops it and hover uses an outline. See Card.layout.js.
+    const layoutModelV2 = isLayoutModelV2(theme);
+    const borderClass = resolveCellBorderClass({
+        editHover: isEdit && visible, cellBorder, sidedBorder, theme, layoutModelV2,
+    });
 
     const wrapperViewClass = `${theme.headerValueWrapperSimpleView || ''} ${sidedBorder} ${borderClass}`;
 
-    // cardHints provide a column type's *default* positioning (e.g.,
-    // portrait_banner sets `spanFullColumns: true` so it fills the card by
-    // default). An author-supplied `cellSpan` / `cellRowSpan` is explicit
-    // intent and wins over the type-level hint — without this override,
-    // cellSpan would be silently dropped on hint-bearing column types.
-    // Per-cell padding: section-level `cellsPadding` is the ambient default;
-    // a column may override with `cellPadding` (all sides) and/or any of the
-    // four side-specific keys. Side-specific keys win over `cellPadding`
-    // because React's later-key-wins rule applies them after the shorthand.
-    // The `!== '' && !== undefined` guard distinguishes "author cleared the
-    // field" (fall through to ambient) from "author typed 0" (apply 0).
-    const padOverride = (key, fallback) => {
-        const v = attr[key];
-        if (fullBleed) return 0;
-        if (v === undefined || v === null || v === '') return fallback;
-        return +v;
-    };
-    const style = {
-        gridColumn: attr.cellSpan ? span : (hints.spanFullColumns ? '1 / -1' : span),
-        ...(attr.cellRowSpan ? { gridRow: `span ${attr.cellRowSpan}` } :
-            hints.spanFullRows ? { gridRow: '1 / -1' } : {}),
-        padding: padOverride('cellPadding', cellsPadding),
-        paddingTop: padOverride('cellPaddingTop', undefined),
-        paddingRight: padOverride('cellPaddingRight', undefined),
-        paddingBottom: padOverride('cellPaddingBottom', undefined),
-        paddingLeft: padOverride('cellPaddingLeft', undefined),
-        marginTop: `${imageMargin}px`,
-        backgroundColor: attr.cellBgColor,
-        ...(hints.height ? { height: `${hints.height}px` } : {}),
-        // Vertical alignment of the cell within its grid row (per-column
-        // cellVAlign wins; display-level cellsVAlign is the ambient default).
-        ...((attr.cellVAlign || display?.cellsVAlign)
-            ? { alignSelf: vAlignSelf[attr.cellVAlign || display.cellsVAlign] || (attr.cellVAlign || display.cellsVAlign) }
-            : {}),
-        // Cap the cell's width (the spanned tracks still reserve their share, but the
-        // cell content box is clamped to maxWidth and positioned within its grid area
-        // by its `justify` — so a right-justified narrow delta sits at the right edge,
-        // content ending at the edge, instead of overflowing it. Useful for a narrow
-        // value/delta cell that would otherwise stretch across its whole span.
-        ...((attr.cellMaxWidth != null && attr.cellMaxWidth !== '')
-            ? { maxWidth: typeof attr.cellMaxWidth === 'number' ? `${attr.cellMaxWidth}px` : attr.cellMaxWidth,
-                justifySelf: { left: 'start', right: 'end', center: 'center' }[attr.justify] || 'start' }
-            : {}),
-    }
+    // The cell's whole inline geometry — spans, padding precedence
+    // (side-specific > cellPadding > cellsPadding > v2 theme cellGutter),
+    // explicit-zero contract, defined-keys-only emission — lives in
+    // Card.layout.js so it's readable and testable in one place.
+    const style = resolveCellStyle({
+        attr, hints, display, cellsPadding, layoutModelV2, cellGutter: theme.cellGutter,
+    });
 
     const hasMenu = isEdit && controls?.inHeader?.length && setState;
     const isRowLayout = !headerValueLayout || headerValueLayout === 'row';
@@ -536,6 +519,14 @@ const CardColumnField = ({
         </span>
     );
 
+    // activeOnSearchParam: CardSection (the page-pattern wrapper) resolved which
+    // link cells' `location` params match the live page filters and passed the
+    // per-column result here via controls. The active tint is a themed class
+    // (`theme.cellActive`) — empty by default so cards without an override render
+    // identically; brand themes supply the highlight.
+    const isActiveCell = !!controls?.activeColumns?.[attr?.normalName || attr?.name];
+    const activeClass = isActiveCell ? (theme.cellActive || '') : '';
+
     // fullBleed columns get a bare wrapper (no padding/border/rounded chrome)
     // and the field header is suppressed — they own their own visual surface.
     const wrapperClass = fullBleed
@@ -543,10 +534,21 @@ const CardColumnField = ({
         : `relative ${theme.headerValueWrapper} ${wrapperFlexClass} ${wrapperViewClass}`;
     const headerVisible = !fullBleed && (!attr.hideHeader || (hasMenu && !isRowLayout));
 
+    // Row-layout width split — a hidden header/value must not reserve its share.
+    const { headerMaxWidth, valueMaxWidth } = resolveHeaderValueWidths({
+        isRowLayout, hideHeader: attr.hideHeader, hideValue: attr.hideValue, headerWidth, valueWidth,
+    });
+
     return (
         <div
-            className={`${wrapperClass}${onColumnClick ? ' cursor-pointer' : ''}`}
+            className={`${wrapperClass}${onColumnClick ? ' cursor-pointer' : ''}${activeClass ? ` ${activeClass}` : ''}`}
             style={style}
+            // Introspection (edit mode only): one devtools glance answers
+            // "which column is this cell and where does its padding come from".
+            {...(isEdit ? {
+                'data-cell': attr.normalName || attr.name,
+                'data-pad': describeResolvedPadding(style),
+            } : {})}
             onClick={onColumnClick}
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => { if (!isMenuOpen) setHovered(false); }}
@@ -559,7 +561,7 @@ const CardColumnField = ({
             {headerVisible && (
                 <div
                     className={`${attr.hideHeader ? '' : `${attr.headerFontStyle === 'button' ? theme.linkColValue : theme.header} ${theme[headerTextJustifyClass] || ''} ${caseClass[attr.headerCase || '']}`}`}
-                    style={{maxWidth: isRowLayout && !attr.hideValue ? `${headerWidth || 50}%` : undefined}}
+                    style={{maxWidth: headerMaxWidth}}
                 >
                     {!attr.hideHeader && (
                         <span className={`${theme[attr.headerFontStyle || 'textXS']}`}>
@@ -572,8 +574,11 @@ const CardColumnField = ({
             {
                 attr.hideValue ? null :
                     <div className={
-                        `${theme.value} ${theme[valueTextJustifyClass]} ${theme[(attr.valueFontStyle && attr.valueFontStyle !== 'button') ? attr.valueFontStyle : 'textXS']} ${formatClass}
-                        `} style={{maxWidth: isRowLayout && !attr.hideHeader ? `${valueWidth || 50}%` : undefined}}>
+                        // A styled link cell puts valueFontStyle on the <a>/<Link> below — repeating
+                        // it here doubled box-shaped tokens (chip, btnPrimary) into a phantom second
+                        // box. Text tokens nested harmlessly, which hid this until a box token hit it.
+                        `${theme.value} ${theme[valueTextJustifyClass]} ${(isLink && !(allowEdit || attr.allowEditInView)) ? '' : theme[(attr.valueFontStyle && attr.valueFontStyle !== 'button') ? attr.valueFontStyle : 'textXS']} ${formatClass}
+                        `} style={{maxWidth: valueMaxWidth}}>
                         {
                             isLink && !(allowEdit || attr.allowEditInView) ?
                                 (isLinkExternal ?
@@ -812,7 +817,10 @@ const RenderItem = memo(function RenderItem ({
                             cellBorder={cellBorder}
                             cellsPadding={cellsPadding}
                             reverse={reverse}
-                            headerValueLayout={headerValueLayout}
+                            // per-column override (additive): lets one cell deviate from the card's
+                            // ambient layout — e.g. a full-width data_bar (needs `col`; `row` collapses
+                            // it to content width) inside an otherwise row-aligned stats card.
+                            headerValueLayout={attr.headerValueLayout || headerValueLayout}
                             headerWidth={headerWidth}
                             valueWidth={valueWidth}
                             allowAdddNew={allowAdddNew}
@@ -852,7 +860,7 @@ const RenderItem = memo(function RenderItem ({
             {
                 isAddingNewItem ? (
                     <div className={theme.formAddNewItemWrapper}>
-                        <Button activeStyle="active" onClick={() => addItem()}>add</Button>
+                        <Button activeStyle="active" onClick={() => addItem()}>{display?.addItemLabel || 'add'}</Button>
                     </div>
                 ) : null
             }
@@ -875,8 +883,8 @@ export default function Card ({
     const [draggedCol, setDraggedCol] = useState(null);
 
     const {
-        cardsGridSize, cardsGridGap, cardsPadding, cardsBgColor,
-        cellsGridSize, cellsGridGap, cellsRowHeight, cellsPadding,
+        cardsGridSize, cardsGridGap, cardsGridPadding, cardsPadding, cardsBgColor, cardsVerticalAlign,
+        cellsGridSize, cellsGridGap, cellsRowGap, cellsColumnGap, cellsRowHeight, cellsPadding,
         cellsTracksTemplate,
         cardBorder, cellBorder,
         allowAdddNew,
@@ -896,90 +904,35 @@ export default function Card ({
         [visibleColumns]);
 
     // Cards grid (outer): records laid out across the section. Default 1
-    // column → vertical stack, which matches the legacy "cell mode" look.
-    const mainWrapperStyle = useMemo(() => ({
-        display: 'grid',
-        gridTemplateColumns: `repeat(${cardsGridSize || 1}, minmax(0, 1fr))`,
-        gap: cardsGridGap,
-        paddingTop: imageTopMargin ? `${imageTopMargin}px` : undefined,
-        // Fill behaviour (BC): when the section is `height:'fill'` it gives this a
-        // flex-column parent with a definite height → `flex:1` fills it and the card
-        // rows grow to that height. In an `auto` (content-height) parent, `flex` is
-        // ignored and `minmax(max-content,1fr)` resolves to max-content = the legacy
-        // `auto` row, so nothing changes.
-        flex: '1 1 auto',
-        minHeight: 0,
-        gridAutoRows: 'minmax(max-content, 1fr)',
-    }), [cardsGridSize, cardsGridGap, imageTopMargin]);
+    // column → vertical stack. Vertical rhythm depends on the layout model:
+    // v1 default fills the box (slack distributed BETWEEN card rows;
+    // `cardsVerticalAlign: 'top'` packs); v2 default packs to the top so the
+    // gap between cards is exactly `cardsGridGap` (`'stretch'` opts into
+    // fill). Full model docs in Card.layout.js.
+    const layoutModelV2 = isLayoutModelV2(theme);
+    const packMode = resolveCardsPackMode({ cardsVerticalAlign, layoutModelV2 });
+    const mainWrapperStyle = useMemo(
+        () => resolveCardsGridStyle({
+            display: { cardsGridSize, cardsGridGap, cardsGridPadding, cardsVerticalAlign },
+            imageTopMargin, layoutModelV2,
+        }),
+        [cardsGridSize, cardsGridGap, cardsGridPadding, cardsVerticalAlign, imageTopMargin, layoutModelV2]);
 
     // Cells grid (inner, per-record): cells laid out across the card.
-    // Default falls back to one cell per visible column (matches the legacy
-    // "cell mode" auto-fit behavior). `display: grid` is forced inline so it
-    // wins over any `display: flex` still shipped via theme.subWrapperCompactView.
-    //
-    // Track sizing rules:
-    //   - `display.cellsTracksTemplate` (raw `grid-template-columns` string),
-    //     when set, wins outright. Author escape hatch for layouts the
-    //     per-column knobs can't express.
-    //   - Otherwise each visible column may declare `cellWidth` (e.g. `'64px'`,
-    //     `'auto'`, `'1fr'`). The walker below mirrors sparse auto-flow's
-    //     track cursor and lets the FIRST column to land on a given track
-    //     impose its width on that track. Other tracks default to
-    //     `minmax(0, 1fr)`. This intentionally ignores row spans for the
-    //     purpose of sizing — the column whose cursor first reaches a track
-    //     wins it.
-    const gridTemplateColumns = useMemo(() => {
-        if (typeof cellsTracksTemplate === 'string' && cellsTracksTemplate.trim()) {
-            return cellsTracksTemplate;
-        }
-        const trackCount = cellsGridSize || cellsWithoutSpanLength || 1;
-        const tracks = new Array(trackCount).fill('minmax(0, 1fr)');
-        let col = 1;
-        for (const c of visibleColumns) {
-            const span = +c.cellSpan || 1;
-            if (col + span - 1 > trackCount) col = 1; // wrap to a new row
-            if (c.cellWidth && tracks[col - 1] === 'minmax(0, 1fr)') {
-                const w = String(c.cellWidth).trim();
-                // 'fluid' is an alias for the default; '' clears any prior claim.
-                if (w && w !== 'fluid') {
-                    tracks[col - 1] = w;
-                    // Cell-width semantics: a column's `cellWidth` is the
-                    // size of the *cell*, not just its first track. When
-                    // `cellSpan > 1`, collapse the additional spanned
-                    // tracks (only when still unclaimed) so the resulting
-                    // cell is exactly `w` wide. Pre-claimed tracks (first
-                    // wins) keep their existing size — authors who want
-                    // span-2 fluid behaviour can stack a fluid column
-                    // first or fall back to `cellsTracksTemplate`.
-                    for (let i = 1; i < span; i++) {
-                        const idx = col - 1 + i;
-                        if (idx < trackCount && tracks[idx] === 'minmax(0, 1fr)') {
-                            tracks[idx] = '0px';
-                        }
-                    }
-                }
-            }
-            col += span;
-            if (col > trackCount) col = 1; // wrap explicitly when the cell exits the last track
-        }
-        return tracks.join(' ');
-    }, [cellsTracksTemplate, cellsGridSize, cellsWithoutSpanLength, visibleColumns]);
+    // Default falls back to one cell per visible column. `display: grid` is
+    // forced inline so it wins over any `display: flex` still shipped via
+    // theme.subWrapperCompactView. Track sizing (cellsTracksTemplate /
+    // per-column cellWidth first-wins walker) is documented in Card.layout.js.
+    const gridTemplateColumns = useMemo(
+        () => resolveCellTracks({ cellsTracksTemplate, cellsGridSize, cellsWithoutSpanLength, visibleColumns }),
+        [cellsTracksTemplate, cellsGridSize, cellsWithoutSpanLength, visibleColumns]);
 
-    const subWrapperStyle = useMemo(() => ({
-        display: 'grid',
-        gridTemplateColumns,
-        gap: cellsGridGap,
-        backgroundColor: cardsBgColor,
-        padding: cardsPadding,
-        // Pack cells to the top. When the card box is taller than its cells (a
-        // `height:'fill'` card with less content than its section), the grid's
-        // default `align-content: stretch` would distribute the slack across the
-        // cell rows; `start` keeps content top-aligned with the slack at the
-        // bottom. BC: no slack (content == box) → identical to stretch.
-        alignContent: 'start',
-        ...(cellsRowHeight ? { gridAutoRows: `${cellsRowHeight}px` } :
-            hasRowSpan ? { gridAutoRows: 'minmax(0, auto)' } : {}),
-    }), [gridTemplateColumns, cellsGridGap, cardsBgColor, cardsPadding, cellsRowHeight, hasRowSpan]);
+    const subWrapperStyle = useMemo(
+        () => resolveCellsGridStyle({
+            display: { cellsGridGap, cellsRowGap, cellsColumnGap, cellsRowHeight, cardsBgColor, cardsPadding },
+            gridTemplateColumns, hasRowSpan,
+        }),
+        [gridTemplateColumns, cellsGridGap, cellsRowGap, cellsColumnGap, cardsBgColor, cardsPadding, cellsRowHeight, hasRowSpan]);
 
     // Reordering function
     function handleDrop(targetCol) {
@@ -1026,8 +979,14 @@ export default function Card ({
 
             {/* Cards grid wrapper. Always a CSS grid; `display: grid` is also
                 set inline by mainWrapperStyle so themes that didn't ship the
-                `mainWrapperCompactView` key still render correctly. */}
-            <div className={theme.mainWrapperCompactView || ''} style={mainWrapperStyle}>
+                `mainWrapperCompactView` key still render correctly. The
+                edit-mode data-rhythm attribute exposes gap + pack mode for
+                spacing diagnosis in devtools. */}
+            <div
+                className={theme.mainWrapperCompactView || ''}
+                style={mainWrapperStyle}
+                {...(isEdit ? { 'data-rhythm': `${cardsGridGap ?? 0}/${packMode}` } : {})}
+            >
                 {
                     (allowAdddNew ? [...data, newItem] : data).map((item, i) => (
                         <RenderItem
@@ -1035,7 +994,7 @@ export default function Card ({
                             theme={theme}
                             {...display}
                             display={display}
-                            isDms={sourceInfo.isDms}
+                            isDms={sourceInfo.isDms || sourceInfo.isEditable}
                             item={item} newItem={newItem} setNewItem={setNewItem}
                             addItem={addItem} updateItem={updateItem} allowEdit={allowEdit}
                             subWrapperStyle={subWrapperStyle}

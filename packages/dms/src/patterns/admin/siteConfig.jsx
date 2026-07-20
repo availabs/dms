@@ -216,7 +216,7 @@ const patternConfig = ({
         type: (props) => {
           const { Layout } = UI;
           const { user, apiUpdate } = props;
-          const menuItems = getMenuItems(parentBaseUrl, props.user);
+          const menuItems = getMenuItems(parentBaseUrl, authPath, props.user);
 
           return (
             <AdminContext.Provider

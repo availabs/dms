@@ -2,6 +2,7 @@ import React, {useState, useEffect, useContext, useMemo, useCallback} from 'reac
 import {get} from "lodash-es";
 import {DatasetsContext} from "../context";
 import {ThemeContext, getComponentTheme} from "../../../ui/useTheme";
+import {dataItemsNav} from "../../../utils/nav";
 import {buildEnvsForListing, getExternalEnv} from "../utils/datasources";
 import Breadcrumbs from "../components/Breadcrumbs";
 import {settingsPageTheme} from "./settingsPage.theme";
@@ -31,10 +32,15 @@ const getSources = async ({envs, falcor}) => {
 }
 
 export default function SettingsPage({format}) {
-    const {baseUrl, falcor, datasources, dmsEnv, UI} = useContext(DatasetsContext);
+    const {baseUrl, falcor, datasources, dmsEnv, UI, parent} = useContext(DatasetsContext);
     const {theme: fullTheme} = useContext(ThemeContext) || {};
     const theme = { ...settingsPageTheme, ...getComponentTheme(fullTheme, 'datasets.settingsPage') };
     const {Layout, LayoutGroup, Input, Button} = UI;
+    // Shared secondary nav — mount-aware base (pattern.navPrefix; '' on primary mounts) (see DatasetsList).
+    const menuItemsSecondNav = useMemo(
+        () => dataItemsNav(fullTheme?.navOptions?.secondaryNav?.navItems || [], parent?.navPrefix || '', false),
+        [fullTheme?.navOptions?.secondaryNav?.navItems, parent?.navPrefix]
+    );
 
     const [sources, setSources] = useState([]);
     const [filteredCategories, setFilteredCategories] = useState([]);
@@ -107,7 +113,7 @@ export default function SettingsPage({format}) {
         search ? cats.filter(c => c.toLowerCase().includes(search.toLowerCase())) : cats;
 
     return (
-        <Layout navItems={[]}>
+        <Layout navItems={[]} secondNav={menuItemsSecondNav}>
             <div className={theme.pageWrapper}>
                 <Breadcrumbs items={[
                     {icon: 'Database', href: baseUrl},

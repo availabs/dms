@@ -315,13 +315,26 @@ function buildLayerUdaFilterOptions({ layerFilter, dynamicFilters = [], filterMo
     }
   }
 
-  activeDynamicFilters.forEach((dynamicFilter) => {
-    groups.push({
-      op: 'filter',
-      col: dynamicFilter.column_name,
-      value: dynamicFilter.values,
+  // A column already covered by a static filter above must not also get a
+  // dynamic-filter clause — ANDing both together is almost always an impossible
+  // condition (a row can't equal two different values on the same column at
+  // once), silently producing zero rows. The static filter wins; this also
+  // self-heals layers saved before the UI kept the two mutually exclusive.
+  const staticFilterColumns = new Set(
+    Object.entries(layerFilter || {})
+      .filter(([, filter]) => filter && filter.value !== undefined && filter.value !== null && filter.value !== '')
+      .map(([col]) => col)
+  );
+
+  activeDynamicFilters
+    .filter((dynamicFilter) => !staticFilterColumns.has(dynamicFilter.column_name))
+    .forEach((dynamicFilter) => {
+      groups.push({
+        op: 'filter',
+        col: dynamicFilter.column_name,
+        value: dynamicFilter.values,
+      });
     });
-  });
 
   if (!groups.length) {
     return null;
@@ -349,6 +362,7 @@ const normalizeLayerClickFilterConfig = (config = {}) => {
       variable: mapping?.variable || "",
       field: mapping?.field || "",
       useSearchParams: Boolean(mapping?.useSearchParams),
+      redirectOnClick: Boolean(mapping?.redirectOnClick),
     })),
   };
 };

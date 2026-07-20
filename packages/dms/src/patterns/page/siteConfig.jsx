@@ -21,8 +21,6 @@ import DefaultMenu from "./components/userMenu";
 import PageView from "./pages/view";
 import PageEdit from "./pages/edit";
 import ErrorPage from "./pages/error";
-import FormatManager from "./pages/formatManager"
-
 import { RegisterPlugin } from "../mapeditor/MapEditor"
 
 // Register page pattern widgets
@@ -103,7 +101,6 @@ const pagesConfig = ({
         return preloadPageSections(falcor, data, request.url, patternFilters, slug);
       },
     }),
-    pages: [{path: 'edit_pattern', name: 'Format Manager', component: FormatManager}],
     baseUrl,
     API_HOST,
     children: [
