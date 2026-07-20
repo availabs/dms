@@ -18,6 +18,79 @@ and leave only its ledger line in the live file.
 
 ---
 
+## Round 67 (2026-07-20) — Route Line Graph/Route Compare Component resolution-precedence read from the old tool and ported; closes the round-63 mixed-resolution open question with no policy decision needed (moved verbatim from the live file on 2026-07-20, round 68 start)
+
+**Context**: round 63 had flagged a genuine (not analyzer-noise) residual of 159
+`mixed_resolutions_on_graph` instances / 127 reports, concentrated in Route Line Graph and Route
+Compare Component, and left it open pending "the old tool's actual multi-comp precedence rule
+(`GeneralGraphComp` — not yet read for this narrower case) + a user policy sign-off." User's own
+prediction going in: "my guess is that we dont really need to make much of a decision" — confirmed
+correct.
+
+**What was read**: `GeneralGraphComp.jsx`, `RouteLineGraph.jsx`, `RouteCompareComponent.jsx`
+(transportNY, `pages/analysis/components/tmc_graphs/`) directly, not inferred from behavior.
+
+**Breakdown of the 159 by old graph type** (read-only script,
+`scratchpad/npmrds-sub/old-reports/mixed_resolution_breakdown.py`): **121 Route Line Graph, 21
+Route Compare Component, 17 scattered across already out-of-scope tail types** (Text Box, Traffic
+Volume Graph, Transcom Events Chart, Monthly Hours Graph, Distribution Graph, Stacked Transcom
+Graph, Route Map, Experiential Travel Time, HDS Bar Graph, HDS Line Graph).
+
+**Route Compare Component (21) — pure false positive, same class as the existing Route Map
+exemption**: `RouteCompareComponent.jsx` is not a shared-axis chart at all — it's a base-vs-compare
+*table*; each assigned comp is independently reduced to one scalar via `allReducer`/`reducer` at
+its own configured resolution, and the `resolution` parameter threaded through
+`generateGraphData`/`generateTableData`/`renderGraph` is never actually referenced in the component
+body — mirrors `ensure_route_compare_template`'s own self-aggregating `MEASURE_EXPR` (no resolution
+dimension in the SQL either). Fix: added `"Route Compare Component"` to the resolution-irrelevant
+exemption in `analyze_graph` (mirrors the existing `route_map_resolution_irrelevant` check) and
+dropped `info["resolution"]` from the `ROUTE_COMPARE_BUCKET` match in the template-selection loop
+entirely (measure + dataColumn only). **Bonus effect**: since resolution was never actually part of
+the real behavior, this also unblocked same-measure/dataColumn instances that happened to have a
+single, consistent, non-"5-minutes" resolution (e.g. "day") — 36 instances newly match the bucket,
+not just the 21 that were flagged mixed. Live-verified via dry-run on report 323's `graph-idx-4`
+(resolution `"day"`) — converts cleanly, no gap logged.
+
+**Route Line Graph (121, the real bulk) — a real but fully deterministic old-tool rule, not an
+open design question**: `RouteLineGraph.jsx` overrides both `GeneralGraphComp.getResolution()` and
+`getActiveRouteComponents()`. With no explicit `state.activeRouteComponents` (the common case —
+this is what the "no policy decision" hunch was right about): resolution defaults to the FIRST
+comp's own resolution in the report's original comp order (`routes[0].settings.resolution`),
+overridable only by an explicit `state.resolution` IF some comp in the report actually carries
+that value; then `getActiveRouteComponents()` filters the comp list down to ONLY the comps matching
+that winning resolution — comps in other resolution groups are silently excluded from the graph by
+default (real old-tool behavior: an author-facing "Resolution" dropdown lets a viewer manually
+switch which group is shown, whenever the report's comps span >1 resolution). Ported the exact
+default-group rule into `analyze_graph` (a new branch, only engaged when
+`state.activeRouteComponents` is absent, matching the JS's own literal-override precedence — an
+explicit `activeRouteComponents` selection in the old report bypasses resolution filtering
+entirely in the JS too, so those cases are correctly left as a genuine residual, not fixed). The
+selector-toggle UX itself was NOT replicated — conversion just lands on the default group, exactly
+what an unopened old report would render. Live-verified via dry-run on report 316's `graph-idx-0`
+(previously a 3-comp report with 2 resolutions; now resolves deterministically to `"5-minutes"`
+with 2/3 comps assigned) — converts cleanly, no gap logged.
+
+**Census impact** (full rerun, `scripts/census_old_reports.py`, read-only, no page mutations, 0
+errors): `full` (excl. pre-2017) 218→229 (+11), `full_producible` 174→181 (+7), mapped instances
+(excl. pre-2017) 5,056→5,162 (+106). Raw (incl. pre-2017-only): `full` 294→305, mapped
+5,514→5,621. `mixed_resolutions_on_graph` gap count: 159→20 (13 reports). `converted_pages_total`
+unchanged at 35 — pure data/logic-coverage gain, no pages built or reconverted this round (same
+pattern as round 66's pm3 backfill).
+
+**Genuine residual (20 instances / 13 reports, not chased further)**: 3 Route Line Graph instances
+(reports 271, 793) where the OLD REPORT ITSELF explicitly set `state.activeRouteComponents`
+spanning comps of different resolutions — a real ambiguity baked into that report's own past
+authoring, not analyzer noise, and correctly left gap-logged (report 271 is also pre-2017-only
+regardless). The other 17 are the already out-of-scope tail types listed above (1 of which, Route
+Map, is a genuine avgHoursOfDelay case — the other 145 Route Map mixed-resolution instances were
+already exempted in round 63).
+
+**Not done**: no reconversion/resweep of already-converted pages (lazy-reconvert policy — none of
+the 35 live pages were affected, same reasoning as round 66). No building of the 11 newly-full
+reports into actual pages (separate decision, same as round 66's 24). No replication of
+`RouteLineGraph`'s author-facing "Resolution" selector UI (out of scope for this fix — the
+converter picks the same default a fresh report open would show).
+
 ## Round 66 (2026-07-20) — pm3 (1410) 2018-2020 backfill wired into `PM3_VIEW_BY_YEAR`; census rerun; 2017 and Bar Graph Summary freeflow scoped as follow-ups (moved verbatim from the live file on 2026-07-20, round 67 start)
 
 **Context**: user reported backfilling "a ton of pm3 data" for 2020/2019/2018 and asked what it
