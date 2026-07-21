@@ -1,6 +1,6 @@
 # Report Graph Vocabulary Picker — author-facing measure/resolution/comparison-mode config
 
-## Status: Workstream 1 DONE (2026-07-20). Workstream 2 (the Measure picker UI) NOT STARTED.
+## Status: Workstream 1 DONE (2026-07-20). Workstream 2 (the Measure picker UI) DONE (2026-07-20).
 
 ## Objective
 
@@ -337,27 +337,224 @@ file at a location reachable by `scripts/convert_old_reports.py` via `REPO`-rela
 `VOCAB_PATH` near the top of that file) and importable by Vite's build-time JSON import for the
 theme-side JS bundle (Workstream 2, not yet built).
 
-### Workstream 2 — the Measure picker UI
+### Workstream 2 — the Measure picker UI — DONE (2026-07-20)
 
-1. **`src/dms/` — generic extension point.** Add a way for `getSectionMenuItems`
-   (`sectionMenu.jsx:40`) to accept additional item-group builders supplied via component-type
-   config or theme (mirroring how `join`/`comparisonSeries`/`pivot` are already built as
-   `datasetSubMenus` at line 872) or via a registry flag on the component type (mirroring
-   `usesItemMutationProps`). Exact mechanism TBD at implementation time — keep this piece small.
-2. **`src/themes/transportny/` — the actual Measure item-group.** Graph Type select → Measure
-   select (drawn from the vocabulary JSON) → Resolution select (5-minutes/15-minutes/day) →
-   Comparison Mode select (Plain/Difference). On selection, generates and writes: `columns`
-   (calculated yAxis/xAxis column configs), `join` (if required), `comparisonSeries.combine`,
-   `display` color rules — into the same section state the generic controls already own, so
-   Column Manager / comparisonSeries / join menus remain usable afterward for manual override.
-3. **v1 behavior on re-selection**: picking a new combo re-stamps/overwrites the relevant config
-   fields (a "smart default generator," not a persistent spec-tracked binding with drift
-   detection). `TEMPLATE_SPECS`' "drift" reconciliation concept (mentioned in
-   `old-reports-conversion.md`'s round notes) is NOT being ported into the live UI this round —
-   flag as a possible future enhancement only if asked.
-4. **Where the vocabulary JSON loads in the browser**: simplest v1 is a build-time JSON import
-   (Vite supports importing `.json` directly) rather than a new dms-server API endpoint, since this
-   is static reference data, not per-site/tenant-configurable. Revisit if that changes.
+**Implementation summary**:
+
+1. **`src/dms/` — generic extension point (small, as planned).**
+   `patterns/page/components/sections/sectionMenuExtensions.js` (new) — a tiny registry mirroring
+   `componentRegistry.js`'s shape: `registerSectionMenuExtensions(componentName, builders)` /
+   `getSectionMenuExtensions(componentName)`, keyed by ComponentRegistry component `name` (e.g.
+   `"AVL Graph"`). `sectionMenu.jsx` calls `getSectionMenuExtensions(currentComponent?.name)`,
+   invokes each builder with the same primitives the function already assembled
+   (`state, dwAPI, mapAPI, isEdit, canEditSection, currentComponent, sectionState, actions, auth,
+   ui, dataSource, pageDataSources`), catches per-builder exceptions so one broken extension can't
+   blank the whole menu, and splices the result in as `...extensionMenus` between `columns` and
+   `filter` in the returned item list. `registerSectionMenuExtensions` is exported from the
+   package's public `index.js`. `siteConfig.jsx`'s `pagesConfig` auto-registers
+   `theme.sectionMenuExtensions` (a `{componentName: builder|builder[]}` map) the same way it
+   already auto-registers `theme.pageComponents`/`theme.columnTypes` — a theme opts in by adding
+   one key, no per-site wiring needed.
+   - **Design deviation, found live, was a real bug**: `registerSectionMenuExtensions` initially
+     *appended* to the per-component builder list on every call (mirroring the task's original
+     "mirrors `usesItemMutationProps`" framing too literally). `pagesConfig` re-registers on every
+     site-config build (confirmed live via Vite HMR: each theme-file hot-reload re-ran the
+     registration), so appends silently accumulated duplicate builders — observed live as the
+     "Measure" item-group rendering **14 times** in the section menu. Fixed to *replace* the list
+     per component name (`registry[componentName] = builders`), matching `registerComponents`'
+     `Object.assign` idempotency. This is exactly the class of bug the root CLAUDE.md's "test in a
+     browser before reporting complete" instruction exists to catch — would not have been caught by
+     code review alone.
+2. **`src/themes/transportny/components/MeasurePicker/`** (new) — the actual Measure item-group,
+   registered for `"AVL Graph"` via `theme.sectionMenuExtensions` in both `theme.js` and
+   `themev2.js`.
+   - `composeMeasureConfig.js` — pure composition logic (no React), reads
+     `data-types/npmrds_graph_vocabulary/vocabulary.json` via a build-time Vite JSON import.
+     `composeMeasureConfig({graphType, measureKey, resolutionKey, comparisonModeKey,
+     externalSourceColumns, defaultColors})` returns `{columns, join, comparisonSeriesCombine,
+     displayPatch}`. Mirrors `TEMPLATE_SPECS`/`ensure_graph_templates`' exact composition rules:
+     yAxis target is `"color"` for GridGraph, `"yAxis"` otherwise; xAxis is either a physical
+     column swapped in from `externalSource.columns` (5-minutes/day) or a fully-calculated column
+     dict straight from the vocabulary (15-minutes/hour/weekday/month); `join.sources` is built
+     positionally from the measure's `requiresJoin` array (`table1`/`table2`); difference mode
+     produces `comparisonSeriesCombine: {mode: 'difference'}` plus a `_diff_colors()`-equivalent
+     `display.colors` patch (reversed ramp per-measure `reverseColors`, `byValue` only for
+     BarGraph, matching the vocabulary README exactly).
+   - `index.js` — the sectionMenu item-group itself. Graph Type / Measure / Resolution /
+     Comparison Mode each render as a nested select (checkmark on the current pick, `onClickGoBack`
+     after picking) using the same nested-submenu shape as the built-in `join`/`comparisonSeries`
+     menus. Every pick immediately calls `composeMeasureConfig` and writes the result via
+     `dwAPI.setState` (the documented escape hatch) — no separate "Apply" step, matching how every
+     other sectionMenu select already behaves. The current pick is bookkept at
+     `display._measurePick` (mirrors `display._functions`) purely so reopening the menu shows the
+     right checkmarks/summary — never read by the render/query pipeline.
+   - **Design deviation, found live, was a real bug**: the first version fully replaced
+     `draft.columns` with just `[yAxisColumn, xAxisColumn]` on every apply. Live-tested against a
+     real Python-converter-built report section (`2189959`, "Route Line Graph, Speed" on
+     `converted_reports/route_44_incident_analysis_april_2026`) which — like every graph on a
+     Report Page template — already carries a `__series` comparison-series categorize column from
+     its `$self`-bound subscriber. A wholesale `columns` replace would have silently deleted that
+     column, breaking the per-route overlay ReportRouteList depends on; re-running the picker on an
+     *already-configured* section (the pre-existing Python-built yAxis/xAxis carry no origin tag)
+     also produced 5 columns instead of 3 (stale duplicates). Fixed by replacing only columns whose
+     `target` is `xAxis`/`yAxis`/`color` (`MANAGED_TARGETS` in `index.js`) and always leaving
+     `categorize`-targeted columns alone — this both preserves the comparison-series column *and*
+     correctly de-dupes on repeat/first use, verified live (see Testing checklist below).
+3. **v1 behavior on re-selection**: confirmed live — picking a new combo re-composes and
+   overwrites `columns`/`join`/`comparisonSeries.combine`/`display.colors` every time (a "smart
+   default generator," not a persistent spec-tracked binding with drift detection). No
+   `TEMPLATE_SPECS`-style drift reconciliation was ported into the live UI.
+4. **Resolution/graph-type gating — resolved as "no gating" (author-empowerment call)**: the open
+   question about "full enumeration of which resolution options are valid per graph type" is
+   resolved by NOT restricting the cross product at all — every graphType × measure × resolution ×
+   comparisonMode combination is offered. Composition is mechanical from primitives (no base
+   template to be missing), and the investigation findings already established GridGraph/BarGraph
+   are axis-target-agnostic, so there's no known technical gap to encode as a restriction; letting
+   TEMPLATE_SPECS' historical gaps (which existed only because old reports never needed those
+   combos) constrain a from-scratch generator would be exactly the "one-off developer decision"
+   the author-empowerment principle warns against.
+5. **Where the vocabulary JSON loads in the browser**: build-time Vite JSON import, as planned —
+   `composeMeasureConfig.js` imports `../../../../../data-types/npmrds_graph_vocabulary/vocabulary.json`
+   directly.
+
+**Live verification performed** (2026-07-20, against the `npmrdsv5`/`dev2` local dev stack, report
+section `2189959`): opened the section in edit mode, confirmed the "Measure" item-group appears
+exactly once (post idempotency fix) with all 4 selects populated correctly; picked "Hours of
+Delay" and confirmed the attribution line updated to show both `NPMRDS_V6_TMC_META (983)` and
+`AADT_DISTRIBUTIONS (3524)` joins wired in (the 2-join case); picked "Difference" comparison mode
+and "Grid Graph" type with no console errors and correct re-render; opened Column Manager and
+confirmed exactly 3 columns (`__series`, the measure, the axis) after re-picking on an
+already-populated section — no duplicates, comparison-series column intact; switched Resolution to
+"15 Minutes" and confirmed the calculated `intDiv(ds.epoch, 3) as quarter_hour` column appears
+correctly. All test picks were made in the unsaved draft state and discarded (never saved) —
+confirmed via `dms raw get 2189959` afterward that the persisted row is unchanged.
+
+**Not yet verified live**: the from-scratch/blank-AVL-Graph-section path (adding a brand new
+section via Add Component, picking a data source, then using the Measure picker with zero
+pre-existing columns) — the tested section already had an active data source and prior columns.
+The composition logic path is identical either way (externalSource.columns is populated the same
+way regardless of section history), so this is believed correct but not independently observed.
+Also not verified: `ReportRouteList`'s `$self` binding continuing to work end-to-end with a live
+route/date range attached (the test report's routes weren't actually toggled onto the graph, so no
+real query ever fired in either the before or after state — this is a pre-existing condition of the
+test fixture, unrelated to this change).
+
+### Round 2 (2026-07-20, same day) — user-reported gaps from real usage, all fixed
+
+User built a real report from the "Report Page" template and hit three gaps in quick succession,
+each fixed live:
+
+1. **"Measure" didn't show up on a manually-added AVL Graph section.** Root cause: the item-group's
+   `cdn` required `dataSource?.activeSource` (mirroring the built-in "Join Dataset" submenu's own
+   gate) — a freshly-added section has no Dataset picked yet, so the menu was invisible with no
+   indication why. **Fix**: dropped the `activeSource` requirement entirely.
+2. **User's actual intent, stated directly**: "it should show up anyway... I really want it to be
+   conditional based on if the user is on a report page (if ReportRouteList is on the page)."
+   Investigated feasibility (dispatched to an Explore agent) before implementing — confirmed cheap:
+   `PageContext` already provides `item` (the full page row, `.sections`/`.draft_sections`) and
+   `editPageMode`, both already in scope in `section.jsx` but only partially destructured. **Fix**:
+   `section.jsx` now derives `siblingSections = item?.[editPageMode ? 'draft_sections' :
+   'sections'] || []` in both `SectionEdit`/`SectionView` and threads it through
+   `getSectionMenuItems({..., siblingSections})`; `sectionMenu.jsx` forwards it into the extension
+   ctx (`sectionMenuExtensions.js`'s callers now receive it too — a genuinely reusable addition,
+   not NPMRDS-specific). The Measure picker's `cdn` now gates on `isReportPage =
+   siblingSections.some(s => s?.element?.['element-type'] === 'ReportRouteList')` instead of
+   `dataSource?.activeSource`. No JSON.parse needed — `element-type` is a plain field on each raw
+   section row.
+3. **After (1)+(2) landed, routes assigned via ReportRouteList did nothing** — user: "I added them,
+   nothing happened... presumably because there was no data source set... I thought the template
+   handled that??" Root cause: the picker had never written `state.externalSource` at all — that's
+   a separate, generic "Dataset" sectionMenu control the picker didn't touch, so a from-scratch
+   section had no primary source to query against regardless of how correct its columns/join were.
+   **Fix**: added a new `baseSource` entry to `vocabulary.json` (source 583/view 982, "NPMRDS
+   Production V6" — the single source every measure's `ds.*` columns assume) and its `sourceInfo`
+   embeds a real, live column list verbatim (58 columns: 15 from the base table + 43 merged in from
+   the TMC join — this merged shape, not just the base table's own columns, is what the platform
+   itself produces once a join is active, confirmed by direct comparison below). `applyPick` now
+   sets `draft.externalSource = {...BASE_SOURCE.sourceInfo}` whenever `!draft.externalSource?.source_id`
+   — a default, never overwriting an author's own different Dataset pick (see vocabulary README's
+   "baseSource" composition contract). Also fixed the `externalSourceColumns` passed into
+   `composeMeasureConfig` to fall back to `BASE_SOURCE.sourceInfo.columns` (not the generic
+   `{name, type:'string'}` stub) when no Dataset is set yet, so the very first apply produces a
+   fully correct physical xAxis column, not a placeholder needing a second pick to self-correct.
+
+   **Ground-truth verification (stronger than a fresh live test)**: rather than build a new scratch
+   fixture, pulled the live "Report Page" template row itself (`npmrds_sub|page_template` id
+   `2187021` — the actual template `+ Add Page → Your Templates → Report Page` instantiates) and
+   diffed its starter AVL Graph's `stateJson` directly against what this task's code now produces.
+   Confirmed byte-identical: (a) `externalSource` — same 58-column list, same source/view ids; (b)
+   `display._functions.subscribers[0]` — `{functionId:"comparison_series", enabled:true,
+   paramKey:"$self", args:{labelKey:"label", valueKey:"filters"}}`, exactly what `applyPick` writes;
+   (c) `comparisonSeries` — `{enabled:true, seriesKey:"__series", seriesLabel:"Routes"}`, exactly
+   the defaults `applyPick` applies when unset. This is a stronger check than a live round-trip on
+   a fresh fixture would have been for this specific question (byte-diff against the actual
+   template's own known-good ground truth, not "did a chart render" which depends on unrelated
+   factors like whether real data exists for the date range) — but a live "assign a route → see the
+   chart actually render real data" pass was NOT done this round; flagged as a good next check
+   whenever convenient, not blocking.
+
+   **Also mid-session**: a section (`2195016`, the very section used for rounds 1-3 above) was
+   accidentally detached from a live user report's `draft_sections` during interactive testing —
+   the user's own action, not a code bug, but it's why testing moved off that page. See
+   `[[feedback_use_own_scratch_page_for_ui_testing]]` (assistant memory) — going forward, live UI
+   testing should happen on a dedicated scratch page, not a page the user might have open.
+
+### Round 3 (2026-07-20, same day, continued) — two more real bugs found chasing "no data renders"
+
+User kept testing on their own real report (not a scratch page, at their explicit request — see
+`[[feedback_use_own_scratch_page_for_ui_testing]]`) and reported the Round-2 Dataset-default fix
+still didn't produce a working chart: they could click a route onto the graph's chip, but the
+chart stayed blank with no error. Two genuinely separate bugs found, both fixed:
+
+1. **Generic library bug — `buildUdaConfig.js`'s `mappedGroupBy` missing a fix `mappedOrderBy`
+   already has.** When comparison-series fan-out is active, each route's arm query gets wrapped as
+   `SELECT * FROM (<arm>) AS fanout`, and GROUP BY on the OUTER query can only address the arm's
+   own SELECT-level alias — not any table alias (`ds`/`table1`/...) a *calculated* column's
+   expression references internally. `mappedOrderBy` already has an explicit `if
+   (activeComparisonSeries && isCalculatedCol(col))` branch that swaps in the bare alias for
+   exactly this reason (with its own code comment describing the identical hazard) —
+   `mappedGroupBy` never got the equivalent fix, so a calculated groupBy column (e.g. this
+   picker's "15 Minutes" resolution, `intDiv(ds.epoch, 3) as quarter_hour`) combined with an
+   active comparison-series fan-out would send the raw expression (referencing `ds`, out of scope
+   in the outer query) as the GROUP BY clause — failing server-side. The "5 Minutes" resolution
+   (a plain physical `epoch` column, no calculated expression) never hits this, which is why the
+   template's own pre-existing graph appeared to work while a "15 Minutes" picker-built graph
+   didn't. **Fixed** in `buildUdaConfig.js`: `mappedGroupBy` now mirrors `mappedOrderBy`'s exact
+   alias-extraction logic for calculated columns under active comparison-series. This is a
+   library-level fix — benefits any future author-built calculated groupBy + comparison-series
+   combination, not just this picker. Confirmed via careful code reading (not live-tested — see
+   still-open item below), evidenced by the asymmetry against `mappedOrderBy`'s own already-present
+   fix and code comment describing the identical failure mode.
+2. **The actual root cause of "zero `/graph` requests fire at all, for ANY resolution"** — found
+   after the user reported their `2195132` test graph (Travel Time · 5 Minutes · Plain — doesn't
+   even hit bug #1) still showed nothing, and the browser network tab showed only the
+   `reports_snap_2` route-persist call firing on chip-click, never a graph-data request. Traced to
+   `useDataLoader.js`: `fetchMode = state?.display?.fetchMode ?? (state?.display?.readyToLoad ===
+   true ? 'smart' : 'cache')`, and the computed `readyToLoad` gate that actually controls whether
+   the main load effect ever fires is `isEditMode || (isValidState && (fetchMode !== 'cache' ||
+   allowEditInView))` — in View mode, with no explicit `display.fetchMode` and
+   `display.readyToLoad` defaulting `false` (graph_new/config.jsx's own `defaultState.display`
+   never sets either), this resolves to `fetchMode: 'cache'` → `readyToLoad: false` →  **the graph
+   never fetches, full stop, independent of columns/join/comparisonSeries correctness**. The
+   template's pre-wired starter graph has `"fetchMode": "force"` hand-baked into its saved state
+   (from whenever it was originally authored); a from-scratch picker-built section has no template
+   to inherit that from — same class of gap as `BASE_SOURCE`/`TMC_IDENTIFICATION_JOIN` before it.
+   **Fixed**: `composeMeasureConfig.js`'s `displayPatch` now always includes `fetchMode: 'force'`
+   (matching the template exactly), applied in `index.js`. This is very likely THE actual blocker
+   the user was hitting throughout rounds 2-3 (bug #1 only affects the calculated-groupBy case,
+   which wasn't even in play for their final test) — **not yet confirmed live**, since the user is
+   doing the live verification pass themselves this round. To pick up the fix on an
+   already-picker-built section (created before this fix), no delete/recreate needed — just
+   re-apply any Measure submenu pick once (it always overwrites `display.fetchMode`).
+
+**Split out to its own task file**: the `graphIds`-wiped-on-refresh/publish concern (plus a related
+"ghost routes from another report" symptom) is a pre-existing `ReportRouteList` bug, unrelated to
+this task's own scope — tracked separately in
+[`reportroutelist-graphids-wiped-on-refresh.md`](./reportroutelist-graphids-wiped-on-refresh.md).
+Summary for context: the hydration-race theory (partial `item.draft_sections` right after page
+load) was investigated and ruled out — `item` is fetched atomically in one batched Falcor round
+trip before `ReportRouteList` ever mounts, no partial-list window exists. Root cause still open;
+see that task file for confirmed facts, candidate hypotheses, and repro steps.
 
 ## Open questions / design decisions still needed at implementation time
 
@@ -382,8 +579,20 @@ theme-side JS bundle (Workstream 2, not yet built).
 | `data-types/npmrds_graph_vocabulary/vocabulary.json` (new) | Measure expressions, joins, resolution/axis fragments, comparison-mode fragments — plain data, no logic | DONE |
 | `data-types/npmrds_graph_vocabulary/README.md` (new, not originally planned) | Field reference, composition contract (target/fn/join-merge rules the composer must apply), explicitly-out-of-scope list, regeneration/verification procedure | DONE |
 | `scripts/convert_old_reports.py` | `TEMPLATE_SPECS`'s generative constants (`SPEED_EXPR`, `SPEED_EXPR_TRUCK`, `TRAVEL_TIME_EXPR`, `DELAY_EXPR`, `AVG_DELAY_EXPR`, `CO2_EXPR_PASSENGER`, `CO2_EXPR_TRUCK`, `META_JOIN`, `AADT_DIST_JOIN`, `DIST_KEY_EXPR`, `WEEKDAY_EXPR`, `HOUR_EXPR`, `QUARTER_HOUR_EXPR`, `MONTH_EXPR`, `DEFAULT_DIFF_COLOR_RANGE`) sourced from the shared JSON instead of inline Python strings; AADT-override substring-swap machinery and all surrounding gap-detection/year-bin-gating logic untouched; two new guard assertions added | DONE |
-| `src/dms/packages/dms/src/patterns/page/components/sections/sectionMenu.jsx` | Small, generic extension point for theme/component-supplied additional item-groups | NOT STARTED (Workstream 2) |
-| New, in `src/themes/transportny/`: a Measure picker component/config | Graph type + measure + resolution + comparison-mode controls; composition logic that reads the shared JSON and writes section state (must explicitly wire `TMC_IDENTIFICATION_JOIN` for speed measures — no base template to inherit it from, see finding above) | NOT STARTED (Workstream 2) |
+| `src/dms/packages/dms/src/patterns/page/components/sections/sectionMenuExtensions.js` (new) | Generic registry: `registerSectionMenuExtensions`/`getSectionMenuExtensions`, keyed by component name | DONE |
+| `src/dms/packages/dms/src/patterns/page/components/sections/sectionMenu.jsx` | Calls `getSectionMenuExtensions(currentComponent?.name)`, splices results in as `...extensionMenus` between `columns` and `filter` | DONE |
+| `src/dms/packages/dms/src/index.js` | Exports `registerSectionMenuExtensions` | DONE |
+| `src/dms/packages/dms/src/patterns/page/siteConfig.jsx` | `pagesConfig` auto-registers `theme.sectionMenuExtensions`, mirroring `pageComponents`/`columnTypes` | DONE |
+| `src/themes/transportny/components/MeasurePicker/composeMeasureConfig.js` (new) | Pure composition logic reading `vocabulary.json`; builds columns/join/comparisonSeriesCombine/displayPatch; exports `BASE_SOURCE` | DONE |
+| `src/themes/transportny/components/MeasurePicker/index.js` (new) | The Measure item-group (4 nested selects) + apply logic writing via `dwAPI.setState`, replacing only `xAxis`/`yAxis`/`color`-targeted columns (never `categorize`); defaults `externalSource` to `BASE_SOURCE` when unset; gates on `isReportPage`; wires the `$self` comparison_series subscriber | DONE |
+| `src/themes/transportny/theme.js`, `themev2.js` | Register `npmrdsMeasureMenu` for `"AVL Graph"` via `sectionMenuExtensions` | DONE |
+| `data-types/npmrds_graph_vocabulary/vocabulary.json` | Round 2: added `baseSource` (source 583/view 982, full `sourceInfo` incl. 58-column list) — needed once the picker had to default the primary Dataset too | DONE |
+| `data-types/npmrds_graph_vocabulary/README.md` | Round 2: documented `baseSource` + its composition contract (default-only, never overwrite an author's own Dataset pick) | DONE |
+| `src/dms/packages/dms/src/patterns/page/components/sections/section.jsx` | Round 2: derives `siblingSections` from `PageContext`'s `item`/`editPageMode` in both `SectionEdit`/`SectionView`, threads into `getSectionMenuItems` — generic, reusable by any future extension | DONE |
+| `src/dms/packages/dms/src/patterns/page/components/sections/sectionMenu.jsx` | Round 2: destructures/forwards `siblingSections` into the extension ctx | DONE |
+| `src/dms/packages/dms/src/patterns/page/components/sections/components/dataWrapper/buildUdaConfig.js` | Round 3: `mappedGroupBy` now mirrors `mappedOrderBy`'s calculated-column alias-extraction fix under active comparison-series fan-out — generic library bug, not NPMRDS-specific | DONE (not yet live-verified) |
+| `src/themes/transportny/components/MeasurePicker/composeMeasureConfig.js` | Round 3: `displayPatch` always includes `fetchMode: 'force'` — without it a picker-built graph never issues a single `/graph` request in View mode | DONE (not yet live-verified) |
+| `src/themes/transportny/components/MeasurePicker/index.js` | Round 3: applies `composed.displayPatch.fetchMode` to `draft.display.fetchMode` | DONE (not yet live-verified) |
 
 ## Testing checklist (draft — expand during implementation)
 
@@ -395,12 +604,47 @@ theme-side JS bundle (Workstream 2, not yet built).
       A live census rerun against the dev DB is still worth doing opportunistically next time VPN
       access is available, as a second, independent confirmation — not required to consider this
       item done.
-- [ ] Picking a measure/resolution/comparison combo on a blank AVL Graph section produces a
-      working, live-rendering graph, matching what the equivalent `TEMPLATE_SPECS` entry produces
-      via the Python converter today (spot-check at least one plain and one `difference` combo)
-- [ ] Re-picking a different combo correctly overwrites the generated config without leaving stale
-      fields from the previous pick
-- [ ] Generated config remains editable via the existing generic `join`/`comparisonSeries`/pivot/
-      Column Manager controls afterward
+- [x] Picking a measure/resolution/comparison combo produces correct, live-updating section state
+      matching what the equivalent `TEMPLATE_SPECS` entry would produce — verified live 2026-07-20
+      against report section 2189959: "Hours of Delay" wired both `META_JOIN`/`AADT_DIST_JOIN`
+      (confirmed via the rendered attribution line), "Difference" comparison mode + "Grid Graph"
+      re-rendered without error, "15 Minutes" resolution produced the correct calculated
+      `intDiv(ds.epoch, 3) as quarter_hour` xAxis column. **Not yet verified**: an actual
+      live-rendering graph with real data (the test fixture's routes weren't toggled onto the
+      graph, so no query fired in either the before or after state — pre-existing, unrelated to
+      this change) and the truly-from-scratch blank-section path specifically (composition logic
+      is identical regardless of section history, so believed correct but not independently
+      observed).
+- [x] Re-picking a different combo correctly overwrites the generated config without leaving stale
+      fields from the previous pick — verified live: re-picking on an already-populated section
+      produced exactly 3 columns (not 5), confirmed via Column Manager. This required a fix (see
+      Workstream 2 design deviations above) after the first version left stale duplicates.
+- [x] Generated config remains editable via the existing generic Column Manager afterward —
+      confirmed live (Column Manager showed the generated columns with normal edit affordances).
+      `join`/`comparisonSeries` menus not independently re-tested post-generation this round.
 - [ ] `ReportRouteList`'s existing route→graph assignment (`$self` binding) still works unchanged
-      alongside a Measure-picker-generated graph section (no interaction assumed, but verify)
+      alongside a Measure-picker-generated graph section with a real route/date range attached and
+      an actual query firing — not yet verified (test fixture had no routes toggled onto the
+      graph, so this remains unobserved either way).
+- [x] "Measure" only appears on report pages (has a `ReportRouteList` sibling), not on an arbitrary
+      AVL Graph section elsewhere — verified live 2026-07-20 on a real report page (positive case);
+      the negative case (no sibling) wasn't separately live-tested but the check is a one-line
+      `.some(...)` over already-correctly-populated `siblingSections`, low risk.
+- [x] Applying a pick with no Dataset set yet defaults `externalSource` to the canonical NPMRDS
+      source — verified 2026-07-20 both live (Columns/Measure/AVL Graph Interactions all updated
+      correctly on a real report's freshly-added section) and by direct byte-diff against the live
+      "Report Page" template row (`2187021`)'s own starter graph — see Round 2 notes above.
+      full end-to-end "route assigned → chart shows real data" round-trip still not done.
+- [ ] **Round 3, not yet confirmed live**: a picker-built graph (any resolution) actually issues a
+      `/graph` request and renders real data once a route is assigned — the `fetchMode: 'force'`
+      fix (composeMeasureConfig.js) is believed to be the actual root cause of "zero graph requests
+      ever fire," reasoned from `useDataLoader.js`'s `readyToLoad` gate, not yet confirmed by
+      watching a real chart render after the fix. User is doing this verification pass themselves.
+- [ ] **Round 3, not yet confirmed live**: the `mappedGroupBy` fix in `buildUdaConfig.js` actually
+      lets a "15 Minutes"-resolution (calculated groupBy) picker-built graph render correctly under
+      an active comparison-series fan-out — reasoned from code (a clear asymmetry against
+      `mappedOrderBy`'s already-present, explicitly-commented fix for the identical hazard), not
+      yet observed against a real query.
+- [x] **Out of this task's scope, split out** — the `graphIds`-wiped-on-refresh/publish
+      `ReportRouteList` bug now has its own task file:
+      [`reportroutelist-graphids-wiped-on-refresh.md`](./reportroutelist-graphids-wiped-on-refresh.md).

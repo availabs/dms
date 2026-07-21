@@ -8,3 +8,4 @@ export { useAuth } from './patterns/auth/context';
 export { withAuth, authProvider } from './patterns/auth/providers';
 export { default as adminConfig }  from './patterns/admin/siteConfig'
 export { registerComponents } from "./patterns/page/components/sections/componentRegistry"
+export { registerSectionMenuExtensions } from "./patterns/page/components/sections/sectionMenuExtensions"

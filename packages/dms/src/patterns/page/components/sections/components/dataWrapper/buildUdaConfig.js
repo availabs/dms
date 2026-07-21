@@ -1444,9 +1444,24 @@ export const buildUdaConfig = ({
   }
 
   // 7. Build the options object — maps column names to server refs
-  const mappedGroupBy = groupBy.map(
-    (columnName) => getColumn(columnName)?.refName,
-  );
+  //
+  // Comparison-series fan-out wraps each arm as `SELECT * FROM (<arm>) AS
+  // fanout` and applies GROUP BY on that OUTER query — only the arm's
+  // SELECT-level alias is addressable there, not any table alias (ds/table1/
+  // ...) a calculated column's expression references internally. Using
+  // `refName` (the raw pre-AS expression, e.g. "intDiv(ds.epoch, 3)") fails
+  // with "Unknown expression or function identifier 'ds.epoch'" outside the
+  // arm subquery — the exact same hazard `mappedOrderBy` below already
+  // special-cases for ORDER BY; GROUP BY needs the identical fix, using the
+  // bare alias (afterAS) instead of the raw expression.
+  const mappedGroupBy = groupBy.map((columnName) => {
+    const col = getColumn(columnName);
+    if (activeComparisonSeries && isCalculatedCol(col)) {
+      const [beforeAS, afterAS] = splitColNameOnAS(col?.reqName || columnName);
+      return (afterAS || beforeAS).trim();
+    }
+    return col?.refName;
+  });
 
   const mappedOrderBy = Object.keys(orderBy)
     .filter((columnName) =>

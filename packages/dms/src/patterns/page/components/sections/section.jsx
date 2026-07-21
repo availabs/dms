@@ -91,9 +91,14 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
     const isEdit = true;
     const {AuthAPI} = React.useContext(AuthContext) || {};
     const {user, isUserAuthed} = React.useContext(CMSContext) || {};
-    const { pageState, apiLoad, apiUpdate } = useContext(PageContext);
+    const { pageState, apiLoad, apiUpdate, item, editPageMode } = useContext(PageContext);
     const {theme: fullTheme, UI} = React.useContext(ThemeContext);
     const { dataSources, setDataSource, createDataSource } = useContext(DataSourceContext);
+    // Sibling sections on this page, for extension builders that need to know
+    // about other components on the page (e.g. "is there a ReportRouteList
+    // here") — same array item.sections/draft_sections rebuilds itself from,
+    // see PageContext's editPageMode doc comment in pages/edit/index.jsx.
+    const siblingSections = item?.[editPageMode ? 'draft_sections' : 'sections'] || [];
 
     const RegisteredComponents = getRegisteredComponents();
     const component = (RegisteredComponents[get(value, ["element", "element-type"], "lexical")] || RegisteredComponents['lexical']);
@@ -227,6 +232,7 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
         dwAPI: dwAPI || {},
         mapAPI,
         pageDataSources: { dataSources, dataSourceId, switchDataSource },
+        siblingSections,
     })
     const canEditSection = isUserAuthed(['edit', 'edit-section'], sectionAuthPermissions);
     const resolvedControls = typeof component?.controls === 'function'
@@ -314,8 +320,10 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
     const {AuthAPI} = React.useContext(AuthContext) || {};
     const {user, isUserAuthed = () => {} } = React.useContext(CMSContext) || {};
     const {theme: fullTheme, UI} = React.useContext(ThemeContext);
-    const { pageState, apiLoad, apiUpdate } = useContext(PageContext);
+    const { pageState, apiLoad, apiUpdate, item } = useContext(PageContext);
     const { dataSources } = useContext(DataSourceContext);
+    // See SectionEdit's identical siblingSections derivation above.
+    const siblingSections = item?.[editPageMode ? 'draft_sections' : 'sections'] || [];
 
     const {NavigableMenu, Switch, Pill, Icon, Permissions} = UI;
     const theme = getComponentTheme(fullTheme, 'pages.section');
@@ -423,6 +431,7 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
         dataSource: dataSourceFromRef,
         dwAPI: dwAPI || {},
         mapAPI,
+        siblingSections,
     })
 
     const resolvedControls = typeof component?.controls === 'function'

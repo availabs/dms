@@ -7,6 +7,7 @@ import {ComplexFilters} from "./ComplexFilters";
 import ColumnManager from "./ColumnManager";
 import TemplateManager from "./TemplateManager";
 import { getColumnLabel } from "./controls_utils";
+import { getSectionMenuExtensions } from "./sectionMenuExtensions";
 
 
 /**
@@ -37,7 +38,7 @@ const CommitInput = ({ initialValue = '', onCommit }) => {
 };
 const isEmpty = obj => Object.values(obj).every(v => !v || Object.keys(v).length === 0);
 
-export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSource={}, dwAPI, mapAPI, pageDataSources={}, ...rest }) => {
+export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSource={}, dwAPI, mapAPI, pageDataSources={}, siblingSections=[], ...rest }) => {
     const { isEdit, value, attributes, i, showDeleteModal, listAllColumns, state: rawState, setSectionState } = sectionState
     const state = rawState || { columns: [], display: {}, externalSource: { columns: [] }, filters: { op: 'AND', groups: [] } }
     const { onEdit, moveItem, updateAttribute, updateElementType, onChange, onCancel, onSave, onAddHelpText, setKey, setState, setShowDeleteModal, setListAllColumns } = actions
@@ -623,6 +624,27 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
             }]
         },
     ]
+
+    // Theme/site-supplied extension item-groups (e.g. a domain-specific
+    // "Measure" picker registered for the "AVL Graph" component) — see
+    // sectionMenuExtensions.js. Each builder gets the same primitives this
+    // function already assembled (state/dwAPI/mapAPI/currentComponent/etc.)
+    // rather than re-deriving them; a builder that throws is isolated so one
+    // broken extension can't blank the whole section menu.
+    const extensionMenus = getSectionMenuExtensions(currentComponent?.name)
+        .flatMap(build => {
+            try {
+                return build({
+                    state, dwAPI, mapAPI, isEdit, canEditSection,
+                    currentComponent, sectionState, actions, auth, ui,
+                    dataSource, pageDataSources, siblingSections,
+                }) || [];
+            } catch (e) {
+                console.error('sectionMenu extension failed', e);
+                return [];
+            }
+        })
+        .filter(item => !item.cdn || item.cdn());
 
     const pivot = {
         name: 'Pivot', icon: 'ListView',
@@ -1417,6 +1439,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
             {type: 'separator'},
             dataset,
             ...columns,
+            ...extensionMenus,
             ...filter,
             {type: 'separator', cdn: () => currentComponent?.useDataSource && canEditSection},
             ...display,
