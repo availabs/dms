@@ -158,6 +158,7 @@
 
 ## ui
 
+- [x] [graph_new AxisLeft: cap `tickSpacing` tick generation (browser-freeze guard)](./tasks/completed/cap-tickspacing-tick-explosion.md) — DONE 2026-07-21. Unbounded spaced-tick loop generated ~4.9M tick DOM nodes when a column edit changed data magnitude 1e6× but `yAxis.tickSpacing: 2` stayed; froze the incidents_v2 draft page. `buildSpacedTickValues` cap (200) + fallback to default ticks + console.warn. Pending transportNY vendored-dms sync.
 - [x] [Table: `row_highlight` themed 'accent' style + click-publish cursor](./tasks/current/table-row-highlight-accent-and-cursor.md) —
       DONE 2026-07-17. New BC `row_highlight` style 'accent' paints a themed row-level tint + left
       edge (resolved from `theme.table.rowHighlightAccent`/styleKey like conditional_row_style;
