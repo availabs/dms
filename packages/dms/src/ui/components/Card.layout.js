@@ -106,8 +106,14 @@ export function resolveCellTracks({ cellsTracksTemplate, cellsGridSize, cellsWit
 export function resolveCellsGridStyle({ display = {}, gridTemplateColumns, hasRowSpan }) {
     const {
         cellsGridGap, cellsRowGap, cellsColumnGap, cellsRowHeight,
-        cardsBgColor, cardsPadding,
+        cardsBgColor, cardsPadding, cellsVerticalAlign,
     } = display;
+    // `cellsVerticalAlign: 'stretch'` opts the cells grid into filling the card
+    // height — the cells equivalent of `cardsVerticalAlign: 'stretch'`. Cell
+    // rows grow to fill (slack distributed INTO the rows) so bordered cells reach
+    // the bottom of a `height:'fill'` card that sits beside a taller sibling.
+    // Default (unset/'top') keeps the legacy top-packed, content-height rows.
+    const stretchCells = cellsVerticalAlign === 'stretch';
     return {
         display: 'grid',
         gridTemplateColumns,
@@ -122,9 +128,10 @@ export function resolveCellsGridStyle({ display = {}, gridTemplateColumns, hasRo
         padding: cardsPadding,
         // Pack cells to the top: when the card box is taller than its cells,
         // keep content top-aligned with the slack at the bottom (no slack →
-        // identical to stretch).
-        alignContent: 'start',
+        // identical to stretch). `stretch` opts out — rows fill instead.
+        ...(stretchCells ? {} : { alignContent: 'start' }),
         ...(cellsRowHeight ? { gridAutoRows: `${cellsRowHeight}px` } :
+            stretchCells ? { gridAutoRows: 'minmax(max-content, 1fr)' } :
             hasRowSpan ? { gridAutoRows: 'minmax(0, auto)' } : {}),
     };
 }

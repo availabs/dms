@@ -133,6 +133,18 @@ export const applyCreateDefaults = async ({ columns, newItem, apiLoad, externalS
     for (const c of (columns || [])) {
         if (data[c.name] != null && data[c.name] !== "") continue;
         if (c.defaultValue != null) { data[c.name] = c.defaultValue; continue; }
+        // defaultFrom — derive from another field of the new row (already populated by
+        // form fields / usePageParams before defaults run). Optional split+index picks a
+        // segment; prefix prepends a literal. Empty source → leave empty (sync backfills).
+        if (c.defaultFrom?.column) {
+            const srcVal = data[c.defaultFrom.column];
+            if (srcVal != null && srcVal !== "") {
+                let v = String(srcVal);
+                if (c.defaultFrom.split != null) v = v.split(c.defaultFrom.split)[+c.defaultFrom.index || 0];
+                if (v != null && v !== "") data[c.name] = (c.defaultFrom.prefix || "") + v;
+            }
+            continue;
+        }
         if (c.defaultFn && CREATE_DEFAULT_FNS[c.defaultFn]) {
             const v = CREATE_DEFAULT_FNS[c.defaultFn]({ user });
             if (v !== undefined) data[c.name] = v;

@@ -70,6 +70,24 @@ export const sectionArrayTheme = {
       radiusCorners: {
           tl: 'rounded-tl-lg', tr: 'rounded-tr-lg', bl: 'rounded-bl-lg', br: 'rounded-br-lg',
       },
+      // Per-side border WIDTH steps (px) offered by the section-menu Border control.
+      // A section that sets `border.width` renders via inline style (not a class), so
+      // these are plain numbers, not Tailwind utilities. Override per-theme if desired.
+      borderWidths: [1, 2, 3, 4, 6, 8],
+      // Curated swatch palette for the section Border COLOR picker — brand line +
+      // accent colors. Seeded into ColorControls' `colors` prop so authors pick "from
+      // theme colors". A section that sets `border.color` renders via inline style.
+      borderColors: [
+          '#E0EBF0', // default brand line (matches borderSides)
+          '#C5D7E0',
+          '#6D96AE',
+          '#37576B',
+          '#2D3E4C',
+          '#1F3F8F', // brand blue
+          '#EAAD43', // amber accent
+          '#B42318', // red
+          '#067647', // green
+      ],
       // Inner-card background options (the per-side border carries no bg of its own).
       backgrounds: {
           none: '', white: 'bg-white', tint: 'bg-slate-50',

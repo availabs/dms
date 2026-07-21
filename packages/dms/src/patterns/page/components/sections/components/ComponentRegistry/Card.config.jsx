@@ -521,6 +521,16 @@ const buildControls = (theme) => ({
                     { type: 'input', inputType: 'number', label: 'Row Gap', key: 'cellsRowGap' },
                     { type: 'input', inputType: 'number', label: 'Col Gap', key: 'cellsColumnGap' },
                     { type: 'input', inputType: 'number', label: 'Row Height', key: 'cellsRowHeight' },
+                    // 'Fill height' stretches cell rows to the card box (so bordered
+                    // cells reach the bottom of a `height:'fill'` card beside a taller
+                    // sibling); 'Pack to top' (default) keeps cells content-sized at the
+                    // top. Mirrors the cards-grid Vertical Align above.
+                    { type: 'select', label: 'Vertical Align', key: 'cellsVerticalAlign',
+                        options: [
+                            { label: 'Pack to top (default)', value: undefined },
+                            { label: 'Fill height', value: 'stretch' },
+                        ],
+                    },
                     { type: 'input', inputType: 'number', label: 'Cell Padding', key: 'cellsPadding' },
                     { type: 'toggle', label: 'Cell Border', key: 'cellBorder' },
                     // Track Template — raw grid-template-columns string, wins over

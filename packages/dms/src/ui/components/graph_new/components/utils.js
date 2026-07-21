@@ -117,3 +117,17 @@ export const buildValueColorScale = (min, max, colors) => {
 	const domain = colors.map((_, i) => min + (i * (max - min)) / (colors.length - 1));
 	return scaleLinear().domain(domain).range(colors);
 }
+// `tickSpacing` is an author-supplied value STEP ("a tick every 2 units"), so a
+// data edit that changes the series' magnitude (e.g. M veh-hrs → raw veh-hrs)
+// can silently turn a 5-tick axis into millions of tick DOM nodes and freeze
+// the browser. Refuse ratios above the cap and return null so the axis falls
+// back to d3's default approximate tick count.
+export const MAX_SPACED_TICKS = 200;
+
+export const buildSpacedTickValues = (lo, hi, step) => {
+	if (!(+step > 0) || !isFinite(lo) || !isFinite(hi) || hi < lo) return null;
+	if ((hi - lo) / +step > MAX_SPACED_TICKS) return null;
+	const ticks = [];
+	for (let v = Math.ceil(lo / step) * step; v <= hi + step * 1e-9; v += step) ticks.push(v);
+	return ticks;
+}

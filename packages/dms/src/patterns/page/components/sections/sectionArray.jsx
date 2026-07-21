@@ -23,10 +23,35 @@ import {useImmer} from "use-immer";
 //     (they keep their grid gap), so this is fully BC for un-migrated themes.
 const resolveBorder = (border, theme) => {
     if (border && typeof border === "object") {
+        // When width/color are set the border is drawn via inline style
+        // (resolveBorderStyle) — don't ALSO emit the 1px side classes for those
+        // sides or the two would stack into a double border. The class path stays
+        // the sole source of truth only for the boolean-side case (BC).
+        if (border.width != null || border.color != null) return "";
         return ["top", "right", "bottom", "left"]
             .filter(s => border[s]).map(s => theme?.borderSides?.[s] || "").join(" ");
     }
     return theme?.border?.[border || "none"] || "";
+};
+// Inline-style border, used ONLY when a section sets an explicit `width` (px) and/or
+// `color` (hex) — arbitrary runtime widths/colors can't be JIT Tailwind classes, so
+// the section-level border is drawn as inline style instead. For each toggled side
+// emit border{Side}Width + border{Side}Style:'solid'; a single borderColor applies to
+// all sides (width defaults to 1px, color to the theme's #E0EBF0 brand line). Returns
+// {} when neither width nor color is set, so boolean-side / legacy-string borders keep
+// the class path unchanged (fully backward-compatible).
+const resolveBorderStyle = (border) => {
+    if (!border || typeof border !== "object") return {};
+    if (border.width == null && border.color == null) return {};
+    const width = `${border.width || 1}px`;
+    const style = { borderColor: border.color || "#E0EBF0" };
+    ["Top", "Right", "Bottom", "Left"].forEach(Side => {
+        if (border[Side.toLowerCase()]) {
+            style[`border${Side}Width`] = width;
+            style[`border${Side}Style`] = "solid";
+        }
+    });
+    return style;
 };
 const resolveRadius = (radius, theme) => {
     if (radius && typeof radius === "object") {
@@ -262,6 +287,8 @@ const Edit = ({ value, onChange, attr, group, siteType }) => {
                     const stickyTop = (edit.index === i ? edit?.value?.stickyTop : v?.stickyTop ) || 0;
                     const colspanClass = (theme?.sizes?.[size] || theme?.sizes?.[defaultSize])?.className;
                     const rowspanClass = (theme?.rowspans?.[rowspan] || theme?.rowspans?.["1"])?.className
+                    // Inline border style — non-empty only when the section set width/color.
+                    const cardBorderStyle = resolveBorderStyle(v?.border);
 
                     // console.log('section', v, v.error)
                     return (
@@ -305,7 +332,11 @@ const Edit = ({ value, onChange, attr, group, siteType }) => {
                                 two sections into one card. */}
                             <div
                                 className={`${sectionChrome(v, theme)} ${resolveHeight(v, theme)}`.trim()}
-                                style={rowspan > 1 && isSticky ? { position: 'sticky', top: stickyTop } : undefined}
+                                style={
+                                    (rowspan > 1 && isSticky)
+                                        ? { ...cardBorderStyle, position: 'sticky', top: stickyTop }
+                                        : (Object.keys(cardBorderStyle).length ? cardBorderStyle : undefined)
+                                }
                             >
                             {/* edit new or existing section */}
                             {edit.index === i
@@ -393,6 +424,8 @@ const View = ({value, attr, group, siteType}) => {
                         const isSticky = v?.sticky || false;
                         const colspanClass = (theme?.sizes?.[size] || theme?.sizes?.[defaultSize])?.className;
                         const rowspanClass = (theme?.rowspans?.[rowspan] || theme?.rowspans?.["1"])?.className;
+                        // Inline border style — non-empty only when the section set width/color.
+                        const cardBorderStyle = resolveBorderStyle(v?.border);
 
                         return (
                             <div id={v?.id} key={i}
@@ -417,7 +450,11 @@ const View = ({value, attr, group, siteType}) => {
                                     inside the gutter padding. */}
                                 <div
                                     className={`${sectionChrome(v, theme)} ${resolveHeight(v, theme)}`.trim()}
-                                    style={rowspan > 1 && isSticky ? { position: 'sticky', top: v?.stickyTop || 0 } : undefined}
+                                    style={
+                                        (rowspan > 1 && isSticky)
+                                            ? { ...cardBorderStyle, position: 'sticky', top: v?.stickyTop || 0 }
+                                            : (Object.keys(cardBorderStyle).length ? cardBorderStyle : undefined)
+                                    }
                                 >
                                 <SectionView
                                     key={v?.id || i}

@@ -7,6 +7,7 @@ import {ComplexFilters} from "./ComplexFilters";
 import ColumnManager from "./ColumnManager";
 import TemplateManager from "./TemplateManager";
 import { getColumnLabel } from "./controls_utils";
+import ColorControls from "./components/ComponentRegistry/sharedControls/ColorControls";
 
 
 /**
@@ -1321,8 +1322,11 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                 },
                 {
                     // Border — toggle each side independently by clicking the edges of
-                    // the box. Theme owns the line style; legacy string keys (full /
-                    // openLeft / …) are mapped to a side-set for display (BC).
+                    // the box. Theme owns the default line style; legacy string keys
+                    // (full / openLeft / …) are mapped to a side-set for display (BC).
+                    // Optional Width + Color inputs promote the border to inline style
+                    // (arbitrary runtime widths/colors can't be JIT Tailwind classes);
+                    // leaving both unset keeps the theme's 1px #E0EBF0 class path (BC).
                     icon: 'Border', name: 'Border',
                     cdn: () => canEditSection,
                     items: [
@@ -1335,15 +1339,36 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                                 <div onClick={() => toggle(side)}
                                     className={`absolute ${cls} rounded cursor-pointer transition ${cur[side] ? 'bg-[#1F3F8F]' : 'bg-slate-200 hover:bg-slate-300'}`}/>
                             );
+                            const sa = getComponentTheme(theme, 'pages.sectionArray');
+                            const widths = sa?.borderWidths || [1, 2, 3, 4, 6, 8];
+                            const swatches = sa?.borderColors;   // curated palette (undefined → ColorControls default)
+                            const setWidth = w => updateAttribute('border', { ...cur, width: cur.width === w ? undefined : w });
+                            const setColor = c => updateAttribute('border', { ...cur, color: c });
                             return (
-                                <div className={'flex justify-center py-2'}>
-                                    <div className={'relative size-24'}>
-                                        <div className={'absolute inset-[10px] bg-slate-50 rounded flex items-center justify-center text-[10px] uppercase tracking-wide text-slate-400'}>edges</div>
-                                        {edge('top',    'top-0 left-2.5 right-2.5 h-2')}
-                                        {edge('bottom', 'bottom-0 left-2.5 right-2.5 h-2')}
-                                        {edge('left',   'left-0 top-2.5 bottom-2.5 w-2')}
-                                        {edge('right',  'right-0 top-2.5 bottom-2.5 w-2')}
+                                <div className={'flex flex-col gap-2 py-2'}>
+                                    <div className={'flex justify-center'}>
+                                        <div className={'relative size-24'}>
+                                            <div className={'absolute inset-[10px] bg-slate-50 rounded flex items-center justify-center text-[10px] uppercase tracking-wide text-slate-400'}>edges</div>
+                                            {edge('top',    'top-0 left-2.5 right-2.5 h-2')}
+                                            {edge('bottom', 'bottom-0 left-2.5 right-2.5 h-2')}
+                                            {edge('left',   'left-0 top-2.5 bottom-2.5 w-2')}
+                                            {edge('right',  'right-0 top-2.5 bottom-2.5 w-2')}
+                                        </div>
                                     </div>
+                                    {/* Width (px) — sets border.width; promotes the border to inline style. */}
+                                    <div className={'flex items-center gap-2 px-1'}>
+                                        <div className={'w-12 shrink-0 text-[11px] text-slate-400'}>Width</div>
+                                        <div className={'flex-1 min-w-0'} style={{ display: 'grid', gridTemplateColumns: `repeat(${widths.length}, minmax(0,1fr))`, gap: '2px' }}>
+                                            {widths.map(w => (
+                                                <div key={w} onClick={() => setWidth(w)}
+                                                    className={`h-8 flex items-center justify-center rounded-md text-[12.5px] font-medium tabular-nums cursor-pointer transition ${String(cur.width) === String(w) ? 'bg-[#1F3F8F] text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+                                                    {w}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    {/* Color — sets border.color from the theme swatch palette. */}
+                                    <ColorControls value={cur.color || '#E0EBF0'} setValue={setColor} title={'Color'} colors={swatches}/>
                                 </div>
                             );
                         }},

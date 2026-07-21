@@ -13,7 +13,7 @@ import {
   resolvePattern, findPatternByKind,
   parseData, parseSetPairs, readFileOrJson,
 } from '../utils/data.js';
-import { pageTypeFor } from '../utils/types.js';
+import { pageTypeFor, componentTypeFor } from '../utils/types.js';
 import { output, outputError } from '../utils/output.js';
 
 /**
@@ -57,7 +57,8 @@ export async function list(config, options = {}) {
           url_slug: d.url_slug || '',
           parent: d.parent || null,
           index: d.index || '0',
-          published: d.published || 'draft',
+          // '' = published via the UI/CLI; only 'draft' (or absent) means draft
+          published: (d.published ?? 'draft') === 'draft' ? 'draft' : 'published',
         },
       };
     });
@@ -111,7 +112,7 @@ export async function show(idOrSlug, config, options = {}) {
       url_slug: d.url_slug || '',
       parent: d.parent || null,
       index: d.index || '0',
-      published: d.published || 'draft',
+      published: (d.published ?? 'draft') === 'draft' ? 'draft' : 'published',
       sections_count: (d.sections || []).length,
       draft_sections_count: (d.draft_sections || []).length,
       has_changes: d.has_changes || false,
@@ -279,16 +280,49 @@ export async function publish(idOrSlug, config, options = {}) {
 
     const d = parseData(page.data);
 
+    // COPY each draft section row into a fresh component row and publish refs to
+    // the copies — mirroring the UI publish (editFunctions.jsx strips section ids
+    // so the save materializes new rows). Publishing the draft REFS verbatim
+    // aliases published and draft onto the same rows, and the next draft wipe
+    // (owning build scripts rebuild pages that way) deletes the published page's
+    // rows out from under it (incident 2026-07-21, sitemgmt/tickets).
+    const draftRefs = d.draft_sections || [];
+    const publishedRefs = [];
+    for (const ref of draftRefs) {
+      const row = await fetchById(falcor, config.app, ref.id, ['id', 'app', 'type', 'data']);
+      if (!row) {
+        outputError(`Draft section ${ref.id} not found — aborting publish (published page left untouched)`);
+        return;
+      }
+      const rowType = row.type || componentTypeFor(pattern);
+      const result = await falcor.call(
+        ['dms', 'data', 'create'],
+        [config.app, rowType, parseData(row.data)]
+      );
+      const byApp = result?.json?.dms?.data?.[config.app]?.byId
+        || result?.json?.dms?.data?.byId
+        || {};
+      const createdId = Object.keys(byApp)[0];
+      if (!createdId) {
+        outputError(`Failed to copy draft section ${ref.id} — aborting publish (published page left untouched)`);
+        return;
+      }
+      publishedRefs.push({ ...ref, id: String(createdId), ref: `${config.app}+${rowType}` });
+    }
+
     const updateData = {
-      published: 'published',
+      // The UI publish sets '' (every published page in the wild carries ''), and
+      // downstream published checks are `!== 'draft'`.
+      published: '',
       has_changes: false,
-      sections: d.draft_sections || d.sections || [],
+      sections: publishedRefs,
       section_groups: d.draft_section_groups || d.section_groups || [],
+      ...(d.draft_dataSources !== undefined ? { dataSources: d.draft_dataSources } : {}),
     };
 
     await falcor.call(['dms', 'data', 'edit'], [config.app, id, updateData]);
 
-    output({ id, message: 'Page published' }, options);
+    output({ id, message: `Page published (${publishedRefs.length} section${publishedRefs.length === 1 ? '' : 's'} copied)` }, options);
   } catch (error) {
     outputError(error);
   }

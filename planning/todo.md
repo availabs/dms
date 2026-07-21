@@ -20,6 +20,7 @@
 
 ## cli
 
+- [x] [`dms page publish` copies section rows (aliasing fix)](./tasks/completed/cli-publish-copy-sections.md) — DONE 2026-07-21. CLI publish aliased `sections` to the draft refs, so a build-script draft wipe deleted the published page's rows (blanked sitemgmt/tickets). Now copies each draft row like the UI publish, sets `published: ''`, mirrors groups/dataSources, aborts loudly on missing rows; `list --published` now classifies `''` correctly.
 - [x] DMS CLI tool (`packages/dms/cli/`) — terminal access to DMS data via shared API code and Falcor protocol (sites, patterns, pages, sections, datasets)
 - [ ] DMS MCP Server — Claude tool for reading, creating, and editing DMS pages/sections via structured MCP tools (Lexical builder, .dmsrc-aware config)
 - [x] [CLI refresh for type-system refactor + per-app tables + dmsEnv ownership](./tasks/completed/cli-refresh-type-refactor.md) — rewrote type resolution throughout `packages/dms/cli/` to use `{parent}:{instance}|{rowKind}`; dropped `doc_type` reads; app-namespaced every falcor path; `dataset list` walks `pattern.dmsEnvId → dmsEnv.sources`; `dataset dump`/`query` use the `:data` split-table types via the hydrating `options` route. 21/21 integration tests pass; verified live against `asm+nhomb`.
@@ -158,6 +159,9 @@
 
 ## ui
 
+- [x] [Card create-defaults `defaultFrom` — derive a field from another new-row field](./tasks/completed/create-default-defaultfrom.md) — DONE 2026-07-21. Page-QA add-ticket modal stamps surface/page_route from page_key at create; pending owner publish of the control-room pages. Follow-up: expose in Card.config column controls.
+- [x] [map legend columnTag: skip for multi-column paint expressions](./tasks/completed/legend-columntag-multicolumn-guard.md) — DONE 2026-07-21. BC guard; worst-of LOTTR expression tag starved the legend title to "W.." (transportNY QA #165).
+- [x] [graph_new AxisLeft: cap `tickSpacing` tick generation (browser-freeze guard)](./tasks/completed/cap-tickspacing-tick-explosion.md) — DONE 2026-07-21. Unbounded spaced-tick loop generated ~4.9M tick DOM nodes when a column edit changed data magnitude 1e6× but `yAxis.tickSpacing: 2` stayed; froze the incidents_v2 draft page. `buildSpacedTickValues` cap (200) + fallback to default ticks + console.warn. Pending transportNY vendored-dms sync.
 - [x] [Table: `row_highlight` themed 'accent' style + click-publish cursor](./tasks/current/table-row-highlight-accent-and-cursor.md) —
       DONE 2026-07-17. New BC `row_highlight` style 'accent' paints a themed row-level tint + left
       edge (resolved from `theme.table.rowHighlightAccent`/styleKey like conditional_row_style;
@@ -281,6 +285,10 @@
 
 ### patterns/page
 
+- [x] [Section border — per-side width + theme color](./tasks/current/section-border-width-color.md) —
+      let a section render a border with configurable width + a theme-palette color (inline style;
+      Tailwind can't JIT arbitrary values), applied at the section level. Replaces the per-cell
+      `cellBorderColor` hack for the mny Action Prioritize lede's amber left-accent panel. BC.
 - [x] [Map: server-side tile `filter=` from a `serverSide` dynamic-filter](./tasks/current/map-serverside-tile-filter.md) —
       DONE 2026-07-17. A symbology dynamic-filter flagged `serverSide:true` makes `getLayerTileUrl`
       emit `&filter=<col>='…'` so the tile route filters rows in PostGIS ST_AsMVT before emitting
