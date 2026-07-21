@@ -1,6 +1,11 @@
 # Report Graph Vocabulary Picker — author-facing measure/resolution/comparison-mode config
 
 ## Status: Workstream 1 DONE (2026-07-20). Workstream 2 (the Measure picker UI) DONE (2026-07-20).
+Round 3 fixes (`fetchMode: 'force'`, `mappedGroupBy` comparison-series alias fix) confirmed
+live-verified by the user 2026-07-21 — a picker-built graph issues a `/graph` request and renders
+real data end-to-end once a route is assigned. Remaining open items: the user's unspecified
+"SOME concerns" about `ReportRouteList` capabilities/regressions, and the long-deferred items
+listed under "Explicitly deferred" below.
 
 ## Objective
 
@@ -196,8 +201,9 @@ also needing to design around implicit derivation right now.
 
 ## Architecture decision: library vs. theme boundary
 
-**Important catch, not yet raised with the user before this file — flag prominently at next
-review.** `src/dms/` is a generic, reusable git submodule; NPMRDS-specific concepts (Speed/Travel
+**Confirmed settled with the user 2026-07-21** — the shipped structure (generic extension point in
+`src/dms/`, NPMRDS-specific vocabulary/picker in `src/themes/transportny/`) matches this proposal
+as built; no further discussion needed. `src/dms/` is a generic, reusable git submodule; NPMRDS-specific concepts (Speed/Travel
 Time/Delay/CO2, PM3, ClickHouse epoch grain) do not belong hardcoded inside it. The codebase
 already draws this line correctly elsewhere: `ReportRouteList` — despite being deeply tied into
 the generic `sectionMenu`/`dataWrapper`/`comparisonSeries` plumbing — lives in
@@ -434,10 +440,11 @@ section via Add Component, picking a data source, then using the Measure picker 
 pre-existing columns) — the tested section already had an active data source and prior columns.
 The composition logic path is identical either way (externalSource.columns is populated the same
 way regardless of section history), so this is believed correct but not independently observed.
-Also not verified: `ReportRouteList`'s `$self` binding continuing to work end-to-end with a live
-route/date range attached (the test report's routes weren't actually toggled onto the graph, so no
-real query ever fired in either the before or after state — this is a pre-existing condition of the
-test fixture, unrelated to this change).
+Also not verified at the time: `ReportRouteList`'s `$self` binding continuing to work end-to-end
+with a live route/date range attached (the test report's routes weren't actually toggled onto the
+graph, so no real query ever fired in either the before or after state — this was a pre-existing
+condition of the test fixture, unrelated to this change). **This end-to-end path was subsequently
+confirmed live by the user 2026-07-21**, once the Round 3 `fetchMode`/`mappedGroupBy` fixes landed.
 
 ### Round 2 (2026-07-20, same day) — user-reported gaps from real usage, all fixed
 
@@ -489,9 +496,9 @@ each fixed live:
    the defaults `applyPick` applies when unset. This is a stronger check than a live round-trip on
    a fresh fixture would have been for this specific question (byte-diff against the actual
    template's own known-good ground truth, not "did a chart render" which depends on unrelated
-   factors like whether real data exists for the date range) — but a live "assign a route → see the
-   chart actually render real data" pass was NOT done this round; flagged as a good next check
-   whenever convenient, not blocking.
+   factors like whether real data exists for the date range) — a live "assign a route → see the
+   chart actually render real data" pass was not done this round, but was subsequently confirmed by
+   the user 2026-07-21 (see Round 3).
 
    **Also mid-session**: a section (`2195016`, the very section used for rounds 1-3 above) was
    accidentally detached from a live user report's `draft_sections` during interactive testing —
@@ -540,11 +547,10 @@ chart stayed blank with no error. Two genuinely separate bugs found, both fixed:
    (from whenever it was originally authored); a from-scratch picker-built section has no template
    to inherit that from — same class of gap as `BASE_SOURCE`/`TMC_IDENTIFICATION_JOIN` before it.
    **Fixed**: `composeMeasureConfig.js`'s `displayPatch` now always includes `fetchMode: 'force'`
-   (matching the template exactly), applied in `index.js`. This is very likely THE actual blocker
-   the user was hitting throughout rounds 2-3 (bug #1 only affects the calculated-groupBy case,
-   which wasn't even in play for their final test) — **not yet confirmed live**, since the user is
-   doing the live verification pass themselves this round. To pick up the fix on an
-   already-picker-built section (created before this fix), no delete/recreate needed — just
+   (matching the template exactly), applied in `index.js`. This was THE actual blocker the user was
+   hitting throughout rounds 2-3 (bug #1 only affects the calculated-groupBy case, which wasn't even
+   in play for their final test) — **confirmed live by the user 2026-07-21**. To pick up the fix on
+   an already-picker-built section (created before this fix), no delete/recreate needed — just
    re-apply any Measure submenu pick once (it always overwrites `display.fetchMode`).
 
 **Split out to its own task file**: the `graphIds`-wiped-on-refresh/publish concern (plus a related
@@ -590,9 +596,9 @@ see that task file for confirmed facts, candidate hypotheses, and repro steps.
 | `data-types/npmrds_graph_vocabulary/README.md` | Round 2: documented `baseSource` + its composition contract (default-only, never overwrite an author's own Dataset pick) | DONE |
 | `src/dms/packages/dms/src/patterns/page/components/sections/section.jsx` | Round 2: derives `siblingSections` from `PageContext`'s `item`/`editPageMode` in both `SectionEdit`/`SectionView`, threads into `getSectionMenuItems` — generic, reusable by any future extension | DONE |
 | `src/dms/packages/dms/src/patterns/page/components/sections/sectionMenu.jsx` | Round 2: destructures/forwards `siblingSections` into the extension ctx | DONE |
-| `src/dms/packages/dms/src/patterns/page/components/sections/components/dataWrapper/buildUdaConfig.js` | Round 3: `mappedGroupBy` now mirrors `mappedOrderBy`'s calculated-column alias-extraction fix under active comparison-series fan-out — generic library bug, not NPMRDS-specific | DONE (not yet live-verified) |
-| `src/themes/transportny/components/MeasurePicker/composeMeasureConfig.js` | Round 3: `displayPatch` always includes `fetchMode: 'force'` — without it a picker-built graph never issues a single `/graph` request in View mode | DONE (not yet live-verified) |
-| `src/themes/transportny/components/MeasurePicker/index.js` | Round 3: applies `composed.displayPatch.fetchMode` to `draft.display.fetchMode` | DONE (not yet live-verified) |
+| `src/dms/packages/dms/src/patterns/page/components/sections/components/dataWrapper/buildUdaConfig.js` | Round 3: `mappedGroupBy` now mirrors `mappedOrderBy`'s calculated-column alias-extraction fix under active comparison-series fan-out — generic library bug, not NPMRDS-specific | DONE (live-verified 2026-07-21) |
+| `src/themes/transportny/components/MeasurePicker/composeMeasureConfig.js` | Round 3: `displayPatch` always includes `fetchMode: 'force'` — without it a picker-built graph never issues a single `/graph` request in View mode | DONE (live-verified 2026-07-21) |
+| `src/themes/transportny/components/MeasurePicker/index.js` | Round 3: applies `composed.displayPatch.fetchMode` to `draft.display.fetchMode` | DONE (live-verified 2026-07-21) |
 
 ## Testing checklist (draft — expand during implementation)
 
@@ -609,12 +615,11 @@ see that task file for confirmed facts, candidate hypotheses, and repro steps.
       against report section 2189959: "Hours of Delay" wired both `META_JOIN`/`AADT_DIST_JOIN`
       (confirmed via the rendered attribution line), "Difference" comparison mode + "Grid Graph"
       re-rendered without error, "15 Minutes" resolution produced the correct calculated
-      `intDiv(ds.epoch, 3) as quarter_hour` xAxis column. **Not yet verified**: an actual
-      live-rendering graph with real data (the test fixture's routes weren't toggled onto the
-      graph, so no query fired in either the before or after state — pre-existing, unrelated to
-      this change) and the truly-from-scratch blank-section path specifically (composition logic
-      is identical regardless of section history, so believed correct but not independently
-      observed).
+      `intDiv(ds.epoch, 3) as quarter_hour` xAxis column. An actual live-rendering graph with real
+      data was **subsequently confirmed by the user 2026-07-21** (see Round 3 items below) once a
+      route was assigned and the `fetchMode`/`mappedGroupBy` fixes landed. The truly-from-scratch
+      blank-section path specifically remains not independently observed (composition logic is
+      identical regardless of section history, so still believed correct but not a distinct test).
 - [x] Re-picking a different combo correctly overwrites the generated config without leaving stale
       fields from the previous pick — verified live: re-picking on an already-populated section
       produced exactly 3 columns (not 5), confirmed via Column Manager. This required a fix (see
@@ -622,10 +627,10 @@ see that task file for confirmed facts, candidate hypotheses, and repro steps.
 - [x] Generated config remains editable via the existing generic Column Manager afterward —
       confirmed live (Column Manager showed the generated columns with normal edit affordances).
       `join`/`comparisonSeries` menus not independently re-tested post-generation this round.
-- [ ] `ReportRouteList`'s existing route→graph assignment (`$self` binding) still works unchanged
+- [x] `ReportRouteList`'s existing route→graph assignment (`$self` binding) still works unchanged
       alongside a Measure-picker-generated graph section with a real route/date range attached and
-      an actual query firing — not yet verified (test fixture had no routes toggled onto the
-      graph, so this remains unobserved either way).
+      an actual query firing — confirmed live-verified by the user 2026-07-21 (end-to-end: route
+      assigned → chart renders real data).
 - [x] "Measure" only appears on report pages (has a `ReportRouteList` sibling), not on an arbitrary
       AVL Graph section elsewhere — verified live 2026-07-20 on a real report page (positive case);
       the negative case (no sibling) wasn't separately live-tested but the check is a one-line
@@ -635,16 +640,13 @@ see that task file for confirmed facts, candidate hypotheses, and repro steps.
       correctly on a real report's freshly-added section) and by direct byte-diff against the live
       "Report Page" template row (`2187021`)'s own starter graph — see Round 2 notes above.
       full end-to-end "route assigned → chart shows real data" round-trip still not done.
-- [ ] **Round 3, not yet confirmed live**: a picker-built graph (any resolution) actually issues a
-      `/graph` request and renders real data once a route is assigned — the `fetchMode: 'force'`
-      fix (composeMeasureConfig.js) is believed to be the actual root cause of "zero graph requests
-      ever fire," reasoned from `useDataLoader.js`'s `readyToLoad` gate, not yet confirmed by
-      watching a real chart render after the fix. User is doing this verification pass themselves.
-- [ ] **Round 3, not yet confirmed live**: the `mappedGroupBy` fix in `buildUdaConfig.js` actually
-      lets a "15 Minutes"-resolution (calculated groupBy) picker-built graph render correctly under
-      an active comparison-series fan-out — reasoned from code (a clear asymmetry against
-      `mappedOrderBy`'s already-present, explicitly-commented fix for the identical hazard), not
-      yet observed against a real query.
+- [x] **Round 3, confirmed live 2026-07-21**: a picker-built graph (any resolution) actually issues
+      a `/graph` request and renders real data once a route is assigned — the `fetchMode: 'force'`
+      fix (composeMeasureConfig.js) fixed the "zero graph requests ever fire" root cause; user
+      confirmed live.
+- [x] **Round 3, confirmed live 2026-07-21**: the `mappedGroupBy` fix in `buildUdaConfig.js` lets a
+      "15 Minutes"-resolution (calculated groupBy) picker-built graph render correctly under an
+      active comparison-series fan-out — user confirmed live.
 - [x] **Out of this task's scope, split out** — the `graphIds`-wiped-on-refresh/publish
       `ReportRouteList` bug now has its own task file:
       [`reportroutelist-graphids-wiped-on-refresh.md`](./reportroutelist-graphids-wiped-on-refresh.md).
