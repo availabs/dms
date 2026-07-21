@@ -20,6 +20,7 @@
 
 ## cli
 
+- [x] [`dms page publish` copies section rows (aliasing fix)](./tasks/completed/cli-publish-copy-sections.md) — DONE 2026-07-21. CLI publish aliased `sections` to the draft refs, so a build-script draft wipe deleted the published page's rows (blanked sitemgmt/tickets). Now copies each draft row like the UI publish, sets `published: ''`, mirrors groups/dataSources, aborts loudly on missing rows; `list --published` now classifies `''` correctly.
 - [x] DMS CLI tool (`packages/dms/cli/`) — terminal access to DMS data via shared API code and Falcor protocol (sites, patterns, pages, sections, datasets)
 - [ ] DMS MCP Server — Claude tool for reading, creating, and editing DMS pages/sections via structured MCP tools (Lexical builder, .dmsrc-aware config)
 - [x] [CLI refresh for type-system refactor + per-app tables + dmsEnv ownership](./tasks/completed/cli-refresh-type-refactor.md) — rewrote type resolution throughout `packages/dms/cli/` to use `{parent}:{instance}|{rowKind}`; dropped `doc_type` reads; app-namespaced every falcor path; `dataset list` walks `pattern.dmsEnvId → dmsEnv.sources`; `dataset dump`/`query` use the `:data` split-table types via the hydrating `options` route. 21/21 integration tests pass; verified live against `asm+nhomb`.

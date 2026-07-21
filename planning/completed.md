@@ -6,6 +6,7 @@
 
 ## cli
 
+- [cli-publish-copy-sections.md](./tasks/completed/cli-publish-copy-sections.md) - `dms page publish` materializes fresh component rows for each draft section (mirrors the UI publish) instead of aliasing the draft refs — aliased publishes blanked pages on the next build-script rebuild; also `published: ''` canonical value + `list --published` classification (2026-07-21)
 - [cli-refresh-type-refactor.md](./tasks/completed/cli-refresh-type-refactor.md) - DMS CLI refresh for the modern type scheme + per-app tables + dmsEnv ownership: new `cli/src/utils/types.js`; every `byId` path app-namespaced; `dataset list` walks `pattern.dmsEnvId → dmsEnv.sources`; `dataset dump`/`query` go through the hydrating `options` Falcor route for split tables; `cms-section` → `component`; docs (TYPES, CLAUDE) rewritten; seed + 21/21 integration tests on the modern shape; live-verified against `asm+nhomb` (2026-05-01)
 - [dms-cli.md](./tasks/completed/dms-cli.md) - DMS CLI tool: Falcor HTTP client, raw CRUD, site/pattern/page/section/dataset commands, tree formatter, stdin support, 21 integration tests, docs (2026-02-09)
 
