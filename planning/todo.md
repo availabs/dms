@@ -158,6 +158,7 @@
 
 ## ui
 
+- [x] [Card create-defaults `defaultFrom` — derive a field from another new-row field](./tasks/completed/create-default-defaultfrom.md) — DONE 2026-07-21. Page-QA add-ticket modal stamps surface/page_route from page_key at create; pending owner publish of the control-room pages. Follow-up: expose in Card.config column controls.
 - [x] [map legend columnTag: skip for multi-column paint expressions](./tasks/completed/legend-columntag-multicolumn-guard.md) — DONE 2026-07-21. BC guard; worst-of LOTTR expression tag starved the legend title to "W.." (transportNY QA #165).
 - [x] [graph_new AxisLeft: cap `tickSpacing` tick generation (browser-freeze guard)](./tasks/completed/cap-tickspacing-tick-explosion.md) — DONE 2026-07-21. Unbounded spaced-tick loop generated ~4.9M tick DOM nodes when a column edit changed data magnitude 1e6× but `yAxis.tickSpacing: 2` stayed; froze the incidents_v2 draft page. `buildSpacedTickValues` cap (200) + fallback to default ticks + console.warn. Pending transportNY vendored-dms sync.
 - [x] [Table: `row_highlight` themed 'accent' style + click-publish cursor](./tasks/current/table-row-highlight-accent-and-cursor.md) —
