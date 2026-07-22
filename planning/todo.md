@@ -275,6 +275,7 @@
 
 ### patterns/page
 
+- [ ] [Section header extensions — generic extension point for inline header content](./tasks/current/section-header-extensions.md) — mirrors `sectionMenuExtensions` but for the section title-bar/header area instead of the Settings drawer. Library-side prerequisite for the theme-side [AVL Graph quick controls](../../../planning/tasks/current/avl-graph-quick-controls.md) task. Scoped 2026-07-21, not started.
 - [x] [Unset page variables blanked every reacting section](./tasks/current/page-variable-empty-leaf-regression.md) —
       **FIXED 2026-07-16.** Unset URL-registered page variables flowed as `[""]` into
       `usePageFilters` leaves → `IN ('')` → 0 rows/length on EVERY reacting section (blank
