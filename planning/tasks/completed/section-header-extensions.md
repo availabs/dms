@@ -1,8 +1,28 @@
 # Section header extensions — generic extension point for inline header content
 
-## Status: NOT STARTED. Scoped 2026-07-21 from a design-audit artifact (see root task
+## Status: DONE, implemented and live-verified 2026-07-22. Scoped 2026-07-21 from a design-audit
+artifact (see root task
 [avl-graph-quick-controls.md](../../../../planning/tasks/current/avl-graph-quick-controls.md) for
 the theme-side consumer and full origin context). This file is the library-side primitive only.
+
+**Design deviation found during implementation** — the original spec (see "Proposed changes" #4
+below) had the View-mode row rendered *inside* `ViewSectionHeader`, gated by the same `showHeader`
+condition that gates the title row. Live-testing on `report_1070` (a real MAP-21 PM3 report using
+the "header + hero-stat" stacking workaround — see `authoring-graphs.md`) showed this makes the
+extension **unreachable for the primary intended consumer**: those AVL Graph sections have an
+empty `value.title` (the visible header text is a separate sibling Card section stacked above), so
+`showHeader` is false and `ViewSectionHeader` never renders at all. **Fixed**: the header-extensions
+row in `SectionView` (`section.jsx`) is now rendered as an independent sibling immediately after the
+`{showHeader ? <ViewSectionHeader/> : ''}` block, gated only on `headerExtensions.length > 0` — not
+on `showHeader`. `SectionEdit`'s row was unaffected (it has no `showHeader`-style gating; the title
+row always renders in edit mode). See "Testing checklist" below for the live verification that
+caught this.
+
+A second fix during implementation: builders return raw `ReactNode | ReactNode[]`, and rendering a
+flat array of nodes directly as JSX children (`{headerExtensions}`) trips React's "unique key prop"
+warning once more than a placeholder single stub is involved. Both render sites now wrap each
+flattened node in a keyed `React.Fragment` (`headerExtensions.map((node, idx) => <React.Fragment
+key={idx}>{node}</React.Fragment>)`) so builder authors never need to manage keys themselves.
 
 ## Objective
 
@@ -184,29 +204,47 @@ implementation verbatim; do not "improve" it to accumulate.
 6. **Export** `registerSectionHeaderExtensions` from `src/dms/packages/dms/src/index.js` (mirrors
    how `registerSectionMenuExtensions` is exported there).
 
-## Files requiring changes
+## Files requiring changes — all DONE
 
 | File | Change |
 |---|---|
-| `src/dms/packages/dms/src/patterns/page/components/sections/sectionHeaderExtensions.js` (new) | Registry: `registerSectionHeaderExtensions`/`getSectionHeaderExtensions`, replace-not-append |
-| `src/dms/packages/dms/src/patterns/page/siteConfig.jsx` | Auto-register `theme.sectionHeaderExtensions`, mirroring the existing `sectionMenuExtensions` block |
-| `src/dms/packages/dms/src/patterns/page/components/sections/section.jsx` | Compute + render `headerExtensions` in both `SectionEdit` and the View-mode header path |
-| `src/dms/packages/dms/src/patterns/page/components/sections/section_components.jsx` | `ViewSectionHeader` renders the same new row in View mode |
-| `src/dms/packages/dms/src/patterns/page/components/sections/section.theme.jsx` (base theme) | New empty-default `headerExtensionsRow` key |
-| `src/dms/packages/dms/src/index.js` | Export `registerSectionHeaderExtensions` |
+| `src/dms/packages/dms/src/patterns/page/components/sections/sectionHeaderExtensions.js` (new) | Registry: `registerSectionHeaderExtensions`/`getSectionHeaderExtensions`, replace-not-append. Verbatim mirror of `sectionMenuExtensions.js`. |
+| `src/dms/packages/dms/src/patterns/page/siteConfig.jsx` | Auto-registers `theme.sectionHeaderExtensions`, mirrors the existing `sectionMenuExtensions` block. |
+| `src/dms/packages/dms/src/patterns/page/components/sections/section.jsx` | Computes + renders `headerExtensions` in both `SectionEdit` (unconditional row below the title/menu flex row) and `SectionView` (row rendered independently of `showHeader` — see design deviation note above). Both sites key-wrap the flattened node array in `React.Fragment`. |
+| `src/dms/packages/dms/src/patterns/page/components/sections/section_components.jsx` | **Not touched** — deviates from the original plan. `ViewSectionHeader` stayed unchanged; the row moved to `SectionView` directly so it isn't trapped behind `showHeader`. |
+| `src/dms/packages/dms/src/patterns/page/components/sections/section.theme.jsx` (base theme) | New empty-default `headerExtensionsRow` key in `styles[0]`, also added to the `topBar` `themeClasses` group so it's editable via the admin "Section Top Bar" settings pane (mirrors how `topBar`/`topBarSpacer` etc. are already author-editable there). |
+| `src/dms/packages/dms/src/index.js` | Exports `registerSectionHeaderExtensions`. |
+
+Also rebuilt `src/dms/packages/dms/dist/` via `npx babel src -d dist --extensions '.ts,.tsx,.js,.jsx'` (per [[reference_dms_package_dist_rebuild]] — no watcher runs).
 
 ## Testing checklist
 
-- [ ] Regression: a page with zero registered header extensions for any component type renders
-      byte-identical to before this change (no stray empty `<div>`, no layout shift) — check both
-      Edit and View mode.
-- [ ] A stub extension (`() => <span>test</span>`) registered for `"AVL Graph"` renders in the
-      correct position (below the title, above the section body) in both Edit and View mode.
-- [ ] A throwing stub extension does not blank the rest of the header or crash the page (try/catch
-      isolation works, matching `sectionMenu.jsx`'s existing pattern).
-- [ ] Registering twice (simulating HMR/re-registration) does not duplicate the rendered content —
-      confirms the replace-not-append fix was actually applied here too, not just copied as a
-      comment.
-- [ ] Multiple `<div>` instances of the same component type on one page (e.g. two AVL Graph cards)
-      each render their own independent extension output, reading their own section's `state`/
-      `dwAPI` — not a shared/stale reference.
+- [x] Regression: a page with zero registered header extensions renders byte-identical to before
+      this change. Live-verified in View mode on `report_1070` (real MAP-21 PM3 report, 4 AVL Graph
+      sections + several Card sections): same 44 `/graph` captures, same 5 pre-existing console
+      warnings (unrelated key-spread dev warnings from another component), zero page errors, no
+      stray content, both before adding a stub and after removing it.
+- [x] A stub extension (`() => <span>...</span>`) registered for `"AVL Graph"` renders in the
+      correct position (below the title/stat Card, above the graph SVG) — live-verified in View
+      mode via a temporary registration in `src/themes/transportny/themev2.js` (added, screenshotted,
+      then fully reverted — `git diff` on that file is clean). This is what caught the
+      `showHeader`-gating bug described above. **Edit mode not live-verified** — the report page's
+      `/edit/<slug>` route requires an authenticated session with page-edit permissions and the
+      local dev auth token (`scratchpad/npmrds-sub/.dms-auth-token`) was stale (silently degraded to
+      anonymous, redirected to the sign-in page); refreshing it requires running
+      `scratchpad/npmrds-sub/mint_token.sh` which embeds live credentials, so it was left for Ryan
+      rather than run automatically. `SectionEdit`'s code path was verified by direct reading — the
+      row is unconditional (no `showHeader`-equivalent gating exists in edit mode; the title row
+      always renders), and both call sites use the identical key-wrapped-`Fragment` render pattern
+      that was live-proven correct in View mode.
+- [x] A throwing stub extension does not blank the rest of the header or crash the page — by
+      construction (try/catch around each `build()` call, verbatim copy of `sectionMenu.jsx`'s
+      already-shipped `extensionMenus` pattern); not separately live-tested with a throwing stub.
+- [x] Registering twice (HMR/re-registration) does not duplicate content — by construction
+      (registry assignment is `registry[componentName] = [...]`, a full replace, verbatim copy of
+      `sectionMenuExtensions.js`'s already-proven-in-production idempotent pattern).
+- [x] Multiple `<div>` instances of the same component type on one page each render their own
+      independent extension output — live-verified: `report_1070` has 4 separate "AVL Graph"
+      sections, and the screenshot showed the stub text rendered independently in all 4, each
+      reading that section's own `dwHandle`-derived `state`/`dwAPI` (computed locally per
+      `SectionView` render, no shared/module-level state).
