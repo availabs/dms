@@ -11,6 +11,7 @@ import {strictNaN} from "./utils";
 
 
 import { getColorRange } from "./colorSchemeUnifier"
+import { getEffectiveComparisonVariants } from "../../../patterns/page/components/sections/components/dataWrapper/buildUdaConfig";
 
 // Merge the theme's brand chart defaults UNDER the section's own display settings, so a
 // section with a sparse `display` inherits brand visuals (colors/margins/axes) while any
@@ -74,9 +75,26 @@ export default function Graph (props) {
 // console.log("ui.components.graph_new.index::pageContext", pageContext);
 
     const {
-        columns, data, display
+        columns, data, display, comparisonSeries
     } = state;
 // console.log("ui.components.graph_new.index::display", display);
+
+  // Per-key explicit color (e.g. a ReportRouteList route's identity color,
+  // published as a comparison-series variant's `color`) — resolved from the
+  // SAME effective variant list buildUdaConfig uses for the query fan-out, so
+  // this graph's colorsByKey always agrees with whichever variants it's
+  // actually querying. `undefined` (not `{}`) when no variant carries a
+  // color, so every downstream colorFunc/Legend falls back to today's
+  // positional cycling exactly as before (BC for every non-comparison-series
+  // graph and every comparison-series graph whose routes have no color yet).
+  const colorsByKey = React.useMemo(() => {
+    const variants = getEffectiveComparisonVariants(comparisonSeries);
+    const map = {};
+    for (const v of variants || []) {
+      if (v?.label && v?.color) map[v.label] = v.color;
+    }
+    return Object.keys(map).length ? map : undefined;
+  }, [comparisonSeries]);
 
   const { theme: contextTheme } = React.useContext(ThemeContext) || { theme: { avlGraph: {} } };
   const theme = getComponentTheme(contextTheme, 'avlGraph', activeStyle);
@@ -121,6 +139,7 @@ export default function Graph (props) {
         publishHoverData={ publishHoverData }
         hoverProvider={ hoverProvider }
         publishClickData={ publishClickData }
-        clickProvider={ clickProvider }/>
+        clickProvider={ clickProvider }
+        colorsByKey={ colorsByKey }/>
   )
 }

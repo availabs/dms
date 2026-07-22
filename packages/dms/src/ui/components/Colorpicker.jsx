@@ -38,7 +38,16 @@ const colorPickerStyles = {
 
     "color-picker-basic-color-button.active": "[box-shadow:0px_0px_2px_2px_rgba(0,_0,_0,_0.3)]",
 
-    "color-picker-saturation": "w-full relative mt-[15px] h-[150px] bg-[linear-gradient(transparent,_black),_linear-gradient(to_right,_white,_transparent)] select-none",
+    // The saturation/value gradient overlay is applied via inline style (see call
+    // sites), not a Tailwind arbitrary-value class — a multi-layer
+    // `bg-[linear-gradient(...),_linear-gradient(...)]` utility silently compiled to
+    // no CSS at all under this project's Tailwind v4 setup (confirmed via computed
+    // style: `backgroundImage: "none"`), leaving only the inline hue backgroundColor
+    // visible — a flat square with no saturation/value gradient. Never caught before
+    // because both pre-existing callers pass `showColorPicker={false}`, so this panel
+    // had never actually been rendered in production until a `showColorPicker={true}`
+    // caller (see ReportRouteList's per-route color picker) exercised it.
+    "color-picker-saturation": "w-full relative mt-[15px] h-[150px] select-none",
 
     "color-picker-saturation_cursor": "absolute w-[20px] h-[20px] border-[2px] border-[solid] border-[#ffffff] rounded-[50%] [box-shadow:0_0_15px_#00000026] box-border -translate-x-[10px] -translate-y-[10px]",
 
@@ -299,7 +308,10 @@ function transformColor(
                     <>
                         <MoveWrapper
                             className={`${colorPickerStyles[`color-picker-saturation`]}`}
-                            style={{backgroundColor: `hsl(${selfColor.hsv.h}, 100%, 50%)`}}
+                            style={{
+                                backgroundColor: `hsl(${selfColor.hsv.h}, 100%, 50%)`,
+                                backgroundImage: 'linear-gradient(transparent, black), linear-gradient(to right, white, transparent)'
+                            }}
                             onChange={onMoveSaturation}>
                             <div
                                 className={`${colorPickerStyles[`color-picker-saturation_cursor`]}`}
@@ -390,7 +402,12 @@ export function ColorPickerFlat({ color, onChange, colors, showColorPicker = fal
                 <div className="mt-3" style={{ width: WIDTH }}>
                     <MoveWrapper
                         className={colorPickerStyles['color-picker-saturation']}
-                        style={{ backgroundColor: `hsl(${selfColor.hsv.h}, 100%, 50%)`, height: 100, borderRadius: 4 }}
+                        style={{
+                            backgroundColor: `hsl(${selfColor.hsv.h}, 100%, 50%)`,
+                            backgroundImage: 'linear-gradient(transparent, black), linear-gradient(to right, white, transparent)',
+                            height: 100,
+                            borderRadius: 4
+                        }}
                         onChange={({ x, y }) => {
                             const newHsv = {
                                 ...selfColor.hsv,

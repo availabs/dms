@@ -158,6 +158,21 @@
 
 ## ui
 
+- [ ] **comparisonSeries: duplicate-labeled variants collapse into one series** — two variants
+      sharing an identical `label` (e.g. two `ReportRouteList` routes with the same name, both
+      assigned to the same graph) merge into a single line/legend entry instead of two, because
+      `label` doubles as the ONLY series discriminator (the server's `__series` SQL alias AND the
+      client's `d3groups`/Set grouping key). Confirmed live 2026-07-22 while verifying
+      `comparison-series-explicit-color.md` (see that task's Status section for the full repro/
+      mechanism) — pre-existing, predates the color-threading work entirely. Real fix needs a
+      stable per-variant key independent of the editable display label, threaded through the whole
+      fan-out/grouping/legend pipeline — nontrivial, not scoped yet.
+- [x] [Comparison-series explicit per-key color](./tasks/current/comparison-series-explicit-color.md) —
+      `getColorFunc`/Legend keyed-color lookup so a comparison-series variant's explicit `color`
+      (e.g. a ReportRouteList route's identity color) wins over positional palette cycling, on
+      Bar/Line/Pie/Treemap. Library half of dms-template's `report-route-color-assignment.md`.
+      IMPLEMENTED + live-verified 2026-07-22 (200/200 unit tests, zero-regression probe on a real
+      report). Full end-to-end color rendering re-verify pending the theme-side task.
 - [x] [graph_new BarGraph: optional time/linear x-axis (proportional spacing)](./tasks/current/graph-bargraph-time-linear-xscale.md) — opt-in `xAxis.scaleType: time|linear` so bars sit at their real x-value with proportional gaps (default `band` unchanged, verified no regression). Non-band positioning (computed width + centered `barPos`) + date axis ticks; `GraphComponent` passes `xScale.type`. Live on the Control-Room per-day tickets charts. Not yet synced into transportNY's vendored dms.
 - [x] [Filter section interactive chrome: needs-value toggle · active tokens · clear-all](./tasks/current/filter-interactive-chrome.md) — ExternalFilters/RenderFilters; renders an `empty`-op leaf as a toggle; MNY alignment.
 - [x] [Spreadsheet inline-expand row detail (`openOutMode:'inline'`)](./tasks/current/spreadsheet-inline-openout.md) — inline detail panel vs the side drawer; MNY alignment.

@@ -261,9 +261,10 @@ const PieGraphWrapper = props => {
       ...props.legend,
       type: "categorical",
       colors: colors,
+      colorsByKey: props.colorsByKey,
       categories: dataFromProps.keys
     };
-  }, [props.legend, colors, dataFromProps.keys]);
+  }, [props.legend, colors, props.colorsByKey, dataFromProps.keys]);
 
   const onLegendEnter = React.useMemo(() => {
     if (!publish || !provider) return null;

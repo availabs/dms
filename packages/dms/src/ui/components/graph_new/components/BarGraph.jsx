@@ -206,9 +206,10 @@ const BarGraphWrapper = props => {
       ...props.legend,
       type: "categorical",
       colors: colors,
+      colorsByKey: props.colorsByKey,
       categories: dataFromProps.keys.map(labelForKey)
     };
-  }, [props.legend, colors, dataFromProps.keys, labelForKey, props.colors?.byValue, props.hoverComp?.valueFormat]);
+  }, [props.legend, colors, props.colorsByKey, dataFromProps.keys, labelForKey, props.colors?.byValue, props.hoverComp?.valueFormat]);
 
   // Mirror labelForKey into the tooltip's key column, same as LineGraph's
   // displayName — otherwise DefaultHoverComp's keyFormat defaults to Identity

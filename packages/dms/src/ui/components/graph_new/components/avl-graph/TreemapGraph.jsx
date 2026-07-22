@@ -161,6 +161,7 @@ export const TreemapGraph = props => {
     endAngle = 2 * Math.PI,
     padAngle = 0,
     colors,
+    colorsByKey,
     showAnimations = false,
     highlights = EmptyArray,
     onRectEnter = null,
@@ -185,8 +186,8 @@ export const TreemapGraph = props => {
   }, []);
 
   const colorFunc = React.useMemo(() => {
-  	return getColorFunc(colors);
-  }, [colors]);
+  	return getColorFunc(colors, colorsByKey);
+  }, [colors, colorsByKey]);
 
   const HoverCompData = React.useMemo(() => {
     const hcData = { ...DefaultHoverCompData, ...hoverComp };

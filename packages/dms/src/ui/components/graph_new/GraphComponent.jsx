@@ -63,7 +63,8 @@ export const GraphComponent = props => {
     publishHoverData = noOp,
     hoverProvider = null,
     publishClickData = noOp,
-    clickProvider = null
+    clickProvider = null,
+    colorsByKey
   } = props;
 
   const GraphComponent = React.useMemo(() => {
@@ -123,6 +124,7 @@ export const GraphComponent = props => {
         width={ get(graphFormat, "width") }
         bgColor={ get(graphFormat, "bgColor", "#ffffff") }
         colors={ graphFormat.colors }
+        colorsByKey={ colorsByKey }
 
         orientation={ get(graphFormat, "orientation", "vertical") }
         groupMode={ get(graphFormat, "groupMode", "stacked") }

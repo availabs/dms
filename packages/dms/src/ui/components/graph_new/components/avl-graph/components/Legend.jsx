@@ -59,16 +59,21 @@ const VerticalCategoricalLegend = props => {
 	const {
 		categories = [],
 		colors = [],
+		colorsByKey,
 		actions = [],
 		...rest
 	} = props;
 
+	// An explicit per-key color (e.g. a comparison-series variant's identity
+	// color) wins over the positional swatch — keeps the legend in sync with
+	// the chart's own colorFunc resolution (see avl-graph/utils's getColorFunc).
 	const categoriesAndColors = React.useMemo(() => {
 		const l = colors.length;
 		return categories.map((cat, i) => {
-			return [cat, colors[i % l]];
+			const color = (colorsByKey && colorsByKey[cat] != null) ? colorsByKey[cat] : colors[i % l];
+			return [cat, color];
 		}).reverse();
-	}, [categories, colors]);
+	}, [categories, colors, colorsByKey]);
 
 // console.log("VerticalCategoricalLegend::actions", actions);
 

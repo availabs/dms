@@ -62,6 +62,12 @@ const LineGraphWrapper = props => {
 				// per-series visuals (interpolation / area).
 				const line = { id, data: [], interpolation: yColumns[0]?.interpolation };
 				if (yColumns[0]?.area !== undefined) line.area = yColumns[0].area;
+				// An explicit per-key color (e.g. a comparison-series variant's
+				// identity color) — reuses the low-level LineGraph's existing
+				// `rest.color ||` override (avl-graph/LineGraph.jsx), the same
+				// mechanism the series-per-column branch below already uses via
+				// `yc.color`.
+				if (props.colorsByKey?.[id]) line.color = props.colorsByKey[id];
 				for (const [x, xGroup] of iGroup) {
 					if (x === undefined) continue;
 					let y = 0;
@@ -224,9 +230,10 @@ const LineGraphWrapper = props => {
       ...props.legend,
       type: "categorical",
       colors: colors,
+      colorsByKey: props.colorsByKey,
       categories: dataFromProps?.map(l => l.id)
     };
-  }, [props.legend, colors, dataFromProps]);
+  }, [props.legend, colors, props.colorsByKey, dataFromProps]);
 
   const onLegendEnter = React.useMemo(() => {
     if (!publish || !provider) return null;

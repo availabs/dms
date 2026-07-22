@@ -637,10 +637,30 @@ export const resolveComparisonVariants = (subArgs, rawList) => {
         };
       }
 
-      return label && filters ? { label, filters } : null;
+      // `color` rides along verbatim when the entry carries one (e.g. a
+      // ReportRouteList route's identity color) — a pure client-rendering hint,
+      // consumed by the chart's colorsByKey resolution (see
+      // ui/components/graph_new/index.jsx). Never validated/transformed here;
+      // an entry without one simply omits the key (BC for every existing
+      // dynamic subscriber, none of which carry `color` today).
+      return label && filters
+        ? { label, filters, ...(entryVal?.color ? { color: entryVal.color } : {}) }
+        : null;
     })
     .filter(Boolean);
 };
+
+/**
+ * Effective comparison-series variant list — the single precedence rule both
+ * `buildUdaConfig` (server-bound query fan-out) and the chart render path
+ * (client-side colorsByKey resolution, see ui/components/graph_new/index.jsx)
+ * must apply identically: a dynamic subscriber's resolved `config` (even `[]`)
+ * always wins over the static author-authored `variants` JSON.
+ */
+export const getEffectiveComparisonVariants = (comparisonSeries) =>
+  comparisonSeries?.config !== undefined
+    ? comparisonSeries.config
+    : comparisonSeries?.variants || [];
 
 /**
  * Reserved `paramKey` sentinel a `comparison_series` subscriber can carry instead of an
@@ -1153,10 +1173,7 @@ export const buildUdaConfig = ({
   //     dynamic binding (`config: []`) correctly reads as inactive instead of falling
   //     back to the static list.
   //   • static (Piece 2): no `config` → the author-authored `variants` JSON.
-  const effectiveVariants =
-    comparisonSeries?.config !== undefined
-      ? comparisonSeries.config
-      : comparisonSeries?.variants || [];
+  const effectiveVariants = getEffectiveComparisonVariants(comparisonSeries);
 
   // Comparison series is "active" only when enabled AND at least one labeled
   // variant exists. Inactive → drop the synthetic discriminator column so we never

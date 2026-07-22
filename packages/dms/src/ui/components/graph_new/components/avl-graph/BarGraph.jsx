@@ -116,6 +116,7 @@ export const BarGraph = props => {
     paddingOuter = 0,
     padding,
     colors,
+    colorsByKey,
     groupMode = "stacked",
     orientation = "vertical",
     showAnimations = false,
@@ -177,8 +178,8 @@ export const BarGraph = props => {
   }, [axisRight]);
 
   const colorFunc = React.useMemo(() => {
-    return getColorFunc(colors);
-  }, [colors]);
+    return getColorFunc(colors, colorsByKey);
+  }, [colors, colorsByKey]);
 
   const ref = React.useRef(),
     { width, height } = useSetSize(ref),
