@@ -158,15 +158,16 @@
 
 ## ui
 
-- [ ] **comparisonSeries: duplicate-labeled variants collapse into one series** — two variants
-      sharing an identical `label` (e.g. two `ReportRouteList` routes with the same name, both
-      assigned to the same graph) merge into a single line/legend entry instead of two, because
-      `label` doubles as the ONLY series discriminator (the server's `__series` SQL alias AND the
-      client's `d3groups`/Set grouping key). Confirmed live 2026-07-22 while verifying
-      `comparison-series-explicit-color.md` (see that task's Status section for the full repro/
-      mechanism) — pre-existing, predates the color-threading work entirely. Real fix needs a
-      stable per-variant key independent of the editable display label, threaded through the whole
-      fan-out/grouping/legend pipeline — nontrivial, not scoped yet.
+- [x] [comparisonSeries: duplicate-labeled variants collapse into one series](./tasks/current/comparisonseries-stable-series-key.md) —
+      two variants sharing an identical `label` (e.g. two `ReportRouteList` routes with the same
+      name, both assigned to the same graph) used to merge into a single line/legend entry, because
+      `label` doubles as the ONLY series discriminator. Confirmed live 2026-07-22. Rather than
+      threading a separate stable key through the whole engine (fan-out/server/chart-wrapper/legend
+      — see the task file's superseded original plan), fixed at the authoring boundary instead:
+      route/variant names are now kept unique — auto-suffixed on add (`ReportRouteList`), blocked on
+      explicit rename/label-commit (`ReportRouteList` + the static per-variant editor). Implemented
+      2026-07-22; rename-block path live-verified same day (add-flow + static-editor verified by
+      code reading only).
 - [x] [Comparison-series explicit per-key color](./tasks/current/comparison-series-explicit-color.md) —
       `getColorFunc`/Legend keyed-color lookup so a comparison-series variant's explicit `color`
       (e.g. a ReportRouteList route's identity color) wins over positional palette cycling, on

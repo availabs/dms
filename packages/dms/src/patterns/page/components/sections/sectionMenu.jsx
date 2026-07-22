@@ -16,24 +16,39 @@ import { getSectionMenuExtensions } from "./sectionMenuExtensions";
  * i.e. when the author leaves the field / navigates back out of the sub-menu.
  * Used across the section menus (e.g. the Comparison Series variant fields) where a
  * commit should fire only when the author leaves the field, not per keystroke.
+ *
+ * `validate`, when given, runs on commit and returns an error string to block the
+ * commit (draft stays, `Input` gets `aria-invalid` for the theme's red-border state,
+ * a short message renders below) or a falsy value to allow it through.
  */
-const CommitInput = ({ initialValue = '', onCommit }) => {
+const CommitInput = ({ initialValue = '', onCommit, validate }) => {
     const { UI } = React.useContext(ThemeContext) || {};
     const { Input } = UI || {};
     const [draft, setDraft] = useState(initialValue);
+    const [error, setError] = useState('');
     // Re-sync if the committed value changes from elsewhere (e.g. section reload).
-    useEffect(() => { setDraft(initialValue); }, [initialValue]);
+    useEffect(() => { setDraft(initialValue); setError(''); }, [initialValue]);
 
-    const commit = () => { if (draft !== initialValue) onCommit(draft); };
+    const commit = () => {
+        if (draft === initialValue) return;
+        const validationError = validate ? validate(draft) : '';
+        if (validationError) { setError(validationError); return; }
+        setError('');
+        onCommit(draft);
+    };
 
     return (
-        <Input
-            type="text"
-            value={draft}
-            onChange={e => setDraft(e?.target?.value ?? e)}
-            onBlur={commit}
-            onKeyDown={e => { if (e.key === 'Enter') { commit(); e.target?.blur?.(); } }}
-        />
+        <>
+            <Input
+                type="text"
+                value={draft}
+                aria-invalid={!!error}
+                onChange={e => { setDraft(e?.target?.value ?? e); if (error) setError(''); }}
+                onBlur={commit}
+                onKeyDown={e => { if (e.key === 'Enter') { commit(); e.target?.blur?.(); } }}
+            />
+            {error ? <div className="text-red-500 text-xs mt-1">{error}</div> : null}
+        </>
     );
 };
 const isEmpty = obj => Object.values(obj).every(v => !v || Object.keys(v).length === 0);
@@ -832,6 +847,19 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                                         type: () => (
                                             <CommitInput
                                                 initialValue={v.label || ''}
+                                                // Comparison-series charts use a variant's `label` as
+                                                // the ONLY series discriminator (see the seriesKey
+                                                // comment near buildUdaConfig's fan-out) — two variants
+                                                // sharing a label collapse into one series. Blocked here
+                                                // (rather than auto-suffixed, as ReportRouteList's
+                                                // add-flow does for its own catalog-inherited names)
+                                                // because this label is always something the author
+                                                // explicitly typed, never an inherited default.
+                                                validate={(label) => {
+                                                    const collision = label && (csConfig.variants || [])
+                                                        .some((vv, ii) => ii !== idx && vv.label === label);
+                                                    return collision ? `A variant named "${label}" already exists.` : '';
+                                                }}
                                                 onCommit={(label) => {
                                                     const variants = [...(csConfig.variants || [])];
                                                     variants[idx] = { ...variants[idx], label };
