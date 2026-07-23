@@ -11,6 +11,10 @@ export const Attribution = () => {
     const { theme = { attribution: attributionTheme } } = React.useContext(ThemeContext) || {}
     // baseUrl is now included in externalSource by useDataSource.js
     const isJoinPresent = calculateIsJoinPresent(join);
+    // Unset on the active theme's own `attribution` object (e.g. transportny's
+    // themev2.js doesn't set `divider`) falls back to the shared default so every
+    // theme keeps today's exact divider look unless it explicitly opts out.
+    const divider = theme.attribution.divider ?? attributionTheme.divider;
 
     let attribRows = [];
     if(!externalSource) return null;
@@ -20,7 +24,7 @@ export const Attribution = () => {
 
     //Always add a link to the "main" data source
     attribRows.push(
-        <Link key="ds_attribution_link" className={`${theme.attribution.link} border-r-1 last:border-r-0 px-1`} to={`${baseUrl || ""}/source/${source_id}`}>
+        <Link key="ds_attribution_link" className={`${theme.attribution.link} ${divider}`} to={`${baseUrl || ""}/source/${source_id}`}>
             {name} ({view_name || view_id}) {updatedTimeString ? `(${updatedTimeString})` : null}
         </Link>,
     );
@@ -37,7 +41,7 @@ export const Attribution = () => {
             if (curJoinSource?.pgFederated) {
                 const { pgEnv, table, schema } = curJoinSource.pgFederated;
                 attribRows.push((
-                    <span key={`${sourceAlias}_attribution`} className={`${theme.attribution.link} border-r-1 last:border-r-0 px-1`}>
+                    <span key={`${sourceAlias}_attribution`} className={`${theme.attribution.link} ${divider}`}>
                         <span className="capitalize">({mergeStrategy || "Join"})</span> {schema}.{table} ({pgEnv})
                     </span>
                 ));
@@ -49,7 +53,7 @@ export const Attribution = () => {
             const dateOptions = { year: "numeric", month: "long", day: "numeric", hour: "numeric", minute: "numeric" };
             const updatedTimeString = updated_at ? new Date(updated_at).toLocaleString(undefined, dateOptions) : null;
             attribRows.push((
-                <Link key={`${sourceAlias}_attribution`} className={`${theme.attribution.link} border-r-1 last:border-r-0 px-1`} to={`${baseUrl || ""}/source/${source_id}`}>
+                <Link key={`${sourceAlias}_attribution`} className={`${theme.attribution.link} ${divider}`} to={`${baseUrl || ""}/source/${source_id}`}>
                     <span className="capitalize">({mergeStrategy || "Join"})</span> {name} ({view_name || curJoinSource.view}) {updatedTimeString ? `(${updatedTimeString})` : null}
                 </Link>
             ));

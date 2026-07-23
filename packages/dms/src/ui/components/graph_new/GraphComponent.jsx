@@ -92,7 +92,7 @@ export const GraphComponent = props => {
       ...graphFormat.tooltip,
       // map config `showTotal` → avl-graph DefaultHoverComp `showTotals` (default true = BC)
       showTotals: get(graphFormat, ["tooltip", "showTotal"], true),
-      valueFormat: getFormatFunc(get(graphFormat, ["tooltip", "valueFormat"]), isDollars),
+      valueFormat: getTooltipFormatFunc(get(graphFormat, ["tooltip", "valueFormat"]), isDollars),
       yFormat: getFormatFunc(get(graphFormat, ["tooltip", "yFormat"]), isDollars),
       // Per-graph minutes/seconds auto-switch (GridGraph's legend only, see
       // formatMinutesAuto) — a raw boolean, not resolved through

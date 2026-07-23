@@ -65,6 +65,11 @@ const resolvePadding = (padding, theme) => {
 // bundles `bg-white`, so legacy cards keep their background without setting `bg`.)
 const resolveBg = (bg, theme) =>
     theme?.backgrounds?.[bg] || (typeof bg === "string" && bg.startsWith("bg-") ? bg : "");
+// Drop shadow for the inner card box. A themed key (`theme.shadows[shadow]`, e.g.
+// none/sm/md) or a literal `shadow-…` class. Unset → '' (no shadow), same as every
+// other per-section chrome knob — BC for sections that never set this.
+const resolveShadow = (shadow, theme) =>
+    theme?.shadows?.[shadow] || (typeof shadow === "string" && shadow.startsWith("shadow") ? shadow : "");
 // The section's card chrome — rendered on an INNER box (inside the gutter padding) so
 // the padding is a true gutter that separates bordered cards (and a shared edge can be
 // zeroed to fuse two sections into one card). Content padding inside the card is the
@@ -73,7 +78,7 @@ const resolveBg = (bg, theme) =>
 // Content padding INSIDE the card is the COMPONENT's concern (e.g. the lexical
 // component's own default padding), not the section.
 const sectionChrome = (v, theme) =>
-    `${resolveBorder(v?.border, theme)} ${resolveRadius(v?.radius, theme)} ${resolveBg(v?.bg, theme)}`.trim();
+    `${resolveBorder(v?.border, theme)} ${resolveRadius(v?.radius, theme)} ${resolveBg(v?.bg, theme)} ${resolveShadow(v?.shadow, theme)}`.trim();
 
 // Section height. The band is a CSS grid, so a section's cell already stretches
 // to its row height; the chrome box inside it is content-height by default,

@@ -1422,6 +1422,22 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                         }},
                     ],
                 },
+                {
+                    // Shadow — themed options (none / sm / md / …). Same navigable
+                    // checkmark-list convention as Style/Width/Height/Rowspan above,
+                    // not Background's swatch-pill (that one previews a color; a
+                    // shadow doesn't preview meaningfully at swatch size).
+                    icon: 'Border', name: 'Shadow', value: value?.['shadow'] || 'none', showValue: true,
+                    cdn: () => canEditSection,
+                    items: Object.keys(getComponentTheme(theme, 'pages.sectionArray').shadows || {}).map((name) => {
+                        return {
+                            icon: name === (value?.['shadow'] || 'none') ? 'CircleCheck' : 'Blank',
+                            id: `shadow_${name}`,
+                            'name': name,
+                            'onClick': () => updateAttribute('shadow', name === 'none' ? undefined : name)
+                        }
+                    })
+                },
                 {type: 'separator'},
                 {
                     icon: 'AccessControl', name: 'Permissions', cdn: () => canEditSectionPermissions && canEditSection,
