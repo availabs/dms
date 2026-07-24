@@ -218,6 +218,75 @@ be. This is a real, not-yet-scoped gap.
 3. Load the page's plain (non-`/edit/`) URL and confirm the graph renders with the
    expected series/legend and real (non-placeholder) values.
 
+## Adding a Route Difference Graph to an existing report
+
+A common follow-up request: the client wants to see the before/after *difference* directly,
+rather than eyeballing it off an overlaid multi-series LineGraph. The platform already has a
+`comparisonSeries.combine: {mode: "difference"}` mechanism (dms-server joins the first assigned
+route instance — the "anchor" — to each other instance on the shared group-by columns and returns
+anchor − compare) — no server code needed, this is pure report authoring. Worked live 2026-07-24
+adding "Northbound/Southbound Travel Time Difference" bar graphs to the NY-9D Beacon report
+(`converted_reports/page_13_13`), which already had 4 route instances (NB/SB × before/after)
+feeding one overview LineGraph.
+
+1. **Insert a new section.** Hover the boundary between two existing sections (the gap right
+   below a section's bottom border) — a blue circular **"+"** button appears at the boundary
+   midpoint. Click it to insert a blank "Rich Text" section there; open its Settings → **Type**
+   and change it to **AVL Graph**. Placement matters only for reading order — put the new
+   difference graph wherever makes sense in the page (e.g. right after the overview graph, before
+   the "Add a Route" table).
+2. **Apply the Measure Picker.** The new section opens already in true edit mode (Quick Controls
+   pills visible). Open Settings → **Measure** → pick **Graph Type: Bar Graph**, your **Measure**
+   (e.g. Travel Time), a **Resolution**, and **Comparison Mode: Difference**. Click the floppy
+   **Save** icon.
+3. **Scope exactly 2 route instances to this graph via RRL — not all of them.** In the left Routes
+   panel, expand (**"+"**) each route instance you want in THIS specific difference (typically one
+   direction's before-period instance and its after-period instance) and click that instance's
+   **new "Graph N" pill** to turn it ON. Leave instances for the *other* direction OFF for this
+   graph — they can and should stay ON for the original overview graph and/or their own difference
+   graph. **Order matters**: the FIRST instance (by `route_comp_id` order, i.e. the order it was
+   originally added to the report) whose pill you turn ON becomes the anchor ("Main"); the second
+   becomes "Compare". The rendered diff is `anchor − compare` — for a before/after report, wire
+   the *before* instance first if you want positive bars to mean "before was higher" (e.g. for
+   travel time, positive = travel time went DOWN after = improvement, given `reverseColors` — see
+   below). **Careful when scrolling this table**: clicking a route ROW in the separate "ADD A
+   ROUTE TO YOUR REPORT" table below (not the pill!) is itself an "add this route again" action
+   and pops a confirm dialog — an accidental double-click can create a duplicate, unassigned route
+   instance; if that happens, expand it and click **"Remove Route from Report"**.
+4. **If the graph renders empty (0–1 placeholder axis) after wiring routes**, re-open that
+   section's Settings, click the pencil **Edit** icon to enter true edit mode, and click the
+   floppy **Save** icon again (even with no other changes) — this was needed once in this session
+   to get the first difference graph to actually issue its data query, though the second one
+   picked up the wiring live without needing this. Cheap enough to always do as a matter of course
+   after RRL wiring changes.
+5. **Sign/color convention**: the vocabulary's `reverseColors` flag (per-measure, e.g. `true` for
+   travelTime/delay/CO₂, `false` for speed) reverses the diverging color ramp for measures where a
+   *lower* raw value is "good" — so for a travel-time difference chart, positive (anchor > compare)
+   bars render in the ramp's "bad" end and negative bars in the "good" end, which reads backwards
+   from a naive "positive = green = good" expectation. This is inherited, pre-existing platform
+   behavior (round 52 of the old-reports-conversion task), not something this workflow introduces
+   — if it looks wrong, it's worth flagging to the user rather than silently overriding.
+6. **Publish and verify** exactly as in Step 6 above.
+
+**Known bugs hit building this** (see memory `project_ny9d_difference_graphs_and_epoch_axis_bug`
+for full detail):
+- **FIXED**: `data-types/npmrds_graph_vocabulary/vocabulary.json`'s calculated resolution
+  expressions (15-minutes/hour/weekday/month) all hardcoded a `ds.`-prefix, which 500s ("Unknown
+  expression identifier") for any no-join measure (travelTime is the only one) — silently caught
+  client-side as a harmless-looking "Error getting length" console message, with the graph just
+  rendering permanently empty and no `/graph` request for real data ever firing. Fixed by removing
+  the `ds.` prefix in both this repo's and transportNY's copy of the vocabulary file.
+- **NOT fixed (known gap)**: the "Epoch Time (HH:MM)" x-axis tick formatter
+  (`epochTimeFormat` in `ui/components/graph_new/utils.js`) hardcodes a ×5-minutes-per-unit
+  conversion, and the Measure Picker never clears a stale `xAxis.format: 'epoch_time'` when you
+  switch Resolution away from plain 5-minute epoch to a calculated one (15-minutes/hour/weekday/
+  month) — the tick labels render as if every bucket were 5 minutes wide, compressing/mislabeling
+  the clock times. Workaround: switch **X Axis → Tick Format** to **Integer** (raw bucket index,
+  not clock time) if you want a calculated resolution's ticks to at least not lie, or just use
+  Resolution: 5 Minutes to avoid the bug entirely (matches the existing overview graph's own
+  format, and per user feedback 2026-07-24, coarser 15-minute buckets do give a smoother/less
+  noisy trend read if you're willing to live with Integer-only tick labels).
+
 ## Known UI gaps found while driving this workflow live
 
 - Map scroll-zoom is disabled (workaround: double-click zoom, `+`/`-` buttons).

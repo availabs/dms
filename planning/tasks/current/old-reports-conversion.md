@@ -944,12 +944,31 @@ convert from `admin2.reports` directly (dedupe/cleanup of that dataset is separa
   color-targeted value axis and its `categorize` dimension are untouched (different axis
   semantics, out of scope).
 - **Epoch x-axis hover tooltip still shows the raw epoch integer, not a clock time
-  (user-reported 2026-07-17, NOT investigated — logged only, per user)**: round 61 fixed the
-  x-axis TICK labels (`epoch_time` format via `xAxis.format`/`getFormatFunc`) but apparently did
-  not reach the hover-tooltip value display, which still reads e.g. `186` instead of `15:30`.
-  Likely a separate formatting path from `GraphComponent.jsx`'s `xAxis.format` — same class of
-  gap as round 55's BarGraph tooltip customName fix (tooltip rendering is its own code path per
-  chart type, not automatically covered by axis-tick formatting). Unverified; not yet scoped.
+  (user-reported 2026-07-17, ROOT-CAUSED 2026-07-24, still NOT fixed)**: round 61 fixed the
+  x-axis TICK labels (`epoch_time` format via `xAxis.format`/`getFormatFunc`) but did not reach
+  the hover-tooltip value display, which still reads e.g. `186`/`142` instead of `15:30`.
+  Re-confirmed live 2026-07-24 on the NY-9D Beacon report (`converted_reports/page_13_13`,
+  travelTime LineGraph) — tooltip header read `142` while the axis directly below it correctly
+  read `12:20`. Root cause found:
+  `packages/dms/src/ui/components/graph_new/GraphComponent.jsx`'s `hoverComp` useMemo
+  (lines 89-103) computes `valueFormat`/`yFormat`/`showTotals`/`minutesAutoSeconds` from
+  `graphFormat.tooltip`, but never computes an `xFormat`/`idFormat`/`indexFormat` from
+  `graphFormat.xAxis.format` the way the sibling `xAxis` prop does (same file, lines 168-178,
+  `namedFormat = get(graphFormat, ["xAxis","format"]); if (namedFormat) return
+  getFormatFunc(namedFormat)`). With no `xFormat` supplied, every avl-graph chart type's
+  `DefaultHoverComp` falls back to its own bare default — `Identity` (pass-through, no
+  formatting) for LineGraph (`components/avl-graph/LineGraph.jsx:53,58,167`:
+  `xFormat(get(data,"x",null), data)` renders the raw value). BarGraph/GridGraph/PieGraph/
+  TreemapGraph/SunburstGraph's `DefaultHoverComp`s take the equivalent prop under a different
+  name (`indexFormat`) and are likely affected the same way, since the same `hoverComp` useMemo
+  feeds all of them — not verified per-chart-type, but the fix is the same single spot either
+  way. **FIXED and live-verified 2026-07-24**: added the `xFormat`/`indexFormat` computation to
+  the `hoverComp` useMemo (reusing the same `namedFormat`/`getFormatFunc` lookup the `xAxis.format`
+  prop already does), in both dms-template's `src/dms` submodule and transportNY's
+  `src/modules/dms` submodule copy. Re-tested the same live repro (`page_13_13`'s overview
+  LineGraph): tooltip now reads `11:50`, matching the axis, instead of the raw epoch integer. See
+  `research/report-page-redesign/findings.md` ("RRL/tooltip triage, 2026-07-24") for the
+  user-facing repro this was found from.
 - **Route Compare anchor row ordering still inconsistent (user-reported 2026-07-13, NOT
   investigated — logged only, per user)**: recurrence/incomplete fix of the round-26 user-caught
   anchor-row bug. User saw the anchor row render in the MIDDLE of the table once (anchor was

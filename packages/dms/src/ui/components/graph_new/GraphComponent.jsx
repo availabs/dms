@@ -88,19 +88,31 @@ export const GraphComponent = props => {
 
   const hoverComp = React.useMemo(() => {
     const isDollars = Boolean(graphFormat.tooltip?.isDollars);
+    // Same named formatFn the xAxis tick labels use (e.g. "epoch_time" for a raw
+    // 5-min-of-day index → "6:40") — without this, each avl-graph chart type's
+    // DefaultHoverComp falls back to its own bare Identity/no-op default for the
+    // index/x value, so the tooltip shows a raw epoch integer while the axis right
+    // below it shows the formatted clock time.
+    const xNamedFormat = get(graphFormat, ["xAxis", "format"]);
+    const xFormat = xNamedFormat ? getFormatFunc(xNamedFormat) : undefined;
     return {
       ...graphFormat.tooltip,
       // map config `showTotal` → avl-graph DefaultHoverComp `showTotals` (default true = BC)
       showTotals: get(graphFormat, ["tooltip", "showTotal"], true),
       valueFormat: getTooltipFormatFunc(get(graphFormat, ["tooltip", "valueFormat"]), isDollars),
       yFormat: getFormatFunc(get(graphFormat, ["tooltip", "yFormat"]), isDollars),
+      // LineGraph's DefaultHoverComp reads `xFormat`; every other chart type
+      // (Bar/Grid/Pie/Treemap/Sunburst) reads `indexFormat` for the same value —
+      // supply both so whichever chart type is active picks up the right one.
+      xFormat,
+      indexFormat: xFormat,
       // Per-graph minutes/seconds auto-switch (GridGraph's legend only, see
       // formatMinutesAuto) — a raw boolean, not resolved through
       // getFormatFunc, since the actual formatter needs this graph's own
       // domain max, unknown at this point.
       minutesAutoSeconds: Boolean(get(graphFormat, ["tooltip", "minutesAutoSeconds"], false))
     };
-  }, [graphFormat.tooltip]);
+  }, [graphFormat.tooltip, graphFormat.xAxis]);
 
 // console.log("GraphComponent::actions", props.actions);
 
