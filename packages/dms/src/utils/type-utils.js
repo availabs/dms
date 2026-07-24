@@ -133,6 +133,32 @@ export function nameToSlug(name) {
 }
 
 /**
+ * Compute a name/slug for a "duplicate" action that doesn't collide with any
+ * sibling slug. Always appends _copy first, then _copy_2, _copy_3, ... —
+ * duplicating an existing copy stacks (e.g. foo_copy_copy) rather than
+ * collapsing back to the original name, since a second copy may diverge
+ * from the first.
+ *
+ * @param {string} baseName - name of the item being duplicated
+ * @param {string[]} existingSlugs - slugs/instance names already in use among siblings
+ * @returns {{ name: string, slug: string, suffix: string }}
+ */
+export function nextAvailableCopyName(baseName, existingSlugs = []) {
+  const taken = new Set(existingSlugs.filter(Boolean));
+  let n = 1;
+  let suffix = '_copy';
+  let name = `${baseName}${suffix}`;
+  let slug = nameToSlug(name);
+  while (taken.has(slug)) {
+    n += 1;
+    suffix = `_copy_${n}`;
+    name = `${baseName}${suffix}`;
+    slug = nameToSlug(name);
+  }
+  return { name, slug, suffix };
+}
+
+/**
  * Parse a data row type into source and view components for table routing.
  *
  * @param {string} type - e.g., 'adamtest1|v1:data'
