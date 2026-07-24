@@ -37,7 +37,12 @@ const uploadImageFile = async (file, fileUploadInfo) => {
             { method: "POST", body: formData }
         );
         const json = await res.json();
-        return json?.ok ? json.dl_url : null;
+        if (!json?.ok) return null;
+        // Local storage backend returns a path relative to dms-server's own
+        // origin (e.g. "/files/..."); S3 always returns an absolute URL.
+        // Only the local case needs DAMA_HOST prepended.
+        const dl_url = json.dl_url;
+        return dl_url && dl_url.startsWith('/') ? `${DAMA_HOST}${dl_url}` : dl_url;
     } catch (err) {
         console.error('Image column upload failed:', err);
         return null;
