@@ -59,10 +59,17 @@ map section in edit mode, or the dedicated route-creation demo page if one exist
   chain. Thin/divided-highway segments are hard to hit — use the `zoom` tool
   (image-inspection, not map zoom) to compute precise pixel coordinates before
   clicking, or ask the user to click for you (they can see the map too).
-- **TMC Search box**: typing a TMC code zooms to it. **Known bug**: this is unreliable
-  for `-` (one direction's) codes — reproducibly zooms to a wrong/unrelated location.
-  `+` codes are more reliable. Don't trust a single successful search as proof the
-  bar works generally.
+- **TMC Search box**: typing a full 9-char TMC code zooms to it, and an **Add** button
+  next to the box (or pressing Enter) adds it directly to the route — same effect as
+  clicking the segment on the map, no map interaction required. The button is disabled
+  (with a "TMC not found" hint) until the typed code resolves to a real geometry, so a
+  typo can't silently add a bogus TMC. Added 2026-07-27 specifically so an agent driving
+  this tool doesn't need pixel-accurate map clicks. Previously-noted "unreliable for
+  `-` codes" bug: attempted live repro 2026-07-27, could not reproduce (tried
+  `120-29713` three different typing methods, replayed the exact backing falcor query
+  directly — both client and server behaved correctly each time). Dropped per user
+  decision rather than keep chasing it; see `report-route-ui-parity-gaps.md` gap 2 if it
+  resurfaces with a more specific trigger.
 - **Map scroll-zoom is disabled** (confirmed: before/after screenshots after a scroll
   action are pixel-identical). Use double-click zoom or the on-screen `+`/`-` buttons
   instead.
@@ -70,11 +77,15 @@ map section in edit mode, or the dedicated route-creation demo page if one exist
   may need to click, not just hover, depending on the build.
 
 **Critical gotcha — `route_id` in the URL is load-bearing.** If the edit URL carries
-`?route_id=<n>`, clicking "Save Route" **overwrites that existing route**, silently.
-This is intentional tool behavior, not a bug — the URL param means "you are editing
-this route." If you want to explore/test-click without risk, do it from a fresh page
-load with **no** `route_id` param, and only navigate to an existing route's URL when
-you actually intend to edit it.
+`?route_id=<n>`, clicking Save **overwrites that existing route**, silently. This is
+intentional tool behavior, not a bug — the URL param means "you are editing this
+route." As of 2026-07-27 the UI makes this visible instead of silent: the panel's
+Save button reads "Update Route" (not "Save Route"), and the save modal shows an
+"Update Route" title plus a red "You are updating an existing route..." banner,
+whenever `route_id` is present — still no confirmation dialog, just clear wording, so
+don't rely on a prompt to save you. If you want to explore/test-click without risk, do
+it from a fresh page load with **no** `route_id` param, and only navigate to an
+existing route's URL when you actually intend to edit it.
 
 Give each route a clear, self-describing name (e.g., `"NY-9D Northbound (I-84 to Main
 St/Beekman, via Verplanck)"`) — this name is inherited by every report reference to
@@ -91,12 +102,11 @@ See `planning/tasks/current/report-route-ui-parity-gaps.md` for the full ranked 
 (shared with the report-building gaps) — the route-creation-specific ones are:
 
 - Map scroll-zoom is disabled (workaround: double-click zoom, `+`/`-` buttons).
-- TMC Search bar is unreliable for `-` (one direction's) codes — can zoom to a wrong
-  location.
 - Hover popovers show TMC code only, no street name; sometimes a click is needed
   instead of hover.
 - `route_id` in the map-tool URL means "editing this route" — reusing an existing
-  route's URL as a scratch pad silently overwrites it on Save.
+  route's URL as a scratch pad silently overwrites it on Save (now clearly labeled in
+  the UI as of 2026-07-27, see above — still no confirmation dialog).
 
 ## Cross-repo note
 
