@@ -2,7 +2,7 @@ import React, {useCallback, useMemo, useRef} from "react";
 import {useHandleClickOutside, isEqualColumns} from "../../../utils/utils";
 import {filterTheme} from "../RenderFilters.theme";
 import {PageContext} from "../../../../../../../context";
-import {ThemeContext} from "../../../../../../../../../ui/useTheme";
+import {ThemeContext, getComponentTheme} from "../../../../../../../../../ui/useTheme";
 
 const resetColumn = (originalAttribute, setState, columns) => setState(draft => {
     const idx = columns.findIndex(column => isEqualColumns(column, originalAttribute));
@@ -12,7 +12,7 @@ const resetColumn = (originalAttribute, setState, columns) => setState(draft => 
 });
 const RenderSearchKeySelector = ({filter, pageState, onChange}) => {
     const { theme: themeFromContext = {}, UI } = React.useContext(ThemeContext) || {};
-    const theme = { ...themeFromContext, filters: { ...filterTheme, ...(themeFromContext.filters || {}) } };
+    const theme = { ...themeFromContext, filters: { ...filterTheme, ...getComponentTheme(themeFromContext, 'filters') } };
     const { Input } = UI || {};
     const [open, setOpen] = React.useState(false);
     const [text, setText] = React.useState(filter.searchParamKey || '');
@@ -61,7 +61,7 @@ export const RenderFilterValueSelector = ({
                                           }) => {
     const { pageState, updatePageStateFilters } =  React.useContext(PageContext) || {}; // page to extract page filters
     const { theme: themeFromContext = {}, UI} = React.useContext(ThemeContext) || {};
-    const theme = {...themeFromContext, filters: {...filterTheme, ...(themeFromContext.filters || {})}};
+    const theme = {...themeFromContext, filters: {...filterTheme, ...getComponentTheme(themeFromContext, 'filters')}};
     const {Switch, MultiSelect, Input, Button, ColumnTypes} = UI;
     const options = useMemo(() => filterOptions.find(fo => fo.column === filterColumn.name)?.uniqValues, [filterOptions, filterColumn.name]);
     // The value control's multiselect style comes from the active filter DESIGN
