@@ -13,7 +13,6 @@ import { createPageTheme } from './pages/createPage.theme'
 import { settingsPageTheme } from './pages/settingsPage.theme'
 import { udaTaskPageTheme } from './pages/Tasks/UdaTaskPage.theme'
 import { createPageTheme as fileUploadCreateTheme } from './pages/dataTypes/file_upload/CreatePage.theme'
-import { viewPageTheme as fileUploadViewTheme } from './pages/dataTypes/file_upload/ViewPage.theme'
 import { gisCreateTheme } from './pages/dataTypes/gis_dataset/pages/Create/gisCreate.theme'
 import { gisMapTheme } from './pages/dataTypes/gis_dataset/pages/Map/gisMap.theme'
 import { gisPagesTheme } from './pages/dataTypes/gis_dataset/pages/gisPages.theme'
@@ -35,7 +34,6 @@ export default {
     settingsPage: settingsPageTheme,
     udaTaskPage: udaTaskPageTheme,
     fileUploadCreate: fileUploadCreateTheme,
-    fileUploadView: fileUploadViewTheme,
     gisCreate: gisCreateTheme,
     gisMap: gisMapTheme,
     gisPages: gisPagesTheme,

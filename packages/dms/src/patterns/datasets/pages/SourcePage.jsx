@@ -3,7 +3,7 @@ import {Link, useNavigate} from "react-router";
 import {DatasetsContext} from "../context";
 import {ThemeContext, getComponentTheme} from "../../../ui/useTheme";
 import {dataItemsNav} from "../../../utils/nav";
-import {getSourceData, resolveInternalViewNames, parseIfJson} from "./dataTypes/default/utils";
+import {getSourceData, resolveInternalViewNames, getInternalDataType, parseIfJson} from "./dataTypes/default/utils";
 import { getExternalEnv } from "../utils/datasources";
 import { sourcePageTheme } from "./sourcePage.theme";
 import Breadcrumbs from "../components/Breadcrumbs";
@@ -101,6 +101,18 @@ export default function SourcePage ({ apiLoad, apiUpdate, format, item, params, 
         return () => { cancelled = true };
     }, [isDms, item, falcor, sourceFormat.app, sourceFormat.type])
 
+    // DMS sources: resolve the dataType from `data.type` (see getInternalDataType — the source
+    // format has no `type` attribute, so neither the preloaded item nor getSourceData's row
+    // carries it). Falls back to internal_table until it resolves / when unset.
+    const [internalDataType, setInternalDataType] = useState(null);
+    useEffect(() => {
+        if (!isDms || !id) { setInternalDataType(null); return; }
+        let cancelled = false;
+        getInternalDataType({ pgEnv: `${sourceFormat.app}+${sourceFormat.type}`, falcor, source_id: id })
+            .then(dataType => { if (!cancelled) setInternalDataType(dataType) });
+        return () => { cancelled = true };
+    }, [isDms, id, falcor, sourceFormat.app, sourceFormat.type])
+
     const sourceLoaded = !!(source.id || source.source_id);
 
     // Per-source access: pattern ⊕ this source's own authPermissions override (see datasets.format.js).
@@ -110,8 +122,17 @@ export default function SourcePage ({ apiLoad, apiUpdate, format, item, params, 
         : undefined;
     const isUserAuthed = (reqPermissions) => patternIsUserAuthed(reqPermissions, sourceAuthPermissions);
 
-    const sourceType = isDms ? 'internal_table' : source?.categories?.[0]?.[0]; // source identifier (named in the script).
-    const sourceDataType = isDms ? 'internal_table' : source?.type; // csv / gis / internal
+    // A DMS-internal source keeps its dataType in `data.type` (e.g. 'file_upload'); the row's
+    // `type` COLUMN is the storage/row-kind string (`datasets_env|<instance>:source`) and is NOT a
+    // dataType key — which is why this reads `internalDataType` (fetched above) and NOT
+    // `source.type`. Forcing 'internal_table' for every internal source discarded `data.type`, so
+    // an internal file upload (the Freight Atlas Plan Library PDFs/ZIPs, the QA screenshot
+    // sources) got the internal_table Table page instead of the file_upload view page that serves
+    // its file. Honour a registered dataType; fall back to internal_table, which is both the
+    // pre-resolve state and what every other internal source carries today.
+    const dmsDataType = damaDataTypes?.[internalDataType] ? internalDataType : 'internal_table';
+    const sourceType = isDms ? dmsDataType : source?.categories?.[0]?.[0]; // source identifier (named in the script).
+    const sourceDataType = isDms ? dmsDataType : source?.type; // csv / gis / internal
     const sourcePages = sourceLoaded ? { ...(damaDataTypes[sourceType] || {}), ...(damaDataTypes[sourceDataType] || {}) } : {};
 
     const sourcePagesNavItems =
@@ -201,6 +222,12 @@ export default function SourcePage ({ apiLoad, apiUpdate, format, item, params, 
                                   source={source} setSource={setSource}
                                   params={params}
                                   isDms={isDms}
+                                  // The resolved dataType for either storage model: for pgEnv
+                                  // sources it IS `source.type`, for DMS sources it comes from
+                                  // `data.type` (`source.type` there is the storage row-type
+                                  // string, which is not a dataType and must not be displayed as
+                                  // one). Pages should prefer this over `source.type`.
+                                  dataType={sourceDataType}
                                   apiLoad={apiLoad} apiUpdate={apiUpdate}
                                   context={DatasetsContext}
                             />
