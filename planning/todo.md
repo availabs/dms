@@ -21,6 +21,15 @@
 ## cli
 
 - [x] [`dms page publish` copies section rows (aliasing fix)](./tasks/completed/cli-publish-copy-sections.md) — DONE 2026-07-21. CLI publish aliased `sections` to the draft refs, so a build-script draft wipe deleted the published page's rows (blanked sitemgmt/tickets). Now copies each draft row like the UI publish, sets `published: ''`, mirrors groups/dataSources, aborts loudly on missing rows; `list --published` now classifies `''` correctly.
+- [x] [`dataset query`/`dump` could never return rows](./tasks/current/cli-dataset-rows-via-uda.md) —
+      three bugs: physical columns (`id`) went through `data->>` so `--filter id=` never matched;
+      byIndex was requested at `options[...]` when the server registers it at `opts[...]`; and byIndex
+      returns `$ref`s this client doesn't follow. All presented as a correct `total` beside an empty
+      `items`. Re-pointed both commands at the **UDA** routes (what the browser uses for dataset rows
+      — `dms.data.byId` is app-namespaced and structurally cannot reach per-type split tables).
+      `raw get` now explains itself on a split row instead of returning silent nulls. FIXED +
+      verified on live data 2026-07-27.
+
 - [x] DMS CLI tool (`packages/dms/cli/`) — terminal access to DMS data via shared API code and Falcor protocol (sites, patterns, pages, sections, datasets)
 - [ ] DMS MCP Server — Claude tool for reading, creating, and editing DMS pages/sections via structured MCP tools (Lexical builder, .dmsrc-aware config)
 - [x] [CLI refresh for type-system refactor + per-app tables + dmsEnv ownership](./tasks/completed/cli-refresh-type-refactor.md) — rewrote type resolution throughout `packages/dms/cli/` to use `{parent}:{instance}|{rowKind}`; dropped `doc_type` reads; app-namespaced every falcor path; `dataset list` walks `pattern.dmsEnvId → dmsEnv.sources`; `dataset dump`/`query` use the `:data` split-table types via the hydrating `options` route. 21/21 integration tests pass; verified live against `asm+nhomb`.
@@ -159,6 +168,25 @@
 
 ## ui
 
+- [ ] [Duration value format (M:SS) for travel-time axes and tooltips](./tasks/current/duration-value-format-mm-ss.md) —
+      travel time is carried in minutes, so short corridors render as `0.9` / `-1.2` on a y-axis. Add a
+      `minutes_seconds` entry to the `ValueFormats` registry (selectable everywhere `getFormatFunc`
+      resolves, incl. the Tick Format dropdown) and default it per-measure from the vocabulary. Prior
+      art `formatMinutesAuto` solves the same complaint but switches to whole seconds and is wired
+      only into GridGraph's legend. Being done with the report-spec work.
+- [ ] [Length query fails on a calculated group-by under comparison series](./tasks/current/length-query-calculated-groupby-alias.md) —
+      `b1193814` switched `mappedGroupBy` to send the bare SELECT alias (correct for the fanout-wrapped
+      data query) but touched no server file, so `simpleFilterLength` — which projects nothing — gets
+      an unresolvable identifier and 500s (`Code: 47 Unknown expression identifier 'quarter_hour'`).
+      Breaks all four calculated resolutions (15-min/hour/weekday/month) and any calculated group-by
+      under comparison series. Fixed via a new length-only `groupByAliasExprs` map; SQL-verified
+      against live ClickHouse, live browser + Postgres paths still unverified.
+- [ ] [`epoch_time` x-axis formatter hardcodes a 5-minute bucket width](./tasks/current/epoch-time-format-bucket-width.md) —
+      `epochTimeFormat` (`graph_new/utils.js:367-371`) does `+d * 5`, so 15-minute and hourly NPMRDS
+      graphs label ticks as if every bucket were 5 minutes wide (15-min bucket 4 reads "0:20", not
+      "1:00"). Fix by parameterizing the bucket width through `xAxis` state and passing it at both
+      format sites (ticks + `hoverComp` tooltip) — deliberately not extra `epoch_time_15`/`_hour`
+      registry entries, which would push resolution-matching onto the author.
 - [x] [comparisonSeries: duplicate-labeled variants collapse into one series](./tasks/current/comparisonseries-stable-series-key.md) —
       two variants sharing an identical `label` (e.g. two `ReportRouteList` routes with the same
       name, both assigned to the same graph) used to merge into a single line/legend entry, because

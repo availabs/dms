@@ -364,12 +364,28 @@ const fnum2 = d => {
 // default axis tick formatter just stringifies that raw index (e.g. "80"),
 // not a time (e.g. "6:40") — this converts it for any xAxis whose ticks are
 // this raw index.
-const epochTimeFormat = d => {
-    const totalMinutes = Math.round(+d * 5);
-    const hour = Math.floor(totalMinutes / 60) % 24;
-    const minute = totalMinutes % 60;
-    return `${ hour }:${ String(minute).padStart(2, "0") }`;
+//
+// `minutesPerUnit` is the width of ONE bucket. Raw `epoch` is 5; a resolution
+// that pre-divides the column (`intDiv(epoch, 3)` → 15-minute buckets,
+// `intDiv(epoch, 12)` → hourly) makes each unit correspondingly wider, so the
+// same tick index means a different clock time.
+//
+// This is a FACTORY, and the registry entry below is the width-5 instance, on
+// purpose: the returned formatter must stay **arity 1**, because d3 invokes a
+// tick formatter as `(domainValue, index)` and avl-graph's hover comps pass
+// their own extra args too. A single function taking `(d, minutesPerUnit)`
+// would silently consume the tick index as the bucket width.
+export const EPOCH_MINUTES_PER_UNIT_DEFAULT = 5;
+export const makeEpochTimeFormat = (minutesPerUnit = EPOCH_MINUTES_PER_UNIT_DEFAULT) => {
+    const perUnit = +minutesPerUnit > 0 ? +minutesPerUnit : EPOCH_MINUTES_PER_UNIT_DEFAULT;
+    return d => {
+        const totalMinutes = Math.round(+d * perUnit);
+        const hour = Math.floor(totalMinutes / 60) % 24;
+        const minute = totalMinutes % 60;
+        return `${ hour }:${ String(minute).padStart(2, "0") }`;
+    };
 }
+const epochTimeFormat = makeEpochTimeFormat();
 
 export const ValueFormats = [
     { label: "Identity", value: "identity",
@@ -410,8 +426,15 @@ const ValueFormatsFuncMap = ValueFormats.reduce((a, c) => {
     a[c.value] = c.func;
     return a;
 }, {});
-export const getFormatFunc = (format, isDollars = false) => {
-    const func = ValueFormatsFuncMap[format] || ValueFormatsFuncMap["identity"];
+// `opts.epochMinutesPerUnit` only affects the "epoch_time" format — it rebuilds
+// that formatter for a coarser bucket width (see makeEpochTimeFormat). Omitted
+// or falsy leaves the registry's width-5 instance in place, so every existing
+// call site keeps its exact previous behavior.
+export const getFormatFunc = (format, isDollars = false, opts = undefined) => {
+    const epochMinutesPerUnit = opts?.epochMinutesPerUnit;
+    const func = (format === "epoch_time" && +epochMinutesPerUnit > 0)
+        ? makeEpochTimeFormat(epochMinutesPerUnit)
+        : (ValueFormatsFuncMap[format] || ValueFormatsFuncMap["identity"]);
     if (isDollars) {
         return d => `$${ func(d) }`;
     }

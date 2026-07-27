@@ -55,6 +55,13 @@ async function simpleFilterLength(ctx, options) {
     gt = {}, gte = {}, lt = {}, lte = {}, like = {},
     filterGroups = {},
     groupBy = [], having = [],
+    // Alias -> defining expression for group-by columns the client sends as a
+    // bare SELECT alias (calculated columns under comparison series -- see
+    // buildUdaConfig.js's mappedGroupBy). The data query can use the alias
+    // because the fanout wrapper projects it; this length query cannot -- it
+    // projects nothing, so an alias here is an unknown column. Substitute the
+    // expression wherever the map has one. Empty -> previous behavior.
+    groupByAliasExprs = {},
     normalFilter = [],
     join = {},
     // Comparison series: total length is the sum of each variant arm's count
@@ -146,7 +153,7 @@ async function simpleFilterLength(ctx, options) {
     // source rows, so the count is always 1, not a raw row count (count(1)
     // below). A plain passthrough arm (no aggregate fn) still needs count(1).
     const countExpr = countGroupBy.length
-      ? `count(DISTINCT ${countGroupBy.map((g) => sanitizeName(g)).filter((g) => g)
+      ? `count(DISTINCT ${countGroupBy.map((g) => sanitizeName(groupByAliasExprs?.[g] || g)).filter((g) => g)
           .map((c) => `CASE WHEN ${c} IS NULL THEN '__NULL__VAL__' ELSE ${typeCast(c, 'TEXT', db.type)} END`)
           .join(`|| '-' ||`)})`
       : ungroupedAggregate ? null : `count(1)`;

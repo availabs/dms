@@ -94,7 +94,12 @@ export const GraphComponent = props => {
     // index/x value, so the tooltip shows a raw epoch integer while the axis right
     // below it shows the formatted clock time.
     const xNamedFormat = get(graphFormat, ["xAxis", "format"]);
-    const xFormat = xNamedFormat ? getFormatFunc(xNamedFormat) : undefined;
+    // `epoch_time` is bucket-width-sensitive: a resolution that pre-divides the
+    // epoch column (15-minute, hourly) makes each tick index worth more than 5
+    // minutes. Absent, the formatter keeps its 5-minute default.
+    const xFormat = xNamedFormat
+      ? getFormatFunc(xNamedFormat, false, { epochMinutesPerUnit: get(graphFormat, ["xAxis", "epochMinutesPerUnit"]) })
+      : undefined;
     return {
       ...graphFormat.tooltip,
       // map config `showTotal` → avl-graph DefaultHoverComp `showTotals` (default true = BC)
@@ -184,7 +189,10 @@ export const GraphComponent = props => {
               return d => `${ d.getMonth() + 1 }/${ String(d.getDate()).padStart(2, "0") }`;
             }
             const namedFormat = get(graphFormat, ["xAxis", "format"]);
-            if (namedFormat) return getFormatFunc(namedFormat);
+            // See the hoverComp note above re: epochMinutesPerUnit — the tick
+            // labels and the tooltip must resolve the same formatter, or they
+            // disagree with each other on a coarse resolution.
+            if (namedFormat) return getFormatFunc(namedFormat, false, { epochMinutesPerUnit: get(graphFormat, ["xAxis", "epochMinutesPerUnit"]) });
             const tl = get(graphFormat, ["xAxis", "tickLabels"]);
             return tl ? (v => tl[v] ?? v) : undefined;
           })(),

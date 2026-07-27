@@ -1476,11 +1476,28 @@ export const buildUdaConfig = ({
   // arm subquery — the exact same hazard `mappedOrderBy` below already
   // special-cases for ORDER BY; GROUP BY needs the identical fix, using the
   // bare alias (afterAS) instead of the raw expression.
+  // ...and `groupByAliasExprs` carries the OTHER form for the consumers that need it.
+  // The alias above is right for the data query (addressable on the fanout
+  // wrapper) but wrong for the LENGTH query, which is a bare count over the
+  // base table with nothing projected — there the alias is undefined and
+  // ClickHouse/Postgres raise "Unknown expression identifier 'quarter_hour'".
+  // So send an alias → expression map alongside `groupBy`; `simpleFilterLength`
+  // substitutes it, `simpleFilter` ignores it. Absent/empty (older client, or
+  // no calculated group-by) → servers behave exactly as before.
+  // Both forms are derived in ONE pass so a key can never drift from the alias
+  // actually sent. See src/dms/planning/tasks/current/length-query-calculated-groupby-alias.md
+  const groupByAliasExprs = {};
   const mappedGroupBy = groupBy.map((columnName) => {
     const col = getColumn(columnName);
     if (activeComparisonSeries && isCalculatedCol(col)) {
       const [beforeAS, afterAS] = splitColNameOnAS(col?.reqName || columnName);
-      return (afterAS || beforeAS).trim();
+      const alias = (afterAS || beforeAS).trim();
+      // refName is the raw pre-AS expression, table-alias-prefixed exactly when
+      // a join is present — which matches the length query's own FROM (it
+      // aliases the base table `ds` only when joining), so it resolves there.
+      const expr = String(col?.refName || beforeAS || '').trim();
+      if (alias && expr && alias !== expr) groupByAliasExprs[alias] = expr;
+      return alias;
     }
     return col?.refName;
   });
@@ -1582,6 +1599,7 @@ export const buildUdaConfig = ({
     join: isJoinPresent ? buildJoin({join, externalSource}) : null,
     filterGroups: finalFilterGroups,
     groupBy: mappedGroupBy,
+    ...(Object.keys(groupByAliasExprs).length > 0 && { groupByAliasExprs }),
     orderBy: mappedOrderBy,
     filter: mappedFilter,
     exclude: mappedExclude,
