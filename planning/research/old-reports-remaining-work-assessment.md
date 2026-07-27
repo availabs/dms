@@ -9,8 +9,8 @@
 
 ## Where the task stands
 
-51 rounds in, the converter (`scripts/convert_old_reports.py`), the corpus census
-(`scripts/census_old_reports.py`), and the template catalog are mature, and the Route Map
+51 rounds in, the converter (`scripts/npmrds-reports/convert_old_reports.py`), the corpus census
+(`scripts/npmrds-reports/census_old_reports.py`), and the template catalog are mature, and the Route Map
 program (rounds 41–51, ~11 rounds) is fully closed through M3: none/speed/travelTime/
 avgHoursOfDelay/hoursOfDelay choropleths built and live-verified, plus the R50/R51 hardening
 tail (tile-host auto-detect, legend dedup, same-route exclusivity, the `build_ch_join_wire`
@@ -121,7 +121,7 @@ The 2,108 unmapped instances are not one pile:
 
 ## Refreshing this analysis
 
-- Full census: `python3 scripts/census_old_reports.py` (~40s, read-only) →
+- Full census: `python3 scripts/npmrds-reports/census_old_reports.py` (~40s, read-only) →
   `scratchpad/npmrds-sub/old-reports/census/census_summary.md` + `census.json`.
 - Info Box × speed decomposition:
   `python3 scratchpad/npmrds-sub/old-reports/infobox_speed_breakdown.py` (read-only; imports

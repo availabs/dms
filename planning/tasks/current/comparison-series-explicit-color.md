@@ -7,7 +7,7 @@ pass (`npx vitest run` from `src/dms/packages/dms/`), including the pre-existing
 `resolveComparisonVariants` suite (unaffected — none of those fixtures carry `color`, so the new
 passthrough contributes nothing to their expected output).
 
-Live regression check (`node scripts/report_probe.mjs
+Live regression check (`node scripts/npmrds-reports/report_probe.mjs
 "http://npmrds.localhost:5173/converted_reports/rexford_bridge_pre_post_comparison_created_on_6_14_19"`
 — a real `ReportRouteList`-driven report with 3 routes and 5 graphs, Bar + Line types):
 console errors 0, page errors 0, all 5 graph sections rendered SVG content with real data, bars/

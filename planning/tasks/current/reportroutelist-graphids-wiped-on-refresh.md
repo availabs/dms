@@ -86,7 +86,7 @@ to test on this specific already-broken page rather than a scratch page)
 - [x] Added a brand-new route from the catalog (`RT-914V 36091 E`) — DB confirmed this **also updated
   the same row in place** (`route_count` 2→3, same `id` 2195223, new `updated_at`), fixing the second
   reported symptom via the identical mechanism.
-- [x] Confirmed via direct DB inspection at every step (`scripts/dbq.py new`), not just visual/UI
+- [x] Confirmed via direct DB inspection at every step (`scripts/npmrds-reports/dbq.py new`), not just visual/UI
   re-checks — per [[feedback_verify_the_actual_mechanism]].
 
 **Ruled out during investigation** (see full trace in conversation history / two background-agent

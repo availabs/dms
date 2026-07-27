@@ -32,7 +32,7 @@ error-prone (see "Known gaps" below). Instead:
 1. Get the cross-streets/corridor bounds from the client ask (e.g., a map screenshot).
 2. Query ClickHouse directly for the TMC chain:
    ```
-   python3 scripts/dbq.py ch "select tmc, road, direction, intersection, miles,
+   python3 scripts/npmrds-reports/dbq.py ch "select tmc, road, direction, intersection, miles,
      start_latitude, start_longitude, end_latitude, end_longitude
      from npmrds_raw_tmc_identification.s455_v3464_NPMRDS_TMC_Identification_V5_V6
      where road ilike '%9D%' and ... order by direction, ..."

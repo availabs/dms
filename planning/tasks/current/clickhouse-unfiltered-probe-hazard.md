@@ -49,7 +49,7 @@ exists (a real `{op:"filter", col:"tmc", value:[]}` node) but whose value array 
   (`MaxPathsExceededError`) before ever reaching ClickHouse. `4407473/288 ≈ 15,303` — roughly the
   TMC count for the whole NPMRDS TMC-identification table, confirming a nationwide, unfiltered-by-
   TMC scan for what should have been one route's data.
-- **Fix applied at the source** (`scripts/convert_old_reports.py`'s `build_route_entry`): a route
+- **Fix applied at the source** (`scripts/npmrds-reports/convert_old_reports.py`'s `build_route_entry`): a route
   with no resolvable TMC array now gets `graphIds: []` unconditionally — it's never wired into any
   graph's comparison-series fan-out, so this specific empty-filter-leaf path can't be reached via
   the converter anymore. This is a point fix in the converter, not a platform-level fix — the

@@ -13,7 +13,7 @@ Let a DMS author build a NEW NPMRDS report graph from scratch — pick a graph t
 (Speed/Travel Time/Delay/CO2/etc.), a resolution (5-minutes/15-minutes/day), and a comparison mode
 (plain vs. difference) from a guided control, and have DMS generate the underlying Card/graph
 section config live — instead of the only path today, which is a developer running
-`scripts/convert_old_reports.py` to mint a DB template row. This approximates, but does not fully
+`scripts/npmrds-reports/convert_old_reports.py` to mint a DB template row. This approximates, but does not fully
 replicate, the old npmrds `admin2` report-builder tool (source at
 [[reference_old_npmrds_tool_source]] — see memory, or
 `/home/ryan/code/transportNY/src/sites/npmrds/pages/analysis/` directly).
@@ -28,7 +28,7 @@ conversation this task file summarizes.
 ### In scope (this round)
 
 1. **One canonical, shared vocabulary artifact** extracted from `TEMPLATE_SPECS`
-   (`scripts/convert_old_reports.py:953+`) — the *generative* core only: measure expressions
+   (`scripts/npmrds-reports/convert_old_reports.py:953+`) — the *generative* core only: measure expressions
    (`SPEED_EXPR`, `TRAVEL_TIME_EXPR`, `DELAY_EXPR`, `CO2_EXPR_PASSENGER`/`_TRUCK`, etc.),
    resolution/axis-grouping expressions (`QUARTER_HOUR_EXPR`, `HOUR_EXPR`, `MONTH_EXPR`,
    `WEEKDAY_EXPR`, plain `epoch`/`date`), `comparisonSeriesCombine` modes (plain vs. `difference`),
@@ -234,13 +234,13 @@ generic hook in `src/dms/` plus the real implementation in `src/themes/transport
 ### Workstream 1 — shared vocabulary artifact — DONE (2026-07-20)
 
 User's stated constraints (2026-07-20): one canonical implementation; minimize regression risk to
-the mature, 68-round-hardened `scripts/convert_old_reports.py`; don't burn effort/tokens iterating
+the mature, 68-round-hardened `scripts/npmrds-reports/convert_old_reports.py`; don't burn effort/tokens iterating
 on this piece repeatedly.
 
 **Implementation summary**: `data-types/npmrds_graph_vocabulary/vocabulary.json` (+ a `README.md`
 in the same directory documenting the field reference, composition contract, and
 regeneration/verification procedure) now holds `measures`/`joins`/`resolutions`/`comparisonModes`.
-`scripts/convert_old_reports.py` sources `SPEED_EXPR`, `SPEED_EXPR_TRUCK`, `TRAVEL_TIME_EXPR`,
+`scripts/npmrds-reports/convert_old_reports.py` sources `SPEED_EXPR`, `SPEED_EXPR_TRUCK`, `TRAVEL_TIME_EXPR`,
 `DELAY_EXPR`, `AVG_DELAY_EXPR`, `CO2_EXPR_PASSENGER`, `CO2_EXPR_TRUCK`, `META_JOIN`,
 `AADT_DIST_JOIN`, `DIST_KEY_EXPR` (derived off `AADT_DIST_JOIN` directly instead of duplicated),
 `WEEKDAY_EXPR`, `HOUR_EXPR`, `QUARTER_HOUR_EXPR`, `MONTH_EXPR`, and `DEFAULT_DIFF_COLOR_RANGE`
@@ -323,7 +323,7 @@ resolution/axis-grouping expression strings, comparison-mode/display-rule defini
 - Comparison-mode fragments: the plain (no-op) case, and `difference` (→
   `comparisonSeriesCombine: {mode: 'difference'}` + `_diff_colors()`-equivalent color rule).
 
-Both `scripts/convert_old_reports.py` (swapping its hardcoded Python string constants for
+Both `scripts/npmrds-reports/convert_old_reports.py` (swapping its hardcoded Python string constants for
 `json.load()` reads of this file) and the new JS "Measure" picker (in
 `src/themes/transportny/`) consume the SAME file. This directly targets the "one implementation"
 requirement for the part that actually causes silent drift — the underlying formulas/expressions —
@@ -339,7 +339,7 @@ regress.
 **Where the JSON file lives — DECIDED (2026-07-20, user-confirmed)**:
 `data-types/npmrds_graph_vocabulary/vocabulary.json` (+ sibling `README.md`). Not registered as a
 DMS dataType plugin (no server routes/worker, not in `register-datatypes.js`) — just a plain JSON
-file at a location reachable by `scripts/convert_old_reports.py` via `REPO`-relative path (see
+file at a location reachable by `scripts/npmrds-reports/convert_old_reports.py` via `REPO`-relative path (see
 `VOCAB_PATH` near the top of that file) and importable by Vite's build-time JSON import for the
 theme-side JS bundle (Workstream 2, not yet built).
 
@@ -584,7 +584,7 @@ see that task file for confirmed facts, candidate hypotheses, and repro steps.
 |---|---|---|
 | `data-types/npmrds_graph_vocabulary/vocabulary.json` (new) | Measure expressions, joins, resolution/axis fragments, comparison-mode fragments — plain data, no logic | DONE |
 | `data-types/npmrds_graph_vocabulary/README.md` (new, not originally planned) | Field reference, composition contract (target/fn/join-merge rules the composer must apply), explicitly-out-of-scope list, regeneration/verification procedure | DONE |
-| `scripts/convert_old_reports.py` | `TEMPLATE_SPECS`'s generative constants (`SPEED_EXPR`, `SPEED_EXPR_TRUCK`, `TRAVEL_TIME_EXPR`, `DELAY_EXPR`, `AVG_DELAY_EXPR`, `CO2_EXPR_PASSENGER`, `CO2_EXPR_TRUCK`, `META_JOIN`, `AADT_DIST_JOIN`, `DIST_KEY_EXPR`, `WEEKDAY_EXPR`, `HOUR_EXPR`, `QUARTER_HOUR_EXPR`, `MONTH_EXPR`, `DEFAULT_DIFF_COLOR_RANGE`) sourced from the shared JSON instead of inline Python strings; AADT-override substring-swap machinery and all surrounding gap-detection/year-bin-gating logic untouched; two new guard assertions added | DONE |
+| `scripts/npmrds-reports/convert_old_reports.py` | `TEMPLATE_SPECS`'s generative constants (`SPEED_EXPR`, `SPEED_EXPR_TRUCK`, `TRAVEL_TIME_EXPR`, `DELAY_EXPR`, `AVG_DELAY_EXPR`, `CO2_EXPR_PASSENGER`, `CO2_EXPR_TRUCK`, `META_JOIN`, `AADT_DIST_JOIN`, `DIST_KEY_EXPR`, `WEEKDAY_EXPR`, `HOUR_EXPR`, `QUARTER_HOUR_EXPR`, `MONTH_EXPR`, `DEFAULT_DIFF_COLOR_RANGE`) sourced from the shared JSON instead of inline Python strings; AADT-override substring-swap machinery and all surrounding gap-detection/year-bin-gating logic untouched; two new guard assertions added | DONE |
 | `src/dms/packages/dms/src/patterns/page/components/sections/sectionMenuExtensions.js` (new) | Generic registry: `registerSectionMenuExtensions`/`getSectionMenuExtensions`, keyed by component name | DONE |
 | `src/dms/packages/dms/src/patterns/page/components/sections/sectionMenu.jsx` | Calls `getSectionMenuExtensions(currentComponent?.name)`, splices results in as `...extensionMenus` between `columns` and `filter` | DONE |
 | `src/dms/packages/dms/src/index.js` | Exports `registerSectionMenuExtensions` | DONE |
@@ -602,7 +602,7 @@ see that task file for confirmed facts, candidate hypotheses, and repro steps.
 
 ## Testing checklist (draft — expand during implementation)
 
-- [x] `scripts/convert_old_reports.py`'s behavior is unchanged after switching its constants to
+- [x] `scripts/npmrds-reports/convert_old_reports.py`'s behavior is unchanged after switching its constants to
       read from the shared JSON — verified 2026-07-20 via a full before/after byte-diff of every
       JSON-serializable module-level constant (88/88 identical, including the full `TEMPLATE_SPECS`
       and `GRAPH_TEMPLATE_MAP` dicts), not a live census rerun (see Workstream 1 "Verification"

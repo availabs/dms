@@ -19,7 +19,7 @@ at the time all 62 real corpus instances were pre-2019-dated, outside 1410's the
 2021-2025 coverage, so wiring it would have produced 0 real flips. User: "yeah go implement, seems
 like a no brainer now that we have data."
 
-**What changed** (`scripts/convert_old_reports.py`, `scripts/census_old_reports.py`): new
+**What changed** (`scripts/npmrds-reports/convert_old_reports.py`, `scripts/npmrds-reports/census_old_reports.py`): new
 `BAR_SUMMARY_PM3_BUCKET = ("freeflow-byDateRange", "travel_time_all")` constant, next to
 `PM3_VIEW_BY_YEAR`. Mirrors the Info Box reliability pre-pass exactly (`graph_max_year` per graph,
 `PM3_VIEW_BY_YEAR` gate, `ensure_bar_graph_summary_pm3_template(year, ...)`) but bin-independent —
@@ -34,7 +34,7 @@ go through the static `GRAPH_TEMPLATE_MAP` path unchanged). `census_old_reports.
 matching `elif` branch in its mapped-classification loop, same pattern as its existing Route Map
 mirrors.
 
-**Census impact** (full rerun, `scripts/census_old_reports.py`, read-only until the live-
+**Census impact** (full rerun, `scripts/npmrds-reports/census_old_reports.py`, read-only until the live-
 verification page below, 0 errors): mapped instances (excl. pre-2017) 5,162→5,194 (+32). `full`
 229 and `full_producible` 181 both **unchanged** — every report carrying a newly-mapped
 `freeflow-byDateRange` instance had at least one other unrelated gap, so none flipped to fully
@@ -64,9 +64,9 @@ resolution of the residual 30 unmapped instances (real, out-of-scope data-covera
 class as the Info Box reliability bucket's own year/bin gaps).
 
 
-**What this is**: `scripts/convert_old_reports.py` converts old `admin2.reports` (869 total) into
+**What this is**: `scripts/npmrds-reports/convert_old_reports.py` converts old `admin2.reports` (869 total) into
 new DMS report pages (pattern `npmrds_sub`), template-driven and repeatable. Goal = conversion
-*capability*, not bulk conversion; reports are picked by gap coverage. `scripts/census_old_reports.py`
+*capability*, not bulk conversion; reports are picked by gap coverage. `scripts/npmrds-reports/census_old_reports.py`
 measures corpus-wide coverage by importing the converter's own analyze branches (it must be
 extended whenever the converter grows a new branch — it went stale twice by round 27; round 38
 added the `INFO_BOX_TRAVELTIME_BUCKET` mirror for Phase B (its sibling `BAR_SUMMARY_PM3_BUCKET`
@@ -166,7 +166,7 @@ failed to maintain.
   are plain Float64, **0 = missing** — every measure expression must `nullIf(col, 0)` (rounds
   9/23/28).
 - Templates are minted by `ensure_graph_templates` from `TEMPLATE_SPECS`
-  (`scripts/convert_old_reports.py`); drift detection replaces the whole yAxis dict (incl. `fn`)
+  (`scripts/npmrds-reports/convert_old_reports.py`); drift detection replaces the whole yAxis dict (incl. `fn`)
   and compares display patches. `load_graph_templates()` needs `--limit 1000` (round 33 bug).
 - Reliability (LOTTR/TTTR/freeflow `speed_pctl_85`) comes from pm3 source **1410** per-tmc-year
   via the `pgFederated` inline join (round 16); per-report join year via `graph_max_year`
@@ -238,7 +238,7 @@ failed to maintain.
   The Map-layer join pipeline (`buildJoinParam` → tile/colorDomain `join=` param) bypasses that
   transform entirely — sending the bare `{sources: {...}}` shape crashes the ENTIRE dms-server
   process (uncaught `TypeError` in `routes/uda/utils.js#buildJoin`'s `join.on.length`, not a
-  scoped request error). `scripts/convert_old_reports.py`'s `build_ch_join_wire(sources)` does
+  scoped request error). `scripts/npmrds-reports/convert_old_reports.py`'s `build_ch_join_wire(sources)` does
   this transform in Python — ANY new Map-layer join (M3's hoursOfDelay needs a two-source join,
   for instance) must go through it, never construct `query.join` by hand.
 - **Converted-page tile requests are baked at conversion time to `TILE_HOST` (default
@@ -744,20 +744,20 @@ page edit/publish/layout).
   section states in one call; `dms raw update <id> --set nested.key=value` does dot-notation deep
   patches. (Deep edits inside *stringified* element-data still need a read-modify-write, but
   prefer reconverting the page via the converter over hand-patching.)
-- **Stack preflight**: `python3 scripts/preflight.py` — one command checks vite, dms-server
+- **Stack preflight**: `python3 scripts/npmrds-reports/preflight.py` — one command checks vite, dms-server
   (/graph roundtrip), all three Postgres targets, ClickHouse, stray CH queries >60s (the
   unfiltered-scan hazard), and recent dms-server log errors. ~1s when healthy; fails fast with a
   VPN diagnosis instead of hanging. Run at session start or whenever anything hangs.
-  `python3 scripts/dbq.py chprocs` runs just the stray-CH-query check (use before/after live
+  `python3 scripts/npmrds-reports/dbq.py chprocs` runs just the stray-CH-query check (use before/after live
   report-page loads).
-- **Ad-hoc queries / data validation**: `python3 scripts/dbq.py <old|new|dama|ch|graph|oldgraph> "<sql-or-paths>"`
+- **Ad-hoc queries / data validation**: `python3 scripts/npmrds-reports/dbq.py <old|new|dama|ch|graph|oldgraph> "<sql-or-paths>"`
   — one read-only runner for all backends (old/new/dama Postgres, ClickHouse HTTP, local +
   prod falcor). Creds read at runtime from the config files above; pg forced
   `default_transaction_read_only=on`, CH `readonly=2`, no write flag exists; 5s connect
   timeout with VPN hint instead of hanging. Bespoke validation scripts should `import dbq`
   (from `scripts/`) instead of re-implementing psql/CH/falcor boilerplate. Writes still go
   only through `convert_old_reports.py`, the dms CLI, or the user.
-- **Live page verification**: `node scripts/report_probe.mjs <slug>` (repo root of dms-template) —
+- **Live page verification**: `node scripts/npmrds-reports/report_probe.mjs <slug>` (repo root of dms-template) —
   single parameterized Playwright harness replacing the old one-off scratchpad scripts. One load
   collects console/page errors, non-200s, pending-at-close requests (hung/unbounded-query
   tripwire), decoded `/graph` traffic (`--grep` to filter), per-section SVG census, full-page +
@@ -988,7 +988,7 @@ convert from `admin2.reports` directly (dedupe/cleanup of that dataset is separa
   checked tile/join network traffic, not the legend panel itself. One-line fix (added the
   missing key to `template_layer`); `bake_route_map_speed_paint` clones/mutates that same dict
   per-report so no other function needed touching. Live-verified: reconverted report 168
-  (`DMS_TILE_HOST=http://localhost:3001 python3 scripts/convert_old_reports.py --report-id 168
+  (`DMS_TILE_HOST=http://localhost:3001 python3 scripts/npmrds-reports/convert_old_reports.py --report-id 168
   --replace`, new page `2191242`), probed clean (0 console/page errors, 1 benign 204 on
   `/track/visit`), screenshot confirms a real step-legend with color swatches + numeric ranges
   ("Speed (2017 network)" / per-route entries, e.g. `18.47 - 20.33`, `36.66 - 43.2`). Minor
@@ -1127,8 +1127,8 @@ no crash, template placeholder renders) — not reconverted with the local tile-
 since its point was the gap-log path, not visual verification.
 
 Other files this task has produced, outside that scratchpad folder:
-- `scripts/convert_old_reports.py` — the converter itself.
-- `scripts/register_aadt_distributions.sql` — one-time DAMA source/view registration for
+- `scripts/npmrds-reports/convert_old_reports.py` — the converter itself.
+- `scripts/npmrds-reports/register_aadt_distributions.sql` — one-time DAMA source/view registration for
   `aadt_distributions` (already run; keep for reference/idempotent re-registration elsewhere).
 - `src/dms/documentation/npmrds-data-sources.md` — the living data-source reference (see below).
 - `src/dms/packages/dms/src/patterns/page/components/sections/components/dataWrapper/buildUdaConfig.js`
@@ -1171,7 +1171,7 @@ Other files this task has produced, outside that scratchpad folder:
   crash trace until the pipe is re-established; that's expected, not a live issue. Ask the user
   to re-run their `tee` setup if live log access is needed again.
 - Round 49 (Route Map M2, speed choropleth) new/changed files:
-  - `scripts/convert_old_reports.py` — `SPEED_VALUE_EXPR`, `CH_FACT_TABLE`/
+  - `scripts/npmrds-reports/convert_old_reports.py` — `SPEED_VALUE_EXPR`, `CH_FACT_TABLE`/
     `CH_TMC_IDENT_TABLE`, `DEFAULT_SPEED_COLOR_RANGE`, `choropleth_paint()` (Python port of the
     dms Map section's `choroplethPaint()`), `quantile_breaks()`, `build_ch_join_wire()` (the
     AVL-Graph-authoring-shape → server-wire-shape join transform), `ensure_route_map_speed_
@@ -1179,7 +1179,7 @@ Other files this task has produced, outside that scratchpad folder:
     override; `build_graph_section_data()` gained a `route_map_value_ctx` param and Map-vs-
     AVL-Graph coloring branch; Route Map pre-pass in `convert_report()` extended for measure
     `"speed"`; `import dbq` added (sibling-module CH query runner).
-  - `scripts/census_old_reports.py` — `route_map_none`/`route_map_speed` mirror generalized to
+  - `scripts/npmrds-reports/census_old_reports.py` — `route_map_none`/`route_map_speed` mirror generalized to
     a single measure-keyed branch; removed a genuinely pre-existing, unrelated dead-code
     `NameError` (`BAR_SUMMARY_PM3_BUCKET`, never defined anywhere, silently dropping 274/869
     reports from every census run since some round after 47 — found only because a full fresh

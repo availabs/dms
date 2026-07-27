@@ -3,7 +3,7 @@
 End-to-end process for the recurring request: "a client wants to see how traffic
 changed on corridor X between period A and period B." As of the report-spec work
 (`planning/tasks/current/report-spec-and-build-script.md`), the primary path is
-**write a spec, then build it** — `scripts/report_build.mjs` composes graph state
+**write a spec, then build it** — `scripts/npmrds-reports/report_build.mjs` composes graph state
 through the exact same `applyMeasurePick` function the UI's Measure Picker calls, so a
 spec-built report is byte-identical to a hand-built one by construction, and most of
 this workflow's old silent-failure modes (a graph-assignment pill not registering, a
@@ -71,10 +71,10 @@ calculated-resolution GROUP BY expressions) — see
 ## Building the spec
 
 ```bash
-node scripts/report_build.mjs <spec.json> --summary   # plain-language review; no writes, no Vite boot
-node scripts/report_build.mjs <spec.json> --dry-run    # compose every graph's state and print it; no writes
-node scripts/report_build.mjs <spec.json>              # build, draft only
-node scripts/report_build.mjs <spec.json> --publish    # also create published section copies
+node scripts/npmrds-reports/report_build.mjs <spec.json> --summary   # plain-language review; no writes, no Vite boot
+node scripts/npmrds-reports/report_build.mjs <spec.json> --dry-run    # compose every graph's state and print it; no writes
+node scripts/npmrds-reports/report_build.mjs <spec.json>              # build, draft only
+node scripts/npmrds-reports/report_build.mjs <spec.json> --publish    # also create published section copies
 ```
 
 1. **`--summary` first, always.** Read the request, every route instance's window and
@@ -88,8 +88,8 @@ node scripts/report_build.mjs <spec.json> --publish    # also create published s
    present on every graph section).
 4. **Verify with the probe**, not by re-deriving state:
    ```bash
-   node scripts/report_probe.mjs edit/<slug> --auth   # draft-only page
-   node scripts/report_probe.mjs <slug>                # published page
+   node scripts/npmrds-reports/report_probe.mjs edit/<slug> --auth   # draft-only page
+   node scripts/npmrds-reports/report_probe.mjs <slug>                # published page
    ```
    `--auth` degrades to anonymous silently if `.dms-auth-token` is expired — a `0/N`
    sections result on an `--auth` probe is as likely to mean "stale token" as "build
@@ -121,7 +121,7 @@ concept exists in code.
 3. The new page's slug isn't predictable from the UI alone. Refresh, reopen the Pages
    panel, or query directly:
    ```
-   python3 scripts/dbq.py new "select id, data->>'title', data->>'url_slug'
+   python3 scripts/npmrds-reports/dbq.py new "select id, data->>'title', data->>'url_slug'
      from dms_npmrdsv5.data_items where type = 'npmrds_sub|page' order by id desc limit 5"
    ```
    Don't guess the slug from a legacy numeric ID pattern (`report_<old_id>`) — those
@@ -152,7 +152,7 @@ See `ReportRouteList/README.md` in the theme for the storage model.
 **Verify after wiring more than 2 instances** — the "ON: Graph N" pill can silently
 fail to register:
 ```
-python3 scripts/dbq.py new "select data->'route_comps' from dms_npmrdsv5.data_items__s2177438_v2177440_reports_snap_2 where id = <report_row_id>"
+python3 scripts/npmrds-reports/dbq.py new "select data->'route_comps' from dms_npmrdsv5.data_items__s2177438_v2177440_reports_snap_2 where id = <report_row_id>"
 ```
 A route-comp entry with empty `graphIds` renders as if it doesn't exist — no error.
 

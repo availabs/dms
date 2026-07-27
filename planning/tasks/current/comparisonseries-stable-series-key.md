@@ -78,7 +78,7 @@ reported; left as a documented gap, not implemented against.
 ### Live verification 2026-07-22 — rename-block path, PASSED
 
 Verified against the `claude_scratch_measure_picker` scratch report (id 2195034, under
-`converted_reports`) via `scripts/report_probe.mjs --auth --eval`, edit URL
+`converted_reports`) via `scripts/npmrds-reports/report_probe.mjs --auth --eval`, edit URL
 `http://npmrds.localhost:5173/edit/converted_reports/claude_scratch_measure_picker` — **edit-mode
 URLs on this site are `/edit/<slug>`, not `<slug>/edit`** (see
 `reference_local_report_page_repro.md` memory; a wrong-shaped URL silently falls back to the site's
