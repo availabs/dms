@@ -85,7 +85,11 @@ console.log("uploadFile::url", url)
     .then(json => {
 console.log("uploadFile::response::json", json);
       if (json.ok) {
-        return json.dl_url;
+        // Local storage backend returns a path relative to dms-server's own
+        // origin (e.g. "/files/..."); S3 always returns an absolute URL.
+        // Only the local case needs DAMA_HOST prepended.
+        const dl_url = json.dl_url;
+        return dl_url && dl_url.startsWith('/') ? `${DAMA_HOST}${dl_url}` : dl_url;
       }
       return null;
     })
@@ -121,6 +125,12 @@ class FileCache {
       return window.localStorage.getItem(key);
     }
     return this.cache.get(key);
+  }
+  remove(key) {
+    if (this.useLocalStorage) {
+      return window.localStorage.removeItem(key);
+    }
+    return this.cache.delete(key);
   }
 }
 
@@ -203,6 +213,18 @@ function LazyImage({
         width,
       }}
       draggable="false"
+      onError={() => {
+        // A cached/uploaded URL (from FileUrlCache, keyed by fileName) can go
+        // stale — file removed server-side, host changed, etc. — and there's
+        // no expiry on that cache. Without this, a stale entry permanently
+        // shows a broken image on every load; the only prior fix was manually
+        // clearing localStorage. Prune the bad entry and fall back to the
+        // always-present, always-correct embedded src.
+        if (imgSrc !== src) {
+          FileUrlCache.remove(fileName);
+          setImgSrc(src);
+        }
+      }}
     />
   );
 }

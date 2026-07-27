@@ -304,9 +304,13 @@ const LegendRow = ({ index, layer, i, id, baseUrl }) => {
   const activeVariant = type === 'interactive'
     ? get(layer, `['interactive-filters'][${selectedInteractiveFilterIndex}]`, {})
     : layer;
-  const columnTag = legendTheme.columnTag
+  // A comma in the post-AS expression means this is a multi-column/expression
+  // paint (e.g. worst-of lottr_amp,lottr_midd,…), not a column name — rendering
+  // it would dump the expression into the tag and starve the flex-1 title.
+  const rawColumnTag = legendTheme.columnTag
     ? (activeVariant?.['data-column'] || layer?.['data-column'] || '').split('AS ').pop().replace(/_/g, ' ')
     : '';
+  const columnTag = rawColumnTag.includes(',') ? '' : rawColumnTag;
 
   type = type === 'interactive' ? get(layer, `['interactive-filters'][${selectedInteractiveFilterIndex}]['layer-type']`) : type;
 

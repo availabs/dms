@@ -4,6 +4,8 @@ import { select as d3select } from "d3-selection"
 import { transition as d3transition } from "d3-transition"
 import { axisLeft as d3AxisLeft } from "d3-axis"
 
+import { buildSpacedTickValues, MAX_SPACED_TICKS } from "../../utils.js"
+
 export const AxisLeft = props => {
   const {
     adjustedWidth, adjustedHeight, showGridLines = true, showAnimations = true,
@@ -99,9 +101,19 @@ const renderAxisLeft = ({ ref, showAnimations, rotateLabels,
     const lo = Math.min(dom[0], dom[dom.length - 1]);
     const hi = Math.max(dom[0], dom[dom.length - 1]);
     const step = Math.abs(+tickSpacing);
-    if (step > 0 && isFinite(lo) && isFinite(hi)) {
-      tickValues = [];
-      for (let v = Math.ceil(lo / step) * step; v <= hi + step * 1e-9; v += step) tickValues.push(v);
+    const spaced = buildSpacedTickValues(lo, hi, step);
+    if (spaced) {
+      tickValues = spaced;
+    }
+    else if (step > 0 && isFinite(lo) && isFinite(hi)) {
+      // Domain/step ratio over the cap: honoring the spacing would build
+      // (hi - lo) / step tick DOM nodes — for stale spacings that can be
+      // millions and freezes the tab. Fall back to the default `ticks` count.
+      console.warn(
+        `AxisLeft: ignoring tickSpacing ${ step } — it would produce ` +
+        `${ Math.round((hi - lo) / step) } ticks over domain [${ lo }, ${ hi }] ` +
+        `(max ${ MAX_SPACED_TICKS }). Falling back to default ticks.`
+      );
     }
   }
 
