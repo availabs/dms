@@ -16,7 +16,9 @@ SELECT countDistinct(concat(toString(quarter_hour))) FROM npmrds.s583_v982_NPMRD
 
 Historically this surfaced client-side only as a benign-looking **"Error getting length"** console
 message with the graph rendering permanently empty and no data `/graph` request ever firing — which
-is why `skills/creating-routes-and-reports.md` advises "just use Resolution: 5 Minutes."
+is why `skills/creating-routes-and-reports.md` (since split into `creating-reports.md` +
+`creating-routes.md`, with this now-stale "just use Resolution: 5 Minutes" advice removed since the
+fix below) used to advise "just use Resolution: 5 Minutes."
 
 **Blast radius is wider than 15-minutes.** Of the six vocabulary resolutions, only the two backed by
 a *plain physical column* work — `5-minutes` (`epoch`) and `day` (`date`). All four calculated ones
@@ -132,7 +134,7 @@ meaning, grep every consumer rather than fixing the one that threw.
 - [ ] Postgres path exercised — the PG fix is symmetric and reasoned, but **not** executed; no PG
       report section was tested. Needs a calculated group-by + comparison series on a PG-backed view.
 - [ ] Regression check beyond reports: any section with a calculated group-by + comparison series
-- [ ] Port to transportNY (manual-copy only — `documentation/reportroutelist-cross-repo-sync.md`)
+- [ ] Port to transportNY (manual-copy only — `research/npmrds-reports/reportroutelist-cross-repo-sync.md`)
 
 ## Progress log
 

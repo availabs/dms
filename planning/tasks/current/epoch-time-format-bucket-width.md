@@ -41,7 +41,8 @@ integer division, so the true width per resolution is:
 So a 15-minute chart's bucket 4 (= 01:00) currently renders as "0:20" (4 × 5 min).
 
 **Second, separate half of the same symptom** (recorded in
-`dms-template/src/dms/skills/creating-routes-and-reports.md` and the NY-9D memory): the Measure
+`dms-template/src/dms/skills/creating-reports.md`, since split out of
+`creating-routes-and-reports.md`, and the NY-9D memory): the Measure
 Picker never *clears* a stale `xAxis.format: 'epoch_time'` when the author switches resolution away
 from 5-minute. With this task's fix that stops mattering for correctness — the format becomes valid
 at every epoch resolution — but see "Note on the picker side" below.
@@ -107,7 +108,7 @@ Not yet done:
 - [ ] Tooltip-matches-axis confirmed visually at 15-min/hour (the `hoverComp` site is wired the
       same way as the ticks and shares the resolver, but that's reasoning, not observation)
 - [ ] Port to transportNY afterwards (theme + submodule are manual-copy only, verified 2026-07-27 —
-      see `dms-template/documentation/reportroutelist-cross-repo-sync.md`)
+      see `dms-template/research/npmrds-reports/reportroutelist-cross-repo-sync.md`)
 
 ## Migration note: existing sections keep the old behavior until re-picked
 
