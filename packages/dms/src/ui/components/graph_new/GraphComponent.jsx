@@ -109,8 +109,11 @@ export const GraphComponent = props => {
       // LineGraph's DefaultHoverComp reads `xFormat`; every other chart type
       // (Bar/Grid/Pie/Treemap/Sunburst) reads `indexFormat` for the same value —
       // supply both so whichever chart type is active picks up the right one.
-      xFormat,
-      indexFormat: xFormat,
+      // Omit the keys entirely when there's no named format (rather than setting
+      // them to `undefined`) — each avl-graph component's `{ ...Defaults, ...hoverComp }`
+      // merge spreads keys regardless of value, so an explicit `undefined` here
+      // clobbers that component's own Identity/no-op default and throws on hover.
+      ...(xFormat ? { xFormat, indexFormat: xFormat } : {}),
       // Per-graph minutes/seconds auto-switch (GridGraph's legend only, see
       // formatMinutesAuto) — a raw boolean, not resolved through
       // getFormatFunc, since the actual formatter needs this graph's own
