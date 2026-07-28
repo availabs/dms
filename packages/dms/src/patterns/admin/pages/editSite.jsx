@@ -5,7 +5,7 @@ import {AdminContext} from "../context";
 import { AuthContext } from '../../auth/context';
 import { ThemeContext } from '../../../ui/useTheme';
 import { Link, useLocation, useNavigate, useNavigation } from 'react-router'
-import { nameToSlug, getInstance } from '../../../utils/type-utils';
+import { nameToSlug, getInstance, nextAvailableCopyName } from '../../../utils/type-utils';
 import { provisionTemplatePatterns } from '../../../utils/tenantProvisioning';
 import { isUserAuthed, parseIfJSON } from '../utils';
 import { editSiteTheme } from './editSite.theme'
@@ -31,6 +31,7 @@ function SiteEdit ({
    updateAttribute,
    status,
    apiUpdate,
+   apiLoad,
    format,
 }) {
 
@@ -92,6 +93,7 @@ function SiteEdit ({
 				<PatternList
 					value={item?.['patterns']}
 					format={format}
+					apiLoad={apiLoad}
 					attributes={attributes['patterns'].attributes}
 					onChange={(v) => updateAttribute('patterns', v)}
 					onSubmit={data => updateData(data, 'patterns')}
@@ -104,6 +106,7 @@ function SiteEdit ({
 	  <PatternList
       value={item?.['patterns']}
 			format={format}
+			apiLoad={apiLoad}
 			attributes={attributes['patterns'].attributes}
 	    onChange={(v) => updateAttribute('patterns', v)}
 			  onSubmit={data => {
@@ -124,6 +127,7 @@ function PatternList({
 	 onChange,
 	 value = [],
 	 format,
+	 apiLoad,
 	 ...rest
 }) {
 	const {app, type: siteType, API_HOST, baseUrl, isMultiTenant} = React.useContext(AdminContext);
@@ -190,11 +194,12 @@ function PatternList({
               title='Duplicate'
               disabled={isDuplicating}
               onClick={async () => {
-                const newName = `${d.row.name}_copy`;
+                setIsDuplicating(true);
+                const { name: newName, slug: newSlug, suffix } = nextAvailableCopyName(d.row.name, await getFreshSiblingSlugs());
                 const oldInstance = getInstance(d.row.type) || d.row?.base_url?.replace(/\//g, '');
                 const dataToCopy = {
                   app: d.row.app,
-                  base_url: `${d.row.base_url}_copy`,
+                  base_url: `${d.row.base_url}${suffix}`,
                   subdomain: d.row.subdomain,
                   config: d.row.config,
                   name: newName,
@@ -203,7 +208,7 @@ function PatternList({
                   filters: d.row.filters,
                   theme: d.row.theme,
                 };
-                await duplicate({oldInstance, newInstance: nameToSlug(newName)}, dataToCopy);
+                await duplicate({oldInstance, newInstance: newSlug}, dataToCopy);
               }}
             >
               <Icon icon='Copy' className={t.iconSm}/>
@@ -223,15 +228,29 @@ function PatternList({
 
 	const dmsServerPath = `${API_HOST}/dama-admin`;
 
+	const getSiblingSlugs = () => value.map(v =>
+		getInstance(v.type) || v?.base_url?.replace(/\//g, '')
+	).filter(Boolean);
+
+	// Local `value` can lag a moment behind the server after a just-completed
+	// duplicate (optimistic merge races the revalidated loader), so duplicate
+	// naming re-fetches the live sibling list instead of trusting `value`.
+	const getFreshSiblingSlugs = async () => {
+		const siteConfig = { format, children: [{ action: 'list', path: '/*' }] };
+		const items = await apiLoad(siteConfig, '/');
+		const patterns = items?.[0]?.patterns || [];
+		return patterns.map(v =>
+			getInstance(v.type) || v?.base_url?.replace(/\//g, '')
+		).filter(Boolean);
+	};
+
 	const addNewValue = async (patternData, templateId = null) => {
 		const data = patternData;
 		const slug = nameToSlug(data.name);
 		if (!slug) return;
 
 		// Collision check
-		const existingSlugs = value.map(v =>
-			getInstance(v.type) || v?.base_url?.replace(/\//g, '')
-		).filter(Boolean);
+		const existingSlugs = getSiblingSlugs();
 		if (existingSlugs.includes(slug)) {
 			alert(`A pattern with identifier "${slug}" already exists`);
 			return;
@@ -378,11 +397,12 @@ function PatternList({
 								type={'plain'}
 								title={'duplicate item'}
 								onClick={async () => {
-									const newName = `${editingItem?.name}_copy`;
+									setIsDuplicating(true);
+									const { name: newName, slug: newSlug, suffix } = nextAvailableCopyName(editingItem?.name, await getFreshSiblingSlugs());
 									const oldInstance = getInstance(editingItem?.type) || editingItem?.base_url?.replace(/\//g, '');
 									const dataToCopy = {
 										app: editingItem?.app,
-										base_url: `${editingItem?.base_url}_copy`,
+										base_url: `${editingItem?.base_url}${suffix}`,
 										subdomain: editingItem?.subdomain,
 										config: editingItem?.config,
 										name: newName,
@@ -391,7 +411,7 @@ function PatternList({
 										filters: editingItem?.filters,
 										theme: editingItem?.theme,
 									};
-									await duplicate({oldInstance, newInstance: nameToSlug(newName)}, dataToCopy)
+									await duplicate({oldInstance, newInstance: newSlug}, dataToCopy)
 									setEditingItem(undefined)
 								}}
 							> {isDuplicating ? 'duplicating...' : 'duplicate'}

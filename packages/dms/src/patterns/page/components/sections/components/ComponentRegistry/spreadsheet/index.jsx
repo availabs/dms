@@ -80,6 +80,22 @@ export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addIte
             if (loaded) pubs.forEach(({ paramKey, emptyValue }) => publish(paramKey, emptyValue));
             return;
         }
+        // 'list' derivation: publish EVERY loaded row's value for each entry's column —
+        // deduped, in row order — as the action param's value ARRAY (e.g. all delay TMCs'
+        // "tmc|from|to" congestion windows feeding a grid_cell_bands overlay). Other
+        // derivations publish one derived row's values.
+        if (a.derivation === 'list') {
+            pubs.forEach(({ column, paramKey }) => {
+                if (!paramKey || !column) return;
+                const values = [...new Set(rows.map(r => r[column]).filter(v => v !== undefined && v !== null && v !== ''))];
+                if (!values.length) return;
+                const dedupeKey = values.join('\u0001');
+                if (publishedRef.current[paramKey] === dedupeKey) return;
+                publishedRef.current[paramKey] = dedupeKey;
+                setActionParam(paramKey, values);
+            });
+            return;
+        }
         const der = a.derivation || 'first';
         let row;
         if (der === 'first') row = rows[0];

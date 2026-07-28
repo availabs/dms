@@ -36,11 +36,31 @@ export async function resolveInternalViewNames ({pgEnv, falcor, rawViews}) {
     if (!viewIds.length) return rawViews;
     const nameRes = await falcor.get(['uda', pgEnv, 'views', 'byId', viewIds, InternalViewAttributes]);
     const viewsById = get(nameRes, ['json', 'uda', pgEnv, 'views', 'byId'], {});
-    return rawViews.map(v => ({
-        ...v,
-        view_id: +v.id,
-        name: viewsById[+v.id]?.name || v.name,
-    }));
+    return rawViews.map(v => {
+        const row = viewsById[+v.id] || {};
+        return {
+            ...v,
+            view_id: +v.id,
+            name: row.name || v.name,
+            // uda projects JSON columns as strings — parse so the overview can read
+            // `file.dl_url` / `download` without re-parsing per render.
+            file: parseIfJson(row.file) || v.file,
+            download: parseIfJson(row.download) || v.download,
+        };
+    });
+}
+
+// A DMS source's dataType ('file_upload', 'internal_table', …) lives in the row's `data.type`.
+// The `source` FORMAT (datasets.format.js) does not declare a `type` attribute — deliberately,
+// since `item.type` is the STORAGE row-type string (`{dmsenv}|{instance}:source`) and the two
+// vocabularies must not be conflated — so a route-preloaded source item never carries it.
+// The uda source projection does expose it (`data->>'type'`), so read it from there.
+export async function getInternalDataType ({pgEnv, falcor, source_id}) {
+    if (!source_id) return null;
+    const reqPath = ['uda', pgEnv, 'sources', 'byId', +source_id, 'type'];
+    const res = await falcor.get(reqPath);
+    const value = get(res, ['json', ...reqPath], null);
+    return typeof value === 'string' && value.length ? value : null;
 }
 
 export async function getSourceData ({pgEnv, falcor, source_id, setSource, isDms}) {

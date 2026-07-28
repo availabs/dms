@@ -133,7 +133,7 @@ function fileUpload(req, res) {
         try { fs.unlinkSync(processedPath); } catch (e) {}
       }
 
-      res.json({ ok: true, source_id });
+      res.json({ ok: true, source_id, dl_url });
     } catch (err) {
       console.error('[file_upload] failed:', err.message);
       // Clean up on error

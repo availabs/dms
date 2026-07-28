@@ -353,6 +353,15 @@ export default function Table ({
         return { ...conditionalRowStyle, className: theme?.[styleKey] || theme?.rowAccent || '' };
     }, [conditionalRowStyle, theme]);
 
+    // row_highlight 'accent' style: resolve the themed row-level class here (TableRow's curated
+    // `rowTheme` doesn't carry it), same pattern as conditional_row_style. Non-accent styles
+    // (bg/bold/border) stay per-cell in TableCell and need no resolution — pass through as-is.
+    const resolvedHighlightedRow = useMemo(() => {
+        if (highlightedRow?.style !== 'accent') return highlightedRow;
+        const accentClass = theme?.[highlightedRow.styleKey] || theme?.rowHighlightAccent || theme?.rowAccent || '';
+        return { ...highlightedRow, accentClass };
+    }, [highlightedRow, theme]);
+
     const [defaultColumnSize, setDefaultColumnSize] = React.useState(defColSize);
 
     const actionsColSize = 50;
@@ -402,6 +411,13 @@ export default function Table ({
     const [editing, setEditing] = useState({}); // {index, attrI}
     const [isDragging, setIsDragging] = useState(false);
     const [selection, setSelection] = useState([]);
+
+    // Cell selection (click/drag highlight) serves AUTHORING — range copy/paste and cell edit. On a
+    // read-only dashboard table it reads as a false affordance: clients clicked heat-grid cells,
+    // saw the blue highlight, and reported the drill-down as broken (tsmo2 #170/#171). A section can
+    // opt out with `display.disableCellSelection`. Edit mode always keeps selection — paste and
+    // delete-selection are authoring essentials regardless of how the published view is configured.
+    const cellSelectionEnabled = allowEdit || isEdit || !display.disableCellSelection;
 
     const [triggerSelectionDelete, setTriggerSelectionDelete] = useState(false);
     const startCellRow = useRef(null);
@@ -569,7 +585,7 @@ export default function Table ({
 
     const onClickRowNum = useCallback(
         (e, i) => {
-            if (!setSelection || !display.showGutters) return;
+            if (!setSelection || !display.showGutters || !cellSelectionEnabled) return;
 
             if (e.ctrlKey) {
                 setSelection(selection =>
@@ -581,7 +597,7 @@ export default function Table ({
                 setSelection([i]);
             }
         },
-        [setSelection, display.showGutters]
+        [setSelection, display.showGutters, cellSelectionEnabled]
     );
     // const isRowSelected = useCallback(
     //     (i) => selection?.some((s) => (s.index ?? s) === i),
@@ -750,10 +766,14 @@ export default function Table ({
              onMouseLeave={e => handleMouseUp({setIsDragging})}
              style={{maxHeight: !paginationActive && display.maxHeight ? `${display.maxHeight}px` : undefined}}
         >
-                <TableStructureContext.Provider value={{...structureValues, highlightedRow, conditionalRowStyle: resolvedConditionalRowStyle, onRowMouseClick, onRowMouseEnter, onRowMouseLeave, onRowDragStart, onRowDragOver, onRowDrop, onRowDragEnd}}>
+                <TableStructureContext.Provider value={{...structureValues, highlightedRow: resolvedHighlightedRow, conditionalRowStyle: resolvedConditionalRowStyle, onRowMouseClick, onRowMouseEnter, onRowMouseLeave, onRowDragStart, onRowDragOver, onRowDrop, onRowDragEnd}}>
                     <TableCellContext.Provider value={{
                         frozenCols, allowEdit, editing, setEditing, isDragging, isSelecting,
-                        setSelection, setIsDragging, startCellCol, startCellRow, selection, selectionRange,
+                        // withheld when selection is off — TableCell's handlers already no-op
+                        // without them, so nothing can enter a selected state
+                        setSelection: cellSelectionEnabled ? setSelection : undefined,
+                        setIsDragging: cellSelectionEnabled ? setIsDragging : undefined,
+                        startCellCol, startCellRow, selection, selectionRange,
                         updateItem, removeItem, theme, columns, display
                     }}>
                         <VirtualList

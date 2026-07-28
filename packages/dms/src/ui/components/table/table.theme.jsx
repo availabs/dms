@@ -48,6 +48,10 @@ export const tableTheme = {
             // Spreadsheet provider (left edge + faint tint). A brand theme overrides this by
             // defining its own `styleKey` (e.g. `rowAccentAmber`) and pointing the provider at it.
             rowAccent: 'border-l-4 border-gray-400 bg-gray-50',
+            // Default accent for the `row_highlight` provider's 'accent' style (the active
+            // master-detail row, e.g. a click-to-switch selector). Neutral blue; brand themes
+            // override. Its cells go transparent (TableCell) so this tint + left edge shows.
+            rowHighlightAccent: 'bg-blue-50 shadow-[inset_3px_0_0_#2563eb]',
 
             openOutContainer: 'w-[330px] overflow-auto scrollbar-sm flex flex-col gap-[12px] p-[16px] bg-white h-full float-right',
             openOutContainerWrapper: 'fixed inset-0 right-0 h-full w-full z-[100]',

@@ -4,7 +4,7 @@ import { isEqual } from "lodash-es";
 import { useNavigate } from "react-router";
 import { AdminContext } from "../../../context";
 import { ThemeContext } from "../../../../../ui/useTheme";
-import { nameToSlug, getInstance } from "../../../../../utils/type-utils";
+import { nameToSlug, getInstance, nextAvailableCopyName } from "../../../../../utils/type-utils";
 import { settingsEditorTheme } from './settings.theme'
 
 // Additional {subdomain, base_url} mounts — the same pattern served at more
@@ -59,6 +59,27 @@ async function loadSiteData(apiLoad, app, siteType) {
     return items?.[0] || null;
 }
 
+/**
+ * Load the site's sibling patterns fully expanded (name, base_url, type) —
+ * read-only, for collision checks. `loadSiteData` above deliberately keeps
+ * `patterns` as bare {ref, id} entries since its result is reused as a write
+ * payload elsewhere; this is a separate fetch so that shape stays untouched.
+ */
+async function loadSitePatterns(apiLoad, app, siteType) {
+    const siteConfig = {
+        format: {
+            app,
+            type: siteType,
+            attributes: [
+                { key: 'patterns', type: 'dms-format', isArray: true, format: `${app}+pattern` }
+            ]
+        },
+        children: [{ action: 'list', path: '/*' }]
+    };
+    const items = await apiLoad(siteConfig, '/');
+    return items?.[0]?.patterns || [];
+}
+
 export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest}) => {
   const { apiUpdate, app, type, siteType, API_HOST, parentBaseUrl, dmsEnvs = [], dmsEnvById = {}, isMultiTenant } = useContext(AdminContext);
   const { UI, theme } = useContext(ThemeContext)
@@ -108,8 +129,13 @@ export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest})
       try {
           const siteInstance = getInstance(siteType) || type;
           const oldInstance = getInstance(value.type) || value?.base_url?.replace(/\//g, '');
-          const newName = `${value.name}_copy`;
-          const newSlug = nameToSlug(newName);
+
+          const siblingPatterns = await loadSitePatterns(apiLoad, app, siteType);
+          const existingSlugs = siblingPatterns
+              .filter(p => +p.id !== +value.id)
+              .map(p => getInstance(p.type) || p?.base_url?.replace(/\//g, ''))
+              .filter(Boolean);
+          const { name: newName, slug: newSlug, suffix } = nextAvailableCopyName(value.name, existingSlugs);
 
           // 1. Queue the duplicate task — returns { task_id } immediately.
           const dmsServerPath = `${API_HOST}/dama-admin`;
@@ -143,7 +169,7 @@ export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest})
           // 3. Create new pattern record
           const dataToCopy = {
               app: value.app,
-              base_url: `${value.base_url}_copy`,
+              base_url: `${value.base_url}${suffix}`,
               subdomain: value.subdomain,
               config: value.config,
               name: newName,

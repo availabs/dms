@@ -2,7 +2,7 @@ import React, {useCallback, useMemo, useRef} from "react";
 import {useHandleClickOutside, isEqualColumns} from "../../../utils/utils";
 import {filterTheme} from "../RenderFilters.theme";
 import {PageContext} from "../../../../../../../context";
-import {ThemeContext} from "../../../../../../../../../ui/useTheme";
+import {ThemeContext, getComponentTheme} from "../../../../../../../../../ui/useTheme";
 
 const resetColumn = (originalAttribute, setState, columns) => setState(draft => {
     const idx = columns.findIndex(column => isEqualColumns(column, originalAttribute));
@@ -12,7 +12,7 @@ const resetColumn = (originalAttribute, setState, columns) => setState(draft => 
 });
 const RenderSearchKeySelector = ({filter, pageState, onChange}) => {
     const { theme: themeFromContext = {}, UI } = React.useContext(ThemeContext) || {};
-    const theme = { ...themeFromContext, filters: { ...filterTheme, ...(themeFromContext.filters || {}) } };
+    const theme = { ...themeFromContext, filters: { ...filterTheme, ...getComponentTheme(themeFromContext, 'filters') } };
     const { Input } = UI || {};
     const [open, setOpen] = React.useState(false);
     const [text, setText] = React.useState(filter.searchParamKey || '');
@@ -61,7 +61,7 @@ export const RenderFilterValueSelector = ({
                                           }) => {
     const { pageState, updatePageStateFilters } =  React.useContext(PageContext) || {}; // page to extract page filters
     const { theme: themeFromContext = {}, UI} = React.useContext(ThemeContext) || {};
-    const theme = {...themeFromContext, filters: {...filterTheme, ...(themeFromContext.filters || {})}};
+    const theme = {...themeFromContext, filters: {...filterTheme, ...getComponentTheme(themeFromContext, 'filters')}};
     const {Switch, MultiSelect, Input, Button, ColumnTypes} = UI;
     const options = useMemo(() => filterOptions.find(fo => fo.column === filterColumn.name)?.uniqValues, [filterOptions, filterColumn.name]);
     // The value control's multiselect style comes from the active filter DESIGN
@@ -206,6 +206,29 @@ export const RenderFilterValueSelector = ({
                                     ) : null
                                 }
 
+                                {
+                                    // Single-select only: does the published control offer an × to
+                                    // clear back to no-constraint? Off by default — some filters are
+                                    // meant to always hold a value (a Year the page is built around),
+                                    // others need the way back (a Region that starts statewide).
+                                    ['filter', 'exclude'].includes(filter.operation) && !filter.isMulti ? (
+                                        <div className={theme.filters.inlineSwitchRow}>
+                                            <label className={theme.filters.settingLabel}>Allow clear: </label>
+                                            <Switch label={'Allow clear'}
+                                                    enabled={filter.allowClear}
+                                                    setEnabled={value => updateFilter({
+                                                        key: 'allowClear',
+                                                        value,
+                                                        filterColumn,
+                                                        filter,
+                                                        setState
+                                                    })}
+                                                    size={'xs'}
+                                            />
+                                        </div>
+                                    ) : null
+                                }
+
                                 {/* UI to match to search params. only show if using search params.*/}
                                 <div className={theme.filters.inlineSwitchRow}>
                                     <label className={theme.filters.settingLabel}>Use Page Filters: </label>
@@ -287,6 +310,13 @@ export const RenderFilterValueSelector = ({
                         }
                         options={['filter', 'exclude'].includes(filter.operation) ? (options || []) : undefined}
                         singleSelectOnly={['filter', 'exclude'].includes(filter.operation) ? !filter.isMulti : undefined}
+                        // Single-select pickers can offer an × that clears back to no-constraint: it
+                        // emits [] and the onChange below drops the key from the page filters, so the
+                        // control isn't stuck on its first pick. Author-controlled per filter
+                        // (`allowClear`, default off) because some filters are meant to always hold a
+                        // value. ConditionValueInput (the filter-TREE path) always allows it — that's
+                        // an authoring surface, not a published one.
+                        allowDeselect={['filter', 'exclude'].includes(filter.operation) ? (!filter.isMulti && Boolean(filter.allowClear)) : undefined}
                         displayDetailedValues={!filter.display}
                         keepMenuOpen={filter.display === 'expanded'}
                         tabular={filter.display === 'tabular'}

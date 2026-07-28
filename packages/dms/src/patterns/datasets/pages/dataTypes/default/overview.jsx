@@ -9,6 +9,35 @@ import { OUTPUT_FILE_TYPES } from "../../../components/ExternalVersionControls";
 import { sourceOverviewTheme } from "./sourceOverview.theme";
 import { FALLBACK_SWATCHES, catColor, splitCategories } from "../../../utils/categoryColors";
 
+// Every place a view can carry a downloadable artifact, in one list so the Versions card is the
+// single download surface (a file_upload source therefore needs no page of its own):
+//   · generated exports — `metadata.download` (external, written by the gis/create-download
+//     worker) or `data.download` (DMS-side counterpart). An OUTPUT_FILE_TYPES-keyed url map.
+//   · uploads — `metadata.file` (external, dama/upload/file-upload-route.js) or `data.file`
+//     (DMS, dama/upload/file-upload-dms-route.js). One `{file_name, file_type, dl_url}` object.
+// `$HOST` in a stored url is resolved against DAMA_HOST, as the version menu has always done.
+const downloadItemsForView = (view, damaHost) => {
+    const rawMeta = typeof view?.metadata === 'string' ? parseIfJson(view.metadata, {}) : (view?.metadata || {});
+    const meta = rawMeta && typeof rawMeta === 'object' && !Array.isArray(rawMeta) ? rawMeta : {};
+    // uda projects DMS json columns as STRINGS (`data->>'file'`), so both shapes may arrive
+    // pre-parsed (resolveInternalViewNames) or raw (getViews' byIndex rows) — normalize here so
+    // either loader works.
+    const asObject = (v) => {
+        const parsed = typeof v === 'string' ? parseIfJson(v, null) : v;
+        return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null;
+    };
+    const map = asObject(view?.download) || asObject(meta.download) || {};
+    const items = Object.keys(map)
+        .filter(fileType => OUTPUT_FILE_TYPES.includes(fileType))
+        .map(fileType => ({ label: fileType, url: String(map[fileType]).replace('$HOST', damaHost || '') }));
+
+    const file = asObject(view?.file) || asObject(meta.file);
+    if (file?.dl_url) {
+        items.push({ label: file.file_name || file.file_type || 'file', url: String(file.dl_url).replace('$HOST', damaHost || '') });
+    }
+    return items;
+};
+
 // admin-only corner edit affordance — toggles `editing` for the given attr
 const RenderPencil = ({t, Icon, editing, setEditing, attr, show, title}) => {
     if (!show) return null;
@@ -27,7 +56,8 @@ export default function Overview ({
   format,
   source, setSource,
   params,
-  isDms
+  isDms,
+  dataType
 }) {
     const {pageBaseUrl, isUserAuthed, UI, falcor, datasources, DAMA_HOST} = useContext(DatasetsContext);
     const { theme: fullTheme } = useContext(ThemeContext) || {};
@@ -143,7 +173,10 @@ export default function Overview ({
                     <div className={t.glanceCard}>
                         <div className={t.eyebrow}>At a glance</div>
                         <dl className={t.glanceList}>
-                            <div className={t.glanceRow}><dt className={t.glanceLabel}>Type</dt><dd className={t.glanceValue}>{source?.type || '—'}</dd></div>
+                            {/* `dataType` is the resolved dataType from SourcePage. Do NOT fall back
+                                to `source.type` for DMS sources — there it is the storage row-type
+                                string (`datasets_env|<instance>:source`), not a dataType. */}
+                            <div className={t.glanceRow}><dt className={t.glanceLabel}>Type</dt><dd className={t.glanceValue}>{dataType || (isDms ? '—' : source?.type) || '—'}</dd></div>
                             <div className={t.glanceRow}><dt className={t.glanceLabel}>Columns</dt><dd className={t.glanceValueNum}>{columns?.length || 0}</dd></div>
                             <div className={t.glanceRow}><dt className={t.glanceLabel}>Versions</dt><dd className={t.glanceValueNum}>{views.length}</dd></div>
                             <div className={`${t.glanceRow} group`}>
@@ -206,9 +239,7 @@ export default function Overview ({
                             {!views.length && <div className={t.verEmpty}>No versions yet</div>}
                             {orderedViews.map((view, i) => {
                                 const viewId = isDms ? view?.id : view?.view_id;
-                                const meta = typeof view?.metadata === 'string' ? parseIfJson(view.metadata, {}) : (view?.metadata || {});
-                                const downloads = meta?.download || {};
-                                const available = Object.keys(downloads).filter(k => OUTPUT_FILE_TYPES.includes(k));
+                                const available = downloadItemsForView(view, DAMA_HOST);
                                 const isCurrent = viewId != null && viewId === latestId;
                                 const open = openDownload === viewId;
                                 return (
@@ -224,7 +255,18 @@ export default function Overview ({
                                                     {view?.created_at ? `published ${fmtDate(view.created_at)}` : ''}
                                                 </div>
                                             </div>
-                                            {available.length > 0 && (
+                                            {available.length === 1 && (
+                                                // A single artifact (the file_upload case) needs no menu —
+                                                // the button IS the download link.
+                                                <div className={t.verDownloadWrap}>
+                                                    <a href={available[0].url} download
+                                                       title={available[0].label}
+                                                       className={isCurrent ? t.verDownloadBtnPrimary : t.verDownloadBtn}>
+                                                        <Icon icon="Download" className={t.verDownloadIcon}/>Download
+                                                    </a>
+                                                </div>
+                                            )}
+                                            {available.length > 1 && (
                                                 <div className={t.verDownloadWrap}>
                                                     <button type="button"
                                                             className={isCurrent ? t.verDownloadBtnPrimary : t.verDownloadBtn}
@@ -234,9 +276,9 @@ export default function Overview ({
                                                     </button>
                                                     {open && (
                                                         <div className={t.verMenu}>
-                                                            {available.map(fmt => (
-                                                                <a key={fmt} href={downloads[fmt].replace('$HOST', DAMA_HOST)} className={t.verMenuItem}>
-                                                                    <Icon icon="Download" className={t.verMenuIcon}/><span className={t.verMenuLabel}>{fmt}</span>
+                                                            {available.map(item => (
+                                                                <a key={item.label} href={item.url} download className={t.verMenuItem}>
+                                                                    <Icon icon="Download" className={t.verMenuIcon}/><span className={t.verMenuLabel}>{item.label}</span>
                                                                 </a>
                                                             ))}
                                                         </div>

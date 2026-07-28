@@ -382,6 +382,26 @@ export const componentFunctions = {
             trigger: 'add',
             args: [],
         },
+        {
+            id: 'load_publish',
+            label: 'On Load: Publish Derived Row',
+            description: 'When data loads, derive a row (first/max/min over a metric) and publish one or more of its column values to page action params — e.g. an event-header Card publishes the event\'s date/year for downstream sections. Publishes only after a live fetch (never from the Card\'s saved seed rows); re-publishes when the data changes.',
+            trigger: 'load',
+            paramKey: "",
+            args: [
+                { key: 'derivation', label: 'Row to publish', type: 'select',
+                    options: [
+                        { label: 'First (top row)', value: 'first' },
+                        { label: 'Max of metric',   value: 'max' },
+                        { label: 'Min of metric',   value: 'min' },
+                        { label: 'List (all rows)', value: 'list' },
+                    ] },
+                { key: 'metric', label: 'Metric column (for max/min)', type: 'column-select' },
+                { key: 'column', label: 'Column to publish', type: 'column-select' },
+                // programmatic builds may instead set args.publishes = [{ column, paramKey }, …]
+                // to publish several params from the one derived row.
+            ],
+        },
     ],
     subscribers: [
         {
@@ -501,6 +521,16 @@ const buildControls = (theme) => ({
                     { type: 'input', inputType: 'number', label: 'Row Gap', key: 'cellsRowGap' },
                     { type: 'input', inputType: 'number', label: 'Col Gap', key: 'cellsColumnGap' },
                     { type: 'input', inputType: 'number', label: 'Row Height', key: 'cellsRowHeight' },
+                    // 'Fill height' stretches cell rows to the card box (so bordered
+                    // cells reach the bottom of a `height:'fill'` card beside a taller
+                    // sibling); 'Pack to top' (default) keeps cells content-sized at the
+                    // top. Mirrors the cards-grid Vertical Align above.
+                    { type: 'select', label: 'Vertical Align', key: 'cellsVerticalAlign',
+                        options: [
+                            { label: 'Pack to top (default)', value: undefined },
+                            { label: 'Fill height', value: 'stretch' },
+                        ],
+                    },
                     { type: 'input', inputType: 'number', label: 'Cell Padding', key: 'cellsPadding' },
                     { type: 'toggle', label: 'Cell Border', key: 'cellBorder' },
                     // Track Template — raw grid-template-columns string, wins over

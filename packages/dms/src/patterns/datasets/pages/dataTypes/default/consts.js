@@ -37,6 +37,14 @@ export const InternalViewAttributes = [
     "id",
     "view_id",
     "name",
+    // `file` is where the DMS upload path stores its artifact —
+    // dms-server dama/upload/file-upload-dms-route.js does
+    // `setDataById(viewId, { file: {file_name, file_type, dl_url, description} })`.
+    // The overview's Versions card renders a Download button straight off it, so a
+    // file_upload source needs no page of its own. (`download` is the generated-export
+    // map's DMS-side counterpart, read for symmetry with the external `metadata.download`.)
+    "file",
+    "download",
 ];
 
 export const ExternalViewAttributes = [

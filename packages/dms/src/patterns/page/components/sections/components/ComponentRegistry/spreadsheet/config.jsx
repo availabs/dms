@@ -95,6 +95,7 @@ export const componentFunctions = {
                         { label: 'First (top row)', value: 'first' },
                         { label: 'Max of metric',   value: 'max' },
                         { label: 'Min of metric',   value: 'min' },
+                        { label: 'List (all rows)', value: 'list' },
                     ] },
                 { key: 'metric', label: 'Metric column (for max/min)', type: 'column-select' },
                 { key: 'column', label: 'Column to publish', type: 'column-select' },
@@ -144,8 +145,12 @@ export const componentFunctions = {
                         { label: 'Background', value: 'bg' },
                         { label: 'Border', value: 'border' },
                         { label: 'Bold', value: 'bold' },
+                        { label: 'Accent (themed)', value: 'accent' },
                     ],
                 },
+                // Only used by the 'accent' style: names a `theme.table` style for the
+                // row-level tint + left edge; defaults to `rowHighlightAccent`.
+                { key: 'styleKey', label: 'Accent style key (theme.table)', type: 'input', inputType: 'text' },
             ],
         },
     ],
@@ -189,6 +194,10 @@ const buildControls = (theme) => ({
             { type: 'toggle', label: 'Attribution', key: 'showAttribution' },
             { type: 'toggle', label: 'Striped', key: 'striped' },
             { type: 'toggle', label: 'Auto Resize Columns', key: 'autoResize' },
+            // Read-only dashboard tables (heat grids, data-bar rankings) shouldn't offer the
+            // spreadsheet click/drag highlight — it promises a drill-down that isn't there.
+            // Edit mode keeps selection either way.
+            { type: 'toggle', label: 'Disable cell selection', key: 'disableCellSelection' },
             { type: 'toggle', label: 'Hide Null Open out columns', key: 'hideIfNullOpenouts' },
             { type: 'toggle', label: 'Open Out Default Open', key: 'openOutDefaultOpen' },
             { type: 'select', label: 'Open Out Mode', key: 'openOutMode',
@@ -277,11 +286,18 @@ const buildControls = (theme) => ({
             },
             { type: 'toggle', label: 'Server Filter', key: 'serverFilter', displayCdn: ({ isEdit }) => isEdit },
             { type: 'filter', label: 'Filter', key: 'serverFilterValue', displayCdn: ({ attribute }) => attribute.serverFilter },
+            // Sort is the ONE header control viewers see (everything else is isEdit-gated), so it
+            // doubles as the published sort affordance. `disableSort` withdraws it per column for
+            // axes where sorting is meaningless — e.g. the chronological month columns of a
+            // seasonality heat grid, which a reviewer flagged as a pointless control (tsmo2 #164).
+            // Authors still get it in edit mode.
             { type: 'select', label: 'Sort', key: 'sort', dataFetch: true,
+                displayCdn: ({ attribute, isEdit }) => isEdit || !attribute.disableSort,
                 options: [
                     { label: 'Not Sorted', value: '' }, { label: 'A->Z', value: 'asc nulls last' }, { label: 'Z->A', value: 'desc nulls last' }
                 ]
             },
+            { type: 'toggle', label: 'Disable sort in view', key: 'disableSort', displayCdn: ({ isEdit }) => isEdit },
             { type: 'select', label: 'Justify', key: 'justify',
                 options: [
                     { label: 'Not Justified', value: '' },

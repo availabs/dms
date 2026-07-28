@@ -425,6 +425,10 @@ export const TableCell = memo(function TableCell ({
                 isTotalCell ? theme.totalCell :
                     !isValid ? theme.cellInvalid : // invalid cells might want an indicator
                         isSelected ? theme.cellBgSelected : // selected cells color differently
+                            // 'accent' highlight paints at the ROW level (themed tint + left edge);
+                            // its cells go transparent so the row tint shows through. 'bg'/undefined
+                            // keep the legacy per-cell amber.
+                            isHighlighted && highlightedRow?.style === 'accent' ? 'bg-transparent' :
                             isHighlighted && (!highlightedRow?.style || highlightedRow.style === 'bg') ? 'bg-amber-100 hover:bg-amber-200' :
                                 display.striped && index % 2 === 0 ? theme.cellBgOdd : // if striped
                                     display.striped ? theme.cellBgEven :

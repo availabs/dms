@@ -96,6 +96,11 @@ export default function UserMenuContainer ({title, children, activeStyle, naviga
       item.type = 'link'
     }
   })
+  // Per-item group gating (additive/BC): an item with `groups: ["AVAIL", …]` renders only
+  // for users belonging to at least one of them. Items without `groups` show as always.
+  authMenuItems = authMenuItems.filter(item =>
+    !item?.groups?.length || (user?.groups || []).some(g => item.groups.includes(g))
+  )
 
   const viewAsMenuItems = viewAsUser
     ? [

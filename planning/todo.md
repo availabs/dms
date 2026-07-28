@@ -20,6 +20,7 @@
 
 ## cli
 
+- [x] [`dms page publish` copies section rows (aliasing fix)](./tasks/completed/cli-publish-copy-sections.md) — DONE 2026-07-21. CLI publish aliased `sections` to the draft refs, so a build-script draft wipe deleted the published page's rows (blanked sitemgmt/tickets). Now copies each draft row like the UI publish, sets `published: ''`, mirrors groups/dataSources, aborts loudly on missing rows; `list --published` now classifies `''` correctly.
 - [x] DMS CLI tool (`packages/dms/cli/`) — terminal access to DMS data via shared API code and Falcor protocol (sites, patterns, pages, sections, datasets)
 - [ ] DMS MCP Server — Claude tool for reading, creating, and editing DMS pages/sections via structured MCP tools (Lexical builder, .dmsrc-aware config)
 - [x] [CLI refresh for type-system refactor + per-app tables + dmsEnv ownership](./tasks/completed/cli-refresh-type-refactor.md) — rewrote type resolution throughout `packages/dms/cli/` to use `{parent}:{instance}|{rowKind}`; dropped `doc_type` reads; app-namespaced every falcor path; `dataset list` walks `pattern.dmsEnvId → dmsEnv.sources`; `dataset dump`/`query` use the `:data` split-table types via the hydrating `options` route. 21/21 integration tests pass; verified live against `asm+nhomb`.
@@ -174,6 +175,24 @@
       Bar/Line/Pie/Treemap. Library half of dms-template's `report-route-color-assignment.md`.
       IMPLEMENTED + live-verified 2026-07-22 (200/200 unit tests, zero-regression probe on a real
       report). Full end-to-end color rendering re-verify pending the theme-side task.
+- [ ] [Filter bar: author-controlled clear (×) for single-select pickers — `filter.allowClear`](./tasks/current/filter-bar-single-select-clearable.md) —
+      `RenderFilterValueSelector` (the filter-BAR path) never passed `allowDeselect`, so a single-select
+      page filter was stuck on its first pick with no way back to the unset state
+      (`ConditionValueInput`, the filter-tree path, already had it). Now opt-in per filter via a new
+      "Allow clear" author switch, **default off** so no existing control changes. transportNY #161.
+- [ ] [Table: `display.disableCellSelection` — opt a read-only table out of spreadsheet cell selection](./tasks/current/table-disable-cell-selection.md) —
+      BC-additive; edit mode always keeps selection. Read-only heat grids / data-bar rankings were
+      showing the `#2100f8` click highlight, which clients read as a broken drill-down (transportNY
+      #170/#171). Draft-verified on congestion_v2 2026-07-27; pending transportNY vendored-dms sync.
+- [x] [Card create-defaults `defaultFrom` — derive a field from another new-row field](./tasks/completed/create-default-defaultfrom.md) — DONE 2026-07-21. Page-QA add-ticket modal stamps surface/page_route from page_key at create; pending owner publish of the control-room pages. Follow-up: expose in Card.config column controls.
+- [x] [map legend columnTag: skip for multi-column paint expressions](./tasks/completed/legend-columntag-multicolumn-guard.md) — DONE 2026-07-21. BC guard; worst-of LOTTR expression tag starved the legend title to "W.." (transportNY QA #165).
+- [x] [graph_new AxisLeft: cap `tickSpacing` tick generation (browser-freeze guard)](./tasks/completed/cap-tickspacing-tick-explosion.md) — DONE 2026-07-21. Unbounded spaced-tick loop generated ~4.9M tick DOM nodes when a column edit changed data magnitude 1e6× but `yAxis.tickSpacing: 2` stayed; froze the incidents_v2 draft page. `buildSpacedTickValues` cap (200) + fallback to default ticks + console.warn. Pending transportNY vendored-dms sync.
+- [x] [Table: `row_highlight` themed 'accent' style + click-publish cursor](./tasks/current/table-row-highlight-accent-and-cursor.md) —
+      DONE 2026-07-17. New BC `row_highlight` style 'accent' paints a themed row-level tint + left
+      edge (resolved from `theme.table.rowHighlightAccent`/styleKey like conditional_row_style;
+      matched cells go transparent) instead of the hardcoded amber; rows in a click_publish table
+      get `cursor-pointer`. Author-registered. Consumer: incident_view Corridors selector (brand
+      blue). Core rides git sync; transportnyv2 `rowHighlightAccent` rides the theme-folder sync.
 - [x] [graph_new BarGraph: optional time/linear x-axis (proportional spacing)](./tasks/current/graph-bargraph-time-linear-xscale.md) — opt-in `xAxis.scaleType: time|linear` so bars sit at their real x-value with proportional gaps (default `band` unchanged, verified no regression). Non-band positioning (computed width + centered `barPos`) + date axis ticks; `GraphComponent` passes `xScale.type`. Live on the Control-Room per-day tickets charts. Not yet synced into transportNY's vendored dms.
 - [x] [Filter section interactive chrome: needs-value toggle · active tokens · clear-all](./tasks/current/filter-interactive-chrome.md) — ExternalFilters/RenderFilters; renders an `empty`-op leaf as a toggle; MNY alignment.
 - [x] [Spreadsheet inline-expand row detail (`openOutMode:'inline'`)](./tasks/current/spreadsheet-inline-openout.md) — inline detail panel vs the side drawer; MNY alignment.
@@ -292,6 +311,34 @@
 ### patterns/page
 
 - [x] [Section header extensions — generic extension point for inline header content](./tasks/completed/section-header-extensions.md) — mirrors `sectionMenuExtensions` but for the section title-bar/header area instead of the Settings drawer. Library-side prerequisite for the theme-side [AVL Graph quick controls](../../../planning/tasks/current/avl-graph-quick-controls.md) task. Scoped 2026-07-21, implemented + live-verified 2026-07-22 — the View-mode row deliberately renders independent of `showHeader` (not nested inside `ViewSectionHeader` as originally sketched), since AVL Graph's "header + hero-stat" pattern leaves the section's own title empty.
+- [x] [Section border — per-side width + theme color](./tasks/current/section-border-width-color.md) —
+      let a section render a border with configurable width + a theme-palette color (inline style;
+      Tailwind can't JIT arbitrary values), applied at the section level. Replaces the per-cell
+      `cellBorderColor` hack for the mny Action Prioritize lede's amber left-accent panel. BC.
+- [x] [Map: server-side tile `filter=` from a `serverSide` dynamic-filter](./tasks/current/map-serverside-tile-filter.md) —
+      DONE 2026-07-17. A symbology dynamic-filter flagged `serverSide:true` makes `getLayerTileUrl`
+      emit `&filter=<col>='…'` so the tile route filters rows in PostGIS ST_AsMVT before emitting
+      (transcom_event_tmc: ~64MB→~2KB per event_id). BC (skipped without the flag). First consumer:
+      incident_view Location & affected-segment map. Also documented the Map's action-param
+      exclusion (map ignores `type:'action'` params → bind maps to URL/page-filter vars) in the
+      creating-a-map-section skill §4a/§4b. Core rides the owner git sync.
+- [x] [GridGraph overlays + `load_publish` 'list'](./tasks/current/gridgraph-overlays-and-list-publish.md) —
+      DONE 2026-07-17. `load_publish` `'list'` derivation (Spreadsheet + Card) publishes all
+      loaded rows' values for a column as the param array; GridGraph `grid_cell_bands` +
+      `grid_point` subscribers feed the avl GridGraph's dormant bounds/points props (border a
+      cell run / dot a cell, resolved by a Row Key Column). Author-registered. Also fixed a
+      latent `providers.find` crash in graph_new/index.jsx. First consumer: incident_view
+      speed-grid congestion-window bands. Core rides the owner git sync.
+- [x] [Card: `load_publish` provider](./tasks/current/card-load-publish-provider.md) — DONE
+      2026-07-17. Component-actions parity with the Spreadsheet: a Card publishes derived-row
+      column values to action params on load (first/max/min, multi-`publishes[]`), with a
+      Card-specific guard that never publishes from saved seed rows (identity-change gate).
+      Registered in the Card Actions panel (author-accessible). First consumer: incident_view
+      event-header Card publishes `activeDate`/`metaYear`. Core rides the owner git sync.
+- [x] [userMenu: per-item `groups` gating for authMenu items](./tasks/current/usermenu-authmenu-group-gating.md) —
+      DONE 2026-07-17. Additive/BC: an authMenu item with `groups: ["AVAIL", …]` renders only for
+      users in one of those groups (no key = unchanged). Consumer: transportny themev2 Site
+      Status → `/sitemgmt`, gated AVAIL/NYSDOT Admin. Core rides the owner git sync.
 - [x] [Unset page variables blanked every reacting section](./tasks/current/page-variable-empty-leaf-regression.md) —
       **FIXED 2026-07-16.** Unset URL-registered page variables flowed as `[""]` into
       `usePageFilters` leaves → `IN ('')` → 0 rows/length on EVERY reacting section (blank
@@ -336,6 +383,7 @@
 - [x] [dataWrapper blank-row fallback](./tasks/completed/datawrapper-blank-row-fallback.md) — SHIPPED 2026-05-18. Opt-in via `display.useBlankRowFallback`. When the section opts in and the query returns 0 rows, `getData.js` synthesizes a single placeholder row keyed `column.normalName || column.name` from each visible column's `blankDefault`, tagged `_isBlankFallback: true`. Per-column "Empty Default" toolbar entry mounts the column type's existing `EditComp`. Live test surfaced a bug: original synthesis sat at the function tail but was unreachable because `fromIndex >= length` (with `length === 0` → `0 >= 0`) exits earlier; moved the synthesis inside that guard, removed the dead tail block. WCDB show card 1964234 verified off-air. Error-fallback (network failures) deferred to a sibling task.
 - [x] [Pivot table support](./tasks/completed/pivot_table.md) — cross-tab pivot mode for DataWrapper/Spreadsheet: pivot config state, distinct-values fetch, CASE column generation in getData, SectionMenu pivot block, ColumnManager pivot columns block
 - [x] Pivot table grouped column headers — add multi-row `<thead>` to the Table component so multiple pivot columns render with a spanning parent header row per pivot column value (Option B follow-up to pivot table support)
+- [ ] [Pivot data-fetch range + join-key fixes](./tasks/current/pivot-data-fetch-fixes.md) — 3 getData.js bugs that stopped a pivot+join cross-tab from rendering (surfaced building the Route Comparison page): (1) `usePagination:false` sections omit `pageSize` → `NaN` → null `dataByIndex` range → 0 rows → "loading" hang; fixed by loading all rows in pivot/fullDataLoad + safe-pageSize coerce. (2) load-all `toIndex` off-by-one (`to` is inclusive) → phantom empty-atom "loading" row; fixed to `length-1`. (3) join alias-strip blanked the pivot row column (`rt.route_id` display key vs stripped `route_id` data key); fixed by keeping BOTH keys (additive/BC). Applied to working tree; needs commit + a non-pivot-join regression eyeball.
 - [x] [Filter component: hide external-filters toggle by default + adopt UI components](./tasks/completed/filter-external-toggle-and-ui-cleanup.md) — IMPLEMENTED 2026-05-13. `display.hideExternalToggle` added to `ExternalFilters.jsx` (strict `=== true`; absent on existing rows preserves the toggle pill); `Card.config.jsx` `defaultState.display.hideExternalToggle: true` so new sections default to hidden. Inline toggle-pill markup swapped for `UI.Button` + theme keys (`toggleButton`/`toggleIcon`) in both `ExternalFilters.jsx` and `RenderFilters.jsx`. `filterTheme` extended with consolidated keys (`conditionsGrid`, `conditionRow*`, `filterRowWrapper`, `inlineSwitchRow`, `searchKey*`) — defaults match original literals so existing themes are visually unchanged. `themeFromContext.filter` (singular) typo fixed in three files; transportny `filters:` theme block now actually applies (was a no-op copy of `filterTheme`).
 - [x] [Card cells grid: per-column cellWidth + section-level track template](./tasks/completed/card-cell-width-tracks.md) — IMPLEMENTED 2026-05-18. Per-column `cellWidth` knob in the section toolbar + section-level `cellsTracksTemplate` escape hatch + track-cursor walker in `Card.jsx` that composes `gridTemplateColumns` from each column's claim. WCDB now-playing card lays out album art at fixed width + fluid text stack + fixed play button. CSS Grid bakes `cellsGridGap` inside a span (documented limitation); for pixel-perfect widths, use `cellSpan: 1 + cellRowSpan`. Live-verified on https://www.wcdb.fm.
 - [x] [Card per-column padding overrides](./tasks/completed/card-cell-padding-overrides.md) — IMPLEMENTED 2026-05-18. Extended the existing `cellPaddingBottom` knob to `cellPadding` (all sides) + `cellPaddingTop` / `cellPaddingLeft` / `cellPaddingRight`. Side-specific wins over `cellPadding`, `cellPadding` wins over ambient `cellsPadding`; `!== '' && !== undefined` guard distinguishes "cleared field" from "author typed 0". Applied to WCDB section 1963473 title/artist/album cells. Skill `card-layout.md` extended.
@@ -370,6 +418,7 @@
 
 ### patterns/datasets
 
+- [ ] [file_upload — retire the view page; Overview Versions card is the download surface](./tasks/current/file-upload-viewpage-metadata-conventions.md) — three shapes exist in the wild on pgEnv `file_upload` sources: a manifest TABLE of `file_type`/`dl_url` rows (1969, the only one rendering today), a `view.metadata.file` object with NO physical table (2000 + **2077, the live QA-screenshot source** — both currently throw `relation … does not exist`), and now a generated `metadata.download` map. `isDms` says where a row is STORED, not which shape it uses. **Final shape (owner call): the view page is DELETED** — `dataTypes/default/overview.jsx`'s Versions card now renders the Download per version via `downloadItemsForView`, reading generated exports (`metadata.download` / `data.download`) AND uploads (`metadata.file` / `data.file`), normalizing uda's string-projected json; one artifact → the button is the anchor, several → the existing dropdown. `InternalViewAttributes` gains `file`/`download`; `resolveInternalViewNames` parses them. Removed `ViewPage.jsx`, `ViewPage.theme.js`, the `view` slot and the `fileUploadView` theme registration. Owner confirmed downloads working 2026-07-27. Only casualty: source 1969's manifest-TABLE shape has no renderer (test source). Also fixed: the Overview Type row printed the storage row-type for DMS sources — SourcePage now passes a resolved `dataType` prop. **Second fix in the same task:** `SourcePage.jsx:113-114` hardcoded both dataType keys to `internal_table` for every DMS source, discarding the internal `data.type` — so the Freight Atlas Plan Library documents (2189904 the 2024 plan PDF, 2189906/08/10/12), all already `data.type: file_upload` with a real `data.file.dl_url`, rendered a Table page instead of their file. Now honours a registered `data.type`, else `internal_table`. Blast radius audited: 8 internal_table (unchanged) vs 7 file_upload (5 Plan Library + 2 QA-screenshot sources). ⚠ The trap: `source.type` is NOT usable here — the `source` format declares no `type` attribute, so a route-preloaded item carries the STORAGE row-type string, not `data.type` (and adding `type` to the format would alias one over the other). Resolved via a new `getInternalDataType()` in `dataTypes/default/utils.js` reading `uda[…].sources.byId[id].type`, held in `internalDataType` state.
 - [ ] [Datasets — URL-encode category links (`&` in names → empty categories)](./tasks/current/datasets-category-link-encoding.md) — `?cat=` links were built by raw interpolation, so category names with `&` (Economy & Demand, Environment & Equity, Safety & Crossings) truncated the query param and rendered empty despite having data. Fixed with a `catHref` encoder over all 7 link sites in `DatasetsList/index.jsx`; verified in dev. BC. Pending submodule commit + deploy + re-verify. (Corrects control-room ticket #136.)
 - [x] [Datasets pattern — consume `theme.navOptions.secondaryNav`](./tasks/current/datasets-pattern-secondary-nav.md) —
       BUILT 2026-07-10 (uncommitted, pending review): nav shaping promoted to shared `utils/nav.js`

@@ -885,7 +885,7 @@ export default function Card ({
     const {
         cardsGridSize, cardsGridGap, cardsGridPadding, cardsPadding, cardsBgColor, cardsVerticalAlign,
         cellsGridSize, cellsGridGap, cellsRowGap, cellsColumnGap, cellsRowHeight, cellsPadding,
-        cellsTracksTemplate,
+        cellsVerticalAlign, cellsTracksTemplate,
         cardBorder, cellBorder,
         allowAdddNew,
     } = display;
@@ -929,10 +929,10 @@ export default function Card ({
 
     const subWrapperStyle = useMemo(
         () => resolveCellsGridStyle({
-            display: { cellsGridGap, cellsRowGap, cellsColumnGap, cellsRowHeight, cardsBgColor, cardsPadding },
+            display: { cellsGridGap, cellsRowGap, cellsColumnGap, cellsRowHeight, cardsBgColor, cardsPadding, cellsVerticalAlign },
             gridTemplateColumns, hasRowSpan,
         }),
-        [gridTemplateColumns, cellsGridGap, cellsRowGap, cellsColumnGap, cardsBgColor, cardsPadding, cellsRowHeight, hasRowSpan]);
+        [gridTemplateColumns, cellsGridGap, cellsRowGap, cellsColumnGap, cardsBgColor, cardsPadding, cellsRowHeight, cellsVerticalAlign, hasRowSpan]);
 
     // Reordering function
     function handleDrop(targetCol) {

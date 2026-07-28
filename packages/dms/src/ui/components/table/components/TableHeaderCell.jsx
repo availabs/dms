@@ -204,12 +204,59 @@ export default memo(function TableHeaderCell({isEdit, attribute, columns, displa
         }
     }, [attribute.serverFilter]);
 
+    // Controls that survive their displayCdn for this column. In the published view almost every
+    // entry is isEdit-gated, so a column can end up with NOTHING to show — and the header still
+    // opened a popup with an empty box, which reads as a broken menu (tsmo2 #164). When the list is
+    // empty the header renders as plain text instead of a button.
+    const visibleControls = useMemo(() => (controls?.inHeader || []).filter(({displayCdn}) =>
+        typeof displayCdn === 'function' ? displayCdn({attribute, display, isEdit}) :
+            typeof displayCdn === 'boolean' ? displayCdn : true
+    ), [controls?.inHeader, attribute, display, isEdit]);
+
     const iconSizes = {width: 14 , height: 14}
     const fnIcons = {
         count: <Icon icon={theme.headerCellCountIcon} key={'count-icon'} className={theme.headerCellFnIconClass} {...iconSizes} />,
         list: <Icon icon={theme.headerCellListIcon} key={'list-icon'} className={theme.headerCellFnIconClass} {...iconSizes} />,
         sum: <Icon icon={theme.headerCellSumIcon} key={'sum-icon'} className={theme.headerCellFnIconClass} {...iconSizes} />,
         avg: <Icon icon={theme.headerCellAvgIcon} key={'sum-icon'} className={theme.headerCellFnIconClass} {...iconSizes} />,
+    }
+
+    const labelAndIcons = (
+        <>
+            {
+                controls.header?.displayFn ? controls.header.displayFn(attribute) :
+                    (
+                        <span key={`${colIdName}-name`} className={`${theme.headerCellLabel} ${attribute.wrapHeader ? theme.wrapText : ``}`}
+                              title={attribute.customName || attribute.display_name || colIdName}>
+                        {attribute.customName || attribute.display_name || colIdName}
+                    </span>
+                    )
+            }
+            <div className={theme.headerCellIconWrapper}>
+                {
+                    // Group + fn indicators are admin-only chrome — show them in
+                    // edit mode, hide in published view. Without this, calc-column
+                    // headers print their `fn` (e.g. "exempt") as literal text next
+                    // to the column name in the rendered report.
+                    isEdit && attribute.group ? <Icon icon={theme.headerCellGroupIcon} key={`group-${colIdName}`} className={theme.headerCellFnIconClass} {...iconSizes} /> :
+                        isEdit && attribute.fn ? fnIcons[attribute.fn] || attribute.fn : null
+                }
+                {
+                    attribute.sort === 'asc nulls last' ? <Icon icon={theme.headerCellSortAscIcon} key={'sort-asc-icon'} className={theme.headerCellFnIconClass} {...iconSizes} /> :
+                        attribute.sort === 'desc nulls last' ? <Icon icon={theme.headerCellSortDescIcon} key={'sort-desc-icon'} className={theme.headerCellFnIconClass} {...iconSizes} /> : null
+                }
+                {isEdit ? <Icon icon={theme.headerCellMenuIcon} key={`arrow-down-${colIdName}`} className={theme.headerCellMenuIconClass}/> : null}
+            </div>
+        </>
+    );
+
+    // Nothing to open — render the header as plain text (no popup, no pointer affordance).
+    if (!visibleControls.length) {
+        return (
+            <div key={colIdName} className={theme.headerCellWrapper}>
+                <div key={'menu-btn'} className={theme.headerCellBtn}>{labelAndIcons}</div>
+            </div>
+        );
     }
 
     return (
@@ -231,43 +278,17 @@ export default memo(function TableHeaderCell({isEdit, attribute, columns, displa
                          }
                      }}
                 >
-                    {
-                        controls.header?.displayFn ? controls.header.displayFn(attribute) :
-                            (
-                                <span key={`${colIdName}-name`} className={`${theme.headerCellLabel} ${attribute.wrapHeader ? theme.wrapText : ``}`}
-                                      title={attribute.customName || attribute.display_name || colIdName}>
-                                {attribute.customName || attribute.display_name || colIdName}
-                            </span>
-                            )
-                    }
-                    <div className={theme.headerCellIconWrapper}>
-                        {
-                            // Group + fn indicators are admin-only chrome — show them in
-                            // edit mode, hide in published view. Without this, calc-column
-                            // headers print their `fn` (e.g. "exempt") as literal text next
-                            // to the column name in the rendered report.
-                            isEdit && attribute.group ? <Icon icon={theme.headerCellGroupIcon} key={`group-${colIdName}`} className={theme.headerCellFnIconClass} {...iconSizes} /> :
-                                isEdit && attribute.fn ? fnIcons[attribute.fn] || attribute.fn : null
-                        }
-                        {
-                            attribute.sort === 'asc nulls last' ? <Icon icon={theme.headerCellSortAscIcon} key={'sort-asc-icon'} className={theme.headerCellFnIconClass} {...iconSizes} /> :
-                                attribute.sort === 'desc nulls last' ? <Icon icon={theme.headerCellSortDescIcon} key={'sort-desc-icon'} className={theme.headerCellFnIconClass} {...iconSizes} /> : null
-                        }
-                        {isEdit ? <Icon icon={theme.headerCellMenuIcon} key={`arrow-down-${colIdName}`} className={theme.headerCellMenuIconClass}/> : null}
-                    </div>
+                    {labelAndIcons}
                 </div>
             }>
                 {
                     ({open, setOpen}) =>
-                        controls?.inHeader?.length ? (
+                        visibleControls.length ? (
                             <div key={'menu'}
                                  className={`${open ? 'visible' : 'hidden'} ${theme.headerCellMenu}`}
                             >
                                 {
-                                    controls.inHeader
-                                        .filter(({displayCdn}) =>
-                                            typeof displayCdn === 'function' ? displayCdn({attribute, display, isEdit}) :
-                                                typeof displayCdn === 'boolean' ? displayCdn : true)
+                                    visibleControls
                                         .map(({type, inputType, label, key, dataFetch, options, onChange}) =>
                                             typeof type === 'function' ?
                                                 type({
