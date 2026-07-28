@@ -179,6 +179,34 @@ horizontal bars with no axes.
   is unchanged. So: set `title.title` + `description` as plain strings and let the
   brand style them — don't hand-set fonts per section.
 
+## Pattern: in-chart title + caption (lighter than a sibling Card)
+
+Every `avlGraph` already renders `display.title.title` (bold heading) and, right under it,
+`display.description` as a smaller subtitle line — see `GraphComponent.jsx`'s `GraphTitle`
+(`{...graphFormat.title}` for the title props, `description={graphFormat.description}` passed
+separately). `!title && !description` renders nothing, so an empty/unset `description` costs
+nothing. This is the right choice for a one-line-to-one-paragraph caption; reach for the sibling
+`Card` pattern below only when you need a real hero **stat** (a number + pill), not just text.
+
+**Both fields have a Settings-panel control** (`graph_new/config.jsx`'s "Graph" controls group):
+`Title` (a single-line `input`) and `Description` (added 2026-07-27 — a real multi-line
+`<textarea>`, built via the `type: <function>` escape hatch rather than `inputType: 'textarea'`,
+because `InputControl` (`dataWrapper/components/InputControl.jsx`) only ever renders a literal
+`<input>` — passing `inputType: 'textarea'` to it silently becomes `<input type="textarea">`,
+which browsers just fall back to `type="text"` for. `DomainEditor` just above in the same controls
+list is the existing precedent for this escape hatch).
+
+`description` is untouched by a measure-pick change — `applyMeasurePick`
+(`MeasurePicker/index.js`) only ever merges `graphType`/`fetchMode`/`xAxis`/`yAxis`/`colors`/
+`_functions` into `display`, so a caption survives switching graph type/measure/resolution.
+
+This field already had a write source before it had an edit control: `convert_old_reports.py`
+writes an old report's per-panel caption (`state.message.text`) into exactly this
+`display.description` on conversion (`convert_old_reports.py:4203/4234`) — it was rendering
+correctly the whole time, just not author-editable or spec-buildable until this control/the
+`report_build.mjs` `caption` field existed. See `research/npmrds-reports/report-spec.md`'s
+"Per-graph captions" section for the report-building side of this.
+
 ## Pattern: chart header + hero stat
 The design's trend cards carry a header (kicker + title) and a right-aligned **hero
 stat** (the current-year value + a meets/below pill). Build it as a small **`Card`**

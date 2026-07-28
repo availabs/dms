@@ -32,11 +32,44 @@ back here with the resulting `route_id`(s).
 The point of the spec isn't just declarative building — it's that a **literal client
 request** ("a client wants to see how traffic changed on corridor X between period A
 and period B") should turn into a good report by inference, with the inference itself
-reviewable before anything is built. Concretely:
+reviewable before anything is built.
+
+### Intake checklist: what to infer, guess-and-flag, or ask
+
+Real client requests are routinely underspecified — the Beacon NY-9D request named two
+cross-streets but no segment extent, and named a purpose ("how new actuated signals
+have helped traffic congestion") but no measure. **Nothing on this list is hard-required
+before writing a spec.** An early version of this checklist made every input required,
+and that was wrong: a blocking checklist stalls on exactly the requests that actually
+arrive. Make the best guess from whatever arrives, record the inference (`why` on a
+graph, `confidence` on a route), and only stop to ask when the posture below says so.
+
+| input | posture | why |
+|---|---|---|
+| Corridor / road name | infer, always | often an alias — see below |
+| Segment extent | **guess + flag confidence** | ambiguous by nature; "around Verplank and Beekman" has no determinate answer — set `routes[].confidence` (see `report-spec.md`) |
+| Direction(s) | infer, default both | cheap to correct, and both-directions is the common corridor-study shape |
+| Study period(s) | infer, ask if absent | must sit post-2017; same-season year-over-year for before/after (see the rules below) |
+| The client's actual question | infer from purpose language | "how signals helped congestion" → travel time, before/after |
+| Peak-only vs all-day | ask | no first-class control exists yet (`report-route-ui-parity-gaps.md` gap #11) — changes whether the ask is even expressible |
+| Audience | assume client-facing | drives how much prose/labeling to generate (see the prose step below) |
+| Map screenshot | request when the road name doesn't resolve | see below — sometimes the only usable signal |
+
+**Road aliases are not resolvable from the data.** Clients name roads locally ("Route 9D,
+also known as North Ave/Wolcott Ave") but `altrtename` is empty for plenty of real
+corridors (verified for NY-9D in Dutchess County) — an alias-named road can resolve to
+*nothing* in the TMC identification table. A screenshot isn't just "helpful" here, it's
+the only signal left once the name itself is unresolvable.
+
+Concretely, turning intake into a spec:
 
 1. Put the client's ask verbatim in the spec's top-level `request` field.
 2. Resolve the corridor to route(s) — one `route_id` per physical direction (see
-   `creating-routes.md` if they don't exist yet).
+   `creating-routes.md` if they don't exist yet). **Mark segment-extent guesses**: if
+   the request doesn't pin down how far the corridor runs, set a low `confidence` on
+   the affected `routes[]` entry (`{level: "low", note: "..."}`) instead of silently
+   picking an extent — `--summary` and a real build both print a "NEEDS REVIEW" flag
+   for it, so the guess survives into review instead of disappearing.
 3. Express "period A vs period B" as **two route instances sharing one `route_id`**,
    differing only by `startDate`/`endDate` — this is the before/after idiom, not two
    different routes. Give each instance a name that already reads sensibly as a chart
@@ -46,12 +79,112 @@ reviewable before anything is built. Concretely:
    typically an overlaid overview (`LineGraph`, `comparisonMode: "plain"`) for "what
    does the whole picture look like", plus one `BarGraph`
    `comparisonMode: "difference"` per direction if the client explicitly wants the
-   delta, not just an eyeballed overlay.
+   delta, not just an eyeballed overlay. **Check the composition hints below first** —
+   don't design a panel set from scratch when a real corpus of ~800 old reports already
+   shows what worked for this kind of ask.
 5. Pick `measure` and `resolution` per graph based on what the ask actually cares about
    (travel time vs speed vs delay; 5-minute for peak-shape detail, hour/day for a
    smoother trend).
-6. Run `--summary` (see below) and read it back against the original ask before
+6. **Write the client-facing prose**: a top-level `intro` (renders as a heading + paragraph
+   at the top of the page — the *only* place `spec.title` is ever visible to a viewer) and,
+   for any graph that needs explaining, a per-graph `caption` (renders as a subtitle under
+   that chart's own title). Base the voice on the old corpus's caption style — see
+   `planning/tasks/current/client-request-to-report-skill.md`'s composition-rules section for
+   real examples ("The line graph above displays… This allows the analyst to…").
+7. Run `--summary` (see below) and read it back against the original ask before
    building anything — this is the review step the spec format exists to enable.
+
+### Composition hints: what old reports typically included, by purpose
+
+A corpus analysis of the old tool's 869 real reports (after collapsing near-duplicate
+copies — the raw counts were inflated by copy-paste batches) found that **client purpose
+predicts panel composition** far better than any fixed template: reports classified by
+what they're *for* share panel sets at 1.4×–4.7× the random baseline. Use this as a
+starting point for step 4, not a rule — the largest lifts sit on the smallest samples (as
+few as 4–7 reports for some classes below), so treat them as strong hints, not laws.
+
+| if the request reads as... | old reports typically included | spec-buildable today? |
+|---|---|---|
+| **before/after** (a change, then measuring its effect) | Route Info Box (speed, travelTime) · Route Map · Route Line Graph · Route Bar Graph; often also TMC Grid Graph, Bar Graph Summary | Map/LineGraph/BarGraph/GridGraph yes; Route Info Box **not yet** |
+| **signal_timing** (an intersection/corridor signal change — NY-9D's class) | Route Map (100%) · Route Compare Component on speed and travelTime (71% each) · Route Bar Graph | Map yes; Route Compare Component **not yet** |
+| **road_diet** (a lane reduction/reallocation) | Route Map · Route Info Box (freeflow, speed) · Route Line Graph | Map/LineGraph yes; Route Info Box not yet |
+| **reliability** (LOTTR/TTTR/percentile framing) | Route Info Box (speed, percentile95) · Route Bar Graph (travelTime) · Bar Graph Summary · TMC Grid Graph | GridGraph yes; Route Info Box not yet (`percentile95-byDateRange` specifically has no shape built at all yet, unlike Info Box's other measures) |
+| **route_comparison** (multiple corridors/directions side by side — the largest class, n=110) | Route Map (78%) · Route Line Graph (73%) · TMC Grid Graph (67%) · Route Info Box/speed (56%) | Map/LineGraph/GridGraph yes; Route Info Box not yet |
+| **congestion** (general delay/slowdown framing) | Route Line Graph/avgHoursOfDelay · Route Map · Route Bar Graph/hoursOfDelay | all yes |
+| **cmp** (formal Congestion Management Process reporting) | Route Line Graph (100%) · Route Map (83%) · Route Bar Graph (hoursOfDelay, planningTime) | all yes |
+
+**Two panels this table names aren't spec-buildable yet, and both are the same class of
+gap Route Map had until 2026-07-27** — a real shape already built in
+`convert_old_reports.py`, just never shelled out to from `report_build.mjs`:
+- **Route Info Box** — 5 measure buckets already exist (reliability, travel time, length,
+  AADT, hours of delay), minted as a DMS Spreadsheet section.
+- **Route Compare Component** — a base + N-compare-rows %-diff-from-base Spreadsheet
+  shape.
+
+Both are tracked as next steps in `client-request-to-report-skill.md`. Until they land,
+the closest spec-buildable substitute for a `signal_timing` or `reliability` request is
+what NY-9D actually used: an overlaid `LineGraph` overview plus per-direction `BarGraph`
+`comparisonMode: "difference"` — a real substitution, not the historically typical
+composition for that purpose, so say so in the graph's `why` rather than silently
+picking it and moving on.
+
+Full analysis (sample sizes, the duplicate-collapse correction behind these numbers, and
+how "purpose" was classified) lives in
+`planning/tasks/current/client-request-to-report-skill.md`'s "purpose lens" section —
+read it before extending this table rather than re-deriving the numbers.
+
+### Rules (earned corrections)
+
+Distilled from real requests, not aspirational — each exists because it was gotten
+wrong once, live, and corrected. Add to this list rather than losing a correction when
+the same situation comes up again (see "Feedback loop" below for how a new one gets
+promoted here).
+
+1. A route is a **geometry, not a period** — never encode a date range in a route name
+   or metadata. The window belongs to the report's route instance
+   (`routes[].startDate`/`endDate` in the spec), not the route catalog row.
+2. Before/after windows must be **same-season year-over-year** (Jan/Feb 2025 vs Jan/Feb
+   2026, not winter vs spring) — comparing across seasons confounds the exact signal
+   the client is asking about.
+3. Stay inside **post-2017 data coverage** — roughly 15% of the old tool's reports are
+   pre-2017-only and permanently blank. Check the ask's dates before building anything.
+4. Name routes so they read as **chart legend entries** directly (e.g. `"NY-9D
+   Northbound — Jan-Feb 2025"`, not the bare corridor name repeated) — per-instance
+   rename is a known UI gap (`report-route-ui-parity-gaps.md`), so the name given at
+   creation is what ships.
+5. Name a difference graph's **anchor explicitly** (`graphs[].anchor`) — add-order
+   silently decides it otherwise, and the UI exposes no control for this at all.
+6. **Don't gate route validation on GIS continuity heuristics** — report gaps as
+   advisory warnings, not hard errors (`creating-routes.md`'s three-tier validation).
+   Coordinate abutment and `road_order` contiguity both have real false negatives.
+7. **Guess and flag, don't block.** Client requests are routinely underspecified about
+   segment extent; produce a best-guess route with `confidence: {level: "low", note}`
+   and let AVAIL correct it via feedback. Never stall a report waiting for detail the
+   client was never going to provide.
+8. **Ask for a screenshot when the road name doesn't resolve** — local aliases (e.g.
+   "North Ave" for NY-9D) are absent from `altrtename`, so there is no data path from
+   alias to TMC; the screenshot plus geographic reasoning is the only signal left.
+
+### Feedback loop: AVAIL review → spec diff → rule
+
+There is no separate intake form or ticket queue — an AVAIL reviewer's plain-English
+feedback on a built report ("move the after period back a month", "explain the March
+dip") arrives as chat, and should turn into a small, reviewable change, not a rebuild:
+
+1. Reviewer pastes feedback into chat.
+2. Get the current spec — `--from-page <page> --out <path>` if it isn't already on
+   hand — and edit it to reflect the feedback. This is a diff to an existing spec, not
+   a new one.
+3. `--update <page> --note "..."` applies it. The build reports exactly what changed
+   (`N created, M updated, K deleted`) and appends `{at, note, changed_paths}` to the
+   row's `_specRevisions` log — the reviewer-visible diff and the durable record are
+   the same write, not two separate steps.
+4. **If the same correction shows up more than once, promote it into the Rules section
+   above.** A correction that keeps getting made by hand is exactly the signal this
+   storage design exists to capture — rules distilled from corrections live as prose in
+   this file, not as data on any one report (see
+   `planning/tasks/current/client-request-to-report-skill.md`'s storage-decisions
+   table).
 
 **Full field reference:** `research/npmrds-reports/report-spec.md` — every field,
 required/optional, and the semantics that are easy to get backwards (duplicate-name

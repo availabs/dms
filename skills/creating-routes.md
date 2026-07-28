@@ -1,20 +1,82 @@
-# Creating NPMRDS routes (route-creation map tool)
+# Creating NPMRDS routes
 
-Building the route(s) a report will reference — TMC-chain identification plus the
-route-creation map tool. This is the prerequisite step for
+Building the route(s) a report will reference. This is the prerequisite step for
 [`creating-reports.md`](./creating-reports.md): a report spec references routes by
 `route_id`, it doesn't create them.
 
 > **Audience:** an engineer/AI (or a future skill/agent) doing this workflow for the
-> first time. Written from a real worked example (NY-9D through Beacon, NY) so every
-> step below has been driven live through the UI, not inferred from code.
+> first time.
 
-## Prerequisite: route creation only exists in transportNY
+**The CLI (`scripts/npmrds-reports/route_build.py`) is the primary path** — it writes
+the exact same 7-key Routes Data row the map tool does, needs no browser and no
+transportNY dev server, and is Claude's path for turning a client request into routes.
+The map tool below is kept as the human path (it still works, and is the only path for
+a person eyeballing a map), documented as a second column, not the primary flow — same
+split as `creating-reports.md`'s spec-first framing.
+
+## The CLI path (primary)
+
+```bash
+# find: read-only TMC chain discovery, no writes
+python3 scripts/npmrds-reports/route_build.py find --road 9D --county DUTCHESS
+python3 scripts/npmrds-reports/route_build.py find --road 9D --direction NORTHBOUND \
+    --from-intersection 'MAIN ST' --to-intersection 'I-84'
+
+# build: validate a route spec, create the row(s), print a ready-to-paste routes[] fragment
+python3 scripts/npmrds-reports/route_build.py build myroutes.json --dry-run
+python3 scripts/npmrds-reports/route_build.py build myroutes.json
+```
+
+`find` prints candidate TMCs in true along-road order with a contiguity check, plus a
+ready-to-paste `tmcs` array per direction — this is how you turn "9D through Beacon" or
+a pair of named cross-streets into a concrete TMC chain without touching a map.
+`--from-intersection`/`--to-intersection` slice the chain to an endpoint-to-endpoint
+span; there's no "N segments around this one intersection" affordance yet (the request
+shape is usually intersection-centric, not endpoint-to-endpoint — see the intake
+checklist in `creating-reports.md`).
+
+`build` takes a JSON file (one or more routes, e.g. one per direction):
+
+```json
+{ "routes": [
+  { "name": "NY-9D Northbound (Main St/Beacon to I-84)",
+    "tmcs": ["120+29712", "120+29713", "120+29714"] }
+] }
+```
+
+`tmcs` order doesn't have to be correct — the build sorts to true along-road order
+(`road_order`) and reports the reorder; that's strictly better than the map tool, which
+stores click order. Validation is **three tiers**, deliberately so — deciding whether
+two segments "actually touch" has no reliable cheap test (divided highways and
+interchanges leave genuine metre-scale gaps a driver experiences as continuous, and
+`road_order` numbering holes are not breaks):
+
+- **hard error** (unambiguous data problems): a TMC doesn't exist, mixed directions in
+  one route, empty `tmcs`/missing `name`, or a date field present — a route is a
+  *geometry*, never a time window (dates belong on the report's route instance, not
+  the route; see the rules below).
+- **warning** (advisory, exit 0 — promote to hard error with `--strict`): endpoint gap
+  > 150m, spans multiple road names/`tmclinear` values, a `road_order` hole, a
+  duplicate name.
+- `--verify-routing` — **experimental, currently does not work, do not use.** Intended
+  as real map-matching via the routing service the plugin's `resolveRoute.js` calls,
+  but it appears to ignore the request body entirely (returned a byte-identical,
+  geographically wrong TMC list for two completely different waypoint arrays), and
+  separately is vintage-bound (only 2020-2022 return TMCs) so even a working version
+  would validate against the wrong TMC universe for a report querying a different
+  year. Full detail in the script's own docstring — read that before touching this flag.
+
+A route never carries dates — `build` hard-errors if the input JSON has one. Give each
+route a clear, self-describing name (inherited by every report reference — RRL
+instance or spec `routes[].name` — with no reliable per-instance rename, see the report
+skill's known gaps).
+
+## Prerequisite: the map tool only exists in transportNY
 
 The route-creation map tool ("routecreation" plugin — TMC Click/Markers modes, TMC
 Search, TMC List panel) lives **only** in the `transportNY` repo
 (`/home/ryan/code/transportNY`), not in `dms-template`. If you're working in
-dms-template and need new routes, you must switch to transportNY's dev server for this
+dms-template and need this UI path, you must switch to transportNY's dev server for this
 step, then come back (routes are DMS rows, visible from either app once created,
 provided both apps point at the same DMS site/app). See "Cross-repo note" at the
 bottom before you do — transportNY pins an older, manually-synced copy of the theme and
@@ -24,7 +86,12 @@ the `@availabs/dms` submodule.
 workflow — report pages, Measure Picker, RRL — is dms-template work; don't develop it in
 transportNY even if the dev server is already open there.
 
-## Step 1 — Identify the real-world segments
+## The map tool path (human-driven, still works)
+
+Written from a real worked example (NY-9D through Beacon, NY) so every step below has
+been driven live through the UI, not inferred from code.
+
+### Step 1 — Identify the real-world segments
 
 Don't try to eyeball TMC segments on the map by pixel-clicking alone — it's slow and
 error-prone (see "Known gaps" below). Instead:
@@ -49,7 +116,7 @@ error-prone (see "Known gaps" below). Instead:
 This ground-truth-first approach replaces unreliable pixel-based map guessing and is
 much faster once the TMC chain is known.
 
-## Step 2 — Build the route(s) in the map tool (transportNY only)
+### Step 2 — Build the route(s) in the map tool (transportNY only)
 
 URL pattern: `http://npmrds.localhost:5173/edit/<some-page>` for a scratch page with a
 map section in edit mode, or the dedicated route-creation demo page if one exists
