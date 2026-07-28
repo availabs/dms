@@ -51,7 +51,7 @@ graph, `confidence` on a route), and only stop to ask when the posture below say
 | Direction(s) | infer, default both | cheap to correct, and both-directions is the common corridor-study shape |
 | Study period(s) | infer, ask if absent | must sit post-2017; same-season year-over-year for before/after (see the rules below) |
 | The client's actual question | infer from purpose language | "how signals helped congestion" → travel time, before/after |
-| Peak-only vs all-day | ask | no first-class control exists yet (`report-route-ui-parity-gaps.md` gap #11) — changes whether the ask is even expressible |
+| Peak-only vs all-day | ask | expressible now via `routes[].startTime`/`endTime` (added 2026-07-28, see `report-spec.md`) — but still ask, since the window itself (which hours count as "peak") has no determinate default |
 | Audience | assume client-facing | drives how much prose/labeling to generate (see the prose step below) |
 | Map screenshot | request when the road name doesn't resolve | see below — sometimes the only usable signal |
 
@@ -105,28 +105,34 @@ few as 4–7 reports for some classes below), so treat them as strong hints, not
 
 | if the request reads as... | old reports typically included | spec-buildable today? |
 |---|---|---|
-| **before/after** (a change, then measuring its effect) | Route Info Box (speed, travelTime) · Route Map · Route Line Graph · Route Bar Graph; often also TMC Grid Graph, Bar Graph Summary | Map/LineGraph/BarGraph/GridGraph yes; Route Info Box **not yet** |
+| **before/after** (a change, then measuring its effect) | Route Info Box (speed, travelTime) · Route Map · Route Line Graph · Route Bar Graph; often also TMC Grid Graph, Bar Graph Summary | all yes — Route Info Box wired 2026-07-28 (see below) |
 | **signal_timing** (an intersection/corridor signal change — NY-9D's class) | Route Map (100%) · Route Compare Component on speed and travelTime (71% each) · Route Bar Graph | Map yes; Route Compare Component **not yet** |
-| **road_diet** (a lane reduction/reallocation) | Route Map · Route Info Box (freeflow, speed) · Route Line Graph | Map/LineGraph yes; Route Info Box not yet |
-| **reliability** (LOTTR/TTTR/percentile framing) | Route Info Box (speed, percentile95) · Route Bar Graph (travelTime) · Bar Graph Summary · TMC Grid Graph | GridGraph yes; Route Info Box not yet (`percentile95-byDateRange` specifically has no shape built at all yet, unlike Info Box's other measures) |
-| **route_comparison** (multiple corridors/directions side by side — the largest class, n=110) | Route Map (78%) · Route Line Graph (73%) · TMC Grid Graph (67%) · Route Info Box/speed (56%) | Map/LineGraph/GridGraph yes; Route Info Box not yet |
+| **road_diet** (a lane reduction/reallocation) | Route Map · Route Info Box (freeflow, speed) · Route Line Graph | Map/LineGraph yes; Route Info Box yes as of 2026-07-28, but its "freeflow, speed" pairing is the InfoBox `reliability` bucket specifically, which needs source 1410 (pm3) and only covers 2018-2025 — unusable if the study period is outside that window (hit for real on the Poughkeepsie road-diet request, 2026-07-28: substituted `travelTime`/`hoursOfDelay` instead) |
+| **reliability** (LOTTR/TTTR/percentile framing) | Route Info Box (speed, percentile95) · Route Bar Graph (travelTime) · Bar Graph Summary · TMC Grid Graph | GridGraph yes; Route Info Box's `reliability` bucket (LOTTR/TTTR/freeflow) yes, but only for 2018-2025 (source 1410's real coverage — see road_diet row); `percentile95-byDateRange` specifically has no shape built at all yet, unlike Info Box's other measures |
+| **route_comparison** (multiple corridors/directions side by side — the largest class, n=110) | Route Map (78%) · Route Line Graph (73%) · TMC Grid Graph (67%) · Route Info Box/speed (56%) | all yes — Route Info Box wired 2026-07-28 |
 | **congestion** (general delay/slowdown framing) | Route Line Graph/avgHoursOfDelay · Route Map · Route Bar Graph/hoursOfDelay | all yes |
 | **cmp** (formal Congestion Management Process reporting) | Route Line Graph (100%) · Route Map (83%) · Route Bar Graph (hoursOfDelay, planningTime) | all yes |
 
-**Two panels this table names aren't spec-buildable yet, and both are the same class of
-gap Route Map had until 2026-07-27** — a real shape already built in
-`convert_old_reports.py`, just never shelled out to from `report_build.mjs`:
-- **Route Info Box** — 5 measure buckets already exist (reliability, travel time, length,
-  AADT, hours of delay), minted as a DMS Spreadsheet section.
-- **Route Compare Component** — a base + N-compare-rows %-diff-from-base Spreadsheet
-  shape.
+**One panel this table names still isn't spec-buildable — Route Compare Component**, the
+same class of gap Route Map had until 2026-07-27 and Route Info Box had until 2026-07-28: a
+real shape already built in `convert_old_reports.py` (`ensure_route_compare_template`), just
+never shelled out to from `report_build.mjs`. Tracked as a next step in
+`client-request-to-report-skill.md`. Until it lands, the closest spec-buildable substitute
+for a `signal_timing` request is what NY-9D actually used: an overlaid `LineGraph` overview
+plus per-direction `BarGraph` `comparisonMode: "difference"` — a real substitution, not the
+historically typical composition for that purpose, so say so in the graph's `why` rather
+than silently picking it and moving on.
 
-Both are tracked as next steps in `client-request-to-report-skill.md`. Until they land,
-the closest spec-buildable substitute for a `signal_timing` or `reliability` request is
-what NY-9D actually used: an overlaid `LineGraph` overview plus per-direction `BarGraph`
-`comparisonMode: "difference"` — a real substitution, not the historically typical
-composition for that purpose, so say so in the graph's `why` rather than silently
-picking it and moving on.
+**A second, unrelated gap this table doesn't capture at all, found 2026-07-28 on a real
+road-diet request, and fixed the same day**: none of these compositions could be scoped to
+a peak-hour (or any time-of-day) sub-window — see "Peak-only vs all-day" in the intake
+checklist above. A real before/after comparison for that request needed AM-peak-only and
+PM-peak-only cuts to see a genuine divergence (AM peak got worse year-over-year, PM peak
+didn't) that an all-day average hid completely. Fixed via `routes[].startTime`/`endTime`
+(see `report-spec.md`) — each peak window is its own route instance sharing the underlying
+`route_id`, exactly like the before/after date-window idiom in step 3 above. Full write-up,
+design rationale, and live verification are in `report-spec.md`'s `startTime`/`endTime`
+section; `client-request-to-report-skill.md`'s "Next steps" item #11 is closed.
 
 Full analysis (sample sizes, the duplicate-collapse correction behind these numbers, and
 how "purpose" was classified) lives in
@@ -145,7 +151,14 @@ promoted here).
    (`routes[].startDate`/`endDate` in the spec), not the route catalog row.
 2. Before/after windows must be **same-season year-over-year** (Jan/Feb 2025 vs Jan/Feb
    2026, not winter vs spring) — comparing across seasons confounds the exact signal
-   the client is asking about.
+   the client is asking about. **This applies even to a short, temporary event, not just
+   permanent changes** — a real Poughkeepsie road-diet request (2026-07-28) was reasoned
+   into "adjacent weeks in the same year is a tighter comparison for a 10-day closure than
+   a full year gap," which felt right but wasn't: AVAIL's own answer to that exact request
+   compared against the same calendar dates one year prior, and re-checking the raw data
+   both ways showed why — an adjacent-weeks comparison can look clean and still miss a real
+   effect that a year-over-year comparison catches (see rule 9). Don't re-derive an
+   exception to this rule from first principles; it doesn't have one yet.
 3. Stay inside **post-2017 data coverage** — roughly 15% of the old tool's reports are
    pre-2017-only and permanently blank. Check the ask's dates before building anything.
 4. Name routes so they read as **chart legend entries** directly (e.g. `"NY-9D
@@ -164,6 +177,26 @@ promoted here).
 8. **Ask for a screenshot when the road name doesn't resolve** — local aliases (e.g.
    "North Ave" for NY-9D) are absent from `altrtename`, so there is no data path from
    alias to TMC; the screenshot plus geographic reasoning is the only signal left.
+9. **When a client's date estimate is uncertain, check it against the raw data before
+   writing the spec, not just after.** A direct per-day ClickHouse query (`dbq.py ch`
+   against the raw NPMRDS table) is cheap and can sharply confirm or contradict a guess —
+   on the Poughkeepsie road-diet request (2026-07-28), the client's "around April 20-30"
+   turned out to be measurably wrong at the all-day resolution (the real signal was
+   April 27-30 only) — **and then wrong again in a different way at peak-hour resolution**
+   (AM peak was actually elevated the whole 20-30 window; PM peak wasn't elevated at all).
+   Two lessons in one: querying the raw data beats trusting client memory, but a single
+   query at one resolution/scope can itself be misleadingly precise — see rule 10 before
+   treating any one cut as the full picture.
+10. **Peak-only vs all-day is not a precision choice, it can flip the conclusion.** The
+    intake checklist already says "ask" for peak-vs-all-day, and this rule exists because
+    that posture got skipped once, live: an all-day-average cut of the Poughkeepsie
+    road-diet data found a clean 4-day effect; the same event, cut by AM/PM peak instead
+    and compared year-over-year (rule 2), showed AM peak degraded across the *entire*
+    stated window while PM peak didn't degrade at all — an opposite-flavored story, not
+    just a fuzzier one. There is no spec field for a time-of-day sub-window today
+    (`client-request-to-report-skill.md`'s next-steps #11) — until there is, say so
+    explicitly in the report's `why`/`intro` whenever the request is about congestion or
+    delay impact, rather than silently shipping the all-day cut as if it were complete.
 
 ### Feedback loop: AVAIL review → spec diff → rule
 
@@ -310,9 +343,13 @@ mode — not just "the page is in `/edit/...`".**
 5. After saving, the graph refetches automatically (`fetchMode: 'force'`). If it comes
    back blank, check the console/network tab rather than assuming the pick was wrong.
 
-**Peak-hour-only filtering is not yet a first-class control.** Resolution options are
-5-minutes/15-minutes/hour/day/weekday/month; a "peak window only" chart currently needs
-a manual Filters entry (epoch range).
+**Peak-hour-only filtering** has its own labeled control now (added 2026-07-28): expand
+a route, click the pencil next to Date Range, and a preset row (AM Peak/PM Peak/PM Peak
+(alt)/Midday/All Day) appears next to the date+time inputs. Applies to whichever graphs
+the route feeds — AVL Graph, Route Map, and Route Info Box all read the same route-level
+window. See `planning/tasks/current/report-route-ui-parity-gaps.md` gap #11 for the
+design and live verification, including a correction of an earlier (same-day) claim that
+Route Map/Info Box needed separate wiring — they didn't.
 
 ### Adding a Route Difference Graph by hand
 
@@ -344,8 +381,8 @@ Picker choreography to wire it through the UI instead of a spec's `comparisonMod
 ## Known UI gaps
 
 The click-path's silent-failure modes and missing controls (RRL rename, the graphIds
-pill, peak-hour filtering, the difference-graph anchor coin-flip, `weekdays` having no
-control at all, and others) are tracked and ranked in
+pill, the difference-graph anchor coin-flip, `weekdays` having no control at all, and
+others — peak-hour filtering closed 2026-07-28) are tracked and ranked in
 `planning/tasks/current/report-route-ui-parity-gaps.md` rather than listed here — that
 file is Phase C of the report-spec arc, closing them off one at a time now that the
 spec format makes each one an enumerable, checkable gap (does a control exist for this
