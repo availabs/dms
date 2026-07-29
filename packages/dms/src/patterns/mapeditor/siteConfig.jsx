@@ -39,6 +39,13 @@ const mapeditorConfig = ({
 
 	Object.keys(damaMapPlugins).forEach(plugin => RegisterPlugin(plugin, damaMapPlugins[plugin]));
 
+	// Auto-register theme-provided map plugins — same theme.mapPlugins key as
+	// patterns/page/siteConfig.jsx, so a plugin declared once in the theme is
+	// available both here (authoring) and on published report pages.
+	if (theme.mapPlugins) {
+		Object.entries(theme.mapPlugins).forEach(([name, plugin]) => RegisterPlugin(name, plugin))
+	}
+
 	return {
 		siteType,
 		format,
