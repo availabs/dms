@@ -1292,15 +1292,12 @@ export const MapSection = ({ value, onChange, isEdit, onHandle, sectionId: secti
 //         onChange && onChange(state);
 //     },[onChange, state]);
 
-    defaultStyles.sort((a,b) => {
-        if(a.name === state.basemapStyle) {
-            return -1;
-        } else if (b.name === state.basemapStyle) {
-            return 1
-        } else {
-            return 0
-        }
-    })
+    // The saved basemap is selected by INDEX, not by sorting it to the front. This used to be
+    // `defaultStyles.sort(...)` — an in-place mutation of the imported module array, run in the
+    // render body, so every map on the page (and every map mounted afterwards) saw the reordered
+    // list, and AvlMap's styleIndex no longer matched the style on screen.
+    const activeStyles = state.blankBaseMap ? blankStyles : defaultStyles;
+    const activeStyleIndex = Math.max(0, activeStyles.findIndex(s => s.name === state.basemapStyle));
 
     return (
         <MapContext.Provider value={{state, setState, falcor, falcorCache, pgEnv, doApiLoad}}>
@@ -1325,11 +1322,12 @@ export const MapSection = ({ value, onChange, isEdit, onHandle, sectionId: secti
                   layerProps = { layerProps }
                   hideLoading={true}
                   showLayerSelect={true}
+                  styleIndex={ activeStyleIndex }
                   mapOptions={{
                     center: center,
                     zoom: zoom,
                     //protocols: [PMTilesProtocol],
-                    styles: state.blankBaseMap ? blankStyles : defaultStyles,
+                    styles: activeStyles,
                       dragPan: state.zoomPan,
                       scrollZoom: state.zoomPan,
                       dragRotate: state.zoomPan

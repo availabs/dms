@@ -169,7 +169,6 @@
 
 ## ui
 
-<<<<<<< HEAD
 - [x] [Map filter-bounds: point layers crash the page, arrive unprojected, and can't provide bounds](./tasks/current/map-filter-bounds-point-layers.md) —
       FIXED 2026-07-28. Three defects in one path: a single-feature `ST_Extent` returns a **Point**, so
       `coordinates[0]` was a number and `.reduce` threw — replacing the whole route with "Unable to
@@ -177,7 +176,22 @@
       `LngLatBounds`; and only the ACTIVE layer could supply bounds, so an empty active layer meant no
       zoom at all. Plus a ~1km buffer for zero-area extents. All BC; verified on tsmo2 incident_view.
 
-=======
+- [x] [Map basemap switcher: blank-square trigger + no active-basemap marker](./tasks/completed/map-basemap-switcher-trigger-icon.md) —
+      the switcher TRIGGER was never given an icon: `avl-map.jsx` renders a hardcoded
+      `w-8 h-8 bg-slate-400` swatch (measured live: 32×32, zero children, no text) beside three
+      line-art siblings, so clients read it as a failed image (transportNY #179). Everything needed
+      already exists — `mapStyleIcon: "MapLayers"` is in `map.theme.js` + `themev2.js`, registered and
+      defined, and the menu rows already render it. Second defect in the same block: `styleIndex` is
+      passed in and destructured but **never read**, so nothing marks the active basemap. Adding that
+      marker exposed a third: `ComponentRegistry/map` ran `defaultStyles.sort()` **in the render body**
+      — an in-place mutation of the imported module array — to hoist the saved basemap to index 0,
+      because `AvlMap` mounted `styles[0]` unconditionally and ignored the `styleIndex` prop it has
+      always declared. So the displayed order and `styleIndex` disagreed after any selection. Mount now
+      honours `styleIndex` and the sort is gone. IMPLEMENTED + live-verified 2026-07-29 (incl. the
+      non-zero mount path and a second app); all BC, two files, no new theme keys. Visible on every DMS
+      map in every app (4 call sites). Resolved on owner review 2026-07-29; pending the transportNY
+      vendored-dms sync before clients see it.
+
 - [ ] [Duration value format (M:SS) for travel-time axes and tooltips](./tasks/current/duration-value-format-mm-ss.md) —
       travel time is carried in minutes, so short corridors render as `0.9` / `-1.2` on a y-axis. Add a
       `minutes_seconds` entry to the `ValueFormats` registry (selectable everywhere `getFormatFunc`
@@ -213,7 +227,6 @@
       Bar/Line/Pie/Treemap. Library half of dms-template's `report-route-color-assignment.md`.
       IMPLEMENTED + live-verified 2026-07-22 (200/200 unit tests, zero-regression probe on a real
       report). Full end-to-end color rendering re-verify pending the theme-side task.
->>>>>>> 1511fc8bdf80d6b1ae61d830093873e9254cf4e7
 - [ ] [Filter bar: author-controlled clear (×) for single-select pickers — `filter.allowClear`](./tasks/current/filter-bar-single-select-clearable.md) —
       `RenderFilterValueSelector` (the filter-BAR path) never passed `allowDeselect`, so a single-select
       page filter was stuck on its first pick with no way back to the unset state
@@ -349,7 +362,27 @@
 
 ### patterns/page
 
-<<<<<<< HEAD
+- [x] [Derived page variable — one control drives a value another binding needs](./tasks/current/derived-page-variable.md) —
+      DONE 2026-07-29. A page-filter row gains `derivedFrom: "<other searchKey>"` + `derive: "yyyy"`,
+      so e.g. a network-vintage variable follows the Month control instead of being a second thing the
+      user must keep consistent. Deliberately at the **variable** layer, not the filter leaf: section
+      leaves resolve via `applyPageFilters` but map `dynamic-filters` resolve in the map component, so
+      a leaf-level transform would have to be built twice — deriving the variable means both consumers
+      keep doing what they already do. Explicit URL param wins over the derivation. BC (rows without
+      the fields unchanged), author-editable in Settings → Filters, 11 unit cases + live verification.
+      NB a derived variable must NOT be url-bound: `updatePageStateFilters` re-emits every
+      `useSearchParams` row, so a derived value in the URL goes stale and blocks its own re-derivation.
+      First consumer: ticket 2196296 `corridor_view` — `?month=202001` now moves cards AND map to the
+      2020 network (51 TMCs / 141k), with no section or map changes needed.
+- [ ] [A stale `smart` section is indistinguishable from a working one](./tasks/current/persisted-cached-rows-freeze-section.md) —
+      the control room served ticket 2191409 as `Needs data` for a day after it was Resolved. Cause
+      was configuration, not a defect: the ticket list/detail were `fetchMode: smart` (render seeds,
+      refetch only on param change) on data that changes with no param signal — they should have been
+      `force`. FIXED 2026-07-29 on the three sections. What remains is the trap: `smart` with no
+      `usePageFilters`/`searchParamKey` leaf can never refetch, so it is functionally `cache`, and
+      nothing warns the author or the reader. Proposal: detect that shape in the Settings drawer +
+      an audit helper to find sections already in it. Signature to recognise: live KPI cards above a
+      frozen table on the same page.
 - [x] [Map hover popup skips the feature whose `ogc_fid` is 0](./tasks/current/map-hover-skips-ogc-fid-zero.md) —
       DONE 2026-07-28. DAMA tiles carry no properties, so the popup fetches them via
       `dataById[feature.id]` — gated on `if (!id) return`, which silently dropped the one feature
@@ -357,9 +390,7 @@
       while the rest of the layer hydrated. Presence check instead of truthiness, in all three
       copies (`map`, `map_dama`, `mapeditor`). BC. Origin: QA ticket 2191409 (Freight Atlas MPO
       layer, OCTC). Core rides the owner git sync.
-=======
 - [x] [Section header extensions — generic extension point for inline header content](./tasks/completed/section-header-extensions.md) — mirrors `sectionMenuExtensions` but for the section title-bar/header area instead of the Settings drawer. Library-side prerequisite for the theme-side [AVL Graph quick controls](../../../planning/tasks/current/avl-graph-quick-controls.md) task. Scoped 2026-07-21, implemented + live-verified 2026-07-22 — the View-mode row deliberately renders independent of `showHeader` (not nested inside `ViewSectionHeader` as originally sketched), since AVL Graph's "header + hero-stat" pattern leaves the section's own title empty.
->>>>>>> 1511fc8bdf80d6b1ae61d830093873e9254cf4e7
 - [x] [Section border — per-side width + theme color](./tasks/current/section-border-width-color.md) —
       let a section render a border with configurable width + a theme-palette color (inline style;
       Tailwind can't JIT arbitrary values), applied at the section level. Replaces the per-cell

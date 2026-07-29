@@ -506,6 +506,56 @@ export const deriveMapShareVariables = (item) => {
     return vars;
 };
 
+/**
+ * Named derivations available to a page variable via `derive`. Deliberately a small closed
+ * registry rather than an expression language: an author can tell what a row does by reading it,
+ * and there is nothing to sandbox.
+ */
+const PAGE_VARIABLE_DERIVATIONS = {
+    // "202606" → "2026". A YYYYMM month key's first four chars are its year — which is how a
+    // network-vintage variable follows a Month control instead of being set separately.
+    yyyy: (v) => String(v).slice(0, 4),
+};
+
+/**
+ * Resolve page variables that declare `derivedFrom` (another row's searchKey) + `derive`
+ * (a key of PAGE_VARIABLE_DERIVATIONS) by computing their value from the source row.
+ *
+ * A derived variable should NOT be URL-bound. `updatePageStateFilters` (view.jsx) rebuilds the
+ * query string from EVERY `useSearchParams` row, so a derived row in the URL would be re-emitted
+ * with its old value whenever any other control changed — and on the next URL→state pass that
+ * stale value is indistinguishable from a deliberate override, so the derivation could never
+ * re-fire. Keeping it out of the URL removes the ambiguity: the source variable is in the URL and
+ * the derived value follows it. Both consumers still see it, because neither reads the URL —
+ * section leaves resolve page variables in `applyPageFilters`, and map dynamic-filters match
+ * `dataPageFilters` by searchKey, and both come from pageState.
+ *
+ * Single hop only (deriving from another derived row is left alone, so there are no cycles), and
+ * an unset source leaves the row's own `values` in place as the fallback — mirroring
+ * `applyPageFilters`, which preserves a leaf's saved value rather than widening the query.
+ * Returns the input array unchanged when nothing resolves, so callers keep a stable identity.
+ */
+export const applyDerivedPageVariables = (filters) => {
+    if (!Array.isArray(filters) || !filters.some(f => f?.derivedFrom && f?.derive)) return filters;
+    const bySearchKey = new Map(filters.map(f => [f?.searchKey, f]));
+    let changed = false;
+    const next = filters.map(f => {
+        if (!f?.derivedFrom || !f?.derive) return f;
+        const fn = PAGE_VARIABLE_DERIVATIONS[f.derive];
+        const source = bySearchKey.get(f.derivedFrom);
+        if (!fn || !source || (source.derivedFrom && source.derive)) return f;
+        const raw = Array.isArray(source.values) ? source.values[0] : source.values;
+        if (raw === null || raw === undefined || !String(raw).length) return f;
+        const value = fn(raw);
+        if (value === null || value === undefined || !String(value).length) return f;
+        const current = Array.isArray(f.values) ? f.values[0] : f.values;
+        if (String(current) === String(value)) return f;
+        changed = true;
+        return { ...f, values: Array.isArray(f.values) ? [value] : value };
+    });
+    return changed ? next : filters;
+};
+
 // The full page-variable registry: authored page.filters (+ pattern filters) plus any
 // component-auto-registered variables (currently map share-state). Deduped by searchKey so
 // an author-declared entry always wins over an auto one. Used by BOTH the pageState seed
@@ -514,7 +564,7 @@ export const getPageVariableRegistry = (item, patternFilters=[]) => {
     const authored = mergeFilters(item?.filters, patternFilters);
     const authoredKeys = new Set(authored.map(f => f.searchKey));
     const derived = deriveMapShareVariables(item).filter(v => !authoredKeys.has(v.searchKey));
-    return [...authored, ...derived];
+    return applyDerivedPageVariables([...authored, ...derived]);
 }
 
 
@@ -528,13 +578,16 @@ export const updatePageStateFiltersOnSearchParamChange = ({searchParams, item, p
     // If searchParams have changed, they should take priority and update the state
     //if (Object.keys(urlFilters).length ) { // || true // was eslint issue
         const existingFilters = getPageVariableRegistry(item, patternFilters);
-        const newFilters = (existingFilters || []).map(filter => {
+        const mappedFilters = (existingFilters || []).map(filter => {
             if(filter.useSearchParams && urlFilters[filter.searchKey]){
                 return {...filter, values: urlFilters[filter.searchKey]}
             }else{
                 return filter;
             }
         })
+        // Re-derive AFTER the URL values land, so a derived variable follows its source on every
+        // navigation (change Month → the vintage moves with it), not just on the initial registry.
+        const newFilters = applyDerivedPageVariables(mappedFilters)
 
         if(newFilters?.length){
             setPageState(page => {

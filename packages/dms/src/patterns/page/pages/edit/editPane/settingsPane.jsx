@@ -50,6 +50,28 @@ const FilterSettings = ({label, type, value, stateValue, onChange}) => {
                           className: 'self-center',
                           customTheme
                       },
+                      // A derived variable takes its value from another variable on this page
+                      // instead of from the author/URL — e.g. a network-vintage `year` that
+                      // follows a `month` control (202501 → 2025). Leave 'Derived From' blank
+                      // for an ordinary variable. 'Search Value' becomes the fallback used when
+                      // the source is unset, and 'Use URL' should stay OFF (a derived value in
+                      // the URL gets re-emitted stale by the other controls).
+                      {label: 'Derived From', type: 'MultiSelect', singleSelectOnly: true, searchable: false,
+                          value: filter.derivedFrom || '',
+                          options: [{label: '— not derived —', value: ''},
+                              ...tmpValue.filter(f => f.searchKey && f.searchKey !== filter.searchKey && !f.derivedFrom)
+                                  .map(f => ({label: f.searchKey, value: f.searchKey}))],
+                          onChange: v => updateFilters(i, 'derivedFrom', v || undefined),
+                          customTheme
+                      },
+                      ...(filter.derivedFrom ? [
+                          {label: 'Derive', type: 'MultiSelect', singleSelectOnly: true, searchable: false,
+                              value: filter.derive || '',
+                              options: [{label: 'year of YYYYMM', value: 'yyyy'}],
+                              onChange: v => updateFilters(i, 'derive', v || undefined),
+                              customTheme
+                          }
+                      ] : []),
                       {label: 'Active Value', type: () => <div className={'text-sm pb-2 flex flex-col'}>{(stateValue || []).find(sf => sf.searchKey === filter.searchKey)?.values}</div>
                       },
                       {type: 'Button', children: 'remove',

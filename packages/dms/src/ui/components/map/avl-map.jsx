@@ -161,20 +161,23 @@ const Navigationcontrols = ({ showLayerSelect, mapStyles, styleIndex, MapActions
   return (
     <div className="flex flex-row cursor-pointer pointer-events-auto">
       { (showLayerSelect && (mapStyles && mapStyles.length > 1)) && (
-        <div className='hover:bg-slate-100/50 h-10 w-10 flex items-center justify-center rounded relative'>
-          <div className='border border-slate-400 rounded shadow' onClick={() => showStyleSelect(!styleSelect)}>
-            <div className='w-8 h-8 rounded border bg-slate-400' />
+        <div className='hover:bg-slate-100/50 h-10 w-10 flex items-center justify-center rounded relative text-slate-600 hover:text-blue-500'>
+          { /* the handler stays on this inner div rather than the wrapper (as zoomIn/zoomOut do)
+               because the wrapper also holds the menu — a row click would bubble up and re-toggle it */ }
+          <div className='h-10 w-10 flex items-center justify-center' title="Change base map"
+            onClick={() => showStyleSelect(!styleSelect)}>
+            <Icon icon={ mapIcons.mapStyleIcon } className="size-5"/>
           </div>
           <div className={`w-36 bg-slate-100 absolute bottom-10 right-0 rounded ${styleSelect ? '' : 'hidden'}`}>
             {mapStyles.map((style,i) => (
-              <div key={i} className='flex items-center p-1 hover:bg-blue-100' onClick={() => {
+              <div key={i} className={`flex items-center p-1 hover:bg-blue-100 ${i === styleIndex ? 'bg-blue-100' : ''}`} onClick={() => {
                 showStyleSelect(false);
                 MapActions.setMapStyle(i)
               }}>
                 <div className='h-8 w-8 flex items-center justify-center'>
                   <Icon icon={ mapIcons.mapStyleIcon } className="size-5 text-slate-500"/>
                 </div>
-                <div className='text-sm px-2'>{style.name}</div>
+                <div className={`text-sm px-2 ${i === styleIndex ? 'font-medium' : ''}`}>{style.name}</div>
               </div>
             ))}
           </div>
@@ -613,7 +616,13 @@ const AvlMapInner = ({
     const maplibreMap = new maplibre.Map({
       container: containerId,
       ...Options,
-      style: styles[0].style
+      // honour the styleIndex prop instead of always mounting styles[0]. Callers used to have to
+      // REORDER mapOptions.styles to get a saved basemap to load, which left styleIndex pointing at
+      // a different style than the one on screen (and mutated the caller's array). Defaults to 0.
+      // Read at MOUNT only — this effect's deps are [] on purpose. Do not "fix" the exhaustive-deps
+      // warning by adding styleIndex: every basemap change would tear down and rebuild the map.
+      // Live changes go through setMapStyle, which calls maplibreMap.setStyle in place.
+      style: (styles[styleIndex] || styles[0]).style
     });
 
     if (navigationControl) {
