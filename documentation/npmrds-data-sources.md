@@ -34,7 +34,7 @@ dataset.
 
 Row shape modeled on real `gis_dataset` sources + the two ClickHouse-backed sources above (full
 column lists and real example rows pulled 2026-07-08 via direct read of `data_manager.sources`/
-`views`). SQL: `scripts/register_aadt_distributions.sql`, run by the user directly against
+`views`). SQL: `scripts/npmrds-reports/register_aadt_distributions.sql`, run by the user directly against
 `npmrds2`/`neptune:5758` (writes there are blocked when run through the agent's own tools).
 Key decisions:
 - `type: 'gis_dataset'`, `user_id: 993` (user direction) — no dedicated "static reference table"
@@ -109,7 +109,7 @@ Every `avl_graph_template` row's `externalSource` binds to source 583 (the fact 
 universal and only changes if NPMRDS itself moves to a different fact table. What varies is which
 *join* source backs a given **measure's** calculated column. Templates aren't hand-authored one at
 a time — they're minted by `ensure_graph_templates()`/`ensure_pm3_join_template()`/the
-`ensure_info_box_*_template()` family in `scripts/convert_old_reports.py` from a small set of shared
+`ensure_info_box_*_template()` family in `scripts/npmrds-reports/convert_old_reports.py` from a small set of shared
 constants, and every already-minted template row of a given name is kept in sync by
 `ensure_graph_templates`'s drift detection. So swapping a source for a whole measure family is a
 **single-constant edit + a reconvert**, not a per-template hunt — this table is the map from
@@ -117,9 +117,9 @@ constants, and every already-minted template row of a given name is kept in sync
 
 | Measure family | Source(s) used | Why | Constant(s) to edit for a swap |
 |---|---|---|---|
-| speed, travelTime (every graph type + Route Compare + Bar Graph Summary + Info Box `travelTime`/`avgTT-byDateRange`) | 583 (fact) + 455/3464 (TMC Identification — the *default* join, never overridden for these) | `SPEED_EXPR`/`TRAVEL_TIME_EXPR` need `table1.miles` for the two-level per-TMC→route composition (round 34/35 backport) | `SPEED_EXPR`, `TRAVEL_TIME_EXPR` (`scripts/convert_old_reports.py:389-408`) — and the base template row's own join if `miles` itself moved to a different source |
-| hoursOfDelay, avgHoursOfDelay | 583 + **582/983** (NPMRDS_V6_tmc_meta, year-matched — round 59, was 1946/3298) + 2056/3524 (aadt_distributions) | `DELAY_EXPR` needs `avg_speedlimit`/`faciltype` (delay threshold) from 582, plus epoch-level AADT weighting from 2056 | `META_JOIN`, `AADT_DIST_JOIN`, `DELAY_EXPR`, `DIST_KEY_EXPR` (`scripts/convert_old_reports.py`) |
-| co2Emissions, avgCo2Emissions | 583 + 582/983 + 2056 (same pair as delay) | `CO2_EXPR_PASSENGER`/`CO2_EXPR_TRUCK` reuse the same AADT/facility-type/threshold inputs as delay, plus a hardcoded speed→emission-factor regression (no external source — literal piecewise coefficients) | `META_JOIN`, `AADT_DIST_JOIN`, `CO2_EXPR_PASSENGER`, `CO2_EXPR_TRUCK` (`scripts/convert_old_reports.py`) |
+| speed, travelTime (every graph type + Route Compare + Bar Graph Summary + Info Box `travelTime`/`avgTT-byDateRange`) | 583 (fact) + 455/3464 (TMC Identification — the *default* join, never overridden for these) | `SPEED_EXPR`/`TRAVEL_TIME_EXPR` need `table1.miles` for the two-level per-TMC→route composition (round 34/35 backport) | `SPEED_EXPR`, `TRAVEL_TIME_EXPR` (`scripts/npmrds-reports/convert_old_reports.py:389-408`) — and the base template row's own join if `miles` itself moved to a different source |
+| hoursOfDelay, avgHoursOfDelay | 583 + **582/983** (NPMRDS_V6_tmc_meta, year-matched — round 59, was 1946/3298) + 2056/3524 (aadt_distributions) | `DELAY_EXPR` needs `avg_speedlimit`/`faciltype` (delay threshold) from 582, plus epoch-level AADT weighting from 2056 | `META_JOIN`, `AADT_DIST_JOIN`, `DELAY_EXPR`, `DIST_KEY_EXPR` (`scripts/npmrds-reports/convert_old_reports.py`) |
+| co2Emissions, avgCo2Emissions | 583 + 582/983 + 2056 (same pair as delay) | `CO2_EXPR_PASSENGER`/`CO2_EXPR_TRUCK` reuse the same AADT/facility-type/threshold inputs as delay, plus a hardcoded speed→emission-factor regression (no external source — literal piecewise coefficients) | `META_JOIN`, `AADT_DIST_JOIN`, `CO2_EXPR_PASSENGER`, `CO2_EXPR_TRUCK` (`scripts/npmrds-reports/convert_old_reports.py`) |
 | length, aadt (Info Box TMC-attribute measures) | 583 (WHERE-scoping only) + 455/3464 (default join, unmodified) | `LENGTH_EXPR`/`AADT_EXPR`/their `_TMC_EXPR` variants read `table1.miles`/`table1.aadt` straight off the default join — no override needed | `LENGTH_EXPR`, `LENGTH_TMC_EXPR`, `AADT_EXPR`, `AADT_TMC_EXPR` (`:232-254`) |
 | LOTTR, TTTR, freeflow (`speed_pctl_85`) — Route/TMC Info Box reliability only | 583 (WHERE-scoping only) + **1410 PM3** (Postgres, `pgFederated`, one view per year) | The only cross-engine (CH↔PG) join in the catalog; year-matched to the report's own max year, never substituted for a different year's data (round 17 product decision) | `PM3_VIEW_BY_YEAR`, `ensure_pm3_join_template()` (`:201`, `:1633-1720`) — see [[project_npmrds_1410_vs_2001_backfill]] for why 1410 was picked over 2001/1722 |
 | dataQuality | 583 only | Reads `data_density_*` straight off the fact table row | n/a — plain column pick, no join or calc constant |

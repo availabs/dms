@@ -6,6 +6,7 @@ import {AuthContext} from "../../../auth/context";
 import {CMSContext, PageContext, ComponentContext, DataSourceContext} from '../../context'
 import {getPageAuthPermissions, slugifyAnchor} from "../../pages/_utils";
 import {getSectionMenuItems} from './sectionMenu'
+import {getSectionHeaderExtensions} from './sectionHeaderExtensions'
 import {
     getHelpTextArray,
     initialState,
@@ -91,9 +92,14 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
     const isEdit = true;
     const {AuthAPI} = React.useContext(AuthContext) || {};
     const {user, isUserAuthed} = React.useContext(CMSContext) || {};
-    const { pageState, apiLoad, apiUpdate } = useContext(PageContext);
+    const { pageState, apiLoad, apiUpdate, item, editPageMode } = useContext(PageContext);
     const {theme: fullTheme, UI} = React.useContext(ThemeContext);
     const { dataSources, setDataSource, createDataSource } = useContext(DataSourceContext);
+    // Sibling sections on this page, for extension builders that need to know
+    // about other components on the page (e.g. "is there a ReportRouteList
+    // here") — same array item.sections/draft_sections rebuilds itself from,
+    // see PageContext's editPageMode doc comment in pages/edit/index.jsx.
+    const siblingSections = item?.[editPageMode ? 'draft_sections' : 'sections'] || [];
 
     const RegisteredComponents = getRegisteredComponents();
     const component = (RegisteredComponents[get(value, ["element", "element-type"], "lexical")] || RegisteredComponents['lexical']);
@@ -227,11 +233,35 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
         dwAPI: dwAPI || {},
         mapAPI,
         pageDataSources: { dataSources, dataSourceId, switchDataSource },
+        siblingSections,
     })
     const canEditSection = isUserAuthed(['edit', 'edit-section'], sectionAuthPermissions);
     const resolvedControls = typeof component?.controls === 'function'
         ? component.controls(fullTheme)
         : component?.controls;
+
+    // Theme-supplied inline content for this component's header band (e.g. a
+    // domain-specific "Quick Controls" row) — same ctx shape sectionMenu
+    // extensions receive. try/catch isolates one broken extension from
+    // blanking the rest of the header. See sectionHeaderExtensions.js.
+    const headerExtensions = getSectionHeaderExtensions(component?.name)
+        .flatMap(build => {
+            try {
+                return build({
+                    state: stateFromRef, dwAPI: dwAPI || {}, mapAPI, isEdit, canEditSection,
+                    currentComponent: component, siblingSections,
+                    sectionState: { isEdit, value, attributes, i, showDeleteModal, listAllColumns, state: stateFromRef, setSectionState },
+                    actions: { moveItem, updateAttribute, updateElementType, onChange, onCancel, onSave, onAddHelpText, setKey, setState: dwHandle?.setState, setShowDeleteModal, setListAllColumns },
+                    auth: { user, isUserAuthed, pageAuthPermissions, sectionAuthPermissions, canEditPageContent, Permissions, AuthAPI },
+                    ui: { Switch, Pill, Icon, TitleEditComp, LevelComp, theme: fullTheme, RegisteredComponents },
+                    dataSource: dataSourceFromRef,
+                    pageDataSources: { dataSources, dataSourceId, switchDataSource },
+                }) || [];
+            } catch (e) {
+                console.error('sectionHeader extension failed', e);
+                return [];
+            }
+        });
 
     const { wrapperStyle, contentWrapperStyle } = resolveSectionHeightStyles(value?.['height'], theme);
 
@@ -276,6 +306,11 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
                     </div>
                 </div>
             </div>
+            {headerExtensions.length > 0 && (
+                <div className={theme.headerExtensionsRow}>
+                    {headerExtensions.map((node, idx) => <React.Fragment key={idx}>{node}</React.Fragment>)}
+                </div>
+            )}
             {/* ------------------- Main Content ----------------------*/}
             <div className={theme.contentWrapper} style={Object.keys(contentWrapperStyle).length ? contentWrapperStyle : undefined}>
                 <Component.EditComp
@@ -314,8 +349,10 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
     const {AuthAPI} = React.useContext(AuthContext) || {};
     const {user, isUserAuthed = () => {} } = React.useContext(CMSContext) || {};
     const {theme: fullTheme, UI} = React.useContext(ThemeContext);
-    const { pageState, apiLoad, apiUpdate } = useContext(PageContext);
+    const { pageState, apiLoad, apiUpdate, item } = useContext(PageContext);
     const { dataSources } = useContext(DataSourceContext);
+    // See SectionEdit's identical siblingSections derivation above.
+    const siblingSections = item?.[editPageMode ? 'draft_sections' : 'sections'] || [];
 
     const {NavigableMenu, Switch, Pill, Icon, Permissions} = UI;
     const theme = getComponentTheme(fullTheme, 'pages.section');
@@ -423,6 +460,7 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
         dataSource: dataSourceFromRef,
         dwAPI: dwAPI || {},
         mapAPI,
+        siblingSections,
     })
 
     const resolvedControls = typeof component?.controls === 'function'
@@ -430,6 +468,26 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
         : component?.controls;
 
     const canEditSection = isUserAuthed(['edit', 'edit-section'], sectionAuthPermissions);
+
+    // See SectionEdit's identical headerExtensions computation above.
+    const headerExtensions = getSectionHeaderExtensions(component?.name)
+        .flatMap(build => {
+            try {
+                return build({
+                    state: stateFromRef, dwAPI: dwAPI || {}, mapAPI, isEdit, canEditSection,
+                    currentComponent: component, siblingSections,
+                    sectionState: { isEdit, value, attributes, i, showDeleteModal, state: stateFromRef },
+                    actions: { onEdit, moveItem, updateAttribute, updateElementType, onChange, setState: dwHandle?.setState, setShowDeleteModal },
+                    auth: { user, isUserAuthed, pageAuthPermissions, sectionAuthPermissions, canEditPageContent, Permissions, AuthAPI },
+                    ui: { Switch, Pill, Icon, TitleEditComp, LevelComp, refreshDataBtnRef, isRefreshingData, setIsRefreshingData, theme: fullTheme, RegisteredComponents },
+                    dataSource: dataSourceFromRef,
+                    pageDataSources: {},
+                }) || [];
+            } catch (e) {
+                console.error('sectionHeader extension failed', e);
+                return [];
+            }
+        });
 
     const { wrapperStyle: heightWrapperStyle, contentWrapperStyle: heightContentWrapperStyle } =
         resolveSectionHeightStyles(value?.['height'], theme);
@@ -482,6 +540,15 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
                 />
             ) : ''
             }
+            {/* Independent of showHeader — many AVL Graph sections carry no
+                title of their own (the "header + hero-stat" pattern stacks a
+                separate title Card above), so gating this on showHeader would
+                make extensions unreachable for that common case. */}
+            {headerExtensions.length > 0 && (
+                <div className={theme.headerExtensionsRow}>
+                    {headerExtensions.map((node, idx) => <React.Fragment key={idx}>{node}</React.Fragment>)}
+                </div>
+            )}
 
             <div className={theme.contentWrapper} style={Object.keys(heightContentWrapperStyle).length ? heightContentWrapperStyle : undefined}>
                 {element}

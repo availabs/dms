@@ -169,6 +169,7 @@ export const PieGraph = props => {
     endAngle = 2 * Math.PI,
     padAngle = 0,
     colors,
+    colorsByKey,
     showAnimations = false,
     onPieEnter = null,
     onPieLeave = null,
@@ -219,7 +220,7 @@ export const PieGraph = props => {
       .padAngle(padAngle)
       .sort((a, b) => b.value - a.value);
 
-    const colorFunc = getColorFunc(colors);
+    const colorFunc = getColorFunc(colors, colorsByKey);
 
     const colorMap = {};
 
@@ -301,7 +302,7 @@ export const PieGraph = props => {
     });
 
   }, [
-    data, keys, width, height, colors, pieAxis.valueFormat,
+    data, keys, width, height, colors, colorsByKey, pieAxis.valueFormat,
     Margin, indexBy, startAngle, endAngle, padAngle
   ]);
 

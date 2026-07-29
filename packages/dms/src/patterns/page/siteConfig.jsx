@@ -13,6 +13,8 @@ import UI from "../../ui";
 import { ThemeContext, getPatternTheme, getComponentTheme } from "../../ui/useTheme.js";
 import { registerWidget } from "../../ui/widgets";
 import { registerComponents } from './components/sections/componentRegistry';
+import { registerSectionMenuExtensions } from './components/sections/sectionMenuExtensions';
+import { registerSectionHeaderExtensions } from './components/sections/sectionHeaderExtensions';
 import { registerColumnType } from "../../ui/columnTypes";
 import SearchButton from "./components/search/index";
 import DefaultMenu from "./components/userMenu";
@@ -64,6 +66,26 @@ const pagesConfig = ({
   // built-ins silently (themes are trusted code).
   if (theme.columnTypes) {
     Object.entries(theme.columnTypes).forEach(([k, v]) => registerColumnType(k, v))
+  }
+
+  // Auto-register theme-provided section-menu extensions — additional
+  // item-groups (e.g. a domain-specific "Measure" picker) contributed to a
+  // specific ComponentRegistry component's settings menu. Keyed by component
+  // `name` (e.g. "AVL Graph"), value is a builder function or array of them.
+  // See sectionMenuExtensions.js / sectionMenu.jsx.
+  if (theme.sectionMenuExtensions) {
+    Object.entries(theme.sectionMenuExtensions).forEach(([componentName, builders]) =>
+      registerSectionMenuExtensions(componentName, builders))
+  }
+
+  // Auto-register theme-provided section-header extensions — inline content
+  // (e.g. a domain-specific "Quick Controls" row) rendered directly in a
+  // specific ComponentRegistry component's header band. Keyed by component
+  // `name` (e.g. "AVL Graph"), value is a builder function or array of them.
+  // See sectionHeaderExtensions.js / section.jsx.
+  if (theme.sectionHeaderExtensions) {
+    Object.entries(theme.sectionHeaderExtensions).forEach(([componentName, builders]) =>
+      registerSectionHeaderExtensions(componentName, builders))
   }
 
   baseUrl = baseUrl === "/" ? "" : baseUrl;

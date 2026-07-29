@@ -637,10 +637,30 @@ export const resolveComparisonVariants = (subArgs, rawList) => {
         };
       }
 
-      return label && filters ? { label, filters } : null;
+      // `color` rides along verbatim when the entry carries one (e.g. a
+      // ReportRouteList route's identity color) — a pure client-rendering hint,
+      // consumed by the chart's colorsByKey resolution (see
+      // ui/components/graph_new/index.jsx). Never validated/transformed here;
+      // an entry without one simply omits the key (BC for every existing
+      // dynamic subscriber, none of which carry `color` today).
+      return label && filters
+        ? { label, filters, ...(entryVal?.color ? { color: entryVal.color } : {}) }
+        : null;
     })
     .filter(Boolean);
 };
+
+/**
+ * Effective comparison-series variant list — the single precedence rule both
+ * `buildUdaConfig` (server-bound query fan-out) and the chart render path
+ * (client-side colorsByKey resolution, see ui/components/graph_new/index.jsx)
+ * must apply identically: a dynamic subscriber's resolved `config` (even `[]`)
+ * always wins over the static author-authored `variants` JSON.
+ */
+export const getEffectiveComparisonVariants = (comparisonSeries) =>
+  comparisonSeries?.config !== undefined
+    ? comparisonSeries.config
+    : comparisonSeries?.variants || [];
 
 /**
  * Reserved `paramKey` sentinel a `comparison_series` subscriber can carry instead of an
@@ -1153,10 +1173,7 @@ export const buildUdaConfig = ({
   //     dynamic binding (`config: []`) correctly reads as inactive instead of falling
   //     back to the static list.
   //   • static (Piece 2): no `config` → the author-authored `variants` JSON.
-  const effectiveVariants =
-    comparisonSeries?.config !== undefined
-      ? comparisonSeries.config
-      : comparisonSeries?.variants || [];
+  const effectiveVariants = getEffectiveComparisonVariants(comparisonSeries);
 
   // Comparison series is "active" only when enabled AND at least one labeled
   // variant exists. Inactive → drop the synthetic discriminator column so we never
@@ -1449,9 +1466,41 @@ export const buildUdaConfig = ({
   }
 
   // 7. Build the options object — maps column names to server refs
-  const mappedGroupBy = groupBy.map(
-    (columnName) => getColumn(columnName)?.refName,
-  );
+  //
+  // Comparison-series fan-out wraps each arm as `SELECT * FROM (<arm>) AS
+  // fanout` and applies GROUP BY on that OUTER query — only the arm's
+  // SELECT-level alias is addressable there, not any table alias (ds/table1/
+  // ...) a calculated column's expression references internally. Using
+  // `refName` (the raw pre-AS expression, e.g. "intDiv(ds.epoch, 3)") fails
+  // with "Unknown expression or function identifier 'ds.epoch'" outside the
+  // arm subquery — the exact same hazard `mappedOrderBy` below already
+  // special-cases for ORDER BY; GROUP BY needs the identical fix, using the
+  // bare alias (afterAS) instead of the raw expression.
+  // ...and `groupByAliasExprs` carries the OTHER form for the consumers that need it.
+  // The alias above is right for the data query (addressable on the fanout
+  // wrapper) but wrong for the LENGTH query, which is a bare count over the
+  // base table with nothing projected — there the alias is undefined and
+  // ClickHouse/Postgres raise "Unknown expression identifier 'quarter_hour'".
+  // So send an alias → expression map alongside `groupBy`; `simpleFilterLength`
+  // substitutes it, `simpleFilter` ignores it. Absent/empty (older client, or
+  // no calculated group-by) → servers behave exactly as before.
+  // Both forms are derived in ONE pass so a key can never drift from the alias
+  // actually sent. See src/dms/planning/tasks/current/length-query-calculated-groupby-alias.md
+  const groupByAliasExprs = {};
+  const mappedGroupBy = groupBy.map((columnName) => {
+    const col = getColumn(columnName);
+    if (activeComparisonSeries && isCalculatedCol(col)) {
+      const [beforeAS, afterAS] = splitColNameOnAS(col?.reqName || columnName);
+      const alias = (afterAS || beforeAS).trim();
+      // refName is the raw pre-AS expression, table-alias-prefixed exactly when
+      // a join is present — which matches the length query's own FROM (it
+      // aliases the base table `ds` only when joining), so it resolves there.
+      const expr = String(col?.refName || beforeAS || '').trim();
+      if (alias && expr && alias !== expr) groupByAliasExprs[alias] = expr;
+      return alias;
+    }
+    return col?.refName;
+  });
 
   const mappedOrderBy = Object.keys(orderBy)
     .filter((columnName) =>
@@ -1550,6 +1599,7 @@ export const buildUdaConfig = ({
     join: isJoinPresent ? buildJoin({join, externalSource}) : null,
     filterGroups: finalFilterGroups,
     groupBy: mappedGroupBy,
+    ...(Object.keys(groupByAliasExprs).length > 0 && { groupByAliasExprs }),
     orderBy: mappedOrderBy,
     filter: mappedFilter,
     exclude: mappedExclude,

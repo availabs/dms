@@ -35,6 +35,23 @@ export async function get(id, config, options = {}) {
       return;
     }
 
+    // Dataset (`:data`) rows live in per-type split tables, and the `byId` route
+    // is app-namespaced only — with no type it cannot know which table to read,
+    // so it returns a row of nulls rather than an error. Don't hand the caller
+    // that silently: it reads as "the row exists but is empty", which is a
+    // materially different and wrong conclusion. Point at the command that CAN
+    // read them (`dataset query`, which goes through the UDA routes).
+    if (Object.values(item).every((v) => v === null || v === undefined)) {
+      outputError(
+        `Row ${id} came back empty (every attribute null).\n`
+        + `  Either it does not exist, or it is a dataset (\`:data\`) row — those live in per-type\n`
+        + `  split tables that \`raw get\` cannot address (the byId route is app-namespaced, with no\n`
+        + `  type to route on). For dataset rows use:\n`
+        + `    dms dataset query <source-id-or-name> --view <view-id> --filter id=${id}`
+      );
+      return;
+    }
+
     output(item, options);
   } catch (error) {
     outputError(error);

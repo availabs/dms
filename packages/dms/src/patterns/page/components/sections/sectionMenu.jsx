@@ -7,6 +7,7 @@ import {ComplexFilters} from "./ComplexFilters";
 import ColumnManager from "./ColumnManager";
 import TemplateManager from "./TemplateManager";
 import { getColumnLabel } from "./controls_utils";
+import { getSectionMenuExtensions } from "./sectionMenuExtensions";
 import ColorControls from "./components/ComponentRegistry/sharedControls/ColorControls";
 
 
@@ -16,29 +17,44 @@ import ColorControls from "./components/ComponentRegistry/sharedControls/ColorCo
  * i.e. when the author leaves the field / navigates back out of the sub-menu.
  * Used across the section menus (e.g. the Comparison Series variant fields) where a
  * commit should fire only when the author leaves the field, not per keystroke.
+ *
+ * `validate`, when given, runs on commit and returns an error string to block the
+ * commit (draft stays, `Input` gets `aria-invalid` for the theme's red-border state,
+ * a short message renders below) or a falsy value to allow it through.
  */
-const CommitInput = ({ initialValue = '', onCommit }) => {
+const CommitInput = ({ initialValue = '', onCommit, validate }) => {
     const { UI } = React.useContext(ThemeContext) || {};
     const { Input } = UI || {};
     const [draft, setDraft] = useState(initialValue);
+    const [error, setError] = useState('');
     // Re-sync if the committed value changes from elsewhere (e.g. section reload).
-    useEffect(() => { setDraft(initialValue); }, [initialValue]);
+    useEffect(() => { setDraft(initialValue); setError(''); }, [initialValue]);
 
-    const commit = () => { if (draft !== initialValue) onCommit(draft); };
+    const commit = () => {
+        if (draft === initialValue) return;
+        const validationError = validate ? validate(draft) : '';
+        if (validationError) { setError(validationError); return; }
+        setError('');
+        onCommit(draft);
+    };
 
     return (
-        <Input
-            type="text"
-            value={draft}
-            onChange={e => setDraft(e?.target?.value ?? e)}
-            onBlur={commit}
-            onKeyDown={e => { if (e.key === 'Enter') { commit(); e.target?.blur?.(); } }}
-        />
+        <>
+            <Input
+                type="text"
+                value={draft}
+                aria-invalid={!!error}
+                onChange={e => { setDraft(e?.target?.value ?? e); if (error) setError(''); }}
+                onBlur={commit}
+                onKeyDown={e => { if (e.key === 'Enter') { commit(); e.target?.blur?.(); } }}
+            />
+            {error ? <div className="text-red-500 text-xs mt-1">{error}</div> : null}
+        </>
     );
 };
 const isEmpty = obj => Object.values(obj).every(v => !v || Object.keys(v).length === 0);
 
-export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSource={}, dwAPI, mapAPI, pageDataSources={}, ...rest }) => {
+export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSource={}, dwAPI, mapAPI, pageDataSources={}, siblingSections=[], ...rest }) => {
     const { isEdit, value, attributes, i, showDeleteModal, listAllColumns, state: rawState, setSectionState } = sectionState
     const state = rawState || { columns: [], display: {}, externalSource: { columns: [] }, filters: { op: 'AND', groups: [] } }
     const { onEdit, moveItem, updateAttribute, updateElementType, onChange, onCancel, onSave, onAddHelpText, setKey, setState, setShowDeleteModal, setListAllColumns } = actions
@@ -625,6 +641,26 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
         },
     ]
 
+    // Theme/site-supplied extension item-groups (e.g. a domain-specific
+    // "Measure" picker registered for the "AVL Graph" component) — see
+    // sectionMenuExtensions.js. Each builder gets the same primitives this
+    // function already assembled (state/dwAPI/mapAPI/currentComponent/etc.)
+    // rather than re-deriving them; a builder that throws is isolated so one
+    // broken extension can't blank the whole section menu.
+    const extensionMenus = getSectionMenuExtensions(currentComponent?.name)
+        .flatMap(build => {
+            try {
+                return build({
+                    state, dwAPI, mapAPI, isEdit, canEditSection,
+                    currentComponent, sectionState, actions, auth, ui,
+                    dataSource, pageDataSources, siblingSections,
+                }) || [];
+            } catch (e) {
+                console.error('sectionMenu extension failed', e);
+                return [];
+            }
+        })
+        .filter(item => !item.cdn || item.cdn());
     // Pivot value columns — the metric(s) spread across each pivot combo. Supports
     // MULTIPLE metrics (each with its own aggregate); legacy single `valueColumn` +
     // `aggregateFn` is migrated into this list for display/editing.
@@ -839,6 +875,19 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                                         type: () => (
                                             <CommitInput
                                                 initialValue={v.label || ''}
+                                                // Comparison-series charts use a variant's `label` as
+                                                // the ONLY series discriminator (see the seriesKey
+                                                // comment near buildUdaConfig's fan-out) — two variants
+                                                // sharing a label collapse into one series. Blocked here
+                                                // (rather than auto-suffixed, as ReportRouteList's
+                                                // add-flow does for its own catalog-inherited names)
+                                                // because this label is always something the author
+                                                // explicitly typed, never an inherited default.
+                                                validate={(label) => {
+                                                    const collision = label && (csConfig.variants || [])
+                                                        .some((vv, ii) => ii !== idx && vv.label === label);
+                                                    return collision ? `A variant named "${label}" already exists.` : '';
+                                                }}
                                                 onCommit={(label) => {
                                                     const variants = [...(csConfig.variants || [])];
                                                     variants[idx] = { ...variants[idx], label };
@@ -1425,6 +1474,22 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                         }},
                     ],
                 },
+                {
+                    // Shadow — themed options (none / sm / md / …). Same navigable
+                    // checkmark-list convention as Style/Width/Height/Rowspan above,
+                    // not Background's swatch-pill (that one previews a color; a
+                    // shadow doesn't preview meaningfully at swatch size).
+                    icon: 'Border', name: 'Shadow', value: value?.['shadow'] || 'none', showValue: true,
+                    cdn: () => canEditSection,
+                    items: Object.keys(getComponentTheme(theme, 'pages.sectionArray').shadows || {}).map((name) => {
+                        return {
+                            icon: name === (value?.['shadow'] || 'none') ? 'CircleCheck' : 'Blank',
+                            id: `shadow_${name}`,
+                            'name': name,
+                            'onClick': () => updateAttribute('shadow', name === 'none' ? undefined : name)
+                        }
+                    })
+                },
                 {type: 'separator'},
                 {
                     icon: 'AccessControl', name: 'Permissions', cdn: () => canEditSectionPermissions && canEditSection,
@@ -1470,6 +1535,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
             {type: 'separator'},
             dataset,
             ...columns,
+            ...extensionMenus,
             ...filter,
             {type: 'separator', cdn: () => currentComponent?.useDataSource && canEditSection},
             ...display,

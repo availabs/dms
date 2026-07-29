@@ -51,6 +51,13 @@ async function simpleFilterLength(ctx, options) {
     gt = {}, gte = {}, lt = {}, lte = {}, like = {},
     filterGroups = {},
     groupBy = [], having = [],
+    // Alias → defining expression, for group-by columns the client sends as a
+    // bare SELECT alias (calculated columns under comparison series — see
+    // buildUdaConfig.js's mappedGroupBy). The data query can use the alias
+    // because the fanout wrapper projects it; this length query cannot — it
+    // projects nothing, so an alias here is an unknown identifier. Substitute
+    // the expression wherever the map has one. Empty → previous behavior.
+    groupByAliasExprs = {},
     normalFilter = [],
     join = {},
     // Comparison series: total length = sum of each variant arm's count.
@@ -75,7 +82,10 @@ async function simpleFilterLength(ctx, options) {
     });
   }
 
-  const sanitizedGroupBy = groupBy.map(g => sanitizeName(g)).filter(Boolean);
+  // Resolve any bare alias to its defining expression before sanitizing (see
+  // groupByAliasExprs above). A no-op when the map has no entry for the key.
+  const resolveGroupByExpr = (g) => groupByAliasExprs?.[g] || g;
+  const sanitizedGroupBy = groupBy.map(g => sanitizeName(resolveGroupByExpr(g))).filter(Boolean);
 
   const combinedWhere = buildCombinedWhereCH({
     filter, exclude, gt, gte, lt, lte, like, filterGroups, joinPresent,
@@ -112,7 +122,7 @@ async function simpleFilterLength(ctx, options) {
     // source rows, so the count is always 1, not a raw row count. A plain
     // passthrough arm (no aggregate fn) still needs the raw count(*) below.
     const armCountExpr = countGroupBy.length
-      ? `count(DISTINCT concat(${countGroupBy.map((g) => sanitizeName(g)).filter(Boolean).map((c) => `toString(${c})`).join(", '-' ,")}))`
+      ? `count(DISTINCT concat(${countGroupBy.map((g) => sanitizeName(resolveGroupByExpr(g))).filter(Boolean).map((c) => `toString(${c})`).join(", '-' ,")}))`
       : ungroupedAggregate ? null : `count(*)`;
     const armCountSqls = seriesVariants.map((variant) => {
       if (armCountExpr === null) return '1';
@@ -423,13 +433,30 @@ async function simpleFilter(ctx, options, attributes, indices) {
     // (unaliased, its subquery output name would be whatever ClickHouse
     // derives from the expression text). The plain UNION ALL fan-out keeps
     // the verbatim projection it always had.
+    // NOTE (2026-07-27): a calculated group-by no longer always arrives as its
+    // raw expression. Since buildUdaConfig.js's `mappedGroupBy` change
+    // (b1193814), under comparison series it arrives as the bare SELECT ALIAS
+    // (`quarter_hour`) — correct for GROUP BY on the fanout wrapper, but it
+    // means an expression-only match MISSES the very attribute that projects
+    // it. Match either form: a group-by is "covered" by an attribute when it
+    // equals that attribute's expression OR its output name. Getting this
+    // wrong is not a no-op — see the diffMode classification below, where a
+    // missed match silently reclassifies the x-axis column as a VALUE column
+    // and differences it against itself (every bucket → 0, whole chart
+    // collapses into one bar at x=0).
     const exprOf = (attr) => {
       const m = String(attr).match(ALIAS_RE);
       return (m ? attr.slice(0, m.index) : attr).trim();
     };
     const attrExprSet = new Set(baseArmAttrs.map(exprOf));
+    const attrOutNameSet = new Set(
+      baseArmAttrs.map((attr) => getResponseColumnName(columnNameMap[attr] || attr)));
+    const isCoveredByAttr = (g) => {
+      const key = String(g).trim();
+      return attrExprSet.has(key) || attrOutNameSet.has(key);
+    };
     const syntheticGroupBys = diffMode
-      ? armGroupByExprs.filter((g) => !attrExprSet.has(String(g).trim()))
+      ? armGroupByExprs.filter((g) => !isCoveredByAttr(g))
       : [];
     const projectedGroupBys = diffMode
       ? syntheticGroupBys.map((g, i) => `${g} as __gb_${i}`)
@@ -479,6 +506,13 @@ async function simpleFilter(ctx, options, attributes, indices) {
       // across arms), everything else is a value column (diffed).
       const keyExprSet = new Set(armGroupByExprs.map((g) => String(g).trim()));
       const outName = (attr) => getResponseColumnName(columnNameMap[attr] || attr);
+      // An attribute is a join key when the group-by list names it by EITHER
+      // form — its expression (`intDiv(epoch, 3)`, pre-b1193814 clients) or its
+      // output alias (`quarter_hour`, current clients). Matching only the
+      // expression sent the x-axis column down the value-column path, where it
+      // was differenced against itself.
+      const isJoinKeyAttr = (attr) =>
+        keyExprSet.has(exprOf(attr)) || keyExprSet.has(outName(attr));
       // Double-quote any output name that isn't a plain identifier (CH
       // supports ANSI double-quoted identifiers; withExplicitAlias/quoteAlias
       // already emit digit-prefixed aliases quoted this way).
@@ -486,7 +520,7 @@ async function simpleFilter(ctx, options, attributes, indices) {
       const keyNames = [];
       const valueNames = [];
       for (const attr of baseArmAttrs) {
-        (keyExprSet.has(exprOf(attr)) ? keyNames : valueNames).push(outName(attr));
+        (isJoinKeyAttr(attr) ? keyNames : valueNames).push(outName(attr));
       }
       keyNames.push(...syntheticGroupBys.map((g, i) => `__gb_${i}`));
       const invert = seriesCombine.invert === true;

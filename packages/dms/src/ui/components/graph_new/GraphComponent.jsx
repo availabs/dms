@@ -63,7 +63,8 @@ export const GraphComponent = props => {
     publishHoverData = noOp,
     hoverProvider = null,
     publishClickData = noOp,
-    clickProvider = null
+    clickProvider = null,
+    colorsByKey
   } = props;
 
   const GraphComponent = React.useMemo(() => {
@@ -87,19 +88,39 @@ export const GraphComponent = props => {
 
   const hoverComp = React.useMemo(() => {
     const isDollars = Boolean(graphFormat.tooltip?.isDollars);
+    // Same named formatFn the xAxis tick labels use (e.g. "epoch_time" for a raw
+    // 5-min-of-day index → "6:40") — without this, each avl-graph chart type's
+    // DefaultHoverComp falls back to its own bare Identity/no-op default for the
+    // index/x value, so the tooltip shows a raw epoch integer while the axis right
+    // below it shows the formatted clock time.
+    const xNamedFormat = get(graphFormat, ["xAxis", "format"]);
+    // `epoch_time` is bucket-width-sensitive: a resolution that pre-divides the
+    // epoch column (15-minute, hourly) makes each tick index worth more than 5
+    // minutes. Absent, the formatter keeps its 5-minute default.
+    const xFormat = xNamedFormat
+      ? getFormatFunc(xNamedFormat, false, { epochMinutesPerUnit: get(graphFormat, ["xAxis", "epochMinutesPerUnit"]) })
+      : undefined;
     return {
       ...graphFormat.tooltip,
       // map config `showTotal` → avl-graph DefaultHoverComp `showTotals` (default true = BC)
       showTotals: get(graphFormat, ["tooltip", "showTotal"], true),
-      valueFormat: getFormatFunc(get(graphFormat, ["tooltip", "valueFormat"]), isDollars),
+      valueFormat: getTooltipFormatFunc(get(graphFormat, ["tooltip", "valueFormat"]), isDollars),
       yFormat: getFormatFunc(get(graphFormat, ["tooltip", "yFormat"]), isDollars),
+      // LineGraph's DefaultHoverComp reads `xFormat`; every other chart type
+      // (Bar/Grid/Pie/Treemap/Sunburst) reads `indexFormat` for the same value —
+      // supply both so whichever chart type is active picks up the right one.
+      // Omit the keys entirely when there's no named format (rather than setting
+      // them to `undefined`) — each avl-graph component's `{ ...Defaults, ...hoverComp }`
+      // merge spreads keys regardless of value, so an explicit `undefined` here
+      // clobbers that component's own Identity/no-op default and throws on hover.
+      ...(xFormat ? { xFormat, indexFormat: xFormat } : {}),
       // Per-graph minutes/seconds auto-switch (GridGraph's legend only, see
       // formatMinutesAuto) — a raw boolean, not resolved through
       // getFormatFunc, since the actual formatter needs this graph's own
       // domain max, unknown at this point.
       minutesAutoSeconds: Boolean(get(graphFormat, ["tooltip", "minutesAutoSeconds"], false))
     };
-  }, [graphFormat.tooltip]);
+  }, [graphFormat.tooltip, graphFormat.xAxis]);
 
 // console.log("GraphComponent::actions", props.actions);
 
@@ -123,6 +144,7 @@ export const GraphComponent = props => {
         width={ get(graphFormat, "width") }
         bgColor={ get(graphFormat, "bgColor", "#ffffff") }
         colors={ graphFormat.colors }
+        colorsByKey={ colorsByKey }
 
         orientation={ get(graphFormat, "orientation", "vertical") }
         groupMode={ get(graphFormat, "groupMode", "stacked") }
@@ -170,7 +192,10 @@ export const GraphComponent = props => {
               return d => `${ d.getMonth() + 1 }/${ String(d.getDate()).padStart(2, "0") }`;
             }
             const namedFormat = get(graphFormat, ["xAxis", "format"]);
-            if (namedFormat) return getFormatFunc(namedFormat);
+            // See the hoverComp note above re: epochMinutesPerUnit — the tick
+            // labels and the tooltip must resolve the same formatter, or they
+            // disagree with each other on a coarse resolution.
+            if (namedFormat) return getFormatFunc(namedFormat, false, { epochMinutesPerUnit: get(graphFormat, ["xAxis", "epochMinutesPerUnit"]) });
             const tl = get(graphFormat, ["xAxis", "tickLabels"]);
             return tl ? (v => tl[v] ?? v) : undefined;
           })(),

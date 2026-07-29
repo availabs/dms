@@ -555,7 +555,8 @@ export async function dmsDataEditor (falcor, config, data={}, requestType, /*pat
 	      		[app, type, row]
 	      	);
 	      	await falcor.invalidate(['dms', 'data', `${ app }+${ type }`])
-	      	return {response: 'Item created.', id: Object.keys(res?.json?.dms?.data?.byId || {})[0]} // activeConfig.redirect ? redirect(activeConfig.redirect) :
+	      	const newId = Object.keys(res?.json?.dms?.data?.byId || {}).filter(d => d !== '$__path')?.[0]
+	      	return {response: 'Item created.', id: newId} // activeConfig.redirect ? redirect(activeConfig.redirect) :
 		}
 
 		return { message: "Not sure how I got here."}

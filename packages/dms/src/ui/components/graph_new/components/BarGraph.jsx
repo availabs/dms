@@ -129,7 +129,12 @@ const BarGraphWrapper = props => {
       colors = props.colors?.value || [];
     }
     else if (props.colors?.type === "scheme") {
-      colors = getColorRange(props.colors.scheme, dataFromProps.keys?.length);
+      // byValue colors a continuous scale, not discrete series — always request a few
+      // stops for a real gradient (mirrors GridGraph.jsx's fixed request), instead of the
+      // series count. The series count is 1 for the common single-series byValue case,
+      // and d3's quantize() divides by (n - 1) to place stops, so n=1 is a divide-by-zero
+      // that resolves every sequential/diverging scheme to the invalid "rgb(NaN, NaN, NaN)".
+      colors = getColorRange(props.colors.scheme, props.colors?.byValue ? 3 : dataFromProps.keys?.length);
     }
     if (props.colors?.reverse) {
       colors = [...colors].reverse();
@@ -206,9 +211,10 @@ const BarGraphWrapper = props => {
       ...props.legend,
       type: "categorical",
       colors: colors,
+      colorsByKey: props.colorsByKey,
       categories: dataFromProps.keys.map(labelForKey)
     };
-  }, [props.legend, colors, dataFromProps.keys, labelForKey, props.colors?.byValue, props.hoverComp?.valueFormat]);
+  }, [props.legend, colors, props.colorsByKey, dataFromProps.keys, labelForKey, props.colors?.byValue, props.hoverComp?.valueFormat]);
 
   // Mirror labelForKey into the tooltip's key column, same as LineGraph's
   // displayName — otherwise DefaultHoverComp's keyFormat defaults to Identity

@@ -576,6 +576,15 @@ const cardBot = { bg:'white', border:{ left:true, right:true, bottom:true }, rad
 // divider before the next. A 2-section card is just cardTop → cardBot (no cardMid).
 ```
 
+A section can also carry `shadow: 'sm'|'md'` (sibling to `bg`/`border`/`radius`, same themed-key
+shape — resolved via `theme.shadows`, author-set via the section toolbar's **Shadow** control).
+Unset (`'none'`/absent) is the default, no shadow, byte-identical to before this knob existed. Added
+2026-07-23 (report-page redesign Gap 03) because the granular per-side border/bg/radius path had no
+way to add a drop shadow at all — only the legacy preset border strings (`border:'full'` etc.) baked
+one in, and the toolbar never writes those. On a fused multi-section card, put `shadow` on every
+section in the stack (top/mid/bot) so the compound card reads as one shadowed box, not a
+shadow-per-segment stack.
+
 For a **Spreadsheet** body, also set `display.tableStyle:'flush'` — the `flush` table style keeps the
 `report` cell/header treatment but drops the table's own container border/rounding/shadow, so the
 section's compound card is the only frame (otherwise you double-box: a card inside a card). For a
@@ -833,3 +842,13 @@ IMPLEMENTED 2026-06-03 — the fill chain (each link gated to `fill` or CSS-cond
 Verified: PHED §01 card (`height:'fill'`) box 227px→364px (fills); auto KPI cards, graphs,
 spreadsheets, and the §02 header cards all unchanged. Other data components (Spreadsheet,
 Graph) now also fill when their section is `fill` (they were content-height before).
+
+**A component whose own render is a fixed pixel size (e.g. AVL Graph's chart —
+`GraphComponent.jsx`'s root is `w-full h-fit`, driven by `display.height`, a chart-lib
+constraint, not a flex opt-out choice) still can't grow into the stretched box** — unlike
+Card, whose root explicitly sets `flex:'1 1 auto'` and does grow. Report-page redesign Gap 03
+(2026-07-23) hit this: a graph section stretched by a taller row sibling left dead space
+below its Pagination/Attribution footer. Fixed with `mt-auto` on that footer `<div>` in
+`dataWrapper/index.jsx` (both Edit/View blocks) — the unavoidable slack now sits between the
+chart and the footer (pinned flush to the bottom edge) instead of below everything. No-op for
+components that already fill (Card) since there's no slack left to redistribute.

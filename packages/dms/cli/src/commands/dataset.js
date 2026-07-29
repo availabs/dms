@@ -212,53 +212,73 @@ function pickViewId(sourceRow, viewFlag) {
   return parseInt(refs[refs.length - 1], 10);
 }
 
+// `data_items` physical columns. Everything else is a key inside the `data`
+// JSONB blob and needs the `data->>` accessor.
+//
+// `id` in particular is a top-level column, NOT a key in `data` — `data->>'id'`
+// is NULL on every row, so a predicate built on it silently matches nothing and
+// `--filter id=<n>` could never return a result. Same footgun already fixed
+// twice server-side (see the `uda-sql-building-landmines` notes: the
+// custom-buckets `aliasGroups` path and the `id as id` calc-name case).
+const PHYSICAL_COLUMNS = new Set(['id', 'app', 'type', 'created_at', 'updated_at']);
+const columnAccessor = (col) => (PHYSICAL_COLUMNS.has(col) ? col : `data->>'${col}'`);
+
 /**
- * Run a hydrating fetch through the `options` Falcor route. Split-table
- * rows aren't resolved by the bare `byIndex → ref → byId` path (the
- * server's getDataById only reads the per-app main table); the
- * `options` route inlines attribute values directly so it works for
- * both regular and split tables.
+ * Read dataset rows through the **UDA** routes.
  *
- * @param {Object} falcor
- * @param {string} dataAppType  e.g. "asm+songs|1066384:data"
- * @param {Object} optionsObj   { filter, orderBy } — pass {} for "no filter"
- * @param {{limit, offset, attrs}} opts
- * @returns {Promise<{items, total, optionsObj}>}
+ * Dataset rows are split-table (`:data`) rows living in per-type tables
+ * (`data_items__{sanitized_type}`). The `dms.data.*` route family cannot read
+ * them: its `byIndex` returns a `$ref` into `dms.data.{app}.byId.{id}`, which is
+ * app-namespaced and therefore has no way to know which split table the row is
+ * in — `byId` on a `:data` row returns `{id: null, data: null}` (verified
+ * against a non-split row, which returns real values). That is the same root
+ * cause as `dms raw get <split-row-id>` returning all nulls.
+ *
+ * UDA is the route family that actually owns view rows — it carries the env +
+ * view_id, pushes filter/order/limit down to the view, and returns values
+ * INLINE (no refs to follow). This is also the path the browser uses for
+ * dataset sections (`api/createRequest.js`'s `case 'uda'`), so the CLI now reads
+ * the same way the app does.
  */
-async function fetchRowsViaOptions(falcor, dataAppType, optionsObj, opts) {
+async function fetchRowsViaUda(falcor, env, viewId, optionsObj, opts) {
   const limit = opts.limit ?? 100;
   const offset = opts.offset ?? 0;
   const attrs = opts.attrs || ['id', 'data'];
   const optionsKey = JSON.stringify(optionsObj);
+  const base = ['uda', env, 'viewsById', viewId, 'options', [optionsKey]];
+  const nodeAt = () => falcor.getCache()?.uda?.[env]?.viewsById?.[viewId]?.options?.[optionsKey];
 
-  await falcor.get(['dms', 'data', dataAppType, 'options', [optionsKey], 'length']);
-  const cache = falcor.getCache();
-  const lengthVal = cache?.dms?.data?.[dataAppType]?.options?.[optionsKey]?.length;
+  await falcor.get([...base, 'length']);
+  const lengthVal = nodeAt()?.length;
   const total = (lengthVal && lengthVal.$type === 'atom') ? lengthVal.value : (lengthVal || 0);
-
-  if (total === 0) return { items: [], total, optionsObj };
+  if (!total) return { items: [], total, optionsObj };
 
   const from = offset;
   const to = Math.min(offset + limit - 1, total - 1);
   if (from > to) return { items: [], total, optionsObj };
 
-  await falcor.get(['dms', 'data', dataAppType, 'options', [optionsKey], 'byIndex', { from, to }, attrs]);
-  const updatedCache = falcor.getCache();
-  const byIndex = updatedCache?.dms?.data?.[dataAppType]?.options?.[optionsKey]?.byIndex || {};
+  await falcor.get([...base, 'dataByIndex', { from, to }, attrs]);
+  const byIndex = nodeAt()?.dataByIndex || {};
 
   const items = [];
   for (let i = from; i <= to; i++) {
     const entry = byIndex[i];
     if (!entry) continue;
     const row = {};
+    let anyValue = false;
     for (const attr of attrs) {
       const val = entry[attr];
-      row[attr] = (val && val.$type === 'atom') ? val.value : val;
+      const unwrapped = (val && val.$type === 'atom') ? val.value : val;
+      row[attr] = unwrapped;
+      if (unwrapped !== undefined && unwrapped !== null) anyValue = true;
     }
-    if (row.id) {
-      if ('data' in row) row.data = parseData(row.data);
-      items.push(row);
-    }
+    // UDA pads empty index slots with bare `{$type:'atom'}` objects (no
+    // `value`), which unwrap to `undefined` — those are placeholders, not rows.
+    // Skipping on "no attr had a value" rather than on `entry != null`, since
+    // the placeholder object is itself truthy.
+    if (!anyValue) continue;
+    if ('data' in row) row.data = parseData(row.data);
+    items.push(row);
   }
 
   return { items, total, optionsObj };
@@ -282,12 +302,17 @@ export async function dump(sourceIdOrName, config, options = {}) {
 
     const dataType = viewDataTypeFor(source, viewId);
     const dataAppType = `${config.app}+${dataType}`;
+    // UDA env for a DMS-internal source: `<app>+<sourceInstance>`, where the
+    // instance is the parent segment of the data type
+    // (`routes_data|2107427:data` -> `routes_data`). Matches the `env` value
+    // real sections carry in their `externalSource`.
+    const udaEnv = `${config.app}+${String(dataType).split('|')[0]}`;
 
     const limit = parseInt(options.limit, 10) || 100;
     const offset = parseInt(options.offset, 10) || 0;
 
-    const { items, total } = await fetchRowsViaOptions(
-      falcor, dataAppType, {}, { limit, offset, attrs: ['id', 'data'] }
+    const { items, total } = await fetchRowsViaUda(
+      falcor, udaEnv, viewId, {}, { limit, offset, attrs: ['id', 'data'] }
     );
 
     output({
@@ -320,6 +345,11 @@ export async function query(sourceIdOrName, config, options = {}) {
 
     const dataType = viewDataTypeFor(source, viewId);
     const dataAppType = `${config.app}+${dataType}`;
+    // UDA env for a DMS-internal source: `<app>+<sourceInstance>`, where the
+    // instance is the parent segment of the data type
+    // (`routes_data|2107427:data` -> `routes_data`). Matches the `env` value
+    // real sections carry in their `externalSource`.
+    const udaEnv = `${config.app}+${String(dataType).split('|')[0]}`;
 
     const limit = parseInt(options.limit, 10) || 100;
     const offset = parseInt(options.offset, 10) || 0;
@@ -335,7 +365,7 @@ export async function query(sourceIdOrName, config, options = {}) {
         }
         const col = f.slice(0, eqIndex);
         const val = f.slice(eqIndex + 1);
-        const key = `data->>'${col}'`;
+        const key = columnAccessor(col);
         if (!filterObj[key]) filterObj[key] = [];
         filterObj[key].push(val);
       }
@@ -346,15 +376,15 @@ export async function query(sourceIdOrName, config, options = {}) {
       const parts = options.order.split(':');
       const col = parts[0];
       const dir = (parts[1] || 'asc').toLowerCase();
-      orderBy[`data->>'${col}'`] = dir;
+      orderBy[columnAccessor(col)] = dir;
     }
 
     const optionsObj = {};
     if (Object.keys(filterObj).length > 0) optionsObj.filter = filterObj;
     if (Object.keys(orderBy).length > 0) optionsObj.orderBy = orderBy;
 
-    const { items, total } = await fetchRowsViaOptions(
-      falcor, dataAppType, optionsObj, { limit, offset, attrs: ['id', 'data'] }
+    const { items, total } = await fetchRowsViaUda(
+      falcor, udaEnv, viewId, optionsObj, { limit, offset, attrs: ['id', 'data'] }
     );
 
     output({
