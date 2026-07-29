@@ -23,9 +23,10 @@ below as a second column, not the primary flow.
 ## Prerequisite: the routes must already exist
 
 A spec references routes by `route_id` — it doesn't create them. If the corridor
-doesn't have route(s) yet, do [`creating-routes.md`](./creating-routes.md) first (the
-one workflow step that requires switching to the transportNY dev server), then come
-back here with the resulting `route_id`(s).
+doesn't have route(s) yet, do [`creating-routes.md`](./creating-routes.md) first, then
+come back here with the resulting `route_id`(s). (Route creation used to require
+switching to the transportNY dev server; as of 2026-07-29 the map tool runs natively in
+dms-template, so this whole workflow — routes and reports both — stays in one repo.)
 
 ## The main feature: turning a client request into a spec
 
