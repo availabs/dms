@@ -55,15 +55,22 @@ export const duplicateItem = (item, dataItems, user, apiUpdate) => {
 }
 
 export const newPage = async (item, dataItems, user, apiUpdate, template) => {
+    // Siblings under the SAME parent the new page is about to be created under —
+    // not top-level pages. Comparing against `!d.parent` regardless of where the
+    // new page actually lands meant every "Add Page" click from inside a nested
+    // folder (e.g. Converted Reports) computed the same index/title forever (the
+    // top-level page count never changes), guaranteeing a title/url_slug collision
+    // on every single page created there.
+    const newParent = item?.parent;
     const highestIndex = dataItems
-    .filter(d => !d.parent)
+    .filter(d => (d.parent || null) === (newParent || null))
     .reduce((out,d) => {
       return Math.max(isNaN(d.index) ? 0 : d.index  , out)
     },0)
 
     const newItem = {
       title: `Page ${highestIndex + 1}`,
-      parent: item?.parent,
+      parent: newParent,
       index: highestIndex + 1,
       published: 'draft',
       history: appendHistoryEntry(null, ' created Page.', user)

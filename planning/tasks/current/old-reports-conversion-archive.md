@@ -18,6 +18,396 @@ and leave only its ledger line in the live file.
 
 ---
 
+## Round 67 (2026-07-20) — Route Line Graph/Route Compare Component resolution-precedence read from the old tool and ported; closes the round-63 mixed-resolution open question with no policy decision needed (moved verbatim from the live file on 2026-07-20, round 68 start)
+
+**Context**: round 63 had flagged a genuine (not analyzer-noise) residual of 159
+`mixed_resolutions_on_graph` instances / 127 reports, concentrated in Route Line Graph and Route
+Compare Component, and left it open pending "the old tool's actual multi-comp precedence rule
+(`GeneralGraphComp` — not yet read for this narrower case) + a user policy sign-off." User's own
+prediction going in: "my guess is that we dont really need to make much of a decision" — confirmed
+correct.
+
+**What was read**: `GeneralGraphComp.jsx`, `RouteLineGraph.jsx`, `RouteCompareComponent.jsx`
+(transportNY, `pages/analysis/components/tmc_graphs/`) directly, not inferred from behavior.
+
+**Breakdown of the 159 by old graph type** (read-only script,
+`scratchpad/npmrds-sub/old-reports/mixed_resolution_breakdown.py`): **121 Route Line Graph, 21
+Route Compare Component, 17 scattered across already out-of-scope tail types** (Text Box, Traffic
+Volume Graph, Transcom Events Chart, Monthly Hours Graph, Distribution Graph, Stacked Transcom
+Graph, Route Map, Experiential Travel Time, HDS Bar Graph, HDS Line Graph).
+
+**Route Compare Component (21) — pure false positive, same class as the existing Route Map
+exemption**: `RouteCompareComponent.jsx` is not a shared-axis chart at all — it's a base-vs-compare
+*table*; each assigned comp is independently reduced to one scalar via `allReducer`/`reducer` at
+its own configured resolution, and the `resolution` parameter threaded through
+`generateGraphData`/`generateTableData`/`renderGraph` is never actually referenced in the component
+body — mirrors `ensure_route_compare_template`'s own self-aggregating `MEASURE_EXPR` (no resolution
+dimension in the SQL either). Fix: added `"Route Compare Component"` to the resolution-irrelevant
+exemption in `analyze_graph` (mirrors the existing `route_map_resolution_irrelevant` check) and
+dropped `info["resolution"]` from the `ROUTE_COMPARE_BUCKET` match in the template-selection loop
+entirely (measure + dataColumn only). **Bonus effect**: since resolution was never actually part of
+the real behavior, this also unblocked same-measure/dataColumn instances that happened to have a
+single, consistent, non-"5-minutes" resolution (e.g. "day") — 36 instances newly match the bucket,
+not just the 21 that were flagged mixed. Live-verified via dry-run on report 323's `graph-idx-4`
+(resolution `"day"`) — converts cleanly, no gap logged.
+
+**Route Line Graph (121, the real bulk) — a real but fully deterministic old-tool rule, not an
+open design question**: `RouteLineGraph.jsx` overrides both `GeneralGraphComp.getResolution()` and
+`getActiveRouteComponents()`. With no explicit `state.activeRouteComponents` (the common case —
+this is what the "no policy decision" hunch was right about): resolution defaults to the FIRST
+comp's own resolution in the report's original comp order (`routes[0].settings.resolution`),
+overridable only by an explicit `state.resolution` IF some comp in the report actually carries
+that value; then `getActiveRouteComponents()` filters the comp list down to ONLY the comps matching
+that winning resolution — comps in other resolution groups are silently excluded from the graph by
+default (real old-tool behavior: an author-facing "Resolution" dropdown lets a viewer manually
+switch which group is shown, whenever the report's comps span >1 resolution). Ported the exact
+default-group rule into `analyze_graph` (a new branch, only engaged when
+`state.activeRouteComponents` is absent, matching the JS's own literal-override precedence — an
+explicit `activeRouteComponents` selection in the old report bypasses resolution filtering
+entirely in the JS too, so those cases are correctly left as a genuine residual, not fixed). The
+selector-toggle UX itself was NOT replicated — conversion just lands on the default group, exactly
+what an unopened old report would render. Live-verified via dry-run on report 316's `graph-idx-0`
+(previously a 3-comp report with 2 resolutions; now resolves deterministically to `"5-minutes"`
+with 2/3 comps assigned) — converts cleanly, no gap logged.
+
+**Census impact** (full rerun, `scripts/census_old_reports.py`, read-only, no page mutations, 0
+errors): `full` (excl. pre-2017) 218→229 (+11), `full_producible` 174→181 (+7), mapped instances
+(excl. pre-2017) 5,056→5,162 (+106). Raw (incl. pre-2017-only): `full` 294→305, mapped
+5,514→5,621. `mixed_resolutions_on_graph` gap count: 159→20 (13 reports). `converted_pages_total`
+unchanged at 35 — pure data/logic-coverage gain, no pages built or reconverted this round (same
+pattern as round 66's pm3 backfill).
+
+**Genuine residual (20 instances / 13 reports, not chased further)**: 3 Route Line Graph instances
+(reports 271, 793) where the OLD REPORT ITSELF explicitly set `state.activeRouteComponents`
+spanning comps of different resolutions — a real ambiguity baked into that report's own past
+authoring, not analyzer noise, and correctly left gap-logged (report 271 is also pre-2017-only
+regardless). The other 17 are the already out-of-scope tail types listed above (1 of which, Route
+Map, is a genuine avgHoursOfDelay case — the other 145 Route Map mixed-resolution instances were
+already exempted in round 63).
+
+**Not done**: no reconversion/resweep of already-converted pages (lazy-reconvert policy — none of
+the 35 live pages were affected, same reasoning as round 66). No building of the 11 newly-full
+reports into actual pages (separate decision, same as round 66's 24). No replication of
+`RouteLineGraph`'s author-facing "Resolution" selector UI (out of scope for this fix — the
+converter picks the same default a fresh report open would show).
+
+## Round 66 (2026-07-20) — pm3 (1410) 2018-2020 backfill wired into `PM3_VIEW_BY_YEAR`; census rerun; 2017 and Bar Graph Summary freeflow scoped as follow-ups (moved verbatim from the live file on 2026-07-20, round 67 start)
+
+**Context**: user reported backfilling "a ton of pm3 data" for 2020/2019/2018 and asked what it
+does for the census/todo. This bucket had a specific standing precedent: round 15's decomposition
+found 293 of the then-514 unmapped Route/TMC Info Box × speed instances (57%) were "year-gated on
+pm3 2017-2020" — exactly the backfill window [[project_npmrds_1410_vs_2001_backfill]] had already
+decided on, deferred as data work per the standing "ALL data issues are out of scope" directive.
+That data work is what just happened outside this session.
+
+**Verification (not taken on the user's word alone)**: queried `data_manager.views` directly for
+`source_id = 1410` — found 6 new view ids beyond the original 5 (2587/2575/2567/2568/3425 for
+2021-2025): 3555 (2020), 3559 (2019), 3563 (2018), plus 3564/3565/3566 for 2017. 3564 (0 rows) and
+3565 (1 row) are stale/failed ETL attempts; 3566 (32,915 rows) is the real 2017 view. Checked
+`information_schema.columns` + row counts for all: **2018/2019/2020 (views 3563/3559/3555, 36,095/
+46,619/48,700 rows) carry the full 121-column schema, byte-identical to the live 2021-2025 views**
+— `speed_pctl_85`/`lottr_*`/`tttr_*` 100% non-null on every row, same shape `ensure_pm3_join_template`
+already builds SQL against. **2017 (view 3566, 32,915 rows) is only 113 columns — missing all 8
+`speed_pctl_*` columns entirely** (lottr/tttr/phed/ted are present). This exactly matches why the
+user said "2020, 2019, and 2018," not 2017 — the 2017 backfill is real but partial.
+
+**Fix shipped** (`scripts/convert_old_reports.py` only): added `2018: 3563, 2019: 3559, 2020: 3555`
+to `PM3_VIEW_BY_YEAR` (line 251) — the single hardcoded dict `ensure_pm3_join_template` (Route/TMC
+Info Box reliability) and `ensure_bar_graph_summary_pm3_template` (Bar Graph Summary freeflow, see
+below) both key off `PM3_VIEW_BY_YEAR[year]`, and `census_old_reports.py`'s gap-logging
+(`info_box_year_outside_pm3_coverage`) reads the same dict — a single edit fixes conversion-time
+behavior, the "outside pm3 coverage" gap message, and the census in one place. Deliberately did
+NOT add 2017 — `pm3.speed_pctl_85 as freeflow` would 500 against a view that doesn't have the
+column; needs a no-freeflow template variant or a product decision first, not a drop-in entry.
+
+**Census impact** (full rerun, `scripts/census_old_reports.py`, read-only, no page mutations):
+`full` 194→218 (+24), `partial` 502→478, mapped instances (excl. pre-2017-only) 5,027→5,056 (+29),
+`full_producible` 164→174 (+10), mapped % 77.0%→77.5%. Raw (incl. pre-2017-only, all 869):
+`full` 270→294, mapped instances 5,485→5,514, 77.2%→77.6%. `converted_pages_total` unchanged at 35
+— this is a pure data-coverage/census gain, no pages were built or reconverted this round.
+
+**Precise decomposition of what's left** (reused/reran the existing read-only
+`scratchpad/npmrds-sub/old-reports/pm3_backfill_year_breakdown.py`, which imports
+`PM3_VIEW_BY_YEAR` live and diffs against the fresh census): **0 "bin ok" Info Box × speed
+instances remain unmapped for 2018, 2019, or 2020** — the entire real opportunity in those 3 years
+is now captured. Of the 161 Info Box × speed instances still unmapped in the 2017-2020 window:
+**3 (3 reports: 306, 307, 309) are blocked purely on 2017 not being in `PM3_VIEW_BY_YEAR`** (the
+only near-term lever left, gated on the freeflow-column gap above); **the other 158 are
+`bin_undetermined`** (comps whose peak flags don't resolve to exactly one of 1410's amp/midd/pmp/we
+bins — the pre-existing mapping-policy question, untouched by this backfill, not a data gap).
+Outside that window: 76 instances are the permanent pre-2017 exclusion (unrelated fact-table gap,
+not this pm3 gap), 1 is a stray 2026-dated instance.
+
+**Bonus finding — a second bucket this backfill unlocks, not yet built**: grepped for
+`ensure_bar_graph_summary_pm3_template` (Bar Graph Summary × `freeflow-byDateRange`, built round 38)
+and found it's **dead code — defined but never called from the convert/analyze pass**, because
+round 38 found the real corpus's 62 instances were all pre-2019-dated, outside 1410's then-current
+2021-2025 coverage (0 real flips, not worth wiring). That reasoning is now stale for part of the
+bucket: the breakdown script shows **22 instances (22 reports) newly data-feasible at 2018, +1 at
+2019** (2020: 0; 2017: 30, but blocked on the same freeflow-column gap as the Info Box bucket).
+Wiring this in is real, scoped follow-up work — not done this round, flagging per
+[[feedback_show_plan_before_large_work]] rather than building it unasked.
+
+**Not done**: no reconversion of the 24 newly-full reports into actual pages (conversion is
+selective by design — becoming "full" in the census doesn't imply a page should be built; that's a
+separate decision). No 2017 freeflow-column workaround. No wiring of
+`ensure_bar_graph_summary_pm3_template`. No resweep of already-converted pages (none of them were
+affected — a report's `graph_max_year` doesn't change after conversion, and the 35 live pages'
+years were already resolvable before this backfill or they wouldn't have been converted).
+
+---
+
+## Round 65 (2026-07-20) — user-reported epoch x-axis regression on report 33 (a pre-round-61 page) + a real slug-stability regression this round's own reconversion caused (moved verbatim from the live file on 2026-07-20, round 66 start)
+
+**Context**: user was looking at `converted_reports/tappan_zee_cashless_toll_version_2` and
+reported x-axis ticks were back to raw epoch integers in several graphs, asking whether a
+reconversion would fix it.
+
+**Root cause (the reported bug)**: confirmed directly against the DB, not assumed. Page `2190736`
+(old report 33, created 2026-07-14) predates round 61 (2026-07-17, the `epoch_time` tick-format fix)
+and round 62 (the xAxis label fix) by 3 days; its AVL Graph sections' `display.xAxis` carried no
+`format` key at all. Root mechanism, newly traced this round: `build_graph_section_data()`
+(`convert_old_reports.py:4100`) does `state = json.loads(tmpl["data"]["stateJson"])` — a full deep
+copy of the shared TEMPLATE row's state, baked into each page's own section at CONVERSION time, not
+a live reference. `ensure_graph_templates()`'s drift-detection loop only refreshes a template when
+SOME report's conversion run actually touches that template's `needed_names` — so shipping a
+template-level fix never retroactively reaches already-baked page sections; only a fresh
+(re)conversion picks it up. A `--replace --dry-run` for report 33 confirmed this exactly: 4 of its
+own shared templates (`tmc_diff_grid_speed_5min`, `tmc_speed_bar_graph_5min`,
+`tmc_speed_line_graph`, `route_diff_speed_5min`) still showed live `xAxis format`/`xAxis label`
+drift — meaning even the SHARED template rows hadn't been touched by any conversion since round
+61/62 shipped, not just this one page's copy.
+
+**Fix (part 1) — reconverted report 33** (`--report-id 33 --replace`): drift-updated all 4 shared
+templates in the same run, then baked the current state into a fresh page. Live-verified via
+`report_probe.mjs` screenshot: every AVL Graph section (Route Bar Graph, Route Difference Graph,
+Route Line Graph, TMC Difference Grid) now ticks real clock times ("6:55", "10:45", ...) labeled
+"Time of Day" instead of raw epoch integers.
+
+**Fix (part 2) — a real regression this reconversion itself caused, user-caught**: the first
+`--replace` run minted the new page at the converter's own throwaway `report_33` slug, silently
+breaking the user's live URL (`.../edit/converted_reports/tappan_zee_cashless_toll_version_2`
+stopped resolving; only the new `.../report_33` URL worked). Same `url_slug`-instability class round
+63 diagnosed (the page editor's `updateTitle()`/`getUrlSlug()` recomputes `url_slug` from the title
+on every save — intentional platform behavior, not a bug), but round 63 only fixed the converter's
+*read side* (existence checks keyed off `_converted_from_old_report_id` instead of slug). The
+*write side* was untouched: `convert_report()` still minted every new/reconverted page at
+`report_<old_id>`, so every `--replace` flipped a page's live URL back to `report_<id>` — whatever
+`converted_reports/<title>` scheme it had drifted to (or been created with) — until someone next
+opened/saved it in the admin UI. Checked corpus-wide impact: **34/37 live pages already sit on the
+`converted_reports/<title>` scheme** (only 3 — including the one this round just re-broke — were
+still on the raw scheme), confirming `converted_reports/<title>` is the real, de facto stable lane,
+not `report_<old_id>`.
+
+**Fix shipped** (`scripts/convert_old_reports.py` only): new `to_snake_case()` — an exact port of
+`patterns/page/pages/_utils/index.js`'s `toSnakeCase()` regex, verified byte-identical against the
+live corpus (`"Tappan Zee Cashless Toll Version 2"` → `"tappan_zee_cashless_toll_version_2"`,
+matching the slug segment that was actually live) — and `compute_report_slug(title, index,
+exclude_id)`, an exact port of the same file's `getUrlSlug()` including its collision suffix
+(`${slug}_${item.index}`, for the round-63-noted "Single Route Before and After (Beginner)" 8-way
+title-collision case). `convert_report()` now computes `slug = compute_report_slug(title,
+exclude_id=existing)` right after the `--replace` delete step (excluding a self-collision against
+the page being replaced) instead of `slug = f"report_{old_id}"`; the page-create call and the final
+"view it" URL print (threaded through `finish(..., slug=...)`) both use the real computed value. Net
+effect: a converted page's slug is now BORN equal to what the admin UI would independently derive
+from parent+title — the scheme the platform already converges to — so reconversion no longer
+changes a page's live URL at all. Re-ran `--replace` for report 33 a second time with the fix in
+place: minted directly at `converted_reports/tappan_zee_cashless_toll_version_2` (id `2194949`),
+live-verified both the public and `/edit/` URLs resolve, epoch fix intact.
+
+**Not done**: no sweep of the 2 other currently-live pages still sitting on the raw `report_<id>`
+scheme — not what was asked, and they're not known-broken (lazy-reconvert policy applies; they'll
+converge the next time they're genuinely reconverted or title-saved). No change needed to
+`census_old_reports.py` (it keys off `_converted_from_old_report_id` only, never the create-time
+slug). The 159 residual `mixed_resolutions_on_graph` instances remain unpursued.
+
+---
+
+## Round 63 (2026-07-17) — corrected the stale "392 mixed-resolution" figure + found/fixed a real duplicate-converted-page bug (url_slug is not a stable identifier) (moved verbatim from the live file on 2026-07-20, round 65 start)
+
+**Context**: session resumed after a `/clear`; user reported "we merged everything to master" and
+asked what's next. This round exists because verifying that "next step" against a fresh census
+surfaced two things the live task file didn't reflect: (1) the mixed-resolution false-positive fix
+the user remembered discussing had, in fact, already been built and committed (just never written
+up here), and (2) chasing down why the census still undercounted converted pages turned up a live,
+active duplicate-page bug.
+
+**Part 1 — the "392 buildable mixed-resolution instances" figure (round 50's census-greedy-table
+decomposition, cited throughout "Key durable facts" below) is STALE.** User correctly recalled that
+this had already been resolved as mostly false positives. Confirmed directly: `convert_old_reports.py`
+already carries (dated 2026-07-17 in its own comments, i.e. from the session before this one)
+`SINGLE_ACTIVE_COMP_TYPES` (`{"Hours of Delay Graph", "TMC Info Box", "Route Bar Graph", "TMC Grid
+Graph"}` — old `GeneralGraphComp.getActiveRouteComponents()`'s undocumented default is `[routes[0].
+compId]`, ONE comp, never "every comp"; confirmed by reading each component directly, not assumed)
+plus a `route_map_resolution_irrelevant` branch (Route Map's `resolution` param is read only by its
+avgHoursOfDelay measure — 145/146 of the corpus's Route-Map mixed-resolution instances are non-
+avgHoursOfDelay) plus a Bar Graph Summary tiebreak (`BarGraphSummary.jsx` never reads `resolution`
+at all for its own rendering; resolves to the first assigned comp's own resolution, matching old
+`GeneralGraphComp.getResolution()`'s real behavior, purely to give avgHoursOfDelay's per-resolution
+calculated column a concrete value). None of this was documented as a round in this task file. Fresh
+census rerun confirms the effect: **`mixed_resolutions_on_graph` is now 159 instances / 127 reports**
+(was 392). The remaining 159 are concentrated in graph types with a genuinely shared time axis where
+resolution actually matters (Route Line Graph is the dominant contributor — e.g. speed/None 84
+instances, avgHoursOfDelay/None 18, travelTime/None 12 — plus Route Compare Component); those are
+real ambiguities, not analyzer false positives, and would need the old tool's actual multi-comp
+resolution precedence rule (not yet investigated) if pursued further.
+
+**Part 2 — while re-running the census to get the corrected number, `converted_pages_total` came
+back as 0** (expected ~30+ per prior rounds). Root cause traced fully, NOT assumed:
+`census_old_reports.py`'s `fetch_converted_pages()` matched pages by `url_slug LIKE 'report\_%'`
+(the converter's OWN slug scheme, `slug = f"report_{old_id}"` in `convert_report()`), but a direct
+query of every live `npmrds_sub|page` row shows **zero** pages actually carry that slug — they're
+all `converted_reports/<human-readable-name-slug>` (e.g. `converted_reports/route_44_incident_
+analysis_april_2026`), confirmed by dumping all 59 page rows' `id`/`url_slug` directly from
+`dms_npmrdsv5.data_items`.
+
+**This is not a converter bug — the converter's own CLI call sets `url_slug` to `report_<old_id>`
+literally at creation** (confirmed by reading `dms/cli/src/commands/page.js`'s `create()`: `if
+(options.slug) data.url_slug = options.slug`, no server-side override). **The actual mechanism
+(confirmed by the user, from a separate concurrent session's investigation): the DMS page editor
+recomputes `url_slug` from the page's `title` on every title save, by design** —
+`updateTitle()` (`patterns/page/pages/edit/editFunctions.jsx:88-100`) calls `getUrlSlug(newItem,
+dataItems)` (`patterns/page/pages/_utils/index.js:107`), which always derives
+`${parentSlug}${toSnakeCase(title)}` fresh, with no "already has a slug, leave it" check — this is
+intentional platform behavior (URLs are meant to track page titles), confirmed with the user, NOT a
+bug to fix. But it means a converted page's slug can (and does) drift away from whatever
+`report_<old_id>` the converter set at creation, with zero warning, the first time anyone
+opens/saves that page in the admin UI.
+
+**Consequence — the converter's OWN idempotency check breaks as a result**: `convert_report()`'s
+existence check (`find_page_by_slug(f"report_{old_id}")`, used to decide whether `--replace` needs
+to delete an old page first) can never find a page whose slug has since drifted to the
+`converted_reports/<name>` scheme — so `--replace` silently fails to delete the old page and just
+creates a new one alongside it. **Confirmed two live duplicate pairs exist right now**, found via
+an independent full-corpus cross-check (every live `converted_reports/*` page's title vs.
+`admin2.reports.name`, not just eyeballing): old report **1033** has pages `2191292` (created
+2026-07-15 11:42, stale) and `2194141` (created 2026-07-17 12:32, current — round 59's TMC-meta-
+join-swap reconvert); old report **1056** has pages `2191328` (created 2026-07-15 11:46, stale) and
+`2192501` (created 2026-07-15 17:22, current). (A third title collision, "Single Route Before and
+After (Beginner)," is 8 *distinct* old report ids — 1055-1062 — sharing one generic name, not a
+duplicate; only 1056 among them has 2 live pages.) Same root cause explains Part 1's `converted_
+pages_total: 0` finding — this is the same class of "something outside the converter's own write
+path silently duplicates state" bug as round 53's stray `reports_snap_2` rows, but a different
+concrete mechanism.
+
+**Fix shipped** (`scripts/convert_old_reports.py`, `scripts/census_old_reports.py` — converter-only,
+no `@availabs/dms` changes, so no isolation concern per [[feedback_isolate_shared_code_changes]]):
+stopped keying "has old report `<old_id>` already been converted" off `url_slug` anywhere. Instead,
+use the one identifier that's actually durable: `_converted_from_old_report_id`, already written
+onto the `reports_snap_2` row at creation (`convert_report`'s `snap` dict, was already there,
+just never read back). New `find_page_by_old_report_id(old_id)` in `convert_old_reports.py`
+queries `REPORTS_SNAP_TABLE` for it and returns the linked page id; `convert_report()`'s existence
+check now calls this instead of `find_page_by_slug`. `census_old_reports.py`'s `fetch_converted_
+pages()` rewritten the same way (was matching the page table by slug pattern; now reads the
+`reports_snap_2` table's `_converted_from_old_report_id`/`report_id` pair directly — also needed
+importing `REPORTS_SNAP_TABLE` from `convert_old_reports`). Verified every one of the 37 currently-
+live `converted_reports/*` pages already carries this field (set on every real conversion since
+whenever the field was added — no backfill needed); census rerun with the fix now reports
+**`converted_pages_total: 35`** (37 live pages, 2 old-report ids with a still-undeleted duplicate
+pair each, collapsing correctly to 35 distinct converted reports).
+
+**Cleanup prepared, NOT YET RUN (needs the user's auth token, per [[feedback_credential_bearing_commands]]
+— never mint/embed live creds myself)**: `scratchpad/npmrds-sub/cleanup_duplicate_pages.py` deletes
+the 2 stale pages (`2191292`, `2191328`) via the existing `delete_converted_page()` helper (already
+slug-independent — matches snap rows by `report_id`, not slug, so no changes needed there). User to
+run via `python3 scratchpad/npmrds-sub/cleanup_duplicate_pages.py` (mint a fresh token first with
+`mint_token.sh` if any delete 401s).
+
+**Not done**: no sweep for OTHER possible slug-drift-caused duplicates beyond the title cross-check
+already run (which covers the full current corpus of 37 pages exhaustively — high confidence
+nothing else is hiding, but only as reliable as the assumption that a duplicate always shares the
+old report's exact title, which held for both known cases). Corrected census numbers not yet folded
+into every historical mention of the old "217 full / 602 partial / 36 none / 14 no_graphs" baseline
+in "Coverage" below beyond a fresh top-line refresh — see updated Coverage section. The 159 residual
+`mixed_resolutions_on_graph` instances (Part 1) were not investigated further this round (correcting
+the stale figure and the duplicate-page bug were the actual asks); a genuine old-tool precedence-
+rule investigation for Route Line Graph/Route Compare Component remains undone if picked up next.
+
+---
+
+## Round 61 (2026-07-17) — epoch→HH:MM x-axis tick format (the last round-53 priority-list item) (moved verbatim from the live file on 2026-07-17, round 63 start)
+
+**Objective**: ship round-53 priority item #8 (`Epoch→HH:MM x-axis tick format`), root-caused in
+that round: old-report graphs whose x axis is the raw NPMRDS 5-minute-of-day index (`ds.epoch`,
+0-287 — confirmed off `HOUR_EXPR`/`QUARTER_HOUR_EXPR`'s `intDiv(ds.epoch, 12/3)`) render ticks as
+the bare integer ("80") instead of a clock time ("6:40"), because d3's default axis formatter just
+stringifies the raw domain value and no xAxis formatter of any kind existed client-side.
+
+**Root cause confirmed exactly as round 53 described, re-verified by reading the render pipeline
+directly rather than trusting the prior write-up**: `GraphComponent.jsx`'s `xAxis` prop already
+computed a `format` function for an explicit `tickLabels` value→label map, but had no equivalent
+for a *named* formatFn — unlike `yAxis`, which already resolves `graphFormat.yAxis.format` through
+the existing `ValueFormats`/`getFormatFunc` registry (`graph_new/utils.js`). Traced the full
+render path to confirm one fix point covers every chart type: `graph_new/components/{BarGraph,
+LineGraph,GridGraph}.jsx` all spread `props.xAxis` verbatim into their own `axisBottom` prop
+(`{...props.xAxis}`, no chart-type-specific handling); the lower-level `avl-graph/BarGraph.jsx`
+only string→function-converts `axisBottom.format` when it's a `typeof === "string"` (d3-format
+specifier), so a function (what `getFormatFunc` returns) already passes straight through
+unchanged into `avl-graph/components/AxisBottom.jsx`'s `d3AxisBottom(scale).tickFormat(format)`.
+So the fix belongs entirely in `GraphComponent.jsx`'s xAxis prop construction — no per-chart-type
+changes needed, exactly as round 53 predicted.
+
+**Fix, concretely**:
+- `graph_new/utils.js`: new `epoch_time` `ValueFormats` entry (`{label: "Epoch Time (HH:MM)",
+  value: "epoch_time", func: epochTimeFormat}`) — `totalMinutes = round(epoch * 5)`, `hour =
+  floor(totalMinutes/60) % 24`, `minute = totalMinutes % 60`, rendered `${hour}:${pad(minute)}`
+  (non-padded hour, padded minute, 24h — matches the old tool's own examples exactly).
+- `GraphComponent.jsx`: `xAxis.format` now checks `graphFormat.xAxis.format` (a named formatFn)
+  FIRST via `getFormatFunc`, falling back to the pre-existing `tickLabels` value→label map only
+  when no named format is set — the two mechanisms are for different use cases (a computed
+  transform of the raw value vs. an explicit lookup table) and don't collide.
+- `ComponentRegistry/graph_new/config.jsx`: added a "Tick Format" `<Select>` to the X Axis panel
+  (`key: 'xAxis.format'`, `options: ValueFormats`), mirroring the Y Axis panel's existing one —
+  a generic author-facing enrichment (any `ValueFormats` entry, not just `epoch_time`), matching
+  this repo's author-empowerment principle rather than a special-cased converter-only fix.
+- `scripts/convert_old_reports.py`'s `ensure_graph_templates`: rather than hand-editing the
+  ~40+ TEMPLATE_SPECS entries with `"xAxis": "epoch"`, the format is derived generically off that
+  existing shorthand in both the mint branch (`state["display"]["xAxis"]["format"] =
+  "epoch_time"` whenever `spec["xAxis"] == "epoch"`) and a new drift-check (`epoch_format_drift`,
+  alongside the existing yAxis/display/combine/join drift checks) so every ALREADY-MINTED template
+  using this shorthand picks up the fix the next time any report using it is reconverted — no
+  proactive resweep needed, same lazy-reconvert idiom this task already uses. Calculated-column
+  xAxis groupings (`HOUR_EXPR`/`QUARTER_HOUR_EXPR`/`WEEKDAY_EXPR`/`MONTH_EXPR` — day/hour/15-min/
+  month resolutions, a different TEMPLATE_SPECS shape) are untouched — out of scope, not what
+  round 53 diagnosed (their raw values are either already a real hour number or a different unit
+  entirely, not a bare 5-min index).
+
+**Live-verified** (`report_probe.mjs`, 0 console/page errors on every run):
+- Report 179 (the exact report round 53 investigated) reconverted `--replace` → page `2194183`.
+  Drift-fix fired on `tmc_delay_bar_graph_5min` (GridGraph). Before: x-axis ticks read
+  `78 90 102 114 126 138 150 162 174 186 198 210 222`. After: `6:30 7:30 8:30 ... 18:30` — exact
+  (`78*5=390min=6:30`, `222*5=1110min=18:30`).
+- Report 787 reconverted `--replace` → page `2194197`. Drift-fix fired on
+  `tmc_avg_delay_line_graph` (LineGraph). Before: two Line Graph sections showed
+  `102 139 176 213` and `120 193`. After: `8:30 11:35 14:40 17:45` and `10:00 16:05` — exact
+  (`102*5=510min=8:30`, `213*5=1065min=17:45`, `120*5=600min=10:00`, `193*5=965min=16:05`).
+- BarGraph not separately live-probed (no live report conveniently exercises an epoch-axis
+  BarGraph today) but covered by construction — identical `{...props.xAxis}` passthrough
+  confirmed by reading `graph_new/components/BarGraph.jsx` directly, same as Line/Grid.
+- Full census rerun after both reconverts: **869/869 reports, 0 errors**; `full` 261,
+  graph-instance mapped 5,288/7,103 (74.4%) — byte-identical to the pre-round baseline, as
+  expected for a pure display/formatting fix with zero effect on coverage/mapping logic.
+
+**Not done**: `HOUR_EXPR`/`QUARTER_HOUR_EXPR` calculated-column x-axis groupings were not
+investigated for a similar labeling gap (out of scope, not diagnosed by round 53). No proactive
+resweep of the ~40 other epoch-axis templates beyond the 2 reconverted for verification — they
+pick up the fix lazily whenever next reconverted, per standing policy.
+
+**All 9 round-53 triage items are now DONE** (see the round-53 close-out list in the archive):
+stray rows (round 53 same-day), pre-2017 refusal rebuild (round 54), BarGraph tooltip (round 55),
+graph title default (round 56), GridGraph missing-data color (round 57), Info Box mm:ss (round
+58), TMC meta join swap (round 59), legend/flex width-squeeze (round 60), epoch x-axis format
+(this round). No open priority-list items remain.
+
+**Files touched** (all in `@availabs/dms`, isolated from converter work per
+[[feedback_isolate_shared_code_changes]], except the converter default itself):
+`packages/dms/src/ui/components/graph_new/utils.js`,
+`packages/dms/src/ui/components/graph_new/GraphComponent.jsx`,
+`packages/dms/src/patterns/page/components/sections/components/ComponentRegistry/graph_new/config.jsx`;
+converter: `scripts/convert_old_reports.py` (`ensure_graph_templates` mint + drift branches).
+
+---
+
 ## Round 60 (2026-07-17) — legend/flex width-squeeze: un-parked, fixed platform-wide (dynamic guard, not a static cap) (moved verbatim from the live file on 2026-07-17, round 61 start)
 
 **Objective**: revisit the round-34 "legend/flex width-squeeze" bug (a categorical legend with

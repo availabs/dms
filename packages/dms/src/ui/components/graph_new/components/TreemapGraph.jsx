@@ -128,9 +128,10 @@ const TreemapGraphWrapper = props => {
       ...props.legend,
       type: "categorical",
       colors: colors,
+      colorsByKey: props.colorsByKey,
       categories: dataFromProps.map(d => d[0])
     };
-  }, [props.legend, colors, dataFromProps]);
+  }, [props.legend, colors, props.colorsByKey, dataFromProps]);
 
   const onLegendEnter = React.useMemo(() => {
     if (!publish || !provider) return null;

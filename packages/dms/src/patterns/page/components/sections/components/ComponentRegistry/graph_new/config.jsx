@@ -319,6 +319,20 @@ const graphConfig = {
                     }
                 },
                 {type: 'input', inputType: 'text', label: 'Title',          key: 'title.title'},
+                {
+                    // A plain multi-line field — InputControl only ever renders a
+                    // literal <input>, so a real textarea needs the function escape
+                    // hatch (same pattern DomainEditor above uses). Renders under the
+                    // chart title (GraphComponent.jsx's GraphTitle) once non-empty.
+                    type: ({value, setValue}) => (
+                        <div className='flex flex-col gap-0.5 w-full'>
+                            <span className='text-sm select-none'>Description</span>
+                            <textarea className='w-full p-1 border rounded text-sm' rows={3}
+                                      value={value || ''} onChange={e => setValue(e.target.value)} />
+                        </div>
+                    ),
+                    label: 'Description', key: 'description'
+                },
                 // {type: 'toggle',                   label: 'Legend',          key: 'legend.show'},
                 {type: 'toggle',                   label: 'Hide if No Data', key: 'hideIfNull'},
                 // {type: 'toggle',                   label: 'Tooltip',         key: 'tooltip.show'},

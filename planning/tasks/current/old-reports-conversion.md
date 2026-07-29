@@ -8,92 +8,65 @@
 > starts, move the previous round's full text to the top of the archive, leave a ledger line here,
 > and fold anything durable into the summary or reference sections.
 
-## Current state (2026-07-17, ROUND 62 COMPLETE: axis-label (title/caption, not tick-label) fix shipped and live-verified on report 787 — the user-reported 2026-07-13 "axis labels not visible" gap. Round 61 (epoch x-axis tick format, the last round-53 priority-list item), round 60 (legend/flex width-squeeze), round 59 (TMC meta join swap), round 58 (Info Box mm:ss formatter), and rounds 53-57 remain DONE — full detail archived, see ledger below. No open priority-list items remain; next work should come from the "Immediate next steps" backlog below (item (d), or a fresh vocabulary-breadth pass) or a new user ask.)
+## Current state (2026-07-20, ROUND 68 COMPLETE: wired `ensure_bar_graph_summary_pm3_template` (Bar Graph Summary's `freeflow-byDateRange` measure, source 1410's `speed_pctl_85`) into the actual convert/analyze pass — built in round 38 but left dead code because the real corpus's 62 instances were all pre-2019-dated back then; round 66's pm3 2018-2020 backfill made that stale, user confirmed "seems like a no brainer now that we have data." New `BAR_SUMMARY_PM3_BUCKET` constant + a `bar_summary_pm3_tmpl_name` pre-pass loop in `convert_report` (mirrors the Info Box reliability pre-pass, but bin-independent — only `year` needs resolving) + a matching `census_old_reports.py` branch. Census: mapped instances (excl. pre-2017) 5,162→5,194 (+32); `full`/`full_producible` unchanged at 229/181 (every newly-mapped report had another unrelated gap too); residual 30 of the bucket's 62 instances stay unmapped (pre-2018-dated or year-undetermined, same gap classes as Info Box reliability). Live-verified end-to-end (not a dry-run proxy): real `convert_report(316)` — old report 316's real dates are 2017-2018, no forcing needed — created template `tmc_freeflow_summary_bar_graph_2018` and page `converted_reports/madison_ave_road_diet_eastbound_created_on_6_14_19`; `report_probe.mjs` confirmed the Freeflow section renders a real SVG bar graph with live values (`freeflow_avg≈25mph` for both comps, attributed to `GIS_DATASETS.S1410_V3563_PM_3`). `converted_pages_total` 35→36 (a genuine new conversion). Round 67 (Route Line Graph/Route Compare Component resolution-precedence, closed the 159-instance mixed-resolution question), round 66 (pm3 2018-2020 backfill), round 65 (epoch-tick regression + slug-stability write-side fix), round 63 (mixed-resolution figure correction + idempotency fix), round 64 (duplicate-page cleanup), round 62 (axis-label fix), round 61 (epoch x-axis tick format), round 60 (legend/flex width-squeeze), round 59 (TMC meta join swap), and earlier rounds remain DONE — full detail archived, see ledger below. Next work: decide whether to build the other 31 newly-mapped-but-not-yet-built freeflow instances into pages, resolve the 2017 freeflow-column gap, or pick from the "Immediate next steps" backlog below / a new user ask.)
 
-## Round 61 (2026-07-17) — epoch→HH:MM x-axis tick format (the last round-53 priority-list item)
+## Round 68 (2026-07-20) — `ensure_bar_graph_summary_pm3_template` wired into the convert/analyze pass (Bar Graph Summary `freeflow-byDateRange`); no longer dead code
 
-**Objective**: ship round-53 priority item #8 (`Epoch→HH:MM x-axis tick format`), root-caused in
-that round: old-report graphs whose x axis is the raw NPMRDS 5-minute-of-day index (`ds.epoch`,
-0-287 — confirmed off `HOUR_EXPR`/`QUARTER_HOUR_EXPR`'s `intDiv(ds.epoch, 12/3)`) render ticks as
-the bare integer ("80") instead of a clock time ("6:40"), because d3's default axis formatter just
-stringifies the raw domain value and no xAxis formatter of any kind existed client-side.
+**Context**: round 66's pm3 2018-2020 backfill made a stale round-38 finding actionable again:
+`ensure_bar_graph_summary_pm3_template` (Bar Graph Summary's `freeflow-byDateRange` measure, source
+1410's `speed_pctl_85`) was built in round 38 but never wired into `convert_report`/the census —
+at the time all 62 real corpus instances were pre-2019-dated, outside 1410's then-current
+2021-2025 coverage, so wiring it would have produced 0 real flips. User: "yeah go implement, seems
+like a no brainer now that we have data."
 
-**Root cause confirmed exactly as round 53 described, re-verified by reading the render pipeline
-directly rather than trusting the prior write-up**: `GraphComponent.jsx`'s `xAxis` prop already
-computed a `format` function for an explicit `tickLabels` value→label map, but had no equivalent
-for a *named* formatFn — unlike `yAxis`, which already resolves `graphFormat.yAxis.format` through
-the existing `ValueFormats`/`getFormatFunc` registry (`graph_new/utils.js`). Traced the full
-render path to confirm one fix point covers every chart type: `graph_new/components/{BarGraph,
-LineGraph,GridGraph}.jsx` all spread `props.xAxis` verbatim into their own `axisBottom` prop
-(`{...props.xAxis}`, no chart-type-specific handling); the lower-level `avl-graph/BarGraph.jsx`
-only string→function-converts `axisBottom.format` when it's a `typeof === "string"` (d3-format
-specifier), so a function (what `getFormatFunc` returns) already passes straight through
-unchanged into `avl-graph/components/AxisBottom.jsx`'s `d3AxisBottom(scale).tickFormat(format)`.
-So the fix belongs entirely in `GraphComponent.jsx`'s xAxis prop construction — no per-chart-type
-changes needed, exactly as round 53 predicted.
+**What changed** (`scripts/npmrds-reports/convert_old_reports.py`, `scripts/npmrds-reports/census_old_reports.py`): new
+`BAR_SUMMARY_PM3_BUCKET = ("freeflow-byDateRange", "travel_time_all")` constant, next to
+`PM3_VIEW_BY_YEAR`. Mirrors the Info Box reliability pre-pass exactly (`graph_max_year` per graph,
+`PM3_VIEW_BY_YEAR` gate, `ensure_bar_graph_summary_pm3_template(year, ...)`) but bin-independent —
+1410's speed percentiles have no time-of-day dimension, so only `year` needs resolving, same as
+round 38's own docstring already said. New `bar_summary_pm3_tmpl_name`/`bar_summary_pm3_gap_logged`
+pre-pass loop in `convert_report` (right after the Info Box pre-pass), two new gap kinds
+(`bar_summary_freeflow_year_undetermined`, `bar_summary_freeflow_outside_pm3_coverage` — same
+naming convention as the Info Box ones), and a new `is_bar_summary_pm3` branch in the main
+convertible-graph dispatch (checked before the generic `GRAPH_TEMPLATE_MAP.get(key)` fallback,
+since Bar Graph Summary's OTHER measures — speed/travelTime/hoursOfDelay/avgHoursOfDelay — still
+go through the static `GRAPH_TEMPLATE_MAP` path unchanged). `census_old_reports.py` gets the
+matching `elif` branch in its mapped-classification loop, same pattern as its existing Route Map
+mirrors.
 
-**Fix, concretely**:
-- `graph_new/utils.js`: new `epoch_time` `ValueFormats` entry (`{label: "Epoch Time (HH:MM)",
-  value: "epoch_time", func: epochTimeFormat}`) — `totalMinutes = round(epoch * 5)`, `hour =
-  floor(totalMinutes/60) % 24`, `minute = totalMinutes % 60`, rendered `${hour}:${pad(minute)}`
-  (non-padded hour, padded minute, 24h — matches the old tool's own examples exactly).
-- `GraphComponent.jsx`: `xAxis.format` now checks `graphFormat.xAxis.format` (a named formatFn)
-  FIRST via `getFormatFunc`, falling back to the pre-existing `tickLabels` value→label map only
-  when no named format is set — the two mechanisms are for different use cases (a computed
-  transform of the raw value vs. an explicit lookup table) and don't collide.
-- `ComponentRegistry/graph_new/config.jsx`: added a "Tick Format" `<Select>` to the X Axis panel
-  (`key: 'xAxis.format'`, `options: ValueFormats`), mirroring the Y Axis panel's existing one —
-  a generic author-facing enrichment (any `ValueFormats` entry, not just `epoch_time`), matching
-  this repo's author-empowerment principle rather than a special-cased converter-only fix.
-- `scripts/convert_old_reports.py`'s `ensure_graph_templates`: rather than hand-editing the
-  ~40+ TEMPLATE_SPECS entries with `"xAxis": "epoch"`, the format is derived generically off that
-  existing shorthand in both the mint branch (`state["display"]["xAxis"]["format"] =
-  "epoch_time"` whenever `spec["xAxis"] == "epoch"`) and a new drift-check (`epoch_format_drift`,
-  alongside the existing yAxis/display/combine/join drift checks) so every ALREADY-MINTED template
-  using this shorthand picks up the fix the next time any report using it is reconverted — no
-  proactive resweep needed, same lazy-reconvert idiom this task already uses. Calculated-column
-  xAxis groupings (`HOUR_EXPR`/`QUARTER_HOUR_EXPR`/`WEEKDAY_EXPR`/`MONTH_EXPR` — day/hour/15-min/
-  month resolutions, a different TEMPLATE_SPECS shape) are untouched — out of scope, not what
-  round 53 diagnosed (their raw values are either already a real hour number or a different unit
-  entirely, not a bare 5-min index).
+**Census impact** (full rerun, `scripts/npmrds-reports/census_old_reports.py`, read-only until the live-
+verification page below, 0 errors): mapped instances (excl. pre-2017) 5,162→5,194 (+32). `full`
+229 and `full_producible` 181 both **unchanged** — every report carrying a newly-mapped
+`freeflow-byDateRange` instance had at least one other unrelated gap, so none flipped to fully
+mapped this round (the census's own ranked table still shows this bucket with 1 potential flip
+remaining, gated on the residual 30 instances below). The 62-instance bucket splits 32 mapped / 30
+still-unmapped: the 30 are either pre-2018-dated (before `PM3_VIEW_BY_YEAR`'s earliest year) or
+year-undetermined — the same `year_undetermined`/`outside_pm3_coverage` gap classes the Info Box
+reliability bucket already has, not a new kind of gap. (The +32 is larger than round 66's "22+1"
+estimate because that estimate only tallied the 2018-2020 backfill window; this bucket was ALWAYS
+unwired regardless of year, so instances whose year already fell in 1410's pre-existing 2021-2025
+coverage were unmapped too until this round.)
 
-**Live-verified** (`report_probe.mjs`, 0 console/page errors on every run):
-- Report 179 (the exact report round 53 investigated) reconverted `--replace` → page `2194183`.
-  Drift-fix fired on `tmc_delay_bar_graph_5min` (GridGraph). Before: x-axis ticks read
-  `78 90 102 114 126 138 150 162 174 186 198 210 222`. After: `6:30 7:30 8:30 ... 18:30` — exact
-  (`78*5=390min=6:30`, `222*5=1110min=18:30`).
-- Report 787 reconverted `--replace` → page `2194197`. Drift-fix fired on
-  `tmc_avg_delay_line_graph` (LineGraph). Before: two Line Graph sections showed
-  `102 139 176 213` and `120 193`. After: `8:30 11:35 14:40 17:45` and `10:00 16:05` — exact
-  (`102*5=510min=8:30`, `213*5=1065min=17:45`, `120*5=600min=10:00`, `193*5=965min=16:05`).
-- BarGraph not separately live-probed (no live report conveniently exercises an epoch-axis
-  BarGraph today) but covered by construction — identical `{...props.xAxis}` passthrough
-  confirmed by reading `graph_new/components/BarGraph.jsx` directly, same as Line/Grid.
-- Full census rerun after both reconverts: **869/869 reports, 0 errors**; `full` 261,
-  graph-instance mapped 5,288/7,103 (74.4%) — byte-identical to the pre-round baseline, as
-  expected for a pure display/formatting fix with zero effect on coverage/mapping logic.
+**Live-verified end-to-end** (not a dry-run proxy): ran the real (non-dry-run) `convert_report(316)`
+— old report 316's own real dates are 2017-2018, no forcing/monkey-patching needed. Created
+template `tmc_freeflow_summary_bar_graph_2018` (id `2194971`) and page `2194972`
+(`converted_reports/madison_ave_road_diet_eastbound_created_on_6_14_19`). Probed with
+`report_probe.mjs`: the "Freeflow" section rendered a real SVG bar graph, live `/graph` response
+showed `avg(pm3.speed_pctl_85) as freeflow_avg=24.999...` for both comps (≈25 mph, a sane freeflow
+speed), and the page's attribution strip correctly cites `GIS_DATASETS.S1410_V3563_PM_3
+(NPMRDS2)`. `converted_pages_total` 35→36 as a result (a genuine new conversion, not a scratch
+test page — no forced dates, nothing to clean up).
 
-**Not done**: `HOUR_EXPR`/`QUARTER_HOUR_EXPR` calculated-column x-axis groupings were not
-investigated for a similar labeling gap (out of scope, not diagnosed by round 53). No proactive
-resweep of the ~40 other epoch-axis templates beyond the 2 reconverted for verification — they
-pick up the fix lazily whenever next reconverted, per standing policy.
+**Not done**: no resweep of the other 31 newly-mapped instances into pages (lazy-reconvert /
+selective-conversion policy, same as every prior coverage-only round). No 2017 freeflow-column
+workaround (still blocked on view 3566's missing `speed_pctl_*` columns, per round 66). No
+resolution of the residual 30 unmapped instances (real, out-of-scope data-coverage gaps, same
+class as the Info Box reliability bucket's own year/bin gaps).
 
-**All 9 round-53 triage items are now DONE** (see the round-53 close-out list in the archive):
-stray rows (round 53 same-day), pre-2017 refusal rebuild (round 54), BarGraph tooltip (round 55),
-graph title default (round 56), GridGraph missing-data color (round 57), Info Box mm:ss (round
-58), TMC meta join swap (round 59), legend/flex width-squeeze (round 60), epoch x-axis format
-(this round). No open priority-list items remain.
 
-**Files touched** (all in `@availabs/dms`, isolated from converter work per
-[[feedback_isolate_shared_code_changes]], except the converter default itself):
-`packages/dms/src/ui/components/graph_new/utils.js`,
-`packages/dms/src/ui/components/graph_new/GraphComponent.jsx`,
-`packages/dms/src/patterns/page/components/sections/components/ComponentRegistry/graph_new/config.jsx`;
-converter: `scripts/convert_old_reports.py` (`ensure_graph_templates` mint + drift branches).
-
-**What this is**: `scripts/convert_old_reports.py` converts old `admin2.reports` (869 total) into
+**What this is**: `scripts/npmrds-reports/convert_old_reports.py` converts old `admin2.reports` (869 total) into
 new DMS report pages (pattern `npmrds_sub`), template-driven and repeatable. Goal = conversion
-*capability*, not bulk conversion; reports are picked by gap coverage. `scripts/census_old_reports.py`
+*capability*, not bulk conversion; reports are picked by gap coverage. `scripts/npmrds-reports/census_old_reports.py`
 measures corpus-wide coverage by importing the converter's own analyze branches (it must be
 extended whenever the converter grows a new branch — it went stale twice by round 27; round 38
 added the `INFO_BOX_TRAVELTIME_BUCKET` mirror for Phase B (its sibling `BAR_SUMMARY_PM3_BUCKET`
@@ -102,21 +75,38 @@ dropping every report with a Bar Graph Summary graph from every census run since
 constant disappeared; found and removed round 49, see below); round 39 added the `pre_2017_only`
 report-level exclusion; round 40 added `INFO_BOX_LENGTH_BUCKET`/`INFO_BOX_AADT_BUCKET`/
 `INFO_BOX_DELAY_BUCKET` mirrors and a `graph_comps[].id` synthetic-fallback fix; round 49 added
-the `route_map_none`/`route_map_speed` Route Map mirror).
+the `route_map_none`/`route_map_speed` Route Map mirror; **round 68 re-added `BAR_SUMMARY_PM3_BUCKET`
+for real** — this time as a properly-defined constant with a live `convert_report` pre-pass AND a
+matching census mirror behind it, not the round-38/49 dangling-reference bug).
 
-**Coverage** (round-49 census rerun, 2026-07-15, CURRENT — first run since at least round 47
-that actually analyzed all 869 reports with 0 errors; every prior "868/869 reports" headline
-between whenever the `BAR_SUMMARY_PM3_BUCKET` bug landed and round 49 was silently computed
-over only ~595 of them): **217 full / 602 partial / 36 none / 14 no_graphs**; **4,995/7,103**
-graph instances mapped (70.3%, up from 69.2% pre-round-50 — all of M3: travelTime + avgHoursOfDelay + hoursOfDelay). Report-level route validity: 33 `ok` (≥1 route with a real
-tmc_array), 612 `hinges_on_point_resolution` (point-drawn, resolved at convert time), **213
-`no_valid_routes` shells** (unproducible, broken in the OLD tool too), 11 `no_route_comps`.
-`full_producible`: **188** (up from R47's 122; round 49's speed-choropleth flip took it to
-184, round 50's travelTime choropleth flip took it to 188; avgHoursOfDelay/hoursOfDelay added 0 more
-flips by design, pure vocabulary breadth — see round 49/50 below). `converted_pages_total`: **32**. This round did NOT recompute the pre-2017-excluded headline
-breakdown (round 39/42's framing) — rerun `python3 scripts/census_old_reports.py` (~40s,
-read-only) and check `census_summary.md`'s own sections for that cut if needed; the numbers
-above are the RAW (all-869) figures.
+**Coverage** (round-68 census rerun, 2026-07-20, CURRENT — supersedes every number below dated
+2026-07-17 or earlier): **305 full / 521 partial / 29 none / 14 no_graphs** (raw, all 869);
+**5,653/7,103** graph instances mapped. Excluding the 133/869 (15.3%) pre-2017-only
+reports: **229 full / 467 partial / 26 none / 14 no_graphs**; **5,194/6,525** mapped.
+Report-level route validity: 33 `ok`, 612 `hinges_on_point_resolution`, **213 `no_valid_routes`
+shells** (unproducible, broken in the OLD tool too), 11 `no_route_comps`. `full_producible`
+(full class, `ok`/`hinges_on_point_resolution` validity, excl. pre-2017-only): **181**.
+`converted_pages_total`: **36** (36 live pages, one per converted old-report id — round 64's
+cleanup already resolved the 1033/1056 duplicates for good; the "2 stale duplicates pending
+deletion" phrasing that lingered in rounds 65-67's copy-forward text was stale, corrected here).
+**Round 66's +24
+full/+10 full_producible (pm3 2018-2020 backfill) and round 67's +11 full/+7 full_producible
+(Route Line Graph/Route Compare Component resolution-precedence fix) were both pure data/logic-
+coverage gains with no new pages. Round 68 wired a new bucket (+32 mapped instances, `full`/
+`full_producible` unchanged — see Round 68 above) AND built one real page (old report 316) during
+live verification, so `converted_pages_total` moved 35→36 this round.**
+
+**Reconciliation note (round 63)**: this `full_producible` (164) looks like a big drop from
+round 52's documented 231 — it is NOT a regression from this session's work. Recomputing
+today's own census data WITHOUT the pre-2017-only exclusion gives **239** (full_producible if
+that filter didn't exist), of which **75 are actually pre-2017-only** — i.e. round 52's 231 was
+almost certainly measured while the pre-2017-only report-level refusal was silently regressed
+(round 53 found, and round 54 fixed, that this exact safeguard had gone missing sometime during
+rounds 41-52's rewrites — see "Standing user directives" below). 239 ≈ 231 within the margin of
+subsequent rounds' own template changes. **164 is the true, currently-achievable figure** with
+the refusal correctly in place; historical "full_producible" mentions in rounds 47-52 below
+should be read as measured under that (since-fixed) regression, not as a higher bar this session
+failed to maintain.
 
 **Standing user directives (all still in force)**:
 - **Strategic frame (2026-07-13 — read this first, it overrides "fidelity first" instincts)**: the
@@ -176,7 +166,7 @@ above are the RAW (all-869) figures.
   are plain Float64, **0 = missing** — every measure expression must `nullIf(col, 0)` (rounds
   9/23/28).
 - Templates are minted by `ensure_graph_templates` from `TEMPLATE_SPECS`
-  (`scripts/convert_old_reports.py`); drift detection replaces the whole yAxis dict (incl. `fn`)
+  (`scripts/npmrds-reports/convert_old_reports.py`); drift detection replaces the whole yAxis dict (incl. `fn`)
   and compares display patches. `load_graph_templates()` needs `--limit 1000` (round 33 bug).
 - Reliability (LOTTR/TTTR/freeflow `speed_pctl_85`) comes from pm3 source **1410** per-tmc-year
   via the `pgFederated` inline join (round 16); per-report join year via `graph_max_year`
@@ -248,7 +238,7 @@ above are the RAW (all-869) figures.
   The Map-layer join pipeline (`buildJoinParam` → tile/colorDomain `join=` param) bypasses that
   transform entirely — sending the bare `{sources: {...}}` shape crashes the ENTIRE dms-server
   process (uncaught `TypeError` in `routes/uda/utils.js#buildJoin`'s `join.on.length`, not a
-  scoped request error). `scripts/convert_old_reports.py`'s `build_ch_join_wire(sources)` does
+  scoped request error). `scripts/npmrds-reports/convert_old_reports.py`'s `build_ch_join_wire(sources)` does
   this transform in Python — ANY new Map-layer join (M3's hoursOfDelay needs a two-source join,
   for instance) must go through it, never construct `query.join` by hand.
 - **Converted-page tile requests are baked at conversion time to `TILE_HOST` (default
@@ -278,16 +268,32 @@ above are the RAW (all-869) figures.
   directive; **140 (27%) are `bin_undetermined`** (comps whose peak flags don't land on
   exactly one of 1410's amp/midd/pmp/we bins — a mapping-policy decision, not data);
   **80 (16%) pre-2017** (permanently excluded); 1 other (2026). Among flip-candidate reports
-  the same split holds (79/35/27 instances). So buckets #1/#2 mostly unlock via the backfill,
-  not converter work — the top genuinely *buildable* flip lever in the corpus is **Route
-  Difference Graph speed×5-min (#4: 106 instances / 84 reports / 29 flips)**, an unbuilt
-  shape (in-scope since round 24) whose cross-arm primitive (`__ANCHOR__`, round 25) already
-  exists, with TMC Difference Grid (#6, 94/52/3) as its mechanical sibling. Second-cheapest
-  breadth lever (instances, not flips): a mixed-resolution precedence policy — `resolution:
-  None` = assigned comps genuinely disagree (the missing-setting 5-minutes default already
-  exists, `analyze_graph` ~3384) — ~392 buildable instances refused today; needs the old
-  tool's actual precedence rule read off `GeneralGraphComp` + a user policy sign-off, then
-  it's converter logic over EXISTING templates, no new vocabulary.
+  the same split holds (79/35/27 instances). **STALE as of round 66 (2026-07-20)**: the user
+  backfilled pm3 for 2018-2020 (not 2017), closing that share of the 293 — see Round 66 below.
+  The `bin_undetermined` and pre-2017 shares are UNCHANGED (neither is a data-coverage
+  question). **Route Difference Graph speed×5-min (was #4
+  here) and its TMC Difference Grid sibling (was #6) were BUILT in round 52** — no longer an
+  open lever, see round 52 below. **The "mixed-resolution precedence policy" lever below is
+  STALE, corrected round 63 (2026-07-17)**: what looked like ~392 buildable instances
+  refused on a genuine "comps disagree" ambiguity was mostly analyzer false-positives, not a
+  real precedence question — `SINGLE_ACTIVE_COMP_TYPES` (Route Bar Graph/TMC Grid Graph/Hours
+  of Delay Graph/TMC Info Box only ever render their FIRST assigned comp, never "every comp",
+  per old `GeneralGraphComp.getActiveRouteComponents()`'s real default) plus Route Map/Bar
+  Graph Summary resolution-irrelevance (both confirmed by reading each old component
+  directly) closed most of it without needing any precedence-rule decision at all. **CLOSED
+  round 67 (2026-07-20)**: read `RouteLineGraph.jsx`/`RouteCompareComponent.jsx` directly for
+  the narrower 159-instance residual (121 Route Line Graph, 21 Route Compare Component, 17
+  tail types) — no policy sign-off was actually needed, confirming the user's own prediction.
+  Route Compare Component's 21 were a pure false positive (resolution is genuinely never read
+  by that component, same class as Route Map's exemption); Route Line Graph's 121 had one
+  fully deterministic old-tool default (first comp's resolution wins, non-matching comps
+  silently excluded — an author-facing selector exists in the old tool for switching groups,
+  not replicated here). Both ported into `analyze_graph`; census confirms `full` +11,
+  `full_producible` +7, mapped instances +106, `mixed_resolutions_on_graph` 159→20. See Round
+  67 above for full detail. Residual 20 (3 Route Line Graph + 17 tail-type) are genuine, not
+  worth chasing further — 3 come from reports whose OWN old `state.activeRouteComponents`
+  explicitly spans mixed resolutions, an ambiguity baked into that report's own past
+  authoring, not analyzer noise.
 - **`META_JOIN` (hoursOfDelay/avgHoursOfDelay/co2Emissions/avgCo2Emissions) is year-matched, not
   frozen (round 59)**: source 582/view 983 (`NPMRDS_V6_tmc_meta`), joined via a COMPOUND key
   (`tmc=tmc AND toYear(ds.date) as ... = table1.year`) so every fact row resolves its own date's
@@ -302,6 +308,27 @@ above are the RAW (all-869) figures.
   Any FUTURE `META_JOIN`-consuming function should be checked for the same gap before assuming
   drift detection "just works" — `ensure_route_map_hoursofdelay_template`/
   `ensure_route_map_avghoursofdelay_template` were already safe (full-state `==` comparison).
+- **A converted page's `url_slug` is NOT a stable identifier — never key anything off it (round
+  63, 2026-07-17)**: `convert_report()` sets `url_slug = "report_{old_id}"` literally at creation
+  (confirmed in `dms/cli/src/commands/page.js`'s `create()`), but the DMS page editor's
+  `updateTitle()`/`getUrlSlug()` (`patterns/page/pages/edit/editFunctions.jsx` /
+  `pages/_utils/index.js`) recomputes it from the page's CURRENT title on every title save —
+  intentional platform behavior (URLs track titles by design, confirmed with the user, not a
+  bug), but it means the slug silently drifts to `converted_reports/<snake_case_title>` the
+  first time anyone opens/saves the page in the admin UI. This broke `convert_report()`'s own
+  `--replace` existence check (slug-based) and `census_old_reports.py`'s `fetch_converted_pages()`
+  (also slug-based) — both fixed to key off `_converted_from_old_report_id` on the
+  `reports_snap_2` row instead (set at creation, never changes). Left 2 live duplicate pages
+  undetected for a while (old reports 1033, 1056 — cleanup executed round 64). Any FUTURE code
+  that needs to find "the page for old report N" must go through `find_page_by_old_report_id(old_id)`
+  (or the equivalent `reports_snap_2` lookup) — never construct or match on a `report_<id>`-style
+  slug. **Round 65 closed the write-side half of this gap**: round 63 only fixed the converter's
+  *reads* (existence checks); `convert_report()` still minted every new/reconverted page at
+  `report_<old_id>`, so every `--replace` reverted a page's live URL back to that scheme until the
+  next manual title-save — a real regression round 65 hit and fixed live. `compute_report_slug()`/
+  `to_snake_case()` (exact ports of the admin UI's own `getUrlSlug()`/`toSnakeCase()`) now mint the
+  slug a page is BORN with as `converted_reports/<snake_case_title>` directly — the scheme 34/37
+  live pages already converge to — so a page's URL no longer changes across reconversions at all.
 
 **Immediate next steps** (round 34 "Not done / next", order user-endorsed):
 - [x] **(a) DONE (round 35): the SPEED_EXPR/TRAVEL_TIME_EXPR backport** to all live
@@ -316,6 +343,9 @@ above are the RAW (all-869) figures.
   avgTT-byDateRange static template (B3, all 38 predicted flips materialized) + Bar Graph Summary
   freeflow-byDateRange pm3 template (B2, mechanism proven, but the real corpus's 62 instances are
   all pre-2019-dated — outside 1410's 2021-2025 coverage, so 0 real flips today). See Round 38.
+  **Follow-up DONE (R68, 2026-07-20)**: B2's mechanism finally wired into the real convert/analyze
+  pass (it sat dead since round 38) — `full`/`full_producible` unchanged, mapped +32, one report
+  (316) live-converted end-to-end. See Round 68 above.
 - [ ] (d) Per-route bar colors decision (double-`__series` trick untried) — deprioritized
   2026-07-13 (cosmetic parity; ranks below any vocabulary-breadth work).
 - [x] (e) DONE (round 37, deletion executed round 39): census now mirrors the round-33
@@ -385,15 +415,84 @@ above are the RAW (all-869) figures.
   (client, generic/author-facing) + converter default-set across every `"xAxis": "epoch"`
   TEMPLATE_SPECS entry via drift detection. See Round 61 above. **No round-53 priority-list items
   remain open.**
+- [x] **(m) DONE (R63, 2026-07-17)**: corrected the stale "392 mixed-resolution" figure (real
+  remaining count: 159, concentrated in Route Line Graph) and fixed the `url_slug`-based
+  idempotency/census bug that let 2 duplicate converted pages accumulate. See Round 63 above.
+  **Follow-up cleanup DONE (R64, 2026-07-20)**: minted a fresh token via `mint_token.sh` and ran
+  `cleanup_duplicate_pages.py` directly (per [[feedback_credential_bearing_commands]]'s standing
+  carve-out — this flow is pre-authorized to run, not hand off). Found both stale pages
+  (`2191292`, `2191328`) had already been deleted by an untracked session sometime between R63 and
+  now — `dms raw get` returned all-null for both, which crashed `delete_converted_page()` with an
+  `AttributeError` instead of a clean message (real bug, fixed: now prints "not found, skipping"
+  and returns). Verified directly against `dms_npmrdsv5.data_items` and the `reports_snap_2` table:
+  only one live page + one snap row remains for each of old reports 1033 (`2194141`) and 1056
+  (`2192501`), zero orphaned snap rows referencing the old stale page ids. Census confirms
+  `converted_pages_total: 35`, matching R63's post-fix expectation exactly — no duplicates remain.
+  **Follow-up DONE (R67, 2026-07-20)**: the Route Line Graph/Route Compare Component resolution-
+  precedence investigation — read the old tool directly, ported its real precedence rule, closed
+  159→20 mixed-resolution instances, `full` +11/`full_producible` +7/mapped +106. See Round 67
+  above; no remaining open question here.
+- [x] **(n) DONE (R65, 2026-07-20)**: user-reported epoch-tick regression on old report 33 (a
+  pre-round-61 page) fixed by reconversion; found + fixed a second, self-inflicted URL-stability
+  regression that reconversion caused (closes the write-side half of round 63's `url_slug` gap —
+  `convert_report()` now mints a page's slug the same way the admin UI's `getUrlSlug()` would,
+  landing directly on the stable `converted_reports/<title>` scheme instead of drifting onto it
+  later). See Round 65 above.
+- [x] **(o) DONE (R68, 2026-07-20)**: wired `ensure_bar_graph_summary_pm3_template` (Bar Graph
+  Summary `freeflow-byDateRange`) into `convert_report`/`census_old_reports.py` — dead code since
+  round 38, made actionable by round 66's pm3 2018-2020 backfill. `full`/`full_producible`
+  unchanged, mapped +32 (excl. pre-2017); live-verified via a real (non-dry-run) conversion of
+  report 316. See Round 68 above.
 
-## Round ledger (rounds 1–60 archived — full detail in [the archive](./old-reports-conversion-archive.md); rounds 61-62 are current, full detail above)
+## Round ledger (rounds 1–67 archived — full detail in [the archive](./old-reports-conversion-archive.md); round 62 is ledger-only below (full detail lives in "Known functionality gaps"), round 68 is current, full detail above)
 
+- **R67** (07-20): read `RouteLineGraph.jsx`/`RouteCompareComponent.jsx`/`GeneralGraphComp.jsx`
+  (transportNY) directly to resolve round 63's 159-instance `mixed_resolutions_on_graph` residual —
+  confirmed the user's hunch that no policy decision was needed. Route Compare Component's 21 were
+  a pure false positive (resolution never read by the real component); Route Line Graph's 121 had
+  one fully deterministic old-tool default (first comp's resolution wins). `full` 218→229 (+11),
+  `full_producible` 174→181 (+7), mapped instances 5,056→5,162 (+106), `mixed_resolutions_on_graph`
+  159→20. Full detail: [archive, "Round 67"](./old-reports-conversion-archive.md).
+- **R66** (07-20): pm3 (source 1410) 2018-2020 backfill wired into `PM3_VIEW_BY_YEAR` (user
+  backfilled the underlying data outside this session) — `full` 194→218 (+24), `full_producible`
+  164→174 (+10), mapped instances (excl. pre-2017) 5,027→5,056 (+29). 2017 deliberately NOT added
+  (view is missing all 8 `speed_pctl_*` columns, can't back `freeflow`). Bonus finding:
+  `ensure_bar_graph_summary_pm3_template` (Bar Graph Summary × freeflow-byDateRange) is dead code,
+  never wired into the convert/analyze pass — the backfill makes 22+1 instances newly
+  data-feasible, scoped as a follow-up, not built this round. `converted_pages_total` unchanged
+  (35) — pure data-coverage gain, no pages built/reconverted. Full detail: [archive, "Round
+  66"](./old-reports-conversion-archive.md).
+- **R65** (07-20): fixed a user-reported epoch-tick regression on old report 33 (a pre-round-61
+  page) by reconverting it, then found and fixed a second, self-inflicted URL-stability regression
+  that very reconversion caused — `convert_report()` was still minting every new/reconverted page
+  at the throwaway `report_<old_id>` slug scheme instead of the stable `converted_reports/<title>`
+  scheme 34/37 live pages already converge to; new `compute_report_slug()`/`to_snake_case()` (exact
+  ports of the admin UI's own `getUrlSlug()`/`toSnakeCase()`) fix it for good — a page's slug is now
+  BORN on the stable scheme. Closes the write-side half of round 63's `url_slug` gap. Full detail:
+  [archive, "Round 65"](./old-reports-conversion-archive.md).
+- **R63** (07-17): corrected the stale "392 mixed-resolution" figure (real remaining count: 159,
+  concentrated in Route Line Graph) and fixed the `url_slug`-based idempotency/census bug that let
+  2 duplicate converted pages accumulate — `find_page_by_old_report_id()`/`fetch_converted_pages()`
+  now key off the durable `_converted_from_old_report_id` field instead of `url_slug`. Only fixed
+  the *read side*; round 65 found and fixed the *write side* (`convert_report()` still minted new
+  pages at `report_<old_id>`). Full detail: [archive, "Round 63"](./old-reports-conversion-archive.md).
+- **R64** (07-20): follow-up cleanup — minted a fresh token and ran `cleanup_duplicate_pages.py`;
+  found both stale pages had already been deleted by an untracked session, which crashed
+  `delete_converted_page()` with an `AttributeError` (fixed: now prints "not found, skipping").
+  Census confirmed `converted_pages_total: 35`, no duplicates remain. See item (m) above.
 - **R62** (07-17): axis-label (title/caption) fix — user-reported 2026-07-13 gap, root-caused as
   a converter omission (the render path already worked) rather than the round-34/60 squeeze bug.
   `display.yAxis.label` now set from the yAxis column's own `customName`; `display.xAxis.label =
   "Time of Day"` for every epoch-axis spec; 6 `AVG_DELAY_EXPR` specs that had no `customName` at
   all got one. Live-verified on report 787 (page `2194270`); full census rerun (869/869, 0
   errors) byte-identical mapping stats. See "Known functionality gaps" above for full detail.
+- **R61** (07-17): epoch→HH:MM x-axis tick format shipped (the last round-53 priority-list item) —
+  new `epoch_time` `ValueFormats` entry + xAxis named-formatFn wiring in `GraphComponent.jsx`
+  (generic, author-facing, mirrors the existing yAxis Tick Format select) + converter default-set
+  across every `"xAxis": "epoch"` TEMPLATE_SPECS entry via drift detection. Live-verified on
+  reports 179 (page `2194183`) and 787 (page `2194197`), exact tick-value math confirmed on both.
+  Full census rerun (869/869, 0 errors) byte-identical mapping stats. All 9 round-53 triage items
+  closed as of this round. Full detail: [archive, "Round 61"](./old-reports-conversion-archive.md).
 - **R60** (07-17): legend/flex width-squeeze (parked since round 34) un-parked and fixed
   platform-wide via a dynamically-measured guard (`useLegendSqueezeGuard`, `getBoundingClientRect`
   at render time), not a static CSS cap — a page whose legend already fits renders a
@@ -645,20 +744,20 @@ page edit/publish/layout).
   section states in one call; `dms raw update <id> --set nested.key=value` does dot-notation deep
   patches. (Deep edits inside *stringified* element-data still need a read-modify-write, but
   prefer reconverting the page via the converter over hand-patching.)
-- **Stack preflight**: `python3 scripts/preflight.py` — one command checks vite, dms-server
+- **Stack preflight**: `python3 scripts/npmrds-reports/preflight.py` — one command checks vite, dms-server
   (/graph roundtrip), all three Postgres targets, ClickHouse, stray CH queries >60s (the
   unfiltered-scan hazard), and recent dms-server log errors. ~1s when healthy; fails fast with a
   VPN diagnosis instead of hanging. Run at session start or whenever anything hangs.
-  `python3 scripts/dbq.py chprocs` runs just the stray-CH-query check (use before/after live
+  `python3 scripts/npmrds-reports/dbq.py chprocs` runs just the stray-CH-query check (use before/after live
   report-page loads).
-- **Ad-hoc queries / data validation**: `python3 scripts/dbq.py <old|new|dama|ch|graph|oldgraph> "<sql-or-paths>"`
+- **Ad-hoc queries / data validation**: `python3 scripts/npmrds-reports/dbq.py <old|new|dama|ch|graph|oldgraph> "<sql-or-paths>"`
   — one read-only runner for all backends (old/new/dama Postgres, ClickHouse HTTP, local +
   prod falcor). Creds read at runtime from the config files above; pg forced
   `default_transaction_read_only=on`, CH `readonly=2`, no write flag exists; 5s connect
   timeout with VPN hint instead of hanging. Bespoke validation scripts should `import dbq`
   (from `scripts/`) instead of re-implementing psql/CH/falcor boilerplate. Writes still go
   only through `convert_old_reports.py`, the dms CLI, or the user.
-- **Live page verification**: `node scripts/report_probe.mjs <slug>` (repo root of dms-template) —
+- **Live page verification**: `node scripts/npmrds-reports/report_probe.mjs <slug>` (repo root of dms-template) —
   single parameterized Playwright harness replacing the old one-off scratchpad scripts. One load
   collects console/page errors, non-200s, pending-at-close requests (hung/unbounded-query
   tripwire), decoded `/graph` traffic (`--grep` to filter), per-section SVG census, full-page +
@@ -845,12 +944,31 @@ convert from `admin2.reports` directly (dedupe/cleanup of that dataset is separa
   color-targeted value axis and its `categorize` dimension are untouched (different axis
   semantics, out of scope).
 - **Epoch x-axis hover tooltip still shows the raw epoch integer, not a clock time
-  (user-reported 2026-07-17, NOT investigated — logged only, per user)**: round 61 fixed the
-  x-axis TICK labels (`epoch_time` format via `xAxis.format`/`getFormatFunc`) but apparently did
-  not reach the hover-tooltip value display, which still reads e.g. `186` instead of `15:30`.
-  Likely a separate formatting path from `GraphComponent.jsx`'s `xAxis.format` — same class of
-  gap as round 55's BarGraph tooltip customName fix (tooltip rendering is its own code path per
-  chart type, not automatically covered by axis-tick formatting). Unverified; not yet scoped.
+  (user-reported 2026-07-17, ROOT-CAUSED 2026-07-24, still NOT fixed)**: round 61 fixed the
+  x-axis TICK labels (`epoch_time` format via `xAxis.format`/`getFormatFunc`) but did not reach
+  the hover-tooltip value display, which still reads e.g. `186`/`142` instead of `15:30`.
+  Re-confirmed live 2026-07-24 on the NY-9D Beacon report (`converted_reports/page_13_13`,
+  travelTime LineGraph) — tooltip header read `142` while the axis directly below it correctly
+  read `12:20`. Root cause found:
+  `packages/dms/src/ui/components/graph_new/GraphComponent.jsx`'s `hoverComp` useMemo
+  (lines 89-103) computes `valueFormat`/`yFormat`/`showTotals`/`minutesAutoSeconds` from
+  `graphFormat.tooltip`, but never computes an `xFormat`/`idFormat`/`indexFormat` from
+  `graphFormat.xAxis.format` the way the sibling `xAxis` prop does (same file, lines 168-178,
+  `namedFormat = get(graphFormat, ["xAxis","format"]); if (namedFormat) return
+  getFormatFunc(namedFormat)`). With no `xFormat` supplied, every avl-graph chart type's
+  `DefaultHoverComp` falls back to its own bare default — `Identity` (pass-through, no
+  formatting) for LineGraph (`components/avl-graph/LineGraph.jsx:53,58,167`:
+  `xFormat(get(data,"x",null), data)` renders the raw value). BarGraph/GridGraph/PieGraph/
+  TreemapGraph/SunburstGraph's `DefaultHoverComp`s take the equivalent prop under a different
+  name (`indexFormat`) and are likely affected the same way, since the same `hoverComp` useMemo
+  feeds all of them — not verified per-chart-type, but the fix is the same single spot either
+  way. **FIXED and live-verified 2026-07-24**: added the `xFormat`/`indexFormat` computation to
+  the `hoverComp` useMemo (reusing the same `namedFormat`/`getFormatFunc` lookup the `xAxis.format`
+  prop already does), in both dms-template's `src/dms` submodule and transportNY's
+  `src/modules/dms` submodule copy. Re-tested the same live repro (`page_13_13`'s overview
+  LineGraph): tooltip now reads `11:50`, matching the axis, instead of the raw epoch integer. See
+  `research/report-page-redesign/findings.md` ("RRL/tooltip triage, 2026-07-24") for the
+  user-facing repro this was found from.
 - **Route Compare anchor row ordering still inconsistent (user-reported 2026-07-13, NOT
   investigated — logged only, per user)**: recurrence/incomplete fix of the round-26 user-caught
   anchor-row bug. User saw the anchor row render in the MIDDLE of the table once (anchor was
@@ -870,7 +988,7 @@ convert from `admin2.reports` directly (dedupe/cleanup of that dataset is separa
   checked tile/join network traffic, not the legend panel itself. One-line fix (added the
   missing key to `template_layer`); `bake_route_map_speed_paint` clones/mutates that same dict
   per-report so no other function needed touching. Live-verified: reconverted report 168
-  (`DMS_TILE_HOST=http://localhost:3001 python3 scripts/convert_old_reports.py --report-id 168
+  (`DMS_TILE_HOST=http://localhost:3001 python3 scripts/npmrds-reports/convert_old_reports.py --report-id 168
   --replace`, new page `2191242`), probed clean (0 console/page errors, 1 benign 204 on
   `/track/visit`), screenshot confirms a real step-legend with color swatches + numeric ranges
   ("Speed (2017 network)" / per-route entries, e.g. `18.47 - 20.33`, `36.66 - 43.2`). Minor
@@ -1009,8 +1127,8 @@ no crash, template placeholder renders) — not reconverted with the local tile-
 since its point was the gap-log path, not visual verification.
 
 Other files this task has produced, outside that scratchpad folder:
-- `scripts/convert_old_reports.py` — the converter itself.
-- `scripts/register_aadt_distributions.sql` — one-time DAMA source/view registration for
+- `scripts/npmrds-reports/convert_old_reports.py` — the converter itself.
+- `scripts/npmrds-reports/register_aadt_distributions.sql` — one-time DAMA source/view registration for
   `aadt_distributions` (already run; keep for reference/idempotent re-registration elsewhere).
 - `src/dms/documentation/npmrds-data-sources.md` — the living data-source reference (see below).
 - `src/dms/packages/dms/src/patterns/page/components/sections/components/dataWrapper/buildUdaConfig.js`
@@ -1053,7 +1171,7 @@ Other files this task has produced, outside that scratchpad folder:
   crash trace until the pipe is re-established; that's expected, not a live issue. Ask the user
   to re-run their `tee` setup if live log access is needed again.
 - Round 49 (Route Map M2, speed choropleth) new/changed files:
-  - `scripts/convert_old_reports.py` — `SPEED_VALUE_EXPR`, `CH_FACT_TABLE`/
+  - `scripts/npmrds-reports/convert_old_reports.py` — `SPEED_VALUE_EXPR`, `CH_FACT_TABLE`/
     `CH_TMC_IDENT_TABLE`, `DEFAULT_SPEED_COLOR_RANGE`, `choropleth_paint()` (Python port of the
     dms Map section's `choroplethPaint()`), `quantile_breaks()`, `build_ch_join_wire()` (the
     AVL-Graph-authoring-shape → server-wire-shape join transform), `ensure_route_map_speed_
@@ -1061,7 +1179,7 @@ Other files this task has produced, outside that scratchpad folder:
     override; `build_graph_section_data()` gained a `route_map_value_ctx` param and Map-vs-
     AVL-Graph coloring branch; Route Map pre-pass in `convert_report()` extended for measure
     `"speed"`; `import dbq` added (sibling-module CH query runner).
-  - `scripts/census_old_reports.py` — `route_map_none`/`route_map_speed` mirror generalized to
+  - `scripts/npmrds-reports/census_old_reports.py` — `route_map_none`/`route_map_speed` mirror generalized to
     a single measure-keyed branch; removed a genuinely pre-existing, unrelated dead-code
     `NameError` (`BAR_SUMMARY_PM3_BUCKET`, never defined anywhere, silently dropping 274/869
     reports from every census run since some round after 47 — found only because a full fresh

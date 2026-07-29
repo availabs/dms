@@ -49,7 +49,7 @@ export const getColorRange = (size, name, reverse=false) => {
 
 export const DEFAULT_COLORS = getColorRange(12, "Set3");
 
-export const getColorFunc = colors => {
+export const getColorFunc = (colors, colorsByKey) => {
 
   if (typeof colors === "function") {
     return colors;
@@ -66,7 +66,15 @@ export const getColorFunc = colors => {
     colorRange = [...colors];
   }
 
-  return (d, i) => {
+  // An explicit per-key color (e.g. a comparison-series variant's identity
+  // color) wins over positional cycling — keeps a series' color stable across
+  // re-orders/removals of OTHER series, and identical across separate graphs
+  // that each independently resolve the same key. Falls back to today's
+  // purely positional behavior when no key match is found (BC).
+  return (d, i, key) => {
+    if (colorsByKey && key != null && colorsByKey[key] != null) {
+      return colorsByKey[key];
+    }
     return colorRange[i % colorRange.length];
   }
 }

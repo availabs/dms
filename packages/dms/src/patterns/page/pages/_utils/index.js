@@ -105,12 +105,30 @@ const getParentSlug = (item, dataItems) => {
 }
 
 export const getUrlSlug = (item, dataItems) => {
-  let slug =  `${getParentSlug(item, dataItems)}${toSnakeCase(item.title)}`
+  const baseSlug = `${getParentSlug(item, dataItems)}${toSnakeCase(item.title)}`
 
-  if((item.url_slug && item.url_slug === slug) || !dataItems.map(d => d.url_slug).includes(slug)) {
-    return slug
+  if (item.url_slug && item.url_slug === baseSlug) {
+    return baseSlug
   }
-  return `${slug}_${item.index}`
+
+  // Exclude the item's own existing row (if any) so renaming back to an
+  // unchanged slug never collides with itself.
+  const existingSlugs = new Set(dataItems.filter(d => d.id !== item.id).map(d => d.url_slug))
+  if (!existingSlugs.has(baseSlug)) {
+    return baseSlug
+  }
+
+  // `_${item.index}` was previously returned unconditionally as "the" disambiguated
+  // slug, without checking it was actually unique — two pages created before
+  // `dataItems` had refreshed (so both computed the same `highestIndex`/index) would
+  // silently write duplicate url_slugs. Keep looping until the candidate is unique.
+  let slug = `${baseSlug}_${item.index}`
+  let n = 2
+  while (existingSlugs.has(slug)) {
+    slug = `${baseSlug}_${item.index}_${n}`
+    n++
+  }
+  return slug
 }
 
 export const toSnakeCase = str =>

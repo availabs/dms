@@ -15,6 +15,13 @@ export const sectionTheme = {
       editIcon: 'hover:text-blue-500 size-6',
       contentWrapper: 'h-full',
 
+      // Row rendered below the title/menu header when a theme registers
+      // section-header extensions (see sectionHeaderExtensions.js) for this
+      // section's component type. Empty by default so sites with no
+      // registered extensions render byte-identical to before this key
+      // existed — sites that use the feature supply background/padding here.
+      headerExtensionsRow: '',
+
       // Min-height applied only in page edit mode so a section with no
       // data (empty filter result, empty draft, etc.) still reserves
       // enough vertical room for its settings handle to be reachable.
@@ -63,6 +70,7 @@ const themeClasses = {
     "topBarSpacer",
     "topBarButtonsEdit",
     "topBarButtonsView",
+    "headerExtensionsRow",
   ],
   "menu": [
     "menuPosition",
