@@ -107,21 +107,23 @@ few as 4–7 reports for some classes below), so treat them as strong hints, not
 | if the request reads as... | old reports typically included | spec-buildable today? |
 |---|---|---|
 | **before/after** (a change, then measuring its effect) | Route Info Box (speed, travelTime) · Route Map · Route Line Graph · Route Bar Graph; often also TMC Grid Graph, Bar Graph Summary | all yes — Route Info Box wired 2026-07-28 (see below) |
-| **signal_timing** (an intersection/corridor signal change — NY-9D's class) | Route Map (100%) · Route Compare Component on speed and travelTime (71% each) · Route Bar Graph | Map yes; Route Compare Component **not yet** |
+| **signal_timing** (an intersection/corridor signal change — NY-9D's class) | Route Map (100%) · Route Compare Component on speed and travelTime (71% each) · Route Bar Graph | all yes — Route Compare wired 2026-07-29 (see below) |
 | **road_diet** (a lane reduction/reallocation) | Route Map · Route Info Box (freeflow, speed) · Route Line Graph | Map/LineGraph yes; Route Info Box yes as of 2026-07-28, but its "freeflow, speed" pairing is the InfoBox `reliability` bucket specifically, which needs source 1410 (pm3) and only covers 2018-2025 — unusable if the study period is outside that window (hit for real on the Poughkeepsie road-diet request, 2026-07-28: substituted `travelTime`/`hoursOfDelay` instead) |
 | **reliability** (LOTTR/TTTR/percentile framing) | Route Info Box (speed, percentile95) · Route Bar Graph (travelTime) · Bar Graph Summary · TMC Grid Graph | GridGraph yes; Route Info Box's `reliability` bucket (LOTTR/TTTR/freeflow) yes, but only for 2018-2025 (source 1410's real coverage — see road_diet row); `percentile95-byDateRange` specifically has no shape built at all yet, unlike Info Box's other measures |
 | **route_comparison** (multiple corridors/directions side by side — the largest class, n=110) | Route Map (78%) · Route Line Graph (73%) · TMC Grid Graph (67%) · Route Info Box/speed (56%) | all yes — Route Info Box wired 2026-07-28 |
 | **congestion** (general delay/slowdown framing) | Route Line Graph/avgHoursOfDelay · Route Map · Route Bar Graph/hoursOfDelay | all yes |
 | **cmp** (formal Congestion Management Process reporting) | Route Line Graph (100%) · Route Map (83%) · Route Bar Graph (hoursOfDelay, planningTime) | all yes |
 
-**One panel this table names still isn't spec-buildable — Route Compare Component**, the
-same class of gap Route Map had until 2026-07-27 and Route Info Box had until 2026-07-28: a
-real shape already built in `convert_old_reports.py` (`ensure_route_compare_template`), just
-never shelled out to from `report_build.mjs`. Tracked as a next step in
-`client-request-to-report-skill.md`. Until it lands, the closest spec-buildable substitute
-for a `signal_timing` request is what NY-9D actually used: an overlaid `LineGraph` overview
-plus per-direction `BarGraph` `comparisonMode: "difference"` — a real substitution, not the
-historically typical composition for that purpose, so say so in the graph's `why` rather
+**Route Compare Component is now spec-buildable** (`{graphType: "RouteCompare", measure:
+"speed"|"travelTime"}` — see `research/npmrds-reports/report-spec.md`'s "Route Compare
+graphs" section), wired 2026-07-29 the same way Route Map (2026-07-27) and Route Info Box
+(2026-07-28) were: a real shape already built in `convert_old_reports.py`
+(`ensure_route_compare_template`), shelled out to from `report_build.mjs` via a new
+`--route-compare-section` mode. NY-9D itself predates this — it used the substitution below
+instead — so a fresh `signal_timing` request can now use the historically typical
+composition directly; the substitution remains a valid alternative when a %-vs-anchor table
+isn't what the client actually wants: an overlaid `LineGraph` overview plus per-direction
+`BarGraph` `comparisonMode: "difference"` — say so in the graph's `why` rather
 than silently picking it and moving on.
 
 **A second, unrelated gap this table doesn't capture at all, found 2026-07-28 on a real
