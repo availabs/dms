@@ -28,7 +28,7 @@ the tick value — it has no access to the bucket width, so there is nowhere for
 resolution to make itself known.
 
 NPMRDS `epoch` is a 5-minute-of-day index (0-287). The report vocabulary
-(`dms-template/data-types/npmrds_graph_vocabulary/vocabulary.json`) derives coarser buckets by
+(`dms-template/src/themes/transportny/components/MeasurePicker/vocabulary.json`) derives coarser buckets by
 integer division, so the true width per resolution is:
 
 | resolution | xAxis expr | minutes/unit |
@@ -133,7 +133,7 @@ if the mislabeled-graph count justifies it — count first.
   2. `graph_new/GraphComponent.jsx` — passes the width at **both** resolution sites: the `hoverComp`
      tooltip formatter and the xAxis tick formatter. Both must agree or the tooltip and the axis
      disagree with each other.
-  3. `data-types/npmrds_graph_vocabulary/vocabulary.json` (dms-template) — added
+  3. `src/themes/transportny/components/MeasurePicker/vocabulary.json` (dms-template) — added
      `xAxis.epochMinutesPerUnit` = 5/15/60 to the three epoch-derived resolutions only. Correction
      to this task's original assumption: the `_provenance` string implies the JSON is generated
      *from* the Python converter, but the converter actually **reads** it

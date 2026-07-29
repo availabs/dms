@@ -52,7 +52,7 @@ Requirements for the formatter:
 
 ## Wiring the default (the part that belongs to the report-spec work)
 
-`data-types/npmrds_graph_vocabulary/vocabulary.json` measures already know their own semantics.
+`src/themes/transportny/components/MeasurePicker/vocabulary.json` measures already know their own semantics.
 Add a per-measure display hint (e.g. `"valueFormat": "minutes_seconds"`) on the duration measures —
 `travelTime` and the delay family — and have
 `src/themes/transportny/components/MeasurePicker/composeMeasureConfig.js` set

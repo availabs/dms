@@ -232,7 +232,7 @@ declares a `join`. Prefixing an alias-less measure's columns with `ds.` fails si
 (blank chart, a ClickHouse "Unknown expression identifier" buried in a `dama query`
 failure). Hit and fixed twice already (`travelTime`'s plain expression, then the
 calculated-resolution GROUP BY expressions) — see
-`data-types/npmrds_graph_vocabulary/vocabulary.json`.
+`src/themes/transportny/components/MeasurePicker/vocabulary.json`.
 
 ## Building the spec
 

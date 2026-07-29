@@ -5,6 +5,15 @@
 // section-aware in-page rail via `getInPageMenuItems`, other patterns take the
 // default (no in-page children).
 
+import { resolveSubdomainPath } from './subdomainPath';
+
+// An already-absolute destination (a resolved `sub://` cross-subdomain link, or an
+// author-supplied http(s)/protocol-relative URL) must NOT be treated as a slug
+// relative to the pattern's baseUrl. react-router's Link handles the rest: it
+// compares origins and renders a plain anchor for a different one, so a nav item
+// pointing at another product's subdomain does a normal full page navigation.
+const ABSOLUTE_URL = /^(?:[a-z][a-z0-9+.-]*:|\/\/)/i;
+
 export function getChildNav(item, dataItems, baseUrl = '', edit, getInPageMenuItems = () => []) {
     let children = dataItems
         .filter(d => item.id && d.parent === item.id)
@@ -57,10 +66,14 @@ export function dataItemsNav(dataItems, baseUrl = '', edit = false, getInPageMen
                 if (d?.icon && d?.icon !== 'none') label.icon = d.icon
                 return label
             }
-            const url = `${d.url_slug || d.path || d.id}`;
+            const url = resolveSubdomainPath(`${d.url_slug || d.path || d.id}`);
             let item = {
                 id: d.id,
-                path: `${edit ? `${baseUrl}/edit` : baseUrl}${url?.startsWith('/') ? `` : `/`}${url}`,
+                // Absolute destinations leave the app, so they take neither the baseUrl
+                // nor the /edit prefix — they are already a complete URL.
+                path: ABSOLUTE_URL.test(url)
+                    ? url
+                    : `${edit ? `${baseUrl}/edit` : baseUrl}${url?.startsWith('/') ? `` : `/`}${url}`,
                 name: `${d.title || d.name} ${d.published === 'draft' ? '*' : ''}`,
                 description: d.description,
                 hideInNav: d.hide_in_nav

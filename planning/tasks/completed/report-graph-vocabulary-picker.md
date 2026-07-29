@@ -237,7 +237,7 @@ User's stated constraints (2026-07-20): one canonical implementation; minimize r
 the mature, 68-round-hardened `scripts/npmrds-reports/convert_old_reports.py`; don't burn effort/tokens iterating
 on this piece repeatedly.
 
-**Implementation summary**: `data-types/npmrds_graph_vocabulary/vocabulary.json` (+ a `README.md`
+**Implementation summary**: `src/themes/transportny/components/MeasurePicker/vocabulary.json` (+ a `README.md`
 in the same directory documenting the field reference, composition contract, and
 regeneration/verification procedure) now holds `measures`/`joins`/`resolutions`/`comparisonModes`.
 `scripts/npmrds-reports/convert_old_reports.py` sources `SPEED_EXPR`, `SPEED_EXPR_TRUCK`, `TRAVEL_TIME_EXPR`,
@@ -337,7 +337,7 @@ values, low regression risk); the JS side is genuinely new code with no prior im
 regress.
 
 **Where the JSON file lives — DECIDED (2026-07-20, user-confirmed)**:
-`data-types/npmrds_graph_vocabulary/vocabulary.json` (+ sibling `README.md`). Not registered as a
+`src/themes/transportny/components/MeasurePicker/vocabulary.json` (+ sibling `README.md`). Not registered as a
 DMS dataType plugin (no server routes/worker, not in `register-datatypes.js`) — just a plain JSON
 file at a location reachable by `scripts/npmrds-reports/convert_old_reports.py` via `REPO`-relative path (see
 `VOCAB_PATH` near the top of that file) and importable by Vite's build-time JSON import for the
@@ -375,7 +375,7 @@ theme-side JS bundle (Workstream 2, not yet built).
    registered for `"AVL Graph"` via `theme.sectionMenuExtensions` in both `theme.js` and
    `themev2.js`.
    - `composeMeasureConfig.js` — pure composition logic (no React), reads
-     `data-types/npmrds_graph_vocabulary/vocabulary.json` via a build-time Vite JSON import.
+     `src/themes/transportny/components/MeasurePicker/vocabulary.json` via a build-time Vite JSON import.
      `composeMeasureConfig({graphType, measureKey, resolutionKey, comparisonModeKey,
      externalSourceColumns, defaultColors})` returns `{columns, join, comparisonSeriesCombine,
      displayPatch}`. Mirrors `TEMPLATE_SPECS`/`ensure_graph_templates`' exact composition rules:
@@ -420,7 +420,7 @@ theme-side JS bundle (Workstream 2, not yet built).
    combos) constrain a from-scratch generator would be exactly the "one-off developer decision"
    the author-empowerment principle warns against.
 5. **Where the vocabulary JSON loads in the browser**: build-time Vite JSON import, as planned —
-   `composeMeasureConfig.js` imports `../../../../../data-types/npmrds_graph_vocabulary/vocabulary.json`
+   `composeMeasureConfig.js` imports `../../../../../src/themes/transportny/components/MeasurePicker/vocabulary.json`
    directly.
 
 **Live verification performed** (2026-07-20, against the `npmrdsv5`/`dev2` local dev stack, report
@@ -582,8 +582,8 @@ see that task file for confirmed facts, candidate hypotheses, and repro steps.
 
 | File | Change | Status |
 |---|---|---|
-| `data-types/npmrds_graph_vocabulary/vocabulary.json` (new) | Measure expressions, joins, resolution/axis fragments, comparison-mode fragments — plain data, no logic | DONE |
-| `data-types/npmrds_graph_vocabulary/README.md` (new, not originally planned) | Field reference, composition contract (target/fn/join-merge rules the composer must apply), explicitly-out-of-scope list, regeneration/verification procedure | DONE |
+| `src/themes/transportny/components/MeasurePicker/vocabulary.json` (new) | Measure expressions, joins, resolution/axis fragments, comparison-mode fragments — plain data, no logic | DONE |
+| `src/themes/transportny/components/MeasurePicker/README.md` (new, not originally planned) | Field reference, composition contract (target/fn/join-merge rules the composer must apply), explicitly-out-of-scope list, regeneration/verification procedure | DONE |
 | `scripts/npmrds-reports/convert_old_reports.py` | `TEMPLATE_SPECS`'s generative constants (`SPEED_EXPR`, `SPEED_EXPR_TRUCK`, `TRAVEL_TIME_EXPR`, `DELAY_EXPR`, `AVG_DELAY_EXPR`, `CO2_EXPR_PASSENGER`, `CO2_EXPR_TRUCK`, `META_JOIN`, `AADT_DIST_JOIN`, `DIST_KEY_EXPR`, `WEEKDAY_EXPR`, `HOUR_EXPR`, `QUARTER_HOUR_EXPR`, `MONTH_EXPR`, `DEFAULT_DIFF_COLOR_RANGE`) sourced from the shared JSON instead of inline Python strings; AADT-override substring-swap machinery and all surrounding gap-detection/year-bin-gating logic untouched; two new guard assertions added | DONE |
 | `src/dms/packages/dms/src/patterns/page/components/sections/sectionMenuExtensions.js` (new) | Generic registry: `registerSectionMenuExtensions`/`getSectionMenuExtensions`, keyed by component name | DONE |
 | `src/dms/packages/dms/src/patterns/page/components/sections/sectionMenu.jsx` | Calls `getSectionMenuExtensions(currentComponent?.name)`, splices results in as `...extensionMenus` between `columns` and `filter` | DONE |
@@ -592,8 +592,8 @@ see that task file for confirmed facts, candidate hypotheses, and repro steps.
 | `src/themes/transportny/components/MeasurePicker/composeMeasureConfig.js` (new) | Pure composition logic reading `vocabulary.json`; builds columns/join/comparisonSeriesCombine/displayPatch; exports `BASE_SOURCE` | DONE |
 | `src/themes/transportny/components/MeasurePicker/index.js` (new) | The Measure item-group (4 nested selects) + apply logic writing via `dwAPI.setState`, replacing only `xAxis`/`yAxis`/`color`-targeted columns (never `categorize`); defaults `externalSource` to `BASE_SOURCE` when unset; gates on `isReportPage`; wires the `$self` comparison_series subscriber | DONE |
 | `src/themes/transportny/theme.js`, `themev2.js` | Register `npmrdsMeasureMenu` for `"AVL Graph"` via `sectionMenuExtensions` | DONE |
-| `data-types/npmrds_graph_vocabulary/vocabulary.json` | Round 2: added `baseSource` (source 583/view 982, full `sourceInfo` incl. 58-column list) — needed once the picker had to default the primary Dataset too | DONE |
-| `data-types/npmrds_graph_vocabulary/README.md` | Round 2: documented `baseSource` + its composition contract (default-only, never overwrite an author's own Dataset pick) | DONE |
+| `src/themes/transportny/components/MeasurePicker/vocabulary.json` | Round 2: added `baseSource` (source 583/view 982, full `sourceInfo` incl. 58-column list) — needed once the picker had to default the primary Dataset too | DONE |
+| `src/themes/transportny/components/MeasurePicker/README.md` | Round 2: documented `baseSource` + its composition contract (default-only, never overwrite an author's own Dataset pick) | DONE |
 | `src/dms/packages/dms/src/patterns/page/components/sections/section.jsx` | Round 2: derives `siblingSections` from `PageContext`'s `item`/`editPageMode` in both `SectionEdit`/`SectionView`, threads into `getSectionMenuItems` — generic, reusable by any future extension | DONE |
 | `src/dms/packages/dms/src/patterns/page/components/sections/sectionMenu.jsx` | Round 2: destructures/forwards `siblingSections` into the extension ctx | DONE |
 | `src/dms/packages/dms/src/patterns/page/components/sections/components/dataWrapper/buildUdaConfig.js` | Round 3: `mappedGroupBy` now mirrors `mappedOrderBy`'s calculated-column alias-extraction fix under active comparison-series fan-out — generic library bug, not NPMRDS-specific | DONE (live-verified 2026-07-21) |
