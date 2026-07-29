@@ -151,6 +151,22 @@ module.exports = async function gisPublishWorker(ctx) {
   await dispatchEvent('gis-dataset:VIEW_CREATE', `View ${view_id} created`, { view_id, table_schema, table_name });
 
   const { columnTypes, promoteToMulti, postGisGeometryType } = tableDescriptor || {};
+
+  // Not every entry in columnTypes describes a column we should create:
+  //   - `col: ""` is how the upload UI marks a source field the author chose to DROP
+  //     (blanking the output name). Passing it through produces `"" BIGINT` in the
+  //     CREATE TABLE and Postgres rejects it: 'zero-length delimited identifier'.
+  //   - `ogc_fid` / `wkb_geometry` are added by this worker itself (PK + geometry),
+  //     so a descriptor naming them would emit the column twice.
+  // The legacy avail-falcor worker filtered on both counts in every SQL builder
+  // (gis-dataset/publish.worker.mjs — generateCreateTableStatement, generateTempTable-
+  // Statement, generateLoadTableStatement); do the same once, here.
+  const DEFAULT_COLUMNS = ['ogc_fid', 'wkb_geometry'];
+  const dataColumnTypes = (columnTypes || [])
+    .filter(c => Boolean(c.col))
+    .filter(c => !DEFAULT_COLUMNS.includes(c.col));
+  const droppedCount = (columnTypes || []).length - dataColumnTypes.length;
+
   // hasGeom may be updated after ogr2ogr loads — if the file has geometry
   // but the tableDescriptor didn't declare it, we detect it from the temp table.
   let hasGeom = !!postGisGeometryType;
@@ -163,7 +179,7 @@ module.exports = async function gisPublishWorker(ctx) {
 
   const tempTable = `_tmp_${randomUUID().replace(/-/g, '').slice(0, 16)}`;
 
-  console.log(`[gis-publish] Task ${task.task_id}: view=${view_id}, table=${table_schema}.${table_name}, temp=${tempTable}, columns=${(columnTypes||[]).length}, geom=${postGisGeometryType || 'none'}`);
+  console.log(`[gis-publish] Task ${task.task_id}: view=${view_id}, table=${table_schema}.${table_name}, temp=${tempTable}, columns=${dataColumnTypes.length}${droppedCount ? ` (+${droppedCount} dropped by descriptor)` : ''}, geom=${postGisGeometryType || 'none'}`);
 
   // -----------------------------------------------------------------------
   // Step 1: Let ogr2ogr create and populate the temp table directly.
@@ -176,7 +192,7 @@ module.exports = async function gisPublishWorker(ctx) {
   // Build a SELECT that maps original field names (key) to temp column names (col).
   // Use CAST to CHARACTER(0) to force text output for data columns.
   // Geometry is passed through as-is (ogr2ogr handles reprojection via -t_srs).
-  const selectFields = (columnTypes || [])
+  const selectFields = dataColumnTypes
     .map(c => `CAST("${c.key}" AS CHARACTER(0)) AS "${c.col}"`);
 
   // If no column renaming needed, use SELECT * which automatically includes geometry.
@@ -277,7 +293,7 @@ module.exports = async function gisPublishWorker(ctx) {
     // ---------------------------------------------------------------------
     // Step 3b: Create final table with exact types from tableDescriptor
     // ---------------------------------------------------------------------
-    const finalColDefs = (columnTypes || []).map(c => `"${c.col}" ${c.db_type}`).join(', ');
+    const finalColDefs = dataColumnTypes.map(c => `"${c.col}" ${c.db_type}`).join(', ');
     const finalGeomDef = hasGeom ? `, wkb_geometry public.geometry(${geomType}, 4326)` : '';
 
     await db.query(`DROP TABLE IF EXISTS "${table_schema}"."${table_name}"`);
@@ -314,7 +330,7 @@ module.exports = async function gisPublishWorker(ctx) {
     // Cast and rename temp columns to final names.
     // Handle boolean text values ('true'/'false') that need to become integers.
     const unmatchedKeys = [];
-    const castCols = (columnTypes || []).map(c => {
+    const castCols = dataColumnTypes.map(c => {
       const tempName = findTempCol(c.key);
       if (!tempName) {
         unmatchedKeys.push(c.key);
@@ -345,7 +361,7 @@ module.exports = async function gisPublishWorker(ctx) {
     const fidExpr = tempFidCol ? `"${tempFidCol}" AS ogc_fid` : 'NULL::INTEGER AS ogc_fid';
     const geomSelectExpr = tempGeomCol ? [`"${tempGeomCol}" AS wkb_geometry`] : [];
     const selectCols = [fidExpr, ...castCols, ...geomSelectExpr].join(', ');
-    const insertCols = ['ogc_fid', ...(columnTypes || []).map(c => `"${c.col}"`), ...(tempGeomCol ? ['wkb_geometry'] : [])].join(', ');
+    const insertCols = ['ogc_fid', ...dataColumnTypes.map(c => `"${c.col}"`), ...(tempGeomCol ? ['wkb_geometry'] : [])].join(', ');
 
     await db.query(`INSERT INTO "${table_schema}"."${table_name}" (${insertCols}) SELECT ${selectCols} FROM "${table_schema}"."${tempTable}"`);
 
@@ -381,7 +397,7 @@ module.exports = async function gisPublishWorker(ctx) {
   // -----------------------------------------------------------------------
   console.log(`[gis-publish] Setting source metadata...`);
   try {
-    const columns = (columnTypes || [])
+    const columns = dataColumnTypes
       .map(c => ({ name: c.col, display_name: c.key || c.col, type: c.db_type, desc: null }));
 
     await db.query(`

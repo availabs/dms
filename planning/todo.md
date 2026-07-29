@@ -15,6 +15,7 @@
 - [ ] [Port `enhance_nfip_claims_v2` to the plugin system](./tasks/current/dama-nfip-claims-migration.md) — first concrete plugin built on the infrastructure. Reference implementation for subsequent hazmit ports. Replaces the smoke-test plugin with `enhance-nfip-claims`.
 - [x] [Port the pattern "duplicate" route to dms-server](./tasks/completed/port-pattern-duplicate-route.md) — DONE 2026-06-10. Added `/dama-admin/dms/:appType/duplicate` + `dama/upload/dms-duplicate.js`: a new-type-model deep clone of `{instance}|page` + `{instance}|component` rows under the new instance (remapping `draft_sections`/`sections` refs, section `parent`, `data.id`; drops history; pattern row still created client-side via `addNewValue`). Client (`patternList.jsx`/`editSite.jsx`) now checks `res.ok` and surfaces failures. Verified: cloned freightatlas2 → 7 pages/195 components, refs remapped, test rows cleaned up. UI end-to-end pending user confirm.
 - [ ] [Port `map21` to the plugin system + 2023 HPMS TTM spec output](./tasks/current/dama-map21-migration.md) — IMPLEMENTED on 2026-04-26: plugin registered, route mounts at `/dama-admin/:pgEnv/map21/publish`, fast-fail path verified against `dama-sqlite-test`, in-process HPMS 2023 validator agrees with the external `validate-hpms-ttm-2023.cjs` (synthesized 2023-shape row passes; 2025 submittal CSV produces identical errors in both). **Pending: controlled smoke test against `npmrds2` ClickHouse + a real prod NPMRDS source, plus client-side route update.**
+- [x] GIS publish: honour dropped columns (`col: ""`) — DONE 2026-07-28. `dama/upload/workers/gis-publish.js` fed `tableDescriptor.columnTypes` straight into its SQL builders, so a column the author DROPPED in the upload wizard (the wizard marks it by blanking the output name) emitted `"" BIGINT` and the publish died on `zero-length delimited identifier at or near ""`. It also had no guard against a descriptor naming `ogc_fid`/`wkb_geometry`, which the worker adds itself. Now filtered once into `dataColumnTypes` and used by every consumer (temp select, CREATE TABLE, casts, INSERT, source `metadata.columns`) — restores the legacy avail-falcor behaviour (`publish.worker.mjs` filtered `Boolean(col)` + `DEFAULT_COLUMNS` in all four builders). Found via QA ticket 2191409, where a corrected MPO upload failed this way and left an orphan view (3577) with no table. **Needs a dms-server redeploy to take effect.** NB `csv-publish.js` has the same unfiltered shape but matches legacy there, so it is left alone — a CSV upload that drops a column would fail the same way.
 - [ ] [Remove `/events/query` + `newContextId` REST compat shim](./tasks/current/remove-events-query-shim.md) — split out from DAMA server port; non-blocking. Migrate the GIS Create wizard to poll UDA tasks via Falcor, then drop the legacy REST endpoints from `dms-server/src/dama/upload/`.
 - [x] [now_playing dataType plugin](./tasks/completed/dama-now-playing-datatype.md) — ACRCloud webhook receiver shipped as a DMS plugin at `data-types/now_playing/` with full client-side UI (Create + Webhook source-view pages), DAMA source/view provisioning with `metadata.columns`, normalize.js, schema.js with idempotent inserts, ACR Console backfill worker, iTunes/MusicBrainz cover-art enrichment, and the existing `Card` page-section bound to a stream's view to render the latest matched track. Live verified against ACR project 16608 stream `s-Z0XwkcHp`.
 
@@ -159,6 +160,13 @@
 
 ## ui
 
+- [x] [Map filter-bounds: point layers crash the page, arrive unprojected, and can't provide bounds](./tasks/current/map-filter-bounds-point-layers.md) —
+      FIXED 2026-07-28. Three defects in one path: a single-feature `ST_Extent` returns a **Point**, so
+      `coordinates[0]` was a number and `.reduce` threw — replacing the whole route with "Unable to
+      complete your request"; the extent was never transformed, so a 3857 view returned metres into
+      `LngLatBounds`; and only the ACTIVE layer could supply bounds, so an empty active layer meant no
+      zoom at all. Plus a ~1km buffer for zero-area extents. All BC; verified on tsmo2 incident_view.
+
 - [ ] [Filter bar: author-controlled clear (×) for single-select pickers — `filter.allowClear`](./tasks/current/filter-bar-single-select-clearable.md) —
       `RenderFilterValueSelector` (the filter-BAR path) never passed `allowDeselect`, so a single-select
       page filter was stuck on its first pick with no way back to the unset state
@@ -294,6 +302,13 @@
 
 ### patterns/page
 
+- [x] [Map hover popup skips the feature whose `ogc_fid` is 0](./tasks/current/map-hover-skips-ogc-fid-zero.md) —
+      DONE 2026-07-28. DAMA tiles carry no properties, so the popup fetches them via
+      `dataById[feature.id]` — gated on `if (!id) return`, which silently dropped the one feature
+      whose `ogc_fid` is 0 (any 0-indexed source file). Its popup hung on "Fetching / Attributes 0"
+      while the rest of the layer hydrated. Presence check instead of truthiness, in all three
+      copies (`map`, `map_dama`, `mapeditor`). BC. Origin: QA ticket 2191409 (Freight Atlas MPO
+      layer, OCTC). Core rides the owner git sync.
 - [x] [Section border — per-side width + theme color](./tasks/current/section-border-width-color.md) —
       let a section render a border with configurable width + a theme-palette color (inline style;
       Tailwind can't JIT arbitrary values), applied at the section level. Replaces the per-cell

@@ -1976,7 +1976,11 @@ const HoverComp = ({ data, layer }) => {
    * the rendered layer.
    */
   React.useEffect(() => {
-    if (!id) return;
+    // `id` is the MVT feature id, which ST_AsMVT fills from ogc_fid — and ogc_fid is
+    // legitimately 0 for the first row of any view whose source file was 0-indexed.
+    // A truthiness check silently skipped that one feature, leaving its popup stuck on
+    // "Fetching / Attributes 0" while every other feature in the layer hydrated.
+    if (id === null || id === undefined || id === '') return;
     let cancelled = false;
 
     const fetchAttrInfo = async () => {

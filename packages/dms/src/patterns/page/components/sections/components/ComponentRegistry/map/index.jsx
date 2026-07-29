@@ -704,7 +704,32 @@ export const MapSection = ({ value, onChange, isEdit, onHandle, sectionId: secti
             const symbPathBase = `symbologies['${symbName}']`;
             const symbData = get(state, symbPathBase, {})
 
-            const newExtent = await fetchBoundsForFilter(symbData, falcor, pgEnv, dynamicFilterOptions);
+            // Try the ACTIVE layer first (unchanged behaviour), then fall back to any OTHER layer that
+            // also asks to zoom to its filter. A layer whose filter matches nothing yields an empty
+            // extent, and before this fallback that meant NO zoom at all: on the incident page an event
+            // with no TMC footprint left the segment layer empty, so the map never centred on the
+            // incident and its event-point tile was never even requested. fetchBoundsForFilter reads the
+            // view from the symbology's activeLayer, so probing another layer just means handing it a
+            // clone with activeLayer pointed at that layer.
+            const layersById = symbData?.symbology?.layers || {};
+            const activeId = symbData?.symbology?.activeLayer;
+            const candidateIds = [
+                activeId,
+                ...Object.keys(layersById).filter((id) => id !== activeId &&
+                    (layersById[id]?.["dynamic-filters"] || []).some((f) => f?.zoomToFilterBounds && f?.values?.length > 0)),
+            ].filter(Boolean);
+
+            let newExtent = null;
+            for (const layerId of candidateIds) {
+                const probeData = layerId === activeId ? symbData
+                    : { ...symbData, symbology: { ...symbData.symbology, activeLayer: layerId } };
+                const probeFilters = layerId === activeId ? dynamicFilterOptions
+                    : (layersById[layerId]?.["dynamic-filters"] || []);
+                // eslint-disable-next-line no-await-in-loop
+                const candidate = await fetchBoundsForFilter(probeData, falcor, pgEnv, probeFilters);
+                const parsed = typeof candidate === "string" ? (() => { try { return JSON.parse(candidate); } catch { return null; } })() : candidate;
+                if (parsed?.coordinates) { newExtent = candidate; break; }
+            }
             // if (!newExtent || newExtent === "undefined") return;
             setState((draft) => {
                 let parsedExtent;
@@ -714,13 +739,52 @@ export const MapSection = ({ value, onChange, isEdit, onHandle, sectionId: secti
                     console.warn("[Map] Invalid filter bounds extent:", newExtent);
                     return;
                 }
-                const coordinates = parsedExtent?.coordinates[0];
-                const mapGeom = coordinates?.reduce((bounds, coord) => {
-                return bounds.extend(coord);
-                }, new mapboxgl.LngLatBounds(coordinates[0], coordinates[0]));
+                // ST_Extent's GeoJSON type depends on the DEGENERACY of the extent, not the layer:
+                // many features → Polygon, a filter matching one POINT → Point, a filter whose features
+                // are colinear → LineString. The old code assumed Polygon and read `coordinates[0]`,
+                // so a single-point extent handed `.reduce` a NUMBER and threw
+                // "coordinates?.reduce is not a function" — which the router turned into a blank
+                // "Unable to complete your request" page for the whole route. Normalize by type.
+                const geomType = parsedExtent?.type;
+                const rawCoords = parsedExtent?.coordinates;
+                const pairs =
+                    geomType === "Point" ? [rawCoords] :
+                    geomType === "LineString" || geomType === "MultiPoint" ? rawCoords :
+                    geomType === "Polygon" || geomType === "MultiLineString" ? rawCoords?.[0] :
+                    geomType === "MultiPolygon" ? rawCoords?.[0]?.[0] :
+                    Array.isArray(rawCoords?.[0]) ? rawCoords[0] : null;
+                const valid = Array.isArray(pairs) && pairs.length > 0 &&
+                    pairs.every(c => Array.isArray(c) && c.length >= 2 &&
+                        Number.isFinite(+c[0]) && Number.isFinite(+c[1]));
+                if (!valid) {
+                    console.warn("[Map] filter-bounds extent had no usable coordinates:", parsedExtent);
+                    return;
+                }
+                // The extent arrives in the VIEW's native SRID — transcom events (view 1947) are
+                // EPSG:3857, so coordinates come back in metres and LngLatBounds would read them as
+                // absurd lng/lat. Transforming server-side is not an option: the attribute is a falcor
+                // PATH KEY, and adding the comma that ST_Transform(geom, srid) needs makes the request
+                // throw (verified). So detect projected values and invert spherical Mercator here.
+                const R = 20037508.342789244;
+                const toLngLat = ([x, y]) =>
+                    (Math.abs(+x) > 180 || Math.abs(+y) > 90)
+                        ? [(+x) * 180 / R, Math.atan(Math.sinh((+y) * Math.PI / R)) * 180 / Math.PI]
+                        : [+x, +y];
+                const lngLats = pairs.map(toLngLat);
+                const mapGeom = lngLats.reduce((bounds, coord) => bounds.extend(coord),
+                    new mapboxgl.LngLatBounds(lngLats[0], lngLats[0]));
 
                 if(mapGeom && Object.keys(mapGeom).length > 0) {
-                    draft.symbologies[activeSym].symbology.zoomToFilterBounds = [mapGeom['_sw'], mapGeom['_ne']];
+                    let sw = mapGeom['_sw'], ne = mapGeom['_ne'];
+                    // A zero-area extent (the single-point case) makes fitBounds solve for infinite
+                    // zoom and slam to maxZoom. Buffer it into a ~1km window so a point layer frames
+                    // its neighbourhood instead. Non-degenerate extents are untouched.
+                    const DEG = 0.0045;
+                    if (Math.abs(ne.lng - sw.lng) < 1e-9 && Math.abs(ne.lat - sw.lat) < 1e-9) {
+                        sw = { lng: sw.lng - DEG, lat: sw.lat - DEG };
+                        ne = { lng: ne.lng + DEG, lat: ne.lat + DEG };
+                    }
+                    draft.symbologies[activeSym].symbology.zoomToFilterBounds = [sw, ne];
                 }
             })
         }

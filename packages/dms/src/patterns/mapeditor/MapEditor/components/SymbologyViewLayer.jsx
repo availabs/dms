@@ -915,7 +915,11 @@ const HoverComp = ({ data, layer }) => {
    * preview hover mirrors the same joined feature behavior as the saved map.
    */
   React.useEffect(() => {
-    if (!id) return;
+    // `id` is the MVT feature id, which ST_AsMVT fills from ogc_fid — and ogc_fid is
+    // legitimately 0 for the first row of any view whose source file was 0-indexed.
+    // A truthiness check silently skipped that one feature, so its hover popup came up
+    // empty while every other polygon in the same layer hydrated normally.
+    if (id === null || id === undefined || id === '') return;
     let cancelled = false;
 
     const fetchAttrInfo = async () => {

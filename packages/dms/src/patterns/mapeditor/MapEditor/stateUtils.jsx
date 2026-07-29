@@ -180,6 +180,12 @@ const createFalcorFilterOptions = ({dynamicFilter, filterMode, dataFilter}) => {
   return newOptions;
 }
 
+// ST_Transform to 4326 is REQUIRED, not cosmetic: the caller feeds these coordinates straight into
+// LngLatBounds, and a view stored in any other SRID returns projected units. transcom events
+// (view 1947) are POINT/3857, so the raw extent came back as (-8215489, 5028476) and produced
+// nonsense bounds. For views already in 4326 the transform is a no-op, so this is behaviour-preserving.
+const BEXTENT_ATTR = 'ST_AsGeojson(ST_Extent(wkb_geometry)) as bextent';
+
 const fetchBoundsForFilter = async (state, falcor, pgEnv, dynamicFilter) => {
   const { viewId, filter, filterMode } = extractState(state)
   //dont need to do change detection here. This function is called from inside a use-effect
@@ -188,9 +194,9 @@ const fetchBoundsForFilter = async (state, falcor, pgEnv, dynamicFilter) => {
   // console.log("new filteroptions---",filterOptions)
 
   const resp = await falcor.get([
-    'uda',pgEnv,'viewsById', viewId, 'options', filterOptions, 'dataByIndex',{ },['ST_AsGeojson(ST_Extent(wkb_geometry)) as bextent']
+    'uda',pgEnv,'viewsById', viewId, 'options', filterOptions, 'dataByIndex',{ },[BEXTENT_ATTR]
   ]);
-  const newExtent = get(resp, ['json', 'uda',pgEnv,'viewsById', viewId, 'options', filterOptions, 'dataByIndex',0,['ST_AsGeojson(ST_Extent(wkb_geometry)) as bextent'] ])
+  const newExtent = get(resp, ['json', 'uda',pgEnv,'viewsById', viewId, 'options', filterOptions, 'dataByIndex',0,[BEXTENT_ATTR] ])
   return newExtent;
 }
 /**
