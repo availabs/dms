@@ -1,9 +1,10 @@
 # Section header extensions — generic extension point for inline header content
 
 ## Status: DONE, implemented and live-verified 2026-07-22. Scoped 2026-07-21 from a design-audit
-artifact (see root task
-[avl-graph-quick-controls.md](../../../../planning/tasks/current/avl-graph-quick-controls.md) for
-the theme-side consumer and full origin context). This file is the library-side primitive only.
+artifact (see dms-template's
+[report-page-redesign.md](../../../../planning/tasks/current/report-page-redesign.md) — Gap 01 —
+for the theme-side consumer and full origin context; merged 2026-07-30 from the original
+`avl-graph-quick-controls.md`). This file is the library-side primitive only.
 
 **Design deviation found during implementation** — the original spec (see "Proposed changes" #4
 below) had the View-mode row rendered *inside* `ViewSectionHeader`, gated by the same `showHeader`

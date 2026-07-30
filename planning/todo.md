@@ -224,7 +224,7 @@
 - [x] [Comparison-series explicit per-key color](./tasks/current/comparison-series-explicit-color.md) —
       `getColorFunc`/Legend keyed-color lookup so a comparison-series variant's explicit `color`
       (e.g. a ReportRouteList route's identity color) wins over positional palette cycling, on
-      Bar/Line/Pie/Treemap. Library half of dms-template's `report-route-color-assignment.md`.
+      Bar/Line/Pie/Treemap. Library half of dms-template's `report-page-redesign.md` (Gap 02).
       IMPLEMENTED + live-verified 2026-07-22 (200/200 unit tests, zero-regression probe on a real
       report). Full end-to-end color rendering re-verify pending the theme-side task.
 - [ ] [Filter bar: author-controlled clear (×) for single-select pickers — `filter.allowClear`](./tasks/current/filter-bar-single-select-clearable.md) —
@@ -390,7 +390,7 @@
       while the rest of the layer hydrated. Presence check instead of truthiness, in all three
       copies (`map`, `map_dama`, `mapeditor`). BC. Origin: QA ticket 2191409 (Freight Atlas MPO
       layer, OCTC). Core rides the owner git sync.
-- [x] [Section header extensions — generic extension point for inline header content](./tasks/completed/section-header-extensions.md) — mirrors `sectionMenuExtensions` but for the section title-bar/header area instead of the Settings drawer. Library-side prerequisite for the theme-side [AVL Graph quick controls](../../../planning/tasks/current/avl-graph-quick-controls.md) task. Scoped 2026-07-21, implemented + live-verified 2026-07-22 — the View-mode row deliberately renders independent of `showHeader` (not nested inside `ViewSectionHeader` as originally sketched), since AVL Graph's "header + hero-stat" pattern leaves the section's own title empty.
+- [x] [Section header extensions — generic extension point for inline header content](./tasks/completed/section-header-extensions.md) — mirrors `sectionMenuExtensions` but for the section title-bar/header area instead of the Settings drawer. Library-side prerequisite for the theme-side [AVL Graph quick controls](../../../planning/tasks/current/report-page-redesign.md) task (Gap 01). Scoped 2026-07-21, implemented + live-verified 2026-07-22 — the View-mode row deliberately renders independent of `showHeader` (not nested inside `ViewSectionHeader` as originally sketched), since AVL Graph's "header + hero-stat" pattern leaves the section's own title empty.
 - [x] [Section border — per-side width + theme color](./tasks/current/section-border-width-color.md) —
       let a section render a border with configurable width + a theme-palette color (inline style;
       Tailwind can't JIT arbitrary values), applied at the section level. Replaces the per-cell

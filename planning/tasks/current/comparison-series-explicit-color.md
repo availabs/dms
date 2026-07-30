@@ -18,7 +18,7 @@ compatible before the theme-side half ships.
 **Full end-to-end loop now confirmed live 2026-07-22** (after the theme side shipped): on
 `claude_scratch_measure_picker`, a route's explicit `color` renders as the actual line color and
 legend swatch on a real LineGraph with real ClickHouse data, and updates live when the color is
-changed via the picker. See `report-route-color-assignment.md` for the full session (also caught
+changed via the picker. See `report-page-redesign.md` for the full session (also caught
 and fixed an infinite-render-loop bug in `RouteRow.jsx`, and a separate dormant Tailwind-compilation
 bug in the shared `Colorpicker.jsx` that made the HSV picker's saturation panel render as a flat
 color).
@@ -38,13 +38,13 @@ the user, who found it live while testing and called it "kind of unrelated."
 
 Old note (superseded by the above; kept for the historical record): "Not yet verified live (blocked
 on the theme-side task landing): an actual route with an explicit `color` rendering that color and
-winning over positional cycling. Re-verify once `report-route-color-assignment.md`'s theme-side work
+winning over positional cycling. Re-verify once `report-page-redesign.md`'s theme-side work
 ships — same report/graphs, expect the 3 routes to render in their assigned colors instead of
 positional red."
 
 ## Origin
 
-Library-side half of the root-level task `planning/tasks/current/report-route-color-assignment.md`
+Library-side half of the root-level task `planning/tasks/current/report-page-redesign.md`
 (dms-template repo) — Gap 02 of the report-page-redesign old-tool-vs-new-tool audit. That task lets
 an author assign each `ReportRouteList` route a persistent identity color; this task is what makes
 the chart actually render that color for the matching series, instead of the current pure positional
@@ -121,7 +121,7 @@ generic — nothing here is comparison-series-specific; comparisonSeries is just
   fully generic and would support this for free — only the *authoring* surface is missing (no
   existing DMS control type lets an author assign colors to runtime-discovered distinct values; it'd
   need a new control comparable in shape to the per-route swatch list this task's sibling
-  (`report-route-color-assignment.md`) is building, generalized). Nobody has asked for this; per the
+  (`report-page-redesign.md`) is building, generalized). Nobody has asked for this; per the
   don't-build-for-hypothetical-future-requirements principle, it's noted here as a natural follow-on,
   not built speculatively.
 
@@ -320,7 +320,7 @@ swatch list in the sibling task) that merges its own map into the same `colorsBy
 
 ## Cross-references
 
-- `planning/tasks/current/report-route-color-assignment.md` (dms-template repo root) — the
+- `planning/tasks/current/report-page-redesign.md` (dms-template repo root) — the
   originating task; owns the theme-side route schema, picker UI, and publish-time threading
 - `patterns/page/components/sections/components/dataWrapper/README.md` / comparison-series docs —
   general comparisonSeries mechanism background
