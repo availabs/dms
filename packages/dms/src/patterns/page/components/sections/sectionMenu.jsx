@@ -654,6 +654,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                     state, dwAPI, mapAPI, isEdit, canEditSection,
                     currentComponent, sectionState, actions, auth, ui,
                     dataSource, pageDataSources, siblingSections,
+                    pageState: rest.pageState,
                 }) || [];
             } catch (e) {
                 console.error('sectionMenu extension failed', e);

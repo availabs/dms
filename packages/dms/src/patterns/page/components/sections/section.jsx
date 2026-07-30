@@ -234,6 +234,7 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
         mapAPI,
         pageDataSources: { dataSources, dataSourceId, switchDataSource },
         siblingSections,
+        pageState,
     })
     const canEditSection = isUserAuthed(['edit', 'edit-section'], sectionAuthPermissions);
     const resolvedControls = typeof component?.controls === 'function'
@@ -461,6 +462,7 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
         dwAPI: dwAPI || {},
         mapAPI,
         siblingSections,
+        pageState,
     })
 
     const resolvedControls = typeof component?.controls === 'function'
