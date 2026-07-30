@@ -384,8 +384,8 @@ Picker choreography to wire it through the UI instead of a spec's `comparisonMod
 ## Known UI gaps
 
 The click-path's silent-failure modes and missing controls (RRL rename, the graphIds
-pill, the difference-graph anchor coin-flip, `weekdays` having no control at all, and
-others — peak-hour filtering closed 2026-07-28) are tracked and ranked in
+pill, the difference-graph anchor coin-flip, and others — peak-hour filtering closed
+2026-07-28, `weekdays` closed 2026-07-30) are tracked and ranked in
 `planning/tasks/current/report-route-ui-parity-gaps.md` rather than listed here — that
 file is Phase C of the report-spec arc, closing them off one at a time now that the
 spec format makes each one an enumerable, checkable gap (does a control exist for this
