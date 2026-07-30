@@ -1,5 +1,18 @@
 # Route Creation: Marker Placement / Auto-Routing Mode
 
+## Status update (2026-07-30) — read before the rest of this file
+
+This umbrella plan (and its "Cross-repo note" below) predates a major restructuring: on
+2026-07-29, the `routecreation` plugin (Phase 2's marker mode included) was **ported natively into
+dms-template** via `theme.mapPlugins` — see dms-template's
+`planning/tasks/completed/port-transportny-map-plugins.md`. dms-template's own dev server is now
+where this plugin is developed and tested; the "Phases 2-3 live in transportNY" framing below is
+historical. Additional feature work also landed in the plugin between this file's last edit
+(2026-07-23) and the port (2026-07-29) — search-to-add-TMC and route_id-aware update/overwrite
+labeling — and carried over in the port. See dms-template's `route-creation-tool.md` for the
+current, consolidated status of the whole arc (this file, the port, and the research trail);
+this file remains the record of Phase 1's own design/decisions, which are still accurate.
+
 ## Objective
 
 Add a second, mutually-exclusive creation mode ("markers") to the routecreation mapeditor plugin
