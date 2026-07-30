@@ -117,6 +117,28 @@ const renderAxisLeft = ({ ref, showAnimations, rotateLabels,
     }
   }
 
+  // Thin out ticks whose FORMATTED label collides with the previous kept tick's
+  // label — e.g. an author-picked "Integer" format over a sub-1-unit data range
+  // (a few minutes of travel time) makes d3's default `scale.ticks(10)` pick a
+  // fractional step, so several adjacent ticks all round to the same integer and
+  // render as a stutter ("1  1  1  0  0") with no way to tell them apart. Compute
+  // the candidate set explicitly and drop dupes BEFORE handing off to d3, so the
+  // kept ticks and the gridlines below (which read the same `tickValues`) match.
+  if (!tickValues && type === "linear" && ticks && typeof format === "function" &&
+      typeof scale?.ticks === "function") {
+    const candidate = scale.ticks(ticks);
+    let lastLabel = null;
+    const deduped = candidate.filter(t => {
+      const label = format(t);
+      if (label === lastLabel) return false;
+      lastLabel = label;
+      return true;
+    });
+    if (deduped.length) {
+      tickValues = deduped;
+    }
+  }
+
   const axisLeft = d3AxisLeft(scale)
     .tickFormat(format);
 

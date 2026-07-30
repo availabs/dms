@@ -461,12 +461,24 @@ async function simpleFilter(ctx, options, attributes, indices) {
     const projectedGroupBys = diffMode
       ? syntheticGroupBys.map((g, i) => `${g} as __gb_${i}`)
       : unprojectedGroupBys;
-    const armSqls = seriesVariants.map((variant) => {
+    const armSqls = seriesVariants.map((variant, i) => {
       const armWhere = buildCombinedWhereCH({
         filter, exclude, gt, gte, lt, lte, like,
         filterGroups: variant.filterGroups || {}, joinPresent,
       });
-      const safeLabel = `'${String(variant.label ?? '').replace(/'/g, "''")}'`;
+      // Difference mode projects ONE row per compare arm carrying `anchor - compare`
+      // (or the reverse, under `invert`) — the anchor's own raw value never reaches
+      // the client. A bare compare-arm label (its own name only) then reads as if the
+      // delta WERE that arm's raw value, with no indication a subtraction happened or
+      // against what. Compose both arms' labels into the discriminator instead, in the
+      // same order as the actual arithmetic below, so the legend/tooltip key is
+      // self-explanatory from a single hover with no other context.
+      const labelText = (diffMode && i > 0)
+        ? (seriesCombine.invert === true
+            ? `${variant.label ?? ''} − ${seriesVariants[0]?.label ?? ''}`
+            : `${seriesVariants[0]?.label ?? ''} − ${variant.label ?? ''}`)
+        : String(variant.label ?? '');
+      const safeLabel = `'${labelText.replace(/'/g, "''")}'`;
       const armSelect = [
         ...baseArmAttrs.map((c) => withExplicitAlias(columnNameMap[c] || c)),
         ...projectedGroupBys,

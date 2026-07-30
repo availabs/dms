@@ -86,6 +86,24 @@ const renderAxisRight = ({ ref, showAnimations,
     }
   }
 
+  // Same dedup as AxisLeft.jsx: drop candidate ticks whose FORMATTED label
+  // collides with the previous kept tick's label (e.g. an "Integer" format over
+  // a sub-1-unit domain), so this axis's own labels/gridlines don't stutter.
+  if (!tickValues && type === "linear" && ticks && typeof format === "function" &&
+      typeof scale?.ticks === "function") {
+    const candidate = scale.ticks(ticks);
+    let lastLabel = null;
+    const deduped = candidate.filter(t => {
+      const label = format(t);
+      if (label === lastLabel) return false;
+      lastLabel = label;
+      return true;
+    });
+    if (deduped.length) {
+      tickValues = deduped;
+    }
+  }
+
   const axisRight = d3AxisRight(scale)
     .tickFormat(format);
 
