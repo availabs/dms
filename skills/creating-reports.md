@@ -18,7 +18,10 @@ below as a second column, not the primary flow.
 > first time. Read [`authoring-graphs.md`](./authoring-graphs.md) for the avlGraph data
 > model first if graph internals are unfamiliar, and
 > [`difference-graphs.md`](./difference-graphs.md) for the `comparisonSeries.combine`
-> mechanism if you're building a before/after difference graph.
+> mechanism if you're building a before/after difference graph. For the DOM shape
+> behind any of this (the section/Settings-menu shell, the `isEdit` gating below, and
+> which tool to reach for when verifying live) see
+> [`traversing-report-pages.md`](./traversing-report-pages.md).
 
 ## Prerequisite: the routes must already exist
 
@@ -328,7 +331,10 @@ A route-comp entry with empty `graphIds` renders as if it doesn't exist — no e
 ### Configure the graph's measure (Measure Picker)
 
 **The Measure Picker/Quick Controls only appear when the section is in true "edit"
-mode — not just "the page is in `/edit/...`".**
+mode — not just "the page is in `/edit/...`".** (This is a general DMS section
+mechanic, not specific to Measure Picker — see
+[`traversing-report-pages.md`](./traversing-report-pages.md#2-the-settings-menu-navigablemenu--one-universal-tree)
+for the underlying state machine and the known Settings-gear visibility bug.)
 
 1. Being on `/edit/...` puts every section in a preview-with-Settings-menu state
    (`isEdit: false`). The gear/Settings icon (⋮) shows only a **reduced** menu (Type,

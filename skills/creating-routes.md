@@ -92,6 +92,11 @@ features — including route creation — never requires touching it.
 Written from a real worked example (NY-9D through Beacon, NY) so every step below has
 been driven live through the UI, not inferred from code.
 
+**Driving this through browser automation?** The map renders as a blank dark rectangle
+until the tab gets a resize event — see
+[`traversing-report-pages.md`](./traversing-report-pages.md#4-known-state-machine--url-gotchas-check-this-list-before-concluding-a-bug)
+for the fix (two `resize_window` calls) before concluding the tool has no UI.
+
 ### Step 1 — Identify the real-world segments
 
 Don't try to eyeball TMC segments on the map by pixel-clicking alone — it's slow and
