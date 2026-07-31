@@ -171,6 +171,30 @@ covers the DOM shape you'd query for.
   to mean "expired token" as "real bug." Check the JWT's own `exp` claim
   (base64-decode the middle segment) before concluding anything from an
   `--auth` probe.
+- **A newly-created page's `draft_sections` are not a verbatim copy of its template's, even though
+  `editFunctions.jsx`'s `newPage()` looks like it deep-clones them.** Inspecting `draft_sections` on
+  a template row (`npmrds_sub|page_template`) shows plain inline objects (`element`/`trackingId`
+  embedded directly, no top-level `id`). Inspecting the SAME field on a real page created from that
+  template afterward shows light refs instead (`{id, ref: '...|component'}`, or just `{id}`) — each
+  `id` pointing at its own separate `npmrds_sub|component` row, materialized fresh at some point
+  after `newPage()` runs (not yet root-caused which step does this). For most component types this
+  materialization faithfully copies the template's stored `element-data`. **Confirmed exception: a
+  `Card` section's materialized copy was observed reset to `Card.config.jsx`'s generic, empty
+  `defaultState` instead of the template's custom content**, while sibling `AVL Graph`/`lexical`/
+  `ReportRouteList` sections on the same new page correctly inherited theirs — inconsistent across
+  repeated attempts, not resolved. **Practical implication**: don't trust a template-row edit to a
+  Card (or any section) to survive into newly-created pages without directly checking a REAL page
+  created via **+ Add Page → Your Templates**, by id, after creation — checking only the template
+  row itself proves nothing about what new pages will actually get.
+- **Cloning a template's `draft_sections` via direct CLI/raw DB writes (to build a disposable
+  verification page without touching the user's real pages) is NOT equivalent to a real "+ Add Page
+  from Template" click**, precisely because of the materialization step above — a CLI-cloned page's
+  sections stay inline (no `id`), and `ReportRouteList`'s `findSelfBoundGraphs` (like other section
+  discovery code) filters out any section with `section.id == null`. A CLI-cloned test page will
+  show ZERO self-bound graphs/stats regardless of whether the underlying config is correct — this is
+  a property of the shortcut, not a real bug, and it's easy to misdiagnose as one. If you need to
+  verify template-derived behavior, go through the real UI flow (or at minimum confirm the test
+  page's sections have real `id`s before trusting a "nothing shows up" result).
 - **Map/MapLibre sections (Route Map, macroview, the route-creation tool)
   render as a blank dark rectangle in automation** until the tab gets a
   resize event — the WebGL canvas never becomes visible otherwise, so
