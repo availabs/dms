@@ -155,7 +155,10 @@ planning/
     └── completed/       # Archived task documents
 research/                # Exploratory analysis, tech evaluations, refactor proposals
 documentation/           # System reference docs, schema docs, architecture overviews
+skills/                  # Indexed how-to guides for recurring authoring tasks — see skills/README.md
 ```
+
+**Check `skills/README.md` before starting non-trivial authoring or live-page-verification work** — it's an indexed set of how-to guides (building a section component, theming, creating pages/reports/routes, navigating a live page's DOM) that sits alongside `planning/` and `documentation/`. A few, notably `traversing-dms-pages.md` and `traversing-report-pages.md`, are explicitly living documents — update them in the same session whenever a live check turns up a new fact, and fix anything stale.
 
 ### Workflow
 
