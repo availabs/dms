@@ -383,6 +383,18 @@ export const LineGraph = props => {
       .domain(secDomain)
       .range([adjustedHeight, 0]);
 
+    // A point is drawable when its x is actually present — NOT when it's numeric.
+    // `strictNaN` coerces through `isNaN()`, so a categorical/date x (e.g. "day"
+    // resolution's "2025-01-01") is non-numeric and strictNaN(d.x) is true for
+    // EVERY point, making `.defined()` reject the entire series and the line
+    // generator return an empty path (real bug, found live: a LineGraph at "day"/
+    // "weekday"/"month" resolution rendered nothing — axis ticks were fine since
+    // AxisBottom doesn't route through this predicate, only the line/area path
+    // did). `strictNaN` itself stays as-is — it's correctly used elsewhere in this
+    // file (e.g. the numeric-vs-lexicographic sort comparator) where the value is
+    // deliberately pre-coerced with `+a.x` first.
+    const isDefinedX = d => d.x !== null && d.x !== undefined && d.x !== "";
+
     // Generators are built per-series so each line can carry its own
     // `interpolation` (the series default falls back to the chart-level
     // `interpolation` prop, then `catmullrom`). `area` opt-in renders a filled
@@ -391,20 +403,20 @@ export const LineGraph = props => {
       .curve(getCurve(interp))
 			.x(d => XScale(d.x))
 			.y(d => YScale(d.y))
-      .defined(d => !strictNaN(d.x));
+      .defined(isDefinedX);
 
     const makeAreaGenerator = interp => d3area()
       .curve(getCurve(interp))
       .x(d => XScale(d.x))
       .y0(adjustedHeight)
       .y1(d => YScale(d.y))
-      .defined(d => !strictNaN(d.x));
+      .defined(isDefinedX);
 
     const secGenerator = d3line()
       .curve(getCurve(interpolation))
 			.x(d => XScale(d.x))
 			.y(d => SecScale(d.y))
-      .defined(d => !strictNaN(d.x));
+      .defined(isDefinedX);
 
 		const yEnter = YScale(yDomain[0]),
       baseLineGenerator = d3line()

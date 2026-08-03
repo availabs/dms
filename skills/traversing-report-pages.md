@@ -150,7 +150,91 @@ fan-out, the axis/categorize binding model) belong in
 [`difference-graphs.md`](./difference-graphs.md), not here — this doc only
 covers the DOM shape you'd query for.
 
-## 4. Known state-machine / URL gotchas (check this list before concluding a bug)
+## 4. Creating a report page, and the Route List panel (tags, Dynamic Reports)
+
+### Creating a page via "+ Add Page → Your Templates"
+
+1. Get to **any** page in edit mode (`/edit/<slug>`).
+2. In the **bottom edit toolbar**, click the **"Pages"** icon (a document glyph,
+   fourth of the six — Settings/Data Sources/Section Groups/**Pages**/History/
+   Permissions). This is the site's full page tree + management pane. **Not**
+   the same as the site's own top-nav "Reports"/"Routes"/etc. links — those are
+   end-user content navigation for whatever pattern you're in, and clicking one
+   does not open this panel (confirmed live: it silently kept showing whatever
+   page was already loaded).
+3. Click **"+ Add Page"** at the bottom of that panel → a "Choose a template"
+   modal opens with two tabs: **Theme Templates** (Blank, Article, Two Column,
+   Card Grid, Stats + Chart, Narrative, Overview, Profile, Dashboard — shipped,
+   available to every site) and **Your Templates** (DB-backed,
+   pattern-specific — this is where a pattern's own saved templates live, e.g.
+   NPMRDS's **"Report Page"**, see `page-templates.md`).
+4. Switch to **Your Templates**, pick the template, **Create Page**.
+5. The new page is created as a **top-level page** (`parent: ''`), regardless
+   of which page you had open when you clicked "+ Add Page" — it does **not**
+   nest under it. Slug is auto-assigned (`page_N`); rename/move via that page's
+   own Settings pane afterward if it needs a real slug/parent.
+
+Verified 2026-08-03: a freshly-created "Report Page" page (zero custom code,
+zero scripts involved) already has a working `ReportRouteList` panel + one
+starter self-bound AVL Graph section, ready to receive a route the moment one
+is added via "+ Add Route" — useful as a clean, un-scripted reproduction
+environment when you need to rule out "is this bug specific to some other
+build path" (this is exactly how a genuine AVL Graph rendering bug was
+isolated away from a suspected feature-specific cause — see
+`planning/tasks/current/dynamic-reports-and-route-tags.md`, repo root).
+
+### The route-picker modal ("+ Add Route" / "+ Add Route Slot")
+
+NPMRDS's `ReportRouteList` panel's add-route action opens
+`RouteTagBrowserModal` — a single-pane drill-down (root → category → value),
+not a flat catalog list:
+
+- **Root view**: a name-search box + "Browse by tag" category tiles —
+  **County** (62 values), **Region** (NYSDOT's 11 regions), **Agency**
+  (~18 division/MPO codes), **Auto-generated** (system-generated routes), and
+  **Other tags** (free-text substring match, for custom/`project:`-style tags
+  with no fixed vocabulary).
+- Category drill-downs are a **hardcoded fixed value list**, not a live "distinct
+  tag values" DB query (no such primitive exists yet in the UDA engine).
+- A route **already on the report** shows an "Already on report" badge instead
+  of being hidden in any deliberate lookup (name search, a tag-browsed folder,
+  Other-tags text) — only the default/root "recent" list excludes them, to
+  keep that specific suggestion view uncluttered. Re-adding one for a different
+  date/time window is a supported, legitimate action.
+- The same modal component serves two selection modes: `selectionMode="any"`
+  (normal "+ Add Route" — 1 or more) and `selectionMode="exact"` +
+  `requiredCount=N` (Dynamic Reports' entry gate, below — exactly N required
+  before the confirm button enables).
+
+### Dynamic Reports: the toggle, and the no-param entry gate
+
+Any report page can be flipped into a **Dynamic Report** — one shared page,
+reused by many viewers, whose routes are filled from a URL param at view time
+rather than stored on the page. Full design record:
+`planning/tasks/current/dynamic-reports-and-route-tags.md` (repo root — an
+NPMRDS-theme feature, not core DMS). The essentials for navigating one live:
+
+- The toggle lives **inside the `ReportRouteList` panel itself**, in edit
+  mode, right above "+ Add Route"/"+ Add Graph" — a small switch labeled
+  "Dynamic Report" with a one-line explanation. It is **not** in the page's
+  generic Settings pane; core DMS has no field for this.
+- Flipping it on swaps "+ Add Route" for **"+ Add Route Slot"** (adds a bare
+  placeholder route with no concrete data yet — assign it to a graph exactly
+  like a normal route, via the same per-graph chip UI) and registers a
+  `type: 'routeSlots'`-tagged entry in the page's own `data.filters` (a
+  `searchKey`, e.g. `routes`, `useSearchParams: true` — the URL param name).
+- **Viewing** a Dynamic Report with no `?routes=` param pops the same
+  `RouteTagBrowserModal`, `selectionMode="exact"`, `requiredCount` = however
+  many slots are configured — but with **no dismiss path** (a no-op
+  `setOpen`) until exactly that many routes are picked. Confirming navigates
+  to `?routes=<id1>|||<id2>...` — multi-value URL params use `|||` as the
+  delimiter throughout this app (`convertToUrlParams`/`_utils/index.js`), not
+  commas.
+- Reloading the same `?routes=...` URL directly re-resolves with no gate (the
+  URL is the durable/shareable state); a different `?routes=` value on the
+  same page renders a different route's real data — the core mechanism.
+
+## 5. Known state-machine / URL gotchas (check this list before concluding a bug)
 
 - **Subdomain routing, not path routing.** A pattern's page lives at
   `http://<subdomain>.localhost:5173/<slug>` — bare `localhost:5173/<slug>`
@@ -204,7 +288,7 @@ covers the DOM shape you'd query for.
   Do not conclude anything about a map tool's UI from an un-resized
   screenshot.
 
-## 5. Which tool to reach for
+## 6. Which tool to reach for
 
 Both paths can inspect the exact same DOM described above — the difference
 is cost shape, not capability. Reach for the disposable script by default;
@@ -221,7 +305,7 @@ exploratory.
 | Judging how something actually looks/behaves — hover states, tooltip formatting, animation, "does this look right" | `claude-in-chrome` (screenshots from the probe are static, full-page/section only) |
 | The user wants to watch or validate side-by-side, or you want to hand them a recorded repro | `claude-in-chrome` (+ `gif_creator` for a walkthrough) |
 | Working in the user's already-authenticated real session and minting/refreshing a dev token would be overhead | `claude-in-chrome` |
-| Any MapLibre section | Either works, but the `resize_window` fix (§4) is the proven path — expect the same issue in headless Playwright and consider `headless:false` there if it recurs |
+| Any MapLibre section | Either works, but the `resize_window` fix (§5) is the proven path — expect the same issue in headless Playwright and consider `headless:false` there if it recurs |
 | A one-off "let me just go look at this" glance | `claude-in-chrome` — extending a committed script for a single glance isn't worth it |
 | Reading/writing DMS content itself (pages, sections, sources) rather than rendered output | `dms` CLI, per repo `CLAUDE.md` — not either browser tool |
 | A read-only DB check (old/new/dama Postgres, ClickHouse) | `dbq.py <old|new|dama|ch>` — never hand-roll a psql/urllib one-off |
@@ -241,14 +325,14 @@ Delete, Publish, or drags sections) against a page the user might have open**
 `converted_reports/<slug>`) are fine on real pages since they only navigate
 and capture, never click.
 
-## 6. Extending this doc
+## 7. Extending this doc
 
 When you learn something new while verifying a report page live:
 - A new general truth about the section/menu/graph shell (applies to every
-  page, not just the one you were looking at) → fold it into §1–§4 above,
+  page, not just the one you were looking at) → fold it into §1–§3 or §5 above,
   replacing anything it makes stale.
 - A narrow one-off ("this specific component's Settings menu also does X")
   → belongs in that component's own skill (`card-layout.md`,
   `authoring-graphs.md`, etc.), not here.
-- A tool trade-off you discovered the hard way → add a row to the §5 table
+- A tool trade-off you discovered the hard way → add a row to the §6 table
   rather than a paragraph; keep the table scannable.
