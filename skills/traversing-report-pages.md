@@ -1,154 +1,24 @@
 # Traversing and verifying a DMS report page
 
-A map of what a rendered report page actually looks like in the DOM, plus a
-decision guide for which tool to reach for when you need to look at one live
-(the Playwright probe harness, the `dms`/`dbq.py` CLIs, or `claude-in-chrome`).
+A decision guide for which tool to reach for when you need to look at a
+report page live (the Playwright probe harness, the `dms`/`dbq.py` CLIs, or
+`claude-in-chrome`), plus everything specific to NPMRDS's report machinery —
+the `ReportRouteList` panel, its route-picker modal, and Dynamic Reports.
 
-**This is a living document.** The section/menu shell described here is core
-`@availabs/dms` code shared by every page pattern, but it has non-obvious
-gating behavior that is easy to re-discover the hard way. Every time you
-verify something in a report page's UI and learn a fact that isn't already
-written down here — a new selector, a new gotcha, a tool trade-off that
-surprised you — **add it before moving on**, in the same session. A stale
-version of this doc is worse than no doc, because it reads as authoritative.
-If you find a claim below that no longer matches the code, fix it in place
-rather than leaving it to rot.
+**Read [`traversing-dms-pages.md`](./traversing-dms-pages.md) first.** The
+page → section DOM shell, the universal Settings (`NavigableMenu`) tree, the
+two-different-"edit"-states gotcha (page-level `/edit/<slug>` vs. one
+section's true `SectionEdit`), the chart DOM shape, and the general
+state-machine/URL gotchas are all core `@availabs/dms` facts that apply to
+every page in every pattern/theme — they live there now, not duplicated here.
+Everything below is specific to NPMRDS's report pages.
 
-## 1. The page → section shell (DOM map)
-
-A page's body (inside a `LayoutGroup`/`sectionGroup`) is one `sectionArray`
-component per named section group. `sectionArray.jsx` renders a CSS grid:
-
-```
-div.<sectionArray container classes>              (grid, e.g. "grid grid-cols-6")
-  div#<section.id>                                (theme sectionViewWrapper/sectionEditWrapper —
-                                                     literally "relative group" in this theme; the
-                                                     `group` class is what makes hover-reveal work.
-                                                     THIS is the div.relative.group report_probe.mjs
-                                                     keys its per-section census on.)
-    div.<sectionChrome classes>                    (inner "card" box: border/radius/bg/shadow —
-                                                     content padding is the CHILD component's concern,
-                                                     not this wrapper's)
-      <SectionView> or <SectionEdit>               (see below)
-```
-
-Both `SectionView` and `SectionEdit` (`patterns/page/components/sections/section.jsx`)
-render the same shape:
-
-```
-div                                                (theme.wrapper — EMPTY by default; don't confuse
-                                                     this with sectionArray's "relative group" wrapper
-                                                     one level up, which is the one that matters)
-  div.<theme.topBar>
-    div.<theme.menuPosition>                       (absolute top-[5px] right-[5px])
-      <NavigableMenu title="Settings">             (the "⋮" trigger — see §2)
-  div#<slugified-title>.font-display...            (title row — ONLY if a title/tags/help-text
-                                                     exists; see the note on `.font-display` below)
-  div.<theme.headerExtensionsRow>                  (site-registered inline extras — Quick Controls
-                                                     pills, CalloutStatPicker — only if registered
-                                                     for this component type; independent of whether
-                                                     the title row rendered)
-  div.<theme.contentWrapper>
-    <Component.ViewComp/EditComp>                  (the actual Card / AVL Graph / Map / Spreadsheet /
-                                                     ReportRouteList / etc. — this is where each
-                                                     component-specific skill picks up)
-```
-
-**`.font-display` is not a themed heading style** — it's a literal, hardcoded
-Tailwind class on the title row's wrapper `div`, written directly in both
-`section.jsx` (SectionEdit's inline header) and `section_components.jsx`
-(`ViewSectionHeader`, used by SectionView). It is NOT part of
-`theme.heading[level]` (that only styles the text inside). Because it's
-hardcoded rather than theme-driven, `div.font-display` is a reliable
-title-row selector across every site/theme built on this library — that's
-why `report_probe.mjs` uses it for its per-section census.
-
-Sections with no title/tags/help-text skip the header row entirely
-(`showHeader` is false) but still render `headerExtensionsRow` if one is
-registered — many AVL Graph sections have no title of their own (a separate
-Card stacks a title above them instead), so don't assume "no `.font-display`"
-means "no header extension."
-
-## 2. The Settings menu (`NavigableMenu`) — one universal tree
-
-Every section's "⋮" popup, regardless of component type, is the same
-`ui/components/navigableMenu` component fed a config tree built fresh per
-render by `getSectionMenuItems()` (`sectionMenu.jsx`). Assembly order:
-
-top action pills (copy link / copy / paste / move / refresh / save / cancel /
-**edit pencil**) → **Type** (component-type switcher) → `<Component> Settings`
-(the registry's `controls`) → Component Interactions → Templates → **Dataset**
-(Source/Version, with **Join**, **Comparison Series**, **Pivot** nested inside
-it) → **Columns** → any site-registered extension menus (e.g. NPMRDS's
-Measure Picker, keyed off the component name) → **Filters** → **Display**
-(title/level/tags/nav label/anchor id/help text/hide) → **Layout** (size,
-rowspan, border, radius, background, shadow, permissions) → **Delete**.
-
-A node with a dynamic `name` (a count, a variant label) needs an explicit
-stable `id` — `flattenConfig` keys the whole flattened tree by `id || name`
-**globally**, so a name that changes mid-session (or collides with a sibling)
-gets re-keyed to a random id on the next flatten, which silently blanks or
-back-navigates-wrong on that submenu. This has broken real menus twice
-(comparisonSeries variants, a dynamic-count nav item) — if you're building a
-menu item whose `name` isn't a fixed string, give it an `id`.
-
-### The single most-tripped-over gotcha: two different "edit" states
-
-Visiting `/edit/<slug>` puts **every** section into `<SectionView>` with
-`editPageMode=true` — a page-level "rearrange sections" mode. Internally,
-that section's own `isEdit` is still `false`. In this state the Settings menu
-shows only the reduced set (**Type, Dataset, Layout, Delete** — no Measure,
-no Columns, no Filters), and no `headerExtensionsRow` content that's gated on
-`isEdit` will render (Quick Controls, Measure Picker, etc. — anything
-requiring true edit state).
-
-To reach **true** edit mode for one specific section: open that section's
-Settings popup, then click the **pencil "Edit"** pill in the top action row.
-That calls `onEdit` → `sectionArray.jsx`'s `update(i)` → sets `edit.index = i`,
-which swaps **only that one section** to `<SectionEdit>` (`isEdit: true`).
-Only now does the Settings menu expand to the full list, and any
-`isEdit`-gated `headerExtensionsRow` content appears. Only one section can be
-in true edit mode at a time. A pick made here (Measure Picker, filters, etc.)
-lives in local draft state until you click the floppy-disk **Save** pill —
-navigating away without it silently discards the change.
-
-**Known live bug, not yet fixed**: in View mode, the Settings trigger button
-uses `btnVisibleOnGroupHover={true}`, which composes theme classes as
-`hidden group-hover:flex` + a `buttonHidden` override of `sm:hidden`. Tailwind's
-responsive-variant ordering makes `sm:hidden` win at ≥640px — so on any normal
-desktop viewport the gear is `display:none` regardless of hover, confirmed via
-`getComputedStyle`. Workarounds:
-- Playwright / `javascript_tool`: bypass Playwright's visibility-gated
-  `.click()` with a native DOM click —
-  `document.querySelectorAll('button')` filtered to `display:none`, click the
-  one inside the section you want (first-in-DOM-order if there's only one
-  section on the page).
-- `claude-in-chrome`: try `find` with a description ("Settings button for the
-  X section") first — it may locate the element even though it's visually
-  hidden; if `computer` click fails silently, fall back to the same
-  `javascript_tool` native-click approach.
-
-## 3. Charts (`avl-graph`)
-
-Every chart type (`BarGraph`, `LineGraph`, `PieGraph`, `TreemapGraph`,
-`SunburstGraph`, `GridGraph`) renders the identical shape:
-
-```
-div.avl-graph-container
-  svg.avl-graph        (class list is literally "w-full h-full block avl-graph <extra>")
-```
-
-A blank/broken chart still has this element — an empty `<svg class="avl-graph">`
-with zero `path`/`rect`/`circle` children. Distinguishing "no svg at all
-(section never rendered / component crashed)" from "svg present but empty
-(rendered, but the query returned nothing or a display setting hid it)" is
-the actual diagnostic signal — check both, don't stop at "svg exists."
-
-Chart-type-specific authoring details (measure picks, comparison-series
-fan-out, the axis/categorize binding model) belong in
-[`authoring-graphs.md`](./authoring-graphs.md) and
-[`difference-graphs.md`](./difference-graphs.md), not here — this doc only
-covers the DOM shape you'd query for.
+**This is a living document.** Every time you verify something in a report
+page's UI and learn a report-specific fact that isn't already written down
+here, add it before moving on, in the same session. A stale version of this
+doc is worse than no doc, because it reads as authoritative. If you find a
+claim below that no longer matches the code, fix it in place rather than
+leaving it to rot.
 
 ## 4. Creating a report page, and the Route List panel (tags, Dynamic Reports)
 
@@ -234,59 +104,30 @@ NPMRDS-theme feature, not core DMS). The essentials for navigating one live:
   URL is the durable/shareable state); a different `?routes=` value on the
   same page renders a different route's real data — the core mechanism.
 
-## 5. Known state-machine / URL gotchas (check this list before concluding a bug)
+## 5. Report-specific gotchas (check `traversing-dms-pages.md` §4 too)
 
-- **Subdomain routing, not path routing.** A pattern's page lives at
-  `http://<subdomain>.localhost:5173/<slug>` — bare `localhost:5173/<slug>`
-  resolves to the default/landing pattern instead (zero data-loading traffic
-  fires; easy to misread as "the page never loads its sections"). Find the
-  subdomain via `dms pattern show <pattern-name>`.
-- **Edit URL puts `edit` first**: `/edit/<slug>`, not `<slug>/edit`. The wrong
-  shape silently falls back to the site's default/index page.
-- **Any unresolvable slug silently falls back to the home/index page** —
-  rather than erroring. A typo'd slug and an actual permission denial render
-  identically (full rich content, no error text). Don't over-interpret a
-  fallback render as a permission problem before double-checking the URL.
-  `report_<old_id>`-style slugs are a deprecated/unstable scheme (title-derived,
-  recomputed on every title save) — get a real, currently-valid slug from
-  `scripts/npmrds-reports/pick_test_report.py` instead of guessing one.
-- **A stale injected auth token silently degrades to anonymous** rather than
-  erroring — a `0/N` sections result on an authenticated probe is as likely
-  to mean "expired token" as "real bug." Check the JWT's own `exp` claim
-  (base64-decode the middle segment) before concluding anything from an
-  `--auth` probe.
-- **A newly-created page's `draft_sections` are not a verbatim copy of its template's, even though
-  `editFunctions.jsx`'s `newPage()` looks like it deep-clones them.** Inspecting `draft_sections` on
-  a template row (`npmrds_sub|page_template`) shows plain inline objects (`element`/`trackingId`
-  embedded directly, no top-level `id`). Inspecting the SAME field on a real page created from that
-  template afterward shows light refs instead (`{id, ref: '...|component'}`, or just `{id}`) — each
-  `id` pointing at its own separate `npmrds_sub|component` row, materialized fresh at some point
-  after `newPage()` runs (not yet root-caused which step does this). For most component types this
-  materialization faithfully copies the template's stored `element-data`. **Confirmed exception: a
-  `Card` section's materialized copy was observed reset to `Card.config.jsx`'s generic, empty
-  `defaultState` instead of the template's custom content**, while sibling `AVL Graph`/`lexical`/
-  `ReportRouteList` sections on the same new page correctly inherited theirs — inconsistent across
-  repeated attempts, not resolved. **Practical implication**: don't trust a template-row edit to a
-  Card (or any section) to survive into newly-created pages without directly checking a REAL page
-  created via **+ Add Page → Your Templates**, by id, after creation — checking only the template
-  row itself proves nothing about what new pages will actually get.
-- **Cloning a template's `draft_sections` via direct CLI/raw DB writes (to build a disposable
-  verification page without touching the user's real pages) is NOT equivalent to a real "+ Add Page
-  from Template" click**, precisely because of the materialization step above — a CLI-cloned page's
-  sections stay inline (no `id`), and `ReportRouteList`'s `findSelfBoundGraphs` (like other section
-  discovery code) filters out any section with `section.id == null`. A CLI-cloned test page will
-  show ZERO self-bound graphs/stats regardless of whether the underlying config is correct — this is
-  a property of the shortcut, not a real bug, and it's easy to misdiagnose as one. If you need to
-  verify template-derived behavior, go through the real UI flow (or at minimum confirm the test
-  page's sections have real `id`s before trusting a "nothing shows up" result).
-- **Map/MapLibre sections (Route Map, macroview, the route-creation tool)
-  render as a blank dark rectangle in automation** until the tab gets a
-  resize event — the WebGL canvas never becomes visible otherwise, so
-  MapLibre's `load` never fires and the plugin never mounts. Two
-  `resize_window` calls (different sizes, ~6s then ~16s apart) — the first
-  brings the panel/basemap, the second brings the vector-tile data layers.
-  Do not conclude anything about a map tool's UI from an un-resized
-  screenshot.
+The general state-machine/URL gotchas (subdomain routing, edit URL shape,
+silent slug-fallback-to-home, stale auth tokens, template materialization,
+CLI-cloned test pages, map/WebGL blank-canvas) now live in
+[`traversing-dms-pages.md`](./traversing-dms-pages.md)'s §4 — they apply to
+any DMS page, not just reports. What's specific to reports:
+
+- **`report_<old_id>`-style slugs are a deprecated/unstable scheme**
+  (title-derived, recomputed on every title save) — get a real,
+  currently-valid slug from `scripts/npmrds-reports/pick_test_report.py`
+  instead of guessing one. (The general "unresolvable slug silently falls
+  back to home" fact this interacts with is in the generic doc.)
+- **`ReportRouteList`'s `findSelfBoundGraphs` (and its other section
+  discovery code) filters out any section with `section.id == null`.** A
+  page whose sections were materialized via a CLI/raw-DB clone rather than a
+  real "+ Add Page from Template" click (see the generic doc's
+  materialization gotcha) will show ZERO self-bound graphs/stats on such a
+  page regardless of whether the underlying config is correct — a property
+  of the shortcut, not a real bug, and easy to misdiagnose as one.
+- **Map/MapLibre sections specific to this arc** (Route Map, macroview, the
+  route-creation tool) hit the generic blank-dark-rectangle/`resize_window`
+  issue described in the generic doc — nothing report-specific about the fix
+  itself, just naming the sections in this codebase that hit it.
 
 ## 6. Which tool to reach for
 
@@ -305,7 +146,7 @@ exploratory.
 | Judging how something actually looks/behaves — hover states, tooltip formatting, animation, "does this look right" | `claude-in-chrome` (screenshots from the probe are static, full-page/section only) |
 | The user wants to watch or validate side-by-side, or you want to hand them a recorded repro | `claude-in-chrome` (+ `gif_creator` for a walkthrough) |
 | Working in the user's already-authenticated real session and minting/refreshing a dev token would be overhead | `claude-in-chrome` |
-| Any MapLibre section | Either works, but the `resize_window` fix (§5) is the proven path — expect the same issue in headless Playwright and consider `headless:false` there if it recurs |
+| Any MapLibre section | Either works, but the `resize_window` fix (`traversing-dms-pages.md` §4) is the proven path — expect the same issue in headless Playwright and consider `headless:false` there if it recurs |
 | A one-off "let me just go look at this" glance | `claude-in-chrome` — extending a committed script for a single glance isn't worth it |
 | Reading/writing DMS content itself (pages, sections, sources) rather than rendered output | `dms` CLI, per repo `CLAUDE.md` — not either browser tool |
 | A read-only DB check (old/new/dama Postgres, ClickHouse) | `dbq.py <old|new|dama|ch>` — never hand-roll a psql/urllib one-off |
@@ -329,8 +170,10 @@ and capture, never click.
 
 When you learn something new while verifying a report page live:
 - A new general truth about the section/menu/graph shell (applies to every
-  page, not just the one you were looking at) → fold it into §1–§3 or §5 above,
-  replacing anything it makes stale.
+  page in every pattern/theme, not just reports) → belongs in
+  [`traversing-dms-pages.md`](./traversing-dms-pages.md), not here.
+- A report-specific fact (RRL, Dynamic Reports, the route-picker modal, tags)
+  → fold it into §4–§5 above, replacing anything it makes stale.
 - A narrow one-off ("this specific component's Settings menu also does X")
   → belongs in that component's own skill (`card-layout.md`,
   `authoring-graphs.md`, etc.), not here.
