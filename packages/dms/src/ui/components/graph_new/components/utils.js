@@ -1,17 +1,13 @@
 import React from "react"
 
-import {
-	sum as d3sum,
-	mean as d3mean
-} from "d3-array"
-
 import { scaleLinear } from "d3-scale"
 
-// `exempt` = "already aggregated server-side" (e.g. a calculated column whose SQL
-// does its own sum()/case, grouped by the xAxis column → one row per x). The d3 agg
-// funcs take (array, accessor); the old `id = x => x` fallback ignored the accessor
-// and returned the GROUP ARRAY, so a calc series came back as NaN. Pull the first
-// non-empty accessed value instead — the pre-aggregated number for that x.
+// Grouping/aggregation (sum/avg/count/...) happens server-side only — a column's
+// `fn` is applied in the SQL query (see buildUdaConfig.js), so by the time data
+// reaches the chart, each xAxis/categorize bucket already holds at most one row
+// carrying the precomputed value. Re-aggregating here client-side would double
+// apply the function (e.g. `count` over an already-one-row-per-bucket dataset
+// always returns 1). Pull the first non-empty accessed value instead.
 const first = (arr, acc) => {
 	for (const d of arr) {
 		const v = acc(d);
@@ -19,17 +15,8 @@ const first = (arr, acc) => {
 	}
 	return 0;
 }
-const AggFuncs = {
-	sum: d3sum,
-	avg: d3mean,
-	count: d => d.length,
-	exempt: first
-}
 
-export const getAggFunc = column => {
-	const type = (column.fn || column.defaultFn || "count").toLowerCase();
-	return AggFuncs?.[type] || first;
-}
+export const getAggFunc = () => first;
 
 export const getColumnName = column => column.normalName || column.name;
 
