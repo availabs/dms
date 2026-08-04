@@ -269,13 +269,23 @@ export async function dmsDataLoader (falcor, config, path='/') {
 	// Combine length + data requests into a single falcor.get() to
 	// eliminate one HTTP round-trip. The length is fetched alongside
 	// the data instead of sequentially before it.
+	// lengthReq defaults to a 'dms','data',`${app}+${type}` path (set above), which is
+	// meaningless for a pure 'uda' fetch — external/DAMA sources have no app, so it
+	// serializes to a bogus "undefined+<type>" Falcor request. Only fold it into the
+	// combined get when some request in this batch is itself dms-prefixed; a udaLength
+	// action already pointed lengthReq at the correct uda path and returns earlier above.
+	const needsDmsLength = newRequests.some(r => r[0] === 'dms');
 	if (newRequests.length > 0 ) {
         try{
             const udaReqsToInvalidate = newRequests.filter(r => r.includes('uda'));
             if(udaReqsToInvalidate.length){
                 await falcor.invalidate(...udaReqsToInvalidate)
             }
-            await falcor.get(lengthReq, ...newRequests)
+            if (needsDmsLength) {
+                await falcor.get(lengthReq, ...newRequests)
+            } else {
+                await falcor.get(...newRequests)
+            }
         }catch (e){
             console.error('Error fetching data', e)
         }

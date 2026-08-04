@@ -152,7 +152,13 @@ const defaultState = {
 }
 
 const graphConfig = {
-    "name": 'AVL Graph',
+    // NOTE: keep this 'AVL Graph' — sectionMenuExtensions.js/sectionHeaderExtensions.js
+    // (npmrdsMeasureMenu/npmrdsQuickControls in src/themes/transportny/theme.js) are
+    // registered under this exact string. See
+    // src/dms/planning/tasks/current/migrate-legacy-graph-to-graph-new.md for why the
+    // sectionMenu.jsx name-gated checks (Pivot/view-mode-switch) are patched directly
+    // instead of renaming this field.
+    "name": 'Graph',
     "type": 'avlGraph',
     "variables": [],
 
