@@ -18,14 +18,18 @@ below as a second column, not the primary flow.
 > first time. Read [`authoring-graphs.md`](./authoring-graphs.md) for the avlGraph data
 > model first if graph internals are unfamiliar, and
 > [`difference-graphs.md`](./difference-graphs.md) for the `comparisonSeries.combine`
-> mechanism if you're building a before/after difference graph.
+> mechanism if you're building a before/after difference graph. For the DOM shape
+> behind any of this (the section/Settings-menu shell, the `isEdit` gating below, and
+> which tool to reach for when verifying live) see
+> [`traversing-report-pages.md`](./traversing-report-pages.md).
 
 ## Prerequisite: the routes must already exist
 
 A spec references routes by `route_id` — it doesn't create them. If the corridor
-doesn't have route(s) yet, do [`creating-routes.md`](./creating-routes.md) first (the
-one workflow step that requires switching to the transportNY dev server), then come
-back here with the resulting `route_id`(s).
+doesn't have route(s) yet, do [`creating-routes.md`](./creating-routes.md) first, then
+come back here with the resulting `route_id`(s). (Route creation used to require
+switching to the transportNY dev server; as of 2026-07-29 the map tool runs natively in
+dms-template, so this whole workflow — routes and reports both — stays in one repo.)
 
 ## The main feature: turning a client request into a spec
 
@@ -106,21 +110,23 @@ few as 4–7 reports for some classes below), so treat them as strong hints, not
 | if the request reads as... | old reports typically included | spec-buildable today? |
 |---|---|---|
 | **before/after** (a change, then measuring its effect) | Route Info Box (speed, travelTime) · Route Map · Route Line Graph · Route Bar Graph; often also TMC Grid Graph, Bar Graph Summary | all yes — Route Info Box wired 2026-07-28 (see below) |
-| **signal_timing** (an intersection/corridor signal change — NY-9D's class) | Route Map (100%) · Route Compare Component on speed and travelTime (71% each) · Route Bar Graph | Map yes; Route Compare Component **not yet** |
+| **signal_timing** (an intersection/corridor signal change — NY-9D's class) | Route Map (100%) · Route Compare Component on speed and travelTime (71% each) · Route Bar Graph | all yes — Route Compare wired 2026-07-29 (see below) |
 | **road_diet** (a lane reduction/reallocation) | Route Map · Route Info Box (freeflow, speed) · Route Line Graph | Map/LineGraph yes; Route Info Box yes as of 2026-07-28, but its "freeflow, speed" pairing is the InfoBox `reliability` bucket specifically, which needs source 1410 (pm3) and only covers 2018-2025 — unusable if the study period is outside that window (hit for real on the Poughkeepsie road-diet request, 2026-07-28: substituted `travelTime`/`hoursOfDelay` instead) |
 | **reliability** (LOTTR/TTTR/percentile framing) | Route Info Box (speed, percentile95) · Route Bar Graph (travelTime) · Bar Graph Summary · TMC Grid Graph | GridGraph yes; Route Info Box's `reliability` bucket (LOTTR/TTTR/freeflow) yes, but only for 2018-2025 (source 1410's real coverage — see road_diet row); `percentile95-byDateRange` specifically has no shape built at all yet, unlike Info Box's other measures |
 | **route_comparison** (multiple corridors/directions side by side — the largest class, n=110) | Route Map (78%) · Route Line Graph (73%) · TMC Grid Graph (67%) · Route Info Box/speed (56%) | all yes — Route Info Box wired 2026-07-28 |
 | **congestion** (general delay/slowdown framing) | Route Line Graph/avgHoursOfDelay · Route Map · Route Bar Graph/hoursOfDelay | all yes |
 | **cmp** (formal Congestion Management Process reporting) | Route Line Graph (100%) · Route Map (83%) · Route Bar Graph (hoursOfDelay, planningTime) | all yes |
 
-**One panel this table names still isn't spec-buildable — Route Compare Component**, the
-same class of gap Route Map had until 2026-07-27 and Route Info Box had until 2026-07-28: a
-real shape already built in `convert_old_reports.py` (`ensure_route_compare_template`), just
-never shelled out to from `report_build.mjs`. Tracked as a next step in
-`client-request-to-report-skill.md`. Until it lands, the closest spec-buildable substitute
-for a `signal_timing` request is what NY-9D actually used: an overlaid `LineGraph` overview
-plus per-direction `BarGraph` `comparisonMode: "difference"` — a real substitution, not the
-historically typical composition for that purpose, so say so in the graph's `why` rather
+**Route Compare Component is now spec-buildable** (`{graphType: "RouteCompare", measure:
+"speed"|"travelTime"}` — see `research/npmrds-reports/report-spec.md`'s "Route Compare
+graphs" section), wired 2026-07-29 the same way Route Map (2026-07-27) and Route Info Box
+(2026-07-28) were: a real shape already built in `convert_old_reports.py`
+(`ensure_route_compare_template`), shelled out to from `report_build.mjs` via a new
+`--route-compare-section` mode. NY-9D itself predates this — it used the substitution below
+instead — so a fresh `signal_timing` request can now use the historically typical
+composition directly; the substitution remains a valid alternative when a %-vs-anchor table
+isn't what the client actually wants: an overlaid `LineGraph` overview plus per-direction
+`BarGraph` `comparisonMode: "difference"` — say so in the graph's `why` rather
 than silently picking it and moving on.
 
 **A second, unrelated gap this table doesn't capture at all, found 2026-07-28 on a real
@@ -325,7 +331,10 @@ A route-comp entry with empty `graphIds` renders as if it doesn't exist — no e
 ### Configure the graph's measure (Measure Picker)
 
 **The Measure Picker/Quick Controls only appear when the section is in true "edit"
-mode — not just "the page is in `/edit/...`".**
+mode — not just "the page is in `/edit/...`".** (This is a general DMS section
+mechanic, not specific to Measure Picker — see
+[`traversing-report-pages.md`](./traversing-report-pages.md#2-the-settings-menu-navigablemenu--one-universal-tree)
+for the underlying state machine and the known Settings-gear visibility bug.)
 
 1. Being on `/edit/...` puts every section in a preview-with-Settings-menu state
    (`isEdit: false`). The gear/Settings icon (⋮) shows only a **reduced** menu (Type,
@@ -381,8 +390,8 @@ Picker choreography to wire it through the UI instead of a spec's `comparisonMod
 ## Known UI gaps
 
 The click-path's silent-failure modes and missing controls (RRL rename, the graphIds
-pill, the difference-graph anchor coin-flip, `weekdays` having no control at all, and
-others — peak-hour filtering closed 2026-07-28) are tracked and ranked in
+pill, the difference-graph anchor coin-flip, and others — peak-hour filtering closed
+2026-07-28, `weekdays` closed 2026-07-30) are tracked and ranked in
 `planning/tasks/current/report-route-ui-parity-gaps.md` rather than listed here — that
 file is Phase C of the report-spec arc, closing them off one at a time now that the
 spec format makes each one an enumerable, checkable gap (does a control exist for this

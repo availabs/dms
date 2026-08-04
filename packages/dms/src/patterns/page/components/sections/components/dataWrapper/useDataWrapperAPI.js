@@ -32,6 +32,53 @@ import {
 import { RUNTIME_FIELDS, RUNTIME_DISPLAY_FIELDS } from "./schema";
 export { RUNTIME_FIELDS, RUNTIME_DISPLAY_FIELDS };
 
+// Pure mutation body shared by `reconcileComparisonSeriesColumn` (below, runs against a live
+// section's immer draft) and NPMRDS's Add-Graph modal (composes a brand-new section's state
+// before any dataWrapper/dwAPI exists for it — see
+// planning/tasks/current/dynamic-reports-and-route-tags.md's "Workstream 0"). No immer-specific
+// API is used here, only plain mutation syntax, so the identical body works against a plain
+// mutable object just as well as an immer draft.
+export function reconcileComparisonSeriesColumnOnState(state) {
+    if (!state) return;
+    const cs = state.comparisonSeries;
+    const seriesKey = cs?.seriesKey || '__series';
+    const enabled = cs?.enabled === true;
+    // Variants come from either binding mode: static (cs.variants) OR a
+    // dynamic "comparison_series" subscriber (Piece 3). For dynamic the list
+    // resolves asynchronously into cs.config from page state — its presence
+    // (even an empty []) means dynamic binding is active, as does an enabled
+    // subscriber whose page value hasn't arrived yet. Either keeps the
+    // synthetic categorize column so the chart is ready when data loads.
+    const dynamicSubscriber = (state.display?._functions?.subscribers || []).some(
+        s => s.functionId === 'comparison_series' && s.enabled
+    );
+    const hasVariants =
+        (Array.isArray(cs?.variants) && cs.variants.some(v => v && v.label)) ||
+        Array.isArray(cs?.config) ||
+        dynamicSubscriber;
+    const idx = (state.columns || []).findIndex(c => c.origin === 'comparison-series');
+
+    if (!enabled || !hasVariants) {
+        if (idx !== -1) state.columns.splice(idx, 1);
+        return;
+    }
+    if (idx === -1) {
+        state.columns.push({
+            name: seriesKey,
+            alias: seriesKey,
+            type: 'text',
+            show: true,
+            group: true,
+            target: 'categorize',
+            isCalculatedColumn: false,
+            origin: 'comparison-series',
+        });
+    } else {
+        state.columns[idx].name = seriesKey;
+        state.columns[idx].alias = seriesKey;
+    }
+}
+
 export function useDataWrapperAPI({ state, setState }) {
     // Keep a mutable ref to current state so the stable API object's getters
     // always return live data. This lets us exclude state from the useMemo deps,
@@ -130,46 +177,7 @@ export function useDataWrapperAPI({ state, setState }) {
     // (config stays on draft.comparisonSeries for clean re-enable). It defaults to
     // a categorize dimension so a graph renders one series per variant out of the box.
     const reconcileComparisonSeriesColumn = useCallback(
-        () => setState(draft => {
-            if (!draft) return;
-            const cs = draft.comparisonSeries;
-            const seriesKey = cs?.seriesKey || '__series';
-            const enabled = cs?.enabled === true;
-            // Variants come from either binding mode: static (cs.variants) OR a
-            // dynamic "comparison_series" subscriber (Piece 3). For dynamic the list
-            // resolves asynchronously into cs.config from page state — its presence
-            // (even an empty []) means dynamic binding is active, as does an enabled
-            // subscriber whose page value hasn't arrived yet. Either keeps the
-            // synthetic categorize column so the chart is ready when data loads.
-            const dynamicSubscriber = (draft.display?._functions?.subscribers || []).some(
-                s => s.functionId === 'comparison_series' && s.enabled
-            );
-            const hasVariants =
-                (Array.isArray(cs?.variants) && cs.variants.some(v => v && v.label)) ||
-                Array.isArray(cs?.config) ||
-                dynamicSubscriber;
-            const idx = (draft.columns || []).findIndex(c => c.origin === 'comparison-series');
-
-            if (!enabled || !hasVariants) {
-                if (idx !== -1) draft.columns.splice(idx, 1);
-                return;
-            }
-            if (idx === -1) {
-                draft.columns.push({
-                    name: seriesKey,
-                    alias: seriesKey,
-                    type: 'text',
-                    show: true,
-                    group: true,
-                    target: 'categorize',
-                    isCalculatedColumn: false,
-                    origin: 'comparison-series',
-                });
-            } else {
-                draft.columns[idx].name = seriesKey;
-                draft.columns[idx].alias = seriesKey;
-            }
-        }),
+        () => setState(draft => reconcileComparisonSeriesColumnOnState(draft)),
         [setState]
     );
 

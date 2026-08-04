@@ -1579,26 +1579,32 @@ async function testClickHouseSeriesCombineDifference() {
   assert(!capturedSql.includes('UNION ALL'),
     `2 variants = a single joined SELECT, no UNION ALL, got: ${capturedSql}`);
   assert(capturedSql.includes('compare.__series as __series'),
-    `expected the compare arm's own label to become the series, got: ${capturedSql}`);
+    `expected the compare arm's own (composed) label to become the series, got: ${capturedSql}`);
+  assert(capturedSql.includes(`'Route A − Route B'`),
+    `expected the series label to compose both arms in anchor-minus-compare order (self-explanatory on a lone hover), got: ${capturedSql}`);
   assert(capturedSql.includes(`'route-a'`) && capturedSql.includes(`'route-b'`),
     `expected both arms' own filters present (anchor + compare), got: ${capturedSql}`);
   pass('difference mode joins the compare arm to the anchor arm on the group-by column and diffs the value column');
 
   // 2. invert flips the subtraction direction (converted reports whose Main
-  // sits later in the page's route list than its Compare)
+  // sits later in the page's route list than its Compare) — the composed
+  // label must flip the same way, or the tooltip text would claim the wrong
+  // subtraction order.
   capturedSql = null;
   await simpleFilter(ctx, mkOptions({ seriesCombine: { mode: 'difference', invert: true } }), attrs, { from: 0, to: 9 });
   assert(capturedSql.includes('(compare.speed - anchor.speed) as speed'),
     `expected the inverted subtraction, got: ${capturedSql}`);
-  pass('invert: true flips the subtraction direction');
+  assert(capturedSql.includes(`'Route B − Route A'`),
+    `expected the composed label order to flip along with the subtraction under invert, got: ${capturedSql}`);
+  pass('invert: true flips the subtraction direction and the composed label order');
 
   // 3. 3 variants → one joined SELECT per non-anchor arm, UNION ALL'd
   capturedSql = null;
   await simpleFilter(ctx, mkOptions({ seriesVariants: variants(3) }), attrs, { from: 0, to: 9 });
   const joined = capturedSql.split('UNION ALL');
   assert(joined.length === 2, `expected 2 joined selects for 3 variants, got ${joined.length}: ${capturedSql}`);
-  assert(joined[0].includes(`'Route B'`) && joined[1].includes(`'Route C'`),
-    `expected one "vs Main" difference series per non-anchor arm, got: ${capturedSql}`);
+  assert(joined[0].includes(`'Route A − Route B'`) && joined[1].includes(`'Route A − Route C'`),
+    `expected one composed "Main vs compare" difference label per non-anchor arm, got: ${capturedSql}`);
   const anchorFilterRefs = (capturedSql.match(/'route-a'/g) || []).length;
   assert(anchorFilterRefs === 2,
     `expected the anchor arm spliced into each of the 2 joined selects, got ${anchorFilterRefs} refs: ${capturedSql}`);

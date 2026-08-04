@@ -231,7 +231,10 @@ const LineGraphWrapper = props => {
       type: "categorical",
       colors: colors,
       colorsByKey: props.colorsByKey,
-      categories: dataFromProps?.map(l => l.id)
+      categories: dataFromProps?.map(l => l.id),
+      // Row layout when the legend sits above/below the chart (top/bottom —
+      // full width available); column stack when it sits beside it (left/right).
+      orientation: ["right", "left"].includes(props.legend.position || "right") ? "vertical" : "horizontal"
     };
   }, [props.legend, colors, props.colorsByKey, dataFromProps]);
 
@@ -270,14 +273,21 @@ const LineGraphWrapper = props => {
   });
   const legendWrapClass = squeezed ? "flex items-center max-w-[40%] min-w-0 overflow-hidden" : "flex items-center";
 
+	const isColumnLegend = ["top", "bottom"].includes(legend.position);
+
 	return (
-    <div className="w-full bg-inherit flex" ref={ containerRef }>
+    <div className={ `w-full bg-inherit flex ${ isColumnLegend ? "flex-col" : "" }` } ref={ containerRef }>
+      { !legend.show || legend.position !== "top" ? null :
+      	<div className="flex justify-center shrink-0" ref={ legendRef }>
+        	{ InstantiatedLegend }
+        </div>
+      }
       { !legend.show || legend.position !== "left" ? null :
       	<div className={ legendWrapClass } ref={ legendRef }>
         	{ InstantiatedLegend }
         </div>
       }
-      <div className="bg-inherit flex-1 min-w-0"
+      <div className={ `bg-inherit min-w-0 ${ isColumnLegend ? "w-full shrink-0" : "flex-1" }` }
         style={ {
           height: `${ props.height }px`
         } }
@@ -292,6 +302,11 @@ const LineGraphWrapper = props => {
       </div>
       { !legend.show || legend.position !== "right" ? null :
       	<div className={ legendWrapClass } ref={ legendRef }>
+        	{ InstantiatedLegend }
+        </div>
+      }
+      { !legend.show || legend.position !== "bottom" ? null :
+      	<div className="flex justify-center shrink-0" ref={ legendRef }>
         	{ InstantiatedLegend }
         </div>
       }

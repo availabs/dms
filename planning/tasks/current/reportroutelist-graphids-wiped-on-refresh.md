@@ -132,8 +132,11 @@ reports if this file's summary isn't enough for a future session):
 - [ ] Clean up the stray duplicate rows (page 13 confirmed; likely other report pages too) — needs
   user authorization before any deletes.
 - [ ] Investigate/flag the dms-server tile-join crash separately if it recurs.
-- [ ] The "ghost routes from another report" symptom (see below) is still unvalidated/unfixed — this
-  task only closed out the graphIds-wipe and new-route-not-persisting symptoms.
+- [x] The "ghost routes from another report" symptom (see below) was never formally re-investigated
+  against the original repro steps, but was informally re-tested the next day (2026-07-21, during
+  the ReportRouteList UX-polish round) — a fresh report created from the template while a different
+  report was open showed no ghost routes. Treat as probably resolved on its own, not formally
+  closed; re-open if it resurfaces.
 
 ## Objective
 

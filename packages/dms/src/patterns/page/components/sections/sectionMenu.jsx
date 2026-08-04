@@ -654,6 +654,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                     state, dwAPI, mapAPI, isEdit, canEditSection,
                     currentComponent, sectionState, actions, auth, ui,
                     dataSource, pageDataSources, siblingSections,
+                    pageState: rest.pageState,
                 }) || [];
             } catch (e) {
                 console.error('sectionMenu extension failed', e);
@@ -676,7 +677,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
 
     const pivot = {
         name: 'Pivot', icon: 'ListView',
-        cdn: () => isEdit && ['Spreadsheet', 'Graph'].includes(currentComponent?.name) && currentComponent?.useDataSource && canEditSection,
+        cdn: () => isEdit && ['Spreadsheet', 'Graph', 'AVL Graph'].includes(currentComponent?.name) && currentComponent?.useDataSource && canEditSection,
         value: state.pivot?.enabled ? 'On' : 'Off',
         showValue: true,
         items: [
@@ -984,7 +985,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
             items: Object.keys(RegisteredComponents)
                 .filter(k => !RegisteredComponents[k].hideInSelector &&
                     // don't allow conversion of incompatible components in view mode
-                    (isEdit || (['Spreadsheet', 'Card', 'Graph'].includes(currentComponent?.name) && ['Spreadsheet', 'Card', 'Graph'].includes(k)))
+                    (isEdit || (['Spreadsheet', 'Card', 'Graph', 'AVL Graph'].includes(currentComponent?.name) && ['Spreadsheet', 'Card', 'Graph'].includes(k)))
                 )
                 .map(k => (
                     {

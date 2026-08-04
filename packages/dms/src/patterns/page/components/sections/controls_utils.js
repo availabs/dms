@@ -47,7 +47,34 @@ const applyColumnUpdate = (draft, originalAttribute, key, newValue, onChange) =>
         draft.columns[idx].fn = draft.columns[idx].defaultFn?.toLowerCase() || 'list';
     }
 
-    if (key === 'group' && value === true) {
+    // AVL Graph: a column's target role can imply a server-side GROUP BY
+    // dimension (x-axis / categorize / pie-sunburst-treemap index, or
+    // GridGraph's row axis which reuses the 'yAxis' target name) — grouping is
+    // server-side only, so the target itself is what turns the column into a
+    // real SQL dimension. Keep `group` in sync with `target` in BOTH
+    // directions: turning target INTO a dimension role turns group on (same as
+    // manually toggling "Group"); turning it AWAY from one turns group back
+    // off. Without the second half, a repurposed column stays a phantom GROUP
+    // BY dimension forever and silently fragments the query instead of
+    // aggregating.
+    const DIMENSION_TARGETS = new Set(['xAxis', 'categorize', 'index']);
+    const isDimensionTarget = (val) =>
+        DIMENSION_TARGETS.has(val) || (val === 'yAxis' && draft.display?.graphType === 'GridGraph');
+
+    let groupJustEnabled = key === 'group' && value === true;
+    let groupJustDisabled = key === 'group' && value === false;
+
+    if (key === 'target') {
+        if (isDimensionTarget(value) && !draft.columns[idx].group) {
+            draft.columns[idx].group = true;
+            groupJustEnabled = true;
+        } else if (!isDimensionTarget(value) && draft.columns[idx].group) {
+            draft.columns[idx].group = false;
+            groupJustDisabled = true;
+        }
+    }
+
+    if (groupJustEnabled) {
         // all other visible columns must have a function
         draft.columns[idx].fn = undefined;
         draft.columns
@@ -57,12 +84,12 @@ const applyColumnUpdate = (draft, originalAttribute, key, newValue, onChange) =>
             });
     }
 
-    if (key === 'group' && value === false && draft.columns.some(c => !isEqualColumns(c, originalAttribute) && c.group)) {
+    if (groupJustDisabled && draft.columns.some(c => !isEqualColumns(c, originalAttribute) && c.group)) {
         // if grouping by other columns, apply fn when removing group for current column
         draft.columns[idx].fn = draft.columns[idx].defaultFn?.toLowerCase() || 'list';
     }
 
-    if (key === 'group' && value === false && draft.columns.every(c => !c.group) && draft.columns.some(c => c.fn)) {
+    if (groupJustDisabled && draft.columns.every(c => !c.group) && draft.columns.some(c => c.fn)) {
         // remove fn from every non-grouped column
         draft.columns.filter(c => !isEqualColumns(c, originalAttribute) && !c.group && c.fn)
             .forEach(c => {

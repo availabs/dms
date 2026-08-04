@@ -88,6 +88,15 @@ const pagesConfig = ({
       registerSectionHeaderExtensions(componentName, builders))
   }
 
+  // Auto-register theme-provided map plugins — pluggable map/symbology tools
+  // (e.g. a domain-specific route-creation or annotation plugin) activated on
+  // a report-page Map section via the shared PluginLibrary. Keyed by plugin
+  // id, matching each plugin object's own `id` field.
+  // See patterns/mapeditor/MapEditor/index.jsx (PluginLibrary/RegisterPlugin).
+  if (theme.mapPlugins) {
+    Object.entries(theme.mapPlugins).forEach(([name, plugin]) => RegisterPlugin(name, plugin))
+  }
+
   baseUrl = baseUrl === "/" ? "" : baseUrl;
   const format = initializePatternFormat(cmsFormat, app, type);
   if(pattern?.additionalSectionAttributes?.length){

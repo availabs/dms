@@ -8,11 +8,11 @@ Building the route(s) a report will reference. This is the prerequisite step for
 > first time.
 
 **The CLI (`scripts/npmrds-reports/route_build.py`) is the primary path** — it writes
-the exact same 7-key Routes Data row the map tool does, needs no browser and no
-transportNY dev server, and is Claude's path for turning a client request into routes.
-The map tool below is kept as the human path (it still works, and is the only path for
-a person eyeballing a map), documented as a second column, not the primary flow — same
-split as `creating-reports.md`'s spec-first framing.
+the exact same 7-key Routes Data row the map tool does, needs no browser at all, and is
+Claude's path for turning a client request into routes. The map tool below is kept as
+the human path (it still works, and is the only path for a person eyeballing a map),
+documented as a second column, not the primary flow — same split as
+`creating-reports.md`'s spec-first framing.
 
 ## The CLI path (primary)
 
@@ -71,25 +71,31 @@ route a clear, self-describing name (inherited by every report reference — RRL
 instance or spec `routes[].name` — with no reliable per-instance rename, see the report
 skill's known gaps).
 
-## Prerequisite: the map tool only exists in transportNY
+## Prerequisite: none — the map tool now runs natively in dms-template
 
 The route-creation map tool ("routecreation" plugin — TMC Click/Markers modes, TMC
-Search, TMC List panel) lives **only** in the `transportNY` repo
-(`/home/ryan/code/transportNY`), not in `dms-template`. If you're working in
-dms-template and need this UI path, you must switch to transportNY's dev server for this
-step, then come back (routes are DMS rows, visible from either app once created,
-provided both apps point at the same DMS site/app). See "Cross-repo note" at the
-bottom before you do — transportNY pins an older, manually-synced copy of the theme and
-the `@availabs/dms` submodule.
+Search, TMC List panel) used to exist only in the `transportNY` repo. As of 2026-07-29
+it's been ported into dms-template proper, at
+`src/themes/transportny/components/routecreation/`, registered through
+`theme.mapPlugins` (see `src/dms/planning/tasks/completed/map-plugins-theme-registration.md`
+for the registration mechanism and
+`planning/tasks/completed/port-transportny-map-plugins.md` for the port itself). It runs
+on dms-template's own dev server like any other themed component — no switching repos,
+no separate dev server, nothing to sync back.
 
-**This is the one and only reason to ever touch transportNY.** Everything else in this
-workflow — report pages, Measure Picker, RRL — is dms-template work; don't develop it in
-transportNY even if the dev server is already open there.
+`transportNY` is no longer part of this workflow at all. It remains a separately
+deployed production frontend for other reasons, but developing or testing routes/reports
+features — including route creation — never requires touching it.
 
 ## The map tool path (human-driven, still works)
 
 Written from a real worked example (NY-9D through Beacon, NY) so every step below has
 been driven live through the UI, not inferred from code.
+
+**Driving this through browser automation?** The map renders as a blank dark rectangle
+until the tab gets a resize event — see
+[`traversing-report-pages.md`](./traversing-report-pages.md#4-known-state-machine--url-gotchas-check-this-list-before-concluding-a-bug)
+for the fix (two `resize_window` calls) before concluding the tool has no UI.
 
 ### Step 1 — Identify the real-world segments
 
@@ -116,7 +122,7 @@ error-prone (see "Known gaps" below). Instead:
 This ground-truth-first approach replaces unreliable pixel-based map guessing and is
 much faster once the TMC chain is known.
 
-### Step 2 — Build the route(s) in the map tool (transportNY only)
+### Step 2 — Build the route(s) in the map tool
 
 URL pattern: `http://npmrds.localhost:5173/edit/<some-page>` for a scratch page with a
 map section in edit mode, or the dedicated route-creation demo page if one exists
@@ -175,12 +181,12 @@ See `planning/tasks/current/report-route-ui-parity-gaps.md` for the full ranked 
   route's URL as a scratch pad silently overwrites it on Save (now clearly labeled in
   the UI as of 2026-07-27, see above — still no confirmation dialog).
 
-## Cross-repo note
+## History: this used to require transportNY
 
-transportNY keeps its **own separate copy** of both the `@availabs/dms` library
-submodule and the `transportny` theme — pinned to a different, manually-synced commit
-than dms-template's. Newer dms-template features do not automatically exist there.
-See `research/npmrds-reports/reportroutelist-cross-repo-sync.md` for the sync process
-and gotchas (submodule import path rewrite, etc.), and re-run a `diff -rq` before
-trusting any claim about current parity — there is no auto-sync, so it drifts again
-the moment either side is edited.
+Until 2026-07-29, the map tool existed only in the `transportNY` repo and this workflow
+required switching to its dev server for Step 2, then coming back — with a whole
+separate cross-repo sync discipline (`research/npmrds-reports/reportroutelist-cross-repo-sync.md`)
+for keeping theme components in parity between the two repos. That's no longer the case
+for route creation: the plugin is now native to dms-template. The sync doc above is kept
+for historical context and because a couple of other components (`RouteComparison`) still
+live transportNY-only, but nothing in this file requires it anymore.
