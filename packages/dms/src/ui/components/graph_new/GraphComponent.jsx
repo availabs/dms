@@ -64,7 +64,9 @@ export const GraphComponent = props => {
     hoverProvider = null,
     publishClickData = noOp,
     clickProvider = null,
-    colorsByKey
+    colorsByKey,
+    showScaleFilter,
+    onSetDomainMax
   } = props;
 
   const GraphComponent = React.useMemo(() => {
@@ -156,6 +158,12 @@ export const GraphComponent = props => {
         colors={ graphFormat.colors }
         colorsByKey={ colorsByKey }
 
+        // Author-typed custom X ticks (DomainEditor) — forces the x-axis to exactly
+        // this list/order, inserting zero-value placeholders for ticks the data
+        // doesn't have and dropping any data outside the list. Bar/Line only.
+        useCustomXDomain={ get(graphFormat, "useCustomXDomain", false) }
+        xDomain={ get(graphFormat, "xDomain") }
+
         orientation={ get(graphFormat, "orientation", "vertical") }
         groupMode={ get(graphFormat, "groupMode", "stacked") }
         paddingInner={ get(graphFormat, "paddingInner", 0.0) }
@@ -246,7 +254,11 @@ export const GraphComponent = props => {
         publishHoverData={ publishHoverData }
         hoverProvider={ hoverProvider }
         publishClickData={ publishClickData }
-        clickProvider={ clickProvider }/>
+        clickProvider={ clickProvider }
+
+        // Scale Filter (BarGraph only — every other chart type ignores these).
+        showScaleFilter={ showScaleFilter }
+        onSetDomainMax={ onSetDomainMax }/>
 
     </div>
   )

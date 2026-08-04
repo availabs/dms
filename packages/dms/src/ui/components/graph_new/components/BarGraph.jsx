@@ -117,8 +117,38 @@ const BarGraphWrapper = props => {
       })
     }
 
-		return { data, keys, min, max };
-	}, [props.viewData, indexColumn, dataColumns, categoryColumn]);
+    // Custom X Ticks (DomainEditor / "Use Custom X Ticks" toggle): force the
+    // x-axis to exactly the author-typed list, in that order — a tick the data
+    // doesn't have gets a zero-value placeholder bar; a data index outside the
+    // list is dropped. Overrides any sort above, same as the legacy Graph.
+    const customData = (!props.useCustomXDomain || !props.xDomain?.length) ? data :
+      props.xDomain.map(tick => data.find(bar => String(bar.index) === String(tick)) || { index: tick });
+
+		return { data: customData, keys, min, max };
+	}, [props.viewData, indexColumn, dataColumns, categoryColumn, props.useCustomXDomain, props.xDomain]);
+
+	// Scale Filter quick-pick stops: percentages of the chart's own peak bar total
+	// (the stacked sum for a `stacked` chart; the tallest single series for
+	// `grouped`, since those bars aren't cumulative) — matches the legacy Graph's
+	// "Max / 75% / 50% / 5%" buttons, just computed against the new data shape.
+	const scaleFilterStops = React.useMemo(() => {
+		if (!props.showScaleFilter || !dataFromProps.data.length) return null;
+		const isStacked = (props.groupMode || "stacked") === "stacked";
+		const peak = dataFromProps.data.reduce((max, bar) => {
+			const values = dataFromProps.keys.map(k => +bar[k] || 0);
+			const barPeak = isStacked ? values.reduce((a, c) => a + c, 0) : Math.max(0, ...values);
+			return Math.max(max, barPeak);
+		}, 0);
+		if (!(peak > 0)) return null;
+		return [
+			{ label: "Max", value: undefined },
+			{ label: "75%", value: peak * 0.75 },
+			{ label: "50%", value: peak * 0.5 },
+			{ label: "5%", value: peak * 0.05 },
+		];
+	}, [props.showScaleFilter, props.groupMode, dataFromProps.data, dataFromProps.keys]);
+
+	const activeDomainMax = props.yAxis?.domainMax;
 
 // console.log("BarGraphWrapper::highlights", highlights);
 
@@ -405,10 +435,28 @@ const BarGraphWrapper = props => {
 		return () => publish(null);
   }, [publish, provider, categoryColumn]);
 
+	const isColumnLegend = ["top", "bottom"].includes(legend.position);
+
 	return (
-    <div className={ `w-full bg-inherit flex ${ ["top", "bottom"].includes(legend.position) ? "flex-col" : "" }` } ref={ containerRef }>
+    <>
+    { !scaleFilterStops ? null :
+      <div className="w-fit flex rounded-md p-1 divide-x border mb-2 print:hidden">
+        { scaleFilterStops.map(({ label, value }) => (
+          <div key={ label }
+            className={ `
+              font-semibold px-2 py-1 cursor-pointer select-none text-xs
+              ${ activeDomainMax === value ? "text-blue-600" : "text-gray-500 hover:text-gray-700" }
+            ` }
+            onClick={ () => props.onSetDomainMax?.(value) }
+          >
+            { label }
+          </div>
+        )) }
+      </div>
+    }
+    <div className={ `w-full bg-inherit flex ${ isColumnLegend ? "flex-col" : "" }` } ref={ containerRef }>
       { !legend.show || legend.position !== "top" ? null :
-      	<div className="flex justify-center" ref={ legendRef }>
+      	<div className="flex justify-center shrink-0" ref={ legendRef }>
         	{ InstantiatedLegend }
         </div>
       }
@@ -417,7 +465,7 @@ const BarGraphWrapper = props => {
         	{ InstantiatedLegend }
         </div>
       }
-      <div className="bg-inherit flex-1 min-w-0"
+      <div className={ `bg-inherit min-w-0 ${ isColumnLegend ? "w-full shrink-0" : "flex-1" }` }
         style={ {
           height: `${ props.height }px`
         } }
@@ -440,11 +488,12 @@ const BarGraphWrapper = props => {
         </div>
       }
       { !legend.show || legend.position !== "bottom" ? null :
-      	<div className="flex justify-center" ref={ legendRef }>
+      	<div className="flex justify-center shrink-0" ref={ legendRef }>
         	{ InstantiatedLegend }
         </div>
       }
     </div>
+    </>
 	)
 }
 

@@ -160,6 +160,7 @@ const graphConfig = {
     // instead of renaming this field.
     "name": 'Graph',
     "type": 'avlGraph',
+    "themeKey": 'avlGraph',
     "variables": [],
 
     useDataSource: true,
@@ -223,10 +224,17 @@ const graphConfig = {
                     { label: 'list', value: 'list' },
                     { label: 'fn exempt', value: 'exempt' }
                 ],
-            },     
+            },
             { type: 'toggle',
                 label: 'Group', key: 'group'
-            },  
+            },
+            { type: 'select',
+                label: 'Exclude N/A', key: 'excludeNA',
+                options: [
+                    { label: 'include n/a', value: false },
+                    { label: 'exclude n/a', value: true }
+                ],
+            },
             { type: 'select',
                 label: 'Sort', key: 'sort',
                 options: [
@@ -343,10 +351,10 @@ const graphConfig = {
                 {type: 'toggle',                   label: 'Hide if No Data', key: 'hideIfNull'},
                 // {type: 'toggle',                   label: 'Tooltip',         key: 'tooltip.show'},
                 {type: 'toggle',                   label: 'Attribution',     key: 'showAttribution'},
-                // {type: 'toggle',                   label: 'Scale Filter',    key: 'showScaleFilter'},
+                {type: 'toggle',                   label: 'Scale Filter',    key: 'showScaleFilter', displayCdn: ({display}) => display.graphType === 'BarGraph'},
                 // {type: 'input', inputType: 'number', label: 'Padding',          key: 'padding'},
                 {type: 'input', inputType: 'number', label: 'Height',        key: 'height'},
-                // {type: 'toggle',                   label: 'Use Custom X Ticks', key: 'useCustomXDomain'},
+                {type: 'toggle',                   label: 'Use Custom X Ticks', key: 'useCustomXDomain'},
                 {
                     type: ({value, setValue, state}) => (
                         <DomainEditor value={value} setValue={setValue} display={state?.display || {}} />

@@ -50,7 +50,7 @@ export const avlGraphTheme = {
             ...SharedThemeOptions
         },
         { name: "Dark Mode",
-            bgColor: "bg-slate-800",
+            bgColor: "bg-transparent",
             textColor: "text-white",
             padding: "p-4",
             chartDefaults: { ...ChartDefaults },
