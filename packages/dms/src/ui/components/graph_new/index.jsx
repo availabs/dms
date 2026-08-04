@@ -69,7 +69,7 @@ const useGetActions = (pageState, display) => {
 export default function Graph (props) {
 
     const {
-        isEdit, state, activeStyle, pageContext
+        isEdit, state, setState, activeStyle, pageContext
     } = props;
 
     const {
@@ -131,6 +131,20 @@ export default function Graph (props) {
     return columns.map(c => ({ ...c, key: c.normalName || c.name }));
   }, [columns]);
 
+  // Scale Filter (BarGraph only): quick-pick buttons ("Max"/"75%"/"50%"/"5%") that
+  // clamp the value axis to a fraction of the chart's peak (stacked) total, so a
+  // chart dominated by one outlier bar can be cropped to reveal detail in the rest.
+  // The buttons just set yAxis.domainMax — the actual clamp lives in
+  // avl-graph/BarGraph.jsx, which already reads domainMin/domainMax off the value
+  // axis config.
+  const setYAxisDomainMax = React.useCallback(value => {
+    setState(draft => {
+      if (!draft.display) draft.display = {};
+      if (!draft.display.yAxis) draft.display.yAxis = {};
+      draft.display.yAxis.domainMax = value;
+    });
+  }, [setState]);
+
   // A meta-lookup column (meta_lookup/geoid-variable, e.g. disaster_number ->
   // declaration_title) resolves server-side into { value, originalValue } so
   // Card/Spreadsheet cells can show the display label while keeping the raw
@@ -164,6 +178,8 @@ export default function Graph (props) {
         hoverProvider={ hoverProvider }
         publishClickData={ publishClickData }
         clickProvider={ clickProvider }
-        colorsByKey={ colorsByKey }/>
+        colorsByKey={ colorsByKey }
+        showScaleFilter={ display.showScaleFilter }
+        onSetDomainMax={ setYAxisDomainMax }/>
   )
 }

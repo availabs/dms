@@ -145,8 +145,21 @@ const LineGraphWrapper = props => {
 			})
 		}
 
+    // Custom X Ticks (DomainEditor / "Use Custom X Ticks" toggle): force every
+    // series onto exactly the author-typed x list, in that order — a tick a
+    // series doesn't have gets a zero-value placeholder point; a point outside
+    // the list is dropped. Overrides the per-series sort above, same as the
+    // legacy Graph.
+    if (props.useCustomXDomain && props.xDomain?.length) {
+      data.forEach(line => {
+        line.data = props.xDomain.map(tick =>
+          line.data.find(p => String(p.x) === String(tick)) || { x: tick, y: 0 }
+        );
+      });
+    }
+
 		return data;
-	}, [props.viewData, xColumn, yColumns, idColumns]);
+	}, [props.viewData, xColumn, yColumns, idColumns, props.useCustomXDomain, props.xDomain]);
 
   const colors = React.useMemo(() => {
     let colors = [];
