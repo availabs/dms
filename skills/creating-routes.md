@@ -79,7 +79,7 @@ it's been ported into dms-template proper, at
 `src/themes/transportny/components/routecreation/`, registered through
 `theme.mapPlugins` (see `src/dms/planning/tasks/completed/map-plugins-theme-registration.md`
 for the registration mechanism and
-`planning/tasks/completed/port-transportny-map-plugins.md` for the port itself). It runs
+`planning/transportny/tasks/completed/port-transportny-map-plugins.md` for the port itself). It runs
 on dms-template's own dev server like any other themed component — no switching repos,
 no separate dev server, nothing to sync back.
 
@@ -171,7 +171,7 @@ source `2107426` / view `2107427`) and hand it to
 
 ## Known gaps found while driving this workflow live
 
-See `planning/tasks/current/report-route-ui-parity-gaps.md` for the full ranked list
+See `planning/transportny/tasks/current/report-route-ui-parity-gaps.md` for the full ranked list
 (shared with the report-building gaps) — the route-creation-specific ones are:
 
 - Map scroll-zoom is disabled (workaround: double-click zoom, `+`/`-` buttons).

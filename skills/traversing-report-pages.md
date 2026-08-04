@@ -51,7 +51,7 @@ is added via "+ Add Route" — useful as a clean, un-scripted reproduction
 environment when you need to rule out "is this bug specific to some other
 build path" (this is exactly how a genuine AVL Graph rendering bug was
 isolated away from a suspected feature-specific cause — see
-`planning/tasks/current/dynamic-reports-and-route-tags.md`, repo root).
+`planning/transportny/tasks/current/dynamic-reports-and-route-tags.md`, repo root).
 
 ### The route-picker modal ("+ Add Route" / "+ Add Route Slot")
 
@@ -81,7 +81,7 @@ not a flat catalog list:
 Any report page can be flipped into a **Dynamic Report** — one shared page,
 reused by many viewers, whose routes are filled from a URL param at view time
 rather than stored on the page. Full design record:
-`planning/tasks/current/dynamic-reports-and-route-tags.md` (repo root — an
+`planning/transportny/tasks/current/dynamic-reports-and-route-tags.md` (repo root — an
 NPMRDS-theme feature, not core DMS). The essentials for navigating one live:
 
 - The toggle lives **inside the `ReportRouteList` panel itself**, in edit

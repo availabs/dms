@@ -10,7 +10,7 @@ domain) but **no visible line at all** whenever its resolution was `day`,
 `5-minutes`/`hour` (or any numeric-bucket resolution), always worked fine.
 
 Found while building the Dynamic Reports mechanism
-(`planning/tasks/current/dynamic-reports-and-route-tags.md` in the site root,
+(`planning/transportny/tasks/current/dynamic-reports-and-route-tags.md` in the site root,
 not this submodule) — Ryan suspected the bug was specific to the Report Page
 template or the new Dynamic Reports wiring. It wasn't: reproduced on a brand-new
 page created via the plain UI "+ Add Page → Your Templates → Report Page" flow,

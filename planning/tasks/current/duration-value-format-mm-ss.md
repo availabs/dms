@@ -1,7 +1,7 @@
 # Duration value format (M:SS) for travel-time axes and tooltips
 
 **Status:** NOT STARTED — scoped 2026-07-27, to be done as part of the report-spec work
-(`dms-template/planning/tasks/current/report-spec-and-build-script.md`), since the vocabulary is
+(`dms-template/planning/transportny/tasks/current/report-spec-and-build-script.md`), since the vocabulary is
 where the per-measure format choice belongs.
 
 ## Objective

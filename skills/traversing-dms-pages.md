@@ -108,7 +108,7 @@ merely because the page is open at `/edit/...`. A component that instead
 reads `PageContext`'s page-level `editPageMode` for that same purpose is
 diverging from the platform convention (confirmed a real instance of exactly
 this in NPMRDS's `ReportRouteList`, fixed 2026-08 — see
-`planning/tasks/current/reportroutelist.md`).
+`planning/transportny/tasks/current/reportroutelist.md`).
 
 To reach **true** edit mode for one specific section: open that section's
 Settings popup, then click the **pencil "Edit"** pill in the top action row.

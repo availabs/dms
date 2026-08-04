@@ -35,7 +35,7 @@ export { RUNTIME_FIELDS, RUNTIME_DISPLAY_FIELDS };
 // Pure mutation body shared by `reconcileComparisonSeriesColumn` (below, runs against a live
 // section's immer draft) and NPMRDS's Add-Graph modal (composes a brand-new section's state
 // before any dataWrapper/dwAPI exists for it — see
-// planning/tasks/current/dynamic-reports-and-route-tags.md's "Workstream 0"). No immer-specific
+// planning/transportny/tasks/current/dynamic-reports-and-route-tags.md's "Workstream 0"). No immer-specific
 // API is used here, only plain mutation syntax, so the identical body works against a plain
 // mutable object just as well as an immer draft.
 export function reconcileComparisonSeriesColumnOnState(state) {
