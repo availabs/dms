@@ -160,6 +160,7 @@ const graphConfig = {
     // instead of renaming this field.
     "name": 'Graph',
     "type": 'avlGraph',
+    "themeKey": 'avlGraph',
     "variables": [],
 
     useDataSource: true,

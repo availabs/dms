@@ -46,6 +46,7 @@ export const Graph = ({isEdit}) => {
             pageContext={ pageContext }
             state={ state }
             setState={ setState }
-            controls={ controls }/>
+            controls={ controls }
+            activeStyle={ activeStyle }/>
     )
 }

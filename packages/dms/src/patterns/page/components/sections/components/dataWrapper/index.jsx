@@ -193,7 +193,7 @@ const RenderDownload = ({state, apiLoad, cms_context}) => {
 
 
 const Edit = forwardRef((props, ref) => {
-    let {cms_context, value, onChange, component, siteType, pageFormat, onHandle, sectionId, trackingId} = props
+    let {cms_context, value, onChange, component, siteType, pageFormat, onHandle, sectionId, trackingId, activeStyle} = props
     const isEdit = Boolean(onChange);
     const { UI, theme: fullTheme } = useContext(ThemeContext)
     const _pageCtx = useContext(PageContext) || {};
@@ -426,7 +426,7 @@ const Edit = forwardRef((props, ref) => {
 
     return (
         <ComponentContext.Provider value={{state, setState, apiLoad, apiUpdate, controls: resolvedControls,
-            isActive: true, activeStyle: undefined, sectionId, trackingId}}>
+            isActive: true, activeStyle, sectionId, trackingId}}>
             <RenderFilters isEdit={true} defaultOpen={true} />
             <ExternalFilters defaultOpen={true} />
             <div className={'w-full h-full flex flex-col'}>
@@ -453,7 +453,7 @@ const Edit = forwardRef((props, ref) => {
     )
 })
 
-const View = forwardRef(({cms_context, value, onChange, component, editPageMode, onHandle, sectionId, trackingId}, ref) => {
+const View = forwardRef(({cms_context, value, onChange, component, editPageMode, onHandle, sectionId, trackingId, activeStyle}, ref) => {
     const isEdit = false;
     const navigate = useNavigate();
     const _pageCtx = useContext(PageContext) || {};
@@ -683,7 +683,7 @@ const View = forwardRef(({cms_context, value, onChange, component, editPageMode,
     }, [component?.usesItemMutationProps, allowEdit, newItem, setNewItem, updateItem, removeItem, addItem, currentPage, onPageChange])
 
     return (
-        <ComponentContext.Provider value={{state, setState, apiLoad, apiUpdate, controls: resolvedControls, activeStyle: undefined, sectionId, trackingId}}>
+        <ComponentContext.Provider value={{state, setState, apiLoad, apiUpdate, controls: resolvedControls, activeStyle, sectionId, trackingId}}>
             <RenderFilters isEdit={false} defaultOpen={true} />
             <ExternalFilters defaultOpen={true} />
             <div className={'w-full h-full'}>
