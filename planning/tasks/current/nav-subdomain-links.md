@@ -1,7 +1,7 @@
 # Nav items can't link across subdomains — `sub://` works in authored content but not in nav
 
-> **Status:** IN PROGRESS 2026-07-29 · BC · driven by the TransportNY landing secondary nav (link the
-> three product sites: NPMRDS, TSMO, Freight Atlas).
+> **Status:** DONE 2026-07-29 — implemented and live-verified · BC · driven by the TransportNY landing
+> secondary nav (link the three product sites: NPMRDS, TSMO, Freight Atlas).
 
 ## Objective
 
@@ -65,26 +65,69 @@ how ButtonNode has behaved since July; nav items inherit the same property rathe
 
 ## BC check
 
-- [ ] **Zero existing nav items are affected.** Audited every `navOptions` on every pattern in
-      `npmrdsv5`: 5 patterns, 35 nav items, and **0** use a `sub://`, `http(s)://` or `//` path. Every
-      current item is a bare slug or a `/`-rooted path, both of which keep their existing code path.
-- [ ] ButtonNode behavior byte-identical (function moved, not edited; same call site).
-- [ ] `edit` mode still prefixes `${baseUrl}/edit` for ordinary items; an absolute URL is correctly
-      NOT given an `/edit` prefix (it leaves the app entirely).
-- [ ] No new theme keys, config keys or schema. Nothing to migrate.
-- [ ] No change to `SideNav`/`TopNav` — react-router does the external-link rendering.
+- [x] **Zero authored destinations are affected.** `dataItemsNav` shapes page dataItems as well as
+      theme nav items, so both populations were audited against the exact regex the change uses:
+      **35 nav items** across the 5 patterns carrying `navOptions`, and **133 page slugs** across 11
+      patterns — **0** of 168 match `sub://`, `http(s)://`, `//`, or any other scheme. (The near-miss
+      worth knowing: a slug like `docs:overview` *would* match, since the regex only needs
+      `[a-z][a-z0-9+.-]*:` from the start. Nothing uses one, and the repo's underscore naming
+      convention keeps `_`-containing slugs out of the pattern. Deliberately kept identical to
+      react-router's own `ABSOLUTE_URL_REGEX` so a value `Link` treats as absolute is never given a
+      prefix.)
+- [x] ButtonNode behavior byte-identical — function moved, not edited; same single call site.
+      Re-verified live: clicking the landing page's "Open NPMRDS" CTA still opens
+      `npmrds.localhost:5173`.
+- [x] `edit` mode still prefixes `${baseUrl}/edit` for ordinary items (observed `/edit/home` on
+      freightatlas2); an absolute URL correctly gets neither prefix.
+- [x] No new theme keys, config keys or schema. Nothing to migrate.
+- [x] No change to `SideNav`/`TopNav` — react-router does the external-link rendering.
 
 ## Testing checklist
 
-- [ ] Landing secondary nav renders the three product items with the three product icons.
-- [ ] Each renders as a real anchor whose `href` is a **resolved absolute URL** on the current base host
-      (dev: `http://npmrds.localhost:5173/`), not `/sub://…`.
-- [ ] Clicking one lands on that product site.
-- [ ] A pattern with ordinary slug-based nav (tsmo2, 12 items) is unchanged — same hrefs as before.
-- [ ] `/docs/…`-style `/`-rooted nav paths still work (npmrds_sub, Freight Atlas patterns).
-- [ ] No console errors.
+Measured on the dev server @1500×1050.
+
+- [x] Landing secondary nav renders exactly the label + three product items, each with its product
+      mark (`ProductNpmrds`/`ProductTsmo`/`ProductFreightAtlas` — all present in the transportny icon
+      registry, which is a plain keyed object, so the names resolve directly):
+
+      Platform         icon=no  href=null
+      NPMRDS           icon=yes href="http://npmrds.localhost:5173/"
+      TSMO             icon=yes href="http://tsmo2.localhost:5173/"
+      Freight Atlas    icon=yes href="http://freightatlas2.localhost:5173/"
+
+- [x] Each is a real anchor with a **resolved absolute URL** on the current base host; zero anchors
+      match `/sub:` or a double-prefixed `/https?:`.
+- [x] Clicking TSMO landed on `http://tsmo2.localhost:5173/` and the TSMO site rendered.
+- [x] Slug-based nav unchanged — tsmo2 `/home /congestion_v2 /reliability_v2 /incidents_v2
+      /workzones_v2 /incident_search /corridor_view /about /methodology`, 13 anchors, 0 malformed.
+- [x] `/`-rooted and query-string paths still work — `/datasources`, `/docs`, and
+      `/freight_data?cat=Freight%20Atlas` intact on the Freight Atlas pattern.
+- [x] No console errors or pageerrors on any of the above.
+
+Two pre-existing `no-unused-vars` lint errors in `nav.js` (unused `i` map params at lines 28 and 54)
+are untouched by this change.
+
+## The data change this enabled
+
+Landing pattern **1700630** (`dev2|landing:pattern`), `theme.navOptions.secondaryNav.navItems`:
+
+| before | after |
+|---|---|
+| Platform · Home (`landing`) · Freight Atlas (`/fa`) · Data Sources (`/datasources`) · Documentation (`/docs/npmrds/overview`) | Platform · NPMRDS (`sub://npmrds/`) · TSMO (`sub://tsmo2/`) · Freight Atlas (`sub://freightatlas2/`) |
+
+- Destinations are the **same `sub://` values the landing page's own product cards already use**, so
+  the rail and the cards agree and nothing new had to be invented. Note the npmrds product is the
+  `npmrds` subdomain (pattern `npmrds_sub`), not `npmrds2`.
+- Order matches the page's product cards (2174587/2174588/2174589 = NPMRDS, TSMO, Freight Atlas).
+- The `Platform` **label row is kept** — it is a heading, not a link, so "only the three product
+  links" still holds. Trivially removable.
+- The old `Freight Atlas` item pointed at `/fa`, a *landing*-subdomain path, so it never reached the
+  Freight Atlas site.
+- Full pre-change row backed up to `scratchpad/backup_landing_pattern_1700630.json`.
 
 ## Sync
 
 Core change — rides the transportNY vendored-dms git sync (owner-run). The landing pattern's nav is
-**data**, so it takes effect as soon as it is written; the resolution fix is what needs the sync.
+**data**, so it took effect immediately; the resolution fix is what needs the sync. **Checked at
+completion: transportNY's core already contains both `utils/subdomainPath.js` and the `nav.js` change,
+and `diff -rq` over the two core trees is empty** — the owner's sync channel had already picked it up.
