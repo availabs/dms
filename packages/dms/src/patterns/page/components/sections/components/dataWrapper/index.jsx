@@ -210,7 +210,7 @@ const Edit = forwardRef((props, ref) => {
     const { pageState: editPageState } = _pageCtx;
 
     // ── DataWrapper owns its own state ──
-    const [state, setState] = useImmer(migrateToV2(value || '', initialState(component?.defaultState), component?.name));
+    const [state, setState] = useImmer(migrateToV2(value || '', initialState(component?.defaultState), component?.name, component?.type));
     const [newItem, setNewItem] = useState({})
     const isValidState = Boolean(state?.externalSource?.source_id || state?.externalSource?.isDms);
     const Comp = useMemo(() => component.EditComp, [component]);
@@ -468,7 +468,7 @@ const View = forwardRef(({cms_context, value, onChange, component, editPageMode,
     const { pageState: viewPageState } = _pageCtx;
 
     // ── DataWrapper owns its own state ──
-    const [state, setState] = useImmer(migrateToV2(value || '', initialState(component?.defaultState), component?.name));
+    const [state, setState] = useImmer(migrateToV2(value || '', initialState(component?.defaultState), component?.name, component?.type));
 
     const [newItem, setNewItem] = useState({})
     const liveEditTimerRef = useRef(null);
@@ -483,7 +483,7 @@ const View = forwardRef(({cms_context, value, onChange, component, editPageMode,
 
     // Sync when value changes (route change, external edit)
     useEffect(() => {
-        const newState = migrateToV2(value, initialState(component?.defaultState), component?.name)
+        const newState = migrateToV2(value, initialState(component?.defaultState), component?.name, component?.type)
         if (newState) {
             setState(newState)
         }

@@ -262,7 +262,10 @@ const PieGraphWrapper = props => {
       type: "categorical",
       colors: colors,
       colorsByKey: props.colorsByKey,
-      categories: dataFromProps.keys
+      categories: dataFromProps.keys,
+      // Row layout when the legend sits above/below the chart (top/bottom —
+      // full width available); column stack when it sits beside it (left/right).
+      orientation: ["right", "left"].includes(props.legend.position || "right") ? "vertical" : "horizontal"
     };
   }, [props.legend, colors, props.colorsByKey, dataFromProps.keys]);
 
@@ -350,7 +353,12 @@ const PieGraphWrapper = props => {
   }, [publish, provider, categoryColumn]);
 
   return (
-    <div className="w-full bg-inherit flex" ref={ containerRef }>
+    <div className={ `w-full bg-inherit flex ${ ["top", "bottom"].includes(legend.position) ? "flex-col" : "" }` } ref={ containerRef }>
+      { !legend.show || legend.position !== "top" ? null :
+        <div className="flex justify-center" ref={ legendRef }>
+          { InstantiatedLegend }
+        </div>
+      }
       { !legend.show || legend.position !== "left" ? null :
         <div className={ legendWrapClass } ref={ legendRef }>
           { InstantiatedLegend }
@@ -372,6 +380,11 @@ const PieGraphWrapper = props => {
       </div>
       { !legend.show || legend.position !== "right" ? null :
         <div className={ legendWrapClass } ref={ legendRef }>
+          { InstantiatedLegend }
+        </div>
+      }
+      { !legend.show || legend.position !== "bottom" ? null :
+        <div className="flex justify-center" ref={ legendRef }>
           { InstantiatedLegend }
         </div>
       }

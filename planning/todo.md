@@ -176,6 +176,30 @@
       `LngLatBounds`; and only the ACTIVE layer could supply bounds, so an empty active layer meant no
       zoom at all. Plus a ~1km buffer for zero-area extents. All BC; verified on tsmo2 incident_view.
 
+- [ ] [**Auth: route-chain ACL overwritten not merged, and `dms.data.edit` has no authorization**](./tasks/current/auth-permission-chain-and-unguarded-writes.md) —
+      DIAGNOSED 2026-07-29, not fixed. **(B) `dms.data.edit` performs no authorization whatsoever**:
+      `dms.route.js:421-435` passes `this.user` into `setDataById`, which uses it only for the
+      `updated_by` column (`dms.controller.js:689-727`) and runs the UPDATE unconditionally — caller
+      identity affects the audit column, never permission. Read-gating exists only for `pattern`/`page`
+      kinds, so a write lands and only the echoed response is filtered. **(A)** `getReqAuth`
+      (`_auth.js:3-13`) *unions* `reqPermissions` down the route chain but **overwrites**
+      `authPermissions`, so any child route omitting it blanks the pattern ACL to `{}` → datasets/auth
+      patterns wall anonymous users AND (because `sendToLogin` uses `.every` while `sendToHome` uses
+      `.some`) admit any logged-in user to admin routes. **(C)** `view-sources` is required but exists
+      in no grant vocabulary, so it can't be granted from the UI. Blocked on a product decision
+      (is the data-source catalog public?); the landing-page symptom is fixable independently.
+
+- [x] [Nav items can link across subdomains — `sub://` in `dataItemsNav`](./tasks/current/nav-subdomain-links.md) —
+      `sub://<subdomain>/<path>` shipped in 2026-07 for lexical **ButtonNode** only, so a nav item
+      couldn't reach another product site: `dataItemsNav` treats anything not starting `/` as a slug
+      relative to the pattern's `baseUrl`, turning `sub://tsmo2/` into `/sub://tsmo2/`, and the nav
+      pipeline had no external-link branch at all. Turned out **react-router 7.17 already handles the
+      final hop** (`parseToInfo` → `isExternal` → plain anchor, full navigation), so no `SideNav`/
+      `TopNav` change was needed — the whole fix is resolve `sub://` + don't prefix an absolute URL.
+      `resolveSubdomainPath` extracted from `ButtonNode.tsx` to `utils/subdomainPath.js` (two
+      consumers now). BC: audited all 168 authored destinations (35 nav items + 133 page slugs), zero
+      affected. Consumer: the TransportNY landing rail now links NPMRDS/TSMO/Freight Atlas.
+      Live-verified 2026-07-29.
 - [x] [Map basemap switcher: blank-square trigger + no active-basemap marker](./tasks/completed/map-basemap-switcher-trigger-icon.md) —
       the switcher TRIGGER was never given an icon: `avl-map.jsx` renders a hardcoded
       `w-8 h-8 bg-slate-400` swatch (measured live: 32×32, zero children, no text) beside three
@@ -428,6 +452,7 @@
       `!col` pass-through so option-A (CASE-expr) leaves are covered. Plus LineGraph
       `domainMin:"auto"` (data-min y floor). Synced to transportNY; **redeploy pending**.
 - [ ] [Map: comparison-series-driven symbology layers](./tasks/current/map-comparison-series-layers.md) — give the Map section the graphs' `comparison_series` subscriber: materialize one layer per published route/series variant from a `series-template` layer (RRL discovers maps for free — `findSelfBoundGraphs` is element-type-agnostic). Platform half of the old-reports Route Map plan (M0a).
+- [x] [Migrate legacy `Graph` sections onto `graph_new`](./tasks/current/migrate-legacy-graph-to-graph-new.md) — repoint the `"Graph"` `ComponentRegistry` key at `graph_new` (legacy renamed to `legacy_graph`, `"AVL Graph"` kept + hidden from the Type picker), rename `graph_new`'s `.name` to `'Graph'` so `sectionMenu.jsx`'s name-gated checks (Pivot menu, view-mode type-switch, Settings header) apply, and add a lazy idempotent `element-data` reshape (`Graph.migrate.js`, hooked into `migrateToV2.js` the same way `migrateCardState` is) so old sections render correctly at read time with no bulk data migration.
 - [x] [Map share-state (`?layers=`) → page-variable system](./tasks/completed/map-share-state-via-page-variables.md) — DONE 2026-07-14, owner-verified. Migrated the map's `?layers=`/interactive-variant share-state off direct URL writes onto the page-variable system (page owns URL); unified the variant onto `searchParamKey`, made the interactive bridge + authoring UI multi-symbology, added a unified Symbologies manager, surfaced auto-vars in Settings, documented component↔page-variable wiring. Mirrored to transportNY. Follow-ups: [dead-code cleanup](./tasks/completed/map-settings-dead-code-cleanup.md) (done), [search-param remount refresh](./tasks/completed/page-remount-on-searchparam-navigate.md) (done).
 - [x] [Map settings — dead-code cleanup](./tasks/completed/map-settings-dead-code-cleanup.md) — DONE 2026-07-14. Removed the 8 legacy controls in `map/settings/controls.jsx` (1026→641 lines) + the cascade (`useMapSettingsFilters` hook, `layers.jsx`/`useMapSettingsLayers`, `onSymbologyChange`/`onLayerChange`/`selectedLayer`/`layerOptions`); kept `getSymbologyBridge`/`listBridgeSymbologies` + the manager handlers. Verified zero live refs + babel parse; mirrored to transportNY (incl. deleting its `layers.jsx`). `map_dama/` untouched.
 - [x] [Page/section remount on search-param navigation](./tasks/completed/page-remount-on-searchparam-navigate.md) — DONE 2026-07-14, owner-verified. Root cause (pinned via mount/unmount probes): the route loader keys on `request.url`, so a search-only navigate (map writing `?layers=`) revalidated and REMOUNTED the whole route tree. Fix: `shouldRevalidate` on the DMS page route (`render/dmsPageFactory.jsx`) returns false when only the search changed on the same path (page handles filters in-memory; sections refetch via dataWrapper); still revalidates on cross-page nav, mutations, and explicit `revalidate()`. Toggle no longer refreshes. Mirrored to transportNY. (Other candidates — memoize view sections, hoist inline route components — not needed.)

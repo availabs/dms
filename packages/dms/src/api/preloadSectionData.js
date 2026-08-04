@@ -107,8 +107,12 @@ function injectPageFilters(node, filterMap) {
 export async function preloadSectionData(falcor, elementData, elementType, pageFilterMap = null, sectionId = null) {
     if (!elementData || !isPreloadableType(elementType)) return null
 
-    // Parse and migrate state (handles v0/v1/v2 formats)
-    const state = migrateToV2(elementData)
+    // Parse and migrate state (handles v0/v1/v2 formats). Graph.migrate.js's
+    // reshape is gated on compType ('avlGraph'), not the element-type string —
+    // both "Graph" and "AVL Graph" resolve to graph_new (see ComponentRegistry/
+    // index.jsx), so map either one through here too.
+    const compType = (elementType === 'Graph' || elementType === 'AVL Graph') ? 'avlGraph' : undefined
+    const state = migrateToV2(elementData, undefined, undefined, compType)
     if (!state?.externalSource?.source_id && !state?.externalSource?.isDms) return null
 
     // Respect the "Always Fetch Data" toggle (display.readyToLoad).

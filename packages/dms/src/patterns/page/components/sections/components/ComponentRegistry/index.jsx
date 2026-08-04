@@ -10,7 +10,7 @@ import MnyHeaderDataDriven from "./mnyHeader/config";
 import MNYFooter from './footer.config'
 import Spreadsheet from "./spreadsheet/config";
 import Card from "./Card.config";
-import Graph from "./graph/config"
+import LegacyGraph from "./graph/config"
 import FilterComponent from "./FilterComponent.config";
 // import UploadComponent from "./UploadComponent";
 // import ValidateComponent from "./ValidateComponent";
@@ -25,7 +25,10 @@ const ComponentRegistry = {
     lexical,
     Card,
     Spreadsheet,
-    Graph,
+    // Kept around for reference — no live element-type resolves to this key
+    // anymore. "Graph" now points at GraphNew (see below); old sections
+    // upgrade automatically at render time via Graph.migrate.js.
+    // legacy_graph: LegacyGraph,
     Filter: FilterComponent,
     "Header: Default Header": Header,
     "Header: MNY Data": MnyHeaderDataDriven,
@@ -42,7 +45,12 @@ const ComponentRegistry = {
     Map,
     "Map: Dama Map": MapDama, //MapDama,
 
-    "AVL Graph": GraphNew,
+    // "Graph" now resolves to the current implementation — sections saved
+    // under the legacy element-type upgrade automatically. "AVL Graph" is
+    // kept for sections already saved under it, but hidden from the "Type"
+    // picker (sectionMenu.jsx) so it doesn't show as a duplicate "Graph" entry.
+    Graph: GraphNew,
+    "AVL Graph": { ...GraphNew, name: 'AVL Graph', hideInSelector: true },
 }
 
 

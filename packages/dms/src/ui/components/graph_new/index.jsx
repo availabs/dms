@@ -131,11 +131,32 @@ export default function Graph (props) {
     return columns.map(c => ({ ...c, key: c.normalName || c.name }));
   }, [columns]);
 
+  // A meta-lookup column (meta_lookup/geoid-variable, e.g. disaster_number ->
+  // declaration_title) resolves server-side into { value, originalValue } so
+  // Card/Spreadsheet cells can show the display label while keeping the raw
+  // key for editing/filtering (see getData.js's cleanValue). The chart
+  // components read row fields directly as axis/categorize/color keys and as
+  // aggregation inputs — they have no reason to know about that shape, so
+  // unwrap every field to its display value once, here, rather than teaching
+  // each chart type (Bar/Line/Grid/Pie/Sunburst/Treemap) to do it individually.
+  const resolveDisplayValue = (v) =>
+    (v && typeof v === 'object' && Object.prototype.hasOwnProperty.call(v, 'originalValue'))
+      ? (v.value ?? v.originalValue)
+      : v;
+
+  const viewData = React.useMemo(() => {
+    return (data || []).map(row => {
+      const out = {};
+      for (const key of Object.keys(row)) out[key] = resolveDisplayValue(row[key]);
+      return out;
+    });
+  }, [data]);
+
   return (
     <GraphComponent
         graphFormat={ mergeChartDefaults(theme?.chartDefaults, display) }
         graphType={ display.graphType }
-        viewData={ data }
+        viewData={ viewData }
         columns={ keyedColumns }
         theme={ theme }
         actions={ useGetActions(pageState, display) }

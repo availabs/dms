@@ -23,6 +23,7 @@
 
 import { RUNTIME_DISPLAY_FIELDS } from './schema';
 import { migrateCardState } from '../../../../../../ui/components/Card.migrate';
+import { migrateGraphState } from '../../../../../../ui/components/graph_new/Graph.migrate';
 
 const isJson = (str) => {
     try { JSON.parse(str); return true; } catch { return false; }
@@ -194,9 +195,12 @@ function migrateV1ToV2(state) {
  * @param {string|Object} input - Raw element-data (JSON string or parsed object)
  * @param {Object} [defaultState] - Default state for uninitialized components
  * @param {string} [compName] - Component name (for non-data component passthrough)
+ * @param {string} [compType] - Component type (stable internal id, unlike `compName`
+ *   which is the user-editable label shown in the section "Type" menu — see
+ *   ComponentRegistry/graph_new/config.jsx's `type: 'avlGraph'`)
  * @returns {Object} v2 canonical state
  */
-export function migrateToV2(input, defaultState, compName) {
+export function migrateToV2(input, defaultState, compName, compType) {
     if (!input) return defaultState || null;
 
     const state = typeof input === 'string' ? (isJson(input) ? JSON.parse(input) : {}) : input;
@@ -228,6 +232,14 @@ export function migrateToV2(input, defaultState, compName) {
     // independent.
     if (compName === 'Card') {
         migrated = migrateCardState(migrated);
+    }
+    // Gated on `compType`, NOT `compName` — the name is the user-editable label
+    // shown in the section "Type" menu (renamed at least once already) and
+    // isn't a safe identity check. `type: 'avlGraph'` is the stable internal id
+    // shared by graph_new regardless of which registry key ("Graph" or
+    // "AVL Graph") or display name resolved it.
+    if (compType === 'avlGraph') {
+        migrated = migrateGraphState(migrated);
     }
 
     return migrated;
