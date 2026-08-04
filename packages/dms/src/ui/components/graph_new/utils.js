@@ -387,6 +387,17 @@ export const makeEpochTimeFormat = (minutesPerUnit = EPOCH_MINUTES_PER_UNIT_DEFA
 }
 const epochTimeFormat = makeEpochTimeFormat();
 
+// NPMRDS "weekday" resolution groups rows by ISO day-of-week (1=Monday..7=Sunday,
+// ClickHouse `toDayOfWeek(date, 1)` — see convert_old_reports.py's WEEKDAY_EXPR) as
+// a plain sortable integer. D3's default axis tick formatter just stringifies that
+// raw integer (e.g. "3") instead of a day name ("Wednesday") — same class of fix as
+// makeEpochTimeFormat above, for the weekday-bucket axis instead of the epoch one.
+const DAY_OF_WEEK_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+export const dayOfWeekFormat = d => {
+    const n = Math.round(+d);
+    return Number.isFinite(n) ? (DAY_OF_WEEK_NAMES[((n - 1) % 7 + 7) % 7] ?? d) : d;
+};
+
 export const ValueFormats = [
     { label: "Identity", value: "identity",
         func: d => d
@@ -420,6 +431,9 @@ export const ValueFormats = [
     },
     { label: "Epoch Time (HH:MM)", value: "epoch_time",
         func: epochTimeFormat
+    },
+    { label: "Day of Week", value: "day_of_week",
+        func: dayOfWeekFormat
     }
 ];
 const ValueFormatsFuncMap = ValueFormats.reduce((a, c) => {

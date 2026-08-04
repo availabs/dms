@@ -325,6 +325,7 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
                     onHandle={setDwHandle}
                     sectionId={value?.id}
                     trackingId={value?.trackingId}
+                    activeStyle={value?.activeStyle}
                 />
             </div>
             {/* ------------------- Delete Modal ----------------------*/}
@@ -430,9 +431,10 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
                 onHandle={setDwHandle}
                 sectionId={value?.id}
                 trackingId={value?.trackingId}
+                activeStyle={value?.activeStyle}
             />
         )
-    }, [value, resolvedElementData, hideSection, refreshDataBtnRef, component, value?.element?.['element-type']]);
+    }, [value, resolvedElementData, hideSection, refreshDataBtnRef, component, value?.element?.['element-type'], value?.activeStyle]);
 
     // ── Read hideSection from dataWrapper handle ──
     useEffect(() => {

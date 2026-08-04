@@ -86,6 +86,16 @@ export function migrateGraphDisplay(display, columns) {
         out.yAxis = { ...(out.yAxis || {}), format: FORMAT_MAP[yAxisFormatFn] };
     }
 
+    // Old "Scale Filter" (Max/75%/50%/5% quick-picks) stored its currently-applied
+    // clamp as a flat display.upperLimit number; new stores the equivalent as
+    // yAxis.domainMax (see components/BarGraph.jsx's Scale Filter wiring). Carry
+    // an already-applied clamp over so a migrated section keeps showing what the
+    // author last picked, instead of silently reverting to the full, unclamped
+    // scale. showScaleFilter itself needs no transform — nothing deletes it.
+    if (display.upperLimit !== undefined && out.yAxis?.domainMax === undefined) {
+        out.yAxis = { ...(out.yAxis || {}), domainMax: display.upperLimit };
+    }
+
     // legend.show carries over unchanged, but old legend was just {show, label}
     // — the new renderer additionally requires legend.position to be one of
     // 'left'/'right'/'top'/'bottom' or it silently renders nothing at all
@@ -96,10 +106,12 @@ export function migrateGraphDisplay(display, columns) {
     }
 
     // graphType, colors, height/width, legend.label, tooltip.show,
-    // hideIfNull, useCustomXDomain/xDomain, fetchMode, pageSize: identical
-    // shape both sides — passed through unchanged by the initial spread above.
-    // padding, darkMode, showScaleFilter, isLog, tooltip.fontSize: dropped, no
-    // equivalent in the new renderer.
+    // hideIfNull, useCustomXDomain/xDomain, showScaleFilter, fetchMode, pageSize:
+    // identical shape both sides — passed through unchanged by the initial spread
+    // above (showScaleFilter's *applied value* is handled separately above, since
+    // it lives under a different key — display.upperLimit — on this side).
+    // padding, darkMode, isLog, tooltip.fontSize: dropped, no equivalent in the
+    // new renderer.
     // graphType is passed through UNCHANGED even for values with no new
     // equivalent (e.g. legacy 'ScatterPlot') — such a section renders the new
     // component's "Unknown Graph Type" state until an author picks a real type,

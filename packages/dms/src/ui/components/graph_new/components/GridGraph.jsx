@@ -394,17 +394,19 @@ const GridGraphWrapper = props => {
     return () => publish(null);
   }, [publish, provider, xColumn]);
 
+  const isColumnLegend = TopOrBottomRegex.test(legend.position);
+
   return (
     <div
       className={ `
           w-full bg-inherit flex
-          ${ TopOrBottomRegex.test(legend.position) ? "flex-col" : "" }
+          ${ isColumnLegend ? "flex-col" : "" }
       ` }
     >
       { !legend.show || !legend.position.includes("top") ? null :
         <div
           className={ `
-              flex
+              flex shrink-0
               ${ legend.position === "top-right" ? "justify-end" : "" }
           ` }
         >
@@ -416,9 +418,15 @@ const GridGraphWrapper = props => {
           { InstantiatedLegend }
         </div>
       }
+      { /* flex-1's flex-basis:0% only targets the CROSS axis (width) when the
+         wrapper above is row-direction (no legend, or left/right) — safe there.
+         In flex-col (top/bottom-* legend corners) the main axis flips to
+         height, and flex-basis:0% would override this div's own explicit
+         height. Use shrink-0 instead in that case so the configured height
+         always wins. */ }
       <div
         className={ `
-          bg-inherit flex-1 min-w-0
+          bg-inherit min-w-0 ${ isColumnLegend ? "w-full shrink-0" : "flex-1" }
         ` }
         style={ {
           height: `${ props.height }px`
@@ -444,7 +452,7 @@ const GridGraphWrapper = props => {
       { !legend.show || !legend.position.includes("bottom") ? null :
         <div
           className={ `
-            flex
+            flex shrink-0
             ${ legend.position === "bottom-right" ? "justify-end" : "" }
           ` }
         >
