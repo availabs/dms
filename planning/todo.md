@@ -176,6 +176,30 @@
       `LngLatBounds`; and only the ACTIVE layer could supply bounds, so an empty active layer meant no
       zoom at all. Plus a ~1km buffer for zero-area extents. All BC; verified on tsmo2 incident_view.
 
+- [ ] [**Auth: route-chain ACL overwritten not merged, and `dms.data.edit` has no authorization**](./tasks/current/auth-permission-chain-and-unguarded-writes.md) —
+      DIAGNOSED 2026-07-29, not fixed. **(B) `dms.data.edit` performs no authorization whatsoever**:
+      `dms.route.js:421-435` passes `this.user` into `setDataById`, which uses it only for the
+      `updated_by` column (`dms.controller.js:689-727`) and runs the UPDATE unconditionally — caller
+      identity affects the audit column, never permission. Read-gating exists only for `pattern`/`page`
+      kinds, so a write lands and only the echoed response is filtered. **(A)** `getReqAuth`
+      (`_auth.js:3-13`) *unions* `reqPermissions` down the route chain but **overwrites**
+      `authPermissions`, so any child route omitting it blanks the pattern ACL to `{}` → datasets/auth
+      patterns wall anonymous users AND (because `sendToLogin` uses `.every` while `sendToHome` uses
+      `.some`) admit any logged-in user to admin routes. **(C)** `view-sources` is required but exists
+      in no grant vocabulary, so it can't be granted from the UI. Blocked on a product decision
+      (is the data-source catalog public?); the landing-page symptom is fixable independently.
+
+- [x] [Nav items can link across subdomains — `sub://` in `dataItemsNav`](./tasks/current/nav-subdomain-links.md) —
+      `sub://<subdomain>/<path>` shipped in 2026-07 for lexical **ButtonNode** only, so a nav item
+      couldn't reach another product site: `dataItemsNav` treats anything not starting `/` as a slug
+      relative to the pattern's `baseUrl`, turning `sub://tsmo2/` into `/sub://tsmo2/`, and the nav
+      pipeline had no external-link branch at all. Turned out **react-router 7.17 already handles the
+      final hop** (`parseToInfo` → `isExternal` → plain anchor, full navigation), so no `SideNav`/
+      `TopNav` change was needed — the whole fix is resolve `sub://` + don't prefix an absolute URL.
+      `resolveSubdomainPath` extracted from `ButtonNode.tsx` to `utils/subdomainPath.js` (two
+      consumers now). BC: audited all 168 authored destinations (35 nav items + 133 page slugs), zero
+      affected. Consumer: the TransportNY landing rail now links NPMRDS/TSMO/Freight Atlas.
+      Live-verified 2026-07-29.
 - [x] [Map basemap switcher: blank-square trigger + no active-basemap marker](./tasks/completed/map-basemap-switcher-trigger-icon.md) —
       the switcher TRIGGER was never given an icon: `avl-map.jsx` renders a hardcoded
       `w-8 h-8 bg-slate-400` swatch (measured live: 32×32, zero children, no text) beside three
