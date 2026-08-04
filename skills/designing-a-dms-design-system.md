@@ -523,6 +523,7 @@ constraint pull in the same direction: a brand whose mockups are
 brand-output/
 ├── README.md             # date, version, one-paragraph brand summary
 ├── _shared.css           # @font-face + surface utilities
+├── ds-nav.js             # THE nav widget — one shared file, every page includes it
 ├── design-system/        # FIVE pages that document the brand
 │   ├── theme.html            # color, type, icons, spacing tokens
 │   ├── layouts.html          # Layout + LayoutGroup variants (page chrome shapes)
@@ -537,8 +538,9 @@ brand-output/
 
 A reviewer (designer, engineer, prospective customer) opens any
 single HTML file and needs to be able to **reach every other page
-in the deliverable in one click**. The five `design-system/` pages
-and every `pages/` example must include two navigation mechanisms:
+in the deliverable** — the pages beside it in one click, anything
+else in two. The five `design-system/` pages and every `pages/`
+example must include two navigation mechanisms:
 
 #### 7.0.1 TopNav integration
 
@@ -558,53 +560,128 @@ On `pages/` examples the TopNav should show the product navigation
 (not the design system links) — those pages demonstrate real
 product surfaces.
 
-#### 7.0.2 Floating navigation widget
+#### 7.0.2 Floating navigation widget — one shared, section-contextual `ds-nav.js`
 
-Every page (`design-system/` and `pages/`) must include a
-**floating navigation widget** — a small icon button fixed to the
-**bottom-right** corner of the viewport. Clicking it opens a panel
-listing all design system and example pages. The current page is
-marked with the brand accent color. The widget:
+Every page must include a **floating navigation widget**: a compact
+icon button fixed to the bottom-right of the viewport that opens a
+panel of links. Two rules govern it, and both matter:
 
-- Defaults to a compact icon (40×40px rounded button, brand-dark
-  background, white hamburger/menu icon)
-- On click, toggles a white panel above it with the full page list
-- Uses `position: fixed` so it stays visible while scrolling
-- Animates open/close with opacity + transform transition
-- Has high z-index (9999) so it floats above page content
-
-**Use inline styles on the widget elements.** Do not rely on
-external CSS classes — the widget must render correctly regardless
-of stylesheet loading order or file-extension MIME-type issues.
-The inline onclick handler toggles the panel via direct style
-manipulation (opacity, transform, pointerEvents).
-
-Widget HTML template (adapt colors/links per brand):
+**Rule 1 — it is ONE shared file, not per-page HTML.** Write
+`ds-nav.js` once at the deliverable root; every page includes it as
+its last line before `</body>`:
 
 ```html
-<div id="dsWidget" style="position:fixed;bottom:24px;right:24px;z-index:9999;font-family:'Source Sans 3',system-ui,sans-serif;">
-  <div id="dsPanel" style="position:absolute;bottom:52px;right:0;background:white;border-radius:10px;padding:12px 0;min-width:190px;box-shadow:0 4px 20px rgba(0,0,0,0.12);opacity:0;transform:translateY(8px) scale(0.95);pointer-events:none;transition:opacity 0.15s,transform 0.15s;">
-    <div style="font-family:..brand-display..;font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:0.08em;color:..brand-muted..;padding:0 16px 8px;border-bottom:1px solid ..brand-border..;margin-bottom:4px;">Brand Design System</div>
-    <a href="theme.html" style="display:flex;align-items:center;gap:8px;padding:6px 16px;font-size:13px;font-weight:600;color:..brand-accent..;text-decoration:none;">
-      <span style="font-size:10px;font-weight:500;color:..brand-muted..;min-width:14px;">1</span> Theme</a>
-    <!-- ...remaining links, active page gets brand-accent color, others get brand-text color... -->
-  </div>
-  <button onclick="var p=document.getElementById('dsPanel');var o=p.style.opacity==='1';p.style.opacity=o?'0':'1';p.style.transform=o?'translateY(8px) scale(0.95)':'translateY(0) scale(1)';p.style.pointerEvents=o?'none':'auto';"
-          style="width:40px;height:40px;border-radius:10px;background:..brand-dark..;color:white;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.15);"
-          aria-label="Design system navigation">
-    <svg xmlns="http://www.w3.org/2000/svg" style="width:20px;height:20px;" viewBox="0 0 20 20" fill="currentColor">
-      <path d="M2 4.75A.75.75 0 0 1 2.75 4h14.5a.75.75 0 0 1 0 1.5H2.75A.75.75 0 0 1 2 4.75Zm0 10.5a.75.75 0 0 1 .75-.75h7.5a.75.75 0 0 1 0 1.5h-7.5a.75.75 0 0 1-.75-.75ZM2 10a.75.75 0 0 1 .75-.75h14.5a.75.75 0 0 1 0 1.5H2.75A.75.75 0 0 1 2 10Z"/></svg>
-  </button>
-</div>
+<script src="../ds-nav.js"></script>       <!-- ../../ from a nested page folder -->
 ```
 
-Place the widget just before `</body>` on every page.
+Never paste widget markup into a page. A deliverable grows to 30–40
+pages; a per-page copy means every new page is an N-file edit,
+which is why inline widgets always end up listing different pages
+on different pages of the same deliverable. Adding a page must be
+**one line in `ds-nav.js` plus the script tag** — nothing else.
+
+**Rule 2 — it navigates by SECTION, not as one flat list.** The
+widget mirrors how a real DMS site navigates: you are somewhere,
+you see that section's pages, and you switch sections deliberately.
+`ds-nav.js` declares the deliverable's sections, detects which one
+owns the current page from `location.pathname`, and renders:
+
+1. **The current section, expanded** — its pages in flow order,
+   numbered, the current page highlighted in the brand accent (an
+   accent-tint row background reads better than color alone).
+2. **A `jump to section` group** — one link per *other* section,
+   pointing at that section's **landing page**, with its page count
+   and a `→` affordance.
+
+A section is a product area, not a folder — `design-system/` is one
+section, but `pages/` usually holds several (a public site, an
+admin area, one linked workflow). Nested folders are fine and a
+linked multi-page workflow should be its own section.
+
+Why sections: a flat panel listing 22+ links is a wall of text that
+tells the reviewer nothing about where they are, and it stops
+scaling exactly when the deliverable gets interesting. Sectioned,
+the panel stays ~10 links, states the current context in its
+header, and every page is at most two hops away. It also
+**dogfoods the platform's own IA** — the widget navigates the way
+the DMS SideNav/TopNav navigates a real site, so reviewing the
+mockups rehearses using the product.
+
+The mechanics:
+
+```js
+/* ds-nav.js — dev scaffolding only, never ships on a live DMS site. */
+(function () {
+  var SECTIONS = [
+    { key: 'ds', label: 'Design System', dir: 'design-system', landing: 'theme.html', pages: [
+      { f: 'theme.html', t: 'theme tokens' }, { f: 'layouts.html', t: 'layouts' },
+      { f: 'grid.html', t: 'grid' }, { f: 'components.html', t: 'components' },
+      { f: 'patterns.html', t: 'patterns' },
+    ]},
+    { key: 'public', label: 'Public Site', dir: 'pages', landing: 'home.html', pages: [
+      { f: 'home.html', t: 'home' }, { f: 'section-landing.html', t: 'section landing' },
+    ]},
+    { key: 'wf', label: 'County Actions Workflow', dir: 'pages/county-actions',
+      landing: 'dashboard.html', pages: [ /* one linked flow = its own section */ ]},
+  ];
+
+  var path = location.pathname.toLowerCase();
+  var curFile = path.split('/').pop() || 'index.html';
+
+  // Match dir+file first, so a filename reused across folders
+  // (dashboard.html) resolves to the right section; then file alone.
+  var current = null, currentPage = null;
+  function scan(withDir) { /* ...sets current + currentPage... */ }
+  scan(true); if (!current) scan(false); if (!current) current = SECTIONS[0];
+
+  // Depth comes from the SECTION TABLE, not the URL — so the links hold
+  // whether design/ is the server root, a subpath, or opened via file://.
+  var up = new Array(current.dir.split('/').length + 1).join('../');
+  function href(dir, file) { return up + dir + '/' + file; }
+
+  // ...build: header · current.pages (active = accent + tint) · 'jump to
+  // section' · other sections' landing pages · mount fixed bottom-right...
+})();
+```
+
+Styling requirements, unchanged from a per-page widget:
+
+- Compact 40×40px rounded button, brand-dark background, white
+  hamburger icon; white panel above it, brand radius and shadow.
+- `position: fixed`, `z-index: 9999`, opacity + transform
+  transition on open/close, `max-height: 72vh; overflow-y: auto`
+  so a long section still fits.
+- **Inline styles only** — build the style strings in JS from brand
+  color/font constants. Never depend on the page's stylesheet: the
+  widget must render correctly regardless of CSS load order or
+  MIME-type issues.
+- Wire `aria-expanded` on the button, close on outside-click and on
+  `Escape`. It's a real navigation control; make it behave like one.
+
+**Verify it, don't eyeball it.** Once the widget is written, run
+every page's path through it and assert that (a) every `href`
+resolves to a file that exists, and (b) exactly one link is marked
+active and it is the current page. A ~30-line Node script with a
+stub `location`/`document` does this for the whole deliverable in
+one pass and catches the two failure modes that actually happen:
+a page missing from `SECTIONS`, and a wrong relative depth in a
+nested folder.
+
+Reference implementation to copy from:
+`src/themes/mny/design/ds-nav.js` (7 sections, 29 pages, one nested
+folder). The earlier
+`src/themes/transportny/.../dms_design_system_v2/ds-nav.js` is the
+same design but resolves hrefs by assuming all page folders are
+siblings one level below the root, so it mis-links nested folders.
 
 #### 7.0.3 Footer link block
 
-A **footer link block** repeating the page index at the bottom of
-the page content, so a long-scroll page is navigable from the
-bottom too.
+A **footer link block** at the bottom of the page content, so a
+long-scroll page is navigable from the bottom too. Scope it the same
+way the widget does: **the current section's pages**, not the whole
+deliverable. On a linked workflow this is the flow index ("2 of 5 ·
+next: workspace →"), which is more useful than a page dump and
+keeps the footer from going stale as sections are added.
 
 #### Why two mechanisms?
 
@@ -616,7 +693,8 @@ page or deep into a 900-line components reference.
 
 The widget is documentation scaffolding, not Layout chrome. It
 never appears on a live DMS site. Keep its styling out of
-`theme.js` — it ships inline in the mockup HTML only.
+`theme.js` — it lives in `ds-nav.js` only, and that file is not
+part of the theme handoff.
 
 ### 7.1 The "pages as documentation" principle
 
@@ -1328,6 +1406,11 @@ plain CSS. If your editor needs `.css` for syntax highlighting,
 make `_shared.css` a one-line `@import "../theme/index.css.additions";`
 shim rather than a content copy.
 
+The same rule governs the nav widget: one `ds-nav.js` at the root,
+linked by every page, never copied into the pages (§7.0.2). Any
+shared thing duplicated per page drifts — that is the lesson both
+of these encode.
+
 ### 8.1 Annotation overlay (optional)
 
 A small CSS rule on `_shared.css` can reveal structural badges
@@ -1397,6 +1480,13 @@ A design system is **done** when:
     `components.html`** (best-effort from brand tokens, even when
     the brief is silent about that primitive). No codebase-default
     Catalyst chrome leaking through.
+12. **Navigation is one shared `ds-nav.js`, sectioned, and
+    verified.** Every page carries the script tag and no page
+    carries inline widget markup; the panel shows the current
+    section's pages plus jump links to the other sections; and a
+    run over every page's path confirms all hrefs resolve and
+    exactly one link — the current page — is marked active.
+    See §7.0.2.
 
 What the design system is **not** required to do:
 
