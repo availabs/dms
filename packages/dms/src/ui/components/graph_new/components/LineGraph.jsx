@@ -273,10 +273,12 @@ const LineGraphWrapper = props => {
   });
   const legendWrapClass = squeezed ? "flex items-center max-w-[40%] min-w-0 overflow-hidden" : "flex items-center";
 
+	const isColumnLegend = ["top", "bottom"].includes(legend.position);
+
 	return (
-    <div className={ `w-full bg-inherit flex ${ ["top", "bottom"].includes(legend.position) ? "flex-col" : "" }` } ref={ containerRef }>
+    <div className={ `w-full bg-inherit flex ${ isColumnLegend ? "flex-col" : "" }` } ref={ containerRef }>
       { !legend.show || legend.position !== "top" ? null :
-      	<div className="flex justify-center" ref={ legendRef }>
+      	<div className="flex justify-center shrink-0" ref={ legendRef }>
         	{ InstantiatedLegend }
         </div>
       }
@@ -285,7 +287,7 @@ const LineGraphWrapper = props => {
         	{ InstantiatedLegend }
         </div>
       }
-      <div className="bg-inherit flex-1 min-w-0"
+      <div className={ `bg-inherit min-w-0 ${ isColumnLegend ? "w-full shrink-0" : "flex-1" }` }
         style={ {
           height: `${ props.height }px`
         } }
@@ -304,7 +306,7 @@ const LineGraphWrapper = props => {
         </div>
       }
       { !legend.show || legend.position !== "bottom" ? null :
-      	<div className="flex justify-center" ref={ legendRef }>
+      	<div className="flex justify-center shrink-0" ref={ legendRef }>
         	{ InstantiatedLegend }
         </div>
       }
