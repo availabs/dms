@@ -456,7 +456,9 @@ const graphConfig = {
                     label: "Position", key: "legend.position",
                     options: [
                         { label: "Right", value: "right" },
-                        { label: "Left", value: "left" }
+                        { label: "Left", value: "left" },
+                        { label: "Top", value: "top" },
+                        { label: "Bottom", value: "bottom" }
                     ]
                 }
             ]

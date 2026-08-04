@@ -54,13 +54,14 @@ const VerticalCategoricalLegendItem = props => {
 	)
 }
 
-const VerticalCategoricalLegend = props => {
+const CategoricalLegend = props => {
 
 	const {
 		categories = [],
 		colors = [],
 		colorsByKey,
 		actions = [],
+		orientation = "vertical",
 		...rest
 	} = props;
 
@@ -91,7 +92,7 @@ const VerticalCategoricalLegend = props => {
 // console.log("VerticalCategoricalLegend::catsToHiglight", catsToHiglight);
 
 	return (
-		<div className="px-4 grid grid-cols-1 gap-1">
+		<div className={ orientation === "horizontal" ? "px-4 flex flex-wrap items-center justify-left gap-2" : "px-4 grid grid-cols-1 gap-1" }>
 			{ categoriesAndColors.map(([cat, color]) =>
 					<VerticalCategoricalLegendItem key={ cat }
 						{ ...rest }
@@ -261,7 +262,7 @@ const HorizontalLinearLegend = ({ size, scale = scaleLinear(), format = identity
 }
 
 const getLegend = (type, orientation) =>
-	type === "categorical" ? VerticalCategoricalLegend :
+	type === "categorical" ? CategoricalLegend :
 		orientation === "vertical" ? VerticalLinearLegend :
 																	HorizontalLinearLegend;
 
@@ -280,7 +281,7 @@ export const Legend = props => {
 
 	return (
 		<div className={ textSize }>
-			<Legend size={ size } { ...rest }
+			<Legend size={ size } orientation={ orientation } { ...rest }
 				actions={ props.actions || [] }/>
 		</div>
 	)
