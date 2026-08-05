@@ -310,7 +310,15 @@ async function getSiteSources({ db, app, pattern_ids, splitMode }) {
     }
   }
 
-  return allSources;
+  // Drop refs whose source row no longer exists. A delete that bypassed the
+  // cascade (direct SQL, an old server) leaves dangling {ref, id} entries in
+  // the env/pattern arrays; counting or rendering them produces ghost entries
+  // in the datasets list, so length/byIndex/byId must all agree on live rows.
+  const refIds = allSources.map(s => Number(s?.id)).filter(Number.isFinite);
+  if (!refIds.length) return [];
+  const { rows: alive } = await db.query(`SELECT id FROM ${tbl} WHERE id = ANY($1)`, [refIds]);
+  const aliveIds = new Set(alive.map(r => Number(r.id)));
+  return allSources.filter(s => aliveIds.has(Number(s?.id)));
 }
 
 // ================================================= Filter Builders ================================================

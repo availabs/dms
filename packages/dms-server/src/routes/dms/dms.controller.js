@@ -24,9 +24,10 @@ const {
   getSequenceName,
   ensureSequence,
   ensureTable,
-  allocateId
+  allocateId,
+  forgetTable
 } = require('#db/table-resolver.js');
-const { parseSplitDataType, getKind, getInstance } = require('#db/type-utils.js');
+const { parseSplitDataType, getKind, getInstance, getParent } = require('#db/type-utils.js');
 const { logEntry } = require('../../middleware/request-logger');
 
 const DATA_ATTRIBUTES = [
@@ -239,6 +240,102 @@ function createController(dbName = 'dms-sqlite', options = {}) {
       _notifyChange(app, msg);
     }
     return revision;
+  }
+
+  /**
+   * Escape LIKE wildcards so an instance slug matches literally (pair with ESCAPE '\').
+   */
+  function escapeLike(s) {
+    return s.replace(/[\\%_]/g, ch => `\\${ch}`);
+  }
+
+  /**
+   * Remove {ref, id} entries pointing at a deleted child from parent ref arrays
+   * (`data.sources` on dmsEnv/pattern rows, `data.views` on source rows).
+   * The datasets list is rendered FROM those arrays, so entries left behind
+   * render as ghost rows for items that no longer exist.
+   */
+  async function removeIdFromRefArrays(app, arrayKey, parentKinds, childId, userId, reqMeta) {
+    const table = await mainTable(app);
+    const kindsClause = parentKinds.map(k => `type LIKE '%:${k}'`).join(' OR ');
+    const parents = await dms_db.promise(
+      `SELECT id, type, data FROM ${table} WHERE app = $1 AND (${kindsClause});`,
+      [app]
+    );
+
+    for (const parent of parents) {
+      const data = typeof parent.data === 'string' ? JSON.parse(parent.data) : (parent.data || {});
+      const refs = data[arrayKey];
+      if (!Array.isArray(refs)) continue;
+      const kept = refs.filter(r => String(r?.id ?? r) !== String(childId));
+      if (kept.length === refs.length) continue;
+
+      const rows = await dms_db.promise(
+        `UPDATE ${table}
+         SET data = ${jsonMerge('data', '$1', dbType)},
+           updated_at = ${now()},
+           updated_by = $2
+         WHERE id = $3
+         RETURNING id, app, type, data;`,
+        [JSON.stringify({ [arrayKey]: kept }), userId, parent.id]
+      );
+      if (rows[0]) {
+        await appendChangeLog(rows[0].id, rows[0].app, rows[0].type, 'U', rows[0].data, userId, reqMeta);
+      }
+    }
+  }
+
+  /**
+   * Drop a view's data split table (valid + invalid rows share it). sourceId is
+   * passed explicitly — during a source cascade the source row is already gone,
+   * so lookupSourceId can't resolve it.
+   */
+  async function dropViewDataTable(app, sourceInstance, viewId, sourceId) {
+    const dataType = `${sourceInstance}|${viewId}:data`;
+    const resolved = resolveTable(app, dataType, dbType, splitMode, sourceId);
+    // Only ever drop dedicated split tables, never a shared data_items table
+    if (!resolved.table.startsWith('data_items__')) return;
+    await dms_db.promise(`DROP TABLE IF EXISTS ${resolved.fullName};`);
+    forgetTable(resolved.schema, resolved.table);
+  }
+
+  /**
+   * A deleted source takes its dependents with it: child view rows, their data
+   * split tables, and the {ref, id} entries in any dmsEnv/pattern `data.sources`
+   * array. New-format (`:source`) rows only — legacy colon-less types are
+   * handled by the deprecation migration, not here.
+   */
+  async function cascadeSourceDelete(row, userId, reqMeta) {
+    const instance = getInstance(row.type);
+    const table = await mainTable(row.app);
+
+    if (instance) {
+      const views = await dms_db.promise(
+        `SELECT id, type FROM ${table} WHERE app = $1 AND type LIKE $2 ESCAPE '\\';`,
+        [row.app, `${escapeLike(instance)}|%:view`]
+      );
+      for (const view of views) {
+        await dropViewDataTable(row.app, instance, view.id, row.id);
+        await dms_db.promise(`DELETE FROM ${table} WHERE id = $1;`, [view.id]);
+        await appendChangeLog(view.id, row.app, view.type, 'D', null, userId, reqMeta);
+      }
+      _sourceIdCache.delete(`${row.app}:${instance}`);
+    }
+
+    await removeIdFromRefArrays(row.app, 'sources', ['dmsenv', 'pattern'], row.id, userId, reqMeta);
+  }
+
+  /**
+   * A deleted view drops its data split table and vacates its {ref, id} entry
+   * in the parent source's `data.views` array.
+   */
+  async function cascadeViewDelete(row, userId, reqMeta) {
+    const sourceInstance = getParent(row.type);
+    if (sourceInstance && !sourceInstance.includes('|')) {
+      const sourceId = await lookupSourceId(row.app, `${sourceInstance}|${row.id}:data`);
+      await dropViewDataTable(row.app, sourceInstance, row.id, sourceId);
+    }
+    await removeIdFromRefArrays(row.app, 'views', ['source'], row.id, userId, reqMeta);
   }
 
   return {
@@ -903,15 +1000,33 @@ function createController(dbName = 'dms-sqlite', options = {}) {
       await dms_db.beginTransaction();
       try {
         const arrayResult = buildArrayComparison('id', ids, dbType);
+        // Snapshot the doomed rows first — cascade decisions key off each row's
+        // actual type string; the `type` argument only resolves the table and
+        // often doesn't match it (clients pass e.g. 'datasets_env|source').
+        const doomed = await dms_db.promise(
+          `SELECT id, app, type FROM ${resolved.fullName} WHERE ${arrayResult.sql};`,
+          arrayResult.values
+        );
+        const doomedTypes = new Map(doomed.map(r => [String(r.id), r.type]));
+
         const sql = `
           DELETE FROM ${resolved.fullName}
           WHERE ${arrayResult.sql};
         `;
         const result = await dms_db.promise(sql, arrayResult.values);
 
-        // Log each deleted ID
+        // Log each deleted ID under the row's real type when we have it
         for (const id of ids) {
-          await appendChangeLog(id, app, type, 'D', null, userId, reqMeta);
+          await appendChangeLog(id, app, doomedTypes.get(String(id)) || type, 'D', null, userId, reqMeta);
+        }
+
+        // Deleting a source or view must also delete its dependents and vacate
+        // the {ref, id} entries parents hold for it — a bare row delete leaves
+        // ghost entries in the datasets list and orphans view rows/split tables.
+        for (const row of doomed) {
+          const kind = typeof row.type === 'string' && row.type.includes(':') ? getKind(row.type) : null;
+          if (kind === 'source') await cascadeSourceDelete(row, userId, reqMeta);
+          else if (kind === 'view') await cascadeViewDelete(row, userId, reqMeta);
         }
 
         await dms_db.commitTransaction();

@@ -73,6 +73,13 @@
 
 ## dms-server
 
+- [ ] [Cascade source/view deletes — stop orphaning dmsEnv refs and child rows](./tasks/current/delete-cascade-source-view-orphans.md)
+      — `dms.data.delete` on a `:source` row leaves the dmsEnv's `data.sources` ref
+      (ghost entries in the datasets list), child `:view` rows, and data split tables
+      behind. Surfaced 2026-08-05 by the freight-plan PDF deletes on npmrdsv5.
+      Fix: server-side cascade in `deleteData` + ghost filtering in `getSiteSources`
+      + regression tests + one-time npmrdsv5 repair.
+
 - [x] [Comparison-series "difference" combine mode](./tasks/completed/comparison-series-difference-mode.md)
       — DONE 2026-07-16. `options.seriesCombine = {mode: "difference", invert?}`: the ClickHouse
       fan-out joins each non-anchor arm to the anchor arm on the group-by columns and returns
