@@ -167,6 +167,26 @@ few pixels of each other). Workarounds:
   wrong element, fall back to the same `javascript_tool` native-click
   approach.
 
+**Related but distinct bug, found 2026-08-05: a component placed in the `sidebar` section group
+renders its Settings trigger at the wrong screen position entirely**, not just hidden. The trigger's
+`menuPosition` div (`absolute top-2 right-2`) escapes to a containing block far wider than the
+sidebar rail — confirmed live on `ReportRouteList`'s own trigger, which rendered ~150-300px to the
+*right* of its actual card, overlapping unrelated main-content sections. The popup itself still opens
+in the right place once clicked (it doesn't inherit the trigger's mispositioning), so this is a
+click-target bug, not a rendering bug in the popup. Two ways to actually land the click:
+- Give the card a real `hover` action first (`computer`'s `hover`, at a point inside the section's own
+  card) to force `group-hover:flex`, THEN query for the now-`display:flex` button (filter
+  `getComputedStyle(b).display !== 'none'`) and click its real coordinates — confirmed this makes the
+  trigger briefly render at its *intended* position relative to the hovered card.
+- Or skip coordinates entirely: walk up from a known text node inside the component (e.g. its title)
+  to the section's outer wrapper, `querySelector('[class*="absolute"][class*="top-2"][class*="right-2"] button')`
+  inside it, and call `.click()` directly — works regardless of `display:none` or mispositioning,
+  since a programmatic `.click()` doesn't care about either.
+Not yet root-caused (the whole main-content grid's sections don't hit this — only sidebar-placed
+ones so far observed) and not fixed; flagged for whoever touches `sectionGroup.jsx`'s rail rendering
+next. See `planning/transportny/tasks/current/dynamic-reports-and-route-tags.md`, item 1's "Route Row
+visual redesign" section, for where this was found.
+
 ## 3. Charts (`avl-graph`)
 
 Every chart type (`BarGraph`, `LineGraph`, `PieGraph`, `TreemapGraph`,

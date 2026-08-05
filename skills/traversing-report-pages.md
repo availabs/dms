@@ -104,6 +104,18 @@ NPMRDS-theme feature, not core DMS). The essentials for navigating one live:
   URL is the durable/shareable state); a different `?routes=` value on the
   same page renders a different route's real data — the core mechanism.
 
+### `ReportRouteList` is invisible on any real (non-`/edit/`) view, by design
+
+Built 2026-08-05. `ReportRouteList` renders nothing at all to a real viewer — no sidebar, no card, no
+empty box — except the blocking entry-gate modal above when a Dynamic Report still needs a route
+picked. If you're live-verifying a report's **view** route and the RRL sidebar/route list seems to be
+missing entirely, that's expected, not a bug: it only ever renders on the page's own `/edit/...`
+route. This is NOT gated by the generic `hideInView` section flag (deliberately — that flag would also
+hide the entry-gate modal above, breaking Dynamic Reports specifically); it's unconditional, baked
+into the component itself. See `ReportRouteList/README.md`'s "View-mode visibility" section and
+`planning/transportny/tasks/current/dynamic-reports-and-route-tags.md` item 3's "View-mode visibility"
+section for the full history.
+
 ## 5. Report-specific gotchas (check `traversing-dms-pages.md` §4 too)
 
 The general state-machine/URL gotchas (subdomain routing, edit URL shape,
