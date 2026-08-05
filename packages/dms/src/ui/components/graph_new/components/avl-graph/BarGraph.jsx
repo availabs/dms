@@ -304,6 +304,21 @@ export const BarGraph = props => {
                             });
     let yDomain = YScale.domain();
 
+    // Author-configured Domain Min/Max ("yAxis" Domain Min/Max controls, and the
+    // Scale Filter quick-picks which just set Domain Max) clamp the value-axis
+    // scale — e.g. crop a chart dominated by one outlier so the rest of the data
+    // becomes readable. The value axis is whichever of axisLeft/axisBottom carries
+    // the yAxis config for this orientation (vertical: axisLeft; horizontal:
+    // axisBottom — see components/BarGraph.jsx's wrapper). Only the end that's
+    // actually set overrides; the other keeps its natural, data-driven value.
+    const valueAxisConfig = isHorizontal ? AxisBottomData : AxisLeftData;
+    if (valueAxisConfig && yDomain.length && (valueAxisConfig.domainMin != null || valueAxisConfig.domainMax != null)) {
+      const lo = (valueAxisConfig.domainMin != null && valueAxisConfig.domainMin !== '') ? +valueAxisConfig.domainMin : yDomain[0];
+      const hi = (valueAxisConfig.domainMax != null && valueAxisConfig.domainMax !== '') ? +valueAxisConfig.domainMax : yDomain[yDomain.length - 1];
+      yDomain = [lo, hi];
+      YScale.domain(yDomain);
+    }
+
     const zeroYdomain = (yDomain[0] === 0) && (yDomain[1] === 0);
     if (zeroYdomain) {
       YScale.range([adjustedHeight, adjustedHeight]);
@@ -440,7 +455,8 @@ export const BarGraph = props => {
 
   }, [data, keys, width, height, groupMode,
       Margin, colorFunc, indexBy, orientation,
-      padding, paddingInner, paddingOuter, showAnimations
+      padding, paddingInner, paddingOuter, showAnimations,
+      AxisLeftData, AxisBottomData
     ]
   );
 

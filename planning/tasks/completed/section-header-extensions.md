@@ -2,7 +2,7 @@
 
 ## Status: DONE, implemented and live-verified 2026-07-22. Scoped 2026-07-21 from a design-audit
 artifact (see dms-template's
-[report-page-redesign.md](../../../../planning/tasks/current/report-page-redesign.md) — Gap 01 —
+[report-page-redesign.md](../../../../planning/transportny/tasks/current/report-page-redesign.md) — Gap 01 —
 for the theme-side consumer and full origin context; merged 2026-07-30 from the original
 `avl-graph-quick-controls.md`). This file is the library-side primitive only.
 

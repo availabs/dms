@@ -117,8 +117,38 @@ const BarGraphWrapper = props => {
       })
     }
 
-		return { data, keys, min, max };
-	}, [props.viewData, indexColumn, dataColumns, categoryColumn]);
+    // Custom X Ticks (DomainEditor / "Use Custom X Ticks" toggle): force the
+    // x-axis to exactly the author-typed list, in that order — a tick the data
+    // doesn't have gets a zero-value placeholder bar; a data index outside the
+    // list is dropped. Overrides any sort above, same as the legacy Graph.
+    const customData = (!props.useCustomXDomain || !props.xDomain?.length) ? data :
+      props.xDomain.map(tick => data.find(bar => String(bar.index) === String(tick)) || { index: tick });
+
+		return { data: customData, keys, min, max };
+	}, [props.viewData, indexColumn, dataColumns, categoryColumn, props.useCustomXDomain, props.xDomain]);
+
+	// Scale Filter quick-pick stops: percentages of the chart's own peak bar total
+	// (the stacked sum for a `stacked` chart; the tallest single series for
+	// `grouped`, since those bars aren't cumulative) — matches the legacy Graph's
+	// "Max / 75% / 50% / 5%" buttons, just computed against the new data shape.
+	const scaleFilterStops = React.useMemo(() => {
+		if (!props.showScaleFilter || !dataFromProps.data.length) return null;
+		const isStacked = (props.groupMode || "stacked") === "stacked";
+		const peak = dataFromProps.data.reduce((max, bar) => {
+			const values = dataFromProps.keys.map(k => +bar[k] || 0);
+			const barPeak = isStacked ? values.reduce((a, c) => a + c, 0) : Math.max(0, ...values);
+			return Math.max(max, barPeak);
+		}, 0);
+		if (!(peak > 0)) return null;
+		return [
+			{ label: "Max", value: undefined },
+			{ label: "75%", value: peak * 0.75 },
+			{ label: "50%", value: peak * 0.5 },
+			{ label: "5%", value: peak * 0.05 },
+		];
+	}, [props.showScaleFilter, props.groupMode, dataFromProps.data, dataFromProps.keys]);
+
+	const activeDomainMax = props.yAxis?.domainMax;
 
 // console.log("BarGraphWrapper::highlights", highlights);
 
@@ -157,8 +187,34 @@ const BarGraphWrapper = props => {
       }
       return buildValueColorScale(dataFromProps.min, dataFromProps.max, colors);
     }
+    // No categorize column (e.g. "Bar Graph Summary": one bar per
+    // comparison-series arm, xAxis IS the arm discriminator) — every bar's
+    // stack `key` is the shared yAxis data-column alias, not the arm/route
+    // label, so getColorFunc's own colorsByKey[key] lookup never matches and
+    // every bar falls through to the SAME positional color (colorRange[0],
+    // since there's only ever one key/stack per bar here) — reported live
+    // 2026-08-04 as "Bar Graph Summary not using the RRL's custom route
+    // colors". Each bar's `index` (BarGraphWrapper's own `{ index }` per
+    // group, read back via avl-graph BarGraph's `d[indexBy]`) IS the arm
+    // label in this shape, so key colorsByKey off that instead. Falls back to
+    // ordinary positional cycling when the index isn't in colorsByKey (BC for
+    // every non-comparison-series categorize-less bar graph, e.g. a plain
+    // day/hour/month bucket chart, where index is a bucket, not a route).
+    if (!categoryColumn && props.colorsByKey) {
+      const baseColors = colors;
+      const colorsByKey = props.colorsByKey;
+      const indexBy = props.indexBy || "index";
+      return (value, i, key, d) => {
+        const seriesKey = d?.[indexBy];
+        if (seriesKey != null && colorsByKey[seriesKey] != null) {
+          return colorsByKey[seriesKey];
+        }
+        return baseColors[i % baseColors.length];
+      };
+    }
     return colors;
-  }, [props.colors, dataFromProps.keys?.length, dataFromProps.min, dataFromProps.max]);
+  }, [props.colors, props.colorsByKey, props.indexBy, categoryColumn,
+      dataFromProps.keys?.length, dataFromProps.min, dataFromProps.max]);
 
 // console.log("BarGraphWrapper::dataFromProps", dataFromProps);
 
@@ -382,6 +438,22 @@ const BarGraphWrapper = props => {
 	const isColumnLegend = ["top", "bottom"].includes(legend.position);
 
 	return (
+    <>
+    { !scaleFilterStops ? null :
+      <div className="w-fit flex rounded-md p-1 divide-x border mb-2 print:hidden">
+        { scaleFilterStops.map(({ label, value }) => (
+          <div key={ label }
+            className={ `
+              font-semibold px-2 py-1 cursor-pointer select-none text-xs
+              ${ activeDomainMax === value ? "text-blue-600" : "text-gray-500 hover:text-gray-700" }
+            ` }
+            onClick={ () => props.onSetDomainMax?.(value) }
+          >
+            { label }
+          </div>
+        )) }
+      </div>
+    }
     <div className={ `w-full bg-inherit flex ${ isColumnLegend ? "flex-col" : "" }` } ref={ containerRef }>
       { !legend.show || legend.position !== "top" ? null :
       	<div className="flex justify-center shrink-0" ref={ legendRef }>
@@ -421,6 +493,7 @@ const BarGraphWrapper = props => {
         </div>
       }
     </div>
+    </>
 	)
 }
 

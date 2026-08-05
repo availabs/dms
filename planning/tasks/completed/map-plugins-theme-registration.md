@@ -17,7 +17,7 @@ without any `App.jsx`/site-config changes.
 
 In scope: the registration plumbing only (2 files). Out of scope: the actual plugin
 implementations being ported in from transportNY — tracked separately in this repo's root
-`planning/tasks/completed/port-transportny-map-plugins.md`.
+`planning/transportny/tasks/completed/port-transportny-map-plugins.md`.
 
 ## Current State (before this task)
 
@@ -60,6 +60,6 @@ const theme = {
       — zero console errors, zero page errors, zero bad responses. Confirms the additive change
       doesn't regress anything even with `theme.mapPlugins` unset (2026-07-29).
 - [x] Live-verify a plugin actually activates via this path once one is ported in (see
-      `planning/tasks/completed/port-transportny-map-plugins.md` at the repo root) — both
+      `planning/transportny/tasks/completed/port-transportny-map-plugins.md` at the repo root) — both
       `routecreation` and `macroview` registered and confirmed live via `theme.mapPlugins` the
       same day (2026-07-29).
