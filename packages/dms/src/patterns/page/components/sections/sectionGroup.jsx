@@ -16,7 +16,10 @@ export default function SectionGroup ({group, attributes, edit}) {
   const { apiUpdate, item, updateAttribute, pageState, clearActionParam } = React.useContext(PageContext);
   const { LayoutGroup, Modal } = UI;
 
-  const t = { ...sectionGroupTheme, ...getComponentTheme(theme, 'pages.sectionGroup') }
+  // group.theme also selects this band's `pages.sectionGroup` rail style (in addition
+  // to its `layoutGroup` style above) — an unmatched/undefined value safely falls back
+  // to styles[0], so this is a no-op for every band that doesn't opt into a named style.
+  const t = { ...sectionGroupTheme, ...getComponentTheme(theme, 'pages.sectionGroup', group.theme) }
   const inPageNav = getInPageNav(item, theme, edit)
   const styleIndex = theme.layoutGroup.styles.map(d => d.name).indexOf(group.theme || 'default')
   const activeStyle =  styleIndex === -1 ? 0 : styleIndex
@@ -44,7 +47,28 @@ export default function SectionGroup ({group, attributes, edit}) {
       || sectionSource.find(s => s?.navLabel)?.group
       || contentBands[0]?.name
       || 'default'
-  const showRail = Boolean(item?.sidebar && group.name === railGroupName)
+  const showRail = Boolean(item?.sidebar) && group.name === railGroupName
+  // `item.sidebarHideInView`: an opt-in page flag for rail content that self-hides in
+  // view mode (e.g. ReportRouteList, which returns null outside /edit/... EXCEPT for
+  // its own entry-gate modal for Dynamic Reports — see ReportRouteList/README.md's
+  // "View-mode visibility"). This must NOT prevent the rail from mounting — RRL still
+  // needs to mount so it can render that modal when it's needed. So this only collapses
+  // the wrapper's WIDTH/CHROME via CSS, once RRL has signaled it has nothing to show;
+  // the modal itself is a `createPortal(..., document.body)` (see ui/components/
+  // Modal.jsx), so it's fully visible regardless of this wrapper's own CSS. A JS-level
+  // `showRail &&` gate here (tried first, reverted) would stop RRL from mounting at all
+  // outside edit mode — silently swallowing the entry gate exactly like the generic
+  // `hideInView` flag already did once (see dynamic-reports-and-route-tags.md).
+  //
+  // `:has(...:empty)` was tried second and doesn't work either: SectionArrayComp/
+  // dataWrapper always emit real wrapper markup (grid + padding divs) around whatever a
+  // section returns, so the rail's DOM is never actually `:empty` even when its content
+  // renders bare `null` — confirmed live, Ryan caught it (blank white rail on a
+  // real resolved Dynamic Report, 2026-08-06). Looking for an explicit,
+  // deliberately-rendered `.dms-rail-collapsed` marker (which `:has()` finds at any
+  // depth, regardless of the scaffolding in between) is what actually works — RRL
+  // renders that marker instead of bare `null` when it has nothing to show.
+  const collapseRailIfEmpty = Boolean(item?.sidebarHideInView) && !edit
   // The sidebar group (rail content): its sections render in the rail below the nav.
   // position:'sidebar' keeps it out of the top/content/bottom band renders. New pages
   // are seeded with this group (theme scaffold); synthesize one for pages that predate
@@ -121,7 +145,7 @@ export default function SectionGroup ({group, attributes, edit}) {
   // (`pages.sectionGroup.contentRow/contentCol/sideNavContainer*`) — no reliance
   // on the shared layoutGroup wrapper being flex. `order` flips the rail side.
   const rail = (
-    <div className={`${t.sideNavContainer1} ${item?.sidebar === 'left' ? '' : 'order-2'}`}>
+    <div className={`${t.sideNavContainer1} ${item?.sidebar === 'left' ? '' : 'order-2'}${collapseRailIfEmpty ? ' has-[.dms-rail-collapsed]:hidden!' : ''}`}>
       <div className={t.sideNavContainer2}>
         <div className={t.sideNavContainer3}>
           <InPageNav menuItems={inPageNav.menuItems} />
